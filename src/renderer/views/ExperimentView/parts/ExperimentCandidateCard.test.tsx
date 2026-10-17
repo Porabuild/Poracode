@@ -176,7 +176,7 @@ describe("ExperimentCandidateCard", () => {
     renderCard({ isCreatingPr: false, isMerging: false });
 
     expect(screen.queryByText("Create PR")).not.toBeInTheDocument();
-    const prButton = screen.getByRole("button", { name: "Open PR #328" });
+    const prButton = screen.getByRole("button", { name: "Open PR #328: Checks failed" });
     expect(prButton.querySelector(".lucide-git-pull-request")).toHaveClass("text-danger");
   });
 

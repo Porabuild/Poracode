@@ -3,6 +3,7 @@ import type {
   ProjectNotes,
   PrWatchAgentSync,
   PrWatchInput,
+  ForgePrWatchInput,
   PrWatchKey,
   ResizeTerminalPayload,
   ResolveThreadServerRequestPayload,
@@ -21,6 +22,7 @@ export const REMOTE_IPC_ADAPTER_SPECS = {
   getPrWatch: "project",
   checkPrWatch: "project",
   upsertPrWatch: "project",
+  upsertForgePrWatch: "project",
   deletePrWatch: "project",
   syncPrWatchAgent: "project",
   dbGetThreadRuntimeItemsPage: "thread",
@@ -73,6 +75,7 @@ type RemoteIpcAdapterClient = Pick<
   | "getPrWatch"
   | "checkPrWatch"
   | "upsertPrWatch"
+  | "upsertForgePrWatch"
   | "deletePrWatch"
   | "syncPrWatchAgent"
   | "threadRuntimeItemsPage"
@@ -118,6 +121,8 @@ export function invokeRemoteIpcProcedure(
       return client.checkPrWatch(payload as PrWatchKey);
     case "upsertPrWatch":
       return client.upsertPrWatch(payload as PrWatchInput);
+    case "upsertForgePrWatch":
+      return client.upsertForgePrWatch(payload as ForgePrWatchInput);
     case "deletePrWatch":
       return client.deletePrWatch(payload as PrWatchKey);
     case "syncPrWatchAgent":

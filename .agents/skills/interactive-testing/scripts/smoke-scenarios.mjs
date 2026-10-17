@@ -144,6 +144,9 @@ export const functionalAreas = [
     patterns: [
       /git/i,
       /PrReview/i,
+      /forge/i,
+      /prWatch/i,
+      /PullRequestsView/,
       /mergeConflict/i,
       /MobileWorkspacePage/,
       /components\/media\//,
@@ -153,7 +156,7 @@ export const functionalAreas = [
       /fileResponseStream/,
     ],
     automated: ["baseline"],
-    manual: ["git-mutations"],
+    manual: ["git-mutations", "changed-surface"],
   },
   {
     id: "github-actions",

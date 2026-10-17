@@ -11,6 +11,7 @@ import { appTools } from "./tools/app";
 import { fileTools } from "./tools/files";
 import { gitTools } from "./tools/git";
 import { githubTools } from "./tools/github";
+import { reviewTools } from "./tools/reviews";
 import { mcpServerTools } from "./tools/mcpServers";
 import { projectTools } from "./tools/projects";
 import { scheduleTools } from "./tools/schedules";
@@ -95,7 +96,13 @@ export const APP_CONTROLS_MCP_INSTRUCTIONS =
   "observed output from inference, and do not echo secrets or dump the entire raw scrollback. If " +
   "list_terminals returns no panes, say no running Terminal panel is attached to this worktree; do " +
   "not fall back to agent TUI or chat scrollback. If read_terminal reports zero output, say the pane " +
-  "is running but has not emitted output yet.";
+  "is running but has not emitted output yet. " +
+  "For charts, tables, comparisons, and calculations, use ordinary Markdown. " +
+  "A poracode-html-v1 code fence with a plain title preserves HTML as a source preview in the conversation (maximum 256 KiB per block). " +
+  "Interactive HTML rendering and MCP Apps sessions are unavailable: author markup and scripts are not executed. " +
+  "Do not promise live calculators, host actions, or native interactive HTML support. Keep ordinary HTML examples in html fences." +
+  " For source-host PR/MR workflows, discover review_repository, then pass its public forgeAccount and full forgeRepository to review_* tools. " +
+  "Honor the reported capabilities and host policies. A successful merge request can remain queued; read the observed state and retry refresh without repeating a successful mutation.";
 
 const DOMAINS: readonly ToolDomain[] = [
   scheduleTools,
@@ -110,6 +117,7 @@ const DOMAINS: readonly ToolDomain[] = [
   agentTools,
   gitTools,
   githubTools,
+  reviewTools,
   mcpServerTools,
   skillTools,
 ];

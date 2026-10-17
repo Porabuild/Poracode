@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import type { PrFile, ProjectLocation } from "@/shared/contracts";
+import type { PrFile, PrMergeMethod } from "@/shared/contracts";
 import { SidebarButton } from "@/renderer/components/common";
 import {
   gitReviewColumnClass,
@@ -18,23 +18,32 @@ import {
 } from "@/renderer/components/layout/sidebarChrome";
 import { useSidebar } from "@/renderer/views/MainView/parts/AppShell/AppShell";
 import { compareFilesByDirThenName } from "@/renderer/utils/gitHelpers";
-import { usePrWriteActions } from "@/renderer/hooks/usePrWriteActions";
+import type { PrWriteAction } from "@/renderer/hooks/usePrWriteActions";
 import { GitReviewPadXProvider } from "../../GitReviewOverlay/parts/GitReviewSidebar/gitReviewPadXContext";
 import { PrSection } from "../../GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection";
 import { PrFileRow } from "./PrFileRow";
+import type { PrViewedState } from "./prViewedFiles";
 
 export function PrReviewSidebar(props: {
   files: PrFile[];
   selectedFile: string | null;
   loading: boolean;
   projectId: string;
-  projectLocation: ProjectLocation;
   prKey: string;
   worktreePath?: string | undefined;
   skipLocalSync?: boolean;
   onSelectFile: (path: string) => void;
   onClose: () => void;
-  onRefresh: () => void;
+  prLoading: boolean;
+  pendingAction: PrWriteAction | null;
+  handleMergePr: (method: PrMergeMethod, admin?: boolean) => Promise<void>;
+  handleClosePr: () => Promise<void>;
+  handleMarkPrReady: () => Promise<void>;
+  handleUpdatePrBranch: (rebase?: boolean) => Promise<void>;
+  fileFingerprint: (file: PrFile) => string;
+  viewedState: (path: string, fingerprint: string) => PrViewedState;
+  onMarkViewed: (path: string, fingerprint: string) => void;
+  onClearViewed: (path: string) => void;
   /** Hide the desktop "Return to app / Hide sidebar" footer (mobile shells
    * provide their own navigation chrome). */
   hideFooterNav?: boolean;
@@ -44,39 +53,42 @@ export function PrReviewSidebar(props: {
     selectedFile,
     loading,
     projectId,
-    projectLocation,
     prKey,
     worktreePath,
     skipLocalSync,
     onSelectFile,
     onClose,
-    onRefresh,
-    hideFooterNav = false,
-  } = props;
-  const { t } = useLingui();
-  const { isCollapsed, collapse, expand } = useSidebar();
-  const [expanded, setExpanded] = useState(true);
-  const {
     prLoading,
     pendingAction,
     handleMergePr,
     handleClosePr,
     handleMarkPrReady,
     handleUpdatePrBranch,
-  } = usePrWriteActions({
-    projectLocation,
-    projectId,
-    prKey,
-    ...(skipLocalSync ? { skipLocalSync: true } : {}),
-    onRefresh,
-  });
+    fileFingerprint,
+    viewedState,
+    onMarkViewed,
+    onClearViewed,
+    hideFooterNav = false,
+  } = props;
+  const { t } = useLingui();
+  const { isCollapsed, collapse, expand } = useSidebar();
+  const [expanded, setExpanded] = useState(true);
+  const [viewedOpen, setViewedOpen] = useState(false);
 
   const sorted = files.toSorted((a, b) =>
     compareFilesByDirThenName({ path: a.path }, { path: b.path }),
   );
+  const rows = sorted.map((file) => {
+    const fingerprint = fileFingerprint(file);
+    return { file, fingerprint, viewState: viewedState(file.path, fingerprint) };
+  });
+  const pendingRows = rows.filter((row) => row.viewState !== "viewed");
+  const viewedRows = rows.filter((row) => row.viewState === "viewed");
+  const viewedCount = viewedRows.length;
+  const totalCount = files.length;
 
-  const totalAdditions = files.reduce((s, f) => s + f.additions, 0);
-  const totalDeletions = files.reduce((s, f) => s + f.deletions, 0);
+  const totalAdditions = files.reduce((sum, file) => sum + file.additions, 0);
+  const totalDeletions = files.reduce((sum, file) => sum + file.deletions, 0);
 
   return (
     <div className="relative h-full">
@@ -119,7 +131,7 @@ export function PrReviewSidebar(props: {
                 <button
                   type="button"
                   className="flex cursor-default items-center gap-1"
-                  onClick={() => setExpanded((v) => !v)}
+                  onClick={() => setExpanded((value) => !value)}
                 >
                   {expanded ? (
                     <ChevronDown className="size-3" />
@@ -127,15 +139,21 @@ export function PrReviewSidebar(props: {
                     <ChevronRight className="size-3" />
                   )}
                   <Trans>Changes in PR</Trans>
-                  <span className="font-normal text-muted/60">({files.length})</span>
+                  <span className="font-normal text-muted/60">({totalCount})</span>
                 </button>
-                <span className="ml-auto flex items-center gap-0.5 text-[10px] leading-4 font-medium font-normal">
-                  {totalAdditions > 0 && <span className="text-success">+{totalAdditions}</span>}
-                  {totalDeletions > 0 && <span className="text-danger">-{totalDeletions}</span>}
+                <span className="ml-auto text-[10px] font-medium normal-case tracking-normal text-muted">
+                  {t`${viewedCount} of ${totalCount} viewed`}
                 </span>
               </div>
               {expanded && (
                 <div className="space-y-px">
+                  <div
+                    className="flex items-center justify-end gap-0.5 px-2 text-[10px] leading-4 font-medium"
+                    aria-label={t`${totalAdditions} additions and ${totalDeletions} deletions`}
+                  >
+                    {totalAdditions > 0 && <span className="text-success">+{totalAdditions}</span>}
+                    {totalDeletions > 0 && <span className="text-danger">−{totalDeletions}</span>}
+                  </div>
                   {loading && files.length === 0 && (
                     <div className="flex items-center justify-center px-2 py-3 text-xs text-muted/60">
                       <Trans>Loading PR…</Trans>
@@ -146,14 +164,46 @@ export function PrReviewSidebar(props: {
                       <Trans>No changes</Trans>
                     </div>
                   )}
-                  {sorted.map((file) => (
+                  {pendingRows.map((row) => (
                     <PrFileRow
-                      key={file.path}
-                      file={file}
-                      isSelected={selectedFile === file.path}
-                      onSelect={() => onSelectFile(file.path)}
+                      key={row.file.path}
+                      file={row.file}
+                      isSelected={selectedFile === row.file.path}
+                      viewState={row.viewState}
+                      onSelect={() => onSelectFile(row.file.path)}
+                      onMarkViewed={() => onMarkViewed(row.file.path, row.fingerprint)}
+                      onClearViewed={() => onClearViewed(row.file.path)}
                     />
                   ))}
+                  {viewedRows.length > 0 && (
+                    <div className="pt-1">
+                      <button
+                        type="button"
+                        className="flex cursor-default items-center gap-1 px-2 py-1 text-[11px] font-medium text-muted"
+                        onClick={() => setViewedOpen((value) => !value)}
+                      >
+                        {viewedOpen ? (
+                          <ChevronDown className="size-3" />
+                        ) : (
+                          <ChevronRight className="size-3" />
+                        )}
+                        <Trans>Viewed here</Trans>
+                        <span className="font-normal text-muted/60">({viewedRows.length})</span>
+                      </button>
+                      {viewedOpen &&
+                        viewedRows.map((row) => (
+                          <PrFileRow
+                            key={row.file.path}
+                            file={row.file}
+                            isSelected={selectedFile === row.file.path}
+                            viewState={row.viewState}
+                            onSelect={() => onSelectFile(row.file.path)}
+                            onMarkViewed={() => onMarkViewed(row.file.path, row.fingerprint)}
+                            onClearViewed={() => onClearViewed(row.file.path)}
+                          />
+                        ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

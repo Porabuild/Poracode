@@ -11,7 +11,7 @@ export function useSourceBranchData(params: {
   project: { location: ProjectLocation };
   effectiveBranch: string | undefined;
   effectivePrKey: string | undefined;
-  isGitHub: boolean;
+  supportsReviews: boolean;
   ghAvailable: boolean;
   /** When set (e.g. PR base), overrides the inferred source branch. */
   preferredSourceBranch?: string | undefined;
@@ -22,7 +22,7 @@ export function useSourceBranchData(params: {
     project,
     effectiveBranch,
     effectivePrKey,
-    isGitHub,
+    supportsReviews,
     ghAvailable,
     preferredSourceBranch,
     refreshKey,
@@ -41,7 +41,7 @@ export function useSourceBranchData(params: {
   // Every input that must restart the branch lookup, folded into one key so
   // the effect consumes the trigger-only values (refreshKey,
   // sourceBranchesRetryKey) instead of listing them as extra dependencies.
-  const sourceBranchesKey = `${effectiveBranch ?? ""}\0${effectivePrKey ?? ""}\0${isGitHub ? "1" : "0"}\0${ghAvailable ? "1" : "0"}\0${preferredSourceBranch ?? ""}\0${projectLocationKind}\0${projectLocationPath}\0${projectLocationDistro ?? ""}\0${projectLocationUncPath ?? ""}\0${projectRemoteServerId ?? ""}\0${refreshKey}\0${sourceBranchesRetryKey}`;
+  const sourceBranchesKey = `${effectiveBranch ?? ""}\0${effectivePrKey ?? ""}\0${supportsReviews ? "1" : "0"}\0${ghAvailable ? "1" : "0"}\0${preferredSourceBranch ?? ""}\0${projectLocationKind}\0${projectLocationPath}\0${projectLocationDistro ?? ""}\0${projectLocationUncPath ?? ""}\0${projectRemoteServerId ?? ""}\0${refreshKey}\0${sourceBranchesRetryKey}`;
   const activeSourceBranchesKeyRef = useRef(sourceBranchesKey);
   // Reset-on-request-change during render (mirrors the synchronous resets the
   // effect used to do on entry). Starts as null so the mount pass applies it
@@ -86,7 +86,7 @@ export function useSourceBranchData(params: {
               ...(projectRemoteServerId ? { remoteServerId: projectRemoteServerId } : {}),
             };
     const sourceBranchesRequest =
-      isGitHub && ghAvailable
+      supportsReviews && ghAvailable
         ? readBridge()
             .gitListBranches({
               projectLocation: sourceProjectLocation,
@@ -144,7 +144,7 @@ export function useSourceBranchData(params: {
     effectiveBranch,
     effectivePrKey,
     ghAvailable,
-    isGitHub,
+    supportsReviews,
     preferredSourceBranch,
     projectLocationDistro,
     projectLocationKind,
@@ -164,7 +164,7 @@ export function useSourceBranchData(params: {
   const activePrDataKeyRef = useRef(prDataRequestKey);
   useEffect(() => {
     activePrDataKeyRef.current = prDataRequestKey;
-    if (!isGitHub || !ghAvailable || !effectiveBranch || !effectivePrKey) return;
+    if (!supportsReviews || !ghAvailable || !effectiveBranch || !effectivePrKey) return;
     let isActive = true;
     const capturedKey = prDataRequestKey;
     const previousPr = useGitStore.getState().prData[effectivePrKey];
@@ -180,7 +180,14 @@ export function useSourceBranchData(params: {
     return () => {
       isActive = false;
     };
-  }, [isGitHub, ghAvailable, effectiveBranch, effectivePrKey, project.location, prDataRequestKey]);
+  }, [
+    supportsReviews,
+    ghAvailable,
+    effectiveBranch,
+    effectivePrKey,
+    project.location,
+    prDataRequestKey,
+  ]);
 
   return { sourceBranchLoading, sourceBranches };
 }

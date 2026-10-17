@@ -1,3 +1,4 @@
+import { msg } from "@/shared/messages";
 import { joinRuntimeShutdown } from "./joinRuntimeShutdown";
 import {
   dbAdmitScheduleExecution,
@@ -210,24 +211,82 @@ export class BackendDurableServices {
     });
     this.prWatchService = createDevicePrWatchService({
       getProject: dbGetProject,
-      getPrForBranch: (project, branch) =>
-        supervisor.call("ghGetPrForBranch", { projectLocation: project.location, branch }),
-      getPrDetails: (project, prNumber) =>
-        supervisor
-          .call("ghGetPrDetails", { projectLocation: project.location, prNumber })
-          .then((result) => result.details),
-      getPrReviewThreads: (project, prNumber) =>
-        supervisor
-          .call("ghGetPrReviewComments", { projectLocation: project.location, prNumber })
-          .then((result) => result.threads),
+      getPrForBranch: (project, branch, scope) =>
+        scope
+          ? supervisor.call("forgeGetPrForBranch", {
+              projectLocation: project.location,
+              branch,
+              forgeAccount: scope.account,
+              forgeRepository: scope.repository,
+            })
+          : supervisor.call("ghGetPrForBranch", { projectLocation: project.location, branch }),
+      getPrDetails: (project, prNumber, account, repository) =>
+        account
+          ? supervisor.call("forgeGetPrDetails", {
+              projectLocation: project.location,
+              prNumber,
+              forgeAccount: account,
+              ...(repository ? { forgeRepository: repository } : {}),
+            })
+          : supervisor.call("ghGetPrDetails", { projectLocation: project.location, prNumber }),
+      getPrReviewThreads: (project, prNumber, account, repository) =>
+        (account
+          ? supervisor.call("forgeGetPrReviewComments", {
+              projectLocation: project.location,
+              prNumber,
+              forgeAccount: account,
+              ...(repository ? { forgeRepository: repository } : {}),
+            })
+          : supervisor.call("ghGetPrReviewComments", {
+              projectLocation: project.location,
+              prNumber,
+            })
+        ).then((result) => result.threads),
       getMergeMethod: () => options.getSharedSettings().prMergeMethod,
-      mergePr: (project, prNumber, method) =>
-        supervisor.call("ghMergePr", {
-          projectLocation: project.location,
-          prNumber,
-          method,
-          admin: false,
-        }),
+      mergePr: async (project, prNumber, method, reviewedPr) => {
+        const payload = { projectLocation: project.location, prNumber, method, admin: false };
+        const source = reviewedPr.source;
+        const account = source
+          ? {
+              forgeRepository: source.repository,
+              ...(source.account ? { forgeAccount: source.account } : {}),
+            }
+          : {};
+        if (source) {
+          if (
+            !reviewedPr.headSha ||
+            !source.capabilities.expectedHeadMerge ||
+            !source.capabilities.autoMerge
+          )
+            throw new Error(msg("forge.autoMergeUnavailable"));
+          await supervisor.call("forgeMergePrAtHead", {
+            ...payload,
+            ...account,
+            expectedHeadSha: reviewedPr.headSha,
+          });
+        } else if (reviewedPr.headSha)
+          await supervisor.call("ghMergePrAtHead", {
+            ...payload,
+            expectedHeadSha: reviewedPr.headSha,
+          });
+        else await supervisor.call("ghMergePr", payload);
+        try {
+          const result = source
+            ? await supervisor.call("forgeGetPrDetails", {
+                projectLocation: project.location,
+                prNumber,
+                ...account,
+              })
+            : await supervisor.call("ghGetPrDetails", {
+                projectLocation: project.location,
+                prNumber,
+              });
+          return result.pr;
+        } catch (error) {
+          options.reportError?.(error);
+          return undefined;
+        }
+      },
       ...(options.onPrMerged ? { onPrMerged: options.onPrMerged } : {}),
       onPrObserved: (watch, pr, details) => {
         options.onPrObserved?.(watch, pr, details);

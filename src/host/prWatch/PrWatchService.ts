@@ -2,8 +2,13 @@ import {
   areSelectionBindingsEqual,
   isThreadTurnActive,
   prWatchInputSchema,
+  forgePrWatchInputSchema,
   type AgentKind,
   type PrDetails,
+  type GhGetPrDetailsResult,
+  type ForgeAccountRef,
+  type ForgeReviewScope,
+  type ForgePrWatchInput,
   type PrData,
   type PrMergeMethod,
   type PrWatch,
@@ -17,6 +22,7 @@ import {
 import type { SelectionBinding } from "@/shared/selectionBinding.schemas";
 import type { SupervisorEvent } from "@/shared/ipc";
 import { msg } from "@/shared/messages";
+import { reviewScopeFromSource, sameReviewScope } from "@/shared/forgeRemote";
 import {
   captureProjectExecutionScope,
   hasSameProjectExecutionScope,
@@ -136,11 +142,30 @@ export interface PrWatchStore {
 export interface PrWatchServiceOptions {
   store: PrWatchStore;
   getProject(projectId: string): Project | null;
-  getPrForBranch(project: Project, branch: string): Promise<PrData | null>;
-  getPrDetails(project: Project, prNumber: number): Promise<PrDetails>;
-  getPrReviewThreads(project: Project, prNumber: number): Promise<PrReviewThread[]>;
+  getPrForBranch(
+    project: Project,
+    branch: string,
+    scope?: ForgeReviewScope,
+  ): Promise<PrData | null>;
+  getPrDetails(
+    project: Project,
+    prNumber: number,
+    account?: ForgeAccountRef,
+    repository?: string,
+  ): Promise<GhGetPrDetailsResult>;
+  getPrReviewThreads(
+    project: Project,
+    prNumber: number,
+    account?: ForgeAccountRef,
+    repository?: string,
+  ): Promise<PrReviewThread[]>;
   getMergeMethod(): PrMergeMethod;
-  mergePr(project: Project, prNumber: number, method: PrMergeMethod): Promise<void>;
+  mergePr(
+    project: Project,
+    prNumber: number,
+    method: PrMergeMethod,
+    reviewedPr: PrData,
+  ): Promise<PrData | undefined>;
   onPrMerged?(watch: PrWatch): void;
   /** Live PR state seen on a poll, with details when that poll fetched them. */
   onPrObserved?(watch: PrWatch, pr: PrData, details?: PrDetails): void;
@@ -267,15 +292,54 @@ export class PrWatchService {
   }
 
   upsert(input: PrWatchInput): PrWatch {
+    return this.save(input);
+  }
+
+  async upsertScoped(input: ForgePrWatchInput): Promise<PrWatch> {
+    this.assertOpen();
+    const parsed = forgePrWatchInputSchema.parse(input);
+    if (this.options.store.get(parsed.projectId, parsed.prNumber)?.reviewScopeUnsupported)
+      throw new Error(msg("forge.watchScopeUnsupported"));
+    const project = this.options.getProject(parsed.projectId);
+    if (!project) throw new Error(msg("forge.watchChanged"));
+    const pr = await this.options.getPrForBranch(project, parsed.headBranch, parsed.reviewScope);
+    this.assertOpen();
+    const freshProject = this.options.getProject(parsed.projectId);
+    if (
+      !freshProject ||
+      !hasSameProjectExecutionScope(freshProject, project) ||
+      pr?.number !== parsed.prNumber ||
+      !sameReviewScope(parsed.reviewScope, reviewScopeFromSource(pr.source))
+    )
+      throw new Error(msg("forge.watchChanged"));
+    if (parsed.watchEnabled && pr.source?.capabilities.autoFix === false)
+      throw new Error(msg("forge.autoFixUnavailable"));
+    if (
+      parsed.autoMerge &&
+      (!pr.headSha ||
+        !pr.source?.capabilities.expectedHeadMerge ||
+        !pr.source.capabilities.autoMerge)
+    )
+      throw new Error(msg("forge.autoMergeUnavailable"));
+    return this.save(parsed, parsed.reviewScope);
+  }
+
+  private save(input: PrWatchInput, scope?: ForgeReviewScope): PrWatch {
     this.assertOpen();
     const parsed = prWatchInputSchema.parse(input);
     const current = this.options.store.get(parsed.projectId, parsed.prNumber);
+    if (current?.reviewScopeUnsupported) throw new Error(msg("forge.watchScopeUnsupported"));
+    const reviewScope = scope ?? current?.reviewScope;
+    if ((parsed.watchEnabled || parsed.autoMerge) && !reviewScope)
+      throw new Error(msg("forge.watchScopeMissing"));
     const resetSignals =
       !current ||
+      !sameReviewScope(current.reviewScope, reviewScope) ||
       current.headBranch !== parsed.headBranch ||
       (!current.watchEnabled && parsed.watchEnabled);
     const watch: PrWatch = {
       ...parsed,
+      ...(reviewScope ? { reviewScope } : {}),
       lastCommentCursor: resetSignals ? null : current.lastCommentCursor,
       lastReviewCommentCursor: resetSignals ? null : current.lastReviewCommentCursor,
       lastReviewCursor: resetSignals ? null : current.lastReviewCursor,
@@ -364,14 +428,36 @@ export class PrWatchService {
         this.options.store.delete(watch.projectId, watch.prNumber);
         return;
       }
-
-      const pr = await this.options.getPrForBranch(project, watch.headBranch);
+      if (!watch.watchEnabled && !watch.autoMerge) return;
+      if (watch.reviewScopeUnsupported) throw new Error(msg("forge.watchScopeUnsupported"));
+      if (!watch.reviewScope) throw new Error(msg("forge.watchScopeMissing"));
+      const captured = this.options.store.readExecutionSnapshot(watch.projectId, watch.prNumber);
+      if (!captured) return;
+      if (!sameReviewScope(watch.reviewScope, captured.reviewScope)) {
+        this.requestCheck(watch.projectId, watch.prNumber);
+        throw new PrWatchExecutionAdmissionError("stale", msg("forge.watchChanged"));
+      }
+      const assertCurrent = this.executionGate(captured, captureProjectExecutionScope(project));
+      let pr = await this.options.getPrForBranch(project, watch.headBranch, watch.reviewScope);
       if (this.disposed) return;
+      assertCurrent();
+      if (
+        pr &&
+        (pr.number !== watch.prNumber ||
+          !sameReviewScope(watch.reviewScope, reviewScopeFromSource(pr.source)))
+      )
+        throw new Error(msg("forge.watchChanged"));
       const summaryCurrent = this.options.store.get(watch.projectId, watch.prNumber);
       if (!summaryCurrent) return;
       if (!pr || pr.state === "merged" || pr.state === "closed") {
         if (pr) this.options.onPrObserved?.(summaryCurrent, pr);
         this.options.store.delete(summaryCurrent.projectId, summaryCurrent.prNumber);
+        return;
+      }
+      // A submitted merge remains pending even if host readiness fluctuates.
+      // The versioned marker survives restarts; only a new head permits resubmission.
+      if (pr.source && summaryCurrent.lastCheckKey === `forge-merge-v1:${pr.headSha ?? ""}`) {
+        this.options.onPrObserved?.(summaryCurrent, pr);
         return;
       }
 
@@ -384,17 +470,37 @@ export class PrWatchService {
       }
 
       const [detailsResult, reviewThreadsResult] = await Promise.allSettled([
-        this.options.getPrDetails(project, watch.prNumber),
-        this.options.getPrReviewThreads(project, watch.prNumber),
+        this.options.getPrDetails(
+          project,
+          watch.prNumber,
+          watch.reviewScope.account,
+          watch.reviewScope.repository,
+        ),
+        this.options.getPrReviewThreads(
+          project,
+          watch.prNumber,
+          watch.reviewScope.account,
+          watch.reviewScope.repository,
+        ),
       ]);
       if (this.disposed) return;
+      assertCurrent();
       if (detailsResult.status === "rejected") throw detailsResult.reason;
       if (reviewThreadsResult.status === "rejected") throw reviewThreadsResult.reason;
-      const details = detailsResult.value;
+      const { details, pr: detailedPr } = detailsResult.value;
+      if (detailedPr) pr = detailedPr;
       const reviewThreads = reviewThreadsResult.value;
 
       const current = this.options.store.get(watch.projectId, watch.prNumber);
       if (!current) return;
+      if (
+        pr.number !== watch.prNumber ||
+        details.headBranch !== watch.headBranch ||
+        !detailedPr ||
+        !sameReviewScope(watch.reviewScope, reviewScopeFromSource(pr.source)) ||
+        !sameReviewScope(watch.reviewScope, reviewScopeFromSource(details.source))
+      )
+        throw new Error(msg("forge.watchChanged"));
       this.options.onPrObserved?.(current, pr, details);
       const signals = collectSignals(pr, details, reviewThreads);
       if (current.activeThreadId && this.options.isThreadActive(current.activeThreadId)) return;
@@ -411,23 +517,52 @@ export class PrWatchService {
       };
 
       if (current.watchEnabled && hasActionableSignal) {
+        if (details.source?.capabilities.autoFix === false)
+          throw new Error(msg("forge.autoFixUnavailable"));
         await this.launchFix(current, project, details, signals, observed.lastCheckKey);
         return;
       }
 
       if (current.autoMerge && isReadyForAutoMerge(pr, details.checks)) {
         try {
-          await this.options.mergePr(project, current.prNumber, this.options.getMergeMethod());
+          const mergeKey = `forge-merge-v1:${pr.headSha ?? ""}`;
+          const preferredMethod = this.options.getMergeMethod();
+          const method =
+            pr.source && !pr.source.capabilities.mergeMethods.includes(preferredMethod)
+              ? pr.source.capabilities.mergeMethods[0]
+              : preferredMethod;
+          if (!method) throw new Error(msg("forge.autoMergeUnavailable"));
+          assertCurrent();
+          const result = await this.options.mergePr(project, current.prNumber, method, pr);
           if (this.disposed) return;
-          // The watch is about to be dropped, so this is the last chance to tell
-          // the UI the PR is no longer open. `pr` was fetched moments ago and the
-          // merge just succeeded, so patching its state avoids a refetch whose
-          // head branch may already be deleted.
-          this.options.onPrObserved?.(current, { ...pr, state: "merged" }, details);
-          this.options.onPrMerged?.(current);
+          // The merge has already been submitted. Helper selection changes
+          // must not lose its receipt and submit the same head again.
+          const mergedWatch = this.options.store.get(current.projectId, current.prNumber);
+          const mergedProject = this.options.getProject(current.projectId);
+          if (
+            !mergedWatch ||
+            !mergedProject ||
+            !hasSameProjectExecutionScope(mergedProject, project) ||
+            mergedWatch.headBranch !== captured.headBranch ||
+            !sameReviewScope(mergedWatch.reviewScope, captured.reviewScope)
+          ) {
+            this.requestCheck(current.projectId, current.prNumber);
+            return;
+          }
+          if (pr.source && result?.state !== "merged") {
+            this.options.store.patchRuntime(current.projectId, current.prNumber, {
+              lastCheckKey: mergeKey,
+              lastError: null,
+              blockedReason: null,
+            });
+            if (result) this.options.onPrObserved?.(mergedWatch, result, details);
+            return;
+          }
+          this.options.onPrObserved?.(mergedWatch, result ?? { ...pr, state: "merged" }, details);
+          this.options.onPrMerged?.(mergedWatch);
           this.options.store.delete(current.projectId, current.prNumber);
         } catch (error) {
-          this.saveError(observed, error);
+          if (!isExecutionCancel(error)) this.saveError(observed, error);
         }
         return;
       }
@@ -439,7 +574,7 @@ export class PrWatchService {
         blockedReason: null,
       });
     } catch (error) {
-      this.saveError(snapshot, error);
+      if (!isExecutionCancel(error)) this.saveError(snapshot, error);
     }
   }
 
@@ -590,7 +725,9 @@ export class PrWatchService {
         await this.retireLaunchThread(current, threadId);
         return;
       }
-      const sameBranch = current.headBranch === captured.headBranch;
+      const sameBranch =
+        current.headBranch === captured.headBranch &&
+        sameReviewScope(current.reviewScope, captured.reviewScope);
       this.options.store.patchRuntime(current.projectId, current.prNumber, {
         activeThreadId: threadId,
         lastError: null,
@@ -842,6 +979,8 @@ function isSameAgent(watch: PrWatch, agent: PrWatchAgentSync): boolean {
 function hasSameLaunchInputs(before: PrWatch, after: PrWatch): boolean {
   return (
     before.headBranch === after.headBranch &&
+    sameReviewScope(before.reviewScope, after.reviewScope) &&
+    before.reviewScopeUnsupported === after.reviewScopeUnsupported &&
     before.worktreePath === after.worktreePath &&
     before.agentKind === after.agentKind &&
     isSameSelection(before.config, after.config)

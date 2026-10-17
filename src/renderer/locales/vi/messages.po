@@ -189,6 +189,16 @@ msgstr "{0} (fork)"
 #~ msgid "{0} {env}"
 #~ msgstr "{0} {env}"
 
+#. placeholder {0}: details.additions
+#. placeholder {0}: summary.additions
+#. placeholder {1}: details.deletions
+#. placeholder {1}: summary.deletions
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
+#: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "{0} additions and {1} deletions"
+msgstr "{0} dòng thêm và {1} dòng xóa"
+
 #. placeholder {0}: days.map((day) => weekdayNames[day]).join(", ")
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "{0} at {time}"
@@ -678,6 +688,10 @@ msgstr "{serverName} từ {providerLabel}: {disabledLabel}"
 msgid "{stepCount, plural, one {# step} other {# steps}}"
 msgstr "{stepCount, plural, other {# bước}}"
 
+#: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
+msgid "{totalAdditions} additions and {totalDeletions} deletions"
+msgstr "{totalAdditions} dòng thêm và {totalDeletions} dòng xóa"
+
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "{used} tokens"
 msgstr "{used} mã thông báo"
@@ -693,6 +707,10 @@ msgstr "{usedLabel} / {maxLabel} mã thông báo"
 #: src/renderer/components/thread/threadContextUsage.ts
 msgid "{usedLabel} tokens"
 msgstr "{usedLabel} mã thông báo"
+
+#: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
+msgid "{viewedCount} of {totalCount} viewed"
+msgstr "Đã xem {viewedCount}/{totalCount}"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 msgid "{visibleCount} of {totalCount} usable"
@@ -848,6 +866,10 @@ msgstr "Một hồ sơ có thể chứa tối đa 100 kho lưu trữ."
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 msgid "A profile with this name already exists."
 msgstr "Đã có hồ sơ trùng tên này."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "A review or comment body is required."
+msgstr "Cần có nội dung đánh giá hoặc bình luận."
 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "A server could not be started and was skipped."
@@ -1939,6 +1961,10 @@ msgid "Auto Fix"
 msgstr "Tự động sửa"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "Auto Fix repairs merge blockers. Auto Merge is unavailable on this source host."
+msgstr "Auto Fix sửa các yếu tố chặn hợp nhất. Auto Merge không khả dụng trên máy chủ nguồn này."
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
 #~ msgid "Auto Fix waits for checks and repairs merge blockers. Auto Merge also squash merges when ready."
 #~ msgstr "“Tự động sửa” chờ các bước kiểm tra hoàn tất và xử lý các trở ngại hợp nhất. “Tự động hợp nhất” cũng squash merge khi mọi thứ đã sẵn sàng."
 
@@ -2030,6 +2056,11 @@ msgstr "Tự động hóa đang tạm dừng: không thể checkout nhánh của
 #~ msgid "Automation is paused: this PR's branch could not be checked out. Re-select a mode to retry."
 #~ msgstr "Tự động hóa đang tạm dừng: không thể checkout nhánh của PR này. Chọn lại một chế độ để thử lại."
 
+#: src/renderer/i18n/sharedMessages.ts
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "Automation requires a branch in this repository."
+msgstr "Tự động hóa yêu cầu một nhánh trong kho mã này."
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Automation sections"
 msgstr "Các mục tự động hóa"
@@ -2062,8 +2093,8 @@ msgstr "Màu ảnh đại diện"
 msgid "Avatar color {color}"
 msgstr "Màu ảnh đại diện {color}"
 
+#: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
-#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Awaiting review"
 msgstr "Đang chờ xem xét"
 
@@ -2167,6 +2198,10 @@ msgstr "Đầu ra Bash"
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Basic (CLI)"
 msgstr "Cơ bản (CLI)"
+
+#: src/renderer/utils/prStatus.ts
+msgid "Behind base"
+msgstr "Chậm hơn nhánh gốc"
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "Beta next-generation OpenCode runtime with native GUI sessions."
@@ -2530,6 +2565,7 @@ msgstr "Không thể dùng lựa chọn mô hình này trong giao diện này"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
+#: src/renderer/views/PrReviewOverlay/parts/PrHeaderCard.tsx
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
@@ -2653,6 +2689,10 @@ msgstr "Thay đổi phím tắt"
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Change User"
 msgstr "Thay đổi người dùng"
+
+#: src/renderer/views/PrReviewOverlay/parts/PrFileRow.tsx
+msgid "Changed"
+msgstr "Đã thay đổi"
 
 #: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
 msgid "Changed files"
@@ -2803,16 +2843,16 @@ msgstr "Đang kiểm tra…"
 msgid "Checks"
 msgstr "Kiểm tra"
 
-#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+#: src/renderer/utils/prStatus.ts
 msgid "Checks failed"
 msgstr "Kiểm tra thất bại"
 
-#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+#: src/renderer/utils/prStatus.ts
 msgid "Checks passed"
 msgstr "Kiểm tra thành công"
 
+#: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
-#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Checks pending"
 msgstr "Kiểm tra đang chờ"
 
@@ -3358,9 +3398,8 @@ msgstr "Đóng quy trình làm việc"
 msgid "Close workflows panel"
 msgstr "Đóng bảng quy trình làm việc"
 
+#: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
-#: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
-#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Closed"
 msgstr "Đã đóng"
 
@@ -3790,6 +3829,10 @@ msgstr "Đường dẫn tệp cấu hình (tùy chọn)"
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Configuration from a newer Poracode"
 msgstr "Cấu hình từ Poracode mới hơn"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Configure credentials scoped to this exact source host in the project's runtime."
+msgstr "Cấu hình thông tin xác thực dành riêng cho đúng máy chủ nguồn này trong môi trường chạy của dự án."
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Configure the server Poracode will add when supported agents start."
@@ -5571,8 +5614,7 @@ msgstr "Nội dung tải xuống"
 msgid "Downloads from the built-in browser are saved in this history."
 msgstr "Các tệp tải xuống từ trình duyệt tích hợp được lưu trong lịch sử này."
 
-#: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
-#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+#: src/renderer/utils/prStatus.ts
 msgid "Draft"
 msgstr "Bản nháp"
 
@@ -5662,6 +5704,7 @@ msgstr "Văn bản trước đó"
 
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+#: src/renderer/views/PrReviewOverlay/parts/PrHeaderCard.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Edit"
@@ -5795,6 +5838,10 @@ msgstr "Bật mức nỗ lực {tierLabel}"
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Enable {tool}"
 msgstr "Bật {tool}"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "Enable automation again"
+msgstr "Bật lại tự động hóa"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -6322,6 +6369,7 @@ msgstr "thất bại"
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+#: src/renderer/views/PrReviewOverlay/parts/PrTabsPill.tsx
 #: src/renderer/views/SchedulesView/parts/scheduleRunStatus.ts
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Failed"
@@ -6981,6 +7029,11 @@ msgstr "Chế độ đánh giá Git"
 #: src/renderer/views/MainView/parts/Sidebar/parts/GitBadge.tsx
 msgid "Git status for {0}"
 msgstr "Trạng thái Git cho {0}"
+
+#. placeholder {0}: props.projectName
+#: src/renderer/views/MainView/parts/Sidebar/parts/GitBadge.tsx
+msgid "Git status for {0}: {prStatusLabel}"
+msgstr "Trạng thái Git cho {0}: {prStatusLabel}"
 
 #. placeholder {0}: props.projectName
 #: src/renderer/views/MainView/parts/Sidebar/parts/GitBadge.tsx
@@ -8777,6 +8830,10 @@ msgstr "Đánh dấu là xong"
 msgid "Mark as not done"
 msgstr "Đánh dấu là chưa xong"
 
+#: src/renderer/views/PrReviewOverlay/parts/PrFileRow.tsx
+msgid "Mark as not viewed"
+msgstr "Bỏ đánh dấu đã xem"
+
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Mark as read"
 msgstr "Đánh dấu đã đọc"
@@ -8784,6 +8841,11 @@ msgstr "Đánh dấu đã đọc"
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Mark as unread"
 msgstr "Đánh dấu chưa đọc"
+
+#: src/renderer/views/PrReviewOverlay/parts/PrFileRow.tsx
+#: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
+msgid "Mark as viewed"
+msgstr "Đánh dấu đã xem"
 
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Mark done"
@@ -9071,6 +9133,10 @@ msgstr "Hợp nhất PR: Rebase"
 msgid "Merge PR: Squash"
 msgstr "Hợp nhất PR: Squash"
 
+#: src/renderer/hooks/usePrWriteActions.ts
+msgid "Merge requested. Refresh to check its progress."
+msgstr "Đã yêu cầu hợp nhất. Làm mới để kiểm tra tiến độ."
+
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 msgid "Merge this candidate's changes into the base branch and remove the other candidates' worktrees."
 msgstr "Hợp nhất các thay đổi của ứng viên này vào nhánh cơ sở và xóa worktree của các ứng viên khác."
@@ -9092,10 +9158,9 @@ msgstr "Hợp nhất ứng viên thắng"
 msgid "Merge Worktree"
 msgstr "Hợp nhất Worktree"
 
+#: src/renderer/utils/prStatus.ts
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
-#: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
-#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Merged"
 msgstr "Đã hợp nhất"
 
@@ -9103,8 +9168,8 @@ msgstr "Đã hợp nhất"
 msgid "Merged the experiment winner into {sourceBranch}."
 msgstr "Đã hợp nhất ứng viên thắng của thử nghiệm vào {sourceBranch}."
 
+#: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
-#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Merging is blocked"
 msgstr "Việc hợp nhất bị chặn"
 
@@ -9462,6 +9527,10 @@ msgstr "Đang di chuyển các thay đổi…"
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Multiple Devin configurations under one login — different config files, organizations, or approval defaults — or an isolated second login. Native credentials are never copied."
 msgstr "Nhiều cấu hình Devin dưới một đăng nhập — tệp cấu hình, tổ chức hoặc mặc định phê duyệt khác nhau — hoặc một đăng nhập thứ hai riêng biệt. Không bao giờ sao chép thông tin xác thực gốc."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Multiple source remotes are configured. Set the branch upstream before reviewing."
+msgstr "Đã cấu hình nhiều kho nguồn từ xa. Đặt upstream của nhánh trước khi đánh giá."
 
 #: src/renderer/components/providers/muse/manifest.ts
 msgid "Muse Code"
@@ -9963,6 +10032,7 @@ msgstr "Chưa cấu hình mô hình tạo một lần mặc định cho {provide
 
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
+#: src/renderer/views/PrReviewOverlay/parts/PrHeaderCard.tsx
 msgid "No description"
 msgstr "Không có mô tả"
 
@@ -10597,9 +10667,8 @@ msgstr "Chỉ hoạt động trên máy tính này."
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/thread/ThreadUsageBubble.tsx
 #: src/renderer/notifications.ts
+#: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
-#: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
-#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Open"
 msgstr "Mở"
@@ -10667,8 +10736,12 @@ msgstr "Mở kiểm tra"
 #~ msgstr "Mở bảng lệnh"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrCommitsTab.tsx
-msgid "Open commit on GitHub"
-msgstr "Mở commit trên GitHub"
+#~ msgid "Open commit on GitHub"
+#~ msgstr "Mở commit trên GitHub"
+
+#: src/renderer/views/PrReviewOverlay/parts/PrCommitsTab.tsx
+msgid "Open commit on source host"
+msgstr "Mở commit trên máy chủ nguồn"
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
@@ -10812,12 +10885,20 @@ msgid "Open PR #{0}"
 msgstr "Mở PR #{0}"
 
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
-msgid "Open PR #{prNumber}"
-msgstr "Mở PR #{prNumber}"
+#~ msgid "Open PR #{prNumber}"
+#~ msgstr "Mở PR #{prNumber}"
+
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
+msgid "Open PR #{prNumber}: {prStatusLabel}"
+msgstr "Mở PR #{prNumber}: {prStatusLabel}"
 
 #: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
-msgid "Open PR on GitHub"
-msgstr "Mở PR trên GitHub"
+#~ msgid "Open PR on GitHub"
+#~ msgstr "Mở PR trên GitHub"
+
+#: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
+msgid "Open PR on source host"
+msgstr "Mở PR trên máy chủ nguồn"
 
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 msgid "Open preview"
@@ -11019,6 +11100,10 @@ msgstr "Cách kết nối khác"
 msgid "Outcome"
 msgstr "Kết quả"
 
+#: src/renderer/views/PrReviewOverlay/parts/PrConversationTab.tsx
+msgid "Outdated"
+msgstr "Đã lỗi thời"
+
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Outlook"
 msgstr "Outlook"
@@ -11207,6 +11292,7 @@ msgid "Partially checked"
 msgstr "Chọn một phần"
 
 #: src/renderer/utils/prStatus.ts
+#: src/renderer/views/PrReviewOverlay/parts/PrTabsPill.tsx
 msgid "Passed"
 msgstr "Đã đạt"
 
@@ -11360,6 +11446,7 @@ msgid "pending"
 msgstr "đang chờ xử lý"
 
 #: src/renderer/utils/prStatus.ts
+#: src/renderer/views/PrReviewOverlay/parts/PrTabsPill.tsx
 msgid "Pending"
 msgstr "Đang chờ"
 
@@ -12181,6 +12268,10 @@ msgstr "Pull request {0}"
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #~ msgid "Pull request #{0}"
 #~ msgstr "Pull request #{0}"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Pull request #{number} was created, but marking it as draft failed. Refresh before changing its state."
+msgstr "Đã tạo yêu cầu hợp nhất #{number} nhưng không thể đánh dấu là bản nháp. Làm mới trước khi thay đổi trạng thái."
 
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Pull request category"
@@ -13101,6 +13192,10 @@ msgstr "Giải quyết xung đột trong cây làm việc này. Trước tiên, 
 "Tệp:\n"
 "{fileList}"
 
+#: src/renderer/views/PrReviewOverlay/parts/PrConversationTab.tsx
+msgid "Resolved"
+msgstr "Đã giải quyết"
+
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -13324,8 +13419,12 @@ msgid "Review and Summarizer are the only root agent types Devin's CLI accepts. 
 msgstr "Xem lại và Tóm tắt là những loại tác nhân gốc duy nhất mà CLI của Devin chấp nhận. Persona gốc tùy chỉnh là định nghĩa tác nhân con được cấu hình trong tệp của chính Devin — không thể chọn ở đây."
 
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
-msgid "Review and track work across your GitHub accounts."
-msgstr "Xem xét và theo dõi công việc trên các tài khoản GitHub của bạn."
+#~ msgid "Review and track work across your GitHub accounts."
+#~ msgstr "Xem xét và theo dõi công việc trên các tài khoản GitHub của bạn."
+
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "Review and track work across your source hosts."
+msgstr "Xem xét và theo dõi công việc trên các máy chủ mã nguồn của bạn."
 
 #. placeholder {0}: props.candidateNumber
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
@@ -13662,6 +13761,7 @@ msgstr "Độ bão hòa và độ sáng"
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/MobileFileEditorActions.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
+#: src/renderer/views/PrReviewOverlay/parts/PrHeaderCard.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
@@ -13850,6 +13950,10 @@ msgstr "Khoa học và giáo dục"
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Scope"
 msgstr "Phạm vi"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Scoped review watches are unavailable on this host. Update the host before enabling automation."
+msgstr "Máy chủ này không hỗ trợ theo dõi đánh giá có phạm vi nguồn. Cập nhật máy chủ trước khi bật tự động hóa."
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
@@ -14946,6 +15050,30 @@ msgstr "Sắp xếp skill trên marketplace"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Source branch {branch} moved before the worktree was created"
 msgstr "Nhánh nguồn {branch} đã di chuyển trước khi cây làm việc được tạo"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Source control command {command} failed. Check its installation and host login."
+msgstr "Lệnh quản lý mã nguồn {command} thất bại. Kiểm tra cài đặt và đăng nhập máy chủ."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Source host {host} returned HTTP {status}."
+msgstr "Máy chủ nguồn {host} trả về HTTP {status}."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Source host login configuration could not be read."
+msgstr "Không đọc được cấu hình đăng nhập máy chủ nguồn."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Source host must be an HTTPS URL without credentials."
+msgstr "Máy chủ nguồn phải là URL HTTPS không chứa thông tin xác thực."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Source host pagination did not complete. Narrow the review query."
+msgstr "Việc phân trang của máy chủ nguồn chưa hoàn tất. Thu hẹp truy vấn đánh giá."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Source host request failed. Check its connection and login."
+msgstr "Yêu cầu đến máy chủ nguồn thất bại. Kiểm tra kết nối và đăng nhập."
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Sources"
@@ -16107,6 +16235,10 @@ msgstr "Nhà cung cấp không khả dụng. Cài đặt hoặc cập nhật tro
 msgid "The provider's sign-in data could not be read. Try again or update Poracode."
 msgstr "Không thể đọc dữ liệu đăng nhập của nhà cung cấp. Thử lại hoặc cập nhật Poracode."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The pull request head changed or is unavailable. Refresh and review it before merging."
+msgstr "Đầu nhánh của yêu cầu hợp nhất đã thay đổi hoặc không khả dụng. Làm mới và kiểm tra trước khi hợp nhất."
+
 #: src/renderer/state/remoteServers/snapshotProjection.ts
 msgid "The remote catalog read failed."
 msgstr "Không thể đọc danh mục từ xa."
@@ -16143,6 +16275,10 @@ msgstr "Vị trí của kho lưu trữ trên đĩa. Hãy cập nhật nếu bạ
 msgid "The result will appear when this run finishes."
 msgstr "Kết quả sẽ xuất hiện khi lượt chạy này kết thúc."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The review was submitted, but its comment failed. Refresh before posting the comment separately."
+msgstr "Đã gửi đánh giá nhưng bình luận bị lỗi. Làm mới trước khi đăng riêng bình luận."
+
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "The run could not be cancelled."
 msgstr "Không thể hủy lượt chạy."
@@ -16174,6 +16310,14 @@ msgstr "Mô hình đã chọn so sánh câu trả lời trò chuyện của từ
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeDialog.tsx
 msgid "The selected model compares snapshots of each candidate's changes under anonymous labels. It recommends a winner without merging anything."
 msgstr "Mô hình đã chọn so sánh ảnh chụp nhanh các thay đổi của từng ứng viên bằng nhãn ẩn danh. Mô hình đề xuất người thắng mà không hợp nhất bất kỳ nội dung nào."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The selected repository no longer matches this project's source remote. Refresh before continuing."
+msgstr "Kho mã đã chọn không còn khớp với nguồn từ xa của dự án. Làm mới trước khi tiếp tục."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The selected source account does not match the project's remote."
+msgstr "Tài khoản nguồn đã chọn không khớp với kho từ xa của dự án."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "The server configuration is invalid."
@@ -16244,6 +16388,26 @@ msgid "The skills marketplace couldn't be loaded."
 msgstr "Không thể tải marketplace skill."
 
 #: src/renderer/i18n/sharedMessages.ts
+msgid "The source credential belongs to a different account. Select the correct account and retry."
+msgstr "Thông tin xác thực nguồn thuộc về tài khoản khác. Chọn đúng tài khoản rồi thử lại."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The source host omitted this file's diff content. Open the review on its source host."
+msgstr "Máy chủ nguồn không cung cấp nội dung khác biệt của tệp này. Mở nội dung đánh giá trên máy chủ nguồn."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The source host rejected the merge. Refresh the pull request before retrying."
+msgstr "Máy chủ nguồn từ chối hợp nhất. Làm mới yêu cầu hợp nhất trước khi thử lại."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The source host returned a link outside the selected API."
+msgstr "Máy chủ nguồn trả về liên kết nằm ngoài API đã chọn."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The source host returned an invalid response. Update the integration or open the review on its source host."
+msgstr "Máy chủ nguồn trả về phản hồi không hợp lệ. Cập nhật tích hợp hoặc mở nội dung đánh giá trên máy chủ nguồn."
+
+#: src/renderer/i18n/sharedMessages.ts
 msgid "The SSH tunnel reached an incompatible Poracode server."
 msgstr "Đường hầm SSH đã kết nối đến một máy chủ Poracode không tương thích."
 
@@ -16298,6 +16462,10 @@ msgstr "Kết nối thoại đã hết thời gian chờ. Hãy thử lại."
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The voice connection was cancelled."
 msgstr "Đã hủy kết nối thoại."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The watched pull request changed. Review the watch before continuing."
+msgstr "Yêu cầu hợp nhất đang theo dõi đã thay đổi. Kiểm tra cấu hình theo dõi trước khi tiếp tục."
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the Windows user"
@@ -16524,6 +16692,10 @@ msgstr "Tin nhắn này không còn trong hàng đợi. Bạn vẫn có thể sa
 msgid "This name is reserved by a built-in MCP server."
 msgstr "Tên này được dành riêng cho máy chủ MCP tích hợp sẵn."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This operation is not supported by the {forge} integration. Open the review on its source host."
+msgstr "Tích hợp {forge} không hỗ trợ thao tác này. Hãy mở nội dung đánh giá trên máy chủ nguồn."
+
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "This page is served over HTTPS, so the browser blocks it from reaching a desktop on plain HTTP. Continue on the desktop's own address to finish pairing there."
 #~ msgstr "Trang này được phục vụ qua HTTPS, nên trình duyệt chặn việc kết nối tới desktop dùng HTTP thuần. Hãy tiếp tục trên địa chỉ riêng của desktop để hoàn tất ghép đôi ở đó."
@@ -16584,6 +16756,10 @@ msgstr "Cài đặt của hồ sơ này được một phiên bản Poracode m�
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "this project"
 msgstr "dự án này"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This project has no supported source-host remote."
+msgstr "Dự án này không có kho từ xa trên máy chủ nguồn được hỗ trợ."
 
 #: src/renderer/actions/providerSwitchActions.ts
 #: src/renderer/actions/providerSwitchRemoteActions.ts
@@ -16646,6 +16822,16 @@ msgid "This removes the worktree on \"{0}\", then deletes the branch."
 msgstr "Thao tác này sẽ xóa cây làm việc trên \"{0}\", sau đó xóa nhánh."
 
 #: src/renderer/i18n/sharedMessages.ts
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "This review watch uses an unsupported source-scope version. Update the app before changing it."
+msgstr "Theo dõi đánh giá này dùng phiên bản phạm vi nguồn không được hỗ trợ. Cập nhật ứng dụng trước khi thay đổi."
+
+#: src/renderer/i18n/sharedMessages.ts
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "This saved review watch has no source scope. Review the pull request and enable automation again."
+msgstr "Theo dõi đánh giá đã lưu này không có phạm vi nguồn. Kiểm tra yêu cầu hợp nhất rồi bật lại tự động hóa."
+
+#: src/renderer/i18n/sharedMessages.ts
 msgid "This scheduled task changed or was removed before it could run. Review the schedule and try again."
 msgstr "Tác vụ đã lên lịch này đã bị thay đổi hoặc xóa trước khi chạy. Hãy kiểm tra lịch và thử lại."
 
@@ -16676,6 +16862,10 @@ msgstr "Phiên này đã thay đổi trên đĩa. Hãy làm mới danh sách r�
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This session is already being imported."
 msgstr "Phiên này đang được nhập."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This source host does not support safe automatic merge."
+msgstr "Máy chủ nguồn này không hỗ trợ hợp nhất tự động an toàn."
 
 #: src/renderer/components/media/SvgFileView.tsx
 msgid "This SVG can't be displayed."
@@ -16887,6 +17077,10 @@ msgstr "Thời gian chờ (ms)"
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Timeout must be a positive whole number."
 msgstr "Thời gian chờ phải là số nguyên dương."
+
+#: src/renderer/views/PrReviewOverlay/parts/PrHeaderCard.tsx
+msgid "Title"
+msgstr "Tiêu đề"
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
@@ -17616,6 +17810,10 @@ msgstr "Bỏ ghim quy trình làm việc"
 msgid "Unread"
 msgstr "Chưa đọc"
 
+#: src/renderer/views/PrReviewOverlay/parts/PrConversationTab.tsx
+msgid "Unresolved"
+msgstr "Chưa giải quyết"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileRow.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewTouchMenus.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
@@ -18174,6 +18372,11 @@ msgstr "Chỉ xem — kết nối này không thể thay đổi cài đặt máy
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "View-only — this connection can't manage projects."
 msgstr "Chỉ xem — kết nối này không thể quản lý dự án."
+
+#: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
+#: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
+msgid "Viewed here"
+msgstr "Đã xem tại đây"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Viewer"
@@ -18741,6 +18944,10 @@ msgstr "WSL ({distro})"
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "WSL base folder"
 msgstr "Thư mục gốc WSL"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "WSL bridge unavailable for source control."
+msgstr "Cầu nối WSL không khả dụng cho quản lý mã nguồn."
 
 #: src/renderer/components/skills/SkillImportModal.tsx
 #: src/renderer/components/skills/SkillsManager.tsx

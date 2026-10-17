@@ -1,3 +1,4 @@
+import type { IpcProcedurePayload, IpcProcedureResult } from "@/shared/ipc";
 import type { McpThreadIdentity } from "@/shared/browserMcpThread";
 import { normalizeWorktreePathForComparison, resolveProjectLocation } from "@/shared/worktree";
 import type {
@@ -114,6 +115,64 @@ import type { GitStateService } from "../../../gitState/GitStateService";
  * the full supervisor procedure surface.
  */
 export interface AppControlsSupervisorCaller {
+  forgeGetRepository(
+    payload: IpcProcedurePayload<"forgeGetRepository">,
+  ): Promise<IpcProcedureResult<"forgeGetRepository">>;
+  forgeEditPr(
+    payload: IpcProcedurePayload<"forgeEditPr">,
+  ): Promise<IpcProcedureResult<"forgeEditPr">>;
+  forgeCreatePr(
+    payload: IpcProcedurePayload<"forgeCreatePr">,
+  ): Promise<IpcProcedureResult<"forgeCreatePr">>;
+  forgeGetPrForBranch(
+    payload: IpcProcedurePayload<"forgeGetPrForBranch">,
+  ): Promise<IpcProcedureResult<"forgeGetPrForBranch">>;
+  forgeListPrs(
+    payload: IpcProcedurePayload<"forgeListPrs">,
+  ): Promise<IpcProcedureResult<"forgeListPrs">>;
+  forgeListPullRequests(
+    payload: IpcProcedurePayload<"forgeListPullRequests">,
+  ): Promise<IpcProcedureResult<"forgeListPullRequests">>;
+  forgeMergePr(
+    payload: IpcProcedurePayload<"forgeMergePr">,
+  ): Promise<IpcProcedureResult<"forgeMergePr">>;
+  forgeMergePrAtHead(
+    payload: IpcProcedurePayload<"forgeMergePrAtHead">,
+  ): Promise<IpcProcedureResult<"forgeMergePrAtHead">>;
+  forgeClosePr(
+    payload: IpcProcedurePayload<"forgeClosePr">,
+  ): Promise<IpcProcedureResult<"forgeClosePr">>;
+  forgeReopenPr(
+    payload: IpcProcedurePayload<"forgeReopenPr">,
+  ): Promise<IpcProcedureResult<"forgeReopenPr">>;
+  forgeMarkPrReady(
+    payload: IpcProcedurePayload<"forgeMarkPrReady">,
+  ): Promise<IpcProcedureResult<"forgeMarkPrReady">>;
+  forgeUpdatePrBranch(
+    payload: IpcProcedurePayload<"forgeUpdatePrBranch">,
+  ): Promise<IpcProcedureResult<"forgeUpdatePrBranch">>;
+  forgeGetPrChecks(
+    payload: IpcProcedurePayload<"forgeGetPrChecks">,
+  ): Promise<IpcProcedureResult<"forgeGetPrChecks">>;
+  forgeGetPrFiles(
+    payload: IpcProcedurePayload<"forgeGetPrFiles">,
+  ): Promise<IpcProcedureResult<"forgeGetPrFiles">>;
+  forgeGetPrDiff(
+    payload: IpcProcedurePayload<"forgeGetPrDiff">,
+  ): Promise<IpcProcedureResult<"forgeGetPrDiff">>;
+  forgeGetPrDetails(
+    payload: IpcProcedurePayload<"forgeGetPrDetails">,
+  ): Promise<IpcProcedureResult<"forgeGetPrDetails">>;
+  forgeGetPrReviewComments(
+    payload: IpcProcedurePayload<"forgeGetPrReviewComments">,
+  ): Promise<IpcProcedureResult<"forgeGetPrReviewComments">>;
+  forgePostPrComment(
+    payload: IpcProcedurePayload<"forgePostPrComment">,
+  ): Promise<IpcProcedureResult<"forgePostPrComment">>;
+  forgeSubmitPrReview(
+    payload: IpcProcedurePayload<"forgeSubmitPrReview">,
+  ): Promise<IpcProcedureResult<"forgeSubmitPrReview">>;
+
   getThreadSnapshots(): Promise<ThreadRuntimeSnapshot[]>;
   getTerminalShellSnapshots(): Promise<TerminalShellSnapshot[]>;
   /** Start (or resume) a thread's runtime session. Used to revive a thread with no live session. */

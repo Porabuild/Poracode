@@ -435,6 +435,60 @@ describe("RemoteDesktopClient", () => {
     ]);
   });
 
+  it("uses the distinct scoped watch route and never falls back after an older-host refusal", async () => {
+    const requests: Array<{ url: string; body: unknown }> = [];
+    const input = {
+      projectId: "project one",
+      prNumber: 42,
+      headBranch: "feature/mobile",
+      watchEnabled: true,
+      autoMerge: true,
+      agentKind: "codex",
+      config: { model: "fixture" },
+      reviewScope: {
+        version: 1 as const,
+        forge: "gitlab" as const,
+        host: "https://git.example/gitlab",
+        repository: "group/app",
+        account: { forge: "gitlab" as const, host: "https://git.example/gitlab", login: "alice" },
+      },
+    };
+    const watch = {
+      ...input,
+      lastCommentCursor: null,
+      lastReviewCommentCursor: null,
+      lastReviewCursor: null,
+      lastCheckKey: null,
+      activeThreadId: null,
+      lastError: null,
+      blockedReason: null,
+    };
+    let olderHost = false;
+    const client = new RemoteDesktopClient(
+      "https://relay.example.test/s/server-1/",
+      "lc_access_test",
+      async (url, init) => {
+        requests.push({ url: String(url), body: JSON.parse(String(init?.body)) as unknown });
+        return new Response(
+          JSON.stringify(
+            olderHost ? { error: { code: "not_found", message: "Not found." } } : { watch },
+          ),
+          { status: olderHost ? 404 : 200, headers: { "content-type": "application/json" } },
+        );
+      },
+    );
+    await expect(client.upsertForgePrWatch(input)).resolves.toEqual(watch);
+    expect(requests).toEqual([
+      { url: "https://relay.example.test/s/server-1/api/pr-watches/scoped", body: input },
+    ]);
+    olderHost = true;
+    requests.length = 0;
+    await expect(client.upsertForgePrWatch(input)).rejects.toMatchObject({ status: 404 });
+    expect(requests).toEqual([
+      { url: "https://relay.example.test/s/server-1/api/pr-watches/scoped", body: input },
+    ]);
+  });
+
   it("accepts PR automation responses from hosts that predate blocked reasons", async () => {
     const legacyWatch = {
       projectId: "project one",

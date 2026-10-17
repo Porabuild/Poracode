@@ -379,6 +379,7 @@ export function createLocalIpcHandlers(
     getPrWatch: (payload) => callService("getPrWatch", payload),
     checkPrWatch: (payload) => callService("checkPrWatch", payload),
     upsertPrWatch: (watch) => callService("upsertPrWatch", watch),
+    upsertForgePrWatch: (watch) => callService("upsertForgePrWatch", watch),
     deletePrWatch: (payload) => callService("deletePrWatch", payload),
     syncPrWatchAgent: (agent) => callService("syncPrWatchAgent", agent),
     getUpdateStatus: () =>

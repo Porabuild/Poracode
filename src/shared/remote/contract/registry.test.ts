@@ -23,18 +23,18 @@ const manifest = JSON.parse(
 };
 
 describe("remote contract registry", () => {
-  it("covers exactly the 100 routes and 130 procedures with no duplicates", () => {
-    expect(REMOTE_HTTP_ROUTES).toHaveLength(100);
-    expect(REMOTE_PROCEDURE_CONTRACTS).toHaveLength(130);
-    expect(new Set(REMOTE_HTTP_ROUTES.map((route) => route.id)).size).toBe(100);
+  it("covers exactly the 101 routes and 149 procedures with no duplicates", () => {
+    expect(REMOTE_HTTP_ROUTES).toHaveLength(101);
+    expect(REMOTE_PROCEDURE_CONTRACTS).toHaveLength(149);
+    expect(new Set(REMOTE_HTTP_ROUTES.map((route) => route.id)).size).toBe(101);
     expect(new Set(REMOTE_HTTP_ROUTES.map((route) => `${route.method} ${route.path}`)).size).toBe(
-      100,
+      101,
     );
-    expect(new Set(REMOTE_PROCEDURE_CONTRACTS.map((procedure) => procedure.name)).size).toBe(130);
-    expect(REMOTE_CONTRACT_INVENTORY.routes).toBe(100);
-    expect(REMOTE_CONTRACT_INVENTORY.procedures).toBe(130);
-    expect(REMOTE_CONTRACT_INVENTORY.voidProcedureResults).toBe(50);
-    expect(REMOTE_CONTRACT_INVENTORY.jsonProcedureResults).toBe(80);
+    expect(new Set(REMOTE_PROCEDURE_CONTRACTS.map((procedure) => procedure.name)).size).toBe(149);
+    expect(REMOTE_CONTRACT_INVENTORY.routes).toBe(101);
+    expect(REMOTE_CONTRACT_INVENTORY.procedures).toBe(149);
+    expect(REMOTE_CONTRACT_INVENTORY.voidProcedureResults).toBe(58);
+    expect(REMOTE_CONTRACT_INVENTORY.jsonProcedureResults).toBe(91);
     expect(REMOTE_CONTRACT_INVENTORY.blockedProcedureResults).toEqual([]);
     expect(BLOCKED_PROCEDURE_RESULTS).toEqual([]);
   });
@@ -82,7 +82,7 @@ describe("remote contract registry", () => {
     const voidNames = REMOTE_PROCEDURE_CONTRACTS.filter(
       (procedure) => procedure.resultKind === "omitted",
     ).map((procedure) => procedure.name);
-    expect(voidNames).toHaveLength(50);
+    expect(voidNames).toHaveLength(58);
     const omitted = REMOTE_PROCEDURE_CONTRACTS.filter(
       (procedure) => procedure.resultKind === "omitted",
     );

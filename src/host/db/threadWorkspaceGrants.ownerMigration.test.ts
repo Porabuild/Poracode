@@ -249,10 +249,12 @@ describe("workspace owner migration55 to 56", () => {
 
   it("revisits complete schema56 without reminting or reclassifying owner-only revisions", () => {
     const { sqlite } = schema55();
-    runDatabaseMigrations(sqlite, 55);
+    const migration = DATABASE_MIGRATIONS.find((entry) => entry.version === 56)!;
+    migration.migrate(sqlite);
+    sqlite.prepare("UPDATE app_state SET value = '56' WHERE key = 'schema_version'").run();
     sqlite.exec("UPDATE threads SET agent_instance_id = 'other' WHERE id = 'thread-1'");
     const before = sqlite.prepare("SELECT * FROM threads ORDER BY id").all();
-    runDatabaseMigrations(sqlite, 55);
+    migration.migrate(sqlite);
     expect(sqlite.prepare("SELECT * FROM threads ORDER BY id").all()).toEqual(before);
     expect(
       sqlite

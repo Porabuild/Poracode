@@ -189,6 +189,16 @@ msgstr "{0} (포크)"
 #~ msgid "{0} {env}"
 #~ msgstr "{0} {env}"
 
+#. placeholder {0}: details.additions
+#. placeholder {0}: summary.additions
+#. placeholder {1}: details.deletions
+#. placeholder {1}: summary.deletions
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
+#: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "{0} additions and {1} deletions"
+msgstr "{0}개 추가, {1}개 삭제"
+
 #. placeholder {0}: days.map((day) => weekdayNames[day]).join(", ")
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "{0} at {time}"
@@ -678,6 +688,10 @@ msgstr "{providerLabel}의 {serverName}: {disabledLabel}"
 msgid "{stepCount, plural, one {# step} other {# steps}}"
 msgstr "{stepCount, plural, other {# 단계}}"
 
+#: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
+msgid "{totalAdditions} additions and {totalDeletions} deletions"
+msgstr "{totalAdditions}개 추가, {totalDeletions}개 삭제"
+
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "{used} tokens"
 msgstr "{used} 토큰"
@@ -693,6 +707,10 @@ msgstr "{usedLabel}/{maxLabel} 토큰"
 #: src/renderer/components/thread/threadContextUsage.ts
 msgid "{usedLabel} tokens"
 msgstr "{usedLabel} 토큰"
+
+#: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
+msgid "{viewedCount} of {totalCount} viewed"
+msgstr "{totalCount}개 중 {viewedCount}개 확인"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 msgid "{visibleCount} of {totalCount} usable"
@@ -848,6 +866,10 @@ msgstr "프로필 하나에는 최대 100개의 저장소를 담을 수 있습�
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 msgid "A profile with this name already exists."
 msgstr "같은 이름의 프로필이 이미 있습니다."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "A review or comment body is required."
+msgstr "리뷰 또는 댓글 본문이 필요합니다."
 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "A server could not be started and was skipped."
@@ -1939,6 +1961,10 @@ msgid "Auto Fix"
 msgstr "자동 수정"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "Auto Fix repairs merge blockers. Auto Merge is unavailable on this source host."
+msgstr "Auto Fix는 병합 차단 요인을 수정합니다. 이 소스 호스트에서는 Auto Merge를 사용할 수 없습니다."
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
 #~ msgid "Auto Fix waits for checks and repairs merge blockers. Auto Merge also squash merges when ready."
 #~ msgstr "‘자동 수정’은 검사가 끝날 때까지 기다린 후 병합 차단 문제를 해결합니다. ‘자동 병합’은 준비되면 스쿼시 병합도 수행합니다."
 
@@ -2030,6 +2056,11 @@ msgstr "자동화가 일시 중지되었습니다: 이 PR의 브랜치를 체크
 #~ msgid "Automation is paused: this PR's branch could not be checked out. Re-select a mode to retry."
 #~ msgstr "자동화가 일시 중지되었습니다: 이 PR의 브랜치를 체크아웃할 수 없습니다. 모드를 다시 선택해 재시도하세요."
 
+#: src/renderer/i18n/sharedMessages.ts
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "Automation requires a branch in this repository."
+msgstr "자동화에는 이 저장소의 브랜치가 필요합니다."
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Automation sections"
 msgstr "자동화 섹션"
@@ -2062,8 +2093,8 @@ msgstr "아바타 색상"
 msgid "Avatar color {color}"
 msgstr "아바타 색상 {color}"
 
+#: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
-#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Awaiting review"
 msgstr "검토 대기 중"
 
@@ -2167,6 +2198,10 @@ msgstr "Bash 출력"
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Basic (CLI)"
 msgstr "기본(CLI)"
+
+#: src/renderer/utils/prStatus.ts
+msgid "Behind base"
+msgstr "기준 브랜치보다 뒤처짐"
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "Beta next-generation OpenCode runtime with native GUI sessions."
@@ -2530,6 +2565,7 @@ msgstr "이 화면에서는 이 모델 설정을 사용할 수 없습니다"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
+#: src/renderer/views/PrReviewOverlay/parts/PrHeaderCard.tsx
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
@@ -2653,6 +2689,10 @@ msgstr "단축키 변경"
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Change User"
 msgstr "사용자 변경"
+
+#: src/renderer/views/PrReviewOverlay/parts/PrFileRow.tsx
+msgid "Changed"
+msgstr "변경됨"
 
 #: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
 msgid "Changed files"
@@ -2803,16 +2843,16 @@ msgstr "확인 중…"
 msgid "Checks"
 msgstr "검사"
 
-#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+#: src/renderer/utils/prStatus.ts
 msgid "Checks failed"
 msgstr "검사 실패"
 
-#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+#: src/renderer/utils/prStatus.ts
 msgid "Checks passed"
 msgstr "검사 통과"
 
+#: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
-#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Checks pending"
 msgstr "검사 대기 중"
 
@@ -3358,9 +3398,8 @@ msgstr "워크플로 닫기"
 msgid "Close workflows panel"
 msgstr "워크플로 패널 닫기"
 
+#: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
-#: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
-#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Closed"
 msgstr "닫힘"
 
@@ -3790,6 +3829,10 @@ msgstr "설정 파일 경로(선택 사항)"
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Configuration from a newer Poracode"
 msgstr "더 최신 Poracode의 구성"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Configure credentials scoped to this exact source host in the project's runtime."
+msgstr "프로젝트 실행 환경에서 이 소스 호스트 전용 자격 증명을 설정하세요."
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Configure the server Poracode will add when supported agents start."
@@ -5571,8 +5614,7 @@ msgstr "다운로드"
 msgid "Downloads from the built-in browser are saved in this history."
 msgstr "내장 브라우저에서 다운로드한 항목은 이 기록에 저장됩니다."
 
-#: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
-#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+#: src/renderer/utils/prStatus.ts
 msgid "Draft"
 msgstr "초안"
 
@@ -5662,6 +5704,7 @@ msgstr "이전 텍스트"
 
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+#: src/renderer/views/PrReviewOverlay/parts/PrHeaderCard.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Edit"
@@ -5795,6 +5838,10 @@ msgstr "{tierLabel} 추론 강도 활성화"
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Enable {tool}"
 msgstr "{tool} 활성화"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "Enable automation again"
+msgstr "자동화 다시 활성화"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -6322,6 +6369,7 @@ msgstr "실패"
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+#: src/renderer/views/PrReviewOverlay/parts/PrTabsPill.tsx
 #: src/renderer/views/SchedulesView/parts/scheduleRunStatus.ts
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Failed"
@@ -6981,6 +7029,11 @@ msgstr "Git 리뷰 모드"
 #: src/renderer/views/MainView/parts/Sidebar/parts/GitBadge.tsx
 msgid "Git status for {0}"
 msgstr "{0}의 Git 상태"
+
+#. placeholder {0}: props.projectName
+#: src/renderer/views/MainView/parts/Sidebar/parts/GitBadge.tsx
+msgid "Git status for {0}: {prStatusLabel}"
+msgstr "{0}의 Git 상태: {prStatusLabel}"
 
 #. placeholder {0}: props.projectName
 #: src/renderer/views/MainView/parts/Sidebar/parts/GitBadge.tsx
@@ -8777,6 +8830,10 @@ msgstr "완료로 표시"
 msgid "Mark as not done"
 msgstr "완료되지 않음으로 표시"
 
+#: src/renderer/views/PrReviewOverlay/parts/PrFileRow.tsx
+msgid "Mark as not viewed"
+msgstr "확인하지 않음으로 표시"
+
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Mark as read"
 msgstr "읽음으로 표시"
@@ -8784,6 +8841,11 @@ msgstr "읽음으로 표시"
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Mark as unread"
 msgstr "읽지 않음으로 표시"
+
+#: src/renderer/views/PrReviewOverlay/parts/PrFileRow.tsx
+#: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
+msgid "Mark as viewed"
+msgstr "확인함으로 표시"
 
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Mark done"
@@ -9071,6 +9133,10 @@ msgstr "PR 병합: 리베이스"
 msgid "Merge PR: Squash"
 msgstr "PR 병합: 스쿼시"
 
+#: src/renderer/hooks/usePrWriteActions.ts
+msgid "Merge requested. Refresh to check its progress."
+msgstr "병합을 요청했습니다. 새로 고쳐 진행 상황을 확인하세요."
+
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 msgid "Merge this candidate's changes into the base branch and remove the other candidates' worktrees."
 msgstr "이 후보의 변경 사항을 베이스 브랜치에 병합하고 다른 후보의 워크트리를 제거합니다."
@@ -9092,10 +9158,9 @@ msgstr "우승자 병합"
 msgid "Merge Worktree"
 msgstr "작업 트리 병합"
 
+#: src/renderer/utils/prStatus.ts
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
-#: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
-#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Merged"
 msgstr "병합됨"
 
@@ -9103,8 +9168,8 @@ msgstr "병합됨"
 msgid "Merged the experiment winner into {sourceBranch}."
 msgstr "실험 우승자를 {sourceBranch}에 병합했습니다."
 
+#: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
-#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Merging is blocked"
 msgstr "병합이 차단되었습니다."
 
@@ -9462,6 +9527,10 @@ msgstr "변경사항 이동 중…"
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Multiple Devin configurations under one login — different config files, organizations, or approval defaults — or an isolated second login. Native credentials are never copied."
 msgstr "하나의 로그인 아래 여러 Devin 구성 — 서로 다른 설정 파일, 조직, 승인 기본값 — 또는 분리된 두 번째 로그인. 네이티브 자격 증명은 절대 복사되지 않습니다."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Multiple source remotes are configured. Set the branch upstream before reviewing."
+msgstr "여러 소스 원격 저장소가 설정되어 있습니다. 리뷰 전에 브랜치의 업스트림을 설정하세요."
 
 #: src/renderer/components/providers/muse/manifest.ts
 msgid "Muse Code"
@@ -9963,6 +10032,7 @@ msgstr "{provider}의 기본 원샷 모델이 구성되지 않았습니다"
 
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
+#: src/renderer/views/PrReviewOverlay/parts/PrHeaderCard.tsx
 msgid "No description"
 msgstr "설명 없음"
 
@@ -10597,9 +10667,8 @@ msgstr "이 컴퓨터에서만 작동합니다."
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/thread/ThreadUsageBubble.tsx
 #: src/renderer/notifications.ts
+#: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
-#: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
-#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Open"
 msgstr "열기"
@@ -10667,8 +10736,12 @@ msgstr "체크 열기"
 #~ msgstr "명령 팔레트 열기"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrCommitsTab.tsx
-msgid "Open commit on GitHub"
-msgstr "GitHub에서 커밋 열기"
+#~ msgid "Open commit on GitHub"
+#~ msgstr "GitHub에서 커밋 열기"
+
+#: src/renderer/views/PrReviewOverlay/parts/PrCommitsTab.tsx
+msgid "Open commit on source host"
+msgstr "소스 호스트에서 커밋 열기"
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
@@ -10812,12 +10885,20 @@ msgid "Open PR #{0}"
 msgstr "PR #{0} 열기"
 
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
-msgid "Open PR #{prNumber}"
-msgstr "PR #{prNumber} 열기"
+#~ msgid "Open PR #{prNumber}"
+#~ msgstr "PR #{prNumber} 열기"
+
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
+msgid "Open PR #{prNumber}: {prStatusLabel}"
+msgstr "PR #{prNumber} 열기: {prStatusLabel}"
 
 #: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
-msgid "Open PR on GitHub"
-msgstr "GitHub에서 PR 열기"
+#~ msgid "Open PR on GitHub"
+#~ msgstr "GitHub에서 PR 열기"
+
+#: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
+msgid "Open PR on source host"
+msgstr "소스 호스트에서 PR 열기"
 
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 msgid "Open preview"
@@ -11019,6 +11100,10 @@ msgstr "다른 연결 방법"
 msgid "Outcome"
 msgstr "결과"
 
+#: src/renderer/views/PrReviewOverlay/parts/PrConversationTab.tsx
+msgid "Outdated"
+msgstr "오래된 내용"
+
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Outlook"
 msgstr "Outlook"
@@ -11207,6 +11292,7 @@ msgid "Partially checked"
 msgstr "일부 선택됨"
 
 #: src/renderer/utils/prStatus.ts
+#: src/renderer/views/PrReviewOverlay/parts/PrTabsPill.tsx
 msgid "Passed"
 msgstr "통과"
 
@@ -11360,6 +11446,7 @@ msgid "pending"
 msgstr "보류 중"
 
 #: src/renderer/utils/prStatus.ts
+#: src/renderer/views/PrReviewOverlay/parts/PrTabsPill.tsx
 msgid "Pending"
 msgstr "대기 중"
 
@@ -12181,6 +12268,10 @@ msgstr "풀 리퀘스트 {0}"
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #~ msgid "Pull request #{0}"
 #~ msgstr "풀 리퀘스트 #{0}"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Pull request #{number} was created, but marking it as draft failed. Refresh before changing its state."
+msgstr "풀 리퀘스트 #{number}를 만들었지만 초안 표시에는 실패했습니다. 상태를 변경하기 전에 새로 고치세요."
 
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Pull request category"
@@ -13101,6 +13192,10 @@ msgstr "이 작업 트리의 충돌을 해결하세요. 먼저 Git 상태와 진
 "파일:\n"
 "{fileList}"
 
+#: src/renderer/views/PrReviewOverlay/parts/PrConversationTab.tsx
+msgid "Resolved"
+msgstr "해결됨"
+
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -13324,8 +13419,12 @@ msgid "Review and Summarizer are the only root agent types Devin's CLI accepts. 
 msgstr "리뷰와 요약은 Devin CLI가 허용하는 유일한 루트 에이전트 유형입니다. 사용자 지정 네이티브 페르소나는 Devin 자체 파일에 구성된 서브에이전트 정의로, 여기서는 선택할 수 없습니다."
 
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
-msgid "Review and track work across your GitHub accounts."
-msgstr "여러 GitHub 계정의 작업을 검토하고 추적하세요."
+#~ msgid "Review and track work across your GitHub accounts."
+#~ msgstr "여러 GitHub 계정의 작업을 검토하고 추적하세요."
+
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "Review and track work across your source hosts."
+msgstr "소스 호스트 전반의 작업을 검토하고 추적하세요."
 
 #. placeholder {0}: props.candidateNumber
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
@@ -13662,6 +13761,7 @@ msgstr "채도와 밝기"
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/MobileFileEditorActions.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
+#: src/renderer/views/PrReviewOverlay/parts/PrHeaderCard.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
@@ -13850,6 +13950,10 @@ msgstr "과학 및 교육"
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Scope"
 msgstr "범위"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Scoped review watches are unavailable on this host. Update the host before enabling automation."
+msgstr "이 호스트에서는 소스 범위가 지정된 리뷰 감시를 사용할 수 없습니다. 자동화를 활성화하기 전에 호스트를 업데이트하세요."
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
@@ -14946,6 +15050,30 @@ msgstr "마켓플레이스 스킬 정렬"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Source branch {branch} moved before the worktree was created"
 msgstr "작업 트리가 생성되기 전에 소스 브랜치 {branch}이(가) 이동했습니다"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Source control command {command} failed. Check its installation and host login."
+msgstr "소스 제어 명령 {command}가 실패했습니다. 설치 상태와 호스트 로그인을 확인하세요."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Source host {host} returned HTTP {status}."
+msgstr "소스 호스트 {host}가 HTTP {status}를 반환했습니다."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Source host login configuration could not be read."
+msgstr "소스 호스트의 로그인 설정을 읽을 수 없습니다."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Source host must be an HTTPS URL without credentials."
+msgstr "소스 호스트는 자격 증명이 없는 HTTPS URL이어야 합니다."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Source host pagination did not complete. Narrow the review query."
+msgstr "소스 호스트의 페이지 조회가 완료되지 않았습니다. 리뷰 검색 범위를 좁히세요."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Source host request failed. Check its connection and login."
+msgstr "소스 호스트 요청이 실패했습니다. 연결과 로그인을 확인하세요."
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Sources"
@@ -16107,6 +16235,10 @@ msgstr "공급자를 사용할 수 없습니다. 공급자 설정에서 설치�
 msgid "The provider's sign-in data could not be read. Try again or update Poracode."
 msgstr "공급자의 로그인 데이터를 읽을 수 없습니다. 다시 시도하거나 Poracode를 업데이트하세요."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The pull request head changed or is unavailable. Refresh and review it before merging."
+msgstr "풀 리퀘스트의 헤드가 변경되었거나 사용할 수 없습니다. 병합 전에 새로 고치고 검토하세요."
+
 #: src/renderer/state/remoteServers/snapshotProjection.ts
 msgid "The remote catalog read failed."
 msgstr "원격 카탈로그를 읽지 못했습니다."
@@ -16143,6 +16275,10 @@ msgstr "디스크에 있는 저장소 위치입니다. 폴더를 옮겼다면 �
 msgid "The result will appear when this run finishes."
 msgstr "이 실행이 완료되면 결과가 표시됩니다."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The review was submitted, but its comment failed. Refresh before posting the comment separately."
+msgstr "리뷰는 제출되었지만 댓글은 실패했습니다. 댓글을 따로 게시하기 전에 새로 고치세요."
+
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "The run could not be cancelled."
 msgstr "실행을 취소할 수 없습니다."
@@ -16174,6 +16310,14 @@ msgstr "선택한 모델은 각 후보의 채팅 응답을 익명 레이블로 �
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeDialog.tsx
 msgid "The selected model compares snapshots of each candidate's changes under anonymous labels. It recommends a winner without merging anything."
 msgstr "선택한 모델은 각 후보 변경 사항의 스냅샷을 익명 레이블로 비교합니다. 아무것도 병합하지 않고 우승자를 추천합니다."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The selected repository no longer matches this project's source remote. Refresh before continuing."
+msgstr "선택한 저장소가 더 이상 이 프로젝트의 소스 원격 저장소와 일치하지 않습니다. 계속하기 전에 새로 고치세요."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The selected source account does not match the project's remote."
+msgstr "선택한 소스 계정이 프로젝트의 원격 저장소와 일치하지 않습니다."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "The server configuration is invalid."
@@ -16244,6 +16388,26 @@ msgid "The skills marketplace couldn't be loaded."
 msgstr "스킬 마켓플레이스를 로드할 수 없습니다."
 
 #: src/renderer/i18n/sharedMessages.ts
+msgid "The source credential belongs to a different account. Select the correct account and retry."
+msgstr "소스 자격 증명이 다른 계정에 속합니다. 올바른 계정을 선택하고 다시 시도하세요."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The source host omitted this file's diff content. Open the review on its source host."
+msgstr "소스 호스트가 이 파일의 차이 내용을 제공하지 않았습니다. 소스 호스트에서 리뷰를 여세요."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The source host rejected the merge. Refresh the pull request before retrying."
+msgstr "소스 호스트가 병합을 거부했습니다. 다시 시도하기 전에 풀 리퀘스트를 새로 고치세요."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The source host returned a link outside the selected API."
+msgstr "소스 호스트가 선택한 API 범위 밖의 링크를 반환했습니다."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The source host returned an invalid response. Update the integration or open the review on its source host."
+msgstr "소스 호스트가 잘못된 응답을 반환했습니다. 통합을 업데이트하거나 소스 호스트에서 리뷰를 여세요."
+
+#: src/renderer/i18n/sharedMessages.ts
 msgid "The SSH tunnel reached an incompatible Poracode server."
 msgstr "SSH 터널이 호환되지 않는 Poracode 서버에 연결되었습니다."
 
@@ -16298,6 +16462,10 @@ msgstr "음성 연결 시간이 초과되었습니다. 다시 시도하세요."
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The voice connection was cancelled."
 msgstr "음성 연결이 취소되었습니다."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The watched pull request changed. Review the watch before continuing."
+msgstr "감시 중인 풀 리퀘스트가 변경되었습니다. 계속하기 전에 감시 설정을 검토하세요."
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the Windows user"
@@ -16524,6 +16692,10 @@ msgstr "이 메시지는 더 이상 대기열에 없습니다. 편집 중인 내
 msgid "This name is reserved by a built-in MCP server."
 msgstr "이 이름은 기본 제공 MCP 서버용으로 예약되어 있습니다."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This operation is not supported by the {forge} integration. Open the review on its source host."
+msgstr "{forge} 통합은 이 작업을 지원하지 않습니다. 소스 호스트에서 리뷰를 여세요."
+
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "This page is served over HTTPS, so the browser blocks it from reaching a desktop on plain HTTP. Continue on the desktop's own address to finish pairing there."
 #~ msgstr "이 페이지는 HTTPS로 제공되므로 브라우저가 일반 HTTP 데스크톱 연결을 차단합니다. 데스크톱 자체 주소에서 계속해 거기서 페어링을 완료하세요."
@@ -16584,6 +16756,10 @@ msgstr "이 프로필의 설정은 더 최신 Poracode 버전이 작성했습니
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "this project"
 msgstr "이 프로젝트"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This project has no supported source-host remote."
+msgstr "이 프로젝트에는 지원되는 소스 호스트 원격 저장소가 없습니다."
 
 #: src/renderer/actions/providerSwitchActions.ts
 #: src/renderer/actions/providerSwitchRemoteActions.ts
@@ -16646,6 +16822,16 @@ msgid "This removes the worktree on \"{0}\", then deletes the branch."
 msgstr "이렇게 하면 \"{0}\"의 작업 트리가 제거된 다음 분기가 삭제됩니다."
 
 #: src/renderer/i18n/sharedMessages.ts
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "This review watch uses an unsupported source-scope version. Update the app before changing it."
+msgstr "이 리뷰 감시는 지원하지 않는 소스 범위 버전을 사용합니다. 변경하기 전에 앱을 업데이트하세요."
+
+#: src/renderer/i18n/sharedMessages.ts
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "This saved review watch has no source scope. Review the pull request and enable automation again."
+msgstr "저장된 리뷰 감시에 소스 범위가 없습니다. 풀 리퀘스트를 검토하고 자동화를 다시 활성화하세요."
+
+#: src/renderer/i18n/sharedMessages.ts
 msgid "This scheduled task changed or was removed before it could run. Review the schedule and try again."
 msgstr "이 예약 작업은 실행되기 전에 변경되었거나 삭제되었습니다. 예약을 확인한 후 다시 시도하세요."
 
@@ -16676,6 +16862,10 @@ msgstr "이 세션이 디스크에서 변경되었습니다. 목록을 새로 �
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This session is already being imported."
 msgstr "이 세션을 이미 가져오는 중입니다."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This source host does not support safe automatic merge."
+msgstr "이 소스 호스트는 안전한 자동 병합을 지원하지 않습니다."
 
 #: src/renderer/components/media/SvgFileView.tsx
 msgid "This SVG can't be displayed."
@@ -16887,6 +17077,10 @@ msgstr "제한 시간(ms)"
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Timeout must be a positive whole number."
 msgstr "제한 시간은 양의 정수여야 합니다."
+
+#: src/renderer/views/PrReviewOverlay/parts/PrHeaderCard.tsx
+msgid "Title"
+msgstr "제목"
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
@@ -17616,6 +17810,10 @@ msgstr "워크플로 고정 해제"
 msgid "Unread"
 msgstr "읽지 않음"
 
+#: src/renderer/views/PrReviewOverlay/parts/PrConversationTab.tsx
+msgid "Unresolved"
+msgstr "미해결"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileRow.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewTouchMenus.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
@@ -18174,6 +18372,11 @@ msgstr "보기 전용 — 이 연결은 호스트 설정을 변경할 수 없습
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "View-only — this connection can't manage projects."
 msgstr "읽기 전용 — 이 연결로는 프로젝트를 관리할 수 없습니다."
+
+#: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
+#: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
+msgid "Viewed here"
+msgstr "여기에서 확인함"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Viewer"
@@ -18741,6 +18944,10 @@ msgstr "WSL ({distro})"
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "WSL base folder"
 msgstr "WSL 기본 폴더"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "WSL bridge unavailable for source control."
+msgstr "소스 제어용 WSL 브리지를 사용할 수 없습니다."
 
 #: src/renderer/components/skills/SkillImportModal.tsx
 #: src/renderer/components/skills/SkillsManager.tsx

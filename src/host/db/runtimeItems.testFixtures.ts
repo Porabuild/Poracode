@@ -36,4 +36,8 @@ function testThread(): Thread {
   };
 }
 
-export { nativeBindingEnv, sqliteAvailable, testThread };
+function removeReviewScopeFixtureSchema(sqlite: Database.Database): void {
+  sqlite.exec("ALTER TABLE pr_watches DROP COLUMN review_scope");
+}
+
+export { nativeBindingEnv, sqliteAvailable, testThread, removeReviewScopeFixtureSchema };

@@ -62,6 +62,6 @@ it("repairs schema60 thoughts only inside recorded completed turns without chang
     before.map((row) => (repaired.has(row.item_id) ? { ...row, state: "completed" } : row)),
   );
   expect(db.prepare("SELECT value FROM app_state WHERE key = 'schema_version'").get()).toEqual({
-    value: "61",
+    value: "62",
   });
 });

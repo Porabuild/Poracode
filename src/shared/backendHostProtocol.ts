@@ -10,6 +10,7 @@ import type {
   PrWatch,
   PrWatchAgentSync,
   PrWatchInput,
+  ForgePrWatchInput,
   RemoteThreadCommand,
   ScheduledTask,
   ScheduledTaskInput,
@@ -260,6 +261,7 @@ export interface BackendServiceProcedureMap extends BackendSettingsProcedureMap 
   getPrWatch: { payload: { projectId: string; prNumber: number }; result: PrWatch | null };
   checkPrWatch: { payload: { projectId: string; prNumber: number }; result: void };
   upsertPrWatch: { payload: PrWatchInput; result: PrWatch };
+  upsertForgePrWatch: { payload: ForgePrWatchInput; result: PrWatch };
   deletePrWatch: { payload: { projectId: string; prNumber: number }; result: void };
   syncPrWatchAgent: { payload: PrWatchAgentSync; result: void };
   getProfileCoreStats: { payload: ProfileStatsRequest; result: ProfileCoreStats };
@@ -306,6 +308,7 @@ export const BACKEND_SERVICE_PROCEDURE_NAMES = [
   "getPrWatch",
   "checkPrWatch",
   "upsertPrWatch",
+  "upsertForgePrWatch",
   "deletePrWatch",
   "syncPrWatchAgent",
   "getProfileCoreStats",

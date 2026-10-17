@@ -5,6 +5,32 @@
   "entries": {
     "httpRoutes": [
       {
+        "id": "pr-watch-scoped-upsert",
+        "scopes": ["session:operate"],
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "note": "Generated codecs include the scoped review contract. Native transport and account/capability UI do not yet invoke this new operation; legacy GitHub operations remain available."
+      },
+      {
         "id": "environment",
         "scopes": [],
         "batch": "foundation",
@@ -3446,6 +3472,481 @@
       }
     ],
     "procedures": [
+      {
+        "id": "forgeClosePr",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "note": "Generated codecs include the scoped review contract. Native transport and account/capability UI do not yet invoke this new operation; legacy GitHub operations remain available."
+      },
+      {
+        "id": "forgeCreatePr",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "note": "Generated codecs include the scoped review contract. Native transport and account/capability UI do not yet invoke this new operation; legacy GitHub operations remain available."
+      },
+      {
+        "id": "forgeEditPr",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "note": "Generated codecs include the scoped review contract. Native transport and account/capability UI do not yet invoke this new operation; legacy GitHub operations remain available."
+      },
+      {
+        "id": "forgeGetPrChecks",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "note": "Generated codecs include the scoped review contract. Native transport and account/capability UI do not yet invoke this new operation; legacy GitHub operations remain available."
+      },
+      {
+        "id": "forgeGetPrDetails",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "note": "Generated codecs include the scoped review contract. Native transport and account/capability UI do not yet invoke this new operation; legacy GitHub operations remain available."
+      },
+      {
+        "id": "forgeGetPrDiff",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "note": "Generated codecs include the scoped review contract. Native transport and account/capability UI do not yet invoke this new operation; legacy GitHub operations remain available."
+      },
+      {
+        "id": "forgeGetPrFiles",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "note": "Generated codecs include the scoped review contract. Native transport and account/capability UI do not yet invoke this new operation; legacy GitHub operations remain available."
+      },
+      {
+        "id": "forgeGetPrForBranch",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "note": "Generated codecs include the scoped review contract. Native transport and account/capability UI do not yet invoke this new operation; legacy GitHub operations remain available."
+      },
+      {
+        "id": "forgeGetPrReviewComments",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "note": "Generated codecs include the scoped review contract. Native transport and account/capability UI do not yet invoke this new operation; legacy GitHub operations remain available."
+      },
+      {
+        "id": "forgeGetRepository",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "note": "Generated codecs include the scoped review contract. Native transport and account/capability UI do not yet invoke this new operation; legacy GitHub operations remain available."
+      },
+      {
+        "id": "forgeListPrs",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "note": "Generated codecs include the scoped review contract. Native transport and account/capability UI do not yet invoke this new operation; legacy GitHub operations remain available."
+      },
+      {
+        "id": "forgeListPullRequests",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "note": "Generated codecs include the scoped review contract. Native transport and account/capability UI do not yet invoke this new operation; legacy GitHub operations remain available."
+      },
+      {
+        "id": "forgeMarkPrReady",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "note": "Generated codecs include the scoped review contract. Native transport and account/capability UI do not yet invoke this new operation; legacy GitHub operations remain available."
+      },
+      {
+        "id": "forgeMergePr",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "note": "Generated codecs include the scoped review contract. Native transport and account/capability UI do not yet invoke this new operation; legacy GitHub operations remain available."
+      },
+      {
+        "id": "forgeMergePrAtHead",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "note": "Generated codecs include the scoped review contract. Native transport and account/capability UI do not yet invoke this new operation; legacy GitHub operations remain available."
+      },
+      {
+        "id": "forgePostPrComment",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "note": "Generated codecs include the scoped review contract. Native transport and account/capability UI do not yet invoke this new operation; legacy GitHub operations remain available."
+      },
+      {
+        "id": "forgeReopenPr",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "note": "Generated codecs include the scoped review contract. Native transport and account/capability UI do not yet invoke this new operation; legacy GitHub operations remain available."
+      },
+      {
+        "id": "forgeSubmitPrReview",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "note": "Generated codecs include the scoped review contract. Native transport and account/capability UI do not yet invoke this new operation; legacy GitHub operations remain available."
+      },
+      {
+        "id": "forgeUpdatePrBranch",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "note": "Generated codecs include the scoped review contract. Native transport and account/capability UI do not yet invoke this new operation; legacy GitHub operations remain available."
+      },
       {
         "id": "getProviderUsage",
         "batch": "settings-integrations",

@@ -55,7 +55,7 @@ describe("remote v3 native binding generator", () => {
         formatVersion: 5,
         protocolVersion: 14,
         bindingFormatVersion: 2,
-        generatorVersion: 5,
+        generatorVersion: 6,
         // Optional readonly workspace-grant fields change generated bindings
         // without advertising mutation support or changing wire versions.
         // Selection-binding integration: protocol 13 adds the strict
@@ -70,21 +70,21 @@ describe("remote v3 native binding generator", () => {
         // Optional context-reload facts also add one generated Swift chunk.
         // Optional core PR state preserves the previous details-only result shape.
         // Background task timing, progress and Stop add two structural types.
-        sourceHash: "sha256:21e62dec0869884edd34c38dfe35a0c4daf5281fd6f702f2f1d36c94bc64d668",
-        manifestHash: "sha256:b3285b6161304d74622e21f8cde6ec040c8afe5474e070984246d4d17a5b1f40",
+        sourceHash: "sha256:33c1782bfbe4c445ef035751026ea13970fb4411617c91f5e96c2c8f31a386e7",
+        manifestHash: "sha256:dfe49d8693fa888dbea8ffc51860f0dcb161264101b077295661d30bb922b269",
         counts: {
-          routes: 100,
-          procedures: 130,
-          voidProcedureResults: 50,
-          jsonProcedureResults: 80,
+          routes: 101,
+          procedures: 149,
+          voidProcedureResults: 58,
+          jsonProcedureResults: 91,
           webSocketClientVariants: 9,
           // 10 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
           webSocketServerVariants: 11,
-          schemaRoots: 441,
-          structuralTypes: 1033,
-          semanticValidators: 22,
-          swiftFiles: 63,
-          kotlinFiles: 56,
+          schemaRoots: 473,
+          structuralTypes: 1051,
+          semanticValidators: 25,
+          swiftFiles: 67,
+          kotlinFiles: 58,
           stateMachines: 5,
         },
       });
@@ -140,7 +140,7 @@ describe("remote v3 native binding generator", () => {
     expect(() => parseNativeBindingIr({ ...ir, bindingFormatVersion: 3 }, manifest)).toThrow(
       /unsupported binding format/,
     );
-    expect(() => parseNativeBindingIr({ ...ir, generatorVersion: 3 }, manifest)).toThrow(
+    expect(() => parseNativeBindingIr({ ...ir, generatorVersion: 5 }, manifest)).toThrow(
       /unsupported generator version/,
     );
     expect(() =>
@@ -323,7 +323,7 @@ describe("remote v3 native binding generator", () => {
       const output = buildNativeBindingOutput(ir, manifest).files;
       for (const language of ["swift", "kotlin"] as const) {
         const adapters = rootAdapters(graph, language);
-        expect(adapters).toHaveLength(441);
+        expect(adapters).toHaveLength(473);
         expect(
           adapters
             .map((adapter) => adapter.id)

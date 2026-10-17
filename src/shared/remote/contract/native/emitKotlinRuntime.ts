@@ -92,6 +92,9 @@ ${KOTLIN_SCHEDULE_HELPERS}
     fun apply(ids: List<String>, value: JsonElement, path: String): JsonElement { for (id in ids) { val item = obj(value); val has: (String) -> Boolean = { item?.containsKey(it) == true }; when (id) {
 ${KOTLIN_SCHEDULE_CASES}
         "string.trim" -> Unit
+        "forge.host.https" -> { val text = str(value); if (text == null || !validUrl(text, setOf("https")) || !text.startsWith("https://", ignoreCase = true) || text.any { it.code <= 32 || it.code in setOf(127, 92, 63, 35) } || '@' in text.drop(8).substringBefore('/')) fail(id, path) }
+        "forge.watch.scope-identity" -> { val account = obj(item?.get("account")); if (account == null || str(item?.get("forge")) != str(account["forge"]) || str(item?.get("host")) != str(account["host"])) fail(id, path) }
+        "forge.edit.fields" -> if (!has("title") && !has("body") && !has("baseBranch")) fail(id, path)
         "git.add-worktree.frozen-source" -> { val owner = str(item?.get("ownerToken")); val source = str(item?.get("sourceBranch")); if (owner != null && source == null) fail(id, path); if (source != null && (bool(item?.get("createBranch")) != true || str(item?.get("branch"))?.let(RemoteECMAScriptTrim::trim).isNullOrEmpty() || !Regex("^(?:[0-9A-Fa-f]{40}|[0-9A-Fa-f]{64})$").matches(str(item?.get("startPoint")) ?: ""))) fail(id, path) }
         "git.delete-branch.remote-cannot-have-owner" -> if (str(item?.get("remote")) != null && str(item?.get("expectedOwnerToken")) != null) fail(id, path)
         "git.remove-worktree.owner-requires-branch" -> if (str(item?.get("expectedOwnerToken")) != null && str(item?.get("expectedBranch")) == null) fail(id, path)

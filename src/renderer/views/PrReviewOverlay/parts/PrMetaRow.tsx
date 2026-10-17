@@ -1,8 +1,6 @@
 import { GitBranch, GitMerge } from "lucide-react";
 import { Chip } from "@heroui/react";
-import { msg } from "@lingui/core/macro";
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
-import type { MessageDescriptor } from "@lingui/core";
 import {
   usePrMergeStateStatus,
   usePrMergeable,
@@ -11,14 +9,13 @@ import {
 } from "@/renderer/state/gitSelectors";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { usePrCombinedChecksStatus } from "@/renderer/hooks/usePrCombinedChecksStatus";
-import { getPrStatusTone, PR_TONE_BG_CLASS, PR_TONE_TEXT_CLASS } from "@/renderer/utils/prStatus";
-
-const STATE_LABEL: Record<NonNullable<ReturnType<typeof usePrState>>, MessageDescriptor> = {
-  open: msg`Open`,
-  draft: msg`Draft`,
-  merged: msg`Merged`,
-  closed: msg`Closed`,
-};
+import {
+  describePrStatus,
+  getPrStatusTone,
+  PR_STATUS_LABEL,
+  PR_TONE_BG_CLASS,
+  PR_TONE_TEXT_CLASS,
+} from "@/renderer/utils/prStatus";
 
 /** State chip + author + branches + diff stats — used in the content-header bar. */
 export function PrMetaRow(props: { prKey: string; cacheKey: string }) {
@@ -36,7 +33,14 @@ export function PrMetaRow(props: { prKey: string; cacheKey: string }) {
     mergeable,
     mergeStateStatus,
   });
-  const stateLabel = state ? t(STATE_LABEL[state]) : "—";
+  const statusPhrase = state
+    ? describePrStatus(state, checksStatus, {
+        reviewDecision,
+        mergeable,
+        mergeStateStatus,
+      })
+    : undefined;
+  const stateLabel = statusPhrase ? t(PR_STATUS_LABEL[statusPhrase]) : "—";
   const head = details?.headBranch;
   const base = details?.baseBranch;
   const author = details?.author?.login;
@@ -67,9 +71,16 @@ export function PrMetaRow(props: { prKey: string; cacheKey: string }) {
         </span>
       )}
       {details && (
-        <span className="flex shrink-0 items-center gap-1.5 whitespace-nowrap text-[11px]">
-          <span className="text-success">+{details.additions}</span>
-          <span className="text-danger">−{details.deletions}</span>
+        <span
+          className="flex shrink-0 items-center gap-1.5 whitespace-nowrap text-[11px]"
+          aria-label={t`${details.additions} additions and ${details.deletions} deletions`}
+        >
+          <span className="text-success" aria-hidden>
+            +{details.additions}
+          </span>
+          <span className="text-danger" aria-hidden>
+            −{details.deletions}
+          </span>
           <span className="text-muted/60">
             · <Plural value={details.changedFiles} one="# file" other="# files" />
           </span>
