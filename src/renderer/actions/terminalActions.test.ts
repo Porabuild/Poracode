@@ -20,11 +20,19 @@ vi.mock("@/renderer/bridge", () => ({
   readBridge: () => bridge,
 }));
 
-import { runProjectAction, stopProjectAction } from "./terminalActions";
+import {
+  closeGlobalTerminalTab,
+  openTerminal,
+  runProjectAction,
+  stopProjectAction,
+  toggleGlobalTerminal,
+} from "./terminalActions";
 import { useAppStore } from "@/renderer/state/appStore";
 import { resetDevTerminalStore, useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useThreadOutputStore } from "@/renderer/state/threadOutputStore";
+import { useGlobalTerminalStore } from "@/renderer/state/globalTerminalStore";
+import { usePanelStore } from "@/renderer/state/panelStore";
 
 const project = {
   id: "p1",
@@ -35,6 +43,155 @@ const project = {
     actions: [{ id: "dev", name: "Dev", command: "pnpm dev" }],
   },
 } satisfies Project;
+
+describe("global terminal panel", () => {
+  beforeEach(() => {
+    resetDevTerminalStore();
+    useGlobalTerminalStore.setState({ tabs: [], activeTabId: null });
+    useAppStore.setState({ projects: [] });
+    usePanelStore.setState({ rightPanelTab: "files", rightPanelSplit: null });
+    bridge.closeThread.mockReset().mockResolvedValue(undefined);
+  });
+
+  it.each(["bottom", "right"] as const)(
+    "uses the normal %s panel without a project",
+    (position) => {
+      useSharedSettings.setState({ terminalPosition: position });
+      toggleGlobalTerminal();
+      const shellId = useGlobalTerminalStore.getState().activeTabId;
+      expect(shellId).toMatch(/^shell:/);
+      expect(useDevTerminalStore.getState()).toMatchObject({
+        isOpen: true,
+        source: "global",
+        tabs: [],
+      });
+      expect(usePanelStore.getState().rightPanelTab).toBe(
+        position === "right" ? "terminal" : "files",
+      );
+
+      toggleGlobalTerminal();
+      expect(useDevTerminalStore.getState().isOpen).toBe(false);
+      toggleGlobalTerminal();
+      expect(useGlobalTerminalStore.getState().activeTabId).toBe(shellId);
+    },
+  );
+
+  it("switches back to a project terminal with the same saved scope", () => {
+    useSharedSettings.setState({ terminalPosition: "bottom" });
+    useAppStore.setState({ projects: [project] });
+    openTerminal(project.id);
+    const projectTab = useDevTerminalStore.getState().activeTabId;
+    toggleGlobalTerminal();
+    const shellId = useGlobalTerminalStore.getState().activeTabId;
+    openTerminal(project.id);
+    expect(useDevTerminalStore.getState()).toMatchObject({
+      isOpen: true,
+      source: "project",
+      activeProjectId: project.id,
+      activeTabId: projectTab,
+    });
+    toggleGlobalTerminal();
+    expect(useDevTerminalStore.getState().source).toBe("global");
+    expect(useGlobalTerminalStore.getState().activeTabId).toBe(shellId);
+  });
+
+  it("closes other right-panel surfaces when hiding the main global terminal", () => {
+    useSharedSettings.setState({ terminalPosition: "right" });
+    usePanelStore.setState({
+      filesPanelContext: { projectId: "p1", projectName: "Project", rootLabel: "Project" },
+    });
+    toggleGlobalTerminal();
+    toggleGlobalTerminal();
+    expect(useDevTerminalStore.getState().isOpen).toBe(false);
+    expect(usePanelStore.getState().filesPanelContext).toBeNull();
+  });
+
+  it("hides the global split while keeping the main panel", () => {
+    useSharedSettings.setState({ terminalPosition: "right" });
+    toggleGlobalTerminal();
+    usePanelStore.setState({
+      rightPanelTab: "files",
+      rightPanelSplit: { tab: "terminal", placement: "bottom" },
+    });
+    toggleGlobalTerminal();
+    expect(useDevTerminalStore.getState().isOpen).toBe(false);
+    expect(usePanelStore.getState()).toMatchObject({
+      rightPanelTab: "files",
+      rightPanelSplit: null,
+    });
+  });
+
+  it("promotes the split sibling when hiding the main global terminal", () => {
+    useSharedSettings.setState({ terminalPosition: "right" });
+    toggleGlobalTerminal();
+    usePanelStore.setState({ rightPanelSplit: { tab: "notes", placement: "bottom" } });
+    toggleGlobalTerminal();
+    expect(useDevTerminalStore.getState().isOpen).toBe(false);
+    expect(usePanelStore.getState()).toMatchObject({
+      rightPanelTab: "notes",
+      rightPanelSplit: null,
+    });
+  });
+
+  it("closes one global tab and keeps the panel open for the others", () => {
+    useSharedSettings.setState({ terminalPosition: "bottom" });
+    toggleGlobalTerminal();
+    const first = useGlobalTerminalStore.getState().tabs[0]!;
+    const second = useGlobalTerminalStore.getState().addTab();
+
+    closeGlobalTerminalTab(first.id);
+
+    expect(useGlobalTerminalStore.getState()).toMatchObject({
+      tabs: [second],
+      activeTabId: second.id,
+    });
+    expect(useDevTerminalStore.getState()).toMatchObject({ isOpen: true, source: "global" });
+    expect(bridge.closeThread).toHaveBeenCalledExactlyOnceWith({ threadId: first.id });
+  });
+
+  it("keeps a project terminal open when the last background global tab closes", () => {
+    useSharedSettings.setState({ terminalPosition: "right" });
+    toggleGlobalTerminal();
+    const globalTab = useGlobalTerminalStore.getState().tabs[0]!;
+    useAppStore.setState({ projects: [project] });
+    openTerminal(project.id);
+    const projectTabs = useDevTerminalStore.getState().tabs;
+
+    closeGlobalTerminalTab(globalTab.id);
+
+    expect(useGlobalTerminalStore.getState().tabs).toEqual([]);
+    expect(useDevTerminalStore.getState()).toMatchObject({
+      isOpen: true,
+      source: "project",
+      tabs: projectTabs,
+    });
+    expect(bridge.closeThread).toHaveBeenCalledExactlyOnceWith({ threadId: globalTab.id });
+  });
+
+  it("promotes a split sibling after closing the last global tab", () => {
+    useSharedSettings.setState({ terminalPosition: "right" });
+    toggleGlobalTerminal();
+    const globalTab = useGlobalTerminalStore.getState().tabs[0]!;
+    usePanelStore.setState({ rightPanelSplit: { tab: "notes", placement: "bottom" } });
+
+    closeGlobalTerminalTab(globalTab.id);
+
+    expect(useDevTerminalStore.getState().isOpen).toBe(false);
+    expect(usePanelStore.getState()).toMatchObject({
+      rightPanelTab: "notes",
+      rightPanelSplit: null,
+    });
+  });
+
+  it("ignores a close for an unowned tab without hiding the global panel", () => {
+    useSharedSettings.setState({ terminalPosition: "bottom" });
+    toggleGlobalTerminal();
+    closeGlobalTerminalTab("shell:unrelated");
+    expect(useGlobalTerminalStore.getState().tabs).toHaveLength(1);
+    expect(useDevTerminalStore.getState().isOpen).toBe(true);
+    expect(bridge.closeThread).not.toHaveBeenCalled();
+  });
+});
 
 describe("runProjectAction", () => {
   beforeEach(() => {

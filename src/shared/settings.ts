@@ -473,13 +473,6 @@ export const sharedSettingsSchema = z.object({
    * - "always": keep the machine awake whenever the app is running
    */
   preventSleep: z.enum(["while-working", "while-remote-access", "always"]),
-  /**
-   * Keep the display awake while a computer-use session is active. A locked
-   * desktop exposes no window content or controls to any automation route, so
-   * the idle lock would silently end an unattended session; holding the display
-   * awake is the only way to let one run through. Manual locking still works.
-   */
-  computerUseKeepAwake: z.boolean(),
   /** Register Poracode to launch automatically when the user signs in to Windows. */
   launchAtStartup: z.boolean(),
   /** Keep the main window hidden when Poracode is launched automatically at sign-in. */
@@ -826,7 +819,6 @@ export const defaultSharedSettings: SharedSettings = {
   guiChatFontSize: 13,
   terminalPanelFontSize: 12,
   preventSleep: "while-remote-access",
-  computerUseKeepAwake: true,
   launchAtStartup: true,
   startMinimized: true,
   closeToTray: true,
@@ -1651,6 +1643,8 @@ export function migrateSharedSettingsValues(
   const hasAutomationMode = prAutomationModeSchema.safeParse(source.prAutomationDefault).success;
   const legacyAutomationMode =
     source.prAutoMergeDefault === true ? "merge" : source.prWatchDefault === true ? "fix" : "off";
+  // The removed computerUseKeepAwake field is ignored by schema normalization;
+  // older files remain valid and computer use follows the shared sleep policy.
   // Unversioned settings file: migrate the two legacy sleep booleans into
   // the single `preventSleep` enum. An explicit valid value always wins.
   const hasPreventSleep = sharedSettingsSchema.shape.preventSleep.safeParse(

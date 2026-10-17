@@ -134,7 +134,7 @@ export const functionalAreas = [
   },
   {
     id: "terminal-pty",
-    title: "Terminal presentation and PTY lifecycle",
+    title: "Terminal presentation, global home terminal, and PTY lifecycle",
     patterns: [/terminal/i, /pty/i, /osc/i],
     automated: ["baseline"],
     manual: ["terminal-pty"],
@@ -340,7 +340,8 @@ export const manualGates = {
   "remote-client":
     "Pair the canonical app in an isolated browser or native shell and verify reconnect plus one read-only action; for push changes, verify background delivery and notification-tap routing.",
   "runtime-requests": "Trigger approval and structured-input requests; deny or submit safely.",
-  "terminal-pty": "Launch a terminal thread, send input, resize, interrupt, and stop the real PTY.",
+  "terminal-pty":
+    "Launch the changed terminal surface, send input, resize, interrupt, and stop the real PTY. For the global terminal, verify home cwd and the same shell across hide/show and project/thread switches.",
   "skills-manager":
     "Discover, import, disable, re-enable, and delete fixture skills through the Skills manager and its IPC bridge.",
   "visual-a11y":

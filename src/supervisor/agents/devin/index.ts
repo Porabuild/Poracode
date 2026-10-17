@@ -74,6 +74,8 @@ export function createDevinAdapter(options: DevinAdapterOptions = {}): AgentAdap
     kind,
     label,
     binary: "devin",
+    // Cloud sessions cannot connect to the host's loopback OAuth relay.
+    supportsDeferredMcpAuthorization: profile?.runtimeTarget !== "cloud",
     ...(detectionSpec.update && !isProfile ? { update: detectionSpec.update } : {}),
     get capabilities() {
       return capabilities;

@@ -1,10 +1,8 @@
 import { create } from "zustand";
 import { forgetShellLaunch } from "@/renderer/utils/shellStartRegistry";
 
-export interface DevTerminalTab {
+export interface TerminalTab {
   id: string;
-  projectId: string;
-  worktreePath?: string;
   /** Project action whose process owns this tab, when launched from the Run menu. */
   runActionId?: string;
   title: string;
@@ -16,8 +14,14 @@ export interface DevTerminalTab {
   mainExited?: boolean;
 }
 
+export interface DevTerminalTab extends TerminalTab {
+  projectId: string;
+  worktreePath?: string;
+}
+
 interface DevTerminalState {
   isOpen: boolean;
+  source: "project" | "global";
   /**
    * True while the panel was opened by an explicit user action (icon click,
    * auto-show) and the follow-the-thread lock has not re-scoped it since. The
@@ -45,6 +49,7 @@ interface DevTerminalState {
 }
 
 interface DevTerminalActions {
+  openGlobalPanel: () => void;
   openPanel: (projectId: string) => void;
   openWorktreePanel: (projectId: string, worktreePath: string) => void;
   closePanel: () => void;
@@ -112,6 +117,7 @@ function clearStreaming(ids: string[]): void {
 
 export const useDevTerminalStore = create<DevTerminalState & DevTerminalActions>()((set, get) => ({
   isOpen: false,
+  source: "project",
   explicitlyOpened: false,
   activeProjectId: null,
   activeWorktreePath: null,
@@ -122,9 +128,17 @@ export const useDevTerminalStore = create<DevTerminalState & DevTerminalActions>
   streamingTabs: {},
   runningTabs: {},
 
+  openGlobalPanel: () =>
+    set((state) => ({
+      isOpen: true,
+      source: "global",
+      explicitlyOpened: true,
+      focusRequestId: state.focusRequestId + 1,
+    })),
   openPanel: (projectId) =>
     set((state) => ({
       isOpen: true,
+      source: "project",
       explicitlyOpened: true,
       activeProjectId: projectId,
       activeWorktreePath: null,
@@ -133,18 +147,18 @@ export const useDevTerminalStore = create<DevTerminalState & DevTerminalActions>
   openWorktreePanel: (projectId, worktreePath) =>
     set((state) => ({
       isOpen: true,
+      source: "project",
       explicitlyOpened: true,
       activeProjectId: projectId,
       activeWorktreePath: worktreePath,
       focusRequestId: state.focusRequestId + 1,
     })),
   closePanel: () =>
-    set({
+    set((state) => ({
       isOpen: false,
       explicitlyOpened: false,
-      activeProjectId: null,
-      activeWorktreePath: null,
-    }),
+      ...(state.source === "project" ? { activeProjectId: null, activeWorktreePath: null } : {}),
+    })),
   hidePanel: () => set({ isOpen: false, explicitlyOpened: false }),
 
   setActiveProject: (projectId) => {
@@ -157,6 +171,7 @@ export const useDevTerminalStore = create<DevTerminalState & DevTerminalActions>
 
   setPanelScope: (projectId, worktreePath) =>
     set((state) => {
+      if (state.source === "global") return {};
       // The follow lock re-scoping the panel takes over from any explicit
       // open, so the visibility gate falls back to scope matching.
       const sameScope =
@@ -241,6 +256,7 @@ export const useDevTerminalStore = create<DevTerminalState & DevTerminalActions>
 
   cycleTab: (direction) => {
     const state = get();
+    if (state.source === "global") return;
     // The same predicate DevTerminalPanel uses to render its visible tab strip.
     const visible = state.tabs.filter((tab) => {
       if (tab.projectId !== state.activeProjectId) return false;
@@ -442,6 +458,7 @@ export function resetDevTerminalStore(): void {
   }
   useDevTerminalStore.setState({
     isOpen: false,
+    source: "project",
     explicitlyOpened: false,
     activeProjectId: null,
     activeWorktreePath: null,
