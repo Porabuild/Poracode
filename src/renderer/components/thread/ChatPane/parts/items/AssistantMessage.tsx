@@ -19,7 +19,7 @@ import { imageViewSourceFromImageBlock } from "./imageViewSource";
 import { SmoothItemMarkdown } from "./ItemMarkdown";
 import { WindowedPlainText } from "./WindowedPlainText";
 import { useWindowedAssistantText } from "./useWindowedAssistantText";
-import { MessageReplyForm } from "./MessageReplyForm";
+import { isMessageReplyFormFallback } from "../../../messageReplyForms";
 
 interface AssistantMessageProps {
   threadId: string;
@@ -89,7 +89,7 @@ export const AssistantMessage = memo(function AssistantMessage({
   // past the pinned bottom edge.
   const reserveCopyButtonSpace = finalAnswerStatus !== "none" && rawText.length > 0;
   const textBody =
-    rawText.length > 0 ? (
+    rawText.length > 0 && !isMessageReplyFormFallback(item, rawText) ? (
       <AssistantTextBody
         key={isStreamText ? "stream" : "payload"}
         text={rawText}
@@ -100,19 +100,7 @@ export const AssistantMessage = memo(function AssistantMessage({
   return (
     <Surface variant="transparent" className={chatMessageSurfaceClass}>
       <div className="min-w-0 leading-snug">
-        {payload?.replyForm && !item.parentItemId ? (
-          <MessageReplyForm
-            key={item.id}
-            threadId={threadId}
-            itemId={item.id}
-            form={payload.replyForm}
-            text={rawText}
-          >
-            {textBody}
-          </MessageReplyForm>
-        ) : (
-          textBody
-        )}
+        {textBody}
         {imageSources.length > 0 ? (
           <div className="mt-1 flex flex-col gap-2">
             {imageSources.map((source, index) => (

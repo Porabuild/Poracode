@@ -383,8 +383,10 @@ export function ThreadDraftView(props: {
   const updateProjectDraftConfigStore = useAppStore((s) => s.updateProjectDraftConfig);
   const updateProjectDraftConfigRef = useRef(
     (projectId: string, nextDraftConfig: ProjectDraftConfig) => {
-      updateProjectDraftConfigStore(projectId, nextDraftConfig);
-      dispatchManagedRootProjectDraftConfig(projectId, nextDraftConfig);
+      const rememberedConfig: ProjectDraftConfig =
+        nextDraftConfig.mode === "plan" ? { ...nextDraftConfig, mode: "agent" } : nextDraftConfig;
+      updateProjectDraftConfigStore(projectId, rememberedConfig);
+      dispatchManagedRootProjectDraftConfig(projectId, rememberedConfig);
     },
   );
   const updateProjectDraftConfig = updateProjectDraftConfigRef.current;
@@ -425,7 +427,10 @@ export function ThreadDraftView(props: {
   function persistProviderConfig(providerKind: string, config: ProviderDraftConfig) {
     providerConfigsRef.current[providerKind] = config;
     if (!isHomeScope) {
-      setProviderConfig(providerKind, config);
+      setProviderConfig(
+        providerKind,
+        config.mode === "plan" ? { ...config, mode: "agent" } : config,
+      );
     }
     persistProviderModelPreference(providerKind, config);
   }
@@ -494,6 +499,12 @@ export function ThreadDraftView(props: {
     if (lastAppliedAgentKindRef.current === effectiveAgentKind) {
       return;
     }
+    // An empty catalog resolves the model to "". Committing that sets
+    // lastAppliedAgentKindRef, and this effect re-runs when the status object
+    // changes, so the latch would ignore the catalog when it arrives.
+    if (selectedAgentForConfig.capabilities.models.length === 0) {
+      return;
+    }
 
     const saved = resolveSavedProviderDraftConfig(
       effectiveAgentKind,
@@ -525,6 +536,11 @@ export function ThreadDraftView(props: {
       return;
     }
     if (!model) {
+      return;
+    }
+    // The model resolves to "" and effort, Fast, and thinking resolve against
+    // empty maps. Persisting either one writes the probe gap into the draft.
+    if (selectedAgentForConfig.capabilities.models.length === 0) {
       return;
     }
 
@@ -606,6 +622,7 @@ export function ThreadDraftView(props: {
     if (!sharedSettingsHydrated || !selectedAgentForConfig || !effectiveAgentKind || !model) {
       return;
     }
+    if (selectedAgentForConfig.capabilities.models.length === 0) return;
     if (hasLocalConfigEditRef.current) return;
 
     const settings = useSharedSettings.getState();
@@ -677,6 +694,11 @@ export function ThreadDraftView(props: {
       return;
     }
     if (!selectedAgentForConfig || !effectiveAgentKind) {
+      return;
+    }
+    // A restore commit writes model "" and sets lastAppliedAgentKindRef, so
+    // the kind-change effect will not apply the catalog when it arrives.
+    if (selectedAgentForConfig.capabilities.models.length === 0) {
       return;
     }
     const initialLastDraftConfig = initialLastDraftConfigRef.current;
@@ -967,6 +989,12 @@ export function ThreadDraftView(props: {
     if ("contextSize" in patch) {
       hasLocalContextEditRef.current = true;
     }
+    if (selectedAgentForConfig.capabilities.models.length === 0) {
+      // Probe gap: resolving substitutes model "" and commitDraftConfig latches
+      // lastApplied, so the saved model never returns. Keep the edit local.
+      setDraftConfig((current) => ({ ...current, ...patch }));
+      return;
+    }
     // A family member's own carrier presence is exact; ordinary models keep
     // resolving from their displayed effort/Fast/thinking values.
     const current = modelFamilyForModel(selectedAgentForConfig.capabilities, model)
@@ -1019,7 +1047,9 @@ export function ThreadDraftView(props: {
       // clicked row), and a family row must adopt the target's declared
       // default, not retain the source selection. The source family mapping
       // only governs same-provider surface switches below.
-      const targetSaved = isHomeScope ? undefined : providerConfigsRef.current[nextKind];
+      const targetSaved = isHomeScope
+        ? undefined
+        : resolveSavedProviderDraftConfig(targetAgent.kind, undefined, providerConfigsRef.current);
       const targetBase = { ...targetSaved };
       delete targetBase.effort;
       delete targetBase.fast;
@@ -1399,6 +1429,7 @@ export function ThreadDraftView(props: {
   return (
     <div
       ref={props.droppableRef}
+      data-poracode-attachment-drop-target=""
       className={`relative flex ${rootSizeClass} flex-col ${props.isDragging ? "opacity-50" : ""}`}
     >
       <ThreadDraftDropIndicators dropIndicator={props.dropIndicator} />

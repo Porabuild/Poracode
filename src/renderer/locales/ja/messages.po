@@ -825,8 +825,8 @@ msgstr "固定されたワークツリーのソースには完全なコミット
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "A locked screen stops all desktop control, so the display is kept on while a Computer Use session is running. You can still lock the screen yourself."
-msgstr "画面がロックされるとデスクトップ操作は一切できなくなるため、コンピュータ操作のセッション中はディスプレイをオンのままにします。自分で画面をロックすることは引き続き可能です。"
+#~ msgid "A locked screen stops all desktop control, so the display is kept on while a Computer Use session is running. You can still lock the screen yourself."
+#~ msgstr "画面がロックされるとデスクトップ操作は一切できなくなるため、コンピュータ操作のセッション中はディスプレイをオンのままにします。自分で画面をロックすることは引き続き可能です。"
 
 #: src/renderer/components/thread/ChatPane/ChatPane.tsx
 msgid "A message deletion could not be confirmed. Refresh to resync this conversation."
@@ -1388,7 +1388,6 @@ msgstr "AIによるgit操作"
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
-#: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
 msgid "AI Helpers"
 msgstr "AI ヘルパー"
 
@@ -1538,8 +1537,8 @@ msgid "Already used by {conflict}"
 msgstr "{conflict}で既に使用されています"
 
 #. Notification filter: always notify
-#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Always"
 msgstr "いつも"
 
@@ -1663,7 +1662,6 @@ msgstr "アプリブラウザ"
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
-#: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
 msgid "Appearance"
 msgstr "外観"
 
@@ -1761,6 +1759,7 @@ msgstr "スレッドをアーカイブ"
 msgid "Archive Thread"
 msgstr "アーカイブスレッド"
 
+#: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Archived"
 msgstr "アーカイブ済み"
@@ -1772,7 +1771,6 @@ msgstr "{archivedTime} にアーカイブ"
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
-#: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
 msgid "Archived Threads"
 msgstr "アーカイブされたスレッド"
 
@@ -2510,6 +2508,7 @@ msgstr "この画面ではこのモデル設定を使用できません"
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
+#: src/renderer/components/thread/ChatPane/ConversationSearchJump.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadFollowUpEditor.tsx
@@ -2949,8 +2948,18 @@ msgstr "新しいプルリクエストに対するPoracodeの動作を選択し�
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Choose when the system and display stay awake. This can delay automatic screen locking."
-msgstr "システムとディスプレイをスリープさせないタイミングを選びます。画面の自動ロックが遅れる場合があります。"
+#~ msgid "Choose when the system and display stay awake. This can delay automatic screen locking."
+#~ msgstr "システムとディスプレイをスリープさせないタイミングを選びます。画面の自動ロックが遅れる場合があります。"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#~ msgid "Choose when the system stays awake. The display can still turn off."
+#~ msgstr "システムをスリープさせないタイミングを選択します。ディスプレイは引き続きオフにできます。"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#~ msgid "Choose when the system stays awake. The display can still turn off. Screen locking is unchanged."
+#~ msgstr "システムを起動状態に保つタイミングを選択します。ディスプレイは引き続きオフになります。画面ロックの設定は変わりません。"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -4014,7 +4023,7 @@ msgstr "コンテキストの使用量"
 msgid "Context windows"
 msgstr "コンテキストウィンドウ"
 
-#: src/renderer/components/thread/ChatPane/parts/items/MessageReplyForm.tsx
+#: src/renderer/components/thread/ThreadMessageReplyPanel.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
 msgid "Continue"
@@ -4815,6 +4824,14 @@ msgstr "辞退"
 #: src/renderer/components/providers/settings/ClaudeProfileSettingsModel.ts
 msgid "DeepSeek"
 msgstr "DeepSeek"
+
+#: src/renderer/components/providers/deepseek/manifest.ts
+msgid "DeepSeek Harness"
+msgstr "DeepSeek Harness"
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "DeepSeek Harness chat with persistent sessions, reasoning controls, and MCP tools. Configure credentials with dsh web."
+msgstr "永続セッション、推論設定、MCPツールに対応したDeepSeek Harnessチャット。認証情報はdsh webで設定します。"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
@@ -6894,7 +6911,6 @@ msgstr "Gemini"
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
-#: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
 msgid "General"
 msgstr "一般"
 
@@ -6961,7 +6977,6 @@ msgstr "タスクの取得"
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
-#: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
 msgid "Git"
 msgstr "Git"
 
@@ -7669,6 +7684,10 @@ msgstr "同期に追加"
 msgid "Includes the first attempt."
 msgstr "最初の試行を含みます。"
 
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Indexing saved messages…"
+msgstr "保存済みメッセージのインデックスを作成中…"
+
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Info"
 msgstr "情報"
@@ -8115,8 +8134,21 @@ msgstr "スタートアップ時は Poracode をシステムトレイに格納�
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Keep the Mac awake during Computer Use"
-msgstr "コンピュータ操作中は Mac をスリープさせない"
+#~ msgid "Keep the Mac awake during Computer Use"
+#~ msgstr "コンピュータ操作中は Mac をスリープさせない"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+msgid "Keep the system awake whenever Poracode is running, even in the background. The display can still turn off. Screen locking is unchanged."
+msgstr "バックグラウンドを含め、Poracode の実行中はシステムをスリープさせません。 ディスプレイは引き続きオフにできます。画面ロックの動作は変わりません。"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+msgid "Keep the system awake while agents work or remote access is enabled. The display can still turn off. Screen locking is unchanged."
+msgstr "エージェントの作業中、またはリモートアクセスが有効な間はシステムをスリープさせません。 ディスプレイは引き続きオフにできます。画面ロックの動作は変わりません。"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Keep the system awake while any agent is working, including Computer Use. The display can still turn off. Screen locking is unchanged."
+msgstr "Computer Use を含む、いずれかのエージェントの作業中はシステムをスリープさせません。 ディスプレイは引き続きオフにできます。画面ロックの動作は変わりません。"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -8413,6 +8445,10 @@ msgstr "ジョブを読み込み中"
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Loading marketplace…"
 msgstr "マーケットプレイスを読み込み中…"
+
+#: src/renderer/components/thread/ChatPane/ConversationSearchJump.tsx
+msgid "Loading matched message…"
+msgstr "一致したメッセージを読み込み中…"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorMediaViews.tsx
@@ -9116,9 +9152,17 @@ msgstr "マージはブロックされています"
 msgid "Message actions"
 msgstr "メッセージ操作"
 
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Message search unavailable"
+msgstr "メッセージ検索を利用できません"
+
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
 #~ msgid "Message the remote agent…"
 #~ msgstr "リモートエージェントにメッセージ…"
+
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Messages"
+msgstr "メッセージ"
 
 #: src/renderer/components/thread/ChatPane/ChatPane.tsx
 msgid "Messages could not be loaded."
@@ -10491,7 +10535,6 @@ msgstr "まだ何も記録されていません。使用するとここに表示
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
-#: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
 msgid "Notifications"
 msgstr "通知"
 
@@ -10623,6 +10666,7 @@ msgstr "{label}を開く"
 msgid "Open a new browser tab"
 msgstr "新しいブラウザタブを開く"
 
+#: src/renderer/views/GlobalTerminalPanel/GlobalTerminalPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/DevTerminalPanel.tsx
 msgid "Open a terminal"
 msgstr "ターミナルを開く"
@@ -11493,6 +11537,7 @@ msgstr "固定されたタスクルート"
 msgid "Pixel 8"
 msgstr "Pixel 8"
 
+#: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
 #: src/renderer/components/providers/composerControlBuilders.tsx
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
@@ -11803,8 +11848,8 @@ msgstr "スペースキーで並べ替えを開始します。矢印キーで移
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Prevent sleep"
-msgstr "スリープを防止"
+#~ msgid "Prevent sleep"
+#~ msgstr "スリープを防止"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -11815,6 +11860,11 @@ msgstr "スリープを防止"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #~ msgid "Prevent sleep while working"
 #~ msgstr "作業中のスリープを防止する"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Prevent system sleep"
+msgstr "システムのスリープを防ぐ"
 
 #. placeholder {0}: att.name
 #: src/renderer/components/composer/AttachmentBar.tsx
@@ -11905,7 +11955,6 @@ msgstr "生産性"
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
-#: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
 msgid "Profile"
 msgstr "プロフィール"
 
@@ -12098,7 +12147,6 @@ msgstr "プロバイダープリセット"
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
-#: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
 msgid "Provider Usage"
 msgstr "プロバイダーの使用量"
 
@@ -12564,8 +12612,8 @@ msgid "Remote"
 msgstr "リモート"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
-msgid "Remote access"
-msgstr "リモートアクセス"
+#~ msgid "Remote access"
+#~ msgstr "リモートアクセス"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/RemoteAccessSidebarIcon.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
@@ -12692,6 +12740,10 @@ msgstr "{pattern}を削除"
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
 msgid "Remove {rowTitle} from panel"
 msgstr "{rowTitle}をパネルから削除"
+
+#: src/renderer/components/thread/ThreadComposer.tsx
+msgid "Remove {toggleLabel}"
+msgstr "{toggleLabel}を削除"
 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredCustomValues.tsx
 msgid "Remove {value}"
@@ -13173,6 +13225,7 @@ msgid "Resume queued follow-ups"
 msgstr "キューに入ったフォローアップを再開"
 
 #: src/renderer/bootstrap.ts
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
@@ -13746,6 +13799,10 @@ msgstr "保存された認証情報はすべてのマシンで共有されます
 msgid "Saved font"
 msgstr "保存済みフォント"
 
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Saved messages, including archived chats"
+msgstr "アーカイブ済みチャットを含む保存済みメッセージ"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordRow.tsx
 msgid "Saved password actions"
 msgstr "保存したパスワードの操作"
@@ -14069,6 +14126,10 @@ msgstr "タイトル、メッセージ、フォルダーを検索"
 #: src/renderer/commands/EverythingSearchResults.tsx
 msgid "Searching files…"
 msgstr "ファイルを検索中…"
+
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Searching saved messages…"
+msgstr "保存済みメッセージを検索中…"
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #~ msgid "Searching..."
@@ -14525,6 +14586,7 @@ msgstr "表示を少なくする"
 msgid "Show MCP servers from {providerLabel}"
 msgstr "{providerLabel} の MCP サーバーを表示"
 
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentPromptSection.tsx
@@ -15382,7 +15444,7 @@ msgstr "サブエージェント"
 #~ msgid "Subagents enabled for this thread"
 #~ msgstr "このスレッドに対してサブエージェントが有効になっています"
 
-#: src/renderer/components/thread/ChatPane/parts/items/MessageReplyForm.tsx
+#: src/renderer/components/thread/ThreadMessageReplyPanel.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/QuestionRows.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
@@ -15703,13 +15765,16 @@ msgstr "ターゲットプロバイダーに次に何をすべきかを伝えま
 #: src/renderer/components/plugins/pluginCopy.ts
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/thread/ThreadToolRail.tsx
+#: src/renderer/views/GlobalTerminalPanel/GlobalTerminalPanel.tsx
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
+#: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/modelSurfaceLabel.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
-#: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
 msgid "Terminal"
 msgstr "ターミナル"
 
@@ -16062,6 +16127,14 @@ msgstr "リストを読み込めませんでした。"
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the macOS user"
 msgstr "macOS ユーザー"
+
+#: src/renderer/commands/conversationSearchNavigation.ts
+msgid "The matched conversation could not be opened."
+msgstr "一致した会話を開けませんでした。"
+
+#: src/renderer/components/thread/ChatPane/ConversationSearchJump.tsx
+msgid "The matched message is no longer available."
+msgstr "一致したメッセージは利用できなくなりました。"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "The MCP server configuration is invalid or uses a reserved name."
@@ -17086,6 +17159,10 @@ msgstr "タイプ"
 #: src/renderer/commands/CommandPalette.tsx
 #~ msgid "Type a command"
 #~ msgstr "コマンドを入力してください"
+
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Type at least two characters to search messages"
+msgstr "メッセージを検索するには2文字以上入力してください"
 
 #: src/mobile/views/BrowserView.tsx
 #~ msgid "Type into the page"
@@ -18483,7 +18560,7 @@ msgstr "実行の会話が作成される場所。"
 msgid "Where the terminal panel appears."
 msgstr "ターミナルパネルが表示される場所。"
 
-#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "While working"
 msgstr "作業中"
 
@@ -18602,6 +18679,10 @@ msgstr ".github/workflows に追加されたワークフローはここに表示
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Working"
 msgstr "実行中"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
+msgid "Working + remote access"
+msgstr "作業中 + リモートアクセス"
 
 #: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
 msgid "Working for {elapsed}"

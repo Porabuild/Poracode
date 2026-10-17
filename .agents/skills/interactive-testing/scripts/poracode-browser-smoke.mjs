@@ -53,6 +53,11 @@ try {
 
   // A prior full-suite scenario may leave a fullscreen overlay open. Return
   // through its visible control before touching the Browser behind it.
+  // A closing overlay retains hidden controls until its exit animation ends.
+  await waitFor(
+    () => evaluate(`!document.querySelector('[data-overlay-surface]:not([data-overlay-visible])')`),
+    "prior overlay exit",
+  );
   const returned = await clickText("Return to app", { optional: true });
   if (returned.ok) {
     await waitFor(

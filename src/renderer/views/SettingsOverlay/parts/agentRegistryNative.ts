@@ -192,6 +192,19 @@ function nativeInstallCommand(
 
 export const NATIVE_AGENT_REGISTRY_ENTRIES: NativeAgentRegistryEntry[] = [
   {
+    id: "deepseek",
+    description: msg`DeepSeek Harness chat with persistent sessions, reasoning controls, and MCP tools. Configure credentials with dsh web.`,
+    docsUrl: "https://github.com/deepseek-ai/deepseek-harness",
+    installCommand: (project) =>
+      posixOrWindows(
+        project,
+        "if command -v npm >/dev/null 2>&1; then npm install -g @deepseek-ai/dsh@next; else " +
+          POSIX_MISSING_NPM_MESSAGE +
+          "; fi",
+        "if (Get-Command npm -ErrorAction SilentlyContinue) { npm install -g @deepseek-ai/dsh@next } else { Write-Host 'No supported installer found. Install Node.js/npm first, then refresh detected agents.' }",
+      ),
+  },
+  {
     id: "codex",
     acpRegistryAliases: [{ id: "codex-acp" }],
     description: msg`First-class Codex CLI integration using Poracode's native app-server runtime.`,

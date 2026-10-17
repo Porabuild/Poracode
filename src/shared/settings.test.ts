@@ -124,6 +124,20 @@ describe("shared settings defaults", () => {
     expect(normalizeSharedSettings({}).preventSleep).toBe("while-remote-access");
   });
 
+  it.each([true, false])(
+    "ignores the old Computer Use display override (%s)",
+    (computerUseKeepAwake) => {
+      const normalized = normalizeSharedSettings({
+        ...defaultSharedSettings,
+        preventSleep: "while-working",
+        computerUseKeepAwake,
+      });
+
+      expect(normalized.preventSleep).toBe("while-working");
+      expect(normalized).not.toHaveProperty("computerUseKeepAwake");
+    },
+  );
+
   it("defaults follow-up behavior for prior settings without the field", () => {
     const normalized = normalizeSharedSettings({
       threadRemoveAction: "delete",

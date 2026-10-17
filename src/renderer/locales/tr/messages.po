@@ -826,8 +826,8 @@ msgstr "Dondurulmuş bir çalışma ağacı kaynağı tam commit karması gerekt
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "A locked screen stops all desktop control, so the display is kept on while a Computer Use session is running. You can still lock the screen yourself."
-msgstr "Kilitli ekran tüm masaüstü denetimini durdurur; bu nedenle Bilgisayar Kullanımı oturumu çalışırken ekran açık tutulur. Ekranı yine de kendiniz kilitleyebilirsiniz."
+#~ msgid "A locked screen stops all desktop control, so the display is kept on while a Computer Use session is running. You can still lock the screen yourself."
+#~ msgstr "Kilitli ekran tüm masaüstü denetimini durdurur; bu nedenle Bilgisayar Kullanımı oturumu çalışırken ekran açık tutulur. Ekranı yine de kendiniz kilitleyebilirsiniz."
 
 #: src/renderer/components/thread/ChatPane/ChatPane.tsx
 msgid "A message deletion could not be confirmed. Refresh to resync this conversation."
@@ -1389,7 +1389,6 @@ msgstr "Yapay zeka git işlemleri"
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
-#: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
 msgid "AI Helpers"
 msgstr "Yapay Zeka Yardımcıları"
 
@@ -1539,8 +1538,8 @@ msgid "Already used by {conflict}"
 msgstr "Zaten {conflict} tarafından kullanılıyor"
 
 #. Notification filter: always notify
-#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Always"
 msgstr "Her zaman"
 
@@ -1664,7 +1663,6 @@ msgstr "Uygulama Tarayıcısı"
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
-#: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
 msgid "Appearance"
 msgstr "Görünüm"
 
@@ -1762,6 +1760,7 @@ msgstr "Konuyu arşivle"
 msgid "Archive Thread"
 msgstr "İleti Dizisini Arşivle"
 
+#: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Archived"
 msgstr "Arşivlenenler"
@@ -1773,7 +1772,6 @@ msgstr "{archivedTime} saatinde arşivlendi"
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
-#: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
 msgid "Archived Threads"
 msgstr "Arşivlenmiş İleti Dizileri"
 
@@ -2511,6 +2509,7 @@ msgstr "Bu model seçimi bu arayüzde kullanılamaz"
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
+#: src/renderer/components/thread/ChatPane/ConversationSearchJump.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadFollowUpEditor.tsx
@@ -2950,8 +2949,18 @@ msgstr "Poracode'un yeni pull request'lerde ne yapacağını seçin: hiçbir şe
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Choose when the system and display stay awake. This can delay automatic screen locking."
-msgstr "Sistemin ve ekranın ne zaman uyanık kalacağını seçin. Bu, otomatik ekran kilidini geciktirebilir."
+#~ msgid "Choose when the system and display stay awake. This can delay automatic screen locking."
+#~ msgstr "Sistemin ve ekranın ne zaman uyanık kalacağını seçin. Bu, otomatik ekran kilidini geciktirebilir."
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#~ msgid "Choose when the system stays awake. The display can still turn off."
+#~ msgstr "Sistemin ne zaman uyanık kalacağını seçin. Ekran yine de kapanabilir."
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#~ msgid "Choose when the system stays awake. The display can still turn off. Screen locking is unchanged."
+#~ msgstr "Sistemin ne zaman uyanık kalacağını seçin. Ekran yine de kapanabilir. Ekran kilidi ayarları değişmez."
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -4015,7 +4024,7 @@ msgstr "Bağlam kullanımı"
 msgid "Context windows"
 msgstr "Bağlam pencereleri"
 
-#: src/renderer/components/thread/ChatPane/parts/items/MessageReplyForm.tsx
+#: src/renderer/components/thread/ThreadMessageReplyPanel.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
 msgid "Continue"
@@ -4816,6 +4825,14 @@ msgstr "Reddet"
 #: src/renderer/components/providers/settings/ClaudeProfileSettingsModel.ts
 msgid "DeepSeek"
 msgstr "DeepSeek"
+
+#: src/renderer/components/providers/deepseek/manifest.ts
+msgid "DeepSeek Harness"
+msgstr "DeepSeek Harness"
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "DeepSeek Harness chat with persistent sessions, reasoning controls, and MCP tools. Configure credentials with dsh web."
+msgstr "Kalıcı oturumlar, akıl yürütme ayarları ve MCP araçlarıyla DeepSeek Harness sohbeti. Kimlik bilgilerini dsh web ile yapılandırın."
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
@@ -6895,7 +6912,6 @@ msgstr "Gemini"
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
-#: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
 msgid "General"
 msgstr "Genel"
 
@@ -6962,7 +6978,6 @@ msgstr "Görev al"
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
-#: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
 msgid "Git"
 msgstr "Git"
 
@@ -7670,6 +7685,10 @@ msgstr "Senkronizasyona ekle"
 msgid "Includes the first attempt."
 msgstr "İlk denemeyi içerir."
 
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Indexing saved messages…"
+msgstr "Kaydedilmiş mesajlar dizine ekleniyor…"
+
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Info"
 msgstr "Bilgi"
@@ -8116,8 +8135,21 @@ msgstr "Başlangıçta açıldığında Poracode'u sistem tepsisinde tutun."
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Keep the Mac awake during Computer Use"
-msgstr "Bilgisayar Kullanımı sırasında Mac'i uyanık tut"
+#~ msgid "Keep the Mac awake during Computer Use"
+#~ msgstr "Bilgisayar Kullanımı sırasında Mac'i uyanık tut"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+msgid "Keep the system awake whenever Poracode is running, even in the background. The display can still turn off. Screen locking is unchanged."
+msgstr "Poracode çalıştığı sürece, arka planda olsa bile sistemi uyanık tut. Ekran yine de kapanabilir. Ekran kilitleme davranışı değişmez."
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+msgid "Keep the system awake while agents work or remote access is enabled. The display can still turn off. Screen locking is unchanged."
+msgstr "Ajanlar çalışırken veya uzaktan erişim etkinken sistemi uyanık tut. Ekran yine de kapanabilir. Ekran kilitleme davranışı değişmez."
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Keep the system awake while any agent is working, including Computer Use. The display can still turn off. Screen locking is unchanged."
+msgstr "Computer Use dahil herhangi bir ajan çalışırken sistemi uyanık tut. Ekran yine de kapanabilir. Ekran kilitleme davranışı değişmez."
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -8414,6 +8446,10 @@ msgstr "İşler yükleniyor"
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Loading marketplace…"
 msgstr "Marketplace yükleniyor…"
+
+#: src/renderer/components/thread/ChatPane/ConversationSearchJump.tsx
+msgid "Loading matched message…"
+msgstr "Eşleşen mesaj yükleniyor…"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorMediaViews.tsx
@@ -9118,9 +9154,17 @@ msgstr "Birleştirme engellendi"
 msgid "Message actions"
 msgstr "Mesaj işlemleri"
 
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Message search unavailable"
+msgstr "Mesaj araması kullanılamıyor"
+
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
 #~ msgid "Message the remote agent…"
 #~ msgstr "Uzak ajana mesaj gönder…"
+
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Messages"
+msgstr "Mesajlar"
 
 #: src/renderer/components/thread/ChatPane/ChatPane.tsx
 msgid "Messages could not be loaded."
@@ -10493,7 +10537,6 @@ msgstr "Henüz hiçbir şey izlenmedi. Kullandıkça burada görünecek."
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
-#: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
 msgid "Notifications"
 msgstr "Bildirimler"
 
@@ -10625,6 +10668,7 @@ msgstr "{label} öğesini aç"
 msgid "Open a new browser tab"
 msgstr "Yeni bir tarayıcı sekmesi aç"
 
+#: src/renderer/views/GlobalTerminalPanel/GlobalTerminalPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/DevTerminalPanel.tsx
 msgid "Open a terminal"
 msgstr "Bir terminal aç"
@@ -11495,6 +11539,7 @@ msgstr "Sabitlenmiş görev rotaları"
 msgid "Pixel 8"
 msgstr "Pixel 8"
 
+#: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
 #: src/renderer/components/providers/composerControlBuilders.tsx
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
@@ -11805,8 +11850,8 @@ msgstr "Sıralamayı değiştirmeye başlamak için Boşluk tuşuna basın. Taş
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Prevent sleep"
-msgstr "Uykuyu önle"
+#~ msgid "Prevent sleep"
+#~ msgstr "Uykuyu önle"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -11817,6 +11862,11 @@ msgstr "Uykuyu önle"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #~ msgid "Prevent sleep while working"
 #~ msgstr "Çalışırken uykuyu önleyin"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Prevent system sleep"
+msgstr "Sistemin uykuya geçmesini önle"
 
 #. placeholder {0}: att.name
 #: src/renderer/components/composer/AttachmentBar.tsx
@@ -11907,7 +11957,6 @@ msgstr "Üretkenlik"
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
-#: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
 msgid "Profile"
 msgstr "Profil"
 
@@ -12100,7 +12149,6 @@ msgstr "Sağlayıcı hazır ayarları"
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
-#: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
 msgid "Provider Usage"
 msgstr "Sağlayıcı kullanımı"
 
@@ -12566,8 +12614,8 @@ msgid "Remote"
 msgstr "Uzak"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
-msgid "Remote access"
-msgstr "Uzaktan erişim"
+#~ msgid "Remote access"
+#~ msgstr "Uzaktan erişim"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/RemoteAccessSidebarIcon.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
@@ -12694,6 +12742,10 @@ msgstr "{pattern} öğesini kaldır"
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
 msgid "Remove {rowTitle} from panel"
 msgstr "{rowTitle} öğesini panelden kaldırın"
+
+#: src/renderer/components/thread/ThreadComposer.tsx
+msgid "Remove {toggleLabel}"
+msgstr "{toggleLabel} öğesini kaldır"
 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredCustomValues.tsx
 msgid "Remove {value}"
@@ -13175,6 +13227,7 @@ msgid "Resume queued follow-ups"
 msgstr "Kuyruktaki takip mesajlarını sürdür"
 
 #: src/renderer/bootstrap.ts
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
@@ -13748,6 +13801,10 @@ msgstr "Kaydedilen kimlik bilgileri tüm makineler arasında paylaşılır."
 msgid "Saved font"
 msgstr "Kaydedilen yazı tipi"
 
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Saved messages, including archived chats"
+msgstr "Arşivlenmiş sohbetler dahil kaydedilmiş mesajlar"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordRow.tsx
 msgid "Saved password actions"
 msgstr "Kayıtlı parola işlemleri"
@@ -14071,6 +14128,10 @@ msgstr "Başlıklarda, mesajlarda ve klasörlerde ara"
 #: src/renderer/commands/EverythingSearchResults.tsx
 msgid "Searching files…"
 msgstr "Dosyalar aranıyor…"
+
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Searching saved messages…"
+msgstr "Kaydedilmiş mesajlarda aranıyor…"
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #~ msgid "Searching..."
@@ -14527,6 +14588,7 @@ msgstr "Daha az göster"
 msgid "Show MCP servers from {providerLabel}"
 msgstr "{providerLabel} kaynağındaki MCP sunucularını göster"
 
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentPromptSection.tsx
@@ -15384,7 +15446,7 @@ msgstr "Alt aracılar"
 #~ msgid "Subagents enabled for this thread"
 #~ msgstr "Bu konu için alt aracılar etkinleştirildi"
 
-#: src/renderer/components/thread/ChatPane/parts/items/MessageReplyForm.tsx
+#: src/renderer/components/thread/ThreadMessageReplyPanel.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/QuestionRows.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
@@ -15705,13 +15767,16 @@ msgstr "Hedef sağlayıcıya bundan sonra ne yapacağını söyleyin..."
 #: src/renderer/components/plugins/pluginCopy.ts
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/thread/ThreadToolRail.tsx
+#: src/renderer/views/GlobalTerminalPanel/GlobalTerminalPanel.tsx
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
+#: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/modelSurfaceLabel.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
-#: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
 msgid "Terminal"
 msgstr "Terminal"
 
@@ -16064,6 +16129,14 @@ msgstr "Liste okunamadı."
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the macOS user"
 msgstr "macOS kullanıcısı"
+
+#: src/renderer/commands/conversationSearchNavigation.ts
+msgid "The matched conversation could not be opened."
+msgstr "Eşleşen konuşma açılamadı."
+
+#: src/renderer/components/thread/ChatPane/ConversationSearchJump.tsx
+msgid "The matched message is no longer available."
+msgstr "Eşleşen mesaj artık kullanılamıyor."
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "The MCP server configuration is invalid or uses a reserved name."
@@ -17088,6 +17161,10 @@ msgstr "Tür"
 #: src/renderer/commands/CommandPalette.tsx
 #~ msgid "Type a command"
 #~ msgstr "Bir komut yazın"
+
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Type at least two characters to search messages"
+msgstr "Mesaj aramak için en az iki karakter yazın"
 
 #: src/mobile/views/BrowserView.tsx
 #~ msgid "Type into the page"
@@ -18485,7 +18562,7 @@ msgstr "Çalıştırmanın konuşmasının oluşturulduğu yer."
 msgid "Where the terminal panel appears."
 msgstr "Terminal panelinin göründüğü yer."
 
-#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "While working"
 msgstr "Çalışırken"
 
@@ -18604,6 +18681,10 @@ msgstr ".github/workflows dizinine eklenen workflow'lar burada görünür."
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Working"
 msgstr "Çalışıyor"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
+msgid "Working + remote access"
+msgstr "Çalışma + uzaktan erişim"
 
 #: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
 msgid "Working for {elapsed}"

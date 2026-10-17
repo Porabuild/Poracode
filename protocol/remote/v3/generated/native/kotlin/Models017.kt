@@ -5,6 +5,26 @@ import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
+typealias RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DResult_66ee2eb4ed = RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DResultU2DOptionU2D1_ae4a760581?
+
+@Serializable
+enum class RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DStatus_2151c8edcf {
+    @SerialName("running") RUNNING,
+    @SerialName("waiting-for-approval") WAITINGU2DFORU2DAPPROVAL,
+    @SerialName("succeeded") SUCCEEDED,
+    @SerialName("failed") FAILED,
+    @SerialName("cancelled") CANCELLED,
+    @SerialName("interrupted") INTERRUPTED,
+    @SerialName("skipped") SKIPPED,
+}
+
+@Serializable
+enum class RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DTrigger_56296b74a9 {
+    @SerialName("manual") MANUAL,
+    @SerialName("scheduled") SCHEDULED,
+    @SerialName("retry") RETRY,
+}
+
 @Serializable
 data class RouteautomationsU2DSnapshotResponseU2DRunsU2DItem_38754692c8(
     @SerialName("attempt") val attempt: RemoteField<Long> = RemoteField.Missing,
@@ -415,17 +435,4 @@ data class RoutebrowserU2DCommandRequestU2DOptionU2D7_500ee37993(
 @Serializable
 enum class RoutebrowserU2DCommandRequestU2DOptionU2D8U2DKind_41be750b56 {
     @SerialName("reload") RELOAD,
-}
-
-@Serializable
-data class RoutebrowserU2DCommandRequestU2DOptionU2D8_22c8bcdab9(
-    @SerialName("kind") val kind: RoutebrowserU2DCommandRequestU2DOptionU2D8U2DKind_41be750b56,
-    @SerialName("tabId") val tabId: String,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("kind", "RoutebrowserU2DCommandRequestU2DOptionU2D8U2DKind_41be750b56", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("tabId", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
 }

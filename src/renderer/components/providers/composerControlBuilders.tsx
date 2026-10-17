@@ -5,6 +5,12 @@ import type { ComposerControl } from "@/renderer/components/thread/ThreadCompose
 import type { AgentCapability, ThreadConfig } from "@/shared/contracts";
 import type { ComposerControlsInput } from "./providerComposer";
 
+export function isPlanModeControl(
+  control: ComposerControl,
+): control is Extract<ComposerControl, { kind: "toggle" }> & { label: "Plan" | "Work" } {
+  return control.kind === "toggle" && ["Plan", "Work"].includes(control.label);
+}
+
 /**
  * Plan/Work toggle shared by Claude, Codex, Copilot, Cursor, Gemini, and
  * OpenCode. Each provider decides what "plan mode" means in its config space

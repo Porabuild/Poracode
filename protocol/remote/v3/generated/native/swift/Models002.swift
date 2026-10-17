@@ -31,7 +31,7 @@ public struct ProcedurecloneRepoRequestU2DSourceU2DOptionU2D2U2DAccount_5646cf57
 }
 
 public enum ProcedurecloneRepoRequestU2DSourceU2DOptionU2D2U2DKind_cc1f68c41f: String, Codable, Sendable {
-  case github = "github"
+  case `github` = "github"
 }
 
 public struct ProcedurecloneRepoRequestU2DSourceU2DOptionU2D2_f97770a7e3: Codable, Sendable, RemoteModelMetadata {
@@ -140,9 +140,9 @@ public struct ProcedureconnectThreadVoiceRequestU2DConfigU2DImportedFrom_3471186
 }
 
 public enum ProcedureconnectThreadVoiceRequestU2DConfigU2DMode_01e21946e9: String, Codable, Sendable {
-  case agent = "agent"
-  case plan = "plan"
-  case autopilot = "autopilot"
+  case `agent` = "agent"
+  case `plan` = "plan"
+  case `autopilot` = "autopilot"
 }
 
 public struct ProcedureconnectThreadVoiceRequestU2DConfigU2DSelectionBindingU2DInertValuesU2DOptionU2D1_adaa80878b: Codable, Sendable, RemoteModelMetadata {
@@ -331,12 +331,12 @@ public enum ProcedureconnectThreadVoiceRequestU2DConfigU2DSelectionBindingU2DIne
 }
 
 public enum ProcedureconnectThreadVoiceRequestU2DConfigU2DSelectionBindingU2DKind_452e07a326: String, Codable, Sendable {
-  case familyU2DMember = "family-member"
+  case `familyU2DMember` = "family-member"
 }
 
 public enum ProcedureconnectThreadVoiceRequestU2DConfigU2DSelectionBindingU2DOwnerU2DPresentationMode_6508684ba6: String, Codable, Sendable {
-  case terminal = "terminal"
-  case gui = "gui"
+  case `terminal` = "terminal"
+  case `gui` = "gui"
 }
 
 public struct ProcedureconnectThreadVoiceRequestU2DConfigU2DSelectionBindingU2DOwner_a8eb5a0e02: Codable, Sendable, RemoteModelMetadata {

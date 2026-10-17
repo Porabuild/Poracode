@@ -1,4 +1,8 @@
 import { z } from "zod";
+import {
+  conversationSearchPageSchema,
+  conversationSearchQuerySchema,
+} from "../../../conversationSearch";
 
 import { defineRoute } from "../helpers";
 import { auditEvent, noAudit } from "../../auditKinds";
@@ -39,6 +43,17 @@ import {
 import type { RemoteHttpRouteContract } from "../types";
 
 export const sessionRoutes: readonly RemoteHttpRouteContract[] = [
+  defineRoute({
+    id: "conversation-search",
+    method: "GET",
+    path: "/api/search/conversations",
+    auth: "bearer",
+    scopes: ["session:read"],
+    audit: noAudit("read"),
+    queryParameters: ["version", "query", "projectId", "includeArchived", "cursor", "limit"],
+    request: { bodyKind: "empty", querySchema: conversationSearchQuerySchema },
+    response: { wireKind: "json", status: 200, jsonSchema: conversationSearchPageSchema },
+  }),
   defineRoute({
     id: "environment",
     method: "GET",

@@ -42,7 +42,7 @@ export function resolveImportModel(session: ImportableSession, projectId: string
     .getState()
     .agentStatuses.find((entry) => entry.kind === session.agentKind);
   const offers = (model: string | undefined): model is string =>
-    !!model && !!status && resolveModelSelection(status.capabilities, model) === model;
+    !!model && !!status && status.capabilities.models.some((entry) => entry.id === model);
   if (offers(session.model)) return session.model;
   const project = useAppStore.getState().projects.find((entry) => entry.id === projectId);
   const saved = resolveSavedProviderDraftConfig(

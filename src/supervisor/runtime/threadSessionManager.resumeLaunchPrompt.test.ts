@@ -173,6 +173,69 @@ function userMessageStarts(events: SupervisorEvent[]): string[] {
 }
 
 describe("ThreadSessionManager resume launch with a pending prompt", () => {
+  it.each(["idle", "inactive"] as const)(
+    "persists reply-form answers when submitting to a %s session",
+    async (status) => {
+      const events: SupervisorEvent[] = [];
+      const structured = createStructuredSession();
+      const manager = createManager(createAdapter(structured.handle), events);
+      await manager.startThread(resumePayload("reply-metadata"));
+      const session = manager.sessions.get("reply-metadata")!;
+      session.status = status;
+      const questionAnswer = {
+        questions: [{ header: "", question: "Which scope?", selected: [{ label: "Focused" }] }],
+      };
+      await manager.sendThreadInput({
+        threadId: session.threadId,
+        config: { model: MODEL },
+        prompt: "Which scope?\nFocused",
+        userMessageItemId: "reply-answer",
+        questionAnswer,
+      });
+      await vi.waitFor(() => expect(structured.startTurn).toHaveBeenCalled());
+      const runtimeEvents = events.flatMap((event) =>
+        event.type === "thread-runtime-events"
+          ? event.events
+          : event.type === "thread-runtime-event"
+            ? [event.event]
+            : [],
+      );
+      expect(runtimeEvents).toContainEqual(
+        expect.objectContaining({
+          type: "item.started",
+          itemId: "reply-answer",
+          payload: expect.objectContaining({ questionAnswer }),
+        }),
+      );
+    },
+  );
+
+  it("preserves answer metadata through a cold resumed launch", async () => {
+    const events: SupervisorEvent[] = [];
+    const structured = createStructuredSession();
+    const manager = createManager(createAdapter(structured.handle), events);
+    const questionAnswer = {
+      questions: [{ header: "", question: "Which scope?", selected: [{ label: "Focused" }] }],
+    };
+    await manager.startThread(
+      resumePayload("cold-reply", {
+        prompt: "Which scope?\nFocused",
+        userMessageItemId: "cold-answer",
+        questionAnswer,
+      }),
+    );
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        type: "thread-runtime-event",
+        event: expect.objectContaining({
+          type: "item.started",
+          itemId: "cold-answer",
+          payload: expect.objectContaining({ questionAnswer }),
+        }),
+      }),
+    );
+  });
+
   it("delivers the prompt exactly once as the resumed session's first turn", async () => {
     const events: SupervisorEvent[] = [];
     const structured = createStructuredSession();

@@ -483,6 +483,7 @@ export abstract class RemoteClientThreadsApi extends RemoteClientHostApi {
         ...(input.sessionRef ? { sessionRef: input.sessionRef } : {}),
         ...(input.presentationMode ? { presentationMode: input.presentationMode } : {}),
         ...(input.userMessageItemId ? { userMessageItemId: input.userMessageItemId } : {}),
+        ...(input.questionAnswer ? { questionAnswer: input.questionAnswer } : {}),
         ...(input.providerSwitch ? { providerSwitch: input.providerSwitch } : {}),
         ...(input.clientContext ? { clientContext: input.clientContext } : {}),
         ...(input.ensureRunning ? { ensureRunning: true } : {}),
@@ -559,6 +560,7 @@ export abstract class RemoteClientThreadsApi extends RemoteClientHostApi {
         config: parsed.config,
         ...(parsed.segments ? { segments: parsed.segments } : {}),
         ...(parsed.userMessageItemId ? { userMessageItemId: parsed.userMessageItemId } : {}),
+        ...(parsed.questionAnswer ? { questionAnswer: parsed.questionAnswer } : {}),
         ...(parsed.clientContext ? { clientContext: parsed.clientContext } : {}),
       },
     });

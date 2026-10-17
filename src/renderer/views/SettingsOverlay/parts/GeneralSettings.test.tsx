@@ -45,8 +45,8 @@ describe("GeneralSettings", () => {
     expect(screen.getByText("Start minimized")).toBeInTheDocument();
     expect(screen.getByText("Editor LSP")).toBeInTheDocument();
     expect(screen.getByText("Sidebar shortcuts")).toBeInTheDocument();
-    expect(screen.getByText("Prevent sleep")).toBeInTheDocument();
-    expect(screen.getByRole("tablist", { name: "Prevent sleep" })).toBeInTheDocument();
+    expect(screen.getByText("Prevent system sleep")).toBeInTheDocument();
+    expect(screen.getByLabelText("Prevent system sleep")).toBeInTheDocument();
     expect(screen.queryByText("Pull requests shortcut")).not.toBeInTheDocument();
   });
 
@@ -127,6 +127,34 @@ describe("GeneralSettings", () => {
     expect(profile).toHaveAttribute("aria-selected", "false");
   });
 
+  it("explains the increasing coverage of the system sleep options", async () => {
+    useSharedSettings.setState({ preventSleep: "while-working" });
+    render(<GeneralSettings />);
+
+    const trigger = screen.getByLabelText("Prevent system sleep");
+    expect(trigger).toHaveTextContent("While working");
+    expect(
+      screen.getByText(/while any agent is working, including Computer Use/),
+    ).toBeInTheDocument();
+
+    fireEvent.click(trigger);
+    fireEvent.click(await screen.findByRole("option", { name: "Working + remote access" }));
+
+    expect(useSharedSettings.getState().preventSleep).toBe("while-remote-access");
+    expect(trigger).toHaveTextContent("Working + remote access");
+    expect(screen.getByText(/while agents work or remote access is enabled/)).toBeInTheDocument();
+
+    fireEvent.click(trigger);
+    fireEvent.click(await screen.findByRole("option", { name: "Always" }));
+
+    expect(useSharedSettings.getState().preventSleep).toBe("always");
+    expect(trigger).toHaveTextContent("Always");
+    expect(
+      screen.getByText(/whenever Poracode is running, even in the background/),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("switch", { name: /Computer Use/ })).not.toBeInTheDocument();
+  });
+
   it("hides Windows startup controls on other desktop platforms", () => {
     bridgeMock.isWindows.mockReturnValue(false);
 
@@ -147,7 +175,10 @@ describe("GeneralSettings", () => {
     expect(screen.queryByText("Start minimized")).not.toBeInTheDocument();
     expect(screen.queryByText("Editor LSP")).not.toBeInTheDocument();
     expect(screen.getByText("Sidebar shortcuts")).toBeInTheDocument();
-    expect(screen.queryByText("Prevent sleep")).not.toBeInTheDocument();
+    expect(screen.queryByText("Prevent system sleep")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("switch", { name: "Keep display on during Computer Use" }),
+    ).not.toBeInTheDocument();
   });
 
   it("offers the captured browser install prompt in remote sessions", () => {

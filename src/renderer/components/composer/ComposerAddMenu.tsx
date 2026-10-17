@@ -1,8 +1,10 @@
 import { useState, type ReactNode } from "react";
 import {
   Cable,
+  Check,
   ChevronLeft,
   ChevronRight,
+  ClipboardList,
   FlaskConical,
   Monitor,
   Paperclip,
@@ -31,6 +33,7 @@ import { COMPUTER_USE_MCP_ID } from "./composerMcpServers";
 import type { ComposerMcpServerDescriptor } from "./composerMcpServers";
 import type { ProviderSessionMenuAction } from "../providers/providerSessionControls";
 import { ComposerSessionActionsMenu } from "./ComposerSessionActionsMenu";
+import type { ComposerControl } from "../thread/ThreadComposer";
 import {
   ComposerMcpServersMobileList,
   ComposerMcpServersSubmenuContent,
@@ -69,6 +72,7 @@ export function ComposerAddMenu(props: {
   showFileOption?: boolean;
   onPickFiles: () => void;
   onOpenSideChat?: () => void;
+  planControl?: Extract<ComposerControl, { kind: "toggle" }> | undefined;
   /**
    * Computer Use is a launch-time capability handled separately from the MCP
    * registry (it gates on project location + agent kind, not the shared MCP
@@ -139,6 +143,7 @@ export function ComposerAddMenu(props: {
     !hasPluginsMenu &&
     !hasMcpServersMenu &&
     !experiment &&
+    !props.planControl &&
     !sessionActions.length &&
     !props.onOpenSideChat
   )
@@ -162,6 +167,10 @@ export function ComposerAddMenu(props: {
   const handleSideChat = () => {
     closeMenu();
     props.onOpenSideChat?.();
+  };
+  const handlePlan = () => {
+    closeMenu();
+    props.planControl?.onChange?.(!props.planControl.isSelected);
   };
 
   // The Plugins submenu is a multiple-selection menu (Computer Use included as
@@ -232,6 +241,21 @@ export function ComposerAddMenu(props: {
           <span className="flex-1 truncate">
             <Trans>Side chat</Trans>
           </span>
+        </button>
+      ) : null}
+      {props.planControl ? (
+        <button
+          type="button"
+          className="m-sheet-action"
+          aria-pressed={props.planControl.isSelected}
+          disabled={props.planControl.isDisabled}
+          onClick={handlePlan}
+        >
+          <ClipboardList className="size-4 text-muted" />
+          <span className="flex-1 truncate">
+            <Trans>Plan</Trans>
+          </span>
+          {props.planControl.isSelected ? <Check className="size-4 shrink-0" aria-hidden /> : null}
         </button>
       ) : null}
       {experiment ? (
@@ -438,6 +462,27 @@ export function ComposerAddMenu(props: {
               <span className="ms-auto text-xs text-muted">/btw</span>
             </Dropdown.Item>
           ) : null}
+          {props.planControl ? (
+            <Dropdown.Section
+              selectionMode="multiple"
+              selectedKeys={props.planControl.isSelected ? ["plan"] : []}
+              onSelectionChange={handlePlan}
+            >
+              <Dropdown.Item
+                id="plan"
+                textValue={t`Plan`}
+                isDisabled={props.planControl.isDisabled ?? false}
+              >
+                <ClipboardList className="size-4 text-muted" />
+                <Label className="flex-1 truncate">
+                  <Trans>Plan</Trans>
+                </Label>
+                <span className="size-4 shrink-0" aria-hidden>
+                  {props.planControl.isSelected ? <Check className="size-4" /> : null}
+                </span>
+              </Dropdown.Item>
+            </Dropdown.Section>
+          ) : null}
           {experiment ? (
             <Dropdown.Item
               id="experiment"
@@ -452,7 +497,8 @@ export function ComposerAddMenu(props: {
               <MenuSwitch checked={experiment.enabled} />
             </Dropdown.Item>
           ) : null}
-          {(showFileOption || experiment) && (hasPluginsMenu || hasMcpServersMenu) ? (
+          {(showFileOption || props.planControl || experiment) &&
+          (hasPluginsMenu || hasMcpServersMenu) ? (
             <Separator />
           ) : null}
           {hasPluginsMenu ? (

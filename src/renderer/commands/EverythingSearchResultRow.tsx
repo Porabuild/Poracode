@@ -14,6 +14,7 @@ interface ResultRowProps {
   title: string;
   query: SearchQuery;
   subtitle?: string | undefined;
+  wrapSubtitle?: boolean;
   shortcut?: string | undefined;
   index: number;
   isSelected: boolean;
@@ -41,7 +42,7 @@ export function EverythingSearchResultRow(props: ResultRowProps) {
       )}
       variant="ghost"
       fullWidth
-      className={`h-10 min-w-0 justify-start gap-2 rounded-xl px-3 font-normal ${stateClass}`}
+      className={`${props.wrapSubtitle ? "h-auto min-h-16 py-2" : "h-10"} min-w-0 justify-start gap-2 rounded-xl px-3 font-normal ${stateClass}`}
       onPress={props.onActivate}
       onPointerMove={props.onHover}
     >
@@ -53,7 +54,9 @@ export function EverythingSearchResultRow(props: ResultRowProps) {
           <SearchMatch text={props.title} query={props.query} />
         </span>
         {props.subtitle ? (
-          <span className="block truncate text-[11px] leading-4 text-muted">
+          <span
+            className={`${props.wrapSubtitle ? "line-clamp-2 whitespace-normal" : "block truncate"} text-[11px] leading-4 text-muted`}
+          >
             <SearchMatch text={props.subtitle} query={props.query} fuzzy={false} />
           </span>
         ) : null}

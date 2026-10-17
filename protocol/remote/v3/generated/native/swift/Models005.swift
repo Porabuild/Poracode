@@ -18,19 +18,19 @@ public struct ProcedureensureThreadRunningRequestU2DInitialSize_55ee222c09: Coda
 public typealias ProcedureensureThreadRunningRequestU2DMentionHandoff_d2dd3595e1 = Bool
 
 public enum ProcedureensureThreadRunningRequestU2DProviderSwitchU2DContextStrategy_9136743498: String, Codable, Sendable {
-  case threadU2DTranscript = "thread-transcript"
-  case contextU2DFile = "context-file"
+  case `threadU2DTranscript` = "thread-transcript"
+  case `contextU2DFile` = "context-file"
 }
 
 public enum ProcedureensureThreadRunningRequestU2DProviderSwitchU2DPreviousStatus_8c61ed237d: String, Codable, Sendable {
-  case inactive = "inactive"
-  case launching = "launching"
-  case working = "working"
-  case idle = "idle"
-  case finished = "finished"
-  case needsU5FApproval = "needs_approval"
-  case needsU5FReply = "needs_reply"
-  case error = "error"
+  case `inactive` = "inactive"
+  case `launching` = "launching"
+  case `working` = "working"
+  case `idle` = "idle"
+  case `finished` = "finished"
+  case `needsU5FApproval` = "needs_approval"
+  case `needsU5FReply` = "needs_reply"
+  case `error` = "error"
 }
 
 public struct ProcedureensureThreadRunningRequestU2DProviderSwitch_06461b1492: Codable, Sendable, RemoteModelMetadata {
@@ -54,6 +54,54 @@ public struct ProcedureensureThreadRunningRequestU2DProviderSwitch_06461b1492: C
   }
 }
 
+public struct ProcedureensureThreadRunningRequestU2DQuestionAnswerU2DQuestionsU2DItemU2DSelectedU2DItem_58a226c992: Codable, Sendable, RemoteModelMetadata {
+  public var description: RemoteField<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b> = .missing
+  public var label: ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b
+  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
+  public static let fields: [RemoteFieldDescriptor] = [
+    .init(wireName: "description", typeName: "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "label", typeName: "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+  ]
+  public static let semanticValidatorIds: [String] = []
+  private enum CodingKeys: String, CodingKey {
+    case description = "description"
+    case label = "label"
+  }
+}
+
+public struct ProcedureensureThreadRunningRequestU2DQuestionAnswerU2DQuestionsU2DItem_63cf2bb531: Codable, Sendable, RemoteModelMetadata {
+  public var customAnswer: RemoteField<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b> = .missing
+  public var header: ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b
+  public var question: ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b
+  public var selected: [ProcedureensureThreadRunningRequestU2DQuestionAnswerU2DQuestionsU2DItemU2DSelectedU2DItem_58a226c992]
+  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
+  public static let fields: [RemoteFieldDescriptor] = [
+    .init(wireName: "customAnswer", typeName: "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "header", typeName: "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "question", typeName: "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "selected", typeName: "[ProcedureensureThreadRunningRequestU2DQuestionAnswerU2DQuestionsU2DItemU2DSelectedU2DItem_58a226c992]", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+  ]
+  public static let semanticValidatorIds: [String] = []
+  private enum CodingKeys: String, CodingKey {
+    case customAnswer = "customAnswer"
+    case header = "header"
+    case question = "question"
+    case selected = "selected"
+  }
+}
+
+public struct ProcedureensureThreadRunningRequestU2DQuestionAnswer_a22ff042f4: Codable, Sendable, RemoteModelMetadata {
+  public var questions: [ProcedureensureThreadRunningRequestU2DQuestionAnswerU2DQuestionsU2DItem_63cf2bb531]
+  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
+  public static let fields: [RemoteFieldDescriptor] = [
+    .init(wireName: "questions", typeName: "[ProcedureensureThreadRunningRequestU2DQuestionAnswerU2DQuestionsU2DItem_63cf2bb531]", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+  ]
+  public static let semanticValidatorIds: [String] = []
+  private enum CodingKeys: String, CodingKey {
+    case questions = "questions"
+  }
+}
+
 public struct ProcedureensureThreadRunningRequestU2DSessionRef_25df6feb29: Codable, Sendable, RemoteModelMetadata {
   public var discoveredAt: String
   public var executionIdentity: RemoteField<String> = .missing
@@ -72,7 +120,7 @@ public struct ProcedureensureThreadRunningRequestU2DSessionRef_25df6feb29: Codab
   }
 }
 
-public struct ProcedureensureThreadRunningRequest_4d961f4317: Codable, Sendable, RemoteModelMetadata {
+public struct ProcedureensureThreadRunningRequest_330389cc81: Codable, Sendable, RemoteModelMetadata {
   public var agentInstanceId: RemoteField<String> = .missing
   public var agentKind: String
   public var clientContext: RemoteField<ProcedureensureThreadRunningRequestU2DClientContext_b23ca9582f> = .missing
@@ -87,6 +135,7 @@ public struct ProcedureensureThreadRunningRequest_4d961f4317: Codable, Sendable,
   public var projectLocation: ProcedurebeginMcpServerOauthRequestU2DProjectLocation_080f9cc154
   public var prompt: RemoteField<String> = .missing
   public var providerSwitch: RemoteField<ProcedureensureThreadRunningRequestU2DProviderSwitch_06461b1492> = .missing
+  public var questionAnswer: RemoteField<ProcedureensureThreadRunningRequestU2DQuestionAnswer_a22ff042f4> = .missing
   public var segments: RemoteField<[ProcedureeditQueuedThreadFollowUpRequestU2DSegmentsU2DItem_a399fbc754]> = .missing
   public var sessionRef: RemoteField<ProcedureensureThreadRunningRequestU2DSessionRef_25df6feb29> = .missing
   public var threadId: RemoteField<String> = .missing
@@ -107,6 +156,7 @@ public struct ProcedureensureThreadRunningRequest_4d961f4317: Codable, Sendable,
     .init(wireName: "projectLocation", typeName: "ProcedurebeginMcpServerOauthRequestU2DProjectLocation_080f9cc154", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "prompt", typeName: "String", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "providerSwitch", typeName: "ProcedureensureThreadRunningRequestU2DProviderSwitch_06461b1492", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "questionAnswer", typeName: "ProcedureensureThreadRunningRequestU2DQuestionAnswer_a22ff042f4", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "segments", typeName: "[ProcedureeditQueuedThreadFollowUpRequestU2DSegmentsU2DItem_a399fbc754]", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "sessionRef", typeName: "ProcedureensureThreadRunningRequestU2DSessionRef_25df6feb29", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "threadId", typeName: "String", required: false, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
@@ -128,6 +178,7 @@ public struct ProcedureensureThreadRunningRequest_4d961f4317: Codable, Sendable,
     case projectLocation = "projectLocation"
     case prompt = "prompt"
     case providerSwitch = "providerSwitch"
+    case questionAnswer = "questionAnswer"
     case segments = "segments"
     case sessionRef = "sessionRef"
     case threadId = "threadId"
@@ -211,8 +262,8 @@ public struct ProcedureextractContextRequest_963874114b: Codable, Sendable, Remo
 }
 
 public enum ProcedureextractContextResultU2DContentKind_5aa9e435f6: String, Codable, Sendable {
-  case summary = "summary"
-  case transcript = "transcript"
+  case `summary` = "summary"
+  case `transcript` = "transcript"
 }
 
 public struct ProcedureextractContextResult_2a2641f29a: Codable, Sendable, RemoteModelMetadata {
@@ -383,56 +434,5 @@ public struct ProceduregeneratePrSummaryRequest_e6da2ef0ee: Codable, Sendable, R
     case language = "language"
     case projectLocation = "projectLocation"
     case selection = "selection"
-  }
-}
-
-public struct ProceduregeneratePrSummaryResult_bd2deb493c: Codable, Sendable, RemoteModelMetadata {
-  public var description: ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b
-  public var title: ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b
-  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
-  public static let fields: [RemoteFieldDescriptor] = [
-    .init(wireName: "description", typeName: "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "title", typeName: "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-  ]
-  public static let semanticValidatorIds: [String] = []
-  private enum CodingKeys: String, CodingKey {
-    case description = "description"
-    case title = "title"
-  }
-}
-
-public struct ProceduregenerateTitleRequest_65955df838: Codable, Sendable, RemoteModelMetadata {
-  public var agentKind: String
-  public var language: RemoteField<String> = .missing
-  public var projectLocation: ProcedurebeginMcpServerOauthRequestU2DProjectLocation_080f9cc154
-  public var prompt: String
-  public var selection: RemoteField<ProcedureextractContextRequestU2DSelection_32c3720f64> = .missing
-  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
-  public static let fields: [RemoteFieldDescriptor] = [
-    .init(wireName: "agentKind", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "language", typeName: "String", required: false, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "projectLocation", typeName: "ProcedurebeginMcpServerOauthRequestU2DProjectLocation_080f9cc154", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "prompt", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "selection", typeName: "ProcedureextractContextRequestU2DSelection_32c3720f64", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-  ]
-  public static let semanticValidatorIds: [String] = []
-  private enum CodingKeys: String, CodingKey {
-    case agentKind = "agentKind"
-    case language = "language"
-    case projectLocation = "projectLocation"
-    case prompt = "prompt"
-    case selection = "selection"
-  }
-}
-
-public struct ProceduregenerateTitleResult_df37d0da6f: Codable, Sendable, RemoteModelMetadata {
-  public var title: ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b
-  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
-  public static let fields: [RemoteFieldDescriptor] = [
-    .init(wireName: "title", typeName: "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-  ]
-  public static let semanticValidatorIds: [String] = []
-  private enum CodingKeys: String, CodingKey {
-    case title = "title"
   }
 }

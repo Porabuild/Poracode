@@ -16,6 +16,7 @@ import { captureSupervisorException } from "../../diagnostics/sentry";
 import { rewriteSegmentsForWsl } from "../threadAttachments";
 import type { PendingSteerSlot, QueuedStructuredTurn, SessionRuntime } from "../sessionTypes";
 import { formatTurnClientContext, structuredTurnTextOptions } from "../turnClientContext";
+import type { StructuredTurnQueue } from "./structuredTurnQueue";
 
 const STEER_PREPARATION_TIMEOUT_MS = 750;
 
@@ -107,13 +108,7 @@ export interface SteerCoordinatorContext {
     session: SessionRuntime,
     turn: QueuedStructuredTurn,
   ): Promise<void | StructuredTurnResult> | void;
-  emitOptimisticUserMessage(
-    threadId: string,
-    prompt: string,
-    segments?: PromptSegment[],
-    requestedItemId?: string,
-    options?: { includeTurn?: boolean },
-  ): string;
+  emitOptimisticUserMessage: StructuredTurnQueue["emitOptimisticUserMessage"];
   failStructuredSession(session: SessionRuntime, error: unknown): void;
   /** Optional queue barrier hook; native steer keeps the same turn boundary. */
   noteDirectSteerSubmitted?(session: SessionRuntime): void;
@@ -317,6 +312,7 @@ export class SteerCoordinator {
       ...(slot.segments ? { segments: slot.segments } : {}),
       ...(slot.displaySegments ? { displaySegments: slot.displaySegments } : {}),
       ...(slot.userMessageItemId ? { userMessageItemId: slot.userMessageItemId } : {}),
+      ...(slot.questionAnswer ? { questionAnswer: slot.questionAnswer } : {}),
       ...(slot.inlineInstructions ? { inlineInstructions: slot.inlineInstructions } : {}),
       ...(slot.turnContext ? { turnContext: slot.turnContext } : {}),
     };
@@ -475,7 +471,10 @@ export class SteerCoordinator {
             turn.prompt,
             turn.displaySegments ?? turn.segments,
             turn.userMessageItemId,
-            { includeTurn: false },
+            {
+              includeTurn: false,
+              ...(turn.questionAnswer ? { questionAnswer: turn.questionAnswer } : {}),
+            },
           )
         : undefined;
     const steerOptions = {

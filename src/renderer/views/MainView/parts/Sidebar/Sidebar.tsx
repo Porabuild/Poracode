@@ -1,6 +1,15 @@
 import { useCommandPaletteStore } from "@/renderer/commands/commandPaletteStore";
 import { useAuxiliaryThreadWindows } from "@/renderer/state/auxiliaryThreadWindows";
-import { ChevronRight, Globe, House, PanelLeft, Plus, Search, Settings2 } from "lucide-react";
+import {
+  ChevronRight,
+  Globe,
+  House,
+  PanelLeft,
+  Plus,
+  Search,
+  Settings2,
+  TerminalSquare,
+} from "lucide-react";
 import { startTransition, useEffect, useState } from "react";
 import { useShallow } from "zustand/shallow";
 import { Trans, useLingui } from "@lingui/react/macro";
@@ -33,7 +42,7 @@ import {
   toggleBrowserPanel,
 } from "@/renderer/actions/panelActions";
 import { ProviderUsageRail } from "@/renderer/components/providers/ProviderUsageRail";
-import { openTerminal } from "@/renderer/actions/terminalActions";
+import { openTerminal, toggleGlobalTerminal } from "@/renderer/actions/terminalActions";
 import { openNewThread, openThread } from "@/renderer/actions/threadActions";
 import {
   useCurrentProjectId,
@@ -48,6 +57,7 @@ import { useAppStore } from "@/renderer/state/appStore";
 import { useIsPanelTabVisible } from "@/renderer/state/panelDockSelectors";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useSidebarUiStore } from "@/renderer/state/sidebarUiStore";
+import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import {
   useProjectIdsHiddenByWorkspace,
@@ -211,6 +221,10 @@ export function Sidebar() {
   const browserOnScreen = useIsPanelTabVisible("browser");
   const browserVisible = browserPanelOpen && browserOnScreen;
   const browserPanelAvailable = useRemoteServersStore(selectBrowserPanelAvailable);
+  const globalTerminalPanelOpen = useDevTerminalStore((s) => s.isOpen && s.source === "global");
+  const terminalOnScreen = useIsPanelTabVisible("terminal");
+  const terminalAtBottom = useSharedSettings((s) => s.terminalPosition === "bottom");
+  const globalTerminalOpen = globalTerminalPanelOpen && (terminalAtBottom || terminalOnScreen);
   const openSearch = useCommandPaletteStore((s) => s.open);
   const isHomeProjectCollapsed = useSidebarUiStore((s) =>
     homeProject ? (s.collapsedProjects[homeProject.id] ?? false) : false,
@@ -329,6 +343,15 @@ export function Sidebar() {
                 label={t`Browser`}
                 isActive={browserVisible}
                 onPress={toggleBrowserPanel}
+              />
+            ) : null}
+            {hasClientCapability("localBackend") ? (
+              <SidebarButton
+                iconOnly
+                icon={<TerminalSquare className="size-3.5" />}
+                label={t`Terminal`}
+                isActive={globalTerminalOpen}
+                onPress={toggleGlobalTerminal}
               />
             ) : null}
             <SidebarButton

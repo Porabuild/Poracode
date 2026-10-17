@@ -16,7 +16,7 @@ import org.junit.Test
 class GeneratedRemoteV3ContractTest {
     @Test
     fun generator3ManifestIsRefusedAfterUnicodeLengthCorrection() {
-        assertEquals(5, GeneratedRemoteV3Contract.GENERATOR_VERSION)
+        assertEquals(6, GeneratedRemoteV3Contract.GENERATOR_VERSION)
         assertFalse(GeneratedRemoteV3Contract.isCompatibleWithNativeBundleManifest(
             protocolVersion = ProtocolConstants.REMOTE_PROTOCOL_VERSION,
             bindingFormatVersion = GeneratedRemoteV3Contract.BINDING_FORMAT_VERSION,
@@ -31,6 +31,16 @@ class GeneratedRemoteV3ContractTest {
             protocolVersion = ProtocolConstants.REMOTE_PROTOCOL_VERSION,
             bindingFormatVersion = GeneratedRemoteV3Contract.BINDING_FORMAT_VERSION,
             generatorVersion = 4,
+            formatVersion = GeneratedRemoteV3Contract.NATIVE_BUNDLE_MANIFEST_FORMAT_VERSION,
+        ))
+    }
+
+    @Test
+    fun generator5ManifestIsRefusedAfterSwiftIdentifierCorrection() {
+        assertFalse(GeneratedRemoteV3Contract.isCompatibleWithNativeBundleManifest(
+            protocolVersion = ProtocolConstants.REMOTE_PROTOCOL_VERSION,
+            bindingFormatVersion = GeneratedRemoteV3Contract.BINDING_FORMAT_VERSION,
+            generatorVersion = 5,
             formatVersion = GeneratedRemoteV3Contract.NATIVE_BUNDLE_MANIFEST_FORMAT_VERSION,
         ))
     }

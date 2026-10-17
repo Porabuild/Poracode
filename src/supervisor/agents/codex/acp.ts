@@ -253,6 +253,8 @@ export class CodexStructuredSession implements StructuredSessionHandle {
   private currentSlashCommands: AgentSlashCommand[] | undefined;
   private currentBaseSlashCommands: AgentSlashCommand[] = [];
   private currentSkillSlashCommands: AgentSlashCommand[] = [];
+  private skillRefresh: Promise<void> | undefined;
+  private skillReloadRequested = false;
   private pendingTurnInterrupt = false;
   // Sticky-error gate: once a turn fails, derived status updates from
   // `thread/status/changed` (which Codex emits as `idle` after an aborted
@@ -506,18 +508,46 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     ]);
   }
 
-  private async refreshSkillSlashCommands(forceReload: boolean): Promise<void> {
+  private refreshSkillSlashCommands(forceReload: boolean): Promise<void> {
+    if (this.isDisposed) return Promise.resolve();
+    if (this.skillRefresh) {
+      this.skillReloadRequested ||= forceReload;
+      return this.skillRefresh;
+    }
+    const refresh = this.loadSkillSlashCommands(forceReload).finally(() => {
+      if (this.skillRefresh === refresh) this.skillRefresh = undefined;
+    });
+    this.skillRefresh = refresh;
+    return refresh;
+  }
+
+  private async loadSkillSlashCommands(forceReload: boolean): Promise<void> {
     const projectCwd = this.projectLocation
       ? this.projectLocation.kind === "wsl"
         ? this.projectLocation.linuxPath
         : this.projectLocation.path
       : undefined;
-    const result = await this.rpc.request("skills/list", {
-      ...(projectCwd ? { cwds: [projectCwd] } : {}),
-      forceReload,
-    });
-    this.currentSkillSlashCommands = mapCodexSkillsToSlashCommands(result);
-    this.rebuildSlashCommands();
+    do {
+      this.skillReloadRequested = false;
+      try {
+        const result = await this.rpc.request("skills/list", {
+          ...(projectCwd ? { cwds: [projectCwd] } : {}),
+          forceReload,
+        });
+        if (this.isDisposed) return;
+        // A change during discovery invalidates this result. Coalesce the burst
+        // into one reload rather than publishing a stale catalog or racing RPCs.
+        if (!this.skillReloadRequested) {
+          this.currentSkillSlashCommands = mapCodexSkillsToSlashCommands(result);
+          this.rebuildSlashCommands();
+        }
+      } catch (error) {
+        if (this.isDisposed) return;
+        // A failed read must still drain a change queued while it was pending.
+        if (!this.skillReloadRequested) throw error;
+      }
+      forceReload = true;
+    } while (this.skillReloadRequested);
   }
 
   static async create(
@@ -1628,11 +1658,11 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     this.rebuildSlashCommands();
 
     this.rpc.notify("initialized");
-    try {
-      await this.refreshSkillSlashCommands(false);
-    } catch (error) {
-      console.warn("[codex] skills/list failed:", error);
-    }
+    // This catalog only populates slash commands. Explicit skill segments carry
+    // their native paths, so discovery must not delay thread/start or turn/start.
+    void this.refreshSkillSlashCommands(false).catch((error) => {
+      if (!this.isDisposed) console.warn("[codex] skills/list failed:", error);
+    });
   }
 
   private isCurrentThreadNotification(threadId: string): boolean {
