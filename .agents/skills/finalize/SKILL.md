@@ -11,17 +11,27 @@ If the target or ownership is genuinely ambiguous, resolve it before publication
 
 1. Read repository instructions and inspect the full intended diff against `origin/master`, including committed,
    staged, unstaged, and untracked work. Record the starting branch, HEAD, and paths.
+   Keep a compact record of completed checks, their commands/results, and the tree or affected files they covered.
+   Reuse evidence from this session when its inputs are unchanged; committing alone does not invalidate it.
 2. Run `deep-review` in fix mode. Validate findings and fix in-scope issues without unrelated cleanup.
 3. Use `interactive-testing` for real manual QA of affected app behavior, with an isolated managed session. Add
    `provider-chat-smoke` or `mobile-apps` when applicable. For visible UI changes, capture comparable before/after
    screenshots as required by `pull-request`. Record real interactions and outcomes; tests do not replace manual QA.
+   Finish heavy app builds before starting the full test suite; avoid overlapping baseline/branch builds and tests.
+   Reuse valid captures and managed builds while their relevant source, fixtures, and runtime inputs are unchanged.
 4. Fix confirmed QA issues, then run the full `verify` gate and every applicable conditional gate on the final tree.
-   Rerun only checks invalidated by subsequent changes. Unavailable required QA or a red gate blocks merge.
+   Run the full gate once, then rerun only failed checks or checks invalidated by subsequent changes. A docs-only
+   edit requires its applicable format/skill validation, not another app build, UI capture, or product test suite.
+   Diagnose failures before retrying. For test failures, rerun the complete failing files after resolving the cause;
+   for host contention, stop owned competing work and use supported worker limits without changing test thresholds.
+   Preserve and report the original failures and retry results. Repeat the full suite only when changed inputs or
+   a failure diagnosis invalidate its broader coverage. Unavailable required QA or an unresolved red gate blocks merge.
 5. Use `commit`, push the intended branch, and use `pull-request` to create or update its PR against `master`.
    Finalize requests a ready PR. Include final verification/QA evidence and uploaded before/after screenshots.
 6. Monitor checks for the latest pushed SHA. Read failure logs, fix in-scope failures, verify, create follow-up
    commits, push, and refresh the PR description as needed. Every push requires a fresh CI assessment. Confirm
    suspected unrelated failures on unchanged `origin/master`; do not change unrelated code or bypass checks.
+   Use CI status/watch operations between meaningful state changes; do not rerun valid local gates while waiting.
 7. Read fresh exact-number PR state. Verify the PR head equals the intended pushed commit, all applicable checks
    passed, required reviews are satisfied, and GitHub permits the merge. Empty/pending/cancelled checks are not green.
    Merge with the configured method, `expectedHeadSha` set to the verified SHA, and without admin override. If the
