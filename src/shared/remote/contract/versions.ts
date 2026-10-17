@@ -26,7 +26,8 @@ export const REMOTE_BINDING_FORMAT_VERSION = 2 as const;
  * UTF-16. The IR layout and public protocol are unchanged; v3 bindings must regenerate.
  */
 // v5 adds portable cron, time-zone, automation and run-state validation.
-export const REMOTE_GENERATOR_VERSION = 5 as const;
+// v6 adds portable source-host, review-edit and persisted watch-scope validation.
+export const REMOTE_GENERATOR_VERSION = 6 as const;
 
 export const REMOTE_CONTRACT_NAME = "poracode.remote" as const;
 

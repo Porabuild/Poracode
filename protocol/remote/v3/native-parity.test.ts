@@ -58,8 +58,8 @@ const UI_DISPOSITIONS = [
 ] as const;
 
 const EXPECTED_COUNTS = {
-  httpRoutes: 100,
-  procedures: 130,
+  httpRoutes: 101,
+  procedures: 149,
   webSocketClientMessages: 9,
   // 10 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
   webSocketServerMessages: 11,
@@ -277,6 +277,36 @@ const PLANNED_ABSENCE_TOKENS: Record<
       [
         { platform: "ios" as Platform, token: `"${token}"` },
         { platform: "android" as Platform, token: `"${token}"` },
+      ],
+    ]),
+  ),
+  ...Object.fromEntries(
+    [
+      "pr-watch-scoped-upsert",
+      "forgeGetRepository",
+      "forgeEditPr",
+      "forgeCreatePr",
+      "forgeGetPrForBranch",
+      "forgeListPrs",
+      "forgeListPullRequests",
+      "forgeMergePr",
+      "forgeMergePrAtHead",
+      "forgeClosePr",
+      "forgeReopenPr",
+      "forgeMarkPrReady",
+      "forgeUpdatePrBranch",
+      "forgeGetPrChecks",
+      "forgeGetPrFiles",
+      "forgeGetPrDiff",
+      "forgeGetPrDetails",
+      "forgeGetPrReviewComments",
+      "forgePostPrComment",
+      "forgeSubmitPrReview",
+    ].map((id) => [
+      id,
+      [
+        { platform: "ios" as Platform, token: `"${id}"` },
+        { platform: "android" as Platform, token: `"${id}"` },
       ],
     ]),
   ),

@@ -74,7 +74,10 @@ import { isRemoteProcedure } from "../remote/procedures";
 // the remote allowlist and existing merge payload stay unchanged, so hop 18 stays compatible.
 // Network access adds a main-local name. Existing names and payloads stay valid;
 // older peers reject the new name before dispatch, so the hop version stays 18.
-const HOP_PIN = `${IPC_PROCEDURE_MAP_VERSION}:31e847936185682744e6ddea0d65a3fde3ea3406ee9c05732106ad97fb564cec`;
+// Account-scoped forge reviews and watch saves use distinct additive names.
+// Old peers reject them before effects; callers never retry an identity-scoped
+// mutation through an older unscoped name, so the hop stays 18.
+const HOP_PIN = `${IPC_PROCEDURE_MAP_VERSION}:a4916b4e581768143879426615ed36954f7725ac7354104b210816ec55cce4cb`;
 
 describe("IPC procedure map versioning", () => {
   it("keeps guarded merges internal and requires their expected head", () => {

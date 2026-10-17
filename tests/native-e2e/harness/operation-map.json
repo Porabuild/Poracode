@@ -3,11 +3,11 @@
   "contract": "poracode.remote",
   "protocolVersion": 14,
   "bindingFormatVersion": 2,
-  "manifestHash": "sha256:c91b4e13b12c6b2e4b1b6712fc900ae281d5312c449718f121e634925cf2ce29",
-  "keyCount": 282,
+  "manifestHash": "sha256:d87f65d32a6fffca961f5aa1aba878ac1cf0d9998bad2fd7b8401a4e767498f7",
+  "keyCount": 302,
   "counts": {
-    "route": 100,
-    "procedure": 130,
+    "route": 101,
+    "procedure": 149,
     "ws-client": 9,
     "ws-server": 11,
     "replay": 16,
@@ -85,6 +85,82 @@
     "procedure:finalizeFileCheckpoint": {
       "kind": "procedure",
       "id": "finalizeFileCheckpoint"
+    },
+    "procedure:forgeClosePr": {
+      "kind": "procedure",
+      "id": "forgeClosePr"
+    },
+    "procedure:forgeCreatePr": {
+      "kind": "procedure",
+      "id": "forgeCreatePr"
+    },
+    "procedure:forgeEditPr": {
+      "kind": "procedure",
+      "id": "forgeEditPr"
+    },
+    "procedure:forgeGetPrChecks": {
+      "kind": "procedure",
+      "id": "forgeGetPrChecks"
+    },
+    "procedure:forgeGetPrDetails": {
+      "kind": "procedure",
+      "id": "forgeGetPrDetails"
+    },
+    "procedure:forgeGetPrDiff": {
+      "kind": "procedure",
+      "id": "forgeGetPrDiff"
+    },
+    "procedure:forgeGetPrFiles": {
+      "kind": "procedure",
+      "id": "forgeGetPrFiles"
+    },
+    "procedure:forgeGetPrForBranch": {
+      "kind": "procedure",
+      "id": "forgeGetPrForBranch"
+    },
+    "procedure:forgeGetPrReviewComments": {
+      "kind": "procedure",
+      "id": "forgeGetPrReviewComments"
+    },
+    "procedure:forgeGetRepository": {
+      "kind": "procedure",
+      "id": "forgeGetRepository"
+    },
+    "procedure:forgeListPrs": {
+      "kind": "procedure",
+      "id": "forgeListPrs"
+    },
+    "procedure:forgeListPullRequests": {
+      "kind": "procedure",
+      "id": "forgeListPullRequests"
+    },
+    "procedure:forgeMarkPrReady": {
+      "kind": "procedure",
+      "id": "forgeMarkPrReady"
+    },
+    "procedure:forgeMergePr": {
+      "kind": "procedure",
+      "id": "forgeMergePr"
+    },
+    "procedure:forgeMergePrAtHead": {
+      "kind": "procedure",
+      "id": "forgeMergePrAtHead"
+    },
+    "procedure:forgePostPrComment": {
+      "kind": "procedure",
+      "id": "forgePostPrComment"
+    },
+    "procedure:forgeReopenPr": {
+      "kind": "procedure",
+      "id": "forgeReopenPr"
+    },
+    "procedure:forgeSubmitPrReview": {
+      "kind": "procedure",
+      "id": "forgeSubmitPrReview"
+    },
+    "procedure:forgeUpdatePrBranch": {
+      "kind": "procedure",
+      "id": "forgeUpdatePrBranch"
     },
     "procedure:generateCommitMessage": {
       "kind": "procedure",
@@ -801,6 +877,10 @@
     "route:pr-watch-read": {
       "kind": "route",
       "id": "pr-watch-read"
+    },
+    "route:pr-watch-scoped-upsert": {
+      "kind": "route",
+      "id": "pr-watch-scoped-upsert"
     },
     "route:pr-watch-upsert": {
       "kind": "route",

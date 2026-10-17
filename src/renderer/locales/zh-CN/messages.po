@@ -189,6 +189,16 @@ msgstr "{0}（派生）"
 #~ msgid "{0} {env}"
 #~ msgstr "{0} {env}"
 
+#. placeholder {0}: details.additions
+#. placeholder {0}: summary.additions
+#. placeholder {1}: details.deletions
+#. placeholder {1}: summary.deletions
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
+#: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "{0} additions and {1} deletions"
+msgstr "{0} 处新增和 {1} 处删除"
+
 #. placeholder {0}: days.map((day) => weekdayNames[day]).join(", ")
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "{0} at {time}"
@@ -678,6 +688,10 @@ msgstr "{providerLabel} 的 {serverName}：{disabledLabel}"
 msgid "{stepCount, plural, one {# step} other {# steps}}"
 msgstr "{stepCount, plural, other {# 步}}"
 
+#: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
+msgid "{totalAdditions} additions and {totalDeletions} deletions"
+msgstr "{totalAdditions} 处新增和 {totalDeletions} 处删除"
+
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "{used} tokens"
 msgstr "{used} 令牌"
@@ -693,6 +707,10 @@ msgstr "{usedLabel}/{maxLabel} 令牌"
 #: src/renderer/components/thread/threadContextUsage.ts
 msgid "{usedLabel} tokens"
 msgstr "{usedLabel} 令牌"
+
+#: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
+msgid "{viewedCount} of {totalCount} viewed"
+msgstr "已查看 {viewedCount}/{totalCount}"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 msgid "{visibleCount} of {totalCount} usable"
@@ -848,6 +866,10 @@ msgstr "一个配置文件最多可包含 100 个仓库。"
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 msgid "A profile with this name already exists."
 msgstr "已存在同名的配置文件。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "A review or comment body is required."
+msgstr "必须提供评审或评论正文。"
 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "A server could not be started and was skipped."
@@ -1939,6 +1961,10 @@ msgid "Auto Fix"
 msgstr "自动修复"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "Auto Fix repairs merge blockers. Auto Merge is unavailable on this source host."
+msgstr "Auto Fix 会修复合并阻塞问题。此源托管平台不支持 Auto Merge。"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
 #~ msgid "Auto Fix waits for checks and repairs merge blockers. Auto Merge also squash merges when ready."
 #~ msgstr "“自动修复”会等待检查完成并修复合并阻碍。“自动合并”还会在准备就绪后执行压缩合并。"
 
@@ -2030,6 +2056,11 @@ msgstr "自动化已暂停：无法检出此 PR 的分支。Poracode 会自动�
 #~ msgid "Automation is paused: this PR's branch could not be checked out. Re-select a mode to retry."
 #~ msgstr "自动化已暂停：无法检出此 PR 的分支。请重新选择模式以重试。"
 
+#: src/renderer/i18n/sharedMessages.ts
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "Automation requires a branch in this repository."
+msgstr "自动化需要此仓库中的分支。"
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Automation sections"
 msgstr "自动化分区"
@@ -2062,8 +2093,8 @@ msgstr "头像颜色"
 msgid "Avatar color {color}"
 msgstr "头像颜色{color}"
 
+#: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
-#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Awaiting review"
 msgstr "等待审查"
 
@@ -2167,6 +2198,10 @@ msgstr "bash 输出"
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Basic (CLI)"
 msgstr "基本（CLI）"
+
+#: src/renderer/utils/prStatus.ts
+msgid "Behind base"
+msgstr "落后于基线分支"
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "Beta next-generation OpenCode runtime with native GUI sessions."
@@ -2530,6 +2565,7 @@ msgstr "无法在此界面使用所选模型配置"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
+#: src/renderer/views/PrReviewOverlay/parts/PrHeaderCard.tsx
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
@@ -2653,6 +2689,10 @@ msgstr "更改快捷键"
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Change User"
 msgstr "更改用户"
+
+#: src/renderer/views/PrReviewOverlay/parts/PrFileRow.tsx
+msgid "Changed"
+msgstr "已更改"
 
 #: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
 msgid "Changed files"
@@ -2803,16 +2843,16 @@ msgstr "正在检查..."
 msgid "Checks"
 msgstr "检查项"
 
-#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+#: src/renderer/utils/prStatus.ts
 msgid "Checks failed"
 msgstr "检查失败"
 
-#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+#: src/renderer/utils/prStatus.ts
 msgid "Checks passed"
 msgstr "检查通过"
 
+#: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
-#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Checks pending"
 msgstr "检查待定"
 
@@ -3368,9 +3408,8 @@ msgstr "关闭工作流"
 msgid "Close workflows panel"
 msgstr "关闭工作流面板"
 
+#: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
-#: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
-#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Closed"
 msgstr "已关闭"
 
@@ -3800,6 +3839,10 @@ msgstr "配置文件路径（可选）"
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Configuration from a newer Poracode"
 msgstr "来自更新版本 Poracode 的配置"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Configure credentials scoped to this exact source host in the project's runtime."
+msgstr "请在项目运行环境中配置仅用于此源托管平台的凭据。"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Configure the server Poracode will add when supported agents start."
@@ -5581,8 +5624,7 @@ msgstr "下载内容"
 msgid "Downloads from the built-in browser are saved in this history."
 msgstr "内置浏览器中的下载内容会保存在此记录中。"
 
-#: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
-#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+#: src/renderer/utils/prStatus.ts
 msgid "Draft"
 msgstr "草稿"
 
@@ -5672,6 +5714,7 @@ msgstr "较早的文本"
 
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+#: src/renderer/views/PrReviewOverlay/parts/PrHeaderCard.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Edit"
@@ -5805,6 +5848,10 @@ msgstr "启用{tierLabel}级别"
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Enable {tool}"
 msgstr "启用 {tool}"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "Enable automation again"
+msgstr "重新启用自动化"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -6332,6 +6379,7 @@ msgstr "失败了"
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+#: src/renderer/views/PrReviewOverlay/parts/PrTabsPill.tsx
 #: src/renderer/views/SchedulesView/parts/scheduleRunStatus.ts
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Failed"
@@ -6991,6 +7039,11 @@ msgstr "Git 审核模式"
 #: src/renderer/views/MainView/parts/Sidebar/parts/GitBadge.tsx
 msgid "Git status for {0}"
 msgstr "{0}的 Git 状态"
+
+#. placeholder {0}: props.projectName
+#: src/renderer/views/MainView/parts/Sidebar/parts/GitBadge.tsx
+msgid "Git status for {0}: {prStatusLabel}"
+msgstr "{0}的 Git 状态：{prStatusLabel}"
 
 #. placeholder {0}: props.projectName
 #: src/renderer/views/MainView/parts/Sidebar/parts/GitBadge.tsx
@@ -8800,6 +8853,10 @@ msgstr "标记为已完成"
 msgid "Mark as not done"
 msgstr "标记为未完成"
 
+#: src/renderer/views/PrReviewOverlay/parts/PrFileRow.tsx
+msgid "Mark as not viewed"
+msgstr "标为未查看"
+
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Mark as read"
 msgstr "标记为已读"
@@ -8807,6 +8864,11 @@ msgstr "标记为已读"
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Mark as unread"
 msgstr "标记为未读"
+
+#: src/renderer/views/PrReviewOverlay/parts/PrFileRow.tsx
+#: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
+msgid "Mark as viewed"
+msgstr "标为已查看"
 
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Mark done"
@@ -9093,6 +9155,10 @@ msgstr "合并 PR：Rebase"
 msgid "Merge PR: Squash"
 msgstr "合并 PR：Squash"
 
+#: src/renderer/hooks/usePrWriteActions.ts
+msgid "Merge requested. Refresh to check its progress."
+msgstr "已请求合并。请刷新以查看进度。"
+
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 msgid "Merge this candidate's changes into the base branch and remove the other candidates' worktrees."
 msgstr "将此候选的更改合并到基础分支，并移除其他候选的工作树。"
@@ -9114,10 +9180,9 @@ msgstr "合并优胜者"
 msgid "Merge Worktree"
 msgstr "合并工作树"
 
+#: src/renderer/utils/prStatus.ts
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
-#: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
-#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Merged"
 msgstr "已合并"
 
@@ -9125,8 +9190,8 @@ msgstr "已合并"
 msgid "Merged the experiment winner into {sourceBranch}."
 msgstr "已将实验优胜者合并到 {sourceBranch}。"
 
+#: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
-#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Merging is blocked"
 msgstr "合并被阻止"
 
@@ -9484,6 +9549,10 @@ msgstr "正在移动更改…"
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Multiple Devin configurations under one login — different config files, organizations, or approval defaults — or an isolated second login. Native credentials are never copied."
 msgstr "在一个登录下管理多个 Devin 配置——不同的配置文件、组织或审批默认值——或独立的第二个登录。绝不会复制原生凭据。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Multiple source remotes are configured. Set the branch upstream before reviewing."
+msgstr "配置了多个源远程仓库。请在评审前设置分支的上游。"
 
 #: src/renderer/components/providers/muse/manifest.ts
 msgid "Muse Code"
@@ -9985,6 +10054,7 @@ msgstr "尚未为 {provider} 配置默认单次生成模型"
 
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
+#: src/renderer/views/PrReviewOverlay/parts/PrHeaderCard.tsx
 msgid "No description"
 msgstr "无描述"
 
@@ -10619,9 +10689,8 @@ msgstr "仅适用于此计算机。"
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/thread/ThreadUsageBubble.tsx
 #: src/renderer/notifications.ts
+#: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
-#: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
-#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Open"
 msgstr "打开"
@@ -10690,8 +10759,12 @@ msgstr "打开检查"
 #~ msgstr "打开命令面板"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrCommitsTab.tsx
-msgid "Open commit on GitHub"
-msgstr "在 GitHub 上打开提交"
+#~ msgid "Open commit on GitHub"
+#~ msgstr "在 GitHub 上打开提交"
+
+#: src/renderer/views/PrReviewOverlay/parts/PrCommitsTab.tsx
+msgid "Open commit on source host"
+msgstr "在源托管平台上打开提交"
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
@@ -10835,12 +10908,20 @@ msgid "Open PR #{0}"
 msgstr "打开 PR #{0}"
 
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
-msgid "Open PR #{prNumber}"
-msgstr "打开 PR #{prNumber}"
+#~ msgid "Open PR #{prNumber}"
+#~ msgstr "打开 PR #{prNumber}"
+
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
+msgid "Open PR #{prNumber}: {prStatusLabel}"
+msgstr "打开 PR #{prNumber}：{prStatusLabel}"
 
 #: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
-msgid "Open PR on GitHub"
-msgstr "在 GitHub 上打开 PR"
+#~ msgid "Open PR on GitHub"
+#~ msgstr "在 GitHub 上打开 PR"
+
+#: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
+msgid "Open PR on source host"
+msgstr "在源托管平台上打开 PR"
 
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 msgid "Open preview"
@@ -11042,6 +11123,10 @@ msgstr "其他连接方式"
 msgid "Outcome"
 msgstr "结果"
 
+#: src/renderer/views/PrReviewOverlay/parts/PrConversationTab.tsx
+msgid "Outdated"
+msgstr "已过时"
+
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Outlook"
 msgstr "Outlook"
@@ -11230,6 +11315,7 @@ msgid "Partially checked"
 msgstr "部分选中"
 
 #: src/renderer/utils/prStatus.ts
+#: src/renderer/views/PrReviewOverlay/parts/PrTabsPill.tsx
 msgid "Passed"
 msgstr "已通过"
 
@@ -11383,6 +11469,7 @@ msgid "pending"
 msgstr "待定"
 
 #: src/renderer/utils/prStatus.ts
+#: src/renderer/views/PrReviewOverlay/parts/PrTabsPill.tsx
 msgid "Pending"
 msgstr "待处理"
 
@@ -12210,6 +12297,10 @@ msgstr "拉取请求 {0}"
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #~ msgid "Pull request #{0}"
 #~ msgstr "拉取请求 #{0}"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Pull request #{number} was created, but marking it as draft failed. Refresh before changing its state."
+msgstr "拉取请求 #{number} 已创建，但标记为草稿失败。请刷新后再更改其状态。"
 
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Pull request category"
@@ -13134,6 +13225,10 @@ msgstr "解决此工作树中的冲突。首先检查 Git 状态和正在进行�
 "文件：\n"
 "{fileList}"
 
+#: src/renderer/views/PrReviewOverlay/parts/PrConversationTab.tsx
+msgid "Resolved"
+msgstr "已解决"
+
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -13357,8 +13452,12 @@ msgid "Review and Summarizer are the only root agent types Devin's CLI accepts. 
 msgstr "“审查”和“摘要器”是 Devin CLI 仅接受的根智能体类型。自定义原生 persona 是在 Devin 自己文件中配置的子智能体定义——无法在此选择。"
 
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
-msgid "Review and track work across your GitHub accounts."
-msgstr "在你的各个 GitHub 账户中审核和跟踪工作。"
+#~ msgid "Review and track work across your GitHub accounts."
+#~ msgstr "在你的各个 GitHub 账户中审核和跟踪工作。"
+
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "Review and track work across your source hosts."
+msgstr "评审并跟踪各源托管平台上的工作。"
 
 #. placeholder {0}: props.candidateNumber
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
@@ -13695,6 +13794,7 @@ msgstr "饱和度与亮度"
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/MobileFileEditorActions.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
+#: src/renderer/views/PrReviewOverlay/parts/PrHeaderCard.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
@@ -13883,6 +13983,10 @@ msgstr "科学与教育"
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Scope"
 msgstr "作用域"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Scoped review watches are unavailable on this host. Update the host before enabling automation."
+msgstr "此主机不支持带源范围的评审监控。请更新主机后再启用自动化。"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
@@ -14979,6 +15083,30 @@ msgstr "对市场技能排序"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Source branch {branch} moved before the worktree was created"
 msgstr "源分支 {branch} 在创建工作树前已移动"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Source control command {command} failed. Check its installation and host login."
+msgstr "源代码管理命令 {command} 失败。请检查其安装情况和平台登录状态。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Source host {host} returned HTTP {status}."
+msgstr "源托管平台 {host} 返回了 HTTP {status}。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Source host login configuration could not be read."
+msgstr "无法读取源托管平台的登录配置。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Source host must be an HTTPS URL without credentials."
+msgstr "源托管平台必须是未包含凭据的 HTTPS URL。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Source host pagination did not complete. Narrow the review query."
+msgstr "源托管平台的分页未完成。请缩小评审查询范围。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Source host request failed. Check its connection and login."
+msgstr "源托管平台请求失败。请检查连接和登录状态。"
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Sources"
@@ -16144,6 +16272,10 @@ msgstr "提供商不可用。请在提供商设置中安装或更新。"
 msgid "The provider's sign-in data could not be read. Try again or update Poracode."
 msgstr "无法读取提供商的登录数据。请重试或更新 Poracode。"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The pull request head changed or is unavailable. Refresh and review it before merging."
+msgstr "拉取请求的头提交已更改或不可用。请在合并前刷新并检查。"
+
 #: src/renderer/state/remoteServers/snapshotProjection.ts
 msgid "The remote catalog read failed."
 msgstr "读取远程目录失败。"
@@ -16180,6 +16312,10 @@ msgstr "存储库在磁盘上的位置。如果您移动了该文件夹，请更
 msgid "The result will appear when this run finishes."
 msgstr "此运行结束后将显示结果。"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The review was submitted, but its comment failed. Refresh before posting the comment separately."
+msgstr "评审已提交，但评论发送失败。请刷新后再单独发布评论。"
+
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "The run could not be cancelled."
 msgstr "无法取消运行。"
@@ -16211,6 +16347,14 @@ msgstr "所选模型会以匿名标签比较每个候选项的聊天回复，并
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeDialog.tsx
 msgid "The selected model compares snapshots of each candidate's changes under anonymous labels. It recommends a winner without merging anything."
 msgstr "所选模型会使用匿名标签比较每个候选方案的更改快照，并在不合并任何内容的情况下推荐获胜者。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The selected repository no longer matches this project's source remote. Refresh before continuing."
+msgstr "所选仓库不再与此项目的源远程仓库匹配。请刷新后再继续。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The selected source account does not match the project's remote."
+msgstr "所选源账号与项目的远程仓库不匹配。"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "The server configuration is invalid."
@@ -16281,6 +16425,26 @@ msgid "The skills marketplace couldn't be loaded."
 msgstr "无法加载技能市场。"
 
 #: src/renderer/i18n/sharedMessages.ts
+msgid "The source credential belongs to a different account. Select the correct account and retry."
+msgstr "源凭据属于另一个账号。请选择正确的账号后重试。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The source host omitted this file's diff content. Open the review on its source host."
+msgstr "源托管平台未提供此文件的差异内容。请在源托管平台上打开评审。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The source host rejected the merge. Refresh the pull request before retrying."
+msgstr "源托管平台拒绝了合并。请刷新拉取请求后重试。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The source host returned a link outside the selected API."
+msgstr "源托管平台返回了所选 API 范围之外的链接。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The source host returned an invalid response. Update the integration or open the review on its source host."
+msgstr "源托管平台返回了无效响应。请更新集成，或在源托管平台上打开评审。"
+
+#: src/renderer/i18n/sharedMessages.ts
 msgid "The SSH tunnel reached an incompatible Poracode server."
 msgstr "SSH 隧道连接到了不兼容的 Poracode 服务器。"
 
@@ -16335,6 +16499,10 @@ msgstr "语音连接超时，请重试。"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The voice connection was cancelled."
 msgstr "语音连接已取消。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The watched pull request changed. Review the watch before continuing."
+msgstr "正在监控的拉取请求已更改。请在继续前检查监控设置。"
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the Windows user"
@@ -16561,6 +16729,10 @@ msgstr "此消息已不在队列中。你仍然可以复制正在编辑的内容
 msgid "This name is reserved by a built-in MCP server."
 msgstr "此名称由内置 MCP 服务器保留。"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This operation is not supported by the {forge} integration. Open the review on its source host."
+msgstr "{forge} 集成不支持此操作。请在源托管平台上打开评审。"
+
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "This page is served over HTTPS, so the browser blocks it from reaching a desktop on plain HTTP. Continue on the desktop's own address to finish pairing there."
 #~ msgstr "此页面通过 HTTPS 提供，因此浏览器会阻止它连接使用纯 HTTP 的桌面。请在桌面自身的地址上继续，在那里完成配对。"
@@ -16621,6 +16793,10 @@ msgstr "此配置文件的设置由更新版本的 Poracode 写入（配置格�
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "this project"
 msgstr "此项目"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This project has no supported source-host remote."
+msgstr "此项目没有受支持的源托管平台远程仓库。"
 
 #: src/renderer/actions/providerSwitchActions.ts
 #: src/renderer/actions/providerSwitchRemoteActions.ts
@@ -16683,6 +16859,16 @@ msgid "This removes the worktree on \"{0}\", then deletes the branch."
 msgstr "这将删除“{0}”上的工作树，然后删除分支。"
 
 #: src/renderer/i18n/sharedMessages.ts
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "This review watch uses an unsupported source-scope version. Update the app before changing it."
+msgstr "此评审监控使用不受支持的源范围版本。请更新应用后再修改。"
+
+#: src/renderer/i18n/sharedMessages.ts
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "This saved review watch has no source scope. Review the pull request and enable automation again."
+msgstr "此已保存的评审监控没有源范围。请检查拉取请求并重新启用自动化。"
+
+#: src/renderer/i18n/sharedMessages.ts
 msgid "This scheduled task changed or was removed before it could run. Review the schedule and try again."
 msgstr "该计划任务在运行前已被更改或删除。请检查计划后重试。"
 
@@ -16713,6 +16899,10 @@ msgstr "此会话在磁盘上已更改。请刷新列表后重试。"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This session is already being imported."
 msgstr "此会话正在导入中。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This source host does not support safe automatic merge."
+msgstr "此源托管平台不支持安全的自动合并。"
 
 #: src/renderer/components/media/SvgFileView.tsx
 msgid "This SVG can't be displayed."
@@ -16924,6 +17114,10 @@ msgstr "超时（毫秒）"
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Timeout must be a positive whole number."
 msgstr "超时时间必须为正整数。"
+
+#: src/renderer/views/PrReviewOverlay/parts/PrHeaderCard.tsx
+msgid "Title"
+msgstr "标题"
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
@@ -17653,6 +17847,10 @@ msgstr "取消固定工作流"
 msgid "Unread"
 msgstr "未读"
 
+#: src/renderer/views/PrReviewOverlay/parts/PrConversationTab.tsx
+msgid "Unresolved"
+msgstr "未解决"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileRow.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewTouchMenus.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
@@ -18211,6 +18409,11 @@ msgstr "只读 — 此连接无法更改主机设置。"
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "View-only — this connection can't manage projects."
 msgstr "仅查看 — 此连接无法管理项目。"
+
+#: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
+#: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
+msgid "Viewed here"
+msgstr "在此查看过"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Viewer"
@@ -18782,6 +18985,10 @@ msgstr "WSL ({distro})"
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "WSL base folder"
 msgstr "WSL 基础文件夹"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "WSL bridge unavailable for source control."
+msgstr "用于源代码管理的 WSL 桥接不可用。"
 
 #: src/renderer/components/skills/SkillImportModal.tsx
 #: src/renderer/components/skills/SkillsManager.tsx

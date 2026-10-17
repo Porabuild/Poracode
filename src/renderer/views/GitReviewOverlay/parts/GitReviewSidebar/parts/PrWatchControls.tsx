@@ -3,11 +3,13 @@ import { Popover, toast } from "@heroui/react";
 import { msg } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { GitMerge, Workflow, Wrench } from "lucide-react";
-import type { PrAutomationMode, PrWatch, PrWatchInput } from "@/shared/contracts";
+import type { PrAutomationMode, PrWatch, PrWatchInput, ForgeRepository } from "@/shared/contracts";
+import { reviewScopeFromSource } from "@/shared/forgeRemote";
 import { friendlyError } from "@/shared/messages";
 import { readBridge } from "@/renderer/bridge";
 import { resolvePrAutomationAgent } from "@/renderer/actions/prAutomationActions";
 import { PrAutomationSlider } from "@/renderer/components/git/PrAutomationSlider";
+import { Button } from "@/renderer/components/common";
 import { i18n } from "@/renderer/i18n/i18n";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -43,6 +45,9 @@ export function PrWatchControls(props: {
   projectId: string;
   prNumber: number;
   headBranch: string;
+  autoMergeAvailable?: boolean;
+  autoFixAvailable?: boolean;
+  source?: ForgeRepository;
   worktreePath?: string | undefined;
   onRefreshPr?: (() => void | Promise<void>) | undefined;
   initialWatch?: PrWatch | null | undefined;
@@ -61,7 +66,14 @@ export function PrWatchControls(props: {
   const refreshPrRef = useRef(props.onRefreshPr);
   const mode = automationMode(watch);
   const enabled = mode !== "off";
-  const blocked = watch?.blockedReason != null && !watch.lastError && !watch.activeThreadId;
+  const scopeWarning = watch?.reviewScopeUnsupported
+    ? t`This review watch uses an unsupported source-scope version. Update the app before changing it.`
+    : watch && !watch.reviewScope
+      ? t`This saved review watch has no source scope. Review the pull request and enable automation again.`
+      : null;
+  const blocked =
+    Boolean(scopeWarning) ||
+    (watch?.blockedReason != null && !watch.lastError && !watch.activeThreadId);
   const TriggerIcon = mode === "merge" ? GitMerge : mode === "fix" ? Wrench : Workflow;
   const triggerLabel = blocked
     ? mode === "merge"
@@ -114,6 +126,9 @@ export function PrWatchControls(props: {
 
   async function update(nextMode: PrAutomationMode): Promise<boolean> {
     if (busy || !project) return false;
+    if (watch?.reviewScopeUnsupported && nextMode !== "off") return false;
+    if (nextMode !== "off" && props.autoFixAvailable === false) return false;
+    if (nextMode === "merge" && props.autoMergeAvailable === false) return false;
     setBusy(true);
     try {
       if (nextMode === "off") {
@@ -150,7 +165,10 @@ export function PrWatchControls(props: {
         agentKind: automation.agentKind,
         config: automation.config,
       };
-      const updated = await readBridge().upsertPrWatch(input);
+      const reviewScope = reviewScopeFromSource(props.source);
+      const updated = reviewScope
+        ? await readBridge().upsertForgePrWatch({ ...input, reviewScope })
+        : await readBridge().upsertPrWatch(input);
       watchPresentRef.current = true;
       setWatch(updated);
       return true;
@@ -185,27 +203,54 @@ export function PrWatchControls(props: {
             <PrAutomationSlider
               ariaLabel={t`PR automation`}
               className="mx-auto w-[200px] px-2"
-              isDisabled={busy || watch === undefined}
+              isDisabled={
+                busy || watch === undefined || (props.autoFixAvailable === false && mode === "off")
+              }
               value={mode}
+              {...(props.autoMergeAvailable !== undefined
+                ? { autoMergeAvailable: props.autoMergeAvailable }
+                : {})}
               onChange={update}
             />
             <p className="text-[11px] leading-tight text-muted">
-              <Trans>
-                Auto Fix waits for checks and repairs merge blockers. Auto Merge uses your selected
-                merge method when ready.
-              </Trans>
+              {props.autoFixAvailable === false ? (
+                <Trans>Automation requires a branch in this repository.</Trans>
+              ) : props.autoMergeAvailable === false ? (
+                <Trans>
+                  Auto Fix repairs merge blockers. Auto Merge is unavailable on this source host.
+                </Trans>
+              ) : (
+                <Trans>
+                  Auto Fix waits for checks and repairs merge blockers. Auto Merge uses your
+                  selected merge method when ready.
+                </Trans>
+              )}
             </p>
-            {watch?.activeThreadId ? (
+            {scopeWarning ? (
+              <p role="status" className="text-[11px] text-warning">
+                {scopeWarning}
+              </p>
+            ) : watch?.activeThreadId ? (
               <p className="text-[11px] text-accent">
                 <Trans>An agent is fixing this PR.</Trans>
               </p>
             ) : watch?.lastError ? (
-              <p className="text-[11px] text-danger">{watch.lastError}</p>
+              <p className="text-[11px] text-danger">{friendlyError(watch.lastError)}</p>
             ) : watch?.blockedReason ? (
               <p role="status" className="text-[11px] text-warning">
                 {blockedMessage(watch.blockedReason)}
               </p>
             ) : null}
+            {scopeWarning && !watch?.reviewScopeUnsupported && enabled && props.source?.account && (
+              <Button
+                size="sm"
+                variant="secondary"
+                isDisabled={busy || props.autoFixAvailable === false}
+                onPress={() => void update(mode)}
+              >
+                <Trans>Enable automation again</Trans>
+              </Button>
+            )}
           </div>
         </Popover.Dialog>
       </Popover.Content>

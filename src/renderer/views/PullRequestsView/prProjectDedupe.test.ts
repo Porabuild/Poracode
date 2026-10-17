@@ -27,15 +27,34 @@ const sshAliasRemote: GitRemoteInfo = {
 };
 
 describe("repoIdentityKey", () => {
-  it("matches the same repo across https and SSH-alias remotes", () => {
-    expect(repoIdentityKey(httpsRemote)).toBe("sdsleon/lightcode");
-    expect(repoIdentityKey(sshAliasRemote)).toBe(repoIdentityKey(httpsRemote));
+  it("preserves the host while matching HTTPS and SSH forms", () => {
+    expect(repoIdentityKey(httpsRemote)).toBe("https://github.com/sdsleon/lightcode");
+    expect(
+      repoIdentityKey({ ...sshAliasRemote, url: "git@github.com:sdsleon/Lightcode.git" }),
+    ).toBe(repoIdentityKey(httpsRemote));
+    expect(repoIdentityKey(sshAliasRemote)).not.toBe(repoIdentityKey(httpsRemote));
+    expect(
+      repoIdentityKey({ ...httpsRemote, url: "https://gitlab.com/SDSLeon/lightcode.git" }),
+    ).not.toBe(repoIdentityKey(httpsRemote));
   });
 
   it("returns null when the origin remote is unknown", () => {
     expect(repoIdentityKey(null)).toBeNull();
     expect(repoIdentityKey(undefined)).toBeNull();
     expect(repoIdentityKey({ ...httpsRemote, owner: " " })).toBeNull();
+  });
+
+  it.each([
+    ["https://gitlab.com/group/one/app.git", "https://gitlab.com/group/two/app.git"],
+    [
+      "https://dev.azure.com/first/project/_git/app",
+      "https://dev.azure.com/second/project/_git/app",
+    ],
+    ["https://git.example/gitlab/team/app.git", "https://git.example/other/team/app.git"],
+  ])("preserves the full repository and deployment identity for %s", (first, second) => {
+    expect(repoIdentityKey({ ...httpsRemote, url: first })).not.toBe(
+      repoIdentityKey({ ...httpsRemote, url: second }),
+    );
   });
 });
 

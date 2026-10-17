@@ -18,6 +18,7 @@ import {
 import {
   prWatchAgentSyncSchema,
   prWatchInputSchema,
+  forgePrWatchInputSchema,
   prWatchKeySchema,
   scheduledTaskIdPayloadSchema,
   scheduleRunInboxQuerySchema,
@@ -79,6 +80,7 @@ type WorkspaceRouteId =
   | "pr-watch-check"
   | "pr-watch-agent-sync"
   | "pr-watch-upsert"
+  | "pr-watch-scoped-upsert"
   | "pr-watch-delete"
   | "browser-state"
   | "browser-command"
@@ -401,6 +403,17 @@ export const WORKSPACE_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, WorkspaceRout
   "pr-watch-upsert": async ({ ctx, req, res }) => {
     const input = prWatchInputSchema.parse(await readJsonBody(req));
     writeJson(res, 200, { watch: ctx.requirePrWatchesGateway().upsert(input) });
+  },
+  "pr-watch-scoped-upsert": async ({ ctx, req, res }) => {
+    const input = forgePrWatchInputSchema.parse(await readJsonBody(req));
+    const gateway = ctx.requirePrWatchesGateway();
+    if (!gateway.upsertScoped)
+      throw new RemoteHttpError(
+        "forge_watch_scope_unavailable",
+        msg("forge.watchScopeUnavailable"),
+        501,
+      );
+    writeJson(res, 200, { watch: await gateway.upsertScoped(input) });
   },
 
   "pr-watch-delete": async ({ ctx, req, res }) => {

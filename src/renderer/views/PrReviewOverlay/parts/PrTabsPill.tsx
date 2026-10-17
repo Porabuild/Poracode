@@ -39,6 +39,12 @@ const CHECKS_ICON_TONE_CLASS: Record<PrChecksTone, string> = {
   danger: "text-danger",
 };
 
+const CHECKS_TAB_STATUS: Record<PrChecksStatus, MessageDescriptor> = {
+  SUCCESS: msg`Passed`,
+  PENDING: msg`Pending`,
+  FAILURE: msg`Failed`,
+};
+
 export function PrTabsPill(props: {
   active: PrTabKey;
   onChange: (key: PrTabKey) => void;
@@ -58,7 +64,10 @@ export function PrTabsPill(props: {
     const iconClassName = `size-3${iconToneClass ? ` ${iconToneClass}` : ""}`;
     return {
       id: def.id,
-      label: t(def.label),
+      label:
+        def.id === "checks" && checksStatus
+          ? `${t(def.label)} ${t(CHECKS_TAB_STATUS[checksStatus])}`
+          : t(def.label),
       icon: <Icon className={iconClassName} />,
       ...(count > 0 ? { trailing: makeLightballCountTrailing(count) } : {}),
     };

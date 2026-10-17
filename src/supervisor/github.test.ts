@@ -122,6 +122,115 @@ describe("GitHubService", () => {
     });
   });
 
+  describe("review repository identity", () => {
+    function responses(login = "alice") {
+      execFileAsyncMock.mockImplementation(async (_command, rawArgs) => {
+        const args = rawArgs as string[];
+        if (args[0] === "repo")
+          return {
+            stdout: JSON.stringify({
+              nameWithOwner: "team/default-repo",
+              url: "https://github.example/team/default-repo",
+            }),
+          };
+        if (args[0] === "auth") return { stdout: "selected-token\n" };
+        if (args[0] === "api") return { stdout: `${login}\n` };
+        if (args[0] === "pr") return { stdout: "[]" };
+        throw new Error("unexpected review command");
+      });
+    }
+
+    it("resolves gh's default repository and SSH aliases before selecting an explicit account", async () => {
+      responses();
+      const selected = await new GitHubService().forReviewRepository(location, {
+        host: "github.example",
+        login: "alice",
+      });
+      expect(selected).toMatchObject({
+        host: "https://github.example",
+        repository: "team/default-repo",
+        account: { host: "github.example", login: "alice" },
+      });
+      expect(execFileAsyncMock.mock.calls[0]?.[1]).toEqual([
+        "repo",
+        "view",
+        "--json",
+        "nameWithOwner,url",
+      ]);
+      const credential = execFileAsyncMock.mock.calls[1];
+      expect(credential?.[1]).toEqual([
+        "auth",
+        "token",
+        "--hostname",
+        "github.example",
+        "--user",
+        "alice",
+      ]);
+      expect(credential?.[2]).toMatchObject({
+        env: {
+          GH_REPO: "github.example/team/default-repo",
+          GH_TOKEN: "",
+          GITHUB_TOKEN: "",
+          GH_ENTERPRISE_TOKEN: "",
+          GITHUB_ENTERPRISE_TOKEN: "",
+        },
+      });
+      await selected.service.getPrForBranch(location, "feature");
+      expect(execFileAsyncMock.mock.calls.at(-1)?.[2]).toMatchObject({
+        env: {
+          GH_HOST: "github.example",
+          GH_REPO: "github.example/team/default-repo",
+          GH_ENTERPRISE_TOKEN: "selected-token",
+        },
+      });
+    });
+
+    it("freezes the current credential before principal lookup and subsequent PR reads", async () => {
+      responses();
+      const selected = await new GitHubService().forReviewRepository(location);
+      expect(execFileAsyncMock.mock.calls[1]?.[1]).toEqual([
+        "auth",
+        "token",
+        "--hostname",
+        "github.example",
+      ]);
+      expect(execFileAsyncMock.mock.calls[2]?.[2]).toMatchObject({
+        env: { GH_ENTERPRISE_TOKEN: "selected-token" },
+      });
+      await selected.service.getPrForBranch(location, "feature");
+      expect(
+        execFileAsyncMock.mock.calls.filter((call) => (call[1] as string[])[0] === "auth"),
+      ).toHaveLength(1);
+      expect(execFileAsyncMock.mock.calls.at(-1)?.[2]).toMatchObject({
+        env: { GH_ENTERPRISE_TOKEN: "selected-token" },
+      });
+    });
+
+    it("refuses a different principal without issuing a PR operation", async () => {
+      responses("bob");
+      await expect(
+        new GitHubService().forReviewRepository(location, {
+          host: "github.example",
+          login: "alice",
+        }),
+      ).rejects.toThrow(/different account/);
+      expect(execFileAsyncMock.mock.calls.some((call) => (call[1] as string[])[0] === "pr")).toBe(
+        false,
+      );
+    });
+
+    it("refuses the canonical host before looking up an account credential", async () => {
+      responses();
+      await expect(
+        new GitHubService().forReviewRepository(location, {
+          host: "other.example",
+          login: "alice",
+        }),
+      ).rejects.toThrow(/does not match/);
+      expect(execFileAsyncMock).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe("getPrForBranch", () => {
     it("returns PR data when a matching PR exists", async () => {
       const prJson = JSON.stringify([

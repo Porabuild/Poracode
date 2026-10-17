@@ -107,7 +107,7 @@ describe("GitBadge", () => {
 
     render(<GitBadge projectId="project-1" projectName="feature/pr" worktreePath="/wt/feature" />);
 
-    const badge = screen.getByRole("button", { name: "Git status for feature/pr" });
+    const badge = screen.getByRole("button", { name: "Git status for feature/pr: Merged" });
     const icon = badge.querySelector(".lucide-git-pull-request");
     const actions = getWorktreeActionVisibility("project-1", "/wt/feature");
 
@@ -227,7 +227,7 @@ describe("GitBadge", () => {
     );
 
     // PR icon only: an 18px square, matching the row's other icon buttons.
-    expect(screen.getByRole("button", { name: "Git status for feature/pr" })).toHaveClass(
+    expect(screen.getByRole("button", { name: "Git status for feature/pr: Open" })).toHaveClass(
       "p-[3px]",
     );
     unmount();
@@ -240,7 +240,7 @@ describe("GitBadge", () => {
     });
     render(<GitBadge projectId="project-1" projectName="feature/pr" worktreePath="/wt/feature" />);
 
-    const withCounts = screen.getByRole("button", { name: "Git status for feature/pr" });
+    const withCounts = screen.getByRole("button", { name: "Git status for feature/pr: Open" });
     expect(withCounts).toHaveClass("px-1");
     expect(withCounts).not.toHaveClass("p-[3px]");
   });
@@ -257,7 +257,7 @@ describe("GitBadge", () => {
 
     render(<GitBadge projectId="project-1" projectName="feature/pr" worktreePath="/wt/feature" />);
 
-    const badge = screen.getByRole("button", { name: "Git status for feature/pr" });
+    const badge = screen.getByRole("button", { name: "Git status for feature/pr: Open" });
     const insertion = screen.getByText("+12");
     const prIcon = badge.querySelector(".lucide-git-pull-request");
 
@@ -395,7 +395,7 @@ describe("GitBadge", () => {
     resolvePr({ ...basePr, number: 2, title: "Current PR" });
 
     await waitFor(() => {
-      const badges = screen.getAllByRole("button", { name: "Git status for Project" });
+      const badges = screen.getAllByRole("button", { name: "Git status for Project: Open" });
       expect(badges).toHaveLength(2);
       for (const badge of badges) {
         expect(badge.querySelector(".lucide-git-pull-request")).not.toBeNull();

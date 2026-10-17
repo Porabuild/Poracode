@@ -70,6 +70,7 @@ const MANIFEST_ROUTE_IDS = [
   "pr-watch-check",
   "pr-watch-agent-sync",
   "pr-watch-upsert",
+  "pr-watch-scoped-upsert",
   "pr-watch-delete",
   "browser-state",
   "browser-command",

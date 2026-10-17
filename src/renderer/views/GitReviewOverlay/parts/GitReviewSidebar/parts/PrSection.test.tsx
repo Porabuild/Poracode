@@ -9,6 +9,14 @@ import { PrSection } from "./PrSection";
 
 const prWatchControls = vi.hoisted(() => vi.fn<(props: unknown) => void>());
 
+function hasWarningText(node: HTMLElement): boolean {
+  return (
+    node.classList.contains("text-warning") ||
+    node.parentElement?.classList.contains("text-warning") === true ||
+    node.parentElement?.parentElement?.classList.contains("text-warning") === true
+  );
+}
+
 vi.mock("./PrWatchControls", () => ({
   PrWatchControls: (props: unknown) => {
     prWatchControls(props);
@@ -223,7 +231,7 @@ describe("PrSection", () => {
       .parentElement?.querySelector(".rounded-full");
     expect(indicator).toHaveClass("bg-warning");
     expect(indicator).not.toHaveClass("bg-danger");
-    expect(screen.getByText("Checks pending").parentElement).toHaveClass("text-warning");
+    expect(screen.getAllByText("Checks pending").every(hasWarningText)).toBe(true);
     expect(screen.queryByText("Merging is blocked")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Merge PR: Squash" })).toBeDisabled();
   });
@@ -273,7 +281,7 @@ describe("PrSection", () => {
 
     render(<PrSection {...baseProps} />);
 
-    expect(screen.getByText("Awaiting review")).toBeInTheDocument();
+    expect(screen.getAllByText("Awaiting review").length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: "Merge PR: Squash" })).toBeDisabled();
   });
 
@@ -297,7 +305,7 @@ describe("PrSection", () => {
       .parentElement?.querySelector(".rounded-full");
     expect(indicator).toHaveClass("bg-warning");
     expect(indicator).not.toHaveClass("bg-danger");
-    expect(screen.getByText("Awaiting review").parentElement).toHaveClass("text-warning");
+    expect(screen.getAllByText("Awaiting review").every(hasWarningText)).toBe(true);
     expect(screen.queryByText("Merging is blocked")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Merge PR: Squash" })).toBeDisabled();
   });
@@ -316,7 +324,7 @@ describe("PrSection", () => {
 
     render(<PrSection {...baseProps} />);
 
-    expect(screen.getByText("Merging is blocked")).toBeInTheDocument();
+    expect(screen.getAllByText("Merging is blocked").length).toBeGreaterThan(0);
     expect(
       screen.getByText("Base branch is ahead — branch must be updated first."),
     ).toBeInTheDocument();
@@ -337,7 +345,7 @@ describe("PrSection", () => {
 
     render(<PrSection {...baseProps} />);
 
-    expect(screen.getByText("Checks pending").parentElement).toHaveClass("text-warning");
+    expect(screen.getAllByText("Checks pending").every(hasWarningText)).toBe(true);
     expect(screen.queryByText("Awaiting review")).not.toBeInTheDocument();
     expect(screen.queryByText("Merging is blocked")).not.toBeInTheDocument();
   });

@@ -5,7 +5,15 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import type { PrDetails, PrFile, Project, ProjectLocation } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
-import { readBridge } from "@/renderer/bridge";
+import {
+  reviewCacheMatchesSource,
+  reviewClient,
+  reviewSourceIdentity,
+  reviewViewedScope,
+} from "@/renderer/utils/forgeReviews";
+import { usePrWriteActions } from "@/renderer/hooks/usePrWriteActions";
+import { splitUnifiedDiff } from "./parts/parsePrDiff";
+import { usePrViewedFiles, viewedFingerprint } from "./parts/prViewedFiles";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { usePrCombinedChecksStatus } from "@/renderer/hooks/usePrCombinedChecksStatus";
 import { PageLayout } from "@/renderer/components/layout/PageLayout";
@@ -56,6 +64,9 @@ function PrReviewContent(props: {
   onLoad: () => void;
   selectedFile: string | null;
   diffMode: number;
+  canEdit: boolean;
+  editSaving: boolean;
+  onEditPr: (title: string, body: string) => Promise<boolean>;
 }) {
   const {
     contentRef,
@@ -75,6 +86,9 @@ function PrReviewContent(props: {
     onLoad,
     selectedFile,
     diffMode,
+    canEdit,
+    editSaving,
+    onEditPr,
   } = props;
 
   const counts: PrTabCounts = {
@@ -82,7 +96,8 @@ function PrReviewContent(props: {
       (details?.comments.length ?? 0) +
       (details?.reviews.filter(
         (r) => r.body || r.state === "APPROVED" || r.state === "CHANGES_REQUESTED",
-      ).length ?? 0),
+      ).length ?? 0) +
+      (details?.reviewThreads?.length ?? 0),
     commits: details?.commits.length ?? 0,
     checks: details?.checks.length ?? 0,
     changes: files?.length ?? 0,
@@ -95,7 +110,7 @@ function PrReviewContent(props: {
           <PrMetaRow prKey={prKey} cacheKey={cacheKey} />
         </div>
       )}
-      <PrHeaderCard cacheKey={cacheKey} />
+      <PrHeaderCard cacheKey={cacheKey} canEdit={canEdit} saving={editSaving} onSave={onEditPr} />
       <div className="min-h-0 flex-1">
         <PrTabs
           active={activeTab}
@@ -106,6 +121,7 @@ function PrReviewContent(props: {
           conversationPanel={
             <PrConversationTab
               cacheKey={cacheKey}
+              prKey={prKey}
               projectLocation={effectiveLocation}
               prNumber={prNumber}
               loading={loading}
@@ -147,6 +163,8 @@ export function PrReviewOverlay(props: {
   const effectiveLocation = locationOverride ?? project.location;
   const cacheKey = `${project.id}#${prNumber}`;
 
+  const source = useGitStore((s) => s.prData[prKey]?.source);
+  const sourceIdentity = reviewSourceIdentity(source);
   const files = useGitStore((s) => s.prFiles[cacheKey]);
   const rawDiff = useGitStore((s) => s.prDiffs[cacheKey]);
   const details = useGitStore((s) => s.prDetails[cacheKey]);
@@ -159,6 +177,7 @@ export function PrReviewOverlay(props: {
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [diffMode, setDiffMode] = useState<number>(DIFF_MODE.Split);
   const [loading, setLoading] = useState(false);
+  const loadGeneration = useRef(0);
   const [activeTab, setActiveTab] = useState<PrTabKey>("conversation");
 
   // Track content width to decide if the meta row fits inline in the content
@@ -178,34 +197,129 @@ export function PrReviewOverlay(props: {
   }, []);
 
   async function load() {
+    const hasCurrentSource = () => {
+      const current = useGitStore.getState().prData[prKey];
+      return (
+        current !== null &&
+        (!current || current.number === prNumber) &&
+        reviewSourceIdentity(current?.source) === sourceIdentity
+      );
+    };
+    if (!hasCurrentSource()) return;
+    const generation = ++loadGeneration.current;
+    const isCurrent = () => generation === loadGeneration.current && hasCurrentSource();
     setLoading(true);
     try {
       await Promise.all([
-        readBridge()
-          .ghGetPrFiles({ projectLocation: effectiveLocation, prNumber })
-          .then((res) => useGitStore.getState().setPrFiles(cacheKey, res.files)),
-        readBridge()
-          .ghGetPrDiff({ projectLocation: effectiveLocation, prNumber })
-          .then((res) => useGitStore.getState().setPrDiff(cacheKey, res.diff)),
-        readBridge()
-          .ghGetPrDetails({ projectLocation: effectiveLocation, prNumber })
-          .then((res) => useGitStore.getState().setPrDetails(cacheKey, res.details)),
+        reviewClient(source)
+          .files({ projectLocation: effectiveLocation, prNumber })
+          .then((res) => {
+            if (isCurrent()) useGitStore.getState().setPrFiles(cacheKey, res.files);
+          }),
+        reviewClient(source)
+          .diff({ projectLocation: effectiveLocation, prNumber })
+          .then((res) => {
+            if (isCurrent()) useGitStore.getState().setPrDiff(cacheKey, res.diff);
+          }),
+        reviewClient(source)
+          .details({ projectLocation: effectiveLocation, prNumber })
+          .then(async (res) => {
+            if (!isCurrent()) return;
+            useGitStore.getState().setPrDetails(cacheKey, res.details);
+            if (res.pr) useGitStore.getState().setPrData(prKey, res.pr);
+            const resolvedSource = res.details.source ?? res.pr?.source ?? source;
+            if (!resolvedSource || resolvedSource.capabilities.reviewThreads) {
+              const { threads } = await reviewClient(resolvedSource).threads({
+                projectLocation: effectiveLocation,
+                prNumber,
+              });
+              if (!isCurrent()) return;
+              const conversations = threads.filter(
+                (thread) => thread.path || thread.comments.length > 1 || thread.isResolved,
+              );
+              const threadedComments = new Set(
+                conversations.flatMap((thread) => thread.comments.map((comment) => comment.id)),
+              );
+              useGitStore.getState().setPrDetails(cacheKey, {
+                ...res.details,
+                comments: res.details.comments.filter(
+                  (comment) => !threadedComments.has(comment.id),
+                ),
+                reviewThreads: conversations,
+              });
+            }
+          }),
       ]);
     } catch (err) {
-      toast.danger(friendlyError(err));
+      if (isCurrent()) toast.danger(friendlyError(err));
     } finally {
-      setLoading(false);
+      if (generation === loadGeneration.current) setLoading(false);
     }
   }
 
   useEffect(() => {
+    const state = useGitStore.getState();
+    if (
+      state.prData[prKey] === null ||
+      reviewSourceIdentity(state.prDetails[cacheKey]?.source) !== sourceIdentity
+    )
+      useGitStore.getState().clearPrCache(cacheKey);
     setSelectedFile(null);
     setActiveTab("conversation");
+    setLoading(false);
     // Always refetch on open so a stale cache from a previous session never
     // hides new comments / commits / checks.
     void load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- reload/reset only when switching PR cache keys
-  }, [cacheKey]);
+    return () => {
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- This counter invalidates async loads; it is not a DOM ref.
+      loadGeneration.current++;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reload/reset when switching PRs or their source identity
+  }, [cacheKey, prKey, sourceIdentity]);
+
+  const cacheMatchesSource = reviewCacheMatchesSource(source, details?.source);
+  const reviewFiles = cacheMatchesSource ? files : undefined;
+  const reviewDiff = cacheMatchesSource ? rawDiff : undefined;
+  const viewedScope = reviewViewedScope(source, project.id, prNumber);
+  const viewed = usePrViewedFiles(viewedScope);
+  const {
+    prLoading,
+    pendingAction,
+    handleMergePr,
+    handleClosePr,
+    handleMarkPrReady,
+    handleUpdatePrBranch,
+    handleEditPr,
+  } = usePrWriteActions({
+    projectLocation: effectiveLocation,
+    projectId: project.id,
+    prKey,
+    ...(skipLocalSync ? { skipLocalSync: true } : {}),
+    onRefresh: () => {
+      void load();
+    },
+  });
+  const patches = splitUnifiedDiff(reviewDiff ?? "");
+  const canEdit = (details?.source ?? source)?.capabilities.edit === true && cacheMatchesSource;
+  const fileFingerprint = (file: PrFile) => viewedFingerprint(patches.get(file.path), file);
+  const viewedAbsorb = useRef(viewed.absorb);
+  viewedAbsorb.current = viewed.absorb;
+  useEffect(() => {
+    if (!cacheMatchesSource || !reviewFiles) return;
+    const loaded = splitUnifiedDiff(reviewDiff ?? "");
+    viewedAbsorb.current(
+      reviewFiles.map((file) => ({
+        path: file.path,
+        fingerprint: viewedFingerprint(loaded.get(file.path), file),
+      })),
+    );
+  }, [cacheMatchesSource, reviewFiles, reviewDiff]);
+  const selectedPrFile = reviewFiles?.find((file) => file.path === selectedFile);
+  const selectedFingerprint = selectedPrFile ? fileFingerprint(selectedPrFile) : undefined;
+  const selectedViewState =
+    selectedPrFile && selectedFingerprint
+      ? viewed.state(selectedPrFile.path, selectedFingerprint)
+      : "unread";
 
   const showDiffControls = activeTab === "changes";
 
@@ -229,17 +343,29 @@ export function PrReviewOverlay(props: {
 
   const sidebar = (
     <PrReviewSidebar
-      files={files ?? []}
+      files={reviewFiles ?? []}
       selectedFile={selectedFile}
-      loading={loading}
+      loading={loading || !cacheMatchesSource}
       projectId={project.id}
-      projectLocation={effectiveLocation}
       prKey={prKey}
       worktreePath={worktreePath}
       {...(skipLocalSync ? { skipLocalSync: true } : {})}
       onSelectFile={selectFilePage}
       onClose={onClose}
-      onRefresh={() => void load()}
+      prLoading={prLoading}
+      pendingAction={pendingAction}
+      handleMergePr={handleMergePr}
+      handleClosePr={handleClosePr}
+      handleMarkPrReady={handleMarkPrReady}
+      handleUpdatePrBranch={handleUpdatePrBranch}
+      fileFingerprint={fileFingerprint}
+      viewedState={viewed.state}
+      onMarkViewed={(path, fingerprint) => {
+        if (cacheMatchesSource) viewed.mark(path, fingerprint);
+      }}
+      onClearViewed={(path) => {
+        if (cacheMatchesSource) viewed.clear(path);
+      }}
       hideFooterNav={compactLayout}
     />
   );
@@ -271,7 +397,7 @@ export function PrReviewOverlay(props: {
             )}
             {prUrl && (
               <Link
-                aria-label={t`Open PR on GitHub`}
+                aria-label={t`Open PR on source host`}
                 className="poracode-overlay-header__controls shrink-0 text-muted hover:text-foreground"
                 onPress={() => openExternalWithFeedback(prUrl)}
               >
@@ -298,6 +424,20 @@ export function PrReviewOverlay(props: {
               <span className="min-w-0 truncate text-xs font-medium text-foreground">
                 {selectedFile}
               </span>
+              {cacheMatchesSource && selectedPrFile && selectedFingerprint && (
+                <button
+                  type="button"
+                  className="shrink-0 rounded px-1.5 py-0.5 text-xs text-muted hover:text-foreground"
+                  aria-pressed={selectedViewState === "viewed"}
+                  onClick={() => {
+                    if (!cacheMatchesSource || !selectedPrFile || !selectedFingerprint) return;
+                    if (selectedViewState === "viewed") viewed.clear(selectedPrFile.path);
+                    else viewed.mark(selectedPrFile.path, selectedFingerprint);
+                  }}
+                >
+                  {selectedViewState === "viewed" ? t`Viewed here` : t`Mark as viewed`}
+                </button>
+              )}
             </div>
           )}
 
@@ -339,6 +479,8 @@ export function PrReviewOverlay(props: {
             <SubmitReviewPopover
               projectLocation={effectiveLocation}
               prNumber={prNumber}
+              cacheKey={cacheKey}
+              prKey={prKey}
               hidden={viewerDidAuthor === true}
               onSubmitted={() => void load()}
             />
@@ -383,8 +525,8 @@ export function PrReviewOverlay(props: {
               prKey={prKey}
               cacheKey={cacheKey}
               details={details}
-              files={files}
-              rawDiff={rawDiff}
+              files={reviewFiles}
+              rawDiff={reviewDiff}
               activeTab={activeTab}
               onActiveTabChange={setActiveTab}
               checksStatus={combinedChecksStatus}
@@ -395,6 +537,9 @@ export function PrReviewOverlay(props: {
               onLoad={() => void load()}
               selectedFile={selectedFile}
               diffMode={diffMode}
+              canEdit={canEdit}
+              editSaving={pendingAction === "edit"}
+              onEditPr={(title, body) => handleEditPr({ title, body })}
             />
             {compactLayout ? (
               <div className="pointer-events-none absolute inset-x-0 bottom-3 z-10 flex items-end justify-between gap-[var(--m-floating-control-gap)] px-[var(--m-page-inline)]">
@@ -410,6 +555,8 @@ export function PrReviewOverlay(props: {
                   <SubmitReviewPopover
                     projectLocation={effectiveLocation}
                     prNumber={prNumber}
+                    cacheKey={cacheKey}
+                    prKey={prKey}
                     hidden={viewerDidAuthor === true}
                     triggerPresentation="touch"
                     onSubmitted={() => void load()}

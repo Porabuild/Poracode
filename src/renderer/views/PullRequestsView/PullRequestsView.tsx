@@ -3,7 +3,7 @@ import { ArrowRight, Funnel, GitPullRequest, Loader2, RefreshCw, Search } from "
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useShallow } from "zustand/shallow";
 import { Trans, useLingui } from "@lingui/react/macro";
-import type { Project, PullRequestSummary } from "@/shared/contracts";
+import type { ForgeKind, Project, PullRequestSummary } from "@/shared/contracts";
 import { isHomeProject } from "@/shared/homeScope";
 import { friendlyError } from "@/shared/messages";
 import { readBridge } from "@/renderer/bridge";
@@ -21,10 +21,9 @@ import { buildBranchNamePrKey } from "@/renderer/state/gitSelectors";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import {
+  describePrStatus,
   getPrStatusTone,
-  isPrBlockedOnlyByPendingChecks,
-  isPrBlockedOnlyByPendingReview,
-  isPrMergeBlocked,
+  PR_STATUS_LABEL,
   PR_TONE_BG_CLASS,
   PR_TONE_TEXT_CLASS,
 } from "@/renderer/utils/prStatus";
@@ -47,6 +46,32 @@ interface ProjectFailure {
 interface PullRequestEntry {
   project: Project;
   summary: PullRequestSummary;
+}
+
+function forgeBrand(forge: ForgeKind): string {
+  switch (forge) {
+    case "github":
+      return "GitHub";
+    case "gitlab":
+      return "GitLab";
+    case "forgejo":
+      return "Forgejo";
+    case "gitea":
+      return "Gitea";
+    case "bitbucket":
+      return "Bitbucket";
+    case "azure-devops":
+      return "Azure DevOps";
+    case "gitcafe":
+      return "GitCafe";
+  }
+}
+
+function accountKey(loaded: LoadedProject): string | undefined {
+  const account = loaded.pullRequests[0]?.pr.source?.account;
+  return account
+    ? JSON.stringify([account.forge, account.host, account.login])
+    : loaded.viewerLogin;
 }
 
 export function PullRequestsView(
@@ -101,7 +126,7 @@ export function PullRequestsView(
   const prProjectsKey = prProjects
     .map((project) => `${project.id}\0${JSON.stringify(project.location)}`)
     .join("\n");
-  const prRequestKey = `${prProjectsKey}\n---\n${refreshVersion}`;
+  const prRequestKey = `${prProjectsKey}\n---\n${refreshVersion}\n${prReviewOpen}`;
   const activePrRequestKeyRef = useRef(prRequestKey);
   // Reset-on-request-change during render (mirrors the synchronous resets the
   // effect used to do on entry). Starts as null so the mount pass applies it
@@ -153,17 +178,29 @@ export function PullRequestsView(
     };
   }, [prProjects, prRequestKey, prReviewOpen]);
 
-  const accountLogins = [
-    ...new Set(
-      loadedProjects.flatMap((loaded) => (loaded.viewerLogin ? [loaded.viewerLogin] : [])),
-    ),
-  ].toSorted((left, right) => left.localeCompare(right));
+  const accounts = [
+    ...new Map(
+      loadedProjects.flatMap((loaded) => {
+        const key = accountKey(loaded);
+        if (!key) return [];
+        const account = loaded.pullRequests[0]?.pr.source?.account;
+        return [
+          [
+            key,
+            account
+              ? `${account.login} · ${account.host.replace(/^https:\/\//, "")}`
+              : loaded.viewerLogin!,
+          ] as const,
+        ];
+      }),
+    ).entries(),
+  ].toSorted((left, right) => left[1].localeCompare(right[1]));
   const normalizedQuery = query.trim().toLocaleLowerCase();
   const visibleEntries: PullRequestEntry[] = [];
 
   for (const loaded of loadedProjects) {
     if (hiddenProjectIds.has(loaded.project.id)) continue;
-    if (loaded.viewerLogin && hiddenAccounts.has(loaded.viewerLogin)) continue;
+    if (hiddenAccounts.has(accountKey(loaded) ?? "")) continue;
 
     for (const summary of loaded.pullRequests) {
       if (filter === "reviewing" && !summary.reviewRequested) continue;
@@ -173,6 +210,7 @@ export function PullRequestsView(
         ![
           summary.pr.title,
           summary.repository,
+          summary.pr.source?.host ?? "",
           summary.headBranch,
           summary.author?.login ?? "",
           loaded.project.name,
@@ -246,18 +284,18 @@ export function PullRequestsView(
           </Checkbox>
         ))}
       </FilterGroup>
-      {accountLogins.length > 0 ? (
+      {accounts.length > 0 ? (
         <FilterGroup title={<Trans>Accounts</Trans>}>
-          {accountLogins.map((login) => (
+          {accounts.map(([key, label]) => (
             <Checkbox
-              key={login}
+              key={key}
               className="block"
-              isSelected={!hiddenAccounts.has(login)}
+              isSelected={!hiddenAccounts.has(key)}
               onChange={(visible) =>
                 setHiddenAccounts((current) => {
                   const next = new Set(current);
-                  if (visible) next.delete(login);
-                  else next.add(login);
+                  if (visible) next.delete(key);
+                  else next.add(key);
                   return next;
                 })
               }
@@ -266,7 +304,7 @@ export function PullRequestsView(
                 <Checkbox.Control>
                   <Checkbox.Indicator />
                 </Checkbox.Control>
-                <span className="truncate text-xs text-foreground">{login}</span>
+                <span className="truncate text-xs text-foreground">{label}</span>
               </Checkbox.Content>
             </Checkbox>
           ))}
@@ -297,7 +335,7 @@ export function PullRequestsView(
   return (
     <SettingsPage
       title={t`Pull requests`}
-      description={t`Review and track work across your GitHub accounts.`}
+      description={t`Review and track work across your source hosts.`}
       bodyClassName="space-y-5"
     >
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
@@ -538,34 +576,9 @@ function PullRequestRows(props: {
       {props.entries.map((entry) => {
         const { project, summary } = entry;
         const tone = getPrStatusTone(summary.pr.state, summary.pr.checksStatus, summary.pr);
-        const isPendingChecksBlock = isPrBlockedOnlyByPendingChecks(
-          summary.pr.checksStatus,
-          summary.pr,
+        const statusLabel = t(
+          PR_STATUS_LABEL[describePrStatus(summary.pr.state, summary.pr.checksStatus, summary.pr)],
         );
-        const isAwaitingReview = isPrBlockedOnlyByPendingReview(
-          summary.pr.checksStatus,
-          summary.pr,
-        );
-        const statusLabel =
-          summary.pr.state === "draft"
-            ? t`Draft`
-            : summary.pr.state === "merged"
-              ? t`Merged`
-              : summary.pr.state === "closed"
-                ? t`Closed`
-                : isPendingChecksBlock
-                  ? t`Checks pending`
-                  : isAwaitingReview
-                    ? t`Awaiting review`
-                    : isPrMergeBlocked(summary.pr)
-                      ? t`Merging is blocked`
-                      : tone === "danger"
-                        ? t`Checks failed`
-                        : tone === "warning"
-                          ? t`Checks pending`
-                          : summary.pr.checksStatus
-                            ? t`Checks passed`
-                            : t`Open`;
         return (
           <button
             key={`${project.id}:${summary.pr.number}`}
@@ -579,7 +592,6 @@ function PullRequestRows(props: {
                 className={`absolute -right-1 -bottom-1 size-1.5 rounded-full ring-2 ring-surface-secondary ${PR_TONE_BG_CLASS[tone]}`}
               />
             </span>
-            <span className="sr-only">{statusLabel}</span>
             <span className="min-w-0 flex-1">
               <span className="block truncate text-sm font-medium text-foreground">
                 {summary.pr.title}
@@ -602,6 +614,10 @@ function PullRequestRows(props: {
                   <span className="poracode-pr-author truncate">{summary.author.login}</span>
                 ) : null}
                 <span className="poracode-pr-author text-muted/40">·</span>
+                {summary.pr.source ? (
+                  <span className="shrink-0">{forgeBrand(summary.pr.source.forge)}</span>
+                ) : null}
+                {summary.pr.source ? <span className="text-muted/40">·</span> : null}
                 <span className="truncate">{summary.repository}</span>
                 <span className="text-muted/40">·</span>
                 <span className="flex min-w-0 items-center gap-1 font-mono text-[11px]">
@@ -612,10 +628,18 @@ function PullRequestRows(props: {
               </span>
             </span>
             <span className="flex shrink-0 flex-col items-end gap-1 text-[11px] text-muted">
+              <span className={`font-medium ${PR_TONE_TEXT_CLASS[tone]}`}>{statusLabel}</span>
               <RelativeTime iso={summary.pr.updatedAt} />
-              <span className="flex items-center gap-1 font-medium tabular-nums">
-                <span className="text-success">+{summary.additions}</span>
-                <span className="text-danger">-{summary.deletions}</span>
+              <span
+                className="flex items-center gap-1 font-medium tabular-nums"
+                aria-label={t`${summary.additions} additions and ${summary.deletions} deletions`}
+              >
+                <span className="text-success" aria-hidden>
+                  +{summary.additions}
+                </span>
+                <span className="text-danger" aria-hidden>
+                  -{summary.deletions}
+                </span>
               </span>
             </span>
           </button>

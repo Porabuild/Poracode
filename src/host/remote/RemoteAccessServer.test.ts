@@ -26,6 +26,7 @@ import type {
   PrWatch,
   PrWatchAgentSync,
   PrWatchInput,
+  ForgePrWatchInput,
   Project,
   ProjectNotes,
   ScheduledTask,
@@ -7177,6 +7178,17 @@ describe("RemoteAccessServer", () => {
     });
     const requestCheck = vi.fn<(projectId: string, prNumber: number) => void>();
     const syncAgent = vi.fn<(agent: PrWatchAgentSync) => void>();
+    const upsertScoped = vi.fn<(input: ForgePrWatchInput) => Promise<PrWatch>>(async (input) =>
+      upsert(input),
+    );
+    const prWatches: NonNullable<RemoteAccessServerOptions["prWatches"]> = {
+      get: () => stored,
+      requestCheck,
+      upsert,
+      upsertScoped,
+      delete: remove,
+      syncAgent,
+    };
     const server = createTestServer({
       truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
@@ -7184,13 +7196,7 @@ describe("RemoteAccessServer", () => {
       host: "127.0.0.1",
       port: 0,
       callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
-      prWatches: {
-        get: () => stored,
-        requestCheck,
-        upsert,
-        delete: remove,
-        syncAgent,
-      },
+      prWatches,
     });
     servers.push(server);
     const info = await server.start();
@@ -7247,6 +7253,54 @@ describe("RemoteAccessServer", () => {
       },
     });
     expect(upsert).toHaveBeenCalledWith(input);
+
+    const scopedInput: ForgePrWatchInput = {
+      ...input,
+      reviewScope: {
+        version: 1,
+        forge: "gitlab",
+        host: "https://git.example/gitlab",
+        repository: "group/app",
+        account: { forge: "gitlab", host: "https://git.example/gitlab", login: "alice" },
+      },
+    };
+    const deniedScoped = await fetch(new URL("/api/pr-watches/scoped", info.httpBaseUrl), {
+      method: "POST",
+      headers: readHeaders,
+      body: JSON.stringify(scopedInput),
+    });
+    expect(deniedScoped.status).toBe(403);
+    expect(upsertScoped).not.toHaveBeenCalled();
+    const scopedResponse = await fetch(new URL("/api/pr-watches/scoped", info.httpBaseUrl), {
+      method: "POST",
+      headers: operateHeaders,
+      body: JSON.stringify(scopedInput),
+    });
+    expect(scopedResponse.status).toBe(200);
+    await expect(scopedResponse.json()).resolves.toMatchObject({
+      watch: { reviewScope: scopedInput.reviewScope },
+    });
+    expect(upsertScoped).toHaveBeenCalledExactlyOnceWith(scopedInput);
+    const futureScope = await fetch(new URL("/api/pr-watches/scoped", info.httpBaseUrl), {
+      method: "POST",
+      headers: operateHeaders,
+      body: JSON.stringify({ ...scopedInput, reviewScope: { version: 999, opaque: "preserve" } }),
+    });
+    expect(futureScope.status).toBe(400);
+    expect(upsertScoped).toHaveBeenCalledTimes(1);
+
+    delete prWatches.upsertScoped;
+    const unsupportedScope = await fetch(new URL("/api/pr-watches/scoped", info.httpBaseUrl), {
+      method: "POST",
+      headers: operateHeaders,
+      body: JSON.stringify(scopedInput),
+    });
+    expect(unsupportedScope.status).toBe(501);
+    await expect(unsupportedScope.json()).resolves.toMatchObject({
+      error: { code: "forge_watch_scope_unavailable" },
+    });
+    expect(upsertScoped).toHaveBeenCalledTimes(1);
+    expect(upsert).toHaveBeenCalledTimes(2);
 
     const checkResponse = await fetch(new URL("/api/pr-watches/check", info.httpBaseUrl), {
       method: "POST",

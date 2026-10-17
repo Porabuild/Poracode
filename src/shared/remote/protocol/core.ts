@@ -25,6 +25,11 @@ import { gitStatePatchSchema } from "../../gitState";
 // Optional background-task timing/progress and opaque Stop actions remain additive
 // within v14: old readers ignore them; old hosts omit them and keep tasks read-only.
 // Task kinds, session actions, persisted data and compatibility ranges are unchanged.
+// Optional review source/capability metadata and new forge procedure names are additive:
+// old native readers ignore metadata; old hosts reject scoped operations before effects.
+// Scoped watch writes use a distinct route and require v1 public source authority.
+// An old watch remains readable but paused until explicitly re-armed; unknown scope
+// versions are refused without replacing persisted bytes (host schema 62).
 export const PORACODE_REMOTE_PROTOCOL_VERSION = 14;
 export const REMOTE_COMMAND_ID_HEADER = "x-poracode-command-id";
 

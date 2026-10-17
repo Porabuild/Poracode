@@ -12,6 +12,7 @@ import {
 } from "@/shared/contracts";
 import { closeDatabase, getSqlite, initDatabase } from "./connection";
 import { LATEST_SCHEMA_VERSION } from "./migrations";
+import { removeReviewScopeFixtureSchema } from "./runtimeItems.testFixtures";
 import {
   dbDeleteThread,
   dbFindProjectByLocation,
@@ -285,6 +286,7 @@ describe("projectsThreads (real sqlite round-trip)", () => {
     const legacy = nativeBindingEnv
       ? new Database(databasePath, { nativeBinding: nativeBindingEnv })
       : new Database(databasePath);
+    removeReviewScopeFixtureSchema(legacy);
     legacy.exec(`
       ALTER TABLE projects DROP COLUMN gh_account;
       ALTER TABLE pr_watches DROP COLUMN blocked_reason;
@@ -328,6 +330,7 @@ describe("projectsThreads (real sqlite round-trip)", () => {
       }),
       0,
     );
+    removeReviewScopeFixtureSchema(getSqlite());
     dbSetState("schema_version", "34");
 
     closeDatabase();
@@ -355,6 +358,7 @@ describe("projectsThreads (real sqlite round-trip)", () => {
     dbUpsertThread(testThread(), 0);
     // Simulate a pre-v37 database: the column absent, the version rewound.
     getSqlite().exec("ALTER TABLE threads DROP COLUMN workspace_id");
+    removeReviewScopeFixtureSchema(getSqlite());
     dbSetState("schema_version", "36");
 
     closeDatabase();
@@ -441,6 +445,7 @@ describe("projectsThreads (real sqlite round-trip)", () => {
         "antigravity",
         JSON.stringify({ model: "gemini-3.5-flash-low" }),
       );
+    removeReviewScopeFixtureSchema(getSqlite());
     dbSetState("schema_version", "37");
 
     closeDatabase();
@@ -515,6 +520,7 @@ describe("projectsThreads (real sqlite round-trip)", () => {
         }),
         "project-1",
       );
+    removeReviewScopeFixtureSchema(getSqlite());
     dbSetState("schema_version", "38");
 
     closeDatabase();
@@ -547,6 +553,7 @@ describe("projectsThreads (real sqlite round-trip)", () => {
         }),
         "project-1",
       );
+    removeReviewScopeFixtureSchema(getSqlite());
     dbSetState("schema_version", "39");
 
     closeDatabase();
@@ -923,6 +930,7 @@ describe("projectsThreads (real sqlite round-trip)", () => {
       config: JSON.stringify({ model: "sonnet", effort: "low" }),
       sortOrder: 1,
     });
+    removeReviewScopeFixtureSchema(getSqlite());
     dbSetState("schema_version", "29");
 
     closeDatabase();

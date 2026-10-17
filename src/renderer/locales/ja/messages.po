@@ -189,6 +189,16 @@ msgstr "{0}（フォーク）"
 #~ msgid "{0} {env}"
 #~ msgstr "{0} {env}"
 
+#. placeholder {0}: details.additions
+#. placeholder {0}: summary.additions
+#. placeholder {1}: details.deletions
+#. placeholder {1}: summary.deletions
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
+#: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "{0} additions and {1} deletions"
+msgstr "{0} 行追加、{1} 行削除"
+
 #. placeholder {0}: days.map((day) => weekdayNames[day]).join(", ")
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "{0} at {time}"
@@ -677,6 +687,10 @@ msgstr "{providerLabel} の {serverName}: {disabledLabel}"
 msgid "{stepCount, plural, one {# step} other {# steps}}"
 msgstr "{stepCount, plural, other {# ステップ}}"
 
+#: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
+msgid "{totalAdditions} additions and {totalDeletions} deletions"
+msgstr "{totalAdditions} 行追加、{totalDeletions} 行削除"
+
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "{used} tokens"
 msgstr "{used}トークン"
@@ -692,6 +706,10 @@ msgstr "{usedLabel}/{maxLabel}トークン"
 #: src/renderer/components/thread/threadContextUsage.ts
 msgid "{usedLabel} tokens"
 msgstr "{usedLabel}トークン"
+
+#: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
+msgid "{viewedCount} of {totalCount} viewed"
+msgstr "{totalCount} 件中 {viewedCount} 件を確認"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 msgid "{visibleCount} of {totalCount} usable"
@@ -847,6 +865,10 @@ msgstr "1 つのプロファイルに含められるリポジトリは最大 100
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 msgid "A profile with this name already exists."
 msgstr "この名前のプロファイルはすでに存在します。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "A review or comment body is required."
+msgstr "レビューまたはコメントの本文が必要です。"
 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "A server could not be started and was skipped."
@@ -1938,6 +1960,10 @@ msgid "Auto Fix"
 msgstr "自動修正"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "Auto Fix repairs merge blockers. Auto Merge is unavailable on this source host."
+msgstr "Auto Fix はマージの障害を修正します。このソースホストでは Auto Merge を利用できません。"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
 #~ msgid "Auto Fix waits for checks and repairs merge blockers. Auto Merge also squash merges when ready."
 #~ msgstr "「自動修正」はチェックの完了を待ち、マージの妨げを修正します。「自動マージ」は準備が整うとさらにスカッシュマージします。"
 
@@ -2029,6 +2055,11 @@ msgstr "自動化は一時停止中です: このPRのブランチをチェッ�
 #~ msgid "Automation is paused: this PR's branch could not be checked out. Re-select a mode to retry."
 #~ msgstr "自動化は一時停止中です: このPRのブランチをチェックアウトできませんでした。モードを再選択して再試行してください。"
 
+#: src/renderer/i18n/sharedMessages.ts
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "Automation requires a branch in this repository."
+msgstr "自動化には、このリポジトリ内のブランチが必要です。"
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Automation sections"
 msgstr "自動化セクション"
@@ -2061,8 +2092,8 @@ msgstr "アバターの色"
 msgid "Avatar color {color}"
 msgstr "アバターの色：{color}"
 
+#: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
-#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Awaiting review"
 msgstr "レビュー保留中"
 
@@ -2166,6 +2197,10 @@ msgstr "Bash 出力"
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Basic (CLI)"
 msgstr "基本 (CLI)"
+
+#: src/renderer/utils/prStatus.ts
+msgid "Behind base"
+msgstr "ベースより遅れている"
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "Beta next-generation OpenCode runtime with native GUI sessions."
@@ -2529,6 +2564,7 @@ msgstr "この画面ではこのモデル設定を使用できません"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
+#: src/renderer/views/PrReviewOverlay/parts/PrHeaderCard.tsx
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
@@ -2652,6 +2688,10 @@ msgstr "ショートカットを変更"
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Change User"
 msgstr "ユーザーの変更"
+
+#: src/renderer/views/PrReviewOverlay/parts/PrFileRow.tsx
+msgid "Changed"
+msgstr "変更あり"
 
 #: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
 msgid "Changed files"
@@ -2802,16 +2842,16 @@ msgstr "確認中…"
 msgid "Checks"
 msgstr "チェック"
 
-#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+#: src/renderer/utils/prStatus.ts
 msgid "Checks failed"
 msgstr "チェック失敗"
 
-#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+#: src/renderer/utils/prStatus.ts
 msgid "Checks passed"
 msgstr "チェック成功"
 
+#: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
-#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Checks pending"
 msgstr "チェック保留中"
 
@@ -3367,9 +3407,8 @@ msgstr "ワークフローを閉じる"
 msgid "Close workflows panel"
 msgstr "ワークフローパネルを閉じる"
 
+#: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
-#: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
-#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Closed"
 msgstr "クローズ"
 
@@ -3799,6 +3838,10 @@ msgstr "設定ファイルのパス（省略可）"
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Configuration from a newer Poracode"
 msgstr "より新しい Poracode からの設定"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Configure credentials scoped to this exact source host in the project's runtime."
+msgstr "プロジェクトの実行環境で、このソースホスト専用の認証情報を設定してください。"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Configure the server Poracode will add when supported agents start."
@@ -5580,8 +5623,7 @@ msgstr "ダウンロード"
 msgid "Downloads from the built-in browser are saved in this history."
 msgstr "内蔵ブラウザからのダウンロードはこの履歴に保存されます。"
 
-#: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
-#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+#: src/renderer/utils/prStatus.ts
 msgid "Draft"
 msgstr "草案"
 
@@ -5671,6 +5713,7 @@ msgstr "前のテキスト"
 
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+#: src/renderer/views/PrReviewOverlay/parts/PrHeaderCard.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Edit"
@@ -5804,6 +5847,10 @@ msgstr "{tierLabel}の推論レベルを有効化"
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Enable {tool}"
 msgstr "{tool} を有効にする"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "Enable automation again"
+msgstr "自動化を再度有効にする"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -6331,6 +6378,7 @@ msgstr "失敗しました"
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+#: src/renderer/views/PrReviewOverlay/parts/PrTabsPill.tsx
 #: src/renderer/views/SchedulesView/parts/scheduleRunStatus.ts
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Failed"
@@ -6990,6 +7038,11 @@ msgstr "Git レビュー モード"
 #: src/renderer/views/MainView/parts/Sidebar/parts/GitBadge.tsx
 msgid "Git status for {0}"
 msgstr "{0}の Git ステータス"
+
+#. placeholder {0}: props.projectName
+#: src/renderer/views/MainView/parts/Sidebar/parts/GitBadge.tsx
+msgid "Git status for {0}: {prStatusLabel}"
+msgstr "{0}の Git ステータス: {prStatusLabel}"
 
 #. placeholder {0}: props.projectName
 #: src/renderer/views/MainView/parts/Sidebar/parts/GitBadge.tsx
@@ -8799,6 +8852,10 @@ msgstr "完了としてマークする"
 msgid "Mark as not done"
 msgstr "未完了としてマークする"
 
+#: src/renderer/views/PrReviewOverlay/parts/PrFileRow.tsx
+msgid "Mark as not viewed"
+msgstr "未確認に戻す"
+
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Mark as read"
 msgstr "既読にする"
@@ -8806,6 +8863,11 @@ msgstr "既読にする"
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Mark as unread"
 msgstr "未読にする"
+
+#: src/renderer/views/PrReviewOverlay/parts/PrFileRow.tsx
+#: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
+msgid "Mark as viewed"
+msgstr "確認済みにする"
 
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Mark done"
@@ -9092,6 +9154,10 @@ msgstr "PR のマージ: リベース"
 msgid "Merge PR: Squash"
 msgstr "PR のマージ: スカッシュ"
 
+#: src/renderer/hooks/usePrWriteActions.ts
+msgid "Merge requested. Refresh to check its progress."
+msgstr "マージをリクエストしました。更新して進行状況を確認してください。"
+
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 msgid "Merge this candidate's changes into the base branch and remove the other candidates' worktrees."
 msgstr "この候補の変更をベースブランチにマージし、他の候補のワークツリーを削除します。"
@@ -9113,10 +9179,9 @@ msgstr "勝者をマージ"
 msgid "Merge Worktree"
 msgstr "ワークツリーをマージ"
 
+#: src/renderer/utils/prStatus.ts
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
-#: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
-#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Merged"
 msgstr "マージ済み"
 
@@ -9124,8 +9189,8 @@ msgstr "マージ済み"
 msgid "Merged the experiment winner into {sourceBranch}."
 msgstr "実験の勝者を {sourceBranch} にマージしました。"
 
+#: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
-#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Merging is blocked"
 msgstr "マージはブロックされています"
 
@@ -9483,6 +9548,10 @@ msgstr "変更を移動中…"
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Multiple Devin configurations under one login — different config files, organizations, or approval defaults — or an isolated second login. Native credentials are never copied."
 msgstr "1 つのログイン配下に複数の Devin 設定 — 異なる設定ファイル、組織、承認デフォルト — または分離された第 2 ログイン。ネイティブの資格情報は決してコピーされません。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Multiple source remotes are configured. Set the branch upstream before reviewing."
+msgstr "ソースリモートが複数設定されています。レビューの前にブランチの上流を設定してください。"
 
 #: src/renderer/components/providers/muse/manifest.ts
 msgid "Muse Code"
@@ -9984,6 +10053,7 @@ msgstr "{provider} のデフォルトのワンショットモデルが設定さ�
 
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
+#: src/renderer/views/PrReviewOverlay/parts/PrHeaderCard.tsx
 msgid "No description"
 msgstr "説明なし"
 
@@ -10618,9 +10688,8 @@ msgstr "このコンピューターでのみ使用できます。"
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/thread/ThreadUsageBubble.tsx
 #: src/renderer/notifications.ts
+#: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
-#: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
-#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Open"
 msgstr "開く"
@@ -10689,8 +10758,12 @@ msgstr "チェックを開く"
 #~ msgstr "コマンドパレットを開く"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrCommitsTab.tsx
-msgid "Open commit on GitHub"
-msgstr "GitHub でコミットを開く"
+#~ msgid "Open commit on GitHub"
+#~ msgstr "GitHub でコミットを開く"
+
+#: src/renderer/views/PrReviewOverlay/parts/PrCommitsTab.tsx
+msgid "Open commit on source host"
+msgstr "ソースホストでコミットを開く"
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
@@ -10834,12 +10907,20 @@ msgid "Open PR #{0}"
 msgstr "PR #{0}を開く"
 
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
-msgid "Open PR #{prNumber}"
-msgstr "PR #{prNumber}を開く"
+#~ msgid "Open PR #{prNumber}"
+#~ msgstr "PR #{prNumber}を開く"
+
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
+msgid "Open PR #{prNumber}: {prStatusLabel}"
+msgstr "PR #{prNumber}を開く: {prStatusLabel}"
 
 #: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
-msgid "Open PR on GitHub"
-msgstr "GitHub で PR を開く"
+#~ msgid "Open PR on GitHub"
+#~ msgstr "GitHub で PR を開く"
+
+#: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
+msgid "Open PR on source host"
+msgstr "ソースホストで PR を開く"
 
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 msgid "Open preview"
@@ -11041,6 +11122,10 @@ msgstr "その他の接続方法"
 msgid "Outcome"
 msgstr "結果"
 
+#: src/renderer/views/PrReviewOverlay/parts/PrConversationTab.tsx
+msgid "Outdated"
+msgstr "古い内容"
+
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Outlook"
 msgstr "Outlook"
@@ -11229,6 +11314,7 @@ msgid "Partially checked"
 msgstr "一部チェック済み"
 
 #: src/renderer/utils/prStatus.ts
+#: src/renderer/views/PrReviewOverlay/parts/PrTabsPill.tsx
 msgid "Passed"
 msgstr "成功"
 
@@ -11382,6 +11468,7 @@ msgid "pending"
 msgstr "保留中"
 
 #: src/renderer/utils/prStatus.ts
+#: src/renderer/views/PrReviewOverlay/parts/PrTabsPill.tsx
 msgid "Pending"
 msgstr "保留中"
 
@@ -12209,6 +12296,10 @@ msgstr "プルリクエスト {0}"
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #~ msgid "Pull request #{0}"
 #~ msgstr "プルリクエスト #{0}"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Pull request #{number} was created, but marking it as draft failed. Refresh before changing its state."
+msgstr "プルリクエスト #{number} は作成されましたが、下書きへの変更に失敗しました。状態を変更する前に更新してください。"
 
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Pull request category"
@@ -13133,6 +13224,10 @@ msgstr "このワークツリーの競合を解決してください。まず Gi
 "ファイル:\n"
 "{fileList}"
 
+#: src/renderer/views/PrReviewOverlay/parts/PrConversationTab.tsx
+msgid "Resolved"
+msgstr "解決済み"
+
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -13356,8 +13451,12 @@ msgid "Review and Summarizer are the only root agent types Devin's CLI accepts. 
 msgstr "レビューと要約は Devin の CLI が受け付ける唯一のルートエージェントタイプです。カスタムネイティブペルソナは Devin 自身のファイルに設定されたサブエージェント定義であり、ここでは選択できません。"
 
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
-msgid "Review and track work across your GitHub accounts."
-msgstr "GitHub アカウント全体の作業をレビュー・追跡します。"
+#~ msgid "Review and track work across your GitHub accounts."
+#~ msgstr "GitHub アカウント全体の作業をレビュー・追跡します。"
+
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "Review and track work across your source hosts."
+msgstr "ソースホスト全体の作業をレビューして追跡します。"
 
 #. placeholder {0}: props.candidateNumber
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
@@ -13694,6 +13793,7 @@ msgstr "彩度と明度"
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/MobileFileEditorActions.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
+#: src/renderer/views/PrReviewOverlay/parts/PrHeaderCard.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
@@ -13882,6 +13982,10 @@ msgstr "科学と教育"
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Scope"
 msgstr "スコープ"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Scoped review watches are unavailable on this host. Update the host before enabling automation."
+msgstr "このホストではソース範囲を指定したレビュー監視を利用できません。自動化を有効にする前にホストを更新してください。"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
@@ -14978,6 +15082,30 @@ msgstr "マーケットプレイススキルを並べ替え"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Source branch {branch} moved before the worktree was created"
 msgstr "ワークツリーの作成前にソースブランチ {branch} が移動しました"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Source control command {command} failed. Check its installation and host login."
+msgstr "ソース管理コマンド {command} が失敗しました。インストール状態とホストへのログインを確認してください。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Source host {host} returned HTTP {status}."
+msgstr "ソースホスト {host} から HTTP {status} が返されました。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Source host login configuration could not be read."
+msgstr "ソースホストのログイン設定を読み取れませんでした。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Source host must be an HTTPS URL without credentials."
+msgstr "ソースホストには、認証情報を含まない HTTPS URL を指定してください。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Source host pagination did not complete. Narrow the review query."
+msgstr "ソースホストのページ取得が完了しませんでした。レビューの検索条件を絞ってください。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Source host request failed. Check its connection and login."
+msgstr "ソースホストへのリクエストが失敗しました。接続とログインを確認してください。"
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Sources"
@@ -16143,6 +16271,10 @@ msgstr "プロバイダーを利用できません。プロバイダー設定で
 msgid "The provider's sign-in data could not be read. Try again or update Poracode."
 msgstr "プロバイダーのログインデータを読み取れませんでした。再試行するか Poracode を更新してください。"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The pull request head changed or is unavailable. Refresh and review it before merging."
+msgstr "プルリクエストの先端が変更されたか、取得できません。マージ前に更新して確認してください。"
+
 #: src/renderer/state/remoteServers/snapshotProjection.ts
 msgid "The remote catalog read failed."
 msgstr "リモートカタログの読み取りに失敗しました。"
@@ -16179,6 +16311,10 @@ msgstr "ディスク上のリポジトリの場所。フォルダーを移動し
 msgid "The result will appear when this run finishes."
 msgstr "この実行が終了すると結果が表示されます。"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The review was submitted, but its comment failed. Refresh before posting the comment separately."
+msgstr "レビューは送信されましたが、コメントの送信に失敗しました。コメントを別途投稿する前に更新してください。"
+
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "The run could not be cancelled."
 msgstr "実行をキャンセルできませんでした。"
@@ -16210,6 +16346,14 @@ msgstr "選択したモデルは、各候補のチャット回答を匿名ラベ
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeDialog.tsx
 msgid "The selected model compares snapshots of each candidate's changes under anonymous labels. It recommends a winner without merging anything."
 msgstr "選択したモデルは、各候補の変更内容のスナップショットを匿名ラベルで比較します。何もマージせずに勝者を推奨します。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The selected repository no longer matches this project's source remote. Refresh before continuing."
+msgstr "選択したリポジトリは、このプロジェクトのソースリモートと一致しなくなりました。続行する前に更新してください。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The selected source account does not match the project's remote."
+msgstr "選択したソースアカウントはプロジェクトのリモートと一致しません。"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "The server configuration is invalid."
@@ -16280,6 +16424,26 @@ msgid "The skills marketplace couldn't be loaded."
 msgstr "スキルマーケットプレイスを読み込めませんでした。"
 
 #: src/renderer/i18n/sharedMessages.ts
+msgid "The source credential belongs to a different account. Select the correct account and retry."
+msgstr "ソースの認証情報は別のアカウントのものです。正しいアカウントを選択して再試行してください。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The source host omitted this file's diff content. Open the review on its source host."
+msgstr "ソースホストからこのファイルの差分が提供されませんでした。ソースホストでレビューを開いてください。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The source host rejected the merge. Refresh the pull request before retrying."
+msgstr "ソースホストがマージを拒否しました。再試行の前にプルリクエストを更新してください。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The source host returned a link outside the selected API."
+msgstr "ソースホストから、選択した API の範囲外のリンクが返されました。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The source host returned an invalid response. Update the integration or open the review on its source host."
+msgstr "ソースホストから無効な応答が返されました。連携を更新するか、ソースホストでレビューを開いてください。"
+
+#: src/renderer/i18n/sharedMessages.ts
 msgid "The SSH tunnel reached an incompatible Poracode server."
 msgstr "SSH トンネルは互換性のない Poracode サーバーに接続しました。"
 
@@ -16334,6 +16498,10 @@ msgstr "音声接続がタイムアウトしました。もう一度お試しく
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The voice connection was cancelled."
 msgstr "音声接続がキャンセルされました。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The watched pull request changed. Review the watch before continuing."
+msgstr "監視中のプルリクエストが変更されました。続行する前に監視設定を確認してください。"
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the Windows user"
@@ -16560,6 +16728,10 @@ msgstr "このメッセージはキューから削除されました。編集中
 msgid "This name is reserved by a built-in MCP server."
 msgstr "この名前は組み込みMCPサーバーによって予約されています。"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This operation is not supported by the {forge} integration. Open the review on its source host."
+msgstr "{forge} 連携はこの操作に対応していません。ソースホストでレビューを開いてください。"
+
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "This page is served over HTTPS, so the browser blocks it from reaching a desktop on plain HTTP. Continue on the desktop's own address to finish pairing there."
 #~ msgstr "このページは HTTPS で配信されているため、ブラウザは平文 HTTP のデスクトップへの接続をブロックします。デスクトップ自身のアドレスで続けて、そこでペアリングを完了してください。"
@@ -16620,6 +16792,10 @@ msgstr "このプロファイルの設定は、より新しい Poracode バー�
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "this project"
 msgstr "このプロジェクト"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This project has no supported source-host remote."
+msgstr "このプロジェクトには対応するソースホストのリモートがありません。"
 
 #: src/renderer/actions/providerSwitchActions.ts
 #: src/renderer/actions/providerSwitchRemoteActions.ts
@@ -16682,6 +16858,16 @@ msgid "This removes the worktree on \"{0}\", then deletes the branch."
 msgstr "これにより、「{0}」のワークツリーが削除され、その後ブランチが削除されます。"
 
 #: src/renderer/i18n/sharedMessages.ts
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "This review watch uses an unsupported source-scope version. Update the app before changing it."
+msgstr "このレビュー監視は未対応のソース範囲バージョンを使用しています。変更する前にアプリを更新してください。"
+
+#: src/renderer/i18n/sharedMessages.ts
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "This saved review watch has no source scope. Review the pull request and enable automation again."
+msgstr "この保存済みレビュー監視にはソースの範囲が設定されていません。プルリクエストを確認して自動化を再度有効にしてください。"
+
+#: src/renderer/i18n/sharedMessages.ts
 msgid "This scheduled task changed or was removed before it could run. Review the schedule and try again."
 msgstr "このスケジュールタスクは、実行前に変更または削除されました。スケジュールを確認して、もう一度お試しください。"
 
@@ -16712,6 +16898,10 @@ msgstr "このセッションはディスク上で変更されました。一覧
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This session is already being imported."
 msgstr "このセッションはすでにインポート中です。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This source host does not support safe automatic merge."
+msgstr "このソースホストは安全な自動マージに対応していません。"
 
 #: src/renderer/components/media/SvgFileView.tsx
 msgid "This SVG can't be displayed."
@@ -16923,6 +17113,10 @@ msgstr "タイムアウト（ms）"
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Timeout must be a positive whole number."
 msgstr "タイムアウトは正の整数である必要があります。"
+
+#: src/renderer/views/PrReviewOverlay/parts/PrHeaderCard.tsx
+msgid "Title"
+msgstr "タイトル"
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
@@ -17652,6 +17846,10 @@ msgstr "ワークフローのピン留めを解除"
 msgid "Unread"
 msgstr "未読"
 
+#: src/renderer/views/PrReviewOverlay/parts/PrConversationTab.tsx
+msgid "Unresolved"
+msgstr "未解決"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileRow.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewTouchMenus.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
@@ -18210,6 +18408,11 @@ msgstr "閲覧専用 — この接続ではホスト設定を変更できませ�
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "View-only — this connection can't manage projects."
 msgstr "閲覧のみ — この接続ではプロジェクトを管理できません。"
+
+#: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
+#: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
+msgid "Viewed here"
+msgstr "ここで確認済み"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Viewer"
@@ -18781,6 +18984,10 @@ msgstr "WSL ({distro})"
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "WSL base folder"
 msgstr "WSL ベースフォルダー"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "WSL bridge unavailable for source control."
+msgstr "ソース管理用の WSL ブリッジを利用できません。"
 
 #: src/renderer/components/skills/SkillImportModal.tsx
 #: src/renderer/components/skills/SkillsManager.tsx

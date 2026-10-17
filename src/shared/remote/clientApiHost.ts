@@ -68,6 +68,7 @@ import {
   type PrWatch,
   type PrWatchAgentSync,
   type PrWatchInput,
+  type ForgePrWatchInput,
   type PrWatchKey,
   type ProjectNotes,
   type ProviderUsageResponse,
@@ -538,6 +539,16 @@ export abstract class RemoteClientHostApi extends RemoteClientAuth {
 
   async deletePrWatch(input: PrWatchKey): Promise<void> {
     await this.requestJson("/api/pr-watches", { method: "DELETE", body: input });
+  }
+
+  async upsertForgePrWatch(input: ForgePrWatchInput): Promise<PrWatch> {
+    const result = parseResponse(
+      prWatchResponseSchema,
+      await this.requestJson("/api/pr-watches/scoped", { method: "POST", body: input }),
+      "PR automation",
+    );
+    if (!result.watch) throw new Error("The desktop did not return the PR automation state.");
+    return result.watch;
   }
 
   async syncPrWatchAgent(input: PrWatchAgentSync): Promise<void> {

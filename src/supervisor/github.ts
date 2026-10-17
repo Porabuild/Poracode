@@ -65,11 +65,11 @@ const PR_DIFF_MAX_BUFFER_BYTES = 50 * 1024 * 1024;
 const CREATE_PR_STATUS_WAIT_MS = 15_000;
 const CREATE_PR_STATUS_POLL_MS = 5_000;
 const PR_VIEW_FIELDS =
-  "number,url,state,title,baseRefName,headRefOid,isDraft,reviewDecision,statusCheckRollup,updatedAt,mergeable,mergeStateStatus,author";
+  "number,url,state,title,baseRefName,headRefOid,isDraft,reviewDecision,statusCheckRollup,updatedAt,mergeable,mergeStateStatus,author,isCrossRepository";
 // Bulk list: adds `headRefName` (to key per branch) and drops `author` (the icon
 // doesn't need viewerDidAuthor, so we skip the extra `gh api user` lookup).
 const PR_LIST_FIELDS =
-  "number,headRefName,headRefOid,url,state,title,baseRefName,isDraft,reviewDecision,statusCheckRollup,updatedAt,mergeable,mergeStateStatus";
+  "number,headRefName,headRefOid,url,state,title,baseRefName,isDraft,reviewDecision,statusCheckRollup,updatedAt,mergeable,mergeStateStatus,isCrossRepository";
 const PULL_REQUEST_LIST_FIELDS = `${PR_LIST_FIELDS},author,additions,deletions,reviewRequests`;
 const PR_CHECK_FIELDS = "name,state,bucket,link,startedAt,completedAt,workflow";
 const PR_CHECK_PENDING_STATES = new Set([
@@ -410,6 +410,7 @@ async function runGhBatch(
   location: ProjectLocation & { kind: "wsl" },
   commands: string[][],
   wslClient: WslBridgeClient | undefined,
+  env?: Record<string, string>,
 ): Promise<WslProcessExecResult[]> {
   if (!wslClient) {
     throw new Error(`WSL bridge unavailable for GitHub CLI in distro "${location.distro}"`);
@@ -422,7 +423,7 @@ async function runGhBatch(
       args,
       loginEnv: true,
       // Keep batched read calls scoped to the project just like processExec.
-      env: { GH_REPO: "" },
+      env: { GH_REPO: "", ...env },
     })),
   });
   return result.results;
@@ -500,6 +501,7 @@ function locationKey(location: ProjectLocation): string {
 }
 
 export class GitHubService {
+  private reviewEnvironment: Record<string, string> | undefined;
   /** `gh api user` is the same answer per (kind, path) — cache to avoid one call per PR fetch. */
   private viewerLoginCache = new Map<string, string | null>();
   /** Detected account per location that can see the project's repository; null = detection found none. */
@@ -512,12 +514,88 @@ export class GitHubService {
     this.wslClient = client;
   }
 
+  /** Freeze gh's actual repository choice, including a configured default or SSH alias. */
+  async forReviewRepository(location: ProjectLocation, account?: GitHubAccountRef) {
+    const service = new GitHubService();
+    service.wslClient = this.wslClient;
+    const raw = JSON.parse(
+      await service.runGh(location, ["repo", "view", "--json", "nameWithOwner,url"]),
+    ) as { nameWithOwner?: unknown; url?: unknown };
+    if (typeof raw.nameWithOwner !== "string" || typeof raw.url !== "string")
+      throw new Error(sharedMsg("forge.responseInvalid"));
+    const url = new URL(raw.url);
+    if (
+      url.protocol !== "https:" ||
+      url.username ||
+      url.password ||
+      raw.nameWithOwner.split("/").length !== 2 ||
+      (account && url.host.toLowerCase() !== account.host.toLowerCase())
+    )
+      throw new Error(sharedMsg("forge.hostMismatch"));
+    service.reviewEnvironment = {
+      ...service.reviewEnvironment,
+      GH_HOST: url.host,
+      GH_REPO: `${url.host}/${raw.nameWithOwner}`,
+    };
+    const repositoryEnvironment = service.reviewEnvironment;
+    let token: string;
+    if (account) {
+      // Stored-account selection must not inherit an unrelated ambient token.
+      service.reviewEnvironment = {
+        ...repositoryEnvironment,
+        GH_TOKEN: "",
+        GITHUB_TOKEN: "",
+        GH_ENTERPRISE_TOKEN: "",
+        GITHUB_ENTERPRISE_TOKEN: "",
+      };
+      try {
+        token = await service.getAccountToken(location, account);
+      } catch {
+        // An environment-only login has no keyring slot. Its principal is
+        // checked under the frozen credential before any review operation.
+        service.reviewEnvironment = repositoryEnvironment;
+        token = await service.getAccountToken(location, account);
+      }
+    } else {
+      try {
+        token = (await service.runGh(location, ["auth", "token", "--hostname", url.host])).trim();
+      } catch {
+        throw new Error(sharedMsg("forge.credentials"));
+      }
+    }
+    if (!token) throw new Error(sharedMsg("forge.credentials"));
+    service.reviewEnvironment = {
+      ...repositoryEnvironment,
+      ...accountGhEnvironment(
+        { host: url.host, login: account?.login ?? "" },
+        token,
+        repositoryEnvironment.GH_REPO,
+      ),
+    };
+    const login = await service.getViewerLogin(location, true);
+    if (account && login !== account.login) throw new Error(sharedMsg("forge.accountMismatch"));
+    if (!login) throw new Error(sharedMsg("forge.credentials"));
+    return {
+      service,
+      host: url.origin,
+      repository: raw.nameWithOwner,
+      ...(login ? { account: { host: url.host, login } } : {}),
+    };
+  }
+
   private runGh(
     location: ProjectLocation,
     args: string[],
     options?: RunGhOptions,
   ): Promise<string> {
-    return runGh(location, args, this.wslClient, options);
+    return runGh(
+      location,
+      args,
+      this.wslClient,
+      this.reviewEnvironment
+        ? { ...options, env: { ...this.reviewEnvironment, ...options?.env } }
+        : options,
+    );
   }
 
   private async listGitRemotes(location: ProjectLocation): Promise<string> {
@@ -559,7 +637,7 @@ export class GitHubService {
     location: ProjectLocation & { kind: "wsl" },
     commands: string[][],
   ): Promise<WslProcessExecResult[]> {
-    return runGhBatch(location, commands, this.wslClient);
+    return runGhBatch(location, commands, this.wslClient, this.reviewEnvironment);
   }
 
   /**
@@ -1085,6 +1163,31 @@ export class GitHubService {
     }
   }
 
+  async editPr(
+    location: ProjectLocation,
+    prNumber: number,
+    input: { title?: string; body?: string; baseBranch?: string },
+  ): Promise<void> {
+    const file =
+      input.body === undefined
+        ? undefined
+        : await createGhBodyFile(location, "poracode-pr-edit", input.body, this.wslClient);
+    try {
+      await this.runGh(location, [
+        "pr",
+        "edit",
+        String(prNumber),
+        ...(input.title !== undefined ? ["--title", input.title] : []),
+        ...(input.baseBranch !== undefined ? ["--base", input.baseBranch] : []),
+        ...(file ? ["--body-file", file.cliPath] : []),
+      ]);
+    } catch (error) {
+      throw classifyError(error, "pr edit");
+    } finally {
+      await file?.cleanup().catch(() => {});
+    }
+  }
+
   async reopenPr(location: ProjectLocation, prNumber: number): Promise<void> {
     try {
       await this.runGh(location, ["pr", "reopen", String(prNumber)]);
@@ -1232,7 +1335,7 @@ export class GitHubService {
   ): Promise<PrComment> {
     const trimmed = body.trim();
     if (trimmed.length === 0) {
-      throw new Error("Comment body is required.");
+      throw new Error(sharedMsg("forge.bodyRequired"));
     }
     const tempFile = await createGhBodyFile(
       location,

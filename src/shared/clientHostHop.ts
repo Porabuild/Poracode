@@ -47,6 +47,10 @@
  */
 // Version 18 adds automation results and new closed schedule recurrence/status variants.
 // An older renderer must reject the changed response vocabulary before dispatch.
+// Forge review metadata is optional and old results remain valid. New account-scoped
+// operations have distinct names, rejected before effects by pre-forge dispatchers.
+// The distinct upsertForgePrWatch operation carries persisted v1 source authority;
+// legacy watch saves cannot bind an unscoped watch to the active source account.
 export const CLIENT_HOST_HOP_VERSION = 18 as const;
 /** The previous artifact hop, kept as an old reader for pre-upgrade regressions. */
 export const PREVIOUS_CLIENT_HOST_HOP_VERSION = 17 as const;

@@ -43,6 +43,7 @@ const DECLARED_WRITER_ROUTES = [
   "pr-watch-check",
   "pr-watch-delete",
   "pr-watch-upsert",
+  "pr-watch-scoped-upsert",
   "profile-identity",
   "project-command",
   "project-notes-write",
@@ -90,7 +91,7 @@ const READ_CLASS_POST_ROUTES = [
 describe("route writer-generation admission declarations", () => {
   it("declares the direct writers and reads with new closed schedule variants", () => {
     const declared = REMOTE_HTTP_ROUTES.filter((route) => route.requiresCurrentProtocol);
-    expect(declared).toHaveLength(52);
+    expect(declared).toHaveLength(53);
     expect(declared.map((route) => route.id).sort()).toEqual([...DECLARED_WRITER_ROUTES].sort());
   });
 

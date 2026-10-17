@@ -13,7 +13,8 @@ import { Check, MessageSquare, X } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { PrReviewDecision, ProjectLocation } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
-import { readBridge } from "@/renderer/bridge";
+import { reviewClient, reviewSourceIdentity } from "@/renderer/utils/forgeReviews";
+import { useGitStore } from "@/renderer/state/gitStore";
 import {
   ResponsiveMenuSurface,
   useResponsiveMenu,
@@ -22,13 +23,32 @@ import {
 export function SubmitReviewPopover(props: {
   projectLocation: ProjectLocation;
   prNumber: number;
+  prKey: string;
+  cacheKey: string;
   /** Hide the trigger when the viewer authored the PR (GitHub disallows self-review). */
   hidden?: boolean;
   triggerPresentation?: "compact" | "touch";
   onSubmitted: () => void;
 }) {
-  const { projectLocation, prNumber, hidden, triggerPresentation = "compact", onSubmitted } = props;
+  const {
+    projectLocation,
+    prNumber,
+    prKey,
+    cacheKey,
+    hidden,
+    triggerPresentation = "compact",
+    onSubmitted,
+  } = props;
   const { t } = useLingui();
+  const source = useGitStore((s) => s.prDetails[cacheKey]?.source);
+  const detailsReady = useGitStore(
+    (s) =>
+      s.prData[prKey] !== null &&
+      (!s.prData[prKey] || s.prData[prKey]?.number === prNumber) &&
+      s.prDetails[cacheKey]?.number === prNumber &&
+      reviewSourceIdentity(s.prDetails[cacheKey]?.source) ===
+        reviewSourceIdentity(s.prData[prKey]?.source),
+  );
   const { mobile } = useResponsiveMenu();
   const [open, setOpen] = useState(false);
   const [decision, setDecision] = useState<PrReviewDecision>("comment");
@@ -41,15 +61,31 @@ export function SubmitReviewPopover(props: {
   if (hidden) return null;
 
   async function handleSubmit() {
-    if (requiresBody && bodyEmpty) return;
+    if (
+      !detailsReady ||
+      submitting ||
+      (requiresBody && bodyEmpty) ||
+      (source && !source.capabilities.reviewDecisions.includes(decision))
+    )
+      return;
+    const isCurrent = () => {
+      const currentPr = useGitStore.getState().prData[prKey];
+      return (
+        currentPr !== null &&
+        (!currentPr || currentPr.number === prNumber) &&
+        reviewSourceIdentity(currentPr?.source) === reviewSourceIdentity(source)
+      );
+    };
+    if (!isCurrent()) return;
     setSubmitting(true);
     try {
-      await readBridge().ghSubmitPrReview({
+      await reviewClient(source).review({
         projectLocation,
         prNumber,
         decision,
         body,
       });
+      if (!isCurrent()) return;
       toast.success(
         decision === "approve"
           ? t`Approved`
@@ -103,6 +139,7 @@ export function SubmitReviewPopover(props: {
           ? "h-11 min-h-11 w-full justify-start gap-2 rounded-[0.625rem] bg-success px-3 text-sm font-medium text-success-foreground hover:bg-success/90"
           : "h-5 min-h-0 gap-1 bg-success px-2 text-[11px] font-medium text-success-foreground hover:bg-success/90"
       }
+      isDisabled={!detailsReady || source?.capabilities.reviewDecisions.length === 0}
       onPress={() => setOpen(true)}
     >
       <Check className="size-3" />
@@ -127,7 +164,12 @@ export function SubmitReviewPopover(props: {
         onChange={(v) => setDecision(v as PrReviewDecision)}
       >
         {options.map(({ value, label, description, icon: Icon }) => (
-          <Radio key={value} value={value} className="items-start">
+          <Radio
+            key={value}
+            value={value}
+            className="items-start"
+            isDisabled={Boolean(source && !source.capabilities.reviewDecisions.includes(value))}
+          >
             <Radio.Control className="mt-0.5">
               <Radio.Indicator />
             </Radio.Control>
@@ -151,7 +193,12 @@ export function SubmitReviewPopover(props: {
           className="bg-success text-success-foreground hover:bg-success/90"
           onPress={() => void handleSubmit()}
           isPending={submitting}
-          isDisabled={submitting || (requiresBody && bodyEmpty)}
+          isDisabled={
+            !detailsReady ||
+            submitting ||
+            (requiresBody && bodyEmpty) ||
+            Boolean(source && !source.capabilities.reviewDecisions.includes(decision))
+          }
         >
           <Trans>Submit review</Trans>
         </Button>
