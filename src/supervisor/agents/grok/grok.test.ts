@@ -12,6 +12,9 @@ import { resolveUpdateCommand } from "../updateAgent";
 
 describe("createGrokAdapter updates", () => {
   const adapter = createGrokAdapter();
+  it("defers shared OAuth until MCP connection", () => {
+    expect(adapter.supportsDeferredMcpAuthorization).toBe(true);
+  });
   const status = {
     kind: "grok",
     label: "Grok Build",

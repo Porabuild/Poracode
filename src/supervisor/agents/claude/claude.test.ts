@@ -489,6 +489,15 @@ describe("createClaudeProfileAdapter", () => {
     expect(createClaudeAdapter().capabilities.efforts).toEqual(claudeCapabilities.efforts);
   });
 
+  it("keeps deferred MCP authorization for profile adapters", () => {
+    const adapter = createClaudeProfileAdapter({
+      id: "work",
+      driver: "claude",
+      config: { configDir: "~/.poracode/claude-profiles/work" },
+    });
+    expect(adapter.supportsDeferredMcpAuthorization).toBe(true);
+  });
+
   it("falls back to the built-in efforts when an allow-list has no known tiers", () => {
     // Guards a hand-edited config: an all-unknown allow-list must not leave the
     // picker with zero effort options.
