@@ -255,6 +255,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
   private currentSkillSlashCommands: AgentSlashCommand[] = [];
   private skillRefresh: Promise<void> | undefined;
   private skillReloadRequested = false;
+  private goalHydration: { ready?: Promise<void> } | undefined;
   private pendingTurnInterrupt = false;
   // Sticky-error gate: once a turn fails, derived status updates from
   // `thread/status/changed` (which Codex emits as `idle` after an aborted
@@ -448,6 +449,8 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     threadId: string,
     command: CodexGoalCommand,
   ): Promise<void | StructuredTurnResult> {
+    if (command.kind === "set") await this.goalHydration?.ready;
+    if (command.kind !== "view") this.goalHydration = undefined;
     switch (command.kind) {
       case "set":
         if (this.ensureMapperState().goalItemId) {
@@ -479,6 +482,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
   async controlGoal(control: ThreadGoalControl): Promise<void> {
     const threadId = await this.waitForRemoteThreadId();
     if (control.action === "edit") {
+      this.goalHydration = undefined;
       await this.rpc.request("thread/goal/set", {
         threadId,
         objective: control.objective,
@@ -617,6 +621,8 @@ export class CodexStructuredSession implements StructuredSessionHandle {
   }
 
   async openThread(config: ThreadConfig, sessionRef?: SessionRef): Promise<string> {
+    const goalHydration: { ready?: Promise<void> } = {};
+    this.goalHydration = goalHydration;
     // `mode` does not exist on `thread/start` or `thread/resume`; plan mode is
     // a per-turn override sent via `collaborationMode` on `turn/start`.
     this.currentConfig = config;
@@ -678,23 +684,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     this.ensureMapperState().usageScope = new CodexUsageScopeTracker(threadId, createdNewThread);
     this.launchOptions = { ...this.launchOptions, resumeThreadId: threadId };
     if (!createdNewThread) {
-      try {
-        const { goal } = await this.rpc.request("thread/goal/get", { threadId });
-        if (goal) {
-          this.emitRuntimeEvents(
-            mapCodexNotification(
-              "thread/goal/updated",
-              { threadId, goal },
-              this.ensureMapperState(),
-              this.wslDistro,
-            ),
-          );
-        }
-      } catch (error) {
-        if (!isUnsupportedCodexRequestError(error)) {
-          console.warn("[codex] Failed to hydrate thread goal after resume:", error);
-        }
-      }
+      goalHydration.ready = this.hydrateGoal(threadId, goalHydration);
     }
     if (sessionRef) {
       // Finish the resume snapshot before admitting a new turn. A late idle
@@ -703,6 +693,34 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     }
 
     return threadId;
+  }
+
+  private async hydrateGoal(threadId: string, hydration: object): Promise<void> {
+    try {
+      const { goal } = await this.rpc.request("thread/goal/get", { threadId });
+      if (this.isDisposed || this.remoteThreadId !== threadId || this.goalHydration !== hydration)
+        return;
+      if (goal) {
+        this.emitRuntimeEvents(
+          mapCodexNotification(
+            "thread/goal/updated",
+            { threadId, goal },
+            this.ensureMapperState(),
+            this.wslDistro,
+          ),
+        );
+      }
+    } catch (error) {
+      if (
+        !this.isDisposed &&
+        this.goalHydration === hydration &&
+        !isUnsupportedCodexRequestError(error)
+      ) {
+        console.warn("[codex] Failed to hydrate thread goal after resume:", error);
+      }
+    } finally {
+      if (this.goalHydration === hydration) this.goalHydration = undefined;
+    }
   }
 
   private extractRolloutMeta(result: unknown): void {
@@ -1453,6 +1471,10 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     ) {
       return;
     }
+    const isGoalNotification = method === "thread/goal/updated" || method === "thread/goal/cleared";
+    if (isGoalNotification) {
+      this.goalHydration = undefined;
+    }
     const completedTurnId = readTurnId(params);
     const isTrackedConcurrentCompletion =
       completedTurnId !== undefined && this.activeTurnIds.has(completedTurnId);
@@ -1474,11 +1496,12 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     const turnWillSettleThread =
       (method !== "turn/completed" && method !== "turn/aborted") ||
       this.willTurnCompletionSettleThread(completedTurnId);
-    const mappedRuntimeEvents = suppressResumeReplay
-      ? []
-      : mapCodexNotification(method, params, this.ensureMapperState(), this.wslDistro, {
-          turnSettled: turnWillSettleThread,
-        });
+    const mappedRuntimeEvents =
+      suppressResumeReplay && !isGoalNotification
+        ? []
+        : mapCodexNotification(method, params, this.ensureMapperState(), this.wslDistro, {
+            turnSettled: turnWillSettleThread,
+          });
     const runtimeEvents = this.ensureSubAgentRouter().observeMainNotification(
       method,
       params,

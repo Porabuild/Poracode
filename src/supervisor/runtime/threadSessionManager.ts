@@ -1561,6 +1561,17 @@ export class ThreadSessionManager {
     segments: PromptSegment[] | undefined,
   ): Promise<PromptSegment[] | undefined> {
     if (!segments?.some((segment) => segment.kind === "skill")) return segments;
+    if (
+      !session.nativePlugins?.length &&
+      segments.some((segment) => segment.kind === "skill" && segment.pluginId)
+    ) {
+      const contributions = await this.options.resolvePluginLaunchContributions?.(
+        session.projectLocation,
+        session.agentKind,
+        { includeExternalServers: false, nativePluginAdapter: session.adapter },
+      );
+      if (contributions) session.nativePlugins = contributions.nativePlugins;
+    }
     return (
       (await this.options.filterPluginSkillSegments?.({
         agentKind: session.agentKind,

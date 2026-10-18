@@ -35,6 +35,7 @@ import {
   type StartTurnOptions,
   type StructuredSessionHandle,
   type StructuredSessionListener,
+  type StructuredSessionUpdate,
   type ThreadHistory,
   type ThreadHistoryEntry,
 } from "../base";
@@ -179,6 +180,9 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
   private turnRequiresShutdownConfirmation = false;
   private pendingRequests = new Map<ThreadServerRequestId, PendingRequest>();
   private currentSlashCommands: AgentSlashCommand[] | undefined;
+  private currentStatus: ThreadStatus = "idle";
+  private currentAttention: ThreadAttention = "none";
+  private slashCommandsRefresh: object | undefined;
   /** True between `startTurn`'s promptAsync and the next SSE idle signal. */
   private turnActive = false;
   /** Live MCP set; starts from the launch input, replaced by settings saves. */
@@ -219,8 +223,8 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
     }
     if (this.sessionId) {
       listener.onUpdate({
-        status: "idle",
-        attention: "none",
+        status: this.currentStatus,
+        attention: this.currentAttention,
         sessionRef: createKnownSessionRef(this.sessionId),
         ...(this.currentSlashCommands !== undefined
           ? { slashCommands: this.currentSlashCommands }
@@ -228,8 +232,8 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
       });
     } else if (this.currentSlashCommands !== undefined) {
       listener.onUpdate({
-        status: "idle",
-        attention: "none",
+        status: this.currentStatus,
+        attention: this.currentAttention,
         slashCommands: this.currentSlashCommands,
       });
     }
@@ -288,7 +292,7 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
       this.sessionHasPermissionOverride = existingData.permission !== undefined;
       this.appliedPermissionSyncKey = undefined;
       if (this.mapperState) setOpenCodeMainSessionId(this.mapperState, id);
-      await this.refreshSlashCommands();
+      this.refreshSlashCommands();
       return id;
     }
 
@@ -325,7 +329,7 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
         ? this.permissionSyncKey(config)
         : undefined;
     if (this.mapperState) setOpenCodeMainSessionId(this.mapperState, id, { fresh: true });
-    await this.refreshSlashCommands();
+    this.refreshSlashCommands();
     return id;
   }
 
@@ -338,6 +342,8 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
     this.requireAcquired();
     const sessionID = this.requireSessionId();
     this.currentConfig = config;
+    this.currentStatus = "working";
+    this.currentAttention = "working";
 
     // Reset the retry-dedup key synchronously at turn entry (before any
     // await): the SSE stream runs concurrently with `promptAsync`, so a new
@@ -394,6 +400,8 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
       }
       this.turnActive = true;
     } catch (cause) {
+      this.currentStatus = "error";
+      this.currentAttention = "error";
       throw new Error(classifyOpenCodeError({ cause, operation: "session.promptAsync" }), {
         cause,
       });
@@ -413,6 +421,8 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
   }
 
   forceCompleteTurn(): void {
+    this.currentStatus = "idle";
+    this.currentAttention = "none";
     const events = this.mapperState ? closeOpenItems(this.mapperState) : [];
     if (this.turnActive) {
       events.push({
@@ -808,31 +818,44 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
     }
   }
 
+  private emitUpdate(update: StructuredSessionUpdate): void {
+    this.currentStatus = update.status;
+    this.currentAttention = update.attention;
+    this.listener?.onUpdate(update);
+  }
+
   private updateSlashCommands(commands: AgentSlashCommand[]): void {
     if (areAgentSlashCommandsEqual(this.currentSlashCommands, commands)) {
       return;
     }
     this.currentSlashCommands = commands;
-    this.listener?.onUpdate({
-      status: "idle",
-      attention: "none",
+    this.emitUpdate({
+      status: this.currentStatus,
+      attention: this.currentAttention,
       ...(this.sessionId ? { sessionRef: createKnownSessionRef(this.sessionId) } : {}),
       slashCommands: commands,
     });
   }
 
-  private async refreshSlashCommands(): Promise<void> {
+  private refreshSlashCommands(): void {
     const acquired = this.requireAcquired();
-    try {
-      const result = await acquired.client.command.list({ directory: this.sdkDirectory });
-      const commands = Array.isArray(result.data) ? mapOpenCodeSlashCommands(result.data) : [];
-      this.updateSlashCommands(commands);
-    } catch (error) {
-      console.log(
-        "[opencode] command list probe rejected, continuing: %s",
-        error instanceof Error ? error.message : String(error),
-      );
-    }
+    const refresh = {};
+    this.slashCommandsRefresh = refresh;
+    void (async () => {
+      try {
+        const result = await acquired.client.command.list({ directory: this.sdkDirectory });
+        if (this.disposed || this.acquired !== acquired || this.slashCommandsRefresh !== refresh)
+          return;
+        const commands = Array.isArray(result.data) ? mapOpenCodeSlashCommands(result.data) : [];
+        this.updateSlashCommands(commands);
+      } catch (error) {
+        if (this.disposed || this.acquired !== acquired) return;
+        console.log(
+          "[opencode] command list probe rejected, continuing: %s",
+          error instanceof Error ? error.message : String(error),
+        );
+      }
+    })();
   }
 
   private sessionRefUpdate(): { sessionRef: SessionRef } | Record<string, never> {
@@ -853,12 +876,12 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
   private emitPendingRequestUpdate(): void {
     const pending = this.pendingRequestStatus();
     if (!pending) return;
-    this.listener?.onUpdate({ ...pending, ...this.sessionRefUpdate() });
+    this.emitUpdate({ ...pending, ...this.sessionRefUpdate() });
   }
 
   private emitUpdateAfterRequestResolution(): void {
     const pending = this.pendingRequestStatus();
-    this.listener?.onUpdate({
+    this.emitUpdate({
       ...(pending ?? { status: "working", attention: "working" }),
       ...this.sessionRefUpdate(),
     });
@@ -934,6 +957,7 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
       this.startEventStream();
       this.startServerExitRecovery();
     }
+    if (this.sessionId) this.refreshSlashCommands();
   }
 
   /**
@@ -1003,7 +1027,7 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
     if (event.type === "session.status") {
       this.turnRequiresShutdownConfirmation = event.properties.status.type !== "idle";
       const upd = mapStatusUpdate(event.properties);
-      this.listener?.onUpdate({
+      this.emitUpdate({
         ...(this.pendingRequestStatus() ?? upd),
         ...this.sessionRefUpdate(),
       });
@@ -1016,7 +1040,7 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
     }
 
     if (event.type === "session.idle") {
-      this.listener?.onUpdate({
+      this.emitUpdate({
         ...(this.pendingRequestStatus() ?? { status: "idle", attention: "none" }),
         ...this.sessionRefUpdate(),
       });
@@ -1039,6 +1063,8 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
         err && typeof err === "object" && "data" in err && err.data
           ? String((err.data as { message?: string }).message ?? err.name)
           : (err?.name ?? "OpenCode session error");
+      this.currentStatus = "error";
+      this.currentAttention = "error";
       this.listener?.onError(msg);
     }
 

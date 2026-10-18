@@ -118,7 +118,11 @@ export interface ThreadSessionManagerOptions {
   resolvePluginLaunchContributions?(
     projectLocation: ProjectLocation,
     agentKind: AgentKind,
-    options?: { includeExternalServers: boolean },
+    options?: {
+      includeExternalServers: boolean;
+      /** Inspect explicit skill metadata through the adapter captured for this session's launch. */
+      nativePluginAdapter?: Pick<AgentAdapter, "listNativePlugins">;
+    },
   ): Promise<{
     mcpServers: McpServer[];
     builtInMcpServerIds: BuiltInMcpServerId[];
