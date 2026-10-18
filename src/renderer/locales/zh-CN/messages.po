@@ -8506,6 +8506,10 @@ msgstr "正在加载技能…"
 msgid "Loading skills…"
 msgstr "正在加载技能…"
 
+#: src/renderer/components/terminal/TerminalFeedStatus.tsx
+msgid "Loading terminal…"
+msgstr "正在加载终端…"
+
 #: src/mobile/views/ThreadView.tsx
 #~ msgid "Loading thread"
 #~ msgstr "正在加载线程"

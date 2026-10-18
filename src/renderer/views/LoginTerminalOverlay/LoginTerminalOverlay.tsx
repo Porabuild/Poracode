@@ -170,6 +170,8 @@ export function LoginTerminalOverlay() {
             ref={xtermRef}
             terminalId={renderedSession.shellId}
             className="h-full"
+            awaitingStart
+            initialScrollback=""
             openLinksInNativeBrowser
             outputSource={(listener) =>
               watchRoutedTerminal(

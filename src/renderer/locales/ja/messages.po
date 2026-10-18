@@ -8505,6 +8505,10 @@ msgstr "スキルを読み込み中…"
 msgid "Loading skills…"
 msgstr "スキルを読み込んでいます…"
 
+#: src/renderer/components/terminal/TerminalFeedStatus.tsx
+msgid "Loading terminal…"
+msgstr "ターミナルを読み込み中…"
+
 #: src/mobile/views/ThreadView.tsx
 #~ msgid "Loading thread"
 #~ msgstr "スレッドを読み込み中"

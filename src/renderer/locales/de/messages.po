@@ -8506,6 +8506,10 @@ msgstr "Skill wird geladen…"
 msgid "Loading skills…"
 msgstr "Skills werden geladen…"
 
+#: src/renderer/components/terminal/TerminalFeedStatus.tsx
+msgid "Loading terminal…"
+msgstr "Terminal wird geladen…"
+
 #: src/mobile/views/ThreadView.tsx
 #~ msgid "Loading thread"
 #~ msgstr "Thread wird geladen"

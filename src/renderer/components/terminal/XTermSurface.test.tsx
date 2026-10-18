@@ -1228,6 +1228,65 @@ describe("XTermSurface", () => {
     expect(state.writeLog).toEqual([]);
   });
 
+  it("writes the first live chunks immediately while awaiting shell startup", () => {
+    let listener: TerminalFeedListener | undefined;
+    render(
+      <XTermSurface
+        terminalId="test-1"
+        awaitingStart
+        initialScrollback=""
+        outputSource={(next) => {
+          listener = next;
+          return () => undefined;
+        }}
+      />,
+    );
+    expect(screen.getByRole("status")).toHaveTextContent("Loading terminal…");
+
+    act(() => listener?.onOutput("first chunk"));
+    expect(state.writeLog.map((entry) => entry.data)).toEqual(["first chunk"]);
+    expect(screen.queryByRole("status")).toBeNull();
+
+    act(() => listener?.onOutput("second chunk"));
+    expect(state.writeLog.map((entry) => entry.data)).toEqual(["first chunk", "second chunk"]);
+    expect(state.bridge.readTerminalScrollback).not.toHaveBeenCalled();
+  });
+
+  it("treats an uncreated shell as loading while preserving real access failures", async () => {
+    let listener: TerminalFeedListener | undefined;
+    render(
+      <XTermSurface
+        terminalId="test-1"
+        awaitingStart
+        initialScrollback=""
+        outputSource={(next) => {
+          listener = next;
+          return () => undefined;
+        }}
+      />,
+    );
+    await flushFrame();
+    expect(screen.getByRole("status")).toHaveTextContent("Loading terminal…");
+    act(() => listener?.onWatchError?.({ status: "error", code: "not-found", retryable: false }));
+    expect(screen.getByRole("status")).toHaveTextContent("Loading terminal…");
+    act(() => listener?.onWatchError?.({ status: "error", code: "forbidden", retryable: false }));
+    expect(screen.getByRole("status")).toHaveTextContent("Terminal access denied.");
+    act(() =>
+      listener?.onSnapshot?.({
+        status: "ready",
+        generation: "new",
+        fromCursor: 0,
+        toCursor: 0,
+        data: "",
+        processState: "running",
+        terminalSize: null,
+      }),
+    );
+    expect(screen.queryByRole("status")).toBeNull();
+    act(() => listener?.onWatchError?.({ status: "error", code: "not-found", retryable: false }));
+    expect(screen.getByRole("status")).toHaveTextContent("Terminal output is unavailable.");
+  });
+
   it("shows watch failures and clears the status when the stream recovers", async () => {
     let listener: TerminalFeedListener | undefined;
     const outputSource = (next: TerminalFeedListener) => {

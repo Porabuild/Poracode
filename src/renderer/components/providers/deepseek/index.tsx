@@ -6,9 +6,12 @@ import { registerComposerControls } from "../providerComposer";
 import { registerCommitGenDefaults } from "../commitGen";
 import { registerTitleGenDefaults } from "../titleGen";
 import { registerConflictResolverDefaults } from "../conflictResolver";
+import { registerTerminalLoginCompletion } from "../terminalLogin";
+import { watchDeepSeekLogin } from "./terminalLogin";
 
 registerProviderIcon(providerManifest.kind, DeepSeekIcon);
 registerComposerControls(providerManifest.kind, buildAcpComposerControls);
+registerTerminalLoginCompletion(providerManifest.kind, watchDeepSeekLogin);
 
 const utilityDefaults = {
   label: "DeepSeek Harness",

@@ -8506,6 +8506,10 @@ msgstr "Beceri yükleniyor…"
 msgid "Loading skills…"
 msgstr "Beceriler yükleniyor…"
 
+#: src/renderer/components/terminal/TerminalFeedStatus.tsx
+msgid "Loading terminal…"
+msgstr "Terminal yükleniyor…"
+
 #: src/mobile/views/ThreadView.tsx
 #~ msgid "Loading thread"
 #~ msgstr "İş parçacığı yükleniyor"

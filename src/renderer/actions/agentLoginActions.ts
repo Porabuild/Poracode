@@ -1,6 +1,7 @@
 import { toast } from "@heroui/react";
 import { msg } from "@lingui/core/macro";
-import type { Project, ProjectLocation } from "@/shared/contracts";
+import type { AgentStatus, Project, ProjectLocation } from "@/shared/contracts";
+import { watchTerminalLoginCompletion } from "@/renderer/components/providers/terminalLogin";
 import { stripAnsi } from "@/shared/ansi";
 import { readBridge } from "@/renderer/bridge";
 import { i18n } from "@/renderer/i18n/i18n";
@@ -50,6 +51,7 @@ export function runAgentLoginCommand(input: {
   env?: Record<string, string>;
   onCommandComplete?: (exitCode: number) => void;
   project?: Project;
+  status?: AgentStatus;
 }): boolean {
   const project = input.project ?? resolveLoginProject();
   if (!project) {
@@ -98,9 +100,11 @@ export function runAgentLoginCommand(input: {
   const script = appendCompletionSignal(command, project, completionToken);
 
   let fired = false;
+  let stopAuthentication: (() => void) | undefined;
   const fireOnce = (exitCode: number) => {
     if (fired) return;
     fired = true;
+    stopAuthentication?.();
     input.onCommandComplete?.(exitCode);
   };
 
@@ -113,7 +117,10 @@ export function runAgentLoginCommand(input: {
       if (exitCode === 0) {
         // Auto-dismiss the overlay shortly after the command exits so the user
         // can read any final success line before it slides away.
-        window.setTimeout(() => useLoginTerminalStore.getState().close(), 1200);
+        window.setTimeout(() => {
+          if (useLoginTerminalStore.getState().active?.shellId === shellId)
+            useLoginTerminalStore.getState().close();
+        }, 1200);
       } else {
         // Leave the overlay open so the user can read the failure output, but
         // flag the session so the header switches to a failed state.
@@ -141,16 +148,44 @@ export function runAgentLoginCommand(input: {
     projectLocation: project.location,
     startInHome: true,
     ...(project.location.kind === "windows" ? { windowsShellRuntime: "powershell" as const } : {}),
-  }).catch((error) => {
-    // The shell never started, so the completion watcher would otherwise leak
-    // (and leave callers' pending UI stuck). Tear it down and report failure.
-    stopWatching();
-    fireOnce(-1);
-    toast.danger(
-      error instanceof Error ? error.message : i18n._(msg`Unable to open ${input.label} login.`),
-    );
-    useLoginTerminalStore.getState().close();
-  });
+  })
+    .then(() => {
+      if (fired) {
+        void readBridge()
+          .closeThread({ threadId: shellId })
+          .catch(() => undefined);
+        return;
+      }
+      if (input.status) {
+        stopAuthentication = watchTerminalLoginCompletion({
+          status: input.status,
+          project,
+          onAuthenticated: () => {
+            if (fired) return;
+            stopWatching();
+            stopOpeningUrls?.();
+            fireOnce(0);
+            if (useLoginTerminalStore.getState().active?.shellId === shellId) {
+              disposeRoutedShellSession(shellId);
+              void readBridge()
+                .closeThread({ threadId: shellId })
+                .catch(() => undefined);
+              useLoginTerminalStore.getState().close();
+            }
+          },
+        });
+      }
+    })
+    .catch((error) => {
+      // The shell never started, so the completion watcher would otherwise leak
+      // (and leave callers' pending UI stuck). Tear it down and report failure.
+      stopWatching();
+      fireOnce(-1);
+      toast.danger(
+        error instanceof Error ? error.message : i18n._(msg`Unable to open ${input.label} login.`),
+      );
+      useLoginTerminalStore.getState().close();
+    });
   writeScriptToShell(shellId, script, project.remoteServerId);
   return true;
 }

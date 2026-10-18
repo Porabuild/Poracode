@@ -8506,6 +8506,10 @@ msgstr "스킬 불러오는 중…"
 msgid "Loading skills…"
 msgstr "스킬 불러오는 중…"
 
+#: src/renderer/components/terminal/TerminalFeedStatus.tsx
+msgid "Loading terminal…"
+msgstr "터미널 불러오는 중…"
+
 #: src/mobile/views/ThreadView.tsx
 #~ msgid "Loading thread"
 #~ msgstr "스레드 로드 중"

@@ -8506,6 +8506,10 @@ msgstr "Chargement de la compétence…"
 msgid "Loading skills…"
 msgstr "Chargement des compétences…"
 
+#: src/renderer/components/terminal/TerminalFeedStatus.tsx
+msgid "Loading terminal…"
+msgstr "Chargement du terminal…"
+
 #: src/mobile/views/ThreadView.tsx
 #~ msgid "Loading thread"
 #~ msgstr "Chargement du fil"
