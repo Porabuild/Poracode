@@ -203,13 +203,14 @@ describe("Crossagents MCP (live)", () => {
     }
   }, 240_000);
 
-  it("spawn_agent completes a real OpenCode child turn", async () => {
-    if (!opencode) return;
+  it("spawn_agent completes a real OpenCode child turn", async (testCtx) => {
+    if (!opencode) {
+      testCtx.skip("opencode adapter not registered");
+      return;
+    }
     const status = await opencode.detectInstall().catch(() => undefined);
     if (!status?.installed || status.authState !== "authenticated") {
-      console.log(
-        `[subagent-int] SKIPPED OpenCode run: installed=${status?.installed} auth=${status?.authState}`,
-      );
+      testCtx.skip(`opencode: installed=${status?.installed} auth=${status?.authState}`);
       return;
     }
 

@@ -106,9 +106,9 @@ derives every published artifact from it: the language-neutral inventory at
 the HTTP router dispatches from the same registry through an exhaustively-typed
 per-route handler table, so a route that is not in the registry fails
 typecheck. The `v3` directory name is retained; the current wire protocol
-version is 13. The inventory describes:
+version is 14. The inventory describes:
 
-- 100 HTTP routes;
+- 101 HTTP routes;
 - 130 supervisor procedures;
 - 9 client-to-server WebSocket messages; and
 - 11 server-to-client WebSocket messages (including the admission-gated `desktop-event` stream).

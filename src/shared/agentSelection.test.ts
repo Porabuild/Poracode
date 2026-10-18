@@ -64,6 +64,13 @@ describe("agent selection", () => {
     expect(resolveReasoningSelection(gui, "chat-model", "missing")).toBe("high");
   });
 
+  it("does not treat an empty catalog as offering the preferred model", () => {
+    const empty: AgentCapability = { ...capabilities, models: [] };
+    expect(resolveModelSelection(empty, "gpt-5.4")).toBe("");
+    expect(resolveModelSelection(empty)).toBe("");
+    expect(resolveModelSelection(empty, "")).toBe("");
+  });
+
   it("prefers a model's own probed default effort over the provider-wide one", () => {
     const withModelDefaults: AgentCapability = {
       ...capabilities,

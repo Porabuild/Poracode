@@ -1,9 +1,31 @@
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import type { ExecFileOptions } from "node:child_process";
 import { toWslUncPath } from "@/shared/wsl";
 import { setWslStagingService } from "../../wsl/staging";
 import { stageLaunchFiles } from "./launchFiles";
+
+const { execFileAsync } = vi.hoisted(() => ({
+  execFileAsync:
+    vi.fn<
+      (
+        file: string,
+        args: readonly string[],
+        options: ExecFileOptions,
+      ) => Promise<{ stdout: string | Buffer; stderr: string | Buffer }>
+    >(),
+}));
+
+vi.mock("node:child_process", async (importActual) => {
+  const actual = await importActual<typeof import("node:child_process")>();
+  const { promisify } = await import("node:util");
+  execFileAsync.mockImplementation(promisify(actual.execFile));
+  return {
+    ...actual,
+    execFile: Object.assign(vi.fn(), { [promisify.custom]: execFileAsync }),
+  };
+});
 
 const cleanup: (() => void)[] = [];
 afterEach(() => {
@@ -12,6 +34,51 @@ afterEach(() => {
 });
 
 describe("private launch files", () => {
+  it.runIf(process.platform === "win32")(
+    "writes private files only after asynchronous Windows permission setup",
+    async () => {
+      const identity = Promise.withResolvers<{ stdout: string; stderr: string }>();
+      const permissions = Promise.withResolvers<{ stdout: string; stderr: string }>();
+      execFileAsync
+        .mockImplementationOnce(() => identity.promise)
+        .mockImplementationOnce(() => permissions.promise);
+
+      const staging = stageLaunchFiles({ kind: "windows", path: "C:\\repo" }, "permissions", {
+        "config.json": "dummy",
+      });
+      identity.resolve({ stdout: '"test","S-1-5-21-123"', stderr: "" });
+      await vi.waitFor(() =>
+        expect(execFileAsync).toHaveBeenLastCalledWith(
+          expect.stringMatching(/icacls\.exe$/u),
+          expect.any(Array),
+          { windowsHide: true },
+        ),
+      );
+      const directory = (execFileAsync.mock.calls.at(-1)![1] as string[])[0]!;
+      expect(existsSync(join(directory, "config.json"))).toBe(false);
+      permissions.resolve({ stdout: "", stderr: "" });
+      const files = await staging;
+      cleanup.push(() => void files.cleanup());
+      expect(readFileSync(join(files.directory, "config.json"), "utf8")).toBe("dummy");
+    },
+  );
+
+  it.runIf(process.platform === "win32")(
+    "removes the empty directory when Windows permission setup fails",
+    async () => {
+      execFileAsync
+        .mockResolvedValueOnce({ stdout: '"test","S-1-5-21-123"', stderr: "" })
+        .mockRejectedValueOnce(new Error("ACL refused"));
+      await expect(
+        stageLaunchFiles({ kind: "windows", path: "C:\\repo" }, "permissions", {
+          "config.json": "dummy",
+        }),
+      ).rejects.toThrow("ACL refused");
+      const directory = (execFileAsync.mock.calls.at(-1)![1] as string[])[0]!;
+      expect(existsSync(directory)).toBe(false);
+    },
+  );
+
   it("isolates simultaneous launches and removes only its own files", async () => {
     const first = await stageLaunchFiles({ kind: "posix", path: "/project" }, "fixture", {
       "nested/config.json": "secret",

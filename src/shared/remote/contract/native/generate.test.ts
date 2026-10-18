@@ -25,6 +25,7 @@ import {
 import type { JsonSchema, NativeBindingIr } from "./types";
 import { parseNativeBindingIr, supportedPortableSemanticValidatorIds } from "./validate";
 import { zodToJsonSchema } from "../jsonSchema";
+import { emitSwiftBindings } from "./emitSwift";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const generatedDirectory = join(here, "../../../../../protocol/remote/v3/generated/native");
@@ -55,7 +56,7 @@ describe("remote v3 native binding generator", () => {
         formatVersion: 5,
         protocolVersion: 14,
         bindingFormatVersion: 2,
-        generatorVersion: 5,
+        generatorVersion: 6,
         // Optional readonly workspace-grant fields change generated bindings
         // without advertising mutation support or changing wire versions.
         // Selection-binding integration: protocol 13 adds the strict
@@ -70,26 +71,60 @@ describe("remote v3 native binding generator", () => {
         // Optional context-reload facts also add one generated Swift chunk.
         // Optional core PR state preserves the previous details-only result shape.
         // Background task timing, progress and Stop add two structural types.
-        sourceHash: "sha256:21e62dec0869884edd34c38dfe35a0c4daf5281fd6f702f2f1d36c94bc64d668",
-        manifestHash: "sha256:b3285b6161304d74622e21f8cde6ec040c8afe5474e070984246d4d17a5b1f40",
+        // Combine optional question-answer metadata with saved-message search.
+        sourceHash: "sha256:57e1c120cf82456ade179cdfd5334c7958616a6723ca864a1a23a47975cbab3e",
+        manifestHash: "sha256:b39f2d13ae38008996ebf29d325c5b5c703dea7bbd9d0c933eaec9e059ed7490",
         counts: {
-          routes: 100,
+          routes: 101,
           procedures: 130,
           voidProcedureResults: 50,
           jsonProcedureResults: 80,
           webSocketClientVariants: 9,
           // 10 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
           webSocketServerVariants: 11,
-          schemaRoots: 441,
-          structuralTypes: 1033,
+          schemaRoots: 443,
+          structuralTypes: 1042,
           semanticValidators: 22,
-          swiftFiles: 63,
+          swiftFiles: 66,
           kotlinFiles: 56,
           stateMachines: 5,
         },
       });
     },
   );
+
+  it("escapes the authoritative search archived flag Swift enum identifiers", () => {
+    const { ir, manifest } = input();
+    const output = buildNativeBindingOutput(ir, manifest).files;
+    const models = Object.entries(output)
+      .filter(([path]) => path.startsWith("swift/Models"))
+      .map(([, contents]) => contents)
+      .join("\n");
+    const declaration = models.match(
+      /public enum RouteconversationU2DSearchQueryU2DIncludeArchived_[a-f0-9]+: String, Codable, Sendable \{([^}]+)\}/,
+    );
+    expect(declaration?.[1]).toBe('\n  case `true` = "true"\n  case `false` = "false"\n');
+  });
+
+  it("preserves escaped Swift enum member names, wire values and collision suffixes", () => {
+    const { ir, manifest } = input();
+    const graph = buildNativeSchemaGraph([
+      {
+        id: "synthetic.enum-identifiers",
+        preferredName: "EnumIdentifiers",
+        schema: { type: "string", enum: ["normal", "true", "false", "Foo", "foo"] },
+        transport: "test",
+      },
+    ]);
+    const output = emitSwiftBindings(parseNativeBindingIr(ir, manifest), graph);
+    expect(output["Models001.swift"]).toContain(
+      '  case `normal` = "normal"\n' +
+        '  case `true` = "true"\n' +
+        '  case `false` = "false"\n' +
+        '  case `foo` = "Foo"\n' +
+        '  case `foo_2c26b46b` = "foo"',
+    );
+  });
 
   it("ships the background-task reduce and follow-up queue in both native bundles", () => {
     const { ir, manifest } = input();
@@ -323,7 +358,7 @@ describe("remote v3 native binding generator", () => {
       const output = buildNativeBindingOutput(ir, manifest).files;
       for (const language of ["swift", "kotlin"] as const) {
         const adapters = rootAdapters(graph, language);
-        expect(adapters).toHaveLength(441);
+        expect(adapters).toHaveLength(443);
         expect(
           adapters
             .map((adapter) => adapter.id)

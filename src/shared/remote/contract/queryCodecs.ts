@@ -125,6 +125,14 @@ function param(name: string, kind: QueryCodecKind, optional: boolean): QueryPara
 
 /** HTTP route query-parameter codecs, keyed by route id. */
 export const ROUTE_QUERY_CODECS: Readonly<Record<string, readonly QueryParameterCodec[]>> = {
+  "conversation-search": [
+    param("version", "string", false),
+    param("query", "string", false),
+    param("projectId", "string", true),
+    param("includeArchived", "string", true),
+    param("cursor", "string", true),
+    param("limit", "int", true),
+  ],
   "forward-enter": [param("fwt", "string", false)],
   // Gate 6 item 4.6 (S6): the image routes' `<img>` credential is the one-time
   // path-scoped ticket; the raw bearer query parameter is gone from the wire.

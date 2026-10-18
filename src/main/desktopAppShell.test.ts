@@ -13,9 +13,6 @@ const hoisted = vi.hoisted(() => {
       setActive: vi.fn<(active: boolean) => void>(),
       dispose: vi.fn<() => void>(),
     },
-    computerUseWakeLock: {
-      setEnabled: vi.fn<(enabled: boolean) => void>(),
-    },
     hostServices: null as { applyBrowserAllowFlags(settings: SharedSettings): void } | null,
   };
   return {
@@ -139,13 +136,9 @@ describe("desktopAppShell committed settings cache", () => {
   it("applies settings commits and makes unchanged thread-state events no-ops", async () => {
     const shell = await loadShell();
 
-    shell.handleSharedSettingsChanged(
-      settings({ preventSleep: "while-working", computerUseKeepAwake: true }),
-    );
+    shell.handleSharedSettingsChanged(settings({ preventSleep: "while-working" }));
     expect(hoisted.state.sleepInhibitor.setActive).toHaveBeenCalledTimes(1);
     expect(hoisted.state.sleepInhibitor.setActive).toHaveBeenLastCalledWith(false);
-    expect(hoisted.state.computerUseWakeLock.setEnabled).toHaveBeenCalledTimes(1);
-    expect(hoisted.state.computerUseWakeLock.setEnabled).toHaveBeenLastCalledWith(true);
 
     // The first working thread moves the derived value -> one apply.
     shell.applyThreadActivity([activity("t1", true)]);
@@ -156,7 +149,6 @@ describe("desktopAppShell committed settings cache", () => {
     // derived value, so nothing reaches the native surfaces again.
     shell.applyThreadActivity([activity("t2", true), activity("t1", true), activity("t3", false)]);
     expect(hoisted.state.sleepInhibitor.setActive).toHaveBeenCalledTimes(2);
-    expect(hoisted.state.computerUseWakeLock.setEnabled).toHaveBeenCalledTimes(1);
 
     shell.applyThreadActivity([activity("t1", false), activity("t2", false)]);
     expect(hoisted.state.sleepInhibitor.setActive).toHaveBeenCalledTimes(3);
@@ -166,26 +158,19 @@ describe("desktopAppShell committed settings cache", () => {
   it("recalculates the sleep aggregate when a settings commit changes the policy", async () => {
     const shell = await loadShell();
 
-    shell.handleSharedSettingsChanged(
-      settings({ preventSleep: "while-working", computerUseKeepAwake: true }),
-    );
+    shell.handleSharedSettingsChanged(settings({ preventSleep: "while-working" }));
     expect(hoisted.state.sleepInhibitor.setActive).toHaveBeenLastCalledWith(false);
 
-    shell.handleSharedSettingsChanged(
-      settings({ preventSleep: "always", computerUseKeepAwake: false }),
-    );
+    shell.handleSharedSettingsChanged(settings({ preventSleep: "always" }));
     expect(hoisted.state.sleepInhibitor.setActive).toHaveBeenLastCalledWith(true);
-    expect(hoisted.state.computerUseWakeLock.setEnabled).toHaveBeenLastCalledWith(false);
 
     shell.handleSharedSettingsChanged(
       settings({
         preventSleep: "while-remote-access",
         remoteAccessEnabled: false,
-        computerUseKeepAwake: true,
       }),
     );
     expect(hoisted.state.sleepInhibitor.setActive).toHaveBeenLastCalledWith(false);
-    expect(hoisted.state.computerUseWakeLock.setEnabled).toHaveBeenLastCalledWith(true);
 
     shell.handleSharedSettingsChanged(
       settings({ preventSleep: "while-remote-access", remoteAccessEnabled: true }),
@@ -207,7 +192,7 @@ describe("desktopAppShell committed settings cache", () => {
     expect(hoisted.state.sleepInhibitor.setActive).toHaveBeenLastCalledWith(false);
   });
 
-  it("keeps the no-paths (attach) fallback on working threads and the default keep-awake", async () => {
+  it("keeps the no-paths (attach) fallback on working threads", async () => {
     hoisted.state.poracodePaths = null;
     const shell = await loadShell();
     hoisted.state.workingThreads.add("t1");
@@ -216,6 +201,5 @@ describe("desktopAppShell committed settings cache", () => {
 
     expect(hoisted.readSharedSettingsFile).not.toHaveBeenCalled();
     expect(hoisted.state.sleepInhibitor.setActive).toHaveBeenLastCalledWith(true);
-    expect(hoisted.state.computerUseWakeLock.setEnabled).toHaveBeenLastCalledWith(true);
   });
 });

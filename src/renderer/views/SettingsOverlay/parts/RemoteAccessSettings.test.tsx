@@ -101,7 +101,7 @@ describe("RemoteAccessSettings", () => {
       screen.queryByRole("switch", { name: "Prevent sleep during remote access" }),
     ).not.toBeInTheDocument();
     expect(screen.queryByText("Prevent sleep during remote access")).not.toBeInTheDocument();
-    expect(screen.queryByText("Prevent sleep")).not.toBeInTheDocument();
+    expect(screen.queryByText("Prevent system sleep")).not.toBeInTheDocument();
   });
 
   it("switches the displayed endpoint and QR code from Tailscale to LAN", async () => {

@@ -1040,6 +1040,199 @@ describe("ThreadDraftView", () => {
     },
   );
 
+  function draftModel(): string | undefined {
+    const props = composerSpy.mock.lastCall?.[0] as {
+      controls: Array<{ kind?: string; currentModel?: string }>;
+    };
+    return props.controls.find((control) => control.kind === "provider-model")?.currentModel;
+  }
+
+  it("keeps the selected model when a provider update republishes an empty catalog", async () => {
+    useSharedSettings.setState({
+      providerConfigs: {
+        codex: {
+          model: "gpt-5.4-mini",
+          effort: "low",
+          mode: "agent",
+          approvalPolicy: "on-request",
+          sandboxMode: "workspace-write",
+        },
+      },
+    });
+    const emptyCatalog: AgentStatus = {
+      ...codexStatus,
+      capabilities: { ...codexStatus.capabilities, models: [] },
+    };
+    const replacedCatalog: AgentStatus = {
+      ...codexStatus,
+      capabilities: {
+        ...codexStatus.capabilities,
+        models: [{ id: "gpt-5.5", label: "5.5" }],
+      },
+    };
+    const { rerender } = render(
+      <ThreadDraftView project={project} agentStatuses={[codexStatus]} onStart={() => {}} />,
+    );
+
+    await waitFor(() => expect(draftModel()).toBe("gpt-5.4-mini"));
+
+    rerender(
+      <ThreadDraftView project={project} agentStatuses={[emptyCatalog]} onStart={() => {}} />,
+    );
+
+    await waitFor(() => expect(draftModel()).toBe("gpt-5.4-mini"));
+    expect(useSharedSettings.getState().providerConfigs.codex?.model).toBe("gpt-5.4-mini");
+    expect(useSharedSettings.getState().providerConfigs.codex?.effort).toBe("low");
+
+    rerender(
+      <ThreadDraftView project={project} agentStatuses={[codexStatus]} onStart={() => {}} />,
+    );
+
+    await waitFor(() => expect(draftModel()).toBe("gpt-5.4-mini"));
+    expect(useSharedSettings.getState().providerConfigs.codex?.model).toBe("gpt-5.4-mini");
+
+    rerender(
+      <ThreadDraftView project={project} agentStatuses={[replacedCatalog]} onStart={() => {}} />,
+    );
+
+    await waitFor(() => expect(draftModel()).toBe("gpt-5.5"));
+  });
+
+  it("selects the saved model once a provider update publishes its catalog", async () => {
+    useSharedSettings.setState({
+      providerConfigs: {
+        codex: {
+          model: "gpt-5.4-mini",
+          effort: "low",
+          mode: "agent",
+          approvalPolicy: "on-request",
+          sandboxMode: "workspace-write",
+        },
+      },
+    });
+    const emptyCatalog: AgentStatus = {
+      ...codexStatus,
+      capabilities: { ...codexStatus.capabilities, models: [] },
+    };
+    const { rerender } = render(
+      <ThreadDraftView project={project} agentStatuses={[emptyCatalog]} onStart={() => {}} />,
+    );
+
+    await waitFor(() => expect(composerSpy).toHaveBeenCalled());
+    expect(draftModel()).toBe("");
+    expect(useSharedSettings.getState().providerConfigs.codex?.model).toBe("gpt-5.4-mini");
+
+    rerender(
+      <ThreadDraftView project={project} agentStatuses={[codexStatus]} onStart={() => {}} />,
+    );
+
+    await waitFor(() => expect(draftModel()).toBe("gpt-5.4-mini"));
+    expect(useSharedSettings.getState().providerConfigs.codex?.effort).toBe("low");
+  });
+
+  function composerPlanControl() {
+    return (
+      composerSpy.mock.lastCall?.[0] as { controls: ComposerControl[] } | undefined
+    )?.controls.find(
+      (control) =>
+        control.kind === "toggle" && (control.label === "Work" || control.label === "Plan"),
+    );
+  }
+
+  it("keeps the saved model when a plan edit lands during an empty catalog", async () => {
+    useSharedSettings.setState({
+      providerConfigs: {
+        codex: {
+          model: "gpt-5.4-mini",
+          effort: "low",
+          mode: "agent",
+          approvalPolicy: "on-request",
+          sandboxMode: "workspace-write",
+        },
+      },
+      lastPresentationModeByAgent: { codex: "gui" },
+    });
+    const emptyCatalog: AgentStatus = {
+      ...dualModeCodexStatus,
+      capabilities: { ...dualModeCodexStatus.capabilities, models: [] },
+    };
+    const { rerender } = render(
+      <ThreadDraftView project={project} agentStatuses={[emptyCatalog]} onStart={() => {}} />,
+    );
+
+    await waitFor(() => expect(composerPlanControl()?.kind).toBe("toggle"));
+    expect(draftModel()).toBe("");
+    act(() => {
+      const plan = composerPlanControl();
+      if (plan?.kind !== "toggle") throw new Error("Missing Plan control");
+      plan.onChange?.(true);
+    });
+    expect(useSharedSettings.getState().providerConfigs.codex?.model).toBe("gpt-5.4-mini");
+
+    rerender(
+      <ThreadDraftView
+        project={project}
+        agentStatuses={[dualModeCodexStatus]}
+        onStart={() => {}}
+      />,
+    );
+
+    await waitFor(() => expect(draftModel()).toBe("gpt-5.4-mini"));
+    expect(useSharedSettings.getState().providerConfigs.codex?.model).toBe("gpt-5.4-mini");
+    expect(useSharedSettings.getState().providerConfigs.codex?.effort).toBe("low");
+  });
+
+  it("keeps an applied model when a plan edit lands during an empty catalog", async () => {
+    useSharedSettings.setState({
+      providerConfigs: {
+        codex: {
+          model: "gpt-5.4-mini",
+          effort: "low",
+          mode: "agent",
+          approvalPolicy: "on-request",
+          sandboxMode: "workspace-write",
+        },
+      },
+      lastPresentationModeByAgent: { codex: "gui" },
+    });
+    const emptyCatalog: AgentStatus = {
+      ...dualModeCodexStatus,
+      capabilities: { ...dualModeCodexStatus.capabilities, models: [] },
+    };
+    const { rerender } = render(
+      <ThreadDraftView
+        project={project}
+        agentStatuses={[dualModeCodexStatus]}
+        onStart={() => {}}
+      />,
+    );
+
+    await waitFor(() => expect(draftModel()).toBe("gpt-5.4-mini"));
+    rerender(
+      <ThreadDraftView project={project} agentStatuses={[emptyCatalog]} onStart={() => {}} />,
+    );
+    await waitFor(() => expect(composerPlanControl()?.kind).toBe("toggle"));
+    expect(draftModel()).toBe("gpt-5.4-mini");
+    act(() => {
+      const plan = composerPlanControl();
+      if (plan?.kind !== "toggle") throw new Error("Missing Plan control");
+      plan.onChange?.(true);
+    });
+
+    await waitFor(() => expect(draftModel()).toBe("gpt-5.4-mini"));
+    expect(useSharedSettings.getState().providerConfigs.codex?.model).toBe("gpt-5.4-mini");
+    expect(useSharedSettings.getState().providerConfigs.codex?.effort).toBe("low");
+
+    rerender(
+      <ThreadDraftView
+        project={project}
+        agentStatuses={[dualModeCodexStatus]}
+        onStart={() => {}}
+      />,
+    );
+    await waitFor(() => expect(draftModel()).toBe("gpt-5.4-mini"));
+  });
+
   it("reserves the worktree control row for Home drafts", () => {
     const { container } = render(
       <ThreadDraftView project={homeProject} agentStatuses={[codexStatus]} onStart={() => {}} />,

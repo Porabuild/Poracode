@@ -352,12 +352,13 @@ export class ThreadSessionManager {
       failStructuredSession: (session, error) => this.failStructuredSession(session, error),
       isCurrentSession: (session) => this.isCurrentSession(session),
       resolveAgentSettings: (adapter, location) => this.resolveAgentSettings(adapter, location),
-      emitOptimisticUserMessage: (threadId, prompt, segments, requestedItemId) =>
+      emitOptimisticUserMessage: (threadId, prompt, segments, requestedItemId, emitOptions) =>
         this.structuredTurnQueue.emitOptimisticUserMessage(
           threadId,
           prompt,
           segments,
           requestedItemId,
+          emitOptions,
         ),
       emitProviderHandoff: (threadId, fromAgentKind, toAgentKind, requestedItemId) =>
         this.structuredTurnQueue.emitProviderHandoff(
@@ -478,6 +479,7 @@ export class ThreadSessionManager {
       pending.prompt,
       pending.displaySegments ?? pending.segments,
       pending.userMessageItemId,
+      ...(pending.questionAnswer ? ([{ questionAnswer: pending.questionAnswer }] as const) : []),
     );
     const turn: QueuedStructuredTurn = { ...pending, userMessageItemId };
     const admission = this.steerCoordinator.takePendingSteerAdmission(session);
@@ -1227,6 +1229,7 @@ export class ThreadSessionManager {
         ...(effectiveSegments ? { segments: effectiveSegments } : {}),
         ...(payload.segments ? { displaySegments: payload.segments } : {}),
         ...(payload.userMessageItemId ? { userMessageItemId: payload.userMessageItemId } : {}),
+        ...(payload.questionAnswer ? { questionAnswer: payload.questionAnswer } : {}),
         ...(inlineInstructions ? { inlineInstructions } : {}),
         ...(turnContext ? { turnContext } : {}),
       };
@@ -1558,6 +1561,17 @@ export class ThreadSessionManager {
     segments: PromptSegment[] | undefined,
   ): Promise<PromptSegment[] | undefined> {
     if (!segments?.some((segment) => segment.kind === "skill")) return segments;
+    if (
+      !session.nativePlugins?.length &&
+      segments.some((segment) => segment.kind === "skill" && segment.pluginId)
+    ) {
+      const contributions = await this.options.resolvePluginLaunchContributions?.(
+        session.projectLocation,
+        session.agentKind,
+        { includeExternalServers: false, nativePluginAdapter: session.adapter },
+      );
+      if (contributions) session.nativePlugins = contributions.nativePlugins;
+    }
     return (
       (await this.options.filterPluginSkillSegments?.({
         agentKind: session.agentKind,

@@ -826,8 +826,8 @@ msgstr "Zamrożone źródło drzewa roboczego wymaga pełnego skrótu commita"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "A locked screen stops all desktop control, so the display is kept on while a Computer Use session is running. You can still lock the screen yourself."
-msgstr "Zablokowany ekran zatrzymuje całą kontrolę nad pulpitem, dlatego podczas sesji obsługi komputera ekran pozostaje włączony. Nadal możesz zablokować ekran samodzielnie."
+#~ msgid "A locked screen stops all desktop control, so the display is kept on while a Computer Use session is running. You can still lock the screen yourself."
+#~ msgstr "Zablokowany ekran zatrzymuje całą kontrolę nad pulpitem, dlatego podczas sesji obsługi komputera ekran pozostaje włączony. Nadal możesz zablokować ekran samodzielnie."
 
 #: src/renderer/components/thread/ChatPane/ChatPane.tsx
 msgid "A message deletion could not be confirmed. Refresh to resync this conversation."
@@ -878,7 +878,7 @@ msgid "Abort Merge"
 msgstr "Przerwij scalanie"
 
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 msgid "About"
 msgstr "O programie"
 
@@ -1165,6 +1165,7 @@ msgstr "Dodaj projekt"
 msgid "Add project options"
 msgstr "Dodaj opcje projektu"
 
+#: src/renderer/components/providers/settings/ModelProviderManager.tsx
 #: src/renderer/components/providers/settings/ProviderAccountsSection.tsx
 msgid "Add provider"
 msgstr "Dodaj dostawcę"
@@ -1288,6 +1289,7 @@ msgid "Agent not found"
 msgstr "Nie znaleziono agenta"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Agent Registry"
 msgstr "Rejestr agentów"
@@ -1336,6 +1338,7 @@ msgstr "Agent:{subagent}"
 #: src/renderer/components/thread/ThreadDockBubbles.tsx
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 #: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
@@ -1343,6 +1346,7 @@ msgid "Agents"
 msgstr "Agenci"
 
 #: src/renderer/views/SettingsOverlay/parts/AgentsGeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Agents · General"
 msgstr "Agenci · Ogólne"
@@ -1385,8 +1389,7 @@ msgstr "Akcje AI w git"
 #. Settings section: AI helper features (commit messages, thread titles, conflict resolution)
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
-#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
-#: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 msgid "AI Helpers"
 msgstr "Pomocnicy AI"
 
@@ -1395,6 +1398,7 @@ msgstr "Pomocnicy AI"
 msgid "AI judge"
 msgstr "Sędzia AI"
 
+#: src/renderer/components/providers/settings/ModelProvidersSettings.tsx
 #: src/renderer/components/providers/settings/ProviderAccountsSection.tsx
 msgid "AI providers"
 msgstr "Dostawcy AI"
@@ -1536,8 +1540,8 @@ msgid "Already used by {conflict}"
 msgstr "Już używany przez {conflict}"
 
 #. Notification filter: always notify
-#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Always"
 msgstr "Zawsze"
 
@@ -1637,13 +1641,22 @@ msgstr "Wszystkie podagenty działające podczas ponownego ładowania sesji zost
 msgid "Anything currently unavailable — a provider, model, reasoning level, or Fast mode — is skipped automatically. Unchecked providers and models are skipped until re-checked."
 msgstr "Wszystko, co jest obecnie niedostępne — dostawca, model, poziom rozumowania lub tryb Fast — jest automatycznie pomijane. Niezaznaczeni dostawcy i modele są pomijani do ponownego zaznaczenia."
 
+#: src/renderer/components/providers/settings/ModelProviderEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 msgid "API key"
 msgstr "Klucz API"
 
+#: src/renderer/components/providers/settings/ModelProviderManager.tsx
+msgid "API key configured"
+msgstr "Klucz API skonfigurowany"
+
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 msgid "API key required"
 msgstr "Wymagany klucz API"
+
+#: src/renderer/components/providers/settings/ModelProviderEditor.tsx
+msgid "API protocol"
+msgstr "Protokół API"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "API_KEY=value"
@@ -1660,8 +1673,7 @@ msgstr "Przeglądarka aplikacji"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
-#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
-#: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 msgid "Appearance"
 msgstr "Wygląd"
 
@@ -1759,6 +1771,7 @@ msgstr "Archiwizuj wątek"
 msgid "Archive Thread"
 msgstr "Archiwum wątku"
 
+#: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Archived"
 msgstr "Zarchiwizowane"
@@ -1769,8 +1782,7 @@ msgstr "Zarchiwizowano o {archivedTime}"
 
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
-#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
-#: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 msgid "Archived Threads"
 msgstr "Zarchiwizowane wątki"
 
@@ -1872,7 +1884,7 @@ msgid "Attempt {0} · Iteration {1}"
 msgstr "Próba {0} · Iteracja {1}"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 msgid "Audio"
 msgstr "Dźwięk"
 
@@ -1949,6 +1961,10 @@ msgstr "„Automatyczna naprawa” czeka na zakończenie testów i usuwa blokady
 #: src/renderer/components/git/PrAutomationSlider.tsx
 msgid "Auto Merge"
 msgstr "Automatyczne scalanie"
+
+#: src/renderer/components/providers/deepseek/index.tsx
+msgid "Auto Review"
+msgstr "Automatyczna weryfikacja"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
@@ -2160,6 +2176,10 @@ msgstr "Podstawowy rozmiar czcionki dla terminali agentów. Automatycznie zmniej
 msgid "Base font size for the terminal panel. Auto-shrinks in narrow or short panes."
 msgstr "Podstawowy rozmiar czcionki dla panelu terminala. Automatycznie zmniejsza się w wąskich lub niskich panelach."
 
+#: src/renderer/components/providers/settings/ModelProviderEditor.tsx
+msgid "Base URL"
+msgstr "Bazowy URL"
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Bash output"
 msgstr "Dane wyjściowe Basha"
@@ -2359,7 +2379,7 @@ msgstr "Przeglądaj, sprawdzaj i testuj strony w izolowanej przeglądarce wbudow
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 msgid "Browser"
 msgstr "Przeglądarka"
 
@@ -2478,6 +2498,10 @@ msgstr "Omiń zasady ochrony gałęzi"
 msgid "Bypass branch protection rules (admin merge)"
 msgstr "Omiń reguły ochrony gałęzi (scalanie administracyjne)"
 
+#: src/renderer/components/providers/deepseek/index.tsx
+msgid "Bypass Permissions"
+msgstr "Pomijaj uprawnienia"
+
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Cached only"
 #~ msgstr "Tylko z pamięci podręcznej"
@@ -2507,7 +2531,9 @@ msgstr "Nie można użyć tego wyboru modelu w tym interfejsie"
 #: src/renderer/components/common/ConfirmDialog.tsx
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/providers/settings/ModelProviderEditor.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
+#: src/renderer/components/thread/ChatPane/ConversationSearchJump.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadFollowUpEditor.tsx
@@ -2661,7 +2687,7 @@ msgstr "Zmienione pliki"
 #. Link to the list of release notes
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ChangelogSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 msgid "Changelog"
 msgstr "Dziennik zmian"
 
@@ -2865,6 +2891,10 @@ msgstr "Wybierz obraz znajdujący się w folderze projektu."
 #~ msgid "Choose an MCP server configuration file"
 #~ msgstr "Wybierz plik konfiguracji serwera MCP"
 
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+msgid "Choose and order pages from Settings and other sidebar shortcuts."
+msgstr "Wybierz i uporządkuj strony Ustawień oraz pozostałe skróty paska bocznego."
+
 #: src/renderer/actions/experimentActions.ts
 msgid "Choose at least two candidates and enter a prompt."
 msgstr "Wybierz co najmniej dwóch kandydatów i wpisz prompt."
@@ -2943,8 +2973,18 @@ msgstr "Wybierz, co Poracode ma robić z nowymi pull requestami: nic, naprawiać
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Choose when the system and display stay awake. This can delay automatic screen locking."
-msgstr "Wybierz, kiedy system i ekran pozostają aktywne. Może to opóźnić automatyczne blokowanie ekranu."
+#~ msgid "Choose when the system and display stay awake. This can delay automatic screen locking."
+#~ msgstr "Wybierz, kiedy system i ekran pozostają aktywne. Może to opóźnić automatyczne blokowanie ekranu."
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#~ msgid "Choose when the system stays awake. The display can still turn off."
+#~ msgstr "Wybierz, kiedy system ma pozostawać aktywny. Ekran nadal może się wyłączać."
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#~ msgid "Choose when the system stays awake. The display can still turn off. Screen locking is unchanged."
+#~ msgstr "Wybierz, kiedy system ma pozostawać aktywny. Ekran nadal może się wyłączać. Blokada ekranu pozostaje bez zmian."
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -2960,7 +3000,6 @@ msgstr "Wybierz, czy wiadomości czatu wysłane podczas pracy agenta mają stero
 msgid "Choose whether links from Poracode and browser popups stay in Poracode or open externally."
 msgstr "Wybierz, czy linki z Poracode i wyskakujących okienek przeglądarki mają pozostać w Poracode, czy otwierać się na zewnątrz."
 
-#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Choose which shortcuts appear in the sidebar footer."
 msgstr "Wybierz skróty wyświetlane w stopce paska bocznego."
@@ -3131,6 +3170,7 @@ msgstr "Klonowanie…"
 #: src/renderer/components/common/BottomSheet.tsx
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
+#: src/renderer/components/providers/settings/ModelProvidersSettings.tsx
 #: src/renderer/components/skills/SkillViewModal.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
@@ -3791,6 +3831,10 @@ msgstr "Ścieżka pliku konfiguracji (opcjonalnie)"
 msgid "Configuration from a newer Poracode"
 msgstr "Konfiguracja z nowszego Poracode"
 
+#: src/renderer/components/providers/deepseek/DeepSeekProviderSettings.tsx
+msgid "Configure Harness model providers for chat. Changes apply to new or restarted threads."
+msgstr "Skonfiguruj dostawców modeli Harness dla czatu. Zmiany dotyczą nowych lub ponownie uruchomionych wątków."
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Configure the server Poracode will add when supported agents start."
 msgstr "Skonfiguruj serwer, który Poracode doda podczas uruchamiania obsługiwanych agentów."
@@ -4009,7 +4053,7 @@ msgstr "Użycie kontekstu"
 msgid "Context windows"
 msgstr "Okna kontekstu"
 
-#: src/renderer/components/thread/ChatPane/parts/items/MessageReplyForm.tsx
+#: src/renderer/components/thread/ThreadMessageReplyPanel.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
 msgid "Continue"
@@ -4751,6 +4795,10 @@ msgstr "Polecenia niestandardowe dostępne z menu kontekstowego projektu (klikni
 msgid "Custom context window"
 msgstr "Niestandardowe okno kontekstu"
 
+#: src/renderer/components/providers/settings/ModelProviderEditor.tsx
+msgid "Custom endpoint"
+msgstr "Własny punkt końcowy"
+
 #: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
 msgid "custom path"
 msgstr "niestandardowa ścieżka"
@@ -4811,6 +4859,15 @@ msgstr "Odmów"
 msgid "DeepSeek"
 msgstr "DeepSeek"
 
+#: src/renderer/components/providers/deepseek/manifest.ts
+msgid "DeepSeek Harness"
+msgstr "DeepSeek Harness"
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "DeepSeek Harness chat with persistent sessions, reasoning controls, and MCP tools. Configure credentials with dsh web."
+msgstr "Czat DeepSeek Harness z trwałymi sesjami, ustawieniami rozumowania i narzędziami MCP. Skonfiguruj dane uwierzytelniające za pomocą dsh web."
+
+#: src/renderer/components/providers/deepseek/index.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
@@ -5153,7 +5210,7 @@ msgstr "Wykrywanie agentów…"
 
 #. Settings section: developer/debug tools
 #: src/renderer/views/SettingsOverlay/parts/DevSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 msgid "Dev"
 msgstr "Dev"
 
@@ -5447,6 +5504,7 @@ msgstr "Odrzuć ostrzeżenie"
 msgid "dismissed review"
 msgstr "odrzucono recenzję"
 
+#: src/renderer/components/providers/settings/ModelProviderEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Display name"
 msgstr "Nazwa wyświetlana"
@@ -5499,6 +5557,7 @@ msgstr "zrobione"
 
 #. Notification status: thread is done
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
+#: src/renderer/components/providers/settings/ModelProvidersSettings.tsx
 #: src/renderer/components/thread/AgentDiscoveryDoneButton.tsx
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -5660,6 +5719,7 @@ msgstr "Każdy wpis repozytorium musi mieć od 1 do 512 znaków i nie może zawi
 msgid "Earlier text"
 msgstr "Wcześniejszy tekst"
 
+#: src/renderer/components/providers/settings/ModelProviderManager.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
@@ -5984,6 +6044,7 @@ msgid "Enter valid JSON."
 msgstr "Wprowadź prawidłowy JSON."
 
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
+#: src/renderer/components/providers/settings/ModelProvidersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "Environment"
@@ -6887,8 +6948,8 @@ msgstr "Gemini"
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
-#: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
 msgid "General"
 msgstr "Ogólne"
 
@@ -6954,8 +7015,7 @@ msgstr "Pobierz zadanie"
 #: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
-#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
-#: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 msgid "Git"
 msgstr "Git"
 
@@ -7001,7 +7061,6 @@ msgstr "GitHub"
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
-#: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "GitHub Actions"
 msgstr "GitHub Actions"
 
@@ -7490,7 +7549,7 @@ msgstr "Obrazy"
 
 #. Settings section: import existing CLI sessions as threads
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
-#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 msgid "Import"
 msgstr "Import"
 
@@ -7663,6 +7722,10 @@ msgstr "Uwzględnij w synchronizacji"
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Includes the first attempt."
 msgstr "Obejmuje pierwszą próbę."
+
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Indexing saved messages…"
+msgstr "Indeksowanie zapisanych wiadomości…"
 
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Info"
@@ -8110,8 +8173,21 @@ msgstr "Po uruchomieniu przy starcie pozostaw Poracode w zasobniku systemowym."
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Keep the Mac awake during Computer Use"
-msgstr "Nie usypiaj Maca podczas obsługi komputera"
+#~ msgid "Keep the Mac awake during Computer Use"
+#~ msgstr "Nie usypiaj Maca podczas obsługi komputera"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+msgid "Keep the system awake whenever Poracode is running, even in the background. The display can still turn off. Screen locking is unchanged."
+msgstr "Utrzymuj system w stanie aktywnym, gdy Poracode działa, również w tle. Ekran nadal może się wyłączyć. Blokada ekranu pozostaje bez zmian."
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+msgid "Keep the system awake while agents work or remote access is enabled. The display can still turn off. Screen locking is unchanged."
+msgstr "Utrzymuj system w stanie aktywnym, gdy agenci pracują lub dostęp zdalny jest włączony. Ekran nadal może się wyłączyć. Blokada ekranu pozostaje bez zmian."
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Keep the system awake while any agent is working, including Computer Use. The display can still turn off. Screen locking is unchanged."
+msgstr "Utrzymuj system w stanie aktywnym, gdy dowolny agent pracuje, w tym podczas korzystania z Computer Use. Ekran nadal może się wyłączyć. Blokada ekranu pozostaje bez zmian."
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -8252,6 +8328,14 @@ msgstr "Zostaw komentarz"
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Leave blank for no run limit."
 msgstr "Pozostaw puste, aby nie ograniczać liczby uruchomień."
+
+#: src/renderer/components/providers/settings/ModelProviderEditor.tsx
+msgid "Leave blank to keep existing credentials or use environment authentication."
+msgstr "Pozostaw puste, aby zachować istniejące dane logowania lub użyć uwierzytelniania środowiskowego."
+
+#: src/renderer/components/providers/settings/ModelProviderEditor.tsx
+msgid "Leave blank to use the installed model catalog."
+msgstr "Pozostaw puste, aby użyć zainstalowanego katalogu modeli."
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchDialog.tsx
 #~ msgid "Leave empty to use the repository default branch."
@@ -8409,6 +8493,10 @@ msgstr "Ładowanie zadań"
 msgid "Loading marketplace…"
 msgstr "Ładowanie marketplace…"
 
+#: src/renderer/components/thread/ChatPane/ConversationSearchJump.tsx
+msgid "Loading matched message…"
+msgstr "Wczytywanie znalezionej wiadomości…"
+
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorMediaViews.tsx
 msgid "Loading media preview…"
@@ -8485,6 +8573,7 @@ msgid "Loading workflow runs"
 msgstr "Ładowanie uruchomień przepływów pracy"
 
 #: src/renderer/app.tsx
+#: src/renderer/components/providers/settings/ModelProviderManager.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/useHistoryItemDetails.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
@@ -8665,6 +8754,10 @@ msgstr "Zarządzaj hasłami"
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 msgid "Manage plugins"
 msgstr "Zarządzaj wtyczkami"
+
+#: src/renderer/components/providers/settings/ModelProvidersSettings.tsx
+msgid "Manage providers"
+msgstr "Zarządzaj dostawcami"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
 #~ msgid "Manage remote environments"
@@ -8973,8 +9066,8 @@ msgstr "Serwery MCP"
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 #: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "MCP Servers"
 msgstr "Serwery MCP"
 
@@ -9112,9 +9205,17 @@ msgstr "Scalanie jest zablokowane"
 msgid "Message actions"
 msgstr "Akcje wiadomości"
 
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Message search unavailable"
+msgstr "Wyszukiwanie wiadomości jest niedostępne"
+
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
 #~ msgid "Message the remote agent…"
 #~ msgstr "Wiadomość do zdalnego agenta…"
+
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Messages"
+msgstr "Wiadomości"
 
 #: src/renderer/components/thread/ChatPane/ChatPane.tsx
 msgid "Messages could not be loaded."
@@ -9249,6 +9350,10 @@ msgstr "Model dodany do ulubionych"
 msgid "Model id"
 msgstr "Identyfikator modelu"
 
+#: src/renderer/components/providers/settings/ModelProviderEditor.tsx
+msgid "Model IDs, separated by commas"
+msgstr "Identyfikatory modeli oddzielone przecinkami"
+
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Model label"
 msgstr "Etykieta modelu"
@@ -9282,6 +9387,7 @@ msgstr "Użycie modeli"
 #: src/renderer/components/common/ProviderModelMenu/parts/primaryModelRows.ts
 #: src/renderer/components/common/ProviderModelMenu/parts/WindowedProviderModelList.tsx
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Models"
 msgstr "Modele"
@@ -9292,6 +9398,7 @@ msgid "Modes"
 msgstr "Tryby"
 
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/CollapsedThreadRail.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivityHeatmap.tsx
@@ -9870,6 +9977,10 @@ msgstr "Brak zainstalowanych agentów."
 msgid "No AI commits, PRs, or conflict resolutions tracked yet."
 msgstr "Nie zarejestrowano jeszcze żadnych commitów AI, PR ani rozwiązanych konfliktów."
 
+#: src/renderer/components/providers/settings/ModelProviderManager.tsx
+msgid "No API key stored; native authentication may apply."
+msgstr "Brak zapisanego klucza API; może być użyte natywne uwierzytelnianie."
+
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "No archived results."
 msgstr "Brak zarchiwizowanych wyników."
@@ -10211,6 +10322,7 @@ msgstr "Brak podpowiedzi"
 msgid "No providers are being tracked."
 msgstr "Żaden dostawca nie jest śledzony."
 
+#: src/renderer/components/providers/settings/ModelProviderManager.tsx
 #: src/renderer/components/providers/settings/ProviderAccountsSection.tsx
 msgid "No providers connected yet."
 msgstr "Nie połączono jeszcze żadnych dostawców."
@@ -10485,8 +10597,7 @@ msgstr "Nic jeszcze nie zarejestrowano. Pojawi się tutaj w miarę korzystania."
 
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
-#: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 msgid "Notifications"
 msgstr "Powiadomienia"
 
@@ -10618,6 +10729,7 @@ msgstr "Otwórz {label}"
 msgid "Open a new browser tab"
 msgstr "Otwórz nową kartę przeglądarki"
 
+#: src/renderer/views/GlobalTerminalPanel/GlobalTerminalPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/DevTerminalPanel.tsx
 msgid "Open a terminal"
 msgstr "Otwórz terminal"
@@ -11415,7 +11527,7 @@ msgstr "Identyfikatory person są ograniczone do 512 znaków."
 #~ msgid "Persona names are limited to 512 characters."
 #~ msgstr "Nazwy person są ograniczone do 512 znaków."
 
-#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 msgid "Personal"
 msgstr "Osobiste"
 
@@ -11557,8 +11669,8 @@ msgstr "plugin.json wskazuje wersję Agent Plugins nieobsługiwaną przez tę ko
 #: src/renderer/components/composer/MentionPopover.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Plugins"
 msgstr "Wtyczki"
 
@@ -11799,8 +11911,8 @@ msgstr "Naciśnij Spację, aby rozpocząć zmianę kolejności. Użyj strzałek 
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Prevent sleep"
-msgstr "Zapobiegaj zasypianiu"
+#~ msgid "Prevent sleep"
+#~ msgstr "Zapobiegaj zasypianiu"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -11811,6 +11923,11 @@ msgstr "Zapobiegaj zasypianiu"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #~ msgid "Prevent sleep while working"
 #~ msgstr "Zapobiegaj zasypianiu podczas pracy"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Prevent system sleep"
+msgstr "Zapobiegaj uśpieniu systemu"
 
 #. placeholder {0}: att.name
 #: src/renderer/components/composer/AttachmentBar.tsx
@@ -11900,8 +12017,7 @@ msgstr "Produktywność"
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
-#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
-#: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 msgid "Profile"
 msgstr "Profil"
 
@@ -12072,9 +12188,9 @@ msgstr "Udostępniany i zarządzany przez Poracode na potrzeby obsługiwanych ag
 msgid "provider"
 msgstr "dostawca"
 
-#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
-#~ msgid "Provider"
-#~ msgstr "Dostawca"
+#: src/renderer/components/providers/settings/ModelProviderEditor.tsx
+msgid "Provider"
+msgstr "Dostawca"
 
 #: src/renderer/components/thread/ChatPane/parts/MessageList.tsx
 msgid "Provider conversation was not restored"
@@ -12085,16 +12201,27 @@ msgstr "Nie przywrócono rozmowy po stronie dostawcy"
 msgid "Provider has not reported token usage."
 msgstr "Dostawca nie zgłosił użycia tokenów."
 
+#: src/renderer/components/providers/settings/ModelProviderEditor.tsx
+msgid "Provider ID"
+msgstr "Identyfikator dostawcy"
+
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Provider presets"
 msgstr "Predefiniowani dostawcy"
 
+#: src/renderer/components/providers/settings/ModelProviderManager.tsx
+msgid "Provider saved, but its API key could not be stored. Reload and try again."
+msgstr "Dostawca zapisany, ale nie udało się zapisać klucza API. Odśwież i spróbuj ponownie."
+
+#: src/renderer/components/providers/settings/ModelProviderManager.tsx
+msgid "Provider settings changed. Reload before saving."
+msgstr "Ustawienia dostawcy uległy zmianie. Odśwież przed zapisaniem."
+
 #. Settings section: provider usage and quota dashboard
 #: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
-#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
-#: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
 msgid "Provider Usage"
 msgstr "Użycie dostawców"
 
@@ -12203,7 +12330,6 @@ msgstr "Opcje żądania ściągnięcia"
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/sidebarShortcuts.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
-#: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "Pull requests"
 msgstr "Żądania ściągnięcia"
 
@@ -12542,6 +12668,7 @@ msgstr "Odświeżanie statusu uwierzytelnienia {0}."
 msgid "Refreshing {env} {0} authentication status."
 msgstr "Odświeżanie stanu uwierzytelnienia {env} {0}."
 
+#: src/renderer/components/providers/settings/ModelProviderManager.tsx
 #: src/renderer/RendererCrashScreen.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Reload"
@@ -12556,19 +12683,19 @@ msgid "Reload preview"
 msgstr "Odśwież podgląd"
 
 #: src/renderer/components/common/BranchSelector/parts/useBranchList.ts
-#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 msgid "Remote"
 msgstr "Zdalny"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
-msgid "Remote access"
-msgstr "Dostęp zdalny"
+#~ msgid "Remote access"
+#~ msgstr "Dostęp zdalny"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/RemoteAccessSidebarIcon.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 msgid "Remote Access"
 msgstr "Dostęp zdalny"
 
@@ -12591,7 +12718,7 @@ msgstr "Port dostępu zdalnego {occupiedPort} jest już używany. Zatrzymaj drug
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 msgid "Remote Environments"
 msgstr "Środowiska zdalne"
 
@@ -12657,6 +12784,7 @@ msgstr "Zdalny adres URL"
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
+#: src/renderer/components/providers/settings/ModelProviderManager.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredCustomValues.tsx
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
@@ -12804,6 +12932,10 @@ msgstr "Usuń projekt"
 msgid "Remove Project"
 msgstr "Usuń projekt"
 
+#: src/renderer/components/providers/settings/ModelProviderManager.tsx
+msgid "Remove provider"
+msgstr "Usuń dostawcę"
+
 #: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
 msgid "Remove queued follow-up"
 msgstr "Usuń wiadomość z kolejki"
@@ -12833,6 +12965,10 @@ msgstr "Usunąć zapisane dane logowania tego dostawcy? Możesz połączyć go p
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Remove this connection?"
 msgstr "Usunąć to połączenie?"
+
+#: src/renderer/components/providers/settings/ModelProviderManager.tsx
+msgid "Remove this model route? Saved credentials are kept. Existing threads pick up changes when restarted."
+msgstr "Usunąć tę trasę modeli? Zapisane dane logowania zostaną zachowane. Istniejące wątki zastosują zmiany po ponownym uruchomieniu."
 
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Remove worktree?"
@@ -13174,6 +13310,7 @@ msgid "Resume queued follow-ups"
 msgstr "Wznów wiadomości z kolejki"
 
 #: src/renderer/bootstrap.ts
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
@@ -13659,6 +13796,7 @@ msgstr "Nasycenie i jasność"
 #: src/renderer/components/providers/codex/profileSettings.tsx
 #: src/renderer/components/providers/devin/profileSettings.tsx
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ModelProviderEditor.tsx
 #: src/renderer/components/providers/settings/ProviderMcpServersSection.tsx
 #: src/renderer/components/thread/ThreadFollowUpEditor.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
@@ -13746,6 +13884,10 @@ msgstr "Zapisane dane logowania są wspólne dla wszystkich komputerów."
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
 msgid "Saved font"
 msgstr "Zapisana czcionka"
+
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Saved messages, including archived chats"
+msgstr "Zapisane wiadomości, także z zarchiwizowanych czatów"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordRow.tsx
 msgid "Saved password actions"
@@ -13835,7 +13977,6 @@ msgstr "Zaplanowane zadania na tym komputerze"
 #: src/renderer/views/MainView/parts/Sidebar/parts/sidebarShortcuts.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
-#: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "Schedules"
 msgstr "Harmonogramy"
 
@@ -13915,7 +14056,7 @@ msgstr "SDK niezainstalowane"
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 #: src/renderer/views/SettingsOverlay/parts/SearchSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 msgid "Search"
 msgstr "Szukaj"
 
@@ -14072,6 +14213,10 @@ msgstr "Szukaj w tytułach, wiadomościach i folderach"
 msgid "Searching files…"
 msgstr "Wyszukiwanie plików…"
 
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Searching saved messages…"
+msgstr "Wyszukiwanie w zapisanych wiadomościach…"
+
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #~ msgid "Searching..."
 #~ msgstr "Wyszukiwanie..."
@@ -14192,6 +14337,10 @@ msgstr "Wybierz komputer"
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
 msgid "Select model"
 msgstr "Wybierz model"
+
+#: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
+msgid "Select pages to show. Drag or use Alt + ↑ / ↓ to reorder."
+msgstr "Wybierz strony do wyświetlenia. Przeciągnij lub użyj Alt + ↑ / ↓, aby zmienić kolejność."
 
 #: src/renderer/components/thread/ProjectSwitchMenu.tsx
 msgid "Select project"
@@ -14404,7 +14553,7 @@ msgstr "Udostępnia brakującego właściciela {0}"
 #~ msgid "Shell arguments"
 #~ msgstr "Argumenty powłoki"
 
-#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Shortcuts"
 msgstr "Skróty klawiszowe"
@@ -14523,6 +14672,7 @@ msgstr "Pokaż mniej"
 msgid "Show MCP servers from {providerLabel}"
 msgstr "Pokaż serwery MCP z {providerLabel}"
 
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentPromptSection.tsx
@@ -14827,8 +14977,8 @@ msgstr "Plik SKILL.md jest za duży."
 #: src/renderer/views/ProjectSettingsOverlay/parts/SkillsSection.tsx
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/SkillsSettings.tsx
 msgid "Skills"
 msgstr "Umiejętności"
@@ -15380,7 +15530,7 @@ msgstr "Subagenci"
 #~ msgid "Subagents enabled for this thread"
 #~ msgstr "Subagenci włączeni dla tego wątku"
 
-#: src/renderer/components/thread/ChatPane/parts/items/MessageReplyForm.tsx
+#: src/renderer/components/thread/ThreadMessageReplyPanel.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/QuestionRows.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
@@ -15701,13 +15851,16 @@ msgstr "Powiedz dostawcy docelowemu, co ma dalej robić..."
 #: src/renderer/components/plugins/pluginCopy.ts
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/thread/ThreadToolRail.tsx
+#: src/renderer/views/GlobalTerminalPanel/GlobalTerminalPanel.tsx
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
+#: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
-#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/modelSurfaceLabel.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
-#: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
 msgid "Terminal"
 msgstr "Terminal"
 
@@ -16060,6 +16213,14 @@ msgstr "Nie udało się odczytać listy."
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the macOS user"
 msgstr "użytkownika systemu macOS"
+
+#: src/renderer/commands/conversationSearchNavigation.ts
+msgid "The matched conversation could not be opened."
+msgstr "Nie udało się otworzyć znalezionej rozmowy."
+
+#: src/renderer/components/thread/ChatPane/ConversationSearchJump.tsx
+msgid "The matched message is no longer available."
+msgstr "Znaleziona wiadomość nie jest już dostępna."
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "The MCP server configuration is invalid or uses a reserved name."
@@ -16847,7 +17008,8 @@ msgstr "Dok zadań wątku"
 
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/composer/MentionPopover.tsx
-#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/CollapsedThreadRail.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Threads"
 msgstr "Wątki"
@@ -17085,6 +17247,10 @@ msgstr "Typ"
 #~ msgid "Type a command"
 #~ msgstr "Wpisz polecenie"
 
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Type at least two characters to search messages"
+msgstr "Wpisz co najmniej dwa znaki, aby wyszukać wiadomości"
+
 #: src/mobile/views/BrowserView.tsx
 #~ msgid "Type into the page"
 #~ msgstr "Pisz na stronie"
@@ -17197,6 +17363,10 @@ msgstr "Nie udało się wczytać różnic."
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
 msgid "Unable to load downloads."
 msgstr "Nie udało się wczytać pobranych plików."
+
+#: src/renderer/components/providers/settings/ModelProviderManager.tsx
+msgid "Unable to load providers."
+msgstr "Nie można wczytać dostawców."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unable to load remote access pairing."
@@ -17442,6 +17612,10 @@ msgstr "Nie można zaktualizować natywnej konfiguracji MCP. Odśwież i sprawd�
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unable to update network access."
 msgstr "Nie udało się zaktualizować dostępu do sieci."
+
+#: src/renderer/components/providers/settings/ModelProviderManager.tsx
+msgid "Unable to update providers. Check the native configuration for overrides."
+msgstr "Nie można zaktualizować dostawców. Sprawdź nadpisania w konfiguracji natywnej."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unable to update remote access."
@@ -17988,6 +18162,10 @@ msgstr "Użyj ignorowanych plików"
 msgid "Use letters, numbers, dots, dashes, or underscores without spaces."
 msgstr "Użyj liter, cyfr, kropek, łączników lub podkreśleń, bez spacji."
 
+#: src/renderer/components/providers/settings/ModelProviderEditor.tsx
+msgid "Use lowercase letters, numbers, and hyphens."
+msgstr "Użyj małych liter, cyfr i łączników."
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "Use one global folder, or nest worktrees inside each project at .poracode/worktrees."
@@ -18481,7 +18659,7 @@ msgstr "Gdzie tworzona jest rozmowa uruchomienia."
 msgid "Where the terminal panel appears."
 msgstr "Gdzie pojawia się panel terminali."
 
-#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "While working"
 msgstr "Podczas pracy"
 
@@ -18601,6 +18779,10 @@ msgstr "Workflow dodane w .github/workflows pojawią się tutaj."
 msgid "Working"
 msgstr "Pracuje"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
+msgid "Working + remote access"
+msgstr "Praca + dostęp zdalny"
+
 #: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
 msgid "Working for {elapsed}"
 msgstr "Praca przez {elapsed}"
@@ -18614,7 +18796,7 @@ msgid "Working…"
 msgstr "Pracuję…"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
-#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Workspace"
 msgstr "Obszar roboczy"
@@ -18628,7 +18810,7 @@ msgid "Workspace view"
 msgstr "Widok obszaru roboczego"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorkspaceSwitcher.tsx
-#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Workspaces"
 msgstr "Obszary robocze"
@@ -18696,7 +18878,7 @@ msgstr "Drzewo robocze: {worktreeLabel}"
 #: src/renderer/views/ProjectSettingsOverlay/parts/ScriptsSection.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
-#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "Worktrees"
 msgstr "Drzewa robocze"

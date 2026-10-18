@@ -1,6 +1,7 @@
 import { buildWorktreeLocation } from "@/shared/worktree";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
+import { useGlobalTerminalStore } from "@/renderer/state/globalTerminalStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import {
   useSharedSettings,
@@ -34,6 +35,7 @@ function applyTerminalPanel(
     const rightPanelTab = panelStore.rightPanelTab;
     const isSameTerminal =
       store.isOpen &&
+      store.source === "project" &&
       store.activeProjectId === projectId &&
       (store.activeWorktreePath ?? undefined) === worktreePath;
     const terminalIsVisible = compactLayout
@@ -78,6 +80,52 @@ export function openWorktreeTerminal(projectId: string, worktreePath: string): v
 
 export function showTerminalPanel(projectId: string, worktreePath?: string): void {
   applyTerminalPanel(projectId, worktreePath, { toggleCloseIfActive: false });
+}
+
+export function toggleGlobalTerminal(): void {
+  const store = useDevTerminalStore.getState();
+  const panel = usePanelStore.getState();
+  const isBottom = useSharedSettings.getState().terminalPosition === "bottom";
+  if (
+    store.isOpen &&
+    store.source === "global" &&
+    (isBottom || panel.rightPanelTab === "terminal" || panel.rightPanelSplit?.tab === "terminal")
+  ) {
+    hideGlobalTerminal();
+    return;
+  }
+  useGlobalTerminalStore.getState().open();
+  store.openGlobalPanel();
+  if (!isBottom) panel.setRightPanelTab("terminal");
+}
+
+export function hideGlobalTerminal(): void {
+  if (useSharedSettings.getState().terminalPosition === "right") {
+    const panel = usePanelStore.getState();
+    if (panel.rightPanelSplit?.tab === "terminal") {
+      panel.setRightPanelSplit(null);
+    } else if (panel.rightPanelTab === "terminal") {
+      if (panel.rightPanelSplit) {
+        panel.setRightPanelTab(panel.rightPanelSplit.tab);
+        panel.setRightPanelSplit(null);
+      } else {
+        closeAllPanels();
+      }
+    }
+  }
+  useDevTerminalStore.getState().closePanel();
+}
+
+export function closeGlobalTerminalTab(tabId: string): void {
+  const store = useGlobalTerminalStore.getState();
+  if (!store.tabs.some((tab) => tab.id === tabId)) return;
+  store.removeTab(tabId);
+  if (
+    useGlobalTerminalStore.getState().tabs.length === 0 &&
+    useDevTerminalStore.getState().source === "global"
+  ) {
+    hideGlobalTerminal();
+  }
 }
 
 export function runProjectAction(projectId: string, actionId: string, worktreePath?: string): void {

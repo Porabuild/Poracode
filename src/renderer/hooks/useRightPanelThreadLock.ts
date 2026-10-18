@@ -27,7 +27,11 @@ export function syncRightPanelTabToFocusedThread(tab: RightPanelTab): void {
     showGitReviewPanel(thread.projectId, worktreePath);
   } else if (tab === "files" && panel.filesPanelContext !== null && !hasDirtyEditorBuffers()) {
     showFilesPanel(thread.projectId, worktreePath);
-  } else if (tab === "terminal" && useDevTerminalStore.getState().isOpen) {
+  } else if (
+    tab === "terminal" &&
+    useDevTerminalStore.getState().isOpen &&
+    useDevTerminalStore.getState().source === "project"
+  ) {
     useDevTerminalStore.getState().setPanelScope(thread.projectId, worktreePath);
   }
 }
@@ -72,7 +76,7 @@ export function useRightPanelThreadLock(): void {
 
     if (useSharedSettings.getState().terminalPosition !== "bottom") return;
     const terminal = useDevTerminalStore.getState();
-    if (!terminal.isOpen) return;
+    if (!terminal.isOpen || terminal.source === "global") return;
     const targetHasTab = terminal.tabs.some(
       (tab) => tab.projectId === projectId && (tab.worktreePath ?? undefined) === scopedWorktree,
     );

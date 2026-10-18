@@ -103,7 +103,7 @@ describe("settings commit process boundaries", () => {
     await fixture.completion;
     expect(JSON.parse(await readFile(join(root, "settings.json"), "utf8"))).toMatchObject({
       themeMode: "light",
-      $poracodeSettingsVersion: 2,
+      $poracodeSettingsVersion: 3,
       futureField: { retain: true },
     });
     // This is an unknown client outcome, not proof of an exactly-once response or power-loss durability.

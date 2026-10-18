@@ -345,10 +345,16 @@ describe("ThreadSessionManager structured stale-interrupt watchdog", () => {
       { kind: "attachment" as const, path: "/tmp/reference.png", mimeType: "image/png" },
       { kind: "text" as const, content: "redirect with this image" },
     ];
+    const questionAnswer = {
+      questions: [
+        { header: "", question: "Which reference?", selected: [{ label: "Use this image" }] },
+      ],
+    };
     session.pendingSteer = {
       id: "steer-pending",
       stagedAt: 123,
       prompt: "redirect with this image\n\n@/tmp/reference.png",
+      questionAnswer,
       config: { model: `${AGENT_KIND}/model` },
       segments,
     };
@@ -378,6 +384,7 @@ describe("ThreadSessionManager structured stale-interrupt watchdog", () => {
             expect.objectContaining({ kind: "image", path: "/tmp/reference.png" }),
             { kind: "text", text: "redirect with this image" },
           ],
+          questionAnswer,
         },
       },
     });

@@ -1,7 +1,7 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
 public enum ProcedurebeginMcpServerOauthRequestU2DProjectLocationU2DOptionU2D1U2DKind_5465dd986b: String, Codable, Sendable {
-  case windows = "windows"
+  case `windows` = "windows"
 }
 
 public struct ProcedurebeginMcpServerOauthRequestU2DProjectLocationU2DOptionU2D1_010485e0a2: Codable, Sendable, RemoteModelMetadata {
@@ -23,7 +23,7 @@ public struct ProcedurebeginMcpServerOauthRequestU2DProjectLocationU2DOptionU2D1
 }
 
 public enum ProcedurebeginMcpServerOauthRequestU2DProjectLocationU2DOptionU2D2U2DKind_2d8274eae5: String, Codable, Sendable {
-  case wsl = "wsl"
+  case `wsl` = "wsl"
 }
 
 public struct ProcedurebeginMcpServerOauthRequestU2DProjectLocationU2DOptionU2D2_fa41f0033e: Codable, Sendable, RemoteModelMetadata {
@@ -51,7 +51,7 @@ public struct ProcedurebeginMcpServerOauthRequestU2DProjectLocationU2DOptionU2D2
 }
 
 public enum ProcedurebeginMcpServerOauthRequestU2DProjectLocationU2DOptionU2D3U2DKind_835d30ad47: String, Codable, Sendable {
-  case posix = "posix"
+  case `posix` = "posix"
 }
 
 public struct ProcedurebeginMcpServerOauthRequestU2DProjectLocationU2DOptionU2D3_5f1cf4ab23: Codable, Sendable, RemoteModelMetadata {
@@ -109,7 +109,7 @@ public typealias ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOpti
 public typealias ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DEnv_c3ac213986 = [String: ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b]
 
 public enum ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DType_01f71c4e26: String, Codable, Sendable {
-  case stdio = "stdio"
+  case `stdio` = "stdio"
 }
 
 public struct ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1_83c7c01b40: Codable, Sendable, RemoteModelMetadata {
@@ -137,7 +137,7 @@ public struct ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU
 }
 
 public enum ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D2U2DType_4f84b56b06: String, Codable, Sendable {
-  case http = "http"
+  case `http` = "http"
 }
 
 public struct ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D2_de00765ac7: Codable, Sendable, RemoteModelMetadata {
@@ -159,7 +159,7 @@ public struct ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU
 }
 
 public enum ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D3U2DType_3120d80990: String, Codable, Sendable {
-  case sse = "sse"
+  case `sse` = "sse"
 }
 
 public struct ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D3_f9b76467f6: Codable, Sendable, RemoteModelMetadata {
@@ -258,7 +258,7 @@ public struct ProcedurebeginMcpServerOauthRequest_338293a42e: Codable, Sendable,
 }
 
 public enum ProcedurebeginMcpServerOauthResultU2DOptionU2D1U2DStatus_32773ce589: String, Codable, Sendable {
-  case authorized = "authorized"
+  case `authorized` = "authorized"
 }
 
 public struct ProcedurebeginMcpServerOauthResultU2DOptionU2D1_47fd370c6d: Codable, Sendable, RemoteModelMetadata {
@@ -274,7 +274,7 @@ public struct ProcedurebeginMcpServerOauthResultU2DOptionU2D1_47fd370c6d: Codabl
 }
 
 public enum ProcedurebeginMcpServerOauthResultU2DOptionU2D2U2DStatus_bd96f28e94: String, Codable, Sendable {
-  case redirect = "redirect"
+  case `redirect` = "redirect"
 }
 
 public struct ProcedurebeginMcpServerOauthResultU2DOptionU2D2_89a32138dc: Codable, Sendable, RemoteModelMetadata {
@@ -296,7 +296,7 @@ public struct ProcedurebeginMcpServerOauthResultU2DOptionU2D2_89a32138dc: Codabl
 }
 
 public enum ProcedurebeginMcpServerOauthResultU2DOptionU2D3U2DStatus_c086073e61: String, Codable, Sendable {
-  case error = "error"
+  case `error` = "error"
 }
 
 public struct ProcedurebeginMcpServerOauthResultU2DOptionU2D3_43639d56ca: Codable, Sendable, RemoteModelMetadata {
@@ -359,8 +359,8 @@ public struct ProcedurebrowseHostDirectoryRequest_d2ec5bf10f: Codable, Sendable,
 }
 
 public enum ProcedurebrowseHostDirectoryResultU2DEntriesU2DItemU2DType_8d3732b59a: String, Codable, Sendable {
-  case file = "file"
-  case directory = "directory"
+  case `file` = "file"
+  case `directory` = "directory"
 }
 
 public struct ProcedurebrowseHostDirectoryResultU2DEntriesU2DItem_d0ecd43b5f: Codable, Sendable, RemoteModelMetadata {
@@ -435,5 +435,5 @@ public struct ProcedureclearMcpServerOauthRequest_db8efd22aa: Codable, Sendable,
 }
 
 public enum ProcedurecloneRepoRequestU2DSourceU2DOptionU2D1U2DKind_3cd19b85f5: String, Codable, Sendable {
-  case url = "url"
+  case `url` = "url"
 }

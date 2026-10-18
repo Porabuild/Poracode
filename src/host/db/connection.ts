@@ -8,6 +8,11 @@ import {
   runDatabaseMigrations,
 } from "./migrations";
 import { assertThreadWorkspaceGrantsPreflight } from "./threadWorkspaceGrantsSchema56";
+import {
+  assertConversationSearchReady,
+  ensureConversationSearchGeneration,
+  preflightConversationSearchGeneration,
+} from "./conversationSearchSchema";
 
 let _sqlite: InstanceType<typeof Database> | undefined;
 
@@ -69,10 +74,12 @@ export function initReadOnlyDatabase(dbPath: string): void {
     fileMustExist: true,
   });
   try {
+    preflightConversationSearchGeneration(sqlite);
     sqlite.pragma("query_only = ON");
     sqlite.pragma("busy_timeout = 250");
     assertRequiredDatabaseSchema(sqlite);
     assertSupportedDatabaseSchemaVersion(readStoredSchemaVersion(sqlite));
+    assertConversationSearchReady(sqlite);
     _sqlite = sqlite;
   } catch (error) {
     sqlite.close();
@@ -86,6 +93,17 @@ export function initDatabase(
 ) {
   console.log(`[db] opening ${dbPath}`);
   const sqlite = openDatabase(dbPath);
+  try {
+    preflightConversationSearchGeneration(sqlite);
+    if (options.schemaMode === "validate") {
+      assertRequiredDatabaseSchema(sqlite);
+      assertSupportedDatabaseSchemaVersion(readStoredSchemaVersion(sqlite));
+      assertConversationSearchReady(sqlite);
+    }
+  } catch (error) {
+    sqlite.close();
+    throw error;
+  }
   sqlite.pragma("journal_mode = WAL");
   sqlite.pragma("synchronous = NORMAL");
   sqlite.pragma("foreign_keys = ON");
@@ -99,11 +117,10 @@ export function initDatabase(
   // Read-then-write transactions use BEGIN IMMEDIATE to reserve SQLite's
   // single writer before taking a snapshot.
 
+  const previousSqlite = _sqlite;
   _sqlite = sqlite;
 
   if (options.schemaMode === "validate") {
-    assertRequiredDatabaseSchema(sqlite);
-    assertSupportedDatabaseSchemaVersion(readStoredSchemaVersion(sqlite));
     console.log("[db] validated");
     return sqlite;
   }
@@ -312,6 +329,13 @@ export function initDatabase(
   runDatabaseMigrations(sqlite, storedVersion);
   repairSafeSchemaDrift(sqlite);
   assertRequiredDatabaseSchema(sqlite);
+  try {
+    ensureConversationSearchGeneration(sqlite);
+  } catch (error) {
+    sqlite.close();
+    _sqlite = previousSqlite;
+    throw error;
+  }
 
   // Bound the durable usage log: drop events older than the retention window so
   // a long-lived install can't accumulate unboundedly (aggregation reads scan

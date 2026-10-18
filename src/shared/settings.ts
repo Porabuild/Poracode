@@ -259,7 +259,11 @@ export const DEFAULT_USAGE_DISABLED_PROVIDER_IDS = allUsageProviderDescriptors()
   .filter((id) => !DEFAULT_USAGE_ENABLED_PROVIDER_ID_SET.has(id));
 
 export const SIDEBAR_SHORTCUT_IDS = ["pullRequests", "githubActions", "schedules"] as const;
-export type SidebarShortcutId = (typeof SIDEBAR_SHORTCUT_IDS)[number];
+const sidebarShortcutIdSchema = z.union([
+  z.enum(SIDEBAR_SHORTCUT_IDS),
+  z.templateLiteral(["settings:", z.string().min(1)]),
+]);
+export type SidebarShortcutId = z.infer<typeof sidebarShortcutIdSchema>;
 
 export const THREAD_DOCK_KINDS = ["goal", "plan", "agents", "backgroundTasks", "images"] as const;
 export type ThreadDockKind = (typeof THREAD_DOCK_KINDS)[number];
@@ -473,13 +477,6 @@ export const sharedSettingsSchema = z.object({
    * - "always": keep the machine awake whenever the app is running
    */
   preventSleep: z.enum(["while-working", "while-remote-access", "always"]),
-  /**
-   * Keep the display awake while a computer-use session is active. A locked
-   * desktop exposes no window content or controls to any automation route, so
-   * the idle lock would silently end an unattended session; holding the display
-   * awake is the only way to let one run through. Manual locking still works.
-   */
-  computerUseKeepAwake: z.boolean(),
   /** Register Poracode to launch automatically when the user signs in to Windows. */
   launchAtStartup: z.boolean(),
   /** Keep the main window hidden when Poracode is launched automatically at sign-in. */
@@ -521,9 +518,9 @@ export const sharedSettingsSchema = z.object({
   /** Show the projectless Home scope for OS-level agent sessions. */
   homeScopeEnabled: z.boolean(),
   /** Footer shortcuts hidden from both the expanded and collapsed sidebar. */
-  sidebarHiddenShortcuts: z.array(z.enum(SIDEBAR_SHORTCUT_IDS)),
+  sidebarHiddenShortcuts: z.array(sidebarShortcutIdSchema),
   /** Display order for shortcuts in the expanded and collapsed sidebar footer. */
-  sidebarShortcutOrder: z.array(z.enum(SIDEBAR_SHORTCUT_IDS)),
+  sidebarShortcutOrder: z.array(sidebarShortcutIdSchema),
   /**
    * Translucent ("liquid glass") sidebar. When on, the window uses a
    * native blur material where supported (macOS vibrancy, Windows 11 acrylic)
@@ -826,7 +823,6 @@ export const defaultSharedSettings: SharedSettings = {
   guiChatFontSize: 13,
   terminalPanelFontSize: 12,
   preventSleep: "while-remote-access",
-  computerUseKeepAwake: true,
   launchAtStartup: true,
   startMinimized: true,
   closeToTray: true,
@@ -1651,6 +1647,8 @@ export function migrateSharedSettingsValues(
   const hasAutomationMode = prAutomationModeSchema.safeParse(source.prAutomationDefault).success;
   const legacyAutomationMode =
     source.prAutoMergeDefault === true ? "merge" : source.prWatchDefault === true ? "fix" : "off";
+  // The removed computerUseKeepAwake field is ignored by schema normalization;
+  // older files remain valid and computer use follows the shared sleep policy.
   // Unversioned settings file: migrate the two legacy sleep booleans into
   // the single `preventSleep` enum. An explicit valid value always wins.
   const hasPreventSleep = sharedSettingsSchema.shape.preventSleep.safeParse(

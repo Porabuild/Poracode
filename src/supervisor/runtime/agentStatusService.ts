@@ -151,7 +151,10 @@ const execFileAsync = promisify(execFile);
 // v62 refreshes Windows update policies shared by execution and command previews.
 // v63 re-probes native ACP model and effort controls previously discarded by normalization.
 // v64 refreshes model sub-provider grouping for newly recognized third-party families.
-export const STATUS_CACHE_VERSION = 64;
+// v65 refreshes the built-in provider inventory after adding DeepSeek Harness.
+// v66 refreshes the three distinct approval/sandbox postures.
+// v67 refreshes native Auto Review permissions and their default.
+export const STATUS_CACHE_VERSION = 67;
 const WSL_AGENT_DETECTION_TIMEOUT_MS = 60_000;
 const WSL_LXSS_REGISTRY_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss";
 

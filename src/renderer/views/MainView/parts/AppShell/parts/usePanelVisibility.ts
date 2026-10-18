@@ -16,6 +16,7 @@ import { useFocusedThreadId } from "@/renderer/hooks/uiSelectors";
  */
 export function useBottomTerminalVisible(): boolean {
   const devTerminalOpen = useDevTerminalStore((s) => s.isOpen);
+  const globalTerminal = useDevTerminalStore((s) => s.source === "global");
   const devTerminalExplicitlyOpened = useDevTerminalStore((s) => s.explicitlyOpened);
   const rightPanelFollowsThread = usePanelStore((s) => s.rightPanelFollowsThread);
   const currentThreadId = useFocusedThreadId();
@@ -39,7 +40,8 @@ export function useBottomTerminalVisible(): boolean {
 
   return (
     devTerminalOpen &&
-    (!rightPanelFollowsThread ||
+    (globalTerminal ||
+      !rightPanelFollowsThread ||
       devTerminalExplicitlyOpened ||
       (currentThreadId !== null && activeTerminalScopeHasTabs))
   );

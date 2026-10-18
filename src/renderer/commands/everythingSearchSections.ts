@@ -11,9 +11,11 @@ import { formatCommandShortcut } from "./keybindingMatcher";
 import type { KeybindingEntry } from "@/shared/keybindings";
 import type { AppCommand } from "./registry";
 import type { EverythingSearchCategory } from "./everythingSearch";
+import type { ConversationSearchHit } from "./useConversationSearch";
 
 export type EverythingSearchResult = (
   | { kind: "thread"; thread: Thread; project: Project | undefined }
+  | { kind: "message"; hit: ConversationSearchHit }
   | {
       kind: "command" | "action";
       command: AppCommand;
@@ -33,7 +35,14 @@ export interface EverythingSearchSection {
   total: number;
 }
 
-const ALL_LIMITS = { threads: 5, actions: 4, commands: 5, settings: 5, files: 8 } as const;
+const ALL_LIMITS = {
+  threads: 5,
+  messages: 5,
+  actions: 4,
+  commands: 5,
+  settings: 5,
+  files: 8,
+} as const;
 export const CATEGORY_RESULT_LIMIT = 200;
 
 export function buildEverythingSearchSections(input: {
@@ -41,11 +50,14 @@ export function buildEverythingSearchSections(input: {
   query: string;
   projects: ReadonlyMap<string, Project>;
   threads: RankedSearchMatch<Thread>[];
+  messages?: ConversationSearchHit[];
   commands: RankedSearchMatch<AppCommand>[];
   actions: RankedSearchMatch<AppCommand>[];
   settings: SettingsSearchResult[];
   files: ProjectTreeEntry[];
-  labels: Record<Exclude<EverythingSearchCategory, "all">, string>;
+  labels: Record<Exclude<EverythingSearchCategory, "all" | "messages">, string> & {
+    messages?: string;
+  };
   resolve: (value: string | MessageDescriptor) => string;
   keybindings: readonly KeybindingEntry[];
 }): EverythingSearchSection[] {
@@ -62,11 +74,16 @@ export function buildEverythingSearchSections(input: {
         key: `more:${category}`,
         kind: "more",
         category,
-        label: input.labels[category],
+        label: input.labels[category] ?? input.labels.threads,
         score: 0,
       });
     }
-    return { category, label: input.labels[category], results, total: items.length };
+    return {
+      category,
+      label: input.labels[category] ?? input.labels.threads,
+      results,
+      total: items.length,
+    };
   }
   function command(
     match: RankedSearchMatch<AppCommand>,
@@ -83,6 +100,16 @@ export function buildEverythingSearchSections(input: {
     };
   }
   const sections = [
+    ...(input.messages?.length || input.category === "messages"
+      ? [
+          buildSection("messages", input.messages ?? [], (hit) => ({
+            key: `message:${hit.key}`,
+            kind: "message",
+            hit,
+            score: 100,
+          })),
+        ]
+      : []),
     buildSection("threads", input.threads, ({ item: thread, score }) => ({
       key: `thread:${thread.id}`,
       kind: "thread",
