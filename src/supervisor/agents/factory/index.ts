@@ -1,4 +1,5 @@
 import { createAcpStructuredSession } from "../acp";
+import { AcpStructuredSession } from "../acp/session";
 import type { AgentInstanceConfig } from "@/shared/contracts";
 import { createAcpGenericAdapter } from "../acp-generic";
 import {
@@ -23,12 +24,23 @@ import {
 import { attachFactorySubagentTranscripts } from "./subagentTranscripts";
 
 export function createFactoryAcpRegistryAdapter(instance: AgentInstanceConfig): AgentAdapter {
-  return createAcpGenericAdapter(instance, {
+  const adapter = createAcpGenericAdapter(instance, {
     normalizeProbeResult: (result) => ({
       ...result,
       ...(result.models ? { models: normalizeFactoryModels(result.models) } : {}),
     }),
   });
+  const createSession = adapter.createStructuredSession!;
+  return {
+    ...adapter,
+    async createStructuredSession(input) {
+      const session = await createSession(input);
+      if (session instanceof AcpStructuredSession) {
+        attachFactorySubagentTranscripts(session, input.projectLocation);
+      }
+      return session;
+    },
+  };
 }
 
 export function createFactoryAdapter(): AgentAdapter {

@@ -2,6 +2,7 @@ import type { AuthMethod } from "@agentclientprotocol/sdk";
 import { describe, expect, it, vi } from "vitest";
 import type { ProjectLocation } from "@/shared/contracts";
 import { createAcpStructuredSession, type AcpProbeResult } from "../acp";
+import { AcpStructuredSession, type AcpExternalSessionUpdateSource } from "../acp/session";
 import { buildAgentRegistry } from "../registry";
 import {
   buildFactoryCommand,
@@ -11,7 +12,7 @@ import {
   factoryDetectionSpec,
   normalizeFactoryModels,
 } from "./detection";
-import { createFactoryAdapter } from "./index";
+import { createFactoryAcpRegistryAdapter, createFactoryAdapter } from "./index";
 
 const probeAcpCapabilitiesMock = vi.hoisted(() =>
   vi.fn<(...args: unknown[]) => Promise<AcpProbeResult | undefined>>(),
@@ -178,6 +179,43 @@ describe("Factory Droid detection", () => {
 });
 
 describe("Factory Droid adapter", () => {
+  it.each(["builtin", "registry"])(
+    "attaches child transcript support to the %s ACP session",
+    async (kind) => {
+      const attachExternalSessionUpdateSource =
+        vi.fn<(source: AcpExternalSessionUpdateSource) => void>();
+      const session = Object.assign(
+        Object.create(AcpStructuredSession.prototype) as AcpStructuredSession,
+        {
+          attachExternalSessionUpdateSource,
+        },
+      );
+      vi.mocked(createAcpStructuredSession).mockReturnValueOnce(session);
+      const adapter =
+        kind === "builtin"
+          ? createFactoryAdapter()
+          : createFactoryAcpRegistryAdapter({
+              id: "factory-droid",
+              driver: "acp-generic",
+              config: { binary: "droid", args: ["exec", "--output-format", "acp"] },
+            });
+      expect(
+        await adapter.createStructuredSession?.({
+          threadId: "thread-1",
+          projectLocation: { kind: "windows", path: "C:\\repo" },
+          config: { model: "auto" },
+        }),
+      ).toBe(session);
+      expect(attachExternalSessionUpdateSource).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({
+          onSessionUpdate: expect.any(Function),
+          dispose: expect.any(Function),
+        }),
+      );
+      attachExternalSessionUpdateSource.mock.calls[0]![0].dispose();
+    },
+  );
+
   it("owns Factory skills and projects canonical skills into Droid's native root", () => {
     expect(createFactoryAdapter().skillSupport).toMatchObject({
       roots: [
