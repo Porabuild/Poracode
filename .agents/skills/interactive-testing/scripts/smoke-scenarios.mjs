@@ -77,6 +77,7 @@ export const functionalAreas = [
       /agents\/devin\//i,
       /agents\/commandcode\//i,
       /agents\/deepseek\//i,
+      /modelProviders/i,
       /providers?\//i,
       /agents\/registry/i,
       /agentRegistry/i,

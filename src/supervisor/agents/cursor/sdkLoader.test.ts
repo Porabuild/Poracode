@@ -15,7 +15,7 @@ import type { CursorSdkLoadOptions } from "./sdkPackageDiscovery";
 const TEST_PLATFORM: NodeJS.Platform = "linux";
 const TEST_ARCH = "x64";
 const TEST_HELPER = "@cursor/sdk-linux-x64";
-const TEST_SDK_VERSION = "1.0.37";
+const TEST_SDK_VERSION = "1.0.38";
 const createdDirectories: string[] = [];
 
 interface FakePackageOptions {
@@ -414,7 +414,7 @@ describe("loadCursorSdk compatibility checks", () => {
     });
   });
 
-  it.each(["1.0.23", "1.0.31", "1.0.36"])("rejects pre-upgrade SDK %s", async (version) => {
+  it.each(["1.0.23", "1.0.31", "1.0.37"])("rejects pre-upgrade SDK %s", async (version) => {
     const fake = await makeFakePackage({ version, helperVersion: version });
     const result = await loadCursorSdk(baseOptions({ configuredPath: fake.packageRoot }));
 
@@ -422,11 +422,11 @@ describe("loadCursorSdk compatibility checks", () => {
       ok: false,
       diagnostic: {
         code: "version_incompatible",
-        message: `Cursor SDK ${version} is not compatible with this integration; install version 1.0.37 or later in the stable 1.x series.`,
+        message: `Cursor SDK ${version} is not compatible with this integration; install version 1.0.38 or later in the stable 1.x series.`,
         recoverable: true,
         details: {
           detectedVersion: version,
-          supportedRange: ">=1.0.37 <2.0.0",
+          supportedRange: ">=1.0.38 <2.0.0",
         },
       },
     });
@@ -563,11 +563,11 @@ describe("Cursor SDK version and runtime diagnostics", () => {
   it("accepts audited stable 1.x releases and rejects older, prerelease, and other majors", () => {
     expect(isSupportedCursorSdkVersion("1.0.23")).toBe(false);
     expect(isSupportedCursorSdkVersion("1.0.31")).toBe(false);
-    expect(isSupportedCursorSdkVersion("1.0.36")).toBe(false);
-    expect(isSupportedCursorSdkVersion("1.0.37")).toBe(true);
+    expect(isSupportedCursorSdkVersion("1.0.37")).toBe(false);
+    expect(isSupportedCursorSdkVersion("1.0.38")).toBe(true);
     expect(isSupportedCursorSdkVersion("1.1.0")).toBe(true);
     expect(isSupportedCursorSdkVersion("1.99.4")).toBe(true);
-    expect(isSupportedCursorSdkVersion("1.0.37-beta.1")).toBe(false);
+    expect(isSupportedCursorSdkVersion("1.0.38-beta.1")).toBe(false);
     expect(isSupportedCursorSdkVersion("0.99.0")).toBe(false);
     expect(isSupportedCursorSdkVersion("2.0.0")).toBe(false);
   });

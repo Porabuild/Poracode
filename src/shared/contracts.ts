@@ -34,4 +34,5 @@ export * from "./contracts/computerUse";
 export * from "./contracts/nativeMcpSetup";
 
 export * from "./contracts/agentCredentials";
+export * from "./contracts/modelProviders";
 export * from "./contracts/agentPlugins";

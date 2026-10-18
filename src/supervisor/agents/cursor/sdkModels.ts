@@ -28,6 +28,13 @@ export interface CursorSdkModel {
 export interface CursorSdkModelSelection {
   id: string;
   params?: Array<{ id: string; value: string }>;
+  /**
+   * Forwarded by SDK 1.0.38+ into the local request as Max Mode. The worker
+   * sets it from the live catalog when the selected context exceeds the
+   * model's standard window; releases without the field are rejected at load
+   * time.
+   */
+  maxMode?: boolean;
 }
 
 const SAFE_PARAM_TOKEN = /^[^,[\]=]+$/u;

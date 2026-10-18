@@ -1165,6 +1165,7 @@ msgstr "Proje Ekle"
 msgid "Add project options"
 msgstr "Proje seçeneklerini ekle"
 
+#: src/renderer/components/providers/settings/ModelProviderManager.tsx
 #: src/renderer/components/providers/settings/ProviderAccountsSection.tsx
 msgid "Add provider"
 msgstr "Sağlayıcı ekle"
@@ -1397,6 +1398,7 @@ msgstr "Yapay Zeka Yardımcıları"
 msgid "AI judge"
 msgstr "Yapay zeka hakemi"
 
+#: src/renderer/components/providers/settings/ModelProvidersSettings.tsx
 #: src/renderer/components/providers/settings/ProviderAccountsSection.tsx
 msgid "AI providers"
 msgstr "Yapay zeka sağlayıcıları"
@@ -1639,13 +1641,22 @@ msgstr "Oturum yeniden yüklendiğinde hâlâ çalışan tüm alt ajanlar durdur
 msgid "Anything currently unavailable — a provider, model, reasoning level, or Fast mode — is skipped automatically. Unchecked providers and models are skipped until re-checked."
 msgstr "Şu anda kullanılamayan her şey — bir sağlayıcı, model, akıl yürütme düzeyi veya Fast modu — otomatik olarak atlanır. İşaretlenmemiş sağlayıcılar ve modeller yeniden işaretlenene kadar atlanır."
 
+#: src/renderer/components/providers/settings/ModelProviderEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 msgid "API key"
 msgstr "API anahtarı"
 
+#: src/renderer/components/providers/settings/ModelProviderManager.tsx
+msgid "API key configured"
+msgstr "API anahtarı yapılandırıldı"
+
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 msgid "API key required"
 msgstr "API anahtarı gerekli"
+
+#: src/renderer/components/providers/settings/ModelProviderEditor.tsx
+msgid "API protocol"
+msgstr "API protokolü"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "API_KEY=value"
@@ -1951,6 +1962,10 @@ msgstr "“Otomatik düzelt” kontrollerin tamamlanmasını bekler ve birleşti
 msgid "Auto Merge"
 msgstr "Otomatik birleştir"
 
+#: src/renderer/components/providers/deepseek/index.tsx
+msgid "Auto Review"
+msgstr "Otomatik İnceleme"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Auto-archive done threads after"
@@ -2160,6 +2175,10 @@ msgstr "Aracı terminalleri için temel yazı tipi boyutu. Dar veya kısa bölme
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Base font size for the terminal panel. Auto-shrinks in narrow or short panes."
 msgstr "Terminal paneli için temel yazı tipi boyutu. Dar veya kısa bölmelerde otomatik olarak küçülür."
+
+#: src/renderer/components/providers/settings/ModelProviderEditor.tsx
+msgid "Base URL"
+msgstr "Temel URL"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Bash output"
@@ -2479,6 +2498,10 @@ msgstr "Dal koruma kurallarını atla"
 msgid "Bypass branch protection rules (admin merge)"
 msgstr "Şube koruma kurallarını atla (yönetici birleştirme)"
 
+#: src/renderer/components/providers/deepseek/index.tsx
+msgid "Bypass Permissions"
+msgstr "İzinleri atla"
+
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Cached only"
 #~ msgstr "Yalnızca önbellekte"
@@ -2508,6 +2531,7 @@ msgstr "Bu model seçimi bu arayüzde kullanılamaz"
 #: src/renderer/components/common/ConfirmDialog.tsx
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/providers/settings/ModelProviderEditor.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/components/thread/ChatPane/ConversationSearchJump.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
@@ -3146,6 +3170,7 @@ msgstr "Klonlanıyor…"
 #: src/renderer/components/common/BottomSheet.tsx
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
+#: src/renderer/components/providers/settings/ModelProvidersSettings.tsx
 #: src/renderer/components/skills/SkillViewModal.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
@@ -3805,6 +3830,10 @@ msgstr "Yapılandırma dosyası yolu (isteğe bağlı)"
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Configuration from a newer Poracode"
 msgstr "Daha yeni bir Poracode'tan yapılandırma"
+
+#: src/renderer/components/providers/deepseek/DeepSeekProviderSettings.tsx
+msgid "Configure Harness model providers for chat. Changes apply to new or restarted threads."
+msgstr "Sohbet için Harness model sağlayıcılarını yapılandırın. Değişiklikler yeni veya yeniden başlatılan konuşmalara uygulanır."
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Configure the server Poracode will add when supported agents start."
@@ -4766,6 +4795,10 @@ msgstr "Proje içerik menüsünden erişilebilen özel komutlar (sağ tıklama).
 msgid "Custom context window"
 msgstr "Özel bağlam penceresi"
 
+#: src/renderer/components/providers/settings/ModelProviderEditor.tsx
+msgid "Custom endpoint"
+msgstr "Özel uç nokta"
+
 #: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
 msgid "custom path"
 msgstr "özel yol"
@@ -4834,6 +4867,7 @@ msgstr "DeepSeek Harness"
 msgid "DeepSeek Harness chat with persistent sessions, reasoning controls, and MCP tools. Configure credentials with dsh web."
 msgstr "Kalıcı oturumlar, akıl yürütme ayarları ve MCP araçlarıyla DeepSeek Harness sohbeti. Kimlik bilgilerini dsh web ile yapılandırın."
 
+#: src/renderer/components/providers/deepseek/index.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
@@ -5470,6 +5504,7 @@ msgstr "Uyarıyı kapat"
 msgid "dismissed review"
 msgstr "reddedilen inceleme"
 
+#: src/renderer/components/providers/settings/ModelProviderEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Display name"
 msgstr "Görünen ad"
@@ -5522,6 +5557,7 @@ msgstr "bitti"
 
 #. Notification status: thread is done
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
+#: src/renderer/components/providers/settings/ModelProvidersSettings.tsx
 #: src/renderer/components/thread/AgentDiscoveryDoneButton.tsx
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -5683,6 +5719,7 @@ msgstr "Her depo girdisi 1–512 karakter olmalı ve kontrol karakteri içermeme
 msgid "Earlier text"
 msgstr "Önceki metin"
 
+#: src/renderer/components/providers/settings/ModelProviderManager.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
@@ -6007,6 +6044,7 @@ msgid "Enter valid JSON."
 msgstr "Geçerli bir JSON girin."
 
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
+#: src/renderer/components/providers/settings/ModelProvidersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "Environment"
@@ -8291,6 +8329,14 @@ msgstr "Yorum bırak"
 msgid "Leave blank for no run limit."
 msgstr "Çalıştırma sayısını sınırlamamak için boş bırakın."
 
+#: src/renderer/components/providers/settings/ModelProviderEditor.tsx
+msgid "Leave blank to keep existing credentials or use environment authentication."
+msgstr "Mevcut kimlik bilgilerini korumak veya ortam kimlik doğrulamasını kullanmak için boş bırakın."
+
+#: src/renderer/components/providers/settings/ModelProviderEditor.tsx
+msgid "Leave blank to use the installed model catalog."
+msgstr "Yüklü model kataloğunu kullanmak için boş bırakın."
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchDialog.tsx
 #~ msgid "Leave empty to use the repository default branch."
 #~ msgstr "Deponun varsayılan dalını kullanmak için boş bırakın."
@@ -8531,6 +8577,7 @@ msgid "Loading workflow runs"
 msgstr "İş akışı çalıştırmaları yükleniyor"
 
 #: src/renderer/app.tsx
+#: src/renderer/components/providers/settings/ModelProviderManager.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/useHistoryItemDetails.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
@@ -8711,6 +8758,10 @@ msgstr "Parolaları yönet"
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 msgid "Manage plugins"
 msgstr "Eklentileri yönet"
+
+#: src/renderer/components/providers/settings/ModelProvidersSettings.tsx
+msgid "Manage providers"
+msgstr "Sağlayıcıları yönet"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
 #~ msgid "Manage remote environments"
@@ -9303,6 +9354,10 @@ msgstr "Model favorilere eklendi"
 msgid "Model id"
 msgstr "Model kimliği"
 
+#: src/renderer/components/providers/settings/ModelProviderEditor.tsx
+msgid "Model IDs, separated by commas"
+msgstr "Virgülle ayrılmış model kimlikleri"
+
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Model label"
 msgstr "Model etiketi"
@@ -9347,6 +9402,7 @@ msgid "Modes"
 msgstr "Modlar"
 
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/CollapsedThreadRail.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivityHeatmap.tsx
@@ -9925,6 +9981,10 @@ msgstr "Hiçbir aracı yüklü değil."
 msgid "No AI commits, PRs, or conflict resolutions tracked yet."
 msgstr "Henüz yapay zeka commit'leri, PR'ları veya çakışma çözümleri izlenmedi."
 
+#: src/renderer/components/providers/settings/ModelProviderManager.tsx
+msgid "No API key stored; native authentication may apply."
+msgstr "Kayıtlı API anahtarı yok; yerel kimlik doğrulama kullanılabilir."
+
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "No archived results."
 msgstr "Arşivlenmiş sonuç yok."
@@ -10266,6 +10326,7 @@ msgstr "İstem yok"
 msgid "No providers are being tracked."
 msgstr "Hiçbir sağlayıcı izlenmiyor."
 
+#: src/renderer/components/providers/settings/ModelProviderManager.tsx
 #: src/renderer/components/providers/settings/ProviderAccountsSection.tsx
 msgid "No providers connected yet."
 msgstr "Henüz bağlı sağlayıcı yok."
@@ -12131,9 +12192,9 @@ msgstr "Desteklenen aracılar için Poracode tarafından sağlanır ve yönetili
 msgid "provider"
 msgstr "sağlayıcı"
 
-#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
-#~ msgid "Provider"
-#~ msgstr "Sağlayıcı"
+#: src/renderer/components/providers/settings/ModelProviderEditor.tsx
+msgid "Provider"
+msgstr "Sağlayıcı"
 
 #: src/renderer/components/thread/ChatPane/parts/MessageList.tsx
 msgid "Provider conversation was not restored"
@@ -12144,9 +12205,21 @@ msgstr "Sağlayıcıdaki konuşma geri yüklenmedi"
 msgid "Provider has not reported token usage."
 msgstr "Sağlayıcı token kullanımını bildirmedi."
 
+#: src/renderer/components/providers/settings/ModelProviderEditor.tsx
+msgid "Provider ID"
+msgstr "Sağlayıcı kimliği"
+
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Provider presets"
 msgstr "Sağlayıcı hazır ayarları"
+
+#: src/renderer/components/providers/settings/ModelProviderManager.tsx
+msgid "Provider saved, but its API key could not be stored. Reload and try again."
+msgstr "Sağlayıcı kaydedildi ancak API anahtarı saklanamadı. Yenileyip tekrar deneyin."
+
+#: src/renderer/components/providers/settings/ModelProviderManager.tsx
+msgid "Provider settings changed. Reload before saving."
+msgstr "Sağlayıcı ayarları değişti. Kaydetmeden önce yenileyin."
 
 #. Settings section: provider usage and quota dashboard
 #: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
@@ -12599,6 +12672,7 @@ msgstr "{0} kimlik doğrulama durumu yenileniyor."
 msgid "Refreshing {env} {0} authentication status."
 msgstr "{env} {0} kimlik doğrulama durumu yenileniyor."
 
+#: src/renderer/components/providers/settings/ModelProviderManager.tsx
 #: src/renderer/RendererCrashScreen.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Reload"
@@ -12714,6 +12788,7 @@ msgstr "Uzak URL"
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
+#: src/renderer/components/providers/settings/ModelProviderManager.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredCustomValues.tsx
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
@@ -12861,6 +12936,10 @@ msgstr "Projeyi kaldır"
 msgid "Remove Project"
 msgstr "Projeyi Kaldır"
 
+#: src/renderer/components/providers/settings/ModelProviderManager.tsx
+msgid "Remove provider"
+msgstr "Sağlayıcıyı kaldır"
+
 #: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
 msgid "Remove queued follow-up"
 msgstr "Kuyruktaki takip mesajını kaldır"
@@ -12890,6 +12969,10 @@ msgstr "Bu sağlayıcının kayıtlı kimlik bilgileri kaldırılsın mı? “Sa
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Remove this connection?"
 msgstr "Bu bağlantı kaldırılsın mı?"
+
+#: src/renderer/components/providers/settings/ModelProviderManager.tsx
+msgid "Remove this model route? Saved credentials are kept. Existing threads pick up changes when restarted."
+msgstr "Bu model rotası kaldırılsın mı? Kayıtlı kimlik bilgileri korunur. Mevcut konuşmalar değişiklikleri yeniden başlatıldığında uygular."
 
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Remove worktree?"
@@ -13717,6 +13800,7 @@ msgstr "Doygunluk ve parlaklık"
 #: src/renderer/components/providers/codex/profileSettings.tsx
 #: src/renderer/components/providers/devin/profileSettings.tsx
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ModelProviderEditor.tsx
 #: src/renderer/components/providers/settings/ProviderMcpServersSection.tsx
 #: src/renderer/components/thread/ThreadFollowUpEditor.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
@@ -16928,6 +17012,7 @@ msgstr "Konu yapılacaklar yuvası"
 
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/composer/MentionPopover.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/CollapsedThreadRail.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Threads"
@@ -17283,6 +17368,10 @@ msgstr "Fark yüklenemedi."
 msgid "Unable to load downloads."
 msgstr "İndirilenler yüklenemedi."
 
+#: src/renderer/components/providers/settings/ModelProviderManager.tsx
+msgid "Unable to load providers."
+msgstr "Sağlayıcılar yüklenemedi."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unable to load remote access pairing."
 msgstr "Uzaktan erişim eşleştirmesi yüklenemedi."
@@ -17527,6 +17616,10 @@ msgstr "Yerel MCP yapılandırması güncellenemedi. Yeniden denemeden önce yap
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unable to update network access."
 msgstr "Ağ erişimi güncellenemedi."
+
+#: src/renderer/components/providers/settings/ModelProviderManager.tsx
+msgid "Unable to update providers. Check the native configuration for overrides."
+msgstr "Sağlayıcılar güncellenemedi. Yerel yapılandırmadaki geçersiz kılmaları kontrol edin."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unable to update remote access."
@@ -18072,6 +18165,10 @@ msgstr "Yoksayılan dosyaları kullan"
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Use letters, numbers, dots, dashes, or underscores without spaces."
 msgstr "Boşluk kullanmadan harf, rakam, nokta, kısa çizgi veya alt çizgi kullanın."
+
+#: src/renderer/components/providers/settings/ModelProviderEditor.tsx
+msgid "Use lowercase letters, numbers, and hyphens."
+msgstr "Küçük harf, rakam ve kısa çizgi kullanın."
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx

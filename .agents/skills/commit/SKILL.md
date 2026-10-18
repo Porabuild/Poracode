@@ -26,7 +26,7 @@ Never stage:
 
 - `.env*` files, credentials, tokens, or local config.
 - `tmp/`, `.tmp/`, screenshots, logs, or other scratch output.
-- `pnpm-lock.yaml` churn the change did not intend (a dependency change is the only reason it moves).
+- `bun.lock` churn the change did not intend (a dependency change is the only reason it moves).
 - Unrelated edits that happen to be in the tree; leave them unstaged and mention them.
 
 Check `git diff --cached --stat` before committing.
@@ -53,7 +53,7 @@ Pass the message with a heredoc or `-F <file>` so newlines and backticks survive
 
 ## Hooks
 
-`.husky/pre-commit` runs `lint-staged` (`oxlint --type-aware --fix --deny-warnings` and `oxfmt --write` on staged files, see `lint-staged.config.js`) and then `pnpm run typecheck`. It takes a while; let it finish.
+`.husky/pre-commit` runs `lint-staged` (`bun lint --type-aware --fix --deny-warnings` and `bun fmt` on staged files, see `lint-staged.config.js`) and then `bun run typecheck`. It takes a while; let it finish.
 
 - Never use `--no-verify`. If the hook fails, fix the cause and commit again.
 - Hook auto-fixes are written to the working tree; re-stage the touched paths and check the diff before retrying.

@@ -4,7 +4,7 @@
   "git": {
     "deploymentEnabled": false
   },
-  "installCommand": "pnpm install --frozen-lockfile --ignore-scripts --filter poracode... --config.node-linker=isolated --config.enable-global-virtual-store=false",
+  "installCommand": "BUN_INSTALL_GLOBAL_STORE=0 node scripts/setup-bun.mjs --run install --frozen-lockfile --ignore-scripts && node node_modules/bun/install.js",
   "buildCommand": "node scripts/vercel-build-web.mjs",
   "outputDirectory": "dist/web",
   "redirects": [

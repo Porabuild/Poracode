@@ -1,15 +1,17 @@
 import { getWindowsSystemCommand } from "./shellBasics";
-import { execFileSync } from "node:child_process";
+import { execFile } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, posix, win32 } from "node:path";
+import { promisify } from "node:util";
 import type { ProjectLocation } from "@/shared/contracts";
 import { ensureWslDirectory, removeWslPath, writeWslTextFile } from "../plugin/wslStaging";
 import type { Awaitable } from "./types";
 
 const PRIVATE_DIR_MODE = 0o700;
 const PRIVATE_FILE_MODE = 0o600;
+const execFileAsync = promisify(execFile);
 
 function assertSafeRelativePath(relative: string): void {
   if (
@@ -25,7 +27,7 @@ function assertSafeRelativePath(relative: string): void {
  * Private, per-launch files. Returned paths belong to the provider's execution
  * OS. WSL files are written through the per-distro staging worker (bounded,
  * cancellable) so a stalled UNC share never pins the supervisor control loop;
- * native files keep the synchronous path.
+ * Windows permissions are applied asynchronously before private files are written.
  */
 export async function stageLaunchFiles(
   location: ProjectLocation,
@@ -59,7 +61,7 @@ export async function stageLaunchFiles(
   try {
     mkdirSync(directory, { mode: PRIVATE_DIR_MODE });
     if (process.platform === "win32") {
-      const identity = execFileSync(
+      const { stdout: identity } = await execFileAsync(
         getWindowsSystemCommand("whoami.exe"),
         ["/user", "/fo", "csv", "/nh"],
         {
@@ -69,7 +71,7 @@ export async function stageLaunchFiles(
       );
       const sid = identity.match(/S-1-[0-9-]+/u)?.[0];
       if (!sid) throw new Error("Could not resolve the current Windows security identity");
-      execFileSync(
+      await execFileAsync(
         getWindowsSystemCommand("icacls.exe"),
         [directory, "/inheritance:r", "/grant:r", `*${sid}:(OI)(CI)F`],
         { windowsHide: true },

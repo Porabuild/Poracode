@@ -1,8 +1,10 @@
 import { DeepSeekIcon } from "./DeepSeekIcon";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/renderer/i18n/i18n";
 import providerManifest from "./manifest";
-import { buildAcpComposerControls } from "../composerControlBuilders";
+import { approvalPolicyDropdown, resolveComposerApprovalPolicy } from "../composerControlBuilders";
 import { registerProviderIcon } from "../ProviderIcon";
-import { registerComposerControls } from "../providerComposer";
+import { registerComposerControls, registerConfigNormalizer } from "../providerComposer";
 import { registerCommitGenDefaults } from "../commitGen";
 import { registerTitleGenDefaults } from "../titleGen";
 import { registerConflictResolverDefaults } from "../conflictResolver";
@@ -10,8 +12,29 @@ import { registerTerminalLoginCompletion } from "../terminalLogin";
 import { watchDeepSeekLogin } from "./terminalLogin";
 
 registerProviderIcon(providerManifest.kind, DeepSeekIcon);
-registerComposerControls(providerManifest.kind, buildAcpComposerControls);
 registerTerminalLoginCompletion(providerManifest.kind, watchDeepSeekLogin);
+registerConfigNormalizer(providerManifest.kind, ({ config }) =>
+  config.approvalPolicy === "never" ? { approvalPolicy: "auto-review" } : {},
+);
+registerComposerControls(
+  providerManifest.kind,
+  ({ capabilities, config, isDisabled, onConfigChange }) => [
+    approvalPolicyDropdown({
+      policies: capabilities.approvalPolicies.map((policy) => ({
+        ...policy,
+        label:
+          policy.id === "bypassPermissions"
+            ? i18n._(msg`Bypass Permissions`)
+            : policy.id === "auto-review"
+              ? i18n._(msg`Auto Review`)
+              : i18n._(msg`Default`),
+      })),
+      currentPolicy: resolveComposerApprovalPolicy(capabilities, config),
+      isDisabled,
+      onChange: (approvalPolicy) => onConfigChange({ approvalPolicy }),
+    }),
+  ],
+);
 
 const utilityDefaults = {
   label: "DeepSeek Harness",

@@ -323,11 +323,11 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
     }),
     {
       name: "poracode-agent-statuses-v1",
-      version: 61,
+      version: 63,
       // Discovery interaction flags are excluded by partialize and do not
       // change the persisted format.
-      // v61 mirrors supervisor STATUS_CACHE_VERSION=65: refresh discovery
-      // after adding DeepSeek Harness to the built-in provider inventory.
+      // v63 mirrors supervisor STATUS_CACHE_VERSION=67: refresh discovery
+      // for native Auto Review permissions and their default.
       migrate: (persisted) => {
         const prev = (persisted ?? {}) as Partial<AgentStatusesStore>;
         return {

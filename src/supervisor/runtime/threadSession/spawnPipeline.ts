@@ -408,6 +408,12 @@ export class SpawnPipeline {
     const pluginContributions = (await ctx.options.resolvePluginLaunchContributions?.(
       executionLocation,
       payload.agentKind,
+      {
+        includeExternalServers: true,
+        ...(payload.segments?.some((segment) => segment.kind === "skill" && segment.pluginId)
+          ? { nativePluginAdapter: adapter }
+          : {}),
+      },
     )) ?? { mcpServers: [], builtInMcpServerIds: [], nativePlugins: [] };
     const nativePlugins = pluginContributions.nativePlugins;
     const mentionSegments = payload.segments
