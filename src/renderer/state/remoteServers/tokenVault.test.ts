@@ -121,18 +121,19 @@ describe("token vault liveness and credential preservation", () => {
       abort: ReturnType<typeof vi.spyOn>;
       aborted: Promise<void>;
     }>();
-    const get = vi
-      .spyOn(IDBObjectStore.prototype, "get")
-      .mockImplementation(function (this: IDBObjectStore, key) {
-        const request = originalGet.call(this, key);
-        if (key === "cryptoKey") {
-          started.resolve({
-            abort: vi.spyOn(this.transaction, "abort"),
-            aborted: holdTransaction(this),
-          });
-        }
-        return request;
-      });
+    const get = vi.spyOn(IDBObjectStore.prototype, "get").mockImplementation(function (
+      this: IDBObjectStore,
+      key,
+    ) {
+      const request = originalGet.call(this, key);
+      if (key === "cryptoKey") {
+        started.resolve({
+          abort: vi.spyOn(this.transaction, "abort"),
+          aborted: holdTransaction(this),
+        });
+      }
+      return request;
+    });
     const write = setDesktopToken("other", "unsaved-secret");
     const held = await started.promise;
     await vi.advanceTimersByTimeAsync(TOKEN_VAULT_OPERATION_TIMEOUT_MS);
@@ -153,13 +154,14 @@ describe("token vault liveness and credential preservation", () => {
     await seedLegacyVault();
     const generateKey = vi.spyOn(crypto.subtle, "generateKey");
     const originalGet = IDBObjectStore.prototype.get;
-    const get = vi
-      .spyOn(IDBObjectStore.prototype, "get")
-      .mockImplementation(function (this: IDBObjectStore, key) {
-        const request = originalGet.call(this, key);
-        if (key === "cryptoKey") this.transaction.abort();
-        return request;
-      });
+    const get = vi.spyOn(IDBObjectStore.prototype, "get").mockImplementation(function (
+      this: IDBObjectStore,
+      key,
+    ) {
+      const request = originalGet.call(this, key);
+      if (key === "cryptoKey") this.transaction.abort();
+      return request;
+    });
     expect(await setDesktopToken("other", "unsaved-secret")).toBe(false);
     expect(generateKey).not.toHaveBeenCalled();
     get.mockRestore();
@@ -171,15 +173,17 @@ describe("token vault liveness and credential preservation", () => {
     await seedLegacyVault();
     const originalPut = IDBObjectStore.prototype.put;
     const started = Promise.withResolvers<{ aborted: Promise<void> }>();
-    const put = vi
-      .spyOn(IDBObjectStore.prototype, "put")
-      .mockImplementation(function (this: IDBObjectStore, value, key) {
-        const request = originalPut.call(this, value, key);
-        if ((value as { key: string }).key === "token.desktop") {
-          started.resolve({ aborted: holdTransaction(this) });
-        }
-        return request;
-      });
+    const put = vi.spyOn(IDBObjectStore.prototype, "put").mockImplementation(function (
+      this: IDBObjectStore,
+      value,
+      key,
+    ) {
+      const request = originalPut.call(this, value, key);
+      if ((value as { key: string }).key === "token.desktop") {
+        started.resolve({ aborted: holdTransaction(this) });
+      }
+      return request;
+    });
     const write = setDesktopToken("desktop", "uncommitted-secret");
     const held = await started.promise;
     await vi.advanceTimersByTimeAsync(TOKEN_VAULT_OPERATION_TIMEOUT_MS);
@@ -196,13 +200,14 @@ describe("token vault liveness and credential preservation", () => {
     await seedLegacyVault();
     const originalDelete = IDBObjectStore.prototype.delete;
     const started = Promise.withResolvers<{ aborted: Promise<void> }>();
-    const remove = vi
-      .spyOn(IDBObjectStore.prototype, "delete")
-      .mockImplementation(function (this: IDBObjectStore, key) {
-        const request = originalDelete.call(this, key);
-        started.resolve({ aborted: holdTransaction(this) });
-        return request;
-      });
+    const remove = vi.spyOn(IDBObjectStore.prototype, "delete").mockImplementation(function (
+      this: IDBObjectStore,
+      key,
+    ) {
+      const request = originalDelete.call(this, key);
+      started.resolve({ aborted: holdTransaction(this) });
+      return request;
+    });
     const deletion = deleteDesktopToken("desktop");
     const held = await started.promise;
     await vi.advanceTimersByTimeAsync(TOKEN_VAULT_OPERATION_TIMEOUT_MS);

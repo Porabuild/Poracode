@@ -11,7 +11,7 @@ void test("the remote-v3 contract and core lint jobs lock the committed operatio
     await readFile(new URL("../.github/workflows/native-ci.yml", import.meta.url), "utf8"),
   );
   const steps = native.jobs.remote_v3_contract.steps;
-  const checkIndex = steps.findIndex((step) => step.run === "pnpm run protocol:remote:v3:check");
+  const checkIndex = steps.findIndex((step) => step.run === "bun run protocol:remote:v3:check");
   const lockIndex = steps.findIndex(
     (step) =>
       step.run?.includes("tests/native-e2e/vitest.config.ts") &&

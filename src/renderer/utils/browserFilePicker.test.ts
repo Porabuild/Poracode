@@ -10,15 +10,15 @@ describe("pickAndUploadBrowserFiles", () => {
 
   it("applies extension filters and uploads every selected file", async () => {
     let accept = "";
-    vi.spyOn(HTMLInputElement.prototype, "click").mockImplementation(
-      function (this: HTMLInputElement) {
-        expect(this.isConnected).toBe(true);
-        accept = this.accept;
-        const files = [new File(["one"], "one.md"), new File(["two"], "two.png")];
-        Object.defineProperty(this, "files", { configurable: true, value: files });
-        this.dispatchEvent(new Event("change"));
-      },
-    );
+    vi.spyOn(HTMLInputElement.prototype, "click").mockImplementation(function (
+      this: HTMLInputElement,
+    ) {
+      expect(this.isConnected).toBe(true);
+      accept = this.accept;
+      const files = [new File(["one"], "one.md"), new File(["two"], "two.png")];
+      Object.defineProperty(this, "files", { configurable: true, value: files });
+      this.dispatchEvent(new Event("change"));
+    });
     const upload = vi.fn<(input: { fileName: string }) => Promise<string>>(
       async ({ fileName }) => `/remote/${fileName}`,
     );
@@ -37,11 +37,11 @@ describe("pickAndUploadBrowserFiles", () => {
   });
 
   it("returns null when the picker is cancelled", async () => {
-    vi.spyOn(HTMLInputElement.prototype, "click").mockImplementation(
-      function (this: HTMLInputElement) {
-        this.dispatchEvent(new Event("cancel"));
-      },
-    );
+    vi.spyOn(HTMLInputElement.prototype, "click").mockImplementation(function (
+      this: HTMLInputElement,
+    ) {
+      this.dispatchEvent(new Event("cancel"));
+    });
     const upload = vi.fn<() => Promise<string>>(async () => "/unused");
 
     await expect(
@@ -72,11 +72,11 @@ describe("pickAndUploadBrowserFiles", () => {
   it("waits for change when files are selected before the window refocuses", async () => {
     vi.useFakeTimers();
     let picker: HTMLInputElement | undefined;
-    vi.spyOn(HTMLInputElement.prototype, "click").mockImplementation(
-      function (this: HTMLInputElement) {
-        picker = this;
-      },
-    );
+    vi.spyOn(HTMLInputElement.prototype, "click").mockImplementation(function (
+      this: HTMLInputElement,
+    ) {
+      picker = this;
+    });
     const upload = vi.fn<(input: { fileName: string }) => Promise<string>>(
       async ({ fileName }) => `/remote/${fileName}`,
     );

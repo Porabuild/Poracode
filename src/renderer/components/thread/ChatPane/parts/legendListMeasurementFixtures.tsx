@@ -243,11 +243,11 @@ beforeEach(() => {
   currentContext = undefined;
   fixture.listRef = createRef<LegendListRef>();
   vi.stubGlobal("ResizeObserver", ControlledResizeObserver);
-  vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(
-    function (this: HTMLElement) {
-      return rectangle(this);
-    },
-  );
+  vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (
+    this: HTMLElement,
+  ) {
+    return rectangle(this);
+  });
   for (const name of ["clientHeight", "offsetHeight", "scrollHeight"] as const) {
     vi.spyOn(HTMLElement.prototype, name, "get").mockImplementation(function (this: HTMLElement) {
       if (name === "scrollHeight" && this.dataset.testid === "scroller")

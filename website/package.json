@@ -8,7 +8,7 @@
     "build": "next build --webpack",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "lint": "oxlint ."
+    "lint": "bun lint ."
   },
   "dependencies": {
     "@heroui/react": "3.2.4",
@@ -30,8 +30,7 @@
     "@types/react-dom": "19.2.7",
     "@types/web-push": "3.6.4",
     "cross-env": "^10.1.0",
-    "oxlint": "1.81.0",
     "typescript": "^7.0.2"
   },
-  "packageManager": "pnpm@12.3.4"
+  "packageManager": "bun@1.4.3-canary.20261017.1"
 }

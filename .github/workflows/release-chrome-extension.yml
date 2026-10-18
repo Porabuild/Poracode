@@ -155,19 +155,14 @@ jobs:
         with:
           ref: ${{ inputs.dry_run && github.sha || needs.prepare.outputs.tag }}
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: "24"
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+      - name: Setup Bun
+        uses: ./.github/actions/setup-bun
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile --ignore-scripts
+        run: bun install --frozen-lockfile --ignore-scripts && node node_modules/bun/install.js
 
       - name: Generate protocol types
-        run: pnpm run codex-protocol:gen
+        run: bun run codex-protocol:gen
 
       - name: Install packaging tools
         run: sudo apt-get update && sudo apt-get install -y zip unzip
@@ -187,7 +182,7 @@ jobs:
         run: node --test scripts/package-chrome-extension.test.mjs scripts/chrome-extension-worker.test.mjs
 
       - name: Build sidebar extension
-        run: pnpm run build:extension
+        run: bun run build:extension
 
       - name: Prepare Web Store package
         run: node scripts/package-chrome-extension.mjs --store-package

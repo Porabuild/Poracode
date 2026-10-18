@@ -44,7 +44,8 @@ async function fixture() {
     await mkdir(join(root, path), { recursive: true });
   for (const path of [
     "tsdown.config.ts",
-    "pnpm-lock.yaml",
+    "bun.lock",
+    "bunfig.toml",
     "scripts/prepare-agent-plugins.mjs",
     "scripts/server-native-overlay.mjs",
     "scripts/server-release-install.mjs",

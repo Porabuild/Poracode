@@ -2,7 +2,7 @@
  * Local update server for testing electron-updater.
  *
  * Usage:
- *   1. Build the installer:  pnpm run dist:win
+ *   1. Build the installer:  bun run dist:win
  *   2. Start this server:    node scripts/update-server.mjs
  *   3. Run the *installed* (older) copy of the app — it will discover the
  *      update from http://localhost:5002 and offer to download it.
@@ -31,7 +31,7 @@ const MIME = {
 };
 
 if (!existsSync(releaseDir)) {
-  console.error(`\n  release/ directory not found. Build first:\n    pnpm run dist:win\n`);
+  console.error(`\n  release/ directory not found. Build first:\n    bun run dist:win\n`);
   process.exit(1);
 }
 

@@ -52,6 +52,6 @@ through the Chrome Web Store API, and submits it for review.
 1. Bump `chrome-extension/manifest.json` to the next `X.Y.Z` version.
 2. Add a matching `## X.Y.Z - YYYY-MM-DD` entry to `chrome-extension/CHANGELOG.md`.
 3. Run the workflow with `dry_run` enabled and download the artifact to inspect the store-upload ZIP. This ZIP omits the manifest public key and is for Web Store upload only; do not load it unpacked for bridge QA.
-4. From the same source ref used by the dry run, run `pnpm run build:extension` and load `dist/chrome-extension` via Chrome's **Load unpacked**. This build retains the pinned manifest key needed by the native-host allowlist. If the workflow supplied a version override, apply that same manifest version before building. Test sidebar connection and browser tools with this unpacked build.
+4. From the same source ref used by the dry run, run `bun run build:extension` and load `dist/chrome-extension` via Chrome's **Load unpacked**. This build retains the pinned manifest key needed by the native-host allowlist. If the workflow supplied a version override, apply that same manifest version before building. Test sidebar connection and browser tools with this unpacked build.
 5. Run the workflow without `dry_run` to tag, create the GitHub Release, and submit to the Web Store.
 6. Check the Web Store review status in the Developer Dashboard.

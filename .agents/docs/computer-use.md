@@ -50,7 +50,7 @@ agent MCP client
   binaries under `resources/computer-use-helper/`.
 
 The host supplies the helper root and a persistent state directory. Packaged
-apps use `process.resourcesPath/computer-use-helper`; `pnpm dev` stages a Cargo
+apps use `process.resourcesPath/computer-use-helper`; `bun run dev` stages a Cargo
 development build under `resources/computer-use-helper-dev`; release packaging
 uses `resources/computer-use-helper`. Linux portal restore data lives in the
 app's computer-use state directory, not the repository.
@@ -170,7 +170,7 @@ Toolchain and components are pinned in
 `deny.toml`.
 
 ```bash
-pnpm run prepare:computer-use-helper
+bun run prepare:computer-use-helper
 cd native/computer-use-helper
 cargo fmt --all -- --check
 cargo clippy --all-targets --all-features --locked -- -D warnings

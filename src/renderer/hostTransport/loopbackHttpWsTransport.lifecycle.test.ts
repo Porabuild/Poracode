@@ -76,12 +76,12 @@ describe("managed loopback intake startup ownership", () => {
     const server = await startFixtureServer();
     const created: DesktopLoopbackIntake[] = [];
     const activate = DesktopLoopbackIntake.prototype.activate;
-    vi.spyOn(DesktopLoopbackIntake.prototype, "activate").mockImplementation(
-      function (this: DesktopLoopbackIntake) {
-        created.push(this);
-        return activate.call(this);
-      },
-    );
+    vi.spyOn(DesktopLoopbackIntake.prototype, "activate").mockImplementation(function (
+      this: DesktopLoopbackIntake,
+    ) {
+      created.push(this);
+      return activate.call(this);
+    });
     install(() => bootstrapPayloadFor(server));
     await startDesktopLoopbackEventIntake();
     await vi.waitFor(() => expect(isDesktopLoopbackIntakeActive()).toBe(true));
@@ -105,14 +105,14 @@ describe("managed loopback intake startup ownership", () => {
   it("can recover during activation while the retired factory is still pending", async () => {
     const server = await startFixtureServer();
     const retiredActivation = Promise.withResolvers<void>();
-    vi.spyOn(DesktopLoopbackIntake.prototype, "activate").mockImplementationOnce(
-      async function (this: DesktopLoopbackIntake) {
-        const dependencies = Reflect.get(this, "deps") as DesktopLoopbackIntakeDeps;
-        dependencies.onCredentialExhausted?.();
-        await retiredActivation.promise;
-        return false;
-      },
-    );
+    vi.spyOn(DesktopLoopbackIntake.prototype, "activate").mockImplementationOnce(async function (
+      this: DesktopLoopbackIntake,
+    ) {
+      const dependencies = Reflect.get(this, "deps") as DesktopLoopbackIntakeDeps;
+      dependencies.onCredentialExhausted?.();
+      await retiredActivation.promise;
+      return false;
+    });
     const getBootstrap = vi.fn<() => ReturnType<typeof bootstrapPayloadFor>>(() =>
       bootstrapPayloadFor(server),
     );

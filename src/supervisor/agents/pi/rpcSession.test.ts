@@ -338,12 +338,12 @@ describe("PiRpcSession (mock pi --mode rpc)", () => {
       release = resolve;
     });
     const originalClose = PiRpcClient.prototype.close;
-    const close = vi
-      .spyOn(PiRpcClient.prototype, "close")
-      .mockImplementationOnce(async function (this: PiRpcClient) {
-        await pending;
-        await originalClose.call(this);
-      });
+    const close = vi.spyOn(PiRpcClient.prototype, "close").mockImplementationOnce(async function (
+      this: PiRpcClient,
+    ) {
+      await pending;
+      await originalClose.call(this);
+    });
     try {
       const first = session.dispose();
       expect(session.dispose()).toBe(first);

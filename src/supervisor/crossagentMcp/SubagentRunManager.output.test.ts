@@ -110,14 +110,16 @@ describe("SubagentRunManager transcript bookkeeping", () => {
     await flush();
     let comparisons = 0;
     const find = Array.prototype.find;
-    const search = vi
-      .spyOn(Array.prototype, "find")
-      .mockImplementation(function (this: unknown[], predicate, receiver) {
-        return find.call(this, (value, index, array) => {
-          if (value && typeof value === "object" && "cursorRanges" in value) comparisons += 1;
-          return predicate.call(receiver, value, index, array);
-        });
+    const search = vi.spyOn(Array.prototype, "find").mockImplementation(function (
+      this: unknown[],
+      predicate,
+      receiver,
+    ) {
+      return find.call(this, (value, index, array) => {
+        if (value && typeof value === "object" && "cursorRanges" in value) comparisons += 1;
+        return predicate.call(receiver, value, index, array);
       });
+    });
     try {
       for (let index = 0; index < 1_000; index += 1) {
         append(h.handles[0]!, `message-${index}`, "text");

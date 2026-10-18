@@ -122,25 +122,25 @@ information per tool call) in their own widgets.
 - Generated Swift: `ios/App/App/Protocol/Generated*.swift`; generated Kotlin:
   `android/.../protocol/Generated*.kt`. Never hand-write or fork protocol types
   in either app.
-- After an intentional contract edit: `pnpm run protocol:remote:v3:generate`,
-  then `pnpm run protocol:remote:v3:check` and
-  `pnpm exec vitest run --configLoader runner protocol/remote/v3`.
+- After an intentional contract edit: `bun run protocol:remote:v3:generate`,
+  then `bun run protocol:remote:v3:check` and
+  `bun run vitest run --configLoader runner protocol/remote/v3`.
 - The wire protocol is a versioned compatibility boundary; apply
   `.agents/docs/versioning.md`. Native apps check their committed bindings at
   startup, and old installed apps must keep working with new hosts.
 
 ## Dev workflows
 
-- `pnpm run dev:ios` builds, installs, and launches on the required iOS
+- `bun run dev:ios` builds, installs, and launches on the required iOS
   simulator and keeps watching; Swift function/`body` edits hot-inject through
   InjectionNext (fetched into `.tmp/`). While injection is running, save and
   verify against the live app instead of rebuilding; rebuild only for
   structural changes, an injection failure, or a final compile check.
-- `pnpm run dev:android` does the same on the project emulator; Kotlin-only
+- `bun run dev:android` does the same on the project emulator; Kotlin-only
   saves hot-apply via ART Apply Changes and structural changes fall back to an
   incremental APK install. `-- --once` runs once.
-- `pnpm run dev:web` serves only the PWA (port 3101) against an already running
-  desktop app, whose dev renderer stays on 3100. `pnpm run dev:web:server` runs
+- `bun run dev:web` serves only the PWA (port 3101) against an already running
+  desktop app, whose dev renderer stays on 3100. `bun run dev:web:server` runs
   a separate headless remote host when needed.
 - Required Xcode, SDK, JDK, and Android SDK versions are enforced by
   `scripts/native-dev-ios.mjs` / `scripts/native-dev-android.mjs` and listed in
@@ -153,14 +153,14 @@ information per tool call) in their own widgets.
 
 ## Verification
 
-- Cross-platform E2E: `pnpm run native:e2e` (config `tests/native-e2e/`), with
+- Cross-platform E2E: `bun run native:e2e` (config `tests/native-e2e/`), with
   `native:e2e:mock-host` / `native:e2e:real-host` harnesses. Run it when the
   wire or session flows change.
-- Contract and parity: `pnpm exec vitest run --configLoader runner protocol/remote/v3`.
+- Contract and parity: `bun run vitest run --configLoader runner protocol/remote/v3`.
 - Android: `cd android && ./gradlew testDebugUnitTest lintDebug --no-daemon`
   (needs `JAVA_HOME`/`ANDROID_HOME`).
 - iOS: the `AppTests` target; `NativeE2ETests` for the E2E harness.
-- Mobile web: `pnpm exec vitest run` on touched files plus the
+- Mobile web: `bun run vitest run` on touched files plus the
   `interactive-testing` skill for renderer surfaces. For simulator-level web
   checks, `xcrun simctl` screenshots and `idb` touch injection work headless.
 - CI: `.github/workflows/native-ci.yml` is the required PR gate for native

@@ -41,16 +41,16 @@ describe("useDiscoveryCardMotion", () => {
     vi.spyOn(window, "matchMedia").mockImplementation((query) =>
       mediaQueryList(query, reducedMotion),
     );
-    vi.spyOn(HTMLElement.prototype, "offsetLeft", "get").mockImplementation(
-      function (this: HTMLElement) {
-        return Number(this.dataset.left ?? 0);
-      },
-    );
-    vi.spyOn(HTMLElement.prototype, "offsetTop", "get").mockImplementation(
-      function (this: HTMLElement) {
-        return Number(this.dataset.top ?? 0);
-      },
-    );
+    vi.spyOn(HTMLElement.prototype, "offsetLeft", "get").mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      return Number(this.dataset.left ?? 0);
+    });
+    vi.spyOn(HTMLElement.prototype, "offsetTop", "get").mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      return Number(this.dataset.top ?? 0);
+    });
     animate = vi.fn<Animate>(() => ({ cancel: vi.fn<() => void>(), onfinish: null }));
     Object.defineProperty(HTMLElement.prototype, "animate", {
       configurable: true,

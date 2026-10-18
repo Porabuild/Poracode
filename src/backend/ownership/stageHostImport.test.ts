@@ -147,22 +147,24 @@ describe("explicit offline backup staging", () => {
     const value = fixture();
     const original = Database.prototype.backup;
     let probe: { status: string; code?: string } | undefined;
-    vi.spyOn(Database.prototype, "backup").mockImplementation(
-      async function (this: InstanceType<typeof Database>, destination, options) {
-        const result = await original.call(this, destination, options);
-        const child = spawnSync(
-          process.execPath,
-          [
-            fileURLToPath(new URL("./fixtures/importDatabaseProbe.mjs", import.meta.url)),
-            join(value.source, "state.sqlite"),
-          ],
-          { encoding: "utf8", timeout: 5_000 },
-        );
-        expect(child.status).toBe(0);
-        probe = JSON.parse(child.stdout);
-        return result;
-      },
-    );
+    vi.spyOn(Database.prototype, "backup").mockImplementation(async function (
+      this: InstanceType<typeof Database>,
+      destination,
+      options,
+    ) {
+      const result = await original.call(this, destination, options);
+      const child = spawnSync(
+        process.execPath,
+        [
+          fileURLToPath(new URL("./fixtures/importDatabaseProbe.mjs", import.meta.url)),
+          join(value.source, "state.sqlite"),
+        ],
+        { encoding: "utf8", timeout: 5_000 },
+      );
+      expect(child.status).toBe(0);
+      probe = JSON.parse(child.stdout);
+      return result;
+    });
     await importFixture(value);
     expect(probe).toEqual({ status: "refused", code: "SQLITE_BUSY" });
   });
@@ -271,13 +273,15 @@ describe("explicit offline backup staging", () => {
   it("rejects source changes during an asynchronous database backup and removes its staging directory", async () => {
     const value = fixture();
     const original = Database.prototype.backup;
-    vi.spyOn(Database.prototype, "backup").mockImplementation(
-      async function (this: InstanceType<typeof Database>, destination, options) {
-        const result = await original.call(this, destination, options);
-        writeFileSync(join(value.source, "settings.json"), '{"changed":true}');
-        return result;
-      },
-    );
+    vi.spyOn(Database.prototype, "backup").mockImplementation(async function (
+      this: InstanceType<typeof Database>,
+      destination,
+      options,
+    ) {
+      const result = await original.call(this, destination, options);
+      writeFileSync(join(value.source, "settings.json"), '{"changed":true}');
+      return result;
+    });
     await expect(importFixture(value)).rejects.toThrow(/changed/u);
     expect(existsSync(value.lease.paths.dataRoot)).toBe(false);
     expect(readdirSync(value.root).some((name) => name.includes(".import-"))).toBe(false);
@@ -286,13 +290,15 @@ describe("explicit offline backup staging", () => {
   it("does not publish a late backup result after owner loss", async () => {
     const value = fixture();
     const original = Database.prototype.backup;
-    vi.spyOn(Database.prototype, "backup").mockImplementation(
-      async function (this: InstanceType<typeof Database>, destination, options) {
-        const result = await original.call(this, destination, options);
-        value.lease.release();
-        return result;
-      },
-    );
+    vi.spyOn(Database.prototype, "backup").mockImplementation(async function (
+      this: InstanceType<typeof Database>,
+      destination,
+      options,
+    ) {
+      const result = await original.call(this, destination, options);
+      value.lease.release();
+      return result;
+    });
     await expect(importFixture(value)).rejects.toThrow(/no longer active/u);
     expect(existsSync(value.lease.paths.dataRoot)).toBe(false);
     expect(readdirSync(value.root).some((name) => name.includes(".import-"))).toBe(false);
