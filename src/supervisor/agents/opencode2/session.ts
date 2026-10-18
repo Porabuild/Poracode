@@ -37,6 +37,7 @@ import {
   type StartTurnOptions,
   type StructuredSessionHandle,
   type StructuredSessionListener,
+  type StructuredSessionUpdate,
   type StructuredTurnResult,
   type ThreadHistory,
 } from "../base";
@@ -120,6 +121,10 @@ export class OpenCode2Session implements StructuredSessionHandle {
   private disposed = false;
   private recoveredBefore = 0;
   private slashCommands: OpenCode2Command[] = [];
+  private slashCommandsReady: Promise<void> | undefined;
+  private retireSlashCommands: (() => void) | undefined;
+  private currentStatus: ThreadStatus = "idle";
+  private currentAttention: ThreadAttention = "none";
   private readonly cancelledRequestIds = new Set<ThreadServerRequestId>();
   private pendingRequests = new Map<ThreadServerRequestId, PendingRequest>();
   /** Live MCP set; starts from the launch input, replaced by settings saves. */
@@ -177,11 +182,11 @@ export class OpenCode2Session implements StructuredSessionHandle {
       for (const ev of drain) listener.onRuntimeEvent(ev);
     }
     if (this.sessionId) {
-      listener.onUpdate({
-        ...(this.pendingRequestStatus() ??
-          (this.mapperState.turnActive
-            ? { status: "working", attention: "working" }
-            : { status: "idle", attention: "none" })),
+      this.emitUpdate({
+        ...(this.pendingRequestStatus() ?? {
+          status: this.currentStatus,
+          attention: this.currentAttention,
+        }),
         sessionRef: createKnownSessionRef(this.sessionId),
         ...(this.isGui ? { slashCommands: this.slashCommands } : {}),
       });
@@ -193,24 +198,11 @@ export class OpenCode2Session implements StructuredSessionHandle {
     this.currentConfig = config;
     const location = { directory: this.directory };
     const signal = AbortSignal.timeout(60_000);
-    await awaitOpenCode2Activation(acquired.client, { location }, { signal });
+    const readiness = awaitOpenCode2Activation(acquired.client, { location }, { signal });
     if (this.isGui) {
-      const [commands, skills, agents] = await Promise.all([
-        acquired.client.command.list({ location }, { signal }),
-        acquired.client.skill.list({ location }, { signal }),
-        acquired.client.agent.list({ location }, { signal }),
-      ]);
-      this.slashCommands = [
-        ...mapOpenCode2Commands(commands.data),
-        ...mapOpenCode2Skills(skills.data, this.directory),
-        ...mapOpenCode2Agents(agents.data),
-      ];
-      this.listener?.onUpdate({
-        status: "idle",
-        attention: "none",
-        slashCommands: this.slashCommands,
-      });
+      this.refreshSlashCommands(acquired, readiness);
     }
+    await readiness;
 
     const resumeSessionId =
       sessionRef?.providerSessionId ?? this.input.sessionRef?.providerSessionId;
@@ -275,12 +267,6 @@ export class OpenCode2Session implements StructuredSessionHandle {
     options?: StartTurnOptions,
   ): Promise<void | StructuredTurnResult> {
     if (this.disposed) return;
-    await this.reacquirePromise;
-    const acquired = this.requireAcquired();
-    if (this.isGui) await waitForOpenCode2ServerEvents(acquired.client);
-    const sessionID = this.requireSessionId();
-    this.currentConfig = config;
-
     const payload = buildOpenCode2PromptPayload(
       prompt,
       segments,
@@ -289,9 +275,18 @@ export class OpenCode2Session implements StructuredSessionHandle {
     );
     if (payload.text.trim().length === 0 && payload.files.length === 0 && !payload.skills?.length)
       return;
-    if (await this.selectAgent(payload.text, config)) return { outcome: "completed-without-turn" };
+    this.currentStatus = "working";
+    this.currentAttention = "working";
 
     try {
+      await this.reacquirePromise;
+      if (this.isGui && payload.text.trimStart().startsWith("/")) await this.waitForSlashCommands();
+      const acquired = this.requireAcquired();
+      if (this.isGui) await waitForOpenCode2ServerEvents(acquired.client);
+      const sessionID = this.requireSessionId();
+      this.currentConfig = config;
+      if (await this.selectAgent(payload.text, config))
+        return { outcome: "completed-without-turn" };
       await this.syncConfig(acquired, sessionID, config);
       // Hand the runtime's optimistic user_message id to the mapper so the
       // server's `session.inbox.enqueued` echo reuses it instead of minting a
@@ -312,6 +307,8 @@ export class OpenCode2Session implements StructuredSessionHandle {
       this.mapperState.turnActive = true;
       await submitOpenCode2Prompt(acquired.client, sessionID, payload, this.slashCommands);
     } catch (cause) {
+      this.currentStatus = "error";
+      this.currentAttention = "error";
       this.mapperState.turnActive = false;
       if (options?.userMessageItemId) this.removePendingUserMessage(options.userMessageItemId);
       throw new Error(this.classifyError(cause, "session.prompt"), { cause });
@@ -332,12 +329,6 @@ export class OpenCode2Session implements StructuredSessionHandle {
   ): Promise<void | StructuredTurnResult> {
     if (this.disposed) return;
     if (!this.mapperState.turnActive) return this.startTurn(prompt, config, segments, options);
-    await this.reacquirePromise;
-    const acquired = this.requireAcquired();
-    if (this.isGui) await waitForOpenCode2ServerEvents(acquired.client);
-    const sessionID = this.requireSessionId();
-    this.currentConfig = config;
-
     const payload = buildOpenCode2PromptPayload(
       prompt,
       segments,
@@ -347,6 +338,12 @@ export class OpenCode2Session implements StructuredSessionHandle {
     if (payload.text.trim().length === 0 && payload.files.length === 0 && !payload.skills?.length)
       return;
 
+    await this.reacquirePromise;
+    if (this.isGui && payload.text.trimStart().startsWith("/")) await this.waitForSlashCommands();
+    const acquired = this.requireAcquired();
+    if (this.isGui) await waitForOpenCode2ServerEvents(acquired.client);
+    const sessionID = this.requireSessionId();
+    this.currentConfig = config;
     if (await this.selectAgent(payload.text, config)) return { outcome: "completed-without-turn" };
 
     const userMessageItemId = options?.userMessageItemId ?? newItemId("user");
@@ -382,7 +379,7 @@ export class OpenCode2Session implements StructuredSessionHandle {
       this.selectedAgent = agent;
       this.appliedAgent = agent;
       this.currentConfig = { ...config, mode: agent === "plan" ? "plan" : "agent" };
-      this.listener?.onUpdate({
+      this.emitUpdate({
         status: this.mapperState.turnActive ? "working" : "idle",
         attention: this.mapperState.turnActive ? "working" : "none",
         config: this.currentConfig,
@@ -409,6 +406,8 @@ export class OpenCode2Session implements StructuredSessionHandle {
   }
 
   forceCompleteTurn(): void {
+    this.currentStatus = "idle";
+    this.currentAttention = "none";
     this.emitRuntimeEvents([...this.subagents.close(), ...closeOpenCode2Items(this.mapperState)]);
     this.cancelPendingRequests();
   }
@@ -480,6 +479,8 @@ export class OpenCode2Session implements StructuredSessionHandle {
   async dispose(): Promise<void> {
     if (this.disposed) return;
     this.disposed = true;
+    this.retireSlashCommands?.();
+    this.retireSlashCommands = undefined;
 
     this.cancelPendingRequests();
     this.unsubscribeEvents?.();
@@ -504,6 +505,64 @@ export class OpenCode2Session implements StructuredSessionHandle {
   }
 
   // ── Internal helpers ─────────────────────────────────────────────────
+
+  private refreshSlashCommands(acquired: AcquiredOpenCode2Server, readiness: Promise<void>): void {
+    this.retireSlashCommands?.();
+    const retired = Promise.withResolvers<void>();
+    const controller = new AbortController();
+    const location = { directory: this.directory };
+    const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(60_000)]);
+    const discovery = readiness
+      .then(() =>
+        Promise.all([
+          acquired.client.command.list({ location }, { signal }),
+          acquired.client.skill.list({ location }, { signal }),
+          acquired.client.agent.list({ location }, { signal }),
+        ]),
+      )
+      .then(([commands, skills, agents]) => {
+        if (this.disposed || this.acquired !== acquired || this.slashCommandsReady !== refresh)
+          return;
+        this.slashCommands = [
+          ...mapOpenCode2Commands(commands.data),
+          ...mapOpenCode2Skills(skills.data, this.directory),
+          ...mapOpenCode2Agents(agents.data),
+        ];
+        this.emitUpdate({
+          status: this.currentStatus,
+          attention: this.currentAttention,
+          slashCommands: this.slashCommands,
+        });
+      });
+    const refresh = Promise.race([discovery, retired.promise]);
+    this.slashCommandsReady = refresh;
+    this.retireSlashCommands = () => {
+      retired.resolve();
+      controller.abort();
+    };
+    void refresh.catch((error) => {
+      if (this.disposed || this.slashCommandsReady !== refresh) return;
+      console.warn("[opencode2] command catalog discovery failed:", error);
+    });
+  }
+
+  private async waitForSlashCommands(): Promise<void> {
+    for (;;) {
+      const recovery = this.reacquirePromise;
+      await recovery;
+      if (recovery !== this.reacquirePromise) continue;
+      this.requireAcquired();
+      const refresh = this.slashCommandsReady;
+      try {
+        await refresh;
+      } catch (error) {
+        if (refresh === this.slashCommandsReady && !this.reacquirePromise) throw error;
+      }
+      if (this.reacquirePromise) continue;
+      this.requireAcquired();
+      if (refresh === this.slashCommandsReady) return;
+    }
+  }
 
   private rememberSessionId(id: string): void {
     if (this.sessionId !== id) {
@@ -611,12 +670,12 @@ export class OpenCode2Session implements StructuredSessionHandle {
   private emitPendingRequestUpdate(): void {
     const pending = this.pendingRequestStatus();
     if (!pending) return;
-    this.listener?.onUpdate({ ...pending, ...this.sessionRefUpdate() });
+    this.emitUpdate({ ...pending, ...this.sessionRefUpdate() });
   }
 
   private emitUpdateAfterRequestResolution(): void {
     const pending = this.pendingRequestStatus();
-    this.listener?.onUpdate({
+    this.emitUpdate({
       ...(pending ?? { status: "working", attention: "working" }),
       ...this.sessionRefUpdate(),
     });
@@ -746,6 +805,8 @@ export class OpenCode2Session implements StructuredSessionHandle {
 
   private async replaceOpenCodeServer(): Promise<void> {
     const previous = this.acquired;
+    this.retireSlashCommands?.();
+    this.retireSlashCommands = undefined;
     this.unsubscribeEvents?.();
     this.unsubscribeEvents = undefined;
     this.unsubscribeServerExit?.();
@@ -769,6 +830,10 @@ export class OpenCode2Session implements StructuredSessionHandle {
     }
     this.acquired = acquired;
     if (this.isGui) {
+      this.refreshSlashCommands(
+        acquired,
+        awaitOpenCode2Activation(acquired.client, { location: { directory: this.directory } }),
+      );
       this.startEventStream();
       this.startServerExitRecovery();
       // Fresh hubs skip onReconnect on first connect; recover before the next prompt.
@@ -932,16 +997,10 @@ export class OpenCode2Session implements StructuredSessionHandle {
     }
   }
 
-  private emitUpdate(update: {
-    status: ThreadStatus;
-    attention: ThreadAttention;
-    sessionRef?: SessionRef;
-  }): void {
-    this.listener?.onUpdate({
-      status: update.status,
-      attention: update.attention,
-      ...(update.sessionRef ? { sessionRef: update.sessionRef } : {}),
-    });
+  private emitUpdate(update: StructuredSessionUpdate): void {
+    this.currentStatus = update.status;
+    this.currentAttention = update.attention;
+    this.listener?.onUpdate(update);
   }
 
   private emitRuntimeEvents(events: RuntimeEvent[]): void {

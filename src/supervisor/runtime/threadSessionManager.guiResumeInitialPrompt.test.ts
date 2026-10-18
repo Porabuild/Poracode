@@ -172,7 +172,10 @@ function createManager(
   emit: (event: SupervisorEvent) => void,
   preparation: Pick<
     ThreadSessionManagerOptions,
-    "resolvePluginLaunchContributions" | "crossagentMcp"
+    | "resolvePluginLaunchContributions"
+    | "filterPluginSkillSegments"
+    | "buildSkillTurnInjection"
+    | "crossagentMcp"
   > = {},
 ): ThreadSessionManager {
   const tempDir = mkdtempSync(join(tmpdir(), "poracode-gui-resume-prompt-"));
@@ -248,6 +251,135 @@ function startResumedThread(
     ...(input.userMessageItemId ? { userMessageItemId: input.userMessageItemId } : {}),
   });
 }
+
+describe("native plugin metadata demand", () => {
+  it("starts and submits plain text without waiting for native plugin inventory", async () => {
+    const structured = createStructuredSession();
+    const { adapter } = createAdapter(structured);
+    const inventory = vi.fn<NonNullable<AgentAdapter["listNativePlugins"]>>(
+      () => new Promise(() => {}),
+    );
+    adapter.listNativePlugins = inventory;
+    const contributions = vi.fn<
+      NonNullable<ThreadSessionManagerOptions["resolvePluginLaunchContributions"]>
+    >(async (_location, _kind, selection) => ({
+      mcpServers: [],
+      builtInMcpServerIds: [],
+      nativePlugins: selection?.nativePluginAdapter
+        ? [...(await selection.nativePluginAdapter.listNativePlugins!({ envKind: "posix" }))]
+        : [],
+    }));
+    const manager = createManager(adapter, () => {}, {
+      resolvePluginLaunchContributions: contributions,
+    });
+    await manager.startThread({
+      threadId: THREAD_ID,
+      projectLocation: PROJECT_LOCATION,
+      agentKind: AGENT_KIND,
+      config: { model: "fixture-model" },
+      prompt: "Reply OK",
+      initialSize: INITIAL_SIZE,
+      presentationMode: "gui",
+    });
+    expect(structured.startTurn).toHaveBeenCalledOnce();
+    manager.sessions.get(THREAD_ID)!.status = "idle";
+    await manager.sendThreadInput({
+      threadId: THREAD_ID,
+      prompt: "Reply OK again",
+      config: { model: "fixture-model" },
+    });
+    await vi.waitFor(() => expect(structured.startTurn).toHaveBeenCalledTimes(2));
+    expect(contributions).toHaveBeenCalledWith(PROJECT_LOCATION, AGENT_KIND, {
+      includeExternalServers: true,
+    });
+    expect(inventory).not.toHaveBeenCalled();
+  });
+
+  it.each(["start", "followup", "restart"] as const)(
+    "provides native plugin metadata for an explicit plugin skill on %s",
+    async (phase) => {
+      const structured = createStructuredSession();
+      const { adapter, createStructuredSession: factory } = createAdapter(structured);
+      const nativePlugins = [{ name: "fixture-plugin", root: "/profile/plugins/fixture-plugin" }];
+      const inventory = vi.fn<NonNullable<AgentAdapter["listNativePlugins"]>>(
+        async () => nativePlugins,
+      );
+      adapter.listNativePlugins = inventory;
+      const replacementInventory = vi.fn<NonNullable<AgentAdapter["listNativePlugins"]>>(
+        async () => [{ name: "fixture-plugin", root: "/other-profile/plugins/fixture-plugin" }],
+      );
+      const replacementAdapter = {
+        ...adapter,
+        listNativePlugins: replacementInventory,
+      };
+      const contributions = vi.fn<
+        NonNullable<ThreadSessionManagerOptions["resolvePluginLaunchContributions"]>
+      >(async (_location, _kind, selection) => ({
+        mcpServers: [],
+        builtInMcpServerIds: [],
+        nativePlugins: selection?.nativePluginAdapter
+          ? [...(await selection.nativePluginAdapter.listNativePlugins!({ envKind: "posix" }))]
+          : [],
+      }));
+      const policy = vi.fn<NonNullable<ThreadSessionManagerOptions["filterPluginSkillSegments"]>>(
+        async ({ segments }) => segments,
+      );
+      const injection = vi.fn<NonNullable<ThreadSessionManagerOptions["buildSkillTurnInjection"]>>(
+        async () => undefined,
+      );
+      const manager = createManager(adapter, () => {}, {
+        resolvePluginLaunchContributions: contributions,
+        filterPluginSkillSegments: policy,
+        buildSkillTurnInjection: injection,
+      });
+      const segments: PromptSegment[] = [
+        {
+          kind: "skill",
+          name: "fixture-skill",
+          path: "/fixture-plugin/skills/fixture-skill/SKILL.md",
+          invocation: "$fixture-skill",
+          provider: "fixture",
+          scope: "global",
+          pluginId: "fixture-plugin",
+        },
+      ];
+      if (phase === "start") {
+        await startResumedThread(manager, { prompt: "$fixture-skill", segments });
+      } else {
+        await startResumedThread(manager, { prompt: "" });
+        (manager as unknown as { options: ThreadSessionManagerOptions }).options.adapters.set(
+          AGENT_KIND,
+          replacementAdapter,
+        );
+        if (phase === "restart") manager.sessions.get(THREAD_ID)!.status = "inactive";
+        await manager.sendThreadInput({
+          threadId: THREAD_ID,
+          prompt: "$fixture-skill",
+          segments,
+          config: { model: "fixture-model" },
+        });
+      }
+      await vi.waitFor(() => expect(structured.startTurn).toHaveBeenCalledOnce());
+      expect(contributions).toHaveBeenLastCalledWith(PROJECT_LOCATION, AGENT_KIND, {
+        includeExternalServers: phase === "start",
+        nativePluginAdapter: adapter,
+      });
+      expect(policy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          agentKind: AGENT_KIND,
+          projectLocation: PROJECT_LOCATION,
+          nativePlugins,
+          segments,
+        }),
+      );
+      expect(injection).toHaveBeenCalledWith(expect.objectContaining({ nativePlugins, segments }));
+      expect(manager.sessions.get(THREAD_ID)?.nativePlugins).toEqual(nativePlugins);
+      expect(inventory).toHaveBeenCalledOnce();
+      expect(replacementInventory).not.toHaveBeenCalled();
+      expect(factory).toHaveBeenCalledTimes(phase === "restart" ? 2 : 1);
+    },
+  );
+});
 
 describe("live built-in MCP resolution", () => {
   it.each([true, false])(

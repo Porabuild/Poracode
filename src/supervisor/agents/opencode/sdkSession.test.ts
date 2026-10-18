@@ -52,6 +52,129 @@ describe("OpencodeSdkSession", () => {
     mocks.acquireOpenCodeServer.mockReset();
   });
 
+  async function catalogSession(catalog: Promise<{ data: Array<{ name: string }> }>) {
+    const client = {
+      command: { list: vi.fn<() => typeof catalog>(() => catalog) },
+      session: {
+        create: vi.fn<() => Promise<unknown>>(async () => ({ data: { id: "ses_catalog" } })),
+        get: vi.fn<() => Promise<unknown>>(async () => ({ data: { id: "ses_catalog" } })),
+        promptAsync: vi.fn<() => Promise<unknown>>(async () => ({})),
+        update: vi.fn<() => Promise<unknown>>(async () => ({})),
+        abort: vi.fn<() => Promise<unknown>>(async () => ({})),
+        status: vi.fn<() => Promise<unknown>>(async () => ({ data: {} })),
+      },
+    };
+    const acquired = {
+      client,
+      handle: { formatOutput: () => "" },
+      dispose: vi.fn<() => Promise<void>>(async () => {}),
+    };
+    mocks.acquireOpenCodeServer.mockResolvedValue(acquired);
+    const session = await OpencodeSdkSession.create({
+      threadId: "catalog",
+      projectLocation,
+      config,
+      presentationMode: "terminal",
+    });
+    const updates: StructuredSessionUpdate[] = [];
+    session.setListener({ onClose() {}, onError() {}, onUpdate: (update) => updates.push(update) });
+    await session.activate();
+    return { session, client, acquired, updates };
+  }
+
+  it.each([false, true])(
+    "admits plain input while command discovery is stalled (resume=%s)",
+    async (resume) => {
+      const catalog = Promise.withResolvers<{ data: Array<{ name: string }> }>();
+      const { session, client, updates } = await catalogSession(catalog.promise);
+      await session.openThread(
+        config,
+        resume
+          ? { providerSessionId: "ses_catalog", discoveredAt: "2026-10-18T00:00:00Z" }
+          : undefined,
+      );
+      await session.startTurn("hello", config);
+      expect(client.session.promptAsync).toHaveBeenCalled();
+      catalog.resolve({ data: [{ name: "review" }] });
+      await vi.waitFor(() =>
+        expect(updates.at(-1)).toMatchObject({
+          status: "working",
+          slashCommands: [expect.objectContaining({ id: "review" })],
+        }),
+      );
+      await session.dispose();
+    },
+  );
+
+  it.each(["needs_approval", "error"])(
+    "preserves %s when command discovery finishes",
+    async (status) => {
+      const catalog = Promise.withResolvers<{ data: Array<{ name: string }> }>();
+      const { session, updates } = await catalogSession(catalog.promise);
+      await session.openThread(config);
+      const properties =
+        status === "needs_approval"
+          ? {
+              id: "permission",
+              sessionID: "ses_catalog",
+              permission: "bash",
+              patterns: ["ls"],
+              metadata: {},
+              always: [],
+            }
+          : {
+              sessionID: "ses_catalog",
+              error: { name: "UnknownError", data: { message: "provider failed" } },
+            };
+      (session as unknown as { handleSseEvent(event: Event): void }).handleSseEvent({
+        id: "event",
+        type: status === "needs_approval" ? "permission.asked" : "session.error",
+        properties,
+      } as Event);
+      catalog.resolve({ data: [{ name: "review" }] });
+      await vi.waitFor(() =>
+        expect(updates.at(-1)).toMatchObject({
+          status,
+          slashCommands: [expect.objectContaining({ id: "review" })],
+        }),
+      );
+      await session.dispose();
+    },
+  );
+
+  it.each(["dispose", "replacement"])(
+    "ignores command discovery from a retired handle after %s",
+    async (retirement) => {
+      const catalog = Promise.withResolvers<{ data: Array<{ name: string }> }>();
+      const { session, acquired, updates } = await catalogSession(catalog.promise);
+      await session.openThread(config);
+      if (retirement === "dispose") await session.dispose();
+      else Object.assign(session, { acquired: { ...acquired } });
+      const count = updates.length;
+      catalog.resolve({ data: [{ name: "stale" }] });
+      await catalog.promise;
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      expect(updates).toHaveLength(count);
+      if (retirement !== "dispose") await session.dispose();
+    },
+  );
+
+  it("keeps a catalog failure separate from conversation admission", async () => {
+    const catalog = Promise.withResolvers<{ data: Array<{ name: string }> }>();
+    const { session, client } = await catalogSession(catalog.promise);
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    try {
+      await session.openThread(config);
+      catalog.reject(new Error("catalog unavailable"));
+      await vi.waitFor(() => expect(log).toHaveBeenCalled());
+      await session.startTurn("hello", config);
+      expect(client.session.promptAsync).toHaveBeenCalled();
+      await session.dispose();
+    } finally {
+      log.mockRestore();
+    }
+  });
+
   it("preserves a typed, actionable provider readiness timeout", async () => {
     mocks.acquireOpenCodeServer.mockRejectedValue(
       new OpenCodeReadinessTimeoutError("opencode serve: OpenCode server did not respond in time."),
