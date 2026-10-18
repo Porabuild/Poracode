@@ -91,7 +91,7 @@ import {
 } from "./threadSession/userInterrupt";
 import { writeSubmittedPrompt } from "./threadSession/promptWrite";
 import { resolveTerminalColorEnv } from "./threadSession/terminalEnv";
-import { requireSessionPty, shouldPrimeNativeProjectShellEnv } from "./threadSession/helpers";
+import { requireSessionPty } from "./threadSession/helpers";
 import { resolveThreadMentionSegments } from "./threadMentionResolver";
 import { formatTurnClientContext } from "./turnClientContext";
 import { RuntimeEventRouter } from "./threadSession/runtimeEventRouter";
@@ -1948,13 +1948,6 @@ export class ThreadSessionManager {
       if (this.shellSessions.get(payload.shellId) === existing) {
         this.shellSessions.delete(payload.shellId);
       }
-    }
-
-    // Capture project-scoped shell env (fnm / nvm / asdf / mise cd-hooks
-    // fire when the prime probe runs inside the project root) so the
-    // user's pinned Node/Python/Ruby are on PATH before the PTY spawns.
-    if (shouldPrimeNativeProjectShellEnv(payload.projectLocation)) {
-      await primeProjectShellEnv(payload.projectLocation.path);
     }
 
     const windowsShell =

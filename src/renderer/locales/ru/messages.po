@@ -8552,6 +8552,10 @@ msgstr "Загрузка навыка…"
 msgid "Loading skills…"
 msgstr "Загрузка навыков…"
 
+#: src/renderer/components/terminal/TerminalFeedStatus.tsx
+msgid "Loading terminal…"
+msgstr "Загрузка терминала…"
+
 #: src/mobile/views/ThreadView.tsx
 #~ msgid "Loading thread"
 #~ msgstr "Загрузка потока"

@@ -8552,6 +8552,10 @@ msgstr "Wczytywanie umiejętności…"
 msgid "Loading skills…"
 msgstr "Ładowanie umiejętności…"
 
+#: src/renderer/components/terminal/TerminalFeedStatus.tsx
+msgid "Loading terminal…"
+msgstr "Ładowanie terminala…"
+
 #: src/mobile/views/ThreadView.tsx
 #~ msgid "Loading thread"
 #~ msgstr "Ładowanie wątku"

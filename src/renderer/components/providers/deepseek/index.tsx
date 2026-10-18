@@ -8,8 +8,11 @@ import { registerComposerControls, registerConfigNormalizer } from "../providerC
 import { registerCommitGenDefaults } from "../commitGen";
 import { registerTitleGenDefaults } from "../titleGen";
 import { registerConflictResolverDefaults } from "../conflictResolver";
+import { registerTerminalLoginCompletion } from "../terminalLogin";
+import { watchDeepSeekLogin } from "./terminalLogin";
 
 registerProviderIcon(providerManifest.kind, DeepSeekIcon);
+registerTerminalLoginCompletion(providerManifest.kind, watchDeepSeekLogin);
 registerConfigNormalizer(providerManifest.kind, ({ config }) =>
   config.approvalPolicy === "never" ? { approvalPolicy: "auto-review" } : {},
 );

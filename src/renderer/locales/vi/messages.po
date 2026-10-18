@@ -8552,6 +8552,10 @@ msgstr "Đang tải skill…"
 msgid "Loading skills…"
 msgstr "Đang tải skill…"
 
+#: src/renderer/components/terminal/TerminalFeedStatus.tsx
+msgid "Loading terminal…"
+msgstr "Đang tải thiết bị đầu cuối…"
+
 #: src/mobile/views/ThreadView.tsx
 #~ msgid "Loading thread"
 #~ msgstr "Đang tải luồng"

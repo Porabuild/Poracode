@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import type { TerminalSocketSender } from "@/shared/remote/terminalFeed";
-import type { Project } from "@/shared/contracts";
+import type { AgentStatus, Project } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
 
 const bridge = vi.hoisted(() => ({
@@ -83,6 +83,7 @@ import {
 import type { RemoteTerminalWatchResultReady } from "@/shared/remote/protocol";
 import { antigravityCliInstallCommand } from "@/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall";
 import { runAgentInstallCommand, runAgentLoginCommand } from "./agentLoginActions";
+import { registerTerminalLoginCompletion } from "@/renderer/components/providers/terminalLogin";
 
 type WatchSender = TerminalSocketSender;
 
@@ -201,7 +202,9 @@ describe("runAgentLoginCommand", () => {
         if (index >= 0) supervisorHandlers.splice(index, 1);
       };
     });
-    loginTerminalStore.open.mockReset();
+    loginTerminalStore.open.mockReset().mockImplementation((session) => {
+      loginTerminalStore.active = session;
+    });
     loginTerminalStore.close.mockReset();
     loginTerminalStore.markFailed.mockReset();
     loginTerminalStore.active = undefined;
@@ -209,6 +212,68 @@ describe("runAgentLoginCommand", () => {
     startShellWithCurrentSettingsMock
       .mockReset()
       .mockImplementation((payload) => bridge.startShell(payload));
+  });
+
+  it("closes the running login shell when its provider confirms browser authentication", async () => {
+    let complete!: () => void;
+    const stop = vi.fn<() => void>();
+    registerTerminalLoginCompletion("fixture-server", ({ onAuthenticated }) => {
+      complete = onAuthenticated;
+      return stop;
+    });
+    const status: AgentStatus = {
+      kind: "fixture-server",
+      label: "Server agent",
+      installed: true,
+      authState: "unknown",
+      capabilities: {
+        models: [],
+        efforts: [],
+        modelEfforts: {},
+        modes: [],
+        approvalPolicies: [],
+        sandboxModes: [],
+        supportsResume: false,
+        supportsDirectInput: false,
+        liveInputMode: "server",
+        presentationMode: "gui",
+        settingDefs: [],
+      },
+    };
+    const onCommandComplete = vi.fn<(exitCode: number) => void>();
+    runAgentLoginCommand({
+      label: status.label,
+      command: "agent web",
+      status,
+      project: windowsProject,
+      onCommandComplete,
+    });
+    await Promise.resolve();
+    const shellId = loginTerminalStore.active?.shellId;
+    complete();
+    complete();
+    expect(onCommandComplete).toHaveBeenCalledExactlyOnceWith(0);
+    expect(stop).toHaveBeenCalledOnce();
+    expect(bridge.closeThread).toHaveBeenCalledWith({ threadId: shellId });
+    expect(loginTerminalStore.close).toHaveBeenCalledOnce();
+  });
+
+  it("does not dismiss a replacement login when the old command's close timer fires", () => {
+    runAgentLoginCommand({ label: "Agent", command: "agent login", project: windowsProject });
+    const shellId = loginTerminalStore.active!.shellId;
+    const token = /poracode-login-complete=([^:]+):/u.exec(
+      writeScriptToShellMock.mock.calls[0]?.[1] ?? "",
+    )?.[1];
+    emit({
+      type: "thread-output",
+      threadId: shellId,
+      data: `\u001B]777;poracode-login-complete=${token}:0\u0007`,
+      outputLength: 0,
+      terminalInstanceId: "gen-test",
+    });
+    loginTerminalStore.active = { shellId: "login:replacement" };
+    vi.advanceTimersByTime(1200);
+    expect(loginTerminalStore.close).not.toHaveBeenCalled();
   });
 
   it("opens hard-wrapped WSL auth URLs in the native browser", () => {

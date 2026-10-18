@@ -441,6 +441,7 @@ export function SingleAgentSettings(props: {
     );
     const opened = runAgentLoginCommand({
       label: status.label,
+      status,
       command: status.loginCommand,
       ...(method?.env ? { env: method.env } : {}),
       ...(project ? { project } : {}),

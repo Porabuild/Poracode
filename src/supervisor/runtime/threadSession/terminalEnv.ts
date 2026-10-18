@@ -40,11 +40,9 @@ export function resolveTerminalColorEnv(location: ProjectLocation): TerminalColo
   if (cached) {
     return { TERM: cached, COLORTERM: "truecolor" };
   }
-  if (hasGhosttyTerminfo(location)) {
-    terminfoTermCache.set(key, GHOSTTY_TERM);
-    return { TERM: GHOSTTY_TERM, COLORTERM: "truecolor" };
-  }
-  return { TERM: FALLBACK_TERM, COLORTERM: "truecolor" };
+  const term = hasGhosttyTerminfo(location) ? GHOSTTY_TERM : FALLBACK_TERM;
+  terminfoTermCache.set(key, term);
+  return { TERM: term, COLORTERM: "truecolor" };
 }
 
 const ITERM2_STATUS_ENV = {

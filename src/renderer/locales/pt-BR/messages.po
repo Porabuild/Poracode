@@ -8552,6 +8552,10 @@ msgstr "Carregando skill…"
 msgid "Loading skills…"
 msgstr "Carregando skills…"
 
+#: src/renderer/components/terminal/TerminalFeedStatus.tsx
+msgid "Loading terminal…"
+msgstr "Carregando terminal…"
+
 #: src/mobile/views/ThreadView.tsx
 #~ msgid "Loading thread"
 #~ msgstr "Carregando thread"
