@@ -53,6 +53,10 @@ async function legacyPoolWindows(
   return antigravityPoolWindows(models);
 }
 
+function hasGeminiQuotaWindow(windows: readonly UsageWindow[]): boolean {
+  return windows.some((window) => window.id.startsWith("antigravity:gemini:"));
+}
+
 /** Probe the running language server; undefined when none is reachable. */
 export async function scanAntigravityLanguageServerUsage(
   nowMs: number,
@@ -72,6 +76,15 @@ export async function scanAntigravityLanguageServerUsage(
     let windows = summaryBody !== undefined ? antigravityQuotaSummaryWindows(summaryBody) : [];
     if (windows.length === 0) {
       windows = await legacyPoolWindows(port, statusBody, csrfTokens);
+    } else if (!hasGeminiQuotaWindow(windows)) {
+      // IDE language servers that call daily-cloudcode-pa without the CLI
+      // User-Agent receive only the Claude/GPT group from RetrieveUserQuotaSummary;
+      // supplement missing Gemini pools from GetUserStatus when available.
+      const poolWindows = await legacyPoolWindows(port, statusBody, csrfTokens);
+      const geminiPools = poolWindows.filter((w) => w.id.startsWith("antigravity:gemini-"));
+      if (geminiPools.length > 0) {
+        windows = [...geminiPools, ...windows];
+      }
     }
     if (windows.length > 0) {
       const plan = planFromUserStatus(statusBody);
@@ -120,9 +133,10 @@ export async function scanAntigravityUsage(
   deps: AntigravityUsageScannerDeps = defaultDeps,
 ): Promise<UsageSnapshot> {
   const ls = await deps.scanLanguageServer(nowMs, wslDistros).catch(() => undefined);
-  if (ls && ls.windows.length > 0) return ls;
+  if (ls && ls.windows.length > 0 && hasGeminiQuotaWindow(ls.windows)) return ls;
   const credentials = await deps.resolveAcpCredentials(host).catch(() => undefined);
   if (!credentials) {
+    if (ls && ls.windows.length > 0) return ls;
     return { providerId: "antigravity", status: "app-not-running", windows: [], fetchedAt: nowMs };
   }
   const snapshot = await deps.collectCloudUsage(nowMs, host, credentials);
@@ -135,6 +149,12 @@ export async function scanAntigravityUsage(
     // live Keychain item (recreated agentside on every server start) instead
     // of rereading its password — and re-prompting — on the next launch.
     await deps.confirmAcpCredentials(host, credentials);
+  }
+  if (ls && ls.windows.length > 0 && (snapshot.status !== "ok" || snapshot.windows.length === 0)) {
+    return ls;
+  }
+  if (ls?.plan && !snapshot.plan && snapshot.status === "ok") {
+    return { ...snapshot, plan: ls.plan };
   }
   return snapshot;
 }

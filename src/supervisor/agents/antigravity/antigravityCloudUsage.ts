@@ -15,6 +15,14 @@ const CLOUD_CODE_BASE_URLS = [
 const QUOTA_SUMMARY_PATH = "/v1internal:retrieveUserQuotaSummary";
 const LOAD_CODE_ASSIST_PATH = "/v1internal:loadCodeAssist";
 const ACCESS_TOKEN_EXPIRY_BUFFER_MS = 60_000;
+/**
+ * User-Agent sent by the official `agy` CLI (`http_helpers.go`).
+ * `daily-cloudcode-pa.googleapis.com/v1internal:retrieveUserQuotaSummary` gates
+ * the Gemini and Gemini 4 Argon quota groups on the `antigravity/cli/<version>`
+ * User-Agent prefix; a bare `"antigravity"` header returns only the 3P (Claude
+ * and GPT) group.
+ */
+export const ANTIGRAVITY_CLOUD_USER_AGENT = "antigravity/cli/1.4.2 (aidev_client)";
 
 interface CachedAccessToken {
   credentialFingerprint: string;
@@ -122,7 +130,7 @@ function cloudCodePost(
       Authorization: `Bearer ${accessToken}`,
       "Content-Type": "application/json",
       Accept: "application/json",
-      "User-Agent": "antigravity",
+      "User-Agent": ANTIGRAVITY_CLOUD_USER_AGENT,
     },
     body: "{}",
     timeoutMs: 15_000,
