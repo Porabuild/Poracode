@@ -3,6 +3,7 @@ import "fake-indexeddb/auto";
 import { describe, expect, it, vi } from "vitest";
 import "./index";
 import manifest from "./manifest";
+import { DeepSeekProviderSettings } from "./DeepSeekProviderSettings";
 import { getComposerControls, getConfigNormalizer } from "../providerComposer";
 import { getCommitGenDefaults, resolveCommitGenConfig } from "../commitGen";
 import { getTitleGenDefaults, resolveTitleGenConfig } from "../titleGen";
@@ -191,7 +192,7 @@ describe("DeepSeek Harness renderer plugin", () => {
     expect(onConfigChange).toHaveBeenCalledWith({ approvalPolicy: "default" });
     expect(
       NATIVE_AGENT_REGISTRY_ENTRIES.find((entry) => entry.id === manifest.kind)?.settingsPanel,
-    ).toBeUndefined();
+    ).toBe(DeepSeekProviderSettings);
   });
 
   it("installs the same release channel exposed by the supervisor", () => {

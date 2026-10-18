@@ -5,6 +5,7 @@ import { buildDeepSeekCommand } from "./argv";
 import { deepSeekDefaultCapabilities, deepSeekDetectionSpec } from "./detection";
 import { runDeepSeekOneShot } from "./oneShot";
 import { normalizeDeepSeekConfig, stageDeepSeekPermissions } from "./permissions";
+import { manageDeepSeekModelProviders } from "./modelProviders";
 
 export function createDeepSeekAdapter(): AgentAdapter {
   let capabilities = deepSeekDefaultCapabilities;
@@ -21,6 +22,7 @@ export function createDeepSeekAdapter(): AgentAdapter {
       return capabilities.models[0]!.id;
     },
     runOneShot: runDeepSeekOneShot,
+    manageModelProviders: manageDeepSeekModelProviders,
     skillSupport: {
       roots: [
         {
