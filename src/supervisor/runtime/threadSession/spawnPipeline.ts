@@ -536,10 +536,12 @@ export class SpawnPipeline {
     // so without this the spawned CLI picks up homebrew node instead of the
     // project-pinned version. Memoized per cwd; the later prime before the PTY
     // launch is a no-op after this.
-    if (shouldPrimeNativeProjectShellEnv(executionLocation)) {
-      await primeProjectShellEnv(executionLocation.path);
-    }
-    await this.ctx.options.prepareSkillsForLaunch?.(executionLocation, payload.agentKind);
+    await Promise.all([
+      shouldPrimeNativeProjectShellEnv(executionLocation)
+        ? primeProjectShellEnv(executionLocation.path)
+        : undefined,
+      this.ctx.options.prepareSkillsForLaunch?.(executionLocation, payload.agentKind),
+    ]);
 
     const mcpIdentity = {
       threadId: payload.threadId,
@@ -563,11 +565,12 @@ export class SpawnPipeline {
       );
     }
     if (this.ctx.options.prepareMcpToolFilters) {
-      mcpServers = await this.ctx.options.prepareMcpToolFilters(
-        mcpServers,
-        executionLocation,
-        ...(adapter.mcpRequiresStdioCwdProxy ? [{ proxyStdioCwd: true }] : []),
-      );
+      mcpServers = await this.ctx.options.prepareMcpToolFilters(mcpServers, executionLocation, {
+        ...(adapter.mcpRequiresStdioCwdProxy ? { proxyStdioCwd: true } : {}),
+        ...(requestedPresentation === "gui" && adapter.mcpRequiresConnectionFailureIsolation
+          ? { isolateConnectionFailures: true }
+          : {}),
+      });
     }
     const mcpLaunchSnapshot: McpLaunchSnapshot = {
       mcpServers,

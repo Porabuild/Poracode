@@ -13,9 +13,14 @@ describe("Cursor ACP picker session integration", () => {
   });
 
   it.each([
-    { name: "a fresh GUI thread", overrides: {} },
+    {
+      name: "a fresh GUI thread",
+      overrides: {},
+      args: ["--model", "grok-4.6", "acp"],
+    },
     {
       name: "an ACP GUI resume after the default switches to SDK",
+      args: ["acp"],
       overrides: {
         agentSettings: { structuredRuntime: "sdk" },
         sessionRef: {
@@ -24,27 +29,30 @@ describe("Cursor ACP picker session integration", () => {
         },
       },
     },
-  ])("enables parameterized controls for $name through the ACP factory", async ({ overrides }) => {
-    // Keep the adapter and shared factory real; intercept only the process
-    // creation boundary so this regression never launches a provider.
-    const session = {} as AcpStructuredSession;
-    const create = vi.spyOn(AcpStructuredSession, "create").mockReturnValue(session);
-    const input: CreateStructuredSessionInput = {
-      threadId: "cursor-picker-thread",
-      projectLocation: { kind: "posix", path: "/repo" },
-      presentationMode: "gui",
-      config: { model: "grok-4.6", effort: "xhigh" },
-      ...overrides,
-    };
+  ])(
+    "enables parameterized controls for $name through the ACP factory",
+    async ({ overrides, args }) => {
+      // Keep the adapter and shared factory real; intercept only the process
+      // creation boundary so this regression never launches a provider.
+      const session = {} as AcpStructuredSession;
+      const create = vi.spyOn(AcpStructuredSession, "create").mockReturnValue(session);
+      const input: CreateStructuredSessionInput = {
+        threadId: "cursor-picker-thread",
+        projectLocation: { kind: "posix", path: "/repo" },
+        presentationMode: "gui",
+        config: { model: "grok-4.6", effort: "xhigh" },
+        ...overrides,
+      };
 
-    const result = await createCursorAdapter().createStructuredSession?.(input);
+      const result = await createCursorAdapter().createStructuredSession?.(input);
 
-    expect(result).toBe(session);
-    expect(create).toHaveBeenCalledExactlyOnceWith(
-      expect.objectContaining({ args: ["acp"] }),
-      input.projectLocation,
-      input.threadId,
-      expect.objectContaining({ clientCapabilitiesMeta: { parameterizedModelPicker: true } }),
-    );
-  });
+      expect(result).toBe(session);
+      expect(create).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ args }),
+        input.projectLocation,
+        input.threadId,
+        expect.objectContaining({ clientCapabilitiesMeta: { parameterizedModelPicker: true } }),
+      );
+    },
+  );
 });

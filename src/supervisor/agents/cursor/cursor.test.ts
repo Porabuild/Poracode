@@ -35,6 +35,9 @@ import {
 import { buildCursorArgs } from "./argv";
 import { CursorSdkSession } from "./sdkSession";
 import { primeWslLaunchEnvironment, UnsupportedOneShotControlError } from "../base";
+import * as agentBase from "../base";
+import * as acpRuntime from "../acp";
+import * as windowsExecutable from "./windowsExecutable";
 
 function decodePowerShellEncodedCommand(encoded: string): string {
   return Buffer.from(encoded, "base64").toString("utf16le");
@@ -54,6 +57,47 @@ function parseWindowsSpec(spec: { args: string[] }): { cmd: string; cmdArgs: str
 }
 
 describe("createCursorAdapter capabilities", () => {
+  it.each([
+    ["fresh", "gui", "gpt-5.4-nano", false, ["--model", "gpt-5.4-nano", "acp"]],
+    ["auto", "gui", "default", false, ["--model", "auto", "acp"]],
+    ["empty model", "gui", "", false, ["acp"]],
+    ["resume", "gui", "gpt-5.4-nano", true, ["acp"]],
+    ["terminal", "terminal", "gpt-5.4-nano", false, ["acp"]],
+  ] as const)(
+    "sets the initial ACP model for %s without changing controls",
+    async (_label, presentationMode, model, resume, args) => {
+      const prepare = vi
+        .spyOn(agentBase, "prepareAgentLocationEnvironment")
+        .mockResolvedValue(undefined);
+      const build = vi
+        .spyOn(windowsExecutable, "buildCursorAgentCommand")
+        .mockImplementation((_location, values) => ({ command: "cursor-agent", args: values }));
+      const create = vi.spyOn(acpRuntime, "createAcpStructuredSession").mockReturnValue(undefined);
+      try {
+        const input = {
+          threadId: "initial-model",
+          projectLocation: { kind: "posix" as const, path: "/repo" },
+          config: { model, effort: "high", fast: false, thinking: false },
+          presentationMode,
+          agentSettings: { structuredRuntime: "acp" },
+          ...(resume
+            ? { sessionRef: { providerSessionId: "existing", discoveredAt: "2026-10-18" } }
+            : {}),
+        };
+        await createCursorAdapter().createStructuredSession?.(input);
+        expect(build).toHaveBeenCalledWith(input.projectLocation, args);
+        expect(create).toHaveBeenCalledWith(
+          { command: "cursor-agent", args },
+          expect.objectContaining(input),
+        );
+      } finally {
+        create.mockRestore();
+        build.mockRestore();
+        prepare.mockRestore();
+      }
+    },
+  );
+
   it("exposes non-empty approvalPolicies for the YOLO toggle", () => {
     const adapter = createCursorAdapter();
     expect(adapter.capabilities.approvalPolicies.length).toBeGreaterThan(0);

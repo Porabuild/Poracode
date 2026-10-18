@@ -3,12 +3,15 @@ import { join } from "node:path";
 import type { ProjectLocation, ResolvedMcpServer } from "@/shared/contracts";
 import { resolveNodeForDistro } from "../wsl/runtime";
 import { deployFilesToWslTempBase, resolveWslHelpersDir } from "../wsl/wslDeploy";
+import { MCP_FILTER_CONFIG_ENV, MCP_FILTER_CONFIG_V1_ENV } from "./mcpToolFilterConfig";
 
-const CONFIG_ENV = "PORACODE_MCP_FILTER_CONFIG";
-
-function filterConfig(server: ResolvedMcpServer): string {
+function filterConfig(server: ResolvedMcpServer, isolateConnectionFailures: boolean): string {
   return Buffer.from(
-    JSON.stringify({ server, disabledTools: server.disabledTools ?? [] }),
+    JSON.stringify({
+      ...(isolateConnectionFailures ? { version: 1, isolateConnectionFailures: true } : {}),
+      server,
+      disabledTools: server.disabledTools ?? [],
+    }),
     "utf8",
   ).toString("base64url");
 }
@@ -16,9 +19,14 @@ function filterConfig(server: ResolvedMcpServer): string {
 export async function prepareMcpToolFilters<T extends ResolvedMcpServer>(
   servers: readonly T[],
   location: ProjectLocation,
-  options: { remoteViaStdio?: boolean; proxyStdioCwd?: boolean } = {},
+  options: {
+    remoteViaStdio?: boolean;
+    proxyStdioCwd?: boolean;
+    isolateConnectionFailures?: boolean;
+  } = {},
 ): Promise<T[]> {
   const needsProxy = (server: T) =>
+    options.isolateConnectionFailures === true ||
     (server.disabledTools?.length ?? 0) > 0 ||
     (options.remoteViaStdio === true && server.transport.type !== "stdio") ||
     Boolean(options.proxyStdioCwd && server.transport.type === "stdio" && server.transport.cwd);
@@ -26,7 +34,9 @@ export async function prepareMcpToolFilters<T extends ResolvedMcpServer>(
 
   const helpersDir = resolveWslHelpersDir();
   const workerName = (server: ResolvedMcpServer) =>
-    (server.disabledTools?.length ?? 0) > 0 || server.transport.type !== "stdio"
+    options.isolateConnectionFailures === true ||
+    (server.disabledTools?.length ?? 0) > 0 ||
+    server.transport.type !== "stdio"
       ? "mcp-filter.mjs"
       : "mcp-stdio.mjs";
   const names = [...new Set(servers.filter(needsProxy).map(workerName))];
@@ -54,7 +64,10 @@ export async function prepareMcpToolFilters<T extends ResolvedMcpServer>(
     if (!needsProxy(server)) return server;
     const filtersTools = workerName(server) === "mcp-filter.mjs";
     const env: Record<string, string> = filtersTools
-      ? { [CONFIG_ENV]: filterConfig(server) }
+      ? {
+          [options.isolateConnectionFailures ? MCP_FILTER_CONFIG_V1_ENV : MCP_FILTER_CONFIG_ENV]:
+            filterConfig(server, options.isolateConnectionFailures === true),
+        }
       : {
           PORACODE_MCP_STDIO_CONFIG: Buffer.from(JSON.stringify({ version: 1, server })).toString(
             "base64url",
