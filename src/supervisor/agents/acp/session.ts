@@ -251,6 +251,8 @@ function isReplacementOnlyDeltaBatch(events: RuntimeEvent[]): boolean {
 // ── Session ──────────────────────────────────────────────────────
 
 export interface AcpSessionBehavior {
+  /** Use resource links when image admission can differ from the initialized route. */
+  inlineImagePrompts?: boolean;
   /** Require advertised, confirmed configuration selections before admitting a prompt. */
   strictConfigSelection?: boolean;
   /**
@@ -1710,7 +1712,9 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       outboundPrompt,
       this.projectLocation,
       segments,
-      this.agentPromptCapabilities,
+      this.behavior.inlineImagePrompts === false
+        ? { ...this.agentPromptCapabilities, image: false }
+        : this.agentPromptCapabilities,
     );
 
     try {
