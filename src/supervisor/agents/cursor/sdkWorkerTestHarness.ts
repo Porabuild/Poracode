@@ -34,7 +34,7 @@ export async function createCursorSdkWorkerHarness(sdkSource: string): Promise<{
   if (!configuredWorkerPath) {
     const workerSource = resolve(dirname(fileURLToPath(import.meta.url)), "sdkWorker.ts");
     const esbuildArgs = [
-      "exec",
+      "run",
       "esbuild",
       workerSource,
       "--bundle",
@@ -43,11 +43,7 @@ export async function createCursorSdkWorkerHarness(sdkSource: string): Promise<{
       "--target=node24",
       `--outfile=${workerPath}`,
     ];
-    execFileSync(
-      process.platform === "win32" ? (process.env.ComSpec ?? "cmd.exe") : "pnpm",
-      process.platform === "win32" ? ["/d", "/s", "/c", "pnpm.cmd", ...esbuildArgs] : esbuildArgs,
-      { stdio: "pipe" },
-    );
+    execFileSync("bun", esbuildArgs, { stdio: "pipe" });
   }
   const child = spawn(process.execPath, [workerPath], {
     cwd: resolve(dirname(fileURLToPath(import.meta.url)), "../../../.."),

@@ -51,8 +51,8 @@ Also note deliberate omissions, follow-ups, and anything that needs an owner dec
 
 Required whenever the change visibly alters UI a user would see: `src/renderer`, `website/`, or mobile UI. Skip for changes with no visible effect and write `No visible UI change.`
 
-- Drive the app with the managed launcher and CDP helper from `.agents/skills/interactive-testing/SKILL.md` (`run-poracode-smoke.mjs --launch-only --mode mock`, then `poracode-cdp.mjs nav|click|shot`). Do not start the app with raw `pnpm run dev`; the helper needs a managed session.
-- Capture "after" on the branch and "before" from the merge-base (`git merge-base origin/master HEAD`). The simplest "before" is one taken before you edit. Otherwise use a temporary detached worktree outside this checkout with its own `pnpm install --frozen-lockfile`, and remove it with `git worktree remove` afterwards.
+- Drive the app with the managed launcher and CDP helper from `.agents/skills/interactive-testing/SKILL.md` (`run-poracode-smoke.mjs --launch-only --mode mock`, then `poracode-cdp.mjs nav|click|shot`). Do not start the app with raw `bun run dev`; the helper needs a managed session.
+- Capture "after" on the branch and "before" from the merge-base (`git merge-base origin/master HEAD`). The simplest "before" is one taken before you edit. Otherwise use a temporary detached worktree outside this checkout with its own `bun install --frozen-lockfile`, and remove it with `git worktree remove` afterwards.
 - Use the same window size, theme, data, and navigation state on both sides. For state-dependent UI, capture each affected state (empty, loading, error; light and dark if the change affects theming).
 - Save captures under `tmp/pr-shots/` (gitignored). Never commit screenshots.
 - Upload with `gh pr create --attach` or `gh pr edit <n> --attach`; the `#text` suffix becomes the alt text. If the body already contains `![Before](./tmp/pr-shots/before.png)` with the same path, gh rewrites it to the uploaded URL; otherwise the image is appended to the end of the body. Present them as:

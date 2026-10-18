@@ -42,7 +42,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  PNPM_CONFIG_ENABLE_GLOBAL_VIRTUAL_STORE: "false"
+  BUN_INSTALL_GLOBAL_STORE: "0"
 
 defaults:
   run:
@@ -60,21 +60,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
-      - name: Setup Node.js
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
-        with:
-          node-version: "24"
-
-      # pnpm/action-setup's shim for the pinned pnpm 12 is not runnable on
-      # Windows runners ("is not recognized"), which also breaks setup-node's
-      # pnpm cache. Corepack activates exactly package.json#packageManager.
-      - name: Activate the pinned pnpm (Corepack)
-        run: |
-          corepack enable
-          pnpm --version
+      - name: Setup Bun
+        uses: ./.github/actions/setup-bun
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile --ignore-scripts
+        run: bun install --frozen-lockfile --ignore-scripts && node node_modules/bun/install.js
 
       - name: Lab and workflow self-tests
         run: node --test scripts/ci-windows-wsl-lab.test.mjs scripts/windows-wsl-qualification-workflow.test.mjs
@@ -100,7 +90,7 @@ jobs:
           WSL_LAB_EVIDENCE_DIR: ${{ runner.temp }}/windows-wsl-lab-evidence
         run: |
           set -euo pipefail
-          pnpm exec vitest run --configLoader runner --config tests/real-wsl/vitest.config.ts \
+          bun run vitest run --configLoader runner --config tests/real-wsl/vitest.config.ts \
             2>&1 | tee "$WSL_LAB_EVIDENCE_DIR/real-wsl-suite.log"
 
       - name: Clean up lab-owned state
@@ -128,7 +118,7 @@ jobs:
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_mirrored == true }}
     # Enroll the runner with exactly these labels: mirrored networking is a
     # Windows 11 client feature, so the labels — not the comments — are what
-    # keep this leg honest. Node 24 + pnpm must be reachable through the
+    # keep this leg honest. Node 24 + Bun must be reachable through the
     # actions below (they provision both).
     runs-on: [self-hosted, Windows, windows11, poracode-wsl-mirrored]
     timeout-minutes: 120
@@ -143,21 +133,11 @@ jobs:
         with:
           clean: true
 
-      - name: Setup Node.js
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
-        with:
-          node-version: "24"
-
-      # pnpm/action-setup's shim for the pinned pnpm 12 is not runnable on
-      # Windows runners ("is not recognized"), which also breaks setup-node's
-      # pnpm cache. Corepack activates exactly package.json#packageManager.
-      - name: Activate the pinned pnpm (Corepack)
-        run: |
-          corepack enable
-          pnpm --version
+      - name: Setup Bun
+        uses: ./.github/actions/setup-bun
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile --ignore-scripts
+        run: bun install --frozen-lockfile --ignore-scripts && node node_modules/bun/install.js
 
       - name: Lab and workflow self-tests
         run: node --test scripts/ci-windows-wsl-lab.test.mjs scripts/windows-wsl-qualification-workflow.test.mjs
@@ -183,7 +163,7 @@ jobs:
           WSL_LAB_EVIDENCE_DIR: ${{ runner.temp }}/windows-wsl-lab-evidence
         run: |
           set -euo pipefail
-          pnpm exec vitest run --configLoader runner --config tests/real-wsl/vitest.config.ts \
+          bun run vitest run --configLoader runner --config tests/real-wsl/vitest.config.ts \
             2>&1 | tee "$WSL_LAB_EVIDENCE_DIR/real-wsl-suite.log"
 
       - name: Clean up lab-owned state

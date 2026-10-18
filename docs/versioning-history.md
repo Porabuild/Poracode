@@ -1286,7 +1286,7 @@ in-bundle non-renderer consumers (tray, attachment cleanup, headless scans):
   see the field, honoring the manifest's `unknownObjectFields: "ignore"` policy). The
   new `GET /api/threads?cursor&limit` route serves continuation pages with per-page
   `runtimeSummariesByThread`/`gitSummariesByThread` slices. `RemoteDesktopClient
-.snapshot({ threadListPageLimit })` assembles the complete snapshot and treats an
+  .snapshot({ threadListPageLimit })` assembles the complete snapshot and treats an
   absent cursor as "complete" (legacy host). Cursors are versioned opaque strings
   (`tp1.` + base64url `(sort_order, id)`); malformed cursors are refused, never
   mispaged.
@@ -1449,7 +1449,7 @@ in-bundle non-renderer consumers (tray, attachment cleanup, headless scans):
   and source shards `swift/TerminalCursorMachine.swift` /
   `kotlin/TerminalCursorMachine.kt`). Every mirrored pin moved with the bump
   in the same change: `GeneratedRemoteV3Contract.
-expectedNativeBundleManifestFormatVersion` (iOS startup check, refuses v2
+  expectedNativeBundleManifestFormatVersion` (iOS startup check, refuses v2
   fail-closed), the `verifyRemoteV3NativeBindings` gradle pin,
   `GeneratedRemoteV3ManifestTest`, and the generator's own
   `native/generate.test.ts`. Both apps' directory-membership checks refuse
@@ -1852,7 +1852,7 @@ native client sees.
 - **New server message `desktop-event`** (`src/shared/remote/protocol.ts`,
   carried verbatim in the generated manifest via
   `REMOTE_DESKTOP_INTERNAL_MESSAGES` in `protocolFacts.ts`): `{type, seq,
-event}` where `event` is a desktop-only `SupervisorEvent`
+  event}` where `event` is a desktop-only `SupervisorEvent`
   (`DESKTOP_INTERNAL_EVENT_TYPES` in `RemoteAccessServer.ts` — provider usage,
   LSP, OSC, crossagent, experiment judging, `thread-voice`,
   `thread-scrollback-resync`, `agent-detected`, `git-changed`,
@@ -1963,7 +1963,7 @@ The three sub-items:
   downgrades to it — the full stop path is deleted. The renderer learns the
   attach point through the **managed bootstrap payload**
   (`ManagedLoopbackBootstrap` = `{ endpoint: <loopback http origin>,
-pairingUrl: <loopback pairing URL with the single-use `#token=` credential> }`)
+  pairingUrl: <loopback pairing URL with the single-use `#token=` credential> }`)
   served by `getManagedLoopbackBootstrap`; the controller serializes behind
   readiness, so the server is running and a fresh dedicated credential
   (`mintLoopbackRendererCredential`, which never rotates the displayed QR)
@@ -2093,7 +2093,7 @@ facade 11, HTTP bridge frame set 2, remote wire 12, and relay 3 stay unchanged.
 - Compatibility mirrors: old-stream v5 info rejected / v6 accepted at the
   main/host-client gate, preload info gate, transport v5-1008 / v6-ok in both
   directions, and stale-host fixtures (`src/main/backend/
-rendererStreamVersionGate.test.ts`, renderer transport + backend suites).
+  rendererStreamVersionGate.test.ts`, renderer transport + backend suites).
 - Qualification status (candidate, 2026-09-14): focused suites only —
   framing/slicing (5), reassembly (8), transport wiring (6), backend delivery
   incl. 2 MiB hash equality / Unicode-escaping / 64 MiB and +1 / credit /
@@ -2114,7 +2114,7 @@ discriminated kinds:
 - `POST /api/projects/command` adds `reorder` (project relative move),
   `set-workspace` (nullable single-column project workspace), and
   `set-draft-config` (nullable `lastDraftConfig`). `POST
-/api/threads/{threadId}/command` adds `reorder` (single/block relative move
+  /api/threads/{threadId}/command` adds `reorder` (single/block relative move
   inside one project) and `set-workspace` (nullable thread workspace).
 - `remoteProjectCommandResponseSchema` is a union: every pre-existing project
   command kind still returns the complete `{projects, project?}`, while the new
@@ -2208,7 +2208,7 @@ The independent final review's H1-H4 corrections and the parent-ratified bounded
 catalog notification design land together without moving any version:
 
 - **Wire/capability (D1/D2/D3)**: `capabilities.boundedCatalogChanges.versions =
-[1]` (`REMOTE_BOUNDED_CATALOG_CHANGES_VERSION`) is advertised by the
+  [1]` (`REMOTE_BOUNDED_CATALOG_CHANGES_VERSION`) is advertised by the
   environment descriptor; the WS upgrade carries the per-connection, exact-match
   declaration `catalogChanges=bounded-v1`, honored only with `session:read` and
   registered before `ready`/replay and removed on close. The

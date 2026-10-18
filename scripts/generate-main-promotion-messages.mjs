@@ -121,7 +121,7 @@ export function buildPromotionMessages(options = {}) {
       if (value === undefined) {
         throw new Error(
           `${locale}/messages.po is missing the "${key}" translation ` +
-            `(msgid ${JSON.stringify(msgid)}); run \`pnpm i18n:extract\` first.`,
+            `(msgid ${JSON.stringify(msgid)}); run \`bun run i18n:extract\` first.`,
         );
       }
       if (value === "") {

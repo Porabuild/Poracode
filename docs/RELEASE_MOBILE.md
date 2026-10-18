@@ -12,8 +12,8 @@ native store binaries. Both native apps retain the store identifier
 
 Capacitor is fully removed — dependencies, scripts, configuration files, and
 both webview shells. It must not be reintroduced; the native projects are
-hand-maintained. `pnpm run dev:ios` and `pnpm run dev:android` invoke the native
-watch/reload runners; append `-- --once` for a one-shot build/install/launch.
+hand-maintained. `bun run dev:ios` and `bun run dev:android` invoke the native
+watch/reload runners; append `--once` for a one-shot build/install/launch.
 
 ## Supported platform baselines
 
@@ -193,13 +193,13 @@ actually user-accessible.
 Check the committed contract before a release:
 
 ```bash
-pnpm install --frozen-lockfile --ignore-scripts
-pnpm run protocol:remote:v3:check
-pnpm exec vitest run --configLoader runner protocol/remote/v3
+bun install --frozen-lockfile --ignore-scripts && node node_modules/bun/install.js
+bun run protocol:remote:v3:check
+bun run vitest run --configLoader runner protocol/remote/v3
 git diff --exit-code -- protocol/remote/v3/generated
 ```
 
-Only run `pnpm run protocol:remote:v3:generate` after an intentional contract or
+Only run `bun run protocol:remote:v3:generate` after an intentional contract or
 generator change. Never maintain a second complete protocol definition by hand
 inside either native app.
 
@@ -287,7 +287,7 @@ The host-side native harness passed 96 of 96 tests across 34 files. The principa
 reproduction commands are:
 
 ```bash
-pnpm run native:e2e
+bun run native:e2e
 node scripts/native-e2e.mjs ios-ui
 
 xcodebuild build \

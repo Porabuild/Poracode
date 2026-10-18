@@ -96,7 +96,7 @@ Some rejections come from the provider's own routing, not Poracode. Classify
 before writing a verdict:
 
 - **Route rejects media in history** (example message: `provider-private history
-is incompatible with the active route: retained media history is unsupported`):
+  is incompatible with the active route: retained media history is unsupported`):
   Poracode delivered an image the route cannot take. Fix delivery (path mention
   plus `readsImageAttachmentsFromHost: false`), not error handling.
 - **Session already in use** (`sessionInUse`): another live host holds the
