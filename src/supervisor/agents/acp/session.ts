@@ -461,6 +461,20 @@ export interface AcpStructuredSessionOptions {
 export interface AcpExternalSessionUpdateSource {
   /** Return true when the source will re-ingest this notification after deferred work. */
   onSessionUpdate(notification: SessionNotification): boolean | void;
+  /**
+   * A prompt turn reached a terminal state. `completed` can fire while
+   * detached subagent work is still open (the agent ended its turn before the
+   * reports arrived, and the runtime turn stays open awaiting them), so
+   * sources tracking out-of-band work must bound that wait themselves.
+   * `cancelled`/`failed` mean no further output from this turn will arrive.
+   */
+  onTurnEnd?(state: "completed" | "cancelled" | "failed"): void;
+  /**
+   * A fresh prompt turn is starting. Sources use it to re-arm state latched
+   * by `onTurnEnd`; wire chatter between turns must not do that — agy keeps
+   * emitting updates after `end_turn`.
+   */
+  onTurnStart?(): void;
   dispose(): void;
 }
 
@@ -1665,6 +1679,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       this.foregroundTurnAwaitingSubagents = false;
       this.completeTurn(this.ensureMapperState(), "completed");
     }
+    this.notifyExternalSourcesTurnStart();
     // Claim turn ownership before the first `await` below. `promptInFlight` only
     // goes true once the prompt is actually issued, and an inbound notification
     // landing in that gap would otherwise open a competing orphan turn.
@@ -1791,6 +1806,10 @@ export class AcpStructuredSession implements StructuredSessionHandle {
         mapperState.activeSubAgents.length > 0
       ) {
         this.foregroundTurnAwaitingSubagents = true;
+        // Signal the agent-side turn end so external sources tracking
+        // detached work can bound the wait themselves; reports may still
+        // arrive and complete the cards while this turn stays open.
+        this.notifyExternalSourcesTurnEnd("completed");
         // Close the foreground response now, while deliberately preserving
         // detached subagent tool calls in the mapper until their reports land.
         this.emitRuntimeEvents(closeOpenTurnItems(mapperState));
@@ -2572,9 +2591,40 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     this.handleSessionUpdate(notification, false);
   }
 
+  /** True while replayed session/load history is delivered (plus its short tail window). */
+  get historyReplayActive(): boolean {
+    return this.isReplayingHistory || Date.now() < this.replayHistoryUntil;
+  }
+
   attachExternalSessionUpdateSource(source: AcpExternalSessionUpdateSource): void {
     this.externalSessionUpdateSources ??= new Set();
     this.externalSessionUpdateSources.add(source);
+  }
+
+  private notifyExternalSourcesTurnEnd(state: "completed" | "cancelled" | "failed"): void {
+    for (const source of this.externalSessionUpdateSources ?? []) {
+      try {
+        source.onTurnEnd?.(state);
+      } catch (error) {
+        console.warn(
+          "[acp] external session update source turn-end hook failed:",
+          error instanceof Error ? error.message : String(error),
+        );
+      }
+    }
+  }
+
+  private notifyExternalSourcesTurnStart(): void {
+    for (const source of this.externalSessionUpdateSources ?? []) {
+      try {
+        source.onTurnStart?.();
+      } catch (error) {
+        console.warn(
+          "[acp] external session update source turn-start hook failed:",
+          error instanceof Error ? error.message : String(error),
+        );
+      }
+    }
   }
 
   private recordAgentSurfacedError(events: RuntimeEvent[]): void {
@@ -2779,6 +2829,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     if (!this.currentTurnId) return;
     const turnId = this.currentTurnId;
     this.currentTurnId = undefined;
+    this.notifyExternalSourcesTurnEnd(turnState);
     this.emitRuntimeEvents([
       ...closeOpenTurnItems(mapperState),
       {
@@ -2806,6 +2857,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     if (this.currentTurnId) {
       const turnId = this.currentTurnId;
       this.currentTurnId = undefined;
+      this.notifyExternalSourcesTurnEnd("failed");
       events.push({
         type: "turn.completed",
         threadId: this.threadId,

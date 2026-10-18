@@ -649,6 +649,12 @@ describe("Agy terminal config synchronization", () => {
 describe("parseAntigravityModelsOutput", () => {
   it("collapses ACP model variants into base models with separate efforts", () => {
     const capabilities = buildAntigravityAcpModelCapabilities([
+      { id: "gemini-4-argon-high", label: "Argon 4 (High)" },
+      { id: "gemini-4-argon-medium", label: "Argon 4 (Medium)" },
+      { id: "gemini-4-argon-low", label: "Argon 4 (Low)" },
+      { id: "gemini-3.8-flash-high", label: "Gemini 3.8 Flash (High)" },
+      { id: "gemini-3.8-flash-medium", label: "Gemini 3.8 Flash (Medium)" },
+      { id: "gemini-3.8-flash-low", label: "Gemini 3.8 Flash (Low)" },
       { id: "gemini-3.7-flash-high", label: "Gemini 3.7 Flash High" },
       { id: "gemini-3.7-flash-medium", label: "Gemini 3.7 Flash Medium" },
       { id: "gemini-3.7-flash-low", label: "Gemini 3.7 Flash Low" },
@@ -664,6 +670,16 @@ describe("parseAntigravityModelsOutput", () => {
 
     expect(capabilities).toEqual({
       models: [
+        {
+          id: "gemini-4-argon",
+          label: "Argon 4",
+          description: "Google DeepMind",
+        },
+        {
+          id: "gemini-3.8-flash",
+          label: "Gemini 3.8 Flash",
+          description: "Google DeepMind",
+        },
         {
           id: "gemini-3.7-flash",
           label: "Gemini 3.7 Flash",
@@ -687,6 +703,8 @@ describe("parseAntigravityModelsOutput", () => {
       ],
       efforts: [],
       modelEfforts: {
+        "gemini-4-argon": ["Low", "Medium", "High"],
+        "gemini-3.8-flash": ["Low", "Medium", "High"],
         "gemini-3.7-flash": ["Low", "Medium", "High"],
         "gemini-3.6-flash": ["Low", "Medium", "High"],
         "gemini-3.5-flash": ["Low", "Medium", "High"],
