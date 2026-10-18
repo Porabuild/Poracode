@@ -1951,6 +1951,10 @@ msgstr "“Tự động sửa” chờ các bước kiểm tra hoàn tất và x
 msgid "Auto Merge"
 msgstr "Tự động hợp nhất"
 
+#: src/renderer/components/providers/deepseek/index.tsx
+msgid "Auto Review"
+msgstr "Tự động xét duyệt"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Auto-archive done threads after"
@@ -2478,6 +2482,10 @@ msgstr "Bỏ qua các quy tắc bảo vệ nhánh"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Bypass branch protection rules (admin merge)"
 msgstr "Bỏ qua các quy tắc bảo vệ nhánh (hợp nhất với quyền quản trị)"
+
+#: src/renderer/components/providers/deepseek/index.tsx
+msgid "Bypass Permissions"
+msgstr "Bỏ qua quyền"
 
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Cached only"
@@ -4834,6 +4842,7 @@ msgstr "DeepSeek Harness"
 msgid "DeepSeek Harness chat with persistent sessions, reasoning controls, and MCP tools. Configure credentials with dsh web."
 msgstr "Trò chuyện DeepSeek Harness với phiên được lưu, tùy chỉnh suy luận và công cụ MCP. Cấu hình thông tin xác thực bằng dsh web."
 
+#: src/renderer/components/providers/deepseek/index.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx

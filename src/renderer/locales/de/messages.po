@@ -1951,6 +1951,10 @@ msgstr "„Automatisch beheben“ wartet auf Checks und behebt Merge-Blocker. �
 msgid "Auto Merge"
 msgstr "Automatisch mergen"
 
+#: src/renderer/components/providers/deepseek/index.tsx
+msgid "Auto Review"
+msgstr "Automatische Prüfung"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Auto-archive done threads after"
@@ -2478,6 +2482,10 @@ msgstr "Branch-Schutzregeln umgehen"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Bypass branch protection rules (admin merge)"
 msgstr "Branch-Schutzregeln umgehen (Admin-Zusammenführung)"
+
+#: src/renderer/components/providers/deepseek/index.tsx
+msgid "Bypass Permissions"
+msgstr "Berechtigungen umgehen"
 
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Cached only"
@@ -4834,6 +4842,7 @@ msgstr "DeepSeek Harness"
 msgid "DeepSeek Harness chat with persistent sessions, reasoning controls, and MCP tools. Configure credentials with dsh web."
 msgstr "DeepSeek Harness-Chat mit dauerhaften Sitzungen, Steuerung des Denkaufwands und MCP-Tools. Zugangsdaten mit dsh web konfigurieren."
 
+#: src/renderer/components/providers/deepseek/index.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx

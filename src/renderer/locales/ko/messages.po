@@ -1951,6 +1951,10 @@ msgstr "‘자동 수정’은 검사가 끝날 때까지 기다린 후 병합 �
 msgid "Auto Merge"
 msgstr "자동 병합"
 
+#: src/renderer/components/providers/deepseek/index.tsx
+msgid "Auto Review"
+msgstr "자동 검토"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Auto-archive done threads after"
@@ -2478,6 +2482,10 @@ msgstr "브랜치 보호 규칙 우회"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Bypass branch protection rules (admin merge)"
 msgstr "브랜치 보호 규칙 우회(관리자 병합)"
+
+#: src/renderer/components/providers/deepseek/index.tsx
+msgid "Bypass Permissions"
+msgstr "권한 확인 건너뛰기"
 
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Cached only"
@@ -4834,6 +4842,7 @@ msgstr "DeepSeek Harness"
 msgid "DeepSeek Harness chat with persistent sessions, reasoning controls, and MCP tools. Configure credentials with dsh web."
 msgstr "영구 세션, 추론 설정, MCP 도구를 지원하는 DeepSeek Harness 채팅입니다. dsh web에서 인증 정보를 설정하세요."
 
+#: src/renderer/components/providers/deepseek/index.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx

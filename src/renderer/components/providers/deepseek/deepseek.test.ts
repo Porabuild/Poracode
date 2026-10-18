@@ -3,13 +3,13 @@ import "fake-indexeddb/auto";
 import { describe, expect, it, vi } from "vitest";
 import "./index";
 import manifest from "./manifest";
-import { getComposerControls } from "../providerComposer";
+import { getComposerControls, getConfigNormalizer } from "../providerComposer";
 import { getCommitGenDefaults, resolveCommitGenConfig } from "../commitGen";
 import { getTitleGenDefaults, resolveTitleGenConfig } from "../titleGen";
 import { getConflictResolverDefaults, resolveConflictResolverConfig } from "../conflictResolver";
 import { NATIVE_AGENT_REGISTRY_ENTRIES } from "@/renderer/views/SettingsOverlay/parts/agentRegistryNative";
 import { resolveProviderDraftConfig } from "../../thread/threadDraftViewHelpers";
-import type { AgentStatus } from "@/shared/contracts";
+import type { AgentStatus, ThreadConfig } from "@/shared/contracts";
 import type { AcpProbeResult } from "@/supervisor/agents/acp";
 import {
   buildDeepSeekProbeCapabilities,
@@ -124,7 +124,7 @@ describe("DeepSeek Harness renderer plugin", () => {
       const agent = detectedStatus(probe);
       expect(resolveProviderDraftConfig(agent)).toMatchObject({
         model: expectedModel,
-        approvalPolicy: "never",
+        approvalPolicy: "auto-review",
       });
       for (const resolve of utilityResolvers) {
         expect(resolve(agent, "", "")).toMatchObject({ model: expectedModel, effort: "low" });
@@ -161,6 +161,37 @@ describe("DeepSeek Harness renderer plugin", () => {
         effort: "low",
       });
     }
+  });
+
+  it("exposes three permission choices without a separate sandbox setting", () => {
+    expect(
+      getConfigNormalizer(manifest.kind)!({
+        capabilities: deepSeekDefaultCapabilities,
+        config: { model: accountFlash, approvalPolicy: "never" },
+        presentationMode: "gui",
+      }),
+    ).toEqual({ approvalPolicy: "auto-review" });
+    const onConfigChange = vi.fn<(config: Partial<ThreadConfig>) => void>();
+    const controls = getComposerControls(manifest.kind)!({
+      capabilities: deepSeekDefaultCapabilities,
+      config: { model: accountFlash },
+      isDisabled: false,
+      onConfigChange,
+    });
+    const permissions = controls[0]!;
+    expect(permissions).toMatchObject({
+      value: "auto-review",
+      options: [
+        { id: "default", label: "Default" },
+        { id: "auto-review", label: "Auto Review" },
+        { id: "bypassPermissions", label: "Bypass Permissions" },
+      ],
+    });
+    if ("options" in permissions) permissions.onChange?.("default");
+    expect(onConfigChange).toHaveBeenCalledWith({ approvalPolicy: "default" });
+    expect(
+      NATIVE_AGENT_REGISTRY_ENTRIES.find((entry) => entry.id === manifest.kind)?.settingsPanel,
+    ).toBeUndefined();
   });
 
   it("installs the same release channel exposed by the supervisor", () => {
