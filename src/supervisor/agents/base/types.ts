@@ -3,6 +3,8 @@ import type { SessionImportSource } from "./sessionImport";
 import type {
   ManageAgentCredentialsPayload,
   ManageAgentCredentialsResult,
+  ManageModelProvidersPayload,
+  ManageModelProvidersResult,
   ManageAgentPluginsPayload,
   ManageAgentPluginsResult,
   AgentAuthMethod,
@@ -1131,6 +1133,9 @@ export interface AgentAdapter
   manageCredentials?(
     input: Omit<ManageAgentCredentialsPayload, "agentKind">,
   ): Promise<ManageAgentCredentialsResult>;
+
+  /** Manage upstream model routes through the provider's native settings authority. */
+  manageModelProviders?(input: ManageModelProvidersPayload): Promise<ManageModelProvidersResult>;
 
   readonly skillSupport?: AgentSkillSupport;
   /** Release provider-owned shared processes after all thread sessions have closed. */

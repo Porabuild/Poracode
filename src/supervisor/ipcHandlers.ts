@@ -56,6 +56,7 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
     getCrossagentRouting: () => runtime.getCrossagentRoutingSnapshot(),
     manageAgentPlugins: (payload) => registry.manageAgentPlugins(payload),
     manageAgentCredentials: (payload) => registry.manageAgentCredentials(payload),
+    manageModelProviders: (payload) => registry.manageModelProviders(payload),
     listWslDistros: () => registry.listWslDistros(),
     getAgentStatuses: (payload) => registry.getAgentStatuses(payload),
     cancelAgentDiscovery: () => registry.cancelAgentDiscovery(),

@@ -1165,6 +1165,7 @@ msgstr "프로젝트 추가"
 msgid "Add project options"
 msgstr "프로젝트 추가 옵션"
 
+#: src/renderer/components/providers/settings/ModelProviderManager.tsx
 #: src/renderer/components/providers/settings/ProviderAccountsSection.tsx
 msgid "Add provider"
 msgstr "공급자 추가"
@@ -1397,6 +1398,7 @@ msgstr "AI 도우미"
 msgid "AI judge"
 msgstr "AI 심사"
 
+#: src/renderer/components/providers/settings/ModelProvidersSettings.tsx
 #: src/renderer/components/providers/settings/ProviderAccountsSection.tsx
 msgid "AI providers"
 msgstr "AI 공급자"
@@ -1639,13 +1641,22 @@ msgstr "세션을 다시 불러올 때 실행 중인 모든 하위 에이전트�
 msgid "Anything currently unavailable — a provider, model, reasoning level, or Fast mode — is skipped automatically. Unchecked providers and models are skipped until re-checked."
 msgstr "현재 사용할 수 없는 항목 — 제공자, 모델, 추론 수준 또는 Fast 모드 — 은 자동으로 건너뜁니다. 선택 해제된 제공자와 모델은 다시 선택할 때까지 건너뜁니다."
 
+#: src/renderer/components/providers/settings/ModelProviderEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 msgid "API key"
 msgstr "API 키"
 
+#: src/renderer/components/providers/settings/ModelProviderManager.tsx
+msgid "API key configured"
+msgstr "API 키 설정됨"
+
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 msgid "API key required"
 msgstr "API 키 필요"
+
+#: src/renderer/components/providers/settings/ModelProviderEditor.tsx
+msgid "API protocol"
+msgstr "API 프로토콜"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "API_KEY=value"
@@ -1951,6 +1962,10 @@ msgstr "‘자동 수정’은 검사가 끝날 때까지 기다린 후 병합 �
 msgid "Auto Merge"
 msgstr "자동 병합"
 
+#: src/renderer/components/providers/deepseek/index.tsx
+msgid "Auto Review"
+msgstr "자동 검토"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Auto-archive done threads after"
@@ -2160,6 +2175,10 @@ msgstr "에이전트 터미널의 기본 글꼴 크기입니다. 좁거나 짧�
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Base font size for the terminal panel. Auto-shrinks in narrow or short panes."
 msgstr "터미널 패널의 기본 글꼴 크기입니다. 좁거나 짧은 창에서는 자동으로 축소됩니다."
+
+#: src/renderer/components/providers/settings/ModelProviderEditor.tsx
+msgid "Base URL"
+msgstr "기본 URL"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Bash output"
@@ -2479,6 +2498,10 @@ msgstr "브랜치 보호 규칙 우회"
 msgid "Bypass branch protection rules (admin merge)"
 msgstr "브랜치 보호 규칙 우회(관리자 병합)"
 
+#: src/renderer/components/providers/deepseek/index.tsx
+msgid "Bypass Permissions"
+msgstr "권한 확인 건너뛰기"
+
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Cached only"
 #~ msgstr "캐시만 있음"
@@ -2508,6 +2531,7 @@ msgstr "이 화면에서는 이 모델 설정을 사용할 수 없습니다"
 #: src/renderer/components/common/ConfirmDialog.tsx
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/providers/settings/ModelProviderEditor.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/components/thread/ChatPane/ConversationSearchJump.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
@@ -3146,6 +3170,7 @@ msgstr "복제 중…"
 #: src/renderer/components/common/BottomSheet.tsx
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
+#: src/renderer/components/providers/settings/ModelProvidersSettings.tsx
 #: src/renderer/components/skills/SkillViewModal.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
@@ -3805,6 +3830,10 @@ msgstr "설정 파일 경로(선택 사항)"
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Configuration from a newer Poracode"
 msgstr "더 최신 Poracode의 구성"
+
+#: src/renderer/components/providers/deepseek/DeepSeekProviderSettings.tsx
+msgid "Configure Harness model providers for chat. Changes apply to new or restarted threads."
+msgstr "채팅용 Harness 모델 공급자를 설정합니다. 변경 사항은 새 스레드 또는 다시 시작한 스레드에 적용됩니다."
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Configure the server Poracode will add when supported agents start."
@@ -4766,6 +4795,10 @@ msgstr "프로젝트 상황에 맞는 메뉴(오른쪽 클릭)에서 사용할 �
 msgid "Custom context window"
 msgstr "사용자 지정 컨텍스트 창"
 
+#: src/renderer/components/providers/settings/ModelProviderEditor.tsx
+msgid "Custom endpoint"
+msgstr "사용자 지정 엔드포인트"
+
 #: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
 msgid "custom path"
 msgstr "사용자 지정 경로"
@@ -4834,6 +4867,7 @@ msgstr "DeepSeek Harness"
 msgid "DeepSeek Harness chat with persistent sessions, reasoning controls, and MCP tools. Configure credentials with dsh web."
 msgstr "영구 세션, 추론 설정, MCP 도구를 지원하는 DeepSeek Harness 채팅입니다. dsh web에서 인증 정보를 설정하세요."
 
+#: src/renderer/components/providers/deepseek/index.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
@@ -5470,6 +5504,7 @@ msgstr "경고 무시"
 msgid "dismissed review"
 msgstr "기각된 리뷰"
 
+#: src/renderer/components/providers/settings/ModelProviderEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Display name"
 msgstr "표시 이름"
@@ -5522,6 +5557,7 @@ msgstr "완료"
 
 #. Notification status: thread is done
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
+#: src/renderer/components/providers/settings/ModelProvidersSettings.tsx
 #: src/renderer/components/thread/AgentDiscoveryDoneButton.tsx
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -5683,6 +5719,7 @@ msgstr "각 저장소 항목은 1–512자여야 하며 제어 문자를 포함�
 msgid "Earlier text"
 msgstr "이전 텍스트"
 
+#: src/renderer/components/providers/settings/ModelProviderManager.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
@@ -6007,6 +6044,7 @@ msgid "Enter valid JSON."
 msgstr "유효한 JSON을 입력하세요."
 
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
+#: src/renderer/components/providers/settings/ModelProvidersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "Environment"
@@ -8291,6 +8329,14 @@ msgstr "댓글 남기기"
 msgid "Leave blank for no run limit."
 msgstr "실행 횟수를 제한하지 않으려면 비워 두세요."
 
+#: src/renderer/components/providers/settings/ModelProviderEditor.tsx
+msgid "Leave blank to keep existing credentials or use environment authentication."
+msgstr "기존 자격 증명을 유지하거나 환경 인증을 사용하려면 비워 두세요."
+
+#: src/renderer/components/providers/settings/ModelProviderEditor.tsx
+msgid "Leave blank to use the installed model catalog."
+msgstr "설치된 모델 카탈로그를 사용하려면 비워 두세요."
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchDialog.tsx
 #~ msgid "Leave empty to use the repository default branch."
 #~ msgstr "비워 두면 저장소의 기본 브랜치를 사용합니다."
@@ -8527,6 +8573,7 @@ msgid "Loading workflow runs"
 msgstr "워크플로 실행 불러오는 중"
 
 #: src/renderer/app.tsx
+#: src/renderer/components/providers/settings/ModelProviderManager.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/useHistoryItemDetails.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
@@ -8707,6 +8754,10 @@ msgstr "암호 관리"
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 msgid "Manage plugins"
 msgstr "플러그인 관리"
+
+#: src/renderer/components/providers/settings/ModelProvidersSettings.tsx
+msgid "Manage providers"
+msgstr "공급자 관리"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
 #~ msgid "Manage remote environments"
@@ -9298,6 +9349,10 @@ msgstr "모델을 즐겨찾기에 추가함"
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Model id"
 msgstr "모델 ID"
+
+#: src/renderer/components/providers/settings/ModelProviderEditor.tsx
+msgid "Model IDs, separated by commas"
+msgstr "모델 ID, 쉼표로 구분"
 
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Model label"
@@ -9921,6 +9976,10 @@ msgstr "설치된 에이전트가 없습니다."
 msgid "No AI commits, PRs, or conflict resolutions tracked yet."
 msgstr "아직 추적된 AI 커밋, PR, 충돌 해결이 없습니다."
 
+#: src/renderer/components/providers/settings/ModelProviderManager.tsx
+msgid "No API key stored; native authentication may apply."
+msgstr "저장된 API 키가 없습니다. 기본 인증이 사용될 수 있습니다."
+
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "No archived results."
 msgstr "보관된 결과가 없습니다."
@@ -10262,6 +10321,7 @@ msgstr "프롬프트 없음"
 msgid "No providers are being tracked."
 msgstr "추적 중인 공급자가 없습니다."
 
+#: src/renderer/components/providers/settings/ModelProviderManager.tsx
 #: src/renderer/components/providers/settings/ProviderAccountsSection.tsx
 msgid "No providers connected yet."
 msgstr "아직 연결된 공급자가 없습니다."
@@ -12127,9 +12187,9 @@ msgstr "지원되는 에이전트를 위해 Poracode에서 제공하고 관리�
 msgid "provider"
 msgstr "공급자"
 
-#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
-#~ msgid "Provider"
-#~ msgstr "공급자"
+#: src/renderer/components/providers/settings/ModelProviderEditor.tsx
+msgid "Provider"
+msgstr "공급자"
 
 #: src/renderer/components/thread/ChatPane/parts/MessageList.tsx
 msgid "Provider conversation was not restored"
@@ -12140,9 +12200,21 @@ msgstr "제공업체의 대화가 복원되지 않았습니다"
 msgid "Provider has not reported token usage."
 msgstr "공급자가 토큰 사용을 보고하지 않았습니다."
 
+#: src/renderer/components/providers/settings/ModelProviderEditor.tsx
+msgid "Provider ID"
+msgstr "공급자 ID"
+
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Provider presets"
 msgstr "제공자 프리셋"
+
+#: src/renderer/components/providers/settings/ModelProviderManager.tsx
+msgid "Provider saved, but its API key could not be stored. Reload and try again."
+msgstr "공급자는 저장되었지만 API 키를 저장하지 못했습니다. 새로고침하고 다시 시도하세요."
+
+#: src/renderer/components/providers/settings/ModelProviderManager.tsx
+msgid "Provider settings changed. Reload before saving."
+msgstr "공급자 설정이 변경되었습니다. 저장하기 전에 새로고침하세요."
 
 #. Settings section: provider usage and quota dashboard
 #: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
@@ -12595,6 +12667,7 @@ msgstr "{0} 인증 상태를 새로 고치는 중입니다."
 msgid "Refreshing {env} {0} authentication status."
 msgstr "{env} {0} 인증 상태를 새로 고치는 중입니다."
 
+#: src/renderer/components/providers/settings/ModelProviderManager.tsx
 #: src/renderer/RendererCrashScreen.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Reload"
@@ -12710,6 +12783,7 @@ msgstr "원격 URL"
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
+#: src/renderer/components/providers/settings/ModelProviderManager.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredCustomValues.tsx
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
@@ -12857,6 +12931,10 @@ msgstr "프로젝트 제거"
 msgid "Remove Project"
 msgstr "프로젝트 제거"
 
+#: src/renderer/components/providers/settings/ModelProviderManager.tsx
+msgid "Remove provider"
+msgstr "공급자 제거"
+
 #: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
 msgid "Remove queued follow-up"
 msgstr "대기 중인 후속 메시지 제거"
@@ -12886,6 +12964,10 @@ msgstr "이 공급자의 저장된 자격 증명을 제거할까요? ‘공급�
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Remove this connection?"
 msgstr "이 연결을 제거할까요?"
+
+#: src/renderer/components/providers/settings/ModelProviderManager.tsx
+msgid "Remove this model route? Saved credentials are kept. Existing threads pick up changes when restarted."
+msgstr "이 모델 경로를 제거할까요? 저장된 자격 증명은 유지됩니다. 기존 스레드는 다시 시작할 때 변경 사항을 적용합니다."
 
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Remove worktree?"
@@ -13713,6 +13795,7 @@ msgstr "채도와 밝기"
 #: src/renderer/components/providers/codex/profileSettings.tsx
 #: src/renderer/components/providers/devin/profileSettings.tsx
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ModelProviderEditor.tsx
 #: src/renderer/components/providers/settings/ProviderMcpServersSection.tsx
 #: src/renderer/components/thread/ThreadFollowUpEditor.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
@@ -17279,6 +17362,10 @@ msgstr "diff를 불러올 수 없습니다."
 msgid "Unable to load downloads."
 msgstr "다운로드를 불러올 수 없습니다."
 
+#: src/renderer/components/providers/settings/ModelProviderManager.tsx
+msgid "Unable to load providers."
+msgstr "공급자를 불러올 수 없습니다."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unable to load remote access pairing."
 msgstr "원격 액세스 페어링을 로드할 수 없습니다."
@@ -17523,6 +17610,10 @@ msgstr "네이티브 MCP 구성을 업데이트할 수 없습니다. 새로 고�
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unable to update network access."
 msgstr "네트워크 액세스를 업데이트할 수 없습니다."
+
+#: src/renderer/components/providers/settings/ModelProviderManager.tsx
+msgid "Unable to update providers. Check the native configuration for overrides."
+msgstr "공급자를 업데이트할 수 없습니다. 기본 구성의 재정의 설정을 확인하세요."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unable to update remote access."
@@ -18068,6 +18159,10 @@ msgstr "무시 파일 사용"
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Use letters, numbers, dots, dashes, or underscores without spaces."
 msgstr "공백 없이 문자, 숫자, 마침표, 대시 또는 밑줄을 사용하세요."
+
+#: src/renderer/components/providers/settings/ModelProviderEditor.tsx
+msgid "Use lowercase letters, numbers, and hyphens."
+msgstr "소문자, 숫자, 하이픈을 사용하세요."
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx

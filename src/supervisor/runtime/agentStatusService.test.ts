@@ -275,7 +275,7 @@ HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss\\{333}
     expect(detectInstall).toHaveBeenCalledTimes(2);
   });
 
-  it.each([35, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64])(
+  it.each([35, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66])(
     "invalidates the previous model catalog cache generation v%i",
     (version) => {
       const { service, statusCachePath } = makeService(vi.fn<AgentAdapter["detectInstall"]>());
@@ -287,7 +287,7 @@ HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss\\{333}
           wsl: [],
         }),
       );
-      expect(STATUS_CACHE_VERSION).toBe(65);
+      expect(STATUS_CACHE_VERSION).toBe(67);
       expect(service.getCachedCapabilities("codex")).toBeUndefined();
     },
   );

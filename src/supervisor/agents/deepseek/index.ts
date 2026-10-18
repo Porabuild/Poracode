@@ -4,6 +4,8 @@ import { resolveAgentBinaryPath } from "../binaryResolver";
 import { buildDeepSeekCommand } from "./argv";
 import { deepSeekDefaultCapabilities, deepSeekDetectionSpec } from "./detection";
 import { runDeepSeekOneShot } from "./oneShot";
+import { normalizeDeepSeekConfig, stageDeepSeekPermissions } from "./permissions";
+import { manageDeepSeekModelProviders } from "./modelProviders";
 
 export function createDeepSeekAdapter(): AgentAdapter {
   let capabilities = deepSeekDefaultCapabilities;
@@ -20,6 +22,7 @@ export function createDeepSeekAdapter(): AgentAdapter {
       return capabilities.models[0]!.id;
     },
     runOneShot: runDeepSeekOneShot,
+    manageModelProviders: manageDeepSeekModelProviders,
     skillSupport: {
       roots: [
         {
@@ -60,11 +63,55 @@ export function createDeepSeekAdapter(): AgentAdapter {
     },
     async createStructuredSession(input) {
       await prepareAgentLocationEnvironment(input.projectLocation);
-      const command = buildDeepSeekCommand(
-        input.projectLocation,
-        resolveAgentBinaryPath(input.projectLocation, "dsh"),
-      );
-      return createAcpStructuredSession(command, input);
+      const staged = await stageDeepSeekPermissions(input.projectLocation, input.config);
+      try {
+        const command = buildDeepSeekCommand(
+          input.projectLocation,
+          resolveAgentBinaryPath(input.projectLocation, "dsh"),
+          staged.patchPath,
+        );
+        const session = createAcpStructuredSession(command, input);
+        if (!session) {
+          await staged.cleanup();
+          return undefined;
+        }
+        const dispose = session.dispose.bind(session);
+        const openThread = session.openThread.bind(session);
+        const startTurn = session.startTurn.bind(session);
+        const interruptTurn = session.interruptTurn.bind(session);
+        let generation = 0;
+        let disposed = false;
+        let turns = Promise.resolve();
+        session.openThread = (config, sessionRef) =>
+          openThread(normalizeDeepSeekConfig(config), sessionRef);
+        session.startTurn = (...args) => {
+          const admittedGeneration = generation;
+          const turn = turns.then(async () => {
+            if (disposed || generation !== admittedGeneration) return;
+            args[1] = normalizeDeepSeekConfig(args[1]);
+            await staged.setConfig(args[1]);
+            if (disposed || generation !== admittedGeneration) return;
+            await startTurn(...args);
+          });
+          turns = turn.catch(() => {});
+          return turn;
+        };
+        session.interruptTurn = () => {
+          generation++;
+          return interruptTurn();
+        };
+        session.dispose = async () => {
+          disposed = true;
+          generation++;
+          await dispose();
+          await turns;
+          await staged.cleanup();
+        };
+        return session;
+      } catch (error) {
+        await staged.cleanup();
+        throw error;
+      }
     },
   };
 }

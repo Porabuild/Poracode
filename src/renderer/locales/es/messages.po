@@ -1165,6 +1165,7 @@ msgstr "Agregar proyecto"
 msgid "Add project options"
 msgstr "Opciones para agregar proyecto"
 
+#: src/renderer/components/providers/settings/ModelProviderManager.tsx
 #: src/renderer/components/providers/settings/ProviderAccountsSection.tsx
 msgid "Add provider"
 msgstr "Añadir proveedor"
@@ -1397,6 +1398,7 @@ msgstr "Ayudantes de IA"
 msgid "AI judge"
 msgstr "Juez de IA"
 
+#: src/renderer/components/providers/settings/ModelProvidersSettings.tsx
 #: src/renderer/components/providers/settings/ProviderAccountsSection.tsx
 msgid "AI providers"
 msgstr "Proveedores de IA"
@@ -1639,13 +1641,22 @@ msgstr "Los subagentes que sigan en ejecución cuando se recargue la sesión se 
 msgid "Anything currently unavailable — a provider, model, reasoning level, or Fast mode — is skipped automatically. Unchecked providers and models are skipped until re-checked."
 msgstr "Todo lo que no esté disponible actualmente — un proveedor, modelo, nivel de razonamiento o modo Fast — se omite automáticamente. Los proveedores y modelos no seleccionados se omiten hasta que se vuelvan a seleccionar."
 
+#: src/renderer/components/providers/settings/ModelProviderEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 msgid "API key"
 msgstr "Clave API"
 
+#: src/renderer/components/providers/settings/ModelProviderManager.tsx
+msgid "API key configured"
+msgstr "Clave API configurada"
+
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 msgid "API key required"
 msgstr "Se requiere una clave de API"
+
+#: src/renderer/components/providers/settings/ModelProviderEditor.tsx
+msgid "API protocol"
+msgstr "Protocolo de API"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "API_KEY=value"
@@ -1951,6 +1962,10 @@ msgstr "«Corrección automática» espera a que terminen las comprobaciones y r
 msgid "Auto Merge"
 msgstr "Fusión automática"
 
+#: src/renderer/components/providers/deepseek/index.tsx
+msgid "Auto Review"
+msgstr "Revisión automática"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Auto-archive done threads after"
@@ -2160,6 +2175,10 @@ msgstr "Tamaño de fuente base para los terminales del agente. Se reduce automá
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Base font size for the terminal panel. Auto-shrinks in narrow or short panes."
 msgstr "Tamaño de fuente base para el panel del terminal. Se reduce automáticamente en paneles estrechos o bajos."
+
+#: src/renderer/components/providers/settings/ModelProviderEditor.tsx
+msgid "Base URL"
+msgstr "URL base"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Bash output"
@@ -2479,6 +2498,10 @@ msgstr "Omitir las reglas de protección de ramas"
 msgid "Bypass branch protection rules (admin merge)"
 msgstr "Omitir las reglas de protección de ramas (fusión de administrador)"
 
+#: src/renderer/components/providers/deepseek/index.tsx
+msgid "Bypass Permissions"
+msgstr "Omitir permisos"
+
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Cached only"
 #~ msgstr "Solo en caché"
@@ -2508,6 +2531,7 @@ msgstr "No se puede usar esta selección de modelo en esta interfaz"
 #: src/renderer/components/common/ConfirmDialog.tsx
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/providers/settings/ModelProviderEditor.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/components/thread/ChatPane/ConversationSearchJump.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
@@ -3146,6 +3170,7 @@ msgstr "Clonando…"
 #: src/renderer/components/common/BottomSheet.tsx
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
+#: src/renderer/components/providers/settings/ModelProvidersSettings.tsx
 #: src/renderer/components/skills/SkillViewModal.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
@@ -3805,6 +3830,10 @@ msgstr "Ruta del archivo de configuración (opcional)"
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Configuration from a newer Poracode"
 msgstr "Configuración de un Poracode más reciente"
+
+#: src/renderer/components/providers/deepseek/DeepSeekProviderSettings.tsx
+msgid "Configure Harness model providers for chat. Changes apply to new or restarted threads."
+msgstr "Configura los proveedores de modelos de Harness para el chat. Los cambios se aplican a hilos nuevos o reiniciados."
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Configure the server Poracode will add when supported agents start."
@@ -4766,6 +4795,10 @@ msgstr "Comandos personalizados disponibles desde el menú contextual del proyec
 msgid "Custom context window"
 msgstr "Ventana de contexto personalizada"
 
+#: src/renderer/components/providers/settings/ModelProviderEditor.tsx
+msgid "Custom endpoint"
+msgstr "Endpoint personalizado"
+
 #: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
 msgid "custom path"
 msgstr "ruta personalizada"
@@ -4834,6 +4867,7 @@ msgstr "DeepSeek Harness"
 msgid "DeepSeek Harness chat with persistent sessions, reasoning controls, and MCP tools. Configure credentials with dsh web."
 msgstr "Chat de DeepSeek Harness con sesiones persistentes, controles de razonamiento y herramientas MCP. Configura las credenciales con dsh web."
 
+#: src/renderer/components/providers/deepseek/index.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
@@ -5470,6 +5504,7 @@ msgstr "Descartar advertencia"
 msgid "dismissed review"
 msgstr "revisión descartada"
 
+#: src/renderer/components/providers/settings/ModelProviderEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Display name"
 msgstr "Nombre para mostrar"
@@ -5522,6 +5557,7 @@ msgstr "listo"
 
 #. Notification status: thread is done
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
+#: src/renderer/components/providers/settings/ModelProvidersSettings.tsx
 #: src/renderer/components/thread/AgentDiscoveryDoneButton.tsx
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -5683,6 +5719,7 @@ msgstr "Cada entrada de repositorio debe tener entre 1 y 512 caracteres sin cara
 msgid "Earlier text"
 msgstr "Texto anterior"
 
+#: src/renderer/components/providers/settings/ModelProviderManager.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
@@ -6007,6 +6044,7 @@ msgid "Enter valid JSON."
 msgstr "Introduce un JSON válido."
 
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
+#: src/renderer/components/providers/settings/ModelProvidersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "Environment"
@@ -8291,6 +8329,14 @@ msgstr "Dejar un comentario"
 msgid "Leave blank for no run limit."
 msgstr "Déjalo en blanco para no limitar el número de ejecuciones."
 
+#: src/renderer/components/providers/settings/ModelProviderEditor.tsx
+msgid "Leave blank to keep existing credentials or use environment authentication."
+msgstr "Déjalo vacío para conservar las credenciales existentes o usar la autenticación del entorno."
+
+#: src/renderer/components/providers/settings/ModelProviderEditor.tsx
+msgid "Leave blank to use the installed model catalog."
+msgstr "Déjalo vacío para usar el catálogo de modelos instalado."
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchDialog.tsx
 #~ msgid "Leave empty to use the repository default branch."
 #~ msgstr "Déjalo vacío para usar la rama predeterminada del repositorio."
@@ -8527,6 +8573,7 @@ msgid "Loading workflow runs"
 msgstr "Cargando ejecuciones de flujos de trabajo"
 
 #: src/renderer/app.tsx
+#: src/renderer/components/providers/settings/ModelProviderManager.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/useHistoryItemDetails.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
@@ -8707,6 +8754,10 @@ msgstr "Administrar contraseñas"
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 msgid "Manage plugins"
 msgstr "Gestionar plugins"
+
+#: src/renderer/components/providers/settings/ModelProvidersSettings.tsx
+msgid "Manage providers"
+msgstr "Gestionar proveedores"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
 #~ msgid "Manage remote environments"
@@ -9298,6 +9349,10 @@ msgstr "Modelo agregado a favoritos"
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Model id"
 msgstr "ID del modelo"
+
+#: src/renderer/components/providers/settings/ModelProviderEditor.tsx
+msgid "Model IDs, separated by commas"
+msgstr "ID de modelos, separados por comas"
 
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Model label"
@@ -9921,6 +9976,10 @@ msgstr "No hay agentes instalados."
 msgid "No AI commits, PRs, or conflict resolutions tracked yet."
 msgstr "Aún no se han registrado commits, PRs ni resoluciones de conflictos con IA."
 
+#: src/renderer/components/providers/settings/ModelProviderManager.tsx
+msgid "No API key stored; native authentication may apply."
+msgstr "No hay clave API guardada; puede utilizarse la autenticación nativa."
+
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "No archived results."
 msgstr "No hay resultados archivados."
@@ -10262,6 +10321,7 @@ msgstr "Sin prompts"
 msgid "No providers are being tracked."
 msgstr "No se están rastreando proveedores."
 
+#: src/renderer/components/providers/settings/ModelProviderManager.tsx
 #: src/renderer/components/providers/settings/ProviderAccountsSection.tsx
 msgid "No providers connected yet."
 msgstr "Aún no hay proveedores conectados."
@@ -12127,9 +12187,9 @@ msgstr "Poracode lo proporciona y administra para los agentes compatibles."
 msgid "provider"
 msgstr "proveedor"
 
-#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
-#~ msgid "Provider"
-#~ msgstr "Proveedor"
+#: src/renderer/components/providers/settings/ModelProviderEditor.tsx
+msgid "Provider"
+msgstr "Proveedor"
 
 #: src/renderer/components/thread/ChatPane/parts/MessageList.tsx
 msgid "Provider conversation was not restored"
@@ -12140,9 +12200,21 @@ msgstr "No se restauró la conversación del proveedor"
 msgid "Provider has not reported token usage."
 msgstr "El proveedor no ha informado del uso de tokens."
 
+#: src/renderer/components/providers/settings/ModelProviderEditor.tsx
+msgid "Provider ID"
+msgstr "ID del proveedor"
+
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Provider presets"
 msgstr "Preajustes de proveedor"
+
+#: src/renderer/components/providers/settings/ModelProviderManager.tsx
+msgid "Provider saved, but its API key could not be stored. Reload and try again."
+msgstr "Proveedor guardado, pero no se pudo almacenar su clave API. Recarga e inténtalo de nuevo."
+
+#: src/renderer/components/providers/settings/ModelProviderManager.tsx
+msgid "Provider settings changed. Reload before saving."
+msgstr "La configuración del proveedor cambió. Recarga antes de guardar."
 
 #. Settings section: provider usage and quota dashboard
 #: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
@@ -12595,6 +12667,7 @@ msgstr "Actualizando el estado de autenticación de {0}."
 msgid "Refreshing {env} {0} authentication status."
 msgstr "Actualizando el estado de autenticación de {env} {0}."
 
+#: src/renderer/components/providers/settings/ModelProviderManager.tsx
 #: src/renderer/RendererCrashScreen.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Reload"
@@ -12710,6 +12783,7 @@ msgstr "URL del remoto"
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
+#: src/renderer/components/providers/settings/ModelProviderManager.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredCustomValues.tsx
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
@@ -12857,6 +12931,10 @@ msgstr "Eliminar proyecto"
 msgid "Remove Project"
 msgstr "Eliminar proyecto"
 
+#: src/renderer/components/providers/settings/ModelProviderManager.tsx
+msgid "Remove provider"
+msgstr "Eliminar proveedor"
+
 #: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
 msgid "Remove queued follow-up"
 msgstr "Quitar seguimiento en cola"
@@ -12886,6 +12964,10 @@ msgstr "¿Eliminar las credenciales guardadas de este proveedor? Puedes volver a
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Remove this connection?"
 msgstr "¿Quitar esta conexión?"
+
+#: src/renderer/components/providers/settings/ModelProviderManager.tsx
+msgid "Remove this model route? Saved credentials are kept. Existing threads pick up changes when restarted."
+msgstr "¿Eliminar esta ruta de modelos? Las credenciales guardadas se conservan. Los hilos existentes aplican los cambios al reiniciarse."
 
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Remove worktree?"
@@ -13713,6 +13795,7 @@ msgstr "Saturación y brillo"
 #: src/renderer/components/providers/codex/profileSettings.tsx
 #: src/renderer/components/providers/devin/profileSettings.tsx
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ModelProviderEditor.tsx
 #: src/renderer/components/providers/settings/ProviderMcpServersSection.tsx
 #: src/renderer/components/thread/ThreadFollowUpEditor.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
@@ -17279,6 +17362,10 @@ msgstr "No se pudo cargar el diff."
 msgid "Unable to load downloads."
 msgstr "No se pudieron cargar las descargas."
 
+#: src/renderer/components/providers/settings/ModelProviderManager.tsx
+msgid "Unable to load providers."
+msgstr "No se pudieron cargar los proveedores."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unable to load remote access pairing."
 msgstr "No se pudo cargar el emparejamiento de acceso remoto."
@@ -17523,6 +17610,10 @@ msgstr "No se puede actualizar la configuración MCP nativa. Actualiza y revisa 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unable to update network access."
 msgstr "No se pudo actualizar el acceso a la red."
+
+#: src/renderer/components/providers/settings/ModelProviderManager.tsx
+msgid "Unable to update providers. Check the native configuration for overrides."
+msgstr "No se pudieron actualizar los proveedores. Comprueba las anulaciones en la configuración nativa."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unable to update remote access."
@@ -18068,6 +18159,10 @@ msgstr "Usar archivos ignore"
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Use letters, numbers, dots, dashes, or underscores without spaces."
 msgstr "Usa letras, números, puntos, guiones o guiones bajos sin espacios."
+
+#: src/renderer/components/providers/settings/ModelProviderEditor.tsx
+msgid "Use lowercase letters, numbers, and hyphens."
+msgstr "Usa letras minúsculas, números y guiones."
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
