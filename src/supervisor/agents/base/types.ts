@@ -1144,6 +1144,9 @@ export interface AgentAdapter
   /** Route stdio MCPs with an explicit cwd through the proxy when the native runtime ignores cwd. */
   readonly mcpRequiresStdioCwdProxy?: boolean;
 
+  /** Isolate user/plugin MCP connection failures instead of aborting GUI turns. */
+  readonly mcpRequiresConnectionFailureIsolation?: boolean;
+
   /**
    * Refresh shared OAuth on MCP connection instead of before launch. Requires a
    * qualified connection budget and tools becoming usable after delayed startup.

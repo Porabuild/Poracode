@@ -290,3 +290,633 @@ The following first-wave checks precede the auxiliary implementation; its final 
 The OpenCode live check also exposed an intermittent shared command-menu display problem. The supervisor snapshot contains the command catalog and runtime updates can restore it, but a subsequent durable managed-root catalog row can erase it. `src/host/db/rowMappers.ts:137` omits `slashCommands`, and `src/renderer/state/managedRootCatalog/rootCatalogRows.ts:139` carries session controls but not commands when replacing the resident row. Both paths are identical to clean baseline; the previous awaited discovery published through the same runtime path. The exact refresh that erased the live row was not captured. This existing issue is separate from the startup changes and remains unchanged. Native dispatch above succeeds using the provider session's catalog; reliable menu retention is not claimed. Evidence: `artifacts/opencode2-catalog-ui.json` and the inspected screenshot in the real managed root.
 
 The original 7.759-second client/ingress gap remains unattributed because the original busy-app condition was not reproduced. OpenCode model replies require provider reconnection; OpenCode 1 is not installed. No Linux/macOS runtime timing, installed-package latency or complete live GUI qualification of every provider is claimed. Evidence was captured on `perf/thread-startup-performance`; the installed Nightly was unchanged during verification.
+
+## Other-provider startup investigation, 2026-10-18
+
+This follow-up uses merged master `a5974a2cd967fc05c2eab2c36d1dc24fc6f3e8a2` on `perf/provider-startup-investigation`. The initial investigation below changed no product code; the subsequent sequential plan records the new shared scheduling change. The earlier comparison above remains the before/after result for the merged optimizations; the measurements below are a new diagnostic baseline.
+
+### Measurement method and limits
+
+An ignored probe runs the actual `SupervisorRuntime`, launch pipeline, adapters, installed providers and canonical runtime events. Each provider has two serial fresh-launch samples and two same-session follow-ups using `Reply OK`. Claude and Cursor ACP also have one explicit unload/resume check. **All 34 turns completed with the exact assistant marker `OK`.** Detection happens before the timed launch and is reported separately. No unit suite or application build ran during the samples.
+
+The probe times owned runtime methods and ACP RPCs, recording names, durations, canonical event kinds and marker results. It records no prompts beyond the test marker, response bodies, credentials, environment values or RPC payloads. A narrow instrumentation transform additionally times the unchanged project-shell preparation call in the second sample. Nested spans overlap and must not be summed. Source remains unchanged on disk.
+
+These are Windows backend measurements with isolated default Poracode settings, the disposable project and existing native provider credentials. Antigravity uses the existing public managed-ACP installation configuration, without copying credentials. Renderer transport, file checkpoints and title generation are outside these backend timings. Different selected models and Auto routing limit cross-provider comparisons. Two samples establish observed phases and variation, not a population percentile or an upstream SLA. Provider initialization and response time are not split into CPU, network and model inference.
+
+Evidence lives under `.tmp/thread-startup-performance/verification/`: `provider-<label>-<sample>.json`, `providers-investigation-summary.json` (all 34 turns, ranges and spans), and `providers-investigation-table.md`. The ignored probe/build/summarizer scripts are in the parent directory. Initial Cursor SDK fixture attempts are retained separately as invalid helper-location/raw-settings attempts and are excluded from all timing summaries; the standalone Node probe cannot unseal the desktop profile's protected credentials.
+
+### Timings and ownership
+
+All numbers below are seconds, medians of the two fresh samples. First content and reply are cumulative from `startThread`; the setup columns are individual durations. First content means the first canonical assistant/reasoning text event. Providers that emit text late can make this close to full completion. Claude starts its SDK query during open and continues initialization after that promise returns, so its near-zero Activate value does not mean free provider initialization.
+
+| Provider / version                  | Model                             | Poracode before provider creation | Adapter creation | Activate / initialize | Open session | First content | Complete `OK` | Follow-up `OK` |
+| ----------------------------------- | --------------------------------- | --------------------------------: | ---------------: | --------------------: | -----------: | ------------: | ------------: | -------------: |
+| Claude 2.1.302                      | `haiku`                           |                             0.577 |           <0.001 |                <0.001 |        0.147 |         3.511 |         3.686 |          2.153 |
+| Cursor ACP 2026.10.16-e3cb207       | `auto`                            |                             0.561 |            0.104 |                 0.607 |        5.990 |         9.929 |        13.475 |          2.356 |
+| DeepSeek 0.2.1-rc.2                 | account `deepseek-flash`          |                             0.761 |            0.112 |                 4.693 |        0.510 |         7.523 |         7.570 |          1.461 |
+| Factory 0.242.1                     | `auto`                            |                             0.601 |            0.082 |                 0.894 |        0.752 |         7.753 |         7.823 |          3.363 |
+| Grok 1.0.60                         | `grok-4.7`                        |                             0.530 |            0.099 |                 0.212 |        0.514 |         3.846 |         4.475 |          2.647 |
+| Qoder 1.1.73                        | advertised `qfmodel`              |                             0.553 |            0.100 |                 1.837 |        3.134 |         8.564 |         9.085 |          1.954 |
+| CommandCode 1.82.4                  | `deepseek/deepseek-v4-flash-fast` |                             0.554 |            0.100 |                 1.610 |        0.215 |         5.901 |         5.949 |          1.836 |
+| Antigravity CLI 1.4.1 + managed ACP | `gemini-4-argon`                  |                             0.591 |            0.005 |                 8.451 |        3.884 |        21.447 |        21.577 |          5.732 |
+
+| Phase                             | Who performs it                                                                            | Measured detail / implication                                                                                                                                                                                                                                                                |
+| --------------------------------- | ------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Before provider creation          | Shared Poracode pipeline                                                                   | Plugin contributions, project environment, skill projection and MCP setup. Fresh-sample medians above are 0.530–0.761 s.                                                                                                                                                                     |
+| Project environment               | Poracode starts PowerShell; the user's profile builds the environment                      | Directly timed second samples: **454–544 ms**. `primeWindowsProjectShellEnv` caches the promise by native project cwd. It is not repeated for every same-project turn. A new probe process intentionally begins with an empty in-memory cache.                                               |
+| Skill preparation                 | Shared `SkillsService`                                                                     | **17–104 ms** across fresh samples, including the scan for retired projections in other providers' roots. This is measurable repeated work, but it did not cause the multi-second waits here.                                                                                                |
+| Adapter creation                  | Provider-owned Poracode adapter                                                            | Builds the command/environment and structured handle; typically around 0.1 s for ACP providers in this run.                                                                                                                                                                                  |
+| Activate / initialize             | Poracode sends ACP initialize; the provider process loads and responds                     | DeepSeek: **3.30–6.08 s**; Antigravity: **7.93–8.97 s**. The current evidence locates the wait at that RPC boundary, not inside a named provider-internal function.                                                                                                                          |
+| Session creation                  | Provider process answering `session/new`                                                   | Cursor: **4.087–4.089 s**; Qoder: **2.906–3.116 s**; Antigravity: **3.746–4.011 s**.                                                                                                                                                                                                         |
+| Model configuration               | Shared Poracode ACP synchronizer requests the selected native value; provider processes it | Cursor: **1.873–1.917 s** in `session/set_config_option`. The second sample records `alreadyCurrent: false`; the requested value differs from the retained native value. Deleting this write would risk a different selection. Qoder and CommandCode also recorded a differing native value. |
+| First content / reply after setup | Provider runtime, remote services and model                                                | Includes deferred initialization where applicable. The probe cannot assign all of this residual time to model inference. Cursor full replies varied **10.71–16.24 s**, while its session-creation time was stable.                                                                           |
+| Detection, outside timed launches | Poracode adapter performs availability, auth and capability probes                         | Cursor **30.90–31.07 s**, CommandCode **29.54–31.61 s**, Antigravity **15.35–16.26 s**, Qoder **8.48–9.48 s**; other successful rows **3.98–6.99 s**. These are fresh detection measurements, not evidence that every user prompt awaits detection.                                          |
+
+The explicit resume samples also completed `OK`: Claude backend open/dispatch **42 ms**, complete reply **2.77 s**; Cursor ACP open/dispatch **5.40 s**, complete reply **8.06 s**. Both reused their provider session references.
+
+### Documentation and remaining optimization targets
+
+Cursor's [official ACP request flow](https://cursor.com/docs/cli/acp#request-flow) places initialization and session creation before prompting. The [ACP configuration contract](https://agentclientprotocol.com/protocol/v1/session-config-options) makes the provider's current values and complete setter reply authoritative. Those required operations should stay ordered; a slow RPC alone does not prove redundant work.
+
+1. **Check whether Cursor SDK account metadata actually blocks startup.** `sdkSession.ts:371` awaits `worker.listModels`; `sdkWorker.ts:365` then awaits `probeCursorSdkAccountEmail`. The follow-up below found that its object-only guard skips the installed SDK's class export, so the visible await does not establish a live identity request. The [official SDK reference](https://cursor.com/docs/sdk/typescript) documents identity separately from account-specific model/parameter discovery. No live milliseconds saved are claimed.
+2. **Investigate redundant Cursor SDK catalog fetches with the real credential context.** In installed SDK **1.0.38**, the public `Cursor.models.list()` creates a client and calls `/v1/models`; explicit-model `Agent.create()` performs local selection validation through a separate local-model cache. Poracode calls the former before the latter. The next experiment should count actual requests in one authenticated worker. Reuse must be scoped to the captured account, credential generation and SDK version, with stale-selection recovery. Do not depend on the SDK's private test override for model catalogs. The [official model-parameter documentation](https://cursor.com/docs/sdk/typescript#model-parameters) requires account-specific discovery; skipping validation is not the proposed optimization.
+3. **Trace native provider initialization before adding prewarming.** DeepSeek and Antigravity are the largest measured handshake waits; Cursor and Qoder spend seconds creating sessions. Instrument the owned child process and provider diagnostics to separate module loading, local scanning and remote calls. A generic pool would introduce account, cwd, MCP and disposal ownership requirements; this investigation does not justify building one.
+4. **Shared preparation is a smaller follow-up.** Windows project environment acquisition must finish before spawning a process that needs it, but independent filesystem preparation could overlap it after dependency checks. The retired-projection scan could run once per environment/projection generation with correct invalidation while selected-provider projection stays awaited. Expected savings from the observed skill work are tens of milliseconds. Preserve external skill changes, projection policy and retirement cleanup.
+5. **Keep discovery outside ordinary send admission.** Fresh detection itself is expensive for Cursor and CommandCode. Audit joins against cached discovery, cancellation and refresh ownership before adding caches. The measurements here do not show that ordinary sends await those entire detection sweeps.
+
+The previous shared async title-generation and OpenCode/Codex auxiliary changes remain applicable. This investigation found no new evidence that title generation blocks the first prompt.
+
+### Live UI evidence and incomplete providers
+
+The managed real Electron snapshot at `C:\Users\sdsle\.poracode-smoke\provider-startup-investigation-20261018-a` uses the same source revision and an unchanged frozen runtime. A native composer submit of `Reply OK` through Claude/Haiku completed and visibly rendered `OK`, with **zero renderer console/runtime errors** in the capture. Screenshots were inspected. This UI control used the renderer's normalized `ultracode`/400k configuration and built-in crossagent MCP, so it is separate from the plain backend samples. Evidence: `artifacts/claude-ui-live.json`, `claude-before.png` and `claude-after.png`. The frozen runtime passed `verify-runtime` with artifact SHA-256 `7e85ad31513fa1413b09453388f10bef5d421ed12bb4cda0278a625a668ae173`, 90,123 files. Cold build/staging took 575 s before readiness and is excluded from all provider timings.
+
+| Provider / surface                                            | Result                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Cursor SDK profile                                            | A separate labelled Home test through app-controls on installed Nightly **2.0.0-nightly.202610171809**, using `default` with inherited `max` effort, ended in an error after **3.434 s**, with no assistant reply. Thread `67877765-e116-426f-aee6-6fe17c93db8e` is retained for inspection. This is not a successful latency sample and is not the merged-source backend environment. The recorded transcript/get-thread response does not expose the startup error cause; no authentication failure or fix is claimed. |
+| Copilot 1.0.98                                                | Fresh detection reports installed/authenticated but advertises no models. No valid model reply timing was collected.                                                                                                                                                                                                                                                                                                                                                                                                     |
+| Gemini                                                        | Fresh native detection reports unavailable, despite the older cached installed inventory.                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| Kimi                                                          | Installed with missing authentication; no sign-in or model request attempted.                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| OpenCode 2                                                    | Earlier real GUI checks in this report were blocked on provider-route credentials/reconnection. No new successful latency sample.                                                                                                                                                                                                                                                                                                                                                                                        |
+| OpenCode 1, Devin, Muse, Qwen, Pi                             | Managed-app native discovery reports not installed.                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| Claude account profiles                                       | Share the measured Claude SDK path; their separate account backends were not qualified live.                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| Linux, macOS, WSL, remote hosts, every provider's terminal UI | Not measured by this follow-up.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+
+These results support focusing next on native handshake/session waits and the SDK's optional metadata dependency. They do not reproduce or attribute the original 7.759-second busy-app ingress gap, and they do not establish a new before/after speedup.
+
+Initial investigation verification: all 34 backend turns have canonical `turn.completed` state `completed`, with no recorded runtime-disposal errors. The managed UI reset and owner stop completed (`stop:ok`, retained session `stopped`), and no probe process remained. Touched-document formatting, `pnpm run lint`, `pnpm run typecheck` and `git diff --check` passed. At that point only this report changed in tracked source; no product change or publication was made. Logs: `providers-investigation-{runtime,reset,stop,lint,typecheck}.log` in the verification directory.
+
+### Sequential implementation plan
+
+Work through these items in order. Validate each change before starting the next;
+retain required authentication, model selection and process-environment barriers.
+
+| Order | Work                                                                     | Completion check                                                                                                               | Status                              |
+| ----- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------- |
+| 1     | Check Cursor SDK account-display lookup on the startup path.             | Verify the installed export and whether the helper calls it before adding a protocol change.                                   | Ruled out for installed SDK         |
+| 2     | Count Cursor SDK model-catalog requests and inspect safe reuse.          | Account-specific validation remains intact; implement only a supported reduction with evidence, otherwise record why it stays. | Confirmed; retain validation        |
+| 3     | Trace the slow native DeepSeek, Antigravity, Cursor ACP and Qoder calls. | Identify the process/function boundary and any avoidable Poracode wait; compare changed behavior with the recorded baseline.   | Profiled; no safe shared cache gain |
+| 4     | Check shared environment/skill preparation dependencies.                 | Overlap independent work only; verify required launch inputs, failure handling and measured timing.                            | Implemented; focused checks pass    |
+| 5     | Check discovery-refresh joins against ordinary sends.                    | Confirm cached admission and refresh ownership with focused regression evidence; fix a blocking join only if found.            | Verified; no blocking join found    |
+
+After the ordered items, review the complete diff and run the required final
+checks. Live provider/network timings and controlled fixture timings are reported
+separately. This wave remains uncommitted until publication is requested.
+
+Items 1–2 evidence: `verification/cursor-sdk-catalog-audit.json` uses the installed
+unmodified SDK 1.0.38 with an explicit dummy API key and all HTTP intercepted
+locally. Its `Cursor` export is a function; the identity helper returns without
+calling `me` (`identityCalls: 0`). An attempted separation regression exposed this
+guard, so the proposed flag/protocol changes were discarded. This also identifies
+an existing account-display issue; no account-identity fix or latency gain is
+claimed here.
+
+The same audit observes an API-key exchange, then two `GET /v1/models` calls:
+one from public `Cursor.models.list()`, another from `Agent.create()` model
+validation. It deliberately rejects the second call before creating an agent.
+The SDK's public configuration exposes no model-catalog seeding option; its
+platform cache is private. Poracode's first lookup maps current account-specific
+parameters, Max Mode and retired-model fallback. Removing it changes behavior,
+and patching the SDK or intercepting production HTTP would add an unsupported
+dependency. Retain both for now. This proves the request sequence, not its live
+network cost or a successful authenticated run.
+
+Item 3 uses direct installed ACP commands in owned fixture directories, without
+Poracode or a model prompt. The three Node CPU profiles include profiler overhead
+and disabled compile cache; they are diagnostic samples, not comparisons with the
+earlier full-runtime baseline. `verification/native-cpu-summary.json` records
+sampled stacks, and `native-startup/*/timings.json` records RPC boundaries.
+
+| Provider        | Direct diagnostic result                                                 | Attributed work / remaining limit                                                                                                                                                                                                                                                              |
+| --------------- | ------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| DeepSeek        | Initialize 8.006 s; session creation 0.565 s under profiling.            | Of 8.514 s sampled, `lstat` takes 1.831 s, module existence checks 1.141 s, reads 0.631 s and ESM compilation 0.561 s. The largest stacks run through the provider's `canonicalPath` → `compileResolution` → `ResolutionRouter` → `installRuntimeInterception` in `@deepseek-ai/dsh-app-boot`. |
+| Qoder           | Initialize 3.976 s; session creation 3.628 s under profiling.            | Of 7.458 s sampled, 2.784 s is idle; the bundle's export-copy helper `QJr` accounts for 1.280 s and ESM compilation 0.679 s. Idle samples do not distinguish network from other asynchronous waits.                                                                                            |
+| Cursor ACP      | Initialize 1.723 s; session creation 3.909 s under profiling.            | 3.432 s of sampled time is idle. Its Windows launcher already sets Node compile cache. The earlier model setter changes a different native current value and remains required.                                                                                                                 |
+| Antigravity ACP | Initialize 20.139 s; session creation 5.014 s without the Node profiler. | Both waits reproduce directly in the installed native executable. Internal functions remain unattributed; the Node profiler cannot instrument this binary. These are separate samples with substantial variability from the earlier 8–9 s initialization.                                      |
+
+`verification/native-compile-cache-comparison.json` contains 14 successful real
+initialize-only launches: one cache-populating launch plus three alternating
+disabled/warm pairs per provider. DeepSeek disabled/warm medians are 6.355/9.837 s;
+Qoder 4.190/3.672 s, with ranges 3.018–6.480/2.262–4.196 s and one pair effectively
+unchanged. No general cache change is justified by these noisy results. Node's
+[compile-cache documentation](https://nodejs.org/api/module.html#modulecompilecache)
+also distinguishes cached compilation from application initialization; it cannot
+remove the observed path-resolution or export-initialization work. Required ACP
+ordering stays intact. One incorrect Cursor CLI-flag attempt timed out and is
+excluded; the valid profile uses the adapter's `acp` subcommand.
+
+Item 4 changes the shared spawn pipeline to await shell-environment acquisition
+and skill projection together. Native skill paths use the explicit project/home
+locations and process environment; shell acquisition populates a separate
+per-project environment cache. Neither needs the other's result. Both still
+finish before MCP authorization and provider creation. WSL retains its existing
+skill preparation path without a native shell probe. No projection-scan cache is
+added: current launch work still sees external edits and removes retired copies.
+
+| Comparison                                                                                      | Before     | After            | Meaning                                                                                                                                |
+| ----------------------------------------------------------------------------------------------- | ---------- | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Controlled real manager, 450 ms shell + 80 ms skills, median of 3 alternating pairs             | 545.240 ms | 464.880 ms       | About 80 ms of serialized waiting removed. These are injected task durations, not live provider latency.                               |
+| Real native shell/profile + filesystem preparation, median of 3 alternating fresh-process pairs | 959.658 ms | 942.118 ms       | Observed 17.540 ms difference; wide shell variation (after includes a 1.189 s shell probe) prevents a stable end-to-end speedup claim. |
+| Real native skill time overlapping shell work                                                   | 0 ms       | 80.995–98.637 ms | Every after sample finishes all skill work while the shell probe is pending.                                                           |
+
+Evidence: `verification/shared-preparation-controlled.json` and
+`shared-preparation-native.json`. Native runs use the actual `SupervisorRuntime`
+and `SkillsService`, followed by a fixture provider handle, and do not measure
+Electron rendering or model output. Build records identify the base/current
+pipeline hashes; unchanged staged resources come from the retained stopped owned
+runtime. Focused verification: 122 tests pass across five manager/pipeline suites,
+both lint passes and project typecheck pass. Existing GUI/terminal authorization
+tests now exercise both completion orders; new failure cases prove neither
+preparation failure spawns a provider or leaks an admission slot. This changes
+in-process scheduling only: no persisted/wire/helper shape changes or version bump
+is needed.
+
+Item 5: `ipcHandlers.ts` routes start/send directly to the thread manager, whose
+ordinary admission and spawn paths do not await provider detection. Status reads
+return the accepted cache/readiness view and launch discovery in the background
+(`agentStatusService.ts:414`); only explicit refresh/install/login operations join
+the detection queue. Registry polls preserve unchanged adapter instances and their
+account/runtime state. Host automation awaits accepted-status reads for permission
+selection (and slash-command title parsing), not fresh model generation or a
+discovery sweep. The readiness tests hold other native/WSL detectors pending while
+accepted reads finish; cancellation/publication tests exercise superseded owners.
+All 76 focused tests pass across six status/registry/host-launch suites. No new
+cache or refresh change is needed. Background discovery can still consume CPU/I/O;
+this audit rules out a promise dependency, not all resource contention.
+
+The supervisor IPC dispatcher starts each request independently with
+`void handleRequest(request)` (`src/supervisor/index.ts:248`); there is no global
+request queue joining an explicit refresh before a later start request. The usage
+auto-refresh loop schedules its first tick with the configured cadence, floored
+at two minutes (`src/supervisor/runtime/usageService.ts:470`), rather than fetching
+all usage immediately during runtime construction. Neither is an additional
+startup barrier. Model-title generation remains asynchronous as established in
+the merged wave.
+
+### Sequential plan review and verification
+
+Two independent read-only reviews checked preparation dependencies, launch and
+disposal ownership, efficiency, regression tests, evidence and versioning. Both
+reported no findings. The retained product diff is confined to the shared
+preparation barrier and its existing workspace-scope test file; the proposed SDK
+protocol change and broad compile-cache change were not retained.
+
+Full `pnpm run fmt:check` (6,291 files), `pnpm run lint` (ordinary and type-aware)
+and `pnpm run typecheck` passed. The five preparation/lifecycle suites passed
+122 tests, and the six discovery/launch suites passed 76 tests. Logs are
+`verification/plan-final-{format,lint,typecheck}.log`, `step4-tests.log` and
+`step5-tests.log`.
+
+The default-concurrency full unit attempt was stopped after memory pressure and
+timing failures; only its verified test-owned process tree was stopped. The
+complete bounded rerun, `pnpm run test --maxWorkers 2`, finished in 2,140.46 s:
+**24,967 passed, 208 skipped, three failed**, across 2,190 files (2,165 passed,
+22 skipped, three failed). The failures were a 15 s native-binding generator
+timeout, HTTP 502 from the relay test using local link address `169.254.83.107`,
+and a 30.532 s `realpathSync.native` lookup of the slug fixture
+`\\wsl$\Ubuntu\home\user\proj`. No timeout, assertion or path canonicalization was
+weakened. Removing realpath resolution would change CommandCode's transcript
+directory contract and is not justified by a fake-path test.
+
+The exact three cases then passed on the unchanged merged-master revision
+`a5974a2` (4.58 s) and current source (3.90 s), with two workers and the same name
+filter. Each run reports three passed and 100 filtered-out cases; these are
+targeted reruns, not clean full-suite results. An earlier baseline check also
+passed all 82 tests in four timing-sensitive files from the interrupted attempt.
+The failure causes were not reproduced in isolation, so they are not labelled
+confirmed pre-existing defects. The full gate remains qualified by those three
+transient failures. Evidence: `plan-final-tests.log`,
+`plan-final-tests-bounded.log`, `plan-base-timing-tests.log`,
+`plan-base-remaining-failures.log` and `plan-current-remaining-failures.log` under
+`verification/`.
+
+`PORACODE_LIVE_PROVIDERS_REQUIRED=codex pnpm run test:integration:providers`
+passed in 253.48 s: **28 passed, 27 skipped, zero failures**, across nine files
+(four passed, five skipped). All eight qualifying real terminal create/unload/
+resume cases passed: Claude, Codex, Qoder, Grok, Antigravity, CommandCode, Cursor
+and OpenCode 2. The other passes are six Crossagents checks, including a real
+Claude child turn, and 14 strict-gate helper tests. Codex was mandatory and could
+not silently skip. Unavailable, unauthenticated, no-model, no-terminal and opt-in
+cases remain explicit skips; those are not live qualification. This lifecycle
+suite checks prompt preservation, not successful model replies for every case.
+Evidence: `verification/plan-providers-integration.log` and JSON.
+
+The serial current-source structured backend check also passed **20/20 exact
+`OK` replies across nine providers**: Claude, Cursor ACP, DeepSeek, Factory,
+Grok, Qoder, CommandCode, Antigravity ACP and Codex. Each has a fresh launch and
+same-session follow-up; Claude and Cursor additionally close and resume the
+original provider session. All 20 canonical `turn.completed` events have state
+`completed`, with no recorded runtime-disposal errors. The probe's pipeline hash
+matches the tested source. Evidence: `verification/post-plan-providers-summary.json`,
+`post-plan-<label>.json` and `post-plan-providers.log`.
+
+These checks use the actual current `SupervisorRuntime` and installed providers,
+isolated settings/namespaces and the retained unchanged helper resources from the
+stopped owned Electron snapshot. They exclude renderer transport, checkpoint and
+title work; they are functional checks rather than a new full-app before/after
+latency comparison. No probe process remained in the final inventory. The
+current scheduling change was not built into or driven through a new managed
+Electron app, and the installed Nightly was not updated. No Linux/macOS/WSL or
+remote-host qualification is claimed. The original busy-app 7.759 s ingress gap
+remains unattributed. All five plan items are complete; this wave remains
+uncommitted and unpublished.
+
+### Under-ten-second follow-up: startup and prompt processing
+
+The benchmark now separates **submit to `session/prompt` dispatch** from
+**prompt dispatch to first nonempty assistant/reasoning delta**. The former
+excludes model inference; the latter includes all provider prompt processing,
+including any deferred initialization. Neither is response-completion time.
+Total submit-to-first-content remains visible. Fast models are selected only
+inside disposable probes; user model defaults and saved thread configs are not
+changed.
+
+These serial probes use the actual current supervisor and installed providers,
+with fresh native processes, isolated settings and a read-only `Reply OK`
+prompt. Discovery runs before the timer, consistent with the cached-status
+admission path audited above. Renderer delivery, host transport, title generation
+and checkpoint work are excluded. Cursor and Antigravity comparisons alternate
+three before/after pairs, changing only the respective adapter source back to
+`a5974a2` in the before bundle. Both bundles retain the same current shared
+pipeline. Native Antigravity ACP is the installed **1.4.1 executable**; discovery's
+1.4.2 version belongs to the separate `agy` CLI.
+
+| Provider / model                   | Before startup | Current startup | Current prompt to first content | Current total to first content | Samples                    |
+| ---------------------------------- | -------------- | --------------- | ------------------------------- | ------------------------------ | -------------------------- |
+| Cursor ACP / GPT-5.4 Nano          | 6.743 s        | 5.177 s         | 1.825 s                         | 7.026 s                        | Three alternating pairs    |
+| Antigravity ACP / Gemini 3.8 Flash | 9.783 s        | 10.023 s        | 2.222 s                         | 12.198 s                       | Three alternating pairs    |
+| Factory / Gemini 3.8 Flash         | Not remeasured | 1.806 s         | 3.404 s                         | 5.210 s                        | Two current fresh launches |
+| Factory / GPT-5.4 Mini Fast        | Not remeasured | 1.944 s         | 3.325 s                         | 5.268 s                        | Two current fresh launches |
+
+Each cell is its own median; medians of component columns need not sum to the
+median total. Factory's candidates are effectively tied in this small sample;
+neither is established as universally fastest. All 16 marker turns completed.
+Evidence: `verification/target10-fast-{cursor,antigravity,factory}-comparison.json`
+and the individual `target10-fast-*-pair*.json` reports. Build records retain the
+adapter and shared-pipeline hashes.
+
+Startup ownership in the same current samples:
+
+| Work / owner                                                | Cursor  | Antigravity | Factory / Flash |
+| ----------------------------------------------------------- | ------- | ----------- | --------------- |
+| Native ACP initialization, session creation and config RPCs | 4.706 s | 9.614 s     | 1.313 s         |
+| Remaining Poracode / OS process setup                       | 0.438 s | 0.379 s     | 0.493 s         |
+| Shell-environment acquisition, within that remaining setup  | 0.350 s | 0.346 s     | 0.383 s         |
+| Skill preparation, overlapping shell acquisition            | 0.016 s | 0.088 s     | 0.028 s         |
+
+The remaining setup is elapsed time outside measured native RPCs, not an
+exclusive CPU profile of Poracode. Skill time must not be added again; the
+shared barrier overlaps it with shell acquisition. Independent column medians
+again need not sum exactly.
+
+Cursor now passes the selected base model to its supported `--model` launch
+option for fresh GUI ACP sessions. The native session starts with the correct
+model, so shared config synchronization skips the subsequent model setter.
+Every before sample issued that setter; every after sample omitted it. Startup
+fell by 1.566 s at the median (current range 5.121–5.481 s). Resumed sessions,
+terminal sessions and the SDK route keep their existing launch path. Effort,
+thinking, fast mode and context controls still use normal config synchronization.
+
+Antigravity now receives its supported `AGY_ACP_DEFAULT_MODEL` launch hint for
+advertised modern native model/effort combinations. Its native model setter
+returns quickly but defers a harness rebuild until the next prompt. Three
+same-Argon/high pairs confirm one rebuild before and zero after. They do **not**
+show a stable first-content gain: medians were 18.536/25.816 s amid large prompt
+variation. The Flash comparison above needs no rebuild even before the change,
+so no Flash speedup is claimed. Its current startup range is 9.976–10.093 s,
+including 5.954–6.119 s native initialization and 3.541–3.644 s native session
+creation. An earlier separate Flash cold sample took 16.840 s to dispatch, with
+12.178 s inside initialization. Antigravity is therefore **not reliably below
+ten seconds**, even after excluding prompt processing.
+
+Inspection of the shipped native executable identifies a PyInstaller one-file
+package containing 7,341 extractable files, about 335 MB unpacked. Native
+initialization includes its process/bootstrap work; session creation starts the
+local harness and initializes a conversation. This identifies real native work
+but does not attribute every millisecond to an internal function. No vendor
+binary, antivirus setting or private extraction-cache mechanism is changed.
+The raw-process prewarm experiment was rejected on mismatched launch inputs and
+was not adopted. Hiding that cost before the timer is not a cold-start gain.
+
+The probes also timestamp the first native ACP text before Poracode maps it.
+Across these 16 launches, native-to-canonical first-content delay was
+11.614–30.590 ms. This rules out seconds of buffering at that mapping boundary
+for these samples; it does not measure renderer paint or explain the original
+busy-app ingress gap.
+
+### Antigravity: one failed MCP must not abort the turn
+
+The reported Nightly thread contains the native error that Vercel's unauthorized
+`initialize` aborts the prompt. The native server explicitly treats an MCP load
+failure as a turn failure. Removing the user's connector or changing its
+credentials is not required for this fix.
+
+An adapter capability now requests connection-failure isolation for GUI launches.
+After normal MCP authorization, the shared pipeline wraps user/plugin MCP servers
+with the existing tool-filter helper. A failed connection or tool listing leaves
+a healthy downstream MCP endpoint with a diagnostic tool explaining that server's
+tools are unavailable for the session. Healthy tools, filtering, structured
+results and cancellation retain their normal behavior. Terminal launches and
+providers without the capability keep their existing policy. Built-in owned MCP
+services are not routed through this optional-user-server policy. Configured
+connection deadlines still apply; this change does not promise instant startup
+for an unresponsive MCP.
+
+The helper config has a version-1 envelope under
+`PORACODE_MCP_FILTER_CONFIG_V1`. New readers still accept the previous unversioned
+key. Old workers reject the new key before connecting, and future versions are
+refused rather than partially applied. The service writes the envelope, the
+standalone worker reads it, and normal byte-sensitive helper staging plus
+content-addressed WSL deployment refresh the deployed copy. Previous-shape and
+future-version regressions cover this upgrade boundary; user settings and
+credential storage do not change.
+
+Native before/after evidence uses the real Antigravity executable, a local HTTP
+401 fixture and a healthy read-only stdio MCP tool. Before, the first turn failed
+with the native MCP initialization error. After, both fresh and follow-up turns
+called `healthy_ping` and returned exactly `MCP_HEALTHY_OK`, with no MCP
+initialization error. This is backend integration evidence, not an installed
+Nightly or Electron-rendering claim. The disposable proof used the native
+no-approval policy for that read-only tool; it did not change user permissions.
+Evidence: `target10-mcp-native-before.json` and
+`target10-mcp-native-after-approved-fixture.json` in the verification directory.
+
+Independent reviews found a teardown leak when the proxy's downstream stdio
+closed. Two real-child regressions reproduced it before the fix. Downstream
+closure now idempotently closes both protocol legs and terminates the upstream
+child; both default and isolation policies pass. Targeted lifecycle re-review
+reported no findings. Separate adapter behavior and proof-efficiency reviews
+also reported no outstanding findings.
+
+A targeted follow-up found a second lifecycle issue: the MCP SDK starts its
+request timeout only after the upstream transport opens. An SSE server that
+opens the stream but never supplies its endpoint could therefore wait forever,
+while the downstream stdin had no reader to observe EOF. Four real-SSE cases
+reproduced this under both default and isolation policies. Downstream ownership
+now starts first, tool requests wait for upstream readiness, and a transport-wide
+deadline honors the configured timeout (or SDK default). Disconnect cancels
+startup and closes both legs; a late connection cannot publish a new proxy.
+All four previously failing cases and all 14 proxy tests pass. Both targeted
+reviews report no findings, including an early downstream tools request held
+until upstream readiness. Evidence: `target10-mcp-pending-{before,after}.log`.
+
+### Follow-up verification in managed Electron
+
+The final product changes were built into the isolated managed root
+`C:/Users/sdsle/.poracode-smoke/provider-startup-target10-20261018-e`.
+The runtime's 90,124-file artifact hash was verified after the live checks.
+Installed Nightly and the user's saved models, permissions and connectors were
+not changed.
+
+Three real GUI threads completed eight turns:
+
+- Antigravity called the healthy read-only MCP tool on both a fresh turn and a
+  follow-up while a separate HTTP-401 MCP remained configured. Both replies were
+  exactly `MCP_HEALTHY_OK`; no native MCP initialization error aborted the turn.
+- With normal approvals restored in that disposable thread, denying the same
+  tool produced `Rejected by user` and the requested `DENIED_OK` reply. Its native
+  two-choice question displayed a structured question dock. Submit advertised
+  `aria-disabled="true"` before selection, became enabled after choosing Alpha,
+  and resumed to `QUESTION_OK` with no outstanding request.
+- Cursor ACP completed fresh and follow-up turns using Auto. A second thread
+  launched with GPT-5.4 Nano, then completed another turn after the normal model
+  picker changed it to Auto. Persisted config and canonical output confirm the
+  model change; the launch hint does not prevent later config synchronization.
+
+Canonical snapshots are in
+`verification/target10-managed-final-threads.json`; question and permission
+snapshots are alongside it. Screenshots under the managed root's `artifacts/`
+were visually inspected. These functional checks ran alongside the unit suite
+and are not additional performance samples.
+
+The diff-derived real smoke passed welcome dismissal, baseline and Everything
+Search with **zero console/runtime errors**. Its IPC round-trip, MCP extension,
+live-provider and runtime-request manual gates were acknowledged only after the
+real flows above completed. The report is `artifacts/final-smoke/smoke-report.json`.
+Earlier roots affected by profile promotion or superseded builds are not used
+as final-code proof.
+The managed app was stopped through its owner; its two listening ports and the
+local fixture port are closed, with no healthy-MCP fixture child left running.
+The owned profile, runtime and evidence are retained.
+
+Full formatting, ordinary and type-aware lint, typecheck, architecture checks
+and 19 architecture-script tests passed. The focused change suite passed 181
+tests in eight files; the Cursor picker correction subsequently passed 66 tests
+in three files. That existing integration test still expected the old fresh
+launch arguments, so its assertion now includes the selected-model flag while
+retaining the parameterized-picker contract and unchanged resume expectation.
+Both lint modes and a final typecheck passed after that test-only correction.
+
+The full unit run completed in 1,357.42 s: **24,993 passed, 208 skipped, one
+failed** across 2,190 files. Its sole failure was the old Cursor launch-argument
+assertion described above, executed before that test-only correction. The
+corrected file and related adapter/config tests passed in the 66-test focused
+rerun. No other full-suite failure remains unresolved. This is a full-run result
+plus a passing correction rerun, not a claim that the original invocation was
+green. Evidence: `verification/target10-final-tests.log` and
+`verification/target10-cursor-picker-after.log`.
+
+The real provider integration suite passed **28 tests, with 27 explicitly
+skipped and no failures**. This includes eight installed-provider terminal
+create/unload/resume cases, cross-agent checks and strict helper tests. Skipped
+availability, authentication, model and opt-in cases are not live-provider
+passes. Evidence: `verification/target10-providers-integration.log`.
+
+### Direct console CLI versus raw ACP
+
+A subsequent comparison bypassed Poracode entirely: Node spawned the installed
+native binaries directly with hidden windows and piped streams. Three serial
+pairs used fresh processes, an empty workspace per pair, Gemini 3.8 Flash/high
+and the same read-only `Reply exactly OK` prompt. Pair order alternated. All six
+replies were exactly `OK`; no tools were requested and the workspaces remained
+empty. CLI self-update was disabled for these child processes only.
+
+| Installed native path                       | Startup milestone, median  | First assistant text, median |
+| ------------------------------------------- | -------------------------- | ---------------------------- |
+| Console `agy.exe` 1.4.2, headless streaming | 3.713 s to `init` event    | 5.970 s                      |
+| `agy_acp_server.exe` 1.4.1, raw JSON-RPC    | 9.302 s to prompt dispatch | 11.163 s                     |
+
+The CLI `init` event is an observable readiness milestone, not an instrumented
+model-dispatch timestamp. Its user-input step followed at a 3.790 s median.
+Both first-text columns start immediately before native process creation and
+include prompt processing, not response completion. This compares the installed
+CLI and ACP distributions; it is not a matched-version comparison or a measurement
+of interactive TUI paint. The CLI's documented NDJSON schema is
+`event: init/step_update/result`; an initial exploratory run with an incorrect
+parser is excluded from these six samples.
+
+The raw ACP median was 5.401 s before the first `Starting AGY ACP Server` log,
+5.428 s for the initialize RPC including that bootstrap, then 3.869 s for
+`session/new`. The server source imports its Python dependencies before the
+startup log; session creation authenticates, prepares config, and enters the SDK
+agent context, which starts its harness. Thus the delay persists without the
+Poracode supervisor, skill preparation, MCP proxies or renderer.
+
+A no-prompt control reinforces the bootstrap finding: CLI `--help` exited in
+0.105–0.106 s, while ACP `--help` took 6.352–8.452 s. No session or model prompt
+was sent in that control. ACP's packaged Python startup is expensive on this
+machine. Those aggregate controls did not separate archive extraction, Python
+initialization and exit cleanup; the follow-up below does. The console executable is a different runtime path, so it
+does not inherit the same ACP bootstrap delay.
+
+Evidence is under `.tmp/thread-startup-performance/raw-console-20261018/`:
+`measured-comparison.json`, the six individual reports, and
+`bootstrap-help-control.json`. The probe uses the CLI's
+[documented headless streaming mode](https://antigravity.google/docs/cli/headless/).
+No product code, installed executable or saved user setting changed for this
+comparison.
+
+### Upstream reports and measured ACP packaging cost
+
+GitHub investigation found matching reports, rather than an upstream speed fix:
+
+- [T3 issue #9432](https://github.com/pingdotgg/t3code/issues/9432) reports direct
+  Windows ACP initialization taking 40–47 s on an older official distribution.
+  Its merged [PR #9510](https://github.com/pingdotgg/t3code/pull/9510) raises health,
+  model-refresh and sign-out deadlines to 90 s. The production diff changes
+  timeouts; it does not accelerate bootstrap. The issue's closed state therefore
+  does not establish that the native performance problem was fixed.
+- [Google issue #921](https://github.com/google-antigravity/antigravity-cli/issues/921)
+  remains open and reports ACP extracting DLLs into `%TEMP%/_MEI*`, while the
+  normal CLI works. A collaborator redirected ACP reports to the Antigravity
+  forum. The [dedicated forum report](https://discuss.ai.google.dev/t/acp-server-1-1-1-official-agy-acp-server-cold-starts-in-16s-on-every-windows-spawn/183427)
+  separately reproduces repeated one-file extraction and harness-restart costs.
+  Those older Python-3.10/version-1.1.1 timings are not current-machine results.
+- The live [ACP registry manifest](https://github.com/agentclientprotocol/registry/blob/main/antigravity-acp/agent.json)
+  still selects 1.4.1. The installed CLI is the separate 1.4.2 release. Updating
+  the CLI does not replace the ACP executable measured here.
+
+Three further no-prompt controls observed Windows process creation times and
+I/O counters through standard query APIs. They did not patch the executable,
+inject code, change PyInstaller internals or alter security settings. PyInstaller
+one-file mode extracts dependencies in a parent process before starting the
+Python child; this matches its [documented bootstrap behavior](https://pyinstaller.org/en/stable/operating-mode.html#how-the-one-file-program-works).
+
+| Measured stage in the three controls                                      | Observed elapsed time     |
+| ------------------------------------------------------------------------- | ------------------------- |
+| Parent creation to Python child creation: extraction/bootstrap            | 4.196–5.833 s             |
+| Python child creation to first help output: runtime/import initialization | Approximately 1.73–2.01 s |
+| First help output to process exit: Python teardown and parent cleanup     | Approximately 1.38–1.44 s |
+
+The help commands exited normally through their help path, with the expected
+status 1. Their total 7.344–9.287 s includes shutdown cleanup, which must not be
+added to time-to-first-content. The lightweight observer can add overhead;
+these phase controls are separate from the unprofiled first-content samples.
+
+The parent writes exactly **334,646,354 bytes** on every observed launch. Reading
+the executable's archive table independently finds **7,341 extracted files**
+whose uncompressed sizes sum to that exact byte count. The current bundle uses
+Python 3.14 (`python314.dll`). This establishes actual repeated extraction,
+rather than attributing the wait to model inference or an MCP connection.
+
+Two schema trees explain much of the payload:
+
+- `googleapiclient/discovery_cache/documents/`: 581 files, 98,697,594 bytes.
+- `google3/third_party/py/googleapiclient/discovery_cache/documents/`: another
+  581 files and 98,697,594 bytes, with identical compressed payloads for all pairs.
+
+Together they account for 197.4 MB, about 59% of the extracted bytes. One copy is
+98.7 MB of duplicate content. Removing either path safely would require auditing
+its consumers; neither path is removed in the experiments below, and no measured
+saving is attributed to trimming this data.
+
+The separate 3.869 s median `session/new` from the raw comparison includes auth,
+config and SDK startup. The shipped `Agent.__aenter__`,
+`LocalConnectionStrategy._spawn_harness_and_connect_ws` and
+`LocalConnectionStrategy.__aenter__` method bodies match the public SDK source:
+[agent startup](https://github.com/google-antigravity/antigravity-sdk-python/blob/main/google/antigravity/agent.py)
+and [harness startup](https://github.com/google-antigravity/antigravity-sdk-python/blob/main/google/antigravity/connections/local/local_connection.py).
+They spawn the harness, exchange configuration over stdio, connect a WebSocket
+and wait for conversation initialization. This does not separately time each
+auth, config or handshake function. The three no-prompt phase ranges should not
+be summed with a median from a different run batch.
+
+A PyInstaller-supported packaging alternative is a one-folder distribution,
+which avoids per-launch extraction, plus a leaner dependency payload. A host could also
+investigate process reuse with session isolation; no production pool or prewarm
+change is implemented here. Individual Python imports
+and Windows filesystem/security overhead remain unseparated.
+
+Evidence under `.tmp/thread-startup-performance/raw-console-20261018/`:
+`bootstrap-process-profile.json`, `bootstrap-archive-inventory.json`,
+`bootstrap-archive-bloat.json` and `sdk-method-comparison.json`.
+
+### Local one-folder hot-patch experiment
+
+A separate copy of the official Windows ACP 1.4.1 executable was converted into
+a one-folder layout. All 7,341 extracted files and both schema trees were kept.
+Only the copied executable's archive extraction markers were changed; its Python
+scripts and embedded module payloads were not edited. The original installed
+executable remains unchanged, with a valid Google Authenticode signature.
+
+Three serial, alternating stock/cache pairs used the same empty workspace per
+pair, `gemini-3.8-flash` with `high` effort, no MCP servers, and the same
+read-only `Reply exactly OK` prompt. Every launch returned `OK` without a tool
+request. Medians from this new comparison batch:
+
+| Stage                                       | Stock executable | One-folder copy |
+| ------------------------------------------- | ---------------- | --------------- |
+| ACP initialize RPC, including process start | 9.501 s          | 2.957 s         |
+| Process start to prompt dispatch            | 13.798 s         | 7.664 s         |
+| Process start to first nonempty text        | 16.197 s         | 9.503 s         |
+
+This removes roughly six seconds from startup in this batch; it does not speed
+up model inference. Stock extraction varied more than in the earlier comparison,
+so the before/after claim uses only these paired samples. The one-time extraction
+and copy took 2.228 s in the initial experiment; cache preparation was outside
+the launch measurements. The retained cache adds about 567 MB of files,
+including the executable, its 334.6 MB payload and the unchanged harness.
+
+The copied executable reports **Authenticode HashMismatch**. No security policy
+was disabled or signature validation bypassed. Consequently this experiment is
+not enabled automatically in Poracode and is not a Nightly/user rollout. A
+production cache would need explicit provenance and version qualification,
+atomic preparation, update invalidation, and stock-runtime fallback.
+
+Three subsequent controls used the unchanged signed executable and recorded
+the boundary immediately after `initialize` completed, before `session/new`.
+From that ready boundary, median session creation/prompt dispatch was **3.894 s**,
+and first text was **5.908 s**. All three returned `OK` without tools. This
+quantifies the latency available if Poracode prepares a spare process before
+the user opens a thread. The cold preparation still took **10.460 s** median
+and is excluded from those ready-boundary numbers; clicking before preparation
+finishes would still wait. No pool, background replenishment, idle lifetime or
+handoff integration is implemented or qualified by these controls.
+Prewarming was subsequently rejected: it moves the same work into the background
+and adds an idle process. No prewarming or spare-process pool is included in the
+product changes.
+
+The first experiment inside this Git checkout failed because a bundled
+`websockets` version helper interpreted the enclosing Poracode Git tag as its own.
+The successful copy lives outside any repository. A production cache must avoid
+that location-dependent failure. Closing stdin did not end these native ACP
+processes within five seconds; the comparison terminated only its own process
+trees, so shutdown and orphan-cache handling remain qualification work.
+
+This is a native first-turn experiment. Follow-ups, tools, permissions, session
+resume, managed Electron, other versions and other operating systems have not
+been qualified for this derived runtime.
+
+Evidence: `.tmp/thread-startup-performance/raw-console-20261018/onedir-experiment-comparison.json`,
+`onedir-integrity.json`, `prewarm-control-comparison.json`, the per-launch JSON
+files, and the ignored
+`.tmp/thread-startup-performance/prepare-antigravity-onedir.py` prototype.

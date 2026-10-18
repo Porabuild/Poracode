@@ -262,7 +262,13 @@ export function createCursorAdapter(options: CursorAdapterOptions = {}): AgentAd
         }
       }
       await prepareAgentLocationEnvironment(input.projectLocation);
-      const command = buildCursorAgentCommand(input.projectLocation, ["acp"]);
+      const model = input.config.model === "default" ? "auto" : input.config.model;
+      const command = buildCursorAgentCommand(input.projectLocation, [
+        ...(!input.sessionRef && input.presentationMode === "gui" && model
+          ? ["--model", model]
+          : []),
+        "acp",
+      ]);
       const acpEnv = mergeSpawnEnv(input.baseSpawnEnv, profileKeyEnv);
       return createAcpStructuredSession(command, {
         ...input,

@@ -7,7 +7,8 @@ import type { McpServer, ProjectLocation, ThreadConfig } from "@/shared/contract
 import { EXTRACTION_PROMPT } from "@/supervisor/contextExtractor";
 import { createAntigravityAdapter, shouldUseAntigravityPrintPty } from ".";
 import { resolveSubagentExecution } from "@/supervisor/crossagentMcp/types";
-import { detectAgentInstall } from "../base";
+import { detectAgentInstall, type AgentAdapter } from "../base";
+import * as antigravityAcp from "./acp";
 import { buildAntigravityArgs } from "./argv";
 import {
   ANTIGRAVITY_DEFAULT_MODEL_ID,
@@ -36,6 +37,76 @@ vi.mock("../base", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../base")>()),
   detectAgentInstall: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
 }));
+
+describe("Antigravity initial Chat model", () => {
+  it.each([
+    ["explicit effort", { model: "gemini-4-argon", effort: "low" }, false, "gemini-4-argon-low"],
+    ["native default effort", { model: "gemini-4-argon" }, false, "gemini-4-argon-high"],
+    ["unadvertised model", { model: "unknown-model", effort: "high" }, false, undefined],
+    ["unadvertised effort", { model: "gemini-4-argon", effort: "ultra" }, false, undefined],
+    ["legacy wire alias", { model: "gemini-3.5-flash", effort: "low" }, false, undefined],
+    ["resume", { model: "gemini-4-argon", effort: "high" }, true, undefined],
+  ] as const)("preserves controls for %s", async (_label, config, resume, initialModel) => {
+    const createSession = vi.fn<NonNullable<AgentAdapter["createStructuredSession"]>>(
+      async () => undefined,
+    );
+    const discoveredCapabilities = {
+      ...defaultAntigravityCapabilities,
+      models: [
+        { id: "gemini-4-argon", label: "Gemini 4 Argon" },
+        { id: "gemini-3.5-flash", label: "Gemini 3.5 Flash" },
+      ],
+      modelEfforts: { "gemini-4-argon": ["low", "high"], "gemini-3.5-flash": ["low", "high"] },
+      modelDefaultEfforts: { "gemini-4-argon": "high" },
+    };
+    const runtime: AgentAdapter = {
+      ...createAntigravityAdapter(),
+      capabilities: { ...defaultAntigravityCapabilities, models: [], modelEfforts: {} },
+      detectInstall: async () => ({
+        kind: "antigravity",
+        label: "Antigravity",
+        installed: true,
+        authState: "authenticated",
+        capabilities: discoveredCapabilities,
+      }),
+      createStructuredSession: createSession,
+    };
+    const factory = vi
+      .spyOn(antigravityAcp, "createAntigravityAcpRuntime")
+      .mockReturnValueOnce(runtime);
+    try {
+      const adapter = createAntigravityAdapter();
+      vi.mocked(detectAgentInstall).mockResolvedValueOnce({
+        kind: "antigravity",
+        label: "Antigravity",
+        installed: true,
+        authState: "authenticated",
+        capabilities: defaultAntigravityCapabilities,
+      });
+      await adapter.detectInstall();
+      const input = {
+        threadId: "initial-model",
+        projectLocation: { kind: "posix", path: "/fixture/repo" } as const,
+        presentationMode: "gui" as const,
+        config,
+        baseSpawnEnv: { KEEP_ENV: "preserved" },
+        ...(resume
+          ? { sessionRef: { providerSessionId: "existing", discoveredAt: "2026-10-18" } }
+          : {}),
+      };
+      await adapter.createStructuredSession?.(input);
+      expect(createSession).toHaveBeenCalledExactlyOnceWith({
+        ...input,
+        ...(initialModel
+          ? { baseSpawnEnv: { KEEP_ENV: "preserved", AGY_ACP_DEFAULT_MODEL: initialModel } }
+          : {}),
+      });
+      expect(input.baseSpawnEnv).toEqual({ KEEP_ENV: "preserved" });
+    } finally {
+      factory.mockRestore();
+    }
+  });
+});
 
 describe("buildAntigravityArgs", () => {
   const config: ThreadConfig = { model: ANTIGRAVITY_DEFAULT_MODEL_ID };
