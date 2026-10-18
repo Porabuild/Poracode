@@ -5,6 +5,7 @@ import { createRequire } from "node:module";
 import { dirname, resolve } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
+import { parse as parseJsonc } from "jsonc-parser";
 import { parse } from "yaml";
 import { GET as androidLinks } from "../website/src/app/.well-known/assetlinks.json/route.ts";
 import { GET as appleLinks } from "../website/src/app/.well-known/apple-app-site-association/route.ts";
@@ -33,6 +34,7 @@ void test("website build keeps installed packages local through Bun's environmen
     const bunManifest = require.resolve("bun/package.json");
     const { bin } = require("bun/package.json");
     const { version } = require("yaml/package.json");
+    const lock = parseJsonc(await readFile(new URL("../bun.lock", import.meta.url), "utf8"));
     for (const local of [false, true]) {
       const cwd = resolve(fixture, local ? "build" : "configured");
       await mkdir(cwd);
@@ -44,9 +46,18 @@ void test("website build keeps installed packages local through Bun's environmen
         resolve(cwd, "bunfig.toml"),
         '[install]\nlinker="isolated"\nglobalStore=true\n',
       );
+      await writeFile(
+        resolve(cwd, "bun.lock"),
+        JSON.stringify({
+          lockfileVersion: lock.lockfileVersion,
+          configVersion: lock.configVersion,
+          workspaces: { "": { dependencies: { yaml: version } } },
+          packages: { yaml: lock.packages.yaml },
+        }),
+      );
       const build = spawnSync(
         resolve(bunManifest, "..", bin.bun),
-        ["install", "--offline", "--ignore-scripts"],
+        ["install", "--frozen-lockfile", "--offline", "--ignore-scripts"],
         {
           cwd,
           env: local ? { ...env, ...workflow.jobs.web.env } : env,
