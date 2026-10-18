@@ -230,6 +230,36 @@ describe("usageProviders", () => {
       expect(rings.outer?.id).toBe("antigravity:claude:session-5h");
       expect(rings.inner).toBeUndefined();
     });
+
+    it("dynamically adds ring groups for new Antigravity quota groups like Gemini 4 Argon", () => {
+      const withArgon: UsageWindow[] = [
+        ...windows,
+        {
+          id: "antigravity:gemini-4-argon:weekly",
+          label: "Gemini 4 Argon · Weekly",
+          usedPercent: 61,
+        },
+      ];
+      expect(usageRingGroups("antigravity", withArgon).map((g) => [g.key, g.label])).toEqual([
+        ["gemini", "Gemini"],
+        ["claude", "Claude & GPT"],
+        ["gemini-4-argon", "Gemini 4 Argon"],
+      ]);
+      const rings = pickUsageRings("antigravity", withArgon, "gemini-4-argon");
+      expect(rings.outer?.id).toBe("antigravity:gemini-4-argon:weekly");
+      expect(rings.inner).toBeUndefined();
+    });
+
+    it("renders legacy Gemini pool windows when the Gemini ring group is selected", () => {
+      const hybridWindows: UsageWindow[] = [
+        { id: "antigravity:gemini-pro", label: "Gemini Pro", usedPercent: 25 },
+        { id: "antigravity:claude:session-5h", label: "Claude · 5h", usedPercent: 60 },
+        { id: "antigravity:claude:weekly", label: "Claude · Weekly", usedPercent: 40 },
+      ];
+      const rings = pickUsageRings("antigravity", hybridWindows, "gemini");
+      expect(rings.outer?.id).toBe("antigravity:gemini-pro");
+      expect(rings.inner).toBeUndefined();
+    });
   });
 });
 
