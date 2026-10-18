@@ -262,7 +262,10 @@ describe("DeepSeek Harness", () => {
       }),
       location,
       "deepseek-thread",
-      expect.objectContaining({ mcpServers: [] }),
+      expect.objectContaining({
+        mcpServers: [],
+        behavior: { inlineImagePrompts: false },
+      }),
     );
     await fake.openThread({ model, approvalPolicy: "never" }, sessionRef);
     expect(openThread).toHaveBeenCalledWith({ model, approvalPolicy: "auto-review" }, sessionRef);

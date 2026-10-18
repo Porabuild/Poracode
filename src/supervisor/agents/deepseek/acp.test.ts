@@ -1,6 +1,11 @@
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { makeConfigSyncSession } from "../acp/sessionTestFixture";
 import type { AcpSessionConfigSync } from "../acp/sessionConfigSync";
+import { toAcpResourceUri } from "../acp/sessionPaths";
+import { DEEPSEEK_ACP_SESSION_BEHAVIOR } from ".";
 
 const FLASH = '["deepseek-official","deepseek-v4-flash"]';
 const PRO = '["deepseek-official","deepseek-v4-pro"]';
@@ -38,6 +43,44 @@ function configOptions(model = FLASH, effort = "high") {
 }
 
 describe("DeepSeek Harness ACP compatibility", () => {
+  it("sends readable images as file links on initial and follow-up Account turns", async () => {
+    const projectRoot = mkdtempSync(join(tmpdir(), "deepseek-image-"));
+    try {
+      const imagePath = join(projectRoot, "diagram.png");
+      writeFileSync(imagePath, Buffer.from([0x89, 0x50, 0x4e, 0x47]));
+      const config = { model: '["deepseek-account","deepseek-flash"]' };
+      const { session, connection } = makeConfigSyncSession({
+        currentConfig: config,
+        agentPromptCapabilities: { image: true },
+        behavior: DEEPSEEK_ACP_SESSION_BEHAVIOR,
+      });
+      const location = {
+        kind: process.platform === "win32" ? "windows" : "posix",
+        path: projectRoot,
+      } as const;
+      Object.assign(session, { projectLocation: location });
+      for (const prompt of ["inspect", "inspect again"]) {
+        await session.startTurn(prompt, config, [
+          { kind: "attachment", path: imagePath, mimeType: "image/png" },
+        ]);
+        expect(connection.prompt).toHaveBeenLastCalledWith({
+          sessionId: "session-1",
+          prompt: [
+            {
+              type: "resource_link",
+              uri: toAcpResourceUri(location, imagePath),
+              name: "diagram.png",
+              mimeType: "image/png",
+            },
+            { type: "text", text: prompt },
+          ],
+        });
+      }
+    } finally {
+      rmSync(projectRoot, { recursive: true, force: true });
+    }
+  });
+
   it("switches the exact model route and reasoning option before sending the next prompt", async () => {
     const config = {
       model: FLASH,

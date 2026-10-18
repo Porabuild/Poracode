@@ -1,4 +1,4 @@
-import { createAcpStructuredSession } from "../acp";
+import { createAcpStructuredSession, type AcpSessionBehavior } from "../acp";
 import { detectAgentInstall, prepareAgentLocationEnvironment, type AgentAdapter } from "../base";
 import { resolveAgentBinaryPath } from "../binaryResolver";
 import { buildDeepSeekCommand } from "./argv";
@@ -6,6 +6,12 @@ import { deepSeekDefaultCapabilities, deepSeekDetectionSpec } from "./detection"
 import { runDeepSeekOneShot } from "./oneShot";
 import { normalizeDeepSeekConfig, stageDeepSeekPermissions } from "./permissions";
 import { manageDeepSeekModelProviders } from "./modelProviders";
+
+export const DEEPSEEK_ACP_SESSION_BEHAVIOR: AcpSessionBehavior = {
+  // Harness advertises images for its initial route, which can differ from
+  // the selected Account route. Keep attachments accessible as file links.
+  inlineImagePrompts: false,
+};
 
 export function createDeepSeekAdapter(): AgentAdapter {
   let capabilities = deepSeekDefaultCapabilities;
@@ -70,7 +76,9 @@ export function createDeepSeekAdapter(): AgentAdapter {
           resolveAgentBinaryPath(input.projectLocation, "dsh"),
           staged.patchPath,
         );
-        const session = createAcpStructuredSession(command, input);
+        const session = createAcpStructuredSession(command, input, {
+          behavior: DEEPSEEK_ACP_SESSION_BEHAVIOR,
+        });
         if (!session) {
           await staged.cleanup();
           return undefined;
