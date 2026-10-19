@@ -825,6 +825,78 @@ describe("ToolCallGroup", () => {
     expect(screen.getByText("Read other file")).toBeInTheDocument();
   });
 
+  it("animates only the current thought when older saved thoughts have no completion", () => {
+    const threadId = "thread-1";
+    const items: RuntimeChatItem[] = [
+      { ...makeReasoningItem("old-empty", ""), state: "started" },
+      { ...makeReasoningItem("old-text", "Checking the first result"), state: "updated" },
+      makeToolItem("tool-1", "Read file"),
+      { ...makeReasoningItem("current", ""), state: "started" },
+    ];
+    seedThread(threadId, items);
+
+    const view = renderToolCallGroup(
+      threadId,
+      items.map((item) => item.id),
+    );
+
+    expect(screen.getAllByText("Thought")).toHaveLength(2);
+    expect(screen.getByText("Thinking")).toBeInTheDocument();
+    expect(view.container.querySelectorAll(".poracode-brain-thinking")).toHaveLength(1);
+    expect(view.container.querySelectorAll(".poracode-thinking-text")).toHaveLength(1);
+    expect(useAppStore.getState().runtimeItemsByIdByThread[threadId]?.["old-empty"]?.state).toBe(
+      "started",
+    );
+  });
+
+  it("stops thought animations after a newer command starts but keeps the command animated", () => {
+    const threadId = "thread-1";
+    const items: RuntimeChatItem[] = [
+      { ...makeReasoningItem("thought", "Checking the result"), state: "updated" },
+      { ...makeCommandItem("command", "node server.js"), state: "started" },
+    ];
+    seedThread(threadId, items);
+
+    const view = renderToolCallGroup(
+      threadId,
+      items.map((item) => item.id),
+    );
+
+    expect(screen.queryByText("Thinking")).not.toBeInTheDocument();
+    expect(screen.getByText("Thought")).toBeInTheDocument();
+    expect(view.container.querySelector(".poracode-brain-thinking")).toBeNull();
+    expect(view.container.querySelectorAll(".poracode-thinking-text")).toHaveLength(1);
+    fireEvent.click(screen.getByRole("button", { name: /1 command.*1 thought/ }));
+    const titles = view.container.querySelectorAll(".poracode-thinking-text");
+    expect(titles).toHaveLength(1);
+    expect(titles[0]).toHaveAttribute("data-poracode-shimmer-text", "command");
+  });
+
+  it.each([false, true])(
+    "keeps unfinished thoughts static in an inactive tail (expanded=%s)",
+    (isLive) => {
+      const threadId = "thread-1";
+      const items: RuntimeChatItem[] = [
+        makeToolItem("tool-1", "Read file"),
+        { ...makeReasoningItem("thought", "Saved unfinished thought"), state: "updated" },
+      ];
+      seedThread(threadId, items);
+
+      const view = render(
+        <AppProvider>
+          <ToolCallGroup
+            threadId={threadId}
+            itemIds={items.map((item) => item.id)}
+            isLive={isLive}
+          />
+        </AppProvider>,
+      );
+
+      expect(view.container.querySelector(".poracode-brain-thinking")).toBeNull();
+      expect(view.container.querySelector(".poracode-thinking-text")).toBeNull();
+    },
+  );
+
   it("merges consecutive same-file edits inside a mixed group into one edit row", () => {
     const threadId = "thread-1";
     const items = [
@@ -952,6 +1024,7 @@ function renderToolCallGroup(
         threadId={threadId}
         itemIds={itemIds}
         isLive={isLive}
+        isReasoningLive={isLive}
         {...(onHeightChange ? { onHeightChange } : {})}
         {...(onVirtualizerLayoutChange ? { onVirtualizerLayoutChange } : {})}
       />
