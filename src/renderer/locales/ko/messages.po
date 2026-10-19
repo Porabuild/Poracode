@@ -18795,6 +18795,7 @@ msgstr "{elapsed} 동안 작업 중"
 msgid "Working tree clean"
 msgstr "작업 트리 깨끗함"
 
+#: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentMessageList.tsx
 msgid "Working…"
 msgstr "작업 중…"

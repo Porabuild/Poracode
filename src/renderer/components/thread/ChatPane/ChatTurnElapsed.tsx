@@ -140,7 +140,7 @@ function LiveWorkingFor({ startedAt, isPaused }: { startedAt: number; isPaused: 
       const elapsedMs = now - pauseState.startedAt - pauseState.accumulatedPauseMs - currentPauseMs;
       const elapsedSeconds = Math.max(0, Math.floor(elapsedMs / 1000));
       const elapsed = formatElapsed(elapsedSeconds);
-      const text = elapsedSeconds < 1 ? "" : t`Working for ${elapsed}`;
+      const text = elapsedSeconds < 1 ? t`Working…` : t`Working for ${elapsed}`;
       node.textContent = text;
       node.dataset.poracodeShimmerText = text;
     };
@@ -168,5 +168,9 @@ function LiveWorkingFor({ startedAt, isPaused }: { startedAt: number; isPaused: 
   const isThinking = !isPaused;
   useShimmerRef(textRef, isThinking);
   const className = isThinking ? "poracode-thinking-text" : "text-muted";
-  return <span ref={textRef} className={className} aria-live="polite" />;
+  return (
+    <span ref={textRef} className={className} aria-live="polite">
+      {t`Working…`}
+    </span>
+  );
 }
