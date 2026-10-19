@@ -17,6 +17,7 @@ import {
   buildCursorAcpModelPickerCapabilities,
   buildCursorModelPickerCapabilities,
   buildCursorTerminalAuthMethod,
+  cursorDetectionSpec,
   isCursorSemverSupportedForHooks,
   mergeCursorAcpPickerControlsFromCli,
   parseCursorAboutOutput,
@@ -38,6 +39,7 @@ import { primeWslLaunchEnvironment, UnsupportedOneShotControlError } from "../ba
 import * as agentBase from "../base";
 import * as acpRuntime from "../acp";
 import * as windowsExecutable from "./windowsExecutable";
+import { createCursorChat } from "./session";
 
 function decodePowerShellEncodedCommand(encoded: string): string {
   return Buffer.from(encoded, "base64").toString("utf16le");
@@ -842,7 +844,7 @@ describe("buildCursorProbeSpec", () => {
       expect(spec.cwd).toBe("C:\\Users\\demo\\project");
       const { cmd, cmdArgs } = parseWindowsSpec(spec);
       expect(cmd).toBe("C:\\Users\\demo\\AppData\\Local\\cursor-agent\\cursor-agent.cmd");
-      expect(cmdArgs).toEqual(["--list-models"]);
+      expect(cmdArgs).toEqual(["--disable-auto-update", "--list-models"]);
     },
   );
 });
@@ -893,6 +895,46 @@ Commands:
 });
 
 describe("Cursor terminal auth", () => {
+  it("creates chats through the same protected launch path", async () => {
+    const prepare = vi.spyOn(agentBase, "prepareAgentLocationEnvironment").mockResolvedValue();
+    const build = vi.spyOn(windowsExecutable, "buildCursorAgentCommand").mockReturnValue({
+      command: "cursor-node",
+      args: ["index.js", "--disable-auto-update", "create-chat"],
+      cwd: "C:\\repo",
+      env: { CURSOR_INVOKED_AS: "cursor-agent.cmd" },
+    });
+    const read = vi.spyOn(agentBase, "readCommandOutputAsync").mockResolvedValue({
+      ok: true,
+      stdout: "chat-id",
+      stderr: "",
+    });
+    try {
+      const location = { kind: "windows" as const, path: "C:\\repo" };
+      expect(await createCursorChat(location)).toBe("chat-id");
+      expect(build).toHaveBeenCalledWith(location, ["create-chat"]);
+      expect(read).toHaveBeenCalledWith(
+        "cursor-node",
+        ["index.js", "--disable-auto-update", "create-chat"],
+        {
+          cwd: "C:\\repo",
+          env: { CURSOR_INVOKED_AS: "cursor-agent.cmd" },
+          timeout: 15_000,
+        },
+      );
+    } finally {
+      read.mockRestore();
+      build.mockRestore();
+      prepare.mockRestore();
+    }
+  });
+
+  it("keeps explicit updates enabled", () => {
+    expect(cursorDetectionSpec.update?.builtIn).toEqual({
+      binary: "cursor-agent",
+      args: ["update"],
+    });
+  });
+
   it("disables Cursor's WSL browser opener so Poracode can open the URL natively", () => {
     expect(
       buildCursorTerminalAuthMethod({

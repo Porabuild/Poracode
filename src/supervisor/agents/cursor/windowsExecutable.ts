@@ -93,11 +93,20 @@ function resolveCursorExecutablePath(
   return executablePath ?? resolveAgentBinaryPath(location, "cursor-agent");
 }
 
+export function cursorWindowsArgs(location: ProjectLocation | undefined, args: string[]): string[] {
+  // Detached updater helpers escape the PTY and open Windows Terminal windows.
+  // Cursor's explicit update command remains separate from these launches.
+  return (location ? location.kind === "windows" : process.platform === "win32")
+    ? ["--disable-auto-update", ...args]
+    : args;
+}
+
 export function buildCursorAgentCommand(
   location: ProjectLocation,
   args: string[],
   executablePath?: string,
 ): CommandSpec {
+  args = cursorWindowsArgs(location, args);
   const resolvedPath = resolveCursorExecutablePath(location, executablePath);
   const launch = location.kind === "windows" ? resolveCursorWindowsLaunch(resolvedPath) : undefined;
   if (launch) {
@@ -117,6 +126,7 @@ export function buildCursorArgvSpec(
   args: string[],
   executablePath?: string,
 ): AgentArgvSpec {
+  args = cursorWindowsArgs(location, args);
   const launch =
     location.kind === "windows"
       ? resolveCursorWindowsLaunch(resolveCursorExecutablePath(location, executablePath))

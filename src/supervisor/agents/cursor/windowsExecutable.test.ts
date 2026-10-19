@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   buildCursorAgentCommand,
   buildCursorArgvSpec,
+  cursorWindowsArgs,
   resolveCursorWindowsLaunch,
 } from "./windowsExecutable";
 
@@ -56,11 +57,11 @@ describe.skipIf(process.platform !== "win32")("Cursor Windows executable resolut
 
     const command = buildCursorAgentCommand(location, ["--version"], install.shim);
     expect(command.command).toBe(install.node);
-    expect(command.args).toEqual([install.script, "--version"]);
+    expect(command.args).toEqual([install.script, "--disable-auto-update", "--version"]);
 
     const argv = buildCursorArgvSpec(location, ["acp"], install.shim);
     expect(argv.binary).toBe(install.node);
-    expect(argv.args).toEqual([install.script, "acp"]);
+    expect(argv.args).toEqual([install.script, "--disable-auto-update", "acp"]);
   });
 
   it("falls back when the installer has no complete runnable version", () => {
@@ -71,5 +72,36 @@ describe.skipIf(process.platform !== "win32")("Cursor Windows executable resolut
     mkdirSync(join(root, "versions", "2026.07.09-a3815c0"), { recursive: true });
 
     expect(resolveCursorWindowsLaunch(shim)).toBeUndefined();
+  });
+});
+
+describe("Cursor background updates", () => {
+  it("disables automatic updates for Windows commands", () => {
+    expect(cursorWindowsArgs({ kind: "windows", path: "C:\\repo" }, ["acp"])).toEqual([
+      "--disable-auto-update",
+      "acp",
+    ]);
+  });
+
+  it("keeps POSIX and WSL command arguments unchanged", () => {
+    const args = ["acp"];
+    expect(cursorWindowsArgs({ kind: "posix", path: "/repo" }, args)).toBe(args);
+    expect(
+      cursorWindowsArgs(
+        {
+          kind: "wsl",
+          distro: "Ubuntu",
+          linuxPath: "/repo",
+          uncPath: "\\\\wsl.localhost\\Ubuntu\\repo",
+        },
+        args,
+      ),
+    ).toBe(args);
+  });
+
+  it("uses the native platform for one-shot commands without a location", () => {
+    expect(cursorWindowsArgs(undefined, ["--print"])).toEqual(
+      process.platform === "win32" ? ["--disable-auto-update", "--print"] : ["--print"],
+    );
   });
 });
