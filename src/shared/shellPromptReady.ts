@@ -1,4 +1,5 @@
 import { extractOscEventsFromPtyStream } from "./osc";
+import { stripAnsi } from "./ansi";
 
 /** Quiet period after ordinary prompt text before a command may be written. */
 export const SHELL_QUIET_READY_MS = 250;
@@ -21,7 +22,7 @@ export interface ShellPromptGate {
 
 const QUERY_TOKENS = ["\u001B[0c", "\u001B[6n"] as const;
 
-/** True when a device-attribute or cursor query is still the tail of `buffer`. */
+/** True when no prompt text has followed a device-attribute or cursor query. */
 function queryIsUnanswered(buffer: string): boolean {
   let queryAt = -1;
   let tokenLength = 0;
@@ -33,7 +34,7 @@ function queryIsUnanswered(buffer: string): boolean {
     }
   }
   if (queryAt < 0) return false;
-  return buffer.slice(queryAt + tokenLength).trim().length === 0;
+  return stripAnsi(buffer.slice(queryAt + tokenLength)).trim().length === 0;
 }
 
 /**
@@ -62,9 +63,18 @@ export function createShellPromptGate(): ShellPromptGate {
       ) {
         return "ready";
       }
-      // A query holds the command only while it is still the end of the
-      // stream. The prompt that follows must not inherit the long delay.
-      delay = queryIsUnanswered(buffer) ? SHELL_QUERY_FALLBACK_MS : SHELL_QUIET_READY_MS;
+      // Cursor/title/mode updates are startup traffic, not a prompt. They
+      // must neither release a query's hold nor start the short quiet timer.
+      // PTY reads may stop inside a sequence; its unfinished payload is not text.
+      const promptBuffer = buffer.replace(
+        // eslint-disable-next-line no-control-regex
+        /\u001B(?:\[[0-?]*[ -/]*|\][^\u0007\u001B]*(?:\u001B)?|)$/u,
+        "",
+      );
+      delay =
+        queryIsUnanswered(promptBuffer) || stripAnsi(promptBuffer).trim().length === 0
+          ? SHELL_QUERY_FALLBACK_MS
+          : SHELL_QUIET_READY_MS;
       return "pending";
     },
     delayMs() {
