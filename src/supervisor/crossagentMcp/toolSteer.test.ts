@@ -93,6 +93,39 @@ it("allows explicit background delivery and identifies it as an uncollected resu
   h.handle.completeTurn("completed");
 });
 
+it.each(["working", "turn.started"] as const)(
+  "acknowledges background fallback steering on %s before the prompt settles",
+  async (signal) => {
+    const h = await setup(false);
+    const turn = Promise.withResolvers<void>();
+    h.handle.interruptTurn = async () => h.handle.completeTurn("interrupted");
+    h.handle.startTurn = () => {
+      if (signal === "working") h.handle.update("working");
+      else h.handle.emit({ type: "turn.started", threadId: "child", turnId: "replacement" });
+      return turn.promise;
+    };
+    const accepted = vi.fn<() => void>();
+    const response = dispatchTool(
+      "steer_agent",
+      { run_id: h.runId, prompt: "Apply the workflow correction", background: true },
+      h.ctx,
+    );
+    void response.then(accepted);
+    await flush();
+    try {
+      expect(accepted).toHaveBeenCalledOnce();
+      expect(value(await response)).toEqual({ run_id: h.runId, status: "accepted" });
+      expect(h.manager.getStatus(h.runId).status).toBe("running");
+      expect(h.manager.listRuns(PARENT)[0]?.can_steer).toBe(true);
+    } finally {
+      h.handle.completeTurn("completed");
+      turn.resolve();
+      await response;
+      await h.manager.cancel(h.runId, PARENT);
+    }
+  },
+);
+
 it.each([{ background: "true" }, { output_mode: "invalid" }])(
   "rejects invalid options before delivering a correction: %j",
   async (options) => {
