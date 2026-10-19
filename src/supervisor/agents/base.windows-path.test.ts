@@ -21,6 +21,7 @@ vi.mock("node:child_process", async () => {
 });
 
 import {
+  buildAgentCommand,
   clearExecutablePathCache,
   extractWindowsCmdShimScript,
   getRefreshedWindowsPath,
@@ -85,6 +86,23 @@ describe.skipIf(process.platform !== "win32")("Windows executable path fallback"
     for (const dir of tempDirs) {
       rmSync(dir, { recursive: true, force: true });
     }
+  });
+
+  it.each([
+    "C:\\Tools\\agent.exe",
+    "C:\\Tools With Spaces\\agent.COM",
+    "\\\\host\\tools\\agent.exe",
+  ])("does not search PATH for an absolute executable: %s", (command) => {
+    spawnSyncMock.mockReturnValue({ status: 0, stdout: "", stderr: "" });
+    const args = ["--input", "literal & $value"];
+
+    const spec = buildAgentCommand({ kind: "windows", path: "C:\\repo" }, command, args);
+
+    expect(spec.command).toBe(command);
+    expect(spec.args).toEqual(args);
+    expect(spawnSyncMock.mock.calls.some(([binary]) => String(binary).endsWith("where.exe"))).toBe(
+      false,
+    );
   });
 
   it("falls back to the registry-backed Windows Path when ambient lookup misses", () => {

@@ -41,7 +41,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  PNPM_CONFIG_ENABLE_GLOBAL_VIRTUAL_STORE: "false"
+  BUN_INSTALL_GLOBAL_STORE: "0"
 
 jobs:
   sustained:
@@ -53,17 +53,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
-
-      - name: Setup Node.js
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
-        with:
-          node-version: "24"
-          cache: pnpm
+      - name: Setup Bun
+        uses: ./.github/actions/setup-bun
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile --ignore-scripts
+        run: bun install --frozen-lockfile --ignore-scripts && node node_modules/bun/install.js
 
       # The managed qualification session launches this checkout as the frozen
       # arm (its own Electron plus real supervisor PTYs); both binaries are
@@ -98,7 +92,7 @@ jobs:
     # The clearly labeled self-hosted macOS ARM64 qualification runner: enroll
     # it with exactly these labels. It must stay idle for the whole window —
     # the cell's contamination gate refuses a noisy host, and the concurrency
-    # group above only serializes per mode. Node 24 + pnpm must be reachable
+    # group above only serializes per mode. Node 24 + Bun must be reachable
     # through the actions below (they provision both on the runner).
     runs-on: [self-hosted, macOS, ARM64, v2-perf-qualification]
     timeout-minutes: 1560 # 26h: 24h cell + install + managed-launcher build + teardown headroom
@@ -111,17 +105,11 @@ jobs:
           # self-hosted workspace.
           clean: true
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
-
-      - name: Setup Node.js
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
-        with:
-          node-version: "24"
-          cache: pnpm
+      - name: Setup Bun
+        uses: ./.github/actions/setup-bun
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile --ignore-scripts
+        run: bun install --frozen-lockfile --ignore-scripts && node node_modules/bun/install.js
 
       - name: Provision Electron and node-pty
         run: |

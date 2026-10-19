@@ -105,9 +105,7 @@ export function collectBuildEntries(rootDir) {
 
 function collectReferencedScripts(text) {
   const found = new Set();
-  for (const match of text.matchAll(
-    /(?:node\s+|pnpm\s+exec\s+|pnpm\s+run\s+)([\w./-]+\.(?:mjs|cjs|js))/gu,
-  )) {
+  for (const match of text.matchAll(/(?:node\s+|bun\s+run\s+)([\w./-]+\.(?:mjs|cjs|js))/gu)) {
     found.add(match[1]);
   }
   for (const match of text.matchAll(/(?:^|\s)(scripts\/[\w./-]+\.(?:mjs|cjs|js))/gmu)) {

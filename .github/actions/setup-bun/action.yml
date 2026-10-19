@@ -1,0 +1,15 @@
+name: Setup pinned Bun
+description: Install the exact npm Bun build used by the workspace
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+      with:
+        node-version: "24"
+    - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      with:
+        path: ${{ runner.temp }}/poracode-bun
+        key: bun-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('package.json') }}
+    - name: Install pinned Bun
+      shell: bash
+      run: node scripts/setup-bun.mjs

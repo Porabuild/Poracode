@@ -22,7 +22,8 @@ const configurationFiles = [
   "tsdown.config.ts",
   "tsconfig.json",
   "package.json",
-  "pnpm-lock.yaml",
+  "bun.lock",
+  "bunfig.toml",
   "scripts/prepare-agent-plugins.mjs",
   // The one native-overlay implementation and the shared release-install
   // contract it imports are bundled into the server entry

@@ -184,6 +184,199 @@ describe("OpenCode2Session", () => {
     eventSeq = 0;
   });
 
+  it.each(["command", "skill", "agent"] as const)(
+    "admits plain input while the %s catalog is stalled",
+    async (name) => {
+      const catalog = Promise.withResolvers<{ data: never[] }>();
+      const client = makeClient();
+      vi.mocked(client[name].list).mockReturnValue(catalog.promise as never);
+      const { session, updates } = await makeSession({ client });
+      await session.startTurn("hello", config);
+      expect(client.session.prompt).toHaveBeenCalledWith({ sessionID: "ses_new", text: "hello" });
+      catalog.resolve({ data: [] });
+      await vi.waitFor(() =>
+        expect(updates.at(-1)).toMatchObject({
+          status: "working",
+          slashCommands: expect.any(Array),
+        }),
+      );
+      await session.dispose();
+    },
+  );
+
+  it.each([
+    {
+      prompt: "/review scope",
+      method: "command",
+      expected: { sessionID: "ses_new", name: "review", text: "scope" },
+    },
+    { prompt: "/compact", method: "compact", expected: { sessionID: "ses_new" } },
+    {
+      prompt: "/skill foo more",
+      method: "prompt",
+      expected: { sessionID: "ses_new", text: "more", skills: [{ id: "foo" }] },
+    },
+    {
+      prompt: "/agent/reviewer",
+      method: "switchAgent",
+      expected: { sessionID: "ses_new", agent: "reviewer" },
+    },
+  ] as const)(
+    "waits for metadata before dispatching $prompt",
+    async ({ prompt, method, expected }) => {
+      const catalog = Promise.withResolvers<{ data: { name: string }[] }>();
+      const client = makeClientWith({
+        "command.list": vi.fn<() => typeof catalog.promise>(() => catalog.promise),
+        "skill.list": vi.fn<() => Promise<unknown>>(async () => ({
+          data: [{ id: "foo", name: "Foo" }],
+        })),
+        "agent.list": vi.fn<() => Promise<unknown>>(async () => ({
+          data: [{ id: "reviewer", name: "Reviewer", hidden: false, mode: "primary" }],
+        })),
+        "session.command": vi.fn<() => Promise<unknown>>(async () => ({})),
+        "session.compact": vi.fn<() => Promise<unknown>>(async () => ({})),
+      });
+      const { session } = await makeSession({ client });
+      const turn = session.startTurn(prompt, config);
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      expect(client.session[method]).not.toHaveBeenCalled();
+      catalog.resolve({ data: [{ name: "review" }] });
+      await turn;
+      expect(client.session[method]).toHaveBeenCalledWith(expected);
+      await session.dispose();
+    },
+  );
+
+  it("waits for native command discovery when steering an active turn", async () => {
+    const catalog = Promise.withResolvers<{ data: { name: string }[] }>();
+    const client = makeClientWith({
+      "command.list": vi.fn<() => typeof catalog.promise>(() => catalog.promise),
+      "session.command": vi.fn<() => Promise<unknown>>(async () => ({})),
+    });
+    const { session } = await makeSession({ client });
+    await session.startTurn("hello", config);
+    const steer = session.steerTurn("/review scope", config);
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    expect(client.session.command).not.toHaveBeenCalled();
+    catalog.resolve({ data: [{ name: "review" }] });
+    await steer;
+    expect(client.session.command).toHaveBeenCalledWith({
+      sessionID: "ses_new",
+      name: "review",
+      text: "scope",
+      delivery: "steer",
+    });
+    await session.dispose();
+  });
+
+  it("preserves pending approval when catalog discovery finishes", async () => {
+    const catalog = Promise.withResolvers<{ data: never[] }>();
+    const client = makeClientWith({
+      "command.list": vi.fn<() => typeof catalog.promise>(() => catalog.promise),
+    });
+    const { session, subscription, updates } = await makeSession({ client });
+    subscription?.onEvent(
+      event("permission.asked", {
+        id: "p",
+        sessionID: "ses_new",
+        action: "shell",
+        resources: ["pwd"],
+      }),
+    );
+    catalog.resolve({ data: [] });
+    await vi.waitFor(() =>
+      expect(updates.at(-1)).toMatchObject({
+        status: "needs_approval",
+        slashCommands: expect.any(Array),
+      }),
+    );
+    await session.dispose();
+  });
+
+  it("allows plain text after catalog failure and rejects native dispatch without its metadata", async () => {
+    const catalog = Promise.withResolvers<{ data: never[] }>();
+    const client = makeClientWith({
+      "command.list": vi.fn<() => typeof catalog.promise>(() => catalog.promise),
+    });
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const { session } = await makeSession({ client });
+      catalog.reject(new Error("catalog unavailable"));
+      await vi.waitFor(() => expect(warning).toHaveBeenCalled());
+      await session.startTurn("hello", config);
+      await expect(session.startTurn("/review", config)).rejects.toThrow("catalog unavailable");
+      expect(client.session.prompt).toHaveBeenCalledTimes(1);
+      await session.dispose();
+    } finally {
+      warning.mockRestore();
+    }
+  });
+
+  it("drops catalog results delivered after disposal", async () => {
+    const catalog = Promise.withResolvers<{ data: { name: string }[] }>();
+    const client = makeClientWith({
+      "command.list": vi.fn<() => typeof catalog.promise>(() => catalog.promise),
+    });
+    const { session, updates } = await makeSession({ client });
+    await session.dispose();
+    const count = updates.length;
+    catalog.resolve({ data: [{ name: "late" }] });
+    await catalog.promise;
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    expect(updates).toHaveLength(count);
+  });
+
+  it("releases a command waiting on a stalled catalog when disposed", async () => {
+    const catalog = Promise.withResolvers<{ data: never[] }>();
+    const client = makeClientWith({
+      "command.list": vi.fn<() => typeof catalog.promise>(() => catalog.promise),
+    });
+    const { session } = await makeSession({ client });
+    const turn = session.startTurn("/review", config);
+    const outcome = turn.catch((error: unknown) => error);
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    await session.dispose();
+    expect(await outcome).toHaveProperty(
+      "message",
+      expect.stringContaining("OpenCode2Session is not active"),
+    );
+    expect(client.session.prompt).not.toHaveBeenCalled();
+  });
+
+  it("uses the replacement server's catalog when a command waits across server recovery", async () => {
+    const oldCatalog = Promise.withResolvers<{ data: { name: string }[] }>();
+    const newCatalog = Promise.withResolvers<{ data: { name: string }[] }>();
+    const oldClient = makeClientWith({
+      "command.list": vi.fn<() => typeof oldCatalog.promise>(() => oldCatalog.promise),
+    });
+    const newClient = makeClientWith({
+      "command.list": vi.fn<() => typeof newCatalog.promise>(() => newCatalog.promise),
+      "session.command": vi.fn<() => Promise<unknown>>(async () => ({})),
+    });
+    const first = makeAcquired(oldClient).acquired;
+    const second = makeAcquired(newClient).acquired;
+    mocks.acquireOpenCode2Server.mockResolvedValueOnce(first).mockResolvedValueOnce(second);
+    const { session, updates } = await makeSession({ client: oldClient, acquired: first });
+    const turn = session.startTurn("/fresh", config);
+    vi.mocked(first.updateMcpServers).mockRejectedValueOnce(new Error("connection refused"));
+    await session.updateMcpServers([]);
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    expect(newClient.session.command).not.toHaveBeenCalled();
+    newCatalog.resolve({ data: [{ name: "fresh" }] });
+    await turn;
+    expect(newClient.session.command).toHaveBeenCalledWith({
+      sessionID: "ses_new",
+      name: "fresh",
+      text: "",
+    });
+    expect(oldClient.session.prompt).not.toHaveBeenCalled();
+    oldCatalog.resolve({ data: [{ name: "stale" }] });
+    await oldCatalog.promise;
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    expect(JSON.stringify(updates)).not.toContain('"stale"');
+    await session.dispose();
+  });
+
   it("hydrates a resumed approval before the listener attaches", async () => {
     const client = makeClient();
     mocks.acquireOpenCode2Server.mockResolvedValue(makeAcquired(client).acquired);

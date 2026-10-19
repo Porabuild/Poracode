@@ -168,7 +168,7 @@ describe("settings compat and trusted writes", () => {
       themeMode: "light",
       crossagentSelectionUsage: [{ count: 2, tags: ["review"] }],
     });
-    expect(JSON.parse(await readFile(settingsPath, "utf8")).$poracodeSettingsVersion).toBe(2);
+    expect(JSON.parse(await readFile(settingsPath, "utf8")).$poracodeSettingsVersion).toBe(3);
   });
 
   it("applies only patch keys and never reverts concurrent edits to other fields", async () => {

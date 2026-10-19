@@ -329,7 +329,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let procedureU2EStartThreadU2ERequest: RemoteRootCodec<ProcedureensureThreadRunningRequest_4d961f4317> = .init(id: "procedure.startThread.request", schema: RemoteSchemas.schema_4d961f4317bd34ea)
+  static let procedureU2EStartThreadU2ERequest: RemoteRootCodec<ProcedureensureThreadRunningRequest_330389cc81> = .init(id: "procedure.startThread.request", schema: RemoteSchemas.schema_330389cc815cf211)
 }
 
 public extension RemoteRootCodecs {
@@ -445,5 +445,5 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2EEnvironmentU2DAdoptU2DLegacyU2EPath: RemoteRootCodec<RouteenvironmentU2DAdoptU2DLegacyPath_149c9d9dd2> = .init(id: "route.environment-adopt-legacy.path", schema: RemoteSchemas.schema_149c9d9dd2191aa3)
+  static let routeU2EConversationU2DSearchU2EQuery: RemoteRootCodec<RouteconversationU2DSearchQuery_07b9b9802d> = .init(id: "route.conversation-search.query", schema: RemoteSchemas.schema_07b9b9802d46bf6b)
 }

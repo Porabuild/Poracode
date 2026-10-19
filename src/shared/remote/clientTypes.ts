@@ -46,6 +46,7 @@ interface StartRemoteThreadCommon {
 }
 
 export interface StartRemoteThreadInput extends StartRemoteThreadCommon {
+  readonly questionAnswer?: StartThreadPayload["questionAnswer"] | undefined;
   /** Reopen from host-owned state without replacing another client's live runtime. */
   readonly ensureRunning?: true;
   readonly projectLocation: ProjectLocation;

@@ -101,6 +101,7 @@ import { RemoteHostUpdateDock } from "./RemoteHostUpdateDock";
 import { ThreadAuthRequiredDock } from "./ThreadAuthRequiredDock";
 import { ThreadDockHeader, ThreadDockIconButton, ThreadDockSection } from "./ThreadDockUI";
 import { ThreadComposer, type ComposerControl } from "./ThreadComposer";
+import { isPlanModeControl } from "../providers/composerControlBuilders";
 import { supportsUsableFastMode } from "./threadDraftViewHelpers";
 import {
   bindLeadingSkillUnlessLocalAction,
@@ -247,6 +248,7 @@ function HookInstallProposal(props: {
 }
 
 function DraftComposerAfterControls(props: {
+  planControl?: Extract<ComposerControl, { kind: "toggle" }> | undefined;
   mcpServers: readonly ComposerMcpMenuItem[];
   customMcpServers: readonly ComposerCustomMcpItem[];
   pluginLabels: Readonly<Record<string, string>>;
@@ -271,6 +273,7 @@ function DraftComposerAfterControls(props: {
   return (
     <>
       <ComposerAddMenu
+        planControl={props.planControl}
         mcpServers={props.mcpServers}
         customMcpServers={props.customMcpServers}
         onManageMcpServers={openMcpServersSettings}
@@ -1258,6 +1261,7 @@ export function ThreadDraftComposerArea(props: {
   return (
     <>
       <ThreadComposer
+        attachmentDropScope={props.presentationMode === "gui" ? "panel" : "composer"}
         autoFocus={autoFocus} // eslint-disable-line jsx-a11y/no-autofocus -- caller controls whether this surface should take focus on mount
         compact={props.compact ?? false}
         variant="draft"
@@ -1496,6 +1500,7 @@ export function ThreadDraftComposerArea(props: {
         }}
         afterControls={
           <DraftComposerAfterControls
+            planControl={controls.find(isPlanModeControl)}
             mcpServers={mcpServers}
             pluginLabels={composerPluginLabels}
             onPickFiles={() => {

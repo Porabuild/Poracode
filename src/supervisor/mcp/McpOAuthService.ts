@@ -20,6 +20,7 @@ import {
   type McpServer,
 } from "@/shared/contracts";
 import { decryptSecret, encryptSecret } from "@/shared/secretStorage";
+import { fetchWithSignal, McpOAuthRefresh } from "./McpOAuthRefresh";
 
 const FLOW_TIMEOUT_MS = 5 * 60 * 1000;
 const TOKEN_EXPIRY_SLACK_MS = 60 * 1000;
@@ -55,6 +56,7 @@ interface ActiveFlow {
   port?: number;
   timeout?: NodeJS.Timeout;
   settled: boolean;
+  controller: AbortController;
   result: Promise<McpOauthWaitResult>;
   settle: (result: McpOauthWaitResult) => void;
 }
@@ -87,6 +89,8 @@ export interface McpOAuthServiceOptions {
   baseDir: string;
   /** Test seam: overrides where the sealed credential store is written. */
   storePath?: string;
+  /** Test seam: override the silent refresh budget (normally the MCP server's timeout). */
+  refreshTimeoutMs?: number;
 }
 
 /**
@@ -101,11 +105,13 @@ export class McpOAuthService {
   private readonly storePath: string;
   private readonly flows = new Map<string, ActiveFlow>();
   private readonly flowsByServer = new Map<string, ActiveFlow>();
+  private readonly refresh: McpOAuthRefresh;
   private storeCache: StoreFile | undefined;
 
   constructor(options: McpOAuthServiceOptions) {
     this.baseDir = options.baseDir;
     this.storePath = options.storePath ?? join(options.baseDir, STORE_FILE_NAME);
+    this.refresh = new McpOAuthRefresh(options.refreshTimeoutMs);
   }
 
   async begin(input: McpOauthBeginPayload): Promise<McpOauthBeginResult> {
@@ -116,12 +122,20 @@ export class McpOAuthService {
     }
     const serverUrl = server.transport.url;
     this.cancelFlowForServer(serverUrl);
+    this.refresh.invalidate(serverUrl);
 
     const flow = this.createFlow(serverUrl);
+    this.flows.set(flow.id, flow);
+    this.flowsByServer.set(serverUrl, flow);
     try {
       flow.listener = await this.openLoopbackListener(flow);
-      const provider = this.createProvider(serverUrl, flow);
-      const result = await auth(provider, { serverUrl });
+      flow.controller.signal.throwIfAborted();
+      const provider = this.createProvider(serverUrl, flow, flow.controller.signal);
+      const result = await auth(provider, {
+        serverUrl,
+        fetchFn: fetchWithSignal(flow.controller.signal),
+      });
+      flow.controller.signal.throwIfAborted();
       if (result === "AUTHORIZED") {
         this.disposeFlow(flow);
         return { status: "authorized" };
@@ -154,6 +168,7 @@ export class McpOAuthService {
 
   clear(payload: McpOauthClearPayload): void {
     this.cancelFlowForServer(payload.url);
+    this.refresh.invalidate(payload.url);
     const store = this.readStore();
     if (store.servers[payload.url] === undefined) return;
     delete store.servers[payload.url];
@@ -177,6 +192,22 @@ export class McpOAuthService {
     };
   }
 
+  /** No network I/O. Manual headers always retain precedence over shared sign-in. */
+  hasAuthorization(server: McpServer): boolean {
+    if (!isOauthCapableTransport(server) || hasAuthorizationHeader(server.transport.headers)) {
+      return false;
+    }
+    const tokens = this.readTokens(server.transport.url);
+    return Boolean(
+      tokens && (!this.tokensExpired(server.transport.url, tokens) || tokens.refresh_token),
+    );
+  }
+
+  /** Refresh keeps this stable; signing out or starting a new sign-in revokes old consumers. */
+  authorizationVersion(url: string): number {
+    return this.refresh.version(url);
+  }
+
   /**
    * Injects a fresh `Authorization` header into HTTP/SSE servers that have
    * stored credentials and no user-provided Authorization header. Silent on
@@ -190,7 +221,7 @@ export class McpOAuthService {
   async applyAuthorizationToServer(server: McpServer): Promise<McpServer> {
     if (!isOauthCapableTransport(server)) return server;
     if (hasAuthorizationHeader(server.transport.headers)) return server;
-    const accessToken = await this.accessToken(server.transport.url);
+    const accessToken = await this.accessToken(server.transport.url, server.timeoutMs);
     if (!accessToken) return server;
     return {
       ...server,
@@ -202,24 +233,28 @@ export class McpOAuthService {
   }
 
   dispose(): void {
+    this.refresh.dispose();
     for (const flow of [...this.flows.values()]) {
       this.settleFlow(flow, { status: "error", message: "The sign-in flow was canceled." });
     }
   }
 
-  private async accessToken(serverUrl: string): Promise<string | undefined> {
+  private async accessToken(serverUrl: string, timeoutMs: number): Promise<string | undefined> {
     const tokens = this.readTokens(serverUrl);
     if (!tokens) return undefined;
     if (!this.tokensExpired(serverUrl, tokens)) return tokens.access_token;
     if (!tokens.refresh_token) return undefined;
-    try {
-      const provider = this.createProvider(serverUrl);
-      const result = await auth(provider, { serverUrl });
-      if (result !== "AUTHORIZED") return undefined;
-      return this.readTokens(serverUrl)?.access_token;
-    } catch {
-      return undefined;
-    }
+    return this.refresh.run(
+      serverUrl,
+      async (signal) => {
+        const provider = this.createProvider(serverUrl, undefined, signal);
+        const result = await auth(provider, { serverUrl, fetchFn: fetchWithSignal(signal) });
+        signal.throwIfAborted();
+        if (result !== "AUTHORIZED") return undefined;
+        return this.readTokens(serverUrl)?.access_token;
+      },
+      timeoutMs,
+    );
   }
 
   private tokensExpired(serverUrl: string, tokens: OAuthTokens): boolean {
@@ -239,6 +274,7 @@ export class McpOAuthService {
       serverUrl,
       state: randomBytes(24).toString("base64url"),
       settled: false,
+      controller: new AbortController(),
       result,
       settle,
     };
@@ -265,7 +301,11 @@ export class McpOAuthService {
    * is ignored: one credential set per server URL round-trips the SDK's
    * issuer stamp through the encrypted JSON store untouched.
    */
-  private createProvider(serverUrl: string, flow?: ActiveFlow): OAuthClientProvider {
+  private createProvider(
+    serverUrl: string,
+    flow?: ActiveFlow,
+    signal?: AbortSignal,
+  ): OAuthClientProvider {
     const service = this;
     const redirectUrl = flow?.port
       ? `http://127.0.0.1:${flow.port}${CALLBACK_PATH}`
@@ -289,6 +329,7 @@ export class McpOAuthService {
       },
       clientInformation: () => service.readClientInformation(serverUrl),
       saveClientInformation: (clientInformation) => {
+        signal?.throwIfAborted();
         service.updateEntry(serverUrl, (entry) => ({
           ...entry,
           clientInformation: encryptSecret(service.baseDir, JSON.stringify(clientInformation)),
@@ -296,10 +337,21 @@ export class McpOAuthService {
       },
       tokens: () => service.readTokens(serverUrl),
       saveTokens: (tokens) => {
+        signal?.throwIfAborted();
+        const previous = service.readTokens(serverUrl);
+        // The SDK stamps legacy tokens with their issuer before refreshing.
+        // That metadata write must not make an expired token look fresh if the
+        // grant stalls or fails, including to concurrent MCP connections.
+        const issuerStamp =
+          previous &&
+          !previous.issuer &&
+          tokens.issuer &&
+          Object.entries(previous).every(([key, value]) => Reflect.get(tokens, key) === value) &&
+          Object.keys(tokens).length === Object.keys(previous).length + 1;
         service.updateEntry(serverUrl, (entry) => ({
           ...entry,
           tokens: encryptSecret(service.baseDir, JSON.stringify(tokens)),
-          tokensSavedAt: Date.now(),
+          ...(!issuerStamp ? { tokensSavedAt: Date.now() } : {}),
         }));
       },
       redirectToAuthorization: (authorizationUrl: URL) => {
@@ -315,6 +367,7 @@ export class McpOAuthService {
         return flow.codeVerifier;
       },
       invalidateCredentials: (scope) => {
+        signal?.throwIfAborted();
         service.updateEntry(serverUrl, (entry) => {
           if (scope === "all") return {};
           const next = { ...entry };
@@ -388,10 +441,11 @@ export class McpOAuthService {
 
   private async exchangeAuthorizationCode(flow: ActiveFlow, code: string): Promise<void> {
     try {
-      const provider = this.createProvider(flow.serverUrl, flow);
+      const provider = this.createProvider(flow.serverUrl, flow, flow.controller.signal);
       const result = await auth(provider, {
         serverUrl: flow.serverUrl,
         authorizationCode: code,
+        fetchFn: fetchWithSignal(flow.controller.signal),
       });
       this.settleFlow(
         flow,
@@ -423,6 +477,7 @@ export class McpOAuthService {
   }
 
   private disposeFlow(flow: ActiveFlow): void {
+    flow.controller.abort();
     if (flow.timeout) clearTimeout(flow.timeout);
     flow.listener?.close();
     flow.listener = undefined;

@@ -854,12 +854,16 @@ function openCode2UsageSpentEvents(
         ...(cost !== undefined && Number.isFinite(cost) && cost >= 0
           ? { cost: { amount: cost, currency: "USD" } }
           : {}),
-        tokens: {
-          input: buckets[0] ?? 0,
-          output: (buckets[1] ?? 0) + (buckets[2] ?? 0),
-          cacheRead: buckets[3] ?? 0,
-          cacheWrite: buckets[4] ?? 0,
-        },
+        ...(buckets.every((bucket) => bucket !== undefined)
+          ? {
+              tokens: {
+                input: buckets[0]!,
+                output: buckets[1]! + buckets[2]!,
+                cacheRead: buckets[3]!,
+                cacheWrite: buckets[4]!,
+              },
+            }
+          : {}),
         scopeId: state.sessionID ?? "unknown",
         epoch: 0,
         ...(state.usageScopeFresh ? { fresh: true } : {}),

@@ -357,6 +357,26 @@ describe("mapOpenCode2Event", () => {
     expect(state.usageScopeSampled).toBe(true);
   });
 
+  it.each([{ input: 10 }, { input: 10, output: 5, reasoning: 0, cache: { read: 3 } }])(
+    "keeps partial token categories unknown while retaining reported cost: %j",
+    (tokens) => {
+      const events = mapOpenCode2Event(
+        event("session.step.ended", {
+          sessionID: SESSION,
+          assistantMessageID: ASSISTANT,
+          cost: 0.002,
+          tokens,
+        }),
+        stateFor(),
+      );
+      const spent = events.find((mapped) => mapped.type === "usage.spent");
+      expect(spent?.usage.counter).toBeGreaterThan(0);
+      expect(spent?.usage.cost).toEqual({ amount: 0.002, currency: "USD" });
+      expect(spent?.usage.tokens).toBeUndefined();
+      expect(spent?.usage.model).toBeUndefined();
+    },
+  );
+
   it("retains step-reported USD cost and never also counts the overlapping session total", () => {
     const events = mapAll(stateFor(), probeTurnEvents());
     const spent = events.filter((mapped) => mapped.type === "usage.spent");

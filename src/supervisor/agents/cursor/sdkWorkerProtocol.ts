@@ -6,6 +6,14 @@ import type {
 import type { CursorSdkPackageSource, CursorSdkPinHint } from "./sdkLoaderSupport";
 
 /**
+ * Version 5 requires Windows long-path handling for the SDK's SQLite stores
+ * and native Max Mode qualification: workers decorate the public
+ * `ModelSelection.maxMode` field, the supported SDK window starts at 1.0.38
+ * where the field is forwarded into the local request, and long store paths
+ * are opened through a namespaced prefix. A stale staged helper still
+ * qualifies through in-memory source patching, which the 1.0.38 executor
+ * chunk rejects, and fails every local run.
+ *
  * Version 4 requires local Max Mode compatibility, native steering, and the
  * SDK-provided state root after its FIPS-safe store migration. Pre-upgrade
  * staged workers cannot honor long-context selections or the new operations.
@@ -23,7 +31,7 @@ import type { CursorSdkPackageSource, CursorSdkPinHint } from "./sdkLoaderSuppor
  * gets it re-staged from current source (the SSH runtime bundle re-installs
  * whenever the built worker bytes change).
  */
-export const CURSOR_SDK_WORKER_PROTOCOL_VERSION = 4;
+export const CURSOR_SDK_WORKER_PROTOCOL_VERSION = 5;
 
 export interface CursorSdkWorkerModelParameter {
   id: string;
@@ -33,6 +41,8 @@ export interface CursorSdkWorkerModelParameter {
 export interface CursorSdkWorkerModelSelection {
   id: string;
   params?: CursorSdkWorkerModelParameter[];
+  /** See `CursorSdkModelSelection.maxMode`; set by the worker, never the host. */
+  maxMode?: boolean;
 }
 
 export interface CursorSdkWorkerModelParameterDefinition {

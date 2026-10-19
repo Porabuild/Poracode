@@ -71,6 +71,13 @@ describe("computer use instructions", () => {
     );
   });
 
+  it("separates system sleep prevention from display power and screen locking", () => {
+    expect(COMPUTER_USE_MCP_INSTRUCTIONS).toContain(
+      "does not keep displays on or prevent screen locking",
+    );
+    expect(COMPUTER_USE_MCP_INSTRUCTIONS).not.toContain("keepAwake:true");
+  });
+
   // Testers paid this string on every session before the first tool call.
   // Keep the safety wording; do not grow the tax back to a second page.
   it("tells the agent to load the plugin core skill before acting", () => {

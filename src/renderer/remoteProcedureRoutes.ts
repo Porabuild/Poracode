@@ -230,6 +230,7 @@ export const NON_ROUTER_PROJECT_PROCEDURES = {
   getLatestAgentVersion: "local-shell: version probe for this machine's agent installs",
   manageAgentPlugins: "local-shell: manages this machine's agent plugin packages",
   manageAgentCredentials: "local-shell: this machine's keychain-stored agent credentials",
+  manageModelProviders: "local-shell: edits this machine's native model routes and credentials",
   setAgentSecretSetting: "local-shell: writes a secret into this machine's keychain",
   getNativeMcpSetup: "local-shell: reads this machine's CLI MCP config files",
   applyNativeMcpSetup: "local-shell: rewrites this machine's CLI MCP config files",

@@ -35,7 +35,17 @@ update surfaces compare both installed versions with their independent latest
 sources, and one action updates whichever runtimes are stale.
 
 Antigravity's background-task text and held-prompt handling are the worked
-example in [Provider Isolation](agent-adapters.md#worked-example).
+example in [Provider Isolation](agent-adapters.md#worked-example). Subagent
+launches (`invoke_subagent` and `browser_subagent`) are bridged in
+`src/supervisor/agents/antigravity/acpSubagents.ts`: `agy_acp_server` strips
+`invoke_subagent` arguments and omits child/completion updates on the ACP wire,
+so the adapter tails `~/.gemini/antigravity-acp/brain/<conversationId>/.system_generated/logs/transcript_full.jsonl`
+through `AcpExternalSessionUpdateSource` and `AcpSubagentCoordinator`.
+Interception requires a title-identical, fresh planner call in the transcript
+(never a positional or stale match), replayed `session/load` history is left
+untouched, and cards settle on turn end: immediately on cancel/failure, or
+after `turnEndSettleMs` of transcript quiet once the turn completed — late
+reports genuinely land after `end_turn`, so the wait is bounded, not zero.
 
 ## Devin
 

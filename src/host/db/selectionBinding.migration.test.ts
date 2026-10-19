@@ -62,7 +62,7 @@ it("advances the actual historical schema-56 prefix without backfilling selectio
   });
   runDatabaseMigrations(db, 57);
   expect(db.prepare("SELECT value FROM app_state WHERE key = 'schema_version'").get()).toEqual({
-    value: "62",
+    value: "63",
   });
   expect(db.prepare("SELECT * FROM threads ORDER BY id").all()).toStrictEqual(beforeThreads);
   expect(db.prepare("SELECT * FROM projects ORDER BY id").all()).toStrictEqual(beforeProjects);

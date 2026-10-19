@@ -9,6 +9,7 @@ import { useAppStore } from "@/renderer/state/appStore";
 import { isMergedPrRegression, useGitStore } from "@/renderer/state/gitStore";
 import { buildBranchPrKey } from "@/renderer/state/gitSelectors";
 import { coalesceByKey } from "@/shared/coalesce";
+import { isHomeProject } from "@/shared/homeScope";
 import { useShallow } from "zustand/shallow";
 import { handleKeyActivate } from "@/renderer/utils/a11y";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
@@ -88,6 +89,9 @@ export function GitBadge(props: {
 
   const projectLocation = useAppStore((s) =>
     props.worktreePath ? undefined : s.projects.find((p) => p.id === props.projectId)?.location,
+  );
+  const isHome = useAppStore((s) =>
+    isHomeProject(s.projects.find((p) => p.id === props.projectId)),
   );
   const [verifiedProjectPrBranch, setVerifiedProjectPrBranch] = useState<string | null>(null);
   const projectPrKey = buildBranchPrKey(props.projectId);
@@ -203,6 +207,7 @@ export function GitBadge(props: {
   const hasChanges = totalInsertions > 0 || totalDeletions > 0;
   const isWorktree = props.worktreePath !== undefined;
   if (hasStatus && !isRepo) {
+    if (isHome) return null;
     return (
       <Tooltip delay={150}>
         <Tooltip.Trigger>

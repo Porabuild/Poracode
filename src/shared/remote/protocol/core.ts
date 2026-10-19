@@ -361,6 +361,8 @@ export const remoteExperimentsCapabilitySchema = z.object({
 export type RemoteExperimentsCapability = z.infer<typeof remoteExperimentsCapabilitySchema>;
 
 export const remoteEnvironmentCapabilitiesSchema = z.object({
+  /** Saved user messages and final assistant text, with bounded cs1 pages. */
+  conversationSearch: z.object({ versions: remoteCapabilityVersionsSchema }).optional(),
   /** Compact history rows with stored item details loaded on demand. */
   historyDetails: z.object({ versions: remoteCapabilityVersionsSchema }).optional(),
   /** Independent bounded replay cursors for one thread's canonical history. */

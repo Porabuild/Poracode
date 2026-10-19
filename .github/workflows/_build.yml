@@ -38,9 +38,9 @@ permissions:
   contents: read
 
 env:
-  # Release runners are disposable single checkouts; use pnpm's standard local
+  # Release runners are disposable single checkouts; use Bun's local
   # virtual store so postinstall native rebuilds operate on this checkout.
-  PNPM_CONFIG_ENABLE_GLOBAL_VIRTUAL_STORE: "false"
+  BUN_INSTALL_GLOBAL_STORE: "0"
 
 jobs:
   build:
@@ -91,14 +91,8 @@ jobs:
         with:
           workspaces: native/computer-use-helper
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v6
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: "24"
-          cache: pnpm
+      - name: Setup Bun
+        uses: ./.github/actions/setup-bun
 
       - name: Set package version
         env:
@@ -110,15 +104,15 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ${{ matrix.electron-cache }}
-          key: electron-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          key: electron-${{ runner.os }}-${{ hashFiles('bun.lock') }}
           restore-keys: |
             electron-${{ runner.os }}-
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: bun install --frozen-lockfile
         env:
           # The packaging pipeline never launches Electron from the project's
-          # node_modules: `pnpm run build` only bundles, and packaging runs
+          # node_modules: `bun run build` only bundles, and packaging runs
           # electron-builder in a clean staging dir that fetches its own Electron
           # dist. The root postinstall's enforced Chromium download is therefore
           # dead weight here, and its flaky/partial extractions (which exit 0 yet
@@ -127,7 +121,7 @@ jobs:
           ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
 
       - name: Build app
-        run: pnpm run build
+        run: bun run build
         shell: bash
         env:
           PORACODE_CHANNEL: ${{ inputs.channel }}
@@ -148,21 +142,21 @@ jobs:
         # versions + generated npm-shrinkwrap). Packaged as a resource so the
         # utility prefers it instead of staging a semver-range bundle.
         run: |
-          pnpm run prepare:package-assets
+          bun run prepare:package-assets
           node scripts/build-ssh-runtime-archive.mjs
         shell: bash
 
       - name: Upload Sentry source maps
         if: matrix.platform == 'linux'
         run: |
-          # Local `pnpm run dist` cleans source maps before packaging. Release CI
+          # Local `bun run dist` cleans source maps before packaging. Release CI
           # uploads them from the build output first, then removes them below.
           if [ -z "$SENTRY_AUTH_TOKEN" ] || [ -z "$SENTRY_ORG" ] || [ -z "$SENTRY_PROJECT" ]; then
             echo "Sentry secrets are not configured; skipping source map upload."
             exit 0
           fi
           for attempt in 1 2 3; do
-            if pnpm run sentry:sourcemaps; then
+            if bun run sentry:sourcemaps; then
               exit 0
             fi
             if [ "$attempt" -eq 3 ]; then
@@ -179,13 +173,13 @@ jobs:
           SENTRY_PROJECT: ${{ vars.SENTRY_PROJECT }}
 
       - name: Remove packaged source maps
-        run: pnpm run clean:sourcemaps
+        run: bun run clean:sourcemaps
         shell: bash
 
       - name: Package Windows/Linux
         if: matrix.platform != 'mac'
         run: |
-          pnpm run prepare:package-assets
+          bun run prepare:package-assets
           node scripts/build-desktop-artifact.mjs --platform "${{ matrix.platform }}" --skip-build
         shell: bash
         env:
@@ -200,7 +194,7 @@ jobs:
       - name: Package macOS
         if: matrix.platform == 'mac'
         run: |
-          pnpm run prepare:package-assets
+          bun run prepare:package-assets
           node scripts/build-desktop-artifact.mjs --platform mac --skip-build
         shell: bash
         env:

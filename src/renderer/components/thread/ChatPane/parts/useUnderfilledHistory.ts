@@ -1,4 +1,4 @@
-import { useLayoutEffect, useState, type RefObject } from "react";
+import { useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { useAppStore } from "@/renderer/state/appStore";
 import { runtimeHistoryBoundary } from "@/renderer/state/runtimeHistoryBoundary";
 import { createUnderfilledHistoryTrigger, type HistoryStartReached } from "./underfilledHistory";
@@ -30,17 +30,42 @@ export function useUnderfilledHistory({
       ? undefined
       : (canonicalBoundaryId ?? oldestVisibleEntryId);
   const [trigger] = useState(createUnderfilledHistoryTrigger);
+  const scheduleMeasurementRef = useRef(() => {});
   const resetUnderfilledHistory = trigger.reset;
   useLayoutEffect(() => resetUnderfilledHistory, [resetUnderfilledHistory]);
   // Hidden-only prepends change no virtual rows or content size. Measure their
   // canonical boundary at commit rather than waiting for a scroll/resize event.
   useLayoutEffect(() => {
-    trigger.measure({
-      threadId,
-      oldestEntryId,
-      scroller: scrollElementRef.current,
-      onStartReached,
-    });
+    const measure = () =>
+      trigger.measure({
+        threadId,
+        oldestEntryId,
+        scroller: scrollElementRef.current,
+        onStartReached,
+      });
+    measure();
+    const scroller = scrollElementRef.current;
+    if (!scroller || !onStartReached) return;
+    let frame: number | null = null;
+    const scheduleMeasurement = () => {
+      if (frame !== null) return;
+      frame = requestAnimationFrame(() => {
+        frame = null;
+        measure();
+      });
+    };
+    scheduleMeasurementRef.current = scheduleMeasurement;
+    // A group can finish collapsing after the virtualizer's content callback.
+    // Recheck the committed layout, including a pane revealed or made taller
+    // without any change to its rows or canonical history boundary.
+    scheduleMeasurement();
+    const observer = new ResizeObserver(scheduleMeasurement);
+    observer.observe(scroller);
+    return () => {
+      observer.disconnect();
+      if (frame !== null) cancelAnimationFrame(frame);
+      scheduleMeasurementRef.current = () => {};
+    };
   }, [threadId, oldestEntryId, scrollElementRef, onStartReached, trigger]);
 
   function notifyContentHeight() {
@@ -51,6 +76,7 @@ export function useUnderfilledHistory({
       scroller: scrollElementRef.current,
       onStartReached,
     });
+    scheduleMeasurementRef.current();
   }
   function retryUnderfilledHistory(event: {
     defaultPrevented: boolean;

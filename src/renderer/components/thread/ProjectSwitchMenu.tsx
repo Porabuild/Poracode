@@ -6,6 +6,7 @@ import type { Project } from "@/shared/contracts";
 import { HOME_PROJECT_NAME, isHomeProject, isHomeProjectId } from "@/shared/homeScope";
 import { makeDraftPaneId } from "@/shared/paneId";
 import { useAppStore } from "@/renderer/state/appStore";
+import { flattenSegments } from "@/renderer/components/composer/serializeMentions";
 import { rememberWorkspaceProject } from "@/renderer/state/workspaceStore";
 import {
   ResponsiveMenuSurface,
@@ -65,6 +66,37 @@ export function ProjectSwitchMenu(props: {
     if (onSelectProject) {
       onSelectProject(nextProjectId);
       return;
+    }
+    const store = useAppStore.getState();
+    const content = store.draftContents[currentProjectId];
+    if (content && flattenSegments(content.segments)) {
+      store.saveDraftContent(nextProjectId, content);
+      const sourceConfig = store.projects.find(
+        (project) => project.id === currentProjectId,
+      )?.lastDraftConfig;
+      const targetConfig = store.projects.find(
+        (project) => project.id === nextProjectId,
+      )?.lastDraftConfig;
+      if (sourceConfig) {
+        const config = {
+          ...targetConfig,
+          agentKind: sourceConfig.agentKind,
+          model: sourceConfig.model,
+        };
+        for (const field of [
+          "effort",
+          "contextSize",
+          "fast",
+          "thinking",
+          "selectionBinding",
+        ] as const) {
+          delete config[field];
+          if (sourceConfig[field] !== undefined) {
+            Object.assign(config, { [field]: sourceConfig[field] });
+          }
+        }
+        store.updateProjectDraftConfig(nextProjectId, config);
+      }
     }
     discardDraftContent(currentProjectId);
     startTransition(() => {

@@ -14,6 +14,7 @@ import appIconNightlyUrl from "../../../../../build/icon-nightly.png";
 
 const GITHUB_REPO = "https://github.com/Porabuild/Poracode";
 const WEBSITE_URL = "https://poracode.com/";
+const currentYear = new Date().getFullYear();
 
 function AboutLink(props: { href: string; children: React.ReactNode }) {
   return (
@@ -120,7 +121,6 @@ export function AboutSettings() {
   const [migrationPending, setMigrationPending] = useState(false);
   const productName = productNameFor(bridge.channel);
   const appIconUrl = bridge.channel === "nightly" ? appIconNightlyUrl : appIconStableUrl;
-  const currentYear = new Date().getFullYear();
 
   const importLegacyData = async () => {
     setShowMigrationConfirm(false);

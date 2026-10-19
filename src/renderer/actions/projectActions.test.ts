@@ -533,4 +533,30 @@ describe("local project icon action", () => {
       readBridge.mockRestore();
     }
   });
+
+  it("keeps the global terminal open when its saved project scope is disabled", () => {
+    resetDevTerminalStore();
+    useDevTerminalStore.getState().openPanel(localProject.id);
+    useDevTerminalStore.getState().openGlobalPanel();
+    const readBridge = vi.spyOn(bridgeRuntime, "readBridge").mockReturnValue({
+      gitUnwatchProject: async () => undefined,
+    } as unknown as ReturnType<typeof bridgeRuntime.readBridge>);
+    try {
+      setProjectDisabled(localProject.id, true);
+      expect(useDevTerminalStore.getState()).toMatchObject({ isOpen: true, source: "global" });
+    } finally {
+      readBridge.mockRestore();
+      resetDevTerminalStore();
+    }
+  });
+
+  it("keeps the global terminal open when the saved project is removed", async () => {
+    resetDevTerminalStore();
+    useDevTerminalStore.getState().openPanel(localProject.id);
+    useDevTerminalStore.getState().openGlobalPanel();
+    deleteProject(localProject.id);
+    await vi.waitFor(() => expect(useAppStore.getState().projects).toEqual([]));
+    expect(useDevTerminalStore.getState()).toMatchObject({ isOpen: true, source: "global" });
+    resetDevTerminalStore();
+  });
 });

@@ -282,22 +282,31 @@ describe("block-only projection through the real chat Markdown configuration", (
       await pair.expectEqual();
       pair.update(text, second);
       await pair.expectEqual();
-      expect(within(pair.candidate.container).getByAltText("Shot")).toBe(candidateImage);
-      expect(within(pair.oracle.container).getByAltText("Shot")).toBe(oracleImage);
-      expect(candidateImage.closest('[data-poracode-image-card="true"]')).toBe(card);
-      expect(candidateImage).toHaveAttribute("src", "https://second.example.test/image.png");
-      expect(oracleImage).toHaveAttribute("src", "https://second.example.test/image.png");
-      expect(candidateImage).toHaveClass("opacity-0");
+      const replacementImage = within(pair.candidate.container).getByAltText("Shot");
+      const replacementOracleImage = within(pair.oracle.container).getByAltText("Shot");
+      expect(replacementImage).not.toBe(candidateImage);
+      expect(replacementOracleImage).not.toBe(oracleImage);
+      expect(replacementImage.closest('[data-poracode-image-card="true"]')).toBe(card);
+      expect(replacementImage).toHaveAttribute("src", "https://second.example.test/image.png");
+      expect(replacementOracleImage).toHaveAttribute(
+        "src",
+        "https://second.example.test/image.png",
+      );
+      expect(replacementImage).not.toHaveClass("opacity-0");
+      expect(replacementImage).not.toHaveClass("transition-opacity");
       expect(selection.anchorNode).toBe(textNode);
       expect(selection.focusNode).toBe(textNode);
       expect(selection.anchorOffset).toBe(1);
       expect(selection.focusOffset).toBe(4);
       expect(selection.toString()).toBe("mag");
       expect(vi.mocked(splitStreamdownMarkdownBlocks).mock.calls.length).toBe(parseCount);
-      fireEvent.load(candidateImage);
-      fireEvent.load(oracleImage);
+      fireEvent.load(replacementImage);
+      fireEvent.load(replacementOracleImage);
       await pair.expectEqual();
-      expect(within(pair.candidate.container).getByAltText("Shot")).toHaveClass("opacity-100");
+      expect(within(pair.candidate.container).getByAltText("Shot")).not.toHaveClass("opacity-0");
+      expect(within(pair.candidate.container).getByAltText("Shot")).not.toHaveClass(
+        "transition-opacity",
+      );
     },
   );
 

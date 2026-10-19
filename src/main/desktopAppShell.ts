@@ -40,7 +40,6 @@ let committedSharedSettings: SharedSettings | null = null;
 // Last values applied to the native power surfaces. A working-thread or
 // settings-event storm that leaves the derived values unchanged is a no-op.
 let lastAppliedPreventSleep: boolean | null = null;
-let lastAppliedComputerUseKeepAwake: boolean | null = null;
 
 function resolveCommittedSharedSettings(): SharedSettings {
   if (committedSharedSettings) return committedSharedSettings;
@@ -69,12 +68,6 @@ export function updatePowerSaveBlocker(): void {
   if (preventSleep !== lastAppliedPreventSleep) {
     lastAppliedPreventSleep = preventSleep;
     desktopApp.sleepInhibitor.setActive(preventSleep);
-  }
-  // Every settings write funnels through here, so toggling the setting off
-  // releases an already-held wake lock immediately.
-  if (settings.computerUseKeepAwake !== lastAppliedComputerUseKeepAwake) {
-    lastAppliedComputerUseKeepAwake = settings.computerUseKeepAwake;
-    desktopApp.computerUseWakeLock.setEnabled(settings.computerUseKeepAwake);
   }
 }
 

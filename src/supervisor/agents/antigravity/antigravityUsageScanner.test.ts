@@ -64,6 +64,53 @@ describe("scanAntigravityUsage", () => {
     expect(resolveAcpCredentials).not.toHaveBeenCalled();
   });
 
+  it("upgrades a Claude-only language-server snapshot (even with legacy Gemini pools) via Cloud Code", async () => {
+    const partialLs: UsageSnapshot = {
+      providerId: "antigravity",
+      status: "ok",
+      plan: "Google AI Pro",
+      windows: [
+        { id: "antigravity:gemini-pro", label: "Gemini Pro", usedPercent: 20 },
+        { id: "antigravity:claude:weekly", label: "Claude · Weekly", usedPercent: 28 },
+      ],
+      fetchedAt: NOW,
+    };
+    const fullCloud: UsageSnapshot = {
+      providerId: "antigravity",
+      status: "ok",
+      windows: [
+        { id: "antigravity:gemini:session-5h", label: "Gemini · 5h", usedPercent: 0 },
+        { id: "antigravity:gemini:weekly", label: "Gemini · Weekly", usedPercent: 11 },
+        { id: "antigravity:claude:session-5h", label: "Claude · 5h", usedPercent: 26 },
+        { id: "antigravity:claude:weekly", label: "Claude · Weekly", usedPercent: 28 },
+        {
+          id: "antigravity:gemini-4-argon:weekly",
+          label: "Gemini 4 Argon · Weekly",
+          usedPercent: 61,
+        },
+      ],
+      fetchedAt: NOW,
+    };
+    const snapshot = await scanAntigravityUsage(
+      NOW,
+      [],
+      HOST,
+      deps({
+        scanLanguageServer: async () => partialLs,
+        resolveAcpCredentials: async () => CREDENTIALS,
+        collectCloudUsage: async () => fullCloud,
+      }),
+    );
+    expect(snapshot.plan).toBe("Google AI Pro");
+    expect(snapshot.windows.map((w) => w.id)).toEqual([
+      "antigravity:gemini:session-5h",
+      "antigravity:gemini:weekly",
+      "antigravity:claude:session-5h",
+      "antigravity:claude:weekly",
+      "antigravity:gemini-4-argon:weekly",
+    ]);
+  });
+
   it("uses ACP-backed Cloud Code when no language server is reachable", async () => {
     const collectCloudUsage = vi.fn<
       (

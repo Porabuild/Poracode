@@ -3,6 +3,46 @@ import { defaultSharedSettings } from "@/shared/settings";
 import { SettingsDocumentError, decodeSettingsDocument } from "./settingsDocument";
 
 describe("settings document migration", () => {
+  it.each([1, 2])(
+    "preserves v%s sidebar preferences and history-related settings on upgrade",
+    (version) => {
+      const saved = {
+        $poracodeSettingsVersion: version,
+        sidebarShortcutOrder: ["schedules", "githubActions", "pullRequests"],
+        sidebarHiddenShortcuts: ["schedules"],
+        autoArchiveDoneAfterDays: 14,
+        futureSetting: { keep: true },
+      };
+      const document = decodeSettingsDocument(saved);
+      expect(document.settings).toMatchObject({
+        sidebarShortcutOrder: saved.sidebarShortcutOrder,
+        sidebarHiddenShortcuts: saved.sidebarHiddenShortcuts,
+        autoArchiveDoneAfterDays: 14,
+      });
+      expect(document.raw.futureSetting).toEqual({ keep: true });
+    },
+  );
+
+  it("round-trips v3 settings shortcuts including stale provider IDs", () => {
+    const saved = {
+      $poracodeSettingsVersion: 3,
+      sidebarShortcutOrder: [
+        "settings:profile",
+        "settings:agents:uninstalled",
+        "schedules",
+        "pullRequests",
+        "githubActions",
+      ],
+      sidebarHiddenShortcuts: ["githubActions", "settings:agents:uninstalled"],
+    };
+    expect(decodeSettingsDocument(saved).settings).toMatchObject({
+      sidebarShortcutOrder: saved.sidebarShortcutOrder,
+      sidebarHiddenShortcuts: saved.sidebarHiddenShortcuts,
+    });
+    expect(() => decodeSettingsDocument({ $poracodeSettingsVersion: 4 })).toThrow(
+      SettingsDocumentError,
+    );
+  });
   it.each([{}, { $poracodeSettingsVersion: 1 }])(
     "defaults the font in legacy settings without changing existing sizes: %j",
     (version) => {

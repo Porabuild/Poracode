@@ -320,11 +320,6 @@ sealed interface RoutethreadU2DGoalRequest_54c8350637 {
 }
 
 @Serializable
-enum class RoutethreadU2DHistoryQueryU2DRuntimePage_8795ea0289 {
-    @SerialName("1") N1,
-}
-
-@Serializable
 data class RoutethreadU2DHistoryQuery_8015752827(
     @SerialName("completedTurnsLimit") val completedTurnsLimit: RemoteField<Long> = RemoteField.Missing,
     @SerialName("maxBytes") val maxBytes: RemoteField<Long> = RemoteField.Missing,
@@ -333,7 +328,7 @@ data class RoutethreadU2DHistoryQuery_8015752827(
     @SerialName("omitScrollback") val omitScrollback: RemoteField<Boolean> = RemoteField.Missing,
     @SerialName("projection") val projection: RemoteField<RoutethreadU2DHistoryU2DChangesQueryU2DProjection_72a4409660> = RemoteField.Missing,
     @SerialName("reads") val reads: RemoteField<RouteprojectU2DListQueryU2DReads_4659e6d395> = RemoteField.Missing,
-    @SerialName("runtimePage") val runtimePage: RemoteField<RoutethreadU2DHistoryQueryU2DRuntimePage_8795ea0289> = RemoteField.Missing,
+    @SerialName("runtimePage") val runtimePage: RemoteField<RouteconversationU2DSearchQueryU2DVersion_8795ea0289> = RemoteField.Missing,
     @SerialName("targetTimelineEntryCount") val targetTimelineEntryCount: RemoteField<Long> = RemoteField.Missing,
 ) {
     companion object {
@@ -345,7 +340,7 @@ data class RoutethreadU2DHistoryQuery_8015752827(
             RemoteFieldDescriptor("omitScrollback", "Boolean", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("projection", "RoutethreadU2DHistoryU2DChangesQueryU2DProjection_72a4409660", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("reads", "RouteprojectU2DListQueryU2DReads_4659e6d395", false, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("runtimePage", "RoutethreadU2DHistoryQueryU2DRuntimePage_8795ea0289", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("runtimePage", "RouteconversationU2DSearchQueryU2DVersion_8795ea0289", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("targetTimelineEntryCount", "Long", false, false, 1.0, 100.0, null, null, null, null, null, null, listOf()),
         ), listOf())
     }

@@ -158,13 +158,15 @@ function splitCliModel(
 }
 
 function providerFromModel(model: string): string | undefined {
-  if (model.startsWith("Gemini ")) return "Google DeepMind";
+  if (model.startsWith("Gemini ") || model.startsWith("Argon ")) return "Google DeepMind";
   if (model.startsWith("Claude ")) return "Anthropic";
   if (model.startsWith("GPT-")) return "OpenAI";
   return undefined;
 }
 
 function modelFromSlug(slug: string): string {
+  if (slug === "gemini-4-argon") return "Argon 4";
+
   const gemini = /^gemini-(\d+(?:\.\d+)?)-(.+)$/.exec(slug);
   if (gemini) return `Gemini ${gemini[1]} ${labelFromId(gemini[2] ?? "")}`.trim();
 
@@ -401,7 +403,7 @@ export function buildAntigravityAcpModelCapabilities(
     }
     return {
       model: normalizedModel,
-      label: parts?.model ?? labelFromId(normalizedModel),
+      label: parts?.model ?? modelFromSlug(normalizedModel),
       effort,
       cliModel: model.id,
       provider: model.description ?? "Google DeepMind",

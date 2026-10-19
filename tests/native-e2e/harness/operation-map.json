@@ -3,10 +3,10 @@
   "contract": "poracode.remote",
   "protocolVersion": 14,
   "bindingFormatVersion": 2,
-  "manifestHash": "sha256:00df1e6e3c20722cafc6839991c77c8092a1ef54fd21ec0d1fd33229f731c6b2",
-  "keyCount": 282,
+  "manifestHash": "sha256:3aed8424a056236d70ec3851a8f09ee783b40ed30dad2ead910eb3e6816a70ba",
+  "keyCount": 283,
   "counts": {
-    "route": 100,
+    "route": 101,
     "procedure": 130,
     "ws-client": 9,
     "ws-server": 11,
@@ -625,6 +625,10 @@
     "route:catalog-membership": {
       "kind": "route",
       "id": "catalog-membership"
+    },
+    "route:conversation-search": {
+      "kind": "route",
+      "id": "conversation-search"
     },
     "route:environment": {
       "kind": "route",

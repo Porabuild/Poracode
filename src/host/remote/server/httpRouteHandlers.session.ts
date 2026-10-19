@@ -1,4 +1,7 @@
 import { remoteSettingsPatchSchema, remoteTokenExchangePayloadSchema } from "@/shared/remote";
+import { conversationSearchQuerySchema } from "@/shared/conversationSearch";
+import { dbSearchConversations } from "@/host/db/conversationSearch";
+import { ConversationSearchCursorError } from "@/host/db/conversationSearchReads";
 import {
   profileIdentitySchema,
   profileStatsRequestSchema,
@@ -46,6 +49,7 @@ function mcpEndpointUrl(server: McpServer): string | null {
 }
 
 type SessionRouteId =
+  | "conversation-search"
   | "environment"
   | "environment-legacy"
   | "forward-enter"
@@ -75,6 +79,19 @@ type SessionRouteId =
 
 /** Session-group HTTP route handlers (contract `sessionRoutes`). */
 export const SESSION_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, SessionRouteId> = {
+  "conversation-search": async ({ res, url }) => {
+    const query = conversationSearchQuerySchema.parse(Object.fromEntries(url.searchParams));
+    try {
+      writeJson(res, 200, await dbSearchConversations(query));
+    } catch (error) {
+      if (
+        error instanceof ConversationSearchCursorError ||
+        (error instanceof Error && error.name === "ConversationSearchCursorError")
+      )
+        throw new RemoteHttpError("invalid_search_cursor", error.message, 400);
+      throw error;
+    }
+  },
   environment: ({ ctx, res }) => {
     writeJson(res, 200, descriptor(ctx));
   },

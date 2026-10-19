@@ -155,7 +155,7 @@ export function validateOverlayWrapperVersions(options) {
     if (typeof expected === "string" && expected !== nodePty.version) {
       throw new Error(
         `native overlay mismatch: staged node-pty ${nodePty.version} but package.json pins ` +
-          `${expected}. Rebuild the overlay with \`pnpm run prepare:server-native\`.`,
+          `${expected}. Rebuild the overlay with \`bun run prepare:server-native\`.`,
       );
     }
     checked.push({ package: "node-pty", version: nodePty.version });
@@ -168,7 +168,7 @@ export function validateOverlayWrapperVersions(options) {
       throw new Error(
         `native overlay mismatch: staged better-sqlite3 ${betterSqlite3.version} but ` +
           `package.json pins ${expected}. Rebuild the overlay with ` +
-          "`pnpm run prepare:server-native`.",
+          "`bun run prepare:server-native`.",
       );
     }
     checked.push({ package: "better-sqlite3", version: betterSqlite3.version });

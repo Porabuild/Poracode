@@ -81,7 +81,7 @@ function ensureNodePty() {
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(
-      `[poracode] node-pty is unavailable: ${message}. If pnpm blocked native build scripts, run 'pnpm approve-builds' and reinstall.`,
+      `[poracode] node-pty is unavailable: ${message}. Run 'bun install' with the repository's trusted native dependencies enabled.`,
       { cause: error },
     );
   }

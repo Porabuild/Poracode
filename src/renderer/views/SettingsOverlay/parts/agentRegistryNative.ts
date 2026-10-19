@@ -25,6 +25,7 @@ import { CursorProviderSettings } from "../../../components/providers/settings/C
 import { OPENCODE2_INSTALL_COMMANDS } from "@/renderer/components/providers/opencode2/installCommands";
 import { OpenCode2ProviderSettings } from "../../../components/providers/settings/OpenCode2ProviderSettings";
 import { OpenCodeProviderSettings } from "../../../components/providers/settings/OpenCodeProviderSettings";
+import { DeepSeekProviderSettings } from "@/renderer/components/providers/deepseek/DeepSeekProviderSettings";
 import { cursorAgentInstallCommand, cursorRuntimeSlots } from "./cursorRuntimeInstall";
 import type { NativeAgentRuntimeSlots } from "./nativeAgentRuntimes";
 import { antigravityCliInstallCommand, antigravityRuntimeSlots } from "./antigravityRuntimeInstall";
@@ -191,6 +192,20 @@ function nativeInstallCommand(
 }
 
 export const NATIVE_AGENT_REGISTRY_ENTRIES: NativeAgentRegistryEntry[] = [
+  {
+    id: "deepseek",
+    settingsPanel: DeepSeekProviderSettings,
+    description: msg`DeepSeek Harness chat with persistent sessions, reasoning controls, and MCP tools. Configure credentials with dsh web.`,
+    docsUrl: "https://github.com/deepseek-ai/deepseek-harness",
+    installCommand: (project) =>
+      posixOrWindows(
+        project,
+        "if command -v npm >/dev/null 2>&1; then npm install -g @deepseek-ai/dsh@next; else " +
+          POSIX_MISSING_NPM_MESSAGE +
+          "; fi",
+        "if (Get-Command npm -ErrorAction SilentlyContinue) { npm install -g @deepseek-ai/dsh@next } else { Write-Host 'No supported installer found. Install Node.js/npm first, then refresh detected agents.' }",
+      ),
+  },
   {
     id: "codex",
     acpRegistryAliases: [{ id: "codex-acp" }],

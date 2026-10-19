@@ -21,7 +21,7 @@ export function formatCost(amount: number, currency: string, locale: string): st
   return new Intl.NumberFormat(locale, {
     style: "currency",
     currency,
-    ...(amount > 0 && amount < 0.01 ? { maximumFractionDigits: 5 } : {}),
+    ...(amount > 0 && amount < 0.01 ? { maximumSignificantDigits: 5 } : {}),
   }).format(amount);
 }
 

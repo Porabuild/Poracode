@@ -6,6 +6,7 @@ import type { GitStatusResult, PrData, ProjectLocation } from "@/shared/contract
 import { useAppStore } from "@/renderer/state/appStore";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { buildBranchPrKey } from "@/renderer/state/gitSelectors";
+import { HOME_PROJECT_ID } from "@/shared/homeScope";
 import { getWorktreeActionVisibility } from "./useWorktreeActions";
 import { GitBadge } from "./GitBadge";
 
@@ -201,6 +202,29 @@ describe("GitBadge", () => {
     expect(icon).toHaveClass("lucide-git-branch-minus");
     expect(screen.getByText("Not a Git repository")).toBeInTheDocument();
   });
+
+  it.each([{ id: HOME_PROJECT_ID }, { id: "remote:host:project:home", remoteId: HOME_PROJECT_ID }])(
+    "omits the not-repo badge for Home scope $id",
+    (identity) => {
+      useAppStore.setState({
+        projects: [
+          {
+            ...identity,
+            name: "Home",
+            location: { kind: "posix", path: "/home/user" },
+            createdAt: "2026-06-02T00:00:00.000Z",
+          },
+        ],
+      });
+      useGitStore.setState({
+        statuses: { [identity.id]: makeStatus({ isRepo: false }) },
+      });
+
+      const { container } = render(<GitBadge projectId={identity.id} projectName="Home" />);
+
+      expect(container).toBeEmptyDOMElement();
+    },
+  );
 
   it("shows a hover affordance before git status loads", () => {
     render(<GitBadge projectId="project-1" projectName="Project" />);

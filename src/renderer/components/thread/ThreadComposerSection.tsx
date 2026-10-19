@@ -83,6 +83,7 @@ import { ThreadBackgroundTasksBubble, ThreadDockBubbles } from "./ThreadDockBubb
 import { ThreadImagesBubble } from "./ThreadImagesBubble";
 import { useThreadDocksSummary } from "./useThreadDocksSummary";
 import { ThreadComposer, type ComposerControl } from "./ThreadComposer";
+import { isPlanModeControl } from "../providers/composerControlBuilders";
 import { ProviderSessionControls } from "../providers/providerSessionControls";
 import { useThreadInterrupt } from "./useThreadInterrupt";
 import { supportsUsableFastMode } from "./threadDraftViewHelpers";
@@ -104,6 +105,7 @@ import type { ThreadGoalDockState } from "./threadGoalState";
 import type { ThreadTodoDockState } from "./threadTodoState";
 import type { TerminalPaneHandle } from "./TerminalPane";
 import { ThreadComposerDocks } from "./ThreadComposerDocks";
+import { selectPendingMessageReplyIds } from "./messageReplyForms";
 import { ThreadResumeUnavailableDock } from "./ThreadResumeUnavailableDock";
 import {
   usePluginMentionItems,
@@ -667,6 +669,13 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   // composer's deny-with-feedback submit path, and `authRequired` still disables
   // submit/voice, when a host renders these docks itself.
   const hideActionDocks = compactLayout || props.hideActionDocks === true;
+  const hasMessageReplyForm = useAppStore(
+    (state) =>
+      canShowRuntimeChrome &&
+      !hideActionDocks &&
+      !activeRuntimeRequest &&
+      selectPendingMessageReplyIds(state, thread.id).length > 0,
+  );
   const composerRuntimeRequest = hideActionDocks ? undefined : activeRuntimeRequest;
   const composerPendingSteer = hideActionDocks ? undefined : visiblePendingSteer;
   const composerFollowUpQueue = hideActionDocks ? undefined : followUpQueue;
@@ -1082,6 +1091,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                   }}
                 >
                   <ThreadComposer
+                    attachmentDropScope={usesTerminalPresentation ? "composer" : "panel"}
                     autoFocus={shouldAutoFocusComposer} // eslint-disable-line jsx-a11y/no-autofocus -- Electron is always desktop; the PWA enables this only for desktop-like input
                     compact
                     toolbarLayoutKey={[
@@ -1100,6 +1110,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                       showAuthInComposer ||
                       composerPendingSteer ||
                       composerRuntimeRequest ||
+                      hasMessageReplyForm ||
                       composerFollowUpQueue ||
                       showCommandPanel ? (
                         <ThreadComposerDocks
@@ -1112,6 +1123,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                           showTodoInComposer={showTodoInComposer}
                           authRequired={showAuthInComposer}
                           showCommandPanel={showCommandPanel}
+                          showMessageReplies={hasMessageReplyForm}
                           threadId={thread.id}
                           projectLocation={projectLocation}
                           threadConfig={thread.config}
@@ -1350,6 +1362,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                         >
                           {(sessionActions) => (
                             <ComposerAddMenu
+                              planControl={controlsWithOpenSignal.find(isPlanModeControl)}
                               {...(sideChatAvailable(thread.id, presentationMode)
                                 ? {
                                     onOpenSideChat: () => {

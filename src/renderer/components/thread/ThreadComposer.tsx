@@ -1,5 +1,6 @@
-import { ReactNode, useEffect, useLayoutEffect, useRef, useState, type DragEvent } from "react";
-import { ArrowUp, MoreHorizontal, Square } from "lucide-react";
+import { ReactNode, useEffect, useEffectEvent, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { ArrowUp, FileUp, MoreHorizontal, Square, X } from "lucide-react";
 import { ToggleButton, Tooltip } from "@heroui/react";
 import type { MessageDescriptor } from "@lingui/core";
 import { Trans, useLingui } from "@lingui/react/macro";
@@ -22,6 +23,7 @@ import {
 import { TextArea } from "@/renderer/components/common/TextArea";
 import { EffortIcon } from "@/renderer/components/providers/EffortIcon";
 import { PermissionIcon } from "@/renderer/components/providers/PermissionIcon";
+import { isPlanModeControl } from "@/renderer/components/providers/composerControlBuilders";
 import { isCompactClientSurface, readBridge } from "@/renderer/bridge";
 import type { LabeledOption, ThreadPresentationMode } from "@/shared/contracts";
 import { modelFamilyMemberDisplay } from "@/renderer/components/common/ProviderModelMenu/parts/modelFamilyDisplay";
@@ -179,13 +181,10 @@ function getControlCollapseTier(control: ComposerControl): number | undefined {
 }
 
 export function shouldMoveComposerControlToMobileOverflow(control: ComposerControl): boolean {
-  if (
+  return (
     (control.kind === undefined || control.kind === "toggle" || control.kind === "menu") &&
     control.iconKind === "permission"
-  ) {
-    return true;
-  }
-  return control.kind === "toggle" && ["Plan", "Work"].includes(control.label);
+  );
 }
 
 function getOptionLabel(option: OptionMenuOption): string {
@@ -262,6 +261,7 @@ export function ThreadComposer(props: {
   onPromptChange: (value: string) => void;
   onSubmit: () => void;
   onAttachFiles?: (paths: string[]) => void;
+  attachmentDropScope?: "composer" | "panel";
   onStop?: (() => void) | undefined;
   controls: ComposerControl[];
   leadingControls?: ReactNode | ((wrapLevel: number) => ReactNode);
@@ -292,6 +292,7 @@ export function ThreadComposer(props: {
     onPromptChange,
     onSubmit,
     onAttachFiles,
+    attachmentDropScope = "composer",
     onStop,
     controls,
     leadingControls,
@@ -301,13 +302,13 @@ export function ThreadComposer(props: {
   } = props;
   const { t } = useLingui();
 
-  const [isAttachmentDropActive, setIsAttachmentDropActive] = useState(false);
+  const [attachmentDropTarget, setAttachmentDropTarget] = useState<HTMLElement | null>(null);
   const [mobileOverflowOpen, setMobileOverflowOpen] = useState(false);
   const controlsRef = useRef<HTMLDivElement>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
   const probeContainerRef = useRef<HTMLDivElement>(null);
   const editorHostRef = useRef<HTMLDivElement>(null);
-  const attachmentDragDepthRef = useRef(0);
+  const shellRef = useRef<HTMLDivElement>(null);
   const mobileComposer = compact && isCompactClientSurface();
   const mobileOverflowControls = mobileComposer
     ? controls
@@ -330,7 +331,7 @@ export function ThreadComposer(props: {
         return `effort-context:${control.effortValue ?? ""}:${control.contextValue ?? ""}:${control.thinkingValue ?? ""}:${control.familySelection ? modelFamilyMenuSummary(control.familySelection) : ""}:${control.hideLabelOnWrap ? "hide" : "show"}`;
       }
       if (control.kind === "toggle") {
-        return `toggle:${control.label}:${control.iconOnly ? "icon" : "label"}:${control.hideLabelOnWrap ? "hide" : "show"}`;
+        return `toggle:${control.label}:${control.isSelected}:${control.iconOnly ? "icon" : "label"}:${control.hideLabelOnWrap ? "hide" : "show"}`;
       }
       if (control.kind === "static") {
         return `static:${control.value}:${control.iconOnly ? "icon" : "label"}`;
@@ -466,6 +467,7 @@ export function ThreadComposer(props: {
     targetWrapLevel: number,
     forceShowLabels: boolean,
   ) => {
+    if (isPlanModeControl(control) && !control.isSelected) return null;
     const collapseTier = getControlCollapseTier(control);
     const hideOnWrap = collapseTier !== undefined;
     const shouldHideLabel = shouldHideControlLabel(control, targetWrapLevel, forceShowLabels);
@@ -584,6 +586,37 @@ export function ThreadComposer(props: {
       // `label` is the stable English logic key; `displayLabel` (when present)
       // is the localized text actually shown to the user.
       const toggleLabel = control.displayLabel ? t(control.displayLabel) : control.label;
+      if (isPlanModeControl(control)) {
+        const removeLabel = t`Remove ${toggleLabel}`;
+        const chip = (
+          <Button
+            key={`plan-${index}`}
+            aria-label={removeLabel}
+            className="poracode-composer-toggle poracode-composer-toggle--current min-w-0 px-2.5"
+            isDisabled={control.isDisabled ?? false}
+            size="sm"
+            variant="ghost"
+            onPress={() => {
+              control.onChange?.(false);
+              returnFocusToInput();
+            }}
+          >
+            {resolveComposerControlIcon(control)}
+            <span data-collapse-tier={collapseTier} className={labelClassName}>
+              {toggleLabel}
+            </span>
+            <X className="size-3 shrink-0 text-muted" aria-hidden />
+          </Button>
+        );
+        return hideOnWrap || hideLabel ? (
+          <Tooltip key={`plan-tooltip-${index}`} delay={0}>
+            {chip}
+            <Tooltip.Content placement="top">{removeLabel}</Tooltip.Content>
+          </Tooltip>
+        ) : (
+          chip
+        );
+      }
       // A `disabledReason` toggle stays hoverable (not natively `disabled`) so
       // its explanatory tooltip still fires; it's dimmed and click is a no-op.
       const gated = Boolean(control.disabledReason);
@@ -688,6 +721,7 @@ export function ThreadComposer(props: {
     targetWrapLevel: number,
     forceShowLabels: boolean,
   ) => {
+    if (isPlanModeControl(control) && !control.isSelected) return null;
     const hideLabel = shouldHideControlLabel(control, targetWrapLevel, forceShowLabels);
     const iconOnly =
       control.kind !== "provider-model" &&
@@ -713,6 +747,7 @@ export function ThreadComposer(props: {
         {!isStatic && !isToggle && !iconOnly && !hideLabel ? (
           <span className="size-3.5 shrink-0" />
         ) : null}
+        {isPlanModeControl(control) ? <span className="size-3 shrink-0" /> : null}
       </div>
     );
   };
@@ -889,12 +924,70 @@ export function ThreadComposer(props: {
     );
   };
 
-  const hasAttachmentDragData = (dataTransfer: DataTransfer) =>
-    Array.from(dataTransfer.types).some(
+  const canAttachFiles = onAttachFiles !== undefined;
+  const attachDroppedFiles = useEffectEvent((paths: string[]) => onAttachFiles?.(paths));
+
+  useEffect(() => {
+    const shell = shellRef.current;
+    if (!shell || !canAttachFiles || toolbarOnly) return;
+    const target =
+      (attachmentDropScope === "panel"
+        ? shell.closest<HTMLElement>("[data-poracode-attachment-drop-target]")
+        : null) ?? shell;
+    let dragDepth = 0;
+
+    const reset = () => {
+      dragDepth = 0;
+      setAttachmentDropTarget(null);
+    };
+    const handleDragEnter = (event: DragEvent) => {
+      if (!event.dataTransfer || !hasAttachmentDragData(event.dataTransfer)) return;
+      event.preventDefault();
+      dragDepth += 1;
+      event.dataTransfer.dropEffect = "copy";
+      setAttachmentDropTarget(target);
+    };
+    const handleDragOver = (event: DragEvent) => {
+      if (!event.dataTransfer || !hasAttachmentDragData(event.dataTransfer)) return;
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "copy";
+    };
+    const handleDragLeave = () => {
+      dragDepth = Math.max(0, dragDepth - 1);
+      if (dragDepth === 0) reset();
+    };
+    const handleDrop = (event: DragEvent) => {
+      if (!event.dataTransfer || !hasAttachmentDragData(event.dataTransfer)) return;
+      event.preventDefault();
+      reset();
+      const paths = resolveAttachmentDropPaths(event.dataTransfer);
+      if (paths.length > 0) attachDroppedFiles(paths);
+    };
+
+    target.addEventListener("dragenter", handleDragEnter);
+    target.addEventListener("dragover", handleDragOver);
+    target.addEventListener("dragleave", handleDragLeave);
+    target.addEventListener("drop", handleDrop);
+    window.addEventListener("dragend", reset);
+    window.addEventListener("blur", reset);
+    return () => {
+      target.removeEventListener("dragenter", handleDragEnter);
+      target.removeEventListener("dragover", handleDragOver);
+      target.removeEventListener("dragleave", handleDragLeave);
+      target.removeEventListener("drop", handleDrop);
+      window.removeEventListener("dragend", reset);
+      window.removeEventListener("blur", reset);
+      reset();
+    };
+  }, [attachmentDropScope, canAttachFiles, toolbarOnly]);
+
+  function hasAttachmentDragData(dataTransfer: DataTransfer) {
+    return Array.from(dataTransfer.types).some(
       (type) => type === "Files" || type === COMPOSER_FILE_DRAG_TYPE,
     );
+  }
 
-  const resolveAttachmentDropPaths = (dataTransfer: DataTransfer): string[] => {
+  function resolveAttachmentDropPaths(dataTransfer: DataTransfer): string[] {
     const payload = dataTransfer.getData(COMPOSER_FILE_DRAG_TYPE);
     if (payload) {
       try {
@@ -905,40 +998,7 @@ export function ThreadComposer(props: {
       }
     }
     return readBridge().getDroppedFilePaths(Array.from(dataTransfer.files));
-  };
-
-  const handleAttachmentDragEnter = (event: DragEvent<HTMLDivElement>) => {
-    if (!onAttachFiles || !hasAttachmentDragData(event.dataTransfer)) return;
-    event.preventDefault();
-    attachmentDragDepthRef.current += 1;
-    event.dataTransfer.dropEffect = "copy";
-    setIsAttachmentDropActive(true);
-  };
-
-  const handleAttachmentDragOver = (event: DragEvent<HTMLDivElement>) => {
-    if (!onAttachFiles || !hasAttachmentDragData(event.dataTransfer)) return;
-    event.preventDefault();
-    event.dataTransfer.dropEffect = "copy";
-  };
-
-  const handleAttachmentDragLeave = (event: DragEvent<HTMLDivElement>) => {
-    if (!onAttachFiles || !hasAttachmentDragData(event.dataTransfer)) return;
-    attachmentDragDepthRef.current = Math.max(0, attachmentDragDepthRef.current - 1);
-    if (attachmentDragDepthRef.current === 0) {
-      setIsAttachmentDropActive(false);
-    }
-  };
-
-  const handleAttachmentDrop = (event: DragEvent<HTMLDivElement>) => {
-    if (!onAttachFiles || !hasAttachmentDragData(event.dataTransfer)) return;
-    event.preventDefault();
-    attachmentDragDepthRef.current = 0;
-    setIsAttachmentDropActive(false);
-    const paths = resolveAttachmentDropPaths(event.dataTransfer);
-    if (paths.length > 0) {
-      onAttachFiles(paths);
-    }
-  };
+  }
 
   const toolbar = (
     <div ref={toolbarRef} className={toolbarClassName} data-wrap-level={wrapLevelRef.current}>
@@ -963,21 +1023,33 @@ export function ThreadComposer(props: {
 
   return (
     <div data-poracode-composer="">
-      <div
-        className={shellClassName}
-        onDragEnter={handleAttachmentDragEnter}
-        onDragOver={handleAttachmentDragOver}
-        onDragLeave={handleAttachmentDragLeave}
-        onDrop={handleAttachmentDrop}
-      >
+      <div ref={shellRef} className={shellClassName}>
         {/* Inert unless a shell-level rule lights it: desktop draft focus, or
             the phone layout's expanded live composer. */}
         <div className="poracode-composer-border-glow" />
-        {isAttachmentDropActive ? (
-          <div className="poracode-composer-drop-overlay">
-            <Trans>Drop here to attach</Trans>
-          </div>
-        ) : null}
+        {attachmentDropTarget
+          ? createPortal(
+              <div
+                className={
+                  attachmentDropScope === "panel"
+                    ? "poracode-chat-drop-overlay"
+                    : "poracode-composer-drop-overlay"
+                }
+              >
+                <div
+                  className={
+                    attachmentDropScope === "panel" ? "poracode-chat-drop-prompt" : undefined
+                  }
+                >
+                  {attachmentDropScope === "panel" ? <FileUp aria-hidden="true" /> : null}
+                  <span>
+                    <Trans>Drop here to attach</Trans>
+                  </span>
+                </div>
+              </div>,
+              attachmentDropTarget,
+            )
+          : null}
         {fixedContent}
         {attachmentBar}
         <div ref={editorHostRef} data-composer-input-anchor="">

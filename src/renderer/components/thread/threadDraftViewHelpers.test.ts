@@ -83,6 +83,25 @@ function agentWith(overrides?: Partial<AgentCapability>): AgentStatus {
 }
 
 describe("resolveProviderDraftConfig fast mode", () => {
+  it.each([false, true])("ignores legacy saved Plan mode (family: %s)", (family) => {
+    const model = family ? "fusion-a-b" : "plain";
+    const saved = { model, mode: "plan" as const, contextSize: "1m", approvalPolicy: "never" };
+    const caps = family ? familyCaps : capabilities;
+    const projectDraft = { ...saved, agentKind: "test" };
+    expect(resolveSavedProviderDraftConfig("test", projectDraft, {}, {}, caps)).toMatchObject({
+      ...saved,
+      mode: "agent",
+    });
+    expect(
+      resolveSavedProviderDraftConfig("test", undefined, { test: saved }, {}, caps),
+    ).toMatchObject({
+      ...saved,
+      mode: "agent",
+    });
+    expect(projectDraft.mode).toBe("plan");
+    expect(saved.mode).toBe("plan");
+  });
+
   it("turns Fast on for a supported model when nothing was saved", () => {
     expect(resolveProviderDraftConfig(agentWith(), { model: "fast-capable" }).fast).toBe(true);
   });

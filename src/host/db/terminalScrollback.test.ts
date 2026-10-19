@@ -10,6 +10,7 @@ import {
   sqliteAvailable,
   testThread,
   removeCostSchemaForDowngrade,
+  removeConversationSearchFixtureSchema,
 } from "./runtimeItems.testFixtures";
 import { resetRuntimePersistenceForTests } from "./runtimePersistenceRuntime";
 import { withRuntimeBusyTimeout } from "./runtimeBusyTimeout";
@@ -60,6 +61,7 @@ describe("bounded durable terminal chunks", () => {
         "INSERT INTO thread_terminal_scrollback(thread_id, transcript, output_length) VALUES (?, ?, ?)",
       )
       .run(id, legacyText, legacyText.length);
+    removeConversationSearchFixtureSchema(getSqlite());
     removeCostSchemaForDowngrade(getSqlite());
     getSqlite().exec(`DROP TABLE thread_terminal_scrollback_chunks;
       ALTER TABLE thread_terminal_scrollback DROP COLUMN chunked;

@@ -7,7 +7,11 @@ import type { StartThreadRuntimeInput } from "./workspaceScope";
 import { SpawnPipeline, type SpawnPipelineContext } from "./threadSession/spawnPipeline";
 import { spawn } from "node-pty";
 import { STRUCTURED_INTERRUPT_FORCE_STOP_MS } from "./threadSession/userInterrupt";
-import type { AgentAdapter, StructuredSessionHandle } from "../agents/base";
+import {
+  primeProjectShellEnv,
+  type AgentAdapter,
+  type StructuredSessionHandle,
+} from "../agents/base";
 import type { ThreadSessionManagerOptions } from "./threadSession/managerOptions";
 
 vi.mock("node-pty", () => ({
@@ -23,11 +27,14 @@ const resolveLocation = vi.hoisted(() =>
     ) => Promise<ProjectLocation>
   >(async (location) => location),
 );
-vi.mock("../agents/base", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../agents/base")>()),
-  resolveAgentProjectLocation: resolveLocation,
-  primeProjectShellEnv: async () => undefined,
-}));
+vi.mock("../agents/base", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../agents/base")>();
+  return {
+    ...actual,
+    resolveAgentProjectLocation: resolveLocation,
+    primeProjectShellEnv: vi.fn<typeof actual.primeProjectShellEnv>(async () => undefined),
+  };
+});
 vi.mock("node:timers/promises", () => ({ setTimeout: async () => undefined }));
 
 import { ThreadSessionManager } from "./threadSessionManager";
@@ -121,6 +128,7 @@ function payload(agentKind = "fixture"): StartThreadRuntimeInput {
 
 afterEach(async () => {
   resolveLocation.mockReset().mockImplementation(async (location) => location);
+  vi.mocked(primeProjectShellEnv).mockReset().mockResolvedValue(undefined);
   vi.mocked(spawn).mockClear();
   for (const { manager, directory } of fixtures.splice(0)) {
     await manager.dispose();
@@ -139,6 +147,187 @@ function scopedPayload(): StartThreadRuntimeInput {
     },
   };
 }
+
+it.each([false, true])(
+  "isolates external MCP failures only when the provider opts in: %s",
+  async (isolate) => {
+    const provider = {
+      ...adapter("fixture", handle()),
+      mcpRequiresConnectionFailureIsolation: isolate,
+    };
+    const prepareMcpToolFilters = vi.fn<
+      NonNullable<ThreadSessionManagerOptions["prepareMcpToolFilters"]>
+    >(async (servers) => servers);
+    const manager = managerFor([provider], { prepareMcpToolFilters });
+    await manager.startThread(payload());
+    expect(prepareMcpToolFilters).toHaveBeenCalledWith(
+      [],
+      payload().projectLocation,
+      isolate ? { isolateConnectionFailures: true } : {},
+    );
+  },
+);
+
+describe.each(["gui", "terminal"] as const)(
+  "MCP authorization for %s providers",
+  (presentation) => {
+    it.each([
+      ["default", undefined],
+      ["disabled", false],
+      ["enabled", true],
+    ] as const)(
+      "overlaps shell and skill preparation before the %s deferred-auth launch",
+      async (_label, defer) => {
+        const session = handle();
+        const provider: AgentAdapter = {
+          ...adapter("fixture", session),
+          mcpRequiresConnectionFailureIsolation: true,
+          ...(defer !== undefined ? { supportsDeferredMcpAuthorization: defer } : {}),
+        };
+        provider.capabilities.presentationModes = ["gui", "terminal"];
+        provider.capabilities.mcpScope = { gui: "launch", terminal: "launch" };
+        if (presentation === "terminal") {
+          provider.createStructuredSession = vi.fn<
+            NonNullable<AgentAdapter["createStructuredSession"]>
+          >(async () => undefined);
+          provider.buildLaunchArgv = vi.fn<AgentAdapter["buildLaunchArgv"]>(() => ({
+            binary: "fixture",
+            args: [],
+          }));
+          vi.mocked(spawn).mockImplementationOnce(() => ({
+            pid: 123,
+            cols: 80,
+            rows: 24,
+            process: "fixture",
+            handleFlowControl: false,
+            kill: vi.fn<() => void>(),
+            write: vi.fn<() => void>(),
+            resize: vi.fn<() => void>(),
+            clear: vi.fn<() => void>(),
+            pause: vi.fn<() => void>(),
+            resume: vi.fn<() => void>(),
+            onData: () => ({ dispose() {} }),
+            onExit: () => ({ dispose() {} }),
+          }));
+        }
+        const preparation = Promise.withResolvers<void>();
+        const environment = deferred<Record<string, string> | undefined>();
+        vi.mocked(primeProjectShellEnv).mockReturnValueOnce(environment.promise);
+        const prepareSkills = vi.fn<
+          NonNullable<ThreadSessionManagerOptions["prepareSkillsForLaunch"]>
+        >(async () => preparation.promise);
+        const authorize = vi.fn<
+          NonNullable<ThreadSessionManagerOptions["applyMcpServerAuthorization"]>
+        >(async (servers) =>
+          servers.map((server) => ({
+            ...server,
+            transport: {
+              type: "http",
+              url: "http://127.0.0.1:12345/authorized/mcp",
+              headers: { Authorization: "Bearer local-capability" },
+            },
+          })),
+        );
+        const prepareFilters = vi.fn<
+          NonNullable<ThreadSessionManagerOptions["prepareMcpToolFilters"]>
+        >(async (servers) => servers);
+        const manager = managerFor([provider], {
+          prepareSkillsForLaunch: prepareSkills,
+          applyMcpServerAuthorization: authorize,
+          prepareMcpToolFilters: prepareFilters,
+        });
+        const input = {
+          ...payload(),
+          presentationMode: presentation,
+          mcpServers: [
+            {
+              id: "external",
+              name: "external",
+              description: "",
+              enabled: true,
+              timeoutMs: 30_000,
+              transport: { type: "http" as const, url: "https://upstream.test/mcp", headers: {} },
+            },
+          ],
+        };
+        const executionLocation = { kind: "posix", path: "/effective-workspace" } as const;
+        resolveLocation.mockResolvedValue(executionLocation);
+        const start = manager.startThread(input);
+        await vi.waitFor(() =>
+          expect(prepareSkills).toHaveBeenCalledWith(executionLocation, provider.kind),
+        );
+        expect(primeProjectShellEnv).toHaveBeenCalledWith(executionLocation.path);
+        expect(authorize).not.toHaveBeenCalled();
+        expect(provider.createStructuredSession).not.toHaveBeenCalled();
+        expect(spawn).not.toHaveBeenCalled();
+        if (defer === true) {
+          preparation.resolve();
+        } else {
+          environment.resolve(undefined);
+        }
+        await Promise.resolve();
+        expect(authorize).not.toHaveBeenCalled();
+        expect(provider.createStructuredSession).not.toHaveBeenCalled();
+        expect(spawn).not.toHaveBeenCalled();
+        if (defer === true) {
+          environment.resolve(undefined);
+        } else {
+          preparation.resolve();
+        }
+        await start;
+        expect(authorize).toHaveBeenCalledWith(input.mcpServers, executionLocation, {
+          defer: defer === true,
+        });
+        expect(prepareFilters).toHaveBeenCalledWith(
+          expect.any(Array),
+          executionLocation,
+          presentation === "gui" ? { isolateConnectionFailures: true } : {},
+        );
+        const translated = expect.arrayContaining([
+          expect.objectContaining({
+            id: "external",
+            transport: expect.objectContaining({
+              url: "http://127.0.0.1:12345/authorized/mcp",
+              headers: { Authorization: "Bearer local-capability" },
+            }),
+          }),
+        ]);
+        const delivered =
+          presentation === "gui"
+            ? vi.mocked(provider.createStructuredSession!).mock.calls[0]?.[0].mcpServers
+            : vi.mocked(provider.buildLaunchArgv).mock.calls[0]?.[4]?.mcpServers;
+        expect(delivered).toEqual(translated);
+        expect(provider.createStructuredSession).toHaveBeenCalledWith(
+          expect.objectContaining({ presentationMode: presentation }),
+        );
+        expect(session.activate).toHaveBeenCalledTimes(presentation === "gui" ? 1 : 0);
+        expect(session.openThread).toHaveBeenCalledTimes(presentation === "gui" ? 1 : 0);
+        expect(provider.buildLaunchArgv).toHaveBeenCalledTimes(presentation === "terminal" ? 1 : 0);
+        expect(spawn).toHaveBeenCalledTimes(presentation === "terminal" ? 1 : 0);
+      },
+    );
+  },
+);
+
+describe("shared launch preparation failures", () => {
+  it.each(["environment", "skills"])("does not spawn after %s preparation fails", async (phase) => {
+    const provider = adapter("fixture", handle());
+    const failure = new Error(`${phase} preparation failed`);
+    const prepareSkills = vi.fn<NonNullable<ThreadSessionManagerOptions["prepareSkillsForLaunch"]>>(
+      async () => {
+        if (phase === "skills") throw failure;
+      },
+    );
+    if (phase === "environment") vi.mocked(primeProjectShellEnv).mockRejectedValueOnce(failure);
+    const manager = managerFor([provider], { prepareSkillsForLaunch: prepareSkills });
+
+    await expect(manager.startThread(payload())).rejects.toThrow(failure);
+    expect(provider.createStructuredSession).not.toHaveBeenCalled();
+    expect(provider.buildLaunchArgv).not.toHaveBeenCalled();
+    expect(spawn).not.toHaveBeenCalled();
+    expect(manager.hostResourceAdmission.usage().total).toBe(0);
+  });
+});
 
 describe("approved workspace runtime launch carrier", () => {
   it.each(["new", "load", "resume"])(

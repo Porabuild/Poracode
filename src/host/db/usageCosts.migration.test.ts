@@ -1,7 +1,11 @@
 import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { expect, it } from "vitest";
-import { assertRequiredDatabaseSchema, runDatabaseMigrations } from "./migrations";
+import {
+  assertRequiredDatabaseSchema,
+  LATEST_SCHEMA_VERSION,
+  runDatabaseMigrations,
+} from "./migrations";
 import {
   createSchema53PayloadOriginDatabase,
   migrateSchema53FixtureThrough,
@@ -45,7 +49,7 @@ it("upgrades schema61 without fabricating prices or discarding old usage and ded
       { sample_id: "old-sample" },
     ]);
     expect(db.prepare("SELECT value FROM app_state WHERE key = 'schema_version'").get()).toEqual({
-      value: "62",
+      value: String(LATEST_SCHEMA_VERSION),
     });
   } finally {
     db.close();

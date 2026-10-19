@@ -164,11 +164,13 @@ export {
   antigravityPool,
   antigravityPoolWindows,
   antigravityQuotaSummaryWindows,
+  antigravityRingGroups,
   antigravityWindowId,
 } from "./collectors/antigravity";
 export type {
   AntigravityCadence,
   AntigravityGroupKey,
   AntigravityModelQuota,
+  AntigravityRingGroup,
 } from "./collectors/antigravity";
 export { historicalTokenEstimate } from "./historicalPricing";

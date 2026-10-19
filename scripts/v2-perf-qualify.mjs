@@ -309,7 +309,7 @@ export function inspectArm(armRoot) {
       `arm is not prepared for a managed session: ` +
         `${MANAGED_LAUNCHER_RELATIVE_PATH}${launcherScript ? " present" : " missing"}, ` +
         `node_modules ${nodeModules ? "present" : " missing"}; ` +
-        `run 'pnpm install --frozen-lockfile' in ${armRoot} first`,
+        `run 'bun install --frozen-lockfile' in ${armRoot} first`,
     );
   }
   return {
@@ -459,13 +459,13 @@ export const VITEST_CELL_ARGS = Object.freeze([
   QUALIFICATION_TEST_RELATIVE_PATH,
 ]);
 
-/** Prefers the deterministic local vitest bin; falls back to `pnpm exec`. */
+/** Prefers the local Vitest entry under Node; falls back to `bun run`. */
 export function resolveVitestCommand(repoRootOverride = repoRoot) {
-  const direct = join(repoRootOverride, "node_modules", ".bin", "vitest");
+  const direct = join(repoRootOverride, "node_modules", "vitest", "vitest.mjs");
   if (existsSync(direct)) {
-    return { command: direct, args: [...VITEST_CELL_ARGS] };
+    return { command: process.execPath, args: [direct, ...VITEST_CELL_ARGS] };
   }
-  return { command: "pnpm", args: ["exec", "vitest", ...VITEST_CELL_ARGS] };
+  return { command: "bun", args: ["run", "vitest", ...VITEST_CELL_ARGS] };
 }
 
 export function requireQualificationTest(repoRootOverride = repoRoot) {

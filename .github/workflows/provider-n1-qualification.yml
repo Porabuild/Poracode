@@ -57,12 +57,12 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  PNPM_CONFIG_ENABLE_GLOBAL_VIRTUAL_STORE: "false"
+  BUN_INSTALL_GLOBAL_STORE: "0"
 
 jobs:
   providers:
     name: Live provider lifecycle (strict mode)
-    # Enroll the runner with exactly these labels. Node 24 + pnpm must be
+    # Enroll the runner with exactly these labels. Node 24 + Bun must be
     # reachable through the actions below (they provision both), and the host
     # must carry installed + authenticated provider CLIs for every kind named
     # in required_providers.
@@ -74,17 +74,11 @@ jobs:
         with:
           clean: true
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
-
-      - name: Setup Node.js
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
-        with:
-          node-version: "24"
-          cache: pnpm
+      - name: Setup Bun
+        uses: ./.github/actions/setup-bun
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile --ignore-scripts
+        run: bun install --frozen-lockfile --ignore-scripts && node node_modules/bun/install.js
 
       - name: Provision Electron and node-pty
         run: |
@@ -98,7 +92,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$PROVIDERS_EVIDENCE_DIR"
-          pnpm exec vitest run --configLoader runner --config vitest.integration.config.ts \
+          bun run vitest run --configLoader runner --config vitest.integration.config.ts \
             tests/integration/helpers/liveProvidersRequired.test.ts \
             tests/integration/providers-lifecycle.integration.test.ts \
             2>&1 | tee "$PROVIDERS_EVIDENCE_DIR/providers-lifecycle.log"
@@ -127,17 +121,11 @@ jobs:
         with:
           clean: true
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
-
-      - name: Setup Node.js
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
-        with:
-          node-version: "24"
-          cache: pnpm
+      - name: Setup Bun
+        uses: ./.github/actions/setup-bun
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile --ignore-scripts
+        run: bun install --frozen-lockfile --ignore-scripts && node node_modules/bun/install.js
 
       - name: Download the candidate tarball
         env:

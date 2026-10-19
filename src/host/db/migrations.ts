@@ -5,6 +5,7 @@ import {
   createThreadWorkspaceGrantsSchema56,
 } from "./threadWorkspaceGrantsSchema56";
 import { migrateScheduleAutomation } from "./scheduleAutomationMigration";
+import { createConversationSearchSchema } from "./conversationSearchSchema";
 import { randomUUID } from "node:crypto";
 import Database from "better-sqlite3";
 import { normalizePersistedAntigravityModelSelection } from "@/shared/agents/antigravity";
@@ -976,6 +977,13 @@ export const DATABASE_MIGRATIONS = [
       );
     },
   },
+  {
+    version: 63,
+    name: "index saved conversation text",
+    // Rebuildable FTS projection; old canonical history stays byte-for-byte valid.
+    rollback: "forward-only",
+    migrate: createConversationSearchSchema,
+  },
 ] as const satisfies readonly DatabaseMigration[];
 
 export const LATEST_SCHEMA_VERSION = DATABASE_MIGRATIONS[DATABASE_MIGRATIONS.length - 1]!.version;
@@ -1150,6 +1158,10 @@ export function repairSafeSchemaDrift(sqlite: SqliteDatabase): void {
 const REQUIRED_COLUMNS = {
   usage_events: ["cost_details"],
   usage_token_ledger: ["cost_details"],
+  conversation_search_meta: ["id", "generation"],
+  conversation_search_pending: ["revision", "thread_id", "item_id"],
+  conversation_search_documents: ["id", "thread_id", "item_id", "text"],
+  conversation_search_fts: ["text"],
   thread_workspace_grant_operations: [
     "thread_id",
     "operation_token",

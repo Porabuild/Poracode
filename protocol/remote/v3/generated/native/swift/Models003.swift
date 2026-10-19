@@ -280,7 +280,7 @@ public struct ProceduredisconnectThreadVoiceRequest_2a150cae99: Codable, Sendabl
 }
 
 public enum ProcedurediscoverExternalMcpServersRequestU2DOptionU2D1U2DSourceScope_6a2600edfb: String, Codable, Sendable {
-  case user = "user"
+  case `user` = "user"
 }
 
 public struct ProcedurediscoverExternalMcpServersRequestU2DOptionU2D1_dc69d1c3f1: Codable, Sendable, RemoteModelMetadata {
@@ -307,7 +307,7 @@ public struct ProcedurediscoverExternalMcpServersRequestU2DOptionU2D1_dc69d1c3f1
 }
 
 public enum ProcedurediscoverExternalMcpServersRequestU2DOptionU2D2U2DSourceScope_86230e1fa3: String, Codable, Sendable {
-  case wslU2DUser = "wsl-user"
+  case `wslU2DUser` = "wsl-user"
 }
 
 public struct ProcedurediscoverExternalMcpServersRequestU2DOptionU2D2_c1a108aae4: Codable, Sendable, RemoteModelMetadata {
@@ -339,7 +339,7 @@ public struct ProcedurediscoverExternalMcpServersRequestU2DOptionU2D2_c1a108aae4
 }
 
 public enum ProcedurediscoverExternalMcpServersRequestU2DOptionU2D3U2DSourceScope_b160fc20dd: String, Codable, Sendable {
-  case workspace = "workspace"
+  case `workspace` = "workspace"
 }
 
 public struct ProcedurediscoverExternalMcpServersRequestU2DOptionU2D3_02f5d10d12: Codable, Sendable, RemoteModelMetadata {

@@ -1,30 +1,25 @@
-import Database from "better-sqlite3";
 import { describe, expect, it } from "vitest";
 import { runDatabaseMigrations } from "./migrations";
+import {
+  createSchema53PayloadOriginDatabase,
+  migrateSchema53FixtureThrough,
+} from "./runtimePayloadOrigins.testFixtures";
 
 describe("schema 58 schedule upgrade", () => {
   it("preserves selection custody and cadence while making historical failures reviewable", () => {
-    const sqlite = new Database(":memory:");
+    const sqlite = createSchema53PayloadOriginDatabase(":memory:");
     try {
-      sqlite.exec(`CREATE TABLE app_state (key TEXT PRIMARY KEY, value TEXT);
-        INSERT INTO app_state VALUES ('schema_version', '58');
-        CREATE TABLE thread_runtime_items (thread_id TEXT, item_id TEXT, position INTEGER,
-          type TEXT, state TEXT, parent_item_id TEXT);
-        CREATE TABLE thread_completed_turns (thread_id TEXT, anchor_item_id TEXT);
-        CREATE TABLE thread_runtime_gap_notices (source TEXT, reason TEXT, refused_events INTEGER, refused_bytes INTEGER);
-        CREATE TABLE usage_events (ts INTEGER, kind TEXT, provider TEXT, model TEXT, value REAL);
-        CREATE TABLE usage_token_ledger (provider TEXT, scope_id TEXT, epoch INTEGER, last_counter INTEGER);
-        CREATE TABLE scheduled_tasks (id TEXT PRIMARY KEY, config TEXT, recurrence TEXT, next_run_at TEXT);
-        CREATE TABLE scheduled_task_runs (id TEXT PRIMARY KEY, schedule_id TEXT, thread_id TEXT,
-          started_at TEXT, completed_at TEXT, status TEXT, summary TEXT, error TEXT);`);
+      migrateSchema53FixtureThrough(sqlite, 58);
       const config =
         '{"model":"future","thinking":"adaptive","contextSize":"large","selectionBinding":{"version":999,"opaque":"retain exact bytes"}}';
       const recurrence = '{"kind":"weekly","days":[1],"time":"09:00"}';
       sqlite
-        .prepare("INSERT INTO scheduled_tasks VALUES (?, ?, ?, ?)")
+        .prepare(
+          "INSERT INTO scheduled_tasks(id,name,prompt,agent_kind,config,recurrence,next_run_at,created_at,updated_at) VALUES (?, 'Fixture', 'Review', 'fixture', ?, ?, ?, '2026-01-01', '2026-01-01')",
+        )
         .run("task", config, recurrence, "2026-10-20T07:00:00.000Z");
       const insert = sqlite.prepare(
-        "INSERT INTO scheduled_task_runs VALUES (?, 'task', 'thread', '2026-10-13T07:00:00.000Z', ?, ?, ?, ?)",
+        "INSERT INTO scheduled_task_runs(id,schedule_id,thread_id,started_at,completed_at,status,summary,error) VALUES (?, 'task', 'thread', '2026-10-13T07:00:00.000Z', ?, ?, ?, ?)",
       );
       insert.run("failed", "2026-10-13T07:01:00.000Z", "failed", null, "existing diagnostic");
       insert.run("success", "2026-10-13T07:01:00.000Z", "succeeded", "Saved answer", null);
@@ -32,7 +27,7 @@ describe("schema 58 schedule upgrade", () => {
       runDatabaseMigrations(sqlite, 58);
       expect(
         sqlite.prepare("SELECT value FROM app_state WHERE key = 'schema_version'").get(),
-      ).toEqual({ value: "62" });
+      ).toEqual({ value: "63" });
       expect(
         sqlite
           .prepare(

@@ -54,6 +54,12 @@ export const newThreadModeOptions = [
   { id: "panel", label: msg`Panel` },
 ] as const satisfies readonly LocalizedOption[];
 
+export const preventSleepOptions = [
+  { id: "while-working", label: msg`While working` },
+  { id: "while-remote-access", label: msg`Working + remote access` },
+  { id: "always", label: msg`Always` },
+] as const satisfies readonly LocalizedOption[];
+
 export const gitReviewModeOptions = [
   { id: "panel", label: msg`Panel` },
   { id: "page", label: msg`Page` },

@@ -229,6 +229,7 @@ it.each([
   [1.2345, "JPY", "¥1"],
   [1.2345, "USD", "$1.23"],
   [0.00125, "USD", "$0.00125"],
+  [0.000000175, "USD", "$0.000000175"],
   [0, "BHD", "BHD\u00a00.000"],
 ] as const)(
   "formats %s %s with native minor units and sub-cent precision",

@@ -2,6 +2,12 @@ export const ANTIGRAVITY_ACP_REGISTRY_ID = "antigravity-acp";
 export const LEGACY_ANTIGRAVITY_ACP_KIND = `acp-generic:${ANTIGRAVITY_ACP_REGISTRY_ID}`;
 
 const ANTIGRAVITY_ACP_MODEL_VARIANTS: Record<string, { model: string; effort: string }> = {
+  "gemini-4-argon-high": { model: "gemini-4-argon", effort: "High" },
+  "gemini-4-argon-medium": { model: "gemini-4-argon", effort: "Medium" },
+  "gemini-4-argon-low": { model: "gemini-4-argon", effort: "Low" },
+  "gemini-3.8-flash-high": { model: "gemini-3.8-flash", effort: "High" },
+  "gemini-3.8-flash-medium": { model: "gemini-3.8-flash", effort: "Medium" },
+  "gemini-3.8-flash-low": { model: "gemini-3.8-flash", effort: "Low" },
   "gemini-3.7-flash-high": { model: "gemini-3.7-flash", effort: "High" },
   "gemini-3.7-flash-medium": { model: "gemini-3.7-flash", effort: "Medium" },
   "gemini-3.7-flash-low": { model: "gemini-3.7-flash", effort: "Low" },

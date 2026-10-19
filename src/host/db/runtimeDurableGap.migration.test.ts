@@ -13,6 +13,7 @@ import {
   sqliteAvailable,
   testThread,
   removeCostSchemaForDowngrade,
+  removeConversationSearchFixtureSchema,
 } from "./runtimeItems.testFixtures";
 import { resetRuntimePersistenceForTests } from "./runtimePersistenceRuntime";
 
@@ -68,6 +69,7 @@ describe.skipIf(!sqliteAvailable)("runtime durable-gap migrations (48, 49)", () 
     closeDatabase();
     const raw = rawDatabase();
     for (const table of [NOTICE_TABLE, ...GAP_TABLES]) raw.exec(`DROP TABLE ${table}`);
+    removeConversationSearchFixtureSchema(raw);
     removeCostSchemaForDowngrade(raw);
     raw.prepare("UPDATE app_state SET value = '47' WHERE key = 'schema_version'").run();
     raw.close();
@@ -118,6 +120,7 @@ describe.skipIf(!sqliteAvailable)("runtime durable-gap migrations (48, 49)", () 
       DROP TABLE ${NOTICE_TABLE};
       UPDATE app_state SET value = '48' WHERE key = 'schema_version';
     `);
+    removeConversationSearchFixtureSchema(raw);
     removeCostSchemaForDowngrade(raw);
     raw.close();
   }
@@ -131,7 +134,7 @@ describe.skipIf(!sqliteAvailable)("runtime durable-gap migrations (48, 49)", () 
 
   it("appends the evidence tables and the singleton epoch row to a schema-47 profile", () => {
     downgradeToSchema47WithoutEvidenceTables();
-    expect(LATEST_SCHEMA_VERSION).toBe(62);
+    expect(LATEST_SCHEMA_VERSION).toBe(63);
 
     initDatabase(dbPath);
     const sqlite = rawDatabase();
@@ -261,6 +264,7 @@ describe.skipIf(!sqliteAvailable)("runtime durable-gap migrations (48, 49)", () 
     }
     closeDatabase();
     const raw = rawDatabase();
+    removeConversationSearchFixtureSchema(raw);
     removeCostSchemaForDowngrade(raw);
     raw.exec(`UPDATE app_state SET value = '59' WHERE key = 'schema_version';
       INSERT INTO thread_runtime_gap_notices VALUES
@@ -285,7 +289,7 @@ describe.skipIf(!sqliteAvailable)("runtime durable-gap migrations (48, 49)", () 
     initDatabase(dbPath);
     expect(
       getSqlite().prepare("SELECT value FROM app_state WHERE key = 'schema_version'").get(),
-    ).toEqual({ value: "62" });
+    ).toEqual({ value: "63" });
     expect(
       getSqlite().prepare("SELECT * FROM thread_runtime_gap_notices ORDER BY thread_id").all(),
     ).toEqual(keptNotices);

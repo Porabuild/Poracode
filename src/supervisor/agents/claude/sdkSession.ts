@@ -87,7 +87,7 @@ import {
   spawnClaudeInWsl,
   spawnClaudeNative,
 } from "./sdkSpawn";
-import { ClaudeSdkMcpServers } from "./sdkMcp";
+import { canDeferClaudeMcpConnections, ClaudeSdkMcpServers } from "./sdkMcp";
 import { claudeSdkNativeChromeArgs } from "./nativeChrome";
 import { mapClaudeElicitationRequest, normalizeClaudeElicitationResponse } from "./sdkElicitation";
 import { claudeSdkSettingsEnv } from "./sdkSettings";
@@ -1185,7 +1185,8 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
               this.input.projectLocation.linuxPath,
             )
           : undefined;
-      const { query } = await import("@anthropic-ai/claude-agent-sdk");
+      const sdk = await import("@anthropic-ai/claude-agent-sdk");
+      const { query } = sdk;
       if (wslPrime) {
         await wslPrime;
       }
@@ -1261,7 +1262,11 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
         }
       }
       const mcpServers = buildClaudeMcpServers(this.input.mcpServers ?? []);
-      const hasMcpServers = Object.keys(mcpServers).length > 0;
+      const deferMcp =
+        Object.keys(mcpServers).length > 0 &&
+        (await canDeferClaudeMcpConnections(this.input.projectLocation, model, env, (options) =>
+          sdk.resolveSettings(options),
+        ));
       let spawnClaudeCodeProcess: ((spawnOptions: SpawnOptions) => SpawnedProcess) | undefined;
       switch (this.input.projectLocation.kind) {
         case "wsl": {
@@ -1334,13 +1339,16 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
             }
           : {}),
         ...(claudeExecutablePath ? { pathToClaudeCodeExecutable: claudeExecutablePath } : {}),
-        ...(hasMcpServers ? ({ mcpServers } as Partial<ClaudeQueryOptions>) : {}),
+        ...(!deferMcp && Object.keys(mcpServers).length > 0
+          ? ({ mcpServers } as Partial<ClaudeQueryOptions>)
+          : {}),
         spawnClaudeCodeProcess,
       };
 
       if (this.disposed) throw new Error("ClaudeSdkSession was disposed during query creation.");
       this.queryRuntime = query({ prompt: this.promptQueue, options });
-      this.mcpServers.initialize(this.queryRuntime, mcpServers);
+      if (deferMcp) this.mcpServers.deferUntilReady(this.queryRuntime, mcpServers);
+      else this.mcpServers.initialize(this.queryRuntime, mcpServers);
       this.appliedModel = model;
       this.appliedContextWindow = contextWindow;
       this.appliedContextSize = contextSize;
@@ -1556,6 +1564,14 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     this.beginResumedTurnIfNeeded(message);
 
     if (message.type === "system" && message.subtype === "init") {
+      // Connecting before init makes the CLI wait for every MCP before replying.
+      const runtime = this.queryRuntime;
+      if (runtime) {
+        void this.mcpServers.connectDeferred(
+          runtime,
+          () => !this.disposed && runtime === this.queryRuntime,
+        );
+      }
       // Bundled skills are reported both here and in the slash-command list;
       // this set is what splits them out as model-invoked (streaming) skills.
       this.captureSkillNames(message.skills);

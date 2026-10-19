@@ -1,5 +1,10 @@
 import { randomUUID } from "node:crypto";
-import type { PromptSegment, ProviderHandoffItemPayload, RuntimeEvent } from "@/shared/contracts";
+import type {
+  PromptSegment,
+  ProviderHandoffItemPayload,
+  QuestionAnswerItemPayload,
+  RuntimeEvent,
+} from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
 import type { StructuredTurnResult } from "../../agents/base";
 import { buildPromptContentBlocks } from "@/shared/promptContent";
@@ -53,6 +58,7 @@ export class StructuredTurnQueue {
         turn.prompt,
         turn.displaySegments ?? turn.segments,
         turn.userMessageItemId,
+        ...(turn.questionAnswer ? ([{ questionAnswer: turn.questionAnswer }] as const) : []),
       );
     }
     const startOptions = {
@@ -120,7 +126,7 @@ export class StructuredTurnQueue {
     prompt: string,
     segments?: PromptSegment[],
     requestedItemId?: string,
-    options?: { includeTurn?: boolean },
+    options?: { includeTurn?: boolean; questionAnswer?: QuestionAnswerItemPayload },
   ): string {
     const itemId = requestedItemId ?? `user-${randomUUID()}`;
     const events: RuntimeEvent[] = [
@@ -129,7 +135,10 @@ export class StructuredTurnQueue {
         threadId,
         itemId,
         itemType: "user_message",
-        payload: { content: buildPromptContentBlocks(prompt, segments) },
+        payload: {
+          content: buildPromptContentBlocks(prompt, segments),
+          ...(options?.questionAnswer ? { questionAnswer: options.questionAnswer } : {}),
+        },
       },
       { type: "item.completed", threadId, itemId },
     ];
