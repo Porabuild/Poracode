@@ -918,6 +918,7 @@ msgstr "Аккаунт"
 msgid "Account options"
 msgstr "Параметры аккаунта"
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Accounts"
@@ -1003,6 +1004,7 @@ msgid "Active forwards"
 msgstr "Активные перенаправления"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Activity"
 msgstr "Активность"
 
@@ -1641,6 +1643,10 @@ msgstr "Все субагенты, которые ещё работают при
 msgid "Anything currently unavailable — a provider, model, reasoning level, or Fast mode — is skipped automatically. Unchecked providers and models are skipped until re-checked."
 msgstr "Всё, что сейчас недоступно — провайдер, модель, уровень рассуждений или режим Fast — автоматически пропускается. Неотмеченные провайдеры и модели пропускаются, пока их снова не отметят."
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "API equivalent"
+msgstr "Эквивалент API"
+
 #: src/renderer/components/providers/settings/ModelProviderEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 msgid "API key"
@@ -1661,6 +1667,10 @@ msgstr "Протокол API"
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "API_KEY=value"
 msgstr "API_KEY=value"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "API-equivalent estimate"
+msgstr "Оценка в эквиваленте API"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "App Browser"
@@ -2502,6 +2512,14 @@ msgstr "Обойти правила защиты ветки (слияние ад
 msgid "Bypass Permissions"
 msgstr "Обход разрешений"
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Cache read"
+msgstr "Чтение кеша"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Cache write"
+msgstr "Запись кеша"
+
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Cached only"
 #~ msgstr "Только кэш"
@@ -2638,6 +2656,12 @@ msgstr "Невозможно создать путь worktree по умолча�
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Cannot switch branches — commit or stash your changes first"
 msgstr "Невозможно переключить ветки — сначала закоммитьте изменения или поместите их в stash"
+
+#. placeholder {0}: totals.categorizedTokens.toLocaleString(locale)
+#. placeholder {1}: totals.tokens.toLocaleString(locale)
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Categories cover {0} of {1} retained tokens. Missing categories, prices and older history remain unknown."
+msgstr "Категории охватывают {0} из {1} сохранённых токенов. Отсутствующие категории, цены и более ранняя история остаются неизвестными."
 
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Category"
@@ -4249,6 +4273,27 @@ msgstr "Копировать незакоммиченные изменения �
 #~ msgid "Copy URL"
 #~ msgstr "Скопировать URL"
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Cost breakdown"
+msgstr "Разбивка расходов"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Cost history is unavailable from this host."
+msgstr "История расходов недоступна на этом хосте."
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Cost source"
+msgstr "Источник расходов"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Cost trend"
+msgstr "Динамика расходов"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "Costs"
+msgstr "Расходы"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Could not abort the merge: {detail}"
 msgstr "Не удалось прервать слияние: {detail}"
@@ -4426,6 +4471,14 @@ msgstr "Не удалось запустить камеру"
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Couldn't update the skill."
 msgstr "Не удалось обновить навык."
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Coverage"
+msgstr "Охват"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Coverage across reported currencies"
+msgstr "Охват по всем указанным валютам"
 
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
@@ -4659,6 +4712,10 @@ msgstr "Ctrl+Enter"
 #~ msgid "Curated free and premium skills managed by MCP Market."
 #~ msgstr "Отобранные бесплатные и премиальные навыки под управлением MCP Market."
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Currency"
+msgstr "Валюта"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
 #: src/renderer/views/SettingsOverlay/parts/CursorRuntimeCard.tsx
 msgid "Current"
@@ -4832,6 +4889,14 @@ msgstr "Ежедневно"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Daily brief"
 msgstr "Ежедневная сводка"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Daily costs"
+msgstr "Расходы по дням"
+
+#: src/renderer/views/ProfileOverlay/parts/CostTrend.tsx
+msgid "Daily recorded cost; gaps may contain unpriced usage."
+msgstr "Записанные расходы за день; пробелы могут содержать использование без известной цены."
 
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
@@ -6098,6 +6163,14 @@ msgstr "Ошибка · Агент столкнулся с ошибкой"
 #: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
 msgid "Errors"
 msgstr "Ошибки"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Estimates and provider-reported costs are separate views of usage; do not add them together. Subscription invoices are not collected."
+msgstr "Оценки и расходы по данным провайдера — отдельные представления использования; не складывайте их. Счета за подписку не собираются."
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Estimates use saved, dated USD list rates for exact model IDs at standard API speed. They exclude subscriptions, negotiated discounts, speed premiums, tools and taxes. Prices are never applied to dates before their first verified snapshot."
+msgstr "Оценки используют сохранённые прейскурантные цены в USD с датами для точных идентификаторов моделей при стандартной скорости API. Подписки, индивидуальные скидки, доплаты за скорость, инструменты и налоги не учитываются. Цены никогда не применяются к датам до первого проверенного снимка цен."
 
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Evaluate the result after every iteration."
@@ -7689,6 +7762,10 @@ msgstr "Импортировано паролей: {0}. Импортирован
 msgid "Imported session"
 msgstr "Импортированная сессия"
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Imported sessions contribute only recorded usage. Deleted threads keep their ledger history. Account dashboard snapshots and external log estimates are not added, preventing overlapping totals across hosts or accounts."
+msgstr "Импортированные сеансы учитывают только записанное использование. Удалённые треды сохраняют историю использования. Снимки панелей аккаунтов и оценки из внешних журналов не суммируются, чтобы избежать пересечения итогов между хостами или аккаунтами."
+
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "Improved"
 msgstr "Улучшено"
@@ -7761,6 +7838,10 @@ msgstr "Начальная задержка повтора в секундах"
 msgid "Initialize Repository"
 msgstr "Инициализировать репозиторий"
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Input"
+msgstr "Вход"
+
 #: src/renderer/components/providers/modelDescription.ts
 msgid "Input / output prices per 1M tokens for each model. Ranges cover model variants."
 msgstr "Цены ввода/вывода за 1 млн токенов каждой модели. Диапазоны охватывают варианты модели."
@@ -7776,6 +7857,10 @@ msgstr "Уровень входного сигнала"
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 #~ msgid "Input values must be strings, numbers, or booleans."
 #~ msgstr "Входные значения должны быть строками, числами или логическими значениями."
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Input, output and cache categories do not overlap. Reasoning is included in output."
+msgstr "Категории входных, выходных и кешированных токенов не пересекаются. Рассуждения включены в выходные токены."
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchDialog.tsx
 #~ msgid "Inputs (JSON)"
@@ -9391,6 +9476,7 @@ msgstr "Использование моделей"
 #: src/renderer/components/common/ProviderModelMenu/parts/primaryModelRows.ts
 #: src/renderer/components/common/ProviderModelMenu/parts/WindowedProviderModelList.tsx
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Models"
@@ -10069,6 +10155,7 @@ msgid "No data yet"
 msgstr "Данных пока нет"
 
 #: src/renderer/views/ProfileOverlay/parts/BreakdownBars.tsx
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "No data yet."
 msgstr "Данных пока нет."
 
@@ -10288,6 +10375,11 @@ msgstr "Нет плагинов, соответствующих запросу."
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "No Poracode pairing QR code found."
 msgstr "QR-код сопряжения Poracode не найден."
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+#: src/renderer/views/ProfileOverlay/parts/CostTrend.tsx
+msgid "No priced usage in this range."
+msgstr "Нет использования с известной ценой за этот период."
 
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "No profile with its own isolated login exists yet. Set a profile to \"Own isolated login\" and sign in there first; it then appears here."
@@ -11139,6 +11231,10 @@ msgstr "Результат"
 msgid "Outlook"
 msgstr "Outlook"
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Output"
+msgstr "Выход"
+
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Over pace — runs out early"
 msgstr "Темп превышен — закончится раньше"
@@ -11317,6 +11413,10 @@ msgstr "Часть истории этого диалога может отсу�
 #: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
 msgid "Part of this conversation's history was lost on the server and could not be shown. At least {refusedEvents} events / {refusedBytes} bytes are affected."
 msgstr "Часть истории этого диалога была потеряна на сервере и не может быть показана. Затронуто не менее {refusedEvents} событий / {refusedBytes} байт."
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Partial"
+msgstr "Частично"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 msgid "Partially checked"
@@ -11979,6 +12079,10 @@ msgstr "Предыдущие сессии; войдите снова для но
 msgid "Previous tab"
 msgstr "Предыдущая вкладка"
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Pricing provenance"
+msgstr "Происхождение цен"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Print"
 msgstr "Печать"
@@ -12052,6 +12156,10 @@ msgstr "Профиль удалён."
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Profile stats range"
 msgstr "Диапазон статистики профиля"
+
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "Profile tabs"
+msgstr "Вкладки профиля"
 
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 msgid "Profiles"
@@ -12213,6 +12321,10 @@ msgstr "Идентификатор поставщика"
 msgid "Provider presets"
 msgstr "Пресеты провайдеров"
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Provider reported"
+msgstr "Данные провайдера"
+
 #: src/renderer/components/providers/settings/ModelProviderManager.tsx
 msgid "Provider saved, but its API key could not be stored. Reload and try again."
 msgstr "Поставщик сохранён, но сохранить ключ API не удалось. Обновите и повторите попытку."
@@ -12229,11 +12341,16 @@ msgstr "Настройки поставщика изменились. Обнов
 msgid "Provider Usage"
 msgstr "Использование провайдеров"
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Provider-reported cost"
+msgstr "Расходы по данным провайдера"
+
 #. plural
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/authHelpers.ts
 msgid "providers"
 msgstr "провайдеры"
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -12590,6 +12707,10 @@ msgstr "Восстановлено из локальных журналов по
 #: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
 #~ msgid "Reconstructed from local logs at public API rates — it does not reflect your real bill on subscription plans. Shown only in the usage panel."
 #~ msgstr "Реконструировано из локальных логов по публичным тарифам API — не отражает ваш реальный счёт по подписочным планам. Показывается только на панели использования."
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Recorded token categories"
+msgstr "Записанные категории токенов"
 
 #: src/renderer/utils/projectIconColors.ts
 msgid "Red"
@@ -13312,6 +13433,14 @@ msgstr "Возобновить цель"
 #: src/renderer/components/thread/ThreadFollowUpQueue.tsx
 msgid "Resume queued follow-ups"
 msgstr "Возобновить сообщения из очереди"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Retained usage on this host only."
+msgstr "Только использование, сохранённое на этом хосте."
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+#~ msgid "Retained usage on this host only. Estimates and provider-reported costs are separate views of usage; do not add them together. Subscription invoices are not collected."
+#~ msgstr "Только использование, сохранённое на этом хосте. Оценки и расходы по данным провайдера — отдельные представления использования; не складывайте их. Счета за подписку не собираются."
 
 #: src/renderer/bootstrap.ts
 #: src/renderer/commands/CommandPalette.tsx
@@ -15561,6 +15690,10 @@ msgstr "Отправить форму Git"
 msgid "Submit review"
 msgstr "Отправить проверку"
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Subscription bill"
+msgstr "Счёт за подписку"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 #: src/renderer/views/SchedulesView/parts/scheduleRunStatus.ts
 msgid "Succeeded"
@@ -17123,6 +17256,7 @@ msgid "Token usage unavailable for: {unavailableLabels}"
 msgstr "Данные об использовании токенов недоступны для: {unavailableLabels}"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Tokens"
 msgstr "Токены"
 
@@ -17725,6 +17859,7 @@ msgstr "Удалить {name}"
 #: src/renderer/components/thread/threadContextUsage.ts
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Unknown"
 msgstr "Неизвестно"
@@ -17794,6 +17929,14 @@ msgstr "Открепить"
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 msgid "Unpin workflow"
 msgstr "Открепить рабочий процесс"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Unpriced tokens"
+msgstr "Токены без известной цены"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Unpriced tokens have neither a provider-reported cost nor an API estimate."
+msgstr "Для токенов без оценки нет ни стоимости, сообщённой провайдером, ни оценки по тарифам API."
 
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Unread"
@@ -18112,6 +18255,10 @@ msgstr "Использование неизвестно"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Usage: /goal edit <objective>"
 msgstr "Использование: /goal edit <objective>"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "USD per million tokens"
+msgstr "USD за миллион токенов"
 
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 msgid "Use #rgb or #rrggbb colors. Leave optional colors blank to derive them automatically."

@@ -322,6 +322,7 @@ describe("mapCodexNotification — usage.spent", () => {
           fresh: true,
           sampleId: "codex-thread-1:0:11839",
           occurredAt: expect.any(Number),
+          tokens: { input: 11833, output: 6, cacheRead: 0, cacheWrite: 0 },
         },
       },
     ]);
@@ -351,6 +352,44 @@ describe("mapCodexNotification — usage.spent", () => {
         sampleId: "codex-thread-1:0:5000",
         occurredAt: expect.any(Number),
       },
+    });
+  });
+
+  it("leaves usage unpriced after a model reroute until settings confirm its attribution", () => {
+    const state = createCodexMapperState("t-codex");
+    state.usageScope = new CodexUsageScopeTracker("codex-thread-1", true);
+    mapCodexNotification(
+      "thread/settings/updated",
+      {
+        threadSettings: { model: "gpt-5.3-codex" },
+      },
+      state,
+    );
+    expect(spentEventOf(state, tokenUsageParams(1_000))).toMatchObject({
+      usage: { model: "gpt-5.3-codex" },
+    });
+
+    expect(
+      mapCodexNotification(
+        "model/rerouted",
+        {
+          fromModel: "gpt-5.3-codex",
+          toModel: "gpt-5.4",
+        },
+        state,
+      ),
+    ).toContainEqual(expect.objectContaining({ type: "warning" }));
+    expect(spentEventOf(state, tokenUsageParams(1_500))?.usage).not.toHaveProperty("model");
+
+    mapCodexNotification(
+      "thread/settings/updated",
+      {
+        threadSettings: { model: "gpt-5.4" },
+      },
+      state,
+    );
+    expect(spentEventOf(state, tokenUsageParams(2_000))).toMatchObject({
+      usage: { model: "gpt-5.4" },
     });
   });
 

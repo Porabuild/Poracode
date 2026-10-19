@@ -918,6 +918,7 @@ msgstr "Tài khoản"
 msgid "Account options"
 msgstr "Tùy chọn tài khoản"
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Accounts"
@@ -1003,6 +1004,7 @@ msgid "Active forwards"
 msgstr "Chuyển tiếp đang hoạt động"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Activity"
 msgstr "Hoạt động"
 
@@ -1641,6 +1643,10 @@ msgstr "Mọi tác nhân phụ vẫn đang chạy khi phiên được tải lạ
 msgid "Anything currently unavailable — a provider, model, reasoning level, or Fast mode — is skipped automatically. Unchecked providers and models are skipped until re-checked."
 msgstr "Mọi thứ hiện không khả dụng — nhà cung cấp, mô hình, mức suy luận hoặc chế độ Fast — sẽ tự động được bỏ qua. Nhà cung cấp và mô hình không được chọn sẽ bị bỏ qua cho đến khi được chọn lại."
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "API equivalent"
+msgstr "Tương đương API"
+
 #: src/renderer/components/providers/settings/ModelProviderEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 msgid "API key"
@@ -1661,6 +1667,10 @@ msgstr "Giao thức API"
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "API_KEY=value"
 msgstr "API_KEY=value"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "API-equivalent estimate"
+msgstr "Ước tính tương đương API"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "App Browser"
@@ -2502,6 +2512,14 @@ msgstr "Bỏ qua các quy tắc bảo vệ nhánh (hợp nhất với quyền qu
 msgid "Bypass Permissions"
 msgstr "Bỏ qua quyền"
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Cache read"
+msgstr "Đọc bộ nhớ đệm"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Cache write"
+msgstr "Ghi bộ nhớ đệm"
+
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Cached only"
 #~ msgstr "Chỉ có trong bộ nhớ đệm"
@@ -2638,6 +2656,12 @@ msgstr "Không thể tạo đường dẫn cây làm việc mặc định mà kh
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Cannot switch branches — commit or stash your changes first"
 msgstr "Không thể chuyển nhánh — trước tiên hãy commit hoặc stash các thay đổi của bạn"
+
+#. placeholder {0}: totals.categorizedTokens.toLocaleString(locale)
+#. placeholder {1}: totals.tokens.toLocaleString(locale)
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Categories cover {0} of {1} retained tokens. Missing categories, prices and older history remain unknown."
+msgstr "Các danh mục bao gồm {0} trên {1} token được lưu giữ. Danh mục, giá và lịch sử cũ bị thiếu vẫn được coi là chưa biết."
 
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Category"
@@ -4249,6 +4273,27 @@ msgstr "Sao chép các thay đổi chưa được cam kết tại đây (giữ c
 #~ msgid "Copy URL"
 #~ msgstr "Sao chép URL"
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Cost breakdown"
+msgstr "Phân tích chi phí"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Cost history is unavailable from this host."
+msgstr "Lịch sử chi phí không có trên máy chủ này."
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Cost source"
+msgstr "Nguồn chi phí"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Cost trend"
+msgstr "Xu hướng chi phí"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "Costs"
+msgstr "Chi phí"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Could not abort the merge: {detail}"
 msgstr "Không thể hủy việc hợp nhất: {detail}"
@@ -4426,6 +4471,14 @@ msgstr "Không thể khởi động camera"
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Couldn't update the skill."
 msgstr "Không thể cập nhật skill."
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Coverage"
+msgstr "Phạm vi bao phủ"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Coverage across reported currencies"
+msgstr "Phạm vi của các loại tiền được báo cáo"
 
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
@@ -4659,6 +4712,10 @@ msgstr "Ctrl+Enter"
 #~ msgid "Curated free and premium skills managed by MCP Market."
 #~ msgstr "Các skill miễn phí và cao cấp được tuyển chọn, do MCP Market quản lý."
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Currency"
+msgstr "Tiền tệ"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
 #: src/renderer/views/SettingsOverlay/parts/CursorRuntimeCard.tsx
 msgid "Current"
@@ -4832,6 +4889,14 @@ msgstr "Hằng ngày"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Daily brief"
 msgstr "Bản tóm tắt hằng ngày"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Daily costs"
+msgstr "Chi phí hằng ngày"
+
+#: src/renderer/views/ProfileOverlay/parts/CostTrend.tsx
+msgid "Daily recorded cost; gaps may contain unpriced usage."
+msgstr "Chi phí ghi nhận hằng ngày; khoảng trống có thể chứa mức sử dụng chưa có giá."
 
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
@@ -6098,6 +6163,14 @@ msgstr "Lỗi · Tác nhân gặp lỗi"
 #: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
 msgid "Errors"
 msgstr "Lỗi"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Estimates and provider-reported costs are separate views of usage; do not add them together. Subscription invoices are not collected."
+msgstr "Ước tính và chi phí do nhà cung cấp báo cáo là các góc nhìn riêng về mức sử dụng; không cộng chúng với nhau. Không thu thập hóa đơn thuê bao."
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Estimates use saved, dated USD list rates for exact model IDs at standard API speed. They exclude subscriptions, negotiated discounts, speed premiums, tools and taxes. Prices are never applied to dates before their first verified snapshot."
+msgstr "Ước tính dùng giá niêm yết USD đã lưu kèm ngày cho ID mô hình chính xác ở tốc độ API tiêu chuẩn. Không bao gồm thuê bao, chiết khấu thỏa thuận, phụ phí tốc độ, công cụ và thuế. Giá không bao giờ áp dụng cho ngày trước bản giá được xác minh đầu tiên."
 
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Evaluate the result after every iteration."
@@ -7689,6 +7762,10 @@ msgstr "Mật khẩu đã nhập: {0}. Cookie đã nhập: {1}."
 msgid "Imported session"
 msgstr "Phiên đã nhập"
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Imported sessions contribute only recorded usage. Deleted threads keep their ledger history. Account dashboard snapshots and external log estimates are not added, preventing overlapping totals across hosts or accounts."
+msgstr "Phiên được nhập chỉ đóng góp mức sử dụng đã ghi nhận. Luồng đã xóa vẫn giữ lịch sử sử dụng. Không cộng ảnh chụp bảng điều khiển tài khoản và ước tính từ nhật ký ngoài, tránh tổng chồng lặp giữa các máy chủ hoặc tài khoản."
+
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "Improved"
 msgstr "Cải thiện"
@@ -7761,6 +7838,10 @@ msgstr "Độ trễ thử lại ban đầu tính bằng giây"
 msgid "Initialize Repository"
 msgstr "Khởi tạo kho lưu trữ"
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Input"
+msgstr "Đầu vào"
+
 #: src/renderer/components/providers/modelDescription.ts
 msgid "Input / output prices per 1M tokens for each model. Ranges cover model variants."
 msgstr "Giá đầu vào/đầu ra cho mỗi 1 triệu token của từng mô hình. Khoảng giá bao gồm các biến thể mô hình."
@@ -7776,6 +7857,10 @@ msgstr "Mức đầu vào"
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 #~ msgid "Input values must be strings, numbers, or booleans."
 #~ msgstr "Giá trị đầu vào phải là chuỗi, số hoặc giá trị boolean."
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Input, output and cache categories do not overlap. Reasoning is included in output."
+msgstr "Các nhóm đầu vào, đầu ra và bộ nhớ đệm không trùng nhau. Phần suy luận được tính trong đầu ra."
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchDialog.tsx
 #~ msgid "Inputs (JSON)"
@@ -9391,6 +9476,7 @@ msgstr "Mức dùng mô hình"
 #: src/renderer/components/common/ProviderModelMenu/parts/primaryModelRows.ts
 #: src/renderer/components/common/ProviderModelMenu/parts/WindowedProviderModelList.tsx
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Models"
@@ -10069,6 +10155,7 @@ msgid "No data yet"
 msgstr "Chưa có dữ liệu"
 
 #: src/renderer/views/ProfileOverlay/parts/BreakdownBars.tsx
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "No data yet."
 msgstr "Chưa có dữ liệu."
 
@@ -10288,6 +10375,11 @@ msgstr "Không có plugin nào khớp với tìm kiếm."
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "No Poracode pairing QR code found."
 msgstr "Không tìm thấy mã QR ghép nối Poracode."
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+#: src/renderer/views/ProfileOverlay/parts/CostTrend.tsx
+msgid "No priced usage in this range."
+msgstr "Không có mức sử dụng đã có giá trong khoảng này."
 
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "No profile with its own isolated login exists yet. Set a profile to \"Own isolated login\" and sign in there first; it then appears here."
@@ -11139,6 +11231,10 @@ msgstr "Kết quả"
 msgid "Outlook"
 msgstr "Outlook"
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Output"
+msgstr "Đầu ra"
+
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Over pace — runs out early"
 msgstr "Vượt nhịp độ — hết sớm"
@@ -11317,6 +11413,10 @@ msgstr "Một phần lịch sử của cuộc trò chuyện này có thể bị 
 #: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
 msgid "Part of this conversation's history was lost on the server and could not be shown. At least {refusedEvents} events / {refusedBytes} bytes are affected."
 msgstr "Một phần lịch sử của cuộc trò chuyện này đã bị mất trên máy chủ và không thể hiển thị. Ít nhất {refusedEvents} sự kiện / {refusedBytes} byte bị ảnh hưởng."
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Partial"
+msgstr "Một phần"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 msgid "Partially checked"
@@ -11979,6 +12079,10 @@ msgstr "Phiên trước; đăng nhập lại cho các luồng mới."
 msgid "Previous tab"
 msgstr "Tab trước"
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Pricing provenance"
+msgstr "Nguồn gốc giá"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Print"
 msgstr "In"
@@ -12052,6 +12156,10 @@ msgstr "Đã xóa hồ sơ."
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Profile stats range"
 msgstr "Phạm vi thống kê hồ sơ"
+
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "Profile tabs"
+msgstr "Các thẻ hồ sơ"
 
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 msgid "Profiles"
@@ -12213,6 +12321,10 @@ msgstr "ID nhà cung cấp"
 msgid "Provider presets"
 msgstr "Cấu hình nhà cung cấp"
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Provider reported"
+msgstr "Do nhà cung cấp báo cáo"
+
 #: src/renderer/components/providers/settings/ModelProviderManager.tsx
 msgid "Provider saved, but its API key could not be stored. Reload and try again."
 msgstr "Đã lưu nhà cung cấp nhưng không thể lưu khóa API. Tải lại và thử lại."
@@ -12229,11 +12341,16 @@ msgstr "Cài đặt nhà cung cấp đã thay đổi. Hãy tải lại trước 
 msgid "Provider Usage"
 msgstr "Mức sử dụng nhà cung cấp"
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Provider-reported cost"
+msgstr "Chi phí do nhà cung cấp báo cáo"
+
 #. plural
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/authHelpers.ts
 msgid "providers"
 msgstr "nhà cung cấp"
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -12590,6 +12707,10 @@ msgstr "Được tính lại từ nhật ký cục bộ theo mức giá API côn
 #: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
 #~ msgid "Reconstructed from local logs at public API rates — it does not reflect your real bill on subscription plans. Shown only in the usage panel."
 #~ msgstr "Được xây dựng lại từ nhật ký cục bộ ở mức API công khai - nó không phản ánh hóa đơn thực của bạn đối với các gói đăng ký. Chỉ hiển thị trong bảng sử dụng."
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Recorded token categories"
+msgstr "Các danh mục token đã ghi nhận"
 
 #: src/renderer/utils/projectIconColors.ts
 msgid "Red"
@@ -13312,6 +13433,14 @@ msgstr "Tiếp tục mục tiêu"
 #: src/renderer/components/thread/ThreadFollowUpQueue.tsx
 msgid "Resume queued follow-ups"
 msgstr "Tiếp tục tin nhắn tiếp theo trong hàng đợi"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Retained usage on this host only."
+msgstr "Chỉ mức sử dụng được lưu trên máy chủ này."
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+#~ msgid "Retained usage on this host only. Estimates and provider-reported costs are separate views of usage; do not add them together. Subscription invoices are not collected."
+#~ msgstr "Chỉ mức sử dụng được lưu trên máy chủ này. Ước tính và chi phí do nhà cung cấp báo cáo là các góc nhìn riêng về mức sử dụng; không cộng chúng với nhau. Không thu thập hóa đơn thuê bao."
 
 #: src/renderer/bootstrap.ts
 #: src/renderer/commands/CommandPalette.tsx
@@ -15561,6 +15690,10 @@ msgstr "Gửi biểu mẫu Git"
 msgid "Submit review"
 msgstr "Gửi đánh giá"
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Subscription bill"
+msgstr "Hóa đơn thuê bao"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 #: src/renderer/views/SchedulesView/parts/scheduleRunStatus.ts
 msgid "Succeeded"
@@ -17123,6 +17256,7 @@ msgid "Token usage unavailable for: {unavailableLabels}"
 msgstr "Không có dữ liệu sử dụng token cho: {unavailableLabels}"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Tokens"
 msgstr "Tokens"
 
@@ -17725,6 +17859,7 @@ msgstr "Gỡ cài đặt {name}"
 #: src/renderer/components/thread/threadContextUsage.ts
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Unknown"
 msgstr "Không xác định"
@@ -17794,6 +17929,14 @@ msgstr "Bỏ ghim"
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 msgid "Unpin workflow"
 msgstr "Bỏ ghim quy trình làm việc"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Unpriced tokens"
+msgstr "Token chưa có giá"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Unpriced tokens have neither a provider-reported cost nor an API estimate."
+msgstr "Token chưa có giá không có chi phí do nhà cung cấp báo cáo cũng không có ước tính API."
 
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Unread"
@@ -18112,6 +18255,10 @@ msgstr "Không rõ mức sử dụng"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Usage: /goal edit <objective>"
 msgstr "Cách dùng: /goal edit <objective>"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "USD per million tokens"
+msgstr "USD trên một triệu token"
 
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 msgid "Use #rgb or #rrggbb colors. Leave optional colors blank to derive them automatically."

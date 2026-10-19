@@ -9,6 +9,8 @@ export interface CodexMapperState {
    * undefined in terminal mode, where no spend events are emitted.
    */
   usageScope?: CodexUsageScopeTracker;
+  /** Model reported by this provider thread's settings, never inherited from its parent. */
+  usageModel?: string;
   /** Most recent turn id reported via `turn.started`. */
   currentTurnId?: string;
   /** Open assistant_message item id, if any (closed on `turn/completed`). */

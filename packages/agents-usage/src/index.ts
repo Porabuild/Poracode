@@ -173,3 +173,4 @@ export type {
   AntigravityModelQuota,
   AntigravityRingGroup,
 } from "./collectors/antigravity";
+export { historicalTokenEstimate } from "./historicalPricing";

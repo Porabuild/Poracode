@@ -25,6 +25,9 @@ import { gitStatePatchSchema } from "../../gitState";
 // Optional background-task timing/progress and opaque Stop actions remain additive
 // within v14: old readers ignore them; old hosts omit them and keep tasks read-only.
 // Task kinds, session actions, persisted data and compatibility ranges are unchanged.
+// Optional usage.spent tokens/cost and ProfileTokenStats.costs are additive:
+// prior Zod and generated native readers strip unknown object fields. Old hosts
+// omit them; the Costs tab reports unavailable. No discriminator meaning changes.
 export const PORACODE_REMOTE_PROTOCOL_VERSION = 14;
 export const REMOTE_COMMAND_ID_HEADER = "x-poracode-command-id";
 
