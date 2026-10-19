@@ -18795,6 +18795,7 @@ msgstr "Trabajando durante {elapsed}"
 msgid "Working tree clean"
 msgstr "Árbol de trabajo limpio"
 
+#: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentMessageList.tsx
 msgid "Working…"
 msgstr "Trabajando…"

@@ -18794,6 +18794,7 @@ msgstr "已工作 {elapsed}"
 msgid "Working tree clean"
 msgstr "工作树干净"
 
+#: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentMessageList.tsx
 msgid "Working…"
 msgstr "工作…"
