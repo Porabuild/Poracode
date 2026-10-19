@@ -63,8 +63,9 @@ export function ThreadMessageReplyPanel({
       },
     }),
   );
-  if (!controller || submitted || replyState === "answered") return null;
-  const disabled = sending || replyState === "pending" || !available;
+  if (!controller || submitted || replyState === "answered" || replyState === "pending")
+    return null;
+  const disabled = sending || !available;
   const activeQuestion = controller.questions[controller.activeIndex];
   const isLastStep = controller.activeIndex === controller.questions.length - 1;
   const canAdvance =
