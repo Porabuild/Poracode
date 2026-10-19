@@ -917,6 +917,7 @@ msgstr "アカウント"
 msgid "Account options"
 msgstr "アカウントオプション"
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Accounts"
@@ -1002,6 +1003,7 @@ msgid "Active forwards"
 msgstr "アクティブな転送"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Activity"
 msgstr "アクティビティ"
 
@@ -1636,6 +1638,10 @@ msgstr "セッションの再読み込み時に実行中のサブエージェン
 msgid "Anything currently unavailable — a provider, model, reasoning level, or Fast mode — is skipped automatically. Unchecked providers and models are skipped until re-checked."
 msgstr "現在利用できないもの — プロバイダー、モデル、推論レベル、Fast モード — は自動的にスキップされます。チェックを外したプロバイダーとモデルは、再度チェックするまでスキップされます。"
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "API equivalent"
+msgstr "API換算"
+
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 msgid "API key"
 msgstr "APIキー"
@@ -1647,6 +1653,10 @@ msgstr "API キーが必要です"
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "API_KEY=value"
 msgstr "API_KEY=value"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "API-equivalent estimate"
+msgstr "API換算の推定額"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "App Browser"
@@ -2477,6 +2487,14 @@ msgstr "ブランチ保護ルールをバイパスする"
 msgid "Bypass branch protection rules (admin merge)"
 msgstr "ブランチ保護ルールをバイパスする (管理マージ)"
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Cache read"
+msgstr "キャッシュ読み取り"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Cache write"
+msgstr "キャッシュ書き込み"
+
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Cached only"
 #~ msgstr "キャッシュのみ"
@@ -2611,6 +2629,12 @@ msgstr "ブランチ名がないとデフォルトのワークツリー パス�
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Cannot switch branches — commit or stash your changes first"
 msgstr "ブランチを切り替えることはできません - 最初に変更をコミットまたはスタッシュしてください"
+
+#. placeholder {0}: totals.categorizedTokens.toLocaleString(locale)
+#. placeholder {1}: totals.tokens.toLocaleString(locale)
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Categories cover {0} of {1} retained tokens. Missing categories, prices and older history remain unknown."
+msgstr "カテゴリには保存済み{1}トークンのうち{0}トークンが含まれます。不足しているカテゴリ、料金、過去の履歴は不明のままです。"
 
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Category"
@@ -4204,6 +4228,27 @@ msgstr "コミットされていない変更をここにコピーします (こ�
 #~ msgid "Copy URL"
 #~ msgstr "URLをコピー"
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Cost breakdown"
+msgstr "費用の内訳"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Cost history is unavailable from this host."
+msgstr "このホストでは費用履歴を利用できません。"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Cost source"
+msgstr "費用の情報源"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Cost trend"
+msgstr "費用の推移"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "Costs"
+msgstr "費用"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Could not abort the merge: {detail}"
 msgstr "マージを中止できませんでした:{detail}"
@@ -4381,6 +4426,14 @@ msgstr "カメラを開始できませんでした"
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Couldn't update the skill."
 msgstr "スキルを更新できませんでした。"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Coverage"
+msgstr "対象範囲"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Coverage across reported currencies"
+msgstr "報告された通貨全体のカバー範囲"
 
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
@@ -4614,6 +4667,10 @@ msgstr "Ctrl+Enter"
 #~ msgid "Curated free and premium skills managed by MCP Market."
 #~ msgstr "MCP Market が管理する厳選された無料およびプレミアムスキル。"
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Currency"
+msgstr "通貨"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
 #: src/renderer/views/SettingsOverlay/parts/CursorRuntimeCard.tsx
 msgid "Current"
@@ -4783,6 +4840,14 @@ msgstr "毎日"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Daily brief"
 msgstr "デイリーブリーフ"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Daily costs"
+msgstr "日別の費用"
+
+#: src/renderer/views/ProfileOverlay/parts/CostTrend.tsx
+msgid "Daily recorded cost; gaps may contain unpriced usage."
+msgstr "日別の記録済み費用。空白には料金不明の使用量が含まれる場合があります。"
 
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
@@ -6036,6 +6101,14 @@ msgstr "エラー · エージェントでエラーが発生しました"
 #: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
 msgid "Errors"
 msgstr "エラー"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Estimates and provider-reported costs are separate views of usage; do not add them together. Subscription invoices are not collected."
+msgstr "推定額とプロバイダー報告の費用は同じ使用量の別の表示なので、合算しないでください。サブスクリプションの請求書は収集されません。"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Estimates use saved, dated USD list rates for exact model IDs at standard API speed. They exclude subscriptions, negotiated discounts, speed premiums, tools and taxes. Prices are never applied to dates before their first verified snapshot."
+msgstr "推定には、正確なモデルIDに対応する標準API速度の保存済み・日付付きUSD定価を使用します。サブスクリプション、個別割引、速度追加料金、ツール、税金は含まれません。最初に確認された料金の記録日より前には適用されません。"
 
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Evaluate the result after every iteration."
@@ -7629,6 +7702,10 @@ msgstr "インポートしたパスワード：{0}。インポートした Cooki
 msgid "Imported session"
 msgstr "インポートしたセッション"
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Imported sessions contribute only recorded usage. Deleted threads keep their ledger history. Account dashboard snapshots and external log estimates are not added, preventing overlapping totals across hosts or accounts."
+msgstr "インポートしたセッションは記録済みの使用量のみを加算します。削除したスレッドの使用履歴は保持されます。ホストやアカウント間の重複集計を避けるため、アカウントダッシュボードのスナップショットや外部ログの推定額は加算しません。"
+
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "Improved"
 msgstr "改善"
@@ -7697,6 +7774,10 @@ msgstr "初回の再試行遅延（秒）"
 msgid "Initialize Repository"
 msgstr "リポジトリの初期化"
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Input"
+msgstr "入力"
+
 #: src/renderer/components/providers/modelDescription.ts
 msgid "Input / output prices per 1M tokens for each model. Ranges cover model variants."
 msgstr "各モデルの100万トークンあたりの入力/出力料金です。範囲はモデルの各バリエーションを含みます。"
@@ -7712,6 +7793,10 @@ msgstr "入力レベル"
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 #~ msgid "Input values must be strings, numbers, or booleans."
 #~ msgstr "入力値は文字列、数値、またはブール値である必要があります。"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Input, output and cache categories do not overlap. Reasoning is included in output."
+msgstr "入力、出力、キャッシュのカテゴリは重複しません。推論は出力に含まれます。"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchDialog.tsx
 #~ msgid "Inputs (JSON)"
@@ -9280,6 +9365,7 @@ msgstr "モデルの使用状況"
 #: src/renderer/components/common/ProviderModelMenu/parts/primaryModelRows.ts
 #: src/renderer/components/common/ProviderModelMenu/parts/WindowedProviderModelList.tsx
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Models"
 msgstr "モデル"
@@ -9952,6 +10038,7 @@ msgid "No data yet"
 msgstr "まだデータがありません"
 
 #: src/renderer/views/ProfileOverlay/parts/BreakdownBars.tsx
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "No data yet."
 msgstr "まだデータがありません。"
 
@@ -10171,6 +10258,11 @@ msgstr "検索条件に一致するプラグインはありません。"
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "No Poracode pairing QR code found."
 msgstr "Poracode のペアリング QR コードが見つかりません。"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+#: src/renderer/views/ProfileOverlay/parts/CostTrend.tsx
+msgid "No priced usage in this range."
+msgstr "この期間に料金が判明している使用量はありません。"
 
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "No profile with its own isolated login exists yet. Set a profile to \"Own isolated login\" and sign in there first; it then appears here."
@@ -11021,6 +11113,10 @@ msgstr "結果"
 msgid "Outlook"
 msgstr "Outlook"
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Output"
+msgstr "出力"
+
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Over pace — runs out early"
 msgstr "オーバーペース — 早めに力尽きてしまう"
@@ -11199,6 +11295,10 @@ msgstr "この会話の履歴の一部がサーバー上にない可能性があ
 #: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
 msgid "Part of this conversation's history was lost on the server and could not be shown. At least {refusedEvents} events / {refusedBytes} bytes are affected."
 msgstr "この会話の履歴の一部がサーバー上で失われ、表示できませんでした。少なくとも {refusedEvents} 件のイベント / {refusedBytes} バイトが影響を受けています。"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Partial"
+msgstr "一部のみ"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 msgid "Partially checked"
@@ -11855,6 +11955,10 @@ msgstr "以前のセッション用。新しいスレッドでは再度ログイ
 msgid "Previous tab"
 msgstr "前のタブ"
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Pricing provenance"
+msgstr "料金の出典"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Print"
 msgstr "印刷"
@@ -11929,6 +12033,10 @@ msgstr "プロファイルを削除しました。"
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Profile stats range"
 msgstr "プロフィール統計の期間"
+
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "Profile tabs"
+msgstr "プロフィールのタブ"
 
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 msgid "Profiles"
@@ -12086,6 +12194,10 @@ msgstr "プロバイダーはトークンの使用状況を報告していませ
 msgid "Provider presets"
 msgstr "プロバイダープリセット"
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Provider reported"
+msgstr "プロバイダー報告"
+
 #. Settings section: provider usage and quota dashboard
 #: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
@@ -12095,11 +12207,16 @@ msgstr "プロバイダープリセット"
 msgid "Provider Usage"
 msgstr "プロバイダーの使用量"
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Provider-reported cost"
+msgstr "プロバイダー報告の費用"
+
 #. plural
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/authHelpers.ts
 msgid "providers"
 msgstr "プロバイダー"
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -12457,6 +12574,10 @@ msgstr "ローカルログから公開 API 料金で再構成した値です。�
 #: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
 #~ msgid "Reconstructed from local logs at public API rates — it does not reflect your real bill on subscription plans. Shown only in the usage panel."
 #~ msgstr "パブリック API レートでローカル ログから再構築されます。サブスクリプション プランの実際の請求額は反映されません。使用状況パネルにのみ表示されます。"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Recorded token categories"
+msgstr "記録済みトークンのカテゴリ"
 
 #: src/renderer/utils/projectIconColors.ts
 msgid "Red"
@@ -13165,6 +13286,14 @@ msgstr "目標を再開"
 #: src/renderer/components/thread/ThreadFollowUpQueue.tsx
 msgid "Resume queued follow-ups"
 msgstr "キューに入ったフォローアップを再開"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Retained usage on this host only."
+msgstr "このホストに保存された使用量のみです。"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+#~ msgid "Retained usage on this host only. Estimates and provider-reported costs are separate views of usage; do not add them together. Subscription invoices are not collected."
+#~ msgstr "このホストに保存された使用量のみです。推定額とプロバイダー報告の費用は同じ使用量の別の表示なので、合算しないでください。サブスクリプションの請求書は収集されません。"
 
 #: src/renderer/bootstrap.ts
 #: src/renderer/commands/EverythingSearchResults.tsx
@@ -15400,6 +15529,10 @@ msgstr "Git フォームを送信"
 msgid "Submit review"
 msgstr "レビューを送信する"
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Subscription bill"
+msgstr "サブスクリプションの請求額"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 #: src/renderer/views/SchedulesView/parts/scheduleRunStatus.ts
 msgid "Succeeded"
@@ -16950,6 +17083,7 @@ msgid "Token usage unavailable for: {unavailableLabels}"
 msgstr "トークン使用量を取得できません: {unavailableLabels}"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Tokens"
 msgstr "トークン"
 
@@ -17540,6 +17674,7 @@ msgstr "{name}をアンインストール"
 #: src/renderer/components/thread/threadContextUsage.ts
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Unknown"
 msgstr "不明"
@@ -17609,6 +17744,14 @@ msgstr "固定を解除する"
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 msgid "Unpin workflow"
 msgstr "ワークフローのピン留めを解除"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Unpriced tokens"
+msgstr "料金不明のトークン"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Unpriced tokens have neither a provider-reported cost nor an API estimate."
+msgstr "未価格のトークンには、プロバイダーが報告したコストもAPI見積もりもありません。"
 
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Unread"
@@ -17927,6 +18070,10 @@ msgstr "使用量不明"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Usage: /goal edit <objective>"
 msgstr "使用法: /goal edit <objective>"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "USD per million tokens"
+msgstr "100万トークンあたりのUSD"
 
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 msgid "Use #rgb or #rrggbb colors. Leave optional colors blank to derive them automatically."

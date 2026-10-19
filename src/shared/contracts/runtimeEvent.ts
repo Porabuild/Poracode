@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { usageMoneySchema, usageTokenCategoriesSchema } from "./costHistory";
 
 /**
  * Canonical chat-runtime events.
@@ -465,6 +466,10 @@ export const usageSpentSchema = z.object({
   turnId: z.string().optional(),
   occurredAt: z.number().int().nonnegative().optional(),
   model: z.string().optional(),
+  /** Consumption categories with the same counter semantics as counter. Older producers omit them. */
+  tokens: usageTokenCategoriesSchema.optional(),
+  /** Provider-reported cost, not proof of an invoice or subscription charge. */
+  cost: usageMoneySchema.optional(),
 });
 export type UsageSpent = z.infer<typeof usageSpentSchema>;
 

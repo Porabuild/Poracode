@@ -5,7 +5,11 @@ import Database from "better-sqlite3";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { closeDatabase, initDatabase } from "./connection";
 import { dbGetCheckpointRevertOperation } from "./checkpointRevertOperations";
-import { nativeBindingEnv, sqliteAvailable } from "./runtimeItems.testFixtures";
+import {
+  nativeBindingEnv,
+  sqliteAvailable,
+  removeCostSchemaForDowngrade,
+} from "./runtimeItems.testFixtures";
 
 describe.skipIf(!sqliteAvailable)("checkpoint revert dispatch migration", () => {
   let directory: string;
@@ -31,6 +35,7 @@ describe.skipIf(!sqliteAvailable)("checkpoint revert dispatch migration", () => 
       nativeBindingEnv ? { nativeBinding: nativeBindingEnv } : {},
     );
     database.pragma("user_version = 50");
+    removeCostSchemaForDowngrade(database);
     database.prepare("UPDATE app_state SET value = '50' WHERE key = 'schema_version'").run();
     const insert = database.prepare(`
       INSERT INTO checkpoint_revert_operations

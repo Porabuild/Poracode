@@ -198,7 +198,14 @@ export const functionalAreas = [
   {
     id: "settings",
     title: "Settings pages, persistence, profiles, and shortcuts",
-    patterns: [/Settings/i, /settings/i, /shortcut/i, /ProfileOverlay/i],
+    patterns: [
+      /Settings/i,
+      /settings/i,
+      /shortcut/i,
+      /ProfileOverlay/i,
+      /host\/profile\//,
+      /contracts\/costHistory/,
+    ],
     automated: ["baseline", "settings"],
     manual: [],
   },

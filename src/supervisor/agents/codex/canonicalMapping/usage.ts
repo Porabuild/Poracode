@@ -32,16 +32,31 @@ export function createCodexContextUsageEvent(
 export function createCodexUsageSpentEvent(
   threadId: string,
   params: Record<string, unknown> | undefined,
-  meta: { scopeId: string; epoch: number; fresh?: boolean },
+  meta: { scopeId: string; epoch: number; fresh?: boolean; model?: string },
 ): RuntimeEvent | undefined {
   const counter = readCodexCumulativeTotalTokens(params);
   if (counter === undefined) return undefined;
+  const native = readCodexCumulativeUsage(params);
+  const input =
+    readNonNegativeInteger(native?.inputTokens) ?? readNonNegativeInteger(native?.input_tokens);
+  const output =
+    readNonNegativeInteger(native?.outputTokens) ?? readNonNegativeInteger(native?.output_tokens);
+  const cached =
+    readNonNegativeInteger(native?.cachedInputTokens) ??
+    readNonNegativeInteger(native?.cached_input_tokens);
+  // Cached input and reasoning output are subsets of input/output in this protocol.
+  const tokens =
+    input !== undefined && output !== undefined && cached !== undefined && cached <= input
+      ? { input: input - cached, output, cacheRead: cached, cacheWrite: 0 }
+      : undefined;
   return {
     type: "usage.spent",
     threadId,
     usage: {
       counterKind: "cumulative",
       counter,
+      ...(meta.model ? { model: meta.model } : {}),
+      ...(tokens ? { tokens } : {}),
       scopeId: meta.scopeId,
       epoch: meta.epoch,
       ...(meta.fresh ? { fresh: true } : {}),
@@ -56,20 +71,25 @@ export function createCodexUsageSpentEvent(
 export function readCodexCumulativeTotalTokens(
   params: Record<string, unknown> | undefined,
 ): number | undefined {
+  return readTotalTokens(readCodexCumulativeUsage(params));
+}
+
+function readCodexCumulativeUsage(
+  params: Record<string, unknown> | undefined,
+): Record<string, unknown> | undefined {
   const currentTokenUsage = readRecord(params?.tokenUsage);
-  const fromCurrent = readTotalTokens(readRecord(currentTokenUsage?.total));
-  if (fromCurrent !== undefined) return fromCurrent;
+  const fromCurrent = readRecord(currentTokenUsage?.total);
+  if (readTotalTokens(fromCurrent) !== undefined) return fromCurrent;
 
   const legacy = readRecord(params?.token_usage) ?? currentTokenUsage;
-  const fromLegacy = readTotalTokens(
+  const fromLegacy =
     readRecord(legacy?.total) ??
-      readRecord(legacy?.totalTokenUsage) ??
-      readRecord(legacy?.total_token_usage),
-  );
-  if (fromLegacy !== undefined) return fromLegacy;
+    readRecord(legacy?.totalTokenUsage) ??
+    readRecord(legacy?.total_token_usage);
+  if (readTotalTokens(fromLegacy) !== undefined) return fromLegacy;
 
   const info = readRecord(params?.info);
-  return readTotalTokens(readRecord(info?.total_token_usage) ?? readRecord(info?.totalTokenUsage));
+  return readRecord(info?.total_token_usage) ?? readRecord(info?.totalTokenUsage);
 }
 
 function readTotalTokens(total: Record<string, unknown> | undefined): number | undefined {

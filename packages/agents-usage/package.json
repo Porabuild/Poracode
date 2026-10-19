@@ -36,6 +36,10 @@
       "types": "./src/formatters.ts",
       "default": "./src/formatters.ts"
     },
+    "./historical-pricing": {
+      "types": "./src/historicalPricing.ts",
+      "default": "./src/historicalPricing.ts"
+    },
     "./providers": {
       "types": "./src/providers.ts",
       "default": "./src/providers.ts"

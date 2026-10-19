@@ -319,7 +319,12 @@ export function mapOpenCode2Event(event: V2Event, state: OpenCode2MapperState): 
       ensureOpenCode2MessageState(state, event.data.assistantMessageID);
       return [];
     case "session.step.ended":
-      return closeOpenCode2Step(state, event.data.assistantMessageID, event.data.tokens);
+      return closeOpenCode2Step(
+        state,
+        event.data.assistantMessageID,
+        event.data.tokens,
+        event.data.cost,
+      );
     case "session.step.failed": {
       const events = closeOpenCode2Step(state, event.data.assistantMessageID);
       return [...events, ...openCode2ErrorEvents(state, readSessionError(event.data.error))];
@@ -825,6 +830,7 @@ function openCode2UsageSpentEvents(
   state: OpenCode2MapperState,
   messageID: string,
   tokens: unknown,
+  cost: number | undefined,
 ): RuntimeEvent[] {
   if (state.usageSpentMessages.has(messageID)) return [];
   const buckets = [
@@ -845,6 +851,15 @@ function openCode2UsageSpentEvents(
       usage: {
         counterKind: "per-call",
         counter,
+        ...(cost !== undefined && Number.isFinite(cost) && cost >= 0
+          ? { cost: { amount: cost, currency: "USD" } }
+          : {}),
+        tokens: {
+          input: buckets[0] ?? 0,
+          output: (buckets[1] ?? 0) + (buckets[2] ?? 0),
+          cacheRead: buckets[3] ?? 0,
+          cacheWrite: buckets[4] ?? 0,
+        },
         scopeId: state.sessionID ?? "unknown",
         epoch: 0,
         ...(state.usageScopeFresh ? { fresh: true } : {}),
@@ -859,6 +874,7 @@ function closeOpenCode2Step(
   state: OpenCode2MapperState,
   messageID: string,
   tokens?: unknown,
+  cost?: number,
 ): RuntimeEvent[] {
   const message = state.messages.get(messageID);
   const events = message ? closeOpenCode2Message(state, message) : [];
@@ -866,7 +882,7 @@ function closeOpenCode2Step(
   state.completedMessages.add(messageID);
   if (tokens !== undefined && tokens !== null) {
     events.push(...openCode2ContextUsageEvents(state, tokens));
-    events.push(...openCode2UsageSpentEvents(state, messageID, tokens));
+    events.push(...openCode2UsageSpentEvents(state, messageID, tokens, cost));
   }
   return events;
 }

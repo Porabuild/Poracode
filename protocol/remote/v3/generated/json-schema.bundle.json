@@ -21234,6 +21234,13 @@
       "x-poracode-unknownFields": "strip"
     },
     "procedure.subagentSubscribe.result": {
+      "$defs": {
+        "__schema0": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": true,
       "properties": {
@@ -21547,6 +21554,25 @@
                   "usage": {
                     "additionalProperties": true,
                     "properties": {
+                      "cost": {
+                        "additionalProperties": true,
+                        "properties": {
+                          "amount": {
+                            "minimum": 0,
+                            "type": "number"
+                          },
+                          "currency": {
+                            "pattern": "^[A-Z]{3}$",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "amount",
+                          "currency"
+                        ],
+                        "type": "object",
+                        "x-poracode-unknownFields": "strip"
+                      },
                       "counter": {
                         "maximum": 9007199254740991,
                         "minimum": 0,
@@ -21582,6 +21608,34 @@
                       "scopeId": {
                         "minLength": 1,
                         "type": "string"
+                      },
+                      "tokens": {
+                        "additionalProperties": true,
+                        "properties": {
+                          "cacheRead": {
+                            "$ref": "#/$defs/__schema0"
+                          },
+                          "cacheWrite": {
+                            "$ref": "#/$defs/__schema0"
+                          },
+                          "cacheWrite1h": {
+                            "$ref": "#/$defs/__schema0"
+                          },
+                          "input": {
+                            "$ref": "#/$defs/__schema0"
+                          },
+                          "output": {
+                            "$ref": "#/$defs/__schema0"
+                          }
+                        },
+                        "required": [
+                          "input",
+                          "output",
+                          "cacheRead",
+                          "cacheWrite"
+                        ],
+                        "type": "object",
+                        "x-poracode-unknownFields": "strip"
                       },
                       "turnId": {
                         "type": "string"
@@ -22166,6 +22220,13 @@
       "x-poracode-unknownFields": "strip"
     },
     "procedure.workflowAgentChat.result": {
+      "$defs": {
+        "__schema0": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": true,
       "properties": {
@@ -22479,6 +22540,25 @@
                   "usage": {
                     "additionalProperties": true,
                     "properties": {
+                      "cost": {
+                        "additionalProperties": true,
+                        "properties": {
+                          "amount": {
+                            "minimum": 0,
+                            "type": "number"
+                          },
+                          "currency": {
+                            "pattern": "^[A-Z]{3}$",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "amount",
+                          "currency"
+                        ],
+                        "type": "object",
+                        "x-poracode-unknownFields": "strip"
+                      },
                       "counter": {
                         "maximum": 9007199254740991,
                         "minimum": 0,
@@ -22514,6 +22594,34 @@
                       "scopeId": {
                         "minLength": 1,
                         "type": "string"
+                      },
+                      "tokens": {
+                        "additionalProperties": true,
+                        "properties": {
+                          "cacheRead": {
+                            "$ref": "#/$defs/__schema0"
+                          },
+                          "cacheWrite": {
+                            "$ref": "#/$defs/__schema0"
+                          },
+                          "cacheWrite1h": {
+                            "$ref": "#/$defs/__schema0"
+                          },
+                          "input": {
+                            "$ref": "#/$defs/__schema0"
+                          },
+                          "output": {
+                            "$ref": "#/$defs/__schema0"
+                          }
+                        },
+                        "required": [
+                          "input",
+                          "output",
+                          "cacheRead",
+                          "cacheWrite"
+                        ],
+                        "type": "object",
+                        "x-poracode-unknownFields": "strip"
                       },
                       "turnId": {
                         "type": "string"
@@ -36006,9 +36114,98 @@
     "route.profile-token-stats.response": {
       "$defs": {
         "__schema0": {
-          "maximum": 9007199254740991,
-          "minimum": -9007199254740991,
-          "type": "integer"
+          "additionalProperties": true,
+          "properties": {
+            "categories": {
+              "additionalProperties": true,
+              "properties": {
+                "cacheRead": {
+                  "$ref": "#/$defs/__schema1"
+                },
+                "cacheWrite": {
+                  "$ref": "#/$defs/__schema1"
+                },
+                "cacheWrite1h": {
+                  "$ref": "#/$defs/__schema1"
+                },
+                "input": {
+                  "$ref": "#/$defs/__schema1"
+                },
+                "output": {
+                  "$ref": "#/$defs/__schema1"
+                }
+              },
+              "required": [
+                "input",
+                "output",
+                "cacheRead",
+                "cacheWrite"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            "categorizedTokens": {
+              "$ref": "#/$defs/__schema1"
+            },
+            "estimatedSamples": {
+              "$ref": "#/$defs/__schema1"
+            },
+            "estimatedTokens": {
+              "$ref": "#/$defs/__schema1"
+            },
+            "estimatedUsd": {
+              "minimum": 0,
+              "type": "number"
+            },
+            "observed": {
+              "items": {
+                "additionalProperties": true,
+                "properties": {
+                  "amount": {
+                    "minimum": 0,
+                    "type": "number"
+                  },
+                  "currency": {
+                    "pattern": "^[A-Z]{3}$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "amount",
+                  "currency"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              },
+              "type": "array"
+            },
+            "observedSamples": {
+              "$ref": "#/$defs/__schema1"
+            },
+            "observedTokens": {
+              "$ref": "#/$defs/__schema1"
+            },
+            "tokens": {
+              "$ref": "#/$defs/__schema1"
+            },
+            "unpricedTokens": {
+              "$ref": "#/$defs/__schema1"
+            }
+          },
+          "required": [
+            "tokens",
+            "unpricedTokens",
+            "categorizedTokens",
+            "observedTokens",
+            "estimatedTokens",
+            "observedSamples",
+            "estimatedSamples",
+            "observed",
+            "estimatedUsd",
+            "categories"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
         },
         "__schema1": {
           "maximum": 9007199254740991,
@@ -36016,6 +36213,37 @@
           "type": "integer"
         },
         "__schema2": {
+          "additionalProperties": true,
+          "properties": {
+            "key": {
+              "type": "string"
+            },
+            "label": {
+              "type": "string"
+            },
+            "totals": {
+              "$ref": "#/$defs/__schema0"
+            }
+          },
+          "required": [
+            "key",
+            "label",
+            "totals"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        "__schema3": {
+          "maximum": 9007199254740991,
+          "minimum": -9007199254740991,
+          "type": "integer"
+        },
+        "__schema4": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "__schema5": {
           "additionalProperties": true,
           "properties": {
             "estimatedCostUsd": {
@@ -36031,7 +36259,7 @@
               "type": "string"
             },
             "tokens": {
-              "$ref": "#/$defs/__schema1"
+              "$ref": "#/$defs/__schema4"
             }
           },
           "required": [
@@ -36049,12 +36277,126 @@
       "properties": {
         "accounts": {
           "items": {
-            "$ref": "#/$defs/__schema2"
+            "$ref": "#/$defs/__schema5"
           },
           "type": "array"
         },
         "available": {
           "type": "boolean"
+        },
+        "costs": {
+          "additionalProperties": true,
+          "properties": {
+            "accounts": {
+              "items": {
+                "$ref": "#/$defs/__schema2"
+              },
+              "type": "array"
+            },
+            "days": {
+              "items": {
+                "additionalProperties": true,
+                "properties": {
+                  "day": {
+                    "type": "string"
+                  },
+                  "totals": {
+                    "$ref": "#/$defs/__schema0"
+                  }
+                },
+                "required": [
+                  "day",
+                  "totals"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              },
+              "type": "array"
+            },
+            "models": {
+              "items": {
+                "$ref": "#/$defs/__schema2"
+              },
+              "type": "array"
+            },
+            "pricing": {
+              "items": {
+                "additionalProperties": true,
+                "properties": {
+                  "cacheRead": {
+                    "minimum": 0,
+                    "type": "number"
+                  },
+                  "cacheWrite": {
+                    "minimum": 0,
+                    "type": "number"
+                  },
+                  "cacheWrite1h": {
+                    "minimum": 0,
+                    "type": "number"
+                  },
+                  "effectiveFrom": {
+                    "type": "string"
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "input": {
+                    "minimum": 0,
+                    "type": "number"
+                  },
+                  "model": {
+                    "type": "string"
+                  },
+                  "output": {
+                    "minimum": 0,
+                    "type": "number"
+                  },
+                  "reviewedAt": {
+                    "type": "string"
+                  },
+                  "source": {
+                    "format": "uri",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "model",
+                  "source",
+                  "reviewedAt",
+                  "effectiveFrom",
+                  "input",
+                  "output",
+                  "cacheRead",
+                  "cacheWrite",
+                  "cacheWrite1h"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              },
+              "type": "array"
+            },
+            "providers": {
+              "items": {
+                "$ref": "#/$defs/__schema2"
+              },
+              "type": "array"
+            },
+            "totals": {
+              "$ref": "#/$defs/__schema0"
+            }
+          },
+          "required": [
+            "totals",
+            "days",
+            "providers",
+            "models",
+            "accounts",
+            "pricing"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
         },
         "device": {
           "additionalProperties": true,
@@ -36069,7 +36411,7 @@
               "type": "string"
             },
             "lastActiveAt": {
-              "$ref": "#/$defs/__schema0"
+              "$ref": "#/$defs/__schema3"
             },
             "platform": {
               "type": "string"
@@ -36084,10 +36426,10 @@
           "x-poracode-unknownFields": "strip"
         },
         "generatedAt": {
-          "$ref": "#/$defs/__schema0"
+          "$ref": "#/$defs/__schema3"
         },
         "lifetimeTokens": {
-          "$ref": "#/$defs/__schema1"
+          "$ref": "#/$defs/__schema4"
         },
         "models": {
           "items": {
@@ -36121,11 +36463,11 @@
           "type": "string"
         },
         "peakDayTokens": {
-          "$ref": "#/$defs/__schema1"
+          "$ref": "#/$defs/__schema4"
         },
         "providers": {
           "items": {
-            "$ref": "#/$defs/__schema2"
+            "$ref": "#/$defs/__schema5"
           },
           "type": "array"
         },
@@ -36137,7 +36479,7 @@
           "type": "string"
         },
         "timezoneOffsetMinutes": {
-          "$ref": "#/$defs/__schema0"
+          "$ref": "#/$defs/__schema3"
         },
         "tokenHeatmap": {
           "additionalProperties": true,
@@ -36147,7 +36489,7 @@
                 "additionalProperties": true,
                 "properties": {
                   "count": {
-                    "$ref": "#/$defs/__schema1"
+                    "$ref": "#/$defs/__schema4"
                   },
                   "day": {
                     "type": "string"
@@ -36188,7 +36530,7 @@
               "type": "array"
             },
             "max": {
-              "$ref": "#/$defs/__schema1"
+              "$ref": "#/$defs/__schema4"
             },
             "metric": {
               "enum": [
@@ -36198,7 +36540,7 @@
               "type": "string"
             },
             "windowDays": {
-              "$ref": "#/$defs/__schema1"
+              "$ref": "#/$defs/__schema4"
             }
           },
           "required": [
@@ -36217,7 +36559,7 @@
           "type": "array"
         },
         "windowDays": {
-          "$ref": "#/$defs/__schema1"
+          "$ref": "#/$defs/__schema4"
         }
       },
       "required": [
@@ -49833,6 +50175,11 @@
           "type": "object",
           "x-poracode-unknownFields": "strip"
         },
+        "__schema19": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
         "__schema2": {
           "oneOf": [
             {
@@ -50385,6 +50732,25 @@
                             "usage": {
                               "additionalProperties": true,
                               "properties": {
+                                "cost": {
+                                  "additionalProperties": true,
+                                  "properties": {
+                                    "amount": {
+                                      "minimum": 0,
+                                      "type": "number"
+                                    },
+                                    "currency": {
+                                      "pattern": "^[A-Z]{3}$",
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "amount",
+                                    "currency"
+                                  ],
+                                  "type": "object",
+                                  "x-poracode-unknownFields": "strip"
+                                },
                                 "counter": {
                                   "maximum": 9007199254740991,
                                   "minimum": 0,
@@ -50420,6 +50786,34 @@
                                 "scopeId": {
                                   "minLength": 1,
                                   "type": "string"
+                                },
+                                "tokens": {
+                                  "additionalProperties": true,
+                                  "properties": {
+                                    "cacheRead": {
+                                      "$ref": "#/$defs/__schema19"
+                                    },
+                                    "cacheWrite": {
+                                      "$ref": "#/$defs/__schema19"
+                                    },
+                                    "cacheWrite1h": {
+                                      "$ref": "#/$defs/__schema19"
+                                    },
+                                    "input": {
+                                      "$ref": "#/$defs/__schema19"
+                                    },
+                                    "output": {
+                                      "$ref": "#/$defs/__schema19"
+                                    }
+                                  },
+                                  "required": [
+                                    "input",
+                                    "output",
+                                    "cacheRead",
+                                    "cacheWrite"
+                                  ],
+                                  "type": "object",
+                                  "x-poracode-unknownFields": "strip"
                                 },
                                 "turnId": {
                                   "type": "string"
@@ -56374,5 +56768,5 @@
   },
   "manifestHash": "sha256:b3285b6161304d74622e21f8cde6ec040c8afe5474e070984246d4d17a5b1f40",
   "protocolVersion": 14,
-  "sourceHash": "sha256:21e62dec0869884edd34c38dfe35a0c4daf5281fd6f702f2f1d36c94bc64d668"
+  "sourceHash": "sha256:3e7dd2c9b0aa14342f34b405733e76da26d94927bd255cafec0d7724daa691e6"
 }

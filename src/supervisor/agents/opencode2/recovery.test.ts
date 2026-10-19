@@ -1,5 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
-import type { OpenCode2Client, SessionMessageInfo, V2Event } from "./clientTypes";
+import type {
+  OpenCode2Client,
+  SessionMessageAssistant,
+  SessionMessageInfo,
+  SessionStepEnded,
+  V2Event,
+} from "./clientTypes";
 import {
   createOpenCode2MapperState,
   mapOpenCode2Event,
@@ -23,6 +29,50 @@ function delta(text: string): V2Event {
 }
 
 describe("OpenCode 2 snapshot recovery", () => {
+  it.each([0, 1.25, undefined])(
+    "preserves snapshot cost %s before exact-once message replay",
+    (amount) => {
+      const message: SessionMessageAssistant = {
+        id: "cost-message",
+        type: "assistant",
+        agent: "build",
+        model: { id: "unpriced-model", providerID: "fixture" },
+        time: { created: 1, completed: 2 },
+        content: [{ type: "text", text: "Recovered" }],
+        tokens: { input: 100, output: 10, reasoning: 0, cache: { read: 0, write: 0 } },
+        ...(amount !== undefined ? { cost: amount } : {}),
+      };
+      const state = createOpenCode2MapperState("thread");
+      setOpenCode2SessionId(state, "s");
+      const snapshotEvents = openCode2SnapshotEvents("s", [message]);
+      const recovered = snapshotEvents.flatMap((event) => mapOpenCode2Event(event, state));
+      const spent = recovered.filter((event) => event.type === "usage.spent");
+      expect(spent).toHaveLength(1);
+      expect(spent[0]?.usage.counter).toBe(110);
+      expect(spent[0]?.usage.cost).toEqual(
+        amount === undefined ? undefined : { amount, currency: "USD" },
+      );
+
+      const live: SessionStepEnded = {
+        id: "late-live",
+        created: 3,
+        type: "session.step.ended",
+        durable: { aggregateID: "s", seq: 1, version: 1 },
+        data: {
+          sessionID: "s",
+          assistantMessageID: message.id,
+          finish: "stop",
+          cost: 1.25,
+          tokens: message.tokens!,
+        },
+      };
+      const replayed = [...snapshotEvents, live].flatMap((event) =>
+        mapOpenCode2Event(event, state),
+      );
+      expect(replayed.some((event) => event.type === "usage.spent")).toBe(false);
+    },
+  );
+
   it("replaces a stream with a missing middle and ignores later replay of completed content", () => {
     const state = createOpenCode2MapperState("thread");
     setOpenCode2SessionId(state, "s");

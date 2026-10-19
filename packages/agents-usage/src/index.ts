@@ -171,3 +171,4 @@ export type {
   AntigravityGroupKey,
   AntigravityModelQuota,
 } from "./collectors/antigravity";
+export { historicalTokenEstimate } from "./historicalPricing";

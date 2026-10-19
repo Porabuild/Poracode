@@ -33,6 +33,10 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_191ccdb4e41abc75 = RemoteSchema(type: "object", required: Set(["events", "seq"]), properties: ["events": RemoteSchemas.schema_6227384f8fe3c509, "seq": RemoteSchemas.schema_56aa0e45cbdce0d0], additionalAllowed: true, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_195974ed118a4217 = RemoteSchema(type: "array", items: RemoteSchemas.schema_9fe1fe9bbcff3ecd, unknownPolicy: .strip)
 }
 
@@ -297,10 +301,6 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
-  static let schema_2674c39a73619e88 = RemoteSchema(unionKind: "oneOf", options: [RemoteSchemas.schema_463d6b3b6ababee5, RemoteSchemas.schema_43de714a72a211df], unknownPolicy: .strip)
-}
-
-public extension RemoteSchemas {
   static let schema_26b6bf09ccab2775 = RemoteSchema(unionKind: "oneOf", options: [RemoteSchemas.schema_dc69d1c3f1fc465e, RemoteSchemas.schema_c1a108aae42275ff, RemoteSchemas.schema_02f5d10d12c9f077], unknownPolicy: .strip)
 }
 
@@ -437,13 +437,13 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_2c09020b157316f2 = RemoteSchema(type: "array", items: RemoteSchemas.schema_9751de90fd8644d6, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_2c0b30d69cd8870d = RemoteSchema(unionKind: "oneOf", options: [RemoteSchemas.schema_75aa7b06238db739, RemoteSchemas.schema_41ffeb2050e1e71c, RemoteSchemas.schema_8906d017ba691d6f, RemoteSchemas.schema_9e169df36e4e41f6], unknownPolicy: .strip)
 }
 
 public extension RemoteSchemas {
   static let schema_2c10059100ccb9e8 = RemoteSchema(type: "string", literals: [.string("background_tasks.changed")], unknownPolicy: .strip)
-}
-
-public extension RemoteSchemas {
-  static let schema_2c13d2fc1c3e2e03 = RemoteSchema(type: "string", literals: [.string("disconnected"), .string("connecting"), .string("connected"), .string("error"), .string("credential-missing"), .string("owner-unverified"), .string("identity-changed"), .string("hostkey-mismatch"), .string("needs-repair"), .string("trust-required")], unknownPolicy: .strip)
 }

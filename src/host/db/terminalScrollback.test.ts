@@ -5,7 +5,12 @@ import Database from "better-sqlite3";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { closeDatabase, getSqlite, initDatabase } from "./connection";
 import { dbDeleteThread, dbUpsertProject, dbUpsertThread } from "./projectsThreads";
-import { nativeBindingEnv, sqliteAvailable, testThread } from "./runtimeItems.testFixtures";
+import {
+  nativeBindingEnv,
+  sqliteAvailable,
+  testThread,
+  removeCostSchemaForDowngrade,
+} from "./runtimeItems.testFixtures";
 import { resetRuntimePersistenceForTests } from "./runtimePersistenceRuntime";
 import { withRuntimeBusyTimeout } from "./runtimeBusyTimeout";
 import { dbMeasureLegacyHistoryCharge } from "./legacyReadCharge";
@@ -55,6 +60,7 @@ describe("bounded durable terminal chunks", () => {
         "INSERT INTO thread_terminal_scrollback(thread_id, transcript, output_length) VALUES (?, ?, ?)",
       )
       .run(id, legacyText, legacyText.length);
+    removeCostSchemaForDowngrade(getSqlite());
     getSqlite().exec(`DROP TABLE thread_terminal_scrollback_chunks;
       ALTER TABLE thread_terminal_scrollback DROP COLUMN chunked;
       ALTER TABLE thread_terminal_scrollback DROP COLUMN stored_chars;

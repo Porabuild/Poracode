@@ -17,6 +17,14 @@ export function formatCompact(value: number): string {
   return String(Math.round(value));
 }
 
+export function formatCost(amount: number, currency: string, locale: string): string {
+  return new Intl.NumberFormat(locale, {
+    style: "currency",
+    currency,
+    ...(amount > 0 && amount < 0.01 ? { maximumFractionDigits: 5 } : {}),
+  }).format(amount);
+}
+
 /** Human task duration, e.g. "1h 27m", "5m 3s", "42s". */
 export function formatDuration(ms: number): string {
   if (!Number.isFinite(ms) || ms <= 0) return "-";

@@ -36,4 +36,10 @@ function testThread(): Thread {
   };
 }
 
-export { nativeBindingEnv, sqliteAvailable, testThread };
+function removeCostSchemaForDowngrade(sqlite: Database.Database): void {
+  sqlite.exec("DROP INDEX idx_usage_token_ledger_scope");
+  sqlite.exec("ALTER TABLE usage_events DROP COLUMN cost_details");
+  sqlite.exec("ALTER TABLE usage_token_ledger DROP COLUMN cost_details");
+}
+
+export { nativeBindingEnv, sqliteAvailable, testThread, removeCostSchemaForDowngrade };

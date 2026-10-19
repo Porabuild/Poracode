@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { ProfileCostStats } from "./costHistory";
 
 /**
  * Profile & usage-statistics contracts.
@@ -227,6 +228,8 @@ export interface ProfileTokenProvider {
 }
 
 export interface ProfileTokenStats {
+  /** Additive within protocol 14; older hosts omit cost history. */
+  costs?: ProfileCostStats;
   /** False when no durable token events have been recorded on this device yet. */
   available: boolean;
   scope: ProfileStatScope;

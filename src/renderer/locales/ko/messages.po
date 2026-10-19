@@ -918,6 +918,7 @@ msgstr "계정"
 msgid "Account options"
 msgstr "계정 옵션"
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Accounts"
@@ -1003,6 +1004,7 @@ msgid "Active forwards"
 msgstr "활성 포워딩"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Activity"
 msgstr "활동"
 
@@ -1637,6 +1639,10 @@ msgstr "세션을 다시 불러올 때 실행 중인 모든 하위 에이전트�
 msgid "Anything currently unavailable — a provider, model, reasoning level, or Fast mode — is skipped automatically. Unchecked providers and models are skipped until re-checked."
 msgstr "현재 사용할 수 없는 항목 — 제공자, 모델, 추론 수준 또는 Fast 모드 — 은 자동으로 건너뜁니다. 선택 해제된 제공자와 모델은 다시 선택할 때까지 건너뜁니다."
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "API equivalent"
+msgstr "API 환산"
+
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 msgid "API key"
 msgstr "API 키"
@@ -1648,6 +1654,10 @@ msgstr "API 키 필요"
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "API_KEY=value"
 msgstr "API_KEY=value"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "API-equivalent estimate"
+msgstr "API 환산 추정액"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "App Browser"
@@ -2478,6 +2488,14 @@ msgstr "브랜치 보호 규칙 우회"
 msgid "Bypass branch protection rules (admin merge)"
 msgstr "브랜치 보호 규칙 우회(관리자 병합)"
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Cache read"
+msgstr "캐시 읽기"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Cache write"
+msgstr "캐시 쓰기"
+
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Cached only"
 #~ msgstr "캐시만 있음"
@@ -2612,6 +2630,12 @@ msgstr "브랜치 이름 없이 기본 작업 트리 경로를 생성할 수 없
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Cannot switch branches — commit or stash your changes first"
 msgstr "브랜치를 전환할 수 없습니다. 먼저 변경 사항을 커밋하거나 숨기세요."
+
+#. placeholder {0}: totals.categorizedTokens.toLocaleString(locale)
+#. placeholder {1}: totals.tokens.toLocaleString(locale)
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Categories cover {0} of {1} retained tokens. Missing categories, prices and older history remain unknown."
+msgstr "범주는 보관된 토큰 {1}개 중 {0}개를 포함합니다. 누락된 범주, 가격 및 이전 기록은 알 수 없음으로 유지됩니다."
 
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Category"
@@ -4205,6 +4229,27 @@ msgstr "커밋되지 않은 변경 사항을 여기에 복사합니다(이 브�
 #~ msgid "Copy URL"
 #~ msgstr "URL 복사"
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Cost breakdown"
+msgstr "비용 내역"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Cost history is unavailable from this host."
+msgstr "이 호스트에서 비용 기록을 사용할 수 없습니다."
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Cost source"
+msgstr "비용 출처"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Cost trend"
+msgstr "비용 추이"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "Costs"
+msgstr "비용"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Could not abort the merge: {detail}"
 msgstr "병합을 중단할 수 없습니다: {detail}"
@@ -4382,6 +4427,14 @@ msgstr "카메라를 시작할 수 없습니다"
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Couldn't update the skill."
 msgstr "스킬을 업데이트하지 못했습니다."
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Coverage"
+msgstr "포함 범위"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Coverage across reported currencies"
+msgstr "보고된 통화 전체의 집계 범위"
 
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
@@ -4615,6 +4668,10 @@ msgstr "Ctrl+Enter"
 #~ msgid "Curated free and premium skills managed by MCP Market."
 #~ msgstr "MCP Market에서 관리하는 엄선된 무료 및 프리미엄 스킬입니다."
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Currency"
+msgstr "통화"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
 #: src/renderer/views/SettingsOverlay/parts/CursorRuntimeCard.tsx
 msgid "Current"
@@ -4784,6 +4841,14 @@ msgstr "매일"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Daily brief"
 msgstr "일일 브리핑"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Daily costs"
+msgstr "일별 비용"
+
+#: src/renderer/views/ProfileOverlay/parts/CostTrend.tsx
+msgid "Daily recorded cost; gaps may contain unpriced usage."
+msgstr "일별 기록 비용입니다. 빈 구간에 가격 미상의 사용량이 포함될 수 있습니다."
 
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
@@ -6037,6 +6102,14 @@ msgstr "오류 · 에이전트에 오류가 발생했습니다."
 #: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
 msgid "Errors"
 msgstr "오류"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Estimates and provider-reported costs are separate views of usage; do not add them together. Subscription invoices are not collected."
+msgstr "추정액과 공급자가 보고한 비용은 사용량을 보는 별개의 방식이므로 합산하지 마세요. 구독 청구서는 수집하지 않습니다."
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Estimates use saved, dated USD list rates for exact model IDs at standard API speed. They exclude subscriptions, negotiated discounts, speed premiums, tools and taxes. Prices are never applied to dates before their first verified snapshot."
+msgstr "추정에는 정확한 모델 ID의 표준 API 속도에 해당하는 날짜가 지정된 저장된 USD 정가를 사용합니다. 구독, 협상 할인, 속도 할증, 도구 및 세금은 제외됩니다. 최초 확인된 가격 기록 이전 날짜에는 가격을 적용하지 않습니다."
 
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Evaluate the result after every iteration."
@@ -7630,6 +7703,10 @@ msgstr "가져온 암호: {0}. 가져온 쿠키: {1}."
 msgid "Imported session"
 msgstr "가져온 세션"
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Imported sessions contribute only recorded usage. Deleted threads keep their ledger history. Account dashboard snapshots and external log estimates are not added, preventing overlapping totals across hosts or accounts."
+msgstr "가져온 세션은 기록된 사용량만 반영합니다. 삭제된 스레드의 사용 기록은 유지됩니다. 호스트나 계정 간 중복 집계를 방지하기 위해 계정 대시보드 스냅샷과 외부 로그 추정액은 합산하지 않습니다."
+
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "Improved"
 msgstr "개선됨"
@@ -7698,6 +7775,10 @@ msgstr "초기 재시도 지연(초)"
 msgid "Initialize Repository"
 msgstr "저장소 초기화"
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Input"
+msgstr "입력"
+
 #: src/renderer/components/providers/modelDescription.ts
 msgid "Input / output prices per 1M tokens for each model. Ranges cover model variants."
 msgstr "각 모델의 토큰 100만 개당 입력/출력 가격입니다. 가격 범위에는 모델 변형이 포함됩니다."
@@ -7713,6 +7794,10 @@ msgstr "입력 레벨"
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 #~ msgid "Input values must be strings, numbers, or booleans."
 #~ msgstr "입력 값은 문자열, 숫자 또는 불리언이어야 합니다."
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Input, output and cache categories do not overlap. Reasoning is included in output."
+msgstr "입력, 출력, 캐시 범주는 중복되지 않습니다. 추론은 출력에 포함됩니다."
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchDialog.tsx
 #~ msgid "Inputs (JSON)"
@@ -9282,6 +9367,7 @@ msgstr "모델 사용량"
 #: src/renderer/components/common/ProviderModelMenu/parts/primaryModelRows.ts
 #: src/renderer/components/common/ProviderModelMenu/parts/WindowedProviderModelList.tsx
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Models"
 msgstr "모델"
@@ -9954,6 +10040,7 @@ msgid "No data yet"
 msgstr "아직 데이터가 없습니다"
 
 #: src/renderer/views/ProfileOverlay/parts/BreakdownBars.tsx
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "No data yet."
 msgstr "아직 데이터가 없습니다."
 
@@ -10173,6 +10260,11 @@ msgstr "검색과 일치하는 플러그인이 없습니다."
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "No Poracode pairing QR code found."
 msgstr "Poracode 페어링 QR 코드를 찾을 수 없습니다."
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+#: src/renderer/views/ProfileOverlay/parts/CostTrend.tsx
+msgid "No priced usage in this range."
+msgstr "이 기간에 가격이 확인된 사용량이 없습니다."
 
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "No profile with its own isolated login exists yet. Set a profile to \"Own isolated login\" and sign in there first; it then appears here."
@@ -11023,6 +11115,10 @@ msgstr "결과"
 msgid "Outlook"
 msgstr "Outlook"
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Output"
+msgstr "출력"
+
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Over pace — runs out early"
 msgstr "사용 속도 초과 — 조기 소진"
@@ -11201,6 +11297,10 @@ msgstr "이 대화 기록의 일부가 서버에 없을 수 있습니다. 계속
 #: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
 msgid "Part of this conversation's history was lost on the server and could not be shown. At least {refusedEvents} events / {refusedBytes} bytes are affected."
 msgstr "이 대화 기록의 일부가 서버에서 손실되어 표시할 수 없습니다. 최소 {refusedEvents}개 이벤트 / {refusedBytes}바이트가 영향을 받았습니다."
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Partial"
+msgstr "일부"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 msgid "Partially checked"
@@ -11857,6 +11957,10 @@ msgstr "이전 세션용이며 새 스레드에서는 다시 로그인하세요.
 msgid "Previous tab"
 msgstr "이전 탭"
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Pricing provenance"
+msgstr "가격 출처"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Print"
 msgstr "인쇄"
@@ -11931,6 +12035,10 @@ msgstr "프로필을 제거했습니다."
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Profile stats range"
 msgstr "프로필 통계 기간"
+
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "Profile tabs"
+msgstr "프로필 탭"
 
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 msgid "Profiles"
@@ -12088,6 +12196,10 @@ msgstr "공급자가 토큰 사용을 보고하지 않았습니다."
 msgid "Provider presets"
 msgstr "제공자 프리셋"
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Provider reported"
+msgstr "공급자 보고"
+
 #. Settings section: provider usage and quota dashboard
 #: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
@@ -12097,11 +12209,16 @@ msgstr "제공자 프리셋"
 msgid "Provider Usage"
 msgstr "공급자 사용량"
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Provider-reported cost"
+msgstr "공급자가 보고한 비용"
+
 #. plural
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/authHelpers.ts
 msgid "providers"
 msgstr "공급자"
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -12459,6 +12576,10 @@ msgstr "로컬 로그를 공개 API 요금으로 환산한 값이며, 구독 요
 #: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
 #~ msgid "Reconstructed from local logs at public API rates — it does not reflect your real bill on subscription plans. Shown only in the usage panel."
 #~ msgstr "공개 API 요금으로 로컬 로그에서 재구성되며 구독 계획에 대한 실제 청구서를 반영하지 않습니다. 사용량 패널에만 표시됩니다."
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Recorded token categories"
+msgstr "기록된 토큰 범주"
 
 #: src/renderer/utils/projectIconColors.ts
 msgid "Red"
@@ -13167,6 +13288,14 @@ msgstr "목표 재개"
 #: src/renderer/components/thread/ThreadFollowUpQueue.tsx
 msgid "Resume queued follow-ups"
 msgstr "대기 중인 후속 메시지 재개"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Retained usage on this host only."
+msgstr "이 호스트에 보관된 사용량만 포함합니다."
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+#~ msgid "Retained usage on this host only. Estimates and provider-reported costs are separate views of usage; do not add them together. Subscription invoices are not collected."
+#~ msgstr "이 호스트에 보관된 사용량만 포함합니다. 추정액과 공급자가 보고한 비용은 사용량을 보는 별개의 방식이므로 합산하지 마세요. 구독 청구서는 수집하지 않습니다."
 
 #: src/renderer/bootstrap.ts
 #: src/renderer/commands/EverythingSearchResults.tsx
@@ -15402,6 +15531,10 @@ msgstr "Git 양식 제출"
 msgid "Submit review"
 msgstr "리뷰 제출"
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Subscription bill"
+msgstr "구독 청구액"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 #: src/renderer/views/SchedulesView/parts/scheduleRunStatus.ts
 msgid "Succeeded"
@@ -16952,6 +17085,7 @@ msgid "Token usage unavailable for: {unavailableLabels}"
 msgstr "토큰 사용량을 사용할 수 없음: {unavailableLabels}"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Tokens"
 msgstr "토큰"
 
@@ -17542,6 +17676,7 @@ msgstr "{name} 제거"
 #: src/renderer/components/thread/threadContextUsage.ts
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Unknown"
 msgstr "알 수 없음"
@@ -17611,6 +17746,14 @@ msgstr "고정 해제"
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 msgid "Unpin workflow"
 msgstr "워크플로 고정 해제"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Unpriced tokens"
+msgstr "가격 미상 토큰"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Unpriced tokens have neither a provider-reported cost nor an API estimate."
+msgstr "가격 정보가 없는 토큰에는 공급자가 보고한 비용과 API 추정치가 모두 없습니다."
 
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Unread"
@@ -17929,6 +18072,10 @@ msgstr "사용량을 알 수 없음"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Usage: /goal edit <objective>"
 msgstr "사용법: /goal edit <objective>"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "USD per million tokens"
+msgstr "백만 토큰당 USD"
 
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 msgid "Use #rgb or #rrggbb colors. Leave optional colors blank to derive them automatically."
