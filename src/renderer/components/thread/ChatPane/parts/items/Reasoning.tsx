@@ -10,13 +10,14 @@ import { ReasoningExpandedBody, ReasoningStreamViewport } from "./ReasoningStrea
 
 interface ReasoningProps {
   item: RuntimeChatItem;
+  isLive: boolean;
 }
 
-export const Reasoning = memo(function Reasoning({ item }: ReasoningProps) {
+export const Reasoning = memo(function Reasoning({ item, isLive }: ReasoningProps) {
   const { t } = useLingui();
   const rawText = item.streams.reasoning_text ?? "";
   const hasText = rawText.trim().length > 0;
-  const isStreaming = item.state !== "completed";
+  const isStreaming = isLive && item.state !== "completed";
   const [isOpen, setIsOpen] = useState(false);
   const smoothedText = useSmoothStreamedText(rawText, isStreaming && !isOpen);
   const actions = useChatPaneActions();
