@@ -3,6 +3,7 @@ import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice"
 import {
   isMessageReplyFormFallback,
   selectMessageReplyAnswer,
+  selectMessageReplyState,
   selectPendingMessageReplyIds,
 } from "./messageReplyForms";
 import { isVisibleRuntimeItem } from "./ChatPane/chatPaneSelectors";
@@ -125,7 +126,10 @@ describe("message reply projections", () => {
       { ...reply, payload: { ...(reply.payload as object), clientInputDelivery: "pending" } },
     ]);
     expect(selectPendingMessageReplyIds(current, "thread")).toEqual([question.id]);
-    expect(selectMessageReplyAnswer(current, "thread", reply.id)).toBeUndefined();
+    expect(selectMessageReplyAnswer(current, "thread", reply.id)?.questions[0]?.selected).toEqual([
+      { label: "A" },
+    ]);
+    expect(selectMessageReplyState(current, "thread", question.id)).toBe("pending");
     for (const [version, delivery] of [
       [2, "failed"],
       [3, "accepted"],
@@ -137,6 +141,12 @@ describe("message reply projections", () => {
       current.runtimeStructuralVersionByThread.thread = version;
       expect(selectPendingMessageReplyIds(current, "thread")).toEqual(
         delivery === "failed" ? [question.id] : [],
+      );
+      expect(selectMessageReplyState(current, "thread", question.id)).toBe(
+        delivery === "failed" ? "none" : "answered",
+      );
+      expect(selectMessageReplyAnswer(current, "thread", reply.id)?.questions[0]?.selected).toEqual(
+        delivery === "failed" ? undefined : [{ label: "A" }],
       );
     }
     expect(selectMessageReplyAnswer(current, "thread", reply.id)?.questions[0]?.selected).toEqual([
