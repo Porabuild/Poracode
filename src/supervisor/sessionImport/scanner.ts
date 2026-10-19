@@ -28,7 +28,7 @@ export interface SessionImportScanLimits {
   tailBytes: number;
   /** Uncached bytes one scan may read; later transcripts wait for the next scan. */
   scanBytes: number;
-  /** Sessions returned per page. */
+  /** Sessions returned per provider, after filtering. */
   pageSize: number;
   /** Summaries remembered across scans, keyed by path + mtime + size. */
   cacheEntries: number;
@@ -75,6 +75,17 @@ function sortedUnique(values: Iterable<string>): string[] {
   );
 }
 
+/** Apply the limit independently to each provider, keeping newest-first order. */
+function selectSessionPage(sessions: ImportableSession[], pageSize: number): ImportableSession[] {
+  const counts = new Map<string, number>();
+  return sessions.filter((session) => {
+    const count = counts.get(session.agentKind) ?? 0;
+    if (count >= pageSize) return false;
+    counts.set(session.agentKind, count + 1);
+    return true;
+  });
+}
+
 /**
  * Async, bounded discovery of importable transcripts. Each `list` call
  * supersedes the previous one, which stops at its next checkpoint; whatever it
@@ -115,8 +126,18 @@ export class SessionImportScanner {
     payload: ListImportableSessionsPayload,
     checkpoint: () => void,
   ): Promise<ListImportableSessionsResult> {
-    const { files, capped } = await this.discover(this.getStores(), checkpoint);
-    const { candidates, exhausted } = await this.summarizeAll(files, checkpoint);
+    // Spend bounded discovery/read work on the requested provider first. A large
+    // store belonging to another provider must not hide a filtered conversation.
+    // Still scan the other stores for the cross-filter facets when budget allows.
+    const priority = (kind: string) => (payload.agentKind && kind !== payload.agentKind ? 1 : 0);
+    const stores = this.getStores().toSorted(
+      (a, b) => priority(a.agentKind) - priority(b.agentKind),
+    );
+    const { files, capped } = await this.discover(stores, checkpoint);
+    const readOrder = files.toSorted(
+      (a, b) => priority(a.store.agentKind) - priority(b.store.agentKind),
+    );
+    const { candidates, exhausted } = await this.summarizeAll(readOrder, checkpoint);
     const titles = await this.readTitles(candidates, checkpoint);
     const sessions = candidates.map((candidate) => this.toSession(candidate, titles));
 
@@ -129,7 +150,7 @@ export class SessionImportScanner {
       (session) =>
         byAgent(session) && byFolder(session) && matchesImportQuery(session, payload.query),
     );
-    const page = matched.slice(0, this.limits.pageSize);
+    const page = selectSessionPage(matched, this.limits.pageSize);
     await this.markMissingFolders(page, checkpoint);
     return {
       sessions: page,
