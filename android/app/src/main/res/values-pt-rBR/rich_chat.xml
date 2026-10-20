@@ -221,4 +221,11 @@
     <string name="rich_chat_session_settings_search">Pesquisar valores</string>
     <string name="rich_chat_session_settings_back">Voltar</string>
     <string name="rich_chat_session_settings_fallback_heading">Configuração</string>
+    <string name="rich_chat_fork_action">Ramificar daqui</string>
+    <string name="rich_chat_fork_title">Ramificar conversa</string>
+    <string name="rich_chat_fork_create">Criar ramificação</string>
+    <string name="rich_chat_fork_explanation">Cria uma conversa independente até um turno concluído. Os arquivos permanecem na mesma cópia de trabalho.</string>
+    <string name="rich_chat_fork_name">Nome da conversa</string>
+    <string name="rich_chat_fork_boundary">O histórico herdado termina aqui</string>
+    <string name="rich_chat_fork_source">Ramificada de %1$s</string>
 </resources>

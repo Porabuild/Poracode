@@ -425,6 +425,7 @@ describe("per-turn client context across a session restart", () => {
       config: { model: "fixture-model" },
       terminalSize: { cols: 80, rows: 24 },
       launchPrompt: "",
+      pendingInitialInstructions: "frozen source history",
       status: "idle",
       attention: "none",
       canResumeWithConfig: true,
@@ -446,6 +447,14 @@ describe("per-turn client context across a session restart", () => {
       await vi.waitFor(() => expect(startTurn).toHaveBeenCalledTimes(1));
       expect(startTurn.mock.calls[0]?.[0]).toBe("resume here");
       expect(optionsOf(startTurn, 0)?.inlineInstructions).toContain("- tab_id: 21");
+      expect(optionsOf(startTurn, 0)?.inlineInstructions).toContain("frozen source history");
+      expect(manager.sessions.get("thread-resume-context")?.pendingInitialInstructions).toBe(
+        "frozen source history",
+      );
+      optionsOf(startTurn, 0)?.onPromptSubmitted?.();
+      expect(
+        manager.sessions.get("thread-resume-context")?.pendingInitialInstructions,
+      ).toBeUndefined();
     } finally {
       await manager.dispose();
     }

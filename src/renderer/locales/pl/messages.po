@@ -96,7 +96,7 @@ msgstr "{0, plural, one {# projekt} few {# projekty} many {# projektów} other {
 #~ msgid "{0, plural, one {# provider ready} other {# providers ready}}"
 #~ msgstr "{0, plural, one {# dostawca gotowy} few {# dostawcy gotowi} many {# dostawców gotowych} other {# dostawcy gotowych}}"
 
-#. placeholder {0}: props.entry.skills.length
+#. placeholder {0}: entry.skills.length
 #. placeholder {0}: props.skills.length
 #. placeholder {0}: skills.length
 #: src/renderer/components/plugins/PluginMarketplace.tsx
@@ -179,7 +179,9 @@ msgid "{0} ({envName}) updated."
 msgstr "{0} ({envName}) zaktualizowano."
 
 #. placeholder {0}: ""
+#. placeholder {0}: source.title
 #. placeholder {0}: sourceThread.title
+#: src/renderer/components/thread/ThreadForkDialog.tsx
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "{0} (fork)"
 msgstr "{0} (fork)"
@@ -1529,6 +1531,7 @@ msgstr "Wszystkie wtyczki są aktualne."
 msgid "All projects"
 msgstr "Wszystkie projekty"
 
+#: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "All sources"
 msgstr "Wszystkie źródła"
@@ -2091,6 +2094,7 @@ msgstr "Automatycznie"
 msgid "Automatically show the terminal panel when running commands or creating worktrees."
 msgstr "Automatycznie pokazuj panel terminala podczas uruchamiania poleceń lub tworzenia drzew roboczych."
 
+#: src/renderer/components/plugins/pluginCategories.ts
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Automation"
 msgstr "Automatyzacja"
@@ -2182,6 +2186,7 @@ msgstr "Wróć do najnowszego tekstu"
 #~ msgid "Back to overview"
 #~ msgstr "Wróć do przeglądu"
 
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Back to plugins"
 msgstr "Wróć do wtyczek"
@@ -2510,6 +2515,7 @@ msgstr "Budowanie różnic…"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
+#: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Built-in"
 msgstr "Wbudowany"
@@ -2535,8 +2541,8 @@ msgid "Built-in shortcut — can't be changed"
 msgstr "Skrót wbudowany — nie można go zmienić"
 
 #: src/renderer/components/plugins/PluginMarketplace.tsx
-msgid "Bundles of skills and MCP servers that work across every supported agent. Poracode loads any package built for the Agent Plugins specification."
-msgstr "Pakiety umiejętności i serwerów MCP działające z każdym obsługiwanym agentem. Poracode ładuje każdy pakiet zbudowany zgodnie ze specyfikacją Agent Plugins."
+#~ msgid "Bundles of skills and MCP servers that work across every supported agent. Poracode loads any package built for the Agent Plugins specification."
+#~ msgstr "Pakiety umiejętności i serwerów MCP działające z każdym obsługiwanym agentem. Poracode ładuje każdy pakiet zbudowany zgodnie ze specyfikacją Agent Plugins."
 
 #: src/renderer/utils/projectIcons.ts
 msgid "Business & finance"
@@ -2609,12 +2615,14 @@ msgstr "Nie można użyć tego wyboru modelu w tym interfejsie"
 #: src/renderer/components/common/ConfirmDialog.tsx
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/providers/settings/ModelProviderEditor.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/components/thread/ChatPane/ConversationSearchJump.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadFollowUpEditor.tsx
+#: src/renderer/components/thread/ThreadForkDialog.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
@@ -2727,6 +2735,7 @@ msgstr "Nie można przełączać gałęzi — najpierw zatwierdź lub ukryj zmia
 msgid "Categories cover {0} of {1} retained tokens. Missing categories, prices and older history remain unknown."
 msgstr "Kategorie obejmują {0} z {1} zachowanych tokenów. Brakujące kategorie, ceny i starsza historia pozostają nieznane."
 
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Category"
 msgstr "Kategoria"
@@ -2929,6 +2938,10 @@ msgstr "Kontrole zaliczone"
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Checks pending"
 msgstr "Kontrole oczekują na realizację"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Choose a completed turn to fork from."
+msgstr "Wybierz zakończoną turę jako punkt rozgałęzienia."
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
@@ -3204,6 +3217,7 @@ msgstr "Wyczyść dzień"
 msgid "Clear goal"
 msgstr "Wyczyść cel"
 
+#: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/sidebar/ChatSidebarHeader.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 msgid "Clear search"
@@ -3257,6 +3271,7 @@ msgstr "Klonowanie…"
 
 #: src/renderer/components/common/BottomSheet.tsx
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/plugins/PluginCatalogBrowser.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 #: src/renderer/components/providers/settings/ModelProvidersSettings.tsx
 #: src/renderer/components/skills/SkillViewModal.tsx
@@ -3746,13 +3761,13 @@ msgstr "Commity"
 msgid "Committing…"
 msgstr "Commitowanie…"
 
+#: src/renderer/components/plugins/pluginCategories.ts
 #: src/renderer/components/plugins/pluginCopy.ts
 #: src/renderer/utils/projectIcons.ts
 msgid "Communication"
 msgstr "Komunikacja"
 
 #: src/renderer/components/plugins/PluginDetail.tsx
-#: src/renderer/components/plugins/PluginMarketplace.tsx
 msgid "Community"
 msgstr "Społeczność"
 
@@ -4034,6 +4049,7 @@ msgstr "Połącz z serwerem zdalnym"
 #: src/renderer/bootstrap.ts
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
+#: src/renderer/components/plugins/PluginServiceAccounts.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Connected"
@@ -4411,16 +4427,16 @@ msgstr "Nie udało się załadować żądań ściągnięcia dla {0}."
 msgid "Could not load usage. Check the host connection and permissions, then try again."
 msgstr "Nie udało się wczytać użycia. Sprawdź połączenie z hostem i uprawnienia, a następnie spróbuj ponownie."
 
-#: src/renderer/components/pdf/PdfViewer.tsx
-#~ msgid "Could not open this PDF."
-#~ msgstr "Nie udało się otworzyć tego pliku PDF."
-
 #: src/renderer/components/plugins/PluginCatalogBrowser.tsx
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 msgid "Could not manage this plugin or marketplace. Check the source, compatibility, and local file changes, then try again."
 msgstr "Nie można zarządzać tym marketplaceiem lub wtyczkaem. Sprawdź źródło, zgodność i lokalne zmiany plików, a następnie spróbuj ponownie."
+
+#: src/renderer/components/pdf/PdfViewer.tsx
+#~ msgid "Could not open this PDF."
+#~ msgstr "Nie udało się otworzyć tego pliku PDF."
 
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "Could not read file."
@@ -4606,6 +4622,10 @@ msgstr "Utwórz wersję roboczą PR"
 msgid "Create file"
 msgstr "Utwórz plik"
 
+#: src/renderer/components/thread/ThreadForkDialog.tsx
+msgid "Create fork"
+msgstr "Utwórz odgałęzienie"
+
 #: src/renderer/components/common/BranchSelector/parts/BranchFooterActions.tsx
 msgid "Create new branch"
 msgstr "Utwórz nową gałąź"
@@ -4678,6 +4698,10 @@ msgstr "Utwórz z agentem"
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Created a worktree on \"{newBranch}\", but the changes conflicted and remain in a git stash — resolve them in the worktree."
 msgstr "Utworzono drzewo pracy na „{newBranch}”, ale zmiany kolidują ze sobą i pozostają w skrytce git — rozwiąż je w drzewie pracy."
+
+#: src/renderer/components/thread/ThreadForkDialog.tsx
+msgid "Creates an independent conversation through a completed turn. Files stay in the same checkout."
+msgstr "Tworzy niezależną rozmowę do zakończonej tury. Pliki pozostają w tym samym katalogu roboczym."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseLabel.tsx
 msgid "Creating PR…"
@@ -5388,6 +5412,7 @@ msgstr "Dev"
 msgid "Dev servers listening on your desktop's localhost."
 msgstr "Serwery deweloperskie nasłuchujące na localhost Twojego komputera."
 
+#: src/renderer/components/plugins/pluginCategories.ts
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Developer tools"
 msgstr "Narzędzia programisty"
@@ -5632,6 +5657,7 @@ msgstr "Rozłącz"
 #~ msgid "Disconnect server"
 #~ msgstr "Rozłącz serwer"
 
+#: src/renderer/components/plugins/PluginServiceAccounts.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Disconnected"
@@ -6682,7 +6708,6 @@ msgstr "Ulubione"
 msgid "Favorites"
 msgstr "Ulubione"
 
-#: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 msgid "Featured"
 msgstr "Polecane"
@@ -7049,9 +7074,22 @@ msgstr "Fork"
 #~ msgid "Fork from <0>{0}</0>"
 #~ msgstr "Utwórz odgałęzienie z <0>{0}</0>"
 
+#: src/renderer/components/thread/ThreadForkControls.tsx
+msgid "Fork from here"
+msgstr "Rozgałęź od tego miejsca"
+
+#: src/renderer/components/thread/ThreadForkDialog.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+msgid "Fork thread"
+msgstr "Rozgałęź rozmowę"
+
 #: src/mobile/views/threadActionSurfaces.tsx
 #~ msgid "Fork to another provider"
 #~ msgstr "Utwórz fork u innego dostawcy"
+
+#: src/renderer/components/thread/ThreadForkControls.tsx
+msgid "Forked from {sourceTitle}"
+msgstr "Odgałęzienie z {sourceTitle}"
 
 #. placeholder {0}: props.baseBranch
 #: src/renderer/views/ExperimentView/parts/ExperimentPromptSection.tsx
@@ -7960,6 +7998,14 @@ msgstr "Dziedzicz globalne"
 msgid "inherited"
 msgstr "odziedziczone"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Inherited history cannot be reverted in this fork."
+msgstr "W tym odgałęzieniu nie można cofnąć przejętej historii."
+
+#: src/renderer/components/thread/ThreadForkControls.tsx
+msgid "Inherited history ends here"
+msgstr "Tutaj kończy się przejęta historia"
+
 #. placeholder {0}: globalUseIgnoreFiles ? t`on` : t`off`
 #: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
 msgid "Inheriting the global setting (currently {0})."
@@ -8249,6 +8295,8 @@ msgstr "Zainstaluj v{version}"
 msgid "Install, update, and sign-in are not yet available on remote machines."
 msgstr "Instalacja, aktualizacja i logowanie nie są jeszcze dostępne na zdalnych komputerach."
 
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
+#: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
@@ -8981,6 +9029,7 @@ msgstr "Model główny"
 msgid "Make the sidebar translucent — the system blur material on Windows 11, a translucent tint elsewhere."
 msgstr "Uczyń pasek boczny półprzezroczystym — systemowy efekt rozmycia w Windows 11, półprzezroczysty odcień w pozostałych przypadkach."
 
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 msgid "Manage"
 msgstr "Zarządzaj"
@@ -9142,6 +9191,8 @@ msgstr "Oznacz gotowe"
 msgid "Mark done when the pull request merges"
 msgstr "Oznacz jako gotowe po scaleniu pull requesta"
 
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
+#: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Marketplace"
 msgstr "Marketplace"
@@ -9318,6 +9369,7 @@ msgid "MCP server URL"
 msgstr "Adres URL serwera MCP"
 
 #: src/renderer/components/composer/MentionPopover.tsx
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/providers/settings/ProviderMcpServersSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
@@ -11406,6 +11458,8 @@ msgstr "Pomarańczowy"
 msgid "Organization (optional)"
 msgstr "Organizacja (opcjonalnie)"
 
+#: src/renderer/components/plugins/pluginCategories.ts
+#: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredCustomValues.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Other"
@@ -11717,6 +11771,8 @@ msgstr "Wklej adres parowania…"
 #~ msgid "Paste your pairing link"
 #~ msgstr "Wklej swój link parowania"
 
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
+#: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
 msgid "Path"
 msgstr "Ścieżka"
@@ -11980,6 +12036,7 @@ msgstr "plugin.json wskazuje wersję Agent Plugins nieobsługiwaną przez tę ko
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/components/composer/MentionPopover.tsx
+#: src/renderer/components/plugins/PluginCatalogBrowser.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
@@ -12242,11 +12299,6 @@ msgstr "Naciśnij Spację, aby rozpocząć zmianę kolejności. Użyj strzałek 
 msgid "Prevent system sleep"
 msgstr "Zapobiegaj uśpieniu systemu"
 
-#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Prevent sleep"
-msgstr "Zapobiegaj zasypianiu"
-
 #. placeholder {0}: att.name
 #: src/renderer/components/composer/AttachmentBar.tsx
 msgid "Preview {0}"
@@ -12331,6 +12383,7 @@ msgstr "Sprawdzanie {0} v{1}"
 msgid "Probing v{0}"
 msgstr "Sprawdzanie v{0}"
 
+#: src/renderer/components/plugins/pluginCategories.ts
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Productivity"
 msgstr "Produktywność"
@@ -13041,10 +13094,6 @@ msgstr "Zdalny"
 #~ msgid "Remote access"
 #~ msgstr "Dostęp zdalny"
 
-#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
-msgid "Remote access"
-msgstr "Dostęp zdalny"
-
 #: src/renderer/views/MainView/parts/Sidebar/parts/RemoteAccessSidebarIcon.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
@@ -13270,6 +13319,8 @@ msgstr "Usuń model"
 msgid "Remove pinned route for {tagLabel}"
 msgstr "Usuń przypiętą trasę dla {tagLabel}"
 
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
+#: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 msgid "Remove plugin"
 msgstr "Usuń wtyczkę"
@@ -13476,6 +13527,7 @@ msgstr "Repozytoria (opcjonalnie)"
 msgid "repository"
 msgstr "repozytorium"
 
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Repository"
@@ -13688,6 +13740,7 @@ msgstr "Tylko użycie zachowane na tym hoście."
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
+#: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/components/thread/ChatPane/ChatPane.tsx
@@ -13832,6 +13885,8 @@ msgstr "Wróć do tego punktu kontrolnego"
 msgid "Reverting…"
 msgstr "Przywracanie…"
 
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
+#: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Review"
 msgstr "Przegląd"
@@ -14628,13 +14683,13 @@ msgstr "Tekst drugorzędny"
 msgid "seconds"
 msgstr "sekundy"
 
-#: src/renderer/components/skills/SkillMarketplaceModal.tsx
-#~ msgid "Security-focused directory with verified skill metadata."
-#~ msgstr "Katalog ukierunkowany na bezpieczeństwo ze zweryfikowanymi metadanymi skilli."
-
 #: src/renderer/components/plugins/pluginCategories.ts
 msgid "Security"
 msgstr "Bezpieczeństwo"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+#~ msgid "Security-focused directory with verified skill metadata."
+#~ msgstr "Katalog ukierunkowany na bezpieczeństwo ze zweryfikowanymi metadanymi skilli."
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadRow.tsx
 msgid "See more"
@@ -14749,6 +14804,10 @@ msgstr "Wybierz projekt"
 msgid "Select…"
 msgstr "Wybierz…"
 
+#: src/renderer/components/plugins/PluginServiceAccounts.tsx
+msgid "Selected"
+msgstr "Wybrane"
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #~ msgid "Selected days"
 #~ msgstr "Wybrane dni"
@@ -14756,10 +14815,6 @@ msgstr "Wybierz…"
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #~ msgid "Selected project"
 #~ msgstr "Wybrany projekt"
-
-#: src/renderer/components/plugins/PluginServiceAccounts.tsx
-msgid "Selected"
-msgstr "Wybrane"
 
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
@@ -15089,6 +15144,7 @@ msgstr "Pokaż serwery MCP z {providerLabel}"
 
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/EverythingSearchResults.tsx
+#: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentPromptSection.tsx
 msgid "Show more"
@@ -15240,6 +15296,7 @@ msgstr "Skróty paska bocznego"
 msgid "Sidekick"
 msgstr "Model pomocniczy"
 
+#: src/renderer/components/plugins/PluginServiceAccounts.tsx
 #: src/renderer/components/providers/devin/profileSettings.tsx
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
@@ -15275,6 +15332,7 @@ msgid "Sign in with the agent CLI."
 msgstr "Zaloguj się za pomocą interfejsu CLI agenta."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/plugins/PluginServiceAccounts.tsx
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
 msgid "Sign out"
 msgstr "Wyloguj się"
@@ -15392,6 +15450,7 @@ msgstr "Brak pliku SKILL.md."
 msgid "SKILL.md is too large."
 msgstr "Plik SKILL.md jest za duży."
 
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/components/thread/ThreadCommandPanel.tsx
@@ -16567,6 +16626,10 @@ msgid "The finding is no longer available."
 msgstr "Ustalenie nie jest już dostępne."
 
 #: src/renderer/i18n/sharedMessages.ts
+msgid "The fork's saved conversation is unavailable."
+msgstr "Zapisana rozmowa odgałęzienia jest niedostępna."
+
+#: src/renderer/i18n/sharedMessages.ts
 msgid "The GitHub account \"{login}\" belongs to {host}, which does not match this project's GitHub remote."
 msgstr "Konto GitHub \"{login}\" należy do hosta {host}, który nie odpowiada zdalnemu repozytorium GitHub tego projektu."
 
@@ -16772,6 +16835,10 @@ msgstr "Wybrany model porównuje odpowiedzi kandydatów na czacie pod anonimowym
 msgid "The selected model compares snapshots of each candidate's changes under anonymous labels. It recommends a winner without merging anything."
 msgstr "Wybrany model porównuje migawki zmian każdego kandydata oznaczone anonimowymi etykietami. Rekomenduje zwycięzcę bez scalania czegokolwiek."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The selected turn still contains active work."
+msgstr "Wybrana tura nadal zawiera aktywne zadania."
+
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "The server configuration is invalid."
 msgstr "Konfiguracja serwera jest nieprawidłowa."
@@ -16839,6 +16906,11 @@ msgstr "Umiejętność pozostaje zsynchronizowana ze źródłem i przestaje dzia
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "The skills marketplace couldn't be loaded."
 msgstr "Nie udało się załadować marketplace umiejętności."
+
+#: src/renderer/actions/threadForkActions.ts
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The source conversation is unavailable."
+msgstr "Rozmowa źródłowa jest niedostępna."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The SSH tunnel reached an incompatible Poracode server."
@@ -17430,6 +17502,10 @@ msgstr "Opcje listy wątków"
 #: src/renderer/components/thread/PresentationModeTabs.tsx
 msgid "Thread mode"
 msgstr "Tryb wątku"
+
+#: src/renderer/components/thread/ThreadForkDialog.tsx
+msgid "Thread name"
+msgstr "Nazwa rozmowy"
 
 #: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 msgid "Thread not found"
@@ -18102,6 +18178,7 @@ msgstr "Niedostępna — używana jest domyślna"
 msgid "Unavailable conversation"
 msgstr "Niedostępna rozmowa"
 
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 msgid "Unavailable on this device"
@@ -18396,6 +18473,10 @@ msgstr "Zaktualizuj SDK"
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Update task"
 msgstr "Aktualizuj zadanie"
+
+#: src/renderer/actions/threadForkActions.ts
+msgid "Update the host to fork conversations."
+msgstr "Zaktualizuj hosta, aby rozgałęziać rozmowy."
 
 #: src/renderer/components/thread/SideChat/sideChatActions.ts
 msgid "Update the remote host to use side chat with hidden context."
@@ -18764,6 +18845,7 @@ msgstr "wartość"
 #~ msgstr "Sprawdź klucz hosta SSH"
 
 #. About page label: app version row
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Version"
@@ -18910,6 +18992,10 @@ msgstr "Przed scaleniem zmian zwycięzcy zaczekaj, aż wszyscy kandydaci zakońc
 #: src/renderer/actions/experimentDecisionActions.ts
 msgid "Wait for every candidate to finish before opening a pull request."
 msgstr "Przed otwarciem pull requesta zaczekaj, aż wszyscy kandydaci zakończą pracę."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Wait for the source conversation to finish before forking."
+msgstr "Przed rozgałęzieniem poczekaj na zakończenie rozmowy źródłowej."
 
 #: src/renderer/actions/moveThreadToWorktreeActions.ts
 msgid "Wait for the thread to finish starting before moving it to a worktree."

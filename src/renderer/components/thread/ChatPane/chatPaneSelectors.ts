@@ -641,7 +641,7 @@ const EMPTY_RESOLVED_TURNS: ResolvedCompletedTurns = Object.freeze({
   mostRecentDisplayable: null,
 });
 
-/** A turn shorter than a second has nothing worth showing. */
+/** Sub-second turns have a fork control but no elapsed-time label. */
 function isDisplayableCompletedTurn(record: CompletedTurnRecord): boolean {
   return record.endedAt - record.startedAt >= 1000;
 }
@@ -703,8 +703,7 @@ function buildResolvedCompletedTurns(
   // and still reaches the tail footer when it is the most recent turn.
   const claimedAnchors = new Set<string>();
   const records = recordsToResolve.map((record) => {
-    // A sub-second turn renders nothing, so it neither needs nor claims a row.
-    if (!record.anchorItemId || !isDisplayableCompletedTurn(record)) return record;
+    if (!record.anchorItemId) return record;
     // Anchors older than the hydrated window are left untouched — their row is
     // simply not loaded yet, not filtered out.
     if (!anchorResolution.has(record.anchorItemId)) {
@@ -720,7 +719,7 @@ function buildResolvedCompletedTurns(
 
   const byAnchor = new Map<string, CompletedTurnRecord>();
   for (const record of records) {
-    if (record.anchorItemId && isDisplayableCompletedTurn(record)) {
+    if (record.anchorItemId) {
       byAnchor.set(record.anchorItemId, record);
     }
   }

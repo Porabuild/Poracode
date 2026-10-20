@@ -96,7 +96,7 @@ msgstr "{0, plural, one {# proje} other {# proje}}"
 #~ msgid "{0, plural, one {# provider ready} other {# providers ready}}"
 #~ msgstr "{0, plural, one {# sağlayıcı hazır} other {# sağlayıcı hazır}}"
 
-#. placeholder {0}: props.entry.skills.length
+#. placeholder {0}: entry.skills.length
 #. placeholder {0}: props.skills.length
 #. placeholder {0}: skills.length
 #: src/renderer/components/plugins/PluginMarketplace.tsx
@@ -179,7 +179,9 @@ msgid "{0} ({envName}) updated."
 msgstr "{0} ({envName}) güncellendi."
 
 #. placeholder {0}: ""
+#. placeholder {0}: source.title
 #. placeholder {0}: sourceThread.title
+#: src/renderer/components/thread/ThreadForkDialog.tsx
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "{0} (fork)"
 msgstr "{0} (fork)"
@@ -1529,6 +1531,7 @@ msgstr "Tüm eklentiler güncel."
 msgid "All projects"
 msgstr "Tüm projeler"
 
+#: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "All sources"
 msgstr "Tüm kaynaklar"
@@ -2091,6 +2094,7 @@ msgstr "Otomatik"
 msgid "Automatically show the terminal panel when running commands or creating worktrees."
 msgstr "Komutları çalıştırırken veya çalışma ağaçları oluştururken terminal panelini otomatik olarak gösterin."
 
+#: src/renderer/components/plugins/pluginCategories.ts
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Automation"
 msgstr "Otomasyon"
@@ -2182,6 +2186,7 @@ msgstr "En son metne dön"
 #~ msgid "Back to overview"
 #~ msgstr "Genel bakışa dön"
 
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Back to plugins"
 msgstr "Eklentilere dön"
@@ -2510,6 +2515,7 @@ msgstr "Fark oluşturuluyor…"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
+#: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Built-in"
 msgstr "Yerleşik"
@@ -2535,8 +2541,8 @@ msgid "Built-in shortcut — can't be changed"
 msgstr "Yerleşik kısayol — değiştirilemez"
 
 #: src/renderer/components/plugins/PluginMarketplace.tsx
-msgid "Bundles of skills and MCP servers that work across every supported agent. Poracode loads any package built for the Agent Plugins specification."
-msgstr "Desteklenen her ajanla çalışan beceri ve MCP sunucusu paketleri. Poracode, Agent Plugins şartnamesine göre hazırlanmış her paketi yükler."
+#~ msgid "Bundles of skills and MCP servers that work across every supported agent. Poracode loads any package built for the Agent Plugins specification."
+#~ msgstr "Desteklenen her ajanla çalışan beceri ve MCP sunucusu paketleri. Poracode, Agent Plugins şartnamesine göre hazırlanmış her paketi yükler."
 
 #: src/renderer/utils/projectIcons.ts
 msgid "Business & finance"
@@ -2609,12 +2615,14 @@ msgstr "Bu model seçimi bu arayüzde kullanılamaz"
 #: src/renderer/components/common/ConfirmDialog.tsx
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/providers/settings/ModelProviderEditor.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/components/thread/ChatPane/ConversationSearchJump.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadFollowUpEditor.tsx
+#: src/renderer/components/thread/ThreadForkDialog.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
@@ -2727,6 +2735,7 @@ msgstr "Dallar değiştirilemiyor; önce değişikliklerinizi commit edin veya s
 msgid "Categories cover {0} of {1} retained tokens. Missing categories, prices and older history remain unknown."
 msgstr "Kategoriler, saklanan {1} tokenın {0} tanesini kapsar. Eksik kategoriler, fiyatlar ve eski geçmiş bilinmiyor olarak kalır."
 
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Category"
 msgstr "Kategori"
@@ -2929,6 +2938,10 @@ msgstr "Kontroller başarılı"
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Checks pending"
 msgstr "Kontroller beklemede"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Choose a completed turn to fork from."
+msgstr "Dallandırmak için tamamlanmış bir tur seçin."
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
@@ -3204,6 +3217,7 @@ msgstr "Günü temizle"
 msgid "Clear goal"
 msgstr "Hedefi temizle"
 
+#: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/sidebar/ChatSidebarHeader.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 msgid "Clear search"
@@ -3257,6 +3271,7 @@ msgstr "Klonlanıyor…"
 
 #: src/renderer/components/common/BottomSheet.tsx
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/plugins/PluginCatalogBrowser.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 #: src/renderer/components/providers/settings/ModelProvidersSettings.tsx
 #: src/renderer/components/skills/SkillViewModal.tsx
@@ -3746,13 +3761,13 @@ msgstr "Commit'ler"
 msgid "Committing…"
 msgstr "Commit ediliyor…"
 
+#: src/renderer/components/plugins/pluginCategories.ts
 #: src/renderer/components/plugins/pluginCopy.ts
 #: src/renderer/utils/projectIcons.ts
 msgid "Communication"
 msgstr "İletişim"
 
 #: src/renderer/components/plugins/PluginDetail.tsx
-#: src/renderer/components/plugins/PluginMarketplace.tsx
 msgid "Community"
 msgstr "Topluluk"
 
@@ -4034,6 +4049,7 @@ msgstr "Uzak sunucuya bağlan"
 #: src/renderer/bootstrap.ts
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
+#: src/renderer/components/plugins/PluginServiceAccounts.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Connected"
@@ -4411,16 +4427,16 @@ msgstr "{0} için çekme istekleri yüklenemedi."
 msgid "Could not load usage. Check the host connection and permissions, then try again."
 msgstr "Kullanım yüklenemedi. Ana makine bağlantısını ve izinlerini kontrol edip tekrar deneyin."
 
-#: src/renderer/components/pdf/PdfViewer.tsx
-#~ msgid "Could not open this PDF."
-#~ msgstr "Bu PDF açılamadı."
-
 #: src/renderer/components/plugins/PluginCatalogBrowser.tsx
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 msgid "Could not manage this plugin or marketplace. Check the source, compatibility, and local file changes, then try again."
 msgstr "Bu pazar yeri veya eklenti yönetilemedi. Kaynağı, uyumluluğu ve yerel dosya değişikliklerini kontrol edip yeniden deneyin."
+
+#: src/renderer/components/pdf/PdfViewer.tsx
+#~ msgid "Could not open this PDF."
+#~ msgstr "Bu PDF açılamadı."
 
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "Could not read file."
@@ -4606,6 +4622,10 @@ msgstr "Taslak PR Oluştur"
 msgid "Create file"
 msgstr "Dosya oluştur"
 
+#: src/renderer/components/thread/ThreadForkDialog.tsx
+msgid "Create fork"
+msgstr "Dal oluştur"
+
 #: src/renderer/components/common/BranchSelector/parts/BranchFooterActions.tsx
 msgid "Create new branch"
 msgstr "Yeni şube oluştur"
@@ -4678,6 +4698,10 @@ msgstr "Ajanla oluştur"
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Created a worktree on \"{newBranch}\", but the changes conflicted and remain in a git stash — resolve them in the worktree."
 msgstr "\"{newBranch}\" üzerinde bir çalışma ağacı oluşturuldu, ancak değişiklikler çakıştı ve bir git stash'inde kaldı; bunları çalışma ağacında çözün."
+
+#: src/renderer/components/thread/ThreadForkDialog.tsx
+msgid "Creates an independent conversation through a completed turn. Files stay in the same checkout."
+msgstr "Tamamlanmış bir tura kadar bağımsız bir konuşma oluşturur. Dosyalar aynı çalışma kopyasında kalır."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseLabel.tsx
 msgid "Creating PR…"
@@ -5388,6 +5412,7 @@ msgstr "Geliştirici"
 msgid "Dev servers listening on your desktop's localhost."
 msgstr "Masaüstünüzün localhost'unda dinleyen geliştirme sunucuları."
 
+#: src/renderer/components/plugins/pluginCategories.ts
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Developer tools"
 msgstr "Geliştirici araçları"
@@ -5632,6 +5657,7 @@ msgstr "Bağlantıyı kes"
 #~ msgid "Disconnect server"
 #~ msgstr "Sunucu bağlantısını kes"
 
+#: src/renderer/components/plugins/PluginServiceAccounts.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Disconnected"
@@ -6682,7 +6708,6 @@ msgstr "Favori"
 msgid "Favorites"
 msgstr "Favoriler"
 
-#: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 msgid "Featured"
 msgstr "Öne çıkanlar"
@@ -7049,9 +7074,22 @@ msgstr "Fork"
 #~ msgid "Fork from <0>{0}</0>"
 #~ msgstr "<0>{0}</0> üzerinden çatalla"
 
+#: src/renderer/components/thread/ThreadForkControls.tsx
+msgid "Fork from here"
+msgstr "Buradan dallandır"
+
+#: src/renderer/components/thread/ThreadForkDialog.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+msgid "Fork thread"
+msgstr "Konuşmayı dallandır"
+
 #: src/mobile/views/threadActionSurfaces.tsx
 #~ msgid "Fork to another provider"
 #~ msgstr "Başka bir sağlayıcıda fork oluştur"
+
+#: src/renderer/components/thread/ThreadForkControls.tsx
+msgid "Forked from {sourceTitle}"
+msgstr "{sourceTitle} konuşmasından dallandırıldı"
 
 #. placeholder {0}: props.baseBranch
 #: src/renderer/views/ExperimentView/parts/ExperimentPromptSection.tsx
@@ -7960,6 +7998,14 @@ msgstr "Global ayarı devral"
 msgid "inherited"
 msgstr "miras alınan"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Inherited history cannot be reverted in this fork."
+msgstr "Bu dalda devralınan geçmiş geri alınamaz."
+
+#: src/renderer/components/thread/ThreadForkControls.tsx
+msgid "Inherited history ends here"
+msgstr "Devralınan geçmiş burada sona eriyor"
+
 #. placeholder {0}: globalUseIgnoreFiles ? t`on` : t`off`
 #: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
 msgid "Inheriting the global setting (currently {0})."
@@ -8249,6 +8295,8 @@ msgstr "v{version} sürümünü yükle"
 msgid "Install, update, and sign-in are not yet available on remote machines."
 msgstr "Uzak makinelerde kurulum, güncelleme ve oturum açma henüz kullanılamıyor."
 
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
+#: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
@@ -8981,6 +9029,7 @@ msgstr "Ana model"
 msgid "Make the sidebar translucent — the system blur material on Windows 11, a translucent tint elsewhere."
 msgstr "Kenar çubuğunu yarı saydam yapın — Windows 11'de sistem bulanıklık materyali, diğerlerinde yarı saydam bir ton."
 
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 msgid "Manage"
 msgstr "Yönet"
@@ -9142,6 +9191,8 @@ msgstr "Tamamlandı Olarak İşaretle"
 msgid "Mark done when the pull request merges"
 msgstr "Pull request birleştirildiğinde tamamlandı olarak işaretle"
 
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
+#: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Marketplace"
 msgstr "Marketplace"
@@ -9318,6 +9369,7 @@ msgid "MCP server URL"
 msgstr "MCP sunucusu URL'si"
 
 #: src/renderer/components/composer/MentionPopover.tsx
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/providers/settings/ProviderMcpServersSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
@@ -11406,6 +11458,8 @@ msgstr "Turuncu"
 msgid "Organization (optional)"
 msgstr "Kuruluş (isteğe bağlı)"
 
+#: src/renderer/components/plugins/pluginCategories.ts
+#: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredCustomValues.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Other"
@@ -11717,6 +11771,8 @@ msgstr "Eşleştirme URL'sini yapıştır…"
 #~ msgid "Paste your pairing link"
 #~ msgstr "Eşleştirme bağlantınızı yapıştırın"
 
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
+#: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
 msgid "Path"
 msgstr "Yol"
@@ -11980,6 +12036,7 @@ msgstr "plugin.json, bu sürümün desteklemediği bir Agent Plugins sürümün�
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/components/composer/MentionPopover.tsx
+#: src/renderer/components/plugins/PluginCatalogBrowser.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
@@ -12242,11 +12299,6 @@ msgstr "Sıralamayı değiştirmeye başlamak için Boşluk tuşuna basın. Taş
 msgid "Prevent system sleep"
 msgstr "Sistemin uykuya geçmesini önle"
 
-#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Prevent sleep"
-msgstr "Uykuyu önle"
-
 #. placeholder {0}: att.name
 #: src/renderer/components/composer/AttachmentBar.tsx
 msgid "Preview {0}"
@@ -12331,6 +12383,7 @@ msgstr "{0} v{1} denetleniyor"
 msgid "Probing v{0}"
 msgstr "v{0} denetleniyor"
 
+#: src/renderer/components/plugins/pluginCategories.ts
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Productivity"
 msgstr "Üretkenlik"
@@ -13041,10 +13094,6 @@ msgstr "Uzak"
 #~ msgid "Remote access"
 #~ msgstr "Uzaktan erişim"
 
-#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
-msgid "Remote access"
-msgstr "Uzaktan erişim"
-
 #: src/renderer/views/MainView/parts/Sidebar/parts/RemoteAccessSidebarIcon.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
@@ -13270,6 +13319,8 @@ msgstr "Modeli kaldır"
 msgid "Remove pinned route for {tagLabel}"
 msgstr "{tagLabel} için sabitlenmiş rotayı kaldır"
 
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
+#: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 msgid "Remove plugin"
 msgstr "Eklentiyi kaldır"
@@ -13476,6 +13527,7 @@ msgstr "Depolar (isteğe bağlı)"
 msgid "repository"
 msgstr "depo"
 
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Repository"
@@ -13688,6 +13740,7 @@ msgstr "Yalnızca bu sunucuda saklanan kullanım."
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
+#: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/components/thread/ChatPane/ChatPane.tsx
@@ -13832,6 +13885,8 @@ msgstr "Bu kontrol noktasına geri dön"
 msgid "Reverting…"
 msgstr "Geri alınıyor…"
 
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
+#: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Review"
 msgstr "İnceleme"
@@ -14628,13 +14683,13 @@ msgstr "İkincil metin"
 msgid "seconds"
 msgstr "saniye"
 
-#: src/renderer/components/skills/SkillMarketplaceModal.tsx
-#~ msgid "Security-focused directory with verified skill metadata."
-#~ msgstr "Doğrulanmış beceri meta verileri sunan güvenlik odaklı dizin."
-
 #: src/renderer/components/plugins/pluginCategories.ts
 msgid "Security"
 msgstr "Güvenlik"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+#~ msgid "Security-focused directory with verified skill metadata."
+#~ msgstr "Doğrulanmış beceri meta verileri sunan güvenlik odaklı dizin."
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadRow.tsx
 msgid "See more"
@@ -14749,6 +14804,10 @@ msgstr "Proje seçin"
 msgid "Select…"
 msgstr "Seç…"
 
+#: src/renderer/components/plugins/PluginServiceAccounts.tsx
+msgid "Selected"
+msgstr "Seçili"
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #~ msgid "Selected days"
 #~ msgstr "Seçili günler"
@@ -14756,10 +14815,6 @@ msgstr "Seç…"
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #~ msgid "Selected project"
 #~ msgstr "Seçili proje"
-
-#: src/renderer/components/plugins/PluginServiceAccounts.tsx
-msgid "Selected"
-msgstr "Seçili"
 
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
@@ -15089,6 +15144,7 @@ msgstr "{providerLabel} kaynağındaki MCP sunucularını göster"
 
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/EverythingSearchResults.tsx
+#: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentPromptSection.tsx
 msgid "Show more"
@@ -15240,6 +15296,7 @@ msgstr "Kenar çubuğu kısayolları"
 msgid "Sidekick"
 msgstr "Yardımcı model"
 
+#: src/renderer/components/plugins/PluginServiceAccounts.tsx
 #: src/renderer/components/providers/devin/profileSettings.tsx
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
@@ -15275,6 +15332,7 @@ msgid "Sign in with the agent CLI."
 msgstr "Aracı CLI ile oturum açın."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/plugins/PluginServiceAccounts.tsx
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
 msgid "Sign out"
 msgstr "Oturumu kapat"
@@ -15392,6 +15450,7 @@ msgstr "SKILL.md eksik."
 msgid "SKILL.md is too large."
 msgstr "SKILL.md çok büyük."
 
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/components/thread/ThreadCommandPanel.tsx
@@ -16567,6 +16626,10 @@ msgid "The finding is no longer available."
 msgstr "Bulgu artık kullanılamıyor."
 
 #: src/renderer/i18n/sharedMessages.ts
+msgid "The fork's saved conversation is unavailable."
+msgstr "Dalın kaydedilmiş konuşması kullanılamıyor."
+
+#: src/renderer/i18n/sharedMessages.ts
 msgid "The GitHub account \"{login}\" belongs to {host}, which does not match this project's GitHub remote."
 msgstr "GitHub hesabı \"{login}\", {host} ana makinesine ait ve bu projenin GitHub uzak deposuyla eşleşmiyor."
 
@@ -16772,6 +16835,10 @@ msgstr "Seçilen model, her adayın sohbet yanıtını anonim etiketlerle karş�
 msgid "The selected model compares snapshots of each candidate's changes under anonymous labels. It recommends a winner without merging anything."
 msgstr "Seçilen model, her adayın değişikliklerinin anlık görüntülerini anonim etiketler altında karşılaştırır. Hiçbir şeyi birleştirmeden bir kazanan önerir."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The selected turn still contains active work."
+msgstr "Seçilen tur hâlâ etkin çalışma içeriyor."
+
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "The server configuration is invalid."
 msgstr "Sunucu yapılandırması geçersiz."
@@ -16839,6 +16906,11 @@ msgstr "Beceri kaynağıyla eşitlenmiş olarak kalır ve kaynak taşınırsa ç
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "The skills marketplace couldn't be loaded."
 msgstr "Beceri marketplace'i yüklenemedi."
+
+#: src/renderer/actions/threadForkActions.ts
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The source conversation is unavailable."
+msgstr "Kaynak konuşma kullanılamıyor."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The SSH tunnel reached an incompatible Poracode server."
@@ -17430,6 +17502,10 @@ msgstr "Konu listesi seçenekleri"
 #: src/renderer/components/thread/PresentationModeTabs.tsx
 msgid "Thread mode"
 msgstr "Konu modu"
+
+#: src/renderer/components/thread/ThreadForkDialog.tsx
+msgid "Thread name"
+msgstr "Konuşma adı"
 
 #: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 msgid "Thread not found"
@@ -18102,6 +18178,7 @@ msgstr "Kullanılamıyor — varsayılan kullanılıyor"
 msgid "Unavailable conversation"
 msgstr "Kullanılamayan konuşma"
 
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 msgid "Unavailable on this device"
@@ -18396,6 +18473,10 @@ msgstr "SDK'yı güncelle"
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Update task"
 msgstr "Görevi güncelle"
+
+#: src/renderer/actions/threadForkActions.ts
+msgid "Update the host to fork conversations."
+msgstr "Konuşmaları dallandırmak için ana bilgisayarı güncelleyin."
 
 #: src/renderer/components/thread/SideChat/sideChatActions.ts
 msgid "Update the remote host to use side chat with hidden context."
@@ -18764,6 +18845,7 @@ msgstr "değer"
 #~ msgstr "SSH ana makine anahtarını doğrula"
 
 #. About page label: app version row
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Version"
@@ -18910,6 +18992,10 @@ msgstr "Kazananı birleştirmeden önce tüm adayların çalışmasını tamamla
 #: src/renderer/actions/experimentDecisionActions.ts
 msgid "Wait for every candidate to finish before opening a pull request."
 msgstr "Pull request açmadan önce tüm adayların çalışmasını tamamlamasını bekleyin."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Wait for the source conversation to finish before forking."
+msgstr "Dallandırmadan önce kaynak konuşmanın bitmesini bekleyin."
 
 #: src/renderer/actions/moveThreadToWorktreeActions.ts
 msgid "Wait for the thread to finish starting before moving it to a worktree."

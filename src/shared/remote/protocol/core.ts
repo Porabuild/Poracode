@@ -28,6 +28,8 @@ import { gitStatePatchSchema } from "../../gitState";
 // Optional usage.spent tokens/cost and ProfileTokenStats.costs are additive:
 // prior Zod and generated native readers strip unknown object fields. Old hosts
 // omit them; the Costs tab reports unavailable. No discriminator meaning changes.
+// Fork v1 is capability-negotiated before its new command is sent; lineage is
+// optional and old thread rows remain valid. Older hosts never receive the kind.
 export const PORACODE_REMOTE_PROTOCOL_VERSION = 14;
 export const REMOTE_COMMAND_ID_HEADER = "x-poracode-command-id";
 
@@ -369,6 +371,8 @@ export const remoteEnvironmentCapabilitiesSchema = z.object({
   threadHistoryResume: z.object({ versions: remoteCapabilityVersionsSchema }).optional(),
   /** Provider-only conversation snapshots in per-turn client context. */
   conversationSnapshots: z.object({ versions: remoteCapabilityVersionsSchema }).optional(),
+  /** Independent completed-turn snapshots with durable first-prompt context. */
+  threadForks: z.object({ versions: remoteCapabilityVersionsSchema }).optional(),
   terminalCursorSync: remoteTerminalCursorSyncCapabilitySchema.optional(),
   pushRouting: remotePushRoutingCapabilitySchema.optional(),
   browserForward: remoteBrowserForwardCapabilitySchema.optional(),

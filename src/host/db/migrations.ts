@@ -984,6 +984,21 @@ export const DATABASE_MIGRATIONS = [
     rollback: "forward-only",
     migrate: createConversationSearchSchema,
   },
+  {
+    version: 64,
+    name: "retain independent conversation fork lineage",
+    rollback: "rollback-compatible",
+    // Additive: previous rows have no fork provenance and remain valid.
+    migrate: (sqlite) => {
+      addColumnIfMissing(sqlite, "threads", "forked_from", "TEXT");
+      sqlite.exec(`CREATE TABLE IF NOT EXISTS thread_fork_contexts (
+        thread_id TEXT PRIMARY KEY REFERENCES threads(id) ON DELETE CASCADE,
+        version INTEGER NOT NULL CHECK(version = 1),
+        content TEXT NOT NULL,
+        delivered INTEGER NOT NULL DEFAULT 0 CHECK(delivered IN (0, 1))
+      )`);
+    },
+  },
 ] as const satisfies readonly DatabaseMigration[];
 
 export const LATEST_SCHEMA_VERSION = DATABASE_MIGRATIONS[DATABASE_MIGRATIONS.length - 1]!.version;
@@ -1156,6 +1171,7 @@ export function repairSafeSchemaDrift(sqlite: SqliteDatabase): void {
 // Grant columns/journal/guards are deliberately NOT SAFE_COLUMN_REPAIRS:
 // losing custody at schema 55/56 must refuse, not recreate an empty grant or journal.
 const REQUIRED_COLUMNS = {
+  thread_fork_contexts: ["thread_id", "version", "content", "delivered"],
   usage_events: ["cost_details"],
   usage_token_ledger: ["cost_details"],
   conversation_search_meta: ["id", "generation"],
@@ -1191,6 +1207,7 @@ const REQUIRED_COLUMNS = {
     "created_at",
   ],
   threads: [
+    "forked_from",
     "additional_directories",
     "workspace_grant_revision",
     "workspace_owner_incarnation",

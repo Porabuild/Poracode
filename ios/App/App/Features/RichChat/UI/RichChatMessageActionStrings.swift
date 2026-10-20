@@ -1,6 +1,17 @@
 import Foundation
 
 enum RichChatMessageActionStrings {
+  static let forkAction = localized("rich.fork.action", "Fork from here")
+  static let forkTitle = localized("rich.fork.title", "Fork thread")
+  static let forkCreate = localized("rich.fork.create", "Create fork")
+  static let forkExplanation = localized("rich.fork.explanation", "Creates an independent conversation through a completed turn. Files stay in the same checkout.")
+  static let forkName = localized("rich.fork.name", "Thread name")
+  static let forkBoundary = localized("rich.fork.boundary", "Inherited history ends here")
+  static let sourceUnavailable = localized("rich.fork.sourceUnavailable", "The source conversation is unavailable.")
+  private static let forkSourceFormat = localized("rich.fork.source", "Forked from %@")
+  static func forkSource(_ title: String) -> String {
+    String(format: forkSourceFormat, locale: .current, title)
+  }
   static let copy = localized("rich.message.copy", "Copy Message")
   static let copyImage = localized("rich.image.copy", "Copy Image")
   static let shareImage = localized("rich.image.share", "Share Image")

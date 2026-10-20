@@ -115,6 +115,8 @@ export interface StructuredSessionListener {
 
 export interface StartTurnOptions {
   userMessageItemId?: string;
+  /** Called only after the provider accepts the outgoing prompt. */
+  onPromptSubmitted?: () => void;
   /**
    * Portable-skills fallback: inline SKILL.md instructions for invoked skills
    * the provider cannot load natively. Appended to the outgoing provider

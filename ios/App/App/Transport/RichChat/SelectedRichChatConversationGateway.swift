@@ -30,7 +30,7 @@ extension SelectedRichChatSessionGateway: RichChatConversationGateway {
     command: RichChatThreadCommand
   ) async throws {
     try await executeMutation(target: target, capability: .sessionOperate) { api in
-      try await api.richCommand(threadID: target.threadID, command: command)
+      try await api.richCommand(threadID: command.destinationThreadID ?? target.threadID, command: command)
     }
   }
 

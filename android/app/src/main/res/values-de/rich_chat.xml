@@ -221,4 +221,11 @@
     <string name="rich_chat_session_settings_search">Werte durchsuchen</string>
     <string name="rich_chat_session_settings_back">Zurück</string>
     <string name="rich_chat_session_settings_fallback_heading">Einstellung</string>
+    <string name="rich_chat_fork_action">Ab hier verzweigen</string>
+    <string name="rich_chat_fork_title">Unterhaltung verzweigen</string>
+    <string name="rich_chat_fork_create">Abzweigung erstellen</string>
+    <string name="rich_chat_fork_explanation">Erstellt eine unabhängige Unterhaltung bis zu einem abgeschlossenen Durchgang. Dateien bleiben im selben Checkout.</string>
+    <string name="rich_chat_fork_name">Name der Unterhaltung</string>
+    <string name="rich_chat_fork_boundary">Übernommener Verlauf endet hier</string>
+    <string name="rich_chat_fork_source">Abgezweigt von %1$s</string>
 </resources>

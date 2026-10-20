@@ -40,6 +40,7 @@ import {
   type ChatTimelineEntry,
 } from "../chatPaneSelectors";
 import { useRevertedPromptStore } from "../../revertedPrompt";
+import { ThreadForkBoundary, ThreadForkTurnAction } from "../../ThreadForkControls";
 import { ChatItemRow } from "./items/ChatItemRow";
 import { chatMessageSurfaceClass } from "./items/chatMessageSurface";
 import { imageViewRendersInline, resolveImageViewSource } from "./items/imageViewSource";
@@ -598,7 +599,17 @@ const VirtualChatListRow = memo(function VirtualChatListRow({
     const itemsById = state.runtimeItemsByIdByThread[threadId];
     if (!itemIds || !itemsById) return null;
     if (itemsById[entry.id]?.type !== "user_message") return null;
-    return findCheckpointBeforeUserMessage(itemIds, itemsById, entry.id);
+    const checkpoint = findCheckpointBeforeUserMessage(itemIds, itemsById, entry.id);
+    const inheritedBoundary = state.threads.find((thread) => thread.id === threadId)?.forkedFrom
+      ?.throughItemId;
+    if (
+      checkpoint &&
+      inheritedBoundary &&
+      (itemIds.indexOf(inheritedBoundary) < 0 ||
+        itemIds.indexOf(checkpoint) <= itemIds.indexOf(inheritedBoundary))
+    )
+      return null;
+    return checkpoint;
   });
   const showTurnGap = isUserMessage && index > 0;
   const completedTurn = useAppStore((state) => selectCompletedTurnForEntry(state, threadId, entry));
@@ -645,22 +656,38 @@ const VirtualChatListRow = memo(function VirtualChatListRow({
         {showInlineTurn ? (
           <CompletedTurnIndicator threadId={threadId} record={completedTurn} />
         ) : null}
+        <ThreadForkBoundary
+          threadId={threadId}
+          itemIds={entry.kind === "item" ? [entry.id] : entry.itemIds}
+        />
       </div>
     </div>
   );
 });
 
-function CompletedTurnIndicator({ record }: { threadId: string; record: CompletedTurnRecord }) {
+function CompletedTurnIndicator({
+  threadId,
+  record,
+}: {
+  threadId: string;
+  record: CompletedTurnRecord;
+}) {
   const elapsedSeconds = Math.max(0, Math.floor((record.endedAt - record.startedAt) / 1000));
-  if (elapsedSeconds < 1) return null;
   const elapsed = formatElapsed(elapsedSeconds);
   return (
     <Surface variant="transparent" className={chatMessageSurfaceClass}>
-      <div className="flex flex-col gap-0.5 text-[length:var(--lc-chat-font-size-meta)] text-foreground-muted">
+      <div className="flex items-center gap-2 text-[length:var(--lc-chat-font-size-meta)] text-foreground-muted">
         {elapsedSeconds >= 1 ? (
           <span className="text-muted">
             <Trans>Worked for {elapsed}</Trans>
           </span>
+        ) : null}
+        {record.anchorItemId ? (
+          <ThreadForkTurnAction
+            threadId={threadId}
+            itemId={record.anchorItemId}
+            startedAt={record.startedAt}
+          />
         ) : null}
       </div>
     </Surface>

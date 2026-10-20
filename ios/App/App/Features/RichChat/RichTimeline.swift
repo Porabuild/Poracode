@@ -114,7 +114,7 @@ enum RichTimeline {
     }
     var claimed: Set<String> = []
     return turns.map { turn in
-      guard turn.isDisplayable, let raw = turn.anchorItemID else { return turn }
+      guard let raw = turn.anchorItemID else { return turn }
       guard let boxed = resolution[raw] else {
         claimed.insert(raw)
         return turn

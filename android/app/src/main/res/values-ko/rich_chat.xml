@@ -221,4 +221,11 @@
     <string name="rich_chat_session_settings_search">값 검색</string>
     <string name="rich_chat_session_settings_back">뒤로</string>
     <string name="rich_chat_session_settings_fallback_heading">설정</string>
+    <string name="rich_chat_fork_action">여기서 분기</string>
+    <string name="rich_chat_fork_title">대화 분기</string>
+    <string name="rich_chat_fork_create">분기 만들기</string>
+    <string name="rich_chat_fork_explanation">완료된 턴까지의 독립적인 대화를 만듭니다. 파일은 같은 체크아웃에 유지됩니다.</string>
+    <string name="rich_chat_fork_name">대화 이름</string>
+    <string name="rich_chat_fork_boundary">이어받은 기록은 여기까지입니다</string>
+    <string name="rich_chat_fork_source">%1$s에서 분기됨</string>
 </resources>

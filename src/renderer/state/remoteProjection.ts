@@ -67,6 +67,14 @@ export function projectRemoteThread(remoteServerId: string, thread: Thread): Thr
     ...(thread.parentThreadId
       ? { parentThreadId: remoteThreadId(remoteServerId, thread.parentThreadId) }
       : {}),
+    ...(thread.forkedFrom
+      ? {
+          forkedFrom: {
+            ...thread.forkedFrom,
+            threadId: remoteThreadId(remoteServerId, thread.forkedFrom.threadId),
+          },
+        }
+      : {}),
   };
 }
 

@@ -24,7 +24,7 @@ export type TestableAcpSession = {
     prompt: string,
     config: ThreadConfig,
     segments?: import("@/shared/contracts").PromptSegment[],
-    options?: { userMessageItemId?: string },
+    options?: import("../base").StartTurnOptions,
   ): Promise<void>;
   interruptTurn(): Promise<void>;
   forceCompleteTurn(): void;

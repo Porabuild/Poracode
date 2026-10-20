@@ -26,6 +26,7 @@ import { runWelcomeDismissalScenario } from "./smoke-welcome.mjs";
 import { verifyProjectMcpImport } from "./smoke-mcp-import.mjs";
 import { mockEditorMediaGate } from "./smoke-editor-media.mjs";
 import { hasAccessibleControlLabel } from "./smoke-control-label.mjs";
+import { mockThreadForkGate } from "./smoke-thread-forks.mjs";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(scriptDir, "../../../../");
@@ -1297,6 +1298,8 @@ async function runMockIntegrations(report, client, gates) {
 
 async function runMockGate(client, gate, fixture) {
   switch (gate) {
+    case "thread-forks":
+      return mockThreadForkGate({ client, evaluate, waitForValue, screenshot, outDir, fixture });
     case "live-voice":
       return mockLiveVoiceGate({ client, evaluate, waitForValue, screenshot, outDir, fixture });
     case "editor-media":

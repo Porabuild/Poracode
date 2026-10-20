@@ -298,6 +298,8 @@ export type SupervisorEvent =
   | {
       type: "thread-state";
       threadId: string;
+      /** Host-private acknowledgment of provider admission for fork context. */
+      initialInstructionsApplied?: true;
       status: ThreadStatus;
       attention: ThreadAttention;
       /**

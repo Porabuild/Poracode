@@ -8,6 +8,12 @@
  */
 
 const messages = {
+  "thread.forkSourceUnavailable": "The source conversation is unavailable.",
+  "thread.forkSourceActive": "Wait for the source conversation to finish before forking.",
+  "thread.forkBoundaryUnavailable": "Choose a completed turn to fork from.",
+  "thread.forkBoundaryActive": "The selected turn still contains active work.",
+  "thread.forkContextUnavailable": "The fork's saved conversation is unavailable.",
+  "thread.forkRevertUnavailable": "Inherited history cannot be reverted in this fork.",
   "agent.updateQueueTimeout": "The update waited too long for another installation. Try again.",
   "provider.signInDataUnavailable":
     "The provider's sign-in data could not be read. Try again or update Poracode.",

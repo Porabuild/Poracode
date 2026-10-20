@@ -3162,6 +3162,16 @@
           "type": "boolean"
         },
         "__schema29": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "__schema3": {
+          "maxLength": 120,
+          "minLength": 1,
+          "pattern": "^[a-z0-9][a-z0-9_\\-:.]*$",
+          "type": "string"
+        },
+        "__schema30": {
           "additionalProperties": true,
           "properties": {
             "browserFocus": {
@@ -3211,12 +3221,6 @@
           },
           "type": "object",
           "x-poracode-unknownFields": "strip"
-        },
-        "__schema3": {
-          "maxLength": 120,
-          "minLength": 1,
-          "pattern": "^[a-z0-9][a-z0-9_\\-:.]*$",
-          "type": "string"
         },
         "__schema4": {
           "additionalProperties": true,
@@ -3482,7 +3486,7 @@
           "$ref": "#/$defs/__schema2"
         },
         "clientContext": {
-          "$ref": "#/$defs/__schema29"
+          "$ref": "#/$defs/__schema30"
         },
         "config": {
           "$ref": "#/$defs/__schema4"
@@ -3492,6 +3496,9 @@
         },
         "disabledBuiltInMcpTools": {
           "$ref": "#/$defs/__schema24"
+        },
+        "initialInstructions": {
+          "$ref": "#/$defs/__schema29"
         },
         "initialSize": {
           "$ref": "#/$defs/__schema11"
@@ -20900,6 +20907,16 @@
           "type": "boolean"
         },
         "__schema29": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "__schema3": {
+          "maxLength": 120,
+          "minLength": 1,
+          "pattern": "^[a-z0-9][a-z0-9_\\-:.]*$",
+          "type": "string"
+        },
+        "__schema30": {
           "additionalProperties": true,
           "properties": {
             "browserFocus": {
@@ -20949,12 +20966,6 @@
           },
           "type": "object",
           "x-poracode-unknownFields": "strip"
-        },
-        "__schema3": {
-          "maxLength": 120,
-          "minLength": 1,
-          "pattern": "^[a-z0-9][a-z0-9_\\-:.]*$",
-          "type": "string"
         },
         "__schema4": {
           "additionalProperties": true,
@@ -21220,7 +21231,7 @@
           "$ref": "#/$defs/__schema2"
         },
         "clientContext": {
-          "$ref": "#/$defs/__schema29"
+          "$ref": "#/$defs/__schema30"
         },
         "config": {
           "$ref": "#/$defs/__schema4"
@@ -21230,6 +21241,9 @@
         },
         "disabledBuiltInMcpTools": {
           "$ref": "#/$defs/__schema24"
+        },
+        "initialInstructions": {
+          "$ref": "#/$defs/__schema29"
         },
         "initialSize": {
           "$ref": "#/$defs/__schema11"
@@ -28636,6 +28650,19 @@
               "type": "object",
               "x-poracode-unknownFields": "strip"
             },
+            "threadForks": {
+              "additionalProperties": true,
+              "properties": {
+                "versions": {
+                  "$ref": "#/$defs/__schema0"
+                }
+              },
+              "required": [
+                "versions"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
             "threadHistoryResume": {
               "additionalProperties": true,
               "properties": {
@@ -30527,6 +30554,19 @@
               "x-poracode-unknownFields": "strip"
             },
             "terminalCursorSync": {
+              "additionalProperties": true,
+              "properties": {
+                "versions": {
+                  "$ref": "#/$defs/__schema0"
+                }
+              },
+              "required": [
+                "versions"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            "threadForks": {
               "additionalProperties": true,
               "properties": {
                 "versions": {
@@ -47277,6 +47317,46 @@
               "errorMessage": {
                 "type": "string"
               },
+              "forkedFrom": {
+                "additionalProperties": true,
+                "properties": {
+                  "contextStrategy": {
+                    "const": "transcript",
+                    "type": "string"
+                  },
+                  "inheritedTurnCount": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "threadId": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "throughItemId": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "title": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "version": {
+                    "const": 1,
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "version",
+                  "threadId",
+                  "title",
+                  "throughItemId",
+                  "inheritedTurnCount",
+                  "contextStrategy"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              },
               "groupId": {
                 "type": "string"
               },
@@ -48379,6 +48459,34 @@
       },
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "oneOf": [
+        {
+          "additionalProperties": true,
+          "properties": {
+            "kind": {
+              "const": "fork",
+              "type": "string"
+            },
+            "sourceThreadId": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "throughItemId": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "sourceThreadId",
+            "title"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
         {
           "additionalProperties": true,
           "properties": {
@@ -49614,6 +49722,46 @@
             },
             "errorMessage": {
               "type": "string"
+            },
+            "forkedFrom": {
+              "additionalProperties": true,
+              "properties": {
+                "contextStrategy": {
+                  "const": "transcript",
+                  "type": "string"
+                },
+                "inheritedTurnCount": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "threadId": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "throughItemId": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "title": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "version": {
+                  "const": 1,
+                  "type": "number"
+                }
+              },
+              "required": [
+                "version",
+                "threadId",
+                "title",
+                "throughItemId",
+                "inheritedTurnCount",
+                "contextStrategy"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
             },
             "groupId": {
               "type": "string"
@@ -52780,6 +52928,46 @@
             "errorMessage": {
               "type": "string"
             },
+            "forkedFrom": {
+              "additionalProperties": true,
+              "properties": {
+                "contextStrategy": {
+                  "const": "transcript",
+                  "type": "string"
+                },
+                "inheritedTurnCount": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "threadId": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "throughItemId": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "title": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "version": {
+                  "const": 1,
+                  "type": "number"
+                }
+              },
+              "required": [
+                "version",
+                "threadId",
+                "title",
+                "throughItemId",
+                "inheritedTurnCount",
+                "contextStrategy"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
             "groupId": {
               "type": "string"
             },
@@ -53852,6 +54040,46 @@
               },
               "errorMessage": {
                 "type": "string"
+              },
+              "forkedFrom": {
+                "additionalProperties": true,
+                "properties": {
+                  "contextStrategy": {
+                    "const": "transcript",
+                    "type": "string"
+                  },
+                  "inheritedTurnCount": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "threadId": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "throughItemId": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "title": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "version": {
+                    "const": 1,
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "version",
+                  "threadId",
+                  "title",
+                  "throughItemId",
+                  "inheritedTurnCount",
+                  "contextStrategy"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
               },
               "groupId": {
                 "type": "string"
@@ -55775,6 +56003,10 @@
           "const": true,
           "type": "boolean"
         },
+        "initialInstructions": {
+          "minLength": 1,
+          "type": "string"
+        },
         "initialSize": {
           "additionalProperties": true,
           "properties": {
@@ -57152,5 +57384,5 @@
   },
   "manifestHash": "sha256:b39f2d13ae38008996ebf29d325c5b5c703dea7bbd9d0c933eaec9e059ed7490",
   "protocolVersion": 14,
-  "sourceHash": "sha256:74a8928b64b05839cebbc183a068b991fcc3ded0a84a8b8125f97dd4f393344f"
+  "sourceHash": "sha256:934892b17f9146cfde7f0de18cdaef17c22536bce84da2551fc202236cf558d3"
 }

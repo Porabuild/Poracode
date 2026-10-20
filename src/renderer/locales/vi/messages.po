@@ -96,7 +96,7 @@ msgstr "{0, plural, one {# dự án} other {# dự án}}"
 #~ msgid "{0, plural, one {# provider ready} other {# providers ready}}"
 #~ msgstr "{0, plural, one {# nhà cung cấp đã sẵn sàng} other {# nhà cung cấp đã sẵn sàng}}"
 
-#. placeholder {0}: props.entry.skills.length
+#. placeholder {0}: entry.skills.length
 #. placeholder {0}: props.skills.length
 #. placeholder {0}: skills.length
 #: src/renderer/components/plugins/PluginMarketplace.tsx
@@ -179,7 +179,9 @@ msgid "{0} ({envName}) updated."
 msgstr "{0} ({envName}) đã cập nhật."
 
 #. placeholder {0}: ""
+#. placeholder {0}: source.title
 #. placeholder {0}: sourceThread.title
+#: src/renderer/components/thread/ThreadForkDialog.tsx
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "{0} (fork)"
 msgstr "{0} (fork)"
@@ -1529,6 +1531,7 @@ msgstr "Tất cả plugin đều là bản mới nhất."
 msgid "All projects"
 msgstr "Tất cả dự án"
 
+#: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "All sources"
 msgstr "Tất cả nguồn"
@@ -2091,6 +2094,7 @@ msgstr "Tự động"
 msgid "Automatically show the terminal panel when running commands or creating worktrees."
 msgstr "Tự động hiển thị bảng terminal khi chạy lệnh hoặc tạo cây làm việc."
 
+#: src/renderer/components/plugins/pluginCategories.ts
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Automation"
 msgstr "Tự động hóa"
@@ -2182,6 +2186,7 @@ msgstr "Quay lại văn bản mới nhất"
 #~ msgid "Back to overview"
 #~ msgstr "Quay lại tổng quan"
 
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Back to plugins"
 msgstr "Quay lại plugin"
@@ -2510,6 +2515,7 @@ msgstr "Đang dựng diff…"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
+#: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Built-in"
 msgstr "Tích hợp sẵn"
@@ -2535,8 +2541,8 @@ msgid "Built-in shortcut — can't be changed"
 msgstr "Phím tắt tích hợp sẵn — không thể thay đổi"
 
 #: src/renderer/components/plugins/PluginMarketplace.tsx
-msgid "Bundles of skills and MCP servers that work across every supported agent. Poracode loads any package built for the Agent Plugins specification."
-msgstr "Các gói skill và máy chủ MCP hoạt động với mọi agent được hỗ trợ. Poracode tải mọi gói được xây dựng theo đặc tả Agent Plugins."
+#~ msgid "Bundles of skills and MCP servers that work across every supported agent. Poracode loads any package built for the Agent Plugins specification."
+#~ msgstr "Các gói skill và máy chủ MCP hoạt động với mọi agent được hỗ trợ. Poracode tải mọi gói được xây dựng theo đặc tả Agent Plugins."
 
 #: src/renderer/utils/projectIcons.ts
 msgid "Business & finance"
@@ -2609,12 +2615,14 @@ msgstr "Không thể dùng lựa chọn mô hình này trong giao diện này"
 #: src/renderer/components/common/ConfirmDialog.tsx
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/providers/settings/ModelProviderEditor.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/components/thread/ChatPane/ConversationSearchJump.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadFollowUpEditor.tsx
+#: src/renderer/components/thread/ThreadForkDialog.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
@@ -2727,6 +2735,7 @@ msgstr "Không thể chuyển nhánh — trước tiên hãy commit hoặc stash
 msgid "Categories cover {0} of {1} retained tokens. Missing categories, prices and older history remain unknown."
 msgstr "Các danh mục bao gồm {0} trên {1} token được lưu giữ. Danh mục, giá và lịch sử cũ bị thiếu vẫn được coi là chưa biết."
 
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Category"
 msgstr "Danh mục"
@@ -2929,6 +2938,10 @@ msgstr "Kiểm tra thành công"
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Checks pending"
 msgstr "Kiểm tra đang chờ"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Choose a completed turn to fork from."
+msgstr "Chọn một lượt đã hoàn tất để tạo nhánh."
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
@@ -3204,6 +3217,7 @@ msgstr "Xóa ngày"
 msgid "Clear goal"
 msgstr "Xóa mục tiêu"
 
+#: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/sidebar/ChatSidebarHeader.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 msgid "Clear search"
@@ -3257,6 +3271,7 @@ msgstr "Nhân bản…"
 
 #: src/renderer/components/common/BottomSheet.tsx
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/plugins/PluginCatalogBrowser.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 #: src/renderer/components/providers/settings/ModelProvidersSettings.tsx
 #: src/renderer/components/skills/SkillViewModal.tsx
@@ -3746,13 +3761,13 @@ msgstr "Cam kết"
 msgid "Committing…"
 msgstr "Đang commit…"
 
+#: src/renderer/components/plugins/pluginCategories.ts
 #: src/renderer/components/plugins/pluginCopy.ts
 #: src/renderer/utils/projectIcons.ts
 msgid "Communication"
 msgstr "Giao tiếp"
 
 #: src/renderer/components/plugins/PluginDetail.tsx
-#: src/renderer/components/plugins/PluginMarketplace.tsx
 msgid "Community"
 msgstr "Cộng đồng"
 
@@ -4034,6 +4049,7 @@ msgstr "Kết nối tới máy chủ từ xa"
 #: src/renderer/bootstrap.ts
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
+#: src/renderer/components/plugins/PluginServiceAccounts.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Connected"
@@ -4411,16 +4427,16 @@ msgstr "Không thể tải pull request cho {0}."
 msgid "Could not load usage. Check the host connection and permissions, then try again."
 msgstr "Không thể tải mức sử dụng. Hãy kiểm tra kết nối và quyền của máy chủ rồi thử lại."
 
-#: src/renderer/components/pdf/PdfViewer.tsx
-#~ msgid "Could not open this PDF."
-#~ msgstr "Không thể mở tệp PDF này."
-
 #: src/renderer/components/plugins/PluginCatalogBrowser.tsx
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 msgid "Could not manage this plugin or marketplace. Check the source, compatibility, and local file changes, then try again."
 msgstr "Không thể quản lý chợ plugin hoặc plugin này. Kiểm tra nguồn, tính tương thích và các thay đổi tệp cục bộ rồi thử lại."
+
+#: src/renderer/components/pdf/PdfViewer.tsx
+#~ msgid "Could not open this PDF."
+#~ msgstr "Không thể mở tệp PDF này."
 
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "Could not read file."
@@ -4606,6 +4622,10 @@ msgstr "Tạo dự thảo PR"
 msgid "Create file"
 msgstr "Tạo tập tin"
 
+#: src/renderer/components/thread/ThreadForkDialog.tsx
+msgid "Create fork"
+msgstr "Tạo nhánh"
+
 #: src/renderer/components/common/BranchSelector/parts/BranchFooterActions.tsx
 msgid "Create new branch"
 msgstr "Tạo nhánh mới"
@@ -4678,6 +4698,10 @@ msgstr "Tạo bằng tác nhân"
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Created a worktree on \"{newBranch}\", but the changes conflicted and remain in a git stash — resolve them in the worktree."
 msgstr "Đã tạo một cây làm việc trên \"{newBranch}\", nhưng những thay đổi này xung đột và vẫn nằm trong kho lưu trữ git — hãy giải quyết chúng trong cây làm việc."
+
+#: src/renderer/components/thread/ThreadForkDialog.tsx
+msgid "Creates an independent conversation through a completed turn. Files stay in the same checkout."
+msgstr "Tạo cuộc trò chuyện độc lập đến hết một lượt đã hoàn tất. Các tệp vẫn ở cùng bản làm việc."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseLabel.tsx
 msgid "Creating PR…"
@@ -5388,6 +5412,7 @@ msgstr "Dev"
 msgid "Dev servers listening on your desktop's localhost."
 msgstr "Máy chủ phát triển đang lắng nghe trên localhost của máy tính bạn."
 
+#: src/renderer/components/plugins/pluginCategories.ts
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Developer tools"
 msgstr "Công cụ lập trình"
@@ -5632,6 +5657,7 @@ msgstr "Ngắt kết nối"
 #~ msgid "Disconnect server"
 #~ msgstr "Ngắt kết nối máy chủ"
 
+#: src/renderer/components/plugins/PluginServiceAccounts.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Disconnected"
@@ -6682,7 +6708,6 @@ msgstr "Yêu thích"
 msgid "Favorites"
 msgstr "Yêu thích"
 
-#: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 msgid "Featured"
 msgstr "Nổi bật"
@@ -7049,9 +7074,22 @@ msgstr "Fork"
 #~ msgid "Fork from <0>{0}</0>"
 #~ msgstr "Phân nhánh từ <0>{0}</0>"
 
+#: src/renderer/components/thread/ThreadForkControls.tsx
+msgid "Fork from here"
+msgstr "Tạo nhánh từ đây"
+
+#: src/renderer/components/thread/ThreadForkDialog.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+msgid "Fork thread"
+msgstr "Tạo nhánh trò chuyện"
+
 #: src/mobile/views/threadActionSurfaces.tsx
 #~ msgid "Fork to another provider"
 #~ msgstr "Fork sang nhà cung cấp khác"
+
+#: src/renderer/components/thread/ThreadForkControls.tsx
+msgid "Forked from {sourceTitle}"
+msgstr "Tạo nhánh từ {sourceTitle}"
 
 #. placeholder {0}: props.baseBranch
 #: src/renderer/views/ExperimentView/parts/ExperimentPromptSection.tsx
@@ -7960,6 +7998,14 @@ msgstr "Kế thừa cài đặt chung"
 msgid "inherited"
 msgstr "kế thừa"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Inherited history cannot be reverted in this fork."
+msgstr "Không thể hoàn tác lịch sử kế thừa trong nhánh này."
+
+#: src/renderer/components/thread/ThreadForkControls.tsx
+msgid "Inherited history ends here"
+msgstr "Lịch sử kế thừa kết thúc tại đây"
+
 #. placeholder {0}: globalUseIgnoreFiles ? t`on` : t`off`
 #: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
 msgid "Inheriting the global setting (currently {0})."
@@ -8249,6 +8295,8 @@ msgstr "Cài đặt v{version}"
 msgid "Install, update, and sign-in are not yet available on remote machines."
 msgstr "Cài đặt, cập nhật và đăng nhập chưa khả dụng trên máy từ xa."
 
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
+#: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
@@ -8981,6 +9029,7 @@ msgstr "Mô hình chính"
 msgid "Make the sidebar translucent — the system blur material on Windows 11, a translucent tint elsewhere."
 msgstr "Làm thanh bên trong suốt — hiệu ứng làm mờ của hệ thống trên Windows 11, lớp màu mờ trong suốt ở nơi khác."
 
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 msgid "Manage"
 msgstr "Quản lý"
@@ -9142,6 +9191,8 @@ msgstr "Đánh dấu xong"
 msgid "Mark done when the pull request merges"
 msgstr "Đánh dấu xong khi pull request được hợp nhất"
 
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
+#: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Marketplace"
 msgstr "Marketplace"
@@ -9318,6 +9369,7 @@ msgid "MCP server URL"
 msgstr "URL của máy chủ MCP"
 
 #: src/renderer/components/composer/MentionPopover.tsx
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/providers/settings/ProviderMcpServersSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
@@ -11406,6 +11458,8 @@ msgstr "Cam"
 msgid "Organization (optional)"
 msgstr "Tổ chức (tùy chọn)"
 
+#: src/renderer/components/plugins/pluginCategories.ts
+#: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredCustomValues.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Other"
@@ -11717,6 +11771,8 @@ msgstr "Dán URL ghép nối…"
 #~ msgid "Paste your pairing link"
 #~ msgstr "Dán liên kết ghép nối của bạn"
 
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
+#: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
 msgid "Path"
 msgstr "Đường dẫn"
@@ -11980,6 +12036,7 @@ msgstr "plugin.json nhắm tới phiên bản Agent Plugins mà bản dựng nà
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/components/composer/MentionPopover.tsx
+#: src/renderer/components/plugins/PluginCatalogBrowser.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
@@ -12242,11 +12299,6 @@ msgstr "Nhấn phím cách để bắt đầu sắp xếp lại. Dùng các phí
 msgid "Prevent system sleep"
 msgstr "Ngăn hệ thống chuyển sang chế độ ngủ"
 
-#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Prevent sleep"
-msgstr "Ngăn chế độ ngủ"
-
 #. placeholder {0}: att.name
 #: src/renderer/components/composer/AttachmentBar.tsx
 msgid "Preview {0}"
@@ -12331,6 +12383,7 @@ msgstr "Đang kiểm tra {0} v{1}"
 msgid "Probing v{0}"
 msgstr "Đang kiểm tra v{0}"
 
+#: src/renderer/components/plugins/pluginCategories.ts
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Productivity"
 msgstr "Năng suất"
@@ -13041,10 +13094,6 @@ msgstr "Từ xa"
 #~ msgid "Remote access"
 #~ msgstr "Truy cập từ xa"
 
-#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
-msgid "Remote access"
-msgstr "Truy cập từ xa"
-
 #: src/renderer/views/MainView/parts/Sidebar/parts/RemoteAccessSidebarIcon.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
@@ -13270,6 +13319,8 @@ msgstr "Xóa mô hình"
 msgid "Remove pinned route for {tagLabel}"
 msgstr "Xóa tuyến đã ghim cho {tagLabel}"
 
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
+#: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 msgid "Remove plugin"
 msgstr "Xóa plugin"
@@ -13476,6 +13527,7 @@ msgstr "Kho lưu trữ (tùy chọn)"
 msgid "repository"
 msgstr "kho lưu trữ"
 
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Repository"
@@ -13688,6 +13740,7 @@ msgstr "Chỉ mức sử dụng được lưu trên máy chủ này."
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
+#: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/components/thread/ChatPane/ChatPane.tsx
@@ -13832,6 +13885,8 @@ msgstr "Quay lại điểm kiểm tra này"
 msgid "Reverting…"
 msgstr "Đang hoàn tác…"
 
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
+#: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Review"
 msgstr "Xem lại"
@@ -14628,13 +14683,13 @@ msgstr "Chữ phụ"
 msgid "seconds"
 msgstr "giây"
 
-#: src/renderer/components/skills/SkillMarketplaceModal.tsx
-#~ msgid "Security-focused directory with verified skill metadata."
-#~ msgstr "Danh mục tập trung vào bảo mật với siêu dữ liệu skill đã được xác minh."
-
 #: src/renderer/components/plugins/pluginCategories.ts
 msgid "Security"
 msgstr "Bảo mật"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+#~ msgid "Security-focused directory with verified skill metadata."
+#~ msgstr "Danh mục tập trung vào bảo mật với siêu dữ liệu skill đã được xác minh."
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadRow.tsx
 msgid "See more"
@@ -14749,6 +14804,10 @@ msgstr "Chọn dự án"
 msgid "Select…"
 msgstr "Chọn…"
 
+#: src/renderer/components/plugins/PluginServiceAccounts.tsx
+msgid "Selected"
+msgstr "Đã chọn"
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #~ msgid "Selected days"
 #~ msgstr "Các ngày đã chọn"
@@ -14756,10 +14815,6 @@ msgstr "Chọn…"
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #~ msgid "Selected project"
 #~ msgstr "Dự án đã chọn"
-
-#: src/renderer/components/plugins/PluginServiceAccounts.tsx
-msgid "Selected"
-msgstr "Đã chọn"
 
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
@@ -15089,6 +15144,7 @@ msgstr "Hiện máy chủ MCP từ {providerLabel}"
 
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/EverythingSearchResults.tsx
+#: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentPromptSection.tsx
 msgid "Show more"
@@ -15240,6 +15296,7 @@ msgstr "Lối tắt thanh bên"
 msgid "Sidekick"
 msgstr "Mô hình phụ"
 
+#: src/renderer/components/plugins/PluginServiceAccounts.tsx
 #: src/renderer/components/providers/devin/profileSettings.tsx
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
@@ -15275,6 +15332,7 @@ msgid "Sign in with the agent CLI."
 msgstr "Đăng nhập bằng CLI tác nhân."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/plugins/PluginServiceAccounts.tsx
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
 msgid "Sign out"
 msgstr "Đăng xuất"
@@ -15392,6 +15450,7 @@ msgstr "Thiếu SKILL.md."
 msgid "SKILL.md is too large."
 msgstr "SKILL.md quá lớn."
 
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/components/thread/ThreadCommandPanel.tsx
@@ -16567,6 +16626,10 @@ msgid "The finding is no longer available."
 msgstr "Kết quả không còn khả dụng."
 
 #: src/renderer/i18n/sharedMessages.ts
+msgid "The fork's saved conversation is unavailable."
+msgstr "Không có cuộc trò chuyện đã lưu của nhánh."
+
+#: src/renderer/i18n/sharedMessages.ts
 msgid "The GitHub account \"{login}\" belongs to {host}, which does not match this project's GitHub remote."
 msgstr "Tài khoản GitHub \"{login}\" thuộc về {host}, không khớp với kho lưu trữ GitHub từ xa của dự án này."
 
@@ -16772,6 +16835,10 @@ msgstr "Mô hình đã chọn so sánh câu trả lời trò chuyện của từ
 msgid "The selected model compares snapshots of each candidate's changes under anonymous labels. It recommends a winner without merging anything."
 msgstr "Mô hình đã chọn so sánh ảnh chụp nhanh các thay đổi của từng ứng viên bằng nhãn ẩn danh. Mô hình đề xuất người thắng mà không hợp nhất bất kỳ nội dung nào."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The selected turn still contains active work."
+msgstr "Lượt đã chọn vẫn có công việc đang thực hiện."
+
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "The server configuration is invalid."
 msgstr "Cấu hình máy chủ không hợp lệ."
@@ -16839,6 +16906,11 @@ msgstr "Skill luôn được đồng bộ hóa với nguồn và sẽ ngừng ho
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "The skills marketplace couldn't be loaded."
 msgstr "Không thể tải marketplace skill."
+
+#: src/renderer/actions/threadForkActions.ts
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The source conversation is unavailable."
+msgstr "Không có cuộc trò chuyện nguồn."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The SSH tunnel reached an incompatible Poracode server."
@@ -17430,6 +17502,10 @@ msgstr "Tùy chọn danh sách luồng"
 #: src/renderer/components/thread/PresentationModeTabs.tsx
 msgid "Thread mode"
 msgstr "Chế độ luồng"
+
+#: src/renderer/components/thread/ThreadForkDialog.tsx
+msgid "Thread name"
+msgstr "Tên cuộc trò chuyện"
 
 #: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 msgid "Thread not found"
@@ -18102,6 +18178,7 @@ msgstr "Không khả dụng — dùng phông chữ mặc định"
 msgid "Unavailable conversation"
 msgstr "Cuộc trò chuyện không khả dụng"
 
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 msgid "Unavailable on this device"
@@ -18396,6 +18473,10 @@ msgstr "Cập nhật SDK"
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Update task"
 msgstr "Cập nhật nhiệm vụ"
+
+#: src/renderer/actions/threadForkActions.ts
+msgid "Update the host to fork conversations."
+msgstr "Cập nhật máy chủ để tạo nhánh trò chuyện."
 
 #: src/renderer/components/thread/SideChat/sideChatActions.ts
 msgid "Update the remote host to use side chat with hidden context."
@@ -18764,6 +18845,7 @@ msgstr "giá trị"
 #~ msgstr "Xác minh khóa máy chủ SSH"
 
 #. About page label: app version row
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Version"
@@ -18910,6 +18992,10 @@ msgstr "Hãy đợi tất cả ứng viên hoàn tất trước khi hợp nhất
 #: src/renderer/actions/experimentDecisionActions.ts
 msgid "Wait for every candidate to finish before opening a pull request."
 msgstr "Hãy đợi tất cả ứng viên hoàn tất trước khi mở pull request."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Wait for the source conversation to finish before forking."
+msgstr "Đợi cuộc trò chuyện nguồn kết thúc trước khi tạo nhánh."
 
 #: src/renderer/actions/moveThreadToWorktreeActions.ts
 msgid "Wait for the thread to finish starting before moving it to a worktree."

@@ -159,6 +159,7 @@ export class ThreadOutputPipeline {
     this.options.emit({
       type: "thread-state",
       threadId: session.threadId,
+      ...(session.initialInstructionsApplied ? { initialInstructionsApplied: true } : {}),
       status: session.status,
       attention: session.attention,
       agentKind: session.agentKind,

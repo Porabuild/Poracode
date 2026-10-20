@@ -128,6 +128,47 @@ describe("ACP async extension updates", () => {
 });
 
 describe("ACP external session update sources", () => {
+  it("acknowledges inherited context on live output before a cancelled prompt settles", async () => {
+    const { connection, session } = makeConfigSyncSession();
+    const internal = session as unknown as Record<string, unknown>;
+    internal["replayHistoryUntil"] = 0;
+    let rejectPrompt!: (error: Error) => void;
+    connection.prompt.mockReturnValueOnce(
+      new Promise((_resolve, reject) => {
+        rejectPrompt = reject;
+      }),
+    );
+    const admitted = vi.fn<() => void>();
+    const turn = session.startTurn("continue fork", { model: "model-a" }, undefined, {
+      onPromptSubmitted: admitted,
+    });
+    await vi.waitFor(() => expect(connection.prompt).toHaveBeenCalledOnce());
+    expect(admitted).not.toHaveBeenCalled();
+    const notification = {
+      update: { sessionUpdate: "agent_message_chunk", content: { type: "text", text: "Reply" } },
+    };
+    internal["isReplayingHistory"] = true;
+    session.handleSessionUpdate(notification);
+    expect(admitted).not.toHaveBeenCalled();
+    internal["isReplayingHistory"] = false;
+    session.handleSessionUpdate(notification);
+    expect(admitted).toHaveBeenCalledOnce();
+    await session.interruptTurn();
+    rejectPrompt(new Error("cancelled"));
+    await turn;
+    expect(admitted).toHaveBeenCalledOnce();
+  });
+
+  it("retains inherited context when the provider rejects the prompt before output", async () => {
+    const { connection, session } = makeConfigSyncSession();
+    connection.prompt.mockRejectedValueOnce(new Error("connection refused"));
+    const admitted = vi.fn<() => void>();
+    await session.startTurn("continue fork", { model: "model-a" }, undefined, {
+      onPromptSubmitted: admitted,
+    });
+    expect(admitted).not.toHaveBeenCalled();
+  });
+
   it("allows a source to defer a provider update and re-ingest it without recursion", () => {
     const { listener, session } = makeConfigSyncSession();
     const notification = {

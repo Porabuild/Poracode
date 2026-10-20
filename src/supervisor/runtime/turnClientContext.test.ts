@@ -79,6 +79,23 @@ describe("turnClientContextSchema", () => {
 });
 
 describe("structuredTurnTextOptions", () => {
+  it("delivers frozen fork history separately from the displayed prompt and preserves commands", () => {
+    const target = {
+      structuredSession: {},
+      pendingInitialInstructions: "frozen inherited history",
+      slashCommands: [{ id: "compact", label: "compact" }],
+    };
+    const options = structuredTurnTextOptions(target, { prompt: "try another approach" });
+    expect(options).toEqual({
+      inlineInstructions: "frozen inherited history",
+      onPromptSubmitted: expect.any(Function),
+    });
+    expect(structuredTurnTextOptions(target, { prompt: "/compact" })).toEqual({});
+    expect(target.pendingInitialInstructions).toBe("frozen inherited history");
+    options.onPromptSubmitted?.();
+    expect(target.pendingInitialInstructions).toBeUndefined();
+    expect(structuredTurnTextOptions(target, { prompt: "next" })).toEqual({});
+  });
   const turn = { prompt: "hello", inlineInstructions: "skill", turnContext: "context" };
   const inline = { structuredSession: {} };
   const placing = { structuredSession: { placesTurnContext: true } };

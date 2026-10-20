@@ -487,6 +487,7 @@ export class CursorSdkSession implements StructuredSessionHandle {
       });
       turn.startRequest = startRequest;
       const started = await startRequest;
+      options?.onPromptSubmitted?.();
       this.forceStaleRunOnNextSend = false;
       turn.runId = started.runId;
       this.mapperState.currentRunId = started.runId;

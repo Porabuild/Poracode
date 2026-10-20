@@ -27,6 +27,7 @@ internal object LiveSessionStateTransitions {
         liveBrowserForwardVersions = emptySet(),
         liveRuntimeHistoryNoticeVersions = emptySet(),
         liveProjectCommandResultVersions = emptySet(),
+        liveThreadForkVersions = emptySet(),
         socketState = state,
         socketDetail = detail,
         sessionExpired = state == RemoteWebSocketClient.ConnectionState.SessionExpired ||

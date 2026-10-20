@@ -12,6 +12,13 @@ export const productionRoots = [
 
 export const functionalAreas = [
   {
+    id: "thread-forks",
+    title: "Completed-turn conversation forks and source navigation",
+    patterns: [/threadFork/i, /ThreadFork/],
+    automated: ["baseline"],
+    manual: ["thread-forks", "provider-live", "remote-client"],
+  },
+  {
     id: "renderer-styles",
     title: "Shared and component renderer styles",
     patterns: [/^src\/renderer\/.*\.css$/],
@@ -318,6 +325,8 @@ export const functionalAreas = [
 ];
 
 export const manualGates = {
+  "thread-forks":
+    "Fork an earlier completed reply through the icon and tooltip; verify the exact inherited prefix, source link, independent attachments, unchanged source and draft, provider context on first send and after Stop/retry/restart, and persistence after source deletion. Check desktop and compact layouts with no special split-pane option.",
   "delegated-agent-recovery":
     "Restart an isolated host with historical native and Crossagent rows; verify terminal state, retained output, current/stale snapshot fencing and live-run preservation.",
   "remote-usage":

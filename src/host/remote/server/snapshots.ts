@@ -173,6 +173,7 @@ export function descriptor(ctx: RemoteServerContext): RemoteEnvironmentDescripto
         versions: [REMOTE_THREAD_LAUNCH_METADATA_VERSION],
       },
       conversationSnapshots: { versions: [REMOTE_CONVERSATION_SNAPSHOTS_VERSION] },
+      threadForks: { versions: [1] },
       // Managed-root bounded project-command results: the existing project
       // command route honors the exact per-request bounded declaration.
       projectCommandResults: {
