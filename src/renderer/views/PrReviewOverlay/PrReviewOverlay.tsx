@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import { ArrowLeft, Columns2, ExternalLink, MessageSquare, RefreshCw, Rows2 } from "lucide-react";
 import { Button, Link, toast } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
@@ -57,6 +57,8 @@ const DIFF_MODE = { Split: 1, Unified: 4 } as const;
  *  checks, and changes panels. Hoisted to module scope (was an inline IIFE
  *  in `PrReviewOverlay`'s `content` prop) so it isn't redefined every render. */
 function PrReviewContent(props: {
+  contentRef: RefObject<HTMLDivElement | null>;
+  metaInHeader: boolean;
   prKey: string;
   cacheKey: string;
   details: PrDetails | undefined;
@@ -79,6 +81,8 @@ function PrReviewContent(props: {
   guidePanel?: ReactNode;
 }) {
   const {
+    contentRef,
+    metaInHeader,
     prKey,
     cacheKey,
     details,
@@ -115,10 +119,12 @@ function PrReviewContent(props: {
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <div className="px-6 pb-1 pt-2">
-        <PrMetaRow prKey={prKey} cacheKey={cacheKey} />
-      </div>
+    <div ref={contentRef} className="flex h-full min-h-0 flex-col">
+      {!metaInHeader && (
+        <div className="px-6 pb-1 pt-2">
+          <PrMetaRow prKey={prKey} cacheKey={cacheKey} />
+        </div>
+      )}
       <PrHeaderCard
         key={`${cacheKey}:${reviewSourceIdentity(details?.source)}:${canEdit}`}
         cacheKey={cacheKey}
@@ -201,6 +207,22 @@ export function PrReviewOverlay(props: {
   const [loadedHead, setLoadedHead] = useState<string | null | undefined>(null);
   const loadGeneration = useRef(0);
   const [activeTab, setActiveTab] = useState<PrTabKey>("conversation");
+
+  // Track content width to decide if the meta row fits inline in the content
+  // header or should overflow into a row above the tabs. Above ~880px the
+  // chips, branches, and stats all fit comfortably; below, they're pushed down.
+  const contentRef = useRef<HTMLDivElement | null>(null);
+  const [metaInHeader, setMetaInHeader] = useState(true);
+  useEffect(() => {
+    const el = contentRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(([entry]) => {
+      const w = entry?.contentRect.width ?? 0;
+      setMetaInHeader(w >= 880);
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   async function load() {
     const hasCurrentSource = () => {
@@ -406,6 +428,8 @@ export function PrReviewOverlay(props: {
       : "unread";
 
   const showDiffControls = activeTab === "changes";
+  // The file page's own controls (back, file name, viewed toggle) need the header row.
+  const inlineMeta = metaInHeader && !(showDiffControls && selectedFile);
 
   function selectFilePage(path: string) {
     setActiveTab("changes");
@@ -491,6 +515,12 @@ export function PrReviewOverlay(props: {
               >
                 <ExternalLink className="size-3.5" />
               </Link>
+            )}
+            {inlineMeta && (
+              <>
+                <span className="mx-1 h-3 w-px shrink-0 bg-foreground/15" aria-hidden />
+                <PrMetaRow prKey={prKey} cacheKey={cacheKey} nowrap />
+              </>
             )}
           </div>
           {showDiffControls && selectedFile && (
@@ -604,11 +634,13 @@ export function PrReviewOverlay(props: {
         ) : (
           <div className="relative flex h-full min-h-0 flex-col">
             {(cached || !browserOnline) && (
-              <p role="status" className="shrink-0 px-4 py-2 text-sm text-muted">
+              <p role="status" className="shrink-0 px-6 py-2 text-xs text-muted">
                 <Trans>Offline</Trans>
               </p>
             )}
             <PrReviewContent
+              contentRef={contentRef}
+              metaInHeader={inlineMeta}
               prKey={prKey}
               cacheKey={cacheKey}
               details={details}

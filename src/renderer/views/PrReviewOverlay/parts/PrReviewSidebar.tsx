@@ -145,19 +145,19 @@ export function PrReviewSidebar(props: {
                   <Trans>Changes in PR</Trans>
                   <span className="font-normal text-muted/60">({totalCount})</span>
                 </button>
+                <span
+                  className="flex items-center gap-0.5 text-[10px] leading-4 font-medium normal-case tracking-normal"
+                  aria-label={t`${totalAdditions} additions and ${totalDeletions} deletions`}
+                >
+                  {totalAdditions > 0 && <span className="text-success">+{totalAdditions}</span>}
+                  {totalDeletions > 0 && <span className="text-danger">−{totalDeletions}</span>}
+                </span>
                 <span className="ml-auto text-[10px] font-medium normal-case tracking-normal text-muted">
                   {t`${viewedCount} of ${totalCount} viewed`}
                 </span>
               </div>
               {expanded && (
                 <div className="space-y-px">
-                  <div
-                    className="flex items-center justify-end gap-0.5 px-2 text-[10px] leading-4 font-medium"
-                    aria-label={t`${totalAdditions} additions and ${totalDeletions} deletions`}
-                  >
-                    {totalAdditions > 0 && <span className="text-success">+{totalAdditions}</span>}
-                    {totalDeletions > 0 && <span className="text-danger">−{totalDeletions}</span>}
-                  </div>
                   {loading && files.length === 0 && (
                     <div className="flex items-center justify-center px-2 py-3 text-xs text-muted/60">
                       <Trans>Loading PR…</Trans>

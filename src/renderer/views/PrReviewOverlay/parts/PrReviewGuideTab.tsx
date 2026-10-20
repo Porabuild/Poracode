@@ -154,8 +154,8 @@ export function PrReviewGuideTab(props: {
   const stop = guide?.stops[index];
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
-        <div className="mx-auto flex max-w-3xl flex-col gap-4">
+      <div className="min-h-0 flex-1 overflow-y-auto px-6 py-3">
+        <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 text-xs">
           <div className="flex flex-wrap items-end gap-2">
             <Select
               aria-label={t`Guide writer`}
@@ -206,14 +206,15 @@ export function PrReviewGuideTab(props: {
             disabled={readOnly || loading || result?.status === "generating"}
             autoSize
             maxRows={4}
+            className="text-xs"
           />
           {!writer && (
-            <p className="text-sm text-muted">
+            <p className="text-xs text-muted">
               <Trans>Select a guide writer that supports an enforced read-only workspace.</Trans>
             </p>
           )}
           {error && (
-            <div role="alert" className="text-sm text-danger">
+            <div role="alert" className="text-xs text-danger">
               {error}{" "}
               <Button
                 size="sm"
@@ -226,17 +227,17 @@ export function PrReviewGuideTab(props: {
             </div>
           )}
           {result?.status === "generating" && (
-            <p role="status" className="text-sm text-muted">
+            <p role="status" className="text-xs text-muted">
               <Trans>Writing guide. You can leave this review and return when it is ready.</Trans>
             </p>
           )}
           {result?.status === "failed" && (
-            <p role="alert" className="text-sm text-danger">
+            <p role="alert" className="text-xs text-danger">
               <Trans>Could not write the guide. Try rewriting it.</Trans>
             </p>
           )}
           {guide && stale && (
-            <p role="status" className="text-sm text-warning">
+            <p role="status" className="text-xs text-warning">
               <Trans>
                 This guide is out of date. Rewrite it to see excerpts for the current change.
               </Trans>
@@ -246,7 +247,7 @@ export function PrReviewGuideTab(props: {
           {stop && (
             <article className="flex flex-col gap-3">
               <div className="flex flex-wrap items-center gap-2">
-                <h2 className="break-words text-base font-semibold">{stop.title}</h2>
+                <h2 className="break-words text-sm font-semibold">{stop.title}</h2>
                 {stop.lookClosely && (
                   <span className="rounded bg-warning/10 px-2 py-1 text-xs text-warning">
                     <Trans>Look closely</Trans>
@@ -358,7 +359,7 @@ export function PrReviewGuideTab(props: {
       {stop && (
         <nav
           aria-label={t`Guide stops`}
-          className="flex shrink-0 items-center justify-between gap-2 border-t border-border px-4 py-3"
+          className="flex shrink-0 items-center justify-between gap-2 border-t border-border px-6 py-3"
         >
           <Button
             size="sm"

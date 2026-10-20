@@ -53,7 +53,12 @@ export function PrHeaderCard(props: {
               <Trans>Description</Trans>
             </button>
             {canEdit && !editing && (
-              <Button size="sm" variant="ghost" onPress={beginEdit}>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-6 min-h-0 px-2 text-[11px] font-medium text-muted hover:text-foreground"
+                onPress={beginEdit}
+              >
                 <Trans>Edit</Trans>
               </Button>
             )}
@@ -70,13 +75,14 @@ export function PrHeaderCard(props: {
               }}
             >
               <TextField aria-label={t`Title`} value={title} onChange={setTitle} isRequired>
-                <Input placeholder={t`Title`} />
+                <Input placeholder={t`Title`} className="text-xs" />
               </TextField>
               <TextArea
                 aria-label={t`Description`}
                 value={body}
                 onChange={(event) => setBody(event.target.value)}
                 rows={6}
+                className="text-xs"
               />
               <div className="flex justify-end gap-2">
                 <Button

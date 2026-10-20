@@ -41,6 +41,7 @@ export function PrCommentBody(props: { body: string; disabled: boolean; onSave?:
             onChange={(event) => setDraft(event.target.value)}
             autoSize
             maxRows={12}
+            className="text-xs"
           />
           <div className="flex justify-end gap-2">
             <Button size="sm" variant="ghost" isDisabled={saving} onPress={() => setEditing(false)}>
@@ -65,6 +66,7 @@ export function PrCommentBody(props: { body: string; disabled: boolean; onSave?:
               <Button
                 size="sm"
                 variant="ghost"
+                className="h-6 min-h-0 px-2 text-[11px] font-medium text-muted hover:text-foreground"
                 aria-label={t`Edit comment`}
                 isDisabled={disabled}
                 onPress={() => {

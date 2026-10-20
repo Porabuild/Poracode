@@ -18,8 +18,13 @@ import {
 } from "@/renderer/utils/prStatus";
 
 /** State chip + author + branches + diff stats — used in the content-header bar. */
-export function PrMetaRow(props: { prKey: string; cacheKey: string }) {
-  const { prKey, cacheKey } = props;
+export function PrMetaRow(props: {
+  prKey: string;
+  cacheKey: string;
+  /** Keep every chip on one line (the content header); otherwise the row wraps. */
+  nowrap?: boolean;
+}) {
+  const { prKey, cacheKey, nowrap = false } = props;
   const { t } = useLingui();
   const state = usePrState(prKey);
   const reviewDecision = usePrReviewDecision(prKey);
@@ -46,7 +51,9 @@ export function PrMetaRow(props: { prKey: string; cacheKey: string }) {
   const author = details?.author?.login;
 
   return (
-    <div className="flex min-w-0 flex-wrap items-center gap-2 text-xs leading-none">
+    <div
+      className={`flex min-w-0 items-center gap-2 text-xs leading-none ${nowrap ? "" : "flex-wrap"}`}
+    >
       <Chip size="sm" variant="soft" className={`gap-1 ${PR_TONE_TEXT_CLASS[tone]}`}>
         <span className={`size-1.5 rounded-full ${PR_TONE_BG_CLASS[tone]}`} />
         {state === "merged" ? <GitMerge className="size-3" /> : <GitBranch className="size-3" />}
