@@ -75,6 +75,7 @@ interface RunRecord extends AttemptExecutionState, ContinuableRun {
   attemptIndex: number;
   attemptSettled: boolean;
   steering: SteerState | undefined;
+  steerGeneration: number;
   attemptResults: SubagentAttemptResult[];
   status: SubagentRunStatus;
   /** Assistant text accumulated for the current attempt. */
@@ -119,6 +120,7 @@ export { SubagentSpawnError } from "./errors";
 interface SteerState {
   completion: "none" | "pending" | "resumed";
   onDrained?: () => void;
+  onStarted?: () => void;
 }
 
 /** Upper bound for a child to acknowledge a steer interrupt before the steer fails. */
@@ -292,6 +294,7 @@ export class SubagentRunManager {
       attemptIndex: 0,
       attemptSettled: false,
       steering: undefined,
+      steerGeneration: 0,
       attemptResults: [],
       status: "running",
       transcript,
@@ -457,6 +460,7 @@ export class SubagentRunManager {
         "The previous message to this subagent is still being delivered",
       );
     const steering: SteerState = { completion: "none" };
+    record.steerGeneration += 1;
     record.steering = steering;
     const attemptIndex = record.attemptIndex;
     const config = record.plan.attempts[attemptIndex]!.config;
@@ -555,6 +559,7 @@ export class SubagentRunManager {
     prompt: string,
     config: ThreadConfig,
   ): Promise<void> {
+    const generation = record.steerGeneration;
     const drained = new Promise<void>((resolve) => {
       steering.onDrained = resolve;
     });
@@ -576,10 +581,28 @@ export class SubagentRunManager {
       }
     }
     if (!this.isCurrentAttempt(record, attemptIndex)) return;
-    await handle.startTurn!(prompt, config);
-    // The replacement turn is open on the same session: the interrupted
-    // completion parked above must not settle the run.
+    // Consume only the interrupted turn's completion, before the replacement
+    // can complete synchronously or hold startTurn open for its entire reply.
     if (steering.completion === "pending") steering.completion = "resumed";
+    delete steering.onDrained;
+    const started = new Promise<void>((resolve) => {
+      steering.onStarted = resolve;
+    });
+    const turn = handle.startTurn!(prompt, config).catch((error: unknown) => {
+      // A later correction can interrupt this prompt after delivery returns.
+      if (record.steerGeneration === generation) {
+        this.finishAttempt(
+          record,
+          attemptIndex,
+          "failed",
+          error instanceof Error ? error.message : String(error),
+        );
+      }
+      throw error;
+    });
+    // Handles may resolve at dispatch or at turn completion. A working/started
+    // signal acknowledges delivery without leaving the full-turn promise unobserved.
+    await Promise.race([started, turn, record.settledPromise]);
   }
 
   /** Interrupt + dispose a single run. */
@@ -724,6 +747,7 @@ export class SubagentRunManager {
       isActive: () => this.isCurrentAttempt(record, attemptIndex),
       onWorking: () => {
         if (record.steering?.completion === "pending") record.steering.completion = "resumed";
+        record.steering?.onStarted?.();
       },
       onRuntimeEvent: (event) => this.onChildEvent(record, attemptIndex, event),
       onSettle: (status, errorMessage) =>
@@ -767,6 +791,7 @@ export class SubagentRunManager {
         // A native steer can start a follow-up turn if the original finished
         // during its round-trip. Keep that new turn alive until it completes.
         if (record.steering?.completion === "pending") record.steering.completion = "resumed";
+        record.steering?.onStarted?.();
         break;
       case "content.delta":
         if (event.stream === "assistant_text") {
@@ -912,6 +937,7 @@ export class SubagentRunManager {
     if (record.steering && status === "completed") {
       record.steering.completion = "pending";
       record.steering.onDrained?.();
+      record.steering.onStarted?.();
       return;
     }
     // A failed/cancelled attempt can never resume; release a waiting steer so

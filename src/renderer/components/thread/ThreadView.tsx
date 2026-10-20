@@ -353,6 +353,7 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
       <div
         ref={droppableRef}
         data-poracode-thread-pane=""
+        data-poracode-attachment-drop-target=""
         data-poracode-pane-hidden={hidden || undefined}
         className={`${usesTerminalPresentation ? "m-thread m-thread--terminal" : "m-thread"} group/pane relative flex h-full min-h-0 flex-col ${isDragging ? "opacity-50" : ""}`}
       >
@@ -515,6 +516,7 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
                   ) : null}
                   {awaitingWorktree ? null : (
                     <ThreadToolRail
+                      threadId={thread.id}
                       projectId={thread.projectId}
                       paneCount={paneCount}
                       {...(thread.worktreePath ? { worktreePath: thread.worktreePath } : {})}

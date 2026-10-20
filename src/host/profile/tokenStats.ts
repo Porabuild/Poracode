@@ -16,6 +16,8 @@ import {
 } from "./heatmap";
 import { recordCurrentDevice, resolveProfileDevice } from "./identity";
 import { accountLabel, modelKey, modelLabel, providerLabel } from "./labels";
+import { aggregateProfileCosts } from "./costStats";
+import type { UsageEventRow } from "../db/usageEvents";
 
 /**
  * Token usage from Poracode's own activity, read from the durable `usage_events`
@@ -42,6 +44,7 @@ function emptyTokenStats(
   const { heatmap } = buildHeatmap(new Map(), todayIndex, "tokens", windowDays);
   return {
     available: false,
+    costs: aggregateProfileCosts([], req, todayIndex),
     scope: req.scope ?? "device",
     device,
     generatedAt: nowMs,
@@ -57,26 +60,34 @@ function emptyTokenStats(
   };
 }
 
-const tokenCache = new Map<string, { generation: number; result: ProfileTokenStats }>();
+const tokenCache = new Map<
+  string,
+  { generation: number; validUntil: number; result: ProfileTokenStats }
+>();
 
 export function computeProfileTokenStats(req: ProfileStatsRequest): ProfileTokenStats {
   const offset = req.utcOffsetMinutes;
   const nowMs = Date.now();
   const todayIndex = localDayIndex(nowMs, offset);
 
-  // Reuse the last aggregation until a usage write bumps the generation, so
-  // repeated opens don't re-scan the log.
+  // Reuse totals until a write, day change or excluded future sample becomes current.
   const generation = getProfileDataGeneration();
   const cacheKey = `${offset}|${todayIndex}|${req.scope ?? "device"}|${req.deviceId ?? "current"}|${req.provider ?? "all"}|${req.window ?? "all"}`;
   const cached = tokenCache.get(cacheKey);
-  if (cached && cached.generation === generation) return cached.result;
+  if (
+    cached &&
+    cached.generation === generation &&
+    nowMs >= cached.result.generatedAt &&
+    nowMs < cached.validUntil
+  )
+    return cached.result;
 
   const currentDevice = recordCurrentDevice();
   const targetDeviceId =
     req.scope === "all" ? currentDevice.id : (req.deviceId ?? currentDevice.id);
   if (targetDeviceId !== currentDevice.id) {
     const empty = emptyTokenStats(resolveProfileDevice(targetDeviceId), req, nowMs, todayIndex);
-    tokenCache.set(cacheKey, { generation, result: empty });
+    tokenCache.set(cacheKey, { generation, validUntil: Infinity, result: empty });
     return empty;
   }
 
@@ -95,8 +106,10 @@ export function computeProfileTokenStats(req: ProfileStatsRequest): ProfileToken
   const exactTokenProviders = new Set<string>();
   let firstExactTs: number | undefined;
   let lifetimeTokens = 0;
+  let validUntil = Infinity;
   const windowDays = statsWindowDays(req.window);
   const startDayIndex = windowDays ? windowStartIndex(todayIndex, windowDays) : undefined;
+  const costRows: UsageEventRow[] = [];
 
   for (const row of dbGetAllUsageEvents()) {
     if (row.provider) {
@@ -109,13 +122,24 @@ export function computeProfileTokenStats(req: ProfileStatsRequest): ProfileToken
         if (prev === undefined || row.ts < prev) activityFirstTs.set(base, row.ts);
       }
     }
-    if ((row.kind !== "tokens" && row.kind !== "tokens_v2") || row.value <= 0) continue;
+    if (
+      (row.kind !== "tokens" && row.kind !== "tokens_v2") ||
+      row.value < 0 ||
+      (row.value === 0 && !row.costDetails?.observed)
+    )
+      continue;
     // Scope to the selected account (exact account-kind match) when filtering.
     if (req.provider && row.provider !== req.provider) continue;
     const dayIndex = localDayIndex(row.ts, offset);
+    if (row.ts > nowMs) {
+      validUntil = Math.min(validUntil, row.ts);
+      continue;
+    }
     if (startDayIndex !== undefined && (dayIndex < startDayIndex || dayIndex > todayIndex)) {
       continue;
     }
+    costRows.push(row);
+    if (row.value === 0) continue;
     lifetimeTokens += row.value;
     const day = dayKeyFromIndex(dayIndex);
     perDay.set(day, (perDay.get(day) ?? 0) + row.value);
@@ -182,6 +206,7 @@ export function computeProfileTokenStats(req: ProfileStatsRequest): ProfileToken
           .sort();
 
   const result: ProfileTokenStats = {
+    costs: aggregateProfileCosts(costRows, req, todayIndex),
     available: lifetimeTokens > 0,
     scope: req.scope ?? "device",
     device: currentDevice,
@@ -197,6 +222,6 @@ export function computeProfileTokenStats(req: ProfileStatsRequest): ProfileToken
     tokenHeatmap,
     unavailableProviders,
   };
-  tokenCache.set(cacheKey, { generation, result });
+  tokenCache.set(cacheKey, { generation, validUntil, result });
   return result;
 }

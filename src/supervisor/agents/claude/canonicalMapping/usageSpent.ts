@@ -13,6 +13,10 @@ import type { RuntimeEvent } from "@/shared/contracts";
 import { readClaudeApiUsageSpendTokens } from "./result";
 import { readClaudeAssistantMessageId } from "./helpers";
 
+function readTokenCount(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0 ? value : undefined;
+}
+
 /**
  * Usage scope (SDK session id + epoch) for one Claude session. The SDK can
  * adopt a different session id mid-thread (see `shouldAdoptSessionId` in
@@ -77,12 +81,38 @@ export function createClaudeUsageSpentEvent(
   // the ledger; fall back to the envelope uuid when the payload has no id.
   const sampleId = readClaudeAssistantUsageSampleId(message);
   const model = typeof message.message?.model === "string" ? message.message.model : undefined;
+  const nativeUsage = message.message.usage;
+  const cacheWrite1h = readTokenCount(nativeUsage.cache_creation?.ephemeral_1h_input_tokens);
+  const cacheWrite5m = readTokenCount(nativeUsage.cache_creation?.ephemeral_5m_input_tokens);
+  const input = readTokenCount(nativeUsage.input_tokens);
+  const output = readTokenCount(nativeUsage.output_tokens);
+  const cacheRead = readTokenCount(nativeUsage.cache_read_input_tokens);
+  const cacheWrite = readTokenCount(nativeUsage.cache_creation_input_tokens);
+  // A partial counter still records activity, but cannot establish a complete price basis.
+  const tokens =
+    input !== undefined &&
+    output !== undefined &&
+    cacheRead !== undefined &&
+    cacheWrite !== undefined
+      ? {
+          input,
+          output,
+          cacheRead,
+          cacheWrite,
+          ...(cacheWrite1h !== undefined &&
+          cacheWrite5m !== undefined &&
+          cacheWrite1h + cacheWrite5m === cacheWrite
+            ? { cacheWrite1h }
+            : {}),
+        }
+      : undefined;
   return {
     type: "usage.spent",
     threadId,
     usage: {
       counterKind: "per-call",
       counter,
+      ...(tokens ? { tokens } : {}),
       scopeId: meta.scopeId,
       epoch: meta.epoch,
       ...(meta.fresh ? { fresh: true } : {}),

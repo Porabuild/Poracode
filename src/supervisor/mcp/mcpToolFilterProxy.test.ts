@@ -1,9 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Client, InMemoryTransport } from "@modelcontextprotocol/client";
 import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
+import { StdioServerTransport } from "@modelcontextprotocol/server/stdio";
 import { Server } from "@modelcontextprotocol/server";
 import type { Tool, Transport } from "@modelcontextprotocol/server";
-import { startFilterProxy, type FilterProxy } from "./mcpToolFilterProxy";
+import { createServer } from "node:http";
+import { PassThrough } from "node:stream";
+import { createUpstreamTransport, startFilterProxy, type FilterProxy } from "./mcpToolFilterProxy";
 
 const proxies: FilterProxy[] = [];
 const clients: Client[] = [];
@@ -94,6 +97,7 @@ async function startProxyThroughMemory(options: {
   upstream: UpstreamFixture;
   disabledTools: string[];
   onDownstreamClose?: () => void;
+  isolateConnectionFailures?: boolean;
 }): Promise<{ proxy: FilterProxy; downstream: Client }> {
   const [proxyUpstream, fixtureSide] = InMemoryTransport.createLinkedPair();
   const [proxyDownstream, clientSide] = InMemoryTransport.createLinkedPair();
@@ -102,6 +106,7 @@ async function startProxyThroughMemory(options: {
   const proxy = await startFilterProxy({
     serverName: "filter-fixture",
     disabledTools: options.disabledTools,
+    ...(options.isolateConnectionFailures ? { isolateConnectionFailures: true } : {}),
     upstreamTransport: proxyUpstream as unknown as Transport,
     downstreamTransport: proxyDownstream as unknown as Transport,
   });
@@ -121,7 +126,202 @@ async function startProxyThroughMemory(options: {
   return { proxy, downstream };
 }
 
+async function startStalledSseFixture() {
+  const connected = Promise.withResolvers<void>();
+  const disconnected = vi.fn<() => void>();
+  const http = createServer((request, response) => {
+    response.writeHead(200, { "Content-Type": "text/event-stream" });
+    response.write(": waiting for endpoint\n\n");
+    request.socket.once("close", disconnected);
+    connected.resolve();
+  });
+  await new Promise<void>((resolve) => http.listen(0, "127.0.0.1", resolve));
+  const address = http.address();
+  if (!address || typeof address === "string") throw new Error("expected local port");
+  const transport = createUpstreamTransport({
+    transport: { type: "sse", url: `http://127.0.0.1:${address.port}/events`, headers: {} },
+  });
+  return {
+    transport,
+    connected: connected.promise,
+    disconnected,
+    async close() {
+      await transport.close();
+      http.closeAllConnections();
+      await new Promise<void>((resolve) => http.close(() => resolve()));
+    },
+  };
+}
+
 describe("mcpToolFilterProxy", () => {
+  it.each([false, true])("bounds stalled SSE startup with isolation %s", async (isolation) => {
+    const fixture = await startStalledSseFixture();
+    const [proxySide, clientSide] = InMemoryTransport.createLinkedPair();
+    let outcome: { proxy: FilterProxy } | { error: unknown } | undefined;
+    void startFilterProxy({
+      serverName: "stalled-sse",
+      disabledTools: [],
+      isolateConnectionFailures: isolation,
+      timeoutMs: 250,
+      upstreamTransport: fixture.transport,
+      downstreamTransport: proxySide as unknown as Transport,
+    }).then(
+      (proxy) => {
+        proxies.push(proxy);
+        outcome = { proxy };
+      },
+      (error: unknown) => {
+        outcome = { error };
+      },
+    );
+    try {
+      await fixture.connected;
+      await vi.waitFor(() => expect(outcome).toBeDefined());
+      expect(outcome).toHaveProperty(isolation ? "proxy" : "error");
+      let toolNames: string[] = [];
+      if (isolation) {
+        const downstream = new Client({ name: "sse-timeout-test", version: "1.0.0" });
+        clients.push(downstream);
+        await downstream.connect(clientSide);
+        toolNames = (await downstream.listTools()).tools.map((tool) => tool.name);
+      }
+      expect(toolNames).toEqual(isolation ? ["poracode_mcp_unavailable"] : []);
+      await vi.waitFor(() => expect(fixture.disconnected).toHaveBeenCalled());
+    } finally {
+      await fixture.close();
+    }
+  });
+
+  it.each([false, true])(
+    "cancels pending upstream startup on stdin EOF with isolation %s",
+    async (isolation) => {
+      const fixture = await startStalledSseFixture();
+      const input = new PassThrough();
+      const output = new PassThrough();
+      const downstream = new StdioServerTransport(input, output);
+      const downstreamClosed = vi.fn<() => void>();
+      downstream.onclose = downstreamClosed;
+      let outcome: "opened" | "closed" | undefined;
+      void startFilterProxy({
+        serverName: "cancelled-sse",
+        disabledTools: [],
+        isolateConnectionFailures: isolation,
+        timeoutMs: 10000,
+        upstreamTransport: fixture.transport,
+        downstreamTransport: downstream,
+      }).then(
+        (proxy) => {
+          proxies.push(proxy);
+          outcome = "opened";
+        },
+        () => {
+          outcome = "closed";
+        },
+      );
+      try {
+        await fixture.connected;
+        input.end();
+        await vi.waitFor(() => expect(outcome).toBe("closed"));
+        expect(downstreamClosed).toHaveBeenCalledTimes(1);
+        await vi.waitFor(() => expect(fixture.disconnected).toHaveBeenCalled());
+      } finally {
+        await fixture.close();
+        input.destroy();
+        output.destroy();
+      }
+    },
+  );
+
+  it("keeps MCP initialization available when an upstream returns HTTP 401", async () => {
+    const http = createServer((_req, res) => {
+      res
+        .writeHead(401, { "Content-Type": "text/plain" })
+        .end("Unauthorized private-fixture-token");
+    });
+    await new Promise<void>((resolve) => http.listen(0, "127.0.0.1", resolve));
+    try {
+      const address = http.address();
+      if (!address || typeof address === "string") throw new Error("expected local port");
+      const [proxySide, clientSide] = InMemoryTransport.createLinkedPair();
+      const proxy = await startFilterProxy({
+        serverName: "broken-auth",
+        disabledTools: [],
+        isolateConnectionFailures: true,
+        upstreamTransport: createUpstreamTransport({
+          transport: { type: "http", url: `http://127.0.0.1:${address.port}/mcp`, headers: {} },
+        }),
+        downstreamTransport: proxySide as unknown as Transport,
+      });
+      proxies.push(proxy);
+      const downstream = new Client({ name: "failure-isolation-test", version: "1.0.0" });
+      clients.push(downstream);
+      await downstream.connect(clientSide);
+      expect((await downstream.listTools()).tools).toMatchObject([
+        { name: "poracode_mcp_unavailable", description: expect.stringContaining("broken-auth") },
+      ]);
+      const result = await downstream.callTool({ name: "poracode_mcp_unavailable", arguments: {} });
+      expect(result.isError).toBe(true);
+      expect(JSON.stringify(result)).not.toContain("private-fixture-token");
+    } finally {
+      http.closeAllConnections();
+      await new Promise<void>((resolve, reject) =>
+        http.close((error) => (error ? reject(error) : resolve())),
+      );
+    }
+  });
+
+  it("preserves healthy tools, filters and results with connection isolation", async () => {
+    const upstream = await startUpstreamFixture();
+    const { downstream } = await startProxyThroughMemory({
+      upstream,
+      disabledTools: ["secret-beta"],
+      isolateConnectionFailures: true,
+    });
+    expect((await downstream.listTools()).tools.map((tool) => tool.name)).toEqual([
+      "alpha",
+      "gamma",
+      "failing",
+    ]);
+    expect(await downstream.callTool({ name: "gamma", arguments: {} })).toMatchObject({
+      structuredContent: { value: "structured-gamma" },
+      _meta: { upstreamMeta: 7 },
+    });
+    expect(await downstream.callTool({ name: "secret-beta", arguments: {} })).toMatchObject({
+      isError: true,
+    });
+  });
+
+  it("reports tools/list failure without dropping the agent connection", async () => {
+    const upstream = await startUpstreamFixture();
+    upstream.server.setRequestHandler("tools/list", async () => {
+      throw new Error("fixture list failure");
+    });
+    const { downstream } = await startProxyThroughMemory({
+      upstream,
+      disabledTools: [],
+      isolateConnectionFailures: true,
+    });
+    expect((await downstream.listTools()).tools[0]?.name).toBe("poracode_mcp_unavailable");
+    expect(await downstream.callTool({ name: "alpha", arguments: {} })).toMatchObject({
+      isError: true,
+    });
+  });
+
+  it("reports an upstream disconnect while retaining the agent connection", async () => {
+    const upstream = await startUpstreamFixture();
+    const { downstream } = await startProxyThroughMemory({
+      upstream,
+      disabledTools: [],
+      isolateConnectionFailures: true,
+    });
+    await downstream.listTools();
+    await upstream.server.close();
+    expect((await downstream.listTools()).tools[0]?.name).toBe("poracode_mcp_unavailable");
+    expect(await downstream.callTool({ name: "alpha", arguments: {} })).toMatchObject({
+      isError: true,
+    });
+  });
+
   it("removes disabled tools from tools/list and honours upstream pagination", async () => {
     const upstream = await startUpstreamFixture();
     const { proxy, downstream } = await startProxyThroughMemory({
@@ -198,8 +398,10 @@ describe("mcpToolFilterProxy", () => {
     await expect(proxy.close()).resolves.toBeUndefined();
   });
 
-  it("proxies a real stdio upstream process", async () => {
-    const script = String.raw`
+  it.each([false, true])(
+    "proxies and retires a real stdio upstream with isolation %s",
+    async (isolateConnectionFailures) => {
+      const script = String.raw`
       let buffer = "";
       process.stdin.setEncoding("utf8");
       process.stdin.on("data", chunk => {
@@ -244,35 +446,40 @@ describe("mcpToolFilterProxy", () => {
         }
       });
     `;
-    const stdio = new StdioClientTransport({
-      command: process.execPath,
-      args: ["-e", script],
-      env: {},
-      stderr: "ignore",
-    });
-    const [proxyDownstream, clientSide] = InMemoryTransport.createLinkedPair();
-    const proxy = await startFilterProxy({
-      serverName: "stdio-filter",
-      disabledTools: ["drop"],
-      upstreamTransport: stdio as unknown as Transport,
-      downstreamTransport: proxyDownstream as unknown as Transport,
-    });
-    proxies.push(proxy);
-    const downstream = new Client({ name: "downstream-stdio-test", version: "1.0.0" });
-    await downstream.connect(clientSide);
-    clients.push(downstream);
+      const stdio = new StdioClientTransport({
+        command: process.execPath,
+        args: ["-e", script],
+        env: {},
+        stderr: "ignore",
+      });
+      const [proxyDownstream, clientSide] = InMemoryTransport.createLinkedPair();
+      const proxy = await startFilterProxy({
+        serverName: "stdio-filter",
+        disabledTools: ["drop"],
+        isolateConnectionFailures,
+        upstreamTransport: stdio as unknown as Transport,
+        downstreamTransport: proxyDownstream as unknown as Transport,
+      });
+      proxies.push(proxy);
+      const downstream = new Client({ name: "downstream-stdio-test", version: "1.0.0" });
+      await downstream.connect(clientSide);
+      clients.push(downstream);
 
-    const listed = await downstream.listTools();
+      const listed = await downstream.listTools();
 
-    expect(listed.tools.map((tool) => tool.name)).toEqual(["keep"]);
-    expect(proxy.client.getNegotiatedProtocolVersion()).toBe("2025-11-25");
+      expect(listed.tools.map((tool) => tool.name)).toEqual(["keep"]);
+      expect(proxy.client.getNegotiatedProtocolVersion()).toBe("2025-11-25");
 
-    const result = await downstream.callTool({ name: "keep", arguments: {} });
+      const result = await downstream.callTool({ name: "keep", arguments: {} });
 
-    expect(result.content).toEqual([{ type: "text", text: "ok:keep" }]);
+      expect(result.content).toEqual([{ type: "text", text: "ok:keep" }]);
 
-    const disabled = await downstream.callTool({ name: "drop", arguments: {} });
+      const disabled = await downstream.callTool({ name: "drop", arguments: {} });
 
-    expect(disabled.isError).toBe(true);
-  });
+      expect(disabled.isError).toBe(true);
+      expect(stdio.pid).not.toBeNull();
+      await downstream.close();
+      await vi.waitFor(() => expect(stdio.pid).toBeNull());
+    },
+  );
 });

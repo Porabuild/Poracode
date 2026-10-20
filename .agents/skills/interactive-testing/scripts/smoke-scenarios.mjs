@@ -12,6 +12,20 @@ export const productionRoots = [
 
 export const functionalAreas = [
   {
+    id: "inline-visuals",
+    title: "App-native visual data and source-only HTML/MCP fallback",
+    patterns: [/inlineVisual/i, /nativeVisual/i, /VisualSource/, /mcpAppResource/i, /mcpAppResult/],
+    automated: ["baseline"],
+    manual: ["changed-surface"],
+  },
+  {
+    id: "device-workspace",
+    title: "Host-managed iOS Simulator and Android Emulator workspace",
+    patterns: [/\/devices\//, /deviceWorkspace/i, /appControlsMcp\/deviceProof/],
+    automated: ["baseline"],
+    manual: ["device-workspace", "changed-surface", "visual-a11y"],
+  },
+  {
     id: "renderer-styles",
     title: "Shared and component renderer styles",
     patterns: [/^src\/renderer\/.*\.css$/],
@@ -76,6 +90,8 @@ export const functionalAreas = [
     patterns: [
       /agents\/devin\//i,
       /agents\/commandcode\//i,
+      /agents\/deepseek\//i,
+      /modelProviders/i,
       /providers?\//i,
       /agents\/registry/i,
       /agentRegistry/i,
@@ -120,20 +136,21 @@ export const functionalAreas = [
   },
   {
     id: "everything-search",
-    title: "Unified search, ranking, keyboard navigation, and file discovery",
+    title: "Unified search, saved messages, keyboard navigation, and file discovery",
     patterns: [
       /commands\//,
       /EverythingSearch/,
       /everythingSearch/,
       /searchMatching/,
       /ProjectSearchIndex/,
+      /[Cc]onversationSearch/,
     ],
     automated: ["everything-search"],
     manual: [],
   },
   {
     id: "terminal-pty",
-    title: "Terminal presentation and PTY lifecycle",
+    title: "Terminal presentation, global home terminal, and PTY lifecycle",
     patterns: [/terminal/i, /pty/i, /osc/i],
     automated: ["baseline"],
     manual: ["terminal-pty"],
@@ -198,7 +215,14 @@ export const functionalAreas = [
   {
     id: "settings",
     title: "Settings pages, persistence, profiles, and shortcuts",
-    patterns: [/Settings/i, /settings/i, /shortcut/i, /ProfileOverlay/i],
+    patterns: [
+      /Settings/i,
+      /settings/i,
+      /shortcut/i,
+      /ProfileOverlay/i,
+      /host\/profile\//,
+      /contracts\/costHistory/,
+    ],
     automated: ["baseline", "settings"],
     manual: [],
   },
@@ -308,6 +332,8 @@ export const functionalAreas = [
 ];
 
 export const manualGates = {
+  "device-workspace":
+    "Discover/start/attach an isolated emulator or simulator on a supported host, verify preview, tap/swipe/text, screenshot and accessibility, separate view/control and agent consent, remote denial/reconnect, then detach and confirm the device remains running. Record unavailable host platforms explicitly.",
   "delegated-agent-recovery":
     "Restart an isolated host with historical native and Crossagent rows; verify terminal state, retained output, current/stale snapshot fencing and live-run preservation.",
   "remote-usage":
@@ -339,7 +365,8 @@ export const manualGates = {
   "remote-client":
     "Pair the canonical app in an isolated browser or native shell and verify reconnect plus one read-only action; for push changes, verify background delivery and notification-tap routing.",
   "runtime-requests": "Trigger approval and structured-input requests; deny or submit safely.",
-  "terminal-pty": "Launch a terminal thread, send input, resize, interrupt, and stop the real PTY.",
+  "terminal-pty":
+    "Launch the changed terminal surface, send input, resize, interrupt, and stop the real PTY. For the global terminal, verify home cwd and the same shell across hide/show and project/thread switches.",
   "skills-manager":
     "Discover, import, disable, re-enable, and delete fixture skills through the Skills manager and its IPC bridge.",
   "visual-a11y":

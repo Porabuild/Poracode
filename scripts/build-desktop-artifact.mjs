@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Stage-and-install packaging entrypoint.
 //
-// Why: building electron-builder against the project's pnpm workspace pulls in
+// Why: building electron-builder against the project's workspace pulls in
 // renderer-only transitive deps (mermaid, @adobe/react-spectrum, react-aria,
 // cytoscape, ...) that Vite already bundles into dist/renderer/. Excluding them
 // by glob is a moving target. Instead we copy the build artifacts into a clean
@@ -26,6 +26,7 @@ import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { scanRuntimeExternals } from "./runtime-externals.mjs";
+import { preparePackagedDeviceHub } from "./prepare-device-hub.mjs";
 import {
   MAC_NOTARIZE_VERSION,
   verifyMacNotarizationDependency,
@@ -96,7 +97,7 @@ function parseArgs(argv) {
 
 function run(command, commandArgs, options = {}) {
   const printable = [command, ...commandArgs].join(" ");
-  const shellCommands = new Set(["pnpm", "npm", "npx"]);
+  const shellCommands = new Set(["npm", "npx"]);
   const commandLower = command.toLowerCase();
   const usesShellOnWindows =
     process.platform === "win32" &&
@@ -241,7 +242,7 @@ function copyPackagedDist(stageRoot) {
 // electron-builder.yml keeps them out of the shipped app; this prune shrinks
 // the stage tmpdir and speeds up electron-builder's file walk.
 //
-// Safe to delete after `pnpm install` returned: the platform packs are pure
+// Safe to delete after `npm install` returned: the platform packs are pure
 // binary blobs with no postinstall hooks, and the SDK only `require`s them
 // lazily at runtime (when `pathToClaudeCodeExecutable` is unset) — which we
 // always set on posix and route through wsl.exe on WSL.
@@ -308,8 +309,8 @@ async function main() {
 
   // 1. Build dist artifacts unless caller already did it.
   if (!skipBuild) {
-    run("pnpm", ["run", "build"], { cwd: repoRoot });
-    run("pnpm", ["run", "clean:sourcemaps"], { cwd: repoRoot });
+    run("bun", ["run", "build"], { cwd: repoRoot });
+    run("bun", ["run", "clean:sourcemaps"], { cwd: repoRoot });
     const helperArgs = [
       "scripts/prepare-computer-use-helper.mjs",
       "--require",
@@ -318,7 +319,7 @@ async function main() {
     ];
     if (arch && platform !== "mac") helperArgs.push("--arch", arch);
     run("node", helperArgs, { cwd: repoRoot });
-    run("pnpm", ["run", "prepare:package-assets"], { cwd: repoRoot });
+    run("bun", ["run", "prepare:package-assets"], { cwd: repoRoot });
   }
 
   // Fail before the expensive clean install/rebuild if tsdown emitted a new
@@ -328,7 +329,7 @@ async function main() {
     return;
   }
 
-  // 2. Create the stage in tmp (outside the pnpm workspace).
+  // 2. Create the stage in tmp (outside the workspace).
   const stageRoot = mkdtempSync(join(tmpdir(), "poracode-stage-"));
   console.log(`[stage] root: ${stageRoot}`);
 
@@ -342,7 +343,7 @@ async function main() {
     const rootPkg = JSON.parse(readFileSync(resolve(repoRoot, "package.json"), "utf8"));
     const stagePkg = buildStagePackageJson(rootPkg);
     if (platform === "mac") {
-      // This flat npm stage does not inherit the root pnpm dependency overrides.
+      // This flat npm stage does not inherit the root dependency overrides.
       stagePkg.overrides = { "@electron/notarize": MAC_NOTARIZE_VERSION };
     }
     writeFileSync(join(stageRoot, "package.json"), `${JSON.stringify(stagePkg, null, 2)}\n`);
@@ -364,7 +365,7 @@ async function main() {
     //    import time. Instead we install optionals normally, then surgically
     //    delete the only optional we actually want gone: the Claude SDK's
     //    platform-specific `claude` SEA binary (~200 MB).
-    //    The stage tmpdir is fresh each run, so any generated pnpm-lock.yaml
+    //    The stage tmpdir is fresh each run, so any generated package-lock.json
     //    is ephemeral and gets discarded with the stage.
     //    We install with npm, not pnpm, here. pnpm's hoisted layout still keeps
     //    packages behind a node_modules/.pnpm virtual store with Windows
@@ -391,6 +392,7 @@ async function main() {
     pruneStageBinaries(stageRoot);
     // SQLite and node-pty ship N-API prebuilds; afterPack keeps the target architecture.
     const targetArches = arch ? [arch] : DEFAULT_TARGET_ARCHES[platform];
+    await preparePackagedDeviceHub(stageRoot, { platform, arches: targetArches });
 
     // 7. Run electron-builder against the stage.
     const electronBuilderBin = join(
@@ -506,6 +508,10 @@ ${packagedDistFilesYaml}
   - "!node_modules/{better-sqlite3,node-pty}/build/**/*.{iobj,ipdb,lib,pdb,exp}"
 
 extraResources:
+  - from: resources/device-hub
+    to: device-hub
+    filter:
+      - "**/*"
   - from: resources/computer-use-helper
     to: computer-use-helper
     filter:

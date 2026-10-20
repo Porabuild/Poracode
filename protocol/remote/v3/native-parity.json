@@ -5,6 +5,20 @@
   "entries": {
     "httpRoutes": [
       {
+        "id": "conversation-search",
+        "scopes": ["session:read"],
+        "batch": "thread-lifecycle",
+        "ios": {
+          "wire": { "disposition": "planned", "evidence": [] },
+          "ui": { "disposition": "planned", "evidence": [] }
+        },
+        "android": {
+          "wire": { "disposition": "planned", "evidence": [] },
+          "ui": { "disposition": "planned", "evidence": [] }
+        },
+        "note": "Capability-gated saved-message search is available to the shared renderer and app controls; native search UI is planned."
+      },
+      {
         "id": "environment",
         "scopes": [],
         "batch": "foundation",
@@ -3443,6 +3457,396 @@
             "note": "No checked-in device journey exercises this surface yet (no screen-registry entry, no device-test evidence); the ui story is asserted from the cited production source only."
           }
         }
+      },
+      {
+        "id": "device-inventory",
+        "scopes": ["session:read"],
+        "batch": "explicitly-desktop-only",
+        "ios": {
+          "wire": {
+            "disposition": "desktop-only",
+            "evidence": ["src/shared/remote/contract/routes/devices.ts"]
+          },
+          "ui": {
+            "disposition": "desktop-only",
+            "evidence": ["src/renderer/components/devices/DeviceWorkspace.tsx"]
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "desktop-only",
+            "evidence": ["src/shared/remote/contract/routes/devices.ts"]
+          },
+          "ui": {
+            "disposition": "desktop-only",
+            "evidence": ["src/renderer/components/devices/DeviceWorkspace.tsx"]
+          }
+        },
+        "note": "Development device workspace is implemented in the desktop and browser renderer. Native Poracode phone companions are outside this feature; generated bindings describe the routes without claiming a native device journey."
+      },
+      {
+        "id": "device-attach",
+        "scopes": ["session:read"],
+        "batch": "explicitly-desktop-only",
+        "ios": {
+          "wire": {
+            "disposition": "desktop-only",
+            "evidence": ["src/shared/remote/contract/routes/devices.ts"]
+          },
+          "ui": {
+            "disposition": "desktop-only",
+            "evidence": ["src/renderer/components/devices/DeviceWorkspace.tsx"]
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "desktop-only",
+            "evidence": ["src/shared/remote/contract/routes/devices.ts"]
+          },
+          "ui": {
+            "disposition": "desktop-only",
+            "evidence": ["src/renderer/components/devices/DeviceWorkspace.tsx"]
+          }
+        },
+        "note": "Development device workspace is implemented in the desktop and browser renderer. Native Poracode phone companions are outside this feature; generated bindings describe the routes without claiming a native device journey."
+      },
+      {
+        "id": "device-frame",
+        "scopes": ["session:read"],
+        "batch": "explicitly-desktop-only",
+        "ios": {
+          "wire": {
+            "disposition": "desktop-only",
+            "evidence": ["src/shared/remote/contract/routes/devices.ts"]
+          },
+          "ui": {
+            "disposition": "desktop-only",
+            "evidence": ["src/renderer/components/devices/DeviceWorkspace.tsx"]
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "desktop-only",
+            "evidence": ["src/shared/remote/contract/routes/devices.ts"]
+          },
+          "ui": {
+            "disposition": "desktop-only",
+            "evidence": ["src/renderer/components/devices/DeviceWorkspace.tsx"]
+          }
+        },
+        "note": "Development device workspace is implemented in the desktop and browser renderer. Native Poracode phone companions are outside this feature; generated bindings describe the routes without claiming a native device journey."
+      },
+      {
+        "id": "device-inspect",
+        "scopes": ["session:read"],
+        "batch": "explicitly-desktop-only",
+        "ios": {
+          "wire": {
+            "disposition": "desktop-only",
+            "evidence": ["src/shared/remote/contract/routes/devices.ts"]
+          },
+          "ui": {
+            "disposition": "desktop-only",
+            "evidence": ["src/renderer/components/devices/DeviceWorkspace.tsx"]
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "desktop-only",
+            "evidence": ["src/shared/remote/contract/routes/devices.ts"]
+          },
+          "ui": {
+            "disposition": "desktop-only",
+            "evidence": ["src/renderer/components/devices/DeviceWorkspace.tsx"]
+          }
+        },
+        "note": "Development device workspace is implemented in the desktop and browser renderer. Native Poracode phone companions are outside this feature; generated bindings describe the routes without claiming a native device journey."
+      },
+      {
+        "id": "device-action",
+        "scopes": ["session:operate"],
+        "batch": "explicitly-desktop-only",
+        "ios": {
+          "wire": {
+            "disposition": "desktop-only",
+            "evidence": ["src/shared/remote/contract/routes/devices.ts"]
+          },
+          "ui": {
+            "disposition": "desktop-only",
+            "evidence": ["src/renderer/components/devices/DeviceWorkspace.tsx"]
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "desktop-only",
+            "evidence": ["src/shared/remote/contract/routes/devices.ts"]
+          },
+          "ui": {
+            "disposition": "desktop-only",
+            "evidence": ["src/renderer/components/devices/DeviceWorkspace.tsx"]
+          }
+        },
+        "note": "Development device workspace is implemented in the desktop and browser renderer. Native Poracode phone companions are outside this feature; generated bindings describe the routes without claiming a native device journey."
+      },
+      {
+        "id": "device-detach",
+        "scopes": ["session:read"],
+        "batch": "explicitly-desktop-only",
+        "ios": {
+          "wire": {
+            "disposition": "desktop-only",
+            "evidence": ["src/shared/remote/contract/routes/devices.ts"]
+          },
+          "ui": {
+            "disposition": "desktop-only",
+            "evidence": ["src/renderer/components/devices/DeviceWorkspace.tsx"]
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "desktop-only",
+            "evidence": ["src/shared/remote/contract/routes/devices.ts"]
+          },
+          "ui": {
+            "disposition": "desktop-only",
+            "evidence": ["src/renderer/components/devices/DeviceWorkspace.tsx"]
+          }
+        },
+        "note": "Development device workspace is implemented in the desktop and browser renderer. Native Poracode phone companions are outside this feature; generated bindings describe the routes without claiming a native device journey."
+      },
+      {
+        "id": "device-preview-open",
+        "scopes": ["session:read"],
+        "batch": "explicitly-desktop-only",
+        "ios": {
+          "wire": {
+            "disposition": "desktop-only",
+            "evidence": ["src/shared/remote/contract/routes/devicePreview.ts"]
+          },
+          "ui": {
+            "disposition": "desktop-only",
+            "evidence": ["src/renderer/components/devices/LiveDevicePreview.tsx"]
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "desktop-only",
+            "evidence": ["src/shared/remote/contract/routes/devicePreview.ts"]
+          },
+          "ui": {
+            "disposition": "desktop-only",
+            "evidence": ["src/renderer/components/devices/LiveDevicePreview.tsx"]
+          }
+        },
+        "note": "Development device live preview uses the desktop/browser public viewer. Native phone companions have no device-workspace journey; generated bindings describe the negotiated routes without a native UI claim."
+      },
+      {
+        "id": "device-preview-renew",
+        "scopes": ["session:read"],
+        "batch": "explicitly-desktop-only",
+        "ios": {
+          "wire": {
+            "disposition": "desktop-only",
+            "evidence": ["src/shared/remote/contract/routes/devicePreview.ts"]
+          },
+          "ui": {
+            "disposition": "desktop-only",
+            "evidence": ["src/renderer/components/devices/LiveDevicePreview.tsx"]
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "desktop-only",
+            "evidence": ["src/shared/remote/contract/routes/devicePreview.ts"]
+          },
+          "ui": {
+            "disposition": "desktop-only",
+            "evidence": ["src/renderer/components/devices/LiveDevicePreview.tsx"]
+          }
+        },
+        "note": "Development device live preview uses the desktop/browser public viewer. Native phone companions have no device-workspace journey; generated bindings describe the negotiated routes without a native UI claim."
+      },
+      {
+        "id": "device-preview-close",
+        "scopes": ["session:read"],
+        "batch": "explicitly-desktop-only",
+        "ios": {
+          "wire": {
+            "disposition": "desktop-only",
+            "evidence": ["src/shared/remote/contract/routes/devicePreview.ts"]
+          },
+          "ui": {
+            "disposition": "desktop-only",
+            "evidence": ["src/renderer/components/devices/LiveDevicePreview.tsx"]
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "desktop-only",
+            "evidence": ["src/shared/remote/contract/routes/devicePreview.ts"]
+          },
+          "ui": {
+            "disposition": "desktop-only",
+            "evidence": ["src/renderer/components/devices/LiveDevicePreview.tsx"]
+          }
+        },
+        "note": "Development device live preview uses the desktop/browser public viewer. Native phone companions have no device-workspace journey; generated bindings describe the negotiated routes without a native UI claim."
+      },
+      {
+        "id": "device-preview-websocket-ticket",
+        "scopes": ["session:read"],
+        "batch": "explicitly-desktop-only",
+        "ios": {
+          "wire": {
+            "disposition": "desktop-only",
+            "evidence": ["src/shared/remote/contract/routes/devicePreview.ts"]
+          },
+          "ui": {
+            "disposition": "desktop-only",
+            "evidence": ["src/renderer/components/devices/LiveDevicePreview.tsx"]
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "desktop-only",
+            "evidence": ["src/shared/remote/contract/routes/devicePreview.ts"]
+          },
+          "ui": {
+            "disposition": "desktop-only",
+            "evidence": ["src/renderer/components/devices/LiveDevicePreview.tsx"]
+          }
+        },
+        "note": "Development device live preview uses the desktop/browser public viewer. Native phone companions have no device-workspace journey; generated bindings describe the negotiated routes without a native UI claim."
+      },
+      {
+        "id": "device-preview-android-api",
+        "scopes": ["session:read"],
+        "batch": "explicitly-desktop-only",
+        "ios": {
+          "wire": {
+            "disposition": "desktop-only",
+            "evidence": ["src/shared/remote/contract/routes/devicePreview.ts"]
+          },
+          "ui": {
+            "disposition": "desktop-only",
+            "evidence": ["src/renderer/components/devices/LiveDevicePreview.tsx"]
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "desktop-only",
+            "evidence": ["src/shared/remote/contract/routes/devicePreview.ts"]
+          },
+          "ui": {
+            "disposition": "desktop-only",
+            "evidence": ["src/renderer/components/devices/LiveDevicePreview.tsx"]
+          }
+        },
+        "note": "Development device live preview uses the desktop/browser public viewer. Native phone companions have no device-workspace journey; generated bindings describe the negotiated routes without a native UI claim."
+      },
+      {
+        "id": "device-preview-android-devices",
+        "scopes": ["session:read"],
+        "batch": "explicitly-desktop-only",
+        "ios": {
+          "wire": {
+            "disposition": "desktop-only",
+            "evidence": ["src/shared/remote/contract/routes/devicePreview.ts"]
+          },
+          "ui": {
+            "disposition": "desktop-only",
+            "evidence": ["src/renderer/components/devices/LiveDevicePreview.tsx"]
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "desktop-only",
+            "evidence": ["src/shared/remote/contract/routes/devicePreview.ts"]
+          },
+          "ui": {
+            "disposition": "desktop-only",
+            "evidence": ["src/renderer/components/devices/LiveDevicePreview.tsx"]
+          }
+        },
+        "note": "Development device live preview uses the desktop/browser public viewer. Native phone companions have no device-workspace journey; generated bindings describe the negotiated routes without a native UI claim."
+      },
+      {
+        "id": "device-preview-ios-api",
+        "scopes": ["session:read"],
+        "batch": "explicitly-desktop-only",
+        "ios": {
+          "wire": {
+            "disposition": "desktop-only",
+            "evidence": ["src/shared/remote/contract/routes/devicePreview.ts"]
+          },
+          "ui": {
+            "disposition": "desktop-only",
+            "evidence": ["src/renderer/components/devices/LiveDevicePreview.tsx"]
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "desktop-only",
+            "evidence": ["src/shared/remote/contract/routes/devicePreview.ts"]
+          },
+          "ui": {
+            "disposition": "desktop-only",
+            "evidence": ["src/renderer/components/devices/LiveDevicePreview.tsx"]
+          }
+        },
+        "note": "Development device live preview uses the desktop/browser public viewer. Native phone companions have no device-workspace journey; generated bindings describe the negotiated routes without a native UI claim."
+      },
+      {
+        "id": "device-preview-ios-config",
+        "scopes": ["session:read"],
+        "batch": "explicitly-desktop-only",
+        "ios": {
+          "wire": {
+            "disposition": "desktop-only",
+            "evidence": ["src/shared/remote/contract/routes/devicePreview.ts"]
+          },
+          "ui": {
+            "disposition": "desktop-only",
+            "evidence": ["src/renderer/components/devices/LiveDevicePreview.tsx"]
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "desktop-only",
+            "evidence": ["src/shared/remote/contract/routes/devicePreview.ts"]
+          },
+          "ui": {
+            "disposition": "desktop-only",
+            "evidence": ["src/renderer/components/devices/LiveDevicePreview.tsx"]
+          }
+        },
+        "note": "Development device live preview uses the desktop/browser public viewer. Native phone companions have no device-workspace journey; generated bindings describe the negotiated routes without a native UI claim."
+      },
+      {
+        "id": "device-preview-ios-video",
+        "scopes": ["session:read"],
+        "batch": "explicitly-desktop-only",
+        "ios": {
+          "wire": {
+            "disposition": "desktop-only",
+            "evidence": ["src/shared/remote/contract/routes/devicePreview.ts"]
+          },
+          "ui": {
+            "disposition": "desktop-only",
+            "evidence": ["src/renderer/components/devices/LiveDevicePreview.tsx"]
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "desktop-only",
+            "evidence": ["src/shared/remote/contract/routes/devicePreview.ts"]
+          },
+          "ui": {
+            "disposition": "desktop-only",
+            "evidence": ["src/renderer/components/devices/LiveDevicePreview.tsx"]
+          }
+        },
+        "note": "Development device live preview uses the desktop/browser public viewer. Native phone companions have no device-workspace journey; generated bindings describe the negotiated routes without a native UI claim."
       }
     ],
     "procedures": [

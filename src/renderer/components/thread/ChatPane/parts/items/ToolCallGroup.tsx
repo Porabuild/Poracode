@@ -82,6 +82,7 @@ interface ToolCallGroupProps {
   itemIds: readonly string[];
   /** True while this group is the tail of the timeline. Drives default expand state. */
   isLive?: boolean;
+  isReasoningLive?: boolean;
   /** Synchronously remeasure the owning virtual row after an explicit layout change. */
   onHeightChange?: () => void;
   /** Arm scroll anchoring before a disclosure commits a new row height. */
@@ -94,15 +95,25 @@ export const ToolCallGroup = memo(function ToolCallGroup({
   threadId,
   itemIds,
   isLive = false,
+  isReasoningLive = false,
   onHeightChange,
   onVirtualizerLayoutChange,
 }: ToolCallGroupProps) {
-  const items = useAppStore(
+  const sourceItems = useAppStore(
     useShallow((state) =>
       itemIds
         .map((itemId) => state.runtimeItemsByIdByThread[threadId]?.[itemId])
         .filter((item): item is RuntimeChatItem => !!item && isToolGroupItem(item)),
     ),
+  );
+  // A missed completion must not animate historical thoughts. Keep tool states
+  // intact: background commands can still be running after this group ends.
+  const items = sourceItems.map((item, index) =>
+    item.type === "reasoning" &&
+    item.state !== "completed" &&
+    (!isReasoningLive || index !== sourceItems.length - 1)
+      ? { ...item, state: "completed" as const }
+      : item,
   );
   const actions = useChatPaneActions();
   const guiChatFontSize = useSharedSettings((state) => state.guiChatFontSize);

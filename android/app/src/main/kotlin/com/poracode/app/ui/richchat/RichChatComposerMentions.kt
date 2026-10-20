@@ -257,7 +257,10 @@ internal fun RichChatSlashSuggestions(
                             contentDescription = null,
                         )
                         Column(Modifier.weight(1f)) {
-                            Text("/${option.displayId}", style = MaterialTheme.typography.bodyMedium)
+                            Text(
+                                if (option.skill == null) "/${option.displayId}" else option.displayId,
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
                             Text(
                                 option.description ?: option.label,
                                 style = MaterialTheme.typography.bodySmall,

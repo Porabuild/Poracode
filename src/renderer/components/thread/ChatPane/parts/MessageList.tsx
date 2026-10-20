@@ -484,6 +484,7 @@ export function MessageList({
             index={index}
             isLastEntry={markTailAsLive && index === lastLiveIndex}
             isTurnActive={isTurnActive}
+            isReasoningLive={isTurnActive && index === entries.length - 1}
             remeasureElement={remeasureRowElement}
             readMeasuredRowHeight={readMeasuredRowHeight}
             {...(onVirtualizerLayoutChange ? { onVirtualizerLayoutChange } : {})}
@@ -533,7 +534,7 @@ export function MessageList({
               },
             }
           : {})}
-        {...(scrollStyle ? { style: scrollStyle } : {})}
+        style={{ width: "100%", ...scrollStyle }}
       />
       <RevertCheckpointDialog
         isOpen={pendingRevert !== null}
@@ -556,6 +557,7 @@ type VirtualChatListRowProps = {
   index: number;
   isLastEntry: boolean;
   isTurnActive: boolean;
+  isReasoningLive: boolean;
   remeasureElement: RemeasureVirtualRow;
   readMeasuredRowHeight: (itemKey: string, index: number) => number | undefined;
   onVirtualizerLayoutChange?: () => void;
@@ -570,6 +572,7 @@ const VirtualChatListRow = memo(function VirtualChatListRow({
   index,
   isLastEntry,
   isTurnActive,
+  isReasoningLive,
   remeasureElement,
   readMeasuredRowHeight,
   onVirtualizerLayoutChange,
@@ -628,6 +631,7 @@ const VirtualChatListRow = memo(function VirtualChatListRow({
             onHeightChange={remeasureRow}
             {...(onVirtualizerLayoutChange ? { onVirtualizerLayoutChange } : {})}
             isTurnActive={isTurnActive}
+            isReasoningLive={isReasoningLive}
             checkpointRevert={
               checkpointRevertItemId
                 ? {

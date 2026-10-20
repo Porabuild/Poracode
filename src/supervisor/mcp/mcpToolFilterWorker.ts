@@ -2,26 +2,16 @@
 // as `mcp-filter.mjs`. The proxy itself lives in mcpToolFilterProxy.ts so it
 // can be tested in-process without spawning this worker.
 import { StdioServerTransport } from "@modelcontextprotocol/server/stdio";
-import type { McpServer } from "@/shared/contracts";
 import { createUpstreamTransport, startFilterProxy } from "./mcpToolFilterProxy";
-
-const CONFIG_ENV = "PORACODE_MCP_FILTER_CONFIG";
-
-function readConfig(): { server: McpServer; disabledTools: string[] } {
-  const encoded = process.env[CONFIG_ENV];
-  if (!encoded) throw new Error("Missing MCP filter configuration");
-  return JSON.parse(Buffer.from(encoded, "base64url").toString("utf8")) as {
-    server: McpServer;
-    disabledTools: string[];
-  };
-}
+import { readMcpToolFilterConfig } from "./mcpToolFilterConfig";
 
 async function main(): Promise<void> {
-  const config = readConfig();
+  const config = readMcpToolFilterConfig(process.env);
   const proxy = await startFilterProxy({
     serverName: config.server.name,
     timeoutMs: config.server.timeoutMs,
     disabledTools: config.disabledTools,
+    ...(config.isolateConnectionFailures ? { isolateConnectionFailures: true } : {}),
     upstreamTransport: createUpstreamTransport(config.server),
     downstreamTransport: new StdioServerTransport(),
   });

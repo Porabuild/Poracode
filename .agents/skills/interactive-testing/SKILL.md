@@ -60,7 +60,7 @@ unknown historical state; independent protocol/source work may continue. See
 
 ## Launching
 
-Never use raw `pnpm run dev` or `pnpm run dev:test` for CDP work: they allocate
+Never use raw `bun run dev` or `bun run dev:test` for CDP work: they allocate
 no managed session, which allows wrong ports, shared state, and duplicate
 launches. The smoke runner owns and tears down its app; the `--launch-only`
 launcher keeps one app alive and its owner process performs every stop.
@@ -78,9 +78,9 @@ terminal alive. When several sessions exist, pass `--session <session.json>` to
 every helper; they refuse to guess. Stop with
 `node .agents/skills/interactive-testing/scripts/poracode-cdp.mjs stop`.
 
-Never symlink a whole `node_modules` directory between worktrees or run `pnpm`
-through such a link: pnpm can reconcile links relative to the other worktree and
-rewrite its dependency tree. Run `pnpm install --frozen-lockfile` in each
+Never symlink a whole `node_modules` directory between worktrees or run `bun install`
+through such a link: the package manager can reconcile links relative to the other worktree and
+rewrite its dependency tree. Run `bun install --frozen-lockfile` in each
 checkout.
 
 ### Mock vs real mode

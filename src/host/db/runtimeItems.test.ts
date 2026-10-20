@@ -1,4 +1,10 @@
-import { nativeBindingEnv, sqliteAvailable, testThread } from "./runtimeItems.testFixtures";
+import {
+  nativeBindingEnv,
+  sqliteAvailable,
+  testThread,
+  removeCostSchemaForDowngrade,
+  removeConversationSearchFixtureSchema,
+} from "./runtimeItems.testFixtures";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -19,6 +25,8 @@ import {
   dbTruncateThreadRuntimeAfter,
 } from "./runtimeItems";
 import { HEAD_CHARS, TAIL_CHARS } from "./runtimeStreamCap";
+import { inlineVisualSearchText, splitInlineVisuals } from "@/shared/inlineVisuals";
+import { readMcpAppResource, MCP_APP_MIME_TYPE } from "@/shared/mcpAppResources";
 
 describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => {
   let dir: string;
@@ -45,6 +53,92 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
     closeDatabase();
     rmSync(dir, { recursive: true, force: true });
     delete process.env.PORACODE_BETTER_SQLITE3_NATIVE_BINDING;
+  });
+
+  it("reopens native/HTML source and MCP resources under their original item IDs without a new schema", async () => {
+    const html = '<input id="amount" value="42"><script>window.ready=true</script>';
+    const text = `Compare plans\n\`\`\`poracode-html-v1 Savings calculator\n${html}\n\`\`\``;
+    const nativeSource = '{"blocks":[{"type":"outputs","items":[{"label":"Total","value":42}]}]}';
+    const nativeText = `Result\n\`\`\`poracode-visual-v1 Native total\n${nativeSource}\n\`\`\``;
+    const result = {
+      content: [
+        {
+          type: "resource",
+          resource: { uri: "ui://fixture/chart", mimeType: MCP_APP_MIME_TYPE, text: html },
+        },
+      ],
+      structuredContent: { value: 42 },
+      _meta: { selected: "north" },
+    };
+    await dbReplaceThreadRuntimeItems("thread-1", [
+      {
+        id: "legacy",
+        type: "assistant_message",
+        state: "completed",
+        streams: { assistant_text: "Existing reply" },
+      },
+      {
+        id: "visual-message",
+        type: "assistant_message",
+        state: "completed",
+        streams: { assistant_text: text },
+      },
+      {
+        id: "visual-tool",
+        type: "mcp_tool_call",
+        state: "completed",
+        streams: {},
+        payload: { name: "chart", title: "Revenue chart", status: "success", result },
+      },
+      {
+        id: "native-message",
+        type: "assistant_message",
+        state: "completed",
+        streams: { assistant_text: nativeText },
+        payload: { content: [{ kind: "text", text: nativeText }] },
+      },
+    ]);
+    await dbFlushThreadRuntimeWrites("thread-1");
+    closeDatabase();
+    initDatabase(join(dir, "state.sqlite"));
+    const items = await dbGetThreadRuntimeItems("thread-1");
+    expect(items.map((item) => item.id)).toEqual([
+      "legacy",
+      "visual-message",
+      "visual-tool",
+      "native-message",
+    ]);
+    expect(items[0]?.streams.assistant_text).toBe("Existing reply");
+    expect(items[1]?.streams.assistant_text).toBe(text);
+    expect(splitInlineVisuals(items[1]!.streams.assistant_text!)[1]).toMatchObject({
+      html: `${html}\n`,
+      complete: true,
+    });
+    expect(inlineVisualSearchText(items[1]!.streams.assistant_text!)).toBe(
+      "Compare plans\n\nSavings calculator\n",
+    );
+    expect(readMcpAppResource((items[2]!.payload as { result: unknown }).result)?.text).toBe(html);
+    expect(items[2]?.payload).toEqual({
+      name: "chart",
+      title: "Revenue chart",
+      status: "success",
+      result,
+    });
+    expect(items[3]?.streams.assistant_text).toBe(nativeText);
+    expect(items[3]?.payload).toEqual({ content: [{ kind: "text", text: nativeText }] });
+    expect(splitInlineVisuals(items[3]!.streams.assistant_text!)[1]).toMatchObject({
+      kind: "native",
+      version: 1,
+      title: "Native total",
+      source: `${nativeSource}\n`,
+      complete: true,
+    });
+    expect(inlineVisualSearchText(items[3]!.streams.assistant_text!)).toBe(
+      "Result\n\nNative total\n",
+    );
+    expect(
+      getSqlite().prepare("SELECT value FROM app_state WHERE key = 'schema_version'").get(),
+    ).toEqual({ value: String(LATEST_SCHEMA_VERSION) });
   });
 
   it("replaces pre-snapshot chunked streams and preserves other streams", async () => {
@@ -604,6 +698,8 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
   });
 
   it("adds the parent lookup index when upgrading schema v37", async () => {
+    removeConversationSearchFixtureSchema(getSqlite());
+    removeCostSchemaForDowngrade(getSqlite());
     getSqlite().exec(`
       DROP INDEX idx_runtime_items_thread_parent;
       UPDATE app_state SET value = '37' WHERE key = 'schema_version';
@@ -623,6 +719,8 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
   });
 
   it("repairs a missing parent lookup column when upgrading a drifted schema v37", async () => {
+    removeConversationSearchFixtureSchema(getSqlite());
+    removeCostSchemaForDowngrade(getSqlite());
     getSqlite().exec(`
       DROP INDEX idx_runtime_items_thread_parent;
       ALTER TABLE thread_runtime_items DROP COLUMN parent_item_id;
@@ -655,6 +753,8 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
   });
 
   it("repairs the parent lookup index from the prerelease Antigravity schema v40", async () => {
+    removeConversationSearchFixtureSchema(getSqlite());
+    removeCostSchemaForDowngrade(getSqlite());
     getSqlite().exec(`
       DROP INDEX idx_runtime_items_thread_parent;
       UPDATE app_state SET value = '40' WHERE key = 'schema_version';

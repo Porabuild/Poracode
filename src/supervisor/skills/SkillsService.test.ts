@@ -23,6 +23,9 @@ import {
 import { AGENT_PLUGINS_MANIFEST_SCHEMA_URL } from "@/shared/plugins/spec";
 import { loadPluginFromDirectory } from "@/supervisor/plugins";
 import type { AgentAdapter } from "../agents/base";
+import { defaultFormatPromptSegments } from "../agents/base/promptSession";
+import { createAgentRegistry } from "../agents/registry";
+import { formatSkillInvocation } from "@/shared/promptContent";
 import { SkillsService } from "./SkillsService";
 import { dropSkillSegmentsOnPolicyFailure } from "./pluginSkillPolicy";
 
@@ -450,6 +453,133 @@ describe("SkillsService", () => {
         { ...pluginSegment, path: join(pkg.skillsDir, "browser-control", "nested", "SKILL.md") },
       ]),
     ).toEqual([]);
+  });
+
+  it("discovers adapted custom skill locations and applies the plugin's enablement policy", async () => {
+    const directory = join(root, "plugins", "catalog-workflows");
+    await mkdir(join(directory, ".claude-plugin"), { recursive: true });
+    await writeFile(
+      join(directory, ".claude-plugin", "plugin.json"),
+      JSON.stringify({ name: "catalog-workflows", skills: ["./custom/workflow"] }),
+    );
+    const skillPath = join(directory, "custom", "workflow");
+    await writeSkill(skillPath, "custom-workflow");
+    const plugin = loadPluginFromDirectory(directory, "user").plugin!;
+    let installedPlugins = installPlugin({}, plugin);
+    const catalogService = new SkillsService({
+      adapters,
+      homeDirectory: () => home,
+      readInstalledPlugins: () => installedPlugins,
+      readPlugins: () => [plugin],
+    });
+    const segment: PromptSegment = {
+      kind: "skill",
+      name: "custom-workflow",
+      path: join(skillPath, "SKILL.md"),
+      invocation: "/custom-workflow",
+      provider: "catalog-workflows",
+      scope: "global",
+    };
+    expect(await catalogService.filterPluginSkillSegments([segment])).toEqual([]);
+    installedPlugins = setInstalledPluginEnabled(installedPlugins, plugin, true);
+    const scan = await catalogService.scan({ projectLocation, agentKind: "claude" });
+    const skill = scan.skills.find((entry) => entry.name === "custom-workflow");
+    expect(skill).toMatchObject({ pluginId: plugin.name, enabled: true, mutable: false });
+    expect(scan.effectiveSkillIds).toContain(skill!.id);
+    expect(await catalogService.filterPluginSkillSegments([segment])).toEqual([segment]);
+    installedPlugins = setPluginSkillEnabled(installedPlugins, plugin, "workflow", false);
+    expect(await catalogService.filterPluginSkillSegments([segment])).toEqual([]);
+  });
+
+  it("rejects undeclared skills with the same folder name under a custom skill's parent", async () => {
+    const directory = join(root, "plugins", "catalog-workflows");
+    await mkdir(join(directory, ".claude-plugin"), { recursive: true });
+    await writeFile(
+      join(directory, ".claude-plugin", "plugin.json"),
+      JSON.stringify({
+        name: "catalog-workflows",
+        skills: "./allowed",
+      }),
+    );
+    const declared = join(directory, "skills", "review");
+    const allowed = join(directory, "allowed");
+    const undeclared = join(directory, "review");
+    await writeSkill(declared, "declared-review");
+    await writeSkill(allowed, "allowed-workflow");
+    await writeSkill(undeclared, "undeclared-review");
+    const plugin = loadPluginFromDirectory(directory, "user").plugin!;
+    let installedPlugins = setInstalledPluginEnabled(installPlugin({}, plugin), plugin, true);
+    const catalogService = new SkillsService({
+      adapters,
+      homeDirectory: () => home,
+      readInstalledPlugins: () => installedPlugins,
+      readPlugins: () => [plugin],
+    });
+    const scan = await catalogService.scan({ projectLocation, agentKind: "claude" });
+    expect(
+      scan.skills.filter((entry) => entry.pluginId === plugin.name).map((entry) => entry.name),
+    ).toEqual(expect.arrayContaining(["declared-review", "allowed-workflow"]));
+    expect(scan.skills.some((entry) => entry.name === "undeclared-review")).toBe(false);
+    const segments: PromptSegment[] = [declared, allowed, undeclared].map((path) => ({
+      kind: "skill",
+      name: "workflow",
+      path: join(path, "SKILL.md"),
+      invocation: "/workflow",
+      provider: plugin.name,
+      scope: "global",
+    }));
+    expect(await catalogService.filterPluginSkillSegments(segments)).toEqual(segments.slice(0, 2));
+    installedPlugins = setPluginSkillEnabled(installedPlugins, plugin, "review", false);
+    expect(await catalogService.filterPluginSkillSegments(segments)).toEqual([segments[1]]);
+  });
+
+  it("keeps root and nested declared skills isolated when packages share a scan parent", async () => {
+    const plugins: LoadedPlugin[] = [];
+    const segments: PromptSegment[] = [];
+    for (const name of ["first", "second"]) {
+      const directory = join(root, "plugins", name);
+      await mkdir(join(directory, ".claude-plugin"), { recursive: true });
+      await writeFile(
+        join(directory, ".claude-plugin", "plugin.json"),
+        JSON.stringify({
+          name,
+          skills: ".",
+        }),
+      );
+      await writeSkill(directory, `${name}-root`);
+      await writeSkill(join(directory, "skills", "review"), `${name}-review`);
+      plugins.push(loadPluginFromDirectory(directory, "user").plugin!);
+      for (const path of [directory, join(directory, "skills", "review")]) {
+        segments.push({
+          kind: "skill",
+          name,
+          path: join(path, "SKILL.md"),
+          invocation: `/${name}`,
+          provider: name,
+          scope: "global",
+        });
+      }
+    }
+    const installedPlugins = Object.fromEntries(
+      plugins.map((plugin) => [
+        plugin.name,
+        setInstalledPluginEnabled(installPlugin({}, plugin), plugin, true)[plugin.name]!,
+      ]),
+    );
+    const catalogService = new SkillsService({
+      adapters,
+      homeDirectory: () => home,
+      readInstalledPlugins: () => installedPlugins,
+      readPlugins: () => plugins,
+    });
+    const scan = await catalogService.scan({ projectLocation, agentKind: "claude" });
+    expect(
+      scan.skills
+        .filter((entry) => entry.origin === "plugin")
+        .map((entry) => entry.name)
+        .sort(),
+    ).toEqual(["first-review", "first-root", "second-review", "second-root"]);
+    expect(await catalogService.filterPluginSkillSegments(segments)).toEqual(segments);
   });
 
   it("does not classify bundled-root links to outside skills as plugin skills", async ({
@@ -961,6 +1091,57 @@ describe("SkillsService", () => {
     );
     expect(winner?.providerId).toBe("agents");
   });
+
+  it.each(createAgentRegistry().map((adapter) => [adapter.kind, adapter] as const))(
+    "delivers an inline portable skill through %s in both presentations",
+    async (kind, adapter) => {
+      await writeSkill(join(home, ".poracode", "skills", "inline-review"), "inline-review");
+      const providerService = new SkillsService({
+        adapters: new Map([[kind, adapter]]),
+        homeDirectory: () => home,
+        env: {},
+      });
+      const segments: PromptSegment[] = [
+        { kind: "text", content: "Please " },
+        {
+          kind: "skill",
+          name: "inline-review",
+          path: join(home, ".poracode", "skills", "inline-review", "SKILL.md"),
+          invocation: formatSkillInvocation(
+            adapter.skillSupport?.invocation ?? "prompt",
+            "inline-review",
+          ),
+          provider: adapter.label,
+          scope: "global",
+        },
+        { kind: "text", content: " before answering." },
+      ];
+      expect(
+        await providerService.buildTurnSkillInjection({
+          agentKind: kind,
+          projectLocation,
+          segments,
+        }),
+      ).toContain('<skill name="inline-review"');
+      const terminalSegments = await providerService.rewriteTerminalSkillSegments({
+        agentKind: kind,
+        projectLocation,
+        segments,
+      });
+      expect(terminalSegments[0]).toEqual(segments[0]);
+      expect(terminalSegments[2]).toEqual(segments[2]);
+      expect(terminalSegments[1]).toMatchObject({
+        kind: "text",
+        content: expect.stringContaining('Use the "inline-review" agent skill: read '),
+      });
+      const prompt = (adapter.formatPromptSegments ?? defaultFormatPromptSegments)(
+        terminalSegments,
+      );
+      expect(prompt).toContain("Please ");
+      expect(prompt).toContain("inline-review/SKILL.md");
+      expect(prompt).toContain(" before answering.");
+    },
+  );
 
   it("inlines SKILL.md instructions only for skills outside the provider's native roots", async () => {
     await writeSkill(

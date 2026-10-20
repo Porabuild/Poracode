@@ -68,6 +68,25 @@ describe("Reasoning", () => {
     expect(container.querySelector(".overflow-y-auto")).toBeNull();
   });
 
+  it("stops animating an unfinished saved thought when it leaves the live tail", () => {
+    const item = makeReasoningItem("Inspecting logs\nChecking the result");
+    const view = renderReasoning(item);
+    expect(view.container.querySelector(".poracode-brain-thinking")).not.toBeNull();
+
+    view.rerender(
+      <AppProvider>
+        <Reasoning item={item} isLive={false} />
+      </AppProvider>,
+    );
+
+    expect(view.container).toHaveTextContent("Thought");
+    expect(view.container.querySelector(".poracode-brain-thinking")).toBeNull();
+    expect(view.container.querySelector(".poracode-thinking-text")).toBeNull();
+    expandReasoning(view.container);
+    expect(view.container).toHaveTextContent("Checking the result");
+    expect(item.state).toBe("updated");
+  });
+
   it("keeps live reasoning pinned to the bottom while new content streams in", async () => {
     const { container, rerender } = renderReasoning(makeReasoningItem("Inspecting logs"));
     expandReasoning(container);
@@ -148,7 +167,7 @@ describe("Reasoning", () => {
 function renderReasoning(item: RuntimeChatItem) {
   return render(
     <AppProvider>
-      <Reasoning item={item} />
+      <Reasoning item={item} isLive />
     </AppProvider>,
   );
 }
@@ -159,7 +178,7 @@ function rerenderReasoning(
 ) {
   rerender(
     <AppProvider>
-      <Reasoning item={item} />
+      <Reasoning item={item} isLive />
     </AppProvider>,
   );
 }

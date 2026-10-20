@@ -6,6 +6,7 @@ import { noteBoundedCatalogMembershipEvent } from "./boundedCatalogController";
 import { readBoundedHistoryTail } from "./boundedHistoryRegistry";
 import { remoteThreadId } from "@/renderer/state/remoteProjection";
 import { useAppStore } from "@/renderer/state/appStore";
+import { nativeVisualUiKey, useNativeVisualUiStore } from "@/renderer/state/nativeVisualUiStore";
 import {
   loadOlderThreadRuntimeItems,
   rehydrateThreadRuntimeItemsAfterReset,
@@ -334,6 +335,7 @@ async function flushAsyncWork(): Promise<void> {
 describe("boundedCatalogController", () => {
   beforeEach(() => {
     localStorage.clear();
+    useNativeVisualUiStore.setState({ entries: new Map() });
     __resetRemoteServersStoreForTest();
     useAppStore.setState({ threads: [], projects: [] });
     useRemoteServersStore.setState({
@@ -401,6 +403,21 @@ describe("boundedCatalogController", () => {
   });
 
   it("confirms absence before deleting, and keeps pinned and restored rows", async () => {
+    const nativeKey = (host: string, thread: string) =>
+      nativeVisualUiKey(host, thread, "item", 0, "source");
+    for (const [hostId, threadId] of [
+      ["d1", "gone"],
+      ["d2", "gone"],
+      ["d1", "restored"],
+      ["d1", "pinned"],
+    ]) {
+      useNativeVisualUiStore.getState().put(nativeKey(hostId!, threadId!), {
+        hostId: hostId!,
+        threadId: threadId!,
+        inputs: [["n", 2]],
+        zoom: 100,
+      });
+    }
     const rows = [
       threadRow("keep"),
       threadRow("gone"),
@@ -459,9 +476,23 @@ describe("boundedCatalogController", () => {
     expect(
       useAppStore.getState().threads.some((row) => row.id === remoteThreadId("d1", "restored")),
     ).toBe(true);
+    expect(useNativeVisualUiStore.getState().entries.has(nativeKey("d1", "gone"))).toBe(false);
+    for (const [hostId, threadId] of [
+      ["d2", "gone"],
+      ["d1", "restored"],
+      ["d1", "pinned"],
+    ]) {
+      expect(useNativeVisualUiStore.getState().entries.has(nativeKey(hostId!, threadId!))).toBe(
+        true,
+      );
+    }
   });
 
   it("drops a delayed continuation page after a host switch (generation fence)", async () => {
+    const nativeKey = nativeVisualUiKey("d1", "t-0", "item", 0, "source");
+    useNativeVisualUiStore
+      .getState()
+      .put(nativeKey, { hostId: "d1", threadId: "t-0", inputs: [["n", 2]], zoom: 100 });
     const rows = Array.from({ length: 3 }, (_, index) => threadRow(`t-${index}`));
     const host = makeBoundedHost({
       rows,
@@ -479,6 +510,7 @@ describe("boundedCatalogController", () => {
     host.resolveListPage?.({ threads: [threadRow("t-1")], nextCursor: null });
     await flushAsyncWork();
     expect(useRemoteServersStore.getState().runtime.d1).toBeUndefined();
+    expect(useNativeVisualUiStore.getState().entries.has(nativeKey)).toBe(true);
   });
 
   it("reconciles project membership events into thread and project passes", async () => {

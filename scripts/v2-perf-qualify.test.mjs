@@ -323,8 +323,9 @@ void test("runQualification launches the cell once, forwards signals, propagates
     assert.deepEqual(records.killed, ["SIGTERM"]);
     assert.equal(records.launches.length, 1);
     const launch = records.launches[0];
-    assert.match(launch.command, /vitest$/u);
+    assert.equal(launch.command, process.execPath);
     assert.deepEqual(launch.args, [
+      join(scriptRepoRoot, "node_modules", "vitest", "vitest.mjs"),
       "run",
       "--config",
       "tests/native-e2e/vitest.config.ts",
@@ -376,16 +377,17 @@ void test("buildVitestEnv layers the V2Q contract over the inherited environment
   assert.equal(env.EXISTING, "yes");
 });
 
-void test("resolveVitestCommand prefers the local vitest bin and falls back to pnpm exec", () => {
+void test("resolveVitestCommand runs local Vitest under Node and falls back to bun run", () => {
   const local = resolveVitestCommand(scriptRepoRoot);
-  assert.equal(local.command, join(scriptRepoRoot, "node_modules", ".bin", "vitest"));
-  assert.equal(local.args[0], "run");
+  assert.equal(local.command, process.execPath);
+  assert.equal(local.args[0], join(scriptRepoRoot, "node_modules", "vitest", "vitest.mjs"));
+  assert.equal(local.args[1], "run");
   assert.ok(local.args.includes("tests/native-e2e/v2ArchitectureQualification.test.ts"));
   const bare = makeTempRoot("no-bin");
   try {
     const fallback = resolveVitestCommand(bare);
-    assert.equal(fallback.command, "pnpm");
-    assert.deepEqual(fallback.args.slice(0, 2), ["exec", "vitest"]);
+    assert.equal(fallback.command, "bun");
+    assert.deepEqual(fallback.args.slice(0, 2), ["run", "vitest"]);
   } finally {
     rmSync(bare, { recursive: true, force: true });
   }

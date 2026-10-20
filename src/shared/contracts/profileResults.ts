@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { profileCostStatsSchema } from "./costHistory";
 import type {
   ProfileCoreStats,
   ProfileDevicesResponse,
@@ -134,6 +135,7 @@ export const profileTokenProviderSchema = z.object({
 });
 
 export const profileTokenStatsSchema = z.object({
+  costs: profileCostStatsSchema.optional(),
   available: z.boolean(),
   scope: profileStatScopeSchema,
   device: profileDeviceSchema,

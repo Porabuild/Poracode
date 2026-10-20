@@ -13,6 +13,8 @@ import { isDraftPaneId, parseDraftProjectId } from "@/shared/paneId";
 import { shouldRelaunchThreadOnOpen } from "@/shared/threadRelaunch";
 import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
+import { readNativeVisualHostId } from "@/renderer/state/nativeVisualOwner";
+import { useNativeVisualUiStore } from "@/renderer/state/nativeVisualUiStore";
 import { hasHydratedThreadRuntimeItems } from "@/renderer/state/chatRuntimePersister";
 import { prepareRuntimeThreadReader } from "@/renderer/state/runtimeInterestHydration";
 import { findExperimentByThreadId, useExperimentStore } from "@/renderer/state/experimentStore";
@@ -61,13 +63,45 @@ import {
 
 let openThreadRequestId = 0;
 let threadRuntimeReopenEnabled = true;
+const suppressedAutomaticThreadReopens = new Map<string, () => void>();
 let cancelPendingThreadOpen: (() => void) | null = null;
 const THREAD_OPEN_HISTORY_WAIT_MS = 150;
+
+function allowAutomaticThreadReopen(threadId: string): void {
+  suppressedAutomaticThreadReopens.get(threadId)?.();
+  suppressedAutomaticThreadReopens.delete(threadId);
+}
+
+/** Browsing saved history must not trigger the restored-pane reconnect pass. */
+export function suppressAutomaticThreadReopen(threadId: string): void {
+  allowAutomaticThreadReopen(threadId);
+  suppressedAutomaticThreadReopens.set(
+    threadId,
+    useAppStore.subscribe((state, previous) => {
+      if (
+        state.view.kind !== "thread" ||
+        !state.view.panes.includes(threadId) ||
+        state.pendingThreadLaunches[threadId] !== undefined ||
+        state.connectingThreadIds[threadId] !== undefined ||
+        (state.threads !== previous.threads &&
+          state.threads.find((thread) => thread.id === threadId)?.status !== "inactive")
+      )
+        allowAutomaticThreadReopen(threadId);
+    }),
+  );
+}
 
 function nextThreadOpenRequest(): number {
   cancelPendingThreadOpen?.();
   cancelPendingThreadOpen = null;
   return ++openThreadRequestId;
+}
+
+/** Reserve navigation while an unopened search result resolves its host row. */
+export function claimThreadNavigation(): () => boolean {
+  const requestId = nextThreadOpenRequest();
+  useAppStore.getState().setPendingActiveThread(null);
+  return () => requestId === openThreadRequestId;
 }
 
 /**
@@ -245,9 +279,15 @@ export function openNewThreadInWorktree(input: {
 
 export function openThread(
   threadId: string,
-  options?: { focusComposer?: boolean; standalone?: boolean; switchWorkspace?: boolean },
+  options?: {
+    focusComposer?: boolean;
+    standalone?: boolean;
+    switchWorkspace?: boolean;
+    reopenRuntime?: boolean;
+  },
 ): void {
   const requestId = nextThreadOpenRequest();
+  allowAutomaticThreadReopen(threadId);
   const store = useAppStore.getState();
   const thread = store.threads.find((item) => item.id === threadId);
   if (thread && options?.switchWorkspace) {
@@ -257,6 +297,7 @@ export function openThread(
   if (owner) {
     store.setPendingActiveThread(threadId);
     startTransition(() => {
+      if (options?.reopenRuntime === false) suppressAutomaticThreadReopen(threadId);
       if (options?.standalone) store.openThreadStandalone(threadId);
       else store.openThread(threadId);
       store.setPendingActiveThread(null);
@@ -273,7 +314,8 @@ export function openThread(
         // Reopen only when this open actually applied. A superseded open (the
         // user already clicked another thread) or a failed one (host
         // unreachable — the relaunch would fail noisily) resolves false.
-        if (opened && threadRuntimeReopenEnabled) reopenStoredThread(threadId);
+        if (opened && threadRuntimeReopenEnabled && options?.reopenRuntime !== false)
+          reopenStoredThread(threadId);
       });
     return;
   }
@@ -303,6 +345,7 @@ export function openThread(
 
     startTransition(() => {
       const nextStore = useAppStore.getState();
+      if (options?.reopenRuntime === false) suppressAutomaticThreadReopen(threadId);
       if (standalone) nextStore.openThreadStandalone(threadId);
       else nextStore.openThread(threadId);
       // Clear in the same auto-batched commit as the pane swap so the highlight
@@ -322,7 +365,12 @@ export function openThread(
       }
     });
 
-    if (reopenRuntime && threadRuntimeReopenEnabled && thread?.status === "inactive") {
+    if (
+      reopenRuntime &&
+      options?.reopenRuntime !== false &&
+      threadRuntimeReopenEnabled &&
+      thread?.status === "inactive"
+    ) {
       reopenStoredThread(threadId);
     }
     return true;
@@ -381,7 +429,8 @@ export function openThread(
         requestId === openThreadRequestId &&
         state.view.kind === "thread" &&
         state.view.panes.includes(threadId) &&
-        threadRuntimeReopenEnabled
+        threadRuntimeReopenEnabled &&
+        options?.reopenRuntime !== false
       ) {
         reopenStoredThread(threadId);
       }
@@ -450,6 +499,7 @@ export function switchToAdjacentThread(current: Thread, direction: "next" | "pre
 }
 
 export function reopenStoredThread(threadId: string): void {
+  allowAutomaticThreadReopen(threadId);
   const store = useAppStore.getState();
   const thread = store.threads.find((item) => item.id === threadId);
   if (!thread) return;
@@ -619,7 +669,7 @@ export function cleanupDoneThread(threadId: string): void {
     const termStore = useDevTerminalStore.getState();
     const removedTabIds = termStore.removeTabsForWorktree(worktreePath);
     void closeThreads(removedTabIds);
-    if (termStore.activeWorktreePath === worktreePath) {
+    if (termStore.source === "project" && termStore.activeWorktreePath === worktreePath) {
       termStore.closePanel();
     }
   }
@@ -779,6 +829,10 @@ function deleteThreadOnly(
   const thread = store.threads.find((candidate) => candidate.id === threadId) ?? record;
   const rootOwner = thread ? managedRootOwner(thread) : undefined;
   const pendingLaunch = peekPendingManagedRootLaunch(threadId);
+  const visualHostId = thread ? readNativeVisualHostId(thread) : undefined;
+  const visualThreadId = thread?.remoteId ?? threadId;
+  const forgetVisuals = () =>
+    useNativeVisualUiStore.getState().forgetThread(visualHostId, visualThreadId);
   const persistedProvisioning =
     store.provisioningWorktreeThreadIds[threadId] === true &&
     rootOwner !== undefined &&
@@ -791,6 +845,7 @@ function deleteThreadOnly(
   const removal = persistedProvisioning ? Promise.withResolvers<boolean>() : undefined;
   if (removal) trackPendingManagedRootThreadRemoval(threadId, removal.promise);
   const confirmRemoteDelete = () => {
+    forgetVisuals();
     // A successful explicit delete is authoritative resolution of any
     // retained uncertain launch episode. Keep the marker until command
     // success so a refused or ambiguous delete can still replay the exact
@@ -821,6 +876,7 @@ function deleteThreadOnly(
   // bypasses command echo. Retire any locally retained uncertain launch just
   // as the successful user-command path does.
   if (rootOwner) dropPendingManagedRootLaunch(rootOwner.threadId);
+  if (isApplyingHostOriginatedManagedRootMutation()) forgetVisuals();
   removal?.resolve(true);
   store.deleteThread(threadId);
   void readBridge()
@@ -830,7 +886,12 @@ function deleteThreadOnly(
     .closeThread({ threadId })
     .catch(() => undefined);
   if (completion)
-    void readBridge().dbDeleteThread(threadId).then(completion.resolve, completion.reject);
+    void readBridge()
+      .dbDeleteThread(threadId)
+      .then(() => {
+        forgetVisuals();
+        completion.resolve();
+      }, completion.reject);
 }
 
 /** Dispose a retained auxiliary row even when it is outside the loaded catalog page. */
@@ -963,7 +1024,7 @@ export function reopenPaneThreadsIfInactive(): void {
   const store = useAppStore.getState();
   if (store.view.kind !== "thread") return;
   for (const paneId of store.view.panes) {
-    if (isDraftPaneId(paneId)) continue;
+    if (isDraftPaneId(paneId) || suppressedAutomaticThreadReopens.has(paneId)) continue;
     const thread = store.threads.find((t) => t.id === paneId);
     if (!thread || thread.status !== "inactive") continue;
     reopenStoredThread(thread.id);

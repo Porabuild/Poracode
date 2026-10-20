@@ -153,6 +153,77 @@ describe("ACP external session update sources", () => {
       expect.objectContaining({ type: "content.delta", delta: "Recovered child output" }),
     );
   });
+
+  it("notifies sources when a prompt turn ends", async () => {
+    const { session } = makeConfigSyncSession();
+    const onTurnEnd = vi.fn<(state: "completed" | "cancelled" | "failed") => void>();
+    session.attachExternalSessionUpdateSource({
+      onSessionUpdate: () => undefined,
+      onTurnEnd,
+      dispose: () => {},
+    });
+
+    await session.startTurn("hello", { model: "model-a" });
+
+    expect(onTurnEnd).toHaveBeenCalledWith("completed");
+  });
+
+  it("notifies sources with failed when the prompt rejects", async () => {
+    const { connection, session } = makeConfigSyncSession();
+    const onTurnEnd = vi.fn<(state: "completed" | "cancelled" | "failed") => void>();
+    session.attachExternalSessionUpdateSource({
+      onSessionUpdate: () => undefined,
+      onTurnEnd,
+      dispose: () => {},
+    });
+
+    connection.prompt.mockRejectedValueOnce(new Error("transport exploded"));
+    await session.startTurn("hello", { model: "model-a" });
+
+    expect(onTurnEnd).toHaveBeenCalledWith("failed");
+  });
+
+  it("signals turn end while the turn stays open awaiting detached subagent reports", async () => {
+    const { connection, listener, session } = makeConfigSyncSession();
+    let resolvePrompt!: (result: { stopReason: string }) => void;
+    connection.prompt.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolvePrompt = resolve;
+      }),
+    );
+    const onTurnEnd = vi.fn<(state: "completed" | "cancelled" | "failed") => void>();
+    session.attachExternalSessionUpdateSource({
+      onSessionUpdate: () => undefined,
+      onTurnEnd,
+      dispose: () => {},
+    });
+
+    const turn = session.startTurn("launch background research", { model: "model-a" });
+    await vi.waitFor(() => expect(connection.prompt).toHaveBeenCalledOnce());
+    session.handleSessionUpdate({
+      update: {
+        sessionUpdate: "tool_call",
+        toolCallId: "detached-agent",
+        title: "Agent",
+        status: "in_progress",
+        rawInput: {
+          _toolName: "task",
+          subagent_type: "Explore",
+          description: "Inspect mapping",
+          background: true,
+        },
+      },
+    });
+    resolvePrompt({ stopReason: "end_turn" });
+    await turn;
+
+    // The agent's turn ended, sources heard it, and the runtime turn stays
+    // open for the detached subagent's late report.
+    expect(onTurnEnd).toHaveBeenCalledWith("completed");
+    expect(listener.onRuntimeEvent).not.toHaveBeenCalledWith(
+      expect.objectContaining({ type: "turn.completed" }),
+    );
+  });
 });
 
 describe("host service capability enforcement", () => {

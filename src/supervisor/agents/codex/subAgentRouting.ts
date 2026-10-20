@@ -101,6 +101,7 @@ export class CodexSubAgentRouter {
 
     if (method === "thread/settings/updated") {
       const progress = readThreadSettingsProgress(params);
+      if (progress.model) child.mapperState.usageModel = progress.model;
       return Object.keys(progress).length > 0 ? [this.updateParent(child, { progress })] : [];
     }
 

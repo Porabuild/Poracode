@@ -6,6 +6,7 @@ import { HOME_PROJECT_ID } from "@/shared/homeScope";
 import { isDraftPaneId } from "@/shared/paneId";
 import { normalizeStoredThreadStatus } from "@/renderer/state/slices/helpers";
 import { useAppStore } from "@/renderer/state/appStore";
+import { nativeVisualUiKey, useNativeVisualUiStore } from "@/renderer/state/nativeVisualUiStore";
 import * as runtimeInterestHydration from "@/renderer/state/runtimeInterestHydration";
 import {
   forgetPendingCatalogEdit,
@@ -25,6 +26,7 @@ import {
   requestDeleteThread,
   openNewThread,
   openThread,
+  claimThreadNavigation,
   reopenPaneThreadsIfInactive,
   reopenStoredThread,
   setThreadRuntimeReopenEnabled,
@@ -79,12 +81,13 @@ describe("threadActions", () => {
     vi.clearAllMocks();
     setThreadRuntimeReopenEnabled(true);
     localStorage.clear();
+    useNativeVisualUiStore.setState({ entries: new Map() });
     hydrateThreadRuntimeItems.mockResolvedValue(undefined);
     deleteWorktreeGroup.mockReset();
     refreshServer.mockReset().mockResolvedValue(undefined);
     sendThreadCommand.mockReset().mockResolvedValue(undefined);
     toast.danger.mockReset();
-    useRemoteServersStore.setState({ refreshServer, sendThreadCommand });
+    useRemoteServersStore.setState({ refreshServer, sendThreadCommand, servers: [] });
     useAppStore.setState((state) => ({
       ...state,
       projects: [],
@@ -101,6 +104,7 @@ describe("threadActions", () => {
     }));
     useDevTerminalStore.setState({
       isOpen: false,
+      source: "project",
       activeProjectId: null,
       activeWorktreePath: null,
       tabs: [],
@@ -360,6 +364,57 @@ describe("threadActions", () => {
       expect(hydrateThreadRuntimeItems).toHaveBeenCalledExactlyOnceWith(thread.id);
       expect(useAppStore.getState().pendingThreadLaunches[thread.id]).toBeDefined();
       expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: [thread.id] });
+    } finally {
+      history.resolve();
+      reader?.release();
+      vi.useRealTimers();
+    }
+  });
+
+  it("cancels an older slow open when search claims navigation before resolving its row", async () => {
+    vi.useFakeTimers();
+    const history = Promise.withResolvers<void>();
+    hydrateThreadRuntimeItems.mockReturnValueOnce(history.promise);
+    const old = makeThread({ id: "old-open", presentationMode: "gui" });
+    const latest = makeThread({ id: "latest-search", presentationMode: "gui" });
+    useAppStore.setState({ threads: [old, latest] });
+    try {
+      openThread(old.id);
+      const ownsNavigation = claimThreadNavigation();
+      history.resolve();
+      await vi.advanceTimersByTimeAsync(200);
+      expect(ownsNavigation()).toBe(true);
+      expect(useAppStore.getState().view).toEqual({ kind: "home" });
+      openThread(latest.id, { reopenRuntime: false });
+      await vi.advanceTimersByTimeAsync(200);
+      expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: [latest.id] });
+      expect(ownsNavigation()).toBe(false);
+    } finally {
+      history.resolve();
+      vi.useRealTimers();
+    }
+  });
+
+  it("opens a slow saved search result without relaunching its provider", async () => {
+    vi.useFakeTimers();
+    const history = Promise.withResolvers<void>();
+    hydrateThreadRuntimeItems.mockReturnValueOnce(history.promise);
+    const thread = makeThread({
+      id: "search-gui",
+      presentationMode: "gui",
+      status: "inactive",
+      canResumeWithConfig: true,
+    });
+    useAppStore.setState({ threads: [thread] });
+    let reader: ReturnType<typeof runtimeInterestHydration.adoptRuntimeThreadReader> | undefined;
+    try {
+      openThread(thread.id, { reopenRuntime: false, focusComposer: false });
+      await vi.advanceTimersByTimeAsync(150);
+      reader = runtimeInterestHydration.adoptRuntimeThreadReader(thread.id);
+      history.resolve();
+      await reader.ready;
+      expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: [thread.id] });
+      expect(useAppStore.getState().pendingThreadLaunches[thread.id]).toBeUndefined();
     } finally {
       history.resolve();
       reader?.release();
@@ -911,6 +966,65 @@ describe("threadActions", () => {
     expect(bridge.closeThread).not.toHaveBeenCalled();
   });
 
+  it("clears visual inputs only after delete confirmation for the host captured before dispatch", async () => {
+    const deletion = Promise.withResolvers<void>();
+    sendThreadCommand.mockReturnValueOnce(deletion.promise);
+    const thread = makeThread({ remoteServerId: "remote-server", remoteId: "same-thread" });
+    const server = {
+      connectionId: "remote-server",
+      desktopId: "target-host",
+      label: "Target",
+      endpoint: "http://127.0.0.1:1/",
+      accessToken: "fixture",
+      scopes: [],
+    };
+    useRemoteServersStore.setState({ servers: [server] });
+    useAppStore.setState({ threads: [thread] });
+    const targetKey = nativeVisualUiKey("target-host", "same-thread", "item", 0, "source");
+    const otherKey = nativeVisualUiKey("other-host", "same-thread", "item", 0, "source");
+    for (const [key, hostId] of [
+      [targetKey, "target-host"],
+      [otherKey, "other-host"],
+    ]) {
+      useNativeVisualUiStore
+        .getState()
+        .put(key!, { hostId: hostId!, threadId: "same-thread", inputs: [["n", 2]], zoom: 100 });
+    }
+    deleteThread(thread.id);
+    expect(useNativeVisualUiStore.getState().entries.has(targetKey)).toBe(true);
+    useRemoteServersStore.setState({ servers: [{ ...server, desktopId: "other-host" }] });
+    deletion.resolve();
+    await waitFor(() =>
+      expect(useNativeVisualUiStore.getState().entries.has(targetKey)).toBe(false),
+    );
+    expect(useNativeVisualUiStore.getState().entries.has(otherKey)).toBe(true);
+  });
+
+  it("retains visual state after a rejected optimistic deletion", async () => {
+    sendThreadCommand.mockRejectedValueOnce(new Error("delete refused"));
+    const thread = makeThread({ remoteServerId: "remote-server", remoteId: "same-thread" });
+    useRemoteServersStore.setState({
+      servers: [
+        {
+          connectionId: "remote-server",
+          desktopId: "target-host",
+          label: "Target",
+          endpoint: "http://127.0.0.1:1/",
+          accessToken: "fixture",
+          scopes: [],
+        },
+      ],
+    });
+    useAppStore.setState({ threads: [thread] });
+    const key = nativeVisualUiKey("target-host", "same-thread", "item", 0, "source");
+    useNativeVisualUiStore
+      .getState()
+      .put(key, { hostId: "target-host", threadId: "same-thread", inputs: [["n", 2]], zoom: 100 });
+    deleteThread(thread.id);
+    await waitFor(() => expect(toast.danger).toHaveBeenCalledWith("delete refused"));
+    expect(useNativeVisualUiStore.getState().entries.has(key)).toBe(true);
+  });
+
   it("deletes a shared-worktree thread without prompting to remove the worktree", () => {
     const worktreePath = "/repo/.worktrees/feature";
     const firstThread = makeThread({
@@ -1182,6 +1296,24 @@ describe("threadActions", () => {
       activeProjectId: null,
       activeWorktreePath: null,
     });
+  });
+
+  it("keeps the home terminal open when marking the last worktree thread done", () => {
+    const worktreePath = "/repo/.worktrees/feature";
+    const project = useAppStore.getState().addProject({ kind: "posix", path: "/repo" });
+    const thread = useAppStore.getState().createThread({
+      projectId: project.id,
+      agentKind: "codex",
+      config: { model: "gpt-5.4" },
+      prompt: "hello",
+      worktreePath,
+    });
+    useDevTerminalStore.getState().openWorktreePanel(project.id, worktreePath);
+    useDevTerminalStore.getState().openGlobalPanel();
+
+    toggleMarkThreadDone(thread.id);
+
+    expect(useDevTerminalStore.getState()).toMatchObject({ isOpen: true, source: "global" });
   });
 
   it("keeps worktree dev terminals open when marking one of multiple worktree threads done", () => {

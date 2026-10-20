@@ -98,7 +98,7 @@ not evidence of complete protocol coverage.
 ## Remote-v3 contract boundary
 
 The contract registry (`src/shared/remote/contract/`) is the ONE table of
-routes, procedures, scopes, and schemas. `pnpm run protocol:remote:v3:generate`
+routes, procedures, scopes, and schemas. `bun run protocol:remote:v3:generate`
 derives every published artifact from it: the language-neutral inventory at
 `protocol/remote/v3/generated/manifest.json`, `ir.json`,
 `json-schema.bundle.json`, `inventory.json`, and the native bundle under
@@ -106,14 +106,14 @@ derives every published artifact from it: the language-neutral inventory at
 the HTTP router dispatches from the same registry through an exhaustively-typed
 per-route handler table, so a route that is not in the registry fails
 typecheck. The `v3` directory name is retained; the current wire protocol
-version is 13. The inventory describes:
+version is 14. The inventory describes:
 
-- 100 HTTP routes;
+- 116 HTTP routes;
 - 130 supervisor procedures;
 - 9 client-to-server WebSocket messages; and
 - 11 server-to-client WebSocket messages (including the admission-gated `desktop-event` stream).
 
-`pnpm run protocol:remote:v3:check` is side-effect free and rejects missing,
+`bun run protocol:remote:v3:check` is side-effect free and rejects missing,
 extra, or stale generated artifacts, including a hand-edited manifest.
 
 The generated inventory carries separate compatibility identities:
@@ -384,7 +384,7 @@ check the PWA client already enforces for `#fp=`-asserted pairing links.
 ## Web and PWA delivery
 
 The hosted React client remains a supported, separate surface.
-`pnpm run build:web` produces `dist/web`; its root-scoped manifest and service
+`bun run build:web` produces `dist/web`; its root-scoped manifest and service
 worker make it installable. Hashed assets are cache-first, navigations are
 network-first with a cached shell fallback, and cross-origin remote-host HTTP
 and WebSocket traffic is not intercepted.
@@ -466,7 +466,7 @@ client proofs.
   by Node and Electron. Both desktop and headless startup use the package's
   platform/architecture selection. Old `dist/server-native` binaries are ignored
   automatically so an upgrade cannot load a previous-generation SQLite addon.
-  - `pnpm run prepare:server-native` copies the current N-API prebuild into
+  - `bun run prepare:server-native` copies the current N-API prebuild into
     `dist/server-native/better_sqlite3.node` for callers that need a standalone file.
   - Operators can explicitly select a compatible SQLite 13 binary with
     `PORACODE_BETTER_SQLITE3_NATIVE_BINDING`.

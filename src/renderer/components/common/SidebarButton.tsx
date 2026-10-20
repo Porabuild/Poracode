@@ -41,6 +41,7 @@ export function SidebarButton(props: {
   onPreload?: () => void;
   isDisabled?: boolean;
   isActive?: boolean;
+  isCurrentPage?: boolean;
   iconOnly?: boolean;
   /** Row text size. `xs` is used for thread and worktree list rows. */
   size?: "md" | "xs";
@@ -78,6 +79,7 @@ export function SidebarButton(props: {
     onPreload,
     isDisabled = false,
     isActive = false,
+    isCurrentPage = false,
     iconOnly = false,
     size = "md",
     density = "default",
@@ -124,6 +126,7 @@ export function SidebarButton(props: {
           <button
             ref={ref as React.Ref<HTMLButtonElement>}
             aria-label={typeof label === "string" ? label : undefined}
+            aria-current={isCurrentPage ? "page" : undefined}
             className={`flex ${compact ? "h-7 w-7" : "h-8 w-8"} shrink-0 cursor-default items-center justify-center rounded-3xl outline-none transition-colors focus-visible:focus-ring ${stateClass} ${className ?? ""}`}
             disabled={isDisabled}
             onClick={onPress}
@@ -150,6 +153,7 @@ export function SidebarButton(props: {
       role="button"
       tabIndex={isDisabled ? -1 : 0}
       aria-disabled={isDisabled || undefined}
+      aria-current={isCurrentPage ? "page" : undefined}
       aria-grabbed={isDragging}
       className={`group relative flex w-full shrink-0 cursor-default items-center gap-2 ${compact ? "py-1" : "py-1.5"} rounded-3xl px-2 text-left ${sizeClass} outline-none transition-colors ${stateClass}${dragRowDim} ${className ?? ""}`}
       onClick={isDisabled ? undefined : onPress}

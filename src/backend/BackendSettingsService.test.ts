@@ -103,7 +103,7 @@ describe("backend settings authority access", () => {
         expect(settings.crossagentSelectionUsage[0]).toMatchObject({ count: 1, tags: ["review"] });
       });
       // The authority persisted its canonical versioned document.
-      expect(JSON.parse(readFileSync(path, "utf8")).$poracodeSettingsVersion).toBe(2);
+      expect(JSON.parse(readFileSync(path, "utf8")).$poracodeSettingsVersion).toBe(3);
       expect(readdirSync(root).filter((name) => name.endsWith(".tmp"))).toEqual([]);
     } finally {
       await service.dispose();

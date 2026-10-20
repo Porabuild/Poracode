@@ -1285,6 +1285,7 @@ html[data-compact-layout] [data-sticky-windowed-header] .poracode-model-menu-hea
     --row-active: color-mix(in oklab, var(--foreground) 11%, transparent);
     --sidebar-row-active: color-mix(in oklab, var(--foreground) 11%, transparent);
     --hairline: color-mix(in oklab, var(--foreground) 9%, transparent);
+    --hairline-soft: color-mix(in oklab, var(--foreground) 3%, transparent);
     --hairline-strong: color-mix(in oklab, var(--foreground) 15%, transparent);
   }
 
@@ -4369,6 +4370,40 @@ html[data-app-unfocused] .poracode-provider-icon--finished {
   font-size: 0.875rem;
   font-weight: 500;
   pointer-events: none;
+}
+
+.poracode-chat-drop-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: inherit;
+  background: color-mix(in oklab, var(--content-background) 48%, transparent);
+  backdrop-filter: blur(2px);
+  pointer-events: none;
+}
+
+.poracode-chat-drop-prompt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 24px 32px;
+  border: 1px solid var(--hairline-strong);
+  border-radius: 20px;
+  background: color-mix(in oklab, var(--composer-surface) 94%, transparent);
+  box-shadow: 0 8px 32px #00000012;
+  color: var(--foreground);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.poracode-chat-drop-prompt svg {
+  width: 28px;
+  height: 28px;
+  stroke-width: 1.5;
 }
 
 /* Animated 1px border ring around the draft composer. The mask-composite cutout

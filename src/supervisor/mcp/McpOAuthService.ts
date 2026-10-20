@@ -1,7 +1,7 @@
 import { randomBytes, randomUUID } from "node:crypto";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 import { auth } from "@modelcontextprotocol/client";
 import type {
   OAuthClientProvider,
@@ -9,9 +9,11 @@ import type {
   OAuthTokens,
   StoredOAuthClientInformation,
   StoredOAuthTokens,
+  OAuthDiscoveryState,
 } from "@modelcontextprotocol/client";
 import {
   mcpOauthBeginPayloadSchema,
+  isValidMcpServerUrl,
   type McpOauthBeginPayload,
   type McpOauthBeginResult,
   type McpOauthClearPayload,
@@ -20,11 +22,15 @@ import {
   type McpServer,
 } from "@/shared/contracts";
 import { decryptSecret, encryptSecret } from "@/shared/secretStorage";
+import { writeFileAtomic } from "@/shared/atomicFile";
+import { fetchWithSignal, McpOAuthRefresh } from "./McpOAuthRefresh";
 
 const FLOW_TIMEOUT_MS = 5 * 60 * 1000;
 const TOKEN_EXPIRY_SLACK_MS = 60 * 1000;
 const STORE_FILE_NAME = "mcp-oauth.json";
 const CALLBACK_PATH = "/callback";
+// Version 1 preserves the legacy URL slots and adds independent opaque account keys.
+export const MCP_OAUTH_STORE_VERSION = 1;
 
 const CALLBACK_SUCCESS_HTML = `<!doctype html><html><head><meta charset="utf-8"><title>Poracode</title></head>
 <body style="font-family: system-ui, sans-serif; display: flex; justify-content: center; margin-top: 4rem;">
@@ -42,19 +48,24 @@ interface StoredEntry {
 }
 
 interface StoreFile {
+  version: typeof MCP_OAUTH_STORE_VERSION;
   servers: Record<string, StoredEntry>;
 }
 
 interface ActiveFlow {
   id: string;
   serverUrl: string;
+  credentialKey: string;
   state: string;
   codeVerifier?: string;
+  discoveryState?: OAuthDiscoveryState;
+  exchanging?: boolean;
   authorizationUrl?: string;
   listener?: Server | undefined;
   port?: number;
   timeout?: NodeJS.Timeout;
   settled: boolean;
+  controller: AbortController;
   result: Promise<McpOauthWaitResult>;
   settle: (result: McpOauthWaitResult) => void;
 }
@@ -87,6 +98,8 @@ export interface McpOAuthServiceOptions {
   baseDir: string;
   /** Test seam: overrides where the sealed credential store is written. */
   storePath?: string;
+  /** Test seam: override the silent refresh budget (normally the MCP server's timeout). */
+  refreshTimeoutMs?: number;
 }
 
 /**
@@ -101,27 +114,55 @@ export class McpOAuthService {
   private readonly storePath: string;
   private readonly flows = new Map<string, ActiveFlow>();
   private readonly flowsByServer = new Map<string, ActiveFlow>();
+  private readonly credentialEpochs = new Map<string, number>();
+  private readonly refresh: McpOAuthRefresh;
   private storeCache: StoreFile | undefined;
+  private unsupportedStore = false;
 
   constructor(options: McpOAuthServiceOptions) {
     this.baseDir = options.baseDir;
     this.storePath = options.storePath ?? join(options.baseDir, STORE_FILE_NAME);
+    this.refresh = new McpOAuthRefresh(options.refreshTimeoutMs);
   }
 
   async begin(input: McpOauthBeginPayload): Promise<McpOauthBeginResult> {
     const payload = mcpOauthBeginPayloadSchema.parse(input);
-    const server = payload.server;
+    return this.beginForCredential(payload.server);
+  }
+
+  /** Internal plugin account path. Keys are supervisor-owned and never accepted over generic MCP RPC. */
+  async beginForCredential(
+    server: McpServer,
+    credentialKey?: string,
+  ): Promise<McpOauthBeginResult> {
     if (!isOauthCapableTransport(server)) {
       return { status: "error", message: "Only HTTP MCP servers support sign-in." };
     }
     const serverUrl = server.transport.url;
-    this.cancelFlowForServer(serverUrl);
+    const key = credentialKey ?? serverUrl;
+    this.cancelFlowForServer(key);
+    this.refresh.invalidate(key);
 
-    const flow = this.createFlow(serverUrl);
+    const flow = this.createFlow(serverUrl, key);
+    this.flows.set(flow.id, flow);
+    this.flowsByServer.set(key, flow);
     try {
       flow.listener = await this.openLoopbackListener(flow);
-      const provider = this.createProvider(serverUrl, flow);
-      const result = await auth(provider, { serverUrl });
+      flow.controller.signal.throwIfAborted();
+      if (flow.settled) {
+        this.disposeFlow(flow);
+        return { status: "error", message: "Sign-in was canceled." };
+      }
+      const provider = this.createProvider(serverUrl, flow, flow.controller.signal, key);
+      const result = await auth(provider, {
+        serverUrl,
+        fetchFn: fetchWithSignal(flow.controller.signal),
+      });
+      flow.controller.signal.throwIfAborted();
+      if (flow.settled) {
+        this.disposeFlow(flow);
+        return { status: "error", message: "Sign-in was canceled." };
+      }
       if (result === "AUTHORIZED") {
         this.disposeFlow(flow);
         return { status: "authorized" };
@@ -130,8 +171,6 @@ export class McpOAuthService {
         this.disposeFlow(flow);
         return { status: "error", message: "The server did not provide an authorization URL." };
       }
-      this.flows.set(flow.id, flow);
-      this.flowsByServer.set(serverUrl, flow);
       flow.timeout = setTimeout(() => {
         this.settleFlow(flow, { status: "error", message: "Sign-in timed out." });
       }, FLOW_TIMEOUT_MS);
@@ -149,15 +188,57 @@ export class McpOAuthService {
   async wait(payload: { flowId: string }): Promise<McpOauthWaitResult> {
     const flow = this.flows.get(payload.flowId);
     if (!flow) return { status: "error", message: "The sign-in flow is no longer active." };
-    return flow.result;
+    const result = await flow.result;
+    this.disposeFlow(flow);
+    return result;
   }
 
   clear(payload: McpOauthClearPayload): void {
-    this.cancelFlowForServer(payload.url);
+    if (!isValidMcpServerUrl(payload.url))
+      throw new Error("This operation only clears HTTP MCP server credentials.");
+    this.clearCredential(payload.url);
+  }
+
+  clearCredential(key: string): void {
+    this.credentialEpochs.set(key, (this.credentialEpochs.get(key) ?? 0) + 1);
+    this.cancelFlowForServer(key);
+    this.refresh.invalidate(key);
     const store = this.readStore();
-    if (store.servers[payload.url] === undefined) return;
-    delete store.servers[payload.url];
-    this.writeStore(store);
+    if (this.unsupportedStore) throw new Error("Unsupported MCP OAuth store version.");
+    if (store.servers[key] === undefined) return;
+    const servers = { ...store.servers };
+    delete servers[key];
+    this.writeStore({ ...store, servers });
+  }
+
+  credentialStatus(key: string): {
+    status: "connected" | "expired" | "disconnected";
+    scopes: string[];
+  } {
+    const tokens = this.readTokens(key);
+    return {
+      status: !tokens
+        ? "disconnected"
+        : this.tokensExpired(key, tokens) && !tokens.refresh_token
+          ? "expired"
+          : "connected",
+      scopes: typeof tokens?.scope === "string" ? tokens.scope.split(/\s+/u).filter(Boolean) : [],
+    };
+  }
+
+  /** No network I/O. Manual headers always retain precedence over shared sign-in. */
+  hasAuthorization(server: McpServer, credentialKey?: string): boolean {
+    if (!isOauthCapableTransport(server) || hasAuthorizationHeader(server.transport.headers)) {
+      return false;
+    }
+    const key = credentialKey ?? server.transport.url;
+    const tokens = this.readTokens(key);
+    return Boolean(tokens && (!this.tokensExpired(key, tokens) || tokens.refresh_token));
+  }
+
+  /** Refresh keeps this stable; signing out or starting a new sign-in revokes old consumers. */
+  authorizationVersion(serverUrl: string, credentialKey?: string): number {
+    return this.refresh.version(credentialKey ?? serverUrl);
   }
 
   status(): McpOauthStatusResult {
@@ -169,6 +250,7 @@ export class McpOAuthService {
       // ACP) abort the whole turn with `MCP load failed ... Unauthorized`.
       // Only report URLs whose tokens are still usable (or refreshable).
       authenticatedUrls: Object.keys(store.servers).filter((url) => {
+        if (!isValidMcpServerUrl(url)) return false;
         const tokens = this.readTokens(url);
         if (!tokens) return false;
         if (!this.tokensExpired(url, tokens)) return true;
@@ -187,10 +269,14 @@ export class McpOAuthService {
     return Promise.all(servers.map((server) => this.applyAuthorizationToServer(server)));
   }
 
-  async applyAuthorizationToServer(server: McpServer): Promise<McpServer> {
+  async applyAuthorizationToServer(server: McpServer, credentialKey?: string): Promise<McpServer> {
     if (!isOauthCapableTransport(server)) return server;
     if (hasAuthorizationHeader(server.transport.headers)) return server;
-    const accessToken = await this.accessToken(server.transport.url);
+    const accessToken = await this.accessToken(
+      server.transport.url,
+      credentialKey ?? server.transport.url,
+      server.timeoutMs,
+    );
     if (!accessToken) return server;
     return {
       ...server,
@@ -202,24 +288,33 @@ export class McpOAuthService {
   }
 
   dispose(): void {
+    this.refresh.dispose();
     for (const flow of [...this.flows.values()]) {
       this.settleFlow(flow, { status: "error", message: "The sign-in flow was canceled." });
+      this.disposeFlow(flow);
     }
   }
 
-  private async accessToken(serverUrl: string): Promise<string | undefined> {
-    const tokens = this.readTokens(serverUrl);
+  private async accessToken(
+    serverUrl: string,
+    credentialKey: string,
+    timeoutMs: number,
+  ): Promise<string | undefined> {
+    const tokens = this.readTokens(credentialKey);
     if (!tokens) return undefined;
-    if (!this.tokensExpired(serverUrl, tokens)) return tokens.access_token;
+    if (!this.tokensExpired(credentialKey, tokens)) return tokens.access_token;
     if (!tokens.refresh_token) return undefined;
-    try {
-      const provider = this.createProvider(serverUrl);
-      const result = await auth(provider, { serverUrl });
-      if (result !== "AUTHORIZED") return undefined;
-      return this.readTokens(serverUrl)?.access_token;
-    } catch {
-      return undefined;
-    }
+    return this.refresh.run(
+      credentialKey,
+      async (signal) => {
+        const provider = this.createProvider(serverUrl, undefined, signal, credentialKey);
+        const result = await auth(provider, { serverUrl, fetchFn: fetchWithSignal(signal) });
+        signal.throwIfAborted();
+        if (result !== "AUTHORIZED") return undefined;
+        return this.readTokens(credentialKey)?.access_token;
+      },
+      timeoutMs,
+    );
   }
 
   private tokensExpired(serverUrl: string, tokens: OAuthTokens): boolean {
@@ -229,7 +324,7 @@ export class McpOAuthService {
     return savedAt + tokens.expires_in * 1000 - TOKEN_EXPIRY_SLACK_MS <= Date.now();
   }
 
-  private createFlow(serverUrl: string): ActiveFlow {
+  private createFlow(serverUrl: string, credentialKey: string): ActiveFlow {
     let settle!: (result: McpOauthWaitResult) => void;
     const result = new Promise<McpOauthWaitResult>((resolve) => {
       settle = resolve;
@@ -237,8 +332,10 @@ export class McpOAuthService {
     const flow: ActiveFlow = {
       id: randomUUID(),
       serverUrl,
+      credentialKey,
       state: randomBytes(24).toString("base64url"),
       settled: false,
+      controller: new AbortController(),
       result,
       settle,
     };
@@ -256,17 +353,25 @@ export class McpOAuthService {
    * loopback client: `addClientAuthentication` (default `none` handling),
    * `validateResourceURL` (default RFC 9728 check), `prepareTokenRequest`
    * (default authorization-code grant), `clientMetadataUrl` (DCR is used),
-   * `saveDiscoveryState`/`discoveryState` (every `auth()` rediscovers; opting
-   * out also skips the callback-leg issuer-mismatch guard, which needs state
-   * persisted alongside the code verifier), `saveResourceUrl`/`resourceUrl`
+   * `saveResourceUrl`/`resourceUrl`
    * (Cross-App Access only), and the deprecated
    * `saveAuthorizationServerUrl`/`authorizationServerUrl` pair (written by the
    * SDK but never read). The `ctx.issuer` argument on the persistence methods
-   * is ignored: one credential set per server URL round-trips the SDK's
+   * is ignored: each credential slot round-trips the SDK's
    * issuer stamp through the encrypted JSON store untouched.
    */
-  private createProvider(serverUrl: string, flow?: ActiveFlow): OAuthClientProvider {
+  private createProvider(
+    serverUrl: string,
+    flow?: ActiveFlow,
+    signal?: AbortSignal,
+    credentialKey = serverUrl,
+  ): OAuthClientProvider {
     const service = this;
+    const epoch = this.credentialEpochs.get(credentialKey) ?? 0;
+    const assertCurrent = () => {
+      if (flow?.settled || (service.credentialEpochs.get(credentialKey) ?? 0) !== epoch)
+        throw new Error("Sign-in was canceled.");
+    };
     const redirectUrl = flow?.port
       ? `http://127.0.0.1:${flow.port}${CALLBACK_PATH}`
       : "http://127.0.0.1/unused-callback";
@@ -287,26 +392,50 @@ export class McpOAuthService {
         if (!flow) throw new Error("Interactive sign-in is required.");
         return flow.state;
       },
-      clientInformation: () => service.readClientInformation(serverUrl),
+      clientInformation: () => service.readClientInformation(credentialKey),
       saveClientInformation: (clientInformation) => {
-        service.updateEntry(serverUrl, (entry) => ({
+        assertCurrent();
+        signal?.throwIfAborted();
+        service.updateEntry(credentialKey, (entry) => ({
           ...entry,
           clientInformation: encryptSecret(service.baseDir, JSON.stringify(clientInformation)),
         }));
       },
-      tokens: () => service.readTokens(serverUrl),
+      tokens: () => service.readTokens(credentialKey),
       saveTokens: (tokens) => {
-        service.updateEntry(serverUrl, (entry) => ({
+        assertCurrent();
+        signal?.throwIfAborted();
+        const previous = service.readTokens(credentialKey);
+        // A refresh may omit an unchanged scope; a new authorization grant may not inherit it.
+        const previousScope = flow?.exchanging ? undefined : previous?.scope;
+        const savedTokens =
+          tokens.scope === undefined && previousScope !== undefined
+            ? { ...tokens, scope: previousScope }
+            : tokens;
+        // The SDK stamps legacy tokens with their issuer before refreshing.
+        // That metadata write must not make an expired token look fresh if the
+        // grant stalls or fails, including to concurrent MCP connections.
+        const issuerStamp =
+          previous &&
+          !previous.issuer &&
+          savedTokens.issuer &&
+          Object.entries(previous).every(
+            ([key, value]) => Reflect.get(savedTokens, key) === value,
+          ) &&
+          Object.keys(savedTokens).length === Object.keys(previous).length + 1;
+        service.updateEntry(credentialKey, (entry) => ({
           ...entry,
-          tokens: encryptSecret(service.baseDir, JSON.stringify(tokens)),
-          tokensSavedAt: Date.now(),
+          tokens: encryptSecret(service.baseDir, JSON.stringify(savedTokens)),
+          ...(!issuerStamp ? { tokensSavedAt: Date.now() } : {}),
         }));
       },
       redirectToAuthorization: (authorizationUrl: URL) => {
+        assertCurrent();
         if (!flow) throw new Error("Interactive sign-in is required.");
         flow.authorizationUrl = authorizationUrl.toString();
       },
       saveCodeVerifier: (codeVerifier) => {
+        assertCurrent();
         if (!flow) throw new Error("Interactive sign-in is required.");
         flow.codeVerifier = codeVerifier;
       },
@@ -314,8 +443,15 @@ export class McpOAuthService {
         if (!flow?.codeVerifier) throw new Error("Missing PKCE code verifier.");
         return flow.codeVerifier;
       },
+      saveDiscoveryState: (state) => {
+        assertCurrent();
+        if (flow) flow.discoveryState = state;
+      },
+      discoveryState: () => flow?.discoveryState,
       invalidateCredentials: (scope) => {
-        service.updateEntry(serverUrl, (entry) => {
+        assertCurrent();
+        signal?.throwIfAborted();
+        service.updateEntry(credentialKey, (entry) => {
           if (scope === "all") return {};
           const next = { ...entry };
           if (scope === "client") delete next.clientInformation;
@@ -323,11 +459,11 @@ export class McpOAuthService {
             delete next.tokens;
             delete next.tokensSavedAt;
           }
+          if (scope === "discovery" && flow) delete flow.discoveryState;
           // v2 splits the old single "all" invalidation into separate
           // "client" + "tokens" calls with the same net effect. "verifier"
-          // (kept in-memory on the active flow, not in this store) and
-          // "discovery" (never cached — every auth() rediscovers) are
-          // intentionally no-ops here.
+          // (kept in-memory on the active flow, not in this store) requires
+          // no persisted update. Discovery is bound to the active flow only.
           return next;
         });
       },
@@ -360,7 +496,7 @@ export class McpOAuthService {
     }
     // An attacker on another local account cannot know the state value; a
     // mismatched callback is ignored without consuming the pending flow.
-    if (url.searchParams.get("state") !== flow.state || flow.settled) {
+    if (url.searchParams.get("state") !== flow.state || flow.settled || flow.exchanging) {
       res.writeHead(400, { "content-type": "text/html; charset=utf-8" });
       res.end(CALLBACK_FAILURE_HTML);
       return;
@@ -383,15 +519,22 @@ export class McpOAuthService {
 
     res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
     res.end(CALLBACK_SUCCESS_HTML);
+    flow.exchanging = true;
     void this.exchangeAuthorizationCode(flow, code);
   }
 
   private async exchangeAuthorizationCode(flow: ActiveFlow, code: string): Promise<void> {
     try {
-      const provider = this.createProvider(flow.serverUrl, flow);
+      const provider = this.createProvider(
+        flow.serverUrl,
+        flow,
+        flow.controller.signal,
+        flow.credentialKey,
+      );
       const result = await auth(provider, {
         serverUrl: flow.serverUrl,
         authorizationCode: code,
+        fetchFn: fetchWithSignal(flow.controller.signal),
       });
       this.settleFlow(
         flow,
@@ -419,16 +562,20 @@ export class McpOAuthService {
       flow.settled = true;
       flow.settle(result);
     }
-    this.disposeFlow(flow);
+    this.disposeFlow(flow, true);
   }
 
-  private disposeFlow(flow: ActiveFlow): void {
+  private disposeFlow(flow: ActiveFlow, retainResult = false): void {
+    flow.controller.abort();
     if (flow.timeout) clearTimeout(flow.timeout);
     flow.listener?.close();
     flow.listener = undefined;
-    this.flows.delete(flow.id);
-    if (this.flowsByServer.get(flow.serverUrl) === flow) {
-      this.flowsByServer.delete(flow.serverUrl);
+    if (retainResult) {
+      flow.timeout = setTimeout(() => this.flows.delete(flow.id), FLOW_TIMEOUT_MS);
+      flow.timeout.unref?.();
+    } else this.flows.delete(flow.id);
+    if (this.flowsByServer.get(flow.credentialKey) === flow) {
+      this.flowsByServer.delete(flow.credentialKey);
     }
   }
 
@@ -457,7 +604,8 @@ export class McpOAuthService {
   }
 
   private updateEntry(serverUrl: string, update: (entry: StoredEntry) => StoredEntry): void {
-    const store = this.readStore();
+    const current = this.readStore();
+    const store = { ...current, servers: { ...current.servers } };
     const next = update(store.servers[serverUrl] ?? {});
     if (Object.keys(next).length === 0) delete store.servers[serverUrl];
     else store.servers[serverUrl] = next;
@@ -466,31 +614,50 @@ export class McpOAuthService {
 
   private readStore(): StoreFile {
     if (this.storeCache) return this.storeCache;
+    let parsed: unknown;
     try {
-      const parsed = JSON.parse(readFileSync(this.storePath, "utf8")) as unknown;
-      const servers =
-        parsed && typeof parsed === "object" && !Array.isArray(parsed)
-          ? ((parsed as { servers?: unknown }).servers ?? {})
-          : {};
-      this.storeCache = {
-        servers:
-          servers && typeof servers === "object" && !Array.isArray(servers)
-            ? (servers as Record<string, StoredEntry>)
-            : {},
-      };
-    } catch {
-      this.storeCache = { servers: {} };
+      parsed = JSON.parse(readFileSync(this.storePath, "utf8")) as unknown;
+    } catch (error) {
+      if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+        this.storeCache = { version: MCP_OAUTH_STORE_VERSION, servers: {} };
+        return this.storeCache;
+      }
+      // The legacy writer was not atomic; a truncated file must degrade to "no
+      // credentials" instead of breaking every HTTP MCP launch and status read.
+      this.storeCache = { version: MCP_OAUTH_STORE_VERSION, servers: {} };
+      return this.storeCache;
     }
+    if (
+      parsed &&
+      typeof parsed === "object" &&
+      "version" in parsed &&
+      parsed.version !== MCP_OAUTH_STORE_VERSION
+    ) {
+      // Preserve a newer/unknown store: reads degrade to empty, writes refuse.
+      this.unsupportedStore = true;
+      this.storeCache = { version: MCP_OAUTH_STORE_VERSION, servers: {} };
+      return this.storeCache;
+    }
+    const servers =
+      parsed && typeof parsed === "object" && !Array.isArray(parsed)
+        ? ((parsed as { servers?: unknown }).servers ?? {})
+        : {};
+    this.storeCache = {
+      version: MCP_OAUTH_STORE_VERSION,
+      servers:
+        servers && typeof servers === "object" && !Array.isArray(servers)
+          ? (servers as Record<string, StoredEntry>)
+          : {},
+    };
     return this.storeCache;
   }
 
   private writeStore(store: StoreFile): void {
+    if (this.unsupportedStore) throw new Error("Unsupported MCP OAuth store version.");
+    writeFileAtomic(this.storePath, `${JSON.stringify(store, null, 2)}\n`, {
+      encoding: "utf8",
+      mode: 0o600,
+    });
     this.storeCache = store;
-    try {
-      mkdirSync(dirname(this.storePath), { recursive: true });
-      writeFileSync(this.storePath, `${JSON.stringify(store, null, 2)}\n`, { mode: 0o600 });
-    } catch {
-      // Persisting is best-effort; in-memory credentials still work for the session.
-    }
   }
 }

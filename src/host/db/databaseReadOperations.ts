@@ -1,5 +1,6 @@
 import { readCommittedRuntimeSnapshot } from "./runtimeSnapshotRead";
 import { getSqlite } from "./connection";
+import { readConversationSearchBatch, readConversationSearchPage } from "./conversationSearchReads";
 import { readRuntimeSnapshot } from "./runtimeReadSnapshot";
 import {
   dbReadLatestThreadGoalItem,
@@ -33,6 +34,8 @@ import {
 
 /** Only committed, read-only operations belong here. The host owns fences and writes. */
 export const databaseReadOperations = {
+  conversationSearch: readConversationSearchPage,
+  conversationSearchBatch: readConversationSearchBatch,
   legacyShellCatalog(options: Parameters<typeof readLegacyShellCatalog>[0]) {
     assertLegacySnapshotWithinReservation(options);
     return readLegacyShellCatalog(options);

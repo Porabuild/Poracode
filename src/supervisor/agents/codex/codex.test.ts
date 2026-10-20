@@ -962,6 +962,15 @@ describe("CodexSubAgentRouter", () => {
 
   it("routes child tokenUsage as usage.spent in the child scope, dropping context.updated", () => {
     const router = createRouterWithChild();
+    router.setDefaultModelSettings("gpt-5.3-codex", "high");
+    router.routeChildNotification(
+      "thread/settings/updated",
+      {
+        threadId: "child-thread",
+        threadSettings: { model: "gpt-5.4" },
+      },
+      "provider-thread",
+    );
 
     const events = router.routeChildNotification(
       "thread/tokenUsage/updated",
@@ -995,16 +1004,24 @@ describe("CodexSubAgentRouter", () => {
         usage: {
           counterKind: "cumulative",
           counter: 1_000,
+          model: "gpt-5.4",
           scopeId: "child-thread",
           epoch: 0,
           fresh: true,
           sampleId: "child-thread:0:1000",
           occurredAt: expect.any(Number),
+          tokens: { input: 900, output: 100, cacheRead: 0, cacheWrite: 0 },
         },
       },
     ]);
     // Child context.updated stays dropped — the dock keeps the main thread's occupancy.
     expect(events?.some((event) => event.type === "context.updated")).toBe(false);
+
+    router.routeChildNotification(
+      "model/rerouted",
+      { threadId: "child-thread", fromModel: "gpt-5.4", toModel: "gpt-5.3-codex" },
+      "provider-thread",
+    );
 
     const next = router.routeChildNotification(
       "thread/tokenUsage/updated",
@@ -1033,6 +1050,7 @@ describe("CodexSubAgentRouter", () => {
     expect(next?.find((event) => event.type === "usage.spent")).toMatchObject({
       usage: { counter: 1_500, scopeId: "child-thread", epoch: 0 },
     });
+    expect(next?.find((event) => event.type === "usage.spent")?.usage).not.toHaveProperty("model");
   });
 });
 
@@ -1833,6 +1851,7 @@ describe("CodexStructuredSession", () => {
         epoch: 1,
         sampleId: "forked-thread:1:5000",
         occurredAt: expect.any(Number),
+        tokens: { input: 4800, output: 200, cacheRead: 0, cacheWrite: 0 },
       },
     });
   });

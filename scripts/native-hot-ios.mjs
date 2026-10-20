@@ -205,7 +205,7 @@ export async function startIosHotReload({ buildLogPath, iosRoot, paths, repoRoot
   );
 
   // InjectionNext reads the custom log location once at startup. Restart only
-  // this development helper so repeated pnpm runs cannot retain a stale path.
+  // this development helper so repeated bun runs cannot retain a stale path.
   await supervisor
     .run(
       "/usr/bin/osascript",

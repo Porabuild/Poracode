@@ -57,11 +57,8 @@ jobs:
         with:
           ref: ${{ needs.qualify.outputs.sha }}
           persist-credentials: false
-      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
-      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
-        with:
-          node-version: "24"
-          cache: pnpm
+      - name: Setup Bun
+        uses: ./.github/actions/setup-bun
       - name: Validate Vercel configuration
         shell: bash
         env:

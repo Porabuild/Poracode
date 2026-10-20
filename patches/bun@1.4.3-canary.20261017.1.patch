@@ -1,0 +1,12 @@
+diff --git a/install.js b/install.js
+--- a/install.js
++++ b/install.js
+@@ -518,7 +518,7 @@ __name(downloadBun, "downloadBun");
+ function optimizeBun(path2) {
+   let installScript = os2 === "win32" ? 'powershell -c "irm bun.sh/install.ps1 | iex"' : "curl -fsSL https://bun.com/install | bash";
+   try {
+-    rename(path2, join(__dirname, "bin", "bun.exe")), link(join(__dirname, "bin", "bun.exe"), join(__dirname, "bin", "bunx.exe"));
++    link(path2, join(__dirname, "bin", "bun.exe")), link(join(__dirname, "bin", "bun.exe"), join(__dirname, "bin", "bunx.exe"));
+     return;
+   } catch (error2) {
+     debug("optimizeBun failed", error2);

@@ -181,11 +181,16 @@ vi.mock("@legendapp/list/react", async () => {
 });
 
 vi.mock("./items/ChatItemRow", () => ({
-  ChatItemRow: (props: { entry: { id: string }; onHeightChange?: () => void }) => {
+  ChatItemRow: (props: {
+    entry: { id: string };
+    onHeightChange?: () => void;
+    isReasoningLive?: boolean;
+  }) => {
     const actions = useChatPaneActions();
     return (
       <button
         type="button"
+        data-reasoning-live={props.isReasoningLive}
         onClick={() => {
           props.onHeightChange?.();
           actions?.onContentHeightChange?.();
@@ -257,6 +262,25 @@ describe("MessageList", () => {
     expect(totalSizeListener.current).toBeNull();
   });
 
+  it.each([undefined, { maskImage: "linear-gradient(black, transparent)" }])(
+    "keeps the scroll viewport at parent width while preserving fade styles %s",
+    (scrollStyle) => {
+      const view = render(
+        <MessageList
+          threadId="thread-1"
+          entries={makeEntries(["item-1", "item-2"])}
+          {...(scrollStyle ? { scrollStyle } : {})}
+        />,
+      );
+
+      const scrollElement = view.container.querySelector<HTMLElement>(
+        "[data-poracode-chat-scroller]",
+      )!;
+      expect(scrollElement.style.width).toBe("100%");
+      expect(scrollElement.style.maskImage).toBe(scrollStyle?.maskImage ?? "");
+    },
+  );
+
   it("keeps long assistant rows out of short-message size estimates", () => {
     seedStartedItem("thread-1", "short", "assistant_message");
     useAppStore.getState().applyRuntimeEvent("thread-1", {
@@ -280,6 +304,23 @@ describe("MessageList", () => {
     const props = latestLegendProps.current as MockLegendProps;
     expect(props.getItemType(entries[0]!, 0)).toBe("assistant_message:short");
     expect(props.getItemType(entries[1]!, 1)).toBe("assistant_message:long");
+  });
+
+  it("marks only the current empty thought as live while the turn is active", () => {
+    const threadId = "thread-1";
+    seedStartedItem(threadId, "old-thought", "reasoning");
+    seedCompletedItem(threadId, "assistant", "assistant_message");
+    seedStartedItem(threadId, "current-thought", "reasoning");
+    const entries = makeEntries(["old-thought", "assistant", "current-thought"]);
+    const view = render(<MessageList threadId={threadId} entries={entries} isTurnActive />);
+
+    expect(view.container.querySelectorAll('[data-reasoning-live="true"]')).toHaveLength(1);
+    expect(screen.getByText("current-thought")).toHaveAttribute("data-reasoning-live", "true");
+    expect(screen.getByText("old-thought")).toHaveAttribute("data-reasoning-live", "false");
+
+    view.rerender(<MessageList threadId={threadId} entries={entries} isTurnActive={false} />);
+
+    expect(view.container.querySelector('[data-reasoning-live="true"]')).toBeNull();
   });
 
   it("does not read list geometry when estimating ordinary streamed rows", () => {
@@ -1283,7 +1324,7 @@ function makeActions(overrides: Partial<ChatPaneActions> = {}): ChatPaneActions 
 function seedStartedItem(
   threadId: string,
   itemId: string,
-  itemType: "assistant_message" | "user_message",
+  itemType: "assistant_message" | "user_message" | "reasoning",
 ) {
   useAppStore.getState().applyRuntimeEvent(threadId, {
     type: "item.started",

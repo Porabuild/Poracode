@@ -41,8 +41,9 @@ import { withMacKeychainAuthorizationRetry } from "./macKeychain";
 // v10 rejects snapshots that could survive account retirement during enrichment
 // and refreshes explicit zero/balance-only usage omitted by earlier collectors.
 // v11 makes Muse browser sessions authoritative and scopes quota to the selected session/team.
-// Existing v11 readings remain valid when refresh failures retain their status and diagnostics.
-const USAGE_CACHE_VERSION = 11;
+// v12 refreshes Antigravity quota with the CLI User-Agent and dynamic group/cadence keys
+// so stale Claude-only v11 snapshots are discarded on upgrade.
+const USAGE_CACHE_VERSION = 12;
 /** The full default provider set, from the package catalog (single source of truth). */
 const DEFAULT_PROVIDER_IDS: readonly string[] = allUsageProviderDescriptors().map((d) => d.id);
 const MIN_REFRESH_INTERVAL_MS = 2 * 60_000;

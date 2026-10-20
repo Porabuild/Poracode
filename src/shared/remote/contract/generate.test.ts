@@ -1,12 +1,14 @@
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { buildRemoteV3GeneratedFiles, buildRemoteV3IrDocument } from "./generate";
 import { checkRemoteV3Generated, writeRemoteV3Generated } from "./writeGenerated";
 import { REMOTE_CONTRACT_INVENTORY } from "./registry";
 import { gitStatusResultSchema, prStateSchema } from "../../contracts";
 import { compareUnicodeCodePoints } from "./unicodeOrder";
+import { REMOTE_GENERATOR_VERSION } from "./versions";
 
 const sampleGitStatus = {
   isRepo: true,
@@ -28,6 +30,34 @@ const sampleGitStatus = {
 };
 
 describe("remote v3 generator", () => {
+  it.each([
+    ["android/app/build.gradle.kts", /version\("generatorVersion", (\d+)\)/],
+    [
+      "android/app/src/main/kotlin/com/poracode/app/protocol/GeneratedRemoteV3Contract.kt",
+      /const val GENERATOR_VERSION = (\d+)/,
+    ],
+    [
+      "ios/App/App/Protocol/GeneratedRemoteV3Contract.swift",
+      /static let expectedGeneratorVersion = (\d+)/,
+    ],
+    [
+      "ios/App/App/Transport/PortForwarding/PortForwardingRemoteV3Contract.swift",
+      /RemoteContractMetadata\.generatorVersion == (\d+)/,
+    ],
+    [
+      "ios/App/App/Transport/BrowserMirror/BrowserMirrorRemoteV3Adapter.swift",
+      /RemoteContractMetadata\.generatorVersion == (\d+)/,
+    ],
+    [
+      "ios/App/App/Transport/AdvancedOperations/AdvancedOperationsRemoteV3Contract.swift",
+      /RemoteContractMetadata\.generatorVersion == (\d+)/,
+    ],
+  ])("keeps native generator admission aligned in %s", (path, pin) => {
+    const repositoryRoot = fileURLToPath(new URL("../../../../", import.meta.url));
+    const source = readFileSync(join(repositoryRoot, path), "utf8");
+    expect(source.match(pin)?.[1]).toBe(String(REMOTE_GENERATOR_VERSION));
+  });
+
   it(
     "emits stable sorted artifacts with version, hash, and inventory counts",
     { timeout: 60_000 },
@@ -51,10 +81,10 @@ describe("remote v3 generator", () => {
       expect(ir.doNotEdit).toMatch(/Do not edit/i);
       expect(ir.protocolVersion).toBe(14);
       expect(ir.bindingFormatVersion).toBe(2);
-      expect(ir.generatorVersion).toBe(5);
+      expect(ir.generatorVersion).toBe(6);
       expect(ir.sourceHash).toMatch(/^sha256:[a-f0-9]{64}$/);
       expect(ir.manifestHash).toMatch(/^sha256:[a-f0-9]{64}$/);
-      expect(ir.inventory.routes).toBe(100);
+      expect(ir.inventory.routes).toBe(116);
       expect(ir.inventory.procedures).toBe(130);
       expect(ir.inventory.voidProcedureResults).toBe(50);
       expect(ir.inventory.jsonProcedureResults).toBe(80);

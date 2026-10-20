@@ -20,14 +20,23 @@ export function syncRightPanelTabToFocusedThread(tab: RightPanelTab): void {
 
   const app = useAppStore.getState();
   const thread = selectFocusedThread(app);
-  if (!thread || isHomeProjectId(thread.projectId)) return;
+  if (!thread) return;
+  if (tab === "devices" && panel.deviceWorkspaceThreadId !== null) {
+    if (panel.deviceWorkspaceThreadId !== thread.id) panel.setDeviceWorkspaceThreadId(thread.id);
+    return;
+  }
+  if (isHomeProjectId(thread.projectId)) return;
   const worktreePath = thread.worktreePath ?? undefined;
 
   if (tab === "git" && panel.gitReviewContext !== null && panel.gitReviewAsPanel) {
     showGitReviewPanel(thread.projectId, worktreePath);
   } else if (tab === "files" && panel.filesPanelContext !== null && !hasDirtyEditorBuffers()) {
     showFilesPanel(thread.projectId, worktreePath);
-  } else if (tab === "terminal" && useDevTerminalStore.getState().isOpen) {
+  } else if (
+    tab === "terminal" &&
+    useDevTerminalStore.getState().isOpen &&
+    useDevTerminalStore.getState().source === "project"
+  ) {
     useDevTerminalStore.getState().setPanelScope(thread.projectId, worktreePath);
   }
 }
@@ -72,7 +81,7 @@ export function useRightPanelThreadLock(): void {
 
     if (useSharedSettings.getState().terminalPosition !== "bottom") return;
     const terminal = useDevTerminalStore.getState();
-    if (!terminal.isOpen) return;
+    if (!terminal.isOpen || terminal.source === "global") return;
     const targetHasTab = terminal.tabs.some(
       (tab) => tab.projectId === projectId && (tab.worktreePath ?? undefined) === scopedWorktree,
     );

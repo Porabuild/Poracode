@@ -130,6 +130,7 @@ export function toEpochMs(value: string | number | null | undefined): number | u
   return Number.isFinite(ms) ? ms : undefined;
 }
 
+const MIN_MS = 60_000;
 const HOUR_MS = 3_600_000;
 const DAY_MS = 86_400_000;
 
@@ -180,13 +181,32 @@ export function windowDurationMs(windowId: string, resetsAt: number): number | u
   // antigravity:<group>:<cadence>) carry their cadence as the trailing
   // `:`-segment. The legacy Antigravity pool ids (`antigravity:gemini-pro`, ...)
   // name a model family there instead, so they fall through to undefined.
-  switch (windowId.slice(windowId.lastIndexOf(":") + 1)) {
+  const suffix = windowId.slice(windowId.lastIndexOf(":") + 1);
+  switch (suffix) {
     case "session-5h":
       return 5 * HOUR_MS;
+    case "daily":
+      return DAY_MS;
     case "weekly":
       return 7 * DAY_MS;
     case "monthly":
       return calendarMonthBeforeMs(resetsAt);
+  }
+  const durationMatch = /^(\d+)([mhdw])$/.exec(suffix);
+  if (durationMatch) {
+    const count = Number(durationMatch[1]);
+    if (count > 0) {
+      switch (durationMatch[2]) {
+        case "m":
+          return count * MIN_MS;
+        case "h":
+          return count * HOUR_MS;
+        case "d":
+          return count * DAY_MS;
+        case "w":
+          return count * 7 * DAY_MS;
+      }
+    }
   }
   return undefined;
 }

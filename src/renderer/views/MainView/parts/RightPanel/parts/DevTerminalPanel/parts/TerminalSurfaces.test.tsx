@@ -20,6 +20,8 @@ const { state } = vi.hoisted(() => ({
         suppressTouchKeyboard?: boolean;
         themeBackgroundVar?: string;
         touchScrollEnabled?: boolean;
+        visible?: boolean;
+        onExited?: (exitCode: number | null) => void;
       }
     >(),
   },
@@ -50,6 +52,8 @@ vi.mock("@/renderer/components/terminal/XTermSurface", async () => {
         suppressTouchKeyboard?: boolean;
         themeBackgroundVar?: string;
         touchScrollEnabled?: boolean;
+        visible?: boolean;
+        onExited?: (exitCode: number | null) => void;
       }
     >(function MockXTermSurface(props, ref) {
       state.surfaceProps.set(props.terminalId, props);
@@ -188,6 +192,54 @@ describe("TerminalSurfaces", () => {
     await flushFocusFrames();
 
     expect(state.focusCalls).toEqual([]);
+  });
+
+  it("keeps hidden panels unfocused and exposes only the selected terminal", async () => {
+    const surfaces = (visible: boolean) => (
+      <TerminalSurfaces
+        tabs={[tabA, tabB]}
+        selectedTabId={tabA.id}
+        activeTab={tabA}
+        focusRequestId={1}
+        markTabActive={vi.fn<() => void>()}
+        updateTabTitle={vi.fn<() => void>()}
+        visible={visible}
+      />
+    );
+    const { rerender } = render(surfaces(false));
+    await flushFocusFrames();
+    expect(state.focusCalls).toEqual([]);
+    expect(state.surfaceProps.get(tabA.id)?.visible).toBe(false);
+    expect(state.surfaceProps.get(tabB.id)?.visible).toBe(false);
+
+    rerender(surfaces(true));
+    await flushFocusFrames();
+    expect(state.focusCalls).toEqual([tabA.id]);
+    expect(state.surfaceProps.get(tabA.id)?.visible).toBe(true);
+    expect(state.surfaceProps.get(tabB.id)?.visible).toBe(false);
+  });
+
+  it("forwards exits with the owning terminal id for main and split shells", () => {
+    const split = { ...tabA, splitId: "shell:a-split" };
+    const onTerminalExited = vi.fn<(terminalId: string, exitCode: number | null) => void>();
+    render(
+      <TerminalSurfaces
+        tabs={[split]}
+        selectedTabId={split.id}
+        activeTab={split}
+        focusRequestId={1}
+        markTabActive={vi.fn<() => void>()}
+        updateTabTitle={vi.fn<() => void>()}
+        onTerminalExited={onTerminalExited}
+      />,
+    );
+
+    state.surfaceProps.get(split.id)?.onExited?.(0);
+    state.surfaceProps.get(split.splitId)?.onExited?.(null);
+    expect(onTerminalExited.mock.calls).toEqual([
+      [split.id, 0],
+      [split.splitId, null],
+    ]);
   });
 
   it("connects every reused desktop surface to a caller-provided terminal feed", () => {

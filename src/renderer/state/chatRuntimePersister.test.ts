@@ -1047,9 +1047,9 @@ describe("bounded visible window (live threads)", () => {
 });
 
 /**
- * §0.6: a managed-root transcript read that fails with a DEFINITE
- * (non-transport) error on a healthy, notice-capable activation is the
- * recovery-needed signal, while a transport failure never mints a notice —
+ * A managed-root transcript read that fails with a typed history-gap refusal
+ * on a notice-capable activation is the recovery-needed signal. Ordinary read
+ * errors and transport failures never mint a notice —
  * the paired-path primitives are covered in `historyNotice.test.ts`; this
  * pins the classification through the persister's hydration failure path.
  */
@@ -1089,16 +1089,21 @@ describe("managed-root history failure classification", () => {
     __resetRuntimeHistoryNoticeCapabilityForTest();
   });
 
-  it("surfaces recovery-needed for a definite failure and never for a transport failure", async () => {
+  it("only surfaces recovery-needed for a typed history-gap refusal", async () => {
     noteRuntimeHistoryNoticesCapability("managed-history-authority", true);
 
-    // Definite non-transport failure on a healthy activation: the load fails
-    // AND the explicit review path opens.
+    // A typed gap refusal fails the load and opens the explicit review path.
     seedRootThread("root-notice-thread");
-    activateRootAuthority(new Error("history reader exploded"));
+    activateRootAuthority(new RemoteClientError("history gap", 503, "persistence_contaminated"));
     await hydrateThreadRuntimeItems("root-notice-thread");
     expect(useAppStore.getState().runtimeHydrationStatus["root-notice-thread"]).toBe("failed");
     expect(readThreadHistoryNotice("root-notice-thread")).toMatchObject({ needsReview: true });
+
+    seedRootThread("root-read-error-thread");
+    activateRootAuthority(new Error("history reader exploded"));
+    await hydrateThreadRuntimeItems("root-read-error-thread");
+    expect(useAppStore.getState().runtimeHydrationStatus["root-read-error-thread"]).toBe("failed");
+    expect(readThreadHistoryNotice("root-read-error-thread")).toBeUndefined();
 
     // A transport failure keeps the truthful failed status but must NOT mint a
     // recovery-needed notice (the leg is down, not the transcript lost).

@@ -16,6 +16,7 @@ import { useFocusedThreadId } from "@/renderer/hooks/uiSelectors";
  */
 export function useBottomTerminalVisible(): boolean {
   const devTerminalOpen = useDevTerminalStore((s) => s.isOpen);
+  const globalTerminal = useDevTerminalStore((s) => s.source === "global");
   const devTerminalExplicitlyOpened = useDevTerminalStore((s) => s.explicitlyOpened);
   const rightPanelFollowsThread = usePanelStore((s) => s.rightPanelFollowsThread);
   const currentThreadId = useFocusedThreadId();
@@ -39,7 +40,8 @@ export function useBottomTerminalVisible(): boolean {
 
   return (
     devTerminalOpen &&
-    (!rightPanelFollowsThread ||
+    (globalTerminal ||
+      !rightPanelFollowsThread ||
       devTerminalExplicitlyOpened ||
       (currentThreadId !== null && activeTerminalScopeHasTabs))
   );
@@ -55,6 +57,9 @@ export function usePanelVisibility() {
   const browserPanelOpen = usePanelStore((s) => s.browserPanelOpen);
   const usagePanelOpen = usePanelStore((s) => s.usagePanelOpen);
   const notesPanelOpen = usePanelStore((s) => s.notesPanelOpen);
+  const devicesPanelOpen = usePanelStore(
+    (s) => s.deviceWorkspaceThreadId !== null && !s.deviceWorkspaceDetached,
+  );
   const portsPanelOpen = usePanelStore((s) => s.portsPanelOpen);
   const sideChatOpen = usePanelStore((s) => s.sideChatPanelOpen);
   const bottomDocks = useBottomDockedTabs();
@@ -104,6 +109,7 @@ export function usePanelVisibility() {
       browserPanelOpen ||
       usagePanelOpen ||
       notesPanelOpen ||
+      devicesPanelOpen ||
       portsPanelOpen
     : bottomTerminalOpen || hasBottomDocks;
   // A bottom-docked tab must not keep the right aside open on its own — it is
@@ -119,6 +125,7 @@ export function usePanelVisibility() {
       (browserPanelOpen && !isDocked("browser")) ||
       (usagePanelOpen && !isDocked("usage")) ||
       (notesPanelOpen && !isDocked("notes")) ||
+      devicesPanelOpen ||
       portsPanelOpen);
   const sidePanelOpen = isTerminalRight ? rightPanelOpen : sideGitPanelOpen;
 

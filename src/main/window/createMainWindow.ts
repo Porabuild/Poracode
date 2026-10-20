@@ -196,6 +196,7 @@ export function createMainWindow(options: CreateMainWindowOptions): BrowserWindo
 
   installAppNavigationGuards(window, {
     isDev: options.isDev,
+    allowDevicePreviewWindow: (options.windowKind ?? "main") === "main",
     ...(options.devServerUrl ? { devServerUrl: options.devServerUrl } : {}),
   });
   // `webviewTag` is enabled for the in-app browser; the embedding renderer

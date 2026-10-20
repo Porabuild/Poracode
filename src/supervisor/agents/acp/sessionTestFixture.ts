@@ -6,7 +6,12 @@ import type {
   SessionNotification,
 } from "@agentclientprotocol/sdk";
 import type { ProjectLocation, ThreadConfig } from "@/shared/contracts";
-import { AcpStructuredSession, rewriteLoadSessionError, type AcpSessionBehavior } from "./session";
+import {
+  AcpStructuredSession,
+  rewriteLoadSessionError,
+  type AcpExternalSessionUpdateSource,
+  type AcpSessionBehavior,
+} from "./session";
 import type { AcpTextStreamExtension } from "./canonicalMapping/textStreamExtension";
 import { createAcpLocalImageResolver } from "./sessionLocalImages";
 
@@ -30,10 +35,7 @@ export type TestableAcpSession = {
   getBackgroundTasks(): readonly import("@/shared/contracts").BackgroundTask[];
   handleStderrTurnSignalLine(line: string): void;
   ingestExternalSessionUpdate(notification: SessionNotification): void;
-  attachExternalSessionUpdateSource(source: {
-    onSessionUpdate(notification: SessionNotification): boolean | void;
-    dispose(): void;
-  }): void;
+  attachExternalSessionUpdateSource(source: AcpExternalSessionUpdateSource): void;
   setListener(listener: unknown): void;
 };
 

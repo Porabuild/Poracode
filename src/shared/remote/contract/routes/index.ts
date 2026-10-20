@@ -1,5 +1,7 @@
 import type { RemoteHttpRouteContract } from "../types";
 import { environmentManagementRoutes } from "./environments";
+import { deviceRoutes } from "./devices";
+import { devicePreviewRoutes } from "./devicePreview";
 import { experimentsRoutes } from "./experiments";
 import { opsRoutes } from "./ops";
 import { sessionRoutes } from "./session";
@@ -8,6 +10,7 @@ import { workspaceRoutes } from "./workspace";
 
 /** Manifest `httpRoutes` order is the stable inventory order. */
 const MANIFEST_ROUTE_IDS = [
+  "conversation-search",
   "environment",
   "environment-legacy",
   "environment-list",
@@ -108,6 +111,21 @@ const MANIFEST_ROUTE_IDS = [
   "thread-runtime-gap-acknowledge",
   "experiment-state",
   "experiment-command",
+  "device-inventory",
+  "device-attach",
+  "device-frame",
+  "device-inspect",
+  "device-action",
+  "device-detach",
+  "device-preview-open",
+  "device-preview-renew",
+  "device-preview-close",
+  "device-preview-websocket-ticket",
+  "device-preview-android-api",
+  "device-preview-android-devices",
+  "device-preview-ios-api",
+  "device-preview-ios-config",
+  "device-preview-ios-video",
 ] as const;
 
 const unorderedRoutes = [
@@ -117,6 +135,8 @@ const unorderedRoutes = [
   ...threadRoutes,
   ...experimentsRoutes,
   ...opsRoutes,
+  ...deviceRoutes,
+  ...devicePreviewRoutes,
 ];
 
 /**

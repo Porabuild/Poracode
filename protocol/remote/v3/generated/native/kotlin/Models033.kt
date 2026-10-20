@@ -5,167 +5,25 @@ import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
-@Serializable
-enum class WebSocketClientMessageU2DOptionU2D5U2DType_c64b38404f {
-    @SerialName("terminal-watch") TERMINALU2DWATCH,
-}
-
-@Serializable
-data class WebSocketClientMessageU2DOptionU2D5_838adcbcaf(
-    @SerialName("cursorSync") val cursorSync: RemoteField<WebSocketClientMessageU2DOptionU2D5U2DCursorSync_3975ceeb37> = RemoteField.Missing,
-    @SerialName("id") val id: String,
-    @SerialName("type") val type: WebSocketClientMessageU2DOptionU2D5U2DType_c64b38404f,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("cursorSync", "WebSocketClientMessageU2DOptionU2D5U2DCursorSync_3975ceeb37", false, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("id", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("type", "WebSocketClientMessageU2DOptionU2D5U2DType_c64b38404f", true, false, null, null, null, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable
-enum class WebSocketClientMessageU2DOptionU2D6U2DType_af6b6f72d4 {
-    @SerialName("terminal-unwatch") TERMINALU2DUNWATCH,
-}
-
-@Serializable
-data class WebSocketClientMessageU2DOptionU2D6_5af10e67b4(
-    @SerialName("id") val id: String,
-    @SerialName("type") val type: WebSocketClientMessageU2DOptionU2D6U2DType_af6b6f72d4,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("id", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("type", "WebSocketClientMessageU2DOptionU2D6U2DType_af6b6f72d4", true, false, null, null, null, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable
-data class WebSocketClientMessageU2DOptionU2D7U2DCursorSync_23a1c447c0(
-    @SerialName("throughCursor") val throughCursor: Long,
-    @SerialName("version") val version: RouteprofileU2DCoreU2DStatsResponseU2DPromptHeatmapU2DCellsU2DItemU2DIntensityU2DOptionU2D3_f8ba039a2f,
-    @SerialName("watchId") val watchId: String,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("throughCursor", "Long", true, false, 0.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("version", "RouteprofileU2DCoreU2DStatsResponseU2DPromptHeatmapU2DCellsU2DItemU2DIntensityU2DOptionU2D3_f8ba039a2f", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("watchId", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable
-enum class WebSocketClientMessageU2DOptionU2D7U2DType_740c7dc82a {
-    @SerialName("terminal-watch-baseline-ack") TERMINALU2DWATCHU2DBASELINEU2DACK,
-}
-
-@Serializable
-data class WebSocketClientMessageU2DOptionU2D7_3f58316dbb(
-    @SerialName("cursorSync") val cursorSync: WebSocketClientMessageU2DOptionU2D7U2DCursorSync_23a1c447c0,
-    @SerialName("id") val id: String,
-    @SerialName("type") val type: WebSocketClientMessageU2DOptionU2D7U2DType_740c7dc82a,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("cursorSync", "WebSocketClientMessageU2DOptionU2D7U2DCursorSync_23a1c447c0", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("id", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("type", "WebSocketClientMessageU2DOptionU2D7U2DType_740c7dc82a", true, false, null, null, null, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable
-enum class WebSocketClientMessageU2DOptionU2D8U2DInterestsU2DItemU2DOptionU2D1U2DKind_fc779c522d {
-    @SerialName("target") TARGET,
-}
-
-@Serializable
-data class WebSocketClientMessageU2DOptionU2D8U2DInterestsU2DItemU2DOptionU2D1_e2d96ee09e(
-    @SerialName("branch") val branch: RemoteField<String> = RemoteField.Missing,
-    @SerialName("includePrDetails") val includePrDetails: RemoteField<Boolean> = RemoteField.Missing,
-    @SerialName("kind") val kind: WebSocketClientMessageU2DOptionU2D8U2DInterestsU2DItemU2DOptionU2D1U2DKind_fc779c522d,
-    @SerialName("projectId") val projectId: String,
-    @SerialName("worktreePath") val worktreePath: RemoteField<String> = RemoteField.Missing,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("branch", "String", false, false, null, null, 1, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("includePrDetails", "Boolean", false, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("kind", "WebSocketClientMessageU2DOptionU2D8U2DInterestsU2DItemU2DOptionU2D1U2DKind_fc779c522d", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("projectId", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("worktreePath", "String", false, false, null, null, 1, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable
-enum class WebSocketClientMessageU2DOptionU2D8U2DInterestsU2DItemU2DOptionU2D2U2DKind_c975fc7daa {
-    @SerialName("pull-request") PULLU2DREQUEST,
-}
-
-@Serializable
-data class WebSocketClientMessageU2DOptionU2D8U2DInterestsU2DItemU2DOptionU2D2_d95fd60152(
-    @SerialName("branch") val branch: RemoteField<String> = RemoteField.Missing,
-    @SerialName("includeReviewBundle") val includeReviewBundle: RemoteField<Boolean> = RemoteField.Missing,
-    @SerialName("kind") val kind: WebSocketClientMessageU2DOptionU2D8U2DInterestsU2DItemU2DOptionU2D2U2DKind_c975fc7daa,
-    @SerialName("prNumber") val prNumber: Long,
-    @SerialName("projectId") val projectId: String,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("branch", "String", false, false, null, null, 1, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("includeReviewBundle", "Boolean", false, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("kind", "WebSocketClientMessageU2DOptionU2D8U2DInterestsU2DItemU2DOptionU2D2U2DKind_c975fc7daa", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("prNumber", "Long", true, false, null, 9007199254740991.0, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("projectId", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable
-enum class WebSocketClientMessageU2DOptionU2D8U2DInterestsU2DItemU2DOptionU2D3U2DKind_6b98eaede5 {
-    @SerialName("project-pull-requests") PROJECTU2DPULLU2DREQUESTS,
-}
-
-@Serializable
-data class WebSocketClientMessageU2DOptionU2D8U2DInterestsU2DItemU2DOptionU2D3_591e7e71be(
-    @SerialName("kind") val kind: WebSocketClientMessageU2DOptionU2D8U2DInterestsU2DItemU2DOptionU2D3U2DKind_6b98eaede5,
-    @SerialName("projectId") val projectId: String,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("kind", "WebSocketClientMessageU2DOptionU2D8U2DInterestsU2DItemU2DOptionU2D3U2DKind_6b98eaede5", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("projectId", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable(with = WebSocketClientMessageU2DOptionU2D8U2DInterestsU2DItem_ad1d9fe8b3.Serializer::class)
-sealed interface WebSocketClientMessageU2DOptionU2D8U2DInterestsU2DItem_ad1d9fe8b3 {
-    data class Option1(val value: WebSocketClientMessageU2DOptionU2D8U2DInterestsU2DItemU2DOptionU2D1_e2d96ee09e) : WebSocketClientMessageU2DOptionU2D8U2DInterestsU2DItem_ad1d9fe8b3
-    data class Option2(val value: WebSocketClientMessageU2DOptionU2D8U2DInterestsU2DItemU2DOptionU2D2_d95fd60152) : WebSocketClientMessageU2DOptionU2D8U2DInterestsU2DItem_ad1d9fe8b3
-    data class Option3(val value: WebSocketClientMessageU2DOptionU2D8U2DInterestsU2DItemU2DOptionU2D3_591e7e71be) : WebSocketClientMessageU2DOptionU2D8U2DInterestsU2DItem_ad1d9fe8b3
-    object Serializer : KSerializer<WebSocketClientMessageU2DOptionU2D8U2DInterestsU2DItem_ad1d9fe8b3> {
-        override val descriptor: SerialDescriptor = buildClassSerialDescriptor("WebSocketClientMessageU2DOptionU2D8U2DInterestsU2DItem_ad1d9fe8b3")
-        override fun deserialize(decoder: Decoder): WebSocketClientMessageU2DOptionU2D8U2DInterestsU2DItem_ad1d9fe8b3 {
-            val jsonDecoder = decoder as? JsonDecoder ?: throw SerializationException("WebSocketClientMessageU2DOptionU2D8U2DInterestsU2DItem_ad1d9fe8b3 supports JSON only")
+@Serializable(with = RoutethreadU2DGoalRequest_54c8350637.Serializer::class)
+sealed interface RoutethreadU2DGoalRequest_54c8350637 {
+    data class Option1(val value: RoutethreadU2DGoalRequestU2DOptionU2D1_f3c2d2c491) : RoutethreadU2DGoalRequest_54c8350637
+    data class Option2(val value: RoutethreadU2DGoalRequestU2DOptionU2D2_43d29f1d5a) : RoutethreadU2DGoalRequest_54c8350637
+    object Serializer : KSerializer<RoutethreadU2DGoalRequest_54c8350637> {
+        override val descriptor: SerialDescriptor = buildClassSerialDescriptor("RoutethreadU2DGoalRequest_54c8350637")
+        override fun deserialize(decoder: Decoder): RoutethreadU2DGoalRequest_54c8350637 {
+            val jsonDecoder = decoder as? JsonDecoder ?: throw SerializationException("RoutethreadU2DGoalRequest_54c8350637 supports JSON only")
             val element = jsonDecoder.decodeJsonElement()
-            val matches = mutableListOf<RemoteUnionMatch<WebSocketClientMessageU2DOptionU2D8U2DInterestsU2DItem_ad1d9fe8b3>>()
-            RemoteUnionCodec.tryOption(matches, 1, RemoteUnionCodec.matchesProperty(element, "kind", listOf(JsonPrimitive("target")))) { Option1(jsonDecoder.json.decodeFromJsonElement<WebSocketClientMessageU2DOptionU2D8U2DInterestsU2DItemU2DOptionU2D1_e2d96ee09e>(element)) }
-            RemoteUnionCodec.tryOption(matches, 2, RemoteUnionCodec.matchesProperty(element, "kind", listOf(JsonPrimitive("pull-request")))) { Option2(jsonDecoder.json.decodeFromJsonElement<WebSocketClientMessageU2DOptionU2D8U2DInterestsU2DItemU2DOptionU2D2_d95fd60152>(element)) }
-            RemoteUnionCodec.tryOption(matches, 3, RemoteUnionCodec.matchesProperty(element, "kind", listOf(JsonPrimitive("project-pull-requests")))) { Option3(jsonDecoder.json.decodeFromJsonElement<WebSocketClientMessageU2DOptionU2D8U2DInterestsU2DItemU2DOptionU2D3_591e7e71be>(element)) }
-            return RemoteUnionCodec.single("WebSocketClientMessageU2DOptionU2D8U2DInterestsU2DItem_ad1d9fe8b3", matches)
+            val matches = mutableListOf<RemoteUnionMatch<RoutethreadU2DGoalRequest_54c8350637>>()
+            RemoteUnionCodec.tryOption(matches, 1, RemoteUnionCodec.matchesProperty(element, "action", listOf(JsonPrimitive("edit")))) { Option1(jsonDecoder.json.decodeFromJsonElement<RoutethreadU2DGoalRequestU2DOptionU2D1_f3c2d2c491>(element)) }
+            RemoteUnionCodec.tryOption(matches, 2, RemoteUnionCodec.matchesProperty(element, "action", listOf(JsonPrimitive("pause"), JsonPrimitive("resume"), JsonPrimitive("clear")))) { Option2(jsonDecoder.json.decodeFromJsonElement<RoutethreadU2DGoalRequestU2DOptionU2D2_43d29f1d5a>(element)) }
+            return RemoteUnionCodec.single("RoutethreadU2DGoalRequest_54c8350637", matches)
         }
-        override fun serialize(encoder: Encoder, value: WebSocketClientMessageU2DOptionU2D8U2DInterestsU2DItem_ad1d9fe8b3) {
-            val jsonEncoder = encoder as? JsonEncoder ?: throw SerializationException("WebSocketClientMessageU2DOptionU2D8U2DInterestsU2DItem_ad1d9fe8b3 supports JSON only")
+        override fun serialize(encoder: Encoder, value: RoutethreadU2DGoalRequest_54c8350637) {
+            val jsonEncoder = encoder as? JsonEncoder ?: throw SerializationException("RoutethreadU2DGoalRequest_54c8350637 supports JSON only")
             val element = when (value) {
-                is Option1 -> jsonEncoder.json.encodeToJsonElement<WebSocketClientMessageU2DOptionU2D8U2DInterestsU2DItemU2DOptionU2D1_e2d96ee09e>(value.value)
-                is Option2 -> jsonEncoder.json.encodeToJsonElement<WebSocketClientMessageU2DOptionU2D8U2DInterestsU2DItemU2DOptionU2D2_d95fd60152>(value.value)
-                is Option3 -> jsonEncoder.json.encodeToJsonElement<WebSocketClientMessageU2DOptionU2D8U2DInterestsU2DItemU2DOptionU2D3_591e7e71be>(value.value)
+                is Option1 -> jsonEncoder.json.encodeToJsonElement<RoutethreadU2DGoalRequestU2DOptionU2D1_f3c2d2c491>(value.value)
+                is Option2 -> jsonEncoder.json.encodeToJsonElement<RoutethreadU2DGoalRequestU2DOptionU2D2_43d29f1d5a>(value.value)
             }
             jsonEncoder.encodeJsonElement(element)
         }
@@ -173,81 +31,327 @@ sealed interface WebSocketClientMessageU2DOptionU2D8U2DInterestsU2DItem_ad1d9fe8
 }
 
 @Serializable
-enum class WebSocketClientMessageU2DOptionU2D8U2DType_9f1edfda19 {
-    @SerialName("git-state-interests") GITU2DSTATEU2DINTERESTS,
-}
-
-@Serializable
-data class WebSocketClientMessageU2DOptionU2D8_d2299af726(
-    @SerialName("interests") val interests: List<WebSocketClientMessageU2DOptionU2D8U2DInterestsU2DItem_ad1d9fe8b3>,
-    @SerialName("type") val type: WebSocketClientMessageU2DOptionU2D8U2DType_9f1edfda19,
+data class RoutethreadU2DHistoryQuery_8015752827(
+    @SerialName("completedTurnsLimit") val completedTurnsLimit: RemoteField<Long> = RemoteField.Missing,
+    @SerialName("maxBytes") val maxBytes: RemoteField<Long> = RemoteField.Missing,
+    @SerialName("maxDecodeBytes") val maxDecodeBytes: RemoteField<Long> = RemoteField.Missing,
+    @SerialName("notices") val notices: RemoteField<RoutethreadU2DHistoryU2DChangesQueryU2DNotices_f67f6cbe63> = RemoteField.Missing,
+    @SerialName("omitScrollback") val omitScrollback: RemoteField<Boolean> = RemoteField.Missing,
+    @SerialName("projection") val projection: RemoteField<RoutethreadU2DHistoryU2DChangesQueryU2DProjection_72a4409660> = RemoteField.Missing,
+    @SerialName("reads") val reads: RemoteField<RouteprojectU2DListQueryU2DReads_4659e6d395> = RemoteField.Missing,
+    @SerialName("runtimePage") val runtimePage: RemoteField<RouteconversationU2DSearchQueryU2DVersion_8795ea0289> = RemoteField.Missing,
+    @SerialName("targetTimelineEntryCount") val targetTimelineEntryCount: RemoteField<Long> = RemoteField.Missing,
 ) {
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("interests", "List<WebSocketClientMessageU2DOptionU2D8U2DInterestsU2DItem_ad1d9fe8b3>", true, false, null, null, null, null, null, 500, null, null, listOf()),
-            RemoteFieldDescriptor("type", "WebSocketClientMessageU2DOptionU2D8U2DType_9f1edfda19", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("completedTurnsLimit", "Long", false, false, 1.0, 500.0, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("maxBytes", "Long", false, false, 1.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("maxDecodeBytes", "Long", false, false, 1.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("notices", "RoutethreadU2DHistoryU2DChangesQueryU2DNotices_f67f6cbe63", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("omitScrollback", "Boolean", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("projection", "RoutethreadU2DHistoryU2DChangesQueryU2DProjection_72a4409660", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("reads", "RouteprojectU2DListQueryU2DReads_4659e6d395", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("runtimePage", "RouteconversationU2DSearchQueryU2DVersion_8795ea0289", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("targetTimelineEntryCount", "Long", false, false, 1.0, 100.0, null, null, null, null, null, null, listOf()),
         ), listOf())
     }
 }
 
 @Serializable
-enum class WebSocketClientMessageU2DOptionU2D9U2DType_25e47114d3 {
-    @SerialName("thread-item-interests") THREADU2DITEMU2DINTERESTS,
-}
-
-@Serializable
-data class WebSocketClientMessageU2DOptionU2D9_93bef3a552(
-    @SerialName("threadIds") val threadIds: List<String>,
-    @SerialName("type") val type: WebSocketClientMessageU2DOptionU2D9U2DType_25e47114d3,
+data class RoutethreadU2DHistoryResponse_8df7f0ad18(
+    @SerialName("backgroundTasks") val backgroundTasks: RemoteField<ProcedurereadThreadBackgroundTasksResult_00675d64d4> = RemoteField.Missing,
+    @SerialName("completedTurns") val completedTurns: List<RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1U2DSnapshotU2DCompletedTurnsU2DItem_df96bd315b>,
+    @SerialName("completedTurnsNextCursor") val completedTurnsNextCursor: RemoteField<String> = RemoteField.Missing,
+    @SerialName("contextUsage") val contextUsage: RemoteField<ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D9U2DUsage_80ac3a097b>,
+    @SerialName("followUpQueue") val followUpQueue: RemoteField<ProceduregetThreadFollowUpQueueResultU2DOptionU2D1_0174a8d738> = RemoteField.Missing,
+    @SerialName("historyProjection") val historyProjection: RemoteField<RoutethreadU2DHistoryU2DChangesQueryU2DProjection_72a4409660> = RemoteField.Missing,
+    @SerialName("reads") val reads: RemoteField<RouteprojectU2DListQueryU2DReads_4659e6d395> = RemoteField.Missing,
+    @SerialName("runtimeItems") val runtimeItems: List<RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1U2DSnapshotU2DRuntimeItemsU2DItem_8fa99a81fa>,
+    @SerialName("runtimeNextCursor") val runtimeNextCursor: RemoteField<Long> = RemoteField.Missing,
+    @SerialName("runtimeNotice") val runtimeNotice: RemoteField<RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1U2DSnapshotU2DRuntimeNotice_1468dfe9a2> = RemoteField.Missing,
+    @SerialName("runtimeResumeCursor") val runtimeResumeCursor: RemoteField<String> = RemoteField.Missing,
+    @SerialName("runtimeStateCurrent") val runtimeStateCurrent: RemoteField<Boolean> = RemoteField.Missing,
+    @SerialName("snapshotSeq") val snapshotSeq: Long,
+    @SerialName("terminalScrollback") val terminalScrollback: RemoteField<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b> = RemoteField.Missing,
+    @SerialName("terminalSize") val terminalSize: RemoteField<ProcedureensureThreadRunningRequestU2DInitialSize_55ee222c09> = RemoteField.Missing,
+    @SerialName("thread") val thread: RouteshellU2DSnapshotResponseU2DThreadsU2DItem_c84f860f0e,
+    @SerialName("updatedAt") val updatedAt: String,
 ) {
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("threadIds", "List<String>", true, false, null, null, null, null, null, 200, null, null, listOf()),
-            RemoteFieldDescriptor("type", "WebSocketClientMessageU2DOptionU2D9U2DType_25e47114d3", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("backgroundTasks", "ProcedurereadThreadBackgroundTasksResult_00675d64d4", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("completedTurns", "List<RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1U2DSnapshotU2DCompletedTurnsU2DItem_df96bd315b>", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("completedTurnsNextCursor", "String", false, true, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("contextUsage", "ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D9U2DUsage_80ac3a097b", true, true, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("followUpQueue", "ProceduregetThreadFollowUpQueueResultU2DOptionU2D1_0174a8d738", false, true, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("historyProjection", "RoutethreadU2DHistoryU2DChangesQueryU2DProjection_72a4409660", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("reads", "RouteprojectU2DListQueryU2DReads_4659e6d395", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("runtimeItems", "List<RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1U2DSnapshotU2DRuntimeItemsU2DItem_8fa99a81fa>", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("runtimeNextCursor", "Long", false, true, 0.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("runtimeNotice", "RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1U2DSnapshotU2DRuntimeNotice_1468dfe9a2", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("runtimeResumeCursor", "String", false, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("runtimeStateCurrent", "Boolean", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("snapshotSeq", "Long", true, false, 0.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("terminalScrollback", "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("terminalSize", "ProcedureensureThreadRunningRequestU2DInitialSize_55ee222c09", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("thread", "RouteshellU2DSnapshotResponseU2DThreadsU2DItem_c84f860f0e", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("updatedAt", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
         ), listOf())
     }
 }
 
-@Serializable(with = WebSocketClientMessage_872dc7baba.Serializer::class)
-sealed interface WebSocketClientMessage_872dc7baba {
-    data class Option1(val value: WebSocketClientMessageU2DOptionU2D1_1709690cf0) : WebSocketClientMessage_872dc7baba
-    data class Option2(val value: WebSocketClientMessageU2DOptionU2D2_2b7b34c95b) : WebSocketClientMessage_872dc7baba
-    data class Option3(val value: WebSocketClientMessageU2DOptionU2D3_0e8f58f429) : WebSocketClientMessage_872dc7baba
-    data class Option4(val value: WebSocketClientMessageU2DOptionU2D4_d550ef9994) : WebSocketClientMessage_872dc7baba
-    data class Option5(val value: WebSocketClientMessageU2DOptionU2D5_838adcbcaf) : WebSocketClientMessage_872dc7baba
-    data class Option6(val value: WebSocketClientMessageU2DOptionU2D6_5af10e67b4) : WebSocketClientMessage_872dc7baba
-    data class Option7(val value: WebSocketClientMessageU2DOptionU2D7_3f58316dbb) : WebSocketClientMessage_872dc7baba
-    data class Option8(val value: WebSocketClientMessageU2DOptionU2D8_d2299af726) : WebSocketClientMessage_872dc7baba
-    data class Option9(val value: WebSocketClientMessageU2DOptionU2D9_93bef3a552) : WebSocketClientMessage_872dc7baba
-    object Serializer : KSerializer<WebSocketClientMessage_872dc7baba> {
-        override val descriptor: SerialDescriptor = buildClassSerialDescriptor("WebSocketClientMessage_872dc7baba")
-        override fun deserialize(decoder: Decoder): WebSocketClientMessage_872dc7baba {
-            val jsonDecoder = decoder as? JsonDecoder ?: throw SerializationException("WebSocketClientMessage_872dc7baba supports JSON only")
+@Serializable
+enum class RoutethreadU2DHistoryU2DChangesQueryU2DNotices_f67f6cbe63 {
+    @SerialName("v1") V1,
+}
+
+@Serializable
+enum class RoutethreadU2DHistoryU2DChangesQueryU2DProjection_72a4409660 {
+    @SerialName("details-v1") DETAILSU2DV1,
+}
+
+@Serializable
+data class RoutethreadU2DHistoryU2DChangesQuery_095b77a7c8(
+    @SerialName("afterSeq") val afterSeq: RemoteField<Long> = RemoteField.Missing,
+    @SerialName("cursor") val cursor: String,
+    @SerialName("maxBytes") val maxBytes: RemoteField<Long> = RemoteField.Missing,
+    @SerialName("maxDecodeBytes") val maxDecodeBytes: RemoteField<Long> = RemoteField.Missing,
+    @SerialName("notices") val notices: RoutethreadU2DHistoryU2DChangesQueryU2DNotices_f67f6cbe63,
+    @SerialName("projection") val projection: RemoteField<RoutethreadU2DHistoryU2DChangesQueryU2DProjection_72a4409660> = RemoteField.Missing,
+    @SerialName("reads") val reads: RouteprojectU2DListQueryU2DReads_4659e6d395,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("afterSeq", "Long", false, false, 0.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("cursor", "String", true, false, null, null, 1, 4096, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("maxBytes", "Long", false, false, null, 9007199254740991.0, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("maxDecodeBytes", "Long", false, false, null, 9007199254740991.0, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("notices", "RoutethreadU2DHistoryU2DChangesQueryU2DNotices_f67f6cbe63", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("projection", "RoutethreadU2DHistoryU2DChangesQueryU2DProjection_72a4409660", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("reads", "RouteprojectU2DListQueryU2DReads_4659e6d395", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+enum class RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1U2DKind_9e712b4f87 {
+    @SerialName("snapshot") SNAPSHOT,
+}
+
+@Serializable
+data class RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1U2DSnapshotU2DCompletedTurnsU2DItem_df96bd315b(
+    @SerialName("anchorItemId") val anchorItemId: RemoteField<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b>,
+    @SerialName("endedAt") val endedAt: String,
+    @SerialName("startedAt") val startedAt: String,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("anchorItemId", "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", true, true, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("endedAt", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("startedAt", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+data class RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1U2DSnapshotU2DRuntimeItemsU2DItem_8fa99a81fa(
+    @SerialName("detailsDeferred") val detailsDeferred: RemoteField<ProcedureensureThreadRunningRequestU2DMentionHandoff_d2dd3595e1> = RemoteField.Missing,
+    @SerialName("id") val id: String,
+    @SerialName("parentItemId") val parentItemId: RemoteField<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b> = RemoteField.Missing,
+    @SerialName("payload") val payload: RemoteField<JsonElement> = RemoteField.Missing,
+    @SerialName("state") val state: RouteshellU2DSnapshotResponseU2DRuntimeSummariesByThreadU2DValueU2DLatestItemState_2472eab79a,
+    @SerialName("streams") val streams: ProceduregetGitDiffBatchResultU2DStaged_e51d77fd67,
+    @SerialName("type") val type: String,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("detailsDeferred", "ProcedureensureThreadRunningRequestU2DMentionHandoff_d2dd3595e1", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("id", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("parentItemId", "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("payload", "JsonElement", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("state", "RouteshellU2DSnapshotResponseU2DRuntimeSummariesByThreadU2DValueU2DLatestItemState_2472eab79a", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("streams", "ProceduregetGitDiffBatchResultU2DStaged_e51d77fd67", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("type", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+enum class RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1U2DSnapshotU2DRuntimeNoticeU2DKind_f8afe6df00 {
+    @SerialName("history-incomplete") HISTORYU2DINCOMPLETE,
+}
+
+@Serializable
+enum class RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1U2DSnapshotU2DRuntimeNoticeU2DReason_9780f521bc {
+    @SerialName("thread-events") THREADU2DEVENTS,
+    @SerialName("thread-bytes") THREADU2DBYTES,
+    @SerialName("global-events") GLOBALU2DEVENTS,
+    @SerialName("global-bytes") GLOBALU2DBYTES,
+    @SerialName("oversize") OVERSIZE,
+    @SerialName("age") AGE,
+    @SerialName("degraded") DEGRADED,
+    @SerialName("rebase-dropped") REBASEU2DDROPPED,
+    @SerialName("shutdown") SHUTDOWN,
+    @SerialName("unclean-epoch") UNCLEANU2DEPOCH,
+}
+
+@Serializable
+enum class RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1U2DSnapshotU2DRuntimeNoticeU2DSource_77a7dec7ed {
+    @SerialName("exact") EXACT,
+    @SerialName("suspect") SUSPECT,
+}
+
+@Serializable
+data class RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1U2DSnapshotU2DRuntimeNotice_1468dfe9a2(
+    @SerialName("acknowledgedCount") val acknowledgedCount: Long,
+    @SerialName("firstAcknowledgedAt") val firstAcknowledgedAt: Long,
+    @SerialName("kind") val kind: RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1U2DSnapshotU2DRuntimeNoticeU2DKind_f8afe6df00,
+    @SerialName("lastAcknowledgedAt") val lastAcknowledgedAt: Long,
+    @SerialName("reason") val reason: RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1U2DSnapshotU2DRuntimeNoticeU2DReason_9780f521bc,
+    @SerialName("refusedBytes") val refusedBytes: Long,
+    @SerialName("refusedEvents") val refusedEvents: Long,
+    @SerialName("source") val source: RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1U2DSnapshotU2DRuntimeNoticeU2DSource_77a7dec7ed,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("acknowledgedCount", "Long", true, false, null, 9007199254740991.0, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("firstAcknowledgedAt", "Long", true, false, 0.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("kind", "RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1U2DSnapshotU2DRuntimeNoticeU2DKind_f8afe6df00", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("lastAcknowledgedAt", "Long", true, false, 0.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("reason", "RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1U2DSnapshotU2DRuntimeNoticeU2DReason_9780f521bc", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("refusedBytes", "Long", true, false, 0.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("refusedEvents", "Long", true, false, 0.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("source", "RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1U2DSnapshotU2DRuntimeNoticeU2DSource_77a7dec7ed", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+data class RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1U2DSnapshot_c1e045b9ce(
+    @SerialName("backgroundTasks") val backgroundTasks: RemoteField<ProcedurereadThreadBackgroundTasksResult_00675d64d4> = RemoteField.Missing,
+    @SerialName("completedTurns") val completedTurns: List<RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1U2DSnapshotU2DCompletedTurnsU2DItem_df96bd315b>,
+    @SerialName("completedTurnsNextCursor") val completedTurnsNextCursor: RemoteField<String>,
+    @SerialName("contextUsage") val contextUsage: RemoteField<ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D9U2DUsage_80ac3a097b>,
+    @SerialName("followUpQueue") val followUpQueue: RemoteField<ProceduregetThreadFollowUpQueueResultU2DOptionU2D1_0174a8d738> = RemoteField.Missing,
+    @SerialName("historyProjection") val historyProjection: RemoteField<RoutethreadU2DHistoryU2DChangesQueryU2DProjection_72a4409660> = RemoteField.Missing,
+    @SerialName("reads") val reads: RouteprojectU2DListQueryU2DReads_4659e6d395,
+    @SerialName("runtimeItems") val runtimeItems: List<RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1U2DSnapshotU2DRuntimeItemsU2DItem_8fa99a81fa>,
+    @SerialName("runtimeNextCursor") val runtimeNextCursor: RemoteField<Long> = RemoteField.Missing,
+    @SerialName("runtimeNotice") val runtimeNotice: RemoteField<RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1U2DSnapshotU2DRuntimeNotice_1468dfe9a2> = RemoteField.Missing,
+    @SerialName("runtimeResumeCursor") val runtimeResumeCursor: RemoteField<String> = RemoteField.Missing,
+    @SerialName("runtimeStateCurrent") val runtimeStateCurrent: RemoteField<Boolean> = RemoteField.Missing,
+    @SerialName("snapshotSeq") val snapshotSeq: Long,
+    @SerialName("terminalScrollback") val terminalScrollback: RemoteField<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b> = RemoteField.Missing,
+    @SerialName("terminalSize") val terminalSize: RemoteField<ProcedureensureThreadRunningRequestU2DInitialSize_55ee222c09> = RemoteField.Missing,
+    @SerialName("thread") val thread: RouteshellU2DSnapshotResponseU2DThreadsU2DItem_c84f860f0e,
+    @SerialName("updatedAt") val updatedAt: String,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("backgroundTasks", "ProcedurereadThreadBackgroundTasksResult_00675d64d4", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("completedTurns", "List<RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1U2DSnapshotU2DCompletedTurnsU2DItem_df96bd315b>", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("completedTurnsNextCursor", "String", true, true, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("contextUsage", "ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D9U2DUsage_80ac3a097b", true, true, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("followUpQueue", "ProceduregetThreadFollowUpQueueResultU2DOptionU2D1_0174a8d738", false, true, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("historyProjection", "RoutethreadU2DHistoryU2DChangesQueryU2DProjection_72a4409660", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("reads", "RouteprojectU2DListQueryU2DReads_4659e6d395", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("runtimeItems", "List<RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1U2DSnapshotU2DRuntimeItemsU2DItem_8fa99a81fa>", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("runtimeNextCursor", "Long", false, true, 0.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("runtimeNotice", "RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1U2DSnapshotU2DRuntimeNotice_1468dfe9a2", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("runtimeResumeCursor", "String", false, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("runtimeStateCurrent", "Boolean", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("snapshotSeq", "Long", true, false, 0.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("terminalScrollback", "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("terminalSize", "ProcedureensureThreadRunningRequestU2DInitialSize_55ee222c09", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("thread", "RouteshellU2DSnapshotResponseU2DThreadsU2DItem_c84f860f0e", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("updatedAt", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+data class RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1_463d6b3b6a(
+    @SerialName("kind") val kind: RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1U2DKind_9e712b4f87,
+    @SerialName("snapshot") val snapshot: RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1U2DSnapshot_c1e045b9ce,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("kind", "RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1U2DKind_9e712b4f87", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("snapshot", "RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1U2DSnapshot_c1e045b9ce", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+data class RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D2U2DBatchesU2DItem_191ccdb4e4(
+    @SerialName("events") val events: List<ProceduresubagentSubscribeResultU2DHistoryU2DItem_678b5daa00>,
+    @SerialName("seq") val seq: Long,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("events", "List<ProceduresubagentSubscribeResultU2DHistoryU2DItem_678b5daa00>", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("seq", "Long", true, false, 0.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+enum class RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D2U2DKind_e1a91348d8 {
+    @SerialName("events") EVENTS,
+}
+
+@Serializable
+data class RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D2_f81905c5e2(
+    @SerialName("backgroundTasks") val backgroundTasks: RemoteField<ProcedurereadThreadBackgroundTasksResult_00675d64d4> = RemoteField.Missing,
+    @SerialName("batches") val batches: List<RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D2U2DBatchesU2DItem_191ccdb4e4>,
+    @SerialName("completedTurns") val completedTurns: List<RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1U2DSnapshotU2DCompletedTurnsU2DItem_df96bd315b>,
+    @SerialName("completedTurnsNextCursor") val completedTurnsNextCursor: RemoteField<String> = RemoteField.Missing,
+    @SerialName("contextUsage") val contextUsage: RemoteField<ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D9U2DUsage_80ac3a097b>,
+    @SerialName("followUpQueue") val followUpQueue: RemoteField<ProceduregetThreadFollowUpQueueResultU2DOptionU2D1_0174a8d738> = RemoteField.Missing,
+    @SerialName("kind") val kind: RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D2U2DKind_e1a91348d8,
+    @SerialName("runtimeNotice") val runtimeNotice: RemoteField<RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1U2DSnapshotU2DRuntimeNotice_1468dfe9a2> = RemoteField.Missing,
+    @SerialName("runtimeResumeCursor") val runtimeResumeCursor: String,
+    @SerialName("runtimeStateCurrent") val runtimeStateCurrent: RemoteField<Boolean> = RemoteField.Missing,
+    @SerialName("snapshotSeq") val snapshotSeq: Long,
+    @SerialName("thread") val thread: RouteshellU2DSnapshotResponseU2DThreadsU2DItem_c84f860f0e,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("backgroundTasks", "ProcedurereadThreadBackgroundTasksResult_00675d64d4", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("batches", "List<RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D2U2DBatchesU2DItem_191ccdb4e4>", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("completedTurns", "List<RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1U2DSnapshotU2DCompletedTurnsU2DItem_df96bd315b>", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("completedTurnsNextCursor", "String", false, true, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("contextUsage", "ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D9U2DUsage_80ac3a097b", true, true, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("followUpQueue", "ProceduregetThreadFollowUpQueueResultU2DOptionU2D1_0174a8d738", false, true, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("kind", "RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D2U2DKind_e1a91348d8", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("runtimeNotice", "RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1U2DSnapshotU2DRuntimeNotice_1468dfe9a2", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("runtimeResumeCursor", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("runtimeStateCurrent", "Boolean", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("snapshotSeq", "Long", true, false, 0.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("thread", "RouteshellU2DSnapshotResponseU2DThreadsU2DItem_c84f860f0e", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable(with = RoutethreadU2DHistoryU2DChangesResponse_664810d58d.Serializer::class)
+sealed interface RoutethreadU2DHistoryU2DChangesResponse_664810d58d {
+    data class Option1(val value: RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1_463d6b3b6a) : RoutethreadU2DHistoryU2DChangesResponse_664810d58d
+    data class Option2(val value: RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D2_f81905c5e2) : RoutethreadU2DHistoryU2DChangesResponse_664810d58d
+    object Serializer : KSerializer<RoutethreadU2DHistoryU2DChangesResponse_664810d58d> {
+        override val descriptor: SerialDescriptor = buildClassSerialDescriptor("RoutethreadU2DHistoryU2DChangesResponse_664810d58d")
+        override fun deserialize(decoder: Decoder): RoutethreadU2DHistoryU2DChangesResponse_664810d58d {
+            val jsonDecoder = decoder as? JsonDecoder ?: throw SerializationException("RoutethreadU2DHistoryU2DChangesResponse_664810d58d supports JSON only")
             val element = jsonDecoder.decodeJsonElement()
-            val matches = mutableListOf<RemoteUnionMatch<WebSocketClientMessage_872dc7baba>>()
-            RemoteUnionCodec.tryOption(matches, 1, RemoteUnionCodec.matchesProperty(element, "type", listOf(JsonPrimitive("ping")))) { Option1(jsonDecoder.json.decodeFromJsonElement<WebSocketClientMessageU2DOptionU2D1_1709690cf0>(element)) }
-            RemoteUnionCodec.tryOption(matches, 2, RemoteUnionCodec.matchesProperty(element, "type", listOf(JsonPrimitive("browser-watch")))) { Option2(jsonDecoder.json.decodeFromJsonElement<WebSocketClientMessageU2DOptionU2D2_2b7b34c95b>(element)) }
-            RemoteUnionCodec.tryOption(matches, 3, RemoteUnionCodec.matchesProperty(element, "type", listOf(JsonPrimitive("browser-unwatch")))) { Option3(jsonDecoder.json.decodeFromJsonElement<WebSocketClientMessageU2DOptionU2D3_0e8f58f429>(element)) }
-            RemoteUnionCodec.tryOption(matches, 4, RemoteUnionCodec.matchesProperty(element, "type", listOf(JsonPrimitive("browser-input")))) { Option4(jsonDecoder.json.decodeFromJsonElement<WebSocketClientMessageU2DOptionU2D4_d550ef9994>(element)) }
-            RemoteUnionCodec.tryOption(matches, 5, RemoteUnionCodec.matchesProperty(element, "type", listOf(JsonPrimitive("terminal-watch")))) { Option5(jsonDecoder.json.decodeFromJsonElement<WebSocketClientMessageU2DOptionU2D5_838adcbcaf>(element)) }
-            RemoteUnionCodec.tryOption(matches, 6, RemoteUnionCodec.matchesProperty(element, "type", listOf(JsonPrimitive("terminal-unwatch")))) { Option6(jsonDecoder.json.decodeFromJsonElement<WebSocketClientMessageU2DOptionU2D6_5af10e67b4>(element)) }
-            RemoteUnionCodec.tryOption(matches, 7, RemoteUnionCodec.matchesProperty(element, "type", listOf(JsonPrimitive("terminal-watch-baseline-ack")))) { Option7(jsonDecoder.json.decodeFromJsonElement<WebSocketClientMessageU2DOptionU2D7_3f58316dbb>(element)) }
-            RemoteUnionCodec.tryOption(matches, 8, RemoteUnionCodec.matchesProperty(element, "type", listOf(JsonPrimitive("git-state-interests")))) { Option8(jsonDecoder.json.decodeFromJsonElement<WebSocketClientMessageU2DOptionU2D8_d2299af726>(element)) }
-            RemoteUnionCodec.tryOption(matches, 9, RemoteUnionCodec.matchesProperty(element, "type", listOf(JsonPrimitive("thread-item-interests")))) { Option9(jsonDecoder.json.decodeFromJsonElement<WebSocketClientMessageU2DOptionU2D9_93bef3a552>(element)) }
-            return RemoteUnionCodec.single("WebSocketClientMessage_872dc7baba", matches)
+            val matches = mutableListOf<RemoteUnionMatch<RoutethreadU2DHistoryU2DChangesResponse_664810d58d>>()
+            RemoteUnionCodec.tryOption(matches, 1, RemoteUnionCodec.matchesProperty(element, "kind", listOf(JsonPrimitive("snapshot")))) { Option1(jsonDecoder.json.decodeFromJsonElement<RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1_463d6b3b6a>(element)) }
+            RemoteUnionCodec.tryOption(matches, 2, RemoteUnionCodec.matchesProperty(element, "kind", listOf(JsonPrimitive("events")))) { Option2(jsonDecoder.json.decodeFromJsonElement<RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D2_f81905c5e2>(element)) }
+            return RemoteUnionCodec.single("RoutethreadU2DHistoryU2DChangesResponse_664810d58d", matches)
         }
-        override fun serialize(encoder: Encoder, value: WebSocketClientMessage_872dc7baba) {
-            val jsonEncoder = encoder as? JsonEncoder ?: throw SerializationException("WebSocketClientMessage_872dc7baba supports JSON only")
+        override fun serialize(encoder: Encoder, value: RoutethreadU2DHistoryU2DChangesResponse_664810d58d) {
+            val jsonEncoder = encoder as? JsonEncoder ?: throw SerializationException("RoutethreadU2DHistoryU2DChangesResponse_664810d58d supports JSON only")
             val element = when (value) {
-                is Option1 -> jsonEncoder.json.encodeToJsonElement<WebSocketClientMessageU2DOptionU2D1_1709690cf0>(value.value)
-                is Option2 -> jsonEncoder.json.encodeToJsonElement<WebSocketClientMessageU2DOptionU2D2_2b7b34c95b>(value.value)
-                is Option3 -> jsonEncoder.json.encodeToJsonElement<WebSocketClientMessageU2DOptionU2D3_0e8f58f429>(value.value)
-                is Option4 -> jsonEncoder.json.encodeToJsonElement<WebSocketClientMessageU2DOptionU2D4_d550ef9994>(value.value)
-                is Option5 -> jsonEncoder.json.encodeToJsonElement<WebSocketClientMessageU2DOptionU2D5_838adcbcaf>(value.value)
-                is Option6 -> jsonEncoder.json.encodeToJsonElement<WebSocketClientMessageU2DOptionU2D6_5af10e67b4>(value.value)
-                is Option7 -> jsonEncoder.json.encodeToJsonElement<WebSocketClientMessageU2DOptionU2D7_3f58316dbb>(value.value)
-                is Option8 -> jsonEncoder.json.encodeToJsonElement<WebSocketClientMessageU2DOptionU2D8_d2299af726>(value.value)
-                is Option9 -> jsonEncoder.json.encodeToJsonElement<WebSocketClientMessageU2DOptionU2D9_93bef3a552>(value.value)
+                is Option1 -> jsonEncoder.json.encodeToJsonElement<RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1_463d6b3b6a>(value.value)
+                is Option2 -> jsonEncoder.json.encodeToJsonElement<RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D2_f81905c5e2>(value.value)
             }
             jsonEncoder.encodeJsonElement(element)
         }
@@ -255,184 +359,92 @@ sealed interface WebSocketClientMessage_872dc7baba {
 }
 
 @Serializable
-data class WebSocketServerMessageU2DOptionU2D10U2DCursorSync_9dd9855628(
-    @SerialName("chunkCount") val chunkCount: Long,
-    @SerialName("chunkIndex") val chunkIndex: Long,
-    @SerialName("data") val data: ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b,
-    @SerialName("fromCursor") val fromCursor: Long,
-    @SerialName("generation") val generation: RemoteField<String>,
-    @SerialName("processState") val processState: ProcedurereadTerminalSnapshotResultU2DOptionU2D1U2DProcessState_f156a9bc12,
-    @SerialName("resumeServed") val resumeServed: Boolean,
-    @SerialName("terminalSize") val terminalSize: RemoteField<ProcedureensureThreadRunningRequestU2DInitialSize_55ee222c09>,
-    @SerialName("toCursor") val toCursor: Long,
-    @SerialName("version") val version: RouteprofileU2DCoreU2DStatsResponseU2DPromptHeatmapU2DCellsU2DItemU2DIntensityU2DOptionU2D3_f8ba039a2f,
-    @SerialName("watchId") val watchId: String,
+data class RoutethreadU2DHistoryU2DItemQuery_ddfa380e07(
+    @SerialName("maxBytes") val maxBytes: RemoteField<Long> = RemoteField.Missing,
+    @SerialName("maxDecodeBytes") val maxDecodeBytes: RemoteField<Long> = RemoteField.Missing,
+    @SerialName("notices") val notices: RoutethreadU2DHistoryU2DChangesQueryU2DNotices_f67f6cbe63,
 ) {
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("chunkCount", "Long", true, false, null, 9007199254740991.0, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("chunkIndex", "Long", true, false, 0.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("data", "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("fromCursor", "Long", true, false, 0.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("generation", "String", true, true, null, null, 1, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("processState", "ProcedurereadTerminalSnapshotResultU2DOptionU2D1U2DProcessState_f156a9bc12", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("resumeServed", "Boolean", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("terminalSize", "ProcedureensureThreadRunningRequestU2DInitialSize_55ee222c09", true, true, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("toCursor", "Long", true, false, 0.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("version", "RouteprofileU2DCoreU2DStatsResponseU2DPromptHeatmapU2DCellsU2DItemU2DIntensityU2DOptionU2D3_f8ba039a2f", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("watchId", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
-        ), listOf("terminal.cursor.baseline-chunk-utf16"))
+            RemoteFieldDescriptor("maxBytes", "Long", false, false, null, 9007199254740991.0, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("maxDecodeBytes", "Long", false, false, null, 9007199254740991.0, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("notices", "RoutethreadU2DHistoryU2DChangesQueryU2DNotices_f67f6cbe63", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
     }
 }
 
 @Serializable
-enum class WebSocketServerMessageU2DOptionU2D10U2DType_114549e732 {
-    @SerialName("terminal-watch-baseline-chunk") TERMINALU2DWATCHU2DBASELINEU2DCHUNK,
-}
-
-@Serializable
-data class WebSocketServerMessageU2DOptionU2D10_e65689e97e(
-    @SerialName("cursorSync") val cursorSync: WebSocketServerMessageU2DOptionU2D10U2DCursorSync_9dd9855628,
+data class RoutethreadU2DHistoryU2DItemResponseU2DItem_4c1171296b(
     @SerialName("id") val id: String,
-    @SerialName("type") val type: WebSocketServerMessageU2DOptionU2D10U2DType_114549e732,
+    @SerialName("parentItemId") val parentItemId: RemoteField<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b> = RemoteField.Missing,
+    @SerialName("payload") val payload: RemoteField<JsonElement> = RemoteField.Missing,
+    @SerialName("state") val state: RouteshellU2DSnapshotResponseU2DRuntimeSummariesByThreadU2DValueU2DLatestItemState_2472eab79a,
+    @SerialName("streams") val streams: ProceduregetGitDiffBatchResultU2DStaged_e51d77fd67,
+    @SerialName("type") val type: String,
 ) {
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("cursorSync", "WebSocketServerMessageU2DOptionU2D10U2DCursorSync_9dd9855628", true, false, null, null, null, null, null, null, null, null, listOf("terminal.cursor.baseline-chunk-utf16")),
             RemoteFieldDescriptor("id", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("type", "WebSocketServerMessageU2DOptionU2D10U2DType_114549e732", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("parentItemId", "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("payload", "JsonElement", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("state", "RouteshellU2DSnapshotResponseU2DRuntimeSummariesByThreadU2DValueU2DLatestItemState_2472eab79a", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("streams", "ProceduregetGitDiffBatchResultU2DStaged_e51d77fd67", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("type", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
         ), listOf())
     }
 }
 
 @Serializable
-enum class WebSocketServerMessageU2DOptionU2D11U2DSpace_22c1b4b934 {
-    @SerialName("ipc") IPC,
-    @SerialName("loopback") LOOPBACK,
-}
-
-@Serializable
-enum class WebSocketServerMessageU2DOptionU2D11U2DType_829c74ec0a {
-    @SerialName("desktop-event") DESKTOPU2DEVENT,
-}
-
-@Serializable
-data class WebSocketServerMessageU2DOptionU2D11_f1c1581e17(
-    @SerialName("event") val event: JsonElement,
-    @SerialName("seq") val seq: Long,
-    @SerialName("space") val space: RemoteField<WebSocketServerMessageU2DOptionU2D11U2DSpace_22c1b4b934> = RemoteField.Missing,
-    @SerialName("type") val type: WebSocketServerMessageU2DOptionU2D11U2DType_829c74ec0a,
+data class RoutethreadU2DHistoryU2DItemResponse_69f5ba498b(
+    @SerialName("item") val item: RoutethreadU2DHistoryU2DItemResponseU2DItem_4c1171296b,
 ) {
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("event", "JsonElement", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("seq", "Long", true, false, null, 9007199254740991.0, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("space", "WebSocketServerMessageU2DOptionU2D11U2DSpace_22c1b4b934", false, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("type", "WebSocketServerMessageU2DOptionU2D11U2DType_829c74ec0a", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("item", "RoutethreadU2DHistoryU2DItemResponseU2DItem_4c1171296b", true, false, null, null, null, null, null, null, null, null, listOf()),
         ), listOf())
     }
 }
 
 @Serializable
-enum class WebSocketServerMessageU2DOptionU2D1U2DType_0200f968d2 {
-    @SerialName("ready") READY,
-}
-
-@Serializable
-data class WebSocketServerMessageU2DOptionU2D1_13762c62f0(
-    @SerialName("seq") val seq: Long,
-    @SerialName("type") val type: WebSocketServerMessageU2DOptionU2D1U2DType_0200f968d2,
+data class RoutethreadU2DHistoryU2DItemsQuery_625450aae6(
+    @SerialName("beforePosition") val beforePosition: RemoteField<Long> = RemoteField.Missing,
+    @SerialName("limit") val limit: RemoteField<Long> = RemoteField.Missing,
+    @SerialName("maxBytes") val maxBytes: RemoteField<Long> = RemoteField.Missing,
+    @SerialName("maxDecodeBytes") val maxDecodeBytes: RemoteField<Long> = RemoteField.Missing,
+    @SerialName("notices") val notices: RemoteField<RoutethreadU2DHistoryU2DChangesQueryU2DNotices_f67f6cbe63> = RemoteField.Missing,
+    @SerialName("projection") val projection: RemoteField<RoutethreadU2DHistoryU2DChangesQueryU2DProjection_72a4409660> = RemoteField.Missing,
+    @SerialName("reads") val reads: RemoteField<RouteprojectU2DListQueryU2DReads_4659e6d395> = RemoteField.Missing,
+    @SerialName("targetTimelineEntryCount") val targetTimelineEntryCount: RemoteField<Long> = RemoteField.Missing,
 ) {
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("seq", "Long", true, false, 0.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("type", "WebSocketServerMessageU2DOptionU2D1U2DType_0200f968d2", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("beforePosition", "Long", false, false, 0.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("limit", "Long", false, false, 1.0, 500.0, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("maxBytes", "Long", false, false, 1.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("maxDecodeBytes", "Long", false, false, 1.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("notices", "RoutethreadU2DHistoryU2DChangesQueryU2DNotices_f67f6cbe63", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("projection", "RoutethreadU2DHistoryU2DChangesQueryU2DProjection_72a4409660", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("reads", "RouteprojectU2DListQueryU2DReads_4659e6d395", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("targetTimelineEntryCount", "Long", false, false, 1.0, 100.0, null, null, null, null, null, null, listOf()),
         ), listOf())
     }
 }
 
 @Serializable
-enum class WebSocketServerMessageU2DOptionU2D2U2DType_1aa020e871 {
-    @SerialName("event") EVENT,
-}
-
-@Serializable
-data class WebSocketServerMessageU2DOptionU2D2_3897f50212(
-    @SerialName("event") val event: JsonElement,
-    @SerialName("omittedRuntimeThreadIds") val omittedRuntimeThreadIds: RemoteField<List<String>> = RemoteField.Missing,
-    @SerialName("seq") val seq: Long,
-    @SerialName("space") val space: RemoteField<WebSocketServerMessageU2DOptionU2D11U2DSpace_22c1b4b934> = RemoteField.Missing,
-    @SerialName("type") val type: WebSocketServerMessageU2DOptionU2D2U2DType_1aa020e871,
+data class RoutethreadU2DHistoryU2DItemsResponse_2b43031625(
+    @SerialName("historyProjection") val historyProjection: RemoteField<RoutethreadU2DHistoryU2DChangesQueryU2DProjection_72a4409660> = RemoteField.Missing,
+    @SerialName("items") val items: List<RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1U2DSnapshotU2DRuntimeItemsU2DItem_8fa99a81fa>,
+    @SerialName("nextCursor") val nextCursor: RemoteField<Long>,
+    @SerialName("reads") val reads: RemoteField<RouteprojectU2DListQueryU2DReads_4659e6d395> = RemoteField.Missing,
+    @SerialName("runtimeNotice") val runtimeNotice: RemoteField<RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1U2DSnapshotU2DRuntimeNotice_1468dfe9a2> = RemoteField.Missing,
 ) {
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("event", "JsonElement", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("omittedRuntimeThreadIds", "List<String>", false, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("seq", "Long", true, false, null, 9007199254740991.0, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("space", "WebSocketServerMessageU2DOptionU2D11U2DSpace_22c1b4b934", false, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("type", "WebSocketServerMessageU2DOptionU2D2U2DType_1aa020e871", true, false, null, null, null, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable
-enum class WebSocketServerMessageU2DOptionU2D3U2DType_d9640543f6 {
-    @SerialName("resync-required") RESYNCU2DREQUIRED,
-}
-
-@Serializable
-data class WebSocketServerMessageU2DOptionU2D3_a633f9a256(
-    @SerialName("reason") val reason: String,
-    @SerialName("seq") val seq: Long,
-    @SerialName("space") val space: RemoteField<WebSocketServerMessageU2DOptionU2D11U2DSpace_22c1b4b934> = RemoteField.Missing,
-    @SerialName("type") val type: WebSocketServerMessageU2DOptionU2D3U2DType_d9640543f6,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("reason", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("seq", "Long", true, false, 0.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("space", "WebSocketServerMessageU2DOptionU2D11U2DSpace_22c1b4b934", false, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("type", "WebSocketServerMessageU2DOptionU2D3U2DType_d9640543f6", true, false, null, null, null, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable
-enum class WebSocketServerMessageU2DOptionU2D4U2DType_d8768c073f {
-    @SerialName("pong") PONG,
-}
-
-@Serializable
-data class WebSocketServerMessageU2DOptionU2D4_17b50a5a25(
-    @SerialName("id") val id: RemoteField<String> = RemoteField.Missing,
-    @SerialName("receivedAt") val receivedAt: Double,
-    @SerialName("sentAt") val sentAt: RemoteField<Double> = RemoteField.Missing,
-    @SerialName("type") val type: WebSocketServerMessageU2DOptionU2D4U2DType_d8768c073f,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("id", "String", false, false, null, null, 1, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("receivedAt", "Double", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("sentAt", "Double", false, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("type", "WebSocketServerMessageU2DOptionU2D4U2DType_d8768c073f", true, false, null, null, null, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable
-enum class WebSocketServerMessageU2DOptionU2D5U2DType_47e02a8368 {
-    @SerialName("browser-state") BROWSERU2DSTATE,
-}
-
-@Serializable
-data class WebSocketServerMessageU2DOptionU2D5_bd23acb1d6(
-    @SerialName("state") val state: RoutebrowserU2DCommandResponseU2DState_ecc6edb616,
-    @SerialName("type") val type: WebSocketServerMessageU2DOptionU2D5U2DType_47e02a8368,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("state", "RoutebrowserU2DCommandResponseU2DState_ecc6edb616", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("type", "WebSocketServerMessageU2DOptionU2D5U2DType_47e02a8368", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("historyProjection", "RoutethreadU2DHistoryU2DChangesQueryU2DProjection_72a4409660", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("items", "List<RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1U2DSnapshotU2DRuntimeItemsU2DItem_8fa99a81fa>", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("nextCursor", "Long", true, true, 0.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("reads", "RouteprojectU2DListQueryU2DReads_4659e6d395", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("runtimeNotice", "RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1U2DSnapshotU2DRuntimeNotice_1468dfe9a2", false, false, null, null, null, null, null, null, null, null, listOf()),
         ), listOf())
     }
 }

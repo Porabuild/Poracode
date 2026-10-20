@@ -10,6 +10,7 @@ export interface McpThreadIdentity {
   threadId?: string;
   title?: string;
   disabledTools?: readonly string[];
+  deviceProof?: string;
 }
 
 const MAX_TITLE = 80;
@@ -27,6 +28,7 @@ export function encodeThreadQuery(
   for (const tool of identity.disabledTools ?? []) {
     query += `&disable=${encodeURIComponent(tool)}`;
   }
+  if (identity.deviceProof) query += `&deviceProof=${encodeURIComponent(identity.deviceProof)}`;
   return baseUrl + query;
 }
 
@@ -38,10 +40,12 @@ export function decodeThreadIdentity(url: string | undefined): McpThreadIdentity
     const threadId = params.get("thread") ?? undefined;
     const title = params.get("title") ?? undefined;
     const disabledTools = params.getAll("disable").filter(Boolean);
+    const deviceProof = params.get("deviceProof") ?? undefined;
     return {
       ...(threadId ? { threadId } : {}),
       ...(title ? { title } : {}),
       ...(disabledTools.length > 0 ? { disabledTools } : {}),
+      ...(deviceProof ? { deviceProof } : {}),
     };
   } catch {
     return {};

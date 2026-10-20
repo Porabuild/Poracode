@@ -1,4 +1,4 @@
-import { type CSSProperties, type ReactNode, useRef } from "react";
+import { type CSSProperties, type ReactNode, type Ref, useRef } from "react";
 import { Button, Dropdown, Label, Tooltip } from "@heroui/react";
 import {
   ArrowLeft,
@@ -44,6 +44,10 @@ export function UnifiedRightPanel(props: {
   browserContent: ReactNode;
   usageContent?: ReactNode;
   notesContent?: ReactNode;
+  devicesContent?: ReactNode;
+  devicesThreadId?: string;
+  devicesTitleRef?: Ref<HTMLDivElement>;
+  devicesActionsRef?: Ref<HTMLDivElement>;
   portsContent?: ReactNode;
   docksContent?: ReactNode;
   subagentContent?: ReactNode;
@@ -62,6 +66,7 @@ export function UnifiedRightPanel(props: {
   showGitTab?: boolean;
   showUsageTab?: boolean;
   showNotesTab?: boolean;
+  showDevicesTab?: boolean;
   showPortsTab?: boolean;
   showDocksTab?: boolean;
   showSubagentTab?: boolean;
@@ -79,6 +84,7 @@ export function UnifiedRightPanel(props: {
   onOpenBrowser?: () => void;
   onOpenUsage?: () => void;
   onOpenNotes?: () => void;
+  onOpenDevices?: () => void;
   onOpenPorts?: () => void;
   /** Whether the panel re-scopes itself to whichever thread is open. */
   followsThread?: boolean;
@@ -101,6 +107,10 @@ export function UnifiedRightPanel(props: {
     browserContent,
     usageContent,
     notesContent,
+    devicesContent,
+    devicesThreadId,
+    devicesTitleRef,
+    devicesActionsRef,
     portsContent,
     docksContent,
     subagentContent,
@@ -116,6 +126,7 @@ export function UnifiedRightPanel(props: {
     showGitTab = true,
     showUsageTab = true,
     showNotesTab = true,
+    showDevicesTab = false,
     showPortsTab = false,
     showDocksTab = false,
     showSubagentTab = false,
@@ -133,6 +144,7 @@ export function UnifiedRightPanel(props: {
     onOpenBrowser,
     onOpenUsage,
     onOpenNotes,
+    onOpenDevices,
     onOpenPorts,
     followsThread = false,
     onToggleFollowsThread,
@@ -248,6 +260,14 @@ export function UnifiedRightPanel(props: {
       content: notesContent,
       visible: showNotesTab,
       onOpen: onOpenNotes,
+    },
+    {
+      id: "devices",
+      label: labels.devices,
+      icon: PANEL_TAB_ICONS.devices,
+      content: devicesContent,
+      visible: showDevicesTab,
+      onOpen: onOpenDevices,
     },
     {
       id: "ports",
@@ -399,6 +419,12 @@ export function UnifiedRightPanel(props: {
             <button
               key={tab.id}
               type="button"
+              {...(tab.id === "devices" && devicesThreadId
+                ? {
+                    id: `panel-devices-${devicesThreadId}`,
+                    "aria-controls": `device-workspace-${devicesThreadId}`,
+                  }
+                : {})}
               className={buttonClass}
               title={tab.label}
               aria-pressed={onScreen}
@@ -485,6 +511,15 @@ export function UnifiedRightPanel(props: {
           <PanelRightClose className="size-3.5" />
         </button>
       </div>
+      {activeTab === "devices" ? (
+        <div
+          className={`poracode-overlay-header poracode-overlay-header--no-drag ${panelHeaderRowClass}`}
+          data-device-header=""
+        >
+          <div ref={devicesTitleRef} className="flex min-w-0 flex-1 items-center gap-1" />
+          <div ref={devicesActionsRef} className="flex shrink-0 items-center gap-1" />
+        </div>
+      ) : null}
       {hasSubagentTitle ? (
         <AgentPanelTitleRow
           className="poracode-right-panel-subagent-meta"

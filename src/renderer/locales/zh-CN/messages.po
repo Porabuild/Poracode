@@ -96,7 +96,7 @@ msgstr "{0, plural, one {# 个项目} other {# 个项目}}"
 #~ msgid "{0, plural, one {# provider ready} other {# providers ready}}"
 #~ msgstr "{0, plural, one {#提供商准备就绪} other {#提供商准备就绪}}"
 
-#. placeholder {0}: props.entry.skills.length
+#. placeholder {0}: entry.skills.length
 #. placeholder {0}: props.skills.length
 #. placeholder {0}: skills.length
 #: src/renderer/components/plugins/PluginMarketplace.tsx
@@ -261,8 +261,10 @@ msgstr "{0} 正在比较匿名化的差异…"
 msgid "{0} is offline. Showing last known status."
 msgstr "{0} 已离线。正在显示最后已知状态。"
 
+#. placeholder {0}: formatTokens(context.maxTokens)
 #. placeholder {0}: summary.maxLabel
 #: src/renderer/components/thread/ThreadContextDock.tsx
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
 msgid "{0} limit"
 msgstr "{0}限制"
 
@@ -350,8 +352,10 @@ msgstr "{0} 共享此配置文件的独立登录。请先将它们移到其他�
 #~ msgid "{0} threads"
 #~ msgstr "{0} 个线程"
 
+#. placeholder {0}: formatTokens(reported.tokens.total)
 #. placeholder {0}: formatTokens(snapshot.tokens.total)
 #: src/renderer/components/providers/UsageCostLine.tsx
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
 msgid "{0} tokens"
 msgstr "{0} 令牌"
 
@@ -543,6 +547,10 @@ msgstr "{imported, plural, one {已导入 # 个会话。} other {已导入 # 个
 #: src/renderer/i18n/sharedMessages.ts
 #~ msgid "{label} · Previous sessions; sign in again for new threads."
 #~ msgstr "{label} · 先前的会话；请重新登录以用于新线程。"
+
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+msgid "{label} account usage"
+msgstr "{label} 账户用量"
 
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
@@ -803,6 +811,18 @@ msgstr "3000"
 msgid "30d"
 msgstr "30天"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "3D preview"
+msgstr "3D 预览"
+
+#: src/renderer/components/devices/DevicePreviewStage.tsx
+msgid "3D preview · View only"
+msgstr "3D 预览 · 仅查看"
+
+#: src/renderer/components/devices/DevicePreviewStage.tsx
+msgid "3D preview, view only. Drag or use arrow keys to rotate; Home resets."
+msgstr "3D 预览，仅查看。拖动或使用方向键旋转；Home 键重置。"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "4K"
 msgstr "4K"
@@ -820,14 +840,22 @@ msgstr "候选项已不在其实验分支上。"
 msgid "A Cursor profile with this name already exists."
 msgstr "已存在同名的 Cursor 配置文件。"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "A device failed to start."
+msgstr "设备启动失败。"
+
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
+msgid "A different plugin already uses this identifier. It will not be replaced."
+msgstr "另一个插件已使用此标识符，不会替换它。"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "A frozen worktree source requires a full commit hash"
 msgstr "冻结的工作树源需要完整的提交哈希"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "A locked screen stops all desktop control, so the display is kept on while a Computer Use session is running. You can still lock the screen yourself."
-msgstr "屏幕锁定后将无法进行任何桌面操作，因此在计算机操作会话运行期间会保持显示器常亮。你仍然可以自行锁定屏幕。"
+#~ msgid "A locked screen stops all desktop control, so the display is kept on while a Computer Use session is running. You can still lock the screen yourself."
+#~ msgstr "屏幕锁定后将无法进行任何桌面操作，因此在计算机操作会话运行期间会保持显示器常亮。你仍然可以自行锁定屏幕。"
 
 #: src/renderer/components/thread/ChatPane/ChatPane.tsx
 msgid "A message deletion could not be confirmed. Refresh to resync this conversation."
@@ -878,7 +906,7 @@ msgid "Abort Merge"
 msgstr "中止合并"
 
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 msgid "About"
 msgstr "关于"
 
@@ -910,18 +938,40 @@ msgstr "接受主机密钥"
 msgid "Accept Incoming Change"
 msgstr "接受传入的更改"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Accessibility inspector"
+msgstr "无障碍检查器"
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Account"
 msgstr "帐户"
+
+#: src/renderer/components/plugins/PluginServiceAccounts.tsx
+msgid "Account changes apply to new threads."
+msgstr "账户更改将应用于新线程。"
+
+#: src/renderer/components/plugins/PluginServiceAccounts.tsx
+msgid "Account label"
+msgstr "账户标签"
+
+#. placeholder {0}: service.name
+#: src/renderer/components/plugins/PluginServiceAccounts.tsx
+msgid "Account label for {0}"
+msgstr "{0} 的账户标签"
 
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Account options"
 msgstr "账户选项"
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Accounts"
 msgstr "账户"
+
+#: src/renderer/components/plugins/PluginServiceAccounts.tsx
+msgid "Accounts belong to this plugin and service. Account labels are yours; the service may not report a verified identity. Provider logins are separate."
+msgstr "账户属于此插件和服务。账户标签由你自行设置；服务可能不会提供已验证的身份。提供商登录与此相互独立。"
 
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
@@ -973,6 +1023,7 @@ msgstr "操作名称"
 
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/common/BranchSelector/parts/BranchFooterActions.tsx
+#: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/MobileProjectSettingsIndex.tsx
@@ -1003,6 +1054,7 @@ msgid "Active forwards"
 msgstr "活跃的转发"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Activity"
 msgstr "活动"
 
@@ -1024,6 +1076,11 @@ msgstr "活动指标"
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 msgid "Add"
 msgstr "添加"
+
+#. placeholder {0}: catalog.name
+#: src/renderer/components/plugins/PluginCatalogBrowser.tsx
+msgid "Add {0}"
+msgstr "添加 {0}"
 
 #: src/renderer/commands/registry.ts
 msgid "Add a local project"
@@ -1077,6 +1134,10 @@ msgstr "添加一个项目来启动"
 msgid "Add a project to use GitHub Actions."
 msgstr "添加项目以使用 GitHub Actions。"
 
+#: src/renderer/components/plugins/PluginCatalogBrowser.tsx
+msgid "Add a public Git repository or a local marketplace. Review supported components before installing."
+msgstr "添加公开的 Git 仓库或本地市场。安装前请检查支持的组件。"
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Add a skill to .agents/skills or .poracode/skills, or import one from another provider."
 msgstr "将技能添加到 .agents/skills 或 .poracode/skills，或从其他提供商导入。"
@@ -1085,9 +1146,17 @@ msgstr "将技能添加到 .agents/skills 或 .poracode/skills，或从其他提
 #~ msgid "Add a skill to .agents/skills or import one from another provider."
 #~ msgstr "将技能添加到 .agents/skills，或从其他提供商导入技能。"
 
+#: src/renderer/components/plugins/PluginCatalogBrowser.tsx
+msgid "Add a source"
+msgstr "添加源"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoList.tsx
 msgid "Add a to-do…"
 msgstr "添加待办事项..."
+
+#: src/renderer/components/plugins/PluginServiceAccounts.tsx
+msgid "Add account"
+msgstr "添加账户"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
 msgid "Add action"
@@ -1124,6 +1193,10 @@ msgstr "在此线程运行之前添加凭据。"
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Add folder"
 msgstr "添加文件夹"
+
+#: src/renderer/components/plugins/PluginCatalogBrowser.tsx
+msgid "Add marketplace"
+msgstr "添加市场"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Add MCP server"
@@ -1165,6 +1238,7 @@ msgstr "添加项目"
 msgid "Add project options"
 msgstr "添加项目选项"
 
+#: src/renderer/components/providers/settings/ModelProviderManager.tsx
 #: src/renderer/components/providers/settings/ProviderAccountsSection.tsx
 msgid "Add provider"
 msgstr "添加提供商"
@@ -1288,6 +1362,7 @@ msgid "Agent not found"
 msgstr "未找到代理"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Agent Registry"
 msgstr "代理注册表"
@@ -1321,6 +1396,7 @@ msgstr "智能体类型"
 msgid "Agent update available"
 msgstr "代理更新可用"
 
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentRankedRow.tsx
 msgid "Agent usage"
 msgstr "智能体使用情况"
@@ -1336,6 +1412,7 @@ msgstr "代理：{subagent}"
 #: src/renderer/components/thread/ThreadDockBubbles.tsx
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 #: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
@@ -1343,6 +1420,7 @@ msgid "Agents"
 msgstr "智能体"
 
 #: src/renderer/views/SettingsOverlay/parts/AgentsGeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Agents · General"
 msgstr "代理·一般"
@@ -1385,8 +1463,7 @@ msgstr "AI git操作"
 #. Settings section: AI helper features (commit messages, thread titles, conflict resolution)
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
-#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
-#: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 msgid "AI Helpers"
 msgstr "AI 助手"
 
@@ -1395,6 +1472,7 @@ msgstr "AI 助手"
 msgid "AI judge"
 msgstr "AI 评审"
 
+#: src/renderer/components/providers/settings/ModelProvidersSettings.tsx
 #: src/renderer/components/providers/settings/ProviderAccountsSection.tsx
 msgid "AI providers"
 msgstr "AI 提供商"
@@ -1460,6 +1538,10 @@ msgstr "所有文件夹"
 msgid "All machines"
 msgstr "所有设备"
 
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+msgid "All plugins"
+msgstr "所有插件"
+
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 msgid "All plugins are up to date."
 msgstr "所有插件均为最新版本。"
@@ -1468,6 +1550,7 @@ msgstr "所有插件均为最新版本。"
 msgid "All projects"
 msgstr "所有项目"
 
+#: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "All sources"
 msgstr "所有来源"
@@ -1536,8 +1619,8 @@ msgid "Already used by {conflict}"
 msgstr "已被{conflict}使用"
 
 #. Notification filter: always notify
-#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Always"
 msgstr "总是"
 
@@ -1637,17 +1720,34 @@ msgstr "会话重新加载时仍在运行的所有子代理都将停止。"
 msgid "Anything currently unavailable — a provider, model, reasoning level, or Fast mode — is skipped automatically. Unchecked providers and models are skipped until re-checked."
 msgstr "当前不可用的任何内容 — 提供商、模型、推理级别或 Fast 模式 — 都会被自动跳过。未选中的提供商和模型将被跳过，直到重新选中。"
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "API equivalent"
+msgstr "API 等价值"
+
+#: src/renderer/components/providers/settings/ModelProviderEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 msgid "API key"
 msgstr "API 密钥"
+
+#: src/renderer/components/providers/settings/ModelProviderManager.tsx
+msgid "API key configured"
+msgstr "已配置 API 密钥"
 
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 msgid "API key required"
 msgstr "需要 API 密钥"
 
+#: src/renderer/components/providers/settings/ModelProviderEditor.tsx
+msgid "API protocol"
+msgstr "API 协议"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "API_KEY=value"
 msgstr "API_KEY=value"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "API-equivalent estimate"
+msgstr "API 等价估算"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "App Browser"
@@ -1658,10 +1758,13 @@ msgstr "应用程序浏览器"
 #~ msgid "App Controls"
 #~ msgstr "应用控制"
 
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "App package ID"
+msgstr "应用软件包 ID"
+
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
-#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
-#: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 msgid "Appearance"
 msgstr "外观"
 
@@ -1759,6 +1862,7 @@ msgstr "归档线程"
 msgid "Archive Thread"
 msgstr "存档线程"
 
+#: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Archived"
 msgstr "已归档"
@@ -1769,8 +1873,7 @@ msgstr "归档于 {archivedTime}"
 
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
-#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
-#: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 msgid "Archived Threads"
 msgstr "已存档的线程"
 
@@ -1838,6 +1941,7 @@ msgid "At least two worktrees must be created. Any partial experiment was cleane
 msgstr "必须至少创建两个工作树。已清理部分创建的实验。"
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
+#: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Attach"
 msgstr "附加"
 
@@ -1872,7 +1976,7 @@ msgid "Attempt {0} · Iteration {1}"
 msgstr "尝试 {0} · 迭代 {1}"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 msgid "Audio"
 msgstr "音频"
 
@@ -1950,6 +2054,10 @@ msgstr "“自动修复”会等待检查完成并修复合并阻碍。“自动
 msgid "Auto Merge"
 msgstr "自动合并"
 
+#: src/renderer/components/providers/deepseek/index.tsx
+msgid "Auto Review"
+msgstr "自动审查"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Auto-archive done threads after"
@@ -2010,6 +2118,7 @@ msgstr "自动"
 msgid "Automatically show the terminal panel when running commands or creating worktrees."
 msgstr "运行命令或创建工作树时自动显示终端面板。"
 
+#: src/renderer/components/plugins/pluginCategories.ts
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Automation"
 msgstr "自动化"
@@ -2071,6 +2180,7 @@ msgstr "等待审查"
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/components/composer/ComposerMcpServersMenu.tsx
 #: src/renderer/components/composer/ComposerSessionActionsMenu.tsx
+#: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/components/layout/MobilePageHeader.tsx
 #: src/renderer/views/FileEditorOverlay/FileEditorOverlay.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
@@ -2101,6 +2211,7 @@ msgstr "返回最新文本"
 #~ msgid "Back to overview"
 #~ msgstr "返回概览"
 
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Back to plugins"
 msgstr "返回插件"
@@ -2136,6 +2247,10 @@ msgstr "后台任务"
 msgid "Background tasks"
 msgstr "后台任务"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Backspace"
+msgstr "退格"
+
 #: src/renderer/components/experiment/NewExperimentModal.tsx
 #~ msgid "Base branch"
 #~ msgstr "基准分支"
@@ -2159,6 +2274,10 @@ msgstr "代理终端的基本字体大小。在狭窄或短的窗格中自动缩
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Base font size for the terminal panel. Auto-shrinks in narrow or short panes."
 msgstr "终端面板的基本字体大小。在狭窄或短的窗格中自动缩小。"
+
+#: src/renderer/components/providers/settings/ModelProviderEditor.tsx
+msgid "Base URL"
+msgstr "基础 URL"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Bash output"
@@ -2256,6 +2375,7 @@ msgstr "限制此主机上可同时运行的短时生成助手（线程标题、
 msgid "Bounds how many terminal shells can run at once on this host. Counts logical execution slots, not OS processes or memory. 0 means unlimited."
 msgstr "限制此主机上可同时运行的终端 shell 数量。统计的是逻辑执行槽位，而不是操作系统进程或内存。0 = 不限制。"
 
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 msgid "Branch"
@@ -2359,7 +2479,7 @@ msgstr "在 Poracode 隔离的内置浏览器中浏览、检查并测试网站�
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 msgid "Browser"
 msgstr "浏览器"
 
@@ -2424,6 +2544,7 @@ msgstr "正在生成差异…"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
+#: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Built-in"
 msgstr "内置"
@@ -2449,12 +2570,16 @@ msgid "Built-in shortcut — can't be changed"
 msgstr "内置快捷键 — 无法更改"
 
 #: src/renderer/components/plugins/PluginMarketplace.tsx
-msgid "Bundles of skills and MCP servers that work across every supported agent. Poracode loads any package built for the Agent Plugins specification."
-msgstr "适用于所有受支持代理的技能与 MCP 服务器组合包。Poracode 可加载任何按 Agent Plugins 规范构建的软件包。"
+#~ msgid "Bundles of skills and MCP servers that work across every supported agent. Poracode loads any package built for the Agent Plugins specification."
+#~ msgstr "适用于所有受支持代理的技能与 MCP 服务器组合包。Poracode 可加载任何按 Agent Plugins 规范构建的软件包。"
 
 #: src/renderer/utils/projectIcons.ts
 msgid "Business & finance"
 msgstr "商业与金融"
+
+#: src/renderer/components/plugins/pluginCategories.ts
+msgid "Business and operations"
+msgstr "业务与运营"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 msgid "by <0>{author}</0>"
@@ -2478,6 +2603,18 @@ msgstr "绕过分支保护规则"
 msgid "Bypass branch protection rules (admin merge)"
 msgstr "绕过分支保护规则（管理合并）"
 
+#: src/renderer/components/providers/deepseek/index.tsx
+msgid "Bypass Permissions"
+msgstr "绕过权限检查"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Cache read"
+msgstr "缓存读取"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Cache write"
+msgstr "缓存写入"
+
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Cached only"
 #~ msgstr "仅缓存"
@@ -2485,6 +2622,14 @@ msgstr "绕过分支保护规则（管理合并）"
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Calculated on desktop after saving"
 msgstr "保存后在桌面端计算"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Calendar"
+msgstr "日历"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Camera"
+msgstr "相机"
 
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
 msgid "Camera access blocked"
@@ -2507,7 +2652,10 @@ msgstr "无法在此界面使用所选模型配置"
 #: src/renderer/components/common/ConfirmDialog.tsx
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
+#: src/renderer/components/providers/settings/ModelProviderEditor.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
+#: src/renderer/components/thread/ChatPane/ConversationSearchJump.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadFollowUpEditor.tsx
@@ -2578,6 +2726,10 @@ msgstr "取消移除项目"
 msgid "Cancel run"
 msgstr "取消运行"
 
+#: src/renderer/components/plugins/PluginServiceAccounts.tsx
+msgid "Cancel sign-in"
+msgstr "取消登录"
+
 #: src/renderer/components/composer/LiveVoiceControls.tsx
 msgid "Cancel voice connection"
 msgstr "取消语音连接"
@@ -2613,7 +2765,19 @@ msgstr "无法创建没有分支名称的默认工作树路径"
 msgid "Cannot switch branches — commit or stash your changes first"
 msgstr "无法切换分支 - 首先提交或存储您的更改"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Capture and view controls"
+msgstr "捕获与视图控制"
+
+#. placeholder {0}: totals.categorizedTokens.toLocaleString(locale)
+#. placeholder {1}: totals.tokens.toLocaleString(locale)
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Categories cover {0} of {1} retained tokens. Missing categories, prices and older history remain unknown."
+msgstr "分类涵盖已保留的 {1} 个令牌中的 {0} 个。缺失的分类、价格和较早的历史记录仍为未知。"
+
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualChart.tsx
 msgid "Category"
 msgstr "类别"
 
@@ -2661,7 +2825,7 @@ msgstr "已更改文件"
 #. Link to the list of release notes
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ChangelogSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 msgid "Changelog"
 msgstr "变更日志"
 
@@ -2677,6 +2841,10 @@ msgstr "更改"
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 msgid "Changes ({0})"
 msgstr "更改（{0}）"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Changes affect the selected emulator. App permissions depend on its Android version and the permissions requested by the app."
+msgstr "更改会影响所选模拟器。应用权限取决于其 Android 版本以及应用请求的权限。"
 
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 msgid "Changes apply globally to this environment."
@@ -2706,6 +2874,18 @@ msgstr "无法获取更改"
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Channel"
 msgstr "频道"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualChart.tsx
+msgid "Chart"
+msgstr "图表"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualChart.tsx
+msgid "Chart data"
+msgstr "图表数据"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualChart.tsx
+msgid "Chart inspection"
+msgstr "图表详情"
 
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
@@ -2865,6 +3045,10 @@ msgstr "请选择项目文件夹内的图片。"
 #~ msgid "Choose an MCP server configuration file"
 #~ msgstr "选择 MCP 服务器配置文件"
 
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+msgid "Choose and order pages from Settings and other sidebar shortcuts."
+msgstr "选择设置页面和其他侧边栏快捷方式，并调整顺序。"
+
 #: src/renderer/actions/experimentActions.ts
 msgid "Choose at least two candidates and enter a prompt."
 msgstr "请选择至少两个候选项并输入提示。"
@@ -2943,8 +3127,18 @@ msgstr "选择 Poracode 对新拉取请求执行的操作：不执行任何操�
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Choose when the system and display stay awake. This can delay automatic screen locking."
-msgstr "选择系统和显示器保持唤醒的时机。这可能会延迟屏幕自动锁定。"
+#~ msgid "Choose when the system and display stay awake. This can delay automatic screen locking."
+#~ msgstr "选择系统和显示器保持唤醒的时机。这可能会延迟屏幕自动锁定。"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#~ msgid "Choose when the system stays awake. The display can still turn off."
+#~ msgstr "选择何时让系统保持唤醒。显示器仍可关闭。"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#~ msgid "Choose when the system stays awake. The display can still turn off. Screen locking is unchanged."
+#~ msgstr "选择何时保持系统唤醒。显示器仍可关闭。屏幕锁定设置保持不变。"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -2960,7 +3154,6 @@ msgstr "选择在智能体工作时发送的聊天消息是引导当前响应，
 msgid "Choose whether links from Poracode and browser popups stay in Poracode or open externally."
 msgstr "选择来自 Poracode 和浏览器弹出窗口的链接是保留在 Poracode 中还是在外部打开。"
 
-#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Choose which shortcuts appear in the sidebar footer."
 msgstr "选择要在侧边栏底部显示的快捷方式。"
@@ -3073,10 +3266,15 @@ msgstr "清除 Cookie"
 msgid "Clear day"
 msgstr "清除当天"
 
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualTable.tsx
+msgid "Clear filter"
+msgstr "清除筛选"
+
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 msgid "Clear goal"
 msgstr "清除目标"
 
+#: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/sidebar/ChatSidebarHeader.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 msgid "Clear search"
@@ -3130,7 +3328,9 @@ msgstr "克隆…"
 
 #: src/renderer/components/common/BottomSheet.tsx
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/plugins/PluginCatalogBrowser.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
+#: src/renderer/components/providers/settings/ModelProvidersSettings.tsx
 #: src/renderer/components/skills/SkillViewModal.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
@@ -3186,6 +3386,10 @@ msgstr "关闭 Crossagents"
 msgid "Close Crossagents panel"
 msgstr "关闭 Crossagents 面板"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Close device settings"
+msgstr "关闭设备设置"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "Close device toolbar"
 msgstr "关闭设备工具栏"
@@ -3201,6 +3405,10 @@ msgstr "关闭编辑器选项卡"
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Close environment actions"
 msgstr "关闭环境操作"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Close expanded visual"
+msgstr "关闭展开的可视化"
 
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 msgid "Close experiment"
@@ -3238,6 +3446,10 @@ msgstr "关闭组"
 #: src/mobile/views/threadActionSurfaces.tsx
 #~ msgid "Close group actions"
 #~ msgstr "关闭组操作"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Close inspector"
+msgstr "关闭检查器"
 
 #: src/renderer/components/thread/ChatPane/UserMessageActionsSheet.tsx
 msgid "Close menu"
@@ -3441,6 +3653,10 @@ msgstr "折叠"
 msgid "Collapse {label}"
 msgstr "折叠{label}"
 
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+msgid "Collapse agent usage"
+msgstr "折叠智能体用量"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions.tsx
 msgid "Collapse all"
 msgstr "全部折叠"
@@ -3470,6 +3686,10 @@ msgstr "折叠错误"
 #~ msgid "Collapse experiment"
 #~ msgstr "折叠实验"
 
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Collapse files & artifacts"
+msgstr "折叠文件与产物"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
 msgid "Collapse footer"
 msgstr "折叠侧边栏底部"
@@ -3487,6 +3707,10 @@ msgstr "折叠图像"
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Collapse terminal composer"
 msgstr "折叠终端输入框"
+
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+msgid "Collapse thread context"
+msgstr "折叠线程上下文"
 
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Collapse todo dock"
@@ -3606,13 +3830,13 @@ msgstr "提交"
 msgid "Committing…"
 msgstr "提交中…"
 
+#: src/renderer/components/plugins/pluginCategories.ts
 #: src/renderer/components/plugins/pluginCopy.ts
 #: src/renderer/utils/projectIcons.ts
 msgid "Communication"
 msgstr "沟通协作"
 
 #: src/renderer/components/plugins/PluginDetail.tsx
-#: src/renderer/components/plugins/PluginMarketplace.tsx
 msgid "Community"
 msgstr "社区"
 
@@ -3678,6 +3902,12 @@ msgstr "已完成"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
 msgid "Completed"
 msgstr "已完成"
+
+#. placeholder {0}: block.items.filter((item) => checked.get(`${path}/${item.id}`) ?? item.checked ?? false).length
+#. placeholder {1}: block.items.length
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualBlocks.tsx
+msgid "Completed: {0} / {1}"
+msgstr "已完成：{0} / {1}"
 
 #: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
 msgid "Completion condition not confirmed"
@@ -3791,6 +4021,10 @@ msgstr "配置文件路径（可选）"
 msgid "Configuration from a newer Poracode"
 msgstr "来自更新版本 Poracode 的配置"
 
+#: src/renderer/components/providers/deepseek/DeepSeekProviderSettings.tsx
+msgid "Configure Harness model providers for chat. Changes apply to new or restarted threads."
+msgstr "配置 Harness 聊天模型提供商。更改适用于新建或重新启动的对话。"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Configure the server Poracode will add when supported agents start."
 msgstr "配置 Poracode 在受支持的代理启动时添加的服务器。"
@@ -3890,14 +4124,24 @@ msgstr "连接到远程服务器"
 #: src/renderer/bootstrap.ts
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
+#: src/renderer/components/plugins/PluginServiceAccounts.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Connected"
 msgstr "已连接"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Connecting"
+msgstr "连接中"
+
 #: src/mobile/views/BrowserView.tsx
 #~ msgid "Connecting to the desktop browser…"
 #~ msgstr "正在连接桌面浏览器…"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+#: src/renderer/components/devices/LiveDevicePreview.tsx
+msgid "Connecting to the device…"
+msgstr "正在连接设备…"
 
 #: src/renderer/components/composer/LiveVoiceControls.tsx
 msgid "Connecting voice…"
@@ -3960,6 +4204,10 @@ msgstr "连接"
 msgid "Console"
 msgstr "控制台"
 
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Contacts"
+msgstr "联系人"
+
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Contains sensitive values; add manually"
 msgstr "包含敏感值；请手动添加"
@@ -4013,7 +4261,7 @@ msgstr "上下文使用"
 msgid "Context windows"
 msgstr "上下文窗口"
 
-#: src/renderer/components/thread/ChatPane/parts/items/MessageReplyForm.tsx
+#: src/renderer/components/thread/ThreadMessageReplyPanel.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
 msgid "Continue"
@@ -4043,6 +4291,10 @@ msgstr "继续查看不完整的历史记录"
 #: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
 msgid "Continuing will keep the remaining history and mark this episode acknowledged; it does not restore the missing content."
 msgstr "继续将保留剩余的历史记录并将此事件标记为已确认；缺失的内容不会恢复。"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Control"
+msgstr "控制"
 
 #: src/renderer/components/providers/settings/ProviderMcpServersSection.tsx
 msgid "Control an external Chrome browser."
@@ -4121,6 +4373,10 @@ msgstr "复制（推荐）"
 msgid "Copy {0} device code {1}"
 msgstr "复制{0}设备代码{1}"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Copy accessibility tree"
+msgstr "复制无障碍树"
+
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Copy all Lightcode data into Poracode. Poracode restarts and keeps a complete backup of its current data."
 msgstr "将所有 Lightcode 数据复制到 Poracode。Poracode 将重新启动，并保留当前数据的完整备份。"
@@ -4197,6 +4453,15 @@ msgstr "复制相对路径"
 msgid "Copy selection"
 msgstr "复制选区"
 
+#: src/renderer/components/thread/ChatPane/parts/items/InlineVisual.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Copy source"
+msgstr "复制源代码"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualTable.tsx
+msgid "Copy table"
+msgstr "复制表格"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Copy Tailscale URL"
 msgstr "复制 Tailscale URL"
@@ -4212,6 +4477,27 @@ msgstr "将未提交的更改复制到此处（将它们保留在此分支上）
 #: src/mobile/views/PortsView.tsx
 #~ msgid "Copy URL"
 #~ msgstr "复制 URL"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Cost breakdown"
+msgstr "费用明细"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Cost history is unavailable from this host."
+msgstr "此主机无法提供费用历史。"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Cost source"
+msgstr "费用来源"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Cost trend"
+msgstr "费用趋势"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "Costs"
+msgstr "费用"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Could not abort the merge: {detail}"
@@ -4254,6 +4540,13 @@ msgstr "无法加载 {0} 的拉取请求。"
 msgid "Could not load usage. Check the host connection and permissions, then try again."
 msgstr "无法加载用量。请检查主机连接和权限，然后重试。"
 
+#: src/renderer/components/plugins/PluginCatalogBrowser.tsx
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
+#: src/renderer/components/plugins/PluginDetail.tsx
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+msgid "Could not manage this plugin or marketplace. Check the source, compatibility, and local file changes, then try again."
+msgstr "无法管理此市场或插件。请检查来源、兼容性及本地文件更改，然后重试。"
+
 #: src/renderer/components/pdf/PdfViewer.tsx
 #~ msgid "Could not open this PDF."
 #~ msgstr "无法打开此 PDF。"
@@ -4267,6 +4560,11 @@ msgstr "无法读取文件。"
 msgid "Could not read the thread context for side chat. Try again."
 msgstr "无法读取旁聊所需的对话上下文。请重试。"
 
+#. placeholder {0}: account.serverName
+#: src/renderer/components/plugins/usePluginOauth.ts
+msgid "Could not sign in to {0}."
+msgstr "无法登录 {0}。"
+
 #: src/renderer/components/mcp/useMcpServerOauth.ts
 msgid "Could not sign in to {serverName}: {message}"
 msgstr "无法登录 {serverName}：{message}"
@@ -4275,6 +4573,11 @@ msgstr "无法登录 {serverName}：{message}"
 #: src/renderer/components/plugins/usePluginOauth.ts
 msgid "Could not sign in to {serverName}."
 msgstr "无法登录 {serverName}。"
+
+#. placeholder {0}: account.serverName
+#: src/renderer/components/plugins/usePluginOauth.ts
+msgid "Could not sign out of {0}."
+msgstr "无法退出 {0}。"
 
 #: src/renderer/components/mcp/useMcpServerOauth.ts
 #: src/renderer/components/plugins/usePluginOauth.ts
@@ -4390,6 +4693,14 @@ msgstr "无法启动摄像头"
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Couldn't update the skill."
 msgstr "无法更新技能。"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Coverage"
+msgstr "覆盖范围"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Coverage across reported currencies"
+msgstr "所有已报告币种的覆盖范围"
 
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
@@ -4623,6 +4934,10 @@ msgstr "Ctrl+Enter"
 #~ msgid "Curated free and premium skills managed by MCP Market."
 #~ msgstr "由 MCP Market 管理的精选免费和高级技能。"
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Currency"
+msgstr "币种"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
 #: src/renderer/views/SettingsOverlay/parts/CursorRuntimeCard.tsx
 msgid "Current"
@@ -4759,6 +5074,10 @@ msgstr "可从项目上下文菜单（右键单击）使用自定义命令。"
 msgid "Custom context window"
 msgstr "自定义上下文窗口"
 
+#: src/renderer/components/providers/settings/ModelProviderEditor.tsx
+msgid "Custom endpoint"
+msgstr "自定义端点"
+
 #: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
 msgid "custom path"
 msgstr "自定义路径"
@@ -4793,11 +5112,28 @@ msgstr "每天"
 msgid "Daily brief"
 msgstr "每日简报"
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Daily costs"
+msgstr "每日费用"
+
+#: src/renderer/views/ProfileOverlay/parts/CostTrend.tsx
+msgid "Daily recorded cost; gaps may contain unpriced usage."
+msgstr "每日记录的费用；空白可能包含价格未知的用量。"
+
+#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Dark"
 msgstr "深色"
+
+#: src/renderer/components/plugins/pluginCategories.ts
+msgid "Data and databases"
+msgstr "数据与数据库"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualTable.tsx
+msgid "Data table"
+msgstr "数据表"
 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
 msgid "Date"
@@ -4819,6 +5155,16 @@ msgstr "拒绝"
 msgid "DeepSeek"
 msgstr "DeepSeek"
 
+#: src/renderer/components/providers/deepseek/manifest.ts
+msgid "DeepSeek Harness"
+msgstr "DeepSeek Harness"
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "DeepSeek Harness chat with persistent sessions, reasoning controls, and MCP tools. Configure credentials with dsh web."
+msgstr "DeepSeek Harness 聊天，支持持久会话、推理设置和 MCP 工具。使用 dsh web 配置凭据。"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+#: src/renderer/components/providers/deepseek/index.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
@@ -5065,6 +5411,10 @@ msgstr "拒绝"
 msgid "Deny and tell the agent what to do differently…"
 msgstr "拒绝并告诉代理换一种做法……"
 
+#: src/renderer/components/plugins/pluginCategories.ts
+msgid "Deployment"
+msgstr "部署"
+
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Describe the result that completes this heartbeat."
 msgstr "描述完成此心跳所需的结果。"
@@ -5090,6 +5440,10 @@ msgstr "说明（可选）"
 msgid "Design & media"
 msgstr "设计与媒体"
 
+#: src/renderer/components/plugins/pluginCategories.ts
+msgid "Design and creativity"
+msgstr "设计与创意"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Desktop endpoint"
 msgstr "桌面端点"
@@ -5112,6 +5466,10 @@ msgstr "桌面设置"
 msgid "Destination"
 msgstr "目标位置"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Detach"
+msgstr "断开连接"
+
 #: src/renderer/components/thread/SideChat/SideChatBody.tsx
 msgid "Detach side chat"
 msgstr "分离侧边聊天"
@@ -5120,9 +5478,13 @@ msgstr "分离侧边聊天"
 msgid "detached HEAD"
 msgstr "分离的 HEAD"
 
-#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
-#~ msgid "Details"
-#~ msgstr "详细信息"
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Detaching leaves the device running."
+msgstr "断开连接后设备将继续运行。"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Details"
+msgstr "详细信息"
 
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
 msgid "Detect"
@@ -5161,7 +5523,7 @@ msgstr "正在检测代理……"
 
 #. Settings section: developer/debug tools
 #: src/renderer/views/SettingsOverlay/parts/DevSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 msgid "Dev"
 msgstr "开发"
 
@@ -5169,6 +5531,7 @@ msgstr "开发"
 msgid "Dev servers listening on your desktop's localhost."
 msgstr "监听桌面端 localhost 的开发服务器。"
 
+#: src/renderer/components/plugins/pluginCategories.ts
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Developer tools"
 msgstr "开发者工具"
@@ -5181,14 +5544,64 @@ msgstr "开发"
 msgid "Development-only overrides. Only visible in the PORACODE DEV build."
 msgstr "仅开发覆盖。仅在 PORACODE DEV 版本中可见。"
 
+#: src/renderer/components/devices/useDeviceLivePreview.ts
+msgid "Device access expired. Attach again."
+msgstr "设备访问权限已过期。请重新连接。"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Device accessibility"
+msgstr "设备无障碍信息"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Device appearance"
+msgstr "设备外观"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Device network"
+msgstr "设备网络"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Device operation failed."
+msgstr "设备操作失败。"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Device orientation"
+msgstr "设备方向"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "Device preset"
 msgstr "设备预设"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Device settings"
+msgstr "设备设置"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Device text size"
+msgstr "设备文字大小"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Device tooling is unavailable."
+msgstr "设备工具不可用。"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Device used by the composer voice input button."
 msgstr "输入框语音输入按钮使用的设备。"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Device workspace"
+msgstr "设备工作区"
+
+#: src/renderer/components/devices/DeviceDetachedWindow.tsx
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+#: src/renderer/components/layout/PanelDock/panelTabMeta.ts
+#: src/renderer/components/plugins/pluginCopy.ts
+#: src/renderer/components/thread/ThreadToolRail.tsx
+#: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
+msgid "Devices"
+msgstr "设备"
 
 #: src/renderer/utils/projectIcons.ts
 msgid "Devices & tools"
@@ -5343,6 +5756,7 @@ msgstr "重试次数用尽后停用自动化。"
 msgid "Disable tiers an external provider collapses (e.g. keep only High and Max)."
 msgstr "禁用外部服务商合并的级别（例如仅保留High和Max）。"
 
+#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
@@ -5413,6 +5827,7 @@ msgstr "断开连接"
 #~ msgid "Disconnect server"
 #~ msgstr "断开服务器连接"
 
+#: src/renderer/components/plugins/PluginServiceAccounts.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Disconnected"
@@ -5425,6 +5840,10 @@ msgstr "连接已断开 — 发送消息以重新连接"
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 msgid "Discover"
 msgstr "发现"
+
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+msgid "Discover skills and MCP servers from your marketplace sources."
+msgstr "从你的市场来源中发现技能和 MCP 服务器。"
 
 #: src/renderer/components/thread/AgentDiscoveryOverlay.tsx
 msgid "Discovering agents…"
@@ -5455,6 +5874,7 @@ msgstr "忽略警告"
 msgid "dismissed review"
 msgstr "驳回审查"
 
+#: src/renderer/components/providers/settings/ModelProviderEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Display name"
 msgstr "显示名称"
@@ -5507,6 +5927,7 @@ msgstr "完成"
 
 #. Notification status: thread is done
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
+#: src/renderer/components/providers/settings/ModelProvidersSettings.tsx
 #: src/renderer/components/thread/AgentDiscoveryDoneButton.tsx
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -5668,6 +6089,7 @@ msgstr "每个仓库条目必须为 1–512 个字符，且不含控制字符。
 msgid "Earlier text"
 msgstr "较早的文本"
 
+#: src/renderer/components/providers/settings/ModelProviderManager.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
@@ -5839,6 +6261,7 @@ msgstr "在设置中启用提供商"
 msgid "Enable this plugin's skills and servers for new threads."
 msgstr "为新会话启用此插件的技能和服务器。"
 
+#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentHeader.tsx
 msgid "Enabled"
@@ -5884,6 +6307,10 @@ msgstr "结束语音聊天"
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Enhanced (Hooks)"
 msgstr "增强型（挂钩）"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Enter"
+msgstr "回车"
 
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
 msgid "Enter a font family of up to 256 characters without control characters."
@@ -5992,6 +6419,7 @@ msgid "Enter valid JSON."
 msgstr "请输入有效的 JSON。"
 
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
+#: src/renderer/components/providers/settings/ModelProvidersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "Environment"
@@ -6045,6 +6473,14 @@ msgstr "错误 · 代理遇到错误"
 #: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
 msgid "Errors"
 msgstr "错误"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Estimates and provider-reported costs are separate views of usage; do not add them together. Subscription invoices are not collected."
+msgstr "估算与提供商报告的费用是用量的不同视图，请勿相加。不收集订阅账单。"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Estimates use saved, dated USD list rates for exact model IDs at standard API speed. They exclude subscriptions, negotiated discounts, speed premiums, tools and taxes. Prices are never applied to dates before their first verified snapshot."
+msgstr "估算使用已保存且注明日期的美元标价，适用于精确模型 ID 和标准 API 速度。不含订阅、协商折扣、速度附加费、工具和税费。价格绝不应用于首次核实价格快照之前的日期。"
 
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Evaluate the result after every iteration."
@@ -6141,6 +6577,10 @@ msgstr "展开"
 msgid "Expand {label}"
 msgstr "展开{label}"
 
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+msgid "Expand agent usage"
+msgstr "展开智能体用量"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions.tsx
 msgid "Expand all"
 msgstr "全部展开"
@@ -6157,6 +6597,10 @@ msgstr "展开错误"
 #~ msgid "Expand experiment"
 #~ msgstr "展开实验"
 
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Expand files & artifacts"
+msgstr "展开文件与产物"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
 msgid "Expand footer"
 msgstr "展开侧边栏底部"
@@ -6170,6 +6614,10 @@ msgstr "展开分组"
 msgid "Expand images"
 msgstr "展开图像"
 
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+msgid "Expand thread context"
+msgstr "展开线程上下文"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Expand to review or revoke access."
 msgstr "展开以查看或撤销访问权限。"
@@ -6177,6 +6625,10 @@ msgstr "展开以查看或撤销访问权限。"
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Expand todo dock"
 msgstr "展开待办事项停靠栏"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Expand visual"
+msgstr "放大可视化内容"
 
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 #: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
@@ -6311,6 +6763,10 @@ msgstr "外部服务商"
 msgid "Extra High"
 msgstr "超高"
 
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Extra large"
+msgstr "特大"
+
 #. placeholder {0}: sourceAgent?.label ?? thread.agentKind
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "Extracting context from {0}..."
@@ -6435,7 +6891,6 @@ msgstr "收藏"
 msgid "Favorites"
 msgstr "收藏夹"
 
-#: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 msgid "Featured"
 msgstr "精选"
@@ -6494,6 +6949,12 @@ msgstr "文件使用不受支持的编码。"
 msgid "Files"
 msgstr "文件"
 
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
+#: src/renderer/components/thread/ThreadImagesBubble.tsx
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Files & artifacts"
+msgstr "文件与产物"
+
 #: src/renderer/utils/projectIcons.ts
 msgid "Files & folders"
 msgstr "文件与文件夹"
@@ -6536,6 +6997,10 @@ msgstr "按项目筛选"
 msgid "Filter marketplace by source"
 msgstr "按来源筛选市场"
 
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+msgid "Filter plugins"
+msgstr "筛选插件"
+
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Filter pull requests"
 msgstr "筛选拉取请求"
@@ -6544,6 +7009,10 @@ msgstr "筛选拉取请求"
 msgid "Filter skills by status"
 msgstr "按状态筛选技能"
 
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualTable.tsx
+msgid "Filter table"
+msgstr "筛选表格"
+
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Filters"
 msgstr "筛选条件"
@@ -6551,6 +7020,10 @@ msgstr "筛选条件"
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Finalize"
 msgstr "完成收尾"
+
+#: src/renderer/components/plugins/pluginCategories.ts
+msgid "Finance"
+msgstr "金融"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/components/find/FindBar.tsx
@@ -6662,6 +7135,14 @@ msgstr "使用 Poracode 原生终端和 ACP 运行时的一流 Qoder CLI 集成�
 msgid "First-class Qwen Code integration using Poracode's native terminal and ACP runtimes."
 msgstr "使用 Poracode 原生终端和 ACP 运行时的一流 Qwen Code 集成。"
 
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Fit"
+msgstr "适应"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Fit to width"
+msgstr "适应宽度"
+
 #: src/renderer/components/pdf/PdfViewer.tsx
 #~ msgid "Fit width"
 #~ msgstr "适合宽度"
@@ -6694,6 +7175,10 @@ msgstr "固定延迟"
 #: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
 msgid "Flat list"
 msgstr "扁平列表"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Flat preview"
+msgstr "平面预览"
 
 #: src/renderer/commands/registry.ts
 msgid "Focus browser address bar"
@@ -6839,6 +7324,10 @@ msgstr "找到 {0, plural, one {# 个可导入技能} other {# 个可导入技�
 msgid "Found a signed-in {0} session."
 msgstr "找到已登录的{0}会话。"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Framed preview"
+msgstr "带框预览"
+
 #: src/renderer/components/providers/modelDescription.ts
 msgid "Free"
 msgstr "免费"
@@ -6854,6 +7343,10 @@ msgstr "星期五下午 4:00"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
 msgid "From"
 msgstr "来源"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualDiagram.tsx
+msgid "From {from} to {to}"
+msgstr "从 {from} 到 {to}"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
 msgid "From this project"
@@ -6899,8 +7392,8 @@ msgstr "Gemini"
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
-#: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
 msgid "General"
 msgstr "一般"
 
@@ -6966,8 +7459,7 @@ msgstr "获取任务"
 #: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
-#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
-#: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 msgid "Git"
 msgstr "git"
 
@@ -7013,7 +7505,6 @@ msgstr "GitHub"
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
-#: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "GitHub Actions"
 msgstr "GitHub Actions"
 
@@ -7132,8 +7623,16 @@ msgstr "知道了"
 msgid "Grade {0}"
 msgstr "等级 {0}"
 
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Grant"
+msgstr "授予"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
 msgid "Granted permissions"
+msgstr ""
+
+#: src/renderer/components/plugins/PluginServiceAccounts.tsx
+msgid "Granted scopes"
 msgstr "已授予的权限"
 
 #: src/renderer/utils/projectIconColors.ts
@@ -7318,6 +7817,7 @@ msgstr "高"
 msgid "History"
 msgstr "历史记录"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/views/HomeView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
@@ -7422,6 +7922,10 @@ msgstr "每小时"
 msgid "Hours"
 msgstr "小时"
 
+#: src/renderer/components/thread/ChatPane/parts/items/InlineVisual.tsx
+msgid "HTML source"
+msgstr "HTML 源码"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "HTTP (streamable)"
 msgstr "HTTP（流式）"
@@ -7511,7 +8015,7 @@ msgstr "图片"
 
 #. Settings section: import existing CLI sessions as threads
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
-#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 msgid "Import"
 msgstr "导入"
 
@@ -7651,6 +8155,10 @@ msgstr "已导入密码：{0}。已导入 Cookie：{1}。"
 msgid "Imported session"
 msgstr "已导入的会话"
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Imported sessions contribute only recorded usage. Deleted threads keep their ledger history. Account dashboard snapshots and external log estimates are not added, preventing overlapping totals across hosts or accounts."
+msgstr "导入的会话仅计入已记录的用量。已删除的线程会保留其用量历史。不添加账户仪表板快照和外部日志估算，以免跨主机或账户重复统计。"
+
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "Improved"
 msgstr "已改进"
@@ -7684,6 +8192,18 @@ msgstr "加入同步"
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Includes the first attempt."
 msgstr "包括首次尝试。"
+
+#: src/renderer/components/thread/ChatPane/parts/items/InlineVisual.tsx
+msgid "Incomplete HTML block. Showing source only."
+msgstr "HTML 代码块不完整。仅显示源码。"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Incomplete visual block. Showing source only."
+msgstr "可视化代码块尚未完成。仅显示源代码。"
+
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Indexing saved messages…"
+msgstr "正在为已保存的消息建立索引…"
 
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Info"
@@ -7719,6 +8239,10 @@ msgstr "初始重试延迟（秒）"
 msgid "Initialize Repository"
 msgstr "初始化存储库"
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Input"
+msgstr "输入"
+
 #: src/renderer/components/providers/modelDescription.ts
 msgid "Input / output prices per 1M tokens for each model. Ranges cover model variants."
 msgstr "各模型每100万令牌的输入/输出价格。价格范围涵盖模型的不同变体。"
@@ -7727,6 +8251,10 @@ msgstr "各模型每100万令牌的输入/输出价格。价格范围涵盖模�
 msgid "Input / output prices per 1M tokens. Ranges cover model variants."
 msgstr "每百万 token 的输入/输出价格。价格范围涵盖模型的不同变体。"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Input controls"
+msgstr "输入控制"
+
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Input level"
 msgstr "输入电平"
@@ -7734,6 +8262,10 @@ msgstr "输入电平"
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 #~ msgid "Input values must be strings, numbers, or booleans."
 #~ msgstr "输入值必须是字符串、数字或布尔值。"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Input, output and cache categories do not overlap. Reasoning is included in output."
+msgstr "输入、输出和缓存类别互不重叠。推理包含在输出中。"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchDialog.tsx
 #~ msgid "Inputs (JSON)"
@@ -7754,6 +8286,14 @@ msgstr "在每个项目内"
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Inside this project"
 msgstr "在此项目内"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Inspect"
+msgstr "检查"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Inspect and control the simulator or emulator attached to this thread."
+msgstr "检查并控制连接到此对话的模拟器或仿真器。"
 
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Inspect canonical runtime items"
@@ -7842,6 +8382,10 @@ msgstr "安装和管理 OpenCode 原生插件。"
 msgid "Install and restart"
 msgstr "安装并重启"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Install Android SDK Emulator and platform-tools, then create an AVD."
+msgstr "请安装 Android SDK Emulator 和 platform-tools，然后创建 AVD。"
+
 #: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
 msgid "Install Antigravity"
 msgstr "安装 Antigravity"
@@ -7918,6 +8462,10 @@ msgstr "在 {0} 中安装"
 msgid "Install managed skills into {0}."
 msgstr "将托管技能安装到{0}。"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Install Meta idb and idb_companion on this host for iOS input and accessibility."
+msgstr "请在此主机上安装 Meta idb 和 idb_companion，以支持 iOS 输入和无障碍检查。"
+
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Install native providers first; use ACP for additional protocol agents."
 msgstr "首先安装原生提供程序；使用 ACP 作为附加协议代理。"
@@ -7937,6 +8485,10 @@ msgstr "安装 OpenCode 2 以管理其插件。"
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 msgid "Install packages"
 msgstr "安装包"
+
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
+msgid "Install plugin"
+msgstr "安装插件"
 
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
@@ -7975,10 +8527,16 @@ msgstr "安装 v{updateVersion}"
 msgid "Install v{version}"
 msgstr "安装 v{version}"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Install Xcode and an iOS Simulator runtime on this host."
+msgstr "请在此主机上安装 Xcode 和 iOS Simulator 运行时。"
+
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
 msgid "Install, update, and sign-in are not yet available on remote machines."
 msgstr "远程设备暂不支持安装、更新和登录。"
 
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
+#: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
@@ -8008,6 +8566,10 @@ msgstr "安装中"
 msgid "Installing in this terminal. Closes when finished."
 msgstr "在此终端中安装。完成后关闭。"
 
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
+msgid "Installing makes this plugin available in Plugins. Enable it after reviewing its skills, servers, and required access."
+msgstr "安装后，此插件将显示在插件中。请先检查其技能、服务器及所需访问权限，然后启用。"
+
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Instructions"
 msgstr "指令"
@@ -8015,6 +8577,14 @@ msgstr "指令"
 #: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
 msgid "Instructions agents follow when choosing which agent or model to delegate to."
 msgstr "代理在选择要委派给哪个代理或模型时遵循的说明。"
+
+#: src/renderer/components/devices/LiveDevicePreview.tsx
+msgid "Interactive device preview. Tab moves to the next control; Escape closes the workspace."
+msgstr "交互式设备预览。Tab 移至下一个控件；Escape 关闭工作区。"
+
+#: src/renderer/components/thread/ChatPane/parts/items/InlineVisual.tsx
+msgid "Interactive rendering is unavailable. Showing source only."
+msgstr "交互式渲染不可用。仅显示源码。"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
@@ -8050,6 +8620,14 @@ msgstr "间隔单位"
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Invalid configuration — kept, but disabled"
 msgstr "配置无效——已保留，但已停用"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Invalid visual specification. Showing source only."
+msgstr "可视化定义无效。仅显示源代码。"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "iOS Simulator requires a macOS host with Xcode."
+msgstr "iOS Simulator 需要安装了 Xcode 的 macOS 主机。"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "iPad Air"
@@ -8131,8 +8709,21 @@ msgstr "开机启动时将 Poracode 保持在系统托盘中。"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Keep the Mac awake during Computer Use"
-msgstr "计算机操作期间保持 Mac 唤醒"
+#~ msgid "Keep the Mac awake during Computer Use"
+#~ msgstr "计算机操作期间保持 Mac 唤醒"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+msgid "Keep the system awake whenever Poracode is running, even in the background. The display can still turn off. Screen locking is unchanged."
+msgstr "只要 Poracode 仍在运行（包括在后台运行），就保持系统唤醒。 显示器仍可关闭。屏幕锁定行为保持不变。"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+msgid "Keep the system awake while agents work or remote access is enabled. The display can still turn off. Screen locking is unchanged."
+msgstr "在智能体工作期间或启用远程访问时保持系统唤醒。 显示器仍可关闭。屏幕锁定行为保持不变。"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Keep the system awake while any agent is working, including Computer Use. The display can still turn off. Screen locking is unchanged."
+msgstr "在任何智能体工作期间（包括 Computer Use）保持系统唤醒。 显示器仍可关闭。屏幕锁定行为保持不变。"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -8177,6 +8768,14 @@ msgstr "Kimi Code 在未返回响应的情况下结束了本轮。请重启会�
 msgid "LAN"
 msgstr "局域网"
 
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Landscape left"
+msgstr "横向左侧"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Landscape right"
+msgstr "横向右侧"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Language"
@@ -8199,6 +8798,10 @@ msgstr "Laptop"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "Laptop L"
 msgstr "Laptop L"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Large"
+msgstr "大"
 
 #. placeholder {0}: formatSessionTime(session.lastConnectedAt)
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
@@ -8225,6 +8828,14 @@ msgstr "最后一个工具：<0>{0}</0>"
 #: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
 msgid "Last updated: {fetchedAt}"
 msgstr "最后更新：{fetchedAt}"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Latitude"
+msgstr "纬度"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Launch"
+msgstr "启动"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -8265,6 +8876,10 @@ msgstr "主模型"
 msgid "Learned selections"
 msgstr "已学习的选择"
 
+#: src/renderer/components/plugins/pluginCategories.ts
+msgid "Learning and research"
+msgstr "学习与研究"
+
 #: src/renderer/views/GitReviewOverlay/parts/DiffAnnotationView.tsx
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 msgid "Leave a comment"
@@ -8273,6 +8888,14 @@ msgstr "发表评论"
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Leave blank for no run limit."
 msgstr "留空表示不限制运行次数。"
+
+#: src/renderer/components/providers/settings/ModelProviderEditor.tsx
+msgid "Leave blank to keep existing credentials or use environment authentication."
+msgstr "留空以保留现有凭据或使用环境身份验证。"
+
+#: src/renderer/components/providers/settings/ModelProviderEditor.tsx
+msgid "Leave blank to use the installed model catalog."
+msgstr "留空以使用已安装的模型目录。"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchDialog.tsx
 #~ msgid "Leave empty to use the repository default branch."
@@ -8313,6 +8936,7 @@ msgstr "累计token数"
 msgid "Lifetime tokens"
 msgstr "累计token数"
 
+#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
@@ -8352,14 +8976,32 @@ msgstr "列出包"
 msgid "List tasks"
 msgstr "列出任务"
 
-#: src/mobile/remoteConnectionState.ts
-#~ msgid "Live"
-#~ msgstr "在线"
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Live"
+msgstr "在线"
 
 #. placeholder {0}: formatShortDateTime(desktop.lastConnectedAt)
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Live {0}"
 #~ msgstr "在线 {0}"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Live device preview"
+msgstr "实时设备预览"
+
+#: src/renderer/components/devices/LiveDevicePreview.tsx
+msgid "Live device preview, view only"
+msgstr "设备实时预览，仅查看"
+
+#: src/renderer/components/devices/useDeviceLivePreview.ts
+msgid "Live preview is unavailable for this device on this host. Use snapshots."
+msgstr "此主机无法提供该设备的实时预览。请使用快照。"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+#: src/renderer/components/devices/LiveDevicePreview.tsx
+#: src/renderer/components/devices/useDeviceLivePreview.ts
+msgid "Live preview is unavailable. Retry or use snapshots."
+msgstr "实时预览不可用。请重试或使用快照。"
 
 #: src/renderer/components/thread/LiveStreamCapacityAlert.tsx
 msgid "Live updates are paused for {droppedRuntimeThreadCount, plural, one {# thread} other {# threads}} because this window exceeds the {MANAGED_ITEM_INTERESTS_MAX}-thread live streaming limit. Close or reopen a thread to resume the paused ones."
@@ -8430,6 +9072,10 @@ msgstr "正在加载作业"
 msgid "Loading marketplace…"
 msgstr "正在加载市场…"
 
+#: src/renderer/components/thread/ChatPane/ConversationSearchJump.tsx
+msgid "Loading matched message…"
+msgstr "正在加载匹配的消息…"
+
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorMediaViews.tsx
 msgid "Loading media preview…"
@@ -8443,6 +9089,12 @@ msgstr "正在加载笔记..."
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
 #~ msgid "Loading PDF…"
 #~ msgstr "正在加载 PDF…"
+
+#: src/renderer/components/plugins/PluginCatalogBrowser.tsx
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+msgid "Loading plugins and marketplaces…"
+msgstr "正在加载插件和市场…"
 
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 #: src/renderer/views/SettingsOverlay/parts/PluginsSettings.tsx
@@ -8485,6 +9137,10 @@ msgstr "正在加载技能…"
 msgid "Loading skills…"
 msgstr "正在加载技能…"
 
+#: src/renderer/components/terminal/TerminalFeedStatus.tsx
+msgid "Loading terminal…"
+msgstr "正在加载终端…"
+
 #: src/mobile/views/ThreadView.tsx
 #~ msgid "Loading thread"
 #~ msgstr "正在加载线程"
@@ -8506,6 +9162,8 @@ msgid "Loading workflow runs"
 msgstr "正在加载工作流运行记录"
 
 #: src/renderer/app.tsx
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+#: src/renderer/components/providers/settings/ModelProviderManager.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/useHistoryItemDetails.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
@@ -8543,11 +9201,16 @@ msgstr "本地密码保护"
 msgid "localhost:{0} on desktop"
 msgstr "桌面上的 localhost:{0}"
 
+#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "Location"
 msgstr "位置"
+
+#: src/renderer/components/plugins/pluginCategories.ts
+msgid "Location and maps"
+msgstr "位置与地图"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Location glyph"
@@ -8627,6 +9290,10 @@ msgstr "最长连续天数"
 msgid "Longest task"
 msgstr "最长任务"
 
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Longitude"
+msgstr "经度"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
 msgid "Looking for browser profiles…"
 msgstr "正在查找浏览器配置文件…"
@@ -8663,6 +9330,7 @@ msgstr "主模型"
 msgid "Make the sidebar translucent — the system blur material on Windows 11, a translucent tint elsewhere."
 msgstr "将侧边栏设为半透明——在Windows 11上使用系统模糊材质，在其他平台上使用半透明着色。"
 
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 msgid "Manage"
 msgstr "管理"
@@ -8690,6 +9358,10 @@ msgstr "管理插件"
 #: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
 msgid "Manage projects"
 msgstr "管理项目"
+
+#: src/renderer/components/providers/settings/ModelProvidersSettings.tsx
+msgid "Manage providers"
+msgstr "管理提供商"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
 #~ msgid "Manage remote environments"
@@ -8824,6 +9496,8 @@ msgstr "标记完成"
 msgid "Mark done when the pull request merges"
 msgstr "拉取请求合并后标记为完成"
 
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
+#: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Marketplace"
 msgstr "市场"
@@ -8831,6 +9505,21 @@ msgstr "市场"
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Marketplace rank"
 msgstr "市场排名"
+
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
+#: src/renderer/components/plugins/PluginDetail.tsx
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+msgid "Marketplace source"
+msgstr "市场来源"
+
+#: src/renderer/components/plugins/PluginCatalogBrowser.tsx
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+msgid "Marketplace sources"
+msgstr "市场来源"
+
+#: src/renderer/components/plugins/PluginCatalogBrowser.tsx
+msgid "Marketplace URL or local path"
+msgstr "市场 URL 或本地路径"
 
 #: src/renderer/i18n/locales.ts
 msgid "Match app language"
@@ -8985,6 +9674,7 @@ msgid "MCP server URL"
 msgstr "MCP 服务器 URL"
 
 #: src/renderer/components/composer/MentionPopover.tsx
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/providers/settings/ProviderMcpServersSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
@@ -8998,8 +9688,8 @@ msgstr "MCP服务器"
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 #: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "MCP Servers"
 msgstr "MCP 服务器"
 
@@ -9136,9 +9826,17 @@ msgstr "合并被阻止"
 msgid "Message actions"
 msgstr "消息操作"
 
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Message search unavailable"
+msgstr "消息搜索不可用"
+
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
 #~ msgid "Message the remote agent…"
 #~ msgstr "向远程代理发送消息…"
+
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Messages"
+msgstr "消息"
 
 #: src/renderer/components/thread/ChatPane/ChatPane.tsx
 msgid "Messages could not be loaded."
@@ -9148,6 +9846,7 @@ msgstr "无法加载消息。"
 msgid "Messages sent"
 msgstr "已发送消息"
 
+#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Microphone"
@@ -9177,6 +9876,10 @@ msgstr "麦克风权限被拒绝。"
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Microphone testing is not available in this environment."
 msgstr "在此环境中无法进行麦克风测试。"
+
+#: src/renderer/components/plugins/pluginCategories.ts
+msgid "Migration"
+msgstr "迁移"
 
 #. Unit suffix: minutes
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
@@ -9273,6 +9976,10 @@ msgstr "已将模型添加到收藏夹"
 msgid "Model id"
 msgstr "模型id"
 
+#: src/renderer/components/providers/settings/ModelProviderEditor.tsx
+msgid "Model IDs, separated by commas"
+msgstr "模型 ID，以逗号分隔"
+
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Model label"
 msgstr "模型标签"
@@ -9306,6 +10013,8 @@ msgstr "模型用量"
 #: src/renderer/components/common/ProviderModelMenu/parts/primaryModelRows.ts
 #: src/renderer/components/common/ProviderModelMenu/parts/WindowedProviderModelList.tsx
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Models"
 msgstr "模型"
@@ -9315,7 +10024,12 @@ msgstr "模型"
 msgid "Modes"
 msgstr "模式"
 
+#: src/renderer/components/plugins/pluginCategories.ts
+msgid "Monitoring"
+msgstr "监控"
+
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/CollapsedThreadRail.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivityHeatmap.tsx
@@ -9395,6 +10109,10 @@ msgstr "最常用服务商"
 msgid "Most used reasoning"
 msgstr "最常用思考级别"
 
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Motion"
+msgstr "运动"
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Move"
 msgstr "移动"
@@ -9415,6 +10133,14 @@ msgstr "将浏览器移到窗口"
 #: src/renderer/components/common/BranchSelector/parts/BranchFooterActions.tsx
 msgid "Move changes to a new worktree"
 msgstr "将更改移至新工作树"
+
+#: src/renderer/components/devices/DeviceDetachedWindow.tsx
+msgid "Move device back to main window"
+msgstr "将设备移回主窗口"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Move device to window"
+msgstr "将设备移至独立窗口"
 
 #: src/renderer/components/thread/PaneDragAndDrop.tsx
 msgid "Move pane"
@@ -9564,6 +10290,10 @@ msgstr "导航"
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Navigate, inspect, and test pages with the in-app Browser MCP."
 msgstr "使用内置 Browser MCP 浏览、检查并测试页面。"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Navigation controls"
+msgstr "导航控制"
 
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Needs approval"
@@ -9792,6 +10522,10 @@ msgstr "新建工作区"
 msgid "New worktree"
 msgstr "新工作树"
 
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualChart.tsx
+msgid "Next category"
+msgstr "下一个类别"
+
 #: src/renderer/commands/registry.ts
 msgid "Next chat"
 msgstr "下一个聊天"
@@ -9894,6 +10628,10 @@ msgstr "没有安装代理。"
 msgid "No AI commits, PRs, or conflict resolutions tracked yet."
 msgstr "暂未记录任何AI提交、PR或冲突解决。"
 
+#: src/renderer/components/providers/settings/ModelProviderManager.tsx
+msgid "No API key stored; native authentication may apply."
+msgstr "未存储 API 密钥；可能使用原生身份验证。"
+
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "No archived results."
 msgstr "没有已归档的结果。"
@@ -9972,12 +10710,17 @@ msgstr "没有内容流。"
 msgid "No conversation yet. Be the first to comment."
 msgstr "还没有对话。成为第一个发表评论的人。"
 
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualTable.tsx
+msgid "No data"
+msgstr "暂无数据"
+
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/providers/usageFormat.ts
 msgid "No data yet"
 msgstr "还没有数据"
 
 #: src/renderer/views/ProfileOverlay/parts/BreakdownBars.tsx
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "No data yet."
 msgstr "暂无数据。"
 
@@ -10064,6 +10807,10 @@ msgstr "在此电脑上未找到可导入的会话。"
 #~ msgid "No installed agents with selectable models are available for this project."
 #~ msgstr "此项目中没有具有可选模型的已安装智能体。"
 
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+msgid "No installed plugins yet."
+msgstr "尚未安装任何插件。"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 msgid "No jobs reported for this run."
 msgstr "此次运行未报告任何作业。"
@@ -10107,6 +10854,10 @@ msgstr "没有匹配的拉取请求。"
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "No matching results."
 msgstr "没有匹配的结果。"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualTable.tsx
+msgid "No matching rows"
+msgstr "没有匹配的行"
 
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "No matching schedules."
@@ -10202,6 +10953,11 @@ msgstr "没有与搜索匹配的插件。"
 msgid "No Poracode pairing QR code found."
 msgstr "未找到 Poracode 配对二维码。"
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+#: src/renderer/views/ProfileOverlay/parts/CostTrend.tsx
+msgid "No priced usage in this range."
+msgstr "此时间范围内没有价格已知的用量。"
+
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "No profile with its own isolated login exists yet. Set a profile to \"Own isolated login\" and sign in there first; it then appears here."
 msgstr "还没有拥有独立登录的配置文件。请先将某个配置文件设为“独立登录”并在那里登录；它随后会出现在这里。"
@@ -10239,6 +10995,7 @@ msgstr "无提示"
 msgid "No providers are being tracked."
 msgstr "未跟踪任何提供商。"
 
+#: src/renderer/components/providers/settings/ModelProviderManager.tsx
 #: src/renderer/components/providers/settings/ProviderAccountsSection.tsx
 msgid "No providers connected yet."
 msgstr "尚未连接任何提供商。"
@@ -10299,6 +11056,10 @@ msgstr "该线程还没有运行时项目。"
 msgid "No saved passwords"
 msgstr "没有已保存的密码"
 
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualChart.tsx
+msgid "No series selected. Choose a series above."
+msgstr "未选择数据系列。请在上方选择一个系列。"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #~ msgid "No servers connected yet."
 #~ msgstr "尚未连接任何服务器。"
@@ -10314,6 +11075,10 @@ msgstr "没有符合当前筛选条件的会话。"
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "No shortcuts found"
 msgstr "未找到快捷键"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "No simulators or emulators found."
+msgstr "未找到模拟器或仿真器。"
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "No skills found"
@@ -10473,6 +11238,14 @@ msgstr "未安装"
 msgid "Not installed"
 msgstr "未安装"
 
+#: src/renderer/components/plugins/PluginCatalogBrowser.tsx
+msgid "Not loaded"
+msgstr "未加载"
+
+#: src/renderer/components/plugins/PluginServiceAccounts.tsx
+msgid "Not reported by service"
+msgstr "服务未提供"
+
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 msgid "Not running"
 msgstr "未运行"
@@ -10511,10 +11284,10 @@ msgstr "暂无内容可压缩 — 对话还很短。"
 msgid "Nothing tracked yet. It'll appear here as you use it."
 msgstr "暂无记录。使用过程中将在此显示。"
 
+#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
-#: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 msgid "Notifications"
 msgstr "通知"
 
@@ -10646,6 +11419,7 @@ msgstr "打开{label}"
 msgid "Open a new browser tab"
 msgstr "在浏览器中打开新选项卡"
 
+#: src/renderer/views/GlobalTerminalPanel/GlobalTerminalPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/DevTerminalPanel.tsx
 msgid "Open a terminal"
 msgstr "打开终端"
@@ -10794,6 +11568,10 @@ msgstr "在 GitHub 上打开作业"
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Open leaderboard with install and trend metrics."
 msgstr "提供安装量和趋势指标的公开排行榜。"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Open link"
+msgstr "打开链接"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -11034,6 +11812,8 @@ msgstr "橙色"
 msgid "Organization (optional)"
 msgstr "组织（可选）"
 
+#: src/renderer/components/plugins/pluginCategories.ts
+#: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredCustomValues.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Other"
@@ -11054,6 +11834,10 @@ msgstr "结果"
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Outlook"
 msgstr "Outlook"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Output"
+msgstr "输出"
 
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Over pace — runs out early"
@@ -11238,6 +12022,10 @@ msgstr "此对话的部分历史记录可能在服务器上缺失。继续之前
 msgid "Part of this conversation's history was lost on the server and could not be shown. At least {refusedEvents} events / {refusedBytes} bytes are affected."
 msgstr "此对话的部分历史记录已在服务器上丢失，无法显示。至少影响 {refusedEvents} 个事件 / {refusedBytes} 字节。"
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Partial"
+msgstr "部分"
+
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 msgid "Partially checked"
 msgstr "部分选中"
@@ -11341,6 +12129,12 @@ msgstr "粘贴配对 URL…"
 #~ msgid "Paste your pairing link"
 #~ msgstr "粘贴您的配对链接"
 
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
+#: src/renderer/components/plugins/PluginDetail.tsx
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+msgid "Path"
+msgstr "路径"
+
 #: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
 msgid "Pause"
 msgstr "暂停"
@@ -11427,6 +12221,10 @@ msgstr "永久删除 {0} 中选定的归档条目。"
 msgid "permission"
 msgstr "权限"
 
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Permission"
+msgstr "权限"
+
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 msgid "Persistent goals, budgets, and automatic continuation with /goal."
 msgstr "通过 /goal 使用持久目标、预算和自动继续功能。"
@@ -11451,7 +12249,7 @@ msgstr "角色 ID 限制为 512 个字符。"
 #~ msgid "Persona names are limited to 512 characters."
 #~ msgstr "角色名称最多 512 个字符。"
 
-#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 msgid "Personal"
 msgstr "个人"
 
@@ -11459,6 +12257,10 @@ msgstr "个人"
 #: src/renderer/components/providers/devin/sessionActionDialog.tsx
 #~ msgid "Personas"
 #~ msgstr "Persona"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Photos"
+msgstr "照片"
 
 #: src/renderer/components/providers/pi/manifest.ts
 msgid "Pi"
@@ -11524,6 +12326,7 @@ msgstr "已固定的任务路由"
 msgid "Pixel 8"
 msgstr "Pixel 8"
 
+#: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
 #: src/renderer/components/providers/composerControlBuilders.tsx
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
@@ -11564,9 +12367,18 @@ msgstr "插件详情"
 msgid "Plugin folder"
 msgstr "插件文件夹"
 
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
+msgid "Plugin review"
+msgstr "插件审查"
+
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Plugin servers"
 msgstr "插件服务器"
+
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
+#: src/renderer/components/plugins/PluginDetail.tsx
+msgid "Plugin source"
+msgstr "插件来源"
 
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 msgid "Plugin views"
@@ -11590,10 +12402,11 @@ msgstr "plugin.json 指向此版本不支持的 Agent Plugins 版本。"
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/components/composer/MentionPopover.tsx
+#: src/renderer/components/plugins/PluginCatalogBrowser.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Plugins"
 msgstr "插件"
 
@@ -11733,12 +12546,24 @@ msgstr "未启用端口转发"
 #~ msgid "Port forwarding needs a direct connection to the desktop. It isn't available over a relay or tunnel."
 #~ msgstr "端口转发需要与桌面直接连接，无法通过中继或隧道使用。"
 
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Portrait"
+msgstr "纵向"
+
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
 msgid "Ports"
 msgstr "端口"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Power off device"
+msgstr "关闭设备电源"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Power off device?"
+msgstr "关闭设备电源？"
 
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "PowerShell {version}"
@@ -11834,8 +12659,8 @@ msgstr "按空格键开始重新排序。使用方向键移动，按空格键放
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Prevent sleep"
-msgstr "阻止休眠"
+#~ msgid "Prevent sleep"
+#~ msgstr "阻止休眠"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -11847,10 +12672,23 @@ msgstr "阻止休眠"
 #~ msgid "Prevent sleep while working"
 #~ msgstr "工作时阻止系统休眠"
 
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Prevent system sleep"
+msgstr "防止系统睡眠"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Preview"
+msgstr "预览"
+
 #. placeholder {0}: att.name
 #: src/renderer/components/composer/AttachmentBar.tsx
 msgid "Preview {0}"
 msgstr "预览{0}"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualChart.tsx
+msgid "Previous category"
+msgstr "上一个类别"
 
 #: src/renderer/commands/registry.ts
 msgid "Previous chat"
@@ -11893,6 +12731,10 @@ msgstr "先前的会话；请重新登录以用于新线程。"
 msgid "Previous tab"
 msgstr "上一个选项卡"
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Pricing provenance"
+msgstr "价格来源"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Print"
 msgstr "打印"
@@ -11927,6 +12769,7 @@ msgstr "正在探测{0} v{1}"
 msgid "Probing v{0}"
 msgstr "正在探测 v{0}"
 
+#: src/renderer/components/plugins/pluginCategories.ts
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Productivity"
 msgstr "效率"
@@ -11935,8 +12778,7 @@ msgstr "效率"
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
-#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
-#: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 msgid "Profile"
 msgstr "个人资料"
 
@@ -11967,6 +12809,10 @@ msgstr "已移除配置文件。"
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Profile stats range"
 msgstr "个人资料统计范围"
+
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "Profile tabs"
+msgstr "个人资料选项卡"
 
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 msgid "Profiles"
@@ -12107,9 +12953,9 @@ msgstr "由 Poracode 为受支持的代理提供和管理。"
 msgid "provider"
 msgstr "提供商"
 
-#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
-#~ msgid "Provider"
-#~ msgstr "提供商"
+#: src/renderer/components/providers/settings/ModelProviderEditor.tsx
+msgid "Provider"
+msgstr "提供商"
 
 #: src/renderer/components/thread/ChatPane/parts/MessageList.tsx
 msgid "Provider conversation was not restored"
@@ -12120,24 +12966,44 @@ msgstr "提供商端的对话未恢复"
 msgid "Provider has not reported token usage."
 msgstr "提供商尚未报告令牌使用情况。"
 
+#: src/renderer/components/providers/settings/ModelProviderEditor.tsx
+msgid "Provider ID"
+msgstr "提供商 ID"
+
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Provider presets"
 msgstr "服务商预设"
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Provider reported"
+msgstr "提供商报告"
+
+#: src/renderer/components/providers/settings/ModelProviderManager.tsx
+msgid "Provider saved, but its API key could not be stored. Reload and try again."
+msgstr "提供商已保存，但无法存储其 API 密钥。请重新加载后重试。"
+
+#: src/renderer/components/providers/settings/ModelProviderManager.tsx
+msgid "Provider settings changed. Reload before saving."
+msgstr "提供商设置已更改。请在保存前重新加载。"
+
 #. Settings section: provider usage and quota dashboard
 #: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
-#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
-#: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
 msgid "Provider Usage"
 msgstr "提供商用量"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Provider-reported cost"
+msgstr "提供商报告的费用"
 
 #. plural
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/authHelpers.ts
 msgid "providers"
 msgstr "提供商"
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -12238,7 +13104,6 @@ msgstr "拉取请求选项"
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/sidebarShortcuts.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
-#: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "Pull requests"
 msgstr "拉取请求"
 
@@ -12436,6 +13301,7 @@ msgstr "正在读取每个候选的更改…"
 msgid "Reading each candidate's chat response…"
 msgstr "正在读取每个候选项的聊天回复…"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Ready"
 msgstr "就绪"
@@ -12457,6 +13323,14 @@ msgstr "就绪。打开后，新的配对码会公布 Tailscale HTTPS URL。"
 msgid "Reasoning"
 msgstr "推理"
 
+#: src/renderer/components/thread/ChatPane/parts/items/InlineVisual.tsx
+msgid "Receiving HTML source…"
+msgstr "正在接收 HTML 源码…"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Receiving visual source…"
+msgstr "正在接收可视化源代码…"
+
 #: src/renderer/components/common/ProviderModelMenu/parts/buildItems.ts
 msgid "Recent"
 msgstr "最近"
@@ -12473,22 +13347,34 @@ msgstr "近期安装量"
 msgid "Recent threads"
 msgstr "最近的线程"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Recents"
+msgstr "最近任务"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
 msgid "Reconnect"
 msgstr "重新连接"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Reconnect live preview"
+msgstr "重新连接实时预览"
 
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Reconnect the server to add projects."
 msgstr "重新连接服务器后即可添加项目。"
 
-#: src/mobile/remoteConnectionState.ts
-#~ msgid "Reconnecting"
-#~ msgstr "正在重新连接"
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Reconnecting"
+msgstr "正在重新连接"
 
 #: src/renderer/components/terminal/TerminalFeedStatus.tsx
 msgid "Reconnecting to terminal…"
 msgstr "正在重新连接终端…"
+
+#: src/renderer/components/devices/LiveDevicePreview.tsx
+msgid "Reconnecting to the device…"
+msgstr "正在重新连接设备…"
 
 #: src/mobile/components.tsx
 #~ msgid "Reconnecting to your desktop…"
@@ -12504,6 +13390,10 @@ msgstr "根据本地日志按公开 API 费率重建，不代表订阅套餐中�
 #~ msgid "Reconstructed from local logs at public API rates — it does not reflect your real bill on subscription plans. Shown only in the usage panel."
 #~ msgstr "以公共 API 费率从本地日志重建 — 它不反映您订阅计划的真实账单。仅在使用面板中显示。"
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Recorded token categories"
+msgstr "已记录的令牌分类"
+
 #: src/renderer/utils/projectIconColors.ts
 msgid "Red"
 msgstr "红色"
@@ -12511,6 +13401,16 @@ msgstr "红色"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Redact notification content"
 msgstr "隐藏通知内容"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Reduce motion"
+msgstr "减弱动态效果"
+
+#: src/renderer/components/plugins/PluginCatalogBrowser.tsx
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
+#: src/renderer/components/plugins/PluginDetail.tsx
+msgid "Reference"
+msgstr "引用"
 
 #. Button: re-fetch provider usage now
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
@@ -12533,6 +13433,11 @@ msgstr "隐藏通知内容"
 msgid "Refresh"
 msgstr "刷新"
 
+#. placeholder {0}: catalog.name
+#: src/renderer/components/plugins/PluginCatalogBrowser.tsx
+msgid "Refresh {0}"
+msgstr "刷新 {0}"
+
 #. placeholder {0}: agentStatus.label
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 msgid "Refresh {0} authentication"
@@ -12550,6 +13455,10 @@ msgstr "刷新 {label}"
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Refresh detected agents"
 msgstr "刷新检测到的代理"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Refresh devices"
+msgstr "刷新设备"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Refresh MCP server sources"
@@ -12585,6 +13494,11 @@ msgstr "正在刷新{0}身份验证状态。"
 msgid "Refreshing {env} {0} authentication status."
 msgstr "正在刷新{env}{0}身份验证状态。"
 
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualDiagram.tsx
+msgid "Relationship diagram"
+msgstr "关系图"
+
+#: src/renderer/components/providers/settings/ModelProviderManager.tsx
 #: src/renderer/RendererCrashScreen.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Reload"
@@ -12599,19 +13513,19 @@ msgid "Reload preview"
 msgstr "重新加载预览"
 
 #: src/renderer/components/common/BranchSelector/parts/useBranchList.ts
-#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 msgid "Remote"
 msgstr "远程"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
-msgid "Remote access"
-msgstr "远程访问"
+#~ msgid "Remote access"
+#~ msgstr "远程访问"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/RemoteAccessSidebarIcon.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 msgid "Remote Access"
 msgstr "远程访问"
 
@@ -12634,7 +13548,7 @@ msgstr "远程访问端口 {occupiedPort} 已被占用。请停止其他服务�
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 msgid "Remote Environments"
 msgstr "远程环境"
 
@@ -12700,6 +13614,7 @@ msgstr "远程网址"
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
+#: src/renderer/components/providers/settings/ModelProviderManager.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredCustomValues.tsx
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
@@ -12732,6 +13647,10 @@ msgstr "删除{pattern}"
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
 msgid "Remove {rowTitle} from panel"
 msgstr "从面板中删除{rowTitle}"
+
+#: src/renderer/components/thread/ThreadComposer.tsx
+msgid "Remove {toggleLabel}"
+msgstr "删除{toggleLabel}"
 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredCustomValues.tsx
 msgid "Remove {value}"
@@ -12811,6 +13730,10 @@ msgstr "从面板上移除"
 msgid "Remove from recent"
 msgstr "从最近使用中移除"
 
+#: src/renderer/components/plugins/PluginCatalogBrowser.tsx
+msgid "Remove marketplace"
+msgstr "移除市场"
+
 #. placeholder {0}: providerLabel(entry.agentKind)
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
 msgid "Remove memory entry for {0}"
@@ -12824,6 +13747,8 @@ msgstr "移除模型"
 msgid "Remove pinned route for {tagLabel}"
 msgstr "移除 {tagLabel} 的固定路由"
 
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
+#: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 msgid "Remove plugin"
 msgstr "删除插件"
@@ -12843,6 +13768,10 @@ msgstr "移除项目"
 #: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 msgid "Remove Project"
 msgstr "删除项目"
+
+#: src/renderer/components/providers/settings/ModelProviderManager.tsx
+msgid "Remove provider"
+msgstr "移除提供商"
 
 #: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
 msgid "Remove queued follow-up"
@@ -12874,6 +13803,15 @@ msgstr "要删除此提供商已保存的凭据吗？你可以在“添加提供
 msgid "Remove this connection?"
 msgstr "移除此连接？"
 
+#: src/renderer/components/providers/settings/ModelProviderManager.tsx
+msgid "Remove this model route? Saved credentials are kept. Existing threads pick up changes when restarted."
+msgstr "移除此模型路由？已保存的凭据将保留。现有对话会在重新启动后应用更改。"
+
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
+#: src/renderer/components/plugins/PluginDetail.tsx
+msgid "Remove this plugin and its service accounts from Poracode?"
+msgstr "从 Poracode 中移除此插件及其服务账户？"
+
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Remove worktree?"
 msgstr "删除工作树？"
@@ -12903,6 +13841,10 @@ msgstr "移除 {profileName} 会丢弃其 Poracode 设置——环境变量、�
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Removing {profileName} drops its Poracode settings only. Devin's own credentials, config files, and session history stay on disk, and other profiles are unaffected."
 msgstr "移除 {profileName} 仅删除其 Poracode 设置。Devin 自己的凭据、配置文件和会话历史仍保留在磁盘上，其他配置文件不受影响。"
+
+#: src/renderer/components/plugins/PluginCatalogBrowser.tsx
+msgid "Removing a source keeps its installed plugins."
+msgstr "移除来源会保留从该来源安装的插件。"
 
 #: src/renderer/components/thread/CompactThreadHeader.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
@@ -13018,6 +13960,7 @@ msgstr "仓库（可选）"
 msgid "repository"
 msgstr "仓库"
 
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Repository"
@@ -13065,9 +14008,17 @@ msgstr "重置"
 msgid "Reset"
 msgstr "重置"
 
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualBlocks.tsx
+msgid "Reset checklist"
+msgstr "重置清单"
+
 #: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
 msgid "Reset context windows"
 msgstr "重置上下文窗口"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Reset inputs"
+msgstr "重置输入"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Reset model order"
@@ -13082,6 +14033,7 @@ msgstr "将侧边栏磨砂效果重置为默认"
 msgid "Reset to default"
 msgstr "重置为默认"
 
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Reset zoom"
 msgstr "重置缩放"
@@ -13222,9 +14174,19 @@ msgstr "继续目标"
 msgid "Resume queued follow-ups"
 msgstr "恢复排队的后续消息"
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Retained usage on this host only."
+msgstr "仅显示此主机保留的用量。"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+#~ msgid "Retained usage on this host only. Estimates and provider-reported costs are separate views of usage; do not add them together. Subscription invoices are not collected."
+#~ msgstr "仅显示此主机保留的用量。估算与提供商报告的费用是用量的不同视图，请勿相加。不收集订阅账单。"
+
 #: src/renderer/bootstrap.ts
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
+#: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/components/thread/ChatPane/ChatPane.tsx
@@ -13269,6 +14231,10 @@ msgstr "重试延迟"
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Retry delay in seconds"
 msgstr "重试延迟（秒）"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Retry live"
+msgstr "重试实时预览"
 
 #: src/mobile/components.tsx
 #~ msgid "Retry now"
@@ -13369,9 +14335,22 @@ msgstr "恢复到此检查点"
 msgid "Reverting…"
 msgstr "正在回退…"
 
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
+#: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Review"
 msgstr "审查"
+
+#. placeholder {0}: props.target.entryName
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
+msgid "Review {0}"
+msgstr "审查 {0}"
+
+#. placeholder {0}: entry.name
+#. placeholder {1}: entry.sourceName
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+msgid "Review {0} from {1}"
+msgstr "审查来自 {1} 的 {0}"
 
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Review and Summarizer are the only root agent types Devin's CLI accepts. Custom native personas are subagent definitions configured in Devin's own files — they cannot be selected here."
@@ -13405,6 +14384,10 @@ msgstr "审查评论"
 msgid "Review decision"
 msgstr "审查决定"
 
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
+msgid "Review downloads this plugin for inspection. Installation is a separate step."
+msgstr "审查会下载此插件以进行检查，安装是单独的步骤。"
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Review my recent work and summarize today's priorities and next steps."
 msgstr "查看我最近的工作，并总结今天的优先事项和后续步骤。"
@@ -13430,6 +14413,11 @@ msgstr "评审显示"
 msgid "Review recovery"
 msgstr "查看恢复"
 
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
+#: src/renderer/components/plugins/PluginDetail.tsx
+msgid "Review update"
+msgstr "审查更新"
+
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Review, manually test, fix, commit, push, create a PR, and merge after checks pass."
 msgstr "审查、手动测试、修复、提交、推送、创建 PR，并在检查通过后合并。"
@@ -13451,6 +14439,10 @@ msgstr "修订命令"
 msgid "Revision note (optional)"
 msgstr "修订说明（可选）"
 
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Revoke"
+msgstr "撤销"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Revoke {name}"
 msgstr "撤销 {name}"
@@ -13468,9 +14460,19 @@ msgstr "右面板"
 msgid "Right-click to switch ring"
 msgstr "右键点击以切换环"
 
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Rotate to…"
+msgstr "旋转到…"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "Rotate viewport"
 msgstr "旋转视口"
+
+#. placeholder {0}: rows.length
+#. placeholder {1}: block.rows.length
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualTable.tsx
+msgid "Rows: {0} / {1}"
+msgstr "行数：{0} / {1}"
 
 #: src/renderer/components/providers/devin/liveSessionControls.tsx
 #: src/renderer/components/providers/devin/sessionActionDialog.tsx
@@ -13622,6 +14624,7 @@ msgstr "运行工作流"
 msgid "running"
 msgstr "运行中"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/SchedulesView/parts/scheduleRunStatus.ts
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
@@ -13708,6 +14711,7 @@ msgstr "饱和度与亮度"
 #: src/renderer/components/providers/codex/profileSettings.tsx
 #: src/renderer/components/providers/devin/profileSettings.tsx
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ModelProviderEditor.tsx
 #: src/renderer/components/providers/settings/ProviderMcpServersSection.tsx
 #: src/renderer/components/thread/ThreadFollowUpEditor.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
@@ -13800,6 +14804,10 @@ msgstr "已保存的端点"
 msgid "Saved font"
 msgstr "已保存的字体"
 
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Saved messages, including archived chats"
+msgstr "已保存的消息，包括已归档的聊天"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordRow.tsx
 msgid "Saved password actions"
 msgstr "已保存密码操作"
@@ -13888,7 +14896,6 @@ msgstr "此桌面上的计划任务"
 #: src/renderer/views/MainView/parts/Sidebar/parts/sidebarShortcuts.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
-#: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "Schedules"
 msgstr "计划"
 
@@ -13908,6 +14915,10 @@ msgstr "科学与教育"
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Scope"
 msgstr "作用域"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Screenshot"
+msgstr "屏幕截图"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
@@ -13968,7 +14979,7 @@ msgstr "SDK 未安装"
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 #: src/renderer/views/SettingsOverlay/parts/SearchSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 msgid "Search"
 msgstr "搜索"
 
@@ -14125,6 +15136,10 @@ msgstr "搜索标题、消息和文件夹"
 msgid "Searching files…"
 msgstr "正在搜索文件…"
 
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Searching saved messages…"
+msgstr "正在搜索已保存的消息…"
+
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #~ msgid "Searching..."
 #~ msgstr "正在搜索..."
@@ -14140,6 +15155,10 @@ msgstr "次要文字"
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "seconds"
 msgstr "秒"
+
+#: src/renderer/components/plugins/pluginCategories.ts
+msgid "Security"
+msgstr "安全"
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #~ msgid "Security-focused directory with verified skill metadata."
@@ -14246,6 +15265,10 @@ msgstr "选择设备"
 msgid "Select model"
 msgstr "选择模型"
 
+#: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
+msgid "Select pages to show. Drag or use Alt + ↑ / ↓ to reorder."
+msgstr "选择要显示的页面。拖动或使用 Alt + ↑ / ↓ 调整顺序。"
+
 #: src/renderer/components/thread/ProjectSwitchMenu.tsx
 msgid "Select project"
 msgstr "选择项目"
@@ -14253,6 +15276,10 @@ msgstr "选择项目"
 #: src/renderer/components/common/Select.tsx
 msgid "Select…"
 msgstr "选择…"
+
+#: src/renderer/components/plugins/PluginServiceAccounts.tsx
+msgid "Selected"
+msgstr "已选择"
 
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #~ msgid "Selected days"
@@ -14267,6 +15294,7 @@ msgstr "选择…"
 msgid "Selected sidebar row"
 msgstr "侧栏选中行"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/components/thread/SideChat/SideChatBody.tsx
 msgid "Send"
 msgstr "发送"
@@ -14331,6 +15359,10 @@ msgstr "服务器离线——此对话可能不是最新。"
 msgid "Servers this plugin declares in mcp.json. Poracode passes them to every supported agent."
 msgstr "此插件在 mcp.json 中声明的服务器。Poracode 会将它们传递给所有受支持的代理。"
 
+#: src/renderer/components/plugins/PluginServiceAccounts.tsx
+msgid "Service accounts"
+msgstr "服务账户"
+
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/components/composer/ComposerSessionActionsMenu.tsx
 msgid "Session actions"
@@ -14339,6 +15371,10 @@ msgstr "会话操作"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Session actions are unavailable for this thread."
 msgstr "此线程的会话操作不可用。"
+
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+msgid "Session ID"
+msgstr "会话 ID"
 
 #: src/renderer/components/providers/devin/liveSessionControls.tsx
 #~ msgid "Session renamed."
@@ -14356,6 +15392,10 @@ msgstr "此线程的会话操作不可用。"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
 msgid "Set group color"
 msgstr "设置分组颜色"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Set location"
+msgstr "设置位置"
 
 #: src/renderer/components/providers/codex/index.tsx
 msgid "Set or view an experimental goal"
@@ -14457,7 +15497,7 @@ msgstr "共享的所有者 {0} 已丢失"
 #~ msgid "Shell arguments"
 #~ msgstr "Shell 参数"
 
-#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Shortcuts"
 msgstr "快捷键"
@@ -14509,6 +15549,10 @@ msgstr "显示书签栏"
 msgid "Show Bookmark Bar"
 msgstr "显示书签栏"
 
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualChart.tsx
+msgid "Show chart"
+msgstr "显示图表"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
 msgid "Show circles in sidebar"
@@ -14528,6 +15572,10 @@ msgstr "显示编辑器"
 msgid "Show context usage details"
 msgstr "显示上下文使用详细信息"
 
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualChart.tsx
+msgid "Show data table"
+msgstr "显示数据表"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Show device toolbar"
 msgstr "显示设备工具栏"
@@ -14544,6 +15592,10 @@ msgstr "在右侧面板显示停靠面板"
 #: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
 msgid "Show estimated cost"
 msgstr "显示预计费用"
+
+#: src/renderer/components/thread/ThreadImagesBubble.tsx
+msgid "Show files & artifacts"
+msgstr "显示文件与产物"
 
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
 msgid "Show font suggestions"
@@ -14576,7 +15628,9 @@ msgstr "显示较少"
 msgid "Show MCP servers from {providerLabel}"
 msgstr "显示 {providerLabel} 的 MCP 服务器"
 
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/EverythingSearchResults.tsx
+#: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentPromptSection.tsx
 msgid "Show more"
@@ -14728,6 +15782,7 @@ msgstr "侧边栏快捷方式"
 msgid "Sidekick"
 msgstr "辅助模型"
 
+#: src/renderer/components/plugins/PluginServiceAccounts.tsx
 #: src/renderer/components/providers/devin/profileSettings.tsx
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
@@ -14763,6 +15818,7 @@ msgid "Sign in with the agent CLI."
 msgstr "使用代理 CLI 登录。"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/plugins/PluginServiceAccounts.tsx
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
 msgid "Sign out"
 msgstr "退出登录"
@@ -14782,6 +15838,14 @@ msgstr "退出 {0}"
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Sign out of {serverName}"
 msgstr "退出 {serverName}"
+
+#: src/renderer/components/plugins/PluginServiceAccounts.tsx
+msgid "Sign-in expired"
+msgstr "登录已过期"
+
+#: src/renderer/components/plugins/PluginServiceAccounts.tsx
+msgid "Sign-in is unavailable for project plugins and services with plugin-managed authentication."
+msgstr "项目插件及由插件管理身份验证的服务无法在此登录。"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Sign-in methods"
@@ -14819,6 +15883,10 @@ msgstr "注销{env}。检测到的代理将在完成后刷新。"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Signing out. Detected agents will refresh when it finishes."
 msgstr "正在退出。检测到的代理将在完成后刷新。"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Simulators and emulators on this thread’s host"
+msgstr "此线程主机上的模拟器和仿真器"
 
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Single pass"
@@ -14872,6 +15940,7 @@ msgstr "缺少 SKILL.md。"
 msgid "SKILL.md is too large."
 msgstr "SKILL.md 过大。"
 
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/components/thread/ThreadCommandPanel.tsx
@@ -14880,8 +15949,8 @@ msgstr "SKILL.md 过大。"
 #: src/renderer/views/ProjectSettingsOverlay/parts/SkillsSection.tsx
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/SkillsSettings.tsx
 msgid "Skills"
 msgstr "技能"
@@ -14933,6 +16002,14 @@ msgstr "被 Crossagents 跳过：{0}"
 msgid "Slash commands"
 msgstr "斜杠命令"
 
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Small"
+msgstr "小"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Snapshots"
+msgstr "快照"
+
 #. placeholder {0}: index + 1
 #. placeholder {0}: winnerOrdinal + 1
 #: src/renderer/views/ExperimentView/parts/useExperimentJudgeRun.ts
@@ -14977,6 +16054,10 @@ msgstr "无法扫描某些提供商文件夹。已成功加载的技能仍会显
 msgid "Some threads are paused"
 msgstr "部分线程已暂停"
 
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualChart.tsx
+msgid "Some values are unavailable. Check the calculator inputs."
+msgstr "部分数值不可用。请检查计算器的输入。"
+
 #: src/mobile/QrScanner.tsx
 #~ msgid "Something went wrong starting the camera. Enter the endpoint and token below to pair instead."
 #~ msgstr "启动摄像头时出错。请改为在下方输入端点和令牌进行配对。"
@@ -15000,6 +16081,10 @@ msgstr "对市场技能排序"
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
 #~ msgid "Sort threads"
 #~ msgstr "对线程进行排序"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Source"
+msgstr "源代码"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Source branch {branch} moved before the worktree was created"
@@ -15139,6 +16224,10 @@ msgstr "从此待办事项开始一个新线程"
 #~ msgid "Start a new thread to put an agent to work from this device."
 #~ msgstr "新建一个线程，从此设备让代理开始工作。"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Start device"
+msgstr "启动设备"
+
 #: src/renderer/commands/composerCommands.ts
 msgid "Start dictation"
 msgstr "开始语音输入"
@@ -15214,6 +16303,7 @@ msgid "Started {targetLabel} thread"
 msgstr "开始{targetLabel}线程"
 
 #. Button label while the microphone test is starting
+#: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/RemoteAccessSidebarIcon.tsx
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
@@ -15358,6 +16448,10 @@ msgstr "停止语音输入"
 msgid "Stop when"
 msgstr "停止条件"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Stopped"
+msgstr "已停止"
+
 #: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 msgid "Stopping {label}…"
 msgstr "正在停止 {label}…"
@@ -15434,7 +16528,7 @@ msgstr "子代理"
 #~ msgid "Subagents enabled for this thread"
 #~ msgstr "已为此线程启用子代理"
 
-#: src/renderer/components/thread/ChatPane/parts/items/MessageReplyForm.tsx
+#: src/renderer/components/thread/ThreadMessageReplyPanel.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/QuestionRows.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
@@ -15460,6 +16554,10 @@ msgstr "提交 Git 表单"
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 msgid "Submit review"
 msgstr "提交审查"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Subscription bill"
+msgstr "订阅账单"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 #: src/renderer/views/SchedulesView/parts/scheduleRunStatus.ts
@@ -15641,6 +16739,7 @@ msgstr "同步中…"
 msgid "Syncs with Cloud"
 msgstr "与Cloud同步"
 
+#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/i18n/locales.ts
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "System"
@@ -15755,13 +16854,16 @@ msgstr "告诉目标提供商下一步该做什么..."
 #: src/renderer/components/plugins/pluginCopy.ts
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/thread/ThreadToolRail.tsx
+#: src/renderer/views/GlobalTerminalPanel/GlobalTerminalPanel.tsx
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
+#: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
-#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/modelSurfaceLabel.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
-#: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
 msgid "Terminal"
 msgstr "终端"
 
@@ -15836,6 +16938,10 @@ msgstr "终端选项卡"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Test microphone"
 msgstr "测试麦克风"
+
+#: src/renderer/components/plugins/pluginCategories.ts
+msgid "Testing"
+msgstr "测试"
 
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Text color"
@@ -16001,6 +17107,10 @@ msgstr "桌面自身的服务器在历史记录读取完成前重新连接了。
 msgid "The desktop's own server refused the change."
 msgstr "桌面自身的服务器拒绝了该更改。"
 
+#: src/renderer/components/devices/deviceClient.ts
+msgid "The device host is unavailable."
+msgstr "设备主机不可用。"
+
 #: src/renderer/state/remoteServers/environmentManagement.ts
 msgid "The environment changed on the host. Refresh and try again."
 msgstr "主机上的环境已更改。请刷新后重试。"
@@ -16114,6 +17224,14 @@ msgstr "无法读取列表。"
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the macOS user"
 msgstr "macOS 用户"
+
+#: src/renderer/commands/conversationSearchNavigation.ts
+msgid "The matched conversation could not be opened."
+msgstr "无法打开匹配的对话。"
+
+#: src/renderer/components/thread/ChatPane/ConversationSearchJump.tsx
+msgid "The matched message is no longer available."
+msgstr "匹配的消息已不可用。"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "The MCP server configuration is invalid or uses a reserved name."
@@ -16543,9 +17661,17 @@ msgstr "此文件夹为空。"
 msgid "This host"
 msgstr "此主机"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "This host does not support the device workspace."
+msgstr "此主机不支持设备工作区。"
+
 #: src/renderer/components/providers/HostUsageView.tsx
 msgid "This host is no longer configured."
 msgstr "此主机已不再配置。"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "This host provides snapshots. Live streaming is unavailable."
+msgstr "此主机提供快照，暂不支持实时流。"
 
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "This HTTPS page couldn't reach the desktop on plain HTTP. Allow local network access for this site and pair again, or continue on the desktop's own address."
@@ -16609,6 +17735,11 @@ msgstr "这将永久删除分支“{0}”。"
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "This plugin describes a skill it does not actually ship."
 msgstr "此插件描述了一个它实际并未提供的技能。"
+
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+msgid "This plugin is no longer listed in a registered source."
+msgstr "此插件已不再列于已注册的来源中。"
 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "This plugin's folder could not be read."
@@ -16740,6 +17871,10 @@ msgstr "此会话在磁盘上已更改。请刷新列表后重试。"
 msgid "This session is already being imported."
 msgstr "此会话正在导入中。"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "This shuts down the selected emulator and disconnects every viewer. Detach instead to leave it running."
+msgstr "这会关闭所选模拟器并断开所有查看者的连接。若要让其继续运行，请改为断开连接。"
+
 #: src/renderer/components/media/SvgFileView.tsx
 msgid "This SVG can't be displayed."
 msgstr "无法显示此 SVG。"
@@ -16784,6 +17919,10 @@ msgstr "此对话记录不在该代理的会话存储中。"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This version of Muse Code does not support session goals. Update Muse Code and try again."
 msgstr "此版本的 Muse Code 不支持会话目标。请更新 Muse Code 后重试。"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "This visual is too large. Showing source only."
+msgstr "此可视化内容过大。仅显示源代码。"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreePopover.tsx
 #~ msgid "This will permanently delete the thread and its worktree."
@@ -16831,6 +17970,11 @@ msgstr "线程操作"
 msgid "Thread already exists."
 msgstr "线程已存在。"
 
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
+msgid "Thread context"
+msgstr "线程上下文"
+
 #: src/renderer/components/thread/ThreadContextDock.tsx
 msgid "Thread context usage"
 msgstr "线程上下文使用"
@@ -16870,6 +18014,7 @@ msgstr "线程目标停靠栏"
 msgid "Thread images"
 msgstr "线程图片"
 
+#: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 msgid "Thread info"
 msgstr "线程信息"
@@ -16905,7 +18050,8 @@ msgstr "线程待办事项停靠栏"
 
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/composer/MentionPopover.tsx
-#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/CollapsedThreadRail.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Threads"
 msgstr "线程"
@@ -17002,6 +18148,10 @@ msgstr "切换收藏"
 msgid "Toggle Terminal"
 msgstr "切换终端"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Toggle text input"
+msgstr "切换文本输入"
+
 #: src/renderer/commands/registry.ts
 msgid "Toggle the file tree panel"
 msgstr "切换文件树面板"
@@ -17015,6 +18165,7 @@ msgid "Token usage unavailable for: {unavailableLabels}"
 msgstr "以下提供方的 token 用量不可用：{unavailableLabels}"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Tokens"
 msgstr "Token"
 
@@ -17022,6 +18173,10 @@ msgstr "Token"
 #: src/renderer/views/ProfileOverlay/parts/ModelUsage.tsx
 msgid "Tokens from {0}"
 msgstr "来自{0}的token"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Too many visuals in this message. Showing source only."
+msgstr "此消息中的可视化内容过多。仅显示源代码。"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Tool restrictions cannot be imported"
@@ -17143,6 +18298,10 @@ msgstr "类型"
 #~ msgid "Type a command"
 #~ msgstr "输入命令"
 
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Type at least two characters to search messages"
+msgstr "请输入至少两个字符以搜索消息"
+
 #: src/mobile/views/BrowserView.tsx
 #~ msgid "Type into the page"
 #~ msgstr "在页面中输入"
@@ -17150,6 +18309,10 @@ msgstr "类型"
 #: src/mobile/views/BrowserView.tsx
 #~ msgid "Type into the page (tap a field first)"
 #~ msgstr "在页面中输入（请先点按一个字段）"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Type on device"
+msgstr "在设备上输入"
 
 #: src/renderer/commands/CommandPalette.tsx
 msgid "Type to search files"
@@ -17256,6 +18419,10 @@ msgstr "无法加载差异。"
 msgid "Unable to load downloads."
 msgstr "无法加载下载内容。"
 
+#: src/renderer/components/providers/settings/ModelProviderManager.tsx
+msgid "Unable to load providers."
+msgstr "无法加载提供商。"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unable to load remote access pairing."
 msgstr "无法加载远程访问配对。"
@@ -17287,6 +18454,10 @@ msgstr "无法合并实验优胜者：{0}"
 msgid "Unable to open {0} login."
 msgstr "无法打开{0}登录。"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Unable to open device window."
+msgstr "无法打开设备窗口。"
+
 #: src/renderer/commands/registry.ts
 msgid "Unable to open file"
 msgstr "无法打开文件"
@@ -17295,6 +18466,7 @@ msgstr "无法打开文件"
 msgid "Unable to open the file"
 msgstr "无法打开文件"
 
+#: src/renderer/components/thread/ThreadImagesDock.tsx
 #: src/renderer/utils/gitHelpers.ts
 msgid "Unable to open the file in the editor"
 msgstr "无法在编辑器中打开文件"
@@ -17501,6 +18673,10 @@ msgstr "无法更新原生 MCP 配置。请刷新并检查配置后重试。"
 msgid "Unable to update network access."
 msgstr "无法更新网络访问。"
 
+#: src/renderer/components/providers/settings/ModelProviderManager.tsx
+msgid "Unable to update providers. Check the native configuration for overrides."
+msgstr "无法更新提供商。请检查原生配置中的覆盖设置。"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unable to update remote access."
 msgstr "无法更新远程访问。"
@@ -17530,7 +18706,11 @@ msgstr "无法验证桌面自身的服务器。"
 msgid "Unassigned"
 msgstr "未分配"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualBlocks.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualChart.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualTable.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
 msgid "Unavailable"
 msgstr "不可用"
@@ -17543,6 +18723,7 @@ msgstr "不可用 — 使用默认字体"
 msgid "Unavailable conversation"
 msgstr "不可用的对话"
 
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 msgid "Unavailable on this device"
@@ -17603,9 +18784,11 @@ msgstr "卸载"
 msgid "Uninstall {name}"
 msgstr "卸载 {name}"
 
+#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/components/thread/threadContextUsage.ts
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Unknown"
 msgstr "未知"
@@ -17676,6 +18859,14 @@ msgstr "取消固定"
 msgid "Unpin workflow"
 msgstr "取消固定工作流"
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Unpriced tokens"
+msgstr "价格未知的令牌"
+
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "Unpriced tokens have neither a provider-reported cost nor an API estimate."
+msgstr "未定价的 token 既没有提供商报告的费用，也没有 API 估算。"
+
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Unread"
 msgstr "未读"
@@ -17702,6 +18893,18 @@ msgstr "未暂存"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "Unsupported"
 msgstr "不支持"
+
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
+msgid "Unsupported marketplace requirements"
+msgstr "不支持的市场要求"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Unsupported plugin capability: {target}."
+msgstr "不支持的插件功能：{target}。"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Unsupported visual format. Showing source only."
+msgstr "不支持的可视化格式。仅显示源代码。"
 
 #: src/renderer/sidebar/ChatSidebarHeader.tsx
 msgid "Untitled"
@@ -17800,6 +19003,10 @@ msgstr "更新错误：{detail}"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Update method"
 msgstr "更新方法"
+
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
+msgid "Update plugin"
+msgstr "更新插件"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Update Poracode on your desktop to use port forwarding."
@@ -17937,6 +19144,10 @@ msgstr "升级环境所有者"
 msgid "Upgrade owner"
 msgstr "升级所有者"
 
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Upside down"
+msgstr "倒置"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
 msgid "URL"
@@ -17946,10 +19157,16 @@ msgstr "URL"
 msgid "URL is required."
 msgstr "URL 为必填项。"
 
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "URL or deep link"
+msgstr "URL 或深层链接"
+
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/thread/ThreadContextDock.tsx
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
 #: src/renderer/components/thread/ThreadUsageBubble.tsx
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
@@ -17994,6 +19211,10 @@ msgstr "用量未知"
 msgid "Usage: /goal edit <objective>"
 msgstr "用法：/goal edit <objective>"
 
+#: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
+msgid "USD per million tokens"
+msgstr "每百万令牌的美元价格"
+
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 msgid "Use #rgb or #rrggbb colors. Leave optional colors blank to derive them automatically."
 msgstr "使用 #rgb 或 #rrggbb 格式的颜色。可选颜色留空时将自动计算。"
@@ -18013,6 +19234,10 @@ msgstr "请输入 1 到 100 次的运行上限，或留空。"
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Use a time limit between 1 and 1440 minutes."
 msgstr "请设置 1 到 1440 分钟的时间限制。"
+
+#: src/renderer/components/plugins/PluginServiceAccounts.tsx
+msgid "Use account"
+msgstr "使用账户"
 
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 msgid "Use an existing folder"
@@ -18047,6 +19272,14 @@ msgstr "使用忽略文件"
 msgid "Use letters, numbers, dots, dashes, or underscores without spaces."
 msgstr "请使用字母、数字、点、连字符或下划线，且不要包含空格。"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Use live preview"
+msgstr "使用实时预览"
+
+#: src/renderer/components/providers/settings/ModelProviderEditor.tsx
+msgid "Use lowercase letters, numbers, and hyphens."
+msgstr "使用小写字母、数字和连字符。"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "Use one global folder, or nest worktrees inside each project at .poracode/worktrees."
@@ -18063,6 +19296,10 @@ msgstr "使用会话"
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Use sidebar background for the docked sidebar"
 msgstr "为固定侧栏使用侧栏背景"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Use snapshots"
+msgstr "使用快照"
 
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Use the {name} skill."
@@ -18170,6 +19407,7 @@ msgstr "值"
 #~ msgstr "验证 SSH 主机密钥"
 
 #. About page label: app version row
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
@@ -18210,6 +19448,10 @@ msgstr "在 GitHub 上查看所有版本"
 #: src/renderer/views/WhatsNewOverlay.tsx
 msgid "View full changelog"
 msgstr "查看完整变更日志"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "View only"
+msgstr "仅查看"
 
 #: src/renderer/components/skills/SkillViewModal.tsx
 msgid "View raw"
@@ -18270,6 +19512,14 @@ msgstr "可见{0}模型"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "Visible models"
 msgstr "可见模型"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Visual"
+msgstr "可视化"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualBlocks.tsx
+msgid "Visual sections"
+msgstr "可视化分区"
 
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Voice input is not available in this environment."
@@ -18360,6 +19610,11 @@ msgstr "正在等待批准"
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Waiting for background tasks"
 msgstr "正在等待后台任务"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+#: src/renderer/components/devices/LiveDevicePreview.tsx
+msgid "Waiting for the device…"
+msgstr "正在等待设备…"
 
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "Waiting for workflow to spawn agents…"
@@ -18541,7 +19796,7 @@ msgstr "运行的对话创建的位置。"
 msgid "Where the terminal panel appears."
 msgstr "终端面板出现的位置。"
 
-#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "While working"
 msgstr "工作时"
 
@@ -18661,6 +19916,10 @@ msgstr "添加到 .github/workflows 的工作流将显示在此处。"
 msgid "Working"
 msgstr "工作中"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
+msgid "Working + remote access"
+msgstr "工作时 + 远程访问"
+
 #: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
 msgid "Working for {elapsed}"
 msgstr "已工作 {elapsed}"
@@ -18669,12 +19928,14 @@ msgstr "已工作 {elapsed}"
 msgid "Working tree clean"
 msgstr "工作树干净"
 
+#: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentMessageList.tsx
 msgid "Working…"
 msgstr "工作…"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
-#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Workspace"
 msgstr "工作区"
@@ -18688,11 +19949,12 @@ msgid "Workspace view"
 msgstr "工作区视图"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorkspaceSwitcher.tsx
-#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Workspaces"
 msgstr "工作区"
 
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 msgid "Worktree"
 msgstr "工作树"
@@ -18756,7 +20018,7 @@ msgstr "工作树：{worktreeLabel}"
 #: src/renderer/views/ProjectSettingsOverlay/parts/ScriptsSection.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
-#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "Worktrees"
 msgstr "工作树"
@@ -18836,6 +20098,10 @@ msgstr "你的名字"
 #~ msgid "Your pick"
 #~ msgstr "你的选择"
 
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+msgid "Your plugins"
+msgstr "你的插件"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Your stashed local changes were re-applied."
 msgstr "您贮藏的本地更改已重新应用。"
@@ -18849,11 +20115,13 @@ msgid "Zoom"
 msgstr "缩放"
 
 #: src/renderer/components/composer/ImageLightbox.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Zoom in"
 msgstr "放大"
 
 #: src/renderer/components/composer/ImageLightbox.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Zoom out"
 msgstr "缩小"

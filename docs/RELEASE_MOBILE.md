@@ -12,8 +12,8 @@ native store binaries. Both native apps retain the store identifier
 
 Capacitor is fully removed — dependencies, scripts, configuration files, and
 both webview shells. It must not be reintroduced; the native projects are
-hand-maintained. `pnpm run dev:ios` and `pnpm run dev:android` invoke the native
-watch/reload runners; append `-- --once` for a one-shot build/install/launch.
+hand-maintained. `bun run dev:ios` and `bun run dev:android` invoke the native
+watch/reload runners; append `--once` for a one-shot build/install/launch.
 
 ## Supported platform baselines
 
@@ -58,8 +58,8 @@ retaining API 34 as the maintained install floor.
 
 `protocol/remote/v3/generated/manifest.json` is the canonical cross-client
 inventory, generated from the contract registry
-(`src/shared/remote/contract/`). It currently declares protocol version 13 with
-100 HTTP routes, 130 supervisor procedures, 9 client WebSocket messages, 11
+(`src/shared/remote/contract/`). It currently declares protocol version 14 with
+116 HTTP routes, 130 supervisor procedures, 9 client WebSocket messages, 11
 server WebSocket messages (including the admission-gated desktop-event
 stream), and 16 replayable event types. (The `remote/v3` path
 names the contract family; the protocol version inside the manifest is
@@ -134,7 +134,7 @@ SwiftUI/Compose editor/transport and usage-view adoption is planned, not
 established by regenerated codecs. Real playback/renewal and compact/native
 codec proof remains a serialized manual gate.
 
-The bundle contains roots for all 100 routes, 130 procedures, and 20 WebSocket
+The bundle contains roots for all 116 routes, 130 procedures, and 20 WebSocket
 message types, and embeds each route's registry scopes in its
 `RemoteRouteDescriptor`. The native parity ledger
 (`protocol/remote/v3/native-parity.json`, format version 2) records two
@@ -193,13 +193,13 @@ actually user-accessible.
 Check the committed contract before a release:
 
 ```bash
-pnpm install --frozen-lockfile --ignore-scripts
-pnpm run protocol:remote:v3:check
-pnpm exec vitest run --configLoader runner protocol/remote/v3
+bun install --frozen-lockfile --ignore-scripts && node node_modules/bun/install.js
+bun run protocol:remote:v3:check
+bun run vitest run --configLoader runner protocol/remote/v3
 git diff --exit-code -- protocol/remote/v3/generated
 ```
 
-Only run `pnpm run protocol:remote:v3:generate` after an intentional contract or
+Only run `bun run protocol:remote:v3:generate` after an intentional contract or
 generator change. Never maintain a second complete protocol definition by hand
 inside either native app.
 
@@ -287,7 +287,7 @@ The host-side native harness passed 96 of 96 tests across 34 files. The principa
 reproduction commands are:
 
 ```bash
-pnpm run native:e2e
+bun run native:e2e
 node scripts/native-e2e.mjs ios-ui
 
 xcodebuild build \

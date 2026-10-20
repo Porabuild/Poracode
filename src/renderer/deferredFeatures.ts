@@ -2,6 +2,10 @@ import { preloadable } from "@/renderer/utils/preloadable";
 import { isBrowserClientRuntime } from "@/renderer/clientRuntime";
 import { createDeferredPrewarmRunner } from "@/renderer/utils/deferredPrewarm";
 
+export const DeferredDeviceWorkspace = preloadable(() =>
+  import("@/renderer/components/devices/DeviceWorkspace").then((module) => module.DeviceWorkspace),
+);
+
 export const DeferredCommandPalette = preloadable(() =>
   import("@/renderer/commands/CommandPalette").then((module) => module.CommandPalette),
 );
@@ -63,6 +67,12 @@ export const DeferredBrowserHost = preloadable(() =>
 export const DeferredLoginTerminalOverlay = preloadable(() =>
   import("@/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay").then(
     (module) => module.LoginTerminalOverlay,
+  ),
+);
+
+export const DeferredGlobalTerminalPanel = preloadable(() =>
+  import("@/renderer/views/GlobalTerminalPanel/GlobalTerminalPanel").then(
+    (module) => module.GlobalTerminalPanel,
   ),
 );
 

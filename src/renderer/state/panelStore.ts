@@ -64,6 +64,7 @@ export type RightPanelTab =
   | "browser"
   | "usage"
   | "notes"
+  | "devices"
   | "ports"
   | "docks"
   | "subagent"
@@ -156,6 +157,8 @@ interface PanelState {
   browserPanelOpen: boolean;
   usagePanelOpen: boolean;
   notesPanelOpen: boolean;
+  deviceWorkspaceThreadId: string | null;
+  deviceWorkspaceDetached: boolean;
   portsPanelOpen: boolean;
   sideChatPanelOpen: boolean;
   /**
@@ -175,6 +178,8 @@ interface PanelState {
   settingsOpen: boolean;
   /** When the overlay is opened deep-linked to a section (e.g. "usage"); else null. */
   settingsSection: string | null;
+  /** Current page after a one-shot Settings deep link has been consumed. */
+  activeSettingsSection: string | null;
   /** Optional setting row to scroll to after opening a deep-linked section. */
   settingsAnchor: string | null;
   projectSettingsId: string | null;
@@ -212,6 +217,8 @@ interface PanelState {
   returnToThreadDocksPanel: (threadId: string) => void;
   setNotesPanelOpen: (v: boolean) => void;
   openNotesPanel: () => void;
+  setDeviceWorkspaceThreadId: (threadId: string | null) => void;
+  setDeviceWorkspaceDetached: (detached: boolean) => void;
   setPortsPanelOpen: (v: boolean) => void;
   openPortsPanel: () => void;
   setBrowserOverlayOpen: (v: boolean) => void;
@@ -221,6 +228,7 @@ interface PanelState {
   openSettings: () => void;
   openSettingsSection: (section: string, anchor?: string) => void;
   clearSettingsSection: () => void;
+  setActiveSettingsSection: (section: string) => void;
   closeSettings: () => void;
   openProjectSettings: (projectId: string) => void;
   closeProjectSettings: () => void;
@@ -347,6 +355,8 @@ export const usePanelStore = create<PanelState>()((set) => ({
   browserPanelOpen: false,
   usagePanelOpen: false,
   notesPanelOpen: false,
+  deviceWorkspaceThreadId: null,
+  deviceWorkspaceDetached: false,
   portsPanelOpen: false,
   sideChatPanelOpen: false,
   threadDocksPanelOpen: false,
@@ -359,6 +369,7 @@ export const usePanelStore = create<PanelState>()((set) => ({
   ),
   settingsOpen: false,
   settingsSection: null,
+  activeSettingsSection: null,
   settingsAnchor: null,
   projectSettingsId: null,
   threadSortMode: sanitizeThreadSortMode(initialPersisted?.threadSortMode),
@@ -607,6 +618,29 @@ export const usePanelStore = create<PanelState>()((set) => ({
       threadDocksReturnThreadId: threadId,
       rightPanelTab: "docks",
     }),
+  setDeviceWorkspaceThreadId: (threadId) =>
+    set((state) =>
+      state.deviceWorkspaceThreadId === threadId &&
+      !state.deviceWorkspaceDetached &&
+      (threadId === null || state.rightPanelTab === "devices")
+        ? {}
+        : {
+            deviceWorkspaceThreadId: threadId,
+            deviceWorkspaceDetached: false,
+            ...(threadId !== null
+              ? { rightPanelTab: "devices" as const }
+              : releaseClosedTab(state, "devices")),
+          },
+    ),
+  setDeviceWorkspaceDetached: (detached) =>
+    set((state) =>
+      state.deviceWorkspaceThreadId === null
+        ? {}
+        : {
+            deviceWorkspaceDetached: detached,
+            ...(!detached ? { rightPanelTab: "devices" as const } : {}),
+          },
+    ),
   setNotesPanelOpen: (v) =>
     set((state) =>
       state.notesPanelOpen === v
@@ -643,6 +677,7 @@ export const usePanelStore = create<PanelState>()((set) => ({
       return {
         settingsOpen: !compact,
         settingsSection: null,
+        activeSettingsSection: "general",
         settingsAnchor: null,
         ...(compact ? { mobileUtilityPage: "settings" as const } : {}),
       };
@@ -659,6 +694,7 @@ export const usePanelStore = create<PanelState>()((set) => ({
       return {
         settingsOpen: !compact,
         settingsSection: section,
+        activeSettingsSection: section,
         settingsAnchor: anchor ?? null,
         ...(compact ? { mobileUtilityPage: "settings" as const } : {}),
       };
@@ -668,6 +704,10 @@ export const usePanelStore = create<PanelState>()((set) => ({
       state.settingsSection === null && state.settingsAnchor === null
         ? {}
         : { settingsSection: null, settingsAnchor: null },
+    ),
+  setActiveSettingsSection: (section) =>
+    set((state) =>
+      state.activeSettingsSection === section ? {} : { activeSettingsSection: section },
     ),
   closeSettings: () =>
     set((state) => ({
@@ -736,6 +776,7 @@ export const usePanelStore = create<PanelState>()((set) => ({
         ...(isDocked("usage") ? {} : { usagePanelOpen: false }),
         ...(isDocked("notes") ? {} : { notesPanelOpen: false }),
         portsPanelOpen: false,
+        ...(state.deviceWorkspaceDetached ? {} : { deviceWorkspaceThreadId: null }),
         subAgentPanelOpen: false,
         sideChatPanelOpen: false,
         threadDocksPanelOpen: false,
@@ -753,6 +794,7 @@ export const usePanelStore = create<PanelState>()((set) => ({
         (next.usagePanelOpen === undefined || !state.usagePanelOpen) &&
         (next.notesPanelOpen === undefined || !state.notesPanelOpen) &&
         !state.portsPanelOpen &&
+        (state.deviceWorkspaceThreadId === null || state.deviceWorkspaceDetached) &&
         state.rightPanelSplit === null;
       return alreadyClosed ? {} : next;
     });

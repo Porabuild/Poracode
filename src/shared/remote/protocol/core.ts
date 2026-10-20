@@ -25,6 +25,9 @@ import { gitStatePatchSchema } from "../../gitState";
 // Optional background-task timing/progress and opaque Stop actions remain additive
 // within v14: old readers ignore them; old hosts omit them and keep tasks read-only.
 // Task kinds, session actions, persisted data and compatibility ranges are unchanged.
+// Optional usage.spent tokens/cost and ProfileTokenStats.costs are additive:
+// prior Zod and generated native readers strip unknown object fields. Old hosts
+// omit them; the Costs tab reports unavailable. No discriminator meaning changes.
 export const PORACODE_REMOTE_PROTOCOL_VERSION = 14;
 export const REMOTE_COMMAND_ID_HEADER = "x-poracode-command-id";
 
@@ -358,6 +361,20 @@ export const remoteExperimentsCapabilitySchema = z.object({
 export type RemoteExperimentsCapability = z.infer<typeof remoteExperimentsCapabilitySchema>;
 
 export const remoteEnvironmentCapabilitiesSchema = z.object({
+  /** Device workspace v1. Optional so pre-feature readers strip it safely. */
+  deviceWorkspace: z
+    .object({
+      versions: remoteCapabilityVersionsSchema,
+      livePreview: z
+        .object({
+          versions: remoteCapabilityVersionsSchema,
+          modes: z.array(z.string().min(1)).min(1).max(8),
+        })
+        .optional(),
+    })
+    .optional(),
+  /** Saved user messages and final assistant text, with bounded cs1 pages. */
+  conversationSearch: z.object({ versions: remoteCapabilityVersionsSchema }).optional(),
   /** Compact history rows with stored item details loaded on demand. */
   historyDetails: z.object({ versions: remoteCapabilityVersionsSchema }).optional(),
   /** Independent bounded replay cursors for one thread's canonical history. */

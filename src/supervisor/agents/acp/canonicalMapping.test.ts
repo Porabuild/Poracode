@@ -26,6 +26,126 @@ function note(update: SessionNotification["update"]): SessionNotification {
 }
 
 describe("mapAcpSessionUpdate", () => {
+  it("preserves standard MCP App resources from both opening and terminal updates", () => {
+    const content = [
+      {
+        type: "content",
+        content: {
+          type: "resource",
+          resource: {
+            uri: "ui://fixture/chart",
+            mimeType: "text/html;profile=mcp-app",
+            text: "<h1>Chart</h1>",
+          },
+        },
+      },
+    ];
+    const state = createAcpMapperState("app-thread");
+    for (const update of [
+      {
+        sessionUpdate: "tool_call",
+        toolCallId: "app-call",
+        title: "chart",
+        kind: "other",
+        status: "in_progress",
+        content,
+      },
+      { sessionUpdate: "tool_call_update", toolCallId: "app-call", status: "completed", content },
+    ]) {
+      const events = mapAcpSessionUpdate(note(update as SessionNotification["update"]), state);
+      expect(events).toContainEqual(
+        expect.objectContaining({
+          payload: expect.objectContaining({ result: { content: [content[0]!.content] } }),
+        }),
+      );
+    }
+  });
+
+  it("preserves an MCP App rawOutput on an already completed opening notification", () => {
+    const rawOutput = {
+      content: [
+        {
+          type: "resource",
+          resource: {
+            uri: "ui://fixture/chart",
+            mimeType: "text/html;profile=mcp-app",
+            text: "<h1>Chart</h1>",
+          },
+        },
+      ],
+      structuredContent: { value: 42 },
+      _meta: { selection: "region" },
+    };
+    const events = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call",
+        toolCallId: "chart",
+        title: "chart",
+        kind: "other",
+        status: "completed",
+        rawOutput,
+      } as SessionNotification["update"]),
+      createAcpMapperState("app-raw-thread"),
+    );
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        type: "item.completed",
+        payload: expect.objectContaining({ result: rawOutput, status: "success" }),
+      }),
+    );
+  });
+
+  it.each(["tool_call", "tool_call_update"] as const)(
+    "retains MCP structured data and metadata with separate resource content on %s",
+    (sessionUpdate) => {
+      const state = createAcpMapperState("app-data-thread");
+      if (sessionUpdate === "tool_call_update") {
+        mapAcpSessionUpdate(
+          note({
+            sessionUpdate: "tool_call",
+            toolCallId: "chart",
+            title: "chart",
+            kind: "other",
+            status: "in_progress",
+          } as SessionNotification["update"]),
+          state,
+        );
+      }
+      const resource = {
+        type: "resource",
+        resource: {
+          uri: "ui://fixture/chart",
+          mimeType: "text/html;profile=mcp-app",
+          text: "<h1>Chart</h1>",
+        },
+      };
+      const rawOutput = {
+        content: [{ type: "text", text: "Chart ready" }],
+        structuredContent: { value: 42 },
+        _meta: { selection: "region" },
+      };
+      const events = mapAcpSessionUpdate(
+        note({
+          sessionUpdate,
+          toolCallId: "chart",
+          title: "chart",
+          kind: "other",
+          status: "completed",
+          content: [{ type: "content", content: resource }],
+          rawOutput,
+        } as SessionNotification["update"]),
+        state,
+      );
+      expect(events).toContainEqual(
+        expect.objectContaining({
+          payload: expect.objectContaining({
+            result: { ...rawOutput, content: [...rawOutput.content, resource] },
+          }),
+        }),
+      );
+    },
+  );
+
   it("closes only the current content owner at a declared message boundary", () => {
     const state = createAcpMapperState("boundary-thread");
     state.openAssistantItemId = "root-before";

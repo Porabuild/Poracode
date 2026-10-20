@@ -2,10 +2,14 @@ import { memo, useContext, useMemo } from "react";
 import { Surface } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { assistantDisplayText } from "@/shared/assistantMessageText";
+import { splitInlineVisuals } from "@/shared/inlineVisuals";
+import { RUNTIME_STREAM_ELISION_NOTICE_PREFIX } from "@/shared/runtimeStreamRetentionPolicy";
+import { MAX_NATIVE_VISUALS_PER_MESSAGE } from "@/shared/nativeVisuals";
 import type { MessageItemPayload } from "@/shared/contracts";
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { useAppStore } from "@/renderer/state/appStore";
 import type { RuntimeStreamRetention } from "@/renderer/state/slices/runtimeStreamRetention";
+import { HYDRATED_STREAM_HEAD_CHARS } from "@/renderer/state/slices/runtimeStreamRetention";
 import {
   getRuntimeItemPayload,
   type RuntimeChatItem,
@@ -16,10 +20,12 @@ import { ChatReaderFollowContext } from "../../chatReaderFollow";
 import { CopyTextButton } from "./CopyTextButton";
 import { RemoteImageCard } from "./RemoteImageCard";
 import { imageViewSourceFromImageBlock } from "./imageViewSource";
+import { InlineVisual } from "./InlineVisual";
+import { NativeVisual } from "./NativeVisual";
 import { SmoothItemMarkdown } from "./ItemMarkdown";
 import { WindowedPlainText } from "./WindowedPlainText";
 import { useWindowedAssistantText } from "./useWindowedAssistantText";
-import { MessageReplyForm } from "./MessageReplyForm";
+import { isMessageReplyFormFallback } from "../../../messageReplyForms";
 
 interface AssistantMessageProps {
   threadId: string;
@@ -89,30 +95,21 @@ export const AssistantMessage = memo(function AssistantMessage({
   // past the pinned bottom edge.
   const reserveCopyButtonSpace = finalAnswerStatus !== "none" && rawText.length > 0;
   const textBody =
-    rawText.length > 0 ? (
+    rawText.length > 0 && !isMessageReplyFormFallback(item, rawText) ? (
       <AssistantTextBody
         key={isStreamText ? "stream" : "payload"}
         text={rawText}
         isStreaming={isStreaming}
+        threadId={threadId}
+        itemId={item.id}
+        isTurnActive={isTurnActive}
         {...(retention ? { retention } : {})}
       />
     ) : null;
   return (
     <Surface variant="transparent" className={chatMessageSurfaceClass}>
       <div className="min-w-0 leading-snug">
-        {payload?.replyForm && !item.parentItemId ? (
-          <MessageReplyForm
-            key={item.id}
-            threadId={threadId}
-            itemId={item.id}
-            form={payload.replyForm}
-            text={rawText}
-          >
-            {textBody}
-          </MessageReplyForm>
-        ) : (
-          textBody
-        )}
+        {textBody}
         {imageSources.length > 0 ? (
           <div className="mt-1 flex flex-col gap-2">
             {imageSources.map((source, index) => (
@@ -143,6 +140,68 @@ export const AssistantMessage = memo(function AssistantMessage({
 });
 
 function AssistantTextBody({
+  text,
+  isStreaming,
+  retention,
+  threadId,
+  itemId,
+  isTurnActive,
+}: {
+  text: string;
+  isStreaming: boolean;
+  retention?: RuntimeStreamRetention;
+  threadId: string;
+  itemId: string;
+  isTurnActive: boolean;
+}) {
+  // Retained head/tail text cannot prove a fenced source block is intact.
+  // Hydrated history has no local offsets, so also recognize its prefix notice.
+  const elided =
+    (retention?.elidedChars ?? 0) > 0 ||
+    text.slice(0, HYDRATED_STREAM_HEAD_CHARS).includes(RUNTIME_STREAM_ELISION_NOTICE_PREFIX);
+  const parts =
+    !elided && (text.includes("poracode-html-v") || text.includes("poracode-visual-v"))
+      ? splitInlineVisuals(text)
+      : undefined;
+  let nativeCount = 0;
+  if (parts?.some((part) => part.kind !== "markdown")) {
+    return parts.map((part, index) =>
+      part.kind === "visual" ? (
+        <InlineVisual
+          key={index}
+          html={part.html}
+          title={part.title}
+          complete={part.complete}
+          isStreaming={isStreaming}
+        />
+      ) : part.kind === "native" ? (
+        <NativeVisual
+          key={index}
+          source={part.source}
+          title={part.title}
+          version={part.version}
+          complete={part.complete && !isStreaming}
+          isStreaming={isStreaming && isTurnActive}
+          threadId={threadId}
+          itemId={itemId}
+          ordinal={nativeCount}
+          limited={nativeCount++ >= MAX_NATIVE_VISUALS_PER_MESSAGE}
+        />
+      ) : (
+        <AssistantProseTextBody key={index} text={part.text} isStreaming={isStreaming} />
+      ),
+    );
+  }
+  return (
+    <AssistantProseTextBody
+      text={text}
+      isStreaming={isStreaming}
+      {...(retention ? { retention } : {})}
+    />
+  );
+}
+
+function AssistantProseTextBody({
   text,
   isStreaming,
   retention,

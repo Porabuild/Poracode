@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useLingui } from "@lingui/react/macro";
-import type { DevTerminalTab } from "@/renderer/state/devTerminalStore";
+import type { TerminalTab } from "@/renderer/state/devTerminalStore";
 import { XTermSurface, type XTermSurfaceHandle } from "@/renderer/components/terminal/XTermSurface";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useThreadOutputStore } from "@/renderer/state/threadOutputStore";
@@ -32,14 +32,16 @@ function readSplitPercent(): number {
 }
 
 export function TerminalSurfaces(props: {
-  tabs: DevTerminalTab[];
+  tabs: TerminalTab[];
   selectedTabId: string;
-  activeTab: DevTerminalTab | undefined;
+  activeTab: TerminalTab | undefined;
   focusRequestId: number;
   markTabActive: (tabId: string) => void;
   updateTabTitle: (tabId: string, title: string) => void;
   onTerminalResize?: (terminalId: string, size: TerminalSize) => void;
+  onTerminalExited?: (terminalId: string, exitCode: number | null) => void;
   watchTerminal?: (terminalId: string, listener: TerminalFeedListener) => () => void;
+  visible?: boolean;
   mobile?: boolean;
   allowSplit?: boolean;
 }) {
@@ -52,7 +54,9 @@ export function TerminalSurfaces(props: {
     markTabActive,
     updateTabTitle,
     onTerminalResize,
+    onTerminalExited,
     watchTerminal,
+    visible = true,
   } = props;
   const fontSize = useSharedSettings((state) => state.terminalPanelFontSize);
   const [splitPercent, setSplitPercent] = useState(readSplitPercent);
@@ -87,7 +91,7 @@ export function TerminalSurfaces(props: {
   }, []);
 
   useEffect(() => {
-    if (!activeTabId || selectedTabId === "__add__") return;
+    if (!visible || !activeTabId || selectedTabId === "__add__") return;
     const requestId = focusRequestId;
     latestFocusRequestRef.current = requestId;
     let frame = 0;
@@ -116,6 +120,7 @@ export function TerminalSurfaces(props: {
     focusRequestId,
     props.allowSplit,
     selectedTabId,
+    visible,
   ]);
 
   function handleResizeStart(e: React.MouseEvent) {
@@ -168,15 +173,20 @@ export function TerminalSurfaces(props: {
   }
 
   function surfaceProps(terminalId: string, runActionId?: string) {
-    const mobileProps = props.mobile
-      ? {
-          preferDomRenderer: true,
-          resizeTerminalOnFit: true,
-          suppressTouchKeyboard: true,
-          themeBackgroundVar: "--background",
-          touchScrollEnabled: true,
-        }
-      : {};
+    const sharedProps = {
+      ...(props.mobile
+        ? {
+            preferDomRenderer: true,
+            resizeTerminalOnFit: true,
+            suppressTouchKeyboard: true,
+            themeBackgroundVar: "--background",
+            touchScrollEnabled: true,
+          }
+        : {}),
+      ...(onTerminalExited
+        ? { onExited: (exitCode: number | null) => onTerminalExited(terminalId, exitCode) }
+        : {}),
+    };
     if (watchTerminal) {
       return {
         outputSource: (listener: TerminalFeedListener) => watchTerminal(terminalId, listener),
@@ -184,14 +194,14 @@ export function TerminalSurfaces(props: {
           ? useThreadOutputStore.getState().readTail(terminalId, 100_000)
           : "",
         preferDomRenderer: true,
-        ...mobileProps,
+        ...sharedProps,
       };
     }
     return {
       ...(runActionId
         ? { initialScrollback: useThreadOutputStore.getState().readTail(terminalId, 100_000) }
         : {}),
-      ...mobileProps,
+      ...sharedProps,
     };
   }
 
@@ -241,6 +251,7 @@ export function TerminalSurfaces(props: {
                 }}
                 terminalId={tab.id}
                 baseFontSize={fontSize}
+                visible={visible && tab.id === selectedTabId && !tab.mainExited}
                 onActivity={() => markTabActive(tab.id)}
                 onBell={() => markTabActive(tab.id)}
                 onTitleChange={(title) => updateTabTitle(tab.id, title)}
@@ -279,6 +290,7 @@ export function TerminalSurfaces(props: {
                   }}
                   terminalId={tab.splitId!}
                   baseFontSize={fontSize}
+                  visible={visible && tab.id === selectedTabId}
                   onActivity={() => markTabActive(tab.id)}
                   onBell={() => markTabActive(tab.id)}
                   onTitleChange={(title) => updateTabTitle(tab.splitId!, title)}
@@ -314,6 +326,7 @@ export function TerminalSurfaces(props: {
             }}
             terminalId={tab.id}
             baseFontSize={fontSize}
+            visible={visible && tab.id === selectedTabId}
             onActivity={() => markTabActive(tab.id)}
             onBell={() => markTabActive(tab.id)}
             onTitleChange={(title) => updateTabTitle(tab.id, title)}

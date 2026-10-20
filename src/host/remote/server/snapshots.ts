@@ -1,4 +1,6 @@
 import { getSqlite } from "@/host/db/connection";
+import { DEVICE_WORKSPACE_VERSION } from "@/shared/deviceWorkspace";
+import { DEVICE_PREVIEW_VERSION } from "@/shared/devicePreview";
 import { readRuntimeSnapshot } from "@/host/db/runtimeReadSnapshot";
 import { assertLegacySnapshotWithinReservation } from "./legacyReadPrecheck";
 import type { ThreadRuntimeSummary } from "@/host/db/runtimeItems";
@@ -53,6 +55,7 @@ import { RemoteHttpError } from "../auth";
 import { mapFenceRefusal, mapPersistenceRefusal } from "./persistenceRefusals";
 import type { RemoteServerContext } from "./context";
 import { readRuntimeHistoryNoticeForRead } from "./runtimeHistoryNoticeGate";
+import { CONVERSATION_SEARCH_VERSION } from "@/shared/conversationSearch";
 import { withStableUpdatedAt } from "./stableUpdatedAt";
 import { projectRuntimeItemsImageRefs } from "./imageRefProjection";
 import { projectGitStateSnapshotForRemote } from "./gitStateProjection";
@@ -127,6 +130,17 @@ export function descriptor(ctx: RemoteServerContext): RemoteEnvironmentDescripto
       wsBaseUrl: info.wsBaseUrl,
     },
     capabilities: {
+      ...(ctx.options.deviceWorkspace
+        ? {
+            deviceWorkspace: {
+              versions: [DEVICE_WORKSPACE_VERSION],
+              ...(ctx.options.deviceWorkspace.hasLivePreview()
+                ? { livePreview: { versions: [DEVICE_PREVIEW_VERSION], modes: ["h264"] } }
+                : {}),
+            },
+          }
+        : {}),
+      conversationSearch: { versions: [CONVERSATION_SEARCH_VERSION] },
       historyDetails: { versions: [HISTORY_DETAILS_VERSION] },
       threadHistoryResume: { versions: [THREAD_HISTORY_RESUME_VERSION] },
       ...(ctx.options.environmentManagement && ctx.environmentProxy

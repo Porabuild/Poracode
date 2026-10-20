@@ -6,6 +6,51 @@ import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
 @Serializable
+data class ProcedureghGetWorkflowDefinitionRequest_30b422e470(
+    @SerialName("ghAccount") val ghAccount: RemoteField<ProcedurecloneRepoRequestU2DSourceU2DOptionU2D2U2DAccount_5646cf57ff> = RemoteField.Missing,
+    @SerialName("projectLocation") val projectLocation: ProcedurebeginMcpServerOauthRequestU2DProjectLocation_080f9cc154,
+    @SerialName("ref") val ref: RemoteField<String> = RemoteField.Missing,
+    @SerialName("workflowId") val workflowId: Long,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("ghAccount", "ProcedurecloneRepoRequestU2DSourceU2DOptionU2D2U2DAccount_5646cf57ff", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("projectLocation", "ProcedurebeginMcpServerOauthRequestU2DProjectLocation_080f9cc154", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("ref", "String", false, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("workflowId", "Long", true, false, 1.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable(with = ProcedureghGetWorkflowDefinitionResultU2DDefinitionU2DInputsU2DItemU2DDefaultValue_1994cc63e4.Serializer::class)
+sealed interface ProcedureghGetWorkflowDefinitionResultU2DDefinitionU2DInputsU2DItemU2DDefaultValue_1994cc63e4 {
+    data class Option1(val value: ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b) : ProcedureghGetWorkflowDefinitionResultU2DDefinitionU2DInputsU2DItemU2DDefaultValue_1994cc63e4
+    data class Option2(val value: Double) : ProcedureghGetWorkflowDefinitionResultU2DDefinitionU2DInputsU2DItemU2DDefaultValue_1994cc63e4
+    data class Option3(val value: Boolean) : ProcedureghGetWorkflowDefinitionResultU2DDefinitionU2DInputsU2DItemU2DDefaultValue_1994cc63e4
+    object Serializer : KSerializer<ProcedureghGetWorkflowDefinitionResultU2DDefinitionU2DInputsU2DItemU2DDefaultValue_1994cc63e4> {
+        override val descriptor: SerialDescriptor = buildClassSerialDescriptor("ProcedureghGetWorkflowDefinitionResultU2DDefinitionU2DInputsU2DItemU2DDefaultValue_1994cc63e4")
+        override fun deserialize(decoder: Decoder): ProcedureghGetWorkflowDefinitionResultU2DDefinitionU2DInputsU2DItemU2DDefaultValue_1994cc63e4 {
+            val jsonDecoder = decoder as? JsonDecoder ?: throw SerializationException("ProcedureghGetWorkflowDefinitionResultU2DDefinitionU2DInputsU2DItemU2DDefaultValue_1994cc63e4 supports JSON only")
+            val element = jsonDecoder.decodeJsonElement()
+            val matches = mutableListOf<RemoteUnionMatch<ProcedureghGetWorkflowDefinitionResultU2DDefinitionU2DInputsU2DItemU2DDefaultValue_1994cc63e4>>()
+            RemoteUnionCodec.tryOption(matches, 1, RemoteUnionCodec.matchesString(element)) { Option1(jsonDecoder.json.decodeFromJsonElement<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b>(element)) }
+            RemoteUnionCodec.tryOption(matches, 2, RemoteUnionCodec.matchesNumber(element, integer = false)) { Option2(jsonDecoder.json.decodeFromJsonElement<Double>(element)) }
+            RemoteUnionCodec.tryOption(matches, 3, RemoteUnionCodec.matchesBoolean(element)) { Option3(jsonDecoder.json.decodeFromJsonElement<Boolean>(element)) }
+            return RemoteUnionCodec.first("ProcedureghGetWorkflowDefinitionResultU2DDefinitionU2DInputsU2DItemU2DDefaultValue_1994cc63e4", matches)
+        }
+        override fun serialize(encoder: Encoder, value: ProcedureghGetWorkflowDefinitionResultU2DDefinitionU2DInputsU2DItemU2DDefaultValue_1994cc63e4) {
+            val jsonEncoder = encoder as? JsonEncoder ?: throw SerializationException("ProcedureghGetWorkflowDefinitionResultU2DDefinitionU2DInputsU2DItemU2DDefaultValue_1994cc63e4 supports JSON only")
+            val element = when (value) {
+                is Option1 -> jsonEncoder.json.encodeToJsonElement<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b>(value.value)
+                is Option2 -> jsonEncoder.json.encodeToJsonElement<Double>(value.value)
+                is Option3 -> jsonEncoder.json.encodeToJsonElement<Boolean>(value.value)
+            }
+            jsonEncoder.encodeJsonElement(element)
+        }
+    }
+}
+
+@Serializable
 enum class ProcedureghGetWorkflowDefinitionResultU2DDefinitionU2DInputsU2DItemU2DType_f450768848 {
     @SerialName("boolean") BOOLEAN,
     @SerialName("choice") CHOICE,
@@ -393,43 +438,4 @@ data class ProcedureghMergePrRequest_39d6579ca7(
             RemoteFieldDescriptor("projectLocation", "ProcedurebeginMcpServerOauthRequestU2DProjectLocation_080f9cc154", true, false, null, null, null, null, null, null, null, null, listOf()),
         ), listOf())
     }
-}
-
-@Serializable
-data class ProcedureghPostPrCommentRequest_189279e83c(
-    @SerialName("body") val body: String,
-    @SerialName("prNumber") val prNumber: Long,
-    @SerialName("projectLocation") val projectLocation: ProcedurebeginMcpServerOauthRequestU2DProjectLocation_080f9cc154,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("body", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("prNumber", "Long", true, false, 1.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("projectLocation", "ProcedurebeginMcpServerOauthRequestU2DProjectLocation_080f9cc154", true, false, null, null, null, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable
-data class ProcedureghRerunWorkflowRunRequest_4492692f82(
-    @SerialName("failedOnly") val failedOnly: RemoteField<Boolean> = RemoteField.Missing,
-    @SerialName("ghAccount") val ghAccount: RemoteField<ProcedurecloneRepoRequestU2DSourceU2DOptionU2D2U2DAccount_5646cf57ff> = RemoteField.Missing,
-    @SerialName("projectLocation") val projectLocation: ProcedurebeginMcpServerOauthRequestU2DProjectLocation_080f9cc154,
-    @SerialName("runId") val runId: Long,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("failedOnly", "Boolean", false, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("ghAccount", "ProcedurecloneRepoRequestU2DSourceU2DOptionU2D2U2DAccount_5646cf57ff", false, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("projectLocation", "ProcedurebeginMcpServerOauthRequestU2DProjectLocation_080f9cc154", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("runId", "Long", true, false, 1.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable
-enum class ProcedureghSubmitPrReviewRequestU2DDecision_c0551fbf08 {
-    @SerialName("approve") APPROVE,
-    @SerialName("request-changes") REQUESTU2DCHANGES,
-    @SerialName("comment") COMMENT,
 }

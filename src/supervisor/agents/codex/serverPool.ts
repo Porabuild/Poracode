@@ -4,7 +4,7 @@ import type { ProjectLocation, ResolvedMcpServer } from "@/shared/contracts";
 import { terminateChildProcessTree } from "@/shared/processTree";
 import { resolveNodeForDistro } from "../../wsl/runtime";
 import type { CreateStructuredSessionInput } from "../base";
-import { buildCodexMcp } from "../userMcp";
+import { buildCodexMcp } from "./mcpConfig";
 import { buildCodexAppServerCommand } from "./argv";
 import { CodexAppServerConnection } from "./appServerRpc";
 import { buildCodexMcpSkillConflictArgs } from "./mcpSkillConflicts";

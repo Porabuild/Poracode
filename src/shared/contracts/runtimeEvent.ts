@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { usageMoneySchema, usageTokenCategoriesSchema } from "./costHistory";
 
 /**
  * Canonical chat-runtime events.
@@ -116,8 +117,39 @@ export const messageReplyFormSchema = z.object({
 });
 export type MessageReplyForm = z.infer<typeof messageReplyFormSchema>;
 
+/**
+ * Provider-agnostic record of a user's reply to a structured user-input request
+ * (e.g. Claude's `AskUserQuestion`, Codex's user_input, ACP elicitation forms).
+ * Renders as a compact inline module showing each question, the chosen options
+ * with their descriptions, and any custom freeform answer the user typed.
+ */
+export const questionAnswerSelectionSchema = z.object({
+  label: z.string(),
+  description: z.string().optional(),
+});
+export type QuestionAnswerSelection = z.infer<typeof questionAnswerSelectionSchema>;
+
+export const questionAnswerEntrySchema = z.object({
+  header: z.string(),
+  question: z.string(),
+  selected: z.array(questionAnswerSelectionSchema),
+  customAnswer: z.string().optional(),
+});
+export type QuestionAnswerEntry = z.infer<typeof questionAnswerEntrySchema>;
+
+export const questionAnswerItemPayloadSchema = z.object({
+  questions: z.array(questionAnswerEntrySchema),
+});
+export type QuestionAnswerItemPayload = z.infer<typeof questionAnswerItemPayloadSchema>;
+
 export const messageItemPayloadSchema = z.object({
   content: z.array(canonicalContentBlockSchema),
+  /**
+   * Self-contained reply-form answers survive history paging. Optional and
+   * additive: previous messages remain valid, and older clients show content.
+   * No storage or wire version bump is needed.
+   */
+  questionAnswer: questionAnswerItemPayloadSchema.optional(),
   /**
    * Non-blocking questions answered through ordinary thread input. Additive:
    * old persisted messages omit this field; older clients retain the text
@@ -368,31 +400,6 @@ export const providerHandoffItemPayloadSchema = z.object({
 });
 export type ProviderHandoffItemPayload = z.infer<typeof providerHandoffItemPayloadSchema>;
 
-/**
- * Provider-agnostic record of a user's reply to a structured user-input request
- * (e.g. Claude's `AskUserQuestion`, Codex's user_input, ACP elicitation forms).
- * Renders as a compact inline module showing each question, the chosen options
- * with their descriptions, and any custom freeform answer the user typed.
- */
-export const questionAnswerSelectionSchema = z.object({
-  label: z.string(),
-  description: z.string().optional(),
-});
-export type QuestionAnswerSelection = z.infer<typeof questionAnswerSelectionSchema>;
-
-export const questionAnswerEntrySchema = z.object({
-  header: z.string(),
-  question: z.string(),
-  selected: z.array(questionAnswerSelectionSchema),
-  customAnswer: z.string().optional(),
-});
-export type QuestionAnswerEntry = z.infer<typeof questionAnswerEntrySchema>;
-
-export const questionAnswerItemPayloadSchema = z.object({
-  questions: z.array(questionAnswerEntrySchema),
-});
-export type QuestionAnswerItemPayload = z.infer<typeof questionAnswerItemPayloadSchema>;
-
 export const contextUsageBreakdownEntrySchema = z.object({
   id: z.string().min(1),
   label: z.string().min(1),
@@ -465,6 +472,10 @@ export const usageSpentSchema = z.object({
   turnId: z.string().optional(),
   occurredAt: z.number().int().nonnegative().optional(),
   model: z.string().optional(),
+  /** Consumption categories with the same counter semantics as counter. Older producers omit them. */
+  tokens: usageTokenCategoriesSchema.optional(),
+  /** Provider-reported cost, not proof of an invoice or subscription charge. */
+  cost: usageMoneySchema.optional(),
 });
 export type UsageSpent = z.infer<typeof usageSpentSchema>;
 

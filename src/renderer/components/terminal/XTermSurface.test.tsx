@@ -2,6 +2,8 @@ import { act, screen } from "@testing-library/react";
 import { THEME_SPECS } from "@/renderer/theme/themePresets";
 import * as terminalColors from "./terminalColors";
 import { createRef } from "react";
+import { WebglAddon } from "@xterm/addon-webgl";
+import { ImageAddon } from "@xterm/addon-image";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { resizeTerminalPayloadSchema } from "@/shared/contracts";
@@ -613,6 +615,65 @@ describe("XTermSurface", () => {
     });
   });
 
+  it("releases the hidden GPU renderer without resetting the terminal or image parser", async () => {
+    const { rerender, unmount } = render(<XTermSurface terminalId="test-1" />);
+    await flushFrame();
+    const instance = terminal();
+    const firstRenderer = instance.loadAddon.mock.calls
+      .map(([addon]) => addon)
+      .find((addon): addon is WebglAddon => addon instanceof WebglAddon);
+    expect(firstRenderer).toBeDefined();
+    instance.write.mockClear();
+
+    rerender(<XTermSurface terminalId="test-1" visible={false} />);
+    expect(firstRenderer?.dispose).toHaveBeenCalledOnce();
+    expect(instance.dispose).not.toHaveBeenCalled();
+    expect(instance.reset).not.toHaveBeenCalled();
+
+    act(() =>
+      emitEvent({
+        type: "thread-output",
+        threadId: "test-1",
+        data: "hidden output",
+        outputLength: 13,
+        terminalInstanceId: "test-generation",
+      }),
+    );
+    expect(instance.write).toHaveBeenCalledWith("hidden output");
+
+    rerender(<XTermSurface terminalId="test-1" visible />);
+    const renderers = instance.loadAddon.mock.calls
+      .map(([addon]) => addon)
+      .filter((addon): addon is WebglAddon => addon instanceof WebglAddon);
+    expect(renderers).toHaveLength(2);
+    expect(renderers[1]?.dispose).not.toHaveBeenCalled();
+    expect(
+      instance.loadAddon.mock.calls.filter(([addon]) => addon instanceof ImageAddon),
+    ).toHaveLength(1);
+    unmount();
+    expect(renderers[1]?.dispose).toHaveBeenCalledOnce();
+  });
+
+  it("keeps the DOM fallback after context loss across visibility changes", () => {
+    const { rerender } = render(<XTermSurface terminalId="test-1" />);
+    const instance = terminal();
+    const renderer = instance.loadAddon.mock.calls
+      .map(([addon]) => addon)
+      .find((addon): addon is WebglAddon => addon instanceof WebglAddon);
+    expect(renderer).toBeDefined();
+    act(() => {
+      vi.mocked(renderer!.onContextLoss).mock.calls[0]?.[0]();
+    });
+    expect(renderer?.dispose).toHaveBeenCalledOnce();
+
+    rerender(<XTermSurface terminalId="test-1" visible={false} />);
+    rerender(<XTermSurface terminalId="test-1" visible />);
+    expect(
+      instance.loadAddon.mock.calls.filter(([addon]) => addon instanceof WebglAddon),
+    ).toHaveLength(1);
+    expect(instance.dispose).not.toHaveBeenCalled();
+  });
+
   it("disposes terminal and unsubscribes on unmount", () => {
     const { unmount } = render(<XTermSurface terminalId="test-1" />);
     const t = terminal();
@@ -642,6 +703,10 @@ describe("XTermSurface", () => {
     await flushFrame();
     expect(terminal()).toBe(first);
     expect(first.dispose).not.toHaveBeenCalled();
+    const firstRenderer = first.loadAddon.mock.calls
+      .map(([addon]) => addon)
+      .find((addon): addon is WebglAddon => addon instanceof WebglAddon);
+    expect(firstRenderer?.dispose).toHaveBeenCalledOnce();
     expect(state.eventListeners).toHaveLength(1);
     expect(state.bridge.resizeTerminal).not.toHaveBeenCalled();
     act(() =>
@@ -661,6 +726,12 @@ describe("XTermSurface", () => {
     await flushFrame();
     expect(terminal()).toBe(first);
     expect(first.open).not.toHaveBeenCalled();
+    expect(
+      first.loadAddon.mock.calls.filter(([addon]) => addon instanceof WebglAddon),
+    ).toHaveLength(2);
+    expect(
+      first.loadAddon.mock.calls.filter(([addon]) => addon instanceof ImageAddon),
+    ).toHaveLength(1);
     expect(state.bridge.readTerminalScrollback).not.toHaveBeenCalled();
     expect(state.eventListeners).toHaveLength(1);
     await act(async () => {
@@ -1226,6 +1297,65 @@ describe("XTermSurface", () => {
 
     expect(state.bridge.readTerminalScrollback).not.toHaveBeenCalled();
     expect(state.writeLog).toEqual([]);
+  });
+
+  it("writes the first live chunks immediately while awaiting shell startup", () => {
+    let listener: TerminalFeedListener | undefined;
+    render(
+      <XTermSurface
+        terminalId="test-1"
+        awaitingStart
+        initialScrollback=""
+        outputSource={(next) => {
+          listener = next;
+          return () => undefined;
+        }}
+      />,
+    );
+    expect(screen.getByRole("status")).toHaveTextContent("Loading terminal…");
+
+    act(() => listener?.onOutput("first chunk"));
+    expect(state.writeLog.map((entry) => entry.data)).toEqual(["first chunk"]);
+    expect(screen.queryByRole("status")).toBeNull();
+
+    act(() => listener?.onOutput("second chunk"));
+    expect(state.writeLog.map((entry) => entry.data)).toEqual(["first chunk", "second chunk"]);
+    expect(state.bridge.readTerminalScrollback).not.toHaveBeenCalled();
+  });
+
+  it("treats an uncreated shell as loading while preserving real access failures", async () => {
+    let listener: TerminalFeedListener | undefined;
+    render(
+      <XTermSurface
+        terminalId="test-1"
+        awaitingStart
+        initialScrollback=""
+        outputSource={(next) => {
+          listener = next;
+          return () => undefined;
+        }}
+      />,
+    );
+    await flushFrame();
+    expect(screen.getByRole("status")).toHaveTextContent("Loading terminal…");
+    act(() => listener?.onWatchError?.({ status: "error", code: "not-found", retryable: false }));
+    expect(screen.getByRole("status")).toHaveTextContent("Loading terminal…");
+    act(() => listener?.onWatchError?.({ status: "error", code: "forbidden", retryable: false }));
+    expect(screen.getByRole("status")).toHaveTextContent("Terminal access denied.");
+    act(() =>
+      listener?.onSnapshot?.({
+        status: "ready",
+        generation: "new",
+        fromCursor: 0,
+        toCursor: 0,
+        data: "",
+        processState: "running",
+        terminalSize: null,
+      }),
+    );
+    expect(screen.queryByRole("status")).toBeNull();
+    act(() => listener?.onWatchError?.({ status: "error", code: "not-found", retryable: false }));
+    expect(screen.getByRole("status")).toHaveTextContent("Terminal output is unavailable.");
   });
 
   it("shows watch failures and clears the status when the stream recovers", async () => {

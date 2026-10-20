@@ -78,9 +78,11 @@ describe("useRightPanelThreadLock", () => {
       gitReviewAsPanel: true,
       filesPanelContext: null,
       rightPanelTab: "git",
+      deviceWorkspaceThreadId: null,
     });
     useDevTerminalStore.setState({
       isOpen: false,
+      source: "project",
       explicitlyOpened: false,
       activeProjectId: null,
       activeWorktreePath: null,
@@ -103,6 +105,22 @@ describe("useRightPanelThreadLock", () => {
       worktreePath: threadB.worktreePath,
     });
     expect(usePanelStore.getState().rightPanelTab).toBe("git");
+  });
+
+  it("replaces the ephemeral device target only when its tab follows the focused thread", () => {
+    usePanelStore.getState().setDeviceWorkspaceThreadId("thread-a");
+    focusThread("thread-b");
+    syncRightPanelTabToFocusedThread("notes");
+    expect(usePanelStore.getState().deviceWorkspaceThreadId).toBe("thread-a");
+    usePanelStore.setState({ rightPanelFollowsThread: false });
+    syncRightPanelTabToFocusedThread("devices");
+    expect(usePanelStore.getState().deviceWorkspaceThreadId).toBe("thread-a");
+    usePanelStore.setState({ rightPanelFollowsThread: true });
+    syncRightPanelTabToFocusedThread("devices");
+    expect(usePanelStore.getState().deviceWorkspaceThreadId).toBe("thread-b");
+    usePanelStore.getState().setDeviceWorkspaceThreadId(null);
+    syncRightPanelTabToFocusedThread("devices");
+    expect(usePanelStore.getState().deviceWorkspaceThreadId).toBeNull();
   });
 
   it("does not re-scope git while another right-panel tab is active", () => {
@@ -352,6 +370,35 @@ describe("useRightPanelThreadLock", () => {
     focusThread("thread-a");
     rerender();
 
+    expect(result.current.rightPanelOpen).toBe(true);
+  });
+
+  it("keeps the global terminal visible across thread and Home navigation", () => {
+    usePanelStore.setState({ gitReviewContext: null, gitReviewAsPanel: false });
+    useDevTerminalStore.setState({
+      activeProjectId: "project-a",
+      tabs: [terminalTabA, terminalTabBWorktree],
+      activeTabId: terminalTabA.id,
+    });
+    useDevTerminalStore.getState().openGlobalPanel();
+    const { result, rerender } = renderHook(() => {
+      useRightPanelThreadLock();
+      return usePanelVisibility();
+    });
+
+    focusThread("thread-b");
+    syncRightPanelTabToFocusedThread("terminal");
+    rerender();
+    expect(result.current.rightPanelOpen).toBe(true);
+    expect(useDevTerminalStore.getState()).toMatchObject({
+      source: "global",
+      activeProjectId: "project-a",
+      activeWorktreePath: null,
+      activeTabId: terminalTabA.id,
+    });
+
+    useAppStore.setState({ view: { kind: "home" }, focusedPaneId: null });
+    rerender();
     expect(result.current.rightPanelOpen).toBe(true);
   });
 });

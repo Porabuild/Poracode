@@ -36,6 +36,10 @@
       "types": "./src/formatters.ts",
       "default": "./src/formatters.ts"
     },
+    "./historical-pricing": {
+      "types": "./src/historicalPricing.ts",
+      "default": "./src/historicalPricing.ts"
+    },
     "./providers": {
       "types": "./src/providers.ts",
       "default": "./src/providers.ts"
@@ -51,5 +55,5 @@
   "dependencies": {
     "zod": "^4.5.4"
   },
-  "packageManager": "pnpm@12.3.4"
+  "packageManager": "bun@1.4.3-canary.20261017.1"
 }

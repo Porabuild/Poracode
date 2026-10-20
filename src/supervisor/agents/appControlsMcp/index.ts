@@ -1,6 +1,7 @@
 import type { ProjectLocation } from "@/shared/contracts";
 import { encodeThreadQuery, type McpThreadIdentity } from "@/shared/browserMcpThread";
 import type { WslHostAccessResolver } from "@/supervisor/wsl/hostAccess";
+import { withDeviceProof } from "./deviceProof";
 
 export type AppControlsMcpLocation =
   | ProjectLocation
@@ -24,7 +25,10 @@ export function resolveAppControlsMcpHttpConfig(
   const url = process.env[APP_CONTROLS_MCP_URL_ENV];
   const token = process.env[APP_CONTROLS_MCP_TOKEN_ENV];
   if (!url || !token || location.kind === "wsl") return null;
-  return createConfig(encodeThreadQuery(`${url.replace(/\/$/u, "")}/mcp`, identity), token);
+  return createConfig(
+    encodeThreadQuery(`${url.replace(/\/$/u, "")}/mcp`, withDeviceProof(identity)),
+    token,
+  );
 }
 
 export async function resolveAppControlsMcpHttpConfigForLaunch(
@@ -40,7 +44,7 @@ export async function resolveAppControlsMcpHttpConfigForLaunch(
   if (!url || !token || !hostAccess) return undefined;
   const access = await hostAccess.resolveHostAccess(location.distro);
   if (!access) return undefined;
-  const nativeUrl = encodeThreadQuery(`${url.replace(/\/$/u, "")}/mcp`, identity);
+  const nativeUrl = encodeThreadQuery(`${url.replace(/\/$/u, "")}/mcp`, withDeviceProof(identity));
   if (access.kind === "loopback") return createConfig(nativeUrl, token);
   const parsed = new URL(nativeUrl);
   parsed.hostname = access.ip;

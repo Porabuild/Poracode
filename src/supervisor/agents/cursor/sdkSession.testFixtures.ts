@@ -112,7 +112,7 @@ export class FakeWorker {
           ],
         },
       ],
-      sdkVersion: "1.0.37",
+      sdkVersion: "1.0.38",
       source: "configured" as const,
     }),
   );

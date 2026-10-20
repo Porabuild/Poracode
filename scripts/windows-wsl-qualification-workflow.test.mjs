@@ -13,7 +13,7 @@ const WORKFLOW_PATH = new URL(
 // the pinned SHA is the pin.
 const PINNED_ACTIONS = {
   "actions/checkout": "actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10",
-  "pnpm/action-setup": "pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271",
+  "./.github/actions/setup-bun": "./.github/actions/setup-bun",
   "actions/setup-node": "actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38",
   "actions/upload-artifact": "actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02",
 };

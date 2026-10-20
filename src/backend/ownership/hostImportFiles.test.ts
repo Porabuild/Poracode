@@ -37,6 +37,14 @@ function seedPromotionSource(): string {
   writeFileSync(join(source, "userData", "Code Cache", "js"), "code-cache");
   mkdirSync(join(source, "userData", "GPUCache"), { recursive: true });
   writeFileSync(join(source, "userData", "GPUCache", "data_1"), "gpu");
+  // Newer Electron keeps live Dawn shader-cache SQLite databases here.
+  mkdirSync(join(source, "userData", "GPUPersistentCache", "DawnGraphiteCache", "hash"), {
+    recursive: true,
+  });
+  writeFileSync(
+    join(source, "userData", "GPUPersistentCache", "DawnGraphiteCache", "hash", "cache.db-wal"),
+    "dawn-wal",
+  );
   mkdirSync(join(source, "userData", "Service Worker", "ScriptCache"), { recursive: true });
   writeFileSync(join(source, "userData", "Service Worker", "ScriptCache", "index"), "sw");
   mkdirSync(join(source, "userData", "Partitions", "p1", "Cache"), { recursive: true });
@@ -76,6 +84,8 @@ describe("inventoryImportFiles excludeChromiumCaches", () => {
     expect(paths).not.toContain("userData/Cache/data_0");
     expect(paths).not.toContain("userData/Code Cache/js");
     expect(paths).not.toContain("userData/GPUCache/data_1");
+    expect(paths).not.toContain("userData/GPUPersistentCache");
+    expect(paths).not.toContain("userData/GPUPersistentCache/DawnGraphiteCache/hash/cache.db-wal");
     expect(paths).not.toContain("userData/Service Worker/ScriptCache/index");
     expect(paths).not.toContain("userData/Partitions/p1/Cache");
     expect(paths).not.toContain("userData/Partitions/p1/Cache/x");

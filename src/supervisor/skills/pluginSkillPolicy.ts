@@ -1,4 +1,4 @@
-import { posix } from "node:path";
+import { join, posix } from "node:path";
 import type {
   AgentCapability,
   InstalledPlugins,
@@ -13,7 +13,7 @@ import {
   isPluginSkillSupportedForLaunch,
   resolveInstalledPluginState,
 } from "@/shared/plugins/catalog";
-import { relativePolicyPath } from "@/supervisor/plugins";
+import { isPathInsideRoot, relativePolicyPath } from "@/supervisor/plugins";
 import { getProjectFsPath, parseWslUncPath } from "@/shared/wsl";
 import { batchWslCommandsAsync, quotePosixShellArg } from "../agents/base";
 
@@ -133,6 +133,25 @@ interface MatchedSegment {
   relativePath: string;
 }
 
+function isDeclaredSkillDirectory(root: PluginSkillRoot, folder: string, path: string): boolean {
+  // Containment in both directions requires the same filesystem-resolved directory.
+  return root.plugin.skills.some(
+    (skill) =>
+      skill.folder === folder &&
+      isPathInsideRoot(skill.path, path) &&
+      isPathInsideRoot(path, skill.path),
+  );
+}
+
+function isDeclaredSkillFile(match: MatchedSegment): boolean {
+  const parts = match.relativePath.split(/[\\/]/u);
+  return (
+    parts.length === 2 &&
+    parts[1] === SKILL_FILE &&
+    isDeclaredSkillDirectory(match.root, parts[0]!, join(match.root.skillsRoot, parts[0]!))
+  );
+}
+
 export class PluginSkillPolicy {
   private readonly wslRootPaths = new Map<string, Promise<string | undefined>>();
   private readonly resolveHostPathForWsl: (
@@ -159,12 +178,22 @@ export class PluginSkillPolicy {
   ): SkillEntry[] {
     const roots = this.options.readPluginRoots(this.projectFsPath(context));
     if (roots.length === 0) return [...entries];
-    const byRoot = new Map(roots.map((root) => [normalizeRootKey(root.skillsRoot), root]));
+    const byRoot = new Map<string, PluginSkillRoot[]>();
+    for (const root of roots) {
+      const key = normalizeRootKey(root.skillsRoot);
+      const group = byRoot.get(key) ?? [];
+      group.push(root);
+      byRoot.set(key, group);
+    }
     const installedPlugins = this.options.readInstalledPlugins();
 
     return entries.flatMap((skill) => {
-      const root = byRoot.get(normalizeRootKey(skill.rootPath));
-      if (!root) return [skill];
+      const candidates = byRoot.get(normalizeRootKey(skill.rootPath));
+      if (!candidates) return [skill];
+      const root = candidates.find((candidate) =>
+        isDeclaredSkillDirectory(candidate, skill.folderName, skill.absolutePath),
+      );
+      if (!root) return [];
       const { plugin } = root;
       const state = resolveInstalledPluginState(plugin, installedPlugins);
       if (!state) return [];
@@ -270,13 +299,19 @@ export class PluginSkillPolicy {
             matched.set(segment, hostMatch);
             return;
           }
+          let containing: MatchedSegment | undefined;
           for (const { root, wslRoot } of wslRoots) {
             const relativePath = relativeWslPolicyPath(wslRoot, resolvedPath);
             if (relativePath) {
-              matched.set(segment, { root, relativePath });
-              return;
+              const match = { root, relativePath };
+              containing ??= match;
+              if (isDeclaredSkillFile(match)) {
+                matched.set(segment, match);
+                return;
+              }
             }
           }
+          if (containing) matched.set(segment, containing);
         });
       }),
     );
@@ -296,8 +331,7 @@ export class PluginSkillPolicy {
       const { plugin } = match.root;
       const state = resolveInstalledPluginState(plugin, installedPlugins);
       const allowed = Boolean(
-        parts.length === 2 &&
-        parts[1] === SKILL_FILE &&
+        isDeclaredSkillFile(match) &&
         state &&
         this.isSupported(plugin, context) &&
         isPluginSkillEnabled(plugin, state, folder),
@@ -325,11 +359,16 @@ export class PluginSkillPolicy {
     roots: readonly PluginSkillRoot[],
     path: string,
   ): MatchedSegment | undefined {
+    let containing: MatchedSegment | undefined;
     for (const root of roots) {
       const relativePath = relativePolicyPath(root.skillsRoot, path);
-      if (relativePath) return { root, relativePath };
+      if (relativePath) {
+        const match = { root, relativePath };
+        containing ??= match;
+        if (isDeclaredSkillFile(match)) return match;
+      }
     }
-    return undefined;
+    return containing;
   }
 
   /** True when a distro path lexically sits under one of the plugin skill roots. */
