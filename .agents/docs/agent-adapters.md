@@ -66,6 +66,10 @@ Existing extension points built on the same pattern:
   supervisor owns thread and plugin enablement, launch-time disables and tool
   restrictions; external servers keep their launch snapshot. Providers own
   applying the resolved set to their native runtime.
+- `supportsDeferredMcpAuthorization` opts into refreshing shared OAuth on MCP
+  connection rather than before launch. Qualify the provider's startup budget
+  and tool availability after delayed connection before enabling it; providers
+  without it retain eager authorization and their native connection deadlines.
 - Message payloads declare `turnIndependent: true` when a conversation stream
   publishes messages outside an agent turn. The renderer persists and renders
   them without reopening the agent's work timer. Providers own this
@@ -328,7 +332,7 @@ test that fails when a `detection.ts` has no registered factory. Items marked
   `registerComposerControls` (plan/work toggle + approval control), and the
   commit/title/conflict-resolver defaults if the provider should appear in
   "auto" utility-task selection.
-- A new or changed manifest label needs `pnpm i18n:extract` and translations in
+- A new or changed manifest label needs `bun run i18n:extract` and translations in
   every catalog ([i18n](i18n.md)).
 
 ### 4. Renderer native install registration
@@ -344,8 +348,8 @@ test that fails when a `detection.ts` has no registered factory. Items marked
 - `tests/integration/providers-lifecycle.integration.test.ts` — add a
   `PREFERRED_MODEL` entry, or use its detected-model fallback when no model is
   universally available (the test skips when the CLI is not installed).
-- Run `pnpm run typecheck`, `pnpm run lint`, targeted `pnpm exec vitest run`, and
-  `pnpm exec oxfmt --check <changed paths>`.
+- Run `bun run typecheck`, `bun run lint`, targeted `bun run vitest run`, and
+  `bun run cross-env npm_lifecycle_event=fmt bun fmt --check <changed paths>`.
 
 ### Capability-specific
 

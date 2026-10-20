@@ -64,6 +64,7 @@ describe("createDevinProfileAdapter", () => {
     const adapter = createDevinProfileAdapter(instance({ orgId: "org-1" }));
     expect(adapter.kind).toBe("devin:work");
     expect(adapter.label).toBe("Devin Work");
+    expect(adapter.supportsDeferredMcpAuthorization).toBe(true);
     // Terminal presentation never opens ACP, with or without a profile.
     expect(
       await adapter.createStructuredSession?.({
@@ -228,7 +229,10 @@ describe("createDevinProfileAdapter", () => {
   });
 
   it("applies cloud and agent-type choices to the ACP command only", async () => {
-    createDevinProfileAdapter(instance({ runtimeTarget: "cloud", agentType: "review" }));
+    const adapter = createDevinProfileAdapter(
+      instance({ runtimeTarget: "cloud", agentType: "review" }),
+    );
+    expect(adapter.supportsDeferredMcpAuthorization).toBe(false);
     // ACP args are built inside createStructuredSession; verify through the
     // exported argv builder contract instead of spawning a session here.
     const { buildDevinAcpArgs } = await import("./argv");

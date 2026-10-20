@@ -195,6 +195,29 @@ describe("component discovery", () => {
     expect(result.plugin?.skills.map((skill) => skill.folder)).toEqual(["alpha", "beta"]);
   });
 
+  it("preserves same-named skills from separate declared locations", async () => {
+    const dir = join(root, "multi-skills");
+    await mkdir(join(dir, ".claude-plugin"), { recursive: true });
+    await writeFile(
+      join(dir, ".claude-plugin", "plugin.json"),
+      JSON.stringify({
+        name: "multi-skills",
+        version: "1.0.0",
+        skills: ["./team-a", "./team-b"],
+      }),
+      "utf8",
+    );
+    for (const location of ["team-a", "team-b"]) {
+      await mkdir(join(dir, location, "review"), { recursive: true });
+      await writeFile(join(dir, location, "review", "SKILL.md"), skillBody("review"), "utf8");
+    }
+
+    const result = loadPluginFromDirectory(dir, "bundled");
+    expect(result.plugin).toBeDefined();
+    expect(result.plugin?.skills.map((skill) => skill.folder)).toEqual(["review", "review"]);
+    expect(new Set(result.plugin?.skills.map((skill) => skill.path)).size).toBe(2);
+  });
+
   it("skips a directory that has no SKILL.md without reporting an error", async () => {
     const dir = await writePackage("partial", {
       manifest: manifest("partial"),

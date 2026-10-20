@@ -150,7 +150,7 @@ describe("zero-client continuity drill (Gate 2.2 freeze matrix, native seam)", (
         $poracodeSettingsVersion?: number;
         guiChatFontSize?: number;
       };
-      expect(committed.$poracodeSettingsVersion).toBe(2);
+      expect(committed.$poracodeSettingsVersion).toBe(3);
       expect(committed.guiChatFontSize).toBe(defaultSharedSettings.guiChatFontSize + 1);
 
       // Still ready, still the SAME generation: continuity held across the

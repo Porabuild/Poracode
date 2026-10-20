@@ -134,7 +134,7 @@ function fixture(cached, failure) {
   };
 }
 
-test("pins the pristine source, maintained patch, result and versioned receipt", async () => {
+void test("pins the pristine source, maintained patch, result and versioned receipt", async () => {
   assert.equal(hash(await readFile(upstream)), DEVICE_HUB_NATIVE_UPSTREAM_SHA256);
   assert.equal(
     hash(await readFile(new URL("patches/expo-device-hub@0.15.3.patch", root))),
@@ -150,7 +150,7 @@ test("pins the pristine source, maintained patch, result and versioned receipt",
   );
 });
 
-test("staging refuses unexpected or already-patched upstream bytes before promotion", async () => {
+void test("staging refuses unexpected or already-patched upstream bytes before promotion", async () => {
   const scratch = await mkdtemp(join(tmpdir(), "poracode-native-patch-test-"));
   try {
     const fixtureSource = join(scratch, "toolchain");
@@ -190,7 +190,7 @@ for (const [name, cached] of [
   ["nonzero corrupt", Buffer.from("corrupt")],
   ["missing", undefined],
 ]) {
-  test(`${name} cache: exact validation precedes valid H264 startup and owned cleanup`, async () => {
+  void test(`${name} cache: exact validation precedes valid H264 startup and owned cleanup`, async () => {
     const f = fixture(cached);
     const session = await startScrcpy(
       { serial: "fixture-serial", signal: f.controller.signal },
@@ -214,7 +214,7 @@ for (const [name, cached] of [
 }
 
 for (const failure of ["push", "truncated", "hash", "working", "cancel"]) {
-  test(`${failure}: refuses startup and joins only owned temporary/working cleanup`, async () => {
+  void test(`${failure}: refuses startup and joins only owned temporary/working cleanup`, async () => {
     const cached = Buffer.from("preserved corrupt cache");
     const f = fixture(cached, failure);
     await assert.rejects(

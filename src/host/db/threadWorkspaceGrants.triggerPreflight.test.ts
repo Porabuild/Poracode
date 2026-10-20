@@ -1,11 +1,12 @@
 import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
-import type Database from "better-sqlite3";
+import Database from "better-sqlite3";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { closeDatabase, getSqlite, initDatabase } from "./connection";
+import { closeDatabase, initDatabase } from "./connection";
 import {
   assertRequiredDatabaseSchema,
   DATABASE_MIGRATIONS,
+  LATEST_SCHEMA_VERSION,
   repairSafeSchemaDrift,
   runDatabaseMigrations,
 } from "./migrations";
@@ -30,7 +31,7 @@ afterEach(() => {
   delete process.env.PORACODE_BETTER_SQLITE3_NATIVE_BINDING;
 });
 
-function fixture(version: 54 | 55 | 56 | 59) {
+function fixture(version: 54 | 55 | 56 | typeof LATEST_SCHEMA_VERSION) {
   const path = join(directory, "state.sqlite");
   const sqlite = createSchema53PayloadOriginDatabase(path);
   handles.push(sqlite);
@@ -118,14 +119,20 @@ describe("workspace custody trigger preflight", () => {
   it.each(["migrate", "validate"] as const)(
     "refuses an extra persistent trigger during latest %s startup",
     (schemaMode) => {
-      const { sqlite, path } = fixture(59);
+      const { sqlite, path } = fixture(LATEST_SCHEMA_VERSION);
       sqlite.exec("UPDATE threads SET archived = 1, archived_at = NULL WHERE id = 'thread-1'");
       seedUnresolved(sqlite);
       sqlite.exec(staleJournalCleanup);
       const before = evidence(sqlite);
       sqlite.close();
       expect(() => initDatabase(path, { schemaMode })).toThrow(/custody.*stale_journal_cleanup/);
-      expect(evidence(getSqlite())).toEqual(before);
+      const refused = new Database(path, {
+        ...(nativeBindingEnv ? { nativeBinding: nativeBindingEnv } : {}),
+        readonly: true,
+        fileMustExist: true,
+      });
+      handles.push(refused);
+      expect(evidence(refused)).toEqual(before);
     },
   );
 
@@ -136,9 +143,9 @@ describe("workspace custody trigger preflight", () => {
     [56, "threads"],
     [56, "PROJECTS"],
     [56, "Thread_Workspace_Grant_Operations"],
-    [59, "threads"],
-    [59, "PROJECTS"],
-    [59, "Thread_Workspace_Grant_Operations"],
+    [LATEST_SCHEMA_VERSION, "threads"],
+    [LATEST_SCHEMA_VERSION, "PROJECTS"],
+    [LATEST_SCHEMA_VERSION, "Thread_Workspace_Grant_Operations"],
   ] as const)("closes schema%s persistent trigger inventory on %s", (version, table) => {
     const { sqlite } = fixture(version);
     sqlite.exec(
@@ -146,7 +153,7 @@ describe("workspace custody trigger preflight", () => {
     );
     const before = evidence(sqlite);
     const check =
-      version === 59
+      version === LATEST_SCHEMA_VERSION
         ? assertRequiredDatabaseSchema
         : version === 56
           ? assertThreadWorkspaceGrantsSchema56
@@ -171,7 +178,7 @@ describe("workspace custody trigger preflight", () => {
   });
 
   it("permits TEMP fault injection and unrelated persistent triggers", () => {
-    const { sqlite } = fixture(59);
+    const { sqlite } = fixture(LATEST_SCHEMA_VERSION);
     sqlite.exec(`CREATE TEMP TRIGGER transient_failure BEFORE UPDATE ON thread_workspace_grant_operations
       WHEN NEW.state = 'committed' BEGIN SELECT RAISE(ABORT, 'transient failure'); END;
       CREATE TRIGGER unrelated_trigger AFTER UPDATE ON app_state BEGIN SELECT 1; END;`);

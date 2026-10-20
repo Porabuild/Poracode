@@ -12,6 +12,8 @@ import { readBridge } from "@/renderer/bridge";
 import { friendlyError } from "@/shared/messages";
 import type { SideChatBootstrap } from "@/shared/ipc/sideChat";
 import { ThreadComposer } from "../ThreadComposer";
+import { ComposerAddMenu } from "@/renderer/components/composer/ComposerAddMenu";
+import { isPlanModeControl } from "@/renderer/components/providers/composerControlBuilders";
 import {
   panelHeaderRowClass,
   panelHeaderIconButtonClass,
@@ -195,6 +197,14 @@ export function SideChatBody({
               void start(prompt);
             }}
             controls={controls}
+            afterControls={
+              <ComposerAddMenu
+                mcpServers={[]}
+                showFileOption={false}
+                onPickFiles={() => {}}
+                planControl={controls.find(isPlanModeControl)}
+              />
+            }
           />
         </div>
       )}

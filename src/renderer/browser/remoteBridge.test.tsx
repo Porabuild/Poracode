@@ -147,13 +147,13 @@ describe("remote bridge", () => {
       value: undefined,
     });
     installRemoteBridge();
-    vi.spyOn(HTMLInputElement.prototype, "click").mockImplementation(
-      function (this: HTMLInputElement) {
-        const file = new File(["hello"], "notes.md", { type: "text/markdown" });
-        Object.defineProperty(this, "files", { configurable: true, value: [file] });
-        this.dispatchEvent(new Event("change"));
-      },
-    );
+    vi.spyOn(HTMLInputElement.prototype, "click").mockImplementation(function (
+      this: HTMLInputElement,
+    ) {
+      const file = new File(["hello"], "notes.md", { type: "text/markdown" });
+      Object.defineProperty(this, "files", { configurable: true, value: [file] });
+      this.dispatchEvent(new Event("change"));
+    });
 
     await expect(window.poracode.pickFiles({ attachmentThreadId: "thread-1" })).resolves.toEqual([
       "C:\\attachments\\notes.md",

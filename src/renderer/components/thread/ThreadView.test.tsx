@@ -152,6 +152,68 @@ describe("ThreadView", () => {
     );
   });
 
+  it.each(["gui", "terminal"] as const)(
+    "accepts panel attachment drops only for GUI presentation (%s)",
+    (presentationMode) => {
+      const now = new Date().toISOString();
+      const { container } = renderThreadView({
+        thread: {
+          id: `thread-drop-${presentationMode}`,
+          projectId: "project-1",
+          title: "Attachment drop",
+          agentKind: "codex",
+          config: { model: "gpt-5.4" },
+          status: "idle",
+          attention: "none",
+          canResumeWithConfig: true,
+          archived: false,
+          done: false,
+          starred: false,
+          presentationMode,
+          createdAt: now,
+          updatedAt: now,
+        },
+        agentStatus: {
+          kind: "codex",
+          label: "Codex",
+          installed: true,
+          authState: "authenticated",
+          capabilities: {
+            models: [{ id: "gpt-5.4", label: "5.4" }],
+            efforts: ["low"],
+            modelEfforts: {},
+            modes: ["agent"],
+            approvalPolicies: [{ id: "on-request", label: "On Request" }],
+            sandboxModes: [{ id: "read-only", label: "Read Only" }],
+            supportsResume: true,
+            supportsDirectInput: true,
+            liveInputMode: presentationMode === "gui" ? "server" : "terminal",
+            presentationMode,
+            settingDefs: [],
+          },
+        },
+        projectLocation: { kind: "windows", path: "C:\\repo" },
+      });
+      const panel = container.querySelector("[data-poracode-thread-pane]")!;
+      const dataTransfer = {
+        types: ["application/poracode-composer-file"],
+        files: [],
+        getData: () => JSON.stringify({ path: "C:\\repo\\notes.txt", type: "file" }),
+      };
+
+      fireEvent.dragEnter(panel, { dataTransfer });
+      expect(screen.queryByText("Drop here to attach") !== null).toBe(presentationMode === "gui");
+      fireEvent.drop(panel, { dataTransfer });
+      expect(screen.queryByText("notes.txt") !== null).toBe(presentationMode === "gui");
+      expect(screen.queryByText("Drop here to attach")).not.toBeInTheDocument();
+
+      if (presentationMode === "terminal") {
+        fireEvent.drop(screen.getByRole("textbox"), { dataTransfer });
+      }
+      expect(screen.getByText("notes.txt")).toBeInTheDocument();
+    },
+  );
+
   it("does not render MCP controls in active-thread headers", () => {
     renderThreadView({
       thread: {
@@ -1263,12 +1325,13 @@ describe("ThreadView", () => {
     expect(screen.getAllByText("Medium").length).toBeGreaterThan(0);
     expect(screen.queryByText("Normal")).not.toBeInTheDocument();
     expect(screen.getAllByLabelText("Fast").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Work").length).toBeGreaterThan(0);
+    expect(screen.queryByRole("button", { name: "Work" })).not.toBeInTheDocument();
     expect(screen.getAllByText("Default permissions").length).toBeGreaterThan(0);
     expect(screen.queryByLabelText("Collapse composer")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Show composer")).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Work" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add attachment or capability" }));
+    fireEvent.click(screen.getByRole("menuitemcheckbox", { name: "Plan" }));
     expect(runtimeActions.changeThreadConfig).toHaveBeenCalledWith(
       "thread-gui-codex",
       expect.objectContaining({
@@ -2117,6 +2180,55 @@ describe("ThreadView", () => {
     expect(second).toHaveAttribute("aria-pressed", "true");
     expect(screen.queryByRole("button", { name: "Browser" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Usage" })).toBeNull();
+  });
+
+  it("opens Thread info when its previous return destination belongs to another thread", () => {
+    const thread: Thread = {
+      id: "thread-info-target",
+      projectId: "project-1",
+      title: "Thread info",
+      agentKind: "codex",
+      config: { model: "gpt-5.4" },
+      status: "idle",
+      attention: "none",
+      canResumeWithConfig: true,
+      archived: false,
+      done: false,
+      starred: false,
+      createdAt: "2026-10-19",
+      updatedAt: "2026-10-19",
+    };
+    closeAllPanels();
+    useAppStore.setState({
+      threads: [thread],
+      view: { kind: "thread", panes: [thread.id] },
+      focusedPaneId: thread.id,
+    });
+    usePanelStore.setState({
+      threadDocksPanelOpen: true,
+      rightPanelTab: "docks",
+      threadDocksReturnThreadId: "another-thread",
+      threadDocksFocus: "agents",
+    });
+    renderThreadView({
+      thread,
+      agentStatus: undefined,
+      projectLocation: { kind: "windows", path: "C:/repo" },
+      paneCount: 2,
+    });
+    const header = screen
+      .getByRole("button", { name: "Show thread tools" })
+      .closest("[data-poracode-thread-tool-rail]");
+    fireEvent.pointerEnter(header as HTMLElement);
+    const button = screen.getByRole("button", { name: "Thread info" });
+    expect(button).toHaveAttribute("aria-pressed", "false");
+    fireEvent.click(button);
+    expect(usePanelStore.getState()).toMatchObject({
+      threadDocksPanelOpen: true,
+      threadDocksFocus: null,
+      threadDocksReturnThreadId: null,
+      rightPanelTab: "docks",
+    });
   });
 
   it("hides base-checkout thread tools while a new worktree is provisioning", async () => {

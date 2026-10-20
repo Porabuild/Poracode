@@ -4,6 +4,7 @@ import type {
   AgentSlashCommand,
   ProjectLocation,
   PromptSegment,
+  QuestionAnswerItemPayload,
   SessionConfigOptions,
   SessionRef,
   TerminalSize,
@@ -33,6 +34,7 @@ export interface QueuedStructuredTurn {
   /** Original renderer segments used for the durable/optimistic user message. */
   displaySegments?: PromptSegment[];
   userMessageItemId?: string;
+  questionAnswer?: QuestionAnswerItemPayload;
   /** Inlined SKILL.md instructions for skills the provider can't load natively. */
   inlineInstructions?: string;
   /**

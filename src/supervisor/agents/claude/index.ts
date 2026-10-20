@@ -260,6 +260,7 @@ export function createClaudeAdapter(options: ClaudeAdapterOptions = {}): AgentAd
     kind,
     label,
     binary: claudeDetectionSpec.binary,
+    supportsDeferredMcpAuthorization: true,
     mcpRequiresStdioCwdProxy: true,
     sessionImport: createClaudeSessionImport(
       options.configDir

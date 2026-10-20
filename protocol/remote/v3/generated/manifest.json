@@ -74,6 +74,23 @@
   "formatVersion": 1,
   "httpRoutes": [
     {
+      "auth": "bearer",
+      "id": "conversation-search",
+      "method": "GET",
+      "path": "/api/search/conversations",
+      "queryParameters": [
+        "version",
+        "query",
+        "projectId",
+        "includeArchived",
+        "cursor",
+        "limit"
+      ],
+      "scopes": [
+        "session:read"
+      ]
+    },
+    {
       "auth": "public",
       "id": "environment",
       "method": "GET",

@@ -49,14 +49,18 @@ it.each(["text", "binary"] as const)(
   async (kind) => {
     const acceptedControls: WebSocket[] = [];
     const handleUpgrade = WebSocketServer.prototype.handleUpgrade;
-    vi.spyOn(WebSocketServer.prototype, "handleUpgrade").mockImplementation(
-      function (this: WebSocketServer, request, socket, head, callback) {
-        return handleUpgrade.call(this, request, socket, head, (accepted, req) => {
-          if (req.url === "/host") acceptedControls.push(accepted);
-          callback(accepted, req);
-        });
-      },
-    );
+    vi.spyOn(WebSocketServer.prototype, "handleUpgrade").mockImplementation(function (
+      this: WebSocketServer,
+      request,
+      socket,
+      head,
+      callback,
+    ) {
+      return handleUpgrade.call(this, request, socket, head, (accepted, req) => {
+        if (req.url === "/host") acceptedControls.push(accepted);
+        callback(accepted, req);
+      });
+    });
 
     const relay = new RelayServer({ host: "127.0.0.1", port: 0 });
     const { port } = await relay.start();

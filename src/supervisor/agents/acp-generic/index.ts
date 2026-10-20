@@ -35,6 +35,7 @@ import {
   logoutAcpAgent,
   probeAcpCapabilities,
   type AcpSessionBehavior,
+  type AcpStructuredSession,
   type AcpTextStreamExtension,
   type AcpProbeResult,
 } from "../acp";
@@ -88,6 +89,8 @@ export interface AcpGenericAdapterOptions {
   stderrTurnSignalParser?: (line: string) => "background-wait" | undefined;
   /** Provider-owned rewrite of inbound `session/update` notifications. */
   sessionUpdateTransform?: AcpSessionUpdateTransform;
+  /** Provider hook for attaching external session-update bridges to a live ACP session. */
+  attachSession?: (session: AcpStructuredSession, input: CreateStructuredSessionInput) => void;
 }
 
 export function createAcpGenericAdapter(
@@ -174,7 +177,7 @@ export function createAcpGenericAdapter(
     async createStructuredSession(input: CreateStructuredSessionInput) {
       await prepareAgentLocationEnvironment(input.projectLocation);
       const command = buildGenericCommand(input.projectLocation, cfg, instance);
-      return createAcpStructuredSession(
+      const session = createAcpStructuredSession(
         command,
         {
           ...input,
@@ -192,6 +195,10 @@ export function createAcpGenericAdapter(
             : {}),
         },
       );
+      if (session) {
+        options.attachSession?.(session, input);
+      }
+      return session;
     },
     async buildAcpAuthCommand(ctx?: AgentEnvContext) {
       const location = detectProbeLocation(ctx);

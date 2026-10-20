@@ -114,7 +114,7 @@ export function assertTargetCoverage(overlayRoot, targets) {
   if (missing.length > 0) {
     throw new Error(
       `native overlay does not cover advertised target(s): ${missing.join(", ")}. ` +
-        "Run `pnpm run prepare:server-native --require-target <target>` for every advertised shape.",
+        "Run `bun run prepare:server-native --require-target <target>` for every advertised shape.",
     );
   }
   return { nodePtyDirs, sqliteDirs };
@@ -210,7 +210,7 @@ function copyWebClient(stage, webDir, apiOnly) {
   if (!existsSync(indexPath)) {
     if (apiOnly) return { present: false };
     throw new Error(
-      `Compatible web client build is missing at ${indexPath}. Run \`pnpm run build:web\` ` +
+      `Compatible web client build is missing at ${indexPath}. Run \`bun run build:web\` ` +
         "before assembling, or pass --api-only to build an explicit API-only artifact.",
     );
   }
@@ -242,7 +242,7 @@ export function assembleServerTarball(options = {}) {
       : [`${runtimePlatformKey()}-${process.arch}`];
   if (!existsSync(overlaySource)) {
     throw new Error(
-      `native-overlay missing at ${overlaySource}. Run \`pnpm run prepare:server-native\` before assembling the tarball.`,
+      `native-overlay missing at ${overlaySource}. Run \`bun run prepare:server-native\` before assembling the tarball.`,
     );
   }
   const coverage = assertTargetCoverage(overlaySource, targets);

@@ -22,6 +22,10 @@
  */
 
 import type { RuntimeEvent } from "@/shared/contracts";
+import {
+  PORACODE_ACP_DETACHED_SUBAGENT_ACTIVITY_META_KEY,
+  PORACODE_ACP_PARENT_TOOL_CALL_ID_META_KEY,
+} from "../acp/canonicalMapping/subagents";
 import type { AcpMapperState } from "../acp/canonicalMapping/state";
 import { finalizeToolCallPayload } from "../acp/canonicalMapping/toolCallPayloads";
 import {
@@ -29,9 +33,11 @@ import {
   type AcpExtensionToolCallInput,
   type AcpTextStreamExtension,
 } from "../acp/canonicalMapping/textStreamExtension";
+import { NOTIFY_USER_TITLE, isEmptyGenericRawInput } from "./acpSubagents";
 
 const EXTENSION_ID = "antigravity.readCompletion";
 const READ_KIND = "read";
+const OTHER_KIND = "other";
 
 interface PendingRead {
   itemId: string;
@@ -61,7 +67,8 @@ export function createAntigravityReadCompletionExtension(): AcpTextStreamExtensi
   return {
     id: EXTENSION_ID,
     trackToolCall(input: AcpExtensionToolCallInput): void {
-      if (input.payload.kind !== READ_KIND) return;
+      if (input.payload.isSubAgent === true) return;
+      if (input.payload.kind !== READ_KIND && !isUnresolvedGenericToolCall(input)) return;
       const pending = store(input.state).pendingReads;
       if (input.payload.status !== "running") {
         pending.delete(input.toolCall.toolCallId);
@@ -74,6 +81,9 @@ export function createAntigravityReadCompletionExtension(): AcpTextStreamExtensi
       });
     },
     observeSessionUpdate({ state, update }): RuntimeEvent[] {
+      // Subagent activity ingested by the Antigravity bridge is child-model
+      // output; it must not settle the parent's pending reads or tool calls.
+      if (isSubAgentActivity(update)) return [];
       if (!isModelOutput(update)) return [];
       const pending = store(state).pendingReads;
       if (pending.size === 0) return [];
@@ -95,6 +105,22 @@ export function createAntigravityReadCompletionExtension(): AcpTextStreamExtensi
       store(state).pendingReads.clear();
     },
   };
+}
+
+function isUnresolvedGenericToolCall(input: AcpExtensionToolCallInput): boolean {
+  if (input.payload.kind !== OTHER_KIND) return false;
+  if (input.payload.title === NOTIFY_USER_TITLE) return false;
+  return isEmptyGenericRawInput(input.toolCall.rawInput);
+}
+
+function isSubAgentActivity(update: { _meta?: unknown }): boolean {
+  const meta = update._meta;
+  if (!meta || typeof meta !== "object" || Array.isArray(meta)) return false;
+  const record = meta as Record<string, unknown>;
+  return (
+    PORACODE_ACP_PARENT_TOOL_CALL_ID_META_KEY in record ||
+    PORACODE_ACP_DETACHED_SUBAGENT_ACTIVITY_META_KEY in record
+  );
 }
 
 function isModelOutput(update: { sessionUpdate: string; content?: unknown }): boolean {

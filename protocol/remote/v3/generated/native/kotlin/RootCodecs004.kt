@@ -5,8 +5,14 @@ import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
-val RemoteRootCodecs.routeU2EThreadU2DStartU2DExistingU2ERequest: RemoteRootCodec<RoutethreadU2DStartU2DExistingRequest_61b5093084>
-    get() = RemoteRootCodec("route.thread-start-existing.request", serializer<RoutethreadU2DStartU2DExistingRequest_61b5093084>(), schema_61b5093084723d2f)
+val RemoteRootCodecs.routeU2EThreadU2DSendU2ERequest: RemoteRootCodec<RoutethreadU2DSendRequest_e86709003d>
+    get() = RemoteRootCodec("route.thread-send.request", serializer<RoutethreadU2DSendRequest_e86709003d>(), schema_e86709003d111155)
+
+val RemoteRootCodecs.routeU2EThreadU2DSendU2EResponse: RemoteRootCodec<RoutedeviceU2DDetachResponse_badd682f35>
+    get() = RemoteRootCodec("route.thread-send.response", serializer<RoutedeviceU2DDetachResponse_badd682f35>(), schema_badd682f3501e022)
+
+val RemoteRootCodecs.routeU2EThreadU2DStartU2DExistingU2ERequest: RemoteRootCodec<RoutethreadU2DStartU2DExistingRequest_e187f0f002>
+    get() = RemoteRootCodec("route.thread-start-existing.request", serializer<RoutethreadU2DStartU2DExistingRequest_e187f0f002>(), schema_e187f0f0022475a3)
 
 val RemoteRootCodecs.routeU2EThreadU2DStartU2DExistingU2EResponse: RemoteRootCodec<ProcedurecancelExtractContextRequest_09b78d9c1d>
     get() = RemoteRootCodec("route.thread-start-existing.response", serializer<ProcedurecancelExtractContextRequest_09b78d9c1d>(), schema_09b78d9c1d4c3a6b)

@@ -99,7 +99,9 @@ describe("device workspace host authority", () => {
     await expect(
       service.action("thread-1", "client-1", session.id, { kind: "key", key: "home" }),
     ).rejects.toMatchObject({ code: "device_control_denied" });
-    expect(() => service.agentSession("thread-1")).toThrow("explicitly grant");
+    expect(() => service.agentSession("thread-1")).toThrow(
+      "Attach a device to this thread with the desired access mode.",
+    );
     const shared = await attach({ access: "control", agentAccess: "view" });
     expect(service.agentSession("thread-1").session.id).toBe(shared.id);
     expect(() => service.agentSession("thread-1", true)).toThrow("viewing only");
@@ -180,7 +182,9 @@ describe("device workspace host authority", () => {
     service.agentSession("thread-1");
     await service.inspect("thread-1", "client-1", session.id);
     advance(10_001);
-    expect(() => service.agentSession("thread-1")).toThrow("explicitly grant");
+    expect(() => service.agentSession("thread-1")).toThrow(
+      "Attach a device to this thread with the desired access mode.",
+    );
     await expect(service.frame("thread-1", "client-1", session.id)).rejects.toMatchObject({
       status: 410,
     });

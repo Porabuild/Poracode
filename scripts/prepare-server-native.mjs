@@ -308,7 +308,7 @@ async function stageNodePty(requiredTargets) {
     throw new Error(
       `[poracode-server] node-pty binding not found for ${hostTarget} ` +
         `(checked ${hostSourceDirs.map((dir) => join(dir, hostMarker)).join(" and ")}). ` +
-        "Install dependencies with native builds approved (`pnpm approve-builds`), or provide " +
+        "Install dependencies with native builds enabled (`bun install`), or provide " +
         "the platform prebuild.",
     );
   }

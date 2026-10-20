@@ -1,4 +1,14 @@
 import type { RemoteRuntimeGapDescriptor, RemoteRuntimeHistoryNotice } from "@/shared/remote";
+import { RemoteClientError } from "@/shared/remote/client";
+
+/** Only the host's gap refusals justify an incomplete-history warning. */
+export function isThreadHistoryRecoveryError(error: unknown): boolean {
+  return (
+    error instanceof RemoteClientError &&
+    ((error.status === 503 && error.code === "persistence_contaminated") ||
+      (error.status === 409 && error.code === "runtime_history_notice_unsupported"))
+  );
+}
 
 /**
  * B1 durable history-incomplete notice state (renderer).
@@ -74,7 +84,7 @@ export function recordThreadHistoryNoticeRead(
       return;
     }
     if (current) {
-      if (!current.needsReview) {
+      if (current.needsReview) {
         entries.set(viewThreadId, { ...current, needsReview: false });
         publish();
       }

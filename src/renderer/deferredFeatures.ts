@@ -70,6 +70,12 @@ export const DeferredLoginTerminalOverlay = preloadable(() =>
   ),
 );
 
+export const DeferredGlobalTerminalPanel = preloadable(() =>
+  import("@/renderer/views/GlobalTerminalPanel/GlobalTerminalPanel").then(
+    (module) => module.GlobalTerminalPanel,
+  ),
+);
+
 export const DeferredFileEditorPanel = preloadable(() =>
   import("@/renderer/views/FileEditorOverlay/parts/FileEditorPanel").then(
     (module) => module.FileEditorPanel,

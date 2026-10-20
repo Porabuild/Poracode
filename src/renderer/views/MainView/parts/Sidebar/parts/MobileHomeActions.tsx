@@ -109,12 +109,14 @@ export function MobileHomeActions() {
               <span>{t`More`}</span>
             </div>
             <div className="m-sheet-list">
-              <SidebarButton
-                icon={<CircleUserRound className="size-4" />}
-                label={t`Profile`}
-                isDisabled={remoteToolsDisabled}
-                onPress={() => openPage("profile")}
-              />
+              {!shortcuts.some((shortcut) => shortcut.id === "settings:profile") ? (
+                <SidebarButton
+                  icon={<CircleUserRound className="size-4" />}
+                  label={t`Profile`}
+                  isDisabled={remoteToolsDisabled}
+                  onPress={() => openPage("profile")}
+                />
+              ) : null}
               {remoteToolsAvailable ? (
                 <SidebarButton
                   icon={<ChartNoAxesColumn className="size-4" />}
@@ -123,15 +125,17 @@ export function MobileHomeActions() {
                   onPress={() => openPage("usage")}
                 />
               ) : null}
-              <SidebarButton
-                icon={<Server className="size-4" />}
-                label={t`Connections`}
-                onPress={() =>
-                  run(() => {
-                    usePanelStore.getState().openSettingsSection("remoteServers");
-                  })
-                }
-              />
+              {!shortcuts.some((shortcut) => shortcut.id === "settings:remoteServers") ? (
+                <SidebarButton
+                  icon={<Server className="size-4" />}
+                  label={t`Connections`}
+                  onPress={() =>
+                    run(() => {
+                      usePanelStore.getState().openSettingsSection("remoteServers");
+                    })
+                  }
+                />
+              ) : null}
               {remoteToolsAvailable && projectServer ? (
                 <SidebarButton
                   icon={<FolderOpen className="size-4" />}
@@ -166,7 +170,8 @@ export function MobileHomeActions() {
                   icon={shortcut.icon}
                   label={shortcut.label}
                   isActive={shortcut.isActive}
-                  isDisabled={remoteToolsDisabled}
+                  isCurrentPage={shortcut.isActive}
+                  isDisabled={!shortcut.id.startsWith("settings:") && remoteToolsDisabled}
                   onPress={() => {
                     if (shortcut.id === "pullRequests" || shortcut.id === "schedules") {
                       openPage(shortcut.id);

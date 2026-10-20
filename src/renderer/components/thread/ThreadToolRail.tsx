@@ -4,6 +4,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   FileDiff,
   FolderOpen,
+  Info,
   NotebookPen,
   PanelRightOpen,
   Smartphone,
@@ -85,6 +86,7 @@ export function ThreadToolRail(props: {
       s.filesPanelContext?.worktreePath === worktreePath,
   );
   const notesPanelOpen = usePanelStore((s) => s.notesPanelOpen);
+  const threadInfoOpen = usePanelStore((s) => s.threadDocksPanelOpen);
   const terminalScoped = useDevTerminalStore(
     (s) =>
       s.isOpen &&
@@ -236,6 +238,24 @@ export function ThreadToolRail(props: {
       icon: Smartphone,
       active: deviceWorkspaceThreadId === threadId && rightPanelTab === "devices",
       activate: () => usePanelStore.getState().setDeviceWorkspaceThreadId(threadId),
+    },
+    {
+      id: "thread-info",
+      label: t`Thread info`,
+      icon: Info,
+      active: sidePanelOpen && threadInfoOpen && rightPanelTab === "docks",
+      activate: () => {
+        if (sidePanelOpen && threadInfoOpen && rightPanelTab === "docks") {
+          closeAllPanels();
+          return;
+        }
+        usePanelStore.setState({
+          threadDocksPanelOpen: true,
+          rightPanelTab: "docks",
+          threadDocksFocus: null,
+          threadDocksReturnThreadId: null,
+        });
+      },
     },
   ];
 

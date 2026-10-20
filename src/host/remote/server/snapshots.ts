@@ -55,6 +55,7 @@ import { RemoteHttpError } from "../auth";
 import { mapFenceRefusal, mapPersistenceRefusal } from "./persistenceRefusals";
 import type { RemoteServerContext } from "./context";
 import { readRuntimeHistoryNoticeForRead } from "./runtimeHistoryNoticeGate";
+import { CONVERSATION_SEARCH_VERSION } from "@/shared/conversationSearch";
 import { withStableUpdatedAt } from "./stableUpdatedAt";
 import { projectRuntimeItemsImageRefs } from "./imageRefProjection";
 import { projectGitStateSnapshotForRemote } from "./gitStateProjection";
@@ -139,6 +140,7 @@ export function descriptor(ctx: RemoteServerContext): RemoteEnvironmentDescripto
             },
           }
         : {}),
+      conversationSearch: { versions: [CONVERSATION_SEARCH_VERSION] },
       historyDetails: { versions: [HISTORY_DETAILS_VERSION] },
       threadHistoryResume: { versions: [THREAD_HISTORY_RESUME_VERSION] },
       ...(ctx.options.environmentManagement && ctx.environmentProxy

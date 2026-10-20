@@ -117,6 +117,8 @@ export const XTermSurface = forwardRef<
     className?: string;
     baseFontSize?: number;
     openLinksInNativeBrowser?: boolean;
+    /** A newly requested shell may not exist until its launch finishes. */
+    awaitingStart?: boolean;
     /** Mobile browsers are more reliable with xterm's default DOM renderer. */
     preferDomRenderer?: boolean;
     /** Whether this mounted keep-alive surface is currently visible. */
@@ -165,6 +167,7 @@ export const XTermSurface = forwardRef<
     baseFontSize = 12,
     enabled = true,
     openLinksInNativeBrowser = false,
+    awaitingStart = false,
     preferDomRenderer = false,
     visible = true,
     fixedTerminalSize,
@@ -210,6 +213,7 @@ export const XTermSurface = forwardRef<
   baseFontSizeRef.current = baseFontSize;
   const requestRefitRef = useRef<(() => void) | null>(null);
   const revealRef = useRef<(() => void) | null>(null);
+  const setRendererVisibleRef = useRef<((visible: boolean) => void) | null>(null);
   const previousVisibleRef = useRef(visible);
   const visibleRef = useRef(visible);
   visibleRef.current = visible;
@@ -220,6 +224,7 @@ export const XTermSurface = forwardRef<
   const [hasSelection, setHasSelection] = useState(false);
   const [showScrollDown, setShowScrollDown] = useState(false);
   const [watchError, setWatchError] = useState<RemoteTerminalWatchResultError | null>(null);
+  const [waitingForStart, setWaitingForStart] = useState(awaitingStart);
   const [scrollbar, setScrollbar] = useState({
     isVisible: false,
     thumbTopPercent: 0,
@@ -757,25 +762,35 @@ export const XTermSurface = forwardRef<
     mount.addEventListener("touchcancel", onTouchEnd, { capture: true });
 
     // ── WebGL renderer with DOM fallback ────────────────────────
-    // Match VSCode: prefer the GPU renderer, fall back to the DOM renderer
-    // on context loss or initialization failure. ImageAddon is gated on
-    // a healthy WebGL context (it relies on the GPU compositor).
+    // Keep terminal buffers and image parsers alive while hidden, but release
+    // the GPU renderer until the surface becomes visible again.
     let webglAddon: WebglAddon | null = null;
     let webglContextLossDisposable: { dispose(): void } | null = null;
-    if (!restored && !preferDomRenderer) {
+    let webglUnavailable = preferDomRenderer;
+    const setRendererVisible = (isVisible: boolean) => {
+      if (!isVisible) {
+        webglContextLossDisposable?.dispose();
+        webglContextLossDisposable = null;
+        webglAddon?.dispose();
+        webglAddon = null;
+        return;
+      }
+      if (webglAddon || webglUnavailable) return;
       try {
         webglAddon = new WebglAddon();
         webglContextLossDisposable = webglAddon.onContextLoss(() => {
-          webglAddon?.dispose();
-          webglAddon = null;
+          webglUnavailable = true;
+          setRendererVisible(false);
         });
         terminal.loadAddon(webglAddon);
-        terminal.loadAddon(new ImageAddon());
       } catch {
-        webglAddon?.dispose();
-        webglAddon = null;
+        webglUnavailable = true;
+        setRendererVisible(false);
       }
-    }
+    };
+    setRendererVisibleRef.current = setRendererVisible;
+    setRendererVisible(!restored || visibleRef.current);
+    if (!restored && webglAddon) terminal.loadAddon(new ImageAddon());
 
     // Query-reply gate for scrollback hydration. Created after every addon
     // that registers parser handlers (ImageAddon answers DA1/XTSMGRAPHICS,
@@ -935,6 +950,7 @@ export const XTermSurface = forwardRef<
       resetForNewPty();
     };
     const handleOutput = (data: string) => {
+      setWaitingForStart(false);
       // Live output proves the PTY exists even while historical bytes are
       // hydrating. Deliver the launch resize before buffering the display.
       if (refitOnFirstOutput) {
@@ -960,6 +976,7 @@ export const XTermSurface = forwardRef<
       onExitedRef.current?.(exitCode);
     };
     const handleSnapshot = (snapshot: RemoteTerminalWatchResultReady) => {
+      setWaitingForStart(false);
       setWatchError(null);
       hydrationBlocked = false;
       receivedFeedSnapshot = true;
@@ -1058,6 +1075,7 @@ export const XTermSurface = forwardRef<
       resubscribeOutput = null;
       eventInterest?.release();
       resizeObserver.disconnect();
+      setRendererVisible(false);
       screen.remove();
       const persist = shouldPersistXtermInstance(terminalId, useAppStore.getState());
       if (persist) {
@@ -1071,8 +1089,6 @@ export const XTermSurface = forwardRef<
         });
       } else {
         replayGate.dispose();
-        webglContextLossDisposable?.dispose();
-        webglAddon?.dispose();
         terminal.dispose();
       }
       terminalRef.current = null;
@@ -1080,6 +1096,7 @@ export const XTermSurface = forwardRef<
       searchRef.current = null;
       requestRefitRef.current = null;
       revealRef.current = null;
+      setRendererVisibleRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-once: terminal is created once, readOnly/terminalId/appearance/touch behavior are captured at init
   }, []);
@@ -1087,6 +1104,7 @@ export const XTermSurface = forwardRef<
   useEffect(() => {
     const wasVisible = previousVisibleRef.current;
     previousVisibleRef.current = visible;
+    setRendererVisibleRef.current?.(visible);
     if (visible && !wasVisible) {
       revealRef.current?.();
     }
@@ -1249,7 +1267,12 @@ export const XTermSurface = forwardRef<
             fixedTerminalSize ? "min-w-max overflow-visible" : "min-w-0 overflow-hidden"
           }`}
         />
-        {watchError ? <TerminalFeedStatus error={watchError} /> : null}
+        {watchError || waitingForStart ? (
+          <TerminalFeedStatus
+            error={watchError}
+            loading={waitingForStart && (!watchError || watchError.code === "not-found")}
+          />
+        ) : null}
         {findOpen ? (
           <div className="pointer-events-auto absolute right-2 top-2 z-20">
             <FindBar

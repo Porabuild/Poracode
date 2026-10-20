@@ -210,13 +210,14 @@ function splitBearerRoutes() {
  * viewer boundary) fails this suite until someone confirms the viewer preset
  * is supposed to deny it.
  */
-// Run triage/cancellation adds one operator-only route.
-const EXPECTED_MUTATING_ROUTE_COUNT = 57;
+// Device actions add one operator-only route.
+const EXPECTED_MUTATING_ROUTE_COUNT = 58;
 // 21 pre-B4 + the three additive B4 read routes (project-list,
 // catalog-membership, thread-turns) + B1 thread-runtime-gap + the experiment
 // state read, plus file-media mint/release/renew (owned read grants only), all
 // session:read and non-mutating, plus the automation snapshot and result inbox.
-const EXPECTED_VIEWER_READABLE_ROUTE_COUNT = 33;
+// Device leases, inspection and previews add fourteen viewing routes.
+const EXPECTED_VIEWER_READABLE_ROUTE_COUNT = 48;
 
 /** The split must be an exact, disjoint partition of the bearer registry:
  * the partition itself is derived, so a route can only ever land in one

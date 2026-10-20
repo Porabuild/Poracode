@@ -6,6 +6,52 @@ import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
 @Serializable
+data class RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DSessionRuntimeRouting_d221b1853e(
+    @SerialName("fallbackRuntime") val fallbackRuntime: RemoteField<String> = RemoteField.Missing,
+    @SerialName("prefixes") val prefixes: RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DSessionRuntimeRoutingU2DPrefixes_b84e449d1a,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("fallbackRuntime", "String", false, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("prefixes", "RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DSessionRuntimeRoutingU2DPrefixes_b84e449d1a", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+data class RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DUpdateU2DBuiltIn_685dee710c(
+    @SerialName("args") val args: List<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b>,
+    @SerialName("binary") val binary: String,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("args", "List<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b>", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("binary", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+data class RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DUpdateU2DInstaller_540ab9236f(
+    @SerialName("posix") val posix: RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DUpdateU2DBuiltIn_685dee710c,
+    @SerialName("windows") val windows: RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DUpdateU2DBuiltIn_685dee710c,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("posix", "RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DUpdateU2DBuiltIn_685dee710c", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("windows", "RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DUpdateU2DBuiltIn_685dee710c", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+enum class RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DUpdateU2DPreferPackageManagerOnWindowsU2DItem_4721d11b49 {
+    @SerialName("npm-global") NPMU2DGLOBAL,
+    @SerialName("pnpm-global") PNPMU2DGLOBAL,
+    @SerialName("bun-global") BUNU2DGLOBAL,
+}
+
+@Serializable
 data class RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DUpdate_892eceb2ac(
     @SerialName("brew") val brew: RemoteField<String> = RemoteField.Missing,
     @SerialName("builtIn") val builtIn: RemoteField<RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DUpdateU2DBuiltIn_685dee710c> = RemoteField.Missing,
@@ -401,50 +447,3 @@ enum class RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DResultU2DOptionU2
 }
 
 typealias RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DResultU2DOptionU2D1U2DStopReason_7bbdba78cb = String?
-
-typealias RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DResultU2DOptionU2D1U2DSummary_74b3a4e217 = String?
-
-@Serializable
-data class RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DResultU2DOptionU2D1_ae4a760581(
-    @SerialName("archivedAt") val archivedAt: RemoteField<String>,
-    @SerialName("changedFiles") val changedFiles: List<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b>,
-    @SerialName("completionEvaluation") val completionEvaluation: RemoteField<RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DResultU2DOptionU2D1U2DCompletionEvaluation_b2d5bb9fac> = RemoteField.Missing,
-    @SerialName("outcome") val outcome: RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DResultU2DOptionU2D1U2DOutcome_75fa28583d,
-    @SerialName("severity") val severity: RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DResultU2DOptionU2D1U2DSeverity_2d5efa5a79,
-    @SerialName("stopReason") val stopReason: RemoteField<String>,
-    @SerialName("summary") val summary: RemoteField<String>,
-    @SerialName("unread") val unread: Boolean,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("archivedAt", "String", true, true, null, null, null, null, null, null, "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$", "date-time", listOf()),
-            RemoteFieldDescriptor("changedFiles", "List<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b>", true, false, null, null, null, null, null, 100, null, null, listOf()),
-            RemoteFieldDescriptor("completionEvaluation", "RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DResultU2DOptionU2D1U2DCompletionEvaluation_b2d5bb9fac", false, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("outcome", "RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DResultU2DOptionU2D1U2DOutcome_75fa28583d", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("severity", "RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DResultU2DOptionU2D1U2DSeverity_2d5efa5a79", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("stopReason", "String", true, true, null, null, null, 1000, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("summary", "String", true, true, null, null, null, 2000, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("unread", "Boolean", true, false, null, null, null, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-typealias RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DResult_66ee2eb4ed = RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DResultU2DOptionU2D1_ae4a760581?
-
-@Serializable
-enum class RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DStatus_2151c8edcf {
-    @SerialName("running") RUNNING,
-    @SerialName("waiting-for-approval") WAITINGU2DFORU2DAPPROVAL,
-    @SerialName("succeeded") SUCCEEDED,
-    @SerialName("failed") FAILED,
-    @SerialName("cancelled") CANCELLED,
-    @SerialName("interrupted") INTERRUPTED,
-    @SerialName("skipped") SKIPPED,
-}
-
-@Serializable
-enum class RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DTrigger_56296b74a9 {
-    @SerialName("manual") MANUAL,
-    @SerialName("scheduled") SCHEDULED,
-    @SerialName("retry") RETRY,
-}

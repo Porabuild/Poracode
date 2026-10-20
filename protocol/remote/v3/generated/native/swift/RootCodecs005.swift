@@ -1,6 +1,14 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
 public extension RemoteRootCodecs {
+  static let routeU2EThreadU2DSteerU2DClearU2EPath: RemoteRootCodec<ProcedurecancelExtractContextRequest_09b78d9c1d> = .init(id: "route.thread-steer-clear.path", schema: RemoteSchemas.schema_09b78d9c1d4c3a6b)
+}
+
+public extension RemoteRootCodecs {
+  static let routeU2EThreadU2DSteerU2DClearU2ERequest: RemoteRootCodec<RoutehostU2DUpdateU2DInstallResponse_81055c9199> = .init(id: "route.thread-steer-clear.request", schema: RemoteSchemas.schema_81055c9199569630)
+}
+
+public extension RemoteRootCodecs {
   static let routeU2EThreadU2DSteerU2DClearU2EResponse: RemoteRootCodec<RoutedeviceU2DDetachResponse_badd682f35> = .init(id: "route.thread-steer-clear.response", schema: RemoteSchemas.schema_badd682f3501e022)
 }
 

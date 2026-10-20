@@ -70,7 +70,7 @@ describe("searchSettings", () => {
     const results = searchSettings("prevent sleep", t);
     const hit = results.find((r) => r.anchor === "general.preventSleep");
     expect(hit).toBeDefined();
-    expect(hit?.title).toBe("Prevent sleep");
+    expect(hit?.title).toBe("Prevent system sleep");
     expect(hit?.snippet).toBeNull();
   });
 

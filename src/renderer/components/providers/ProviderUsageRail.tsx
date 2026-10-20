@@ -169,9 +169,13 @@ function ProviderUsageRailItem(props: { id: string; label: string; index: number
   });
 
   // Providers with more than one selectable ring group (e.g. Antigravity's
-  // Gemini vs Claude+GPT) get a right-click swap; the chosen key persists.
-  const ringGroups = usageRingGroups(id);
-  const selectedRingGroup = selectedRingGroups[id] ?? ringGroups[0]?.key;
+  // Gemini, Claude+GPT, Gemini 4 Argon, ...) get a right-click swap; the chosen
+  // key persists.
+  const ringGroups = usageRingGroups(id, snapshot?.windows);
+  const persistedRingGroup = selectedRingGroups[id];
+  const selectedRingGroup =
+    (ringGroups.some((g) => g.key === persistedRingGroup) ? persistedRingGroup : undefined) ??
+    ringGroups[0]?.key;
 
   const item = (
     <div ref={ref} className={isDragging ? "opacity-40" : ""}>

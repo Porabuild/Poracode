@@ -16,25 +16,25 @@ and interaction reference, not a native application entry point.
 Capacitor is fully removed from this repository — dependencies, scripts,
 configuration files, and both webview shells. Do not reintroduce it. The native
 projects are hand-maintained: edit `ios/App/App.xcodeproj` and `android/`
-directly. The `pnpm run dev:ios` and `pnpm run dev:android` scripts are
+directly. The `bun run dev:ios` and `bun run dev:android` scripts are
 native-only runners.
 
 For the PWA backed by an already-running desktop app, start only the browser
 client:
 
 ```bash
-pnpm run dev:web
+bun run dev:web
 ```
 
 This command serves only the PWA on port `3101`; it does not build or launch a
 standalone remote server, and it leaves the desktop development renderer on
 port `3100` untouched. When a separate headless development server is
-intentionally needed, run `pnpm run dev:web:server` in its own terminal. That
+intentionally needed, run `bun run dev:web:server` in its own terminal. That
 server advertises the PWA at port `3101` by default.
 
 ## Required toolchains
 
-- Node.js 24.10 or newer and the repository-pinned pnpm 11.2.2 for the remote
+- Node.js 24.10 or newer and the repository-pinned Bun preview for the remote
   host, contract generator, and foundation harness.
 - Xcode 26.6. It contains the iOS 26.5 SDK; there is no iOS 26.6 SDK. The app's
   deployment target remains iOS 17.
@@ -60,10 +60,10 @@ Generated remote-v3 artifacts are committed. Regenerate them only when the
 contract changes, and reject stale output everywhere else:
 
 ```bash
-pnpm install --frozen-lockfile
-pnpm run protocol:remote:v3:generate  # only after an intentional contract edit
-pnpm run protocol:remote:v3:check
-pnpm exec vitest run --configLoader runner protocol/remote/v3
+bun install --frozen-lockfile
+bun run protocol:remote:v3:generate  # only after an intentional contract edit
+bun run protocol:remote:v3:check
+bun run vitest run --configLoader runner protocol/remote/v3
 ```
 
 Never maintain a second hand-written protocol definition inside either mobile
@@ -75,7 +75,7 @@ security-sensitive discriminators remain strict.
 From the repository root, build, install, and launch on an iOS 26.5 simulator:
 
 ```bash
-pnpm run dev:ios
+bun run dev:ios
 ```
 
 The runner stays open and watches the native app, Activity extension, Xcode
@@ -92,7 +92,7 @@ safely patched. The same command detects those cases (or a failed injection) and
 automatically falls back to an incremental Xcode build, signed reinstall, and
 relaunch without clearing Keychain or application data. A failed build leaves
 the last working app installed and waits for the next change. Use
-`pnpm run dev:ios -- --once` for one normal build/install/launch without the
+`bun run dev:ios --once` for one normal build/install/launch without the
 watch helper.
 
 The runner keeps simulator signing enabled because the app requires Keychain
@@ -128,7 +128,7 @@ From the repository root, select or start an API 37 emulator, then build,
 install, and launch the Compose application:
 
 ```bash
-pnpm run dev:android
+bun run dev:android
 ```
 
 The runner stays open and watches the main Android source set, Gradle/Firebase
@@ -144,7 +144,7 @@ Changes to class structure, fields, signatures, inheritance, manifests,
 resources, native libraries, build configuration, or generated contract shape
 fall back automatically to an incremental debug APK install and activity
 relaunch without clearing app data. A failed build waits for the next change.
-Press `Ctrl+C` to stop, or use `pnpm run dev:android -- --once` for one normal
+Press `Ctrl+C` to stop, or use `bun run dev:android --once` for one normal
 run.
 
 The equivalent manual build, test, lint, install, and launch commands are:
@@ -184,9 +184,9 @@ an explicit staged import plus `poracode-server activate`). See
 [Host ownership](HOST_OWNERSHIP.md).
 
 ```bash
-pnpm install --frozen-lockfile
-pnpm run build:electron
-pnpm run prepare:server-native
+bun install --frozen-lockfile
+bun run build:electron
+bun run prepare:server-native
 
 PORACODE_BASE_DIR="$PWD/.tmp/poracode-native-dev" \
 PORACODE_REMOTE_ACCESS_HOST=127.0.0.1 \
@@ -255,12 +255,12 @@ production headless host. Build the host first so the real-host smoke cannot be
 silently skipped:
 
 ```bash
-pnpm install --frozen-lockfile --ignore-scripts
-pnpm run codex-protocol:gen
-pnpm run build:electron
-pnpm run prepare:server-native
+bun install --frozen-lockfile --ignore-scripts
+bun run codex-protocol:gen
+bun run build:electron
+bun run prepare:server-native
 test -f dist/main/server.cjs
-pnpm run native:e2e
+bun run native:e2e
 ```
 
 This suite is transport evidence, not simulator/emulator UI evidence. A feature

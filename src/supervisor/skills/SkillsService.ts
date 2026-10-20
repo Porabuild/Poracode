@@ -70,7 +70,6 @@ import {
   isPathUnderAny,
   selectSkillSegmentsForInjection,
 } from "./skillPromptInjection";
-import { PLUGIN_SKILLS_DIR } from "@/supervisor/plugins";
 import {
   pluginSkillProviderId,
   PluginSkillPolicy,
@@ -1608,34 +1607,40 @@ export class SkillsService {
   }
 
   /**
-   * One scan root per loaded Agent Plugins package that ships skills. Each root
-   * is that package's own `skills/` directory, so containment and attribution
-   * follow the package boundary rather than a shared folder.
+   * Scan the parents of declared skills, including compatible custom locations.
+   * The loader has already checked every declared path against its package.
    */
   private pluginSkillRoots(projectFsPath?: string): PluginSkillRoot[] {
     return this.readPlugins(projectFsPath).flatMap((plugin) =>
-      plugin.skills.length > 0
-        ? [{ plugin, skillsRoot: join(plugin.root, PLUGIN_SKILLS_DIR) }]
-        : [],
+      [...new Set(plugin.skills.map((skill) => dirname(skill.path)))].map((skillsRoot) => ({
+        plugin,
+        skillsRoot,
+      })),
     );
   }
 
   private pluginLocatedRoots(projectFsPath?: string): LocatedRoot[] {
-    return this.pluginSkillRoots(projectFsPath).map(({ plugin, skillsRoot }) => {
+    const seen = new Set<string>();
+    return this.pluginSkillRoots(projectFsPath).flatMap(({ plugin, skillsRoot }) => {
+      const key = normalizePath(skillsRoot);
+      if (seen.has(key)) return [];
+      seen.add(key);
       const label = plugin.poracode.title ?? plugin.name;
-      return {
-        providerId: pluginSkillProviderId(plugin.name),
-        providerLabel: label,
-        providerGroupId: pluginSkillProviderId(plugin.name),
-        providerGroupLabel: label,
-        providerGroupOrder: -2,
-        scope: "global",
-        scopeLabel: "Global",
-        fsPath: skillsRoot,
-        displayPath: skillsRoot.replace(/\\/gu, "/"),
-        origin: "plugin",
-        mutable: false,
-      };
+      return [
+        {
+          providerId: pluginSkillProviderId(plugin.name),
+          providerLabel: label,
+          providerGroupId: pluginSkillProviderId(plugin.name),
+          providerGroupLabel: label,
+          providerGroupOrder: -2,
+          scope: "global",
+          scopeLabel: "Global",
+          fsPath: skillsRoot,
+          displayPath: skillsRoot.replace(/\\/gu, "/"),
+          origin: "plugin",
+          mutable: false,
+        },
+      ];
     });
   }
 

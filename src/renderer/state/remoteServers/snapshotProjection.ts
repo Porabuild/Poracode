@@ -17,6 +17,7 @@ import { i18n } from "@/renderer/i18n/i18n";
 import { applyThreadSnapshot, type ApplyThreadSnapshotResult } from "@/renderer/state/remote";
 import {
   clearThreadHistoryNotice,
+  isThreadHistoryRecoveryError,
   noteThreadHistoryRecoveryNeeded,
   recordThreadHistoryNoticeRead,
 } from "@/renderer/state/remote/historyNoticeStore";
@@ -560,10 +561,8 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
         // pane; a same-thread retry re-registers on success.
         removeRemoteServerThreadItemInterest(desktopId, threadId);
         if (requestSeq !== openRemoteThreadRequestSeq) return false;
-        // A definite declared-read refusal on a notice-capable host is the
-        // open-gap recovery signal: surface the explicit review path instead
-        // of only a generic load failure.
-        if (hostSupportsRuntimeHistoryNotices(server) && !isRemoteTransportFailure(error)) {
+        // Only a typed gap refusal establishes a history recovery signal.
+        if (hostSupportsRuntimeHistoryNotices(server) && isThreadHistoryRecoveryError(error)) {
           noteThreadHistoryRecoveryNeeded(
             remoteThreadId(desktopId, threadId),
             remoteConnectionKey(server),

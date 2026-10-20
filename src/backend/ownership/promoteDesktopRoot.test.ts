@@ -390,6 +390,13 @@ describe("desktop data-root promotion (V5 plan 1.3)", () => {
     writeFileSync(join(seed.namespace, "userData", "Code Cache", "js"), "code-cache");
     mkdirSync(join(seed.namespace, "userData", "GPUCache"), { recursive: true });
     writeFileSync(join(seed.namespace, "userData", "GPUCache", "data_1"), "gpu");
+    mkdirSync(join(seed.namespace, "userData", "GPUPersistentCache", "DawnGraphiteCache"), {
+      recursive: true,
+    });
+    writeFileSync(
+      join(seed.namespace, "userData", "GPUPersistentCache", "DawnGraphiteCache", "cache.db"),
+      "dawn",
+    );
     mkdirSync(join(seed.namespace, "userData", "Service Worker", "ScriptCache"), {
       recursive: true,
     });
@@ -420,6 +427,7 @@ describe("desktop data-root promotion (V5 plan 1.3)", () => {
     expect(existsSync(join(paths.dataRoot, "userData", "Cache"))).toBe(false);
     expect(existsSync(join(paths.dataRoot, "userData", "Code Cache"))).toBe(false);
     expect(existsSync(join(paths.dataRoot, "userData", "GPUCache"))).toBe(false);
+    expect(existsSync(join(paths.dataRoot, "userData", "GPUPersistentCache"))).toBe(false);
     expect(existsSync(join(paths.dataRoot, "userData", "Service Worker"))).toBe(false);
     expect(existsSync(join(paths.dataRoot, "userData", "Partitions", "p1", "Cache"))).toBe(false);
     expect(readFileSync(join(paths.dataRoot, "notes", "SingletonLock"), "utf8")).toBe(

@@ -1,6 +1,8 @@
 import type {
   ManageAgentCredentialsPayload,
   ManageAgentCredentialsResult,
+  ManageModelProvidersPayload,
+  ManageModelProvidersResult,
   ManageAgentPluginsPayload,
   ManageAgentPluginsResult,
   AgentKind,
@@ -164,6 +166,15 @@ export class AgentRegistryService {
     if (!adapter?.manageCredentials)
       throw new Error("This provider does not support credential management.");
     return adapter.manageCredentials(payload);
+  }
+
+  async manageModelProviders(
+    payload: ManageModelProvidersPayload,
+  ): Promise<ManageModelProvidersResult> {
+    const adapter = this.deps.adapters.get(payload.agentKind);
+    if (!adapter?.manageModelProviders)
+      throw new Error("This provider does not support model provider management.");
+    return adapter.manageModelProviders(payload);
   }
 
   private get agentStatusService(): AgentStatusService {

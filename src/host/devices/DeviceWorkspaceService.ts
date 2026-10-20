@@ -522,7 +522,7 @@ export class DeviceWorkspaceService {
     if (leases.length !== 1)
       throw new DeviceWorkspaceError(
         "device_agent_denied",
-        "Open the device workspace in this thread and explicitly grant agent access.",
+        "Attach a device to this thread with the desired access mode.",
         403,
       );
     const lease = leases[0]!;

@@ -38,6 +38,74 @@ function openMcpServersSubmenu() {
 }
 
 describe("ComposerAddMenu", () => {
+  it.each([false, true])("enables Plan and closes the add menu (compact: %s)", async (compact) => {
+    bridgeMock.isRemoteSession.mockReturnValue(compact);
+    const onChange = vi.fn<(selected: boolean) => void>();
+    render(
+      <ComposerAddMenu
+        mcpServers={[]}
+        showFileOption={false}
+        onPickFiles={() => {}}
+        planControl={{ kind: "toggle", label: "Work", isSelected: false, onChange }}
+      />,
+    );
+    openMenu();
+    const plan = screen.getByRole(compact ? "button" : "menuitemcheckbox", { name: "Plan" });
+    expect(plan).toHaveAttribute(compact ? "aria-pressed" : "aria-checked", "false");
+    fireEvent.click(plan);
+    expect(onChange).toHaveBeenCalledExactlyOnceWith(true);
+    await waitFor(() =>
+      expect(screen.queryByRole(compact ? "dialog" : "menu")).not.toBeInTheDocument(),
+    );
+  });
+
+  it.each([false, true])(
+    "shows active Plan and allows deselecting it (compact: %s)",
+    async (compact) => {
+      bridgeMock.isRemoteSession.mockReturnValue(compact);
+      const onChange = vi.fn<(selected: boolean) => void>();
+      render(
+        <ComposerAddMenu
+          mcpServers={[]}
+          onPickFiles={() => {}}
+          planControl={{ kind: "toggle", label: "Plan", isSelected: true, onChange }}
+        />,
+      );
+      openMenu();
+      const plan = screen.getByRole(compact ? "button" : "menuitemcheckbox", { name: "Plan" });
+      expect(plan).toHaveAttribute(compact ? "aria-pressed" : "aria-checked", "true");
+      expect(plan).not.toHaveAttribute("aria-disabled", "true");
+      expect(plan).not.toBeDisabled();
+      fireEvent.click(plan);
+      expect(onChange).toHaveBeenCalledExactlyOnceWith(false);
+      await waitFor(() =>
+        expect(screen.queryByRole(compact ? "dialog" : "menu")).not.toBeInTheDocument(),
+      );
+    },
+  );
+
+  it.each([false, true])("prevents changing Plan when disabled (selected: %s)", (isSelected) => {
+    const onChange = vi.fn<(selected: boolean) => void>();
+    render(
+      <ComposerAddMenu
+        mcpServers={[]}
+        onPickFiles={() => {}}
+        planControl={{ kind: "toggle", label: "Plan", isSelected, isDisabled: true, onChange }}
+      />,
+    );
+    openMenu();
+    const plan = screen.getByRole("menuitemcheckbox", { name: "Plan" });
+    expect(plan).toHaveAttribute("aria-disabled", "true");
+    fireEvent.click(plan);
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("omits Plan for providers without a Plan control", () => {
+    render(<ComposerAddMenu mcpServers={[]} onPickFiles={() => {}} />);
+    openMenu();
+    expect(screen.queryByRole("menuitemcheckbox", { name: "Plan" })).not.toBeInTheDocument();
+  });
+
   it("offers side chat as a separate top-level item and closes the menu after opening it", () => {
     const onOpenSideChat = vi.fn<() => void>();
     const onPickFiles = vi.fn<() => void>();

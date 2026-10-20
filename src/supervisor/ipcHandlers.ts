@@ -56,6 +56,7 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
     getCrossagentRouting: () => runtime.getCrossagentRoutingSnapshot(),
     manageAgentPlugins: (payload) => registry.manageAgentPlugins(payload),
     manageAgentCredentials: (payload) => registry.manageAgentCredentials(payload),
+    manageModelProviders: (payload) => registry.manageModelProviders(payload),
     listWslDistros: () => registry.listWslDistros(),
     getAgentStatuses: (payload) => registry.getAgentStatuses(payload),
     cancelAgentDiscovery: () => registry.cancelAgentDiscovery(),
@@ -401,6 +402,8 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
     listSkillMarketplace: (payload) => skills.listMarketplace(payload),
     installMarketplaceSkill: (payload) => skills.installMarketplace(payload),
     listPlugins: (payload) => listPlugins(payload),
+    pluginCatalog: (payload) => runtime.pluginCatalogService.manage(payload),
+    pluginAccounts: (payload) => runtime.pluginAccountService.manage(payload),
     refreshPlugins: (payload) => {
       pluginRegistry.refresh();
       return listPlugins(payload);

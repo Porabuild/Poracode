@@ -301,7 +301,7 @@ export function setProjectDisabled(projectId: string, disabled: boolean): void {
       useGitStore.getState().clearStatus(projectId);
 
       const termStore = useDevTerminalStore.getState();
-      if (termStore.activeProjectId === projectId) {
+      if (termStore.source === "project" && termStore.activeProjectId === projectId) {
         termStore.closePanel();
       }
 
@@ -429,7 +429,11 @@ async function deleteProjectAsync(projectId: string): Promise<void> {
           .closeThread({ threadId: tabId })
           .catch(() => undefined);
       }
-      if (termStore.isOpen && termStore.activeProjectId === projectId) {
+      if (
+        termStore.isOpen &&
+        termStore.source === "project" &&
+        termStore.activeProjectId === projectId
+      ) {
         termStore.closePanel();
       }
       useGitStore.getState().clearStatus(projectId);
@@ -469,7 +473,7 @@ async function deleteProjectAsync(projectId: string): Promise<void> {
       .catch(() => undefined);
   }
 
-  if (termStore.activeProjectId === projectId) {
+  if (termStore.source === "project" && termStore.activeProjectId === projectId) {
     termStore.closePanel();
   }
 

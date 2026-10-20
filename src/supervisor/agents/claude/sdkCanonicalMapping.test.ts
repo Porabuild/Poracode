@@ -4804,8 +4804,65 @@ describe("sdkCanonicalMapping — usage.spent", () => {
         sampleId: "msg-1:req-1",
         occurredAt: expect.any(Number),
         model: "claude-opus-4-8",
+        tokens: { input: 10, output: 5, cacheRead: 2, cacheWrite: 3 },
       },
     });
+  });
+
+  it.each(
+    [
+      "input_tokens",
+      "output_tokens",
+      "cache_read_input_tokens",
+      "cache_creation_input_tokens",
+    ].flatMap((field) =>
+      [undefined, null, -1, 0.5, Number.NaN, Number.POSITIVE_INFINITY].map((value) => ({
+        field,
+        value,
+      })),
+    ),
+  )("keeps $field=$value unpriced instead of fabricating a zero category", ({ field, value }) => {
+    const state = createClaudeMapperState("thread-1");
+    state.usageScope = new ClaudeUsageScopeTracker("claude-session", true);
+    const message = assistantMessage({
+      id: "incomplete",
+      model: "claude-sonnet-4-6",
+      usage: {
+        input_tokens: 100,
+        output_tokens: 10,
+        cache_read_input_tokens: 50,
+        cache_creation_input_tokens: 0,
+      },
+    }) as SDKAssistantMessage;
+    (message.message.usage as unknown as Record<string, unknown>)[field] = value;
+    const spent = spentOf(state, message);
+    expect(spent?.usage.counter).toBeGreaterThan(0);
+    expect(spent?.usage.model).toBe("claude-sonnet-4-6");
+    expect(spent?.usage.tokens).toBeUndefined();
+  });
+
+  it.each([
+    { ephemeral_1h_input_tokens: 5, ephemeral_5m_input_tokens: 10 },
+    { ephemeral_1h_input_tokens: 5 },
+    { ephemeral_1h_input_tokens: 5, ephemeral_5m_input_tokens: -1 },
+    { ephemeral_1h_input_tokens: 25, ephemeral_5m_input_tokens: 0 },
+  ])("leaves inconsistent or partial cache TTL breakdowns unpriced: %j", (cacheCreation) => {
+    const state = createClaudeMapperState("thread-1");
+    state.usageScope = new ClaudeUsageScopeTracker("claude-session", true);
+    const message = assistantMessage({
+      id: "ttl",
+      model: "claude-sonnet-4-6",
+      usage: {
+        input_tokens: 100,
+        output_tokens: 10,
+        cache_read_input_tokens: 50,
+        cache_creation_input_tokens: 20,
+      },
+    }) as SDKAssistantMessage;
+    (message.message.usage as unknown as Record<string, unknown>).cache_creation = cacheCreation;
+    const spent = spentOf(state, message);
+    expect(spent?.usage.counter).toBe(180);
+    expect(spent?.usage.tokens).toEqual({ input: 100, output: 10, cacheRead: 50, cacheWrite: 20 });
   });
 
   it("emits usage.spent for sidechain (parent-attributed) assistant messages", () => {
@@ -4839,6 +4896,7 @@ describe("sdkCanonicalMapping — usage.spent", () => {
         sampleId: "msg-sub-1:req-sub-1",
         occurredAt: expect.any(Number),
         model: "claude-haiku-4-5-20251001",
+        tokens: { input: 100, output: 20, cacheRead: 80, cacheWrite: 0 },
       },
     });
     // The child items still render alongside the spend event.

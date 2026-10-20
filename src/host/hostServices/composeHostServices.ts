@@ -102,12 +102,10 @@ export interface NativeShellHostServices {
   readonly browserPanelManager: BrowserPanelManager;
   /**
    * Computer-use desktop overlay hooks. The overlay window itself stays
-   * caller-owned; the composed ingress only forwards activity to it and
-   * asks whether the display wake lock is currently held.
+   * caller-owned; the composed ingress only forwards activity to it.
    */
   readonly computerUse?: {
     onActivity(event: ComputerUseActivityEvent): void;
-    isDisplayKeptAwake(): boolean;
   };
 }
 
@@ -196,7 +194,6 @@ export function composeHostServices(
           ...(overlayHooks
             ? {
                 onActivity: (event: ComputerUseActivityEvent) => overlayHooks.onActivity(event),
-                isDisplayKeptAwake: () => overlayHooks.isDisplayKeptAwake(),
               }
             : {}),
         })

@@ -2,6 +2,7 @@ import { act, cleanup, fireEvent, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Project, Thread } from "@/shared/contracts";
+import type { PoracodeBridge } from "@/shared/ipc";
 import { useAppStore } from "@/renderer/state/appStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
@@ -15,6 +16,12 @@ import { ThreadImagesBubble } from "./ThreadImagesBubble";
 import { ThreadDockBubbles } from "./ThreadDockBubbles";
 import { ThreadImagesDock } from "./ThreadImagesDock";
 import { getThreadGalleryImages } from "./useThreadGalleryImages";
+import { openFileInEditor } from "@/renderer/utils/gitHelpers";
+
+vi.mock("@/renderer/utils/gitHelpers", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/renderer/utils/gitHelpers")>()),
+  openFileInEditor: vi.fn<typeof openFileInEditor>(async () => undefined),
+}));
 
 const defaultLocalImageUrl = useRemoteServersStore.getState().localImageUrl;
 const defaultImageReadinessFor = useRemoteServersStore.getState().imageReadinessFor;
@@ -379,6 +386,7 @@ describe("ThreadImagesDock", () => {
     );
     const region = screen.getByRole("region", { name: "Images" });
     expect(region).toHaveTextContent("4");
+    fireEvent.click(screen.getByRole("button", { name: "Expand images" }));
     const tiles = screen.getAllByRole("button", { name: /Open image \d+ of 4/ });
     expect(tiles.length).toBe(4);
     const imgs = container.querySelectorAll('img[loading="lazy"]');
@@ -397,16 +405,17 @@ describe("ThreadImagesDock", () => {
     expect(document.querySelector(".poracode-image-lightbox__counter")).toHaveTextContent("3 / 4");
   });
 
-  it("collapses and expands the image mosaic from its header", () => {
+  it("starts collapsed and toggles the image mosaic from its header", () => {
     seedThreadWithImages("t-gallery");
     render(<ThreadImagesDock gallery={getThreadGalleryImages("t-gallery")} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Collapse images" }));
     expect(screen.queryByRole("button", { name: /Open image \d+ of 4/ })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Expand images" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Expand images" }));
     expect(screen.getAllByRole("button", { name: /Open image \d+ of 4/ })).toHaveLength(4);
+    fireEvent.click(screen.getByRole("button", { name: "Collapse images" }));
+    expect(screen.queryByRole("button", { name: /Open image \d+ of 4/ })).not.toBeInTheDocument();
   });
 
   it("preserves existing thumbnail elements when a newer image arrives", () => {
@@ -414,11 +423,71 @@ describe("ThreadImagesDock", () => {
     const second = { src: "data:image/png;base64,BBB", alt: "second" };
     const newer = { src: "data:image/png;base64,CCC", alt: "newer" };
     const { container, rerender } = render(<ThreadImagesDock gallery={[first, second]} />);
+    fireEvent.click(screen.getByRole("button", { name: "Expand images" }));
     const firstElement = container.querySelector('img[alt="first"]');
 
     rerender(<ThreadImagesDock gallery={[newer, first, second]} />);
 
     expect(container.querySelector('img[alt="first"]')).toBe(firstElement);
+  });
+
+  it("opens files-only thread info and resolves bare output names through the transcript file actions", async () => {
+    seedThreadWithImages("t-files");
+    useAppStore.setState({
+      runtimeItemIdsByThread: { "t-files": ["output"] },
+      runtimeItemsByIdByThread: {
+        "t-files": {
+          output: {
+            id: "output",
+            type: "assistant_message",
+            state: "completed",
+            streams: {},
+            payload: { content: [{ kind: "text", text: "[Report](report.pdf)" }] },
+          },
+        },
+      },
+    });
+    const searchProjectFiles = vi.fn<PoracodeBridge["searchProjectFiles"]>(async () => ({
+      totalIndexed: 1,
+      entries: [{ type: "file", name: "report.pdf", path: "output/report.pdf" }],
+    }));
+    Object.defineProperty(window, "poracode", {
+      configurable: true,
+      value: { ...window.poracode, searchProjectFiles },
+    });
+    vi.mocked(openFileInEditor).mockClear();
+    render(
+      <>
+        <ThreadImagesBubble threadId="t-files" />
+        <ThreadImagesDock
+          gallery={[]}
+          threadId="t-files"
+          artifacts={[{ target: "report.pdf", name: "report.pdf", external: false }]}
+        />
+      </>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Show files & artifacts" }));
+    expect(usePanelStore.getState()).toMatchObject({
+      threadDocksPanelOpen: true,
+      threadDocksFocus: "images",
+    });
+    expect(screen.queryByRole("button", { name: /report\.pdf/ })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Expand files & artifacts" }));
+    fireEvent.click(screen.getByRole("button", { name: /report\.pdf/ }));
+    await vi.waitFor(() =>
+      expect(openFileInEditor).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ id: "project-1" }),
+        undefined,
+        undefined,
+        "output/report.pdf",
+        undefined,
+      ),
+    );
+    expect(searchProjectFiles).toHaveBeenCalledWith({
+      projectLocation: { kind: "windows", path: "E:\\work\\p" },
+      query: "report.pdf",
+      limit: 5,
+    });
   });
 
   it("stays hidden when the thread holds no image", () => {

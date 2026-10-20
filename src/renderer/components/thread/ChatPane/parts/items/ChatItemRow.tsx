@@ -17,7 +17,7 @@ import { QuestionAnswer } from "./QuestionAnswer";
 import { Reasoning } from "./Reasoning";
 import { SubAgentToolCall } from "./SubAgentToolCall";
 import { ToolCallGroup } from "./ToolCallGroup";
-import { UserMessage } from "./UserMessage";
+import { MessageReplyAnswer } from "./MessageReplyAnswer";
 import { WebSearchItem } from "./WebSearchItem";
 import { isDelegatedAgentTool } from "./toolDisplay";
 
@@ -29,6 +29,7 @@ interface ChatItemRowProps {
   onHeightChange?: () => void;
   onVirtualizerLayoutChange?: () => void;
   isTurnActive?: boolean;
+  isReasoningLive?: boolean;
   checkpointRevert: CheckpointRevertRequest | null;
 }
 
@@ -47,6 +48,7 @@ export const ChatItemRow = memo(function ChatItemRow({
   onHeightChange,
   onVirtualizerLayoutChange,
   isTurnActive = false,
+  isReasoningLive = false,
   checkpointRevert,
 }: ChatItemRowProps) {
   "use no memo";
@@ -56,6 +58,7 @@ export const ChatItemRow = memo(function ChatItemRow({
         threadId={threadId}
         itemIds={entry.itemIds}
         isLive={isLastEntry}
+        isReasoningLive={isReasoningLive}
         {...(onHeightChange ? { onHeightChange } : {})}
         {...(onVirtualizerLayoutChange ? { onVirtualizerLayoutChange } : {})}
       />
@@ -66,6 +69,7 @@ export const ChatItemRow = memo(function ChatItemRow({
       threadId={threadId}
       itemId={entry.id}
       isTurnActive={isTurnActive}
+      isReasoningLive={isReasoningLive}
       checkpointRevert={checkpointRevert}
     />
   );
@@ -75,11 +79,13 @@ const SingleChatItemRow = memo(function SingleChatItemRow({
   threadId,
   itemId,
   isTurnActive,
+  isReasoningLive,
   checkpointRevert,
 }: {
   threadId: string;
   itemId: string;
   isTurnActive: boolean;
+  isReasoningLive: boolean;
   checkpointRevert: CheckpointRevertRequest | null;
 }) {
   const item = useThreadRuntimeItem(threadId, itemId);
@@ -92,6 +98,9 @@ const SingleChatItemRow = memo(function SingleChatItemRow({
     });
   }
   if (!item) return null;
+  if (item.type === "reasoning") {
+    return <Reasoning item={item} isLive={isReasoningLive} />;
+  }
   if (item.type === "tool_call") {
     const payload = getRuntimeItemPayload<ToolCallPayload>(item, "tool_call");
     if (isDelegatedAgentTool(payload)) {
@@ -109,13 +118,13 @@ function renderItem(
 ) {
   switch (item.type) {
     case "user_message":
-      return <UserMessage threadId={threadId} item={item} checkpointRevert={checkpointRevert} />;
+      return (
+        <MessageReplyAnswer threadId={threadId} item={item} checkpointRevert={checkpointRevert} />
+      );
     case "question_answer":
       return <QuestionAnswer item={item} checkpointRevert={checkpointRevert} />;
     case "assistant_message":
       return <AssistantMessage threadId={threadId} item={item} isTurnActive={isTurnActive} />;
-    case "reasoning":
-      return <Reasoning item={item} />;
     case "plan":
       return <PlanItem item={item} />;
     case "command_execution":

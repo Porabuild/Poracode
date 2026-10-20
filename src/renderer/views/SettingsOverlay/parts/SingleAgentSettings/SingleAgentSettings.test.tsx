@@ -723,6 +723,7 @@ describe("SingleAgentSettings", () => {
       label: "Gemini",
       command: "gemini auth login",
       onCommandComplete: expect.any(Function),
+      status: statusesState.agentStatuses[0],
     });
   });
 
@@ -744,6 +745,7 @@ describe("SingleAgentSettings", () => {
       label: "Grok Build",
       command: "wsl.exe -d 'Ubuntu' --exec bash -l -i -c 'grok login'",
       onCommandComplete: expect.any(Function),
+      status: statusesState.agentStatuses[0],
     });
   });
 
@@ -777,6 +779,7 @@ describe("SingleAgentSettings", () => {
       label: "Codex WSL",
       command: "codex login",
       onCommandComplete: expect.any(Function),
+      status: statusesState.wslAgentStatuses[0],
       project: wslProject,
     });
   });
@@ -852,6 +855,7 @@ describe("SingleAgentSettings", () => {
       command: "cursor-agent login",
       env: { NO_OPEN_BROWSER: "1" },
       onCommandComplete: expect.any(Function),
+      status: statusesState.wslAgentStatuses[0],
       project: wslProject,
     });
     expect(screen.getByRole("status", { name: /logging in/i })).toBeInTheDocument();
@@ -1047,6 +1051,7 @@ describe("SingleAgentSettings", () => {
       label: "Grok Build",
       command: "grok login --device-auth",
       onCommandComplete: expect.any(Function),
+      status: statusesState.agentStatuses[0],
     });
     expect(authenticateAcpAgentMock).not.toHaveBeenCalled();
   });
@@ -1196,6 +1201,7 @@ describe("SingleAgentSettings", () => {
       label: "Antigravity",
       command: "agy",
       onCommandComplete: expect.any(Function),
+      status: statusesState.agentStatuses[0],
     });
   });
 

@@ -24,6 +24,7 @@ export function setupCodexStructuredSession(
   const updates: CodexStructuredSessionHarness["updates"] = [];
   const shell = Object.create(CodexStructuredSession.prototype) as Record<string, unknown>;
   const rpc = {
+    notify: () => {},
     claimThread: () => {},
     ownsThread: (threadId: string) => threadId === "provider-thread",
     request: async (method: string, params: unknown, timeoutMs?: number) => {

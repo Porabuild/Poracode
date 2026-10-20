@@ -13,8 +13,11 @@ import {
   retainUnsupportedSettingsSelections,
 } from "./settingsSelectionData";
 
-/** Flat JSON remains readable; absence is the legacy generation, never a future-version bypass. */
-export const SETTINGS_DOCUMENT_VERSION = 2 as const;
+/**
+ * V3 admits settings:<section> sidebar IDs; older readers reject those arrays.
+ * V1/V2 documents retain their shortcut order/visibility and all other values.
+ */
+export const SETTINGS_DOCUMENT_VERSION = 3 as const;
 export const SETTINGS_DOCUMENT_VERSION_KEY = "$poracodeSettingsVersion";
 
 export class SettingsDocumentError extends Error {
@@ -68,6 +71,7 @@ export function decodeSettingsDocument(raw: unknown): SettingsDocument {
   if (
     Object.hasOwn(raw, SETTINGS_DOCUMENT_VERSION_KEY) &&
     version !== 1 &&
+    version !== 2 &&
     version !== SETTINGS_DOCUMENT_VERSION
   ) {
     throw new SettingsDocumentError(

@@ -178,6 +178,8 @@ interface PanelState {
   settingsOpen: boolean;
   /** When the overlay is opened deep-linked to a section (e.g. "usage"); else null. */
   settingsSection: string | null;
+  /** Current page after a one-shot Settings deep link has been consumed. */
+  activeSettingsSection: string | null;
   /** Optional setting row to scroll to after opening a deep-linked section. */
   settingsAnchor: string | null;
   projectSettingsId: string | null;
@@ -226,6 +228,7 @@ interface PanelState {
   openSettings: () => void;
   openSettingsSection: (section: string, anchor?: string) => void;
   clearSettingsSection: () => void;
+  setActiveSettingsSection: (section: string) => void;
   closeSettings: () => void;
   openProjectSettings: (projectId: string) => void;
   closeProjectSettings: () => void;
@@ -366,6 +369,7 @@ export const usePanelStore = create<PanelState>()((set) => ({
   ),
   settingsOpen: false,
   settingsSection: null,
+  activeSettingsSection: null,
   settingsAnchor: null,
   projectSettingsId: null,
   threadSortMode: sanitizeThreadSortMode(initialPersisted?.threadSortMode),
@@ -673,6 +677,7 @@ export const usePanelStore = create<PanelState>()((set) => ({
       return {
         settingsOpen: !compact,
         settingsSection: null,
+        activeSettingsSection: "general",
         settingsAnchor: null,
         ...(compact ? { mobileUtilityPage: "settings" as const } : {}),
       };
@@ -689,6 +694,7 @@ export const usePanelStore = create<PanelState>()((set) => ({
       return {
         settingsOpen: !compact,
         settingsSection: section,
+        activeSettingsSection: section,
         settingsAnchor: anchor ?? null,
         ...(compact ? { mobileUtilityPage: "settings" as const } : {}),
       };
@@ -698,6 +704,10 @@ export const usePanelStore = create<PanelState>()((set) => ({
       state.settingsSection === null && state.settingsAnchor === null
         ? {}
         : { settingsSection: null, settingsAnchor: null },
+    ),
+  setActiveSettingsSection: (section) =>
+    set((state) =>
+      state.activeSettingsSection === section ? {} : { activeSettingsSection: section },
     ),
   closeSettings: () =>
     set((state) => ({

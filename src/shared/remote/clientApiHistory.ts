@@ -3,9 +3,40 @@ import { HISTORY_DETAILS_PROJECTION, historyItemDetailSchema } from "./historyPr
 import { parseResponse } from "./clientParse";
 import { REMOTE_BOUNDED_READ_DEFAULT_MAX_DECODE_BYTES } from "./clientBoundedReads";
 import { historyResumeResponseSchema, historyResumeQuerySchema } from "./historyResume";
+import {
+  conversationSearchPageSchema,
+  conversationSearchQuerySchema,
+  CONVERSATION_SEARCH_VERSION,
+  type ConversationSearchQuery,
+} from "../conversationSearch";
 
 /** Capability-gated historical details; every body comes from canonical storage. */
 export abstract class RemoteClientHistoryApi extends RemoteClientExperimentsApi {
+  async searchConversations(
+    input: Omit<ConversationSearchQuery, "version">,
+    options: { signal?: AbortSignal } = {},
+  ) {
+    const descriptor = await this.environment();
+    if (
+      !descriptor.capabilities?.conversationSearch?.versions.includes(CONVERSATION_SEARCH_VERSION)
+    )
+      throw new Error("Conversation search is not supported by this host.");
+    const query = conversationSearchQuerySchema.parse({
+      ...input,
+      version: String(CONVERSATION_SEARCH_VERSION),
+    });
+    const params = new URLSearchParams(
+      Object.entries(query).map(([key, value]) => [key, String(value)]),
+    );
+    return parseResponse(
+      conversationSearchPageSchema,
+      await this.requestJson(
+        `/api/search/conversations?${params}`,
+        options.signal ? { signal: options.signal } : {},
+      ),
+      "conversation search",
+    );
+  }
   async resumeThreadHistory(
     threadId: string,
     cursor: string,

@@ -150,6 +150,7 @@ export function createCodexAdapter(options: CodexAdapterOptions = {}): AgentAdap
     runtimePayloadFormatOwnerKey: PERSISTED_RUNTIME_PAYLOAD_FORMAT_OWNER_KEY,
     label,
     binary: codexDetectionSpec.binary,
+    supportsDeferredMcpAuthorization: true,
     sessionImport: createCodexSessionImport(
       options.homeDir !== undefined ? resolveNativeTildePath(options.homeDir) : undefined,
     ),

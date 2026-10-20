@@ -329,7 +329,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let procedureU2EStartThreadU2ERequest: RemoteRootCodec<ProcedureensureThreadRunningRequest_4d961f4317> = .init(id: "procedure.startThread.request", schema: RemoteSchemas.schema_4d961f4317bd34ea)
+  static let procedureU2EStartThreadU2ERequest: RemoteRootCodec<ProcedureensureThreadRunningRequest_330389cc81> = .init(id: "procedure.startThread.request", schema: RemoteSchemas.schema_330389cc815cf211)
 }
 
 public extension RemoteRootCodecs {
@@ -345,7 +345,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let procedureU2ESubagentSubscribeU2EResult: RemoteRootCodec<ProceduresubagentSubscribeResult_499c208da1> = .init(id: "procedure.subagentSubscribe.result", schema: RemoteSchemas.schema_499c208da1aa1d4c)
+  static let procedureU2ESubagentSubscribeU2EResult: RemoteRootCodec<ProceduresubagentSubscribeResult_ffd105e9cc> = .init(id: "procedure.subagentSubscribe.result", schema: RemoteSchemas.schema_ffd105e9cca567eb)
 }
 
 public extension RemoteRootCodecs {
@@ -365,7 +365,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let procedureU2EWorkflowAgentChatU2EResult: RemoteRootCodec<ProcedureworkflowAgentChatResult_5bf7479aa2> = .init(id: "procedure.workflowAgentChat.result", schema: RemoteSchemas.schema_5bf7479aa21dc587)
+  static let procedureU2EWorkflowAgentChatU2EResult: RemoteRootCodec<ProcedureworkflowAgentChatResult_b6deccdc9f> = .init(id: "procedure.workflowAgentChat.result", schema: RemoteSchemas.schema_b6deccdc9f58eb02)
 }
 
 public extension RemoteRootCodecs {
@@ -445,5 +445,5 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2EDeviceU2DActionU2EPath: RemoteRootCodec<RoutedeviceU2DActionPath_eef64882a7> = .init(id: "route.device-action.path", schema: RemoteSchemas.schema_eef64882a7b017fb)
+  static let routeU2EConversationU2DSearchU2EQuery: RemoteRootCodec<RouteconversationU2DSearchQuery_07b9b9802d> = .init(id: "route.conversation-search.query", schema: RemoteSchemas.schema_07b9b9802d46bf6b)
 }

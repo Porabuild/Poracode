@@ -55,14 +55,16 @@ function holdBackup() {
   const release = Promise.withResolvers<void>();
   releases.push(() => release.resolve());
   const original = Database.prototype.backup;
-  vi.spyOn(Database.prototype, "backup").mockImplementation(
-    async function (this: InstanceType<typeof Database>, destination, options) {
-      const result = await original.call(this, destination, options);
-      entered.resolve();
-      await release.promise;
-      return result;
-    },
-  );
+  vi.spyOn(Database.prototype, "backup").mockImplementation(async function (
+    this: InstanceType<typeof Database>,
+    destination,
+    options,
+  ) {
+    const result = await original.call(this, destination, options);
+    entered.resolve();
+    await release.promise;
+    return result;
+  });
   return { entered: entered.promise, release: () => release.resolve() };
 }
 

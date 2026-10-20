@@ -5,6 +5,20 @@
   "entries": {
     "httpRoutes": [
       {
+        "id": "conversation-search",
+        "scopes": ["session:read"],
+        "batch": "thread-lifecycle",
+        "ios": {
+          "wire": { "disposition": "planned", "evidence": [] },
+          "ui": { "disposition": "planned", "evidence": [] }
+        },
+        "android": {
+          "wire": { "disposition": "planned", "evidence": [] },
+          "ui": { "disposition": "planned", "evidence": [] }
+        },
+        "note": "Capability-gated saved-message search is available to the shared renderer and app controls; native search UI is planned."
+      },
+      {
         "id": "environment",
         "scopes": [],
         "batch": "foundation",
