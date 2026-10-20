@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { BrowserWindow, RenderProcessGoneDetails } from "electron";
+import type { BrowserWindow, RenderProcessGoneDetails, WebContents } from "electron";
 import {
   classifyRendererProcessGone,
   type RendererProcessGoneIntent,
@@ -152,5 +152,71 @@ describe("renderer termination intent wiring", () => {
       [killed, undefined],
       [killed, "window-close"],
     ]);
+  });
+});
+
+describe("device preview window admission", () => {
+  function guard(allowDevicePreviewWindow = false) {
+    const setWindowOpenHandler =
+      vi.fn<(handler: Parameters<WebContents["setWindowOpenHandler"]>[0]) => void>();
+    const handlers = new Map<string, Handler>();
+    const window = {
+      webContents: {
+        setWindowOpenHandler,
+        on: (event: string, handler: Handler) => handlers.set(event, handler),
+      },
+    } as unknown as BrowserWindow;
+    installAppNavigationGuards(window, { isDev: false, allowDevicePreviewWindow });
+    return { open: setWindowOpenHandler.mock.calls[0]![0], handlers };
+  }
+  function request(url: string, frameName = "poracode-device-preview-v1") {
+    return {
+      url,
+      frameName,
+      features: "",
+      disposition: "new-window",
+      referrer: { url: "", policy: "default" },
+    } as Parameters<Parameters<WebContents["setWindowOpenHandler"]>[0]>[0];
+  }
+  it("denies the preview in secondary windows and admits only the exact local v1 target in the main window", () => {
+    const url = "about:blank#poracode-device-preview-v1";
+    expect(guard().open(request(url))).toEqual({ action: "deny" });
+    const { open } = guard(true);
+    expect(open(request(url))).toMatchObject({
+      action: "allow",
+      outlivesOpener: false,
+      overrideBrowserWindowOptions: { minWidth: 320, frame: true },
+    });
+    for (const refused of [
+      "about:blank",
+      "about:blank#poracode-device-preview-v2",
+      "https://example.com",
+      `${url}?thread=secret`,
+    ])
+      expect(open(request(refused))).toEqual({ action: "deny" });
+    expect(open(request(url, "other"))).toEqual({ action: "deny" });
+  });
+  it("blocks child navigation, nested windows and webview attachment", () => {
+    const { handlers } = guard(true);
+    const childHandlers = new Map<string, Handler>();
+    const setWindowOpenHandler =
+      vi.fn<(handler: Parameters<WebContents["setWindowOpenHandler"]>[0]) => void>();
+    handlers.get("did-create-window")?.(
+      {
+        webContents: {
+          setWindowOpenHandler,
+          on: (event: string, handler: Handler) => childHandlers.set(event, handler),
+        },
+      },
+      request("about:blank#poracode-device-preview-v1"),
+    );
+    expect(setWindowOpenHandler.mock.calls[0]![0](request("https://example.com"))).toEqual({
+      action: "deny",
+    });
+    for (const event of ["will-navigate", "will-redirect", "will-attach-webview"]) {
+      const preventDefault = vi.fn<() => void>();
+      childHandlers.get(event)?.({ preventDefault }, "https://example.com");
+      expect(preventDefault).toHaveBeenCalledOnce();
+    }
   });
 });

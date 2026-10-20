@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const ENV_KEYS = [
+  "PORACODE_DEVICE_WORKSPACE_AGENT_KEY",
   "PORACODE_COMPUTER_USE_MCP_URL",
   "PORACODE_COMPUTER_USE_MCP_TOKEN",
   "PORACODE_CHROME_MCP_URL",

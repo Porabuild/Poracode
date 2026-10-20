@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { usePlugins } from "@/renderer/state/pluginsStore";
 import { readBridge } from "@/renderer/bridge";
 import type { PluginArtworkTarget } from "@/shared/contracts/pluginCatalog";
-import { Globe, Monitor, Network, TerminalSquare } from "lucide-react";
+import { Globe, Monitor, Network, Smartphone, TerminalSquare } from "lucide-react";
 import appIcon from "../../../../build/icon.png";
 
 /**
@@ -103,6 +103,8 @@ function PluginIconFallback(props: { pluginId: string; className?: string }) {
       return <img src={appIcon} alt="" className={`${className} rounded-[15%]`} />;
     case "terminal":
       return <TerminalSquare className={className} />;
+    case "devices":
+      return <Smartphone className={className} />;
     case "browser-tools":
       return <Globe className={className} />;
     case "chrome-tools":

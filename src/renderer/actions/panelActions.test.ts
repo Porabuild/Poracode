@@ -2,8 +2,10 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import type { Thread } from "@/shared/contracts";
 import {
   dockPanelTab,
+  closePanelsForUnloadedThread,
   openGitReview,
   openUsagePanel,
   showGitReviewPage,
@@ -21,6 +23,7 @@ function resetDockState() {
     usagePanelOpen: false,
     notesPanelOpen: false,
     browserPanelOpen: false,
+    deviceWorkspaceThreadId: null,
     gitReviewContext: null,
     gitReviewAsPanel: false,
   });
@@ -35,6 +38,18 @@ function resetDockState() {
 describe("dockPanelTab", () => {
   beforeEach(resetDockState);
   afterEach(resetDockState);
+
+  it("does not dock Devices or create a second device surface", () => {
+    usePanelStore.getState().setDeviceWorkspaceThreadId("device-thread");
+    dockPanelTab("devices", { zone: "bottom-panel", placement: "left" });
+    dockPanelTab("devices", { zone: "right-panel", placement: "top" });
+    expect(usePanelStore.getState()).toMatchObject({
+      deviceWorkspaceThreadId: "device-thread",
+      rightPanelTab: "devices",
+      rightPanelSplit: null,
+      bottomPanelDocks: { left: null, right: null },
+    });
+  });
 
   it("docks a tab into a bottom slot and opens its content", () => {
     dockPanelTab("usage", { zone: "bottom-panel", placement: "right" });
@@ -242,6 +257,36 @@ describe("undockPanelTab", () => {
     undockPanelTab("notes");
 
     expect(usePanelStore.getState().bottomPanelDocks).toEqual({ left: "usage", right: null });
+  });
+});
+
+describe("unloaded device context", () => {
+  beforeEach(resetDockState);
+  afterEach(resetDockState);
+
+  it("clears only the exact unloaded thread, including when Devices is hidden behind Notes", () => {
+    const thread: Thread = {
+      id: "device-thread",
+      projectId: "project",
+      title: "Device thread",
+      agentKind: "codex",
+      config: { model: "gpt-5.4" },
+      status: "idle",
+      attention: "none",
+      canResumeWithConfig: false,
+      archived: false,
+      done: false,
+      starred: false,
+      createdAt: "2026-10-17T00:00:00.000Z",
+      updatedAt: "2026-10-17T00:00:00.000Z",
+    };
+    usePanelStore.getState().setDeviceWorkspaceThreadId(thread.id);
+    usePanelStore.getState().setRightPanelTab("notes");
+    closePanelsForUnloadedThread({ ...thread, id: "other-thread" });
+    expect(usePanelStore.getState().deviceWorkspaceThreadId).toBe(thread.id);
+    closePanelsForUnloadedThread(thread);
+    expect(usePanelStore.getState().deviceWorkspaceThreadId).toBeNull();
+    expect(usePanelStore.getState().rightPanelTab).toBe("notes");
   });
 });
 

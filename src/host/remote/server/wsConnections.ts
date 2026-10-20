@@ -1,4 +1,5 @@
 import { isDirectLoopbackPeer, resolvedTrustedProxies } from "./security";
+import { handleDevicePreviewUpgrade } from "./devicePreviewWebSocket";
 import { randomUUID } from "node:crypto";
 import type { IncomingMessage } from "node:http";
 import type { Duplex } from "node:stream";
@@ -247,6 +248,7 @@ export async function handleUpgrade(
 ): Promise<void> {
   try {
     const url = new URL(req.url ?? "/", ctx.requireInfo().httpBaseUrl);
+    if (await handleDevicePreviewUpgrade(ctx, req, socket, head, url)) return;
     if (url.pathname !== "/ws") {
       // Not the app's own WebSocket endpoint. Forwarded applications' own
       // sockets (e.g. Vite/webpack HMR) are reached on their isolated child

@@ -227,6 +227,7 @@ export async function performDesktopRemoteAccessStart(
     refs.pushCoordinator = coordinator;
     setImagePreviewGenerator(options.imagePreviewGenerator ?? null);
     const server: RemoteAccessServer = new RemoteAccessServer({
+      ...(options.deviceWorkspace ? { deviceWorkspace: options.deviceWorkspace } : {}),
       appVersion: options.appVersion,
       ...(options.environments
         ? environmentRemoteAccessOptions(options.environments, authStore, () => {

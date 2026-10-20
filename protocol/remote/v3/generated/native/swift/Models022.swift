@@ -316,103 +316,116 @@ public struct RouteconversationU2DSearchResponse_ca8d08ed24: Codable, Sendable, 
   }
 }
 
-public struct RouteenvironmentU2DAdoptU2DLegacyPath_149c9d9dd2: Codable, Sendable, RemoteModelMetadata {
-  public var environmentId: String
+public struct RoutedeviceU2DActionPath_eef64882a7: Codable, Sendable, RemoteModelMetadata {
+  public var sessionId: String
+  public var threadId: String
   public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
   public static let fields: [RemoteFieldDescriptor] = [
-    .init(wireName: "environmentId", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "sessionId", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "threadId", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
   ]
   public static let semanticValidatorIds: [String] = []
   private enum CodingKeys: String, CodingKey {
-    case environmentId = "environmentId"
+    case sessionId = "sessionId"
+    case threadId = "threadId"
   }
 }
 
-public struct RouteenvironmentU2DAdoptU2DLegacyRequest_399c72fc19: Codable, Sendable, RemoteModelMetadata {
-  public var expectedRevision: Int64
-  public var legacyConnectionId: String
+public enum RoutedeviceU2DActionRequestU2DOptionU2D1U2DKind_ef917452dc: String, Codable, Sendable {
+  case `tap` = "tap"
+}
+
+public struct RoutedeviceU2DActionRequestU2DOptionU2D1_6ddf4b7dc1: Codable, Sendable, RemoteModelMetadata {
+  public var frameId: String
+  public var kind: RoutedeviceU2DActionRequestU2DOptionU2D1U2DKind_ef917452dc
+  public var x: Double
+  public var y: Double
   public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .reject
   public static let fields: [RemoteFieldDescriptor] = [
-    .init(wireName: "expectedRevision", typeName: "Int64", required: true, nullable: false, minimum: 1, maximum: 9007199254740991, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "legacyConnectionId", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$", format: "uuid", semanticValidatorIds: []),
+    .init(wireName: "frameId", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$", format: "uuid", semanticValidatorIds: []),
+    .init(wireName: "kind", typeName: "RoutedeviceU2DActionRequestU2DOptionU2D1U2DKind_ef917452dc", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "x", typeName: "Double", required: true, nullable: false, minimum: 0, maximum: 1, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "y", typeName: "Double", required: true, nullable: false, minimum: 0, maximum: 1, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
   ]
   public static let semanticValidatorIds: [String] = []
   private enum CodingKeys: String, CodingKey {
-    case expectedRevision = "expectedRevision"
-    case legacyConnectionId = "legacyConnectionId"
+    case frameId = "frameId"
+    case kind = "kind"
+    case x = "x"
+    case y = "y"
   }
   public init(from decoder: Decoder) throws {
     let all = try decoder.container(keyedBy: RemoteCodingKey.self).allKeys.map(\.stringValue)
     let known = Set(Self.fields.map(\.wireName))
     guard all.allSatisfy(known.contains) else { throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Unknown field in strict object")) }
     let container = try decoder.container(keyedBy: CodingKeys.self)
-    self.expectedRevision = try container.decode(Int64.self, forKey: .expectedRevision)
-    self.legacyConnectionId = try container.decode(String.self, forKey: .legacyConnectionId)
+    self.frameId = try container.decode(String.self, forKey: .frameId)
+    self.kind = try container.decode(RoutedeviceU2DActionRequestU2DOptionU2D1U2DKind_ef917452dc.self, forKey: .kind)
+    self.x = try container.decode(Double.self, forKey: .x)
+    self.y = try container.decode(Double.self, forKey: .y)
   }
   public func encode(to encoder: Encoder) throws {
     var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encode(expectedRevision, forKey: .expectedRevision)
-    try container.encode(legacyConnectionId, forKey: .legacyConnectionId)
+    try container.encode(frameId, forKey: .frameId)
+    try container.encode(kind, forKey: .kind)
+    try container.encode(x, forKey: .x)
+    try container.encode(y, forKey: .y)
   }
 }
 
-public struct RouteenvironmentU2DAdoptU2DLegacyResponseU2DEnvironmentU2DChildIdentity_1b0d78a343: Codable, Sendable, RemoteModelMetadata {
-  public var desktopId: String
+public enum RoutedeviceU2DActionRequestU2DOptionU2D2U2DKind_0cdfc047b0: String, Codable, Sendable {
+  case `swipe` = "swipe"
+}
+
+public struct RoutedeviceU2DActionRequestU2DOptionU2D2_2c6061a21f: Codable, Sendable, RemoteModelMetadata {
+  public var durationMs: Int64
+  public var endX: Double
+  public var endY: Double
+  public var frameId: String
+  public var kind: RoutedeviceU2DActionRequestU2DOptionU2D2U2DKind_0cdfc047b0
+  public var x: Double
+  public var y: Double
   public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .reject
   public static let fields: [RemoteFieldDescriptor] = [
-    .init(wireName: "desktopId", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "durationMs", typeName: "Int64", required: true, nullable: false, minimum: 100, maximum: 2000, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "endX", typeName: "Double", required: true, nullable: false, minimum: 0, maximum: 1, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "endY", typeName: "Double", required: true, nullable: false, minimum: 0, maximum: 1, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "frameId", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$", format: "uuid", semanticValidatorIds: []),
+    .init(wireName: "kind", typeName: "RoutedeviceU2DActionRequestU2DOptionU2D2U2DKind_0cdfc047b0", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "x", typeName: "Double", required: true, nullable: false, minimum: 0, maximum: 1, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "y", typeName: "Double", required: true, nullable: false, minimum: 0, maximum: 1, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
   ]
   public static let semanticValidatorIds: [String] = []
   private enum CodingKeys: String, CodingKey {
-    case desktopId = "desktopId"
+    case durationMs = "durationMs"
+    case endX = "endX"
+    case endY = "endY"
+    case frameId = "frameId"
+    case kind = "kind"
+    case x = "x"
+    case y = "y"
   }
   public init(from decoder: Decoder) throws {
     let all = try decoder.container(keyedBy: RemoteCodingKey.self).allKeys.map(\.stringValue)
     let known = Set(Self.fields.map(\.wireName))
     guard all.allSatisfy(known.contains) else { throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Unknown field in strict object")) }
     let container = try decoder.container(keyedBy: CodingKeys.self)
-    self.desktopId = try container.decode(String.self, forKey: .desktopId)
+    self.durationMs = try container.decode(Int64.self, forKey: .durationMs)
+    self.endX = try container.decode(Double.self, forKey: .endX)
+    self.endY = try container.decode(Double.self, forKey: .endY)
+    self.frameId = try container.decode(String.self, forKey: .frameId)
+    self.kind = try container.decode(RoutedeviceU2DActionRequestU2DOptionU2D2U2DKind_0cdfc047b0.self, forKey: .kind)
+    self.x = try container.decode(Double.self, forKey: .x)
+    self.y = try container.decode(Double.self, forKey: .y)
   }
   public func encode(to encoder: Encoder) throws {
     var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encode(desktopId, forKey: .desktopId)
+    try container.encode(durationMs, forKey: .durationMs)
+    try container.encode(endX, forKey: .endX)
+    try container.encode(endY, forKey: .endY)
+    try container.encode(frameId, forKey: .frameId)
+    try container.encode(kind, forKey: .kind)
+    try container.encode(x, forKey: .x)
+    try container.encode(y, forKey: .y)
   }
-}
-
-public enum RouteenvironmentU2DAdoptU2DLegacyResponseU2DEnvironmentU2DCredential_d06f3ce55d: String, Codable, Sendable {
-  case `configured` = "configured"
-  case `none` = "none"
-}
-
-public enum RouteenvironmentU2DAdoptU2DLegacyResponseU2DEnvironmentU2DDesired_abff99d05c: String, Codable, Sendable {
-  case `enabled` = "enabled"
-  case `disabled` = "disabled"
-}
-
-public enum RouteenvironmentU2DAdoptU2DLegacyResponseU2DEnvironmentU2DLastErrorU2DCode_2fbfd962f5: String, Codable, Sendable {
-  case `environmentU2FNotU2DFound` = "environment/not-found"
-  case `environmentU2FRevisionU2DConflict` = "environment/revision-conflict"
-  case `environmentU2FStoreU2DBusy` = "environment/store-busy"
-  case `environmentU2FStoreU2DLimit` = "environment/store-limit"
-  case `environmentU2FStoreU2DUnavailable` = "environment/store-unavailable"
-  case `environmentU2FInvalidU2DInput` = "environment/invalid-input"
-  case `environmentU2FNotU2DConnected` = "environment/not-connected"
-  case `environmentU2FTrustU2DRequired` = "environment/trust-required"
-  case `environmentU2FTrustU2DChanged` = "environment/trust-changed"
-  case `environmentU2FTrustU2DMismatch` = "environment/trust-mismatch"
-  case `environmentU2FHostkeyU2DMismatch` = "environment/hostkey-mismatch"
-  case `environmentU2FIdentityU2DChanged` = "environment/identity-changed"
-  case `environmentU2FCredentialU2DMissing` = "environment/credential-missing"
-  case `environmentU2FOwnerU2DUnverified` = "environment/owner-unverified"
-  case `environmentU2FOwnerU2DUnresponsive` = "environment/owner-unresponsive"
-  case `environmentU2FOwnerU2DIncompatible` = "environment/owner-incompatible"
-  case `environmentU2FOwnerU2DBusy` = "environment/owner-busy"
-  case `environmentU2FOwnerU2DConflict` = "environment/owner-conflict"
-  case `environmentU2FLaunchU2DFailed` = "environment/launch-failed"
-  case `environmentU2FUpgradeU2DUnavailable` = "environment/upgrade-unavailable"
-  case `environmentU2FUpgradeU2DRefused` = "environment/upgrade-refused"
-  case `environmentU2FTransportU2DError` = "environment/transport-error"
-  case `environmentU2FCancelled` = "environment/cancelled"
-  case `environmentU2FInternalU2DError` = "environment/internal-error"
-  case `environmentU2FNotU2DAuthorized` = "environment/not-authorized"
 }

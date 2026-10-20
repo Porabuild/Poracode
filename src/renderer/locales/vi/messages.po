@@ -811,6 +811,18 @@ msgstr "3000"
 msgid "30d"
 msgstr "30 ngày"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "3D preview"
+msgstr "Xem trước 3D"
+
+#: src/renderer/components/devices/DevicePreviewStage.tsx
+msgid "3D preview · View only"
+msgstr "Xem trước 3D · Chỉ xem"
+
+#: src/renderer/components/devices/DevicePreviewStage.tsx
+msgid "3D preview, view only. Drag or use arrow keys to rotate; Home resets."
+msgstr "Xem trước 3D, chỉ xem. Kéo hoặc dùng phím mũi tên để xoay; Home đặt lại."
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "4K"
 msgstr "4K"
@@ -827,6 +839,10 @@ msgstr "Một ứng viên không còn ở nhánh thử nghiệm của mình."
 #: src/renderer/components/providers/settings/CursorProfileIdentity.tsx
 msgid "A Cursor profile with this name already exists."
 msgstr "Đã có hồ sơ Cursor trùng tên này."
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "A device failed to start."
+msgstr "Không thể khởi động thiết bị."
 
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
 msgid "A different plugin already uses this identifier. It will not be replaced."
@@ -922,6 +938,10 @@ msgstr "Chấp nhận khóa máy chủ"
 msgid "Accept Incoming Change"
 msgstr "Chấp nhận thay đổi đến"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Accessibility inspector"
+msgstr "Trình kiểm tra trợ năng"
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Account"
 msgstr "Tài khoản"
@@ -1003,6 +1023,7 @@ msgstr "Tên hành động"
 
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/common/BranchSelector/parts/BranchFooterActions.tsx
+#: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/MobileProjectSettingsIndex.tsx
@@ -1737,6 +1758,10 @@ msgstr "Trình duyệt ứng dụng"
 #~ msgid "App Controls"
 #~ msgstr "Điều khiển ứng dụng"
 
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "App package ID"
+msgstr "ID gói ứng dụng"
+
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
@@ -1916,6 +1941,7 @@ msgid "At least two worktrees must be created. Any partial experiment was cleane
 msgstr "Cần tạo ít nhất hai cây làm việc. Mọi thử nghiệm chỉ được tạo một phần đã được dọn dẹp."
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
+#: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Attach"
 msgstr "Đính kèm"
 
@@ -2154,6 +2180,7 @@ msgstr "Đang chờ xem xét"
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/components/composer/ComposerMcpServersMenu.tsx
 #: src/renderer/components/composer/ComposerSessionActionsMenu.tsx
+#: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/components/layout/MobilePageHeader.tsx
 #: src/renderer/views/FileEditorOverlay/FileEditorOverlay.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
@@ -2219,6 +2246,10 @@ msgstr "Tác vụ nền"
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
 msgid "Background tasks"
 msgstr "Tác vụ nền"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Backspace"
+msgstr "Backspace"
 
 #: src/renderer/components/experiment/NewExperimentModal.tsx
 #~ msgid "Base branch"
@@ -2592,6 +2623,14 @@ msgstr "Ghi bộ nhớ đệm"
 msgid "Calculated on desktop after saving"
 msgstr "Được tính trên desktop sau khi lưu"
 
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Calendar"
+msgstr "Lịch"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Camera"
+msgstr "Máy ảnh"
+
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
 msgid "Camera access blocked"
 msgstr "Quyền truy cập camera bị chặn"
@@ -2726,6 +2765,10 @@ msgstr "Không thể tạo đường dẫn cây làm việc mặc định mà kh
 msgid "Cannot switch branches — commit or stash your changes first"
 msgstr "Không thể chuyển nhánh — trước tiên hãy commit hoặc stash các thay đổi của bạn"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Capture and view controls"
+msgstr "Điều khiển chụp và xem"
+
 #. placeholder {0}: totals.categorizedTokens.toLocaleString(locale)
 #. placeholder {1}: totals.tokens.toLocaleString(locale)
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
@@ -2798,6 +2841,10 @@ msgstr "Thay đổi"
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 msgid "Changes ({0})"
 msgstr "Thay đổi ({0})"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Changes affect the selected emulator. App permissions depend on its Android version and the permissions requested by the app."
+msgstr "Thay đổi áp dụng cho trình giả lập đã chọn. Quyền phụ thuộc vào phiên bản Android và quyền mà ứng dụng yêu cầu."
 
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 msgid "Changes apply globally to this environment."
@@ -3339,6 +3386,10 @@ msgstr "Đóng Crossagents"
 msgid "Close Crossagents panel"
 msgstr "Đóng bảng Crossagents"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Close device settings"
+msgstr "Đóng cài đặt thiết bị"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "Close device toolbar"
 msgstr "Đóng thanh công cụ thiết bị"
@@ -3395,6 +3446,10 @@ msgstr "Đóng nhóm"
 #: src/mobile/views/threadActionSurfaces.tsx
 #~ msgid "Close group actions"
 #~ msgstr "Đóng hành động nhóm"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Close inspector"
+msgstr "Đóng trình kiểm tra"
 
 #: src/renderer/components/thread/ChatPane/UserMessageActionsSheet.tsx
 msgid "Close menu"
@@ -4075,9 +4130,18 @@ msgstr "Kết nối tới máy chủ từ xa"
 msgid "Connected"
 msgstr "Đã kết nối"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Connecting"
+msgstr "Đang kết nối"
+
 #: src/mobile/views/BrowserView.tsx
 #~ msgid "Connecting to the desktop browser…"
 #~ msgstr "Đang kết nối tới trình duyệt trên desktop…"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+#: src/renderer/components/devices/LiveDevicePreview.tsx
+msgid "Connecting to the device…"
+msgstr "Đang kết nối với thiết bị…"
 
 #: src/renderer/components/composer/LiveVoiceControls.tsx
 msgid "Connecting voice…"
@@ -4135,6 +4199,10 @@ msgstr "Kết nối"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Console"
 msgstr "Console"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Contacts"
+msgstr "Danh bạ"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Contains sensitive values; add manually"
@@ -4220,6 +4288,10 @@ msgstr "Tiếp tục với lịch sử không đầy đủ"
 msgid "Continuing will keep the remaining history and mark this episode acknowledged; it does not restore the missing content."
 msgstr "Tiếp tục sẽ giữ lại phần lịch sử còn lại và đánh dấu tập này là đã xác nhận; nội dung bị thiếu không được khôi phục."
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Control"
+msgstr "Điều khiển"
+
 #: src/renderer/components/providers/settings/ProviderMcpServersSection.tsx
 msgid "Control an external Chrome browser."
 msgstr "Điều khiển trình duyệt Chrome bên ngoài."
@@ -4292,6 +4364,10 @@ msgstr "Sao chép (khuyên dùng)"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Copy {0} device code {1}"
 msgstr "Sao chép {0} mã thiết bị {1}"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Copy accessibility tree"
+msgstr "Sao chép cây trợ năng"
 
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Copy all Lightcode data into Poracode. Poracode restarts and keeps a complete backup of its current data."
@@ -5036,6 +5112,7 @@ msgstr "Chi phí hằng ngày"
 msgid "Daily recorded cost; gaps may contain unpriced usage."
 msgstr "Chi phí ghi nhận hằng ngày; khoảng trống có thể chứa mức sử dụng chưa có giá."
 
+#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
@@ -5078,6 +5155,7 @@ msgstr "DeepSeek Harness"
 msgid "DeepSeek Harness chat with persistent sessions, reasoning controls, and MCP tools. Configure credentials with dsh web."
 msgstr "Trò chuyện DeepSeek Harness với phiên được lưu, tùy chỉnh suy luận và công cụ MCP. Cấu hình thông tin xác thực bằng dsh web."
 
+#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/components/providers/deepseek/index.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
@@ -5380,6 +5458,10 @@ msgstr "Cài đặt máy tính"
 msgid "Destination"
 msgstr "Đích"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Detach"
+msgstr "Ngắt kết nối"
+
 #: src/renderer/components/thread/SideChat/SideChatBody.tsx
 msgid "Detach side chat"
 msgstr "Tách cuộc trò chuyện bên"
@@ -5388,9 +5470,13 @@ msgstr "Tách cuộc trò chuyện bên"
 msgid "detached HEAD"
 msgstr "HEAD tách rời"
 
-#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
-#~ msgid "Details"
-#~ msgstr "Chi tiết"
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Detaching leaves the device running."
+msgstr "Thiết bị vẫn chạy sau khi ngắt kết nối."
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Details"
+msgstr "Chi tiết"
 
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
 msgid "Detect"
@@ -5450,14 +5536,64 @@ msgstr "Phát triển"
 msgid "Development-only overrides. Only visible in the PORACODE DEV build."
 msgstr "Ghi đè chỉ dành cho phát triển. Chỉ hiển thị trong bản dựng PORACODE DEV."
 
+#: src/renderer/components/devices/useDeviceLivePreview.ts
+msgid "Device access expired. Attach again."
+msgstr "Quyền truy cập thiết bị đã hết hạn. Hãy kết nối lại."
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Device accessibility"
+msgstr "Trợ năng thiết bị"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Device appearance"
+msgstr "Giao diện thiết bị"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Device network"
+msgstr "Mạng thiết bị"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Device operation failed."
+msgstr "Thao tác thiết bị thất bại."
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Device orientation"
+msgstr "Hướng thiết bị"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "Device preset"
 msgstr "Cấu hình thiết bị"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Device settings"
+msgstr "Cài đặt thiết bị"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Device text size"
+msgstr "Cỡ chữ thiết bị"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Device tooling is unavailable."
+msgstr "Công cụ thiết bị không khả dụng."
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Device used by the composer voice input button."
 msgstr "Thiết bị được dùng cho nút nhập giọng nói của khung soạn thảo."
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Device workspace"
+msgstr "Không gian thiết bị"
+
+#: src/renderer/components/devices/DeviceDetachedWindow.tsx
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+#: src/renderer/components/layout/PanelDock/panelTabMeta.ts
+#: src/renderer/components/plugins/pluginCopy.ts
+#: src/renderer/components/thread/ThreadToolRail.tsx
+#: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
+msgid "Devices"
+msgstr "Thiết bị"
 
 #: src/renderer/utils/projectIcons.ts
 msgid "Devices & tools"
@@ -5612,6 +5748,7 @@ msgstr "Tắt tác vụ tự động sau khi đã dùng hết các lần thử l
 msgid "Disable tiers an external provider collapses (e.g. keep only High and Max)."
 msgstr "Tắt các mức mà nhà cung cấp bên ngoài gộp lại (ví dụ chỉ giữ High và Max)."
 
+#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
@@ -6116,6 +6253,7 @@ msgstr "Bật nhà cung cấp trong cài đặt"
 msgid "Enable this plugin's skills and servers for new threads."
 msgstr "Bật skill và máy chủ của plugin này cho các luồng mới."
 
+#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentHeader.tsx
 msgid "Enabled"
@@ -6161,6 +6299,10 @@ msgstr "Kết thúc trò chuyện thoại"
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Enhanced (Hooks)"
 msgstr "Tăng cường (Móc)"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Enter"
+msgstr "Enter"
 
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
 msgid "Enter a font family of up to 256 characters without control characters."
@@ -6613,6 +6755,10 @@ msgstr "Nhà cung cấp bên ngoài"
 msgid "Extra High"
 msgstr "Cực cao"
 
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Extra large"
+msgstr "Rất lớn"
+
 #. placeholder {0}: sourceAgent?.label ?? thread.agentKind
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "Extracting context from {0}..."
@@ -7022,6 +7168,10 @@ msgstr "Độ trễ cố định"
 msgid "Flat list"
 msgstr "Danh sách phẳng"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Flat preview"
+msgstr "Xem trước phẳng"
+
 #: src/renderer/commands/registry.ts
 msgid "Focus browser address bar"
 msgstr "Tập trung vào thanh địa chỉ trình duyệt"
@@ -7161,6 +7311,10 @@ msgstr "Đã tìm thấy {0, plural, one {# skill có thể nhập} other {# ski
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Found a signed-in {0} session."
 msgstr "Đã tìm thấy phiên đăng nhập {0}."
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Framed preview"
+msgstr "Xem trước có khung"
 
 #: src/renderer/components/providers/modelDescription.ts
 msgid "Free"
@@ -7457,6 +7611,10 @@ msgstr "Đã hiểu"
 msgid "Grade {0}"
 msgstr "Xếp hạng {0}"
 
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Grant"
+msgstr "Cấp"
+
 #: src/renderer/components/plugins/PluginServiceAccounts.tsx
 msgid "Granted scopes"
 msgstr "Quyền đã cấp"
@@ -7643,6 +7801,7 @@ msgstr "Cao"
 msgid "History"
 msgstr "Lịch sử"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/views/HomeView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
@@ -8071,6 +8230,10 @@ msgstr "Giá đầu vào/đầu ra cho mỗi 1 triệu token của từng mô h�
 msgid "Input / output prices per 1M tokens. Ranges cover model variants."
 msgstr "Giá đầu vào/đầu ra cho mỗi 1 triệu token. Khoảng giá bao gồm các biến thể của mô hình."
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Input controls"
+msgstr "Điều khiển nhập liệu"
+
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Input level"
 msgstr "Mức đầu vào"
@@ -8102,6 +8265,14 @@ msgstr "Bên trong mỗi dự án"
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Inside this project"
 msgstr "Bên trong dự án này"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Inspect"
+msgstr "Kiểm tra"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Inspect and control the simulator or emulator attached to this thread."
+msgstr "Kiểm tra và điều khiển trình mô phỏng hoặc giả lập được kết nối với luồng này."
 
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Inspect canonical runtime items"
@@ -8190,6 +8361,10 @@ msgstr "Cài đặt và quản lý plugin gốc của OpenCode."
 msgid "Install and restart"
 msgstr "Cài đặt và khởi động lại"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Install Android SDK Emulator and platform-tools, then create an AVD."
+msgstr "Cài Android SDK Emulator và platform-tools, sau đó tạo AVD."
+
 #: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
 msgid "Install Antigravity"
 msgstr "Cài đặt Antigravity"
@@ -8266,6 +8441,10 @@ msgstr "Cài đặt trong {0}"
 msgid "Install managed skills into {0}."
 msgstr "Cài đặt các skill được quản lý vào {0}."
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Install Meta idb and idb_companion on this host for iOS input and accessibility."
+msgstr "Cài Meta idb và idb_companion trên máy chủ này để nhập liệu và kiểm tra trợ năng iOS."
+
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Install native providers first; use ACP for additional protocol agents."
 msgstr "Cài đặt nhà cung cấp gốc trước; sử dụng ACP cho các tác nhân giao thức bổ sung."
@@ -8327,6 +8506,10 @@ msgstr "Cài đặt v{updateVersion}"
 msgid "Install v{version}"
 msgstr "Cài đặt v{version}"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Install Xcode and an iOS Simulator runtime on this host."
+msgstr "Cài Xcode và môi trường chạy iOS Simulator trên máy chủ này."
+
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
 msgid "Install, update, and sign-in are not yet available on remote machines."
 msgstr "Cài đặt, cập nhật và đăng nhập chưa khả dụng trên máy từ xa."
@@ -8374,6 +8557,10 @@ msgstr "Hướng dẫn"
 msgid "Instructions agents follow when choosing which agent or model to delegate to."
 msgstr "Hướng dẫn mà các tác nhân tuân theo khi chọn tác nhân hoặc mô hình để ủy thác."
 
+#: src/renderer/components/devices/LiveDevicePreview.tsx
+msgid "Interactive device preview. Tab moves to the next control; Escape closes the workspace."
+msgstr "Xem trước thiết bị có thể tương tác. Tab chuyển đến điều khiển tiếp theo; Escape đóng không gian làm việc."
+
 #: src/renderer/components/thread/ChatPane/parts/items/InlineVisual.tsx
 msgid "Interactive rendering is unavailable. Showing source only."
 msgstr "Không thể hiển thị tương tác. Chỉ hiển thị mã nguồn."
@@ -8416,6 +8603,10 @@ msgstr "Cấu hình không hợp lệ — đã giữ lại nhưng bị tắt"
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Invalid visual specification. Showing source only."
 msgstr "Đặc tả trực quan không hợp lệ. Chỉ hiển thị mã nguồn."
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "iOS Simulator requires a macOS host with Xcode."
+msgstr "iOS Simulator yêu cầu máy chủ macOS có Xcode."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "iPad Air"
@@ -8556,6 +8747,14 @@ msgstr "Kimi Code đã kết thúc lượt mà không trả về phản hồi. H
 msgid "LAN"
 msgstr "LAN"
 
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Landscape left"
+msgstr "Ngang trái"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Landscape right"
+msgstr "Ngang phải"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Language"
@@ -8578,6 +8777,10 @@ msgstr "Laptop"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "Laptop L"
 msgstr "Laptop L"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Large"
+msgstr "Lớn"
 
 #. placeholder {0}: formatSessionTime(session.lastConnectedAt)
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
@@ -8604,6 +8807,14 @@ msgstr "Công cụ cuối cùng: <0>{0}</0>"
 #: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
 msgid "Last updated: {fetchedAt}"
 msgstr "Cập nhật lần cuối: {fetchedAt}"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Latitude"
+msgstr "Vĩ độ"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Launch"
+msgstr "Khởi chạy"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -8704,6 +8915,7 @@ msgstr "tokens trọn đời"
 msgid "Lifetime tokens"
 msgstr "Tokens trọn đời"
 
+#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
@@ -8743,14 +8955,32 @@ msgstr "Liệt kê các gói"
 msgid "List tasks"
 msgstr "Liệt kê nhiệm vụ"
 
-#: src/mobile/remoteConnectionState.ts
-#~ msgid "Live"
-#~ msgstr "Trực tuyến"
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Live"
+msgstr "Trực tuyến"
 
 #. placeholder {0}: formatShortDateTime(desktop.lastConnectedAt)
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Live {0}"
 #~ msgstr "Trực tuyến {0}"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Live device preview"
+msgstr "Xem trước thiết bị trực tiếp"
+
+#: src/renderer/components/devices/LiveDevicePreview.tsx
+msgid "Live device preview, view only"
+msgstr "Xem trước thiết bị trực tiếp, chỉ xem"
+
+#: src/renderer/components/devices/useDeviceLivePreview.ts
+msgid "Live preview is unavailable for this device on this host. Use snapshots."
+msgstr "Máy chủ này không hỗ trợ xem trước trực tiếp thiết bị này. Hãy dùng ảnh chụp."
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+#: src/renderer/components/devices/LiveDevicePreview.tsx
+#: src/renderer/components/devices/useDeviceLivePreview.ts
+msgid "Live preview is unavailable. Retry or use snapshots."
+msgstr "Không thể xem trước trực tiếp. Hãy thử lại hoặc dùng ảnh chụp."
 
 #: src/renderer/components/thread/LiveStreamCapacityAlert.tsx
 msgid "Live updates are paused for {droppedRuntimeThreadCount, plural, one {# thread} other {# threads}} because this window exceeds the {MANAGED_ITEM_INTERESTS_MAX}-thread live streaming limit. Close or reopen a thread to resume the paused ones."
@@ -8911,6 +9141,7 @@ msgid "Loading workflow runs"
 msgstr "Đang tải các lần chạy quy trình"
 
 #: src/renderer/app.tsx
+#: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/components/providers/settings/ModelProviderManager.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/useHistoryItemDetails.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
@@ -8949,6 +9180,7 @@ msgstr "Bảo vệ mật khẩu cục bộ"
 msgid "localhost:{0} on desktop"
 msgstr "localhost:{0} trên máy tính"
 
+#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
@@ -9036,6 +9268,10 @@ msgstr "Chuỗi ngày dài nhất"
 #: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
 msgid "Longest task"
 msgstr "Tác vụ dài nhất"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Longitude"
+msgstr "Kinh độ"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
 msgid "Looking for browser profiles…"
@@ -9586,6 +9822,7 @@ msgstr "Không thể tải các tin nhắn."
 msgid "Messages sent"
 msgstr "Tin nhắn đã gửi"
 
+#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Microphone"
@@ -9848,6 +10085,10 @@ msgstr "Nhà cung cấp dùng nhiều nhất"
 msgid "Most used reasoning"
 msgstr "Mức suy luận dùng nhiều nhất"
 
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Motion"
+msgstr "Chuyển động"
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Move"
 msgstr "Di chuyển"
@@ -9868,6 +10109,14 @@ msgstr "Chuyển trình duyệt sang cửa sổ"
 #: src/renderer/components/common/BranchSelector/parts/BranchFooterActions.tsx
 msgid "Move changes to a new worktree"
 msgstr "Di chuyển các thay đổi sang một cây làm việc mới"
+
+#: src/renderer/components/devices/DeviceDetachedWindow.tsx
+msgid "Move device back to main window"
+msgstr "Đưa thiết bị về cửa sổ chính"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Move device to window"
+msgstr "Chuyển thiết bị sang cửa sổ riêng"
 
 #: src/renderer/components/thread/PaneDragAndDrop.tsx
 msgid "Move pane"
@@ -10017,6 +10266,10 @@ msgstr "Điều hướng"
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Navigate, inspect, and test pages with the in-app Browser MCP."
 msgstr "Điều hướng, kiểm tra và thử nghiệm trang bằng Browser MCP tích hợp."
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Navigation controls"
+msgstr "Điều khiển điều hướng"
 
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Needs approval"
@@ -10795,6 +11048,10 @@ msgstr "Không có phiên nào khớp với bộ lọc hiện tại."
 msgid "No shortcuts found"
 msgstr "Không tìm thấy phím tắt nào"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "No simulators or emulators found."
+msgstr "Không tìm thấy trình mô phỏng hay giả lập."
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "No skills found"
 msgstr "Không tìm thấy skill"
@@ -10999,6 +11256,7 @@ msgstr "Chưa có gì để nén — cuộc trò chuyện vẫn còn ngắn."
 msgid "Nothing tracked yet. It'll appear here as you use it."
 msgstr "Chưa ghi nhận gì. Nội dung sẽ xuất hiện ở đây khi bạn sử dụng."
 
+#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
@@ -11282,6 +11540,10 @@ msgstr "Mở công việc trên GitHub"
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Open leaderboard with install and trend metrics."
 msgstr "Bảng xếp hạng mở với số liệu cài đặt và xu hướng."
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Open link"
+msgstr "Mở liên kết"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -11923,6 +12185,10 @@ msgstr "Xóa vĩnh viễn các mục lưu trữ đã chọn khỏi {0}."
 msgid "permission"
 msgstr "sự cho phép"
 
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Permission"
+msgstr "Quyền"
+
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 msgid "Persistent goals, budgets, and automatic continuation with /goal."
 msgstr "Mục tiêu bền vững, ngân sách và tự động tiếp tục với /goal."
@@ -11955,6 +12221,10 @@ msgstr "Cá nhân"
 #: src/renderer/components/providers/devin/sessionActionDialog.tsx
 #~ msgid "Personas"
 #~ msgstr "Persona"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Photos"
+msgstr "Ảnh"
 
 #: src/renderer/components/providers/pi/manifest.ts
 msgid "Pi"
@@ -12240,12 +12510,24 @@ msgstr "Chưa bật chuyển tiếp cổng"
 #~ msgid "Port forwarding needs a direct connection to the desktop. It isn't available over a relay or tunnel."
 #~ msgstr "Chuyển tiếp cổng cần kết nối trực tiếp đến máy tính. Tính năng này không khả dụng qua relay hoặc tunnel."
 
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Portrait"
+msgstr "Dọc"
+
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
 msgid "Ports"
 msgstr "Cổng"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Power off device"
+msgstr "Tắt thiết bị"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Power off device?"
+msgstr "Tắt thiết bị?"
 
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "PowerShell {version}"
@@ -12975,6 +13257,7 @@ msgstr "Đang đọc các thay đổi của từng ứng viên…"
 msgid "Reading each candidate's chat response…"
 msgstr "Đang đọc câu trả lời trò chuyện của từng ứng viên…"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Ready"
 msgstr "Sẵn sàng"
@@ -13020,22 +13303,34 @@ msgstr "Lượt cài đặt gần đây"
 msgid "Recent threads"
 msgstr "Luồng gần đây"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Recents"
+msgstr "Gần đây"
+
 #: src/mobile/components.tsx
 #~ msgid "Reconnect"
 #~ msgstr "Kết nối lại"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Reconnect live preview"
+msgstr "Kết nối lại bản xem trước trực tiếp"
 
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Reconnect the server to add projects."
 msgstr "Kết nối lại máy chủ để thêm dự án."
 
-#: src/mobile/remoteConnectionState.ts
-#~ msgid "Reconnecting"
-#~ msgstr "Đang kết nối lại"
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Reconnecting"
+msgstr "Đang kết nối lại"
 
 #: src/renderer/components/terminal/TerminalFeedStatus.tsx
 msgid "Reconnecting to terminal…"
 msgstr "Đang kết nối lại với terminal…"
+
+#: src/renderer/components/devices/LiveDevicePreview.tsx
+msgid "Reconnecting to the device…"
+msgstr "Đang kết nối lại với thiết bị…"
 
 #: src/mobile/components.tsx
 #~ msgid "Reconnecting to your desktop…"
@@ -13062,6 +13357,10 @@ msgstr "Đỏ"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Redact notification content"
 msgstr "Ẩn nội dung thông báo"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Reduce motion"
+msgstr "Giảm chuyển động"
 
 #: src/renderer/components/plugins/PluginCatalogBrowser.tsx
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
@@ -13112,6 +13411,10 @@ msgstr "Làm mới {label}"
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Refresh detected agents"
 msgstr "Làm mới các tác nhân được phát hiện"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Refresh devices"
+msgstr "Làm mới thiết bị"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Refresh MCP server sources"
@@ -13875,6 +14178,10 @@ msgstr "Độ trễ thử lại"
 msgid "Retry delay in seconds"
 msgstr "Độ trễ thử lại tính bằng giây"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Retry live"
+msgstr "Thử lại trực tiếp"
+
 #: src/mobile/components.tsx
 #~ msgid "Retry now"
 #~ msgstr "Thử lại ngay"
@@ -14078,6 +14385,10 @@ msgstr "Sửa lệnh"
 msgid "Revision note (optional)"
 msgstr "Ghi chú sửa đổi (tùy chọn)"
 
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Revoke"
+msgstr "Thu hồi"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Revoke {name}"
 msgstr "Thu hồi {name}"
@@ -14094,6 +14405,10 @@ msgstr "Bảng bên phải"
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 msgid "Right-click to switch ring"
 msgstr "Nhấp chuột phải để đổi vòng"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Rotate to…"
+msgstr "Xoay sang…"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "Rotate viewport"
@@ -14255,6 +14570,7 @@ msgstr "Chạy quy trình"
 msgid "running"
 msgstr "đang chạy"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/SchedulesView/parts/scheduleRunStatus.ts
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
@@ -14541,6 +14857,10 @@ msgstr "Khoa học và giáo dục"
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Scope"
 msgstr "Phạm vi"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Screenshot"
+msgstr "Ảnh chụp màn hình"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
@@ -14916,6 +15236,7 @@ msgstr "Đã chọn"
 msgid "Selected sidebar row"
 msgstr "Hàng được chọn ở thanh bên"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/components/thread/SideChat/SideChatBody.tsx
 msgid "Send"
 msgstr "Gửi"
@@ -15013,6 +15334,10 @@ msgstr "ID phiên"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
 msgid "Set group color"
 msgstr "Đặt màu nhóm"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Set location"
+msgstr "Đặt vị trí"
 
 #: src/renderer/components/providers/codex/index.tsx
 msgid "Set or view an experimental goal"
@@ -15501,6 +15826,10 @@ msgstr "Đang đăng xuất {env}. Các tác nhân được phát hiện sẽ l�
 msgid "Signing out. Detected agents will refresh when it finishes."
 msgstr "Đang đăng xuất. Các tác nhân được phát hiện sẽ làm mới khi nó kết thúc."
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Simulators and emulators on this thread’s host"
+msgstr "Trình mô phỏng và giả lập trên máy chủ của luồng này"
+
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Single pass"
 msgstr "Một lượt"
@@ -15614,6 +15943,14 @@ msgstr "Bị Crossagents bỏ qua: {0}"
 #: src/renderer/components/thread/ThreadCommandPanel.tsx
 msgid "Slash commands"
 msgstr "Lệnh gạch chéo"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Small"
+msgstr "Nhỏ"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Snapshots"
+msgstr "Ảnh chụp nhanh"
 
 #. placeholder {0}: index + 1
 #. placeholder {0}: winnerOrdinal + 1
@@ -15829,6 +16166,10 @@ msgstr "Bắt đầu một chủ đề mới từ việc cần làm này"
 #~ msgid "Start a new thread to put an agent to work from this device."
 #~ msgstr "Bắt đầu một luồng mới để cho agent làm việc từ thiết bị này."
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Start device"
+msgstr "Khởi động thiết bị"
+
 #: src/renderer/commands/composerCommands.ts
 msgid "Start dictation"
 msgstr "Bắt đầu đọc chính tả"
@@ -15904,6 +16245,7 @@ msgid "Started {targetLabel} thread"
 msgstr "Đã bắt đầu chủ đề {targetLabel}"
 
 #. Button label while the microphone test is starting
+#: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/RemoteAccessSidebarIcon.tsx
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
@@ -16046,6 +16388,10 @@ msgstr "Dừng nhập bằng giọng nói"
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Stop when"
 msgstr "Dừng khi"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Stopped"
+msgstr "Đã dừng"
 
 #: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 msgid "Stopping {label}…"
@@ -16334,6 +16680,7 @@ msgstr "Đang đồng bộ…"
 msgid "Syncs with Cloud"
 msgstr "Đồng bộ với Cloud"
 
+#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/i18n/locales.ts
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "System"
@@ -16700,6 +17047,10 @@ msgstr "Máy chủ riêng của máy tính đã kết nối lại trước khi q
 #: src/renderer/state/managedRootCatalog/rootCatalogIntents.ts
 msgid "The desktop's own server refused the change."
 msgstr "Máy chủ riêng của máy tính đã từ chối thay đổi."
+
+#: src/renderer/components/devices/deviceClient.ts
+msgid "The device host is unavailable."
+msgstr "Máy chủ thiết bị không khả dụng."
 
 #: src/renderer/state/remoteServers/environmentManagement.ts
 msgid "The environment changed on the host. Refresh and try again."
@@ -17247,9 +17598,17 @@ msgstr "Thư mục này trống."
 msgid "This host"
 msgstr "Máy chủ này"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "This host does not support the device workspace."
+msgstr "Máy chủ này không hỗ trợ không gian thiết bị."
+
 #: src/renderer/components/providers/HostUsageView.tsx
 msgid "This host is no longer configured."
 msgstr "Máy chủ này không còn được cấu hình."
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "This host provides snapshots. Live streaming is unavailable."
+msgstr "Máy chủ này cung cấp ảnh chụp. Không thể phát trực tiếp."
 
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "This HTTPS page couldn't reach the desktop on plain HTTP. Allow local network access for this site and pair again, or continue on the desktop's own address."
@@ -17448,6 +17807,10 @@ msgstr "Phiên này đã thay đổi trên đĩa. Hãy làm mới danh sách r�
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This session is already being imported."
 msgstr "Phiên này đang được nhập."
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "This shuts down the selected emulator and disconnects every viewer. Detach instead to leave it running."
+msgstr "Thao tác này tắt trình giả lập đã chọn và ngắt mọi người xem. Chỉ ngắt kết nối nếu muốn tiếp tục chạy."
 
 #: src/renderer/components/media/SvgFileView.tsx
 msgid "This SVG can't be displayed."
@@ -17722,6 +18085,10 @@ msgstr "Bật/tắt yêu thích"
 msgid "Toggle Terminal"
 msgstr "Bật/tắt thiết bị đầu cuối"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Toggle text input"
+msgstr "Bật/tắt nhập văn bản"
+
 #: src/renderer/commands/registry.ts
 msgid "Toggle the file tree panel"
 msgstr "Bật/tắt bảng điều khiển cây tập tin"
@@ -17880,6 +18247,10 @@ msgstr "Nhập ít nhất hai ký tự để tìm kiếm tin nhắn"
 #~ msgid "Type into the page (tap a field first)"
 #~ msgstr "Nhập vào trang (chạm vào trường trước)"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Type on device"
+msgstr "Nhập trên thiết bị"
+
 #: src/renderer/commands/CommandPalette.tsx
 msgid "Type to search files"
 msgstr "Nhập để tìm kiếm tệp"
@@ -18019,6 +18390,10 @@ msgstr "Không thể hợp nhất ứng viên thắng của thử nghiệm: {0}"
 #: src/renderer/actions/agentLoginActions.ts
 msgid "Unable to open {0} login."
 msgstr "Không thể mở đăng nhập {0}."
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Unable to open device window."
+msgstr "Không thể mở cửa sổ thiết bị."
 
 #: src/renderer/commands/registry.ts
 msgid "Unable to open file"
@@ -18268,6 +18643,7 @@ msgstr "Không thể xác minh máy chủ riêng của máy tính để bàn."
 msgid "Unassigned"
 msgstr "Chưa gán"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisualBlocks.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisualChart.tsx
@@ -18344,6 +18720,7 @@ msgstr "Gỡ cài đặt"
 msgid "Uninstall {name}"
 msgstr "Gỡ cài đặt {name}"
 
+#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/components/thread/threadContextUsage.ts
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
@@ -18703,6 +19080,10 @@ msgstr "Nâng cấp chủ sở hữu môi trường"
 msgid "Upgrade owner"
 msgstr "Nâng cấp chủ sở hữu"
 
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Upside down"
+msgstr "Lộn ngược"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
 msgid "URL"
@@ -18711,6 +19092,10 @@ msgstr "URL"
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "URL is required."
 msgstr "Bắt buộc phải có URL."
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "URL or deep link"
+msgstr "URL hoặc liên kết sâu"
 
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
@@ -18823,6 +19208,10 @@ msgstr "Sử dụng tập tin bỏ qua"
 msgid "Use letters, numbers, dots, dashes, or underscores without spaces."
 msgstr "Sử dụng chữ cái, chữ số, dấu chấm, dấu gạch ngang hoặc dấu gạch dưới và không có dấu cách."
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Use live preview"
+msgstr "Dùng bản xem trước trực tiếp"
+
 #: src/renderer/components/providers/settings/ModelProviderEditor.tsx
 msgid "Use lowercase letters, numbers, and hyphens."
 msgstr "Dùng chữ thường, chữ số và dấu gạch nối."
@@ -18843,6 +19232,10 @@ msgstr "Sử dụng phiên"
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Use sidebar background for the docked sidebar"
 msgstr "Dùng nền thanh bên cho thanh bên cố định"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Use snapshots"
+msgstr "Dùng ảnh chụp"
 
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Use the {name} skill."
@@ -18990,6 +19383,10 @@ msgstr "Xem tất cả bản phát hành trên GitHub"
 #: src/renderer/views/WhatsNewOverlay.tsx
 msgid "View full changelog"
 msgstr "Xem toàn bộ nhật ký thay đổi"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "View only"
+msgstr "Chỉ xem"
 
 #: src/renderer/components/skills/SkillViewModal.tsx
 msgid "View raw"
@@ -19148,6 +19545,11 @@ msgstr "Đang chờ phê duyệt"
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Waiting for background tasks"
 msgstr "Đang chờ tác vụ nền"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+#: src/renderer/components/devices/LiveDevicePreview.tsx
+msgid "Waiting for the device…"
+msgstr "Đang chờ thiết bị…"
 
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "Waiting for workflow to spawn agents…"

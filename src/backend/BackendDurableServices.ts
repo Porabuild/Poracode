@@ -1,4 +1,6 @@
 import { joinRuntimeShutdown } from "./joinRuntimeShutdown";
+import { DeviceWorkspaceService } from "@/host/devices/DeviceWorkspaceService";
+import { DeviceHubRuntime } from "@/host/devices/DeviceHubRuntime";
 import {
   dbAdmitScheduleExecution,
   dbDeleteThread,
@@ -89,6 +91,7 @@ export interface BackendDurableServicesOptions {
    * behavior.
    */
   attachmentsDir?: string;
+  deviceHubRoot?: string;
   hasRendererWindow: boolean;
   openThreadInUi(threadId: string): boolean;
   notifyUser: AppControlsMcpIngressDeps["notifyUser"];
@@ -111,6 +114,7 @@ export class BackendDurableServices {
   readonly prWatchService: PrWatchService;
   readonly gitStateService: GitStateService;
   readonly appControls: AppControlsMcpIngress;
+  readonly deviceWorkspace: DeviceWorkspaceService;
   /** Settled or in-flight shared ingress start; cleared on failure so it can retry. */
   private ingressStart: Promise<void> | null = null;
   private backgroundStarted = false;
@@ -126,6 +130,15 @@ export class BackendDurableServices {
   private housekeepingRun: Promise<void> | null = null;
 
   constructor(private readonly options: BackendDurableServicesOptions) {
+    this.deviceWorkspace = new DeviceWorkspaceService(
+      (id) => {
+        const thread = dbGetThread(id);
+        return thread !== null && !thread.archived;
+      },
+      undefined,
+      Date.now,
+      options.deviceHubRoot ? new DeviceHubRuntime(options.deviceHubRoot) : null,
+    );
     const { supervisor } = options;
     this.scheduleCoordinator = new ScheduleRunCoordinator({
       admitScheduleExecution: dbAdmitScheduleExecution,
@@ -271,6 +284,7 @@ export class BackendDurableServices {
       openThreadInUi: options.openThreadInUi,
       notifyUser: options.notifyUser,
       checkForUpdate: options.checkForUpdate,
+      deviceWorkspace: this.deviceWorkspace,
     });
     if (options.attachmentsDir) {
       this.attachmentReclaim = new AttachmentReclaimService({
@@ -294,6 +308,7 @@ export class BackendDurableServices {
       ? {
           PORACODE_APP_CONTROLS_MCP_URL: info.url,
           PORACODE_APP_CONTROLS_MCP_TOKEN: info.token,
+          ...this.deviceWorkspace.supervisorExtraEnv(),
         }
       : {};
   }
@@ -309,7 +324,10 @@ export class BackendDurableServices {
   startIngress(): Promise<void> {
     if (this.disposed)
       return Promise.reject(new Error("Backend durable services are shutting down."));
-    this.ingressStart ??= this.appControls.start().then(
+    this.ingressStart ??= Promise.all([
+      this.appControls.start(),
+      this.deviceWorkspace.preparePreview(),
+    ]).then(
       () => undefined,
       (error: unknown) => {
         this.ingressStart = null;
@@ -429,6 +447,7 @@ export class BackendDurableServices {
         () => this.prWatchService.dispose(),
         () => this.gitStateService.dispose(),
         () => this.appControls.dispose(),
+        () => this.deviceWorkspace.dispose(),
       ],
       "Backend durable services did not shut down cleanly.",
     ).then(barrier.resolve, (error: unknown) => {

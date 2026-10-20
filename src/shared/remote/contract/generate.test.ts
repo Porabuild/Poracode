@@ -84,7 +84,7 @@ describe("remote v3 generator", () => {
       expect(ir.generatorVersion).toBe(6);
       expect(ir.sourceHash).toMatch(/^sha256:[a-f0-9]{64}$/);
       expect(ir.manifestHash).toMatch(/^sha256:[a-f0-9]{64}$/);
-      expect(ir.inventory.routes).toBe(101);
+      expect(ir.inventory.routes).toBe(116);
       expect(ir.inventory.procedures).toBe(130);
       expect(ir.inventory.voidProcedureResults).toBe(50);
       expect(ir.inventory.jsonProcedureResults).toBe(80);

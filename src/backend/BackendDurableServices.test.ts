@@ -698,6 +698,7 @@ describe("BackendDurableServices startIngress", () => {
     expect(durable.getSupervisorExtraEnv()).toEqual({
       PORACODE_APP_CONTROLS_MCP_URL: "http://127.0.0.1:0/mcp",
       PORACODE_APP_CONTROLS_MCP_TOKEN: "token",
+      PORACODE_DEVICE_WORKSPACE_AGENT_KEY: expect.any(String),
     });
   });
 });

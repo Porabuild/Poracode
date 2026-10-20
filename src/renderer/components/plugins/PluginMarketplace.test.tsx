@@ -110,6 +110,7 @@ describe("PluginMarketplace", () => {
     expect(screen.getByText("Browser")).toBeInTheDocument();
     expect(screen.getByText("Chrome")).toBeInTheDocument();
     expect(screen.getByText("Terminal")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Devices Manage" })).toBeInTheDocument();
     // Packages that only wrap a built-in server ship with the app, so they are
     // managed rather than installed.
     expect(screen.getByRole("button", { name: "Browser Manage" })).toBeInTheDocument();
