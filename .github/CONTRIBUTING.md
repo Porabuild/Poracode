@@ -26,7 +26,7 @@ Handy scripts:
 | Script                  | What it does                            |
 | ----------------------- | --------------------------------------- |
 | `bun run dev`           | Run the Electron app in dev mode        |
-| `bun run typecheck`     | Type-check with Bun using three threads |
+| `bun run typecheck`     | Type-check with Bun using all CPU cores |
 | `bun run typecheck:tsc` | Compare with the TypeScript 7 compiler  |
 | `bun run lint`          | Lint with Bun                           |
 | `bun run fmt`           | Format with Bun                         |
