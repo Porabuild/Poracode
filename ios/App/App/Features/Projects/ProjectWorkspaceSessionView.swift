@@ -168,12 +168,6 @@ final class ProjectWorkspaceSelectionSource {
   }
 }
 
-enum ProjectWorkspaceEntryPoint: Hashable, Sendable {
-  case workspace(ProjectWorkspaceMode)
-  case gitHubActions
-  case pullRequest(PullRequestReviewRoute)
-}
-
 /// Production composition boundary for the project workspace. Controllers are
 /// retained for the lifetime of this destination rather than recreated by view updates.
 struct ProjectWorkspaceSessionView: View {
@@ -368,23 +362,9 @@ struct ProjectWorkspaceSessionView: View {
         controller: gitHubOperationsControllers.pullRequests,
         mutations: gitHubOperationsControllers.pullRequestMutations,
         forge: gitHubOperationsControllers.forgeReview,
-        guideWriters: reviewGuideWriters
+        guideWriters: PullRequestGuideView.writers(from: session.state.replay, location: workspaceLocation)
       )
     }
-  }
-
-  private var reviewGuideWriters: [AgentStatusRecord] {
-    let replay = session.state.replay
-    let statuses: [AgentStatusRecord]
-    switch workspaceLocation {
-    case .wsl(let distro, _, _, _):
-      statuses = replay.wslAgentStatuses.filter { $0.envDistro == distro }
-    case .windows:
-      statuses = replay.agentStatuses.ordered.filter { $0.envKind == .windows || $0.envKind == nil }
-    case .posix:
-      statuses = replay.agentStatuses.ordered.filter { $0.envKind == .posix || $0.envKind == nil }
-    }
-    return statuses.filter { $0.installed && $0.authState != .missing && $0.capabilities["supportsReadOnlyOneShotWorkspace"]?.boolValue == true }
   }
 
   private var enqueueReviewComment: ((RichPromptSegment) -> Void)? {

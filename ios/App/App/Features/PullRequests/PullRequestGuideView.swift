@@ -119,3 +119,20 @@ struct PullRequestGuideView: View {
     }
   }
 }
+
+extension PullRequestGuideView {
+  /// Installed, signed-in agents in the workspace's environment that declare an enforced
+  /// read-only workspace, the only writers admitted for review guides.
+  static func writers(from replay: HostReplayState, location: ProjectLocation) -> [AgentStatusRecord] {
+    let statuses: [AgentStatusRecord]
+    switch location {
+    case .wsl(let distro, _, _, _):
+      statuses = replay.wslAgentStatuses.filter { $0.envDistro == distro }
+    case .windows:
+      statuses = replay.agentStatuses.ordered.filter { $0.envKind == .windows || $0.envKind == nil }
+    case .posix:
+      statuses = replay.agentStatuses.ordered.filter { $0.envKind == .posix || $0.envKind == nil }
+    }
+    return statuses.filter { $0.installed && $0.authState != .missing && $0.capabilities["supportsReadOnlyOneShotWorkspace"]?.boolValue == true }
+  }
+}
