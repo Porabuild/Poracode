@@ -3923,6 +3923,10 @@ msgstr "Łączenie…"
 #~ msgid "Connection"
 #~ msgstr "Połączenie"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
+msgid "Connection details"
+msgstr "Szczegóły połączenia"
+
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
 #: src/renderer/components/thread/ThreadDraftView.tsx
 msgid "Connection error"
@@ -3937,9 +3941,9 @@ msgstr "Błąd połączenia"
 msgid "Connection failed."
 msgstr "Połączenie nie powiodło się."
 
-#: src/mobile/views/DesktopsView.tsx
-#~ msgid "Connection method"
-#~ msgstr "Metoda połączenia"
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
+msgid "Connection method"
+msgstr "Metoda połączenia"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Connection timed out."
@@ -4055,6 +4059,10 @@ msgstr "Steruj aplikacjami komputerowymi w tle i wykonuj wizualne przepływy pra
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Control how each scheduled run continues and stops."
 msgstr "Określ, jak każde zaplanowane uruchomienie ma być kontynuowane i zatrzymywane."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
+msgid "Control terminals"
+msgstr "Sterowanie terminalami"
 
 #: src/renderer/components/providers/settings/ProviderMcpServersSection.tsx
 msgid "Control the desktop."
@@ -6808,6 +6816,10 @@ msgstr "Naprzód"
 msgid "Forward a port"
 msgstr "Przekieruj port"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
+msgid "Forward ports"
+msgstr "Przekierowywanie portów"
+
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Found"
 msgstr "Znaleziony"
@@ -7120,6 +7132,10 @@ msgstr "Rozumiem"
 msgid "Grade {0}"
 msgstr "Ocena {0}"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
+msgid "Granted permissions"
+msgstr "Przyznane uprawnienia"
+
 #: src/renderer/utils/projectIconColors.ts
 msgid "Green"
 msgstr "Zielony"
@@ -7348,6 +7364,10 @@ msgstr "Odwołanie do poświadczeń hosta"
 msgid "Host credential reference (optional)"
 msgstr "Odwołanie do poświadczeń hosta (opcjonalne)"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
+msgid "Host ID"
+msgstr "ID hosta"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
 msgid "Host is up to date."
 msgstr "Host jest aktualny."
@@ -7380,6 +7400,7 @@ msgstr "Aktualizacja hosta nie powiodła się."
 msgid "Host version: {currentVersion}"
 msgstr "Wersja hosta: {currentVersion}"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Host-owned environment"
 msgstr "Środowisko należące do hosta"
@@ -8665,6 +8686,10 @@ msgstr "Zarządzaj hasłami"
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 msgid "Manage plugins"
 msgstr "Zarządzaj wtyczkami"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
+msgid "Manage projects"
+msgstr "Zarządzanie projektami"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
 #~ msgid "Manage remote environments"
@@ -10157,6 +10182,10 @@ msgstr "Brak haseł pasujących do wyszukiwania"
 msgid "No patterns."
 msgstr "Żadnych wzorów."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
+msgid "No permissions granted."
+msgstr "Nie przyznano uprawnień."
+
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "No phases yet."
 msgstr "Nie ma jeszcze faz."
@@ -10950,6 +10979,10 @@ msgstr "Otwarto pull request #{0} dla kandydata."
 msgid "Operate desktop apps through Poracode's desktop-control tools."
 msgstr "Obsługuj aplikacje desktopowe narzędziami sterowania Poracode."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
+msgid "Operate sessions"
+msgstr "Obsługa sesji"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Operator"
 msgstr "Operator"
@@ -11126,6 +11159,10 @@ msgstr "Sparuj z Poracode na komputerze, aby synchronizować wątki, projekty i 
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Paired {0} on this device."
 msgstr "Sparowano {0} na tym urządzeniu."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
+msgid "Paired connection"
+msgstr "Sparowane połączenie"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Paired devices"
@@ -12372,6 +12409,14 @@ msgstr "Uruchom ponownie nieudane zadania"
 msgid "Read and drive Poracode itself: threads, terminal panes, git, pull requests, and schedules."
 msgstr "Odczytuj i steruj samym Poracode: wątki, panele terminala, git, pull requesty i harmonogramy."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
+msgid "Read sessions"
+msgstr "Odczyt sesji"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
+msgid "Read terminals"
+msgstr "Odczyt terminali"
+
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Read the Terminal panel attached to this worktree and report the evidence."
 msgstr "Odczytaj panel Terminal tego drzewa roboczego i zgłoś dowody."
@@ -12429,9 +12474,9 @@ msgstr "Ostatnie instalacje"
 msgid "Recent threads"
 msgstr "Najnowsze wątki"
 
-#: src/mobile/components.tsx
-#~ msgid "Reconnect"
-#~ msgstr "Połącz ponownie"
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
+msgid "Reconnect"
+msgstr "Połącz ponownie"
 
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
@@ -12718,6 +12763,7 @@ msgstr "Usuń kandydata {0}"
 #~ msgstr "Usuń profil Claude"
 
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Remove connection"
 msgstr "Usuń połączenie"
 
@@ -12832,6 +12878,11 @@ msgstr "Usunąć to połączenie?"
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Remove worktree?"
 msgstr "Usunąć drzewo robocze?"
+
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Removes this device's saved connection and credentials. It does not stop the host or revoke access on other devices."
+msgstr "Usuwa połączenie i dane uwierzytelniające zapisane na tym urządzeniu. Nie zatrzymuje hosta ani nie odbiera dostępu innym urządzeniom."
 
 #. placeholder {0}: confirmRemoval?.displayName ?? confirmRemoval?.id
 #: src/renderer/views/SettingsOverlay/parts/CursorProfileSettings.tsx
@@ -13110,6 +13161,10 @@ msgstr "Rozwiązuje konflikty scalania podczas zmiany bazy lub scalania."
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
 msgid "Resolving…"
 msgstr "Rozstrzyganie…"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
+msgid "Respond to agent requests"
+msgstr "Odpowiadanie na prośby agenta"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "Responsive"
@@ -13737,6 +13792,10 @@ msgstr "Zapisz skrót"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Saved credentials are shared across all machines."
 msgstr "Zapisane dane logowania są wspólne dla wszystkich komputerów."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
+msgid "Saved endpoint"
+msgstr "Zapisany punkt końcowy"
 
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
 msgid "Saved font"
@@ -15201,6 +15260,7 @@ msgid "Stashed changes pending"
 msgstr "Oczekujące zmiany w skrytce"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
 msgid "Status"
 msgstr "Status"
 
@@ -16415,6 +16475,10 @@ msgstr "Ten komputer"
 msgid "This connection can view projects but not manage them. Re-pair to enable."
 msgstr "To połączenie może wyświetlać projekty, ale nie może nimi zarządzać. Sparuj ponownie, aby włączyć."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "This connection can't manage projects."
+msgstr "To połączenie nie pozwala zarządzać projektami."
+
 #: src/renderer/components/providers/HostUsageView.tsx
 msgid "This connection does not have permission to read usage."
 msgstr "To połączenie nie ma uprawnień do odczytu użycia."
@@ -17468,6 +17532,7 @@ msgid "Unassigned"
 msgstr "Nieprzypisany"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
 msgid "Unavailable"
 msgstr "Niedostępny"
 
@@ -18108,6 +18173,7 @@ msgstr "wartość"
 #. About page label: app version row
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
 msgid "Version"
 msgstr "Wersja"
 
@@ -18172,8 +18238,8 @@ msgid "View-only — this connection can't change host settings."
 msgstr "Tylko do odczytu — to połączenie nie może zmieniać ustawień hosta."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-msgid "View-only — this connection can't manage projects."
-msgstr "Tylko do odczytu — to połączenie nie może zarządzać projektami."
+#~ msgid "View-only — this connection can't manage projects."
+#~ msgstr "Tylko do odczytu — to połączenie nie może zarządzać projektami."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Viewer"

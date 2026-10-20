@@ -3923,6 +3923,10 @@ msgstr "Đang kết nối…"
 #~ msgid "Connection"
 #~ msgstr "Kết nối"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
+msgid "Connection details"
+msgstr "Chi tiết kết nối"
+
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
 #: src/renderer/components/thread/ThreadDraftView.tsx
 msgid "Connection error"
@@ -3937,9 +3941,9 @@ msgstr "Lỗi kết nối"
 msgid "Connection failed."
 msgstr "Kết nối thất bại."
 
-#: src/mobile/views/DesktopsView.tsx
-#~ msgid "Connection method"
-#~ msgstr "Phương thức kết nối"
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
+msgid "Connection method"
+msgstr "Phương thức kết nối"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Connection timed out."
@@ -4055,6 +4059,10 @@ msgstr "Điều khiển ứng dụng máy tính ở chế độ nền và hoàn 
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Control how each scheduled run continues and stops."
 msgstr "Kiểm soát cách mỗi lượt chạy đã lên lịch tiếp tục và dừng lại."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
+msgid "Control terminals"
+msgstr "Điều khiển terminal"
 
 #: src/renderer/components/providers/settings/ProviderMcpServersSection.tsx
 msgid "Control the desktop."
@@ -6808,6 +6816,10 @@ msgstr "Chuyển tiếp"
 msgid "Forward a port"
 msgstr "Chuyển tiếp một cổng"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
+msgid "Forward ports"
+msgstr "Chuyển tiếp cổng"
+
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Found"
 msgstr "Đã tìm thấy"
@@ -7120,6 +7132,10 @@ msgstr "Đã hiểu"
 msgid "Grade {0}"
 msgstr "Xếp hạng {0}"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
+msgid "Granted permissions"
+msgstr "Quyền đã cấp"
+
 #: src/renderer/utils/projectIconColors.ts
 msgid "Green"
 msgstr "Xanh lá"
@@ -7348,6 +7364,10 @@ msgstr "Tham chiếu thông tin xác thực máy chủ"
 msgid "Host credential reference (optional)"
 msgstr "Tham chiếu thông tin xác thực máy chủ (không bắt buộc)"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
+msgid "Host ID"
+msgstr "ID máy chủ"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
 msgid "Host is up to date."
 msgstr "Máy chủ đã được cập nhật."
@@ -7380,6 +7400,7 @@ msgstr "Không thể cập nhật máy chủ."
 msgid "Host version: {currentVersion}"
 msgstr "Phiên bản máy chủ: {currentVersion}"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Host-owned environment"
 msgstr "Môi trường thuộc máy chủ"
@@ -8665,6 +8686,10 @@ msgstr "Quản lý mật khẩu"
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 msgid "Manage plugins"
 msgstr "Quản lý plugin"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
+msgid "Manage projects"
+msgstr "Quản lý dự án"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
 #~ msgid "Manage remote environments"
@@ -10157,6 +10182,10 @@ msgstr "Không có mật khẩu nào khớp với tìm kiếm của bạn"
 msgid "No patterns."
 msgstr "Không có mẫu."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
+msgid "No permissions granted."
+msgstr "Chưa được cấp quyền."
+
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "No phases yet."
 msgstr "Chưa có giai đoạn nào."
@@ -10950,6 +10979,10 @@ msgstr "Đã mở pull request #{0} cho ứng viên."
 msgid "Operate desktop apps through Poracode's desktop-control tools."
 msgstr "Vận hành ứng dụng máy tính qua công cụ điều khiển của Poracode."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
+msgid "Operate sessions"
+msgstr "Điều khiển phiên"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Operator"
 msgstr "Người vận hành"
@@ -11126,6 +11159,10 @@ msgstr "Ghép nối với Poracode trên máy tính để đồng bộ luồng, 
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Paired {0} on this device."
 msgstr "Đã ghép nối {0} trên thiết bị này."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
+msgid "Paired connection"
+msgstr "Kết nối đã ghép đôi"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Paired devices"
@@ -12372,6 +12409,14 @@ msgstr "Chạy lại các công việc thất bại"
 msgid "Read and drive Poracode itself: threads, terminal panes, git, pull requests, and schedules."
 msgstr "Đọc và điều khiển chính Poracode: luồng, bảng terminal, git, pull request và lịch chạy."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
+msgid "Read sessions"
+msgstr "Đọc phiên"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
+msgid "Read terminals"
+msgstr "Đọc terminal"
+
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Read the Terminal panel attached to this worktree and report the evidence."
 msgstr "Đọc bảng Terminal của cây làm việc này và báo cáo bằng chứng."
@@ -12429,9 +12474,9 @@ msgstr "Lượt cài đặt gần đây"
 msgid "Recent threads"
 msgstr "Luồng gần đây"
 
-#: src/mobile/components.tsx
-#~ msgid "Reconnect"
-#~ msgstr "Kết nối lại"
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
+msgid "Reconnect"
+msgstr "Kết nối lại"
 
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
@@ -12718,6 +12763,7 @@ msgstr "Xóa ứng viên {0}"
 #~ msgstr "Xóa hồ sơ Claude"
 
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Remove connection"
 msgstr "Xóa kết nối"
 
@@ -12832,6 +12878,11 @@ msgstr "Xóa kết nối này?"
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Remove worktree?"
 msgstr "Xóa worktree?"
+
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Removes this device's saved connection and credentials. It does not stop the host or revoke access on other devices."
+msgstr "Xóa kết nối và thông tin xác thực đã lưu trên thiết bị này. Không dừng máy chủ hay thu hồi quyền truy cập trên các thiết bị khác."
 
 #. placeholder {0}: confirmRemoval?.displayName ?? confirmRemoval?.id
 #: src/renderer/views/SettingsOverlay/parts/CursorProfileSettings.tsx
@@ -13110,6 +13161,10 @@ msgstr "Giải quyết xung đột hợp nhất trong quá trình rebase hoặc 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
 msgid "Resolving…"
 msgstr "Đang xử lý…"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
+msgid "Respond to agent requests"
+msgstr "Trả lời yêu cầu của tác nhân"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "Responsive"
@@ -13737,6 +13792,10 @@ msgstr "Lưu phím tắt"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Saved credentials are shared across all machines."
 msgstr "Thông tin đăng nhập đã lưu được dùng chung cho tất cả các máy."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
+msgid "Saved endpoint"
+msgstr "Điểm cuối đã lưu"
 
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
 msgid "Saved font"
@@ -15201,6 +15260,7 @@ msgid "Stashed changes pending"
 msgstr "Thay đổi trong stash đang chờ"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
 msgid "Status"
 msgstr "Trạng thái"
 
@@ -16415,6 +16475,10 @@ msgstr "Máy tính này"
 msgid "This connection can view projects but not manage them. Re-pair to enable."
 msgstr "Kết nối này có thể xem dự án nhưng không thể quản lý. Hãy ghép nối lại để bật."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "This connection can't manage projects."
+msgstr "Kết nối này không thể quản lý dự án."
+
 #: src/renderer/components/providers/HostUsageView.tsx
 msgid "This connection does not have permission to read usage."
 msgstr "Kết nối này không có quyền đọc mức sử dụng."
@@ -17468,6 +17532,7 @@ msgid "Unassigned"
 msgstr "Chưa gán"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
 msgid "Unavailable"
 msgstr "Không khả dụng"
 
@@ -18108,6 +18173,7 @@ msgstr "giá trị"
 #. About page label: app version row
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
 msgid "Version"
 msgstr "Phiên bản"
 
@@ -18172,8 +18238,8 @@ msgid "View-only — this connection can't change host settings."
 msgstr "Chỉ xem — kết nối này không thể thay đổi cài đặt máy chủ."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-msgid "View-only — this connection can't manage projects."
-msgstr "Chỉ xem — kết nối này không thể quản lý dự án."
+#~ msgid "View-only — this connection can't manage projects."
+#~ msgstr "Chỉ xem — kết nối này không thể quản lý dự án."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Viewer"

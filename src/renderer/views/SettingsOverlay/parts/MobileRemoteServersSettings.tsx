@@ -29,6 +29,7 @@ import {
   type RemoteServerRecord,
 } from "@/renderer/state/remoteServers/types";
 import { EnvironmentSettingsSection } from "./EnvironmentSettingsSection";
+import { RemoteConnectionDetails } from "./RemoteConnectionDetails";
 import { desktopTitle } from "@/shared/remote/desktopLabel";
 import { normalizePairingEndpoint, parsePairingUrlParts } from "@/shared/remote/pairingUrl";
 import { decodeQrImageFile } from "@/renderer/utils/qrImage";
@@ -57,7 +58,7 @@ function endpointHost(endpoint: string): string {
   try {
     return new URL(endpoint).host;
   } catch {
-    return endpoint;
+    return "";
   }
 }
 
@@ -169,6 +170,9 @@ function MobileRemoteServerRow(props: {
             <span className="min-w-0 truncate">{title}</span>
           </div>
           <div className="m-sheet-list">
+            <div className="px-3 py-2">
+              <RemoteConnectionDetails server={server} />
+            </div>
             <SidebarButton
               icon={<FolderOpen className="size-4" />}
               label={t`Projects`}
@@ -211,6 +215,12 @@ function MobileRemoteServerRow(props: {
                 requestRemove();
               }}
             />
+            <p className="px-3 pb-2 text-xs text-muted">
+              <Trans>
+                Removes this device's saved connection and credentials. It does not stop the host or
+                revoke access on other devices.
+              </Trans>
+            </p>
           </div>
         </BottomSheet>
       ) : null}
