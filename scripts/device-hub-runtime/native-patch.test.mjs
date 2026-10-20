@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { EventEmitter } from "node:events";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -42,6 +43,8 @@ const working = "/data/local/tmp/serve-emu-scrcpy-12345678.jar";
 void test("stages the platform closure and replaces artifact 1 without dropping simulator JS", async (t) => {
   const scratch = await mkdtemp(join(tmpdir(), "hub-layout-test-"));
   t.after(() => rm(scratch, { recursive: true, force: true }));
+  execFileSync("git", ["init", "--quiet", scratch]);
+  execFileSync("git", ["-C", scratch, "config", "core.autocrlf", "true"]);
   const output = join(scratch, "output");
   const target = join(output, `${process.platform}-${process.arch}`);
   await mkdir(target, { recursive: true });
