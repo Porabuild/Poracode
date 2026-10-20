@@ -6836,6 +6836,14 @@ msgstr "Повноцінна інтеграція Qoder CLI із викорис�
 msgid "First-class Qwen Code integration using Poracode's native terminal and ACP runtimes."
 msgstr "Повноцінна інтеграція Qwen Code із використанням вбудованих середовищ термінала та ACP у Poracode."
 
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Fit"
+msgstr "За шириною"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Fit to width"
+msgstr "Припасувати до ширини"
+
 #: src/renderer/components/pdf/PdfViewer.tsx
 #~ msgid "Fit width"
 #~ msgstr "За шириною"

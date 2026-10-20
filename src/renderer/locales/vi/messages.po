@@ -6836,6 +6836,14 @@ msgstr "Tích hợp Qoder CLI hạng nhất bằng các môi trường chạy te
 msgid "First-class Qwen Code integration using Poracode's native terminal and ACP runtimes."
 msgstr "Tích hợp Qwen Code hạng nhất bằng các môi trường chạy terminal và ACP gốc của Poracode."
 
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Fit"
+msgstr "Vừa khung"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Fit to width"
+msgstr "Vừa chiều rộng"
+
 #: src/renderer/components/pdf/PdfViewer.tsx
 #~ msgid "Fit width"
 #~ msgstr "Vừa chiều rộng"

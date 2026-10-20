@@ -6836,6 +6836,14 @@ msgstr "Pierwszorzędna integracja z Qoder CLI korzystająca z natywnych środow
 msgid "First-class Qwen Code integration using Poracode's native terminal and ACP runtimes."
 msgstr "Pierwszorzędna integracja z Qwen Code korzystająca z natywnych środowisk uruchomieniowych terminala i ACP w Poracode."
 
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Fit"
+msgstr "Dopasowano"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Fit to width"
+msgstr "Dopasuj do szerokości"
+
 #: src/renderer/components/pdf/PdfViewer.tsx
 #~ msgid "Fit width"
 #~ msgstr "Dopasuj do szerokości"

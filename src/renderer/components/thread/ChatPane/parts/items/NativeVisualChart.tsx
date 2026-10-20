@@ -136,11 +136,11 @@ export function NativeVisualChart({
       ) : !evaluatedSeries.length ? (
         <p
           role="status"
-          className="rounded-lg border border-border p-4 text-sm text-muted"
+          className="rounded-[0.875rem] bg-surface-secondary/40 p-4 text-sm text-muted"
         >{t`No series selected. Choose a series above.`}</p>
       ) : (
         <div
-          className="max-h-[28rem] overflow-auto rounded-lg bg-foreground/[0.025]"
+          className="rounded-[0.875rem] bg-surface-secondary/40"
           onPointerLeave={() => setHovered(undefined)}
         >
           <svg

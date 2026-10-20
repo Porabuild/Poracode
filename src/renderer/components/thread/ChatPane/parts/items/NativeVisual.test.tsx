@@ -197,6 +197,10 @@ describe("native app-owned visuals", () => {
         <NativeVisual {...props} />
       </AppProvider>,
     );
+    expect(screen.getByRole("button", { name: "Fit to width" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
     expect(screen.getByText("$250.00")).toBeTruthy();
     expect(screen.getByRole("slider", { name: "Seats" })).toHaveValue("25");
     fireEvent.change(screen.getByRole("textbox", { name: "Seats" }), {
@@ -259,6 +263,86 @@ describe("native app-owned visuals", () => {
       new MessageEvent("message", { data: { jsonrpc: "2.0", id: 1, method: "ui/initialize" } }),
     );
     expect(post).not.toHaveBeenCalled();
+  });
+
+  it("fits a visual without resetting its values and keeps fit mode through preview and expansion", async () => {
+    render(
+      <AppProvider>
+        <NativeVisual {...props} />
+      </AppProvider>,
+    );
+    fireEvent.change(screen.getByRole("textbox", { name: "Seats" }), { target: { value: "30" } });
+    fireEvent.blur(screen.getByRole("textbox", { name: "Seats" }));
+    await waitFor(() => expect(screen.getByText("$300.00")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Zoom in" }));
+    fireEvent.click(screen.getByRole("button", { name: "Fit to width" }));
+    expect(screen.getByRole("button", { name: "Reset zoom" })).toHaveTextContent("Fit");
+    fireEvent.click(screen.getByRole("button", { name: "Source" }));
+    fireEvent.click(screen.getByRole("button", { name: "Preview" }));
+    expect(screen.getByRole("button", { name: "Fit to width" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Expand visual" }));
+    const dialog = await screen.findByRole("dialog", { name: props.title });
+    expect(within(dialog).getByRole("textbox", { name: "Seats" })).toHaveValue("30");
+    expect(within(dialog).getByRole("button", { name: "Fit to width" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    fireEvent.keyDown(dialog, { key: "Escape", code: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    fireEvent.click(screen.getByRole("button", { name: "Zoom in" }));
+    expect(screen.getByRole("button", { name: "Reset zoom" })).toHaveTextContent("125%");
+    expect(screen.getByRole("textbox", { name: "Seats" })).toHaveValue("30");
+    fireEvent.click(screen.getByRole("button", { name: "Reset zoom" }));
+    expect(screen.getByRole("button", { name: "Fit to width" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+
+  it("omits a redundant sole block heading but preserves distinct and nested headings", () => {
+    const diagram = {
+      type: "diagram",
+      title: "Deployment dependencies",
+      nodes: [{ id: "build", label: "Build" }],
+      edges: [],
+    };
+    const first = render(
+      <AppProvider>
+        <NativeVisual
+          {...props}
+          version={2}
+          title={diagram.title}
+          source={JSON.stringify({ blocks: [diagram] })}
+        />
+      </AppProvider>,
+    );
+    expect(screen.queryByRole("heading", { name: diagram.title })).toBeNull();
+    expect(screen.getByRole("img", { name: diagram.title })).toBeTruthy();
+    expect(screen.getByRole("region", { name: diagram.title })).not.toHaveAttribute("tabindex");
+    first.unmount();
+    render(
+      <AppProvider>
+        <NativeVisual
+          {...props}
+          version={2}
+          title={diagram.title}
+          source={JSON.stringify({
+            blocks: [
+              {
+                type: "tabs",
+                title: "Stages",
+                tabs: [{ id: "build", label: "Build", blocks: [diagram] }],
+              },
+            ],
+          })}
+        />
+      </AppProvider>,
+    );
+    expect(screen.getByRole("heading", { name: "Stages" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: diagram.title })).toBeTruthy();
   });
 
   it("sorts evaluated table numbers numerically, with unavailable values last in both directions", () => {
@@ -671,7 +755,7 @@ describe("native app-owned visuals", () => {
       expect(screen.queryByRole("img", { name: "Delivery" })).toBeNull();
       fireEvent.click(screen.getByRole("tab", { name: "Diagram" }));
       const diagram = screen.getByRole("img", { name: "Delivery" });
-      expect(screen.getByRole("region", { name: "Delivery" })).toHaveAttribute("tabindex", "0");
+      expect(screen.queryByRole("region", { name: "Delivery" })).toBeNull();
       expect(diagram).toHaveAccessibleDescription(/Input: <img src="\/owned-probe"/);
       expect(diagram).toHaveAccessibleDescription(/From Input to Review: Validate/);
       expect(diagram).toHaveAccessibleDescription(/From Review to Ship/);

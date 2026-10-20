@@ -1,5 +1,4 @@
 import { useId } from "react";
-import { ScrollShadow } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import type {
   NativeVisualDiagram as DiagramSpec,
@@ -113,13 +112,7 @@ export function NativeVisualDiagram({ block }: { block: DiagramSpec }) {
     }),
   ].join(". ");
   return (
-    <ScrollShadow
-      tabIndex={0}
-      role="region"
-      orientation="horizontal"
-      aria-label={block.title || t`Relationship diagram`}
-      className="max-h-[28rem] overflow-auto rounded-lg border border-border bg-foreground/[0.025] p-2 focus-visible:outline-2 focus-visible:outline-accent"
-    >
+    <div className="p-1">
       <svg
         width={width}
         height={height}
@@ -180,9 +173,10 @@ export function NativeVisualDiagram({ block }: { block: DiagramSpec }) {
             <rect
               width={cardWidth}
               height={cardHeight}
-              rx={10}
-              fill="var(--background)"
+              rx={16}
+              fill="var(--surface)"
               stroke={TONES[node.tone ?? "neutral"]}
+              strokeOpacity={node.tone && node.tone !== "neutral" ? 0.65 : 0.45}
             />
             <circle cx={14} cy={16} r={3} fill={TONES[node.tone ?? "accent"]} />
             <text x={12} y={36} fontSize={12} fontWeight={500} fill="var(--foreground)">
@@ -209,6 +203,6 @@ export function NativeVisualDiagram({ block }: { block: DiagramSpec }) {
           </g>
         ))}
       </svg>
-    </ScrollShadow>
+    </div>
   );
 }

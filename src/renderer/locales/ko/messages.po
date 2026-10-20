@@ -6836,6 +6836,14 @@ msgstr "Poracode의 네이티브 터미널 및 ACP 런타임을 사용하는 Qod
 msgid "First-class Qwen Code integration using Poracode's native terminal and ACP runtimes."
 msgstr "Poracode의 네이티브 터미널 및 ACP 런타임을 사용하는 Qwen Code의 일급 통합입니다."
 
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Fit"
+msgstr "맞춤"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Fit to width"
+msgstr "너비에 맞추기"
+
 #: src/renderer/components/pdf/PdfViewer.tsx
 #~ msgid "Fit width"
 #~ msgstr "너비에 맞추기"

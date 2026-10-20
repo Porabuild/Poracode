@@ -6836,6 +6836,14 @@ msgstr "使用 Poracode 原生终端和 ACP 运行时的一流 Qoder CLI 集成�
 msgid "First-class Qwen Code integration using Poracode's native terminal and ACP runtimes."
 msgstr "使用 Poracode 原生终端和 ACP 运行时的一流 Qwen Code 集成。"
 
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Fit"
+msgstr "适应"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Fit to width"
+msgstr "适应宽度"
+
 #: src/renderer/components/pdf/PdfViewer.tsx
 #~ msgid "Fit width"
 #~ msgstr "适合宽度"

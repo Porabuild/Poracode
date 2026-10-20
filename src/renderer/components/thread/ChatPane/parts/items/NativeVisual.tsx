@@ -1,7 +1,7 @@
 import { useEffect, useId, useState } from "react";
 import { Button, Modal, NumberField, Slider, Tooltip } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { BarChart3, Code2, Maximize2, RotateCcw, ZoomIn, ZoomOut } from "lucide-react";
+import { BarChart3, Code2, Maximize2, RotateCcw, Shrink, ZoomIn, ZoomOut } from "lucide-react";
 import {
   NATIVE_VISUAL_FORMAT_VERSION,
   NATIVE_VISUAL_V2_FORMAT_VERSION,
@@ -16,6 +16,7 @@ import { nativeVisualUiKey, useNativeVisualUiStore } from "@/renderer/state/nati
 import { VisualSource } from "./VisualSource";
 import { CopyTextButton } from "./CopyTextButton";
 import { NativeVisualBlocks, type NativeVisualInteractions } from "./NativeVisualBlocks";
+import { NativeVisualViewport } from "./NativeVisualViewport";
 
 type NativeVisualDocument = NativeVisualSpec | NativeVisualV2Spec;
 const ACCENT_CLASSES = {
@@ -64,7 +65,7 @@ export function NativeVisual(props: NativeVisualProps) {
   return (
     <div
       data-poracode-native-source="true"
-      className="not-prose my-2 min-w-0 overflow-hidden rounded-xl border border-border bg-background"
+      className="not-prose my-2 min-w-0 overflow-hidden rounded-[1rem] border border-[var(--hairline)] bg-surface/50"
     >
       <div className="flex min-h-10 items-center gap-2 border-b border-border px-3 py-1">
         <Code2 className="size-3.5 shrink-0 text-muted" aria-hidden="true" />
@@ -123,6 +124,7 @@ function NativeVisualSurface({
   const [showSource, setShowSource] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const entry = useNativeVisualUiStore((state) => state.entries.get(stateKey));
+  const [fitToWidth, setFitToWidth] = useState(() => (entry?.zoom ?? 100) === 100);
   useEffect(() => useNativeVisualUiStore.getState().touch(stateKey), [stateKey]);
   const storedInputs = new Map(entry?.inputs);
   const inputs = new Map(
@@ -168,7 +170,7 @@ function NativeVisualSurface({
   }
   function toolbar() {
     return (
-      <div className="flex min-w-0 flex-wrap items-center gap-1">
+      <div className="flex min-w-0 flex-wrap items-center gap-0.5">
         <Button size="sm" variant="ghost" onPress={() => setShowSource(!showSource)}>
           <Code2 className="size-3.5" aria-hidden="true" />
           {showSource ? t`Preview` : t`Source`}
@@ -184,7 +186,10 @@ function NativeVisualSurface({
                     isIconOnly
                     aria-label={t`Zoom out`}
                     isDisabled={zoom <= 75}
-                    onPress={() => save(undefined, zoom - 25)}
+                    onPress={() => {
+                      setFitToWidth(false);
+                      save(undefined, zoom - 25);
+                    }}
                   >
                     <ZoomOut className="size-3.5" />
                   </Button>
@@ -195,10 +200,13 @@ function NativeVisualSurface({
                     size="sm"
                     variant="ghost"
                     aria-label={t`Reset zoom`}
-                    onPress={() => save(undefined, 100)}
+                    onPress={() => {
+                      setFitToWidth(true);
+                      save(undefined, 100);
+                    }}
                     className="min-w-12 tabular-nums"
                   >
-                    {zoom}%
+                    {fitToWidth ? t`Fit` : `${zoom}%`}
                   </Button>
                   <Tooltip.Content>{t`Reset zoom`}</Tooltip.Content>
                 </Tooltip>
@@ -209,11 +217,30 @@ function NativeVisualSurface({
                     isIconOnly
                     aria-label={t`Zoom in`}
                     isDisabled={zoom >= 200}
-                    onPress={() => save(undefined, zoom + 25)}
+                    onPress={() => {
+                      setFitToWidth(false);
+                      save(undefined, zoom + 25);
+                    }}
                   >
                     <ZoomIn className="size-3.5" />
                   </Button>
                   <Tooltip.Content>{t`Zoom in`}</Tooltip.Content>
+                </Tooltip>
+                <Tooltip delay={300}>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    isIconOnly
+                    aria-label={t`Fit to width`}
+                    aria-pressed={fitToWidth}
+                    onPress={() => {
+                      save(undefined, 100);
+                      setFitToWidth(true);
+                    }}
+                  >
+                    <Shrink className="size-3.5" />
+                  </Button>
+                  <Tooltip.Content>{t`Fit to width`}</Tooltip.Content>
                 </Tooltip>
               </>
             ) : null}
@@ -237,49 +264,54 @@ function NativeVisualSurface({
       </div>
     );
   }
-  function body() {
+  function body(inDialog = false) {
     return showSource ? (
-      <div className="p-4">
+      <div className={`overflow-auto p-4 ${inDialog ? "" : "max-h-[70vh]"}`}>
         <VisualSource text={source} lang="json" />
       </div>
     ) : (
-      <div
-        className={`space-y-5 p-4 ${ACCENT_CLASSES["accent" in spec && spec.accent ? spec.accent : "app"]}`}
-        data-native-visual-zoom={canZoom ? zoom : 100}
-        style={{ zoom: canZoom ? zoom / 100 : 1 }}
+      <NativeVisualViewport
+        zoom={canZoom ? zoom : 100}
+        fitToWidth={canZoom && fitToWidth}
+        label={label}
       >
-        {spec.description ? (
-          <p className="text-sm leading-relaxed text-muted">{spec.description}</p>
-        ) : null}
-        {spec.inputs.length ? (
-          <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,180px),1fr))] gap-4 rounded-lg border border-border bg-foreground/[0.025] p-3">
-            {spec.inputs.map((input) => (
-              <NativeVisualInputControl
-                key={input.id}
-                input={input}
-                value={inputs.get(input.id)!}
-                onChange={(value) => changeInput(input, value)}
-              />
-            ))}
-          </div>
-        ) : null}
-        <NativeVisualBlocks
-          blocks={spec.blocks}
-          inputs={inputs}
-          entry={entry}
-          {...("layout" in spec && spec.layout ? { layout: spec.layout } : {})}
-          onChange={(patch) => save(undefined, undefined, patch)}
-        />
-      </div>
+        <div
+          className={`space-y-5 p-3 @min-[480px]:p-4 ${ACCENT_CLASSES["accent" in spec && spec.accent ? spec.accent : "app"]}`}
+        >
+          {spec.description ? (
+            <p className="text-sm leading-relaxed text-muted">{spec.description}</p>
+          ) : null}
+          {spec.inputs.length ? (
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,320px),1fr))] gap-4 rounded-[0.875rem] bg-surface-secondary/40 p-3">
+              {spec.inputs.map((input) => (
+                <NativeVisualInputControl
+                  key={input.id}
+                  input={input}
+                  value={inputs.get(input.id)!}
+                  onChange={(value) => changeInput(input, value)}
+                />
+              ))}
+            </div>
+          ) : null}
+          <NativeVisualBlocks
+            blocks={spec.blocks}
+            inputs={inputs}
+            entry={entry}
+            title={label}
+            {...("layout" in spec && spec.layout ? { layout: spec.layout } : {})}
+            onChange={(patch) => save(undefined, undefined, patch)}
+          />
+        </div>
+      </NativeVisualViewport>
     );
   }
   return (
     <div
       data-poracode-native-visual="true"
-      className="not-prose my-2 min-w-0 overflow-hidden rounded-xl border border-border bg-background text-foreground"
+      className="not-prose @container my-2 min-w-0 overflow-hidden rounded-[1rem] border border-[var(--hairline)] bg-surface/50 text-foreground"
     >
-      <div className="flex flex-wrap items-center justify-between gap-x-2 border-b border-border px-3 py-1">
-        <div className="flex min-w-0 flex-1 items-center gap-2 py-1.5">
+      <div className="flex flex-wrap items-center gap-x-1 border-b border-[var(--hairline)] px-2 py-1 @min-[480px]:px-3">
+        <div className="flex min-w-0 basis-full items-center gap-2 py-1.5 @min-[640px]:flex-1 @min-[640px]:basis-auto">
           <BarChart3 className="size-3.5 shrink-0 text-accent" aria-hidden="true" />
           <span title={label} className="min-w-0 truncate text-xs font-medium">
             {label}
@@ -299,7 +331,7 @@ function NativeVisualSurface({
           <Tooltip.Content>{t`Expand visual`}</Tooltip.Content>
         </Tooltip>
       </div>
-      <div className="max-h-[70vh] overflow-auto">{body()}</div>
+      {body()}
       <Modal.Backdrop isOpen={expanded} onOpenChange={setExpanded}>
         <Modal.Container size="full" scroll="inside">
           <Modal.Dialog aria-label={label}>
@@ -308,7 +340,7 @@ function NativeVisualSurface({
               <Modal.Heading>{label}</Modal.Heading>
               <div className="min-w-0">{toolbar()}</div>
             </Modal.Header>
-            <Modal.Body className="min-w-0 p-0">{body()}</Modal.Body>
+            <Modal.Body className="@container min-w-0 p-0">{body(true)}</Modal.Body>
           </Modal.Dialog>
         </Modal.Container>
       </Modal.Backdrop>

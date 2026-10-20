@@ -20,12 +20,14 @@ export function NativeVisualBlocks({
   blocks,
   inputs,
   entry,
+  title,
   layout = "stack",
   onChange,
 }: {
   blocks: (NativeVisualLeafBlock | NativeVisualTabs)[];
   inputs: ReadonlyMap<string, number>;
   entry: NativeVisualUiEntry | undefined;
+  title?: string;
   layout?: "stack" | "dashboard";
   onChange: (patch: NativeVisualInteractions) => void;
 }) {
@@ -56,7 +58,9 @@ export function NativeVisualBlocks({
             : undefined
         }
       >
-        {block.title ? <h3 className="text-sm font-medium">{block.title}</h3> : null}
+        {block.title && !(blocks.length === 1 && !path.includes("/") && block.title === title) ? (
+          <h3 className="text-sm font-medium">{block.title}</h3>
+        ) : null}
         {block.type === "chart" ? (
           <NativeVisualChart
             block={block}
@@ -79,12 +83,9 @@ export function NativeVisualBlocks({
             aria-live="polite"
           >
             {block.items.map((item, index) => (
-              <div
-                key={index}
-                className="rounded-lg border border-border bg-foreground/[0.025] p-3"
-              >
+              <div key={index} className="rounded-[0.875rem] bg-surface-secondary/40 p-3">
                 <dt className="text-xs text-muted">{item.label}</dt>
-                <dd className="mt-1 break-words text-2xl font-semibold tracking-tight tabular-nums">
+                <dd className="mt-1 break-words text-xl font-semibold tracking-tight tabular-nums @min-[480px]:text-2xl">
                   {formatNativeVisualNumber(
                     evaluateNativeVisualValue(item.value, inputs),
                     item.format,
@@ -100,7 +101,7 @@ export function NativeVisualBlocks({
             {block.text}
           </p>
         ) : block.type === "checklist" ? (
-          <div className="space-y-3 rounded-lg border border-border p-3">
+          <div className="space-y-3 rounded-[0.875rem] bg-surface-secondary/40 p-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <span role="status" className="text-xs text-muted tabular-nums">
                 {t`Completed: ${block.items.filter((item) => checked.get(`${path}/${item.id}`) ?? item.checked ?? false).length} / ${block.items.length}`}
@@ -119,17 +120,18 @@ export function NativeVisualBlocks({
                 return (
                   <Checkbox
                     key={item.id}
+                    className="min-w-0"
                     variant="secondary"
                     isSelected={checked.get(key) ?? item.checked ?? false}
                     onChange={(value) =>
                       onChange({ checked: [...new Map(checked).set(key, value)] })
                     }
                   >
-                    <Checkbox.Content className="items-start">
-                      <Checkbox.Control>
+                    <Checkbox.Content className="w-full min-w-0 items-center">
+                      <Checkbox.Control className="border border-[var(--hairline-strong)] bg-surface-secondary shadow-none">
                         <Checkbox.Indicator />
                       </Checkbox.Control>
-                      <span className="min-w-0 whitespace-pre-wrap break-words text-sm">
+                      <span className="min-w-0 whitespace-pre-wrap break-words text-sm leading-5">
                         {item.label}
                       </span>
                     </Checkbox.Content>
