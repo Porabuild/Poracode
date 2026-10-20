@@ -4167,6 +4167,10 @@ msgstr "正在连接…"
 #~ msgid "Connection"
 #~ msgstr "连接"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
+msgid "Connection details"
+msgstr "连接详情"
+
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
 #: src/renderer/components/thread/ThreadDraftView.tsx
 msgid "Connection error"
@@ -4181,9 +4185,9 @@ msgstr "连接错误"
 msgid "Connection failed."
 msgstr "连接失败。"
 
-#: src/mobile/views/DesktopsView.tsx
-#~ msgid "Connection method"
-#~ msgstr "连接方式"
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
+msgid "Connection method"
+msgstr "连接方式"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Connection timed out."
@@ -4307,6 +4311,10 @@ msgstr "在后台控制桌面应用并完成可视化工作流。"
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Control how each scheduled run continues and stops."
 msgstr "控制每次计划运行如何继续和停止。"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
+msgid "Control terminals"
+msgstr "控制终端"
 
 #: src/renderer/components/providers/settings/ProviderMcpServersSection.tsx
 msgid "Control the desktop."
@@ -7293,6 +7301,10 @@ msgstr "前进"
 msgid "Forward a port"
 msgstr "转发端口"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
+msgid "Forward ports"
+msgstr "转发端口"
+
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Found"
 msgstr "已找到"
@@ -7615,6 +7627,10 @@ msgstr "等级 {0}"
 msgid "Grant"
 msgstr "授予"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
+msgid "Granted permissions"
+msgstr "已授予的权限"
+
 #: src/renderer/components/plugins/PluginServiceAccounts.tsx
 msgid "Granted scopes"
 msgstr "已授予的权限"
@@ -7848,6 +7864,10 @@ msgstr "主机凭据引用"
 msgid "Host credential reference (optional)"
 msgstr "主机凭据引用（可选）"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
+msgid "Host ID"
+msgstr "主机 ID"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
 msgid "Host is up to date."
 msgstr "主机已是最新版本。"
@@ -7880,6 +7900,7 @@ msgstr "主机更新失败。"
 msgid "Host version: {currentVersion}"
 msgstr "主机版本：{currentVersion}"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Host-owned environment"
 msgstr "主机拥有的环境"
@@ -9333,6 +9354,10 @@ msgstr "管理密码"
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 msgid "Manage plugins"
 msgstr "管理插件"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
+msgid "Manage projects"
+msgstr "管理项目"
 
 #: src/renderer/components/providers/settings/ModelProvidersSettings.tsx
 msgid "Manage providers"
@@ -10907,6 +10932,10 @@ msgstr "没有与搜索匹配的密码"
 msgid "No patterns."
 msgstr "没有模式。"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
+msgid "No permissions granted."
+msgstr "未授予任何权限。"
+
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "No phases yet."
 msgstr "还没有阶段。"
@@ -11727,6 +11756,10 @@ msgstr "已为候选打开拉取请求 #{0}。"
 msgid "Operate desktop apps through Poracode's desktop-control tools."
 msgstr "通过 Poracode 的桌面控制工具操作桌面应用。"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
+msgid "Operate sessions"
+msgstr "操作会话"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Operator"
 msgstr "操作员"
@@ -11909,6 +11942,10 @@ msgstr "与桌面端的 Poracode 配对，以同步线程、项目和设置。"
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Paired {0} on this device."
 msgstr "已在此设备上配对 {0}。"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
+msgid "Paired connection"
+msgstr "已配对的连接"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Paired devices"
@@ -13236,6 +13273,14 @@ msgstr "重新运行失败的作业"
 msgid "Read and drive Poracode itself: threads, terminal panes, git, pull requests, and schedules."
 msgstr "读取并操作 Poracode 本身：线程、终端面板、git、拉取请求和计划任务。"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
+msgid "Read sessions"
+msgstr "读取会话"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
+msgid "Read terminals"
+msgstr "读取终端"
+
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Read the Terminal panel attached to this worktree and report the evidence."
 msgstr "读取此工作树的 Terminal 面板并报告依据。"
@@ -13306,9 +13351,9 @@ msgstr "最近的线程"
 msgid "Recents"
 msgstr "最近任务"
 
-#: src/mobile/components.tsx
-#~ msgid "Reconnect"
-#~ msgstr "重新连接"
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
+msgid "Reconnect"
+msgstr "重新连接"
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Reconnect live preview"
@@ -13636,6 +13681,7 @@ msgstr "移除候选项 {0}"
 #~ msgstr "删除 Claude 配置文件"
 
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Remove connection"
 msgstr "删除连接"
 
@@ -13769,6 +13815,11 @@ msgstr "从 Poracode 中移除此插件及其服务账户？"
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Remove worktree?"
 msgstr "删除工作树？"
+
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Removes this device's saved connection and credentials. It does not stop the host or revoke access on other devices."
+msgstr "移除此设备保存的连接和凭据。不会停止主机，也不会撤销其他设备的访问权限。"
 
 #. placeholder {0}: confirmRemoval?.displayName ?? confirmRemoval?.id
 #: src/renderer/views/SettingsOverlay/parts/CursorProfileSettings.tsx
@@ -14061,6 +14112,10 @@ msgstr "解决变基或合并期间的合并冲突。"
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
 msgid "Resolving…"
 msgstr "正在处理…"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
+msgid "Respond to agent requests"
+msgstr "响应智能体请求"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "Responsive"
@@ -14740,6 +14795,10 @@ msgstr "保存快捷键"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Saved credentials are shared across all machines."
 msgstr "已保存的凭据在所有设备间共享。"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
+msgid "Saved endpoint"
+msgstr "已保存的端点"
 
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
 msgid "Saved font"
@@ -16290,6 +16349,7 @@ msgid "Stashed changes pending"
 msgstr "贮藏的更改待应用"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
 msgid "Status"
 msgstr "状态"
 
@@ -17532,6 +17592,10 @@ msgstr "这台电脑"
 msgid "This connection can view projects but not manage them. Re-pair to enable."
 msgstr "此连接可以查看项目，但不能管理项目。请重新配对以启用。"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "This connection can't manage projects."
+msgstr "此连接无法管理项目。"
+
 #: src/renderer/components/providers/HostUsageView.tsx
 msgid "This connection does not have permission to read usage."
 msgstr "此连接没有读取用量的权限。"
@@ -18647,6 +18711,7 @@ msgstr "未分配"
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisualBlocks.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisualChart.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisualTable.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
 msgid "Unavailable"
 msgstr "不可用"
 
@@ -19345,6 +19410,7 @@ msgstr "值"
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
 msgid "Version"
 msgstr "版本"
 
@@ -19413,8 +19479,8 @@ msgid "View-only — this connection can't change host settings."
 msgstr "只读 — 此连接无法更改主机设置。"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-msgid "View-only — this connection can't manage projects."
-msgstr "仅查看 — 此连接无法管理项目。"
+#~ msgid "View-only — this connection can't manage projects."
+#~ msgstr "仅查看 — 此连接无法管理项目。"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Viewer"

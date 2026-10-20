@@ -4167,6 +4167,10 @@ msgstr "연결 중…"
 #~ msgid "Connection"
 #~ msgstr "연결"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
+msgid "Connection details"
+msgstr "연결 세부 정보"
+
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
 #: src/renderer/components/thread/ThreadDraftView.tsx
 msgid "Connection error"
@@ -4181,9 +4185,9 @@ msgstr "연결 오류"
 msgid "Connection failed."
 msgstr "연결에 실패했습니다."
 
-#: src/mobile/views/DesktopsView.tsx
-#~ msgid "Connection method"
-#~ msgstr "연결 방식"
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
+msgid "Connection method"
+msgstr "연결 방식"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Connection timed out."
@@ -4307,6 +4311,10 @@ msgstr "데스크톱 앱을 백그라운드에서 조작하고 시각적 워크�
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Control how each scheduled run continues and stops."
 msgstr "예약된 각 실행이 계속되고 중지되는 방식을 제어합니다."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
+msgid "Control terminals"
+msgstr "터미널 제어"
 
 #: src/renderer/components/providers/settings/ProviderMcpServersSection.tsx
 msgid "Control the desktop."
@@ -7293,6 +7301,10 @@ msgstr "앞으로"
 msgid "Forward a port"
 msgstr "포트 전달"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
+msgid "Forward ports"
+msgstr "포트 전달"
+
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Found"
 msgstr "발견됨"
@@ -7615,6 +7627,10 @@ msgstr "등급 {0}"
 msgid "Grant"
 msgstr "허용"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
+msgid "Granted permissions"
+msgstr "부여된 권한"
+
 #: src/renderer/components/plugins/PluginServiceAccounts.tsx
 msgid "Granted scopes"
 msgstr "부여된 권한"
@@ -7848,6 +7864,10 @@ msgstr "호스트 자격 증명 참조"
 msgid "Host credential reference (optional)"
 msgstr "호스트 자격 증명 참조(선택 사항)"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
+msgid "Host ID"
+msgstr "호스트 ID"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
 msgid "Host is up to date."
 msgstr "호스트가 최신 상태입니다."
@@ -7880,6 +7900,7 @@ msgstr "호스트 업데이트에 실패했습니다."
 msgid "Host version: {currentVersion}"
 msgstr "호스트 버전: {currentVersion}"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Host-owned environment"
 msgstr "호스트 소유 환경"
@@ -9333,6 +9354,10 @@ msgstr "암호 관리"
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 msgid "Manage plugins"
 msgstr "플러그인 관리"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
+msgid "Manage projects"
+msgstr "프로젝트 관리"
 
 #: src/renderer/components/providers/settings/ModelProvidersSettings.tsx
 msgid "Manage providers"
@@ -10908,6 +10933,10 @@ msgstr "검색과 일치하는 암호가 없습니다"
 msgid "No patterns."
 msgstr "패턴이 없습니다."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
+msgid "No permissions granted."
+msgstr "부여된 권한이 없습니다."
+
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "No phases yet."
 msgstr "아직 단계가 없습니다."
@@ -11728,6 +11757,10 @@ msgstr "후보의 풀 리퀘스트 #{0}을(를) 열었습니다."
 msgid "Operate desktop apps through Poracode's desktop-control tools."
 msgstr "Poracode의 데스크톱 제어 도구로 데스크톱 앱을 조작합니다."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
+msgid "Operate sessions"
+msgstr "세션 조작"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Operator"
 msgstr "운영자"
@@ -11910,6 +11943,10 @@ msgstr "데스크톱의 Poracode와 페어링하여 스레드, 프로젝트, 설
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Paired {0} on this device."
 msgstr "이 장치에서 {0}을(를) 페어링했습니다."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
+msgid "Paired connection"
+msgstr "페어링된 연결"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Paired devices"
@@ -13237,6 +13274,14 @@ msgstr "실패한 작업 다시 실행"
 msgid "Read and drive Poracode itself: threads, terminal panes, git, pull requests, and schedules."
 msgstr "Poracode 자체를 읽고 제어합니다: 스레드, 터미널 패널, git, 풀 리퀘스트, 일정."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
+msgid "Read sessions"
+msgstr "세션 읽기"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
+msgid "Read terminals"
+msgstr "터미널 읽기"
+
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Read the Terminal panel attached to this worktree and report the evidence."
 msgstr "이 작업 트리의 터미널 패널을 읽고 근거를 보고합니다."
@@ -13307,9 +13352,9 @@ msgstr "최근 스레드"
 msgid "Recents"
 msgstr "최근 앱"
 
-#: src/mobile/components.tsx
-#~ msgid "Reconnect"
-#~ msgstr "다시 연결"
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
+msgid "Reconnect"
+msgstr "다시 연결"
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Reconnect live preview"
@@ -13637,6 +13682,7 @@ msgstr "후보 {0} 제거"
 #~ msgstr "Claude 프로필 삭제"
 
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Remove connection"
 msgstr "연결 제거"
 
@@ -13770,6 +13816,11 @@ msgstr "이 플러그인와 서비스 계정을 Poracode에서 제거할까요?"
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Remove worktree?"
 msgstr "작업 트리를 삭제하시겠습니까?"
+
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Removes this device's saved connection and credentials. It does not stop the host or revoke access on other devices."
+msgstr "이 기기에 저장된 연결과 인증 정보를 삭제합니다. 호스트를 중지하거나 다른 기기의 접근 권한을 취소하지 않습니다."
 
 #. placeholder {0}: confirmRemoval?.displayName ?? confirmRemoval?.id
 #: src/renderer/views/SettingsOverlay/parts/CursorProfileSettings.tsx
@@ -14062,6 +14113,10 @@ msgstr "리베이스 또는 병합 중 병합 충돌을 해결합니다."
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
 msgid "Resolving…"
 msgstr "처리 중…"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
+msgid "Respond to agent requests"
+msgstr "에이전트 요청에 응답"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "Responsive"
@@ -14741,6 +14796,10 @@ msgstr "단축키 저장"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Saved credentials are shared across all machines."
 msgstr "저장된 자격 증명은 모든 기기에서 공유됩니다."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
+msgid "Saved endpoint"
+msgstr "저장된 엔드포인트"
 
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
 msgid "Saved font"
@@ -16291,6 +16350,7 @@ msgid "Stashed changes pending"
 msgstr "스태시된 변경 사항 대기 중"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
 msgid "Status"
 msgstr "상태"
 
@@ -17533,6 +17593,10 @@ msgstr "이 컴퓨터"
 msgid "This connection can view projects but not manage them. Re-pair to enable."
 msgstr "이 연결은 프로젝트를 볼 수 있지만 관리할 수 없습니다. 활성화하려면 다시 페어링하세요."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "This connection can't manage projects."
+msgstr "이 연결에서는 프로젝트를 관리할 수 없습니다."
+
 #: src/renderer/components/providers/HostUsageView.tsx
 msgid "This connection does not have permission to read usage."
 msgstr "이 연결에는 사용량을 읽을 권한이 없습니다."
@@ -18648,6 +18712,7 @@ msgstr "미지정"
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisualBlocks.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisualChart.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisualTable.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
 msgid "Unavailable"
 msgstr "사용할 수 없음"
 
@@ -19346,6 +19411,7 @@ msgstr "값"
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
 msgid "Version"
 msgstr "버전"
 
@@ -19414,8 +19480,8 @@ msgid "View-only — this connection can't change host settings."
 msgstr "보기 전용 — 이 연결은 호스트 설정을 변경할 수 없습니다."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-msgid "View-only — this connection can't manage projects."
-msgstr "읽기 전용 — 이 연결로는 프로젝트를 관리할 수 없습니다."
+#~ msgid "View-only — this connection can't manage projects."
+#~ msgstr "읽기 전용 — 이 연결로는 프로젝트를 관리할 수 없습니다."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Viewer"
