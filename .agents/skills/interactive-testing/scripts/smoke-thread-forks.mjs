@@ -16,15 +16,23 @@ export async function mockThreadForkGate({ client, evaluate, waitForValue, scree
   const originalView = await read("window.__poracodeDev.stores.app.getState().view");
   let forkId;
   try {
-    await read(`(async () => {
+    const originalSourceIds = await read(`(async () => {
       const diagnostics = await window.__poracodeDev.loadHostDiagnostics();
       const host = diagnostics.loopback.readManagedLoopbackActivation().client;
       const snapshot = await host.boundedThreadHistory(${JSON.stringify(sourceId)}, { compactDetails: true, omitScrollback: true, noticesCapable: true });
-      const source = snapshot.page.thread;
+      // Keep this synthetic view settled; mock mode refuses provider reconnects.
+      const source = { ...snapshot.page.thread, status: 'idle' };
       const app = window.__poracodeDev.stores.app;
       app.setState((state) => ({ threads: [...state.threads.filter((t) => t.id !== source.id), source] }));
       app.getState().openThread(source.id);
+      return snapshot.page.runtimeItems.map((item) => item.id);
     })()`);
+    assert.deepEqual(originalSourceIds.slice(0, 4), [
+      "fork-user-1",
+      "fork-answer-1",
+      "fork-user-2",
+      "fork-answer-2",
+    ]);
     await waitForValue(
       () =>
         read(
@@ -95,14 +103,24 @@ export async function mockThreadForkGate({ client, evaluate, waitForValue, scree
       return { fork: fork.page.thread, forkIds: fork.page.runtimeItems.map((item) => item.id), sourceIds: source.page.runtimeItems.map((item) => item.id) };
     })()`);
     assert.deepEqual(result.forkIds, ["fork-user-1", "fork-answer-1"]);
-    assert.deepEqual(result.sourceIds, [
-      "fork-user-1",
-      "fork-answer-1",
-      "fork-user-2",
-      "fork-answer-2",
-    ]);
+    assert.deepEqual(result.sourceIds, originalSourceIds);
     assert.equal(result.fork.canResumeWithConfig, true);
     assert.equal(result.fork.sessionRef, undefined);
+    await waitForValue(
+      () =>
+        read(`(() => {
+        const reply = [...document.querySelectorAll('[data-item-id="fork-answer-1"]')]
+          .find((row) => !row.closest('[inert]'));
+        if (!reply || !reply.textContent.includes('First source answer')) return false;
+        for (let node = reply; node; node = node.parentElement) {
+          const style = getComputedStyle(node);
+          if (style.opacity === '0' || style.visibility === 'hidden' || style.display === 'none') return false;
+        }
+        return reply.getBoundingClientRect().height > 0;
+      })()`),
+      Boolean,
+      "inherited reply painted",
+    );
     await screenshot(client, join(outDir, "thread-fork-desktop.png"));
     const originalWidth = await read("innerWidth");
     await client.send("Emulation.setDeviceMetricsOverride", {
@@ -130,13 +148,11 @@ export async function mockThreadForkGate({ client, evaluate, waitForValue, scree
     await read(
       "new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))",
     );
+    await screenshot(client, join(outDir, "thread-fork-restored-desktop.png"));
     await click('[data-testid="thread-fork-source"] button');
     await waitForValue(
-      () =>
-        read(
-          `window.__poracodeDev.stores.app.getState().view.panes?.includes(${JSON.stringify(sourceId)})`,
-        ),
-      Boolean,
+      () => read("window.__poracodeDev.stores.app.getState().view"),
+      (view) => view.panes?.includes(sourceId),
       "fork source navigation",
     );
     return "real host fork command preserved the selected prefix, source, resumability, lineage and desktop/narrow controls; provider delivery and compact PWA are qualified separately";

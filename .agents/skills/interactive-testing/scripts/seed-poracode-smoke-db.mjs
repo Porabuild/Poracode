@@ -251,7 +251,7 @@ try {
         id, project_id, title, agent_kind, config, status, attention,
         can_resume_with_config, presentation_mode, created_at, updated_at
       ) VALUES ('smoke-fork-source', ?, 'Fork smoke source', 'codex',
-        '{"model":"smoke-model"}', 'idle', 'none', 1, 'gui', ?, ?)`).run(
+        '{"model":"smoke-model"}', 'inactive', 'none', 1, 'gui', ?, ?)`).run(
         projectId,
         createdAt,
         createdAt,
