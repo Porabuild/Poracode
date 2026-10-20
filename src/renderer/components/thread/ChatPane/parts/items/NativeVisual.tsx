@@ -306,7 +306,7 @@ function NativeVisualSurface({
             <Modal.CloseTrigger aria-label={t`Close expanded visual`} />
             <Modal.Header className="border-b border-border">
               <Modal.Heading>{label}</Modal.Heading>
-              {toolbar()}
+              <div className="min-w-0">{toolbar()}</div>
             </Modal.Header>
             <Modal.Body className="min-w-0 p-0">{body()}</Modal.Body>
           </Modal.Dialog>

@@ -208,7 +208,8 @@ async function fixture(root: string, kind: string) {
     "tsdown.config.ts",
     "tsconfig.json",
     "package.json",
-    "pnpm-lock.yaml",
+    "bun.lock",
+    "bunfig.toml",
     "scripts/prepare-agent-plugins.mjs",
   ])
     await writeFile(join(root, path), "{}");

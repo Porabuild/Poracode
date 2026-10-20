@@ -4,10 +4,12 @@ import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { dynamicActivate } from "@/renderer/i18n/i18n";
 import {
   type DevTerminalTab,
+  type TerminalTab,
   resetDevTerminalStore,
   useDevTerminalStore,
 } from "@/renderer/state/devTerminalStore";
 import { BottomTerminalLayout } from "./BottomTerminalLayout";
+import { RightTerminalLayout } from "./RightTerminalLayout";
 
 vi.mock("./TerminalSurfaces", () => ({
   TerminalSurfaces: () => <div data-testid="terminal-surfaces" />,
@@ -56,6 +58,52 @@ describe("BottomTerminalLayout", () => {
 
     expect(screen.getByText("Poracode / feature")).toBeInTheDocument();
   });
+
+  it.each(["bottom", "right"] as const)(
+    "renders project-independent tabs with the same %s layout controls",
+    (position) => {
+      const tab: TerminalTab = {
+        id: "shell:global",
+        title: "Home",
+        createdAt: "2026-10-17T00:00:00.000Z",
+      };
+      const handleCloseTab = vi.fn<(tab: TerminalTab) => void>();
+      const handleSelectionChange = vi.fn<(key: string | number) => void>();
+      const props = {
+        tabs: [tab],
+        projectTabs: [tab],
+        activeScopeLabel: "Global terminal",
+        selectedTabId: tab.id,
+        activeTab: tab,
+        focusRequestId: 1,
+        markTabActive: vi.fn<() => void>(),
+        updateTabTitle: vi.fn<() => void>(),
+        fadeStyle: { opacity: 1, transition: "none" },
+        emptyState: null,
+        handleCloseTab,
+        handleSelectionChange,
+      };
+      render(
+        position === "bottom" ? (
+          <BottomTerminalLayout
+            {...props}
+            handleCloseSplit={vi.fn<() => void>()}
+            getTabContextItems={() => []}
+            handleTabContextAction={vi.fn<() => void>()}
+          />
+        ) : (
+          <RightTerminalLayout {...props} hideHeader={false} />
+        ),
+      );
+
+      expect(screen.getByText("Global terminal")).toBeInTheDocument();
+      expect(screen.getByRole("tab", { name: "Home" })).toBeInTheDocument();
+      fireEvent.click(screen.getAllByRole("tab").at(-1)!);
+      expect(handleSelectionChange).toHaveBeenCalledWith("__add__");
+      fireEvent.click(screen.getByRole("button", { name: "Close tab" }));
+      expect(handleCloseTab).toHaveBeenCalledWith(tab);
+    },
+  );
 
   it("resizes and persists the terminal sidebar with the keyboard", () => {
     renderLayout();

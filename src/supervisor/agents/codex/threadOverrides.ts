@@ -1,7 +1,7 @@
 import { codexContextWindowOverrides } from "@/shared/agents/codexContextWindows";
 import type { ProjectLocation, ResolvedMcpServer, ThreadConfig } from "@/shared/contracts";
 import { getProjectPosixPath } from "@/shared/wsl";
-import { buildCodexMcp } from "../userMcp";
+import { buildCodexMcp } from "./mcpConfig";
 import type { CodexClientRequestMap } from "./protocol";
 
 type ThreadForkParams = CodexClientRequestMap["thread/fork"]["params"];

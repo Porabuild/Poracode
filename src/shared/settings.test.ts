@@ -69,6 +69,32 @@ describe("shared settings defaults", () => {
     ]);
   });
 
+  it("keeps opted-in settings shortcuts and unavailable providers without changing defaults", () => {
+    expect(normalizeSharedSettings({}).sidebarShortcutOrder).toEqual(
+      defaultSharedSettings.sidebarShortcutOrder,
+    );
+    expect(
+      normalizeSharedSettings({
+        sidebarShortcutOrder: [
+          "settings:profile",
+          "schedules",
+          "settings:agents:missing",
+          "settings:profile",
+        ],
+        sidebarHiddenShortcuts: ["settings:agents:missing"],
+      }),
+    ).toMatchObject({
+      sidebarShortcutOrder: [
+        "settings:profile",
+        "schedules",
+        "settings:agents:missing",
+        "pullRequests",
+        "githubActions",
+      ],
+      sidebarHiddenShortcuts: ["settings:agents:missing"],
+    });
+  });
+
   it("normalizes and reorders thread docks without moving hidden dock slots", () => {
     expect(normalizeThreadDocksOrder(["plan", "plan"])).toEqual([
       "plan",
@@ -97,6 +123,20 @@ describe("shared settings defaults", () => {
     expect(defaultSharedSettings.preventSleep).toBe("while-remote-access");
     expect(normalizeSharedSettings({}).preventSleep).toBe("while-remote-access");
   });
+
+  it.each([true, false])(
+    "ignores the old Computer Use display override (%s)",
+    (computerUseKeepAwake) => {
+      const normalized = normalizeSharedSettings({
+        ...defaultSharedSettings,
+        preventSleep: "while-working",
+        computerUseKeepAwake,
+      });
+
+      expect(normalized.preventSleep).toBe("while-working");
+      expect(normalized).not.toHaveProperty("computerUseKeepAwake");
+    },
+  );
 
   it("defaults follow-up behavior for prior settings without the field", () => {
     const normalized = normalizeSharedSettings({

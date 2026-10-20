@@ -20,11 +20,7 @@ import type {
 } from "./backend/standaloneAttachBootstrap";
 import type { BrowserMcpIngress } from "@/host/browser/types";
 import type { BrowserPanelManager, ChromeBridgeServer, ChromeMcpIngress } from "./browser";
-import {
-  ComputerUseWakeLock,
-  type ComputerUseDesktopOverlay,
-  type ComputerUseMcpIngress,
-} from "./computer-use";
+import type { ComputerUseDesktopOverlay, ComputerUseMcpIngress } from "./computer-use";
 import type { QuickComposerShortcutManager } from "./quickComposerShortcut";
 import { createSleepInhibitor } from "./sleepInhibitor";
 import type { TrayHandle } from "./tray";
@@ -116,10 +112,6 @@ export interface DesktopAppState {
   isQuitting: boolean;
   workingThreads: Set<string>;
   sleepInhibitor: ReturnType<typeof createSleepInhibitor>;
-  // A locked desktop is uncontrollable and unobservable for computer use, so the
-  // display is held awake for the duration of a session. Owned here (not by the
-  // ingress) so it survives ingress restarts and is released on quit.
-  computerUseWakeLock: ComputerUseWakeLock;
 }
 
 export const desktopApp: DesktopAppState = {
@@ -156,7 +148,6 @@ export const desktopApp: DesktopAppState = {
   isQuitting: false,
   workingThreads: new Set<string>(),
   sleepInhibitor: createSleepInhibitor(),
-  computerUseWakeLock: new ComputerUseWakeLock(),
 };
 
 export function requirePoracodePaths(): PoracodePaths {

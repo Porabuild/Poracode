@@ -540,7 +540,7 @@ describe("AcpRegistrySettings", () => {
           location: { kind: "posix", path: "/repo" },
         }),
       ),
-    ).toContain("npm install -g '@cursor/sdk@^1.0.37'");
+    ).toContain("npm install -g '@cursor/sdk@^1.0.38'");
   });
 
   it("shows externally managed SDK versions without a misleading update action", async () => {

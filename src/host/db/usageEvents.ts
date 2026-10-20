@@ -1,4 +1,5 @@
 import { bumpProfileDataGeneration, getProfileDataGeneration, getSqlite } from "./connection";
+import { usageCostRecordSchema, type UsageCostRecord } from "@/shared/contracts/costHistory";
 
 // ── Durable usage-events log (decoupled from thread lifecycle) ──────
 //
@@ -17,6 +18,7 @@ export interface UsageEventInput {
   effort?: string | null | undefined;
   name?: string | null | undefined;
   value?: number | undefined;
+  costDetails?: UsageCostRecord | undefined;
 }
 
 export interface UsageEventRow {
@@ -29,13 +31,14 @@ export interface UsageEventRow {
   effort: string | null;
   name: string | null;
   value: number;
+  costDetails?: UsageCostRecord;
 }
 
 export function dbAppendUsageEvents(events: readonly UsageEventInput[]): void {
   const sqlite = getSqlite();
   if (events.length === 0) return;
   const stmt = sqlite.prepare(
-    "INSERT INTO usage_events (ts, kind, provider, model, mode, fast, effort, name, value) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    "INSERT INTO usage_events (ts, kind, provider, model, mode, fast, effort, name, value, cost_details) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
   );
   sqlite
     .transaction((rows: readonly UsageEventInput[]) => {
@@ -50,6 +53,7 @@ export function dbAppendUsageEvents(events: readonly UsageEventInput[]): void {
           e.effort ?? null,
           e.name ?? null,
           e.value ?? 1,
+          e.costDetails ? JSON.stringify(e.costDetails) : null,
         );
       }
     })
@@ -69,7 +73,9 @@ export function dbGetAllUsageEvents(): UsageEventRow[] {
     return _usageEventsCache.rows;
   }
   const rows = sqlite
-    .prepare("SELECT ts, kind, provider, model, mode, fast, effort, name, value FROM usage_events")
+    .prepare(
+      "SELECT ts, kind, provider, model, mode, fast, effort, name, value, cost_details FROM usage_events",
+    )
     .all() as Array<{
     ts: number;
     kind: string;
@@ -80,18 +86,26 @@ export function dbGetAllUsageEvents(): UsageEventRow[] {
     effort: string | null;
     name: string | null;
     value: number;
+    cost_details: string | null;
   }>;
-  const mapped: UsageEventRow[] = rows.map((r) => ({
-    ts: r.ts,
-    kind: r.kind,
-    provider: r.provider,
-    model: r.model,
-    mode: r.mode,
-    fast: r.fast === 1,
-    effort: r.effort,
-    name: r.name,
-    value: r.value,
-  }));
+  const mapped: UsageEventRow[] = rows.map((r) => {
+    // Future record versions stay unknown on downgrade; never turn them into zero-cost records.
+    const details = r.cost_details
+      ? usageCostRecordSchema.safeParse(JSON.parse(r.cost_details))
+      : undefined;
+    return {
+      ts: r.ts,
+      kind: r.kind,
+      provider: r.provider,
+      model: r.model,
+      mode: r.mode,
+      fast: r.fast === 1,
+      effort: r.effort,
+      name: r.name,
+      value: r.value,
+      ...(details?.success ? { costDetails: details.data } : {}),
+    };
+  });
   _usageEventsCache = { generation: getProfileDataGeneration(), rows: mapped };
   return mapped;
 }

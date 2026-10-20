@@ -223,7 +223,13 @@ function usePanelTabOnScreen(tab: RightPanelTab): boolean {
 export function useIsProjectTerminalActive(projectId: string): boolean {
   const onScreen = usePanelTabOnScreen("terminal");
   return useDevTerminalStore((s) => {
-    if (!s.isOpen || s.activeProjectId !== projectId || s.activeWorktreePath) return false;
+    if (
+      s.source !== "project" ||
+      !s.isOpen ||
+      s.activeProjectId !== projectId ||
+      s.activeWorktreePath
+    )
+      return false;
     return onScreen;
   });
 }
@@ -237,7 +243,13 @@ export function useIsProjectTerminalOpen(projectId: string): boolean {
 export function useIsWorktreeTerminalActive(worktreePath: string | null | undefined): boolean {
   const onScreen = usePanelTabOnScreen("terminal");
   return useDevTerminalStore((s) => {
-    if (!worktreePath || !s.isOpen || s.activeWorktreePath !== worktreePath) return false;
+    if (
+      s.source !== "project" ||
+      !worktreePath ||
+      !s.isOpen ||
+      s.activeWorktreePath !== worktreePath
+    )
+      return false;
     return onScreen;
   });
 }

@@ -343,6 +343,7 @@ describe("mapOpenCode2Event", () => {
         usage: {
           counterKind: "per-call",
           counter: 119,
+          tokens: { input: 100, output: 15, cacheRead: 3, cacheWrite: 1 },
           scopeId: SESSION,
           epoch: 0,
           fresh: true,
@@ -354,6 +355,53 @@ describe("mapOpenCode2Event", () => {
 
     expect(state.usageSpentMessages.has(ASSISTANT)).toBe(true);
     expect(state.usageScopeSampled).toBe(true);
+  });
+
+  it.each([{ input: 10 }, { input: 10, output: 5, reasoning: 0, cache: { read: 3 } }])(
+    "keeps partial token categories unknown while retaining reported cost: %j",
+    (tokens) => {
+      const events = mapOpenCode2Event(
+        event("session.step.ended", {
+          sessionID: SESSION,
+          assistantMessageID: ASSISTANT,
+          cost: 0.002,
+          tokens,
+        }),
+        stateFor(),
+      );
+      const spent = events.find((mapped) => mapped.type === "usage.spent");
+      expect(spent?.usage.counter).toBeGreaterThan(0);
+      expect(spent?.usage.cost).toEqual({ amount: 0.002, currency: "USD" });
+      expect(spent?.usage.tokens).toBeUndefined();
+      expect(spent?.usage.model).toBeUndefined();
+    },
+  );
+
+  it("retains step-reported USD cost and never also counts the overlapping session total", () => {
+    const events = mapAll(stateFor(), probeTurnEvents());
+    const spent = events.filter((mapped) => mapped.type === "usage.spent");
+    expect(spent).toHaveLength(1);
+    expect(spent[0]?.usage.cost).toEqual({ amount: 0.00168105, currency: "USD" });
+  });
+
+  it("retains explicitly reported zero-token, zero-cost steps exactly once", () => {
+    const state = stateFor();
+    const step = event("session.step.ended", {
+      sessionID: SESSION,
+      assistantMessageID: ASSISTANT,
+      finish: "stop",
+      cost: 0,
+      tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+    });
+    const events = mapOpenCode2Event(step, state);
+    expect(events.find((mapped) => mapped.type === "usage.spent")?.usage).toMatchObject({
+      counter: 0,
+      cost: { amount: 0, currency: "USD" },
+      tokens: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+    });
+    expect(mapOpenCode2Event(step, state).some((mapped) => mapped.type === "usage.spent")).toBe(
+      false,
+    );
   });
 
   it("opens a permission request and resolves it by reply kind", () => {

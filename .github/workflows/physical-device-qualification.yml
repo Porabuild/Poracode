@@ -40,7 +40,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  PNPM_CONFIG_ENABLE_GLOBAL_VIRTUAL_STORE: "false"
+  BUN_INSTALL_GLOBAL_STORE: "0"
 
 jobs:
   ios_device:
@@ -55,16 +55,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
-
-      - name: Setup Node.js
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
-        with:
-          node-version: "24"
+      - name: Setup Bun
+        uses: ./.github/actions/setup-bun
 
       - name: Install JavaScript dependencies
-        run: pnpm install --frozen-lockfile --ignore-scripts
+        run: bun install --frozen-lockfile --ignore-scripts && node node_modules/bun/install.js
 
       - name: Build test native dependencies
         # The real-peer leg boots the production host, whose PTY sessions need
@@ -75,10 +70,10 @@ jobs:
         # Required by the E.2 real-peer family journey: the real harness boots
         # dist/main/server.cjs with the strict checkout-shape layout.
         run: |
-          pnpm run codex-protocol:gen
-          pnpm run build:electron
-          pnpm run prepare:server-native
-          pnpm run prepare:package-assets
+          bun run codex-protocol:gen
+          bun run build:electron
+          bun run prepare:server-native
+          bun run prepare:package-assets
           test -f dist/main/server.cjs
           test -f dist/server-native/better_sqlite3.node
           test -d resources/wsl-helpers
@@ -145,26 +140,21 @@ jobs:
           distribution: temurin
           java-version: "21"
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
-
-      - name: Setup Node.js
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
-        with:
-          node-version: "24"
+      - name: Setup Bun
+        uses: ./.github/actions/setup-bun
 
       - name: Install JavaScript dependencies
-        run: pnpm install --frozen-lockfile --ignore-scripts
+        run: bun install --frozen-lockfile --ignore-scripts && node node_modules/bun/install.js
 
       - name: Build test native dependencies
         run: scripts/ci-rebuild-node-pty.sh
 
       - name: Build the production headless host
         run: |
-          pnpm run codex-protocol:gen
-          pnpm run build:electron
-          pnpm run prepare:server-native
-          pnpm run prepare:package-assets
+          bun run codex-protocol:gen
+          bun run build:electron
+          bun run prepare:server-native
+          bun run prepare:package-assets
           test -f dist/main/server.cjs
           test -f dist/server-native/better_sqlite3.node
           test -d resources/wsl-helpers

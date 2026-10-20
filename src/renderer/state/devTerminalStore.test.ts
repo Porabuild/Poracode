@@ -20,6 +20,7 @@ describe("devTerminalStore cycleTab", () => {
   beforeEach(() => {
     useDevTerminalStore.setState({
       isOpen: false,
+      source: "project",
       explicitlyOpened: false,
       activeProjectId: null,
       activeWorktreePath: null,
@@ -122,6 +123,7 @@ describe("devTerminalStore explicit open marker", () => {
   beforeEach(() => {
     useDevTerminalStore.setState({
       isOpen: false,
+      source: "project",
       explicitlyOpened: false,
       activeProjectId: null,
       activeWorktreePath: null,
@@ -216,6 +218,7 @@ describe("devTerminalStore forgets deferred shell starts with tab state", () => 
   beforeEach(() => {
     useDevTerminalStore.setState({
       isOpen: false,
+      source: "project",
       explicitlyOpened: false,
       activeProjectId: null,
       activeWorktreePath: null,
@@ -302,3 +305,69 @@ describe("devTerminalStore forgets deferred shell starts with tab state", () => 
   });
 });
 // @vitest-environment node
+
+describe("devTerminalStore global terminal source", () => {
+  beforeEach(() => resetDevTerminalStore());
+
+  it("opens independently while preserving project scope and tabs", () => {
+    const projectTab = tab("project-shell", "p1", "/wt/x");
+    useDevTerminalStore.setState({
+      activeProjectId: "p1",
+      activeWorktreePath: "/wt/x",
+      tabs: [projectTab],
+      activeTabId: projectTab.id,
+    });
+
+    useDevTerminalStore.getState().openGlobalPanel();
+    useDevTerminalStore.getState().setPanelScope("p2", "/wt/other");
+    expect(useDevTerminalStore.getState()).toMatchObject({
+      isOpen: true,
+      source: "global",
+      explicitlyOpened: true,
+      activeProjectId: "p1",
+      activeWorktreePath: "/wt/x",
+      activeTabId: projectTab.id,
+      tabs: [projectTab],
+      focusRequestId: 1,
+    });
+
+    useDevTerminalStore.getState().closePanel();
+    expect(useDevTerminalStore.getState()).toMatchObject({
+      isOpen: false,
+      activeProjectId: "p1",
+      activeWorktreePath: "/wt/x",
+      tabs: [projectTab],
+    });
+  });
+
+  it("switches back to project terminals on an explicit project open", () => {
+    const store = useDevTerminalStore.getState();
+    store.openGlobalPanel();
+    store.openPanel("p1");
+    expect(useDevTerminalStore.getState()).toMatchObject({
+      source: "project",
+      activeProjectId: "p1",
+      activeWorktreePath: null,
+    });
+
+    store.openGlobalPanel();
+    store.openWorktreePanel("p2", "/wt/x");
+    expect(useDevTerminalStore.getState()).toMatchObject({
+      source: "project",
+      activeProjectId: "p2",
+      activeWorktreePath: "/wt/x",
+    });
+  });
+
+  it("does not cycle hidden project tabs while the global terminal is selected", () => {
+    useDevTerminalStore.setState({
+      activeProjectId: "p1",
+      tabs: [tab("a", "p1"), tab("b", "p1")],
+      activeTabId: "a",
+    });
+    useDevTerminalStore.getState().openGlobalPanel();
+    useDevTerminalStore.getState().cycleTab("next");
+    expect(useDevTerminalStore.getState().activeTabId).toBe("a");
+    expect(useDevTerminalStore.getState().focusRequestId).toBe(1);
+  });
+});

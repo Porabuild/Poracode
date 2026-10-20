@@ -36,8 +36,6 @@ agent MCP client
   window hugs the chip and takes mouse events; the exit link is intercepted in
   `setWindowOpenHandler`, so the badge page stays a sandboxed `data:` URL with
   no preload.
-- `src/main/computer-use/ComputerUseWakeLock.ts` — display-sleep blocker (see
-  [Keep awake](#keep-awake)).
 - `src/shared/contracts/computerUse.ts` — TypeScript side of the helper
   compatibility boundary.
 - `native/computer-use-helper/` — Rust protocol host plus Windows, macOS, and
@@ -52,7 +50,7 @@ agent MCP client
   binaries under `resources/computer-use-helper/`.
 
 The host supplies the helper root and a persistent state directory. Packaged
-apps use `process.resourcesPath/computer-use-helper`; `pnpm dev` stages a Cargo
+apps use `process.resourcesPath/computer-use-helper`; `bun run dev` stages a Cargo
 development build under `resources/computer-use-helper-dev`; release packaging
 uses `resources/computer-use-helper`. Linux portal restore data lives in the
 app's computer-use state directory, not the repository.
@@ -172,7 +170,7 @@ Toolchain and components are pinned in
 `deny.toml`.
 
 ```bash
-pnpm run prepare:computer-use-helper
+bun run prepare:computer-use-helper
 cd native/computer-use-helper
 cargo fmt --all -- --check
 cargo clippy --all-targets --all-features --locked -- -D warnings
@@ -333,13 +331,13 @@ The correct response is to stop and ask the user to unlock, not to retry.
 
 ### Keep awake
 
-`ComputerUseWakeLock` holds one `powerSaveBlocker.start("prevent-display-sleep")`
-while the activity state is not `hidden`, preventing display-sleep-triggered
-locking (screen savers and policies can still lock). It follows the overlay's
-`onActivityState`, is disposed on quit, and is gated live by the
-`computerUseKeepAwake` setting (default on). `enable` reports `keepAwake: true`
-when the blocker is held, so the agent knows it must call `disable` to let the
-display sleep.
+Computer Use follows the shared `preventSleep` policy through native thread
+activity, like other agent work. macOS and Windows use `prevent-app-suspension`,
+allowing the display to turn off normally. Linux uses a systemd sleep inhibitor
+with a GNOME suspend-only fallback, avoiding Electron 44's Wayland display
+blocker. An enabled Computer Use session or visible badge does not hold a
+separate display blocker. Automatic and manual screen locking remain
+OS-controlled, so agents must stop when the desktop locks.
 
 ## Adding or changing an action
 

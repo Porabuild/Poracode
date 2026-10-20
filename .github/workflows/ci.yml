@@ -16,8 +16,8 @@ concurrency:
 
 env:
   # CI checkouts do not benefit from the worktree-oriented global virtual
-  # store, and targeted pnpm rebuilds must operate on checkout-local packages.
-  PNPM_CONFIG_ENABLE_GLOBAL_VIRTUAL_STORE: "false"
+  # store, and native setup must operate on checkout-local packages.
+  BUN_INSTALL_GLOBAL_STORE: "0"
 
 jobs:
   changes:
@@ -47,23 +47,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
-
-      - name: Setup Node.js
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
-        with:
-          node-version: "24"
-          cache: pnpm
+      - name: Setup Bun
+        uses: ./.github/actions/setup-bun
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile --ignore-scripts
+        run: bun install --frozen-lockfile --ignore-scripts && node node_modules/bun/install.js
 
       - name: Generate Codex protocol types
-        run: pnpm run codex-protocol:gen
+        run: bun run codex-protocol:gen
 
       - name: Typecheck
-        run: pnpm run typecheck
+        run: bun run typecheck
 
   lint:
     name: Lint
@@ -74,20 +68,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
-
-      - name: Setup Node.js
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
-        with:
-          node-version: "24"
-          cache: pnpm
+      - name: Setup Bun
+        uses: ./.github/actions/setup-bun
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile --ignore-scripts
+        run: bun install --frozen-lockfile --ignore-scripts && node node_modules/bun/install.js
 
       - name: Lint
-        run: pnpm run lint
+        run: bun run lint
 
       - name: Release version regression tests
         run: node --test scripts/resolve-release-version.test.mjs
@@ -96,12 +84,12 @@ jobs:
         run: node --test scripts/mac-notarization-dependency.test.mjs
 
       - name: Architecture boundary audit and analyzer tests
-        run: pnpm run architecture:check
+        run: bun run architecture:check
 
       - name: Managed smoke harness regression tests
         run: |
           node --test .agents/skills/interactive-testing/scripts/*.test.mjs
-          pnpm exec vitest run --config tests/native-e2e/vitest.config.ts helpers/managedAppSession.test.ts
+          bun run vitest run --config tests/native-e2e/vitest.config.ts helpers/managedAppSession.test.ts
 
       # Protocol changes classify as core, so the operation map's
       # manifestHash lock over the generated inventory runs in core CI too:
@@ -109,7 +97,7 @@ jobs:
       # refreshed tests/native-e2e/harness/operation-map.json fails here
       # (cheap single-file lock) instead of only in the native foundation job.
       - name: Protocol inventory operation-map lock
-        run: pnpm exec vitest run --config tests/native-e2e/vitest.config.ts operationMap.test.ts
+        run: bun run vitest run --config tests/native-e2e/vitest.config.ts operationMap.test.ts
 
       - name: Nightly qualification regression tests
         run: node --test scripts/ci-server-artifact-meta.test.mjs scripts/qualification-http.test.mjs scripts/server-n1-qualification.test.mjs scripts/package-chrome-extension.test.mjs scripts/chrome-extension-worker.test.mjs scripts/ci-change-scope.test.mjs scripts/qualify-nightly-pwa.test.mjs scripts/nightly-pwa-workflows.test.mjs scripts/deploy-website-workflow.test.mjs scripts/native-ci-workflows.test.mjs scripts/qualify-release-pwa.test.mjs scripts/server-gate-workflows.test.mjs scripts/verify-server-tarball-contents.test.mjs scripts/prepare-server-native.test.mjs scripts/server-release-install.test.mjs scripts/runtime-closure.test.mjs scripts/generate-runtime-manifest.test.mjs scripts/set-release-version.test.mjs scripts/build-ssh-runtime-archive.test.mjs scripts/poracode-cli-qualification.test.mjs scripts/publish-npm-package.test.mjs packages/poracode-cli/test/launcher.test.mjs
@@ -132,20 +120,14 @@ jobs:
           tar -xzf "$RUNNER_TEMP/actionlint.tar.gz" -C "$RUNNER_TEMP" actionlint
           "$RUNNER_TEMP/actionlint" -shellcheck= -pyflakes=
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
-
-      - name: Setup Node.js
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
-        with:
-          node-version: "24"
-          cache: pnpm
+      - name: Setup Bun
+        uses: ./.github/actions/setup-bun
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile --ignore-scripts
+        run: bun install --frozen-lockfile --ignore-scripts && node node_modules/bun/install.js
 
       - name: Format check
-        run: pnpm run fmt:check
+        run: bun run fmt:check
 
   web_build:
     name: Canonical web build
@@ -156,23 +138,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
-
-      - name: Setup Node.js
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
-        with:
-          node-version: "24"
-          cache: pnpm
+      - name: Setup Bun
+        uses: ./.github/actions/setup-bun
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile --ignore-scripts
+        run: bun install --frozen-lockfile --ignore-scripts && node node_modules/bun/install.js
 
       - name: Generate Codex protocol types
-        run: pnpm run codex-protocol:gen
+        run: bun run codex-protocol:gen
 
       - name: Build canonical web client
-        run: pnpm run build:web
+        run: bun run build:web
 
       - name: Verify finalized web outputs
         run: |
@@ -191,23 +167,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
-
-      - name: Setup Node.js
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
-        with:
-          node-version: "24"
-          cache: pnpm
+      - name: Setup Bun
+        uses: ./.github/actions/setup-bun
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile --ignore-scripts
+        run: bun install --frozen-lockfile --ignore-scripts && node node_modules/bun/install.js
 
       - name: Generate Codex protocol types
-        run: pnpm run codex-protocol:gen
+        run: bun run codex-protocol:gen
 
       - name: Build Electron bundles
-        run: pnpm run build:electron
+        run: bun run build:electron
 
       - name: Validate packaged runtime dependencies
         run: node scripts/build-desktop-artifact.mjs --skip-build --check-runtime-deps
@@ -293,17 +263,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
-
-      - name: Setup Node.js
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
-        with:
-          node-version: "24"
-          cache: pnpm
+      - name: Setup Bun
+        uses: ./.github/actions/setup-bun
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile --ignore-scripts
+        run: bun install --frozen-lockfile --ignore-scripts && node node_modules/bun/install.js
 
       - name: Build test native dependencies
         # Compile against setup-node's local headers; CI must not download the
@@ -316,7 +280,7 @@ jobs:
         # most of their critical path compiling native fixtures.
         env:
           PORACODE_TEST_LANE: core
-        run: pnpm run test --shard=${{ matrix.shard }}/8
+        run: bun run test --shard=${{ matrix.shard }}/8
 
   test_perf:
     name: Perf suites (uncontended)
@@ -334,27 +298,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
-
-      - name: Setup Node.js
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
-        with:
-          node-version: "24"
-          cache: pnpm
+      - name: Setup Bun
+        uses: ./.github/actions/setup-bun
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile --ignore-scripts
+        run: bun install --frozen-lockfile --ignore-scripts && node node_modules/bun/install.js
 
       - name: Build test native dependencies
         # The perf runner exercises the supervisor's node-pty runtime chain.
         run: scripts/ci-rebuild-node-pty.sh
 
       - name: CLI hook perf suite
-        run: pnpm run test:perf:cli-hook
+        run: bun run test:perf:cli-hook
 
       - name: Remote protocol perf suite
-        run: pnpm run test:perf:remote
+        run: bun run test:perf:remote
 
   ci_gate:
     name: Test

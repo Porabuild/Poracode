@@ -38,7 +38,11 @@ import { createCursorChat } from "./session";
 import { CURSOR_IDLE_RE, CURSOR_WORKING_RE, detectCursorTerminalStatus } from "./terminal";
 import { applyCursorSdkProbe, probeCursorSdkRuntime } from "./sdkDetection";
 import { CursorSdkSession } from "./sdkSession";
-import { buildCursorAgentCommand, buildCursorArgvSpec } from "./windowsExecutable";
+import {
+  buildCursorAgentCommand,
+  buildCursorArgvSpec,
+  cursorWindowsArgs,
+} from "./windowsExecutable";
 import {
   configuredCursorStructuredRuntime,
   CURSOR_SDK_SESSION_PREFIX,
@@ -262,7 +266,13 @@ export function createCursorAdapter(options: CursorAdapterOptions = {}): AgentAd
         }
       }
       await prepareAgentLocationEnvironment(input.projectLocation);
-      const command = buildCursorAgentCommand(input.projectLocation, ["acp"]);
+      const model = input.config.model === "default" ? "auto" : input.config.model;
+      const command = buildCursorAgentCommand(input.projectLocation, [
+        ...(!input.sessionRef && input.presentationMode === "gui" && model
+          ? ["--model", model]
+          : []),
+        "acp",
+      ]);
       const acpEnv = mergeSpawnEnv(input.baseSpawnEnv, profileKeyEnv);
       return createAcpStructuredSession(command, {
         ...input,
@@ -325,7 +335,7 @@ export function createCursorAdapter(options: CursorAdapterOptions = {}): AgentAd
         const spec = buildCursorArgvSpec(location, args);
         return { command: spec.binary, args: spec.args, ...(spec.env ? { env: spec.env } : {}) };
       }
-      return { command: "cursor-agent", args };
+      return { command: "cursor-agent", args: cursorWindowsArgs(undefined, args) };
     },
     buildContextExtractionCommand(sessionRef, location, model, oneShotOptions) {
       // `sdk:` identifies Cursor's SDK-local Agent store, not a cursor-agent

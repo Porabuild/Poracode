@@ -1,9 +1,11 @@
 import type { TerminalPosition } from "@/shared/contracts";
 import { useDevTerminalStore, type DevTerminalTab } from "@/renderer/state/devTerminalStore";
+import { useGlobalTerminalStore } from "@/renderer/state/globalTerminalStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { clearEagerShellStart } from "@/renderer/utils/shellUtils";
 import { closeAllPanels } from "./panelActions";
+import { closeGlobalTerminalTab } from "./terminalActions";
 
 /**
  * Removes a terminal tab from the store. When the panel was showing the tab's
@@ -21,10 +23,11 @@ export function removeTerminalTab(
 ): boolean {
   const store = useDevTerminalStore.getState();
   const panelShowsTab =
-    options.panelShowsTab ??
-    (store.isOpen &&
-      store.activeProjectId === tab.projectId &&
-      (store.activeWorktreePath ?? undefined) === tab.worktreePath);
+    store.source === "project" &&
+    (options.panelShowsTab ??
+      (store.isOpen &&
+        store.activeProjectId === tab.projectId &&
+        (store.activeWorktreePath ?? undefined) === tab.worktreePath));
   store.removeTab(tab.id);
   if (!panelShowsTab) return false;
   const scopeHasTabs = useDevTerminalStore
@@ -73,6 +76,10 @@ function closeRightPanelTerminal(): boolean {
  * own shell exiting only clears the running marker.
  */
 export function closeExitedShell(shellId: string): void {
+  if (useGlobalTerminalStore.getState().tabs.some((tab) => tab.id === shellId)) {
+    closeGlobalTerminalTab(shellId);
+    return;
+  }
   const store = useDevTerminalStore.getState();
   store.markShellExited(shellId);
   clearEagerShellStart(shellId);

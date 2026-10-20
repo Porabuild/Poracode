@@ -1,7 +1,8 @@
 import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
+import Database from "better-sqlite3";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { closeDatabase, getSqlite, initDatabase } from "./connection";
+import { closeDatabase, initDatabase } from "./connection";
 import {
   assertRequiredDatabaseSchema,
   DATABASE_MIGRATIONS,
@@ -15,6 +16,7 @@ import {
 } from "./runtimePayloadOrigins.testFixtures";
 import { nativeBindingEnv } from "./runtimeItems.testFixtures";
 import { dbGetThread } from "./projectsThreads";
+import { ensureConversationSearchGeneration } from "./conversationSearchSchema";
 import {
   dbBeginThreadWorkspaceGrantOperation,
   dbGetUnresolvedThreadWorkspaceGrantOperation,
@@ -68,6 +70,7 @@ describe("workspace grant migration 54 to 55", () => {
         sqlite.prepare("SELECT value FROM app_state WHERE key = 'schema_version'").get(),
       ).toEqual({ value: String(LATEST_SCHEMA_VERSION) });
       expect(sqlite.prepare("SELECT * FROM thread_workspace_grant_operations").all()).toEqual([]);
+      ensureConversationSearchGeneration(sqlite);
     } finally {
       sqlite.close();
     }
@@ -123,9 +126,18 @@ describe("workspace grant migration 54 to 55", () => {
     const { sqlite, path } = schema54();
     sqlite.close();
     expect(() => initDatabase(path, { schemaMode: "validate" })).toThrow(/schema is incomplete/);
-    expect(
-      getSqlite().prepare("SELECT value FROM app_state WHERE key = 'schema_version'").get(),
-    ).toEqual({ value: "54" });
+    const refused = new Database(path, {
+      ...(nativeBindingEnv ? { nativeBinding: nativeBindingEnv } : {}),
+      readonly: true,
+      fileMustExist: true,
+    });
+    try {
+      expect(
+        refused.prepare("SELECT value FROM app_state WHERE key = 'schema_version'").get(),
+      ).toEqual({ value: "54" });
+    } finally {
+      refused.close();
+    }
   });
 
   it.each([

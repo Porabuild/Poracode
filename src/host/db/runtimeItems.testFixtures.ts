@@ -36,4 +36,29 @@ function testThread(): Thread {
   };
 }
 
-export { nativeBindingEnv, sqliteAvailable, testThread };
+function removeCostSchemaForDowngrade(sqlite: Database.Database): void {
+  sqlite.exec("DROP INDEX idx_usage_token_ledger_scope");
+  sqlite.exec("ALTER TABLE usage_events DROP COLUMN cost_details");
+  sqlite.exec("ALTER TABLE usage_token_ledger DROP COLUMN cost_details");
+}
+
+function removeConversationSearchFixtureSchema(sqlite: Database.Database): void {
+  const triggers = sqlite
+    .prepare(
+      "SELECT name FROM sqlite_master WHERE type = 'trigger' AND (name GLOB 'search_*' OR name GLOB 'conversation_search_*')",
+    )
+    .all() as { name: string }[];
+  for (const { name } of triggers) sqlite.exec(`DROP TRIGGER "${name}"`);
+  sqlite.exec(`DROP TABLE conversation_search_fts;
+    DROP TABLE conversation_search_pending;
+    DROP TABLE conversation_search_documents;
+    DROP TABLE conversation_search_meta;`);
+}
+
+export {
+  nativeBindingEnv,
+  sqliteAvailable,
+  testThread,
+  removeCostSchemaForDowngrade,
+  removeConversationSearchFixtureSchema,
+};

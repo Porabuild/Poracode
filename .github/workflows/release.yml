@@ -38,13 +38,8 @@ jobs:
           fetch-depth: 0
           ssh-key: ${{ secrets.RELEASE_DEPLOY_KEY }}
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: "24"
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v6
+      - name: Setup Bun
+        uses: ./.github/actions/setup-bun
 
       - name: Resolve version
         id: resolve
@@ -183,16 +178,11 @@ jobs:
           fetch-depth: 0
           ssh-key: ${{ secrets.RELEASE_DEPLOY_KEY }}
 
-      - name: Setup pnpm for upgrade qualification
-        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
-
-      - name: Setup Node.js for upgrade qualification
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
-        with:
-          node-version: "24"
+      - name: Setup Bun
+        uses: ./.github/actions/setup-bun
 
       - name: Install upgrade qualification dependencies
-        run: pnpm install --frozen-lockfile --ignore-scripts
+        run: bun install --frozen-lockfile --ignore-scripts && node node_modules/bun/install.js
 
       # Same-bytes gate (plan D3): every downloaded tarball must hash to the
       # value its leg recorded, and the launcher manifest must point at those

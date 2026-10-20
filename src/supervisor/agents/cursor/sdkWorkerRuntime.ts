@@ -1,8 +1,13 @@
-import { isAbsolute, relative, sep } from "node:path";
-import { realpath } from "node:fs/promises";
+import { isAbsolute, dirname, join, relative, resolve, sep, toNamespacedPath } from "node:path";
+import { readFile, realpath } from "node:fs/promises";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import {
+  cursorSdkVersionIncompatibleMessage,
+  CURSOR_SDK_PACKAGE_NAME,
+} from "@/shared/agents/cursorSdkPackage";
 import { loadCursorSdk, type CursorSdkModule } from "./sdkLoader";
-import { CursorSdkMaxModeCompatibility } from "./sdkMaxMode";
+import { isSupportedCursorSdkVersion } from "./sdkLoaderSupport";
+import { CursorSdkMaxModeQualification } from "./sdkMaxMode";
 import { cursorSdkParamFamily } from "./sdkModels";
 import { asWorkerRecord, WorkerDiagnosticError } from "./sdkWorkerDiagnostics";
 import type {
@@ -68,6 +73,7 @@ export interface RuntimeSdkModule extends CursorSdkModule {
   Agent: RuntimeAgentApi & CursorSdkModule["Agent"];
   Cursor: RuntimeCursorApi & CursorSdkModule["Cursor"];
   getDefaultSdkStateRoot?: (workspaceRef: string) => string;
+  configureCursorSdk?: (options: { local: { store: unknown } }) => void;
 }
 
 /**
@@ -76,8 +82,11 @@ export interface RuntimeSdkModule extends CursorSdkModule {
  * accidentally cross package roots.
  */
 export class CursorSdkWorkerRuntime {
-  private readonly maxMode = new CursorSdkMaxModeCompatibility();
+  private readonly maxMode = new CursorSdkMaxModeQualification();
   private loadedSdk: RuntimeSdkModule | undefined;
+  private entrySpecifier: string | undefined;
+  private localStore: { dispose(): Promise<void> } | undefined;
+  private localStoreCwd: string | undefined;
   private discoveryKey: string | undefined;
   private sdkMetadata:
     | Pick<CursorSdkWorkerProbeResult, "sdkVersion" | "source" | "packageRoot">
@@ -95,6 +104,16 @@ export class CursorSdkWorkerRuntime {
     this.maxMode.setCatalog(models);
   }
 
+  /**
+   * Qualify Max Mode onto the selection's public `maxMode` field, the only
+   * mechanism the supported SDKs accept it through. A send must carry the
+   * qualified selection explicitly, including when it falls back to the
+   * agent's model after a resume without a catalog.
+   */
+  qualifyModelSelection(selection: CursorSdkWorkerModelSelection): CursorSdkWorkerModelSelection {
+    return this.maxMode.withNativeMaxMode(selection);
+  }
+
   async prepareModelSelection(
     model: CursorSdkWorkerModelSelection | undefined,
     apiKey?: string,
@@ -110,11 +129,67 @@ export class CursorSdkWorkerRuntime {
   }
 
   private async importModule(specifier: string): Promise<unknown> {
-    // Node resolves symlinks before invoking load hooks (including macOS /var
-    // and package-manager links). Scope the hook to that same package path.
+    // Node resolves symlinks before invoking the import (including macOS /var
+    // and package-manager links); keep the URL canonical so a cached module
+    // and its native helpers resolve from one package root.
     const canonicalSpecifier = pathToFileURL(await realpath(fileURLToPath(specifier))).href;
-    this.maxMode.registerForImport(canonicalSpecifier);
+    this.entrySpecifier = canonicalSpecifier;
     return import(canonicalSpecifier);
+  }
+
+  async prepareLocalStore(cwd: string): Promise<void> {
+    const loaded = this.loadedSdk;
+    if (
+      process.platform !== "win32" ||
+      !this.entrySpecifier ||
+      !loaded?.getDefaultSdkStateRoot ||
+      !loaded.configureCursorSdk
+    )
+      return;
+    if (this.localStore) {
+      if (this.localStoreCwd === cwd) return;
+      await this.disposeLocalStore();
+    }
+
+    // SQLite does not add Windows' long-path prefix itself. The SDK's two
+    // SHA-256 directory names can push checkpoint store.db beyond MAX_PATH.
+    // Keep the SDK's existing root and layout so old sessions still resume.
+    let sqlite: {
+      SqliteLocalAgentStore?: {
+        open?: (options: { workspaceRef: string; stateRoot: string }) => Promise<{
+          dispose(): Promise<void>;
+        }>;
+      };
+    };
+    try {
+      sqlite = (await import(new URL("./sqlite.js", this.entrySpecifier).href)) as typeof sqlite;
+    } catch (error) {
+      if ((error as { code?: string })?.code === "ERR_MODULE_NOT_FOUND") return;
+      throw error;
+    }
+    if (typeof sqlite?.SqliteLocalAgentStore?.open !== "function") return;
+    const store = await sqlite.SqliteLocalAgentStore.open({
+      workspaceRef: cwd,
+      stateRoot: toNamespacedPath(loaded.getDefaultSdkStateRoot(cwd)),
+    });
+    try {
+      loaded.configureCursorSdk({ local: { store } });
+    } catch (error) {
+      await store.dispose();
+      throw error;
+    }
+    this.localStore = store;
+    this.localStoreCwd = cwd;
+  }
+
+  async disposeLocalStore(): Promise<void> {
+    const store = this.localStore;
+    this.localStore = undefined;
+    this.localStoreCwd = undefined;
+    if (store) {
+      this.loadedSdk!.configureCursorSdk!({ local: { store: null } });
+      await store.dispose();
+    }
   }
 
   async load(
@@ -136,6 +211,7 @@ export class CursorSdkWorkerRuntime {
     let imported: unknown;
     if (discovery.entryPath) {
       validateExplicitEntry(discovery);
+      rejectUnsupportedExplicitEntry(await readExplicitEntrySdkVersion(discovery));
       anchorProcessArgvAtSdk(discovery.entryPath);
       imported = await this.importModule(pathToFileURL(discovery.entryPath).href);
     } else {
@@ -302,6 +378,49 @@ function validateExplicitEntry(discovery: CursorSdkWorkerDiscovery): void {
       "The explicit Cursor SDK entry path is outside its package root.",
     );
   }
+}
+
+/**
+ * An explicit entry skips package discovery and its supported-version check,
+ * so the version is read from the installation's own manifest, starting at
+ * the configured package root or the entry's directory. An unreadable or
+ * unidentifiable manifest returns undefined: the entry then stays loadable,
+ * because the module API is still validated and such installations are
+ * theoretical for `@cursor/sdk`.
+ */
+async function readExplicitEntrySdkVersion(
+  discovery: CursorSdkWorkerDiscovery,
+): Promise<string | undefined> {
+  let current = resolve(discovery.packageRoot ?? dirname(discovery.entryPath!));
+  while (true) {
+    let manifest: unknown;
+    try {
+      manifest = JSON.parse(await readFile(join(current, "package.json"), "utf8"));
+    } catch {
+      manifest = undefined;
+    }
+    const record = asWorkerRecord(manifest);
+    if (record?.name === CURSOR_SDK_PACKAGE_NAME && typeof record.version === "string") {
+      return record.version;
+    }
+    const parent = dirname(current);
+    if (parent === current) return undefined;
+    current = parent;
+  }
+}
+
+/**
+ * Max Mode qualification relies on the public `ModelSelection.maxMode` field,
+ * which releases below the supported minimum silently ignore. An explicitly
+ * configured old installation therefore fails the load with the same
+ * recoverable diagnostic as a discovered one instead of degrading quietly.
+ */
+function rejectUnsupportedExplicitEntry(version: string | undefined): void {
+  if (version === undefined || isSupportedCursorSdkVersion(version)) return;
+  throw new WorkerDiagnosticError(
+    "version_incompatible",
+    cursorSdkVersionIncompatibleMessage(version),
+  );
 }
 
 function validateRuntimeModule(imported: unknown): RuntimeSdkModule | undefined {

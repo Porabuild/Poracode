@@ -12,11 +12,11 @@ describe("text file downloads", () => {
     const revoke = vi.fn<(url: string) => void>();
     vi.stubGlobal("URL", { createObjectURL: create, revokeObjectURL: revoke });
     let clicked: HTMLAnchorElement | undefined;
-    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(
-      function (this: HTMLAnchorElement) {
-        clicked = this;
-      },
-    );
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (
+      this: HTMLAnchorElement,
+    ) {
+      clicked = this;
+    });
     downloadTextFile("palette.json", "{}", "application/json");
     expect(clicked?.download).toBe("palette.json");
     expect(clicked?.href).toBe("blob:test");

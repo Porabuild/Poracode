@@ -50,7 +50,11 @@ export function openCode2SnapshotEvents(
       }
     });
     if (message.time.completed !== undefined)
-      push("session.step.ended", { ...base, tokens: message.tokens });
+      push("session.step.ended", {
+        ...base,
+        tokens: message.tokens,
+        ...(message.cost !== undefined ? { cost: message.cost } : {}),
+      });
   }
   return events;
 }

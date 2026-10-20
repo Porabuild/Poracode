@@ -351,18 +351,49 @@ export function detectPowerShell(
   );
 }
 
-export function selectWindowsPowerShell(
-  configuredPath: string,
-  availableShells: readonly AvailableWindowsShell[],
-): DetectedPowerShell | undefined {
-  const powerShells = availableShells.filter(
-    (shell): shell is DetectedPowerShell => shell.kind !== "cmd",
-  );
-  const selected =
-    configuredPath === WINDOWS_SHELL_AUTO
-      ? undefined
-      : powerShells.find((shell) => shell.path.toLowerCase() === configuredPath.toLowerCase());
-  return selected ?? powerShells[0];
+/** Resolve a launch host without enumerating the full Settings catalog. */
+export function createWindowsPowerShellLaunchResolver(
+  resolveExecutable: ResolveWindowsExecutable,
+  pathExists: (path: string) => boolean = existsSync,
+): (configuredPath: string) => DetectedPowerShell | undefined {
+  let automatic: DetectedPowerShell | undefined;
+  return (configuredPath) => {
+    if (process.platform !== "win32") return undefined;
+    const configuredKind = inferWindowsShellKind(configuredPath);
+    if (
+      configuredPath !== WINDOWS_SHELL_AUTO &&
+      configuredKind !== "cmd" &&
+      pathExists(configuredPath)
+    ) {
+      return { path: configuredPath, kind: configuredKind };
+    }
+    if (automatic && pathExists(automatic.path)) return automatic;
+
+    const pathCandidates = (process.env.Path ?? process.env.PATH ?? "")
+      .split(";")
+      .map((directory) => directory.trim().replace(/^"(.*)"$/u, "$1"))
+      .filter((directory) => win32.isAbsolute(directory))
+      // Match resolveExecutablePath's last non-alias PATH match.
+      .reverse()
+      .map((directory) => win32.join(directory, "pwsh.exe"));
+    let pwsh = [...pathCandidates, ...windowsPwshWellKnownPaths()].find(
+      (path) => !isWindowsAppExecutionAlias(path) && pathExists(path),
+    );
+    if (!pwsh) {
+      const resolved = resolveExecutable("pwsh.exe") ?? resolveExecutable("pwsh");
+      pwsh =
+        resolved && !isWindowsAppExecutionAlias(resolved) && pathExists(resolved)
+          ? resolved
+          : collectLaunchablePwsh(resolved, findInstalledWindowsPwsh(pathExists))[0];
+    }
+    const legacy = getWindowsSystemCommand("WindowsPowerShell\\v1.0\\powershell.exe");
+    automatic = pwsh
+      ? { path: pwsh, kind: "pwsh" }
+      : pathExists(legacy)
+        ? { path: legacy, kind: "powershell" }
+        : undefined;
+    return automatic;
+  };
 }
 
 /** Parse a compact argument field into argv without invoking a shell. */

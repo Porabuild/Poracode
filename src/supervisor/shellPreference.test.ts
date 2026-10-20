@@ -4,6 +4,7 @@ import { win32 } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { WINDOWS_SHELL_AUTO } from "@/shared/settings";
 import {
+  createWindowsPowerShellLaunchResolver,
   detectPowerShell,
   detectWindowsShells,
   inferPwshVersion,
@@ -12,7 +13,6 @@ import {
   parseAppxInstallLocations,
   parsePwshVersion,
   parseWindowsShellArguments,
-  selectWindowsPowerShell,
   selectWindowsShell,
   setWindowsPowerShellPreferenceResolver,
   windowsPwshWellKnownPaths,
@@ -26,6 +26,8 @@ describe("Windows shell preference", () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllEnvs();
     Object.defineProperty(process, "platform", { value: originalPlatform, configurable: true });
   });
 
@@ -34,6 +36,88 @@ describe("Windows shell preference", () => {
     "C:\\Program Files\\WindowsApps\\Microsoft.PowerShell_7.6.1.0_x64__8wekyb3d8bbwe\\pwsh.exe";
   const msiImage = "C:\\Program Files\\PowerShell\\7\\pwsh.exe";
   const scoopImage = "C:\\Users\\a\\scoop\\apps\\pwsh\\current\\pwsh.exe";
+
+  it("selects the PATH PowerShell without spawning discovery or probing its version", () => {
+    vi.stubEnv("Path", 'C:\\first;"C:\\preferred"');
+    const preferred = "C:\\preferred\\pwsh.exe";
+    const resolveExecutable = vi.fn<(name: string) => string | undefined>(() => {
+      throw new Error("Launch selection must not spawn where.exe");
+    });
+    const resolve = createWindowsPowerShellLaunchResolver(
+      resolveExecutable,
+      (path) => path === "C:\\first\\pwsh.exe" || path === preferred,
+    );
+
+    expect(resolve(WINDOWS_SHELL_AUTO)).toEqual({ path: preferred, kind: "pwsh" });
+    expect(resolveExecutable).not.toHaveBeenCalled();
+  });
+
+  it("uses a known install instead of a Store alias without enumerating the catalog", () => {
+    vi.stubEnv("Path", win32.dirname(storeAlias));
+    vi.stubEnv("ProgramFiles", "C:\\Program Files");
+    const resolveExecutable = vi.fn<(name: string) => string | undefined>(() => {
+      throw new Error("A known PowerShell does not need executable discovery");
+    });
+    const resolve = createWindowsPowerShellLaunchResolver(
+      resolveExecutable,
+      (path) => path === storeAlias || path === msiImage,
+    );
+
+    expect(resolve(WINDOWS_SHELL_AUTO)).toEqual({ path: msiImage, kind: "pwsh" });
+    expect(resolveExecutable).not.toHaveBeenCalled();
+  });
+
+  it("keeps the launch selection after the Settings catalog's 60-second expiry", () => {
+    vi.useFakeTimers();
+    vi.stubEnv("Path", "C:\\original;C:\\new");
+    const original = "C:\\original\\pwsh.exe";
+    const newer = "C:\\new\\pwsh.exe";
+    const existing = new Set([original]);
+    const resolveExecutable = vi.fn<() => string | undefined>();
+    const resolve = createWindowsPowerShellLaunchResolver(resolveExecutable, (path) =>
+      existing.has(path),
+    );
+
+    expect(resolve(WINDOWS_SHELL_AUTO)?.path).toBe(original);
+    existing.add(newer);
+    vi.advanceTimersByTime(120_000);
+    expect(resolve(WINDOWS_SHELL_AUTO)?.path).toBe(original);
+    existing.delete(original);
+    expect(resolve(WINDOWS_SHELL_AUTO)?.path).toBe(newer);
+    expect(resolveExecutable).not.toHaveBeenCalled();
+  });
+
+  it("honors setting changes immediately and recovers from a missing configured executable", () => {
+    vi.stubEnv("Path", "C:\\automatic");
+    const automatic = "C:\\automatic\\pwsh.exe";
+    const explicit = "C:\\selected\\pwsh.exe";
+    const legacy = "C:\\selected\\powershell.exe";
+    const existing = new Set([automatic, explicit, legacy]);
+    const resolve = createWindowsPowerShellLaunchResolver(
+      () => undefined,
+      (path) => existing.has(path),
+    );
+
+    expect(resolve(WINDOWS_SHELL_AUTO)?.path).toBe(automatic);
+    expect(resolve(explicit)).toEqual({ path: explicit, kind: "pwsh" });
+    expect(resolve(legacy)).toEqual({ path: legacy, kind: "powershell" });
+    existing.delete(legacy);
+    expect(resolve(legacy)?.path).toBe(automatic);
+    expect(resolve(WINDOWS_SHELL_AUTO)?.path).toBe(automatic);
+  });
+
+  it("retains executable-resolution fallback for installations outside the inherited PATH", () => {
+    vi.stubEnv("Path", "");
+    const custom = "C:\\custom\\pwsh.exe";
+    const resolveExecutable = vi.fn<(name: string) => string | undefined>(() => custom);
+    const resolve = createWindowsPowerShellLaunchResolver(
+      resolveExecutable,
+      (path) => path === custom,
+    );
+
+    expect(resolve(WINDOWS_SHELL_AUTO)).toEqual({ path: custom, kind: "pwsh" });
+    expect(resolveExecutable).toHaveBeenCalledExactlyOnceWith("pwsh.exe");
+  });
 
   it("detects MSIX package images in automatic preference order", () => {
     const shells = detectWindowsShells(
@@ -127,16 +211,6 @@ describe("Windows shell preference", () => {
     expect(parsePwshVersion("7.6.5\r\n")).toBe("7.6.5");
     expect(parsePwshVersion("warning\n7.7.0-preview.3\n")).toBe("7.7.0-preview.3");
     expect(parsePwshVersion("warning only")).toBeUndefined();
-  });
-
-  it("selects a configured internal PowerShell and falls back to the preferred detected version", () => {
-    const v71 = { kind: "pwsh" as const, path: "C:\\PowerShell\\7.1\\pwsh.exe", version: "7.1" };
-    const v72 = { kind: "pwsh" as const, path: "C:\\PowerShell\\7.2\\pwsh.exe", version: "7.2" };
-    const cmd = { kind: "cmd" as const, path: "C:\\Windows\\System32\\cmd.exe" };
-
-    expect(selectWindowsPowerShell(v71.path.toLowerCase(), [v72, v71, cmd])).toEqual(v71);
-    expect(selectWindowsPowerShell(WINDOWS_SHELL_AUTO, [v72, v71, cmd])).toEqual(v72);
-    expect(selectWindowsPowerShell("C:\\removed\\pwsh.exe", [v72, v71, cmd])).toEqual(v72);
   });
 
   it("uses the shared configured PowerShell resolver for internal command builders", () => {

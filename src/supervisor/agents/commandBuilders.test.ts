@@ -885,13 +885,23 @@ describe("agent command builders", () => {
   });
 
   it("uses Cursor print mode with --trust for one-shot commands", async () => {
+    const platformArgs = process.platform === "win32" ? ["--disable-auto-update"] : [];
     expect(await createCursorAdapter().buildOneShotCommand?.("auto")).toEqual({
       command: "cursor-agent",
-      args: ["--print", "--force", "--trust", "--output-format", "json"],
+      args: [...platformArgs, "--print", "--force", "--trust", "--output-format", "json"],
     });
     expect(await createCursorAdapter().buildOneShotCommand?.("composer-2.5")).toEqual({
       command: "cursor-agent",
-      args: ["--print", "--force", "--trust", "--output-format", "json", "--model", "composer-2.5"],
+      args: [
+        ...platformArgs,
+        "--print",
+        "--force",
+        "--trust",
+        "--output-format",
+        "json",
+        "--model",
+        "composer-2.5",
+      ],
     });
   });
 });

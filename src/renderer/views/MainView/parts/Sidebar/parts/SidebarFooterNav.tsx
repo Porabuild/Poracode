@@ -65,14 +65,16 @@ export function SidebarFooterNav(props: {
   const { remoteAccessStatus, showRemoteAccess = true } = props;
   const { t } = useLingui();
   const settingsOpen = usePanelStore((s) => s.settingsOpen);
-  const settingsSection = usePanelStore((s) => s.settingsSection);
-  // Remote Access has its own sidebar entry, so the generic Settings button
-  // lights up for every other section.
+  const settingsSection = usePanelStore((s) => s.settingsSection ?? s.activeSettingsSection);
+  // Surfaced Settings destinations own their active state instead of the generic entry.
   const remoteAccessSettingsActive = settingsOpen && settingsSection === "remoteAccess";
-  const otherSettingsActive = settingsOpen && !remoteAccessSettingsActive;
   const footerCollapsed = useSidebarUiStore((s) => s.footerCollapsed);
   const toggleFooterCollapsed = useSidebarUiStore((s) => s.toggleFooterCollapsed);
   const sidebarShortcuts = useSidebarShortcuts();
+  const otherSettingsActive =
+    settingsOpen &&
+    !remoteAccessSettingsActive &&
+    !sidebarShortcuts.some((shortcut) => shortcut.isActive);
   const { isCollapsed, collapse } = useSidebar();
   const hasSwitchableWorkspaces = useHasSwitchableWorkspaces();
   const updateEntryVisible = useUpdateEntryVisible();
@@ -184,7 +186,8 @@ export function SidebarFooterNav(props: {
         onPress: openSettings,
         onPreload: prewarmSettings,
       },
-      ...(showRemoteAccess
+      ...(showRemoteAccess &&
+      !sidebarShortcuts.some((shortcut) => shortcut.id === "settings:remoteAccess")
         ? [
             {
               key: "remoteAccess",
@@ -226,6 +229,7 @@ export function SidebarFooterNav(props: {
               label={item.label}
               tooltipPlacement="top"
               isActive={item.isActive}
+              isCurrentPage={item.isActive}
               {...(item.tooltip ? { tooltip: item.tooltip } : {})}
               {...(item.onPreload ? { onPreload: item.onPreload } : {})}
               onPress={item.onPress}
@@ -256,6 +260,10 @@ export function SidebarFooterNav(props: {
                 <Dropdown.Menu
                   aria-label={t`More`}
                   className="poracode-menu min-w-48"
+                  selectionMode="single"
+                  selectedKeys={overflowedActions
+                    .filter((item) => item.isActive)
+                    .map((item) => item.key)}
                   onAction={(key) => {
                     overflowedActions.find((item) => item.key === String(key))?.onPress();
                   }}
@@ -268,6 +276,7 @@ export function SidebarFooterNav(props: {
                         {item.icon}
                       </span>
                       <Label>{item.label}</Label>
+                      <Dropdown.ItemIndicator />
                     </Dropdown.Item>
                   ))}
                 </Dropdown.Menu>
@@ -285,32 +294,38 @@ export function SidebarFooterNav(props: {
       <SidebarWorkspaceSwitcher />
       <UpdateButtons />
       <WhatsNewButton />
-      {sidebarShortcuts.map((shortcut) => (
-        <SidebarButton
-          key={shortcut.id}
-          icon={shortcut.icon}
-          label={shortcut.label}
-          isActive={shortcut.isActive}
-          onPress={shortcut.onPress}
-        />
-      ))}
+      <div className="max-h-[35vh] space-y-1 overflow-y-auto">
+        {sidebarShortcuts.map((shortcut) => (
+          <SidebarButton
+            key={shortcut.id}
+            icon={shortcut.icon}
+            label={shortcut.label}
+            isActive={shortcut.isActive}
+            isCurrentPage={shortcut.isActive}
+            onPress={shortcut.onPress}
+          />
+        ))}
+      </div>
       <div className="flex items-center gap-1">
         <div className="min-w-0 flex-1">
           <SidebarButton
             icon={<Settings2 className="size-4" />}
             label={t`Settings`}
             isActive={otherSettingsActive}
+            isCurrentPage={otherSettingsActive}
             onPreload={prewarmSettings}
             onPress={openSettings}
           />
         </div>
-        {showRemoteAccess ? (
+        {showRemoteAccess &&
+        !sidebarShortcuts.some((shortcut) => shortcut.id === "settings:remoteAccess") ? (
           <SidebarButton
             iconOnly
             icon={<RemoteAccessSidebarIcon status={remoteAccessStatus} />}
             label={t`Remote Access`}
             tooltip={<RemoteAccessSidebarTooltip status={remoteAccessStatus} />}
             isActive={remoteAccessSettingsActive}
+            isCurrentPage={remoteAccessSettingsActive}
             onPreload={prewarmSettings}
             onPress={openRemoteAccessSettings}
           />

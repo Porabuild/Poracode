@@ -139,7 +139,6 @@ interface SharedSettingsState extends SharedSettings {
   setGuiChatFontSize: (value: number) => void;
   setTerminalPanelFontSize: (value: number) => void;
   setPreventSleep: (value: PreventSleep) => void;
-  setComputerUseKeepAwake: (value: boolean) => void;
   setLaunchAtStartup: (value: boolean) => void;
   setStartMinimized: (value: boolean) => void;
   setCloseToTray: (value: boolean) => void;
@@ -751,10 +750,6 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     set({ preventSleep });
     persistSettings(selectSharedSettings(get()));
   },
-  setComputerUseKeepAwake: (computerUseKeepAwake) => {
-    set({ computerUseKeepAwake });
-    persistSettings(selectSharedSettings(get()));
-  },
   setLaunchAtStartup: (launchAtStartup) => {
     if (get().launchAtStartup === launchAtStartup) return;
     set({ launchAtStartup });
@@ -790,9 +785,12 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
   },
   setSidebarShortcutVisible: (id, visible) => {
     const current = get().sidebarHiddenShortcuts;
+    const order = get().sidebarShortcutOrder;
+    const missing = !order.includes(id);
     const hidden = current.includes(id);
-    if (hidden === !visible) return;
+    if (hidden === !visible && !(visible && missing)) return;
     set({
+      ...(visible && missing ? { sidebarShortcutOrder: [...order, id] } : {}),
       sidebarHiddenShortcuts: visible
         ? current.filter((shortcutId) => shortcutId !== id)
         : [...current, id],
@@ -803,7 +801,15 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     const next = normalizeSidebarShortcutOrder(order);
     const current = get().sidebarShortcutOrder;
     if (current.length === next.length && current.every((id, index) => id === next[index])) return;
-    set({ sidebarShortcutOrder: next });
+    set({
+      sidebarShortcutOrder: next,
+      sidebarHiddenShortcuts: [
+        ...new Set([
+          ...get().sidebarHiddenShortcuts,
+          ...next.filter((id) => id.startsWith("settings:") && !current.includes(id)),
+        ]),
+      ],
+    });
     persistSettings(selectSharedSettings(get()));
   },
   setSidebarTranslucency: (sidebarTranslucency) => {
@@ -1308,7 +1314,6 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
     guiChatFontSize: state.guiChatFontSize,
     terminalPanelFontSize: state.terminalPanelFontSize,
     preventSleep: state.preventSleep,
-    computerUseKeepAwake: state.computerUseKeepAwake,
     launchAtStartup: state.launchAtStartup,
     startMinimized: state.startMinimized,
     closeToTray: state.closeToTray,

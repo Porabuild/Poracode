@@ -4,6 +4,7 @@ import { join } from "node:path";
 import type Database from "better-sqlite3";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { closeDatabase, getSqlite, initDatabase } from "./connection";
+import { ensureConversationSearchGeneration } from "./conversationSearchSchema";
 import {
   assertRequiredDatabaseSchema,
   DATABASE_MIGRATIONS,
@@ -119,6 +120,7 @@ describe("workspace owner migration55 to 56", () => {
           .get(),
       ).toEqual({ revision: 0 });
       runDatabaseMigrations(sqlite, 55);
+      ensureConversationSearchGeneration(sqlite);
       sqlite.close();
       initDatabase(path, { schemaMode: "validate" });
       const current = dbReadThreadWorkspaceGrantOwner("thread-1");
@@ -196,6 +198,7 @@ describe("workspace owner migration55 to 56", () => {
           .all(),
       ).toEqual(grants);
       expect(version(sqlite)).toEqual({ value: String(LATEST_SCHEMA_VERSION) });
+      ensureConversationSearchGeneration(sqlite);
       sqlite.close();
       initDatabase(path, { schemaMode: "validate" });
       const current = dbReadThreadWorkspaceGrantOwner("thread-1");
@@ -249,10 +252,12 @@ describe("workspace owner migration55 to 56", () => {
 
   it("revisits complete schema56 without reminting or reclassifying owner-only revisions", () => {
     const { sqlite } = schema55();
-    runDatabaseMigrations(sqlite, 55);
+    const migration = DATABASE_MIGRATIONS.find((entry) => entry.version === 56)!;
+    migration.migrate(sqlite);
+    sqlite.prepare("UPDATE app_state SET value = '56' WHERE key = 'schema_version'").run();
     sqlite.exec("UPDATE threads SET agent_instance_id = 'other' WHERE id = 'thread-1'");
     const before = sqlite.prepare("SELECT * FROM threads ORDER BY id").all();
-    runDatabaseMigrations(sqlite, 55);
+    migration.migrate(sqlite);
     expect(sqlite.prepare("SELECT * FROM threads ORDER BY id").all()).toEqual(before);
     expect(
       sqlite

@@ -37,7 +37,8 @@ export async function runEverythingSearchScenario({
   async function type(text) {
     await click(`[...document.querySelectorAll(${JSON.stringify(inputSelector)})]`, "search input");
     await read(`document.querySelector(${JSON.stringify(inputSelector)}).select()`);
-    await client.send("Input.insertText", { text });
+    if (text) await client.send("Input.insertText", { text });
+    else await key("Backspace", 0, 8);
     await wait(
       `document.querySelector(${JSON.stringify(inputSelector)})?.value`,
       (value) => value === text,
@@ -78,6 +79,7 @@ export async function runEverythingSearchScenario({
     assert.deepEqual(initial.categories, [
       "All",
       "Threads",
+      "Messages",
       "Commands",
       "Settings",
       "Files",
@@ -96,7 +98,15 @@ export async function runEverythingSearchScenario({
       (value) => value === "Threads",
       "keyboard category navigation",
     );
+    await category("Messages");
+    await type("x");
+    const messagesHint = await wait(
+      `document.querySelector('#everything-search-results')?.parentElement?.textContent`,
+      (text) => text?.includes("Type at least two characters to search messages"),
+      "saved message minimum query hint",
+    );
     await category("All");
+    await type("");
     await click(
       `[...document.querySelectorAll('[aria-labelledby="search-heading-commands"] [role="option"]')].filter(option => option.textContent.includes("Show more"))`,
       "show more commands",
@@ -149,7 +159,7 @@ export async function runEverythingSearchScenario({
       Boolean,
       "search Escape dismissal",
     );
-    return { initial, expanded, files, deepLink, screenshotPath };
+    return { initial, messagesHint, expanded, files, deepLink, screenshotPath };
   } finally {
     await read("window.__poracodeDev.reset()");
   }

@@ -117,6 +117,8 @@ export const XTermSurface = forwardRef<
     className?: string;
     baseFontSize?: number;
     openLinksInNativeBrowser?: boolean;
+    /** A newly requested shell may not exist until its launch finishes. */
+    awaitingStart?: boolean;
     /** Mobile browsers are more reliable with xterm's default DOM renderer. */
     preferDomRenderer?: boolean;
     /** Whether this mounted keep-alive surface is currently visible. */
@@ -165,6 +167,7 @@ export const XTermSurface = forwardRef<
     baseFontSize = 12,
     enabled = true,
     openLinksInNativeBrowser = false,
+    awaitingStart = false,
     preferDomRenderer = false,
     visible = true,
     fixedTerminalSize,
@@ -220,6 +223,7 @@ export const XTermSurface = forwardRef<
   const [hasSelection, setHasSelection] = useState(false);
   const [showScrollDown, setShowScrollDown] = useState(false);
   const [watchError, setWatchError] = useState<RemoteTerminalWatchResultError | null>(null);
+  const [waitingForStart, setWaitingForStart] = useState(awaitingStart);
   const [scrollbar, setScrollbar] = useState({
     isVisible: false,
     thumbTopPercent: 0,
@@ -935,6 +939,7 @@ export const XTermSurface = forwardRef<
       resetForNewPty();
     };
     const handleOutput = (data: string) => {
+      setWaitingForStart(false);
       // Live output proves the PTY exists even while historical bytes are
       // hydrating. Deliver the launch resize before buffering the display.
       if (refitOnFirstOutput) {
@@ -960,6 +965,7 @@ export const XTermSurface = forwardRef<
       onExitedRef.current?.(exitCode);
     };
     const handleSnapshot = (snapshot: RemoteTerminalWatchResultReady) => {
+      setWaitingForStart(false);
       setWatchError(null);
       hydrationBlocked = false;
       receivedFeedSnapshot = true;
@@ -1249,7 +1255,12 @@ export const XTermSurface = forwardRef<
             fixedTerminalSize ? "min-w-max overflow-visible" : "min-w-0 overflow-hidden"
           }`}
         />
-        {watchError ? <TerminalFeedStatus error={watchError} /> : null}
+        {watchError || waitingForStart ? (
+          <TerminalFeedStatus
+            error={watchError}
+            loading={waitingForStart && (!watchError || watchError.code === "not-found")}
+          />
+        ) : null}
         {findOpen ? (
           <div className="pointer-events-auto absolute right-2 top-2 z-20">
             <FindBar

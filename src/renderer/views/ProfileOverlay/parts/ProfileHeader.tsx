@@ -39,6 +39,7 @@ export function ProfileHeader(props: {
   identityAction?: ReactNode;
   /** Rendered on the same row as the device picker (Share / Edit). */
   actions?: ReactNode;
+  compact?: boolean;
 }) {
   const { t } = useLingui();
   const {
@@ -50,6 +51,7 @@ export function ProfileHeader(props: {
     filter,
     identityAction,
     actions,
+    compact = false,
   } = props;
   const plan = identity.plan ?? t`Local`;
 
@@ -74,29 +76,39 @@ export function ProfileHeader(props: {
   ];
 
   return (
-    <div className="flex flex-col items-center gap-3 text-center">
-      <div
-        className="flex size-20 items-center justify-center rounded-full text-2xl font-semibold text-white shadow-sm"
-        style={{ backgroundColor: identity.avatarColor }}
-      >
-        {initialsFor(identity.name)}
-      </div>
-      <div className="flex flex-col items-center gap-1">
-        <h1 className="text-2xl font-semibold text-foreground">{identity.name}</h1>
-        <div className="flex items-center justify-center gap-1">
-          <p className="text-sm text-muted">
-            @{identity.handle}
-            <span className="px-1.5 text-muted/50">-</span>
-            <span className="text-muted">{plan}</span>
-          </p>
-          {identityAction}
-        </div>
-      </div>
+    <div className={compact ? "min-w-0" : "flex flex-col items-center gap-3 text-center"}>
+      {!compact && (
+        <>
+          <div
+            className="flex size-20 items-center justify-center rounded-full text-2xl font-semibold text-white shadow-sm"
+            style={{ backgroundColor: identity.avatarColor }}
+          >
+            {initialsFor(identity.name)}
+          </div>
+          <div className="flex flex-col items-center gap-1">
+            <h1 className="text-2xl font-semibold text-foreground">{identity.name}</h1>
+            <div className="flex items-center justify-center gap-1">
+              <p className="text-sm text-muted">
+                @{identity.handle}
+                <span className="px-1.5 text-muted/50">-</span>
+                <span className="text-muted">{plan}</span>
+              </p>
+              {identityAction}
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Device selector + actions on one row. Device picker chooses a single
           device or the merged "All devices" (Cloud) view; today only the
           current device has local data. */}
-      <div className="mt-1 flex flex-wrap items-center justify-center gap-2">
+      <div
+        className={
+          compact
+            ? "flex min-w-0 flex-wrap items-center gap-1 [&_button]:max-w-full"
+            : "mt-1 flex flex-wrap items-center justify-center gap-2"
+        }
+      >
         <DevicePicker
           value={value}
           options={options}
@@ -111,6 +123,7 @@ export function ProfileHeader(props: {
           }}
         />
         {filter}
+        {compact && identityAction}
         {actions}
       </div>
     </div>

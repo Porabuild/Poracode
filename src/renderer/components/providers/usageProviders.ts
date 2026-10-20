@@ -1,4 +1,4 @@
-import { antigravityWindowId } from "@poracode/agents-usage/antigravity";
+import { antigravityRingGroups } from "@poracode/agents-usage/antigravity";
 import { msg } from "@lingui/core/macro";
 import { allUsageProviderDescriptors } from "@poracode/agents-usage/providers";
 import type { UsageSnapshot, UsageWindow } from "@poracode/agents-usage/types";
@@ -51,7 +51,9 @@ export type UsageProvider = {
    * a time). When set, the circle renders the user-selected group (default: the
    * first) and offers a right-click swap. Takes precedence over `rings`.
    */
-  ringGroups?: readonly UsageRingGroup[];
+  ringGroups?:
+    | readonly UsageRingGroup[]
+    | ((windows?: readonly UsageWindow[]) => readonly UsageRingGroup[]);
 };
 
 const USAGE_PROVIDER_DESCRIPTORS = allUsageProviderDescriptors();
@@ -61,25 +63,12 @@ const USAGE_PROVIDER_BY_ID = new Map(
 
 /** Renderer-only presentation, keyed by provider id; merged onto the catalog. */
 const RENDERER_META: Record<string, Omit<UsageProvider, "id" | "label">> = {
-  // Antigravity reports two quota groups (Gemini, Claude+GPT), each with a 5h
-  // (outer) and weekly (inner) window. The circle shows one group at a time —
-  // Gemini by default — and right-click swaps to the other. All four windows
-  // still render as bars in the expanded usage card.
+  // Antigravity reports quota groups (Gemini, Claude+GPT, Gemini 4 Argon, ...),
+  // each with 5h (outer) and/or weekly (inner) windows. The circle shows one
+  // group at a time — Gemini by default — and right-click swaps between groups.
+  // All reported windows render as bars in the expanded usage card.
   antigravity: {
-    ringGroups: [
-      {
-        key: "gemini",
-        label: "Gemini",
-        outer: [antigravityWindowId("gemini", "session-5h")],
-        inner: [antigravityWindowId("gemini", "weekly")],
-      },
-      {
-        key: "claude",
-        label: "Claude & GPT",
-        outer: [antigravityWindowId("claude", "session-5h")],
-        inner: [antigravityWindowId("claude", "weekly")],
-      },
-    ],
+    ringGroups: antigravityRingGroups,
   },
   claude: {
     rings: {
@@ -263,8 +252,12 @@ function firstWindowMatching(
 }
 
 /** The selectable ring groups for a provider, or [] when it has none. */
-export function usageRingGroups(providerId: string): readonly UsageRingGroup[] {
-  return rendererMeta(providerId)?.ringGroups ?? [];
+export function usageRingGroups(
+  providerId: string,
+  windows?: readonly UsageWindow[],
+): readonly UsageRingGroup[] {
+  const groups = rendererMeta(providerId)?.ringGroups;
+  return typeof groups === "function" ? groups(windows) : (groups ?? []);
 }
 
 /** Resolve the selected ring group for a provider, defaulting to the first. */
@@ -301,8 +294,8 @@ export function pickUsageRings(
 ): { outer?: UsageWindow; inner?: UsageWindow } {
   if (!windows || windows.length === 0) return {};
   const meta = rendererMeta(providerId);
-  const groups = meta?.ringGroups;
-  if (groups && groups.length > 0) {
+  const groups = usageRingGroups(providerId, windows);
+  if (groups.length > 0) {
     const group = resolveRingGroup(groups, selectedRingGroup);
     const fromGroup = group ? ringsFromSpec(windows, group) : undefined;
     if (fromGroup) return fromGroup;

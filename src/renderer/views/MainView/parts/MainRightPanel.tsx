@@ -1,16 +1,19 @@
 import { Suspense, useState } from "react";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { useKeepHeavyMountedForDisclosure } from "@/renderer/hooks/useKeepHeavyMountedForDisclosure";
 import { PANEL_EXIT_DURATION_MS } from "@/renderer/components/layout/panelMotion";
 import { useBottomTerminalVisible, usePanelVisibility } from "./AppShell/parts/usePanelVisibility";
 import { BottomPanelDockContainer } from "./RightPanel/parts/PanelDock/BottomPanelDockContainer";
 import {
   DeferredDevTerminalPanel,
+  DeferredGlobalTerminalPanel,
   DeferredProjectAuxiliaryPanel,
 } from "@/renderer/deferredFeatures";
 
 export function MainRightPanel() {
   const terminalPosition = useSharedSettings((s) => s.terminalPosition);
+  const globalTerminal = useDevTerminalStore((s) => s.source === "global");
   const { rightPanelOpen } = usePanelVisibility();
   const { keepHeavy } = useKeepHeavyMountedForDisclosure(rightPanelOpen, {
     fallbackMs: PANEL_EXIT_DURATION_MS,
@@ -35,7 +38,11 @@ export function MainRightPanel() {
     <Suspense>
       {!isTerminalRight ? (
         <BottomPanelDockContainer terminalVisible={terminalVisible}>
-          <DeferredDevTerminalPanel />
+          {globalTerminal ? (
+            <DeferredGlobalTerminalPanel visible={terminalVisible} />
+          ) : (
+            <DeferredDevTerminalPanel />
+          )}
         </BottomPanelDockContainer>
       ) : (
         <DeferredProjectAuxiliaryPanel includeTerminal visible={rightPanelOpen} />

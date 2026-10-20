@@ -7,6 +7,8 @@ import type { RuntimeEvent, ThreadConfig } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc/events";
 import { TranscriptBuffer } from "@/shared/transcriptBuffer";
 import type { SessionRuntime } from "./runtime/sessionTypes";
+import type { AgentAdapter } from "./agents/base";
+import type { ThreadSessionManagerOptions } from "./runtime/threadSessionManager";
 
 const taskkillSpawnSyncMock = vi.hoisted(() => vi.fn<(...args: unknown[]) => unknown>());
 const ptySpawnMock = vi.hoisted(() => vi.fn<(...args: unknown[]) => unknown>());
@@ -201,6 +203,69 @@ function createRuntimeSession(overrides: Record<string, unknown> = {}) {
     ...overrides,
   };
 }
+
+describe("SupervisorRuntime native plugin metadata", () => {
+  it("does not inspect native plugins during normal launch or live MCP refresh", async () => {
+    process.env.PORACODE_DATA_DIR = makeTempDir();
+    const runtime = makeRuntime(() => {});
+    const inventory = vi.fn<NonNullable<AgentAdapter["listNativePlugins"]>>(
+      () => new Promise(() => {}),
+    );
+    (
+      runtime as unknown as { adapters: Map<string, Pick<AgentAdapter, "listNativePlugins">> }
+    ).adapters.set("fixture-agent", { listNativePlugins: inventory });
+    const options = (
+      runtime.threadSessionManager as unknown as {
+        options: ThreadSessionManagerOptions;
+      }
+    ).options;
+    const resolve = options.resolvePluginLaunchContributions!;
+    await resolve({ kind: "posix", path: "/fixture" }, "fixture-agent");
+    await resolve({ kind: "posix", path: "/fixture" }, "fixture-agent", {
+      includeExternalServers: false,
+    });
+    expect(inventory).not.toHaveBeenCalled();
+  });
+
+  it("inspects only the selected adapter and environment for an explicit plugin skill", async () => {
+    const dataDir = makeTempDir();
+    process.env.PORACODE_DATA_DIR = dataDir;
+    const runtime = makeRuntime(() => {});
+    const nativePlugins = [{ name: "fixture-plugin", root: "/profile/plugins/fixture-plugin" }];
+    const inventory = vi.fn<NonNullable<AgentAdapter["listNativePlugins"]>>(
+      async () => nativePlugins,
+    );
+    const otherInventory = vi.fn<NonNullable<AgentAdapter["listNativePlugins"]>>(async () => []);
+    const adapters = (
+      runtime as unknown as { adapters: Map<string, Pick<AgentAdapter, "listNativePlugins">> }
+    ).adapters;
+    const launchAdapter = { listNativePlugins: inventory };
+    adapters.set("fixture-profile", { listNativePlugins: otherInventory });
+    adapters.set("fixture-other-profile", { listNativePlugins: otherInventory });
+    const options = (
+      runtime.threadSessionManager as unknown as {
+        options: ThreadSessionManagerOptions;
+      }
+    ).options;
+    const result = await options.resolvePluginLaunchContributions!(
+      {
+        kind: "wsl",
+        distro: "fixture-distro",
+        linuxPath: "/fixture",
+        uncPath: "\\\\wsl$\\fixture-distro\\fixture",
+      },
+      "fixture-profile",
+      { includeExternalServers: false, nativePluginAdapter: launchAdapter },
+    );
+    expect(result.nativePlugins).toEqual(nativePlugins);
+    expect(inventory).toHaveBeenCalledExactlyOnceWith({
+      envKind: "wsl",
+      wslDistro: "fixture-distro",
+      baseDir: dataDir,
+    });
+    expect(otherInventory).not.toHaveBeenCalled();
+  });
+});
 
 describe("SupervisorRuntime thread input", () => {
   beforeEach(() => {

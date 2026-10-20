@@ -9,8 +9,9 @@ import {
   clearRuntimeStructuralChangeHint,
   readRuntimeStructuralChangeHint,
 } from "@/renderer/state/runtimeStructuralChanges";
-import { hasVisibleAssistantText } from "@/shared/assistantMessageText";
+import { assistantDisplayText, hasVisibleAssistantText } from "@/shared/assistantMessageText";
 import { readMcpAppResource } from "@/shared/mcpAppResources";
+import { isMessageReplyFormFallback } from "../messageReplyForms";
 import type { MessageItemPayload, ToolCallPayload } from "@/shared/contracts";
 import { RUNTIME_REQUEST_ITEM_TYPE } from "@/shared/contracts";
 import {
@@ -459,6 +460,8 @@ export function isVisibleRuntimeItem(item: RuntimeChatItem): boolean {
     const payload = getRuntimeItemPayload<MessageItemPayload>(item, "assistant_message");
     const hasImage = payload?.content.some((block) => block.kind === "image") ?? false;
     const hasReplyForm = (payload?.replyForm?.questions.length ?? 0) > 0;
+    if (!hasImage && hasReplyForm && isMessageReplyFormFallback(item, assistantDisplayText(item)))
+      return false;
     if (!hasImage && !hasReplyForm && !hasVisibleAssistantText(item)) return false;
   }
   if (isToolLikeItem(item)) {

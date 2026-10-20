@@ -27,6 +27,7 @@ const EXPECTED_PROVIDER_ORDER = [
   "kimi",
   "muse",
   "devin",
+  "deepseek",
   "antigravity",
   "commandcode",
   "opencode",

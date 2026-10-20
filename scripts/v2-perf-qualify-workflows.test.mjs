@@ -9,7 +9,7 @@ const WORKFLOW_PATH = new URL("../.github/workflows/v2-perf-qualification.yml", 
 // The `# vX` comments in the workflow are cosmetic; the pinned SHA is the pin.
 const PINNED_ACTIONS = {
   "actions/checkout": "actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10",
-  "pnpm/action-setup": "pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271",
+  "./.github/actions/setup-bun": "./.github/actions/setup-bun",
   "actions/setup-node": "actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38",
   "actions/upload-artifact": "actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02",
 };
@@ -119,6 +119,6 @@ void test("both jobs drive the tracked CLI and provision the managed-session run
     assert.ok(selfTests, `${jobName} must run the CLI and workflow regression tests first`);
     assert.match(selfTests.run, /v2-perf-qualify\.test\.mjs/u);
     assert.match(selfTests.run, /v2-perf-qualify-workflows\.test\.mjs/u);
-    assert.equal(workflow.env.PNPM_CONFIG_ENABLE_GLOBAL_VIRTUAL_STORE, "false");
+    assert.equal(workflow.env.BUN_INSTALL_GLOBAL_STORE, "0");
   }
 });

@@ -52,7 +52,7 @@ permissions:
 env:
   # Release runners are disposable single checkouts; keep native rebuilds on
   # this checkout instead of the shared global virtual store.
-  PNPM_CONFIG_ENABLE_GLOBAL_VIRTUAL_STORE: "false"
+  BUN_INSTALL_GLOBAL_STORE: "0"
 
 jobs:
   # ── Build and qualify one tarball per machine family ─────────────
@@ -91,30 +91,11 @@ jobs:
         with:
           ref: ${{ inputs.ref || github.sha }}
 
-      - name: Setup pnpm
-        if: runner.os != 'Windows'
-        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
-
-      - name: Setup Node.js
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
-        with:
-          node-version: "24"
-          # The pnpm cache needs pnpm on PATH at setup time, which Windows only
-          # has after Corepack below; an empty value disables the cache there.
-          # `cond && '' || x` always yields x: '' is falsy in expressions.
-          cache: ${{ runner.os != 'Windows' && 'pnpm' || '' }}
-
-      # pnpm/action-setup's shim for the pinned pnpm 12 is not runnable on
-      # Windows runners ("is not recognized"). Corepack activates exactly
-      # package.json#packageManager (same pattern as windows-wsl-qualification).
-      - name: Activate the pinned pnpm (Corepack)
-        if: runner.os == 'Windows'
-        run: |
-          corepack enable
-          pnpm --version
+      - name: Setup Bun
+        uses: ./.github/actions/setup-bun
 
       - name: Install JavaScript dependencies
-        run: pnpm install --frozen-lockfile --ignore-scripts
+        run: bun install --frozen-lockfile --ignore-scripts && node node_modules/bun/install.js
 
       - name: Set the release version
         if: ${{ inputs.version != '' }}
@@ -153,11 +134,11 @@ jobs:
         # where prepare-server-native.mjs picks cross targets up. Uses the
         # runner's Docker and the explicit binfmt setup above.
         #
-        # pnpm resolves node-pty's only dependency, node-addon-api, to a sibling
+        # The isolated layout resolves node-pty's dependency, node-addon-api, to a sibling
         # of the package in its virtual store, so copying node_modules/node-pty
         # alone leaves binding.gyp's `require('node-addon-api')` unresolvable
         # inside the container. Stage the exact installed copy — resolved by
-        # Node through pnpm's symlinks from the installed node-pty, never
+        # Node through the installed node-pty's dependency links, never
         # fetched from the registry where the version would be unpinned — and
         # make the container prove it is visible before building.
         # `npm rebuild --offline` fails loudly instead of papering over a
@@ -179,10 +160,10 @@ jobs:
           PORACODE_NODE_PTY_CROSS_BINDINGS: ${{ github.workspace }}/dist/server-native-cross
         run: |
           set -euo pipefail
-          pnpm run codex-protocol:gen
+          bun run codex-protocol:gen
           # The canonical web build (plan D2) also builds the Electron bundles
           # and the embedded SSH runtime through prepare:web:ssh.
-          pnpm run build:web
+          bun run build:web
           REQUIRE_ARGS=()
           TARGET_ARGS=()
           for target in $(echo "$REQUIRE_TARGETS" | tr ',' ' '); do
@@ -190,9 +171,9 @@ jobs:
             TARGET_ARGS+=(--target "$target")
           done
           node scripts/prepare-server-native.mjs "${REQUIRE_ARGS[@]}"
-          pnpm run prepare:package-assets
-          pnpm run prepare:agent-plugins
-          pnpm run prepare:computer-use-helper
+          bun run prepare:package-assets
+          bun run prepare:agent-plugins
+          bun run prepare:computer-use-helper
           node scripts/assemble-server-tarball.mjs "${TARGET_ARGS[@]}"
           ls -lh dist/poracode-server-*.tar.gz dist/server-artifact.json
         shell: bash
@@ -252,7 +233,7 @@ jobs:
         # green (src/server/serverUpgrade.integration.test.ts).
         env:
           PORACODE_REQUIRE_SERVER_IT: "1"
-        run: pnpm exec vitest run --configLoader runner src/server/serverUpgrade.integration.test.ts
+        run: bun run vitest run --configLoader runner src/server/serverUpgrade.integration.test.ts
 
       - name: Verify systemd unit
         if: runner.os == 'Linux'

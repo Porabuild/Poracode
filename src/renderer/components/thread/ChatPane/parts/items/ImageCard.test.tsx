@@ -101,73 +101,89 @@ describe("ImageCard", () => {
     expect(preview).not.toBeNull();
     expect(preview!.getAttribute("style")).toContain(PREVIEW);
     expect(preview!.className).toContain("blur-lg");
-    // The image fades in over the stand-in rather than popping in.
-    expect(img.className).toContain("opacity-0");
-    expect(img.className).toContain("transition-opacity");
+    // The preview sits underneath the image; React's load handler must not
+    // delay painting bytes the browser has already decoded.
+    expect(img).not.toHaveClass("opacity-0");
+    expect(img).not.toHaveClass("transition-opacity");
 
     fireEvent.load(img);
     preview = view.container.querySelector("[aria-hidden='true'][style*='background-image']");
     expect(preview).toBeNull();
-    expect(img.className).toContain("opacity-100");
+    expect(img).not.toHaveClass("opacity-0");
+    expect(img).not.toHaveClass("transition-opacity");
   });
 
-  it("still fades in when the host supplied no stand-in", () => {
-    const { img, preview } = renderCard(source());
-    expect(preview).toBeNull();
-    expect(img.className).toContain("opacity-0");
-    fireEvent.load(img);
-    expect(img.className).toContain("opacity-100");
-  });
+  it.each(["blob:cached-image", "https://desktop.test/image"])(
+    "keeps %s visible before load events, including after a thread remount",
+    (src) => {
+      const imageSource = source({ src });
+      const { view, img, preview } = renderCard(imageSource);
+      expect(preview).toBeNull();
+      const paintClasses = img.className;
+      expect(img).not.toHaveClass("opacity-0");
+      expect(img).not.toHaveClass("transition-opacity");
+      fireEvent.load(img);
+      expect(img.className).toBe(paintClasses);
+      view.unmount();
+
+      // Reopening must not hide the image while its new load event is pending.
+      const reopened = renderCard(imageSource);
+      expect(reopened.img.className).toBe(paintClasses);
+    },
+  );
 
   it("shows an inline data image immediately — no fade, no flash", () => {
-    // Already decoded, so fading would only add perceived latency.
     const { img, preview } = renderCard(source({ src: "data:image/png;base64,QQ==" }));
     expect(preview).toBeNull();
-    expect(img.className).not.toContain("transition-opacity");
-    expect(img.className).not.toContain("opacity-0");
+    expect(img).not.toHaveClass("opacity-0");
+    expect(img).not.toHaveClass("transition-opacity");
   });
 
-  it("reveals the image even if it fails to load, so the slot never stays blank", () => {
+  it("drops the stand-in if the image fails to load", () => {
     const { view, img } = renderCard(source({ preview: PREVIEW }));
     fireEvent.error(img);
     expect(
       view.container.querySelector("[aria-hidden='true'][style*='background-image']"),
     ).toBeNull();
-    expect(img.className).toContain("opacity-100");
+    expect(img).not.toHaveClass("opacity-0");
+    expect(img).not.toHaveClass("transition-opacity");
   });
 
-  it("tracks load state for the current URL while preserving the image node and slot", () => {
+  it("replaces only the image on URL changes so pending replacements cannot retain old pixels", () => {
     const { view, img } = renderCard(source({ preview: PREVIEW }));
     const card = img.closest('[data-poracode-image-card="true"]');
+    const button = img.parentElement;
     const slot = img.getAttribute("style");
     fireEvent.load(img);
-    expect(img).toHaveClass("opacity-100");
-    view.rerender(
-      <AppProvider>
-        <ImageCard source={source({ src: "blob:replacement", preview: PREVIEW })} />
-      </AppProvider>,
-    );
-    expect(view.container.querySelector("img")).toBe(img);
-    expect(img.closest('[data-poracode-image-card="true"]')).toBe(card);
-    expect(img.getAttribute("style")).toBe(slot);
-    expect(img).toHaveAttribute("src", "blob:replacement");
-    expect(img).toHaveClass("opacity-0");
-    expect(view.container.querySelector("[style*='background-image']")).not.toBeNull();
-    fireEvent.error(img);
-    expect(img).toHaveClass("opacity-100");
-    view.rerender(
-      <AppProvider>
-        <ImageCard source={source({ src: "data:image/png;base64,QQ==" })} />
-      </AppProvider>,
-    );
-    expect(view.container.querySelector("img")).toBe(img);
-    expect(img).not.toHaveClass("opacity-0");
-    view.rerender(
-      <AppProvider>
-        <ImageCard source={source()} />
-      </AppProvider>,
-    );
-    expect(img).toHaveClass("opacity-0");
+    const paintClasses = img.className;
+    let previousImage = img;
+    for (const nextSource of [
+      source({ src: "blob:replacement", preview: PREVIEW }),
+      source({ src: "data:image/png;base64,QQ==" }),
+      source({ preview: PREVIEW }),
+    ]) {
+      view.rerender(
+        <AppProvider>
+          <ImageCard source={nextSource} />
+        </AppProvider>,
+      );
+      const image = view.container.querySelector("img")!;
+      expect(image).not.toBe(previousImage);
+      expect(previousImage).not.toBeInTheDocument();
+      expect(image.closest('[data-poracode-image-card="true"]')).toBe(card);
+      expect(image.parentElement).toBe(button);
+      expect(image).toHaveAttribute("src", nextSource.src);
+      expect(image.className).toBe(paintClasses);
+      fireEvent.load(previousImage);
+      expect(image.getAttribute("style")).toBe(nextSource.src.startsWith("data:") ? null : slot);
+      expect(view.container.querySelector("[style*='background-image']") !== null).toBe(
+        Boolean(nextSource.preview),
+      );
+      fireEvent.load(image);
+      expect(view.container.querySelector("[style*='background-image']")).toBeNull();
+      expect(image.className).toBe(paintClasses);
+      previousImage = image;
+    }
   });
 
   it("uses current image metadata for preview, copy and download after URL replacement", async () => {

@@ -14,7 +14,11 @@ function OverflowRow(props: { id: string; label: string }) {
   const { id, label } = props;
   const snapshot = useProviderUsage(id);
   const selectedRingGroups = useSharedSettings((s) => s.usage.selectedRingGroups);
-  const ringGroup = selectedRingGroups[id] ?? usageRingGroups(id)[0]?.key;
+  const ringGroups = usageRingGroups(id, snapshot?.windows);
+  const persistedRingGroup = selectedRingGroups[id];
+  const ringGroup =
+    (ringGroups.some((g) => g.key === persistedRingGroup) ? persistedRingGroup : undefined) ??
+    ringGroups[0]?.key;
   const rings = pickUsageRings(id, snapshot?.windows, ringGroup);
   // The same windows the circle draws — the tooltip stays a readout of the ring,
   // not a second, differently-sourced number.

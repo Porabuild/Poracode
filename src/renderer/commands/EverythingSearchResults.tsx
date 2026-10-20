@@ -1,7 +1,15 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { Button } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { ArrowRight, Command, LoaderCircle, Search, Settings, Zap } from "lucide-react";
+import {
+  ArrowRight,
+  Command,
+  LoaderCircle,
+  MessageSquare,
+  Search,
+  Settings,
+  Zap,
+} from "lucide-react";
 import { FileIcon } from "@/renderer/components/common/FileIcon";
 import type { SearchQuery } from "@/shared/searchMatching";
 import { EverythingSearchResultRow, EverythingSearchThreadRow } from "./EverythingSearchResultRow";
@@ -17,7 +25,10 @@ export function EverythingSearchResults(props: {
   query: SearchQuery;
   activeIndex: number;
   loading: boolean;
+  loadingLabel?: string;
   failed: boolean;
+  messagesFailed: boolean;
+  messagesHaveMore: boolean;
   emptyMessage: string | undefined;
   onRetry: () => void;
   onActivate: (result: EverythingSearchResult) => void;
@@ -46,7 +57,10 @@ export function EverythingSearchResults(props: {
     props.sections.some((section) =>
       section.category === "files"
         ? section.total >= FILE_SEARCH_LIMIT
-        : section.total > CATEGORY_RESULT_LIMIT,
+        : section.total > CATEGORY_RESULT_LIMIT ||
+          (section.category === "messages" &&
+            props.messagesHaveMore &&
+            section.total >= CATEGORY_RESULT_LIMIT),
     ) && props.sections.length === 1;
 
   return (
@@ -72,7 +86,10 @@ export function EverythingSearchResults(props: {
                 {section.label}
                 <span className="font-normal tabular-nums tracking-normal opacity-70">
                   {section.total}
-                  {section.category === "files" && section.total >= FILE_SEARCH_LIMIT ? "+" : ""}
+                  {(section.category === "files" && section.total >= FILE_SEARCH_LIMIT) ||
+                  (section.category === "messages" && props.messagesHaveMore)
+                    ? "+"
+                    : ""}
                 </span>
               </div>
               {section.results.map((result, sectionIndex) => {
@@ -95,8 +112,15 @@ export function EverythingSearchResults(props: {
                   <EverythingSearchResultRow
                     key={result.key}
                     icon={resultIcon(result)}
-                    title={result.kind === "more" ? t`Show more` : resultTitle(result)}
+                    title={
+                      result.kind === "more"
+                        ? t`Show more`
+                        : result.kind === "message" && result.hit.archived
+                          ? `${resultTitle(result)} · ${t`Archived`}`
+                          : resultTitle(result)
+                    }
                     subtitle={resultSubtitle(result, t`Settings`)}
+                    {...(result.kind === "message" ? { wrapSubtitle: true } : {})}
                     {...(result.kind === "command" || result.kind === "action"
                       ? { shortcut: result.shortcut }
                       : {})}
@@ -108,7 +132,7 @@ export function EverythingSearchResults(props: {
           ) : null,
         )}
       </div>
-      {results.length === 0 && !props.loading && !props.failed ? (
+      {results.length === 0 && !props.loading && !props.failed && !props.messagesFailed ? (
         <div
           className="flex flex-col items-center gap-2 px-4 py-10 text-center text-sm text-muted"
           role="status"
@@ -128,7 +152,7 @@ export function EverythingSearchResults(props: {
           className="flex items-center justify-center gap-2 py-4 text-xs text-muted"
         >
           <LoaderCircle aria-hidden="true" className="size-3.5 animate-spin" />
-          <Trans>Searching files…</Trans>
+          {props.loadingLabel ?? t`Searching files…`}
         </div>
       ) : null}
       {props.failed ? (
@@ -152,6 +176,7 @@ export function EverythingSearchResults(props: {
 }
 
 function resultIcon(result: Exclude<EverythingSearchResult, { kind: "thread" }>): ReactNode {
+  if (result.kind === "message") return <MessageSquare />;
   if (result.kind === "command") return <Command />;
   if (result.kind === "action") return <Zap />;
   if (result.kind === "setting") return <Settings />;
@@ -161,6 +186,10 @@ function resultIcon(result: Exclude<EverythingSearchResult, { kind: "thread" }>)
 }
 
 function resultTitle(result: Exclude<EverythingSearchResult, { kind: "thread" }>): string {
+  if (result.kind === "message")
+    return [result.hit.sourceLabel, result.hit.projectName, result.hit.title]
+      .filter(Boolean)
+      .join(" · ");
   if (result.kind === "command" || result.kind === "action") return result.title;
   if (result.kind === "setting") return result.setting.title;
   if (result.kind === "file") return result.entry.name;
@@ -171,6 +200,7 @@ function resultSubtitle(
   result: Exclude<EverythingSearchResult, { kind: "thread" }>,
   settingsLabel: string,
 ): string {
+  if (result.kind === "message") return result.hit.excerpt;
   if (result.kind === "command" || result.kind === "action") return result.subtitle;
   if (result.kind === "setting") return result.setting.snippet ?? settingsLabel;
   if (result.kind === "file") return result.entry.path;

@@ -3,7 +3,7 @@
 // bundles still require() at runtime (i.e. tsdown did not inline).
 // These are the only packages the stage build needs to install.
 //
-// Usage: pnpm run build && node scripts/scan-runtime-externals.mjs
+// Usage: bun run build && node scripts/scan-runtime-externals.mjs
 
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";

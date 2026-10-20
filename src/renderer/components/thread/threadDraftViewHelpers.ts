@@ -70,12 +70,21 @@ export function resolvePreferredAgentKind(
  */
 export function resolveSavedProviderDraftConfig(
   agentKind: AgentStatus["kind"],
-  lastDraftConfig: ProjectDraftConfig | undefined,
+  savedProjectDraftConfig: ProjectDraftConfig | undefined,
   providerConfigs: Record<string, ProviderDraftConfig>,
   providerModelPreferences: Record<string, Record<string, ProviderModelPreference>> = {},
   capabilities?: AgentCapability,
 ): Partial<ProviderDraftConfig> | undefined {
-  const providerConfig = providerConfigs[agentKind];
+  // Existing records stay readable; Plan is a per-thread choice rather than a saved default.
+  const lastDraftConfig: ProjectDraftConfig | undefined =
+    savedProjectDraftConfig?.mode === "plan"
+      ? { ...savedProjectDraftConfig, mode: "agent" }
+      : savedProjectDraftConfig;
+  const savedProviderConfig = providerConfigs[agentKind];
+  const providerConfig: ProviderDraftConfig | undefined =
+    savedProviderConfig?.mode === "plan"
+      ? { ...savedProviderConfig, mode: "agent" }
+      : savedProviderConfig;
   if (lastDraftConfig?.agentKind === agentKind && lastDraftConfig.model.trim()) {
     if (capabilities && modelFamilyForModel(capabilities, lastDraftConfig.model)) {
       // An own empty `contextSize` is an exact carrier; only an absent one

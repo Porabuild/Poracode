@@ -44,15 +44,19 @@ beforeEach(async () => {
   const prototype = Object.getPrototypeOf(probe) as HeadReaderPrototype;
   await probe.close();
   const read = prototype.read;
-  vi.spyOn(prototype, "read").mockImplementation(
-    async function (this: FileHandle, buffer, offset, length, position) {
-      if (!reads.opened.includes(this)) reads.opened.push(this);
-      if (reads.fail) throw new Error("synthetic head read failure");
-      const result = await read.call(this, buffer, offset, Math.min(length, reads.limit), position);
-      reads.bytes += result.bytesRead;
-      return result;
-    },
-  );
+  vi.spyOn(prototype, "read").mockImplementation(async function (
+    this: FileHandle,
+    buffer,
+    offset,
+    length,
+    position,
+  ) {
+    if (!reads.opened.includes(this)) reads.opened.push(this);
+    if (reads.fail) throw new Error("synthetic head read failure");
+    const result = await read.call(this, buffer, offset, Math.min(length, reads.limit), position);
+    reads.bytes += result.bytesRead;
+    return result;
+  });
 });
 
 afterEach(async () => {

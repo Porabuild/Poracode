@@ -6,6 +6,7 @@ import type {
   ProjectLocation,
 } from "@/shared/contracts";
 import { ANTIGRAVITY_ACP_REGISTRY_ID } from "@/shared/agents/antigravity";
+import { capabilitiesForPresentation } from "@/shared/agentSelection";
 import { compareVersions } from "@/shared/changelog";
 import { isHomeScopeLocation } from "@/shared/homeScope";
 import { inlinePromptSegmentText } from "@/shared/promptContent";
@@ -85,6 +86,7 @@ export function createAntigravityAdapter(acpInstance?: AgentInstanceConfig): Age
     kind: detectionSpec.kind,
     label: detectionSpec.label,
     binary: detectionSpec.binary,
+    mcpRequiresConnectionFailureIsolation: true,
     firstClassAcpRegistryId: ANTIGRAVITY_ACP_REGISTRY_ID,
     skillSupport: {
       roots: [
@@ -374,6 +376,27 @@ export function createAntigravityAdapter(acpInstance?: AgentInstanceConfig): Age
       ? {
           createStructuredSession: async (input) => {
             if (input.presentationMode !== "gui") return undefined;
+            const acpCapabilities = capabilitiesForPresentation(capabilities, "gui");
+            const model = input.config.model;
+            const effort = input.config.effort ?? acpCapabilities?.modelDefaultEfforts?.[model];
+            const offeredEfforts = acpCapabilities?.modelEfforts?.[model];
+            if (
+              !input.sessionRef &&
+              /^(?:gemini-4-argon|gemini-3\.[678]-flash)$/.test(model) &&
+              effort &&
+              offeredEfforts?.some((value) => value.toLowerCase() === effort.toLowerCase()) &&
+              acpCapabilities?.models.some((value) => value.id === model)
+            ) {
+              // Otherwise the server starts its default model, then rebuilds
+              // the harness for our selection on the first prompt.
+              return createAcpSession({
+                ...input,
+                baseSpawnEnv: {
+                  ...input.baseSpawnEnv,
+                  AGY_ACP_DEFAULT_MODEL: `${model}-${effort.toLowerCase()}`,
+                },
+              });
+            }
             return createAcpSession(input);
           },
         }

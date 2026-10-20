@@ -5,6 +5,7 @@ import {
   type AntigravityAcpCredentials,
 } from "./antigravityAcpCredentials";
 import {
+  ANTIGRAVITY_CLOUD_USER_AGENT,
   collectAntigravityCloudUsage,
   resetAntigravityCloudUsageCacheForTests,
 } from "./antigravityCloudUsage";
@@ -83,6 +84,60 @@ describe("collectAntigravityCloudUsage", () => {
     expect(requests[0]?.body).toContain("refresh_token=refresh-token");
     expect(requests[0]?.redirect).toBe("error");
     expect(requests[1]?.headers?.Authorization).toBe("Bearer access-token");
+    expect(requests[1]?.headers?.["User-Agent"]).toBe(ANTIGRAVITY_CLOUD_USER_AGENT);
+  });
+
+  it("includes separate Gemini 4 Argon quota windows when returned by Cloud Code", async () => {
+    const proSummary = JSON.stringify({
+      groups: [
+        {
+          displayName: "Gemini Models",
+          buckets: [
+            { window: "weekly", remainingFraction: 0.89 },
+            { window: "5h", remainingFraction: 1 },
+          ],
+        },
+        {
+          displayName: "Claude and GPT models",
+          buckets: [
+            { window: "weekly", remainingFraction: 0.72 },
+            { window: "5h", remainingFraction: 0.74 },
+          ],
+        },
+        {
+          displayName: "Gemini 4 Argon",
+          buckets: [
+            {
+              bucketId: "gemini-argon-wtu-weekly",
+              displayName: "Gemini 4 Argon Weekly Limit",
+              window: "weekly",
+              remainingFraction: 0.39,
+              resetTime: "2026-10-24T08:59:08Z",
+            },
+          ],
+        },
+      ],
+    });
+    const host = hostWith(async (request) => {
+      if (request.url === ANTIGRAVITY_GOOGLE_TOKEN_URI) {
+        return response(200, JSON.stringify({ access_token: "access-token", expires_in: 3600 }));
+      }
+      if (request.url.endsWith(":retrieveUserQuotaSummary")) return response(200, proSummary);
+      if (request.url.endsWith(":loadCodeAssist")) {
+        return response(200, JSON.stringify({ paidTier: { name: "Google AI Pro" } }));
+      }
+      return response(404);
+    });
+
+    const snapshot = await collectAntigravityCloudUsage(NOW, host, CREDENTIALS);
+    expect(snapshot.plan).toBe("Google AI Pro");
+    expect(snapshot.windows.map((w) => [w.id, w.label, w.usedPercent])).toEqual([
+      ["antigravity:gemini:session-5h", "Gemini · 5h", 0],
+      ["antigravity:gemini:weekly", "Gemini · Weekly", 11],
+      ["antigravity:claude:session-5h", "Claude · 5h", 26],
+      ["antigravity:claude:weekly", "Claude · Weekly", 28],
+      ["antigravity:gemini-4-argon:weekly", "Gemini 4 Argon · Weekly", 61],
+    ]);
   });
 
   it("tries the secondary Cloud Code host after a primary outage", async () => {
