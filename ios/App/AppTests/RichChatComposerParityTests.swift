@@ -772,9 +772,10 @@ final class RichChatComposerParityTests: XCTestCase {
     XCTAssertTrue(composer.contains("RichChatComposerSkillPicker("))
     XCTAssertTrue(
       composer.contains(
-        "skills.map(\\.segment) + mcps.map(\\.segment) + attachmentSegments"
+        "queuedSegments + skills.map(\\.segment) + mcps.map(\\.segment)"
       )
     )
+    XCTAssertTrue(composer.contains("let segments = contextSegments + textSegments + attachmentSegments"))
     XCTAssertTrue(composer.contains("mcps.map(\\.segment)"))
     XCTAssertTrue(composer.contains("mentionSuggestionsPanel"))
     XCTAssertTrue(mentions.contains("RichPromptSegment { .mcp(id: id, name: name) }"))
