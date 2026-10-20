@@ -211,7 +211,7 @@ function splitBearerRoutes() {
  * is supposed to deny it.
  */
 // Run triage/cancellation and device actions each add one operator-only route.
-const EXPECTED_MUTATING_ROUTE_COUNT = 58;
+const EXPECTED_MUTATING_ROUTE_COUNT = 59;
 // 21 pre-B4 + the three additive B4 read routes (project-list,
 // catalog-membership, thread-turns) + B1 thread-runtime-gap + the experiment
 // state read, plus file-media mint/release/renew (owned read grants only), all
