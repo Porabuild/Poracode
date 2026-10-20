@@ -19,6 +19,12 @@ const COLORS = [
   "var(--warning)",
   "var(--foreground)",
 ] as const;
+const labelSegmenter = new Intl.Segmenter(undefined, { granularity: "grapheme" });
+
+function shortLabel(label: string, limit: number): string {
+  const graphemes = Array.from(labelSegmenter.segment(label), (part) => part.segment);
+  return graphemes.length > limit ? `${graphemes.slice(0, limit - 1).join("")}…` : label;
+}
 
 export function NativeVisualChart({
   block,
@@ -185,7 +191,7 @@ export function NativeVisualChart({
                       fontSize={12}
                     >
                       <title>{label}</title>
-                      {label.length > 18 ? `${label.slice(0, 17)}…` : label}
+                      {shortLabel(label, 18)}
                     </text>
                     {evaluatedSeries.map((series, seriesIndex) => {
                       const value = series.evaluated[index]!;
@@ -305,7 +311,7 @@ export function NativeVisualChart({
                       fontSize={11}
                     >
                       <title>{label}</title>
-                      {label.length > 12 ? `${label.slice(0, 11)}…` : label}
+                      {shortLabel(label, 12)}
                     </text>
                   ) : null,
                 )}

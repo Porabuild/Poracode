@@ -919,6 +919,35 @@ describe("native app-owned visuals", () => {
     expect(container.querySelector("[data-poracode-native-visual], iframe")).toBeNull();
   });
 
+  it.each([
+    ["bar", 18],
+    ["line", 12],
+  ] as const)("keeps complete graphemes in %s chart labels", (kind, limit) => {
+    const prefix = "A".repeat(limit - 2);
+    const labels = [`${prefix}👩🏽‍💻Z`, `${prefix}👩🏽‍💻YZ`];
+    const { container } = render(
+      <AppProvider>
+        <NativeVisual
+          {...props}
+          source={JSON.stringify({
+            blocks: [
+              { type: "chart", kind, labels, series: [{ label: "Values", values: [1, 2] }] },
+            ],
+          })}
+        />
+      </AppProvider>,
+    );
+    const titles = [...container.querySelectorAll('svg[role="img"] text > title')];
+    expect(titles.map((title) => title.textContent)).toEqual(labels);
+    const shown = titles.map((title) =>
+      [...title.parentNode!.childNodes]
+        .filter((node) => node.nodeType === Node.TEXT_NODE)
+        .map((node) => node.textContent)
+        .join(""),
+    );
+    expect(shown).toEqual([labels[0], `${prefix}👩🏽‍💻…`]);
+  });
+
   it("keeps gaps in a line chart and never emits invalid SVG coordinates", () => {
     const value = JSON.stringify({
       blocks: [
