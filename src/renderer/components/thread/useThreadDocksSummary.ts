@@ -135,6 +135,7 @@ export function useThreadDocksPanelAvailable(): boolean {
   const isReturnTarget = usePanelStore(
     (s) => currentThreadId !== null && s.threadDocksReturnThreadId === currentThreadId,
   );
+  const hasReturnTarget = usePanelStore((state) => state.threadDocksReturnThreadId !== null);
   const retiredTodoSourceItemId = useThreadTodoDockStore((state) =>
     currentThreadId ? state.byThreadId[currentThreadId]?.retiredSourceItemId : undefined,
   );
@@ -150,6 +151,7 @@ export function useThreadDocksPanelAvailable(): boolean {
   return useAppStore((state) =>
     currentThreadId !== null && threadDocksPanelOpen
       ? isReturnTarget ||
+        (!hasReturnTarget && state.threads.some((thread) => thread.id === currentThreadId)) ||
         (docksPlacement === "right" &&
           selectThreadHasDockContent(
             state,

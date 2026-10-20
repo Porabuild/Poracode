@@ -1,5 +1,5 @@
 import { Tooltip } from "@heroui/react";
-import { Images } from "lucide-react";
+import { FileText, Images } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import { toggleThreadDocksPanel } from "@/renderer/actions/panelActions";
 import {
@@ -10,6 +10,7 @@ import {
 } from "@/renderer/components/layout/floatingGlass";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useThreadGalleryImages } from "./useThreadGalleryImages";
+import { useThreadArtifacts } from "./threadArtifacts";
 
 /**
  * Translucent image count that floats over the top-right corner of the
@@ -20,13 +21,20 @@ import { useThreadGalleryImages } from "./useThreadGalleryImages";
 export function ThreadImagesBubble({ threadId }: { threadId: string }) {
   const { t } = useLingui();
   const gallery = useThreadGalleryImages(threadId);
+  const artifacts = useThreadArtifacts(threadId);
   const panelShowing = usePanelStore((s) => s.threadDocksPanelOpen && s.rightPanelTab === "docks");
-  if (gallery.length === 0) return null;
-  const label = t`Images`;
+  if (gallery.length === 0 && artifacts.length === 0) return null;
+  const label = artifacts.length > 0 ? t`Files & artifacts` : t`Images`;
   const bubble = (
     <button
       type="button"
-      aria-label={panelShowing ? t`Hide ${label}` : t`Show images`}
+      aria-label={
+        panelShowing
+          ? t`Hide ${label}`
+          : artifacts.length > 0
+            ? t`Show files & artifacts`
+            : t`Show images`
+      }
       aria-pressed={panelShowing}
       data-images-bubble="true"
       className={`${floatingGlassSurfaceClass} ${floatingGlassBubbleClass} flex h-7 items-center gap-1.5 rounded-full px-2.5 text-xs font-medium transition-colors ${
@@ -34,8 +42,14 @@ export function ThreadImagesBubble({ threadId }: { threadId: string }) {
       }`}
       onClick={() => toggleThreadDocksPanel("images")}
     >
-      <Images className="size-3.5 shrink-0 text-muted" />
-      <span className="[font-variant-numeric:tabular-nums]">{gallery.length}</span>
+      {artifacts.length > 0 ? (
+        <FileText className="size-3.5 shrink-0 text-muted" />
+      ) : (
+        <Images className="size-3.5 shrink-0 text-muted" />
+      )}
+      <span className="[font-variant-numeric:tabular-nums]">
+        {gallery.length + artifacts.length}
+      </span>
     </button>
   );
   return (
