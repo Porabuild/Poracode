@@ -3743,10 +3743,15 @@ describe("ThreadComposerSection", () => {
             threadId: guiThread.id,
             requestType: "command_execution_approval",
             payload: {
-              summary: "Permission required",
+              // Providers put the command in the summary ("Bash: <script>").
+              // That title has to scroll with the details, once, or it grows
+              // the composer unboundedly.
+              summary: `Bash: ${longCommand}`,
               details: {
-                toolName: "Edit",
+                toolName: "Bash",
+                displayName: "Bash",
                 input: { command: longCommand },
+                decisionReason: "Dangerous command",
               },
             },
             receivedAt: new Date().toISOString(),
@@ -3781,8 +3786,111 @@ describe("ThreadComposerSection", () => {
     const details = screen.getByRole("region", { name: "Request details" });
     expect(details).toHaveClass("overflow-y-auto");
     expect(details).toHaveClass("max-h-[min(12rem,35vh)]");
-    expect(screen.getByRole("button", { name: "Allow" })).toHaveClass("button--tertiary");
+    expect(details).toHaveAttribute("tabindex", "0");
+    const title = details.querySelector(".font-semibold");
+    expect(title).toHaveTextContent("patch line 1");
+    expect(title).toHaveTextContent("patch line 60");
+    expect(details.textContent?.split("patch line 60").length).toBe(2);
+    expect(details).toHaveTextContent("Dangerous command");
+    expect(details).toHaveTextContent("Bash");
+    const allow = screen.getByRole("button", { name: "Allow" });
+    expect(details).not.toContainElement(allow);
+    expect(allow).toHaveClass("button--tertiary");
     expect(screen.getByRole("button", { name: "Deny" })).toHaveClass("button--ghost");
+  });
+
+  it("pins short approval titles and keeps a command the summary does not repeat", () => {
+    useAppStore.setState({
+      runtimeRequestsByThread: {
+        [guiThread.id]: [
+          {
+            requestId: "approval-short",
+            threadId: guiThread.id,
+            requestType: "command_execution_approval",
+            payload: {
+              summary: "Run command",
+              details: { toolName: "Bash", input: { command: "ls" } },
+            },
+            receivedAt: new Date().toISOString(),
+          },
+        ],
+      },
+    });
+    const first = renderComposer();
+    expect(screen.getByText("Run command").closest('[role="region"]')).toBeNull();
+    expect(screen.getByText("ls").closest('[role="region"]')).not.toBeNull();
+    first.unmount();
+
+    const wrapped = "echo one\necho two";
+    useAppStore.setState({
+      runtimeRequestsByThread: {
+        [guiThread.id]: [
+          {
+            requestId: "approval-wrapped",
+            threadId: guiThread.id,
+            requestType: "command_execution_approval",
+            payload: {
+              summary: wrapped,
+              details: { toolName: "Bash", input: { command: "pwd" } },
+            },
+            receivedAt: new Date().toISOString(),
+          },
+        ],
+      },
+    });
+    const second = renderComposer();
+    const wrappedRegion = screen.getByRole("region", { name: "Request details" });
+    expect(wrappedRegion).toHaveTextContent("echo one");
+    expect(wrappedRegion).toHaveTextContent("echo two");
+    expect(wrappedRegion).toHaveTextContent("pwd");
+    expect(screen.getByText(/echo one/).closest(".font-semibold")).not.toBeNull();
+    second.unmount();
+
+    const description = `${"Review this carefully before deciding. ".repeat(8)}Stop.`;
+    useAppStore.setState({
+      runtimeRequestsByThread: {
+        [guiThread.id]: [
+          {
+            requestId: "approval-description",
+            threadId: guiThread.id,
+            requestType: "command_execution_approval",
+            payload: {
+              summary: description,
+              details: { toolName: "Bash", input: { command: "rm -rf ./build" } },
+            },
+            receivedAt: new Date().toISOString(),
+          },
+        ],
+      },
+    });
+    const third = renderComposer();
+    const described = screen.getByRole("region", { name: "Request details" });
+    expect(described).toHaveTextContent("Review this carefully");
+    expect(described).toHaveTextContent("rm -rf ./build");
+    third.unmount();
+
+    const question = "Q".repeat(180);
+    useAppStore.setState({
+      runtimeRequestsByThread: {
+        [guiThread.id]: [
+          {
+            requestId: "approval-question",
+            threadId: guiThread.id,
+            requestType: "tool_user_input",
+            payload: {
+              summary: question,
+              options: [
+                { optionId: "yes", label: "Yes" },
+                { optionId: "no", label: "No" },
+              ],
+            },
+            receivedAt: new Date().toISOString(),
+          },
+        ],
+      },
+    });
+    renderComposer();
+    expect(screen.getByText(question).closest('[role="region"]')).toBeNull();
   });
 
   it("submits Codex multi-question user input in Codex-native response shape", async () => {
