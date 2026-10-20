@@ -50,6 +50,7 @@ import { prepareHostWorktree, removeHostWorktree } from "./hostWorktreeLifecycle
 import { sortOrderForThread } from "./snapshots";
 import { applyThreadMetadataCommand, threadMetadataClosesSession } from "./threadMetadataCommands";
 import { createRemoteThread } from "./threadCreation";
+import { dbForkThread } from "@/host/db/threadForks";
 
 export { runRemoteProcedure } from "./threadProcedure";
 export { applyRemoteThreadSwitch, retargetRemoteThreadForSwitch } from "./threadSwitch";
@@ -155,6 +156,9 @@ export async function applyRemoteThreadCommand(
   onCatalogCommitted?: CatalogIntentCommittedSignal,
 ): Promise<boolean> {
   switch (command.kind) {
+    case "fork":
+      await dbForkThread(command, onCatalogCommitted);
+      return false;
     case "create":
       createRemoteThread(command, onCatalogCommitted);
       return false;

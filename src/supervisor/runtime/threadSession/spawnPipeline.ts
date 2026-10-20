@@ -131,6 +131,7 @@ export interface SpawnThreadInput {
   config: ThreadConfig;
   initialSize: TerminalSize;
   launchPrompt: string;
+  initialInstructions?: string;
   command?: CommandSpec;
   /**
    * Extra env injected into the agent PTY (merged on top of agentEnv +
@@ -823,6 +824,9 @@ export class SpawnPipeline {
           config: runtimeConfig,
           initialSize: payload.initialSize,
           launchPrompt: "",
+          ...(payload.initialInstructions
+            ? { initialInstructions: payload.initialInstructions }
+            : {}),
           structuredSession,
           ...(payload.resourceLease ? { resourceLease: payload.resourceLease } : {}),
           ...(resolvedSessionRef ? { sessionRef: resolvedSessionRef } : {}),
@@ -1229,6 +1233,9 @@ export class SpawnPipeline {
           launchPrompt: "",
           structuredSession,
           initialStatus: hasPrompt ? "working" : "idle",
+          ...(session.pendingInitialInstructions
+            ? { initialInstructions: session.pendingInitialInstructions }
+            : {}),
           initialAttention: hasPrompt ? "working" : "none",
           suppressInitialStructuredIdle: hasPrompt,
           resourceLease,
@@ -1268,10 +1275,7 @@ export class SpawnPipeline {
           );
         const startOptions = {
           userMessageItemId: optimisticItemId,
-          ...structuredTurnTextOptions(
-            { structuredSession, slashCommands: session.slashCommands },
-            turn,
-          ),
+          ...structuredTurnTextOptions(replacement, turn),
         };
         try {
           const result = await structuredSession.startTurn(
@@ -1578,6 +1582,9 @@ export class SpawnPipeline {
         ),
       terminalSize: input.initialSize,
       launchPrompt: input.launchPrompt,
+      ...(input.initialInstructions
+        ? { pendingInitialInstructions: input.initialInstructions }
+        : {}),
       ...(input.sessionRef ? { sessionRef: input.sessionRef } : {}),
       status: input.initialStatus ?? "launching",
       attention: input.initialAttention ?? "none",
@@ -1596,6 +1603,11 @@ export class SpawnPipeline {
       ...(input.structuredSession ? { structuredSession: input.structuredSession } : {}),
     };
 
+    session.onInitialInstructionsApplied = () => {
+      if (!ctx.isCurrentSession(session)) return;
+      session.initialInstructionsApplied = true;
+      ctx.outputPipeline.emitState(session);
+    };
     ctx.sessionRuntimeLifecycle.attach(session);
     // The process effect exists once the runtime is published: a PTY spawn
     // succeeded and/or a structured handle is attached. Idempotent.

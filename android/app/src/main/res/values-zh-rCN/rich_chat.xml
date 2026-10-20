@@ -221,4 +221,11 @@
     <string name="rich_chat_session_settings_search">搜索值</string>
     <string name="rich_chat_session_settings_back">返回</string>
     <string name="rich_chat_session_settings_fallback_heading">设置项</string>
+    <string name="rich_chat_fork_action">从此处分支</string>
+    <string name="rich_chat_fork_title">分支对话</string>
+    <string name="rich_chat_fork_create">创建分支</string>
+    <string name="rich_chat_fork_explanation">创建截至某个已完成轮次的独立对话。文件保留在同一工作副本中。</string>
+    <string name="rich_chat_fork_name">对话名称</string>
+    <string name="rich_chat_fork_boundary">继承的历史到此结束</string>
+    <string name="rich_chat_fork_source">分支自 %1$s</string>
 </resources>

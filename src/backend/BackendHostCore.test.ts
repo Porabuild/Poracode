@@ -25,6 +25,9 @@ const mocks = vi.hoisted(() => ({
     }
   >(),
   dbGetThread: vi.fn<(threadId: string) => unknown>(),
+  readThreadForkInitialInstructions: vi.fn<(threadId: string) => string | undefined>(),
+  acknowledgeThreadForkInitialInstructions: vi.fn<(threadId: string) => void>(),
+  isInheritedThreadForkItem: vi.fn<(threadId: string, itemId: string) => boolean>(),
   dbGetProject: vi.fn<(projectId: string) => unknown>(),
   dbHasThreadRuntimeItem: vi.fn<(threadId: string, itemId: string) => boolean>(),
   dbClaimCheckpointRevertOperation: vi.fn<(input: unknown) => unknown>(),
@@ -97,6 +100,12 @@ vi.mock("@/host/db", async () => ({
 
 vi.mock("@/backend/delegatedAgentBootSettle", () => ({
   settleOrphanedDelegatedAgentRuns: mocks.settleOrphanedDelegatedAgentRuns,
+}));
+
+vi.mock("@/host/db/threadForks", () => ({
+  readThreadForkInitialInstructions: mocks.readThreadForkInitialInstructions,
+  acknowledgeThreadForkInitialInstructions: mocks.acknowledgeThreadForkInitialInstructions,
+  isInheritedThreadForkItem: mocks.isInheritedThreadForkItem,
 }));
 
 vi.mock("@/host/remote/server/runtimePersistence", () => ({
@@ -528,6 +537,12 @@ describe("BackendHostCore", () => {
     expect(existingPrepare).toHaveBeenCalledExactlyOnceWith({ threadId: "thread-1" });
     expect(prepared).toMatchObject({ threadId: "thread-1", preparedByMain: true });
     expect(mocks.armRuntimeThreadForLaunch).toHaveBeenCalledExactlyOnceWith("thread-1");
+    mocks.readThreadForkInitialInstructions.mockReturnValueOnce("Frozen inherited conversation");
+    expect(prepare!({ threadId: "fork-1" })).toMatchObject({
+      threadId: "fork-1",
+      preparedByMain: true,
+      initialInstructions: "Frozen inherited conversation",
+    });
 
     // A refused (unknown/storage-failed) touch propagates, so the supervisor
     // request rejects before `child.send`.

@@ -15,6 +15,14 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.automirrored.outlined.CallSplit
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.PlainTooltip
+import androidx.compose.material3.TooltipBox
+import androidx.compose.material3.TooltipDefaults
+import androidx.compose.material3.TooltipAnchorPosition
+import androidx.compose.material3.rememberTooltipState
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -48,6 +56,7 @@ import com.poracode.app.ui.theme.LocalChatTextSizeSp
 import kotlinx.coroutines.flow.distinctUntilChanged
 
 @Composable
+@OptIn(ExperimentalMaterial3Api::class)
 fun RichTimelineView(
     transcript: RichThreadState,
     olderCursor: Int?,
@@ -59,10 +68,18 @@ fun RichTimelineView(
     onTruncateItem: (String) -> Unit,
     revertableItemIds: Set<String>,
     onRevertItem: (String) -> Unit,
+    onForkItem: ((String) -> Unit)? = null,
+    forkBoundaryItemId: String? = null,
     modifier: Modifier = Modifier,
 ) {
     val projection = RichTimeline.project(transcript.itemsInOrder)
     val entries = projection.visibleEntries
+    val displayedTurns = RichTimeline.resolveCompletedTurnAnchors(transcript.completedTurns, projection)
+    val boundaryTurnIndex = transcript.completedTurns.indexOfFirst { it.anchorItemId == forkBoundaryItemId }
+    val displayedBoundary = displayedTurns.getOrNull(boundaryTurnIndex)?.anchorItemId ?: forkBoundaryItemId
+    val boundaryIndex = transcript.itemsInOrder.indexOfFirst { it.id == forkBoundaryItemId }
+    val inheritedIds = if (forkBoundaryItemId == null) emptySet() else
+        transcript.itemsInOrder.take(if (boundaryIndex < 0) transcript.itemsInOrder.size else boundaryIndex + 1).map { it.id }.toSet()
     val listState = rememberLazyListState()
     val timelineDescription = stringResource(R.string.rich_chat_timeline_description)
     var initialScrollComplete by rememberSaveable(transcript.key.threadId) { mutableStateOf(false) }
@@ -86,6 +103,35 @@ fun RichTimelineView(
             }
     }
 
+    val forkFooter: @Composable (RichTimelineEntry) -> Unit = { entry ->
+        val rootIds = when (entry) {
+            is RichTimelineEntry.Item -> listOf(entry.node.item.id)
+            is RichTimelineEntry.Group -> entry.members.map { it.item.id }
+        }
+        val displayedTurn = displayedTurns.firstOrNull { it.anchorItemId in rootIds }
+        val rawAnchor = displayedTurn?.let { displayed -> transcript.completedTurns.firstOrNull {
+            it.startedAtEpochMs == displayed.startedAtEpochMs
+        }?.anchorItemId }
+        if (rawAnchor != null && onForkItem != null) {
+            val label = stringResource(R.string.rich_chat_fork_action)
+            TooltipBox(
+                positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
+                tooltip = { PlainTooltip { Text(label) } },
+                state = rememberTooltipState(),
+            ) {
+                IconButton(onClick = { onForkItem(rawAnchor) }) {
+                    Icon(Icons.AutoMirrored.Outlined.CallSplit, contentDescription = label)
+                }
+            }
+        }
+        if (displayedBoundary != null && displayedBoundary in rootIds) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                HorizontalDivider(Modifier.weight(1f))
+                Text(stringResource(R.string.rich_chat_fork_boundary), style = MaterialTheme.typography.labelSmall)
+                HorizontalDivider(Modifier.weight(1f))
+            }
+        }
+    }
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
@@ -116,25 +162,31 @@ fun RichTimelineView(
         entries.forEach { entry ->
             when (entry) {
                 is RichTimelineEntry.Item -> item(key = entry.node.item.id) {
-                    RichTimelineNode(
-                        entry.node,
-                        runtime,
-                        canMutate,
-                        onTruncateItem,
-                        revertableItemIds,
-                        onRevertItem,
-                        depth = 0,
-                    )
+                    Column {
+                        RichTimelineNode(
+                            entry.node,
+                            runtime,
+                            canMutate && entry.node.item.id !in inheritedIds,
+                            onTruncateItem,
+                            revertableItemIds,
+                            onRevertItem,
+                            depth = 0,
+                        )
+                        forkFooter(entry)
+                    }
                 }
                 is RichTimelineEntry.Group -> item(key = entry.stableId) {
-                    RichTimelineGroup(
-                        entry,
-                        runtime,
-                        canMutate,
-                        onTruncateItem,
-                        revertableItemIds,
-                        onRevertItem,
-                    )
+                    Column {
+                        RichTimelineGroup(
+                            entry,
+                            runtime,
+                            canMutate && entry.members.all { it.item.id !in inheritedIds },
+                            onTruncateItem,
+                            revertableItemIds,
+                            onRevertItem,
+                        )
+                        forkFooter(entry)
+                    }
                 }
             }
         }

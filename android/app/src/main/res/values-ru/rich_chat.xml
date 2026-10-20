@@ -221,4 +221,11 @@
     <string name="rich_chat_session_settings_search">Поиск значений</string>
     <string name="rich_chat_session_settings_back">Назад</string>
     <string name="rich_chat_session_settings_fallback_heading">Параметр</string>
+    <string name="rich_chat_fork_action">Ответвить отсюда</string>
+    <string name="rich_chat_fork_title">Ответвить разговор</string>
+    <string name="rich_chat_fork_create">Создать ответвление</string>
+    <string name="rich_chat_fork_explanation">Создаёт независимый разговор до завершённого хода. Файлы остаются в той же рабочей копии.</string>
+    <string name="rich_chat_fork_name">Название разговора</string>
+    <string name="rich_chat_fork_boundary">Унаследованная история заканчивается здесь</string>
+    <string name="rich_chat_fork_source">Ответвление от %1$s</string>
 </resources>

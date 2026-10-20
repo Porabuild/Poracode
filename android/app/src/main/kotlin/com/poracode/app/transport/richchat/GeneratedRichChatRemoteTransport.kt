@@ -93,10 +93,11 @@ class GeneratedRichChatRemoteTransport(
             throw RichChatInvalidRequestException("Rich-chat route metadata is incompatible.")
         }
         val canonicalBody = Json.parseToJsonElement(route.body) as JsonObject
-        val headers = if ((canonicalBody.getValue("kind") as JsonPrimitive).content == "start") {
+        val commandKind = (canonicalBody.getValue("kind") as JsonPrimitive).content
+        val headers = if (commandKind == "start" || commandKind == "fork") {
             mapOf(
                 ProtocolConstants.COMMAND_ID_HEADER to
-                    "thread-start:${route.pathValues.getValue("threadId")}",
+                    "thread-$commandKind:${route.pathValues.getValue("threadId")}",
             )
         } else {
             emptyMap()

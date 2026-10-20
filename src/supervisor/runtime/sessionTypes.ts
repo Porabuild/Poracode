@@ -114,6 +114,10 @@ export interface SessionRuntime {
   canResumeWithConfig: boolean;
   terminalSize: TerminalSize;
   launchPrompt: string;
+  /** Retained until the first provider turn accepts the inherited conversation. */
+  pendingInitialInstructions?: string | undefined;
+  initialInstructionsApplied?: true;
+  onInitialInstructionsApplied?: () => void;
   outputLength: number;
   structuredSession?: StructuredSessionHandle | undefined;
   /**

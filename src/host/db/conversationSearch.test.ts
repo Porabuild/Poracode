@@ -764,11 +764,11 @@ describe.skipIf(!sqliteAvailable)("saved conversation search", () => {
     expect(sqlite.prepare("PRAGMA foreign_key_check").all()).toEqual([]);
   });
 
-  it("repairs an existing schema63/gen3 root at startup before the first writer, preserving canonical evidence", async () => {
+  it("repairs an existing schema64/gen3 root at startup before the first writer, preserving canonical evidence", async () => {
     closeDatabase();
-    const path = join(directory, "old63.sqlite");
+    const path = join(directory, "old64.sqlite");
     const previous = createSchema53PayloadOriginDatabase(path);
-    migrateSchema53FixtureThrough(previous, 63);
+    migrateSchema53FixtureThrough(previous, 64);
     installFixtureOrigin(previous);
     previous
       .prepare(
@@ -801,7 +801,7 @@ describe.skipIf(!sqliteAvailable)("saved conversation search", () => {
     const sqlite = initDatabase(path);
     expect(canonicalEvidence(sqlite)).toEqual(before);
     expect(sqlite.prepare("SELECT value FROM app_state WHERE key='schema_version'").get()).toEqual({
-      value: "63",
+      value: "64",
     });
     expect(sqlite.prepare("SELECT generation FROM conversation_search_meta").get()).toEqual({
       generation: "4.visual2",

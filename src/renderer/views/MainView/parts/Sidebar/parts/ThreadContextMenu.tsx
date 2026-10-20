@@ -20,6 +20,8 @@ import {
 import type { ReactNode } from "react";
 import { useLingui } from "@lingui/react/macro";
 import type { Project, Thread } from "@/shared/contracts";
+import { canForkThread } from "@/shared/threadFork";
+import { useThreadForkStore } from "@/renderer/state/threadForkStore";
 import { canChangeThreadGroup, dissolveGroupMembership } from "@/shared/threadGroups";
 import { isHomeProject } from "@/shared/homeScope";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -281,6 +283,16 @@ export function ThreadContextMenu(props: {
         ...(showMoveToWorkspace && workspaceMenuItem ? [workspaceMenuItem] : []),
         ...(!isExperimentCandidate
           ? [
+              ...(thread.presentationMode === "gui"
+                ? [
+                    {
+                      id: "fork-thread",
+                      label: t`Fork thread`,
+                      icon: <GitFork className="size-3.5" />,
+                      isDisabled: !canForkThread(thread),
+                    },
+                  ]
+                : []),
               {
                 id: "continue-in",
                 label: t`Continue in...`,
@@ -368,6 +380,8 @@ export function ThreadContextMenu(props: {
         if (key === "open-experiment" && experiment)
           useAppStore.getState().openExperiment(experiment.id, experiment.projectId);
         if (key === "continue-in" && !isExperimentCandidate) continueInProvider(thread.id);
+        if (key === "fork-thread" && !isExperimentCandidate)
+          useThreadForkStore.getState().request(thread.id);
         if (key === "group-open-threads") {
           const state = useAppStore.getState();
           if (state.view.kind !== "thread") return;

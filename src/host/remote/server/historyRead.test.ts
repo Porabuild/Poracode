@@ -238,7 +238,9 @@ describe.skipIf(!sqliteAvailable)("B4 bounded history server composition", () =>
           lastTurnEndedAt: "2020-01-01T00:00:00.100Z",
         },
       });
-      expect(snapshot.completedTurns).toEqual([]);
+      expect(snapshot.completedTurns).toMatchObject([
+        { startedAt: "2020-01-01T00:00:00.000Z", endedAt: "2020-01-01T00:00:00.100Z" },
+      ]);
       expect(snapshot.runtimeItems.map(({ id }) => id)).toContain("submitted-user");
     },
   );

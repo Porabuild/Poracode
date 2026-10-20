@@ -47,6 +47,8 @@
  */
 // Version 18 adds automation results and new closed schedule recurrence/status variants.
 // An older renderer must reject the changed response vocabulary before dispatch.
+// Fork initial instructions and their admission acknowledgment are optional,
+// same-bundle host/supervisor fields; existing procedure payloads remain valid.
 export const CLIENT_HOST_HOP_VERSION = 18 as const;
 /** The previous artifact hop, kept as an old reader for pre-upgrade regressions. */
 export const PREVIOUS_CLIENT_HOST_HOP_VERSION = 17 as const;

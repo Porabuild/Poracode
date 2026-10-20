@@ -357,6 +357,7 @@ class LiveConnectionController(
                                     it.copy(
                                         liveBrowserForwardVersions = versions,
                                         liveRuntimeHistoryNoticeVersions = noticeVersions,
+                                        liveThreadForkVersions = capabilities?.threadForks?.versions.orEmpty().toSet(),
                                         liveProjectCommandResultVersions =
                                             projectCommandResultVersions,
                                     )

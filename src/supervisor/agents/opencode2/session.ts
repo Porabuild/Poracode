@@ -306,6 +306,7 @@ export class OpenCode2Session implements StructuredSessionHandle {
 
       this.mapperState.turnActive = true;
       await submitOpenCode2Prompt(acquired.client, sessionID, payload, this.slashCommands);
+      options?.onPromptSubmitted?.();
     } catch (cause) {
       this.currentStatus = "error";
       this.currentAttention = "error";

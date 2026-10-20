@@ -72,7 +72,7 @@ describe("remote v3 native binding generator", () => {
         // Optional core PR state preserves the previous details-only result shape.
         // Background task timing, progress and Stop add two structural types.
         // Combine optional question-answer metadata with saved-message search.
-        sourceHash: "sha256:1d7efef9afdaf2f8d4d07c142892ab935cadb3944eca4952816a6d919889522a",
+        sourceHash: "sha256:b1904ad99663776bcb94a2d2c2def2ef29d39c931114c331c70e98c8f3478988",
         manifestHash: "sha256:b6309d6fb98117981bd84d031807a83df91cded68621791fbd0eecb2561e6497",
         counts: {
           routes: 116,
@@ -83,7 +83,7 @@ describe("remote v3 native binding generator", () => {
           // 10 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
           webSocketServerVariants: 11,
           schemaRoots: 482,
-          structuralTypes: 1129,
+          structuralTypes: 1133,
           semanticValidators: 22,
           swiftFiles: 71,
           kotlinFiles: 61,

@@ -27,7 +27,7 @@ describe("schema 58 schedule upgrade", () => {
       runDatabaseMigrations(sqlite, 58);
       expect(
         sqlite.prepare("SELECT value FROM app_state WHERE key = 'schema_version'").get(),
-      ).toEqual({ value: "63" });
+      ).toEqual({ value: "64" });
       expect(
         sqlite
           .prepare(

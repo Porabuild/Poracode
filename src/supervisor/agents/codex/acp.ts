@@ -898,6 +898,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
         ...buildCodexTurnSettingsOverrides(config),
       });
       this.activeTurnId = extractTurnField(result, "id");
+      options?.onPromptSubmitted?.();
       if (this.activeTurnId) {
         this.activeTurnIds.add(this.activeTurnId);
       }

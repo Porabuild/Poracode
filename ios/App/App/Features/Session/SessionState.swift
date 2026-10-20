@@ -135,6 +135,7 @@ struct SessionRuntimeState {
     /// runtime history notices, and the client declared them on the same
     /// authority. Connection-scoped (never persisted); reset with the host.
     var runtimeHistoryNoticesDeclared = false
+    var threadForksSupported = false
 
     var snapshot: RemoteShellSnapshot?
     /// Latest authoritative shell snapshot for each paired host. The selected
@@ -265,6 +266,7 @@ struct SessionRuntimeState {
         browserForwardOnlineEpoch = 0
         browserForwardRefresh = nil
         runtimeHistoryNoticesDeclared = false
+        threadForksSupported = false
         snapshot = nil
         hostSnapshots = [:]
         catalog.resetForHostChange()
