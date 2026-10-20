@@ -230,6 +230,7 @@ export const NON_ROUTER_PROJECT_PROCEDURES = {
   getLatestAgentVersion: "local-shell: version probe for this machine's agent installs",
   manageAgentPlugins: "local-shell: manages this machine's agent plugin packages",
   manageAgentCredentials: "local-shell: this machine's keychain-stored agent credentials",
+  manageModelProviders: "local-shell: edits this machine's native model routes and credentials",
   setAgentSecretSetting: "local-shell: writes a secret into this machine's keychain",
   getNativeMcpSetup: "local-shell: reads this machine's CLI MCP config files",
   applyNativeMcpSetup: "local-shell: rewrites this machine's CLI MCP config files",
@@ -324,6 +325,8 @@ export const NON_ROUTER_PROJECT_PROCEDURES = {
   lspStop: "local-shell: language-client lifetime is bound to this renderer window",
   lspSendMessage: "local-shell: LSP JSON-RPC is a per-window language client",
   listPlugins: "local-shell: plugin package scan is this window's disk catalog",
+  pluginCatalog: "local-shell: catalog installation changes this host's plugin packages",
+  pluginAccounts: "local-shell: plugin service accounts and OAuth are owned by this host",
   refreshPlugins: "local-shell: plugin package rescan is this window's disk catalog",
 
   // New-project local prep

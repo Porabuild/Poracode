@@ -124,12 +124,6 @@ export interface AppControlsSupervisorCaller {
   forgeCreatePr(
     payload: IpcProcedurePayload<"forgeCreatePr">,
   ): Promise<IpcProcedureResult<"forgeCreatePr">>;
-  forgeGetPrForBranch(
-    payload: IpcProcedurePayload<"forgeGetPrForBranch">,
-  ): Promise<IpcProcedureResult<"forgeGetPrForBranch">>;
-  forgeListPrs(
-    payload: IpcProcedurePayload<"forgeListPrs">,
-  ): Promise<IpcProcedureResult<"forgeListPrs">>;
   forgeListPullRequests(
     payload: IpcProcedurePayload<"forgeListPullRequests">,
   ): Promise<IpcProcedureResult<"forgeListPullRequests">>;

@@ -151,13 +151,13 @@ The release workflow (`.github/workflows/_server-artifact.yml`) runs exactly
 this recipe per machine family:
 
 ```sh
-pnpm install --frozen-lockfile --ignore-scripts
-pnpm rebuild node-pty                       # CI retries this 3x on flake
-pnpm run codex-protocol:gen
-pnpm run build:web                          # builds the web client and dist/main
+bun install --frozen-lockfile --ignore-scripts && node node_modules/bun/install.js
+bash scripts/ci-rebuild-node-pty.sh                       # CI retries this 3x on flake
+bun run codex-protocol:gen
+bun run build:web                          # builds the web client and dist/main
 node scripts/prepare-server-native.mjs --require-target <target>  # repeat per target
-pnpm run prepare:package-assets             # wsl-helpers + agent-plugins
-pnpm run prepare:computer-use-helper
+bun run prepare:package-assets             # wsl-helpers + agent-plugins
+bun run prepare:computer-use-helper
 node scripts/assemble-server-tarball.mjs --target <target>
 ls -lh dist/poracode-server-*.tar.gz dist/server-artifact.json
 ```
@@ -515,9 +515,9 @@ immutable artifact metadata, or service unit, and `upgrade` does not apply to
 it.
 
 ```sh
-pnpm run build:web                 # builds dist/main + dist/web + resources
-pnpm run server                    # node dist/main/server.cjs (foreground)
-pnpm run dev                       # full desktop app (Electron + renderer)
+bun run build:web                 # builds dist/main + dist/web + resources
+bun run server                    # node dist/main/server.cjs (foreground)
+bun run dev                       # full desktop app (Electron + renderer)
 ```
 
 Unset any inherited `PORACODE_*_DIR` resource declarations before a manual run
@@ -736,7 +736,7 @@ node scripts/server-install-qualification.mjs --tarball <tarball> \
 node scripts/poracode-cli-qualification.mjs --runtime-tarball <tarball>
 
 # 3. Required-mode real-artifact upgrade integration (fails instead of skipping).
-PORACODE_REQUIRE_SERVER_IT=1 pnpm exec vitest run --configLoader runner \
+PORACODE_REQUIRE_SERVER_IT=1 bun run vitest run --configLoader runner \
   src/server/serverUpgrade.integration.test.ts
 ```
 

@@ -17,7 +17,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let procedureU2ESubagentSubscribeU2EResult: RemoteRootCodec<ProceduresubagentSubscribeResult_499c208da1> = .init(id: "procedure.subagentSubscribe.result", schema: RemoteSchemas.schema_499c208da1aa1d4c)
+  static let procedureU2ESubagentSubscribeU2EResult: RemoteRootCodec<ProceduresubagentSubscribeResult_ffd105e9cc> = .init(id: "procedure.subagentSubscribe.result", schema: RemoteSchemas.schema_ffd105e9cca567eb)
 }
 
 public extension RemoteRootCodecs {
@@ -37,7 +37,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let procedureU2EWorkflowAgentChatU2EResult: RemoteRootCodec<ProcedureworkflowAgentChatResult_5bf7479aa2> = .init(id: "procedure.workflowAgentChat.result", schema: RemoteSchemas.schema_5bf7479aa21dc587)
+  static let procedureU2EWorkflowAgentChatU2EResult: RemoteRootCodec<ProcedureworkflowAgentChatResult_b6deccdc9f> = .init(id: "procedure.workflowAgentChat.result", schema: RemoteSchemas.schema_b6deccdc9f58eb02)
 }
 
 public extension RemoteRootCodecs {
@@ -117,6 +117,14 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
+  static let routeU2EConversationU2DSearchU2EQuery: RemoteRootCodec<RouteconversationU2DSearchQuery_07b9b9802d> = .init(id: "route.conversation-search.query", schema: RemoteSchemas.schema_07b9b9802d46bf6b)
+}
+
+public extension RemoteRootCodecs {
+  static let routeU2EConversationU2DSearchU2EResponse: RemoteRootCodec<RouteconversationU2DSearchResponse_ca8d08ed24> = .init(id: "route.conversation-search.response", schema: RemoteSchemas.schema_ca8d08ed24dcae50)
+}
+
+public extension RemoteRootCodecs {
   static let routeU2EEnvironmentU2DAdoptU2DLegacyU2EPath: RemoteRootCodec<RouteenvironmentU2DAdoptU2DLegacyPath_149c9d9dd2> = .init(id: "route.environment-adopt-legacy.path", schema: RemoteSchemas.schema_149c9d9dd2191aa3)
 }
 
@@ -173,7 +181,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2EEnvironmentU2DLegacyU2EResponse: RemoteRootCodec<RouteenvironmentU2DLegacyResponse_7cc98e2428> = .init(id: "route.environment-legacy.response", schema: RemoteSchemas.schema_7cc98e24285beaa2)
+  static let routeU2EEnvironmentU2DLegacyU2EResponse: RemoteRootCodec<RouteenvironmentU2DLegacyResponse_1c6dc6a635> = .init(id: "route.environment-legacy.response", schema: RemoteSchemas.schema_1c6dc6a6350a8fe9)
 }
 
 public extension RemoteRootCodecs {
@@ -277,7 +285,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2EEnvironmentU2EResponse: RemoteRootCodec<RouteenvironmentU2DLegacyResponse_7cc98e2428> = .init(id: "route.environment.response", schema: RemoteSchemas.schema_7cc98e24285beaa2)
+  static let routeU2EEnvironmentU2EResponse: RemoteRootCodec<RouteenvironmentU2DLegacyResponse_1c6dc6a635> = .init(id: "route.environment.response", schema: RemoteSchemas.schema_1c6dc6a6350a8fe9)
 }
 
 public extension RemoteRootCodecs {
@@ -438,12 +446,4 @@ public extension RemoteRootCodecs {
 
 public extension RemoteRootCodecs {
   static let routeU2EPrU2DWatchU2DDeleteU2EResponse: RemoteRootCodec<RouteenvironmentU2DDeleteResponse_badd682f35> = .init(id: "route.pr-watch-delete.response", schema: RemoteSchemas.schema_badd682f3501e022)
-}
-
-public extension RemoteRootCodecs {
-  static let routeU2EPrU2DWatchU2DReadU2EQuery: RemoteRootCodec<RouteprU2DWatchU2DCheckRequest_22fb635ee9> = .init(id: "route.pr-watch-read.query", schema: RemoteSchemas.schema_22fb635ee9412c65)
-}
-
-public extension RemoteRootCodecs {
-  static let routeU2EPrU2DWatchU2DReadU2EResponse: RemoteRootCodec<RouteprU2DWatchU2DReadResponse_92ee84dada> = .init(id: "route.pr-watch-read.response", schema: RemoteSchemas.schema_92ee84dadabef210)
 }

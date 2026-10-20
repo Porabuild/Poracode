@@ -3,32 +3,48 @@ import type { UsageWindow } from "../types";
 
 /**
  * Antigravity quota parsing, shared by the supervisor's local language-server
- * scanner (`antigravityUsageScanner.ts`).
+ * scanner (`antigravityUsageScanner.ts`) and Cloud Code collector
+ * (`antigravityCloudUsage.ts`).
  *
- * Antigravity now exposes a `RetrieveUserQuotaSummary` RPC that reports two model
- * groups — "Gemini Models" and "Claude and GPT models" — each with a shared
- * 5-hour limit and a weekly limit (this mirrors its in-app "Model Quota" view).
- * {@link antigravityQuotaSummaryWindows} turns that into four windows whose ids
- * are built by {@link antigravityWindowId} (e.g. `antigravity:gemini:session-5h`).
+ * Antigravity exposes a `RetrieveUserQuotaSummary` RPC (and `agy -p "/usage"`
+ * CLI output) that reports model quota groups — such as "Gemini Models",
+ * "Claude and GPT models", and "Gemini 4 Argon" — each with one or more quota
+ * buckets (e.g. a 5-hour limit and/or a weekly limit).
+ * {@link antigravityQuotaSummaryWindows} dynamically turns every reported group
+ * and bucket into {@link UsageWindow} items whose ids are built by
+ * {@link antigravityWindowId} (e.g. `antigravity:gemini:session-5h`,
+ * `antigravity:gemini-4-argon:weekly`).
  *
  * The legacy path ({@link antigravityPoolWindows}) folds per-model
- * `quotaInfo.remainingFraction` (which only ever carries the 5-hour limit) into
- * three Gemini Pro / Gemini Flash / Claude pools, and stays as a fallback for
- * Antigravity builds that predate the quota-summary RPC.
+ * `quotaInfo.remainingFraction` into Gemini Pro / Gemini Flash / Gemini Argon /
+ * Claude pools, and stays as a fallback for Antigravity builds that predate the
+ * quota-summary RPC.
  *
- * Pure (no host dependency) so it stays unit-testable. Antigravity usage is
- * collected supervisor-side from the local language server or the matching
- * Cloud Code quota-summary endpoint using official ACP credentials.
+ * Pure (no host dependency) so it stays unit-testable.
  */
 
-/** A model group key in the quota summary; drives window ids + ring grouping. */
-export type AntigravityGroupKey = "gemini" | "claude";
+/**
+ * A model group key in the quota summary; drives window ids + ring grouping.
+ * Canonical keys `"gemini"` and `"claude"` are used for the two primary groups;
+ * additional or future groups (e.g. `"gemini-4-argon"`) derive a slug key
+ * dynamically from the group's display name.
+ */
+export type AntigravityGroupKey = "gemini" | "claude" | (string & {});
+
 /**
  * A quota window cadence in the quota summary. We reuse the package's canonical
  * `session-5h` token (shared with codex/factory) so `windowDurationMs` paces
- * these windows without a special case.
+ * these windows without a special case, while supporting additional cadences
+ * dynamically.
  */
-export type AntigravityCadence = "session-5h" | "weekly";
+export type AntigravityCadence = "session-5h" | "daily" | "weekly" | "monthly" | (string & {});
+
+export interface AntigravityRingGroup {
+  key: string;
+  label: string;
+  outer: readonly string[];
+  inner: readonly string[];
+}
 
 /**
  * The window id for an Antigravity quota group + cadence. The single source of
@@ -38,114 +54,333 @@ export type AntigravityCadence = "session-5h" | "weekly";
 export function antigravityWindowId(
   group: AntigravityGroupKey,
   cadence: AntigravityCadence,
-): `antigravity:${AntigravityGroupKey}:${AntigravityCadence}` {
+): `antigravity:${string}:${string}` {
   return `antigravity:${group}:${cadence}`;
 }
 
-/**
- * Classify a quota-summary group by its display name. The Gemini group is named
- * "Gemini Models"; everything else (currently "Claude and GPT models") folds
- * into the `claude` group, matching the in-app split.
- */
-function antigravityGroupKey(displayName: string): AntigravityGroupKey {
-  return /gemini/i.test(displayName) ? "gemini" : "claude";
+function slugifyToken(input: string): string {
+  return input
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 }
 
-const ANTIGRAVITY_GROUP_LABEL: Record<AntigravityGroupKey, string> = {
-  gemini: "Gemini",
-  claude: "Claude",
-};
+interface AntigravityGroupInfo {
+  key: AntigravityGroupKey;
+  label: string;
+  priority: number;
+}
 
 /**
- * Resolve a bucket's cadence from its `window` discriminator (`"5h"` / `"weekly"`),
- * falling back to its display name ("Five Hour Limit" / "Weekly Limit") in case
- * the discriminator field is ever renamed. Returns undefined for an unrecognized
- * cadence so the bucket is skipped rather than mislabeled.
+ * Normalize a quota-summary group's display name into a stable key and short
+ * UI label. "Gemini Models" and "Claude and GPT models" keep their canonical
+ * `"gemini"` / `"claude"` keys and short labels; separate model groups such as
+ * "Gemini 4 Argon" (and any future groups Antigravity adds) get their own slug
+ * key and cleaned display label so they never collide with or overwrite the
+ * primary Gemini/Claude bars.
  */
-function antigravityCadence(bucket: Record<string, unknown>): AntigravityCadence | undefined {
-  const window = typeof bucket.window === "string" ? bucket.window.toLowerCase() : "";
-  if (window === "5h") return "session-5h";
-  if (window === "weekly") return "weekly";
-  const display = typeof bucket.displayName === "string" ? bucket.displayName.toLowerCase() : "";
-  if (display.includes("hour")) return "session-5h";
-  if (display.includes("week")) return "weekly";
+function antigravityGroupInfo(rawDisplayName: string, groupIndex: number): AntigravityGroupInfo {
+  const trimmed = rawDisplayName.trim();
+  const withoutModelsSuffix = trimmed.replace(/\s+models?$/i, "").trim();
+  const lower = withoutModelsSuffix.toLowerCase();
+
+  if (lower === "gemini") {
+    return { key: "gemini", label: "Gemini", priority: 0 };
+  }
+  if (!trimmed || /^claude\b/i.test(withoutModelsSuffix)) {
+    return { key: "claude", label: "Claude", priority: 1 };
+  }
+
+  const label = withoutModelsSuffix || trimmed;
+  const slug = slugifyToken(label) || `group-${groupIndex + 1}`;
+  return { key: slug, label, priority: 2 + groupIndex };
+}
+
+interface AntigravityCadenceInfo {
+  key: AntigravityCadence;
+  label: string;
+  order: number;
+}
+
+function durationOrderHours(rawWindow: string): number | undefined {
+  const match = /^(\d+)([smhdw])$/i.exec(rawWindow.trim());
+  if (!match) return undefined;
+  const count = Number(match[1]);
+  if (!Number.isFinite(count) || count <= 0) return undefined;
+  switch (match[2]!.toLowerCase()) {
+    case "s":
+      return count / 3600;
+    case "m":
+      return count / 60;
+    case "h":
+      return count;
+    case "d":
+      return count * 24;
+    case "w":
+      return count * 168;
+    default:
+      return undefined;
+  }
+}
+
+function formatDynamicCadenceLabel(rawWindow: string): string {
+  const trimmed = rawWindow.trim();
+  if (/^\d+[smhdw]$/i.test(trimmed)) return trimmed.toLowerCase();
+  return trimmed
+    .split(/[\s_-]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(" ");
+}
+
+/**
+ * Resolve a bucket's cadence from its `window` discriminator (`"5h"`,
+ * `"weekly"`, `"daily"`, `"monthly"`, or any future token), falling back to its
+ * display name when `window` is omitted.
+ */
+function antigravityCadenceInfo(
+  bucket: Record<string, unknown>,
+  bucketIndex: number,
+): AntigravityCadenceInfo | undefined {
+  const rawWindow = typeof bucket.window === "string" ? bucket.window.trim() : "";
+  const windowLower = rawWindow.toLowerCase();
+  if (windowLower === "5h") {
+    return { key: "session-5h", label: "5h", order: 5 };
+  }
+  if (windowLower === "daily" || windowLower === "24h" || windowLower === "1d") {
+    return { key: "daily", label: "Daily", order: 24 };
+  }
+  if (windowLower === "weekly" || windowLower === "7d") {
+    return { key: "weekly", label: "Weekly", order: 168 };
+  }
+  if (windowLower === "monthly" || windowLower === "30d") {
+    return { key: "monthly", label: "Monthly", order: 720 };
+  }
+  if (rawWindow) {
+    const key = slugifyToken(rawWindow);
+    if (key) {
+      return {
+        key,
+        label: formatDynamicCadenceLabel(rawWindow),
+        order: durationOrderHours(rawWindow) ?? 1000 + bucketIndex,
+      };
+    }
+  }
+
+  const rawDisplay =
+    typeof bucket.displayName === "string"
+      ? bucket.displayName
+      : typeof bucket.name === "string"
+        ? bucket.name
+        : "";
+  const display = rawDisplay.toLowerCase();
+  if (display.includes("hour")) return { key: "session-5h", label: "5h", order: 5 };
+  if (display.includes("daily") || display.includes("day")) {
+    return { key: "daily", label: "Daily", order: 24 };
+  }
+  if (display.includes("week")) return { key: "weekly", label: "Weekly", order: 168 };
+  if (display.includes("month")) return { key: "monthly", label: "Monthly", order: 720 };
   return undefined;
 }
 
-const ANTIGRAVITY_CADENCE_LABEL: Record<AntigravityCadence, string> = {
-  "session-5h": "5h",
-  weekly: "Weekly",
-};
-
-/** Sort weight so windows render grouped (Gemini before Claude) and 5h before weekly. */
-function antigravityWindowOrder(group: AntigravityGroupKey, cadence: AntigravityCadence): number {
-  return (group === "gemini" ? 0 : 1) * 2 + (cadence === "session-5h" ? 0 : 1);
-}
-
-/** Pull the `groups` array out of a RetrieveUserQuotaSummary body, tolerant of nesting. */
+/**
+ * Pull the `groups` array out of a `RetrieveUserQuotaSummary` or
+ * `agy -p "/usage" --output-format json` body, tolerant of nesting.
+ */
 function quotaSummaryGroups(body: unknown): Record<string, unknown>[] {
   if (!body || typeof body !== "object") return [];
   const root = body as Record<string, unknown>;
-  const response =
+  const command =
+    root.command && typeof root.command === "object"
+      ? (root.command as Record<string, unknown>)
+      : undefined;
+  const container =
     root.response && typeof root.response === "object"
       ? (root.response as Record<string, unknown>)
-      : root;
-  const groups = response.groups;
+      : command?.data && typeof command.data === "object"
+        ? (command.data as Record<string, unknown>)
+        : root.data && typeof root.data === "object"
+          ? (root.data as Record<string, unknown>)
+          : root;
+  const groups = container.groups;
   if (!Array.isArray(groups)) return [];
   return groups.filter((g): g is Record<string, unknown> => !!g && typeof g === "object");
 }
 
 /**
- * Build the four usage windows from a `RetrieveUserQuotaSummary` response — one
- * per (group × cadence). `remainingFraction` is 0-1 remaining, so usedPercent is
- * its complement. Window ids come from {@link antigravityWindowId}; the trailing
- * cadence segment lets the shared pacer infer the window length. Returns [] for a
- * body without recognizable groups so the scanner can fall back to the legacy
- * per-model pooling.
+ * Build usage windows from a `RetrieveUserQuotaSummary` response — one per
+ * reported (group × bucket cadence). `remainingFraction` (`remaining_fraction`
+ * in CLI output) is 0-1 remaining, so `usedPercent` is its complement. Window
+ * ids come from {@link antigravityWindowId}; the trailing cadence segment lets
+ * the shared pacer infer the window length. Returns [] for a body without
+ * recognizable groups so the scanner can fall back to the legacy per-model
+ * pooling.
  */
 export function antigravityQuotaSummaryWindows(body: unknown): UsageWindow[] {
-  const entries: { order: number; window: UsageWindow }[] = [];
+  const entries: { groupPriority: number; cadenceOrder: number; window: UsageWindow }[] = [];
   const seen = new Set<string>();
-  for (const group of quotaSummaryGroups(body)) {
-    const displayName = typeof group.displayName === "string" ? group.displayName : "";
-    const groupKey = antigravityGroupKey(displayName);
+  const groups = quotaSummaryGroups(body);
+  for (let groupIndex = 0; groupIndex < groups.length; groupIndex += 1) {
+    const group = groups[groupIndex]!;
+    const rawGroupName =
+      typeof group.displayName === "string"
+        ? group.displayName
+        : typeof group.name === "string"
+          ? group.name
+          : "";
+    const groupInfo = antigravityGroupInfo(rawGroupName, groupIndex);
     const buckets = Array.isArray(group.buckets) ? group.buckets : [];
-    for (const raw of buckets) {
+    for (let bucketIndex = 0; bucketIndex < buckets.length; bucketIndex += 1) {
+      const raw = buckets[bucketIndex];
       if (!raw || typeof raw !== "object") continue;
       const bucket = raw as Record<string, unknown>;
-      const fraction = bucket.remainingFraction;
+      const fraction =
+        typeof bucket.remainingFraction === "number"
+          ? bucket.remainingFraction
+          : bucket.remaining_fraction;
       if (typeof fraction !== "number" || !Number.isFinite(fraction)) continue;
-      const cadence = antigravityCadence(bucket);
+      const cadence = antigravityCadenceInfo(bucket, bucketIndex);
       if (!cadence) continue;
-      const id = antigravityWindowId(groupKey, cadence);
+      const id = antigravityWindowId(groupInfo.key, cadence.key);
       if (seen.has(id)) continue;
       seen.add(id);
-      const reset = toEpochMs(typeof bucket.resetTime === "string" ? bucket.resetTime : undefined);
+      const rawReset =
+        typeof bucket.resetTime === "string"
+          ? bucket.resetTime
+          : typeof bucket.reset_time === "string"
+            ? bucket.reset_time
+            : undefined;
+      const reset = toEpochMs(rawReset);
       entries.push({
-        order: antigravityWindowOrder(groupKey, cadence),
+        groupPriority: groupInfo.priority,
+        cadenceOrder: cadence.order,
         window: {
           id,
-          label: `${ANTIGRAVITY_GROUP_LABEL[groupKey]} · ${ANTIGRAVITY_CADENCE_LABEL[cadence]}`,
+          label: `${groupInfo.label} · ${cadence.label}`,
           usedPercent: usedPercentFromRemaining(fraction),
           ...(reset !== undefined ? { resetsAt: reset } : {}),
         },
       });
     }
   }
-  return entries.sort((a, b) => a.order - b.order).map((entry) => entry.window);
+  return entries
+    .sort((a, b) => a.groupPriority - b.groupPriority || a.cadenceOrder - b.cadenceOrder)
+    .map((entry) => entry.window);
+}
+
+const DEFAULT_ANTIGRAVITY_RING_GROUPS: readonly AntigravityRingGroup[] = [
+  {
+    key: "gemini",
+    label: "Gemini",
+    outer: [antigravityWindowId("gemini", "session-5h")],
+    inner: [antigravityWindowId("gemini", "weekly")],
+  },
+  {
+    key: "claude",
+    label: "Claude & GPT",
+    outer: [antigravityWindowId("claude", "session-5h")],
+    inner: [antigravityWindowId("claude", "weekly")],
+  },
+];
+
+function isFastAntigravityCadence(cadence: string): boolean {
+  return cadence === "session-5h" || cadence === "daily" || /^\d+[smh]$/.test(cadence);
+}
+
+/**
+ * Derive selectable ring groups dynamically from the current Antigravity
+ * windows, keeping the baseline Gemini and Claude & GPT groups while appending
+ * any additional quota groups (such as "Gemini 4 Argon" or future groups)
+ * reported by Antigravity.
+ */
+export function antigravityRingGroups(
+  windows?: readonly UsageWindow[],
+): readonly AntigravityRingGroup[] {
+  if (!windows || windows.length === 0) return DEFAULT_ANTIGRAVITY_RING_GROUPS;
+
+  const grouped = new Map<string, { label: string; outer: string[]; inner: string[] }>(
+    DEFAULT_ANTIGRAVITY_RING_GROUPS.map((group) => [
+      group.key,
+      { label: group.label, outer: [...group.outer], inner: [...group.inner] },
+    ]),
+  );
+
+  for (const window of windows) {
+    const match = /^antigravity:([^:]+):([^:]+)$/.exec(window.id);
+    if (!match) continue;
+    const groupKey = match[1]!;
+    const cadence = match[2]!;
+    let entry = grouped.get(groupKey);
+    if (!entry) {
+      const prefix = window.label.split(" · ")[0]?.trim();
+      entry = { label: prefix || groupKey, outer: [], inner: [] };
+      grouped.set(groupKey, entry);
+    }
+    const bucket = isFastAntigravityCadence(cadence) ? entry.outer : entry.inner;
+    if (!bucket.includes(window.id)) {
+      bucket.push(window.id);
+    }
+  }
+
+  const legacyGeminiPools = windows
+    .filter((w) => w.id === "antigravity:gemini-pro" || w.id === "antigravity:gemini-flash")
+    .sort((a, b) => b.usedPercent - a.usedPercent);
+  for (const pool of legacyGeminiPools) {
+    const gemini = grouped.get("gemini")!;
+    if (!gemini.outer.includes(pool.id)) gemini.outer.push(pool.id);
+  }
+  if (windows.some((w) => w.id === "antigravity:claude")) {
+    const claude = grouped.get("claude")!;
+    if (!claude.outer.includes("antigravity:claude")) claude.outer.push("antigravity:claude");
+  }
+  const argonPool = windows.find((w) => w.id === "antigravity:gemini-argon");
+  if (argonPool) {
+    let entry = grouped.get("gemini-4-argon");
+    if (!entry) {
+      entry = { label: argonPool.label, outer: [], inner: [] };
+      grouped.set("gemini-4-argon", entry);
+    }
+    if (!entry.outer.includes(argonPool.id)) entry.outer.push(argonPool.id);
+  }
+
+  return Array.from(grouped, ([key, entry]) => {
+    if (key !== "gemini" && key !== "claude") {
+      if (entry.inner.length === 0 && entry.outer.length > 1) {
+        return {
+          key,
+          label: entry.label,
+          outer: entry.outer.slice(0, 1),
+          inner: entry.outer.slice(1),
+        };
+      }
+      if (entry.outer.length === 0 && entry.inner.length > 1) {
+        return {
+          key,
+          label: entry.label,
+          outer: entry.inner.slice(0, 1),
+          inner: entry.inner.slice(1),
+        };
+      }
+    }
+    return {
+      key,
+      label: entry.label,
+      outer: entry.outer,
+      inner: entry.inner,
+    };
+  });
 }
 
 interface AntigravityPool {
-  id: "gemini-pro" | "gemini-flash" | "claude";
+  id: "gemini-pro" | "gemini-flash" | "gemini-argon" | "claude";
   label: string;
   order: number;
 }
 
 /**
- * Map a model label or id to its quota pool. Gemini Pro / Gemini Flash split on
- * the family keyword; everything else (Claude, GPT-OSS, ...) shares the "Claude"
- * pool, mirroring the Antigravity client. Examples: "Gemini 3.1 Pro (High)",
- * "gemini-2.5-flash-lite", "Claude Opus 4.6 (Thinking)", "GPT-OSS 120B".
+ * Map a model label or id to its quota pool. Gemini Pro / Gemini Flash / Gemini
+ * Argon split on the family keyword; everything else (Claude, GPT-OSS, ...)
+ * shares the "Claude" pool, mirroring the Antigravity client.
  */
 export function antigravityPool(modelLabelOrId: string): AntigravityPool {
   const lower = modelLabelOrId.toLowerCase();
@@ -155,7 +390,10 @@ export function antigravityPool(modelLabelOrId: string): AntigravityPool {
   if (lower.includes("gemini") && lower.includes("flash")) {
     return { id: "gemini-flash", label: "Gemini Flash", order: 1 };
   }
-  return { id: "claude", label: "Claude", order: 2 };
+  if (lower.includes("argon")) {
+    return { id: "gemini-argon", label: "Gemini 4 Argon", order: 2 };
+  }
+  return { id: "claude", label: "Claude", order: 3 };
 }
 
 export interface AntigravityModelQuota {

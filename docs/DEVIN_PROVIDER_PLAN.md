@@ -681,7 +681,7 @@ spawns a CLI, and adding a process-exec capability to `HostPort` is a separate a
     Devin mark, sized like `FactoryIcon.tsx`.
   - `manifest.ts`: `{ kind: "devin", label: msg\`Devin\`, order: 48 }`.
   - `index.tsx`: `registerProviderIcon`, `registerComposerControls(PROVIDER_KIND, (input) =>
-standardPlanApprovalControls(input))` from `composerControlBuilders.tsx`, and
+    standardPlanApprovalControls(input))` from `composerControlBuilders.tsx`, and
     `registerCommitGenDefaults` / `registerTitleGenDefaults` / `registerConflictResolverDefaults`
     with `{ label: "Devin", hint: "SWE-1.6 Fast", model: "swe-1-6-fast", effort: "" }`.
   - `index.test.tsx`: mirror `kimi/index.test.tsx`.
@@ -696,7 +696,7 @@ standardPlanApprovalControls(input))` from `composerControlBuilders.tsx`, and
 ## 7. i18n
 
 New renderer strings: manifest label `Devin`, the registry description in §5.1, and any new
-usage window label (`daily`). Run `pnpm i18n:extract`, fill `msgstr` in all 12 non-English
+usage window label (`daily`). Run `bun run i18n:extract`, fill `msgstr` in all 12 non-English
 catalogs under `src/renderer/locales/*/messages.po` (keep `Devin`, `Poracode`, `ACP` literal;
 grep the Kimi description entry for terminology), re-run extract and confirm 0 missing per
 locale. Supervisor-side user-facing strings (if any) go through `src/shared/messages.ts` plus
@@ -714,9 +714,9 @@ locale. Supervisor-side user-facing strings (if any) go through `src/shared/mess
 
 ## 9. Verification checklist before handoff
 
-1. `pnpm run typecheck`, `pnpm run lint`, `pnpm exec oxfmt --check` on touched files.
-2. `pnpm exec vitest run src/supervisor/agents/devin src/supervisor/agents/registry.test.ts src/supervisor/agents/acp/providerIsolation.test.ts src/supervisor/agents/oneShotCapability.test.ts src/renderer/components/providers src/supervisor/runtime/devinCredentials.test.ts packages/agents-usage`.
-3. `pnpm i18n:extract` reports 0 missing for all locales.
+1. `bun run typecheck`, `bun run lint`, `bun run cross-env npm_lifecycle_event=fmt bun fmt --check` on touched files.
+2. `bun run vitest run src/supervisor/agents/devin src/supervisor/agents/registry.test.ts src/supervisor/agents/acp/providerIsolation.test.ts src/supervisor/agents/oneShotCapability.test.ts src/renderer/components/providers src/supervisor/runtime/devinCredentials.test.ts packages/agents-usage`.
+3. `bun run i18n:extract` reports 0 missing for all locales.
 4. Install: on a machine without Devin, the Settings card installs via the card button and the
    card flips to installed with a version, without a manual refresh.
 5. Update: with an older binary, "Update available" appears with the cask version; the update

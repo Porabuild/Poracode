@@ -11,9 +11,10 @@ if [[ ! -f "$node_header" ]]; then
   exit 1
 fi
 export npm_config_nodedir="$node_root"
+node_pty_root="$(node -p 'require("node:path").dirname(require.resolve("node-pty/package.json"))')"
 
 for attempt in 1 2 3; do
-  if pnpm rebuild node-pty; then
+  if bun run --cwd "$node_pty_root" install && bun run --cwd "$node_pty_root" postinstall; then
     exit 0
   fi
   if [[ "$attempt" -eq 3 ]]; then

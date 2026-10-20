@@ -18,6 +18,20 @@ import {
 } from "./protocol";
 
 describe("device-local terminal settings", () => {
+  it("keeps sidebar preferences outside the remote-editable projection", () => {
+    const settings = pickRemoteSettings({
+      ...defaultSharedSettings,
+      sidebarShortcutOrder: ["settings:profile", "settings:agents:missing", "schedules"],
+      sidebarHiddenShortcuts: ["settings:agents:missing"],
+    });
+    for (const field of ["sidebarShortcutOrder", "sidebarHiddenShortcuts"]) {
+      expect(REMOTE_SETTINGS_KEYS).not.toContain(field);
+      expect(settings).not.toHaveProperty(field);
+    }
+    expect(
+      remoteSettingsPatchSchema.parse({ sidebarShortcutOrder: ["settings:profile"] }),
+    ).not.toHaveProperty("sidebarShortcutOrder");
+  });
   it("never exposes network enablement in the remote-editable settings subset", () => {
     expect(REMOTE_SETTINGS_KEYS).not.toContain("remoteAccessLanEnabled");
     expect(pickRemoteSettings(defaultSharedSettings)).not.toHaveProperty("remoteAccessLanEnabled");

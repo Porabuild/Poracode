@@ -3,6 +3,8 @@ import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AgentStatus, Project } from "@/shared/contracts";
+import type { PoracodeBridge } from "@/shared/ipc";
+import { installBrowserClientRuntime, resetClientRuntimeForTest } from "@/renderer/clientRuntime";
 
 const statusesState = {
   agentStatuses: [] as AgentStatus[],
@@ -103,6 +105,10 @@ vi.mock("./parts/GeneralSettings", () => ({
   GeneralSettings: () => <div data-settings-anchor="general.language">General</div>,
 }));
 
+vi.mock("./parts/ProfileSettings", () => ({
+  ProfileSettings: () => <div>Profile content</div>,
+}));
+
 vi.mock("./parts/AppearanceSettings", () => ({
   AppearanceSettings: () => <div data-settings-anchor="appearance.mode">Appearance</div>,
 }));
@@ -195,8 +201,30 @@ function makeStatus(kind: AgentStatus["kind"], input: Partial<AgentStatus> = {})
 
 describe("SettingsOverlay", () => {
   afterEach(() => {
+    resetClientRuntimeForTest();
     vi.unstubAllGlobals();
     Reflect.deleteProperty(HTMLElement.prototype, "scrollIntoView");
+  });
+
+  it("keeps a directly opened Profile available while a saved desktop is offline", () => {
+    installBrowserClientRuntime({} as PoracodeBridge);
+    bridgeState.remote = true;
+    useRemoteServersStore.setState({
+      servers: [
+        {
+          desktopId: "offline",
+          label: "Studio",
+          endpoint: "https://desktop.example.test",
+          accessToken: "token",
+          scopes: [],
+        },
+      ],
+      runtime: { offline: { status: "offline", projects: [], threads: [] } },
+    });
+    usePanelStore.getState().openSettingsSection("profile");
+    render(<SettingsOverlay onClose={() => undefined} />);
+    expect(screen.getByText("Profile content")).toBeInTheDocument();
+    expect(screen.queryByText("No remote environments connected yet.")).toBeNull();
   });
 
   beforeEach(() => {
@@ -225,6 +253,7 @@ describe("SettingsOverlay", () => {
       "poracode-setting-highlight",
     );
     expect(usePanelStore.getState().settingsSection).toBeNull();
+    expect(usePanelStore.getState().activeSettingsSection).toBe("general");
     expect(usePanelStore.getState().settingsAnchor).toBeNull();
   });
 

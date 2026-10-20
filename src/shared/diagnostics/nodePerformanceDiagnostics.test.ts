@@ -171,12 +171,12 @@ describe("opt-in Node performance recording", () => {
     const originalFinish = PerformanceEvidenceWriter.prototype.finish;
     const held = Promise.withResolvers<PerformanceWriterStats>();
     let writer: PerformanceEvidenceWriter | undefined;
-    vi.spyOn(PerformanceEvidenceWriter.prototype, "finish").mockImplementation(
-      function (this: PerformanceEvidenceWriter) {
-        writer = this;
-        return held.promise;
-      },
-    );
+    vi.spyOn(PerformanceEvidenceWriter.prototype, "finish").mockImplementation(function (
+      this: PerformanceEvidenceWriter,
+    ) {
+      writer = this;
+      return held.promise;
+    });
     vi.useFakeTimers();
     const recorder = startNodePerformanceDiagnostics("backend", {
       PORACODE_PERF_OUTPUT_DIR: root,

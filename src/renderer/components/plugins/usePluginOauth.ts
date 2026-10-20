@@ -1,130 +1,118 @@
 import { useEffect, useState, useRef } from "react";
 import { useLingui } from "@lingui/react/macro";
-import type { LoadedPlugin, McpServer } from "@/shared/contracts";
-import { DEFAULT_MCP_SERVER_TIMEOUT_MS } from "@/shared/contracts";
+import type { LoadedPlugin } from "@/shared/contracts";
+import type { PluginAccount } from "@/shared/contracts/pluginCatalog";
 import { readBridge } from "@/renderer/bridge";
-import { pluginMcpServerId, pluginMcpServerName } from "@/shared/plugins/catalog";
-
-/**
- * Connection state for a plugin's remote MCP servers.
- *
- * Remote servers a package declares in `mcp.json` are authorized through the
- * same OAuth 2.1 flow already used for user-configured MCP servers
- * (`src/supervisor/mcp/McpOAuthService.ts`). The supervisor owns the loopback
- * redirect listener and the sealed token store; the renderer only ever sees the
- * authorization URL and a connected flag.
- */
 
 type ConnectionState = "unknown" | "connected" | "disconnected" | "connecting";
 
-function remoteServerUrl(entry: LoadedPlugin["mcpServers"][number]["entry"]): string | undefined {
-  // Must match what `pluginMcpRuntime.buildTransport` launches: the token store
-  // is keyed on the exact URL string.
-  return entry.type === "stdio" ? undefined : entry.url.trim();
-}
-
-/**
- * Mirrors the record `pluginMcpRuntime` builds so the supervisor authorizes the
- * same server. `McpOAuthService.begin` only reads `transport.url`, but the
- * transport kind and headers are carried through so the two sides cannot drift.
- */
-function toMcpServer(
-  plugin: LoadedPlugin,
-  declaration: LoadedPlugin["mcpServers"][number],
-  url: string,
-): McpServer {
-  const entry = declaration.entry;
-  return {
-    id: pluginMcpServerId(plugin.name, declaration.name),
-    name: pluginMcpServerName(plugin.name, declaration.name),
-    description: plugin.manifest.description ?? "",
-    enabled: true,
-    timeoutMs: DEFAULT_MCP_SERVER_TIMEOUT_MS,
-    transport: {
-      type: entry.type === "streamable-http" ? "http" : "sse",
-      url,
-      headers: entry.type === "stdio" ? {} : { ...entry.headers },
-    },
-  };
-}
-
+/** Plugin service accounts use supervisor-owned credential slots, never provider accounts or URL-global tokens. */
 export function usePluginOauth(plugin: LoadedPlugin) {
   const { t } = useLingui();
-  const [authorizedUrls, setAuthorizedUrls] = useState<string[]>();
+  const [accounts, setAccounts] = useState<PluginAccount[]>();
   const [pending, setPending] = useState<{ serverName: string; kind: "connect" | "disconnect" }>();
   const pendingRef = useRef(false);
+  const pendingAccount = useRef<{ serverName: string; accountId: string } | undefined>(undefined);
+  const cancelled = useRef(false);
   const [error, setError] = useState<string>();
+  const hasRemoteServer =
+    plugin.source !== "project" &&
+    plugin.mcpServers.some((server) => server.entry.type !== "stdio");
 
   const refresh = async () => {
     try {
-      const status = await readBridge().getMcpOauthStatus({});
-      setAuthorizedUrls(status.authenticatedUrls);
+      const result = await readBridge().pluginAccounts({ action: "list", pluginName: plugin.name });
+      setAccounts(result.accounts);
     } catch {
-      // Leave the state unknown rather than claiming a server is disconnected.
-      setAuthorizedUrls(undefined);
+      setAccounts(undefined);
     }
   };
 
-  const hasRemoteServer = plugin.mcpServers.some((server) => remoteServerUrl(server.entry));
-
   useEffect(() => {
+    setAccounts(undefined);
     if (hasRemoteServer) void refresh();
-    // `refresh` only closes over setState, which is stable.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasRemoteServer]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- package identity owns this account list.
+  }, [hasRemoteServer, plugin.name, plugin.root]);
 
   const stateFor = (serverName: string): ConnectionState => {
-    const server = plugin.mcpServers.find((candidate) => candidate.name === serverName);
-    const url = server ? remoteServerUrl(server.entry) : undefined;
-    if (!url) return "unknown";
     if (pending?.serverName === serverName && pending.kind === "connect") return "connecting";
-    if (!authorizedUrls) return "unknown";
-    return authorizedUrls.includes(url) ? "connected" : "disconnected";
+    if (!accounts) return "unknown";
+    return accounts.some(
+      (account) =>
+        account.serverName === serverName && account.selected && account.status === "connected",
+    )
+      ? "connected"
+      : "disconnected";
   };
 
-  const connect = async (serverName: string) => {
-    const server = plugin.mcpServers.find((candidate) => candidate.name === serverName);
-    const url = server ? remoteServerUrl(server.entry) : undefined;
-    if (!server || !url || pendingRef.current) return;
+  const connect = async (
+    serverName: string,
+    label?: string,
+    newAccount = false,
+    accountId?: string,
+  ) => {
+    if (pendingRef.current) return;
     pendingRef.current = true;
+    cancelled.current = false;
     setPending({ serverName, kind: "connect" });
     setError(undefined);
     try {
       const bridge = readBridge();
-      const begin = await bridge.beginMcpServerOauth({
-        server: toMcpServer(plugin, server, url),
+      const selected = newAccount
+        ? undefined
+        : accounts?.find(
+            (account) =>
+              account.serverName === serverName &&
+              (accountId ? account.id === accountId : account.selected),
+          );
+      const result = await bridge.pluginAccounts({
+        action: "begin",
+        pluginName: plugin.name,
+        serverName,
+        label: label?.trim() || selected?.label || serverName,
+        ...(selected ? { accountId: selected.id } : {}),
       });
-      if (begin.status === "error") {
+      setAccounts(result.accounts);
+      if (result.accountId) pendingAccount.current = { serverName, accountId: result.accountId };
+      const begin = result.authorization;
+      if (!begin || begin.status === "error") {
         setError(t`Could not sign in to ${serverName}.`);
         return;
       }
       if (begin.status === "redirect") {
         await bridge.openExternalNative(begin.authorizationUrl);
-        const result = await bridge.waitMcpServerOauth({ flowId: begin.flowId });
-        if (result.status === "error") {
+        const completed = await bridge.waitMcpServerOauth({ flowId: begin.flowId });
+        if (completed.status === "error" && !cancelled.current)
           setError(t`Could not sign in to ${serverName}.`);
-          return;
-        }
       }
       await refresh();
     } catch {
-      setError(t`Could not sign in to ${serverName}.`);
+      if (!cancelled.current) setError(t`Could not sign in to ${serverName}.`);
     } finally {
+      pendingAccount.current = undefined;
       pendingRef.current = false;
       setPending(undefined);
     }
   };
 
-  const disconnect = async (serverName: string) => {
-    const server = plugin.mcpServers.find((candidate) => candidate.name === serverName);
-    const url = server ? remoteServerUrl(server.entry) : undefined;
-    if (!url || pendingRef.current) return;
+  const disconnect = async (serverName: string, accountId?: string) => {
+    const account = accounts?.find(
+      (candidate) =>
+        candidate.serverName === serverName &&
+        (accountId ? candidate.id === accountId : candidate.selected),
+    );
+    if (!account || pendingRef.current) return;
     pendingRef.current = true;
     setPending({ serverName, kind: "disconnect" });
     setError(undefined);
     try {
-      await readBridge().clearMcpServerOauth({ url });
-      await refresh();
+      const result = await readBridge().pluginAccounts({
+        action: "logout",
+        pluginName: plugin.name,
+        serverName,
+        accountId: account.id,
+      });
+      setAccounts(result.accounts);
     } catch {
       setError(t`Could not sign out of ${serverName}.`);
     } finally {
@@ -133,19 +121,56 @@ export function usePluginOauth(plugin: LoadedPlugin) {
     }
   };
 
-  /** True for servers reached over the network, which are the ones that can be authorized. */
-  const isRemoteServer = (serverName: string): boolean => {
-    const server = plugin.mcpServers.find((candidate) => candidate.name === serverName);
-    return server ? remoteServerUrl(server.entry) !== undefined : false;
+  const select = async (account: PluginAccount) => {
+    if (pendingRef.current) return;
+    pendingRef.current = true;
+    setPending({ serverName: account.serverName, kind: "connect" });
+    setError(undefined);
+    try {
+      const result = await readBridge().pluginAccounts({
+        action: "select",
+        pluginName: plugin.name,
+        serverName: account.serverName,
+        accountId: account.id,
+      });
+      setAccounts(result.accounts);
+    } catch {
+      setError(t`Could not sign in to ${account.serverName}.`);
+    } finally {
+      pendingRef.current = false;
+      setPending(undefined);
+    }
+  };
+
+  const cancel = async () => {
+    const account = pendingAccount.current;
+    if (!account) return;
+    cancelled.current = true;
+    try {
+      await readBridge().pluginAccounts({ action: "logout", pluginName: plugin.name, ...account });
+    } catch {
+      setError(t`Could not sign out of ${account.serverName}.`);
+    }
   };
 
   return {
+    accounts: accounts ?? [],
     stateFor,
-    isRemoteServer,
+    isRemoteServer: (serverName: string) =>
+      plugin.source !== "project" &&
+      plugin.mcpServers.some(
+        (server) =>
+          server.name === serverName &&
+          server.entry.type !== "stdio" &&
+          !Object.keys(server.entry.headers).some((key) => key.toLowerCase() === "authorization"),
+      ),
     isBusy: pending !== undefined,
     isPending: (serverName: string) => pending?.serverName === serverName,
+    canCancel: pendingAccount.current !== undefined,
     connect,
     disconnect,
+    select,
+    cancel,
     error,
   };
 }

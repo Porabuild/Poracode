@@ -6,6 +6,7 @@ import type { GitStatusResult, PrData, ProjectLocation } from "@/shared/contract
 import { useAppStore } from "@/renderer/state/appStore";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { buildBranchPrKey } from "@/renderer/state/gitSelectors";
+import { HOME_PROJECT_ID } from "@/shared/homeScope";
 import { getWorktreeActionVisibility } from "./useWorktreeActions";
 import { GitBadge } from "./GitBadge";
 
@@ -202,6 +203,29 @@ describe("GitBadge", () => {
     expect(screen.getByText("Not a Git repository")).toBeInTheDocument();
   });
 
+  it.each([{ id: HOME_PROJECT_ID }, { id: "remote:host:project:home", remoteId: HOME_PROJECT_ID }])(
+    "omits the not-repo badge for Home scope $id",
+    (identity) => {
+      useAppStore.setState({
+        projects: [
+          {
+            ...identity,
+            name: "Home",
+            location: { kind: "posix", path: "/home/user" },
+            createdAt: "2026-06-02T00:00:00.000Z",
+          },
+        ],
+      });
+      useGitStore.setState({
+        statuses: { [identity.id]: makeStatus({ isRepo: false }) },
+      });
+
+      const { container } = render(<GitBadge projectId={identity.id} projectName="Home" />);
+
+      expect(container).toBeEmptyDOMElement();
+    },
+  );
+
   it("shows a hover affordance before git status loads", () => {
     render(<GitBadge projectId="project-1" projectName="Project" />);
 
@@ -267,53 +291,56 @@ describe("GitBadge", () => {
     ).toBeTruthy();
   });
 
-  it("does not show a stale project PR while fetching the current branch PR", async () => {
-    let resolvePr: (pr: PrData | null) => void = () => {};
-    ghGetPrForBranchMock.mockReturnValue(
-      new Promise<PrData | null>((resolve) => {
-        resolvePr = resolve;
-      }),
-    );
-    useAppStore.setState({
-      projects: [
-        {
-          id: "project-1",
-          name: "Project",
-          location: { kind: "posix", path: "/repo" },
-          createdAt: "2026-06-02T00:00:00.000Z",
-        },
-      ],
-    });
-    useGitStore.setState({
-      statuses: {
-        "project-1": makeStatus({
-          branch: "feature/current",
-          remoteInfo: { platform: "github", owner: "o", repo: "r", url: "https://github.com/o/r" },
+  it.each(["github", "gitlab", "bitbucket", "unknown"] as const)(
+    "verifies the current %s branch without showing a stale project PR",
+    async (platform) => {
+      let resolvePr: (pr: PrData | null) => void = () => {};
+      ghGetPrForBranchMock.mockReturnValue(
+        new Promise<PrData | null>((resolve) => {
+          resolvePr = resolve;
         }),
-      },
-      ghAvailable: { "project-1": true },
-      prData: {
-        [buildBranchPrKey("project-1")]: { ...basePr, number: 99, title: "Stale PR" },
-      },
-    });
+      );
+      useAppStore.setState({
+        projects: [
+          {
+            id: "project-1",
+            name: "Project",
+            location: { kind: "posix", path: "/repo" },
+            createdAt: "2026-06-02T00:00:00.000Z",
+          },
+        ],
+      });
+      useGitStore.setState({
+        statuses: {
+          "project-1": makeStatus({
+            branch: "feature/current",
+            remoteInfo: { platform, owner: "o", repo: "r", url: "https://example.com/o/r" },
+          }),
+        },
+        ghAvailable: { "project-1": true },
+        prData: {
+          [buildBranchPrKey("project-1")]: { ...basePr, number: 99, title: "Stale PR" },
+        },
+      });
 
-    render(<GitBadge projectId="project-1" projectName="Project" />);
+      render(<GitBadge projectId="project-1" projectName="Project" />);
 
-    const loadingBadge = screen.getByRole("button", { name: "Git status for Project" });
-    expect(loadingBadge.querySelector(".lucide-git-pull-request")).toBeNull();
-    expect(loadingBadge.querySelector(".lucide-git-branch")).not.toBeNull();
-    expect(ghGetPrForBranchMock).toHaveBeenCalledWith({
-      projectLocation: { kind: "posix", path: "/repo" },
-      branch: "feature/current",
-    });
+      const loadingBadge = screen.getByRole("button", { name: "Git status for Project" });
+      expect(loadingBadge.querySelector(".lucide-git-pull-request")).toBeNull();
+      expect(loadingBadge.querySelector(".lucide-git-branch")).not.toBeNull();
+      expect(ghGetPrForBranchMock).toHaveBeenCalledWith({
+        projectLocation: { kind: "posix", path: "/repo" },
+        branch: "feature/current",
+      });
 
-    resolvePr({ ...basePr, number: 2, title: "Current PR" });
+      resolvePr({ ...basePr, number: 2, title: "Current PR" });
 
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Git status for Project" })).toBeInTheDocument();
-    });
-    expect(useGitStore.getState().prData[buildBranchPrKey("project-1")]?.number).toBe(2);
-  });
+      await waitFor(() => {
+        expect(screen.getByRole("button", { name: "Git status for Project" })).toBeInTheDocument();
+      });
+      expect(useGitStore.getState().prData[buildBranchPrKey("project-1")]?.number).toBe(2);
+    },
+  );
 
   it.each([basePr, null])(
     "keeps a merge observed during project PR verification: %j",

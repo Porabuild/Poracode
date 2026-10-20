@@ -26,8 +26,6 @@ export function createAppControlsSupervisorCaller(
     forgeGetRepository: (payload) => call("forgeGetRepository", payload),
     forgeEditPr: (payload) => call("forgeEditPr", payload),
     forgeCreatePr: (payload) => call("forgeCreatePr", payload),
-    forgeGetPrForBranch: (payload) => call("forgeGetPrForBranch", payload),
-    forgeListPrs: (payload) => call("forgeListPrs", payload),
     forgeListPullRequests: (payload) => call("forgeListPullRequests", payload),
     forgeMergePr: (payload) => call("forgeMergePr", payload),
     forgeMergePrAtHead: (payload) => call("forgeMergePrAtHead", payload),

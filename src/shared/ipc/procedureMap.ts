@@ -1,4 +1,5 @@
 import { agentCredentialProcedures } from "./procedures/agentCredentials";
+import { modelProviderProcedures } from "./procedures/modelProviders";
 import { appProcedures } from "./procedures/app";
 import { browserProcedures } from "./procedures/browser";
 import { dbProcedures } from "./procedures/db";
@@ -48,6 +49,7 @@ export const groupedIpcProcedures = {
   skills: skillProcedures,
   plugins: pluginProcedures,
   agentCredentials: agentCredentialProcedures,
+  modelProviders: modelProviderProcedures,
   sessionImport: sessionImportProcedures,
 } as const;
 
@@ -75,6 +77,7 @@ export const ipcProcedureMap = {
   ...skillProcedures,
   ...pluginProcedures,
   ...agentCredentialProcedures,
+  ...modelProviderProcedures,
   ...sessionImportProcedures,
 } as const;
 
@@ -108,6 +111,8 @@ export type IpcProcedureName = keyof IpcProcedureMap;
  * rejected typed by {@link assertIpcProcedureMapVersion} — a mismatch must
  * surface as a typed rejection, never as guessed semantics or a silent drop.
  * Network enablement adds a main-local name only; existing operations stay compatible.
+ * Model-provider management is additive; older peers reject the unknown name
+ * before effects. Native configuration and credential formats remain provider-owned.
  */
 export const IPC_PROCEDURE_MAP_VERSION = CLIENT_HOST_HOP_VERSION;
 

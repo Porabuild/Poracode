@@ -1,7 +1,14 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { LucideIcon } from "lucide-react";
-import { FileDiff, FolderOpen, NotebookPen, PanelRightOpen, TerminalSquare } from "lucide-react";
+import {
+  FileDiff,
+  FolderOpen,
+  Info,
+  NotebookPen,
+  PanelRightOpen,
+  TerminalSquare,
+} from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import { isHomeProjectId } from "@/shared/homeScope";
 import {
@@ -76,6 +83,7 @@ export function ThreadToolRail(props: {
       s.filesPanelContext?.worktreePath === worktreePath,
   );
   const notesPanelOpen = usePanelStore((s) => s.notesPanelOpen);
+  const threadInfoOpen = usePanelStore((s) => s.threadDocksPanelOpen);
   const terminalScoped = useDevTerminalStore(
     (s) =>
       s.isOpen &&
@@ -220,6 +228,24 @@ export function ThreadToolRail(props: {
       icon: NotebookPen,
       active: notesPanelOpen && rightPanelTab === "notes",
       activate: openNotesPanel,
+    },
+    {
+      id: "thread-info",
+      label: t`Thread info`,
+      icon: Info,
+      active: sidePanelOpen && threadInfoOpen && rightPanelTab === "docks",
+      activate: () => {
+        if (sidePanelOpen && threadInfoOpen && rightPanelTab === "docks") {
+          closeAllPanels();
+          return;
+        }
+        usePanelStore.setState({
+          threadDocksPanelOpen: true,
+          rightPanelTab: "docks",
+          threadDocksFocus: null,
+          threadDocksReturnThreadId: null,
+        });
+      },
     },
   ];
 

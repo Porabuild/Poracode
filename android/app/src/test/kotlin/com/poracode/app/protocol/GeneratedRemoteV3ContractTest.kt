@@ -36,6 +36,16 @@ class GeneratedRemoteV3ContractTest {
     }
 
     @Test
+    fun generator5ManifestIsRefusedAfterSwiftIdentifierCorrection() {
+        assertFalse(GeneratedRemoteV3Contract.isCompatibleWithNativeBundleManifest(
+            protocolVersion = ProtocolConstants.REMOTE_PROTOCOL_VERSION,
+            bindingFormatVersion = GeneratedRemoteV3Contract.BINDING_FORMAT_VERSION,
+            generatorVersion = 5,
+            formatVersion = GeneratedRemoteV3Contract.NATIVE_BUNDLE_MANIFEST_FORMAT_VERSION,
+        ))
+    }
+
+    @Test
     fun canonicalResponsesApplyUnknownPolicyAndDefaults() {
         val environment = parseObject(
             GeneratedRemoteV3Contract.environmentResponse(

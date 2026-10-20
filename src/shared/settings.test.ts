@@ -69,6 +69,32 @@ describe("shared settings defaults", () => {
     ]);
   });
 
+  it("keeps opted-in settings shortcuts and unavailable providers without changing defaults", () => {
+    expect(normalizeSharedSettings({}).sidebarShortcutOrder).toEqual(
+      defaultSharedSettings.sidebarShortcutOrder,
+    );
+    expect(
+      normalizeSharedSettings({
+        sidebarShortcutOrder: [
+          "settings:profile",
+          "schedules",
+          "settings:agents:missing",
+          "settings:profile",
+        ],
+        sidebarHiddenShortcuts: ["settings:agents:missing"],
+      }),
+    ).toMatchObject({
+      sidebarShortcutOrder: [
+        "settings:profile",
+        "schedules",
+        "settings:agents:missing",
+        "pullRequests",
+        "githubActions",
+      ],
+      sidebarHiddenShortcuts: ["settings:agents:missing"],
+    });
+  });
+
   it("normalizes and reorders thread docks without moving hidden dock slots", () => {
     expect(normalizeThreadDocksOrder(["plan", "plan"])).toEqual([
       "plan",
@@ -76,6 +102,8 @@ describe("shared settings defaults", () => {
       "agents",
       "backgroundTasks",
       "images",
+      "context",
+      "usage",
     ]);
     expect(
       reorderVisibleThreadDocks(
@@ -85,6 +113,20 @@ describe("shared settings defaults", () => {
         0,
       ),
     ).toEqual(["goal", "images", "agents", "plan", "backgroundTasks"]);
+  });
+
+  it("preserves existing saved dock order and appends context and usage on upgrade", () => {
+    const priorOrder = ["images", "plan", "agents", "goal", "backgroundTasks"];
+    const upgraded = normalizeSharedSettings({ threadDocksOrder: priorOrder });
+    expect(upgraded.threadDocksOrder).toEqual([...priorOrder, "context", "usage"]);
+    expect(
+      reorderVisibleThreadDocks(
+        upgraded.threadDocksOrder,
+        ["images", "plan", "context", "usage"],
+        3,
+        0,
+      ),
+    ).toEqual(["usage", "images", "agents", "goal", "backgroundTasks", "plan", "context"]);
   });
 
   it("enables notifications and displays them for visible threads by default", () => {

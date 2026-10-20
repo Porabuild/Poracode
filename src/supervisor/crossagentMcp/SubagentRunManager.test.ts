@@ -767,6 +767,162 @@ describe("SubagentRunManager", () => {
     expect(handle.disposed).toBe(true);
   });
 
+  it.each(["idle-first", "event-first"] as const)(
+    "settles a steered full-turn promise with %s completion signals",
+    async (order) => {
+      const h = makeHarness();
+      const { runId } = h.manager.spawn(PARENT, {
+        agent: "codex",
+        prompt: "go",
+        resultMode: "compact",
+      });
+      await flush();
+      const handle = h.handles[0]!;
+      const turn = Promise.withResolvers<void>();
+      handle.interruptTurn = async () => {
+        handle.completeTurn("interrupted");
+        handle.update("idle");
+      };
+      handle.startTurn = () => {
+        handle.update("working");
+        return turn.promise;
+      };
+      const dispose = vi.spyOn(handle, "dispose");
+      const steering = h.manager.steer(runId, "finish the implementation", PARENT);
+      await flush();
+      const joined = h.manager.waitFor(runId, 1_000, PARENT, { includeTrace: true });
+      handle.emit({
+        type: "content.delta",
+        threadId: "child",
+        itemId: "final-report",
+        stream: "assistant_text",
+        delta: '```crossagents-result\n{"version":1,"status":"completed"}\n```',
+      });
+      if (order === "idle-first") handle.update("idle");
+      handle.completeTurn("completed");
+      if (order === "event-first") handle.update("idle");
+      turn.resolve();
+      await steering;
+      expect(await joined).toMatchObject({
+        status: "completed",
+        result_error: expect.any(String),
+        trace: { attempts: [{ index: 1, status: "completed" }] },
+      });
+      await flush();
+      expect(dispose).toHaveBeenCalledOnce();
+    },
+  );
+
+  it("preserves a replacement that completes inside startTurn", async () => {
+    const h = makeHarness();
+    const { runId } = h.manager.spawn(PARENT, { agent: "codex", prompt: "go" });
+    await flush();
+    const handle = h.handles[0]!;
+    handle.interruptTurn = async () => handle.completeTurn("interrupted");
+    handle.startTurn = async () => {
+      handle.update("working");
+      handle.completeTurn("completed");
+      handle.update("idle");
+    };
+    await h.manager.steer(runId, "finish", PARENT);
+    expect(h.manager.getStatus(runId).status).toBe("completed");
+  });
+
+  it.each([false, true])(
+    "observes replacement rejection with delivery already acknowledged: %s",
+    async (acknowledged) => {
+      const h = makeHarness();
+      const { runId } = h.manager.spawn(PARENT, { agent: "codex", prompt: "go" });
+      await flush();
+      const handle = h.handles[0]!;
+      const turn = Promise.withResolvers<void>();
+      handle.interruptTurn = async () => handle.completeTurn("interrupted");
+      handle.startTurn = () => {
+        if (acknowledged) handle.update("working");
+        return turn.promise;
+      };
+      const steering = h.manager.steer(runId, "finish", PARENT);
+      const delivery = steering.catch((error: unknown) => error);
+      await flush();
+      if (acknowledged) await steering;
+      turn.reject(new Error("replacement prompt failed"));
+      await delivery;
+      await flush();
+      expect(h.manager.getStatus(runId)).toMatchObject({
+        status: "failed",
+        error: { message: "replacement prompt failed", may_have_side_effects: true },
+      });
+      expect(handle.disposed).toBe(true);
+    },
+  );
+
+  it.each(["completed", "cancelled"] as const)(
+    "handles replacement %s before dispatch acknowledgement",
+    async (state) => {
+      const h = makeHarness();
+      const { runId } = h.manager.spawn(PARENT, { agent: "codex", prompt: "go" });
+      await flush();
+      const handle = h.handles[0]!;
+      const turn = Promise.withResolvers<void>();
+      handle.interruptTurn = async () => handle.completeTurn("interrupted");
+      handle.startTurn = () => turn.promise;
+      const delivery = h.manager.steer(runId, "finish", PARENT).catch((error: unknown) => error);
+      await flush();
+      handle.completeTurn(state);
+      const stopped = expect.any(Error);
+      expect(await delivery).toEqual(state === "completed" ? { runId } : stopped);
+      expect(h.manager.getStatus(runId).status).toBe(
+        state === "completed" ? "completed" : "failed",
+      );
+      turn.resolve();
+      await flush();
+      expect(handle.disposed).toBe(true);
+    },
+  );
+
+  it("releases pending steering on cancel without waiting for the prompt promise", async () => {
+    const h = makeHarness();
+    const { runId } = h.manager.spawn(PARENT, { agent: "codex", prompt: "go" });
+    await flush();
+    const handle = h.handles[0]!;
+    const turn = Promise.withResolvers<void>();
+    handle.interruptTurn = async () => handle.completeTurn("interrupted");
+    handle.startTurn = () => turn.promise;
+    const delivery = h.manager.steer(runId, "finish", PARENT).catch((error: unknown) => error);
+    await flush();
+    await h.manager.cancel(runId, PARENT);
+    expect(await delivery).toBeInstanceOf(Error);
+    turn.reject(new Error("cancelled prompt"));
+    await flush();
+    expect(h.manager.getStatus(runId).status).toBe("cancelled");
+    expect(handle.disposed).toBe(true);
+  });
+
+  it("ignores a late rejected prompt from an earlier accepted correction", async () => {
+    const h = makeHarness();
+    const { runId } = h.manager.spawn(PARENT, { agent: "codex", prompt: "go" });
+    await flush();
+    const handle = h.handles[0]!;
+    const first = Promise.withResolvers<void>();
+    const second = Promise.withResolvers<void>();
+    let starts = 0;
+    handle.interruptTurn = async () => handle.completeTurn("interrupted");
+    handle.startTurn = () => {
+      handle.update("working");
+      return starts++ === 0 ? first.promise : second.promise;
+    };
+    await h.manager.steer(runId, "first correction", PARENT);
+    await h.manager.steer(runId, "second correction", PARENT);
+    first.reject(new Error("previous prompt was interrupted"));
+    await flush();
+    expect(h.manager.getStatus(runId).status).toBe("running");
+    handle.completeTurn("completed");
+    second.resolve();
+    await flush();
+    expect(h.manager.getStatus(runId).status).toBe("completed");
+    expect(handle.disposed).toBe(true);
+  });
+
   it("fails a fallback steer when the interrupted child errors instead of settling", async () => {
     const h = makeHarness({ interruptError: "child crashed" });
     const { runId } = h.manager.spawn(PARENT, { agent: "codex", prompt: "go" });

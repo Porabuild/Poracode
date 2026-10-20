@@ -25,6 +25,7 @@ import {
 import type { JsonSchema, NativeBindingIr } from "./types";
 import { parseNativeBindingIr, supportedPortableSemanticValidatorIds } from "./validate";
 import { zodToJsonSchema } from "../jsonSchema";
+import { emitSwiftBindings } from "./emitSwift";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const generatedDirectory = join(here, "../../../../../protocol/remote/v3/generated/native");
@@ -55,7 +56,7 @@ describe("remote v3 native binding generator", () => {
         formatVersion: 5,
         protocolVersion: 14,
         bindingFormatVersion: 2,
-        generatorVersion: 6,
+        generatorVersion: 7,
         // Optional readonly workspace-grant fields change generated bindings
         // without advertising mutation support or changing wire versions.
         // Selection-binding integration: protocol 13 adds the strict
@@ -72,26 +73,59 @@ describe("remote v3 native binding generator", () => {
         // Background task timing, progress and Stop add two structural types.
         // Optional question-answer metadata adds three structural types and two Swift chunks.
         // Source-host reviews add one route, nineteen procedures, and their native mirrors.
-        sourceHash: "sha256:ae1d833689d2417afca6428f0353615a82892bcd6649b9f383ef55290f0e737d",
-        manifestHash: "sha256:dfe49d8693fa888dbea8ffc51860f0dcb161264101b077295661d30bb922b269",
+        sourceHash: "sha256:04df2d8b21ef28d46e6291027ef95ce4503c0dec42ae06a592a97cbf55b20d84",
+        manifestHash: "sha256:1146bab4940014d704c298b48868ee58b6d33eda9c4344d9e2d9a289ae07207c",
         counts: {
-          routes: 101,
+          routes: 102,
           procedures: 149,
           voidProcedureResults: 58,
           jsonProcedureResults: 91,
           webSocketClientVariants: 9,
           // 10 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
           webSocketServerVariants: 11,
-          schemaRoots: 473,
-          structuralTypes: 1054,
+          schemaRoots: 475,
+          structuralTypes: 1067,
           semanticValidators: 25,
-          swiftFiles: 67,
+          swiftFiles: 68,
           kotlinFiles: 58,
           stateMachines: 5,
         },
       });
     },
   );
+
+  it("escapes the authoritative search archived flag Swift enum identifiers", () => {
+    const { ir, manifest } = input();
+    const output = buildNativeBindingOutput(ir, manifest).files;
+    const models = Object.entries(output)
+      .filter(([path]) => path.startsWith("swift/Models"))
+      .map(([, contents]) => contents)
+      .join("\n");
+    const declaration = models.match(
+      /public enum RouteconversationU2DSearchQueryU2DIncludeArchived_[a-f0-9]+: String, Codable, Sendable \{([^}]+)\}/,
+    );
+    expect(declaration?.[1]).toBe('\n  case `true` = "true"\n  case `false` = "false"\n');
+  });
+
+  it("preserves escaped Swift enum member names, wire values and collision suffixes", () => {
+    const { ir, manifest } = input();
+    const graph = buildNativeSchemaGraph([
+      {
+        id: "synthetic.enum-identifiers",
+        preferredName: "EnumIdentifiers",
+        schema: { type: "string", enum: ["normal", "true", "false", "Foo", "foo"] },
+        transport: "test",
+      },
+    ]);
+    const output = emitSwiftBindings(parseNativeBindingIr(ir, manifest), graph);
+    expect(output["Models001.swift"]).toContain(
+      '  case `normal` = "normal"\n' +
+        '  case `true` = "true"\n' +
+        '  case `false` = "false"\n' +
+        '  case `foo` = "Foo"\n' +
+        '  case `foo_2c26b46b` = "foo"',
+    );
+  });
 
   it("ships the background-task reduce and follow-up queue in both native bundles", () => {
     const { ir, manifest } = input();
@@ -142,7 +176,7 @@ describe("remote v3 native binding generator", () => {
     expect(() => parseNativeBindingIr({ ...ir, bindingFormatVersion: 3 }, manifest)).toThrow(
       /unsupported binding format/,
     );
-    expect(() => parseNativeBindingIr({ ...ir, generatorVersion: 5 }, manifest)).toThrow(
+    expect(() => parseNativeBindingIr({ ...ir, generatorVersion: 6 }, manifest)).toThrow(
       /unsupported generator version/,
     );
     expect(() =>
@@ -325,7 +359,7 @@ describe("remote v3 native binding generator", () => {
       const output = buildNativeBindingOutput(ir, manifest).files;
       for (const language of ["swift", "kotlin"] as const) {
         const adapters = rootAdapters(graph, language);
-        expect(adapters).toHaveLength(473);
+        expect(adapters).toHaveLength(475);
         expect(
           adapters
             .map((adapter) => adapter.id)

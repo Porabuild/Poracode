@@ -43,7 +43,7 @@ export function readRuntimeClosure(mainBundleDir) {
     for (const dependency of manifest.dependencies ?? []) dependencies.add(dependency);
   }
   if (manifestFiles.length === 0) {
-    throw new Error(`No ssh-runtime manifests in ${mainBundleDir}. Build first (pnpm run build).`);
+    throw new Error(`No ssh-runtime manifests in ${mainBundleDir}. Build first (bun run build).`);
   }
   return {
     formatVersion: RUNTIME_CLOSURE_FORMAT_VERSION,

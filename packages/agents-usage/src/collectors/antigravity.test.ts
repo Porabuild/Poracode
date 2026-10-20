@@ -3,6 +3,7 @@ import {
   antigravityPool,
   antigravityPoolWindows,
   antigravityQuotaSummaryWindows,
+  antigravityRingGroups,
 } from "./antigravity";
 
 const NOW = 1_717_000_000_000;
@@ -87,6 +88,108 @@ describe("antigravityQuotaSummaryWindows", () => {
     expect(claudeWeekly?.resetsAt).toBeUndefined();
   });
 
+  it("supports separate Gemini 4 Argon and dynamic future quota groups and cadences", () => {
+    const windows = antigravityQuotaSummaryWindows({
+      groups: [
+        {
+          displayName: "Gemini Models",
+          buckets: [
+            { bucketId: "gemini-weekly", window: "weekly", remainingFraction: 0.8 },
+            { bucketId: "gemini-5h", window: "5h", remainingFraction: 0.4 },
+          ],
+        },
+        {
+          displayName: "Claude and GPT models",
+          buckets: [
+            { bucketId: "3p-weekly", window: "weekly", remainingFraction: 0.9 },
+            { bucketId: "3p-5h", window: "5h", remainingFraction: 0.7 },
+          ],
+        },
+        {
+          displayName: "Gemini 4 Argon",
+          description:
+            "For paid Pro plans, Argon quota is separate. Higher Argon quota is available on Ultra plans.",
+          buckets: [
+            {
+              bucketId: "gemini-argon-wtu-weekly",
+              displayName: "Gemini 4 Argon Weekly Limit",
+              window: "weekly",
+              remainingFraction: 0.38767335,
+              resetTime: "2026-10-24T08:59:08Z",
+            },
+          ],
+        },
+        {
+          displayName: "Experimental Frontier Models",
+          buckets: [
+            { bucketId: "frontier-daily", window: "daily", remainingFraction: 0.5 },
+            { bucketId: "frontier-1h", window: "1h", remainingFraction: 0.25 },
+          ],
+        },
+      ],
+    });
+
+    expect(windows.map((w) => [w.id, w.label, w.usedPercent])).toEqual([
+      ["antigravity:gemini:session-5h", "Gemini · 5h", 60],
+      ["antigravity:gemini:weekly", "Gemini · Weekly", 20],
+      ["antigravity:claude:session-5h", "Claude · 5h", 30],
+      ["antigravity:claude:weekly", "Claude · Weekly", 10],
+      ["antigravity:gemini-4-argon:weekly", "Gemini 4 Argon · Weekly", 61.2],
+      ["antigravity:experimental-frontier:1h", "Experimental Frontier · 1h", 75],
+      ["antigravity:experimental-frontier:daily", "Experimental Frontier · Daily", 50],
+    ]);
+  });
+
+  it("parses the agy -p '/usage' --output-format json snake_case envelope", () => {
+    const windows = antigravityQuotaSummaryWindows({
+      command: {
+        data: {
+          groups: [
+            {
+              name: "Gemini Models",
+              buckets: [
+                {
+                  id: "gemini-5h",
+                  name: "Gemini 5 Hour Limit",
+                  window: "5h",
+                  remaining_fraction: 1,
+                  reset_time: "2026-04-20T22:55:27Z",
+                },
+              ],
+            },
+            {
+              name: "Gemini 4 Argon",
+              buckets: [
+                {
+                  id: "gemini-argon-wtu-weekly",
+                  name: "Gemini 4 Argon Weekly Limit",
+                  window: "weekly",
+                  remaining_fraction: 0.39,
+                  reset_time: "2026-10-24T08:59:08Z",
+                },
+              ],
+            },
+          ],
+        },
+      },
+    });
+
+    expect(windows).toEqual([
+      {
+        id: "antigravity:gemini:session-5h",
+        label: "Gemini · 5h",
+        usedPercent: 0,
+        resetsAt: Date.parse("2026-04-20T22:55:27Z"),
+      },
+      {
+        id: "antigravity:gemini-4-argon:weekly",
+        label: "Gemini 4 Argon · Weekly",
+        usedPercent: 61,
+        resetsAt: Date.parse("2026-10-24T08:59:08Z"),
+      },
+    ]);
+  });
+
   it("skips buckets without a numeric fraction or recognizable cadence", () => {
     const windows = antigravityQuotaSummaryWindows({
       response: {
@@ -95,7 +198,7 @@ describe("antigravityQuotaSummaryWindows", () => {
             displayName: "Gemini Models",
             buckets: [
               { window: "weekly" }, // no remainingFraction
-              { window: "daily", remainingFraction: 0.5 }, // unknown cadence
+              { displayName: "Unlabeled Limit", remainingFraction: 0.5 }, // no window and unrecognized displayName
               { window: "5h", remainingFraction: 0.5 },
             ],
           },
@@ -118,12 +221,68 @@ describe("antigravityQuotaSummaryWindows", () => {
   });
 });
 
+describe("antigravityRingGroups", () => {
+  it("derives dynamic ring groups when additional groups such as Gemini 4 Argon are present", () => {
+    const groups = antigravityRingGroups([
+      { id: "antigravity:gemini:session-5h", label: "Gemini · 5h", usedPercent: 10 },
+      { id: "antigravity:gemini:weekly", label: "Gemini · Weekly", usedPercent: 20 },
+      { id: "antigravity:claude:session-5h", label: "Claude · 5h", usedPercent: 30 },
+      { id: "antigravity:claude:weekly", label: "Claude · Weekly", usedPercent: 40 },
+      {
+        id: "antigravity:gemini-4-argon:weekly",
+        label: "Gemini 4 Argon · Weekly",
+        usedPercent: 61,
+      },
+    ]);
+    expect(groups).toEqual([
+      {
+        key: "gemini",
+        label: "Gemini",
+        outer: ["antigravity:gemini:session-5h"],
+        inner: ["antigravity:gemini:weekly"],
+      },
+      {
+        key: "claude",
+        label: "Claude & GPT",
+        outer: ["antigravity:claude:session-5h"],
+        inner: ["antigravity:claude:weekly"],
+      },
+      {
+        key: "gemini-4-argon",
+        label: "Gemini 4 Argon",
+        outer: [],
+        inner: ["antigravity:gemini-4-argon:weekly"],
+      },
+    ]);
+  });
+
+  it("includes legacy pool IDs so Gemini ring selection works on hybrid/offline snapshots", () => {
+    const groups = antigravityRingGroups([
+      { id: "antigravity:gemini-pro", label: "Gemini Pro", usedPercent: 45 },
+      { id: "antigravity:gemini-flash", label: "Gemini Flash", usedPercent: 20 },
+      { id: "antigravity:gemini-argon", label: "Gemini 4 Argon", usedPercent: 60 },
+      { id: "antigravity:claude:session-5h", label: "Claude · 5h", usedPercent: 30 },
+      { id: "antigravity:claude:weekly", label: "Claude · Weekly", usedPercent: 40 },
+    ]);
+    expect(groups.find((g) => g.key === "gemini")?.outer).toEqual([
+      "antigravity:gemini:session-5h",
+      "antigravity:gemini-pro",
+      "antigravity:gemini-flash",
+    ]);
+    expect(groups.find((g) => g.key === "gemini-4-argon")?.outer).toEqual([
+      "antigravity:gemini-argon",
+    ]);
+  });
+});
+
 describe("antigravityPool", () => {
-  it("splits Gemini Pro / Flash and folds everything else into Claude", () => {
+  it("splits Gemini Pro / Flash / Argon and folds everything else into Claude", () => {
     expect(antigravityPool("Gemini 3.1 Pro (High)").id).toBe("gemini-pro");
     expect(antigravityPool("gemini-2.5-pro").id).toBe("gemini-pro");
     expect(antigravityPool("Gemini 3.5 Flash (Medium)").id).toBe("gemini-flash");
     expect(antigravityPool("gemini-2.5-flash-lite").id).toBe("gemini-flash");
+    expect(antigravityPool("Gemini 4 Argon (High)").id).toBe("gemini-argon");
+    expect(antigravityPool("gemini-4-argon-medium").id).toBe("gemini-argon");
     expect(antigravityPool("Claude Opus 4.6 (Thinking)").id).toBe("claude");
     expect(antigravityPool("Claude Sonnet 4.6").id).toBe("claude");
     // Non-Gemini, non-Claude models share the Claude pool.

@@ -259,9 +259,21 @@ export const DEFAULT_USAGE_DISABLED_PROVIDER_IDS = allUsageProviderDescriptors()
   .filter((id) => !DEFAULT_USAGE_ENABLED_PROVIDER_ID_SET.has(id));
 
 export const SIDEBAR_SHORTCUT_IDS = ["pullRequests", "githubActions", "schedules"] as const;
-export type SidebarShortcutId = (typeof SIDEBAR_SHORTCUT_IDS)[number];
+const sidebarShortcutIdSchema = z.union([
+  z.enum(SIDEBAR_SHORTCUT_IDS),
+  z.templateLiteral(["settings:", z.string().min(1)]),
+]);
+export type SidebarShortcutId = z.infer<typeof sidebarShortcutIdSchema>;
 
-export const THREAD_DOCK_KINDS = ["goal", "plan", "agents", "backgroundTasks", "images"] as const;
+export const THREAD_DOCK_KINDS = [
+  "goal",
+  "plan",
+  "agents",
+  "backgroundTasks",
+  "images",
+  "context",
+  "usage",
+] as const;
 export type ThreadDockKind = (typeof THREAD_DOCK_KINDS)[number];
 
 export function normalizeSidebarShortcutOrder(
@@ -514,9 +526,9 @@ export const sharedSettingsSchema = z.object({
   /** Show the projectless Home scope for OS-level agent sessions. */
   homeScopeEnabled: z.boolean(),
   /** Footer shortcuts hidden from both the expanded and collapsed sidebar. */
-  sidebarHiddenShortcuts: z.array(z.enum(SIDEBAR_SHORTCUT_IDS)),
+  sidebarHiddenShortcuts: z.array(sidebarShortcutIdSchema),
   /** Display order for shortcuts in the expanded and collapsed sidebar footer. */
-  sidebarShortcutOrder: z.array(z.enum(SIDEBAR_SHORTCUT_IDS)),
+  sidebarShortcutOrder: z.array(sidebarShortcutIdSchema),
   /**
    * Translucent ("liquid glass") sidebar. When on, the window uses a
    * native blur material where supported (macOS vibrancy, Windows 11 acrylic)
@@ -1666,6 +1678,7 @@ export function migrateSharedSettingsValues(
     migrateRetiredQwenPreviewModel({
       ...normalized,
       sidebarShortcutOrder: normalizeSidebarShortcutOrder(normalized.sidebarShortcutOrder),
+      // Older orders remain valid; normalization appends newly supported sections.
       threadDocksOrder: normalizeThreadDocksOrder(normalized.threadDocksOrder),
       // Legacy `chrome_`-prefixed tool names are normalized once here at the
       // load boundary so the Zod schema (and the remote-v3 wire derived from

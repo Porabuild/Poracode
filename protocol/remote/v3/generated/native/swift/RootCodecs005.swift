@@ -1,6 +1,14 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
 public extension RemoteRootCodecs {
+  static let routeU2EThreadU2DTurnsU2EQuery: RemoteRootCodec<RoutethreadU2DTurnsQuery_cab926bfae> = .init(id: "route.thread-turns.query", schema: RemoteSchemas.schema_cab926bfae4fdbf9)
+}
+
+public extension RemoteRootCodecs {
+  static let routeU2EThreadU2DTurnsU2EResponse: RemoteRootCodec<RoutethreadU2DTurnsResponse_1f8c0bbd10> = .init(id: "route.thread-turns.response", schema: RemoteSchemas.schema_1f8c0bbd106d043e)
+}
+
+public extension RemoteRootCodecs {
   static let routeU2ETokenU2DExchangeU2ERequest: RemoteRootCodec<RoutetokenU2DExchangeRequest_39bc2baf33> = .init(id: "route.token-exchange.request", schema: RemoteSchemas.schema_39bc2baf33179ca7)
 }
 

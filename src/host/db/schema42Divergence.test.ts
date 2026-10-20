@@ -1,7 +1,11 @@
 import { afterEach, describe, expect, it } from "vitest";
 import type { Project, Thread } from "@/shared/contracts";
 import { closeDatabase, initDatabase } from "./connection";
-import { removeReviewScopeFixtureSchema } from "./runtimeItems.testFixtures";
+import {
+  removeReviewScopeFixtureSchema,
+  removeCostSchemaForDowngrade,
+  removeConversationSearchFixtureSchema,
+} from "./runtimeItems.testFixtures";
 import {
   assertRequiredDatabaseSchema,
   LATEST_SCHEMA_VERSION,
@@ -56,6 +60,8 @@ describe("schema-42 lineage join", () => {
 
     sqlite.exec("DROP TABLE main_created_threads");
     removeReviewScopeFixtureSchema(sqlite);
+    removeConversationSearchFixtureSchema(sqlite);
+    removeCostSchemaForDowngrade(sqlite);
     sqlite.prepare("UPDATE app_state SET value = '42' WHERE key = 'schema_version'").run();
     expect(() => assertRequiredDatabaseSchema(sqlite)).toThrow(/main_created_threads/);
 

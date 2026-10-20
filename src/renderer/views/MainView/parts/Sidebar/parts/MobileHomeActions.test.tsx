@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PoracodeBridge } from "@/shared/ipc";
-import { resetAdaptiveLayoutForTest } from "@/renderer/adaptiveLayout";
+import { initializeAdaptiveLayout, resetAdaptiveLayoutForTest } from "@/renderer/adaptiveLayout";
 import { installBrowserClientRuntime, resetClientRuntimeForTest } from "@/renderer/clientRuntime";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
@@ -9,6 +9,11 @@ import { useSidebarOverlayStore } from "@/renderer/state/sidebarOverlayStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { MobileHomeActions } from "./MobileHomeActions";
+
+vi.mock("@/renderer/bridge", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/renderer/bridge")>()),
+  isDevApp: () => false,
+}));
 
 describe("MobileHomeActions", () => {
   beforeEach(() => {
@@ -21,7 +26,10 @@ describe("MobileHomeActions", () => {
       portsPanelOpen: false,
       mobileUtilityPage: null,
     });
-    useSharedSettings.setState({ sidebarHiddenShortcuts: ["githubActions"] });
+    useSharedSettings.setState({
+      sidebarHiddenShortcuts: ["githubActions"],
+      sidebarShortcutOrder: ["pullRequests", "githubActions", "schedules"],
+    });
     useSidebarOverlayStore.setState({ isCollapsed: false, isNarrow: false });
     useRemoteServersStore.setState({
       servers: [],
@@ -31,7 +39,36 @@ describe("MobileHomeActions", () => {
     });
   });
 
-  afterEach(() => resetClientRuntimeForTest());
+  afterEach(() => {
+    resetClientRuntimeForTest();
+    resetAdaptiveLayoutForTest();
+    vi.unstubAllGlobals();
+  });
+
+  it("opens the pinned Profile page once on compact clients without a paired desktop", async () => {
+    installBrowserClientRuntime({} as PoracodeBridge);
+    vi.stubGlobal("matchMedia", (query: string) => ({
+      matches: query === "(max-width: 767px)",
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }));
+    initializeAdaptiveLayout();
+    useSharedSettings.getState().setSidebarShortcutVisible("settings:profile", true);
+    render(<MobileHomeActions />);
+    fireEvent.click(screen.getByRole("button", { name: "More" }));
+    const profile = await screen.findByRole("button", { name: "Profile" });
+    expect(screen.getAllByRole("button", { name: "Profile" })).toHaveLength(1);
+    expect(profile).not.toHaveAttribute("aria-disabled");
+    fireEvent.click(profile);
+    await waitFor(() =>
+      expect(usePanelStore.getState()).toMatchObject({
+        settingsOpen: false,
+        mobileUtilityPage: "settings",
+        settingsSection: "profile",
+      }),
+    );
+  });
 
   it("opens the mobile More surface as a bottom sheet", async () => {
     render(<MobileHomeActions />);

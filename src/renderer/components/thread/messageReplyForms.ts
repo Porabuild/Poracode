@@ -5,7 +5,7 @@ import {
   type RuntimeChatItem,
 } from "@/renderer/state/slices/runtimeEventSlice";
 import { readThreadInputDelivery } from "@/renderer/state/threadInputDelivery";
-import { messageReplyFormText } from "@/shared/messageReplyForm";
+import { isMessageReplyFormFallbackText } from "@/shared/messageReplyForm";
 import { readMessageReplyAnswer } from "./ChatPane/parts/items/messageReplyAnswerPayload";
 
 const EMPTY_IDS: readonly string[] = Object.freeze([]);
@@ -43,15 +43,15 @@ function messageReplyForms(state: ReplyFormState, threadId: string) {
         pendingIds.push(id);
     } else if (item.type === "user_message") {
       const delivery = readThreadInputDelivery(item.payload);
+      if (delivery === "failed") continue;
+      const sourceIds = pendingIds;
       if (delivery === "pending") {
         for (const sourceId of pendingIds) replyStates.set(sourceId, "pending");
-        continue;
+      } else {
+        // A normal composer reply also supersedes outstanding async questions.
+        pendingIds = [];
+        for (const sourceId of sourceIds) replyStates.set(sourceId, "answered");
       }
-      if (delivery === "failed") continue;
-      // A normal composer reply also supersedes outstanding async questions.
-      const sourceIds = pendingIds;
-      pendingIds = [];
-      for (const sourceId of sourceIds) replyStates.set(sourceId, "answered");
       const payload = getRuntimeItemPayload<MessageItemPayload>(item, "user_message");
       if (!payload || (!payload.questionAnswer && sourceIds.length === 0)) continue;
       if (!payload.content.every((block) => block.kind === "text")) continue;
@@ -105,9 +105,5 @@ export function selectMessageReplyState(
 /** Generated question text belongs to the composer; independent assistant context stays in chat. */
 export function isMessageReplyFormFallback(item: RuntimeChatItem, text: string): boolean {
   const form = getRuntimeItemPayload<MessageItemPayload>(item, "assistant_message")?.replyForm;
-  return (
-    !!form &&
-    !item.parentItemId &&
-    (!text.trim() || text.trim() === messageReplyFormText(form).trim())
-  );
+  return !item.parentItemId && isMessageReplyFormFallbackText(form, text);
 }

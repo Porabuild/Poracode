@@ -110,7 +110,13 @@ function PrReviewContent(props: {
           <PrMetaRow prKey={prKey} cacheKey={cacheKey} />
         </div>
       )}
-      <PrHeaderCard cacheKey={cacheKey} canEdit={canEdit} saving={editSaving} onSave={onEditPr} />
+      <PrHeaderCard
+        key={`${cacheKey}:${reviewSourceIdentity(details?.source)}:${canEdit}`}
+        cacheKey={cacheKey}
+        canEdit={canEdit}
+        saving={editSaving}
+        onSave={onEditPr}
+      />
       <div className="min-h-0 flex-1">
         <PrTabs
           active={activeTab}
@@ -165,6 +171,8 @@ export function PrReviewOverlay(props: {
 
   const source = useGitStore((s) => s.prData[prKey]?.source);
   const sourceIdentity = reviewSourceIdentity(source);
+  const currentPrNumber = useGitStore((s) => s.prData[prKey]?.number);
+  const headSha = useGitStore((s) => s.prData[prKey]?.headSha);
   const files = useGitStore((s) => s.prFiles[cacheKey]);
   const rawDiff = useGitStore((s) => s.prDiffs[cacheKey]);
   const details = useGitStore((s) => s.prDetails[cacheKey]);
@@ -177,6 +185,7 @@ export function PrReviewOverlay(props: {
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [diffMode, setDiffMode] = useState<number>(DIFF_MODE.Split);
   const [loading, setLoading] = useState(false);
+  const [loadedHead, setLoadedHead] = useState<string | null | undefined>(null);
   const loadGeneration = useRef(0);
   const [activeTab, setActiveTab] = useState<PrTabKey>("conversation");
 
@@ -202,12 +211,14 @@ export function PrReviewOverlay(props: {
       return (
         current !== null &&
         (!current || current.number === prNumber) &&
-        reviewSourceIdentity(current?.source) === sourceIdentity
+        reviewSourceIdentity(current?.source) === sourceIdentity &&
+        current?.headSha === headSha
       );
     };
     if (!hasCurrentSource()) return;
     const generation = ++loadGeneration.current;
     const isCurrent = () => generation === loadGeneration.current && hasCurrentSource();
+    setLoadedHead(null);
     setLoading(true);
     try {
       await Promise.all([
@@ -250,6 +261,7 @@ export function PrReviewOverlay(props: {
             }
           }),
       ]);
+      if (isCurrent()) setLoadedHead(headSha);
     } catch (err) {
       if (isCurrent()) toast.danger(friendlyError(err));
     } finally {
@@ -267,6 +279,10 @@ export function PrReviewOverlay(props: {
     setSelectedFile(null);
     setActiveTab("conversation");
     setLoading(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reset navigation only when the review identity changes
+  }, [cacheKey, prKey, sourceIdentity, currentPrNumber]);
+
+  useEffect(() => {
     // Always refetch on open so a stale cache from a previous session never
     // hides new comments / commits / checks.
     void load();
@@ -275,9 +291,10 @@ export function PrReviewOverlay(props: {
       loadGeneration.current++;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- reload/reset when switching PRs or their source identity
-  }, [cacheKey, prKey, sourceIdentity]);
+  }, [cacheKey, prKey, sourceIdentity, currentPrNumber, headSha]);
 
   const cacheMatchesSource = reviewCacheMatchesSource(source, details?.source);
+  const reviewReady = !loading && loadedHead === headSha && currentPrNumber === prNumber;
   const reviewFiles = cacheMatchesSource ? files : undefined;
   const reviewDiff = cacheMatchesSource ? rawDiff : undefined;
   const viewedScope = reviewViewedScope(source, project.id, prNumber);
@@ -300,7 +317,12 @@ export function PrReviewOverlay(props: {
     },
   });
   const patches = splitUnifiedDiff(reviewDiff ?? "");
-  const canEdit = (details?.source ?? source)?.capabilities.edit === true && cacheMatchesSource;
+  const canEdit =
+    currentPrNumber === prNumber &&
+    details?.number === prNumber &&
+    (details.source ?? source)?.capabilities.edit === true &&
+    cacheMatchesSource &&
+    reviewReady;
   const fileFingerprint = (file: PrFile) => viewedFingerprint(patches.get(file.path), file);
   const viewedAbsorb = useRef(viewed.absorb);
   viewedAbsorb.current = viewed.absorb;
@@ -352,9 +374,11 @@ export function PrReviewOverlay(props: {
       {...(skipLocalSync ? { skipLocalSync: true } : {})}
       onSelectFile={selectFilePage}
       onClose={onClose}
-      prLoading={prLoading}
+      prLoading={prLoading || !reviewReady}
       pendingAction={pendingAction}
-      handleMergePr={handleMergePr}
+      handleMergePr={(method, admin) =>
+        reviewReady ? handleMergePr(method, admin) : Promise.resolve()
+      }
       handleClosePr={handleClosePr}
       handleMarkPrReady={handleMarkPrReady}
       handleUpdatePrBranch={handleUpdatePrBranch}
@@ -539,7 +563,16 @@ export function PrReviewOverlay(props: {
               diffMode={diffMode}
               canEdit={canEdit}
               editSaving={pendingAction === "edit"}
-              onEditPr={(title, body) => handleEditPr({ title, body })}
+              onEditPr={(title, body) => {
+                const current = useGitStore.getState().prData[prKey];
+                if (
+                  !canEdit ||
+                  current?.number !== prNumber ||
+                  reviewSourceIdentity(current.source) !== sourceIdentity
+                )
+                  return Promise.resolve(false);
+                return handleEditPr({ title, body });
+              }}
             />
             {compactLayout ? (
               <div className="pointer-events-none absolute inset-x-0 bottom-3 z-10 flex items-end justify-between gap-[var(--m-floating-control-gap)] px-[var(--m-page-inline)]">

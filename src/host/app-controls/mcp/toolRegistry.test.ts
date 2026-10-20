@@ -2,6 +2,12 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { dbSearchConversations } from "@/host/db/conversationSearch";
+vi.mock("@/host/db/conversationSearch", () => ({
+  dbSearchConversations: vi.fn<
+    (typeof import("@/host/db/conversationSearch"))["dbSearchConversations"]
+  >(async () => ({ version: 1, entries: [], nextCursor: null, indexing: false })),
+}));
 import type {
   AgentStatusesResponse,
   CloseThreadPayload,
@@ -249,8 +255,6 @@ function context(
     forgeGetRepository: vi.fn<SC["forgeGetRepository"]>(),
     forgeEditPr: vi.fn<SC["forgeEditPr"]>(),
     forgeCreatePr: vi.fn<SC["forgeCreatePr"]>(),
-    forgeGetPrForBranch: vi.fn<SC["forgeGetPrForBranch"]>(),
-    forgeListPrs: vi.fn<SC["forgeListPrs"]>(),
     forgeListPullRequests: vi.fn<SC["forgeListPullRequests"]>(),
     forgeMergePr: vi.fn<SC["forgeMergePr"]>(),
     forgeMergePrAtHead: vi.fn<SC["forgeMergePrAtHead"]>(),
@@ -1603,9 +1607,74 @@ describe("Poracode app control tools — search", () => {
       files?: unknown;
     };
     expect(result.threads.map((t) => t.threadId)).toEqual(["a"]);
+    expect(dbSearchConversations).toHaveBeenCalledWith({
+      version: "1",
+      query: "login",
+      includeArchived: "true",
+    });
     expect(result.files).toBeUndefined();
     expect(supervisor.searchProjectFiles).not.toHaveBeenCalled();
   });
+
+  it("forwards message cursors and project/archive filters to host search", async () => {
+    const { ctx } = context({ projects });
+    await dispatchTool(
+      "search",
+      {
+        query: "needle",
+        scope: "messages",
+        projectId: "p1",
+        cursor: "cs1.test",
+        includeArchived: false,
+      },
+      ctx,
+    );
+    expect(dbSearchConversations).toHaveBeenLastCalledWith({
+      version: "1",
+      query: "needle",
+      projectId: "p1",
+      cursor: "cs1.test",
+      includeArchived: "false",
+    });
+  });
+
+  it.each([undefined, "all"])(
+    "returns only messages for a continuation of scope %s",
+    async (scope) => {
+      const { ctx, supervisor } = context({
+        projects,
+        threads: [makeThread({ id: "a", title: "Alpha" })],
+      });
+      const result = await dispatchTool(
+        "search",
+        { query: "Alpha", projectId: "p1", cursor: "cs1.next", ...(scope ? { scope } : {}) },
+        ctx,
+      );
+      expect(result).toEqual({
+        query: "Alpha",
+        scope: "messages",
+        messages: { version: 1, entries: [], nextCursor: null, indexing: false },
+      });
+      expect(dbSearchConversations).toHaveBeenLastCalledWith({
+        version: "1",
+        query: "Alpha",
+        projectId: "p1",
+        cursor: "cs1.next",
+        includeArchived: "true",
+      });
+      expect(supervisor.searchProjectFiles).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(["threads", "projects", "files"])(
+    "rejects a message cursor in scope %s instead of ignoring it",
+    async (scope) => {
+      const { ctx } = context({ projects });
+      await expect(
+        dispatchTool("search", { query: "Alpha", scope, cursor: "cs1.next" }, ctx),
+      ).rejects.toThrow("Search cursors require scope 'messages' or 'all'.");
+    },
+  );
 
   it("file scope requires a projectId", async () => {
     const { ctx } = context({ projects });

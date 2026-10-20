@@ -34,6 +34,11 @@ class MockResizeObserver {
   }
 }
 
+vi.mock("@/renderer/bridge", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/renderer/bridge")>()),
+  isDevApp: () => false,
+}));
+
 describe("SidebarFooterNav", () => {
   beforeEach(() => {
     localStorage.clear();
@@ -108,6 +113,48 @@ describe("SidebarFooterNav", () => {
     expect(screen.getByRole("button", { name: "Expand footer" })).toBeInTheDocument();
   });
 
+  it.each(["general", "remoteAccess"] as const)(
+    "marks the expanded %s destination current after its deep link is consumed",
+    (section) => {
+      usePanelStore.setState({
+        settingsOpen: true,
+        settingsSection: null,
+        activeSettingsSection: section,
+      });
+      render(<SidebarFooterNav remoteAccessStatus="off" />);
+
+      const settings = screen.getByRole("button", { name: "Settings" });
+      const remoteAccess = screen.getByRole("button", { name: "Remote Access" });
+      const current = section === "general" ? settings : remoteAccess;
+      const other = section === "general" ? remoteAccess : settings;
+      expect(current).toHaveClass("bg-[var(--row-active)]");
+      expect(current).toHaveAttribute("aria-current", "page");
+      expect(other).not.toHaveAttribute("aria-current");
+
+      act(() => usePanelStore.getState().closeSettings());
+      expect(settings).not.toHaveAttribute("aria-current");
+      expect(remoteAccess).not.toHaveAttribute("aria-current");
+    },
+  );
+
+  it("opens pinned settings with the keyboard and marks only their current destination", () => {
+    useSharedSettings.setState({
+      sidebarShortcutOrder: ["settings:profile", "pullRequests", "schedules", "githubActions"],
+    });
+    render(<SidebarFooterNav remoteAccessStatus="off" />);
+    const profile = screen.getByRole("button", { name: "Profile" });
+    fireEvent.keyDown(profile, { key: "Enter" });
+    expect(usePanelStore.getState().settingsSection).toBe("profile");
+    expect(profile).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("button", { name: "Settings" })).not.toHaveClass(
+      "bg-[var(--row-active)]",
+    );
+    act(() => usePanelStore.getState().clearSettingsSection());
+    expect(profile).toHaveAttribute("aria-current", "page");
+    fireEvent.click(screen.getByRole("button", { name: "Collapse footer" }));
+    expect(screen.getByRole("button", { name: "Profile" })).toHaveAttribute("aria-current", "page");
+  });
+
   describe("overflow", () => {
     beforeEach(() => {
       // jsdom measures 0 everywhere (read as "unmeasured" → no overflow), so
@@ -145,11 +192,11 @@ describe("SidebarFooterNav", () => {
 
       const menu = await screen.findByRole("menu");
       expect(menu).toBeInTheDocument();
-      expect(screen.getByRole("menuitem", { name: "Pull requests" })).toBeInTheDocument();
-      expect(screen.getByRole("menuitem", { name: "Schedules" })).toBeInTheDocument();
-      expect(screen.getByRole("menuitem", { name: "Remote Access" })).toBeInTheDocument();
+      expect(screen.getByRole("menuitemradio", { name: "Pull requests" })).toBeInTheDocument();
+      expect(screen.getByRole("menuitemradio", { name: "Schedules" })).toBeInTheDocument();
+      expect(screen.getByRole("menuitemradio", { name: "Remote Access" })).toBeInTheDocument();
 
-      fireEvent.click(screen.getByRole("menuitem", { name: "Settings" }));
+      fireEvent.click(screen.getByRole("menuitemradio", { name: "Settings" }));
       expect(usePanelStore.getState().settingsOpen).toBe(true);
     });
 
@@ -164,6 +211,24 @@ describe("SidebarFooterNav", () => {
       const trigger = screen.getByRole("button", { name: "More" });
       expect(trigger.className).toContain("bg-[var(--row-active)]");
       expect(trigger.className).not.toContain("text-muted");
+    });
+
+    it("marks an overflowed Settings shortcut current and navigates to it directly", async () => {
+      useSidebarUiStore.setState({ footerCollapsed: true });
+      useSharedSettings.setState({
+        sidebarShortcutOrder: ["settings:profile", "pullRequests", "githubActions", "schedules"],
+      });
+      usePanelStore.setState({
+        settingsOpen: true,
+        settingsSection: null,
+        activeSettingsSection: "profile",
+      });
+      render(<SidebarFooterNav remoteAccessStatus="off" />);
+      fireEvent.click(screen.getByRole("button", { name: "More" }));
+      const profile = await screen.findByRole("menuitemradio", { name: "Profile" });
+      expect(profile).toHaveAttribute("aria-checked", "true");
+      fireEvent.click(profile);
+      expect(usePanelStore.getState().settingsSection).toBe("profile");
     });
 
     it("leaves the kebab inactive when nothing hidden is active", () => {

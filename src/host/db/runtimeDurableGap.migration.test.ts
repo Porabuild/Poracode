@@ -13,6 +13,8 @@ import {
   sqliteAvailable,
   testThread,
   removeReviewScopeFixtureSchema,
+  removeCostSchemaForDowngrade,
+  removeConversationSearchFixtureSchema,
 } from "./runtimeItems.testFixtures";
 import { resetRuntimePersistenceForTests } from "./runtimePersistenceRuntime";
 
@@ -69,6 +71,8 @@ describe.skipIf(!sqliteAvailable)("runtime durable-gap migrations (48, 49)", () 
     const raw = rawDatabase();
     for (const table of [NOTICE_TABLE, ...GAP_TABLES]) raw.exec(`DROP TABLE ${table}`);
     removeReviewScopeFixtureSchema(raw);
+    removeConversationSearchFixtureSchema(raw);
+    removeCostSchemaForDowngrade(raw);
     raw.prepare("UPDATE app_state SET value = '47' WHERE key = 'schema_version'").run();
     raw.close();
   }
@@ -119,6 +123,8 @@ describe.skipIf(!sqliteAvailable)("runtime durable-gap migrations (48, 49)", () 
       UPDATE app_state SET value = '48' WHERE key = 'schema_version';
     `);
     removeReviewScopeFixtureSchema(raw);
+    removeConversationSearchFixtureSchema(raw);
+    removeCostSchemaForDowngrade(raw);
     raw.close();
   }
 
@@ -131,7 +137,7 @@ describe.skipIf(!sqliteAvailable)("runtime durable-gap migrations (48, 49)", () 
 
   it("appends the evidence tables and the singleton epoch row to a schema-47 profile", () => {
     downgradeToSchema47WithoutEvidenceTables();
-    expect(LATEST_SCHEMA_VERSION).toBe(62);
+    expect(LATEST_SCHEMA_VERSION).toBe(64);
 
     initDatabase(dbPath);
     const sqlite = rawDatabase();
@@ -262,6 +268,8 @@ describe.skipIf(!sqliteAvailable)("runtime durable-gap migrations (48, 49)", () 
     closeDatabase();
     const raw = rawDatabase();
     removeReviewScopeFixtureSchema(raw);
+    removeConversationSearchFixtureSchema(raw);
+    removeCostSchemaForDowngrade(raw);
     raw.exec(`UPDATE app_state SET value = '59' WHERE key = 'schema_version';
       INSERT INTO thread_runtime_gap_notices VALUES
         ('suspect-empty', 'gap2:s8', 'suspect', 'unclean-epoch', 0, 0, 1, 1, 1),
@@ -285,7 +293,7 @@ describe.skipIf(!sqliteAvailable)("runtime durable-gap migrations (48, 49)", () 
     initDatabase(dbPath);
     expect(
       getSqlite().prepare("SELECT value FROM app_state WHERE key = 'schema_version'").get(),
-    ).toEqual({ value: "62" });
+    ).toEqual({ value: "64" });
     expect(
       getSqlite().prepare("SELECT * FROM thread_runtime_gap_notices ORDER BY thread_id").all(),
     ).toEqual(keptNotices);

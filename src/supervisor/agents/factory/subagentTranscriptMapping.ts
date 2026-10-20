@@ -81,6 +81,22 @@ export function isFactoryTaskTool(update: Record<string, unknown>): boolean {
   return title === "task" || name === "task" || factoryString(rawInput.subagent_type) !== undefined;
 }
 
+export function factoryBackgroundTaskSessionId(
+  update: Record<string, unknown>,
+): string | undefined {
+  const output = update.rawOutput;
+  const text =
+    (typeof output === "string" ? output : factoryString(factoryRecord(output).text)) ??
+    (Array.isArray(update.content)
+      ? update.content
+          .map((entry) => factoryRecord(factoryRecord(entry).content).text)
+          .filter((value): value is string => typeof value === "string")
+          .join("\n")
+      : undefined);
+  if (!text?.startsWith("Task launched in background.")) return undefined;
+  return /^session_id:\s*(\S+)\s*$/mu.exec(text)?.[1];
+}
+
 export function factoryRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)

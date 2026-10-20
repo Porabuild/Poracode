@@ -518,6 +518,29 @@ export class GitHubService {
   async forReviewRepository(location: ProjectLocation, account?: GitHubAccountRef) {
     const service = new GitHubService();
     service.wslClient = this.wslClient;
+    let selectedToken: string | undefined;
+    if (account) {
+      const [remotes, defaultRepository] = await Promise.all([
+        service.listGitRemotes(location),
+        service.actionsDefaultRepository(location),
+      ]);
+      const scope = repositoryScopeForAccount(remotes, defaultRepository, account);
+      if (scope.matchesHost && scope.repository) {
+        service.reviewEnvironment = {
+          GH_TOKEN: "",
+          GITHUB_TOKEN: "",
+          GH_ENTERPRISE_TOKEN: "",
+          GITHUB_ENTERPRISE_TOKEN: "",
+        };
+        try {
+          selectedToken = await service.getAccountToken(location, account);
+        } catch {
+          service.reviewEnvironment = undefined;
+          selectedToken = await service.getAccountToken(location, account);
+        }
+        service.reviewEnvironment = accountGhEnvironment(account, selectedToken, scope.repository);
+      }
+    }
     const raw = JSON.parse(
       await service.runGh(location, ["repo", "view", "--json", "nameWithOwner,url"]),
     ) as { nameWithOwner?: unknown; url?: unknown };
@@ -539,10 +562,10 @@ export class GitHubService {
     };
     const repositoryEnvironment = service.reviewEnvironment;
     let token: string;
-    if (account) {
-      // Stored-account selection must not inherit an unrelated ambient token.
+    if (selectedToken) {
+      token = selectedToken;
+    } else if (account) {
       service.reviewEnvironment = {
-        ...repositoryEnvironment,
         GH_TOKEN: "",
         GITHUB_TOKEN: "",
         GH_ENTERPRISE_TOKEN: "",
@@ -551,9 +574,7 @@ export class GitHubService {
       try {
         token = await service.getAccountToken(location, account);
       } catch {
-        // An environment-only login has no keyring slot. Its principal is
-        // checked under the frozen credential before any review operation.
-        service.reviewEnvironment = repositoryEnvironment;
+        service.reviewEnvironment = undefined;
         token = await service.getAccountToken(location, account);
       }
     } else {

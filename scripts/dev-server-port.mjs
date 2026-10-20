@@ -1,4 +1,4 @@
-// Single source of truth for the desktop dev-server port. `pnpm run dev`
+// Single source of truth for the desktop dev-server port. `bun run dev`
 // defaults to 3100; smoke runs and parallel worktrees override it with
 // PORACODE_DEV_SERVER_PORT so multiple dev apps can run side by side.
 // vite.config.ts inlines the same resolution (it cannot import this module

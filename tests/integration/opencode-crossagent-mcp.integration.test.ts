@@ -67,14 +67,14 @@ describe("opencode hosts Crossagents MCP on its shared server (live)", () => {
     rmSync(secondProjectDir, { recursive: true, force: true });
   });
 
-  it("reuses one server and routes the shared credential by session id", async () => {
+  it("reuses one server and routes the shared credential by session id", async (testCtx) => {
     if (!opencode) {
-      console.log("[oc-crossagents-int] SKIPPED: opencode adapter not registered");
+      testCtx.skip("opencode adapter not registered");
       return;
     }
     const status = await opencode.detectInstall().catch(() => undefined);
     if (!status?.installed) {
-      console.log(`[oc-crossagents-int] SKIPPED: opencode installed=${status?.installed}`);
+      testCtx.skip(`opencode: installed=${status?.installed}`);
       return;
     }
 

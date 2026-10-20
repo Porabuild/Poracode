@@ -18,19 +18,19 @@ public struct ProcedureensureThreadRunningRequestU2DInitialSize_55ee222c09: Coda
 public typealias ProcedureensureThreadRunningRequestU2DMentionHandoff_d2dd3595e1 = Bool
 
 public enum ProcedureensureThreadRunningRequestU2DProviderSwitchU2DContextStrategy_9136743498: String, Codable, Sendable {
-  case threadU2DTranscript = "thread-transcript"
-  case contextU2DFile = "context-file"
+  case `threadU2DTranscript` = "thread-transcript"
+  case `contextU2DFile` = "context-file"
 }
 
 public enum ProcedureensureThreadRunningRequestU2DProviderSwitchU2DPreviousStatus_8c61ed237d: String, Codable, Sendable {
-  case inactive = "inactive"
-  case launching = "launching"
-  case working = "working"
-  case idle = "idle"
-  case finished = "finished"
-  case needsU5FApproval = "needs_approval"
-  case needsU5FReply = "needs_reply"
-  case error = "error"
+  case `inactive` = "inactive"
+  case `launching` = "launching"
+  case `working` = "working"
+  case `idle` = "idle"
+  case `finished` = "finished"
+  case `needsU5FApproval` = "needs_approval"
+  case `needsU5FReply` = "needs_reply"
+  case `error` = "error"
 }
 
 public struct ProcedureensureThreadRunningRequestU2DProviderSwitch_06461b1492: Codable, Sendable, RemoteModelMetadata {
@@ -262,8 +262,8 @@ public struct ProcedureextractContextRequest_963874114b: Codable, Sendable, Remo
 }
 
 public enum ProcedureextractContextResultU2DContentKind_5aa9e435f6: String, Codable, Sendable {
-  case summary = "summary"
-  case transcript = "transcript"
+  case `summary` = "summary"
+  case `transcript` = "transcript"
 }
 
 public struct ProcedureextractContextResult_2a2641f29a: Codable, Sendable, RemoteModelMetadata {
@@ -378,13 +378,13 @@ public struct ProcedurefinalizeFileCheckpointResult_505ae61467: Codable, Sendabl
 }
 
 public enum ProcedureforgeClosePrRequestU2DForgeAccountU2DForge_eaed3cfbf4: String, Codable, Sendable {
-  case github = "github"
-  case gitlab = "gitlab"
-  case forgejo = "forgejo"
-  case gitea = "gitea"
-  case bitbucket = "bitbucket"
-  case azureU2DDevops = "azure-devops"
-  case gitcafe = "gitcafe"
+  case `github` = "github"
+  case `gitlab` = "gitlab"
+  case `forgejo` = "forgejo"
+  case `gitea` = "gitea"
+  case `bitbucket` = "bitbucket"
+  case `azureU2DDevops` = "azure-devops"
+  case `gitcafe` = "gitcafe"
 }
 
 public struct ProcedureforgeClosePrRequestU2DForgeAccount_c2bb40b82b: Codable, Sendable, RemoteModelMetadata {

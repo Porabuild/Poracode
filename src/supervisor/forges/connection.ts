@@ -259,7 +259,9 @@ export class ForgeConnections {
             const push = parseForgeRemote(url, "origin");
             if (!push) return false;
             const direct =
-              push.host === deployment.origin && (!subpath || push.path.startsWith(`${subpath}/`));
+              push.host === host ||
+              (push.host === deployment.origin &&
+                (!subpath || push.path.startsWith(`${subpath}/`)));
             const ssh = url.startsWith("ssh://") || !url.includes("://");
             const alias =
               ssh &&

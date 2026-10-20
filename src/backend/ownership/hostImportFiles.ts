@@ -121,21 +121,28 @@ export interface InventoryImportFilesOptions extends ImportFileOperationGuard {
   readonly skipRuntimeSingletonSymlinks?: boolean;
   /**
    * V6 C.4: skip Chromium cache directories (Cache, Code Cache, GPUCache,
-   * Service Worker, and Partitions/<profile>/Cache) instead of hashing and
-   * copying them. Scoped to the root-level Electron `userData` directory of
-   * the source — same-named directories at any other depth are user data
-   * and stay. Promotion-only; offline backups keep a full inventory.
+   * GPUPersistentCache, Service Worker, and Partitions/<profile>/Cache)
+   * instead of hashing and copying them. Scoped to the root-level Electron
+   * `userData` directory of the source — same-named directories at any other
+   * depth are user data and stay. Promotion-only; offline backups keep a
+   * full inventory.
    */
   readonly excludeChromiumCaches?: boolean;
   /** Called after each copied file with running totals (promotion progress). */
   readonly onCopyProgress?: (copiedBytes: number, totalBytes: number) => void;
 }
 
-/** Chromium per-profile cache directory names. Skipped only when promotion asks. */
+/**
+ * Chromium per-profile cache directory names. Skipped only when promotion asks.
+ * `GPUPersistentCache` holds the Dawn shader caches (DawnGraphiteCache,
+ * DawnWebGPUCache) newer Electron keeps as live SQLite databases — hashing
+ * them against a running source fails with EBUSY.
+ */
 const CHROMIUM_CACHE_DIRECTORY_NAMES = new Set([
   "Cache",
   "Code Cache",
   "GPUCache",
+  "GPUPersistentCache",
   "Service Worker",
 ]);
 

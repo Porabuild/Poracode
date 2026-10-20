@@ -76,6 +76,8 @@ export const functionalAreas = [
     patterns: [
       /agents\/devin\//i,
       /agents\/commandcode\//i,
+      /agents\/deepseek\//i,
+      /modelProviders/i,
       /providers?\//i,
       /agents\/registry/i,
       /agentRegistry/i,
@@ -120,13 +122,14 @@ export const functionalAreas = [
   },
   {
     id: "everything-search",
-    title: "Unified search, ranking, keyboard navigation, and file discovery",
+    title: "Unified search, saved messages, keyboard navigation, and file discovery",
     patterns: [
       /commands\//,
       /EverythingSearch/,
       /everythingSearch/,
       /searchMatching/,
       /ProjectSearchIndex/,
+      /[Cc]onversationSearch/,
     ],
     automated: ["everything-search"],
     manual: [],
@@ -201,7 +204,14 @@ export const functionalAreas = [
   {
     id: "settings",
     title: "Settings pages, persistence, profiles, and shortcuts",
-    patterns: [/Settings/i, /settings/i, /shortcut/i, /ProfileOverlay/i],
+    patterns: [
+      /Settings/i,
+      /settings/i,
+      /shortcut/i,
+      /ProfileOverlay/i,
+      /host\/profile\//,
+      /contracts\/costHistory/,
+    ],
     automated: ["baseline", "settings"],
     manual: [],
   },

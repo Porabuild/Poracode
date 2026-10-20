@@ -25,6 +25,7 @@ import {
   requestDeleteThread,
   openNewThread,
   openThread,
+  claimThreadNavigation,
   reopenPaneThreadsIfInactive,
   reopenStoredThread,
   setThreadRuntimeReopenEnabled,
@@ -361,6 +362,57 @@ describe("threadActions", () => {
       expect(hydrateThreadRuntimeItems).toHaveBeenCalledExactlyOnceWith(thread.id);
       expect(useAppStore.getState().pendingThreadLaunches[thread.id]).toBeDefined();
       expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: [thread.id] });
+    } finally {
+      history.resolve();
+      reader?.release();
+      vi.useRealTimers();
+    }
+  });
+
+  it("cancels an older slow open when search claims navigation before resolving its row", async () => {
+    vi.useFakeTimers();
+    const history = Promise.withResolvers<void>();
+    hydrateThreadRuntimeItems.mockReturnValueOnce(history.promise);
+    const old = makeThread({ id: "old-open", presentationMode: "gui" });
+    const latest = makeThread({ id: "latest-search", presentationMode: "gui" });
+    useAppStore.setState({ threads: [old, latest] });
+    try {
+      openThread(old.id);
+      const ownsNavigation = claimThreadNavigation();
+      history.resolve();
+      await vi.advanceTimersByTimeAsync(200);
+      expect(ownsNavigation()).toBe(true);
+      expect(useAppStore.getState().view).toEqual({ kind: "home" });
+      openThread(latest.id, { reopenRuntime: false });
+      await vi.advanceTimersByTimeAsync(200);
+      expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: [latest.id] });
+      expect(ownsNavigation()).toBe(false);
+    } finally {
+      history.resolve();
+      vi.useRealTimers();
+    }
+  });
+
+  it("opens a slow saved search result without relaunching its provider", async () => {
+    vi.useFakeTimers();
+    const history = Promise.withResolvers<void>();
+    hydrateThreadRuntimeItems.mockReturnValueOnce(history.promise);
+    const thread = makeThread({
+      id: "search-gui",
+      presentationMode: "gui",
+      status: "inactive",
+      canResumeWithConfig: true,
+    });
+    useAppStore.setState({ threads: [thread] });
+    let reader: ReturnType<typeof runtimeInterestHydration.adoptRuntimeThreadReader> | undefined;
+    try {
+      openThread(thread.id, { reopenRuntime: false, focusComposer: false });
+      await vi.advanceTimersByTimeAsync(150);
+      reader = runtimeInterestHydration.adoptRuntimeThreadReader(thread.id);
+      history.resolve();
+      await reader.ready;
+      expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: [thread.id] });
+      expect(useAppStore.getState().pendingThreadLaunches[thread.id]).toBeUndefined();
     } finally {
       history.resolve();
       reader?.release();

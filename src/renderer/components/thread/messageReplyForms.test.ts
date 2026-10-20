@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
-import { selectMessageReplyAnswer, selectPendingMessageReplyIds } from "./messageReplyForms";
+import {
+  isMessageReplyFormFallback,
+  selectMessageReplyAnswer,
+  selectMessageReplyState,
+  selectPendingMessageReplyIds,
+} from "./messageReplyForms";
+import { isVisibleRuntimeItem } from "./ChatPane/chatPaneSelectors";
 
 const question: RuntimeChatItem = {
   id: "question",
@@ -32,6 +38,21 @@ function state(items: RuntimeChatItem[]): Parameters<typeof selectMessageReplyAn
 }
 
 describe("message reply projections", () => {
+  it("keeps generated fallback text hidden and independent assistant prose visible", () => {
+    const fallback = "Which scope?\n- A";
+    expect(isMessageReplyFormFallback(question, fallback)).toBe(true);
+    expect(isMessageReplyFormFallback(question, "")).toBe(true);
+    expect(isVisibleRuntimeItem({ ...question, streams: { assistant_text: fallback } })).toBe(
+      false,
+    );
+    expect(isMessageReplyFormFallback(question, "Independent context")).toBe(false);
+    expect(
+      isVisibleRuntimeItem({ ...question, streams: { assistant_text: "Independent context" } }),
+    ).toBe(true);
+    expect(isMessageReplyFormFallback({ ...question, parentItemId: "tool" }, fallback)).toBe(false);
+    expect(isMessageReplyFormFallback({ ...question, type: "user_message" }, fallback)).toBe(false);
+  });
+
   it("renders durable answers without the original question in the history window", () => {
     const questionAnswer = {
       questions: [{ header: "", question: "Which scope?", selected: [{ label: "A" }] }],
@@ -105,7 +126,10 @@ describe("message reply projections", () => {
       { ...reply, payload: { ...(reply.payload as object), clientInputDelivery: "pending" } },
     ]);
     expect(selectPendingMessageReplyIds(current, "thread")).toEqual([question.id]);
-    expect(selectMessageReplyAnswer(current, "thread", reply.id)).toBeUndefined();
+    expect(selectMessageReplyAnswer(current, "thread", reply.id)?.questions[0]?.selected).toEqual([
+      { label: "A" },
+    ]);
+    expect(selectMessageReplyState(current, "thread", question.id)).toBe("pending");
     for (const [version, delivery] of [
       [2, "failed"],
       [3, "accepted"],
@@ -117,6 +141,12 @@ describe("message reply projections", () => {
       current.runtimeStructuralVersionByThread.thread = version;
       expect(selectPendingMessageReplyIds(current, "thread")).toEqual(
         delivery === "failed" ? [question.id] : [],
+      );
+      expect(selectMessageReplyState(current, "thread", question.id)).toBe(
+        delivery === "failed" ? "none" : "answered",
+      );
+      expect(selectMessageReplyAnswer(current, "thread", reply.id)?.questions[0]?.selected).toEqual(
+        delivery === "failed" ? undefined : [{ label: "A" }],
       );
     }
     expect(selectMessageReplyAnswer(current, "thread", reply.id)?.questions[0]?.selected).toEqual([

@@ -29,7 +29,10 @@ import { gitStatePatchSchema } from "../../gitState";
 // old native readers ignore metadata; old hosts reject scoped operations before effects.
 // Scoped watch writes use a distinct route and require v1 public source authority.
 // An old watch remains readable but paused until explicitly re-armed; unknown scope
-// versions are refused without replacing persisted bytes (host schema 62).
+// versions are refused without replacing persisted bytes (host schema 64).
+// Optional usage.spent tokens/cost and ProfileTokenStats.costs are additive:
+// prior Zod and generated native readers strip unknown object fields. Old hosts
+// omit them; the Costs tab reports unavailable. No discriminator meaning changes.
 export const PORACODE_REMOTE_PROTOCOL_VERSION = 14;
 export const REMOTE_COMMAND_ID_HEADER = "x-poracode-command-id";
 
@@ -363,6 +366,8 @@ export const remoteExperimentsCapabilitySchema = z.object({
 export type RemoteExperimentsCapability = z.infer<typeof remoteExperimentsCapabilitySchema>;
 
 export const remoteEnvironmentCapabilitiesSchema = z.object({
+  /** Saved user messages and final assistant text, with bounded cs1 pages. */
+  conversationSearch: z.object({ versions: remoteCapabilityVersionsSchema }).optional(),
   /** Compact history rows with stored item details loaded on demand. */
   historyDetails: z.object({ versions: remoteCapabilityVersionsSchema }).optional(),
   /** Independent bounded replay cursors for one thread's canonical history. */

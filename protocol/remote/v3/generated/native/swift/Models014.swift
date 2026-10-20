@@ -19,8 +19,8 @@ public struct ProcedurereadAbsoluteFileResult_eaf8a91849: Codable, Sendable, Rem
 }
 
 public enum ProcedurereadExternalFileResultU2DLineEnding_6d6f1fde73: String, Codable, Sendable {
-  case lf = "lf"
-  case crlf = "crlf"
+  case `lf` = "lf"
+  case `crlf` = "crlf"
 }
 
 public struct ProcedurereadExternalFileResult_9ba1e93599: Codable, Sendable, RemoteModelMetadata {
@@ -54,10 +54,10 @@ public struct ProcedurereadExternalFileResult_9ba1e93599: Codable, Sendable, Rem
 }
 
 public enum ProcedurereadProjectFileResultU2DStatus_620971ca17: String, Codable, Sendable {
-  case ready = "ready"
-  case binary = "binary"
-  case tooU5FLarge = "too_large"
-  case unsupported = "unsupported"
+  case `ready` = "ready"
+  case `binary` = "binary"
+  case `tooU5FLarge` = "too_large"
+  case `unsupported` = "unsupported"
 }
 
 public struct ProcedurereadProjectFileResult_891e9ab241: Codable, Sendable, RemoteModelMetadata {
@@ -93,8 +93,8 @@ public struct ProcedurereadProjectFileResult_891e9ab241: Codable, Sendable, Remo
 public typealias ProcedurereadTerminalSizeResult_2d2a48957e = ProcedureensureThreadRunningRequestU2DInitialSize_55ee222c09?
 
 public enum ProcedurereadTerminalSnapshotResultU2DOptionU2D1U2DProcessState_f156a9bc12: String, Codable, Sendable {
-  case running = "running"
-  case exited = "exited"
+  case `running` = "running"
+  case `exited` = "exited"
 }
 
 public struct ProcedurereadTerminalSnapshotResultU2DOptionU2D1_ca5f8d6782: Codable, Sendable, RemoteModelMetadata {
@@ -127,8 +127,8 @@ public struct ProcedurereadTerminalSnapshotResultU2DOptionU2D1_ca5f8d6782: Codab
 public typealias ProcedurereadTerminalSnapshotResult_b67f4828f0 = ProcedurereadTerminalSnapshotResultU2DOptionU2D1_ca5f8d6782?
 
 public enum ProcedurereadThreadBackgroundTasksResultU2DItemU2DKind_32b2db2eaa: String, Codable, Sendable {
-  case command = "command"
-  case other = "other"
+  case `command` = "command"
+  case `other` = "other"
 }
 
 public typealias ProcedurereadThreadBackgroundTasksResultU2DItemU2DStopActionU2DPayload_5cb1759d88 = [String: String]
@@ -303,10 +303,10 @@ public struct ProcedurescanSkillsRequest_eb5b966723: Codable, Sendable, RemoteMo
 }
 
 public enum ProcedurescanSkillsResultU2DInvocationU2DOptionU2D1_ee6af1c3c6: String, Codable, Sendable {
-  case slash = "slash"
-  case dollar = "dollar"
-  case prompt = "prompt"
-  case skill = "skill"
+  case `slash` = "slash"
+  case `dollar` = "dollar"
+  case `prompt` = "prompt"
+  case `skill` = "skill"
 }
 
 public typealias ProcedurescanSkillsResultU2DInvocation_7a20e2f82d = ProcedurescanSkillsResultU2DInvocationU2DOptionU2D1_ee6af1c3c6?
@@ -330,28 +330,28 @@ public struct ProcedurescanSkillsResultU2DIssuesU2DItem_af9e7187ee: Codable, Sen
 }
 
 public enum ProcedurescanSkillsResultU2DSkillsU2DItemU2DImportState_5cfe15b2e7: String, Codable, Sendable {
-  case available = "available"
-  case alreadyU2DImported = "already-imported"
-  case conflict = "conflict"
+  case `available` = "available"
+  case `alreadyU2DImported` = "already-imported"
+  case `conflict` = "conflict"
 }
 
 public enum ProcedurescanSkillsResultU2DSkillsU2DItemU2DInvalidReason_883b3b8a61: String, Codable, Sendable {
-  case readU2DError = "read-error"
-  case missingU2DFile = "missing-file"
-  case tooU2DLarge = "too-large"
-  case missingU2DFrontmatter = "missing-frontmatter"
-  case missingU2DName = "missing-name"
-  case invalidU2DName = "invalid-name"
-  case nameU2DMismatch = "name-mismatch"
-  case missingU2DDescription = "missing-description"
-  case descriptionU2DTooU2DLong = "description-too-long"
+  case `readU2DError` = "read-error"
+  case `missingU2DFile` = "missing-file"
+  case `tooU2DLarge` = "too-large"
+  case `missingU2DFrontmatter` = "missing-frontmatter"
+  case `missingU2DName` = "missing-name"
+  case `invalidU2DName` = "invalid-name"
+  case `nameU2DMismatch` = "name-mismatch"
+  case `missingU2DDescription` = "missing-description"
+  case `descriptionU2DTooU2DLong` = "description-too-long"
 }
 
 public enum ProcedurescanSkillsResultU2DSkillsU2DItemU2DOrigin_91766049df: String, Codable, Sendable {
-  case managed = "managed"
-  case external = "external"
-  case builtU2DIn = "built-in"
-  case plugin = "plugin"
+  case `managed` = "managed"
+  case `external` = "external"
+  case `builtU2DIn` = "built-in"
+  case `plugin` = "plugin"
 }
 
 public struct ProcedurescanSkillsResultU2DSkillsU2DItem_56a9bf5bf3: Codable, Sendable, RemoteModelMetadata {

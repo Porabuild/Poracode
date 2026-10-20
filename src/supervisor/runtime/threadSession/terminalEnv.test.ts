@@ -16,6 +16,27 @@ async function loadTerminalEnv() {
 }
 
 describe("resolveTerminalColorEnv", () => {
+  it.each([1, null])(
+    "caches unavailable terminfo (probe status %s) across terminal opens",
+    async (status) => {
+      spawnSyncMock.mockClear().mockReturnValue({ status });
+      const { resolveTerminalColorEnv } = await loadTerminalEnv();
+      const location =
+        process.platform === "win32"
+          ? {
+              kind: "wsl" as const,
+              distro: "Ubuntu",
+              linuxPath: "/repo",
+              uncPath: "\\\\wsl.localhost\\Ubuntu\\repo",
+            }
+          : { kind: "posix" as const, path: "/repo" };
+
+      expect(resolveTerminalColorEnv(location).TERM).toBe("xterm-256color");
+      expect(resolveTerminalColorEnv(location).TERM).toBe("xterm-256color");
+      expect(spawnSyncMock).toHaveBeenCalledTimes(1);
+    },
+  );
+
   it("falls back to xterm-256color when ghostty terminfo is unavailable", async () => {
     spawnSyncMock.mockReturnValue({ status: 1 });
     const { resolveTerminalColorEnv } = await loadTerminalEnv();

@@ -14,9 +14,11 @@ import {
 import {
   __resetThreadHistoryNoticeStoreForTest,
   clearThreadHistoryNoticesForAuthority,
+  noteThreadHistoryRecoveryNeeded,
   readThreadHistoryNotice,
   recordThreadHistoryGapRead,
   recordThreadHistoryNoticeRead,
+  subscribeThreadHistoryNotices,
 } from "./historyNoticeStore";
 import { acknowledgeThreadHistoryNotice, requestThreadHistoryGap } from "./historyNoticeActions";
 
@@ -129,6 +131,22 @@ beforeEach(() => {
 });
 
 describe("history notice store", () => {
+  it("clears an unconfirmed recovery warning after a successful history read", () => {
+    noteThreadHistoryRecoveryNeeded(VIEW_ID, CONNECTION);
+    expect(readThreadHistoryNotice(VIEW_ID)?.needsReview).toBe(true);
+    const changed = vi.fn<() => void>();
+    const unsubscribe = subscribeThreadHistoryNotices(changed);
+    try {
+      recordThreadHistoryNoticeRead(VIEW_ID, CONNECTION, undefined);
+      expect(readThreadHistoryNotice(VIEW_ID)?.needsReview).toBe(false);
+      expect(changed).toHaveBeenCalledOnce();
+      recordThreadHistoryNoticeRead(VIEW_ID, CONNECTION, undefined);
+      expect(changed).toHaveBeenCalledOnce();
+    } finally {
+      unsubscribe();
+    }
+  });
+
   it("retains a durable notice when a later read omits the field", () => {
     recordThreadHistoryNoticeRead(VIEW_ID, CONNECTION, notice());
     recordThreadHistoryNoticeRead(VIEW_ID, CONNECTION, undefined);

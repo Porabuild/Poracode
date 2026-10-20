@@ -1,13 +1,14 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
-import { resolve } from "node:path";
+import { cp, mkdir, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
+import { createRequire } from "node:module";
+import { dirname, resolve } from "node:path";
 import { test } from "node:test";
+import { fileURLToPath } from "node:url";
+import { parse as parseJsonc } from "jsonc-parser";
 import { parse } from "yaml";
 import { GET as androidLinks } from "../website/src/app/.well-known/assetlinks.json/route.ts";
 import { GET as appleLinks } from "../website/src/app/.well-known/apple-app-site-association/route.ts";
-
-const rootPackage = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
 
 const workflow = parse(
   await readFile(new URL("../.github/workflows/deploy-website.yml", import.meta.url), "utf8"),
@@ -22,37 +23,114 @@ const teamId = "ABCDE12345";
 const fingerprint = Array(32).fill("AB").join(":");
 const otherFingerprint = Array(32).fill("CD").join(":");
 
-void test("website build overrides the workspace global store through pnpm's environment", async () => {
+void test("website build keeps installed packages local through Bun's environment", async () => {
   const scratchRoot = new URL("../tmp/", import.meta.url);
   await mkdir(scratchRoot, { recursive: true });
-  const fixture = await mkdtemp(new URL("website-pnpm-config-", scratchRoot));
+  const fixture = await mkdtemp(new URL("website-bun-config-", scratchRoot));
   try {
-    await writeFile(
-      resolve(fixture, "package.json"),
-      JSON.stringify({ private: true, packageManager: rootPackage.packageManager }),
-    );
-    await writeFile(resolve(fixture, "pnpm-workspace.yaml"), "enableGlobalVirtualStore: true\n");
     const env = { ...process.env };
-    delete env.PNPM_CONFIG_ENABLE_GLOBAL_VIRTUAL_STORE;
-    delete env.pnpm_config_enable_global_virtual_store;
-    delete env.PNPM_CONFIG_VIRTUAL_STORE_TYPE;
-    delete env.pnpm_config_virtual_store_type;
-    const configured = spawnSync("pnpm", ["config", "get", "enableGlobalVirtualStore"], {
-      cwd: fixture,
-      env,
-      encoding: "utf8",
-    });
-    assert.equal(configured.status, 0, configured.stderr);
-    assert.equal(configured.stdout.trim(), "true");
-
-    const build = spawnSync("pnpm", ["config", "get", "enableGlobalVirtualStore"], {
-      cwd: fixture,
-      env: { ...env, ...workflow.jobs.web.env },
-      encoding: "utf8",
-    });
-    assert.equal(build.status, 0, build.stderr);
-    assert.equal(build.stdout.trim(), "false");
+    delete env.BUN_INSTALL_GLOBAL_STORE;
+    const require = createRequire(import.meta.url);
+    const bunManifest = require.resolve("bun/package.json");
+    const { bin } = require("bun/package.json");
+    const { version } = require("yaml/package.json");
+    const lock = parseJsonc(await readFile(new URL("../bun.lock", import.meta.url), "utf8"));
+    for (const local of [false, true]) {
+      const cwd = resolve(fixture, local ? "build" : "configured");
+      await mkdir(cwd);
+      await writeFile(
+        resolve(cwd, "package.json"),
+        JSON.stringify({ private: true, dependencies: { yaml: version }, trustedDependencies: [] }),
+      );
+      await writeFile(
+        resolve(cwd, "bunfig.toml"),
+        '[install]\nlinker="isolated"\nglobalStore=true\n',
+      );
+      await writeFile(
+        resolve(cwd, "bun.lock"),
+        JSON.stringify({
+          lockfileVersion: lock.lockfileVersion,
+          configVersion: lock.configVersion,
+          workspaces: { "": { dependencies: { yaml: version } } },
+          packages: { yaml: lock.packages.yaml },
+        }),
+      );
+      const build = spawnSync(
+        resolve(bunManifest, "..", bin.bun),
+        ["install", "--frozen-lockfile", "--offline", "--ignore-scripts"],
+        {
+          cwd,
+          env: local ? { ...env, ...workflow.jobs.web.env } : env,
+          encoding: "utf8",
+        },
+      );
+      assert.equal(build.status, 0, build.stderr);
+      assert.equal((await realpath(resolve(cwd, "node_modules/yaml"))).startsWith(fixture), local);
+    }
+    assert.equal(workflow.jobs.web.env.BUN_INSTALL_GLOBAL_STORE, "0");
   } finally {
+    assert.equal(dirname(fixture), fileURLToPath(scratchRoot).replace(/[\\/]$/, ""));
+    await rm(fixture, { recursive: true, force: true });
+  }
+});
+
+void test("website install omits the desktop compiler's optional peer graph", async () => {
+  const config = JSON.parse(
+    await readFile(new URL("../website/vercel.json", import.meta.url), "utf8"),
+  );
+  const omit = config.installCommand.split(/\s+/u).filter((arg) => arg.startsWith("--omit="));
+  assert.deepEqual(omit, ["--omit=peer"]);
+  const require = createRequire(import.meta.url);
+  const bunManifest = require.resolve("bun/package.json");
+  const { bin } = require("bun/package.json");
+  const root = require("../package.json");
+  const scratchRoot = new URL("../tmp/", import.meta.url);
+  await mkdir(scratchRoot, { recursive: true });
+  const fixture = await mkdtemp(new URL("website-bun-peers-", scratchRoot));
+  try {
+    for (const configured of [false, true]) {
+      const cwd = resolve(fixture, configured ? "configured" : "control");
+      for (const path of [
+        "package.json",
+        "bun.lock",
+        "bunfig.toml",
+        ...root.workspaces.map((workspace) => `${workspace}/package.json`),
+      ]) {
+        const target = resolve(cwd, path);
+        await mkdir(dirname(target), { recursive: true });
+        await cp(new URL(`../${path}`, import.meta.url), target);
+      }
+      await cp(new URL("../patches", import.meta.url), resolve(cwd, "patches"), {
+        recursive: true,
+      });
+      const result = spawnSync(
+        resolve(bunManifest, "..", bin.bun),
+        [
+          "install",
+          "--frozen-lockfile",
+          "--offline",
+          "--ignore-scripts",
+          "--filter",
+          "./website",
+          ...(configured ? omit : []),
+        ],
+        { cwd, env: { ...process.env, BUN_INSTALL_GLOBAL_STORE: "0" }, encoding: "utf8" },
+      );
+      assert.equal(result.status, 0, result.stderr);
+      const next = createRequire(
+        await realpath(resolve(cwd, "website/node_modules/next/package.json")),
+      );
+      let compiler;
+      try {
+        compiler = await realpath(next.resolve("babel-plugin-react-compiler"));
+      } catch (error) {
+        if (error.code !== "MODULE_NOT_FOUND") throw error;
+      }
+      assert.equal(compiler?.startsWith(cwd) ?? false, !configured);
+      assert.ok((await realpath(next.resolve("react"))).startsWith(cwd));
+    }
+  } finally {
+    assert.equal(dirname(fixture), fileURLToPath(scratchRoot).replace(/[\\/]$/, ""));
     await rm(fixture, { recursive: true, force: true });
   }
 });

@@ -1,5 +1,4 @@
 import { useCommandPaletteStore } from "@/renderer/commands/commandPaletteStore";
-import { useAuxiliaryThreadWindows } from "@/renderer/state/auxiliaryThreadWindows";
 import {
   ChevronRight,
   Globe,
@@ -11,14 +10,11 @@ import {
   TerminalSquare,
 } from "lucide-react";
 import { startTransition, useEffect, useState } from "react";
-import { useShallow } from "zustand/shallow";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { AnimatedTerminalIcon } from "@/renderer/components/common/AnimatedTerminalIcon";
 import { getAppName } from "@/shared/appName";
-import type { Thread } from "@/shared/contracts";
-import { isHomeProject, isHomeProjectId } from "@/shared/homeScope";
+import { isHomeProject } from "@/shared/homeScope";
 import { SidebarButton } from "@/renderer/components/common/SidebarButton";
-import { ThreadProviderIcon } from "@/renderer/components/providers/ThreadProviderIcon";
 import {
   sidebarBodyScrollClass,
   sidebarColumnLayoutClass,
@@ -27,7 +23,6 @@ import { useSidebar } from "@/renderer/views/MainView/parts/AppShell/AppShell";
 import { SIDEBAR_MIN_WIDTH } from "@/renderer/views/MainView/parts/AppShell/parts/useResizablePanels";
 import { SidebarPanelDragButton } from "@/renderer/views/MainView/parts/Sidebar/parts/SidebarPanelDragButton";
 import { SidebarProjectSection } from "@/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectSection";
-import { ThreadContextMenu } from "@/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu";
 import {
   selectBrowserPanelAvailable,
   useRemoteServersStore,
@@ -43,10 +38,9 @@ import {
 } from "@/renderer/actions/panelActions";
 import { ProviderUsageRail } from "@/renderer/components/providers/ProviderUsageRail";
 import { openTerminal, toggleGlobalTerminal } from "@/renderer/actions/terminalActions";
-import { openNewThread, openThread } from "@/renderer/actions/threadActions";
+import { openNewThread } from "@/renderer/actions/threadActions";
 import {
   useCurrentProjectId,
-  useIsCurrentThread,
   useCurrentWorktreePath,
   useIsProjectTerminalActive,
   useIsProjectTerminalBusy,
@@ -62,8 +56,8 @@ import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import {
   useProjectIdsHiddenByWorkspace,
   useWorkspaceProjectIds,
-  useWorkspaceThreadFilter,
 } from "@/renderer/state/workspaceSelectors";
+import { CollapsedThreadRail } from "./parts/CollapsedThreadRail";
 import { SidebarFlatThreadList } from "./parts/SidebarFlatThreadList";
 import { SidebarFooterNav } from "./parts/SidebarFooterNav";
 import { SidebarProjectThreadList } from "./parts/SidebarProjectThreadList";
@@ -111,91 +105,6 @@ function HomeTerminalButton(props: { projectId: string; projectName: string }) {
   );
 }
 
-function ThreadIcon(props: { thread: Thread }) {
-  return <ThreadProviderIcon thread={props.thread} className="size-3.5" />;
-}
-
-function CollapsedThreadRailButton(props: { thread: Thread; projectName?: string }) {
-  const { thread, projectName } = props;
-  const isActive = useIsCurrentThread(thread.id);
-  const project = useAppStore((s) => s.projects.find((p) => p.id === thread.projectId));
-  const title = thread.done ? (
-    <span className="opacity-50 line-through">{thread.title}</span>
-  ) : (
-    thread.title
-  );
-  const button = (
-    <SidebarButton
-      iconOnly
-      icon={<ThreadIcon thread={thread} />}
-      label={title}
-      {...(projectName
-        ? {
-            tooltip: (
-              <span>
-                {title}
-                <span className="text-muted"> — {projectName}</span>
-              </span>
-            ),
-          }
-        : {})}
-      isActive={isActive}
-      onPress={() => openThread(thread.id)}
-    />
-  );
-  if (!project) return button;
-  // No `onRename`: the icon rail has no inline rename affordance.
-  return (
-    <ThreadContextMenu thread={thread} project={project}>
-      {button}
-    </ThreadContextMenu>
-  );
-}
-
-function CollapsedThreadRail() {
-  const auxiliaryIds = useAuxiliaryThreadWindows((s) => s.hiddenThreadIds);
-  const homeScopeEnabled = useSharedSettings((s) => s.homeScopeEnabled);
-  const showProjectName = usePanelStore((s) => s.threadListLayout === "flat");
-  const isThreadInActiveWorkspace = useWorkspaceThreadFilter();
-  const projects = useAppStore((s) => s.projects);
-  const projectsById = new Map(projects.map((project) => [project.id, project]));
-  const activeThreads = useAppStore(
-    useShallow((state) =>
-      state.threads.filter(
-        (thread) =>
-          !auxiliaryIds.has(thread.id) &&
-          thread.status !== "inactive" &&
-          !thread.done &&
-          !thread.archived &&
-          (homeScopeEnabled || !isHomeProjectId(thread.projectId)) &&
-          isThreadInActiveWorkspace(thread),
-      ),
-    ),
-  );
-  const { setScrollContainer, scrollFadeStyle } = useScrollFade<HTMLDivElement>({
-    maxFadePx: 10,
-  });
-
-  return (
-    <div
-      ref={setScrollContainer}
-      className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto"
-      style={scrollFadeStyle}
-    >
-      {activeThreads.map((thread) => {
-        const projectName = showProjectName ? projectsById.get(thread.projectId)?.name : undefined;
-        return (
-          <CollapsedThreadRailButton
-            key={thread.id}
-            thread={thread}
-            {...(projectName ? { projectName } : {})}
-          />
-        );
-      })}
-    </div>
-  );
-}
-
 export function Sidebar() {
   const { t } = useLingui();
   // Only the active workspace's projects; Home is handled separately below and
@@ -213,11 +122,9 @@ export function Sidebar() {
   const compactLayout = useCompactLayout();
   const effectiveListLayout = compactLayout ? "flat" : listLayout;
   const settingsOpen = usePanelStore((s) => s.settingsOpen);
-  const settingsSection = usePanelStore((s) => s.settingsSection);
-  // Remote Access has its own sidebar entry, so the generic Settings button
-  // lights up for every other section.
+  const settingsSection = usePanelStore((s) => s.settingsSection ?? s.activeSettingsSection);
+  // Surfaced Settings destinations own their active state instead of the generic entry.
   const remoteAccessSettingsActive = settingsOpen && settingsSection === "remoteAccess";
-  const otherSettingsActive = settingsOpen && !remoteAccessSettingsActive;
   const searchOpen = useCommandPaletteStore((s) => s.isOpen);
   const browserPanelOpen = usePanelStore((s) => s.browserPanelOpen);
   const browserOnScreen = useIsPanelTabVisible("browser");
@@ -257,6 +164,10 @@ export function Sidebar() {
     maxFadePx: 10,
   });
   const sidebarShortcuts = useSidebarShortcuts();
+  const otherSettingsActive =
+    settingsOpen &&
+    !remoteAccessSettingsActive &&
+    !sidebarShortcuts.some((shortcut) => shortcut.isActive);
 
   useEffect(() => {
     if (currentProjectId) {
@@ -362,7 +273,7 @@ export function Sidebar() {
           </div>
           <CollapsedThreadRail />
 
-          <div className="flex flex-col gap-1 border-t border-[var(--hairline)] pt-2 pb-2 pr-2">
+          <div className="flex max-h-[50vh] shrink-0 flex-col gap-1 overflow-y-auto border-t border-[var(--hairline)] pt-2 pb-2 pr-2 [&>*]:shrink-0">
             <ProviderUsageRail orientation="column" />
             <UpdateButtons iconOnly />
             <WhatsNewButton iconOnly />
@@ -373,6 +284,7 @@ export function Sidebar() {
                 icon={shortcut.icon}
                 label={shortcut.label}
                 isActive={shortcut.isActive}
+                isCurrentPage={shortcut.isActive}
                 onPress={shortcut.onPress}
               />
             ))}
@@ -384,7 +296,8 @@ export function Sidebar() {
               onPreload={prewarmSettings}
               onPress={openSettings}
             />
-            {showRemoteAccess ? (
+            {showRemoteAccess &&
+            !sidebarShortcuts.some((shortcut) => shortcut.id === "settings:remoteAccess") ? (
               <SidebarButton
                 iconOnly
                 icon={<RemoteAccessSidebarIcon status={remoteAccessStatus} />}

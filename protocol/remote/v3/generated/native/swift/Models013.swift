@@ -19,11 +19,11 @@ public struct ProcedurelistSkillMarketplaceRequest_828172bf17: Codable, Sendable
 }
 
 public enum ProcedurelistSkillMarketplaceResultU2DSkillsU2DItemU2DSecurityGrade_e987f23b08: String, Codable, Sendable {
-  case a = "A"
-  case b = "B"
-  case c = "C"
-  case d = "D"
-  case f = "F"
+  case `a` = "A"
+  case `b` = "B"
+  case `c` = "C"
+  case `d` = "D"
+  case `f` = "F"
 }
 
 public struct ProcedurelistSkillMarketplaceResultU2DSkillsU2DItem_4dea101cb6: Codable, Sendable, RemoteModelMetadata {
@@ -183,8 +183,8 @@ public struct ProcedurepauseThreadFollowUpsRequest_d42717fff2: Codable, Sendable
 }
 
 public enum ProcedureprobeMcpServerResultU2DOptionU2D1U2DEnvironmentU2DRuntime_1f6ff7bae5: String, Codable, Sendable {
-  case host = "host"
-  case wsl = "wsl"
+  case `host` = "host"
+  case `wsl` = "wsl"
 }
 
 public struct ProcedureprobeMcpServerResultU2DOptionU2D1U2DEnvironment_6b3ef80f7d: Codable, Sendable, RemoteModelMetadata {
@@ -218,7 +218,7 @@ public struct ProcedureprobeMcpServerResultU2DOptionU2D1U2DServerInfo_820293e02a
 }
 
 public enum ProcedureprobeMcpServerResultU2DOptionU2D1U2DStatus_7ce40fcb9f: String, Codable, Sendable {
-  case available = "available"
+  case `available` = "available"
 }
 
 public struct ProcedureprobeMcpServerResultU2DOptionU2D1_d92866345c: Codable, Sendable, RemoteModelMetadata {
@@ -249,14 +249,14 @@ public struct ProcedureprobeMcpServerResultU2DOptionU2D1_d92866345c: Codable, Se
 }
 
 public enum ProcedureprobeMcpServerResultU2DOptionU2D2U2DErrorU2DAuthScheme_2d52ff1140: String, Codable, Sendable {
-  case oauth = "oauth"
-  case bearer = "bearer"
-  case other = "other"
-  case unknown = "unknown"
+  case `oauth` = "oauth"
+  case `bearer` = "bearer"
+  case `other` = "other"
+  case `unknown` = "unknown"
 }
 
 public enum ProcedureprobeMcpServerResultU2DOptionU2D2U2DErrorU2DCode_e527c3ee29: String, Codable, Sendable {
-  case authU2DRequired = "auth-required"
+  case `authU2DRequired` = "auth-required"
 }
 
 public struct ProcedureprobeMcpServerResultU2DOptionU2D2U2DError_f145218b6d: Codable, Sendable, RemoteModelMetadata {
@@ -304,13 +304,13 @@ public struct ProcedureprobeMcpServerResultU2DOptionU2D2_8ace86d01d: Codable, Se
 }
 
 public enum ProcedureprobeMcpServerResultU2DOptionU2D3U2DErrorU2DCode_2fb9be13c5: String, Codable, Sendable {
-  case authU2DRequired = "auth-required"
-  case timeout = "timeout"
-  case commandU2DNotU2DFound = "command-not-found"
-  case connectionU2DFailed = "connection-failed"
-  case protocolU2DError = "protocol-error"
-  case invalidU2DConfig = "invalid-config"
-  case probeU2DUnavailable = "probe-unavailable"
+  case `authU2DRequired` = "auth-required"
+  case `timeout` = "timeout"
+  case `commandU2DNotU2DFound` = "command-not-found"
+  case `connectionU2DFailed` = "connection-failed"
+  case `protocolU2DError` = "protocol-error"
+  case `invalidU2DConfig` = "invalid-config"
+  case `probeU2DUnavailable` = "probe-unavailable"
 }
 
 public struct ProcedureprobeMcpServerResultU2DOptionU2D3U2DError_5cb704413f: Codable, Sendable, RemoteModelMetadata {
@@ -332,7 +332,7 @@ public struct ProcedureprobeMcpServerResultU2DOptionU2D3U2DError_5cb704413f: Cod
 }
 
 public enum ProcedureprobeMcpServerResultU2DOptionU2D3U2DStatus_fd6258ac65: String, Codable, Sendable {
-  case unavailable = "unavailable"
+  case `unavailable` = "unavailable"
 }
 
 public struct ProcedureprobeMcpServerResultU2DOptionU2D3_2a43ea36a6: Codable, Sendable, RemoteModelMetadata {
@@ -431,9 +431,9 @@ public struct ProcedurereadAbsoluteFileRequest_f6983a322f: Codable, Sendable, Re
 }
 
 public enum ProcedurereadAbsoluteFileResultU2DStatus_949f0ec1c2: String, Codable, Sendable {
-  case ready = "ready"
-  case binary = "binary"
-  case tooU5FLarge = "too_large"
-  case unsupported = "unsupported"
-  case missing = "missing"
+  case `ready` = "ready"
+  case `binary` = "binary"
+  case `tooU5FLarge` = "too_large"
+  case `unsupported` = "unsupported"
+  case `missing` = "missing"
 }

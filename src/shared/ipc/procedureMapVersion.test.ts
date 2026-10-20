@@ -77,9 +77,25 @@ import { isRemoteProcedure } from "../remote/procedures";
 // Account-scoped forge reviews and watch saves use distinct additive names.
 // Old peers reject them before effects; callers never retry an identity-scoped
 // mutation through an older unscoped name, so the hop stays 18.
-const HOP_PIN = `${IPC_PROCEDURE_MAP_VERSION}:a4916b4e581768143879426615ed36954f7725ac7354104b210816ec55cce4cb`;
+// Model-provider management adds one supervisor name, outside the remote
+// allowlist. Existing peers reject unknown names before effects; hop 18 stays.
+// Plugin catalogs/accounts add local supervisor names only. Older peers reject
+// them before effects; existing payloads and the remote allowlist stay unchanged.
+const HOP_PIN = `${IPC_PROCEDURE_MAP_VERSION}:64fcfd9586309c6caded52b2280694674632c23dee79446c6d2d140de686dcc0`;
 
 describe("IPC procedure map versioning", () => {
+  it("keeps write-only model provider management outside the remote allowlist", () => {
+    expect(isRemoteProcedure("manageModelProviders")).toBe(false);
+    expect(ipcProcedureMap.manageModelProviders.transport).toBe("supervisor");
+  });
+
+  it("keeps plugin package and account custody local to the supervisor", () => {
+    for (const name of ["pluginCatalog", "pluginAccounts"] as const) {
+      expect(ipcProcedureMap[name].transport).toBe("supervisor");
+      expect(isRemoteProcedure(name)).toBe(false);
+    }
+  });
+
   it("keeps guarded merges internal and requires their expected head", () => {
     expect(isRemoteProcedure("ghMergePrAtHead")).toBe(false);
     expect(ipcProcedureMap.ghMergePrAtHead.transport).toBe("supervisor");

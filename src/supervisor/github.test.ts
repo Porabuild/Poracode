@@ -124,15 +124,23 @@ describe("GitHubService", () => {
 
   describe("review repository identity", () => {
     function responses(login = "alice") {
-      execFileAsyncMock.mockImplementation(async (_command, rawArgs) => {
+      execFileAsyncMock.mockImplementation(async (command, rawArgs, rawOptions) => {
         const args = rawArgs as string[];
-        if (args[0] === "repo")
+        if (command === "git")
+          return { stdout: "origin\tgit@work-alias:team/default-repo.git (fetch)\n" };
+        if (args[0] === "repo" && args[1] === "set-default")
+          return { stdout: "github.example/team/default-repo\n" };
+        if (args[0] === "repo") {
+          const options = rawOptions as { env?: Record<string, string> };
+          if (options.env?.GH_REPO && options.env.GH_ENTERPRISE_TOKEN !== "selected-token")
+            throw new Error("active account cannot access this private repository");
           return {
             stdout: JSON.stringify({
               nameWithOwner: "team/default-repo",
               url: "https://github.example/team/default-repo",
             }),
           };
+        }
         if (args[0] === "auth") return { stdout: "selected-token\n" };
         if (args[0] === "api") return { stdout: `${login}\n` };
         if (args[0] === "pr") return { stdout: "[]" };
@@ -140,7 +148,7 @@ describe("GitHubService", () => {
       });
     }
 
-    it("resolves gh's default repository and SSH aliases before selecting an explicit account", async () => {
+    it("uses the selected account for a private repository behind an SSH alias", async () => {
       responses();
       const selected = await new GitHubService().forReviewRepository(location, {
         host: "github.example",
@@ -151,13 +159,9 @@ describe("GitHubService", () => {
         repository: "team/default-repo",
         account: { host: "github.example", login: "alice" },
       });
-      expect(execFileAsyncMock.mock.calls[0]?.[1]).toEqual([
-        "repo",
-        "view",
-        "--json",
-        "nameWithOwner,url",
-      ]);
-      const credential = execFileAsyncMock.mock.calls[1];
+      const credential = execFileAsyncMock.mock.calls.find(
+        (call) => (call[1] as string[])[0] === "auth",
+      );
       expect(credential?.[1]).toEqual([
         "auth",
         "token",
@@ -168,7 +172,6 @@ describe("GitHubService", () => {
       ]);
       expect(credential?.[2]).toMatchObject({
         env: {
-          GH_REPO: "github.example/team/default-repo",
           GH_TOKEN: "",
           GITHUB_TOKEN: "",
           GH_ENTERPRISE_TOKEN: "",
@@ -184,6 +187,36 @@ describe("GitHubService", () => {
         },
       });
     });
+
+    it.each(["multiple remotes", "SSH alias"])(
+      "preserves gh repository resolution for %s without a configured default",
+      async (kind) => {
+        responses();
+        const run = execFileAsyncMock.getMockImplementation()!;
+        execFileAsyncMock.mockImplementation(async (command, rawArgs, options) => {
+          const args = rawArgs as string[];
+          if (command === "git")
+            return {
+              stdout:
+                kind === "SSH alias"
+                  ? "origin\tgit@work-alias:team/default-repo.git (fetch)\n"
+                  : "origin\tgit@github.example:me/fork.git (fetch)\nupstream\tgit@github.example:team/default-repo.git (fetch)\n",
+            };
+          if (args[0] === "repo" && args[1] === "set-default")
+            throw new Error("no default repository");
+          return run(command, rawArgs, options);
+        });
+        const selected = await new GitHubService().forReviewRepository(location, {
+          host: "github.example",
+          login: "alice",
+        });
+        expect(selected.repository).toBe("team/default-repo");
+        const calls = execFileAsyncMock.mock.calls.map((call) => call[1] as string[]);
+        expect(calls.findIndex((args) => args[0] === "repo" && args[1] === "view")).toBeLessThan(
+          calls.findIndex((args) => args[0] === "auth"),
+        );
+      },
+    );
 
     it("freezes the current credential before principal lookup and subsequent PR reads", async () => {
       responses();
@@ -227,7 +260,9 @@ describe("GitHubService", () => {
           login: "alice",
         }),
       ).rejects.toThrow(/does not match/);
-      expect(execFileAsyncMock).toHaveBeenCalledTimes(1);
+      expect(execFileAsyncMock.mock.calls.some((call) => (call[1] as string[])[0] === "auth")).toBe(
+        false,
+      );
     });
   });
 

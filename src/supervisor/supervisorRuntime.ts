@@ -53,9 +53,9 @@ import { LanguageServerManager } from "./lsp";
 import { ProjectTreeService } from "./projectTree";
 import { WINDOWS_SHELL_AUTO } from "@/shared/settings";
 import {
+  createWindowsPowerShellLaunchResolver,
   detectWindowsShells,
   inferWindowsShellKind,
-  selectWindowsPowerShell,
   selectWindowsShell,
   setWindowsPowerShellPreferenceResolver,
   type WindowsShellPreference,
@@ -110,6 +110,8 @@ import { SkillsService } from "./skills/SkillsService";
 import { SessionImportService } from "./sessionImport/service";
 import { dropSkillSegmentsOnPolicyFailure } from "./skills/pluginSkillPolicy";
 import { PluginRegistry, resolvePluginMcpServers } from "./plugins";
+import { PluginCatalogService } from "./plugins/PluginCatalogService";
+import { PluginAccountService } from "./plugins/PluginAccountService";
 import { captureExperimentResponseSnapshot } from "./experimentResponseSnapshot";
 
 export { detectWslAgentStatuses, writeSubmittedPrompt };
@@ -175,6 +177,8 @@ export class SupervisorRuntime {
   private availableWindowsShellsCache:
     | { shells: ReturnType<typeof detectWindowsShells>; ts: number }
     | undefined;
+  private resolveLaunchWindowsPowerShell =
+    createWindowsPowerShellLaunchResolver(resolveExecutablePath);
   readonly agentStatusService: AgentStatusService;
   readonly usageService: UsageService;
   readonly agentRegistryService: AgentRegistryService;
@@ -190,6 +194,8 @@ export class SupervisorRuntime {
   readonly skillsService: SkillsService;
   readonly sessionImportService: SessionImportService;
   readonly pluginRegistry: PluginRegistry;
+  readonly pluginCatalogService: PluginCatalogService;
+  readonly pluginAccountService: PluginAccountService;
   private readonly pluginDataDir: string;
   private readonly crossagentMcpIngress: CrossagentMcpIngress;
   private readonly subagentRunManager: SubagentRunManager;
@@ -238,7 +244,7 @@ export class SupervisorRuntime {
       resolveHostAccess: (distro) => resolveWslHostAccess(distro),
     });
     this.mcpProbeService = new McpProbeService({
-      applyAuthorization: (server) => this.mcpOAuthService.applyAuthorizationToServer(server),
+      applyAuthorization: (server) => this.pluginAccountService.applyAuthorizationToServer(server),
     });
     const paths = resolvePoracodePaths(baseDir);
     this.logsDir = paths.terminalLogsDir;
@@ -299,6 +305,16 @@ export class SupervisorRuntime {
     this.pluginRegistry = new PluginRegistry({
       bundledPluginsDir: () => process.env.PORACODE_BUNDLED_PLUGINS_DIR?.trim() || undefined,
       userPluginsDir: () => paths.pluginsDir,
+    });
+    this.pluginAccountService = new PluginAccountService({
+      baseDir,
+      registry: this.pluginRegistry,
+      oauth: this.mcpOAuthService,
+    });
+    this.pluginCatalogService = new PluginCatalogService({
+      baseDir,
+      registry: this.pluginRegistry,
+      removeAccounts: (name) => this.pluginAccountService.removePluginAccounts(name),
     });
     this.pluginDataDir = paths.pluginDataDir;
     this.sessionImportService = new SessionImportService(this.adapters, emit);
@@ -531,13 +547,25 @@ export class SupervisorRuntime {
       wslHostAccess: {
         resolveHostAccess: (distro) => resolveWslHostAccess(distro),
       },
-      applyMcpServerAuthorization: (servers, location, { defer }) =>
-        defer
-          ? this.mcpOAuthRelay.prepare(servers, location)
-          : this.mcpOAuthService.applyAuthorization(servers),
+      applyMcpServerAuthorization: async (servers, location, { defer }) => {
+        if (!defer) return this.pluginAccountService.applyAuthorization(servers);
+        // Plugin account credentials are opaque per-account slots. Keep plugin
+        // servers out of the URL-keyed relay entirely so a shared/legacy URL
+        // token can never authenticate a plugin the account model did not.
+        const pluginServers = servers.filter((server) => server.id.startsWith("plugin:"));
+        const sharedServers = servers.filter((server) => !server.id.startsWith("plugin:"));
+        const authorizedPlugins = await this.pluginAccountService.applyAuthorization(pluginServers);
+        const relayedShared = await this.mcpOAuthRelay.prepare(sharedServers, location);
+        const authorized = new Map(
+          [...authorizedPlugins, ...relayedShared].map((server) => [server.id, server]),
+        );
+        return servers.flatMap((server) => {
+          const next = authorized.get(server.id);
+          return next ? [next] : [];
+        });
+      },
       prepareMcpToolFilters,
       resolvePluginLaunchContributions: async (projectLocation, agentKind, selection) => {
-        const adapter = this.adapters.get(agentKind);
         const envContext =
           projectLocation.kind === "wsl"
             ? {
@@ -550,10 +578,13 @@ export class SupervisorRuntime {
                 baseDir: this.baseDir,
               };
         let nativePlugins: readonly AgentNativePlugin[] = [];
-        try {
-          nativePlugins = (await adapter?.listNativePlugins?.(envContext)) ?? [];
-        } catch (error) {
-          console.warn(`[plugins] failed to inspect native ${agentKind} plugins:`, error);
+        if (selection?.nativePluginAdapter) {
+          try {
+            nativePlugins =
+              (await selection.nativePluginAdapter.listNativePlugins?.(envContext)) ?? [];
+          } catch (error) {
+            console.warn(`[plugins] failed to inspect native ${agentKind} plugins:`, error);
+          }
         }
         const result = resolvePluginMcpServers(
           this.pluginRegistry.listPlugins(getProjectFsPath(projectLocation)),
@@ -562,7 +593,6 @@ export class SupervisorRuntime {
             pluginDataRoot: this.pluginDataDir,
             hostPlatform: process.platform,
             projectLocation,
-            nativePluginNames: new Set(nativePlugins.map((plugin) => plugin.name)),
             includeExternalServers: selection?.includeExternalServers ?? true,
           },
         );
@@ -787,15 +817,14 @@ export class SupervisorRuntime {
     }
     const shells = detectWindowsShells(resolveExecutablePath);
     this.availableWindowsShellsCache = { shells, ts: now };
+    this.resolveLaunchWindowsPowerShell =
+      createWindowsPowerShellLaunchResolver(resolveExecutablePath);
     return shells;
   }
 
   private resolveWindowsPowerShell(): WindowsShellPreference {
     const settings = this.sharedSettingsCache.readFresh();
-    const detected = selectWindowsPowerShell(
-      settings.windowsInternalShellPath,
-      this.getCachedAvailableWindowsShells(),
-    );
+    const detected = this.resolveLaunchWindowsPowerShell(settings.windowsInternalShellPath);
     if (detected) {
       return { shell: detected.path, kind: detected.kind, args: ["-NoLogo"] };
     }
@@ -824,7 +853,8 @@ export class SupervisorRuntime {
         },
       ]);
     }
-    return selectWindowsShell(settings, this.getCachedAvailableWindowsShells());
+    const detected = this.resolveLaunchWindowsPowerShell(WINDOWS_SHELL_AUTO);
+    return selectWindowsShell(settings, detected ? [detected] : []);
   }
 
   async getCrossagentSpawnableAgents(contextTags: readonly string[] = []) {

@@ -25,24 +25,27 @@ function measureStrings<T>(read: () => T) {
   const originalJoin = Array.prototype.join;
   const originalSlice = String.prototype.slice;
   const metrics = { joinCalls: 0, joinInputChars: 0, joinResultChars: 0, sliceResultChars: 0 };
-  const join = vi
-    .spyOn(Array.prototype, "join")
-    .mockImplementation(function (this: unknown[], separator) {
-      for (const text of this) {
-        if (typeof text === "string") metrics.joinInputChars += text.length;
-      }
-      const result = originalJoin.call(this, separator);
-      metrics.joinCalls++;
-      metrics.joinResultChars += result.length;
-      return result;
-    });
-  const slice = vi
-    .spyOn(String.prototype, "slice")
-    .mockImplementation(function (this: string, start, end) {
-      const result = originalSlice.call(this, start, end);
-      metrics.sliceResultChars += result.length;
-      return result;
-    });
+  const join = vi.spyOn(Array.prototype, "join").mockImplementation(function (
+    this: unknown[],
+    separator,
+  ) {
+    for (const text of this) {
+      if (typeof text === "string") metrics.joinInputChars += text.length;
+    }
+    const result = originalJoin.call(this, separator);
+    metrics.joinCalls++;
+    metrics.joinResultChars += result.length;
+    return result;
+  });
+  const slice = vi.spyOn(String.prototype, "slice").mockImplementation(function (
+    this: string,
+    start,
+    end,
+  ) {
+    const result = originalSlice.call(this, start, end);
+    metrics.sliceResultChars += result.length;
+    return result;
+  });
   try {
     return { result: read(), metrics };
   } finally {

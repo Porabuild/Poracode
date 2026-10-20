@@ -232,9 +232,9 @@ public struct ProcedureforgeListPullRequestsResult_7f705834dd: Codable, Sendable
 }
 
 public enum ProcedureforgeMergePrAtHeadRequestU2DMethod_7237330838: String, Codable, Sendable {
-  case merge = "merge"
-  case squash = "squash"
-  case rebase = "rebase"
+  case `merge` = "merge"
+  case `squash` = "squash"
+  case `rebase` = "rebase"
 }
 
 public struct ProcedureforgeMergePrAtHeadRequest_9b963a4b70: Codable, Sendable, RemoteModelMetadata {

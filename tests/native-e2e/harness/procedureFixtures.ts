@@ -14,6 +14,8 @@ const REQUEST_OVERRIDES: Partial<Record<RemoteProcedureName, Record<string, unkn
   createProjectEntry: { path: "src", type: "directory" },
   gitAddWorktree: { branch: "fixture-worktree", path: "/tmp/wt", createBranch: true },
   gitStage: { filePath: "README.md" },
+  forgeEditPr: { title: "Updated fixture pull request" },
+  forgeMergePrAtHead: { expectedHeadSha: "a".repeat(40) },
   listProjectTree: { directoryPath: "" },
   readProjectFile: { path: "README.md" },
   searchProjectFiles: { query: "README", limit: 20 },

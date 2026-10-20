@@ -182,8 +182,6 @@ function deps(overrides: Partial<AppControlsMcpIngressDeps> = {}): AppControlsMc
       forgeGetRepository: vi.fn<SC["forgeGetRepository"]>(),
       forgeEditPr: vi.fn<SC["forgeEditPr"]>(),
       forgeCreatePr: vi.fn<SC["forgeCreatePr"]>(),
-      forgeGetPrForBranch: vi.fn<SC["forgeGetPrForBranch"]>(),
-      forgeListPrs: vi.fn<SC["forgeListPrs"]>(),
       forgeListPullRequests: vi.fn<SC["forgeListPullRequests"]>(),
       forgeMergePr: vi.fn<SC["forgeMergePr"]>(),
       forgeMergePrAtHead: vi.fn<SC["forgeMergePrAtHead"]>(),

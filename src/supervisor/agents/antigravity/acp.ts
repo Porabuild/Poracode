@@ -1,3 +1,4 @@
+import type { SessionNotification } from "@agentclientprotocol/sdk";
 import type { AgentCapability, AgentInstanceConfig, AgentStatus } from "@/shared/contracts";
 import { capabilitiesForPresentation } from "@/shared/agentSelection";
 import { resolveUnrestrictedPermissionConfig } from "@/shared/agents/unrestrictedPermissions";
@@ -5,6 +6,10 @@ import { createAcpGenericAdapter } from "../acp-generic";
 import type { AgentAdapter } from "../base";
 import { buildAntigravityAcpModelCapabilities } from "./models";
 import { createAntigravityAcpExtension } from "./acpExtension";
+import {
+  attachAntigravitySubagentBridge,
+  transformAntigravitySubagentSessionUpdate,
+} from "./acpSubagents";
 import { transformAntigravityBackgroundToolCall } from "./acpTaskNotifications";
 import { parseAntigravityAcpTurnSignal } from "./acpTurnHold";
 
@@ -28,6 +33,14 @@ export function preferDefaultAntigravityAcpAuthMethod<T extends { id: string }>(
     ...preferred,
     ...methods.filter((method) => method.id !== ANTIGRAVITY_DEFAULT_ACP_AUTH_METHOD_ID),
   ];
+}
+
+export function transformAntigravitySessionUpdate(
+  notification: SessionNotification,
+): SessionNotification {
+  return transformAntigravitySubagentSessionUpdate(
+    transformAntigravityBackgroundToolCall(notification),
+  );
 }
 
 export function createAntigravityAcpRuntime(
@@ -67,7 +80,10 @@ export function createAntigravityAcpRuntime(
     // and reports file reads as finished only at end of turn; both parsers
     // live here so the shared mapper stays provider-agnostic.
     textStreamExtension: createAntigravityAcpExtension(),
-    sessionUpdateTransform: transformAntigravityBackgroundToolCall,
+    sessionUpdateTransform: transformAntigravitySessionUpdate,
+    attachSession: (session, input) => {
+      attachAntigravitySubagentBridge(session, input.projectLocation);
+    },
     // agy_acp_server holds session/prompt open until every background task
     // exits; the only end-of-reply boundary it publishes is a stderr
     // diagnostic. See ./acpTurnHold.ts.

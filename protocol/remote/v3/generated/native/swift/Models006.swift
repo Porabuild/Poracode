@@ -34,32 +34,32 @@ public struct ProcedureforgeCreatePrRequest_0b938cf4ea: Codable, Sendable, Remot
 }
 
 public enum ProcedureforgeCreatePrResultU2DMergeStateStatus_ecf46d0165: String, Codable, Sendable {
-  case bEHIND = "BEHIND"
-  case bLOCKED = "BLOCKED"
-  case cLEAN = "CLEAN"
-  case dIRTY = "DIRTY"
-  case dRAFT = "DRAFT"
-  case hASU5FHOOKS = "HAS_HOOKS"
-  case uNKNOWN = "UNKNOWN"
-  case uNSTABLE = "UNSTABLE"
+  case `bEHIND` = "BEHIND"
+  case `bLOCKED` = "BLOCKED"
+  case `cLEAN` = "CLEAN"
+  case `dIRTY` = "DIRTY"
+  case `dRAFT` = "DRAFT"
+  case `hASU5FHOOKS` = "HAS_HOOKS"
+  case `uNKNOWN` = "UNKNOWN"
+  case `uNSTABLE` = "UNSTABLE"
 }
 
 public enum ProcedureforgeCreatePrResultU2DMergeable_05ab37f667: String, Codable, Sendable {
-  case mERGEABLE = "MERGEABLE"
-  case cONFLICTING = "CONFLICTING"
-  case uNKNOWN = "UNKNOWN"
+  case `mERGEABLE` = "MERGEABLE"
+  case `cONFLICTING` = "CONFLICTING"
+  case `uNKNOWN` = "UNKNOWN"
 }
 
 public enum ProcedureforgeCreatePrResultU2DSourceU2DCapabilitiesU2DMergeMethodsU2DItem_9c01de6b08: String, Codable, Sendable {
-  case merge = "merge"
-  case squash = "squash"
-  case rebase = "rebase"
+  case `merge` = "merge"
+  case `squash` = "squash"
+  case `rebase` = "rebase"
 }
 
 public enum ProcedureforgeCreatePrResultU2DSourceU2DCapabilitiesU2DReviewDecisionsU2DItem_c0551fbf08: String, Codable, Sendable {
-  case approve = "approve"
-  case requestU2DChanges = "request-changes"
-  case comment = "comment"
+  case `approve` = "approve"
+  case `requestU2DChanges` = "request-changes"
+  case `comment` = "comment"
 }
 
 public struct ProcedureforgeCreatePrResultU2DSourceU2DCapabilities_4ed7c41654: Codable, Sendable, RemoteModelMetadata {
@@ -138,10 +138,10 @@ public struct ProcedureforgeCreatePrResultU2DSource_7e0a8084c4: Codable, Sendabl
 }
 
 public enum ProcedureforgeCreatePrResultU2DState_79fd49e14d: String, Codable, Sendable {
-  case open = "open"
-  case draft = "draft"
-  case merged = "merged"
-  case closed = "closed"
+  case `open` = "open"
+  case `draft` = "draft"
+  case `merged` = "merged"
+  case `closed` = "closed"
 }
 
 public struct ProcedureforgeCreatePrResult_912ced4bf8: Codable, Sendable, RemoteModelMetadata {
@@ -390,11 +390,11 @@ public struct ProcedureforgeGetPrDetailsResultU2DDetailsU2DReviewThreadsU2DItem_
 }
 
 public enum ProcedureforgeGetPrDetailsResultU2DDetailsU2DReviewsU2DItemU2DState_d2a18aed5c: String, Codable, Sendable {
-  case aPPROVED = "APPROVED"
-  case cHANGESU5FREQUESTED = "CHANGES_REQUESTED"
-  case cOMMENTED = "COMMENTED"
-  case dISMISSED = "DISMISSED"
-  case pENDING = "PENDING"
+  case `aPPROVED` = "APPROVED"
+  case `cHANGESU5FREQUESTED` = "CHANGES_REQUESTED"
+  case `cOMMENTED` = "COMMENTED"
+  case `dISMISSED` = "DISMISSED"
+  case `pENDING` = "PENDING"
 }
 
 public struct ProcedureforgeGetPrDetailsResultU2DDetailsU2DReviewsU2DItem_dba220fea4: Codable, Sendable, RemoteModelMetadata {

@@ -9,6 +9,7 @@ import {
   __setDesktopLoopbackIntakeTestSeamsForTest,
 } from "@/renderer/clientRuntime";
 import { readManagedLoopbackActivation } from "@/renderer/hostTransport/loopbackHttpWsTransport";
+import { readThreadHistoryNotice } from "@/renderer/state/remote/historyNoticeStore";
 import { useAppStore } from "@/renderer/state/appStore";
 import {
   hasHydratedThreadRuntimeItems,
@@ -175,13 +176,14 @@ it.each([
   [413, "response_too_large", false],
   [503, "persistence_contaminated", false],
   [500, "persistence_identity_invalid", false],
+  [499, "cancelled", false],
 ] as const)(
   "only retries temporary host failures (%s %s)",
   async (status, code, retryable) => {
     const threadId = `t-history-error-${code}`;
     seedThread(threadId);
     seedRuntimeItems(threadId, 2);
-    await activate();
+    await activate({ withNotices: true });
     const client = readManagedLoopbackActivation()!.client;
     const read = vi
       .spyOn(client, "boundedThreadHistory")
@@ -193,12 +195,37 @@ it.each([
       expect(useAppStore.getState().runtimeHydrationStatus[threadId]).toBe(
         retryable ? undefined : "failed",
       );
+      expect(readThreadHistoryNotice(threadId)?.needsReview ?? false).toBe(
+        code === "persistence_contaminated",
+      );
     } finally {
       read.mockRestore();
     }
   },
   60_000,
 );
+
+it("does not warn about lost history when storage stays busy across retries", async () => {
+  const threadId = "t-history-busy-retries";
+  seedThread(threadId);
+  seedRuntimeItems(threadId, 2);
+  await activate({ withNotices: true });
+  const client = readManagedLoopbackActivation()!.client;
+  const read = vi
+    .spyOn(client, "boundedThreadHistory")
+    .mockRejectedValue(new RemoteClientError("Read busy", 503, "persistence_read_refused"));
+  try {
+    await hydrateThreadRuntimeItems(threadId);
+    expect(read).toHaveBeenCalledTimes(3);
+    expect(useAppStore.getState().runtimeHydrationStatus[threadId]).toBe("failed");
+    expect(readThreadHistoryNotice(threadId)?.needsReview ?? false).toBe(false);
+    read.mockRestore();
+    await hydrateThreadRuntimeItems(threadId);
+    expect(useAppStore.getState().runtimeItemIdsByThread[threadId]).toEqual(["item-0", "item-1"]);
+  } finally {
+    read.mockRestore();
+  }
+}, 60_000);
 
 it("paints a small initial tail and pages back through all saved history without gaps", async () => {
   const threadId = "t-initial-tail";

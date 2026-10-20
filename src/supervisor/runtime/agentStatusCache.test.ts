@@ -40,6 +40,18 @@ afterEach(() => {
 });
 
 describe("agent status cache", () => {
+  it("re-probes the previous built-in inventory after an upgrade", () => {
+    const dataDir = makeTempDir();
+    process.env.PORACODE_DATA_DIR = dataDir;
+    const { cacheDir, statusCachePath } = resolvePoracodePaths(dataDir);
+    mkdirSync(cacheDir, { recursive: true });
+    writeFileSync(statusCachePath, JSON.stringify({ version: 64, windows: [], wsl: [] }));
+    const service = makeRuntime(() => {}).agentStatusService as unknown as {
+      readCachedStatuses(): unknown;
+    };
+    expect(service.readCachedStatuses()).toEqual({ windows: [], wsl: [], fromCache: false });
+  });
+
   it.each([40, 41, 47])(
     "invalidates v%i catalogs that omitted confirmed empty effort ladders",
     (version) => {
@@ -286,7 +298,7 @@ describe("agent status cache", () => {
     const service = runtime.agentStatusService as unknown as {
       readCachedStatuses(distros: string[]): unknown;
     };
-    expect(STATUS_CACHE_VERSION).toBe(64);
+    expect(STATUS_CACHE_VERSION).toBe(67);
     expect(service.readCachedStatuses([])).toEqual({ windows: [], wsl: [], fromCache: false });
   });
   it("invalidates v32 snapshots so connected accounts and credentials are re-probed", () => {
@@ -308,13 +320,13 @@ describe("agent status cache", () => {
     const service = runtime.agentStatusService as unknown as {
       readCachedStatuses(distros: string[]): unknown;
     };
-    expect(STATUS_CACHE_VERSION).toBe(64);
+    expect(STATUS_CACHE_VERSION).toBe(67);
     expect(service.readCachedStatuses([])).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
   it.each([
     32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55,
-    56, 57, 58, 59, 60, 61, 62,
+    56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66,
   ])("invalidates pre-integration v%i status snapshots", (version) => {
     const dataDir = makeTempDir();
     process.env.PORACODE_DATA_DIR = dataDir;
@@ -372,7 +384,7 @@ describe("agent status cache", () => {
     const service = runtime.agentStatusService as unknown as {
       readCachedStatuses(distros: string[]): unknown;
     };
-    expect(STATUS_CACHE_VERSION).toBe(64);
+    expect(STATUS_CACHE_VERSION).toBe(67);
     expect(service.readCachedStatuses([])).toEqual({ windows: [], wsl: [], fromCache: false });
   });
   it("invalidates v11 caches produced before successful ACP sessions established auth", () => {
@@ -727,7 +739,7 @@ describe("agent status cache", () => {
       }
     ).readCachedStatuses(["Ubuntu"]);
 
-    expect(STATUS_CACHE_VERSION).toBe(64);
+    expect(STATUS_CACHE_VERSION).toBe(67);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -778,7 +790,7 @@ describe("agent status cache", () => {
       }
     ).readCachedStatuses(["Ubuntu"]);
 
-    expect(STATUS_CACHE_VERSION).toBe(64);
+    expect(STATUS_CACHE_VERSION).toBe(67);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -818,7 +830,7 @@ describe("agent status cache", () => {
       }
     ).readCachedStatuses([]);
 
-    expect(STATUS_CACHE_VERSION).toBe(64);
+    expect(STATUS_CACHE_VERSION).toBe(67);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -861,7 +873,7 @@ describe("agent status cache", () => {
       }
     ).readCachedStatuses([]);
 
-    expect(STATUS_CACHE_VERSION).toBe(64);
+    expect(STATUS_CACHE_VERSION).toBe(67);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -900,7 +912,7 @@ describe("agent status cache", () => {
       }
     ).readCachedStatuses([]);
 
-    expect(STATUS_CACHE_VERSION).toBe(64);
+    expect(STATUS_CACHE_VERSION).toBe(67);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -961,7 +973,7 @@ describe("agent status cache", () => {
         readCachedStatuses: (distros: readonly string[]) => unknown;
       }
     ).readCachedStatuses(["Ubuntu"]);
-    expect(STATUS_CACHE_VERSION).toBe(64);
+    expect(STATUS_CACHE_VERSION).toBe(67);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -1001,7 +1013,7 @@ describe("agent status cache", () => {
         readCachedStatuses: (distros: readonly string[]) => unknown;
       }
     ).readCachedStatuses([]);
-    expect(STATUS_CACHE_VERSION).toBe(64);
+    expect(STATUS_CACHE_VERSION).toBe(67);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 

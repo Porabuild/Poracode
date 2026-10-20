@@ -161,21 +161,33 @@ async function initialize(
   if (!params.resumeAgentId) {
     await sdkRuntime.prepareModelSelection(params.createOptions.model, params.apiKey);
   }
-  agentCwd = cwd;
-  agentApiKey = params.apiKey;
+  await sdkRuntime.prepareLocalStore(cwd);
   const options = {
     ...params.createOptions,
+    // Max Mode travels on the public selection field; without a live catalog
+    // (resumed threads) qualification no-ops here and the first send
+    // re-qualifies once the catalog answers.
+    ...(params.createOptions.model
+      ? { model: sdkRuntime.qualifyModelSelection(params.createOptions.model) }
+      : {}),
     ...(params.apiKey ? { apiKey: params.apiKey } : {}),
   };
-  const opened = await openCursorSdkAgent(loaded, options, params.resumeAgentId);
-  agent = opened.agent;
-  if (!agent || typeof agent.agentId !== "string" || !agent.agentId) {
-    agent = undefined;
-    throw new WorkerDiagnosticError(
-      "module_api_incompatible",
-      "The installed Cursor SDK returned an invalid agent handle.",
-    );
+  let opened: Awaited<ReturnType<typeof openCursorSdkAgent>>;
+  try {
+    opened = await openCursorSdkAgent(loaded, options, params.resumeAgentId);
+    if (!opened.agent || typeof opened.agent.agentId !== "string" || !opened.agent.agentId) {
+      throw new WorkerDiagnosticError(
+        "module_api_incompatible",
+        "The installed Cursor SDK returned an invalid agent handle.",
+      );
+    }
+  } catch (error) {
+    await sdkRuntime.disposeLocalStore();
+    throw error;
   }
+  agent = opened.agent;
+  agentCwd = cwd;
+  agentApiKey = params.apiKey;
   agentModel = agent.model ?? params.createOptions.model;
   return {
     agentId: agent.agentId,
@@ -209,6 +221,10 @@ async function startRun(
       onDelta: (args: { update: unknown }) => void;
     } = {
       ...(input.options ?? {}),
+      // The resolved selection is always sent qualified so a send without a
+      // per-send override still qualifies a model resumed before the catalog
+      // was available.
+      ...(model ? { model: sdkRuntime.qualifyModelSelection(model) } : {}),
       onDelta: ({ update }) => {
         const transportUpdate = sanitizeInteractionUpdate(update);
         if (runId) {
@@ -374,6 +390,7 @@ async function disposeRuntime(): Promise<void> {
   if (currentAgent) {
     await disposeCursorSdkAgent(currentAgent);
   }
+  await sdkRuntime.disposeLocalStore();
 }
 
 function requireAgent(): RuntimeAgent {

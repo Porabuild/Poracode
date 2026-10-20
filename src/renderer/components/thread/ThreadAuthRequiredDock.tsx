@@ -73,6 +73,7 @@ export function ThreadAuthRequiredDock(props: {
       setPendingAction("login");
       const opened = runAgentLoginCommand({
         label: agentStatus.label,
+        status: agentStatus,
         command: agentStatus.loginCommand,
         ...(terminalAuthMethod?.env ? { env: terminalAuthMethod.env } : {}),
         ...(project ? { project } : {}),

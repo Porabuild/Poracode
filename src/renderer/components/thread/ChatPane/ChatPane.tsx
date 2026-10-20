@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { ConversationSearchJump } from "./ConversationSearchJump";
 import { Trans } from "@lingui/react/macro";
 import { Button } from "@heroui/react";
 import { useShallow } from "zustand/react/shallow";
@@ -498,6 +499,16 @@ export function ChatPane(props: ChatPaneProps) {
               </div>
             ) : null}
             <ThreadHistoryNoticeBanner threadId={threadId} />
+            <ConversationSearchJump
+              threadId={threadId}
+              ready={isInitialScrollSettled}
+              {...(hiddenRuntimeItemId !== undefined ? { hiddenRuntimeItemId } : {})}
+              scrollToIndexRef={scrollToIndexRef}
+              beforeScroll={() => {
+                scrollControlsRef.current?.markUserScrollIntent();
+                scrollControlsRef.current?.disableStickToBottom();
+              }}
+            />
             <MessageList
               key={threadId}
               threadId={threadId}

@@ -118,7 +118,11 @@ export interface ThreadSessionManagerOptions {
   resolvePluginLaunchContributions?(
     projectLocation: ProjectLocation,
     agentKind: AgentKind,
-    options?: { includeExternalServers: boolean },
+    options?: {
+      includeExternalServers: boolean;
+      /** Inspect explicit skill metadata through the adapter captured for this session's launch. */
+      nativePluginAdapter?: Pick<AgentAdapter, "listNativePlugins">;
+    },
   ): Promise<{
     mcpServers: McpServer[];
     builtInMcpServerIds: BuiltInMcpServerId[];
@@ -128,7 +132,7 @@ export interface ThreadSessionManagerOptions {
   prepareMcpToolFilters?(
     servers: McpServer[],
     projectLocation: ProjectLocation,
-    options?: { proxyStdioCwd?: boolean },
+    options?: { proxyStdioCwd?: boolean; isolateConnectionFailures?: boolean },
   ): Promise<McpServer[]>;
   /** Synchronize Poracode-owned provider skill projections before a new agent process starts. */
   prepareSkillsForLaunch?(projectLocation: ProjectLocation, agentKind: AgentKind): Promise<void>;

@@ -33,6 +33,8 @@ import {
   readItemId,
   readTurnId,
   readTurnState,
+  readRecord,
+  readNonEmptyString,
 } from "./readers";
 import { readStringField } from "../../fileChangeSummary";
 import { extractCodexFileChangePath, readCommandAggregatedOutput } from "./toolExtraction";
@@ -74,6 +76,12 @@ export function mapCodexNotification(
   options?: MapCodexNotificationOptions,
 ): RuntimeEvent[] {
   const { threadId } = state;
+  if (method === "model/rerouted") delete state.usageModel;
+  if (method === "thread/settings/updated") {
+    const model = readNonEmptyString(readRecord(params?.threadSettings)?.model);
+    if (model) state.usageModel = model;
+    return [];
+  }
 
   if (method === "thread/tokenUsage/updated") {
     const usageEvent = createCodexTokenUsageEvent(threadId, params);
@@ -84,7 +92,10 @@ export function mapCodexNotification(
     if (scope) {
       const counter = readCodexCumulativeTotalTokens(params);
       if (counter !== undefined) {
-        const spentEvent = createCodexUsageSpentEvent(threadId, params, scope.sample(counter));
+        const spentEvent = createCodexUsageSpentEvent(threadId, params, {
+          ...scope.sample(counter),
+          ...(state.usageModel ? { model: state.usageModel } : {}),
+        });
         if (spentEvent) events.push(spentEvent);
       }
     }

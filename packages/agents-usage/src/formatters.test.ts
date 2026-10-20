@@ -118,6 +118,12 @@ describe("windowDurationMs", () => {
     expect(windowDurationMs("gemini:gemini-2.5-pro", 0)).toBe(DAY);
     expect(windowDurationMs("antigravity:gemini:session-5h", 0)).toBe(5 * HOUR);
     expect(windowDurationMs("antigravity:claude:weekly", 0)).toBe(7 * DAY);
+    expect(windowDurationMs("daily", 0)).toBe(DAY);
+    expect(windowDurationMs("antigravity:gemini:daily", 0)).toBe(DAY);
+    expect(windowDurationMs("antigravity:gemini-4-argon:30m", 0)).toBe(30 * 60_000);
+    expect(windowDurationMs("antigravity:gemini-4-argon:1h", 0)).toBe(HOUR);
+    expect(windowDurationMs("antigravity:gemini-4-argon:2d", 0)).toBe(2 * DAY);
+    expect(windowDurationMs("antigravity:gemini-4-argon:2w", 0)).toBe(14 * DAY);
   });
 
   it("measures monthly windows back from the actual reset date, not a fixed 30d", () => {

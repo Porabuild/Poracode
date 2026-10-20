@@ -96,7 +96,7 @@ export function scanRuntimeExternals(repoRoot) {
     .map((name) => resolve(outputDir, name));
 
   if (files.length === 0) {
-    throw new Error("No bundled output found. Run `pnpm run build` first.");
+    throw new Error("No bundled output found. Run `bun run build` first.");
   }
 
   const externals = new Set();

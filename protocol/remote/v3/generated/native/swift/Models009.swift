@@ -291,11 +291,11 @@ public enum ProcedureghGetWorkflowDefinitionResultU2DDefinitionU2DInputsU2DItemU
 }
 
 public enum ProcedureghGetWorkflowDefinitionResultU2DDefinitionU2DInputsU2DItemU2DType_f450768848: String, Codable, Sendable {
-  case boolean = "boolean"
-  case choice = "choice"
-  case environment = "environment"
-  case number = "number"
-  case string = "string"
+  case `boolean` = "boolean"
+  case `choice` = "choice"
+  case `environment` = "environment"
+  case `number` = "number"
+  case `string` = "string"
 }
 
 public struct ProcedureghGetWorkflowDefinitionResultU2DDefinitionU2DInputsU2DItem_efedb06a4d: Codable, Sendable, RemoteModelMetadata {

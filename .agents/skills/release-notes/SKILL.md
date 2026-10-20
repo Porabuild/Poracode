@@ -164,12 +164,12 @@ noise.
 ## 4. Verify and publish
 
 ```bash
-pnpm exec vitest run src/shared/changelog.test.ts   # schema, ordering, uniqueness, required fields
-pnpm run typecheck
+bun run vitest run src/shared/changelog.test.ts   # schema, ordering, uniqueness, required fields
+bun run typecheck
 ```
 
 Optionally build the site to confirm the `/changelog` page renders:
-`pnpm --dir website build`.
+`bun run --cwd website build`.
 
 When asked to publish, open a pull request against `master` as described in
 `.github/CONTRIBUTING.md`, using the `pull-request` skill

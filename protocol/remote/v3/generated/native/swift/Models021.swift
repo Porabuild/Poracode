@@ -1,5 +1,58 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
+public struct RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DAutomationSnapshotU2DRetryPolicyU2DOptionU2D3_abcfe9be3e: Codable, Sendable, RemoteModelMetadata {
+  public var initialDelaySeconds: Int64
+  public var kind: RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DAutomationSnapshotU2DRetryPolicyU2DOptionU2D3U2DKind_1dff9447e3
+  public var maxAttempts: Int64
+  public var maxDelaySeconds: Int64
+  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
+  public static let fields: [RemoteFieldDescriptor] = [
+    .init(wireName: "initialDelaySeconds", typeName: "Int64", required: true, nullable: false, minimum: 1, maximum: 3600, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "kind", typeName: "RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DAutomationSnapshotU2DRetryPolicyU2DOptionU2D3U2DKind_1dff9447e3", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "maxAttempts", typeName: "Int64", required: true, nullable: false, minimum: 2, maximum: 6, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "maxDelaySeconds", typeName: "Int64", required: true, nullable: false, minimum: 1, maximum: 3600, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+  ]
+  public static let semanticValidatorIds: [String] = []
+  private enum CodingKeys: String, CodingKey {
+    case initialDelaySeconds = "initialDelaySeconds"
+    case kind = "kind"
+    case maxAttempts = "maxAttempts"
+    case maxDelaySeconds = "maxDelaySeconds"
+  }
+}
+
+public enum RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DAutomationSnapshotU2DRetryPolicy_de13949691: Codable, Sendable {
+  case option1(RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DAutomationSnapshotU2DCompletionPolicyU2DOptionU2D1_4545388132)
+  case option2(RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DAutomationSnapshotU2DRetryPolicyU2DOptionU2D2_2130fba9cf)
+  case option3(RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DAutomationSnapshotU2DRetryPolicyU2DOptionU2D3_abcfe9be3e)
+  public init(from decoder: Decoder) throws {
+    let container = try decoder.singleValueContainer()
+    var matches: [(Int, RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DAutomationSnapshotU2DRetryPolicy_de13949691)] = []
+    if RemoteUnionProbe.matchesProperty(decoder, property: "kind", literals: [.string("none")]), let value = try? container.decode(RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DAutomationSnapshotU2DCompletionPolicyU2DOptionU2D1_4545388132.self) {
+      matches.append((1, .option1(value)))
+    }
+    if RemoteUnionProbe.matchesProperty(decoder, property: "kind", literals: [.string("fixed")]), let value = try? container.decode(RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DAutomationSnapshotU2DRetryPolicyU2DOptionU2D2_2130fba9cf.self) {
+      matches.append((2, .option2(value)))
+    }
+    if RemoteUnionProbe.matchesProperty(decoder, property: "kind", literals: [.string("exponential")]), let value = try? container.decode(RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DAutomationSnapshotU2DRetryPolicyU2DOptionU2D3_abcfe9be3e.self) {
+      matches.append((3, .option3(value)))
+    }
+    guard matches.count == 1 else {
+      let detail = matches.isEmpty ? "No union option matched RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DAutomationSnapshotU2DRetryPolicy_de13949691" : "Ambiguous union RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DAutomationSnapshotU2DRetryPolicy_de13949691 matched options " + matches.map { String($0.0) }.joined(separator: ", ")
+      throw DecodingError.typeMismatch(RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DAutomationSnapshotU2DRetryPolicy_de13949691.self, .init(codingPath: decoder.codingPath, debugDescription: detail))
+    }
+    self = matches[0].1
+  }
+  public func encode(to encoder: Encoder) throws {
+    var container = encoder.singleValueContainer()
+    switch self {
+    case .option1(let value): try container.encode(value)
+    case .option2(let value): try container.encode(value)
+    case .option3(let value): try container.encode(value)
+    }
+  }
+}
+
 public struct RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DAutomationSnapshot_fdddba9ec6: Codable, Sendable, RemoteModelMetadata {
   public var completionPolicy: RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DAutomationSnapshotU2DCompletionPolicy_fc24a3f286
   public var maxIterations: RemoteField<Int64>
@@ -60,17 +113,17 @@ public struct RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DResultU2DOptio
 }
 
 public enum RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DResultU2DOptionU2D1U2DOutcome_75fa28583d: String, Codable, Sendable {
-  case findings = "findings"
-  case noU2DFindings = "no-findings"
-  case changedU2DFiles = "changed-files"
-  case needsU2DAttention = "needs-attention"
-  case unknown = "unknown"
+  case `findings` = "findings"
+  case `noU2DFindings` = "no-findings"
+  case `changedU2DFiles` = "changed-files"
+  case `needsU2DAttention` = "needs-attention"
+  case `unknown` = "unknown"
 }
 
 public enum RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DResultU2DOptionU2D1U2DSeverity_2d5efa5a79: String, Codable, Sendable {
-  case info = "info"
-  case warning = "warning"
-  case error = "error"
+  case `info` = "info"
+  case `warning` = "warning"
+  case `error` = "error"
 }
 
 public typealias RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DResultU2DOptionU2D1U2DStopReason_7bbdba78cb = String?
@@ -113,19 +166,19 @@ public struct RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DResultU2DOptio
 public typealias RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DResult_66ee2eb4ed = RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DResultU2DOptionU2D1_ae4a760581?
 
 public enum RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DStatus_2151c8edcf: String, Codable, Sendable {
-  case running = "running"
-  case waitingU2DForU2DApproval = "waiting-for-approval"
-  case succeeded = "succeeded"
-  case failed = "failed"
-  case cancelled = "cancelled"
-  case interrupted = "interrupted"
-  case skipped = "skipped"
+  case `running` = "running"
+  case `waitingU2DForU2DApproval` = "waiting-for-approval"
+  case `succeeded` = "succeeded"
+  case `failed` = "failed"
+  case `cancelled` = "cancelled"
+  case `interrupted` = "interrupted"
+  case `skipped` = "skipped"
 }
 
 public enum RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DTrigger_56296b74a9: String, Codable, Sendable {
-  case manual = "manual"
-  case scheduled = "scheduled"
-  case retry = "retry"
+  case `manual` = "manual"
+  case `scheduled` = "scheduled"
+  case `retry` = "retry"
 }
 
 public struct RouteautomationsU2DSnapshotResponseU2DRunsU2DItem_38754692c8: Codable, Sendable, RemoteModelMetadata {
@@ -228,18 +281,18 @@ public struct RouteautomationsU2DSnapshotResponseU2DSchedulesU2DItemU2DConfig_f6
 }
 
 public enum RouteautomationsU2DSnapshotResponseU2DSchedulesU2DItemU2DLastStatus_aa5449703b: String, Codable, Sendable {
-  case never = "never"
-  case running = "running"
-  case waitingU2DForU2DApproval = "waiting-for-approval"
-  case succeeded = "succeeded"
-  case failed = "failed"
-  case cancelled = "cancelled"
-  case interrupted = "interrupted"
-  case skipped = "skipped"
+  case `never` = "never"
+  case `running` = "running"
+  case `waitingU2DForU2DApproval` = "waiting-for-approval"
+  case `succeeded` = "succeeded"
+  case `failed` = "failed"
+  case `cancelled` = "cancelled"
+  case `interrupted` = "interrupted"
+  case `skipped` = "skipped"
 }
 
 public enum RouteautomationsU2DSnapshotResponseU2DSchedulesU2DItemU2DRecurrenceU2DOptionU2D1U2DKind_6f5933af03: String, Codable, Sendable {
-  case hourly = "hourly"
+  case `hourly` = "hourly"
 }
 
 public struct RouteautomationsU2DSnapshotResponseU2DSchedulesU2DItemU2DRecurrenceU2DOptionU2D1_a467b0ed1c: Codable, Sendable, RemoteModelMetadata {
@@ -258,7 +311,7 @@ public struct RouteautomationsU2DSnapshotResponseU2DSchedulesU2DItemU2DRecurrenc
 }
 
 public enum RouteautomationsU2DSnapshotResponseU2DSchedulesU2DItemU2DRecurrenceU2DOptionU2D2U2DKind_475f91db7d: String, Codable, Sendable {
-  case weekly = "weekly"
+  case `weekly` = "weekly"
 }
 
 public struct RouteautomationsU2DSnapshotResponseU2DSchedulesU2DItemU2DRecurrenceU2DOptionU2D2_ac7865b2a5: Codable, Sendable, RemoteModelMetadata {
@@ -283,7 +336,7 @@ public struct RouteautomationsU2DSnapshotResponseU2DSchedulesU2DItemU2DRecurrenc
 }
 
 public enum RouteautomationsU2DSnapshotResponseU2DSchedulesU2DItemU2DRecurrenceU2DOptionU2D3U2DKind_e5ee0a0722: String, Codable, Sendable {
-  case once = "once"
+  case `once` = "once"
 }
 
 public struct RouteautomationsU2DSnapshotResponseU2DSchedulesU2DItemU2DRecurrenceU2DOptionU2D3_d1c4cb16ae: Codable, Sendable, RemoteModelMetadata {
@@ -302,13 +355,13 @@ public struct RouteautomationsU2DSnapshotResponseU2DSchedulesU2DItemU2DRecurrenc
 }
 
 public enum RouteautomationsU2DSnapshotResponseU2DSchedulesU2DItemU2DRecurrenceU2DOptionU2D4U2DKind_6cf695d23a: String, Codable, Sendable {
-  case interval = "interval"
+  case `interval` = "interval"
 }
 
 public enum RouteautomationsU2DSnapshotResponseU2DSchedulesU2DItemU2DRecurrenceU2DOptionU2D4U2DUnit_e4a434d61c: String, Codable, Sendable {
-  case minutes = "minutes"
-  case hours = "hours"
-  case days = "days"
+  case `minutes` = "minutes"
+  case `hours` = "hours"
+  case `days` = "days"
 }
 
 public struct RouteautomationsU2DSnapshotResponseU2DSchedulesU2DItemU2DRecurrenceU2DOptionU2D4_84ccfb83d8: Codable, Sendable, RemoteModelMetadata {
@@ -330,7 +383,7 @@ public struct RouteautomationsU2DSnapshotResponseU2DSchedulesU2DItemU2DRecurrenc
 }
 
 public enum RouteautomationsU2DSnapshotResponseU2DSchedulesU2DItemU2DRecurrenceU2DOptionU2D5U2DKind_a050e4e432: String, Codable, Sendable {
-  case cron = "cron"
+  case `cron` = "cron"
 }
 
 public struct RouteautomationsU2DSnapshotResponseU2DSchedulesU2DItemU2DRecurrenceU2DOptionU2D5_0a49efe270: Codable, Sendable, RemoteModelMetadata {

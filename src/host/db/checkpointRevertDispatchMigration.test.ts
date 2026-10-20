@@ -9,6 +9,8 @@ import {
   nativeBindingEnv,
   sqliteAvailable,
   removeReviewScopeFixtureSchema,
+  removeCostSchemaForDowngrade,
+  removeConversationSearchFixtureSchema,
 } from "./runtimeItems.testFixtures";
 
 describe.skipIf(!sqliteAvailable)("checkpoint revert dispatch migration", () => {
@@ -36,6 +38,8 @@ describe.skipIf(!sqliteAvailable)("checkpoint revert dispatch migration", () => 
     );
     database.pragma("user_version = 50");
     removeReviewScopeFixtureSchema(database);
+    removeConversationSearchFixtureSchema(database);
+    removeCostSchemaForDowngrade(database);
     database.prepare("UPDATE app_state SET value = '50' WHERE key = 'schema_version'").run();
     const insert = database.prepare(`
       INSERT INTO checkpoint_revert_operations

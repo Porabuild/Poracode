@@ -5,6 +5,7 @@ import {
   createThreadWorkspaceGrantsSchema56,
 } from "./threadWorkspaceGrantsSchema56";
 import { migrateScheduleAutomation } from "./scheduleAutomationMigration";
+import { createConversationSearchSchema } from "./conversationSearchSchema";
 import { randomUUID } from "node:crypto";
 import Database from "better-sqlite3";
 import { normalizePersistedAntigravityModelSelection } from "@/shared/agents/antigravity";
@@ -965,6 +966,26 @@ export const DATABASE_MIGRATIONS = [
   },
   {
     version: 62,
+    name: "retain token categories and cost provenance",
+    // Old token rows and cumulative baselines remain valid but unpriced. No history is inferred.
+    rollback: "forward-only",
+    migrate: (sqlite) => {
+      sqlite.exec("ALTER TABLE usage_events ADD COLUMN cost_details TEXT");
+      sqlite.exec("ALTER TABLE usage_token_ledger ADD COLUMN cost_details TEXT");
+      sqlite.exec(
+        "CREATE INDEX idx_usage_token_ledger_scope ON usage_token_ledger (scope_id, epoch)",
+      );
+    },
+  },
+  {
+    version: 63,
+    name: "index saved conversation text",
+    // Rebuildable FTS projection; old canonical history stays byte-for-byte valid.
+    rollback: "forward-only",
+    migrate: createConversationSearchSchema,
+  },
+  {
+    version: 64,
     name: "pin review watch source identity",
     // Legacy NULL requires explicit re-arming; never infer the active account.
     // Versioned public scope is execution authority, separate from status patches.
@@ -1143,6 +1164,12 @@ export function repairSafeSchemaDrift(sqlite: SqliteDatabase): void {
 // Grant columns/journal/guards are deliberately NOT SAFE_COLUMN_REPAIRS:
 // losing custody at schema 55/56 must refuse, not recreate an empty grant or journal.
 const REQUIRED_COLUMNS = {
+  usage_events: ["cost_details"],
+  usage_token_ledger: ["cost_details"],
+  conversation_search_meta: ["id", "generation"],
+  conversation_search_pending: ["revision", "thread_id", "item_id"],
+  conversation_search_documents: ["id", "thread_id", "item_id", "text"],
+  conversation_search_fts: ["text"],
   thread_workspace_grant_operations: [
     "thread_id",
     "operation_token",

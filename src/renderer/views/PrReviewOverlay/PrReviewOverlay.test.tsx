@@ -29,6 +29,7 @@ const bridge = vi.hoisted(() => ({
   ghPostPrComment: vi.fn<() => Promise<PrComment>>(),
   forgeSubmitPrReview: vi.fn<() => Promise<void>>(),
   forgePostPrComment: vi.fn<() => Promise<PrComment>>(),
+  forgeEditPr: vi.fn<() => Promise<void>>(),
   openExternal: vi.fn<() => Promise<void>>(),
 }));
 
@@ -138,6 +139,7 @@ describe("PrReviewOverlay", () => {
     bridge.ghPostPrComment.mockReset();
     bridge.forgeSubmitPrReview.mockReset();
     bridge.forgePostPrComment.mockReset();
+    bridge.forgeEditPr.mockReset().mockResolvedValue(undefined);
     useGitStore.setState({
       prFiles: {},
       prDiffs: {},
@@ -146,6 +148,97 @@ describe("PrReviewOverlay", () => {
     });
     useSidebarOverlayStore.setState({ isCollapsed: false, isAutoCollapsed: false });
     localStorage.clear();
+  });
+
+  it.each(["number", "account"])(
+    "does not save an edit draft after its %s changes",
+    async (change) => {
+      useGitStore.setState({ prData: { "__branch:project-1": scopedPr } });
+      render(
+        <PrReviewOverlay
+          project={project}
+          prNumber={12}
+          prKey="__branch:project-1"
+          onClose={() => {}}
+        />,
+      );
+      const edit = await screen.findByRole("button", { name: "Edit" });
+      await waitFor(() => expect(edit).toBeEnabled());
+      fireEvent.click(edit);
+      fireEvent.change(screen.getByRole("textbox", { name: "Title" }), {
+        target: { value: "Old review draft" },
+      });
+      const form = screen.getByRole("button", { name: "Save" }).closest("form")!;
+      const source = { ...forgeSource, account: { ...forgeSource.account!, login: "bob" } };
+      bridge.forgeGetPrDetails.mockResolvedValue({ details: { ...details, source } });
+      act(() =>
+        useGitStore
+          .getState()
+          .setPrData(
+            "__branch:project-1",
+            change === "number" ? { ...scopedPr, number: 13 } : { ...scopedPr, source },
+          ),
+      );
+      fireEvent.submit(form);
+      await waitFor(() => expect(bridge.forgeGetPrDetails).toHaveBeenCalled());
+      expect(bridge.forgeEditPr).not.toHaveBeenCalled();
+      expect(screen.queryByDisplayValue("Old review draft")).not.toBeInTheDocument();
+    },
+  );
+
+  it("reloads review content when the branch head changes", async () => {
+    useGitStore.setState({
+      prData: { "__branch:project-1": { ...scopedPr, headSha: "a".repeat(40) } },
+    });
+    render(
+      <PrReviewOverlay
+        project={project}
+        prNumber={12}
+        prKey="__branch:project-1"
+        onClose={() => {}}
+      />,
+    );
+    await waitFor(() => expect(screen.getByRole("button", { name: "Edit" })).toBeEnabled());
+    const held = Promise.withResolvers<{ diff: string }>();
+    bridge.forgeGetPrDiff.mockReturnValueOnce(held.promise);
+    act(() =>
+      useGitStore
+        .getState()
+        .setPrData("__branch:project-1", { ...scopedPr, headSha: "b".repeat(40) }),
+    );
+    await waitFor(() => expect(bridge.forgeGetPrDiff).toHaveBeenCalledTimes(2));
+    expect(screen.queryByRole("button", { name: "Edit" })).not.toBeInTheDocument();
+    await act(async () => {
+      held.resolve({ diff: "new head diff" });
+      await held.promise;
+    });
+    await waitFor(() => expect(screen.getByRole("button", { name: "Edit" })).toBeEnabled());
+    expect(useGitStore.getState().prDiffs["project-1#12"]).toBe("new head diff");
+  });
+
+  it("keeps writes disabled when a replacement source diff fails to load", async () => {
+    useGitStore.setState({ prData: { "__branch:project-1": scopedPr } });
+    render(
+      <PrReviewOverlay
+        project={project}
+        prNumber={12}
+        prKey="__branch:project-1"
+        onClose={() => {}}
+      />,
+    );
+    await waitFor(() => expect(screen.getByRole("button", { name: "Edit" })).toBeEnabled());
+    const source = { ...forgeSource, account: { ...forgeSource.account!, login: "bob" } };
+    const held = Promise.withResolvers<{ diff: string }>();
+    bridge.forgeGetPrDiff.mockReturnValueOnce(held.promise);
+    bridge.forgeGetPrDetails.mockResolvedValue({ details: { ...details, source } });
+    act(() => useGitStore.getState().setPrData("__branch:project-1", { ...scopedPr, source }));
+    await waitFor(() => expect(bridge.forgeGetPrDiff).toHaveBeenCalledTimes(2));
+    await act(async () => {
+      held.reject(new Error("fixture diff unavailable"));
+      await held.promise.catch(() => {});
+    });
+    expect(screen.queryByRole("button", { name: "Edit" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Merge options" })).toBeDisabled();
   });
 
   it("does not treat another account's viewed tick as this review", async () => {

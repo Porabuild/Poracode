@@ -9,6 +9,7 @@ import { useAppStore } from "@/renderer/state/appStore";
 import { isMergedPrRegression, useGitStore } from "@/renderer/state/gitStore";
 import { buildBranchPrKey } from "@/renderer/state/gitSelectors";
 import { coalesceByKey } from "@/shared/coalesce";
+import { isHomeProject } from "@/shared/homeScope";
 import { useShallow } from "zustand/shallow";
 import { handleKeyActivate } from "@/renderer/utils/a11y";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
@@ -91,6 +92,9 @@ export function GitBadge(props: {
   const projectLocation = useAppStore((s) =>
     props.worktreePath ? undefined : s.projects.find((p) => p.id === props.projectId)?.location,
   );
+  const isHome = useAppStore((s) =>
+    isHomeProject(s.projects.find((p) => p.id === props.projectId)),
+  );
   const [verifiedProjectPrBranch, setVerifiedProjectPrBranch] = useState<string | null>(null);
   const projectPrKey = buildBranchPrKey(props.projectId);
 
@@ -98,7 +102,6 @@ export function GitBadge(props: {
     hasStatus,
     isRepo,
     branch,
-    remotePlatform,
     ghAvailable,
     totalInsertions,
     totalDeletions,
@@ -127,7 +130,6 @@ export function GitBadge(props: {
         hasStatus: gitStatus !== undefined,
         isRepo: gitStatus?.isRepo ?? false,
         branch: currentBranch,
-        remotePlatform: gitStatus?.remoteInfo?.platform,
         ghAvailable: s.ghAvailable[props.projectId] ?? false,
         totalInsertions: gitStatus?.totalInsertions ?? 0,
         totalDeletions: gitStatus?.totalDeletions ?? 0,
@@ -158,13 +160,7 @@ export function GitBadge(props: {
 
   useEffect(() => {
     if (props.worktreePath) return;
-    if (
-      !isRepo ||
-      !branch ||
-      !projectLocation ||
-      !ghAvailable ||
-      (remotePlatform !== "github" && remotePlatform !== "unknown")
-    ) {
+    if (!isRepo || !branch || !projectLocation || !ghAvailable) {
       useGitStore.getState().setPrData(projectPrKey, null);
       return;
     }
@@ -199,12 +195,12 @@ export function GitBadge(props: {
     branch,
     projectLocation,
     ghAvailable,
-    remotePlatform,
   ]);
 
   const hasChanges = totalInsertions > 0 || totalDeletions > 0;
   const isWorktree = props.worktreePath !== undefined;
   if (hasStatus && !isRepo) {
+    if (isHome) return null;
     return (
       <Tooltip delay={150}>
         <Tooltip.Trigger>

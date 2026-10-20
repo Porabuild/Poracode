@@ -49,10 +49,13 @@ import {
 } from "./everythingSearch";
 import {
   buildEverythingSearchSections,
+  CATEGORY_RESULT_LIMIT,
   type EverythingSearchResult,
 } from "./everythingSearchSections";
 import { EverythingSearchResults } from "./EverythingSearchResults";
 import { useEverythingFileSearch } from "./useEverythingFileSearch";
+import { useConversationSearch } from "./useConversationSearch";
+import { openConversationSearchHit } from "./conversationSearchNavigation";
 import { resolveSearchScope } from "./searchScope";
 import { revealSearchDestination } from "./searchNavigation";
 
@@ -150,6 +153,7 @@ function SearchPaletteContent() {
     query,
     enabled: category === "all" || category === "files",
   });
+  const messageSearch = useConversationSearch(query, category === "all" || category === "messages");
   const resolve = (value: string | MessageDescriptor): string =>
     typeof value === "string" ? value : t(value);
   const searchesCommands = category === "all" || category === "commands" || category === "actions";
@@ -180,7 +184,9 @@ function SearchPaletteContent() {
         ? resolveSettingMatches(query, category, t)
         : [],
     files: fileSearch.entries,
+    messages: messageSearch.entries,
     labels: {
+      messages: t`Messages`,
       threads: t`Threads`,
       commands: t`Commands`,
       actions: t`Actions`,
@@ -203,10 +209,13 @@ function SearchPaletteContent() {
           : fileSearch.failed
             ? t`File search unavailable`
             : undefined
-      : undefined;
+      : category === "messages" && query.trim().length < 2
+        ? t`Type at least two characters to search messages`
+        : undefined;
   const categories: { id: EverythingSearchCategory; label: string; icon: ReactNode }[] = [
     { id: "all", label: t`All`, icon: <ListFilter /> },
     { id: "threads", label: t`Threads`, icon: <MessageSquare /> },
+    { id: "messages", label: t`Messages`, icon: <MessageSquare /> },
     { id: "commands", label: t`Commands`, icon: <Command /> },
     { id: "settings", label: t`Settings`, icon: <Settings /> },
     { id: "files", label: t`Files`, icon: <File /> },
@@ -234,6 +243,12 @@ function SearchPaletteContent() {
       revealSearchDestination("thread");
       openThread(result.thread.id);
       close();
+      return;
+    }
+    if (result.kind === "message") {
+      revealSearchDestination("thread");
+      close();
+      void openConversationSearchHit(result.hit);
       return;
     }
     if (result.kind === "command" || result.kind === "action") {
@@ -379,13 +394,52 @@ function SearchPaletteContent() {
         sections={sections}
         query={createSearchQuery(query)}
         activeIndex={activeIndex}
-        loading={fileSearch.loading}
+        loading={fileSearch.loading || messageSearch.loading || messageSearch.indexing}
+        {...(!fileSearch.loading && (messageSearch.loading || messageSearch.indexing)
+          ? {
+              loadingLabel: messageSearch.indexing
+                ? t`Indexing saved messages…`
+                : t`Searching saved messages…`,
+            }
+          : {})}
         failed={fileSearch.failed}
+        messagesFailed={messageSearch.failed}
+        messagesHaveMore={messageSearch.hasMore}
         emptyMessage={emptyMessage}
         onRetry={fileSearch.retry}
         onActivate={activate}
         onHover={(index) => setSelectedKey(results[index]?.key ?? null)}
       />
+      {category === "all" || category === "messages" ? (
+        <div
+          className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-[var(--hairline)] px-4 py-2 text-[11px] text-muted"
+          role="status"
+        >
+          <span>
+            {messageSearch.loading
+              ? t`Searching saved messages…`
+              : messageSearch.indexing
+                ? t`Indexing saved messages…`
+                : messageSearch.failed
+                  ? t`Message search unavailable`
+                  : t`Saved messages, including archived chats`}
+          </span>
+          {messageSearch.failed ? (
+            <Button size="sm" variant="ghost" onPress={messageSearch.retry}>{t`Retry`}</Button>
+          ) : null}
+          {category === "messages" &&
+          messageSearch.hasMore &&
+          !messageSearch.indexing &&
+          messageSearch.entries.length < CATEGORY_RESULT_LIMIT ? (
+            <Button
+              size="sm"
+              variant="ghost"
+              isPending={messageSearch.loading}
+              onPress={messageSearch.loadMore}
+            >{t`Show more`}</Button>
+          ) : null}
+        </div>
+      ) : null}
       {!compact ? (
         <div className="flex shrink-0 items-center gap-4 border-t border-[var(--hairline)] px-4 py-2 text-[10px] text-muted">
           <span>

@@ -3,6 +3,8 @@ import type { SessionImportSource } from "./sessionImport";
 import type {
   ManageAgentCredentialsPayload,
   ManageAgentCredentialsResult,
+  ManageModelProvidersPayload,
+  ManageModelProvidersResult,
   ManageAgentPluginsPayload,
   ManageAgentPluginsResult,
   AgentAuthMethod,
@@ -1132,12 +1134,18 @@ export interface AgentAdapter
     input: Omit<ManageAgentCredentialsPayload, "agentKind">,
   ): Promise<ManageAgentCredentialsResult>;
 
+  /** Manage upstream model routes through the provider's native settings authority. */
+  manageModelProviders?(input: ManageModelProvidersPayload): Promise<ManageModelProvidersResult>;
+
   readonly skillSupport?: AgentSkillSupport;
   /** Release provider-owned shared processes after all thread sessions have closed. */
   shutdown?(): void | Promise<void>;
 
   /** Route stdio MCPs with an explicit cwd through the proxy when the native runtime ignores cwd. */
   readonly mcpRequiresStdioCwdProxy?: boolean;
+
+  /** Isolate user/plugin MCP connection failures instead of aborting GUI turns. */
+  readonly mcpRequiresConnectionFailureIsolation?: boolean;
 
   /**
    * Refresh shared OAuth on MCP connection instead of before launch. Requires a

@@ -156,21 +156,15 @@ void test("the reusable workflow builds once, qualifies the exact artifact, and 
   assert.match(String(darwinLeg.require_targets), /darwin-x64/u);
 
   // Windows x64 is built and qualified natively (no cross build, no rebuild),
-  // with bash as the one run shell and pnpm from Corepack, not action-setup.
+  // with bash as the one run shell and the same pinned Bun as the other legs.
   const windowsLeg = matrixEntries.find((entry) => entry.name === "windows");
   assert.ok(windowsLeg && windowsLeg.os === "windows-latest");
   assert.equal(windowsLeg.require_targets, "win32-x64");
   assert.equal(windowsLeg.cross_build, false);
   assert.equal(build.defaults.run.shell, "bash");
-  const setupPnpm = steps.find((step) => step.name === "Setup pnpm");
-  assert.equal(setupPnpm.if, "runner.os != 'Windows'");
-  const corepack = steps.find((step) => step.name === "Activate the pinned pnpm (Corepack)");
-  assert.equal(corepack.if, "runner.os == 'Windows'");
-  assert.match(corepack.run, /corepack enable/u);
-  const setupNode = steps.find((step) => step.name === "Setup Node.js");
-  // `cond && '' || x` always yields x ('' is falsy), which re-enabled the
-  // pnpm cache on Windows; the Windows test must select the empty value.
-  assert.equal(String(setupNode.with.cache), "${{ runner.os != 'Windows' && 'pnpm' || '' }}");
+  const setupBun = steps.find((step) => step.name === "Setup Bun");
+  assert.equal(setupBun.uses, "./.github/actions/setup-bun");
+  assert.equal(setupBun.if, undefined);
   const nativeRebuild = steps.find(
     (step) => step.name === "Build native dependencies for the tarball",
   );
@@ -206,7 +200,7 @@ void test("the reusable workflow builds once, qualifies the exact artifact, and 
   const assemble = steps.find((step) => step.name === "Build and assemble the server artifact");
   // One web build feeds the bundled client (plan D2); the same recipe runs for
   // qualification and release.
-  assert.match(assemble.run, /pnpm run build:web/u);
+  assert.match(assemble.run, /bun run build:web/u);
   assert.match(assemble.run, /--require-target/u);
   assert.match(assemble.run, /--target/u);
   assert.match(assemble.run, /assemble-server-tarball/u);

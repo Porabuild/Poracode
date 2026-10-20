@@ -57,6 +57,8 @@ describe("ThreadDocksPanel", () => {
       threadDocksOrder: ["backgroundTasks", "images", "plan", "goal", "agents"],
     });
     useAppStore.setState({
+      threads: [],
+      runtimeContextByThread: {},
       runtimeItemIdsByThread: { "thread-1": ["plan-1"] },
       runtimeItemsByIdByThread: {
         "thread-1": {
@@ -300,6 +302,59 @@ describe("ThreadDocksPanel", () => {
         element.getAttribute("data-dock-kind"),
       ),
     ).toEqual(["backgroundTasks", "images", "plan"]);
+  });
+
+  it("includes context and reported usage in saved order with drag handles", async () => {
+    useAppStore.setState({
+      threads: [
+        {
+          id: "thread-1",
+          projectId: "p1",
+          title: "Chat",
+          agentKind: "codex",
+          config: { model: "test" },
+          status: "idle",
+          attention: "none",
+          canResumeWithConfig: false,
+          presentationMode: "gui",
+          archived: false,
+          done: false,
+          starred: false,
+          createdAt: "2026-10-20",
+          updatedAt: "2026-10-20",
+        },
+      ],
+      runtimeContextByThread: { "thread-1": { usedTokens: 123 } },
+    });
+    useSharedSettings
+      .getState()
+      .setThreadDocksOrder([
+        "usage",
+        "context",
+        "plan",
+        "backgroundTasks",
+        "images",
+        "goal",
+        "agents",
+      ]);
+    const { container } = render(
+      <AppProvider>
+        <ThreadDocksPanel threadId="thread-1" />
+      </AppProvider>,
+    );
+    expect(screen.getByRole("button", { name: "Reorder Thread context" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Reorder Usage" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Expand thread context" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Collapse agent usage" })).toBeInTheDocument();
+    expect(
+      [...container.querySelectorAll("[data-dock-kind]")].map((element) =>
+        element.getAttribute("data-dock-kind"),
+      ),
+    ).toEqual(["usage", "context", "plan", "backgroundTasks"]);
+    await act(async () => {
+      useAppStore.setState({ runtimeContextByThread: {} });
+    });
+    expect(screen.queryByRole("button", { name: "Reorder Usage" })).not.toBeInTheDocument();
   });
 
   it("keeps composer-placed informational docks out of image-focused Thread info", () => {

@@ -203,7 +203,12 @@ describe("source identity and credential isolation", () => {
     expect(f.requests[0]?.headers.Authorization).toBe("token alice-fixture");
     expect(f.runtime.run).toHaveBeenCalledTimes(4);
   });
-  it("keeps Azure org identity and uses its stable principal id", async () => {
+  it.each([
+    ["https://dev.azure.com/org/project/_git/app", true],
+    ["git@ssh.dev.azure.com:v3/org/project/app", true],
+    ["https://dev.azure.com/other/project/_git/app", false],
+    ["git@ssh.dev.azure.com:v3/other/project/app", false],
+  ])("checks Azure push organization identity for %s", async (pushUrl, autoFix) => {
     const f = fixture(
       "https://dev.azure.com/org/project/_git/app",
       {
@@ -212,12 +217,19 @@ describe("source identity and credential isolation", () => {
       },
       { authenticatedUser: { id: "guid", uniqueName: "alice@example.com" } },
     );
+    const run = f.cli.getMockImplementation()!;
+    f.cli.mockImplementation((target, command, args) =>
+      command === "git" && args[1] === "get-url"
+        ? Promise.resolve(pushUrl)
+        : run(target, command, args),
+    );
     const result = await f.connections.resolve(location, {
       forge: "azure-devops",
       host: "https://dev.azure.com/org",
       login: "guid",
     });
     expect(result?.source.repository).toBe("project/app");
+    expect(result?.source.capabilities.autoFix).toBe(autoFix);
     expect(f.requests[0]?.url).toBe(
       "https://dev.azure.com/org/_apis/connectionData?api-version=7.1-preview.1",
     );
