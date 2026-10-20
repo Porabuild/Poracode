@@ -9,6 +9,7 @@ import { test } from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { prepareDeviceHub } from "../prepare-device-hub.mjs";
 import {
+  DEVICE_HUB_ARTIFACT_VERSION,
   DEVICE_HUB_NATIVE_MODULE_PATH,
   DEVICE_HUB_NATIVE_MODULE_SHA256,
   DEVICE_HUB_NATIVE_PATCH_RECEIPT,
@@ -37,6 +38,43 @@ const fingerprint = hash(jar);
 const cache = `/data/local/tmp/serve-emu-scrcpy-server-v4.0.jar-${fingerprint.slice(0, 24)}`;
 const temporary = `${cache}.12345678.tmp`;
 const working = "/data/local/tmp/serve-emu-scrcpy-12345678.jar";
+
+void test("stages the platform closure and replaces artifact 1 without dropping simulator JS", async (t) => {
+  const scratch = await mkdtemp(join(tmpdir(), "hub-layout-test-"));
+  t.after(() => rm(scratch, { recursive: true, force: true }));
+  const output = join(scratch, "output");
+  const target = join(output, `${process.platform}-${process.arch}`);
+  await mkdir(target, { recursive: true });
+  const previous = JSON.parse(await readFile(new URL("manifest.json", staged), "utf8"));
+  await writeFile(join(target, "manifest.json"), JSON.stringify({ ...previous, version: 1 }));
+  const result = await prepareDeviceHub({
+    source: fileURLToPath(new URL("./", import.meta.url)),
+    output,
+    scratch,
+    scrcpyServer: fileURLToPath(new URL(DEVICE_HUB_SCRCPY_PATH, staged)),
+    runtimeAbi: previous.runtimeAbi,
+  });
+  const manifest = JSON.parse(await readFile(join(result.target, "manifest.json"), "utf8"));
+  assert.equal(manifest.version, DEVICE_HUB_ARTIFACT_VERSION);
+  assert.equal(
+    JSON.parse(await readFile(join(result.previous, "manifest.json"), "utf8")).version,
+    1,
+  );
+  const simulatorRoot = "node_modules/expo-device-hub/vendor/serve-sim/dist/";
+  assert.ok(manifest.files.some((file) => file.path === `${simulatorRoot}middleware.js`));
+  assert.equal(
+    manifest.files.some((file) => file.path.startsWith(`${simulatorRoot}native/`)),
+    process.platform === "darwin",
+  );
+  if (process.platform !== "darwin") {
+    for (const directory of ["bin", "native", "simcam"])
+      await assert.rejects(readFile(join(result.target, simulatorRoot, directory)), {
+        code: "ENOENT",
+      });
+  }
+  for (const file of manifest.files)
+    assert.equal(hash(await readFile(join(result.target, file.path))), file.sha256, file.path);
+});
 
 function fixture(cached, failure) {
   const files = new Map(cached === undefined ? [] : [[cache, cached]]);

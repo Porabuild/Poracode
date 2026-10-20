@@ -118,6 +118,16 @@ export async function prepareDeviceHub(options) {
       if (entry.name === ".bin") continue;
       const sourcePath = join(from, entry.name);
       const targetPath = `${to}/${entry.name}`;
+      // The server imports serve-sim's JS on every host; only these native
+      // CoreSimulator payloads are exclusive to macOS.
+      if (
+        platform !== "darwin" &&
+        ["bin", "native", "simcam"].some(
+          (directory) =>
+            targetPath === `node_modules/expo-device-hub/vendor/serve-sim/dist/${directory}`,
+        )
+      )
+        continue;
       if (entry.isSymbolicLink())
         throw new Error("The staged Hub closure cannot contain symbolic links.");
       if (entry.isDirectory()) await copyTree(sourcePath, targetPath);
@@ -201,9 +211,15 @@ export async function prepareDeviceHub(options) {
     const targetInfo = await lstat(target);
     if (!targetInfo.isDirectory() || targetInfo.isSymbolicLink())
       throw new Error("Refusing to replace a linked or non-directory Hub resource target.");
-    const current = deviceHubArtifactSchema.parse(
-      JSON.parse(await readFile(join(target, "manifest.json"), "utf8")),
-    );
+    const previousManifest = JSON.parse(await readFile(join(target, "manifest.json"), "utf8"));
+    // Artifact 1 has the same manifest fields and the untrimmed native payloads.
+    // It can be replaced atomically, but is no longer admitted by the host.
+    if (previousManifest.version !== 1 && previousManifest.version !== DEVICE_HUB_ARTIFACT_VERSION)
+      throw new Error("Refusing to replace an unknown Hub artifact version.");
+    const current = deviceHubArtifactSchema.parse({
+      ...previousManifest,
+      version: DEVICE_HUB_ARTIFACT_VERSION,
+    });
     if (current.platform !== platform || current.arch !== arch)
       throw new Error("The existing artifact target differs.");
     previous = join(scratch, `device-hub-previous-${randomUUID()}`);
