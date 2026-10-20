@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="forge_review_guide">Rehber</string>
+    <string name="forge_review_writer">Rehber yazarı</string>
+    <string name="forge_review_model">Rehber modeli</string>
+    <string name="forge_review_instructions">İnceleme rehberi talimatları</string>
+    <string name="forge_review_write">Rehber yaz</string>
+    <string name="forge_review_rewrite">Rehberi yeniden yaz</string>
+    <string name="forge_review_no_writer">Salt okunur çalışma alanını zorunlu kılan bir rehber yazarı seçin.</string>
+    <string name="forge_review_generating">Rehber yazılıyor. Bu incelemeden ayrılıp hazır olduğunda geri dönebilirsiniz.</string>
+    <string name="forge_review_failed">Rehber yazılamadı. Yeniden yazmayı deneyin.</string>
+    <string name="forge_review_stale">Bu rehber güncel değil. Mevcut değişikliğin alıntılarını görmek için yeniden yazın.</string>
+    <string name="forge_review_look_closely">Dikkatle incele</string>
+    <string name="forge_review_back">Geri</string>
+    <string name="forge_review_next">İleri</string>
+    <string name="forge_review_finish">İncelemeyi bitir</string>
+    <string name="forge_review_viewed_source">Kaynak sunucuda görüntülendi</string>
+    <string name="forge_review_viewed_host">Poracode\'da görüntülendi</string>
+    <string name="forge_review_changed">Değişti</string>
+    <string name="forge_review_edit_comment">Yorumu düzenle</string>
+    <string name="forge_review_offline">Çevrimdışı</string>
+</resources>

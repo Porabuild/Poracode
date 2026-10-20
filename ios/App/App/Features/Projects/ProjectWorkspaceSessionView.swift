@@ -162,15 +162,10 @@ final class ProjectWorkspaceSelectionSource {
       grantedScopes: Set(profile.scopes).intersection(record.scopes),
       isOnline: base.session.isOnline,
       isReady: base.session.isReady,
-      isForeground: foreground
+      isForeground: foreground,
+      cacheEndpoint: profile.httpBaseURL
     )
   }
-}
-
-enum ProjectWorkspaceEntryPoint: Hashable, Sendable {
-  case workspace(ProjectWorkspaceMode)
-  case gitHubActions
-  case pullRequest(PullRequestReviewRoute)
 }
 
 /// Production composition boundary for the project workspace. Controllers are
@@ -365,7 +360,9 @@ struct ProjectWorkspaceSessionView: View {
         context: source.gitHubOperationsContext,
         route: route,
         controller: gitHubOperationsControllers.pullRequests,
-        mutations: gitHubOperationsControllers.pullRequestMutations
+        mutations: gitHubOperationsControllers.pullRequestMutations,
+        forge: gitHubOperationsControllers.forgeReview,
+        guideWriters: PullRequestGuideView.writers(from: session.state.replay, location: workspaceLocation)
       )
     }
   }

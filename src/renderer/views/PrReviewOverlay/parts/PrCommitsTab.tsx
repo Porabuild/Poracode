@@ -71,7 +71,7 @@ function PrCommitRow(props: { commit: PrCommitSummary; prUrl: string | undefined
         </code>
         {commitUrl && (
           <Link
-            aria-label={t`Open commit on GitHub`}
+            aria-label={t`Open commit on source host`}
             className="text-muted hover:text-foreground"
             onPress={() => openExternalWithFeedback(commitUrl)}
           >

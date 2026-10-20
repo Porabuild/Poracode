@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   GhListPullRequestsPayload,
   GhListPullRequestsResult,
+  ForgeRepository,
   GitStatusResult,
   Project,
   PullRequestSummary,
@@ -121,6 +122,35 @@ describe("PullRequestsView", () => {
 
     act(() => usePanelStore.getState().setPrReviewContext(null));
     await waitFor(() => expect(bridge.ghListPullRequests).toHaveBeenCalledTimes(4));
+    expect(screen.getAllByRole("button", { name: new RegExp(summary.pr.title) })).toHaveLength(1);
+    expect(screen.getAllByText("Could not load pull requests for WSL app.")).toHaveLength(1);
+  });
+
+  it("replaces rows and the active account when a review closes", async () => {
+    useAppStore.setState({ projects: [windowsProject] });
+    render(<PullRequestsView />);
+    fireEvent.click(await screen.findByRole("button", { name: new RegExp(summary.pr.title) }));
+
+    let resolveLatest!: (value: GhListPullRequestsResult) => void;
+    bridge.ghListPullRequests.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveLatest = resolve;
+        }),
+    );
+    act(() => usePanelStore.getState().setPrReviewContext(null));
+    await waitFor(() => expect(bridge.ghListPullRequests).toHaveBeenCalledTimes(2));
+    expect(screen.queryByText(summary.pr.title)).not.toBeInTheDocument();
+
+    const replacement = { ...summary, pr: { ...summary.pr, title: "Another account's review" } };
+    await act(async () => {
+      resolveLatest({ pullRequests: [replacement], viewerLogin: "other-reviewer" });
+    });
+    expect(await screen.findByText(replacement.pr.title)).toBeInTheDocument();
+    expect(screen.queryByText(summary.pr.title)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Filter pull requests" }));
+    expect(screen.getByRole("checkbox", { name: "other-reviewer" })).toBeInTheDocument();
+    expect(screen.queryByRole("checkbox", { name: "reviewer" })).not.toBeInTheDocument();
   });
 
   it("queries only the local checkout when a mirrored project shares its origin", async () => {
@@ -142,9 +172,9 @@ describe("PullRequestsView", () => {
     useGitStore.setState({
       statuses: {
         [windowsProject.id]: makeStatus({ remoteInfo }),
-        // The same repo over an SSH host alias, so the URL and platform differ.
+        // The same authority and repository over canonical SSH.
         [mirroredProject.id]: makeStatus({
-          remoteInfo: { ...remoteInfo, url: "gh:example/windows-app.git", platform: "unknown" },
+          remoteInfo: { ...remoteInfo, url: "git@github.com:example/windows-app.git" },
         }),
       },
     });
@@ -176,16 +206,12 @@ describe("PullRequestsView", () => {
     render(<PullRequestsView />);
 
     expect(await screen.findByText(summary.pr.title)).toBeInTheDocument();
-    expect(
-      screen.getByText("Review and track work across your GitHub accounts."),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Review and track work across your source hosts.")).toBeInTheDocument();
     await act(async () => {
       resolveWsl({ pullRequests: [], viewerLogin: "wsl-reviewer" });
       await pendingWsl;
     });
-    expect(
-      screen.getByText("Review and track work across your GitHub accounts."),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Review and track work across your source hosts.")).toBeInTheDocument();
   });
 
   it("shows awaiting review when approval is required despite green checks", async () => {
@@ -235,6 +261,49 @@ describe("PullRequestsView", () => {
     expect(within(row).getByText("Checks pending")).toBeInTheDocument();
     expect(row.querySelector(".lucide-git-pull-request")).toHaveClass("text-warning");
     expect(row.querySelector(".rounded-full")).toHaveClass("bg-warning");
+  });
+
+  it("names the forge and shows the status as text", async () => {
+    useAppStore.setState({ projects: [windowsProject] });
+    bridge.ghListPullRequests.mockResolvedValue({
+      pullRequests: [
+        {
+          ...summary,
+          pr: {
+            ...summary.pr,
+            source: {
+              forge: "gitlab",
+              host: "https://git.example",
+              repository: "example/windows-app",
+              remote: "origin",
+              account: { forge: "gitlab", host: "https://git.example", login: "reviewer" },
+              capabilities: {
+                mergeMethods: ["merge"],
+                reviewDecisions: ["approve", "comment"],
+                draft: true,
+                reopen: true,
+                updateBranch: true,
+                rebaseBranch: false,
+                edit: true,
+                checks: true,
+                reviewThreads: true,
+                expectedHeadMerge: true,
+                autoMerge: false,
+                autoFix: true,
+                adminMerge: false,
+              },
+            },
+          },
+        },
+      ],
+      viewerLogin: "reviewer",
+    });
+
+    render(<PullRequestsView />);
+
+    const row = await screen.findByRole("button", { name: new RegExp(summary.pr.title) });
+    expect(within(row).getByText("GitLab")).toBeInTheDocument();
+    expect(within(row).getByText("Open")).not.toHaveClass("sr-only");
   });
 
   it("refreshes every project on demand", async () => {
@@ -336,6 +405,57 @@ describe("PullRequestsView", () => {
 
     expect(screen.queryByText(summary.pr.title)).not.toBeInTheDocument();
     expect(screen.getByText("No matching pull requests.")).toBeInTheDocument();
+  });
+
+  it("keeps the same login on different source hosts as separate account filters", async () => {
+    const source = (host: string): ForgeRepository => ({
+      forge: "gitlab",
+      host,
+      repository: "team/app",
+      remote: "origin",
+      account: { forge: "gitlab", host, login: "reviewer" },
+      capabilities: {
+        mergeMethods: ["merge", "squash"],
+        reviewDecisions: ["approve", "comment"],
+        draft: true,
+        reopen: true,
+        updateBranch: false,
+        rebaseBranch: true,
+        edit: true,
+        checks: true,
+        reviewThreads: true,
+        expectedHeadMerge: true,
+        autoMerge: true,
+        autoFix: true,
+        adminMerge: false,
+      },
+    });
+    const first: PullRequestSummary = {
+      ...summary,
+      pr: { ...summary.pr, source: source("https://first.example/gitlab") },
+    };
+    const second: PullRequestSummary = {
+      ...summary,
+      pr: {
+        ...summary.pr,
+        title: "Review on another host",
+        source: source("https://second.example"),
+      },
+    };
+    bridge.ghListPullRequests.mockImplementation(async ({ projectLocation }) => ({
+      pullRequests: [projectLocation.kind === "wsl" ? second : first],
+      viewerLogin: "reviewer",
+    }));
+
+    render(<PullRequestsView />);
+    expect(await screen.findByText(second.pr.title)).toBeInTheDocument();
+    expect(screen.getByText(first.pr.title)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Filter pull requests" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "reviewer · first.example/gitlab" }));
+
+    expect(screen.queryByText(first.pr.title)).not.toBeInTheDocument();
+    expect(screen.getByText(second.pr.title)).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "reviewer · second.example" })).toBeChecked();
   });
 
   it("orders pull requests from different projects by most recent update", async () => {

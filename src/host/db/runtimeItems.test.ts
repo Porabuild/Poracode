@@ -2,6 +2,7 @@ import {
   nativeBindingEnv,
   sqliteAvailable,
   testThread,
+  removeReviewScopeFixtureSchema,
   removeCostSchemaForDowngrade,
   removeConversationSearchFixtureSchema,
 } from "./runtimeItems.testFixtures";
@@ -698,6 +699,7 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
   });
 
   it("adds the parent lookup index when upgrading schema v37", async () => {
+    removeReviewScopeFixtureSchema(getSqlite());
     removeConversationSearchFixtureSchema(getSqlite());
     removeCostSchemaForDowngrade(getSqlite());
     getSqlite().exec(`
@@ -719,6 +721,7 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
   });
 
   it("repairs a missing parent lookup column when upgrading a drifted schema v37", async () => {
+    removeReviewScopeFixtureSchema(getSqlite());
     removeConversationSearchFixtureSchema(getSqlite());
     removeCostSchemaForDowngrade(getSqlite());
     getSqlite().exec(`
@@ -753,6 +756,7 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
   });
 
   it("repairs the parent lookup index from the prerelease Antigravity schema v40", async () => {
+    removeReviewScopeFixtureSchema(getSqlite());
     removeConversationSearchFixtureSchema(getSqlite());
     removeCostSchemaForDowngrade(getSqlite());
     getSqlite().exec(`

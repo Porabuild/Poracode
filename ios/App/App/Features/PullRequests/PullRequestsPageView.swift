@@ -34,6 +34,9 @@ struct PullRequestsPageView: View {
 
   var body: some View {
     List {
+      if controller.isCached {
+        Text(PullRequestsStrings.guideText("Offline")).foregroundStyle(.secondary)
+      }
       if controller.isLoading && !controller.didLoad {
         HStack(spacing: 10) {
           ProgressView()

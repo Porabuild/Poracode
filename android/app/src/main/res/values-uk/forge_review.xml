@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="forge_review_guide">Посібник</string>
+    <string name="forge_review_writer">Автор посібника</string>
+    <string name="forge_review_model">Модель посібника</string>
+    <string name="forge_review_instructions">Інструкції для посібника з перевірки</string>
+    <string name="forge_review_write">Створити посібник</string>
+    <string name="forge_review_rewrite">Переписати посібник</string>
+    <string name="forge_review_no_writer">Виберіть автора посібника, який підтримує робочу область із примусовим режимом лише для читання.</string>
+    <string name="forge_review_generating">Посібник створюється. Можна вийти з цієї перевірки й повернутися, коли він буде готовий.</string>
+    <string name="forge_review_failed">Не вдалося створити посібник. Спробуйте переписати його.</string>
+    <string name="forge_review_stale">Цей посібник застарів. Перепишіть його, щоб побачити уривки поточної зміни.</string>
+    <string name="forge_review_look_closely">Перевірте уважно</string>
+    <string name="forge_review_back">Назад</string>
+    <string name="forge_review_next">Далі</string>
+    <string name="forge_review_finish">Завершити перевірку</string>
+    <string name="forge_review_viewed_source">Переглянуто на вихідному хості</string>
+    <string name="forge_review_viewed_host">Переглянуто в Poracode</string>
+    <string name="forge_review_changed">Змінено</string>
+    <string name="forge_review_edit_comment">Редагувати коментар</string>
+    <string name="forge_review_offline">Офлайн</string>
+</resources>

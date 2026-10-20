@@ -53,6 +53,7 @@ export const claudeCapabilities: AgentCapability = {
   sandboxModes: [],
   supportsResume: true,
   supportsOneShot: true,
+  supportsReadOnlyOneShotWorkspace: true,
   supportsTextOnlyOneShot: true,
   supportsDirectInput: true,
   readsPdfAttachmentsFromHost: true,

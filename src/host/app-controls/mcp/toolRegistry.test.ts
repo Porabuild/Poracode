@@ -252,6 +252,23 @@ function context(
     })),
     gitAbortMerge: vi.fn<SC["gitAbortMerge"]>(async () => ({})),
     gitFinishMerge: vi.fn<SC["gitFinishMerge"]>(async () => ({ success: true })),
+    forgeGetRepository: vi.fn<SC["forgeGetRepository"]>(),
+    forgeEditPr: vi.fn<SC["forgeEditPr"]>(),
+    forgeCreatePr: vi.fn<SC["forgeCreatePr"]>(),
+    forgeListPullRequests: vi.fn<SC["forgeListPullRequests"]>(),
+    forgeMergePr: vi.fn<SC["forgeMergePr"]>(),
+    forgeMergePrAtHead: vi.fn<SC["forgeMergePrAtHead"]>(),
+    forgeClosePr: vi.fn<SC["forgeClosePr"]>(),
+    forgeReopenPr: vi.fn<SC["forgeReopenPr"]>(),
+    forgeMarkPrReady: vi.fn<SC["forgeMarkPrReady"]>(),
+    forgeUpdatePrBranch: vi.fn<SC["forgeUpdatePrBranch"]>(),
+    forgeGetPrChecks: vi.fn<SC["forgeGetPrChecks"]>(),
+    forgeGetPrFiles: vi.fn<SC["forgeGetPrFiles"]>(),
+    forgeGetPrDiff: vi.fn<SC["forgeGetPrDiff"]>(),
+    forgeGetPrDetails: vi.fn<SC["forgeGetPrDetails"]>(),
+    forgeGetPrReviewComments: vi.fn<SC["forgeGetPrReviewComments"]>(),
+    forgePostPrComment: vi.fn<SC["forgePostPrComment"]>(),
+    forgeSubmitPrReview: vi.fn<SC["forgeSubmitPrReview"]>(),
     ghCheckAvailable: vi.fn<SC["ghCheckAvailable"]>(async () => ({
       available: options.ghAvailable ?? true,
     })),
@@ -2468,6 +2485,108 @@ describe("Poracode app control tools — github", () => {
     expect(result).not.toHaveProperty("merged");
   });
 
+  it("forwards neutral review account, repository and expected-head selectors without gh fallback", async () => {
+    const { ctx, supervisor } = context({ projects });
+    const account = {
+      forge: "gitlab" as const,
+      host: "https://git.example/gitlab",
+      login: "alice",
+    };
+    supervisor.forgeGetRepository.mockResolvedValue({
+      repository: {
+        forge: "gitlab",
+        host: account.host,
+        repository: "team/app",
+        remote: "origin",
+        account,
+        capabilities: {
+          mergeMethods: ["merge", "squash"],
+          reviewDecisions: ["approve", "comment"],
+          draft: true,
+          reopen: true,
+          updateBranch: false,
+          rebaseBranch: true,
+          edit: true,
+          checks: true,
+          reviewThreads: true,
+          expectedHeadMerge: true,
+          autoMerge: true,
+          autoFix: true,
+          adminMerge: false,
+        },
+      },
+    });
+    const { details } = await supervisor.ghGetPrDetails({
+      projectLocation: projects[0]!.location,
+      prNumber: 7,
+    });
+    supervisor.ghGetPrDetails.mockClear();
+    supervisor.forgeGetPrDetails.mockResolvedValue({ details });
+    supervisor.forgeMergePrAtHead.mockResolvedValue(undefined);
+    await dispatchTool(
+      "review_merge_pr",
+      {
+        projectId: "p1",
+        prNumber: 7,
+        method: "squash",
+        forgeAccount: account,
+        forgeRepository: "team/app",
+        expectedHeadSha: "a".repeat(40),
+      },
+      ctx,
+    );
+    expect(supervisor.forgeMergePrAtHead).toHaveBeenCalledWith({
+      projectLocation: projects[0]!.location,
+      prNumber: 7,
+      method: "squash",
+      admin: false,
+      forgeAccount: account,
+      forgeRepository: "team/app",
+      expectedHeadSha: "a".repeat(40),
+    });
+    expect(supervisor.forgeGetPrDetails).toHaveBeenCalledWith(
+      expect.objectContaining({ forgeAccount: account, forgeRepository: "team/app" }),
+    );
+    expect(supervisor.ghMergePrAtHead).not.toHaveBeenCalled();
+    expect(supervisor.ghGetPrDetails).not.toHaveBeenCalled();
+  });
+
+  it("does not retry a successful neutral review mutation when readback fails", async () => {
+    const { ctx, supervisor } = context({ projects });
+    supervisor.forgeSubmitPrReview.mockResolvedValue(undefined);
+    supervisor.forgeGetPrDetails.mockRejectedValue(new Error("offline"));
+    const result = await dispatchTool(
+      "review_submit",
+      {
+        projectId: "p1",
+        prNumber: 7,
+        decision: "comment",
+        body: "Please check the race",
+        forgeRepository: "team/app",
+      },
+      ctx,
+    );
+    expect(result).toMatchObject({ submitted: true, syncWarning: expect.any(String) });
+    expect(supervisor.forgeSubmitPrReview).toHaveBeenCalledOnce();
+  });
+
+  it("refuses malformed neutral account scope before reaching any supervisor operation", async () => {
+    const { ctx, supervisor } = context({ projects });
+    await expect(
+      dispatchTool(
+        "review_edit",
+        {
+          projectId: "p1",
+          prNumber: 7,
+          title: "New",
+          forgeAccount: { forge: "gitlab", host: "https://user:token@git.example", login: "alice" },
+        },
+        ctx,
+      ),
+    ).rejects.toThrow(/Invalid input/);
+    expect(supervisor.forgeEditPr).not.toHaveBeenCalled();
+  });
+
   it("gh_get_pr resolves checks by the PR head branch and caps the diff", async () => {
     const prDetails = {
       number: 7,
@@ -2501,10 +2620,10 @@ describe("Poracode app control tools — github", () => {
     expect(result.diff.length).toBe(80_000);
   });
 
-  it("github tools fail clearly when the gh CLI is unavailable", async () => {
+  it("review tools fail clearly when the source integration is unavailable", async () => {
     const { ctx, supervisor } = context({ projects, ghAvailable: false });
     await expect(dispatchTool("gh_list_prs", { projectId: "p1" }, ctx)).rejects.toThrow(
-      /gh.*not available|not available.*gh/i,
+      "The source host integration is unavailable or not authenticated in this project's runtime. Configure the matching source host CLI or scoped credentials.",
     );
     expect(supervisor.ghListPullRequests).not.toHaveBeenCalled();
   });

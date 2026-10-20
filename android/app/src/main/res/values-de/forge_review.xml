@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="forge_review_guide">Leitfaden</string>
+    <string name="forge_review_writer">Leitfaden-Autor</string>
+    <string name="forge_review_model">Leitfaden-Modell</string>
+    <string name="forge_review_instructions">Anweisungen für den Review-Leitfaden</string>
+    <string name="forge_review_write">Leitfaden schreiben</string>
+    <string name="forge_review_rewrite">Leitfaden neu schreiben</string>
+    <string name="forge_review_no_writer">Wähle einen Leitfaden-Autor, der eine technisch erzwungene schreibgeschützte Arbeitsumgebung unterstützt.</string>
+    <string name="forge_review_generating">Der Leitfaden wird erstellt. Du kannst dieses Review verlassen und zurückkehren, wenn er fertig ist.</string>
+    <string name="forge_review_failed">Der Leitfaden konnte nicht erstellt werden. Versuche, ihn neu zu schreiben.</string>
+    <string name="forge_review_stale">Dieser Leitfaden ist veraltet. Schreibe ihn neu, um Auszüge der aktuellen Änderung zu sehen.</string>
+    <string name="forge_review_look_closely">Genau prüfen</string>
+    <string name="forge_review_back">Zurück</string>
+    <string name="forge_review_next">Weiter</string>
+    <string name="forge_review_finish">Review abschließen</string>
+    <string name="forge_review_viewed_source">Auf dem Quellhost angesehen</string>
+    <string name="forge_review_viewed_host">In Poracode angesehen</string>
+    <string name="forge_review_changed">Geändert</string>
+    <string name="forge_review_edit_comment">Kommentar bearbeiten</string>
+    <string name="forge_review_offline">Offline</string>
+</resources>

@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { Project, Thread } from "@/shared/contracts";
 import { closeDatabase, initDatabase } from "./connection";
 import {
+  removeReviewScopeFixtureSchema,
   removeCostSchemaForDowngrade,
   removeConversationSearchFixtureSchema,
 } from "./runtimeItems.testFixtures";
@@ -58,6 +59,7 @@ describe("schema-42 lineage join", () => {
     dbUpsertThread(thread, 0);
 
     sqlite.exec("DROP TABLE main_created_threads");
+    removeReviewScopeFixtureSchema(sqlite);
     removeConversationSearchFixtureSchema(sqlite);
     removeCostSchemaForDowngrade(sqlite);
     sqlite.prepare("UPDATE app_state SET value = '42' WHERE key = 'schema_version'").run();

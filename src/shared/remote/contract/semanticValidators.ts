@@ -16,7 +16,16 @@ import {
   mcpServerSchema,
   mcpSseTransportSchema,
 } from "../../contracts/mcpServer";
-import { prWatchInputSchema, prWatchSchema } from "../../contracts/prWatch";
+import {
+  prWatchInputSchema,
+  prWatchSchema,
+  forgePrWatchInputSchema,
+} from "../../contracts/prWatch";
+import {
+  forgeAccountRefSchema,
+  forgeEditPrPayloadSchema,
+  forgeReviewScopeSchema,
+} from "../../contracts/forge";
 import { threadGoalControlSchema, startThreadPayloadSchema } from "../../contracts/thread";
 import {
   remotePushRegistrationRoutingSchema,
@@ -73,6 +82,34 @@ const REGISTERED: ReadonlyArray<{
   readonly schema: z.ZodType;
   readonly validator: SemanticValidator;
 }> = [
+  {
+    schema: forgeAccountRefSchema.shape.host,
+    validator: {
+      id: "forge.host.https",
+      reason: "source host must be credential-free HTTPS without query, fragment or controls",
+    },
+  },
+  {
+    schema: forgeReviewScopeSchema,
+    validator: {
+      id: "forge.watch.scope-identity",
+      reason: "watch scope and account must name the same host and forge",
+    },
+  },
+  {
+    schema: forgeEditPrPayloadSchema,
+    validator: {
+      id: "forge.edit.fields",
+      reason: "a review edit requires a title, body or target branch",
+    },
+  },
+  {
+    schema: forgePrWatchInputSchema,
+    validator: {
+      id: "pr-watch.agent-required-when-enabled",
+      reason: "watching a PR requires an agent and model",
+    },
+  },
   {
     schema: omittedResultSchema,
     validator: {

@@ -25,6 +25,11 @@ import { gitStatePatchSchema } from "../../gitState";
 // Optional background-task timing/progress and opaque Stop actions remain additive
 // within v14: old readers ignore them; old hosts omit them and keep tasks read-only.
 // Task kinds, session actions, persisted data and compatibility ranges are unchanged.
+// Optional review source/capability metadata and new forge procedure names are additive:
+// old native readers ignore metadata; old hosts reject scoped operations before effects.
+// Scoped watch writes use a distinct route and require v1 public source authority.
+// An old watch remains readable but paused until explicitly re-armed; unknown scope
+// versions are refused without replacing persisted bytes (host schema 64).
 // Optional usage.spent tokens/cost and ProfileTokenStats.costs are additive:
 // prior Zod and generated native readers strip unknown object fields. Old hosts
 // omit them; the Costs tab reports unavailable. No discriminator meaning changes.

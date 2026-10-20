@@ -1,8 +1,6 @@
 import { GitBranch, GitMerge } from "lucide-react";
 import { Chip } from "@heroui/react";
-import { msg } from "@lingui/core/macro";
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
-import type { MessageDescriptor } from "@lingui/core";
 import {
   usePrMergeStateStatus,
   usePrMergeable,
@@ -11,18 +9,22 @@ import {
 } from "@/renderer/state/gitSelectors";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { usePrCombinedChecksStatus } from "@/renderer/hooks/usePrCombinedChecksStatus";
-import { getPrStatusTone, PR_TONE_BG_CLASS, PR_TONE_TEXT_CLASS } from "@/renderer/utils/prStatus";
-
-const STATE_LABEL: Record<NonNullable<ReturnType<typeof usePrState>>, MessageDescriptor> = {
-  open: msg`Open`,
-  draft: msg`Draft`,
-  merged: msg`Merged`,
-  closed: msg`Closed`,
-};
+import {
+  describePrStatus,
+  getPrStatusTone,
+  PR_STATUS_LABEL,
+  PR_TONE_BG_CLASS,
+  PR_TONE_TEXT_CLASS,
+} from "@/renderer/utils/prStatus";
 
 /** State chip + author + branches + diff stats — used in the content-header bar. */
-export function PrMetaRow(props: { prKey: string; cacheKey: string }) {
-  const { prKey, cacheKey } = props;
+export function PrMetaRow(props: {
+  prKey: string;
+  cacheKey: string;
+  /** Keep every chip on one line (the content header); otherwise the row wraps. */
+  nowrap?: boolean;
+}) {
+  const { prKey, cacheKey, nowrap = false } = props;
   const { t } = useLingui();
   const state = usePrState(prKey);
   const reviewDecision = usePrReviewDecision(prKey);
@@ -36,40 +38,66 @@ export function PrMetaRow(props: { prKey: string; cacheKey: string }) {
     mergeable,
     mergeStateStatus,
   });
-  const stateLabel = state ? t(STATE_LABEL[state]) : "—";
+  const statusPhrase = state
+    ? describePrStatus(state, checksStatus, {
+        reviewDecision,
+        mergeable,
+        mergeStateStatus,
+      })
+    : undefined;
+  const stateLabel = statusPhrase ? t(PR_STATUS_LABEL[statusPhrase]) : "—";
   const head = details?.headBranch;
   const base = details?.baseBranch;
   const author = details?.author?.login;
 
   return (
-    <div className="flex min-w-0 items-center gap-2 text-xs leading-none">
+    <div
+      className={`flex min-w-0 items-center gap-2 text-xs leading-none ${nowrap ? "" : "flex-wrap"}`}
+    >
       <Chip size="sm" variant="soft" className={`gap-1 ${PR_TONE_TEXT_CLASS[tone]}`}>
         <span className={`size-1.5 rounded-full ${PR_TONE_BG_CLASS[tone]}`} />
         {state === "merged" ? <GitMerge className="size-3" /> : <GitBranch className="size-3" />}
         {stateLabel}
       </Chip>
       {author && (
-        <span className="whitespace-nowrap text-muted">
+        <span className="min-w-0 max-w-48 truncate text-muted" title={author}>
           <Trans>
             by <span className="text-foreground">{author}</span>
           </Trans>
         </span>
       )}
       {head && base && (
-        <span className="inline-flex min-w-0 items-center gap-1">
-          <Chip size="sm" variant="soft" className="max-w-40 truncate font-mono text-[11px]">
+        <span className="inline-flex min-w-0 max-w-full items-center gap-1">
+          <Chip
+            size="sm"
+            variant="soft"
+            title={head}
+            className="min-w-0 max-w-40 shrink truncate font-mono text-[11px]"
+          >
             {head}
           </Chip>
           <span className="text-muted/60">→</span>
-          <Chip size="sm" variant="soft" className="max-w-40 truncate font-mono text-[11px]">
+          <Chip
+            size="sm"
+            variant="soft"
+            title={base}
+            className="min-w-0 max-w-40 shrink truncate font-mono text-[11px]"
+          >
             {base}
           </Chip>
         </span>
       )}
       {details && (
-        <span className="flex shrink-0 items-center gap-1.5 whitespace-nowrap text-[11px]">
-          <span className="text-success">+{details.additions}</span>
-          <span className="text-danger">−{details.deletions}</span>
+        <span
+          className="flex shrink-0 items-center gap-1.5 whitespace-nowrap text-[11px]"
+          aria-label={t`${details.additions} additions and ${details.deletions} deletions`}
+        >
+          <span className="text-success" aria-hidden>
+            +{details.additions}
+          </span>
+          <span className="text-danger" aria-hidden>
+            −{details.deletions}
+          </span>
           <span className="text-muted/60">
             · <Plural value={details.changedFiles} one="# file" other="# files" />
           </span>

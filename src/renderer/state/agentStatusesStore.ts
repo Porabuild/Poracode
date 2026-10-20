@@ -108,6 +108,10 @@ function capabilitiesEqual(
   // one-shot-capable providers for the whole first post-upgrade session.
   if ((a.supportsOneShot ?? false) !== (b.supportsOneShot ?? false)) return false;
   if (
+    (a.supportsReadOnlyOneShotWorkspace ?? false) !== (b.supportsReadOnlyOneShotWorkspace ?? false)
+  )
+    return false;
+  if (
     (a.contextSizeChangeReloadsSession ?? false) !== (b.contextSizeChangeReloadsSession ?? false) ||
     (a.contextSizeReloadStopsSubagents ?? false) !== (b.contextSizeReloadStopsSubagents ?? false)
   ) {
@@ -323,11 +327,11 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
     }),
     {
       name: "poracode-agent-statuses-v1",
-      version: 63,
+      version: 64,
       // Discovery interaction flags are excluded by partialize and do not
       // change the persisted format.
-      // v63 mirrors supervisor STATUS_CACHE_VERSION=67: refresh discovery
-      // for native Auto Review permissions and their default.
+      // v64 mirrors supervisor STATUS_CACHE_VERSION=68: refresh discovery
+      // for the read-only one-shot workspace capability used by review guides.
       migrate: (persisted) => {
         const prev = (persisted ?? {}) as Partial<AgentStatusesStore>;
         return {

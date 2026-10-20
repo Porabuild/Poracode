@@ -31,6 +31,7 @@ import {
   rememberRefreshTokenForSubject,
 } from "./remoteServers/refreshTokens";
 import { installRemoteProjectWorkspaceSync, syncRemoteAppRows } from "./remoteServers/appRows";
+import { selectBrowserBridgeDesktop } from "./remoteServers/browserBridge";
 import { filterRemoteThreadEvent } from "./remoteServers/eventRouting";
 import { mainProcessFetch } from "./remoteServers/mainProcessFetch";
 import { resetRemoteHttpBridgeClientForTest } from "./remoteServers/remoteHttpBridgeClient";
@@ -698,7 +699,7 @@ describe("useRemoteServersStore", () => {
     expect(useAgentStatusesStore.getState().agentStatuses).toEqual([remoteStatus]);
   });
 
-  it("switches browser actions to another online host when the active host fails", async () => {
+  it("keeps browser actions on the offline owner until another host is selected", async () => {
     installBrowserClientRuntime({} as PoracodeBridge);
     window.poracode = {} as PoracodeBridge;
     const firstSnapshot = vi
@@ -742,6 +743,8 @@ describe("useRemoteServersStore", () => {
     await useRemoteServersStore.getState().refreshServer("d1");
     await useRemoteServersStore.getState().refreshServer("d1");
 
+    expect(browserBridge.setClient).toHaveBeenLastCalledWith(first);
+    selectBrowserBridgeDesktop("d2");
     expect(browserBridge.setClient).toHaveBeenLastCalledWith(second);
   });
 

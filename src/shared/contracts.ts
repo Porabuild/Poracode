@@ -9,6 +9,8 @@ export * from "./contracts/gitResults";
 export * from "./contracts/projectTree";
 export * from "./contracts/projectTreeResults";
 export * from "./contracts/github";
+export * from "./contracts/forge";
+export * from "./contracts/forgeOperations";
 export * from "./contracts/githubResults";
 export * from "./contracts/appView";
 export * from "./contracts/agentEvent";

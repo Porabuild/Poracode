@@ -9,6 +9,7 @@ import {
   nativeBindingEnv,
   sqliteAvailable,
   testThread,
+  removeReviewScopeFixtureSchema,
   removeCostSchemaForDowngrade,
   removeConversationSearchFixtureSchema,
 } from "./runtimeItems.testFixtures";
@@ -61,6 +62,7 @@ describe("bounded durable terminal chunks", () => {
         "INSERT INTO thread_terminal_scrollback(thread_id, transcript, output_length) VALUES (?, ?, ?)",
       )
       .run(id, legacyText, legacyText.length);
+    removeReviewScopeFixtureSchema(getSqlite());
     removeConversationSearchFixtureSchema(getSqlite());
     removeCostSchemaForDowngrade(getSqlite());
     getSqlite().exec(`DROP TABLE thread_terminal_scrollback_chunks;

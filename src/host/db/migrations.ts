@@ -999,6 +999,14 @@ export const DATABASE_MIGRATIONS = [
       )`);
     },
   },
+  {
+    version: 65,
+    name: "pin review watch source identity",
+    // Legacy NULL requires explicit re-arming; never infer the active account.
+    // Versioned public scope is execution authority, separate from status patches.
+    rollback: "forward-only",
+    migrate: (sqlite) => addColumnIfMissing(sqlite, "pr_watches", "review_scope", "TEXT"),
+  },
 ] as const satisfies readonly DatabaseMigration[];
 
 export const LATEST_SCHEMA_VERSION = DATABASE_MIGRATIONS[DATABASE_MIGRATIONS.length - 1]!.version;
@@ -1334,6 +1342,7 @@ const REQUIRED_COLUMNS = {
     "archived_at",
   ],
   pr_watches: [
+    "review_scope",
     "project_id",
     "pr_number",
     "head_branch",

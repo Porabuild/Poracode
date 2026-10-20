@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { scheduledTaskConfigSchema } from "./schedule";
+import { forgeReviewScopeSchema } from "./forge";
 
 export const prWatchKeySchema = z.object({
   projectId: z.string().min(1),
@@ -54,6 +55,11 @@ export const prWatchInputSchema = prWatchKeySchema
   });
 export type PrWatchInput = z.infer<typeof prWatchInputSchema>;
 
+export const forgePrWatchInputSchema = prWatchInputSchema.extend({
+  reviewScope: forgeReviewScopeSchema,
+});
+export type ForgePrWatchInput = z.infer<typeof forgePrWatchInputSchema>;
+
 /** One project's current helper-agent resolution, pushed in by the app. */
 export const prWatchAgentSyncSchema = z.object({
   projectId: z.string().min(1),
@@ -63,6 +69,8 @@ export const prWatchAgentSyncSchema = z.object({
 export type PrWatchAgentSync = z.infer<typeof prWatchAgentSyncSchema>;
 
 export const prWatchSchema = prWatchInputSchema.extend({
+  reviewScope: forgeReviewScopeSchema.optional(),
+  reviewScopeUnsupported: z.literal(true).optional(),
   lastCommentCursor: z.string().nullable(),
   lastReviewCommentCursor: z.string().nullable(),
   lastReviewCursor: z.string().nullable(),

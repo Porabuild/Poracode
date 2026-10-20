@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="forge_review_guide">Руководство</string>
+    <string name="forge_review_writer">Автор руководства</string>
+    <string name="forge_review_model">Модель руководства</string>
+    <string name="forge_review_instructions">Инструкции для руководства по ревью</string>
+    <string name="forge_review_write">Создать руководство</string>
+    <string name="forge_review_rewrite">Переписать руководство</string>
+    <string name="forge_review_no_writer">Выберите автора руководства, поддерживающего рабочую область с принудительным режимом только для чтения.</string>
+    <string name="forge_review_generating">Создаётся руководство. Можно выйти из этого ревью и вернуться, когда оно будет готово.</string>
+    <string name="forge_review_failed">Не удалось создать руководство. Попробуйте переписать его.</string>
+    <string name="forge_review_stale">Это руководство устарело. Перепишите его, чтобы увидеть фрагменты текущего изменения.</string>
+    <string name="forge_review_look_closely">Проверьте внимательно</string>
+    <string name="forge_review_back">Назад</string>
+    <string name="forge_review_next">Далее</string>
+    <string name="forge_review_finish">Завершить ревью</string>
+    <string name="forge_review_viewed_source">Просмотрено на исходном хосте</string>
+    <string name="forge_review_viewed_host">Просмотрено в Poracode</string>
+    <string name="forge_review_changed">Изменилось</string>
+    <string name="forge_review_edit_comment">Изменить комментарий</string>
+    <string name="forge_review_offline">Офлайн</string>
+</resources>

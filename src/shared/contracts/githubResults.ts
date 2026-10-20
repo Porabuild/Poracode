@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { gitSafeIntSchema, gitSafeNonNegIntSchema } from "./gitResults";
+import { forgeRepositorySchema } from "./forge";
 
 const safeInt = gitSafeIntSchema;
 const safeNonNegInt = gitSafeNonNegIntSchema;
@@ -38,9 +39,11 @@ export const prAuthorSchema = z.object({
 });
 
 export const prDataSchema = z.object({
+  source: forgeRepositorySchema.optional(),
   number: safePosInt,
   state: prStateSchema,
   headSha: z.string().optional(),
+  isCrossRepository: z.boolean().optional(),
   title: z.string(),
   url: z.string(),
   baseBranch: z.string(),
@@ -106,6 +109,7 @@ export const prReviewSummarySchema = z.object({
 });
 
 export const prDetailsSchema = z.object({
+  source: forgeRepositorySchema.optional(),
   number: safePosInt,
   title: z.string(),
   body: z.string(),
@@ -123,6 +127,7 @@ export const prDetailsSchema = z.object({
   comments: z.array(prCommentSchema),
   reviews: z.array(prReviewSummarySchema),
   checks: z.array(prCheckSchema),
+  reviewThreads: z.array(prReviewThreadSchema).optional(),
 });
 
 export const ghCheckAvailableResultSchema = z.object({

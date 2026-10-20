@@ -108,7 +108,7 @@ describe("GitBadge", () => {
 
     render(<GitBadge projectId="project-1" projectName="feature/pr" worktreePath="/wt/feature" />);
 
-    const badge = screen.getByRole("button", { name: "Git status for feature/pr" });
+    const badge = screen.getByRole("button", { name: "Git status for feature/pr: Merged" });
     const icon = badge.querySelector(".lucide-git-pull-request");
     const actions = getWorktreeActionVisibility("project-1", "/wt/feature");
 
@@ -251,7 +251,7 @@ describe("GitBadge", () => {
     );
 
     // PR icon only: an 18px square, matching the row's other icon buttons.
-    expect(screen.getByRole("button", { name: "Git status for feature/pr" })).toHaveClass(
+    expect(screen.getByRole("button", { name: "Git status for feature/pr: Open" })).toHaveClass(
       "p-[3px]",
     );
     unmount();
@@ -264,7 +264,7 @@ describe("GitBadge", () => {
     });
     render(<GitBadge projectId="project-1" projectName="feature/pr" worktreePath="/wt/feature" />);
 
-    const withCounts = screen.getByRole("button", { name: "Git status for feature/pr" });
+    const withCounts = screen.getByRole("button", { name: "Git status for feature/pr: Open" });
     expect(withCounts).toHaveClass("px-1");
     expect(withCounts).not.toHaveClass("p-[3px]");
   });
@@ -281,7 +281,7 @@ describe("GitBadge", () => {
 
     render(<GitBadge projectId="project-1" projectName="feature/pr" worktreePath="/wt/feature" />);
 
-    const badge = screen.getByRole("button", { name: "Git status for feature/pr" });
+    const badge = screen.getByRole("button", { name: "Git status for feature/pr: Open" });
     const insertion = screen.getByText("+12");
     const prIcon = badge.querySelector(".lucide-git-pull-request");
 
@@ -291,53 +291,56 @@ describe("GitBadge", () => {
     ).toBeTruthy();
   });
 
-  it("does not show a stale project PR while fetching the current branch PR", async () => {
-    let resolvePr: (pr: PrData | null) => void = () => {};
-    ghGetPrForBranchMock.mockReturnValue(
-      new Promise<PrData | null>((resolve) => {
-        resolvePr = resolve;
-      }),
-    );
-    useAppStore.setState({
-      projects: [
-        {
-          id: "project-1",
-          name: "Project",
-          location: { kind: "posix", path: "/repo" },
-          createdAt: "2026-06-02T00:00:00.000Z",
-        },
-      ],
-    });
-    useGitStore.setState({
-      statuses: {
-        "project-1": makeStatus({
-          branch: "feature/current",
-          remoteInfo: { platform: "github", owner: "o", repo: "r", url: "https://github.com/o/r" },
+  it.each(["github", "gitlab", "bitbucket", "unknown"] as const)(
+    "verifies the current %s branch without showing a stale project PR",
+    async (platform) => {
+      let resolvePr: (pr: PrData | null) => void = () => {};
+      ghGetPrForBranchMock.mockReturnValue(
+        new Promise<PrData | null>((resolve) => {
+          resolvePr = resolve;
         }),
-      },
-      ghAvailable: { "project-1": true },
-      prData: {
-        [buildBranchPrKey("project-1")]: { ...basePr, number: 99, title: "Stale PR" },
-      },
-    });
+      );
+      useAppStore.setState({
+        projects: [
+          {
+            id: "project-1",
+            name: "Project",
+            location: { kind: "posix", path: "/repo" },
+            createdAt: "2026-06-02T00:00:00.000Z",
+          },
+        ],
+      });
+      useGitStore.setState({
+        statuses: {
+          "project-1": makeStatus({
+            branch: "feature/current",
+            remoteInfo: { platform, owner: "o", repo: "r", url: "https://example.com/o/r" },
+          }),
+        },
+        ghAvailable: { "project-1": true },
+        prData: {
+          [buildBranchPrKey("project-1")]: { ...basePr, number: 99, title: "Stale PR" },
+        },
+      });
 
-    render(<GitBadge projectId="project-1" projectName="Project" />);
+      render(<GitBadge projectId="project-1" projectName="Project" />);
 
-    const loadingBadge = screen.getByRole("button", { name: "Git status for Project" });
-    expect(loadingBadge.querySelector(".lucide-git-pull-request")).toBeNull();
-    expect(loadingBadge.querySelector(".lucide-git-branch")).not.toBeNull();
-    expect(ghGetPrForBranchMock).toHaveBeenCalledWith({
-      projectLocation: { kind: "posix", path: "/repo" },
-      branch: "feature/current",
-    });
+      const loadingBadge = screen.getByRole("button", { name: "Git status for Project" });
+      expect(loadingBadge.querySelector(".lucide-git-pull-request")).toBeNull();
+      expect(loadingBadge.querySelector(".lucide-git-branch")).not.toBeNull();
+      expect(ghGetPrForBranchMock).toHaveBeenCalledWith({
+        projectLocation: { kind: "posix", path: "/repo" },
+        branch: "feature/current",
+      });
 
-    resolvePr({ ...basePr, number: 2, title: "Current PR" });
+      resolvePr({ ...basePr, number: 2, title: "Current PR" });
 
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Git status for Project" })).toBeInTheDocument();
-    });
-    expect(useGitStore.getState().prData[buildBranchPrKey("project-1")]?.number).toBe(2);
-  });
+      await waitFor(() => {
+        expect(screen.getByRole("button", { name: "Git status for Project" })).toBeInTheDocument();
+      });
+      expect(useGitStore.getState().prData[buildBranchPrKey("project-1")]?.number).toBe(2);
+    },
+  );
 
   it.each([basePr, null])(
     "keeps a merge observed during project PR verification: %j",
@@ -419,7 +422,7 @@ describe("GitBadge", () => {
     resolvePr({ ...basePr, number: 2, title: "Current PR" });
 
     await waitFor(() => {
-      const badges = screen.getAllByRole("button", { name: "Git status for Project" });
+      const badges = screen.getAllByRole("button", { name: "Git status for Project: Open" });
       expect(badges).toHaveLength(2);
       for (const badge of badges) {
         expect(badge.querySelector(".lucide-git-pull-request")).not.toBeNull();
