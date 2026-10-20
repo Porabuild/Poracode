@@ -26,6 +26,7 @@ import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { scanRuntimeExternals } from "./runtime-externals.mjs";
+import { preparePackagedDeviceHub } from "./prepare-device-hub.mjs";
 import {
   MAC_NOTARIZE_VERSION,
   verifyMacNotarizationDependency,
@@ -391,6 +392,7 @@ async function main() {
     pruneStageBinaries(stageRoot);
     // SQLite and node-pty ship N-API prebuilds; afterPack keeps the target architecture.
     const targetArches = arch ? [arch] : DEFAULT_TARGET_ARCHES[platform];
+    await preparePackagedDeviceHub(stageRoot, { platform, arches: targetArches });
 
     // 7. Run electron-builder against the stage.
     const electronBuilderBin = join(

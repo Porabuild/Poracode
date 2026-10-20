@@ -1,9 +1,21 @@
 #!/usr/bin/env node
 import { createHash, randomUUID } from "node:crypto";
 import { execFileSync } from "node:child_process";
-import { lstat, mkdir, mkdtemp, readFile, readdir, rename, writeFile } from "node:fs/promises";
+import {
+  copyFile,
+  lstat,
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  rename,
+  rm,
+  writeFile,
+} from "node:fs/promises";
+import { createRequire } from "node:module";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { npmInvocation } from "./server-host-tools.mjs";
 import {
   DEVICE_HUB_ARTIFACT_VERSION,
   DEVICE_HUB_BOOTSTRAP,
@@ -89,7 +101,7 @@ export async function prepareDeviceHub(options) {
         target.platform === platform && target.arch === arch && target.runtimeAbi === runtimeAbi,
     )?.platforms ?? []),
   ];
-  const scratch = join(repoRoot, ".tmp");
+  const scratch = resolve(options.scratch ?? join(repoRoot, ".tmp"));
   await mkdir(scratch, { recursive: true });
   const stage = await mkdtemp(join(scratch, "device-hub-stage-"));
   const files = [];
@@ -125,16 +137,17 @@ export async function prepareDeviceHub(options) {
       DEVICE_HUB_NATIVE_UPSTREAM_SHA256
   )
     throw new Error("The native Hub patch or pristine upstream module differs from its pin.");
+  const patchRoot = inside(repoRoot, stage) ? repoRoot : stage;
   const patchDirectory = relative(
-    repoRoot,
+    patchRoot,
     join(stage, "node_modules", "expo-device-hub"),
   ).replaceAll("\\", "/");
   execFileSync("git", ["apply", "--check", "--directory", patchDirectory, nativePatchPath], {
-    cwd: repoRoot,
+    cwd: patchRoot,
     windowsHide: true,
   });
   execFileSync("git", ["apply", "--directory", patchDirectory, nativePatchPath], {
-    cwd: repoRoot,
+    cwd: patchRoot,
     windowsHide: true,
   });
   const nativeModule = files.find((file) => file.path === DEVICE_HUB_NATIVE_MODULE_PATH);
@@ -219,6 +232,99 @@ export async function prepareDeviceHub(options) {
     manifestSha256: sha256(await readFile(join(target, "manifest.json"))),
     previous,
   };
+}
+
+// Release-only orchestration: installations/downloads stay in the disposable
+// packaging stage. The host still consumes only a complete verified artifact.
+export async function preparePackagedDeviceHub(stageRoot, target, dependencies = {}) {
+  const platform = dependencies.platform ?? process.platform;
+  const arch = dependencies.arch ?? process.arch;
+  const packagePlatform = { win32: "win", darwin: "mac", linux: "linux" }[platform];
+  const candidates = DEVICE_HUB_QUALIFIED_TARGETS.filter(
+    (entry) => entry.platform === platform && entry.arch === arch,
+  );
+  if (target.platform !== packagePlatform || !target.arches.includes(arch) || !candidates.length)
+    return { qualifiedPlatforms: [] };
+
+  const run = dependencies.run ?? execFileSync;
+  const require = createRequire(join(stageRoot, "node_modules", "electron", "package.json"));
+  const electron = require("./");
+  const identity = JSON.parse(
+    String(
+      run(
+        electron,
+        [
+          "-p",
+          "JSON.stringify({platform:process.platform,arch:process.arch,abi:process.versions.modules})",
+        ],
+        {
+          cwd: stageRoot,
+          env: { ...process.env, ELECTRON_RUN_AS_NODE: "1" },
+          encoding: "utf8",
+          timeout: 10000,
+        },
+      ),
+    ).trim(),
+  );
+  if (
+    identity.platform !== platform ||
+    identity.arch !== arch ||
+    !candidates.some((entry) => entry.runtimeAbi === identity.abi)
+  )
+    return { qualifiedPlatforms: [] };
+
+  const source = await mkdtemp(join(stageRoot, ".device-hub-toolchain-"));
+  try {
+    for (const file of ["package.json", DEVICE_HUB_LOCKFILE])
+      await copyFile(join(repoRoot, "scripts", "device-hub-runtime", file), join(source, file));
+    const npm = npmInvocation(["ci", "--ignore-scripts", "--omit=dev", "--no-audit", "--no-fund"]);
+    run(npm.command, npm.args, {
+      cwd: source,
+      shell: npm.shell,
+      stdio: "inherit",
+      timeout: 120000,
+    });
+
+    const fetch = dependencies.fetch ?? globalThis.fetch;
+    const response = await fetch(
+      `https://github.com/Genymobile/scrcpy/releases/download/v${DEVICE_HUB_SCRCPY_VERSION}/scrcpy-server-v${DEVICE_HUB_SCRCPY_VERSION}`,
+      { signal: AbortSignal.timeout(30000) },
+    );
+    if (!response.ok || !response.body) {
+      await response.body?.cancel().catch(() => undefined);
+      throw new Error("Unable to fetch the pinned scrcpy server.");
+    }
+    const reader = response.body.getReader();
+    const chunks = [];
+    let bytes = 0;
+    try {
+      while (true) {
+        const next = await reader.read();
+        if (next.done) break;
+        bytes += next.value.byteLength;
+        if (bytes > 1024 * 1024)
+          throw new Error("The pinned scrcpy server exceeds its size limit.");
+        chunks.push(next.value);
+      }
+    } finally {
+      await reader.cancel().catch(() => undefined);
+    }
+    const scrcpyServer = join(source, `scrcpy-server-v${DEVICE_HUB_SCRCPY_VERSION}`);
+    await writeFile(scrcpyServer, Buffer.concat(chunks));
+    const output = join(stageRoot, "resources", "device-hub");
+    // Discard only the stage's copied generated cache, never checkout artifacts.
+    await rm(output, { recursive: true, force: true, maxRetries: 8, retryDelay: 50 });
+    const stage = dependencies.stage ?? prepareDeviceHub;
+    return await stage({
+      source,
+      output,
+      scrcpyServer,
+      runtimeAbi: identity.abi,
+      scratch: join(source, ".tmp"),
+    });
+  } finally {
+    await rm(source, { recursive: true, force: true, maxRetries: 8, retryDelay: 50 });
+  }
 }
 
 async function main() {
