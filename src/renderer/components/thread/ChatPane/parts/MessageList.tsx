@@ -534,7 +534,7 @@ export function MessageList({
               },
             }
           : {})}
-        {...(scrollStyle ? { style: scrollStyle } : {})}
+        style={{ width: "100%", ...scrollStyle }}
       />
       <RevertCheckpointDialog
         isOpen={pendingRevert !== null}

@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { readMcpAppResource } from "@/shared/mcpAppResources";
 import type {
   AgentSlashCommand,
   PromptSegment,
@@ -569,6 +570,7 @@ export class PiRpcSession implements StructuredSessionHandle {
     this.openToolItems.delete(toolCallId);
     const toolName = String(event.toolName ?? "tool");
     const images = toolResultImages(event.result);
+    const mcpResult = recordOf(event.result)?.details;
     this.emit({
       type: "item.completed",
       threadId: this.input.threadId,
@@ -577,7 +579,9 @@ export class PiRpcSession implements StructuredSessionHandle {
         name: toolName,
         title: toolName,
         kind: toolKind(toolName),
-        result: toolResultText(event.result) ?? event.result,
+        result: readMcpAppResource(mcpResult)
+          ? mcpResult
+          : (toolResultText(event.result) ?? event.result),
         status: event.isError === true ? "error" : "success",
         ...(images.length > 0 ? { images } : {}),
         ...(isSubAgentTool(toolName) ? { isSubAgent: true } : {}),

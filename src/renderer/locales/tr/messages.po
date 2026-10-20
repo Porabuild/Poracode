@@ -2777,6 +2777,7 @@ msgstr "Kategoriler, saklanan {1} tokenın {0} tanesini kapsar. Eksik kategorile
 
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualChart.tsx
 msgid "Category"
 msgstr "Kategori"
 
@@ -2873,6 +2874,18 @@ msgstr "Değişikliklere erişilemiyor"
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Channel"
 msgstr "Kanal"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualChart.tsx
+msgid "Chart"
+msgstr "Grafik"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualChart.tsx
+msgid "Chart data"
+msgstr "Grafik verileri"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualChart.tsx
+msgid "Chart inspection"
+msgstr "Grafik ayrıntıları"
 
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
@@ -3253,6 +3266,10 @@ msgstr "Çerezleri temizle"
 msgid "Clear day"
 msgstr "Günü temizle"
 
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualTable.tsx
+msgid "Clear filter"
+msgstr "Filtreyi temizle"
+
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 msgid "Clear goal"
 msgstr "Hedefi temizle"
@@ -3388,6 +3405,10 @@ msgstr "Düzenleyici Sekmesini Kapat"
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Close environment actions"
 msgstr "Ortam eylemlerini kapat"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Close expanded visual"
+msgstr "Genişletilmiş görseli kapat"
 
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 msgid "Close experiment"
@@ -3881,6 +3902,12 @@ msgstr "tamamlandı"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
 msgid "Completed"
 msgstr "Tamamlandı"
+
+#. placeholder {0}: block.items.filter((item) => checked.get(`${path}/${item.id}`) ?? item.checked ?? false).length
+#. placeholder {1}: block.items.length
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualBlocks.tsx
+msgid "Completed: {0} / {1}"
+msgstr "Tamamlanan: {0} / {1}"
 
 #: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
 msgid "Completion condition not confirmed"
@@ -4417,6 +4444,15 @@ msgstr "Göreli Yolu Kopyala"
 #: src/renderer/commands/shortcutCatalog.ts
 msgid "Copy selection"
 msgstr "Seçimi kopyala"
+
+#: src/renderer/components/thread/ChatPane/parts/items/InlineVisual.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Copy source"
+msgstr "Kaynağı kopyala"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualTable.tsx
+msgid "Copy table"
+msgstr "Tabloyu kopyala"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Copy Tailscale URL"
@@ -5086,6 +5122,10 @@ msgstr "Karanlık"
 #: src/renderer/components/plugins/pluginCategories.ts
 msgid "Data and databases"
 msgstr "Veri ve veritabanları"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualTable.tsx
+msgid "Data table"
+msgstr "Veri tablosu"
 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
 msgid "Date"
@@ -6578,6 +6618,10 @@ msgstr "Erişimi incelemek veya iptal etmek için genişletin."
 msgid "Expand todo dock"
 msgstr "Yapılacaklar iskelesini genişlet"
 
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Expand visual"
+msgstr "Görseli büyüt"
+
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 #: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 msgid "Expand warning"
@@ -6957,6 +7001,10 @@ msgstr "Çekme isteklerini filtrele"
 msgid "Filter skills by status"
 msgstr "Becerileri duruma göre filtrele"
 
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualTable.tsx
+msgid "Filter table"
+msgstr "Tabloyu filtrele"
+
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Filters"
 msgstr "Filtreler"
@@ -7078,6 +7126,14 @@ msgstr "Poracode'un yerel terminal ve ACP çalışma zamanlarını kullanan biri
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "First-class Qwen Code integration using Poracode's native terminal and ACP runtimes."
 msgstr "Poracode'un yerel terminal ve ACP çalışma zamanlarını kullanan birinci sınıf Qwen Code entegrasyonu."
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Fit"
+msgstr "Sığdırıldı"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Fit to width"
+msgstr "Genişliğe sığdır"
 
 #: src/renderer/components/pdf/PdfViewer.tsx
 #~ msgid "Fit width"
@@ -7275,6 +7331,10 @@ msgstr "Cuma 16:00"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
 msgid "From"
 msgstr "Kaynak"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualDiagram.tsx
+msgid "From {from} to {to}"
+msgstr "{from} konumundan {to} konumuna"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
 msgid "From this project"
@@ -7841,6 +7901,10 @@ msgstr "Saatlik"
 msgid "Hours"
 msgstr "Saat"
 
+#: src/renderer/components/thread/ChatPane/parts/items/InlineVisual.tsx
+msgid "HTML source"
+msgstr "HTML kaynak kodu"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "HTTP (streamable)"
 msgstr "HTTP (akış destekli)"
@@ -8107,6 +8171,14 @@ msgstr "Senkronizasyona ekle"
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Includes the first attempt."
 msgstr "İlk denemeyi içerir."
+
+#: src/renderer/components/thread/ChatPane/parts/items/InlineVisual.tsx
+msgid "Incomplete HTML block. Showing source only."
+msgstr "HTML bloğu tamamlanmamış. Yalnızca kaynak kod gösteriliyor."
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Incomplete visual block. Showing source only."
+msgstr "Görsel bloğu tamamlanmamış. Yalnızca kaynak gösteriliyor."
 
 #: src/renderer/commands/CommandPalette.tsx
 msgid "Indexing saved messages…"
@@ -8489,6 +8561,10 @@ msgstr "Aracıların hangi aracıya veya modele devredeceğini seçerken izledi�
 msgid "Interactive device preview. Tab moves to the next control; Escape closes the workspace."
 msgstr "Etkileşimli cihaz önizlemesi. Tab sonraki denetime geçer; Escape çalışma alanını kapatır."
 
+#: src/renderer/components/thread/ChatPane/parts/items/InlineVisual.tsx
+msgid "Interactive rendering is unavailable. Showing source only."
+msgstr "Etkileşimli görüntüleme kullanılamıyor. Yalnızca kaynak kod gösteriliyor."
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Internal commands and agents"
@@ -8523,6 +8599,10 @@ msgstr "Aralık birimi"
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Invalid configuration — kept, but disabled"
 msgstr "Geçersiz yapılandırma — korundu ama devre dışı"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Invalid visual specification. Showing source only."
+msgstr "Geçersiz görsel tanımı. Yalnızca kaynak gösteriliyor."
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "iOS Simulator requires a macOS host with Xcode."
@@ -10418,6 +10498,10 @@ msgstr "Yeni çalışma alanı"
 msgid "New worktree"
 msgstr "Yeni çalışma ağacı"
 
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualChart.tsx
+msgid "Next category"
+msgstr "Sonraki kategori"
+
 #: src/renderer/commands/registry.ts
 msgid "Next chat"
 msgstr "Sonraki sohbet"
@@ -10602,6 +10686,10 @@ msgstr "İçerik akışı yok."
 msgid "No conversation yet. Be the first to comment."
 msgstr "Henüz konuşma yok. İlk yorum yapan siz olun."
 
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualTable.tsx
+msgid "No data"
+msgstr "Veri yok"
+
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/providers/usageFormat.ts
 msgid "No data yet"
@@ -10742,6 +10830,10 @@ msgstr "Eşleşen çekme isteği yok."
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "No matching results."
 msgstr "Eşleşen sonuç yok."
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualTable.tsx
+msgid "No matching rows"
+msgstr "Eşleşen satır yok"
 
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "No matching schedules."
@@ -10935,6 +11027,10 @@ msgstr "Bu konu için henüz çalışma zamanı öğesi yok."
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
 msgid "No saved passwords"
 msgstr "Kayıtlı parola yok"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualChart.tsx
+msgid "No series selected. Choose a series above."
+msgstr "Seçili seri yok. Yukarıdan bir seri seçin."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #~ msgid "No servers connected yet."
@@ -12545,10 +12641,18 @@ msgstr "Sıralamayı değiştirmeye başlamak için Boşluk tuşuna basın. Taş
 msgid "Prevent system sleep"
 msgstr "Sistemin uykuya geçmesini önle"
 
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Preview"
+msgstr "Önizleme"
+
 #. placeholder {0}: att.name
 #: src/renderer/components/composer/AttachmentBar.tsx
 msgid "Preview {0}"
 msgstr "Önizleme {0}"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualChart.tsx
+msgid "Previous category"
+msgstr "Önceki kategori"
 
 #: src/renderer/commands/registry.ts
 msgid "Previous chat"
@@ -13175,6 +13279,14 @@ msgstr "Hazır. Yeni eşleştirme kodlarında Tailscale HTTPS URL'sini duyurmak 
 msgid "Reasoning"
 msgstr "Akıl yürütme"
 
+#: src/renderer/components/thread/ChatPane/parts/items/InlineVisual.tsx
+msgid "Receiving HTML source…"
+msgstr "HTML kaynak kodu alınıyor…"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Receiving visual source…"
+msgstr "Görsel kaynağı alınıyor…"
+
 #: src/renderer/components/common/ProviderModelMenu/parts/buildItems.ts
 msgid "Recent"
 msgstr "Son"
@@ -13337,6 +13449,10 @@ msgstr "{0} kimlik doğrulama durumu yenileniyor."
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Refreshing {env} {0} authentication status."
 msgstr "{env} {0} kimlik doğrulama durumu yenileniyor."
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualDiagram.tsx
+msgid "Relationship diagram"
+msgstr "İlişki diyagramı"
 
 #: src/renderer/components/providers/settings/ModelProviderManager.tsx
 #: src/renderer/RendererCrashScreen.tsx
@@ -13842,9 +13958,17 @@ msgstr "sıfırlama"
 msgid "Reset"
 msgstr "Sıfırla"
 
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualBlocks.tsx
+msgid "Reset checklist"
+msgstr "Kontrol listesini sıfırla"
+
 #: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
 msgid "Reset context windows"
 msgstr "Bağlam pencerelerini sıfırla"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Reset inputs"
+msgstr "Girdileri sıfırla"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Reset model order"
@@ -13859,6 +13983,7 @@ msgstr "Kenar çubuğu buzlu cam efektini varsayılana sıfırla"
 msgid "Reset to default"
 msgstr "Varsayılana sıfırla"
 
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Reset zoom"
 msgstr "Yakınlaştırmayı sıfırla"
@@ -14288,6 +14413,12 @@ msgstr "Döndür…"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "Rotate viewport"
 msgstr "Görüntü alanını döndür"
+
+#. placeholder {0}: rows.length
+#. placeholder {1}: block.rows.length
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualTable.tsx
+msgid "Rows: {0} / {1}"
+msgstr "Satırlar: {0} / {1}"
 
 #: src/renderer/components/providers/devin/liveSessionControls.tsx
 #: src/renderer/components/providers/devin/sessionActionDialog.tsx
@@ -15360,6 +15491,10 @@ msgstr "Yer imi çubuğunu göster"
 msgid "Show Bookmark Bar"
 msgstr "Yer İşareti Çubuğunu Göster"
 
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualChart.tsx
+msgid "Show chart"
+msgstr "Grafiği göster"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
 msgid "Show circles in sidebar"
@@ -15378,6 +15513,10 @@ msgstr "Composer'ı göster"
 #: src/renderer/components/thread/ThreadUsageBubble.tsx
 msgid "Show context usage details"
 msgstr "Bağlam kullanım ayrıntılarını göster"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualChart.tsx
+msgid "Show data table"
+msgstr "Veri tablosunu göster"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Show device toolbar"
@@ -15857,6 +15996,10 @@ msgstr "Bazı sağlayıcı klasörleri taranamadı. Başarıyla yüklenen beceri
 msgid "Some threads are paused"
 msgstr "Bazı konular duraklatıldı"
 
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualChart.tsx
+msgid "Some values are unavailable. Check the calculator inputs."
+msgstr "Bazı değerler kullanılamıyor. Hesaplayıcı girdilerini kontrol edin."
+
 #: src/mobile/QrScanner.tsx
 #~ msgid "Something went wrong starting the camera. Enter the endpoint and token below to pair instead."
 #~ msgstr "Kamera başlatılırken bir sorun oluştu. Bunun yerine eşleştirmek için endpoint ve token'ı aşağıya girin."
@@ -15880,6 +16023,10 @@ msgstr "Marketplace becerilerini sırala"
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
 #~ msgid "Sort threads"
 #~ msgstr "Konuları sırala"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Source"
+msgstr "Kaynak"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Source branch {branch} moved before the worktree was created"
@@ -17710,6 +17857,10 @@ msgstr "Bu döküm ajanın oturum deposunda değil."
 msgid "This version of Muse Code does not support session goals. Update Muse Code and try again."
 msgstr "Bu Muse Code sürümü oturum hedeflerini desteklemiyor. Muse Code'u güncelleyip yeniden deneyin."
 
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "This visual is too large. Showing source only."
+msgstr "Bu görsel çok büyük. Yalnızca kaynak gösteriliyor."
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreePopover.tsx
 #~ msgid "This will permanently delete the thread and its worktree."
 #~ msgstr "Bu işlem iş parçacığını ve çalışma ağacını kalıcı olarak silecek."
@@ -17959,6 +18110,10 @@ msgstr "Token"
 #: src/renderer/views/ProfileOverlay/parts/ModelUsage.tsx
 msgid "Tokens from {0}"
 msgstr "{0} kaynağından token"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Too many visuals in this message. Showing source only."
+msgstr "Bu mesajda çok fazla görsel var. Yalnızca kaynak gösteriliyor."
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Tool restrictions cannot be imported"
@@ -18490,6 +18645,9 @@ msgstr "Atanmamış"
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualBlocks.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualChart.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualTable.tsx
 msgid "Unavailable"
 msgstr "Kullanılamıyor"
 
@@ -18679,6 +18837,10 @@ msgstr "Desteklenmeyen pazar yeri gereksinimleri"
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Unsupported plugin capability: {target}."
 msgstr "Desteklenmeyen eklenti özelliği: {target}."
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Unsupported visual format. Showing source only."
+msgstr "Desteklenmeyen görsel biçimi. Yalnızca kaynak gösteriliyor."
 
 #: src/renderer/sidebar/ChatSidebarHeader.tsx
 msgid "Untitled"
@@ -19286,6 +19448,14 @@ msgstr "Görünür {0} modelleri"
 msgid "Visible models"
 msgstr "Görünür modeller"
 
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Visual"
+msgstr "Görsel"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualBlocks.tsx
+msgid "Visual sections"
+msgstr "Görsel bölümleri"
+
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Voice input is not available in this environment."
 msgstr "Bu ortamda ses girişi kullanılamaz."
@@ -19880,11 +20050,13 @@ msgid "Zoom"
 msgstr "Yakınlaştırma"
 
 #: src/renderer/components/composer/ImageLightbox.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Zoom in"
 msgstr "Yakınlaştır"
 
 #: src/renderer/components/composer/ImageLightbox.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Zoom out"
 msgstr "Uzaklaştır"

@@ -12,6 +12,13 @@ export const productionRoots = [
 
 export const functionalAreas = [
   {
+    id: "inline-visuals",
+    title: "App-native visual data and source-only HTML/MCP fallback",
+    patterns: [/inlineVisual/i, /nativeVisual/i, /VisualSource/, /mcpAppResource/i, /mcpAppResult/],
+    automated: ["baseline"],
+    manual: ["changed-surface"],
+  },
+  {
     id: "device-workspace",
     title: "Host-managed iOS Simulator and Android Emulator workspace",
     patterns: [/\/devices\//, /deviceWorkspace/i, /appControlsMcp\/deviceProof/],

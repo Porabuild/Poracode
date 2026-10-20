@@ -2777,6 +2777,7 @@ msgstr "Kategorie obejmują {0} z {1} zachowanych tokenów. Brakujące kategorie
 
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualChart.tsx
 msgid "Category"
 msgstr "Kategoria"
 
@@ -2873,6 +2874,18 @@ msgstr "Zmiany są niedostępne"
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Channel"
 msgstr "Kanał"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualChart.tsx
+msgid "Chart"
+msgstr "Wykres"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualChart.tsx
+msgid "Chart data"
+msgstr "Dane wykresu"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualChart.tsx
+msgid "Chart inspection"
+msgstr "Szczegóły wykresu"
 
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
@@ -3253,6 +3266,10 @@ msgstr "Wyczyść pliki cookie"
 msgid "Clear day"
 msgstr "Wyczyść dzień"
 
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualTable.tsx
+msgid "Clear filter"
+msgstr "Wyczyść filtr"
+
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 msgid "Clear goal"
 msgstr "Wyczyść cel"
@@ -3388,6 +3405,10 @@ msgstr "Zamknij kartę Edytora"
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Close environment actions"
 msgstr "Zamknij działania środowiska"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Close expanded visual"
+msgstr "Zamknij powiększoną wizualizację"
 
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 msgid "Close experiment"
@@ -3881,6 +3902,12 @@ msgstr "ukończone"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
 msgid "Completed"
 msgstr "Ukończono"
+
+#. placeholder {0}: block.items.filter((item) => checked.get(`${path}/${item.id}`) ?? item.checked ?? false).length
+#. placeholder {1}: block.items.length
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualBlocks.tsx
+msgid "Completed: {0} / {1}"
+msgstr "Ukończono: {0} / {1}"
 
 #: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
 msgid "Completion condition not confirmed"
@@ -4417,6 +4444,15 @@ msgstr "Skopiuj ścieżkę względną"
 #: src/renderer/commands/shortcutCatalog.ts
 msgid "Copy selection"
 msgstr "Kopiuj zaznaczenie"
+
+#: src/renderer/components/thread/ChatPane/parts/items/InlineVisual.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Copy source"
+msgstr "Kopiuj kod źródłowy"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualTable.tsx
+msgid "Copy table"
+msgstr "Kopiuj tabelę"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Copy Tailscale URL"
@@ -5086,6 +5122,10 @@ msgstr "Ciemny"
 #: src/renderer/components/plugins/pluginCategories.ts
 msgid "Data and databases"
 msgstr "Dane i bazy danych"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualTable.tsx
+msgid "Data table"
+msgstr "Tabela danych"
 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
 msgid "Date"
@@ -6578,6 +6618,10 @@ msgstr "Rozwiń, aby sprawdzić lub odebrać dostęp."
 msgid "Expand todo dock"
 msgstr "Rozwiń dok zadań do wykonania"
 
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Expand visual"
+msgstr "Powiększ wizualizację"
+
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 #: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 msgid "Expand warning"
@@ -6957,6 +7001,10 @@ msgstr "Filtruj żądania ściągnięcia"
 msgid "Filter skills by status"
 msgstr "Filtruj umiejętności według stanu"
 
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualTable.tsx
+msgid "Filter table"
+msgstr "Filtruj tabelę"
+
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Filters"
 msgstr "Filtry"
@@ -7078,6 +7126,14 @@ msgstr "Pierwszorzędna integracja z Qoder CLI korzystająca z natywnych środow
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "First-class Qwen Code integration using Poracode's native terminal and ACP runtimes."
 msgstr "Pierwszorzędna integracja z Qwen Code korzystająca z natywnych środowisk uruchomieniowych terminala i ACP w Poracode."
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Fit"
+msgstr "Dopasowano"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Fit to width"
+msgstr "Dopasuj do szerokości"
 
 #: src/renderer/components/pdf/PdfViewer.tsx
 #~ msgid "Fit width"
@@ -7275,6 +7331,10 @@ msgstr "Piątek o 16:00"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
 msgid "From"
 msgstr "Z"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualDiagram.tsx
+msgid "From {from} to {to}"
+msgstr "Z {from} do {to}"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
 msgid "From this project"
@@ -7841,6 +7901,10 @@ msgstr "Co godzinę"
 msgid "Hours"
 msgstr "Godziny"
 
+#: src/renderer/components/thread/ChatPane/parts/items/InlineVisual.tsx
+msgid "HTML source"
+msgstr "Kod źródłowy HTML"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "HTTP (streamable)"
 msgstr "HTTP (strumieniowy)"
@@ -8107,6 +8171,14 @@ msgstr "Uwzględnij w synchronizacji"
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Includes the first attempt."
 msgstr "Obejmuje pierwszą próbę."
+
+#: src/renderer/components/thread/ChatPane/parts/items/InlineVisual.tsx
+msgid "Incomplete HTML block. Showing source only."
+msgstr "Niekompletny blok HTML. Wyświetlany jest tylko kod źródłowy."
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Incomplete visual block. Showing source only."
+msgstr "Niekompletny blok wizualizacji. Wyświetlane jest tylko źródło."
 
 #: src/renderer/commands/CommandPalette.tsx
 msgid "Indexing saved messages…"
@@ -8489,6 +8561,10 @@ msgstr "Instrukcje, którymi kierują się agenci przy wyborze agenta lub modelu
 msgid "Interactive device preview. Tab moves to the next control; Escape closes the workspace."
 msgstr "Interaktywny podgląd urządzenia. Tab przechodzi do następnego elementu sterującego; Escape zamyka obszar roboczy."
 
+#: src/renderer/components/thread/ChatPane/parts/items/InlineVisual.tsx
+msgid "Interactive rendering is unavailable. Showing source only."
+msgstr "Widok interaktywny jest niedostępny. Wyświetlany jest tylko kod źródłowy."
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Internal commands and agents"
@@ -8523,6 +8599,10 @@ msgstr "Jednostka interwału"
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Invalid configuration — kept, but disabled"
 msgstr "Nieprawidłowa konfiguracja — zachowana, ale wyłączona"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Invalid visual specification. Showing source only."
+msgstr "Nieprawidłowa specyfikacja wizualizacji. Wyświetlane jest tylko źródło."
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "iOS Simulator requires a macOS host with Xcode."
@@ -10418,6 +10498,10 @@ msgstr "Nowy obszar roboczy"
 msgid "New worktree"
 msgstr "Nowe drzewo robocze"
 
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualChart.tsx
+msgid "Next category"
+msgstr "Następna kategoria"
+
 #: src/renderer/commands/registry.ts
 msgid "Next chat"
 msgstr "Następny czat"
@@ -10602,6 +10686,10 @@ msgstr "Brak strumieni treści."
 msgid "No conversation yet. Be the first to comment."
 msgstr "Nie ma jeszcze rozmowy. Bądź pierwszą osobą, która skomentuje."
 
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualTable.tsx
+msgid "No data"
+msgstr "Brak danych"
+
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/providers/usageFormat.ts
 msgid "No data yet"
@@ -10742,6 +10830,10 @@ msgstr "Brak pasujących żądań ściągnięcia."
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "No matching results."
 msgstr "Brak pasujących wyników."
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualTable.tsx
+msgid "No matching rows"
+msgstr "Brak pasujących wierszy"
 
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "No matching schedules."
@@ -10935,6 +11027,10 @@ msgstr "Brak jeszcze elementów wykonawczych dla tego wątku."
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
 msgid "No saved passwords"
 msgstr "Brak zapisanych haseł"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualChart.tsx
+msgid "No series selected. Choose a series above."
+msgstr "Nie wybrano serii. Wybierz serię powyżej."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #~ msgid "No servers connected yet."
@@ -12545,10 +12641,18 @@ msgstr "Naciśnij Spację, aby rozpocząć zmianę kolejności. Użyj strzałek 
 msgid "Prevent system sleep"
 msgstr "Zapobiegaj uśpieniu systemu"
 
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Preview"
+msgstr "Podgląd"
+
 #. placeholder {0}: att.name
 #: src/renderer/components/composer/AttachmentBar.tsx
 msgid "Preview {0}"
 msgstr "Podgląd {0}"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualChart.tsx
+msgid "Previous category"
+msgstr "Poprzednia kategoria"
 
 #: src/renderer/commands/registry.ts
 msgid "Previous chat"
@@ -13175,6 +13279,14 @@ msgstr "Gotowe. Włącz to, aby ogłaszać adres HTTPS Tailscale w nowych kodach
 msgid "Reasoning"
 msgstr "Rozumowanie"
 
+#: src/renderer/components/thread/ChatPane/parts/items/InlineVisual.tsx
+msgid "Receiving HTML source…"
+msgstr "Odbieranie kodu źródłowego HTML…"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Receiving visual source…"
+msgstr "Odbieranie źródła wizualizacji…"
+
 #: src/renderer/components/common/ProviderModelMenu/parts/buildItems.ts
 msgid "Recent"
 msgstr "Najnowsze"
@@ -13337,6 +13449,10 @@ msgstr "Odświeżanie statusu uwierzytelnienia {0}."
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Refreshing {env} {0} authentication status."
 msgstr "Odświeżanie stanu uwierzytelnienia {env} {0}."
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualDiagram.tsx
+msgid "Relationship diagram"
+msgstr "Diagram relacji"
 
 #: src/renderer/components/providers/settings/ModelProviderManager.tsx
 #: src/renderer/RendererCrashScreen.tsx
@@ -13842,9 +13958,17 @@ msgstr "reset"
 msgid "Reset"
 msgstr "Resetuj"
 
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualBlocks.tsx
+msgid "Reset checklist"
+msgstr "Zresetuj listę kontrolną"
+
 #: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
 msgid "Reset context windows"
 msgstr "Resetuj okna kontekstu"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Reset inputs"
+msgstr "Resetuj dane wejściowe"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Reset model order"
@@ -13859,6 +13983,7 @@ msgstr "Przywróć domyślne zmatowienie paska bocznego"
 msgid "Reset to default"
 msgstr "Przywróć domyślne"
 
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Reset zoom"
 msgstr "Zresetuj powiększenie"
@@ -14288,6 +14413,12 @@ msgstr "Obróć do…"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "Rotate viewport"
 msgstr "Obróć obszar wyświetlania"
+
+#. placeholder {0}: rows.length
+#. placeholder {1}: block.rows.length
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualTable.tsx
+msgid "Rows: {0} / {1}"
+msgstr "Wiersze: {0} / {1}"
 
 #: src/renderer/components/providers/devin/liveSessionControls.tsx
 #: src/renderer/components/providers/devin/sessionActionDialog.tsx
@@ -15360,6 +15491,10 @@ msgstr "Pokaż pasek zakładek"
 msgid "Show Bookmark Bar"
 msgstr "Pokaż pasek zakładek"
 
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualChart.tsx
+msgid "Show chart"
+msgstr "Pokaż wykres"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
 msgid "Show circles in sidebar"
@@ -15378,6 +15513,10 @@ msgstr "Pokaż pole tworzenia wiadomości"
 #: src/renderer/components/thread/ThreadUsageBubble.tsx
 msgid "Show context usage details"
 msgstr "Pokaż szczegóły użycia kontekstu"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualChart.tsx
+msgid "Show data table"
+msgstr "Pokaż tabelę danych"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Show device toolbar"
@@ -15857,6 +15996,10 @@ msgstr "Nie udało się przeskanować niektórych folderów dostawców. Pomyśln
 msgid "Some threads are paused"
 msgstr "Niektóre wątki są wstrzymane"
 
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualChart.tsx
+msgid "Some values are unavailable. Check the calculator inputs."
+msgstr "Niektóre wartości są niedostępne. Sprawdź dane wejściowe kalkulatora."
+
 #: src/mobile/QrScanner.tsx
 #~ msgid "Something went wrong starting the camera. Enter the endpoint and token below to pair instead."
 #~ msgstr "Coś poszło nie tak podczas uruchamiania kamery. Zamiast tego wpisz poniżej endpoint i token, aby sparować."
@@ -15880,6 +16023,10 @@ msgstr "Sortuj umiejętności z marketplace"
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
 #~ msgid "Sort threads"
 #~ msgstr "Sortuj wątki"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Source"
+msgstr "Źródło"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Source branch {branch} moved before the worktree was created"
@@ -17710,6 +17857,10 @@ msgstr "Ta transkrypcja nie znajduje się w magazynie sesji agenta."
 msgid "This version of Muse Code does not support session goals. Update Muse Code and try again."
 msgstr "Ta wersja Muse Code nie obsługuje celów sesji. Zaktualizuj Muse Code i spróbuj ponownie."
 
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "This visual is too large. Showing source only."
+msgstr "Ta wizualizacja jest zbyt duża. Wyświetlane jest tylko źródło."
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreePopover.tsx
 #~ msgid "This will permanently delete the thread and its worktree."
 #~ msgstr "Spowoduje to trwałe usunięcie wątku i jego drzewa roboczego."
@@ -17959,6 +18110,10 @@ msgstr "Tokeny"
 #: src/renderer/views/ProfileOverlay/parts/ModelUsage.tsx
 msgid "Tokens from {0}"
 msgstr "Tokeny z {0}"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Too many visuals in this message. Showing source only."
+msgstr "Zbyt wiele wizualizacji w tej wiadomości. Wyświetlane jest tylko źródło."
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Tool restrictions cannot be imported"
@@ -18490,6 +18645,9 @@ msgstr "Nieprzypisany"
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualBlocks.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualChart.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualTable.tsx
 msgid "Unavailable"
 msgstr "Niedostępny"
 
@@ -18679,6 +18837,10 @@ msgstr "Nieobsługiwane wymagania marketplace"
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Unsupported plugin capability: {target}."
 msgstr "Nieobsługiwana funkcja wtyczki: {target}."
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Unsupported visual format. Showing source only."
+msgstr "Nieobsługiwany format wizualizacji. Wyświetlane jest tylko źródło."
 
 #: src/renderer/sidebar/ChatSidebarHeader.tsx
 msgid "Untitled"
@@ -19286,6 +19448,14 @@ msgstr "Widoczne modele {0}"
 msgid "Visible models"
 msgstr "Widoczne modele"
 
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Visual"
+msgstr "Wizualizacja"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualBlocks.tsx
+msgid "Visual sections"
+msgstr "Sekcje wizualizacji"
+
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Voice input is not available in this environment."
 msgstr "Wprowadzanie głosowe nie jest dostępne w tym środowisku."
@@ -19880,11 +20050,13 @@ msgid "Zoom"
 msgstr "Powiększenie"
 
 #: src/renderer/components/composer/ImageLightbox.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Zoom in"
 msgstr "Powiększ"
 
 #: src/renderer/components/composer/ImageLightbox.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Zoom out"
 msgstr "Pomniejsz"

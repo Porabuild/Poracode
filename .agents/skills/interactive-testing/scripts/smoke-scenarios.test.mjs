@@ -4,6 +4,24 @@ import { readFile } from "node:fs/promises";
 import vm from "node:vm";
 import { areasForFile, isProductionFile } from "./smoke-scenarios.mjs";
 
+await test("native visuals and inert source fallback retain the dedicated changed-surface gate", () => {
+  for (const file of [
+    "src/shared/inlineVisuals.ts",
+    "src/shared/nativeVisuals.ts",
+    "src/renderer/state/nativeVisualUiStore.ts",
+    "src/renderer/components/thread/ChatPane/parts/items/VisualSource.tsx",
+    "src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx",
+    "src/renderer/components/thread/ChatPane/parts/items/InlineVisual.tsx",
+    "src/shared/mcpAppResources.ts",
+    "src/supervisor/mcp/mcpAppResult.ts",
+  ]) {
+    const area = areasForFile(file).find((candidate) => candidate.id === "inline-visuals");
+    assert.ok(area, file);
+    assert.ok(area.automated.includes("baseline"));
+    assert.ok(area.manual.includes("changed-surface"));
+  }
+});
+
 await test("host usage changes require remote collection and isolation coverage", () => {
   for (const file of [
     "src/renderer/state/hostUsageStore.ts",

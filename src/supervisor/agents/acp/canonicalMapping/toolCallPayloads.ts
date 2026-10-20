@@ -15,6 +15,7 @@ import { readDiffSummary, readStringField } from "../../fileChangeSummary";
 import {
   extractFileChangePath,
   extractToolCallContentImages,
+  extractToolCallMcpAppResult,
   extractToolCallContentText,
   extractToolLocations,
   normalizeToolText,
@@ -39,6 +40,7 @@ export function buildAcpToolCallPayload(
     title?: string | null;
     kind?: string | null;
     rawInput?: unknown;
+    rawOutput?: unknown;
     content?: unknown;
     locations?: Array<{ path?: string | null; line?: number | null }> | null;
   },
@@ -59,6 +61,7 @@ export function buildAcpToolCallPayload(
   // finalization (`finalizeToolCallPayload`) guarantees it never stays nameless.
   const name = title ?? kind;
   const contentResult = extractToolCallContentText(toolCall.content, resolveTerminalOutput);
+  const mcpAppResult = extractToolCallMcpAppResult(toolCall.content, toolCall.rawOutput);
   // Images may be inline base64, a `uri`-only reference, or — for a completed
   // read-kind call — only named by `locations`; the session-injected resolver
   // is what turns the latter two into renderable data URLs.
@@ -73,7 +76,11 @@ export function buildAcpToolCallPayload(
     ...(name ? { name } : {}),
     args: toolCall.rawInput,
     status,
-    ...(contentResult !== undefined ? { result: contentResult } : {}),
+    ...(mcpAppResult !== undefined
+      ? { result: mcpAppResult }
+      : contentResult !== undefined
+        ? { result: contentResult }
+        : {}),
     ...(images.length > 0 ? { images } : {}),
     ...(title ? { title } : {}),
     ...(kind ? { kind } : {}),
@@ -171,14 +178,16 @@ export function buildAcpToolCallUpdatePayload(
   const isFileChange = item.itemType === "file_change";
   const contentDiffs = isFileChange ? extractAcpFileChangesFromContent(toolCall.content) : [];
   const contentDiffText = isFileChange ? joinAcpContentFileChangeDiffs(contentDiffs) : undefined;
-  const result = pickAcpToolCallResult({
-    contentDiffText,
-    rawOutput: toolCall.rawOutput,
-    contentResult,
-    itemType: item.itemType,
-    payload: item.payload,
-    resolveTerminalOutputByCommand,
-  });
+  const result =
+    extractToolCallMcpAppResult(toolCall.content, toolCall.rawOutput) ??
+    pickAcpToolCallResult({
+      contentDiffText,
+      rawOutput: toolCall.rawOutput,
+      contentResult,
+      itemType: item.itemType,
+      payload: item.payload,
+      resolveTerminalOutputByCommand,
+    });
   // Never let a kind-only update clobber a better title-derived name. A `title`
   // always wins; a bare `kind` only sets the name when the tracked item has none
   // yet (Cursor emits `title`/`kind` piecemeal across updates, and a late `kind`

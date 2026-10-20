@@ -7,6 +7,7 @@
  */
 
 import type { CanonicalItemType } from "@/shared/contracts";
+import { readMcpAppResource } from "@/shared/mcpAppResources";
 import { readFileChangePath } from "../../fileChangeSummary";
 
 export function normalizeToolText(value: string | null | undefined): string | undefined {
@@ -20,6 +21,31 @@ export function firstNonEmptyLine(text: string): string | undefined {
     .split(/\r?\n/)
     .map((line) => line.trim())
     .find((line) => line.length > 0);
+}
+
+/** Preserve standard resource blocks instead of flattening an MCP App to text. */
+export function extractToolCallMcpAppResult(
+  content: unknown,
+  rawOutput?: unknown,
+): unknown | undefined {
+  if (readMcpAppResource(rawOutput)) return rawOutput;
+  if (!Array.isArray(content)) return;
+  const rawResult =
+    rawOutput && typeof rawOutput === "object" && !Array.isArray(rawOutput)
+      ? (rawOutput as Record<string, unknown>)
+      : {};
+  const result = {
+    ...rawResult,
+    content: [
+      ...(Array.isArray(rawResult.content) ? rawResult.content : []),
+      ...content.flatMap((entry) =>
+        entry && typeof entry === "object" && entry.type === "content" && entry.content
+          ? [entry.content]
+          : [],
+      ),
+    ],
+  };
+  return readMcpAppResource(result) ? result : undefined;
 }
 
 export function extractToolLocations(

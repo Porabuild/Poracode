@@ -88,6 +88,12 @@ export function installAppNavigationGuards(
   }
   window.webContents.on("will-navigate", blockOffAppNavigation);
   window.webContents.on("will-redirect", blockOffAppNavigation);
+  // Block non-local subframe navigations in the privileged app renderer.
+  window.webContents.on("will-frame-navigate", (event) => {
+    if (!event.isMainFrame && event.url !== "about:blank" && event.url !== "about:srcdoc") {
+      event.preventDefault();
+    }
+  });
 }
 
 interface RendererReloadGuardOptions {
