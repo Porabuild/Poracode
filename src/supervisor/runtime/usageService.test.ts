@@ -1,4 +1,4 @@
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -66,7 +66,7 @@ afterEach(() => {
 });
 
 describe("UsageService", () => {
-  it.each([4, 6, 7, 8, 9, 10, 11])(
+  it.each([4, 6, 7, 8, 9, 10, 11, 12])(
     "discards snapshots from obsolete collector cache version %i",
     async (version) => {
       const cachePath = tempCachePath();
@@ -96,6 +96,37 @@ describe("UsageService", () => {
       expect(result.snapshots).toEqual([]);
     },
   );
+
+  it("recollects windows instead of serving an empty v12 snapshot", async () => {
+    const cachePath = tempCachePath();
+    writeFileSync(
+      cachePath,
+      JSON.stringify({
+        version: 12,
+        snapshots: [{ providerId: "fixture", status: "ok", windows: [], fetchedAt: NOW }],
+      }),
+    );
+    const fresh: UsageSnapshot = {
+      providerId: "fixture",
+      status: "ok",
+      windows: [{ id: "weekly", label: "Weekly", usedPercent: 0 }],
+      fetchedAt: NOW,
+    };
+    const service = new UsageService({
+      emit: () => {},
+      cachePath,
+      host: makeHost({}),
+      providerIds: ["fixture"],
+      localCollectors: [{ id: "fixture", collect: async () => fresh }],
+    });
+    expect(await service.getProviderUsage({})).toEqual({ snapshots: [], fromCache: false });
+    expect((await service.refreshProviderUsage({ force: true })).snapshots).toEqual([fresh]);
+    expect(JSON.parse(readFileSync(cachePath, "utf8"))).toMatchObject({
+      version: 13,
+      snapshots: [fresh],
+    });
+    service.stop();
+  });
 
   it("refresh defaults to Claude and Codex only, emits per-provider then a terminal event", async () => {
     const events: SupervisorEvent[] = [];
@@ -464,7 +495,7 @@ describe("UsageService", () => {
     writeFileSync(
       cachePath,
       JSON.stringify({
-        version: 12,
+        version: 13,
         snapshots: [{ providerId: "fixture", status: "ok", windows: [], fetchedAt: NOW - 600_000 }],
       }),
     );
@@ -860,7 +891,7 @@ describe("UsageService", () => {
     expect(snap?.windows.find((w) => w.id === "session-5h")?.usedPercent).toBe(0.4);
   });
 
-  it("retains v11 cached readings with failure diagnostics until a successful refresh", async () => {
+  it("retains current cached readings with failure diagnostics until a successful refresh", async () => {
     const cachePath = tempCachePath();
     const settingsPath = tempCachePath();
     writeFileSync(settingsPath, JSON.stringify({ usage: { autoRefresh: false } }));
@@ -871,7 +902,7 @@ describe("UsageService", () => {
       credits: { balance: 20 },
       fetchedAt: NOW - 6 * 60 * 60_000,
     };
-    writeFileSync(cachePath, JSON.stringify({ version: 12, snapshots: [previous] }));
+    writeFileSync(cachePath, JSON.stringify({ version: 13, snapshots: [previous] }));
     let failed = true;
     const options = {
       emit: () => {},
