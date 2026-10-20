@@ -230,6 +230,8 @@ export function useLocalizedPluginDiagnostic(): (diagnostic: PluginDiagnostic) =
   return (diagnostic) => {
     const target = diagnostic.target;
     switch (diagnostic.code) {
+      case "package-capability-unsupported":
+        return t`Unsupported plugin capability: ${target}.`;
       case "root-unresolvable":
         return t`This plugin's folder could not be read.`;
       case "manifest-missing":

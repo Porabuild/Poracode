@@ -2,7 +2,12 @@ import { mkdirSync, readdirSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 import type { LoadedPlugin, PluginSource } from "@/shared/contracts";
 import { formatPluginDiagnostic, type PluginDiagnostic } from "@/shared/plugins/spec";
-import { loadPluginFromDirectory, PLUGIN_MANIFEST_FILE, PLUGIN_MCP_FILE } from "./PluginLoader";
+import {
+  loadPluginFromDirectory,
+  PLUGIN_MCP_FILE,
+  PLUGIN_INSTALL_RECEIPT_FILE,
+} from "./PluginLoader";
+import { findPluginManifest, PLUGIN_MANIFEST_PATHS } from "./packageCompatibility";
 
 /**
  * Discovers Agent Plugins packages from the roots Poracode scans.
@@ -48,6 +53,14 @@ interface ScanRoot {
   source: PluginSource;
 }
 
+function fileStamp(path: string): string {
+  try {
+    return String(statSync(path).mtimeMs);
+  } catch {
+    return "?";
+  }
+}
+
 /** Cheap change signal: the set of candidate directories plus their mtimes. */
 function rootFingerprint(directory: string): string {
   let entries: string[];
@@ -58,24 +71,20 @@ function rootFingerprint(directory: string): string {
   }
   const parts = entries.map((entry) => {
     // A directory's mtime does not change when a file inside it is rewritten, so
-    // fold in the two manifests as well; otherwise editing a package in place
+    // fold in manifests and default component metadata; otherwise editing a package in place
     // keeps serving the stale parse to every launch and skill scan.
-    const stamp = (path: string): string => {
-      try {
-        return String(statSync(path).mtimeMs);
-      } catch {
-        return "?";
-      }
-    };
     const dir = join(directory, entry);
-    return `${entry}:${stamp(dir)}:${stamp(join(dir, PLUGIN_MANIFEST_FILE))}:${stamp(join(dir, PLUGIN_MCP_FILE))}`;
+    return `${entry}:${fileStamp(dir)}:${PLUGIN_MANIFEST_PATHS.map((path) => fileStamp(join(dir, path))).join(":")}:${fileStamp(join(dir, PLUGIN_MCP_FILE))}:${fileStamp(join(dir, ".mcp.json"))}:${fileStamp(join(dir, PLUGIN_INSTALL_RECEIPT_FILE))}`;
   });
   return `${directory}\0${parts.join("\0")}`;
 }
 
 export class PluginRegistry {
   /** Keyed by project scan root ("" for the app-global scopes only). */
-  private readonly cache = new Map<string, { fingerprint: string; plugins: LoadedPlugin[] }>();
+  private readonly cache = new Map<
+    string,
+    { fingerprint: string; plugins: LoadedPlugin[]; componentFiles: string[] }
+  >();
 
   constructor(private readonly options: PluginRegistryOptions) {}
 
@@ -97,13 +106,15 @@ export class PluginRegistry {
 
   listPlugins(projectFsPath?: string): LoadedPlugin[] {
     const roots = this.scanRoots(projectFsPath);
-    const fingerprint = roots.map((root) => rootFingerprint(root.directory)).join("\n");
     const key = projectFsPath ?? "";
     const cached = this.cache.get(key);
-    if (cached?.fingerprint === fingerprint) return cached.plugins;
-    const plugins = this.scan(roots);
-    this.cache.set(key, { fingerprint, plugins });
-    return plugins;
+    const rootsFingerprint = roots.map((root) => rootFingerprint(root.directory)).join("\n");
+    const fingerprint = (files: string[]) =>
+      `${rootsFingerprint}\n${files.map((path) => `${path}:${fileStamp(path)}`).join("\n")}`;
+    if (cached && cached.fingerprint === fingerprint(cached.componentFiles)) return cached.plugins;
+    const scanned = this.scan(roots);
+    this.cache.set(key, { fingerprint: fingerprint(scanned.componentFiles), ...scanned });
+    return scanned.plugins;
   }
 
   getPlugin(name: string, projectFsPath?: string): LoadedPlugin | undefined {
@@ -128,11 +139,13 @@ export class PluginRegistry {
     return roots;
   }
 
-  private scan(roots: readonly ScanRoot[]): LoadedPlugin[] {
+  private scan(roots: readonly ScanRoot[]): { plugins: LoadedPlugin[]; componentFiles: string[] } {
     const byName = new Map<string, LoadedPlugin>();
+    const componentFiles: string[] = [];
     for (const root of roots) {
       for (const directory of candidateDirectories(root.directory)) {
         const result = loadPluginFromDirectory(directory, root.source);
+        componentFiles.push(...(result.componentFiles ?? []));
         this.report(directory, result.diagnostics);
         const plugin = result.plugin;
         if (!plugin) continue;
@@ -146,7 +159,10 @@ export class PluginRegistry {
         byName.set(plugin.name, plugin);
       }
     }
-    return [...byName.values()].sort((a, b) => a.name.localeCompare(b.name));
+    return {
+      plugins: [...byName.values()].sort((a, b) => a.name.localeCompare(b.name)),
+      componentFiles,
+    };
   }
 
   private report(directory: string, diagnostics: readonly PluginDiagnostic[]): void {
@@ -166,10 +182,11 @@ function candidateDirectories(root: string): string[] {
     return [];
   }
   return entries.flatMap((entry) => {
+    if (entry.startsWith(".")) return [];
     const directory = join(root, entry);
     try {
       if (!statSync(directory).isDirectory()) return [];
-      if (!statSync(join(directory, PLUGIN_MANIFEST_FILE)).isFile()) return [];
+      if (!findPluginManifest(directory)) return [];
     } catch {
       return [];
     }

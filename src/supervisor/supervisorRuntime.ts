@@ -109,6 +109,8 @@ import { SkillsService } from "./skills/SkillsService";
 import { SessionImportService } from "./sessionImport/service";
 import { dropSkillSegmentsOnPolicyFailure } from "./skills/pluginSkillPolicy";
 import { PluginRegistry, resolvePluginMcpServers } from "./plugins";
+import { PluginCatalogService } from "./plugins/PluginCatalogService";
+import { PluginAccountService } from "./plugins/PluginAccountService";
 import { captureExperimentResponseSnapshot } from "./experimentResponseSnapshot";
 
 export { detectWslAgentStatuses, writeSubmittedPrompt };
@@ -190,6 +192,8 @@ export class SupervisorRuntime {
   readonly skillsService: SkillsService;
   readonly sessionImportService: SessionImportService;
   readonly pluginRegistry: PluginRegistry;
+  readonly pluginCatalogService: PluginCatalogService;
+  readonly pluginAccountService: PluginAccountService;
   private readonly pluginDataDir: string;
   private readonly crossagentMcpIngress: CrossagentMcpIngress;
   private readonly subagentRunManager: SubagentRunManager;
@@ -238,7 +242,7 @@ export class SupervisorRuntime {
       resolveHostAccess: (distro) => resolveWslHostAccess(distro),
     });
     this.mcpProbeService = new McpProbeService({
-      applyAuthorization: (server) => this.mcpOAuthService.applyAuthorizationToServer(server),
+      applyAuthorization: (server) => this.pluginAccountService.applyAuthorizationToServer(server),
     });
     const paths = resolvePoracodePaths(baseDir);
     this.logsDir = paths.terminalLogsDir;
@@ -299,6 +303,16 @@ export class SupervisorRuntime {
     this.pluginRegistry = new PluginRegistry({
       bundledPluginsDir: () => process.env.PORACODE_BUNDLED_PLUGINS_DIR?.trim() || undefined,
       userPluginsDir: () => paths.pluginsDir,
+    });
+    this.pluginAccountService = new PluginAccountService({
+      baseDir,
+      registry: this.pluginRegistry,
+      oauth: this.mcpOAuthService,
+    });
+    this.pluginCatalogService = new PluginCatalogService({
+      baseDir,
+      registry: this.pluginRegistry,
+      removeAccounts: (name) => this.pluginAccountService.removePluginAccounts(name),
     });
     this.pluginDataDir = paths.pluginDataDir;
     this.sessionImportService = new SessionImportService(this.adapters, emit);
@@ -530,10 +544,23 @@ export class SupervisorRuntime {
       wslHostAccess: {
         resolveHostAccess: (distro) => resolveWslHostAccess(distro),
       },
-      applyMcpServerAuthorization: (servers, location, { defer }) =>
-        defer
-          ? this.mcpOAuthRelay.prepare(servers, location)
-          : this.mcpOAuthService.applyAuthorization(servers),
+      applyMcpServerAuthorization: async (servers, location, { defer }) => {
+        if (!defer) return this.pluginAccountService.applyAuthorization(servers);
+        // Plugin account credentials are opaque per-account slots. Keep plugin
+        // servers out of the URL-keyed relay entirely so a shared/legacy URL
+        // token can never authenticate a plugin the account model did not.
+        const pluginServers = servers.filter((server) => server.id.startsWith("plugin:"));
+        const sharedServers = servers.filter((server) => !server.id.startsWith("plugin:"));
+        const authorizedPlugins = await this.pluginAccountService.applyAuthorization(pluginServers);
+        const relayedShared = await this.mcpOAuthRelay.prepare(sharedServers, location);
+        const authorized = new Map(
+          [...authorizedPlugins, ...relayedShared].map((server) => [server.id, server]),
+        );
+        return servers.flatMap((server) => {
+          const next = authorized.get(server.id);
+          return next ? [next] : [];
+        });
+      },
       prepareMcpToolFilters,
       resolvePluginLaunchContributions: async (projectLocation, agentKind, selection) => {
         const envContext =

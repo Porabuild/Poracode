@@ -828,6 +828,10 @@ msgstr "Kandydat nie znajduje się już na swojej gałęzi eksperymentu."
 msgid "A Cursor profile with this name already exists."
 msgstr "Profil Cursor o tej nazwie już istnieje."
 
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
+msgid "A different plugin already uses this identifier. It will not be replaced."
+msgstr "Inny wtyczka już używa tego identyfikatora. Nie zostanie zastąpiony."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "A frozen worktree source requires a full commit hash"
 msgstr "Zamrożone źródło drzewa roboczego wymaga pełnego skrótu commita"
@@ -922,6 +926,19 @@ msgstr "Zaakceptuj zmianę przychodzącą"
 msgid "Account"
 msgstr "Konto"
 
+#: src/renderer/components/plugins/PluginServiceAccounts.tsx
+msgid "Account changes apply to new threads."
+msgstr "Zmiany konta dotyczą nowych wątków."
+
+#: src/renderer/components/plugins/PluginServiceAccounts.tsx
+msgid "Account label"
+msgstr "Etykieta konta"
+
+#. placeholder {0}: service.name
+#: src/renderer/components/plugins/PluginServiceAccounts.tsx
+msgid "Account label for {0}"
+msgstr "Etykieta konta dla {0}"
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Account options"
 msgstr "Opcje konta"
@@ -931,6 +948,10 @@ msgstr "Opcje konta"
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Accounts"
 msgstr "Konta"
+
+#: src/renderer/components/plugins/PluginServiceAccounts.tsx
+msgid "Accounts belong to this plugin and service. Account labels are yours; the service may not report a verified identity. Provider logins are separate."
+msgstr "Konta należą do tej wtyczki i usługi. Etykiety nadajesz samodzielnie; usługa może nie podawać zweryfikowanej tożsamości. Logowanie u dostawców jest oddzielne."
 
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
@@ -1035,6 +1056,11 @@ msgstr "Metryka aktywności"
 msgid "Add"
 msgstr "Dodaj"
 
+#. placeholder {0}: catalog.name
+#: src/renderer/components/plugins/PluginCatalogBrowser.tsx
+msgid "Add {0}"
+msgstr "Dodaj {0}"
+
 #: src/renderer/commands/registry.ts
 msgid "Add a local project"
 msgstr "Dodaj projekt lokalny"
@@ -1087,6 +1113,10 @@ msgstr "Dodaj projekt, aby rozpocząć"
 msgid "Add a project to use GitHub Actions."
 msgstr "Dodaj projekt, aby używać GitHub Actions."
 
+#: src/renderer/components/plugins/PluginCatalogBrowser.tsx
+msgid "Add a public Git repository or a local marketplace. Review supported components before installing."
+msgstr "Dodaj publiczne repozytorium Git lub lokalny katalog. Przed instalacją sprawdź obsługiwane składniki."
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Add a skill to .agents/skills or .poracode/skills, or import one from another provider."
 msgstr "Dodaj umiejętność do .agents/skills lub .poracode/skills albo zaimportuj ją od innego dostawcy."
@@ -1095,9 +1125,17 @@ msgstr "Dodaj umiejętność do .agents/skills lub .poracode/skills albo zaimpor
 #~ msgid "Add a skill to .agents/skills or import one from another provider."
 #~ msgstr "Dodaj umiejętność do .agents/skills lub zaimportuj ją od innego dostawcy."
 
+#: src/renderer/components/plugins/PluginCatalogBrowser.tsx
+msgid "Add a source"
+msgstr "Dodaj źródło"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoList.tsx
 msgid "Add a to-do…"
 msgstr "Dodaj zadanie…"
+
+#: src/renderer/components/plugins/PluginServiceAccounts.tsx
+msgid "Add account"
+msgstr "Dodaj konto"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
 msgid "Add action"
@@ -1134,6 +1172,10 @@ msgstr "Dodaj poświadczenia, zanim będzie można uruchomić ten wątek."
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Add folder"
 msgstr "Dodaj folder"
+
+#: src/renderer/components/plugins/PluginCatalogBrowser.tsx
+msgid "Add marketplace"
+msgstr "Dodaj marketplace"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Add MCP server"
@@ -1474,6 +1516,10 @@ msgstr "Wszystkie foldery"
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeHeading.tsx
 msgid "All machines"
 msgstr "Wszystkie komputery"
+
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+msgid "All plugins"
+msgstr "Wszystkie wtyczki"
 
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 msgid "All plugins are up to date."
@@ -2496,6 +2542,10 @@ msgstr "Pakiety umiejętności i serwerów MCP działające z każdym obsługiwa
 msgid "Business & finance"
 msgstr "Biznes i finanse"
 
+#: src/renderer/components/plugins/pluginCategories.ts
+msgid "Business and operations"
+msgstr "Biznes i operacje"
+
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 msgid "by <0>{author}</0>"
 msgstr "przez <0>{author}</0>"
@@ -2631,6 +2681,10 @@ msgstr "Anuluj usuwanie projektu"
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Cancel run"
 msgstr "Anuluj uruchomienie"
+
+#: src/renderer/components/plugins/PluginServiceAccounts.tsx
+msgid "Cancel sign-in"
+msgstr "Anuluj logowanie"
 
 #: src/renderer/components/composer/LiveVoiceControls.tsx
 msgid "Cancel voice connection"
@@ -4361,6 +4415,13 @@ msgstr "Nie udało się wczytać użycia. Sprawdź połączenie z hostem i upraw
 #~ msgid "Could not open this PDF."
 #~ msgstr "Nie udało się otworzyć tego pliku PDF."
 
+#: src/renderer/components/plugins/PluginCatalogBrowser.tsx
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
+#: src/renderer/components/plugins/PluginDetail.tsx
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+msgid "Could not manage this plugin or marketplace. Check the source, compatibility, and local file changes, then try again."
+msgstr "Nie można zarządzać tym marketplaceiem lub wtyczkaem. Sprawdź źródło, zgodność i lokalne zmiany plików, a następnie spróbuj ponownie."
+
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "Could not read file."
 msgstr "Nie można odczytać pliku."
@@ -4370,6 +4431,11 @@ msgstr "Nie można odczytać pliku."
 msgid "Could not read the thread context for side chat. Try again."
 msgstr "Nie udało się odczytać kontekstu wątku dla rozmowy pobocznej. Spróbuj ponownie."
 
+#. placeholder {0}: account.serverName
+#: src/renderer/components/plugins/usePluginOauth.ts
+msgid "Could not sign in to {0}."
+msgstr "Nie można zalogować się do {0}."
+
 #: src/renderer/components/mcp/useMcpServerOauth.ts
 msgid "Could not sign in to {serverName}: {message}"
 msgstr "Nie udało się zalogować do {serverName}: {message}"
@@ -4378,6 +4444,11 @@ msgstr "Nie udało się zalogować do {serverName}: {message}"
 #: src/renderer/components/plugins/usePluginOauth.ts
 msgid "Could not sign in to {serverName}."
 msgstr "Nie udało się zalogować do {serverName}."
+
+#. placeholder {0}: account.serverName
+#: src/renderer/components/plugins/usePluginOauth.ts
+msgid "Could not sign out of {0}."
+msgstr "Nie można wylogować się z {0}."
 
 #: src/renderer/components/mcp/useMcpServerOauth.ts
 #: src/renderer/components/plugins/usePluginOauth.ts
@@ -4926,6 +4997,10 @@ msgstr "Dzienny zarejestrowany koszt; luki mogą zawierać użycie bez wyceny."
 msgid "Dark"
 msgstr "Ciemny"
 
+#: src/renderer/components/plugins/pluginCategories.ts
+msgid "Data and databases"
+msgstr "Dane i bazy danych"
+
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
 msgid "Date"
 msgstr "Data"
@@ -5201,6 +5276,10 @@ msgstr "Odmów"
 msgid "Deny and tell the agent what to do differently…"
 msgstr "Odmów i powiedz agentowi, co ma zrobić inaczej…"
 
+#: src/renderer/components/plugins/pluginCategories.ts
+msgid "Deployment"
+msgstr "Wdrażanie"
+
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Describe the result that completes this heartbeat."
 msgstr "Opisz wynik, który kończy ten heartbeat."
@@ -5225,6 +5304,10 @@ msgstr "Opis (opcjonalnie)"
 #: src/renderer/utils/projectIcons.ts
 msgid "Design & media"
 msgstr "Projektowanie i media"
+
+#: src/renderer/components/plugins/pluginCategories.ts
+msgid "Design and creativity"
+msgstr "Design i kreatywność"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Desktop endpoint"
@@ -5561,6 +5644,10 @@ msgstr "Rozłączono — wyślij wiadomość, aby połączyć się ponownie"
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 msgid "Discover"
 msgstr "Odkrywaj"
+
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+msgid "Discover skills and MCP servers from your marketplace sources."
+msgstr "Odkrywaj umiejętności i serwery MCP ze źródeł marketplace."
 
 #: src/renderer/components/thread/AgentDiscoveryOverlay.tsx
 msgid "Discovering agents…"
@@ -6702,6 +6789,10 @@ msgstr "Filtruj według projektu"
 msgid "Filter marketplace by source"
 msgstr "Filtruj marketplace według źródła"
 
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+msgid "Filter plugins"
+msgstr "Filtruj pluginy"
+
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Filter pull requests"
 msgstr "Filtruj żądania ściągnięcia"
@@ -6717,6 +6808,10 @@ msgstr "Filtry"
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Finalize"
 msgstr "Sfinalizuj"
+
+#: src/renderer/components/plugins/pluginCategories.ts
+msgid "Finance"
+msgstr "Finanse"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/components/find/FindBar.tsx
@@ -7291,6 +7386,10 @@ msgstr "Rozumiem"
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Grade {0}"
 msgstr "Ocena {0}"
+
+#: src/renderer/components/plugins/PluginServiceAccounts.tsx
+msgid "Granted scopes"
+msgstr "Przyznane uprawnienia"
 
 #: src/renderer/utils/projectIconColors.ts
 msgid "Green"
@@ -8105,6 +8204,10 @@ msgstr "Zainstaluj OpenCode 2, aby zarządzać jego wtyczkami."
 msgid "Install packages"
 msgstr "Zainstaluj pakiety"
 
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
+msgid "Install plugin"
+msgstr "Zainstaluj wtyczkę"
+
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 msgid "Install Poracode for faster access and offline launch."
@@ -8174,6 +8277,10 @@ msgstr "Instalowanie"
 #: src/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay.tsx
 msgid "Installing in this terminal. Closes when finished."
 msgstr "Instalacja w tym terminalu. Zamyka się po zakończeniu."
+
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
+msgid "Installing makes this plugin available in Plugins. Enable it after reviewing its skills, servers, and required access."
+msgstr "Instalacja udostępnia ten wtyczka we Wtyczkach. Włącz go po sprawdzeniu jego umiejętności, serwerów i wymaganego dostępu."
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Instructions"
@@ -8445,6 +8552,10 @@ msgstr "Model główny"
 msgid "Learned selections"
 msgstr "Wyuczone wybory"
 
+#: src/renderer/components/plugins/pluginCategories.ts
+msgid "Learning and research"
+msgstr "Nauka i badania"
+
 #: src/renderer/views/GitReviewOverlay/parts/DiffAnnotationView.tsx
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 msgid "Leave a comment"
@@ -8636,6 +8747,12 @@ msgstr "Ładowanie notatek…"
 #~ msgid "Loading PDF…"
 #~ msgstr "Wczytywanie pliku PDF…"
 
+#: src/renderer/components/plugins/PluginCatalogBrowser.tsx
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+msgid "Loading plugins and marketplaces…"
+msgstr "Wczytywanie wtyczek i marketplace…"
+
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 #: src/renderer/views/SettingsOverlay/parts/PluginsSettings.tsx
 msgid "Loading plugins…"
@@ -8745,6 +8862,10 @@ msgstr "localhost:{0} na komputerze"
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "Location"
 msgstr "Lokalizacja"
+
+#: src/renderer/components/plugins/pluginCategories.ts
+msgid "Location and maps"
+msgstr "Lokalizacja i mapy"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Location glyph"
@@ -9028,6 +9149,21 @@ msgstr "Marketplace"
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Marketplace rank"
 msgstr "Ranking marketplace"
+
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
+#: src/renderer/components/plugins/PluginDetail.tsx
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+msgid "Marketplace source"
+msgstr "Źródło marketplace"
+
+#: src/renderer/components/plugins/PluginCatalogBrowser.tsx
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+msgid "Marketplace sources"
+msgstr "Źródła marketplace"
+
+#: src/renderer/components/plugins/PluginCatalogBrowser.tsx
+msgid "Marketplace URL or local path"
+msgstr "Adres URL marketplace lub ścieżka lokalna"
 
 #: src/renderer/i18n/locales.ts
 msgid "Match app language"
@@ -9384,6 +9520,10 @@ msgstr "Odmówiono pozwolenia na korzystanie z mikrofonu."
 msgid "Microphone testing is not available in this environment."
 msgstr "Testowanie mikrofonu nie jest dostępne w tym środowisku."
 
+#: src/renderer/components/plugins/pluginCategories.ts
+msgid "Migration"
+msgstr "Migracja"
+
 #. Unit suffix: minutes
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
 msgid "min"
@@ -9526,6 +9666,10 @@ msgstr "Modele"
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Modes"
 msgstr "Tryby"
+
+#: src/renderer/components/plugins/pluginCategories.ts
+msgid "Monitoring"
+msgstr "Monitorowanie"
 
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/CollapsedThreadRail.tsx
@@ -10282,6 +10426,10 @@ msgstr "Na tym komputerze nie znaleziono sesji do zaimportowania."
 #~ msgid "No installed agents with selectable models are available for this project."
 #~ msgstr "Dla tego projektu nie ma zainstalowanych agentów z modelami, które można wybrać."
 
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+msgid "No installed plugins yet."
+msgstr "Nie zainstalowano jeszcze żadnych pluginów."
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 msgid "No jobs reported for this run."
 msgstr "Dla tego uruchomienia nie zgłoszono żadnych zadań."
@@ -10692,6 +10840,14 @@ msgstr "nie zainstalowano"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 msgid "Not installed"
 msgstr "Nie zainstalowano"
+
+#: src/renderer/components/plugins/PluginCatalogBrowser.tsx
+msgid "Not loaded"
+msgstr "Nie wczytano"
+
+#: src/renderer/components/plugins/PluginServiceAccounts.tsx
+msgid "Not reported by service"
+msgstr "Usługa nie podała informacji"
 
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 msgid "Not running"
@@ -11789,9 +11945,18 @@ msgstr "Szczegóły wtyczki"
 msgid "Plugin folder"
 msgstr "Folder wtyczek"
 
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
+msgid "Plugin review"
+msgstr "Przegląd wtyczki"
+
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Plugin servers"
 msgstr "Serwery wtyczek"
+
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
+#: src/renderer/components/plugins/PluginDetail.tsx
+msgid "Plugin source"
+msgstr "Źródło wtyczki"
 
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 msgid "Plugin views"
@@ -12076,6 +12241,11 @@ msgstr "Naciśnij Spację, aby rozpocząć zmianę kolejności. Użyj strzałek 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Prevent system sleep"
 msgstr "Zapobiegaj uśpieniu systemu"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Prevent sleep"
+msgstr "Zapobiegaj zasypianiu"
 
 #. placeholder {0}: att.name
 #: src/renderer/components/composer/AttachmentBar.tsx
@@ -12764,6 +12934,12 @@ msgstr "Czerwony"
 msgid "Redact notification content"
 msgstr "Ukryj treść powiadomień"
 
+#: src/renderer/components/plugins/PluginCatalogBrowser.tsx
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
+#: src/renderer/components/plugins/PluginDetail.tsx
+msgid "Reference"
+msgstr "Referencja"
+
 #. Button: re-fetch provider usage now
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 #: src/renderer/components/thread/ChatPane/ChatPane.tsx
@@ -12784,6 +12960,11 @@ msgstr "Ukryj treść powiadomień"
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Refresh"
 msgstr "Odśwież"
+
+#. placeholder {0}: catalog.name
+#: src/renderer/components/plugins/PluginCatalogBrowser.tsx
+msgid "Refresh {0}"
+msgstr "Odśwież {0}"
 
 #. placeholder {0}: agentStatus.label
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
@@ -12859,6 +13040,10 @@ msgstr "Zdalny"
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #~ msgid "Remote access"
 #~ msgstr "Dostęp zdalny"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+msgid "Remote access"
+msgstr "Dostęp zdalny"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/RemoteAccessSidebarIcon.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
@@ -13068,6 +13253,10 @@ msgstr "Usuń z panelu"
 msgid "Remove from recent"
 msgstr "Usuń z ostatnich"
 
+#: src/renderer/components/plugins/PluginCatalogBrowser.tsx
+msgid "Remove marketplace"
+msgstr "Usuń marketplace"
+
 #. placeholder {0}: providerLabel(entry.agentKind)
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
 msgid "Remove memory entry for {0}"
@@ -13139,6 +13328,11 @@ msgstr "Usunąć to połączenie?"
 msgid "Remove this model route? Saved credentials are kept. Existing threads pick up changes when restarted."
 msgstr "Usunąć tę trasę modeli? Zapisane dane logowania zostaną zachowane. Istniejące wątki zastosują zmiany po ponownym uruchomieniu."
 
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
+#: src/renderer/components/plugins/PluginDetail.tsx
+msgid "Remove this plugin and its service accounts from Poracode?"
+msgstr "Usunąć ten wtyczka i jego konta usług z Poracode?"
+
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Remove worktree?"
 msgstr "Usunąć drzewo robocze?"
@@ -13163,6 +13357,10 @@ msgstr "Usunięcie {profileName} odrzuca jego ustawienia Poracode — zmienne ś
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Removing {profileName} drops its Poracode settings only. Devin's own credentials, config files, and session history stay on disk, and other profiles are unaffected."
 msgstr "Usunięcie {profileName} usuwa tylko jego ustawienia Poracode. Własne poświadczenia Devina, pliki konfiguracji i historia sesji pozostają na dysku, a inne profile nie są dotknięte."
+
+#: src/renderer/components/plugins/PluginCatalogBrowser.tsx
+msgid "Removing a source keeps its installed plugins."
+msgstr "Usunięcie źródła zachowuje zainstalowane z niego wtyczki."
 
 #: src/renderer/components/thread/CompactThreadHeader.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
@@ -13638,6 +13836,17 @@ msgstr "Przywracanie…"
 msgid "Review"
 msgstr "Przegląd"
 
+#. placeholder {0}: props.target.entryName
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
+msgid "Review {0}"
+msgstr "Sprawdź {0}"
+
+#. placeholder {0}: entry.name
+#. placeholder {1}: entry.sourceName
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+msgid "Review {0} from {1}"
+msgstr "Sprawdź {0} ze źródła {1}"
+
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Review and Summarizer are the only root agent types Devin's CLI accepts. Custom native personas are subagent definitions configured in Devin's own files — they cannot be selected here."
 msgstr "Przegląd i Sumaryzator to jedyne główne typy agentów, które akceptuje CLI Devina. Natywne persony to definicje podagentów w plikach samego Devina — nie można ich wybrać tutaj."
@@ -13670,6 +13879,10 @@ msgstr "Komentarz recenzji"
 msgid "Review decision"
 msgstr "Decyzja recenzji"
 
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
+msgid "Review downloads this plugin for inspection. Installation is a separate step."
+msgstr "Sprawdzenie pobiera ten wtyczka do analizy. Instalacja jest osobnym krokiem."
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Review my recent work and summarize today's priorities and next steps."
 msgstr "Przejrzyj moją ostatnią pracę i podsumuj dzisiejsze priorytety oraz kolejne kroki."
@@ -13694,6 +13907,11 @@ msgstr "Prezentacja recenzji"
 #: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
 msgid "Review recovery"
 msgstr "Przejrzyj odzyskiwanie"
+
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
+#: src/renderer/components/plugins/PluginDetail.tsx
+msgid "Review update"
+msgstr "Sprawdź aktualizację"
 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Review, manually test, fix, commit, push, create a PR, and merge after checks pass."
@@ -14414,6 +14632,10 @@ msgstr "sekundy"
 #~ msgid "Security-focused directory with verified skill metadata."
 #~ msgstr "Katalog ukierunkowany na bezpieczeństwo ze zweryfikowanymi metadanymi skilli."
 
+#: src/renderer/components/plugins/pluginCategories.ts
+msgid "Security"
+msgstr "Bezpieczeństwo"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadRow.tsx
 msgid "See more"
 msgstr "Zobacz więcej"
@@ -14535,6 +14757,10 @@ msgstr "Wybierz…"
 #~ msgid "Selected project"
 #~ msgstr "Wybrany projekt"
 
+#: src/renderer/components/plugins/PluginServiceAccounts.tsx
+msgid "Selected"
+msgstr "Wybrane"
+
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Selected sidebar row"
@@ -14603,6 +14829,10 @@ msgstr "Serwer offline — ta rozmowa może być nieaktualna."
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Servers this plugin declares in mcp.json. Poracode passes them to every supported agent."
 msgstr "Serwery deklarowane przez tę wtyczkę w mcp.json. Poracode przekazuje je każdemu obsługiwanemu agentowi."
+
+#: src/renderer/components/plugins/PluginServiceAccounts.tsx
+msgid "Service accounts"
+msgstr "Konta usług"
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/components/composer/ComposerSessionActionsMenu.tsx
@@ -15064,6 +15294,14 @@ msgstr "Wyloguj się z {0}"
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Sign out of {serverName}"
 msgstr "Wyloguj się z {serverName}"
+
+#: src/renderer/components/plugins/PluginServiceAccounts.tsx
+msgid "Sign-in expired"
+msgstr "Logowanie wygasło"
+
+#: src/renderer/components/plugins/PluginServiceAccounts.tsx
+msgid "Sign-in is unavailable for project plugins and services with plugin-managed authentication."
+msgstr "Logowanie jest niedostępne dla wtyczek projektu i usług z uwierzytelnianiem zarządzanym przez wtyczka."
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Sign-in methods"
@@ -16125,6 +16363,10 @@ msgstr "Zakładki terminala"
 msgid "Test microphone"
 msgstr "Przetestuj mikrofon"
 
+#: src/renderer/components/plugins/pluginCategories.ts
+msgid "Testing"
+msgstr "Testowanie"
+
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Text color"
 msgstr "Kolor tekstu"
@@ -16901,6 +17143,11 @@ msgstr "Spowoduje to trwałe usunięcie gałęzi „{0}”."
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "This plugin describes a skill it does not actually ship."
 msgstr "Ta wtyczka opisuje umiejętność, której faktycznie nie dostarcza."
+
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+msgid "This plugin is no longer listed in a registered source."
+msgstr "Ten wtyczka nie jest już dostępny na liście zarejestrowanego źródła."
 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "This plugin's folder could not be read."
@@ -18024,6 +18271,14 @@ msgstr "wycofane z poczekalni"
 msgid "Unsupported"
 msgstr "Nieobsługiwane"
 
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
+msgid "Unsupported marketplace requirements"
+msgstr "Nieobsługiwane wymagania marketplace"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Unsupported plugin capability: {target}."
+msgstr "Nieobsługiwana funkcja wtyczki: {target}."
+
 #: src/renderer/sidebar/ChatSidebarHeader.tsx
 msgid "Untitled"
 msgstr "Bez tytułu"
@@ -18121,6 +18376,10 @@ msgstr "Błąd aktualizacji: {detail}"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Update method"
 msgstr "Metoda aktualizacji"
+
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
+msgid "Update plugin"
+msgstr "Zaktualizuj wtyczkę"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Update Poracode on your desktop to use port forwarding."
@@ -18340,6 +18599,10 @@ msgstr "Ustaw limit od 1 do 100 uruchomień lub pozostaw pole puste."
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Use a time limit between 1 and 1440 minutes."
 msgstr "Ustaw limit czasu od 1 do 1440 minut."
+
+#: src/renderer/components/plugins/PluginServiceAccounts.tsx
+msgid "Use account"
+msgstr "Użyj konta"
 
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 msgid "Use an existing folder"
@@ -19172,6 +19435,10 @@ msgstr "Twoje imię"
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 #~ msgid "Your pick"
 #~ msgstr "Twój wybór"
+
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+msgid "Your plugins"
+msgstr "Twoje pluginy"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Your stashed local changes were re-applied."

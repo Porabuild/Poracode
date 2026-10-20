@@ -1285,6 +1285,7 @@ html[data-compact-layout] [data-sticky-windowed-header] .poracode-model-menu-hea
     --row-active: color-mix(in oklab, var(--foreground) 11%, transparent);
     --sidebar-row-active: color-mix(in oklab, var(--foreground) 11%, transparent);
     --hairline: color-mix(in oklab, var(--foreground) 9%, transparent);
+    --hairline-soft: color-mix(in oklab, var(--foreground) 3%, transparent);
     --hairline-strong: color-mix(in oklab, var(--foreground) 15%, transparent);
   }
 
