@@ -127,6 +127,7 @@ jobs:
           PORACODE_CHANNEL: ${{ inputs.channel }}
           SENTRY_DSN: ${{ vars.SENTRY_DSN }}
           SENTRY_ENVIRONMENT: ${{ inputs.sentry_environment }}
+          PORACODE_SOURCEMAPS: ${{ matrix.platform == 'linux' && '1' || '0' }}
           POSTHOG_ENABLED: ${{ vars.POSTHOG_ENABLED || '1' }}
           POSTHOG_KEY: ${{ vars.POSTHOG_KEY }}
           POSTHOG_HOST: ${{ vars.POSTHOG_HOST || 'https://us.i.posthog.com' }}

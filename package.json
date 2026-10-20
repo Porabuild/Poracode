@@ -21,7 +21,7 @@
   "scripts": {
     "postinstall": "node scripts/ensure-native-deps.mjs --electron-native && bun run codex-protocol:gen",
     "setup:native": "node scripts/ensure-native-deps.mjs --electron-native",
-    "dev": "concurrently -k -n renderer,electron,app -c cyan,magenta,yellow \"bun run dev:renderer\" \"bun run dev:electron\" \"bun run dev:app\"",
+    "dev": "concurrently -k -n renderer,electron -c cyan,magenta \"bun run dev:renderer\" \"bun run dev:app\"",
     "dev:test": "cross-env VITE_PORACODE_SKIP_WELCOME=1 bun run dev",
     "devtools": "node scripts/dev-react-devtools.mjs",
     "dev:devtools": "cross-env PORACODE_REACT_DEVTOOLS=1 concurrently -n react-devtools,app -c green,gray \"bun run devtools\" \"bun run dev\"",
@@ -32,8 +32,8 @@
     "dev:web": "cross-env PORACODE_DEV_SERVER_PORT=3101 bun run dev:web:client",
     "dev:web:client": "node scripts/free-port.mjs && cross-env PORACODE_BUILD_TARGET=web vite",
     "preview:web": "cross-env PORACODE_BUILD_TARGET=web vite preview",
-    "dev:electron": "tsdown --watch",
-    "dev:app": "node scripts/ensure-native-deps.mjs --electron-native && wait-on dist/main/main.cjs dist/main/databaseReadWorker.cjs dist/main/legacyMigrationWorker.cjs dist/main/mcpProbeWorker.mjs dist/main/cursorSdkWorker.mjs dist/main/commandCodeMcpMod.mjs dist/main/piMcpExtension.mjs dist/main/mcpStdioWorker.mjs && node scripts/prepare-computer-use-helper.mjs --host-only --dev && node scripts/prepare-wsl-helpers.mjs && node scripts/prepare-agent-plugins.mjs && node scripts/wait-dev-server.mjs && node scripts/dev-launch.mjs",
+    "dev:electron": "node scripts/dev-runtime-watch.mjs",
+    "dev:app": "node scripts/dev-launch.mjs",
     "build": "bun run build:renderer && bun run build:electron",
     "build:renderer": "vite build",
     "build:extension": "cross-env PORACODE_BUILD_TARGET=extension vite build && node scripts/package-chrome-extension.mjs",
@@ -71,7 +71,7 @@
     "dist:linux": "node scripts/build-desktop-artifact.mjs --platform linux",
     "dist:mac": "node scripts/build-desktop-artifact.mjs --platform mac",
     "dist:mac:arm": "node scripts/build-desktop-artifact.mjs --platform mac --target dmg --arch arm64",
-    "typecheck": "bun check -p tsconfig.json --threads 3",
+    "typecheck": "bun check -p tsconfig.json",
     "typecheck:tsc": "bun run tsc --noEmit -p tsconfig.json",
     "architecture:check": "node scripts/architecture-imports.mjs audit && node --test scripts/architecture-imports.test.mjs",
     "typecheck:website": "bun run --cwd website typecheck",
@@ -216,19 +216,18 @@
     "cross-env": "^10.1.0",
     "electron": "44.4.4",
     "electron-builder": "^26.15.3",
-    "electronmon": "^2.0.4",
     "esbuild": "0.28.1",
     "fake-indexeddb": "^6.2.5",
     "husky": "^9.1.7",
     "jsdom": "30.0.1",
     "lint-staged": "^17.5.0",
+    "oxc-transform-react": "0.147.0",
     "postcss": "^8.5.26",
     "react-devtools": "^7.0.1",
     "tsdown": "^0.22.14",
     "typescript": "^7.0.2",
     "vite": "8.2.2",
-    "vitest": "5.0.0",
-    "wait-on": "^9.1.0"
+    "vitest": "5.0.0"
   },
   "overrides": {
     "@babel/core@>=7.0.0 <7.29.6": "^7.29.6",
@@ -273,15 +272,6 @@
     "node": ">=24.10.0"
   },
   "packageManager": "bun@1.4.3-canary.20261017.1",
-  "electronmon": {
-    "patterns": [
-      "!*",
-      "!*/**",
-      "dist/main/**",
-      "dist/electron-native/**",
-      "dist/server-native/**"
-    ]
-  },
   "packageExtensions": {
     "@huggingface/transformers@4.2.0": {
       "dependencies": {
