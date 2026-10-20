@@ -27,6 +27,7 @@ These protect process ownership, the provider plugin model, and users' persisted
 
 - **React:** React Compiler handles memoization; add `useMemo`, `useCallback`, or `React.memo` only to escape it. Keep `babel-plugin-react-compiler` pinned to an exact version. Store subscription and render rules: [editing-rules.md](.agents/docs/editing-rules.md).
 - **UI:** HeroUI v3 for all non-terminal UI; use the `heroui-react` skill when working with its components. Follow existing app patterns and shared variants before raw library defaults, and keep visual scope to what was asked. For an absolutely positioned tooltip, put the positioning on an out-of-flow wrapper around a normally positioned `Tooltip.Trigger`; the trigger is `inline-block` and otherwise anchors to the wrong box.
+- **Client coverage:** Before implementing a client-side feature or fix, assess Electron desktop, desktop browser, mobile browser/PWA, native iOS, and native Android. Use the `mobile-apps` skill to inspect counterparts and implement applicable behavior in the same change. Respect explicit platform scope and genuine platform differences; a platform-specific fix does not require changes to unaffected clients.
 - **Providers:** normalize provider-native payloads at the provider boundary, and look for an existing extension point before editing a shared module. When changing a provider's behavior, check its current payloads or protocol, and cross-provider parity where it applies.
 - **Debugging:** for runtime and chat bugs (timers, notifications, resume, launch), trace thread runtime state before changing the display layer. For performance complaints, look for render invalidation, measurement loops, and sync I/O before cosmetic fixes.
 - **File size:** split a file into focused modules once it grows past one responsibility rather than extending it; large mixed files are where regressions hide.
@@ -37,7 +38,7 @@ These protect process ownership, the provider plugin model, and users' persisted
 
 - The requested change works, with no unrequested features, refactors, or docs. Tests that prove the change, and any regression test a rule above requires, are part of the change.
 - Checks ran for real: for a focused change, nearby tests plus touched-file lint and format plus `bun run typecheck`; when asked to make everything green or before a PR is marked ready, the full gate. The `verify` skill owns the exact list.
-- The report names what was verified and what was not.
+- The report names what was verified and what was not. For client-side work, also name the assessed clients, which changed or inherit shared behavior, and why any need no change or remain deferred.
 
 ## Commits and pull requests
 
