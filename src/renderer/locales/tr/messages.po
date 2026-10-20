@@ -835,6 +835,18 @@ msgstr "3000"
 msgid "30d"
 msgstr "30g"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "3D preview"
+msgstr "3B önizleme"
+
+#: src/renderer/components/devices/DevicePreviewStage.tsx
+msgid "3D preview · View only"
+msgstr "3B önizleme · Salt görüntüleme"
+
+#: src/renderer/components/devices/DevicePreviewStage.tsx
+msgid "3D preview, view only. Drag or use arrow keys to rotate; Home resets."
+msgstr "3B önizleme, salt görüntüleme. Döndürmek için sürükleyin veya ok tuşlarını kullanın; Home sıfırlar."
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "4K"
 msgstr "4K"
@@ -851,6 +863,10 @@ msgstr "Bir aday artık deney şubesinde değil."
 #: src/renderer/components/providers/settings/CursorProfileIdentity.tsx
 msgid "A Cursor profile with this name already exists."
 msgstr "Bu ada sahip bir Cursor profili zaten var."
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "A device failed to start."
+msgstr "Bir cihaz başlatılamadı."
 
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
 msgid "A different plugin already uses this identifier. It will not be replaced."
@@ -950,6 +966,10 @@ msgstr "Ana makine anahtarını kabul et"
 msgid "Accept Incoming Change"
 msgstr "Gelen Değişikliği Kabul Et"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Accessibility inspector"
+msgstr "Erişilebilirlik denetleyicisi"
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Account"
 msgstr "Hesap"
@@ -1031,6 +1051,7 @@ msgstr "İşlem adı"
 
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/common/BranchSelector/parts/BranchFooterActions.tsx
+#: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/MobileProjectSettingsIndex.tsx
@@ -1765,6 +1786,10 @@ msgstr "Uygulama Tarayıcısı"
 #~ msgid "App Controls"
 #~ msgstr "Uygulama denetimleri"
 
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "App package ID"
+msgstr "Uygulama paket kimliği"
+
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
@@ -1948,6 +1973,7 @@ msgid "At least two worktrees must be created. Any partial experiment was cleane
 msgstr "En az iki çalışma ağacı oluşturulmalıdır. Kısmen oluşturulan deney temizlendi."
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
+#: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Attach"
 msgstr "Ekle"
 
@@ -2195,6 +2221,7 @@ msgstr "İnceleme bekleniyor"
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/components/composer/ComposerMcpServersMenu.tsx
 #: src/renderer/components/composer/ComposerSessionActionsMenu.tsx
+#: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/components/layout/MobilePageHeader.tsx
 #: src/renderer/views/FileEditorOverlay/FileEditorOverlay.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
@@ -2261,6 +2288,10 @@ msgstr "Arka plan görevi"
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
 msgid "Background tasks"
 msgstr "Arka plan görevleri"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Backspace"
+msgstr "Geri sil"
 
 #: src/renderer/components/experiment/NewExperimentModal.tsx
 #~ msgid "Base branch"
@@ -2638,6 +2669,14 @@ msgstr "Önbellek yazma"
 msgid "Calculated on desktop after saving"
 msgstr "Kaydettikten sonra masaüstünde hesaplanır"
 
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Calendar"
+msgstr "Takvim"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Camera"
+msgstr "Kamera"
+
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
 msgid "Camera access blocked"
 msgstr "Kamera erişimi engellendi"
@@ -2774,6 +2813,10 @@ msgstr "Dal adı olmadan varsayılan çalışma ağacı yolu oluşturulamıyor"
 msgid "Cannot switch branches — commit or stash your changes first"
 msgstr "Dallar değiştirilemiyor; önce değişikliklerinizi commit edin veya saklayın (stash)"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Capture and view controls"
+msgstr "Yakalama ve görünüm kontrolleri"
+
 #. placeholder {0}: totals.categorizedTokens.toLocaleString(locale)
 #. placeholder {1}: totals.tokens.toLocaleString(locale)
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
@@ -2782,6 +2825,7 @@ msgstr "Kategoriler, saklanan {1} tokenın {0} tanesini kapsar. Eksik kategorile
 
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualChart.tsx
 msgid "Category"
 msgstr "Kategori"
 
@@ -2850,6 +2894,10 @@ msgstr "Değişiklikler"
 msgid "Changes ({0})"
 msgstr "Değişiklikler ({0})"
 
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Changes affect the selected emulator. App permissions depend on its Android version and the permissions requested by the app."
+msgstr "Değişiklikler seçili emülatörü etkiler. Uygulama izinleri Android sürümüne ve uygulamanın istediği izinlere bağlıdır."
+
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 msgid "Changes apply globally to this environment."
 msgstr "Değişiklikler bu ortamın tamamına uygulanır."
@@ -2878,6 +2926,18 @@ msgstr "Değişikliklere erişilemiyor"
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Channel"
 msgstr "Kanal"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualChart.tsx
+msgid "Chart"
+msgstr "Grafik"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualChart.tsx
+msgid "Chart data"
+msgstr "Grafik verileri"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualChart.tsx
+msgid "Chart inspection"
+msgstr "Grafik ayrıntıları"
 
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
@@ -3258,6 +3318,10 @@ msgstr "Çerezleri temizle"
 msgid "Clear day"
 msgstr "Günü temizle"
 
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualTable.tsx
+msgid "Clear filter"
+msgstr "Filtreyi temizle"
+
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 msgid "Clear goal"
 msgstr "Hedefi temizle"
@@ -3374,6 +3438,10 @@ msgstr "Crossagents'i kapat"
 msgid "Close Crossagents panel"
 msgstr "Crossagents panelini kapat"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Close device settings"
+msgstr "Cihaz ayarlarını kapat"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "Close device toolbar"
 msgstr "Cihaz araç çubuğunu kapat"
@@ -3389,6 +3457,10 @@ msgstr "Düzenleyici Sekmesini Kapat"
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Close environment actions"
 msgstr "Ortam eylemlerini kapat"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Close expanded visual"
+msgstr "Genişletilmiş görseli kapat"
 
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 msgid "Close experiment"
@@ -3426,6 +3498,10 @@ msgstr "Grubu kapat"
 #: src/mobile/views/threadActionSurfaces.tsx
 #~ msgid "Close group actions"
 #~ msgstr "Grup işlemlerini kapat"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Close inspector"
+msgstr "Denetleyiciyi kapat"
 
 #: src/renderer/components/thread/ChatPane/UserMessageActionsSheet.tsx
 msgid "Close menu"
@@ -3882,6 +3958,12 @@ msgstr "tamamlandı"
 msgid "Completed"
 msgstr "Tamamlandı"
 
+#. placeholder {0}: block.items.filter((item) => checked.get(`${path}/${item.id}`) ?? item.checked ?? false).length
+#. placeholder {1}: block.items.length
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualBlocks.tsx
+msgid "Completed: {0} / {1}"
+msgstr "Tamamlanan: {0} / {1}"
+
 #: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
 msgid "Completion condition not confirmed"
 msgstr "Tamamlanma koşulu doğrulanmadı"
@@ -4107,9 +4189,18 @@ msgstr "Uzak sunucuya bağlan"
 msgid "Connected"
 msgstr "Bağlı"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Connecting"
+msgstr "Bağlanıyor"
+
 #: src/mobile/views/BrowserView.tsx
 #~ msgid "Connecting to the desktop browser…"
 #~ msgstr "Masaüstü tarayıcısına bağlanılıyor…"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+#: src/renderer/components/devices/LiveDevicePreview.tsx
+msgid "Connecting to the device…"
+msgstr "Cihaza bağlanılıyor…"
 
 #: src/renderer/components/composer/LiveVoiceControls.tsx
 msgid "Connecting voice…"
@@ -4167,6 +4258,10 @@ msgstr "Bağlantılar"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Console"
 msgstr "Konsol"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Contacts"
+msgstr "Kişiler"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Contains sensitive values; add manually"
@@ -4252,6 +4347,10 @@ msgstr "Eksik geçmişle devam et"
 msgid "Continuing will keep the remaining history and mark this episode acknowledged; it does not restore the missing content."
 msgstr "Devam etmek kalan geçmişi korur ve bu bölümü onaylandı olarak işaretler; eksik içerik geri yüklenmez."
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Control"
+msgstr "Kontrol"
+
 #: src/renderer/components/providers/settings/ProviderMcpServersSection.tsx
 msgid "Control an external Chrome browser."
 msgstr "Harici bir Chrome tarayıcısını kontrol eder."
@@ -4324,6 +4423,10 @@ msgstr "Kopyala (önerilen)"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Copy {0} device code {1}"
 msgstr "{0} cihaz kodunu kopyala {1}"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Copy accessibility tree"
+msgstr "Erişilebilirlik ağacını kopyala"
 
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Copy all Lightcode data into Poracode. Poracode restarts and keeps a complete backup of its current data."
@@ -4400,6 +4503,15 @@ msgstr "Göreli Yolu Kopyala"
 #: src/renderer/commands/shortcutCatalog.ts
 msgid "Copy selection"
 msgstr "Seçimi kopyala"
+
+#: src/renderer/components/thread/ChatPane/parts/items/InlineVisual.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Copy source"
+msgstr "Kaynağı kopyala"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualTable.tsx
+msgid "Copy table"
+msgstr "Tabloyu kopyala"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Copy Tailscale URL"
@@ -5063,6 +5175,7 @@ msgstr "Günlük maliyetler"
 msgid "Daily recorded cost; gaps may contain unpriced usage."
 msgstr "Kaydedilen günlük maliyet; boşluklarda fiyatı bilinmeyen kullanım olabilir."
 
+#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
@@ -5072,6 +5185,10 @@ msgstr "Karanlık"
 #: src/renderer/components/plugins/pluginCategories.ts
 msgid "Data and databases"
 msgstr "Veri ve veritabanları"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualTable.tsx
+msgid "Data table"
+msgstr "Veri tablosu"
 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
 msgid "Date"
@@ -5101,6 +5218,7 @@ msgstr "DeepSeek Harness"
 msgid "DeepSeek Harness chat with persistent sessions, reasoning controls, and MCP tools. Configure credentials with dsh web."
 msgstr "Kalıcı oturumlar, akıl yürütme ayarları ve MCP araçlarıyla DeepSeek Harness sohbeti. Kimlik bilgilerini dsh web ile yapılandırın."
 
+#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/components/providers/deepseek/index.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
@@ -5403,6 +5521,10 @@ msgstr "Masaüstü Ayarları"
 msgid "Destination"
 msgstr "Hedef"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Detach"
+msgstr "Bağlantıyı kes"
+
 #: src/renderer/components/thread/SideChat/SideChatBody.tsx
 msgid "Detach side chat"
 msgstr "Yan sohbeti ayır"
@@ -5411,9 +5533,13 @@ msgstr "Yan sohbeti ayır"
 msgid "detached HEAD"
 msgstr "ayrık HEAD"
 
-#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
-#~ msgid "Details"
-#~ msgstr "Ayrıntılar"
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Detaching leaves the device running."
+msgstr "Bağlantı kesildiğinde cihaz çalışmaya devam eder."
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Details"
+msgstr "Ayrıntılar"
 
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
 msgid "Detect"
@@ -5473,14 +5599,64 @@ msgstr "Geliştirme"
 msgid "Development-only overrides. Only visible in the PORACODE DEV build."
 msgstr "Yalnızca geliştirme amaçlı geçersiz kılmalar. Yalnızca PORACODE DEV yapısında görünür."
 
+#: src/renderer/components/devices/useDeviceLivePreview.ts
+msgid "Device access expired. Attach again."
+msgstr "Cihaz erişiminin süresi doldu. Yeniden bağlayın."
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Device accessibility"
+msgstr "Cihaz erişilebilirliği"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Device appearance"
+msgstr "Cihaz görünümü"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Device network"
+msgstr "Cihaz ağı"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Device operation failed."
+msgstr "Cihaz işlemi başarısız oldu."
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Device orientation"
+msgstr "Cihaz yönü"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "Device preset"
 msgstr "Cihaz ön ayarı"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Device settings"
+msgstr "Cihaz ayarları"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Device text size"
+msgstr "Cihaz metin boyutu"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Device tooling is unavailable."
+msgstr "Cihaz araçları kullanılamıyor."
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Device used by the composer voice input button."
 msgstr "Oluşturucu ses giriş düğmesi tarafından kullanılan cihaz."
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Device workspace"
+msgstr "Cihaz çalışma alanı"
+
+#: src/renderer/components/devices/DeviceDetachedWindow.tsx
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+#: src/renderer/components/layout/PanelDock/panelTabMeta.ts
+#: src/renderer/components/plugins/pluginCopy.ts
+#: src/renderer/components/thread/ThreadToolRail.tsx
+#: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
+msgid "Devices"
+msgstr "Cihazlar"
 
 #: src/renderer/utils/projectIcons.ts
 msgid "Devices & tools"
@@ -5635,6 +5811,7 @@ msgstr "Yeniden deneme hakları tükendiğinde otomasyonu devre dışı bırakı
 msgid "Disable tiers an external provider collapses (e.g. keep only High and Max)."
 msgstr "Harici bir sağlayıcının birleştirdiği düzeyleri devre dışı bırakın (ör. yalnızca High ve Max'i tutun)."
 
+#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
@@ -6148,6 +6325,7 @@ msgstr "Ayarlarda sağlayıcıları etkinleştirin"
 msgid "Enable this plugin's skills and servers for new threads."
 msgstr "Bu eklentinin becerilerini ve sunucularını yeni konular için etkinleştirin."
 
+#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentHeader.tsx
 msgid "Enabled"
@@ -6193,6 +6371,10 @@ msgstr "Sesli sohbeti bitir"
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Enhanced (Hooks)"
 msgstr "Geliştirilmiş (Kancalar)"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Enter"
+msgstr "Enter"
 
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
 msgid "Enter a font family of up to 256 characters without control characters."
@@ -6508,6 +6690,10 @@ msgstr "Erişimi incelemek veya iptal etmek için genişletin."
 msgid "Expand todo dock"
 msgstr "Yapılacaklar iskelesini genişlet"
 
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Expand visual"
+msgstr "Görseli büyüt"
+
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 #: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 msgid "Expand warning"
@@ -6640,6 +6826,10 @@ msgstr "Harici sağlayıcı"
 #: src/renderer/components/common/effortLabel.ts
 msgid "Extra High"
 msgstr "Ekstra Yüksek"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Extra large"
+msgstr "Çok büyük"
 
 #. placeholder {0}: sourceAgent?.label ?? thread.agentKind
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
@@ -6884,6 +7074,10 @@ msgstr "Çekme isteklerini filtrele"
 msgid "Filter skills by status"
 msgstr "Becerileri duruma göre filtrele"
 
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualTable.tsx
+msgid "Filter table"
+msgstr "Tabloyu filtrele"
+
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Filters"
 msgstr "Filtreler"
@@ -7010,6 +7204,14 @@ msgstr "Poracode'un yerel terminal ve ACP çalışma zamanlarını kullanan biri
 msgid "First-class Qwen Code integration using Poracode's native terminal and ACP runtimes."
 msgstr "Poracode'un yerel terminal ve ACP çalışma zamanlarını kullanan birinci sınıf Qwen Code entegrasyonu."
 
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Fit"
+msgstr "Sığdırıldı"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Fit to width"
+msgstr "Genişliğe sığdır"
+
 #: src/renderer/components/pdf/PdfViewer.tsx
 #~ msgid "Fit width"
 #~ msgstr "Genişliğe sığdır"
@@ -7042,6 +7244,10 @@ msgstr "Sabit gecikme"
 #: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
 msgid "Flat list"
 msgstr "Düz liste"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Flat preview"
+msgstr "Düz önizleme"
 
 #: src/renderer/commands/registry.ts
 msgid "Focus browser address bar"
@@ -7183,6 +7389,10 @@ msgstr "{0, plural, one {İçe aktarılabilir # beceri bulundu} other {İçe akt
 msgid "Found a signed-in {0} session."
 msgstr "Oturum açılmış bir {0} oturumu bulundu."
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Framed preview"
+msgstr "Çerçeveli önizleme"
+
 #: src/renderer/components/providers/modelDescription.ts
 msgid "Free"
 msgstr "Ücretsiz"
@@ -7198,6 +7408,10 @@ msgstr "Cuma 16:00"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
 msgid "From"
 msgstr "Kaynak"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualDiagram.tsx
+msgid "From {from} to {to}"
+msgstr "{from} konumundan {to} konumuna"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
 msgid "From this project"
@@ -7479,6 +7693,10 @@ msgstr "Anladım"
 msgid "Grade {0}"
 msgstr "Derece {0}"
 
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Grant"
+msgstr "İzin ver"
+
 #: src/renderer/components/plugins/PluginServiceAccounts.tsx
 msgid "Granted scopes"
 msgstr "Verilen izinler"
@@ -7685,6 +7903,7 @@ msgstr "Yüksek"
 msgid "History"
 msgstr "Geçmiş"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/views/HomeView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
@@ -7783,6 +8002,10 @@ msgstr "Saatlik"
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Hours"
 msgstr "Saat"
+
+#: src/renderer/components/thread/ChatPane/parts/items/InlineVisual.tsx
+msgid "HTML source"
+msgstr "HTML kaynak kodu"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "HTTP (streamable)"
@@ -8051,6 +8274,14 @@ msgstr "Senkronizasyona ekle"
 msgid "Includes the first attempt."
 msgstr "İlk denemeyi içerir."
 
+#: src/renderer/components/thread/ChatPane/parts/items/InlineVisual.tsx
+msgid "Incomplete HTML block. Showing source only."
+msgstr "HTML bloğu tamamlanmamış. Yalnızca kaynak kod gösteriliyor."
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Incomplete visual block. Showing source only."
+msgstr "Görsel bloğu tamamlanmamış. Yalnızca kaynak gösteriliyor."
+
 #: src/renderer/commands/CommandPalette.tsx
 msgid "Indexing saved messages…"
 msgstr "Kaydedilmiş mesajlar dizine ekleniyor…"
@@ -8101,6 +8332,10 @@ msgstr "Her model için 1 milyon token başına giriş/çıkış fiyatları. Ara
 msgid "Input / output prices per 1M tokens. Ranges cover model variants."
 msgstr "1 milyon token başına giriş/çıkış fiyatları. Aralıklar model varyantlarını kapsar."
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Input controls"
+msgstr "Giriş kontrolleri"
+
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Input level"
 msgstr "Giriş seviyesi"
@@ -8132,6 +8367,14 @@ msgstr "Her projenin içinde"
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Inside this project"
 msgstr "Bu projenin içinde"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Inspect"
+msgstr "İncele"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Inspect and control the simulator or emulator attached to this thread."
+msgstr "Bu sohbete bağlı simülatörü veya emülatörü inceleyin ve kontrol edin."
 
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Inspect canonical runtime items"
@@ -8220,6 +8463,10 @@ msgstr "Yerel OpenCode eklentilerini yükleyin ve yönetin."
 msgid "Install and restart"
 msgstr "Yükle ve yeniden başlat"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Install Android SDK Emulator and platform-tools, then create an AVD."
+msgstr "Android SDK Emulator ve platform-tools yükleyin, ardından bir AVD oluşturun."
+
 #: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
 msgid "Install Antigravity"
 msgstr "Antigravity'yi yükle"
@@ -8296,6 +8543,10 @@ msgstr "{0} ortamına yükle"
 msgid "Install managed skills into {0}."
 msgstr "Yönetilen becerileri {0} konumuna yükle."
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Install Meta idb and idb_companion on this host for iOS input and accessibility."
+msgstr "iOS girişi ve erişilebilirlik için bu ana makineye Meta idb ve idb_companion yükleyin."
+
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Install native providers first; use ACP for additional protocol agents."
 msgstr "Önce yerel sağlayıcıları yükleyin; ek protokol aracıları için ACP'yi kullanın."
@@ -8357,6 +8608,10 @@ msgstr "v{updateVersion} sürümünü yükle"
 msgid "Install v{version}"
 msgstr "v{version} sürümünü yükle"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Install Xcode and an iOS Simulator runtime on this host."
+msgstr "Bu ana makineye Xcode ve bir iOS Simulator çalışma zamanı yükleyin."
+
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
 msgid "Install, update, and sign-in are not yet available on remote machines."
 msgstr "Uzak makinelerde kurulum, güncelleme ve oturum açma henüz kullanılamıyor."
@@ -8404,6 +8659,14 @@ msgstr "Talimatlar"
 msgid "Instructions agents follow when choosing which agent or model to delegate to."
 msgstr "Aracıların hangi aracıya veya modele devredeceğini seçerken izlediği talimatlar."
 
+#: src/renderer/components/devices/LiveDevicePreview.tsx
+msgid "Interactive device preview. Tab moves to the next control; Escape closes the workspace."
+msgstr "Etkileşimli cihaz önizlemesi. Tab sonraki denetime geçer; Escape çalışma alanını kapatır."
+
+#: src/renderer/components/thread/ChatPane/parts/items/InlineVisual.tsx
+msgid "Interactive rendering is unavailable. Showing source only."
+msgstr "Etkileşimli görüntüleme kullanılamıyor. Yalnızca kaynak kod gösteriliyor."
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Internal commands and agents"
@@ -8438,6 +8701,14 @@ msgstr "Aralık birimi"
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Invalid configuration — kept, but disabled"
 msgstr "Geçersiz yapılandırma — korundu ama devre dışı"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Invalid visual specification. Showing source only."
+msgstr "Geçersiz görsel tanımı. Yalnızca kaynak gösteriliyor."
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "iOS Simulator requires a macOS host with Xcode."
+msgstr "iOS Simulator, Xcode yüklü bir macOS ana makinesi gerektirir."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "iPad Air"
@@ -8578,6 +8849,14 @@ msgstr "Kimi Code yanıt döndürmeden turu sonlandırdı. İş parçacığını
 msgid "LAN"
 msgstr "LAN"
 
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Landscape left"
+msgstr "Sola yatay"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Landscape right"
+msgstr "Sağa yatay"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Language"
@@ -8600,6 +8879,10 @@ msgstr "Dizüstü bilgisayar"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "Laptop L"
 msgstr "Dizüstü bilgisayar L"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Large"
+msgstr "Büyük"
 
 #. placeholder {0}: formatSessionTime(session.lastConnectedAt)
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
@@ -8626,6 +8909,14 @@ msgstr "Son araç: <0>{0}</0>"
 #: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
 msgid "Last updated: {fetchedAt}"
 msgstr "Son güncelleme: {fetchedAt}"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Latitude"
+msgstr "Enlem"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Launch"
+msgstr "Başlat"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -8726,6 +9017,7 @@ msgstr "toplam token"
 msgid "Lifetime tokens"
 msgstr "Toplam token"
 
+#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
@@ -8765,14 +9057,32 @@ msgstr "Paketleri listele"
 msgid "List tasks"
 msgstr "Görevleri listele"
 
-#: src/mobile/remoteConnectionState.ts
-#~ msgid "Live"
-#~ msgstr "Canlı"
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Live"
+msgstr "Canlı"
 
 #. placeholder {0}: formatShortDateTime(desktop.lastConnectedAt)
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Live {0}"
 #~ msgstr "Canlı {0}"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Live device preview"
+msgstr "Canlı cihaz önizlemesi"
+
+#: src/renderer/components/devices/LiveDevicePreview.tsx
+msgid "Live device preview, view only"
+msgstr "Canlı cihaz önizlemesi, yalnızca görüntüleme"
+
+#: src/renderer/components/devices/useDeviceLivePreview.ts
+msgid "Live preview is unavailable for this device on this host. Use snapshots."
+msgstr "Bu ana bilgisayarda bu cihaz için canlı önizleme kullanılamıyor. Ekran görüntülerini kullanın."
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+#: src/renderer/components/devices/LiveDevicePreview.tsx
+#: src/renderer/components/devices/useDeviceLivePreview.ts
+msgid "Live preview is unavailable. Retry or use snapshots."
+msgstr "Canlı önizleme kullanılamıyor. Yeniden deneyin veya ekran görüntülerini kullanın."
 
 #: src/renderer/components/thread/LiveStreamCapacityAlert.tsx
 msgid "Live updates are paused for {droppedRuntimeThreadCount, plural, one {# thread} other {# threads}} because this window exceeds the {MANAGED_ITEM_INTERESTS_MAX}-thread live streaming limit. Close or reopen a thread to resume the paused ones."
@@ -8933,6 +9243,7 @@ msgid "Loading workflow runs"
 msgstr "İş akışı çalıştırmaları yükleniyor"
 
 #: src/renderer/app.tsx
+#: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/components/providers/settings/ModelProviderManager.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/useHistoryItemDetails.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
@@ -8971,6 +9282,7 @@ msgstr "Yerel parola koruması"
 msgid "localhost:{0} on desktop"
 msgstr "localhost:{0} masaüstünde"
 
+#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
@@ -9058,6 +9370,10 @@ msgstr "En uzun seri"
 #: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
 msgid "Longest task"
 msgstr "En uzun görev"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Longitude"
+msgstr "Boylam"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrReviewGuideTab.tsx
 msgid "Look closely"
@@ -9624,6 +9940,7 @@ msgstr "Mesajlar yüklenemedi."
 msgid "Messages sent"
 msgstr "Gönderilen mesajlar"
 
+#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Microphone"
@@ -9886,6 +10203,10 @@ msgstr "En çok kullanılan sağlayıcı"
 msgid "Most used reasoning"
 msgstr "En çok kullanılan akıl yürütme"
 
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Motion"
+msgstr "Hareket"
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Move"
 msgstr "Taşı"
@@ -9906,6 +10227,14 @@ msgstr "Tarayıcıyı pencereye taşı"
 #: src/renderer/components/common/BranchSelector/parts/BranchFooterActions.tsx
 msgid "Move changes to a new worktree"
 msgstr "Değişiklikleri yeni bir çalışma ağacına taşı"
+
+#: src/renderer/components/devices/DeviceDetachedWindow.tsx
+msgid "Move device back to main window"
+msgstr "Cihazı ana pencereye geri taşı"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Move device to window"
+msgstr "Cihazı ayrı pencereye taşı"
 
 #: src/renderer/components/thread/PaneDragAndDrop.tsx
 msgid "Move pane"
@@ -10059,6 +10388,10 @@ msgstr "Gezin"
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Navigate, inspect, and test pages with the in-app Browser MCP."
 msgstr "Uygulama içi Browser MCP ile sayfalarda gezinin, inceleyin ve test edin."
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Navigation controls"
+msgstr "Gezinme kontrolleri"
 
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Needs approval"
@@ -10291,6 +10624,10 @@ msgstr "Yeni çalışma ağacı"
 msgid "Next"
 msgstr "İleri"
 
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualChart.tsx
+msgid "Next category"
+msgstr "Sonraki kategori"
+
 #: src/renderer/commands/registry.ts
 msgid "Next chat"
 msgstr "Sonraki sohbet"
@@ -10475,6 +10812,10 @@ msgstr "İçerik akışı yok."
 msgid "No conversation yet. Be the first to comment."
 msgstr "Henüz konuşma yok. İlk yorum yapan siz olun."
 
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualTable.tsx
+msgid "No data"
+msgstr "Veri yok"
+
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/providers/usageFormat.ts
 msgid "No data yet"
@@ -10616,6 +10957,10 @@ msgstr "Eşleşen çekme isteği yok."
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "No matching results."
 msgstr "Eşleşen sonuç yok."
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualTable.tsx
+msgid "No matching rows"
+msgstr "Eşleşen satır yok"
 
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "No matching schedules."
@@ -10810,6 +11155,10 @@ msgstr "Bu konu için henüz çalışma zamanı öğesi yok."
 msgid "No saved passwords"
 msgstr "Kayıtlı parola yok"
 
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualChart.tsx
+msgid "No series selected. Choose a series above."
+msgstr "Seçili seri yok. Yukarıdan bir seri seçin."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #~ msgid "No servers connected yet."
 #~ msgstr "Henüz bağlı sunucu yok."
@@ -10825,6 +11174,10 @@ msgstr "Geçerli filtrelerle eşleşen oturum yok."
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "No shortcuts found"
 msgstr "Hiçbir kısayol bulunamadı"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "No simulators or emulators found."
+msgstr "Simülatör veya emülatör bulunamadı."
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "No skills found"
@@ -11030,6 +11383,7 @@ msgstr "Henüz sıkıştırılacak bir şey yok — konuşma hâlâ kısa."
 msgid "Nothing tracked yet. It'll appear here as you use it."
 msgstr "Henüz hiçbir şey izlenmedi. Kullandıkça burada görünecek."
 
+#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
@@ -11322,6 +11676,10 @@ msgstr "İşi GitHub'da aç"
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Open leaderboard with install and trend metrics."
 msgstr "Yükleme ve eğilim ölçümlerini içeren açık liderlik tablosu."
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Open link"
+msgstr "Bağlantıyı aç"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -11977,6 +12335,10 @@ msgstr "{0} üzerindeki seçili arşiv kayıtlarını kalıcı olarak sil."
 msgid "permission"
 msgstr "izin"
 
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Permission"
+msgstr "İzin"
+
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 msgid "Persistent goals, budgets, and automatic continuation with /goal."
 msgstr "/goal ile kalıcı hedefler, bütçeler ve otomatik devam."
@@ -12009,6 +12371,10 @@ msgstr "Kişisel"
 #: src/renderer/components/providers/devin/sessionActionDialog.tsx
 #~ msgid "Personas"
 #~ msgstr "Personalar"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Photos"
+msgstr "Fotoğraflar"
 
 #: src/renderer/components/providers/pi/manifest.ts
 msgid "Pi"
@@ -12294,12 +12660,24 @@ msgstr "Port yönlendirme etkin değil"
 #~ msgid "Port forwarding needs a direct connection to the desktop. It isn't available over a relay or tunnel."
 #~ msgstr "Port yönlendirme, masaüstüne doğrudan bağlantı gerektirir. Röle veya tünel üzerinden kullanılamaz."
 
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Portrait"
+msgstr "Dikey"
+
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
 msgid "Ports"
 msgstr "Portlar"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Power off device"
+msgstr "Cihazı kapat"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Power off device?"
+msgstr "Cihaz kapatılsın mı?"
 
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "PowerShell {version}"
@@ -12413,10 +12791,18 @@ msgstr "Sıralamayı değiştirmeye başlamak için Boşluk tuşuna basın. Taş
 msgid "Prevent system sleep"
 msgstr "Sistemin uykuya geçmesini önle"
 
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Preview"
+msgstr "Önizleme"
+
 #. placeholder {0}: att.name
 #: src/renderer/components/composer/AttachmentBar.tsx
 msgid "Preview {0}"
 msgstr "Önizleme {0}"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualChart.tsx
+msgid "Previous category"
+msgstr "Önceki kategori"
 
 #: src/renderer/commands/registry.ts
 msgid "Previous chat"
@@ -13025,6 +13411,7 @@ msgstr "Her adayın değişiklikleri okunuyor…"
 msgid "Reading each candidate's chat response…"
 msgstr "Her adayın sohbet yanıtı okunuyor…"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Ready"
 msgstr "Hazır"
@@ -13046,6 +13433,14 @@ msgstr "Hazır. Yeni eşleştirme kodlarında Tailscale HTTPS URL'sini duyurmak 
 msgid "Reasoning"
 msgstr "Akıl yürütme"
 
+#: src/renderer/components/thread/ChatPane/parts/items/InlineVisual.tsx
+msgid "Receiving HTML source…"
+msgstr "HTML kaynak kodu alınıyor…"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Receiving visual source…"
+msgstr "Görsel kaynağı alınıyor…"
+
 #: src/renderer/components/common/ProviderModelMenu/parts/buildItems.ts
 msgid "Recent"
 msgstr "Son"
@@ -13062,22 +13457,34 @@ msgstr "Son yüklemeler"
 msgid "Recent threads"
 msgstr "Son konular"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Recents"
+msgstr "Son kullanılanlar"
+
 #: src/mobile/components.tsx
 #~ msgid "Reconnect"
 #~ msgstr "Yeniden bağlan"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Reconnect live preview"
+msgstr "Canlı önizlemeyi yeniden bağla"
 
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Reconnect the server to add projects."
 msgstr "Proje eklemek için sunucuya yeniden bağlanın."
 
-#: src/mobile/remoteConnectionState.ts
-#~ msgid "Reconnecting"
-#~ msgstr "Yeniden bağlanıyor"
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Reconnecting"
+msgstr "Yeniden bağlanıyor"
 
 #: src/renderer/components/terminal/TerminalFeedStatus.tsx
 msgid "Reconnecting to terminal…"
 msgstr "Terminale yeniden bağlanılıyor…"
+
+#: src/renderer/components/devices/LiveDevicePreview.tsx
+msgid "Reconnecting to the device…"
+msgstr "Cihaza yeniden bağlanılıyor…"
 
 #: src/mobile/components.tsx
 #~ msgid "Reconnecting to your desktop…"
@@ -13104,6 +13511,10 @@ msgstr "Kırmızı"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Redact notification content"
 msgstr "Bildirim içeriğini gizle"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Reduce motion"
+msgstr "Hareketi azalt"
 
 #: src/renderer/components/plugins/PluginCatalogBrowser.tsx
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
@@ -13155,6 +13566,10 @@ msgstr "{label} sağlayıcısını yenile"
 msgid "Refresh detected agents"
 msgstr "Algılanan aracıları yenile"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Refresh devices"
+msgstr "Cihazları yenile"
+
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Refresh MCP server sources"
 msgstr "MCP sunucusu kaynaklarını yenile"
@@ -13188,6 +13603,10 @@ msgstr "{0} kimlik doğrulama durumu yenileniyor."
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Refreshing {env} {0} authentication status."
 msgstr "{env} {0} kimlik doğrulama durumu yenileniyor."
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualDiagram.tsx
+msgid "Relationship diagram"
+msgstr "İlişki diyagramı"
 
 #: src/renderer/components/providers/settings/ModelProviderManager.tsx
 #: src/renderer/RendererCrashScreen.tsx
@@ -13693,9 +14112,17 @@ msgstr "sıfırlama"
 msgid "Reset"
 msgstr "Sıfırla"
 
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualBlocks.tsx
+msgid "Reset checklist"
+msgstr "Kontrol listesini sıfırla"
+
 #: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
 msgid "Reset context windows"
 msgstr "Bağlam pencerelerini sıfırla"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Reset inputs"
+msgstr "Girdileri sıfırla"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Reset model order"
@@ -13710,6 +14137,7 @@ msgstr "Kenar çubuğu buzlu cam efektini varsayılana sıfırla"
 msgid "Reset to default"
 msgstr "Varsayılana sıfırla"
 
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Reset zoom"
 msgstr "Yakınlaştırmayı sıfırla"
@@ -13904,6 +14332,10 @@ msgstr "Yeniden deneme gecikmesi"
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Retry delay in seconds"
 msgstr "Saniye cinsinden yeniden deneme gecikmesi"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Retry live"
+msgstr "Canlı yayını yeniden dene"
 
 #: src/mobile/components.tsx
 #~ msgid "Retry now"
@@ -14116,6 +14548,10 @@ msgstr "Komutu revize et"
 msgid "Revision note (optional)"
 msgstr "Revizyon notu (isteğe bağlı)"
 
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Revoke"
+msgstr "İptal et"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Revoke {name}"
 msgstr "{name} oturumunu iptal et"
@@ -14137,9 +14573,19 @@ msgstr "Sağ panel"
 msgid "Right-click to switch ring"
 msgstr "Halkayı değiştirmek için sağ tıklayın"
 
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Rotate to…"
+msgstr "Döndür…"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "Rotate viewport"
 msgstr "Görüntü alanını döndür"
+
+#. placeholder {0}: rows.length
+#. placeholder {1}: block.rows.length
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualTable.tsx
+msgid "Rows: {0} / {1}"
+msgstr "Satırlar: {0} / {1}"
 
 #: src/renderer/components/providers/devin/liveSessionControls.tsx
 #: src/renderer/components/providers/devin/sessionActionDialog.tsx
@@ -14291,6 +14737,7 @@ msgstr "İş akışını çalıştır"
 msgid "running"
 msgstr "çalışıyor"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/SchedulesView/parts/scheduleRunStatus.ts
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
@@ -14583,6 +15030,10 @@ msgstr "Kapsam"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Scoped review watches are unavailable on this host. Update the host before enabling automation."
 msgstr "Kaynak kapsamlı inceleme izleme bu sunucuda kullanılamıyor. Otomasyonu etkinleştirmeden önce sunucuyu güncelleyin."
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Screenshot"
+msgstr "Ekran görüntüsü"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
@@ -14963,6 +15414,7 @@ msgstr "Seçili"
 msgid "Selected sidebar row"
 msgstr "Seçili kenar çubuğu satırı"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/components/thread/SideChat/SideChatBody.tsx
 msgid "Send"
 msgstr "Gönder"
@@ -15060,6 +15512,10 @@ msgstr "Oturum kimliği"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
 msgid "Set group color"
 msgstr "Grup rengini ayarla"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Set location"
+msgstr "Konumu ayarla"
 
 #: src/renderer/components/providers/codex/index.tsx
 msgid "Set or view an experimental goal"
@@ -15213,6 +15669,10 @@ msgstr "Yer imi çubuğunu göster"
 msgid "Show Bookmark Bar"
 msgstr "Yer İşareti Çubuğunu Göster"
 
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualChart.tsx
+msgid "Show chart"
+msgstr "Grafiği göster"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
 msgid "Show circles in sidebar"
@@ -15231,6 +15691,10 @@ msgstr "Composer'ı göster"
 #: src/renderer/components/thread/ThreadUsageBubble.tsx
 msgid "Show context usage details"
 msgstr "Bağlam kullanım ayrıntılarını göster"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualChart.tsx
+msgid "Show data table"
+msgstr "Veri tablosunu göster"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Show device toolbar"
@@ -15540,6 +16004,10 @@ msgstr "{env} oturumu kapatılıyor. Algılanan aracılar tamamlandığında yen
 msgid "Signing out. Detected agents will refresh when it finishes."
 msgstr "Çıkış yapılıyor. Algılanan aracılar tamamlandığında yenilenecektir."
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Simulators and emulators on this thread’s host"
+msgstr "Bu konunun ana makinesindeki simülatörler ve emülatörler"
+
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Single pass"
 msgstr "Tek geçiş"
@@ -15654,6 +16122,14 @@ msgstr "Crossagents tarafından atlananlar: {0}"
 msgid "Slash commands"
 msgstr "Eğik çizgi komutları"
 
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Small"
+msgstr "Küçük"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Snapshots"
+msgstr "Anlık görüntüler"
+
 #. placeholder {0}: index + 1
 #. placeholder {0}: winnerOrdinal + 1
 #: src/renderer/views/ExperimentView/parts/useExperimentJudgeRun.ts
@@ -15698,6 +16174,10 @@ msgstr "Bazı sağlayıcı klasörleri taranamadı. Başarıyla yüklenen beceri
 msgid "Some threads are paused"
 msgstr "Bazı konular duraklatıldı"
 
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualChart.tsx
+msgid "Some values are unavailable. Check the calculator inputs."
+msgstr "Bazı değerler kullanılamıyor. Hesaplayıcı girdilerini kontrol edin."
+
 #: src/mobile/QrScanner.tsx
 #~ msgid "Something went wrong starting the camera. Enter the endpoint and token below to pair instead."
 #~ msgstr "Kamera başlatılırken bir sorun oluştu. Bunun yerine eşleştirmek için endpoint ve token'ı aşağıya girin."
@@ -15721,6 +16201,10 @@ msgstr "Marketplace becerilerini sırala"
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
 #~ msgid "Sort threads"
 #~ msgstr "Konuları sırala"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Source"
+msgstr "Kaynak"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Source branch {branch} moved before the worktree was created"
@@ -15884,6 +16368,10 @@ msgstr "Bu yapılacaklardan yeni bir konu başlatın"
 #~ msgid "Start a new thread to put an agent to work from this device."
 #~ msgstr "Bu cihazdan bir ajanı çalıştırmak için yeni bir iş parçacığı başlatın."
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Start device"
+msgstr "Cihazı başlat"
+
 #: src/renderer/commands/composerCommands.ts
 msgid "Start dictation"
 msgstr "Dikteyi başlat"
@@ -15959,6 +16447,7 @@ msgid "Started {targetLabel} thread"
 msgstr "{targetLabel} iş parçacığı başlatıldı"
 
 #. Button label while the microphone test is starting
+#: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/RemoteAccessSidebarIcon.tsx
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
@@ -16101,6 +16590,10 @@ msgstr "Ses girişini durdur"
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Stop when"
 msgstr "Şu durumda durdur"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Stopped"
+msgstr "Durduruldu"
 
 #: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 msgid "Stopping {label}…"
@@ -16389,6 +16882,7 @@ msgstr "Senkronizasyon…"
 msgid "Syncs with Cloud"
 msgstr "Cloud ile senkronize olur"
 
+#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/i18n/locales.ts
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "System"
@@ -16755,6 +17249,10 @@ msgstr "Masaüstünün kendi sunucusu geçmiş okuması tamamlanmadan yeniden ba
 #: src/renderer/state/managedRootCatalog/rootCatalogIntents.ts
 msgid "The desktop's own server refused the change."
 msgstr "Masaüstünün kendi sunucusu değişikliği reddetti."
+
+#: src/renderer/components/devices/deviceClient.ts
+msgid "The device host is unavailable."
+msgstr "Cihaz ana makinesi kullanılamıyor."
 
 #: src/renderer/state/remoteServers/environmentManagement.ts
 msgid "The environment changed on the host. Refresh and try again."
@@ -17354,9 +17852,17 @@ msgstr "Bu rehber güncel değil. Mevcut değişikliğin alıntılarını görme
 msgid "This host"
 msgstr "Bu ana makine"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "This host does not support the device workspace."
+msgstr "Bu ana makine cihaz çalışma alanını desteklemiyor."
+
 #: src/renderer/components/providers/HostUsageView.tsx
 msgid "This host is no longer configured."
 msgstr "Bu ana makine artık yapılandırılmamış."
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "This host provides snapshots. Live streaming is unavailable."
+msgstr "Bu ana bilgisayar ekran görüntüleri sağlar. Canlı yayın kullanılamıyor."
 
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "This HTTPS page couldn't reach the desktop on plain HTTP. Allow local network access for this site and pair again, or continue on the desktop's own address."
@@ -17574,6 +18080,10 @@ msgstr "Bu oturum diskte değişti. Listeyi yenileyip tekrar deneyin."
 msgid "This session is already being imported."
 msgstr "Bu oturum zaten içe aktarılıyor."
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "This shuts down the selected emulator and disconnects every viewer. Detach instead to leave it running."
+msgstr "Bu, seçili emülatörü kapatır ve tüm izleyicilerin bağlantısını keser. Çalışmaya devam etmesi için yalnızca bağlantıyı ayırın."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This source host does not support safe automatic merge."
 msgstr "Bu kaynak sunucusu güvenli otomatik birleştirmeyi desteklemiyor."
@@ -17622,6 +18132,10 @@ msgstr "Bu döküm ajanın oturum deposunda değil."
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This version of Muse Code does not support session goals. Update Muse Code and try again."
 msgstr "Bu Muse Code sürümü oturum hedeflerini desteklemiyor. Muse Code'u güncelleyip yeniden deneyin."
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "This visual is too large. Showing source only."
+msgstr "Bu görsel çok büyük. Yalnızca kaynak gösteriliyor."
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreePopover.tsx
 #~ msgid "This will permanently delete the thread and its worktree."
@@ -17851,6 +18365,10 @@ msgstr "Favoriyi aç/kapat"
 msgid "Toggle Terminal"
 msgstr "Terminali Aç/Kapat"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Toggle text input"
+msgstr "Metin girişini aç/kapat"
+
 #: src/renderer/commands/registry.ts
 msgid "Toggle the file tree panel"
 msgstr "Dosya ağacı panelini aç/kapat"
@@ -17872,6 +18390,10 @@ msgstr "Token"
 #: src/renderer/views/ProfileOverlay/parts/ModelUsage.tsx
 msgid "Tokens from {0}"
 msgstr "{0} kaynağından token"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Too many visuals in this message. Showing source only."
+msgstr "Bu mesajda çok fazla görsel var. Yalnızca kaynak gösteriliyor."
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Tool restrictions cannot be imported"
@@ -18004,6 +18526,10 @@ msgstr "Mesaj aramak için en az iki karakter yazın"
 #: src/mobile/views/BrowserView.tsx
 #~ msgid "Type into the page (tap a field first)"
 #~ msgstr "Sayfaya yazın (önce bir alana dokunun)"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Type on device"
+msgstr "Cihaza yaz"
 
 #: src/renderer/commands/CommandPalette.tsx
 msgid "Type to search files"
@@ -18144,6 +18670,10 @@ msgstr "Deney kazananı birleştirilemedi: {0}"
 #: src/renderer/actions/agentLoginActions.ts
 msgid "Unable to open {0} login."
 msgstr "{0} oturum açma işlemi açılamıyor."
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Unable to open device window."
+msgstr "Cihaz penceresi açılamadı."
 
 #: src/renderer/commands/registry.ts
 msgid "Unable to open file"
@@ -18393,7 +18923,11 @@ msgstr "Masaüstünün kendi sunucusu doğrulanamadı."
 msgid "Unassigned"
 msgstr "Atanmamış"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualBlocks.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualChart.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualTable.tsx
 msgid "Unavailable"
 msgstr "Kullanılamıyor"
 
@@ -18466,6 +19000,7 @@ msgstr "Kaldır"
 msgid "Uninstall {name}"
 msgstr "{name} kaldır"
 
+#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/components/thread/threadContextUsage.ts
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
@@ -18586,6 +19121,10 @@ msgstr "Desteklenmeyen pazar yeri gereksinimleri"
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Unsupported plugin capability: {target}."
 msgstr "Desteklenmeyen eklenti özelliği: {target}."
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Unsupported visual format. Showing source only."
+msgstr "Desteklenmeyen görsel biçimi. Yalnızca kaynak gösteriliyor."
 
 #: src/renderer/sidebar/ChatSidebarHeader.tsx
 msgid "Untitled"
@@ -18825,6 +19364,10 @@ msgstr "Ortam sahibini yükselt"
 msgid "Upgrade owner"
 msgstr "Sahibi yükselt"
 
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Upside down"
+msgstr "Baş aşağı"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
 msgid "URL"
@@ -18833,6 +19376,10 @@ msgstr "URL"
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "URL is required."
 msgstr "URL gereklidir."
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "URL or deep link"
+msgstr "URL veya derin bağlantı"
 
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
@@ -18945,6 +19492,10 @@ msgstr "Yoksayılan dosyaları kullan"
 msgid "Use letters, numbers, dots, dashes, or underscores without spaces."
 msgstr "Boşluk kullanmadan harf, rakam, nokta, kısa çizgi veya alt çizgi kullanın."
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Use live preview"
+msgstr "Canlı önizlemeyi kullan"
+
 #: src/renderer/components/providers/settings/ModelProviderEditor.tsx
 msgid "Use lowercase letters, numbers, and hyphens."
 msgstr "Küçük harf, rakam ve kısa çizgi kullanın."
@@ -18965,6 +19516,10 @@ msgstr "Oturumu Kullan"
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Use sidebar background for the docked sidebar"
 msgstr "Sabit kenar çubuğu için kenar çubuğu arka planını kullan"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Use snapshots"
+msgstr "Ekran görüntülerini kullan"
 
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Use the {name} skill."
@@ -19113,6 +19668,10 @@ msgstr "Tüm sürümleri GitHub'da görüntüle"
 msgid "View full changelog"
 msgstr "Tüm değişiklik günlüğünü görüntüle"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "View only"
+msgstr "Yalnızca görüntüleme"
+
 #: src/renderer/components/skills/SkillViewModal.tsx
 msgid "View raw"
 msgstr "Ham metni görüntüle"
@@ -19184,6 +19743,14 @@ msgstr "Görünür {0} modelleri"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "Visible models"
 msgstr "Görünür modeller"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Visual"
+msgstr "Görsel"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualBlocks.tsx
+msgid "Visual sections"
+msgstr "Görsel bölümleri"
 
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Voice input is not available in this environment."
@@ -19274,6 +19841,11 @@ msgstr "Onay bekleniyor"
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Waiting for background tasks"
 msgstr "Arka plan görevleri bekleniyor"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+#: src/renderer/components/devices/LiveDevicePreview.tsx
+msgid "Waiting for the device…"
+msgstr "Cihaz bekleniyor…"
 
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "Waiting for workflow to spawn agents…"
@@ -19786,11 +20358,13 @@ msgid "Zoom"
 msgstr "Yakınlaştırma"
 
 #: src/renderer/components/composer/ImageLightbox.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Zoom in"
 msgstr "Yakınlaştır"
 
 #: src/renderer/components/composer/ImageLightbox.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Zoom out"
 msgstr "Uzaklaştır"

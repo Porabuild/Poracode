@@ -44,6 +44,10 @@ export function closePanelsForUnloadedThread(thread: Thread): void {
   const { projectId, worktreePath } = thread;
   const panelStore = usePanelStore.getState();
 
+  if (panelStore.deviceWorkspaceThreadId === thread.id) {
+    panelStore.setDeviceWorkspaceThreadId(null);
+  }
+
   if (
     panelStore.gitReviewContext &&
     panelContextMatchesThread(

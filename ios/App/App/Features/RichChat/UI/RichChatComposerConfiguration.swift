@@ -409,7 +409,12 @@ struct RichChatComposerControlCatalog {
     } ?? []
   }
 
-  func slashSuggestions(for draft: String) -> [RichChatSlashCommandOption] {
+  func slashSuggestions(for draft: String, selection: NSRange? = nil) -> [RichChatSlashCommandOption] {
+    if let reference = RichChatSkillReference.atCaret(in: draft, selection: selection) {
+      return slashCommands.filter {
+        $0.skill != nil && (reference.query.isEmpty || $0.displayID.localizedCaseInsensitiveContains(reference.query))
+      }
+    }
     guard draft.hasPrefix("/"), !draft.contains(where: { $0.isWhitespace }) else { return [] }
     let query = String(draft.dropFirst()).lowercased()
     return slashCommands.filter {

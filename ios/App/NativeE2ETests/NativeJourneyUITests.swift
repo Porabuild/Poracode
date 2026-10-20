@@ -83,7 +83,7 @@ final class NativeJourneyUITests: XCTestCase {
     XCTAssertTrue(newThread.waitForExistence(timeout: 5))
     try await waitUntilEnabled(newThread)
     newThread.tap()
-    XCTAssertTrue(app.textFields["native-e2e.new-thread-prompt"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.textViews["native-e2e.new-thread-prompt"].waitForExistence(timeout: 5))
     attachScreenshot("01b-quick-compose")
     app.buttons["Cancel"].tap()
 
@@ -98,7 +98,7 @@ final class NativeJourneyUITests: XCTestCase {
     let composerCollapsed = app.buttons["native-e2e.composer-collapsed"]
     XCTAssertTrue(composerCollapsed.waitForExistence(timeout: 10))
     composerCollapsed.tap()
-    let composer = app.textFields["native-e2e.composer"]
+    let composer = app.textViews["native-e2e.composer"]
     XCTAssertTrue(composer.waitForExistence(timeout: 10))
     composer.tap()
     composer.typeText(message)

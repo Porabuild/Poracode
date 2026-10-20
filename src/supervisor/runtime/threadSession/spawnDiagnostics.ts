@@ -5,6 +5,7 @@ import {
   COMPUTER_USE_MCP_URL_ENV,
 } from "@/supervisor/agents/computerUseMcp";
 import { CHROME_MCP_TOKEN_ENV, CHROME_MCP_URL_ENV } from "@/supervisor/agents/chromeMcp";
+import { DEVICE_WORKSPACE_AGENT_KEY_ENV } from "@/shared/deviceWorkspaceAgentProof";
 
 export function describeSpawnFailure(
   kind: "shell" | "agent",
@@ -78,6 +79,7 @@ export function sanitizeEnv(source: NodeJS.ProcessEnv): Record<string, string> {
 // Keep process.env intact for resolution, but strip the secrets from the shared
 // child-process base env; provider adapters inject them only for opted-in launches.
 const SCOPED_LAUNCH_ONLY_ENV_KEYS = [
+  DEVICE_WORKSPACE_AGENT_KEY_ENV,
   COMPUTER_USE_MCP_URL_ENV,
   COMPUTER_USE_MCP_TOKEN_ENV,
   CHROME_MCP_URL_ENV,

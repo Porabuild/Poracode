@@ -1,4 +1,5 @@
 import { dbGetThreads, onProjectThreadDataChanged } from "@/host/db";
+import { dirname, join } from "node:path";
 import { inactivateLiveThreads } from "./inactivateLiveThreads";
 import { resolvePoracodePaths } from "@/shared/poracodePaths";
 import { runOwnedExperimentWorktreePreparation } from "@/host/remote/experimentOwnership";
@@ -191,6 +192,9 @@ export class BackendDesktopServices {
       // root main writes into on managed): its durable services run the one
       // deleted-thread attachment reclaimer for it.
       attachmentsDir: resolvePoracodePaths(initialize.baseDir).attachmentsDir,
+      ...(initialize.supervisor.bundledPluginsDir
+        ? { deviceHubRoot: join(dirname(initialize.supervisor.bundledPluginsDir), "device-hub") }
+        : {}),
       sendThreadCommand,
       emitRemoteThreadCommand: dispatchThreadCommand,
       getSharedSettings,
@@ -342,6 +346,7 @@ export class BackendDesktopServices {
           imagePreviewGenerator: generateBackendImagePreview,
           reportError: options.reportError,
           scheduleService: this.durable.scheduleService,
+          deviceWorkspace: this.durable.deviceWorkspace,
           prWatchService: this.durable.prWatchService,
           gitStateService: this.durable.gitStateService,
           updates: {
@@ -388,6 +393,7 @@ export class BackendDesktopServices {
   }
 
   async startBackgroundServices(): Promise<void> {
+    await this.durable.deviceWorkspace.preparePreview();
     this.durable.startBackgroundServices();
     // Reconnection is host-owned and bounded by the runtime, but unreachable
     // children must not hold the local listener or renderer startup hostage.

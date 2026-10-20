@@ -1133,6 +1133,161 @@
       "scopes": [
         "session:operate"
       ]
+    },
+    {
+      "auth": "bearer",
+      "id": "device-inventory",
+      "method": "GET",
+      "path": "/api/devices",
+      "scopes": [
+        "session:read"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "device-attach",
+      "method": "POST",
+      "path": "/api/threads/{threadId}/devices",
+      "scopes": [
+        "session:read"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "device-frame",
+      "method": "GET",
+      "path": "/api/threads/{threadId}/devices/{sessionId}/frame",
+      "scopes": [
+        "session:read"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "device-inspect",
+      "method": "GET",
+      "path": "/api/threads/{threadId}/devices/{sessionId}/accessibility",
+      "scopes": [
+        "session:read"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "device-action",
+      "method": "POST",
+      "path": "/api/threads/{threadId}/devices/{sessionId}/actions",
+      "scopes": [
+        "session:operate"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "device-detach",
+      "method": "POST",
+      "path": "/api/threads/{threadId}/devices/{sessionId}/detach",
+      "scopes": [
+        "session:read"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "device-preview-open",
+      "method": "POST",
+      "path": "/api/threads/{threadId}/devices/{sessionId}/preview/v1",
+      "scopes": [
+        "session:read"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "device-preview-renew",
+      "method": "POST",
+      "path": "/api/threads/{threadId}/devices/{sessionId}/preview/v1/renew",
+      "scopes": [
+        "session:read"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "device-preview-close",
+      "method": "POST",
+      "path": "/api/threads/{threadId}/devices/{sessionId}/preview/v1/close",
+      "scopes": [
+        "session:read"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "device-preview-websocket-ticket",
+      "method": "POST",
+      "path": "/api/threads/{threadId}/devices/{sessionId}/preview/v1/websocket-ticket",
+      "scopes": [
+        "session:read"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "device-preview-android-api",
+      "method": "GET",
+      "path": "/api/threads/{threadId}/devices/{sessionId}/preview/v1/vendor/serve-emu/api",
+      "queryParameters": [
+        "previewId",
+        "device"
+      ],
+      "scopes": [
+        "session:read"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "device-preview-android-devices",
+      "method": "GET",
+      "path": "/api/threads/{threadId}/devices/{sessionId}/preview/v1/vendor/serve-emu/api/devices",
+      "queryParameters": [
+        "previewId",
+        "device"
+      ],
+      "scopes": [
+        "session:read"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "device-preview-ios-api",
+      "method": "GET",
+      "path": "/api/threads/{threadId}/devices/{sessionId}/preview/v1/vendor/serve-sim/api",
+      "queryParameters": [
+        "previewId",
+        "device"
+      ],
+      "scopes": [
+        "session:read"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "device-preview-ios-config",
+      "method": "GET",
+      "path": "/api/threads/{threadId}/devices/{sessionId}/preview/v1/vendor/serve-sim/helper/{deviceId}/config",
+      "queryParameters": [
+        "previewId",
+        "device"
+      ],
+      "scopes": [
+        "session:read"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "device-preview-ios-video",
+      "method": "GET",
+      "path": "/api/threads/{threadId}/devices/{sessionId}/preview/v1/vendor/serve-sim/helper/{deviceId}/stream.avcc",
+      "queryParameters": [
+        "previewId",
+        "device"
+      ],
+      "scopes": [
+        "session:read"
+      ]
     }
   ],
   "procedures": [

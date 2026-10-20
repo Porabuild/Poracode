@@ -14,14 +14,14 @@
     "jsonProcedureResults": 95,
     "procedures": 154,
     "replayableEventTypes": 16,
-    "routes": 102,
+    "routes": 117,
     "runtimeEventTypes": 16,
     "voidProcedureResults": 59,
     "webSocketClientMessages": 9,
     "webSocketServerMessages": 11
   },
   "manifestFormatVersion": 1,
-  "manifestHash": "sha256:27f9fa7e76e5cbbf48fc22674c45ba956208e343ac98a32b89592236900395d3",
+  "manifestHash": "sha256:53be762a4dddf0d0217f62422622d282f8e502340ebed99e03c979449ec5e49d",
   "portableTransformIds": [
     "agent-settings.strip-sensitive",
     "push.routing.client-connection-id.lowercase",
@@ -35357,6 +35357,2125 @@
       ]
     },
     {
+      "auth": "bearer",
+      "id": "device-action",
+      "method": "POST",
+      "path": "/api/threads/{threadId}/devices/{sessionId}/actions",
+      "pathParameters": [
+        "threadId",
+        "sessionId"
+      ],
+      "request": {
+        "bodyKind": "json",
+        "jsonSchema": {
+          "$defs": {
+            "__schema0": {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            "__schema1": {
+              "maxLength": 255,
+              "minLength": 3,
+              "pattern": "^[A-Za-z][A-Za-z0-9_]*(?:\\.[A-Za-z][A-Za-z0-9_]*)+$",
+              "type": "string"
+            }
+          },
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "frameId": {
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "tap",
+                  "type": "string"
+                },
+                "x": {
+                  "$ref": "#/$defs/__schema0"
+                },
+                "y": {
+                  "$ref": "#/$defs/__schema0"
+                }
+              },
+              "required": [
+                "kind",
+                "frameId",
+                "x",
+                "y"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "reject"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "durationMs": {
+                  "maximum": 2000,
+                  "minimum": 100,
+                  "type": "integer"
+                },
+                "endX": {
+                  "$ref": "#/$defs/__schema0"
+                },
+                "endY": {
+                  "$ref": "#/$defs/__schema0"
+                },
+                "frameId": {
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "swipe",
+                  "type": "string"
+                },
+                "x": {
+                  "$ref": "#/$defs/__schema0"
+                },
+                "y": {
+                  "$ref": "#/$defs/__schema0"
+                }
+              },
+              "required": [
+                "kind",
+                "frameId",
+                "x",
+                "y",
+                "endX",
+                "endY",
+                "durationMs"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "reject"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "const": "text",
+                  "type": "string"
+                },
+                "text": {
+                  "maxLength": 2000,
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "text"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "reject"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "key": {
+                  "enum": [
+                    "home",
+                    "back",
+                    "enter",
+                    "backspace"
+                  ],
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "key",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "key"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "reject"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "const": "start",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "reject"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "control": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "type": {
+                          "const": "read",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "type"
+                      ],
+                      "type": "object",
+                      "x-poracode-unknownFields": "reject"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "type": {
+                          "const": "appearance",
+                          "type": "string"
+                        },
+                        "value": {
+                          "enum": [
+                            "light",
+                            "dark"
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "value"
+                      ],
+                      "type": "object",
+                      "x-poracode-unknownFields": "reject"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "type": {
+                          "const": "textSize",
+                          "type": "string"
+                        },
+                        "value": {
+                          "enum": [
+                            "small",
+                            "standard",
+                            "large",
+                            "extraLarge"
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "value"
+                      ],
+                      "type": "object",
+                      "x-poracode-unknownFields": "reject"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "type": {
+                          "const": "orientation",
+                          "type": "string"
+                        },
+                        "value": {
+                          "enum": [
+                            "portrait",
+                            "landscapeLeft",
+                            "upsideDown",
+                            "landscapeRight"
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "value"
+                      ],
+                      "type": "object",
+                      "x-poracode-unknownFields": "reject"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "enabled": {
+                          "type": "boolean"
+                        },
+                        "type": {
+                          "const": "reduceMotion",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "enabled"
+                      ],
+                      "type": "object",
+                      "x-poracode-unknownFields": "reject"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "enabled": {
+                          "type": "boolean"
+                        },
+                        "type": {
+                          "const": "network",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "enabled"
+                      ],
+                      "type": "object",
+                      "x-poracode-unknownFields": "reject"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "latitude": {
+                          "maximum": 90,
+                          "minimum": -90,
+                          "type": "number"
+                        },
+                        "longitude": {
+                          "maximum": 180,
+                          "minimum": -180,
+                          "type": "number"
+                        },
+                        "type": {
+                          "const": "location",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "latitude",
+                        "longitude"
+                      ],
+                      "type": "object",
+                      "x-poracode-unknownFields": "reject"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "applicationId": {
+                          "$ref": "#/$defs/__schema1"
+                        },
+                        "decision": {
+                          "enum": [
+                            "grant",
+                            "revoke"
+                          ],
+                          "type": "string"
+                        },
+                        "permission": {
+                          "enum": [
+                            "camera",
+                            "microphone",
+                            "photos",
+                            "contacts",
+                            "calendar",
+                            "location",
+                            "notifications",
+                            "motion"
+                          ],
+                          "type": "string"
+                        },
+                        "type": {
+                          "const": "permission",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "applicationId",
+                        "permission",
+                        "decision"
+                      ],
+                      "type": "object",
+                      "x-poracode-unknownFields": "reject"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "type": {
+                          "const": "openUrl",
+                          "type": "string"
+                        },
+                        "url": {
+                          "maxLength": 4096,
+                          "minLength": 1,
+                          "pattern": "^(?!(?:javascript|data|file|content|intent|about):)[A-Za-z][A-Za-z0-9+.-]*:\\/\\/[^\\s]+$",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "url"
+                      ],
+                      "type": "object",
+                      "x-poracode-unknownFields": "reject"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "applicationId": {
+                          "$ref": "#/$defs/__schema1"
+                        },
+                        "type": {
+                          "const": "launchApp",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "applicationId"
+                      ],
+                      "type": "object",
+                      "x-poracode-unknownFields": "reject"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "type": {
+                          "const": "powerOff",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "type"
+                      ],
+                      "type": "object",
+                      "x-poracode-unknownFields": "reject"
+                    }
+                  ]
+                },
+                "kind": {
+                  "const": "control",
+                  "type": "string"
+                },
+                "version": {
+                  "const": 1,
+                  "type": "number"
+                }
+              },
+              "required": [
+                "kind",
+                "version",
+                "control"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "reject"
+            }
+          ]
+        },
+        "pathSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": true,
+          "properties": {
+            "sessionId": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "threadId": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "threadId",
+            "sessionId"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        }
+      },
+      "response": {
+        "jsonSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": true,
+          "properties": {
+            "controls": {
+              "additionalProperties": true,
+              "properties": {
+                "appearance": {
+                  "enum": [
+                    "light",
+                    "dark",
+                    "system"
+                  ],
+                  "type": "string"
+                },
+                "fontScale": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 10,
+                  "type": "number"
+                },
+                "networkEnabled": {
+                  "type": "boolean"
+                },
+                "reduceMotion": {
+                  "type": "boolean"
+                },
+                "version": {
+                  "const": 1,
+                  "type": "number"
+                }
+              },
+              "required": [
+                "version"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            "delivered": {
+              "const": true,
+              "type": "boolean"
+            },
+            "version": {
+              "const": 1,
+              "type": "number"
+            }
+          },
+          "required": [
+            "version",
+            "delivered"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        "status": 200,
+        "wireKind": "json"
+      },
+      "scopes": [
+        "session:operate"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "device-attach",
+      "method": "POST",
+      "path": "/api/threads/{threadId}/devices",
+      "pathParameters": [
+        "threadId"
+      ],
+      "request": {
+        "bodyKind": "json",
+        "jsonSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": false,
+          "properties": {
+            "access": {
+              "enum": [
+                "view",
+                "control"
+              ],
+              "type": "string"
+            },
+            "agentAccess": {
+              "enum": [
+                "none",
+                "view",
+                "control"
+              ],
+              "type": "string"
+            },
+            "deviceId": {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            "generation": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            },
+            "version": {
+              "const": 1,
+              "type": "number"
+            }
+          },
+          "required": [
+            "version",
+            "generation",
+            "deviceId",
+            "access",
+            "agentAccess"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "reject"
+        },
+        "pathSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": true,
+          "properties": {
+            "threadId": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "threadId"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        }
+      },
+      "response": {
+        "jsonSchema": {
+          "$defs": {
+            "__schema0": {
+              "enum": [
+                "read",
+                "appearance",
+                "textSize",
+                "orientation",
+                "reduceMotion",
+                "network",
+                "location",
+                "permission",
+                "openUrl",
+                "launchApp",
+                "powerOff"
+              ],
+              "type": "string"
+            }
+          },
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": true,
+          "properties": {
+            "access": {
+              "enum": [
+                "view",
+                "control"
+              ],
+              "type": "string"
+            },
+            "agentAccess": {
+              "enum": [
+                "none",
+                "view",
+                "control"
+              ],
+              "type": "string"
+            },
+            "device": {
+              "additionalProperties": true,
+              "properties": {
+                "accessibility": {
+                  "type": "boolean"
+                },
+                "controls": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "actions": {
+                      "items": {
+                        "$ref": "#/$defs/__schema0"
+                      },
+                      "maxItems": 16,
+                      "type": "array"
+                    },
+                    "bootId": {
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                      "type": "string"
+                    },
+                    "version": {
+                      "const": 1,
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "version",
+                    "bootId",
+                    "actions"
+                  ],
+                  "type": "object",
+                  "x-poracode-unknownFields": "strip"
+                },
+                "id": {
+                  "maxLength": 256,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "input": {
+                  "type": "boolean"
+                },
+                "name": {
+                  "maxLength": 256,
+                  "type": "string"
+                },
+                "platform": {
+                  "enum": [
+                    "ios",
+                    "android"
+                  ],
+                  "type": "string"
+                },
+                "state": {
+                  "enum": [
+                    "running",
+                    "stopped",
+                    "starting"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "platform",
+                "name",
+                "state",
+                "input",
+                "accessibility"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            "expiresAt": {
+              "type": "number"
+            },
+            "generation": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            },
+            "id": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            },
+            "threadId": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "version": {
+              "const": 1,
+              "type": "number"
+            }
+          },
+          "required": [
+            "version",
+            "generation",
+            "id",
+            "threadId",
+            "device",
+            "access",
+            "agentAccess",
+            "expiresAt"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        "status": 200,
+        "wireKind": "json"
+      },
+      "scopes": [
+        "session:read"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "device-detach",
+      "method": "POST",
+      "path": "/api/threads/{threadId}/devices/{sessionId}/detach",
+      "pathParameters": [
+        "threadId",
+        "sessionId"
+      ],
+      "request": {
+        "bodyKind": "empty",
+        "pathSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": true,
+          "properties": {
+            "sessionId": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "threadId": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "threadId",
+            "sessionId"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        }
+      },
+      "response": {
+        "jsonSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": true,
+          "properties": {
+            "ok": {
+              "const": true,
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "ok"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        "status": 200,
+        "wireKind": "json"
+      },
+      "scopes": [
+        "session:read"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "device-frame",
+      "method": "GET",
+      "path": "/api/threads/{threadId}/devices/{sessionId}/frame",
+      "pathParameters": [
+        "threadId",
+        "sessionId"
+      ],
+      "request": {
+        "bodyKind": "empty",
+        "pathSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": true,
+          "properties": {
+            "sessionId": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "threadId": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "threadId",
+            "sessionId"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        }
+      },
+      "response": {
+        "jsonSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": true,
+          "properties": {
+            "base64": {
+              "maxLength": 349528,
+              "type": "string"
+            },
+            "capturedAt": {
+              "type": "number"
+            },
+            "height": {
+              "exclusiveMinimum": 0,
+              "maximum": 2048,
+              "type": "integer"
+            },
+            "id": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            },
+            "mimeType": {
+              "const": "image/jpeg",
+              "type": "string"
+            },
+            "version": {
+              "const": 1,
+              "type": "number"
+            },
+            "width": {
+              "exclusiveMinimum": 0,
+              "maximum": 2048,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "version",
+            "id",
+            "capturedAt",
+            "mimeType",
+            "base64",
+            "width",
+            "height"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        "status": 200,
+        "wireKind": "json"
+      },
+      "scopes": [
+        "session:read"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "device-inspect",
+      "method": "GET",
+      "path": "/api/threads/{threadId}/devices/{sessionId}/accessibility",
+      "pathParameters": [
+        "threadId",
+        "sessionId"
+      ],
+      "request": {
+        "bodyKind": "empty",
+        "pathSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": true,
+          "properties": {
+            "sessionId": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "threadId": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "threadId",
+            "sessionId"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        }
+      },
+      "response": {
+        "jsonSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": true,
+          "properties": {
+            "format": {
+              "enum": [
+                "android-uiautomator-xml",
+                "ios-idb-json"
+              ],
+              "type": "string"
+            },
+            "text": {
+              "maxLength": 128000,
+              "type": "string"
+            },
+            "version": {
+              "const": 1,
+              "type": "number"
+            }
+          },
+          "required": [
+            "version",
+            "format",
+            "text"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        "status": 200,
+        "wireKind": "json"
+      },
+      "scopes": [
+        "session:read"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "device-inventory",
+      "method": "GET",
+      "path": "/api/devices",
+      "request": {
+        "bodyKind": "empty"
+      },
+      "response": {
+        "jsonSchema": {
+          "$defs": {
+            "__schema0": {
+              "additionalProperties": true,
+              "properties": {
+                "diagnostic": {
+                  "maxLength": 2000,
+                  "type": "string"
+                },
+                "platform": {
+                  "$ref": "#/$defs/__schema1"
+                },
+                "status": {
+                  "enum": [
+                    "ready",
+                    "unsupported_host",
+                    "missing_sdk",
+                    "missing_xcode",
+                    "missing_idb",
+                    "unavailable"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "platform",
+                "status"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            "__schema1": {
+              "enum": [
+                "ios",
+                "android"
+              ],
+              "type": "string"
+            },
+            "__schema2": {
+              "additionalProperties": true,
+              "properties": {
+                "accessibility": {
+                  "type": "boolean"
+                },
+                "controls": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "actions": {
+                      "items": {
+                        "$ref": "#/$defs/__schema3"
+                      },
+                      "maxItems": 16,
+                      "type": "array"
+                    },
+                    "bootId": {
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                      "type": "string"
+                    },
+                    "version": {
+                      "const": 1,
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "version",
+                    "bootId",
+                    "actions"
+                  ],
+                  "type": "object",
+                  "x-poracode-unknownFields": "strip"
+                },
+                "id": {
+                  "maxLength": 256,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "input": {
+                  "type": "boolean"
+                },
+                "name": {
+                  "maxLength": 256,
+                  "type": "string"
+                },
+                "platform": {
+                  "$ref": "#/$defs/__schema1"
+                },
+                "state": {
+                  "enum": [
+                    "running",
+                    "stopped",
+                    "starting"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "platform",
+                "name",
+                "state",
+                "input",
+                "accessibility"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            "__schema3": {
+              "enum": [
+                "read",
+                "appearance",
+                "textSize",
+                "orientation",
+                "reduceMotion",
+                "network",
+                "location",
+                "permission",
+                "openUrl",
+                "launchApp",
+                "powerOff"
+              ],
+              "type": "string"
+            }
+          },
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": true,
+          "properties": {
+            "devices": {
+              "items": {
+                "$ref": "#/$defs/__schema2"
+              },
+              "maxItems": 128,
+              "type": "array"
+            },
+            "generation": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            },
+            "platforms": {
+              "items": {
+                "$ref": "#/$defs/__schema0"
+              },
+              "maxItems": 2,
+              "type": "array"
+            },
+            "version": {
+              "const": 1,
+              "type": "number"
+            }
+          },
+          "required": [
+            "version",
+            "generation",
+            "platforms",
+            "devices"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        "status": 200,
+        "wireKind": "json"
+      },
+      "scopes": [
+        "session:read"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "device-preview-android-api",
+      "method": "GET",
+      "path": "/api/threads/{threadId}/devices/{sessionId}/preview/v1/vendor/serve-emu/api",
+      "pathParameters": [
+        "threadId",
+        "sessionId"
+      ],
+      "queryCodecs": [
+        {
+          "kind": "string",
+          "name": "previewId",
+          "optional": false,
+          "repeated": false
+        },
+        {
+          "kind": "string",
+          "name": "device",
+          "optional": true,
+          "repeated": false
+        }
+      ],
+      "queryParameters": [
+        "previewId",
+        "device"
+      ],
+      "request": {
+        "bodyKind": "empty",
+        "pathSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": true,
+          "properties": {
+            "sessionId": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "threadId": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "threadId",
+            "sessionId"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        "querySchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": false,
+          "properties": {
+            "device": {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            "previewId": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "previewId"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "reject"
+        }
+      },
+      "response": {
+        "jsonSchema": {
+          "$defs": {
+            "__schema0": {
+              "maximum": 16384,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": true,
+          "properties": {
+            "size": {
+              "additionalProperties": true,
+              "properties": {
+                "height": {
+                  "$ref": "#/$defs/__schema0"
+                },
+                "width": {
+                  "$ref": "#/$defs/__schema0"
+                }
+              },
+              "required": [
+                "width",
+                "height"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            "stream": {
+              "additionalProperties": true,
+              "properties": {
+                "transport": {
+                  "const": "websocket",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "transport"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            }
+          },
+          "required": [
+            "size",
+            "stream"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        "status": 200,
+        "wireKind": "json"
+      },
+      "scopes": [
+        "session:read"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "device-preview-android-devices",
+      "method": "GET",
+      "path": "/api/threads/{threadId}/devices/{sessionId}/preview/v1/vendor/serve-emu/api/devices",
+      "pathParameters": [
+        "threadId",
+        "sessionId"
+      ],
+      "queryCodecs": [
+        {
+          "kind": "string",
+          "name": "previewId",
+          "optional": false,
+          "repeated": false
+        },
+        {
+          "kind": "string",
+          "name": "device",
+          "optional": true,
+          "repeated": false
+        }
+      ],
+      "queryParameters": [
+        "previewId",
+        "device"
+      ],
+      "request": {
+        "bodyKind": "empty",
+        "pathSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": true,
+          "properties": {
+            "sessionId": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "threadId": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "threadId",
+            "sessionId"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        "querySchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": false,
+          "properties": {
+            "device": {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            "previewId": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "previewId"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "reject"
+        }
+      },
+      "response": {
+        "jsonSchema": {
+          "$defs": {
+            "__schema0": {
+              "additionalProperties": true,
+              "properties": {
+                "serial": {
+                  "maxLength": 256,
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "serial"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            }
+          },
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": true,
+          "properties": {
+            "defaultSerial": {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            "devices": {
+              "items": {
+                "$ref": "#/$defs/__schema0"
+              },
+              "maxItems": 1,
+              "minItems": 1,
+              "type": "array"
+            }
+          },
+          "required": [
+            "devices",
+            "defaultSerial"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        "status": 200,
+        "wireKind": "json"
+      },
+      "scopes": [
+        "session:read"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "device-preview-close",
+      "method": "POST",
+      "path": "/api/threads/{threadId}/devices/{sessionId}/preview/v1/close",
+      "pathParameters": [
+        "threadId",
+        "sessionId"
+      ],
+      "request": {
+        "bodyKind": "json",
+        "jsonSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": false,
+          "properties": {
+            "previewId": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            },
+            "version": {
+              "const": 1,
+              "type": "number"
+            }
+          },
+          "required": [
+            "version",
+            "previewId"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "reject"
+        },
+        "pathSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": true,
+          "properties": {
+            "sessionId": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "threadId": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "threadId",
+            "sessionId"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        }
+      },
+      "response": {
+        "jsonSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": true,
+          "properties": {
+            "ok": {
+              "const": true,
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "ok"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        "status": 200,
+        "wireKind": "json"
+      },
+      "scopes": [
+        "session:read"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "device-preview-ios-api",
+      "method": "GET",
+      "path": "/api/threads/{threadId}/devices/{sessionId}/preview/v1/vendor/serve-sim/api",
+      "pathParameters": [
+        "threadId",
+        "sessionId"
+      ],
+      "queryCodecs": [
+        {
+          "kind": "string",
+          "name": "previewId",
+          "optional": false,
+          "repeated": false
+        },
+        {
+          "kind": "string",
+          "name": "device",
+          "optional": true,
+          "repeated": false
+        }
+      ],
+      "queryParameters": [
+        "previewId",
+        "device"
+      ],
+      "request": {
+        "bodyKind": "empty",
+        "pathSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": true,
+          "properties": {
+            "sessionId": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "threadId": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "threadId",
+            "sessionId"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        "querySchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": false,
+          "properties": {
+            "device": {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            "previewId": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "previewId"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "reject"
+        }
+      },
+      "response": {
+        "jsonSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": true,
+          "properties": {
+            "device": {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            "inputAdmission": {
+              "const": true,
+              "type": "boolean"
+            },
+            "proxyHelpers": {
+              "const": true,
+              "type": "boolean"
+            },
+            "streamSettings": {
+              "additionalProperties": true,
+              "properties": {
+                "codec": {
+                  "const": "h264",
+                  "type": "string"
+                },
+                "transport": {
+                  "const": "http",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "transport",
+                "codec"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            "url": {
+              "const": ".",
+              "type": "string"
+            }
+          },
+          "required": [
+            "device",
+            "url",
+            "proxyHelpers",
+            "inputAdmission",
+            "streamSettings"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        "status": 200,
+        "wireKind": "json"
+      },
+      "scopes": [
+        "session:read"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "device-preview-ios-config",
+      "method": "GET",
+      "path": "/api/threads/{threadId}/devices/{sessionId}/preview/v1/vendor/serve-sim/helper/{deviceId}/config",
+      "pathParameters": [
+        "threadId",
+        "sessionId",
+        "deviceId"
+      ],
+      "queryCodecs": [
+        {
+          "kind": "string",
+          "name": "previewId",
+          "optional": false,
+          "repeated": false
+        },
+        {
+          "kind": "string",
+          "name": "device",
+          "optional": true,
+          "repeated": false
+        }
+      ],
+      "queryParameters": [
+        "previewId",
+        "device"
+      ],
+      "request": {
+        "bodyKind": "empty",
+        "pathSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": true,
+          "properties": {
+            "deviceId": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "sessionId": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "threadId": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "threadId",
+            "sessionId",
+            "deviceId"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        "querySchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": false,
+          "properties": {
+            "device": {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            "previewId": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "previewId"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "reject"
+        }
+      },
+      "response": {
+        "jsonSchema": {
+          "$defs": {
+            "__schema0": {
+              "maximum": 16384,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": true,
+          "properties": {
+            "height": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "inputUnavailable": {
+              "type": "boolean"
+            },
+            "orientation": {
+              "enum": [
+                "portrait",
+                "landscape_left",
+                "portrait_upside_down",
+                "landscape_right"
+              ],
+              "type": "string"
+            },
+            "width": {
+              "$ref": "#/$defs/__schema0"
+            }
+          },
+          "required": [
+            "width",
+            "height"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        "status": 200,
+        "wireKind": "json"
+      },
+      "scopes": [
+        "session:read"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "device-preview-ios-video",
+      "method": "GET",
+      "path": "/api/threads/{threadId}/devices/{sessionId}/preview/v1/vendor/serve-sim/helper/{deviceId}/stream.avcc",
+      "pathParameters": [
+        "threadId",
+        "sessionId",
+        "deviceId"
+      ],
+      "queryCodecs": [
+        {
+          "kind": "string",
+          "name": "previewId",
+          "optional": false,
+          "repeated": false
+        },
+        {
+          "kind": "string",
+          "name": "device",
+          "optional": true,
+          "repeated": false
+        }
+      ],
+      "queryParameters": [
+        "previewId",
+        "device"
+      ],
+      "request": {
+        "bodyKind": "empty",
+        "pathSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": true,
+          "properties": {
+            "deviceId": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "sessionId": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "threadId": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "threadId",
+            "sessionId",
+            "deviceId"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        "querySchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": false,
+          "properties": {
+            "device": {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            "previewId": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "previewId"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "reject"
+        }
+      },
+      "response": {
+        "contentType": "application/octet-stream",
+        "status": 200,
+        "wireKind": "binary"
+      },
+      "scopes": [
+        "session:read"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "device-preview-open",
+      "method": "POST",
+      "path": "/api/threads/{threadId}/devices/{sessionId}/preview/v1",
+      "pathParameters": [
+        "threadId",
+        "sessionId"
+      ],
+      "request": {
+        "bodyKind": "json",
+        "jsonSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": false,
+          "properties": {
+            "generation": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            },
+            "version": {
+              "const": 1,
+              "type": "number"
+            }
+          },
+          "required": [
+            "version",
+            "generation"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "reject"
+        },
+        "pathSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": true,
+          "properties": {
+            "sessionId": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "threadId": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "threadId",
+            "sessionId"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        }
+      },
+      "response": {
+        "jsonSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": true,
+          "properties": {
+            "access": {
+              "enum": [
+                "view",
+                "control"
+              ],
+              "type": "string"
+            },
+            "clientDeviceId": {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            "expiresAt": {
+              "type": "number"
+            },
+            "generation": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            },
+            "id": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            },
+            "mode": {
+              "const": "h264",
+              "type": "string"
+            },
+            "platform": {
+              "enum": [
+                "ios",
+                "android"
+              ],
+              "type": "string"
+            },
+            "sessionId": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            },
+            "version": {
+              "const": 1,
+              "type": "number"
+            }
+          },
+          "required": [
+            "version",
+            "id",
+            "generation",
+            "sessionId",
+            "platform",
+            "clientDeviceId",
+            "access",
+            "mode",
+            "expiresAt"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        "status": 200,
+        "wireKind": "json"
+      },
+      "scopes": [
+        "session:read"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "device-preview-renew",
+      "method": "POST",
+      "path": "/api/threads/{threadId}/devices/{sessionId}/preview/v1/renew",
+      "pathParameters": [
+        "threadId",
+        "sessionId"
+      ],
+      "request": {
+        "bodyKind": "json",
+        "jsonSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": false,
+          "properties": {
+            "previewId": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            },
+            "version": {
+              "const": 1,
+              "type": "number"
+            }
+          },
+          "required": [
+            "version",
+            "previewId"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "reject"
+        },
+        "pathSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": true,
+          "properties": {
+            "sessionId": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "threadId": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "threadId",
+            "sessionId"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        }
+      },
+      "response": {
+        "jsonSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": true,
+          "properties": {
+            "access": {
+              "enum": [
+                "view",
+                "control"
+              ],
+              "type": "string"
+            },
+            "clientDeviceId": {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            "expiresAt": {
+              "type": "number"
+            },
+            "generation": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            },
+            "id": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            },
+            "mode": {
+              "const": "h264",
+              "type": "string"
+            },
+            "platform": {
+              "enum": [
+                "ios",
+                "android"
+              ],
+              "type": "string"
+            },
+            "sessionId": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            },
+            "version": {
+              "const": 1,
+              "type": "number"
+            }
+          },
+          "required": [
+            "version",
+            "id",
+            "generation",
+            "sessionId",
+            "platform",
+            "clientDeviceId",
+            "access",
+            "mode",
+            "expiresAt"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        "status": 200,
+        "wireKind": "json"
+      },
+      "scopes": [
+        "session:read"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "device-preview-websocket-ticket",
+      "method": "POST",
+      "path": "/api/threads/{threadId}/devices/{sessionId}/preview/v1/websocket-ticket",
+      "pathParameters": [
+        "threadId",
+        "sessionId"
+      ],
+      "request": {
+        "bodyKind": "json",
+        "jsonSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": false,
+          "properties": {
+            "channel": {
+              "enum": [
+                "ios",
+                "ios-video",
+                "android"
+              ],
+              "type": "string"
+            },
+            "previewId": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            },
+            "version": {
+              "const": 1,
+              "type": "number"
+            }
+          },
+          "required": [
+            "version",
+            "previewId",
+            "channel"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "reject"
+        },
+        "pathSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": true,
+          "properties": {
+            "sessionId": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "threadId": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "threadId",
+            "sessionId"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        }
+      },
+      "response": {
+        "jsonSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": true,
+          "properties": {
+            "expiresAt": {
+              "type": "number"
+            },
+            "ticket": {
+              "pattern": "^dwp1_[A-Za-z0-9_-]{43}$",
+              "type": "string"
+            },
+            "version": {
+              "const": 1,
+              "type": "number"
+            }
+          },
+          "required": [
+            "version",
+            "ticket",
+            "expiresAt"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        "status": 200,
+        "wireKind": "json"
+      },
+      "scopes": [
+        "session:read"
+      ]
+    },
+    {
       "auth": "public",
       "id": "environment",
       "method": "GET",
@@ -35378,6 +37497,10 @@
               "exclusiveMinimum": 0,
               "maximum": 9007199254740991,
               "type": "integer"
+            },
+            "__schema2": {
+              "minLength": 1,
+              "type": "string"
             }
           },
           "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -35483,6 +37606,41 @@
                 "conversationSnapshots": {
                   "additionalProperties": true,
                   "properties": {
+                    "versions": {
+                      "$ref": "#/$defs/__schema0"
+                    }
+                  },
+                  "required": [
+                    "versions"
+                  ],
+                  "type": "object",
+                  "x-poracode-unknownFields": "strip"
+                },
+                "deviceWorkspace": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "livePreview": {
+                      "additionalProperties": true,
+                      "properties": {
+                        "modes": {
+                          "items": {
+                            "$ref": "#/$defs/__schema2"
+                          },
+                          "maxItems": 8,
+                          "minItems": 1,
+                          "type": "array"
+                        },
+                        "versions": {
+                          "$ref": "#/$defs/__schema0"
+                        }
+                      },
+                      "required": [
+                        "versions",
+                        "modes"
+                      ],
+                      "type": "object",
+                      "x-poracode-unknownFields": "strip"
+                    },
                     "versions": {
                       "$ref": "#/$defs/__schema0"
                     }
@@ -37443,6 +39601,10 @@
               "exclusiveMinimum": 0,
               "maximum": 9007199254740991,
               "type": "integer"
+            },
+            "__schema2": {
+              "minLength": 1,
+              "type": "string"
             }
           },
           "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -37548,6 +39710,41 @@
                 "conversationSnapshots": {
                   "additionalProperties": true,
                   "properties": {
+                    "versions": {
+                      "$ref": "#/$defs/__schema0"
+                    }
+                  },
+                  "required": [
+                    "versions"
+                  ],
+                  "type": "object",
+                  "x-poracode-unknownFields": "strip"
+                },
+                "deviceWorkspace": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "livePreview": {
+                      "additionalProperties": true,
+                      "properties": {
+                        "modes": {
+                          "items": {
+                            "$ref": "#/$defs/__schema2"
+                          },
+                          "maxItems": 8,
+                          "minItems": 1,
+                          "type": "array"
+                        },
+                        "versions": {
+                          "$ref": "#/$defs/__schema0"
+                        }
+                      },
+                      "required": [
+                        "versions",
+                        "modes"
+                      ],
+                      "type": "object",
+                      "x-poracode-unknownFields": "strip"
+                    },
                     "versions": {
                       "$ref": "#/$defs/__schema0"
                     }
@@ -69009,7 +71206,7 @@
     "void-envelope.omit-result",
     "void-result.omit-field"
   ],
-  "sourceHash": "sha256:237eac49297a7900385758d10f48e4790da691b64a51f7fee00db6628af54916",
+  "sourceHash": "sha256:72538de2cbea5efeff742ca1dbc7888cba5f6e5213c8fe85ecb749bfa15743e6",
   "unknownObjectFields": "ignore",
   "webSocket": {
     "clientMessages": [

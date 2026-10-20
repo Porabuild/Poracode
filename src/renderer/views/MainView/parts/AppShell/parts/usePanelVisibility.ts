@@ -57,6 +57,9 @@ export function usePanelVisibility() {
   const browserPanelOpen = usePanelStore((s) => s.browserPanelOpen);
   const usagePanelOpen = usePanelStore((s) => s.usagePanelOpen);
   const notesPanelOpen = usePanelStore((s) => s.notesPanelOpen);
+  const devicesPanelOpen = usePanelStore(
+    (s) => s.deviceWorkspaceThreadId !== null && !s.deviceWorkspaceDetached,
+  );
   const portsPanelOpen = usePanelStore((s) => s.portsPanelOpen);
   const sideChatOpen = usePanelStore((s) => s.sideChatPanelOpen);
   const bottomDocks = useBottomDockedTabs();
@@ -106,6 +109,7 @@ export function usePanelVisibility() {
       browserPanelOpen ||
       usagePanelOpen ||
       notesPanelOpen ||
+      devicesPanelOpen ||
       portsPanelOpen
     : bottomTerminalOpen || hasBottomDocks;
   // A bottom-docked tab must not keep the right aside open on its own — it is
@@ -121,6 +125,7 @@ export function usePanelVisibility() {
       (browserPanelOpen && !isDocked("browser")) ||
       (usagePanelOpen && !isDocked("usage")) ||
       (notesPanelOpen && !isDocked("notes")) ||
+      devicesPanelOpen ||
       portsPanelOpen);
   const sidePanelOpen = isTerminalRight ? rightPanelOpen : sideGitPanelOpen;
 

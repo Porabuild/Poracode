@@ -1,0 +1,52 @@
+--- a/vendor/serve-emu/dist/scrcpy.js
++++ b/vendor/serve-emu/dist/scrcpy.js
+@@ -232,19 +232,24 @@
+         throw new AggregateError(errors, `Failed to remove adb forwards for ${target}`);
+     }
+ }
+-async function prepareDeviceServerJar(runtime, timeouts, serial, localJar, paths, signal) {
+-    const probe = await runAdbRaw(runtime, serial, [
++async function serverJarMatches(runtime, timeouts, serial, path, fingerprint, signal) {
++    const result = await runAdbRaw(runtime, serial, [
+         "shell",
+-        "test",
+-        "-f",
+-        paths.cache
++        "sha256sum",
++        path
+     ], timeouts.copyMs, signal);
+-    if (probe.status !== 0) {
++    return result.status === 0 && result.stdout.trim().split(/\s+/)[0] === fingerprint;
++}
++async function prepareDeviceServerJar(runtime, timeouts, serial, localJar, paths, fingerprint, signal) {
++    if (!await serverJarMatches(runtime, timeouts, serial, paths.cache, fingerprint, signal)) {
+         await runAdbChecked(runtime, serial, [
+             "push",
+             localJar,
+             paths.temporary
+         ], timeouts.pushMs, signal);
++        if (!await serverJarMatches(runtime, timeouts, serial, paths.temporary, fingerprint, signal)) {
++            throw new Error("The pushed scrcpy server SHA-256 does not match the pinned server.");
++        }
+         await runAdbChecked(runtime, serial, [
+             "shell",
+             "mv",
+@@ -258,6 +263,9 @@
+         paths.cache,
+         paths.working
+     ], timeouts.copyMs, signal);
++    if (!await serverJarMatches(runtime, timeouts, serial, paths.working, fingerprint, signal)) {
++        throw new Error("The prepared scrcpy server SHA-256 does not match the pinned server.");
++    }
+ }
+ async function removeWorkingJars(runtime, timeouts, serial, paths) {
+     const cleanupController = new AbortController();
+@@ -663,7 +671,7 @@
+             working: `/data/local/tmp/serve-emu-scrcpy-${scid}.jar`
+         };
+         jarPreparationStarted = true;
+-        await prepareDeviceServerJar(runtime, timeouts, serial, jar, jarPaths, startupController.signal);
++        await prepareDeviceServerJar(runtime, timeouts, serial, jar, jarPaths, fingerprint, startupController.signal);
+         throwIfAborted(startupController.signal, "scrcpy startup aborted");
+         forwardAttempted = true;
+         localPort = await forwardAbstractSocket(runtime, timeouts, serial, forwardTarget, startupController.signal);

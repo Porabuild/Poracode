@@ -3,10 +3,10 @@
   "contract": "poracode.remote",
   "protocolVersion": 14,
   "bindingFormatVersion": 2,
-  "manifestHash": "sha256:a592278cd94ca5853fd617c09db0afe9542eb44cf938ec74e675a65cdb2786e9",
-  "keyCount": 308,
+  "manifestHash": "sha256:cee57e5f46c3c79402f8900bc34c90a2dceaa2a577c36fcb9d7d2005655549a1",
+  "keyCount": 323,
   "counts": {
-    "route": 102,
+    "route": 117,
     "procedure": 154,
     "ws-client": 9,
     "ws-server": 11,
@@ -725,6 +725,66 @@
     "route:conversation-search": {
       "kind": "route",
       "id": "conversation-search"
+    },
+    "route:device-action": {
+      "kind": "route",
+      "id": "device-action"
+    },
+    "route:device-attach": {
+      "kind": "route",
+      "id": "device-attach"
+    },
+    "route:device-detach": {
+      "kind": "route",
+      "id": "device-detach"
+    },
+    "route:device-frame": {
+      "kind": "route",
+      "id": "device-frame"
+    },
+    "route:device-inspect": {
+      "kind": "route",
+      "id": "device-inspect"
+    },
+    "route:device-inventory": {
+      "kind": "route",
+      "id": "device-inventory"
+    },
+    "route:device-preview-android-api": {
+      "kind": "route",
+      "id": "device-preview-android-api"
+    },
+    "route:device-preview-android-devices": {
+      "kind": "route",
+      "id": "device-preview-android-devices"
+    },
+    "route:device-preview-close": {
+      "kind": "route",
+      "id": "device-preview-close"
+    },
+    "route:device-preview-ios-api": {
+      "kind": "route",
+      "id": "device-preview-ios-api"
+    },
+    "route:device-preview-ios-config": {
+      "kind": "route",
+      "id": "device-preview-ios-config"
+    },
+    "route:device-preview-ios-video": {
+      "kind": "route",
+      "id": "device-preview-ios-video"
+    },
+    "route:device-preview-open": {
+      "kind": "route",
+      "id": "device-preview-open"
+    },
+    "route:device-preview-renew": {
+      "kind": "route",
+      "id": "device-preview-renew"
+    },
+    "route:device-preview-websocket-ticket": {
+      "kind": "route",
+      "id": "device-preview-websocket-ticket"
     },
     "route:environment": {
       "kind": "route",

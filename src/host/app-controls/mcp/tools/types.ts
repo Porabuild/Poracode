@@ -108,6 +108,7 @@ import type {
 } from "../../../threads/appThreadLauncher";
 import type { ThreadStateBroker } from "../../../threads/threadStateBroker";
 import type { GitStateService } from "../../../gitState/GitStateService";
+import type { DeviceWorkspaceService } from "../../../devices/DeviceWorkspaceService";
 
 /**
  * Typed subset of `supervisorClient.call` the thread-management tools use. Kept
@@ -333,6 +334,7 @@ export interface AppControlsSettingsGateway {
 
 /** Everything a tool handler needs to act on the app on the caller's behalf. */
 export interface AppControlsToolContext {
+  deviceWorkspace?: DeviceWorkspaceService;
   /** Calling thread + its task title, decoded from the MCP endpoint URL. */
   identity: McpThreadIdentity;
   scheduleService: ScheduleService;

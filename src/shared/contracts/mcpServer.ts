@@ -157,6 +157,10 @@ export const BUILT_IN_MCP_SERVER_TOOL_NAMES = {
     "drag",
   ],
   "app-controls": [
+    "list_devices",
+    "screenshot_device",
+    "inspect_device",
+    "control_device",
     "list_schedules",
     "create_schedule",
     "update_schedule",

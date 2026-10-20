@@ -262,6 +262,25 @@ describe("MessageList", () => {
     expect(totalSizeListener.current).toBeNull();
   });
 
+  it.each([undefined, { maskImage: "linear-gradient(black, transparent)" }])(
+    "keeps the scroll viewport at parent width while preserving fade styles %s",
+    (scrollStyle) => {
+      const view = render(
+        <MessageList
+          threadId="thread-1"
+          entries={makeEntries(["item-1", "item-2"])}
+          {...(scrollStyle ? { scrollStyle } : {})}
+        />,
+      );
+
+      const scrollElement = view.container.querySelector<HTMLElement>(
+        "[data-poracode-chat-scroller]",
+      )!;
+      expect(scrollElement.style.width).toBe("100%");
+      expect(scrollElement.style.maskImage).toBe(scrollStyle?.maskImage ?? "");
+    },
+  );
+
   it("keeps long assistant rows out of short-message size estimates", () => {
     seedStartedItem("thread-1", "short", "assistant_message");
     useAppStore.getState().applyRuntimeEvent("thread-1", {

@@ -79,6 +79,13 @@ describe("resolvePanelHeaderOverflow", () => {
     expect(result.overflowed).toEqual(["subagent", "git"]);
     expect(result.showTrigger).toBe(true);
   });
+
+  it("keeps Devices reachable through the existing overflow while close stays pinned", () => {
+    const result = resolvePanelHeaderOverflow(["notes", "devices", "lock", "close"], widthFor(2));
+    expect(result.visible).toEqual(["close"]);
+    expect(result.overflowed).toEqual(["notes", "devices", "lock"]);
+    expect(result.showTrigger).toBe(true);
+  });
 });
 
 describe("usePanelHeaderAvailableWidth", () => {

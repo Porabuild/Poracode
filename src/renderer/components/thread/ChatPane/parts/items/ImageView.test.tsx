@@ -46,6 +46,118 @@ function installBridge(overrides: Record<string, unknown> = {}) {
 }
 
 describe("ImageView", () => {
+  it("shows completed MCP resource source without starting a viewer session", () => {
+    const item: RuntimeChatItem = {
+      id: "app-tool",
+      type: "mcp_tool_call",
+      state: "completed",
+      streams: {},
+      payload: {
+        name: "chart",
+        title: "Revenue chart",
+        status: "success",
+        result: {
+          content: [
+            {
+              type: "resource",
+              resource: {
+                uri: "ui://fixture/chart",
+                mimeType: "text/html;profile=mcp-app",
+                text: '<h1 id="author-heading">42</h1><script>parent.postMessage({method:"ui/initialize"},"*")</script>',
+              },
+            },
+          ],
+        },
+      },
+    };
+    const { container } = render(
+      <AppProvider>
+        <ImageView item={item} />
+      </AppProvider>,
+    );
+    expect(screen.getByTitle("Revenue chart")).toHaveTextContent("Revenue chart");
+    expect(container.querySelector("pre")?.textContent).toBe(
+      '<h1 id="author-heading">42</h1><script>parent.postMessage({method:"ui/initialize"},"*")</script>',
+    );
+    expect(container.querySelector("iframe, script, #author-heading")).toBeNull();
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Interactive rendering is unavailable. Showing source only.",
+    );
+    expect(item.id).toBe("app-tool");
+  });
+
+  it.each(["running", "error", "unsupported"])(
+    "keeps %s resources in the ordinary tool fallback",
+    (scenario) => {
+      const item: RuntimeChatItem = {
+        id: "fallback-tool",
+        type: "mcp_tool_call",
+        state: scenario === "running" ? "updated" : "completed",
+        streams: {},
+        payload: {
+          name: "chart",
+          status: scenario === "error" ? "error" : "success",
+          result: {
+            content: [
+              {
+                type: "resource",
+                resource: {
+                  uri: "ui://fixture/chart",
+                  mimeType: scenario === "unsupported" ? "text/html" : "text/html;profile=mcp-app",
+                  text: '<script id="fallback-author">parent.postMessage("author-ran","*")</script>',
+                },
+              },
+            ],
+          },
+        },
+      };
+      const { container } = render(
+        <AppProvider>
+          <ImageView item={item} />
+        </AppProvider>,
+      );
+      expect(container.querySelector("[data-poracode-inline-visual]")).toBeNull();
+      expect(container.querySelector("iframe, script, #fallback-author")).toBeNull();
+    },
+  );
+
+  it("keeps an image attachment alongside inert MCP resource source", () => {
+    const item = imageItem({
+      name: "chart",
+      title: "Mixed chart result",
+      status: "success",
+      args: { prompt: "Attached chart image" },
+      images: [PNG_BASE64],
+      result: {
+        content: [
+          {
+            type: "resource",
+            resource: {
+              uri: "ui://fixture/chart",
+              mimeType: "text/html;profile=mcp-app",
+              text: '<script id="mixed-author">parent.postMessage({method:"ui/initialize"},"*")</script>',
+            },
+          },
+        ],
+      },
+    });
+    const { container } = render(
+      <AppProvider>
+        <ImageView item={item} />
+        <ImageLightboxHost />
+      </AppProvider>,
+    );
+    expect(screen.getByRole("img", { name: "Attached chart image" })).toHaveAttribute(
+      "src",
+      `data:image/png;base64,${PNG_BASE64}`,
+    );
+    expect(container.querySelector("pre")).toHaveTextContent("ui/initialize");
+    expect(container.querySelector("iframe, script, #mixed-author")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Open image preview" }));
+    expect(screen.getByRole("dialog")).toBeTruthy();
+    expect(item.id).toBe("image_1");
+  });
+
   afterEach(() => {
     Reflect.deleteProperty(window, "poracode");
     Reflect.deleteProperty(navigator, "clipboard");
@@ -147,71 +259,90 @@ describe("ImageView", () => {
     });
   });
 
-  it("renders a reserved slot, then the blob after one keyed notification (R3)", () => {
-    let url = "";
-    const listeners = new Set<() => void>();
-    let requests = 0;
-    let subscribes = 0;
-    const readiness: RemoteImageReadiness = {
-      resolveRef: () => url,
-      subscribeRef: (_ref, listener) => {
-        subscribes += 1;
-        listeners.add(listener);
-        return () => listeners.delete(listener);
-      },
-      requestRef: () => {
-        requests += 1;
-      },
-      resolvePath: () => "",
-      subscribePath: () => () => undefined,
-      requestPath: () => undefined,
-    };
-    const ref = {
-      threadId: "thread-1",
-      itemId: "item-1",
-      path: ["result", "images", 0] as const,
-      mime: "image/png",
-      bytes: 3,
-      preview: `data:image/png;base64,${PNG_BASE64}`,
-    };
-    const view = render(
-      <AppProvider>
-        <ChatPaneActionsContext.Provider
-          value={{
-            threadId: "thread-1",
-            remoteImageRefUrl: readiness.resolveRef,
-            remoteImageReadiness: readiness,
-          }}
-        >
-          <ImageView
-            item={imageItem({
-              name: "image_view",
-              status: "success",
-              result: { images: [remoteImageRef(ref)] },
-            })}
-          />
-        </ChatPaneActionsContext.Provider>
-      </AppProvider>,
-    );
+  it.each([false, true])(
+    "keeps image readiness and cleanup with resource source: %s",
+    (withResource) => {
+      let url = "";
+      const listeners = new Set<() => void>();
+      let requests = 0;
+      let subscribes = 0;
+      const readiness: RemoteImageReadiness = {
+        resolveRef: () => url,
+        subscribeRef: (_ref, listener) => {
+          subscribes += 1;
+          listeners.add(listener);
+          return () => listeners.delete(listener);
+        },
+        requestRef: () => {
+          requests += 1;
+        },
+        resolvePath: () => "",
+        subscribePath: () => () => undefined,
+        requestPath: () => undefined,
+      };
+      const ref = {
+        threadId: "thread-1",
+        itemId: "item-1",
+        path: ["result", "images", 0] as const,
+        mime: "image/png",
+        bytes: 3,
+        preview: `data:image/png;base64,${PNG_BASE64}`,
+      };
+      const view = render(
+        <AppProvider>
+          <ChatPaneActionsContext.Provider
+            value={{
+              threadId: "thread-1",
+              remoteImageRefUrl: readiness.resolveRef,
+              remoteImageReadiness: readiness,
+            }}
+          >
+            <ImageView
+              item={imageItem({
+                name: "image_view",
+                status: "success",
+                result: {
+                  images: [remoteImageRef(ref)],
+                  ...(withResource
+                    ? {
+                        content: [
+                          {
+                            type: "resource",
+                            resource: {
+                              uri: "ui://fixture/chart",
+                              mimeType: "text/html;profile=mcp-app",
+                              text: "<p>Source-only chart</p>",
+                            },
+                          },
+                        ],
+                      }
+                    : {}),
+                },
+              })}
+            />
+          </ChatPaneActionsContext.Provider>
+        </AppProvider>,
+      );
 
-    // Pending: no `<img>` request, but the reserved slot and the keyed
-    // subscription exist, and exactly one fetch was requested from the effect.
-    expect(screen.queryByAltText("Generated image")).toBeNull();
-    expect(subscribes).toBe(1);
-    expect(requests).toBe(1);
+      // Pending: no `<img>` request, but the reserved slot and the keyed
+      // subscription exist, and exactly one fetch was requested from the effect.
+      expect(screen.queryByAltText("Generated image")).toBeNull();
+      expect(subscribes).toBe(1);
+      expect(requests).toBe(1);
 
-    act(() => {
-      url = "blob:environment-1";
-      for (const listener of [...listeners]) listener();
-    });
-    const img = screen.getByAltText("Generated image") as HTMLImageElement;
-    expect(img.getAttribute("src")).toBe("blob:environment-1");
-    // A resolved snapshot is never re-requested in a loop.
-    expect(requests).toBe(1);
+      act(() => {
+        url = "blob:environment-1";
+        for (const listener of [...listeners]) listener();
+      });
+      const img = screen.getByAltText("Generated image") as HTMLImageElement;
+      expect(img.getAttribute("src")).toBe("blob:environment-1");
+      // A resolved snapshot is never re-requested in a loop.
+      expect(requests).toBe(1);
 
-    view.unmount();
-    expect(listeners.size).toBe(0);
-  });
+      view.unmount();
+      expect(listeners.size).toBe(0);
+    },
+  );
 
   it("falls back to the tool-call row when the result is not an image", () => {
     render(

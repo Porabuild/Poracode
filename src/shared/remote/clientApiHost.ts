@@ -79,7 +79,16 @@ import {
   type AutomationsSnapshot,
   type UpdateScheduleRunStatePayload,
 } from "@/shared/contracts";
-import { RemoteClientAuth } from "./clientAuth";
+import { RemoteClientDevicePreviewApi } from "./clientDevicePreview";
+import {
+  deviceInventorySchema,
+  deviceSessionSchema,
+  deviceFrameSchema,
+  deviceInspectionSchema,
+  deviceActionResultSchema,
+  type DeviceAttach,
+  type DeviceHumanAction,
+} from "../deviceWorkspace";
 import { RemoteClientError } from "./clientErrors";
 import { parseExactOptionalResponse, parseResponse } from "./clientParse";
 
@@ -89,7 +98,60 @@ const attachmentUploadResponseSchema = z.object({ path: z.string().min(1) });
 const projectNotesResponseSchema = z.object({ notes: projectNotesSchema.nullable() });
 const prWatchResponseSchema = z.object({ watch: prWatchSchema.nullable() });
 
-export abstract class RemoteClientHostApi extends RemoteClientAuth {
+export abstract class RemoteClientHostApi extends RemoteClientDevicePreviewApi {
+  async deviceInventory(signal?: AbortSignal) {
+    return parseResponse(
+      deviceInventorySchema,
+      await this.requestJson("/api/devices", { ...(signal ? { signal } : {}) }),
+      "device inventory",
+    );
+  }
+  async attachDevice(threadId: string, input: DeviceAttach) {
+    return parseResponse(
+      deviceSessionSchema,
+      await this.requestJson(`/api/threads/${encodeURIComponent(threadId)}/devices`, {
+        method: "POST",
+        body: input,
+      }),
+      "device session",
+    );
+  }
+  async deviceFrame(threadId: string, sessionId: string, signal?: AbortSignal) {
+    return parseResponse(
+      deviceFrameSchema,
+      await this.requestJson(
+        `/api/threads/${encodeURIComponent(threadId)}/devices/${encodeURIComponent(sessionId)}/frame`,
+        { ...(signal ? { signal } : {}) },
+      ),
+      "device frame",
+    );
+  }
+  async inspectDevice(threadId: string, sessionId: string, signal?: AbortSignal) {
+    return parseResponse(
+      deviceInspectionSchema,
+      await this.requestJson(
+        `/api/threads/${encodeURIComponent(threadId)}/devices/${encodeURIComponent(sessionId)}/accessibility`,
+        { ...(signal ? { signal } : {}) },
+      ),
+      "device inspection",
+    );
+  }
+  async deviceAction(threadId: string, sessionId: string, action: DeviceHumanAction) {
+    return parseResponse(
+      deviceActionResultSchema,
+      await this.requestJson(
+        `/api/threads/${encodeURIComponent(threadId)}/devices/${encodeURIComponent(sessionId)}/actions`,
+        { method: "POST", mutation: true, body: action },
+      ),
+      "device action",
+    );
+  }
+  async detachDevice(threadId: string, sessionId: string): Promise<void> {
+    await this.requestJson(
+      `/api/threads/${encodeURIComponent(threadId)}/devices/${encodeURIComponent(sessionId)}/detach`,
+      { method: "POST" },
+    );
+  }
   /**
    * Shell snapshot. Without options the historical full thread list is
    * fetched. With `threadListPageLimit` (Gate 4 hazard #3) the request bounds

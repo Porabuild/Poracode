@@ -528,6 +528,7 @@ export interface RemoteAccessServerOptions {
   resolveMcpLaunchSnapshot?(projectId: string): McpLaunchSnapshot;
   /** Built-in browser bridge: tab commands plus screencast mirroring. */
   readonly browser?: RemoteBrowserGatewayLike;
+  readonly deviceWorkspace?: import("../devices/DeviceWorkspaceService").DeviceWorkspaceService;
   /** Local dev-server discovery + raw TCP port forwarding. Absent on hosts
    * that don't support it (returns 503). */
   readonly portForward?: RemotePortForwardGateway;

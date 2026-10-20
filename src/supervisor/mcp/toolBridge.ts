@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { Client } from "@modelcontextprotocol/client";
 import type { ResolvedMcpServer } from "@/shared/contracts";
 import { createUpstreamTransport } from "./mcpToolFilterProxy";
+import { materializeMcpAppResult } from "./mcpAppResult";
 
 export type BridgeToolResult = Awaited<ReturnType<Client["callTool"]>>;
 export type BridgeTool = Awaited<ReturnType<Client["listTools"]>>["tools"][number];
@@ -24,6 +25,8 @@ export async function registerMcpBridgeTools(
   servers: readonly ResolvedMcpServer[],
   options: {
     clientName: string;
+    /** Preserve declared HTML resources for persisted source previews, without an Apps session. */
+    appResources?: boolean;
     register(
       server: ResolvedMcpServer,
       tool: BridgeTool,
@@ -49,7 +52,12 @@ export async function registerMcpBridgeTools(
   };
   process.once("exit", onExit);
   for (const server of servers) {
-    const client = new Client({ name: options.clientName, version: "1.0.0" });
+    const client = new Client(
+      { name: options.clientName, version: "1.0.0" },
+      {
+        capabilities: {},
+      },
+    );
     clients.push(client);
     const requestOptions = {
       timeout: server.timeoutMs,
@@ -61,12 +69,15 @@ export async function registerMcpBridgeTools(
       const disabled = new Set(server.disabledTools ?? []);
       for (const tool of tools) {
         if (disabled.has(tool.name)) continue;
-        const dispose = options.register(server, tool, (input, signal) =>
-          client.callTool(
-            { name: tool.name, arguments: input },
-            { timeout: server.timeoutMs, ...(signal ? { signal } : {}) },
-          ),
-        );
+        const ui = tool._meta?.ui as { visibility?: unknown } | undefined;
+        if (Array.isArray(ui?.visibility) && !ui.visibility.includes("model")) continue;
+        const dispose = options.register(server, tool, async (input, signal) => {
+          const callOptions = { timeout: server.timeoutMs, ...(signal ? { signal } : {}) };
+          const result = await client.callTool({ name: tool.name, arguments: input }, callOptions);
+          return options.appResources
+            ? materializeMcpAppResult(client, tool, result, callOptions)
+            : result;
+        });
         if (dispose) registrations.push(dispose);
       }
     } catch {

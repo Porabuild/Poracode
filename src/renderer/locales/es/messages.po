@@ -835,6 +835,18 @@ msgstr "3000"
 msgid "30d"
 msgstr "30d"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "3D preview"
+msgstr "Vista previa 3D"
+
+#: src/renderer/components/devices/DevicePreviewStage.tsx
+msgid "3D preview · View only"
+msgstr "Vista previa 3D · Solo lectura"
+
+#: src/renderer/components/devices/DevicePreviewStage.tsx
+msgid "3D preview, view only. Drag or use arrow keys to rotate; Home resets."
+msgstr "Vista previa 3D, solo lectura. Arrastra o usa las flechas para girar; Inicio restablece."
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "4K"
 msgstr "4K"
@@ -851,6 +863,10 @@ msgstr "Un candidato ya no está en la rama de su experimento."
 #: src/renderer/components/providers/settings/CursorProfileIdentity.tsx
 msgid "A Cursor profile with this name already exists."
 msgstr "Ya existe un perfil de Cursor con este nombre."
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "A device failed to start."
+msgstr "No se pudo iniciar un dispositivo."
 
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
 msgid "A different plugin already uses this identifier. It will not be replaced."
@@ -950,6 +966,10 @@ msgstr "Aceptar clave del host"
 msgid "Accept Incoming Change"
 msgstr "Aceptar cambio entrante"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Accessibility inspector"
+msgstr "Inspector de accesibilidad"
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Account"
 msgstr "Cuenta"
@@ -1031,6 +1051,7 @@ msgstr "Nombre de la acción"
 
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/common/BranchSelector/parts/BranchFooterActions.tsx
+#: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/MobileProjectSettingsIndex.tsx
@@ -1765,6 +1786,10 @@ msgstr "Navegador de la app"
 #~ msgid "App Controls"
 #~ msgstr "Controles de la aplicación"
 
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "App package ID"
+msgstr "ID del paquete de la app"
+
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
@@ -1948,6 +1973,7 @@ msgid "At least two worktrees must be created. Any partial experiment was cleane
 msgstr "Se deben crear al menos dos worktrees. Se limpió cualquier experimento creado parcialmente."
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
+#: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Attach"
 msgstr "Adjuntar"
 
@@ -2195,6 +2221,7 @@ msgstr "Revisión pendiente"
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/components/composer/ComposerMcpServersMenu.tsx
 #: src/renderer/components/composer/ComposerSessionActionsMenu.tsx
+#: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/components/layout/MobilePageHeader.tsx
 #: src/renderer/views/FileEditorOverlay/FileEditorOverlay.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
@@ -2261,6 +2288,10 @@ msgstr "Tarea en segundo plano"
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
 msgid "Background tasks"
 msgstr "Tareas en segundo plano"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Backspace"
+msgstr "Retroceso"
 
 #: src/renderer/components/experiment/NewExperimentModal.tsx
 #~ msgid "Base branch"
@@ -2638,6 +2669,14 @@ msgstr "Escritura de caché"
 msgid "Calculated on desktop after saving"
 msgstr "Se calcula en el equipo después de guardar"
 
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Calendar"
+msgstr "Calendario"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Camera"
+msgstr "Cámara"
+
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
 msgid "Camera access blocked"
 msgstr "Acceso a la cámara bloqueado"
@@ -2774,6 +2813,10 @@ msgstr "No se puede crear una ruta de worktree predeterminada sin un nombre de r
 msgid "Cannot switch branches — commit or stash your changes first"
 msgstr "No se pueden cambiar las ramas — confirma o guarda tus cambios en stash primero"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Capture and view controls"
+msgstr "Controles de captura y vista"
+
 #. placeholder {0}: totals.categorizedTokens.toLocaleString(locale)
 #. placeholder {1}: totals.tokens.toLocaleString(locale)
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
@@ -2782,6 +2825,7 @@ msgstr "Las categorías cubren {0} de {1} tokens conservados. Las categorías, l
 
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualChart.tsx
 msgid "Category"
 msgstr "Categoría"
 
@@ -2850,6 +2894,10 @@ msgstr "Cambios"
 msgid "Changes ({0})"
 msgstr "Cambios ({0})"
 
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Changes affect the selected emulator. App permissions depend on its Android version and the permissions requested by the app."
+msgstr "Los cambios afectan al emulador seleccionado. Los permisos dependen de su versión de Android y de los solicitados por la app."
+
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 msgid "Changes apply globally to this environment."
 msgstr "Los cambios se aplican globalmente a este entorno."
@@ -2878,6 +2926,18 @@ msgstr "Cambios no disponibles"
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Channel"
 msgstr "Canal"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualChart.tsx
+msgid "Chart"
+msgstr "Gráfico"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualChart.tsx
+msgid "Chart data"
+msgstr "Datos del gráfico"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualChart.tsx
+msgid "Chart inspection"
+msgstr "Detalles del gráfico"
 
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
@@ -3258,6 +3318,10 @@ msgstr "Borrar cookies"
 msgid "Clear day"
 msgstr "Borrar día"
 
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualTable.tsx
+msgid "Clear filter"
+msgstr "Borrar filtro"
+
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 msgid "Clear goal"
 msgstr "Borrar objetivo"
@@ -3374,6 +3438,10 @@ msgstr "Cerrar Crossagents"
 msgid "Close Crossagents panel"
 msgstr "Cerrar el panel de Crossagents"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Close device settings"
+msgstr "Cerrar ajustes del dispositivo"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "Close device toolbar"
 msgstr "Cerrar barra de herramientas de dispositivos"
@@ -3389,6 +3457,10 @@ msgstr "Cerrar pestaña del editor"
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Close environment actions"
 msgstr "Cerrar acciones del entorno"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Close expanded visual"
+msgstr "Cerrar visualización ampliada"
 
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 msgid "Close experiment"
@@ -3426,6 +3498,10 @@ msgstr "Cerrar grupo"
 #: src/mobile/views/threadActionSurfaces.tsx
 #~ msgid "Close group actions"
 #~ msgstr "Cerrar acciones del grupo"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Close inspector"
+msgstr "Cerrar inspector"
 
 #: src/renderer/components/thread/ChatPane/UserMessageActionsSheet.tsx
 msgid "Close menu"
@@ -3882,6 +3958,12 @@ msgstr "completado"
 msgid "Completed"
 msgstr "Completado"
 
+#. placeholder {0}: block.items.filter((item) => checked.get(`${path}/${item.id}`) ?? item.checked ?? false).length
+#. placeholder {1}: block.items.length
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualBlocks.tsx
+msgid "Completed: {0} / {1}"
+msgstr "Completado: {0} / {1}"
+
 #: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
 msgid "Completion condition not confirmed"
 msgstr "Condición de finalización no confirmada"
@@ -4107,9 +4189,18 @@ msgstr "Conectar a un servidor remoto"
 msgid "Connected"
 msgstr "Conectado"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Connecting"
+msgstr "Conectando"
+
 #: src/mobile/views/BrowserView.tsx
 #~ msgid "Connecting to the desktop browser…"
 #~ msgstr "Conectando al navegador del escritorio…"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+#: src/renderer/components/devices/LiveDevicePreview.tsx
+msgid "Connecting to the device…"
+msgstr "Conectando con el dispositivo…"
 
 #: src/renderer/components/composer/LiveVoiceControls.tsx
 msgid "Connecting voice…"
@@ -4167,6 +4258,10 @@ msgstr "Conexiones"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Console"
 msgstr "Consola"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Contacts"
+msgstr "Contactos"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Contains sensitive values; add manually"
@@ -4252,6 +4347,10 @@ msgstr "Continuar con el historial incompleto"
 msgid "Continuing will keep the remaining history and mark this episode acknowledged; it does not restore the missing content."
 msgstr "Continuar conservará el historial restante y marcará este episodio como reconocido; no restaura el contenido que falta."
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Control"
+msgstr "Controlar"
+
 #: src/renderer/components/providers/settings/ProviderMcpServersSection.tsx
 msgid "Control an external Chrome browser."
 msgstr "Controla un navegador Chrome externo."
@@ -4324,6 +4423,10 @@ msgstr "Copiar (recomendado)"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Copy {0} device code {1}"
 msgstr "Copiar el código de dispositivo de {0} {1}"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Copy accessibility tree"
+msgstr "Copiar árbol de accesibilidad"
 
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Copy all Lightcode data into Poracode. Poracode restarts and keeps a complete backup of its current data."
@@ -4400,6 +4503,15 @@ msgstr "Copiar ruta relativa"
 #: src/renderer/commands/shortcutCatalog.ts
 msgid "Copy selection"
 msgstr "Copiar selección"
+
+#: src/renderer/components/thread/ChatPane/parts/items/InlineVisual.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Copy source"
+msgstr "Copiar código fuente"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualTable.tsx
+msgid "Copy table"
+msgstr "Copiar tabla"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Copy Tailscale URL"
@@ -5063,6 +5175,7 @@ msgstr "Costes diarios"
 msgid "Daily recorded cost; gaps may contain unpriced usage."
 msgstr "Coste diario registrado; los huecos pueden contener uso sin precio."
 
+#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
@@ -5072,6 +5185,10 @@ msgstr "Oscuro"
 #: src/renderer/components/plugins/pluginCategories.ts
 msgid "Data and databases"
 msgstr "Datos y bases de datos"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualTable.tsx
+msgid "Data table"
+msgstr "Tabla de datos"
 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
 msgid "Date"
@@ -5101,6 +5218,7 @@ msgstr "DeepSeek Harness"
 msgid "DeepSeek Harness chat with persistent sessions, reasoning controls, and MCP tools. Configure credentials with dsh web."
 msgstr "Chat de DeepSeek Harness con sesiones persistentes, controles de razonamiento y herramientas MCP. Configura las credenciales con dsh web."
 
+#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/components/providers/deepseek/index.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
@@ -5403,6 +5521,10 @@ msgstr "Ajustes del escritorio"
 msgid "Destination"
 msgstr "Destino"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Detach"
+msgstr "Desconectar"
+
 #: src/renderer/components/thread/SideChat/SideChatBody.tsx
 msgid "Detach side chat"
 msgstr "Separar chat lateral"
@@ -5411,9 +5533,13 @@ msgstr "Separar chat lateral"
 msgid "detached HEAD"
 msgstr "HEAD separado"
 
-#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
-#~ msgid "Details"
-#~ msgstr "Detalles"
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Detaching leaves the device running."
+msgstr "Al desconectar, el dispositivo sigue funcionando."
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Details"
+msgstr "Detalles"
 
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
 msgid "Detect"
@@ -5473,14 +5599,64 @@ msgstr "Desarrollo"
 msgid "Development-only overrides. Only visible in the PORACODE DEV build."
 msgstr "Sustituciones solo para desarrollo. Solo visibles en la compilación PORACODE DEV."
 
+#: src/renderer/components/devices/useDeviceLivePreview.ts
+msgid "Device access expired. Attach again."
+msgstr "El acceso al dispositivo ha caducado. Vuelve a adjuntarlo."
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Device accessibility"
+msgstr "Accesibilidad del dispositivo"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Device appearance"
+msgstr "Apariencia del dispositivo"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Device network"
+msgstr "Red del dispositivo"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Device operation failed."
+msgstr "La operación del dispositivo falló."
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Device orientation"
+msgstr "Orientación del dispositivo"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "Device preset"
 msgstr "Dispositivo predefinido"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Device settings"
+msgstr "Ajustes del dispositivo"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Device text size"
+msgstr "Tamaño de texto del dispositivo"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Device tooling is unavailable."
+msgstr "Las herramientas de dispositivos no están disponibles."
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Device used by the composer voice input button."
 msgstr "Dispositivo que usa el botón de entrada de voz del redactor."
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Device workspace"
+msgstr "Espacio de dispositivos"
+
+#: src/renderer/components/devices/DeviceDetachedWindow.tsx
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+#: src/renderer/components/layout/PanelDock/panelTabMeta.ts
+#: src/renderer/components/plugins/pluginCopy.ts
+#: src/renderer/components/thread/ThreadToolRail.tsx
+#: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
+msgid "Devices"
+msgstr "Dispositivos"
 
 #: src/renderer/utils/projectIcons.ts
 msgid "Devices & tools"
@@ -5635,6 +5811,7 @@ msgstr "Desactiva la automatización después de agotar los reintentos."
 msgid "Disable tiers an external provider collapses (e.g. keep only High and Max)."
 msgstr "Desactiva los niveles que un proveedor externo unifica (p. ej. mantener solo High y Max)."
 
+#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
@@ -6148,6 +6325,7 @@ msgstr "Habilitar proveedores en ajustes"
 msgid "Enable this plugin's skills and servers for new threads."
 msgstr "Activa las skills y servidores de este plugin para los nuevos hilos."
 
+#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentHeader.tsx
 msgid "Enabled"
@@ -6193,6 +6371,10 @@ msgstr "Finalizar chat de voz"
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Enhanced (Hooks)"
 msgstr "Avanzado (Hooks)"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Enter"
+msgstr "Intro"
 
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
 msgid "Enter a font family of up to 256 characters without control characters."
@@ -6508,6 +6690,10 @@ msgstr "Expandir para revisar o revocar el acceso."
 msgid "Expand todo dock"
 msgstr "Expandir panel de tareas"
 
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Expand visual"
+msgstr "Ampliar visualización"
+
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 #: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 msgid "Expand warning"
@@ -6640,6 +6826,10 @@ msgstr "Proveedor externo"
 #: src/renderer/components/common/effortLabel.ts
 msgid "Extra High"
 msgstr "Extra alto"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Extra large"
+msgstr "Muy grande"
 
 #. placeholder {0}: sourceAgent?.label ?? thread.agentKind
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
@@ -6884,6 +7074,10 @@ msgstr "Filtrar pull requests"
 msgid "Filter skills by status"
 msgstr "Filtrar skills por estado"
 
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualTable.tsx
+msgid "Filter table"
+msgstr "Filtrar tabla"
+
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Filters"
 msgstr "Filtros"
@@ -7010,6 +7204,14 @@ msgstr "Integración de primera clase con Qoder CLI mediante los entornos de eje
 msgid "First-class Qwen Code integration using Poracode's native terminal and ACP runtimes."
 msgstr "Integración de primera clase con Qwen Code mediante los entornos de ejecución nativos de terminal y ACP de Poracode."
 
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Fit"
+msgstr "Ajustado"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Fit to width"
+msgstr "Ajustar al ancho"
+
 #: src/renderer/components/pdf/PdfViewer.tsx
 #~ msgid "Fit width"
 #~ msgstr "Ajustar al ancho"
@@ -7042,6 +7244,10 @@ msgstr "Retraso fijo"
 #: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
 msgid "Flat list"
 msgstr "Lista plana"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Flat preview"
+msgstr "Vista previa plana"
 
 #: src/renderer/commands/registry.ts
 msgid "Focus browser address bar"
@@ -7183,6 +7389,10 @@ msgstr "{0, plural, one {Se encontró # skill importable} other {Se encontraron 
 msgid "Found a signed-in {0} session."
 msgstr "Se encontró una sesión de {0} con sesión iniciada."
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Framed preview"
+msgstr "Vista previa con marco"
+
 #: src/renderer/components/providers/modelDescription.ts
 msgid "Free"
 msgstr "Gratis"
@@ -7198,6 +7408,10 @@ msgstr "Viernes a las 4:00 p. m."
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
 msgid "From"
 msgstr "Desde"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualDiagram.tsx
+msgid "From {from} to {to}"
+msgstr "De {from} a {to}"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
 msgid "From this project"
@@ -7479,6 +7693,10 @@ msgstr "Entendido"
 msgid "Grade {0}"
 msgstr "Calificación {0}"
 
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Grant"
+msgstr "Conceder"
+
 #: src/renderer/components/plugins/PluginServiceAccounts.tsx
 msgid "Granted scopes"
 msgstr "Permisos concedidos"
@@ -7685,6 +7903,7 @@ msgstr "Alto"
 msgid "History"
 msgstr "Historial"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/views/HomeView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
@@ -7783,6 +8002,10 @@ msgstr "Cada hora"
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Hours"
 msgstr "Horas"
+
+#: src/renderer/components/thread/ChatPane/parts/items/InlineVisual.tsx
+msgid "HTML source"
+msgstr "Código fuente HTML"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "HTTP (streamable)"
@@ -8051,6 +8274,14 @@ msgstr "Incluir en la sincronización"
 msgid "Includes the first attempt."
 msgstr "Incluye el primer intento."
 
+#: src/renderer/components/thread/ChatPane/parts/items/InlineVisual.tsx
+msgid "Incomplete HTML block. Showing source only."
+msgstr "Bloque HTML incompleto. Solo se muestra el código fuente."
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Incomplete visual block. Showing source only."
+msgstr "Bloque de visualización incompleto. Solo se muestra el código fuente."
+
 #: src/renderer/commands/CommandPalette.tsx
 msgid "Indexing saved messages…"
 msgstr "Indexando mensajes guardados…"
@@ -8101,6 +8332,10 @@ msgstr "Precios de entrada/salida por 1 millón de tokens de cada modelo. Los ra
 msgid "Input / output prices per 1M tokens. Ranges cover model variants."
 msgstr "Precios de entrada/salida por 1 millón de tokens. Los rangos incluyen las variantes del modelo."
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Input controls"
+msgstr "Controles de entrada"
+
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Input level"
 msgstr "Nivel de entrada"
@@ -8132,6 +8367,14 @@ msgstr "Dentro de cada proyecto"
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Inside this project"
 msgstr "Dentro de este proyecto"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Inspect"
+msgstr "Inspeccionar"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Inspect and control the simulator or emulator attached to this thread."
+msgstr "Inspecciona y controla el simulador o emulador conectado a este hilo."
 
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Inspect canonical runtime items"
@@ -8220,6 +8463,10 @@ msgstr "Instala y gestiona los plugins nativos de OpenCode."
 msgid "Install and restart"
 msgstr "Instalar y reiniciar"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Install Android SDK Emulator and platform-tools, then create an AVD."
+msgstr "Instala Android SDK Emulator y platform-tools y crea un AVD."
+
 #: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
 msgid "Install Antigravity"
 msgstr "Instalar Antigravity"
@@ -8296,6 +8543,10 @@ msgstr "Instalar en {0}"
 msgid "Install managed skills into {0}."
 msgstr "Instalar skills administradas en {0}."
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Install Meta idb and idb_companion on this host for iOS input and accessibility."
+msgstr "Instala Meta idb e idb_companion en este host para entrada y accesibilidad de iOS."
+
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Install native providers first; use ACP for additional protocol agents."
 msgstr "Instala primero los proveedores nativos; usa ACP para agentes de protocolo adicionales."
@@ -8357,6 +8608,10 @@ msgstr "Instalar v{updateVersion}"
 msgid "Install v{version}"
 msgstr "Instalar v{version}"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Install Xcode and an iOS Simulator runtime on this host."
+msgstr "Instala Xcode y un entorno de ejecución del simulador de iOS en este host."
+
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
 msgid "Install, update, and sign-in are not yet available on remote machines."
 msgstr "Instalar, actualizar e iniciar sesión aún no están disponibles en máquinas remotas."
@@ -8404,6 +8659,14 @@ msgstr "Instrucciones"
 msgid "Instructions agents follow when choosing which agent or model to delegate to."
 msgstr "Instrucciones que siguen los agentes al elegir a qué agente o modelo delegar."
 
+#: src/renderer/components/devices/LiveDevicePreview.tsx
+msgid "Interactive device preview. Tab moves to the next control; Escape closes the workspace."
+msgstr "Vista previa interactiva del dispositivo. Tab pasa al siguiente control; Escape cierra el espacio de trabajo."
+
+#: src/renderer/components/thread/ChatPane/parts/items/InlineVisual.tsx
+msgid "Interactive rendering is unavailable. Showing source only."
+msgstr "La visualización interactiva no está disponible. Solo se muestra el código fuente."
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Internal commands and agents"
@@ -8438,6 +8701,14 @@ msgstr "Unidad del intervalo"
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Invalid configuration — kept, but disabled"
 msgstr "Configuración inválida: se conserva, pero deshabilitada"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Invalid visual specification. Showing source only."
+msgstr "Especificación de visualización no válida. Solo se muestra el código fuente."
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "iOS Simulator requires a macOS host with Xcode."
+msgstr "El simulador de iOS requiere un host macOS con Xcode."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "iPad Air"
@@ -8578,6 +8849,14 @@ msgstr "Kimi Code finalizó el turno sin devolver una respuesta. Reinicia el hil
 msgid "LAN"
 msgstr "LAN"
 
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Landscape left"
+msgstr "Horizontal izquierda"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Landscape right"
+msgstr "Horizontal derecha"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Language"
@@ -8600,6 +8879,10 @@ msgstr "Laptop"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "Laptop L"
 msgstr "Laptop L"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Large"
+msgstr "Grande"
 
 #. placeholder {0}: formatSessionTime(session.lastConnectedAt)
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
@@ -8626,6 +8909,14 @@ msgstr "Última herramienta: <0>{0}</0>"
 #: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
 msgid "Last updated: {fetchedAt}"
 msgstr "Última actualización: {fetchedAt}"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Latitude"
+msgstr "Latitud"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Launch"
+msgstr "Iniciar"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -8726,6 +9017,7 @@ msgstr "tokens totales"
 msgid "Lifetime tokens"
 msgstr "Tokens totales"
 
+#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
@@ -8765,14 +9057,32 @@ msgstr "Listar paquetes"
 msgid "List tasks"
 msgstr "Listar tareas"
 
-#: src/mobile/remoteConnectionState.ts
-#~ msgid "Live"
-#~ msgstr "En vivo"
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Live"
+msgstr "En vivo"
 
 #. placeholder {0}: formatShortDateTime(desktop.lastConnectedAt)
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Live {0}"
 #~ msgstr "En vivo {0}"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Live device preview"
+msgstr "Vista previa en vivo del dispositivo"
+
+#: src/renderer/components/devices/LiveDevicePreview.tsx
+msgid "Live device preview, view only"
+msgstr "Vista previa en directo del dispositivo, solo lectura"
+
+#: src/renderer/components/devices/useDeviceLivePreview.ts
+msgid "Live preview is unavailable for this device on this host. Use snapshots."
+msgstr "La vista previa en directo no está disponible para este dispositivo en este host. Usa capturas."
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+#: src/renderer/components/devices/LiveDevicePreview.tsx
+#: src/renderer/components/devices/useDeviceLivePreview.ts
+msgid "Live preview is unavailable. Retry or use snapshots."
+msgstr "La vista previa en directo no está disponible. Reinténtalo o usa capturas."
 
 #: src/renderer/components/thread/LiveStreamCapacityAlert.tsx
 msgid "Live updates are paused for {droppedRuntimeThreadCount, plural, one {# thread} other {# threads}} because this window exceeds the {MANAGED_ITEM_INTERESTS_MAX}-thread live streaming limit. Close or reopen a thread to resume the paused ones."
@@ -8933,6 +9243,7 @@ msgid "Loading workflow runs"
 msgstr "Cargando ejecuciones de flujos de trabajo"
 
 #: src/renderer/app.tsx
+#: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/components/providers/settings/ModelProviderManager.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/useHistoryItemDetails.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
@@ -8971,6 +9282,7 @@ msgstr "Protección local de contraseñas"
 msgid "localhost:{0} on desktop"
 msgstr "localhost:{0} en el escritorio"
 
+#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
@@ -9058,6 +9370,10 @@ msgstr "Racha más larga"
 #: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
 msgid "Longest task"
 msgstr "Tarea más larga"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Longitude"
+msgstr "Longitud"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrReviewGuideTab.tsx
 msgid "Look closely"
@@ -9624,6 +9940,7 @@ msgstr "No se pudieron cargar los mensajes."
 msgid "Messages sent"
 msgstr "Mensajes enviados"
 
+#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Microphone"
@@ -9886,6 +10203,10 @@ msgstr "Proveedor más usado"
 msgid "Most used reasoning"
 msgstr "Razonamiento más usado"
 
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Motion"
+msgstr "Movimiento"
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Move"
 msgstr "Mover"
@@ -9906,6 +10227,14 @@ msgstr "Mover navegador a una ventana"
 #: src/renderer/components/common/BranchSelector/parts/BranchFooterActions.tsx
 msgid "Move changes to a new worktree"
 msgstr "Mover cambios a un nuevo worktree"
+
+#: src/renderer/components/devices/DeviceDetachedWindow.tsx
+msgid "Move device back to main window"
+msgstr "Devolver dispositivo a la ventana principal"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Move device to window"
+msgstr "Mover dispositivo a una ventana"
 
 #: src/renderer/components/thread/PaneDragAndDrop.tsx
 msgid "Move pane"
@@ -10059,6 +10388,10 @@ msgstr "Navegar"
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Navigate, inspect, and test pages with the in-app Browser MCP."
 msgstr "Navega, inspecciona y prueba páginas con el MCP del navegador integrado."
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Navigation controls"
+msgstr "Controles de navegación"
 
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Needs approval"
@@ -10291,6 +10624,10 @@ msgstr "Nuevo worktree"
 msgid "Next"
 msgstr "Siguiente"
 
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualChart.tsx
+msgid "Next category"
+msgstr "Categoría siguiente"
+
 #: src/renderer/commands/registry.ts
 msgid "Next chat"
 msgstr "Chat siguiente"
@@ -10475,6 +10812,10 @@ msgstr "No hay flujos de contenido."
 msgid "No conversation yet. Be the first to comment."
 msgstr "Aún no hay conversación. Sé el primero en comentar."
 
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualTable.tsx
+msgid "No data"
+msgstr "Sin datos"
+
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/providers/usageFormat.ts
 msgid "No data yet"
@@ -10616,6 +10957,10 @@ msgstr "No hay pull requests coincidentes."
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "No matching results."
 msgstr "No hay resultados coincidentes."
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualTable.tsx
+msgid "No matching rows"
+msgstr "No hay filas coincidentes"
 
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "No matching schedules."
@@ -10810,6 +11155,10 @@ msgstr "Aún no hay elementos de runtime para este hilo."
 msgid "No saved passwords"
 msgstr "No hay contraseñas guardadas"
 
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualChart.tsx
+msgid "No series selected. Choose a series above."
+msgstr "No hay series seleccionadas. Elige una serie arriba."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #~ msgid "No servers connected yet."
 #~ msgstr "Aún no hay servidores conectados."
@@ -10825,6 +11174,10 @@ msgstr "Ninguna sesión coincide con los filtros actuales."
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "No shortcuts found"
 msgstr "No se encontraron atajos"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "No simulators or emulators found."
+msgstr "No se encontraron simuladores ni emuladores."
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "No skills found"
@@ -11030,6 +11383,7 @@ msgstr "Aún no hay nada que compactar: la conversación todavía es corta."
 msgid "Nothing tracked yet. It'll appear here as you use it."
 msgstr "Aún no hay nada registrado. Aparecerá aquí a medida que lo uses."
 
+#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
@@ -11322,6 +11676,10 @@ msgstr "Abrir trabajo en GitHub"
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Open leaderboard with install and trend metrics."
 msgstr "Clasificación abierta con métricas de instalaciones y tendencias."
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Open link"
+msgstr "Abrir enlace"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -11977,6 +12335,10 @@ msgstr "Eliminar permanentemente las entradas archivadas seleccionadas de {0}."
 msgid "permission"
 msgstr "permiso"
 
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Permission"
+msgstr "Permiso"
+
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 msgid "Persistent goals, budgets, and automatic continuation with /goal."
 msgstr "Objetivos persistentes, presupuestos y continuación automática con /goal."
@@ -12009,6 +12371,10 @@ msgstr "Personal"
 #: src/renderer/components/providers/devin/sessionActionDialog.tsx
 #~ msgid "Personas"
 #~ msgstr "Personas"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Photos"
+msgstr "Fotos"
 
 #: src/renderer/components/providers/pi/manifest.ts
 msgid "Pi"
@@ -12294,12 +12660,24 @@ msgstr "El reenvío de puertos no está habilitado"
 #~ msgid "Port forwarding needs a direct connection to the desktop. It isn't available over a relay or tunnel."
 #~ msgstr "El reenvío de puertos necesita una conexión directa al escritorio. No está disponible a través de un relay o túnel."
 
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Portrait"
+msgstr "Vertical"
+
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
 msgid "Ports"
 msgstr "Puertos"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Power off device"
+msgstr "Apagar dispositivo"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Power off device?"
+msgstr "¿Apagar el dispositivo?"
 
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "PowerShell {version}"
@@ -12413,10 +12791,18 @@ msgstr "Pulsa Espacio para empezar a reordenar. Usa las flechas para mover, Espa
 msgid "Prevent system sleep"
 msgstr "Evitar la suspensión del sistema"
 
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Preview"
+msgstr "Vista previa"
+
 #. placeholder {0}: att.name
 #: src/renderer/components/composer/AttachmentBar.tsx
 msgid "Preview {0}"
 msgstr "Vista previa de {0}"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualChart.tsx
+msgid "Previous category"
+msgstr "Categoría anterior"
 
 #: src/renderer/commands/registry.ts
 msgid "Previous chat"
@@ -13025,6 +13411,7 @@ msgstr "Leyendo los cambios de cada candidato…"
 msgid "Reading each candidate's chat response…"
 msgstr "Leyendo la respuesta de chat de cada candidato…"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Ready"
 msgstr "Listo"
@@ -13046,6 +13433,14 @@ msgstr "Listo. Actívalo para anunciar la URL HTTPS de Tailscale en los nuevos c
 msgid "Reasoning"
 msgstr "Razonamiento"
 
+#: src/renderer/components/thread/ChatPane/parts/items/InlineVisual.tsx
+msgid "Receiving HTML source…"
+msgstr "Recibiendo código fuente HTML…"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Receiving visual source…"
+msgstr "Recibiendo el código fuente de la visualización…"
+
 #: src/renderer/components/common/ProviderModelMenu/parts/buildItems.ts
 msgid "Recent"
 msgstr "Recientes"
@@ -13062,22 +13457,34 @@ msgstr "Instalaciones recientes"
 msgid "Recent threads"
 msgstr "Hilos recientes"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Recents"
+msgstr "Recientes"
+
 #: src/mobile/components.tsx
 #~ msgid "Reconnect"
 #~ msgstr "Reconectar"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Reconnect live preview"
+msgstr "Reconectar la vista previa en directo"
 
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Reconnect the server to add projects."
 msgstr "Vuelve a conectar el servidor para agregar proyectos."
 
-#: src/mobile/remoteConnectionState.ts
-#~ msgid "Reconnecting"
-#~ msgstr "Reconectando"
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Reconnecting"
+msgstr "Reconectando"
 
 #: src/renderer/components/terminal/TerminalFeedStatus.tsx
 msgid "Reconnecting to terminal…"
 msgstr "Reconectando con el terminal…"
+
+#: src/renderer/components/devices/LiveDevicePreview.tsx
+msgid "Reconnecting to the device…"
+msgstr "Reconectando con el dispositivo…"
 
 #: src/mobile/components.tsx
 #~ msgid "Reconnecting to your desktop…"
@@ -13104,6 +13511,10 @@ msgstr "Rojo"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Redact notification content"
 msgstr "Ocultar el contenido de las notificaciones"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Reduce motion"
+msgstr "Reducir movimiento"
 
 #: src/renderer/components/plugins/PluginCatalogBrowser.tsx
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
@@ -13155,6 +13566,10 @@ msgstr "Actualizar {label}"
 msgid "Refresh detected agents"
 msgstr "Actualizar los agentes detectados"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Refresh devices"
+msgstr "Actualizar dispositivos"
+
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Refresh MCP server sources"
 msgstr "Actualizar orígenes de servidores MCP"
@@ -13188,6 +13603,10 @@ msgstr "Actualizando el estado de autenticación de {0}."
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Refreshing {env} {0} authentication status."
 msgstr "Actualizando el estado de autenticación de {env} {0}."
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualDiagram.tsx
+msgid "Relationship diagram"
+msgstr "Diagrama de relaciones"
 
 #: src/renderer/components/providers/settings/ModelProviderManager.tsx
 #: src/renderer/RendererCrashScreen.tsx
@@ -13693,9 +14112,17 @@ msgstr "restablecer"
 msgid "Reset"
 msgstr "Restablecer"
 
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualBlocks.tsx
+msgid "Reset checklist"
+msgstr "Restablecer lista"
+
 #: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
 msgid "Reset context windows"
 msgstr "Restablecer ventanas de contexto"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Reset inputs"
+msgstr "Restablecer valores"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Reset model order"
@@ -13710,6 +14137,7 @@ msgstr "Restablecer el esmerilado del panel lateral a sus valores predeterminado
 msgid "Reset to default"
 msgstr "Restablecer valores predeterminados"
 
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Reset zoom"
 msgstr "Restablecer zoom"
@@ -13904,6 +14332,10 @@ msgstr "Retraso de reintento"
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Retry delay in seconds"
 msgstr "Retraso de reintento en segundos"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Retry live"
+msgstr "Reintentar en vivo"
 
 #: src/mobile/components.tsx
 #~ msgid "Retry now"
@@ -14116,6 +14548,10 @@ msgstr "Revisar comando"
 msgid "Revision note (optional)"
 msgstr "Nota de revisión (opcional)"
 
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Revoke"
+msgstr "Revocar"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Revoke {name}"
 msgstr "Revocar {name}"
@@ -14137,9 +14573,19 @@ msgstr "Panel derecho"
 msgid "Right-click to switch ring"
 msgstr "Haz clic derecho para cambiar de anillo"
 
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Rotate to…"
+msgstr "Girar a…"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "Rotate viewport"
 msgstr "Girar el área de visualización"
+
+#. placeholder {0}: rows.length
+#. placeholder {1}: block.rows.length
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualTable.tsx
+msgid "Rows: {0} / {1}"
+msgstr "Filas: {0} / {1}"
 
 #: src/renderer/components/providers/devin/liveSessionControls.tsx
 #: src/renderer/components/providers/devin/sessionActionDialog.tsx
@@ -14291,6 +14737,7 @@ msgstr "Ejecutar flujo de trabajo"
 msgid "running"
 msgstr "en ejecución"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/SchedulesView/parts/scheduleRunStatus.ts
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
@@ -14583,6 +15030,10 @@ msgstr "Ámbito"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Scoped review watches are unavailable on this host. Update the host before enabling automation."
 msgstr "Las supervisiones con ámbito de origen no están disponibles en este servidor. Actualízalo antes de activar la automatización."
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Screenshot"
+msgstr "Captura de pantalla"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
@@ -14963,6 +15414,7 @@ msgstr "Seleccionada"
 msgid "Selected sidebar row"
 msgstr "Fila seleccionada de la barra lateral"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/components/thread/SideChat/SideChatBody.tsx
 msgid "Send"
 msgstr "Enviar"
@@ -15060,6 +15512,10 @@ msgstr "ID de sesión"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
 msgid "Set group color"
 msgstr "Establecer color del grupo"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Set location"
+msgstr "Establecer ubicación"
 
 #: src/renderer/components/providers/codex/index.tsx
 msgid "Set or view an experimental goal"
@@ -15213,6 +15669,10 @@ msgstr "Mostrar la barra de marcadores"
 msgid "Show Bookmark Bar"
 msgstr "Mostrar barra de marcadores"
 
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualChart.tsx
+msgid "Show chart"
+msgstr "Mostrar gráfico"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
 msgid "Show circles in sidebar"
@@ -15231,6 +15691,10 @@ msgstr "Mostrar Composer"
 #: src/renderer/components/thread/ThreadUsageBubble.tsx
 msgid "Show context usage details"
 msgstr "Mostrar detalles del uso de contexto"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualChart.tsx
+msgid "Show data table"
+msgstr "Mostrar tabla de datos"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Show device toolbar"
@@ -15540,6 +16004,10 @@ msgstr "Cerrando sesión en {env}. Los agentes detectados se actualizarán al fi
 msgid "Signing out. Detected agents will refresh when it finishes."
 msgstr "Cerrando sesión. Los agentes detectados se actualizarán al finalizar."
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Simulators and emulators on this thread’s host"
+msgstr "Simuladores y emuladores en el host de este hilo"
+
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Single pass"
 msgstr "Una sola pasada"
@@ -15654,6 +16122,14 @@ msgstr "Omitidos por Crossagents: {0}"
 msgid "Slash commands"
 msgstr "Comandos con barra"
 
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Small"
+msgstr "Pequeño"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Snapshots"
+msgstr "Instantáneas"
+
 #. placeholder {0}: index + 1
 #. placeholder {0}: winnerOrdinal + 1
 #: src/renderer/views/ExperimentView/parts/useExperimentJudgeRun.ts
@@ -15698,6 +16174,10 @@ msgstr "No se pudieron analizar algunas carpetas de proveedores. Los skills carg
 msgid "Some threads are paused"
 msgstr "Algunos hilos están en pausa"
 
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualChart.tsx
+msgid "Some values are unavailable. Check the calculator inputs."
+msgstr "Algunos valores no están disponibles. Revisa los valores de la calculadora."
+
 #: src/mobile/QrScanner.tsx
 #~ msgid "Something went wrong starting the camera. Enter the endpoint and token below to pair instead."
 #~ msgstr "Algo salió mal al iniciar la cámara. Introduce el endpoint y el token abajo para emparejar manualmente."
@@ -15721,6 +16201,10 @@ msgstr "Ordenar skills del marketplace"
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
 #~ msgid "Sort threads"
 #~ msgstr "Ordenar hilos"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Source"
+msgstr "Código fuente"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Source branch {branch} moved before the worktree was created"
@@ -15884,6 +16368,10 @@ msgstr "Iniciar un nuevo hilo a partir de esta tarea pendiente"
 #~ msgid "Start a new thread to put an agent to work from this device."
 #~ msgstr "Inicia un hilo nuevo para poner a trabajar a un agente desde este dispositivo."
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Start device"
+msgstr "Iniciar dispositivo"
+
 #: src/renderer/commands/composerCommands.ts
 msgid "Start dictation"
 msgstr "Iniciar dictado"
@@ -15959,6 +16447,7 @@ msgid "Started {targetLabel} thread"
 msgstr "Hilo {targetLabel} iniciado"
 
 #. Button label while the microphone test is starting
+#: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/RemoteAccessSidebarIcon.tsx
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
@@ -16101,6 +16590,10 @@ msgstr "Detener entrada de voz"
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Stop when"
 msgstr "Detener cuando"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Stopped"
+msgstr "Detenido"
 
 #: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 msgid "Stopping {label}…"
@@ -16389,6 +16882,7 @@ msgstr "Sincronizando…"
 msgid "Syncs with Cloud"
 msgstr "Se sincroniza con Cloud"
 
+#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/i18n/locales.ts
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "System"
@@ -16755,6 +17249,10 @@ msgstr "El propio servidor del escritorio se reconectó antes de que se completa
 #: src/renderer/state/managedRootCatalog/rootCatalogIntents.ts
 msgid "The desktop's own server refused the change."
 msgstr "El propio servidor del escritorio rechazó el cambio."
+
+#: src/renderer/components/devices/deviceClient.ts
+msgid "The device host is unavailable."
+msgstr "El host del dispositivo no está disponible."
 
 #: src/renderer/state/remoteServers/environmentManagement.ts
 msgid "The environment changed on the host. Refresh and try again."
@@ -17354,9 +17852,17 @@ msgstr "Esta guía está desactualizada. Reescríbela para ver fragmentos del ca
 msgid "This host"
 msgstr "Este host"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "This host does not support the device workspace."
+msgstr "Este host no admite el espacio de dispositivos."
+
 #: src/renderer/components/providers/HostUsageView.tsx
 msgid "This host is no longer configured."
 msgstr "Este host ya no está configurado."
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "This host provides snapshots. Live streaming is unavailable."
+msgstr "Este host proporciona capturas. La transmisión en directo no está disponible."
 
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "This HTTPS page couldn't reach the desktop on plain HTTP. Allow local network access for this site and pair again, or continue on the desktop's own address."
@@ -17574,6 +18080,10 @@ msgstr "Esta sesión cambió en el disco. Actualiza la lista e inténtalo de nue
 msgid "This session is already being imported."
 msgstr "Esta sesión ya se está importando."
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "This shuts down the selected emulator and disconnects every viewer. Detach instead to leave it running."
+msgstr "Esto apaga el emulador seleccionado y desconecta a todos los espectadores. Desconéctate para dejarlo en ejecución."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This source host does not support safe automatic merge."
 msgstr "Este servidor de origen no admite la fusión automática segura."
@@ -17622,6 +18132,10 @@ msgstr "Esta transcripción no está en el almacén de sesiones del agente."
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This version of Muse Code does not support session goals. Update Muse Code and try again."
 msgstr "Esta versión de Muse Code no admite objetivos de sesión. Actualiza Muse Code e inténtalo de nuevo."
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "This visual is too large. Showing source only."
+msgstr "Esta visualización es demasiado grande. Solo se muestra el código fuente."
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreePopover.tsx
 #~ msgid "This will permanently delete the thread and its worktree."
@@ -17851,6 +18365,10 @@ msgstr "Alternar favorito"
 msgid "Toggle Terminal"
 msgstr "Alternar terminal"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Toggle text input"
+msgstr "Alternar entrada de texto"
+
 #: src/renderer/commands/registry.ts
 msgid "Toggle the file tree panel"
 msgstr "Alternar el panel del árbol de archivos"
@@ -17872,6 +18390,10 @@ msgstr "Tokens"
 #: src/renderer/views/ProfileOverlay/parts/ModelUsage.tsx
 msgid "Tokens from {0}"
 msgstr "Tokens de {0}"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Too many visuals in this message. Showing source only."
+msgstr "Demasiadas visualizaciones en este mensaje. Solo se muestra el código fuente."
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Tool restrictions cannot be imported"
@@ -18004,6 +18526,10 @@ msgstr "Escribe al menos dos caracteres para buscar mensajes"
 #: src/mobile/views/BrowserView.tsx
 #~ msgid "Type into the page (tap a field first)"
 #~ msgstr "Escribe en la página (toca primero un campo)"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Type on device"
+msgstr "Escribir en el dispositivo"
 
 #: src/renderer/commands/CommandPalette.tsx
 msgid "Type to search files"
@@ -18144,6 +18670,10 @@ msgstr "No se puede fusionar al ganador del experimento: {0}"
 #: src/renderer/actions/agentLoginActions.ts
 msgid "Unable to open {0} login."
 msgstr "No se pudo abrir el inicio de sesión de {0}."
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Unable to open device window."
+msgstr "No se pudo abrir la ventana del dispositivo."
 
 #: src/renderer/commands/registry.ts
 msgid "Unable to open file"
@@ -18393,7 +18923,11 @@ msgstr "No se pudo verificar el servidor propio del escritorio."
 msgid "Unassigned"
 msgstr "Sin asignar"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualBlocks.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualChart.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualTable.tsx
 msgid "Unavailable"
 msgstr "No disponible"
 
@@ -18466,6 +19000,7 @@ msgstr "Desinstalar"
 msgid "Uninstall {name}"
 msgstr "Desinstalar {name}"
 
+#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/components/thread/threadContextUsage.ts
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
@@ -18586,6 +19121,10 @@ msgstr "Requisitos de marketplace no compatibles"
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Unsupported plugin capability: {target}."
 msgstr "Función de plugin no compatible: {target}."
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Unsupported visual format. Showing source only."
+msgstr "Formato de visualización no compatible. Solo se muestra el código fuente."
 
 #: src/renderer/sidebar/ChatSidebarHeader.tsx
 msgid "Untitled"
@@ -18825,6 +19364,10 @@ msgstr "Actualizar propietario del entorno"
 msgid "Upgrade owner"
 msgstr "Actualizar propietario"
 
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Upside down"
+msgstr "Invertido"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
 msgid "URL"
@@ -18833,6 +19376,10 @@ msgstr "URL"
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "URL is required."
 msgstr "La URL es obligatoria."
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "URL or deep link"
+msgstr "URL o enlace profundo"
 
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
@@ -18945,6 +19492,10 @@ msgstr "Usar archivos ignore"
 msgid "Use letters, numbers, dots, dashes, or underscores without spaces."
 msgstr "Usa letras, números, puntos, guiones o guiones bajos sin espacios."
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Use live preview"
+msgstr "Usar vista previa en directo"
+
 #: src/renderer/components/providers/settings/ModelProviderEditor.tsx
 msgid "Use lowercase letters, numbers, and hyphens."
 msgstr "Usa letras minúsculas, números y guiones."
@@ -18965,6 +19516,10 @@ msgstr "Usar sesión"
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Use sidebar background for the docked sidebar"
 msgstr "Usar el fondo de la barra lateral para la barra lateral acoplada"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Use snapshots"
+msgstr "Usar capturas"
 
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Use the {name} skill."
@@ -19113,6 +19668,10 @@ msgstr "Ver todas las versiones en GitHub"
 msgid "View full changelog"
 msgstr "Ver el registro de cambios completo"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "View only"
+msgstr "Solo visualizar"
+
 #: src/renderer/components/skills/SkillViewModal.tsx
 msgid "View raw"
 msgstr "Ver texto sin formato"
@@ -19184,6 +19743,14 @@ msgstr "Modelos {0} visibles"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "Visible models"
 msgstr "Modelos visibles"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
+msgid "Visual"
+msgstr "Visualización"
+
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisualBlocks.tsx
+msgid "Visual sections"
+msgstr "Secciones de la visualización"
 
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Voice input is not available in this environment."
@@ -19274,6 +19841,11 @@ msgstr "Esperando aprobación"
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Waiting for background tasks"
 msgstr "Esperando tareas en segundo plano"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+#: src/renderer/components/devices/LiveDevicePreview.tsx
+msgid "Waiting for the device…"
+msgstr "Esperando al dispositivo…"
 
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "Waiting for workflow to spawn agents…"
@@ -19786,11 +20358,13 @@ msgid "Zoom"
 msgstr "Zoom"
 
 #: src/renderer/components/composer/ImageLightbox.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Zoom in"
 msgstr "Acercar"
 
 #: src/renderer/components/composer/ImageLightbox.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Zoom out"
 msgstr "Alejar"

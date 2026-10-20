@@ -72,22 +72,23 @@ describe("remote v3 native binding generator", () => {
         // Optional core PR state preserves the previous details-only result shape.
         // Background task timing, progress and Stop add two structural types.
         // Optional question-answer metadata adds three structural types and two Swift chunks.
-        // Source-host reviews add one route, nineteen procedures, and their native mirrors.
-        sourceHash: "sha256:237eac49297a7900385758d10f48e4790da691b64a51f7fee00db6628af54916",
-        manifestHash: "sha256:27f9fa7e76e5cbbf48fc22674c45ba956208e343ac98a32b89592236900395d3",
+        // Source-host reviews add one route, twenty-four procedures, and their native mirrors;
+        // device workspaces add fourteen routes and saved-message search adds its own roots.
+        sourceHash: "sha256:72538de2cbea5efeff742ca1dbc7888cba5f6e5213c8fe85ecb749bfa15743e6",
+        manifestHash: "sha256:53be762a4dddf0d0217f62422622d282f8e502340ebed99e03c979449ec5e49d",
         counts: {
-          routes: 102,
+          routes: 117,
           procedures: 154,
           voidProcedureResults: 59,
           jsonProcedureResults: 95,
           webSocketClientVariants: 9,
           // 10 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
           webSocketServerVariants: 11,
-          schemaRoots: 484,
-          structuralTypes: 1083,
+          schemaRoots: 523,
+          structuralTypes: 1163,
           semanticValidators: 25,
-          swiftFiles: 68,
-          kotlinFiles: 59,
+          swiftFiles: 73,
+          kotlinFiles: 62,
           stateMachines: 5,
         },
       });
@@ -156,7 +157,7 @@ describe("remote v3 native binding generator", () => {
       ["swift", swift],
       ["kotlin", kotlin],
     ] as const) {
-      // Control-character scan over UTF-16 units — a lone high/low surrogate
+      // Control-character scan over UTF-16 units вЂ” a lone high/low surrogate
       // still reports its unit code, which is all this check needs.
       const text = contents as string;
       const stray: string[] = [];
@@ -359,7 +360,7 @@ describe("remote v3 native binding generator", () => {
       const output = buildNativeBindingOutput(ir, manifest).files;
       for (const language of ["swift", "kotlin"] as const) {
         const adapters = rootAdapters(graph, language);
-        expect(adapters).toHaveLength(484);
+        expect(adapters).toHaveLength(523);
         expect(
           adapters
             .map((adapter) => adapter.id)
