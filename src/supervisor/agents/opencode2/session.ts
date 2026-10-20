@@ -22,11 +22,13 @@ import { openCode2SnapshotEvents, readOpenCode2Recovery } from "./recovery";
 
 import type {
   PromptSegment,
+  GoalItemPayload,
   ResolvedMcpServer,
   RuntimeEvent,
   SessionRef,
   ThreadAttention,
   ThreadConfig,
+  ThreadGoalControl,
   ThreadServerRequestId,
   ThreadStatus,
 } from "@/shared/contracts";
@@ -71,6 +73,11 @@ import {
   toThreadHistoryEntries,
 } from "./history";
 import { OpenCode2Subagents } from "./subagents";
+import {
+  openCode2GoalCommand,
+  readOpenCode2GoalState,
+  resolveOpenCode2GoalStatePath,
+} from "./goals";
 import {
   mapOpenCode2Agents,
   mapOpenCode2Commands,
@@ -129,6 +136,13 @@ export class OpenCode2Session implements StructuredSessionHandle {
   private pendingRequests = new Map<ThreadServerRequestId, PendingRequest>();
   /** Live MCP set; starts from the launch input, replaced by settings saves. */
   private mcpServers: readonly ResolvedMcpServer[] | undefined;
+  private goalStateTimer: ReturnType<typeof setInterval> | undefined;
+  private goalStatePath: Promise<string | undefined> | undefined;
+  private readingGoalState = false;
+  private readonly goalControlWaiters = new Set<{
+    matches: (payload: GoalItemPayload) => boolean;
+    resolve: () => void;
+  }>();
 
   private constructor(input: CreateStructuredSessionInput) {
     this.input = input;
@@ -365,6 +379,56 @@ export class OpenCode2Session implements StructuredSessionHandle {
     }
   }
 
+  async controlGoal(control: ThreadGoalControl): Promise<void> {
+    await this.waitForSlashCommands();
+    const acquired = this.requireAcquired();
+    const sessionID = this.requireSessionId();
+    const commandName = this.mapperState.goals.commandName;
+    if (!commandName) {
+      throw new Error("The goal plugin command is unavailable in this session.");
+    }
+    await waitForOpenCode2ServerEvents(acquired.client);
+    const pauseCommand =
+      control.action === "pause" &&
+      this.slashCommands.some((command) => command.id === "pause_goal");
+    const reflected = Promise.withResolvers<void>();
+    const waiter = {
+      resolve: () => reflected.resolve(),
+      matches: (payload: GoalItemPayload) =>
+        control.action === "edit"
+          ? payload.objective === control.objective
+          : control.action === "clear"
+            ? payload.action === "cleared"
+            : control.action === "resume"
+              ? payload.status === "active"
+              : payload.status === "paused" || payload.status === "budget_limited",
+    };
+    this.goalControlWaiters.add(waiter);
+    const request = acquired.client.session.command({
+      sessionID,
+      name: pauseCommand ? "pause_goal" : commandName,
+      text: pauseCommand
+        ? ""
+        : control.action === "edit"
+          ? `edit ${control.objective}`
+          : control.action,
+    });
+    let admitted = false;
+    // Pursuing a resumed goal can hold the command RPC for its entire loop.
+    // Release the UI once native state confirms the change, so Pause stays usable.
+    void request.catch((cause) => {
+      if (admitted && !this.disposed)
+        this.listener?.onError(this.classifyError(cause, "goal command"));
+    });
+    try {
+      await Promise.race([request, reflected.promise]);
+      admitted = true;
+      await this.refreshGoalState();
+    } finally {
+      this.goalControlWaiters.delete(waiter);
+    }
+  }
+
   private async selectAgent(prompt: string, config: ThreadConfig): Promise<boolean> {
     const acquired = this.requireAcquired();
     const sessionID = this.requireSessionId();
@@ -480,6 +544,10 @@ export class OpenCode2Session implements StructuredSessionHandle {
   async dispose(): Promise<void> {
     if (this.disposed) return;
     this.disposed = true;
+    clearInterval(this.goalStateTimer);
+    this.goalStateTimer = undefined;
+    for (const waiter of this.goalControlWaiters) waiter.resolve();
+    this.goalControlWaiters.clear();
     this.retireSlashCommands?.();
     this.retireSlashCommands = undefined;
 
@@ -519,9 +587,20 @@ export class OpenCode2Session implements StructuredSessionHandle {
           acquired.client.command.list({ location }, { signal }),
           acquired.client.skill.list({ location }, { signal }),
           acquired.client.agent.list({ location }, { signal }),
+          // Goal discovery must not blank the slash-command catalog.
+          acquired.client.config.get({ location }, { signal }).catch((error: unknown) => {
+            console.warn("[opencode2] goal config discovery failed:", error);
+            return [];
+          }),
+          acquired.client.plugin.list({ location }, { signal }).catch((error: unknown) => {
+            console.warn("[opencode2] goal plugin discovery failed:", error);
+            return { data: [] } as unknown as Awaited<
+              ReturnType<OpenCode2Client["plugin"]["list"]>
+            >;
+          }),
         ]),
       )
-      .then(([commands, skills, agents]) => {
+      .then(([commands, skills, agents, config, plugins]) => {
         if (this.disposed || this.acquired !== acquired || this.slashCommandsReady !== refresh)
           return;
         this.slashCommands = [
@@ -529,6 +608,15 @@ export class OpenCode2Session implements StructuredSessionHandle {
           ...mapOpenCode2Skills(skills.data, this.directory),
           ...mapOpenCode2Agents(agents.data),
         ];
+        this.mapperState.goals.commandName = openCode2GoalCommand(config, commands.data);
+        const hasGoals =
+          this.mapperState.goals.commandName ||
+          plugins.data.some((plugin) => plugin.id === "local.goal-mode.server");
+        if (!this.goalStateTimer && hasGoals) {
+          this.goalStateTimer = setInterval(() => void this.refreshGoalState(), 1000);
+          this.goalStateTimer.unref();
+          void this.refreshGoalState();
+        }
         this.emitUpdate({
           status: this.currentStatus,
           attention: this.currentAttention,
@@ -577,7 +665,35 @@ export class OpenCode2Session implements StructuredSessionHandle {
       this.requireAcquired().database,
     );
     this.sessionId = id;
+    if (this.goalStateTimer) void this.refreshGoalState();
     this.launchOptions = { ...this.launchOptions, resumeThreadId: id };
+  }
+
+  private async refreshGoalState(): Promise<void> {
+    if (this.disposed || !this.sessionId || this.readingGoalState) return;
+    this.readingGoalState = true;
+    const sessionID = this.sessionId;
+    const revision = this.mapperState.goals.revision;
+    try {
+      this.goalStatePath ??= resolveOpenCode2GoalStatePath(this.input.projectLocation);
+      const path = await this.goalStatePath;
+      // A missed WSL lookup must be retried; caching the failure stops the dock forever.
+      if (!path) this.goalStatePath = undefined;
+      if (!path || this.disposed) return;
+      const goal = await readOpenCode2GoalState(this.input.projectLocation, path, sessionID);
+      if (
+        !this.disposed &&
+        this.sessionId === sessionID &&
+        this.mapperState.goals.revision === revision
+      ) {
+        this.emitRuntimeEvents(this.mapperState.goals.map(goal, sessionID));
+      }
+    } catch (error) {
+      this.goalStatePath = undefined;
+      console.warn("[opencode2] goal state refresh failed:", error);
+    } finally {
+      this.readingGoalState = false;
+    }
   }
 
   private requireAcquired(): AcquiredOpenCode2Server {
@@ -1006,6 +1122,19 @@ export class OpenCode2Session implements StructuredSessionHandle {
 
   private emitRuntimeEvents(events: RuntimeEvent[]): void {
     if (events.length === 0) return;
+    for (const event of events) {
+      if (
+        (event.type === "item.started" ||
+          event.type === "item.updated" ||
+          event.type === "item.completed") &&
+        event.itemId.startsWith("opencode2-goal-")
+      ) {
+        const payload = event.payload as GoalItemPayload | undefined;
+        if (payload)
+          for (const waiter of this.goalControlWaiters)
+            if (waiter.matches(payload)) waiter.resolve();
+      }
+    }
     if (!this.listener?.onRuntimeEvent) {
       this.bufferedRuntimeEvents.push(...events);
       return;
