@@ -5708,6 +5708,7 @@ msgstr "Yeniden deneme hakları tükendiğinde otomasyonu devre dışı bırakı
 msgid "Disable tiers an external provider collapses (e.g. keep only High and Max)."
 msgstr "Harici bir sağlayıcının birleştirdiği düzeyleri devre dışı bırakın (ör. yalnızca High ve Max'i tutun)."
 
+#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
@@ -6212,6 +6213,7 @@ msgstr "Ayarlarda sağlayıcıları etkinleştirin"
 msgid "Enable this plugin's skills and servers for new threads."
 msgstr "Bu eklentinin becerilerini ve sunucularını yeni konular için etkinleştirin."
 
+#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentHeader.tsx
 msgid "Enabled"
@@ -11186,7 +11188,6 @@ msgstr "Gözlemlendi"
 msgid "off"
 msgstr "kapalı"
 
-#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/components/git/PrAutomationSlider.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/RemoteAccessSidebarIcon.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
@@ -11217,7 +11218,6 @@ msgstr "Çevrimdışı"
 msgid "on"
 msgstr "açık"
 
-#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "On"
 msgstr "Gün"
@@ -11272,7 +11272,6 @@ msgid "Only works on this computer."
 msgstr "Yalnızca bu bilgisayarda çalışır."
 
 #: src/renderer/commands/CommandPalette.tsx
-#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/components/thread/ThreadUsageBubble.tsx
 #: src/renderer/notifications.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
@@ -11445,6 +11444,10 @@ msgstr "İşi GitHub'da aç"
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Open leaderboard with install and trend metrics."
 msgstr "Yükleme ve eğilim ölçümlerini içeren açık liderlik tablosu."
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Open link"
+msgstr "Bağlantıyı aç"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts

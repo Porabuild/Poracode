@@ -5708,6 +5708,7 @@ msgstr "Automatisierung deaktivieren, nachdem alle Wiederholungsversuche ausgesc
 msgid "Disable tiers an external provider collapses (e.g. keep only High and Max)."
 msgstr "Stufen deaktivieren, die ein externer Anbieter zusammenfasst (z. B. nur High und Max behalten)."
 
+#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
@@ -6212,6 +6213,7 @@ msgstr "Aktivieren Sie Anbieter in den Einstellungen"
 msgid "Enable this plugin's skills and servers for new threads."
 msgstr "Skills und Server dieses Plugins für neue Threads aktivieren."
 
+#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentHeader.tsx
 msgid "Enabled"
@@ -11186,7 +11188,6 @@ msgstr "Beobachtet"
 msgid "off"
 msgstr "aus"
 
-#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/components/git/PrAutomationSlider.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/RemoteAccessSidebarIcon.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
@@ -11217,7 +11218,6 @@ msgstr "Offline"
 msgid "on"
 msgstr "auf"
 
-#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "On"
 msgstr "Am"
@@ -11272,7 +11272,6 @@ msgid "Only works on this computer."
 msgstr "Funktioniert nur auf diesem Computer."
 
 #: src/renderer/commands/CommandPalette.tsx
-#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/components/thread/ThreadUsageBubble.tsx
 #: src/renderer/notifications.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
@@ -11445,6 +11444,10 @@ msgstr "Job auf GitHub öffnen"
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Open leaderboard with install and trend metrics."
 msgstr "Offene Bestenliste mit Installations- und Trendmetriken."
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Open link"
+msgstr "Link öffnen"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts

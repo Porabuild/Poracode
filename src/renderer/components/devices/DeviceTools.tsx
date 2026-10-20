@@ -52,7 +52,7 @@ export function DeviceTools({
             disabled={disabled}
           />
           <Button size="sm" className="h-9" type="submit" isDisabled={disabled || !urlValid}>
-            <Trans>Open</Trans>
+            <Trans>Open link</Trans>
           </Button>
         </form>
       ) : null}
@@ -184,8 +184,8 @@ export function DeviceTools({
             placeholder={t`Unknown`}
             isDisabled={disabled}
             options={[
-              { id: "true", label: t`On` },
-              { id: "false", label: t`Off` },
+              { id: "true", label: t`Enabled` },
+              { id: "false", label: t`Disabled` },
             ]}
             onChange={(value) => onAction({ type: "reduceMotion", enabled: value === "true" })}
           />
@@ -197,8 +197,8 @@ export function DeviceTools({
             placeholder={t`Unknown`}
             isDisabled={disabled}
             options={[
-              { id: "true", label: t`On` },
-              { id: "false", label: t`Off` },
+              { id: "true", label: t`Enabled` },
+              { id: "false", label: t`Disabled` },
             ]}
             onChange={(value) => onAction({ type: "network", enabled: value === "true" })}
           />

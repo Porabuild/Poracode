@@ -5708,6 +5708,7 @@ msgstr "重试次数用尽后停用自动化。"
 msgid "Disable tiers an external provider collapses (e.g. keep only High and Max)."
 msgstr "禁用外部服务商合并的级别（例如仅保留High和Max）。"
 
+#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
@@ -6212,6 +6213,7 @@ msgstr "在设置中启用提供商"
 msgid "Enable this plugin's skills and servers for new threads."
 msgstr "为新会话启用此插件的技能和服务器。"
 
+#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentHeader.tsx
 msgid "Enabled"
@@ -11185,7 +11187,6 @@ msgstr "已观察"
 msgid "off"
 msgstr "关闭"
 
-#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/components/git/PrAutomationSlider.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/RemoteAccessSidebarIcon.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
@@ -11216,7 +11217,6 @@ msgstr "离线"
 msgid "on"
 msgstr "开"
 
-#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "On"
 msgstr "日期"
@@ -11271,7 +11271,6 @@ msgid "Only works on this computer."
 msgstr "仅适用于此计算机。"
 
 #: src/renderer/commands/CommandPalette.tsx
-#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/components/thread/ThreadUsageBubble.tsx
 #: src/renderer/notifications.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
@@ -11444,6 +11443,10 @@ msgstr "在 GitHub 上打开作业"
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Open leaderboard with install and trend metrics."
 msgstr "提供安装量和趋势指标的公开排行榜。"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Open link"
+msgstr "打开链接"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts

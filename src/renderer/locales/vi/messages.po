@@ -5708,6 +5708,7 @@ msgstr "Tắt tác vụ tự động sau khi đã dùng hết các lần thử l
 msgid "Disable tiers an external provider collapses (e.g. keep only High and Max)."
 msgstr "Tắt các mức mà nhà cung cấp bên ngoài gộp lại (ví dụ chỉ giữ High và Max)."
 
+#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
@@ -6212,6 +6213,7 @@ msgstr "Bật nhà cung cấp trong cài đặt"
 msgid "Enable this plugin's skills and servers for new threads."
 msgstr "Bật skill và máy chủ của plugin này cho các luồng mới."
 
+#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentHeader.tsx
 msgid "Enabled"
@@ -11186,7 +11188,6 @@ msgstr "Đã quan sát"
 msgid "off"
 msgstr "tắt"
 
-#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/components/git/PrAutomationSlider.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/RemoteAccessSidebarIcon.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
@@ -11217,7 +11218,6 @@ msgstr "Ngoại tuyến"
 msgid "on"
 msgstr "trên"
 
-#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "On"
 msgstr "Vào"
@@ -11272,7 +11272,6 @@ msgid "Only works on this computer."
 msgstr "Chỉ hoạt động trên máy tính này."
 
 #: src/renderer/commands/CommandPalette.tsx
-#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/components/thread/ThreadUsageBubble.tsx
 #: src/renderer/notifications.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
@@ -11445,6 +11444,10 @@ msgstr "Mở công việc trên GitHub"
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Open leaderboard with install and trend metrics."
 msgstr "Bảng xếp hạng mở với số liệu cài đặt và xu hướng."
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Open link"
+msgstr "Mở liên kết"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts

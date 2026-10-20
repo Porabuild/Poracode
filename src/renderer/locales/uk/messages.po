@@ -5708,6 +5708,7 @@ msgstr "Вимкнути автоматизацію після вичерпан�
 msgid "Disable tiers an external provider collapses (e.g. keep only High and Max)."
 msgstr "Вимкніть рівні, які зовнішній провайдер об'єднує (наприклад, залиште лише High і Max)."
 
+#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
@@ -6212,6 +6213,7 @@ msgstr "Увімкнути провайдерів у налаштуваннях"
 msgid "Enable this plugin's skills and servers for new threads."
 msgstr "Увімкнути навички та сервери цього плагіна для нових тредів."
 
+#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentHeader.tsx
 msgid "Enabled"
@@ -11186,7 +11188,6 @@ msgstr "Спостережено"
 msgid "off"
 msgstr "вимк"
 
-#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/components/git/PrAutomationSlider.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/RemoteAccessSidebarIcon.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
@@ -11217,7 +11218,6 @@ msgstr "Офлайн"
 msgid "on"
 msgstr "увімк"
 
-#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "On"
 msgstr "У день"
@@ -11272,7 +11272,6 @@ msgid "Only works on this computer."
 msgstr "Працює лише на цьому комп’ютері."
 
 #: src/renderer/commands/CommandPalette.tsx
-#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/components/thread/ThreadUsageBubble.tsx
 #: src/renderer/notifications.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
@@ -11445,6 +11444,10 @@ msgstr "Відкрити завдання на GitHub"
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Open leaderboard with install and trend metrics."
 msgstr "Відкритий рейтинг із показниками встановлень і трендів."
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Open link"
+msgstr "Відкрити посилання"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts

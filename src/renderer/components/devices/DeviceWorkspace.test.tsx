@@ -317,6 +317,8 @@ describe("device workspace UI", () => {
         actions: [
           "read",
           "appearance",
+          "network",
+          "reduceMotion",
           "openUrl",
           "launchApp",
           "permission",
@@ -343,7 +345,7 @@ describe("device workspace UI", () => {
     mocks.deviceAction.mockResolvedValue({
       version: 1,
       delivered: true,
-      controls: { version: 1, appearance: "dark" },
+      controls: { version: 1, appearance: "dark", networkEnabled: true, reduceMotion: true },
     });
     render(<Workspace />);
     await attachControl();
@@ -355,7 +357,19 @@ describe("device workspace UI", () => {
         control: { type: "read" },
       }),
     );
-    const open = screen.getByRole("button", { name: "Open" });
+    const network = screen.getByRole("button", { name: /Device network/ });
+    expect(network).toHaveTextContent("Enabled");
+    expect(screen.getByRole("button", { name: /Reduce motion/ })).toHaveTextContent("Enabled");
+    fireEvent.click(network);
+    fireEvent.click(await screen.findByRole("option", { name: "Disabled" }));
+    await waitFor(() =>
+      expect(mocks.deviceAction).toHaveBeenCalledWith("host-thread", "lease-1", {
+        kind: "control",
+        version: 1,
+        control: { type: "network", enabled: false },
+      }),
+    );
+    const open = screen.getByRole("button", { name: "Open link" });
     expect(open).toHaveProperty("disabled", true);
     fireEvent.change(screen.getByRole("textbox", { name: "URL or deep link" }), {
       target: { value: "file:///host" },

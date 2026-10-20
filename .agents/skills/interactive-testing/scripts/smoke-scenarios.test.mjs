@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readFile } from "node:fs/promises";
+import vm from "node:vm";
 import { areasForFile, isProductionFile } from "./smoke-scenarios.mjs";
 
 await test("host usage changes require remote collection and isolation coverage", () => {
@@ -75,4 +77,87 @@ await test("host persistence and supervisor transport changes cannot disappear f
   }
   assert.equal(isProductionFile("src/host/db/runtimePayloadOrigins.test.ts"), false);
   assert.equal(isProductionFile("src/host/fixtures/helper.ts"), false);
+});
+
+async function deviceGate() {
+  const source = await readFile(
+    new URL("./poracode-integration-smoke.mjs", import.meta.url),
+    "utf8",
+  );
+  const marker = '    case "device-workspace": {';
+  const index = source.indexOf(marker);
+  assert.ok(index >= 0, "device workspace must have a deterministic mock gate");
+  const end = source.indexOf('    case "file-editor": {', index);
+  assert.ok(end > index);
+  const body = source
+    .slice(index + marker.length, end)
+    .trim()
+    .replace(/}\s*$/, "");
+  const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
+  return new AsyncFunction("client", "evaluate", "assert", body);
+}
+
+function deviceGateClient({ versions = [1], status = 410, code = "device_session_expired" } = {}) {
+  const calls = [];
+  const host = {
+    environment: async () => ({ capabilities: { deviceWorkspace: { versions } } }),
+    ...Object.fromEntries(
+      ["deviceFrame", "inspectDevice", "deviceAction"].map((method) => [
+        method,
+        async (...args) => {
+          calls.push({ method, args });
+          throw Object.assign(new Error("Denied"), { status, code });
+        },
+      ]),
+    ),
+  };
+  const context = vm.createContext({
+    window: {
+      __poracodeDev: {
+        loadHostDiagnostics: async () => ({
+          loopback: { readManagedLoopbackActivation: () => ({ client: host }) },
+        }),
+      },
+    },
+  });
+  return {
+    calls,
+    host,
+    evaluate: async (_client, expression, awaitPromise) => {
+      assert.equal(awaitPromise, true);
+      return vm.runInContext(expression, context);
+    },
+  };
+}
+
+await test("device smoke rejects unattached capture, inspection and input without discovering or starting devices", async () => {
+  const gate = await deviceGate();
+  const fixture = deviceGateClient();
+  const original = { ...fixture.host };
+  assert.match(await gate({}, fixture.evaluate, assert), /unattached.*leases/);
+  assert.deepEqual(
+    fixture.calls.map((call) => call.method),
+    ["deviceFrame", "inspectDevice", "deviceAction"],
+  );
+  for (const call of fixture.calls)
+    assert.deepEqual(call.args.slice(0, 2), [
+      "smoke-unattached-thread",
+      "smoke-unattached-session",
+    ]);
+  assert.deepEqual(JSON.parse(JSON.stringify(fixture.calls[2].args[2])), {
+    kind: "key",
+    key: "home",
+  });
+  assert.deepEqual(fixture.host, original);
+});
+
+await test("device smoke refuses absent negotiation and incorrect lease denial instead of acknowledging hardware", async () => {
+  const gate = await deviceGate();
+  const absent = deviceGateClient({ versions: [] });
+  await assert.rejects(() => gate({}, absent.evaluate, assert), /workspace v1/);
+  assert.equal(absent.calls.length, 0);
+  for (const patch of [{ status: 401 }, { status: 200 }, { code: "device_unavailable" }]) {
+    const fixture = deviceGateClient(patch);
+    await assert.rejects(() => gate({}, fixture.evaluate, assert), /unattached device leases/);
+  }
 });

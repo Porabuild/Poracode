@@ -5708,6 +5708,7 @@ msgstr "재시도 횟수를 모두 소진하면 자동화를 비활성화합니�
 msgid "Disable tiers an external provider collapses (e.g. keep only High and Max)."
 msgstr "외부 제공자가 통합하는 등급을 비활성화합니다 (예: High와 Max만 유지)."
 
+#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
@@ -6212,6 +6213,7 @@ msgstr "설정에서 공급자 활성화"
 msgid "Enable this plugin's skills and servers for new threads."
 msgstr "새 스레드에서 이 플러그인의 스킬과 서버를 사용합니다."
 
+#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentHeader.tsx
 msgid "Enabled"
@@ -11186,7 +11188,6 @@ msgstr "관찰됨"
 msgid "off"
 msgstr "꺼짐"
 
-#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/components/git/PrAutomationSlider.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/RemoteAccessSidebarIcon.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
@@ -11217,7 +11218,6 @@ msgstr "오프라인"
 msgid "on"
 msgstr "켜짐"
 
-#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "On"
 msgstr "요일"
@@ -11272,7 +11272,6 @@ msgid "Only works on this computer."
 msgstr "이 컴퓨터에서만 작동합니다."
 
 #: src/renderer/commands/CommandPalette.tsx
-#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/components/thread/ThreadUsageBubble.tsx
 #: src/renderer/notifications.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
@@ -11445,6 +11444,10 @@ msgstr "GitHub에서 작업 열기"
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Open leaderboard with install and trend metrics."
 msgstr "설치 및 추세 지표를 제공하는 공개 순위표입니다."
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Open link"
+msgstr "링크 열기"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
