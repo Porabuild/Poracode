@@ -59,4 +59,22 @@ describe("QuestionRows keyboard choices", () => {
     fireEvent.keyDown(getByRole("option", { name: /First/ }), { key: "2" });
     expect(onSubmit).not.toHaveBeenCalled();
   });
+
+  it("keeps option keyboard shortcuts available from the shared footer", () => {
+    const { getByRole, onSubmit } = renderChoices(true);
+    const first = getByRole("option", { name: /First/ });
+    const second = getByRole("option", { name: /Second/ });
+    fireEvent.click(first);
+    const submit = getByRole("button", { name: "Submit" });
+    submit.focus();
+    fireEvent.keyDown(submit, { key: "ArrowUp" });
+    expect(document.activeElement).toBe(second);
+    submit.focus();
+    fireEvent.keyDown(submit, { key: "2" });
+    expect(document.activeElement).toBe(second);
+    expect(second.getAttribute("aria-selected")).toBe("true");
+    expect(onSubmit).not.toHaveBeenCalled();
+    fireEvent.click(submit);
+    expect(onSubmit).toHaveBeenCalledExactlyOnceWith(["first", "second"]);
+  });
 });

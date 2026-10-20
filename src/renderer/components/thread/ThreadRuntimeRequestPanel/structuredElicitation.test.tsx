@@ -126,12 +126,14 @@ describe("StructuredElicitationForm", () => {
   it("keeps multi-select answers while navigating and validates every step", () => {
     const { onSubmit } = renderForm();
     fireEvent.click(screen.getByRole("tab", { name: /Checks/ }));
-    fireEvent.click(screen.getByLabelText("Run tests"));
+    pickChoice("Checks", "Run tests");
     const submit = screen.getByRole("button", { name: /^(Continue|Submit)$/ });
     expect(submit.hasAttribute("disabled")).toBe(true);
     fireEvent.click(screen.getByRole("tab", { name: /Auth/ }));
     pickChoice("Auth", "Paste a token");
-    expect((screen.getByLabelText("Run tests") as HTMLInputElement).checked).toBe(true);
+    expect(screen.getByRole("option", { name: /Run tests/ }).getAttribute("aria-selected")).toBe(
+      "true",
+    );
     fireEvent.click(submit);
     expect(onSubmit).toHaveBeenCalledWith(
       { action: "accept", content: { q0: "Paste a token", q1: ["Tests"] } },
@@ -139,13 +141,35 @@ describe("StructuredElicitationForm", () => {
     );
   });
 
-  it.each(["Cancel", "Decline"])("preserves the %s action in a stepped form", (action) => {
+  it("keeps the server's request text visible while a field is active", () => {
+    renderForm({
+      mcpElicitation: {
+        mode: "form",
+        serverName: "deploy",
+        message: "Deploy build 1.4 to production?",
+        requestedSchema: {
+          type: "object",
+          required: ["confirm"],
+          properties: { confirm: { type: "boolean", title: "Confirm" } },
+        },
+      },
+    });
+    expect(screen.getByText('MCP server "deploy" · Deploy build 1.4 to production?')).toBeDefined();
+    expect(screen.getByText("Confirm")).toBeDefined();
+    const checkbox = screen.getByRole("checkbox", { name: "Confirm" });
+    // Unchecked is a valid answer, so the checkbox must not claim it is required.
+    expect(checkbox.hasAttribute("aria-required")).toBe(false);
+    // The boolean row shows marker 1, so the digit shortcut toggles it.
+    checkbox.focus();
+    fireEvent.keyDown(checkbox, { key: "1" });
+    expect((checkbox as HTMLInputElement).checked).toBe(true);
+  });
+
+  it("offers one dismissal that declines a stepped form", () => {
     const { onSubmit } = renderForm();
-    fireEvent.click(screen.getByRole("button", { name: action }));
-    expect(onSubmit).toHaveBeenCalledWith(
-      { action: action.toLowerCase() },
-      action === "Cancel" ? "cancelled" : "declined",
-    );
+    expect(screen.queryByRole("button", { name: "Cancel" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Decline" }));
+    expect(onSubmit).toHaveBeenCalledWith({ action: "decline" }, "declined");
   });
 
   it("disables question navigation along with the answer controls", () => {
@@ -153,7 +177,7 @@ describe("StructuredElicitationForm", () => {
     const tab = screen.getByRole("tab", { name: /Checks/ });
     expect(tab.hasAttribute("disabled")).toBe(true);
     fireEvent.click(tab);
-    expect(screen.queryByLabelText("Run tests")).toBeNull();
+    expect(screen.queryByRole("option", { name: /Run tests/ })).toBeNull();
   });
 
   it("always steps optional text fields and Enter submits only on the last step", () => {
@@ -210,11 +234,11 @@ describe("StructuredElicitationForm", () => {
         },
       },
     });
-    fireEvent.keyDown(screen.getByRole("option", { name: "1.a" }), { key: "Enter" });
+    fireEvent.keyDown(screen.getByRole("option", { name: "a" }), { key: "Enter" });
     expect(screen.getByRole("listbox", { name: "Second" })).toBeDefined();
     expect(onSubmit).not.toHaveBeenCalled();
-    expect(document.activeElement).toBe(screen.getByRole("option", { name: "1.c" }));
-    fireEvent.keyDown(screen.getByRole("option", { name: "2.d" }), { key: "Enter" });
+    expect(document.activeElement).toBe(screen.getByRole("option", { name: "c" }));
+    fireEvent.keyDown(screen.getByRole("option", { name: "d" }), { key: "Enter" });
     expect(onSubmit).toHaveBeenCalledExactlyOnceWith(
       { action: "accept", content: { first: "a", second: "d" } },
       "answered",
@@ -231,39 +255,47 @@ describe("StructuredElicitationForm", () => {
     fireEvent.keyDown(second, { key: "ArrowUp" });
     expect(document.activeElement).toBe(first);
     fireEvent.keyDown(first, { key: "2" });
-    const tests = screen.getByRole("checkbox", { name: "Run tests" });
-    const lint = screen.getByRole("checkbox", { name: "Run lint" });
+    const tests = screen.getByRole("option", { name: /Run tests/ });
+    const lint = screen.getByRole("option", { name: /Run lint/ });
     expect(document.activeElement).toBe(tests);
     fireEvent.keyDown(tests, { key: "ArrowUp" });
     expect(document.activeElement).toBe(lint);
     fireEvent.keyDown(lint, { key: "1" });
     fireEvent.keyDown(tests, { key: "2" });
-    expect((tests as HTMLInputElement).checked).toBe(true);
-    expect((lint as HTMLInputElement).checked).toBe(true);
+    expect(tests.getAttribute("aria-selected")).toBe("true");
+    expect(lint.getAttribute("aria-selected")).toBe("true");
     fireEvent.keyDown(lint, { key: "1" });
-    expect((tests as HTMLInputElement).checked).toBe(false);
+    expect(tests.getAttribute("aria-selected")).toBe("false");
     expect(onSubmit).not.toHaveBeenCalled();
     fireEvent.keyDown(lint, { key: "Enter" });
+    expect(lint.getAttribute("aria-selected")).toBe("false");
+    expect(onSubmit).not.toHaveBeenCalled();
+    fireEvent.keyDown(tests, { key: "Enter" });
+    expect(tests.getAttribute("aria-selected")).toBe("true");
+    fireEvent.click(screen.getByRole("button", { name: "Submit" }));
     expect(onSubmit).toHaveBeenCalledExactlyOnceWith(
-      { action: "accept", content: { q0: "Log in via browser", q1: ["Lint"] } },
+      { action: "accept", content: { q0: "Log in via browser", q1: ["Tests"] } },
       "answered",
     );
   });
 
-  it("renders a checkbox per anyOf choice of a multi-select array", () => {
+  it("renders shared multi-select rows for anyOf choices", () => {
     renderForm();
 
     fireEvent.click(screen.getByRole("tab", { name: /Checks/ }));
 
-    expect(screen.getByLabelText("Run tests")).toBeDefined();
-    expect(screen.getByLabelText("Run lint")).toBeDefined();
+    expect(
+      screen.getByRole("listbox", { name: "Checks" }).getAttribute("aria-multiselectable"),
+    ).toBe("true");
+    expect(screen.getByRole("option", { name: /Run tests/ })).toBeDefined();
+    expect(screen.getByRole("option", { name: /Run lint/ })).toBeDefined();
   });
 
-  it("submits checkbox values for a multi-select array", () => {
+  it("submits option ids for a multi-select array", () => {
     const { onSubmit } = renderForm();
 
     pickChoice("Auth", "Log in via browser");
-    fireEvent.click(screen.getByLabelText("Run lint"));
+    pickChoice("Checks", "Run lint");
     fireEvent.click(screen.getByRole("button", { name: /^(Continue|Submit)$/ }));
 
     expect(onSubmit).toHaveBeenCalledWith(
@@ -286,7 +318,7 @@ describe("StructuredElicitationForm", () => {
       },
     });
 
-    expect(screen.getByRole("option", { name: "1.Fast" }).getAttribute("aria-selected")).toBe(
+    expect(screen.getByRole("option", { name: "Fast" }).getAttribute("aria-selected")).toBe(
       "false",
     );
     fireEvent.click(screen.getByRole("button", { name: /^(Continue|Submit)$/ }));
@@ -310,9 +342,7 @@ describe("StructuredElicitationForm", () => {
 
     pickChoice("Mode", "Fast");
     expect(screen.queryByRole("combobox")).toBeNull();
-    expect(screen.getByRole("option", { name: "1.Fast" }).getAttribute("aria-selected")).toBe(
-      "true",
-    );
+    expect(screen.getByRole("option", { name: "Fast" }).getAttribute("aria-selected")).toBe("true");
     fireEvent.click(screen.getByRole("button", { name: /^(Continue|Submit)$/ }));
 
     expect(onSubmit).toHaveBeenCalledWith(
@@ -366,7 +396,7 @@ describe("StructuredElicitationForm", () => {
     pickChoice("Auth", "Paste a token");
     expect(submit.getAttribute("data-disabled")).not.toBeNull();
 
-    fireEvent.click(screen.getByLabelText("Run tests"));
+    pickChoice("Checks", "Run tests");
     expect(submit.getAttribute("data-disabled")).toBeNull();
   });
 
@@ -389,10 +419,10 @@ describe("StructuredElicitationForm", () => {
       },
     });
 
-    expect(screen.getByLabelText("Alpha")).toBeDefined();
-    expect(screen.queryByRole("option", { name: "1.Ex" })).toBeNull();
+    expect(screen.getByRole("option", { name: /Alpha/ })).toBeDefined();
+    expect(screen.queryByRole("option", { name: "Ex" })).toBeNull();
     fireEvent.click(screen.getByRole("tab", { name: /Plain/ }));
-    expect(screen.getByRole("option", { name: "1.Ex" })).toBeDefined();
+    expect(screen.getByRole("option", { name: "Ex" })).toBeDefined();
   });
   it("submits typed values and excludes hidden and empty optional fields", () => {
     const { onSubmit } = renderForm({
@@ -473,14 +503,15 @@ describe("StructuredElicitationForm", () => {
     });
     fireEvent.keyDown(screen.getByRole("textbox", { name: "Other" }), { key: "Enter" });
     expect(onSubmit).not.toHaveBeenCalled();
-    expect(
-      screen.getByRole("button", { name: "Add" }).getAttribute("data-disabled"),
-    ).not.toBeNull();
-    fireEvent.click(screen.getByRole("checkbox", { name: "existing" }));
+    expect((screen.getByRole("textbox", { name: "Other" }) as HTMLInputElement).disabled).toBe(
+      true,
+    );
+    expect(screen.queryByRole("button", { name: "Add" })).toBeNull();
+    pickChoice("Tags", "existing");
     expect(
       screen.getByRole("button", { name: /^(Continue|Submit)$/ }).getAttribute("data-disabled"),
     ).not.toBeNull();
-    fireEvent.click(screen.getByRole("checkbox", { name: "existing" }));
+    pickChoice("Tags", "existing");
     fireEvent.click(screen.getByRole("button", { name: /^(Continue|Submit)$/ }));
     expect(onSubmit).toHaveBeenCalledWith(
       { action: "accept", content: { tags: ["custom"] } },
@@ -557,6 +588,101 @@ describe("StructuredElicitationForm", () => {
     );
   });
 
+  it.each([
+    { fieldKey: "build", defaultValue: undefined },
+    { fieldKey: "build", defaultValue: "keep" },
+    { fieldKey: "build", defaultValue: "Custom initial value" },
+    { fieldKey: "constructor", defaultValue: "keep" },
+    { fieldKey: "toString", defaultValue: "keep" },
+    { fieldKey: "__proto__", defaultValue: "keep" },
+  ])(
+    "keeps option selection separate from custom text for $fieldKey with default $defaultValue",
+    ({ fieldKey, defaultValue }) => {
+      const { onSubmit } = renderForm({
+        structuredElicitation: {
+          mode: "form",
+          message: "Questions",
+          sourceText: "Agent",
+          requestedSchema: {
+            type: "object",
+            properties: {
+              [fieldKey]: {
+                type: "string",
+                title: "Build path",
+                description: "Which build change should I leave in the working tree?",
+                allowCustom: true,
+                ...(defaultValue !== undefined ? { default: defaultValue } : {}),
+                oneOf: [
+                  { const: "local", title: "Oxc + local maps off" },
+                  { const: "keep", title: "Oxc, keep source maps" },
+                  { const: "filter", title: "Narrow Babel filter only" },
+                  { const: "revert", title: "Revert experiments" },
+                ],
+              },
+            },
+          },
+        },
+      });
+      const input = screen.getByRole("textbox", { name: "Build path" }) as HTMLInputElement;
+      const keep = screen.getByRole("option", { name: /Oxc, keep source maps/ });
+      expect(input.value).toBe(defaultValue === "Custom initial value" ? defaultValue : "");
+      expect(input.placeholder).toBe("Something else…");
+      expect(keep.getAttribute("aria-selected")).toBe(String(defaultValue === "keep"));
+
+      fireEvent.change(input, { target: { value: "keep" } });
+      expect(input.value).toBe("keep");
+      expect(keep.getAttribute("aria-selected")).toBe("false");
+      fireEvent.click(keep);
+      expect(keep.getAttribute("aria-selected")).toBe("true");
+      expect(input.value).toBe("");
+      fireEvent.change(input, { target: { value: "another build" } });
+      expect(keep.getAttribute("aria-selected")).toBe("false");
+      fireEvent.change(input, { target: { value: "" } });
+      expect(keep.getAttribute("aria-selected")).toBe("false");
+      fireEvent.click(keep);
+      expect(input.value).toBe("");
+      fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+      expect(onSubmit).toHaveBeenCalledExactlyOnceWith(
+        { action: "accept", content: { [fieldKey]: "keep" } },
+        "answered",
+      );
+    },
+  );
+
+  it("preserves custom text equal to an option id when revisiting a question", () => {
+    const details = questionFormDetails();
+    const { onSubmit } = renderForm({
+      acpElicitation: {
+        ...details.acpElicitation,
+        requestedSchema: {
+          ...details.acpElicitation.requestedSchema,
+          properties: {
+            ...details.acpElicitation.requestedSchema.properties,
+            q0: { ...details.acpElicitation.requestedSchema.properties.q0, allowCustom: true },
+          },
+        },
+      },
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: "Auth" }), {
+      target: { value: "Paste a token" },
+    });
+    fireEvent.keyDown(screen.getByRole("textbox", { name: "Auth" }), { key: "Enter" });
+    pickChoice("Checks", "Run tests");
+    fireEvent.click(screen.getByRole("tab", { name: /Auth/ }));
+    expect((screen.getByRole("textbox", { name: "Auth" }) as HTMLInputElement).value).toBe(
+      "Paste a token",
+    );
+    expect(
+      screen.getByRole("option", { name: /Paste a token/ }).getAttribute("aria-selected"),
+    ).toBe("false");
+    fireEvent.click(screen.getByRole("tab", { name: /Checks/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+    expect(onSubmit).toHaveBeenCalledExactlyOnceWith(
+      { action: "accept", content: { q0: "Paste a token", q1: ["Tests"] } },
+      "answered",
+    );
+  });
+
   it("uses numbered rows and arrow keys when choices also allow a custom answer", () => {
     const details = questionFormDetails();
     const { onSubmit } = renderForm({
@@ -573,22 +699,23 @@ describe("StructuredElicitationForm", () => {
     });
     const first = screen.getByRole("option", { name: /Paste a token/ });
     first.focus();
+    // The custom answer is the list's last row, so ArrowUp wraps into it.
     fireEvent.keyDown(first, { key: "ArrowUp" });
+    expect(document.activeElement).toBe(screen.getByRole("textbox", { name: "Auth" }));
+    fireEvent.keyDown(document.activeElement!, { key: "ArrowUp" });
     const second = screen.getByRole("option", { name: /Log in via browser/ });
     expect(document.activeElement).toBe(second);
     fireEvent.keyDown(second, { key: "2" });
     expect(screen.getByRole("tab", { name: /Checks/ }).getAttribute("aria-selected")).toBe("true");
     fireEvent.click(screen.getByRole("tab", { name: /Auth/ }));
-    expect(screen.getByRole("textbox", { name: "Auth" }).getAttribute("value")).toBe(
-      "Log in via browser",
-    );
+    expect(screen.getByRole("textbox", { name: "Auth" }).getAttribute("value")).toBe("");
     const custom = screen.getByRole("textbox", { name: "Auth" });
     fireEvent.change(custom, { target: { value: "custom 12" } });
     fireEvent.keyDown(custom, { key: "1" });
     expect(screen.getByRole("textbox", { name: "Auth" })).toBe(custom);
     fireEvent.keyDown(custom, { key: "Enter" });
-    fireEvent.click(screen.getByLabelText("Run tests"));
-    fireEvent.keyDown(screen.getByLabelText("Run tests"), { key: "Enter" });
+    pickChoice("Checks", "Run tests");
+    fireEvent.click(screen.getByRole("button", { name: "Submit" }));
     expect(onSubmit).toHaveBeenCalledExactlyOnceWith(
       { action: "accept", content: { q0: "custom 12", q1: ["Tests"] } },
       "answered",
@@ -611,7 +738,7 @@ describe("StructuredElicitationForm", () => {
     renderForm({
       structuredElicitation: {
         mode: "form",
-        message: "Docs",
+        message: "Read the setup guide",
         sourceText: "Test agent",
         links: [
           { url: "https://example.test/docs", title: "Docs" },

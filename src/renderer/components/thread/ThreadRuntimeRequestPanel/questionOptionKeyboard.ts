@@ -1,6 +1,11 @@
 import type { KeyboardEvent } from "react";
 
-/** Navigate choices without selecting; number keys activate the matching visible option. */
+const NAVIGATION_KEYS = new Set(["ArrowUp", "ArrowDown", "Home", "End"]);
+
+/**
+ * Navigate choices without selecting (arrows wrap, Home/End jump to the ends);
+ * number keys activate the matching visible option.
+ */
 export function handleQuestionOptionKey(event: KeyboardEvent, container: HTMLElement): boolean {
   if (
     event.altKey ||
@@ -12,17 +17,15 @@ export function handleQuestionOptionKey(event: KeyboardEvent, container: HTMLEle
   )
     return false;
   const number = /^[1-9]$/.test(event.key) ? Number(event.key) : undefined;
-  if (number === undefined && event.key !== "ArrowUp" && event.key !== "ArrowDown") return false;
+  if (number === undefined && !NAVIGATION_KEYS.has(event.key)) return false;
   const target = event.target as HTMLElement;
-  // Typed answers, native pickers and custom-value editors own their keys.
-  if (
-    target.closest(
-      'textarea, select, [contenteditable]:not([contenteditable="false"]), [data-question-enter-local]',
-    ) ||
-    (target instanceof HTMLInputElement && target.type !== "checkbox" && target.type !== "radio") ||
-    target.closest('[role="tab"]')
-  )
-    return false;
+  // The inline custom-answer row keeps digits and Home/End for its text but
+  // still moves between rows with the arrows.
+  const isCustomRow =
+    target instanceof HTMLInputElement &&
+    target.type === "text" &&
+    target.hasAttribute("data-question-option");
+  if (isCustomRow ? !event.key.startsWith("Arrow") : ownsOptionKeys(target)) return false;
 
   const options = [
     ...container.querySelectorAll<HTMLButtonElement | HTMLInputElement>("[data-question-option]"),
@@ -42,13 +45,27 @@ export function handleQuestionOptionKey(event: KeyboardEvent, container: HTMLEle
   }
   const index = available.findIndex((option) => option === document.activeElement);
   const nextIndex =
-    index < 0
-      ? event.key === "ArrowUp"
+    event.key === "Home"
+      ? 0
+      : event.key === "End"
         ? available.length - 1
-        : 0
-      : (index + (event.key === "ArrowUp" ? -1 : 1) + available.length) % available.length;
+        : index < 0
+          ? event.key === "ArrowUp"
+            ? available.length - 1
+            : 0
+          : (index + (event.key === "ArrowUp" ? -1 : 1) + available.length) % available.length;
   event.preventDefault();
   event.stopPropagation();
   available[nextIndex]?.focus();
   return true;
+}
+
+/** Typed answers, native pickers and custom-value editors own their keys. */
+function ownsOptionKeys(target: HTMLElement): boolean {
+  return (
+    !!target.closest(
+      'textarea, select, [contenteditable]:not([contenteditable="false"]), [data-question-enter-local], [role="tab"]',
+    ) ||
+    (target instanceof HTMLInputElement && target.type !== "checkbox" && target.type !== "radio")
+  );
 }

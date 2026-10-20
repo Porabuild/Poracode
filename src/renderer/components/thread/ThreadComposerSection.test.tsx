@@ -3926,12 +3926,12 @@ describe("ThreadComposerSection", () => {
       />,
     );
 
-    expect(screen.getByText("ACP agent needs input.")).toBeInTheDocument();
+    expect(screen.getByText("ACP agent · Choose deployment scope")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Allow" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Deny" })).not.toBeInTheDocument();
 
     const listbox = screen.getByRole("listbox", { name: "Scope" });
-    fireEvent.click(within(listbox).getByRole("option", { name: "2.Scope B" }));
+    fireEvent.click(within(listbox).getByRole("option", { name: "Scope B" }));
     fireEvent.click(screen.getByRole("checkbox", { name: "Confirm" }));
     fireEvent.click(screen.getByRole("button", { name: "Submit" }));
 
