@@ -261,8 +261,10 @@ msgstr "{0} está comparando los diffs anonimizados…"
 msgid "{0} is offline. Showing last known status."
 msgstr "{0} está sin conexión. Se muestra el último estado conocido."
 
+#. placeholder {0}: formatTokens(context.maxTokens)
 #. placeholder {0}: summary.maxLabel
 #: src/renderer/components/thread/ThreadContextDock.tsx
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
 msgid "{0} limit"
 msgstr "Límite de {0}"
 
@@ -350,8 +352,10 @@ msgstr "{0} comparten el inicio de sesión aislado de este perfil. Muévelos pri
 #~ msgid "{0} threads"
 #~ msgstr "{0} hilos"
 
+#. placeholder {0}: formatTokens(reported.tokens.total)
 #. placeholder {0}: formatTokens(snapshot.tokens.total)
 #: src/renderer/components/providers/UsageCostLine.tsx
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
 msgid "{0} tokens"
 msgstr "{0} tokens"
 
@@ -543,6 +547,10 @@ msgstr "{imported, plural, one {Se importó # sesión.} other {Se importaron # s
 #: src/renderer/i18n/sharedMessages.ts
 #~ msgid "{label} · Previous sessions; sign in again for new threads."
 #~ msgstr "{label} · Sesiones anteriores; vuelve a iniciar sesión para los nuevos hilos."
+
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+msgid "{label} account usage"
+msgstr "Uso de la cuenta de {label}"
 
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
@@ -1325,6 +1333,7 @@ msgstr "Tipo de agente"
 msgid "Agent update available"
 msgstr "Actualización de agente disponible"
 
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentRankedRow.tsx
 msgid "Agent usage"
 msgstr "Uso de agentes"
@@ -2286,6 +2295,7 @@ msgstr "Limita cuántos ayudantes de generación efímeros (títulos de hilos, m
 msgid "Bounds how many terminal shells can run at once on this host. Counts logical execution slots, not OS processes or memory. 0 means unlimited."
 msgstr "Limita cuántos shells de terminal pueden ejecutarse a la vez en este host. Cuenta ranuras lógicas de ejecución, no procesos del sistema operativo ni memoria. 0 = ilimitado."
 
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 msgid "Branch"
@@ -3505,6 +3515,10 @@ msgstr "Contraer"
 msgid "Collapse {label}"
 msgstr "Contraer {label}"
 
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+msgid "Collapse agent usage"
+msgstr "Contraer uso del agente"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions.tsx
 msgid "Collapse all"
 msgstr "Contraer todo"
@@ -3534,6 +3548,10 @@ msgstr "Contraer error"
 #~ msgid "Collapse experiment"
 #~ msgstr "Contraer experimento"
 
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Collapse files & artifacts"
+msgstr "Contraer archivos y artefactos"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
 msgid "Collapse footer"
 msgstr "Contraer el pie de la barra lateral"
@@ -3551,6 +3569,10 @@ msgstr "Contraer imágenes"
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Collapse terminal composer"
 msgstr "Contraer el redactor del terminal"
+
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+msgid "Collapse thread context"
+msgstr "Contraer contexto del hilo"
 
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Collapse todo dock"
@@ -6267,6 +6289,10 @@ msgstr "Expandir"
 msgid "Expand {label}"
 msgstr "Expandir {label}"
 
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+msgid "Expand agent usage"
+msgstr "Expandir uso del agente"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions.tsx
 msgid "Expand all"
 msgstr "Expandir todo"
@@ -6283,6 +6309,10 @@ msgstr "Expandir error"
 #~ msgid "Expand experiment"
 #~ msgstr "Expandir experimento"
 
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Expand files & artifacts"
+msgstr "Expandir archivos y artefactos"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
 msgid "Expand footer"
 msgstr "Expandir el pie de la barra lateral"
@@ -6295,6 +6325,10 @@ msgstr "Expandir grupo"
 #: src/renderer/components/thread/ThreadImagesDock.tsx
 msgid "Expand images"
 msgstr "Expandir imágenes"
+
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+msgid "Expand thread context"
+msgstr "Expandir contexto del hilo"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Expand to review or revoke access."
@@ -6619,6 +6653,12 @@ msgstr "El archivo usa una codificación no compatible."
 #: src/renderer/views/MainView/parts/MobileWorkspacePage.tsx
 msgid "Files"
 msgstr "Archivos"
+
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
+#: src/renderer/components/thread/ThreadImagesBubble.tsx
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Files & artifacts"
+msgstr "Archivos y artefactos"
 
 #: src/renderer/utils/projectIcons.ts
 msgid "Files & folders"
@@ -11521,6 +11561,10 @@ msgstr "Pega la URL de emparejamiento…"
 #~ msgid "Paste your pairing link"
 #~ msgstr "Pega tu enlace de emparejamiento"
 
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+msgid "Path"
+msgstr "Ruta"
+
 #: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
 msgid "Pause"
 msgstr "Pausar"
@@ -14569,6 +14613,10 @@ msgstr "Acciones de la sesión"
 msgid "Session actions are unavailable for this thread."
 msgstr "Las acciones de sesión no están disponibles para este hilo."
 
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+msgid "Session ID"
+msgstr "ID de sesión"
+
 #: src/renderer/components/providers/devin/liveSessionControls.tsx
 #~ msgid "Session renamed."
 #~ msgstr "Sesión renombrada."
@@ -14773,6 +14821,10 @@ msgstr "Mostrar paneles en el panel derecho"
 #: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
 msgid "Show estimated cost"
 msgstr "Mostrar coste estimado"
+
+#: src/renderer/components/thread/ThreadImagesBubble.tsx
+msgid "Show files & artifacts"
+msgstr "Mostrar archivos y artefactos"
 
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
 msgid "Show font suggestions"
@@ -17071,6 +17123,11 @@ msgstr "Acciones del hilo"
 msgid "Thread already exists."
 msgstr "El hilo ya existe."
 
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
+msgid "Thread context"
+msgstr "Contexto del hilo"
+
 #: src/renderer/components/thread/ThreadContextDock.tsx
 msgid "Thread context usage"
 msgstr "Uso del contexto del hilo"
@@ -17110,6 +17167,7 @@ msgstr "Panel del objetivo del hilo"
 msgid "Thread images"
 msgstr "Imágenes del hilo"
 
+#: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 msgid "Thread info"
 msgstr "Información del hilo"
@@ -17545,6 +17603,7 @@ msgstr "No se puede abrir el archivo"
 msgid "Unable to open the file"
 msgstr "No se pudo abrir el archivo"
 
+#: src/renderer/components/thread/ThreadImagesDock.tsx
 #: src/renderer/utils/gitHelpers.ts
 msgid "Unable to open the file in the editor"
 msgstr "No se pudo abrir el archivo en el editor"
@@ -18212,6 +18271,8 @@ msgstr "La URL es obligatoria."
 #: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/thread/ThreadContextDock.tsx
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
 #: src/renderer/components/thread/ThreadUsageBubble.tsx
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
@@ -18948,6 +19009,7 @@ msgid "Working…"
 msgstr "Trabajando…"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Workspace"
@@ -18967,6 +19029,7 @@ msgstr "Vista del espacio de trabajo"
 msgid "Workspaces"
 msgstr "Espacios de trabajo"
 
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 msgid "Worktree"
 msgstr "Worktree"

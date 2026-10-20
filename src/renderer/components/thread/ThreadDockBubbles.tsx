@@ -84,6 +84,8 @@ export function ThreadDockBubbles({
       />
     ),
     images: <ThreadImagesBubble key="images" threadId={threadId} />,
+    context: null,
+    usage: null,
   };
 
   return <>{order.map((kind) => bubbles[kind])}</>;

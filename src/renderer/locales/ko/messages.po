@@ -261,8 +261,10 @@ msgstr "{0}이(가) 익명화된 diff를 비교하고 있습니다…"
 msgid "{0} is offline. Showing last known status."
 msgstr "{0}이(가) 오프라인입니다. 마지막으로 확인된 상태를 표시합니다."
 
+#. placeholder {0}: formatTokens(context.maxTokens)
 #. placeholder {0}: summary.maxLabel
 #: src/renderer/components/thread/ThreadContextDock.tsx
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
 msgid "{0} limit"
 msgstr "{0} 한도"
 
@@ -350,8 +352,10 @@ msgstr "{0}은(는) 이 프로필의 격리 로그인을 공유합니다. 먼저
 #~ msgid "{0} threads"
 #~ msgstr "스레드 {0}개"
 
+#. placeholder {0}: formatTokens(reported.tokens.total)
 #. placeholder {0}: formatTokens(snapshot.tokens.total)
 #: src/renderer/components/providers/UsageCostLine.tsx
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
 msgid "{0} tokens"
 msgstr "{0} 토큰"
 
@@ -543,6 +547,10 @@ msgstr "{imported, plural, one {세션 #개를 가져왔습니다.} other {세�
 #: src/renderer/i18n/sharedMessages.ts
 #~ msgid "{label} · Previous sessions; sign in again for new threads."
 #~ msgstr "{label} · 이전 세션용이며 새 스레드에서는 다시 로그인하세요."
+
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+msgid "{label} account usage"
+msgstr "{label} 계정 사용량"
 
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
@@ -1325,6 +1333,7 @@ msgstr "에이전트 유형"
 msgid "Agent update available"
 msgstr "에이전트 업데이트 사용 가능"
 
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentRankedRow.tsx
 msgid "Agent usage"
 msgstr "에이전트 사용"
@@ -2286,6 +2295,7 @@ msgstr "이 호스트에서 동시에 실행할 수 있는 단명 생성 도우�
 msgid "Bounds how many terminal shells can run at once on this host. Counts logical execution slots, not OS processes or memory. 0 means unlimited."
 msgstr "이 호스트에서 동시에 실행할 수 있는 터미널 셸 수를 제한합니다. 논리적 실행 슬롯을 세며 OS 프로세스나 메모리가 아닙니다. 0 = 무제한."
 
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 msgid "Branch"
@@ -3505,6 +3515,10 @@ msgstr "접기"
 msgid "Collapse {label}"
 msgstr "{label} 접기"
 
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+msgid "Collapse agent usage"
+msgstr "에이전트 사용량 접기"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions.tsx
 msgid "Collapse all"
 msgstr "모두 접기"
@@ -3534,6 +3548,10 @@ msgstr "오류 접기"
 #~ msgid "Collapse experiment"
 #~ msgstr "실험 접기"
 
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Collapse files & artifacts"
+msgstr "파일 및 결과물 접기"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
 msgid "Collapse footer"
 msgstr "바닥글 접기"
@@ -3551,6 +3569,10 @@ msgstr "이미지 접기"
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Collapse terminal composer"
 msgstr "터미널 작성기 접기"
+
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+msgid "Collapse thread context"
+msgstr "스레드 컨텍스트 접기"
 
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Collapse todo dock"
@@ -6267,6 +6289,10 @@ msgstr "펼치기"
 msgid "Expand {label}"
 msgstr "{label} 펼치기"
 
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+msgid "Expand agent usage"
+msgstr "에이전트 사용량 펼치기"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions.tsx
 msgid "Expand all"
 msgstr "모두 펼치기"
@@ -6283,6 +6309,10 @@ msgstr "확장 오류"
 #~ msgid "Expand experiment"
 #~ msgstr "실험 펼치기"
 
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Expand files & artifacts"
+msgstr "파일 및 결과물 펼치기"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
 msgid "Expand footer"
 msgstr "바닥글 펼치기"
@@ -6295,6 +6325,10 @@ msgstr "그룹 펼치기"
 #: src/renderer/components/thread/ThreadImagesDock.tsx
 msgid "Expand images"
 msgstr "이미지 펼치기"
+
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+msgid "Expand thread context"
+msgstr "스레드 컨텍스트 펼치기"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Expand to review or revoke access."
@@ -6619,6 +6653,12 @@ msgstr "파일이 지원되지 않는 인코딩을 사용합니다."
 #: src/renderer/views/MainView/parts/MobileWorkspacePage.tsx
 msgid "Files"
 msgstr "파일"
+
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
+#: src/renderer/components/thread/ThreadImagesBubble.tsx
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Files & artifacts"
+msgstr "파일 및 결과물"
 
 #: src/renderer/utils/projectIcons.ts
 msgid "Files & folders"
@@ -11521,6 +11561,10 @@ msgstr "페어링 URL 붙여넣기…"
 #~ msgid "Paste your pairing link"
 #~ msgstr "페어링 링크를 붙여넣으세요"
 
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+msgid "Path"
+msgstr "경로"
+
 #: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
 msgid "Pause"
 msgstr "일시 중지"
@@ -14569,6 +14613,10 @@ msgstr "세션 작업"
 msgid "Session actions are unavailable for this thread."
 msgstr "이 스레드에는 세션 작업을 사용할 수 없습니다."
 
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+msgid "Session ID"
+msgstr "세션 ID"
+
 #: src/renderer/components/providers/devin/liveSessionControls.tsx
 #~ msgid "Session renamed."
 #~ msgstr "세션 이름이 변경되었습니다."
@@ -14773,6 +14821,10 @@ msgstr "도크를 오른쪽 패널에 표시"
 #: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
 msgid "Show estimated cost"
 msgstr "예상 비용 표시"
+
+#: src/renderer/components/thread/ThreadImagesBubble.tsx
+msgid "Show files & artifacts"
+msgstr "파일 및 결과물 표시"
 
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
 msgid "Show font suggestions"
@@ -17071,6 +17123,11 @@ msgstr "스레드 작업"
 msgid "Thread already exists."
 msgstr "스레드가 이미 존재합니다."
 
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
+msgid "Thread context"
+msgstr "스레드 컨텍스트"
+
 #: src/renderer/components/thread/ThreadContextDock.tsx
 msgid "Thread context usage"
 msgstr "스레드 컨텍스트 사용량"
@@ -17110,6 +17167,7 @@ msgstr "스레드 목표 도크"
 msgid "Thread images"
 msgstr "스레드 이미지"
 
+#: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 msgid "Thread info"
 msgstr "스레드 정보"
@@ -17545,6 +17603,7 @@ msgstr "파일을 열 수 없습니다."
 msgid "Unable to open the file"
 msgstr "파일을 열 수 없습니다"
 
+#: src/renderer/components/thread/ThreadImagesDock.tsx
 #: src/renderer/utils/gitHelpers.ts
 msgid "Unable to open the file in the editor"
 msgstr "편집기에서 파일을 열 수 없습니다"
@@ -18212,6 +18271,8 @@ msgstr "URL을 입력해야 합니다."
 #: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/thread/ThreadContextDock.tsx
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
 #: src/renderer/components/thread/ThreadUsageBubble.tsx
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
@@ -18948,6 +19009,7 @@ msgid "Working…"
 msgstr "작업 중…"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Workspace"
@@ -18967,6 +19029,7 @@ msgstr "작업 영역 보기"
 msgid "Workspaces"
 msgstr "작업 영역"
 
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 msgid "Worktree"
 msgstr "작업 트리"

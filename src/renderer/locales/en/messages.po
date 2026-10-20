@@ -261,8 +261,10 @@ msgstr "{0} is comparing the anonymized diffs…"
 msgid "{0} is offline. Showing last known status."
 msgstr "{0} is offline. Showing last known status."
 
+#. placeholder {0}: formatTokens(context.maxTokens)
 #. placeholder {0}: summary.maxLabel
 #: src/renderer/components/thread/ThreadContextDock.tsx
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
 msgid "{0} limit"
 msgstr "{0} limit"
 
@@ -350,8 +352,10 @@ msgstr "{0} share this profile's isolated login. Move them to another owner firs
 #~ msgid "{0} threads"
 #~ msgstr "{0} threads"
 
+#. placeholder {0}: formatTokens(reported.tokens.total)
 #. placeholder {0}: formatTokens(snapshot.tokens.total)
 #: src/renderer/components/providers/UsageCostLine.tsx
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
 msgid "{0} tokens"
 msgstr "{0} tokens"
 
@@ -543,6 +547,10 @@ msgstr "{imported, plural, one {Imported # session.} other {Imported # sessions.
 #: src/renderer/i18n/sharedMessages.ts
 #~ msgid "{label} · Previous sessions; sign in again for new threads."
 #~ msgstr "{label} · Previous sessions; sign in again for new threads."
+
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+msgid "{label} account usage"
+msgstr "{label} account usage"
 
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
@@ -1330,6 +1338,7 @@ msgstr "Agent type"
 msgid "Agent update available"
 msgstr "Agent update available"
 
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentRankedRow.tsx
 msgid "Agent usage"
 msgstr "Agent usage"
@@ -2291,6 +2300,7 @@ msgstr "Bounds how many short-lived generation helpers (thread titles, commit me
 msgid "Bounds how many terminal shells can run at once on this host. Counts logical execution slots, not OS processes or memory. 0 means unlimited."
 msgstr "Bounds how many terminal shells can run at once on this host. Counts logical execution slots, not OS processes or memory. 0 means unlimited."
 
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 msgid "Branch"
@@ -3514,6 +3524,10 @@ msgstr "Collapse"
 msgid "Collapse {label}"
 msgstr "Collapse {label}"
 
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+msgid "Collapse agent usage"
+msgstr "Collapse agent usage"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions.tsx
 msgid "Collapse all"
 msgstr "Collapse all"
@@ -3543,6 +3557,10 @@ msgstr "Collapse error"
 #~ msgid "Collapse experiment"
 #~ msgstr "Collapse experiment"
 
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Collapse files & artifacts"
+msgstr "Collapse files & artifacts"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
 msgid "Collapse footer"
 msgstr "Collapse footer"
@@ -3560,6 +3578,10 @@ msgstr "Collapse images"
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Collapse terminal composer"
 msgstr "Collapse terminal composer"
+
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+msgid "Collapse thread context"
+msgstr "Collapse thread context"
 
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Collapse todo dock"
@@ -6276,6 +6298,10 @@ msgstr "Expand"
 msgid "Expand {label}"
 msgstr "Expand {label}"
 
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+msgid "Expand agent usage"
+msgstr "Expand agent usage"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions.tsx
 msgid "Expand all"
 msgstr "Expand all"
@@ -6292,6 +6318,10 @@ msgstr "Expand error"
 #~ msgid "Expand experiment"
 #~ msgstr "Expand experiment"
 
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Expand files & artifacts"
+msgstr "Expand files & artifacts"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
 msgid "Expand footer"
 msgstr "Expand footer"
@@ -6304,6 +6334,10 @@ msgstr "Expand group"
 #: src/renderer/components/thread/ThreadImagesDock.tsx
 msgid "Expand images"
 msgstr "Expand images"
+
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+msgid "Expand thread context"
+msgstr "Expand thread context"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Expand to review or revoke access."
@@ -6628,6 +6662,12 @@ msgstr "File uses an unsupported encoding."
 #: src/renderer/views/MainView/parts/MobileWorkspacePage.tsx
 msgid "Files"
 msgstr "Files"
+
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
+#: src/renderer/components/thread/ThreadImagesBubble.tsx
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Files & artifacts"
+msgstr "Files & artifacts"
 
 #: src/renderer/utils/projectIcons.ts
 msgid "Files & folders"
@@ -11530,6 +11570,10 @@ msgstr "Paste pairing URL…"
 #~ msgid "Paste your pairing link"
 #~ msgstr "Paste your pairing link"
 
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+msgid "Path"
+msgstr "Path"
+
 #: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
 msgid "Pause"
 msgstr "Pause"
@@ -14578,6 +14622,10 @@ msgstr "Session actions"
 msgid "Session actions are unavailable for this thread."
 msgstr "Session actions are unavailable for this thread."
 
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+msgid "Session ID"
+msgstr "Session ID"
+
 #: src/renderer/components/providers/devin/liveSessionControls.tsx
 #~ msgid "Session renamed."
 #~ msgstr "Session renamed."
@@ -14782,6 +14830,10 @@ msgstr "Show docks in the right panel"
 #: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
 msgid "Show estimated cost"
 msgstr "Show estimated cost"
+
+#: src/renderer/components/thread/ThreadImagesBubble.tsx
+msgid "Show files & artifacts"
+msgstr "Show files & artifacts"
 
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
 msgid "Show font suggestions"
@@ -17080,6 +17132,11 @@ msgstr "Thread actions"
 msgid "Thread already exists."
 msgstr "Thread already exists."
 
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
+msgid "Thread context"
+msgstr "Thread context"
+
 #: src/renderer/components/thread/ThreadContextDock.tsx
 msgid "Thread context usage"
 msgstr "Thread context usage"
@@ -17119,6 +17176,7 @@ msgstr "Thread goal dock"
 msgid "Thread images"
 msgstr "Thread images"
 
+#: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 msgid "Thread info"
 msgstr "Thread info"
@@ -17554,6 +17612,7 @@ msgstr "Unable to open file"
 msgid "Unable to open the file"
 msgstr "Unable to open the file"
 
+#: src/renderer/components/thread/ThreadImagesDock.tsx
 #: src/renderer/utils/gitHelpers.ts
 msgid "Unable to open the file in the editor"
 msgstr "Unable to open the file in the editor"
@@ -18225,6 +18284,8 @@ msgstr "URL is required."
 #: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/thread/ThreadContextDock.tsx
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
 #: src/renderer/components/thread/ThreadUsageBubble.tsx
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
@@ -18961,6 +19022,7 @@ msgid "Working…"
 msgstr "Working…"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Workspace"
@@ -18980,6 +19042,7 @@ msgstr "Workspace view"
 msgid "Workspaces"
 msgstr "Workspaces"
 
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 msgid "Worktree"
 msgstr "Worktree"

@@ -261,8 +261,10 @@ msgstr "{0} 正在比较匿名化的差异…"
 msgid "{0} is offline. Showing last known status."
 msgstr "{0} 已离线。正在显示最后已知状态。"
 
+#. placeholder {0}: formatTokens(context.maxTokens)
 #. placeholder {0}: summary.maxLabel
 #: src/renderer/components/thread/ThreadContextDock.tsx
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
 msgid "{0} limit"
 msgstr "{0}限制"
 
@@ -350,8 +352,10 @@ msgstr "{0} 共享此配置文件的独立登录。请先将它们移到其他�
 #~ msgid "{0} threads"
 #~ msgstr "{0} 个线程"
 
+#. placeholder {0}: formatTokens(reported.tokens.total)
 #. placeholder {0}: formatTokens(snapshot.tokens.total)
 #: src/renderer/components/providers/UsageCostLine.tsx
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
 msgid "{0} tokens"
 msgstr "{0} 令牌"
 
@@ -543,6 +547,10 @@ msgstr "{imported, plural, one {已导入 # 个会话。} other {已导入 # 个
 #: src/renderer/i18n/sharedMessages.ts
 #~ msgid "{label} · Previous sessions; sign in again for new threads."
 #~ msgstr "{label} · 先前的会话；请重新登录以用于新线程。"
+
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+msgid "{label} account usage"
+msgstr "{label} 账户用量"
 
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
@@ -1325,6 +1333,7 @@ msgstr "智能体类型"
 msgid "Agent update available"
 msgstr "代理更新可用"
 
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentRankedRow.tsx
 msgid "Agent usage"
 msgstr "智能体使用情况"
@@ -2286,6 +2295,7 @@ msgstr "限制此主机上可同时运行的短时生成助手（线程标题、
 msgid "Bounds how many terminal shells can run at once on this host. Counts logical execution slots, not OS processes or memory. 0 means unlimited."
 msgstr "限制此主机上可同时运行的终端 shell 数量。统计的是逻辑执行槽位，而不是操作系统进程或内存。0 = 不限制。"
 
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 msgid "Branch"
@@ -3505,6 +3515,10 @@ msgstr "折叠"
 msgid "Collapse {label}"
 msgstr "折叠{label}"
 
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+msgid "Collapse agent usage"
+msgstr "折叠智能体用量"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions.tsx
 msgid "Collapse all"
 msgstr "全部折叠"
@@ -3534,6 +3548,10 @@ msgstr "折叠错误"
 #~ msgid "Collapse experiment"
 #~ msgstr "折叠实验"
 
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Collapse files & artifacts"
+msgstr "折叠文件与产物"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
 msgid "Collapse footer"
 msgstr "折叠侧边栏底部"
@@ -3551,6 +3569,10 @@ msgstr "折叠图像"
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Collapse terminal composer"
 msgstr "折叠终端输入框"
+
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+msgid "Collapse thread context"
+msgstr "折叠线程上下文"
 
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Collapse todo dock"
@@ -6267,6 +6289,10 @@ msgstr "展开"
 msgid "Expand {label}"
 msgstr "展开{label}"
 
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+msgid "Expand agent usage"
+msgstr "展开智能体用量"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions.tsx
 msgid "Expand all"
 msgstr "全部展开"
@@ -6283,6 +6309,10 @@ msgstr "展开错误"
 #~ msgid "Expand experiment"
 #~ msgstr "展开实验"
 
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Expand files & artifacts"
+msgstr "展开文件与产物"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
 msgid "Expand footer"
 msgstr "展开侧边栏底部"
@@ -6295,6 +6325,10 @@ msgstr "展开分组"
 #: src/renderer/components/thread/ThreadImagesDock.tsx
 msgid "Expand images"
 msgstr "展开图像"
+
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+msgid "Expand thread context"
+msgstr "展开线程上下文"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Expand to review or revoke access."
@@ -6619,6 +6653,12 @@ msgstr "文件使用不受支持的编码。"
 #: src/renderer/views/MainView/parts/MobileWorkspacePage.tsx
 msgid "Files"
 msgstr "文件"
+
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
+#: src/renderer/components/thread/ThreadImagesBubble.tsx
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Files & artifacts"
+msgstr "文件与产物"
 
 #: src/renderer/utils/projectIcons.ts
 msgid "Files & folders"
@@ -11520,6 +11560,10 @@ msgstr "粘贴配对 URL…"
 #~ msgid "Paste your pairing link"
 #~ msgstr "粘贴您的配对链接"
 
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+msgid "Path"
+msgstr "路径"
+
 #: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
 msgid "Pause"
 msgstr "暂停"
@@ -14568,6 +14612,10 @@ msgstr "会话操作"
 msgid "Session actions are unavailable for this thread."
 msgstr "此线程的会话操作不可用。"
 
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+msgid "Session ID"
+msgstr "会话 ID"
+
 #: src/renderer/components/providers/devin/liveSessionControls.tsx
 #~ msgid "Session renamed."
 #~ msgstr "会话已重命名。"
@@ -14772,6 +14820,10 @@ msgstr "在右侧面板显示停靠面板"
 #: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
 msgid "Show estimated cost"
 msgstr "显示预计费用"
+
+#: src/renderer/components/thread/ThreadImagesBubble.tsx
+msgid "Show files & artifacts"
+msgstr "显示文件与产物"
 
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
 msgid "Show font suggestions"
@@ -17070,6 +17122,11 @@ msgstr "线程操作"
 msgid "Thread already exists."
 msgstr "线程已存在。"
 
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
+msgid "Thread context"
+msgstr "线程上下文"
+
 #: src/renderer/components/thread/ThreadContextDock.tsx
 msgid "Thread context usage"
 msgstr "线程上下文使用"
@@ -17109,6 +17166,7 @@ msgstr "线程目标停靠栏"
 msgid "Thread images"
 msgstr "线程图片"
 
+#: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 msgid "Thread info"
 msgstr "线程信息"
@@ -17544,6 +17602,7 @@ msgstr "无法打开文件"
 msgid "Unable to open the file"
 msgstr "无法打开文件"
 
+#: src/renderer/components/thread/ThreadImagesDock.tsx
 #: src/renderer/utils/gitHelpers.ts
 msgid "Unable to open the file in the editor"
 msgstr "无法在编辑器中打开文件"
@@ -18211,6 +18270,8 @@ msgstr "URL 为必填项。"
 #: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/thread/ThreadContextDock.tsx
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
 #: src/renderer/components/thread/ThreadUsageBubble.tsx
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
@@ -18947,6 +19008,7 @@ msgid "Working…"
 msgstr "工作…"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Workspace"
@@ -18966,6 +19028,7 @@ msgstr "工作区视图"
 msgid "Workspaces"
 msgstr "工作区"
 
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 msgid "Worktree"
 msgstr "工作树"

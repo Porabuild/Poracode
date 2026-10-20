@@ -271,6 +271,8 @@ describe("sharedSettingsStore", () => {
       "goal",
       "agents",
       "images",
+      "context",
+      "usage",
     ]);
   });
 
