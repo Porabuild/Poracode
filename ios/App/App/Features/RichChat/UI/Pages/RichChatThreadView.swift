@@ -11,15 +11,7 @@ struct RichChatThreadView: View {
   @State private var pageState: RichChatThreadPageState
   @State private var isConfirmingClose = false
   @State private var composerExpanded = false
-  @State private var forkAnchor: String?
-  @State private var forkTitle = ""
-  @State private var forkID = UUID().uuidString
-  @State private var forkPending = false
-  @State private var forkAttempt: RichChatThreadCommand?
-  @State private var forkDestination: RemoteThread?
-  @State private var navigationGeneration: UInt64 = 0
-  @State private var navigationFailure = false
-  @State private var pageVisible = false
+  @State var fork = RichChatForkState()
 
   init(session: AppSession, threadID: String, title: String) {
     self.session = session
@@ -81,40 +73,7 @@ struct RichChatThreadView: View {
       }
     }
     .environment(\.colorScheme, isTerminal ? .dark : inheritedColorScheme)
-    .sheet(isPresented: Binding(get: { forkAnchor != nil }, set: { if !$0 && !forkPending { forkAnchor = nil } })) {
-      NavigationStack {
-        Form {
-          Text(RichChatMessageActionStrings.forkExplanation).foregroundStyle(.secondary)
-          TextField(RichChatMessageActionStrings.forkName, text: $forkTitle)
-            .disabled(forkPending || forkAttempt != nil)
-          if let failure = suite.conversation.state.failure {
-            Text(RichChatStrings.failure(failure)).foregroundStyle(.red)
-          }
-          if navigationFailure {
-            Text(RichChatMessageActionStrings.sourceUnavailable).foregroundStyle(.red)
-          }
-        }
-        .navigationTitle(RichChatMessageActionStrings.forkTitle)
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-          ToolbarItem(placement: .cancellationAction) {
-            Button(RichChatStrings.cancel) { forkAnchor = nil }.disabled(forkPending)
-          }
-          ToolbarItem(placement: .confirmationAction) {
-            Button(RichChatMessageActionStrings.forkCreate) { createFork() }
-              .disabled(forkPending || forkTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-          }
-        }
-        .interactiveDismissDisabled(forkPending)
-      }
-    }
-    .navigationDestination(item: $forkDestination) { destination in
-      RichChatThreadView(session: session, threadID: destination.id, title: destination.title)
-    }
-    .alert(RichChatMessageActionStrings.sourceUnavailable, isPresented: Binding(
-      get: { navigationFailure && forkAnchor == nil },
-      set: { if !$0 { navigationFailure = false } }
-    )) { Button(RichChatStrings.cancel, role: .cancel) { navigationFailure = false } }
+    .modifier(RichChatForkPresentation(page: self))
     .confirmationDialog(
       RichChatStrings.closeThreadConfirmationTitle,
       isPresented: $isConfirmingClose,
@@ -134,14 +93,6 @@ struct RichChatThreadView: View {
       dismiss()
     }
     .task(id: activationID) { await pageState.activate() }
-    .onChange(of: activationID) {
-      navigationGeneration &+= 1
-      forkAnchor = nil
-      forkAttempt = nil
-      forkPending = false
-      forkDestination = nil
-      navigationFailure = false
-    }
     .task(id: session.currentSettingsHostSelection?.lease) {
       await pageState.refreshProviderUsage()
       await pageState.loadVisibilityOverrides()
@@ -171,12 +122,12 @@ struct RichChatThreadView: View {
         await suite.sessionActions.refreshInventory()
       }
     }
-    .onAppear { pageVisible = true; draftState.consumeQueuedSegments() }
+    .onAppear { draftState.consumeQueuedSegments() }
     .onChange(of: scenePhase) { _, phase in pageState.handleScenePhase(phase) }
-    .onDisappear { pageVisible = false; forkPending = false; navigationGeneration &+= 1; pageState.detach() }
+    .onDisappear { pageState.detach() }
   }
 
-  private var suite: RichChatControllerSuite { pageState.suite }
+  var suite: RichChatControllerSuite { pageState.suite }
   private var providerUsageController: SettingsHostInformationController {
     pageState.providerUsageController
   }
@@ -187,17 +138,6 @@ struct RichChatThreadView: View {
 
   private var guiContent: some View {
     VStack(spacing: 0) {
-      if let source = thread?.forkedFrom?.objectValue,
-        let sourceID = source["threadId"]?.stringValue,
-        let sourceTitle = source["title"]?.stringValue
-      {
-        Button(RichChatMessageActionStrings.forkSource(sourceTitle), systemImage: "arrow.triangle.branch") {
-          navigateToForkThread(sourceID)
-        }
-        .font(.caption)
-        .tint(.secondary)
-        .padding(8)
-      }
       RichChatStatusView(suite: suite)
       RichChatResponsiveLayout {
         EmptyView()
@@ -275,18 +215,11 @@ struct RichChatThreadView: View {
       allowsCheckpointRevert: thread?.projectId != RemoteProject.homeScopeID,
       canOperate: canOperate,
       retry: { Task { await suite.refreshAuthoritativeHistory() } },
-      requestFork: canFork ? { anchor in
-        forkID = UUID().uuidString
-        forkAttempt = nil
-        navigationFailure = false
-        forkTitle = thread?.title ?? title
-        forkAnchor = anchor
-      } : nil,
-      forkBoundaryItemID: thread?.forkedFrom?["throughItemId"]?.stringValue
+      requestFork: forkRequest, forkBoundaryItemID: forkBoundaryID
     )
   }
 
-  private var thread: RemoteThread? { session.richChatThread(id: threadID) }
+  var thread: RemoteThread? { session.richChatThread(id: threadID) }
   private var project: RemoteProject? {
     guard let projectID = thread?.projectId else { return nil }
     return session.projects.first { $0.id == projectID }
@@ -340,7 +273,7 @@ struct RichChatThreadView: View {
         && (candidate.worktreePath ?? "") == (thread.worktreePath ?? "")
     }
   }
-  private var canOperate: Bool {
+  var canOperate: Bool {
     hasOperateAccess && !suite.requiresAuthoritativeRefresh
   }
   private var canOperateTerminal: Bool {
@@ -370,58 +303,9 @@ struct RichChatThreadView: View {
     session.currentRichChatAccess?.controllerGate(.requestsResolve) == nil
       && !suite.requiresAuthoritativeRefresh
   }
-  private var activationID: String {
+  var activationID: String {
     let lease = session.currentRichChatAccess?.lease
     return "\(lease?.connectionID.rawValue ?? "none"):\(lease?.generation ?? 0):\(threadID)"
-  }
-
-  private var canFork: Bool {
-    canOperate && session.state.threadForksSupported
-      && ["idle", "inactive", "error"].contains(thread?.status ?? "")
-  }
-
-  private func createFork() {
-    guard let forkAnchor, !forkPending, forkAttempt != nil || canFork else { return }
-    if forkAttempt == nil {
-      forkAttempt = RichChatThreadCommand(payload: [
-        "kind": .string("fork"), "sourceThreadId": .string(threadID),
-        "throughItemId": .string(forkAnchor),
-        "title": .string(forkTitle.trimmingCharacters(in: .whitespacesAndNewlines)),
-      ], commandID: forkID, destinationThreadID: forkID)
-    }
-    guard let command = forkAttempt else { return }
-    let owner = activationID
-    let navigation = navigationGeneration
-    let targetID = forkID
-    forkPending = true
-    navigationFailure = false
-    Task {
-      let success = await suite.conversation.runCommand(command)
-      guard activationID == owner, pageVisible, navigation == navigationGeneration else { return }
-      if success {
-        let destination = await session.ensureThreadLoadedForOpen(id: targetID)
-        guard activationID == owner, pageVisible, navigation == navigationGeneration else {
-          session.releasePendingNavigationPin(id: targetID)
-          return
-        }
-        if let destination {
-          self.forkAnchor = nil
-          forkDestination = destination
-        } else { navigationFailure = true }
-      }
-      forkPending = false
-    }
-  }
-
-  private func navigateToForkThread(_ id: String) {
-    let owner = activationID
-    navigationGeneration &+= 1
-    let navigation = navigationGeneration
-    Task {
-      let destination = await session.ensureThreadLoadedForOpen(id: id)
-      guard activationID == owner, pageVisible, navigation == navigationGeneration else { session.releasePendingNavigationPin(id: id); return }
-      if let destination { forkDestination = destination } else { navigationFailure = true }
-    }
   }
 
 }
