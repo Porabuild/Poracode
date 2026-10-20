@@ -925,7 +925,7 @@ describe("native app-owned visuals", () => {
   ] as const)("keeps complete graphemes in %s chart labels", (kind, limit) => {
     const prefix = "A".repeat(limit - 2);
     const labels = [`${prefix}👩🏽‍💻Z`, `${prefix}👩🏽‍💻YZ`];
-    const { container } = render(
+    render(
       <AppProvider>
         <NativeVisual
           {...props}
@@ -937,51 +937,54 @@ describe("native app-owned visuals", () => {
         />
       </AppProvider>,
     );
-    const nodes =
-      kind === "bar"
-        ? labels.map((label) => screen.getByText(label, { selector: "span[title]" }))
-        : [...container.querySelectorAll('svg[role="img"] text > title')].map(
-            (title) => title.parentElement!,
-          );
-    expect(
-      nodes.map(
-        (element) => element.getAttribute("title") ?? element.querySelector("title")?.textContent,
-      ),
-    ).toEqual(labels);
+    const nodes = labels.map((label) => screen.getByText(label, { selector: "span[title]" }));
+    expect(nodes.map((element) => element.getAttribute("title"))).toEqual(labels);
     const shown = nodes.map((element) =>
       [...element.childNodes]
         .filter((node) => node.nodeType === Node.TEXT_NODE)
         .map((node) => node.textContent)
         .join(""),
     );
-    expect(shown).toEqual(kind === "bar" ? labels : [labels[0], `${prefix}👩🏽‍💻…`]);
+    expect(shown).toEqual(labels);
   });
 
-  it("retains full wide bar labels in inspection and the data table", () => {
-    const labels = ["W".repeat(18), "👩🏽‍💻".repeat(12)];
-    render(
-      <AppProvider>
-        <NativeVisual
-          {...props}
-          source={JSON.stringify({
-            blocks: [
-              { type: "chart", kind: "bar", labels, series: [{ label: "Values", values: [1, 2] }] },
-            ],
-          })}
-        />
-      </AppProvider>,
-    );
-    for (const label of labels) {
-      const visible = screen.getByText(label, { selector: "span[title]" });
-      expect(visible).toHaveAttribute("title", label);
-      fireEvent.pointerEnter(visible);
-      expect(
-        within(screen.getByRole("group", { name: "Chart inspection" })).getByText(label),
-      ).toBeTruthy();
-    }
-    fireEvent.click(screen.getByRole("button", { name: "Show data table" }));
-    for (const label of labels) expect(screen.getByRole("rowheader", { name: label })).toBeTruthy();
-  });
+  it.each(["bar", "line"] as const)(
+    "retains full wide %s labels in inspection and the data table",
+    (kind) => {
+      const labels =
+        kind === "bar"
+          ? ["W".repeat(18), "👩🏽‍💻".repeat(12)]
+          : Array.from({ length: 8 }, (_, index) => `${"W".repeat(11)}${index}`);
+      render(
+        <AppProvider>
+          <NativeVisual
+            {...props}
+            source={JSON.stringify({
+              blocks: [
+                {
+                  type: "chart",
+                  kind,
+                  labels,
+                  series: [{ label: "Values", values: labels.map((_, index) => index + 1) }],
+                },
+              ],
+            })}
+          />
+        </AppProvider>,
+      );
+      for (const label of labels) {
+        const visible = screen.getByText(label, { selector: "span[title]" });
+        expect(visible).toHaveAttribute("title", label);
+        fireEvent.pointerEnter(visible);
+        expect(
+          within(screen.getByRole("group", { name: "Chart inspection" })).getByText(label),
+        ).toBeTruthy();
+      }
+      fireEvent.click(screen.getByRole("button", { name: "Show data table" }));
+      for (const label of labels)
+        expect(screen.getByRole("rowheader", { name: label })).toBeTruthy();
+    },
+  );
 
   it("keeps gaps in a line chart and never emits invalid SVG coordinates", () => {
     const value = JSON.stringify({

@@ -19,13 +19,6 @@ const COLORS = [
   "var(--warning)",
   "var(--foreground)",
 ] as const;
-const labelSegmenter = new Intl.Segmenter(undefined, { granularity: "grapheme" });
-
-function shortLabel(label: string, limit: number): string {
-  const graphemes = Array.from(labelSegmenter.segment(label), (part) => part.segment);
-  return graphemes.length > limit ? `${graphemes.slice(0, limit - 1).join("")}…` : label;
-}
-
 export function NativeVisualChart({
   block,
   inputs,
@@ -86,6 +79,10 @@ export function NativeVisualChart({
   const barX = (value: number) => 155 + ((value - min) / span) * 385;
   const lineX = (index: number) =>
     65 + (block.labels.length === 1 ? 285 : (index / (block.labels.length - 1)) * 570);
+  const lineLabelWidth =
+    block.labels.length > 1 && block.labels.length <= 8
+      ? Math.min(120, lineX(1) - lineX(0) - 8)
+      : 120;
   const lineY = (value: number) => 205 - ((value - min) / span) * 165;
   function inspectPoint(nextPoint: number) {
     setHovered(undefined);
@@ -150,7 +147,7 @@ export function NativeVisualChart({
           onPointerLeave={() => setHovered(undefined)}
         >
           <svg
-            viewBox={`0 0 800 ${block.kind === "bar" ? barHeight : 250}`}
+            viewBox={`0 0 800 ${block.kind === "bar" ? barHeight : 225}`}
             className="w-full min-w-[420px] text-muted"
             role="img"
             aria-labelledby={titleId}
@@ -291,21 +288,6 @@ export function NativeVisualChart({
                     </g>
                   );
                 })}
-                {block.labels.map((label, index) =>
-                  block.labels.length <= 8 || index === 0 || index === block.labels.length - 1 ? (
-                    <text
-                      key={index}
-                      x={lineX(index)}
-                      y={235}
-                      textAnchor="middle"
-                      fill="currentColor"
-                      fontSize={11}
-                    >
-                      <title>{label}</title>
-                      {shortLabel(label, 12)}
-                    </text>
-                  ) : null,
-                )}
               </>
             )}
           </svg>
@@ -329,7 +311,26 @@ export function NativeVisualChart({
                 </div>
               ))}
             </div>
-          ) : null}
+          ) : (
+            <div className="relative h-5">
+              {block.labels.map((label, index) =>
+                block.labels.length <= 8 || index === 0 || index === block.labels.length - 1 ? (
+                  <span
+                    key={index}
+                    title={label}
+                    className="absolute top-1 -translate-x-1/2 truncate text-center text-xs leading-none text-muted"
+                    style={{
+                      left: `${(lineX(index) / 800) * 100}%`,
+                      width: `${(lineLabelWidth / 800) * 100}%`,
+                    }}
+                    onPointerEnter={() => setHovered(index)}
+                  >
+                    {label}
+                  </span>
+                ) : null,
+              )}
+            </div>
+          )}
         </div>
       )}
       {!view.showTable && evaluatedSeries.length ? (
