@@ -1,4 +1,3 @@
-import { capabilitiesForSessionConfig } from "@/shared/sessionConfigCapabilities";
 import {
   useEffect,
   useEffectEvent,
@@ -17,7 +16,10 @@ import { friendlyError } from "@/shared/messages";
 import type { FollowUpBehavior } from "@/shared/settings";
 import { useThreadFollowUpQueue } from "@/renderer/state/threadFollowUpQueueStore";
 import { agentStatusForPresentation, hasSelectableReasoning } from "@/shared/agentSelection";
-import { canonicalProviderModelId } from "@/renderer/components/providers/modelConfig";
+import {
+  canonicalProviderModelId,
+  composerCapabilitiesForSession,
+} from "@/renderer/components/providers/modelConfig";
 import {
   changeThreadConfig,
   clearThreadPendingSteer,
@@ -388,7 +390,8 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     presentationAgentStatus && presentationMode === "gui"
       ? {
           ...presentationAgentStatus,
-          capabilities: capabilitiesForSessionConfig(
+          capabilities: composerCapabilitiesForSession(
+            thread.agentKind,
             presentationAgentStatus.capabilities,
             thread.sessionConfigOptions,
           ),

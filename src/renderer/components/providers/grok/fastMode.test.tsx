@@ -1,6 +1,12 @@
 import { fireEvent, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { AgentCapability, AgentStatus, ScheduledTask, Thread } from "@/shared/contracts";
+import type {
+  AgentCapability,
+  AgentStatus,
+  ScheduledTask,
+  SessionConfigOptions,
+  Thread,
+} from "@/shared/contracts";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import {
@@ -131,6 +137,127 @@ describe("Grok Fast mode renderer", () => {
       title: "Thread",
       agentKind: "grok",
       config: { model: "grok-4.7-build-fast" },
+      status: "idle",
+      attention: "none",
+      canResumeWithConfig: true,
+      archived: false,
+      done: false,
+      starred: false,
+      presentationMode: "gui",
+      createdAt: "2026-08-20T00:00:00.000Z",
+      updatedAt: "2026-08-20T00:00:00.000Z",
+    } as Thread;
+
+    const controls = buildControls(thread, agent, undefined, vi.fn());
+    const modelControl = controls.find((control) => control.kind === "provider-model");
+    const fastToggle = controls.find(
+      (control) => control.kind === "toggle" && control.label === "Fast",
+    );
+
+    expect(modelControl?.kind === "provider-model" ? modelControl.currentModel : undefined).toBe(
+      "grok-4.7",
+    );
+    expect(fastToggle?.kind === "toggle" ? fastToggle.isSelected : undefined).toBe(true);
+  });
+
+  it("keeps Fast as a control when the live session lists the fast sibling", () => {
+    const agent = {
+      kind: "grok",
+      label: "Grok Build",
+      installed: true,
+      authState: "authenticated",
+      capabilities: {
+        ...capabilities,
+        models: [
+          { id: "grok-4.7", label: "Grok 4.7" },
+          { id: "grok-4.6", label: "Grok 4.6" },
+        ],
+        modelEfforts: { "grok-4.7": ["low", "high"], "grok-4.6": ["high"] },
+        fastModels: ["grok-4.7"],
+      },
+    } as AgentStatus;
+    const sessionConfigOptions: SessionConfigOptions = [
+      {
+        id: "model",
+        type: "select",
+        role: "model",
+        currentValue: "grok-4.7",
+        values: [
+          { value: "grok-4.7", name: "Grok 4.7" },
+          { value: "grok-4.7-build-fast", name: "Grok 4.7 Fast" },
+          { value: "grok-4.6", name: "Grok 4.6" },
+        ],
+        groups: [],
+      },
+    ];
+    const thread = {
+      id: "thread-1",
+      projectId: "project-1",
+      title: "Thread",
+      agentKind: "grok",
+      config: { model: "grok-4.7" },
+      sessionConfigOptions,
+      status: "idle",
+      attention: "none",
+      canResumeWithConfig: true,
+      archived: false,
+      done: false,
+      starred: false,
+      presentationMode: "gui",
+      createdAt: "2026-08-20T00:00:00.000Z",
+      updatedAt: "2026-08-20T00:00:00.000Z",
+    } as Thread;
+
+    const controls = buildControls(thread, agent, undefined, vi.fn());
+    const modelControl = controls.find((control) => control.kind === "provider-model");
+    const fastToggle = controls.find(
+      (control) => control.kind === "toggle" && control.label === "Fast",
+    );
+    const models =
+      modelControl?.kind === "provider-model" ? modelControl.providers[0]?.capabilities.models : [];
+
+    expect(models?.map((model) => model.id)).toEqual(["grok-4.7", "grok-4.6"]);
+    expect(modelControl?.kind === "provider-model" ? modelControl.currentModel : undefined).toBe(
+      "grok-4.7",
+    );
+    expect(fastToggle?.kind === "toggle" ? fastToggle.isSelected : undefined).toBe(false);
+  });
+
+  it("keeps Fast on when the live session's current model is the fast sibling", () => {
+    const agent = {
+      kind: "grok",
+      label: "Grok Build",
+      installed: true,
+      authState: "authenticated",
+      capabilities: {
+        ...capabilities,
+        models: [
+          { id: "grok-4.7", label: "Grok 4.7" },
+          { id: "grok-4.6", label: "Grok 4.6" },
+        ],
+        modelEfforts: { "grok-4.7": ["high"], "grok-4.6": ["high"] },
+        fastModels: ["grok-4.7"],
+      },
+    } as AgentStatus;
+    const thread = {
+      id: "thread-1",
+      projectId: "project-1",
+      title: "Thread",
+      agentKind: "grok",
+      config: { model: "grok-4.7-build-fast" },
+      sessionConfigOptions: [
+        {
+          id: "model",
+          type: "select",
+          role: "model",
+          currentValue: "grok-4.7-build-fast",
+          values: [
+            { value: "grok-4.7", name: "Grok 4.7" },
+            { value: "grok-4.7-build-fast", name: "Grok 4.7 Fast" },
+          ],
+          groups: [],
+        },
+      ],
       status: "idle",
       attention: "none",
       canResumeWithConfig: true,
