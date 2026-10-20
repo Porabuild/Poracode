@@ -3,11 +3,11 @@
   "contract": "poracode.remote",
   "protocolVersion": 14,
   "bindingFormatVersion": 2,
-  "manifestHash": "sha256:d1421f246473a0497a95af59ef45eedbb8c042793c44094deb3953876661c2b9",
-  "keyCount": 303,
+  "manifestHash": "sha256:a592278cd94ca5853fd617c09db0afe9542eb44cf938ec74e675a65cdb2786e9",
+  "keyCount": 308,
   "counts": {
     "route": 102,
-    "procedure": 149,
+    "procedure": 154,
     "ws-client": 9,
     "ws-server": 11,
     "replay": 16,
@@ -98,6 +98,10 @@
       "kind": "procedure",
       "id": "forgeEditPr"
     },
+    "procedure:forgeEditPrComment": {
+      "kind": "procedure",
+      "id": "forgeEditPrComment"
+    },
     "procedure:forgeGetPrChecks": {
       "kind": "procedure",
       "id": "forgeGetPrChecks"
@@ -121,6 +125,14 @@
     "procedure:forgeGetPrReviewComments": {
       "kind": "procedure",
       "id": "forgeGetPrReviewComments"
+    },
+    "procedure:forgeGetPrReviewGuide": {
+      "kind": "procedure",
+      "id": "forgeGetPrReviewGuide"
+    },
+    "procedure:forgeGetPrViewedFiles": {
+      "kind": "procedure",
+      "id": "forgeGetPrViewedFiles"
     },
     "procedure:forgeGetRepository": {
       "kind": "procedure",
@@ -154,6 +166,10 @@
       "kind": "procedure",
       "id": "forgeReopenPr"
     },
+    "procedure:forgeSetPrFileViewed": {
+      "kind": "procedure",
+      "id": "forgeSetPrFileViewed"
+    },
     "procedure:forgeSubmitPrReview": {
       "kind": "procedure",
       "id": "forgeSubmitPrReview"
@@ -161,6 +177,10 @@
     "procedure:forgeUpdatePrBranch": {
       "kind": "procedure",
       "id": "forgeUpdatePrBranch"
+    },
+    "procedure:forgeWritePrReviewGuide": {
+      "kind": "procedure",
+      "id": "forgeWritePrReviewGuide"
     },
     "procedure:generateCommitMessage": {
       "kind": "procedure",

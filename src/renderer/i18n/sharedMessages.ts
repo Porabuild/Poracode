@@ -11,6 +11,19 @@ import { i18n } from "./i18n";
  * arguments resolved with the values passed to `msg()`.
  */
 export const SHARED_MESSAGE_DESCRIPTORS: Record<MessageKey, MessageDescriptor> = {
+  "forge.commentNotEditable": msg({
+    message: "Only your own comments on this pull request can be edited.",
+  }),
+  "forge.guideInvalid": msg({
+    message:
+      "The guide did not cover every changed file or contained an invalid excerpt. Rewrite the guide.",
+  }),
+  "forge.guideWriterUnsupported": msg({
+    message: "Select a guide writer that supports an enforced read-only workspace.",
+  }),
+  "forge.commentChanged": msg({
+    message: "This comment changed while you were editing it. Refresh before saving.",
+  }),
   "forge.unsupported": msg({
     message:
       "This operation is not supported by the {forge} integration. Open the review on its source host.",

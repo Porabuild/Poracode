@@ -73,21 +73,21 @@ describe("remote v3 native binding generator", () => {
         // Background task timing, progress and Stop add two structural types.
         // Optional question-answer metadata adds three structural types and two Swift chunks.
         // Source-host reviews add one route, nineteen procedures, and their native mirrors.
-        sourceHash: "sha256:04df2d8b21ef28d46e6291027ef95ce4503c0dec42ae06a592a97cbf55b20d84",
-        manifestHash: "sha256:1146bab4940014d704c298b48868ee58b6d33eda9c4344d9e2d9a289ae07207c",
+        sourceHash: "sha256:237eac49297a7900385758d10f48e4790da691b64a51f7fee00db6628af54916",
+        manifestHash: "sha256:27f9fa7e76e5cbbf48fc22674c45ba956208e343ac98a32b89592236900395d3",
         counts: {
           routes: 102,
-          procedures: 149,
-          voidProcedureResults: 58,
-          jsonProcedureResults: 91,
+          procedures: 154,
+          voidProcedureResults: 59,
+          jsonProcedureResults: 95,
           webSocketClientVariants: 9,
           // 10 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
           webSocketServerVariants: 11,
-          schemaRoots: 475,
-          structuralTypes: 1067,
+          schemaRoots: 484,
+          structuralTypes: 1083,
           semanticValidators: 25,
           swiftFiles: 68,
-          kotlinFiles: 58,
+          kotlinFiles: 59,
           stateMachines: 5,
         },
       });
@@ -359,7 +359,7 @@ describe("remote v3 native binding generator", () => {
       const output = buildNativeBindingOutput(ir, manifest).files;
       for (const language of ["swift", "kotlin"] as const) {
         const adapters = rootAdapters(graph, language);
-        expect(adapters).toHaveLength(475);
+        expect(adapters).toHaveLength(484);
         expect(
           adapters
             .map((adapter) => adapter.id)

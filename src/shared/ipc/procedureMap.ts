@@ -113,6 +113,8 @@ export type IpcProcedureName = keyof IpcProcedureMap;
  * Network enablement adds a main-local name only; existing operations stay compatible.
  * Model-provider management is additive; older peers reject the unknown name
  * before effects. Native configuration and credential formats remain provider-owned.
+ * Review marks, owned-comment edits and guides add negotiated names only;
+ * existing peers reject unknown names before effects, so hop 18 stays compatible.
  */
 export const IPC_PROCEDURE_MAP_VERSION = CLIENT_HOST_HOP_VERSION;
 

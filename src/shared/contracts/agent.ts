@@ -411,6 +411,8 @@ export const agentCapabilitySchema = z.object({
    * Optional: absent = false.
    */
   supportsOneShot: z.boolean().optional(),
+  /** Enforces filesystem read/search/list only, with external tools disabled, in one-shot workspaces. */
+  supportsReadOnlyOneShotWorkspace: z.boolean().optional(),
   /**
    * Whether the adapter exposes a provider-enforced text-only one-shot path
    * with tools, MCPs, plugins, and hooks disabled. Optional: absent = false.

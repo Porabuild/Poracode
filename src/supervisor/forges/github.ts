@@ -1,5 +1,6 @@
 import type {
   ForgeEditPrPayload,
+  ForgeEditPrCommentPayload,
   ForgeRepository,
   GhCreatePrPayload,
   PrMergeMethod,
@@ -77,6 +78,12 @@ export class GitHubReview implements ForgeReviewAdapter {
   async diff(number: number) {
     return (await this.service.getPrDiff(this.location, number)).diff;
   }
+  viewedFiles(number: number) {
+    return this.service.getPrViewedFiles(this.location, number);
+  }
+  setFileViewed(number: number, path: string, viewed: boolean) {
+    return this.service.setPrFileViewed(this.location, number, path, viewed);
+  }
   async checks(number: number) {
     return (await this.service.getPrDetails(this.location, number)).details.checks;
   }
@@ -104,6 +111,14 @@ export class GitHubReview implements ForgeReviewAdapter {
   }
   comment(number: number, body: string) {
     return this.service.postPrComment(this.location, number, body);
+  }
+  editComment(input: ForgeEditPrCommentPayload) {
+    return this.service.editPrComment(
+      this.location,
+      input.commentId,
+      input.body,
+      input.threadId !== undefined,
+    );
   }
   review(number: number, decision: PrReviewDecision, body: string) {
     return this.service.submitPrReview(this.location, number, decision, body);

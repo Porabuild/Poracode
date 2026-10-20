@@ -154,7 +154,9 @@ const execFileAsync = promisify(execFile);
 // v65 refreshes the built-in provider inventory after adding DeepSeek Harness.
 // v66 refreshes the three distinct approval/sandbox postures.
 // v67 refreshes native Auto Review permissions and their default.
-export const STATUS_CACHE_VERSION = 67;
+// v68 re-probes Claude so statuses cached without the read-only one-shot workspace capability
+// (needed to offer it as a review-guide writer) are not reused.
+export const STATUS_CACHE_VERSION = 68;
 const WSL_AGENT_DETECTION_TIMEOUT_MS = 60_000;
 const WSL_LXSS_REGISTRY_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss";
 

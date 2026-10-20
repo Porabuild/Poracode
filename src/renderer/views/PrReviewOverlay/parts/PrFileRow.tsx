@@ -8,11 +8,13 @@ export function PrFileRow(props: {
   file: PrFile;
   isSelected: boolean;
   viewState: PrViewedState;
+  viewedLoading: boolean;
   onSelect: () => void;
   onMarkViewed: () => void;
   onClearViewed: () => void;
 }) {
-  const { file, isSelected, viewState, onSelect, onMarkViewed, onClearViewed } = props;
+  const { file, isSelected, viewState, viewedLoading, onSelect, onMarkViewed, onClearViewed } =
+    props;
   const { t } = useLingui();
 
   return (
@@ -25,6 +27,7 @@ export function PrFileRow(props: {
         aria-label={viewState === "viewed" ? t`Mark as not viewed` : t`Mark as viewed`}
         className="shrink-0"
         isSelected={viewState === "viewed"}
+        isDisabled={viewedLoading}
         onChange={(selected) => {
           if (selected) onMarkViewed();
           else onClearViewed();

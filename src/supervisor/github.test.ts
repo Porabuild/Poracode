@@ -67,6 +67,20 @@ const wslLocation = {
 };
 
 describe("GitHubService", () => {
+  it.each([false, true])(
+    "edits the right GitHub comment kind without shell interpolation (%s)",
+    async (inline) => {
+      execFileAsyncMock.mockResolvedValue({ stdout: "{}" });
+      const body = "Updated $text with quotes' and\nnewlines";
+      await new GitHubService().editPrComment(location, "comment-node", body, inline);
+      const args = execFileAsyncMock.mock.calls[0]![1] as string[];
+      expect(args).toContain(`body=${body}`);
+      expect(args).toContain("id=comment-node");
+      expect(args.find((value) => value.startsWith("query="))).toContain(
+        inline ? "updatePullRequestReviewComment(input:" : "updateIssueComment(input:",
+      );
+    },
+  );
   beforeEach(() => {
     vi.clearAllMocks();
     buildAgentCommandMock.mockImplementation((_loc, command, args) => ({

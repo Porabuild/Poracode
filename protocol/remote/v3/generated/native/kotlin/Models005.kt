@@ -25,6 +25,12 @@ enum class ProcedureforgeCreatePrResultU2DMergeable_05ab37f667 {
 }
 
 @Serializable
+enum class ProcedureforgeCreatePrResultU2DSourceU2DCapabilitiesU2DCommentEditingU2DItem_46c9cbbd3d {
+    @SerialName("conversation") CONVERSATION,
+    @SerialName("inline") INLINE,
+}
+
+@Serializable
 enum class ProcedureforgeCreatePrResultU2DSourceU2DCapabilitiesU2DMergeMethodsU2DItem_9c01de6b08 {
     @SerialName("merge") MERGE,
     @SerialName("squash") SQUASH,
@@ -39,11 +45,18 @@ enum class ProcedureforgeCreatePrResultU2DSourceU2DCapabilitiesU2DReviewDecision
 }
 
 @Serializable
-data class ProcedureforgeCreatePrResultU2DSourceU2DCapabilities_4ed7c41654(
+enum class ProcedureforgeCreatePrResultU2DSourceU2DCapabilitiesU2DViewedFiles_ae682752b1 {
+    @SerialName("forge") FORGE,
+    @SerialName("host") HOST,
+}
+
+@Serializable
+data class ProcedureforgeCreatePrResultU2DSourceU2DCapabilities_71731d44e9(
     @SerialName("adminMerge") val adminMerge: Boolean,
     @SerialName("autoFix") val autoFix: Boolean,
     @SerialName("autoMerge") val autoMerge: Boolean,
     @SerialName("checks") val checks: Boolean,
+    @SerialName("commentEditing") val commentEditing: RemoteField<List<ProcedureforgeCreatePrResultU2DSourceU2DCapabilitiesU2DCommentEditingU2DItem_46c9cbbd3d>> = RemoteField.Missing,
     @SerialName("draft") val draft: Boolean,
     @SerialName("edit") val edit: Boolean,
     @SerialName("expectedHeadMerge") val expectedHeadMerge: Boolean,
@@ -51,8 +64,10 @@ data class ProcedureforgeCreatePrResultU2DSourceU2DCapabilities_4ed7c41654(
     @SerialName("rebaseBranch") val rebaseBranch: Boolean,
     @SerialName("reopen") val reopen: Boolean,
     @SerialName("reviewDecisions") val reviewDecisions: List<ProcedureforgeCreatePrResultU2DSourceU2DCapabilitiesU2DReviewDecisionsU2DItem_c0551fbf08>,
+    @SerialName("reviewGuides") val reviewGuides: RemoteField<ProcedureensureThreadRunningRequestU2DMentionHandoff_d2dd3595e1> = RemoteField.Missing,
     @SerialName("reviewThreads") val reviewThreads: Boolean,
     @SerialName("updateBranch") val updateBranch: Boolean,
+    @SerialName("viewedFiles") val viewedFiles: RemoteField<ProcedureforgeCreatePrResultU2DSourceU2DCapabilitiesU2DViewedFiles_ae682752b1> = RemoteField.Missing,
 ) {
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
@@ -60,6 +75,7 @@ data class ProcedureforgeCreatePrResultU2DSourceU2DCapabilities_4ed7c41654(
             RemoteFieldDescriptor("autoFix", "Boolean", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("autoMerge", "Boolean", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("checks", "Boolean", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("commentEditing", "List<ProcedureforgeCreatePrResultU2DSourceU2DCapabilitiesU2DCommentEditingU2DItem_46c9cbbd3d>", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("draft", "Boolean", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("edit", "Boolean", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("expectedHeadMerge", "Boolean", true, false, null, null, null, null, null, null, null, null, listOf()),
@@ -67,16 +83,18 @@ data class ProcedureforgeCreatePrResultU2DSourceU2DCapabilities_4ed7c41654(
             RemoteFieldDescriptor("rebaseBranch", "Boolean", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("reopen", "Boolean", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("reviewDecisions", "List<ProcedureforgeCreatePrResultU2DSourceU2DCapabilitiesU2DReviewDecisionsU2DItem_c0551fbf08>", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("reviewGuides", "ProcedureensureThreadRunningRequestU2DMentionHandoff_d2dd3595e1", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("reviewThreads", "Boolean", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("updateBranch", "Boolean", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("viewedFiles", "ProcedureforgeCreatePrResultU2DSourceU2DCapabilitiesU2DViewedFiles_ae682752b1", false, false, null, null, null, null, null, null, null, null, listOf()),
         ), listOf())
     }
 }
 
 @Serializable
-data class ProcedureforgeCreatePrResultU2DSource_7e0a8084c4(
+data class ProcedureforgeCreatePrResultU2DSource_55723acd91(
     @SerialName("account") val account: RemoteField<ProcedureforgeClosePrRequestU2DForgeAccount_c2bb40b82b> = RemoteField.Missing,
-    @SerialName("capabilities") val capabilities: ProcedureforgeCreatePrResultU2DSourceU2DCapabilities_4ed7c41654,
+    @SerialName("capabilities") val capabilities: ProcedureforgeCreatePrResultU2DSourceU2DCapabilities_71731d44e9,
     @SerialName("forge") val forge: ProcedureforgeClosePrRequestU2DForgeAccountU2DForge_eaed3cfbf4,
     @SerialName("host") val host: String,
     @SerialName("remote") val remote: String,
@@ -85,7 +103,7 @@ data class ProcedureforgeCreatePrResultU2DSource_7e0a8084c4(
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
             RemoteFieldDescriptor("account", "ProcedureforgeClosePrRequestU2DForgeAccount_c2bb40b82b", false, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("capabilities", "ProcedureforgeCreatePrResultU2DSourceU2DCapabilities_4ed7c41654", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("capabilities", "ProcedureforgeCreatePrResultU2DSourceU2DCapabilities_71731d44e9", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("forge", "ProcedureforgeClosePrRequestU2DForgeAccountU2DForge_eaed3cfbf4", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("host", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("remote", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
@@ -103,7 +121,7 @@ enum class ProcedureforgeCreatePrResultU2DState_79fd49e14d {
 }
 
 @Serializable
-data class ProcedureforgeCreatePrResult_912ced4bf8(
+data class ProcedureforgeCreatePrResult_22a062bffa(
     @SerialName("baseBranch") val baseBranch: ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b,
     @SerialName("checksStatus") val checksStatus: RemoteField<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b> = RemoteField.Missing,
     @SerialName("headSha") val headSha: RemoteField<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b> = RemoteField.Missing,
@@ -113,7 +131,7 @@ data class ProcedureforgeCreatePrResult_912ced4bf8(
     @SerialName("mergeable") val mergeable: RemoteField<ProcedureforgeCreatePrResultU2DMergeable_05ab37f667> = RemoteField.Missing,
     @SerialName("number") val number: Long,
     @SerialName("reviewDecision") val reviewDecision: RemoteField<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b> = RemoteField.Missing,
-    @SerialName("source") val source: RemoteField<ProcedureforgeCreatePrResultU2DSource_7e0a8084c4> = RemoteField.Missing,
+    @SerialName("source") val source: RemoteField<ProcedureforgeCreatePrResultU2DSource_55723acd91> = RemoteField.Missing,
     @SerialName("state") val state: ProcedureforgeCreatePrResultU2DState_79fd49e14d,
     @SerialName("title") val title: ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b,
     @SerialName("updatedAt") val updatedAt: ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b,
@@ -131,12 +149,37 @@ data class ProcedureforgeCreatePrResult_912ced4bf8(
             RemoteFieldDescriptor("mergeable", "ProcedureforgeCreatePrResultU2DMergeable_05ab37f667", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("number", "Long", true, false, null, 9007199254740991.0, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("reviewDecision", "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", false, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("source", "ProcedureforgeCreatePrResultU2DSource_7e0a8084c4", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("source", "ProcedureforgeCreatePrResultU2DSource_55723acd91", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("state", "ProcedureforgeCreatePrResultU2DState_79fd49e14d", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("title", "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("updatedAt", "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("url", "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("viewerDidAuthor", "Boolean", false, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+data class ProcedureforgeEditPrCommentRequest_cc9733aab3(
+    @SerialName("body") val body: String,
+    @SerialName("commentId") val commentId: String,
+    @SerialName("expectedBody") val expectedBody: ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b,
+    @SerialName("forgeAccount") val forgeAccount: ProcedureforgeClosePrRequestU2DForgeAccount_c2bb40b82b,
+    @SerialName("forgeRepository") val forgeRepository: String,
+    @SerialName("prNumber") val prNumber: Long,
+    @SerialName("projectLocation") val projectLocation: ProcedurebeginMcpServerOauthRequestU2DProjectLocation_080f9cc154,
+    @SerialName("threadId") val threadId: RemoteField<String> = RemoteField.Missing,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("body", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("commentId", "String", true, false, null, null, 1, 256, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("expectedBody", "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("forgeAccount", "ProcedureforgeClosePrRequestU2DForgeAccount_c2bb40b82b", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("forgeRepository", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("prNumber", "Long", true, false, null, 9007199254740991.0, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("projectLocation", "ProcedurebeginMcpServerOauthRequestU2DProjectLocation_080f9cc154", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("threadId", "String", false, false, null, null, 1, 256, null, null, null, null, listOf()),
         ), listOf())
     }
 }
@@ -324,7 +367,7 @@ data class ProcedureforgeGetPrDetailsResultU2DDetailsU2DReviewsU2DItem_dba220fea
 }
 
 @Serializable
-data class ProcedureforgeGetPrDetailsResultU2DDetails_4f71723712(
+data class ProcedureforgeGetPrDetailsResultU2DDetails_7e778a19c7(
     @SerialName("additions") val additions: Long,
     @SerialName("author") val author: RemoteField<ProcedureforgeGetPrDetailsResultU2DDetailsU2DAuthor_a99c73e81a> = RemoteField.Missing,
     @SerialName("baseBranch") val baseBranch: ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b,
@@ -342,7 +385,7 @@ data class ProcedureforgeGetPrDetailsResultU2DDetails_4f71723712(
     @SerialName("number") val number: Long,
     @SerialName("reviewThreads") val reviewThreads: RemoteField<List<ProcedureforgeGetPrDetailsResultU2DDetailsU2DReviewThreadsU2DItem_9199b6e9ea>> = RemoteField.Missing,
     @SerialName("reviews") val reviews: List<ProcedureforgeGetPrDetailsResultU2DDetailsU2DReviewsU2DItem_dba220fea4>,
-    @SerialName("source") val source: RemoteField<ProcedureforgeCreatePrResultU2DSource_7e0a8084c4> = RemoteField.Missing,
+    @SerialName("source") val source: RemoteField<ProcedureforgeCreatePrResultU2DSource_55723acd91> = RemoteField.Missing,
     @SerialName("title") val title: ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b,
 ) {
     companion object {
@@ -364,21 +407,21 @@ data class ProcedureforgeGetPrDetailsResultU2DDetails_4f71723712(
             RemoteFieldDescriptor("number", "Long", true, false, null, 9007199254740991.0, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("reviewThreads", "List<ProcedureforgeGetPrDetailsResultU2DDetailsU2DReviewThreadsU2DItem_9199b6e9ea>", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("reviews", "List<ProcedureforgeGetPrDetailsResultU2DDetailsU2DReviewsU2DItem_dba220fea4>", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("source", "ProcedureforgeCreatePrResultU2DSource_7e0a8084c4", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("source", "ProcedureforgeCreatePrResultU2DSource_55723acd91", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("title", "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", true, false, null, null, null, null, null, null, null, null, listOf()),
         ), listOf())
     }
 }
 
 @Serializable
-data class ProcedureforgeGetPrDetailsResult_deb900b573(
-    @SerialName("details") val details: ProcedureforgeGetPrDetailsResultU2DDetails_4f71723712,
-    @SerialName("pr") val pr: RemoteField<ProcedureforgeCreatePrResult_912ced4bf8> = RemoteField.Missing,
+data class ProcedureforgeGetPrDetailsResult_a014f9df96(
+    @SerialName("details") val details: ProcedureforgeGetPrDetailsResultU2DDetails_7e778a19c7,
+    @SerialName("pr") val pr: RemoteField<ProcedureforgeCreatePrResult_22a062bffa> = RemoteField.Missing,
 ) {
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("details", "ProcedureforgeGetPrDetailsResultU2DDetails_4f71723712", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("pr", "ProcedureforgeCreatePrResult_912ced4bf8", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("details", "ProcedureforgeGetPrDetailsResultU2DDetails_7e778a19c7", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("pr", "ProcedureforgeCreatePrResult_22a062bffa", false, false, null, null, null, null, null, null, null, null, listOf()),
         ), listOf())
     }
 }
@@ -390,47 +433,6 @@ data class ProcedureforgeGetPrDiffResult_ecbd7591c9(
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
             RemoteFieldDescriptor("diff", "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", true, false, null, null, null, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable
-data class ProcedureforgeGetPrFilesResultU2DFilesU2DItem_63c18b52ff(
-    @SerialName("additions") val additions: Long,
-    @SerialName("deletions") val deletions: Long,
-    @SerialName("path") val path: ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("additions", "Long", true, false, -9007199254740991.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("deletions", "Long", true, false, -9007199254740991.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("path", "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", true, false, null, null, null, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable
-data class ProcedureforgeGetPrFilesResult_24cb35c8f9(
-    @SerialName("files") val files: List<ProcedureforgeGetPrFilesResultU2DFilesU2DItem_63c18b52ff>,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("files", "List<ProcedureforgeGetPrFilesResultU2DFilesU2DItem_63c18b52ff>", true, false, null, null, null, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-typealias ProcedureforgeGetPrForBranchResult_e5051103ac = ProcedureforgeCreatePrResult_912ced4bf8?
-
-@Serializable
-data class ProcedureforgeGetPrReviewCommentsResult_2cb7b58fd1(
-    @SerialName("comments") val comments: List<ProcedureforgeGetPrDetailsResultU2DDetailsU2DCommentsU2DItem_839da5c7aa>,
-    @SerialName("threads") val threads: List<ProcedureforgeGetPrDetailsResultU2DDetailsU2DReviewThreadsU2DItem_9199b6e9ea>,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("comments", "List<ProcedureforgeGetPrDetailsResultU2DDetailsU2DCommentsU2DItem_839da5c7aa>", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("threads", "List<ProcedureforgeGetPrDetailsResultU2DDetailsU2DReviewThreadsU2DItem_9199b6e9ea>", true, false, null, null, null, null, null, null, null, null, listOf()),
         ), listOf())
     }
 }

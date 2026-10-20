@@ -24,6 +24,64 @@ const input = {
   isDraft: false,
 };
 
+it.each([
+  [
+    "gitlab",
+    "PUT",
+    "projects/team%2Fsubgroup%2Fapp/merge_requests/7/notes/123",
+    { body: "Updated" },
+  ],
+  ["gitea", "PATCH", "repos/team/app/issues/comments/123", { body: "Updated" }],
+  ["forgejo", "PATCH", "repos/team/app/issues/comments/123", { body: "Updated" }],
+  [
+    "bitbucket",
+    "PUT",
+    "repositories/team/app/pullrequests/7/comments/123",
+    { content: { raw: "Updated" } },
+  ],
+  [
+    "gitcafe",
+    "PATCH",
+    "repos/team/app/pulls/7/comments/123",
+    { body: "Updated", expectedVersion: 4 },
+  ],
+] as const)(
+  "edits a %s comment with its host-native request",
+  async (forge, method, path, body) => {
+    const f = fixture(forge);
+    f.routes[`${method} ${path}`] = {};
+    if (forge === "gitcafe")
+      f.routes[`GET ${path}/detail`] = { id: "123", version: 4, body: "Original" };
+    await f.adapter.editComment!({
+      ...input,
+      prNumber: 7,
+      commentId: "123",
+      body: "Updated",
+      expectedBody: "Original",
+      forgeAccount: f.source.account!,
+      forgeRepository: f.source.repository,
+    });
+    expect(f.writes()).toEqual([{ method, path: `/api/${path}`, body }]);
+  },
+);
+
+it("refuses a GitCafe comment changed after the service preflight", async () => {
+  const f = fixture("gitcafe");
+  f.routes["GET repos/team/app/pulls/7/comments/123/detail"] = { body: "Newer", version: 5 };
+  await expect(
+    f.adapter.editComment!({
+      ...input,
+      prNumber: 7,
+      commentId: "123",
+      body: "Overwrite",
+      expectedBody: "Original",
+      forgeAccount: f.source.account!,
+      forgeRepository: f.source.repository,
+    }),
+  ).rejects.toThrow(/changed/);
+  expect(f.writes()).toEqual([]);
+});
+
 function source(forge: ForgeKind): ForgeRepository {
   return {
     forge,

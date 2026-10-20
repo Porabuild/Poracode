@@ -10,6 +10,32 @@ export const FIXTURE_PROJECT_LOCATION = {
 } as const;
 
 const REQUEST_OVERRIDES: Partial<Record<RemoteProcedureName, Record<string, unknown>>> = {
+  forgeGetPrViewedFiles: {
+    forgeAccount: { forge: "github", host: "https://github.com", login: "fixture" },
+    forgeRepository: "acme/app",
+  },
+  forgeSetPrFileViewed: {
+    forgeAccount: { forge: "github", host: "https://github.com", login: "fixture" },
+    forgeRepository: "acme/app",
+    path: "src/a.ts",
+    fingerprint: null,
+  },
+  forgeEditPrComment: {
+    forgeAccount: { forge: "github", host: "https://github.com", login: "fixture" },
+    forgeRepository: "acme/app",
+    commentId: "IC_fixture",
+    body: "Updated fixture",
+    expectedBody: "Original fixture",
+  },
+  forgeGetPrReviewGuide: {
+    forgeAccount: { forge: "github", host: "https://github.com", login: "fixture" },
+    forgeRepository: "acme/app",
+  },
+  forgeWritePrReviewGuide: {
+    forgeAccount: { forge: "github", host: "https://github.com", login: "fixture" },
+    forgeRepository: "acme/app",
+    agentKind: "fixture",
+  },
   createFileCheckpoint: { checkpointItemId: "c1" },
   createProjectEntry: { path: "src", type: "directory" },
   gitAddWorktree: { branch: "fixture-worktree", path: "/tmp/wt", createBranch: true },

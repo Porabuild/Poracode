@@ -21,6 +21,8 @@ final class PullRequestsController {
   private(set) var isLoading = false
   private(set) var didLoad = false
   private(set) var hasProjects = false
+  private(set) var isCached = false
+  private let cache = ForgeReviewDiskCache()
 
   private let session: AppSession
   private var gateway: (any GitHubOperationsGateway)!
@@ -47,6 +49,7 @@ final class PullRequestsController {
     self.projects = projects
     hasProjects = !projects.isEmpty
     entries = []
+    isCached = false
     failures = []
     isLoading = true
     defer {
@@ -70,10 +73,24 @@ final class PullRequestsController {
       activeContext = context
       defer { activeContext = nil }
       do {
-        let result = try await gateway.call(
-          .ghListPullRequests(GitHubLocationRequest(projectLocation: context.lease.location)),
-          lease: context.lease
-        )
+        let result: GitHubOperationResult
+        if !context.isUsable {
+          guard let cached = await cache.readPullRequests(context) else { throw GitHubOperationsFailure.notReady }
+          result = cached
+          isCached = true
+        } else {
+          do {
+            result = try await gateway.call(
+              .ghListPullRequests(GitHubLocationRequest(projectLocation: context.lease.location)),
+              lease: context.lease
+            )
+            await cache.writePullRequests(context, result: result)
+          } catch GitHubOperationsFailure.transport {
+            guard let cached = await cache.readPullRequests(context) else { throw GitHubOperationsFailure.transport }
+            result = cached
+            isCached = true
+          }
+        }
         try Task.checkCancellation()
         guard generation == loadGeneration else { return }
         guard let summaries = GitHubResultProjection.pullRequests(result) else {
@@ -129,7 +146,8 @@ final class PullRequestsController {
       grantedScopes: Set(profile.scopes).intersection(record.scopes),
       isOnline: controllerSession?.isOnline ?? false,
       isReady: controllerSession?.isReady ?? false,
-      isForeground: !session.state.liveLifecycle.isInBackground
+      isForeground: !session.state.liveLifecycle.isInBackground,
+      cacheEndpoint: profile.httpBaseURL
     )
   }
 }

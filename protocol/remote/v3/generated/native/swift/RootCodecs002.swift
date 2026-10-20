@@ -1,6 +1,42 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
 public extension RemoteRootCodecs {
+  static let procedureU2EGhListAccountsU2ERequest: RemoteRootCodec<ProcedureghListAccountsRequest_6d5eecaece> = .init(id: "procedure.ghListAccounts.request", schema: RemoteSchemas.schema_6d5eecaeceee62b9)
+}
+
+public extension RemoteRootCodecs {
+  static let procedureU2EGhListAccountsU2EResult: RemoteRootCodec<ProcedureghListAccountsResult_05feb7407c> = .init(id: "procedure.ghListAccounts.result", schema: RemoteSchemas.schema_05feb7407cd8c42f)
+}
+
+public extension RemoteRootCodecs {
+  static let procedureU2EGhListPrsU2ERequest: RemoteRootCodec<ProceduredetectSetupScriptRequest_5e3a19fb85> = .init(id: "procedure.ghListPrs.request", schema: RemoteSchemas.schema_5e3a19fb856f8915)
+}
+
+public extension RemoteRootCodecs {
+  static let procedureU2EGhListPrsU2EResult: RemoteRootCodec<ProcedureforgeListPrsResult_da51f0662d> = .init(id: "procedure.ghListPrs.result", schema: RemoteSchemas.schema_da51f0662d7465bb)
+}
+
+public extension RemoteRootCodecs {
+  static let procedureU2EGhListPullRequestsU2ERequest: RemoteRootCodec<ProceduredetectSetupScriptRequest_5e3a19fb85> = .init(id: "procedure.ghListPullRequests.request", schema: RemoteSchemas.schema_5e3a19fb856f8915)
+}
+
+public extension RemoteRootCodecs {
+  static let procedureU2EGhListPullRequestsU2EResult: RemoteRootCodec<ProcedureforgeListPullRequestsResult_cdc82b7fc9> = .init(id: "procedure.ghListPullRequests.result", schema: RemoteSchemas.schema_cdc82b7fc944253a)
+}
+
+public extension RemoteRootCodecs {
+  static let procedureU2EGhListReposU2ERequest: RemoteRootCodec<ProcedureghListReposRequest_ea3d1d70c1> = .init(id: "procedure.ghListRepos.request", schema: RemoteSchemas.schema_ea3d1d70c1876de4)
+}
+
+public extension RemoteRootCodecs {
+  static let procedureU2EGhListReposU2EResult: RemoteRootCodec<ProcedureghListReposResult_275476f9b6> = .init(id: "procedure.ghListRepos.result", schema: RemoteSchemas.schema_275476f9b6055811)
+}
+
+public extension RemoteRootCodecs {
+  static let procedureU2EGhListWorkflowRunsU2ERequest: RemoteRootCodec<ProcedureghListWorkflowRunsRequest_513dd8593f> = .init(id: "procedure.ghListWorkflowRuns.request", schema: RemoteSchemas.schema_513dd8593f33208a)
+}
+
+public extension RemoteRootCodecs {
   static let procedureU2EGhListWorkflowRunsU2EResult: RemoteRootCodec<ProcedureghListWorkflowRunsResult_bcff7a8919> = .init(id: "procedure.ghListWorkflowRuns.result", schema: RemoteSchemas.schema_bcff7a89192b7e6a)
 }
 
@@ -410,40 +446,4 @@ public extension RemoteRootCodecs {
 
 public extension RemoteRootCodecs {
   static let procedureU2EResumeThreadFollowUpsU2ERequest: RemoteRootCodec<ProcedurecancelExtractContextRequest_09b78d9c1d> = .init(id: "procedure.resumeThreadFollowUps.request", schema: RemoteSchemas.schema_09b78d9c1d4c3a6b)
-}
-
-public extension RemoteRootCodecs {
-  static let procedureU2ERollbackThreadConversationU2ERequest: RemoteRootCodec<ProcedurerollbackThreadConversationRequest_536f7d46d8> = .init(id: "procedure.rollbackThreadConversation.request", schema: RemoteSchemas.schema_536f7d46d82f480f)
-}
-
-public extension RemoteRootCodecs {
-  static let procedureU2EScanSkillsU2ERequest: RemoteRootCodec<ProcedurescanSkillsRequest_eb5b966723> = .init(id: "procedure.scanSkills.request", schema: RemoteSchemas.schema_eb5b966723ac7023)
-}
-
-public extension RemoteRootCodecs {
-  static let procedureU2EScanSkillsU2EResult: RemoteRootCodec<ProcedurescanSkillsResult_f958c6e1fa> = .init(id: "procedure.scanSkills.result", schema: RemoteSchemas.schema_f958c6e1fa6d616c)
-}
-
-public extension RemoteRootCodecs {
-  static let procedureU2ESearchProjectFilesU2ERequest: RemoteRootCodec<ProceduresearchProjectFilesRequest_c4ad1400e2> = .init(id: "procedure.searchProjectFiles.request", schema: RemoteSchemas.schema_c4ad1400e2e98f57)
-}
-
-public extension RemoteRootCodecs {
-  static let procedureU2ESearchProjectFilesU2EResult: RemoteRootCodec<ProceduresearchProjectFilesResult_2465ffaaf2> = .init(id: "procedure.searchProjectFiles.result", schema: RemoteSchemas.schema_2465ffaaf2ca280d)
-}
-
-public extension RemoteRootCodecs {
-  static let procedureU2ESearchProjectTreeU2ERequest: RemoteRootCodec<ProceduresearchProjectTreeRequest_956459f749> = .init(id: "procedure.searchProjectTree.request", schema: RemoteSchemas.schema_956459f749459347)
-}
-
-public extension RemoteRootCodecs {
-  static let procedureU2ESearchProjectTreeU2EResult: RemoteRootCodec<ProceduresearchProjectTreeResult_ed3d977334> = .init(id: "procedure.searchProjectTree.result", schema: RemoteSchemas.schema_ed3d9773342dac2c)
-}
-
-public extension RemoteRootCodecs {
-  static let procedureU2ESetSkillEnabledU2ERequest: RemoteRootCodec<ProceduresetSkillEnabledRequest_38462ff398> = .init(id: "procedure.setSkillEnabled.request", schema: RemoteSchemas.schema_38462ff398fbe205)
-}
-
-public extension RemoteRootCodecs {
-  static let procedureU2EStageThreadInputU2ERequest: RemoteRootCodec<ProcedurestageThreadInputRequest_d4db039cba> = .init(id: "procedure.stageThreadInput.request", schema: RemoteSchemas.schema_d4db039cbac5831c)
 }

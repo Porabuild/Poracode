@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="forge_review_guide">Guia</string>
+    <string name="forge_review_writer">Autor do guia</string>
+    <string name="forge_review_model">Modelo do guia</string>
+    <string name="forge_review_instructions">Instruções do guia de revisão</string>
+    <string name="forge_review_write">Escrever guia</string>
+    <string name="forge_review_rewrite">Reescrever guia</string>
+    <string name="forge_review_no_writer">Selecione um autor de guias que ofereça um espaço de trabalho com modo somente leitura imposto.</string>
+    <string name="forge_review_generating">Escrevendo o guia. Você pode sair desta revisão e voltar quando ele estiver pronto.</string>
+    <string name="forge_review_failed">Não foi possível escrever o guia. Tente reescrevê-lo.</string>
+    <string name="forge_review_stale">Este guia está desatualizado. Reescreva-o para ver trechos da alteração atual.</string>
+    <string name="forge_review_look_closely">Examine com atenção</string>
+    <string name="forge_review_back">Voltar</string>
+    <string name="forge_review_next">Próximo</string>
+    <string name="forge_review_finish">Concluir revisão</string>
+    <string name="forge_review_viewed_source">Visto no host de origem</string>
+    <string name="forge_review_viewed_host">Visto no Poracode</string>
+    <string name="forge_review_changed">Alterado</string>
+    <string name="forge_review_edit_comment">Editar comentário</string>
+    <string name="forge_review_offline">Offline</string>
+</resources>

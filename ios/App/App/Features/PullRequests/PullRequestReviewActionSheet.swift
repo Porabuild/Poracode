@@ -22,7 +22,8 @@ struct PullRequestReviewActionSheet: View {
   let sheet: PullRequestReviewSheet
   let location: GitHubProjectLocation?
   let pullRequestNumber: Int64
-  let submit: @MainActor (GitHubOperationRequest) async -> Void
+  var capabilities: [String: GitHubJSONValue]? = nil
+  let submit: @MainActor (GitHubOperationRequest) async -> Bool
 
   @State private var decision = GitHubReviewDecision.comment
   @State private var bodyText = ""
@@ -36,21 +37,24 @@ struct PullRequestReviewActionSheet: View {
         switch sheet {
         case .review:
           Picker(GitHubOperationsStrings.reviewDecision, selection: $decision) {
-            Text(GitHubOperationsStrings.approve).tag(GitHubReviewDecision.approve)
-            Text(GitHubOperationsStrings.requestChanges)
+            if permits("reviewDecisions", "approve") { Text(GitHubOperationsStrings.approve).tag(GitHubReviewDecision.approve) }
+            if permits("reviewDecisions", "request-changes") { Text(GitHubOperationsStrings.requestChanges)
               .tag(GitHubReviewDecision.requestChanges)
-            Text(GitHubOperationsStrings.commentDecision).tag(GitHubReviewDecision.comment)
+            }
+            if permits("reviewDecisions", "comment") { Text(GitHubOperationsStrings.commentDecision).tag(GitHubReviewDecision.comment) }
           }
           bodyEditor
         case .comment:
           bodyEditor
         case .merge:
           Picker(GitHubOperationsStrings.mergeMethod, selection: $mergeMethod) {
-            Text(GitHubOperationsStrings.merge).tag(GitHubMergeMethod.merge)
-            Text(GitHubOperationsStrings.squash).tag(GitHubMergeMethod.squash)
-            Text(GitHubOperationsStrings.rebase).tag(GitHubMergeMethod.rebase)
+            if permits("mergeMethods", "merge") { Text(GitHubOperationsStrings.merge).tag(GitHubMergeMethod.merge) }
+            if permits("mergeMethods", "squash") { Text(GitHubOperationsStrings.squash).tag(GitHubMergeMethod.squash) }
+            if permits("mergeMethods", "rebase") { Text(GitHubOperationsStrings.rebase).tag(GitHubMergeMethod.rebase) }
           }
-          Toggle(GitHubOperationsStrings.admin, isOn: $admin)
+          if capabilities == nil || capabilities?["adminMerge"]?.boolValue == true {
+            Toggle(GitHubOperationsStrings.admin, isOn: $admin)
+          }
         }
       }
       .navigationTitle(sheet.title)
@@ -64,9 +68,9 @@ struct PullRequestReviewActionSheet: View {
             guard let request else { return }
             isSubmitting = true
             Task {
-              await submit(request)
+              let accepted = await submit(request)
               isSubmitting = false
-              dismiss()
+              if accepted { dismiss() }
             }
           }
           .disabled(request == nil || isSubmitting)
@@ -92,6 +96,7 @@ struct PullRequestReviewActionSheet: View {
     guard let location else { return nil }
     switch sheet {
     case .review:
+      guard permits("reviewDecisions", decision.rawValue) else { return nil }
       if decision != .approve, normalizedBody == nil { return nil }
       return .ghSubmitPrReview(
         .init(
@@ -107,6 +112,7 @@ struct PullRequestReviewActionSheet: View {
         .init(projectLocation: location, prNumber: pullRequestNumber, body: body)
       )
     case .merge:
+      guard permits("mergeMethods", mergeMethod.rawValue) else { return nil }
       return .ghMergePr(
         .init(
           projectLocation: location,
@@ -116,5 +122,9 @@ struct PullRequestReviewActionSheet: View {
         )
       )
     }
+  }
+
+  private func permits(_ capability: String, _ value: String) -> Bool {
+    capabilities == nil || capabilities?[capability]?.arrayValue?.contains(.string(value)) == true
   }
 }

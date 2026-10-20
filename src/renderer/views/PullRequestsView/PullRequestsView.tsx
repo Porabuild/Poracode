@@ -7,6 +7,7 @@ import type { ForgeKind, Project, PullRequestSummary } from "@/shared/contracts"
 import { isHomeProject } from "@/shared/homeScope";
 import { friendlyError } from "@/shared/messages";
 import { readBridge } from "@/renderer/bridge";
+import { useBrowserReviewOnline } from "@/renderer/browser/offlineReviewCache";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { BottomSheet } from "@/renderer/components/common/BottomSheet";
 import { MobileMachineToolbar } from "@/renderer/components/common/MobileMachineToolbar";
@@ -82,6 +83,7 @@ export function PullRequestsView(
 ) {
   const { t } = useLingui();
   const compact = useCompactLayout();
+  const browserOnline = useBrowserReviewOnline();
   const remoteServerFor = useProjectRemoteServerLookup();
   // Scoped to the active workspace, so this view agrees with the sidebar about
   // which projects exist right now.
@@ -126,7 +128,7 @@ export function PullRequestsView(
   const prProjectsKey = prProjects
     .map((project) => `${project.id}\0${JSON.stringify(project.location)}`)
     .join("\n");
-  const prRequestKey = `${prProjectsKey}\n---\n${refreshVersion}\n${prReviewOpen}`;
+  const prRequestKey = `${prProjectsKey}\n---\n${refreshVersion}\n${prReviewOpen}\n${browserOnline}`;
   const activePrRequestKeyRef = useRef(prRequestKey);
   // Reset-on-request-change during render (mirrors the synchronous resets the
   // effect used to do on entry). Starts as null so the mount pass applies it
@@ -338,6 +340,11 @@ export function PullRequestsView(
       description={t`Review and track work across your source hosts.`}
       bodyClassName="space-y-5"
     >
+      {!browserOnline && (
+        <p role="status" className="text-sm text-muted">
+          <Trans>Offline</Trans>
+        </p>
+      )}
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
         <div className={`relative min-w-0 flex-1 ${compact ? "hidden" : ""}`}>
           <Search

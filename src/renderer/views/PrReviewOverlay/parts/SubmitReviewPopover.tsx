@@ -28,6 +28,8 @@ export function SubmitReviewPopover(props: {
   /** Hide the trigger when the viewer authored the PR (GitHub disallows self-review). */
   hidden?: boolean;
   triggerPresentation?: "compact" | "touch";
+  triggerLabel?: string;
+  disabled?: boolean;
   onSubmitted: () => void;
 }) {
   const {
@@ -37,12 +39,15 @@ export function SubmitReviewPopover(props: {
     cacheKey,
     hidden,
     triggerPresentation = "compact",
+    triggerLabel,
+    disabled = false,
     onSubmitted,
   } = props;
   const { t } = useLingui();
   const source = useGitStore((s) => s.prDetails[cacheKey]?.source);
   const detailsReady = useGitStore(
     (s) =>
+      !disabled &&
       s.prData[prKey] !== null &&
       (!s.prData[prKey] || s.prData[prKey]?.number === prNumber) &&
       s.prDetails[cacheKey]?.number === prNumber &&
@@ -143,7 +148,7 @@ export function SubmitReviewPopover(props: {
       onPress={() => setOpen(true)}
     >
       <Check className="size-3" />
-      <Trans>Submit review</Trans>
+      {triggerLabel ?? <Trans>Submit review</Trans>}
     </Button>
   );
 

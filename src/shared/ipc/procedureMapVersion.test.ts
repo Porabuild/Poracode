@@ -81,7 +81,9 @@ import { isRemoteProcedure } from "../remote/procedures";
 // allowlist. Existing peers reject unknown names before effects; hop 18 stays.
 // Plugin catalogs/accounts add local supervisor names only. Older peers reject
 // them before effects; existing payloads and the remote allowlist stay unchanged.
-const HOP_PIN = `${IPC_PROCEDURE_MAP_VERSION}:64fcfd9586309c6caded52b2280694674632c23dee79446c6d2d140de686dcc0`;
+// Synced review marks, owned-comment edits and guides add capability-gated names.
+// Existing shapes remain valid; older peers reject new names before effects.
+const HOP_PIN = `${IPC_PROCEDURE_MAP_VERSION}:fa0bb5f5a92e6b97e8c60b9d7569a2e34df99b1ae17ccccc25f268b20a11a4e1`;
 
 describe("IPC procedure map versioning", () => {
   it("keeps write-only model provider management outside the remote allowlist", () => {

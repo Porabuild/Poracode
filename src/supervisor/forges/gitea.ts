@@ -1,5 +1,6 @@
 import type {
   ForgeEditPrPayload,
+  ForgeEditPrCommentPayload,
   ForgeRepository,
   GhCreatePrPayload,
   GhGetPrDetailsResult,
@@ -238,6 +239,13 @@ export class GiteaReview implements ForgeReviewAdapter {
   }
   async comment(number: number, body: string) {
     return comment(await this.api.json(`${this.repo}/issues/${number}/comments`, "POST", { body }));
+  }
+  async editComment(input: ForgeEditPrCommentPayload) {
+    await this.api.json(
+      `${this.repo}/issues/comments/${encodeURIComponent(input.commentId)}`,
+      "PATCH",
+      { body: input.body },
+    );
   }
   async review(number: number, decision: PrReviewDecision, body: string) {
     const r = await this.api.json(this.path(number));

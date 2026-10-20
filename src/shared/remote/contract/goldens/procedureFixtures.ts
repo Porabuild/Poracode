@@ -66,6 +66,17 @@ const workflowRun = {
  * the shared omitted codec (`undefined` on the wire).
  */
 export const REMOTE_PROCEDURE_RESULT_FIXTURES = {
+  forgeGetPrReviewGuide: { status: "empty", guide: null, stale: false },
+  forgeWritePrReviewGuide: { status: "generating", guide: null, stale: false },
+  forgeEditPrComment: undefined,
+  forgeGetPrViewedFiles: {
+    storage: "host",
+    files: [{ path: "src/a.ts", fingerprint: "ready:2:1:4:123" }],
+  },
+  forgeSetPrFileViewed: {
+    storage: "host",
+    files: [{ path: "src/a.ts", fingerprint: "ready:2:1:4:123" }],
+  },
   listThreadSessionActions: { actions: [{ id: "fixture.inspect" }] },
   invokeThreadSessionAction: { inspected: true },
   queueThreadFollowUp: undefined,

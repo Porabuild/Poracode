@@ -356,7 +356,15 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
     ghPostPrComment: (payload) => reviews.postPrComment(payload),
     ghSubmitPrReview: (payload) => reviews.submitPrReview(payload),
     forgeGetRepository: (payload) => reviews.getRepository(payload),
+    forgeGetPrViewedFiles: (payload) => reviews.getPrViewedFiles(payload),
+    forgeGetPrReviewGuide: (payload) => reviews.getPrReviewGuide(payload),
+    forgeWritePrReviewGuide: (payload) =>
+      reviews.writePrReviewGuide(payload, (snapshot, source) =>
+        generation.generateReviewGuide(payload, snapshot, source),
+      ),
+    forgeSetPrFileViewed: (payload) => reviews.setPrFileViewed(payload),
     forgeEditPr: (payload) => reviews.editPr(payload),
+    forgeEditPrComment: (payload) => reviews.editPrComment(payload),
     forgeCreatePr: (payload) => reviews.createPr(payload),
     forgeGetPrForBranch: (payload) => reviews.getPrForBranch(payload),
     forgeListPrs: (payload) => reviews.listPrs(payload),

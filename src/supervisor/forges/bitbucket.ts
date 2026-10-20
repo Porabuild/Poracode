@@ -1,6 +1,7 @@
 import { msg } from "@/shared/messages";
 import type {
   ForgeEditPrPayload,
+  ForgeEditPrCommentPayload,
   ForgeRepository,
   GhCreatePrPayload,
   GhGetPrDetailsResult,
@@ -233,6 +234,13 @@ export class BitbucketReview implements ForgeReviewAdapter {
   async comment(number: number, body: string) {
     return comment(
       await this.api.json(`${this.path(number)}/comments`, "POST", { content: { raw: body } }),
+    );
+  }
+  async editComment(input: ForgeEditPrCommentPayload) {
+    await this.api.json(
+      `${this.path(input.prNumber)}/comments/${encodeURIComponent(input.commentId)}`,
+      "PUT",
+      { content: { raw: input.body } },
     );
   }
   async review(number: number, decision: PrReviewDecision, body: string) {

@@ -66,6 +66,138 @@ function fixture(repository = "team/app") {
 }
 
 describe("shared source-host review dispatch", () => {
+  it("edits only a comment proven to belong to the selected review and account", async () => {
+    const f = fixture();
+    f.read.mockResolvedValue({
+      ...details,
+      details: {
+        ...details.details,
+        comments: [{ id: "IC_1", author: { login: "alice" }, body: "Original", createdAt: "now" }],
+      },
+    });
+    const edit = vi.spyOn(f.github, "editPrComment").mockResolvedValue(undefined);
+    const input = {
+      projectLocation: location,
+      prNumber: 7,
+      commentId: "IC_1",
+      expectedBody: "Original",
+      body: "Updated",
+      forgeAccount: { forge: "github" as const, host: "https://github.com", login: "alice" },
+      forgeRepository: "team/app",
+    };
+    await f.service.editPrComment(input);
+    expect(edit).toHaveBeenCalledWith(location, "IC_1", "Updated", false);
+    edit.mockClear();
+    await expect(
+      f.service.editPrComment({ ...input, commentId: "another-pr-comment" }),
+    ).rejects.toThrow("Only your own comments");
+    await expect(f.service.editPrComment({ ...input, expectedBody: "Stale" })).rejects.toThrow(
+      "changed while you were editing",
+    );
+    f.read.mockResolvedValue({
+      ...details,
+      details: {
+        ...details.details,
+        comments: [{ id: "IC_1", author: { login: "bob" }, body: "Original", createdAt: "now" }],
+      },
+    });
+    await expect(f.service.editPrComment(input)).rejects.toThrow("Only your own comments");
+    expect(edit).not.toHaveBeenCalled();
+  });
+
+  it("binds inline edits to their actual review thread", async () => {
+    const f = fixture();
+    const comment = {
+      id: "PRRC_1",
+      author: { login: "alice" },
+      body: "Original",
+      createdAt: "now",
+    };
+    vi.spyOn(f.github, "getPrReviewThreads").mockResolvedValue({
+      comments: [comment],
+      threads: [
+        {
+          id: "thread-1",
+          path: "a.ts",
+          line: 2,
+          isResolved: false,
+          isOutdated: false,
+          comments: [comment],
+        },
+      ],
+    });
+    const edit = vi.spyOn(f.github, "editPrComment").mockResolvedValue(undefined);
+    const input = {
+      projectLocation: location,
+      prNumber: 7,
+      threadId: "thread-1",
+      commentId: "PRRC_1",
+      expectedBody: "Original",
+      body: "Updated",
+      forgeAccount: { forge: "github" as const, host: "https://github.com", login: "alice" },
+      forgeRepository: "team/app",
+    };
+    await f.service.editPrComment(input);
+    expect(edit).toHaveBeenCalledWith(location, "PRRC_1", "Updated", true);
+    edit.mockClear();
+    await expect(f.service.editPrComment({ ...input, threadId: "another-thread" })).rejects.toThrow(
+      "Only your own comments",
+    );
+    expect(edit).not.toHaveBeenCalled();
+  });
+
+  it("routes native viewed marks through the selected account and refuses a changed repository", async () => {
+    const f = fixture();
+    const account = { forge: "github" as const, host: "https://github.com", login: "alice" };
+    const input = {
+      projectLocation: location,
+      prNumber: 7,
+      forgeAccount: account,
+      forgeRepository: "team/app",
+    };
+    const read = vi.spyOn(f.github, "getPrViewedFiles").mockResolvedValue({ "file.ts": "VIEWED" });
+    const write = vi
+      .spyOn(f.github, "setPrFileViewed")
+      .mockResolvedValue({ "file.ts": "UNVIEWED" });
+    expect(await f.service.getPrViewedFiles(input)).toEqual({
+      storage: "forge",
+      files: [{ path: "file.ts", fingerprint: "VIEWED" }],
+    });
+    expect(
+      await f.service.setPrFileViewed({ ...input, path: "file.ts", fingerprint: null }),
+    ).toEqual({ storage: "forge", files: [{ path: "file.ts", fingerprint: "UNVIEWED" }] });
+    expect(f.scoped).toHaveBeenCalledWith(location, { host: "github.com", login: "alice" });
+    expect(write).toHaveBeenCalledWith(location, 7, "file.ts", false);
+    read.mockClear();
+    write.mockClear();
+    await expect(
+      f.service.setPrFileViewed({
+        ...input,
+        forgeRepository: "other/app",
+        path: "file.ts",
+        fingerprint: "read",
+      }),
+    ).rejects.toThrow("repository");
+    expect(read).not.toHaveBeenCalled();
+    expect(write).not.toHaveBeenCalled();
+  });
+
+  it("does not retry viewed marks with the ambient account after selected credentials fail", async () => {
+    const f = fixture();
+    f.scoped.mockRejectedValue(new Error("selected credential denied"));
+    const read = vi.spyOn(f.github, "getPrViewedFiles");
+    await expect(
+      f.service.getPrViewedFiles({
+        projectLocation: location,
+        prNumber: 7,
+        forgeAccount: { forge: "github", host: "https://github.com", login: "alice" },
+        forgeRepository: "team/app",
+      }),
+    ).rejects.toThrow("selected credential denied");
+    expect(f.scoped).toHaveBeenCalledTimes(1);
+    expect(read).not.toHaveBeenCalled();
+  });
+
   it.each([false, true, undefined])(
     "preserves GitHub data and only advertises auto-fix for a proven same-repository PR (%s)",
     async (isCrossRepository) => {

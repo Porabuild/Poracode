@@ -42,6 +42,8 @@ export function PrReviewSidebar(props: {
   handleUpdatePrBranch: (rebase?: boolean) => Promise<void>;
   fileFingerprint: (file: PrFile) => string;
   viewedState: (path: string, fingerprint: string) => PrViewedState;
+  viewedLoading: boolean;
+  viewedLabel: string;
   onMarkViewed: (path: string, fingerprint: string) => void;
   onClearViewed: (path: string) => void;
   /** Hide the desktop "Return to app / Hide sidebar" footer (mobile shells
@@ -66,6 +68,8 @@ export function PrReviewSidebar(props: {
     handleUpdatePrBranch,
     fileFingerprint,
     viewedState,
+    viewedLoading,
+    viewedLabel,
     onMarkViewed,
     onClearViewed,
     hideFooterNav = false,
@@ -170,6 +174,7 @@ export function PrReviewSidebar(props: {
                       file={row.file}
                       isSelected={selectedFile === row.file.path}
                       viewState={row.viewState}
+                      viewedLoading={viewedLoading}
                       onSelect={() => onSelectFile(row.file.path)}
                       onMarkViewed={() => onMarkViewed(row.file.path, row.fingerprint)}
                       onClearViewed={() => onClearViewed(row.file.path)}
@@ -187,7 +192,7 @@ export function PrReviewSidebar(props: {
                         ) : (
                           <ChevronRight className="size-3" />
                         )}
-                        <Trans>Viewed here</Trans>
+                        {viewedLabel}
                         <span className="font-normal text-muted/60">({viewedRows.length})</span>
                       </button>
                       {viewedOpen &&
@@ -197,6 +202,7 @@ export function PrReviewSidebar(props: {
                             file={row.file}
                             isSelected={selectedFile === row.file.path}
                             viewState={row.viewState}
+                            viewedLoading={viewedLoading}
                             onSelect={() => onSelectFile(row.file.path)}
                             onMarkViewed={() => onMarkViewed(row.file.path, row.fingerprint)}
                             onClearViewed={() => onClearViewed(row.file.path)}

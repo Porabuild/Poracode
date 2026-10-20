@@ -17,6 +17,8 @@ const ALL_MERGES = ["merge", "squash", "rebase"] as const;
 const ALL_REVIEWS = ["approve", "request-changes", "comment"] as const;
 export const FORGE_CAPABILITIES: Record<ForgeKind, ForgeReviewCapabilities> = {
   github: {
+    viewedFiles: "forge",
+    commentEditing: ["conversation", "inline"],
     mergeMethods: [...ALL_MERGES],
     reviewDecisions: [...ALL_REVIEWS],
     draft: true,
@@ -32,6 +34,8 @@ export const FORGE_CAPABILITIES: Record<ForgeKind, ForgeReviewCapabilities> = {
     adminMerge: true,
   },
   gitlab: {
+    commentEditing: ["conversation", "inline"],
+    viewedFiles: "host",
     mergeMethods: ["merge", "squash"],
     reviewDecisions: ["approve", "comment"],
     draft: true,
@@ -47,6 +51,8 @@ export const FORGE_CAPABILITIES: Record<ForgeKind, ForgeReviewCapabilities> = {
     adminMerge: false,
   },
   forgejo: {
+    commentEditing: ["conversation"],
+    viewedFiles: "host",
     mergeMethods: [...ALL_MERGES],
     reviewDecisions: [...ALL_REVIEWS],
     draft: true,
@@ -62,6 +68,8 @@ export const FORGE_CAPABILITIES: Record<ForgeKind, ForgeReviewCapabilities> = {
     adminMerge: false,
   },
   gitea: {
+    commentEditing: ["conversation"],
+    viewedFiles: "host",
     mergeMethods: [...ALL_MERGES],
     reviewDecisions: [...ALL_REVIEWS],
     draft: true,
@@ -77,6 +85,8 @@ export const FORGE_CAPABILITIES: Record<ForgeKind, ForgeReviewCapabilities> = {
     adminMerge: false,
   },
   bitbucket: {
+    commentEditing: ["conversation", "inline"],
+    viewedFiles: "host",
     mergeMethods: [...ALL_MERGES],
     reviewDecisions: [...ALL_REVIEWS],
     draft: true,
@@ -92,6 +102,7 @@ export const FORGE_CAPABILITIES: Record<ForgeKind, ForgeReviewCapabilities> = {
     adminMerge: false,
   },
   "azure-devops": {
+    viewedFiles: "host",
     mergeMethods: [...ALL_MERGES],
     reviewDecisions: [...ALL_REVIEWS],
     draft: true,
@@ -107,6 +118,8 @@ export const FORGE_CAPABILITIES: Record<ForgeKind, ForgeReviewCapabilities> = {
     adminMerge: false,
   },
   gitcafe: {
+    commentEditing: ["conversation"],
+    viewedFiles: "host",
     mergeMethods: [...ALL_MERGES],
     reviewDecisions: [...ALL_REVIEWS],
     draft: true,
@@ -232,7 +245,7 @@ export class ForgeConnections {
       host,
       repository: path,
       remote: selected.remote,
-      capabilities: structuredClone(FORGE_CAPABILITIES[forge]),
+      capabilities: { ...structuredClone(FORGE_CAPABILITIES[forge]), reviewGuides: true },
       ...(account ? { account } : {}),
     };
     source.capabilities.autoFix = false;

@@ -2,6 +2,7 @@ import { msg } from "@/shared/messages";
 import { randomUUID } from "node:crypto";
 import type {
   ForgeEditPrPayload,
+  ForgeEditPrCommentPayload,
   ForgeRepository,
   GhCreatePrPayload,
   GhGetPrDetailsResult,
@@ -313,6 +314,15 @@ export class GitCafeReview implements ForgeReviewAdapter {
   }
   async comment(number: number, body: string) {
     return comment(await this.api.json(`${this.path(number)}/comments/`, "POST", { body }));
+  }
+  async editComment(input: ForgeEditPrCommentPayload) {
+    const path = `${this.path(input.prNumber)}/comments/${encodeURIComponent(input.commentId)}`;
+    const detail = await this.api.json(`${path}/detail`);
+    if (detail.body !== input.expectedBody) throw new Error(msg("forge.commentChanged"));
+    const version = detail.version;
+    if (typeof version !== "number" || !Number.isSafeInteger(version) || version < 0)
+      throw new Error(msg("forge.responseInvalid"));
+    await this.api.json(path, "PATCH", { body: input.body, expectedVersion: version });
   }
   async review(number: number, decision: PrReviewDecision, body: string) {
     const r = await this.api.json(this.path(number));

@@ -1448,6 +1448,31 @@
       "scope": "session:read"
     },
     {
+      "name": "forgeGetPrViewedFiles",
+      "owner": "projectLocation",
+      "scope": "session:read"
+    },
+    {
+      "name": "forgeGetPrReviewGuide",
+      "owner": "projectLocation",
+      "scope": "session:read"
+    },
+    {
+      "name": "forgeWritePrReviewGuide",
+      "owner": "projectLocation",
+      "scope": "session:operate"
+    },
+    {
+      "name": "forgeSetPrFileViewed",
+      "owner": "projectLocation",
+      "scope": "session:operate"
+    },
+    {
+      "name": "forgeEditPrComment",
+      "owner": "projectLocation",
+      "scope": "session:operate"
+    },
+    {
       "name": "forgeGetPrForBranch",
       "owner": "projectLocation",
       "scope": "session:read"

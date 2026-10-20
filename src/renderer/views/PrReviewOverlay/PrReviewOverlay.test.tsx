@@ -3,6 +3,8 @@ import { act, fireEvent, screen, waitFor, within } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   ForgeRepository,
+  ForgePrReviewGuideResult,
+  ForgePrViewedFilesResult,
   PrData,
   PrDetails,
   PrComment,
@@ -12,6 +14,8 @@ import type {
 } from "@/shared/contracts";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { useGitStore } from "@/renderer/state/gitStore";
+import { useAppStore } from "@/renderer/state/appStore";
+import { sha256Hex } from "@/shared/remote/contract/sha256";
 import { useSidebarOverlayStore } from "@/renderer/state/sidebarOverlayStore";
 
 const layout = vi.hoisted(() => ({ compact: false }));
@@ -30,6 +34,10 @@ const bridge = vi.hoisted(() => ({
   forgeSubmitPrReview: vi.fn<() => Promise<void>>(),
   forgePostPrComment: vi.fn<() => Promise<PrComment>>(),
   forgeEditPr: vi.fn<() => Promise<void>>(),
+  forgeEditPrComment: vi.fn<() => Promise<void>>(),
+  forgeGetPrViewedFiles: vi.fn<() => Promise<ForgePrViewedFilesResult>>(),
+  forgeSetPrFileViewed: vi.fn<() => Promise<ForgePrViewedFilesResult>>(),
+  forgeGetPrReviewGuide: vi.fn<() => Promise<ForgePrReviewGuideResult>>(),
   openExternal: vi.fn<() => Promise<void>>(),
 }));
 
@@ -46,8 +54,11 @@ vi.mock("@/renderer/bridge", () => ({
 }));
 
 import { reviewViewedScope } from "@/renderer/utils/forgeReviews";
-import { PR_VIEWED_FILES_STORAGE_KEY, viewedFingerprint } from "./parts/prViewedFiles";
+import { PR_VIEWED_FILES_STORAGE_KEY } from "./parts/prViewedFiles";
+import { viewedFingerprint } from "@/shared/reviewDiff";
 import { PrReviewOverlay } from "./PrReviewOverlay";
+import * as reviewOfflineCache from "@/renderer/browser/offlineReviewCache";
+import { RemoteClientError } from "@/shared/remote/clientErrors";
 
 const project: Project = {
   id: "project-1",
@@ -140,6 +151,12 @@ describe("PrReviewOverlay", () => {
     bridge.forgeSubmitPrReview.mockReset();
     bridge.forgePostPrComment.mockReset();
     bridge.forgeEditPr.mockReset().mockResolvedValue(undefined);
+    bridge.forgeEditPrComment.mockReset().mockResolvedValue(undefined);
+    bridge.forgeGetPrViewedFiles.mockReset().mockResolvedValue({ storage: "host", files: [] });
+    bridge.forgeSetPrFileViewed.mockReset().mockResolvedValue({ storage: "host", files: [] });
+    bridge.forgeGetPrReviewGuide
+      .mockReset()
+      .mockResolvedValue({ status: "empty", stale: false, guide: null });
     useGitStore.setState({
       prFiles: {},
       prDiffs: {},
@@ -148,6 +165,253 @@ describe("PrReviewOverlay", () => {
     });
     useSidebarOverlayStore.setState({ isCollapsed: false, isAutoCollapsed: false });
     localStorage.clear();
+  });
+
+  it("opens a review question in the selected project's composer without discarding its draft", async () => {
+    const source = {
+      ...forgeSource,
+      capabilities: { ...forgeSource.capabilities, reviewGuides: true as const },
+    };
+    const pr = { ...scopedPr, source, headSha: "a".repeat(40) };
+    bridge.forgeGetPrDetails.mockResolvedValue({ details: { ...details, source }, pr });
+    bridge.forgeGetPrDiff.mockResolvedValue({ diff: "current diff" });
+    bridge.forgeGetPrReviewGuide.mockResolvedValue({
+      status: "ready",
+      stale: false,
+      diffHash: sha256Hex("current diff"),
+      guide: {
+        version: 1,
+        fingerprint: "guide",
+        model: "writer",
+        createdAt: "2026-10-20T00:00:00Z",
+        summary: "Review summary",
+        stops: [
+          {
+            title: "Read behavior",
+            body: "Review context",
+            lookClosely: false,
+            files: ["src/compact-only.ts"],
+            excerpts: [],
+            questions: ["Why change this?"],
+          },
+        ],
+      },
+    });
+    useGitStore.setState({ prData: { "__branch:project-1": pr } });
+    const draft = {
+      segments: [{ kind: "text" as const, content: "Keep my unsent input" }],
+      attachments: [],
+    };
+    useAppStore.setState({ draftContents: { [project.id]: draft }, pendingComposerSeeds: {} });
+    const close = vi.fn<() => void>();
+    render(
+      <PrReviewOverlay
+        project={project}
+        prNumber={12}
+        prKey="__branch:project-1"
+        onClose={close}
+      />,
+    );
+    fireEvent.click(await screen.findByRole("tab", { name: "Guide" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Why change this?" }));
+    expect(useAppStore.getState().draftContents[project.id]).toEqual(draft);
+    const seed = useAppStore.getState().pendingComposerSeeds[project.id]?.text;
+    expect(seed).toContain(pr.headSha);
+    expect(seed).toContain(pr.url);
+    expect(seed).toContain("Why change this?");
+    expect(useAppStore.getState().view).toMatchObject({ kind: "draft", projectId: project.id });
+    expect(close).toHaveBeenCalledOnce();
+  });
+
+  it("opens a cached review read-only and refreshes it when the host reconnects", async () => {
+    const owner = { key: "selected-owner", online: false, canRead: true };
+    const online = vi.spyOn(reviewOfflineCache, "useBrowserReviewOnline").mockReturnValue(false);
+    const currentOwner = vi.spyOn(reviewOfflineCache, "browserReviewOwner").mockReturnValue(owner);
+    const cached = {
+      details: {
+        ...details,
+        source: forgeSource,
+        comments: [
+          {
+            id: "offline-comment",
+            author: { login: "alice" },
+            body: "Cached comment",
+            createdAt: "2026-10-20T00:00:00Z",
+          },
+        ],
+      },
+      files,
+      diff: "cached diff",
+      pr: scopedPr,
+    };
+    const read = vi
+      .spyOn(reviewOfflineCache, "readBrowserReviewCache")
+      .mockImplementation(async (_key, schema) => schema.parse(cached));
+    const write = vi.spyOn(reviewOfflineCache, "writeBrowserReviewCache").mockResolvedValue();
+    const offline = new RemoteClientError("Offline", 0, "offline");
+    bridge.forgeGetPrDetails.mockRejectedValue(offline);
+    bridge.forgeGetPrFiles.mockRejectedValue(offline);
+    bridge.forgeGetPrDiff.mockRejectedValue(offline);
+    useGitStore.setState({ prData: { "__branch:project-1": scopedPr } });
+    const view = render(
+      <PrReviewOverlay
+        project={project}
+        prNumber={12}
+        prKey="__branch:project-1"
+        onClose={() => {}}
+      />,
+    );
+    try {
+      expect(await screen.findByText("Cached comment")).toBeInTheDocument();
+      expect(screen.getByRole("textbox", { name: "Write a comment" })).toBeDisabled();
+      expect(screen.getByRole("button", { name: "Submit review" })).toBeDisabled();
+      expect(screen.getByText("Offline")).toBeInTheDocument();
+      expect(bridge.forgePostPrComment).not.toHaveBeenCalled();
+      online.mockReturnValue(true);
+      currentOwner.mockReturnValue({ ...owner, online: true });
+      bridge.forgeGetPrDetails.mockResolvedValue({ details: { ...details, source: forgeSource } });
+      bridge.forgeGetPrFiles.mockResolvedValue({ files });
+      bridge.forgeGetPrDiff.mockResolvedValue({ diff: "fresh diff" });
+      view.rerender(
+        <PrReviewOverlay
+          project={project}
+          prNumber={12}
+          prKey="__branch:project-1"
+          onClose={() => {}}
+        />,
+      );
+      await waitFor(() =>
+        expect(screen.getByRole("button", { name: "Submit review" })).toBeEnabled(),
+      );
+      expect(screen.queryByText("Cached comment")).not.toBeInTheDocument();
+      expect(useGitStore.getState().prDiffs["project-1#12"]).toBe("fresh diff");
+    } finally {
+      view.unmount();
+      online.mockRestore();
+      currentOwner.mockRestore();
+      read.mockRestore();
+      write.mockRestore();
+    }
+  });
+
+  it("edits an owned comment with its original body and explicit source", async () => {
+    const source: ForgeRepository = {
+      ...forgeSource,
+      capabilities: { ...forgeSource.capabilities, commentEditing: ["conversation"] },
+    };
+    const comment: PrComment = {
+      id: "own-comment",
+      body: "Original comment",
+      author: { login: "alice" },
+      createdAt: "2026-10-20T10:00:00Z",
+    };
+    bridge.forgeGetPrDetails.mockResolvedValue({
+      details: { ...details, source, comments: [comment] },
+    });
+    useGitStore.setState({ prData: { "__branch:project-1": { ...scopedPr, source } } });
+    render(
+      <PrReviewOverlay
+        project={project}
+        prNumber={12}
+        prKey="__branch:project-1"
+        onClose={() => {}}
+      />,
+    );
+    const edit = await screen.findByRole("button", { name: "Edit comment" });
+    await waitFor(() => expect(edit).toBeEnabled());
+    fireEvent.click(edit);
+    fireEvent.change(screen.getByRole("textbox", { name: "Edit comment" }), {
+      target: { value: "Updated comment" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() =>
+      expect(bridge.forgeEditPrComment).toHaveBeenCalledExactlyOnceWith({
+        projectLocation: project.location,
+        prNumber: 12,
+        commentId: comment.id,
+        body: "Updated comment",
+        expectedBody: comment.body,
+        forgeAccount: source.account,
+        forgeRepository: source.repository,
+      }),
+    );
+    await waitFor(() => expect(bridge.forgeGetPrDetails).toHaveBeenCalledTimes(2));
+  });
+
+  it("discards an owned comment editor when the selected account changes", async () => {
+    const source: ForgeRepository = {
+      ...forgeSource,
+      capabilities: { ...forgeSource.capabilities, commentEditing: ["conversation"] },
+    };
+    const comment: PrComment = {
+      id: "own-comment",
+      body: "Original comment",
+      author: { login: "alice" },
+      createdAt: "2026-10-20T10:00:00Z",
+    };
+    bridge.forgeGetPrDetails.mockResolvedValue({
+      details: { ...details, source, comments: [comment] },
+    });
+    useGitStore.setState({ prData: { "__branch:project-1": { ...scopedPr, source } } });
+    render(
+      <PrReviewOverlay
+        project={project}
+        prNumber={12}
+        prKey="__branch:project-1"
+        onClose={() => {}}
+      />,
+    );
+    const edit = await screen.findByRole("button", { name: "Edit comment" });
+    await waitFor(() => expect(edit).toBeEnabled());
+    fireEvent.click(edit);
+    const form = screen.getByRole("button", { name: "Save" }).closest("form")!;
+    const replacement = { ...source, account: { ...source.account!, login: "bob" } };
+    bridge.forgeGetPrDetails.mockResolvedValue({
+      details: { ...details, source: replacement, comments: [comment] },
+    });
+    act(() =>
+      useGitStore.getState().setPrData("__branch:project-1", { ...scopedPr, source: replacement }),
+    );
+    fireEvent.submit(form);
+    await waitFor(() => expect(bridge.forgeGetPrDetails).toHaveBeenCalledTimes(2));
+    expect(bridge.forgeEditPrComment).not.toHaveBeenCalled();
+    expect(screen.queryByRole("textbox", { name: "Edit comment" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Edit comment" })).not.toBeInTheDocument();
+  });
+
+  it("loads account-scoped viewed marks without importing device-local ticks", async () => {
+    const source: ForgeRepository = {
+      ...forgeSource,
+      capabilities: { ...forgeSource.capabilities, viewedFiles: "host" },
+    };
+    localStorage.setItem(
+      PR_VIEWED_FILES_STORAGE_KEY,
+      JSON.stringify({
+        [reviewViewedScope(source, project.id, 12)]: {
+          [files[0]!.path]: viewedFingerprint("", files[0]!),
+        },
+      }),
+    );
+    bridge.forgeGetPrDetails.mockResolvedValue({ details: { ...details, source } });
+    useGitStore.setState({ prData: { "__branch:project-1": { ...scopedPr, source } } });
+    render(
+      <PrReviewOverlay
+        project={project}
+        prNumber={12}
+        prKey="__branch:project-1"
+        onClose={() => {}}
+      />,
+    );
+    await waitFor(() =>
+      expect(bridge.forgeGetPrViewedFiles).toHaveBeenCalledExactlyOnceWith({
+        projectLocation: project.location,
+        prNumber: 12,
+        forgeAccount: source.account,
+        forgeRepository: source.repository,
+      }),
+    );
+    expect(bridge.forgeSetPrFileViewed).not.toHaveBeenCalled();
+    expect(await screen.findByText("0 of 1 viewed")).toBeInTheDocument();
   });
 
   it.each(["number", "account"])(

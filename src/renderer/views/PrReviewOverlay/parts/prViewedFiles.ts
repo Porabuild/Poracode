@@ -14,20 +14,6 @@ export type PrViewedState = "viewed" | "changed" | "unread";
 
 type Marks = Record<string, Record<string, string>>;
 
-/** A missing patch is not a change. The ready hash replaces it once the diff arrives. */
-export function viewedFingerprint(
-  patch: string | undefined,
-  file: { additions: number; deletions: number },
-): string {
-  if (patch === undefined) return `pending:${file.additions}:${file.deletions}`;
-  let hash = 0x811c9dc5;
-  for (let index = 0; index < patch.length; index += 1) {
-    hash ^= patch.charCodeAt(index);
-    hash = Math.imul(hash, 0x01000193);
-  }
-  return `ready:${file.additions}:${file.deletions}:${patch.length}:${hash >>> 0}`;
-}
-
 function changeStats(fingerprint: string): string | undefined {
   const body = fingerprint.startsWith("pending:")
     ? fingerprint.slice("pending:".length)

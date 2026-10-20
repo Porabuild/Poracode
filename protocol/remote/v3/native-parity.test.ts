@@ -59,7 +59,7 @@ const UI_DISPOSITIONS = [
 
 const EXPECTED_COUNTS = {
   httpRoutes: 102,
-  procedures: 149,
+  procedures: 154,
   webSocketClientMessages: 9,
   // 10 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
   webSocketServerMessages: 11,
@@ -281,28 +281,7 @@ const PLANNED_ABSENCE_TOKENS: Record<
     ]),
   ),
   ...Object.fromEntries(
-    [
-      "pr-watch-scoped-upsert",
-      "forgeGetRepository",
-      "forgeEditPr",
-      "forgeCreatePr",
-      "forgeGetPrForBranch",
-      "forgeListPrs",
-      "forgeListPullRequests",
-      "forgeMergePr",
-      "forgeMergePrAtHead",
-      "forgeClosePr",
-      "forgeReopenPr",
-      "forgeMarkPrReady",
-      "forgeUpdatePrBranch",
-      "forgeGetPrChecks",
-      "forgeGetPrFiles",
-      "forgeGetPrDiff",
-      "forgeGetPrDetails",
-      "forgeGetPrReviewComments",
-      "forgePostPrComment",
-      "forgeSubmitPrReview",
-    ].map((id) => [
+    ["pr-watch-scoped-upsert"].map((id) => [
       id,
       [
         { platform: "ios" as Platform, token: `"${id}"` },

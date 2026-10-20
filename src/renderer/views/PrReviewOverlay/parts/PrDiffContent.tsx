@@ -2,7 +2,7 @@ import type { PrFile } from "@/shared/contracts";
 import { compareFilesByDirThenName } from "@/renderer/utils/gitHelpers";
 import { DiffCardList, type DiffCardEntry } from "@/renderer/components/diff/DiffCardList";
 import { useDiffTheme } from "../../GitReviewOverlay/parts/diffBuildClient";
-import { splitUnifiedDiff } from "./parsePrDiff";
+import { splitUnifiedDiff } from "@/shared/reviewDiff";
 
 export function PrDiffContent(props: {
   files: PrFile[];

@@ -98,11 +98,14 @@ val RemoteRootCodecs.procedureU2EForgeClosePrU2ERequest: RemoteRootCodec<Procedu
 val RemoteRootCodecs.procedureU2EForgeCreatePrU2ERequest: RemoteRootCodec<ProcedureforgeCreatePrRequest_0b938cf4ea>
     get() = RemoteRootCodec("procedure.forgeCreatePr.request", serializer<ProcedureforgeCreatePrRequest_0b938cf4ea>(), schema_0b938cf4ea78a934)
 
-val RemoteRootCodecs.procedureU2EForgeCreatePrU2EResult: RemoteRootCodec<ProcedureforgeCreatePrResult_912ced4bf8>
-    get() = RemoteRootCodec("procedure.forgeCreatePr.result", serializer<ProcedureforgeCreatePrResult_912ced4bf8>(), schema_912ced4bf8efe6b6)
+val RemoteRootCodecs.procedureU2EForgeCreatePrU2EResult: RemoteRootCodec<ProcedureforgeCreatePrResult_22a062bffa>
+    get() = RemoteRootCodec("procedure.forgeCreatePr.result", serializer<ProcedureforgeCreatePrResult_22a062bffa>(), schema_22a062bffa4e84da)
 
 val RemoteRootCodecs.procedureU2EForgeEditPrU2ERequest: RemoteRootCodec<ProcedureforgeEditPrRequest_3ee9ee08aa>
     get() = RemoteRootCodec("procedure.forgeEditPr.request", serializer<ProcedureforgeEditPrRequest_3ee9ee08aa>(), schema_3ee9ee08aa6a662d)
+
+val RemoteRootCodecs.procedureU2EForgeEditPrCommentU2ERequest: RemoteRootCodec<ProcedureforgeEditPrCommentRequest_cc9733aab3>
+    get() = RemoteRootCodec("procedure.forgeEditPrComment.request", serializer<ProcedureforgeEditPrCommentRequest_cc9733aab3>(), schema_cc9733aab3f25827)
 
 val RemoteRootCodecs.procedureU2EForgeGetPrChecksU2ERequest: RemoteRootCodec<ProcedureforgeGetPrChecksRequest_1f21330aa4>
     get() = RemoteRootCodec("procedure.forgeGetPrChecks.request", serializer<ProcedureforgeGetPrChecksRequest_1f21330aa4>(), schema_1f21330aa47e4036)
@@ -113,8 +116,8 @@ val RemoteRootCodecs.procedureU2EForgeGetPrChecksU2EResult: RemoteRootCodec<Proc
 val RemoteRootCodecs.procedureU2EForgeGetPrDetailsU2ERequest: RemoteRootCodec<ProcedureforgeClosePrRequest_c5c17f76a2>
     get() = RemoteRootCodec("procedure.forgeGetPrDetails.request", serializer<ProcedureforgeClosePrRequest_c5c17f76a2>(), schema_c5c17f76a21e5ff1)
 
-val RemoteRootCodecs.procedureU2EForgeGetPrDetailsU2EResult: RemoteRootCodec<ProcedureforgeGetPrDetailsResult_deb900b573>
-    get() = RemoteRootCodec("procedure.forgeGetPrDetails.result", serializer<ProcedureforgeGetPrDetailsResult_deb900b573>(), schema_deb900b573030f10)
+val RemoteRootCodecs.procedureU2EForgeGetPrDetailsU2EResult: RemoteRootCodec<ProcedureforgeGetPrDetailsResult_a014f9df96>
+    get() = RemoteRootCodec("procedure.forgeGetPrDetails.result", serializer<ProcedureforgeGetPrDetailsResult_a014f9df96>(), schema_a014f9df96e82169)
 
 val RemoteRootCodecs.procedureU2EForgeGetPrDiffU2ERequest: RemoteRootCodec<ProcedureforgeClosePrRequest_c5c17f76a2>
     get() = RemoteRootCodec("procedure.forgeGetPrDiff.request", serializer<ProcedureforgeClosePrRequest_c5c17f76a2>(), schema_c5c17f76a21e5ff1)
@@ -131,8 +134,8 @@ val RemoteRootCodecs.procedureU2EForgeGetPrFilesU2EResult: RemoteRootCodec<Proce
 val RemoteRootCodecs.procedureU2EForgeGetPrForBranchU2ERequest: RemoteRootCodec<ProcedureforgeGetPrChecksRequest_1f21330aa4>
     get() = RemoteRootCodec("procedure.forgeGetPrForBranch.request", serializer<ProcedureforgeGetPrChecksRequest_1f21330aa4>(), schema_1f21330aa47e4036)
 
-val RemoteRootCodecs.procedureU2EForgeGetPrForBranchU2EResult: RemoteRootCodec<ProcedureforgeGetPrForBranchResult_e5051103ac>
-    get() = RemoteRootCodec("procedure.forgeGetPrForBranch.result", serializer<ProcedureforgeGetPrForBranchResult_e5051103ac>(), schema_e5051103ac533240)
+val RemoteRootCodecs.procedureU2EForgeGetPrForBranchU2EResult: RemoteRootCodec<ProcedureforgeGetPrForBranchResult_b6b2f6f4a0>
+    get() = RemoteRootCodec("procedure.forgeGetPrForBranch.result", serializer<ProcedureforgeGetPrForBranchResult_b6b2f6f4a0>(), schema_b6b2f6f4a0784077)
 
 val RemoteRootCodecs.procedureU2EForgeGetPrReviewCommentsU2ERequest: RemoteRootCodec<ProcedureforgeClosePrRequest_c5c17f76a2>
     get() = RemoteRootCodec("procedure.forgeGetPrReviewComments.request", serializer<ProcedureforgeClosePrRequest_c5c17f76a2>(), schema_c5c17f76a21e5ff1)
@@ -140,23 +143,35 @@ val RemoteRootCodecs.procedureU2EForgeGetPrReviewCommentsU2ERequest: RemoteRootC
 val RemoteRootCodecs.procedureU2EForgeGetPrReviewCommentsU2EResult: RemoteRootCodec<ProcedureforgeGetPrReviewCommentsResult_2cb7b58fd1>
     get() = RemoteRootCodec("procedure.forgeGetPrReviewComments.result", serializer<ProcedureforgeGetPrReviewCommentsResult_2cb7b58fd1>(), schema_2cb7b58fd1c2e6ed)
 
+val RemoteRootCodecs.procedureU2EForgeGetPrReviewGuideU2ERequest: RemoteRootCodec<ProcedureforgeGetPrReviewGuideRequest_1c60a16c12>
+    get() = RemoteRootCodec("procedure.forgeGetPrReviewGuide.request", serializer<ProcedureforgeGetPrReviewGuideRequest_1c60a16c12>(), schema_1c60a16c12c10c8f)
+
+val RemoteRootCodecs.procedureU2EForgeGetPrReviewGuideU2EResult: RemoteRootCodec<ProcedureforgeGetPrReviewGuideResult_5915279035>
+    get() = RemoteRootCodec("procedure.forgeGetPrReviewGuide.result", serializer<ProcedureforgeGetPrReviewGuideResult_5915279035>(), schema_59152790354c604a)
+
+val RemoteRootCodecs.procedureU2EForgeGetPrViewedFilesU2ERequest: RemoteRootCodec<ProcedureforgeGetPrReviewGuideRequest_1c60a16c12>
+    get() = RemoteRootCodec("procedure.forgeGetPrViewedFiles.request", serializer<ProcedureforgeGetPrReviewGuideRequest_1c60a16c12>(), schema_1c60a16c12c10c8f)
+
+val RemoteRootCodecs.procedureU2EForgeGetPrViewedFilesU2EResult: RemoteRootCodec<ProcedureforgeGetPrViewedFilesResult_6c5abb4203>
+    get() = RemoteRootCodec("procedure.forgeGetPrViewedFiles.result", serializer<ProcedureforgeGetPrViewedFilesResult_6c5abb4203>(), schema_6c5abb4203cd5fd7)
+
 val RemoteRootCodecs.procedureU2EForgeGetRepositoryU2ERequest: RemoteRootCodec<ProcedureforgeGetRepositoryRequest_09c88cb14a>
     get() = RemoteRootCodec("procedure.forgeGetRepository.request", serializer<ProcedureforgeGetRepositoryRequest_09c88cb14a>(), schema_09c88cb14a2765e9)
 
-val RemoteRootCodecs.procedureU2EForgeGetRepositoryU2EResult: RemoteRootCodec<ProcedureforgeGetRepositoryResult_a280488b09>
-    get() = RemoteRootCodec("procedure.forgeGetRepository.result", serializer<ProcedureforgeGetRepositoryResult_a280488b09>(), schema_a280488b09e8b004)
+val RemoteRootCodecs.procedureU2EForgeGetRepositoryU2EResult: RemoteRootCodec<ProcedureforgeGetRepositoryResult_7b2ff3e34e>
+    get() = RemoteRootCodec("procedure.forgeGetRepository.result", serializer<ProcedureforgeGetRepositoryResult_7b2ff3e34e>(), schema_7b2ff3e34e3069de)
 
 val RemoteRootCodecs.procedureU2EForgeListPrsU2ERequest: RemoteRootCodec<ProcedureforgeGetRepositoryRequest_09c88cb14a>
     get() = RemoteRootCodec("procedure.forgeListPrs.request", serializer<ProcedureforgeGetRepositoryRequest_09c88cb14a>(), schema_09c88cb14a2765e9)
 
-val RemoteRootCodecs.procedureU2EForgeListPrsU2EResult: RemoteRootCodec<ProcedureforgeListPrsResult_595467234e>
-    get() = RemoteRootCodec("procedure.forgeListPrs.result", serializer<ProcedureforgeListPrsResult_595467234e>(), schema_595467234e6909b7)
+val RemoteRootCodecs.procedureU2EForgeListPrsU2EResult: RemoteRootCodec<ProcedureforgeListPrsResult_da51f0662d>
+    get() = RemoteRootCodec("procedure.forgeListPrs.result", serializer<ProcedureforgeListPrsResult_da51f0662d>(), schema_da51f0662d7465bb)
 
 val RemoteRootCodecs.procedureU2EForgeListPullRequestsU2ERequest: RemoteRootCodec<ProcedureforgeGetRepositoryRequest_09c88cb14a>
     get() = RemoteRootCodec("procedure.forgeListPullRequests.request", serializer<ProcedureforgeGetRepositoryRequest_09c88cb14a>(), schema_09c88cb14a2765e9)
 
-val RemoteRootCodecs.procedureU2EForgeListPullRequestsU2EResult: RemoteRootCodec<ProcedureforgeListPullRequestsResult_7f705834dd>
-    get() = RemoteRootCodec("procedure.forgeListPullRequests.result", serializer<ProcedureforgeListPullRequestsResult_7f705834dd>(), schema_7f705834dd78b5c6)
+val RemoteRootCodecs.procedureU2EForgeListPullRequestsU2EResult: RemoteRootCodec<ProcedureforgeListPullRequestsResult_cdc82b7fc9>
+    get() = RemoteRootCodec("procedure.forgeListPullRequests.result", serializer<ProcedureforgeListPullRequestsResult_cdc82b7fc9>(), schema_cdc82b7fc944253a)
 
 val RemoteRootCodecs.procedureU2EForgeMarkPrReadyU2ERequest: RemoteRootCodec<ProcedureforgeClosePrRequest_c5c17f76a2>
     get() = RemoteRootCodec("procedure.forgeMarkPrReady.request", serializer<ProcedureforgeClosePrRequest_c5c17f76a2>(), schema_c5c17f76a21e5ff1)
@@ -176,11 +191,23 @@ val RemoteRootCodecs.procedureU2EForgePostPrCommentU2EResult: RemoteRootCodec<Pr
 val RemoteRootCodecs.procedureU2EForgeReopenPrU2ERequest: RemoteRootCodec<ProcedureforgeClosePrRequest_c5c17f76a2>
     get() = RemoteRootCodec("procedure.forgeReopenPr.request", serializer<ProcedureforgeClosePrRequest_c5c17f76a2>(), schema_c5c17f76a21e5ff1)
 
+val RemoteRootCodecs.procedureU2EForgeSetPrFileViewedU2ERequest: RemoteRootCodec<ProcedureforgeSetPrFileViewedRequest_1631cf63b0>
+    get() = RemoteRootCodec("procedure.forgeSetPrFileViewed.request", serializer<ProcedureforgeSetPrFileViewedRequest_1631cf63b0>(), schema_1631cf63b0b9b49c)
+
+val RemoteRootCodecs.procedureU2EForgeSetPrFileViewedU2EResult: RemoteRootCodec<ProcedureforgeGetPrViewedFilesResult_6c5abb4203>
+    get() = RemoteRootCodec("procedure.forgeSetPrFileViewed.result", serializer<ProcedureforgeGetPrViewedFilesResult_6c5abb4203>(), schema_6c5abb4203cd5fd7)
+
 val RemoteRootCodecs.procedureU2EForgeSubmitPrReviewU2ERequest: RemoteRootCodec<ProcedureforgeSubmitPrReviewRequest_ef7ac92f54>
     get() = RemoteRootCodec("procedure.forgeSubmitPrReview.request", serializer<ProcedureforgeSubmitPrReviewRequest_ef7ac92f54>(), schema_ef7ac92f549d928c)
 
 val RemoteRootCodecs.procedureU2EForgeUpdatePrBranchU2ERequest: RemoteRootCodec<ProcedureforgeUpdatePrBranchRequest_33c56fa54b>
     get() = RemoteRootCodec("procedure.forgeUpdatePrBranch.request", serializer<ProcedureforgeUpdatePrBranchRequest_33c56fa54b>(), schema_33c56fa54b24233a)
+
+val RemoteRootCodecs.procedureU2EForgeWritePrReviewGuideU2ERequest: RemoteRootCodec<ProcedureforgeWritePrReviewGuideRequest_4dced7b846>
+    get() = RemoteRootCodec("procedure.forgeWritePrReviewGuide.request", serializer<ProcedureforgeWritePrReviewGuideRequest_4dced7b846>(), schema_4dced7b84600297c)
+
+val RemoteRootCodecs.procedureU2EForgeWritePrReviewGuideU2EResult: RemoteRootCodec<ProcedureforgeGetPrReviewGuideResult_5915279035>
+    get() = RemoteRootCodec("procedure.forgeWritePrReviewGuide.result", serializer<ProcedureforgeGetPrReviewGuideResult_5915279035>(), schema_59152790354c604a)
 
 val RemoteRootCodecs.procedureU2EGenerateCommitMessageU2ERequest: RemoteRootCodec<ProceduregenerateCommitMessageRequest_56ee97530d>
     get() = RemoteRootCodec("procedure.generateCommitMessage.request", serializer<ProceduregenerateCommitMessageRequest_56ee97530d>(), schema_56ee97530dcbb64f)
@@ -257,8 +284,8 @@ val RemoteRootCodecs.procedureU2EGhClosePrU2ERequest: RemoteRootCodec<Procedureg
 val RemoteRootCodecs.procedureU2EGhCreatePrU2ERequest: RemoteRootCodec<ProcedureghCreatePrRequest_39c209cff9>
     get() = RemoteRootCodec("procedure.ghCreatePr.request", serializer<ProcedureghCreatePrRequest_39c209cff9>(), schema_39c209cff99afe61)
 
-val RemoteRootCodecs.procedureU2EGhCreatePrU2EResult: RemoteRootCodec<ProcedureforgeCreatePrResult_912ced4bf8>
-    get() = RemoteRootCodec("procedure.ghCreatePr.result", serializer<ProcedureforgeCreatePrResult_912ced4bf8>(), schema_912ced4bf8efe6b6)
+val RemoteRootCodecs.procedureU2EGhCreatePrU2EResult: RemoteRootCodec<ProcedureforgeCreatePrResult_22a062bffa>
+    get() = RemoteRootCodec("procedure.ghCreatePr.result", serializer<ProcedureforgeCreatePrResult_22a062bffa>(), schema_22a062bffa4e84da)
 
 val RemoteRootCodecs.procedureU2EGhDeleteWorkflowRunU2ERequest: RemoteRootCodec<ProcedureghCancelWorkflowRunRequest_eb12aad287>
     get() = RemoteRootCodec("procedure.ghDeleteWorkflowRun.request", serializer<ProcedureghCancelWorkflowRunRequest_eb12aad287>(), schema_eb12aad2875e1908)
@@ -275,8 +302,8 @@ val RemoteRootCodecs.procedureU2EGhGetPrChecksU2EResult: RemoteRootCodec<Procedu
 val RemoteRootCodecs.procedureU2EGhGetPrDetailsU2ERequest: RemoteRootCodec<ProcedureghClosePrRequest_868bf1042a>
     get() = RemoteRootCodec("procedure.ghGetPrDetails.request", serializer<ProcedureghClosePrRequest_868bf1042a>(), schema_868bf1042a1bbba1)
 
-val RemoteRootCodecs.procedureU2EGhGetPrDetailsU2EResult: RemoteRootCodec<ProcedureforgeGetPrDetailsResult_deb900b573>
-    get() = RemoteRootCodec("procedure.ghGetPrDetails.result", serializer<ProcedureforgeGetPrDetailsResult_deb900b573>(), schema_deb900b573030f10)
+val RemoteRootCodecs.procedureU2EGhGetPrDetailsU2EResult: RemoteRootCodec<ProcedureforgeGetPrDetailsResult_a014f9df96>
+    get() = RemoteRootCodec("procedure.ghGetPrDetails.result", serializer<ProcedureforgeGetPrDetailsResult_a014f9df96>(), schema_a014f9df96e82169)
 
 val RemoteRootCodecs.procedureU2EGhGetPrDiffU2ERequest: RemoteRootCodec<ProcedureghClosePrRequest_868bf1042a>
     get() = RemoteRootCodec("procedure.ghGetPrDiff.request", serializer<ProcedureghClosePrRequest_868bf1042a>(), schema_868bf1042a1bbba1)
@@ -293,8 +320,8 @@ val RemoteRootCodecs.procedureU2EGhGetPrFilesU2EResult: RemoteRootCodec<Procedur
 val RemoteRootCodecs.procedureU2EGhGetPrForBranchU2ERequest: RemoteRootCodec<ProcedureghGetPrChecksRequest_50e8e4265c>
     get() = RemoteRootCodec("procedure.ghGetPrForBranch.request", serializer<ProcedureghGetPrChecksRequest_50e8e4265c>(), schema_50e8e4265cb34b55)
 
-val RemoteRootCodecs.procedureU2EGhGetPrForBranchU2EResult: RemoteRootCodec<ProcedureforgeGetPrForBranchResult_e5051103ac>
-    get() = RemoteRootCodec("procedure.ghGetPrForBranch.result", serializer<ProcedureforgeGetPrForBranchResult_e5051103ac>(), schema_e5051103ac533240)
+val RemoteRootCodecs.procedureU2EGhGetPrForBranchU2EResult: RemoteRootCodec<ProcedureforgeGetPrForBranchResult_b6b2f6f4a0>
+    get() = RemoteRootCodec("procedure.ghGetPrForBranch.result", serializer<ProcedureforgeGetPrForBranchResult_b6b2f6f4a0>(), schema_b6b2f6f4a0784077)
 
 val RemoteRootCodecs.procedureU2EGhGetPrReviewCommentsU2ERequest: RemoteRootCodec<ProcedureghClosePrRequest_868bf1042a>
     get() = RemoteRootCodec("procedure.ghGetPrReviewComments.request", serializer<ProcedureghClosePrRequest_868bf1042a>(), schema_868bf1042a1bbba1)
@@ -323,14 +350,14 @@ val RemoteRootCodecs.procedureU2EGhListAccountsU2EResult: RemoteRootCodec<Proced
 val RemoteRootCodecs.procedureU2EGhListPrsU2ERequest: RemoteRootCodec<ProceduredetectSetupScriptRequest_5e3a19fb85>
     get() = RemoteRootCodec("procedure.ghListPrs.request", serializer<ProceduredetectSetupScriptRequest_5e3a19fb85>(), schema_5e3a19fb856f8915)
 
-val RemoteRootCodecs.procedureU2EGhListPrsU2EResult: RemoteRootCodec<ProcedureforgeListPrsResult_595467234e>
-    get() = RemoteRootCodec("procedure.ghListPrs.result", serializer<ProcedureforgeListPrsResult_595467234e>(), schema_595467234e6909b7)
+val RemoteRootCodecs.procedureU2EGhListPrsU2EResult: RemoteRootCodec<ProcedureforgeListPrsResult_da51f0662d>
+    get() = RemoteRootCodec("procedure.ghListPrs.result", serializer<ProcedureforgeListPrsResult_da51f0662d>(), schema_da51f0662d7465bb)
 
 val RemoteRootCodecs.procedureU2EGhListPullRequestsU2ERequest: RemoteRootCodec<ProceduredetectSetupScriptRequest_5e3a19fb85>
     get() = RemoteRootCodec("procedure.ghListPullRequests.request", serializer<ProceduredetectSetupScriptRequest_5e3a19fb85>(), schema_5e3a19fb856f8915)
 
-val RemoteRootCodecs.procedureU2EGhListPullRequestsU2EResult: RemoteRootCodec<ProcedureforgeListPullRequestsResult_7f705834dd>
-    get() = RemoteRootCodec("procedure.ghListPullRequests.result", serializer<ProcedureforgeListPullRequestsResult_7f705834dd>(), schema_7f705834dd78b5c6)
+val RemoteRootCodecs.procedureU2EGhListPullRequestsU2EResult: RemoteRootCodec<ProcedureforgeListPullRequestsResult_cdc82b7fc9>
+    get() = RemoteRootCodec("procedure.ghListPullRequests.result", serializer<ProcedureforgeListPullRequestsResult_cdc82b7fc9>(), schema_cdc82b7fc944253a)
 
 val RemoteRootCodecs.procedureU2EGhListReposU2ERequest: RemoteRootCodec<ProcedureghListReposRequest_ea3d1d70c1>
     get() = RemoteRootCodec("procedure.ghListRepos.request", serializer<ProcedureghListReposRequest_ea3d1d70c1>(), schema_ea3d1d70c1876de4)
@@ -421,30 +448,3 @@ val RemoteRootCodecs.procedureU2EGitGetWorktreeSourceBranchU2EResult: RemoteRoot
 
 val RemoteRootCodecs.procedureU2EGitInitU2ERequest: RemoteRootCodec<ProceduredetectSetupScriptRequest_5e3a19fb85>
     get() = RemoteRootCodec("procedure.gitInit.request", serializer<ProceduredetectSetupScriptRequest_5e3a19fb85>(), schema_5e3a19fb856f8915)
-
-val RemoteRootCodecs.procedureU2EGitListBranchesU2ERequest: RemoteRootCodec<ProceduregitListBranchesRequest_632568cf23>
-    get() = RemoteRootCodec("procedure.gitListBranches.request", serializer<ProceduregitListBranchesRequest_632568cf23>(), schema_632568cf23c893da)
-
-val RemoteRootCodecs.procedureU2EGitListBranchesU2EResult: RemoteRootCodec<ProceduregitListBranchesResult_458a450839>
-    get() = RemoteRootCodec("procedure.gitListBranches.result", serializer<ProceduregitListBranchesResult_458a450839>(), schema_458a4508393abce2)
-
-val RemoteRootCodecs.procedureU2EGitListWorktreesU2ERequest: RemoteRootCodec<ProceduredetectSetupScriptRequest_5e3a19fb85>
-    get() = RemoteRootCodec("procedure.gitListWorktrees.request", serializer<ProceduredetectSetupScriptRequest_5e3a19fb85>(), schema_5e3a19fb856f8915)
-
-val RemoteRootCodecs.procedureU2EGitListWorktreesU2EResult: RemoteRootCodec<ProceduregitListWorktreesResult_70e5b904af>
-    get() = RemoteRootCodec("procedure.gitListWorktrees.result", serializer<ProceduregitListWorktreesResult_70e5b904af>(), schema_70e5b904af7932c1)
-
-val RemoteRootCodecs.procedureU2EGitMergeToSourceU2ERequest: RemoteRootCodec<ProceduregitMergeToSourceRequest_e41b25797e>
-    get() = RemoteRootCodec("procedure.gitMergeToSource.request", serializer<ProceduregitMergeToSourceRequest_e41b25797e>(), schema_e41b25797ed24d45)
-
-val RemoteRootCodecs.procedureU2EGitMergeToSourceU2EResult: RemoteRootCodec<ProceduregitMergeToSourceResult_0bd6eab0e2>
-    get() = RemoteRootCodec("procedure.gitMergeToSource.result", serializer<ProceduregitMergeToSourceResult_0bd6eab0e2>(), schema_0bd6eab0e269161f)
-
-val RemoteRootCodecs.procedureU2EGitProjectSnapshotU2ERequest: RemoteRootCodec<ProceduregitProjectSnapshotRequest_7e2ac4b648>
-    get() = RemoteRootCodec("procedure.gitProjectSnapshot.request", serializer<ProceduregitProjectSnapshotRequest_7e2ac4b648>(), schema_7e2ac4b6482d3bf6)
-
-val RemoteRootCodecs.procedureU2EGitProjectSnapshotU2EResult: RemoteRootCodec<ProceduregitProjectSnapshotResult_35889b09eb>
-    get() = RemoteRootCodec("procedure.gitProjectSnapshot.result", serializer<ProceduregitProjectSnapshotResult_35889b09eb>(), schema_35889b09eb72e208)
-
-val RemoteRootCodecs.procedureU2EGitPruneWorktreesU2ERequest: RemoteRootCodec<ProceduregitPruneWorktreesRequest_922ae6d8b3>
-    get() = RemoteRootCodec("procedure.gitPruneWorktrees.request", serializer<ProceduregitPruneWorktreesRequest_922ae6d8b3>(), schema_922ae6d8b34c9e29)

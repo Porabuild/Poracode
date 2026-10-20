@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="forge_review_guide">ガイド</string>
+    <string name="forge_review_writer">ガイド作成エージェント</string>
+    <string name="forge_review_model">ガイド用モデル</string>
+    <string name="forge_review_instructions">レビューガイドの指示</string>
+    <string name="forge_review_write">ガイドを作成</string>
+    <string name="forge_review_rewrite">ガイドを書き直す</string>
+    <string name="forge_review_no_writer">読み取り専用が強制されるワークスペースに対応したガイド作成エージェントを選択してください。</string>
+    <string name="forge_review_generating">ガイドを作成しています。このレビューを離れ、準備ができてから戻ることができます。</string>
+    <string name="forge_review_failed">ガイドを作成できませんでした。書き直してみてください。</string>
+    <string name="forge_review_stale">このガイドは古くなっています。現在の変更の抜粋を見るには書き直してください。</string>
+    <string name="forge_review_look_closely">要確認</string>
+    <string name="forge_review_back">戻る</string>
+    <string name="forge_review_next">次へ</string>
+    <string name="forge_review_finish">レビューを完了</string>
+    <string name="forge_review_viewed_source">ソースホストで確認済み</string>
+    <string name="forge_review_viewed_host">Poracode で確認済み</string>
+    <string name="forge_review_changed">変更あり</string>
+    <string name="forge_review_edit_comment">コメントを編集</string>
+    <string name="forge_review_offline">オフライン</string>
+</resources>

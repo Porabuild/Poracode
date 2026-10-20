@@ -3,6 +3,52 @@ import { definePayloadProcedure, omittedResultSchema } from "../core";
 
 // Distinct names protect account selection and merge preconditions from older hosts.
 export const forgeProcedures = {
+  forgeGetPrReviewGuide: definePayloadProcedure<
+    c.ForgeGetPrReviewGuidePayload,
+    c.ForgePrReviewGuideResult,
+    "supervisor"
+  >(
+    "forgeGetPrReviewGuide",
+    "supervisor",
+    c.forgeGetPrReviewGuidePayloadSchema,
+    c.forgePrReviewGuideResultSchema,
+  ),
+  forgeWritePrReviewGuide: definePayloadProcedure<
+    c.ForgeWritePrReviewGuidePayload,
+    c.ForgePrReviewGuideResult,
+    "supervisor"
+  >(
+    "forgeWritePrReviewGuide",
+    "supervisor",
+    c.forgeWritePrReviewGuidePayloadSchema,
+    c.forgePrReviewGuideResultSchema,
+  ),
+  forgeEditPrComment: definePayloadProcedure<c.ForgeEditPrCommentPayload, void, "supervisor">(
+    "forgeEditPrComment",
+    "supervisor",
+    c.forgeEditPrCommentPayloadSchema,
+    omittedResultSchema,
+  ),
+  forgeGetPrViewedFiles: definePayloadProcedure<
+    c.ForgeGetPrViewedFilesPayload,
+    c.ForgePrViewedFilesResult,
+    "supervisor"
+  >(
+    "forgeGetPrViewedFiles",
+    "supervisor",
+    c.forgeGetPrViewedFilesPayloadSchema,
+    c.forgePrViewedFilesResultSchema,
+  ),
+  forgeSetPrFileViewed: definePayloadProcedure<
+    c.ForgeSetPrFileViewedPayload,
+    c.ForgePrViewedFilesResult,
+    "supervisor"
+  >(
+    "forgeSetPrFileViewed",
+    "supervisor",
+    c.forgeSetPrFileViewedPayloadSchema,
+    c.forgePrViewedFilesResultSchema,
+  ),
   forgeGetRepository: definePayloadProcedure<
     c.ForgeGetRepositoryPayload,
     c.ForgeGetRepositoryResult,

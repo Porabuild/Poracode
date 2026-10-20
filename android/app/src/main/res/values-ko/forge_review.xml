@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="forge_review_guide">가이드</string>
+    <string name="forge_review_writer">가이드 작성 에이전트</string>
+    <string name="forge_review_model">가이드 모델</string>
+    <string name="forge_review_instructions">검토 가이드 지침</string>
+    <string name="forge_review_write">가이드 작성</string>
+    <string name="forge_review_rewrite">가이드 다시 작성</string>
+    <string name="forge_review_no_writer">읽기 전용이 강제되는 작업 공간을 지원하는 가이드 작성 에이전트를 선택하세요.</string>
+    <string name="forge_review_generating">가이드를 작성 중입니다. 이 검토를 떠났다가 준비되면 돌아올 수 있습니다.</string>
+    <string name="forge_review_failed">가이드를 작성하지 못했습니다. 다시 작성해 보세요.</string>
+    <string name="forge_review_stale">이 가이드는 오래되었습니다. 현재 변경의 발췌문을 보려면 다시 작성하세요.</string>
+    <string name="forge_review_look_closely">자세히 살펴보기</string>
+    <string name="forge_review_back">뒤로</string>
+    <string name="forge_review_next">다음</string>
+    <string name="forge_review_finish">검토 완료</string>
+    <string name="forge_review_viewed_source">소스 호스트에서 확인함</string>
+    <string name="forge_review_viewed_host">Poracode에서 확인함</string>
+    <string name="forge_review_changed">변경됨</string>
+    <string name="forge_review_edit_comment">댓글 편집</string>
+    <string name="forge_review_offline">오프라인</string>
+</resources>

@@ -80,5 +80,7 @@ export function reviewClient(source?: ForgeRepository) {
         : bridge.ghUpdatePrBranch(input),
     edit: (input: IpcProcedurePayload<"forgeEditPr">) =>
       bridge.forgeEditPr(source ? { ...input, ...account } : input),
+    editComment: (input: IpcProcedurePayload<"forgeEditPrComment">) =>
+      bridge.forgeEditPrComment(source ? { ...input, ...account } : input),
   };
 }

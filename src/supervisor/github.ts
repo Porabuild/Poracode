@@ -38,6 +38,7 @@ import {
 } from "./githubMappers";
 import { parseGitHubActionsWorkflowYaml } from "./githubWorkflowDefinition";
 import { parsePrReviewThreads, PR_REVIEW_THREADS_QUERY } from "./githubReviewThreads";
+import { getGitHubViewedFiles, setGitHubFileViewed } from "./githubViewedFiles";
 import { msg as sharedMsg } from "@/shared/messages";
 
 // Re-export the pure mappers previously defined inline here so the module's
@@ -1347,6 +1348,28 @@ export class GitHubService {
     } catch (err) {
       throw classifyError(err, "api pull request review threads");
     }
+  }
+
+  getPrViewedFiles(location: ProjectLocation, prNumber: number) {
+    return getGitHubViewedFiles((args) => this.runGh(location, args), prNumber);
+  }
+  async editPrComment(location: ProjectLocation, commentId: string, body: string, inline: boolean) {
+    const operation = inline ? "updatePullRequestReviewComment" : "updateIssueComment";
+    const idField = inline ? "pullRequestReviewCommentId" : "id";
+    await this.runGh(location, [
+      "api",
+      "graphql",
+      "-f",
+      `query=mutation($id: ID!, $body: String!) { ${operation}(input: {${idField}: $id, body: $body}) { clientMutationId } }`,
+      "-f",
+      `id=${commentId}`,
+      "-f",
+      `body=${body}`,
+    ]);
+  }
+
+  setPrFileViewed(location: ProjectLocation, prNumber: number, path: string, viewed: boolean) {
+    return setGitHubFileViewed((args) => this.runGh(location, args), prNumber, path, viewed);
   }
 
   async postPrComment(

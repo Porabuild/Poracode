@@ -6,10 +6,10 @@ import {
   fileViewState,
   PR_VIEWED_FILES_STORAGE_KEY,
   readViewedMarks,
-  viewedFingerprint,
   withFileMark,
   writeViewedMarks,
 } from "./prViewedFiles";
+import { viewedFingerprint } from "@/shared/reviewDiff";
 
 const source: ForgeRepository = {
   forge: "gitlab",

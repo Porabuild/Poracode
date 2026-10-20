@@ -1,6 +1,7 @@
 import { msg } from "@/shared/messages";
 import type {
   ForgeEditPrPayload,
+  ForgeEditPrCommentPayload,
   ForgeRepository,
   GhCreatePrPayload,
   GhGetPrDetailsResult,
@@ -273,6 +274,13 @@ export class GitLabReview implements ForgeReviewAdapter {
   }
   async comment(number: number, body: string) {
     return comment(await this.api.json(`${this.path(number)}/notes`, "POST", { body }));
+  }
+  async editComment(input: ForgeEditPrCommentPayload) {
+    await this.api.json(
+      `${this.path(input.prNumber)}/notes/${encodeURIComponent(input.commentId)}`,
+      "PUT",
+      { body: input.body },
+    );
   }
   async review(number: number, decision: PrReviewDecision, body: string) {
     if (decision === "request-changes") unsupported(this.source);

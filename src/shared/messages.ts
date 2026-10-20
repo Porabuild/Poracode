@@ -8,6 +8,12 @@
  */
 
 const messages = {
+  "forge.commentNotEditable": "Only your own comments on this pull request can be edited.",
+  "forge.commentChanged": "This comment changed while you were editing it. Refresh before saving.",
+  "forge.guideInvalid":
+    "The guide did not cover every changed file or contained an invalid excerpt. Rewrite the guide.",
+  "forge.guideWriterUnsupported":
+    "Select a guide writer that supports an enforced read-only workspace.",
   "forge.unsupported":
     "This operation is not supported by the {forge} integration. Open the review on its source host.",
   "forge.credentials":

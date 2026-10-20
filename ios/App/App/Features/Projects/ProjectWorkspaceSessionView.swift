@@ -162,7 +162,8 @@ final class ProjectWorkspaceSelectionSource {
       grantedScopes: Set(profile.scopes).intersection(record.scopes),
       isOnline: base.session.isOnline,
       isReady: base.session.isReady,
-      isForeground: foreground
+      isForeground: foreground,
+      cacheEndpoint: profile.httpBaseURL
     )
   }
 }
@@ -365,9 +366,25 @@ struct ProjectWorkspaceSessionView: View {
         context: source.gitHubOperationsContext,
         route: route,
         controller: gitHubOperationsControllers.pullRequests,
-        mutations: gitHubOperationsControllers.pullRequestMutations
+        mutations: gitHubOperationsControllers.pullRequestMutations,
+        forge: gitHubOperationsControllers.forgeReview,
+        guideWriters: reviewGuideWriters
       )
     }
+  }
+
+  private var reviewGuideWriters: [AgentStatusRecord] {
+    let replay = session.state.replay
+    let statuses: [AgentStatusRecord]
+    switch workspaceLocation {
+    case .wsl(let distro, _, _, _):
+      statuses = replay.wslAgentStatuses.filter { $0.envDistro == distro }
+    case .windows:
+      statuses = replay.agentStatuses.ordered.filter { $0.envKind == .windows || $0.envKind == nil }
+    case .posix:
+      statuses = replay.agentStatuses.ordered.filter { $0.envKind == .posix || $0.envKind == nil }
+    }
+    return statuses.filter { $0.installed && $0.authState != .missing && $0.capabilities["supportsReadOnlyOneShotWorkspace"]?.boolValue == true }
   }
 
   private var enqueueReviewComment: ((RichPromptSegment) -> Void)? {

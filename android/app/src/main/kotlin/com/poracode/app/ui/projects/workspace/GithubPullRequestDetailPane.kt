@@ -23,6 +23,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SecondaryTabRow
+import androidx.compose.material3.SecondaryScrollableTabRow
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -45,9 +49,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.poracode.app.R
 import com.poracode.app.session.projects.GithubOperationsEntry
+import com.poracode.app.session.projects.ForgeReviewEntry
+import com.poracode.app.model.AgentStatusEntry
+import com.poracode.app.protocol.forge.ForgeReviewOperation
+import kotlinx.serialization.json.*
 import com.poracode.app.ui.components.EmptyStateView
 
-internal enum class PullRequestReviewTab { Overview, Files, Checks, Conversation }
+internal enum class PullRequestReviewTab { Overview, Files, Checks, Conversation, Guide }
 
 /**
  * Structured pull-request review surface: the Android counterpart of the iOS
@@ -59,6 +67,13 @@ internal fun GithubPullRequestDetailPane(
     number: Long,
     branch: String,
     modifier: Modifier = Modifier,
+    forge: ForgeReviewEntry? = null,
+    canMutate: Boolean = false,
+    guideWriters: List<AgentStatusEntry> = emptyList(),
+    mutate: (ForgeReviewOperation, Map<String, JsonElement>) -> Unit = { _, _ -> },
+    refreshGuide: suspend () -> Unit = {},
+    finishReview: () -> Unit = {},
+    editComment: suspend (Map<String, JsonElement>) -> Boolean = { false },
 ) {
     if (number <= 0) {
         EmptyStateView(
@@ -71,20 +86,25 @@ internal fun GithubPullRequestDetailPane(
     val details = remember(entry.prDetails) { entry.prDetails.pullRequestDetails() }
     val files = remember(entry.prFiles) { entry.prFiles.pullRequestFiles() }
     val diff = remember(entry.prDiff) { entry.prDiff.pullRequestDiff() }
-    val conversation = remember(entry.prReviews) { entry.prReviews.pullRequestConversation() }
+    val conversation = remember(entry.prReviews, details) {
+        val value = entry.prReviews.pullRequestConversation()
+        val inlineIds = value.threads.flatMap { it.comments }.map { it.id }.toSet()
+        value.copy(comments = (details?.comments.orEmpty() + value.comments).filterNot { it.id in inlineIds }.distinctBy { it.id })
+    }
     val checks = remember(entry.prChecks, details) {
         entry.prChecks.pullRequestChecks().ifEmpty { details?.checks.orEmpty() }
     }
 
     var tabName by rememberSaveable(number) { mutableStateOf(PullRequestReviewTab.Overview.name) }
     var openFile by rememberSaveable(number) { mutableStateOf("") }
-    val tab = PullRequestReviewTab.entries.firstOrNull { it.name == tabName }
+    val tabs = PullRequestReviewTab.entries.filter { it != PullRequestReviewTab.Guide || forge?.capabilities?.boolean("reviewGuides") == true }
+    val tab = tabs.firstOrNull { it.name == tabName }
         ?: PullRequestReviewTab.Overview
 
     Column(modifier.fillMaxSize()) {
         PullRequestHeader(details, number, branch)
-        SecondaryTabRow(tab.ordinal) {
-            PullRequestReviewTab.entries.forEach { candidate ->
+        SecondaryScrollableTabRow(tabs.indexOf(tab), edgePadding = 0.dp) {
+            tabs.forEach { candidate ->
                 Tab(
                     selected = tab == candidate,
                     onClick = {
@@ -126,15 +146,19 @@ internal fun GithubPullRequestDetailPane(
                     PullRequestOverviewSection(details, Modifier.fillMaxSize())
 
                 section == PullRequestReviewTab.Files ->
-                    PullRequestFilesSection(files, Modifier.fillMaxSize()) { openFile = it }
+                    PullRequestFilesSection(files, Modifier.fillMaxSize(), forge, canMutate, mutate) { openFile = it }
 
                 section == PullRequestReviewTab.Checks ->
                     PullRequestChecksSection(checks, Modifier.fillMaxSize())
+
+                section == PullRequestReviewTab.Guide && forge != null ->
+                    ForgeReviewGuidePane(forge, guideWriters, canMutate, mutate, refreshGuide, { openFile = it; tabName = PullRequestReviewTab.Files.name }, finishReview)
 
                 else -> PullRequestConversationSection(
                     conversation,
                     details?.reviews.orEmpty(),
                     Modifier.fillMaxSize(),
+                    forge, canMutate, editComment,
                 )
             }
         }
@@ -244,6 +268,9 @@ private fun PullRequestOverviewSection(details: PullRequestDetailsRow?, modifier
 private fun PullRequestFilesSection(
     files: List<PullRequestFileRow>,
     modifier: Modifier,
+    forge: ForgeReviewEntry?,
+    canMutate: Boolean,
+    mutate: (ForgeReviewOperation, Map<String, JsonElement>) -> Unit,
     onOpen: (String) -> Unit,
 ) {
     if (files.isEmpty()) {
@@ -275,6 +302,19 @@ private fun PullRequestFilesSection(
                     overflow = TextOverflow.Ellipsis,
                 )
                 DiffCounts(file.additions, file.deletions)
+                if (forge?.capabilities?.get("viewedFiles") is JsonPrimitive) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Checkbox(checked = forge.viewedState(file.path) == "viewed", onCheckedChange = {
+                            forge.fingerprint(file.path)?.let { fingerprint ->
+                                mutate(ForgeReviewOperation.SetPrFileViewed, mapOf("path" to JsonPrimitive(file.path),
+                                    "fingerprint" to if (it) JsonPrimitive(fingerprint) else JsonNull))
+                            }
+                        }, enabled = canMutate && forge.fingerprint(file.path) != null)
+                        Text(stringResource(if (forge.viewedState(file.path) == "changed") R.string.forge_review_changed
+                            else if (forge.capabilities["viewedFiles"] == JsonPrimitive("forge")) R.string.forge_review_viewed_source else R.string.forge_review_viewed_host),
+                            style = MaterialTheme.typography.labelSmall)
+                    }
+                }
             }
             HorizontalDivider()
         }
@@ -341,101 +381,7 @@ private fun PullRequestChecksSection(checks: List<PullRequestCheckRow>, modifier
 }
 
 @Composable
-private fun PullRequestConversationSection(
-    conversation: PullRequestConversationRows,
-    reviews: List<PullRequestReviewSummaryRow>,
-    modifier: Modifier,
-) {
-    if (conversation.isEmpty && reviews.isEmpty()) {
-        EmptyStateView(
-            stringResource(R.string.github_conversation),
-            stringResource(R.string.github_no_conversation),
-            modifier,
-        )
-        return
-    }
-    LazyColumn(modifier, contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp)) {
-        if (conversation.comments.isNotEmpty()) {
-            item("comments-header") { SectionHeader(stringResource(R.string.github_comments)) }
-            items(conversation.comments.size, key = { "c${conversation.comments[it].id}" }) { index ->
-                ConversationRow(conversation.comments[index])
-            }
-        }
-        if (reviews.isNotEmpty()) {
-            item("reviews-header") { SectionHeader(stringResource(R.string.github_reviews)) }
-            items(reviews.size, key = { "r${reviews[it].id}" }) { index ->
-                val review = reviews[index]
-                Column(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(review.author, style = MaterialTheme.typography.titleSmall)
-                        AssistChip({}, { Text(review.state) }, enabled = false)
-                    }
-                    if (review.body.isNotBlank()) {
-                        Text(review.body, style = MaterialTheme.typography.bodyMedium)
-                    }
-                }
-            }
-        }
-        if (conversation.threads.isNotEmpty()) {
-            item("threads-header") { SectionHeader(stringResource(R.string.github_review_threads)) }
-            items(conversation.threads.size, key = { "t${conversation.threads[it].id}" }) { index ->
-                val thread = conversation.threads[index]
-                Column(
-                    Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        thread.path?.let {
-                            Text(
-                                it,
-                                Modifier.weight(1f),
-                                style = MaterialTheme.typography.labelSmall,
-                                fontFamily = FontFamily.Monospace,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        }
-                        Icon(
-                            if (thread.isResolved) Icons.Outlined.CheckCircle else Icons.Outlined.Error,
-                            stringResource(
-                                if (thread.isResolved) {
-                                    R.string.github_thread_resolved
-                                } else {
-                                    R.string.github_thread_unresolved
-                                },
-                            ),
-                            tint = if (thread.isResolved) {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            } else {
-                                MaterialTheme.colorScheme.tertiary
-                            },
-                        )
-                    }
-                    thread.comments.forEach { ConversationRow(it) }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun ConversationRow(comment: PullRequestCommentRow) {
-    Column(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
-        Text(comment.author, style = MaterialTheme.typography.titleSmall)
-        if (comment.body.isNotBlank()) {
-            Text(comment.body.take(MAX_GITHUB_TEXT), style = MaterialTheme.typography.bodyMedium)
-        }
-    }
-}
-
-@Composable
-private fun SectionHeader(title: String) {
+internal fun SectionHeader(title: String) {
     Text(
         title,
         Modifier.padding(top = 12.dp, bottom = 4.dp),
@@ -470,4 +416,5 @@ private fun reviewTabLabel(tab: PullRequestReviewTab) = when (tab) {
     PullRequestReviewTab.Files -> R.string.github_files
     PullRequestReviewTab.Checks -> R.string.github_checks
     PullRequestReviewTab.Conversation -> R.string.github_conversation
+    PullRequestReviewTab.Guide -> R.string.forge_review_guide
 }

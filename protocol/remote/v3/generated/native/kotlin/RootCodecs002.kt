@@ -5,6 +5,33 @@ import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
+val RemoteRootCodecs.procedureU2EGitListBranchesU2ERequest: RemoteRootCodec<ProceduregitListBranchesRequest_632568cf23>
+    get() = RemoteRootCodec("procedure.gitListBranches.request", serializer<ProceduregitListBranchesRequest_632568cf23>(), schema_632568cf23c893da)
+
+val RemoteRootCodecs.procedureU2EGitListBranchesU2EResult: RemoteRootCodec<ProceduregitListBranchesResult_458a450839>
+    get() = RemoteRootCodec("procedure.gitListBranches.result", serializer<ProceduregitListBranchesResult_458a450839>(), schema_458a4508393abce2)
+
+val RemoteRootCodecs.procedureU2EGitListWorktreesU2ERequest: RemoteRootCodec<ProceduredetectSetupScriptRequest_5e3a19fb85>
+    get() = RemoteRootCodec("procedure.gitListWorktrees.request", serializer<ProceduredetectSetupScriptRequest_5e3a19fb85>(), schema_5e3a19fb856f8915)
+
+val RemoteRootCodecs.procedureU2EGitListWorktreesU2EResult: RemoteRootCodec<ProceduregitListWorktreesResult_70e5b904af>
+    get() = RemoteRootCodec("procedure.gitListWorktrees.result", serializer<ProceduregitListWorktreesResult_70e5b904af>(), schema_70e5b904af7932c1)
+
+val RemoteRootCodecs.procedureU2EGitMergeToSourceU2ERequest: RemoteRootCodec<ProceduregitMergeToSourceRequest_e41b25797e>
+    get() = RemoteRootCodec("procedure.gitMergeToSource.request", serializer<ProceduregitMergeToSourceRequest_e41b25797e>(), schema_e41b25797ed24d45)
+
+val RemoteRootCodecs.procedureU2EGitMergeToSourceU2EResult: RemoteRootCodec<ProceduregitMergeToSourceResult_0bd6eab0e2>
+    get() = RemoteRootCodec("procedure.gitMergeToSource.result", serializer<ProceduregitMergeToSourceResult_0bd6eab0e2>(), schema_0bd6eab0e269161f)
+
+val RemoteRootCodecs.procedureU2EGitProjectSnapshotU2ERequest: RemoteRootCodec<ProceduregitProjectSnapshotRequest_7e2ac4b648>
+    get() = RemoteRootCodec("procedure.gitProjectSnapshot.request", serializer<ProceduregitProjectSnapshotRequest_7e2ac4b648>(), schema_7e2ac4b6482d3bf6)
+
+val RemoteRootCodecs.procedureU2EGitProjectSnapshotU2EResult: RemoteRootCodec<ProceduregitProjectSnapshotResult_35889b09eb>
+    get() = RemoteRootCodec("procedure.gitProjectSnapshot.result", serializer<ProceduregitProjectSnapshotResult_35889b09eb>(), schema_35889b09eb72e208)
+
+val RemoteRootCodecs.procedureU2EGitPruneWorktreesU2ERequest: RemoteRootCodec<ProceduregitPruneWorktreesRequest_922ae6d8b3>
+    get() = RemoteRootCodec("procedure.gitPruneWorktrees.request", serializer<ProceduregitPruneWorktreesRequest_922ae6d8b3>(), schema_922ae6d8b34c9e29)
+
 val RemoteRootCodecs.procedureU2EGitPullU2ERequest: RemoteRootCodec<ProceduregitPullRebaseRequest_78a16ea622>
     get() = RemoteRootCodec("procedure.gitPull.request", serializer<ProceduregitPullRebaseRequest_78a16ea622>(), schema_78a16ea62277e780)
 
@@ -290,8 +317,8 @@ val RemoteRootCodecs.routeU2EAgentU2DSlashU2DCommandsU2EResponse: RemoteRootCode
 val RemoteRootCodecs.routeU2EAgentU2DStatusesU2EQuery: RemoteRootCodec<RouteagentU2DStatusesQuery_b09b259cd2>
     get() = RemoteRootCodec("route.agent-statuses.query", serializer<RouteagentU2DStatusesQuery_b09b259cd2>(), schema_b09b259cd2bbc25d)
 
-val RemoteRootCodecs.routeU2EAgentU2DStatusesU2EResponse: RemoteRootCodec<RouteagentU2DStatusesResponse_8babf8e386>
-    get() = RemoteRootCodec("route.agent-statuses.response", serializer<RouteagentU2DStatusesResponse_8babf8e386>(), schema_8babf8e3864040e4)
+val RemoteRootCodecs.routeU2EAgentU2DStatusesU2EResponse: RemoteRootCodec<RouteagentU2DStatusesResponse_663efde552>
+    get() = RemoteRootCodec("route.agent-statuses.response", serializer<RouteagentU2DStatusesResponse_663efde552>(), schema_663efde552559e08)
 
 val RemoteRootCodecs.routeU2EAttachmentU2DUploadU2EQuery: RemoteRootCodec<RouteattachmentU2DUploadQuery_f22a438b83>
     get() = RemoteRootCodec("route.attachment-upload.query", serializer<RouteattachmentU2DUploadQuery_f22a438b83>(), schema_f22a438b8392693b)
@@ -421,30 +448,3 @@ val RemoteRootCodecs.routeU2EEnvironmentU2DTrustU2DProbeU2EPath: RemoteRootCodec
 
 val RemoteRootCodecs.routeU2EEnvironmentU2DTrustU2DProbeU2EResponse: RemoteRootCodec<RouteenvironmentU2DTrustU2DProbeResponse_45d8e163d2>
     get() = RemoteRootCodec("route.environment-trust-probe.response", serializer<RouteenvironmentU2DTrustU2DProbeResponse_45d8e163d2>(), schema_45d8e163d2ea2910)
-
-val RemoteRootCodecs.routeU2EEnvironmentU2DUpdateU2EPath: RemoteRootCodec<RouteenvironmentU2DAdoptU2DLegacyPath_149c9d9dd2>
-    get() = RemoteRootCodec("route.environment-update.path", serializer<RouteenvironmentU2DAdoptU2DLegacyPath_149c9d9dd2>(), schema_149c9d9dd2191aa3)
-
-val RemoteRootCodecs.routeU2EEnvironmentU2DUpdateU2ERequest: RemoteRootCodec<RouteenvironmentU2DUpdateRequest_5760038b3a>
-    get() = RemoteRootCodec("route.environment-update.request", serializer<RouteenvironmentU2DUpdateRequest_5760038b3a>(), schema_5760038b3ac1009b)
-
-val RemoteRootCodecs.routeU2EEnvironmentU2DUpdateU2EResponse: RemoteRootCodec<RouteenvironmentU2DAdoptU2DLegacyResponse_8428abfcec>
-    get() = RemoteRootCodec("route.environment-update.response", serializer<RouteenvironmentU2DAdoptU2DLegacyResponse_8428abfcec>(), schema_8428abfcec0a8b32)
-
-val RemoteRootCodecs.routeU2EEnvironmentU2DUpgradeU2EPath: RemoteRootCodec<RouteenvironmentU2DAdoptU2DLegacyPath_149c9d9dd2>
-    get() = RemoteRootCodec("route.environment-upgrade.path", serializer<RouteenvironmentU2DAdoptU2DLegacyPath_149c9d9dd2>(), schema_149c9d9dd2191aa3)
-
-val RemoteRootCodecs.routeU2EEnvironmentU2DUpgradeU2ERequest: RemoteRootCodec<RouteenvironmentU2DDeleteRequest_939b432562>
-    get() = RemoteRootCodec("route.environment-upgrade.request", serializer<RouteenvironmentU2DDeleteRequest_939b432562>(), schema_939b432562853e88)
-
-val RemoteRootCodecs.routeU2EEnvironmentU2DUpgradeU2EResponse: RemoteRootCodec<RouteenvironmentU2DAdoptU2DLegacyResponse_8428abfcec>
-    get() = RemoteRootCodec("route.environment-upgrade.response", serializer<RouteenvironmentU2DAdoptU2DLegacyResponse_8428abfcec>(), schema_8428abfcec0a8b32)
-
-val RemoteRootCodecs.routeU2EEnvironmentU2DWebsocketU2DTicketU2EPath: RemoteRootCodec<RouteenvironmentU2DAdoptU2DLegacyPath_149c9d9dd2>
-    get() = RemoteRootCodec("route.environment-websocket-ticket.path", serializer<RouteenvironmentU2DAdoptU2DLegacyPath_149c9d9dd2>(), schema_149c9d9dd2191aa3)
-
-val RemoteRootCodecs.routeU2EEnvironmentU2DWebsocketU2DTicketU2EResponse: RemoteRootCodec<RouteenvironmentU2DWebsocketU2DTicketResponse_b9dfb5a053>
-    get() = RemoteRootCodec("route.environment-websocket-ticket.response", serializer<RouteenvironmentU2DWebsocketU2DTicketResponse_b9dfb5a053>(), schema_b9dfb5a053707da9)
-
-val RemoteRootCodecs.routeU2EEnvironmentU2EResponse: RemoteRootCodec<RouteenvironmentU2DLegacyResponse_1c6dc6a635>
-    get() = RemoteRootCodec("route.environment.response", serializer<RouteenvironmentU2DLegacyResponse_1c6dc6a635>(), schema_1c6dc6a6350a8fe9)

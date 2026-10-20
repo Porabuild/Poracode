@@ -4514,6 +4514,16 @@
                 "checks": {
                   "type": "boolean"
                 },
+                "commentEditing": {
+                  "items": {
+                    "enum": [
+                      "conversation",
+                      "inline"
+                    ],
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
                 "draft": {
                   "type": "boolean"
                 },
@@ -4551,11 +4561,22 @@
                   },
                   "type": "array"
                 },
+                "reviewGuides": {
+                  "const": true,
+                  "type": "boolean"
+                },
                 "reviewThreads": {
                   "type": "boolean"
                 },
                 "updateBranch": {
                   "type": "boolean"
+                },
+                "viewedFiles": {
+                  "enum": [
+                    "forge",
+                    "host"
+                  ],
+                  "type": "string"
                 }
               },
               "required": [
@@ -4813,6 +4834,174 @@
       "x-poracode-unknownFields": "strip"
     },
     "procedure.forgeEditPr.result": {
+      "$comment": "Void result omitted from /api/git/call JSON; never null.",
+      "x-poracode-semanticValidators": [
+        "void-result.omit-field"
+      ],
+      "x-poracode-wire": "omitted"
+    },
+    "procedure.forgeEditPrComment.request": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "body": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "commentId": {
+          "maxLength": 256,
+          "minLength": 1,
+          "type": "string"
+        },
+        "expectedBody": {
+          "type": "string"
+        },
+        "forgeAccount": {
+          "additionalProperties": true,
+          "properties": {
+            "forge": {
+              "enum": [
+                "github",
+                "gitlab",
+                "forgejo",
+                "gitea",
+                "bitbucket",
+                "azure-devops",
+                "gitcafe"
+              ],
+              "type": "string"
+            },
+            "host": {
+              "format": "uri",
+              "type": "string",
+              "x-poracode-semanticValidators": [
+                "forge.host.https"
+              ]
+            },
+            "login": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "forge",
+            "host",
+            "login"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        "forgeRepository": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "prNumber": {
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991,
+          "type": "integer"
+        },
+        "projectLocation": {
+          "oneOf": [
+            {
+              "additionalProperties": true,
+              "properties": {
+                "kind": {
+                  "const": "windows",
+                  "type": "string"
+                },
+                "path": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "remoteServerId": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "path"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            {
+              "additionalProperties": true,
+              "properties": {
+                "distro": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "wsl",
+                  "type": "string"
+                },
+                "linuxPath": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "remoteServerId": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "uncPath": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "distro",
+                "linuxPath",
+                "uncPath"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            {
+              "additionalProperties": true,
+              "properties": {
+                "kind": {
+                  "const": "posix",
+                  "type": "string"
+                },
+                "path": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "remoteServerId": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "path"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            }
+          ]
+        },
+        "threadId": {
+          "maxLength": 256,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "projectLocation",
+        "forgeAccount",
+        "forgeRepository",
+        "prNumber",
+        "commentId",
+        "body",
+        "expectedBody"
+      ],
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
+    },
+    "procedure.forgeEditPrComment.result": {
       "$comment": "Void result omitted from /api/git/call JSON; never null.",
       "x-poracode-semanticValidators": [
         "void-result.omit-field"
@@ -5189,6 +5378,16 @@
                 "checks": {
                   "type": "boolean"
                 },
+                "commentEditing": {
+                  "items": {
+                    "enum": [
+                      "conversation",
+                      "inline"
+                    ],
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
                 "draft": {
                   "type": "boolean"
                 },
@@ -5226,11 +5425,22 @@
                   },
                   "type": "array"
                 },
+                "reviewGuides": {
+                  "const": true,
+                  "type": "boolean"
+                },
                 "reviewThreads": {
                   "type": "boolean"
                 },
                 "updateBranch": {
                   "type": "boolean"
+                },
+                "viewedFiles": {
+                  "enum": [
+                    "forge",
+                    "host"
+                  ],
+                  "type": "string"
                 }
               },
               "required": [
@@ -6257,6 +6467,16 @@
                     "checks": {
                       "type": "boolean"
                     },
+                    "commentEditing": {
+                      "items": {
+                        "enum": [
+                          "conversation",
+                          "inline"
+                        ],
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
                     "draft": {
                       "type": "boolean"
                     },
@@ -6294,11 +6514,22 @@
                       },
                       "type": "array"
                     },
+                    "reviewGuides": {
+                      "const": true,
+                      "type": "boolean"
+                    },
                     "reviewThreads": {
                       "type": "boolean"
                     },
                     "updateBranch": {
                       "type": "boolean"
+                    },
+                    "viewedFiles": {
+                      "enum": [
+                        "forge",
+                        "host"
+                      ],
+                      "type": "string"
                     }
                   },
                   "required": [
@@ -6623,6 +6854,529 @@
       "type": "object",
       "x-poracode-unknownFields": "strip"
     },
+    "procedure.forgeGetPrReviewGuide.request": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "forgeAccount": {
+          "additionalProperties": true,
+          "properties": {
+            "forge": {
+              "enum": [
+                "github",
+                "gitlab",
+                "forgejo",
+                "gitea",
+                "bitbucket",
+                "azure-devops",
+                "gitcafe"
+              ],
+              "type": "string"
+            },
+            "host": {
+              "format": "uri",
+              "type": "string",
+              "x-poracode-semanticValidators": [
+                "forge.host.https"
+              ]
+            },
+            "login": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "forge",
+            "host",
+            "login"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        "forgeRepository": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "prNumber": {
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991,
+          "type": "integer"
+        },
+        "projectLocation": {
+          "oneOf": [
+            {
+              "additionalProperties": true,
+              "properties": {
+                "kind": {
+                  "const": "windows",
+                  "type": "string"
+                },
+                "path": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "remoteServerId": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "path"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            {
+              "additionalProperties": true,
+              "properties": {
+                "distro": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "wsl",
+                  "type": "string"
+                },
+                "linuxPath": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "remoteServerId": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "uncPath": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "distro",
+                "linuxPath",
+                "uncPath"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            {
+              "additionalProperties": true,
+              "properties": {
+                "kind": {
+                  "const": "posix",
+                  "type": "string"
+                },
+                "path": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "remoteServerId": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "path"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            }
+          ]
+        }
+      },
+      "required": [
+        "projectLocation",
+        "forgeAccount",
+        "forgeRepository",
+        "prNumber"
+      ],
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
+    },
+    "procedure.forgeGetPrReviewGuide.result": {
+      "$defs": {
+        "__schema0": {
+          "additionalProperties": true,
+          "properties": {
+            "body": {
+              "maxLength": 16000,
+              "minLength": 1,
+              "type": "string"
+            },
+            "excerpts": {
+              "items": {
+                "$ref": "#/$defs/__schema2"
+              },
+              "maxItems": 30,
+              "type": "array"
+            },
+            "files": {
+              "items": {
+                "$ref": "#/$defs/__schema1"
+              },
+              "minItems": 1,
+              "type": "array"
+            },
+            "lookClosely": {
+              "type": "boolean"
+            },
+            "questions": {
+              "items": {
+                "$ref": "#/$defs/__schema3"
+              },
+              "maxItems": 5,
+              "type": "array"
+            },
+            "title": {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "title",
+            "body",
+            "lookClosely",
+            "files",
+            "excerpts",
+            "questions"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        "__schema1": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "__schema2": {
+          "additionalProperties": true,
+          "properties": {
+            "endLine": {
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            },
+            "path": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "side": {
+              "enum": [
+                "LEFT",
+                "RIGHT"
+              ],
+              "type": "string"
+            },
+            "startLine": {
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            },
+            "text": {
+              "maxLength": 32000,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "path",
+            "side",
+            "startLine",
+            "endLine",
+            "text"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        "__schema3": {
+          "maxLength": 1000,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "diffHash": {
+          "pattern": "^[a-f0-9]{64}$",
+          "type": "string"
+        },
+        "guide": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "properties": {
+                "createdAt": {
+                  "type": "string"
+                },
+                "fingerprint": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "model": {
+                  "type": "string"
+                },
+                "stops": {
+                  "items": {
+                    "$ref": "#/$defs/__schema0"
+                  },
+                  "maxItems": 500,
+                  "minItems": 1,
+                  "type": "array"
+                },
+                "summary": {
+                  "maxLength": 16000,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "version": {
+                  "const": 1,
+                  "type": "number"
+                }
+              },
+              "required": [
+                "summary",
+                "stops",
+                "version",
+                "fingerprint",
+                "createdAt",
+                "model"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "stale": {
+          "type": "boolean"
+        },
+        "status": {
+          "enum": [
+            "empty",
+            "generating",
+            "ready",
+            "failed"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "status",
+        "guide",
+        "stale"
+      ],
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
+    },
+    "procedure.forgeGetPrViewedFiles.request": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "forgeAccount": {
+          "additionalProperties": true,
+          "properties": {
+            "forge": {
+              "enum": [
+                "github",
+                "gitlab",
+                "forgejo",
+                "gitea",
+                "bitbucket",
+                "azure-devops",
+                "gitcafe"
+              ],
+              "type": "string"
+            },
+            "host": {
+              "format": "uri",
+              "type": "string",
+              "x-poracode-semanticValidators": [
+                "forge.host.https"
+              ]
+            },
+            "login": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "forge",
+            "host",
+            "login"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        "forgeRepository": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "prNumber": {
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991,
+          "type": "integer"
+        },
+        "projectLocation": {
+          "oneOf": [
+            {
+              "additionalProperties": true,
+              "properties": {
+                "kind": {
+                  "const": "windows",
+                  "type": "string"
+                },
+                "path": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "remoteServerId": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "path"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            {
+              "additionalProperties": true,
+              "properties": {
+                "distro": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "wsl",
+                  "type": "string"
+                },
+                "linuxPath": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "remoteServerId": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "uncPath": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "distro",
+                "linuxPath",
+                "uncPath"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            {
+              "additionalProperties": true,
+              "properties": {
+                "kind": {
+                  "const": "posix",
+                  "type": "string"
+                },
+                "path": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "remoteServerId": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "path"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            }
+          ]
+        }
+      },
+      "required": [
+        "projectLocation",
+        "forgeAccount",
+        "forgeRepository",
+        "prNumber"
+      ],
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
+    },
+    "procedure.forgeGetPrViewedFiles.result": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "currentFiles": {
+          "items": {
+            "additionalProperties": true,
+            "properties": {
+              "fingerprint": {
+                "type": "string"
+              },
+              "path": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "path",
+              "fingerprint"
+            ],
+            "type": "object",
+            "x-poracode-unknownFields": "strip"
+          },
+          "type": "array"
+        },
+        "diffHash": {
+          "pattern": "^[a-f0-9]{64}$",
+          "type": "string"
+        },
+        "files": {
+          "items": {
+            "additionalProperties": true,
+            "properties": {
+              "fingerprint": {
+                "type": "string"
+              },
+              "path": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "path",
+              "fingerprint"
+            ],
+            "type": "object",
+            "x-poracode-unknownFields": "strip"
+          },
+          "type": "array"
+        },
+        "storage": {
+          "enum": [
+            "forge",
+            "host"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "storage",
+        "files"
+      ],
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
+    },
     "procedure.forgeGetRepository.request": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": true,
@@ -6820,6 +7574,16 @@
                     "checks": {
                       "type": "boolean"
                     },
+                    "commentEditing": {
+                      "items": {
+                        "enum": [
+                          "conversation",
+                          "inline"
+                        ],
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
                     "draft": {
                       "type": "boolean"
                     },
@@ -6857,11 +7621,22 @@
                       },
                       "type": "array"
                     },
+                    "reviewGuides": {
+                      "const": true,
+                      "type": "boolean"
+                    },
                     "reviewThreads": {
                       "type": "boolean"
                     },
                     "updateBranch": {
                       "type": "boolean"
+                    },
+                    "viewedFiles": {
+                      "enum": [
+                        "forge",
+                        "host"
+                      ],
+                      "type": "string"
                     }
                   },
                   "required": [
@@ -7163,6 +7938,16 @@
                       "checks": {
                         "type": "boolean"
                       },
+                      "commentEditing": {
+                        "items": {
+                          "enum": [
+                            "conversation",
+                            "inline"
+                          ],
+                          "type": "string"
+                        },
+                        "type": "array"
+                      },
                       "draft": {
                         "type": "boolean"
                       },
@@ -7200,11 +7985,22 @@
                         },
                         "type": "array"
                       },
+                      "reviewGuides": {
+                        "const": true,
+                        "type": "boolean"
+                      },
                       "reviewThreads": {
                         "type": "boolean"
                       },
                       "updateBranch": {
                         "type": "boolean"
+                      },
+                      "viewedFiles": {
+                        "enum": [
+                          "forge",
+                          "host"
+                        ],
+                        "type": "string"
                       }
                     },
                     "required": [
@@ -7573,6 +8369,16 @@
                           "checks": {
                             "type": "boolean"
                           },
+                          "commentEditing": {
+                            "items": {
+                              "enum": [
+                                "conversation",
+                                "inline"
+                              ],
+                              "type": "string"
+                            },
+                            "type": "array"
+                          },
                           "draft": {
                             "type": "boolean"
                           },
@@ -7610,11 +8416,22 @@
                             },
                             "type": "array"
                           },
+                          "reviewGuides": {
+                            "const": true,
+                            "type": "boolean"
+                          },
                           "reviewThreads": {
                             "type": "boolean"
                           },
                           "updateBranch": {
                             "type": "boolean"
+                          },
+                          "viewedFiles": {
+                            "enum": [
+                              "forge",
+                              "host"
+                            ],
+                            "type": "string"
                           }
                         },
                         "required": [
@@ -8526,6 +9343,229 @@
       ],
       "x-poracode-wire": "omitted"
     },
+    "procedure.forgeSetPrFileViewed.request": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "fingerprint": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "forgeAccount": {
+          "additionalProperties": true,
+          "properties": {
+            "forge": {
+              "enum": [
+                "github",
+                "gitlab",
+                "forgejo",
+                "gitea",
+                "bitbucket",
+                "azure-devops",
+                "gitcafe"
+              ],
+              "type": "string"
+            },
+            "host": {
+              "format": "uri",
+              "type": "string",
+              "x-poracode-semanticValidators": [
+                "forge.host.https"
+              ]
+            },
+            "login": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "forge",
+            "host",
+            "login"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        "forgeRepository": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "path": {
+          "maxLength": 4096,
+          "minLength": 1,
+          "type": "string"
+        },
+        "prNumber": {
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991,
+          "type": "integer"
+        },
+        "projectLocation": {
+          "oneOf": [
+            {
+              "additionalProperties": true,
+              "properties": {
+                "kind": {
+                  "const": "windows",
+                  "type": "string"
+                },
+                "path": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "remoteServerId": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "path"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            {
+              "additionalProperties": true,
+              "properties": {
+                "distro": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "wsl",
+                  "type": "string"
+                },
+                "linuxPath": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "remoteServerId": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "uncPath": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "distro",
+                "linuxPath",
+                "uncPath"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            {
+              "additionalProperties": true,
+              "properties": {
+                "kind": {
+                  "const": "posix",
+                  "type": "string"
+                },
+                "path": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "remoteServerId": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "path"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            }
+          ]
+        }
+      },
+      "required": [
+        "projectLocation",
+        "forgeAccount",
+        "forgeRepository",
+        "prNumber",
+        "path",
+        "fingerprint"
+      ],
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
+    },
+    "procedure.forgeSetPrFileViewed.result": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "currentFiles": {
+          "items": {
+            "additionalProperties": true,
+            "properties": {
+              "fingerprint": {
+                "type": "string"
+              },
+              "path": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "path",
+              "fingerprint"
+            ],
+            "type": "object",
+            "x-poracode-unknownFields": "strip"
+          },
+          "type": "array"
+        },
+        "diffHash": {
+          "pattern": "^[a-f0-9]{64}$",
+          "type": "string"
+        },
+        "files": {
+          "items": {
+            "additionalProperties": true,
+            "properties": {
+              "fingerprint": {
+                "type": "string"
+              },
+              "path": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "path",
+              "fingerprint"
+            ],
+            "type": "object",
+            "x-poracode-unknownFields": "strip"
+          },
+          "type": "array"
+        },
+        "storage": {
+          "enum": [
+            "forge",
+            "host"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "storage",
+        "files"
+      ],
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
+    },
     "procedure.forgeSubmitPrReview.request": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": true,
@@ -8834,6 +9874,521 @@
         "void-result.omit-field"
       ],
       "x-poracode-wire": "omitted"
+    },
+    "procedure.forgeWritePrReviewGuide.request": {
+      "$defs": {
+        "__schema0": {
+          "type": "string"
+        },
+        "__schema1": {
+          "type": "boolean"
+        },
+        "__schema2": {
+          "type": "boolean"
+        },
+        "__schema3": {
+          "type": "string"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "agentKind": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "forgeAccount": {
+          "additionalProperties": true,
+          "properties": {
+            "forge": {
+              "enum": [
+                "github",
+                "gitlab",
+                "forgejo",
+                "gitea",
+                "bitbucket",
+                "azure-devops",
+                "gitcafe"
+              ],
+              "type": "string"
+            },
+            "host": {
+              "format": "uri",
+              "type": "string",
+              "x-poracode-semanticValidators": [
+                "forge.host.https"
+              ]
+            },
+            "login": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "forge",
+            "host",
+            "login"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        "forgeRepository": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "instructions": {
+          "maxLength": 16000,
+          "type": "string"
+        },
+        "language": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "prNumber": {
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991,
+          "type": "integer"
+        },
+        "projectLocation": {
+          "oneOf": [
+            {
+              "additionalProperties": true,
+              "properties": {
+                "kind": {
+                  "const": "windows",
+                  "type": "string"
+                },
+                "path": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "remoteServerId": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "path"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            {
+              "additionalProperties": true,
+              "properties": {
+                "distro": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "wsl",
+                  "type": "string"
+                },
+                "linuxPath": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "remoteServerId": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "uncPath": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "distro",
+                "linuxPath",
+                "uncPath"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            {
+              "additionalProperties": true,
+              "properties": {
+                "kind": {
+                  "const": "posix",
+                  "type": "string"
+                },
+                "path": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "remoteServerId": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "path"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            }
+          ]
+        },
+        "selection": {
+          "additionalProperties": false,
+          "properties": {
+            "contextSize": {
+              "$ref": "#/$defs/__schema3"
+            },
+            "effort": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "fast": {
+              "$ref": "#/$defs/__schema1"
+            },
+            "model": {
+              "type": "string"
+            },
+            "selectionBinding": {
+              "additionalProperties": false,
+              "properties": {
+                "inertValues": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "contextSize": {
+                          "$ref": "#/$defs/__schema3"
+                        },
+                        "effort": {
+                          "type": "string"
+                        },
+                        "fast": {
+                          "$ref": "#/$defs/__schema1"
+                        },
+                        "thinking": {
+                          "$ref": "#/$defs/__schema2"
+                        }
+                      },
+                      "required": [
+                        "effort"
+                      ],
+                      "type": "object",
+                      "x-poracode-unknownFields": "reject"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "contextSize": {
+                          "$ref": "#/$defs/__schema3"
+                        },
+                        "effort": {
+                          "$ref": "#/$defs/__schema0"
+                        },
+                        "fast": {
+                          "type": "boolean"
+                        },
+                        "thinking": {
+                          "$ref": "#/$defs/__schema2"
+                        }
+                      },
+                      "required": [
+                        "fast"
+                      ],
+                      "type": "object",
+                      "x-poracode-unknownFields": "reject"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "contextSize": {
+                          "$ref": "#/$defs/__schema3"
+                        },
+                        "effort": {
+                          "$ref": "#/$defs/__schema0"
+                        },
+                        "fast": {
+                          "$ref": "#/$defs/__schema1"
+                        },
+                        "thinking": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "thinking"
+                      ],
+                      "type": "object",
+                      "x-poracode-unknownFields": "reject"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "contextSize": {
+                          "type": "string"
+                        },
+                        "effort": {
+                          "$ref": "#/$defs/__schema0"
+                        },
+                        "fast": {
+                          "$ref": "#/$defs/__schema1"
+                        },
+                        "thinking": {
+                          "$ref": "#/$defs/__schema2"
+                        }
+                      },
+                      "required": [
+                        "contextSize"
+                      ],
+                      "type": "object",
+                      "x-poracode-unknownFields": "reject"
+                    }
+                  ]
+                },
+                "kind": {
+                  "const": "family-member",
+                  "type": "string"
+                },
+                "model": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "owner": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "agentInstanceId": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "agentKind": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "presentationMode": {
+                      "enum": [
+                        "terminal",
+                        "gui"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "agentKind",
+                    "presentationMode"
+                  ],
+                  "type": "object",
+                  "x-poracode-unknownFields": "reject"
+                },
+                "version": {
+                  "const": 1,
+                  "type": "number"
+                }
+              },
+              "required": [
+                "version",
+                "kind",
+                "owner",
+                "model",
+                "inertValues"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "reject"
+            },
+            "thinking": {
+              "$ref": "#/$defs/__schema2"
+            }
+          },
+          "required": [
+            "model"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "reject"
+        }
+      },
+      "required": [
+        "projectLocation",
+        "forgeAccount",
+        "forgeRepository",
+        "prNumber",
+        "agentKind"
+      ],
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
+    },
+    "procedure.forgeWritePrReviewGuide.result": {
+      "$defs": {
+        "__schema0": {
+          "additionalProperties": true,
+          "properties": {
+            "body": {
+              "maxLength": 16000,
+              "minLength": 1,
+              "type": "string"
+            },
+            "excerpts": {
+              "items": {
+                "$ref": "#/$defs/__schema2"
+              },
+              "maxItems": 30,
+              "type": "array"
+            },
+            "files": {
+              "items": {
+                "$ref": "#/$defs/__schema1"
+              },
+              "minItems": 1,
+              "type": "array"
+            },
+            "lookClosely": {
+              "type": "boolean"
+            },
+            "questions": {
+              "items": {
+                "$ref": "#/$defs/__schema3"
+              },
+              "maxItems": 5,
+              "type": "array"
+            },
+            "title": {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "title",
+            "body",
+            "lookClosely",
+            "files",
+            "excerpts",
+            "questions"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        "__schema1": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "__schema2": {
+          "additionalProperties": true,
+          "properties": {
+            "endLine": {
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            },
+            "path": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "side": {
+              "enum": [
+                "LEFT",
+                "RIGHT"
+              ],
+              "type": "string"
+            },
+            "startLine": {
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            },
+            "text": {
+              "maxLength": 32000,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "path",
+            "side",
+            "startLine",
+            "endLine",
+            "text"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        "__schema3": {
+          "maxLength": 1000,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "diffHash": {
+          "pattern": "^[a-f0-9]{64}$",
+          "type": "string"
+        },
+        "guide": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "properties": {
+                "createdAt": {
+                  "type": "string"
+                },
+                "fingerprint": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "model": {
+                  "type": "string"
+                },
+                "stops": {
+                  "items": {
+                    "$ref": "#/$defs/__schema0"
+                  },
+                  "maxItems": 500,
+                  "minItems": 1,
+                  "type": "array"
+                },
+                "summary": {
+                  "maxLength": 16000,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "version": {
+                  "const": 1,
+                  "type": "number"
+                }
+              },
+              "required": [
+                "summary",
+                "stops",
+                "version",
+                "fingerprint",
+                "createdAt",
+                "model"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "stale": {
+          "type": "boolean"
+        },
+        "status": {
+          "enum": [
+            "empty",
+            "generating",
+            "ready",
+            "failed"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "status",
+        "guide",
+        "stale"
+      ],
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
     },
     "procedure.generateCommitMessage.request": {
       "$defs": {
@@ -11578,6 +13133,16 @@
                 "checks": {
                   "type": "boolean"
                 },
+                "commentEditing": {
+                  "items": {
+                    "enum": [
+                      "conversation",
+                      "inline"
+                    ],
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
                 "draft": {
                   "type": "boolean"
                 },
@@ -11615,11 +13180,22 @@
                   },
                   "type": "array"
                 },
+                "reviewGuides": {
+                  "const": true,
+                  "type": "boolean"
+                },
                 "reviewThreads": {
                   "type": "boolean"
                 },
                 "updateBranch": {
                   "type": "boolean"
+                },
+                "viewedFiles": {
+                  "enum": [
+                    "forge",
+                    "host"
+                  ],
+                  "type": "string"
                 }
               },
               "required": [
@@ -12259,6 +13835,16 @@
                 "checks": {
                   "type": "boolean"
                 },
+                "commentEditing": {
+                  "items": {
+                    "enum": [
+                      "conversation",
+                      "inline"
+                    ],
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
                 "draft": {
                   "type": "boolean"
                 },
@@ -12296,11 +13882,22 @@
                   },
                   "type": "array"
                 },
+                "reviewGuides": {
+                  "const": true,
+                  "type": "boolean"
+                },
                 "reviewThreads": {
                   "type": "boolean"
                 },
                 "updateBranch": {
                   "type": "boolean"
+                },
+                "viewedFiles": {
+                  "enum": [
+                    "forge",
+                    "host"
+                  ],
+                  "type": "string"
                 }
               },
               "required": [
@@ -13210,6 +14807,16 @@
                     "checks": {
                       "type": "boolean"
                     },
+                    "commentEditing": {
+                      "items": {
+                        "enum": [
+                          "conversation",
+                          "inline"
+                        ],
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
                     "draft": {
                       "type": "boolean"
                     },
@@ -13247,11 +14854,22 @@
                       },
                       "type": "array"
                     },
+                    "reviewGuides": {
+                      "const": true,
+                      "type": "boolean"
+                    },
                     "reviewThreads": {
                       "type": "boolean"
                     },
                     "updateBranch": {
                       "type": "boolean"
+                    },
+                    "viewedFiles": {
+                      "enum": [
+                        "forge",
+                        "host"
+                      ],
+                      "type": "string"
                     }
                   },
                   "required": [
@@ -14377,6 +15995,16 @@
                       "checks": {
                         "type": "boolean"
                       },
+                      "commentEditing": {
+                        "items": {
+                          "enum": [
+                            "conversation",
+                            "inline"
+                          ],
+                          "type": "string"
+                        },
+                        "type": "array"
+                      },
                       "draft": {
                         "type": "boolean"
                       },
@@ -14414,11 +16042,22 @@
                         },
                         "type": "array"
                       },
+                      "reviewGuides": {
+                        "const": true,
+                        "type": "boolean"
+                      },
                       "reviewThreads": {
                         "type": "boolean"
                       },
                       "updateBranch": {
                         "type": "boolean"
+                      },
+                      "viewedFiles": {
+                        "enum": [
+                          "forge",
+                          "host"
+                        ],
+                        "type": "string"
                       }
                     },
                     "required": [
@@ -14748,6 +16387,16 @@
                           "checks": {
                             "type": "boolean"
                           },
+                          "commentEditing": {
+                            "items": {
+                              "enum": [
+                                "conversation",
+                                "inline"
+                              ],
+                              "type": "string"
+                            },
+                            "type": "array"
+                          },
                           "draft": {
                             "type": "boolean"
                           },
@@ -14785,11 +16434,22 @@
                             },
                             "type": "array"
                           },
+                          "reviewGuides": {
+                            "const": true,
+                            "type": "boolean"
+                          },
                           "reviewThreads": {
                             "type": "boolean"
                           },
                           "updateBranch": {
                             "type": "boolean"
+                          },
+                          "viewedFiles": {
+                            "enum": [
+                              "forge",
+                              "host"
+                            ],
+                            "type": "string"
                           }
                         },
                         "required": [
@@ -30599,6 +32259,9 @@
               "type": "boolean"
             },
             "supportsOneShot": {
+              "type": "boolean"
+            },
+            "supportsReadOnlyOneShotWorkspace": {
               "type": "boolean"
             },
             "supportsResume": {
@@ -52380,6 +54043,16 @@
                 "checks": {
                   "type": "boolean"
                 },
+                "commentEditing": {
+                  "items": {
+                    "enum": [
+                      "conversation",
+                      "inline"
+                    ],
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
                 "draft": {
                   "type": "boolean"
                 },
@@ -52417,11 +54090,22 @@
                   },
                   "type": "array"
                 },
+                "reviewGuides": {
+                  "const": true,
+                  "type": "boolean"
+                },
                 "reviewThreads": {
                   "type": "boolean"
                 },
                 "updateBranch": {
                   "type": "boolean"
+                },
+                "viewedFiles": {
+                  "enum": [
+                    "forge",
+                    "host"
+                  ],
+                  "type": "string"
                 }
               },
               "required": [
@@ -63707,16 +65391,16 @@
   "generatorVersion": 7,
   "inventory": {
     "blockedProcedureResults": [],
-    "jsonProcedureResults": 91,
-    "procedures": 149,
+    "jsonProcedureResults": 95,
+    "procedures": 154,
     "replayableEventTypes": 16,
     "routes": 102,
     "runtimeEventTypes": 16,
-    "voidProcedureResults": 58,
+    "voidProcedureResults": 59,
     "webSocketClientMessages": 9,
     "webSocketServerMessages": 11
   },
-  "manifestHash": "sha256:1146bab4940014d704c298b48868ee58b6d33eda9c4344d9e2d9a289ae07207c",
+  "manifestHash": "sha256:27f9fa7e76e5cbbf48fc22674c45ba956208e343ac98a32b89592236900395d3",
   "protocolVersion": 14,
-  "sourceHash": "sha256:04df2d8b21ef28d46e6291027ef95ce4503c0dec42ae06a592a97cbf55b20d84"
+  "sourceHash": "sha256:237eac49297a7900385758d10f48e4790da691b64a51f7fee00db6628af54916"
 }

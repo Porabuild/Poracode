@@ -35,7 +35,7 @@ describe("operation-map inventory lock", () => {
     expect(committed.keyCount).toBe(EXPECTED_OPERATION_KEY_COUNT);
     expect(committed.counts).toEqual({
       route: 102,
-      procedure: 149,
+      procedure: 154,
       "ws-client": 9,
       "ws-server": 11,
       replay: 16,

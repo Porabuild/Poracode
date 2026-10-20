@@ -1,6 +1,7 @@
 import { msg } from "@/shared/messages";
 import type {
   ForgeEditPrPayload,
+  ForgeEditPrCommentPayload,
   ForgeRepository,
   GhCreatePrPayload,
   GhGetPrDetailsResult,
@@ -26,6 +27,7 @@ export interface ForgeReviewAdapter {
   create(input: GhCreatePrPayload): Promise<PrData>;
   edit(input: ForgeEditPrPayload): Promise<void>;
   comment(number: number, body: string): Promise<PrComment>;
+  editComment?(input: ForgeEditPrCommentPayload): Promise<void>;
   review(number: number, decision: PrReviewDecision, body: string): Promise<void>;
   merge(number: number, method: PrMergeMethod, expectedHeadSha?: string): Promise<void>;
   setState(number: number, state: "closed" | "open" | "ready"): Promise<void>;
