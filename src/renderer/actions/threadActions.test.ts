@@ -6,6 +6,7 @@ import { HOME_PROJECT_ID } from "@/shared/homeScope";
 import { isDraftPaneId } from "@/shared/paneId";
 import { normalizeStoredThreadStatus } from "@/renderer/state/slices/helpers";
 import { useAppStore } from "@/renderer/state/appStore";
+import { nativeVisualUiKey, useNativeVisualUiStore } from "@/renderer/state/nativeVisualUiStore";
 import * as runtimeInterestHydration from "@/renderer/state/runtimeInterestHydration";
 import {
   forgetPendingCatalogEdit,
@@ -79,12 +80,13 @@ describe("threadActions", () => {
     vi.clearAllMocks();
     setThreadRuntimeReopenEnabled(true);
     localStorage.clear();
+    useNativeVisualUiStore.setState({ entries: new Map() });
     hydrateThreadRuntimeItems.mockResolvedValue(undefined);
     deleteWorktreeGroup.mockReset();
     refreshServer.mockReset().mockResolvedValue(undefined);
     sendThreadCommand.mockReset().mockResolvedValue(undefined);
     toast.danger.mockReset();
-    useRemoteServersStore.setState({ refreshServer, sendThreadCommand });
+    useRemoteServersStore.setState({ refreshServer, sendThreadCommand, servers: [] });
     useAppStore.setState((state) => ({
       ...state,
       projects: [],
@@ -909,6 +911,65 @@ describe("threadActions", () => {
     expect(useAppStore.getState().threads).toEqual([]);
     expect(sendThreadCommand).not.toHaveBeenCalled();
     expect(bridge.closeThread).not.toHaveBeenCalled();
+  });
+
+  it("clears visual inputs only after delete confirmation for the host captured before dispatch", async () => {
+    const deletion = Promise.withResolvers<void>();
+    sendThreadCommand.mockReturnValueOnce(deletion.promise);
+    const thread = makeThread({ remoteServerId: "remote-server", remoteId: "same-thread" });
+    const server = {
+      connectionId: "remote-server",
+      desktopId: "target-host",
+      label: "Target",
+      endpoint: "http://127.0.0.1:1/",
+      accessToken: "fixture",
+      scopes: [],
+    };
+    useRemoteServersStore.setState({ servers: [server] });
+    useAppStore.setState({ threads: [thread] });
+    const targetKey = nativeVisualUiKey("target-host", "same-thread", "item", 0, "source");
+    const otherKey = nativeVisualUiKey("other-host", "same-thread", "item", 0, "source");
+    for (const [key, hostId] of [
+      [targetKey, "target-host"],
+      [otherKey, "other-host"],
+    ]) {
+      useNativeVisualUiStore
+        .getState()
+        .put(key!, { hostId: hostId!, threadId: "same-thread", inputs: [["n", 2]], zoom: 100 });
+    }
+    deleteThread(thread.id);
+    expect(useNativeVisualUiStore.getState().entries.has(targetKey)).toBe(true);
+    useRemoteServersStore.setState({ servers: [{ ...server, desktopId: "other-host" }] });
+    deletion.resolve();
+    await waitFor(() =>
+      expect(useNativeVisualUiStore.getState().entries.has(targetKey)).toBe(false),
+    );
+    expect(useNativeVisualUiStore.getState().entries.has(otherKey)).toBe(true);
+  });
+
+  it("retains visual state after a rejected optimistic deletion", async () => {
+    sendThreadCommand.mockRejectedValueOnce(new Error("delete refused"));
+    const thread = makeThread({ remoteServerId: "remote-server", remoteId: "same-thread" });
+    useRemoteServersStore.setState({
+      servers: [
+        {
+          connectionId: "remote-server",
+          desktopId: "target-host",
+          label: "Target",
+          endpoint: "http://127.0.0.1:1/",
+          accessToken: "fixture",
+          scopes: [],
+        },
+      ],
+    });
+    useAppStore.setState({ threads: [thread] });
+    const key = nativeVisualUiKey("target-host", "same-thread", "item", 0, "source");
+    useNativeVisualUiStore
+      .getState()
+      .put(key, { hostId: "target-host", threadId: "same-thread", inputs: [["n", 2]], zoom: 100 });
+    deleteThread(thread.id);
+    await waitFor(() => expect(toast.danger).toHaveBeenCalledWith("delete refused"));
+    expect(useNativeVisualUiStore.getState().entries.has(key)).toBe(true);
   });
 
   it("deletes a shared-worktree thread without prompting to remove the worktree", () => {

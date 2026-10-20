@@ -46,6 +46,81 @@ function installBridge(overrides: Record<string, unknown> = {}) {
 }
 
 describe("ImageView", () => {
+  it("shows completed MCP resource source without starting a viewer session", () => {
+    const item: RuntimeChatItem = {
+      id: "app-tool",
+      type: "mcp_tool_call",
+      state: "completed",
+      streams: {},
+      payload: {
+        name: "chart",
+        title: "Revenue chart",
+        status: "success",
+        result: {
+          content: [
+            {
+              type: "resource",
+              resource: {
+                uri: "ui://fixture/chart",
+                mimeType: "text/html;profile=mcp-app",
+                text: '<h1 id="author-heading">42</h1><script>parent.postMessage({method:"ui/initialize"},"*")</script>',
+              },
+            },
+          ],
+        },
+      },
+    };
+    const { container } = render(
+      <AppProvider>
+        <ImageView item={item} />
+      </AppProvider>,
+    );
+    expect(screen.getByTitle("Revenue chart")).toHaveTextContent("Revenue chart");
+    expect(container.querySelector("pre")?.textContent).toBe(
+      '<h1 id="author-heading">42</h1><script>parent.postMessage({method:"ui/initialize"},"*")</script>',
+    );
+    expect(container.querySelector("iframe, script, #author-heading")).toBeNull();
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Interactive rendering is unavailable. Showing source only.",
+    );
+    expect(item.id).toBe("app-tool");
+  });
+
+  it.each(["running", "error", "unsupported"])(
+    "keeps %s resources in the ordinary tool fallback",
+    (scenario) => {
+      const item: RuntimeChatItem = {
+        id: "fallback-tool",
+        type: "mcp_tool_call",
+        state: scenario === "running" ? "updated" : "completed",
+        streams: {},
+        payload: {
+          name: "chart",
+          status: scenario === "error" ? "error" : "success",
+          result: {
+            content: [
+              {
+                type: "resource",
+                resource: {
+                  uri: "ui://fixture/chart",
+                  mimeType: scenario === "unsupported" ? "text/html" : "text/html;profile=mcp-app",
+                  text: '<script id="fallback-author">parent.postMessage("author-ran","*")</script>',
+                },
+              },
+            ],
+          },
+        },
+      };
+      const { container } = render(
+        <AppProvider>
+          <ImageView item={item} />
+        </AppProvider>,
+      );
+      expect(container.querySelector("[data-poracode-inline-visual]")).toBeNull();
+      expect(container.querySelector("iframe, script, #fallback-author")).toBeNull();
+    },
+  );
+
   afterEach(() => {
     Reflect.deleteProperty(window, "poracode");
     Reflect.deleteProperty(navigator, "clipboard");

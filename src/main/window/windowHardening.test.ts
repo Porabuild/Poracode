@@ -6,6 +6,7 @@ import {
 } from "@/main/diagnostics/processGone";
 import {
   installRendererReloadGuard,
+  installAppNavigationGuards,
   buildRendererAdditionalArguments,
   noteRendererWindowClose,
   requestTrackedRendererReload,
@@ -30,12 +31,43 @@ function createWindowHarness() {
         if (onceHandlers.get(event) === handler) onceHandlers.delete(event);
       }),
       reload,
+      setWindowOpenHandler: vi.fn<() => void>(),
     },
   } as unknown as BrowserWindow;
   return { handlers, onceHandlers, reload, window };
 }
 
 const killed = { reason: "killed", exitCode: 9 } satisfies RenderProcessGoneDetails;
+
+describe("inline visual frame navigation", () => {
+  it("blocks subframe file, host, and network navigations while allowing srcdoc", () => {
+    const { window, handlers } = createWindowHarness();
+    installAppNavigationGuards(window, { isDev: true, devServerUrl: "http://localhost:3100" });
+    for (const url of [
+      "https://evil.test/",
+      "http://localhost:3100/",
+      "file:///private",
+      "javascript:parent.poracode()",
+      "data:text/html,hello",
+    ]) {
+      const preventDefault = vi.fn<() => void>();
+      handlers.get("will-frame-navigate")!({ url, isMainFrame: false, preventDefault });
+      expect(preventDefault).toHaveBeenCalledOnce();
+    }
+    for (const url of ["about:srcdoc", "about:blank"]) {
+      const preventDefault = vi.fn<() => void>();
+      handlers.get("will-frame-navigate")!({ url, isMainFrame: false, preventDefault });
+      expect(preventDefault).not.toHaveBeenCalled();
+    }
+    const preventDefault = vi.fn<() => void>();
+    handlers.get("will-frame-navigate")!({
+      url: "http://localhost:3100/",
+      isMainFrame: true,
+      preventDefault,
+    });
+    expect(preventDefault).not.toHaveBeenCalled();
+  });
+});
 
 describe("renderer termination intent wiring", () => {
   it("keeps renderer stream credentials out of process arguments", () => {

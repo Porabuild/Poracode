@@ -7,7 +7,8 @@
 export const HEAD_CHARS = 256_000;
 export const TAIL_CHARS = 4_000_000;
 
-const NOTICE_PREFIX = "[... poracode elided ";
+// Shared with executable-output readers; spelling is unchanged on disk.
+export const RUNTIME_STREAM_ELISION_NOTICE_PREFIX = "[... poracode elided ";
 const NOTICE_SUFFIX = " characters of earlier output ...]";
 
 export function utf16SafeSliceEnd(text: string, end: number): number {
@@ -26,5 +27,5 @@ export function utf16SafeSliceEnd(text: string, end: number): number {
 
 /** The notice shown in place of dropped output, with no surrounding line breaks. */
 export function elisionNotice(elidedChars: number): string {
-  return `${NOTICE_PREFIX}${elidedChars}${NOTICE_SUFFIX}`;
+  return `${RUNTIME_STREAM_ELISION_NOTICE_PREFIX}${elidedChars}${NOTICE_SUFFIX}`;
 }

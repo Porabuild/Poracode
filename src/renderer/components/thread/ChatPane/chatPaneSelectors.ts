@@ -10,6 +10,7 @@ import {
   readRuntimeStructuralChangeHint,
 } from "@/renderer/state/runtimeStructuralChanges";
 import { hasVisibleAssistantText } from "@/shared/assistantMessageText";
+import { readMcpAppResource } from "@/shared/mcpAppResources";
 import type { MessageItemPayload, ToolCallPayload } from "@/shared/contracts";
 import { RUNTIME_REQUEST_ITEM_TYPE } from "@/shared/contracts";
 import {
@@ -370,7 +371,14 @@ function isToolGroupItem(item: RuntimeChatItem): boolean {
   // to the generic accordion (still running, errored, or non-image) keep the
   // default grouping — `imageViewRendersInline` mirrors ImageView's render
   // decision so the two never disagree.
-  if (isToolLikeItem(item) && imageViewRendersInline(item.payload)) {
+  const payload = item.payload as ToolCallPayload | undefined;
+  if (
+    isToolLikeItem(item) &&
+    (imageViewRendersInline(payload) ||
+      (item.state === "completed" &&
+        payload?.status === "success" &&
+        readMcpAppResource(payload.result)))
+  ) {
     return false;
   }
   // The groupable type set (tools, reasoning, commands, edits, searches) lives

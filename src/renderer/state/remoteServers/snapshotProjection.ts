@@ -23,6 +23,7 @@ import {
 import { hostSupportsRuntimeHistoryNotices } from "@/renderer/state/remote/historyNoticeCapability";
 import { recordAuthoritativeHistoryInstall } from "@/renderer/state/remote/truncateRecovery";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useNativeVisualUiStore } from "@/renderer/state/nativeVisualUiStore";
 import { beginHistorySnapshotRead } from "@/renderer/state/historyResumeRegistry";
 import { remoteHistoryResumeAuthority } from "@/renderer/state/historyResumeApplied";
 import { finalizeProjectRemoval } from "@/renderer/state/projectRemovalPresentation";
@@ -204,6 +205,8 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
 
   const removeBoundedThreadRows = (connectionKey: string, threadIds: readonly string[]): void => {
     const removed = new Set(threadIds);
+    const server = findServer(connectionKey);
+    const visualHostId = server ? connectionIdentityCache.get(server)?.visualHostId : undefined;
     set((state) => {
       const current = state.runtime[connectionKey];
       if (!current) return state;
@@ -213,6 +216,7 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
     });
     for (const threadId of threadIds) {
       const viewThreadId = remoteThreadId(connectionKey, threadId);
+      useNativeVisualUiStore.getState().forgetThread(visualHostId, threadId);
       // Authoritative host removal: the durable notice state goes with the
       // thread instead of surviving to re-attach to a future row.
       clearThreadHistoryNotice(viewThreadId);
@@ -264,7 +268,7 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
   // the retired client instead of serving it to a successor generation.
   const connectionIdentityCache = new WeakMap<
     RemoteServerRecord,
-    { client: RemoteDesktopClient }
+    { client: RemoteDesktopClient; visualHostId: string }
   >();
   // Authoritative manual order for one connection: the runtime rows and the
   // exact projected app-store slots that belong to this connection (other
@@ -298,12 +302,12 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
         if (!server) return undefined;
         let cached = connectionIdentityCache.get(server);
         if (!cached) {
-          cached = { client: clientForServer(server) };
+          cached = { client: clientForServer(server), visualHostId: server.desktopId };
           connectionIdentityCache.set(server, cached);
         }
         return {
           generation: currentRemoteServerGeneration(connectionKey),
-          identity: `${server.endpoint}\u0000${server.accessToken}`,
+          identity: `${server.desktopId}\u0000${server.endpoint}\u0000${server.accessToken}`,
           client: cached.client,
         };
       },

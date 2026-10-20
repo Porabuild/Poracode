@@ -50,6 +50,14 @@ rl.on("line", (line) => {
       send({ type: "agent_settled" });
       return;
     }
+    if (text.includes("MCP_VISUAL")) {
+      send({ type: "agent_start" });
+      send({ type: "tool_execution_start", toolCallId: "app-call", toolName: "mcp__fixture__chart", args: {} });
+      const details = { content: [{ type: "resource", resource: { uri: "ui://fixture/chart", mimeType: "text/html;profile=mcp-app", text: "<h1>Chart</h1>" } }], structuredContent: { value: 42 } };
+      send({ type: "tool_execution_end", toolCallId: "app-call", toolName: "mcp__fixture__chart", result: { content: [{ type: "text", text: "Fallback" }], details } });
+      send({ type: "agent_settled" });
+      return;
+    }
     if (text.includes("DIALOG")) {
       send({ type: "extension_ui_request", id: "dlg-1", method: "select", title: "Pick one", options: ["alpha", "beta"] });
       return;
@@ -195,6 +203,35 @@ describe("PiRpcSession (mock pi --mode rpc)", () => {
       },
     };
   }
+
+  it("preserves bridge MCP resource details instead of flattening them to prose", async () => {
+    const { session, events } = await createSession();
+    try {
+      await session.startTurn("MCP_VISUAL", { model: "mock/model", effort: "off" });
+      expect(events).toContainEqual(
+        expect.objectContaining({
+          type: "item.completed",
+          payload: expect.objectContaining({
+            result: {
+              content: [
+                {
+                  type: "resource",
+                  resource: {
+                    uri: "ui://fixture/chart",
+                    mimeType: "text/html;profile=mcp-app",
+                    text: "<h1>Chart</h1>",
+                  },
+                },
+              ],
+              structuredContent: { value: 42 },
+            },
+          }),
+        }),
+      );
+    } finally {
+      await session.dispose();
+    }
+  });
 
   it("keeps canonical item and turn identities distinct when resuming in a new RPC process", async () => {
     const first = await createSession();
