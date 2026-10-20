@@ -198,6 +198,17 @@ export async function handleDeterministicRoute(
   const generated = generatedRoute(routeId);
   if (generated.response.wireKind === "procedure-result") return false;
   const input = await validateRouteRequest(req, url, routeId, params);
+  if (routeId === "device-preview-ios-video") {
+    // A finite AVCC access-unit delimiter proves binary wire I/O, not video decoding.
+    const chunk = Buffer.from([0, 0, 0, 2, 0x09, 0xf0]);
+    runtime.ledger.observeHttpRoute(routeId, { statusCode: 200, source: "mock" });
+    res.writeHead(200, {
+      "content-type": "application/octet-stream",
+      "content-length": chunk.length,
+    });
+    res.end(chunk);
+    return true;
+  }
   if (SPECIAL_ROUTES.has(routeId)) {
     runtime.ledger.observeHttpRoute(routeId, { statusCode: 200, source: "mock" });
     res.writeHead(200, { "content-type": "image/png", "content-length": PNG_1X1.length });

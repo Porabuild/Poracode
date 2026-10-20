@@ -11,6 +11,7 @@ describe("generated schema examples", () => {
     ["file-media-release", 2],
     ["environment-media-ticket", 2],
     ["environment-media-release", 2],
+    ["device-preview-websocket-ticket", 2],
   ] as const)(
     "builds authoritative request/query/response examples for %s",
     (id, expectedExamples) => {
