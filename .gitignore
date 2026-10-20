@@ -39,6 +39,7 @@ resources/wsl-helpers/mcp-stdio.mjs
 resources/agent-plugins/
 resources/computer-use-helper/
 resources/computer-use-helper-dev/
+resources/device-hub/*-*/
 resources/mobile-ssh-runtime/
 resources/web-ssh-runtime/
 resources/ssh-runtime-archive/

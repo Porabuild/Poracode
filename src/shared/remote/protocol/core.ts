@@ -358,6 +358,18 @@ export const remoteExperimentsCapabilitySchema = z.object({
 export type RemoteExperimentsCapability = z.infer<typeof remoteExperimentsCapabilitySchema>;
 
 export const remoteEnvironmentCapabilitiesSchema = z.object({
+  /** Device workspace v1. Optional so pre-feature readers strip it safely. */
+  deviceWorkspace: z
+    .object({
+      versions: remoteCapabilityVersionsSchema,
+      livePreview: z
+        .object({
+          versions: remoteCapabilityVersionsSchema,
+          modes: z.array(z.string().min(1)).min(1).max(8),
+        })
+        .optional(),
+    })
+    .optional(),
   /** Compact history rows with stored item details loaded on demand. */
   historyDetails: z.object({ versions: remoteCapabilityVersionsSchema }).optional(),
   /** Independent bounded replay cursors for one thread's canonical history. */

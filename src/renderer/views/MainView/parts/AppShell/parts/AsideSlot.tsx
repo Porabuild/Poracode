@@ -28,6 +28,7 @@ export function AsideSlot(props: {
   /** Overlay slide-in state: false = off-screen right, true = on-screen. */
   overlayReady?: boolean;
   overlayTop?: string;
+  preserveContentAcrossOverlay?: boolean;
 }) {
   const {
     children,
@@ -43,6 +44,7 @@ export function AsideSlot(props: {
     overlay = false,
     overlayReady = false,
     overlayTop = "0px",
+    preserveContentAcrossOverlay = false,
   } = props;
 
   const isHorizontal = orientation === "horizontal";
@@ -154,7 +156,11 @@ export function AsideSlot(props: {
         }),
     willChange: "opacity",
   };
-  const asideKey = overlay ? "overlay-aside" : "docked-aside";
+  const asideKey = preserveContentAcrossOverlay
+    ? "preserved-aside"
+    : overlay
+      ? "overlay-aside"
+      : "docked-aside";
 
   return (
     <>

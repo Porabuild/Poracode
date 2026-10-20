@@ -166,6 +166,20 @@ describe("PluginDetail", () => {
     expect(useSharedSettings.getState().installedPlugins.terminal).toBeUndefined();
   });
 
+  it("offers Devices enabled by default with a switch to disable its tools", () => {
+    function DevicesDetail() {
+      const plugin = useLocalizedPluginCatalog().find((entry) => entry.plugin.name === "devices")!;
+      return <PluginDetail plugin={plugin} hostPlatform="win32" onBack={() => undefined} />;
+    }
+    render(<DevicesDetail />);
+    expect(screen.getByRole("heading", { name: "Devices" })).toBeInTheDocument();
+    expect(screen.getByRole("switch", { name: "Devices Enable plugin" })).toBeChecked();
+    fireEvent.click(screen.getByRole("switch", { name: "Devices Enable plugin" }));
+    expect(useSharedSettings.getState().installedPlugins.devices?.enabled).toBe(false);
+    expect(screen.getByRole("switch", { name: "Devices Skill" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Uninstall" })).not.toBeInTheDocument();
+  });
+
   it("starts installed plugins with their own server through Try now", async () => {
     render(<GithubPluginDetail />);
 

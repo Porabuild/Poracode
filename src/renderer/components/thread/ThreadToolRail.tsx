@@ -1,7 +1,14 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { LucideIcon } from "lucide-react";
-import { FileDiff, FolderOpen, NotebookPen, PanelRightOpen, TerminalSquare } from "lucide-react";
+import {
+  FileDiff,
+  FolderOpen,
+  NotebookPen,
+  PanelRightOpen,
+  Smartphone,
+  TerminalSquare,
+} from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import { isHomeProjectId } from "@/shared/homeScope";
 import {
@@ -42,7 +49,7 @@ type HeaderMenuPhase = "ready" | "suppressed" | "awaiting-reentry";
 
 /**
  * Per-pane launcher for the thread-scoped right-panel tools (git, files,
- * terminal, notes) pointed at *this* thread's project + worktree. Panel-wide
+ * terminal, notes, devices) pointed at *this* thread's project + worktree. Panel-wide
  * tools that are not tied to a thread (usage, browser) stay in the right panel
  * header only.
  *
@@ -55,15 +62,17 @@ type HeaderMenuPhase = "ready" | "suppressed" | "awaiting-reentry";
  *   into the tool menu on hover/focus, keeping the conversation unobstructed.
  */
 export function ThreadToolRail(props: {
+  threadId: string;
   projectId: string;
   worktreePath?: string | undefined;
   paneCount: number;
 }) {
   const { t } = useLingui();
-  const { projectId, worktreePath, paneCount } = props;
+  const { threadId, projectId, worktreePath, paneCount } = props;
   const compactLayout = useCompactLayout();
 
   const rightPanelTab = usePanelStore((s) => s.rightPanelTab);
+  const deviceWorkspaceThreadId = usePanelStore((s) => s.deviceWorkspaceThreadId);
   const gitScoped = usePanelStore(
     (s) =>
       s.gitReviewAsPanel &&
@@ -221,6 +230,13 @@ export function ThreadToolRail(props: {
       active: notesPanelOpen && rightPanelTab === "notes",
       activate: openNotesPanel,
     },
+    {
+      id: "devices",
+      label: t`Devices`,
+      icon: Smartphone,
+      active: deviceWorkspaceThreadId === threadId && rightPanelTab === "devices",
+      activate: () => usePanelStore.getState().setDeviceWorkspaceThreadId(threadId),
+    },
   ];
 
   const primaryTool = tools[0];
@@ -240,6 +256,7 @@ export function ThreadToolRail(props: {
       <button
         key={tool.id}
         type="button"
+        {...(tool.id === "devices" ? { id: `thread-tool-devices-${threadId}` } : {})}
         title={tool.label}
         aria-label={tool.label}
         aria-pressed={tool.active}
@@ -326,6 +343,7 @@ export function ThreadToolRail(props: {
         >
           <button
             type="button"
+            id={`thread-tools-${threadId}`}
             title={t`Show thread tools`}
             aria-label={t`Show thread tools`}
             aria-expanded={compactLayout ? headerMenuTapOpen : undefined}

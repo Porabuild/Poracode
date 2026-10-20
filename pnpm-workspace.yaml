@@ -360,6 +360,7 @@ overrides:
   "brace-expansion@<1.1.18": "1.1.18"
   "brace-expansion@>=2.0.0 <2.1.4": "2.1.4"
 patchedDependencies:
+  "@expo/hub-client@1.5.0": patches/@expo__hub-client@1.5.0.patch
   "@agentclientprotocol/sdk@1.4.0": patches/@agentclientprotocol__sdk@1.4.0.patch
   "@legendapp/list@3.3.3": patches/@legendapp__list@3.3.3.patch
   monaco-editor@0.56.0: patches/monaco-editor@0.56.0.patch

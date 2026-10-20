@@ -1,5 +1,6 @@
 import { Suspense, useState } from "react";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { usePanelStore } from "@/renderer/state/panelStore";
 import { useKeepHeavyMountedForDisclosure } from "@/renderer/hooks/useKeepHeavyMountedForDisclosure";
 import { PANEL_EXIT_DURATION_MS } from "@/renderer/components/layout/panelMotion";
 import { useBottomTerminalVisible, usePanelVisibility } from "./AppShell/parts/usePanelVisibility";
@@ -11,6 +12,9 @@ import {
 
 export function MainRightPanel() {
   const terminalPosition = useSharedSettings((s) => s.terminalPosition);
+  const floatingDevice = usePanelStore(
+    (s) => s.deviceWorkspaceThreadId !== null && s.deviceWorkspaceDetached,
+  );
   const { rightPanelOpen } = usePanelVisibility();
   const { keepHeavy } = useKeepHeavyMountedForDisclosure(rightPanelOpen, {
     fallbackMs: PANEL_EXIT_DURATION_MS,
@@ -25,11 +29,11 @@ export function MainRightPanel() {
     if (rightPanelOpen) setEnabled(true);
   }
 
-  if (!enabled) return null;
+  if (!enabled && !floatingDevice) return null;
 
   const isTerminalRight = terminalPosition === "right";
 
-  if (isTerminalRight && !rightPanelOpen && !keepHeavy) return null;
+  if (isTerminalRight && !rightPanelOpen && !keepHeavy && !floatingDevice) return null;
 
   return (
     <Suspense>

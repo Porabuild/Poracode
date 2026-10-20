@@ -803,6 +803,18 @@ msgstr "3000"
 msgid "30d"
 msgstr "30 дн"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "3D preview"
+msgstr "3D-перегляд"
+
+#: src/renderer/components/devices/DevicePreviewStage.tsx
+msgid "3D preview · View only"
+msgstr "3D-перегляд · Лише перегляд"
+
+#: src/renderer/components/devices/DevicePreviewStage.tsx
+msgid "3D preview, view only. Drag or use arrow keys to rotate; Home resets."
+msgstr "3D-перегляд без керування. Перетягуйте або використовуйте стрілки для обертання; Home скидає."
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "4K"
 msgstr "4K"
@@ -819,6 +831,10 @@ msgstr "Один із кандидатів більше не перебуває 
 #: src/renderer/components/providers/settings/CursorProfileIdentity.tsx
 msgid "A Cursor profile with this name already exists."
 msgstr "Профіль Cursor із таким іменем уже існує."
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "A device failed to start."
+msgstr "Не вдалося запустити пристрій."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "A frozen worktree source requires a full commit hash"
@@ -910,6 +926,10 @@ msgstr "Прийняти ключ хоста"
 msgid "Accept Incoming Change"
 msgstr "Прийняти вхідну зміну"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Accessibility inspector"
+msgstr "Інспектор доступності"
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Account"
 msgstr "Обліковий запис"
@@ -973,6 +993,7 @@ msgstr "Назва дії"
 
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/common/BranchSelector/parts/BranchFooterActions.tsx
+#: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/MobileProjectSettingsIndex.tsx
@@ -1261,9 +1282,17 @@ msgstr "Агент"
 msgid "Agent ({subagent}): {description}"
 msgstr "Агент ({subagent}): {description}"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+#~ msgid "Agent access off"
+#~ msgstr "Доступ агента вимкнено"
+
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 msgid "Agent chat (ACP / markdown). Command rows use this size minus 1 px; tool and plan lines minus 2 px."
 msgstr "Чат агента (ACP / markdown). Рядки команд використовують цей розмір мінус 1 px; рядки інструментів і планів — мінус 2 px."
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+#~ msgid "Agent control allowed"
+#~ msgstr "Керування агентом дозволено"
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -1324,6 +1353,10 @@ msgstr "Доступне оновлення агента"
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentRankedRow.tsx
 msgid "Agent usage"
 msgstr "Використання агентів"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+#~ msgid "Agent viewing allowed"
+#~ msgstr "Перегляд агентом дозволено"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Agent: {description}"
@@ -1658,6 +1691,10 @@ msgstr "Браузер у програмі"
 #~ msgid "App Controls"
 #~ msgstr "Керування застосунком"
 
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "App package ID"
+msgstr "ID пакета застосунку"
+
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -1838,6 +1875,7 @@ msgid "At least two worktrees must be created. Any partial experiment was cleane
 msgstr "Потрібно створити щонайменше два worktree. Усі дані незавершеного експерименту видалено."
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
+#: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Attach"
 msgstr "Прикріпити"
 
@@ -2071,6 +2109,7 @@ msgstr "Очікування перевірки"
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/components/composer/ComposerMcpServersMenu.tsx
 #: src/renderer/components/composer/ComposerSessionActionsMenu.tsx
+#: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/components/layout/MobilePageHeader.tsx
 #: src/renderer/views/FileEditorOverlay/FileEditorOverlay.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
@@ -2135,6 +2174,10 @@ msgstr "Фонове завдання"
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
 msgid "Background tasks"
 msgstr "Фонові завдання"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Backspace"
+msgstr "Backspace"
 
 #: src/renderer/components/experiment/NewExperimentModal.tsx
 #~ msgid "Base branch"
@@ -2486,6 +2529,14 @@ msgstr "Обійти правила захисту гілки (злиття ад
 msgid "Calculated on desktop after saving"
 msgstr "Обчислюється на комп’ютері після збереження"
 
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Calendar"
+msgstr "Календар"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Camera"
+msgstr "Камера"
+
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
 msgid "Camera access blocked"
 msgstr "Доступ до камери заблоковано"
@@ -2613,6 +2664,14 @@ msgstr "Неможливо створити шлях worktree за замовч�
 msgid "Cannot switch branches — commit or stash your changes first"
 msgstr "Неможливо перемкнути гілки — спочатку закомітьте зміни або помістіть їх у stash"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+#~ msgid "Capture & View"
+#~ msgstr "Захоплення та вигляд"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Capture and view controls"
+msgstr "Елементи керування захопленням та виглядом"
+
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Category"
 msgstr "Категорія"
@@ -2677,6 +2736,10 @@ msgstr "Зміни"
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 msgid "Changes ({0})"
 msgstr "Зміни ({0})"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Changes affect the selected emulator. App permissions depend on its Android version and the permissions requested by the app."
+msgstr "Зміни впливають на вибраний емулятор. Дозволи залежать від версії Android і дозволів, запитаних застосунком."
 
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 msgid "Changes apply globally to this environment."
@@ -3186,9 +3249,21 @@ msgstr "Закрити Crossagents"
 msgid "Close Crossagents panel"
 msgstr "Закрити панель Crossagents"
 
+#: src/renderer/components/devices/DeviceFloatingPanel.tsx
+#~ msgid "Close device preview"
+#~ msgstr "Закрити перегляд пристрою"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Close device settings"
+msgstr "Закрити налаштування пристрою"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "Close device toolbar"
 msgstr "Закрити панель пристроїв"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+#~ msgid "Close device workspace"
+#~ msgstr "Закрити робочу область пристроїв"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 msgid "Close editor"
@@ -3238,6 +3313,10 @@ msgstr "Закрити групу"
 #: src/mobile/views/threadActionSurfaces.tsx
 #~ msgid "Close group actions"
 #~ msgstr "Закрити дії групи"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Close inspector"
+msgstr "Закрити інспектор"
 
 #: src/renderer/components/thread/ChatPane/UserMessageActionsSheet.tsx
 msgid "Close menu"
@@ -3895,9 +3974,18 @@ msgstr "Підключитися до віддаленого сервера"
 msgid "Connected"
 msgstr "Підключено"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Connecting"
+msgstr "Підключення"
+
 #: src/mobile/views/BrowserView.tsx
 #~ msgid "Connecting to the desktop browser…"
 #~ msgstr "Підключення до браузера на десктопі…"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+#: src/renderer/components/devices/LiveDevicePreview.tsx
+msgid "Connecting to the device…"
+msgstr "Підключення до пристрою…"
 
 #: src/renderer/components/composer/LiveVoiceControls.tsx
 msgid "Connecting voice…"
@@ -3955,6 +4043,10 @@ msgstr "Підключення"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Console"
 msgstr "Консоль"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Contacts"
+msgstr "Контакти"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Contains sensitive values; add manually"
@@ -4040,6 +4132,10 @@ msgstr "Продовжити з неповною історією"
 msgid "Continuing will keep the remaining history and mark this episode acknowledged; it does not restore the missing content."
 msgstr "Продовження збереже решту історії та позначить цей епізод як підтверджений; відсутній вміст не відновлюється."
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Control"
+msgstr "Керування"
+
 #: src/renderer/components/providers/settings/ProviderMcpServersSection.tsx
 msgid "Control an external Chrome browser."
 msgstr "Керує зовнішнім браузером Chrome."
@@ -4112,6 +4208,10 @@ msgstr "Копіювати (рекомендовано)"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Copy {0} device code {1}"
 msgstr "Копіювати код пристрою {0} {1}"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Copy accessibility tree"
+msgstr "Копіювати дерево доступності"
 
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Copy all Lightcode data into Poracode. Poracode restarts and keeps a complete backup of its current data."
@@ -4785,6 +4885,7 @@ msgstr "Щодня"
 msgid "Daily brief"
 msgstr "Щоденний огляд"
 
+#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
@@ -4811,6 +4912,7 @@ msgstr "Відхилити"
 msgid "DeepSeek"
 msgstr "DeepSeek"
 
+#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
@@ -5104,6 +5206,10 @@ msgstr "Налаштування робочого стола"
 msgid "Destination"
 msgstr "Призначення"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Detach"
+msgstr "Від’єднати"
+
 #: src/renderer/components/thread/SideChat/SideChatBody.tsx
 msgid "Detach side chat"
 msgstr "Відкріпити бічний чат"
@@ -5112,9 +5218,13 @@ msgstr "Відкріпити бічний чат"
 msgid "detached HEAD"
 msgstr "відокремлений HEAD"
 
-#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
-#~ msgid "Details"
-#~ msgstr "Відомості"
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Detaching leaves the device running."
+msgstr "Після від’єднання пристрій продовжить працювати."
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Details"
+msgstr "Відомості"
 
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
 msgid "Detect"
@@ -5173,14 +5283,64 @@ msgstr "Розробка"
 msgid "Development-only overrides. Only visible in the PORACODE DEV build."
 msgstr "Перевизначення лише для розробки. Видимі лише у збірці PORACODE DEV."
 
+#: src/renderer/components/devices/useDeviceLivePreview.ts
+msgid "Device access expired. Attach again."
+msgstr "Термін доступу до пристрою минув. Під’єднайте його знову."
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Device accessibility"
+msgstr "Спеціальні можливості пристрою"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Device appearance"
+msgstr "Вигляд пристрою"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Device network"
+msgstr "Мережа пристрою"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Device operation failed."
+msgstr "Операція з пристроєм не вдалася."
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Device orientation"
+msgstr "Орієнтація пристрою"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "Device preset"
 msgstr "Профіль пристрою"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Device settings"
+msgstr "Налаштування пристрою"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Device text size"
+msgstr "Розмір тексту пристрою"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Device tooling is unavailable."
+msgstr "Інструменти пристроїв недоступні."
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Device used by the composer voice input button."
 msgstr "Пристрій, який використовує кнопка голосового вводу в полі вводу."
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Device workspace"
+msgstr "Робоча область пристроїв"
+
+#: src/renderer/components/devices/DeviceDetachedWindow.tsx
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+#: src/renderer/components/layout/PanelDock/panelTabMeta.ts
+#: src/renderer/components/plugins/pluginCopy.ts
+#: src/renderer/components/thread/ThreadToolRail.tsx
+#: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
+msgid "Devices"
+msgstr "Пристрої"
 
 #: src/renderer/utils/projectIcons.ts
 msgid "Devices & tools"
@@ -5463,6 +5623,10 @@ msgstr "Відображуване ім'я в бічній панелі."
 msgid "Display preferences follow this app's settings, independently of the selected usage host."
 msgstr "Налаштування відображення беруться з налаштувань цього застосунку незалежно від вибраного хоста статистики використання."
 
+#: src/renderer/components/devices/DeviceFloatingPanel.tsx
+#~ msgid "Dock device preview"
+#~ msgstr "Закріпити перегляд пристрою"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/PanelDock/BottomDockDropStrip.tsx
 msgid "Dock left"
 msgstr "Закріпити ліворуч"
@@ -5470,6 +5634,14 @@ msgstr "Закріпити ліворуч"
 #: src/renderer/views/MainView/parts/RightPanel/parts/PanelDock/BottomDockDropStrip.tsx
 msgid "Dock right"
 msgstr "Закріпити праворуч"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+#~ msgid "Dock to bottom panel"
+#~ msgstr "Закріпити на нижній панелі"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+#~ msgid "Dock to right panel"
+#~ msgstr "Закріпити на правій панелі"
 
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 msgid "Docks"
@@ -5876,6 +6048,10 @@ msgstr "Завершити голосовий чат"
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Enhanced (Hooks)"
 msgstr "Розширений (Hooks)"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Enter"
+msgstr "Ввід"
 
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
 msgid "Enter a font family of up to 256 characters without control characters."
@@ -6303,6 +6479,10 @@ msgstr "Зовнішній провайдер"
 msgid "Extra High"
 msgstr "Дуже високий"
 
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Extra large"
+msgstr "Дуже великий"
+
 #. placeholder {0}: sourceAgent?.label ?? thread.agentKind
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "Extracting context from {0}..."
@@ -6687,6 +6867,18 @@ msgstr "Фіксована затримка"
 msgid "Flat list"
 msgstr "Плоский список"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Flat preview"
+msgstr "Плоский попередній перегляд"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+#~ msgid "Float device over chat"
+#~ msgstr "Показати пристрій поверх чату"
+
+#: src/renderer/components/devices/DeviceFloatingPanel.tsx
+#~ msgid "Floating device preview"
+#~ msgstr "Плаваючий перегляд пристрою"
+
 #: src/renderer/commands/registry.ts
 msgid "Focus browser address bar"
 msgstr "Встановити фокус на адресний рядок браузера"
@@ -6826,6 +7018,10 @@ msgstr "Знайдено {0, plural, one {# навичку для імпорту
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Found a signed-in {0} session."
 msgstr "Знайдено сесію {0} з виконаним входом."
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Framed preview"
+msgstr "Попередній перегляд у рамці"
 
 #: src/renderer/components/providers/modelDescription.ts
 msgid "Free"
@@ -7120,6 +7316,10 @@ msgstr "Зрозуміло"
 msgid "Grade {0}"
 msgstr "Оцінка {0}"
 
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Grant"
+msgstr "Надати"
+
 #: src/renderer/utils/projectIconColors.ts
 msgid "Green"
 msgstr "Зелений"
@@ -7302,6 +7502,7 @@ msgstr "Високий"
 msgid "History"
 msgstr "Історія"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/views/HomeView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
@@ -7698,6 +7899,10 @@ msgstr "Початкова затримка повтору в секундах"
 msgid "Initialize Repository"
 msgstr "Ініціалізувати репозиторій"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+#~ msgid "Input"
+#~ msgstr "Введення"
+
 #: src/renderer/components/providers/modelDescription.ts
 msgid "Input / output prices per 1M tokens for each model. Ranges cover model variants."
 msgstr "Ціни вхідних/вихідних даних за 1 млн токенів кожної моделі. Діапазони охоплюють варіанти моделі."
@@ -7705,6 +7910,10 @@ msgstr "Ціни вхідних/вихідних даних за 1 млн ток
 #: src/renderer/components/providers/devin/modelPricing.ts
 msgid "Input / output prices per 1M tokens. Ranges cover model variants."
 msgstr "Ціни введення/виведення за 1 млн токенів. Діапазони охоплюють варіанти моделі."
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Input controls"
+msgstr "Елементи керування введенням"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Input level"
@@ -7733,6 +7942,14 @@ msgstr "Усередині кожного проєкту"
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Inside this project"
 msgstr "Усередині цього проєкту"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Inspect"
+msgstr "Дослідити"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Inspect and control the simulator or emulator attached to this thread."
+msgstr "Перевіряйте та керуйте симулятором або емулятором, підключеним до цього чату."
 
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Inspect canonical runtime items"
@@ -7821,6 +8038,10 @@ msgstr "Установлення й керування нативними пла
 msgid "Install and restart"
 msgstr "Установити й перезапустити"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Install Android SDK Emulator and platform-tools, then create an AVD."
+msgstr "Установіть Android SDK Emulator і platform-tools, а потім створіть AVD."
+
 #: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
 msgid "Install Antigravity"
 msgstr "Установити Antigravity"
@@ -7897,6 +8118,10 @@ msgstr "Установити в {0}"
 msgid "Install managed skills into {0}."
 msgstr "Установити керовані навички в {0}."
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Install Meta idb and idb_companion on this host for iOS input and accessibility."
+msgstr "Установіть Meta idb та idb_companion на цьому хості для введення та спеціальних можливостей iOS."
+
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Install native providers first; use ACP for additional protocol agents."
 msgstr "Спершу встановіть нативні провайдери; використовуйте ACP для додаткових протокольних агентів."
@@ -7954,6 +8179,10 @@ msgstr "Встановити v{updateVersion}"
 msgid "Install v{version}"
 msgstr "Встановити v{version}"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Install Xcode and an iOS Simulator runtime on this host."
+msgstr "Установіть Xcode і середовище виконання симулятора iOS на цьому хості."
+
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
 msgid "Install, update, and sign-in are not yet available on remote machines."
 msgstr "Встановлення, оновлення та вхід поки недоступні на віддалених комп’ютерах."
@@ -7995,6 +8224,10 @@ msgstr "Інструкції"
 msgid "Instructions agents follow when choosing which agent or model to delegate to."
 msgstr "Інструкції, яких дотримуються агенти, обираючи, якому агенту чи моделі делегувати."
 
+#: src/renderer/components/devices/LiveDevicePreview.tsx
+msgid "Interactive device preview. Tab moves to the next control; Escape closes the workspace."
+msgstr "Інтерактивний перегляд пристрою. Tab переходить до наступного елемента керування; Escape закриває робочий простір."
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Internal commands and agents"
@@ -8029,6 +8262,10 @@ msgstr "Одиниця інтервалу"
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Invalid configuration — kept, but disabled"
 msgstr "Недійсна конфігурація — збережена, але вимкнена"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "iOS Simulator requires a macOS host with Xcode."
+msgstr "Симулятор iOS потребує хост macOS із Xcode."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "iPad Air"
@@ -8156,6 +8393,14 @@ msgstr "Kimi Code завершив хід, не повернувши відпо�
 msgid "LAN"
 msgstr "LAN"
 
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Landscape left"
+msgstr "Альбомна ліворуч"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Landscape right"
+msgstr "Альбомна праворуч"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Language"
@@ -8178,6 +8423,10 @@ msgstr "Ноутбук"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "Laptop L"
 msgstr "Ноутбук L"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Large"
+msgstr "Великий"
 
 #. placeholder {0}: formatSessionTime(session.lastConnectedAt)
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
@@ -8204,6 +8453,14 @@ msgstr "Останній інструмент: <0>{0}</0>"
 #: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
 msgid "Last updated: {fetchedAt}"
 msgstr "Останнє оновлення: {fetchedAt}"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Latitude"
+msgstr "Широта"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Launch"
+msgstr "Запустити"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -8292,6 +8549,7 @@ msgstr "токенів за весь час"
 msgid "Lifetime tokens"
 msgstr "Токенів за весь час"
 
+#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
@@ -8331,14 +8589,32 @@ msgstr "Список пакетів"
 msgid "List tasks"
 msgstr "Список завдань"
 
-#: src/mobile/remoteConnectionState.ts
-#~ msgid "Live"
-#~ msgstr "Онлайн"
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Live"
+msgstr "Онлайн"
 
 #. placeholder {0}: formatShortDateTime(desktop.lastConnectedAt)
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Live {0}"
 #~ msgstr "Онлайн {0}"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Live device preview"
+msgstr "Попередній перегляд пристрою наживо"
+
+#: src/renderer/components/devices/LiveDevicePreview.tsx
+msgid "Live device preview, view only"
+msgstr "Перегляд пристрою наживо, лише перегляд"
+
+#: src/renderer/components/devices/useDeviceLivePreview.ts
+msgid "Live preview is unavailable for this device on this host. Use snapshots."
+msgstr "Перегляд цього пристрою наживо недоступний на цьому хості. Скористайтеся знімками екрана."
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+#: src/renderer/components/devices/LiveDevicePreview.tsx
+#: src/renderer/components/devices/useDeviceLivePreview.ts
+msgid "Live preview is unavailable. Retry or use snapshots."
+msgstr "Перегляд наживо недоступний. Спробуйте ще раз або скористайтеся знімками екрана."
 
 #: src/renderer/components/thread/LiveStreamCapacityAlert.tsx
 msgid "Live updates are paused for {droppedRuntimeThreadCount, plural, one {# thread} other {# threads}} because this window exceeds the {MANAGED_ITEM_INTERESTS_MAX}-thread live streaming limit. Close or reopen a thread to resume the paused ones."
@@ -8485,6 +8761,7 @@ msgid "Loading workflow runs"
 msgstr "Завантаження запусків робочих процесів"
 
 #: src/renderer/app.tsx
+#: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/useHistoryItemDetails.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
@@ -8522,6 +8799,7 @@ msgstr "Локальний захист паролів"
 msgid "localhost:{0} on desktop"
 msgstr "localhost:{0} на комп'ютері"
 
+#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
@@ -8605,6 +8883,10 @@ msgstr "Найдовша серія"
 #: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
 msgid "Longest task"
 msgstr "Найдовше завдання"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Longitude"
+msgstr "Довгота"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
 msgid "Looking for browser profiles…"
@@ -9124,6 +9406,7 @@ msgstr "Не вдалося завантажити повідомлення."
 msgid "Messages sent"
 msgstr "Надіслано повідомлень"
 
+#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Microphone"
@@ -9371,6 +9654,10 @@ msgstr "Найуживаніший провайдер"
 msgid "Most used reasoning"
 msgstr "Найуживаніший рівень міркувань"
 
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Motion"
+msgstr "Рух"
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Move"
 msgstr "Перемістити"
@@ -9391,6 +9678,18 @@ msgstr "Перемістити браузер у вікно"
 #: src/renderer/components/common/BranchSelector/parts/BranchFooterActions.tsx
 msgid "Move changes to a new worktree"
 msgstr "Перемістити зміни в новий worktree"
+
+#: src/renderer/components/devices/DeviceDetachedWindow.tsx
+msgid "Move device back to main window"
+msgstr "Повернути пристрій до головного вікна"
+
+#: src/renderer/components/devices/DeviceFloatingPanel.tsx
+#~ msgid "Move device preview with arrow keys"
+#~ msgstr "Переміщуйте перегляд пристрою стрілками"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Move device to window"
+msgstr "Перемістити пристрій в окреме вікно"
 
 #: src/renderer/components/thread/PaneDragAndDrop.tsx
 msgid "Move pane"
@@ -9540,6 +9839,14 @@ msgstr "Навігація"
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Navigate, inspect, and test pages with the in-app Browser MCP."
 msgstr "Переходьте сторінками, досліджуйте й тестуйте їх через вбудований Browser MCP."
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+#~ msgid "Navigation"
+#~ msgstr "Навігація"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Navigation controls"
+msgstr "Елементи керування навігацією"
 
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Needs approval"
@@ -10287,6 +10594,10 @@ msgstr "Немає сесій, що відповідають поточним ф
 msgid "No shortcuts found"
 msgstr "Комбінації клавіш не знайдено"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "No simulators or emulators found."
+msgstr "Симуляторів або емуляторів не знайдено."
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "No skills found"
 msgstr "Навички не знайдено"
@@ -10483,6 +10794,7 @@ msgstr "Поки нічого стискати — розмова ще коро�
 msgid "Nothing tracked yet. It'll appear here as you use it."
 msgstr "Ще нічого не відстежено. З'явиться тут у міру використання."
 
+#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -10511,6 +10823,7 @@ msgstr "Спостережено"
 msgid "off"
 msgstr "вимк"
 
+#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/components/git/PrAutomationSlider.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/RemoteAccessSidebarIcon.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
@@ -10541,6 +10854,7 @@ msgstr "Офлайн"
 msgid "on"
 msgstr "увімк"
 
+#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "On"
 msgstr "У день"
@@ -10595,6 +10909,7 @@ msgid "Only works on this computer."
 msgstr "Працює лише на цьому комп’ютері."
 
 #: src/renderer/commands/CommandPalette.tsx
+#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/components/thread/ThreadUsageBubble.tsx
 #: src/renderer/notifications.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
@@ -11391,6 +11706,10 @@ msgstr "Назавжди видалити вибрані архівні запи
 msgid "permission"
 msgstr "дозвіл"
 
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Permission"
+msgstr "Дозвіл"
+
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 msgid "Persistent goals, budgets, and automatic continuation with /goal."
 msgstr "Постійні цілі, бюджети й автоматичне продовження через /goal."
@@ -11423,6 +11742,10 @@ msgstr "Особисте"
 #: src/renderer/components/providers/devin/sessionActionDialog.tsx
 #~ msgid "Personas"
 #~ msgstr "Персони"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Photos"
+msgstr "Фото"
 
 #: src/renderer/components/providers/pi/manifest.ts
 msgid "Pi"
@@ -11697,12 +12020,24 @@ msgstr "Переспрямування портів не увімкнено"
 #~ msgid "Port forwarding needs a direct connection to the desktop. It isn't available over a relay or tunnel."
 #~ msgstr "Для переспрямування портів потрібне пряме підключення до комп'ютера. Воно недоступне через ретранслятор або тунель."
 
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Portrait"
+msgstr "Книжкова"
+
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
 msgid "Ports"
 msgstr "Порти"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Power off device"
+msgstr "Вимкнути пристрій"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Power off device?"
+msgstr "Вимкнути пристрій?"
 
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "PowerShell {version}"
@@ -12392,6 +12727,7 @@ msgstr "Читання змін кожного кандидата…"
 msgid "Reading each candidate's chat response…"
 msgstr "Читання відповіді кожного кандидата в чаті…"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Ready"
 msgstr "Готово"
@@ -12429,22 +12765,34 @@ msgstr "Недавні встановлення"
 msgid "Recent threads"
 msgstr "Нещодавні треди"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Recents"
+msgstr "Нещодавні"
+
 #: src/mobile/components.tsx
 #~ msgid "Reconnect"
 #~ msgstr "Перепідключити"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Reconnect live preview"
+msgstr "Перепідключити перегляд наживо"
 
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Reconnect the server to add projects."
 msgstr "Перепідключіть сервер, щоб додавати проєкти."
 
-#: src/mobile/remoteConnectionState.ts
-#~ msgid "Reconnecting"
-#~ msgstr "Перепідключення"
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Reconnecting"
+msgstr "Перепідключення"
 
 #: src/renderer/components/terminal/TerminalFeedStatus.tsx
 msgid "Reconnecting to terminal…"
 msgstr "Повторне підключення до термінала…"
+
+#: src/renderer/components/devices/LiveDevicePreview.tsx
+msgid "Reconnecting to the device…"
+msgstr "Повторне підключення до пристрою…"
 
 #: src/mobile/components.tsx
 #~ msgid "Reconnecting to your desktop…"
@@ -12467,6 +12815,10 @@ msgstr "Червоний"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Redact notification content"
 msgstr "Приховувати вміст сповіщень"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Reduce motion"
+msgstr "Зменшити рух"
 
 #. Button: re-fetch provider usage now
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
@@ -12506,6 +12858,10 @@ msgstr "Оновити {label}"
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Refresh detected agents"
 msgstr "Оновити виявлених агентів"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Refresh devices"
+msgstr "Оновити пристрої"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Refresh MCP server sources"
@@ -13216,6 +13572,10 @@ msgstr "Затримка повтору"
 msgid "Retry delay in seconds"
 msgstr "Затримка повтору в секундах"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Retry live"
+msgstr "Повторити трансляцію"
+
 #: src/mobile/components.tsx
 #~ msgid "Retry now"
 #~ msgstr "Повторить сейчас"
@@ -13397,6 +13757,10 @@ msgstr "Виправити команду"
 msgid "Revision note (optional)"
 msgstr "Примітка до виправлення (необов'язково)"
 
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Revoke"
+msgstr "Відкликати"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Revoke {name}"
 msgstr "Відкликати {name}"
@@ -13413,6 +13777,10 @@ msgstr "Права панель"
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 msgid "Right-click to switch ring"
 msgstr "Клацніть правою кнопкою, щоб перемкнути кільце"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Rotate to…"
+msgstr "Повернути в…"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "Rotate viewport"
@@ -13568,6 +13936,7 @@ msgstr "Запустити робочий процес"
 msgid "running"
 msgstr "виконується"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/SchedulesView/parts/scheduleRunStatus.ts
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
@@ -13850,6 +14219,10 @@ msgstr "Наука та освіта"
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Scope"
 msgstr "Область дії"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Screenshot"
+msgstr "Знімок екрана"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
@@ -14209,6 +14582,7 @@ msgstr "Вибрати…"
 msgid "Selected sidebar row"
 msgstr "Вибраний рядок бічної панелі"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/components/thread/SideChat/SideChatBody.tsx
 msgid "Send"
 msgstr "Надіслати"
@@ -14298,6 +14672,10 @@ msgstr "Дії сесії недоступні для цього треду."
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
 msgid "Set group color"
 msgstr "Задати колір групи"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Set location"
+msgstr "Задати розташування"
 
 #: src/renderer/components/providers/codex/index.tsx
 msgid "Set or view an experimental goal"
@@ -14762,6 +15140,10 @@ msgstr "Вихід із {env}. Виявлені агенти оновлятьс�
 msgid "Signing out. Detected agents will refresh when it finishes."
 msgstr "Вихід. Виявлені агенти оновляться після завершення."
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Simulators and emulators on this thread’s host"
+msgstr "Симулятори та емулятори на хості цього треда"
+
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Single pass"
 msgstr "Один прохід"
@@ -14874,6 +15256,14 @@ msgstr "Пропускаються Crossagents: {0}"
 #: src/renderer/components/thread/ThreadCommandPanel.tsx
 msgid "Slash commands"
 msgstr "Slash-команди"
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Small"
+msgstr "Малий"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Snapshots"
+msgstr "Знімки"
 
 #. placeholder {0}: index + 1
 #. placeholder {0}: winnerOrdinal + 1
@@ -15081,6 +15471,10 @@ msgstr "Створити новий тред із цього завдання"
 #~ msgid "Start a new thread to put an agent to work from this device."
 #~ msgstr "Почніть новий потік, щоб запустити агента з цього пристрою."
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Start device"
+msgstr "Запустити пристрій"
+
 #: src/renderer/commands/composerCommands.ts
 msgid "Start dictation"
 msgstr "Почати диктування"
@@ -15156,6 +15550,7 @@ msgid "Started {targetLabel} thread"
 msgstr "Тред {targetLabel} запущено"
 
 #. Button label while the microphone test is starting
+#: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/RemoteAccessSidebarIcon.tsx
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
@@ -15298,6 +15693,10 @@ msgstr "Зупинити голосове введення"
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Stop when"
 msgstr "Умова зупинки"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Stopped"
+msgstr "Зупинено"
 
 #: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 msgid "Stopping {label}…"
@@ -15582,6 +15981,7 @@ msgstr "Синхронізація…"
 msgid "Syncs with Cloud"
 msgstr "Синхронізується з Cloud"
 
+#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/i18n/locales.ts
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "System"
@@ -15941,6 +16341,10 @@ msgstr "Власний сервер робочого столу перепідк
 #: src/renderer/state/managedRootCatalog/rootCatalogIntents.ts
 msgid "The desktop's own server refused the change."
 msgstr "Власний сервер робочого столу відхилив зміну."
+
+#: src/renderer/components/devices/deviceClient.ts
+msgid "The device host is unavailable."
+msgstr "Хост пристрою недоступний."
 
 #: src/renderer/state/remoteServers/environmentManagement.ts
 msgid "The environment changed on the host. Refresh and try again."
@@ -16480,9 +16884,17 @@ msgstr "Ця папка порожня."
 msgid "This host"
 msgstr "Цей хост"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "This host does not support the device workspace."
+msgstr "Цей хост не підтримує робочу область пристроїв."
+
 #: src/renderer/components/providers/HostUsageView.tsx
 msgid "This host is no longer configured."
 msgstr "Цей хост більше не налаштовано."
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "This host provides snapshots. Live streaming is unavailable."
+msgstr "Цей хост надає знімки екрана. Трансляція наживо недоступна."
 
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "This HTTPS page couldn't reach the desktop on plain HTTP. Allow local network access for this site and pair again, or continue on the desktop's own address."
@@ -16676,6 +17088,10 @@ msgstr "Ця сесія змінилася на диску. Оновіть сп�
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This session is already being imported."
 msgstr "Ця сесія вже імпортується."
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "This shuts down the selected emulator and disconnects every viewer. Detach instead to leave it running."
+msgstr "Вибраний емулятор завершить роботу, усіх глядачів буде від’єднано. Щоб залишити його працювати, від’єднайте перегляд."
 
 #: src/renderer/components/media/SvgFileView.tsx
 msgid "This SVG can't be displayed."
@@ -16939,6 +17355,10 @@ msgstr "Перемкнути обране"
 msgid "Toggle Terminal"
 msgstr "Перемкнути термінал"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Toggle text input"
+msgstr "Перемкнути введення тексту"
+
 #: src/renderer/commands/registry.ts
 msgid "Toggle the file tree panel"
 msgstr "Перемкнути панель дерева файлів"
@@ -17088,6 +17508,10 @@ msgstr "Тип"
 #~ msgid "Type into the page (tap a field first)"
 #~ msgstr "Вводите на странице (сначала коснитесь поля)"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Type on device"
+msgstr "Введення на пристрої"
+
 #: src/renderer/commands/CommandPalette.tsx
 msgid "Type to search files"
 msgstr "Введіть запит для пошуку файлів"
@@ -17223,6 +17647,10 @@ msgstr "Не вдалося злити зміни переможця експе�
 #: src/renderer/actions/agentLoginActions.ts
 msgid "Unable to open {0} login."
 msgstr "Не вдалося відкрити вхід у {0}."
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Unable to open device window."
+msgstr "Не вдалося відкрити вікно пристрою."
 
 #: src/renderer/commands/registry.ts
 msgid "Unable to open file"
@@ -17467,6 +17895,7 @@ msgstr "Не вдалося перевірити власний сервер р�
 msgid "Unassigned"
 msgstr "Не призначено"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Unavailable"
 msgstr "Недоступно"
@@ -17539,6 +17968,7 @@ msgstr "Видалити"
 msgid "Uninstall {name}"
 msgstr "Видалити {name}"
 
+#: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/components/thread/threadContextUsage.ts
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
@@ -17873,6 +18303,10 @@ msgstr "Оновити власника середовища"
 msgid "Upgrade owner"
 msgstr "Оновити власника"
 
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "Upside down"
+msgstr "Догори дриґом"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
 msgid "URL"
@@ -17881,6 +18315,10 @@ msgstr "URL"
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "URL is required."
 msgstr "Потрібно вказати URL."
+
+#: src/renderer/components/devices/DeviceTools.tsx
+msgid "URL or deep link"
+msgstr "URL або глибоке посилання"
 
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
@@ -17983,6 +18421,10 @@ msgstr "Використовувати файли ignore"
 msgid "Use letters, numbers, dots, dashes, or underscores without spaces."
 msgstr "Використовуйте літери, цифри, крапки, дефіси або символи підкреслення без пробілів."
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Use live preview"
+msgstr "Використовувати перегляд наживо"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "Use one global folder, or nest worktrees inside each project at .poracode/worktrees."
@@ -17999,6 +18441,10 @@ msgstr "Використати сесію"
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Use sidebar background for the docked sidebar"
 msgstr "Використовувати тло бічної панелі для закріпленої панелі"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Use snapshots"
+msgstr "Використовувати знімки екрана"
 
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Use the {name} skill."
@@ -18145,6 +18591,10 @@ msgstr "Усі випуски на GitHub"
 #: src/renderer/views/WhatsNewOverlay.tsx
 msgid "View full changelog"
 msgstr "Відкрити повний список змін"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "View only"
+msgstr "Лише перегляд"
 
 #: src/renderer/components/skills/SkillViewModal.tsx
 msgid "View raw"
@@ -18295,6 +18745,11 @@ msgstr "Очікує на схвалення"
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Waiting for background tasks"
 msgstr "Очікування фонових завдань"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+#: src/renderer/components/devices/LiveDevicePreview.tsx
+msgid "Waiting for the device…"
+msgstr "Очікування пристрою…"
 
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "Waiting for workflow to spawn agents…"

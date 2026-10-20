@@ -61,6 +61,10 @@ export function useLocalizedPluginCatalog(projectLocation?: ProjectLocation): Lo
         name = t`Terminal`;
         description = t`Read the Terminal panel attached to this worktree and report what it is printing.`;
         break;
+      case "devices":
+        name = t`Devices`;
+        description = t`Inspect and control the simulator or emulator attached to this thread.`;
+        break;
       case "browser-tools":
         name = t`Browser`;
         description = t`Browse, inspect, and test websites in Poracode's isolated in-app browser.`;
@@ -123,6 +127,12 @@ export function useLocalizedPluginCatalog(projectLocation?: ProjectLocation): Lo
             name: t`Terminal`,
             description: t`Read the Terminal panel attached to this worktree and report the evidence.`,
           };
+        case "devices:device-control":
+          return {
+            id: skill.folder,
+            name: t`Devices`,
+            description: t`Inspect and control the simulator or emulator attached to this thread.`,
+          };
         case "browser-tools:browser-control":
           return {
             id: skill.folder,
@@ -165,7 +175,9 @@ export function useLocalizedPluginCatalog(projectLocation?: ProjectLocation): Lo
           id === "app-controls"
             ? plugin.name === "terminal"
               ? t`Terminal`
-              : t`Poracode`
+              : plugin.name === "devices"
+                ? t`Devices`
+                : t`Poracode`
             : id === "browser"
               ? t`Browser`
               : id === "chrome"

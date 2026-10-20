@@ -1,0 +1,28 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "devices",
+  "version": "1.0.0",
+  "description": "Use the iOS Simulators and Android Emulators attached to the current thread in Poracode.",
+  "author": { "name": "Poracode", "url": "https://poracode.com" },
+  "homepage": "https://poracode.com",
+  "license": "Apache-2.0",
+  "keywords": ["devices", "simulator", "emulator", "android", "ios"],
+  "extensions": {
+    "com.poracode.client": {
+      "title": "Devices",
+      "category": "developer-tools",
+      "featured": true,
+      "defaultEnabled": true,
+      "alwaysEnabled": false,
+      "examplePrompt": "Inspect the device attached to this thread and test the app",
+      "coreSkill": "device-control",
+      "builtInMcpServerIds": ["app-controls"],
+      "skills": {
+        "device-control": {
+          "name": "Devices",
+          "description": "Inspect and control the simulator or emulator attached to this thread."
+        }
+      }
+    }
+  }
+}

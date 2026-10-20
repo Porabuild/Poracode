@@ -274,6 +274,7 @@ export function assembleServerTarball(options = {}) {
   copyResourceDir(resourceRoot, join(stage, "resources"), "plugins", false);
   copyResourceDir(resourceRoot, join(stage, "resources"), "agent-plugins", true);
   copyResourceDir(resourceRoot, join(stage, "resources"), "computer-use-helper", true);
+  copyResourceDir(resourceRoot, join(stage, "resources"), "device-hub", false);
 
   copyNativeOverlay(overlaySource, join(stage, "native-overlay"));
   mkdirSync(join(stage, "scripts"), { recursive: true });

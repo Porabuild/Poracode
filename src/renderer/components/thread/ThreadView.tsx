@@ -515,6 +515,7 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
                   ) : null}
                   {awaitingWorktree ? null : (
                     <ThreadToolRail
+                      threadId={thread.id}
                       projectId={thread.projectId}
                       paneCount={paneCount}
                       {...(thread.worktreePath ? { worktreePath: thread.worktreePath } : {})}

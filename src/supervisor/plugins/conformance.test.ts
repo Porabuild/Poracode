@@ -749,6 +749,7 @@ describe("shipped packages", () => {
       "browser-tools",
       "chrome-tools",
       "computer-use",
+      "devices",
       "github",
       "outlook",
       "subagent-delegation",
@@ -876,6 +877,7 @@ describe("shipped packages", () => {
         "live schema on older hosts",
       ],
       terminal: ["## Find the pane", "## Read it", "## Report", "list_terminals", "read_terminal"],
+      devices: ["list_devices", "screenshot_device", "inspect_device", "control_device", "frameId"],
     };
 
     for (const [name, markers] of Object.entries(expectations)) {

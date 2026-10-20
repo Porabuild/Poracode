@@ -37,9 +37,61 @@ const PATH_SCOPED_BODIES = {
 } as const;
 
 describe("remote HTTP route goldens", () => {
-  it("covers exactly 100 unique routes", () => {
-    expect(REMOTE_HTTP_ROUTES).toHaveLength(100);
-    expect(new Set(REMOTE_HTTP_ROUTES.map((route) => route.id)).size).toBe(100);
+  it("covers exactly 115 unique routes", () => {
+    expect(REMOTE_HTTP_ROUTES).toHaveLength(115);
+    expect(new Set(REMOTE_HTTP_ROUTES.map((route) => route.id)).size).toBe(115);
+  });
+
+  it("keeps preview-v1 an enumerated read facade with strictly versioned grant requests", () => {
+    const root = "/api/threads/{threadId}/devices/{sessionId}/preview/v1";
+    const routes = REMOTE_HTTP_ROUTES.filter((route) => route.id.startsWith("device-preview-"));
+    expect(routes.map((route) => [route.id, route.method, route.path])).toEqual([
+      ["device-preview-open", "POST", root],
+      ["device-preview-renew", "POST", `${root}/renew`],
+      ["device-preview-close", "POST", `${root}/close`],
+      ["device-preview-websocket-ticket", "POST", `${root}/websocket-ticket`],
+      ["device-preview-android-api", "GET", `${root}/vendor/serve-emu/api`],
+      ["device-preview-android-devices", "GET", `${root}/vendor/serve-emu/api/devices`],
+      ["device-preview-ios-api", "GET", `${root}/vendor/serve-sim/api`],
+      ["device-preview-ios-config", "GET", `${root}/vendor/serve-sim/helper/{deviceId}/config`],
+      ["device-preview-ios-video", "GET", `${root}/vendor/serve-sim/helper/{deviceId}/stream.avcc`],
+    ]);
+    const owner = "13455f6b-3b94-40c8-8913-a6839f2dfd1b";
+    for (const route of routes) {
+      expect({
+        id: route.id,
+        auth: route.auth,
+        scopes: route.scopes,
+        requiresCurrentProtocol: route.requiresCurrentProtocol,
+      }).toEqual({
+        id: route.id,
+        auth: "bearer",
+        scopes: ["session:read"],
+        requiresCurrentProtocol: undefined,
+      });
+    }
+    for (const route of routes.filter((candidate) => candidate.method === "POST")) {
+      const body =
+        route.id === "device-preview-open"
+          ? { version: 1, generation: owner }
+          : route.id === "device-preview-websocket-ticket"
+            ? { version: 1, previewId: owner, channel: "android" }
+            : { version: 1, previewId: owner };
+      expect(route.request.jsonSchema?.safeParse(body).success).toBe(true);
+      for (const version of [0, 2])
+        expect(route.request.jsonSchema?.safeParse({ ...body, version }).success).toBe(false);
+      expect(
+        route.request.jsonSchema?.safeParse({ ...body, command: "not a command proxy" }).success,
+      ).toBe(false);
+    }
+    for (const route of routes.filter((candidate) => candidate.method === "GET")) {
+      expect(route.request.querySchema?.safeParse({ previewId: owner }).success).toBe(true);
+      expect(route.request.querySchema?.safeParse({ device: "emulator-5554" }).success).toBe(false);
+      expect(
+        route.request.querySchema?.safeParse({ previewId: owner, token: "not SDK authority" })
+          .success,
+      ).toBe(false);
+    }
   });
 
   it("emits explicit query codecs and never infers them from z.coerce", () => {

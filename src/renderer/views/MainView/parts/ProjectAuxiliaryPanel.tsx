@@ -1,6 +1,12 @@
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
 import { useLingui } from "@lingui/react/macro";
 import { PanelExitContent } from "@/renderer/components/layout/panelMotion";
+import { DeferredDeviceWorkspace } from "@/renderer/deferredFeatures";
+import {
+  readManagedLoopbackActivation,
+  subscribeManagedLoopbackActivation,
+} from "@/renderer/hostTransport/loopbackHttpWsTransport";
 import { isHomeProjectId } from "@/shared/homeScope";
 import { resolveProjectLocation } from "@/shared/worktree";
 import {
@@ -116,6 +122,36 @@ export function ProjectAuxiliaryPanel(props: {
   const usagePanelOpen = usePanelStore((s) => s.usagePanelOpen);
   const setUsagePanelOpen = usePanelStore((s) => s.setUsagePanelOpen);
   const notesPanelOpen = usePanelStore((s) => s.notesPanelOpen);
+  const deviceWorkspaceThreadId = usePanelStore((s) => s.deviceWorkspaceThreadId);
+  const deviceWorkspaceDetached = usePanelStore((s) => s.deviceWorkspaceDetached);
+  const deviceWorkspaceThreadExists = useAppStore(
+    (s) =>
+      deviceWorkspaceThreadId !== null &&
+      s.threads.some((thread) => thread.id === deviceWorkspaceThreadId),
+  );
+  const deviceHostId = useAppStore(
+    (s) =>
+      s.threads.find((thread) => thread.id === deviceWorkspaceThreadId)?.remoteServerId ?? null,
+  );
+  const deviceHostThreadId = useAppStore(
+    (s) => s.threads.find((thread) => thread.id === deviceWorkspaceThreadId)?.remoteId ?? null,
+  );
+  const deviceHostEndpoint = useRemoteServersStore(
+    (s) =>
+      s.servers.find((server) => (server.connectionId ?? server.desktopId) === deviceHostId)
+        ?.endpoint ?? null,
+  );
+  const deviceHostDesktopId = useRemoteServersStore(
+    (s) =>
+      s.servers.find((server) => (server.connectionId ?? server.desktopId) === deviceHostId)
+        ?.desktopId ?? null,
+  );
+  const managedDeviceHost = useSyncExternalStore(subscribeManagedLoopbackActivation, () =>
+    deviceHostId === null ? (readManagedLoopbackActivation()?.authority ?? null) : null,
+  );
+  const [devicesTitleTarget, setDevicesTitleTarget] = useState<HTMLDivElement | null>(null);
+  const [devicesActionsTarget, setDevicesActionsTarget] = useState<HTMLDivElement | null>(null);
+  const [devicesBodyTarget, setDevicesBodyTarget] = useState<HTMLDivElement | null>(null);
   const setNotesPanelOpen = usePanelStore((s) => s.setNotesPanelOpen);
   const portsPanelOpen = usePanelStore((s) => s.portsPanelOpen);
   const setPortsPanelOpen = usePanelStore((s) => s.setPortsPanelOpen);
@@ -197,6 +233,7 @@ export function ProjectAuxiliaryPanel(props: {
         rightPanelTab === "browser" ||
         rightPanelTab === "usage" ||
         rightPanelTab === "notes" ||
+        rightPanelTab === "devices" ||
         rightPanelTab === "ports" ||
         rightPanelTab === "docks" ||
         rightPanelTab === "subagent" ||
@@ -216,6 +253,7 @@ export function ProjectAuxiliaryPanel(props: {
     // otherwise the panel stays open on an empty browser layer.
     if (requestedTab === "browser") return browserPanelAvailable && browserPanelOpen;
     if (requestedTab === "ports") return portsAvailable && portsPanelOpen;
+    if (requestedTab === "devices") return deviceWorkspaceThreadExists && !deviceWorkspaceDetached;
     if (!docksInCurrentThread) return true;
     if (requestedTab === "terminal") return terminalOpen;
     if (requestedTab === "files") return filesPanelOpen;
@@ -228,6 +266,7 @@ export function ProjectAuxiliaryPanel(props: {
     if (sideChatPanelOpen && sideChatEntry) return "sideChat";
     if (docksInCurrentThread) return "docks";
     if (subAgentInCurrentThread) return "subagent";
+    if (deviceWorkspaceThreadExists && !deviceWorkspaceDetached) return "devices";
     if (filesPanelOpen && !isBottomDocked("files")) return "files";
     if (gitPanelOpen && !isBottomDocked("git")) return "git";
     if (browserPanelAvailable && browserPanelOpen && !isBottomDocked("browser")) return "browser";
@@ -243,6 +282,7 @@ export function ProjectAuxiliaryPanel(props: {
   // context present on mount counts as an explicit target and wins). Read and
   // written only inside the effect — never during render.
   const prevGitReviewContextRef = useRef<GitReviewContext | null>(null);
+  const prevDeviceWorkspaceThreadIdRef = useRef<string | null>(null);
   useEffect(() => {
     if (!props.visible) return;
     // A new git context is an explicit target (for example, clicking thread
@@ -250,9 +290,16 @@ export function ProjectAuxiliaryPanel(props: {
     // lock will take over again on the next thread or tab change.
     const gitReviewContextChanged = prevGitReviewContextRef.current !== gitReviewContext;
     prevGitReviewContextRef.current = gitReviewContext;
+    const deviceWorkspaceThreadChanged =
+      prevDeviceWorkspaceThreadIdRef.current !== deviceWorkspaceThreadId;
+    prevDeviceWorkspaceThreadIdRef.current = deviceWorkspaceThreadId;
     let refreshTimer: number | undefined;
     const frame = requestAnimationFrame(() => {
-      if (rightPanelFollowsThread && (activeTab !== "git" || !gitReviewContextChanged)) {
+      if (
+        rightPanelFollowsThread &&
+        (activeTab !== "git" || !gitReviewContextChanged) &&
+        (activeTab !== "devices" || !deviceWorkspaceThreadChanged)
+      ) {
         syncRightPanelTabToFocusedThread(activeTab);
       }
       if (activeTab !== "git") return;
@@ -272,7 +319,14 @@ export function ProjectAuxiliaryPanel(props: {
       cancelAnimationFrame(frame);
       if (refreshTimer !== undefined) window.clearTimeout(refreshTimer);
     };
-  }, [activeTab, currentThreadId, gitReviewContext, props.visible, rightPanelFollowsThread]);
+  }, [
+    activeTab,
+    currentThreadId,
+    gitReviewContext,
+    deviceWorkspaceThreadId,
+    props.visible,
+    rightPanelFollowsThread,
+  ]);
   useProductViewTracking(productSurfaceView(activeTab, "panel"), "panel", {
     active: props.visible,
     finishWhenInactive: true,
@@ -316,6 +370,8 @@ export function ProjectAuxiliaryPanel(props: {
         return notesProjectId ? projectNameForScope({ projectId: notesProjectId }) : t`Notes`;
       case "ports":
         return t`Ports`;
+      case "devices":
+        return t`Devices`;
       case "terminal": {
         const terminalProjectName = projectNameForScope(terminalScope);
         return terminalProjectName
@@ -454,6 +510,9 @@ export function ProjectAuxiliaryPanel(props: {
           <NotesPanel key={notesProjectId} projectId={notesProjectId} />
         ) : undefined
       }
+      devicesContent={<div ref={setDevicesBodyTarget} className="flex h-full min-h-0 flex-col" />}
+      devicesTitleRef={setDevicesTitleTarget}
+      devicesActionsRef={setDevicesActionsTarget}
       portsContent={renderPortsContent ? <PortsPanel /> : undefined}
       {...(renderDocksContent && currentThreadId
         ? {
@@ -516,6 +575,10 @@ export function ProjectAuxiliaryPanel(props: {
       showFilesTab={!isHomeScope}
       showGitTab={!isHomeScope}
       showNotesTab={notesProjectId !== undefined}
+      showDevicesTab={currentThreadId !== null || deviceWorkspaceThreadExists}
+      {...((deviceWorkspaceThreadId ?? currentThreadId)
+        ? { devicesThreadId: (deviceWorkspaceThreadId ?? currentThreadId)! }
+        : {})}
       showPortsTab={portsAvailable}
       showDocksTab={renderDocksContent}
       showSubagentTab={renderSubAgentContent}
@@ -574,6 +637,12 @@ export function ProjectAuxiliaryPanel(props: {
         setPortsPanelOpen(true);
         setRightPanelTab("ports");
       }}
+      onOpenDevices={() => {
+        const threadId = rightPanelFollowsThread
+          ? currentThreadId
+          : (deviceWorkspaceThreadId ?? currentThreadId);
+        if (threadId !== null) usePanelStore.getState().setDeviceWorkspaceThreadId(threadId);
+      }}
       followsThread={rightPanelFollowsThread}
       onToggleFollowsThread={toggleRightPanelFollowsThread}
       dockedTabs={dockedTabs}
@@ -587,5 +656,30 @@ export function ProjectAuxiliaryPanel(props: {
       onClose={handleClose}
     />
   );
-  return <PanelExitContent visible={props.visible}>{panelContent}</PanelExitContent>;
+  return (
+    <>
+      <PanelExitContent visible={props.visible}>{panelContent}</PanelExitContent>
+      {deviceWorkspaceThreadExists && deviceWorkspaceThreadId && devicesBodyTarget
+        ? createPortal(
+            <Suspense fallback={null}>
+              <DeferredDeviceWorkspace
+                key={JSON.stringify([
+                  deviceWorkspaceThreadId,
+                  deviceHostId,
+                  deviceHostDesktopId,
+                  deviceHostThreadId,
+                  deviceHostEndpoint,
+                  managedDeviceHost,
+                ])}
+                threadId={deviceWorkspaceThreadId}
+                visible={deviceWorkspaceDetached || (props.visible && activeTab === "devices")}
+                titleTarget={devicesTitleTarget}
+                actionsTarget={devicesActionsTarget}
+              />
+            </Suspense>,
+            devicesBodyTarget,
+          )
+        : null}
+    </>
+  );
 }

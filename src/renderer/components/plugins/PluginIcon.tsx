@@ -7,6 +7,7 @@ import {
   Network,
   Puzzle,
   Settings2,
+  Smartphone,
   TerminalSquare,
 } from "lucide-react";
 
@@ -17,6 +18,8 @@ export function PluginIcon(props: { pluginId: string; className?: string }) {
       return <Settings2 className={className} />;
     case "terminal":
       return <TerminalSquare className={className} />;
+    case "devices":
+      return <Smartphone className={className} />;
     case "browser-tools":
       return <Globe className={className} />;
     case "chrome-tools":

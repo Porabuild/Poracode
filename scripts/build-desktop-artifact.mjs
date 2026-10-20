@@ -506,6 +506,10 @@ ${packagedDistFilesYaml}
   - "!node_modules/{better-sqlite3,node-pty}/build/**/*.{iobj,ipdb,lib,pdb,exp}"
 
 extraResources:
+  - from: resources/device-hub
+    to: device-hub
+    filter:
+      - "**/*"
   - from: resources/computer-use-helper
     to: computer-use-helper
     filter:

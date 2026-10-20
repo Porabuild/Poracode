@@ -150,6 +150,7 @@ pnpmfileChecksum: sha256-BIchYFv0KpVI2Fu9YSi3hK+ZN/ZSz3O0ksJFvqhaUHI=
 
 patchedDependencies:
   '@agentclientprotocol/sdk@1.4.0': dc32812b6b1bb267bd22c3db2d5d8a8ba12f3af5596c0f2ae8b7ac12541a2251
+  '@expo/hub-client@1.5.0': 4ce62299dbaf6ee08233da9df25a5bdb7054e9fa798834a9d925cf866c14800a
   '@legendapp/list@3.3.3': 8503fe7c68a60cbf0599d33990c52378553841c2a5ca2078778ca5e531f56fc0
   monaco-editor@0.56.0: 5ac238870e484111454e9bf2b489b0594d60c28aeb6778152e47b7b052456fd4
 
@@ -184,6 +185,9 @@ importers:
       '@dnd-kit/state':
         specifier: ^0.5.0
         version: 0.5.0
+      '@expo/hub-client':
+        specifier: 1.5.0
+        version: 1.5.0(patch_hash=4ce62299dbaf6ee08233da9df25a5bdb7054e9fa798834a9d925cf866c14800a)(react@19.2.8)
       '@git-diff-view/core':
         specifier: ^0.1.7
         version: 0.1.7
@@ -337,6 +341,9 @@ importers:
       react:
         specifier: 19.2.8
         version: 19.2.8
+      react-aria:
+        specifier: 3.51.0
+        version: 3.51.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react-dom:
         specifier: 19.2.8
         version: 19.2.8(react@19.2.8)
@@ -1081,6 +1088,12 @@ packages:
     peerDependenciesMeta:
       '@noble/hashes':
         optional: true
+
+  '@expo/hub-client@1.5.0':
+    resolution: {integrity: sha512-viMiTybFWoxNShOw0C/78Ky479Hhl+cKysNv0ZPUN+F8n8lI8ECTFs+CCKQA3LI8En/ASFIuaaunD+1JUk6ipw==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      react: '>=18.0.0'
 
   '@floating-ui/core@1.8.0':
     resolution: {integrity: sha512-0CIZ5itps/8x7BG8dEIhs53BvCUH2PCoogtakwRTut+Arm58sJooJ0AuZhLw2HJYIR5cMLNPBSS728sPho2khQ==}
@@ -6455,6 +6468,11 @@ packages:
     peerDependencies:
       react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
 
+  use-sync-external-store@1.7.0:
+    resolution: {integrity: sha512-6L+EeigHMQhdaIPNIFUKwfWJSwWFQ8gJbJ2DLOs5sDIegTwR9fRxvnM3uciHKjIZhFz+KAv2emhWMRvDmMcY8A==}
+    peerDependencies:
+      react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+
   utf8-byte-length@1.0.5:
     resolution: {integrity: sha512-Xn0w3MtiQ6zoz2vFyUVruaCL53O/DwUvkEeOvj+uulMm0BkUGYWmBYVyElqZaSLhY6ZD0ulfU3aBra2aVT4xfA==}
 
@@ -7269,6 +7287,11 @@ snapshots:
   '@exodus/bytes@1.15.1(@noble/hashes@2.4.0)':
     optionalDependencies:
       '@noble/hashes': 2.4.0
+
+  '@expo/hub-client@1.5.0(patch_hash=4ce62299dbaf6ee08233da9df25a5bdb7054e9fa798834a9d925cf866c14800a)(react@19.2.8)':
+    dependencies:
+      react: 19.2.8
+      use-sync-external-store: 1.7.0(react@19.2.8)
 
   '@floating-ui/core@1.8.0':
     dependencies:
@@ -12753,6 +12776,10 @@ snapshots:
       xdg-basedir: 3.0.0
 
   use-sync-external-store@1.6.0(react@19.2.8):
+    dependencies:
+      react: 19.2.8
+
+  use-sync-external-store@1.7.0(react@19.2.8):
     dependencies:
       react: 19.2.8
 

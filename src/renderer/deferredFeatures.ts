@@ -2,6 +2,10 @@ import { preloadable } from "@/renderer/utils/preloadable";
 import { isBrowserClientRuntime } from "@/renderer/clientRuntime";
 import { createDeferredPrewarmRunner } from "@/renderer/utils/deferredPrewarm";
 
+export const DeferredDeviceWorkspace = preloadable(() =>
+  import("@/renderer/components/devices/DeviceWorkspace").then((module) => module.DeviceWorkspace),
+);
+
 export const DeferredCommandPalette = preloadable(() =>
   import("@/renderer/commands/CommandPalette").then((module) => module.CommandPalette),
 );
