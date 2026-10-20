@@ -146,7 +146,7 @@ export function NativeVisualChart({
         >{t`No series selected. Choose a series above.`}</p>
       ) : (
         <div
-          className="rounded-[0.875rem] bg-surface-secondary/40"
+          className="relative rounded-[0.875rem] bg-surface-secondary/40"
           onPointerLeave={() => setHovered(undefined)}
         >
           <svg
@@ -184,15 +184,6 @@ export function NativeVisualChart({
                         opacity={0.035}
                       />
                     ) : null}
-                    <text
-                      x={12}
-                      y={index * rowHeight + rowHeight / 2 + 4}
-                      fill="currentColor"
-                      fontSize={12}
-                    >
-                      <title>{label}</title>
-                      {shortLabel(label, 18)}
-                    </text>
                     {evaluatedSeries.map((series, seriesIndex) => {
                       const value = series.evaluated[index]!;
                       const y = index * rowHeight + seriesIndex * 25 + 12;
@@ -318,6 +309,27 @@ export function NativeVisualChart({
               </>
             )}
           </svg>
+          {block.kind === "bar" ? (
+            <div
+              className="absolute top-0 left-[1.5%] grid w-[16%]"
+              style={{
+                height: `${((block.labels.length * rowHeight) / barHeight) * 100}%`,
+                gridTemplateRows: `repeat(${block.labels.length}, minmax(0, 1fr))`,
+              }}
+            >
+              {block.labels.map((label, index) => (
+                <div
+                  key={index}
+                  className="flex min-h-0 min-w-0 items-center"
+                  onPointerEnter={() => setHovered(index)}
+                >
+                  <span title={label} className="w-full truncate text-xs leading-none text-muted">
+                    {label}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : null}
         </div>
       )}
       {!view.showTable && evaluatedSeries.length ? (

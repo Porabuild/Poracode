@@ -937,15 +937,50 @@ describe("native app-owned visuals", () => {
         />
       </AppProvider>,
     );
-    const titles = [...container.querySelectorAll('svg[role="img"] text > title')];
-    expect(titles.map((title) => title.textContent)).toEqual(labels);
-    const shown = titles.map((title) =>
-      [...title.parentNode!.childNodes]
+    const nodes =
+      kind === "bar"
+        ? labels.map((label) => screen.getByText(label, { selector: "span[title]" }))
+        : [...container.querySelectorAll('svg[role="img"] text > title')].map(
+            (title) => title.parentElement!,
+          );
+    expect(
+      nodes.map(
+        (element) => element.getAttribute("title") ?? element.querySelector("title")?.textContent,
+      ),
+    ).toEqual(labels);
+    const shown = nodes.map((element) =>
+      [...element.childNodes]
         .filter((node) => node.nodeType === Node.TEXT_NODE)
         .map((node) => node.textContent)
         .join(""),
     );
-    expect(shown).toEqual([labels[0], `${prefix}👩🏽‍💻…`]);
+    expect(shown).toEqual(kind === "bar" ? labels : [labels[0], `${prefix}👩🏽‍💻…`]);
+  });
+
+  it("retains full wide bar labels in inspection and the data table", () => {
+    const labels = ["W".repeat(18), "👩🏽‍💻".repeat(12)];
+    render(
+      <AppProvider>
+        <NativeVisual
+          {...props}
+          source={JSON.stringify({
+            blocks: [
+              { type: "chart", kind: "bar", labels, series: [{ label: "Values", values: [1, 2] }] },
+            ],
+          })}
+        />
+      </AppProvider>,
+    );
+    for (const label of labels) {
+      const visible = screen.getByText(label, { selector: "span[title]" });
+      expect(visible).toHaveAttribute("title", label);
+      fireEvent.pointerEnter(visible);
+      expect(
+        within(screen.getByRole("group", { name: "Chart inspection" })).getByText(label),
+      ).toBeTruthy();
+    }
+    fireEvent.click(screen.getByRole("button", { name: "Show data table" }));
+    for (const label of labels) expect(screen.getByRole("rowheader", { name: label })).toBeTruthy();
   });
 
   it("keeps gaps in a line chart and never emits invalid SVG coordinates", () => {
