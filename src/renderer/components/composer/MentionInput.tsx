@@ -207,7 +207,7 @@ function isAtEditorStart(textNode: Text): boolean {
 
 /**
  * Scan backward from the current cursor position to find an active trigger.
- * `@` mentions activate at start-of-line or after whitespace anywhere in the
+ * `@` and `$` mentions activate at start-of-line or after whitespace anywhere in the
  * input. `/` slash commands only activate when the slash is the first
  * character of the editor, so typing "foo /bar" never opens the command list.
  */
@@ -355,6 +355,7 @@ export const MentionInput = forwardRef<
     onMcpMentionSelect?: (id: string) => void;
     /** Portal target for the mention popover; see MentionPopover.portalContainer. */
     popoverPortalContainer?: Element | null;
+    /** `$` queries retain their prefix to restrict suggestions to skills. */
     onSlashCommandChange?: (query: string | null) => void;
     commandListId?: string;
     commandActiveDescendant?: string;
@@ -538,7 +539,8 @@ export const MentionInput = forwardRef<
     const editor = editorRef.current;
     if (!editor) return;
 
-    const range = detectTriggerRange("/");
+    const skillRange = detectTriggerRange("$");
+    const range = skillRange ?? detectTriggerRange("/");
     if (!range) return;
 
     const sel = window.getSelection();
@@ -568,7 +570,7 @@ export const MentionInput = forwardRef<
     // Strip any browser-inserted empty siblings before the chip
     // (empty text nodes, lone <br>, empty wrappers) that would render as
     // a blank line above the badge.
-    let prev: Node | null = chip.previousSibling;
+    let prev: Node | null = skillRange ? null : chip.previousSibling;
     while (prev) {
       const next: Node | null = prev.previousSibling;
       if (prev.nodeType === Node.TEXT_NODE && (prev.textContent ?? "") === "") {
@@ -755,7 +757,9 @@ export const MentionInput = forwardRef<
   function checkMentionState() {
     const query = detectTriggerQuery("@");
     setMention(query !== null ? { query } : null);
-    const nextSlash = query === null ? detectTriggerQuery("/") : null;
+    const skillQuery = detectTriggerQuery("$");
+    const nextSlash =
+      query === null ? (skillQuery !== null ? `$${skillQuery}` : detectTriggerQuery("/")) : null;
     if (lastSlashQueryRef.current !== nextSlash) {
       lastSlashQueryRef.current = nextSlash;
       onSlashCommandChange?.(nextSlash);

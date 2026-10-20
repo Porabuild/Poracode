@@ -43,6 +43,8 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.foundation.shape.CircleShape
 import com.poracode.app.R
 import com.poracode.app.chat.RichContextUsage
@@ -111,6 +113,8 @@ fun RichChatComposer(
     modifier: Modifier = Modifier,
 ) {
     var showControls by rememberSaveable(contextKey) { mutableStateOf(false) }
+    var editorValue by remember(contextKey) { mutableStateOf(TextFieldValue(draft, TextRange(draft.length))) }
+    val inputValue = if (editorValue.text == draft) editorValue else TextFieldValue(draft, TextRange(draft.length))
     val controlsEnabled = canConfigure && !sending
     // The open thread's live negotiated controls (null on older hosts and
     // retired inventories) overlay the static capability catalog; deriving it
@@ -145,7 +149,9 @@ fun RichChatComposer(
         "chrome" to stringResource(R.string.rich_chat_chrome_mcp),
         "computer-use" to stringResource(R.string.rich_chat_computer_use),
     )
-    val slashSuggestions = catalog?.slashSuggestions(draft).orEmpty().take(MAX_SUGGESTIONS)
+    val slashSuggestions = catalog?.slashSuggestions(
+        draft, inputValue.selection.start, inputValue.selection.end,
+    ).orEmpty().take(MAX_SUGGESTIONS)
     val mentionSuggestions = remember(
         draft,
         mentionItems,
@@ -205,7 +211,13 @@ fun RichChatComposer(
                     options = slashSuggestions,
                     onSelect = { option ->
                         option.toPromptSegment()?.let(onQueueSegment)
-                        onDraftChange(if (option.skill == null) "/${option.displayId} " else "")
+                        val reference = RichChatSkillReference.atCaret(
+                            draft, inputValue.selection.start, inputValue.selection.end,
+                        )
+                        val next = reference?.removingToken(draft)
+                            ?: if (option.skill == null) "/${option.displayId} " else ""
+                        editorValue = TextFieldValue(next, TextRange(reference?.start ?: next.length))
+                        onDraftChange(next)
                     },
                 )
             } else if (mentionSuggestions.isNotEmpty()) {
@@ -295,8 +307,11 @@ fun RichChatComposer(
                     )
                 }
                 OutlinedTextField(
-                    value = draft,
-                    onValueChange = onDraftChange,
+                    value = inputValue,
+                    onValueChange = {
+                        editorValue = it
+                        if (it.text != draft) onDraftChange(it.text)
+                    },
                     modifier = Modifier
                         .weight(1f)
                         .heightIn(min = 52.dp)

@@ -46,6 +46,7 @@ struct RichChatComposerView: View {
   @State private var attachmentError: String?
   @State private var controlsPresented: RichChatComposerControlsPresentation?
   @State private var showsSkillPicker = false
+  @State private var draftSelection: NSRange?
 
   var body: some View {
     VStack(spacing: 6) {
@@ -102,6 +103,7 @@ struct RichChatComposerView: View {
     let canOpenControls = agentStatus != nil && canConfigure
     return RichChatAdaptiveComposer(
       text: $draft,
+      selection: $draftSelection,
       isExpanded: $composerExpanded,
       hasPrompt: hasPrompt,
       hasTrailingAction: hasPrompt || isTurnActive || controller.state.isSending,
@@ -195,7 +197,7 @@ struct RichChatComposerView: View {
   }
 
   private var slashSuggestions: [RichChatSlashCommandOption] {
-    Array(slashCommandCatalog.slashSuggestions(for: draft).prefix(6))
+    Array(slashCommandCatalog.slashSuggestions(for: draft, selection: draftSelection).prefix(6))
   }
 
   private var slashCommandPanel: some View {
@@ -204,31 +206,19 @@ struct RichChatComposerView: View {
         Button {
           if let skill = command.skill {
             if !skills.contains(where: { $0.id == skill.id }) { skills.append(skill) }
-            draft = ""
+            if let reference = RichChatSkillReference.atCaret(in: draft, selection: draftSelection) {
+              draft = reference.removingToken(from: draft)
+              draftSelection = NSRange(location: reference.range.location, length: 0)
+            } else {
+              draft = ""
+              draftSelection = nil
+            }
           } else {
             draft = "/\(command.displayID) "
           }
           composerExpanded = true
         } label: {
-          HStack(alignment: .firstTextBaseline, spacing: 10) {
-            Text("/\(command.displayID)")
-              .font(.callout.monospaced().weight(.semibold))
-              .foregroundStyle(.primary)
-            VStack(alignment: .leading, spacing: 2) {
-              Text(command.label)
-                .font(.callout)
-                .foregroundStyle(.primary)
-              if let detail = command.description ?? command.argumentHint {
-                Text(detail)
-                  .font(.caption)
-                  .foregroundStyle(.secondary)
-                  .lineLimit(2)
-              }
-            }
-            Spacer(minLength: 0)
-          }
-          .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-          .padding(.horizontal, 10)
+          RichChatSlashCommandRow(command: command)
         }
         .buttonStyle(.plain)
         .accessibilityLabel("/\(command.displayID), \(command.label)")
@@ -251,7 +241,10 @@ struct RichChatComposerView: View {
     let attachmentSegments = attachments.map {
       RichPromptSegment.attachment(path: $0.remotePath, mimeType: $0.mimeType)
     }
-    let segments = queuedSegments + skills.map(\.segment) + mcps.map(\.segment) + attachmentSegments
+    let textSegments: [RichPromptSegment] = typedText.isEmpty ? [] : [.text(content: draft)]
+    let contextSegments = (queuedSegments + skills.map(\.segment) + mcps.map(\.segment))
+      .flatMap { [$0, RichPromptSegment.text(content: " ")] }
+    let segments = contextSegments + textSegments + attachmentSegments
     let turnActive = isTurnActive && !controller.state.isSending
     let queuesSteer = turnActive && !queueInsteadOfSteer
     let queuesFollowUp = turnActive && queueInsteadOfSteer

@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// Compact PWA-aligned configuration summary shown inside an empty native
 /// composer. It keeps the current provider/model/effort visible while the
@@ -157,6 +158,7 @@ struct RichChatComposerTrailingAction: View {
 /// like the mobile PWA instead of sharing one permanently crowded pill.
 struct RichChatAdaptiveComposer<Summary: View, Toolbar: View, Trailing: View>: View {
   @Binding var text: String
+  @Binding var selection: NSRange?
   @Binding var isExpanded: Bool
   let hasPrompt: Bool
   let hasTrailingAction: Bool
@@ -167,6 +169,7 @@ struct RichChatAdaptiveComposer<Summary: View, Toolbar: View, Trailing: View>: V
 
   @FocusState private var focused: Bool
   @State private var expandedHasFocused = false
+  @AppStorage(PoracodeChatTextSize.storageKey) private var storedTextSize = PoracodeChatTextSize.defaultValue
 
   var body: some View {
     Group {
@@ -227,19 +230,127 @@ struct RichChatAdaptiveComposer<Summary: View, Toolbar: View, Trailing: View>: V
   }
 
   private func editor(lineLimit: ClosedRange<Int>) -> some View {
-    TextField(
-      "",
+    RichChatComposerTextInput(
       text: $text,
-      prompt: Text(RichChatStrings.message).foregroundStyle(.secondary),
-      axis: .vertical
+      selection: $selection,
+      focused: Binding(get: { focused }, set: { focused = $0 }),
+      lineLimit: lineLimit,
+      placeholder: RichChatStrings.message,
+      pointSize: PoracodeChatTextRole.body.pointSize(for: storedTextSize),
+      submit: submit
     )
-    .poracodeChatText(.body)
-    .lineLimit(lineLimit)
     .padding(.horizontal, 4)
     .padding(.vertical, 7)
-    .focused($focused)
     .accessibilityLabel(RichChatStrings.message)
     .accessibilityIdentifier("native-e2e.composer")
-    .onSubmit(submit)
   }
+}
+
+struct RichChatComposerTextInput: UIViewRepresentable {
+  @Binding var text: String
+  @Binding var selection: NSRange?
+  @Binding var focused: Bool
+  let lineLimit: ClosedRange<Int>
+  let placeholder: String
+  var pointSize: CGFloat = 17
+  var submit: (() -> Void)?
+
+  func makeUIView(context: Context) -> RichChatComposerTextView {
+    let view = RichChatComposerTextView()
+    view.delegate = context.coordinator
+    view.backgroundColor = .clear
+    view.font = UIFontMetrics(forTextStyle: .body).scaledFont(for: .systemFont(ofSize: pointSize))
+    view.adjustsFontForContentSizeCategory = true
+    view.textContainerInset = .zero
+    view.textContainer.lineFragmentPadding = 0
+    view.isScrollEnabled = false
+    view.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+    view.accessibilityLabel = placeholder
+    let label = UILabel()
+    label.text = placeholder
+    label.font = view.font
+    label.textColor = .placeholderText
+    label.isAccessibilityElement = false
+    label.translatesAutoresizingMaskIntoConstraints = false
+    view.addSubview(label)
+    NSLayoutConstraint.activate([
+      label.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+      label.topAnchor.constraint(equalTo: view.topAnchor),
+      label.trailingAnchor.constraint(lessThanOrEqualTo: view.trailingAnchor),
+    ])
+    context.coordinator.placeholder = label
+    return view
+  }
+
+  func updateUIView(_ view: RichChatComposerTextView, context: Context) {
+    context.coordinator.owner = self
+    context.coordinator.updating = true
+    defer { context.coordinator.updating = false }
+    view.submit = submit
+    let font = UIFontMetrics(forTextStyle: .body).scaledFont(for: .systemFont(ofSize: pointSize))
+    if view.font != font { view.font = font }
+    context.coordinator.placeholder?.font = font
+    context.coordinator.placeholder?.text = placeholder
+    if view.text != text { view.text = text }
+    context.coordinator.placeholder?.isHidden = !text.isEmpty
+    if let selection, NSMaxRange(selection) <= view.text.utf16.count,
+      view.selectedRange != selection
+    {
+      view.selectedRange = selection
+    }
+    if focused && !view.isFirstResponder {
+      DispatchQueue.main.async { view.becomeFirstResponder() }
+    } else if !focused && view.isFirstResponder {
+      view.resignFirstResponder()
+    }
+  }
+
+  func sizeThatFits(_ proposal: ProposedViewSize, uiView: RichChatComposerTextView, context: Context) -> CGSize? {
+    guard let width = proposal.width else { return nil }
+    let lineHeight = uiView.font?.lineHeight ?? 22
+    let height = uiView.sizeThatFits(CGSize(width: width, height: .greatestFiniteMagnitude)).height
+    let maxHeight = lineHeight * CGFloat(lineLimit.upperBound)
+    uiView.isScrollEnabled = height > maxHeight
+    return CGSize(width: width, height: min(max(height, lineHeight * CGFloat(lineLimit.lowerBound)), maxHeight))
+  }
+
+  func makeCoordinator() -> Coordinator { Coordinator(owner: self) }
+
+  final class Coordinator: NSObject, UITextViewDelegate {
+    var owner: RichChatComposerTextInput
+    weak var placeholder: UILabel?
+    var updating = false
+    init(owner: RichChatComposerTextInput) { self.owner = owner }
+
+    func textViewDidChange(_ textView: UITextView) {
+      owner.text = textView.text
+      owner.selection = textView.selectedRange
+      placeholder?.isHidden = !textView.text.isEmpty
+    }
+
+    func textViewDidChangeSelection(_ textView: UITextView) {
+      guard !updating else { return }
+      owner.selection = textView.selectedRange
+    }
+
+    func textViewDidBeginEditing(_ textView: UITextView) {
+      if !owner.focused { owner.focused = true }
+    }
+    func textViewDidEndEditing(_ textView: UITextView) {
+      if owner.focused { owner.focused = false }
+    }
+  }
+}
+
+final class RichChatComposerTextView: UITextView {
+  var submit: (() -> Void)?
+
+  override var keyCommands: [UIKeyCommand]? {
+    guard submit != nil, markedTextRange == nil else { return super.keyCommands }
+    let command = UIKeyCommand(input: "\r", modifierFlags: [], action: #selector(submitPrompt))
+    command.wantsPriorityOverSystemBehavior = true
+    return [command] + (super.keyCommands ?? [])
+  }
+
+  @objc private func submitPrompt() { submit?() }
 }

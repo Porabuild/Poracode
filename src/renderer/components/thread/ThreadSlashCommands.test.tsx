@@ -310,6 +310,87 @@ describe("ThreadSlashCommands", () => {
     expect(editor.textContent).toBe("/review ");
   });
 
+  it.each([
+    { surface: "thread", mode: "gui", accept: "Enter", invocation: "$review-code" },
+    { surface: "thread", mode: "terminal", accept: "Tab", invocation: "/review-code" },
+    { surface: "draft", mode: "gui", accept: " ", invocation: "/skill review-code" },
+    {
+      surface: "draft",
+      mode: "terminal",
+      accept: "mouse",
+      invocation: "Use the review-code skill.",
+    },
+  ] as const)(
+    "selects an inline dollar skill in the $surface $mode composer with $accept",
+    async ({ surface, mode, accept, invocation }) => {
+      const commands = [
+        { id: "review-command", label: "review-command" },
+        {
+          id: "skill:review-code",
+          label: "review-code",
+          section: "skills" as const,
+          skillName: "review-code",
+          skillPath: "/skills/review-code/SKILL.md",
+          skillInvocation: invocation,
+          skillProvider: "Shared",
+          skillScope: "global" as const,
+        },
+      ];
+      const agent = makeAgentStatus();
+      agent.capabilities.slashCommands = commands;
+      if (surface === "draft") await renderDraftComposer(agent, undefined, mode);
+      else
+        await renderThread(makeThread({ presentationMode: mode, slashCommands: commands }), agent);
+
+      const editor = screen.getByRole("textbox");
+      typeSlashQuery(editor, "Please $rev after checking this");
+      const text = editor.firstChild!;
+      mockSelection(text, "Please $rev".length);
+      fireEvent.click(editor);
+
+      const option = screen.getByRole("option", { name: "Skill: review-code" });
+      expect(screen.queryByText("Commands")).not.toBeInTheDocument();
+      expect(option.querySelector("mark")).toHaveTextContent("rev");
+      if (accept === " ") {
+        mockSelection(text, "Please $review-code".length);
+        text.textContent = "Please $review-code after checking this";
+        fireEvent.input(editor);
+      }
+      if (accept === "mouse") {
+        fireEvent.mouseDown(option);
+        fireEvent.click(option);
+      } else fireEvent.keyDown(editor, { key: accept });
+
+      expect(editor.querySelector("[data-skill-name]")).toHaveAttribute(
+        "data-skill-name",
+        "review-code",
+      );
+      expect(editor.querySelector("[data-skill-name]")).toHaveAttribute(
+        "data-skill-invocation",
+        invocation,
+      );
+      expect(editor.textContent).toBe("Please review-code  after checking this");
+      expect(screen.queryByRole("option", { name: "Skill: review-code" })).not.toBeInTheDocument();
+    },
+  );
+
+  it.each(["Please /rev", "price$rev", "Please $rev "])(
+    "does not open suggestions for %s",
+    async (input) => {
+      await renderThread(
+        makeThread({
+          slashCommands: [
+            { id: "review", label: "review" },
+            { id: "review-code", label: "review-code", section: "skills" },
+          ],
+        }),
+        makeAgentStatus(),
+      );
+      typeSlashQuery(screen.getByRole("textbox"), input);
+      expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    },
+  );
+
   it("renders thread-scoped slash commands in the terminal composer", async () => {
     const baseCapabilities = makeAgentStatus().capabilities;
     await renderThread(

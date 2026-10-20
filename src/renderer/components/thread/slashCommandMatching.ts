@@ -77,7 +77,9 @@ export function slashCommandMatch(
   command: AgentSlashCommand,
   query: string,
 ): SlashCommandMatch | null {
-  const normalizedQuery = query.toLowerCase();
+  const skillOnly = query.startsWith("$");
+  if (skillOnly && !isSkillCommand(command)) return null;
+  const normalizedQuery = (skillOnly ? query.slice(1) : query).toLowerCase();
   const displayName = lowercaseWithSourceSpans(slashCommandDisplayId(command));
   const display = matchName(displayName.lowered, normalizedQuery);
   if (display) {
