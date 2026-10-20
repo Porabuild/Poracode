@@ -68,7 +68,13 @@ export const skillTools: ToolDomain = {
     list_skills: async (args, ctx) => {
       const { projectId, query } = listArgsSchema.parse(args);
       const scope = projectId ? projectScope(ctx, projectId) : {};
-      const result = await ctx.supervisor.scanSkills(scope);
+      const pluginOverrides = ctx.identity.threadId
+        ? ctx.getThread(ctx.identity.threadId)?.config.pluginOverrides
+        : undefined;
+      const result = await ctx.supervisor.scanSkills({
+        ...scope,
+        ...(pluginOverrides ? { pluginOverrides } : {}),
+      });
       const normalizedQuery = query?.toLowerCase();
       const skills = result.skills
         .filter((skill) => !normalizedQuery || skillMatchesQuery(skill, normalizedQuery))
@@ -86,7 +92,13 @@ export const skillTools: ToolDomain = {
     read_skill: async (args, ctx) => {
       const { skillId, projectId } = readArgsSchema.parse(args);
       const scope = projectId ? projectScope(ctx, projectId) : {};
-      const result = await ctx.supervisor.scanSkills(scope);
+      const pluginOverrides = ctx.identity.threadId
+        ? ctx.getThread(ctx.identity.threadId)?.config.pluginOverrides
+        : undefined;
+      const result = await ctx.supervisor.scanSkills({
+        ...scope,
+        ...(pluginOverrides ? { pluginOverrides } : {}),
+      });
       const skill = result.skills.find((entry) => entry.id === skillId);
       if (!skill) throw new Error(`Unknown skill id: ${skillId}`);
       if (!skill.enabled) throw new Error(`Skill is disabled: ${skillId}`);

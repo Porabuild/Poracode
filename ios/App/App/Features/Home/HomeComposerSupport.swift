@@ -345,6 +345,8 @@ extension ThreadConfig {
       crossagentMcp: configuration.crossagentMcp,
       computerUse: configuration.computerUse,
       chromeMcp: configuration.chromeMcp,
+      mcpServerOverrides: configuration.mcpServerOverrides,
+      pluginOverrides: configuration.pluginOverrides,
       executionEnvironment: configuration.executionEnvironment
     )
   }
@@ -366,7 +368,9 @@ extension ThreadLaunchConfiguration {
       crossagentMcp: configuration.crossagentMcp,
       computerUse: configuration.computerUse,
       chromeMcp: configuration.chromeMcp,
-      executionEnvironment: configuration.executionEnvironment
+      executionEnvironment: configuration.executionEnvironment,
+      mcpServerOverrides: configuration.mcpServerOverrides,
+      pluginOverrides: configuration.pluginOverrides
     )
   }
 }

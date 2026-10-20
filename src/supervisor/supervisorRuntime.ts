@@ -594,6 +594,7 @@ export class SupervisorRuntime {
             hostPlatform: process.platform,
             projectLocation,
             includeExternalServers: selection?.includeExternalServers ?? true,
+            ...(selection?.pluginOverrides ? { pluginOverrides: selection.pluginOverrides } : {}),
           },
         );
         return {

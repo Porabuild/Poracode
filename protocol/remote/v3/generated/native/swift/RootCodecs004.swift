@@ -37,7 +37,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2EExperimentU2DCommandU2ERequest: RemoteRootCodec<RouteexperimentU2DCommandRequest_1cd4b83478> = .init(id: "route.experiment-command.request", schema: RemoteSchemas.schema_1cd4b8347823edb1)
+  static let routeU2EExperimentU2DCommandU2ERequest: RemoteRootCodec<RouteexperimentU2DCommandRequest_8e79bc80a7> = .init(id: "route.experiment-command.request", schema: RemoteSchemas.schema_8e79bc80a7c7760e)
 }
 
 public extension RemoteRootCodecs {
@@ -249,11 +249,11 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2EProjectU2DCommandU2ERequest: RemoteRootCodec<RouteprojectU2DCommandRequest_f806b38202> = .init(id: "route.project-command.request", schema: RemoteSchemas.schema_f806b382027c278d)
+  static let routeU2EProjectU2DCommandU2ERequest: RemoteRootCodec<RouteprojectU2DCommandRequest_2c19dd5367> = .init(id: "route.project-command.request", schema: RemoteSchemas.schema_2c19dd5367fc67fa)
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2EProjectU2DCommandU2EResponse: RemoteRootCodec<RouteprojectU2DCommandResponse_4b9241d0f3> = .init(id: "route.project-command.response", schema: RemoteSchemas.schema_4b9241d0f311f397)
+  static let routeU2EProjectU2DCommandU2EResponse: RemoteRootCodec<RouteprojectU2DCommandResponse_9567576693> = .init(id: "route.project-command.response", schema: RemoteSchemas.schema_9567576693bf6845)
 }
 
 public extension RemoteRootCodecs {
@@ -261,7 +261,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2EProjectU2DListU2EResponse: RemoteRootCodec<RouteprojectU2DListResponse_8c0ef7d6db> = .init(id: "route.project-list.response", schema: RemoteSchemas.schema_8c0ef7d6db14930e)
+  static let routeU2EProjectU2DListU2EResponse: RemoteRootCodec<RouteprojectU2DListResponse_cbb540e860> = .init(id: "route.project-list.response", schema: RemoteSchemas.schema_cbb540e86008ae40)
 }
 
 public extension RemoteRootCodecs {
@@ -389,7 +389,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2EShellU2DSnapshotU2EResponse: RemoteRootCodec<RouteshellU2DSnapshotResponse_7bb50c8c8f> = .init(id: "route.shell-snapshot.response", schema: RemoteSchemas.schema_7bb50c8c8f5393d0)
+  static let routeU2EShellU2DSnapshotU2EResponse: RemoteRootCodec<RouteshellU2DSnapshotResponse_017e2f4dcb> = .init(id: "route.shell-snapshot.response", schema: RemoteSchemas.schema_017e2f4dcb9c0a58)
 }
 
 public extension RemoteRootCodecs {

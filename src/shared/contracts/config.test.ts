@@ -6,6 +6,7 @@ import {
   providerDraftConfigSchema,
   projectDraftConfigSchema,
   threadConfigSchema,
+  retainThreadToolOverrides,
 } from "./config";
 import type { SelectionBinding } from "../selectionBinding.schemas";
 
@@ -16,6 +17,43 @@ const stamp: SelectionBinding = {
   model: "member-a",
   inertValues: { effort: "", fast: false },
 };
+
+describe("thread tool choices", () => {
+  it("retains overrides omitted by an older client and permits explicit clearing", () => {
+    const previous = {
+      model: "old",
+      mcpServerOverrides: { custom: true },
+      pluginOverrides: { github: false },
+    };
+    expect(retainThreadToolOverrides({ model: "new" }, previous)).toEqual({
+      ...previous,
+      model: "new",
+    });
+    const cleared = { model: "new", mcpServerOverrides: {}, pluginOverrides: {} };
+    expect(retainThreadToolOverrides(cleared, previous)).toEqual(cleared);
+  });
+  it("keeps pre-upgrade config unchanged and round-trips new overrides", () => {
+    const previous = { model: "fixture", browserMcp: false };
+    expect(threadConfigSchema.parse(previous)).toEqual(previous);
+    const next = {
+      ...previous,
+      mcpServerOverrides: { custom: true },
+      pluginOverrides: { github: false },
+    };
+    expect(threadConfigSchema.parse(next)).toEqual(next);
+    expect(isThreadConfigEqual(previous, next)).toBe(false);
+    expect(isThreadConfigEqual(next, { ...next, pluginOverrides: { github: true } })).toBe(false);
+    expect(isThreadConfigEqual(next, { ...next, mcpServerOverrides: { custom: false } })).toBe(
+      false,
+    );
+    expect(
+      isThreadConfigEqual(
+        { ...previous, pluginOverrides: { a: true, b: false } },
+        { ...previous, pluginOverrides: { b: false, a: true } },
+      ),
+    ).toBe(true);
+  });
+});
 
 describe("thread execution environment", () => {
   it("persists a selected WSL distro", () => {

@@ -5,6 +5,7 @@ import {
   controlThreadGoalPayloadSchema,
   interruptThreadPayloadSchema,
   emptyMcpLaunchSnapshot,
+  retainThreadToolOverrides,
   remoteThreadCommandSchema,
   resizeTerminalPayloadSchema,
   resolveThreadServerRequestPayloadSchema,
@@ -170,8 +171,10 @@ export const THREAD_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, ThreadRouteId> =
       writeJson(res, 200, result);
       return;
     }
+    const config = retainThreadToolOverrides(payload.config, thread.config);
     const mcpSnapshot =
-      ctx.options.resolveMcpLaunchSnapshot?.(thread.projectId) ?? emptyMcpLaunchSnapshot();
+      ctx.options.resolveMcpLaunchSnapshot?.(thread.projectId, config.mcpServerOverrides) ??
+      emptyMcpLaunchSnapshot();
     const result = await runRemoteCommand({
       commandId: remoteCommandId(req),
       route: url.pathname,
@@ -191,12 +194,12 @@ export const THREAD_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, ThreadRouteId> =
         if (payload.providerSwitch) {
           return applyRemoteThreadSwitch(
             ctx,
-            { ...payload, threadId, ...mcpSnapshot },
+            { ...payload, config, threadId, ...mcpSnapshot },
             markDispatched,
           );
         }
         markDispatched();
-        return ctx.options.callSupervisor("startThread", { ...payload, ...mcpSnapshot });
+        return ctx.options.callSupervisor("startThread", { ...payload, config, ...mcpSnapshot });
       },
     });
     writeJson(res, 200, result);

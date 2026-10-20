@@ -525,7 +525,10 @@ export interface RemoteAccessServerOptions {
    */
   readonly experimentAuthority?: RemoteExperimentAuthority;
   /** Resolve authoritative MCP settings for a remotely launched persisted thread. */
-  resolveMcpLaunchSnapshot?(projectId: string): McpLaunchSnapshot;
+  resolveMcpLaunchSnapshot?(
+    projectId: string,
+    overrides?: Record<string, boolean>,
+  ): McpLaunchSnapshot;
   /** Built-in browser bridge: tab commands plus screencast mirroring. */
   readonly browser?: RemoteBrowserGatewayLike;
   readonly deviceWorkspace?: import("../devices/DeviceWorkspaceService").DeviceWorkspaceService;

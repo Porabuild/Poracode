@@ -211,7 +211,9 @@ extension ThreadConfig {
       crossagentMcp: crossagentMcp,
       computerUse: computerUse,
       chromeMcp: chromeMcp,
-      executionEnvironment: executionEnvironment
+      executionEnvironment: executionEnvironment,
+      mcpServerOverrides: mcpServerOverrides,
+      pluginOverrides: pluginOverrides
     )
   }
 }
