@@ -157,7 +157,7 @@ export function NativeVisualBlocks({
             <Tabs.ListContainer>
               <Tabs.List aria-label={block.title || t`Visual sections`}>
                 {block.tabs.map((tab) => (
-                  <Tabs.Tab key={tab.id} id={tab.id}>
+                  <Tabs.Tab key={tab.id} id={tab.id} className="whitespace-nowrap">
                     {tab.label}
                     <Tabs.Indicator />
                   </Tabs.Tab>
