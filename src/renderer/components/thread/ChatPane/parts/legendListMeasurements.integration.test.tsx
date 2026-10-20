@@ -26,6 +26,25 @@ import {
 } from "./legendListMeasurementFixtures";
 
 describe("actual LegendList measurement retirement", () => {
+  it.each([false, true])(
+    "honors explicit parent width over a measured bootstrap width, explicit=%s",
+    (explicit) => {
+      const view = mount(rows(), explicit ? { style: { width: "100%" } } : {});
+      setViewportWidth(0);
+      queuedDelivery([snapshotEntry(view.scrollElement)])();
+      settle();
+      act(() => fixture.listRef.current!.setItemSize("row-1", { height: 40, width: 46 }));
+      settle();
+
+      expect(view.scrollElement.style.width).toBe(explicit ? "100%" : "46px");
+
+      setViewportWidth(920);
+      queuedDelivery([snapshotEntry(view.scrollElement)])();
+      settle();
+      expect(view.scrollElement.style.width).toBe(explicit ? "100%" : "46px");
+    },
+  );
+
   it("prunes both maps after a prefix revision and preserves an old reader's anchor, offscreen measurements, averages and list identity", () => {
     const data = rows();
     const view = mount(data);
