@@ -14,6 +14,7 @@ struct HomeQuickComposeView: View {
   @State var projectID: String
   @State var threadID = UUID().uuidString.lowercased()
   @State var prompt = ""
+  @State var promptSelection: NSRange?
   @State var selectedAgentKind: String?
   @State var selectedModel: String?
   @State var selectedEffort: String?
@@ -266,11 +267,12 @@ struct HomeQuickComposeView: View {
       || launchSeed?.defaultPrompt != nil
       || !fileMentions.isEmpty
       || !mentionedMCPs.isEmpty
+      || !skills.isEmpty
   }
 
   var compactPrompt: String {
     let text = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
-    let mentions = fileMentions.map { "@\($0)" } + mentionedMCPs.map { "@\($0.name)" }
+    let mentions = fileMentions.map { "@\($0)" } + mentionedMCPs.map { "@\($0.name)" } + skills.map(\.invocation)
     return text.isEmpty ? mentions.joined(separator: " ") : text
   }
 

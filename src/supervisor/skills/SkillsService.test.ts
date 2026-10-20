@@ -23,6 +23,9 @@ import {
 import { AGENT_PLUGINS_MANIFEST_SCHEMA_URL } from "@/shared/plugins/spec";
 import { loadPluginFromDirectory } from "@/supervisor/plugins";
 import type { AgentAdapter } from "../agents/base";
+import { defaultFormatPromptSegments } from "../agents/base/promptSession";
+import { createAgentRegistry } from "../agents/registry";
+import { formatSkillInvocation } from "@/shared/promptContent";
 import { SkillsService } from "./SkillsService";
 import { dropSkillSegmentsOnPolicyFailure } from "./pluginSkillPolicy";
 
@@ -1088,6 +1091,57 @@ describe("SkillsService", () => {
     );
     expect(winner?.providerId).toBe("agents");
   });
+
+  it.each(createAgentRegistry().map((adapter) => [adapter.kind, adapter] as const))(
+    "delivers an inline portable skill through %s in both presentations",
+    async (kind, adapter) => {
+      await writeSkill(join(home, ".poracode", "skills", "inline-review"), "inline-review");
+      const providerService = new SkillsService({
+        adapters: new Map([[kind, adapter]]),
+        homeDirectory: () => home,
+        env: {},
+      });
+      const segments: PromptSegment[] = [
+        { kind: "text", content: "Please " },
+        {
+          kind: "skill",
+          name: "inline-review",
+          path: join(home, ".poracode", "skills", "inline-review", "SKILL.md"),
+          invocation: formatSkillInvocation(
+            adapter.skillSupport?.invocation ?? "prompt",
+            "inline-review",
+          ),
+          provider: adapter.label,
+          scope: "global",
+        },
+        { kind: "text", content: " before answering." },
+      ];
+      expect(
+        await providerService.buildTurnSkillInjection({
+          agentKind: kind,
+          projectLocation,
+          segments,
+        }),
+      ).toContain('<skill name="inline-review"');
+      const terminalSegments = await providerService.rewriteTerminalSkillSegments({
+        agentKind: kind,
+        projectLocation,
+        segments,
+      });
+      expect(terminalSegments[0]).toEqual(segments[0]);
+      expect(terminalSegments[2]).toEqual(segments[2]);
+      expect(terminalSegments[1]).toMatchObject({
+        kind: "text",
+        content: expect.stringContaining('Use the "inline-review" agent skill: read '),
+      });
+      const prompt = (adapter.formatPromptSegments ?? defaultFormatPromptSegments)(
+        terminalSegments,
+      );
+      expect(prompt).toContain("Please ");
+      expect(prompt).toContain("inline-review/SKILL.md");
+      expect(prompt).toContain(" before answering.");
+    },
+  );
 
   it("inlines SKILL.md instructions only for skills outside the provider's native roots", async () => {
     await writeSkill(

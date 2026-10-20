@@ -1,5 +1,6 @@
 import Foundation
 import XCTest
+import UIKit
 
 @testable import App
 
@@ -90,6 +91,15 @@ final class RichChatComposerParityTests: XCTestCase {
     XCTAssertEqual(catalog.slashSuggestions(for: "/re").map(\.displayID), ["review"])
     XCTAssertTrue(catalog.slashSuggestions(for: "/review later").isEmpty)
     XCTAssertEqual(catalog.slashSuggestions(for: "/audit").first?.skill?.name, "audit")
+    XCTAssertEqual(catalog.slashSuggestions(for: "Please $au").map(\.displayID), ["audit"])
+    XCTAssertEqual(catalog.slashSuggestions(for: "Please $").map(\.displayID), ["audit"])
+    XCTAssertEqual(
+      catalog.slashSuggestions(for: "Please $au after", selection: NSRange(location: 10, length: 0)).map(\.displayID),
+      ["audit"]
+    )
+    XCTAssertTrue(catalog.slashSuggestions(for: "Please $au after").isEmpty)
+    XCTAssertTrue(catalog.slashSuggestions(for: "price$au").isEmpty)
+    XCTAssertTrue(catalog.slashSuggestions(for: "Please $au", selection: NSRange(location: 7, length: 3)).isEmpty)
 
     let liveCatalog = RichChatComposerControlCatalog(
       agentStatus: try agentStatus(),
@@ -98,6 +108,35 @@ final class RichChatComposerParityTests: XCTestCase {
       threadSlashCommands: [RemoteSlashCommand(id: "live", label: "Live command")]
     )
     XCTAssertEqual(liveCatalog.slashSuggestions(for: "/").map(\.displayID), ["live"])
+  }
+
+  func testDollarSkillsReplaceOnlyTheTokenAtTheCaret() throws {
+    for prefix in ["", "Please ", "Please\n", "😀 "] {
+      let draft = "\(prefix)$rev suffix"
+      let reference = try XCTUnwrap(RichChatSkillReference.atCaret(
+        in: draft, selection: NSRange(location: prefix.utf16.count + 4, length: 0)
+      ))
+      XCTAssertEqual(reference.query, "rev")
+      XCTAssertEqual(reference.removingToken(from: draft), "\(prefix) suffix")
+      XCTAssertEqual(reference.range.location, prefix.utf16.count)
+    }
+    XCTAssertNil(RichChatSkillReference.atCaret(in: "cost$rev"))
+    XCTAssertNil(RichChatSkillReference.atCaret(in: "$rev "))
+    XCTAssertNil(RichChatSkillReference.atCaret(in: "$rev", selection: NSRange(location: 0, length: 4)))
+    XCTAssertEqual(RichChatSkillReference.atCaret(in: "$")?.removingToken(from: "$"), "")
+  }
+
+  @MainActor
+  func testComposerHardwareSubmitKeepsMultilineInputAvailable() throws {
+    let editor = RichChatComposerTextView()
+    var submitted = false
+    editor.submit = { submitted = true }
+    let command = try XCTUnwrap(editor.keyCommands?.first { $0.input == "\r" && $0.modifierFlags.isEmpty })
+    XCTAssertTrue(command.wantsPriorityOverSystemBehavior)
+    editor.perform(command.action)
+    XCTAssertTrue(submitted)
+    editor.insertText("first\nsecond")
+    XCTAssertEqual(editor.text, "first\nsecond")
   }
 
   func testRemoteThreadRetainsOptionalSessionScopedSlashCommands() throws {
