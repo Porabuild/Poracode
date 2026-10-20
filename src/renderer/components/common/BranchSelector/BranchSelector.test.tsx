@@ -1,10 +1,11 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
+import { keyDownAt } from "@/renderer/testUtils/keyboard";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { PrData } from "@/shared/contracts";
 import { buildBranchNamePrKey } from "@/renderer/state/gitSelectors";
 import { useGitStore } from "@/renderer/state/gitStore";
-import { BranchSelector } from "./BranchSelector";
+import { BranchSelector, type BranchSelection } from "./BranchSelector";
 
 const bridge = vi.hoisted(() => ({
   isRemoteSession: vi.fn<() => boolean>(() => false),
@@ -51,6 +52,17 @@ const emptyBranchList = {
   threadsByBranch: new Map<string, unknown>(),
   projectLocation: { kind: "windows", path: "C:\\repo" },
 };
+
+function localBranchItems(names: string[]) {
+  return [
+    { type: "header" as const, id: "header-local", name: "Local" },
+    ...names.map((name, index) => ({
+      type: "branch" as const,
+      id: name,
+      branch: { name, current: index === 0, commit: `commit-${index}`, isRemote: false },
+    })),
+  ];
+}
 
 function makePr(overrides: Partial<PrData> & Pick<PrData, "number" | "state">): PrData {
   return {
@@ -239,6 +251,246 @@ describe("BranchSelector", () => {
     expect(await screen.findByText("feature/x")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Delete feature/x" })).not.toBeInTheDocument();
     expect(screen.queryByText("Move changes to a new worktree")).not.toBeInTheDocument();
+  });
+
+  it("keeps focus in search while arrowing through branches and selects with Enter", async () => {
+    useBranchListMock.mockReturnValue({
+      ...emptyBranchList,
+      hasLocal: true,
+      items: [
+        { type: "header", id: "header-local", name: "Local" },
+        {
+          type: "branch",
+          id: "main",
+          branch: { name: "main", current: true, commit: "abc123", isRemote: false },
+        },
+        {
+          type: "branch",
+          id: "feature/x",
+          branch: { name: "feature/x", current: false, commit: "def456", isRemote: false },
+        },
+      ],
+    });
+    const onSelect = vi.fn<(selection: BranchSelection) => void>();
+
+    render(
+      <BranchSelector
+        projectId="project-1"
+        currentBranch="main"
+        value="main"
+        onSelect={onSelect}
+      />,
+    );
+
+    fireEvent.click(screen.getByLabelText("Select branch"));
+    const search = await screen.findByRole("combobox");
+    const listbox = screen.getByRole("listbox", { name: "Branches" });
+    await waitFor(() => expect(search).toHaveFocus());
+
+    expect(search).toHaveAttribute("aria-controls", listbox.id);
+    await waitFor(() =>
+      expect(
+        document.getElementById(search.getAttribute("aria-activedescendant") ?? ""),
+      ).toHaveTextContent("main"),
+    );
+
+    fireEvent.keyDown(search, { key: "ArrowDown" });
+
+    expect(search).toHaveFocus();
+    const activeBranch = document.getElementById(
+      search.getAttribute("aria-activedescendant") ?? "",
+    );
+    expect(activeBranch).toHaveTextContent("feature/x");
+    expect(activeBranch).toHaveAttribute("data-active", "true");
+
+    fireEvent.keyDown(search, { key: "ArrowDown", shiftKey: true });
+    expect(
+      document.getElementById(search.getAttribute("aria-activedescendant") ?? ""),
+    ).toHaveTextContent("feature/x");
+
+    fireEvent.keyDown(search, { key: "ArrowUp" });
+    expect(
+      document.getElementById(search.getAttribute("aria-activedescendant") ?? ""),
+    ).toHaveTextContent("main");
+
+    fireEvent.keyDown(search, { key: "ArrowDown" });
+    fireEvent.keyDown(search, { key: "Enter" });
+
+    expect(onSelect).toHaveBeenCalledWith({ branch: "feature/x", isWorktree: false });
+  });
+
+  it("selects the first matching branch when Enter follows typing immediately", async () => {
+    useBranchListMock.mockImplementation(({ search }) => {
+      const branches = [
+        {
+          type: "branch" as const,
+          id: "main",
+          branch: { name: "main", current: true, commit: "abc123", isRemote: false },
+        },
+        {
+          type: "branch" as const,
+          id: "feature/x",
+          branch: { name: "feature/x", current: false, commit: "def456", isRemote: false },
+        },
+      ];
+      const filtered = search ? branches.filter((b) => b.id.includes(search)) : branches;
+      return {
+        ...emptyBranchList,
+        hasLocal: filtered.length > 0,
+        items: [
+          ...(filtered.length > 0
+            ? [{ type: "header" as const, id: "header-local", name: "Local" }]
+            : []),
+          ...filtered,
+        ],
+      };
+    });
+    const onSelect = vi.fn<(selection: BranchSelection) => void>();
+
+    render(
+      <BranchSelector
+        projectId="project-1"
+        currentBranch="main"
+        value="main"
+        onSelect={onSelect}
+      />,
+    );
+
+    fireEvent.click(screen.getByLabelText("Select branch"));
+    const search = await screen.findByRole("combobox");
+
+    fireEvent.change(search, { target: { value: "feature" } });
+    fireEvent.keyDown(search, { key: "Enter" });
+
+    expect(onSelect).toHaveBeenCalledWith({ branch: "feature/x", isWorktree: false });
+  });
+
+  it.each([{ isComposing: true }, { keyCode: 229 }])(
+    "leaves IME Enter to the input method (%j)",
+    async (keyEvent) => {
+      useBranchListMock.mockReturnValue({
+        ...emptyBranchList,
+        hasLocal: true,
+        items: localBranchItems(["main", "feature/x"]),
+      });
+      const onSelect = vi.fn<(selection: BranchSelection) => void>();
+
+      render(
+        <BranchSelector
+          projectId="project-1"
+          currentBranch="main"
+          value="main"
+          onSelect={onSelect}
+        />,
+      );
+
+      fireEvent.click(screen.getByLabelText("Select branch"));
+      const search = await screen.findByRole("combobox");
+      await waitFor(() => expect(search).toHaveFocus());
+
+      fireEvent(search, keyDownAt(search, { key: "Enter", ...keyEvent }, 100));
+
+      expect(onSelect).not.toHaveBeenCalled();
+      expect(screen.getByRole("combobox")).toBeInTheDocument();
+
+      fireEvent(search, keyDownAt(search, { key: "Enter" }, 101));
+      expect(onSelect).toHaveBeenCalledWith({ branch: "main", isWorktree: false });
+    },
+  );
+
+  it("does not select a branch on an IME-replayed Enter", async () => {
+    useBranchListMock.mockReturnValue({
+      ...emptyBranchList,
+      hasLocal: true,
+      items: localBranchItems(["main", "feature/x"]),
+    });
+    const onSelect = vi.fn<(selection: BranchSelection) => void>();
+
+    render(
+      <BranchSelector
+        projectId="project-1"
+        currentBranch="main"
+        value="main"
+        onSelect={onSelect}
+      />,
+    );
+
+    fireEvent.click(screen.getByLabelText("Select branch"));
+    const search = await screen.findByRole("combobox");
+    await waitFor(() => expect(search).toHaveFocus());
+
+    fireEvent(search, keyDownAt(search, { key: "Enter", isComposing: true, keyCode: 229 }, 100));
+    fireEvent.compositionEnd(search, { data: "feat" });
+    const replay = keyDownAt(search, { key: "Enter", keyCode: 13 }, 100);
+    fireEvent(search, replay);
+
+    expect(replay.defaultPrevented).toBe(true);
+    expect(onSelect).not.toHaveBeenCalled();
+    expect(screen.getByRole("combobox")).toBeInTheDocument();
+
+    fireEvent(search, keyDownAt(search, { key: "Enter", keyCode: 13 }, 101));
+    expect(onSelect).toHaveBeenCalledWith({ branch: "main", isWorktree: false });
+  });
+
+  it("syncs the active row when the pointer moves over another branch", async () => {
+    useBranchListMock.mockReturnValue({
+      ...emptyBranchList,
+      hasLocal: true,
+      items: localBranchItems(["main", "feature/x"]),
+    });
+    const onSelect = vi.fn<(selection: BranchSelection) => void>();
+
+    render(
+      <BranchSelector
+        projectId="project-1"
+        currentBranch="main"
+        value="main"
+        onSelect={onSelect}
+      />,
+    );
+
+    fireEvent.click(screen.getByLabelText("Select branch"));
+    const search = await screen.findByRole("combobox");
+    const listbox = screen.getByRole("listbox", { name: "Branches" });
+    await waitFor(() => expect(search).toHaveFocus());
+    await waitFor(() =>
+      expect(
+        document.getElementById(search.getAttribute("aria-activedescendant") ?? ""),
+      ).toHaveTextContent("main"),
+    );
+
+    const featureOption = document.getElementById(`${listbox.id}-option-feature/x`);
+    expect(featureOption).not.toBeNull();
+    fireEvent.pointerMove(featureOption!, { movementX: 1, movementY: 1 });
+
+    const activeBranch = document.getElementById(
+      search.getAttribute("aria-activedescendant") ?? "",
+    );
+    expect(activeBranch).toHaveTextContent("feature/x");
+    expect(activeBranch).toHaveAttribute("data-active", "true");
+
+    fireEvent.keyDown(search, { key: "Enter" });
+    expect(onSelect).toHaveBeenCalledWith({ branch: "feature/x", isWorktree: false });
+  });
+
+  it("drops the listbox relationship when the filter matches nothing", async () => {
+    useBranchListMock.mockImplementation(({ search }) =>
+      search
+        ? { ...emptyBranchList }
+        : { ...emptyBranchList, hasLocal: true, items: localBranchItems(["main"]) },
+    );
+
+    render(<BranchSelector projectId="project-1" currentBranch="main" value="main" />);
+
+    fireEvent.click(screen.getByLabelText("Select branch"));
+    const search = await screen.findByRole("combobox");
+    expect(search).toHaveAttribute("aria-controls");
+
+    fireEvent.change(search, { target: { value: "zzz" } });
+
+    expect(await screen.findByText("No branches found")).toBeInTheDocument();
+    expect(search).not.toHaveAttribute("aria-controls");
+    await waitFor(() => expect(search).not.toHaveAttribute("aria-activedescendant"));
   });
 
   it("keeps selection-only menus free of branch management and PR actions", async () => {
