@@ -12,6 +12,13 @@ export const productionRoots = [
 
 export const functionalAreas = [
   {
+    id: "thread-forks",
+    title: "Completed-turn conversation forks and source navigation",
+    patterns: [/threadFork/i, /ThreadFork/],
+    automated: ["baseline"],
+    manual: ["thread-forks", "provider-live", "remote-client"],
+  },
+  {
     id: "inline-visuals",
     title: "App-native visual data and source-only HTML/MCP fallback",
     patterns: [/inlineVisual/i, /nativeVisual/i, /VisualSource/, /mcpAppResource/i, /mcpAppResult/],
@@ -161,6 +168,9 @@ export const functionalAreas = [
     patterns: [
       /git/i,
       /PrReview/i,
+      /forge/i,
+      /prWatch/i,
+      /PullRequestsView/,
       /mergeConflict/i,
       /MobileWorkspacePage/,
       /components\/media\//,
@@ -170,7 +180,7 @@ export const functionalAreas = [
       /fileResponseStream/,
     ],
     automated: ["baseline"],
-    manual: ["git-mutations"],
+    manual: ["git-mutations", "changed-surface"],
   },
   {
     id: "github-actions",
@@ -332,8 +342,11 @@ export const functionalAreas = [
 ];
 
 export const manualGates = {
+  "thread-forks":
+    "Fork an earlier completed reply through the icon and tooltip; verify the exact inherited prefix, source link, independent attachments, unchanged source and draft, provider context on first send and after Stop/retry/restart, and persistence after source deletion. Check desktop and compact layouts with no special split-pane option.",
   "device-workspace":
     "Discover/start/attach an isolated emulator or simulator on a supported host, verify preview, tap/swipe/text, screenshot and accessibility, separate view/control and agent consent, remote denial/reconnect, then detach and confirm the device remains running. Record unavailable host platforms explicitly.",
+
   "delegated-agent-recovery":
     "Restart an isolated host with historical native and Crossagent rows; verify terminal state, retained output, current/stale snapshot fencing and live-run preservation.",
   "remote-usage":

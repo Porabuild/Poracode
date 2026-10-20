@@ -193,7 +193,17 @@ internal class RichChatComposerControlCatalog(
         (modelId == live?.nativeModelId && live?.thinkingSupported == true) ||
             modelId in stringArray("thinkingModels")
 
-    fun slashSuggestions(draft: String): List<RichChatSlashCommandOption> {
+    fun slashSuggestions(
+        draft: String,
+        selectionStart: Int = draft.length,
+        selectionEnd: Int = selectionStart,
+    ): List<RichChatSlashCommandOption> {
+        val reference = RichChatSkillReference.atCaret(draft, selectionStart, selectionEnd)
+        if (reference != null) {
+            return slashCommands.filter {
+                it.skill != null && it.displayId.contains(reference.query, ignoreCase = true)
+            }
+        }
         if (!draft.startsWith("/") || draft.any(Char::isWhitespace)) return emptyList()
         val query = draft.drop(1).lowercase()
         return slashCommands.filter {

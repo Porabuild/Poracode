@@ -7,6 +7,11 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		FC2000000000000000000005 /* ForgeReviewDiskCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC1000000000000000000005 /* ForgeReviewDiskCache.swift */; };
+		FC2000000000000000000001 /* ForgeReviewGateway.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC1000000000000000000001 /* ForgeReviewGateway.swift */; };
+		FC2000000000000000000002 /* ForgeReviewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC1000000000000000000002 /* ForgeReviewController.swift */; };
+		FC2000000000000000000003 /* ForgeReviewRemoteV3Contract.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC1000000000000000000003 /* ForgeReviewRemoteV3Contract.swift */; };
+		FC2000000000000000000004 /* PullRequestGuideView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC1000000000000000000004 /* PullRequestGuideView.swift */; };
 		C90000000000000000000001 /* AppTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = C80000000000000000000001 /* AppTheme.swift */; };
 		C90000000000000000000002 /* AppearanceSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C80000000000000000000002 /* AppearanceSettingsView.swift */; };
 		C72000000000000000000001 /* NativeJourneyUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C71000000000000000000001 /* NativeJourneyUITests.swift */; };
@@ -466,6 +471,7 @@
 		PV1100000000000000000001 /* RichChatTranscriptSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = PV2100000000000000000001 /* RichChatTranscriptSurface.swift */; };
 		PV1200000000000000000001 /* RichChatThreadComposerSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = PV2200000000000000000001 /* RichChatThreadComposerSurface.swift */; };
 		PA1100000000000000000001 /* RichChatThreadDraftState.swift in Sources */ = {isa = PBXBuildFile; fileRef = PA2100000000000000000001 /* RichChatThreadDraftState.swift */; };
+		PF1100000000000000000001 /* RichChatThreadFork.swift in Sources */ = {isa = PBXBuildFile; fileRef = PF2100000000000000000001 /* RichChatThreadFork.swift */; };
 		PA1200000000000000000001 /* RichChatThreadPageState.swift in Sources */ = {isa = PBXBuildFile; fileRef = PA2200000000000000000001 /* RichChatThreadPageState.swift */; };
 		A100000000000000000000BE /* ProjectWorkspaceModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000000BE /* ProjectWorkspaceModels.swift */; };
 		A100000000000000000000BF /* ProjectWorkspaceGateway.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000000BF /* ProjectWorkspaceGateway.swift */; };
@@ -840,6 +846,11 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		FC1000000000000000000005 /* ForgeReviewDiskCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgeReviewDiskCache.swift; sourceTree = "<group>"; };
+		FC1000000000000000000001 /* ForgeReviewGateway.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgeReviewGateway.swift; sourceTree = "<group>"; };
+		FC1000000000000000000002 /* ForgeReviewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgeReviewController.swift; sourceTree = "<group>"; };
+		FC1000000000000000000003 /* ForgeReviewRemoteV3Contract.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgeReviewRemoteV3Contract.swift; sourceTree = "<group>"; };
+		FC1000000000000000000004 /* PullRequestGuideView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PullRequestGuideView.swift; sourceTree = "<group>"; };
 		C80000000000000000000001 /* AppTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppTheme.swift; sourceTree = "<group>"; };
 		C80000000000000000000002 /* AppearanceSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppearanceSettingsView.swift; sourceTree = "<group>"; };
 		C71000000000000000000001 /* NativeJourneyUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeJourneyUITests.swift; sourceTree = "<group>"; };
@@ -1302,6 +1313,7 @@
 		PV2100000000000000000001 /* RichChatTranscriptSurface.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/RichChatTranscriptSurface.swift; sourceTree = "<group>"; };
 		PV2200000000000000000001 /* RichChatThreadComposerSurface.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/RichChatThreadComposerSurface.swift; sourceTree = "<group>"; };
 		PA2100000000000000000001 /* RichChatThreadDraftState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Pages/RichChatThreadDraftState.swift; sourceTree = "<group>"; };
+		PF2100000000000000000001 /* RichChatThreadFork.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Pages/RichChatThreadFork.swift; sourceTree = "<group>"; };
 		PA2200000000000000000001 /* RichChatThreadPageState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Pages/RichChatThreadPageState.swift; sourceTree = "<group>"; };
 		B100000000000000000000BE /* ProjectWorkspaceModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectWorkspaceModels.swift; sourceTree = "<group>"; };
 		B100000000000000000000BF /* ProjectWorkspaceGateway.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectWorkspaceGateway.swift; sourceTree = "<group>"; };
@@ -1753,6 +1765,9 @@
 				9B1000000000000000000022 /* GitHubWorkflowResults.swift */,
 				9B1000000000000000000007 /* GitHubOperationsChrome.swift */,
 				9B1000000000000000000008 /* GitHubOperationsControllerSuite.swift */,
+				FC1000000000000000000001 /* ForgeReviewGateway.swift */,
+				FC1000000000000000000002 /* ForgeReviewController.swift */,
+				FC1000000000000000000005 /* ForgeReviewDiskCache.swift */,
 				9B1000000000000000000009 /* GitHubOperationsGateway.swift */,
 				9B100000000000000000000A /* GitHubOperationsLocation.swift */,
 				9B100000000000000000000B /* GitHubOperationsPanel.swift */,
@@ -1778,6 +1793,7 @@
 				9B1000000000000000000017 /* GitHubOperationsRemoteV3Requests.swift */,
 				9B1000000000000000000018 /* GitHubOperationsRemoteV3Results.swift */,
 				9B1000000000000000000019 /* SelectedGitHubOperationsGateway.swift */,
+				FC1000000000000000000003 /* ForgeReviewRemoteV3Contract.swift */,
 			);
 			path = GitHubOperations;
 			sourceTree = "<group>";
@@ -2333,6 +2349,7 @@
 				PV2100000000000000000001 /* RichChatTranscriptSurface.swift */,
 				PV2200000000000000000001 /* RichChatThreadComposerSurface.swift */,
 				PA2100000000000000000001 /* RichChatThreadDraftState.swift */,
+				PF2100000000000000000001 /* RichChatThreadFork.swift */,
 				PA2200000000000000000001 /* RichChatThreadPageState.swift */,
 			);
 			path = UI;
@@ -2938,6 +2955,7 @@
 				PU1000000000000000000008 /* PullRequestReviewActionSheet.swift */,
 				PU1000000000000000000009 /* PullRequestDiffView.swift */,
 				PU1000000000000000000010 /* PullRequestReviewSections.swift */,
+				FC1000000000000000000004 /* PullRequestGuideView.swift */,
 			);
 			path = PullRequests;
 			sourceTree = "<group>";
@@ -3400,6 +3418,11 @@
 				9B2000000000000000000022 /* GitHubWorkflowResults.swift in Sources */,
 				9B2000000000000000000007 /* GitHubOperationsChrome.swift in Sources */,
 				9B2000000000000000000008 /* GitHubOperationsControllerSuite.swift in Sources */,
+				FC2000000000000000000001 /* ForgeReviewGateway.swift in Sources */,
+				FC2000000000000000000002 /* ForgeReviewController.swift in Sources */,
+				FC2000000000000000000005 /* ForgeReviewDiskCache.swift in Sources */,
+				FC2000000000000000000003 /* ForgeReviewRemoteV3Contract.swift in Sources */,
+				FC2000000000000000000004 /* PullRequestGuideView.swift in Sources */,
 				9B2000000000000000000009 /* GitHubOperationsGateway.swift in Sources */,
 				9B200000000000000000000A /* GitHubOperationsLocation.swift in Sources */,
 				9B200000000000000000000B /* GitHubOperationsPanel.swift in Sources */,
@@ -3714,6 +3737,7 @@
 				PV1100000000000000000001 /* RichChatTranscriptSurface.swift in Sources */,
 				PV1200000000000000000001 /* RichChatThreadComposerSurface.swift in Sources */,
 				PA1100000000000000000001 /* RichChatThreadDraftState.swift in Sources */,
+				PF1100000000000000000001 /* RichChatThreadFork.swift in Sources */,
 				PA1200000000000000000001 /* RichChatThreadPageState.swift in Sources */,
 				A100000000000000000000BE /* ProjectWorkspaceModels.swift in Sources */,
 				A100000000000000000000BF /* ProjectWorkspaceGateway.swift in Sources */,

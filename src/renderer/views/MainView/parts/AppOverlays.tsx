@@ -20,9 +20,11 @@ import {
   DeferredPrReviewOverlay,
   DeferredProjectSettingsOverlay,
   DeferredSettingsOverlay,
+  DeferredThreadForkDialog,
 } from "@/renderer/deferredFeatures";
 
 import { useAppStore } from "@/renderer/state/appStore";
+import { useThreadForkStore } from "@/renderer/state/threadForkStore";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { resolvePrKey } from "@/renderer/state/gitSelectors";
@@ -54,6 +56,8 @@ function useEverEnabled(active: boolean): boolean {
 }
 
 export function AppOverlays() {
+  const forkSourceThreadId = useThreadForkStore((state) => state.sourceThreadId);
+  const forkThroughItemId = useThreadForkStore((state) => state.throughItemId);
   const compactLayout = useCompactLayout();
   const mobileUtilityPage = usePanelStore((s) => s.mobileUtilityPage);
   const projects = useAppStore((s) => s.projects);
@@ -113,6 +117,15 @@ export function AppOverlays() {
       <WelcomeOverlay />
       <WhatsNewOverlay />
       <AgentDiscoveryOverlay />
+      {forkSourceThreadId ? (
+        <Suspense fallback={null}>
+          <DeferredThreadForkDialog
+            key={`${forkSourceThreadId}:${forkThroughItemId ?? "latest"}`}
+            sourceThreadId={forkSourceThreadId}
+            throughItemId={forkThroughItemId}
+          />
+        </Suspense>
+      ) : null}
       <OverlayShell
         open={settingsOpen}
         instantEnter

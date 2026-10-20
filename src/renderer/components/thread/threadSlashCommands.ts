@@ -350,7 +350,7 @@ export function handleSlashCommandPanelKeyDown(
     }
   }
   if (e.key === " " && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
-    const typed = (ctx.slashQuery ?? "").toLowerCase();
+    const typed = (ctx.slashQuery ?? "").replace(/^\$/u, "").toLowerCase();
     const exact = filteredCommands.find(
       (command) =>
         slashCommandDisplayId(command).toLowerCase() === typed ||

@@ -221,4 +221,11 @@
     <string name="rich_chat_session_settings_search">Rechercher des valeurs</string>
     <string name="rich_chat_session_settings_back">Retour</string>
     <string name="rich_chat_session_settings_fallback_heading">Paramètre</string>
+    <string name="rich_chat_fork_action">Créer une branche ici</string>
+    <string name="rich_chat_fork_title">Créer une branche de conversation</string>
+    <string name="rich_chat_fork_create">Créer une branche</string>
+    <string name="rich_chat_fork_explanation">Crée une conversation indépendante jusqu’à un tour terminé. Les fichiers restent dans le même répertoire de travail.</string>
+    <string name="rich_chat_fork_name">Nom de la conversation</string>
+    <string name="rich_chat_fork_boundary">L’historique hérité se termine ici</string>
+    <string name="rich_chat_fork_source">Branche issue de %1$s</string>
 </resources>

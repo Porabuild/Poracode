@@ -1,5 +1,5 @@
 import { act } from "react";
-import { fireEvent, screen } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
@@ -15,7 +15,7 @@ import { MobileRemoteServersSettings } from "./MobileRemoteServersSettings";
 // test opens a socket or fetches.
 const session = vi.hoisted(() => ({
   connectAll: vi.fn<() => Promise<void>>(async () => {}),
-  reconnectServer: vi.fn<() => Promise<void>>(async () => {}),
+  reconnectServer: vi.fn<(connectionKey: string) => Promise<void>>(async () => {}),
   removeServer:
     vi.fn<(connectionKey: string, options?: { readonly cascadeEnvironments?: boolean }) => void>(),
   getHostUpdateState: vi.fn<(desktopId: string) => unknown>(),
@@ -68,6 +68,26 @@ describe("MobileRemoteServersSettings (real store)", () => {
     session.reconnectServer.mockClear();
     session.removeServer.mockClear();
     useRemoteServersStore.setState({ servers: [], runtime: {}, openThread: null });
+  });
+
+  it("exposes offline connection details, scoped permissions and reconnect in the compact sheet", async () => {
+    useRemoteServersStore.setState({
+      servers: [{ ...parentServer, scopes: ["session:read", "terminal:read"] }],
+      runtime: runtimeOf("conn-parent", "offline"),
+    });
+    render(<MobileRemoteServersSettings />);
+    fireEvent.click(screen.getByRole("button", { name: "Workstation" }));
+    const dialog = await screen.findByRole("dialog", { name: "Workstation" });
+    expect(within(dialog).getByText("desk-parent")).toBeInTheDocument();
+    fireEvent.click(within(dialog).getByText(/^Granted permissions/));
+    expect(within(dialog).getByText("Read sessions")).toBeVisible();
+    expect(within(dialog).getByText("Read terminals")).toBeVisible();
+    expect(within(dialog).queryByText("Operate sessions")).not.toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Reconnect" }));
+    await waitFor(() => expect(session.reconnectServer).toHaveBeenCalledWith("conn-parent"));
+    expect(dialog).toHaveTextContent(
+      "It does not stop the host or revoke access on other devices.",
+    );
   });
 
   it("renders stored paired rows from a real store subscription without an update loop", () => {

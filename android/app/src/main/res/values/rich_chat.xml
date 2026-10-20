@@ -226,4 +226,11 @@
     <string name="rich_chat_session_settings_search">Search values</string>
     <string name="rich_chat_session_settings_back">Back</string>
     <string name="rich_chat_session_settings_fallback_heading">Setting</string>
+    <string name="rich_chat_fork_action">Fork from here</string>
+    <string name="rich_chat_fork_title">Fork thread</string>
+    <string name="rich_chat_fork_create">Create fork</string>
+    <string name="rich_chat_fork_explanation">Creates an independent conversation through a completed turn. Files stay in the same checkout.</string>
+    <string name="rich_chat_fork_name">Thread name</string>
+    <string name="rich_chat_fork_boundary">Inherited history ends here</string>
+    <string name="rich_chat_fork_source">Forked from %1$s</string>
 </resources>

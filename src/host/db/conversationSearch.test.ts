@@ -30,7 +30,11 @@ import {
   SEARCH_INDEX_BATCH_ITEMS,
 } from "./conversationSearchReads";
 import { nativeBindingEnv, sqliteAvailable, testThread } from "./runtimeItems.testFixtures";
-import { assertRequiredDatabaseSchema, runDatabaseMigrations } from "./migrations";
+import {
+  assertRequiredDatabaseSchema,
+  LATEST_SCHEMA_VERSION,
+  runDatabaseMigrations,
+} from "./migrations";
 import {
   captureSchema53PayloadOriginEvidence,
   createSchema53PayloadOriginDatabase,
@@ -764,60 +768,84 @@ describe.skipIf(!sqliteAvailable)("saved conversation search", () => {
     expect(sqlite.prepare("PRAGMA foreign_key_check").all()).toEqual([]);
   });
 
-  it("repairs an existing schema63/gen3 root at startup before the first writer, preserving canonical evidence", async () => {
-    closeDatabase();
-    const path = join(directory, "old63.sqlite");
-    const previous = createSchema53PayloadOriginDatabase(path);
-    migrateSchema53FixtureThrough(previous, 63);
-    installFixtureOrigin(previous);
-    previous
-      .prepare(
-        "INSERT INTO usage_events(ts,kind,provider,value,cost_details) VALUES (?,'tokens','fixture',7,'retained cost')",
-      )
-      .run(Date.now());
-    previous
-      .prepare(
-        "INSERT INTO usage_token_ledger(provider,scope_id,epoch,last_counter,cost_details) VALUES ('fixture','scope',1,7,'retained baseline')",
-      )
-      .run();
-    previous
-      .prepare(
-        "INSERT INTO thread_runtime_items(thread_id,item_id,position,type,state,payload,streams) VALUES ('thread-1','startup',99,'user_message','completed',?,'{}')",
-      )
-      .run(JSON.stringify({ content: [{ kind: "text", text: "startupneedle" }] }));
-    retainOldProjection(previous);
-    previous
-      .prepare(
-        "INSERT INTO conversation_search_documents(id,thread_id,item_id,text) SELECT rowid,thread_id,item_id,'staledocneedle' FROM thread_runtime_items WHERE item_id='startup'",
-      )
-      .run();
-    const sequence = previous
-      .prepare("SELECT seq FROM sqlite_sequence WHERE name='conversation_search_pending'")
-      .get() as { seq: number };
-    const before = canonicalEvidence(previous);
-    previous.close();
-    expect(() => initReadOnlyDatabase(path)).toThrow("owning startup upgrade");
-    expect(() => initDatabase(path, { schemaMode: "validate" })).toThrow("owning startup upgrade");
-    const sqlite = initDatabase(path);
-    expect(canonicalEvidence(sqlite)).toEqual(before);
-    expect(sqlite.prepare("SELECT value FROM app_state WHERE key='schema_version'").get()).toEqual({
-      value: "63",
-    });
-    expect(sqlite.prepare("SELECT generation FROM conversation_search_meta").get()).toEqual({
-      generation: "4.visual2",
-    });
-    expect(
-      sqlite.prepare("SELECT MIN(revision) AS revision FROM conversation_search_pending").get(),
-    ).toEqual({ revision: expect.any(Number) });
-    const pending = sqlite
-      .prepare("SELECT MIN(revision) AS revision FROM conversation_search_pending")
-      .get() as { revision: number };
-    expect(pending.revision).toBeGreaterThan(sequence.seq);
-    sqlite.exec("UPDATE thread_runtime_items SET item_id='startup-moved' WHERE item_id='startup'");
-    expect((await search("startupneedle")).entries[0]?.itemId).toBe("startup-moved");
-    expect((await search("staledocneedle")).entries).toEqual([]);
-    expect(sqlite.prepare("PRAGMA foreign_key_check").all()).toEqual([]);
-  });
+  it.each([64, LATEST_SCHEMA_VERSION])(
+    "repairs an existing schema%i/gen3 root at startup before the first writer, preserving canonical evidence",
+    async (schemaVersion) => {
+      closeDatabase();
+      const path = join(directory, "old64.sqlite");
+      const previous = createSchema53PayloadOriginDatabase(path);
+      migrateSchema53FixtureThrough(previous, schemaVersion);
+      installFixtureOrigin(previous);
+      previous
+        .prepare(
+          "INSERT INTO usage_events(ts,kind,provider,value,cost_details) VALUES (?,'tokens','fixture',7,'retained cost')",
+        )
+        .run(Date.now());
+      previous
+        .prepare(
+          "INSERT INTO usage_token_ledger(provider,scope_id,epoch,last_counter,cost_details) VALUES ('fixture','scope',1,7,'retained baseline')",
+        )
+        .run();
+      previous
+        .prepare(
+          "INSERT INTO thread_runtime_items(thread_id,item_id,position,type,state,payload,streams) VALUES ('thread-1','startup',99,'user_message','completed',?,'{}')",
+        )
+        .run(JSON.stringify({ content: [{ kind: "text", text: "startupneedle" }] }));
+      retainOldProjection(previous);
+      previous
+        .prepare(
+          "INSERT INTO conversation_search_documents(id,thread_id,item_id,text) SELECT rowid,thread_id,item_id,'staledocneedle' FROM thread_runtime_items WHERE item_id='startup'",
+        )
+        .run();
+      const sequence = previous
+        .prepare("SELECT seq FROM sqlite_sequence WHERE name='conversation_search_pending'")
+        .get() as { seq: number };
+      const before = canonicalEvidence(previous);
+      previous.close();
+      const refusal =
+        schemaVersion === 64
+          ? "Database schema is incomplete; missing: pr_watches.review_scope."
+          : "owning startup upgrade";
+      expect(() => initReadOnlyDatabase(path)).toThrow(refusal);
+      expect(() => initDatabase(path, { schemaMode: "validate" })).toThrow(refusal);
+      const sqlite = initDatabase(path);
+      const expected = before.map((table) =>
+        table.name === "app_state"
+          ? {
+              ...table,
+              rows: table.rows.map((row) => {
+                const state = row as { key: string; value: string };
+                return state.key === "schema_version"
+                  ? { ...state, value: String(LATEST_SCHEMA_VERSION) }
+                  : state;
+              }),
+            }
+          : table,
+      );
+      expect(canonicalEvidence(sqlite)).toEqual(expected);
+      expect(
+        sqlite.prepare("SELECT value FROM app_state WHERE key='schema_version'").get(),
+      ).toEqual({
+        value: String(LATEST_SCHEMA_VERSION),
+      });
+      expect(sqlite.prepare("SELECT generation FROM conversation_search_meta").get()).toEqual({
+        generation: "4.visual2",
+      });
+      expect(
+        sqlite.prepare("SELECT MIN(revision) AS revision FROM conversation_search_pending").get(),
+      ).toEqual({ revision: expect.any(Number) });
+      const pending = sqlite
+        .prepare("SELECT MIN(revision) AS revision FROM conversation_search_pending")
+        .get() as { revision: number };
+      expect(pending.revision).toBeGreaterThan(sequence.seq);
+      sqlite.exec(
+        "UPDATE thread_runtime_items SET item_id='startup-moved' WHERE item_id='startup'",
+      );
+      expect((await search("startupneedle")).entries[0]?.itemId).toBe("startup-moved");
+      expect((await search("staledocneedle")).entries).toEqual([]);
+      expect(sqlite.prepare("PRAGMA foreign_key_check").all()).toEqual([]);
+    },
+  );
 
   it("rolls back failed startup trigger installation and projection rebuild without retaining a handle", async () => {
     await dbReplaceThreadRuntimeItems("thread-1", [message("a", "savedneedle", "user_message")]);

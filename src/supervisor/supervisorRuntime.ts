@@ -47,6 +47,7 @@ import { GitService, resolveBuiltInWorktreeRoot, type CapturedExperimentSnapshot
 import { normalizeWorktreePathForComparison, resolveWorktreePlacement } from "@/shared/worktree";
 import { GitCheckpointService } from "./git/checkpointService";
 import { GitHubService } from "./github";
+import { ForgeReviewService } from "./forges/service";
 import { ProjectWatcher } from "./projectWatcher";
 import { LanguageServerManager } from "./lsp";
 import { ProjectTreeService } from "./projectTree";
@@ -169,6 +170,7 @@ export class SupervisorRuntime {
   readonly gitCheckpointService = new GitCheckpointService();
   private _projectWatcher: ProjectWatcher | undefined;
   readonly githubService = new GitHubService();
+  readonly forgeReviewService = new ForgeReviewService(this.githubService);
   readonly fileIndexService = new FileIndexService();
   readonly projectTreeService = new ProjectTreeService();
   private readonly adapters = new Map<AgentKind, AgentAdapter>();
@@ -419,6 +421,7 @@ export class SupervisorRuntime {
       this.gitCheckpointService.setWslClient(client);
       this.projectTreeService.setWslClient(client);
       this.githubService.setWslClient(client);
+      this.forgeReviewService.setWslClient(client);
       this._projectWatcher?.setWslClient(client);
       setSessionFsBridgeClient(client);
       setWslProcessBridgeClient(client);
@@ -1111,14 +1114,20 @@ export class SupervisorRuntime {
   async gitProjectSnapshot(payload: GitProjectSnapshotPayload): Promise<GitProjectSnapshotResult> {
     const { projectLocation, includeGhCheck } = payload;
     if (projectLocation.kind === "wsl") {
-      return this.gitService.batchedWslProjectSnapshot(projectLocation, includeGhCheck);
+      const [snapshot, ghAvailable] = await Promise.all([
+        this.gitService.batchedWslProjectSnapshot(projectLocation, false),
+        includeGhCheck
+          ? this.forgeReviewService.checkAvailable(projectLocation).then((r) => r.available)
+          : Promise.resolve<boolean | null>(null),
+      ]);
+      return { ...snapshot, ghAvailable };
     }
     const [statusResult, branchesResult, worktreesResult, ghResult] = await Promise.allSettled([
       this.gitService.getStatus(projectLocation),
       this.gitService.listBranches(projectLocation, true),
       this.gitService.listWorktrees(projectLocation),
       includeGhCheck
-        ? this.githubService.checkGhAvailable(projectLocation).then((r) => r.available)
+        ? this.forgeReviewService.checkAvailable(projectLocation).then((r) => r.available)
         : Promise.resolve<boolean | null>(null),
     ]);
     return {

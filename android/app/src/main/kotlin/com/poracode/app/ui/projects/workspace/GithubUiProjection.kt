@@ -10,6 +10,7 @@ internal data class PullRequestRow(
     val title: String,
     val branch: String,
     val state: String,
+    val source: JsonObject? = null,
 )
 
 internal data class WorkflowRow(val id: Long, val name: String)
@@ -36,7 +37,7 @@ internal fun JsonElement?.pullRequestRows(): List<PullRequestRow> =
     arrayObjects("pullRequests").mapNotNull { row ->
         val pr = row["pr"] as? JsonObject ?: return@mapNotNull null
         val number = pr.long("number") ?: return@mapNotNull null
-        PullRequestRow(number, pr.string("title"), row.string("headBranch"), pr.string("state"))
+        PullRequestRow(number, pr.string("title"), row.string("headBranch"), pr.string("state"), pr["source"] as? JsonObject)
     }
 
 internal fun JsonElement?.workflowRows() = arrayObjects("workflows").mapNotNull {

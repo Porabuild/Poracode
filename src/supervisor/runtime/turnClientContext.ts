@@ -91,6 +91,8 @@ export function invokesAdvertisedCommand(
 
 /** The live session a structured turn is delivered to. */
 export interface TurnContextTarget {
+  pendingInitialInstructions?: string | undefined;
+  onInitialInstructionsApplied?: () => void;
   readonly structuredSession?: Pick<StructuredSessionHandle, "placesTurnContext"> | undefined;
   /** Provider commands the session last advertised. */
   readonly slashCommands?: readonly AgentSlashCommand[] | undefined;
@@ -110,16 +112,31 @@ export function structuredTurnTextOptions(
     readonly inlineInstructions?: string;
     readonly turnContext?: string;
   },
-): Pick<StartTurnOptions, "inlineInstructions" | "turnContext"> {
+): Pick<StartTurnOptions, "inlineInstructions" | "turnContext" | "onPromptSubmitted"> {
+  const inheritedInstructions = invokesAdvertisedCommand(turn.prompt, target?.slashCommands)
+    ? undefined
+    : target?.pendingInitialInstructions;
+  const turnInstructions = joinInstructions(inheritedInstructions, turn.inlineInstructions);
+  const admission =
+    inheritedInstructions && target
+      ? {
+          onPromptSubmitted: () => {
+            if (target.pendingInitialInstructions !== inheritedInstructions) return;
+            target.pendingInitialInstructions = undefined;
+            target.onInitialInstructionsApplied?.();
+          },
+        }
+      : {};
   if (target?.structuredSession?.placesTurnContext) {
     return {
-      ...(turn.inlineInstructions ? { inlineInstructions: turn.inlineInstructions } : {}),
+      ...admission,
+      ...(turnInstructions ? { inlineInstructions: turnInstructions } : {}),
       ...(turn.turnContext ? { turnContext: turn.turnContext } : {}),
     };
   }
   const turnContext = invokesAdvertisedCommand(turn.prompt, target?.slashCommands)
     ? undefined
     : turn.turnContext;
-  const inlineInstructions = joinInstructions(turnContext, turn.inlineInstructions);
-  return inlineInstructions ? { inlineInstructions } : {};
+  const inlineInstructions = joinInstructions(turnContext, turnInstructions);
+  return { ...admission, ...(inlineInstructions ? { inlineInstructions } : {}) };
 }

@@ -1,10 +1,10 @@
 import { prWatchInputSchema } from "@/shared/contracts/prWatch";
 import type { ModelSelection } from "@/shared/selectionBinding.schemas";
 // @vitest-environment jsdom
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { toast } from "@heroui/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { AgentStatus, PrWatch, Project } from "@/shared/contracts";
+import type { AgentStatus, ForgeRepository, PrWatch, Project } from "@/shared/contracts";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 
 const project: Project = {
@@ -12,6 +12,36 @@ const project: Project = {
   name: "Poracode",
   location: { kind: "posix", path: "/repo" },
   createdAt: "2026-07-25T00:00:00.000Z",
+};
+
+const source: ForgeRepository = {
+  forge: "gitlab",
+  host: "https://git.example/gitlab",
+  repository: "team/app",
+  remote: "origin",
+  account: { forge: "gitlab", host: "https://git.example/gitlab", login: "alice" },
+  capabilities: {
+    mergeMethods: ["merge", "squash"],
+    reviewDecisions: ["approve", "comment"],
+    draft: true,
+    reopen: true,
+    updateBranch: false,
+    rebaseBranch: true,
+    edit: true,
+    checks: true,
+    reviewThreads: true,
+    expectedHeadMerge: true,
+    autoMerge: true,
+    autoFix: true,
+    adminMerge: false,
+  },
+};
+const reviewScope = {
+  version: 1 as const,
+  forge: source.forge,
+  host: source.host,
+  repository: source.repository,
+  account: source.account!,
 };
 
 const agent: AgentStatus = {
@@ -41,6 +71,7 @@ const agent: AgentStatus = {
 const bridge = vi.hoisted(() => ({
   getPrWatch: vi.fn<() => Promise<PrWatch | null>>(),
   upsertPrWatch: vi.fn<(input: unknown) => Promise<PrWatch>>(),
+  upsertForgePrWatch: vi.fn<(input: unknown) => Promise<PrWatch>>(),
   deletePrWatch: vi.fn<() => Promise<void>>(),
 }));
 
@@ -112,6 +143,7 @@ describe("PrWatchControls", () => {
         | "lastError"
       >),
       lastCommentCursor: null,
+      reviewScope,
       lastReviewCommentCursor: null,
       lastReviewCursor: null,
       lastCheckKey: null,
@@ -119,6 +151,7 @@ describe("PrWatchControls", () => {
       lastError: null,
       blockedReason: null,
     }));
+    bridge.upsertForgePrWatch.mockImplementation((input) => bridge.upsertPrWatch(input));
     bridge.deletePrWatch.mockResolvedValue(undefined);
   });
 
@@ -152,6 +185,107 @@ describe("PrWatchControls", () => {
     );
   });
 
+  it("pauses a legacy watch until an explicit re-arm pins its public source scope", async () => {
+    const legacy: PrWatch = {
+      projectId: project.id,
+      prNumber: 42,
+      headBranch: "feature/pr-watch",
+      watchEnabled: true,
+      autoMerge: false,
+      agentKind: "codex",
+      config: { model: "gpt-5.7" },
+      lastCommentCursor: null,
+      lastReviewCommentCursor: null,
+      lastReviewCursor: null,
+      lastCheckKey: null,
+      activeThreadId: null,
+      lastError: null,
+      blockedReason: null,
+    };
+    bridge.getPrWatch.mockResolvedValue(legacy);
+    render(
+      <PrWatchControls
+        projectId={project.id}
+        prNumber={42}
+        headBranch="feature/pr-watch"
+        source={source}
+      />,
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "PR automation paused: Auto Fix" }));
+    expect(screen.getByRole("status")).toHaveTextContent("no source scope");
+    expect(bridge.upsertForgePrWatch).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Enable automation again" }));
+    await waitFor(() =>
+      expect(bridge.upsertForgePrWatch).toHaveBeenCalledWith(
+        expect.objectContaining({ reviewScope, watchEnabled: true, autoMerge: false }),
+      ),
+    );
+    await waitFor(() => expect(screen.queryByText(/no source scope/)).not.toBeInTheDocument());
+  });
+
+  it("does not re-arm an unsupported future scope", async () => {
+    bridge.getPrWatch.mockResolvedValue({
+      projectId: project.id,
+      prNumber: 42,
+      headBranch: "feature/pr-watch",
+      watchEnabled: true,
+      autoMerge: false,
+      reviewScopeUnsupported: true,
+      agentKind: "codex",
+      config: { model: "gpt-5.7" },
+      lastCommentCursor: null,
+      lastReviewCommentCursor: null,
+      lastReviewCursor: null,
+      lastCheckKey: null,
+      activeThreadId: null,
+      lastError: null,
+      blockedReason: null,
+    });
+    render(
+      <PrWatchControls
+        projectId={project.id}
+        prNumber={42}
+        headBranch="feature/pr-watch"
+        source={source}
+      />,
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "PR automation paused: Auto Fix" }));
+    expect(screen.getByRole("status")).toHaveTextContent("unsupported source-scope version");
+    expect(
+      screen.queryByRole("button", { name: "Enable automation again" }),
+    ).not.toBeInTheDocument();
+    const slider = screen.getByRole("slider", { name: "PR automation" });
+    await act(async () => {
+      fireEvent.keyDown(slider, { key: "End" });
+      fireEvent.keyUp(slider, { key: "End" });
+    });
+    expect(bridge.upsertForgePrWatch).not.toHaveBeenCalled();
+    expect(bridge.upsertPrWatch).not.toHaveBeenCalled();
+  });
+
+  it("caps the automation slider when the host cannot guard an automatic merge", async () => {
+    render(
+      <PrWatchControls
+        projectId={project.id}
+        prNumber={42}
+        headBranch="feature/pr-watch"
+        source={source}
+        autoMergeAvailable={false}
+      />,
+    );
+    await waitFor(() => expect(bridge.getPrWatch).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole("button", { name: "PR automation" }));
+    const slider = screen.getByRole("slider", { name: "PR automation" });
+    expect(slider).toHaveAttribute("max", "1");
+    fireEvent.keyDown(slider, { key: "End" });
+    fireEvent.keyUp(slider, { key: "End" });
+    await waitFor(() =>
+      expect(bridge.upsertForgePrWatch).toHaveBeenCalledWith(
+        expect.objectContaining({ autoMerge: false, reviewScope }),
+      ),
+    );
+  });
+
   it("shows a newly created PR's automation immediately while reconciling it", () => {
     bridge.getPrWatch.mockReturnValue(new Promise(() => undefined));
     const onInitialWatchUsed = vi.fn<() => void>();
@@ -164,6 +298,7 @@ describe("PrWatchControls", () => {
       agentKind: "codex",
       config: { model: "gpt-5.7", effort: "high" },
       lastCommentCursor: null,
+      reviewScope,
       lastReviewCommentCursor: null,
       lastReviewCursor: null,
       lastCheckKey: null,
@@ -199,6 +334,7 @@ describe("PrWatchControls", () => {
       agentKind: "codex",
       config: { model: "gpt-5.7", effort: "high" },
       lastCommentCursor: null,
+      reviewScope,
       lastReviewCommentCursor: null,
       lastReviewCursor: null,
       lastCheckKey: null,
@@ -300,6 +436,7 @@ describe("PrWatchControls", () => {
       agentKind: "codex",
       config: { model: "gpt-5.6", effort: "high" },
       lastCommentCursor: null,
+      reviewScope,
       lastReviewCommentCursor: null,
       lastReviewCursor: null,
       lastCheckKey: null,
@@ -335,6 +472,7 @@ describe("PrWatchControls", () => {
       agentKind: "codex",
       config: { model: "gpt-5.6", effort: "high" },
       lastCommentCursor: null,
+      reviewScope,
       lastReviewCommentCursor: null,
       lastReviewCursor: null,
       lastCheckKey: null,
@@ -365,6 +503,7 @@ describe("PrWatchControls", () => {
       agentKind: "codex",
       config: { model: "custom-model", effort: "high" },
       lastCommentCursor: null,
+      reviewScope,
       lastReviewCommentCursor: null,
       lastReviewCursor: null,
       lastCheckKey: null,
@@ -392,6 +531,7 @@ describe("PrWatchControls", () => {
       watchEnabled: false,
       autoMerge: false,
       lastCommentCursor: null,
+      reviewScope,
       lastReviewCommentCursor: null,
       lastReviewCursor: null,
       lastCheckKey: null,
@@ -416,6 +556,7 @@ describe("PrWatchControls", () => {
       agentKind: "codex",
       config: { model: "gpt-5.6", effort: "high" },
       lastCommentCursor: null,
+      reviewScope,
       lastReviewCommentCursor: null,
       lastReviewCursor: null,
       lastCheckKey: null,
@@ -442,6 +583,7 @@ describe("PrWatchControls", () => {
       agentKind: "codex",
       config: { model: "gpt-5.6", effort: "high" },
       lastCommentCursor: null,
+      reviewScope,
       lastReviewCommentCursor: null,
       lastReviewCursor: null,
       lastCheckKey: null,
@@ -485,6 +627,7 @@ describe("PrWatchControls", () => {
       agentKind: "codex",
       config: { model: "gpt-5.6", effort: "high" },
       lastCommentCursor: null,
+      reviewScope,
       lastReviewCommentCursor: null,
       lastReviewCursor: null,
       lastCheckKey: null,

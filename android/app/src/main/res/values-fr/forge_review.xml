@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="forge_review_guide">Guide</string>
+    <string name="forge_review_writer">Rédacteur du guide</string>
+    <string name="forge_review_model">Modèle du guide</string>
+    <string name="forge_review_instructions">Instructions du guide de revue</string>
+    <string name="forge_review_write">Rédiger le guide</string>
+    <string name="forge_review_rewrite">Réécrire le guide</string>
+    <string name="forge_review_no_writer">Sélectionnez un rédacteur de guides prenant en charge un espace de travail dont la lecture seule est imposée.</string>
+    <string name="forge_review_generating">Rédaction du guide en cours. Vous pouvez quitter cette revue et revenir lorsqu’il sera prêt.</string>
+    <string name="forge_review_failed">Impossible de rédiger le guide. Essayez de le réécrire.</string>
+    <string name="forge_review_stale">Ce guide est obsolète. Réécrivez-le pour voir les extraits de la modification actuelle.</string>
+    <string name="forge_review_look_closely">À examiner attentivement</string>
+    <string name="forge_review_back">Retour</string>
+    <string name="forge_review_next">Suivant</string>
+    <string name="forge_review_finish">Terminer la revue</string>
+    <string name="forge_review_viewed_source">Consulté sur l’hôte source</string>
+    <string name="forge_review_viewed_host">Consulté dans Poracode</string>
+    <string name="forge_review_changed">Modifié</string>
+    <string name="forge_review_edit_comment">Modifier le commentaire</string>
+    <string name="forge_review_offline">Hors ligne</string>
+</resources>

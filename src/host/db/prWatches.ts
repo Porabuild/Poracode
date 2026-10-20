@@ -1,12 +1,14 @@
 import {
   prWatchBlockedReasonSchema,
   prWatchSchema,
+  forgeReviewScopeSchema,
   type PrWatch,
   type PrWatchBlockedReason,
 } from "@/shared/contracts";
 import { getSqlite } from "./connection";
 import { projectPersistedSelectionBinding } from "@/shared/persistedSelectionBinding";
 import { assertSelectionJsonReplaceable } from "./persistedSelectionData";
+import { msg } from "@/shared/messages";
 
 interface PrWatchRow {
   project_id: string;
@@ -24,10 +26,17 @@ interface PrWatchRow {
   active_thread_id: string | null;
   last_error: string | null;
   blocked_reason: string | null;
+  review_scope: string | null;
 }
 
 function fromRow(row: PrWatchRow): PrWatch {
+  const scope = row.review_scope !== null ? readReviewScope(row.review_scope) : undefined;
   return prWatchSchema.parse({
+    ...(scope?.success
+      ? { reviewScope: scope.data }
+      : scope
+        ? { reviewScopeUnsupported: true }
+        : {}),
     projectId: row.project_id,
     prNumber: row.pr_number,
     headBranch: row.head_branch,
@@ -54,6 +63,14 @@ export function dbGetPrWatches(): PrWatch[] {
   ).map(fromRow);
 }
 
+function readReviewScope(json: string) {
+  try {
+    return forgeReviewScopeSchema.safeParse(JSON.parse(json) as unknown);
+  } catch {
+    return forgeReviewScopeSchema.safeParse(null);
+  }
+}
+
 export function dbGetPrWatch(projectId: string, prNumber: number): PrWatch | null {
   const row = getSqlite()
     .prepare("SELECT * FROM pr_watches WHERE project_id = ? AND pr_number = ?")
@@ -67,17 +84,23 @@ export function dbUpsertPrWatch(watch: PrWatch): void {
   sqlite
     .transaction(() => {
       const previous = sqlite
-        .prepare("SELECT config FROM pr_watches WHERE project_id = ? AND pr_number = ?")
-        .get(parsed.projectId, parsed.prNumber) as { config: string | null } | undefined;
+        .prepare(
+          "SELECT config, review_scope FROM pr_watches WHERE project_id = ? AND pr_number = ?",
+        )
+        .get(parsed.projectId, parsed.prNumber) as
+        | { config: string | null; review_scope: string | null }
+        | undefined;
       assertSelectionJsonReplaceable(previous?.config);
+      if (previous?.review_scope != null && !readReviewScope(previous.review_scope).success)
+        throw new Error(msg("forge.watchScopeUnsupported"));
       sqlite
         .prepare(
           `INSERT INTO pr_watches (
         project_id, pr_number, head_branch, worktree_path, watch_enabled,
         auto_merge, agent_kind, config, last_comment_cursor,
         last_review_comment_cursor, last_review_cursor, last_check_key,
-        active_thread_id, last_error, blocked_reason
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        active_thread_id, last_error, blocked_reason, review_scope
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(project_id, pr_number) DO UPDATE SET
         head_branch = excluded.head_branch,
         worktree_path = excluded.worktree_path,
@@ -91,7 +114,8 @@ export function dbUpsertPrWatch(watch: PrWatch): void {
         last_check_key = excluded.last_check_key,
         active_thread_id = excluded.active_thread_id,
         last_error = excluded.last_error,
-        blocked_reason = excluded.blocked_reason`,
+        blocked_reason = excluded.blocked_reason,
+        review_scope = COALESCE(excluded.review_scope, pr_watches.review_scope)`,
         )
         .run(
           parsed.projectId,
@@ -109,6 +133,7 @@ export function dbUpsertPrWatch(watch: PrWatch): void {
           parsed.activeThreadId,
           parsed.lastError,
           parsed.blockedReason,
+          parsed.reviewScope ? JSON.stringify(parsed.reviewScope) : null,
         );
     })
     .immediate();
@@ -123,7 +148,7 @@ export function dbDeletePrWatch(projectId: string, prNumber: number): void {
 /**
  * The runtime-bookkeeping fields a watch's own lifecycle may change in place:
  * status-only columns. Everything execution-defining — `head_branch`,
- * `watch_enabled`, `auto_merge`, `agent_kind`, `config` — is absent, so
+ * `watch_enabled`, `auto_merge`, `agent_kind`, `config`, `review_scope` — is absent, so
  * startup normalization, settlement, blocks, error recording, and launch
  * results write through {@link dbPatchPrWatchRuntime} and stored config
  * bytes — including unsupported raw metadata the guarded full save would

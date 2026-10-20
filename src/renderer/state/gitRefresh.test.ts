@@ -2,12 +2,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PoracodeBridge } from "@/shared/ipc";
 import type {
   GitStatusResult,
+  ForgeRepository,
   PrData,
   PrDetails,
   Project,
   ProjectLocation,
   Thread,
 } from "@/shared/contracts";
+import { msg } from "@/shared/messages";
 import { useAppStore } from "./appStore";
 import { useGitStore } from "./gitStore";
 import { emptyGitStateSnapshot, gitTargetKey, pullRequestKey } from "@/shared/gitState";
@@ -44,6 +46,8 @@ const ghGetPrDetailsMock =
       prNumber: number;
     }) => Promise<{ details: PrDetails }>
   >();
+const forgeGetPrForBranchMock = vi.fn<PoracodeBridge["forgeGetPrForBranch"]>();
+const forgeGetPrDetailsMock = vi.fn<PoracodeBridge["forgeGetPrDetails"]>();
 const checkPrWatchMock =
   vi.fn<(payload: { projectId: string; prNumber: number }) => Promise<void>>();
 const ghListPrsMock =
@@ -94,6 +98,29 @@ const basePr: PrData = {
   isDraft: false,
   checksStatus: "PENDING",
   updatedAt: "2026-04-04T00:00:00.000Z",
+};
+
+const forgeSource: ForgeRepository = {
+  forge: "gitlab",
+  host: "https://gitlab.com",
+  repository: "team/app",
+  remote: "origin",
+  account: { forge: "gitlab", host: "https://gitlab.com", login: "alice" },
+  capabilities: {
+    mergeMethods: ["merge", "squash"],
+    reviewDecisions: ["approve", "comment"],
+    draft: true,
+    reopen: true,
+    updateBranch: false,
+    rebaseBranch: true,
+    edit: true,
+    checks: true,
+    reviewThreads: true,
+    expectedHeadMerge: true,
+    autoMerge: true,
+    autoFix: true,
+    adminMerge: false,
+  },
 };
 
 const baseDetails: PrDetails = {
@@ -163,6 +190,10 @@ describe("pending PR refresh", () => {
     vi.useFakeTimers();
     ghGetPrForBranchMock.mockReset();
     ghGetPrDetailsMock.mockReset();
+    forgeGetPrForBranchMock
+      .mockReset()
+      .mockRejectedValue(new Error(msg("forge.repositoryChanged")));
+    forgeGetPrDetailsMock.mockReset();
     checkPrWatchMock.mockReset();
     ghListPrsMock.mockReset();
     checkPrWatchMock.mockResolvedValue(undefined);
@@ -175,6 +206,8 @@ describe("pending PR refresh", () => {
           .mockResolvedValue(undefined),
         ghGetPrForBranch: ghGetPrForBranchMock,
         ghGetPrDetails: ghGetPrDetailsMock,
+        forgeGetPrForBranch: forgeGetPrForBranchMock,
+        forgeGetPrDetails: forgeGetPrDetailsMock,
         checkPrWatch: checkPrWatchMock,
         ghListPrs: ghListPrsMock,
       },
@@ -276,7 +309,7 @@ describe("pending PR refresh", () => {
     expect(useGitStore.getState().prData["/repo-visible"]?.state).toBe("merged");
   });
 
-  it("prefetches for a matching visible Git panel only when gh and GitHub are available", async () => {
+  it("prefetches for a matching visible Git panel when source-host reviews are available", async () => {
     const visibleProject = { ...project, id: "visible-git-project" };
     useAppStore.setState({ projects: [visibleProject] });
     usePanelStore.setState({
@@ -305,7 +338,7 @@ describe("pending PR refresh", () => {
       },
     });
     await prefetchVisibleGitPanelPrData(visibleProject.id, "/repo-visible");
-    expect(ghListPrsMock).not.toHaveBeenCalled();
+    expect(ghListPrsMock).toHaveBeenCalledOnce();
 
     useGitStore.setState({ statuses: { [visibleProject.id]: status } });
     await prefetchVisibleGitPanelPrData(visibleProject.id, "/repo-visible");
@@ -365,6 +398,246 @@ describe("pending PR refresh", () => {
       "/repo/experiment-two",
     ]);
   });
+
+  it.each(["default", "account", "host", "repository", "legacy"] as const)(
+    "rediscovers the current %s review identity before fetching scoped details",
+    async (changed) => {
+      const nextSource: ForgeRepository =
+        changed === "account"
+          ? { ...forgeSource, account: { ...forgeSource.account!, login: "bob" } }
+          : changed === "host"
+            ? {
+                ...forgeSource,
+                host: "https://git.example",
+                account: { ...forgeSource.account!, host: "https://git.example" },
+              }
+            : changed === "repository"
+              ? { ...forgeSource, repository: "other/app" }
+              : forgeSource;
+      const previous = changed === "legacy" ? basePr : { ...basePr, source: forgeSource };
+      const current = { ...basePr, source: nextSource };
+      const currentDetails = { ...baseDetails, source: nextSource };
+      const key = buildBranchPrKey(project.id);
+      useGitStore.getState().setPrData(key, previous);
+      useGitStore.getState().setPrDetails("p1#42", { ...baseDetails, source: forgeSource });
+      useGitStore.getState().setPrDiff("p1#42", "old diff");
+      useGitStore.getState().setPrFiles("p1#42", [{ path: "old.ts", additions: 1, deletions: 0 }]);
+      ghGetPrForBranchMock.mockResolvedValue(current);
+      forgeGetPrDetailsMock.mockResolvedValue({ pr: current, details: currentDetails });
+      await refreshSinglePr({
+        projectLocation: location,
+        prKey: key,
+        branch: status.branch,
+        projectId: project.id,
+        detailsCacheKey: "p1#42",
+        prNumber: 42,
+      });
+      expect(ghGetPrForBranchMock).toHaveBeenCalledWith({
+        projectLocation: location,
+        branch: status.branch,
+      });
+      expect(forgeGetPrForBranchMock).not.toHaveBeenCalled();
+      expect(forgeGetPrDetailsMock).toHaveBeenCalledWith({
+        projectLocation: location,
+        prNumber: 42,
+        forgeAccount: nextSource.account,
+        forgeRepository: nextSource.repository,
+      });
+      expect(useGitStore.getState().prData[key]).toEqual(current);
+      expect(useGitStore.getState().prDetails["p1#42"]).toEqual(currentDetails);
+      expect(useGitStore.getState().prDiffs["p1#42"]).toBe(
+        changed === "default" ? "old diff" : undefined,
+      );
+      expect(useGitStore.getState().prFiles["p1#42"]).toEqual(
+        changed === "default" ? [{ path: "old.ts", additions: 1, deletions: 0 }] : undefined,
+      );
+    },
+  );
+
+  it.each(["forge.repositoryChanged", "forge.hostMismatch", "forge.accountMismatch"] as const)(
+    "clears an actual %s refusal and recovers through current discovery",
+    async (message) => {
+      const key = buildBranchPrKey(project.id);
+      const previous = { ...basePr, source: forgeSource };
+      useGitStore.getState().setPrData(key, previous);
+      useGitStore.getState().setPrDetails("p1#42", { ...baseDetails, source: forgeSource });
+      useGitStore.getState().setPrDiff("p1#42", "old diff");
+      ghGetPrForBranchMock.mockRejectedValueOnce(
+        new Error(`Error invoking remote method 'ghGetPrForBranch': Error: ${msg(message)}`),
+      );
+      const input = {
+        projectLocation: location,
+        prKey: key,
+        branch: status.branch,
+        projectId: project.id,
+        detailsCacheKey: "p1#42",
+        prNumber: 42,
+      };
+      await refreshSinglePr(input);
+      expect(useGitStore.getState().prData[key]).toBeNull();
+      expect(useGitStore.getState().prDetails["p1#42"]).toBeUndefined();
+      expect(useGitStore.getState().prDiffs["p1#42"]).toBeUndefined();
+      const recovered = {
+        ...previous,
+        source: { ...forgeSource, account: { ...forgeSource.account!, login: "bob" } },
+      };
+      ghGetPrForBranchMock.mockResolvedValue(recovered);
+      forgeGetPrDetailsMock.mockResolvedValue({
+        pr: recovered,
+        details: { ...baseDetails, source: recovered.source },
+      });
+      await refreshSinglePr(input);
+      expect(useGitStore.getState().prData[key]).toEqual(recovered);
+      expect(forgeGetPrForBranchMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it("keeps a successful scoped snapshot on a transient discovery failure", async () => {
+    const key = buildBranchPrKey(project.id);
+    const previous = { ...basePr, source: forgeSource };
+    const details = { ...baseDetails, source: forgeSource };
+    useGitStore.getState().setPrData(key, previous);
+    useGitStore.getState().setPrDetails("p1#42", details);
+    ghGetPrForBranchMock.mockRejectedValue(new Error(msg("forge.networkFailed")));
+    await refreshSinglePr({
+      projectLocation: location,
+      prKey: key,
+      branch: status.branch,
+      detailsCacheKey: "p1#42",
+      prNumber: 42,
+    });
+    expect(useGitStore.getState().prData[key]).toBe(previous);
+    expect(useGitStore.getState().prDetails["p1#42"]).toBe(details);
+    expect(forgeGetPrDetailsMock).not.toHaveBeenCalled();
+  });
+
+  it("clears an identity refusal after discovery instead of retrying as another account", async () => {
+    const key = buildBranchPrKey(project.id);
+    const previous = { ...basePr, source: forgeSource };
+    useGitStore.getState().setPrData(key, previous);
+    ghGetPrForBranchMock.mockResolvedValue(previous);
+    forgeGetPrDetailsMock.mockRejectedValue(new Error(msg("forge.accountMismatch")));
+    await refreshSinglePr({
+      projectLocation: location,
+      prKey: key,
+      branch: status.branch,
+      detailsCacheKey: "p1#42",
+      prNumber: 42,
+    });
+    expect(useGitStore.getState().prData[key]).toBeNull();
+    expect(forgeGetPrDetailsMock).toHaveBeenCalledOnce();
+    expect(ghGetPrDetailsMock).not.toHaveBeenCalled();
+  });
+
+  it("preserves scoped details through a transient detail failure", async () => {
+    const key = buildBranchPrKey(project.id);
+    const previous = { ...basePr, source: forgeSource };
+    const details = { ...baseDetails, source: forgeSource };
+    useGitStore.getState().setPrData(key, previous);
+    useGitStore.getState().setPrDetails("p1#42", details);
+    ghGetPrForBranchMock.mockResolvedValue(previous);
+    forgeGetPrDetailsMock.mockRejectedValue(new Error(msg("forge.networkFailed")));
+    await refreshSinglePr({
+      projectLocation: location,
+      prKey: key,
+      branch: status.branch,
+      detailsCacheKey: "p1#42",
+      prNumber: 42,
+    });
+    expect(useGitStore.getState().prData[key]).toBe(previous);
+    expect(useGitStore.getState().prDetails["p1#42"]).toBe(details);
+  });
+
+  it("removes the previous review cache when discovery confirms there is no PR", async () => {
+    const key = buildBranchPrKey(project.id);
+    useGitStore.getState().setPrData(key, { ...basePr, source: forgeSource });
+    useGitStore.getState().setPrDetails("p1#42", { ...baseDetails, source: forgeSource });
+    ghGetPrForBranchMock.mockResolvedValue(null);
+    await refreshSinglePr({
+      projectLocation: location,
+      prKey: key,
+      branch: status.branch,
+      projectId: project.id,
+    });
+    expect(useGitStore.getState().prData[key]).toBeNull();
+    expect(useGitStore.getState().prDetails["p1#42"]).toBeUndefined();
+    expect(forgeGetPrDetailsMock).not.toHaveBeenCalled();
+  });
+
+  it("loads a newly discovered PR under its own detail cache key", async () => {
+    const key = buildBranchPrKey(project.id);
+    useGitStore.getState().setPrData(key, { ...basePr, source: forgeSource });
+    const current = { ...basePr, number: 43, source: { ...forgeSource, repository: "other/app" } };
+    const currentDetails = { ...baseDetails, number: 43, source: current.source };
+    ghGetPrForBranchMock.mockResolvedValue(current);
+    forgeGetPrDetailsMock.mockResolvedValue({ pr: current, details: currentDetails });
+    await refreshSinglePr({
+      projectLocation: location,
+      prKey: key,
+      branch: status.branch,
+      projectId: project.id,
+      detailsCacheKey: "p1#42",
+      prNumber: 42,
+    });
+    expect(forgeGetPrDetailsMock).toHaveBeenCalledWith(
+      expect.objectContaining({ prNumber: 43, forgeRepository: "other/app" }),
+    );
+    expect(useGitStore.getState().prDetails["p1#43"]).toBe(currentDetails);
+    expect(useGitStore.getState().prDetails["p1#42"]).toBeUndefined();
+  });
+
+  it("does not replace a newer scoped row with a late discovery result", async () => {
+    const key = buildBranchPrKey(project.id);
+    const previous = { ...basePr, source: forgeSource };
+    const current = { ...previous, source: { ...forgeSource, repository: "other/app" } };
+    const held = Promise.withResolvers<PrData>();
+    useGitStore.getState().setPrData(key, previous);
+    ghGetPrForBranchMock.mockReturnValueOnce(held.promise).mockResolvedValueOnce(current);
+    const input = { projectLocation: location, prKey: key, branch: status.branch };
+    const first = refreshSinglePr(input);
+    await refreshSinglePr(input);
+    held.resolve(previous);
+    await first;
+    expect(useGitStore.getState().prData[key]).toBe(current);
+    expect(forgeGetPrForBranchMock).not.toHaveBeenCalled();
+  });
+
+  it.each(["new refresh", "external source update"] as const)(
+    "ignores late scoped details after a %s",
+    async (replacement) => {
+      const key = buildBranchPrKey(project.id);
+      const previous = { ...basePr, source: forgeSource };
+      const current = {
+        ...previous,
+        source: { ...forgeSource, account: { ...forgeSource.account!, login: "bob" } },
+      };
+      const currentDetails = { ...baseDetails, source: current.source };
+      const held = Promise.withResolvers<{ pr: PrData; details: PrDetails }>();
+      useGitStore.getState().setPrData(key, previous);
+      ghGetPrForBranchMock.mockResolvedValueOnce(previous).mockResolvedValueOnce(current);
+      forgeGetPrDetailsMock
+        .mockReturnValueOnce(held.promise)
+        .mockResolvedValueOnce({ pr: current, details: currentDetails });
+      const input = {
+        projectLocation: location,
+        prKey: key,
+        branch: status.branch,
+        detailsCacheKey: "p1#42",
+        prNumber: 42,
+      };
+      const first = refreshSinglePr(input);
+      await vi.waitFor(() => expect(forgeGetPrDetailsMock).toHaveBeenCalledOnce());
+      if (replacement === "new refresh") await refreshSinglePr(input);
+      else {
+        useGitStore.getState().setPrData(key, current);
+        useGitStore.getState().setPrDetails("p1#42", currentDetails);
+      }
+      held.resolve({ pr: previous, details: { ...baseDetails, source: forgeSource } });
+      await first;
+      expect(useGitStore.getState().prData[key]).toBe(current);
+      expect(useGitStore.getState().prDetails["p1#42"]).toBe(currentDetails);
+    },
+  );
 
   it.each([
     { label: "open", pr: basePr },
@@ -448,6 +721,7 @@ describe("pending PR refresh", () => {
 
     syncPendingPrRefreshProjects([{ id: "p1", location }]);
 
+    await vi.advanceTimersByTimeAsync(0);
     expect(ghGetPrForBranchMock).toHaveBeenCalledWith({
       projectLocation: location,
       branch: "feature/pr-checks",
@@ -488,6 +762,7 @@ describe("pending PR refresh", () => {
 
     syncPendingPrRefreshProjects([{ id: "p1", location }]);
 
+    await vi.advanceTimersByTimeAsync(0);
     expect(ghGetPrForBranchMock).toHaveBeenCalledWith({
       projectLocation: location,
       branch: "feature/pr-checks",
@@ -922,6 +1197,47 @@ describe("watcher git status refresh", () => {
       await refresh;
     }
   });
+
+  it.each(["gitlab", "bitbucket"] as const)(
+    "refreshes project and worktree reviews for an available %s source host",
+    async (platform) => {
+      const getPr = vi.fn<PoracodeBridge["ghGetPrForBranch"]>().mockResolvedValue(basePr);
+      Object.defineProperty(window, "poracode", {
+        configurable: true,
+        value: {
+          platform: "darwin",
+          gitProjectSnapshot: vi.fn<PoracodeBridge["gitProjectSnapshot"]>().mockResolvedValue({
+            status: { ...status, remoteInfo: { ...status.remoteInfo!, platform } },
+            branches: { current: status.branch, branches: [] },
+            worktrees: [],
+            ghAvailable: true,
+          }),
+          gitWatchWorktrees: vi
+            .fn<PoracodeBridge["gitWatchWorktrees"]>()
+            .mockResolvedValue(undefined),
+          gitWorktreeStatusBatch: vi
+            .fn<PoracodeBridge["gitWorktreeStatusBatch"]>()
+            .mockResolvedValue({ statuses: {} }),
+          ghGetPrForBranch: getPr,
+          ghListPrs: vi.fn<PoracodeBridge["ghListPrs"]>().mockResolvedValue({ prs: {} }),
+        },
+      });
+      useAppStore.setState({ threads: [worktreeThread] });
+
+      await refreshGitProject(project, "manual", "full");
+
+      expect(getPr).toHaveBeenCalledWith({
+        projectLocation: location,
+        branch: status.branch,
+      });
+      expect(getPr).toHaveBeenCalledWith({
+        projectLocation: location,
+        branch: worktreeThread.worktreeBranch,
+      });
+      expect(useGitStore.getState().prData[buildBranchPrKey(project.id)]).toEqual(basePr);
+      expect(useGitStore.getState().prData[worktreeThread.worktreePath!]).toEqual(basePr);
+    },
+  );
 
   it("preserves cached worktree diff stats during fetch refreshes", async () => {
     const cachedWorktreeStatus: GitStatusResult = {

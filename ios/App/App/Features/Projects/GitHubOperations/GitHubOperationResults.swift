@@ -119,6 +119,7 @@ struct GitHubPullRequestSummary: Identifiable, Equatable, Sendable {
   var additions: Int64?
   var deletions: Int64?
   var reviewRequested: Bool?
+  var forgeSourceData: Data?
 
   var id: Int64 { number }
 }
@@ -192,7 +193,8 @@ enum GitHubResultProjection {
       repository: object["repository"]?.stringValue,
       additions: object["additions"]?.integerValue,
       deletions: object["deletions"]?.integerValue,
-      reviewRequested: object["reviewRequested"]?.boolValue
+      reviewRequested: object["reviewRequested"]?.boolValue,
+      forgeSourceData: source["source"].flatMap { try? JSONEncoder().encode($0) }
     )
   }
 

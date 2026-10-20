@@ -7,6 +7,53 @@ import {
   type WindowsShellPreference,
 } from "./shellPreference";
 import { SupervisorRuntime } from "./supervisorRuntime";
+import type {
+  GitProjectSnapshotPayload,
+  GitProjectSnapshotResult,
+  ProjectLocation,
+} from "@/shared/contracts";
+
+describe("SupervisorRuntime source-host review availability", () => {
+  it.each([true, false])(
+    "uses the forge probe for WSL snapshots (requested: %s)",
+    async (includeGhCheck) => {
+      const projectLocation: ProjectLocation = {
+        kind: "wsl",
+        distro: "Ubuntu",
+        linuxPath: "/repo",
+        uncPath: "\\\\wsl.localhost\\Ubuntu\\repo",
+      };
+      const snapshot: GitProjectSnapshotResult = {
+        status: null,
+        branches: null,
+        worktrees: null,
+        ghAvailable: null,
+      };
+      const batchedWslProjectSnapshot = vi
+        .fn<
+          (location: ProjectLocation, includeGhCheck: boolean) => Promise<GitProjectSnapshotResult>
+        >()
+        .mockResolvedValue(snapshot);
+      const checkAvailable = vi
+        .fn<(location: ProjectLocation) => Promise<{ available: boolean }>>()
+        .mockResolvedValue({ available: true });
+      const runtime = Object.create(SupervisorRuntime.prototype) as {
+        gitService: { batchedWslProjectSnapshot: typeof batchedWslProjectSnapshot };
+        forgeReviewService: { checkAvailable: typeof checkAvailable };
+        gitProjectSnapshot(payload: GitProjectSnapshotPayload): Promise<GitProjectSnapshotResult>;
+      };
+      runtime.gitService = { batchedWslProjectSnapshot };
+      runtime.forgeReviewService = { checkAvailable };
+
+      expect(await runtime.gitProjectSnapshot({ projectLocation, includeGhCheck })).toEqual({
+        ...snapshot,
+        ghAvailable: includeGhCheck ? true : null,
+      });
+      expect(batchedWslProjectSnapshot).toHaveBeenCalledExactlyOnceWith(projectLocation, false);
+      expect(checkAvailable.mock.calls).toEqual(includeGhCheck ? [[projectLocation]] : []);
+    },
+  );
+});
 
 describe("SupervisorRuntime Windows launch shells", () => {
   const originalPlatform = process.platform;

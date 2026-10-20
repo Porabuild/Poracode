@@ -170,3 +170,13 @@ Example (invented project planning data):
 ## Output
 
 Name the source of each fact — the terminal id, thread, branch, or PR number — and separate what you observed from what you concluded. When a pane is running but silent, or a list comes back empty, say so plainly instead of substituting a different source.
+
+For source-host reviews, call `review_repository` to discover the full repository,
+public `forgeAccount`, and capabilities. Pass that account and `forgeRepository`
+to `review_*` tools to pin subsequent operations. These tools support GitHub,
+GitLab, Forgejo/Gitea, Bitbucket Cloud, Azure DevOps, and GitCafe where the host
+supports an operation. Unsupported actions fail without changing accounts or
+bypassing policy. `review_threads` reads conversations; `review_submit` publishes
+feedback; `review_edit` updates review metadata. Publish or merge only when the
+user authorizes it. A successful merge request can still be queued: use the
+observed review state, and retry a failed refresh without repeating the mutation.

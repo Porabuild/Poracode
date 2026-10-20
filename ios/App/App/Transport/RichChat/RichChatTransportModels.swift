@@ -21,12 +21,14 @@ struct RichChatSendInput: Sendable, Equatable {
 
 struct RichChatThreadCommand: Sendable, Equatable {
   let payload: [String: RichJSON]
-  /// Used only for `start`; other command kinds never receive an idempotency header.
+  /// Retained across retries for commands that create a conversation.
   let commandID: String?
+  let destinationThreadID: String?
 
-  init(payload: [String: RichJSON], commandID: String? = nil) {
+  init(payload: [String: RichJSON], commandID: String? = nil, destinationThreadID: String? = nil) {
     self.payload = payload
     self.commandID = commandID
+    self.destinationThreadID = destinationThreadID
   }
 }
 

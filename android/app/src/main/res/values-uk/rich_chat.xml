@@ -221,4 +221,11 @@
     <string name="rich_chat_session_settings_search">Пошук значень</string>
     <string name="rich_chat_session_settings_back">Назад</string>
     <string name="rich_chat_session_settings_fallback_heading">Параметр</string>
+    <string name="rich_chat_fork_action">Відгалузити звідси</string>
+    <string name="rich_chat_fork_title">Відгалузити розмову</string>
+    <string name="rich_chat_fork_create">Створити відгалуження</string>
+    <string name="rich_chat_fork_explanation">Створює незалежну розмову до завершеного ходу. Файли залишаються в тій самій робочій копії.</string>
+    <string name="rich_chat_fork_name">Назва розмови</string>
+    <string name="rich_chat_fork_boundary">Успадкована історія закінчується тут</string>
+    <string name="rich_chat_fork_source">Відгалуження від %1$s</string>
 </resources>

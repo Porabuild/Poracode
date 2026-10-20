@@ -23,6 +23,7 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
   const git = runtime.gitService;
   const checkpoints = runtime.gitCheckpointService;
   const github = runtime.githubService;
+  const reviews = runtime.forgeReviewService;
   const generation = runtime.generationService;
   const fileIndex = runtime.fileIndexService;
   const projectTree = runtime.projectTreeService;
@@ -305,19 +306,11 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
     moveProjectEntry: (payload) => projectTree.moveProjectEntry(payload),
     deleteProjectEntry: (payload) => projectTree.deleteProjectEntry(payload),
     detectSetupScript: (payload) => runtime.detectSetupScript(payload),
-    ghCheckAvailable: (payload) => github.checkGhAvailable(payload.projectLocation),
-    ghCreatePr: (payload) =>
-      github.createPr(
-        payload.projectLocation,
-        payload.branch,
-        payload.baseBranch,
-        payload.title,
-        payload.body,
-        payload.isDraft,
-      ),
-    ghGetPrForBranch: (payload) => github.getPrForBranch(payload.projectLocation, payload.branch),
-    ghListPrs: async (payload) => ({ prs: await github.listPrs(payload.projectLocation) }),
-    ghListPullRequests: (payload) => github.listPullRequests(payload.projectLocation),
+    ghCheckAvailable: (payload) => reviews.checkAvailable(payload.projectLocation),
+    ghCreatePr: (payload) => reviews.createPr(payload),
+    ghGetPrForBranch: (payload) => reviews.getPrForBranch(payload),
+    ghListPrs: (payload) => reviews.listPrs(payload),
+    ghListPullRequests: (payload) => reviews.listPullRequests(payload),
     ghListWorkflows: (payload) => github.listWorkflows(payload.projectLocation, payload.ghAccount),
     ghListWorkflowRuns: (payload) =>
       github.listWorkflowRuns(payload.projectLocation, payload.workflowId, payload.ghAccount),
@@ -349,36 +342,46 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
       github.cancelWorkflowRun(payload.projectLocation, payload.runId, payload.ghAccount),
     ghDeleteWorkflowRun: (payload) =>
       github.deleteWorkflowRun(payload.projectLocation, payload.runId, payload.ghAccount),
-    ghMergePr: (payload) =>
-      github.mergePr(payload.projectLocation, payload.prNumber, payload.method, payload.admin),
-    ghMergePrAtHead: (payload) =>
-      github.mergePr(
-        payload.projectLocation,
-        payload.prNumber,
-        payload.method,
-        payload.admin,
-        payload.expectedHeadSha,
+    ghMergePr: (payload) => reviews.mergePr(payload),
+    ghMergePrAtHead: (payload) => reviews.mergePr(payload),
+    ghClosePr: (payload) => reviews.closePr(payload),
+    ghReopenPr: (payload) => reviews.reopenPr(payload),
+    ghMarkPrReady: (payload) => reviews.markPrReady(payload),
+    ghUpdatePrBranch: (payload) => reviews.updatePrBranch(payload),
+    ghGetPrChecks: (payload) => reviews.getPrChecks(payload),
+    ghGetPrFiles: (payload) => reviews.getPrFiles(payload),
+    ghGetPrDiff: (payload) => reviews.getPrDiff(payload),
+    ghGetPrDetails: (payload) => reviews.getPrDetails(payload),
+    ghGetPrReviewComments: (payload) => reviews.getPrReviewThreads(payload),
+    ghPostPrComment: (payload) => reviews.postPrComment(payload),
+    ghSubmitPrReview: (payload) => reviews.submitPrReview(payload),
+    forgeGetRepository: (payload) => reviews.getRepository(payload),
+    forgeGetPrViewedFiles: (payload) => reviews.getPrViewedFiles(payload),
+    forgeGetPrReviewGuide: (payload) => reviews.getPrReviewGuide(payload),
+    forgeWritePrReviewGuide: (payload) =>
+      reviews.writePrReviewGuide(payload, (snapshot, source) =>
+        generation.generateReviewGuide(payload, snapshot, source),
       ),
-    ghClosePr: (payload) => github.closePr(payload.projectLocation, payload.prNumber),
-    ghReopenPr: (payload) => github.reopenPr(payload.projectLocation, payload.prNumber),
-    ghMarkPrReady: (payload) => github.markPrReady(payload.projectLocation, payload.prNumber),
-    ghGetPrChecks: (payload) => github.getPrChecks(payload.projectLocation, payload.branch),
-    ghGetPrFiles: (payload) => github.getPrFiles(payload.projectLocation, payload.prNumber),
-    ghGetPrDiff: (payload) => github.getPrDiff(payload.projectLocation, payload.prNumber),
-    ghSubmitPrReview: (payload) =>
-      github.submitPrReview(
-        payload.projectLocation,
-        payload.prNumber,
-        payload.decision,
-        payload.body,
-      ),
-    ghUpdatePrBranch: (payload) =>
-      github.updatePrBranch(payload.projectLocation, payload.prNumber, payload.rebase),
-    ghGetPrDetails: (payload) => github.getPrDetails(payload.projectLocation, payload.prNumber),
-    ghGetPrReviewComments: (payload) =>
-      github.getPrReviewThreads(payload.projectLocation, payload.prNumber),
-    ghPostPrComment: (payload) =>
-      github.postPrComment(payload.projectLocation, payload.prNumber, payload.body),
+    forgeSetPrFileViewed: (payload) => reviews.setPrFileViewed(payload),
+    forgeEditPr: (payload) => reviews.editPr(payload),
+    forgeEditPrComment: (payload) => reviews.editPrComment(payload),
+    forgeCreatePr: (payload) => reviews.createPr(payload),
+    forgeGetPrForBranch: (payload) => reviews.getPrForBranch(payload),
+    forgeListPrs: (payload) => reviews.listPrs(payload),
+    forgeListPullRequests: (payload) => reviews.listPullRequests(payload),
+    forgeMergePr: (payload) => reviews.mergePr(payload),
+    forgeMergePrAtHead: (payload) => reviews.mergePr(payload),
+    forgeClosePr: (payload) => reviews.closePr(payload),
+    forgeReopenPr: (payload) => reviews.reopenPr(payload),
+    forgeMarkPrReady: (payload) => reviews.markPrReady(payload),
+    forgeUpdatePrBranch: (payload) => reviews.updatePrBranch(payload),
+    forgeGetPrChecks: (payload) => reviews.getPrChecks(payload),
+    forgeGetPrFiles: (payload) => reviews.getPrFiles(payload),
+    forgeGetPrDiff: (payload) => reviews.getPrDiff(payload),
+    forgeGetPrDetails: (payload) => reviews.getPrDetails(payload),
+    forgeGetPrReviewComments: (payload) => reviews.getPrReviewThreads(payload),
+    forgePostPrComment: (payload) => reviews.postPrComment(payload),
+    forgeSubmitPrReview: (payload) => reviews.submitPrReview(payload),
     ghListAccounts: (payload) => github.listAccounts(payload.runtime),
     ghListRepos: (payload) => github.listRepos(payload.runtime, payload.account),
     cloneRepo: (payload) => runtime.cloneRepo(payload),

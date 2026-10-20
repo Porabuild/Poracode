@@ -59,7 +59,7 @@ extension HomeQuickComposeView {
   func start() {
     let typedText = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
     let mentionPrompt =
-      (fileMentions.map { "@\($0)" } + mentionedMCPs.map { "@\($0.name)" })
+      (fileMentions.map { "@\($0)" } + mentionedMCPs.map { "@\($0.name)" } + skills.map(\.invocation))
       .joined(separator: " ")
     let text = typedText.isEmpty ? launchSeed?.defaultPrompt ?? mentionPrompt : typedText
     guard !text.isEmpty, let project = selectedProject, let defaults,
@@ -70,11 +70,13 @@ extension HomeQuickComposeView {
     let attachmentSegments = attachments.map {
       ThreadPromptSegment.attachment(path: $0.remotePath, mimeType: $0.mimeType)
     }
-    let segments =
+    let textSegments: [ThreadPromptSegment] = typedText.isEmpty ? [] : [.text(content: prompt)]
+    let contextSegments =
       fileMentions.map(ThreadPromptSegment.file(path:))
       + mentionedMCPs.map { .mcp(id: $0.id, name: $0.name) }
       + skills.map(\.threadSegment)
-      + attachmentSegments
+    let separatedContext = contextSegments.flatMap { [$0, ThreadPromptSegment.text(content: " ")] }
+    let segments = separatedContext + textSegments + attachmentSegments
     let launchAgentKind = selectedAgent?.kind ?? defaults.agentKind
     Task {
       let worktree: (path: String, branch: String, isNew: Bool)?
@@ -107,7 +109,8 @@ extension HomeQuickComposeView {
           isNewWorktree: worktree?.isNew == true ? true : nil,
           presentationMode: presentationMode,
           segments: launchSeed?.promptPrefix.map {
-            [.text(content: $0), .text(content: text)] + segments
+            [.text(content: $0), .text(content: text), .text(content: " ")]
+              + separatedContext + attachmentSegments
           } ?? (segments.isEmpty ? nil : segments),
           title: launchSeed?.title,
           worktreeBranch: worktree?.branch ?? launchSeed?.worktreeBranch,

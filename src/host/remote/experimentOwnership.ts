@@ -211,6 +211,9 @@ export function assertPersistedThreadGroupChangeSafe(
 export function assertRemoteThreadCommandExperimentSafe(command: RemoteThreadCommand): void {
   let threadIds: readonly string[];
   switch (command.kind) {
+    case "fork":
+      threadIds = [command.threadId, command.sourceThreadId];
+      break;
     case "set-group":
       assertPersistedThreadGroupChangeSafe(
         dbGetThreads().find((thread) => thread.id === command.threadId)?.groupId,

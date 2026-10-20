@@ -56,7 +56,7 @@ describe("remote v3 native binding generator", () => {
         formatVersion: 5,
         protocolVersion: 14,
         bindingFormatVersion: 2,
-        generatorVersion: 6,
+        generatorVersion: 7,
         // Optional readonly workspace-grant fields change generated bindings
         // without advertising mutation support or changing wire versions.
         // Selection-binding integration: protocol 13 adds the strict
@@ -71,22 +71,24 @@ describe("remote v3 native binding generator", () => {
         // Optional context-reload facts also add one generated Swift chunk.
         // Optional core PR state preserves the previous details-only result shape.
         // Background task timing, progress and Stop add two structural types.
-        // Combine optional question-answer metadata with saved-message search.
-        sourceHash: "sha256:1d7efef9afdaf2f8d4d07c142892ab935cadb3944eca4952816a6d919889522a",
-        manifestHash: "sha256:b6309d6fb98117981bd84d031807a83df91cded68621791fbd0eecb2561e6497",
+        // Optional question-answer metadata adds three structural types and two Swift chunks.
+        // Source-host reviews add one route, twenty-four procedures, and their native mirrors;
+        // device workspaces add fourteen routes; saved-message search and fork instructions add roots.
+        sourceHash: "sha256:aba3abee454fc813fa61f84ce4d8f3b593fb45a5824decc43dd594ad86456de2",
+        manifestHash: "sha256:53be762a4dddf0d0217f62422622d282f8e502340ebed99e03c979449ec5e49d",
         counts: {
-          routes: 116,
-          procedures: 130,
-          voidProcedureResults: 50,
-          jsonProcedureResults: 80,
+          routes: 117,
+          procedures: 154,
+          voidProcedureResults: 59,
+          jsonProcedureResults: 95,
           webSocketClientVariants: 9,
           // 10 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
           webSocketServerVariants: 11,
-          schemaRoots: 482,
-          structuralTypes: 1129,
-          semanticValidators: 22,
-          swiftFiles: 71,
-          kotlinFiles: 61,
+          schemaRoots: 523,
+          structuralTypes: 1167,
+          semanticValidators: 25,
+          swiftFiles: 73,
+          kotlinFiles: 62,
           stateMachines: 5,
         },
       });
@@ -175,7 +177,7 @@ describe("remote v3 native binding generator", () => {
     expect(() => parseNativeBindingIr({ ...ir, bindingFormatVersion: 3 }, manifest)).toThrow(
       /unsupported binding format/,
     );
-    expect(() => parseNativeBindingIr({ ...ir, generatorVersion: 3 }, manifest)).toThrow(
+    expect(() => parseNativeBindingIr({ ...ir, generatorVersion: 6 }, manifest)).toThrow(
       /unsupported generator version/,
     );
     expect(() =>
@@ -358,7 +360,7 @@ describe("remote v3 native binding generator", () => {
       const output = buildNativeBindingOutput(ir, manifest).files;
       for (const language of ["swift", "kotlin"] as const) {
         const adapters = rootAdapters(graph, language);
-        expect(adapters).toHaveLength(482);
+        expect(adapters).toHaveLength(523);
         expect(
           adapters
             .map((adapter) => adapter.id)

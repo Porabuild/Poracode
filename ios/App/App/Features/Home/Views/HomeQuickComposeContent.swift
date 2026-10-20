@@ -47,18 +47,38 @@ extension HomeQuickComposeView {
         mentionSuggestions
       }
 
-      TextField(
-        "",
+      if let reference = RichChatSkillReference.atCaret(in: prompt, selection: promptSelection) {
+        let catalog = RichChatComposerControlCatalog(
+          agentStatus: selectedAgent,
+          presentationMode: presentationMode,
+          configuration: ThreadConfig(model: selectedModel ?? "")
+        )
+        VStack(spacing: 0) {
+          ForEach(Array(catalog.slashSuggestions(for: prompt, selection: promptSelection).prefix(6))) { command in
+            Button {
+              guard let skill = command.skill else { return }
+              if !skills.contains(where: { $0.id == skill.id }) { skills.append(skill) }
+              prompt = reference.removingToken(from: prompt)
+              promptSelection = NSRange(location: reference.range.location, length: 0)
+              promptFocused = true
+            } label: {
+              Label(command.displayID, systemImage: "wand.and.stars")
+                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+            }
+            .buttonStyle(.plain)
+          }
+        }
+      }
+
+      RichChatComposerTextInput(
         text: $prompt,
-        prompt: Text(launchSeed?.promptPlaceholder ?? HomeStrings.quickComposePrompt)
-          .foregroundStyle(Color.primary.opacity(0.5)),
-        axis: .vertical
+        selection: $promptSelection,
+        focused: Binding(get: { promptFocused }, set: { promptFocused = $0 }),
+        lineLimit: 4...7,
+        placeholder: launchSeed?.promptPlaceholder ?? HomeStrings.quickComposePrompt
       )
-      .lineLimit(4...7)
-      .textFieldStyle(.plain)
       .foregroundStyle(.primary)
       .frame(maxWidth: .infinity, minHeight: 96, alignment: .topLeading)
-      .focused($promptFocused)
       .accessibilityIdentifier("native-e2e.new-thread-prompt")
       .onChange(of: prompt) { _, value in fileMentionController.update(draft: value) }
 

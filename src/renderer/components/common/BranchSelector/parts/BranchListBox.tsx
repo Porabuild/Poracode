@@ -1,3 +1,4 @@
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import {
   Check,
@@ -41,13 +42,32 @@ const STATUS_DOT_CLASS: Record<StatusTone, string> = {
   done: "bg-muted/40",
 };
 
+// Matches the virtualizer's `layoutOptions.padding`, used to translate a row
+// index into the scroll offset that keeps the keyboard-active row visible.
+const BRANCH_LIST_PADDING = 8;
+
 export interface OpenPrReviewArgs {
   branch: string;
   prNumber: number;
   worktreePath?: string;
 }
 
-export function BranchListBox(props: {
+/**
+ * DOM id React Aria assigns to a listbox option. Mirrors the library's
+ * `${listId}-option-${normalizedKey}` scheme so the search combobox can point
+ * `aria-activedescendant` at a row without moving focus out of the field.
+ */
+export function branchOptionDomId(listboxId: string, branchName: string): string {
+  return `${listboxId}-option-${branchName.replace(/\s*/g, "")}`;
+}
+
+export interface BranchListBoxHandle {
+  moveActive: (delta: number) => void;
+  selectActive: () => void;
+}
+
+export interface BranchListBoxProps {
+  listboxId: string;
   projectId: string;
   items: BranchListItem[];
   hasLocal: boolean;
@@ -66,119 +86,197 @@ export function BranchListBox(props: {
   onSelect: (branchName: string) => void;
   onDelete: (branch: { name: string; remote?: string; isRemote?: boolean }) => void;
   onOpenPrReview: (args: OpenPrReviewArgs) => void;
-}) {
-  const {
-    projectId,
-    items,
-    hasLocal,
-    hasRemote,
-    currentBranch,
-    value,
-    baseBranch,
-    isWorktree,
-    worktreeMode,
-    deletingBranch,
-    worktreeBranches,
-    branchWorktreePath,
-    threadsByBranch,
-    allowWorktreeDelete = true,
-    selectionOnly = false,
-    onSelect,
-    onDelete,
-    onOpenPrReview,
-  } = props;
-  const { t } = useLingui();
-  // In the mobile drawer, grow branch rows to a finger target. Drop the compact
-  // `!h-7` force-class so the `.m-sheet .list-box-item { min-height }` rule sizes
-  // them, and match the virtualizer's rowHeight so the scroll math stays in sync.
-  const { mobile } = useResponsiveMenu();
-  const rowHeight = mobile ? 44 : COMPACT_DROPDOWN_ROW_HEIGHT;
+  onActiveChange: (branchName: string | null) => void;
+}
 
-  if (!hasLocal && !hasRemote) {
-    return (
-      <div className="px-3 py-3 text-center text-sm text-muted">
-        <Trans>No branches found</Trans>
-      </div>
+export const BranchListBox = forwardRef<BranchListBoxHandle, BranchListBoxProps>(
+  function BranchListBox(props, ref) {
+    const {
+      listboxId,
+      projectId,
+      items,
+      hasLocal,
+      hasRemote,
+      currentBranch,
+      value,
+      baseBranch,
+      isWorktree,
+      worktreeMode,
+      deletingBranch,
+      worktreeBranches,
+      branchWorktreePath,
+      threadsByBranch,
+      allowWorktreeDelete = true,
+      selectionOnly = false,
+      onSelect,
+      onDelete,
+      onOpenPrReview,
+      onActiveChange,
+    } = props;
+    const { t } = useLingui();
+    // In the mobile drawer, grow branch rows to a finger target. Drop the compact
+    // `!h-7` force-class so the `.m-sheet .list-box-item { min-height }` rule sizes
+    // them, and match the virtualizer's rowHeight so the scroll math stays in sync.
+    const { mobile } = useResponsiveMenu();
+    const rowHeight = mobile ? 44 : COMPACT_DROPDOWN_ROW_HEIGHT;
+    const listBoxRef = useRef<HTMLDivElement>(null);
+    const skipScrollRef = useRef(false);
+    const listedBranches = items.flatMap((item) => (item.type === "branch" ? [item.branch] : []));
+    const branchNames = listedBranches.map((branch) => branch.name);
+    const selectedRef = isWorktree || worktreeMode ? (baseBranch ?? value) : value;
+    const selectedKey = items.some((item) => item.type === "branch" && item.id === selectedRef)
+      ? selectedRef
+      : localBranchNameFromRef(selectedRef, listedBranches);
+    // The keyboard-active row starts on the selected branch (or the first row)
+    // and falls back to it whenever the search narrows the row out of the list.
+    const initialActiveBranchName = branchNames.includes(selectedKey)
+      ? selectedKey
+      : (branchNames[0] ?? null);
+    const [activeBranchName, setActiveBranchName] = useState<string | null>(
+      initialActiveBranchName,
     );
-  }
+    // The mobile drawer has no hover affordance, so only show the highlight
+    // once the user actually navigates with the keyboard.
+    const [showMobileKeyboardHighlight, setShowMobileKeyboardHighlight] = useState(false);
+    const activeBranchIndex =
+      activeBranchName === null ? -1 : branchNames.indexOf(activeBranchName);
+    if (activeBranchIndex < 0 && activeBranchName !== initialActiveBranchName) {
+      setActiveBranchName(initialActiveBranchName);
+    }
 
-  const selectedRef = isWorktree || worktreeMode ? (baseBranch ?? value) : value;
-  const listedBranches = items.flatMap((item) => (item.type === "branch" ? [item.branch] : []));
-  const selectedKey = items.some((item) => item.type === "branch" && item.id === selectedRef)
-    ? selectedRef
-    : localBranchNameFromRef(selectedRef, listedBranches);
+    useEffect(() => {
+      onActiveChange(activeBranchIndex >= 0 ? activeBranchName : null);
+    }, [activeBranchIndex, activeBranchName, onActiveChange]);
 
-  return (
-    <Virtualizer layout={ListLayout} layoutOptions={{ rowHeight, padding: 8 }}>
-      <ListBox
-        aria-label={t`Branches`}
-        className={`poracode-menu max-h-60 overflow-y-auto ${mobile ? "" : VIRTUALIZED_COMPACT_DROPDOWN_ITEM_CLASS}`}
-        items={items}
-        selectedKeys={new Set([selectedKey])}
-        selectionMode="single"
-        disallowEmptySelection
-        onSelectionChange={(keys) => {
-          if (keys === "all") return;
-          const selected = [...keys][0];
-          if (selected !== undefined) {
-            const item = items.find((i) => i.id === selected);
-            if (item?.type === "branch") {
-              onSelect(item.branch.name);
+    useEffect(() => {
+      if (skipScrollRef.current) {
+        skipScrollRef.current = false;
+        return;
+      }
+      if (activeBranchIndex < 0 || activeBranchName === null) return;
+      const listBox = listBoxRef.current;
+      if (!listBox) return;
+      const itemIndex = items.findIndex((item) => item.id === activeBranchName);
+      if (itemIndex < 0) return;
+      const viewHeight = listBox.clientHeight;
+      if (viewHeight <= 0) return;
+      const rowTop = BRANCH_LIST_PADDING + itemIndex * rowHeight;
+      const rowBottom = rowTop + rowHeight;
+      const viewTop = listBox.scrollTop;
+      if (rowTop < viewTop) listBox.scrollTop = rowTop;
+      else if (rowBottom > viewTop + viewHeight) listBox.scrollTop = rowBottom - viewHeight;
+    }, [activeBranchIndex, activeBranchName, items, rowHeight]);
+
+    function moveActive(delta: number) {
+      if (branchNames.length === 0) return;
+      if (mobile) setShowMobileKeyboardHighlight(true);
+      const basePosition = activeBranchIndex < 0 ? (delta > 0 ? -1 : 0) : activeBranchIndex;
+      const nextPosition = Math.max(0, Math.min(branchNames.length - 1, basePosition + delta));
+      setActiveBranchName(branchNames[nextPosition] ?? null);
+    }
+
+    useImperativeHandle(ref, () => ({
+      moveActive,
+      selectActive() {
+        const nextBranch = activeBranchIndex >= 0 ? activeBranchName : (branchNames[0] ?? null);
+        if (nextBranch !== null) onSelect(nextBranch);
+      },
+    }));
+
+    if (!hasLocal && !hasRemote) {
+      return (
+        <div className="px-3 py-3 text-center text-sm text-muted">
+          <Trans>No branches found</Trans>
+        </div>
+      );
+    }
+
+    return (
+      <Virtualizer layout={ListLayout} layoutOptions={{ rowHeight, padding: BRANCH_LIST_PADDING }}>
+        <ListBox
+          ref={listBoxRef}
+          id={listboxId}
+          aria-label={t`Branches`}
+          className={`poracode-menu max-h-60 overflow-y-auto ${mobile ? "" : VIRTUALIZED_COMPACT_DROPDOWN_ITEM_CLASS}`}
+          items={items}
+          dependencies={[activeBranchName, showMobileKeyboardHighlight]}
+          selectedKeys={new Set([selectedKey])}
+          selectionMode="single"
+          disallowEmptySelection
+          onSelectionChange={(keys) => {
+            if (keys === "all") return;
+            const selected = [...keys][0];
+            if (selected !== undefined) {
+              const item = items.find((i) => i.id === selected);
+              if (item?.type === "branch") {
+                onSelect(item.branch.name);
+              }
             }
-          }
-        }}
-      >
-        {(item) => {
-          if (item.type === "header") {
-            const headerLabel = t(item.name);
+          }}
+        >
+          {(item) => {
+            if (item.type === "header") {
+              const headerLabel = t(item.name);
+              return (
+                <ListBox.Item
+                  id={item.id}
+                  isDisabled
+                  className="!bg-transparent !cursor-default !opacity-100 !p-0 h-7 flex items-center"
+                  textValue={headerLabel}
+                >
+                  <Header className="px-2 text-[10px] font-semibold uppercase tracking-wider text-muted/70">
+                    {headerLabel}
+                  </Header>
+                </ListBox.Item>
+              );
+            }
+            const { branch } = item;
+            const isCurrent = branch.name === currentBranch;
+            const isDeleting = deletingBranch === branch.name;
+            const worktreePath = branchWorktreePath.get(branch.name);
+            const isWorktreeBranch = worktreeBranches.has(branch.name) && !isCurrent;
+            const threads = threadsByBranch.get(branch.name) ?? [];
+            const isSelected = branch.name === selectedKey;
+            const isActive =
+              branch.name === activeBranchName && (!mobile || showMobileKeyboardHighlight);
             return (
               <ListBox.Item
-                id={item.id}
-                isDisabled
-                className="!bg-transparent !cursor-default !opacity-100 !p-0 h-7 flex items-center"
-                textValue={headerLabel}
+                key={branch.name}
+                id={branch.name}
+                textValue={branch.name}
+                data-active={isActive ? "true" : undefined}
+                className="group focus-visible:outline-none data-[active=true]:bg-default"
+                onFocus={() => setActiveBranchName(branch.name)}
+                onPointerMove={(event) => {
+                  if (mobile) return;
+                  if (event.movementX === 0 && event.movementY === 0) return;
+                  if (branch.name === activeBranchName) return;
+                  skipScrollRef.current = true;
+                  setActiveBranchName(branch.name);
+                }}
               >
-                <Header className="px-2 text-[10px] font-semibold uppercase tracking-wider text-muted/70">
-                  {headerLabel}
-                </Header>
+                <BranchRowBody
+                  branch={branch}
+                  projectId={projectId}
+                  isCurrent={isCurrent}
+                  isSelected={isSelected}
+                  isWorktreeBranch={isWorktreeBranch}
+                  {...(worktreePath ? { worktreePath } : {})}
+                  threads={threads}
+                  isDeleting={isDeleting}
+                  allowWorktreeDelete={allowWorktreeDelete}
+                  selectionOnly={selectionOnly}
+                  onDelete={onDelete}
+                  onOpenPrReview={onOpenPrReview}
+                />
               </ListBox.Item>
             );
-          }
-          const { branch } = item;
-          const isCurrent = branch.name === currentBranch;
-          const isDeleting = deletingBranch === branch.name;
-          const worktreePath = branchWorktreePath.get(branch.name);
-          const isWorktreeBranch = worktreeBranches.has(branch.name) && !isCurrent;
-          const threads = threadsByBranch.get(branch.name) ?? [];
-          const isSelected = branch.name === selectedKey;
-          return (
-            <ListBox.Item
-              key={branch.name}
-              id={branch.name}
-              textValue={branch.name}
-              className="group focus-visible:outline-none"
-            >
-              <BranchRowBody
-                branch={branch}
-                projectId={projectId}
-                isCurrent={isCurrent}
-                isSelected={isSelected}
-                isWorktreeBranch={isWorktreeBranch}
-                {...(worktreePath ? { worktreePath } : {})}
-                threads={threads}
-                isDeleting={isDeleting}
-                allowWorktreeDelete={allowWorktreeDelete}
-                selectionOnly={selectionOnly}
-                onDelete={onDelete}
-                onOpenPrReview={onOpenPrReview}
-              />
-            </ListBox.Item>
-          );
-        }}
-      </ListBox>
-    </Virtualizer>
-  );
-}
+          }}
+        </ListBox>
+      </Virtualizer>
+    );
+  },
+);
 
 function BranchRowBody(props: {
   branch: { name: string; isRemote: boolean; remote?: string };

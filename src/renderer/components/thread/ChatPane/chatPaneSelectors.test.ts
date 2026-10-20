@@ -1532,13 +1532,17 @@ describe("chatPaneSelectors", () => {
       });
     });
 
-    it("lets a real turn keep a row a sub-second turn was recorded against", () => {
+    it("preserves a sub-second turn's fork anchor without showing an elapsed label", () => {
       const state = stateWithGoalTail([
         { startedAt: 1_000, endedAt: 1_400, anchorItemId: "assistant-1" },
         { startedAt: 2_000, endedAt: 62_000, anchorItemId: "goal-1" },
       ]);
 
       expect(selectCompletedTurnsByAnchorItem(state, "t1").get("assistant-1")).toMatchObject({
+        endedAt: 1_400,
+      });
+      expect(selectMostRecentDisplayableCompletedTurn(state, "t1")).toMatchObject({
+        anchorItemId: null,
         endedAt: 62_000,
       });
     });

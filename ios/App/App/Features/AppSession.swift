@@ -250,6 +250,7 @@ final class AppSession {
         // authority that advertised it.
         state.catalog.resetForHostChange()
         state.runtimeHistoryNoticesDeclared = false
+        state.threadForksSupported = false
         reconcileAttemptedSocketID = nil
         // Invalidate any in-flight authoritative install so it cannot commit.
         state.replayInstallBuffer.discard()
@@ -481,6 +482,7 @@ final class AppSession {
         await api.observeEnvironmentCapabilities(descriptor)
         await api.declareRuntimeHistoryNotices(notices)
         state.runtimeHistoryNoticesDeclared = notices
+        state.threadForksSupported = descriptor.capabilities?.threadForks?.versions.contains(1) == true
     }
 
     /// Declares the bounded catalog-change signal intent from the current

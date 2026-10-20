@@ -36,6 +36,7 @@ import type {
   PrWatch,
   PrWatchAgentSync,
   PrWatchInput,
+  ForgePrWatchInput,
   RemoteThreadCommand,
   ScheduledTask,
   ScheduledTaskInput,
@@ -622,6 +623,7 @@ export interface RemoteAccessServerOptions {
     get(projectId: string, prNumber: number): PrWatch | null;
     requestCheck(projectId: string, prNumber: number): void;
     upsert(input: PrWatchInput): PrWatch;
+    upsertScoped?(input: ForgePrWatchInput): Promise<PrWatch>;
     delete(projectId: string, prNumber: number): void;
     syncAgent(agent: PrWatchAgentSync): void;
   };
