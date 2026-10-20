@@ -5,4 +5,5 @@ export default {
   kind: "opencode2",
   label: msg`OpenCode 2`,
   order: 71,
+  usageProviderId: "opencode",
 } satisfies RendererProviderManifest;

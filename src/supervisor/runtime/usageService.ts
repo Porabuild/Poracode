@@ -43,7 +43,8 @@ import { withMacKeychainAuthorizationRetry } from "./macKeychain";
 // v11 makes Muse browser sessions authoritative and scopes quota to the selected session/team.
 // v12 refreshes Antigravity quota with the CLI User-Agent and dynamic group/cadence keys
 // so stale Claude-only v11 snapshots are discarded on upgrade.
-const USAGE_CACHE_VERSION = 12;
+// v13 reads OpenCode 2's active native credential instead of obsolete JSON keys.
+const USAGE_CACHE_VERSION = 13;
 /** The full default provider set, from the package catalog (single source of truth). */
 const DEFAULT_PROVIDER_IDS: readonly string[] = allUsageProviderDescriptors().map((d) => d.id);
 const MIN_REFRESH_INTERVAL_MS = 2 * 60_000;

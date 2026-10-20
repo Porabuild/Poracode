@@ -24,6 +24,8 @@ export interface RendererProviderManifest {
   utilityOrder?: number;
   /** Validate and label an instance whose usage can be collected independently. */
   profileUsageLabel?: (instance: AgentInstanceConfig) => string | undefined;
+  /** Billing collector shared by this provider's default account; otherwise its own kind. */
+  usageProviderId?: string;
   /** Provider-owned roots for relative image paths emitted in transcript markdown. */
   resolveMarkdownImageRoots?: (
     input: ProviderMarkdownImageRootsInput,

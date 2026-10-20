@@ -203,7 +203,7 @@ export function usageProviderIdForAgent(
 ): string {
   const driver = baseAgentKind(agentKind);
   const id = instanceId ?? (driver !== agentKind ? agentKind.slice(driver.length + 1) : undefined);
-  if (!id) return agentKind;
+  if (!id) return getProviderManifest(driver)?.usageProviderId ?? agentKind;
   const candidate = agentProfileKind(driver, id);
   const instance = instances?.[id];
   const support = USAGE_PROFILE_SUPPORT.find((entry) => entry.driver === driver);

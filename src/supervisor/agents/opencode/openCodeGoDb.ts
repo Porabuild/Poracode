@@ -1,17 +1,22 @@
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { isAbsolute, join } from "node:path";
 import type { OpenCodeCostRow } from "@poracode/agents-usage";
-import { withReadonlyDb } from "./sqliteRead";
+import { withReadonlyDb } from "../../runtime/sqliteRead";
 
 /**
  * OpenCode Go spend lives in the CLI's local `opencode.db` SQLite store. This
- * module owns reading it (and the `auth.json` presence check). Read-only and
+ * module owns reading it and the CLI's credentials. Read-only and
  * fail-safe — any error degrades to "no rows" / "no auth".
  */
 
 const OPENCODE_GO_PROVIDER_ID = "opencode-go";
 const OPENCODE_PROVIDER_ID = "opencode";
+
+export interface OpenCodeUsageCredential {
+  apiKey: string;
+  plan: "Go" | "Zen";
+}
 
 function openCodeDataDirs(): string[] {
   const home = homedir();
@@ -32,7 +37,9 @@ function openCodeDataDirs(): string[] {
 }
 
 function openCodeDbPaths(): string[] {
-  return openCodeDataDirs().map((dir) => join(dir, "opencode.db"));
+  const database = process.env.OPENCODE_DB?.trim() || "opencode.db";
+  if (isAbsolute(database)) return [database];
+  return openCodeDataDirs().map((dir) => join(dir, database));
 }
 
 function openCodeAuthPaths(): string[] {
@@ -101,13 +108,43 @@ export function normalizeRows(raw: { createdMs?: unknown; cost?: unknown }[]): O
 }
 
 /**
- * The OpenCode Go API key from the CLI's `auth.json`, for the direct
- * `/zen/go/v1/usage` endpoint. The `opencode-go` entry is the Go key; the
- * `opencode` entry is the fallback (a Zen key authenticates the same
- * Anthropic-compatible endpoint). Read-only and fail-safe — any error degrades
- * to "no key".
+ * Read OpenCode 2's active Go key from its native credential table, or the
+ * legacy `auth.json` when no native credential store exists. Never resurrect
+ * a stale JSON key after the native account has been removed or switched.
  */
-export function readOpenCodeGoApiKey(): string | undefined {
+export async function readOpenCodeUsageCredential(): Promise<OpenCodeUsageCredential | undefined> {
+  for (const dbPath of openCodeDbPaths()) {
+    if (!existsSync(dbPath)) continue;
+    const native = await withReadonlyDb<{ credential?: OpenCodeUsageCredential } | null>(
+      dbPath,
+      (db) => {
+        if (db.prepare(TABLE_EXISTS_SQL).get("credential") === undefined) return null;
+        const rows = db
+          .prepare(
+            `SELECT integration_id AS providerId, json_extract(value, '$.key') AS apiKey FROM credential
+           WHERE integration_id IN (?, ?) AND active = 1
+             AND json_valid(value) AND json_extract(value, '$.type') = 'key'
+           ORDER BY CASE integration_id WHEN ? THEN 0 ELSE 1 END`,
+          )
+          .all(OPENCODE_GO_PROVIDER_ID, OPENCODE_PROVIDER_ID, OPENCODE_GO_PROVIDER_ID) as {
+          apiKey: unknown;
+          providerId: string;
+        }[];
+        for (const row of rows) {
+          if (typeof row.apiKey === "string" && row.apiKey.trim()) {
+            return {
+              credential: {
+                apiKey: row.apiKey.trim(),
+                plan: row.providerId === OPENCODE_GO_PROVIDER_ID ? "Go" : "Zen",
+              },
+            };
+          }
+        }
+        return {};
+      },
+    );
+    if (native !== null) return native?.credential;
+  }
   for (const path of openCodeAuthPaths()) {
     if (!existsSync(path)) continue;
     try {
@@ -116,17 +153,15 @@ export function readOpenCodeGoApiKey(): string | undefined {
         const entry = parsed[id];
         if (!entry || typeof entry !== "object") continue;
         const key = (entry as { key?: unknown }).key;
-        if (typeof key === "string" && key.trim()) return key.trim();
+        if (typeof key === "string" && key.trim()) {
+          return { apiKey: key.trim(), plan: id === OPENCODE_GO_PROVIDER_ID ? "Go" : "Zen" };
+        }
       }
     } catch {
       // try the next auth path
     }
   }
   return undefined;
-}
-
-export function hasOpenCodeGoAuth(): boolean {
-  return readOpenCodeGoApiKey() !== undefined;
 }
 
 export async function readOpenCodeGoRows(): Promise<OpenCodeCostRow[] | undefined> {
