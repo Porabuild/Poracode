@@ -877,6 +877,68 @@ describe("structured segment insertion", () => {
     expect(ref.current?.serializeSegments()).toEqual([]);
   });
 
+  it.each(["", "Please ", "Please\n", "Please\n\n"])(
+    "preserves surrounding text and line breaks when selecting a dollar skill after %j",
+    (prefix) => {
+      const ref = createRef<MentionInputHandle>();
+      const onSlashCommandChange = vi.fn<(query: string | null) => void>();
+      render(
+        createElement(MentionInput, {
+          ref,
+          placeholder: "Send a message...",
+          projectLocation: undefined,
+          onTextChange: vi.fn<(hasText: boolean) => void>(),
+          onSubmit: vi.fn<(segments: PromptSegment[]) => void>(),
+          onSlashCommandChange,
+        }),
+      );
+      act(() => {
+        ref.current?.restoreFromSegments([{ kind: "text", content: `${prefix}$rev suffix` }]);
+      });
+      const editor = screen.getByRole("textbox");
+      const text = editor.lastChild!;
+      const range = document.createRange();
+      range.setStart(text, (text.textContent ?? "").indexOf("$rev") + 4);
+      range.collapse(true);
+      const selection = window.getSelection()!;
+      selection.removeAllRanges();
+      selection.addRange(range);
+      fireEvent.input(editor);
+      expect(onSlashCommandChange).toHaveBeenLastCalledWith("$rev");
+
+      act(() => {
+        ref.current?.insertSlashCommand({
+          id: "review-code",
+          label: "review-code",
+          section: "skills",
+          skillName: "review-code",
+          skillPath: "/skills/review-code/SKILL.md",
+          skillInvocation: "$review-code",
+          skillProvider: "Shared",
+          skillScope: "global",
+        });
+      });
+      const segments: PromptSegment[] = [
+        ...(prefix ? [{ kind: "text" as const, content: prefix }] : []),
+        {
+          kind: "skill",
+          name: "review-code",
+          path: "/skills/review-code/SKILL.md",
+          invocation: "$review-code",
+          provider: "Shared",
+          scope: "global",
+        },
+        { kind: "text", content: "  suffix" },
+      ];
+      expect(ref.current?.serializeSegments()).toEqual(segments);
+      expect(onSlashCommandChange).toHaveBeenLastCalledWith(null);
+      fireEvent.keyDown(editor, { key: "z", ctrlKey: true });
+      expect(ref.current?.serialize()).toBe(`${prefix}$rev suffix`);
+      fireEvent.keyDown(editor, { key: "z", ctrlKey: true, shiftKey: true });
+      expect(ref.current?.serializeSegments()).toEqual(segments);
+    },
+  );
+
   it("inserts a seeded skill directly without requiring a caret trigger", () => {
     const ref = createRef<MentionInputHandle>();
     render(

@@ -2,21 +2,27 @@ import type { BrowserWindow, RenderProcessGoneDetails } from "electron";
 import type { PoracodeChannel } from "@/shared/channel";
 import type { PoracodeWindowKind } from "@/shared/ipc";
 import type { RendererProcessGoneIntent } from "@/main/diagnostics/processGone";
+import {
+  DEVICE_PREVIEW_WINDOW_NAME,
+  DEVICE_PREVIEW_WINDOW_URL,
+} from "@/shared/devicePreviewWindow";
 
 interface AppNavigationGuardOptions {
   isDev: boolean;
   devServerUrl?: string;
   /** Log-only surface label (e.g. "quick composer") to distinguish messages. */
   label?: string;
+  allowDevicePreviewWindow?: boolean;
 }
 
 /**
- * Lock a privileged renderer to the app's own origin: deny `window.open`, and
+ * Lock a privileged renderer to the app's own origin: restrict `window.open`, and
  * block any top-level navigation/redirect to an off-app URL. The renderer holds
  * the full `poracode` preload bridge (DB, file pickers, openExternal, supervisor
  * RPC); a navigation away from the app origin would let that page inherit it.
  * External links go through IPC/openExternal, so the renderer never legitimately
- * navigates itself away or opens new windows.
+ * navigates itself away. Only the main shell may open the exact blank device
+ * preview document; its child window cannot navigate or open further windows.
  */
 export function installAppNavigationGuards(
   window: BrowserWindow,
@@ -40,9 +46,54 @@ export function installAppNavigationGuards(
       event.preventDefault();
     }
   };
-  window.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+  window.webContents.setWindowOpenHandler(({ url, frameName }) => {
+    if (
+      options.allowDevicePreviewWindow &&
+      url === DEVICE_PREVIEW_WINDOW_URL &&
+      frameName === DEVICE_PREVIEW_WINDOW_NAME
+    ) {
+      return {
+        action: "allow",
+        outlivesOpener: false,
+        overrideBrowserWindowOptions: {
+          width: 480,
+          height: 800,
+          minWidth: 320,
+          minHeight: 420,
+          frame: true,
+          titleBarStyle: "default",
+          titleBarOverlay: false,
+          autoHideMenuBar: true,
+          backgroundColor: "#171719",
+        },
+      };
+    }
+    return { action: "deny" };
+  });
+  if (options.allowDevicePreviewWindow) {
+    window.webContents.on("did-create-window", (child, details) => {
+      if (
+        details.url !== DEVICE_PREVIEW_WINDOW_URL ||
+        details.frameName !== DEVICE_PREVIEW_WINDOW_NAME
+      )
+        return;
+      // The opener renders trusted UI into this blank document. Never let it
+      // become a browser or inherit a guest's navigation/preload privileges.
+      child.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+      const deny = (event: Electron.Event) => event.preventDefault();
+      child.webContents.on("will-navigate", deny);
+      child.webContents.on("will-redirect", deny);
+      child.webContents.on("will-attach-webview", deny);
+    });
+  }
   window.webContents.on("will-navigate", blockOffAppNavigation);
   window.webContents.on("will-redirect", blockOffAppNavigation);
+  // Block non-local subframe navigations in the privileged app renderer.
+  window.webContents.on("will-frame-navigate", (event) => {
+    if (!event.isMainFrame && event.url !== "about:blank" && event.url !== "about:srcdoc") {
+      event.preventDefault();
+    }
+  });
 }
 
 interface RendererReloadGuardOptions {

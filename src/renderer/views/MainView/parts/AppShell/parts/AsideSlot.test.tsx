@@ -1,4 +1,4 @@
-import { createRef } from "react";
+import { createRef, useEffect } from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { AsideSlot } from "./AsideSlot";
@@ -50,4 +50,38 @@ describe("AsideSlot", () => {
     renderSlot({ overlay: true, isOpen: false });
     expect(screen.queryByRole("separator")).toBeNull();
   });
+});
+
+it("preserves a stateful preview when switching between docked and overlay layouts", () => {
+  const dispose = vi.fn<() => void>();
+  const mount = vi.fn<() => void>();
+  function Preview() {
+    useEffect(() => {
+      mount();
+      return dispose;
+    }, []);
+    return <div>Active preview</div>;
+  }
+  const slot = (overlay: boolean) => (
+    <AsideSlot
+      orientation="vertical"
+      isOpen
+      targetWidth={480}
+      onResizeStart={() => {}}
+      onResizeKeyDown={() => {}}
+      panelRef={createRef<HTMLDivElement>()}
+      panelInnerRef={createRef<HTMLDivElement>()}
+      ariaLabel="Resize preview"
+      overlay={overlay}
+      overlayReady={overlay}
+      preserveContentAcrossOverlay
+    >
+      <Preview />
+    </AsideSlot>
+  );
+  const { rerender } = render(slot(false));
+  rerender(slot(true));
+  rerender(slot(false));
+  expect(mount).toHaveBeenCalledTimes(1);
+  expect(dispose).not.toHaveBeenCalled();
 });

@@ -26,7 +26,7 @@ internal suspend fun submitRichChatComposer(
 ): RichChatOperationResult<Unit>? {
     val prompt = RichChatUiLogic.composerPrompt(draft, queuedSegments)
         ?: return null
-    val segments = RichChatUiLogic.composerSegments(queuedSegments, attachments)
+    val segments = RichChatUiLogic.composerSegments(queuedSegments, attachments, draft)
     activeRequest?.let { request ->
         val denial = RichChatUiLogic.composerDenyResolution(request) ?: return@let
         when (val result = runtime.chat.resolveRequest(denial)) {
@@ -93,7 +93,9 @@ internal fun RichChatUiLogic.composerPrompt(
 internal fun RichChatUiLogic.composerSegments(
     segments: List<RichPromptSegment>,
     attachments: List<UploadedAttachment>,
-) = (segments + attachments.map {
+    draft: String,
+) = (segments.flatMap { listOf(it, RichPromptSegment.Text(" ")) } +
+    listOfNotNull(draft.takeIf(String::isNotBlank)?.let(RichPromptSegment::Text)) + attachments.map {
     RichPromptSegment.Attachment(it.remotePath, it.mimeType)
 }).toJsonArrayOrNull()
 

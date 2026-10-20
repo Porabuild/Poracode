@@ -23,6 +23,7 @@ export const PANEL_HEADER_HIDE_ORDER: readonly PanelHeaderControlId[] = [
   "terminal",
   "files",
   "git",
+  "devices",
   "subagent",
   "docks",
 ];

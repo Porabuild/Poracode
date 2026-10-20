@@ -1,6 +1,16 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import type { Project } from "@/shared/contracts";
 import { useAppStore } from "../appStore";
+import type { RemoteDesktopClient } from "@/shared/remote/client";
+import {
+  NATIVE_VISUAL_UI_KEY,
+  nativeVisualUiKey,
+  useNativeVisualUiStore,
+} from "../nativeVisualUiStore";
+import {
+  clearManagedParentAuthority,
+  publishManagedParentAuthority,
+} from "../remoteServers/managedLoopbackOwner";
 import {
   clearTimelineMeasurementCache,
   readTimelineMeasurements,
@@ -38,6 +48,43 @@ beforeEach(() => {
 });
 
 describe("accepted root catalog measurement retirement", () => {
+  it("retains native inputs across resident eviction and clears only a confirmed owning-host deletion", () => {
+    const originalEntries = useNativeVisualUiStore.getState().entries;
+    const stored = localStorage.getItem(NATIVE_VISUAL_UI_KEY);
+    publishManagedParentAuthority({
+      hostDesktopId: "host-a",
+      endpoint: "http://127.0.0.1:1/",
+      sshEnvironments: false,
+      scopes: [],
+      client: {} as RemoteDesktopClient,
+      accessToken: () => undefined,
+    });
+    try {
+      const a = nativeVisualUiKey("host-a", "unopened", "item", 0, "source");
+      const b = nativeVisualUiKey("host-b", "unopened", "item", 0, "source");
+      for (const [key, hostId] of [
+        [a, "host-a"],
+        [b, "host-b"],
+      ]) {
+        useNativeVisualUiStore
+          .getState()
+          .put(key!, { hostId: hostId!, threadId: "unopened", inputs: [["n", 2]], zoom: 100 });
+      }
+      createThread("unopened");
+      applyRootCatalogThreadRows([], new Set());
+      useAppStore.getState().deleteThread("unopened");
+      expect(useNativeVisualUiStore.getState().entries.has(a)).toBe(true);
+      removeRootCatalogThreads(["unopened"]);
+      expect(useNativeVisualUiStore.getState().entries.has(a)).toBe(false);
+      expect(useNativeVisualUiStore.getState().entries.has(b)).toBe(true);
+    } finally {
+      clearManagedParentAuthority();
+      useNativeVisualUiStore.setState({ entries: originalEntries });
+      if (stored === null) localStorage.removeItem(NATIVE_VISUAL_UI_KEY);
+      else localStorage.setItem(NATIVE_VISUAL_UI_KEY, stored);
+    }
+  });
+
   it("forgets accepted thread removals while preserving other root and projected rows", () => {
     createThread("removed");
     createThread("survivor");

@@ -25,6 +25,46 @@ function streamEvent(event: Record<string, unknown>): SDKMessage {
   return { type: "stream_event", session_id: "claude-session", event } as unknown as SDKMessage;
 }
 
+it("preserves embedded MCP App resources on their original tool item", () => {
+  const state = createClaudeMapperState("app-thread");
+  mapClaudeSdkMessage(
+    streamEvent({
+      type: "content_block_start",
+      index: 0,
+      content_block: { type: "tool_use", id: "app-tool", name: "mcp__fixture__chart", input: {} },
+    }),
+    state,
+  );
+  const content = [
+    {
+      type: "resource",
+      resource: {
+        uri: "ui://fixture/chart",
+        mimeType: "text/html;profile=mcp-app",
+        text: "<h1>Chart</h1>",
+      },
+    },
+  ];
+  const events = mapClaudeSdkMessage(
+    {
+      type: "user",
+      tool_use_result: { content },
+      message: {
+        role: "user",
+        content: [{ type: "tool_result", tool_use_id: "app-tool", content: "Chart ready" }],
+      },
+    } as unknown as SDKMessage,
+    state,
+  );
+  expect(events).toContainEqual(
+    expect.objectContaining({
+      type: "item.updated",
+      itemId: "app-tool",
+      payload: expect.objectContaining({ status: "success", result: { content } }),
+    }),
+  );
+});
+
 /** Whole assistant message carrying per-call API usage (main lane or sidechain). */
 function assistantUsageMessage(
   id: string,

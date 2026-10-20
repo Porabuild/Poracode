@@ -69,7 +69,7 @@ export function smokeRuntimeDependencyRoots(packageManifest, bundles) {
 
 async function prepareResources(repoRoot, appRoot) {
   // Refresh generated resources against this source/build snapshot, never the checkout.
-  for (const name of ["wsl-helpers"]) {
+  for (const name of ["wsl-helpers", "device-hub"]) {
     try {
       await copyTree(join(repoRoot, "resources", name), join(appRoot, "resources", name));
     } catch (error) {

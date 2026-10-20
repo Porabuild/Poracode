@@ -59,6 +59,19 @@ describe("slashCommandMatch", () => {
   describe("skills", () => {
     const skill = command("skill:simplify", { section: "skills", skillName: "simplify" });
 
+    it("restricts dollar queries to skills and highlights the name without the prefix", () => {
+      expect(slashCommandMatch(command("simplify"), "$sim")).toBeNull();
+      expect(slashCommandMatch(command("help"), "$")).toBeNull();
+      expect(slashCommandMatch(skill, "$sim")).toEqual({
+        tier: "prefix",
+        highlight: { start: 0, end: 3 },
+      });
+      expect(slashCommandMatch(skill, "$")).toEqual({
+        tier: "prefix",
+        highlight: { start: 0, end: 0 },
+      });
+    });
+
     it("matches and highlights the displayed skill name", () => {
       expect(slashCommandMatch(skill, "sim")).toEqual({
         tier: "prefix",

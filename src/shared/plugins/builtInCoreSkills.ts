@@ -2,6 +2,7 @@ import appControls from "../../../resources/plugins/app-controls/plugin.json";
 import browserTools from "../../../resources/plugins/browser-tools/plugin.json";
 import chromeTools from "../../../resources/plugins/chrome-tools/plugin.json";
 import computerUse from "../../../resources/plugins/computer-use/plugin.json";
+import devices from "../../../resources/plugins/devices/plugin.json";
 import github from "../../../resources/plugins/github/plugin.json";
 import outlook from "../../../resources/plugins/outlook/plugin.json";
 import subagentDelegation from "../../../resources/plugins/subagent-delegation/plugin.json";
@@ -18,6 +19,7 @@ export const BUNDLED_PLUGIN_MANIFESTS = [
   browserTools,
   chromeTools,
   computerUse,
+  devices,
   github,
   outlook,
   subagentDelegation,
@@ -61,7 +63,7 @@ export function coreSkillsForBuiltInMcp(id: BuiltInMcpServerId): readonly string
 
 /**
  * The one core skill for an MCP bound to a single plugin.
- * `app-controls` is shared by Poracode and Terminal — use
+ * `app-controls` is shared by multiple plugins — use
  * {@link coreSkillsForBuiltInMcp} there.
  */
 export function uniqueCoreSkillForBuiltInMcp(id: BuiltInMcpServerId): string {

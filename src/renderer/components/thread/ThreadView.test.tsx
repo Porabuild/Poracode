@@ -12,6 +12,7 @@ import { useThreadGoalDockStore } from "@/renderer/state/threadGoalDockStore";
 import { useThreadTodoDockStore } from "@/renderer/state/threadTodoDockStore";
 import { useThreadBackgroundTasksDockStore } from "@/renderer/state/threadBackgroundTasksDockStore";
 import { ThreadView } from "./ThreadView";
+import { ThreadToolRail } from "./ThreadToolRail";
 
 const { bridge, captureFileCheckpoint, runtimeActions } = vi.hoisted(() => ({
   bridge: {
@@ -2110,6 +2111,12 @@ describe("ThreadView", () => {
       expect(headerMenu?.querySelector('[aria-label="Files"]')).not.toBeNull();
       expect(headerMenu?.querySelector('[aria-label="Terminal"]')).not.toBeNull();
       expect(headerMenu?.querySelector('[aria-label="Notes"]')).not.toBeNull();
+      expect(headerMenu?.querySelector('[aria-label="Devices"]')).not.toBeNull();
+      expect(headerMenu?.querySelector('[aria-label="Devices"]')).toHaveAttribute(
+        "id",
+        "thread-tool-devices-thread-split-tool-menu",
+      );
+      expect(document.querySelector("[data-poracode-device-toggle]")).toBeNull();
 
       fireEvent.pointerEnter(headerMenu as HTMLElement);
       expect(toolMenu).toHaveClass("pointer-events-auto", "visible", "opacity-100");
@@ -2135,6 +2142,44 @@ describe("ThreadView", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("selects Devices for the exact tool-menu thread and only marks that entry active", () => {
+    const rail = (threadId: string) => (
+      <AppProvider>
+        <ThreadToolRail
+          threadId={threadId}
+          projectId="project-1"
+          worktreePath="C:\\feature"
+          paneCount={2}
+        />
+      </AppProvider>
+    );
+    usePanelStore.setState({
+      deviceWorkspaceThreadId: null,
+      rightPanelTab: "notes",
+      notesPanelOpen: true,
+    });
+    const view = render(rail("first"));
+    const first = document.getElementById("thread-tool-devices-first")!;
+    fireEvent.click(first);
+    expect(usePanelStore.getState()).toMatchObject({
+      deviceWorkspaceThreadId: "first",
+      rightPanelTab: "devices",
+      notesPanelOpen: true,
+    });
+    expect(first).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(first);
+    expect(usePanelStore.getState().deviceWorkspaceThreadId).toBe("first");
+    view.rerender(rail("second"));
+    expect(document.getElementById("thread-tool-devices-first")).toBeNull();
+    const second = document.getElementById("thread-tool-devices-second")!;
+    expect(second).toHaveAttribute("aria-pressed", "false");
+    fireEvent.click(second);
+    expect(usePanelStore.getState().deviceWorkspaceThreadId).toBe("second");
+    expect(second).toHaveAttribute("aria-pressed", "true");
+    expect(screen.queryByRole("button", { name: "Browser" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Usage" })).toBeNull();
   });
 
   it("opens Thread info when its previous return destination belongs to another thread", () => {

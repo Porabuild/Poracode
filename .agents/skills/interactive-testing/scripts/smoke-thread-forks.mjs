@@ -36,6 +36,30 @@ export async function mockThreadForkGate({ client, evaluate, waitForValue, scree
       Boolean,
       "historical fork icon",
     );
+    const forkSelector = '[data-item-id="fork-answer-1"] button[aria-label="Fork from here"]';
+    const opacity = () =>
+      read(
+        `getComputedStyle(document.querySelector(${JSON.stringify(forkSelector)}).parentElement).opacity`,
+      );
+    await client.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: 0, y: 0 });
+    if (await read("matchMedia('(hover: hover)').matches")) {
+      await waitForValue(opacity, (value) => value === "0", "fork hidden without hover");
+      await read(`document.querySelector(${JSON.stringify(forkSelector)}).focus()`);
+      await waitForValue(opacity, (value) => value === "1", "fork visible with keyboard focus");
+      await read(`document.querySelector(${JSON.stringify(forkSelector)}).blur()`);
+    }
+    await client.send("Emulation.setTouchEmulationEnabled", { enabled: true, maxTouchPoints: 1 });
+    await waitForValue(opacity, (value) => value === "1", "fork visible on touch");
+    await client.send("Emulation.setTouchEmulationEnabled", { enabled: false });
+    const point = await read(`(() => {
+      const row = document.querySelector('[data-item-id="fork-answer-1"]');
+      row.scrollIntoView({ block: 'center' });
+      const rect = row.getBoundingClientRect();
+      return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
+    })()`);
+    await client.send("Input.dispatchMouseEvent", { type: "mouseMoved", ...point });
+    await waitForValue(opacity, (value) => value === "1", "fork visible on message hover");
+    await screenshot(client, join(outDir, "thread-fork-source-hover.png"));
     await click('[data-item-id="fork-answer-1"] button[aria-label="Fork from here"]');
     await waitForValue(
       () => read(`document.querySelector('[role="dialog"]')?.textContent.includes('Create fork')`),
@@ -117,6 +141,7 @@ export async function mockThreadForkGate({ client, evaluate, waitForValue, scree
     );
     return "real host fork command preserved the selected prefix, source, resumability, lineage and desktop/narrow controls; provider delivery and compact PWA are qualified separately";
   } finally {
+    await client.send("Emulation.setTouchEmulationEnabled", { enabled: false });
     await client.send("Emulation.clearDeviceMetricsOverride");
     await read(
       `window.__poracodeDev.stores.app.setState({ view: ${JSON.stringify(originalView)} })`,

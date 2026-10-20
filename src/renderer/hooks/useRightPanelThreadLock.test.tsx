@@ -78,6 +78,7 @@ describe("useRightPanelThreadLock", () => {
       gitReviewAsPanel: true,
       filesPanelContext: null,
       rightPanelTab: "git",
+      deviceWorkspaceThreadId: null,
     });
     useDevTerminalStore.setState({
       isOpen: false,
@@ -104,6 +105,22 @@ describe("useRightPanelThreadLock", () => {
       worktreePath: threadB.worktreePath,
     });
     expect(usePanelStore.getState().rightPanelTab).toBe("git");
+  });
+
+  it("replaces the ephemeral device target only when its tab follows the focused thread", () => {
+    usePanelStore.getState().setDeviceWorkspaceThreadId("thread-a");
+    focusThread("thread-b");
+    syncRightPanelTabToFocusedThread("notes");
+    expect(usePanelStore.getState().deviceWorkspaceThreadId).toBe("thread-a");
+    usePanelStore.setState({ rightPanelFollowsThread: false });
+    syncRightPanelTabToFocusedThread("devices");
+    expect(usePanelStore.getState().deviceWorkspaceThreadId).toBe("thread-a");
+    usePanelStore.setState({ rightPanelFollowsThread: true });
+    syncRightPanelTabToFocusedThread("devices");
+    expect(usePanelStore.getState().deviceWorkspaceThreadId).toBe("thread-b");
+    usePanelStore.getState().setDeviceWorkspaceThreadId(null);
+    syncRightPanelTabToFocusedThread("devices");
+    expect(usePanelStore.getState().deviceWorkspaceThreadId).toBeNull();
   });
 
   it("does not re-scope git while another right-panel tab is active", () => {
