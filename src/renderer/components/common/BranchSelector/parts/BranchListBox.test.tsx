@@ -1,11 +1,12 @@
-import { cleanup, fireEvent, screen } from "@testing-library/react";
+import { createRef } from "react";
+import { act, cleanup, fireEvent, screen } from "@testing-library/react";
 import { msg } from "@lingui/core/macro";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { PrData, Thread } from "@/shared/contracts";
 import { buildBranchNamePrKey } from "@/renderer/state/gitSelectors";
 import { useGitStore } from "@/renderer/state/gitStore";
-import { BranchListBox, type OpenPrReviewArgs } from "./BranchListBox";
+import { BranchListBox, type BranchListBoxHandle, type OpenPrReviewArgs } from "./BranchListBox";
 
 function makePr(overrides: Partial<PrData> & Pick<PrData, "number" | "state">): PrData {
   return {
@@ -37,6 +38,7 @@ function makeThread(overrides: Partial<Thread> & Pick<Thread, "id" | "projectId"
 
 function baseProps() {
   return {
+    listboxId: "branch-listbox",
     projectId: "p1",
     hasLocal: false,
     hasRemote: true,
@@ -52,6 +54,7 @@ function baseProps() {
     onSelect: vi.fn<(branchName: string) => void>(),
     onDelete: vi.fn<(branch: { name: string; remote?: string; isRemote?: boolean }) => void>(),
     onOpenPrReview: vi.fn<(args: OpenPrReviewArgs) => void>(),
+    onActiveChange: vi.fn<(branchName: string | null) => void>(),
   };
 }
 
@@ -171,5 +174,43 @@ describe("BranchListBox", () => {
     expect(container.querySelector(".lucide-git-fork")).not.toBeNull();
     expect(screen.queryByText("worktree")).not.toBeInTheDocument();
     expect(screen.getByText("1")).toBeInTheDocument();
+  });
+
+  it("scrolls the keyboard-active row into view in both directions", () => {
+    const props = baseProps();
+    const ref = createRef<BranchListBoxHandle>();
+    const branches = [
+      { name: "main", current: true, commit: "abc123", isRemote: false },
+      { name: "feature/x", current: false, commit: "def456", isRemote: false },
+      { name: "feature/y", current: false, commit: "ghi789", isRemote: false },
+    ];
+
+    render(
+      <BranchListBox
+        {...props}
+        ref={ref}
+        hasLocal
+        hasRemote={false}
+        items={[
+          { type: "header", id: "header-local", name: msg`Local` },
+          ...branches.map((branch) => ({
+            type: "branch" as const,
+            id: branch.name,
+            branch,
+          })),
+        ]}
+      />,
+    );
+
+    const listbox = screen.getByRole("listbox", { name: "Branches" });
+    Object.defineProperty(listbox, "clientHeight", { configurable: true, value: 56 });
+    listbox.scrollTop = 0;
+
+    act(() => ref.current?.moveActive(1));
+    expect(listbox.scrollTop).toBe(36);
+
+    listbox.scrollTop = 100;
+    act(() => ref.current?.moveActive(-1));
+    expect(listbox.scrollTop).toBe(36);
   });
 });
