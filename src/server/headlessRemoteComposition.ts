@@ -471,6 +471,9 @@ export async function composeHeadlessRemoteHost(
       // The attachments root this process owns; its durable services run the
       // one deleted-thread attachment reclaimer for it.
       attachmentsDir: paths.attachmentsDir,
+      ...(options.bundledPluginsDir
+        ? { deviceHubRoot: join(dirname(options.bundledPluginsDir), "device-hub") }
+        : {}),
       ...(options.reportError ? { reportError: options.reportError } : {}),
       writeSharedSettings: (next) => settings.writeSharedSettings(next),
       editSettingsField: (field, compute) => settings.editSettingsField(field, compute),
@@ -542,6 +545,7 @@ export async function composeHeadlessRemoteHost(
     portForwardingRef = portForwarding;
 
     const server: RemoteAccessServer = new RemoteAccessServer({
+      deviceWorkspace: durableServices.deviceWorkspace,
       appVersion: options.appVersion,
       hostMode: "helper",
       hostCapabilities: hostServices.capabilities,

@@ -12,6 +12,13 @@ export const productionRoots = [
 
 export const functionalAreas = [
   {
+    id: "device-workspace",
+    title: "Host-managed iOS Simulator and Android Emulator workspace",
+    patterns: [/\/devices\//, /deviceWorkspace/i, /appControlsMcp\/deviceProof/],
+    automated: ["baseline"],
+    manual: ["device-workspace", "changed-surface", "visual-a11y"],
+  },
+  {
     id: "renderer-styles",
     title: "Shared and component renderer styles",
     patterns: [/^src\/renderer\/.*\.css$/],
@@ -318,6 +325,8 @@ export const functionalAreas = [
 ];
 
 export const manualGates = {
+  "device-workspace":
+    "Discover/start/attach an isolated emulator or simulator on a supported host, verify preview, tap/swipe/text, screenshot and accessibility, separate view/control and agent consent, remote denial/reconnect, then detach and confirm the device remains running. Record unavailable host platforms explicitly.",
   "delegated-agent-recovery":
     "Restart an isolated host with historical native and Crossagent rows; verify terminal state, retained output, current/stale snapshot fencing and live-run preservation.",
   "remote-usage":

@@ -7,6 +7,7 @@ import {
   Globe,
   LayoutList,
   NotebookPen,
+  Smartphone,
   TerminalSquare,
   Waypoints,
   type LucideIcon,
@@ -24,6 +25,7 @@ export const PANEL_TAB_ICONS: Record<RightPanelTab, LucideIcon> = {
   git: FileDiff,
   usage: Gauge,
   notes: NotebookPen,
+  devices: Smartphone,
   ports: Waypoints,
   browser: Globe,
 };
@@ -39,6 +41,7 @@ export function usePanelTabLabels(): Record<RightPanelTab, string> {
     git: t`Git`,
     usage: t`Usage`,
     notes: t`Notes`,
+    devices: t`Devices`,
     ports: t`Ports`,
     browser: t`Browser`,
   };

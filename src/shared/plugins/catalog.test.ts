@@ -1,8 +1,14 @@
 import { describe, expect, it } from "vitest";
+import devicesManifest from "../../../resources/plugins/devices/plugin.json";
 import type { BuiltInMcpServerId, LoadedPlugin, PluginSource } from "../contracts";
 import { installedPluginsSchema } from "../contracts/plugin";
 import { normalizeSharedSettings } from "../settings";
-import { AGENT_PLUGINS_MANIFEST_SCHEMA_URL, type PluginSkillPolicyEntry } from "./spec";
+import {
+  AGENT_PLUGINS_MANIFEST_SCHEMA_URL,
+  parsePluginManifest,
+  parsePoracodeExtension,
+  type PluginSkillPolicyEntry,
+} from "./spec";
 import {
   canDisablePlugin,
   canUninstallPlugin,
@@ -244,6 +250,24 @@ describe("plugin catalog", () => {
 });
 
 describe("built-in tool plugins", () => {
+  it("enables bundled Devices by default while preserving an existing disabled record", () => {
+    const manifest = parsePluginManifest(devicesManifest).manifest!;
+    const plugin = makePlugin("devices", { builtInMcpServerIds: ["app-controls"] });
+    plugin.manifest = manifest;
+    plugin.poracode = parsePoracodeExtension(manifest).extension;
+    expect(resolveInstalledPluginState(plugin, {})).toMatchObject({ enabled: true });
+    expect(canDisablePlugin(plugin)).toBe(true);
+    const saved = {
+      devices: {
+        version: "1.0.0",
+        enabled: false,
+        disabledSkillIds: [],
+        disabledMcpServerNames: [],
+      },
+    };
+    expect(resolveInstalledPluginState(plugin, saved)).toBe(saved.devices);
+    expect(saved.devices.enabled).toBe(false);
+  });
   it("counts a bundled built-in wrapper as installed before the user touches it", () => {
     expect(isBuiltInToolPlugin(BUILT_IN_BROWSER_TOOLS)).toBe(true);
     expect(resolveInstalledPluginState(BUILT_IN_BROWSER_TOOLS, {})).toEqual({

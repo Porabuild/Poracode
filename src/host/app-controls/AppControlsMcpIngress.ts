@@ -44,6 +44,7 @@ export interface AppControlsMcpIngressDeps {
   getAppInfo(): AppControlsAppInfo;
   supervisor: AppControlsSupervisorCaller;
   gitState?: NonNullable<AppControlsToolContext["gitState"]>;
+  deviceWorkspace?: NonNullable<AppControlsToolContext["deviceWorkspace"]>;
   /** Per-call launch admission options stay host-only and ephemeral. */
   createThread(
     request: CreateAppThreadRequest,

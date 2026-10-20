@@ -20,7 +20,12 @@ export function syncRightPanelTabToFocusedThread(tab: RightPanelTab): void {
 
   const app = useAppStore.getState();
   const thread = selectFocusedThread(app);
-  if (!thread || isHomeProjectId(thread.projectId)) return;
+  if (!thread) return;
+  if (tab === "devices" && panel.deviceWorkspaceThreadId !== null) {
+    if (panel.deviceWorkspaceThreadId !== thread.id) panel.setDeviceWorkspaceThreadId(thread.id);
+    return;
+  }
+  if (isHomeProjectId(thread.projectId)) return;
   const worktreePath = thread.worktreePath ?? undefined;
 
   if (tab === "git" && panel.gitReviewContext !== null && panel.gitReviewAsPanel) {

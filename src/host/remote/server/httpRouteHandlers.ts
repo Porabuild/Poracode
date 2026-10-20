@@ -1,4 +1,6 @@
 import { EXPERIMENT_ROUTE_HANDLERS } from "./httpRouteHandlers.experiments";
+import { DEVICE_ROUTE_HANDLERS } from "./httpRouteHandlers.devices";
+import { DEVICE_PREVIEW_ROUTE_HANDLERS } from "./httpRouteHandlers.devicePreview";
 import { OPS_ROUTE_HANDLERS } from "./httpRouteHandlers.ops";
 import { ENVIRONMENT_MANAGEMENT_ROUTE_HANDLERS } from "./httpRouteHandlers.environments";
 import { SESSION_ROUTE_HANDLERS } from "./httpRouteHandlers.session";
@@ -24,6 +26,8 @@ export {
  * is not registered can never reach a handler.
  */
 export const ROUTE_HANDLERS: HttpRouteHandlerTable = {
+  ...DEVICE_ROUTE_HANDLERS,
+  ...DEVICE_PREVIEW_ROUTE_HANDLERS,
   ...SESSION_ROUTE_HANDLERS,
   ...ENVIRONMENT_MANAGEMENT_ROUTE_HANDLERS,
   ...WORKSPACE_ROUTE_HANDLERS,

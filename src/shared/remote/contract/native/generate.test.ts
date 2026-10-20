@@ -72,21 +72,21 @@ describe("remote v3 native binding generator", () => {
         // Optional core PR state preserves the previous details-only result shape.
         // Background task timing, progress and Stop add two structural types.
         // Combine optional question-answer metadata with saved-message search.
-        sourceHash: "sha256:74a8928b64b05839cebbc183a068b991fcc3ded0a84a8b8125f97dd4f393344f",
-        manifestHash: "sha256:b39f2d13ae38008996ebf29d325c5b5c703dea7bbd9d0c933eaec9e059ed7490",
+        sourceHash: "sha256:1d7efef9afdaf2f8d4d07c142892ab935cadb3944eca4952816a6d919889522a",
+        manifestHash: "sha256:b6309d6fb98117981bd84d031807a83df91cded68621791fbd0eecb2561e6497",
         counts: {
-          routes: 101,
+          routes: 116,
           procedures: 130,
           voidProcedureResults: 50,
           jsonProcedureResults: 80,
           webSocketClientVariants: 9,
           // 10 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
           webSocketServerVariants: 11,
-          schemaRoots: 443,
-          structuralTypes: 1049,
+          schemaRoots: 482,
+          structuralTypes: 1129,
           semanticValidators: 22,
-          swiftFiles: 66,
-          kotlinFiles: 56,
+          swiftFiles: 71,
+          kotlinFiles: 61,
           stateMachines: 5,
         },
       });
@@ -155,7 +155,7 @@ describe("remote v3 native binding generator", () => {
       ["swift", swift],
       ["kotlin", kotlin],
     ] as const) {
-      // Control-character scan over UTF-16 units — a lone high/low surrogate
+      // Control-character scan over UTF-16 units вЂ” a lone high/low surrogate
       // still reports its unit code, which is all this check needs.
       const text = contents as string;
       const stray: string[] = [];
@@ -358,7 +358,7 @@ describe("remote v3 native binding generator", () => {
       const output = buildNativeBindingOutput(ir, manifest).files;
       for (const language of ["swift", "kotlin"] as const) {
         const adapters = rootAdapters(graph, language);
-        expect(adapters).toHaveLength(443);
+        expect(adapters).toHaveLength(482);
         expect(
           adapters
             .map((adapter) => adapter.id)

@@ -7,6 +7,8 @@ import type {
   StreamableHttpMcpToolSpec,
 } from "../../mcp/StreamableHttpMcpIngress";
 import { agentTools } from "./tools/agents";
+import { deviceTools } from "./tools/devices";
+import { deviceFrameSchema } from "@/shared/deviceWorkspace";
 import { appTools } from "./tools/app";
 import { fileTools } from "./tools/files";
 import { gitTools } from "./tools/git";
@@ -32,7 +34,7 @@ export type {
   AppControlsUpdateCheck,
 } from "./tools/types";
 
-// Selected by plugin name, not position: the binding is two plugins sharing
+// Selected by plugin name, not position: the binding is multiple plugins sharing
 // one server, and a rename reordering an alphabetized list must not silently
 // swap which instruction claims which skill.
 const APP_CONTROLS_BINDING = (pluginName: string) =>
@@ -42,14 +44,18 @@ const APP_CONTROLS_BINDING = (pluginName: string) =>
   );
 const APP_CONTROLS_CORE_SKILL = APP_CONTROLS_BINDING("app-controls")?.coreSkill;
 const TERMINAL_CORE_SKILL = APP_CONTROLS_BINDING("terminal")?.coreSkill;
-if (!APP_CONTROLS_CORE_SKILL || !TERMINAL_CORE_SKILL) {
-  throw new Error("app-controls MCP must bind the app-controls and terminal plugin core skills");
+const DEVICES_CORE_SKILL = APP_CONTROLS_BINDING("devices")?.coreSkill;
+if (!APP_CONTROLS_CORE_SKILL || !TERMINAL_CORE_SKILL || !DEVICES_CORE_SKILL) {
+  throw new Error(
+    "app-controls MCP must bind the app-controls, terminal and devices plugin core skills",
+  );
 }
 
 export const APP_CONTROLS_MCP_INSTRUCTIONS =
   "Poracode app controls. " +
   `For threads, git, pull requests, and schedules, ${loadPluginCoreSkillPhrase(APP_CONTROLS_CORE_SKILL)}. ` +
   `When reading the Terminal panel, ${loadPluginCoreSkillPhrase(TERMINAL_CORE_SKILL)}. ` +
+  `For simulator and emulator work, ${loadPluginCoreSkillPhrase(DEVICES_CORE_SKILL)}. ` +
   "Read and control the running app: device schedules " +
   "(list/create/update/run/delete), app threads (current/list/get/read/create/send/interrupt/stop/wait/" +
   "update/open, including sidebar ungroup and Home-thread workspace filing), projects " +
@@ -98,6 +104,7 @@ export const APP_CONTROLS_MCP_INSTRUCTIONS =
   "is running but has not emitted output yet.";
 
 const DOMAINS: readonly ToolDomain[] = [
+  deviceTools,
   scheduleTools,
   threadTools,
   projectTools,
@@ -169,6 +176,15 @@ export async function dispatchTool(
   return result;
 }
 
-export function formatToolResult(_name: string, result: unknown): StreamableHttpMcpToolResult {
+export function formatToolResult(name: string, result: unknown): StreamableHttpMcpToolResult {
+  if (name === "screenshot_device") {
+    const { base64, mimeType, ...metadata } = deviceFrameSchema.parse(result);
+    return {
+      content: [
+        { type: "text", text: JSON.stringify(metadata) },
+        { type: "image", data: base64, mimeType },
+      ],
+    };
+  }
   return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
 }
