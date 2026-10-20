@@ -149,12 +149,13 @@ describe("dialog Header producer admission", () => {
       issues.push(...audit.issues.map((issue) => `${path}:${issue}`));
     }
     expect(issues).toEqual([]);
-    // Include saved run details, browser editors, and model-provider management.
-    expect(sites).toHaveLength(41);
-    expect(sites.filter((site) => site.family === "Modal")).toHaveLength(36);
+    // Include saved run details, browser editors, model-provider management,
+    // inline visuals, and marketplace sources.
+    expect(sites).toHaveLength(42);
+    expect(sites.filter((site) => site.family === "Modal")).toHaveLength(37);
     expect(sites.filter((site) => site.family === "AlertDialog")).toHaveLength(5);
     expect(sites.filter((site) => site.marked)).toHaveLength(6);
-    expect(sites.filter((site) => !site.marked)).toHaveLength(35);
+    expect(sites.filter((site) => !site.marked)).toHaveLength(36);
   });
 
   it.each([

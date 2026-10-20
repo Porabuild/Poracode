@@ -38,6 +38,61 @@ function available(runtime: "host" | "wsl", projectScoped: boolean): McpProbeRes
 }
 
 describe("McpProbeService", () => {
+  it("does not probe when account authorization explicitly denies the server", async () => {
+    const probeHost = vi.fn<HostProbe>(async () => available("host", false));
+    const probeWsl = vi.fn<WslProbe>(async () => available("wsl", true));
+    const service = new McpProbeService({
+      probeHost,
+      probeWsl,
+      applyAuthorization: async () => undefined,
+    });
+    const remote = {
+      ...server,
+      id: "plugin:notes:service",
+      transport: { type: "http" as const, url: "https://example.org/mcp", headers: {} },
+    };
+    await expect(service.probe({ server: remote })).resolves.toMatchObject({
+      status: "unavailable",
+      error: { code: "probe-unavailable" },
+    });
+    await expect(
+      service.probe({
+        server: remote,
+        projectLocation: {
+          kind: "wsl",
+          distro: "Ubuntu",
+          linuxPath: "/workspace",
+          uncPath: "\\\\wsl.localhost\\Ubuntu\\workspace",
+        },
+      }),
+    ).resolves.toMatchObject({ status: "unavailable" });
+    expect(probeHost).not.toHaveBeenCalled();
+    expect(probeWsl).not.toHaveBeenCalled();
+  });
+
+  it("preserves ordinary OAuth challenges if stored authorization is unavailable", async () => {
+    const challenge: McpProbeResult = {
+      status: "auth-required",
+      toolCount: 0,
+      latencyMs: 0,
+      environment: { runtime: "host", projectScoped: false },
+      error: { code: "auth-required", message: "Sign in required.", authScheme: "oauth" },
+    };
+    const probeHost = vi.fn<HostProbe>(async () => challenge);
+    const service = new McpProbeService({
+      probeHost,
+      applyAuthorization: async () => {
+        throw new Error("Stored OAuth authorization unavailable.");
+      },
+    });
+    const remote = {
+      ...server,
+      transport: { type: "http" as const, url: "https://example.org/mcp", headers: {} },
+    };
+    await expect(service.probe({ server: remote })).resolves.toEqual(challenge);
+    expect(probeHost).toHaveBeenCalledWith(remote, challenge.environment, expect.any(AbortSignal));
+  });
+
   it("probes user-scoped servers on the host without inventing a project cwd", async () => {
     const probeHost = vi.fn<HostProbe>(async () => available("host", false));
     const probeWsl = vi.fn<WslProbe>(async () => available("wsl", true));

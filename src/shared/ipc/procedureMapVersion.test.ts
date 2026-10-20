@@ -76,13 +76,23 @@ import { isRemoteProcedure } from "../remote/procedures";
 // older peers reject the new name before dispatch, so the hop version stays 18.
 // Model-provider management adds one supervisor name, outside the remote
 // allowlist. Existing peers reject unknown names before effects; hop 18 stays.
-const HOP_PIN = `${IPC_PROCEDURE_MAP_VERSION}:24f1da6e574de106349f11edf3ea18b9fc29f5bfd45cc7576b4fb81e9d3b4059`;
+// Plugin catalogs/accounts add local supervisor names only. Older peers reject
+// them before effects; existing payloads and the remote allowlist stay unchanged.
+const HOP_PIN = `${IPC_PROCEDURE_MAP_VERSION}:b937eecb4358d380d46f357b8a589d474db31c775a1ad2f581919cc173b93d0c`;
 
 describe("IPC procedure map versioning", () => {
   it("keeps write-only model provider management outside the remote allowlist", () => {
     expect(isRemoteProcedure("manageModelProviders")).toBe(false);
     expect(ipcProcedureMap.manageModelProviders.transport).toBe("supervisor");
   });
+
+  it("keeps plugin package and account custody local to the supervisor", () => {
+    for (const name of ["pluginCatalog", "pluginAccounts"] as const) {
+      expect(ipcProcedureMap[name].transport).toBe("supervisor");
+      expect(isRemoteProcedure(name)).toBe(false);
+    }
+  });
+
   it("keeps guarded merges internal and requires their expected head", () => {
     expect(isRemoteProcedure("ghMergePrAtHead")).toBe(false);
     expect(ipcProcedureMap.ghMergePrAtHead.transport).toBe("supervisor");

@@ -36,9 +36,10 @@ export interface McpProbeServiceOptions {
   probeWsl?: WslProbe;
   /**
    * Optional: attaches a stored OAuth `Authorization` header to HTTP/SSE
-   * servers before probing, so an authenticated server probes as available.
+   * servers before probing. Returning undefined explicitly denies the probe;
+   * an authorization error retains the ordinary unauthenticated challenge path.
    */
-  applyAuthorization?: (server: McpServer) => Promise<McpServer>;
+  applyAuthorization?: (server: McpServer) => Promise<McpServer | undefined>;
 }
 
 function applyProjectCwd(server: McpServer, location: ProjectLocation | undefined): McpServer {
@@ -160,7 +161,9 @@ async function runWslProbeWorker(
 export class McpProbeService {
   private readonly probeHost: HostProbe;
   private readonly probeWsl: WslProbe;
-  private readonly applyAuthorization: ((server: McpServer) => Promise<McpServer>) | undefined;
+  private readonly applyAuthorization:
+    | ((server: McpServer) => Promise<McpServer | undefined>)
+    | undefined;
   private readonly active = new Set<AbortController>();
 
   constructor(options: McpProbeServiceOptions = {}) {
@@ -177,7 +180,9 @@ export class McpProbeService {
     };
     let server = applyProjectCwd(payload.server, payload.projectLocation);
     if (this.applyAuthorization) {
-      server = await this.applyAuthorization(server).catch(() => server);
+      const authorized = await this.applyAuthorization(server).catch(() => server);
+      if (!authorized) return unavailableMcpProbeResult("probe-unavailable", environment);
+      server = authorized;
     }
     const controller = new AbortController();
     this.active.add(controller);

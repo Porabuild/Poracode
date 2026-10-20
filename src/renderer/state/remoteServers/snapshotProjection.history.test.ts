@@ -1,6 +1,14 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { Thread } from "@/shared/contracts";
-import type { RemoteDesktopClient } from "@/shared/remote/client";
+import { RemoteClientError, type RemoteDesktopClient } from "@/shared/remote/client";
+import {
+  __resetRuntimeHistoryNoticeCapabilityForTest,
+  noteRuntimeHistoryNoticesCapability,
+} from "../remote/historyNoticeCapability";
+import {
+  __resetThreadHistoryNoticeStoreForTest,
+  readThreadHistoryNotice,
+} from "../remote/historyNoticeStore";
 import { useAppStore } from "../appStore";
 import {
   forgetThreadRuntimeWindow,
@@ -107,6 +115,8 @@ function harness() {
 beforeEach(() => {
   useAppStore.setState({ runtimeItemIdsByThread: {}, runtimeItemsByIdByThread: {} });
   __resetOpenRemoteThreadRequestSeqForTest();
+  __resetRuntimeHistoryNoticeCapabilityForTest();
+  __resetThreadHistoryNoticeStoreForTest();
 });
 
 afterEach(() => {
@@ -133,6 +143,45 @@ it("installs the projected ordinary overlap and cursor together through the real
   ]);
   expect(useAppStore.getState().runtimeItemsByIdByThread[viewThread]!["row-80"]).toBe(readerRow);
   expect(runtimeHistoryBoundary(viewThread).cursor).toBe(80);
+});
+
+it.each([
+  [503, "persistence_read_refused", false],
+  [503, "persistence_busy", false],
+  [503, "persistence_degraded", false],
+  [503, "persistence_unavailable", false],
+  [401, "unauthorized", false],
+  [404, "not_found", false],
+  [413, "response_too_large", false],
+  [499, "cancelled", false],
+  [500, "persistence_identity_invalid", false],
+  [503, "persistence_contaminated", true],
+  [409, "runtime_history_notice_unsupported", true],
+] as const)(
+  "only offers history recovery for a gap refusal (%s %s)",
+  async (status, code, recovery) => {
+    const { actions, boundedThreadHistory } = harness();
+    noteRuntimeHistoryNoticesCapability(connection, true);
+    boundedThreadHistory.mockRejectedValueOnce(new RemoteClientError("Read refused", status, code));
+    expect(
+      await actions.openRemoteThread(connection, "thread", { focus: false, quiet: true }),
+    ).toBe(false);
+    expect(readThreadHistoryNotice(viewThread)?.needsReview ?? false).toBe(recovery);
+  },
+);
+
+it("clears an unconfirmed gap warning when reopening history succeeds", async () => {
+  const { actions, boundedThreadHistory } = harness();
+  noteRuntimeHistoryNoticesCapability(connection, true);
+  boundedThreadHistory
+    .mockRejectedValueOnce(new RemoteClientError("Open gap", 503, "persistence_contaminated"))
+    .mockResolvedValueOnce(page(80, 90, 1));
+  expect(await actions.openRemoteThread(connection, "thread", { focus: false, quiet: true })).toBe(
+    false,
+  );
+  expect(readThreadHistoryNotice(viewThread)?.needsReview).toBe(true);
+  expect(await actions.openRemoteThread(connection, "thread", { focus: false })).toBe(true);
+  expect(readThreadHistoryNotice(viewThread)?.needsReview).toBe(false);
 });
 
 it("does not pre-seed a stale projected snapshot's disjoint cursor before shared arbitration", async () => {
