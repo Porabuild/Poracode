@@ -192,6 +192,7 @@
   ],
   "patchedDependencies": {
     "@legendapp/list@3.3.3": "patches/@legendapp__list@3.3.3.patch",
+    "micromark-extension-math-extended@3.2.2": "patches/micromark-extension-math-extended@3.2.2.patch",
     "bun@1.4.3-canary.20261017.1": "patches/bun@1.4.3-canary.20261017.1.patch",
     "@agentclientprotocol/sdk@1.4.0": "patches/@agentclientprotocol__sdk@1.4.0.patch",
     "monaco-editor@0.56.0": "patches/monaco-editor@0.56.0.patch",
