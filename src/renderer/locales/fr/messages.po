@@ -7629,7 +7629,7 @@ msgstr "Accorder"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
 msgid "Granted permissions"
-msgstr ""
+msgstr "Autorisations accordées"
 
 #: src/renderer/components/plugins/PluginServiceAccounts.tsx
 msgid "Granted scopes"

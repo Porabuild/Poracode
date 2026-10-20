@@ -7629,7 +7629,7 @@ msgstr "Разрешить"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
 msgid "Granted permissions"
-msgstr ""
+msgstr "Предоставленные разрешения"
 
 #: src/renderer/components/plugins/PluginServiceAccounts.tsx
 msgid "Granted scopes"

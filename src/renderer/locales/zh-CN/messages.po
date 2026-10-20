@@ -7629,7 +7629,7 @@ msgstr "授予"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
 msgid "Granted permissions"
-msgstr ""
+msgstr "已授予的权限"
 
 #: src/renderer/components/plugins/PluginServiceAccounts.tsx
 msgid "Granted scopes"

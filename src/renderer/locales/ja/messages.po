@@ -7628,7 +7628,7 @@ msgstr "許可"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
 msgid "Granted permissions"
-msgstr ""
+msgstr "付与された権限"
 
 #: src/renderer/components/plugins/PluginServiceAccounts.tsx
 msgid "Granted scopes"
