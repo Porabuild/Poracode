@@ -107,6 +107,12 @@ export function formatInputSubject(input: unknown): string | undefined {
   return undefined;
 }
 
+/** The title is the command itself, or a "Tool: <command>" label around it. */
+export function summaryRepeatsSubject(summary: string, subject: string): boolean {
+  if (!subject) return false;
+  return summary === subject || summary.endsWith(`: ${subject}`);
+}
+
 export function readInputString(input: unknown, ...keys: string[]): string | undefined {
   if (!input || typeof input !== "object") return undefined;
   const obj = input as Record<string, unknown>;

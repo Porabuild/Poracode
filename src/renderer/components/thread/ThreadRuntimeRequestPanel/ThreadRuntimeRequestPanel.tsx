@@ -14,12 +14,14 @@ import { ItemMarkdown } from "../ChatPane/parts/items/ItemMarkdown";
 import { ThreadDockSection } from "../ThreadDockUI";
 import {
   asOpenCodePermissionDetails,
+  formatInputSubject,
   formatRawDetails,
   getDefaultApprovalOptions,
   isPlanApprovalAccepted,
   isPlanApprovalRequest,
   outcomeForSelection,
   readInputString,
+  summaryRepeatsSubject,
 } from "./helpers";
 import { asStructuredElicitationDetails, StructuredElicitationForm } from "./structuredElicitation";
 import {
@@ -36,6 +38,9 @@ import {
 } from "./parts/PermissionDetailsLine";
 import { QuestionRows } from "./parts/QuestionRows";
 import { QuestionSwitcher } from "./parts/QuestionSwitcher";
+
+/** Titles longer than this are the command itself, not a label. */
+const APPROVAL_SUMMARY_PIN_LIMIT = 160;
 
 interface ThreadRuntimeRequestPanelProps {
   threadId: string;
@@ -152,6 +157,26 @@ export function ThreadRuntimeRequestPanel(props: ThreadRuntimeRequestPanelProps)
       ? t`${agentLead} needs your input to continue.`
       : undefined;
   const summary = request.payload.summary;
+  // Providers often put the whole shell command in `summary` (for example
+  // "Bash: <script>"). That title sits outside the details scroller, so a long
+  // command grew the composer until Allow and Deny left the window. A short
+  // title stays pinned; a command-sized one scrolls with the details.
+  const approvalSummaryScrolls =
+    !isCustomForm &&
+    !isQuestion &&
+    !!summary &&
+    (summary.length > APPROVAL_SUMMARY_PIN_LIMIT || summary.includes("\n"));
+  // The details line repeats `input.command`. When the scrolling title is that
+  // command, keep the title and drop the second copy so the warning still fits
+  // in the capped region.
+  const commandSubject = permissionDetails
+    ? formatInputSubject(permissionDetails.input)
+    : undefined;
+  const hideDuplicateCommand =
+    approvalSummaryScrolls &&
+    !!summary &&
+    !!commandSubject &&
+    summaryRepeatsSubject(summary, commandSubject);
   const planFileAction =
     planFilePath && onOpenPlanFile ? (
       <Button
@@ -236,11 +261,14 @@ export function ThreadRuntimeRequestPanel(props: ThreadRuntimeRequestPanelProps)
   }
   const requestDetails =
     permissionDetails && !isPlanApproval ? (
-      <PermissionDetailsLine details={permissionDetails} />
+      <PermissionDetailsLine
+        details={permissionDetails}
+        {...(hideDuplicateCommand ? { hideSubject: true } : {})}
+      />
     ) : opencodePermission ? (
       <OpenCodePermissionDetailsLine details={opencodePermission} />
     ) : !structuredElicitation && detailText ? (
-      <pre className="rounded-sm bg-foreground/5 p-1 font-mono text-[11px] whitespace-pre-wrap break-words">
+      <pre className="rounded-sm bg-foreground/5 p-1 font-mono text-[11px] whitespace-pre-wrap [overflow-wrap:anywhere]">
         {detailText}
       </pre>
     ) : null;
@@ -252,7 +280,9 @@ export function ThreadRuntimeRequestPanel(props: ThreadRuntimeRequestPanelProps)
           className={`mt-0.5 size-3.5 shrink-0 ${structuredElicitation || isQuestion || isPlanApproval ? "text-foreground-muted" : "text-warning"}`}
         />
         <div className="min-w-0 flex-1 basis-96">
-          <div className="font-semibold text-foreground">{summary}</div>
+          {summary && !approvalSummaryScrolls ? (
+            <div className="font-semibold text-foreground [overflow-wrap:anywhere]">{summary}</div>
+          ) : null}
           {userInputFormController && userInputFormController.questions.length > 1 ? (
             <>
               <QuestionSwitcher
@@ -270,12 +300,19 @@ export function ThreadRuntimeRequestPanel(props: ThreadRuntimeRequestPanelProps)
           ) : contextLine ? (
             <div className="text-[11px] text-[color:var(--muted)]">{contextLine}</div>
           ) : null}
-          {requestDetails || planFilePath || planText ? (
+          {requestDetails || planFilePath || planText || approvalSummaryScrolls ? (
             <div
               role="region"
               aria-label={t`Request details`}
-              className="mt-0.5 max-h-[min(12rem,35vh)] overflow-y-auto pr-1 [scrollbar-gutter:stable]"
+              // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- keyboard focus enables native scrolling
+              tabIndex={0}
+              className="mt-0.5 max-h-[min(12rem,35vh)] overflow-y-auto pr-1 [scrollbar-gutter:stable] [overflow-wrap:anywhere] outline-none focus-visible:ring-2 focus-visible:ring-focus/50"
             >
+              {approvalSummaryScrolls ? (
+                <div className="font-semibold whitespace-pre-wrap text-foreground [overflow-wrap:anywhere]">
+                  {summary}
+                </div>
+              ) : null}
               {planText ? <ItemMarkdown text={planText} /> : null}
               {requestDetails}
               {planFilePath ? <PlanFileLine path={planFilePath} /> : null}
