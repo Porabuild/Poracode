@@ -1,5 +1,23 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
+public struct ProcedurediscoverExternalMcpServersResultU2DGroupsU2DItemU2DServersU2DItemU2DTransportU2DOptionU2D2_e0da1e0a5e: Codable, Sendable, RemoteModelMetadata {
+  public var headers: ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DEnv_c3ac213986
+  public var typeValue: ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D2U2DType_4f84b56b06
+  public var url: String
+  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
+  public static let fields: [RemoteFieldDescriptor] = [
+    .init(wireName: "headers", typeName: "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DEnv_c3ac213986", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "type", typeName: "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D2U2DType_4f84b56b06", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "url", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: ["mcp.valid-url"]),
+  ]
+  public static let semanticValidatorIds: [String] = ["mcp.valid-url"]
+  private enum CodingKeys: String, CodingKey {
+    case headers = "headers"
+    case typeValue = "type"
+    case url = "url"
+  }
+}
+
 public struct ProcedurediscoverExternalMcpServersResultU2DGroupsU2DItemU2DServersU2DItemU2DTransportU2DOptionU2D3_a66324f9a4: Codable, Sendable, RemoteModelMetadata {
   public var headers: ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DEnv_c3ac213986
   public var typeValue: ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D3U2DType_3120d80990
@@ -430,13 +448,3 @@ public struct ProcedureensureThreadRunningRequestU2DClientContext_b23ca9582f: Co
     case conversationSnapshot = "conversationSnapshot"
   }
 }
-
-public enum ProcedureensureThreadRunningRequestU2DDisabledBuiltInMcpServerIdsU2DItem_13f43aaaf5: String, Codable, Sendable {
-  case `browser` = "browser"
-  case `crossagents` = "crossagents"
-  case `chrome` = "chrome"
-  case `computerU2DUse` = "computer-use"
-  case `appU2DControls` = "app-controls"
-}
-
-public typealias ProcedureensureThreadRunningRequestU2DDisabledBuiltInMcpTools_fdad254a8b = [String: [String]]

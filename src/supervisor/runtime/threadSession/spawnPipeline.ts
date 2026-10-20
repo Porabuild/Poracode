@@ -176,10 +176,14 @@ export function effectiveLaunchConfig(
     return config;
   }
   const next = { ...config };
-  if (pluginBuiltInMcpServerIds.includes("browser")) next.browserMcp = true;
-  if (pluginBuiltInMcpServerIds.includes("crossagents")) next.crossagentMcp = true;
-  if (pluginBuiltInMcpServerIds.includes("computer-use")) next.computerUse = true;
-  if (pluginBuiltInMcpServerIds.includes("chrome")) next.chromeMcp = true;
+  if (config.browserMcp !== false && pluginBuiltInMcpServerIds.includes("browser"))
+    next.browserMcp = true;
+  if (config.crossagentMcp !== false && pluginBuiltInMcpServerIds.includes("crossagents"))
+    next.crossagentMcp = true;
+  if (config.computerUse !== false && pluginBuiltInMcpServerIds.includes("computer-use"))
+    next.computerUse = true;
+  if (config.chromeMcp !== false && pluginBuiltInMcpServerIds.includes("chrome"))
+    next.chromeMcp = true;
   if (disabledBuiltInMcpServerIds.includes("browser")) next.browserMcp = false;
   if (disabledBuiltInMcpServerIds.includes("crossagents")) next.crossagentMcp = false;
   if (disabledBuiltInMcpServerIds.includes("computer-use")) next.computerUse = false;
@@ -411,6 +415,9 @@ export class SpawnPipeline {
       payload.agentKind,
       {
         includeExternalServers: true,
+        ...(runtimeConfig.pluginOverrides
+          ? { pluginOverrides: runtimeConfig.pluginOverrides }
+          : {}),
         ...(payload.segments?.some((segment) => segment.kind === "skill" && segment.pluginId)
           ? { nativePluginAdapter: adapter }
           : {}),
@@ -438,6 +445,9 @@ export class SpawnPipeline {
           presentationMode: requestedPresentation,
           nativePlugins,
           segments: wslSegments,
+          ...(runtimeConfig.pluginOverrides
+            ? { pluginOverrides: runtimeConfig.pluginOverrides }
+            : {}),
         })) ?? wslSegments)
       : wslSegments;
     let effectiveSegments =
@@ -1899,7 +1909,12 @@ export class SpawnPipeline {
           const contributions = await this.ctx.options.resolvePluginLaunchContributions?.(
             projectLocation,
             agentKind,
-            { includeExternalServers: false },
+            {
+              includeExternalServers: false,
+              ...(turnConfig.pluginOverrides
+                ? { pluginOverrides: turnConfig.pluginOverrides }
+                : {}),
+            },
           );
           if (!isCurrent()) return [];
           const snapshot = {

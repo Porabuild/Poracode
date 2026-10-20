@@ -150,6 +150,8 @@ struct ThreadConfig: Codable, Sendable, Hashable {
     var crossagentMcp: Bool?
     var computerUse: Bool?
     var chromeMcp: Bool?
+    var mcpServerOverrides: [String: Bool]?
+    var pluginOverrides: [String: Bool]?
     var executionEnvironment: RemoteExecutionEnvironment?
 
     static let empty = ThreadConfig(model: "default")

@@ -35,6 +35,8 @@ import { gitStatePatchSchema } from "../../gitState";
 // omit them; the Costs tab reports unavailable. No discriminator meaning changes.
 // Fork v1 is capability-negotiated before its new command is sent; lineage is
 // optional and old thread rows remain valid. Older hosts never receive the kind.
+// Optional thread tool overrides remain additive: absent maps keep old defaults,
+// and the host retains durable choices when older clients omit them on mutation.
 export const PORACODE_REMOTE_PROTOCOL_VERSION = 14;
 export const REMOTE_COMMAND_ID_HEADER = "x-poracode-command-id";
 

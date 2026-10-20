@@ -16,6 +16,16 @@ pending retry delays; a thread cannot cancel its own active run.
 bounded retries, missed-run handling, run limits, and an optional completion
 condition. Heartbeats require a same-project, same-agent GUI conversation.
 
+`create_thread` inherits the New thread page's plugin/MCP defaults. Override
+`browserMcp`, `crossagentMcp`, `chromeMcp`, and `computerUse` with booleans;
+`mcpServers` maps configured server ids to booleans, and `plugins` maps installed
+manifest names to booleans. These choices are per thread and survive resume;
+global hard disables and provider/platform restrictions still apply. Discover
+custom server ids with `list_mcp_servers`/`get_project` and installed plugin names
+with `get_settings` (`section: "installedPlugins"`). Attach files or images to
+the first message with `attachments: [{path, mimeType?}]`; paths must be absolute
+files on this host, and image MIME types are inferred from their extension.
+
 ## Workflow
 
 Use `commit` for a commit, `create-pr` for publishing a PR with verification and before/after UI screenshots, and

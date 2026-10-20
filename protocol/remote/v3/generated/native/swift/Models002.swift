@@ -139,6 +139,8 @@ public struct ProcedureconnectThreadVoiceRequestU2DConfigU2DImportedFrom_3471186
   }
 }
 
+public typealias ProcedureconnectThreadVoiceRequestU2DConfigU2DMcpServerOverrides_6db96506f2 = [String: Bool]
+
 public enum ProcedureconnectThreadVoiceRequestU2DConfigU2DMode_01e21946e9: String, Codable, Sendable {
   case `agent` = "agent"
   case `plan` = "plan"

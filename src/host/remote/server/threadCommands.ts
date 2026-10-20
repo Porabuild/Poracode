@@ -321,7 +321,8 @@ export async function ensureRemoteThreadRunning(
   const project = dbGetProjects().find((entry) => entry.id === thread.projectId);
   if (!project) throw new RemoteHttpError("project_not_found", msg("remote.project.notFound"), 404);
   const mcpSnapshot =
-    ctx.options.resolveMcpLaunchSnapshot?.(thread.projectId) ?? emptyMcpLaunchSnapshot();
+    ctx.options.resolveMcpLaunchSnapshot?.(thread.projectId, thread.config.mcpServerOverrides) ??
+    emptyMcpLaunchSnapshot();
   return ctx.options.callSupervisor("ensureThreadRunning", {
     threadId,
     projectLocation: thread.worktreePath
@@ -398,7 +399,8 @@ async function startRemoteThread(
     ? buildWorktreeLocation(project.location, command.worktreePath)
     : project.location;
   const mcpSnapshot =
-    ctx.options.resolveMcpLaunchSnapshot?.(command.projectId) ?? emptyMcpLaunchSnapshot();
+    ctx.options.resolveMcpLaunchSnapshot?.(command.projectId, command.config.mcpServerOverrides) ??
+    emptyMcpLaunchSnapshot();
   // The durable row written above IS the retained evidence: a failed supervisor
   // response does NOT prove the provider never started (the launch may have
   // spawned before the reply was lost), so the row is deliberately not deleted

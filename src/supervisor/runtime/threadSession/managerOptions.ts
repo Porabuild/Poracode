@@ -120,6 +120,7 @@ export interface ThreadSessionManagerOptions {
     agentKind: AgentKind,
     options?: {
       includeExternalServers: boolean;
+      pluginOverrides?: Record<string, boolean>;
       /** Inspect explicit skill metadata through the adapter captured for this session's launch. */
       nativePluginAdapter?: Pick<AgentAdapter, "listNativePlugins">;
     },
@@ -138,6 +139,7 @@ export interface ThreadSessionManagerOptions {
   prepareSkillsForLaunch?(projectLocation: ProjectLocation, agentKind: AgentKind): Promise<void>;
   /** Enforce plugin skill policy before a segment reaches a provider. */
   filterPluginSkillSegments?(input: {
+    pluginOverrides?: Record<string, boolean>;
     agentKind: AgentKind;
     projectLocation: ProjectLocation;
     presentationMode?: ThreadPresentationMode;
