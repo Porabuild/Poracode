@@ -1,7 +1,9 @@
 import { ArrowLeft, ArrowRight, Box, Plug, Sparkles, TriangleAlert } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { useEffect, useId, useRef, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { Button, ToggleSwitch } from "@/renderer/components/common";
+import { ConfirmDialog } from "@/renderer/components/common/ConfirmDialog";
+import type { PluginInstallation } from "@/shared/contracts/pluginCatalog";
 import { ensureHomeScopeProject } from "@/renderer/actions/projectActions";
 import { newThreadFromText } from "@/renderer/actions/notesActions";
 import { usePanelStore } from "@/renderer/state/panelStore";
@@ -25,6 +27,7 @@ import {
 import { PluginIcon } from "./PluginIcon";
 import { PluginTag } from "./PluginTag";
 import { usePluginOauth } from "./usePluginOauth";
+import { PluginServiceAccounts } from "./PluginServiceAccounts";
 import { useLocalizedPluginDiagnostic, type LocalizedPlugin } from "./pluginCopy";
 
 function canTryPluginNow(input: {
@@ -53,9 +56,19 @@ export function PluginDetail(props: {
   plugin: LocalizedPlugin;
   hostPlatform: NodeJS.Platform;
   onBack: () => void;
+  catalogPackage?: {
+    receipt: PluginInstallation;
+    busy: boolean;
+    error: boolean;
+    /** Category published by the source entry, when the source is still known. */
+    entryCategory?: string;
+    onReview: () => void;
+    onRemove: () => Promise<void>;
+  };
 }) {
   const { t } = useLingui();
   const plugin = props.plugin.plugin;
+  const displayCategory = props.catalogPackage?.entryCategory ?? props.plugin.category;
   const installedPlugins = useSharedSettings((settings) => settings.installedPlugins);
   const disabledBuiltInMcpServers = useSharedSettings(
     (settings) => settings.disabledBuiltInMcpServers,
@@ -88,7 +101,9 @@ export function PluginDetail(props: {
   const trying = useRendererActionStore((actionState) => !!actionState.pending[tryActionKey]);
   const describeDiagnostic = useLocalizedPluginDiagnostic();
   // Warnings are tolerated by the loader; errors mean something was dropped.
-  const problems = plugin.diagnostics.filter((diagnostic) => diagnostic.severity === "error");
+  const problems = plugin.diagnostics;
+  const [removing, setRemoving] = useState(false);
+  const catalogPackage = props.catalogPackage;
 
   // Seeds a draft composer rather than sending anything, so the user still
   // reviews the prompt and picks a model before the thread starts.
@@ -122,7 +137,7 @@ export function PluginDetail(props: {
   }, []);
 
   return (
-    <div className="mx-auto min-h-full max-w-[720px]">
+    <div className="mx-auto min-h-full max-w-[880px] pb-8">
       {/* Focused on mount, so it keeps its own padding: with `px-0` the hover
           and focus surface hugged the glyph and the row read as a stray box. The
           negative inline-start margin keeps the label optically aligned with the
@@ -131,26 +146,26 @@ export function PluginDetail(props: {
         ref={backButtonRef}
         size="sm"
         variant="ghost"
-        className="-ms-2 mb-4 gap-2 px-2"
+        className="-ms-2 mb-4 gap-2 px-2 text-muted"
         onPress={props.onBack}
+        isDisabled={catalogPackage?.busy ?? false}
       >
         <ArrowLeft className="size-4" />
         <Trans>Back to plugins</Trans>
       </Button>
 
-      <div className="flex items-start gap-4 border-b border-[var(--hairline)] pb-6">
-        <div className="flex size-14 shrink-0 items-center justify-center rounded-2xl border border-[var(--hairline)] bg-surface-secondary text-foreground">
-          <PluginIcon pluginId={plugin.name} className="size-7" />
+      <div className="pb-4">
+        <div className="mb-3 flex size-14 items-center justify-center rounded-xl bg-surface-secondary text-foreground">
+          <PluginIcon pluginId={plugin.name} pluginRoot={plugin.root} className="size-9" />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0">
-              <h1 id={titleId} className="truncate text-xl font-semibold text-foreground">
+              <h1 id={titleId} className="break-words text-lg font-semibold text-foreground">
                 {props.plugin.name}
               </h1>
-              <p className="mt-1 text-sm text-muted">{props.plugin.description}</p>
             </div>
-            <div className="flex shrink-0 items-center gap-2">
+            <div className="flex max-w-full flex-wrap items-center gap-1.5">
               {/* "Try now" opens a home-scope thread, which cannot see a
                   package that belongs to one project's repository. */}
               {examplePrompt && coreSkill && plugin.source !== "project" ? (
@@ -165,7 +180,31 @@ export function PluginDetail(props: {
                   <Trans>Try now</Trans>
                 </Button>
               ) : null}
-              {!supported ? (
+              {catalogPackage ? (
+                <>
+                  {!state && supported ? (
+                    <Button
+                      size="sm"
+                      variant="tertiary"
+                      isDisabled={catalogPackage.busy}
+                      onPress={() => {
+                        installPlugin(plugin);
+                        setPluginEnabled(plugin, true);
+                      }}
+                    >
+                      <Trans>Enable plugin</Trans>
+                    </Button>
+                  ) : null}
+                  <Button
+                    size="sm"
+                    variant="tertiary"
+                    isDisabled={catalogPackage.busy}
+                    onPress={catalogPackage.onReview}
+                  >
+                    <Trans>Review update</Trans>
+                  </Button>
+                </>
+              ) : !supported ? (
                 // Host support is independent of install state: a built-in
                 // tool plugin still ships installed where it cannot run.
                 <Button size="sm" isDisabled>
@@ -176,7 +215,12 @@ export function PluginDetail(props: {
                   <Trans>Install</Trans>
                 </Button>
               ) : canUninstallPlugin(plugin) ? (
-                <Button size="sm" variant="danger" onPress={() => uninstallPlugin(plugin)}>
+                <Button
+                  size="sm"
+                  variant="tertiary"
+                  className="text-danger transition-colors hover:bg-danger hover:text-white"
+                  onPress={() => uninstallPlugin(plugin)}
+                >
                   <Trans>Uninstall</Trans>
                 </Button>
               ) : (
@@ -188,7 +232,8 @@ export function PluginDetail(props: {
               )}
             </div>
           </div>
-          <div className="mt-3 flex items-center gap-2 text-xs text-muted">
+          <p className="mt-2 text-[13px] leading-relaxed text-muted">{props.plugin.description}</p>
+          <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[11px] text-muted">
             <span>{author ?? plugin.name}</span>
             {plugin.poracode.communityMaintained ? (
               <PluginTag>
@@ -201,7 +246,7 @@ export function PluginDetail(props: {
               </PluginTag>
             ) : null}
             <span aria-hidden="true">·</span>
-            <span>{props.plugin.category}</span>
+            <span>{displayCategory}</span>
             {plugin.manifest.version ? (
               <>
                 <span aria-hidden="true">·</span>
@@ -222,13 +267,16 @@ export function PluginDetail(props: {
           variant="tertiary"
           isDisabled={!canTryNow || trying}
           isPending={trying}
-          className="mt-6 flex w-full min-w-0 max-w-full items-center gap-3 overflow-hidden rounded-2xl border border-[var(--hairline)] bg-surface-secondary !px-4 !py-3 text-left hover:border-[var(--hairline-strong)] focus-visible:border-[var(--hairline-strong)]"
+          className="mt-4 flex w-full min-w-0 max-w-full items-center gap-3 overflow-hidden rounded-xl border border-[var(--hairline)] bg-surface-secondary !px-3.5 !py-2.5 text-left hover:border-[var(--hairline-strong)] focus-visible:border-[var(--hairline-strong)]"
           onPress={() => void runRendererAction(tryActionKey, tryNow)}
         >
           <span className="shrink-0 text-muted">
-            <PluginIcon pluginId={plugin.name} className="size-4" />
+            <PluginIcon pluginId={plugin.name} pluginRoot={plugin.root} className="size-4" />
           </span>
-          <span className="min-w-0 flex-1 truncate text-sm text-foreground" title={examplePrompt}>
+          <span
+            className="min-w-0 flex-1 truncate text-[13px] text-foreground"
+            title={examplePrompt}
+          >
             {examplePrompt}
           </span>
           <ArrowRight className="size-4 shrink-0 text-muted" />
@@ -236,14 +284,14 @@ export function PluginDetail(props: {
       ) : null}
 
       {problems.length > 0 ? (
-        <section className="border-b border-[var(--hairline)] py-5">
-          <div className="mb-2 flex items-center gap-2 text-warning">
-            <TriangleAlert className="size-4" />
-            <h2 className="text-sm font-semibold">
+        <section className="border-b border-[var(--hairline)] py-4">
+          <div className="mb-1.5 flex items-center gap-2 text-warning">
+            <TriangleAlert className="size-3.5" />
+            <h2 className="text-xs font-semibold">
               <Trans>Some contributions could not be loaded</Trans>
             </h2>
           </div>
-          <ul className="space-y-1 text-xs text-muted">
+          <ul className="space-y-0.5 text-xs text-muted">
             {problems.map((diagnostic, index) => (
               <li key={`${diagnostic.code}-${diagnostic.target ?? index}`}>
                 {describeDiagnostic(diagnostic)}
@@ -254,7 +302,7 @@ export function PluginDetail(props: {
       ) : null}
 
       {plugin.poracode.communityMaintained ? (
-        <p className="mt-5 rounded-xl border border-[var(--hairline)] px-3 py-2.5 text-xs text-muted">
+        <p className="mt-4 rounded-lg border border-[var(--hairline)] px-3 py-2 text-xs text-muted">
           <Trans>
             The server this plugin launches is maintained by a third party, not by the service it
             connects to. Review the source before enabling it.
@@ -263,12 +311,12 @@ export function PluginDetail(props: {
       ) : null}
 
       {state && canDisablePlugin(plugin) ? (
-        <section className="flex items-center justify-between gap-4 border-b border-[var(--hairline)] py-5">
+        <section className="flex items-center justify-between gap-4 border-b border-[var(--hairline)] py-4">
           <div>
-            <h2 id={pluginToggleLabelId} className="text-sm font-semibold text-foreground">
+            <h2 id={pluginToggleLabelId} className="text-xs font-semibold text-foreground">
               <Trans>Enable plugin</Trans>
             </h2>
-            <p className="text-xs text-muted">
+            <p className="text-[11px] text-muted">
               <Trans>Enable this plugin's skills and servers for new threads.</Trans>
             </p>
           </div>
@@ -285,6 +333,7 @@ export function PluginDetail(props: {
         <ContributionSection
           icon={<Plug className="size-4" />}
           title={t`MCP servers`}
+          count={props.plugin.mcpServers.length}
           {...(plugin.mcpServers.length > 0
             ? {
                 description: t`Servers this plugin declares in mcp.json. Poracode passes them to every supported agent.`,
@@ -303,6 +352,7 @@ export function PluginDetail(props: {
                 labelId={labelId}
                 badgeId={badgeId}
                 name={server.name}
+                icon={<Plug className="size-3.5" />}
                 {...(server.description ? { description: server.description } : {})}
                 badge={t`MCP`}
                 last={index === props.plugin.mcpServers.length - 1}
@@ -340,10 +390,13 @@ export function PluginDetail(props: {
         </p>
       ) : null}
 
+      {state ? <PluginServiceAccounts plugin={plugin} oauth={oauth} /> : null}
+
       {props.plugin.skills.length > 0 ? (
         <ContributionSection
           icon={<Box className="size-4" />}
           title={t`Skills`}
+          count={props.plugin.skills.length}
           description={t`Reusable guidance delivered across supported agents.`}
         >
           {props.plugin.skills.map((skill, index) => {
@@ -356,6 +409,7 @@ export function PluginDetail(props: {
                 labelId={labelId}
                 badgeId={badgeId}
                 name={skill.name}
+                icon={<Box className="size-3.5" />}
                 {...(skill.description ? { description: skill.description } : {})}
                 badge={t`Skill`}
                 last={index === props.plugin.skills.length - 1}
@@ -375,11 +429,86 @@ export function PluginDetail(props: {
         </ContributionSection>
       ) : null}
 
-      <section className="border-t border-[var(--hairline)] py-5">
-        <h2 className="mb-3 text-sm font-semibold text-foreground">
+      {catalogPackage ? (
+        <section className="space-y-2.5 border-t border-[var(--hairline)] py-4 text-[11px]">
+          <h2 className="text-xs font-semibold text-foreground">
+            <Trans>Plugin source</Trans>
+          </h2>
+          <dl className="grid grid-cols-[auto_minmax(0,1fr)] items-baseline gap-x-4 gap-y-1">
+            <dt className="text-muted">
+              <Trans>Marketplace</Trans>
+            </dt>
+            <dd className="break-words text-foreground">{catalogPackage.receipt.catalogName}</dd>
+            <dt className="text-muted">
+              <Trans>Marketplace source</Trans>
+            </dt>
+            <dd className="break-all text-foreground">
+              {catalogPackage.receipt.catalogSource.type === "git"
+                ? catalogPackage.receipt.catalogSource.url
+                : catalogPackage.receipt.catalogSource.path}
+              {catalogPackage.receipt.catalogSource.type === "git" &&
+              catalogPackage.receipt.catalogSource.ref
+                ? ` (${catalogPackage.receipt.catalogSource.ref})`
+                : ""}
+            </dd>
+            {catalogPackage.receipt.packageSource.type === "git" ? (
+              <>
+                <dt className="text-muted">
+                  <Trans>Repository</Trans>
+                </dt>
+                <dd className="break-all text-foreground">
+                  {catalogPackage.receipt.packageSource.url}
+                </dd>
+                <dt className="text-muted">
+                  <Trans>Reference</Trans>
+                </dt>
+                <dd className="break-all text-foreground">
+                  {catalogPackage.receipt.packageSource.ref ?? "HEAD"}
+                </dd>
+                <dt className="text-muted">
+                  <Trans>Path</Trans>
+                </dt>
+                <dd className="break-all text-foreground">
+                  {catalogPackage.receipt.packageSource.path}
+                </dd>
+              </>
+            ) : catalogPackage.receipt.packageSource.type === "path" ? (
+              <>
+                <dt className="text-muted">
+                  <Trans>Path</Trans>
+                </dt>
+                <dd className="break-all text-foreground">
+                  {catalogPackage.receipt.packageSource.path}
+                </dd>
+              </>
+            ) : null}
+          </dl>
+          <p className="break-all font-mono text-[10px] text-muted">
+            {t`Installed`}: {catalogPackage.receipt.revision} · {catalogPackage.receipt.digest}
+          </p>
+          {catalogPackage.error ? (
+            <p role="alert" className="text-warning">
+              <Trans>
+                Could not manage this plugin or marketplace. Check the source, compatibility, and
+                local file changes, then try again.
+              </Trans>
+            </p>
+          ) : null}
+          <Button
+            size="sm"
+            variant="danger"
+            isDisabled={catalogPackage.busy}
+            onPress={() => setRemoving(true)}
+          >
+            <Trans>Remove plugin</Trans>
+          </Button>
+        </section>
+      ) : null}
+      <section className="py-5">
+        <h2 className="mb-3 border-b border-[var(--hairline)] pb-2 text-xs font-semibold text-foreground">
           <Trans>Information</Trans>
         </h2>
-        <dl className="grid grid-cols-[120px_1fr] gap-x-4 gap-y-2 text-xs">
+        <dl className="grid grid-cols-[minmax(0,110px)_minmax(0,1fr)] gap-x-4 gap-y-2 text-[11px]">
           <dt className="text-muted">
             <Trans>Identifier</Trans>
           </dt>
@@ -395,7 +524,7 @@ export function PluginDetail(props: {
           <dt className="text-muted">
             <Trans>Category</Trans>
           </dt>
-          <dd className="text-foreground">{props.plugin.category}</dd>
+          <dd className="text-foreground">{displayCategory}</dd>
           {plugin.manifest.version ? (
             <>
               <dt className="text-muted">
@@ -434,6 +563,17 @@ export function PluginDetail(props: {
           <dd className="break-all text-foreground">{plugin.root}</dd>
         </dl>
       </section>
+      <ConfirmDialog
+        isOpen={removing}
+        title={t`Remove plugin`}
+        body={t`Remove this plugin and its service accounts from Poracode?`}
+        confirmLabel={t`Remove plugin`}
+        isPending={catalogPackage?.busy ?? false}
+        onClose={() => {
+          if (!catalogPackage?.busy) setRemoving(false);
+        }}
+        onConfirm={() => void catalogPackage?.onRemove().then(() => setRemoving(false))}
+      />
     </div>
   );
 }
@@ -472,21 +612,23 @@ function ConnectControl(props: {
 function ContributionSection(props: {
   icon: ReactNode;
   title: string;
+  count: number;
   description?: string;
   children: ReactNode;
 }) {
   return (
-    <section className="py-5">
-      <div className="mb-3 flex items-start gap-2">
+    <section className="py-4">
+      <div className="mb-1.5 flex items-start gap-2 border-b border-[var(--hairline)] pb-2">
         <span className="mt-0.5 text-muted">{props.icon}</span>
-        <div>
-          <h2 className="text-sm font-semibold text-foreground">{props.title}</h2>
-          {props.description ? <p className="text-xs text-muted">{props.description}</p> : null}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5">
+            <h2 className="text-xs font-semibold text-foreground">{props.title}</h2>
+            <span className="text-[11px] tabular-nums text-muted">{props.count}</span>
+          </div>
+          {props.description ? <p className="text-[11px] text-muted">{props.description}</p> : null}
         </div>
       </div>
-      <div className="overflow-hidden rounded-xl border border-[var(--hairline)]">
-        {props.children}
-      </div>
+      <div>{props.children}</div>
     </section>
   );
 }
@@ -495,6 +637,7 @@ function ContributionRow(props: {
   labelId: string;
   badgeId: string;
   name: string;
+  icon: ReactNode;
   description?: string;
   badge: string;
   control?: ReactNode;
@@ -502,22 +645,27 @@ function ContributionRow(props: {
 }) {
   return (
     <div
-      className={`flex min-h-16 items-center gap-3 px-3 py-2.5 ${props.last ? "" : "border-b border-[var(--hairline)]"}`}
+      className={`flex min-h-12 flex-wrap items-center gap-x-2.5 gap-y-1.5 py-2 ${props.last ? "" : "border-b border-[var(--hairline)]"}`}
     >
+      <span
+        className="flex size-7 shrink-0 items-center justify-center rounded-md bg-surface-secondary text-muted"
+        aria-hidden="true"
+      >
+        {props.icon}
+      </span>
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <span id={props.labelId} className="truncate text-sm font-medium text-foreground">
+        <div className="flex items-center gap-1.5">
+          <span id={props.labelId} className="truncate text-[13px] font-medium text-foreground">
             {props.name}
           </span>
-          <span
-            id={props.badgeId}
-            className="rounded bg-surface-secondary px-1.5 py-0.5 text-[10px] text-muted"
-          >
+          <span id={props.badgeId} className="sr-only">
             {props.badge}
           </span>
         </div>
         {props.description ? (
-          <p className="truncate text-xs text-muted">{props.description}</p>
+          <p className="truncate text-[11px] text-muted" title={props.description}>
+            {props.description}
+          </p>
         ) : null}
       </div>
       {props.control}

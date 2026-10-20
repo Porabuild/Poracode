@@ -452,6 +452,133 @@ describe("SkillsService", () => {
     ).toEqual([]);
   });
 
+  it("discovers adapted custom skill locations and applies the plugin's enablement policy", async () => {
+    const directory = join(root, "plugins", "catalog-workflows");
+    await mkdir(join(directory, ".claude-plugin"), { recursive: true });
+    await writeFile(
+      join(directory, ".claude-plugin", "plugin.json"),
+      JSON.stringify({ name: "catalog-workflows", skills: ["./custom/workflow"] }),
+    );
+    const skillPath = join(directory, "custom", "workflow");
+    await writeSkill(skillPath, "custom-workflow");
+    const plugin = loadPluginFromDirectory(directory, "user").plugin!;
+    let installedPlugins = installPlugin({}, plugin);
+    const catalogService = new SkillsService({
+      adapters,
+      homeDirectory: () => home,
+      readInstalledPlugins: () => installedPlugins,
+      readPlugins: () => [plugin],
+    });
+    const segment: PromptSegment = {
+      kind: "skill",
+      name: "custom-workflow",
+      path: join(skillPath, "SKILL.md"),
+      invocation: "/custom-workflow",
+      provider: "catalog-workflows",
+      scope: "global",
+    };
+    expect(await catalogService.filterPluginSkillSegments([segment])).toEqual([]);
+    installedPlugins = setInstalledPluginEnabled(installedPlugins, plugin, true);
+    const scan = await catalogService.scan({ projectLocation, agentKind: "claude" });
+    const skill = scan.skills.find((entry) => entry.name === "custom-workflow");
+    expect(skill).toMatchObject({ pluginId: plugin.name, enabled: true, mutable: false });
+    expect(scan.effectiveSkillIds).toContain(skill!.id);
+    expect(await catalogService.filterPluginSkillSegments([segment])).toEqual([segment]);
+    installedPlugins = setPluginSkillEnabled(installedPlugins, plugin, "workflow", false);
+    expect(await catalogService.filterPluginSkillSegments([segment])).toEqual([]);
+  });
+
+  it("rejects undeclared skills with the same folder name under a custom skill's parent", async () => {
+    const directory = join(root, "plugins", "catalog-workflows");
+    await mkdir(join(directory, ".claude-plugin"), { recursive: true });
+    await writeFile(
+      join(directory, ".claude-plugin", "plugin.json"),
+      JSON.stringify({
+        name: "catalog-workflows",
+        skills: "./allowed",
+      }),
+    );
+    const declared = join(directory, "skills", "review");
+    const allowed = join(directory, "allowed");
+    const undeclared = join(directory, "review");
+    await writeSkill(declared, "declared-review");
+    await writeSkill(allowed, "allowed-workflow");
+    await writeSkill(undeclared, "undeclared-review");
+    const plugin = loadPluginFromDirectory(directory, "user").plugin!;
+    let installedPlugins = setInstalledPluginEnabled(installPlugin({}, plugin), plugin, true);
+    const catalogService = new SkillsService({
+      adapters,
+      homeDirectory: () => home,
+      readInstalledPlugins: () => installedPlugins,
+      readPlugins: () => [plugin],
+    });
+    const scan = await catalogService.scan({ projectLocation, agentKind: "claude" });
+    expect(
+      scan.skills.filter((entry) => entry.pluginId === plugin.name).map((entry) => entry.name),
+    ).toEqual(expect.arrayContaining(["declared-review", "allowed-workflow"]));
+    expect(scan.skills.some((entry) => entry.name === "undeclared-review")).toBe(false);
+    const segments: PromptSegment[] = [declared, allowed, undeclared].map((path) => ({
+      kind: "skill",
+      name: "workflow",
+      path: join(path, "SKILL.md"),
+      invocation: "/workflow",
+      provider: plugin.name,
+      scope: "global",
+    }));
+    expect(await catalogService.filterPluginSkillSegments(segments)).toEqual(segments.slice(0, 2));
+    installedPlugins = setPluginSkillEnabled(installedPlugins, plugin, "review", false);
+    expect(await catalogService.filterPluginSkillSegments(segments)).toEqual([segments[1]]);
+  });
+
+  it("keeps root and nested declared skills isolated when packages share a scan parent", async () => {
+    const plugins: LoadedPlugin[] = [];
+    const segments: PromptSegment[] = [];
+    for (const name of ["first", "second"]) {
+      const directory = join(root, "plugins", name);
+      await mkdir(join(directory, ".claude-plugin"), { recursive: true });
+      await writeFile(
+        join(directory, ".claude-plugin", "plugin.json"),
+        JSON.stringify({
+          name,
+          skills: ".",
+        }),
+      );
+      await writeSkill(directory, `${name}-root`);
+      await writeSkill(join(directory, "skills", "review"), `${name}-review`);
+      plugins.push(loadPluginFromDirectory(directory, "user").plugin!);
+      for (const path of [directory, join(directory, "skills", "review")]) {
+        segments.push({
+          kind: "skill",
+          name,
+          path: join(path, "SKILL.md"),
+          invocation: `/${name}`,
+          provider: name,
+          scope: "global",
+        });
+      }
+    }
+    const installedPlugins = Object.fromEntries(
+      plugins.map((plugin) => [
+        plugin.name,
+        setInstalledPluginEnabled(installPlugin({}, plugin), plugin, true)[plugin.name]!,
+      ]),
+    );
+    const catalogService = new SkillsService({
+      adapters,
+      homeDirectory: () => home,
+      readInstalledPlugins: () => installedPlugins,
+      readPlugins: () => plugins,
+    });
+    const scan = await catalogService.scan({ projectLocation, agentKind: "claude" });
+    expect(
+      scan.skills
+        .filter((entry) => entry.origin === "plugin")
+        .map((entry) => entry.name)
+        .sort(),
+    ).toEqual(["first-review", "first-root", "second-review", "second-root"]);
+    expect(await catalogService.filterPluginSkillSegments(segments)).toEqual(segments);
+  });
+
   it("does not classify bundled-root links to outside skills as plugin skills", async ({
     skip,
   }) => {

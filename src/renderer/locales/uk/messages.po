@@ -828,6 +828,10 @@ msgstr "Один із кандидатів більше не перебуває 
 msgid "A Cursor profile with this name already exists."
 msgstr "Профіль Cursor із таким іменем уже існує."
 
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
+msgid "A different plugin already uses this identifier. It will not be replaced."
+msgstr "Інший плагін уже використовує цей ідентифікатор. Його не буде замінено."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "A frozen worktree source requires a full commit hash"
 msgstr "Для замороженого джерела worktree потрібен повний хеш коміту"
@@ -922,6 +926,19 @@ msgstr "Прийняти вхідну зміну"
 msgid "Account"
 msgstr "Обліковий запис"
 
+#: src/renderer/components/plugins/PluginServiceAccounts.tsx
+msgid "Account changes apply to new threads."
+msgstr "Зміни облікових записів застосовуються до нових тредів."
+
+#: src/renderer/components/plugins/PluginServiceAccounts.tsx
+msgid "Account label"
+msgstr "Назва облікового запису"
+
+#. placeholder {0}: service.name
+#: src/renderer/components/plugins/PluginServiceAccounts.tsx
+msgid "Account label for {0}"
+msgstr "Назва облікового запису для {0}"
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Account options"
 msgstr "Параметри облікового запису"
@@ -931,6 +948,10 @@ msgstr "Параметри облікового запису"
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Accounts"
 msgstr "Облікові записи"
+
+#: src/renderer/components/plugins/PluginServiceAccounts.tsx
+msgid "Accounts belong to this plugin and service. Account labels are yours; the service may not report a verified identity. Provider logins are separate."
+msgstr "Облікові записи належать цьому плагіну та сервісу. Назви задаєте ви; сервіс може не повідомляти підтверджену особу. Вхід до облікових записів провайдерів виконується окремо."
 
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
@@ -1035,6 +1056,11 @@ msgstr "Метрика активності"
 msgid "Add"
 msgstr "Додати"
 
+#. placeholder {0}: catalog.name
+#: src/renderer/components/plugins/PluginCatalogBrowser.tsx
+msgid "Add {0}"
+msgstr "Додати {0}"
+
 #: src/renderer/commands/registry.ts
 msgid "Add a local project"
 msgstr "Додати локальний проєкт"
@@ -1087,6 +1113,10 @@ msgstr "Додайте проєкт, щоб почати"
 msgid "Add a project to use GitHub Actions."
 msgstr "Додайте проєкт, щоб використовувати GitHub Actions."
 
+#: src/renderer/components/plugins/PluginCatalogBrowser.tsx
+msgid "Add a public Git repository or a local marketplace. Review supported components before installing."
+msgstr "Додайте публічний Git-репозиторій або локальний каталог. Перед установленням перевірте підтримувані компоненти."
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Add a skill to .agents/skills or .poracode/skills, or import one from another provider."
 msgstr "Додайте навичку до .agents/skills або .poracode/skills чи імпортуйте її від іншого провайдера."
@@ -1095,9 +1125,17 @@ msgstr "Додайте навичку до .agents/skills або .poracode/skill
 #~ msgid "Add a skill to .agents/skills or import one from another provider."
 #~ msgstr "Додайте навичку до .agents/skills або імпортуйте її від іншого провайдера."
 
+#: src/renderer/components/plugins/PluginCatalogBrowser.tsx
+msgid "Add a source"
+msgstr "Додати джерело"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoList.tsx
 msgid "Add a to-do…"
 msgstr "Додати завдання…"
+
+#: src/renderer/components/plugins/PluginServiceAccounts.tsx
+msgid "Add account"
+msgstr "Додати обліковий запис"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
 msgid "Add action"
@@ -1134,6 +1172,10 @@ msgstr "Додайте облікові дані, перш ніж цей тре�
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Add folder"
 msgstr "Додати теку"
+
+#: src/renderer/components/plugins/PluginCatalogBrowser.tsx
+msgid "Add marketplace"
+msgstr "Додати маркетплейс"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Add MCP server"
@@ -1474,6 +1516,10 @@ msgstr "Усі папки"
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeHeading.tsx
 msgid "All machines"
 msgstr "Усі комп’ютери"
+
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+msgid "All plugins"
+msgstr "Усі плагіни"
 
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 msgid "All plugins are up to date."
@@ -2496,6 +2542,10 @@ msgstr "Набори навичок і MCP-серверів, які працюю
 msgid "Business & finance"
 msgstr "Бізнес і фінанси"
 
+#: src/renderer/components/plugins/pluginCategories.ts
+msgid "Business and operations"
+msgstr "Бізнес та операції"
+
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 msgid "by <0>{author}</0>"
 msgstr "автор: <0>{author}</0>"
@@ -2631,6 +2681,10 @@ msgstr "Скасувати видалення проєкту"
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Cancel run"
 msgstr "Скасувати запуск"
+
+#: src/renderer/components/plugins/PluginServiceAccounts.tsx
+msgid "Cancel sign-in"
+msgstr "Скасувати вхід"
 
 #: src/renderer/components/composer/LiveVoiceControls.tsx
 msgid "Cancel voice connection"
@@ -4361,6 +4415,13 @@ msgstr "Не вдалося завантажити дані використан
 #~ msgid "Could not open this PDF."
 #~ msgstr "Не вдалося відкрити цей PDF-файл."
 
+#: src/renderer/components/plugins/PluginCatalogBrowser.tsx
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
+#: src/renderer/components/plugins/PluginDetail.tsx
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+msgid "Could not manage this plugin or marketplace. Check the source, compatibility, and local file changes, then try again."
+msgstr "Не вдалося обробити маркетплейс або плагін. Перевірте джерело, сумісність і локальні зміни файлів та спробуйте ще раз."
+
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "Could not read file."
 msgstr "Не вдалося прочитати файл."
@@ -4370,6 +4431,11 @@ msgstr "Не вдалося прочитати файл."
 msgid "Could not read the thread context for side chat. Try again."
 msgstr "Не вдалося прочитати контекст гілки для додаткового чату. Спробуйте ще раз."
 
+#. placeholder {0}: account.serverName
+#: src/renderer/components/plugins/usePluginOauth.ts
+msgid "Could not sign in to {0}."
+msgstr "Не вдалося ввійти до {0}."
+
 #: src/renderer/components/mcp/useMcpServerOauth.ts
 msgid "Could not sign in to {serverName}: {message}"
 msgstr "Не вдалося ввійти до {serverName}: {message}"
@@ -4378,6 +4444,11 @@ msgstr "Не вдалося ввійти до {serverName}: {message}"
 #: src/renderer/components/plugins/usePluginOauth.ts
 msgid "Could not sign in to {serverName}."
 msgstr "Не вдалося ввійти до {serverName}."
+
+#. placeholder {0}: account.serverName
+#: src/renderer/components/plugins/usePluginOauth.ts
+msgid "Could not sign out of {0}."
+msgstr "Не вдалося вийти з {0}."
 
 #: src/renderer/components/mcp/useMcpServerOauth.ts
 #: src/renderer/components/plugins/usePluginOauth.ts
@@ -4926,6 +4997,10 @@ msgstr "Записані витрати за день; прогалини мож
 msgid "Dark"
 msgstr "Темна"
 
+#: src/renderer/components/plugins/pluginCategories.ts
+msgid "Data and databases"
+msgstr "Дані та бази даних"
+
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
 msgid "Date"
 msgstr "Дата"
@@ -5201,6 +5276,10 @@ msgstr "Заборонити"
 msgid "Deny and tell the agent what to do differently…"
 msgstr "Заборонити й сказати агенту, що зробити інакше…"
 
+#: src/renderer/components/plugins/pluginCategories.ts
+msgid "Deployment"
+msgstr "Розгортання"
+
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Describe the result that completes this heartbeat."
 msgstr "Опишіть результат, за якого цей пульс буде завершено."
@@ -5225,6 +5304,10 @@ msgstr "Опис (необов'язково)"
 #: src/renderer/utils/projectIcons.ts
 msgid "Design & media"
 msgstr "Дизайн та медіа"
+
+#: src/renderer/components/plugins/pluginCategories.ts
+msgid "Design and creativity"
+msgstr "Дизайн і творчість"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Desktop endpoint"
@@ -5561,6 +5644,10 @@ msgstr "З’єднання розірвано — надішліть повід
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 msgid "Discover"
 msgstr "Огляд"
+
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+msgid "Discover skills and MCP servers from your marketplace sources."
+msgstr "Знаходьте навички й MCP-сервери в джерелах маркетплейсу."
 
 #: src/renderer/components/thread/AgentDiscoveryOverlay.tsx
 msgid "Discovering agents…"
@@ -6702,6 +6789,10 @@ msgstr "Фільтр за проєктом"
 msgid "Filter marketplace by source"
 msgstr "Фільтрувати маркетплейс за джерелом"
 
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+msgid "Filter plugins"
+msgstr "Фільтрувати плагіни"
+
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Filter pull requests"
 msgstr "Фільтрувати pull request"
@@ -6717,6 +6808,10 @@ msgstr "Фільтри"
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Finalize"
 msgstr "Завершити"
+
+#: src/renderer/components/plugins/pluginCategories.ts
+msgid "Finance"
+msgstr "Фінанси"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/components/find/FindBar.tsx
@@ -7291,6 +7386,10 @@ msgstr "Зрозуміло"
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Grade {0}"
 msgstr "Оцінка {0}"
+
+#: src/renderer/components/plugins/PluginServiceAccounts.tsx
+msgid "Granted scopes"
+msgstr "Надані дозволи"
 
 #: src/renderer/utils/projectIconColors.ts
 msgid "Green"
@@ -8105,6 +8204,10 @@ msgstr "Установіть OpenCode 2, щоб керувати його пла
 msgid "Install packages"
 msgstr "Встановити пакети"
 
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
+msgid "Install plugin"
+msgstr "Установити плагін"
+
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 msgid "Install Poracode for faster access and offline launch."
@@ -8174,6 +8277,10 @@ msgstr "Встановлення"
 #: src/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay.tsx
 msgid "Installing in this terminal. Closes when finished."
 msgstr "Встановлення виконується в цьому терміналі. Він закриється після завершення."
+
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
+msgid "Installing makes this plugin available in Plugins. Enable it after reviewing its skills, servers, and required access."
+msgstr "Після встановлення плагін з’явиться в розділі плагінів. Увімкніть його після перевірки навичок, серверів і потрібного доступу."
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Instructions"
@@ -8445,6 +8552,10 @@ msgstr "Основна модель"
 msgid "Learned selections"
 msgstr "Вивчені вибори"
 
+#: src/renderer/components/plugins/pluginCategories.ts
+msgid "Learning and research"
+msgstr "Навчання й дослідження"
+
 #: src/renderer/views/GitReviewOverlay/parts/DiffAnnotationView.tsx
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 msgid "Leave a comment"
@@ -8636,6 +8747,12 @@ msgstr "Завантаження нотаток…"
 #~ msgid "Loading PDF…"
 #~ msgstr "Завантаження PDF…"
 
+#: src/renderer/components/plugins/PluginCatalogBrowser.tsx
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+msgid "Loading plugins and marketplaces…"
+msgstr "Завантаження плагінів і маркетплейсів…"
+
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 #: src/renderer/views/SettingsOverlay/parts/PluginsSettings.tsx
 msgid "Loading plugins…"
@@ -8745,6 +8862,10 @@ msgstr "localhost:{0} на комп'ютері"
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "Location"
 msgstr "Розташування"
+
+#: src/renderer/components/plugins/pluginCategories.ts
+msgid "Location and maps"
+msgstr "Геолокація та карти"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Location glyph"
@@ -9028,6 +9149,21 @@ msgstr "Маркетплейс"
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Marketplace rank"
 msgstr "Рейтинг маркетплейсу"
+
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
+#: src/renderer/components/plugins/PluginDetail.tsx
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+msgid "Marketplace source"
+msgstr "Джерело маркетплейсу"
+
+#: src/renderer/components/plugins/PluginCatalogBrowser.tsx
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+msgid "Marketplace sources"
+msgstr "Джерела маркетплейсу"
+
+#: src/renderer/components/plugins/PluginCatalogBrowser.tsx
+msgid "Marketplace URL or local path"
+msgstr "URL маркетплейсу або локальний шлях"
 
 #: src/renderer/i18n/locales.ts
 msgid "Match app language"
@@ -9384,6 +9520,10 @@ msgstr "Доступ до мікрофона відхилено."
 msgid "Microphone testing is not available in this environment."
 msgstr "Перевірка мікрофона недоступна в цьому середовищі."
 
+#: src/renderer/components/plugins/pluginCategories.ts
+msgid "Migration"
+msgstr "Міграція"
+
 #. Unit suffix: minutes
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
 msgid "min"
@@ -9526,6 +9666,10 @@ msgstr "Моделі"
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Modes"
 msgstr "Режими"
+
+#: src/renderer/components/plugins/pluginCategories.ts
+msgid "Monitoring"
+msgstr "Моніторинг"
 
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/CollapsedThreadRail.tsx
@@ -10282,6 +10426,10 @@ msgstr "На цьому комп'ютері не знайдено сесій д�
 #~ msgid "No installed agents with selectable models are available for this project."
 #~ msgstr "Для цього проєкту немає встановлених агентів із моделями, які можна вибрати."
 
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+msgid "No installed plugins yet."
+msgstr "Встановлених плагінів ще немає."
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 msgid "No jobs reported for this run."
 msgstr "Для цього запуску немає даних про завдання."
@@ -10692,6 +10840,14 @@ msgstr "не встановлено"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 msgid "Not installed"
 msgstr "Не встановлено"
+
+#: src/renderer/components/plugins/PluginCatalogBrowser.tsx
+msgid "Not loaded"
+msgstr "Не завантажено"
+
+#: src/renderer/components/plugins/PluginServiceAccounts.tsx
+msgid "Not reported by service"
+msgstr "Сервіс не повідомив"
 
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 msgid "Not running"
@@ -11789,9 +11945,18 @@ msgstr "Відомості про плагін"
 msgid "Plugin folder"
 msgstr "Тека плагінів"
 
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
+msgid "Plugin review"
+msgstr "Перевірка плагіна"
+
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Plugin servers"
 msgstr "Сервери плагінів"
+
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
+#: src/renderer/components/plugins/PluginDetail.tsx
+msgid "Plugin source"
+msgstr "Джерело плагіна"
 
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 msgid "Plugin views"
@@ -12076,6 +12241,11 @@ msgstr "Натисніть пробіл, щоб почати змінювати 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Prevent system sleep"
 msgstr "Запобігати сну системи"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Prevent sleep"
+msgstr "Запобігати засинанню"
 
 #. placeholder {0}: att.name
 #: src/renderer/components/composer/AttachmentBar.tsx
@@ -12764,6 +12934,12 @@ msgstr "Червоний"
 msgid "Redact notification content"
 msgstr "Приховувати вміст сповіщень"
 
+#: src/renderer/components/plugins/PluginCatalogBrowser.tsx
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
+#: src/renderer/components/plugins/PluginDetail.tsx
+msgid "Reference"
+msgstr "Посилання на версію"
+
 #. Button: re-fetch provider usage now
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 #: src/renderer/components/thread/ChatPane/ChatPane.tsx
@@ -12784,6 +12960,11 @@ msgstr "Приховувати вміст сповіщень"
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Refresh"
 msgstr "Оновити"
+
+#. placeholder {0}: catalog.name
+#: src/renderer/components/plugins/PluginCatalogBrowser.tsx
+msgid "Refresh {0}"
+msgstr "Оновити {0}"
 
 #. placeholder {0}: agentStatus.label
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
@@ -12859,6 +13040,10 @@ msgstr "Віддалений"
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #~ msgid "Remote access"
 #~ msgstr "Віддалений доступ"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+msgid "Remote access"
+msgstr "Віддалений доступ"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/RemoteAccessSidebarIcon.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
@@ -13068,6 +13253,10 @@ msgstr "Видалити з панелі"
 msgid "Remove from recent"
 msgstr "Видалити з нещодавніх"
 
+#: src/renderer/components/plugins/PluginCatalogBrowser.tsx
+msgid "Remove marketplace"
+msgstr "Видалити маркетплейс"
+
 #. placeholder {0}: providerLabel(entry.agentKind)
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
 msgid "Remove memory entry for {0}"
@@ -13139,6 +13328,11 @@ msgstr "Видалити це з'єднання?"
 msgid "Remove this model route? Saved credentials are kept. Existing threads pick up changes when restarted."
 msgstr "Видалити цей маршрут моделей? Збережені облікові дані залишаться. Наявні гілки застосують зміни після перезапуску."
 
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
+#: src/renderer/components/plugins/PluginDetail.tsx
+msgid "Remove this plugin and its service accounts from Poracode?"
+msgstr "Видалити цей плагін і його облікові записи сервісів із Poracode?"
+
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Remove worktree?"
 msgstr "Видалити worktree?"
@@ -13163,6 +13357,10 @@ msgstr "Видалення {profileName} скидає його налаштув�
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Removing {profileName} drops its Poracode settings only. Devin's own credentials, config files, and session history stay on disk, and other profiles are unaffected."
 msgstr "Видалення {profileName} стирає лише його налаштування Poracode. Власні облікові дані Devin, файли конфігурації та історія сесій залишаються на диску, а інші профілі не зачіпаються."
+
+#: src/renderer/components/plugins/PluginCatalogBrowser.tsx
+msgid "Removing a source keeps its installed plugins."
+msgstr "Після видалення джерела встановлені з нього плагіни зберігаються."
 
 #: src/renderer/components/thread/CompactThreadHeader.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
@@ -13638,6 +13836,17 @@ msgstr "Відкат…"
 msgid "Review"
 msgstr "Рев'ю"
 
+#. placeholder {0}: props.target.entryName
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
+msgid "Review {0}"
+msgstr "Перевірити {0}"
+
+#. placeholder {0}: entry.name
+#. placeholder {1}: entry.sourceName
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+msgid "Review {0} from {1}"
+msgstr "Перевірити {0} з {1}"
+
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Review and Summarizer are the only root agent types Devin's CLI accepts. Custom native personas are subagent definitions configured in Devin's own files — they cannot be selected here."
 msgstr "Рев'ю та Сумаризатор — єдині кореневі типи агентів, які приймає CLI Devin. Користувацькі нативні персони — це визначення субагентів у файлах самого Devin — їх не можна вибрати тут."
@@ -13670,6 +13879,10 @@ msgstr "Коментар до рев'ю"
 msgid "Review decision"
 msgstr "Рішення щодо рев'ю"
 
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
+msgid "Review downloads this plugin for inspection. Installation is a separate step."
+msgstr "Для перевірки цей плагін буде завантажено. Установлення виконується окремим кроком."
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Review my recent work and summarize today's priorities and next steps."
 msgstr "Переглянь мою нещодавню роботу та підсумуй сьогоднішні пріоритети й наступні кроки."
@@ -13694,6 +13907,11 @@ msgstr "Відображення рев'ю"
 #: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
 msgid "Review recovery"
 msgstr "Переглянути відновлення"
+
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
+#: src/renderer/components/plugins/PluginDetail.tsx
+msgid "Review update"
+msgstr "Перевірити оновлення"
 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Review, manually test, fix, commit, push, create a PR, and merge after checks pass."
@@ -14414,6 +14632,10 @@ msgstr "секунд"
 #~ msgid "Security-focused directory with verified skill metadata."
 #~ msgstr "Каталог із фокусом на безпеці та перевіреними метаданими навичок."
 
+#: src/renderer/components/plugins/pluginCategories.ts
+msgid "Security"
+msgstr "Безпека"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadRow.tsx
 msgid "See more"
 msgstr "Показати більше"
@@ -14535,6 +14757,10 @@ msgstr "Вибрати…"
 #~ msgid "Selected project"
 #~ msgstr "Вибраний проєкт"
 
+#: src/renderer/components/plugins/PluginServiceAccounts.tsx
+msgid "Selected"
+msgstr "Вибрано"
+
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Selected sidebar row"
@@ -14603,6 +14829,10 @@ msgstr "Сервер офлайн — ця розмова може бути за
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Servers this plugin declares in mcp.json. Poracode passes them to every supported agent."
 msgstr "Сервери, які цей плагін оголошує в mcp.json. Poracode передає їх кожному підтримуваному агенту."
+
+#: src/renderer/components/plugins/PluginServiceAccounts.tsx
+msgid "Service accounts"
+msgstr "Облікові записи сервісів"
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/components/composer/ComposerSessionActionsMenu.tsx
@@ -15064,6 +15294,14 @@ msgstr "Вийти з {0}"
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Sign out of {serverName}"
 msgstr "Вийти з {serverName}"
+
+#: src/renderer/components/plugins/PluginServiceAccounts.tsx
+msgid "Sign-in expired"
+msgstr "Термін входу минув"
+
+#: src/renderer/components/plugins/PluginServiceAccounts.tsx
+msgid "Sign-in is unavailable for project plugins and services with plugin-managed authentication."
+msgstr "Вхід недоступний для плагінів проєкту та сервісів, автентифікацією яких керує плагін."
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Sign-in methods"
@@ -16125,6 +16363,10 @@ msgstr "Вкладки термінала"
 msgid "Test microphone"
 msgstr "Перевірити мікрофон"
 
+#: src/renderer/components/plugins/pluginCategories.ts
+msgid "Testing"
+msgstr "Тестування"
+
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Text color"
 msgstr "Колір тексту"
@@ -16901,6 +17143,11 @@ msgstr "Це назавжди видалить гілку \"{0}\"."
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "This plugin describes a skill it does not actually ship."
 msgstr "Цей плагін описує навичку, якої насправді не постачає."
+
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+msgid "This plugin is no longer listed in a registered source."
+msgstr "Цей плагін більше не зазначено в жодному зареєстрованому джерелі."
 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "This plugin's folder could not be read."
@@ -18024,6 +18271,14 @@ msgstr "не в індексі"
 msgid "Unsupported"
 msgstr "Не підтримується"
 
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
+msgid "Unsupported marketplace requirements"
+msgstr "Непідтримувані вимоги маркетплейсу"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Unsupported plugin capability: {target}."
+msgstr "Непідтримувана можливість плагіна: {target}."
+
 #: src/renderer/sidebar/ChatSidebarHeader.tsx
 msgid "Untitled"
 msgstr "Без назви"
@@ -18121,6 +18376,10 @@ msgstr "Помилка оновлення: {detail}"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Update method"
 msgstr "Спосіб оновлення"
+
+#: src/renderer/components/plugins/PluginCatalogDetail.tsx
+msgid "Update plugin"
+msgstr "Оновити плагін"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Update Poracode on your desktop to use port forwarding."
@@ -18340,6 +18599,10 @@ msgstr "Укажіть ліміт від 1 до 100 запусків або за
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Use a time limit between 1 and 1440 minutes."
 msgstr "Укажіть ліміт часу від 1 до 1440 хвилин."
+
+#: src/renderer/components/plugins/PluginServiceAccounts.tsx
+msgid "Use account"
+msgstr "Використати обліковий запис"
 
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 msgid "Use an existing folder"
@@ -19172,6 +19435,10 @@ msgstr "Ваше ім'я"
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 #~ msgid "Your pick"
 #~ msgstr "Ваш вибір"
+
+#: src/renderer/components/plugins/PluginMarketplace.tsx
+msgid "Your plugins"
+msgstr "Ваші плагіни"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Your stashed local changes were re-applied."

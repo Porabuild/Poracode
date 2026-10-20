@@ -33,6 +33,7 @@ async function startFakeAuthServer(options: {
   failCodeExchange?: boolean;
   refreshGate?: Promise<void>;
   codeExchangeGate?: Promise<void>;
+  omitCodeScope?: boolean;
 }): Promise<FakeAuthServer> {
   const tokenRequests: URLSearchParams[] = [];
   const registerRequests: string[] = [];
@@ -119,6 +120,9 @@ async function startFakeAuthServer(options: {
             token_type: "Bearer",
             refresh_token: "rt-1",
             expires_in: options.expiresIn,
+            ...(params.get("grant_type") === "authorization_code" && !options.omitCodeScope
+              ? { scope: "notes:read" }
+              : {}),
           }),
         );
       };
@@ -213,6 +217,67 @@ async function completeBrowserLeg(authorizationUrl: string): Promise<void> {
 }
 
 describe("McpOAuthService", () => {
+  it("keeps independent plugin account slots at the same endpoint and preserves completed browser results", async () => {
+    const fake = await startFakeAuthServer({ expiresIn: 3600 });
+    const service = makeService();
+    const server = httpServer(fake.url);
+    const first = await service.beginForCredential(server, "plugin-account-v1:first");
+    const second = await service.beginForCredential(server, "plugin-account-v1:second");
+    if (first.status !== "redirect" || second.status !== "redirect")
+      throw new Error("Expected redirects");
+    await completeBrowserLeg(first.authorizationUrl);
+    await expect
+      .poll(() => service.credentialStatus("plugin-account-v1:first").status)
+      .toBe("connected");
+    expect(await service.wait({ flowId: first.flowId })).toEqual({ status: "authorized" });
+    await completeBrowserLeg(second.authorizationUrl);
+    expect(await service.wait({ flowId: second.flowId })).toEqual({ status: "authorized" });
+    expect(service.status().authenticatedUrls).toEqual([]);
+    expect(await service.applyAuthorizationToServer(server)).toBe(server);
+    expect(() => service.clear({ url: "plugin-account-v1:first" })).toThrow("HTTP MCP");
+    expect(service.credentialStatus("plugin-account-v1:first").status).toBe("connected");
+    service.clearCredential("plugin-account-v1:first");
+    expect(service.credentialStatus("plugin-account-v1:first").status).toBe("disconnected");
+    expect(service.credentialStatus("plugin-account-v1:second").status).toBe("connected");
+    expect(
+      (await service.applyAuthorizationToServer(server, "plugin-account-v1:second")).transport,
+    ).toMatchObject({ headers: { Authorization: "Bearer at-1" } });
+  });
+
+  it("cancels only the logged-out account's pending OAuth flow", async () => {
+    const fake = await startFakeAuthServer({ expiresIn: 3600 });
+    const service = makeService();
+    const server = httpServer(fake.url);
+    const first = await service.beginForCredential(server, "plugin-account-v1:first");
+    const second = await service.beginForCredential(server, "plugin-account-v1:second");
+    if (first.status !== "redirect" || second.status !== "redirect")
+      throw new Error("Expected redirects");
+    service.clearCredential("plugin-account-v1:first");
+    expect((await service.wait({ flowId: first.flowId })).status).toBe("error");
+    await completeBrowserLeg(second.authorizationUrl);
+    expect(await service.wait({ flowId: second.flowId })).toEqual({ status: "authorized" });
+    expect(service.credentialStatus("plugin-account-v1:first").status).toBe("disconnected");
+  });
+
+  it("refuses future credential stores without changing their bytes", () => {
+    const dir = tempDir();
+    const future = JSON.stringify({ version: 99, servers: { future: { tokens: "preserve" } } });
+    writeFileSync(join(dir, "mcp-oauth.json"), future);
+    const service = makeServiceAt(dir);
+    expect(service.status().authenticatedUrls).toEqual([]);
+    expect(() => service.clear({ url: "https://future.example/mcp" })).toThrow("Unsupported");
+    expect(readFileSync(join(dir, "mcp-oauth.json"), "utf8")).toBe(future);
+  });
+
+  it("degrades a truncated credential store to no credentials", async () => {
+    const dir = tempDir();
+    writeFileSync(join(dir, "mcp-oauth.json"), "{");
+    const service = makeServiceAt(dir);
+    const server = httpServer("https://example.invalid");
+    expect(service.status().authenticatedUrls).toEqual([]);
+    expect(await service.applyAuthorizationToServer(server)).toBe(server);
+  });
+
   it("completes the DCR + PKCE authorization flow through the loopback callback", async () => {
     const fake = await startFakeAuthServer({ expiresIn: 3600 });
     const service = makeService();
@@ -292,6 +357,20 @@ describe("McpOAuthService", () => {
     ).toBe("Bearer at-2");
     expect(fake.tokenRequests.at(-1)?.get("grant_type")).toBe("refresh_token");
     expect(fake.tokenRequests.at(-1)?.get("refresh_token")).toBe("rt-1");
+    expect(service.credentialStatus(`${fake.url}/mcp`).scopes).toEqual(["notes:read"]);
+  });
+
+  it("does not inherit old scopes into a fresh authorization grant", async () => {
+    const fake = await startFakeAuthServer({ expiresIn: 3600, omitCodeScope: true });
+    const dir = tempDir();
+    const url = `${fake.url}/mcp`;
+    seedV1Store(dir, url, { access_token: "expired", expires_in: 1, scope: "old:write" });
+    const service = makeServiceAt(dir);
+    const begin = await service.begin({ server: httpServer(fake.url) });
+    if (begin.status !== "redirect") throw new Error("Expected a fresh authorization grant");
+    await completeBrowserLeg(begin.authorizationUrl);
+    expect(await service.wait({ flowId: begin.flowId })).toEqual({ status: "authorized" });
+    expect(service.credentialStatus(url).scopes).toEqual([]);
   });
 
   it("reads a pre-upgrade store without re-registering the client", async () => {
