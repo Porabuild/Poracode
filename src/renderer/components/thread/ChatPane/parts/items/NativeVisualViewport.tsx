@@ -70,7 +70,7 @@ export function NativeVisualViewport({
         data-native-visual-zoom={scale * 100}
         className={
           fitToWidth
-            ? "[&_svg[role=img]]:h-auto [&_svg[role=img]]:min-w-0 [&_svg[role=img]]:max-w-full"
+            ? "[&_[data-native-visual-chart-plot]]:min-w-0 [&_svg[role=img]]:h-auto [&_svg[role=img]]:min-w-0 [&_svg[role=img]]:max-w-full"
             : undefined
         }
         style={{ zoom: scale, ...(fitToWidth && width > 0 ? { width } : {}) }}

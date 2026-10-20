@@ -143,12 +143,13 @@ export function NativeVisualChart({
         >{t`No series selected. Choose a series above.`}</p>
       ) : (
         <div
-          className="relative rounded-[0.875rem] bg-surface-secondary/40"
+          data-native-visual-chart-plot
+          className="relative min-w-[420px] rounded-[0.875rem] bg-surface-secondary/40"
           onPointerLeave={() => setHovered(undefined)}
         >
           <svg
             viewBox={`0 0 800 ${block.kind === "bar" ? barHeight : 225}`}
-            className="w-full min-w-[420px] text-muted"
+            className="w-full text-muted"
             role="img"
             aria-labelledby={titleId}
           >
