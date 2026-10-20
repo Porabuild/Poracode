@@ -2087,7 +2087,7 @@ describe("appStore runtime config sync", () => {
     expect(useAppStore.getState().runtimeCompletedTurnsByThread[thread.id]).toBe(completedTurns);
   });
 
-  it("does not add sub-second completed turns", () => {
+  it("records sub-second completed turns for forking", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-05-01T12:00:00.000Z"));
     const project = useAppStore.getState().addProject({
@@ -2116,7 +2116,12 @@ describe("appStore runtime config sync", () => {
     });
 
     expect(useAppStore.getState().threads[0]?.status).toBe("idle");
-    expect(useAppStore.getState().runtimeCompletedTurnsByThread[thread.id]).toBeUndefined();
+    expect(useAppStore.getState().runtimeCompletedTurnsByThread[thread.id]).toMatchObject([
+      {
+        startedAt: new Date("2026-05-01T12:00:00.000Z").getTime(),
+        endedAt: new Date("2026-05-01T12:00:00.700Z").getTime(),
+      },
+    ]);
   });
 
   it("does not record a later close that lands on the same hangable row", () => {

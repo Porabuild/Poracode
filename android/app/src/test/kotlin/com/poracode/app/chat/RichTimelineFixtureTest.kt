@@ -74,7 +74,9 @@ class RichTimelineFixtureTest {
 
         assertEquals("assistant", resolved[0].anchorItemId)
         assertEquals(null, resolved[1].anchorItemId)
-        assertEquals("goal-b", resolved[2].anchorItemId)
+        assertEquals(null, resolved[2].anchorItemId)
+        val fastTurn = RichCompletedTurn(0, 500, "goal-a")
+        assertEquals("assistant", RichTimeline.resolveCompletedTurnAnchors(listOf(fastTurn), RichTimeline.project(items)).single().anchorItemId)
     }
 
     @Test

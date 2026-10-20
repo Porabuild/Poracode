@@ -11,6 +11,7 @@ struct RichChatThreadView: View {
   @State private var pageState: RichChatThreadPageState
   @State private var isConfirmingClose = false
   @State private var composerExpanded = false
+  @State var fork = RichChatForkState()
 
   init(session: AppSession, threadID: String, title: String) {
     self.session = session
@@ -72,6 +73,7 @@ struct RichChatThreadView: View {
       }
     }
     .environment(\.colorScheme, isTerminal ? .dark : inheritedColorScheme)
+    .modifier(RichChatForkPresentation(page: self))
     .confirmationDialog(
       RichChatStrings.closeThreadConfirmationTitle,
       isPresented: $isConfirmingClose,
@@ -125,7 +127,7 @@ struct RichChatThreadView: View {
     .onDisappear { pageState.detach() }
   }
 
-  private var suite: RichChatControllerSuite { pageState.suite }
+  var suite: RichChatControllerSuite { pageState.suite }
   private var providerUsageController: SettingsHostInformationController {
     pageState.providerUsageController
   }
@@ -212,11 +214,12 @@ struct RichChatThreadView: View {
       sharedTreeThreadCount: sharedTreeThreadCount,
       allowsCheckpointRevert: thread?.projectId != RemoteProject.homeScopeID,
       canOperate: canOperate,
-      retry: { Task { await suite.refreshAuthoritativeHistory() } }
+      retry: { Task { await suite.refreshAuthoritativeHistory() } },
+      requestFork: forkRequest, forkBoundaryItemID: forkBoundaryID
     )
   }
 
-  private var thread: RemoteThread? { session.richChatThread(id: threadID) }
+  var thread: RemoteThread? { session.richChatThread(id: threadID) }
   private var project: RemoteProject? {
     guard let projectID = thread?.projectId else { return nil }
     return session.projects.first { $0.id == projectID }
@@ -270,7 +273,7 @@ struct RichChatThreadView: View {
         && (candidate.worktreePath ?? "") == (thread.worktreePath ?? "")
     }
   }
-  private var canOperate: Bool {
+  var canOperate: Bool {
     hasOperateAccess && !suite.requiresAuthoritativeRefresh
   }
   private var canOperateTerminal: Bool {
@@ -300,7 +303,7 @@ struct RichChatThreadView: View {
     session.currentRichChatAccess?.controllerGate(.requestsResolve) == nil
       && !suite.requiresAuthoritativeRefresh
   }
-  private var activationID: String {
+  var activationID: String {
     let lease = session.currentRichChatAccess?.lease
     return "\(lease?.connectionID.rawValue ?? "none"):\(lease?.generation ?? 0):\(threadID)"
   }

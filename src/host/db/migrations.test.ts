@@ -71,9 +71,10 @@ describe("database migration registry", () => {
       [61, "settle reasoning in completed runtime turns"],
       [62, "retain token categories and cost provenance"],
       [63, "index saved conversation text"],
-      [64, "pin review watch source identity"],
+      [64, "retain independent conversation fork lineage"],
+      [65, "pin review watch source identity"],
     ]);
-    expect(LATEST_SCHEMA_VERSION).toBe(64);
+    expect(LATEST_SCHEMA_VERSION).toBe(65);
     expect(() => validateMigrationRegistry()).not.toThrow();
   });
 
@@ -111,7 +112,7 @@ describe("database migration registry", () => {
     // instead of silently defaulting to rollback-compatible.
     expect(MIGRATION_ROLLBACK_CLASSIFICATION_REQUIRED_FROM).toBe(48);
     expect(describeMigrationRollbackPolicy().at(-1)).toEqual({
-      version: 64,
+      version: 65,
       name: "pin review watch source identity",
       rollback: "forward-only",
     });

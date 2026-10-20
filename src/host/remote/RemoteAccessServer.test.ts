@@ -79,6 +79,7 @@ import {
   dbHasPendingThreadRuntimeWrites as hasPendingRealRuntimeWrites,
 } from "@/host/db/runtimeItems";
 import { resetRuntimePersistenceForTests } from "@/host/db/runtimePersistenceRuntime";
+import * as runtimePersistence from "@/host/db/runtimePersistenceRuntime";
 import { RemoteAuthStore } from "./auth";
 import * as remoteConfig from "./config";
 import { deriveForwardOwner, ForwardOriginPolicy } from "./portForward/forwardOrigin";
@@ -1171,7 +1172,15 @@ describe("RemoteAccessServer", () => {
     });
   });
 
-  it("persists runtime event batches immediately before a settling thread-state", async () => {
+  it("persists runtime event batches immediately before a settling thread-state", async ({
+    onTestFinished,
+  }) => {
+    // This HTTP fixture has no SQLite owner. The database regression tests
+    // prove the drain; here verify admission and the requested commit order.
+    const commitPrefix = vi
+      .spyOn(runtimePersistence, "commitRuntimeThreadPrefixSync")
+      .mockReturnValue(0);
+    onTestFinished(() => commitPrefix.mockRestore());
     mockThreadDb([
       createTestThread({
         id: "thread-runtime",
@@ -1228,6 +1237,10 @@ describe("RemoteAccessServer", () => {
     });
     await flushQueuedControlWrites();
 
+    expect(commitPrefix).toHaveBeenCalledWith("thread-runtime");
+    expect(commitPrefix.mock.invocationCallOrder[0]).toBeLessThan(
+      vi.mocked(dbUpsertThread).mock.invocationCallOrder[0]!,
+    );
     expect(pendingWhenStateWritten).toBe(true);
     expect(hasPendingRealRuntimeWrites("thread-runtime")).toBe(true);
     discardRealRuntimeWrites("thread-runtime");

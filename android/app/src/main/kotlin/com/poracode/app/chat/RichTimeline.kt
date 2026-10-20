@@ -100,7 +100,7 @@ object RichTimeline {
         val claimed = mutableSetOf<String>()
         return turns.map { turn ->
             val raw = turn.anchorItemId
-            if (raw == null || !turn.isDisplayable) return@map turn
+            if (raw == null) return@map turn
             if (!resolution.containsKey(raw)) {
                 claimed += raw
                 return@map turn

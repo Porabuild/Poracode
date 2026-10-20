@@ -104,6 +104,18 @@ export const SHARED_MESSAGE_DESCRIPTORS: Record<MessageKey, MessageDescriptor> =
       "The selected repository no longer matches this project's source remote. Refresh before continuing.",
   }),
 
+  "thread.forkSourceUnavailable": msg({ message: "The source conversation is unavailable." }),
+  "thread.forkSourceActive": msg({
+    message: "Wait for the source conversation to finish before forking.",
+  }),
+  "thread.forkBoundaryUnavailable": msg({ message: "Choose a completed turn to fork from." }),
+  "thread.forkBoundaryActive": msg({ message: "The selected turn still contains active work." }),
+  "thread.forkContextUnavailable": msg({
+    message: "The fork's saved conversation is unavailable.",
+  }),
+  "thread.forkRevertUnavailable": msg({
+    message: "Inherited history cannot be reverted in this fork.",
+  }),
   "agent.updateQueueTimeout": msg({
     message: "The update waited too long for another installation. Try again.",
   }),

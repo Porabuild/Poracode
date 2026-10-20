@@ -328,6 +328,32 @@ enum class RouteshellU2DSnapshotResponseU2DThreadsU2DItemU2DAttention_58edfaf9f7
 }
 
 @Serializable
+enum class RouteshellU2DSnapshotResponseU2DThreadsU2DItemU2DForkedFromU2DContextStrategy_38041bf5ca {
+    @SerialName("transcript") TRANSCRIPT,
+}
+
+@Serializable
+data class RouteshellU2DSnapshotResponseU2DThreadsU2DItemU2DForkedFrom_8edde8b52f(
+    @SerialName("contextStrategy") val contextStrategy: RouteshellU2DSnapshotResponseU2DThreadsU2DItemU2DForkedFromU2DContextStrategy_38041bf5ca,
+    @SerialName("inheritedTurnCount") val inheritedTurnCount: Long,
+    @SerialName("threadId") val threadId: String,
+    @SerialName("throughItemId") val throughItemId: String,
+    @SerialName("title") val title: String,
+    @SerialName("version") val version: ProcedureconnectThreadVoiceRequestU2DConfigU2DSelectionBindingU2DVersion_7f9f5a0d72,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("contextStrategy", "RouteshellU2DSnapshotResponseU2DThreadsU2DItemU2DForkedFromU2DContextStrategy_38041bf5ca", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("inheritedTurnCount", "Long", true, false, null, 9007199254740991.0, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("threadId", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("throughItemId", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("title", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("version", "ProcedureconnectThreadVoiceRequestU2DConfigU2DSelectionBindingU2DVersion_7f9f5a0d72", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
 data class RouteshellU2DSnapshotResponseU2DThreadsU2DItemU2DSessionConfigOptionsU2DOptionU2D1U2DItemU2DOptionU2D1U2DGroupsU2DItem_2e2f445a74(
     @SerialName("id") val id: ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b,
     @SerialName("name") val name: RemoteField<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b> = RemoteField.Missing,
@@ -419,25 +445,4 @@ data class RouteshellU2DSnapshotResponseU2DThreadsU2DItemU2DSessionConfigOptions
 @Serializable
 enum class RouteshellU2DSnapshotResponseU2DThreadsU2DItemU2DSessionConfigOptionsU2DOptionU2D1U2DItemU2DOptionU2D3U2DType_91b38b813d {
     @SerialName("unsupported") UNSUPPORTED,
-}
-
-@Serializable
-data class RouteshellU2DSnapshotResponseU2DThreadsU2DItemU2DSessionConfigOptionsU2DOptionU2D1U2DItemU2DOptionU2D3_0a0c8726ed(
-    @SerialName("category") val category: RemoteField<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b> = RemoteField.Missing,
-    @SerialName("controlType") val controlType: RemoteField<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b> = RemoteField.Missing,
-    @SerialName("id") val id: RemoteField<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b> = RemoteField.Missing,
-    @SerialName("name") val name: RemoteField<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b> = RemoteField.Missing,
-    @SerialName("role") val role: RemoteField<RouteshellU2DSnapshotResponseU2DThreadsU2DItemU2DSessionConfigOptionsU2DOptionU2D1U2DItemU2DOptionU2D1U2DRole_09201de15f> = RemoteField.Missing,
-    @SerialName("type") val type: RouteshellU2DSnapshotResponseU2DThreadsU2DItemU2DSessionConfigOptionsU2DOptionU2D1U2DItemU2DOptionU2D3U2DType_91b38b813d,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("category", "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", false, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("controlType", "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", false, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("id", "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", false, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("name", "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", false, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("role", "RouteshellU2DSnapshotResponseU2DThreadsU2DItemU2DSessionConfigOptionsU2DOptionU2D1U2DItemU2DOptionU2D1U2DRole_09201de15f", false, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("type", "RouteshellU2DSnapshotResponseU2DThreadsU2DItemU2DSessionConfigOptionsU2DOptionU2D1U2DItemU2DOptionU2D3U2DType_91b38b813d", true, false, null, null, null, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
 }

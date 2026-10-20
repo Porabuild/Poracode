@@ -5,6 +5,68 @@ import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
+@Serializable
+data class WebSocketClientMessageU2DOptionU2D4U2DInputU2DOptionU2D2_41ffeb2050(
+    @SerialName("deltaX") val deltaX: Double,
+    @SerialName("deltaY") val deltaY: Double,
+    @SerialName("kind") val kind: WebSocketClientMessageU2DOptionU2D4U2DInputU2DOptionU2D2U2DKind_00ebeb8fef,
+    @SerialName("x") val x: Double,
+    @SerialName("y") val y: Double,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("deltaX", "Double", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("deltaY", "Double", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("kind", "WebSocketClientMessageU2DOptionU2D4U2DInputU2DOptionU2D2U2DKind_00ebeb8fef", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("x", "Double", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("y", "Double", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+enum class WebSocketClientMessageU2DOptionU2D4U2DInputU2DOptionU2D3U2DKind_19030914d1 {
+    @SerialName("insert-text") INSERTU2DTEXT,
+}
+
+@Serializable
+data class WebSocketClientMessageU2DOptionU2D4U2DInputU2DOptionU2D3_8906d017ba(
+    @SerialName("kind") val kind: WebSocketClientMessageU2DOptionU2D4U2DInputU2DOptionU2D3U2DKind_19030914d1,
+    @SerialName("text") val text: String,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("kind", "WebSocketClientMessageU2DOptionU2D4U2DInputU2DOptionU2D3U2DKind_19030914d1", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("text", "String", true, false, null, null, 1, 1024, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+enum class WebSocketClientMessageU2DOptionU2D4U2DInputU2DOptionU2D4U2DKey_7df0b39f18 {
+    @SerialName("enter") ENTER,
+    @SerialName("backspace") BACKSPACE,
+    @SerialName("tab") TAB,
+    @SerialName("escape") ESCAPE,
+    @SerialName("arrow-up") ARROWU2DUP,
+    @SerialName("arrow-down") ARROWU2DDOWN,
+    @SerialName("arrow-left") ARROWU2DLEFT,
+    @SerialName("arrow-right") ARROWU2DRIGHT,
+}
+
+@Serializable
+data class WebSocketClientMessageU2DOptionU2D4U2DInputU2DOptionU2D4_9e169df36e(
+    @SerialName("key") val key: WebSocketClientMessageU2DOptionU2D4U2DInputU2DOptionU2D4U2DKey_7df0b39f18,
+    @SerialName("kind") val kind: RoutedeviceU2DActionRequestU2DOptionU2D4U2DKind_14221269d8,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("key", "WebSocketClientMessageU2DOptionU2D4U2DInputU2DOptionU2D4U2DKey_7df0b39f18", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("kind", "RoutedeviceU2DActionRequestU2DOptionU2D4U2DKind_14221269d8", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
 @Serializable(with = WebSocketClientMessageU2DOptionU2D4U2DInput_2c0b30d69c.Serializer::class)
 sealed interface WebSocketClientMessageU2DOptionU2D4U2DInput_2c0b30d69c {
     data class Option1(val value: WebSocketClientMessageU2DOptionU2D4U2DInputU2DOptionU2D1_75aa7b0623) : WebSocketClientMessageU2DOptionU2D4U2DInput_2c0b30d69c
@@ -384,55 +446,4 @@ data class WebSocketServerMessageU2DOptionU2D10_e65689e97e(
             RemoteFieldDescriptor("type", "WebSocketServerMessageU2DOptionU2D10U2DType_114549e732", true, false, null, null, null, null, null, null, null, null, listOf()),
         ), listOf())
     }
-}
-
-@Serializable
-enum class WebSocketServerMessageU2DOptionU2D11U2DSpace_22c1b4b934 {
-    @SerialName("ipc") IPC,
-    @SerialName("loopback") LOOPBACK,
-}
-
-@Serializable
-enum class WebSocketServerMessageU2DOptionU2D11U2DType_829c74ec0a {
-    @SerialName("desktop-event") DESKTOPU2DEVENT,
-}
-
-@Serializable
-data class WebSocketServerMessageU2DOptionU2D11_f1c1581e17(
-    @SerialName("event") val event: JsonElement,
-    @SerialName("seq") val seq: Long,
-    @SerialName("space") val space: RemoteField<WebSocketServerMessageU2DOptionU2D11U2DSpace_22c1b4b934> = RemoteField.Missing,
-    @SerialName("type") val type: WebSocketServerMessageU2DOptionU2D11U2DType_829c74ec0a,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("event", "JsonElement", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("seq", "Long", true, false, null, 9007199254740991.0, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("space", "WebSocketServerMessageU2DOptionU2D11U2DSpace_22c1b4b934", false, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("type", "WebSocketServerMessageU2DOptionU2D11U2DType_829c74ec0a", true, false, null, null, null, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable
-enum class WebSocketServerMessageU2DOptionU2D1U2DType_0200f968d2 {
-    @SerialName("ready") READY,
-}
-
-@Serializable
-data class WebSocketServerMessageU2DOptionU2D1_13762c62f0(
-    @SerialName("seq") val seq: Long,
-    @SerialName("type") val type: WebSocketServerMessageU2DOptionU2D1U2DType_0200f968d2,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("seq", "Long", true, false, 0.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("type", "WebSocketServerMessageU2DOptionU2D1U2DType_0200f968d2", true, false, null, null, null, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable
-enum class WebSocketServerMessageU2DOptionU2D2U2DType_1aa020e871 {
-    @SerialName("event") EVENT,
 }

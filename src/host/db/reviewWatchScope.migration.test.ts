@@ -42,7 +42,7 @@ const watch: PrWatch = {
   blockedReason: null,
 };
 
-describe.skipIf(!sqliteAvailable)("persisted review watch scope schema64", () => {
+describe.skipIf(!sqliteAvailable)("persisted review watch scope schema65", () => {
   let root: string;
   const previousBinding = process.env.PORACODE_BETTER_SQLITE3_NATIVE_BINDING;
   beforeEach(() => {
@@ -77,7 +77,7 @@ describe.skipIf(!sqliteAvailable)("persisted review watch scope schema64", () =>
     ).review_scope;
   }
 
-  it("advances a real schema 61 artifact through schema 64 without binding old watches", () => {
+  it("advances a real schema 61 artifact through schema 65 without binding old watches", () => {
     const path = join(root, "legacy.sqlite");
     const old = createSchema53PayloadOriginDatabase(path);
     migrateSchema53FixtureThrough(old, 61);
@@ -92,7 +92,7 @@ describe.skipIf(!sqliteAvailable)("persisted review watch scope schema64", () =>
       DATABASE_MIGRATIONS.filter((migration) => migration.version > 61).map(
         (migration) => migration.version,
       ),
-    ).toEqual([62, 63, 64]);
+    ).toEqual([62, 63, 64, 65]);
     old.close();
     const upgraded = initDatabase(path);
     expect(upgraded.prepare("SELECT * FROM pr_watches").get()).toEqual({
@@ -105,7 +105,7 @@ describe.skipIf(!sqliteAvailable)("persisted review watch scope schema64", () =>
     expect(rawScope()).toBeNull();
     expect(
       upgraded.prepare("SELECT value FROM app_state WHERE key='schema_version'").get(),
-    ).toEqual({ value: "64" });
+    ).toEqual({ value: "65" });
   });
 
   it.each(["account", "repository"])(

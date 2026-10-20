@@ -1,6 +1,10 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
 public extension RemoteSchemas {
+  static let schema_4caa9ebeea5fe346 = RemoteSchema(type: "object", required: Set(["message"]), properties: ["message": RemoteSchemas.schema_bf0b727f7b1c6d07], additionalAllowed: true, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_4cb4c9750289b975 = RemoteSchema(type: "string", literals: [.string("add-existing")], unknownPolicy: .strip)
 }
 
@@ -265,6 +269,10 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_587e72c508e2943a = RemoteSchema(type: "string", literals: [.string("fork")], unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_5894304151eb6a79 = RemoteSchema(type: "object", required: Set(["endLine", "path", "side", "startLine", "text"]), properties: ["endLine": RemoteSchemas.schema_23e05d248383ea40, "path": RemoteSchemas.schema_36fea325bf1aca70, "side": RemoteSchemas.schema_598c25a2e687258b, "startLine": RemoteSchemas.schema_23e05d248383ea40, "text": RemoteSchemas.schema_6d40bf61903aed2d], additionalAllowed: true, unknownPolicy: .strip)
 }
 
@@ -321,6 +329,10 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_5a931a4108dce660 = RemoteSchema(type: "object", required: Set(["appVersion", "auth", "desktopId", "endpoints", "label", "protocolVersion"]), properties: ["appVersion": RemoteSchemas.schema_36fea325bf1aca70, "auth": RemoteSchemas.schema_2a8bc62fab6ac143, "capabilities": RemoteSchemas.schema_48ca3a84cd4a6f59, "desktopId": RemoteSchemas.schema_36fea325bf1aca70, "endpoints": RemoteSchemas.schema_17c2b8a25332cd3a, "hostMode": RemoteSchemas.schema_d1d1696e7dc33885, "label": RemoteSchemas.schema_36fea325bf1aca70, "platform": RemoteSchemas.schema_7583b8d37fafbf18, "protocolVersion": RemoteSchemas.schema_8d7cbafc0ecc27cb], additionalAllowed: true, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_5aa9e435f68d585e = RemoteSchema(type: "string", literals: [.string("summary"), .string("transcript")], unknownPolicy: .strip)
 }
 
@@ -338,10 +350,6 @@ public extension RemoteSchemas {
 
 public extension RemoteSchemas {
   static let schema_5bbcf9e4750fbaa3 = RemoteSchema(type: "string", literals: [.string("ai-evaluated")], unknownPolicy: .strip)
-}
-
-public extension RemoteSchemas {
-  static let schema_5c0012cc6db298ee = RemoteSchema(unionKind: "oneOf", options: [RemoteSchemas.schema_b01e26e0438140cd, RemoteSchemas.schema_3213f68cbec8daf5, RemoteSchemas.schema_21cd039cb32b3851, RemoteSchemas.schema_1ae7de2180f145f4, RemoteSchemas.schema_2e4d2aaed030369e, RemoteSchemas.schema_c3363423bb669510, RemoteSchemas.schema_80906c6ddc7c6c9e, RemoteSchemas.schema_ebd70a208b453fe1, RemoteSchemas.schema_b79d8f64de4f41bd, RemoteSchemas.schema_09765c7778825d10, RemoteSchemas.schema_431be1ab7e1b0dc9, RemoteSchemas.schema_a93ba7bf23f9b121, RemoteSchemas.schema_370ff0ec0af5649a, RemoteSchemas.schema_2062bc5ac9057c02, RemoteSchemas.schema_efd9410c7543c4c0, RemoteSchemas.schema_69af29ff385f1e03, RemoteSchemas.schema_40c1a284293664e0], unknownPolicy: .strip)
 }
 
 public extension RemoteSchemas {
@@ -438,12 +446,4 @@ public extension RemoteSchemas {
 
 public extension RemoteSchemas {
   static let schema_60232db9c637a046 = RemoteSchema(type: "string", literals: [.string("delete"), .string("release")], unknownPolicy: .strip)
-}
-
-public extension RemoteSchemas {
-  static let schema_605d108f87f42d25 = RemoteSchema(type: "object", required: Set(["base64", "capturedAt", "height", "id", "mimeType", "version", "width"]), properties: ["base64": RemoteSchemas.schema_0d697736dcd0a145, "capturedAt": RemoteSchemas.schema_80c415b6e27c6ebd, "height": RemoteSchemas.schema_c664f13e067b9fbd, "id": RemoteSchemas.schema_d855999aed5e6438, "mimeType": RemoteSchemas.schema_262f4ae53753f0fb, "version": RemoteSchemas.schema_7f9f5a0d72de0d9a, "width": RemoteSchemas.schema_c664f13e067b9fbd], additionalAllowed: true, unknownPolicy: .strip)
-}
-
-public extension RemoteSchemas {
-  static let schema_60a0e6f594cb3154 = RemoteSchema(type: "object", required: Set(["id", "name", "path", "state"]), properties: ["id": RemoteSchemas.schema_3d06117798bf5171, "name": RemoteSchemas.schema_bf0b727f7b1c6d07, "path": RemoteSchemas.schema_bf0b727f7b1c6d07, "state": RemoteSchemas.schema_bf0b727f7b1c6d07], additionalAllowed: true, unknownPolicy: .strip)
 }

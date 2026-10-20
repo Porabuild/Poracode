@@ -2522,7 +2522,7 @@
         "id": "thread-command",
         "scopes": ["session:operate"],
         "batch": "thread-lifecycle",
-        "note": "iOS exposes the additive clear-group command from Home, project, and thread-detail actions; the host also clears a one-member remainder. Kotlin bindings include the variant, while Android's native action UI does not yet expose ungrouping. The additive catalogMutations v1 kinds (relative thread reorder, nullable workspace) are host-authority source evidence only: neither native transport has been taught the new discriminators yet, so the platform dispositions below describe the pre-existing kinds and make no claim about them. Metadata-only create is used by the managed desktop before worktree preparation; native and paired clients retain their existing start flow. Generated create codecs do not claim native UI adoption.",
+        "note": "iOS exposes the additive clear-group command from Home, project, and thread-detail actions; the host also clears a one-member remainder. Kotlin bindings include the variant, while Android's native action UI does not yet expose ungrouping. The additive catalogMutations v1 kinds (relative thread reorder, nullable workspace) are host-authority source evidence only: neither native transport has been taught the new discriminators yet, so the platform dispositions below describe the pre-existing kinds and make no claim about them. Metadata-only create is used by the managed desktop before worktree preparation; native and paired clients retain their existing start flow. Generated create codecs do not claim native UI adoption. Fork v1 is negotiated through environment.threadForks; both native rich-chat clients send an idempotent command to the new thread id, retain the selected source boundary, show a source link and open the created thread. UI evidence remains source-only until device journeys run. Fork v1 is negotiated through environment.threadForks; both native rich-chat clients send an idempotent command to the new thread id, retain the selected source boundary, show a source link and open the created thread. UI evidence remains source-only until device journeys run.",
         "ios": {
           "wire": {
             "disposition": "implemented",
@@ -2534,14 +2534,16 @@
               "ios/App/App/Features/Home/HomeComposerActions.swift",
               "ios/App/App/Features/Threads/ThreadWorktreeMoveController.swift",
               "ios/App/App/Features/Threads/ThreadDetailDestinations.swift",
-              "ios/App/App/Transport/RemoteWriterProtocol.swift"
+              "ios/App/App/Transport/RemoteWriterProtocol.swift",
+              "ios/App/App/Transport/RichChat/SelectedRichChatConversationGateway.swift"
             ]
           },
           "ui": {
             "disposition": "partial",
             "evidence": [
               "ios/App/App/Features/Home/ProjectThreadsView.swift",
-              "ios/App/App/Features/Threads/ThreadDetailActionMenu.swift"
+              "ios/App/App/Features/Threads/ThreadDetailActionMenu.swift",
+              "ios/App/App/Features/RichChat/UI/Pages/RichChatThreadView.swift"
             ],
             "note": "No checked-in device journey exercises this surface yet (no screen-registry entry, no device-test evidence); the ui story is asserted from the cited production source only."
           }
@@ -2552,13 +2554,15 @@
             "evidence": [
               "android/app/src/main/kotlin/com/poracode/app/transport/threads/ThreadLifecycleRemoteApiClient.kt",
               "android/app/src/main/kotlin/com/poracode/app/ui/thread/ThreadLifecycleActions.kt",
-              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteHttpExecutor.kt"
+              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteHttpExecutor.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/richchat/GeneratedRichChatRemoteTransport.kt"
             ]
           },
           "ui": {
             "disposition": "partial",
             "evidence": [
-              "android/app/src/main/kotlin/com/poracode/app/ui/thread/ThreadLifecycleActions.kt"
+              "android/app/src/main/kotlin/com/poracode/app/ui/thread/ThreadLifecycleActions.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichChatForkDialog.kt"
             ],
             "note": "No screen-registry entry yet: no device journey exercises a dedicated screen for it. The cited surface-side sources are ThreadLifecycleActions.kt."
           }

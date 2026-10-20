@@ -73,8 +73,8 @@ describe("remote v3 native binding generator", () => {
         // Background task timing, progress and Stop add two structural types.
         // Optional question-answer metadata adds three structural types and two Swift chunks.
         // Source-host reviews add one route, twenty-four procedures, and their native mirrors;
-        // device workspaces add fourteen routes and saved-message search adds its own roots.
-        sourceHash: "sha256:72538de2cbea5efeff742ca1dbc7888cba5f6e5213c8fe85ecb749bfa15743e6",
+        // device workspaces add fourteen routes; saved-message search and fork instructions add roots.
+        sourceHash: "sha256:aba3abee454fc813fa61f84ce4d8f3b593fb45a5824decc43dd594ad86456de2",
         manifestHash: "sha256:53be762a4dddf0d0217f62422622d282f8e502340ebed99e03c979449ec5e49d",
         counts: {
           routes: 117,
@@ -85,7 +85,7 @@ describe("remote v3 native binding generator", () => {
           // 10 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
           webSocketServerVariants: 11,
           schemaRoots: 523,
-          structuralTypes: 1163,
+          structuralTypes: 1167,
           semanticValidators: 25,
           swiftFiles: 73,
           kotlinFiles: 62,

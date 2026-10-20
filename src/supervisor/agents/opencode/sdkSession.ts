@@ -399,6 +399,7 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
         await sendParts(await buildOpenCodeTextFallbackParts(parts));
       }
       this.turnActive = true;
+      options?.onPromptSubmitted?.();
     } catch (cause) {
       this.currentStatus = "error";
       this.currentAttention = "error";

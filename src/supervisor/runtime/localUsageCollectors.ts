@@ -1,6 +1,6 @@
 import type { HostPort, UsageSnapshot } from "@poracode/agents-usage";
 import { scanAntigravityUsage } from "../agents/antigravity/antigravityUsageScanner";
-import { scanOpenCodeUsage } from "./openCodeUsageScanner";
+import { scanOpenCodeUsage } from "../agents/opencode/openCodeUsageScanner";
 
 /**
  * Providers collected supervisor-side rather than via the package's pure HTTP

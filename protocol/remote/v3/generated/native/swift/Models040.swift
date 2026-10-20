@@ -166,6 +166,37 @@ public enum RouteshellU2DSnapshotResponseU2DThreadsU2DItemU2DAttention_58edfaf9f
   case `error` = "error"
 }
 
+public enum RouteshellU2DSnapshotResponseU2DThreadsU2DItemU2DForkedFromU2DContextStrategy_38041bf5ca: String, Codable, Sendable {
+  case `transcript` = "transcript"
+}
+
+public struct RouteshellU2DSnapshotResponseU2DThreadsU2DItemU2DForkedFrom_8edde8b52f: Codable, Sendable, RemoteModelMetadata {
+  public var contextStrategy: RouteshellU2DSnapshotResponseU2DThreadsU2DItemU2DForkedFromU2DContextStrategy_38041bf5ca
+  public var inheritedTurnCount: Int64
+  public var threadId: String
+  public var throughItemId: String
+  public var title: String
+  public var version: ProcedureconnectThreadVoiceRequestU2DConfigU2DSelectionBindingU2DVersion_7f9f5a0d72
+  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
+  public static let fields: [RemoteFieldDescriptor] = [
+    .init(wireName: "contextStrategy", typeName: "RouteshellU2DSnapshotResponseU2DThreadsU2DItemU2DForkedFromU2DContextStrategy_38041bf5ca", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "inheritedTurnCount", typeName: "Int64", required: true, nullable: false, minimum: nil, maximum: 9007199254740991, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "threadId", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "throughItemId", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "title", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "version", typeName: "ProcedureconnectThreadVoiceRequestU2DConfigU2DSelectionBindingU2DVersion_7f9f5a0d72", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+  ]
+  public static let semanticValidatorIds: [String] = []
+  private enum CodingKeys: String, CodingKey {
+    case contextStrategy = "contextStrategy"
+    case inheritedTurnCount = "inheritedTurnCount"
+    case threadId = "threadId"
+    case throughItemId = "throughItemId"
+    case title = "title"
+    case version = "version"
+  }
+}
+
 public struct RouteshellU2DSnapshotResponseU2DThreadsU2DItemU2DSessionConfigOptionsU2DOptionU2D1U2DItemU2DOptionU2D1U2DGroupsU2DItem_2e2f445a74: Codable, Sendable, RemoteModelMetadata {
   public var id: ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b
   public var name: RemoteField<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b> = .missing

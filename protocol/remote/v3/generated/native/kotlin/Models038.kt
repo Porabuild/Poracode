@@ -6,6 +6,57 @@ import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
 @Serializable
+enum class WebSocketServerMessageU2DOptionU2D11U2DSpace_22c1b4b934 {
+    @SerialName("ipc") IPC,
+    @SerialName("loopback") LOOPBACK,
+}
+
+@Serializable
+enum class WebSocketServerMessageU2DOptionU2D11U2DType_829c74ec0a {
+    @SerialName("desktop-event") DESKTOPU2DEVENT,
+}
+
+@Serializable
+data class WebSocketServerMessageU2DOptionU2D11_f1c1581e17(
+    @SerialName("event") val event: JsonElement,
+    @SerialName("seq") val seq: Long,
+    @SerialName("space") val space: RemoteField<WebSocketServerMessageU2DOptionU2D11U2DSpace_22c1b4b934> = RemoteField.Missing,
+    @SerialName("type") val type: WebSocketServerMessageU2DOptionU2D11U2DType_829c74ec0a,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("event", "JsonElement", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("seq", "Long", true, false, null, 9007199254740991.0, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("space", "WebSocketServerMessageU2DOptionU2D11U2DSpace_22c1b4b934", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("type", "WebSocketServerMessageU2DOptionU2D11U2DType_829c74ec0a", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+enum class WebSocketServerMessageU2DOptionU2D1U2DType_0200f968d2 {
+    @SerialName("ready") READY,
+}
+
+@Serializable
+data class WebSocketServerMessageU2DOptionU2D1_13762c62f0(
+    @SerialName("seq") val seq: Long,
+    @SerialName("type") val type: WebSocketServerMessageU2DOptionU2D1U2DType_0200f968d2,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("seq", "Long", true, false, 0.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("type", "WebSocketServerMessageU2DOptionU2D1U2DType_0200f968d2", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+enum class WebSocketServerMessageU2DOptionU2D2U2DType_1aa020e871 {
+    @SerialName("event") EVENT,
+}
+
+@Serializable
 data class WebSocketServerMessageU2DOptionU2D2_3897f50212(
     @SerialName("event") val event: JsonElement,
     @SerialName("omittedRuntimeThreadIds") val omittedRuntimeThreadIds: RemoteField<List<String>> = RemoteField.Missing,

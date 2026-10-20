@@ -471,6 +471,7 @@
 		PV1100000000000000000001 /* RichChatTranscriptSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = PV2100000000000000000001 /* RichChatTranscriptSurface.swift */; };
 		PV1200000000000000000001 /* RichChatThreadComposerSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = PV2200000000000000000001 /* RichChatThreadComposerSurface.swift */; };
 		PA1100000000000000000001 /* RichChatThreadDraftState.swift in Sources */ = {isa = PBXBuildFile; fileRef = PA2100000000000000000001 /* RichChatThreadDraftState.swift */; };
+		PF1100000000000000000001 /* RichChatThreadFork.swift in Sources */ = {isa = PBXBuildFile; fileRef = PF2100000000000000000001 /* RichChatThreadFork.swift */; };
 		PA1200000000000000000001 /* RichChatThreadPageState.swift in Sources */ = {isa = PBXBuildFile; fileRef = PA2200000000000000000001 /* RichChatThreadPageState.swift */; };
 		A100000000000000000000BE /* ProjectWorkspaceModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000000BE /* ProjectWorkspaceModels.swift */; };
 		A100000000000000000000BF /* ProjectWorkspaceGateway.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000000BF /* ProjectWorkspaceGateway.swift */; };
@@ -1312,6 +1313,7 @@
 		PV2100000000000000000001 /* RichChatTranscriptSurface.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/RichChatTranscriptSurface.swift; sourceTree = "<group>"; };
 		PV2200000000000000000001 /* RichChatThreadComposerSurface.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/RichChatThreadComposerSurface.swift; sourceTree = "<group>"; };
 		PA2100000000000000000001 /* RichChatThreadDraftState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Pages/RichChatThreadDraftState.swift; sourceTree = "<group>"; };
+		PF2100000000000000000001 /* RichChatThreadFork.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Pages/RichChatThreadFork.swift; sourceTree = "<group>"; };
 		PA2200000000000000000001 /* RichChatThreadPageState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Pages/RichChatThreadPageState.swift; sourceTree = "<group>"; };
 		B100000000000000000000BE /* ProjectWorkspaceModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectWorkspaceModels.swift; sourceTree = "<group>"; };
 		B100000000000000000000BF /* ProjectWorkspaceGateway.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectWorkspaceGateway.swift; sourceTree = "<group>"; };
@@ -2347,6 +2349,7 @@
 				PV2100000000000000000001 /* RichChatTranscriptSurface.swift */,
 				PV2200000000000000000001 /* RichChatThreadComposerSurface.swift */,
 				PA2100000000000000000001 /* RichChatThreadDraftState.swift */,
+				PF2100000000000000000001 /* RichChatThreadFork.swift */,
 				PA2200000000000000000001 /* RichChatThreadPageState.swift */,
 			);
 			path = UI;
@@ -3734,6 +3737,7 @@
 				PV1100000000000000000001 /* RichChatTranscriptSurface.swift in Sources */,
 				PV1200000000000000000001 /* RichChatThreadComposerSurface.swift in Sources */,
 				PA1100000000000000000001 /* RichChatThreadDraftState.swift in Sources */,
+				PF1100000000000000000001 /* RichChatThreadFork.swift in Sources */,
 				PA1200000000000000000001 /* RichChatThreadPageState.swift in Sources */,
 				A100000000000000000000BE /* ProjectWorkspaceModels.swift in Sources */,
 				A100000000000000000000BF /* ProjectWorkspaceGateway.swift in Sources */,

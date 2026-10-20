@@ -632,6 +632,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   /** User-visible error text from an `agent_message_chunk` before `prompt()` settles. */
   private agentSurfacedErrorMessage: string | undefined;
   private currentTurnHadAgentActivity = false;
+  private pendingPromptAdmission: (() => void) | undefined;
   private agentPromptCapabilities: PromptCapabilities | undefined;
   private agentSessionCapabilities: SessionCapabilities | undefined;
   private agentMcpCapabilities: McpCapabilities | undefined;
@@ -1743,10 +1744,13 @@ export class AcpStructuredSession implements StructuredSessionHandle {
         return;
       }
       this.promptInFlight = true;
+      this.pendingPromptAdmission = options?.onPromptSubmitted;
       const result = await this.connection.prompt({
         sessionId: this.sessionId,
         prompt: contentBlocks,
       });
+      this.pendingPromptAdmission?.();
+      this.pendingPromptAdmission = undefined;
       if (this.behavior?.promptUsageReportsContext !== false) {
         const usageEvent = createAcpPromptUsageEvent(this.threadId, result.usage);
         if (usageEvent) this.emitRuntimeEvents([usageEvent]);
@@ -1850,6 +1854,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
         this.emitPromptFailure(error);
       }
     } finally {
+      this.pendingPromptAdmission = undefined;
       this.promptInFlight = false;
       this.promptHeldForBackgroundWork = false;
       this.foregroundTurnOpen = false;
@@ -2386,6 +2391,15 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       update.sessionUpdate === "plan"
     ) {
       this.currentTurnHadAgentActivity = true;
+      if (
+        this.promptInFlight &&
+        !this.isReplayingHistory &&
+        Date.now() >= this.replayHistoryUntil
+      ) {
+        const acknowledge = this.pendingPromptAdmission;
+        this.pendingPromptAdmission = undefined;
+        acknowledge?.();
+      }
     }
 
     if (update.sessionUpdate === "available_commands_update") {

@@ -768,11 +768,11 @@ describe.skipIf(!sqliteAvailable)("saved conversation search", () => {
     expect(sqlite.prepare("PRAGMA foreign_key_check").all()).toEqual([]);
   });
 
-  it.each([63, LATEST_SCHEMA_VERSION])(
+  it.each([64, LATEST_SCHEMA_VERSION])(
     "repairs an existing schema%i/gen3 root at startup before the first writer, preserving canonical evidence",
     async (schemaVersion) => {
       closeDatabase();
-      const path = join(directory, "old63.sqlite");
+      const path = join(directory, "old64.sqlite");
       const previous = createSchema53PayloadOriginDatabase(path);
       migrateSchema53FixtureThrough(previous, schemaVersion);
       installFixtureOrigin(previous);
@@ -803,7 +803,7 @@ describe.skipIf(!sqliteAvailable)("saved conversation search", () => {
       const before = canonicalEvidence(previous);
       previous.close();
       const refusal =
-        schemaVersion === 63
+        schemaVersion === 64
           ? "Database schema is incomplete; missing: pr_watches.review_scope."
           : "owning startup upgrade";
       expect(() => initReadOnlyDatabase(path)).toThrow(refusal);

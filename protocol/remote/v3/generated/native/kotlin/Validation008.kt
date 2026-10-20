@@ -5,6 +5,18 @@ import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
+internal val schema_89303c6cbb3ecd9a: RemoteSchema by lazy {
+    RemoteSchema(type = "string", pattern = "^(?:[0-9a-fA-F]{40}|[0-9a-fA-F]{64})$", unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
+internal val schema_8951a961f885eeda: RemoteSchema by lazy {
+    RemoteSchema(type = "object", required = setOf("accounts", "available", "device", "generatedAt", "lifetimeTokens", "models", "peakDayTokens", "providers", "scope", "timezoneOffsetMinutes", "tokenHeatmap", "unavailableProviders", "windowDays"), properties = mapOf("accounts" to schema_d0fa817300598095, "available" to schema_feeb8bb50144d96d, "costs" to schema_70dc157e5476457b, "device" to schema_26f96950d20651b3, "generatedAt" to schema_3d06117798bf5171, "lifetimeTokens" to schema_56aa0e45cbdce0d0, "models" to schema_195974ed118a4217, "peakDay" to schema_bf0b727f7b1c6d07, "peakDayTokens" to schema_56aa0e45cbdce0d0, "providers" to schema_d0fa817300598095, "scope" to schema_b99ee3af304513c2, "timezoneOffsetMinutes" to schema_3d06117798bf5171, "tokenHeatmap" to schema_c1094a243b47f83c, "unavailableProviders" to schema_0f732b9fceb2c6ac, "windowDays" to schema_56aa0e45cbdce0d0), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
+internal val schema_8971fe1e2b13c08e: RemoteSchema by lazy {
+    RemoteSchema(type = "object", required = setOf("version"), properties = mapOf("appearance" to schema_9ea58f9bfc61ade7, "fontScale" to schema_debc0ac62b48b9e2, "networkEnabled" to schema_feeb8bb50144d96d, "reduceMotion" to schema_feeb8bb50144d96d, "version" to schema_7f9f5a0d72de0d9a), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
 internal val schema_89a32138dca165c4: RemoteSchema by lazy {
     RemoteSchema(type = "object", required = setOf("authorizationUrl", "flowId", "status"), properties = mapOf("authorizationUrl" to schema_36fea325bf1aca70, "flowId" to schema_36fea325bf1aca70, "status" to schema_bd96f28e94e5dff9), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
@@ -105,8 +117,12 @@ internal val schema_8d7cbafc0ecc27cb: RemoteSchema by lazy {
     RemoteSchema(type = "number", literals = listOf(JsonPrimitive(14.0)), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
-internal val schema_8df7f0ad187ea598: RemoteSchema by lazy {
-    RemoteSchema(type = "object", required = setOf("completedTurns", "contextUsage", "runtimeItems", "snapshotSeq", "thread", "updatedAt"), properties = mapOf("backgroundTasks" to schema_00675d64d428c3d1, "completedTurns" to schema_4c20b501501c0ba4, "completedTurnsNextCursor" to schema_df704162f3d15808, "contextUsage" to schema_e47ad2358cf0df53, "followUpQueue" to schema_91dcfb42aac98166, "historyProjection" to schema_72a4409660da2b12, "reads" to schema_4659e6d395f41e16, "runtimeItems" to schema_5d3ac76d9a521e1d, "runtimeNextCursor" to schema_60e901bdbc3f78cd, "runtimeNotice" to schema_1468dfe9a2db9c9d, "runtimeResumeCursor" to schema_36fea325bf1aca70, "runtimeStateCurrent" to schema_feeb8bb50144d96d, "snapshotSeq" to schema_56aa0e45cbdce0d0, "terminalScrollback" to schema_bf0b727f7b1c6d07, "terminalSize" to schema_55ee222c096690dc, "thread" to schema_c84f860f0ebf373b, "updatedAt" to schema_36fea325bf1aca70), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+internal val schema_8d889103a9834b21: RemoteSchema by lazy {
+    RemoteSchema(type = "object", required = setOf("kind", "sourceThreadId", "title"), properties = mapOf("kind" to schema_587e72c508e2943a, "sourceThreadId" to schema_36fea325bf1aca70, "throughItemId" to schema_36fea325bf1aca70, "title" to schema_36fea325bf1aca70), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
+internal val schema_8df7c9ec623a5efa: RemoteSchema by lazy {
+    RemoteSchema(type = "object", required = setOf("agentKind", "archived", "attention", "canResumeWithConfig", "config", "createdAt", "done", "id", "projectId", "starred", "status", "title", "updatedAt"), properties = mapOf("activeTurnStartedAt" to schema_36fea325bf1aca70, "additionalDirectories" to schema_98d52bd55e800515, "agentInstanceId" to schema_fa4a387c10f5125f, "agentKind" to schema_36fea325bf1aca70, "archived" to schema_f8b6dd8128e8bfe0, "archivedAt" to schema_36fea325bf1aca70, "attention" to schema_58edfaf9f73b8db4, "canResumeWithConfig" to schema_f8b6dd8128e8bfe0, "config" to schema_2c97b9d429a794cb, "createdAt" to schema_36fea325bf1aca70, "done" to schema_f8b6dd8128e8bfe0, "doneAt" to schema_36fea325bf1aca70, "errorMessage" to schema_bf0b727f7b1c6d07, "forkedFrom" to schema_8edde8b52fa98394, "groupId" to schema_bf0b727f7b1c6d07, "groupName" to schema_bf0b727f7b1c6d07, "id" to schema_36fea325bf1aca70, "lastTurnEndedAt" to schema_36fea325bf1aca70, "lastTurnStartedAt" to schema_36fea325bf1aca70, "parentThreadId" to schema_36fea325bf1aca70, "prNumber" to schema_80c415b6e27c6ebd, "presentationMode" to schema_6508684ba659826b, "projectId" to schema_36fea325bf1aca70, "remoteId" to schema_36fea325bf1aca70, "remoteServerId" to schema_36fea325bf1aca70, "sessionConfigOptions" to schema_9b050dd4848ae8c2, "sessionRef" to schema_25df6feb29c4a959, "slashCommands" to schema_174f77d24d01fc57, "starred" to schema_f8b6dd8128e8bfe0, "status" to schema_8c61ed237d0ab3d0, "threadStatusSource" to schema_8f739487924008df, "title" to schema_36fea325bf1aca70, "updatedAt" to schema_36fea325bf1aca70, "workspaceGrantRevision" to schema_56aa0e45cbdce0d0, "workspaceId" to schema_36fea325bf1aca70, "worktreeBranch" to schema_bf0b727f7b1c6d07, "worktreePath" to schema_bf0b727f7b1c6d07), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
 internal val schema_8dfc34ff217d09b7: RemoteSchema by lazy {
@@ -117,16 +133,16 @@ internal val schema_8e43cad70cd70de7: RemoteSchema by lazy {
     RemoteSchema(type = "string", minLength = 1, maxLength = 128, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
-internal val schema_8e7b49eef8ed965c: RemoteSchema by lazy {
-    RemoteSchema(type = "array", items = schema_c84f860f0ebf373b, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
-}
-
 internal val schema_8e7b4d097aa71417: RemoteSchema by lazy {
     RemoteSchema(type = "string", literals = listOf(JsonPrimitive("reorder-flat")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
 internal val schema_8e9c16e558778bd4: RemoteSchema by lazy {
     RemoteSchema(type = "string", literals = listOf(JsonPrimitive("light"), JsonPrimitive("dark")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
+internal val schema_8edde8b52fa98394: RemoteSchema by lazy {
+    RemoteSchema(type = "object", required = setOf("contextStrategy", "inheritedTurnCount", "threadId", "throughItemId", "title", "version"), properties = mapOf("contextStrategy" to schema_38041bf5caec6644, "inheritedTurnCount" to schema_23e05d248383ea40, "threadId" to schema_36fea325bf1aca70, "throughItemId" to schema_36fea325bf1aca70, "title" to schema_36fea325bf1aca70, "version" to schema_7f9f5a0d72de0d9a), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
 internal val schema_8f483f0889171da1: RemoteSchema by lazy {
@@ -393,6 +409,10 @@ internal val schema_9b050dd4848ae8c2: RemoteSchema by lazy {
     RemoteSchema(unionKind = "anyOf", options = listOf(schema_304430ceb5560696, schema_b7c373d0981a5441), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
+internal val schema_9b86a68fd6c0c53e: RemoteSchema by lazy {
+    RemoteSchema(type = "object", required = setOf("completedTurns", "completedTurnsNextCursor", "contextUsage", "reads", "runtimeItems", "snapshotSeq", "thread", "updatedAt"), properties = mapOf("backgroundTasks" to schema_00675d64d428c3d1, "completedTurns" to schema_4c20b501501c0ba4, "completedTurnsNextCursor" to schema_df704162f3d15808, "contextUsage" to schema_e47ad2358cf0df53, "followUpQueue" to schema_91dcfb42aac98166, "historyProjection" to schema_72a4409660da2b12, "reads" to schema_4659e6d395f41e16, "runtimeItems" to schema_5d3ac76d9a521e1d, "runtimeNextCursor" to schema_60e901bdbc3f78cd, "runtimeNotice" to schema_1468dfe9a2db9c9d, "runtimeResumeCursor" to schema_36fea325bf1aca70, "runtimeStateCurrent" to schema_feeb8bb50144d96d, "snapshotSeq" to schema_56aa0e45cbdce0d0, "terminalScrollback" to schema_bf0b727f7b1c6d07, "terminalSize" to schema_55ee222c096690dc, "thread" to schema_8df7c9ec623a5efa, "updatedAt" to schema_36fea325bf1aca70), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
 internal val schema_9b963a4b704c492d: RemoteSchema by lazy {
     RemoteSchema(type = "object", required = setOf("expectedHeadSha", "prNumber", "projectLocation"), properties = mapOf("admin" to schema_f8b6dd8128e8bfe0, "expectedHeadSha" to schema_89303c6cbb3ecd9a, "forgeAccount" to schema_c2bb40b82b330cd4, "forgeRepository" to schema_36fea325bf1aca70, "method" to schema_72373308389f2027, "prNumber" to schema_f58a8b771657d037, "projectLocation" to schema_080f9cc154af9e27), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
@@ -427,24 +447,4 @@ internal val schema_9c8337f42f233534: RemoteSchema by lazy {
 
 internal val schema_9ca4aec6d46ade2e: RemoteSchema by lazy {
     RemoteSchema(type = "string", literals = listOf(JsonPrimitive("view"), JsonPrimitive("control")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
-}
-
-internal val schema_9cb900aa2dda44d0: RemoteSchema by lazy {
-    RemoteSchema(type = "object", required = setOf("baseCheckpointItemId", "checkpointItemId", "projectLocation", "threadId"), properties = mapOf("baseCheckpointItemId" to schema_36fea325bf1aca70, "checkpointItemId" to schema_36fea325bf1aca70, "projectLocation" to schema_080f9cc154af9e27, "threadId" to schema_36fea325bf1aca70), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
-}
-
-internal val schema_9d263023fc1dd3de: RemoteSchema by lazy {
-    RemoteSchema(unionKind = "anyOf", options = listOf(schema_1c58197f2405018b, schema_b7c373d0981a5441), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
-}
-
-internal val schema_9d4f8a22a3e1fa05: RemoteSchema by lazy {
-    RemoteSchema(type = "object", required = setOf("type"), properties = mapOf("type" to schema_6f5fd1f7837ee8fe), additionalAllowed = false, unknownPolicy = RemoteUnknownFieldPolicy.REJECT)
-}
-
-internal val schema_9d72555063ba9bd7: RemoteSchema by lazy {
-    RemoteSchema(type = "string", literals = listOf(JsonPrimitive("runtime.truncated")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
-}
-
-internal val schema_9d9cbc9ed0e89822: RemoteSchema by lazy {
-    RemoteSchema(unionKind = "anyOf", options = listOf(schema_1c2823e73ee0c1dc, schema_b7c373d0981a5441), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }

@@ -1,6 +1,6 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
-public struct RouteshellU2DSnapshotResponseU2DThreadsU2DItem_c84f860f0e: Codable, Sendable, RemoteModelMetadata {
+public struct RouteshellU2DSnapshotResponseU2DThreadsU2DItem_8df7c9ec62: Codable, Sendable, RemoteModelMetadata {
   public var activeTurnStartedAt: RemoteField<String> = .missing
   public var additionalDirectories: RemoteField<[RouteshellU2DSnapshotResponseU2DThreadsU2DItemU2DAdditionalDirectoriesU2DItem_137445efd1]> = .missing
   public var agentInstanceId: RemoteField<String> = .missing
@@ -14,6 +14,7 @@ public struct RouteshellU2DSnapshotResponseU2DThreadsU2DItem_c84f860f0e: Codable
   public var done: Bool
   public var doneAt: RemoteField<String> = .missing
   public var errorMessage: RemoteField<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b> = .missing
+  public var forkedFrom: RemoteField<RouteshellU2DSnapshotResponseU2DThreadsU2DItemU2DForkedFrom_8edde8b52f> = .missing
   public var groupId: RemoteField<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b> = .missing
   public var groupName: RemoteField<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b> = .missing
   public var id: String
@@ -52,6 +53,7 @@ public struct RouteshellU2DSnapshotResponseU2DThreadsU2DItem_c84f860f0e: Codable
     .init(wireName: "done", typeName: "Bool", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "doneAt", typeName: "String", required: false, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "errorMessage", typeName: "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "forkedFrom", typeName: "RouteshellU2DSnapshotResponseU2DThreadsU2DItemU2DForkedFrom_8edde8b52f", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "groupId", typeName: "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "groupName", typeName: "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "id", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
@@ -91,6 +93,7 @@ public struct RouteshellU2DSnapshotResponseU2DThreadsU2DItem_c84f860f0e: Codable
     case done = "done"
     case doneAt = "doneAt"
     case errorMessage = "errorMessage"
+    case forkedFrom = "forkedFrom"
     case groupId = "groupId"
     case groupName = "groupName"
     case id = "id"
@@ -117,7 +120,7 @@ public struct RouteshellU2DSnapshotResponseU2DThreadsU2DItem_c84f860f0e: Codable
   }
 }
 
-public struct RouteshellU2DSnapshotResponse_3e9e444488: Codable, Sendable, RemoteModelMetadata {
+public struct RouteshellU2DSnapshotResponse_7bb50c8c8f: Codable, Sendable, RemoteModelMetadata {
   public var gitState: RemoteField<RouteshellU2DSnapshotResponseU2DGitState_b528960bde> = .missing
   public var gitSummariesByThread: RemoteField<RouteshellU2DSnapshotResponseU2DGitSummariesByThread_aca97eda78> = .missing
   public var projects: [RouteprojectU2DCommandResponseU2DOptionU2D1U2DProject_3bac601a40]
@@ -125,7 +128,7 @@ public struct RouteshellU2DSnapshotResponse_3e9e444488: Codable, Sendable, Remot
   public var reads: RemoteField<RouteprojectU2DListQueryU2DReads_4659e6d395> = .missing
   public var runtimeSummariesByThread: RouteshellU2DSnapshotResponseU2DRuntimeSummariesByThread_fc9d6f4c26
   public var snapshotSeq: Int64
-  public var threads: [RouteshellU2DSnapshotResponseU2DThreadsU2DItem_c84f860f0e]
+  public var threads: [RouteshellU2DSnapshotResponseU2DThreadsU2DItem_8df7c9ec62]
   public var threadsNextCursor: RemoteField<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b> = .missing
   public var updatedAt: String
   public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
@@ -137,7 +140,7 @@ public struct RouteshellU2DSnapshotResponse_3e9e444488: Codable, Sendable, Remot
     .init(wireName: "reads", typeName: "RouteprojectU2DListQueryU2DReads_4659e6d395", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "runtimeSummariesByThread", typeName: "RouteshellU2DSnapshotResponseU2DRuntimeSummariesByThread_fc9d6f4c26", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "snapshotSeq", typeName: "Int64", required: true, nullable: false, minimum: 0, maximum: 9007199254740991, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "threads", typeName: "[RouteshellU2DSnapshotResponseU2DThreadsU2DItem_c84f860f0e]", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "threads", typeName: "[RouteshellU2DSnapshotResponseU2DThreadsU2DItem_8df7c9ec62]", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "threadsNextCursor", typeName: "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", required: false, nullable: true, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "updatedAt", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
   ]
@@ -276,18 +279,43 @@ public struct RoutethreadU2DCheckpointU2DRevertResponse_8dfc34ff21: Codable, Sen
   }
 }
 
-public enum RoutethreadU2DCommandRequestU2DOptionU2D10U2DKind_6a0abedb39: String, Codable, Sendable {
+public enum RoutethreadU2DCommandRequestU2DOptionU2D10U2DKind_49f72e8cc5: String, Codable, Sendable {
+  case `setU2DWorktree` = "set-worktree"
+}
+
+public struct RoutethreadU2DCommandRequestU2DOptionU2D10_b79d8f64de: Codable, Sendable, RemoteModelMetadata {
+  public var isNewWorktree: RemoteField<Bool> = .missing
+  public var kind: RoutethreadU2DCommandRequestU2DOptionU2D10U2DKind_49f72e8cc5
+  public var worktreeBranch: RemoteField<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b> = .missing
+  public var worktreePath: String
+  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
+  public static let fields: [RemoteFieldDescriptor] = [
+    .init(wireName: "isNewWorktree", typeName: "Bool", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "kind", typeName: "RoutethreadU2DCommandRequestU2DOptionU2D10U2DKind_49f72e8cc5", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "worktreeBranch", typeName: "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "worktreePath", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+  ]
+  public static let semanticValidatorIds: [String] = []
+  private enum CodingKeys: String, CodingKey {
+    case isNewWorktree = "isNewWorktree"
+    case kind = "kind"
+    case worktreeBranch = "worktreeBranch"
+    case worktreePath = "worktreePath"
+  }
+}
+
+public enum RoutethreadU2DCommandRequestU2DOptionU2D11U2DKind_6a0abedb39: String, Codable, Sendable {
   case `deleteU2DWorktreeU2DGroup` = "delete-worktree-group"
 }
 
-public struct RoutethreadU2DCommandRequestU2DOptionU2D10_09765c7778: Codable, Sendable, RemoteModelMetadata {
-  public var kind: RoutethreadU2DCommandRequestU2DOptionU2D10U2DKind_6a0abedb39
+public struct RoutethreadU2DCommandRequestU2DOptionU2D11_09765c7778: Codable, Sendable, RemoteModelMetadata {
+  public var kind: RoutethreadU2DCommandRequestU2DOptionU2D11U2DKind_6a0abedb39
   public var projectId: String
   public var threadIds: [String]
   public var worktreePath: String
   public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
   public static let fields: [RemoteFieldDescriptor] = [
-    .init(wireName: "kind", typeName: "RoutethreadU2DCommandRequestU2DOptionU2D10U2DKind_6a0abedb39", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "kind", typeName: "RoutethreadU2DCommandRequestU2DOptionU2D11U2DKind_6a0abedb39", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "projectId", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "threadIds", typeName: "[String]", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: 1, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "worktreePath", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
@@ -301,15 +329,15 @@ public struct RoutethreadU2DCommandRequestU2DOptionU2D10_09765c7778: Codable, Se
   }
 }
 
-public enum RoutethreadU2DCommandRequestU2DOptionU2D11U2DKind_53ceafeed2: String, Codable, Sendable {
+public enum RoutethreadU2DCommandRequestU2DOptionU2D12U2DKind_53ceafeed2: String, Codable, Sendable {
   case `archive` = "archive"
 }
 
-public struct RoutethreadU2DCommandRequestU2DOptionU2D11_431be1ab7e: Codable, Sendable, RemoteModelMetadata {
-  public var kind: RoutethreadU2DCommandRequestU2DOptionU2D11U2DKind_53ceafeed2
+public struct RoutethreadU2DCommandRequestU2DOptionU2D12_431be1ab7e: Codable, Sendable, RemoteModelMetadata {
+  public var kind: RoutethreadU2DCommandRequestU2DOptionU2D12U2DKind_53ceafeed2
   public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
   public static let fields: [RemoteFieldDescriptor] = [
-    .init(wireName: "kind", typeName: "RoutethreadU2DCommandRequestU2DOptionU2D11U2DKind_53ceafeed2", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "kind", typeName: "RoutethreadU2DCommandRequestU2DOptionU2D12U2DKind_53ceafeed2", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
   ]
   public static let semanticValidatorIds: [String] = []
   private enum CodingKeys: String, CodingKey {
@@ -317,15 +345,15 @@ public struct RoutethreadU2DCommandRequestU2DOptionU2D11_431be1ab7e: Codable, Se
   }
 }
 
-public enum RoutethreadU2DCommandRequestU2DOptionU2D12U2DKind_c7bfc39efc: String, Codable, Sendable {
+public enum RoutethreadU2DCommandRequestU2DOptionU2D13U2DKind_c7bfc39efc: String, Codable, Sendable {
   case `unarchive` = "unarchive"
 }
 
-public struct RoutethreadU2DCommandRequestU2DOptionU2D12_a93ba7bf23: Codable, Sendable, RemoteModelMetadata {
-  public var kind: RoutethreadU2DCommandRequestU2DOptionU2D12U2DKind_c7bfc39efc
+public struct RoutethreadU2DCommandRequestU2DOptionU2D13_a93ba7bf23: Codable, Sendable, RemoteModelMetadata {
+  public var kind: RoutethreadU2DCommandRequestU2DOptionU2D13U2DKind_c7bfc39efc
   public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
   public static let fields: [RemoteFieldDescriptor] = [
-    .init(wireName: "kind", typeName: "RoutethreadU2DCommandRequestU2DOptionU2D12U2DKind_c7bfc39efc", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "kind", typeName: "RoutethreadU2DCommandRequestU2DOptionU2D13U2DKind_c7bfc39efc", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
   ]
   public static let semanticValidatorIds: [String] = []
   private enum CodingKeys: String, CodingKey {
@@ -333,7 +361,7 @@ public struct RoutethreadU2DCommandRequestU2DOptionU2D12_a93ba7bf23: Codable, Se
   }
 }
 
-public struct RoutethreadU2DCommandRequestU2DOptionU2D13_370ff0ec0a: Codable, Sendable, RemoteModelMetadata {
+public struct RoutethreadU2DCommandRequestU2DOptionU2D14_370ff0ec0a: Codable, Sendable, RemoteModelMetadata {
   public var kind: RouteschedulesU2DCommandRequestU2DOptionU2D3U2DKind_4d5989d27d
   public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
   public static let fields: [RemoteFieldDescriptor] = [
@@ -345,7 +373,7 @@ public struct RoutethreadU2DCommandRequestU2DOptionU2D13_370ff0ec0a: Codable, Se
   }
 }
 
-public struct RoutethreadU2DCommandRequestU2DOptionU2D14_2062bc5ac9: Codable, Sendable, RemoteModelMetadata {
+public struct RoutethreadU2DCommandRequestU2DOptionU2D15_2062bc5ac9: Codable, Sendable, RemoteModelMetadata {
   public var kind: RouteprojectU2DCommandRequestU2DOptionU2D7U2DKind_701d7d6274
   public var placement: RoutebrowserU2DCommandRequestU2DOptionU2D4U2DPosition_3512bd687e
   public var projectId: String
@@ -369,18 +397,18 @@ public struct RoutethreadU2DCommandRequestU2DOptionU2D14_2062bc5ac9: Codable, Se
   }
 }
 
-public enum RoutethreadU2DCommandRequestU2DOptionU2D15U2DKind_8e7b4d097a: String, Codable, Sendable {
+public enum RoutethreadU2DCommandRequestU2DOptionU2D16U2DKind_8e7b4d097a: String, Codable, Sendable {
   case `reorderU2DFlat` = "reorder-flat"
 }
 
-public struct RoutethreadU2DCommandRequestU2DOptionU2D15_efd9410c75: Codable, Sendable, RemoteModelMetadata {
-  public var kind: RoutethreadU2DCommandRequestU2DOptionU2D15U2DKind_8e7b4d097a
+public struct RoutethreadU2DCommandRequestU2DOptionU2D16_efd9410c75: Codable, Sendable, RemoteModelMetadata {
+  public var kind: RoutethreadU2DCommandRequestU2DOptionU2D16U2DKind_8e7b4d097a
   public var placement: RoutebrowserU2DCommandRequestU2DOptionU2D4U2DPosition_3512bd687e
   public var projectId: String
   public var targetThreadId: String
   public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
   public static let fields: [RemoteFieldDescriptor] = [
-    .init(wireName: "kind", typeName: "RoutethreadU2DCommandRequestU2DOptionU2D15U2DKind_8e7b4d097a", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "kind", typeName: "RoutethreadU2DCommandRequestU2DOptionU2D16U2DKind_8e7b4d097a", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "placement", typeName: "RoutebrowserU2DCommandRequestU2DOptionU2D4U2DPosition_3512bd687e", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "projectId", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "targetThreadId", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
@@ -394,7 +422,7 @@ public struct RoutethreadU2DCommandRequestU2DOptionU2D15_efd9410c75: Codable, Se
   }
 }
 
-public struct RoutethreadU2DCommandRequestU2DOptionU2D16_69af29ff38: Codable, Sendable, RemoteModelMetadata {
+public struct RoutethreadU2DCommandRequestU2DOptionU2D17_69af29ff38: Codable, Sendable, RemoteModelMetadata {
   public var kind: RouteprojectU2DCommandRequestU2DOptionU2D8U2DKind_96cd458fa9
   public var workspaceId: RemoteField<String>
   public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip

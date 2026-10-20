@@ -221,4 +221,11 @@
     <string name="rich_chat_session_settings_search">値を検索</string>
     <string name="rich_chat_session_settings_back">戻る</string>
     <string name="rich_chat_session_settings_fallback_heading">設定項目</string>
+    <string name="rich_chat_fork_action">ここから分岐</string>
+    <string name="rich_chat_fork_title">会話を分岐</string>
+    <string name="rich_chat_fork_create">分岐を作成</string>
+    <string name="rich_chat_fork_explanation">完了したターンまでの独立した会話を作成します。ファイルは同じチェックアウトに残ります。</string>
+    <string name="rich_chat_fork_name">会話名</string>
+    <string name="rich_chat_fork_boundary">引き継いだ履歴はここまで</string>
+    <string name="rich_chat_fork_source">%1$s から分岐</string>
 </resources>

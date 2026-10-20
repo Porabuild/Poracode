@@ -59,6 +59,7 @@ import { createChatPaneFileActions } from "./chatPaneFileActions";
 import { createMarkdownLocalImageAuthority } from "./markdownLocalImageAuthority";
 import { ImportedThreadNotice } from "./parts/ImportedThreadNotice";
 import { MessageList, type CheckpointRevertActions } from "./parts/MessageList";
+import { ThreadForkOrigin, ThreadForkTurnAction } from "../ThreadForkControls";
 import { SubAgentOpenController } from "./parts/items/SubAgentOverlay";
 import { StickyPrompt } from "./StickyPrompt";
 import { resolveThreadMarkdownImageRoots } from "../threadMarkdownImageRoots";
@@ -499,6 +500,7 @@ export function ChatPane(props: ChatPaneProps) {
               </div>
             ) : null}
             <ThreadHistoryNoticeBanner threadId={threadId} />
+            <ThreadForkOrigin threadId={threadId} />
             <ConversationSearchJump
               threadId={threadId}
               ready={isInitialScrollSettled}
@@ -568,11 +570,23 @@ export function ChatPane(props: ChatPaneProps) {
                 ) : isHydrating && !showWorkingTimer ? (
                   <ChatConnectingFooter />
                 ) : showTailLoader && tailTurn ? (
-                  <ChatTurnElapsedFooter
-                    turn={tailTurn}
-                    isPaused={isTurnPaused}
-                    isWaitingForBackground={isWaitingForBackground && !isTurnPaused}
-                  />
+                  <div className="group/checkpoint">
+                    <ChatTurnElapsedFooter
+                      turn={tailTurn}
+                      isPaused={isTurnPaused}
+                      isWaitingForBackground={isWaitingForBackground && !isTurnPaused}
+                    />
+                    {completedTurnCanRenderInTail &&
+                    mostRecentDisplayableCompletedTurn?.anchorItemId ? (
+                      <div className="mx-auto w-full max-w-[920px] px-4 pb-2">
+                        <ThreadForkTurnAction
+                          threadId={threadId}
+                          itemId={mostRecentDisplayableCompletedTurn.anchorItemId}
+                          startedAt={mostRecentDisplayableCompletedTurn.startedAt}
+                        />
+                      </div>
+                    ) : null}
+                  </div>
                 ) : null
               }
               onWheelCapture={(event) => {

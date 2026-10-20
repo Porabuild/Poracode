@@ -1,6 +1,14 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
 public extension RemoteSchemas {
+  static let schema_1399799a226dcc71 = RemoteSchema(type: "array", items: RemoteSchemas.schema_00b1d6328e3a57b5, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
+  static let schema_13f43aaaf56911fa = RemoteSchema(type: "string", literals: [.string("browser"), .string("crossagents"), .string("chrome"), .string("computer-use"), .string("app-controls")], unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_14221269d858a2f5 = RemoteSchema(type: "string", literals: [.string("key")], unknownPolicy: .strip)
 }
 
@@ -105,10 +113,6 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
-  static let schema_19132a245ef97b21 = RemoteSchema(type: "object", properties: ["boundedCatalogChanges": RemoteSchemas.schema_a9266ff57466f267, "browserForward": RemoteSchemas.schema_a9266ff57466f267, "catalogMutations": RemoteSchemas.schema_a9266ff57466f267, "conversationSearch": RemoteSchemas.schema_a9266ff57466f267, "conversationSnapshots": RemoteSchemas.schema_a9266ff57466f267, "deviceWorkspace": RemoteSchemas.schema_c288e6607451a3b8, "experiments": RemoteSchemas.schema_a9266ff57466f267, "flatThreadReorder": RemoteSchemas.schema_a9266ff57466f267, "historyDetails": RemoteSchemas.schema_a9266ff57466f267, "projectCommandResults": RemoteSchemas.schema_a9266ff57466f267, "pushRouting": RemoteSchemas.schema_a9266ff57466f267, "runtimeHistoryNotices": RemoteSchemas.schema_a9266ff57466f267, "sshEnvironments": RemoteSchemas.schema_a9266ff57466f267, "terminalCursorSync": RemoteSchemas.schema_a9266ff57466f267, "threadHistoryResume": RemoteSchemas.schema_a9266ff57466f267, "threadLaunchMetadata": RemoteSchemas.schema_a9266ff57466f267], additionalAllowed: true, unknownPolicy: .strip)
-}
-
-public extension RemoteSchemas {
   static let schema_191ccdb4e41abc75 = RemoteSchema(type: "object", required: Set(["events", "seq"]), properties: ["events": RemoteSchemas.schema_6227384f8fe3c509, "seq": RemoteSchemas.schema_56aa0e45cbdce0d0], additionalAllowed: true, unknownPolicy: .strip)
 }
 
@@ -182,6 +186,10 @@ public extension RemoteSchemas {
 
 public extension RemoteSchemas {
   static let schema_1c60a16c12c10c8f = RemoteSchema(type: "object", required: Set(["forgeAccount", "forgeRepository", "prNumber", "projectLocation"]), properties: ["forgeAccount": RemoteSchemas.schema_c2bb40b82b330cd4, "forgeRepository": RemoteSchemas.schema_36fea325bf1aca70, "prNumber": RemoteSchemas.schema_23e05d248383ea40, "projectLocation": RemoteSchemas.schema_080f9cc154af9e27], additionalAllowed: true, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
+  static let schema_1c7f79dcc0e5234b = RemoteSchema(type: "array", items: RemoteSchemas.schema_8df7c9ec623a5efa, unknownPolicy: .strip)
 }
 
 public extension RemoteSchemas {
@@ -438,12 +446,4 @@ public extension RemoteSchemas {
 
 public extension RemoteSchemas {
   static let schema_27aa97567424846c = RemoteSchema(type: "object", required: Set(["kind", "path", "projectId"]), properties: ["kind": RemoteSchemas.schema_88444d52d400622b, "path": RemoteSchemas.schema_36fea325bf1aca70, "projectId": RemoteSchemas.schema_36fea325bf1aca70], additionalAllowed: true, unknownPolicy: .strip)
-}
-
-public extension RemoteSchemas {
-  static let schema_27d9340da4120b27 = RemoteSchema(type: "object", required: Set(["rationale", "threadId"]), properties: ["rationale": RemoteSchemas.schema_36fea325bf1aca70, "threadId": RemoteSchemas.schema_36fea325bf1aca70], additionalAllowed: true, unknownPolicy: .strip)
-}
-
-public extension RemoteSchemas {
-  static let schema_280719966e4ed3aa = RemoteSchema(type: "object", required: Set(["maxActiveAgentSessions", "maxActiveGenerationHelpers", "maxActiveTerminalShells", "overloadRetryAfterMs"]), properties: ["maxActiveAgentSessions": RemoteSchemas.schema_56aa0e45cbdce0d0, "maxActiveGenerationHelpers": RemoteSchemas.schema_56aa0e45cbdce0d0, "maxActiveTerminalShells": RemoteSchemas.schema_56aa0e45cbdce0d0, "overloadRetryAfterMs": RemoteSchemas.schema_56aa0e45cbdce0d0, "refuseNewStarts": RemoteSchemas.schema_36fea325bf1aca70], additionalAllowed: true, unknownPolicy: .strip)
 }

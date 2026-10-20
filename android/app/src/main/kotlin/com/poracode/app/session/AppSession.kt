@@ -72,6 +72,7 @@ class AppSession(
          * shared across hosts: the lease reads only this live value.
          */
         val liveProjectCommandResultVersions: Set<Int> = emptySet(),
+        val liveThreadForkVersions: Set<Int> = emptySet(),
         val snapshot: com.poracode.app.model.RemoteShellSnapshot? = null,
         val hostSnapshots: Map<
             com.poracode.app.model.ClientConnectionId,
