@@ -76,6 +76,15 @@ final class GeneratedRemoteV3ContractTests: XCTestCase {
 
   func testGenerator5ManifestIsRefusedAfterSwiftIdentifierCorrection() throws {
     var object = try object(manifestData())
+    object["generatorVersion"] = 5
+    XCTAssertFalse(
+      GeneratedRemoteV3Contract.isCompatible(
+        withNativeBundleManifest: try JSONSerialization.data(withJSONObject: object)
+      ))
+  }
+
+  func testGenerator6ManifestIsRefusedAfterForgeReviewValidation() throws {
+    var object = try object(manifestData())
     object["generatorVersion"] = 6
     XCTAssertFalse(
       GeneratedRemoteV3Contract.isCompatible(
