@@ -102,6 +102,8 @@ describe("shared settings defaults", () => {
       "agents",
       "backgroundTasks",
       "images",
+      "context",
+      "usage",
     ]);
     expect(
       reorderVisibleThreadDocks(
@@ -111,6 +113,20 @@ describe("shared settings defaults", () => {
         0,
       ),
     ).toEqual(["goal", "images", "agents", "plan", "backgroundTasks"]);
+  });
+
+  it("preserves existing saved dock order and appends context and usage on upgrade", () => {
+    const priorOrder = ["images", "plan", "agents", "goal", "backgroundTasks"];
+    const upgraded = normalizeSharedSettings({ threadDocksOrder: priorOrder });
+    expect(upgraded.threadDocksOrder).toEqual([...priorOrder, "context", "usage"]);
+    expect(
+      reorderVisibleThreadDocks(
+        upgraded.threadDocksOrder,
+        ["images", "plan", "context", "usage"],
+        3,
+        0,
+      ),
+    ).toEqual(["usage", "images", "agents", "goal", "backgroundTasks", "plan", "context"]);
   });
 
   it("enables notifications and displays them for visible threads by default", () => {

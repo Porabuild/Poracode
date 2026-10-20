@@ -265,7 +265,15 @@ const sidebarShortcutIdSchema = z.union([
 ]);
 export type SidebarShortcutId = z.infer<typeof sidebarShortcutIdSchema>;
 
-export const THREAD_DOCK_KINDS = ["goal", "plan", "agents", "backgroundTasks", "images"] as const;
+export const THREAD_DOCK_KINDS = [
+  "goal",
+  "plan",
+  "agents",
+  "backgroundTasks",
+  "images",
+  "context",
+  "usage",
+] as const;
 export type ThreadDockKind = (typeof THREAD_DOCK_KINDS)[number];
 
 export function normalizeSidebarShortcutOrder(
@@ -1670,6 +1678,7 @@ export function migrateSharedSettingsValues(
     migrateRetiredQwenPreviewModel({
       ...normalized,
       sidebarShortcutOrder: normalizeSidebarShortcutOrder(normalized.sidebarShortcutOrder),
+      // Older orders remain valid; normalization appends newly supported sections.
       threadDocksOrder: normalizeThreadDocksOrder(normalized.threadDocksOrder),
       // Legacy `chrome_`-prefixed tool names are normalized once here at the
       // load boundary so the Zod schema (and the remote-v3 wire derived from

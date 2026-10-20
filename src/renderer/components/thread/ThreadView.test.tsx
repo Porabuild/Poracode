@@ -2137,6 +2137,55 @@ describe("ThreadView", () => {
     }
   });
 
+  it("opens Thread info when its previous return destination belongs to another thread", () => {
+    const thread: Thread = {
+      id: "thread-info-target",
+      projectId: "project-1",
+      title: "Thread info",
+      agentKind: "codex",
+      config: { model: "gpt-5.4" },
+      status: "idle",
+      attention: "none",
+      canResumeWithConfig: true,
+      archived: false,
+      done: false,
+      starred: false,
+      createdAt: "2026-10-19",
+      updatedAt: "2026-10-19",
+    };
+    closeAllPanels();
+    useAppStore.setState({
+      threads: [thread],
+      view: { kind: "thread", panes: [thread.id] },
+      focusedPaneId: thread.id,
+    });
+    usePanelStore.setState({
+      threadDocksPanelOpen: true,
+      rightPanelTab: "docks",
+      threadDocksReturnThreadId: "another-thread",
+      threadDocksFocus: "agents",
+    });
+    renderThreadView({
+      thread,
+      agentStatus: undefined,
+      projectLocation: { kind: "windows", path: "C:/repo" },
+      paneCount: 2,
+    });
+    const header = screen
+      .getByRole("button", { name: "Show thread tools" })
+      .closest("[data-poracode-thread-tool-rail]");
+    fireEvent.pointerEnter(header as HTMLElement);
+    const button = screen.getByRole("button", { name: "Thread info" });
+    expect(button).toHaveAttribute("aria-pressed", "false");
+    fireEvent.click(button);
+    expect(usePanelStore.getState()).toMatchObject({
+      threadDocksPanelOpen: true,
+      threadDocksFocus: null,
+      threadDocksReturnThreadId: null,
+      rightPanelTab: "docks",
+    });
+  });
+
   it("hides base-checkout thread tools while a new worktree is provisioning", async () => {
     const thread: Thread = {
       id: "thread-worktree-provisioning",

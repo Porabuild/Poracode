@@ -261,8 +261,10 @@ msgstr "{0} が匿名化された差分を比較しています…"
 msgid "{0} is offline. Showing last known status."
 msgstr "{0} はオフラインです。最後に確認したステータスを表示しています。"
 
+#. placeholder {0}: formatTokens(context.maxTokens)
 #. placeholder {0}: summary.maxLabel
 #: src/renderer/components/thread/ThreadContextDock.tsx
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
 msgid "{0} limit"
 msgstr "{0}制限"
 
@@ -350,8 +352,10 @@ msgstr "{0} はこのプロファイルの分離ログインを共有してい�
 #~ msgid "{0} threads"
 #~ msgstr "{0} 件のスレッド"
 
+#. placeholder {0}: formatTokens(reported.tokens.total)
 #. placeholder {0}: formatTokens(snapshot.tokens.total)
 #: src/renderer/components/providers/UsageCostLine.tsx
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
 msgid "{0} tokens"
 msgstr "{0}トークン"
 
@@ -543,6 +547,10 @@ msgstr "{imported, plural, one {#件のセッションをインポートしま�
 #: src/renderer/i18n/sharedMessages.ts
 #~ msgid "{label} · Previous sessions; sign in again for new threads."
 #~ msgstr "{label} · 以前のセッション用。新しいスレッドでは再度ログインしてください。"
+
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+msgid "{label} account usage"
+msgstr "{label} アカウントの使用状況"
 
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
@@ -1324,6 +1332,7 @@ msgstr "エージェントタイプ"
 msgid "Agent update available"
 msgstr "エージェントのアップデートが利用可能"
 
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentRankedRow.tsx
 msgid "Agent usage"
 msgstr "エージェントの使用"
@@ -2285,6 +2294,7 @@ msgstr "このホストで同時に実行できる短命な生成ヘルパー（
 msgid "Bounds how many terminal shells can run at once on this host. Counts logical execution slots, not OS processes or memory. 0 means unlimited."
 msgstr "このホストで同時に実行できるターミナルシェルの数を制限します。カウントするのは論理実行スロットであり、OS プロセスやメモリではありません。0 = 無制限。"
 
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 msgid "Branch"
@@ -3525,6 +3535,10 @@ msgstr "折りたたむ"
 msgid "Collapse {label}"
 msgstr "{label}を折りたたむ"
 
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+msgid "Collapse agent usage"
+msgstr "エージェントの使用状況を折りたたむ"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions.tsx
 msgid "Collapse all"
 msgstr "すべて折りたたむ"
@@ -3554,6 +3568,10 @@ msgstr "エラーを折りたたむ"
 #~ msgid "Collapse experiment"
 #~ msgstr "実験を折りたたむ"
 
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Collapse files & artifacts"
+msgstr "ファイルと成果物を折りたたむ"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
 msgid "Collapse footer"
 msgstr "フッターを折りたたむ"
@@ -3571,6 +3589,10 @@ msgstr "画像を折りたたむ"
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Collapse terminal composer"
 msgstr "ターミナルコンポーザーを折りたたむ"
+
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+msgid "Collapse thread context"
+msgstr "スレッドのコンテキストを折りたたむ"
 
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Collapse todo dock"
@@ -6306,6 +6328,10 @@ msgstr "拡大する"
 msgid "Expand {label}"
 msgstr "{label}を展開する"
 
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+msgid "Expand agent usage"
+msgstr "エージェントの使用状況を展開"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions.tsx
 msgid "Expand all"
 msgstr "すべて展開"
@@ -6322,6 +6348,10 @@ msgstr "エラーを展開"
 #~ msgid "Expand experiment"
 #~ msgstr "実験を展開する"
 
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Expand files & artifacts"
+msgstr "ファイルと成果物を展開"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
 msgid "Expand footer"
 msgstr "フッターを展開する"
@@ -6334,6 +6364,10 @@ msgstr "グループを展開"
 #: src/renderer/components/thread/ThreadImagesDock.tsx
 msgid "Expand images"
 msgstr "画像を展開"
+
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+msgid "Expand thread context"
+msgstr "スレッドのコンテキストを展開"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Expand to review or revoke access."
@@ -6662,6 +6696,12 @@ msgstr "ファイルはサポートされていないエンコーディングを
 #: src/renderer/views/MainView/parts/MobileWorkspacePage.tsx
 msgid "Files"
 msgstr "ファイル"
+
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
+#: src/renderer/components/thread/ThreadImagesBubble.tsx
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Files & artifacts"
+msgstr "ファイルと成果物"
 
 #: src/renderer/utils/projectIcons.ts
 msgid "Files & folders"
@@ -11615,6 +11655,10 @@ msgstr "ペアリング URL を貼り付け…"
 #~ msgid "Paste your pairing link"
 #~ msgstr "ペアリングリンクを貼り付けてください"
 
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+msgid "Path"
+msgstr "パス"
+
 #: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
 msgid "Pause"
 msgstr "一時停止"
@@ -14698,6 +14742,10 @@ msgstr "セッション操作"
 msgid "Session actions are unavailable for this thread."
 msgstr "このスレッドではセッションアクションを利用できません。"
 
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+msgid "Session ID"
+msgstr "セッション ID"
+
 #: src/renderer/components/providers/devin/liveSessionControls.tsx
 #~ msgid "Session renamed."
 #~ msgstr "セッションの名前を変更しました。"
@@ -14910,6 +14958,10 @@ msgstr "ドックを右パネルに表示"
 #: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
 msgid "Show estimated cost"
 msgstr "推定コストを表示"
+
+#: src/renderer/components/thread/ThreadImagesBubble.tsx
+msgid "Show files & artifacts"
+msgstr "ファイルと成果物を表示"
 
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
 msgid "Show font suggestions"
@@ -17220,6 +17272,11 @@ msgstr "スレッドアクション"
 msgid "Thread already exists."
 msgstr "スレッドはすでに存在します。"
 
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
+msgid "Thread context"
+msgstr "スレッドのコンテキスト"
+
 #: src/renderer/components/thread/ThreadContextDock.tsx
 msgid "Thread context usage"
 msgstr "スレッドコンテキストの使用量"
@@ -17259,6 +17316,7 @@ msgstr "スレッドゴールドック"
 msgid "Thread images"
 msgstr "スレッドの画像"
 
+#: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 msgid "Thread info"
 msgstr "スレッド情報"
@@ -17698,6 +17756,7 @@ msgstr "ファイルを開けません"
 msgid "Unable to open the file"
 msgstr "ファイルを開けませんでした"
 
+#: src/renderer/components/thread/ThreadImagesDock.tsx
 #: src/renderer/utils/gitHelpers.ts
 msgid "Unable to open the file in the editor"
 msgstr "エディターでファイルを開けませんでした"
@@ -18372,6 +18431,8 @@ msgstr "URLは必須です。"
 #: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/thread/ThreadContextDock.tsx
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
 #: src/renderer/components/thread/ThreadUsageBubble.tsx
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
@@ -19116,6 +19177,7 @@ msgid "Working…"
 msgstr "実行中…"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Workspace"
@@ -19135,6 +19197,7 @@ msgstr "ワークスペース表示"
 msgid "Workspaces"
 msgstr "ワークスペース"
 
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 msgid "Worktree"
 msgstr "ワークツリー"

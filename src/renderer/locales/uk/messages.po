@@ -261,8 +261,10 @@ msgstr "{0} порівнює анонімізовані відмінності�
 msgid "{0} is offline. Showing last known status."
 msgstr "{0} офлайн. Показано останній відомий статус."
 
+#. placeholder {0}: formatTokens(context.maxTokens)
 #. placeholder {0}: summary.maxLabel
 #: src/renderer/components/thread/ThreadContextDock.tsx
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
 msgid "{0} limit"
 msgstr "Ліміт {0}"
 
@@ -350,8 +352,10 @@ msgstr "{0} використовують ізольований вхід цьо�
 #~ msgid "{0} threads"
 #~ msgstr "{0} потоків"
 
+#. placeholder {0}: formatTokens(reported.tokens.total)
 #. placeholder {0}: formatTokens(snapshot.tokens.total)
 #: src/renderer/components/providers/UsageCostLine.tsx
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
 msgid "{0} tokens"
 msgstr "{0} токенів"
 
@@ -543,6 +547,10 @@ msgstr "{imported, plural, one {Імпортовано # сесію.} few {Ім�
 #: src/renderer/i18n/sharedMessages.ts
 #~ msgid "{label} · Previous sessions; sign in again for new threads."
 #~ msgstr "{label} · Попередні сесії; увійдіть знову для нових тредів."
+
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+msgid "{label} account usage"
+msgstr "Використання облікового запису {label}"
 
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
@@ -1325,6 +1333,7 @@ msgstr "Тип агента"
 msgid "Agent update available"
 msgstr "Доступне оновлення агента"
 
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentRankedRow.tsx
 msgid "Agent usage"
 msgstr "Використання агентів"
@@ -2286,6 +2295,7 @@ msgstr "Обмежує кількість нетривких помічникі�
 msgid "Bounds how many terminal shells can run at once on this host. Counts logical execution slots, not OS processes or memory. 0 means unlimited."
 msgstr "Обмежує кількість оболонок термінала, які можуть виконуватися одночасно на цьому хості. Враховуються логічні слоти виконання, а не процеси ОС чи пам'ять. 0 — без обмежень."
 
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 msgid "Branch"
@@ -3526,6 +3536,10 @@ msgstr "Згорнути"
 msgid "Collapse {label}"
 msgstr "Згорнути {label}"
 
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+msgid "Collapse agent usage"
+msgstr "Згорнути використання агента"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions.tsx
 msgid "Collapse all"
 msgstr "Згорнути все"
@@ -3555,6 +3569,10 @@ msgstr "Згорнути помилку"
 #~ msgid "Collapse experiment"
 #~ msgstr "Згорнути експеримент"
 
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Collapse files & artifacts"
+msgstr "Згорнути файли й артефакти"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
 msgid "Collapse footer"
 msgstr "Згорнути нижню частину бічної панелі"
@@ -3572,6 +3590,10 @@ msgstr "Згорнути зображення"
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Collapse terminal composer"
 msgstr "Згорнути поле вводу термінала"
+
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+msgid "Collapse thread context"
+msgstr "Згорнути контекст треду"
 
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Collapse todo dock"
@@ -6307,6 +6329,10 @@ msgstr "Розгорнути"
 msgid "Expand {label}"
 msgstr "Розгорнути {label}"
 
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+msgid "Expand agent usage"
+msgstr "Розгорнути використання агента"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions.tsx
 msgid "Expand all"
 msgstr "Розгорнути все"
@@ -6323,6 +6349,10 @@ msgstr "Розгорнути помилку"
 #~ msgid "Expand experiment"
 #~ msgstr "Розгорнути експеримент"
 
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Expand files & artifacts"
+msgstr "Розгорнути файли й артефакти"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
 msgid "Expand footer"
 msgstr "Розгорнути нижню частину бічної панелі"
@@ -6335,6 +6365,10 @@ msgstr "Розгорнути групу"
 #: src/renderer/components/thread/ThreadImagesDock.tsx
 msgid "Expand images"
 msgstr "Розгорнути зображення"
+
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+msgid "Expand thread context"
+msgstr "Розгорнути контекст треду"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Expand to review or revoke access."
@@ -6663,6 +6697,12 @@ msgstr "Файл використовує непідтримуване коду�
 #: src/renderer/views/MainView/parts/MobileWorkspacePage.tsx
 msgid "Files"
 msgstr "Файли"
+
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
+#: src/renderer/components/thread/ThreadImagesBubble.tsx
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Files & artifacts"
+msgstr "Файли й артефакти"
 
 #: src/renderer/utils/projectIcons.ts
 msgid "Files & folders"
@@ -11617,6 +11657,10 @@ msgstr "Вставте URL для сполучення…"
 #~ msgid "Paste your pairing link"
 #~ msgstr "Вставте своє посилання для сполучення"
 
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+msgid "Path"
+msgstr "Шлях"
+
 #: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
 msgid "Pause"
 msgstr "Призупинити"
@@ -14700,6 +14744,10 @@ msgstr "Дії із сесією"
 msgid "Session actions are unavailable for this thread."
 msgstr "Дії сесії недоступні для цього треду."
 
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+msgid "Session ID"
+msgstr "ID сеансу"
+
 #: src/renderer/components/providers/devin/liveSessionControls.tsx
 #~ msgid "Session renamed."
 #~ msgstr "Сесію перейменовано."
@@ -14912,6 +14960,10 @@ msgstr "Показувати доки на правій панелі"
 #: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
 msgid "Show estimated cost"
 msgstr "Показувати орієнтовну вартість"
+
+#: src/renderer/components/thread/ThreadImagesBubble.tsx
+msgid "Show files & artifacts"
+msgstr "Показати файли й артефакти"
 
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
 msgid "Show font suggestions"
@@ -17222,6 +17274,11 @@ msgstr "Действия потока"
 msgid "Thread already exists."
 msgstr "Тред уже існує."
 
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
+msgid "Thread context"
+msgstr "Контекст треду"
+
 #: src/renderer/components/thread/ThreadContextDock.tsx
 msgid "Thread context usage"
 msgstr "Використання контексту треда"
@@ -17261,6 +17318,7 @@ msgstr "Панель мети треда"
 msgid "Thread images"
 msgstr "Зображення потоку"
 
+#: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 msgid "Thread info"
 msgstr "Інформація про потік"
@@ -17700,6 +17758,7 @@ msgstr "Не вдалося відкрити файл"
 msgid "Unable to open the file"
 msgstr "Не вдалося відкрити файл"
 
+#: src/renderer/components/thread/ThreadImagesDock.tsx
 #: src/renderer/utils/gitHelpers.ts
 msgid "Unable to open the file in the editor"
 msgstr "Не вдалося відкрити файл у редакторі"
@@ -18374,6 +18433,8 @@ msgstr "Потрібно вказати URL."
 #: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/thread/ThreadContextDock.tsx
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
 #: src/renderer/components/thread/ThreadUsageBubble.tsx
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
@@ -19118,6 +19179,7 @@ msgid "Working…"
 msgstr "Виконується…"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Workspace"
@@ -19137,6 +19199,7 @@ msgstr "Подання робочої області"
 msgid "Workspaces"
 msgstr "Робочі області"
 
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 msgid "Worktree"
 msgstr "Worktree"
