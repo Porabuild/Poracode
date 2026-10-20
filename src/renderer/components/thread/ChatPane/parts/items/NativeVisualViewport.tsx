@@ -6,11 +6,13 @@ export function NativeVisualViewport({
   zoom,
   fitToWidth,
   label,
+  onZoomChange,
 }: {
   children: ReactNode;
   zoom: number;
   fitToWidth: boolean;
   label: string;
+  onZoomChange: (zoom: number) => void;
 }) {
   const viewport = useRef<HTMLDivElement>(null);
   const content = useRef<HTMLDivElement>(null);
@@ -19,20 +21,12 @@ export function NativeVisualViewport({
     if (!fitToWidth || !viewport.current || !content.current) return;
     const container = viewport.current;
     const body = content.current;
-    const intrinsic = [
-      ...body.querySelectorAll<HTMLElement | SVGElement>(".number-field, svg[role=img]"),
-    ];
+    const intrinsic = [...body.querySelectorAll<HTMLElement>(".number-field")];
     function measure() {
       const minimum = Math.max(
         0,
         ...intrinsic.map((element) => {
-          let width =
-            element instanceof HTMLElement
-              ? element.offsetWidth
-              : Math.max(
-                  Number(element.getAttribute("width")) || 0,
-                  Number.parseFloat(getComputedStyle(element).minWidth) || 0,
-                );
+          let width = element.offsetWidth;
           for (
             let parent = element.parentElement;
             parent && parent !== body;
@@ -61,6 +55,7 @@ export function NativeVisualViewport({
   });
   const width = Math.max(size.available, size.minimum);
   const scale = fitToWidth && size.available > 0 ? size.available / width : zoom / 100;
+  useLayoutEffect(() => onZoomChange(scale * 100), [onZoomChange, scale]);
   return (
     <ScrollShadow
       ref={viewport}
@@ -73,6 +68,11 @@ export function NativeVisualViewport({
       <div
         ref={content}
         data-native-visual-zoom={scale * 100}
+        className={
+          fitToWidth
+            ? "[&_svg[role=img]]:h-auto [&_svg[role=img]]:min-w-0 [&_svg[role=img]]:max-w-full"
+            : undefined
+        }
         style={{ zoom: scale, ...(fitToWidth && width > 0 ? { width } : {}) }}
       >
         {children}

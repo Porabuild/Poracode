@@ -125,6 +125,8 @@ function NativeVisualSurface({
   const [expanded, setExpanded] = useState(false);
   const entry = useNativeVisualUiStore((state) => state.entries.get(stateKey));
   const [fitToWidth, setFitToWidth] = useState(() => (entry?.zoom ?? 100) === 100);
+  const [previewZoom, setPreviewZoom] = useState(100);
+  const [expandedZoom, setExpandedZoom] = useState(100);
   useEffect(() => useNativeVisualUiStore.getState().touch(stateKey), [stateKey]);
   const storedInputs = new Map(entry?.inputs);
   const inputs = new Map(
@@ -168,7 +170,8 @@ function NativeVisualSurface({
     );
     if (inputs.get(input.id) !== value) save(new Map(inputs).set(input.id, value));
   }
-  function toolbar() {
+  function toolbar(inDialog = false) {
+    const currentZoom = fitToWidth ? (inDialog ? expandedZoom : previewZoom) : zoom;
     return (
       <div className="flex min-w-0 flex-wrap items-center gap-0.5">
         <Button size="sm" variant="ghost" onPress={() => setShowSource(!showSource)}>
@@ -185,10 +188,10 @@ function NativeVisualSurface({
                     variant="ghost"
                     isIconOnly
                     aria-label={t`Zoom out`}
-                    isDisabled={zoom <= 75}
+                    isDisabled={currentZoom <= 75}
                     onPress={() => {
                       setFitToWidth(false);
-                      save(undefined, zoom - 25);
+                      save(undefined, Math.max(75, (Math.ceil(currentZoom / 25) - 1) * 25));
                     }}
                   >
                     <ZoomOut className="size-3.5" />
@@ -216,10 +219,13 @@ function NativeVisualSurface({
                     variant="ghost"
                     isIconOnly
                     aria-label={t`Zoom in`}
-                    isDisabled={zoom >= 200}
+                    isDisabled={currentZoom >= 200}
                     onPress={() => {
                       setFitToWidth(false);
-                      save(undefined, zoom + 25);
+                      save(
+                        undefined,
+                        Math.min(200, Math.max(75, (Math.floor(currentZoom / 25) + 1) * 25)),
+                      );
                     }}
                   >
                     <ZoomIn className="size-3.5" />
@@ -274,6 +280,7 @@ function NativeVisualSurface({
         zoom={canZoom ? zoom : 100}
         fitToWidth={canZoom && fitToWidth}
         label={label}
+        onZoomChange={inDialog ? setExpandedZoom : setPreviewZoom}
       >
         <div
           className={`space-y-5 p-3 @min-[480px]:p-4 ${ACCENT_CLASSES["accent" in spec && spec.accent ? spec.accent : "app"]}`}
@@ -338,7 +345,7 @@ function NativeVisualSurface({
             <Modal.CloseTrigger aria-label={t`Close expanded visual`} />
             <Modal.Header className="border-b border-border">
               <Modal.Heading>{label}</Modal.Heading>
-              <div className="min-w-0">{toolbar()}</div>
+              <div className="min-w-0">{toolbar(true)}</div>
             </Modal.Header>
             <Modal.Body className="@container min-w-0 p-0">{body(true)}</Modal.Body>
           </Modal.Dialog>

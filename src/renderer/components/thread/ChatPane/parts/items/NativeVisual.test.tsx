@@ -302,6 +302,74 @@ describe("native app-owned visuals", () => {
     );
   });
 
+  it.each([
+    { available: 100, fitted: 40, next: 75, canReduce: false },
+    { available: 240, fitted: 96, next: 100, canReduce: true },
+    { available: 400, fitted: 100, next: 125, canReduce: true },
+  ])(
+    "keeps zoom arrows directional from fit at $fitted percent",
+    async ({ available, fitted, next, canReduce }) => {
+      vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(available);
+      vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockImplementation(function (
+        this: HTMLElement,
+      ) {
+        return this.classList.contains("number-field") ? 250 : 0;
+      });
+      const { container } = render(
+        <AppProvider>
+          <NativeVisual {...props} />
+        </AppProvider>,
+      );
+      const content = () => container.querySelector<HTMLElement>("[data-native-visual-zoom]")!;
+      await waitFor(() => expect(Number(content().dataset.nativeVisualZoom)).toBe(fitted));
+      expect(screen.getByRole("button", { name: "Zoom out" }).hasAttribute("disabled")).toBe(
+        !canReduce,
+      );
+      fireEvent.click(screen.getByRole("button", { name: "Zoom out" }));
+      expect(Number(content().dataset.nativeVisualZoom)).toBe(canReduce ? 75 : fitted);
+      fireEvent.click(screen.getByRole("button", { name: "Fit to width" }));
+      fireEvent.click(screen.getByRole("button", { name: "Zoom in" }));
+      expect(Number(content().dataset.nativeVisualZoom)).toBe(next);
+      expect(screen.getByRole("textbox", { name: "Seats" })).toHaveValue("25");
+    },
+  );
+
+  it("uses the active expanded view's fitted size and restores the inline zoom controls", async () => {
+    vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      return this.closest('[role="dialog"]') ? 400 : 100;
+    });
+    vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(250);
+    const { container } = render(
+      <AppProvider>
+        <NativeVisual {...props} />
+      </AppProvider>,
+    );
+    expect(screen.getByRole("button", { name: "Zoom out" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Expand visual" }));
+    const dialog = await screen.findByRole("dialog", { name: props.title });
+    expect(within(dialog).getByRole("button", { name: "Zoom out" })).not.toBeDisabled();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Zoom out" }));
+    expect(dialog.querySelector("[data-native-visual-zoom]")).toHaveAttribute(
+      "data-native-visual-zoom",
+      "75",
+    );
+    fireEvent.click(within(dialog).getByRole("button", { name: "Fit to width" }));
+    expect(dialog.querySelector("[data-native-visual-zoom]")).toHaveAttribute(
+      "data-native-visual-zoom",
+      "100",
+    );
+    fireEvent.keyDown(dialog, { key: "Escape", code: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(container.querySelector("[data-native-visual-zoom]")).toHaveAttribute(
+      "data-native-visual-zoom",
+      "40",
+    );
+    expect(screen.getByRole("button", { name: "Zoom out" })).toBeDisabled();
+    expect(screen.getByRole("textbox", { name: "Seats" })).toHaveValue("25");
+  });
+
   it("omits a redundant sole block heading but preserves distinct and nested headings", () => {
     const diagram = {
       type: "diagram",
