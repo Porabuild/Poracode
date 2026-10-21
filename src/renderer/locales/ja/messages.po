@@ -13121,6 +13121,10 @@ msgstr "このプロフィールを専用データルートへ移行していま
 msgid "Prompt"
 msgstr "プロンプト"
 
+#: src/renderer/components/thread/ChatPane/ChatPromptRail.tsx
+msgid "Prompt navigation"
+msgstr "プロンプトナビゲーション"
+
 #: src/renderer/components/providers/codex/index.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Prompts"
@@ -15147,6 +15151,7 @@ msgstr "端末のスクロールバック バッファのスクロール速度�
 msgid "Scroll to bottom"
 msgstr "一番下までスクロール"
 
+#: src/renderer/components/thread/ChatPane/ChatPromptRail.tsx
 #: src/renderer/components/thread/ChatPane/StickyPrompt.tsx
 msgid "Scroll to prompt: {preview}"
 msgstr "プロンプトまでスクロール: {preview}"
@@ -17218,6 +17223,10 @@ msgstr "それは Poracode のペアリングコードではありません。"
 #: src/mobile/routeComponents.tsx
 #~ msgid "That pairing code is no longer valid. Open Settings → Remote Access on the desktop, press New code, and pair again."
 #~ msgstr "このペアリングコードは無効になりました。デスクトップで設定 → リモートアクセスを開き、「新しいコード」を押してから再度ペアリングしてください。"
+
+#: src/renderer/components/thread/ChatPane/ChatPane.tsx
+msgid "That prompt is no longer available."
+msgstr "このプロンプトは利用できなくなりました。"
 
 #: src/mobile/routeComponents.tsx
 #~ msgid "That QR code isn't a Poracode pairing link."

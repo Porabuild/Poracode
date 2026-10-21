@@ -72,20 +72,22 @@ describe("remote v3 native binding generator", () => {
         // Optional core PR state preserves the previous details-only result shape.
         // Background task timing, progress and Stop add two structural types.
         // Optional question-answer metadata adds three structural types and two Swift chunks.
+        // The additive prompt-rail history route adds one route, its response root and
+        // their native mirrors; native adoption stays planned in native-parity.json.
         // Source-host reviews add one route, twenty-four procedures, and their native mirrors;
         // device workspaces add fourteen routes; saved-message search and fork instructions add roots.
-        sourceHash: "sha256:39ebeb593509b9fb74ad8b5e093831d67b826cc37e55dab2341503be6da37740",
-        manifestHash: "sha256:53be762a4dddf0d0217f62422622d282f8e502340ebed99e03c979449ec5e49d",
+        sourceHash: "sha256:79e75e719888e047638b351aad3038663e56f21f6375e4592cd9b8518ba5ddd7",
+        manifestHash: "sha256:b5f09ec84c281e9691a8d776e583090efb443be7461e2a581e6714dea91bde28",
         counts: {
-          routes: 117,
+          routes: 118,
           procedures: 154,
           voidProcedureResults: 59,
           jsonProcedureResults: 95,
           webSocketClientVariants: 9,
           // 10 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
           webSocketServerVariants: 11,
-          schemaRoots: 523,
-          structuralTypes: 1168,
+          schemaRoots: 525,
+          structuralTypes: 1170,
           semanticValidators: 25,
           swiftFiles: 73,
           kotlinFiles: 63,
@@ -360,7 +362,7 @@ describe("remote v3 native binding generator", () => {
       const output = buildNativeBindingOutput(ir, manifest).files;
       for (const language of ["swift", "kotlin"] as const) {
         const adapters = rootAdapters(graph, language);
-        expect(adapters).toHaveLength(523);
+        expect(adapters).toHaveLength(525);
         expect(
           adapters
             .map((adapter) => adapter.id)

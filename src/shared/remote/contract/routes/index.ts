@@ -89,6 +89,7 @@ const MANIFEST_ROUTE_IDS = [
   "push-unregister",
   "thread-list",
   "thread-history-item",
+  "thread-history-prompts",
   "thread-history-changes",
   "thread-history-items",
   "thread-history",

@@ -10,6 +10,7 @@ import {
   dbGetThreadRuntimeItems,
   dbGetThreadRuntimeItemsPage,
   dbGetLatestThreadGoalItem,
+  dbGetThreadPromptIndex,
   dbGetThreads,
   dbGetThreadsPage,
   dbListScheduleRuns,
@@ -79,6 +80,8 @@ export async function callDatabaseRpc(call: BackendDatabaseCall): Promise<unknow
     }
     case "dbGetLatestThreadGoalItem":
       return dbGetLatestThreadGoalItem(call.payload.threadId);
+    case "dbGetThreadPromptIndex":
+      return dbGetThreadPromptIndex(call.payload.threadId);
     case "dbTruncateThreadRuntimeAfter":
       // Mutation metadata is internal; preserve the public RPC's void response.
       dbTruncateThreadRuntimeAfter(call.payload.threadId, call.payload.itemId);

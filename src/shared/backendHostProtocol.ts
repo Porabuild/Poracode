@@ -118,6 +118,7 @@ export const BACKEND_DATABASE_PROCEDURE_NAMES = [
   "dbSyncChanges",
   "dbGetThreadRuntimeItems",
   "dbGetThreadRuntimeItemsPage",
+  "dbGetThreadPromptIndex",
   "dbGetThreadsPage",
   "dbGetLatestThreadGoalItem",
   "dbTruncateThreadRuntimeAfter",

@@ -62,6 +62,7 @@ import { handleCatalogThreadList } from "./catalogPages";
 import { handleBoundedThreadHistoryItems, handleBoundedThreadTurns } from "./historyRead";
 import { handleLegacyAdmittedThreadHistory } from "./legacyAdmittedReads";
 import { handleHistoryItemDetails } from "./historyItemDetails";
+import { handleHistoryPromptIndex } from "./historyPromptIndex";
 import { handleThreadHistoryResume } from "./historyResumeReads";
 import {
   applyRemoteThreadCommand,
@@ -95,6 +96,7 @@ async function forwardThreadBodyPost(
 type ThreadRouteId =
   | "thread-history-changes"
   | "thread-history-item"
+  | "thread-history-prompts"
   | "thread-list"
   | "thread-history-items"
   | "thread-history"
@@ -120,6 +122,7 @@ type ThreadRouteId =
 /** Thread-group HTTP route handlers (contract `threadRoutes`). */
 export const THREAD_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, ThreadRouteId> = {
   "thread-history-item": handleHistoryItemDetails,
+  "thread-history-prompts": handleHistoryPromptIndex,
   "thread-history-changes": handleThreadHistoryResume,
   // B4: legacy `limit` + `tp1.` cursor path is preserved byte-for-byte inside
   // the handler; declared clients get paint/inventory pages with caps.

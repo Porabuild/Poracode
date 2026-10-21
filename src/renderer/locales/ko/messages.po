@@ -13123,6 +13123,10 @@ msgstr "이 프로필을 전용 데이터 루트로 이전하는 중…"
 msgid "Prompt"
 msgstr "프롬프트"
 
+#: src/renderer/components/thread/ChatPane/ChatPromptRail.tsx
+msgid "Prompt navigation"
+msgstr "프롬프트 탐색"
+
 #: src/renderer/components/providers/codex/index.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Prompts"
@@ -15149,6 +15153,7 @@ msgstr "터미널 스크롤백 버퍼의 스크롤 속도 승수입니다."
 msgid "Scroll to bottom"
 msgstr "맨 아래로 스크롤"
 
+#: src/renderer/components/thread/ChatPane/ChatPromptRail.tsx
 #: src/renderer/components/thread/ChatPane/StickyPrompt.tsx
 msgid "Scroll to prompt: {preview}"
 msgstr "프롬프트로 스크롤: {preview}"
@@ -17220,6 +17225,10 @@ msgstr "이것은 Poracode 페어링 코드가 아닙니다."
 #: src/mobile/routeComponents.tsx
 #~ msgid "That pairing code is no longer valid. Open Settings → Remote Access on the desktop, press New code, and pair again."
 #~ msgstr "이 페어링 코드는 더 이상 유효하지 않습니다. 데스크톱에서 설정 → 원격 액세스를 열고 '새 코드'를 누른 뒤 다시 페어링하세요."
+
+#: src/renderer/components/thread/ChatPane/ChatPane.tsx
+msgid "That prompt is no longer available."
+msgstr "해당 프롬프트를 더 이상 사용할 수 없습니다."
 
 #: src/mobile/routeComponents.tsx
 #~ msgid "That QR code isn't a Poracode pairing link."

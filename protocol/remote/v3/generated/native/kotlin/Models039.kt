@@ -5,6 +5,26 @@ import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
+@Serializable
+enum class WebSocketServerMessageU2DOptionU2D9U2DType_0797160858 {
+    @SerialName("terminal-watch-result") TERMINALU2DWATCHU2DRESULT,
+}
+
+@Serializable
+data class WebSocketServerMessageU2DOptionU2D9_4655073d71(
+    @SerialName("cursorSync") val cursorSync: WebSocketServerMessageU2DOptionU2D9U2DCursorSync_c533fb8759,
+    @SerialName("id") val id: String,
+    @SerialName("type") val type: WebSocketServerMessageU2DOptionU2D9U2DType_0797160858,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("cursorSync", "WebSocketServerMessageU2DOptionU2D9U2DCursorSync_c533fb8759", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("id", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("type", "WebSocketServerMessageU2DOptionU2D9U2DType_0797160858", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
 @Serializable(with = WebSocketServerMessage_058b5d4e33.Serializer::class)
 sealed interface WebSocketServerMessage_058b5d4e33 {
     data class Option1(val value: WebSocketServerMessageU2DOptionU2D1_13762c62f0) : WebSocketServerMessage_058b5d4e33

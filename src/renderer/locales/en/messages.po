@@ -13132,6 +13132,10 @@ msgstr "Promoting this profile into the owned data root…"
 msgid "Prompt"
 msgstr "Prompt"
 
+#: src/renderer/components/thread/ChatPane/ChatPromptRail.tsx
+msgid "Prompt navigation"
+msgstr "Prompt navigation"
+
 #: src/renderer/components/providers/codex/index.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Prompts"
@@ -15158,6 +15162,7 @@ msgstr "Scroll speed multiplier for the terminal scrollback buffer."
 msgid "Scroll to bottom"
 msgstr "Scroll to bottom"
 
+#: src/renderer/components/thread/ChatPane/ChatPromptRail.tsx
 #: src/renderer/components/thread/ChatPane/StickyPrompt.tsx
 msgid "Scroll to prompt: {preview}"
 msgstr "Scroll to prompt: {preview}"
@@ -17229,6 +17234,10 @@ msgstr "That isn't a Poracode pairing code."
 #: src/mobile/routeComponents.tsx
 #~ msgid "That pairing code is no longer valid. Open Settings → Remote Access on the desktop, press New code, and pair again."
 #~ msgstr "That pairing code is no longer valid. Open Settings → Remote Access on the desktop, press New code, and pair again."
+
+#: src/renderer/components/thread/ChatPane/ChatPane.tsx
+msgid "That prompt is no longer available."
+msgstr "That prompt is no longer available."
 
 #: src/mobile/routeComponents.tsx
 #~ msgid "That QR code isn't a Poracode pairing link."

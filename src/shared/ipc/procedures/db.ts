@@ -29,7 +29,9 @@ import {
   persistedRuntimeItemSchema,
   persistedThreadPageRemoteSchema,
   persistedCompletedTurnSchema,
+  persistedPromptIndexSchema,
   type PersistedCompletedTurn,
+  type PersistedPromptIndex,
   type PersistedRuntimeItem,
   type PersistedRuntimePage,
   type PersistedThreadPage,
@@ -116,6 +118,16 @@ export const dbProcedures = {
     PersistedRuntimePage,
     "main-local"
   >("dbGetThreadRuntimeItemsPage", "main-local", dbGetRuntimeItemsPagePayloadSchema),
+  dbGetThreadPromptIndex: definePayloadProcedure<
+    z.infer<typeof dbGetRuntimeItemsPayloadSchema>,
+    PersistedPromptIndex,
+    "main-local"
+  >(
+    "dbGetThreadPromptIndex",
+    "main-local",
+    dbGetRuntimeItemsPayloadSchema,
+    persistedPromptIndexSchema,
+  ),
   dbGetThreadsPage: definePayloadProcedure<
     z.infer<typeof dbGetThreadsPagePayloadSchema>,
     PersistedThreadPage,

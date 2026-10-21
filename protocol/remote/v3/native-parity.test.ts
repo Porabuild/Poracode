@@ -58,7 +58,7 @@ const UI_DISPOSITIONS = [
 ] as const;
 
 const EXPECTED_COUNTS = {
-  httpRoutes: 117,
+  httpRoutes: 118,
   procedures: 154,
   webSocketClientMessages: 9,
   // 10 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
@@ -262,7 +262,12 @@ const PLANNED_ABSENCE_TOKENS: Record<
   ReadonlyArray<{ platform: Platform; token: string }>
 > = {
   ...Object.fromEntries(
-    ["conversation-search", "thread-history-item", "thread-history-changes"].map((id) => [
+    [
+      "conversation-search",
+      "thread-history-item",
+      "thread-history-prompts",
+      "thread-history-changes",
+    ].map((id) => [
       id,
       [
         { platform: "ios" as Platform, token: `"${id}"` },

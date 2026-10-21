@@ -13122,6 +13122,10 @@ msgstr "正在将此个人资料迁移到专属数据根目录…"
 msgid "Prompt"
 msgstr "提示"
 
+#: src/renderer/components/thread/ChatPane/ChatPromptRail.tsx
+msgid "Prompt navigation"
+msgstr "提示词导航"
+
 #: src/renderer/components/providers/codex/index.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Prompts"
@@ -15148,6 +15152,7 @@ msgstr "终端回滚缓冲区的滚动速度倍增器。"
 msgid "Scroll to bottom"
 msgstr "滚动到底部"
 
+#: src/renderer/components/thread/ChatPane/ChatPromptRail.tsx
 #: src/renderer/components/thread/ChatPane/StickyPrompt.tsx
 msgid "Scroll to prompt: {preview}"
 msgstr "滚动到提示：{preview}"
@@ -17219,6 +17224,10 @@ msgstr "这不是 Poracode 的配对码。"
 #: src/mobile/routeComponents.tsx
 #~ msgid "That pairing code is no longer valid. Open Settings → Remote Access on the desktop, press New code, and pair again."
 #~ msgstr "该配对代码已失效。请在桌面上打开“设置 → 远程访问”，点击“新代码”后重新配对。"
+
+#: src/renderer/components/thread/ChatPane/ChatPane.tsx
+msgid "That prompt is no longer available."
+msgstr "该提示词已不可用。"
 
 #: src/mobile/routeComponents.tsx
 #~ msgid "That QR code isn't a Poracode pairing link."

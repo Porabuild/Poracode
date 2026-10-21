@@ -148,9 +148,14 @@ describe("remote procedure routing registry", () => {
   const latestThreadGoalItem = vi.fn<(threadId: string) => Promise<unknown>>(async () => null);
   const threadCompletedTurns = vi.fn<(threadId: string) => Promise<unknown>>(async () => []);
   const threadContextUsage = vi.fn<(threadId: string) => Promise<unknown>>(async () => null);
+  const threadPromptIndex = vi.fn<(threadId: string) => Promise<unknown>>(async () => ({
+    prompts: [],
+    truncated: false,
+  }));
   const client = {
     callRemoteProcedure,
     latestThreadGoalItem,
+    threadPromptIndex,
     threadCompletedTurns,
     threadContextUsage,
     projectNotes,
@@ -215,6 +220,12 @@ describe("remote procedure routing registry", () => {
     expect(threadCompletedTurns).toHaveBeenCalledWith("remote-thread");
     await remoteResult(decide("dbGetThreadContextUsage", { threadId: "projected-thread" }));
     expect(threadContextUsage).toHaveBeenCalledWith("remote-thread");
+    expect(callRemoteProcedure).not.toHaveBeenCalled();
+  });
+
+  it("reads a remote thread's prompt index from its owning host, never the local database", async () => {
+    await remoteResult(decide("dbGetThreadPromptIndex", { threadId: "projected-thread" }));
+    expect(threadPromptIndex).toHaveBeenCalledWith("remote-thread");
     expect(callRemoteProcedure).not.toHaveBeenCalled();
   });
 

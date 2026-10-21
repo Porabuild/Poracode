@@ -42,6 +42,7 @@ import {
 } from "./historyRead";
 import { buildThreadRuntimeItemsPage, buildThreadSnapshot } from "./snapshots";
 import { handleHistoryItemDetails } from "./historyItemDetails";
+import { handleHistoryPromptIndex } from "./historyPromptIndex";
 import { runThreadRuntimeMutation } from "@/host/db/runtimePersistenceRuntime";
 import { runtimeHistoryRevision } from "@/host/db/runtimeHistoryRevision";
 import { persistThreadStateEvent } from "./threadStatePersistence";
@@ -310,6 +311,39 @@ describe.skipIf(!sqliteAvailable)("B4 bounded history server composition", () =>
     expect(
       historyItemTooLargeBodySchema.parse(JSON.parse(response.body)).readItem.measurement,
     ).toBe("serialized-exact");
+  });
+
+  it("lists the thread's prompts without reading transcript bodies", async () => {
+    await dbReplaceThreadRuntimeItems("thread-1", [
+      item(0, { type: "user_message", payload: { content: [{ kind: "text", text: "First" }] } }),
+      item(1, { type: "assistant_message", streams: { assistant_text: "Reply ".repeat(500) } }),
+      item(2, { type: "user_message", payload: { content: [{ kind: "text", text: "Second" }] } }),
+    ]);
+    const response = await invoke(
+      handleHistoryPromptIndex as unknown as (call: never) => Promise<void>,
+      "http://host/api/threads/thread-1/history/prompts",
+      { threadId: "thread-1" },
+    );
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.body) as {
+      prompts: Array<{ itemId: string; text: string }>;
+      truncated: boolean;
+    };
+    expect(body.truncated).toBe(false);
+    expect(body.prompts.map((prompt) => [prompt.itemId, prompt.text])).toEqual([
+      ["item-000", "First"],
+      ["item-002", "Second"],
+    ]);
+  });
+
+  it("answers 404 for a thread that does not exist", async () => {
+    await expect(
+      invoke(
+        handleHistoryPromptIndex as unknown as (call: never) => Promise<void>,
+        "http://host/api/threads/missing/history/prompts",
+        { threadId: "missing" },
+      ),
+    ).rejects.toMatchObject({ code: "thread_not_found", status: 404 });
   });
 
   it("preserves the async mutation identity through the public persistence facade", async () => {
