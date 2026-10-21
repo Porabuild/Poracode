@@ -425,19 +425,22 @@ function renderUserMessageInlineContent(
         return;
       }
       remainingSkip = 0;
+      // Only an @-mention of the whole plugin carries `pluginName`; a skill
+      // picked from a plugin keeps the skill glyph and its own name.
+      const mentionedPluginId = block.pluginName ? block.pluginId : undefined;
       nodes.push(
         <UserMessageSlashChip
           key={`skill-${index}-${block.name}`}
           icon={
-            block.pluginId ? (
-              <PluginIcon pluginId={block.pluginId} />
+            mentionedPluginId ? (
+              <PluginIcon pluginId={mentionedPluginId} />
             ) : (
               <Sparkles aria-hidden="true" />
             )
           }
           label={block.pluginName ?? block.name}
           skillName={block.name}
-          {...(block.pluginId ? { pluginId: block.pluginId } : {})}
+          {...(mentionedPluginId ? { pluginId: mentionedPluginId } : {})}
         />,
       );
       return;

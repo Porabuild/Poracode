@@ -145,6 +145,18 @@ describe("useSkills", () => {
     hook.unmount();
   });
 
+  it("labels a slash-picked plugin skill by its own name, not the plugin's", () => {
+    const [command] = buildSkillSlashCommands(pluginSkillScan());
+
+    expect(command).toMatchObject({
+      id: "browser-control",
+      skillName: "browser-control",
+      skillProvider: "Browser",
+      pluginId: "browser-tools",
+    });
+    expect(command).not.toHaveProperty("pluginName");
+  });
+
   it("represents an installed plugin as one mention backed by its core skill", async () => {
     useSharedSettings.getState().installPlugin(pluginFixture("browser-tools"));
     scanSkillsMock.mockResolvedValueOnce(pluginSkillScan());
