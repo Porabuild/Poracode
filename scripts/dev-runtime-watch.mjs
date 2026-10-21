@@ -62,6 +62,8 @@ export async function watchRuntime({
             )
             .map((entry) => entry.id);
       const started = performance.now();
+      // A previous build can remove the owned root while this reload is queued.
+      await mkdir(buildRoot, { recursive: true });
       const staging = await mkdtemp(join(buildRoot, "build-"));
       if (dirname(staging) !== buildRoot)
         throw new Error("Development staging directory is outside its owned build root.");
@@ -150,10 +152,26 @@ export async function watchRuntime({
     if (closed) return;
     closed = true;
     for (const watcher of watchers) watcher.close();
-    worker?.kill("SIGTERM");
+    const child = worker;
+    child?.kill("SIGTERM");
+    let forceTimer;
     try {
-      await queue.close();
+      // A compiler that ignores SIGTERM must not keep the dev process, or CI, alive.
+      await Promise.race([
+        queue.close(),
+        new Promise((done) => {
+          forceTimer = setTimeout(done, 2_000);
+        }),
+      ]);
     } finally {
+      clearTimeout(forceTimer);
+      if (child && child.exitCode === null && child.signalCode === null) {
+        child.kill("SIGKILL");
+        await Promise.race([
+          new Promise((done) => child.once("exit", done)),
+          new Promise((done) => setTimeout(done, 1_000)),
+        ]);
+      }
       rejectReady(new Error("Development runtime stopped before its first successful build."));
       await release();
     }

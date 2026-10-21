@@ -97,29 +97,37 @@ return {ready,async close(){clearTimeout(timer);clearInterval(keepAlive);await r
   return { root, child, log: () => log };
 }
 
-await test("keeps exclusive output ownership until Electron finishes its graceful shutdown", async (t) => {
-  const { root, child, log } = await fixture(t);
-  await waitFor(() => existsSync(join(root, ".tmp/app-started")));
-  child.send("stop");
-  await waitFor(() => existsSync(join(root, ".tmp/app-quitting")));
-  await assert.rejects(lock(join(root, ".tmp/dev-runtime")), { code: "ELOCKED" });
-  await waitFor(() => child.exitCode !== null);
-  assert.equal(child.exitCode, 0, log());
-  assert.ok(existsSync(join(root, ".tmp/closed")));
-  const release = await lock(join(root, ".tmp/dev-runtime"));
-  await release();
-});
+await test(
+  "keeps exclusive output ownership until Electron finishes its graceful shutdown",
+  { timeout: 20_000 },
+  async (t) => {
+    const { root, child, log } = await fixture(t);
+    await waitFor(() => existsSync(join(root, ".tmp/app-started")));
+    child.send("stop");
+    await waitFor(() => existsSync(join(root, ".tmp/app-quitting")));
+    await assert.rejects(lock(join(root, ".tmp/dev-runtime")), { code: "ELOCKED" });
+    await waitFor(() => child.exitCode !== null);
+    assert.equal(child.exitCode, 0, log());
+    assert.ok(existsSync(join(root, ".tmp/closed")));
+    const release = await lock(join(root, ".tmp/dev-runtime"));
+    await release();
+  },
+);
 
-await test("closes a watcher acquired after shutdown was requested", async (t) => {
-  const { root, child, log } = await fixture(t, true);
-  await waitFor(() => existsSync(join(root, ".tmp/acquiring")));
-  child.send("stop");
-  await delay(25);
-  await rm(join(root, ".tmp/hold-acquisition"));
-  await waitFor(() => child.exitCode !== null);
-  assert.equal(child.exitCode, 0, log());
-  assert.equal(existsSync(join(root, ".tmp/app-started")), false);
-  assert.ok(existsSync(join(root, ".tmp/closed")));
-  const release = await lock(join(root, ".tmp/dev-runtime"));
-  await release();
-});
+await test(
+  "closes a watcher acquired after shutdown was requested",
+  { timeout: 20_000 },
+  async (t) => {
+    const { root, child, log } = await fixture(t, true);
+    await waitFor(() => existsSync(join(root, ".tmp/acquiring")));
+    child.send("stop");
+    await delay(25);
+    await rm(join(root, ".tmp/hold-acquisition"));
+    await waitFor(() => child.exitCode !== null);
+    assert.equal(child.exitCode, 0, log());
+    assert.equal(existsSync(join(root, ".tmp/app-started")), false);
+    assert.ok(existsSync(join(root, ".tmp/closed")));
+    const release = await lock(join(root, ".tmp/dev-runtime"));
+    await release();
+  },
+);
