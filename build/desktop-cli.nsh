@@ -311,6 +311,9 @@ Function ${PORACODE_CLI_PREFIX}PoraCliScanPath
     IntCmp $PoraCliIndex $PoraCliLength loop loop
 FunctionEnd
 
+; electron-builder may emit this include before registering its plug-in paths.
+; customHeader runs after the complete header, when StdUtils is available.
+!macro customHeader
 Function ${PORACODE_CLI_PREFIX}PoraCliManage
   Push $0
   Push $1
@@ -548,6 +551,8 @@ Function ${PORACODE_CLI_PREFIX}PoraCliManage
   Pop $1
   Pop $0
 FunctionEnd
+
+!macroend
 
 !macro customInstall
   StrCpy $PoraCliPerUser 0
