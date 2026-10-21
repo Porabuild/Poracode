@@ -2,13 +2,17 @@ import { createReadStream, existsSync, readdirSync, readFileSync } from "node:fs
 import { basename, extname, join, resolve } from "node:path";
 import { defineConfig, loadEnv, normalizePath, type Plugin } from "vite";
 import babel from "@rolldown/plugin-babel";
-import react, { reactCompilerPreset } from "@vitejs/plugin-react";
+import react from "@vitejs/plugin-react";
 import { lingui, linguiTransformerBabelPreset } from "@lingui/vite-plugin";
 import tailwindcss from "@tailwindcss/vite";
 
-const compilerPreset = reactCompilerPreset();
 const linguiPreset = linguiTransformerBabelPreset();
 const CLIENT_SOURCE_RE = /[\\/]src[\\/]renderer[\\/].*\.[tj]sx?(?:$|\?)/;
+const REACT_PLUGIN_EXCLUDE_RE = [/[\\/]node_modules[\\/]/, /[?&]worker(?:_file)?(?:&|$)/];
+const linguiBabel = babel({
+  include: CLIENT_SOURCE_RE,
+  presets: [linguiPreset],
+});
 const DEFAULT_POSTHOG_HOST = "https://us.i.posthog.com";
 const MATERIAL_ICON_DIR = resolve(import.meta.dirname, "node_modules/material-icon-theme/icons");
 const MATERIAL_ICON_ASSET_PREFIX = "/assets/material-icons/";
@@ -53,8 +57,10 @@ const CLIENT_OPTIMIZED_DEPS = [
   "react",
   "react-dom",
   "react-dom/client",
-  // AppLocaleProvider shares HeroUI's locale context; prepare this direct
-  // entry too because dependency discovery is disabled for deferred graphs.
+  // Deferred settings/devices import these roots directly. Optimizing only
+  // I18nProvider leaves their nested CommonJS dependencies raw in dev.
+  "react-aria",
+  "react-aria-components",
   "react-aria-components/I18nProvider",
   "react/compiler-runtime",
   "react/jsx-dev-runtime",
@@ -118,6 +124,12 @@ const vercelAnalyticsEnabled =
 const webBasePath = process.env.PORACODE_WEB_BASE_PATH?.trim() || "./";
 const webOutputPath =
   webBasePath === "./" ? "dist/web" : `dist/web/${webBasePath.replace(/^\/+|\/+$/g, "")}`;
+const rendererSourcemap =
+  !webOnly &&
+  process.env.PORACODE_SOURCEMAPS !== "0" &&
+  (Boolean(process.env.CI) || process.env.PORACODE_SOURCEMAPS === "1")
+    ? ("hidden" as const)
+    : false;
 
 // Dev-only: connect the renderer to the standalone React DevTools app for
 // inspecting/profiling rerenders. The React DevTools *browser extension* uses
@@ -335,15 +347,16 @@ export default defineConfig(({ mode }) => ({
     rendererBootstrapTiming(),
     webDevIndex(),
     reactDevtoolsStandalone(),
-    react(),
-    // Babel applies presets right-to-left, so Lingui expands before the React
-    // Compiler. Keeping both as filtered Rolldown presets also lets non-React,
-    // non-Lingui modules bypass Babel entirely during dev startup.
+    // Lingui must expand macros before React Compiler analyzes the component.
+    // The Babel plugin is forced into the pre phase so it runs before the
+    // native Oxc React Compiler transform inside react().
     // We use the Babel macro (not the SWC plugin) because this project transforms
     // with Babel, sidestepping the SWC-plugin/runtime version-matching pitfalls.
-    babel({
+    linguiBabel,
+    react({
+      compiler: true,
       include: CLIENT_SOURCE_RE,
-      presets: [compilerPreset, linguiPreset],
+      exclude: REACT_PLUGIN_EXCLUDE_RE,
     }),
     // Compiles `.po` catalog imports into runtime message modules on the fly,
     // so we never need a separate `lingui compile` step for the app build.
@@ -388,7 +401,9 @@ export default defineConfig(({ mode }) => ({
     outDir: extensionOnly ? "dist/extension-client" : webOnly ? webOutputPath : "dist/renderer",
     emptyOutDir: true,
     reportCompressedSize: false,
-    sourcemap: webOnly ? false : "hidden",
+    // Source maps dominate local build memory. The Sentry job keeps them;
+    // other release jobs opt out with PORACODE_SOURCEMAPS=0.
+    sourcemap: rendererSourcemap,
     // Filter modulePreload so the heaviest async chunks (shiki grammars,
     // @git-diff-view, xterm) are not parsed by V8 at startup. They load on
     // demand when the code path that needs them runs (first code block,

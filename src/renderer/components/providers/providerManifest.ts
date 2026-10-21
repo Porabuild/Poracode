@@ -1,5 +1,10 @@
 import type { MessageDescriptor } from "@lingui/core";
-import { baseAgentKind, type AgentInstanceConfig, type ProjectLocation } from "@/shared/contracts";
+import {
+  baseAgentKind,
+  type AgentCapability,
+  type AgentInstanceConfig,
+  type ProjectLocation,
+} from "@/shared/contracts";
 
 export interface ProviderMarkdownImageRootsInput {
   sessionId?: string;
@@ -16,6 +21,13 @@ export interface RendererProviderManifest {
     config: T,
     models: readonly { id: string }[],
   ) => T & { fast?: boolean | undefined };
+  /**
+   * Project a live session catalog onto the composer. The session inventory
+   * replaces the detection model list; a provider that represents one
+   * advertised model with another composer control folds that model back out
+   * here so an active thread keeps the same controls as a new thread.
+   */
+  projectComposerCapabilities?: (capabilities: AgentCapability) => AgentCapability;
   kind: string;
   label: MessageDescriptor;
   /** Shared discovery/model-picker order. */

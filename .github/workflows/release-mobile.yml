@@ -165,7 +165,7 @@ jobs:
 
       - name: Run Android release gates
         working-directory: android
-        run: ./gradlew clean testDebugUnitTest lintRelease --no-daemon --stacktrace
+        run: ./gradlew clean testDebugUnitTest lintRelease --no-daemon --stacktrace --max-workers=1
 
       - name: Validate Android signing configuration
         shell: bash

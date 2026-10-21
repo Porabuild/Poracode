@@ -273,9 +273,13 @@ export async function performDesktopRemoteAccessStart(
       ...(options.revertCheckpoint ? { revertCheckpoint: options.revertCheckpoint } : {}),
       ...(options.experimentAuthority ? { experimentAuthority: options.experimentAuthority } : {}),
       dispatchThreadCommand: options.dispatchThreadCommand,
-      resolveMcpLaunchSnapshot: (projectId) => {
+      resolveMcpLaunchSnapshot: (projectId, overrides) => {
         const settings = readSharedSettingsFile(options.paths.settingsPath);
-        return resolveMcpLaunchSnapshot(settings, dbGetProject(projectId)?.mcpServers ?? []);
+        return resolveMcpLaunchSnapshot(
+          settings,
+          dbGetProject(projectId)?.mcpServers ?? [],
+          overrides,
+        );
       },
       ...(options.browser
         ? { browser: options.browser }

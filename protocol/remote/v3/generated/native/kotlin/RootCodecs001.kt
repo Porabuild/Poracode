@@ -29,8 +29,8 @@ val RemoteRootCodecs.procedureU2ECloneRepoU2ERequest: RemoteRootCodec<Procedurec
 val RemoteRootCodecs.procedureU2ECloneRepoU2EResult: RemoteRootCodec<ProcedurecloneRepoResult_6a0c18e639>
     get() = RemoteRootCodec("procedure.cloneRepo.result", serializer<ProcedurecloneRepoResult_6a0c18e639>(), schema_6a0c18e639dbb000)
 
-val RemoteRootCodecs.procedureU2EConnectThreadVoiceU2ERequest: RemoteRootCodec<ProcedureconnectThreadVoiceRequest_4591393841>
-    get() = RemoteRootCodec("procedure.connectThreadVoice.request", serializer<ProcedureconnectThreadVoiceRequest_4591393841>(), schema_4591393841333540)
+val RemoteRootCodecs.procedureU2EConnectThreadVoiceU2ERequest: RemoteRootCodec<ProcedureconnectThreadVoiceRequest_63aafd940f>
+    get() = RemoteRootCodec("procedure.connectThreadVoice.request", serializer<ProcedureconnectThreadVoiceRequest_63aafd940f>(), schema_63aafd940f769d6f)
 
 val RemoteRootCodecs.procedureU2EConnectThreadVoiceU2EResult: RemoteRootCodec<ProcedureconnectThreadVoiceResult_871fe12f7d>
     get() = RemoteRootCodec("procedure.connectThreadVoice.result", serializer<ProcedureconnectThreadVoiceResult_871fe12f7d>(), schema_871fe12f7dc5ccf6)
@@ -44,8 +44,8 @@ val RemoteRootCodecs.procedureU2ECreateFileCheckpointU2EResult: RemoteRootCodec<
 val RemoteRootCodecs.procedureU2ECreateProjectEntryU2ERequest: RemoteRootCodec<ProcedurecreateProjectEntryRequest_5027b509e8>
     get() = RemoteRootCodec("procedure.createProjectEntry.request", serializer<ProcedurecreateProjectEntryRequest_5027b509e8>(), schema_5027b509e87ee5fb)
 
-val RemoteRootCodecs.procedureU2ECreateRevertAnchorU2ERequest: RemoteRootCodec<ProcedurecreateRevertAnchorRequest_40f2905f53>
-    get() = RemoteRootCodec("procedure.createRevertAnchor.request", serializer<ProcedurecreateRevertAnchorRequest_40f2905f53>(), schema_40f2905f535b4d48)
+val RemoteRootCodecs.procedureU2ECreateRevertAnchorU2ERequest: RemoteRootCodec<ProcedurecreateRevertAnchorRequest_0bd75b2247>
+    get() = RemoteRootCodec("procedure.createRevertAnchor.request", serializer<ProcedurecreateRevertAnchorRequest_0bd75b2247>(), schema_0bd75b2247bf52aa)
 
 val RemoteRootCodecs.procedureU2ECreateRevertAnchorU2EResult: RemoteRootCodec<ProcedurecreateRevertAnchorResult_8d15f7f900>
     get() = RemoteRootCodec("procedure.createRevertAnchor.result", serializer<ProcedurecreateRevertAnchorResult_8d15f7f900>(), schema_8d15f7f900e19f14)
@@ -74,8 +74,8 @@ val RemoteRootCodecs.procedureU2EDiscoverExternalMcpServersU2EResult: RemoteRoot
 val RemoteRootCodecs.procedureU2EEditQueuedThreadFollowUpU2ERequest: RemoteRootCodec<ProcedureeditQueuedThreadFollowUpRequest_50d5adf9e9>
     get() = RemoteRootCodec("procedure.editQueuedThreadFollowUp.request", serializer<ProcedureeditQueuedThreadFollowUpRequest_50d5adf9e9>(), schema_50d5adf9e97ef8bd)
 
-val RemoteRootCodecs.procedureU2EEnsureThreadRunningU2ERequest: RemoteRootCodec<ProcedureensureThreadRunningRequest_b3edb6173f>
-    get() = RemoteRootCodec("procedure.ensureThreadRunning.request", serializer<ProcedureensureThreadRunningRequest_b3edb6173f>(), schema_b3edb6173f3ad581)
+val RemoteRootCodecs.procedureU2EEnsureThreadRunningU2ERequest: RemoteRootCodec<ProcedureensureThreadRunningRequest_432d234f21>
+    get() = RemoteRootCodec("procedure.ensureThreadRunning.request", serializer<ProcedureensureThreadRunningRequest_432d234f21>(), schema_432d234f21987810)
 
 val RemoteRootCodecs.procedureU2EEnsureThreadRunningU2EResult: RemoteRootCodec<ProcedurecancelExtractContextRequest_09b78d9c1d>
     get() = RemoteRootCodec("procedure.ensureThreadRunning.result", serializer<ProcedurecancelExtractContextRequest_09b78d9c1d>(), schema_09b78d9c1d4c3a6b)

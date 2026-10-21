@@ -636,6 +636,32 @@ describe("Poracode app control tools — threads", () => {
     );
   });
 
+  it("create_thread carries explicit tool choices and attachments without changing app defaults", async () => {
+    const { ctx, createThread } = context();
+    const choices = {
+      browserMcp: true,
+      crossagentMcp: false,
+      chromeMcp: true,
+      computerUse: true,
+      mcpServers: { custom: true, other: false },
+      plugins: { github: true, mail: false },
+      attachments: [{ path: "/tmp/image.png", mimeType: "image/png" }, { path: "/tmp/notes.txt" }],
+    };
+    await dispatchTool("create_thread", { projectId: "p", prompt: "Read these", ...choices }, ctx);
+    expect(createThread).toHaveBeenCalledWith(expect.objectContaining(choices));
+    expect(ctx.settings.write).not.toHaveBeenCalled();
+    const spec = TOOLS.find((tool) => tool.name === "create_thread")!;
+    expect(spec.inputSchema.properties).toMatchObject({
+      browserMcp: { type: "boolean" },
+      crossagentMcp: { type: "boolean" },
+      chromeMcp: { type: "boolean" },
+      computerUse: { type: "boolean" },
+      plugins: { type: "object" },
+      mcpServers: { type: "object" },
+      attachments: { type: "array" },
+    });
+  });
+
   it("update_thread dispatches the matching remote thread commands", async () => {
     const threads = [makeThread({ id: "a" })];
     const { ctx, emitRemoteThreadCommand, updatedRows } = context({ threads });
@@ -2982,6 +3008,19 @@ describe("Poracode app control tools — skills", () => {
       project: [{ id: "p1s" }],
       effectiveSkillIds: [],
     });
+  });
+
+  it("lists and reads plugin skills using only the calling thread's overrides", async () => {
+    const overrides = { github: true, mail: false };
+    const { ctx, supervisor } = context({
+      threads: [{ ...thread, config: { model: "fixture", pluginOverrides: overrides } }],
+    });
+    await dispatchTool("list_skills", {}, ctx);
+    expect(supervisor.scanSkills).toHaveBeenLastCalledWith({ pluginOverrides: overrides });
+    await expect(dispatchTool("read_skill", { skillId: "absent" }, ctx)).rejects.toThrow(
+      "Unknown skill",
+    );
+    expect(supervisor.scanSkills).toHaveBeenLastCalledWith({ pluginOverrides: overrides });
   });
 
   it("set_skill_enabled toggles by absolutePath", async () => {

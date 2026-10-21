@@ -4559,12 +4559,16 @@ describe("RemoteAccessServer", () => {
   });
 
   it("only restarts existing remote threads through the legacy start endpoint", async () => {
+    const toolChoices = {
+      mcpServerOverrides: { custom: true },
+      pluginOverrides: { github: false },
+    };
     const project = createTestProject({ location: { kind: "posix", path: "/repo" } });
     vi.mocked(dbGetProjects).mockReturnValue([project]);
     mockThreadDb([
       createTestThread({
         projectId: project.id,
-        config: { model: "gpt-5" },
+        config: { model: "gpt-5", ...toolChoices },
         presentationMode: "terminal",
       }),
     ]);
@@ -4638,6 +4642,7 @@ describe("RemoteAccessServer", () => {
     expect(callSupervisor).toHaveBeenCalledTimes(1);
     expect(callSupervisor).toHaveBeenCalledWith("startThread", {
       ...payload,
+      config: { ...payload.config, ...toolChoices },
       disabledBuiltInMcpServerIds: [],
       disabledBuiltInMcpTools: {},
       mcpServers: [],

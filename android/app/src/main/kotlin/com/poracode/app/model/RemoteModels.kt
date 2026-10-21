@@ -161,6 +161,8 @@ data class ThreadConfig(
     val crossagentMcp: Boolean? = null,
     val computerUse: Boolean? = null,
     val chromeMcp: Boolean? = null,
+    val mcpServerOverrides: Map<String, Boolean>? = null,
+    val pluginOverrides: Map<String, Boolean>? = null,
     val executionEnvironment: RemoteExecutionEnvironment? = null,
 ) {
     fun toJsonObject(): JsonObject = buildJsonObject {
@@ -177,6 +179,18 @@ data class ThreadConfig(
         crossagentMcp?.let { put("crossagentMcp", it) }
         computerUse?.let { put("computerUse", it) }
         chromeMcp?.let { put("chromeMcp", it) }
+        mcpServerOverrides?.let { overrides ->
+            put(
+                "mcpServerOverrides",
+                buildJsonObject { overrides.forEach { (key, enabled) -> put(key, enabled) } },
+            )
+        }
+        pluginOverrides?.let { overrides ->
+            put(
+                "pluginOverrides",
+                buildJsonObject { overrides.forEach { (key, enabled) -> put(key, enabled) } },
+            )
+        }
         executionEnvironment?.let { environment ->
             put(
                 "executionEnvironment",

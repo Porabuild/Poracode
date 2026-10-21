@@ -372,6 +372,36 @@ describe("mcp runtime", () => {
     expect(existsSync(join(pluginDataRoot, plugin.name))).toBe(true);
   });
 
+  it("applies installed-plugin overrides only to the selected launch", async () => {
+    const plugin = await loadWithServers("thread-choice", {
+      main: { type: "streamable-http", url: "https://example.test/mcp" },
+    });
+    const state = installed(plugin.name);
+    state[plugin.name]!.enabled = false;
+    const context = { pluginDataRoot: join(root, "plugin-data") };
+    expect(resolvePluginMcpServers([plugin], state, context).servers).toEqual([]);
+    expect(
+      resolvePluginMcpServers([plugin], state, {
+        ...context,
+        pluginOverrides: { [plugin.name]: true },
+      }).servers,
+    ).toHaveLength(1);
+    expect(
+      resolvePluginMcpServers([plugin], installed(plugin.name), {
+        ...context,
+        pluginOverrides: { [plugin.name]: false },
+      }).servers,
+    ).toEqual([]);
+    expect(state[plugin.name]!.enabled).toBe(false);
+    expect(
+      resolvePluginMcpServers(
+        [plugin],
+        {},
+        { ...context, pluginOverrides: { [plugin.name]: true } },
+      ).servers,
+    ).toEqual([]);
+  });
+
   it("expands placeholders only in args, env values, and cwd", async () => {
     const plugin = await loadWithServers("expansion", {
       main: {
