@@ -4,8 +4,9 @@ SilentInstall silent
 !include "fixture-config.nsh"
 !include FileFunc.nsh
 !include "${FIXTURE_STDUTILS_INCLUDE}"
-!addplugindir /x86-unicode "${FIXTURE_STDUTILS_PLUGINS}"
 !include "${PORACODE_CLI_SOURCE}"
+!addplugindir /x86-unicode "${FIXTURE_STDUTILS_PLUGINS}"
+!insertmacro customHeader
 OutFile "${FIXTURE_EXE}"
 
 !macro Expect VALUE EXPECTED CASE
