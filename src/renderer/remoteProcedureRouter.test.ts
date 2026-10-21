@@ -602,6 +602,37 @@ describe("remote procedure routing registry", () => {
     });
   });
 
+  it.each(["start", "cancel"])(
+    "keeps controlled authentication %s on the local supervisor",
+    (action) => {
+      expect(NON_ROUTER_PROJECT_PROCEDURES.controlAcpAuthentication).toMatch(/^local-shell: /u);
+      expect(isRemoteProcedure("controlAcpAuthentication")).toBe(false);
+      expect(isRemoteIpcAdapterProcedure("controlAcpAuthentication")).toBe(false);
+      expect(
+        decide("controlAcpAuthentication", {
+          version: 1,
+          action,
+          operationId: "00000000-0000-4000-8000-000000000001",
+        }),
+      ).toEqual({ kind: "local" });
+      expect(callRemoteProcedure).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([
+    "controlMcpAuthentication",
+    "probeSelectedAgent",
+    "controlThreadExecution",
+    "reserveThreadExecution",
+    "controlledThreadRequest",
+  ] as const)("keeps %s on the local supervisor", (procedure) => {
+    expect(NON_ROUTER_PROJECT_PROCEDURES[procedure]).toMatch(/^local-shell: /u);
+    expect(isRemoteProcedure(procedure)).toBe(false);
+    expect(isRemoteIpcAdapterProcedure(procedure)).toBe(false);
+    expect(decide(procedure, {})).toEqual({ kind: "local" });
+    expect(callRemoteProcedure).not.toHaveBeenCalled();
+  });
+
   it("rejects payloads that mix owners from different remote servers", async () => {
     const decision = decide("gitMergeToSource", {
       projectLocation: remoteLocation,

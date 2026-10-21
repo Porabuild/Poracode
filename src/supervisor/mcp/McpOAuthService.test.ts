@@ -14,10 +14,10 @@ interface FakeAuthServer {
   close: () => void;
 }
 
-const cleanups: Array<() => void> = [];
+const cleanups: Array<() => void | Promise<void>> = [];
 
-afterEach(() => {
-  for (const cleanup of cleanups.splice(0)) cleanup();
+afterEach(async () => {
+  for (const cleanup of cleanups.splice(0).reverse()) await cleanup();
 });
 
 /**
@@ -259,12 +259,18 @@ describe("McpOAuthService", () => {
     expect(service.credentialStatus("plugin-account-v1:first").status).toBe("disconnected");
   });
 
-  it("refuses future credential stores without changing their bytes", () => {
+  it("refuses future credential stores before OAuth registration and preserves their bytes", async () => {
+    const fake = await startFakeAuthServer({ expiresIn: 3600 });
     const dir = tempDir();
     const future = JSON.stringify({ version: 99, servers: { future: { tokens: "preserve" } } });
     writeFileSync(join(dir, "mcp-oauth.json"), future);
     const service = makeServiceAt(dir);
     expect(service.status().authenticatedUrls).toEqual([]);
+    await expect(service.begin({ server: httpServer(fake.url) })).resolves.toMatchObject({
+      status: "error",
+      message: "Unsupported MCP OAuth store version.",
+    });
+    expect(fake.registerRequests).toEqual([]);
     expect(() => service.clear({ url: "https://future.example/mcp" })).toThrow("Unsupported");
     expect(readFileSync(join(dir, "mcp-oauth.json"), "utf8")).toBe(future);
   });
@@ -337,6 +343,65 @@ describe("McpOAuthService", () => {
       codeGate.resolve();
       digest.mockRestore();
     }
+  });
+
+  it.each(["caller", "owner"] as const)(
+    "cancels and joins a real SDK token exchange through %s custody without canceling another account",
+    async (custody) => {
+      const gate = Promise.withResolvers<void>();
+      const fake = await startFakeAuthServer({ expiresIn: 3600, codeExchangeGate: gate.promise });
+      const service = makeService();
+      const selected = httpServer(fake.url);
+      const controller = new AbortController();
+      const first = await service.beginForCredential(
+        selected,
+        "plugin-account-v1:canceled",
+        controller.signal,
+      );
+      const second = await service.beginForCredential(selected, "plugin-account-v1:retained");
+      if (first.status !== "redirect" || second.status !== "redirect")
+        throw new Error("Expected independent redirects");
+      const waiting = service.wait({ flowId: first.flowId });
+      try {
+        await completeBrowserLeg(first.authorizationUrl);
+        await vi.waitFor(() => expect(fake.tokenRequests).toHaveLength(1));
+        if (custody === "caller") controller.abort();
+        else await service.retireAuthentication(controller.signal);
+        await expect(waiting).resolves.toMatchObject({ status: "error" });
+        expect(service.credentialStatus("plugin-account-v1:canceled").status).toBe("disconnected");
+        const callback = new URL(first.authorizationUrl).searchParams.get("redirect_uri")!;
+        await expect(fetch(callback)).rejects.toThrow("fetch failed");
+        gate.resolve();
+        await completeBrowserLeg(second.authorizationUrl);
+        await expect(service.wait({ flowId: second.flowId })).resolves.toEqual({
+          status: "authorized",
+        });
+        expect(service.credentialStatus("plugin-account-v1:retained").status).toBe("connected");
+        expect(service.status().authenticatedUrls).toEqual([]);
+      } finally {
+        controller.abort();
+        gate.resolve();
+        await waiting;
+      }
+    },
+  );
+
+  it("delivers the browser denial page before retiring its callback listener", async () => {
+    const fake = await startFakeAuthServer({ expiresIn: 3600 });
+    const service = makeService();
+    const begun = await service.begin({ server: httpServer(fake.url) });
+    if (begun.status !== "redirect") throw new Error("Expected redirect");
+    const authorization = new URL(begun.authorizationUrl);
+    const callback = new URL(authorization.searchParams.get("redirect_uri")!);
+    callback.searchParams.set("state", authorization.searchParams.get("state")!);
+    callback.searchParams.set("error", "access_denied");
+    const response = await fetch(callback);
+    expect(response.status).toBe(200);
+    expect(await response.text()).toContain("Sign-in failed.");
+    await expect(service.wait({ flowId: begun.flowId })).resolves.toMatchObject({
+      status: "error",
+    });
+    expect(fake.tokenRequests).toHaveLength(0);
   });
 
   it("refreshes expired tokens when applying authorization", async () => {
@@ -499,7 +564,7 @@ describe("McpOAuthService", () => {
         }
       ).servers[url];
       if (action === "clear") service.clear({ url });
-      else service.dispose();
+      else await service.dispose();
       expect(await pending).toBe(server);
       gate.resolve();
       await new Promise<void>((resolve) => setImmediate(resolve));

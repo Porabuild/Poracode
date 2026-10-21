@@ -29,6 +29,11 @@ describe("buildDesktopBackendInitialize", () => {
       settingsPath: join(leasePaths.dataRoot, "settings.json"),
       devServerUrl: undefined,
       dataFencePath: leasePaths.dataFencePath,
+      localControl: {
+        version: 1,
+        profileNamespace: leasePaths.profileNamespace,
+        ownerGeneration: "11111111-1111-4111-8111-111111111111",
+      },
       environmentAssets: {
         agentPluginsDir: "/assets/agent-plugins",
         preassembledArchiveDir: "/assets/ssh-runtime-archive",
@@ -44,6 +49,11 @@ describe("buildDesktopBackendInitialize", () => {
     // The child acquires this fence before opening SQLite (BackendHostCore);
     // dropping the field would silently disable data custody in production.
     expect(payload.desktop?.dataFencePath).toBe(leasePaths.dataFencePath);
+    expect(payload.desktop?.localControl).toEqual({
+      version: 1,
+      profileNamespace: leasePaths.profileNamespace,
+      ownerGeneration: "11111111-1111-4111-8111-111111111111",
+    });
     expect(payload.desktop?.dataFencePath).toMatch(/\.host-data\.sqlite$/u);
     expect(payload.desktop?.settingsPath).toBe(join(leasePaths.dataRoot, "settings.json"));
     expect(payload.desktop?.channel).toBe("stable");

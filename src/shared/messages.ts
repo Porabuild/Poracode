@@ -8,6 +8,8 @@
  */
 
 const messages = {
+  "thread.execution.owned":
+    "Another client is running this thread. Stop that run before replacing the thread or sending more input.",
   "agent.updateQueueTimeout": "The update waited too long for another installation. Try again.",
   "provider.signInDataUnavailable":
     "The provider's sign-in data could not be read. Try again or update Poracode.",

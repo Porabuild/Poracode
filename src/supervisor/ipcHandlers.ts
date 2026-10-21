@@ -59,6 +59,7 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
     manageModelProviders: (payload) => registry.manageModelProviders(payload),
     listWslDistros: () => registry.listWslDistros(),
     getAgentStatuses: (payload) => registry.getAgentStatuses(payload),
+    probeSelectedAgent: (payload) => registry.probeSelectedAgent(payload),
     cancelAgentDiscovery: () => registry.cancelAgentDiscovery(),
     refreshAgentStatuses: (payload) =>
       withUsageReconciliation(registry.refreshAgentStatuses(payload)),
@@ -79,6 +80,8 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
     setAcpRegistryAgentAuth: (payload) => registry.setAcpRegistryAgentAuth(payload),
     authenticateAcpAgent: (payload) =>
       withUsageReconciliation(registry.authenticateAcpAgent(payload)),
+    controlAcpAuthentication: (payload) =>
+      withUsageReconciliation(registry.controlAcpAuthentication(payload)),
     logoutAcpAgent: (payload) => withUsageReconciliation(registry.logoutAcpAgent(payload)),
     listImportableSessions: (payload) => runtime.sessionImportService.list(payload),
     importSessionTranscript: (payload) => runtime.sessionImportService.importTranscript(payload),
@@ -87,6 +90,9 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
     getTerminalShellSnapshots: () => threads.getTerminalShellSnapshots(),
     getAvailableWindowsShells: () => runtime.getAvailableWindowsShells(),
     startThread: (payload) => threads.startThread(payload),
+    controlThreadExecution: (payload) => threads.controlThreadExecution(payload),
+    reserveThreadExecution: (payload) => threads.reserveThreadExecution(payload),
+    controlledThreadRequest: (payload) => threads.controlledThreadRequest(payload),
     ensureThreadRunning: (payload) => threads.ensureThreadRunning(payload),
     sendThreadInput: (payload) =>
       threads.sendThreadInput(sendThreadInputPayloadSchema.parse(payload)),
@@ -392,6 +398,7 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
     discoverExternalMcpServers: (payload) => externalMcpDiscovery.discover(payload),
     probeMcpServer: (payload) => mcpProbe.probe(payload),
     beginMcpServerOauth: (payload) => mcpOAuth.begin(payload),
+    controlMcpAuthentication: (payload) => runtime.mcpAuthenticationService.control(payload),
     waitMcpServerOauth: (payload) => mcpOAuth.wait(payload),
     clearMcpServerOauth: (payload) => mcpOAuth.clear(payload),
     getMcpOauthStatus: () => mcpOAuth.status(),

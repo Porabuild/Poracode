@@ -10,6 +10,7 @@
 //   desktopAppLifecycle     tray, owner publication, before-quit join
 //   hostServices            the shared Electron-free service composition
 import { app, globalShortcut, Menu } from "electron";
+import { DESKTOP_HOST_CONTROL_VERSION } from "@/shared/desktopHostControl";
 import { IPC_EVENT_CHANNELS } from "@/shared/ipc";
 import { productNameFor } from "@/shared/channel";
 import type { RemoteHostUpdateStatus } from "@/shared/remote";
@@ -89,10 +90,11 @@ export async function startDesktopApp(): Promise<void> {
   // The fence path comes from the admission lease's canonical mapping: the
   // prepared baseDir IS the owned `.host-v1` root since the unification, and
   // re-deriving the mapping from it would refuse the literal owned root.
-  const ownerFencePath = desktopApp.desktopOwnerLease?.paths.dataFencePath;
-  if (!ownerFencePath) {
+  const ownerLease = desktopApp.desktopOwnerLease;
+  if (!ownerLease) {
     throw new Error("The desktop host owner lease is required before the backend forks.");
   }
+  ownerLease.assertActive();
   const preassembledArchiveDir = resolvePreassembledSshRuntimeArchiveDir();
   const backend = createDesktopBackendHost({
     backendHostPath: dirs.backendHostPath,
@@ -102,7 +104,12 @@ export async function startDesktopApp(): Promise<void> {
       channel,
       settingsPath: shell.paths.settingsPath,
       devServerUrl: process.env.VITE_DEV_SERVER_URL,
-      dataFencePath: ownerFencePath,
+      dataFencePath: ownerLease.paths.dataFencePath,
+      localControl: {
+        version: DESKTOP_HOST_CONTROL_VERSION,
+        profileNamespace: ownerLease.paths.profileNamespace,
+        ownerGeneration: ownerLease.generation,
+      },
       environmentAssets: {
         agentPluginsDir: dirs.agentPluginsDir,
         ...(preassembledArchiveDir ? { preassembledArchiveDir } : {}),

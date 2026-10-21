@@ -288,6 +288,23 @@ export class RemoteAuthStore {
     return this.pairingCredentials.delete(hashCredential(credential));
   }
 
+  listPairingCredentials() {
+    this.pruneExpired();
+    return [...this.pairingCredentials.values()].map((entry) => ({
+      id: entry.id,
+      scopes: [...entry.scopes],
+      ...(entry.label ? { label: entry.label } : {}),
+      expiresAt: toIso(entry.expiresAtMs),
+    }));
+  }
+
+  revokePairingCredentialById(id: string): boolean {
+    for (const [hash, entry] of this.pairingCredentials) {
+      if (entry.id === id) return this.pairingCredentials.delete(hash);
+    }
+    return false;
+  }
+
   exchangePairingCredential(input: {
     readonly credential: string;
     readonly scopes?: readonly RemoteAccessScope[];

@@ -31,6 +31,9 @@ import { requestPairingFromRunningServer } from "./pairingControl";
 import { PushRegistrationStore, pushRegistrationsFilePath } from "@/host/remote/push";
 import type { SendPush } from "@/host/remote/push/pushGateway";
 import * as remoteConfig from "@/host/remote/config";
+import { requestHostAdministration } from "./cliAdmin";
+import { callHostControl } from "@/backend/ownership/hostControlClient";
+import { resolveHostRootPaths } from "@/backend/ownership/hostRootPaths";
 
 // Mutable state shared with the hoisted vi.mock factories.
 const h = vi.hoisted(() => ({
@@ -41,6 +44,7 @@ const h = vi.hoisted(() => ({
   supervisorStart: vi.fn<() => void>(),
   supervisorDispose: vi.fn<() => Promise<void>>(),
   supervisorCall: vi.fn<() => Promise<unknown>>(async () => ({})),
+  supervisorProvenAbsent: vi.fn<() => boolean>(() => false),
   initDatabase: vi.fn<(dbPath: string) => void>(),
   closeDatabase: vi.fn<() => void>(),
   assertPreparedDatabaseForWrite: vi.fn<(dataRoot: string) => void>(),
@@ -153,6 +157,7 @@ vi.mock("@/host/supervisor/SupervisorClient", () => ({
     start = h.supervisorStart;
     dispose = h.supervisorDispose;
     call = h.supervisorCall;
+    isSupervisorProvenAbsent = h.supervisorProvenAbsent;
     constructor(options: { onEvent: (event: unknown) => void; onReset: () => void }) {
       h.capturedOnEvent = options.onEvent;
       h.capturedOnReset = options.onReset;
@@ -202,6 +207,8 @@ describe("createHeadlessRemoteHost", () => {
     h.assertPreparedDatabaseForWrite.mockReset();
     h.supervisorCall.mockReset();
     h.supervisorCall.mockResolvedValue({});
+    h.supervisorProvenAbsent.mockReset();
+    h.supervisorProvenAbsent.mockReturnValue(false);
     h.sendPush.mockReset();
     h.sendPush.mockResolvedValue({ ok: true, status: 200, unregistered: false });
     h.projects = [];
@@ -458,37 +465,87 @@ describe("createHeadlessRemoteHost", () => {
     }
   });
 
-  it("joins a held startup before releasing the owner and never starts HTTP after stop", async () => {
-    const host = await makeHost();
-    const ingress = Promise.withResolvers<void>();
-    const startIngress = vi
-      .spyOn(BackendDurableServices.prototype, "startIngress")
-      .mockReturnValue(ingress.promise);
-    const startHttp = vi.spyOn(RemoteAccessServer.prototype, "start");
-    const starting = host.start();
-    const startOutcome = starting.catch((error: unknown) => error);
-    const closing = host.dispose();
-    let closed = false;
-    void closing.then(() => {
-      closed = true;
-    });
+  it.each([false, true])(
+    "joins held startup before releasing the owner (local-only: %s)",
+    async (localOnly) => {
+      const host = await makeHost({ localAdministrationOnly: localOnly });
+      const ingress = Promise.withResolvers<void>();
+      const startIngress = vi
+        .spyOn(BackendDurableServices.prototype, "startIngress")
+        .mockReturnValue(ingress.promise);
+      const startHttp = vi.spyOn(RemoteAccessServer.prototype, "start");
+      const starting = localOnly ? host.startLocalAdministration() : host.start();
+      const startOutcome = starting.catch((error: unknown) => error);
+      const closing = host.dispose();
+      let closed = false;
+      void closing.then(() => {
+        closed = true;
+      });
+      try {
+        await new Promise<void>((resolve) => setTimeout(resolve, 0));
+        expect(closed).toBe(false);
+        expect(h.closeDatabase).not.toHaveBeenCalled();
+        expect(() => HostOwnerController.acquire(h.tmpBase, "desktop")).toThrow(HostRootInUseError);
+        ingress.resolve();
+        expect(await startOutcome).toBeInstanceOf(Error);
+        await closing;
+        expect(startHttp).not.toHaveBeenCalled();
+        expect(h.closeDatabase).toHaveBeenCalledOnce();
+      } finally {
+        ingress.resolve();
+        await startOutcome;
+        await closing;
+        startIngress.mockRestore();
+        startHttp.mockRestore();
+      }
+    },
+  );
+
+  it("starts local administration without paired access, deployment TLS or background jobs", async () => {
+    vi.stubEnv("PORACODE_REMOTE_TLS_CERT", "/missing/cert.pem");
+    vi.stubEnv("PORACODE_REMOTE_TLS_KEY", "/missing/key.pem");
+    vi.stubEnv("PORACODE_REMOTE_FORWARD_BASE_URL", "invalid-deployment-url");
+    vi.stubEnv("PORACODE_REMOTE_ACCESS_HOST", "invalid-deployment-host");
+    const http = vi.spyOn(RemoteAccessServer.prototype, "start");
+    const background = vi.spyOn(BackendDurableServices.prototype, "startBackgroundServices");
+    const host = await makeHost({ localAdministrationOnly: true });
     try {
-      await new Promise<void>((resolve) => setTimeout(resolve, 0));
-      expect(closed).toBe(false);
-      expect(h.closeDatabase).not.toHaveBeenCalled();
+      await Promise.all([host.startLocalAdministration(), host.startLocalAdministration()]);
+      const reply = await callHostControl(resolveHostRootPaths(h.tmpBase), "describe");
+      expect(reply.result.state).toBe("ready");
+      expect(reply.result.endpoint).toBeNull();
+      expect(host.server.getInfo()).toBeNull();
+      expect(http).not.toHaveBeenCalled();
+      expect(background).not.toHaveBeenCalled();
+      await expect(host.start()).rejects.toThrow("cannot start paired access");
       expect(() => HostOwnerController.acquire(h.tmpBase, "desktop")).toThrow(HostRootInUseError);
-      ingress.resolve();
-      expect(await startOutcome).toBeInstanceOf(Error);
-      await closing;
-      expect(startHttp).not.toHaveBeenCalled();
-      expect(h.closeDatabase).toHaveBeenCalledOnce();
     } finally {
-      ingress.resolve();
-      await startOutcome;
-      await closing;
-      startIngress.mockRestore();
-      startHttp.mockRestore();
+      await host.dispose();
+      http.mockRestore();
+      background.mockRestore();
     }
+  });
+
+  it("refuses to switch a normal host into local-task mode", async () => {
+    const host = await makeHost();
+    try {
+      await expect(host.startLocalAdministration()).rejects.toThrow("server access");
+      expect(host.server.getInfo()).toBeNull();
+    } finally {
+      await host.dispose();
+    }
+  });
+
+  it.each([
+    { staging: true },
+    { relayUrl: "wss://unused.invalid" },
+    { registerChromeNativeHost: true },
+  ])("refuses incompatible task ownership before root preparation: %j", async (change) => {
+    await expect(makeHost({ localAdministrationOnly: true, ...change })).rejects.toThrow(
+      "Local task ownership cannot",
+    );
+    expect(existsSync(h.tmpBase)).toBe(false);
+    expect(existsSync(resolveHostRootPaths(h.tmpBase).dataRoot)).toBe(false);
   });
 
   it.each(["success", "failure"])(
@@ -525,7 +582,7 @@ describe("createHeadlessRemoteHost", () => {
         await entered.promise;
         await expect.soft(host.start()).rejects.toThrow("shutting down");
         expect.soft(stopDurable).toHaveBeenCalledOnce();
-        expect.soft(h.supervisorDispose).toHaveBeenCalledOnce();
+        await vi.waitFor(() => expect(h.supervisorDispose).toHaveBeenCalledOnce());
         expect(h.closeDatabase).not.toHaveBeenCalled();
         http.resolve();
         // Give a rejected HTTP stop the opportunity to incorrectly break the join.
@@ -780,6 +837,19 @@ describe("createHeadlessRemoteHost", () => {
     await expect(requestPairingFromRunningServer(h.tmpBase)).rejects.toThrow("unavailable");
   });
 
+  it("does not launch a proven-absent supervisor for the startup live snapshot seed", async () => {
+    h.supervisorProvenAbsent.mockReturnValue(true);
+    const host = await makeHost();
+    try {
+      await host.start();
+      expect(h.supervisorProvenAbsent).toHaveBeenCalled();
+      expect(h.supervisorCall).not.toHaveBeenCalled();
+      expect(h.supervisorStart).not.toHaveBeenCalled();
+    } finally {
+      await host.dispose();
+    }
+  });
+
   it("does not warm Git state through the supervisor for existing idle threads", async () => {
     h.threads = [
       {
@@ -911,6 +981,76 @@ describe("createHeadlessRemoteHost", () => {
     expect(h.supervisorDispose).toHaveBeenCalledTimes(1);
     expect(h.closeDatabase).toHaveBeenCalledTimes(1);
   });
+
+  it.each([false, true])(
+    "joins held authentication cancellation before supervisor/lease release (caller abort: %s)",
+    async (cancelCaller) => {
+      const entered = Promise.withResolvers<void>();
+      const cancelling = Promise.withResolvers<void>();
+      const retired = Promise.withResolvers<void>();
+      let operationId: string | undefined;
+      h.supervisorCall.mockImplementation(async (...args: unknown[]) => {
+        const [name, payload] = args as [string, { action?: string; operationId?: string }];
+        if (name === "refreshAgentStatuses")
+          return {
+            windows: [
+              {
+                kind: "fixture",
+                installed: true,
+                authMethods: [{ id: "approval", name: "Fixture approval" }],
+              },
+            ],
+            wsl: [],
+            fromCache: false,
+          };
+        if (name === "controlAcpAuthentication") {
+          if (payload.action === "start") {
+            operationId = payload.operationId;
+            entered.resolve();
+            await retired.promise;
+            throw new Error("Fixture authentication cancelled");
+          }
+          if (payload.operationId !== operationId)
+            throw new Error("Fixture cancellation ID did not match its start");
+          cancelling.resolve();
+          await retired.promise;
+        }
+        return {};
+      });
+      const host = await makeHost();
+      await host.start();
+      const controller = new AbortController();
+      const login = requestHostAdministration(
+        host.profileNamespace,
+        { action: "auth-login", agentKind: "fixture" },
+        controller.signal,
+      ).then(
+        () => "unexpected success",
+        (error: unknown) => error,
+      );
+      let disposal: Promise<void> | undefined;
+      try {
+        await entered.promise;
+        if (cancelCaller) controller.abort();
+        disposal = host.dispose();
+        await cancelling.promise;
+        expect(h.supervisorDispose).not.toHaveBeenCalled();
+        expect(h.closeDatabase).not.toHaveBeenCalled();
+        expect(() => HostOwnerController.acquire(host.profileNamespace, "headless")).toThrow(
+          HostRootInUseError,
+        );
+        retired.resolve();
+        expect(await login).toBeInstanceOf(Error);
+        await disposal;
+        expect(h.supervisorDispose).toHaveBeenCalledOnce();
+        expect(h.closeDatabase).toHaveBeenCalledOnce();
+      } finally {
+        retired.resolve();
+        await login;
+        await (disposal ?? host.dispose());
+      }
+    },
+  );
 
   it("does not resolve headless disposal or close SQLite before the supervisor joins", async () => {
     let finishSupervisor!: () => void;

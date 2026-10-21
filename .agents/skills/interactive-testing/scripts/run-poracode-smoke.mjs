@@ -345,11 +345,7 @@ try {
   try {
     await stopOwnedProcesses([integrationProcess, appProcess, rendererProcess, buildProcess]);
     if (sessionManifest) await waitForSessionPortsClosed(sessionManifest, 5_000);
-    if (sessionManifest)
-      await removeSmokeRuntime(
-        runtime ?? { appRoot: join(root, "runtime"), ownerToken: sessionToken },
-        root,
-      );
+    if (runtime) await removeSmokeRuntime(runtime, root);
   } catch (error) {
     teardownError = error instanceof Error ? error.message : String(error);
     failureMessage ??= teardownError;

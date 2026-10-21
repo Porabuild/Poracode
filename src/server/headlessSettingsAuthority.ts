@@ -29,6 +29,10 @@ export interface HeadlessSettingsComposition {
     field: F,
     compute: (current: SharedSettings) => SharedSettings[F] | undefined,
   ): Promise<SettingsMutationResult>;
+  editSettingsFields<F extends keyof SharedSettings>(
+    fields: readonly F[],
+    compute: (current: SharedSettings) => Pick<SharedSettings, F>,
+  ): Promise<SettingsMutationResult>;
   /** Trusted owner-runtime subject edits (supervisor registry records). */
   commitOwnerEdits(edits: readonly SettingsOwnerEdit[]): Promise<void>;
   /** Remote `POST /api/settings` patch as scoped CAS edits. */
@@ -99,6 +103,7 @@ export async function composeHeadlessSettingsAuthority(
       void writes.commitCompatSnapshot(next).catch(report);
     },
     editSettingsField: (field, compute) => writes.editSettingsField(field, compute),
+    editSettingsFields: (fields, compute) => writes.editSettingsFields(fields, compute),
     commitOwnerEdits: (edits) => writes.commitOwnerEdits(edits),
     updateRemoteSettings: async (patch) =>
       pickRemoteSettings(await writes.commitCompatPatch(patch)),

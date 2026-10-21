@@ -137,7 +137,7 @@ describe("AgentRegistryService.updateAgentBinary", () => {
     const getAgentStatuses = vi.fn<AgentStatusService["getAgentStatuses"]>();
     const listWslDistros = vi.fn<AgentStatusService["listWslDistros"]>();
     const agentStatusService = {
-      invalidateAgentStatuses: vi.fn<() => void>(),
+      reconcileAgentRegistry: vi.fn<(kinds: readonly string[]) => void>(),
       refreshAgentStatuses,
       getAgentStatuses,
       listWslDistros,
@@ -236,7 +236,7 @@ describe("AgentRegistryService.updateAgentBinary", () => {
       .fn<AgentStatusService["listWslDistros"]>()
       .mockResolvedValue(["Ubuntu"]);
     const agentStatusService = {
-      invalidateAgentStatuses: vi.fn<() => void>(),
+      reconcileAgentRegistry: vi.fn<(kinds: readonly string[]) => void>(),
       refreshAgentStatuses,
       getAgentStatuses: vi.fn<AgentStatusService["getAgentStatuses"]>(),
       listWslDistros,
@@ -309,7 +309,7 @@ describe("AgentRegistryService.updateAgentBinary", () => {
       .fn<AgentStatusService["listWslDistros"]>()
       .mockResolvedValue(["Ubuntu"]);
     const agentStatusService = {
-      invalidateAgentStatuses: vi.fn<() => void>(),
+      reconcileAgentRegistry: vi.fn<(kinds: readonly string[]) => void>(),
       refreshAgentStatuses,
       getAgentStatuses: vi.fn<AgentStatusService["getAgentStatuses"]>(),
       listWslDistros,
@@ -384,7 +384,9 @@ describe("AgentRegistryService.getLatestAgentVersion", () => {
         invalidate: vi.fn<SupervisorSharedSettingsCache["invalidate"]>(),
       } as unknown as SupervisorSharedSettingsCache,
       getAgentStatusService: () =>
-        ({ invalidateAgentStatuses: vi.fn<() => void>() }) as unknown as AgentStatusService,
+        ({
+          reconcileAgentRegistry: vi.fn<(kinds: readonly string[]) => void>(),
+        }) as unknown as AgentStatusService,
       getActiveWslProjectDistros: () => [],
       closeThreadsForAgentKind: vi.fn<(agentKind: AgentKind) => Promise<void>>(async () => {}),
     });
@@ -480,7 +482,7 @@ describe("AgentRegistryService project-scoped ACP refreshes", () => {
       .fn<AgentStatusService["listWslDistros"]>()
       .mockResolvedValue(["Ubuntu"]);
     const agentStatusService = {
-      invalidateAgentStatuses: vi.fn<() => void>(),
+      reconcileAgentRegistry: vi.fn<(kinds: readonly string[]) => void>(),
       refreshAgentStatuses,
       getAgentStatuses,
       listWslDistros,
@@ -715,7 +717,7 @@ describe("AgentRegistryService first-class ACP auto-install", () => {
       .fn<AgentStatusService["refreshAgentStatuses"]>()
       .mockResolvedValue({ windows: [], wsl: [], fromCache: false });
     const agentStatusService = {
-      invalidateAgentStatuses: vi.fn<() => void>(),
+      reconcileAgentRegistry: vi.fn<(kinds: readonly string[]) => void>(),
       getAgentStatuses,
       refreshAgentStatuses,
       listWslDistros: vi.fn<AgentStatusService["listWslDistros"]>().mockResolvedValue([]),
@@ -740,6 +742,34 @@ describe("AgentRegistryService first-class ACP auto-install", () => {
     });
     return { getAgentStatuses, refreshAgentStatuses, service };
   }
+
+  it.each(["acp-generic:custom", "antigravity"])(
+    "never starts package repair from a scoped status refresh for %s",
+    async (agentKind) => {
+      const { refreshAgentStatuses, service } = createService();
+      refreshAgentStatuses.mockResolvedValue({
+        windows: [antigravityStatus({ cli: true, acp: false })],
+        wsl: [],
+        fromCache: false,
+      });
+      await service.refreshAgentStatuses({
+        wslDistros: [],
+        scope: { agentKinds: [agentKind], envs: [{ kind: "native" }] },
+      });
+      expect(acpRegistryMocks.installAcpRegistryAgent).not.toHaveBeenCalled();
+    },
+  );
+
+  it("keeps package repair available to unscoped status discovery", async () => {
+    const { refreshAgentStatuses, service } = createService();
+    refreshAgentStatuses.mockResolvedValue({
+      windows: [antigravityStatus({ cli: true, acp: false })],
+      wsl: [],
+      fromCache: false,
+    });
+    await service.refreshAgentStatuses({ wslDistros: [] });
+    await vi.waitFor(() => expect(acpRegistryMocks.installAcpRegistryAgent).toHaveBeenCalledOnce());
+  });
 
   it("installs the chat runtime once when only the CLI is detected", async () => {
     const { getAgentStatuses, refreshAgentStatuses, service } = createService();
@@ -1030,6 +1060,10 @@ describe("AgentRegistryService.refreshAgentRegistryAdapters", () => {
 
   function createService() {
     const adapters = new Map<AgentKind, AgentAdapter>();
+    const statuses = {
+      reconcileAgentRegistry: vi.fn<(kinds: readonly string[]) => void>(),
+      invalidateAgentStatuses: vi.fn<() => void>(),
+    };
     const service = new AgentRegistryService({
       adapters,
       settingsPath: "/data/settings.json",
@@ -1039,12 +1073,11 @@ describe("AgentRegistryService.refreshAgentRegistryAdapters", () => {
       sharedSettingsCache: {
         invalidate: vi.fn<SupervisorSharedSettingsCache["invalidate"]>(),
       } as unknown as SupervisorSharedSettingsCache,
-      getAgentStatusService: () =>
-        ({ invalidateAgentStatuses: vi.fn<() => void>() }) as unknown as AgentStatusService,
+      getAgentStatusService: () => statuses as unknown as AgentStatusService,
       getActiveWslProjectDistros: () => [],
       closeThreadsForAgentKind: vi.fn<(agentKind: AgentKind) => Promise<void>>(async () => {}),
     });
-    return { adapters, service };
+    return { adapters, service, statuses };
   }
 
   it("keeps live adapter instances across rebuilds with unchanged registry input", () => {
@@ -1072,7 +1105,7 @@ describe("AgentRegistryService.refreshAgentRegistryAdapters", () => {
     acpRegistryMocks.readAcpRegistrySettings
       .mockReset()
       .mockReturnValue(withInstances({ "antigravity-acp": antigravityAcp, demo }));
-    const { adapters, service } = createService();
+    const { adapters, service, statuses } = createService();
     service.refreshAgentRegistryAdapters();
     const antigravity = adapters.get("antigravity" as AgentKind);
     const demoAdapter = adapters.get("acp-generic:demo" as AgentKind);
@@ -1086,6 +1119,8 @@ describe("AgentRegistryService.refreshAgentRegistryAdapters", () => {
     service.refreshAgentRegistryAdapters();
     expect(adapters.get("antigravity" as AgentKind)).toBe(antigravity);
     expect(adapters.get("acp-generic:demo" as AgentKind)).not.toBe(demoAdapter);
+    expect(statuses.reconcileAgentRegistry).toHaveBeenCalledExactlyOnceWith(["acp-generic:demo"]);
+    expect(statuses.invalidateAgentStatuses).not.toHaveBeenCalled();
 
     acpRegistryMocks.readAcpRegistrySettings.mockReturnValue(
       withInstances({ "antigravity-acp": { ...antigravityAcp, enabled: false } }),

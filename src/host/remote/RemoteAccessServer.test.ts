@@ -1233,6 +1233,52 @@ describe("RemoteAccessServer", () => {
     resetRuntimePersistenceForTests();
   });
 
+  it.each(["independent", "managed-loopback"] as const)(
+    "preserves the displayed QR when an %s grant is issued and redeemed",
+    async (kind) => {
+      const onPairingChanged = vi.fn<() => void>();
+      const server = createTestServer({
+        truncateThreadRuntime() {},
+        appVersion: "1.0.0",
+        identity: { desktopId: "desktop-test", label: "Test Desktop" },
+        host: "127.0.0.1",
+        port: 0,
+        callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
+        onPairingChanged,
+      });
+      servers.push(server);
+      const info = await server.start();
+      const displayed = { pairingUrl: info.pairingUrl, pairingExpiresAt: info.pairingExpiresAt };
+      onPairingChanged.mockClear();
+      const url =
+        kind === "independent"
+          ? server.issueIndependentPairingUrl("CLI grant", { preset: "viewer" })
+          : server.mintLoopbackRendererCredential()!.pairingUrl;
+      const credential = new URLSearchParams(new URL(url).hash.slice(1)).get("token");
+      expect(server.getInfo()).toMatchObject(displayed);
+      const exchange = () =>
+        fetch(new URL("/oauth/token", info.httpBaseUrl), {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+          },
+          body: JSON.stringify({
+            grantType: "pairing-token",
+            credential,
+            scopes: ["session:read"],
+          }),
+        });
+      const response = await exchange();
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({ scopes: ["session:read"] });
+      expect(server.getInfo()).toMatchObject(displayed);
+      expect(onPairingChanged).not.toHaveBeenCalled();
+      expect((await exchange()).status).toBe(401);
+      expect(server.getInfo()).toMatchObject(displayed);
+    },
+  );
+
   it("rotates the desktop pairing code after exchange and rejects replay", async () => {
     const onPairingChanged = vi.fn<() => void>();
     const server = createTestServer({

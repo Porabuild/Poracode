@@ -24,6 +24,7 @@ import {
 import {
   dbReadCatalogProjectPhase1,
   dbReadCatalogProjectPhase2,
+  dbReadCatalogProjectSummaries,
   dbReadCatalogThreadPhase1,
   dbReadCatalogThreadPhase2,
 } from "./catalogReads";
@@ -111,6 +112,30 @@ describe.skipIf(!sqliteAvailable)("catalogReads (real sqlite)", () => {
     closeDatabase();
     rmSync(dir, { recursive: true, force: true });
     delete process.env.PORACODE_BETTER_SQLITE3_NATIVE_BINDING;
+  });
+
+  it("reads ordered local project summaries without parsing private or unrelated JSON", () => {
+    dbUpsertProject(testProject("project-2"), 1);
+    getSqlite()
+      .prepare(`UPDATE projects SET mcp_servers = ?, scripts = ?,
+      last_draft_config = ?, gh_account = ?, disabled = 1 WHERE id = ?`)
+      .run(
+        "invalid-private-credentials",
+        "invalid-private-script",
+        "invalid-config",
+        "invalid-account",
+        "project-1",
+      );
+    const summaries = dbReadCatalogProjectSummaries(["project-2", "missing", "project-1"]);
+    expect(summaries.map((project) => project.id)).toEqual(["project-2", "project-1"]);
+    expect(summaries[1]).toMatchObject({
+      disabled: true,
+      location: { kind: "posix", path: "/tmp/project-1" },
+    });
+    expect(JSON.stringify(summaries)).not.toMatch(
+      /invalid|mcpServers|scripts|ghAccount|lastDraftConfig/,
+    );
+    expect(dbReadCatalogProjectSummaries([])).toEqual([]);
   });
 
   function commitDirectories(paths: string[]): void {

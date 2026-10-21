@@ -7,6 +7,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  realpathSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -17,12 +18,18 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   assembleServerTarball,
   assertTargetCoverage,
+  stageServiceLaunchers,
+  stagePtyJobOwners,
 } from "../../scripts/assemble-server-tarball.mjs";
 import { readServerArtifactMetadata } from "../../scripts/server-artifact-metadata.mjs";
 
 const dirs: string[] = [];
 afterEach(() => {
-  for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true });
+  for (const dir of dirs.splice(0)) {
+    if (dirname(realpathSync.native(dir)) !== realpathSync.native(tmpdir()))
+      throw new Error("Refusing cleanup outside the owned temporary directory.");
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 function tempDir(prefix: string): string {
@@ -122,6 +129,41 @@ function writeResourceFixtures(resourceRoot: string, omit?: string) {
       writeFileSync(path, `${name}/${file}\n`);
     }
   }
+  for (const [resource, filename] of [
+    ["service-launcher", "service-launcher-v1.exe"],
+    ["pty-job-owner", "pty-job-owner-v1.exe"],
+  ] as const) {
+    if (omit === resource) continue;
+    const directory = join(resourceRoot, resource);
+    const targets: Record<string, { relativePath: string; bytes: number; sha256: string }> = {};
+    for (const [target, machine] of [
+      ["win32-x64", 0x8664],
+      ["win32-arm64", 0xaa64],
+    ] as const) {
+      const bytes = Buffer.alloc(512);
+      bytes.writeUInt16LE(0x5a4d, 0);
+      bytes.writeUInt32LE(64, 0x3c);
+      bytes.writeUInt32LE(0x00004550, 64);
+      bytes.writeUInt16LE(machine, 68);
+      bytes.writeUInt16LE(240, 84);
+      bytes.writeUInt16LE(0x20b, 88);
+      bytes.writeUInt16LE(2, 156);
+      mkdirSync(join(directory, target), { recursive: true });
+      const relativePath = `${target}/${filename}`;
+      writeFileSync(join(directory, relativePath), bytes);
+      targets[target] = { relativePath, bytes: bytes.length, sha256: sha(bytes) };
+    }
+    writeFileSync(
+      join(directory, "manifest.json"),
+      JSON.stringify({
+        formatVersion: 1,
+        protocolVersion: 1,
+        helperVersion: "1.0.0",
+        sourceSha256: "a".repeat(64),
+        targets,
+      }),
+    );
+  }
 }
 
 function resourceFixtureDir(prefix: string): string {
@@ -163,6 +205,71 @@ function tarballEntries(tarballPath: string): string[] {
 }
 
 describe("assembleServerTarball (V6 D.2, plan D2/D3)", () => {
+  it("stages the complete verified PTY resource without changing its declared identity", () => {
+    const root = resourceFixtureDir("poracode-pty-artifact-");
+    const destination = tempDir("poracode-pty-stage-");
+    const files = stagePtyJobOwners(root, destination, ["win32-x64"]);
+    expect(files).toEqual([
+      "resources/pty-job-owner/manifest.json",
+      "resources/pty-job-owner/win32-arm64/pty-job-owner-v1.exe",
+      "resources/pty-job-owner/win32-x64/pty-job-owner-v1.exe",
+    ]);
+    expect(readFileSync(join(destination, "pty-job-owner/manifest.json"))).toEqual(
+      readFileSync(join(root, "pty-job-owner/manifest.json")),
+    );
+  });
+  it("preserves unqualified PTY output and refuses before copying anything", () => {
+    const root = resourceFixtureDir("poracode-pty-artifact-");
+    const partial = join(root, "pty-job-owner/manifest.json.pending");
+    writeFileSync(partial, "preserve this partial artifact");
+    const destination = tempDir("poracode-pty-stage-");
+    expect(() => stagePtyJobOwners(root, destination, ["win32-x64"])).toThrow(
+      "undeclared or partial",
+    );
+    expect(existsSync(join(destination, "pty-job-owner"))).toBe(false);
+    expect(readFileSync(partial, "utf8")).toBe("preserve this partial artifact");
+  });
+  it("requires the exact advertised Windows PTY target without a native fallback", () => {
+    const missing = tempDir("poracode-pty-missing-");
+    writeResourceFixtures(missing, "pty-job-owner");
+    expect(() => stagePtyJobOwners(missing, tempDir("poracode-pty-stage-"), ["win32-x64"])).toThrow(
+      "require the prepared",
+    );
+    expect(stagePtyJobOwners(missing, tempDir("poracode-pty-stage-"), ["linux-x64"])).toEqual([]);
+    const root = resourceFixtureDir("poracode-pty-artifact-");
+    expect(() => stagePtyJobOwners(root, tempDir("poracode-pty-stage-"), ["win32-ia32"])).toThrow(
+      "No staged",
+    );
+  });
+  it("stages only verified native service targets, excluding partial and stale helper outputs", () => {
+    const root = resourceFixtureDir("poracode-service-artifact-");
+    writeFileSync(join(root, "service-launcher", "partial.exe.pending"), "not qualified");
+    const destination = tempDir("poracode-service-stage-");
+    const files = stageServiceLaunchers(root, destination, ["win32-x64"]);
+    expect(files).toEqual([
+      "resources/service-launcher/manifest.json",
+      "resources/service-launcher/win32-x64/service-launcher-v1.exe",
+    ]);
+    const manifest = JSON.parse(
+      readFileSync(join(destination, "service-launcher", "manifest.json"), "utf8"),
+    );
+    expect(Object.keys(manifest.targets)).toEqual(["win32-x64"]);
+    expect(existsSync(join(destination, "service-launcher", "partial.exe.pending"))).toBe(false);
+    expect(existsSync(join(destination, "service-launcher", "win32-arm64"))).toBe(false);
+  });
+  it("refuses a missing or tampered Windows helper without falling back to an unrelated native target", () => {
+    const root = resourceFixtureDir("poracode-service-artifact-");
+    writeFileSync(
+      join(root, "service-launcher", "win32-x64", "service-launcher-v1.exe"),
+      "changed",
+    );
+    expect(() =>
+      stageServiceLaunchers(root, tempDir("poracode-service-stage-"), ["win32-x64"]),
+    ).toThrow("differs");
+    expect(() =>
+      stageServiceLaunchers(root, tempDir("poracode-service-stage-"), ["win32-ia32"]),
+    ).toThrow("No staged");
+  });
   it("fails when native-overlay is missing", () => {
     const outDir = tempDir("poracode-tarball-");
     expect(() =>

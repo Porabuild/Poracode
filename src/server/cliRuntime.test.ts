@@ -17,10 +17,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-function fixture(
-  dispose: () => Promise<void>,
-  options?: { readonly drainDeadlineMs?: number; readonly platform?: NodeJS.Platform },
-) {
+function fixture(dispose: () => Promise<void>, options?: Parameters<typeof installShutdown>[2]) {
   const listeners = new Map<string, () => void>();
   vi.spyOn(process, "on").mockImplementation(((event: string, listener: () => void) => {
     listeners.set(event, listener);
@@ -38,6 +35,17 @@ function fixture(
 const tick = (ms = 0) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 describe("CLI shutdown completion", () => {
+  it("reads the task exit status only after the complete owned drain", async () => {
+    const held = Promise.withResolvers<void>();
+    let code: 0 | 1 = 0;
+    const test = fixture(() => held.promise, { exitCode: () => code });
+    test.signal();
+    expect(test.exit).not.toHaveBeenCalled();
+    code = 1;
+    held.resolve();
+    await tick();
+    expect(test.exit).toHaveBeenCalledExactlyOnceWith(1);
+  });
   it("keeps the hard exit deadline armed after a rejected runtime stop", async () => {
     const test = fixture(
       async () => {

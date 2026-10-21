@@ -83,6 +83,7 @@ import {
 import {
   exchangePairingCredential,
   issueIndependentPairingUrl,
+  issueIndependentPairingGrant,
   issuePairingUrl,
   mintLoopbackRendererCredential,
   recordAudit,
@@ -562,6 +563,16 @@ export class RemoteAccessServer {
     }));
   }
 
+  listPairingCredentials() {
+    return this.auth.listPairingCredentials();
+  }
+
+  revokePairingCredentialById(id: string): boolean {
+    const revoked = this.auth.revokePairingCredentialById(id);
+    if (revoked) this.recordAudit("revoke", { detail: { pairingId: id } });
+    return revoked;
+  }
+
   /** Last-resort sync drain for process-fatal handlers (V6 A.8). */
   flushAuditSync(): void {
     this.options.audit?.flushSync?.();
@@ -662,6 +673,12 @@ export class RemoteAccessServer {
     options?: { readonly preset?: RemoteAccessScopePreset },
   ): string {
     return issueIndependentPairingUrl(this.asHost(), label, options);
+  }
+
+  issueIndependentPairingGrant(
+    input: Parameters<typeof issueIndependentPairingGrant>[1],
+  ): ReturnType<typeof issueIndependentPairingGrant> {
+    return issueIndependentPairingGrant(this.asHost(), input);
   }
 
   /**

@@ -89,7 +89,7 @@ function managerFor(adapters: AgentAdapter[], options: Partial<ThreadSessionMana
   return manager;
 }
 
-function payload(agentKind = "fixture"): StartThreadPayload {
+function payload(agentKind = "fixture"): Omit<StartThreadPayload, "providerSwitch"> {
   return {
     threadId: "pending-close",
     agentKind,
@@ -104,6 +104,301 @@ function payload(agentKind = "fixture"): StartThreadPayload {
 // A whole microtask drain proves an immediately resolved close was observed;
 // lifecycle advancement itself is controlled only by the explicit gates.
 const drain = () => new Promise<void>((resolve) => setImmediate(resolve));
+
+async function prepareExecution(manager: ThreadSessionManager, threadId = "pending-close") {
+  const result = await manager.controlThreadExecution({ version: 1, action: "prepare", threadId });
+  expect(result.state).toBe("prepared");
+  return result.operationId;
+}
+
+describe("controlled thread execution retirement", () => {
+  it("submits the initial structured prompt exactly once under the selected configuration", async () => {
+    const session = handle();
+    session.startTurn = vi.fn<NonNullable<StructuredSessionHandle["startTurn"]>>(
+      async () => undefined,
+    );
+    const manager = managerFor([adapter("fixture", session)]),
+      operationId = await prepareExecution(manager);
+    const launch = {
+      ...payload(),
+      threadId: "pending-close",
+      prompt: "Inspect the owned repository",
+      config: {
+        model: "fixture-model",
+        approvalPolicy: "ask" as const,
+        sandboxMode: "read-only" as const,
+      },
+    };
+    await expect(
+      manager.controlThreadExecution({ version: 1, action: "start", operationId, launch }),
+    ).resolves.toMatchObject({ state: "started" });
+    expect(session.startTurn).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(session.startTurn).mock.calls[0]?.slice(0, 2)).toEqual([
+      launch.prompt,
+      launch.config,
+    ]);
+    await manager.controlThreadExecution({ version: 1, action: "cancel", operationId });
+  });
+
+  it("cancels a prepared operation before spawn and refuses delayed start", async () => {
+    const provider = adapter("fixture", handle()),
+      manager = managerFor([provider]);
+    const operationId = await prepareExecution(manager);
+    const cancelled = await manager.controlThreadExecution({
+      version: 1,
+      action: "cancel",
+      operationId,
+    });
+    expect(cancelled).toMatchObject({ state: "cancelled", confirmed: true });
+    await expect(
+      manager.controlThreadExecution({
+        version: 1,
+        action: "start",
+        operationId,
+        launch: { ...payload(), threadId: "pending-close" },
+      }),
+    ).rejects.toThrow("unknown or cancelled");
+    expect(provider.createStructuredSession).not.toHaveBeenCalled();
+    expect(manager.hostResourceAdmission.usage().total).toBe(0);
+  });
+
+  it.each(["creation", "activation", "open"] as const)(
+    "joins held %s, disposal and the resource lease before admitting a replacement",
+    async (phase) => {
+      const gate = deferred(),
+        entered = deferred(),
+        disposal = deferred(),
+        disposing = deferred();
+      const session = handle(),
+        provider = adapter("fixture", session);
+      const hold = async () => {
+        entered.resolve();
+        await gate.promise;
+      };
+      if (phase === "creation")
+        provider.createStructuredSession = vi.fn<
+          NonNullable<AgentAdapter["createStructuredSession"]>
+        >(async () => {
+          await hold();
+          return session;
+        });
+      if (phase === "activation")
+        session.activate = vi.fn<NonNullable<StructuredSessionHandle["activate"]>>(hold);
+      if (phase === "open")
+        session.openThread = vi.fn<NonNullable<StructuredSessionHandle["openThread"]>>(async () => {
+          await hold();
+          return "fixture-session";
+        });
+      session.dispose = vi.fn<NonNullable<StructuredSessionHandle["dispose"]>>(() => {
+        disposing.resolve();
+        return disposal.promise;
+      });
+      const manager = managerFor([provider]),
+        operationId = await prepareExecution(manager);
+      const start = manager.controlThreadExecution({
+        version: 1,
+        action: "start",
+        operationId,
+        launch: { ...payload(), threadId: "pending-close" },
+      });
+      await entered.promise;
+      let joined = false;
+      const cancel = manager
+        .controlThreadExecution({ version: 1, action: "cancel", operationId })
+        .then((result) => {
+          joined = true;
+          return result;
+        });
+      const repeat = manager.controlThreadExecution({ version: 1, action: "cancel", operationId });
+      try {
+        await drain();
+        expect(joined).toBe(false);
+        await expect(manager.startThread(payload())).rejects.toThrow(
+          "Another client is running this thread",
+        );
+        expect(manager.hostResourceAdmission.usage().total).toBe(1);
+        gate.resolve();
+        await disposing.promise;
+        await drain();
+        expect(joined).toBe(false);
+        expect(manager.hostResourceAdmission.usage().agentSessions.retiring).toBe(1);
+        disposal.resolve();
+        await expect(cancel).resolves.toMatchObject({ state: "cancelled", confirmed: true });
+        expect(await repeat).toEqual(await cancel);
+        await expect(start).resolves.toMatchObject({ state: "cancelled", confirmed: true });
+        expect(session.dispose).toHaveBeenCalledTimes(1);
+        expect(manager.hostResourceAdmission.usage().total).toBe(0);
+        await manager.startThread(payload());
+        const replacement = manager.sessions.get("pending-close");
+        await expect(
+          manager.controlThreadExecution({ version: 1, action: "cancel", operationId }),
+        ).resolves.toMatchObject({ confirmed: true });
+        expect(manager.sessions.get("pending-close")).toBe(replacement);
+        expect(session.dispose).toHaveBeenCalledTimes(1);
+      } finally {
+        gate.resolve();
+        disposal.resolve();
+        await Promise.allSettled([start, cancel, repeat]);
+      }
+    },
+  );
+
+  it("refuses foreign input, replacement and shell reuse while preserving reads and explicit stop", async () => {
+    const session = handle(),
+      manager = managerFor([adapter("fixture", session)]),
+      operationId = await prepareExecution(manager);
+    await expect(
+      manager.controlThreadExecution({
+        version: 1,
+        action: "start",
+        operationId,
+        launch: { ...payload(), threadId: "pending-close" },
+      }),
+    ).resolves.toMatchObject({ state: "started" });
+    const input = {
+      threadId: "pending-close",
+      prompt: "foreign input",
+      config: { model: "fixture-model" },
+    };
+    for (const mutate of [
+      () => manager.startThread(payload()),
+      () => manager.sendThreadInput(input),
+      () => manager.stageThreadInput(input),
+      () => manager.setPendingSteer(input),
+      () => manager.queueThreadFollowUp(input),
+      () => manager.resumeThreadFollowUps("pending-close"),
+      () => manager.writeTerminal({ threadId: "pending-close", data: "input" }),
+      () =>
+        manager.startShell({
+          shellId: "pending-close",
+          projectLocation: payload().projectLocation,
+        }),
+    ])
+      await expect(
+        Promise.resolve().then(async () => {
+          await mutate();
+        }),
+      ).rejects.toThrow("Another client is running this thread");
+    expect(manager.getThreadSnapshots().map((snapshot) => snapshot.threadId)).toContain(
+      "pending-close",
+    );
+    await expect(manager.closeThreadConfirmed({ threadId: "pending-close" })).resolves.toEqual({
+      confirmed: true,
+    });
+    await expect(manager.startThread(payload())).rejects.toThrow(
+      "Another client is running this thread",
+    );
+    await manager.controlThreadExecution({ version: 1, action: "cancel", operationId });
+    await manager.startThread(payload());
+    expect(manager.sessions.size).toBe(1);
+  });
+
+  it("refuses preparation for another client's runtime or an in-flight start", async () => {
+    const session = handle(),
+      manager = managerFor([adapter("fixture", session)]);
+    const start = manager.startThread(payload());
+    await expect(prepareExecution(manager)).rejects.toThrow("runtime work");
+    await start;
+    await expect(prepareExecution(manager)).rejects.toThrow("runtime work");
+    expect(session.dispose).not.toHaveBeenCalled();
+  });
+
+  it.each(["direct", "steer", "queued"] as const)(
+    "refuses preparation while earlier %s input still owns admission",
+    async (kind) => {
+      const manager = managerFor([adapter("fixture", handle())]);
+      const input = {
+        threadId: "pending-close",
+        prompt: "earlier input",
+        config: { model: "fixture-model" },
+      };
+      const submit = (
+        kind === "direct"
+          ? manager.sendThreadInput(input)
+          : kind === "steer"
+            ? manager.setPendingSteer(input)
+            : manager.queueThreadFollowUp(input)
+      ).catch((error: unknown) => error);
+      await expect(prepareExecution(manager)).rejects.toThrow("runtime work");
+      await submit;
+      await prepareExecution(manager);
+    },
+  );
+
+  it("retains an unconfirmed operation and resource custody for an explicit cancellation retry", async () => {
+    const session = handle(),
+      manager = managerFor([adapter("fixture", session)]),
+      operationId = await prepareExecution(manager);
+    await manager.controlThreadExecution({
+      version: 1,
+      action: "start",
+      operationId,
+      launch: { ...payload(), threadId: "pending-close" },
+    });
+    vi.mocked(session.dispose).mockRejectedValueOnce(new Error("Owned disposal failed"));
+    await expect(
+      manager.controlThreadExecution({ version: 1, action: "cancel", operationId }),
+    ).rejects.toThrow("Owned disposal failed");
+    expect(manager.hostResourceAdmission.usage().total).toBe(1);
+    await expect(manager.startThread(payload())).rejects.toThrow(
+      "Another client is running this thread",
+    );
+    await expect(
+      manager.controlThreadExecution({ version: 1, action: "cancel", operationId }),
+    ).resolves.toMatchObject({ confirmed: true });
+    expect(manager.hostResourceAdmission.usage().total).toBe(0);
+  });
+
+  it("keeps shutdown pending until a held controlled start and its handle actually retire", async () => {
+    const entered = deferred(),
+      gate = deferred(),
+      disposal = deferred(),
+      disposing = deferred(),
+      session = handle();
+    session.activate = vi.fn<NonNullable<StructuredSessionHandle["activate"]>>(() => {
+      entered.resolve();
+      return gate.promise;
+    });
+    session.dispose = vi.fn<NonNullable<StructuredSessionHandle["dispose"]>>(() => {
+      disposing.resolve();
+      return disposal.promise;
+    });
+    const other = handle();
+    const manager = managerFor([adapter("fixture", session), adapter("other", other)]),
+      operationId = await prepareExecution(manager);
+    await manager.startThread({ ...payload("other"), threadId: "other" });
+    const start = manager.controlThreadExecution({
+      version: 1,
+      action: "start",
+      operationId,
+      launch: { ...payload(), threadId: "pending-close" },
+    });
+    await entered.promise;
+    let stopped = false;
+    const shutdown = manager.dispose().then((result) => {
+      stopped = true;
+      return result;
+    });
+    try {
+      await drain();
+      expect(stopped).toBe(false);
+      expect(other.dispose).toHaveBeenCalledTimes(1);
+      gate.resolve();
+      await disposing.promise;
+      await drain();
+      expect(stopped).toBe(false);
+      expect(manager.hostResourceAdmission.usage().total).toBe(1);
+      disposal.resolve();
+      await expect(shutdown).resolves.toBe(true);
+      await expect(start).resolves.toMatchObject({ state: "cancelled", confirmed: true });
+      expect(manager.hostResourceAdmission.usage().total).toBe(0);
+    } finally {
+      gate.resolve();
+      disposal.resolve();
+      await Promise.allSettled([start, shutdown]);
+    }
+  });
+});
 
 afterEach(async () => {
   for (const { manager, directory } of fixtures.splice(0)) {

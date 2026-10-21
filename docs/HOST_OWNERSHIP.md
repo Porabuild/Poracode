@@ -6,13 +6,27 @@ open or service construction. `headlessRemoteComposition` receives the resulting
 private runtime capability and backs the host's single settings authority with
 its lease and credential capabilities. Electron startup now adopts the same boundary for
 its managed mode: the desktop owner leases the shared kernel lock and, at
-ready, publishes the shared authenticated control surface (kind `desktop`,
-`describe` only). Desktop owners do not admit attach clients:
+ready, delegates the shared authenticated control surface (kind `desktop`)
+to its existing fenced backend. Main retains the kernel owner lease and native
+credential adoption. The backend serves local CLI administration through its
+existing settings authority, provider supervisor and current remote listener;
+it does not open a second database or store. Desktop owners do not admit attach clients:
 `src/main/backend/standaloneAttach.ts` refuses a desktop owner with
 `desktop-owner-admission-disabled`, so a second launch is told to use the
 running app instead. Settings custody is wired through the per-composition
 settings authority (a desktop process-lifetime lease adapter on the desktop
 side).
+
+The private initialization grant `DESKTOP_HOST_CONTROL_VERSION = 1` carries
+only the canonical profile namespace and parent owner generation. The backend
+acknowledges that exact version/generation before main admits startup. Missing,
+future or foreign acknowledgements refuse. A future grant refuses before key
+configuration, database opening or service construction. Delegated operations
+require the captured data-custody generation, live parent IPC, and matching
+parent PID/kind/owner-generation metadata; metadata alone is not authority.
+The backend joins control requests and provider authentication cancellation
+before closing data custody. Existing host-control/admin versions, discovery
+format, capabilities and public remote routes are unchanged.
 
 Since the data-root unification both host kinds own the SAME data root for
 a profile: the desktop-managed host adopts `<namespace>.host-v1` exactly like

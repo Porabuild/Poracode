@@ -21,6 +21,26 @@ function tempDir(prefix) {
   return dir;
 }
 
+void test("resource identities survive the closure and unknown or inconsistent resources refuse", () => {
+  const root = tempDir("poracode-native-closure-");
+  const manifest = (kind, sha256 = "a".repeat(64)) => ({
+    files: [],
+    dependencies: [],
+    resources: [{ kind, sha256 }],
+  });
+  const server = join(root, "server.ssh-runtime-manifest.json"),
+    supervisor = join(root, "supervisor.ssh-runtime-manifest.json");
+  writeFileSync(server, JSON.stringify(manifest("pty-job-owner")));
+  writeFileSync(supervisor, JSON.stringify(manifest("pty-job-owner")));
+  assert.deepEqual(readRuntimeClosure(root).resources, [
+    { kind: "pty-job-owner", sha256: "a".repeat(64) },
+  ]);
+  writeFileSync(supervisor, JSON.stringify(manifest("pty-job-owner", "b".repeat(64))));
+  assert.throws(() => readRuntimeClosure(root), /disagree about resource/);
+  writeFileSync(supervisor, JSON.stringify(manifest("future-native-owner")));
+  assert.throws(() => readRuntimeClosure(root));
+});
+
 void test("readRuntimeClosure unions the build manifests and rejects an empty closure", () => {
   const mainBundleDir = tempDir("poracode-closure-");
   writeFileSync(join(mainBundleDir, "server.cjs"), "module.exports = {};\n");

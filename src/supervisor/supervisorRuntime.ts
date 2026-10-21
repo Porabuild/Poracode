@@ -1,4 +1,5 @@
 import { joinRuntimeShutdown } from "@/shared/joinRuntimeShutdown";
+import { McpAuthenticationService } from "./mcp/McpAuthenticationService";
 import { retireMacKeychainCommands } from "./runtime/macKeychainProcess";
 import { NativeMcpSetupCoordinator } from "./runtime/nativeMcpSetupCoordinator";
 import { existsSync, mkdirSync } from "node:fs";
@@ -78,6 +79,7 @@ import type { HostResourceAdmissionStatus } from "@/shared/hostResourceAdmission
 import { gitProcessAdmissionUsage } from "./git/gitProcessAdmission";
 import { type SessionRuntime, type ShellSessionRuntime } from "./runtime/sessionTypes";
 import { ThreadSessionManager, writeSubmittedPrompt } from "./runtime/threadSessionManager";
+import { createSupervisorPtyFactory } from "./pty/ptyFactory";
 import { CliHookPluginCoordinator } from "./runtime/cliHookPluginCoordinator";
 import { CrossagentMcpIngress } from "./crossagentMcp/CrossagentMcpIngress";
 import { SubagentRunManager } from "./crossagentMcp/SubagentRunManager";
@@ -187,6 +189,7 @@ export class SupervisorRuntime {
   readonly cliHookPluginCoordinator: CliHookPluginCoordinator;
   readonly externalMcpDiscoveryService = new ExternalMcpDiscoveryService();
   readonly mcpOAuthService: McpOAuthService;
+  readonly mcpAuthenticationService: McpAuthenticationService;
   private readonly mcpOAuthRelay: McpOAuthRelay;
   readonly mcpProbeService: McpProbeService;
   readonly skillsService: SkillsService;
@@ -308,6 +311,10 @@ export class SupervisorRuntime {
       baseDir,
       registry: this.pluginRegistry,
       oauth: this.mcpOAuthService,
+    });
+    this.mcpAuthenticationService = new McpAuthenticationService({
+      oauth: this.mcpOAuthService,
+      plugins: this.pluginAccountService,
     });
     this.pluginCatalogService = new PluginCatalogService({
       baseDir,
@@ -515,6 +522,7 @@ export class SupervisorRuntime {
 
     this.threadSessionManager = new ThreadSessionManager({
       emit,
+      createPty: createSupervisorPtyFactory(),
       isDev: this.isDev,
       logsDir: this.logsDir,
       settingsPath: this.settingsPath,
@@ -538,8 +546,8 @@ export class SupervisorRuntime {
         unregister: (threadId) => this.crossagentMcpIngress.unregisterThread(threadId),
         cancelForeground: (threadId) => this.subagentRunManager.cancelForegroundForThread(threadId),
         cancelAll: (threadId) => this.subagentRunManager.cancelAllForThread(threadId),
-        resolveChildRequest: (requestId, response) =>
-          this.subagentRunManager.resolveChildServerRequest(requestId, response),
+        resolveChildRequest: (requestId, response, parentThreadId) =>
+          this.subagentRunManager.resolveChildServerRequest(requestId, response, parentThreadId),
       },
       wslHostAccess: {
         resolveHostAccess: (distro) => resolveWslHostAccess(distro),
@@ -1205,7 +1213,10 @@ export class SupervisorRuntime {
     await joinRuntimeShutdown([
       () => this.disposeNativeRuntime(),
       () => retireMacKeychainCommands(),
+      () => this.agentRegistryService.disposeAcpAuthentications(),
       () => this.mcpOAuthRelay.dispose(),
+      () => this.mcpOAuthService.dispose(),
+      () => this.mcpAuthenticationService.dispose(),
       async () => {
         this.disposeWindowsPowerShellPreference();
         this.disposeWslCredentialProjectScope();
@@ -1213,7 +1224,6 @@ export class SupervisorRuntime {
         this.settingsWriter.dispose();
         this.usageService.stop();
         this.mcpProbeService.dispose();
-        this.mcpOAuthService.dispose();
         this.lspManager.dispose();
         await this._projectWatcher?.dispose();
         const ptysExited = await this.threadSessionManager.dispose();

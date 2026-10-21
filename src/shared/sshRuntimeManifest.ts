@@ -25,7 +25,7 @@ export const SSH_RUNTIME_ENTRY_NAMES = Object.keys(
 ) as SshRuntimeEntryName[];
 
 export const runtimeResourceIdentitySchema = z.strictObject({
-  kind: z.enum(["agent-plugins", "bundled-plugins"]),
+  kind: z.enum(["agent-plugins", "bundled-plugins", "pty-job-owner"]),
   sha256: runtimeDigestSchema,
 });
 export type RuntimeResourceIdentity = z.infer<typeof runtimeResourceIdentitySchema>;
@@ -39,7 +39,7 @@ export const sshRuntimeBuildManifestSchema = z
     settingsServiceVersion: z.union([z.literal(0), z.literal(1)]),
     files: runtimeCodeFilesSchema,
     dependencies: z.array(z.string().min(1)).max(256),
-    resources: z.array(runtimeResourceIdentitySchema).max(2),
+    resources: z.array(runtimeResourceIdentitySchema).max(3),
   })
   .superRefine((manifest, context) => {
     const entryExtension = manifest.entry.endsWith("Worker") ? "mjs" : "cjs";

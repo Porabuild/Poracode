@@ -138,7 +138,9 @@ export function SingleAgentSettings(props: {
   // Instance-scoped kind of any multi-profile provider (`claude:work`).
   const profileKindParts = parseAgentProfileKind(props.agentKind);
   const profileInstance = useSharedSettings((s) =>
-    profileKindParts ? s.agentInstances[profileKindParts.instanceId] : undefined,
+    Object.values(s.agentInstances).find(
+      (instance) => `${instance.driver}:${instance.id}` === props.agentKind,
+    ),
   );
   const selectedMachine = useSelectedMachine();
   const machines = useMachines();
@@ -172,7 +174,9 @@ export function SingleAgentSettings(props: {
   // Header and capabilities fall back to any machine's install so the page
   // stays usable while the selected machine has nothing detected yet.
   const agent = installedStatuses[0] ?? installedAnywhere[0];
-  const isDisabled = useSharedSettings((s) => s.disabledAgents.includes(props.agentKind));
+  const isDisabled =
+    useSharedSettings((s) => s.disabledAgents.includes(props.agentKind)) ||
+    (!isRemoteMachine && profileInstance?.enabled === false);
   const setAgentDisabled = useSharedSettings((s) => s.setAgentDisabled);
   const installedRegistryRecord = useSharedSettings(
     (s) => s.acpRegistryInstalledAgents[extractAcpGenericInstanceId(props.agentKind) ?? ""],
@@ -308,6 +312,20 @@ export function SingleAgentSettings(props: {
         </SettingsPage>
       );
     }
+    if (!isRemoteMachine && profileInstance)
+      return (
+        <SettingsPage title={profileInstance.displayName ?? profileInstance.id} bodyClassName="">
+          <p className="text-sm text-muted">
+            {profileInstance.enabled === false ? (
+              <Trans>Agent is currently disabled</Trans>
+            ) : (
+              <Trans>
+                This provider configuration has no detected runtime on the selected machine.
+              </Trans>
+            )}
+          </p>
+        </SettingsPage>
+      );
     return (
       <SettingsPage title={t`Agent not found`} bodyClassName="">
         <p className="text-sm text-muted">

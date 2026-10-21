@@ -1,3 +1,4 @@
+import { STATUS_CACHE_VERSION } from "@/shared/agentStatusCache";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -6,7 +7,6 @@ import type { AgentStatus } from "@/shared/contracts";
 import { resolvePoracodePaths } from "@/shared/poracodePaths";
 import type { AgentAdapter } from "../agents/base";
 import { detectWslAgentStatuses, SupervisorRuntime } from "../supervisorRuntime";
-import { STATUS_CACHE_VERSION } from "./agentStatusService";
 
 const tempDirs: string[] = [];
 const runtimesToDispose: SupervisorRuntime[] = [];

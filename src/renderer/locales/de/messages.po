@@ -1354,6 +1354,7 @@ msgid "Agent is active and ready"
 msgstr "Der Agent ist aktiv und bereit"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentHeader.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Agent is currently disabled"
 msgstr "Der Agent ist derzeit deaktiviert"
 
@@ -1663,6 +1664,10 @@ msgstr "Eine andere Automation verwendet dieses Gespräch bereits."
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 msgid "Another chat uses this same tree. File restore could overwrite that chat's changes."
 msgstr "Ein anderer Chat verwendet denselben Baum. Die Dateiwiederherstellung könnte die Änderungen dieses Chats überschreiben."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Another client is running this thread. Stop that run before replacing the thread or sending more input."
+msgstr "Ein anderer Client führt diesen Thread aus. Beende diesen Lauf, bevor du den Thread ersetzt oder weitere Eingaben sendest."
 
 #: src/renderer/actions/experimentOperationState.ts
 msgid "Another operation for this experiment is still running."
@@ -17722,6 +17727,10 @@ msgstr "dieses Projekt"
 #: src/renderer/components/thread/ThreadDraftView.tsx
 msgid "This project's remote server is offline. Reconnect it to start a thread."
 msgstr "Der Remote-Server dieses Projekts ist offline. Verbinde ihn neu, um einen Thread zu starten."
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
+msgid "This provider configuration has no detected runtime on the selected machine."
+msgstr "Für diese Anbieterkonfiguration wurde auf dem ausgewählten Rechner keine Laufzeit erkannt."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "This QR grants full operator access."

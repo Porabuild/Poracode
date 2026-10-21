@@ -17,6 +17,7 @@ import {
   mkdtempSync,
   readFileSync,
   readdirSync,
+  realpathSync,
   rmSync,
   statSync,
   writeFileSync,
@@ -26,7 +27,11 @@ import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { scanRuntimeExternals } from "./runtime-externals.mjs";
+import { prepareDesktopCli } from "./prepare-desktop-cli.mjs";
 import { preparePackagedDeviceHub } from "./prepare-device-hub.mjs";
+import { readRuntimeClosure } from "./runtime-closure.mjs";
+import { verifyRuntimeResources } from "../src/shared/runtimeResourceInventory.ts";
+import { readPtyJobOwnerArtifact } from "../src/shared/ptyJobOwnerArtifact.ts";
 import {
   MAC_NOTARIZE_VERSION,
   verifyMacNotarizationDependency,
@@ -131,6 +136,11 @@ const PLATFORM_FLAG = { mac: "--mac", linux: "--linux", win: "--win" };
 // Arches each platform ships when the caller does not pin --arch. Must mirror
 // the per-platform `target.arch` lists emitted by buildElectronBuilderConfig().
 const DEFAULT_TARGET_ARCHES = { win: ["x64", "arm64"], mac: ["x64", "arm64"], linux: ["x64"] };
+
+export function verifyDesktopPtyTargets(resourceRoot, arches) {
+  for (const arch of arches)
+    readPtyJobOwnerArtifact(join(resourceRoot, "pty-job-owner"), `win32-${arch}`);
+}
 
 // A missing peer of a runtime external surfaces as `ERR_MODULE_NOT_FOUND` deep
 // inside SDK code at app launch. Walk each external's installed package.json
@@ -328,6 +338,21 @@ async function main() {
   if (checkRuntimeDeps) {
     return;
   }
+  const runtimeClosure = readRuntimeClosure(join(repoRoot, "dist/main"));
+  if (
+    platform === "win" &&
+    !runtimeClosure.resources.some((resource) => resource.kind === "pty-job-owner")
+  )
+    throw new Error(
+      "Windows packaging requires a runtime built with the prepared PTY job owner. Rebuild before packaging.",
+    );
+  verifyRuntimeResources(runtimeClosure.resources, {
+    agentPlugins: { path: join(repoRoot, "resources/agent-plugins"), layout: "staged" },
+    bundledPlugins: join(repoRoot, "resources/plugins"),
+    ptyJobOwner: join(repoRoot, "resources/pty-job-owner"),
+  });
+  if (platform === "win")
+    verifyDesktopPtyTargets(join(repoRoot, "resources"), arch ? [arch] : DEFAULT_TARGET_ARCHES.win);
 
   // 2. Create the stage in tmp (outside the workspace).
   const stageRoot = mkdtempSync(join(tmpdir(), "poracode-stage-"));
@@ -348,11 +373,25 @@ async function main() {
     }
     writeFileSync(join(stageRoot, "package.json"), `${JSON.stringify(stagePkg, null, 2)}\n`);
 
+    const desktopCli =
+      platform === "win" || platform === "mac"
+        ? prepareDesktopCli({
+            stageRoot,
+            mainBundleDir: join(repoRoot, "dist", "main"),
+            rendererDir: join(repoRoot, "dist", "renderer"),
+            appVersion: rootPkg.version,
+          })
+        : undefined;
+
     // 5. Stage the initial electron-builder config.
     const initialMacArtifactKind = macArtifactKindFor(platform, target);
     writeFileSync(
       join(stageRoot, "electron-builder.yml"),
-      buildElectronBuilderConfig(initialMacArtifactKind),
+      buildElectronBuilderConfig(
+        initialMacArtifactKind,
+        platform,
+        existsSync(join(stageRoot, "resources/pty-job-owner")),
+      ),
     );
 
     // 6. Install prod + stage devdeps with a genuinely flat npm layout.
@@ -405,10 +444,27 @@ async function main() {
       selectedTarget,
       macArtifactKind = macArtifactKindFor(platform, selectedTarget),
     ) => {
+      if (desktopCli)
+        desktopCli.writeManifest({
+          platform: platform === "mac" ? "darwin" : "win32",
+          channel: channelTable.normalizeChannel(process.env.PORACODE_CHANNEL),
+          executableName:
+            platform === "mac"
+              ? channelTable.macExecutableNameFor(
+                  channelTable.normalizeChannel(process.env.PORACODE_CHANNEL),
+                  macArtifactKind,
+                )
+              : `${channelTable.productNameFor(channelTable.normalizeChannel(process.env.PORACODE_CHANNEL))}.exe`,
+          electronVersion: rootPkg.devDependencies.electron,
+        });
       if (platform === "mac") {
         writeFileSync(
           join(stageRoot, "electron-builder.yml"),
-          buildElectronBuilderConfig(macArtifactKind),
+          buildElectronBuilderConfig(
+            macArtifactKind,
+            platform,
+            existsSync(join(stageRoot, "resources/pty-job-owner")),
+          ),
         );
       }
       const electronBuilderArgs = [PLATFORM_FLAG[platform]];
@@ -463,7 +519,11 @@ function macArtifactKindFor(platform, target) {
   return platform === "mac" && target === "zip" ? "updater" : "branded";
 }
 
-function buildElectronBuilderConfig(macArtifactKind = "branded") {
+export function buildElectronBuilderConfig(
+  macArtifactKind = "branded",
+  platform,
+  includePtyOwner = platform === "win",
+) {
   // Generate the staged electron-builder config with a drastically simplified
   // `files:` block — the stage's node_modules contains only the runtime
   // externals we listed, so we can include all of node_modules without dragging
@@ -479,6 +539,31 @@ function buildElectronBuilderConfig(macArtifactKind = "branded") {
   const runtimeIconSuffix = channel === "nightly" ? "-nightly-mac" : "-mac";
   const macExecutableName = channelTable.macExecutableNameFor(channel, macArtifactKind);
   const publishChannelLine = updaterChannel ? `\n  channel: ${updaterChannel}` : "";
+  const includeDesktopCli = platform === "win" || platform === "mac";
+  const desktopCliFiles = includeDesktopCli
+    ? '\n  - dist/cli-runtime/**/*\n  - "!dist/cli-runtime/**/*.map"'
+    : "";
+  const desktopCliResources = includeDesktopCli
+    ? '\n  - from: resources/desktop-cli\n    to: desktop-cli\n    filter:\n      - "**/*"'
+    : "";
+  const ptyOwnerResources = includePtyOwner
+    ? '\n  - from: resources/pty-job-owner\n    to: pty-job-owner\n    filter:\n      - "**/*"'
+    : "";
+  // The broker is a real child entry. Its captured CJS chunks must be readable
+  // by both the desktop and desktop-CLI Node children outside app.asar.
+  const ptyBrokerUnpack = includePtyOwner
+    ? "\n  - dist/main/**/*.cjs\n  - dist/cli-runtime/lib/**/*.cjs"
+    : "";
+  const desktopCliUnpack = includeDesktopCli
+    ? [
+        "claudeSdkProbeWorker.mjs",
+        "cursorSdkWorker.mjs",
+        "remoteHttpBridge.cjs",
+        "sshEnvironmentWorker.cjs",
+      ]
+        .map((file) => `\n  - dist/cli-runtime/lib/${file}`)
+        .join("")
+    : "";
   const macEntitlements = "build/entitlements.mac.plist";
   const macEntitlementsInherit = "build/entitlements.mac.plist";
   const packagedDistFilesYaml = PACKAGED_DIST_FILES.map((glob) =>
@@ -494,7 +579,7 @@ directories:
   buildResources: build
 
 files:
-${packagedDistFilesYaml}
+${packagedDistFilesYaml}${desktopCliFiles}
   - package.json
   - node_modules/**/*
   - "!node_modules/**/*.map"
@@ -507,7 +592,7 @@ ${packagedDistFilesYaml}
   - "!node_modules/{better-sqlite3,node-pty}/build/**/obj/**/*"
   - "!node_modules/{better-sqlite3,node-pty}/build/**/*.{iobj,ipdb,lib,pdb,exp}"
 
-extraResources:
+extraResources:${desktopCliResources}${ptyOwnerResources}
   - from: resources/device-hub
     to: device-hub
     filter:
@@ -566,7 +651,7 @@ asarUnpack:
   - dist/main/remoteHttpBridge.cjs
   # Same rule for the SSH environment utility: main forks this file path.
   - dist/main/sshEnvironmentWorker.cjs
-  - node_modules/@anthropic-ai/claude-agent-sdk/**/*
+  - node_modules/@anthropic-ai/claude-agent-sdk/**/*${desktopCliUnpack}${ptyBrokerUnpack}
 
 afterPack: build/after-pack.cjs
 
@@ -584,7 +669,7 @@ win:
   icon: build/icon${iconSuffix}.ico
 
 nsis:
-  oneClick: false
+  oneClick: false${platform === "win" ? "\n  include: build/desktop-cli.nsh" : ""}
   perMachine: false
   allowToChangeInstallationDirectory: true
   buildUniversalInstaller: false
@@ -630,7 +715,12 @@ npmRebuild: false
 `;
 }
 
-main().catch((error) => {
-  console.error(error instanceof Error ? (error.stack ?? error.message) : error);
-  process.exit(1);
-});
+if (
+  process.argv[1] &&
+  realpathSync.native(process.argv[1]) === realpathSync.native(fileURLToPath(import.meta.url))
+) {
+  main().catch((error) => {
+    console.error(error instanceof Error ? (error.stack ?? error.message) : error);
+    process.exit(1);
+  });
+}

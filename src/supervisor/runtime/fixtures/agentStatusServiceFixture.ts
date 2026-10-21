@@ -1,3 +1,4 @@
+import { STATUS_CACHE_VERSION } from "@/shared/agentStatusCache";
 import { beforeEach, vi } from "vitest";
 import type { AgentStatus } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
@@ -62,7 +63,7 @@ vi.mock("@/supervisor/runtime/supervisorSharedSettings", async () => {
   };
 });
 
-import { AgentStatusService, STATUS_CACHE_VERSION } from "@/supervisor/runtime/agentStatusService";
+import { AgentStatusService } from "@/supervisor/runtime/agentStatusService";
 
 const FAST = "acp-generic:ready-fixture";
 const SLOW = "acp-generic:deferred-fixture";

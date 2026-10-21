@@ -9,7 +9,7 @@ import {
 } from "@/shared/legacyProductPaths";
 import { resolvePoracodeBaseDir } from "@/shared/poracodePaths";
 import Database from "better-sqlite3";
-import { resolveBetterSqliteNativeBindingOptions } from "./db/connection";
+import { resolveBetterSqliteNativeBindingOptions } from "./db/nativeBinding";
 
 const MIGRATION_VERSION = 1;
 const MIGRATION_MARKER_FILENAME = ".lightcode-migration-v1.json";

@@ -1,3 +1,4 @@
+import { STATUS_CACHE_VERSION } from "@/shared/agentStatusCache";
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -21,7 +22,6 @@ import {
   AgentStatusService,
   detectWslAgentStatuses,
   parseWslRegistryDistributionNames,
-  STATUS_CACHE_VERSION,
 } from "./agentStatusService";
 
 const tempDirs: string[] = [];
@@ -224,10 +224,8 @@ HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss\\{333}
         ...(mode !== "full" ? { scope: { agentKinds: ["codex"], envs } } : {}),
       });
 
-      expect(prepareWslEnvironment.mock.calls).toEqual(
-        mode === "scoped-native" ? [] : [["Ubuntu"]],
-      );
-      expect(preparedAtProbe).toEqual(mode === "scoped-native" ? [] : [true]);
+      expect(prepareWslEnvironment.mock.calls).toEqual(mode.endsWith("native") ? [] : [["Ubuntu"]]);
+      expect(preparedAtProbe).toEqual(mode.endsWith("native") ? [] : [true]);
     },
   );
 

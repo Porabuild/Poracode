@@ -7,10 +7,10 @@
 export {
   getProfileDataGeneration,
   bumpProfileDataGeneration,
-  resolveBetterSqliteNativeBindingOptions,
   initDatabase,
   closeDatabase,
 } from "./db/connection";
+export { resolveBetterSqliteNativeBindingOptions } from "./db/nativeBinding";
 
 export {
   dbGetProjects,
@@ -24,6 +24,7 @@ export {
   dbUpsertProject,
   dbUpdateProject,
   dbUpsertThread,
+  dbUpdateThreadMetadata,
   dbSetThreadGroup,
   dbSetThreadsDone,
   dbMarkLiveThreadsInactive,
@@ -249,6 +250,7 @@ export {
 export {
   dbReadCatalogProjectPhase1,
   dbReadCatalogProjectPhase2,
+  dbReadCatalogProjectSummaries,
   dbReadCatalogThreadPhase1,
   dbReadCatalogThreadPhase2,
   type CatalogPageRowMeta,

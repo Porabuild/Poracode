@@ -1,5 +1,7 @@
-import { join } from "node:path";
+import { isAbsolute, join, resolve } from "node:path";
 import { writeSync, existsSync } from "node:fs";
+import { z } from "zod";
+import { hostBuildIdentitySchema, type HostBuildIdentity } from "@/shared/hostControlProtocol";
 import {
   startNodePerformanceDiagnostics,
   type NodePerformanceDiagnostics,
@@ -21,8 +23,8 @@ import {
   reportFatalStartupError,
 } from "./cliRuntime";
 import { chromeNativeHostEnabled } from "@/host/browser/external/chromeNativeHost";
-import { createHeadlessRemoteHost } from "./createHeadlessRemoteHost";
-import { HeadlessCompositionShutdownError } from "./headlessRemoteComposition";
+import type { HeadlessRemoteHost } from "./createHeadlessRemoteHost";
+import { HeadlessCompositionShutdownError } from "./headlessRemoteCompositionSupport";
 import { createHostDataBackup } from "./serverBackup";
 import {
   defaultTlsSubjectNames,
@@ -32,7 +34,7 @@ import {
   applyServeSettingsToEnv,
   parseServeCliOptions,
   resolveServeSettings,
-  SERVER_CONFIG_FILE_NAME,
+  defaultServerConfigPath,
   type ServeCliOptions,
 } from "./serverConfig";
 import { serverLogFilePath, startServerLogFile } from "./serverLogFile";
@@ -62,10 +64,7 @@ import { abandonServerUpgrade, resumeServerUpgrade } from "./serverUpgradeRecove
 import { stopRunningServer } from "./serverStop";
 import { ServerUpgradeBusyError, ServerUpgradeLockUnreadableError } from "./serverUpgradeLock";
 import { ServerUpgradeServiceTargetError } from "./serverUpgradeRestart";
-import {
-  requestHostStatusFromRunningServer,
-  requestPairingFromRunningServer,
-} from "./pairingControl";
+import { requestPairingFromRunningServer } from "./pairingControl";
 import {
   parseActivateCliOptions,
   parseBackupCliOptions,
@@ -73,6 +72,7 @@ import {
   parseInitTlsCliOptions,
   parsePairCliOptions,
   parseServerCliCommand,
+  parseStopCliOptions,
   type ActivateCliOptions,
   type BackupCliOptions,
   type DoctorCliOptions,
@@ -81,7 +81,32 @@ import {
   type ServerCliCommand,
 } from "./cliParse";
 import { writeInitTlsMaterial } from "./initTlsWrite";
-import { getRuntimePersistenceSample } from "@/host/db/runtimePersistenceRuntime";
+import { runAdminCli, reportAdminError } from "./cliAdmin";
+import { CLI_ADMIN_HELP, CLI_PROFILE_HELP, cliCommandHelp } from "./cliHelp";
+import { extractBaseDir, runConfigure } from "./cliConfigure";
+import {
+  parseServiceCliOptions,
+  runServerService,
+  SERVICE_HELP,
+  serviceCommandHelp,
+} from "./serverService";
+import { parseSetupCliOptions, runSetup, SETUP_HELP } from "./cliSetup";
+import {
+  CLI_COMPLETION_HELP,
+  renderCompletion,
+} from "../../packages/poracode-cli/lib/completion.mjs";
+import { openServerWebApp } from "./cliWebApp";
+import { parseStatusCliOptions, runServerStatus } from "./cliStatus";
+import { CLI_LOGS_HELP, parseLogsCliOptions, runServerLogs } from "./cliLogs";
+import { parseRunCli } from "./cliRun";
+
+// Mirrored by DESKTOP_CLI_BOOTSTRAP_VERSION: reject a mismatched packaged entry
+// before dispatch, and retain the verified identity throughout this process.
+export const DESKTOP_CLI_INTEGRATION_VERSION = 1;
+const desktopCliEntrySchema = z.strictObject({
+  formatVersion: z.literal(DESKTOP_CLI_INTEGRATION_VERSION),
+  build: hostBuildIdentitySchema,
+});
 
 export type {
   ActivateCliOptions,
@@ -116,7 +141,11 @@ let performanceDiagnostics: NodePerformanceDiagnostics | undefined;
  * final report into it. */
 let logFileSink: ReturnType<typeof startServerLogFile> | undefined;
 
-async function serve(options: ServeCliOptions = {}): Promise<void> {
+async function serve(
+  options: ServeCliOptions = {},
+  defaultOpen = false,
+  capturedBuild?: HostBuildIdentity,
+): Promise<AbortSignal | undefined> {
   // Published layout contract (docs/STANDALONE_SERVER.md §3.1): explicit asset
   // declarations win; otherwise the layout is inferred from the running
   // bundle's directory. An arrangement outside the supported shapes fails
@@ -136,17 +165,19 @@ async function serve(options: ServeCliOptions = {}): Promise<void> {
   // D4: the identity this process publishes on the authenticated status call,
   // and whether an interrupted upgrade staged this exact release. A staged
   // candidate holds remote admission until the upgrader proves its build.
-  const buildIdentity = resolveRunningBuildIdentity(
-    layout !== undefined ? { libDir: layout.libDir } : {},
-  );
+  const buildIdentity =
+    capturedBuild ??
+    resolveRunningBuildIdentity(layout !== undefined ? { libDir: layout.libDir } : {});
   const staging = resolveUpgradeStaging({
     ...(layout !== undefined ? { layout } : {}),
     env: process.env,
   });
-  const version = resolveServerVersion(layout !== undefined ? { layout } : {});
+  const version =
+    capturedBuild?.version ?? resolveServerVersion(layout !== undefined ? { layout } : {}).version;
+  let runtimePersistence: typeof import("@/host/db/runtimePersistenceRuntime") | undefined;
   performanceDiagnostics = startNodePerformanceDiagnostics("server", process.env, {
     // B1: additive bounded-persistence evidence on the existing sample lines.
-    sampleRuntimePersistence: () => getRuntimePersistenceSample(),
+    sampleRuntimePersistence: () => runtimePersistence?.getRuntimePersistenceSample() ?? null,
   });
   process.env.PORACODE_HEADLESS_SERVER = "1";
   // Operability configuration (plan item 4.9): optional JSON config file +
@@ -156,7 +187,7 @@ async function serve(options: ServeCliOptions = {}): Promise<void> {
   const settings = resolveServeSettings({
     flags: options,
     env: process.env,
-    defaultConfigPath: join(profileNamespace(), SERVER_CONFIG_FILE_NAME),
+    defaultConfigPath: defaultServerConfigPath(profileNamespace()),
   });
   for (const warning of settings.warnings) {
     console.warn("[poracode-server] %s", warning);
@@ -171,7 +202,8 @@ async function serve(options: ServeCliOptions = {}): Promise<void> {
   const relayUrl = process.env.PORACODE_REMOTE_RELAY_URL?.trim();
   const environmentKey = process.env.PORACODE_SECRET_STORAGE_KEY;
   const relaySecret = process.env.PORACODE_REMOTE_RELAY_SECRET;
-  let host: Awaited<ReturnType<typeof createHeadlessRemoteHost>> | undefined;
+  let host: HeadlessRemoteHost | undefined;
+  let openingWebApp: Promise<string | undefined> | undefined;
   let closingHost: Promise<void> | undefined;
   const cancellation = new AbortController();
   const startup = Promise.withResolvers<void>();
@@ -180,13 +212,13 @@ async function serve(options: ServeCliOptions = {}): Promise<void> {
   const closeHost = (): Promise<void> => {
     if (!host) return Promise.resolve();
     if (closingHost) return closingHost;
+    const ownedHost = host;
     const barrier = Promise.withResolvers<void>();
     closingHost = barrier.promise;
-    try {
-      void host.dispose().then(barrier.resolve, barrier.reject);
-    } catch (error) {
-      barrier.reject(error);
-    }
+    void (async () => {
+      await openingWebApp?.catch(() => undefined);
+      await ownedHost.dispose();
+    })().then(barrier.resolve, barrier.reject);
     return closingHost;
   };
   const closeLogFile = (): Promise<void> => {
@@ -221,14 +253,19 @@ async function serve(options: ServeCliOptions = {}): Promise<void> {
   let info;
   const isDev = process.env.PORACODE_IS_DEV === "1" || Boolean(process.env.VITE_DEV_SERVER_URL);
   try {
+    runtimePersistence = await import("@/host/db/runtimePersistenceRuntime");
+    cancellation.signal.throwIfAborted();
+    const { createHeadlessRemoteHost } = await import("./createHeadlessRemoteHost");
+    cancellation.signal.throwIfAborted();
     host = await createHeadlessRemoteHost({
       // Immutable artifact metadata first; `unknown` never masquerades as a
       // version, and the `dev` placeholder is never trusted for identity.
-      appVersion: version.version,
+      appVersion: version,
       isDev,
       baseDir: profileNamespace(),
       supervisorPath: join(__dirname, "supervisor.cjs"),
       databaseReadWorkerPath: join(__dirname, "databaseReadWorker.cjs"),
+      sessionExportWorkerPath: join(__dirname, "sessionExportWorker.cjs"),
       wslHelpersDir: resources.wslHelpersDir,
       buildIdentity,
       staging,
@@ -279,6 +316,17 @@ async function serve(options: ServeCliOptions = {}): Promise<void> {
     );
     info = await host.start();
     cancellation.signal.throwIfAborted();
+    if (options.open ?? (defaultOpen && !!process.stdout.isTTY)) {
+      openingWebApp = openServerWebApp({
+        server: host.server,
+        info,
+        signal: cancellation.signal,
+        explicit: options.open === true,
+      });
+      const warning = await openingWebApp;
+      if (warning) console.warn("[poracode-server] %s", warning);
+      cancellation.signal.throwIfAborted();
+    }
   } catch (error) {
     let failure = error;
     // A failed startup already attempted cleanup. Bound that join before
@@ -315,28 +363,27 @@ async function serve(options: ServeCliOptions = {}): Promise<void> {
   console.log(
     "[poracode-server] request pairing: poracode-server pair --json (same PORACODE_BASE_DIR)",
   );
+  return cancellation.signal;
 }
 
-async function printPairingJson(): Promise<void> {
-  const options = parsePairCliOptions(process.argv.slice(3));
+async function printPairingJson(options: PairCliOptions): Promise<void> {
   const response = await requestPairingFromRunningServer(profileNamespace(), {
     ...(options.scope ? { preset: options.scope } : {}),
   });
-  process.stdout.write(`${JSON.stringify(response)}\n`);
+  process.stdout.write(
+    options.json
+      ? `${JSON.stringify(response)}\n`
+      : `${response.pairingUrl}\n\nOpen this one-time link on the additional client, or paste it into Add server.\nA loopback address reaches only this host; use a reachable, secured endpoint or an SSH tunnel.\nRun clients list to inspect paired access; clients revoke <id> removes it.\n`,
+  );
 }
 
-async function runStop(): Promise<void> {
-  const result = await stopRunningServer(profileNamespace());
+async function runStop(options: { expectedPid?: number }): Promise<void> {
+  const result = await stopRunningServer(profileNamespace(), options);
   process.stdout.write(
     result.outcome === "not-running"
       ? "[poracode-server] no running owner for this profile\n"
       : `[poracode-server] owner ${result.pid} stopped\n`,
   );
-}
-
-async function printStatusJson(): Promise<void> {
-  const response = await requestHostStatusFromRunningServer(profileNamespace());
-  process.stdout.write(`${JSON.stringify(response)}\n`);
 }
 
 /**
@@ -515,7 +562,11 @@ async function runUpgrade(options: ReturnType<typeof parseUpgradeCliOptions>): P
  * Print the immutable artifact version (plan D1/D3). A layout whose metadata
  * cannot be read reports `unknown` and fails; it never invents a version.
  */
-function runVersion(): void {
+function runVersion(capturedBuild?: HostBuildIdentity): void {
+  if (capturedBuild) {
+    process.stdout.write(`${capturedBuild.version}\n`);
+    return;
+  }
   const info = resolveServerVersion();
   process.stdout.write(`${info.version}\n`);
   if (info.source === "unknown") {
@@ -527,12 +578,34 @@ function runVersion(): void {
   }
 }
 
-function printHelp(): void {
+function printHelp(args: readonly string[]): void {
+  if (args[0] === "setup") {
+    process.stdout.write(SETUP_HELP + CLI_PROFILE_HELP);
+    return;
+  }
+  if (args[0] === "service") {
+    process.stdout.write(serviceCommandHelp(args[1]) + CLI_PROFILE_HELP);
+    return;
+  }
+  const focused = cliCommandHelp(args[0] ?? "", args[1]);
+  if (focused) {
+    process.stdout.write(focused);
+    return;
+  }
   process.stdout.write(
-    "Usage: poracode-server [serve [--config <path>] [--host <host>] [--port <port>] [--trusted-proxies <list>] | activate [--json] [--sign-in-again] | doctor [--json] [--log-file <path>] | backup --to <directory> [--json] | init-tls [--json] [--cert <path>] [--key <path>] | upgrade --from <tarball> [--prefix <path>] [--json] | pair --json [--scope viewer|operator] | status --json | stop | --version | --help]\n" +
+    "Headless setup and administration:\n" +
+      CLI_ADMIN_HELP +
+      SETUP_HELP +
+      SERVICE_HELP +
+      CLI_COMPLETION_HELP +
+      "\n" +
+      "Usage: poracode-server [setup [--start|--no-start] [--skip-auth] | serve [--config <path>] [--host <host>] [--port <port>] [--trusted-proxies <list>] | activate [--json] [--sign-in-again] | doctor [--json] [--log-file <path>] | logs [--follow] [--lines N] [--json] | backup --to <directory> [--json] | init-tls [--json] [--cert <path>] [--key <path>] | upgrade --from <tarball> [--prefix <path>] [--json] | pair --json [--scope viewer|operator] | status [--details] [--json] | stop [--if-pid PID] | --version | --help]\n" +
       "\nPORACODE_BASE_DIR selects a profile namespace. The server owns its .host-v1 sibling.\n" +
-      "Running `serve` (the default) reads an optional JSON config file —\n" +
-      "  <profile>/poracode-server.json, or the path given with --config — with fields:\n" +
+      "Bare invocation starts the foreground server and opens the web app in a local interactive terminal.\n" +
+      "Use serve or --no-open for server only; serve --open explicitly requests the browser.\n" +
+      "Both modes read an optional JSON config file —\n" +
+      "  <profile>.server.json, an existing <profile>/poracode-server.json (takes precedence),\n" +
+      "  or the path given with --config — with fields:\n" +
       "  host, port, bindMode, relayUrl, tlsCert, tlsKey, trustedProxies, logLevel, logMaxBytes,\n" +
       "  logMaxFiles, shutdownDrainDeadlineMs. CLI flags and the environment take\n" +
       "  precedence over the file, field by field; logs land in\n" +
@@ -543,6 +616,7 @@ function printHelp(): void {
       "  sealed by the desktop app are adopted via one-time desktop cooperation, or\n" +
       "  --sign-in-again starts fresh without migrating stored credentials.\n" +
       "Run doctor [--json] [--log-file <path>] for read-only diagnostics of this profile.\n" +
+      CLI_LOGS_HELP +
       "Run backup --to <directory> [--json] to capture a verified copy of the owned root.\n" +
       "Run init-tls [--json] [--cert <path>] [--key <path>] to generate self-signed TLS material\n" +
       "  (defaults to <profile>/tls/server.crt + server.key, key 0600); point\n" +
@@ -560,53 +634,166 @@ function printHelp(): void {
       "Run upgrade --abandon-journal --confirm to remove an interrupted journal without touching data or\n" +
       "  the current release; it refuses while the staged candidate is the active current release and was\n" +
       "  not admitted.\n" +
-      "Run status --json with the same profile to inspect the authenticated running owner.\n" +
+      "Run status --details with the same profile to inspect the authenticated running build and admission; basic status supports older owners.\n" +
       "Run stop with the same profile to ask its authenticated owner to drain and exit (the graceful\n" +
       "  stop on every platform, and the only one on Windows); it waits for the owner to report stopped\n" +
       "  and exits non-zero on refusal or timeout.\n" +
-      "Pairing credentials are printed only by that explicit command; PID signaling is unsupported.\n",
+      "Pairing credentials are printed only by pair; browser opening uses a separate short-lived grant.\n" +
+      "PID signaling is unsupported.\n",
   );
 }
 
 export function runCli(): void {
-  let command: ServerCliCommand;
+  dispatchCli();
+}
+
+/** Local packaged-bootstrap entry; this context never travels through env or IPC. */
+export function runDesktopCli(input: unknown): void {
+  const { build } = desktopCliEntrySchema.parse(input);
+  const sameRoot =
+    process.platform === "win32"
+      ? resolve(build.root).toLowerCase() === resolve(__dirname, "..").toLowerCase()
+      : resolve(build.root) === resolve(__dirname, "..");
+  if (
+    !isAbsolute(build.root) ||
+    !sameRoot ||
+    build.layoutKind !== "prefix" ||
+    build.entrypointSha256 === null
+  )
+    throw new Error(
+      "The desktop bootstrap supplied a different or incomplete captured build identity.",
+    );
+  dispatchCli(build);
+}
+
+function dispatchCli(capturedBuild?: HostBuildIdentity): void {
+  let command: ReturnType<typeof parseServerCliCommand>;
+  let args: string[];
   try {
-    command = parseServerCliCommand(process.argv.slice(2));
+    const raw = process.argv.slice(2);
+    // Completion words are data, including any --base-dir being completed.
+    if (raw[0] === "completion") {
+      process.stdout.write(renderCompletion(raw.slice(1)));
+      return;
+    }
+    const parsed = extractBaseDir(raw);
+    args = parsed.args;
+    if (parsed.baseDir) process.env.PORACODE_BASE_DIR = parsed.baseDir;
+    command = parseServerCliCommand(args);
   } catch (error) {
-    reportFatalStartupError("[poracode-server]", error);
+    reportAdminError(error, process.argv.includes("--json"));
+    return;
   }
   if (command === "help") {
-    printHelp();
+    try {
+      printHelp(args);
+      if (capturedBuild)
+        process.stdout.write(
+          "Desktop-provided CLI: use native Node.js for standalone upgrades and managed-service installation. Update the desktop through its own updater.\n",
+        );
+    } catch (error) {
+      reportAdminError(error, false);
+    }
     return;
   }
   if (command === "version") {
-    runVersion();
+    runVersion(capturedBuild);
+    return;
+  }
+  if (command === "completion") {
+    try {
+      process.stdout.write(renderCompletion(args.slice(1)));
+    } catch (error) {
+      reportAdminError(error, args.includes("--json"));
+    }
+    return;
+  }
+  if (capturedBuild && command === "upgrade") {
+    reportAdminError(
+      new Error(
+        "Use the standalone CLI under supported native Node.js to upgrade a service prefix. Update the desktop installation through its own updater; this Electron CLI will not swap or restart a native runtime.",
+      ),
+      args.includes("--json"),
+    );
     return;
   }
   const operation =
-    command === "pair-json"
-      ? printPairingJson()
-      : command === "status-json"
-        ? printStatusJson()
-        : command === "stop"
-          ? runStop()
-          : command === "activate"
-            ? activateStagedImport(parseActivateCliOptions(process.argv.slice(3)))
-            : command === "doctor"
-              ? runDoctor(parseDoctorCliOptions(process.argv.slice(3)))
-              : command === "backup"
-                ? runBackup(parseBackupCliOptions(process.argv.slice(3)))
-                : command === "init-tls"
-                  ? runInitTls(parseInitTlsCliOptions(process.argv.slice(3)))
-                  : command === "upgrade"
-                    ? runUpgrade(parseUpgradeCliOptions(process.argv.slice(3)))
-                    : serve(parseServeCliOptions(process.argv.slice(2)));
+    command === "service"
+      ? runServerService(profileNamespace(), parseServiceCliOptions(args.slice(1))).then(
+          (result) => {
+            if (args.includes("--json")) process.stdout.write(`${JSON.stringify(result)}\n`);
+            else {
+              process.stdout.write(`Service: ${result.state}\n`);
+              if ("registration" in result && result.registration) {
+                const registration = result.registration;
+                process.stdout.write(
+                  `Prefix: ${registration.installPrefix}\nProfile: ${registration.profileNamespace}\nManager: ${registration.manager} (${registration.account.id})\nConfig: ${registration.configPath ?? "default namespace precedence"}\n`,
+                );
+              }
+              if ("ownerGeneration" in result)
+                process.stdout.write(
+                  `Owner generation: ${result.ownerGeneration ?? "not running"}\n`,
+                );
+              if ("native" in result && result.native)
+                process.stdout.write(
+                  `Native state: ${result.native.ActiveState ?? result.native.LoadState}\n`,
+                );
+              if ("ownerManaged" in result && result.ownerGeneration)
+                process.stdout.write(
+                  `Registered owner: ${result.ownerManaged ? "yes" : "no; standalone owner was not adopted"}\n`,
+                );
+              if ("detail" in result) process.stdout.write(`${result.detail}\n`);
+              process.stdout.write(
+                "One registration per explicit prefix; run service status --prefix <same-prefix> or doctor with the same --base-dir.\n",
+              );
+            }
+          },
+        )
+      : command === "logs"
+        ? runServerLogs(profileNamespace(), parseLogsCliOptions(args.slice(1)))
+        : command === "admin"
+          ? runAdministration(args, capturedBuild)
+          : command === "configure"
+            ? runConfigure(profileNamespace(), args.slice(1))
+            : command === "setup"
+              ? runSetup(profileNamespace(), parseSetupCliOptions(args.slice(1)), (config, open) =>
+                  serve({ config, open }, false, capturedBuild),
+                )
+              : command === "pair-json"
+                ? printPairingJson(parsePairCliOptions(args.slice(1)))
+                : command === "status-json"
+                  ? runServerStatus(profileNamespace(), parseStatusCliOptions(args.slice(1)))
+                  : command === "stop"
+                    ? runStop(parseStopCliOptions(args.slice(1)))
+                    : command === "activate"
+                      ? activateStagedImport(parseActivateCliOptions(args.slice(1)))
+                      : command === "doctor"
+                        ? runDoctor(parseDoctorCliOptions(args.slice(1)))
+                        : command === "backup"
+                          ? runBackup(parseBackupCliOptions(args.slice(1)))
+                          : command === "init-tls"
+                            ? runInitTls(parseInitTlsCliOptions(args.slice(1)))
+                            : command === "upgrade"
+                              ? runUpgrade(parseUpgradeCliOptions(args.slice(1)))
+                              : serve(
+                                  parseServeCliOptions(args),
+                                  args[0] !== "serve",
+                                  capturedBuild,
+                                );
   operation.catch(async (error) => {
     await performanceDiagnostics?.stop();
     if (error instanceof HeadlessCompositionShutdownError) {
       // serve() already reported the unconfirmed cleanup and armed the bounded
       // fatal-startup deadline through the installed shutdown control. Exiting
       // here would release the owner while cleanup is unconfirmed.
+      return;
+    }
+    if (
+      ["admin", "configure", "setup", "pair-json", "status-json", "service", "logs"].includes(
+        command,
+      )
+    ) {
+      reportAdminError(error, command !== "logs" && args.includes("--json"));
       return;
     }
     if (
@@ -632,6 +819,15 @@ export function runCli(): void {
     }
     reportFatalStartupError("[poracode-server]", error);
   });
+}
+
+async function runAdministration(args: string[], capturedBuild?: HostBuildIdentity) {
+  const run = args[0] === "run" ? parseRunCli(args) : null;
+  if (run?.standalone) {
+    const { runStandaloneCli } = await import("./cliStandaloneRun");
+    return runStandaloneCli(profileNamespace(), run, __dirname, capturedBuild);
+  }
+  return runAdminCli(profileNamespace(), args);
 }
 
 // Importing CLI helpers under the test runner never boots a listener.

@@ -3,6 +3,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  realpathSync,
   renameSync,
   rmSync,
   statSync,
@@ -10,7 +11,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join, toNamespacedPath } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("node:fs", async (importOriginal) => {
@@ -37,7 +38,11 @@ import {
 const dirs: string[] = [];
 afterEach(() => {
   vi.mocked(readFileSync).mockReset();
-  for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true });
+  for (const dir of dirs.splice(0)) {
+    if (dirname(realpathSync.native(dir)) !== realpathSync.native(tmpdir()))
+      throw new Error("Fixture cleanup is outside the temporary directory.");
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 function prefixFixture(): { prefix: string; releaseDir: string } {
@@ -52,6 +57,36 @@ function prefixFixture(): { prefix: string; releaseDir: string } {
 }
 
 describe("server upgrade journal (D4)", () => {
+  it.skipIf(process.platform !== "win32")(
+    "holds admission for a namespaced Windows candidate using the existing format-1 journal",
+    () => {
+      const fixture = prefixFixture();
+      const prefix = realpathSync.native(fixture.prefix);
+      const releaseDir = realpathSync.native(fixture.releaseDir);
+      writeServerUpgradeJournal(prefix, {
+        prefix,
+        releaseId: "release-fixture",
+        releaseDir,
+        previousTarget: null,
+        phase: "swapped",
+        detail: null,
+        backupPath: null,
+        expectedVersion: "1.0.0",
+        expectedEntrypointSha256: "a".repeat(64),
+        forwardOnlyMigration: false,
+      });
+      const layout = resolveServerInstallLayout({
+        libDir: toNamespacedPath(join(releaseDir, "lib")),
+      });
+      expect(resolveUpgradePrefixForLayout(layout)).toBe(prefix);
+      expect(resolveUpgradeStaging({ layout, env: {} })).toBe(true);
+      writeFileSync(serverUpgradeJournalPath(prefix), '{"formatVersion":99}');
+      expect(resolveUpgradeStaging({ layout, env: {} })).toBe(true);
+      removeServerUpgradeJournal(prefix);
+      expect(resolveUpgradeStaging({ layout, env: {} })).toBe(false);
+    },
+  );
+
   it("round-trips every phase and classifies terminal phases", () => {
     const { prefix, releaseDir } = prefixFixture();
     for (const phase of ["staging", "staged", "swapped", "recovery-required"] as const) {

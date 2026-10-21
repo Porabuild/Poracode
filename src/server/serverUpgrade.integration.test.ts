@@ -20,7 +20,7 @@ import { readHostOwnerRecord } from "@/backend/ownership/hostOwnerLease";
 import { canonicalHostPath, resolveHostRootPaths } from "@/backend/ownership/hostRootPaths";
 import { installServerPrefix } from "../../scripts/install-server-prefix.mjs";
 import { resolveTar, tarCommand } from "../../scripts/server-host-tools.mjs";
-import { resolveBetterSqliteNativeBindingOptions } from "@/host/db/connection";
+import { resolveBetterSqliteNativeBindingOptions } from "@/host/db/nativeBinding";
 import {
   removeConversationSearchFixtureSchema,
   removeCostSchemaForDowngrade,
