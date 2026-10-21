@@ -46,6 +46,9 @@ export function ThreadBackgroundTasksDock({
       <ThreadDockHeader
         icon={Activity}
         title={t`Background tasks`}
+        {...(placement === "right" && tasks.length > 1
+          ? { collapse: { collapsed, onToggle: () => setCollapsed(!collapsed) } }
+          : {})}
         countLabel={<span>{tasks.length}</span>}
         actions={
           <>

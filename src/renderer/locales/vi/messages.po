@@ -273,10 +273,8 @@ msgstr "{0} đang so sánh các diff đã ẩn danh…"
 msgid "{0} is offline. Showing last known status."
 msgstr "{0} đang ngoại tuyến. Hiển thị trạng thái đã biết gần nhất."
 
-#. placeholder {0}: formatTokens(context.maxTokens)
 #. placeholder {0}: summary.maxLabel
 #: src/renderer/components/thread/ThreadContextDock.tsx
-#: src/renderer/components/thread/ThreadDetailsDocks.tsx
 msgid "{0} limit"
 msgstr "Giới hạn {0}"
 
@@ -569,8 +567,8 @@ msgstr "{imported, plural, one {Đã nhập # phiên.} other {Đã nhập # phi�
 #~ msgstr "{label} · Phiên trước; đăng nhập lại cho các luồng mới."
 
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
-msgid "{label} account usage"
-msgstr "Mức sử dụng tài khoản {label}"
+#~ msgid "{label} account usage"
+#~ msgstr "Mức sử dụng tài khoản {label}"
 
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
