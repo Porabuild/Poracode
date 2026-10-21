@@ -661,6 +661,34 @@ describe("ChatPane", () => {
     expect(getScrollElement(container).className).toContain("[overflow-anchor:none]");
   });
 
+  it("sizes the chat scroller below in-flow banners so the tail stays above the composer", async () => {
+    const thread: Thread = {
+      ...makeThread(),
+      forkedFrom: {
+        version: 1,
+        threadId: "thread-source",
+        title: "Source thread",
+        throughItemId: "assistant-source",
+        inheritedTurnCount: 1,
+        contextStrategy: "transcript",
+      },
+    };
+    useAppStore.setState({ threads: [thread] });
+    seedAssistantMessage(thread.id, "Inspect output");
+
+    const { container } = renderChatPane(thread);
+    await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
+
+    // A full-height scroller placed after a banner overflows its container by
+    // the banner height, hiding the "Working for" footer under the composer.
+    const scroller = getScrollElement(container);
+    const banner = screen.getByTestId("thread-fork-source");
+    expect(banner.parentElement).toBe(scroller.parentElement);
+    expect(scroller.parentElement?.className).toContain("flex-col");
+    expect(scroller.className).toContain("flex-1");
+    expect(scroller.className).not.toContain("h-full");
+  });
+
   it("does not disturb the native end anchor when bottom-pinned content collapses", async () => {
     const thread = makeThread();
     seedPlanItem(thread.id, [{ step: "Inspect output", status: "in_progress" }]);

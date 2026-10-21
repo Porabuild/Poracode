@@ -469,7 +469,7 @@ export function ChatPane(props: ChatPaneProps) {
           {thread.config.importedFrom ? (
             <ImportedThreadNotice importedFrom={thread.config.importedFrom} />
           ) : null}
-          <div className="relative min-h-0 flex-1">
+          <div className="relative flex min-h-0 flex-1 flex-col">
             {truncateReloadBlocked ? (
               <div className="flex items-center justify-between gap-2 border-b border-warning-soft-foreground/20 bg-warning-soft/60 px-3 py-1.5 text-xs text-warning-soft-foreground">
                 <span>
@@ -536,7 +536,7 @@ export function ChatPane(props: ChatPaneProps) {
               registerVirtualScrollToBottom={(handler) => {
                 virtualScrollToBottomRef.current = handler;
               }}
-              scrollClassName="min-h-0 h-full overflow-y-auto [overflow-anchor:none] [scrollbar-gutter:stable]"
+              scrollClassName="min-h-0 flex-1 overflow-y-auto [overflow-anchor:none] [scrollbar-gutter:stable]"
               scrollStyle={scrollFadeStyle}
               contentClassName={`min-h-full ${isInitialScrollSettled ? "" : "pointer-events-none opacity-0"}`}
               emptyContent={
