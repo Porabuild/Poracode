@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Thread, UsageSnapshot } from "@/shared/contracts";
 import { AppProvider } from "@/renderer/components/ui/provider";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -46,6 +46,8 @@ function snapshot(providerId: string, amount: number): UsageSnapshot {
     cost: { amount, currency: "USD", period: "cycle", estimated: false },
   };
 }
+
+afterEach(() => vi.restoreAllMocks());
 
 beforeEach(() => {
   useAppStore.setState({
@@ -251,6 +253,39 @@ describe("Thread details", () => {
     expect(screen.queryByText(/12\.34/)).not.toBeInTheDocument();
     act(() => useProviderUsageStore.setState({ snapshots: {} }));
     expect(screen.queryByLabelText("Agent usage")).not.toBeInTheDocument();
+  });
+
+  it("shows reset countdowns and pace estimates alongside account usage bars", () => {
+    const now = Date.now();
+    vi.spyOn(Date, "now").mockReturnValue(now);
+    useProviderUsageStore.getState().setSnapshots([
+      {
+        ...snapshot("codex", 0),
+        windows: [
+          { id: "session-5h", label: "Session (5h)", usedPercent: 19, resetsAt: now + 64 * 60_000 },
+          { id: "weekly", label: "Weekly", usedPercent: 6, resetsAt: now + 100 * 60 * 60_000 },
+        ],
+      },
+    ]);
+    render(
+      <AppProvider>
+        <ThreadAgentUsageDock threadId="t1" />
+      </AppProvider>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Expand agent usage" }));
+    expect(screen.getByRole("progressbar", { name: "Session (5h)" })).toHaveAttribute(
+      "aria-valuenow",
+      "19",
+    );
+    expect(screen.getByRole("progressbar", { name: "Weekly" })).toHaveAttribute(
+      "aria-valuenow",
+      "6",
+    );
+    expect(screen.getByText(/1h 4m/)).toBeInTheDocument();
+    expect(screen.getByText(/4d 4h/)).toBeInTheDocument();
+    expect(screen.getByText("≈24% by reset")).toBeInTheDocument();
+    expect(screen.getByText("≈15% by reset")).toBeInTheDocument();
+    expect(screen.getByText(/\$0\.00/)).toBeInTheDocument();
   });
 
   it("shows reported zeros without inventing an unknown context limit or cost", () => {
