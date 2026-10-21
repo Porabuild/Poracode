@@ -399,6 +399,12 @@ export function ChatPane(props: ChatPaneProps) {
   );
   const completedTurnsByAnchor = useAppStore((s) => selectCompletedTurnsByAnchorItem(s, threadId));
   const mostRecentCompletedTurnAnchor = mostRecentDisplayableCompletedTurn?.anchorItemId ?? null;
+  const completedTurnHasAssistantActions = useAppStore(
+    (state) =>
+      mostRecentCompletedTurnAnchor !== null &&
+      state.runtimeItemsByIdByThread[threadId]?.[mostRecentCompletedTurnAnchor]?.type ===
+        "assistant_message",
+  );
   const completedTurnAnchorAtTail = isCompletedTurnAnchorAtTimelineTail(
     mostRecentCompletedTurnAnchor,
     timelineEntries,
@@ -577,6 +583,7 @@ export function ChatPane(props: ChatPaneProps) {
                       isWaitingForBackground={isWaitingForBackground && !isTurnPaused}
                     />
                     {completedTurnCanRenderInTail &&
+                    !completedTurnHasAssistantActions &&
                     mostRecentDisplayableCompletedTurn?.anchorItemId ? (
                       <div className="mx-auto w-full max-w-[920px] px-4 pb-2">
                         <ThreadForkTurnAction

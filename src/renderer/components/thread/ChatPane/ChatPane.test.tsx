@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { toast } from "@heroui/react";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CanonicalContentBlock, Project, Thread } from "@/shared/contracts";
@@ -6,6 +6,7 @@ import { HOME_PROJECT_ID } from "@/shared/homeScope";
 import { assistantDisplayText } from "@/shared/assistantMessageText";
 import { AppProvider } from "@/renderer/components/ui/provider";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useThreadForkStore } from "@/renderer/state/threadForkStore";
 import { useRevertedPromptStore } from "../revertedPrompt";
 import { ChatPane } from "./ChatPane";
 import { byTextContent } from "@/renderer/testUtils/text";
@@ -2257,6 +2258,94 @@ describe("ChatPane", () => {
 
     const label = screen.getByText("Worked for 1m 15s");
     expect(label.closest(".surface")).not.toBeNull();
+  });
+
+  it.each(["latest", "historical", "sub-second"])(
+    "keeps the %s turn's fork beside copy instead of its elapsed footer",
+    (position) => {
+      const thread = { ...makeThread(), status: "idle" as const };
+      useAppStore.setState({ threads: [thread] });
+      seedAssistantMessage(thread.id, "Final answer");
+      completeAssistantMessage(thread.id);
+      useAppStore.getState().hydrateThreadCompletedTurns(thread.id, [
+        {
+          startedAt: 1000,
+          endedAt: position === "sub-second" ? 1500 : 76000,
+          anchorItemId: ASSISTANT_ITEM_ID,
+        },
+      ]);
+      if (position === "historical") seedUserMessage(thread.id, "Follow-up", "user-2");
+      useAppStore.setState({ threads: [thread] });
+
+      renderChatPane(thread);
+
+      const copy = within(screen.getByText("Final answer").closest(".surface")!).getByRole(
+        "button",
+        { name: "Copy message" },
+      );
+      const fork = screen.getByRole("button", { name: "Fork from here" });
+      expect(copy.closest(".poracode-message-action-strip")).toContainElement(fork);
+      expect(
+        screen.queryByText("Worked for 1m 15s")?.closest(".surface")?.contains(fork) ?? false,
+      ).toBe(false);
+      fireEvent.click(fork);
+      expect(useThreadForkStore.getState()).toMatchObject({
+        sourceThreadId: thread.id,
+        throughItemId: ASSISTANT_ITEM_ID,
+      });
+      useThreadForkStore.getState().close();
+    },
+  );
+
+  it("forks from the persisted anchor when a hidden goal ends an assistant turn", () => {
+    const thread = { ...makeThread(), status: "idle" as const };
+    useAppStore.setState({ threads: [thread] });
+    seedAssistantMessage(thread.id, "Final answer");
+    completeAssistantMessage(thread.id);
+    useAppStore.getState().applyRuntimeEvent(thread.id, {
+      type: "item.started",
+      threadId: thread.id,
+      itemId: "goal-1",
+      itemType: "goal",
+      payload: { entries: [{ id: "1", title: "Ship it", status: "completed" }] },
+    });
+    useAppStore
+      .getState()
+      .hydrateThreadCompletedTurns(thread.id, [
+        { startedAt: 1000, endedAt: 76000, anchorItemId: "goal-1" },
+      ]);
+    useAppStore.setState({ threads: [thread] });
+
+    const { container } = renderChatPane(thread);
+
+    const fork = screen.getByRole("button", { name: "Fork from here" });
+    expect(container.querySelector(".poracode-message-action-strip")).toContainElement(fork);
+    fireEvent.click(fork);
+    expect(useThreadForkStore.getState().throughItemId).toBe("goal-1");
+    useThreadForkStore.getState().close();
+  });
+
+  it("keeps the footer fork when the turn ends with a tool instead of an answer", () => {
+    const thread = { ...makeThread(), status: "idle" as const };
+    useAppStore.setState({ threads: [thread] });
+    useAppStore.getState().applyRuntimeEvent(thread.id, {
+      type: "item.started",
+      threadId: thread.id,
+      itemId: "tool-1",
+      itemType: "tool_call",
+      payload: { name: "Read", status: "completed", args: { file_path: "hello.txt" } },
+    });
+    useAppStore
+      .getState()
+      .hydrateThreadCompletedTurns(thread.id, [
+        { startedAt: 1000, endedAt: 76000, anchorItemId: "tool-1" },
+      ]);
+    useAppStore.setState({ threads: [thread] });
+
+    renderChatPane(thread);
+
+    expect(screen.getByRole("button", { name: "Fork from here" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Copy message" })).not.toBeInTheDocument();
   });
 
   it("renders a completed turn whose stored anchor is an unrendered goal item", () => {

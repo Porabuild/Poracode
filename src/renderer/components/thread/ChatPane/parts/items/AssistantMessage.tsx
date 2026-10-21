@@ -26,6 +26,8 @@ import { SmoothItemMarkdown } from "./ItemMarkdown";
 import { WindowedPlainText } from "./WindowedPlainText";
 import { useWindowedAssistantText } from "./useWindowedAssistantText";
 import { isMessageReplyFormFallback } from "../../../messageReplyForms";
+import { selectCompletedTurnsByAnchorItem } from "../../chatPaneSelectors";
+import { ThreadForkTurnAction } from "../../../ThreadForkControls";
 
 interface AssistantMessageProps {
   threadId: string;
@@ -40,6 +42,11 @@ export const AssistantMessage = memo(function AssistantMessage({
 }: AssistantMessageProps) {
   const { t } = useLingui();
   const actions = useChatPaneActions();
+  const completedTurnStartedAt = useAppStore((state) =>
+    item.parentItemId
+      ? undefined
+      : selectCompletedTurnsByAnchorItem(state, threadId).get(item.id)?.startedAt,
+  );
   // The copy action only appears under a turn's *final* answer: the message
   // must be the last top-level item of its turn — any trailing item (another
   // message, a tool call, an error from a failed turn) means the text was an
@@ -126,13 +133,20 @@ export const AssistantMessage = memo(function AssistantMessage({
           </div>
         ) : null}
       </div>
-      {reserveCopyButtonSpace ? (
-        <div className="poracode-message-action-strip mt-1 flex items-center gap-0.5 opacity-0 transition-opacity group-hover/checkpoint:opacity-100 focus-within:opacity-100">
+      {reserveCopyButtonSpace || completedTurnStartedAt !== undefined ? (
+        <div className="poracode-message-action-strip mt-1 flex min-h-6 items-center gap-0.5 opacity-100 transition-opacity [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover/checkpoint:opacity-100 focus-within:opacity-100">
           {showCopyButton ? (
             <CopyTextButton text={rawText} label={t`Copy message`} />
-          ) : (
+          ) : reserveCopyButtonSpace ? (
             <span aria-hidden="true" className="block size-5" />
-          )}
+          ) : null}
+          {completedTurnStartedAt !== undefined ? (
+            <ThreadForkTurnAction
+              threadId={threadId}
+              itemId={item.id}
+              startedAt={completedTurnStartedAt}
+            />
+          ) : null}
         </div>
       ) : null}
     </Surface>
