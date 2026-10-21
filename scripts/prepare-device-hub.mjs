@@ -152,11 +152,12 @@ export async function prepareDeviceHub(options) {
     patchRoot,
     join(stage, "node_modules", "expo-device-hub"),
   ).replaceAll("\\", "/");
-  execFileSync("git", ["apply", "--check", "--directory", patchDirectory, nativePatchPath], {
+  const gitArgs = ["-c", "core.autocrlf=false", "apply"];
+  execFileSync("git", [...gitArgs, "--check", "--directory", patchDirectory, nativePatchPath], {
     cwd: patchRoot,
     windowsHide: true,
   });
-  execFileSync("git", ["apply", "--directory", patchDirectory, nativePatchPath], {
+  execFileSync("git", [...gitArgs, "--directory", patchDirectory, nativePatchPath], {
     cwd: patchRoot,
     windowsHide: true,
   });
