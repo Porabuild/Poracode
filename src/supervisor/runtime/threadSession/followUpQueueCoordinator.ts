@@ -291,6 +291,9 @@ export class FollowUpQueueCoordinator {
   beginDirectInput(threadId: string): DirectInputReservation {
     return this.directInput.beginDirectInput(threadId);
   }
+  hasPendingInput(threadId: string): boolean {
+    return this.directInput.hasReservation(threadId) || this.mutationTails.has(threadId);
+  }
   noteDirectTurnSubmitted(session: SessionRuntime): void {
     this.directInput.noteDirectTurnSubmitted(session);
   }

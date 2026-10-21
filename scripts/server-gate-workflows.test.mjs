@@ -205,6 +205,15 @@ void test("the reusable workflow builds once, qualifies the exact artifact, and 
   assert.match(assemble.run, /--target/u);
   assert.match(assemble.run, /assemble-server-tarball/u);
   assert.match(assemble.run, /prepare-server-native/u);
+  assert.match(
+    assemble.run,
+    /if \[ "\$\{RUNNER_OS\}" = "Windows" \]; then\s+bun run prepare:service-launcher/u,
+  );
+  assert.match(assemble.run, /node --test scripts\/prepare-service-launcher\.test\.mjs/u);
+  assert.ok(
+    assemble.run.indexOf("prepare:service-launcher") <
+      assemble.run.indexOf("assemble-server-tarball.mjs"),
+  );
 
   // One node script installs without a toolchain on every OS; the POSIX-only
   // bash symlink recipe is gone.

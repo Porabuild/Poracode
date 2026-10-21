@@ -1,4 +1,11 @@
 import { randomBytes } from "node:crypto";
+import {
+  HOST_ADMIN_MAX_REQUEST_BYTES,
+  HOST_ADMIN_MAX_RESPONSE_BYTES,
+  hostAdminResultSchema,
+  type HostAdminRequest,
+  type HostAdminResult,
+} from "@/shared/hostAdminProtocol";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import type { Socket } from "node:net";
 import {
@@ -23,6 +30,12 @@ import type { HostOwnerLease } from "./hostOwnerLease";
 import { publishHostControlDiscovery, removeHostControlDiscovery } from "./hostControlDiscovery";
 import { authenticateHostControlRequest, createHostControlResponseProof } from "./hostControlAuth";
 
+/** The lease owner may delegate control to its fenced backend, retaining lease acquisition/release. */
+export type HostControlAuthority = Pick<
+  HostOwnerLease,
+  "paths" | "generation" | "kind" | "assertActive"
+>;
+
 const MAX_CONNECTIONS = 8;
 const MAX_REQUESTS = 16;
 const MAX_RECEIPTS = 64;
@@ -46,7 +59,7 @@ export interface HostControlStatusSource {
 }
 
 interface HostControlServerOptions {
-  lease: HostOwnerLease;
+  lease: HostControlAuthority;
   describe(): Pick<
     HostDescription,
     "state" | "remoteProtocolVersion" | "endpoint" | "capabilities"
@@ -73,6 +86,7 @@ interface HostControlServerOptions {
    */
   shutdown?(): void;
   issuePairing(context: HostControlContext): string | Promise<string>;
+  administer?(input: HostAdminRequest, context: HostControlContext): Promise<HostAdminResult>;
   reportError?(error: unknown): void;
   receiptNow?(): number;
 }
@@ -83,7 +97,7 @@ type Outcome =
 
 /** The live owner exposes one closed local management surface, separate from remote OAuth. */
 export class HostControlServer {
-  private static readonly active = new WeakMap<HostOwnerLease, HostControlServer>();
+  private static readonly active = new WeakMap<HostControlAuthority, HostControlServer>();
   private readonly generation: string;
   private readonly secret = randomBytes(32).toString("base64url");
   private readonly cancellation = new AbortController();
@@ -240,14 +254,17 @@ export class HostControlServer {
     const timer = setTimeout(() => request.destroy(), INPUT_DEADLINE_MS);
     try {
       const declared = request.headers["content-length"];
+      const maxRequestBytes = this.options.administer
+        ? HOST_ADMIN_MAX_REQUEST_BYTES
+        : HOST_CONTROL_MAX_REQUEST_BYTES;
       if (
         declared !== undefined &&
-        (!/^\d+$/u.test(declared) || Number(declared) > HOST_CONTROL_MAX_REQUEST_BYTES)
+        (!/^\d+$/u.test(declared) || Number(declared) > maxRequestBytes)
       )
         throw new Error("Host control request too large.");
       const body = await readBoundedNodeRequestBody(
         request,
-        HOST_CONTROL_MAX_REQUEST_BYTES,
+        maxRequestBytes,
         () => new Error("Host control request too large."),
       );
       clearTimeout(timer);
@@ -279,6 +296,11 @@ export class HostControlServer {
         return;
       }
       const input = parsed.data;
+      if (input.operation !== "admin" && body.length > HOST_CONTROL_MAX_REQUEST_BYTES) {
+        response.writeHead(400, { connection: "close" });
+        response.end();
+        return;
+      }
       // A host that predates an additive operation answers exactly like a
       // pre-D4 owner (authenticated request, then HTTP 400): the caller may
       // only conclude "operation unsupported" after a verified describe.
@@ -297,6 +319,11 @@ export class HostControlServer {
         response.end();
         return;
       }
+      if (input.operation === "admin" && !this.options.administer) {
+        response.writeHead(400, { connection: "close" });
+        response.end();
+        return;
+      }
       const outcome: Outcome =
         input.ownerGeneration !== this.generation
           ? { ok: false, error: { code: "generation-mismatch" } }
@@ -309,7 +336,12 @@ export class HostControlServer {
         ...outcome,
       };
       const bytes = Buffer.from(JSON.stringify(reply));
-      if (bytes.length > HOST_CONTROL_MAX_RESPONSE_BYTES)
+      if (
+        bytes.length >
+        (input.operation === "admin"
+          ? HOST_ADMIN_MAX_RESPONSE_BYTES
+          : HOST_CONTROL_MAX_RESPONSE_BYTES)
+      )
         throw new Error("Host control response too large.");
       response.writeHead(200, {
         "content-type": "application/json; charset=utf-8",
@@ -389,6 +421,44 @@ export class HostControlServer {
       if (existing) return { ok: false, error: { code: "invalid-request" } };
       return { ok: true, result: { accepted: true } };
     }
+    if (
+      input.operation === "admin" &&
+      ([
+        "providers-list",
+        "projects-list",
+        "projects-inspect",
+        // Run output cursors and exact cancellation own their consumption/lifetime.
+        "run-read",
+        "run-options",
+        "run-cancel",
+        "providers-prepare-configuration",
+        "providers-drivers",
+        "providers-check-add",
+        "plugins-list",
+        "mcp-list",
+        "mcp-inspect",
+        "mcp-prepare-configuration",
+        "providers-catalog",
+        "auth-methods",
+        "auth-read",
+        "auth-write",
+        // Export cursors own consumption; retaining chunk replies exhausts mutation receipts.
+        "sessions-export-read",
+        "sessions-export-cancel",
+        "clients-list",
+        "pairings-list",
+      ].includes(input.payload.command.action) ||
+        (input.payload.command.action === "custom-providers" &&
+          ["list", "inspect", "check-add"].includes(input.payload.command.command.action)))
+    ) {
+      if (existing) return { ok: false, error: { code: "invalid-request" } };
+      if (this.options.describe().state !== "ready")
+        return { ok: false, error: { code: "not-ready" } };
+      return this.work.run(async () => ({
+        ok: true,
+        result: hostAdminResultSchema.parse(await this.options.administer!(input.payload, context)),
+      }));
+    }
     if (existing) return existing.result;
     if (this.receipts.size >= MAX_RECEIPTS) return { ok: false, error: { code: "capacity" } };
     if (input.operation === "admit") {
@@ -411,6 +481,12 @@ export class HostControlServer {
     }
     if (this.options.describe().state !== "ready")
       return { ok: false, error: { code: "not-ready" } };
+    if (input.operation === "admin") {
+      return this.recordMutation(input, context, async () => ({
+        ok: true,
+        result: hostAdminResultSchema.parse(await this.options.administer!(input.payload, context)),
+      }));
+    }
     return this.recordMutation(input, context, async () => {
       const pairingUrl = await this.options.issuePairing({
         ...context,

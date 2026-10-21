@@ -135,7 +135,9 @@ export interface RemoteProjectCommandOptions {
 /** Folder name from an absolute path, used when the client omits a project name. */
 function nameFromPath(path: string): string {
   const trimmed = path.replace(/[\\/]+$/, "");
-  return basename(trimmed) || trimmed;
+  const name = basename(trimmed) || trimmed;
+  // Roots and OS-valid folder names may not be valid portable display labels.
+  return validateProjectName(name) ? "Project" : name;
 }
 
 /**
@@ -272,6 +274,29 @@ function makeProject(
   return { id: randomUUID(), name, location, createdAt, ...(workspaceId ? { workspaceId } : {}) };
 }
 
+type ProjectRegistrationDeps = Pick<
+  RemoteProjectCommandDeps,
+  "platform" | "findProjectByLocation" | "upsertProject" | "updateProject" | "getProjects" | "now"
+>;
+
+export function registerExistingProjectDirectory(
+  command: Extract<RemoteProjectCommand, { kind: "add-existing" }>,
+  deps: ProjectRegistrationDeps,
+  options: RemoteProjectCommandOptions = {},
+): RemoteProjectCommandApplication {
+  assertValidProjectPath(command.path, deps.platform);
+  const name = command.name?.trim() || nameFromPath(command.path);
+  assertValidName(name);
+  return register(
+    deps,
+    deriveLocationFromPath(command.path, deps.platform),
+    name,
+    Boolean(command.name?.trim()),
+    command.workspaceId,
+    options,
+  );
+}
+
 /**
  * Applies a remote project command against the DB (and, for clone, the
  * supervisor). New projects sort to the top via a descending-timestamp
@@ -287,18 +312,7 @@ export async function applyRemoteProjectCommand(
   const bounded = options.resultMode === "bounded";
   switch (command.kind) {
     case "add-existing": {
-      assertValidProjectPath(command.path, deps.platform);
-      const name = command.name?.trim() || nameFromPath(command.path);
-      assertValidName(name);
-      const location = deriveLocationFromPath(command.path, deps.platform);
-      return register(
-        deps,
-        location,
-        name,
-        Boolean(command.name?.trim()),
-        command.workspaceId,
-        options,
-      );
+      return registerExistingProjectDirectory(command, deps, options);
     }
     case "create": {
       assertValidProjectPath(command.parentPath, deps.platform);
@@ -551,7 +565,7 @@ function boundedProjectApplication(
 }
 
 function register(
-  deps: RemoteProjectCommandDeps,
+  deps: ProjectRegistrationDeps,
   location: ProjectLocation,
   name: string,
   nameOverride: boolean,

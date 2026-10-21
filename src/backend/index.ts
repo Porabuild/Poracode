@@ -1,4 +1,6 @@
 import { AsyncWorkTracker } from "@/shared/asyncWorkTracker";
+import { DESKTOP_HOST_CONTROL_VERSION } from "@/shared/desktopHostControl";
+import { validateDesktopControlGrant } from "./ownership/delegatedHostControl";
 import { dirname, join } from "node:path";
 import { startNodePerformanceDiagnostics } from "@/shared/diagnostics/nodePerformanceDiagnostics";
 import { configureSecretStorageKey } from "@/shared/secretStorage";
@@ -206,6 +208,16 @@ async function initialize(
 ): Promise<unknown> {
   if (backendHost) throw new Error("Backend host is already initialized.");
   const { baseDir, dbPath, supervisor } = request.payload;
+  const localControl = request.payload.desktop?.localControl;
+  // A future/foreign delegation must refuse before key configuration, root
+  // preparation, database opening or provider/service construction.
+  if (localControl !== undefined)
+    validateDesktopControlGrant({
+      grant: localControl,
+      dataRoot: baseDir,
+      dataFencePath: request.payload.desktop?.dataFencePath,
+      ownerPid: process.ppid,
+    });
   configureSecretStorageKey(supervisor.secretStorageKey);
   // Desktop services can only be built on the constructed host, so a
   // supervisor launch that races initialization (for example the first
@@ -295,7 +307,14 @@ async function initialize(
   }
   desktopServicesReady.resolve();
   if (!acceptingRequests) throw new Error("Backend host is shutting down.");
-  return null;
+  return localControl
+    ? {
+        localControl: {
+          version: DESKTOP_HOST_CONTROL_VERSION,
+          ownerGeneration: localControl.ownerGeneration,
+        },
+      }
+    : null;
 }
 
 function handleRequest(request: BackendHostRequest): Promise<unknown> {

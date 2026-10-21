@@ -1386,6 +1386,7 @@ msgid "Agent is active and ready"
 msgstr "Tác nhân đang hoạt động và sẵn sàng"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentHeader.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Agent is currently disabled"
 msgstr "Tác nhân hiện đang bị vô hiệu hóa"
 
@@ -1695,6 +1696,10 @@ msgstr "Một quy trình tự động khác đang sử dụng cuộc trò chuy�
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 msgid "Another chat uses this same tree. File restore could overwrite that chat's changes."
 msgstr "Một cuộc trò chuyện khác cũng sử dụng cây này. Khôi phục tệp có thể ghi đè lên các thay đổi của cuộc trò chuyện đó."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Another client is running this thread. Stop that run before replacing the thread or sending more input."
+msgstr "Một ứng dụng khách khác đang chạy luồng này. Hãy dừng lượt chạy đó trước khi thay thế luồng hoặc gửi thêm dữ liệu đầu vào."
 
 #: src/renderer/actions/experimentOperationState.ts
 msgid "Another operation for this experiment is still running."
@@ -18104,6 +18109,10 @@ msgstr "Dự án này không có kho từ xa trên máy chủ nguồn được h
 #: src/renderer/components/thread/ThreadDraftView.tsx
 msgid "This project's remote server is offline. Reconnect it to start a thread."
 msgstr "Máy chủ từ xa của dự án này đang ngoại tuyến. Hãy kết nối lại để bắt đầu một luồng."
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
+msgid "This provider configuration has no detected runtime on the selected machine."
+msgstr "Chưa phát hiện môi trường thực thi cho cấu hình nhà cung cấp này trên máy đã chọn."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "This QR grants full operator access."

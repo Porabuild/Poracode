@@ -317,6 +317,37 @@ export function dbSetThreadsDone(threadIds: readonly string[], doneAt: string): 
   notifyProjectThreadDataChanged();
 }
 
+/** Compute against the current row; never replace runtime/configuration or catalog order. */
+export function dbUpdateThreadMetadata(
+  threadId: string,
+  update: (thread: Thread) => Thread,
+): Thread | null {
+  const sqlite = getSqlite();
+  const result = sqlite
+    .transaction(() => {
+      const current = dbGetThread(threadId);
+      if (!current) return null;
+      const next = update(current);
+      sqlite
+        .prepare(`UPDATE threads SET title = ?, done = ?, done_at = ?, starred = ?,
+      archived = ?, archived_at = ?, updated_at = ? WHERE id = ?`)
+        .run(
+          next.title,
+          next.done ? 1 : 0,
+          next.doneAt ?? null,
+          next.starred ? 1 : 0,
+          next.archived ? 1 : 0,
+          next.archivedAt ?? null,
+          next.updatedAt,
+          threadId,
+        );
+      return next;
+    })
+    .immediate();
+  if (result) notifyProjectThreadDataChanged();
+  return result;
+}
+
 /**
  * Assign a thread to a sidebar group without touching its sort order (unlike
  * `dbUpsertThread`, which requires one). Fallback for orchestrator grouping

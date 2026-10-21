@@ -1386,6 +1386,7 @@ msgid "Agent is active and ready"
 msgstr "에이전트가 활성 상태이며 준비되었습니다"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentHeader.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Agent is currently disabled"
 msgstr "에이전트가 현재 비활성화되어 있습니다"
 
@@ -1695,6 +1696,10 @@ msgstr "다른 자동화가 이미 이 대화를 사용 중입니다."
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 msgid "Another chat uses this same tree. File restore could overwrite that chat's changes."
 msgstr "다른 채팅에서도 이 동일한 트리를 사용합니다. 파일 복원으로 인해 해당 채팅의 변경 사항을 덮어쓸 수 있습니다."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Another client is running this thread. Stop that run before replacing the thread or sending more input."
+msgstr "다른 클라이언트에서 이 스레드를 실행 중입니다. 스레드를 교체하거나 추가 입력을 보내기 전에 해당 실행을 중지하세요."
 
 #: src/renderer/actions/experimentOperationState.ts
 msgid "Another operation for this experiment is still running."
@@ -18104,6 +18109,10 @@ msgstr "이 프로젝트에는 지원되는 소스 호스트 원격 저장소가
 #: src/renderer/components/thread/ThreadDraftView.tsx
 msgid "This project's remote server is offline. Reconnect it to start a thread."
 msgstr "이 프로젝트의 원격 서버가 오프라인입니다. 스레드를 시작하려면 다시 연결하세요."
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
+msgid "This provider configuration has no detected runtime on the selected machine."
+msgstr "선택한 컴퓨터에서 이 공급자 구성의 런타임이 감지되지 않았습니다."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "This QR grants full operator access."

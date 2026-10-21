@@ -13,12 +13,29 @@ import {
   resolveServeSettings,
   SERVE_USAGE,
   SERVER_CONFIG_FILE_NAME,
+  serverConfigFileSchema,
 } from "./serverConfig";
 
 describe("parseServeCliOptions", () => {
   it("accepts bare invocation and the explicit serve keyword", () => {
     expect(parseServeCliOptions([])).toEqual({});
     expect(parseServeCliOptions(["serve"])).toEqual({});
+  });
+
+  it("accepts invocation-only browser controls and refuses ambiguous combinations", () => {
+    expect(parseServeCliOptions(["--no-open"])).toEqual({ open: false });
+    expect(parseServeCliOptions(["serve", "--open", "--port", "0"])).toEqual({
+      open: true,
+      port: 0,
+    });
+    for (const args of [
+      ["--open", "--no-open"],
+      ["serve", "--no-open", "--open"],
+      ["--open", "--open"],
+      ["--open=true"],
+    ])
+      expect(() => parseServeCliOptions(args)).toThrow(SERVE_USAGE);
+    expect(() => serverConfigFileSchema.parse({ open: true })).toThrow(Error);
   });
 
   it("parses host, port, config, and trusted-proxies flags", () => {
@@ -72,6 +89,21 @@ describe("loadServerConfigFile", () => {
     expect(() => loadServerConfigFile({ path: "config.json", readText: read("{oops") })).toThrow(
       /not valid JSON/u,
     );
+  });
+
+  it("does not retain private parser excerpts in malformed configuration errors", () => {
+    let failure: unknown;
+    try {
+      loadServerConfigFile({ path: "config.json", readText: read("PRIVATE") });
+    } catch (error) {
+      failure = error;
+    }
+    expect(failure).toBeInstanceOf(Error);
+    expect((failure as Error).message).toBe(
+      "Server config file config.json is not valid JSON. Check its JSON syntax.",
+    );
+    expect(String(failure)).not.toContain("PRIVATE");
+    expect((failure as Error).cause).toBeUndefined();
   });
 });
 
@@ -152,6 +184,9 @@ describe("resolveServeSettings", () => {
     });
     expect(fromFlag.remoteAccessHost).toBe("127.0.0.2");
     expect(fromFlag.remoteAccessPort).toBe(52000);
+    expect(fromFile.sources).toMatchObject({ host: "config", port: "config", logLevel: "default" });
+    expect(fromEnv.sources.port).toBe("environment");
+    expect(fromFlag.sources).toMatchObject({ host: "flag", port: "flag" });
   });
 
   it("honors the documented log-level and drain-deadline environment variables", () => {
@@ -176,6 +211,10 @@ describe("resolveServeSettings", () => {
     expect(settings.shutdownDrainDeadlineMs).toBe(DEFAULT_SHUTDOWN_DRAIN_DEADLINE_MS);
     expect(settings.warnings.join("\n")).toMatch(/PORACODE_LOG_LEVEL/u);
     expect(settings.warnings.join("\n")).toMatch(/PORACODE_SHUTDOWN_DRAIN_DEADLINE_MS/u);
+    expect(settings.sources).toMatchObject({
+      logLevel: "default",
+      shutdownDrainDeadlineMs: "default",
+    });
   });
 
   it("clamps an extreme drain deadline and flags a partial TLS pair", () => {

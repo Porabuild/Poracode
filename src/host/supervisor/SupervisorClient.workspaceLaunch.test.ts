@@ -3,7 +3,10 @@ import { EventEmitter } from "node:events";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { StartThreadPayload } from "@/shared/contracts";
 import type { WorkspaceLaunchSelection } from "./WorkspaceLaunchBridge";
-import { THREAD_WORKSPACE_RUNTIME_REQUEST } from "@/shared/threadWorkspaceRuntimeProtocol";
+import {
+  CONTROLLED_WORKSPACE_RUNTIME_REQUEST,
+  THREAD_WORKSPACE_RUNTIME_REQUEST,
+} from "@/shared/threadWorkspaceRuntimeProtocol";
 
 const forkMock = vi.hoisted(() => vi.fn<(...args: unknown[]) => unknown>());
 vi.mock("node:child_process", async (original) => ({
@@ -13,7 +16,7 @@ vi.mock("node:child_process", async (original) => ({
 vi.mock("@/shared/processTree", () => ({ terminateChildProcessTree: vi.fn<() => void>() }));
 import { SupervisorClient } from "./SupervisorClient";
 
-const launch: StartThreadPayload = {
+const launch = {
   threadId: "thread",
   agentKind: "neutral",
   projectLocation: { kind: "posix", path: "/primary" },
@@ -21,7 +24,7 @@ const launch: StartThreadPayload = {
   prompt: "",
   presentationMode: "gui",
   initialSize: { cols: 120, rows: 40 },
-};
+} satisfies StartThreadPayload;
 const selection = (): WorkspaceLaunchSelection => ({
   owner: "owner",
   scope: {
@@ -67,14 +70,78 @@ function fixture(reader = vi.fn<() => WorkspaceLaunchSelection | undefined>(() =
 const support = { version: 1, incarnation: "b36805a3-1c39-49af-af5c-3fe205ad45ef" };
 beforeEach(() => forkMock.mockReset());
 describe("SupervisorClient committed workspace launches", () => {
+  it.each(["transition", "support"] as const)(
+    "rechecks the host-local selection guard after a held %s before controlled launch effects",
+    async (boundary) => {
+      const f = fixture(),
+        transition = Promise.withResolvers<void>();
+      const state = f.client as unknown as { restartPromise: Promise<void> | null };
+      if (boundary === "transition") state.restartPromise = transition.promise;
+      let current = true;
+      const assertLaunchCurrent = vi.fn<() => void>(() => {
+        if (!current) throw new Error("Saved execution selection changed fixture");
+      });
+      const run = f.client
+        .call(
+          "controlThreadExecution",
+          {
+            version: 1,
+            action: "start",
+            operationId: support.incarnation,
+            launch: { ...launch, threadId: "thread" },
+          },
+          { assertLaunchCurrent },
+        )
+        .catch((error: unknown) => error);
+      if (boundary === "support") await vi.waitUntil(() => f.requests().length === 1);
+      expect(JSON.stringify(f.requests())).not.toContain("assertLaunchCurrent");
+      current = false;
+      if (boundary === "transition") {
+        state.restartPromise = null;
+        transition.resolve();
+      } else f.reply(f.requests()[0]!, { ...support, version: 2 });
+      await expect(run).resolves.toMatchObject({
+        message: "Saved execution selection changed fixture",
+      });
+      expect(f.requests().filter((request) => request.payload.action === "launch")).toHaveLength(0);
+      expect(assertLaunchCurrent).toHaveBeenCalledTimes(boundary === "transition" ? 2 : 3);
+    },
+  );
+  it.each(["closeThread", "closeThreadConfirmed", "interruptThread"] as const)(
+    "does not dispatch a controlled scoped start after %s during support wait",
+    async (control) => {
+      const f = fixture();
+      const run = f.client.call("controlThreadExecution", {
+        version: 1,
+        action: "start",
+        operationId: support.incarnation,
+        launch: { ...launch, threadId: "thread" },
+      });
+      const rejected = run.catch((error: unknown) => error);
+      await vi.waitFor(() => expect(f.requests()).toHaveLength(1));
+      const supportRequest = f.requests()[0]!;
+      expect(supportRequest).toMatchObject({
+        type: CONTROLLED_WORKSPACE_RUNTIME_REQUEST,
+        payload: { action: "support", version: 2 },
+      });
+      const close = f.client.call(control, { threadId: "thread" });
+      await vi.waitFor(() => expect(f.requests()).toHaveLength(2));
+      f.reply(f.requests()[1]!, undefined);
+      await close;
+      f.reply(supportRequest, { ...support, version: 2 });
+      await expect(rejected).resolves.toBeInstanceOf(WorkspaceLaunchUnavailableError);
+      expect(f.requests().filter((r) => r.payload.action === "launch")).toHaveLength(0);
+    },
+  );
   it.each(
     (["restartPromise", "stopPromise"] as const).flatMap((field) =>
-      (["startThread", "ensureThreadRunning"] as const).flatMap((procedure) =>
-        (["closeThread", "closeThreadConfirmed", "interruptThread"] as const).map((control) => ({
-          field,
-          procedure,
-          control,
-        })),
+      (["startThread", "ensureThreadRunning", "controlThreadExecution"] as const).flatMap(
+        (procedure) =>
+          (["closeThread", "closeThreadConfirmed", "interruptThread"] as const).map((control) => ({
+            field,
+            procedure,
+            control,
+          })),
       ),
     ),
   )(
@@ -102,7 +169,19 @@ describe("SupervisorClient committed workspace launches", () => {
           );
         return true;
       });
-      const run = f.client.call(procedure, launch).catch((error: unknown) => error);
+      const run = f.client
+        .call(
+          procedure,
+          procedure === "controlThreadExecution"
+            ? {
+                version: 1,
+                action: "start",
+                operationId: support.incarnation,
+                launch: { ...launch, threadId: "thread" },
+              }
+            : launch,
+        )
+        .catch((error: unknown) => error);
       const close = f.client.call(control, { threadId: "thread" });
       transition[field] = null;
       release();

@@ -8,6 +8,8 @@
  */
 
 const messages = {
+  "thread.execution.owned":
+    "Another client is running this thread. Stop that run before replacing the thread or sending more input.",
   "forge.commentNotEditable": "Only your own comments on this pull request can be edited.",
   "forge.commentChanged": "This comment changed while you were editing it. Refresh before saving.",
   "forge.guideInvalid":

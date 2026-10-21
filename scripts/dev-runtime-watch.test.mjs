@@ -3,7 +3,7 @@ import fs, { existsSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, realpath, rename, rm, writeFile } from "node:fs/promises";
 import { createRequire, syncBuiltinESMExports } from "node:module";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { pathToFileURL } from "node:url";
 import test from "node:test";
@@ -28,7 +28,10 @@ async function fixture() {
     ".tmp",
   ])
     await mkdir(join(root, path), { recursive: true });
-  for (const path of runtimeConfigurationFiles) await writeFile(join(root, path), "");
+  for (const path of runtimeConfigurationFiles) {
+    await mkdir(dirname(join(root, path)), { recursive: true });
+    await writeFile(join(root, path), "");
+  }
   await writeFile(join(root, "package.json"), '{"type":"module"}');
   await writeFile(join(root, "tsconfig.json"), "{}");
   await writeFile(

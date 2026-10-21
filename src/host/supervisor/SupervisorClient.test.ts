@@ -56,7 +56,9 @@ function makeFakeChild(): FakeChild {
   return child;
 }
 
-function makeClient(options: Pick<SupervisorClientOptions, "prepareStartThread"> = {}) {
+function makeClient(
+  options: Pick<SupervisorClientOptions, "prepareStartThread" | "prepareWorkspaceLaunch"> = {},
+) {
   const child = makeFakeChild();
   forkMock.mockReturnValue(child);
   const client = new SupervisorClient({
@@ -711,6 +713,121 @@ describe("SupervisorClient.call", () => {
       });
       child.emit("message", { replyTo: request!.id, ok: true, data: { threadId: "child-thread" } });
       await expect(promise).resolves.toEqual({ threadId: "child-thread" });
+    },
+  );
+
+  it("applies host launch invariants to a controlled execution's nested launch", async () => {
+    const { client, child } = makeClient({
+      prepareStartThread: (payload) => ({
+        ...payload,
+        invariantDisabledBuiltInMcpServerIds: ["crossagents"],
+      }),
+    });
+    let request: { id: string; type: string; payload: unknown } | undefined;
+    child.send.mockImplementation((message, callback) => {
+      request = message as typeof request;
+      callback?.();
+      return true;
+    });
+    const promise = client.call("controlThreadExecution", {
+      version: 1,
+      action: "start",
+      operationId: "b36805a3-1c39-49af-af5c-3fe205ad45ef",
+      launch: {
+        threadId: "controlled",
+        agentKind: "neutral",
+        projectLocation: { kind: "posix", path: "/repo" },
+        config: { model: "model" },
+        prompt: "Inspect",
+        initialSize: { cols: 80, rows: 24 },
+      },
+    });
+    await vi.waitFor(() => expect(request).toBeDefined());
+    expect(request).toMatchObject({
+      type: "controlThreadExecution",
+      payload: { launch: { invariantDisabledBuiltInMcpServerIds: ["crossagents"] } },
+    });
+    child.emit("message", {
+      replyTo: request!.id,
+      ok: true,
+      data: {
+        version: 1,
+        state: "started",
+        operationId: "b36805a3-1c39-49af-af5c-3fe205ad45ef",
+        threadId: "controlled",
+      },
+    });
+    await expect(promise).resolves.toMatchObject({ state: "started" });
+  });
+
+  it.each([false, true])(
+    "negotiates controlled workspace v2 without unscoped fallback (old peer: %s)",
+    async (oldPeer) => {
+      const operationId = "b36805a3-1c39-49af-af5c-3fe205ad45ef";
+      const scope = {
+        primaryLocation: { kind: "posix" as const, path: "/repo" },
+        additionalDirectories: [{ kind: "posix" as const, path: "/extra" }],
+        revision: 2,
+      };
+      const { client, child } = makeClient({
+        prepareWorkspaceLaunch: () => ({ owner: "actual-host-owner", scope }),
+      });
+      const messages: Array<{
+        id: string;
+        type: string;
+        payload: { action: string; version: number };
+      }> = [];
+      child.send.mockImplementation((message, callback) => {
+        const request = message as (typeof messages)[number];
+        messages.push(request);
+        callback?.();
+        if (request.payload.action === "support")
+          queueMicrotask(() =>
+            child.emit(
+              "message",
+              oldPeer
+                ? {
+                    replyTo: request.id,
+                    ok: false,
+                    error: "Unknown private workspace-runtime-v2 request",
+                  }
+                : { replyTo: request.id, ok: true, data: { version: 2, incarnation: operationId } },
+            ),
+          );
+        else
+          queueMicrotask(() =>
+            child.emit("message", {
+              replyTo: request.id,
+              ok: true,
+              data: { version: 1, operationId, threadId: "controlled", state: "started" },
+            }),
+          );
+        return true;
+      });
+      const run = client.call("controlThreadExecution", {
+        version: 1,
+        action: "start",
+        operationId,
+        launch: {
+          threadId: "controlled",
+          agentKind: "neutral",
+          projectLocation: scope.primaryLocation,
+          config: { model: "model" },
+          prompt: "Inspect",
+          initialSize: { cols: 80, rows: 24 },
+        },
+      });
+      const result = await run.catch((error: unknown) => error);
+      const expectedError = { message: expect.stringContaining("approved folders") };
+      expect(result).toMatchObject(oldPeer ? expectedError : { state: "started" });
+      expect(messages).toHaveLength(oldPeer ? 1 : 2);
+      expect(messages.at(-1)).toMatchObject({
+        type: "workspace-runtime-v2",
+        payload: oldPeer
+          ? { version: 2, action: "support" }
+          : { version: 2, action: "launch", operationId, scope },
+      });
+      expect(messages.every((message) => message.type === "workspace-runtime-v2")).toBe(true);
     },
   );
 

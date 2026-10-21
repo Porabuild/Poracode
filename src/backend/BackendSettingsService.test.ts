@@ -41,6 +41,26 @@ describe("backend settings authority access", () => {
 
   const secret = { agentKind: "fixture-agent", key: "token", value: "fixture-secret" };
 
+  it("exposes trusted computed multi-field edits through the same desktop settings authority", async () => {
+    const service = access();
+    try {
+      await service.editSettingsField("themeMode", () => "dark");
+      const result = await service.editSettingsFields(
+        ["agentInstances", "mcpServers"],
+        (current) => ({
+          agentInstances: current.agentInstances,
+          mcpServers: current.mcpServers,
+        }),
+      );
+      expect(result.status).toBe("committed");
+      const settings = await service.call("getSharedSettings", {});
+      expect(settings.themeMode).toBe("dark");
+      expect(service.onChanged).toHaveBeenCalled();
+    } finally {
+      await service.dispose();
+    }
+  });
+
   function admission() {
     const custody = {
       paths: { dataRoot: root },

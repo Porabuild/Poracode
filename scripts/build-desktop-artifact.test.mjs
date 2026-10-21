@@ -34,6 +34,7 @@ void test("pins runtime, required peers and packaging tools to installed version
   for (const [name, version] of Object.entries({ ...stage.dependencies, ...stage.devDependencies }))
     assert.equal(version, installed[name]);
   assert.equal(stage.dependencies.react, "1.2.3");
+  assert.equal(stage.dependencies.qrcode, installed.qrcode);
   assert.equal(stage.dependencies.typescript, undefined);
   assert.deepEqual(stage.overrides, pkg.overrides);
   rmSync(join(root, "ws", "package.json"));

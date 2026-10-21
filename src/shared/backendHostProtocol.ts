@@ -173,6 +173,8 @@ export interface BackendHostInitializePayload {
   desktop?: {
     channel: "stable" | "nightly";
     settingsPath: string;
+    /** Closed optional delegation v1; acknowledged before main admits the backend. */
+    localControl?: import("./desktopHostControl").DesktopHostControlGrant;
     devServerUrl?: string;
     /**
      * Data-custody fence path (`<ns>.host-data.sqlite`, `hostDataFence.ts`).

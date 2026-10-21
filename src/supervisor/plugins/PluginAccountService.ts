@@ -36,6 +36,7 @@ export function pluginAccountCredentialKey(
 
 export class PluginAccountService {
   private readonly storePath: string;
+  private readonly pendingBegins = new Map<string, symbol>();
 
   constructor(
     private readonly options: {
@@ -50,7 +51,11 @@ export class PluginAccountService {
     this.storePath = join(options.baseDir, "plugin-accounts.json");
   }
 
-  async manage(payload: PluginAccountsPayload): Promise<PluginAccountsResult> {
+  async manage(
+    payload: PluginAccountsPayload,
+    signal?: AbortSignal,
+  ): Promise<PluginAccountsResult> {
+    signal?.throwIfAborted();
     const plugin = this.options.registry.getPlugin(payload.pluginName);
     if (!plugin) throw new Error("Plugin not found.");
     const store = this.readStore();
@@ -129,22 +134,29 @@ export class PluginAccountService {
       } else account.label = payload.label;
       const accountId = account.id;
       this.writeStore(store);
+      const key = pluginAccountCredentialKey(account);
+      const begin = Symbol();
+      this.pendingBegins.set(key, begin);
+      const rollback = () => {
+        if (!created || this.pendingBegins.get(key) !== begin) return;
+        const current = this.readStore();
+        current.accounts = current.accounts.filter((candidate) => candidate.id !== accountId);
+        this.writeStore(current);
+      };
       let authorization: McpOauthBeginResult;
       try {
-        authorization = await this.options.oauth.beginForCredential(
-          server,
-          pluginAccountCredentialKey(account),
-        );
+        authorization = await (signal
+          ? this.options.oauth.beginForCredential(server, key, signal)
+          : this.options.oauth.beginForCredential(server, key));
+        if (signal?.aborted) authorization = { status: "error", message: "Sign-in was canceled." };
+        if (authorization.status === "error") rollback();
       } catch (error) {
-        if (created) {
-          store.accounts = store.accounts.filter((candidate) => candidate.id !== accountId);
-          this.writeStore(store);
-        }
+        rollback();
         throw error;
+      } finally {
+        if (this.pendingBegins.get(key) === begin) this.pendingBegins.delete(key);
       }
       if (authorization.status === "error" && created) {
-        store.accounts = store.accounts.filter((candidate) => candidate.id !== accountId);
-        this.writeStore(store);
         return {
           ...(await this.manage({ action: "list", pluginName: plugin.name })),
           authorization,
@@ -159,6 +171,7 @@ export class PluginAccountService {
     }
     if (!account) throw new Error("Plugin account not found.");
     if (payload.action === "logout") {
+      this.pendingBegins.delete(pluginAccountCredentialKey(account));
       this.options.oauth.clearCredential(pluginAccountCredentialKey(account));
     } else {
       if (
@@ -177,8 +190,12 @@ export class PluginAccountService {
 
   removePluginAccounts(pluginName: string): void {
     const store = this.readStore();
-    for (const account of store.accounts.filter((candidate) => candidate.pluginName === pluginName))
+    for (const account of store.accounts.filter(
+      (candidate) => candidate.pluginName === pluginName,
+    )) {
+      this.pendingBegins.delete(pluginAccountCredentialKey(account));
       this.options.oauth.clearCredential(pluginAccountCredentialKey(account));
+    }
     store.accounts = store.accounts.filter((candidate) => candidate.pluginName !== pluginName);
     this.writeStore(store);
   }

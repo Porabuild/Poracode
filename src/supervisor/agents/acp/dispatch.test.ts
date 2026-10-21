@@ -13,6 +13,7 @@ const authenticateAcpAgentMock = vi.hoisted(() =>
         env?: Record<string, string>;
         label?: string;
         timeoutMs?: number;
+        signal?: AbortSignal;
       },
     ) => Promise<void>
   >(),
@@ -79,6 +80,71 @@ describe("dispatchAcpAuthenticate", () => {
     authenticateAcpAgentMock.mockResolvedValue(undefined);
     logoutAcpAgentMock.mockResolvedValue(undefined);
     readCommandOutputAsyncMock.mockResolvedValue({ ok: true, stdout: "", stderr: "" });
+  });
+
+  it("passes the same in-process cancellation signal through native preparation and authentication", async () => {
+    const controller = new AbortController();
+    const build = vi.fn<() => Promise<CommandSpec>>(async () => ({
+      command: "fixture-agent",
+      args: ["--acp"],
+    }));
+    await dispatchAcpAuthenticate({
+      adapter: makeAdapter({ command: "unused", args: [] }, { buildAcpAuthCommand: build }),
+      methodId: "approval",
+      signal: controller.signal,
+    });
+    expect(build).toHaveBeenCalledWith(
+      expect.objectContaining({
+        signal: controller.signal,
+        envKind: process.platform === "win32" ? "windows" : "posix",
+      }),
+    );
+    expect(authenticateAcpAgentMock.mock.calls[0]![3]).toMatchObject({ signal: controller.signal });
+    expect(authenticateAcpAgentMock.mock.calls[0]![3]?.env).toBeUndefined();
+  });
+
+  it("refuses a late command after cancellation during preparation", async () => {
+    const controller = new AbortController();
+    const entered = Promise.withResolvers<void>();
+    const command = Promise.withResolvers<CommandSpec>();
+    const adapter = makeAdapter(
+      { command: "unused", args: [] },
+      {
+        buildAcpAuthCommand: async () => {
+          entered.resolve();
+          return command.promise;
+        },
+      },
+    );
+    const failure = dispatchAcpAuthenticate({
+      adapter,
+      methodId: "approval",
+      signal: controller.signal,
+    }).catch((error: unknown) => error);
+    await entered.promise;
+    const cancelled = new Error("Fixture preparation cancelled");
+    controller.abort(cancelled);
+    command.resolve({ command: "late-agent", args: [] });
+    expect(await failure).toBe(cancelled);
+    expect(authenticateAcpAgentMock).not.toHaveBeenCalled();
+  });
+
+  it("does not prepare a command for pre-cancelled authentication", async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const build = vi.fn<() => Promise<CommandSpec>>(async () => ({
+      command: "fixture-agent",
+      args: [],
+    }));
+    await expect(
+      dispatchAcpAuthenticate({
+        adapter: makeAdapter({ command: "unused", args: [] }, { buildAcpAuthCommand: build }),
+        methodId: "approval",
+        signal: controller.signal,
+      }),
+    ).rejects.toThrow("aborted");
+    expect(build).not.toHaveBeenCalled();
+    expect(authenticateAcpAgentMock).not.toHaveBeenCalled();
   });
 
   it("injects the native browser launcher into WSL ACP auth commands", async () => {

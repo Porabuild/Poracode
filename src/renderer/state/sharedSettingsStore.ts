@@ -64,6 +64,7 @@ import {
 import { incrementAgentSelectionUsage } from "@/shared/crossagentRanking";
 import { reorderModelPickerRefs, type ModelPickerRef } from "@/shared/modelPickerOrder";
 import { isSensitiveAgentSetting } from "@/shared/agentSecrets";
+import { removeAgentInstanceSettings } from "@/shared/agentInstanceSettings";
 import {
   effectiveProviderOrder,
   type MachineScopeMode,
@@ -1062,29 +1063,10 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     persistSettings(selectSharedSettings(get()));
   },
   removeAgentInstance: (instanceId) => {
-    const current = get().agentInstances;
-    const instance = current[instanceId];
+    const current = get();
+    const instance = current.agentInstances[instanceId];
     if (!instance) return;
-    const { [instanceId]: _removed, ...agentInstances } = current;
-    const prefix = `${instance.driver}:${instanceId}`;
-    const removeProfileKey = (values: Record<string, unknown>) =>
-      Object.fromEntries(Object.entries(values).filter(([key]) => key !== prefix));
-    set({
-      agentInstances,
-      providerConfigs: removeProfileKey(get().providerConfigs) as SharedSettings["providerConfigs"],
-      providerModelPreferences: removeProfileKey(
-        get().providerModelPreferences,
-      ) as SharedSettings["providerModelPreferences"],
-      hiddenModels: removeProfileKey(get().hiddenModels) as SharedSettings["hiddenModels"],
-      agentSettings: removeProfileKey(get().agentSettings) as SharedSettings["agentSettings"],
-      lastPresentationModeByAgent: removeProfileKey(
-        get().lastPresentationModeByAgent,
-      ) as SharedSettings["lastPresentationModeByAgent"],
-      disabledAgents: get().disabledAgents.filter((kind) => kind !== prefix),
-      favoriteModels: get().favoriteModels.filter((entry) => entry.agentKind !== prefix),
-      recentModels: get().recentModels.filter((entry) => entry.agentKind !== prefix),
-      providerOrder: get().providerOrder.filter((kind) => kind !== prefix),
-    });
+    set(removeAgentInstanceSettings(current, instance));
     persistSettings(selectSharedSettings(get()));
   },
   setNotificationStatuses: (partial) => {

@@ -190,7 +190,7 @@ export function agentStatusForPresentation(
     : stripProviderLogin(runtimeStatus);
 }
 
-function runtimeVariantForSession(
+export function runtimeVariantForSession(
   status: AgentStatus,
   presentationMode: ThreadPresentationMode,
   sessionRef: SessionRef | undefined,

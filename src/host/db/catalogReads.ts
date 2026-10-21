@@ -12,7 +12,14 @@ import {
   type CatalogReadMode,
 } from "@/shared/remote/catalogReadContract";
 import { getSqlite } from "./connection";
-import { rowToProject, rowToThread, type ProjectRow, type ThreadRow } from "./rowMappers";
+import {
+  rowToLocation,
+  rowToProject,
+  rowToThread,
+  type ProjectRow,
+  type ThreadRow,
+} from "./rowMappers";
+import type { HostProjectSummary } from "@/shared/contracts/hostProjects";
 
 /**
  * B4 catalog reads: metadata-only phase 1 (SQL length accounting, no payload
@@ -459,5 +466,42 @@ export function dbReadCatalogProjectPhase2(ids: readonly string[]): Project[] {
   return ids.flatMap((id) => {
     const project = byId.get(id);
     return project ? [project] : [];
+  });
+}
+
+/** Local administration never materializes project scripts, settings or credentials. */
+export function dbReadCatalogProjectSummaries(ids: readonly string[]): HostProjectSummary[] {
+  if (ids.length === 0) return [];
+  const rows = getSqlite()
+    .prepare(`SELECT id, name, location_kind, location_path,
+    location_distro, location_linux_path, location_unc_path, disabled, created_at
+    FROM projects WHERE id IN (${ids.map(() => "?").join(", ")})`)
+    .all(...ids) as Pick<
+    ProjectRow,
+    | "id"
+    | "name"
+    | "location_kind"
+    | "location_path"
+    | "location_distro"
+    | "location_linux_path"
+    | "location_unc_path"
+    | "disabled"
+    | "created_at"
+  >[];
+  const byId = new Map(
+    rows.map((row) => [
+      row.id,
+      {
+        id: row.id,
+        name: row.name,
+        location: rowToLocation(row),
+        disabled: Boolean(row.disabled),
+        createdAt: row.created_at,
+      },
+    ]),
+  );
+  return ids.flatMap((id) => {
+    const row = byId.get(id);
+    return row ? [row] : [];
   });
 }

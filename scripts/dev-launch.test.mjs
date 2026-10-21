@@ -50,12 +50,17 @@ async function fixture(t, holdAcquisition = false) {
   );
   for (const script of [
     "ensure-native-deps.mjs",
+    "prepare-pty-job-owner.mjs",
     "prepare-computer-use-helper.mjs",
     "prepare-wsl-helpers.mjs",
     "prepare-agent-plugins.mjs",
     "wait-dev-server.mjs",
   ])
     await writeFile(join(root, "scripts", script), "export {};");
+  await writeFile(
+    join(root, "scripts/prepare-pty-job-owner.mjs"),
+    "import {writeFileSync} from 'node:fs'; if(!process.argv.includes('--if-supported'))throw Error('Expected host-only preparation'); writeFileSync('.tmp/pty-owner-ready','');",
+  );
   await writeFile(
     join(root, "scripts/sweepStaleSupervisors.mjs"),
     "export function sweepStaleSupervisors(){}",
@@ -69,6 +74,7 @@ async function fixture(t, holdAcquisition = false) {
     `import {existsSync} from 'node:fs';import {writeFile} from 'node:fs/promises';
 import {lock} from ${JSON.stringify(pathToFileURL(taskRequire.resolve("proper-lockfile")).href)};
 export async function watchRuntime({root,onPublished}){
+if(!existsSync(root+'/.tmp/pty-owner-ready'))throw Error('PTY owner was not prepared before building');
 const release=await lock(root+'/.tmp/dev-runtime');await writeFile(root+'/.tmp/acquiring','');
 while(existsSync(root+'/.tmp/hold-acquisition'))await new Promise(done=>setTimeout(done,10));
 const keepAlive=setInterval(()=>{},1000);let running,resolveReady,rejectReady;

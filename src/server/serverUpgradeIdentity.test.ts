@@ -2,9 +2,10 @@ import { randomBytes, randomUUID } from "node:crypto";
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join, toNamespacedPath } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { HostControlServer } from "@/backend/ownership/HostControlServer";
+import * as hostControlClient from "@/backend/ownership/hostControlClient";
 import { publishHostControlDiscovery } from "@/backend/ownership/hostControlDiscovery";
 import { createHostControlResponseProof } from "@/backend/ownership/hostControlAuth";
 import { HostOwnerLease } from "@/backend/ownership/hostOwnerLease";
@@ -16,6 +17,7 @@ import { requestOwnerShutdown } from "./ownerShutdown";
 import {
   probeRunningOwner,
   readReleaseBuildIdentity,
+  resolveRunningBuildIdentity,
   RunningOwnerRefusedError,
   RunningOwnerUnreachableError,
   stopRunningOwner,
@@ -89,6 +91,24 @@ async function ownerFixture(
 }
 
 describe("owner identity probing (D4)", () => {
+  it("pins describe and status to the captured owner generation when requested by service administration", async () => {
+    const { paths, lease } = await ownerFixture();
+    const calls = vi.spyOn(hostControlClient, "callHostControl");
+    try {
+      await expect(probeRunningOwner(paths, { pinGeneration: true })).resolves.toMatchObject({
+        generation: lease.generation,
+      });
+      for (const operation of ["describe", "status"]) {
+        expect(calls).toHaveBeenCalledWith(
+          paths,
+          operation,
+          expect.objectContaining({ expectedGeneration: lease.generation }),
+        );
+      }
+    } finally {
+      calls.mockRestore();
+    }
+  });
   it("returns the authenticated status identity for a D4 owner", async () => {
     const { paths, lease } = await ownerFixture();
     const probe = await probeRunningOwner(paths);
@@ -253,6 +273,12 @@ describe("candidate identity verification (D4)", () => {
   it("accepts the exact build and reports every mismatch otherwise", () => {
     expect(verifyCandidateStatus(status, expected, { requireAdmission: "held" })).toEqual([]);
     expect(
+      verifyCandidateStatus(
+        { ...status, build: { ...BUILD, root: `${BUILD.root}/other` } },
+        expected,
+      ),
+    ).toMatchObject([{ field: "build.root" }]);
+    expect(
       verifyCandidateStatus({ ...status, build: { ...BUILD, version: "9.9.9" } }, expected, {
         requireAdmission: "held",
       }),
@@ -279,6 +305,34 @@ describe("candidate identity verification (D4)", () => {
 });
 
 describe("release build identity (D4)", () => {
+  it.skipIf(process.platform !== "win32")(
+    "publishes the physical release identity for a namespaced Windows entrypoint",
+    () => {
+      const release = realpathSync.native(
+        mkdtempSync(join(tmpdir(), "poracode-upgrade-namespaced-")),
+      );
+      cleanups.push(async () => {
+        expect(dirname(realpathSync.native(release))).toBe(realpathSync.native(tmpdir()));
+        rmSync(release, { recursive: true, force: true });
+      });
+      mkdirSync(join(release, "lib"));
+      mkdirSync(join(release, "resources"));
+      writeFileSync(join(release, "package.json"), `${JSON.stringify({ version: "2.3.4" })}\n`);
+      writeFileSync(join(release, "lib", "server.cjs"), "entrypoint\n");
+      const staged = readReleaseBuildIdentity(release);
+      const running = resolveRunningBuildIdentity({
+        libDir: toNamespacedPath(join(release, "lib")),
+        env: {},
+      });
+      expect(running).toMatchObject({
+        root: staged.root,
+        layoutKind: staged.layoutKind,
+        version: staged.version,
+        entrypointSha256: staged.entrypointSha256,
+      });
+    },
+  );
+
   it("reads the artifact version and entrypoint hash of a staged prefix release", () => {
     const release = mkdtempSync(join(tmpdir(), "poracode-upgrade-release-"));
     cleanups.push(async () => rmSync(release, { recursive: true, force: true }));

@@ -5,6 +5,7 @@ import { readBoundedRuntimeFileSync } from "../shared/readBoundedRuntimeFile.ts"
 import {
   runtimeDirectoryFiles,
   runtimeResourceIdentity,
+  ptyJobOwnerResource,
   sourceAgentPluginFiles,
 } from "../shared/runtimeResourceInventory.ts";
 
@@ -25,6 +26,8 @@ export const runtimeConfigurationFiles = [
   "bun.lock",
   "bunfig.toml",
   "scripts/prepare-agent-plugins.mjs",
+  "scripts/prepare-pty-job-owner.mjs",
+  "native/pty-job-owner/main.rs",
   // The one native-overlay implementation and the shared release-install
   // contract it imports are bundled into the server entry
   // (`src/server/serverNativeOverlay.ts` re-exports both), so both are real
@@ -34,6 +37,9 @@ export const runtimeConfigurationFiles = [
   // server-release-install.mjs resolves tar/npm and links through the shared
   // host tools, so they are bundled with it.
   "scripts/server-host-tools.mjs",
+  // These shared CLI modules are bundled by the server and desktop entries.
+  "packages/poracode-cli/lib/completion.mjs",
+  "packages/poracode-cli/lib/desktopBundle.mjs",
 ];
 const MAX_RUNTIME_INPUT_BYTES = 8 * 1024 * 1024;
 
@@ -79,7 +85,25 @@ export function readRuntimeSourceDeclaration(
   }
   const pluginFiles = sourceAgentPluginFiles(join(root, "src/supervisor/agents"));
   const bundledFiles = runtimeDirectoryFiles(join(root, "resources/plugins"));
-  for (const file of [...pluginFiles, ...bundledFiles]) inputs.add(resolve(file.source));
+  const ptyOwnerRoot = join(root, "resources/pty-job-owner");
+  const ptyOwner = existsSync(ptyOwnerRoot) ? ptyJobOwnerResource(ptyOwnerRoot) : undefined;
+  if (
+    ptyOwner &&
+    ptyOwner.manifest.sourceSha256 !==
+      createHash("sha256")
+        .update(
+          readBoundedRuntimeFileSync(
+            join(root, "native/pty-job-owner/main.rs"),
+            MAX_RUNTIME_INPUT_BYTES,
+          ),
+        )
+        .digest("hex")
+  )
+    throw new Error(
+      "Staged PTY job owner source differs. Rebuild the native helper before the runtime.",
+    );
+  for (const file of [...pluginFiles, ...bundledFiles, ...(ptyOwner?.files ?? [])])
+    inputs.add(resolve(file.source));
   const files = [...inputs].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
   const digest = createHash("sha256");
   digest.update(canonical(buildOptions) + "\n");
@@ -99,6 +123,7 @@ export function readRuntimeSourceDeclaration(
     resources: [
       runtimeResourceIdentity("agent-plugins", pluginFiles),
       runtimeResourceIdentity("bundled-plugins", bundledFiles),
+      ...(ptyOwner ? [runtimeResourceIdentity("pty-job-owner", ptyOwner.files)] : []),
     ],
   };
 }

@@ -167,6 +167,9 @@ rl.on("line", (line) => {
           },
         },
         agentInfo: { name: "fake-acp-agent", version: "0.0.0" },
+        ...(env.FAKE_AUTH_METHOD
+          ? { authMethods: [{ id: env.FAKE_AUTH_METHOD, name: "Fixture approval" }] }
+          : {}),
         ...(initializeModels.length > 0
           ? {
               _meta: {
@@ -197,6 +200,8 @@ rl.on("line", (line) => {
       return;
 
     case "authenticate":
+      if (env.FAKE_AUTH_MARKER) writeFileSync(env.FAKE_AUTH_MARKER, String(process.pid));
+      if (env.FAKE_HANG_AUTH === "1") return;
       respond(id, {});
       return;
 

@@ -1727,11 +1727,34 @@ describe("SubagentRunManager", () => {
     await flush();
     h.handles[0]!.openRequest("perm-1");
 
-    const handled = h.manager.resolveChildServerRequest(`${runId}::perm-1`, { optionId: "allow" });
+    const handled = h.manager.resolveChildServerRequest(
+      `${runId}::perm-1`,
+      { optionId: "allow" },
+      PARENT,
+    );
     expect(handled).toBe(true);
     expect(h.handles[0]!.resolvedRequests).toEqual([
       { requestId: "perm-1", response: { optionId: "allow" } },
     ]);
+  });
+
+  it("refuses a forwarded resolution from another parent before touching the child request", async () => {
+    const h = makeHarness();
+    const { runId } = h.manager.spawn(PARENT, { agent: "codex", prompt: "go" });
+    await flush();
+    h.handles[0]!.openRequest("perm-1");
+    expect(() =>
+      h.manager.resolveChildServerRequest(
+        `${runId}::perm-1`,
+        { optionId: "allow" },
+        "foreign-parent",
+      ),
+    ).toThrow("another parent thread");
+    expect(h.handles[0]!.resolvedRequests).toEqual([]);
+    expect(
+      h.manager.resolveChildServerRequest(`${runId}::perm-1`, { optionId: "allow" }, PARENT),
+    ).toBe(true);
+    expect(h.handles[0]!.resolvedRequests).toHaveLength(1);
   });
 
   it("round-trips a request id that itself contains the delimiter", async () => {
@@ -1740,16 +1763,20 @@ describe("SubagentRunManager", () => {
     await flush();
     h.handles[0]!.openRequest("weird::id");
 
-    const handled = h.manager.resolveChildServerRequest(`${runId}::weird::id`, { optionId: "ok" });
+    const handled = h.manager.resolveChildServerRequest(
+      `${runId}::weird::id`,
+      { optionId: "ok" },
+      PARENT,
+    );
     expect(handled).toBe(true);
     expect(h.handles[0]!.resolvedRequests[0]!.requestId).toBe("weird::id");
   });
 
   it("returns false for non-subagent request ids (unknown run / no delimiter / number)", () => {
     const h = makeHarness();
-    expect(h.manager.resolveChildServerRequest("plain-request-id", {})).toBe(false);
-    expect(h.manager.resolveChildServerRequest("deadbeef::perm", {})).toBe(false);
-    expect(h.manager.resolveChildServerRequest(42, {})).toBe(false);
+    expect(h.manager.resolveChildServerRequest("plain-request-id", {}, PARENT)).toBe(false);
+    expect(h.manager.resolveChildServerRequest("deadbeef::perm", {}, PARENT)).toBe(false);
+    expect(h.manager.resolveChildServerRequest(42, {}, PARENT)).toBe(false);
   });
 
   it("emits a synthetic request.resolved for an unresolved forwarded request on settle", async () => {
@@ -1788,7 +1815,7 @@ describe("SubagentRunManager", () => {
     expect(resolved).toBeDefined();
     // The run record still exists, so the id is recognized, but its pending set
     // was cleared on settle — the resolve is a no-op on the (already torn-down) handle.
-    expect(h.manager.resolveChildServerRequest(`${runId}::perm-1`, {})).toBe(true);
+    expect(h.manager.resolveChildServerRequest(`${runId}::perm-1`, {}, PARENT)).toBe(true);
     expect(h.handles[0]!.resolvedRequests).toEqual([]);
   });
 

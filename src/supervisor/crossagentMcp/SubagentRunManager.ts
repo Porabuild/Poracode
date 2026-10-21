@@ -621,11 +621,17 @@ export class SubagentRunManager {
    * an unknown run) so the caller can fall through to the normal session path;
    * `true` once the owning run is found (best-effort resolve on its handle).
    */
-  resolveChildServerRequest(requestId: ThreadServerRequestId, response: unknown): boolean {
+  resolveChildServerRequest(
+    requestId: ThreadServerRequestId,
+    response: unknown,
+    parentThreadId: string,
+  ): boolean {
     const parsed = parseNamespacedRequestId(requestId);
     if (!parsed) return false;
     const record = this.runs.get(parsed.runId);
     if (!record) return false;
+    if (record.parentThreadId !== parentThreadId)
+      throw new SubagentSpawnError("This request belongs to another parent thread.");
     record.pendingRequestIds.delete(parsed.requestId);
     this.lifecycle.emit(record.parentThreadId, "changed");
     if (record.handle?.resolveServerRequest) {

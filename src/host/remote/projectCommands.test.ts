@@ -3,7 +3,11 @@ import { reorderCatalogIds } from "@/shared/catalogOrder";
 import type { Project } from "@/shared/contracts";
 import { projectIdentityKey } from "@/shared/projectIdentity";
 import { remoteProjectCommandSchema } from "@/shared/remote";
-import { applyRemoteProjectCommand, type RemoteProjectCommandDeps } from "./projectCommands";
+import {
+  applyRemoteProjectCommand,
+  registerExistingProjectDirectory,
+  type RemoteProjectCommandDeps,
+} from "./projectCommands";
 
 const NOW = "2026-06-30T00:00:00.000Z";
 
@@ -102,6 +106,43 @@ function makeDeps(overrides?: Partial<RemoteProjectCommandDeps>) {
 }
 
 describe("applyRemoteProjectCommand", () => {
+  it.each([
+    { platform: "win32", path: "C:\\" },
+    { platform: "linux", path: "/" },
+    { platform: "linux", path: "/work/repo:fixture" },
+  ] as const)(
+    "registers native folders with a valid default label while retaining existing metadata: %j",
+    ({ platform, path }) => {
+      const f = makeDeps({ platform });
+      const catalog = vi.spyOn(f.deps, "getProjects");
+      const first = registerExistingProjectDirectory({ kind: "add-existing", path }, f.deps, {
+        resultMode: "bounded",
+      });
+      expect(first.response.project?.name).toBe("Project");
+      expect(first.response.created).toBe(true);
+      const existing = {
+        ...f.projects[0]!,
+        name: "Keep my label",
+        scripts: { actions: [], setupScript: "preserved-fixture" },
+      };
+      f.projects[0] = existing;
+      const second = registerExistingProjectDirectory({ kind: "add-existing", path }, f.deps, {
+        resultMode: "bounded",
+      });
+      expect(second.response.created).toBe(false);
+      expect(second.response.project).toEqual(existing);
+      expect(f.upsertProject).toHaveBeenCalledOnce();
+      expect(f.updateProject).not.toHaveBeenCalled();
+      expect(catalog).not.toHaveBeenCalled();
+      expect(() =>
+        registerExistingProjectDirectory({ kind: "add-existing", path, name: "bad/name" }, f.deps, {
+          resultMode: "bounded",
+        }),
+      ).toThrow(/project name/iu);
+      expect(f.upsertProject).toHaveBeenCalledOnce();
+      expect(f.updateProject).not.toHaveBeenCalled();
+    },
+  );
   it("registers an existing folder, deriving the name from the path", async () => {
     const { deps, projects } = makeDeps();
     const result = await applyRemoteProjectCommand(

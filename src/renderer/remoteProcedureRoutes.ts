@@ -96,6 +96,12 @@ export const NON_ROUTER_PROJECT_PROCEDURES = {
   // Host-owned destructive-retirement check (housekeeping purge)
   closeThreadConfirmed:
     "local-shell: host-owned confirmed-retirement close for destructive housekeeping; the renderer never issues it and no remote route exists",
+  controlThreadExecution:
+    "local-shell: local administration owns provider execution and confirmed retirement on this supervisor",
+  reserveThreadExecution:
+    "local-shell: local administration reserves execution custody on this supervisor before launching",
+  controlledThreadRequest:
+    "local-shell: local administration binds answers to this supervisor's exact pending request incarnation",
   ghMergePrAtHead:
     "local-shell: app-controls invokes this host's guarded merge directly; older supervisors reject its distinct name and no remote route exists",
 
@@ -214,6 +220,7 @@ export const NON_ROUTER_PROJECT_PROCEDURES = {
     "local-shell: this machine's CLI agent inventory; remote clients read via the agent-statuses registry route",
   cancelAgentDiscovery: "local-shell: cancels this machine's full agent discovery sweep",
   refreshAgentStatuses: "local-shell: re-probes this machine's CLI agent installs",
+  probeSelectedAgent: "local-shell: local administration probes an exact provider on this machine",
   getAgentHookPluginStatuses: "local-shell: this machine's agent hook plugin inventory",
   installAgentHookPlugin: "local-shell: installs into this machine's CLI hook plugins",
   uninstallAgentHookPlugin: "local-shell: uninstalls from this machine's CLI hook plugins",
@@ -224,6 +231,10 @@ export const NON_ROUTER_PROJECT_PROCEDURES = {
   setAcpRegistryAgentAuth: "local-shell: stores agent auth on this machine",
   confirmSupervisorSettingsEdits: "local-shell: this device's settings owner acknowledgement",
   authenticateAcpAgent: "local-shell: runs this machine's agent OAuth window and secret store",
+  controlAcpAuthentication:
+    "local-shell: supervisor-owned authentication operation IDs and cancellation stay on this host",
+  controlMcpAuthentication:
+    "local-shell: supervisor-owned integration OAuth operations and cancellation stay on this host",
   logoutAcpAgent: "local-shell: clears agent auth on this machine",
   resolveAgentAccount: "local-shell: resolves accounts against this machine's agent auth",
   updateAgentBinary: "local-shell: downloads and swaps this machine's agent binaries",

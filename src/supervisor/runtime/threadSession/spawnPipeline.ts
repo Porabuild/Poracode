@@ -1,6 +1,7 @@
 import { CROSSAGENT_MCP_TIMEOUT_MS } from "@/supervisor/crossagentMcp/waitTiming";
 import { randomUUID } from "node:crypto";
 import { spawn } from "node-pty";
+import type { TerminalPtyFactory } from "../../pty/managedPty";
 import {
   MockAgentLaunchBlockedError,
   assertAgentLaunchAllowed,
@@ -327,6 +328,7 @@ export interface SpawnPipelineContext {
   failStructuredSession(session: SessionRuntime, error: unknown): void;
   onStructuredTurnCompletedWithoutTurn(session: SessionRuntime): void;
   isCurrentSession(session: SessionRuntime): boolean;
+  isExecutionControlled(threadId: string): boolean;
   resolveAgentSettings(
     adapter: AgentAdapter,
     location?: ProjectLocation,
@@ -1530,13 +1532,21 @@ export class SpawnPipeline {
         ...terminalEnv,
       };
       try {
-        pty = spawn(command.command, command.args, {
-          name: process.platform === "win32" ? "xterm-color" : terminalEnv.TERM,
-          cols: input.initialSize.cols,
-          rows: input.initialSize.rows,
-          cwd: command.cwd ?? process.cwd(),
-          env: ptyEnv,
-        });
+        const createPty: TerminalPtyFactory =
+          ctx.options.createPty ?? ((file, args, options) => spawn(file, args, options));
+        pty = createPty(
+          command.command,
+          command.args,
+          {
+            name: process.platform === "win32" ? "xterm-color" : terminalEnv.TERM,
+            cols: input.initialSize.cols,
+            rows: input.initialSize.rows,
+            cwd: command.cwd ?? process.cwd(),
+            env: ptyEnv,
+          },
+          input.projectLocation,
+          ctx.isExecutionControlled(input.threadId),
+        );
       } catch (error) {
         try {
           void Promise.resolve(command.cleanup?.()).catch(() => {

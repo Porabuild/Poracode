@@ -1,4 +1,5 @@
 import { spawn, type ChildProcess } from "node:child_process";
+import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
 import { once } from "node:events";
 import { mkdir, mkdtemp, readFile, rename, rm, writeFile } from "node:fs/promises";
@@ -15,6 +16,8 @@ import {
 } from "../shared/sshRuntimeManifest";
 import { verifyRuntimeResources } from "../shared/runtimeResourceInventory";
 import { RUNTIME_BUILD_SOURCE_HASH as SOURCE_HASH_PLACEHOLDER } from "../shared/runtimeBuildIdentity";
+
+import { readRuntimeSourceDeclaration } from "./runtimeSourceDeclaration";
 
 const taskRequire = createRequire(import.meta.url);
 const roots: string[] = [];
@@ -37,6 +40,8 @@ async function fixture() {
     "src/shared",
     "src/supervisor/agents/plugin/forward-runtime",
     "packages/agents-usage/src",
+    "packages/poracode-cli/lib",
+    "native/pty-job-owner",
     "resources/plugins",
     "scripts",
     "out",
@@ -47,6 +52,10 @@ async function fixture() {
     "bun.lock",
     "bunfig.toml",
     "scripts/prepare-agent-plugins.mjs",
+    "scripts/prepare-pty-job-owner.mjs",
+    "native/pty-job-owner/main.rs",
+    "packages/poracode-cli/lib/completion.mjs",
+    "packages/poracode-cli/lib/desktopBundle.mjs",
     "scripts/server-native-overlay.mjs",
     "scripts/server-release-install.mjs",
     "scripts/server-host-tools.mjs",
@@ -86,6 +95,51 @@ async function hostHash(root: string): Promise<string> {
   const output = taskRequire(path) as { __poracodeRuntimeSourceHash: string };
   return output.__poracodeRuntimeSourceHash;
 }
+
+it("captures native owner source and generator inputs and refuses a stale staged helper", async () => {
+  const root = await fixture();
+  const initial = readRuntimeSourceDeclaration(root, {});
+  expect(initial.files).toContain(join(root, "native/pty-job-owner/main.rs"));
+  expect(initial.files).toContain(join(root, "scripts/prepare-pty-job-owner.mjs"));
+  const nativeRoot = join(root, "resources/pty-job-owner");
+  await mkdir(join(nativeRoot, "win32-x64"), { recursive: true });
+  const bytes = Buffer.alloc(512);
+  bytes.writeUInt16LE(0x5a4d, 0);
+  bytes.writeUInt32LE(64, 0x3c);
+  bytes.writeUInt32LE(0x00004550, 64);
+  bytes.writeUInt16LE(0x8664, 68);
+  bytes.writeUInt16LE(240, 84);
+  bytes.writeUInt16LE(0x20b, 88);
+  bytes.writeUInt16LE(2, 156);
+  await writeFile(join(nativeRoot, "win32-x64/pty-job-owner-v1.exe"), bytes);
+  await writeFile(
+    join(nativeRoot, "manifest.json"),
+    JSON.stringify({
+      formatVersion: 1,
+      protocolVersion: 1,
+      helperVersion: "1.0.0",
+      sourceSha256: createHash("sha256").update("").digest("hex"),
+      targets: {
+        "win32-x64": {
+          relativePath: "win32-x64/pty-job-owner-v1.exe",
+          bytes: bytes.length,
+          sha256: createHash("sha256").update(bytes).digest("hex"),
+        },
+      },
+    }),
+  );
+  const declared = readRuntimeSourceDeclaration(root, {});
+  expect(declared.sourceHash).not.toBe(initial.sourceHash);
+  expect(declared.resources.map((resource) => resource.kind)).toEqual([
+    "agent-plugins",
+    "bundled-plugins",
+    "pty-job-owner",
+  ]);
+  await writeFile(join(root, "native/pty-job-owner/main.rs"), "changed source");
+  expect(() => readRuntimeSourceDeclaration(root, {})).toThrow(
+    "Staged PTY job owner source differs",
+  );
+});
 
 it("refuses a bundled application module outside the declared source roots", async () => {
   const root = await fixture();
@@ -189,6 +243,53 @@ it("still enforces the bundled input closure inside a finite batch", async () =>
     }),
   ).rejects.toThrow(/outside the runtime declaration/);
 });
+
+it.each(["completion.mjs", "desktopBundle.mjs"])(
+  "declares bundled CLI input %s and refreshes its build identity",
+  async (file) => {
+    const root = await fixture();
+    const path = join(root, "packages/poracode-cli/lib", file);
+    await writeFile(
+      join(root, "src/supervisor/index.ts"),
+      `export {value} from '../../packages/poracode-cli/lib/${file}';`,
+    );
+    const compile = async () => {
+      const bundles = await build({
+        config: false,
+        cwd: root,
+        entry: { supervisor: "src/supervisor/index.ts" },
+        format: "cjs",
+        platform: "node",
+        target: "node24",
+        dts: false,
+        outDir: "out",
+        logLevel: "silent",
+        plugins: [
+          runtimeDeclarationPlugin({
+            ...options(root, "src/supervisor/index.ts"),
+            manifestEntry: "supervisor",
+          }),
+        ],
+      });
+      for (const bundle of bundles) await bundle[Symbol.asyncDispose]();
+      const entry = join(root, "out/supervisor.cjs");
+      delete taskRequire.cache[taskRequire.resolve(entry)];
+      return {
+        declaration: await manifest(root),
+        output: taskRequire(entry) as { value: string; __poracodeRuntimeSourceHash: string },
+      };
+    };
+    await writeFile(path, "export const value='initial';");
+    const first = await compile();
+    expect(first.output.value).toBe("initial");
+    expect(first.output.__poracodeRuntimeSourceHash).toBe(first.declaration.sourceHash);
+    await writeFile(path, "export const value='changed';");
+    const second = await compile();
+    expect(second.output.value).toBe("changed");
+    expect(second.output.__poracodeRuntimeSourceHash).toBe(second.declaration.sourceHash);
+    expect(second.declaration.sourceHash).not.toBe(first.declaration.sourceHash);
+  },
+);
 
 it("refreshes both actual watch builds and refuses stale resource inventories", async () => {
   const root = await fixture();

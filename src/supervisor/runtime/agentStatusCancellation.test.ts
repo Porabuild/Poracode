@@ -79,9 +79,9 @@ describe("scoped fallback cancellation ownership", () => {
   it("keeps a cold scoped install/login refresh running when full discovery is cancelled", async () => {
     const pending = deferred<AgentStatus>();
     const started = deferred<void>();
-    const signals: AbortSignal[] = [];
+    const signals: (AbortSignal | undefined)[] = [];
     const probe = vi.fn<AgentAdapter["detectInstall"]>(async (ctx) => {
-      if (ctx?.signal) signals.push(ctx.signal);
+      signals.push(ctx?.signal);
       if (signals.length === 1) {
         started.resolve();
         return pending.promise;
@@ -97,7 +97,8 @@ describe("scoped fallback cancellation ownership", () => {
     expect(await cancelled).toMatchObject({ message: "Agent discovery cancelled" });
     expect(modelIds(await scoped)).toEqual(["installed"]);
     expect(signals[0]?.aborted).toBe(true);
-    expect(signals[1]?.aborted).toBe(false);
+    expect(signals).toHaveLength(2);
+    expect(signals[1]?.aborted ?? false).toBe(false);
     pending.resolve(status(FAST, "obsolete"));
   });
 });
@@ -134,6 +135,38 @@ describe("cancelled startup retry", () => {
 });
 
 describe("cancellation restoration ordering", () => {
+  it.each(["explicit invalidation", "registry removal"] as const)(
+    "does not restore scoped custody retired by %s",
+    async (retirement) => {
+      seedBaseline();
+      const blocked = deferred<AgentStatus>();
+      const started = deferred<void>();
+      const probe = vi.fn<AgentAdapter["detectInstall"]>(async () => {
+        started.resolve();
+        return blocked.promise;
+      });
+      const { service, registry, events } = setup([adapter(FAST, probe)]);
+      const scoped = service.refreshAgentStatuses({
+        wslDistros: [],
+        scope: { agentKinds: [FAST] },
+      });
+      await started.promise;
+      if (retirement === "explicit invalidation") service.invalidateAgentStatuses();
+      else {
+        registry.delete(FAST);
+        service.reconcileAgentRegistry([FAST]);
+      }
+      const full = service.refreshAgentStatuses({ wslDistros: [] }).catch((error) => error);
+      service.cancelAgentDiscovery();
+      blocked.resolve(status(FAST, "obsolete"));
+      expect(modelIds(await scoped)).toBeUndefined();
+      expect(await full).toMatchObject({ message: "Agent discovery cancelled" });
+      expect(probe).toHaveBeenCalledOnce();
+      expect(events.filter((event) => event.type === "agent-status-updated")).toEqual([]);
+      expect(service.getCachedCapabilities(FAST)).toBeUndefined();
+    },
+  );
+
   it("restores the newest overlapping scoped request", async () => {
     seedBaseline();
     const blocked = deferred<AgentStatus>();
