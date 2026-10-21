@@ -18,11 +18,12 @@ function fakeCompiler(command, args, options) {
   assert(args.includes("--edition=2024"));
   assert(args.includes("warnings"));
   assert.equal(options.windowsHide, true);
+  const triple = args[args.indexOf("--target") + 1];
   const bytes = Buffer.alloc(512);
   bytes.writeUInt16LE(0x5a4d, 0);
   bytes.writeUInt32LE(64, 0x3c);
   bytes.writeUInt32LE(0x00004550, 64);
-  bytes.writeUInt16LE(process.arch === "arm64" ? 0xaa64 : 0x8664, 68);
+  bytes.writeUInt16LE(triple.startsWith("x86_64") ? 0x8664 : 0xaa64, 68);
   bytes.writeUInt16LE(240, 84);
   bytes.writeUInt16LE(0x20b, 88);
   bytes.writeUInt16LE(2, 156);
@@ -58,6 +59,61 @@ if (process.platform !== "win32" || !["x64", "arm64"].includes(process.arch)) {
     assert.equal(artifact.artifact.sha256, manifest.targets[`win32-${process.arch}`].sha256);
   });
 
+  void test("stages both advertised windows families from one run", () => {
+    const outDir = join(root, "both-families");
+    const manifest = preparePtyJobOwner({ outDir, run: fakeCompiler });
+    assert.equal(Object.keys(manifest.targets).length, 2);
+    for (const target of ["win32-x64", "win32-arm64"]) {
+      const artifact = readPtyJobOwnerArtifact(outDir, target);
+      assert.equal(artifact.artifact.sha256, manifest.targets[target].sha256);
+    }
+  });
+
+  void test("skips a failing optional cross target without corrupting the staged host", () => {
+    const outDir = join(root, "cross-skip");
+    const manifest = preparePtyJobOwner({
+      outDir,
+      run: (command, args, options) => {
+        if (command === "rustc" && args.includes("aarch64-pc-windows-msvc"))
+          throw new Error("aarch64-pc-windows-msvc: linker not found");
+        return fakeCompiler(command, args, options);
+      },
+    });
+    assert.equal(manifest.targets["win32-arm64"], undefined);
+    const artifact = readPtyJobOwnerArtifact(outDir, `win32-${process.arch}`);
+    assert.equal(artifact.artifact.sha256, manifest.targets[`win32-${process.arch}`].sha256);
+    assert.throws(
+      () => readPtyJobOwnerArtifact(outDir, "win32-arm64"),
+      /No staged PTY job owner for win32-arm64/,
+    );
+  });
+
+  void test("reruns after a cross skip to stage only the missing target", () => {
+    const outDir = join(root, "cross-retry");
+    const skipped = preparePtyJobOwner({
+      outDir,
+      run: (command, args, options) => {
+        if (command === "rustc" && args.includes("aarch64-pc-windows-msvc"))
+          throw new Error("aarch64-pc-windows-msvc: linker not found");
+        return fakeCompiler(command, args, options);
+      },
+    });
+    const commands = [];
+    const manifest = preparePtyJobOwner({
+      outDir,
+      run: (command, args, options) => {
+        if (command === "rustc") commands.push(args[args.indexOf("--target") + 1]);
+        return fakeCompiler(command, args, options);
+      },
+    });
+    assert.deepEqual(commands, ["aarch64-pc-windows-msvc"]);
+    assert.equal(
+      manifest.targets[`win32-${process.arch}`].sha256,
+      skipped.targets[`win32-${process.arch}`].sha256,
+    );
+    readPtyJobOwnerArtifact(outDir, "win32-arm64");
+  });
+
   void test("refuses a compiled helper version mismatch before publishing a manifest", () => {
     const outDir = join(root, "wrong-helper-version");
     assert.throws(
@@ -89,10 +145,11 @@ if (process.platform !== "win32" || !["x64", "arm64"].includes(process.arch)) {
       },
     });
     assert.equal(readFileSync(sidecar, "utf8"), "retained compiler debug data");
-    assert.deepEqual(
-      ptyJobOwnerResource(outDir).files.map((file) => file.path),
-      ["manifest.json", `win32-${process.arch}/pty-job-owner-v1.exe`],
-    );
+    const paths = ptyJobOwnerResource(outDir).files.map((file) => file.path);
+    assert.equal(paths.length, 3);
+    assert(paths.includes("manifest.json"));
+    for (const target of ["win32-x64", "win32-arm64"])
+      assert(paths.includes(`${target}/pty-job-owner-v1.exe`));
   });
 
   void test("reuses verified matching bytes without recompiling or rewriting the manifest", () => {
