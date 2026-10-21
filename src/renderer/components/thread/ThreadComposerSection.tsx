@@ -682,7 +682,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   const composerRuntimeRequest = hideActionDocks ? undefined : activeRuntimeRequest;
   const composerPendingSteer = hideActionDocks ? undefined : visiblePendingSteer;
   const composerFollowUpQueue = hideActionDocks ? undefined : followUpQueue;
-  const showAuthInComposer = authRequired && !hideActionDocks;
+  const showAuthInComposer = (authRequired || hasRuntimeAuthError) && !hideActionDocks;
   const reportedContextUsage = useAppStore((s) =>
     canShowRuntimeChrome ? s.runtimeContextByThread[thread.id] : undefined,
   );

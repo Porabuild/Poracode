@@ -102,23 +102,23 @@ export function isAuthErrorMessage(message: string): boolean {
 
 /**
  * Whether the auth-required dock applies, shared by every surface that hosts it
- * across full and compact composer presentations. A stale runtime
- * auth error — e.g. a 401 from before the user signed in — must not keep the
- * dock visible once detection confirms the agent is authenticated again;
- * `hasRuntimeAuthError` is returned separately because the error dock hides
- * itself for exactly those messages.
+ * across full and compact composer presentations. Runtime failures always
+ * offer sign-in: a credential can still exist after it expires. Keep input
+ * available when detection reports authenticated, so a historical error cannot
+ * block retry after signing in elsewhere or reopening the thread.
  */
 export function resolveThreadAuthState(input: {
   readonly authState: AuthState | undefined;
   readonly errorDockStates: readonly ThreadErrorDockState[];
 }): { readonly authRequired: boolean; readonly hasRuntimeAuthError: boolean } {
-  const hasRuntimeAuthError =
-    input.authState !== "authenticated" &&
-    input.errorDockStates.some(
-      (state) => state.severity !== "warning" && isAuthErrorMessage(state.message),
-    );
+  const hasRuntimeAuthError = input.errorDockStates.some(isRuntimeAuthError);
   return {
-    authRequired: input.authState === "missing" || hasRuntimeAuthError,
+    authRequired:
+      input.authState === "missing" || (input.authState !== "authenticated" && hasRuntimeAuthError),
     hasRuntimeAuthError,
   };
+}
+
+export function isRuntimeAuthError(state: ThreadErrorDockState): boolean {
+  return state.severity !== "warning" && isAuthErrorMessage(state.message);
 }

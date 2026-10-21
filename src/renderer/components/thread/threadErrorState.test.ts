@@ -7,6 +7,7 @@ import {
   getThreadErrorDockStateForItem,
   isAuthErrorMessage,
   selectThreadErrorDockStates,
+  resolveThreadAuthState,
 } from "./threadErrorState";
 
 function errorItem(id: string, message: string): RuntimeChatItem {
@@ -77,6 +78,29 @@ describe("threadErrorState", () => {
       { sourceItemId: "err-a", message: "Usage limit reached." },
       { sourceItemId: "err-b", message: "Internal error" },
     ]);
+  });
+});
+
+describe("resolveThreadAuthState", () => {
+  it.each(["authenticated", "missing", "unknown", undefined] as const)(
+    "offers sign-in after a runtime auth failure despite detection reporting %s",
+    (authState) => {
+      expect(
+        resolveThreadAuthState({
+          authState,
+          errorDockStates: [{ sourceItemId: "auth-error", message: "Failed to authenticate" }],
+        }),
+      ).toEqual({ authRequired: authState !== "authenticated", hasRuntimeAuthError: true });
+    },
+  );
+
+  it("allows input after the recovered auth error is dismissed", () => {
+    expect(
+      resolveThreadAuthState({
+        authState: "authenticated",
+        errorDockStates: [{ sourceItemId: "network-error", message: "Request failed" }],
+      }),
+    ).toEqual({ authRequired: false, hasRuntimeAuthError: false });
   });
 });
 
