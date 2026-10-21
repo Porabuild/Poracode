@@ -61,7 +61,7 @@ Function ${PORACODE_CLI_PREFIX}PoraCliCheckRunning
       ; Skip unrelated protected system processes. A matching filename in this
       ; installation, including a legacy executable, needs a qualified path.
       StrCmp $5 87 advance
-      ${If} $3 == "${APP_EXECUTABLE_FILENAME}"
+      ${If} $3 == "${PRODUCT_FILENAME}.exe"
       ${OrIf} ${FileExists} "$PoraCliRunningPrefix\$3"
         StrCpy $PoraCliRunningReason "A matching process could not be scoped to this installation without additional access."
         Goto close_entry
@@ -72,7 +72,7 @@ Function ${PORACODE_CLI_PREFIX}PoraCliCheckRunning
     System::Call 'kernel32::QueryFullProcessImageNameW(p r4, i 0, w .r5, *i r6r6) i.r7'
     System::Call 'kernel32::CloseHandle(p r4)'
     ${If} $7 == 0
-      ${If} $3 == "${APP_EXECUTABLE_FILENAME}"
+      ${If} $3 == "${PRODUCT_FILENAME}.exe"
       ${OrIf} ${FileExists} "$PoraCliRunningPrefix\$3"
         StrCpy $PoraCliRunningReason "A matching process could not be scoped to this installation without additional access."
         Goto close_entry
