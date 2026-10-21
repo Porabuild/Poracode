@@ -186,9 +186,7 @@ export function ThreadAgentUsageDock({ usage }: { usage: ReturnType<typeof useTh
       </ThreadDockHeader>
       {!collapsed ? (
         <div className="min-w-0 space-y-2 px-3 pb-3">
-          {reported.windows.length > 0 ? (
-            <UsageWindowBars windows={reported.windows} showPace={false} showReset={false} />
-          ) : null}
+          {reported.windows.length > 0 ? <UsageWindowBars windows={reported.windows} /> : null}
           {reported.tokens?.total !== undefined && (!showCost || reported.tokens.total === 0) ? (
             <p className="tabular-nums">
               <Trans>{formatTokens(reported.tokens.total)} tokens</Trans>
