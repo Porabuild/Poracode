@@ -1,8 +1,14 @@
 import { useState } from "react";
 import { useLingui } from "@lingui/react/macro";
 import type { RequestOutcome } from "@/shared/contracts";
-import { QuestionStepForm, isQuestionStepEnter } from "./QuestionStepForm";
-import { QuestionOptionRow } from "./parts/QuestionOptionRow";
+import { QuestionStepForm } from "./QuestionStepForm";
+import { HelpCircle } from "lucide-react";
+import { QuestionOptions, QuestionTextInput } from "./parts/QuestionOptions";
+import { QuestionFormHeader } from "./parts/QuestionFormHeader";
+import { questionTextFieldClassName } from "./parts/QuestionOptionRow";
+import { QuestionSwitcher } from "./parts/QuestionSwitcher";
+import { QuestionFormActions } from "./parts/QuestionFormActions";
+import { TextArea } from "@/renderer/components/common/TextArea";
 
 export type UserInputFormOption = {
   optionId: string;
@@ -221,7 +227,7 @@ export function useUserInputFormController(
   };
 }
 
-export function questionHasAnswer(
+function questionHasAnswer(
   question: UserInputFormQuestion,
   answers: Record<string, UserInputFormAnswer>,
   customAnswers: Record<string, string>,
@@ -242,135 +248,128 @@ export function UserInputForm(props: {
   formId: string;
   controller: UserInputFormController;
   isDisabled: boolean;
-  summary?: string;
+  /** The answer is being sent; the step action shows progress. */
+  isPending?: boolean;
   wrapOptionLabels?: boolean;
+  /** Turns the request down without answering. */
+  onDecline?: () => void;
   onSubmit: (response: unknown, outcome: RequestOutcome) => void;
 }) {
-  const { formId, controller, isDisabled, summary, onSubmit } = props;
+  const { formId, controller, isDisabled, onSubmit } = props;
   const { t } = useLingui();
   const activeQuestion = controller.questions[controller.activeIndex] ?? controller.questions[0];
   if (!activeQuestion) return null;
   const customAnswer = controller.customAnswers[activeQuestion.id] ?? "";
   const allQuestionsAnswered = controller.allAnswered;
-  // The panel already renders the question as the bold summary/title. Skip a
-  // header/question line here when it only repeats that title or the other line
-  // — e.g. providers (Kimi) that carry a single question with no distinct header
-  // would otherwise show the same sentence three times.
-  const showQuestion = activeQuestion.question !== summary;
-  const showHeader =
-    activeQuestion.header.length > 0 &&
-    activeQuestion.header !== activeQuestion.question &&
-    activeQuestion.header !== summary;
+  const isLastStep = controller.activeIndex >= controller.questions.length - 1;
+  const canAdvance = questionHasAnswer(
+    activeQuestion,
+    controller.answers,
+    controller.customAnswers,
+  );
+  // A short header titles the question; providers without one (Kimi, message
+  // replies) repeat the question there, so the question becomes the title.
+  const hasDistinctHeader =
+    activeQuestion.header.length > 0 && activeQuestion.header !== activeQuestion.question;
 
   return (
     <QuestionStepForm
       id={formId}
       activeStep={activeQuestion.id}
-      isLastStep={controller.activeIndex >= controller.questions.length - 1}
-      canAdvance={questionHasAnswer(activeQuestion, controller.answers, controller.customAnswers)}
+      isLastStep={isLastStep}
+      canAdvance={canAdvance}
       isDisabled={isDisabled}
       onAdvance={() => controller.setActiveIndex(controller.activeIndex + 1)}
       onSubmit={() => {
         if (allQuestionsAnswered) onSubmit(controller.buildResponse(), "answered");
       }}
-    >
-      <div data-question-step className="space-y-1">
-        {showHeader || showQuestion ? (
-          <div>
-            {showHeader ? (
-              <p className="text-[11px] font-medium text-foreground">{activeQuestion.header}</p>
-            ) : null}
-            {showQuestion ? (
-              <p className="text-[11px] text-[color:var(--muted)]">{activeQuestion.question}</p>
-            ) : null}
-          </div>
-        ) : null}
-        {activeQuestion.options ? (
-          <div className="space-y-1">
-            <div
-              role="listbox"
-              aria-label={activeQuestion.header}
-              {...(activeQuestion.multiSelect ? { "aria-multiselectable": true } : {})}
-              className="flex flex-col"
-            >
-              {activeQuestion.options.map((option, index) => (
-                <QuestionOptionRow
-                  key={option.optionId}
-                  index={index}
-                  option={option}
-                  {...(props.wrapOptionLabels ? { wrapLabel: true } : {})}
-                  isDisabled={isDisabled}
-                  {...(activeQuestion.multiSelect
-                    ? {
-                        checked: userInputValueList(controller.answers[activeQuestion.id]).includes(
-                          option.optionId,
-                        ),
-                      }
-                    : {
-                        selected:
-                          singleUserInputValue(controller.answers[activeQuestion.id]) ===
-                          option.optionId,
-                      })}
-                  onClick={() => {
-                    if (activeQuestion.multiSelect) {
-                      controller.toggleMultiSelect(activeQuestion.id, option.optionId);
-                      return;
-                    }
-                    controller.selectSingleChoice(activeQuestion.id, option.optionId);
-                  }}
-                  onKeyDown={(event) => {
-                    if (isDisabled || activeQuestion.multiSelect || !isQuestionStepEnter(event))
-                      return;
-                    event.preventDefault();
-                    event.stopPropagation();
-                    controller.selectSingleChoice(activeQuestion.id, option.optionId);
-                    const answers = { ...controller.answers, [activeQuestion.id]: option.optionId };
-                    if (
-                      controller.activeIndex === controller.questions.length - 1 &&
-                      controller.questions.every((question) =>
-                        questionHasAnswer(
-                          question,
-                          answers,
-                          question.id === activeQuestion.id ? {} : controller.customAnswers,
-                        ),
-                      )
-                    ) {
-                      onSubmit(
-                        controller.buildResponse({ [activeQuestion.id]: option.optionId }),
-                        "answered",
-                      );
-                    }
-                  }}
-                />
-              ))}
-            </div>
-            <input
-              type="text"
-              disabled={isDisabled}
-              value={customAnswer}
-              onChange={(e) => controller.setCustomAnswer(activeQuestion.id, e.target.value)}
-              placeholder={t`Or write a custom answer`}
-              aria-label={activeQuestion.question}
-              className="w-full rounded border border-[color:var(--border)] bg-[var(--composer-surface)] px-2 py-1 text-[11px] text-foreground outline-none"
+      header={
+        <QuestionFormHeader
+          icon={HelpCircle}
+          title={hasDistinctHeader ? activeQuestion.header : activeQuestion.question}
+          description={hasDistinctHeader ? activeQuestion.question : undefined}
+          hint={activeQuestion.multiSelect ? t`Select all that apply` : undefined}
+          steps={
+            <QuestionSwitcher
+              steps={controller.questions.map((question) => ({
+                id: question.id,
+                label: question.header,
+                answered: questionHasAnswer(question, controller.answers, controller.customAnswers),
+              }))}
+              activeIndex={controller.activeIndex}
+              isDisabled={isDisabled}
+              onSelect={controller.setActiveIndex}
             />
-          </div>
+          }
+        />
+      }
+      footer={
+        <QuestionFormActions
+          formId={formId}
+          isLastStep={isLastStep}
+          canSubmit={isLastStep ? allQuestionsAnswered : canAdvance}
+          isDisabled={isDisabled}
+          isPending={props.isPending ?? false}
+          {...(props.onDecline ? { onDecline: props.onDecline } : {})}
+        />
+      }
+    >
+      <div data-question-step className="space-y-1.5">
+        {activeQuestion.options ? (
+          <QuestionOptions
+            label={activeQuestion.header}
+            options={activeQuestion.options}
+            value={controller.answers[activeQuestion.id] ?? ""}
+            multiSelect={activeQuestion.multiSelect}
+            isDisabled={isDisabled}
+            {...(props.wrapOptionLabels ? { wrapLabels: true } : {})}
+            onSelect={(optionId, submitOnLast) => {
+              if (activeQuestion.multiSelect) {
+                controller.toggleMultiSelect(activeQuestion.id, optionId);
+                return;
+              }
+              controller.selectSingleChoice(activeQuestion.id, optionId);
+              const answers = { ...controller.answers, [activeQuestion.id]: optionId };
+              if (
+                submitOnLast &&
+                controller.activeIndex === controller.questions.length - 1 &&
+                controller.questions.every((question) =>
+                  questionHasAnswer(
+                    question,
+                    answers,
+                    question.id === activeQuestion.id ? {} : controller.customAnswers,
+                  ),
+                )
+              ) {
+                onSubmit(controller.buildResponse({ [activeQuestion.id]: optionId }), "answered");
+              }
+            }}
+            custom={{
+              value: customAnswer,
+              onChange: (value) => controller.setCustomAnswer(activeQuestion.id, value),
+              "aria-label": activeQuestion.question,
+            }}
+          />
         ) : activeQuestion.isSecret ? (
-          <input
+          <QuestionTextInput
             type="password"
             aria-label={activeQuestion.question}
             disabled={isDisabled}
             value={singleUserInputValue(controller.answers[activeQuestion.id])}
             onChange={(e) => controller.setDirectAnswer(activeQuestion.id, e.target.value)}
-            className="w-full rounded border border-[color:var(--border)] bg-[var(--composer-surface)] px-2 py-1 text-[11px] text-foreground outline-none"
           />
         ) : (
-          <textarea
+          <TextArea
+            autoSize
+            maxRows={6}
+            fullWidth
             disabled={isDisabled}
             rows={2}
             aria-label={activeQuestion.question}
+            placeholder={t`Type your answer…`}
             value={singleUserInputValue(controller.answers[activeQuestion.id])}
             onChange={(e) => controller.setDirectAnswer(activeQuestion.id, e.target.value)}
-            className="w-full rounded border border-[color:var(--border)] bg-[var(--composer-surface)] px-2 py-1 text-[11px] text-foreground outline-none"
+            className={questionTextFieldClassName}
           />
         )}
       </div>

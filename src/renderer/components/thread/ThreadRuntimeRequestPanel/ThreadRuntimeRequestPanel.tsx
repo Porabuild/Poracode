@@ -1,7 +1,7 @@
 import { useId, useState } from "react";
-import { Button, Tooltip, toast } from "@heroui/react";
+import { Button, toast } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { FileText, HelpCircle, ListChecks, Loader2, Plug, ShieldAlert } from "lucide-react";
+import { FileText, HelpCircle, ListChecks, Loader2, ShieldAlert } from "lucide-react";
 import {
   asPermissionRequestDetails,
   type RequestOutcome,
@@ -24,12 +24,7 @@ import {
   summaryRepeatsSubject,
 } from "./helpers";
 import { asStructuredElicitationDetails, StructuredElicitationForm } from "./structuredElicitation";
-import {
-  asUserInputFormDetails,
-  questionHasAnswer,
-  UserInputForm,
-  useUserInputFormController,
-} from "./userInputForm";
+import { asUserInputFormDetails, UserInputForm, useUserInputFormController } from "./userInputForm";
 import { ApprovalActions } from "./parts/ApprovalActions";
 import {
   OpenCodePermissionDetailsLine,
@@ -37,7 +32,6 @@ import {
   PlanFileLine,
 } from "./parts/PermissionDetailsLine";
 import { QuestionRows } from "./parts/QuestionRows";
-import { QuestionSwitcher } from "./parts/QuestionSwitcher";
 
 /** Titles longer than this are the command itself, not a label. */
 const APPROVAL_SUMMARY_PIN_LIMIT = 160;
@@ -74,12 +68,13 @@ interface ThreadRuntimeRequestPanelProps {
 export function ThreadRuntimeRequestPanel(props: ThreadRuntimeRequestPanelProps) {
   const { threadId, request, agentLabel, onResolve, onPlanApproved, onOpenPlanFile } = props;
   const { t } = useLingui();
-  const [resolving, setResolving] = useState(false);
+  const [pendingOutcome, setPendingOutcome] = useState<RequestOutcome | null>(null);
+  const resolving = pendingOutcome !== null;
   const formId = useId();
 
   function submitRaw(response: unknown, outcome: RequestOutcome) {
     if (resolving) return;
-    setResolving(true);
+    setPendingOutcome(outcome);
     const rollback = applyOptimisticRequestResolution(threadId, request, outcome);
     void onResolve({
       requestId: request.requestId,
@@ -93,7 +88,7 @@ export function ThreadRuntimeRequestPanel(props: ThreadRuntimeRequestPanelProps)
       console.error("[chat] request resolution failed", err);
       rollback();
       toast.danger(friendlyError(err));
-      setResolving(false);
+      setPendingOutcome(null);
     });
   }
 
@@ -122,15 +117,8 @@ export function ThreadRuntimeRequestPanel(props: ThreadRuntimeRequestPanelProps)
   const options = request.payload.options ?? getDefaultApprovalOptions();
   const isQuestion = request.requestType === "tool_user_input" && !isPlanApproval;
   const isCustomForm = !!(structuredElicitation || userInputForm);
-  const Icon = isPlanApproval
-    ? ListChecks
-    : structuredElicitation
-      ? Plug
-      : isQuestion
-        ? HelpCircle
-        : ShieldAlert;
+  const Icon = isPlanApproval ? ListChecks : isQuestion ? HelpCircle : ShieldAlert;
   const userInputFormController = useUserInputFormController(userInputForm);
-  const userInputFormAllAnswered = userInputFormController?.allAnswered ?? false;
   const permissionDetails = !isCustomForm
     ? asPermissionRequestDetails(request.payload.details)
     : undefined;
@@ -151,11 +139,7 @@ export function ThreadRuntimeRequestPanel(props: ThreadRuntimeRequestPanelProps)
       ? formatRawDetails(request.payload.details)
       : undefined;
   const agentLead = agentLabel ?? t`The agent`;
-  const contextLine = structuredElicitation
-    ? t`${structuredElicitation.sourceText} needs input.`
-    : isQuestion
-      ? t`${agentLead} needs your input to continue.`
-      : undefined;
+  const contextLine = isQuestion ? t`${agentLead} needs your input to continue.` : undefined;
   const summary = request.payload.summary;
   // Providers often put the whole shell command in `summary` (for example
   // "Bash: <script>"). That title sits outside the details scroller, so a long
@@ -201,64 +185,6 @@ export function ThreadRuntimeRequestPanel(props: ThreadRuntimeRequestPanelProps)
         onSelect={(optionId) => decide([optionId])}
       />
     ) : null;
-  const userInputFormActions = userInputForm ? (
-    <div className="flex items-center gap-1">
-      <Button
-        isDisabled={resolving}
-        size="sm"
-        variant="ghost"
-        className="text-muted"
-        onPress={() => submitRaw({ action: "cancel" }, "cancelled")}
-      >
-        <Trans>Cancel</Trans>
-      </Button>
-      {renderSubmitButton()}
-    </div>
-  ) : null;
-
-  function renderSubmitButton() {
-    // A gated Submit stays hoverable (not natively disabled) so its tooltip
-    // explains why; the form's own guard no-ops the click. Mirrors the
-    // composer's `disabledReason` toggle pattern.
-    const isLastStep =
-      !userInputFormController ||
-      userInputFormController.activeIndex >= userInputFormController.questions.length - 1;
-    const activeQuestion = userInputFormController?.questions[userInputFormController.activeIndex];
-    const gated = isLastStep
-      ? !userInputFormAllAnswered
-      : !activeQuestion ||
-        !questionHasAnswer(
-          activeQuestion,
-          userInputFormController!.answers,
-          userInputFormController!.customAnswers,
-        );
-    const submit = (
-      <Button
-        aria-disabled={gated}
-        form={formId}
-        isDisabled={resolving}
-        size="sm"
-        type="submit"
-        variant="tertiary"
-        className={
-          gated && !resolving
-            ? "pointer-events-auto cursor-not-allowed opacity-50 text-white"
-            : "text-white"
-        }
-      >
-        {isLastStep ? t`Submit` : t`Continue`}
-      </Button>
-    );
-    if (!gated) return submit;
-    return (
-      <Tooltip delay={0}>
-        {submit}
-        <Tooltip.Content placement="top">
-          {isLastStep ? t`Answer every question to submit` : t`Answer this question to continue`}
-        </Tooltip.Content>
-      </Tooltip>
-    );
-  }
   const requestDetails =
     permissionDetails && !isPlanApproval ? (
       <PermissionDetailsLine
@@ -267,7 +193,7 @@ export function ThreadRuntimeRequestPanel(props: ThreadRuntimeRequestPanelProps)
       />
     ) : opencodePermission ? (
       <OpenCodePermissionDetailsLine details={opencodePermission} />
-    ) : !structuredElicitation && detailText ? (
+    ) : detailText ? (
       <pre className="rounded-sm bg-foreground/5 p-1 font-mono text-[11px] whitespace-pre-wrap [overflow-wrap:anywhere]">
         {detailText}
       </pre>
@@ -275,78 +201,68 @@ export function ThreadRuntimeRequestPanel(props: ThreadRuntimeRequestPanelProps)
 
   return (
     <ThreadDockSection className="!text-xs" placement="composer" collapsed={false}>
-      <div className="@container flex flex-wrap items-start gap-x-2 gap-y-1 px-2 py-1.5 leading-snug">
-        <Icon
-          className={`mt-0.5 size-3.5 shrink-0 ${structuredElicitation || isQuestion || isPlanApproval ? "text-foreground-muted" : "text-warning"}`}
-        />
-        <div className="min-w-0 flex-1 basis-96">
-          {summary && !approvalSummaryScrolls ? (
-            <div className="font-semibold text-foreground [overflow-wrap:anywhere]">{summary}</div>
-          ) : null}
-          {userInputFormController && userInputFormController.questions.length > 1 ? (
-            <>
-              <QuestionSwitcher
-                questions={userInputFormController.questions}
-                answers={userInputFormController.answers}
-                customAnswers={userInputFormController.customAnswers}
-                activeIndex={userInputFormController.activeIndex}
-                isDisabled={resolving}
-                onSelect={userInputFormController.setActiveIndex}
-              />
-              {contextLine ? (
-                <div className="text-[11px] text-[color:var(--muted)]">{contextLine}</div>
-              ) : null}
-            </>
-          ) : contextLine ? (
-            <div className="text-[11px] text-[color:var(--muted)]">{contextLine}</div>
-          ) : null}
-          {requestDetails || planFilePath || planText || approvalSummaryScrolls ? (
+      {/* Question forms title themselves with the active question. */}
+      {isCustomForm ? null : (
+        <div className="@container flex flex-wrap items-start gap-x-2 gap-y-1 px-2 py-1.5 leading-snug">
+          <Icon
+            className={`mt-0.5 size-3.5 shrink-0 ${isQuestion || isPlanApproval ? "text-foreground-muted" : "text-warning"}`}
+          />
+          <div className="min-w-0 flex-1 basis-96">
+            {summary && !approvalSummaryScrolls ? (
+              <div className="font-semibold text-foreground [overflow-wrap:anywhere]">
+                {summary}
+              </div>
+            ) : null}
+            {contextLine ? (
+              <div className="text-[11px] text-[color:var(--muted)]">{contextLine}</div>
+            ) : null}
+            {requestDetails || planFilePath || planText || approvalSummaryScrolls ? (
+              <div
+                role="region"
+                aria-label={t`Request details`}
+                // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- keyboard focus enables native scrolling
+                tabIndex={0}
+                className="mt-0.5 max-h-[min(12rem,35vh)] overflow-y-auto pr-1 [scrollbar-gutter:stable] [overflow-wrap:anywhere] outline-none focus-visible:ring-2 focus-visible:ring-focus/50"
+              >
+                {approvalSummaryScrolls ? (
+                  <div className="font-semibold whitespace-pre-wrap text-foreground [overflow-wrap:anywhere]">
+                    {summary}
+                  </div>
+                ) : null}
+                {planText ? <ItemMarkdown text={planText} /> : null}
+                {requestDetails}
+                {planFilePath ? <PlanFileLine path={planFilePath} /> : null}
+              </div>
+            ) : null}
+          </div>
+          {approvalActions ? (
             <div
-              role="region"
-              aria-label={t`Request details`}
-              // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- keyboard focus enables native scrolling
-              tabIndex={0}
-              className="mt-0.5 max-h-[min(12rem,35vh)] overflow-y-auto pr-1 [scrollbar-gutter:stable] [overflow-wrap:anywhere] outline-none focus-visible:ring-2 focus-visible:ring-focus/50"
+              className={
+                isPlanApproval
+                  ? "ml-auto max-w-full shrink-0 self-end @max-[44rem]:ml-0 @max-[44rem]:basis-full @max-[44rem]:self-stretch"
+                  : "ml-auto shrink-0 self-end"
+              }
             >
-              {approvalSummaryScrolls ? (
-                <div className="font-semibold whitespace-pre-wrap text-foreground [overflow-wrap:anywhere]">
-                  {summary}
-                </div>
-              ) : null}
-              {planText ? <ItemMarkdown text={planText} /> : null}
-              {requestDetails}
-              {planFilePath ? <PlanFileLine path={planFilePath} /> : null}
+              {approvalActions}
             </div>
           ) : null}
+          {resolving ? (
+            <span
+              className="flex shrink-0 items-center gap-1 self-center text-[11px] text-muted"
+              role="status"
+            >
+              <Loader2 className="size-3 animate-spin" />
+              <Trans>Resolving…</Trans>
+            </span>
+          ) : null}
         </div>
-        {approvalActions ? (
-          <div
-            className={
-              isPlanApproval
-                ? "ml-auto max-w-full shrink-0 self-end @max-[44rem]:ml-0 @max-[44rem]:basis-full @max-[44rem]:self-stretch"
-                : "ml-auto shrink-0 self-end"
-            }
-          >
-            {approvalActions}
-          </div>
-        ) : userInputFormActions ? (
-          <div className="ml-auto shrink-0 self-start">{userInputFormActions}</div>
-        ) : null}
-        {resolving ? (
-          <span
-            className="flex shrink-0 items-center gap-1 self-center text-[11px] text-muted"
-            role="status"
-          >
-            <Loader2 className="size-3 animate-spin" />
-            <Trans>Resolving…</Trans>
-          </span>
-        ) : null}
-      </div>
+      )}
 
       {structuredElicitation ? (
         <StructuredElicitationForm
           params={structuredElicitation}
           isDisabled={resolving}
+          isPending={pendingOutcome === "answered"}
           onSubmit={(response, outcome) => submitRaw(response, outcome)}
         />
       ) : userInputFormController ? (
@@ -354,7 +270,8 @@ export function ThreadRuntimeRequestPanel(props: ThreadRuntimeRequestPanelProps)
           formId={formId}
           controller={userInputFormController}
           isDisabled={resolving}
-          {...(summary !== undefined ? { summary } : {})}
+          isPending={pendingOutcome === "answered"}
+          onDecline={() => submitRaw({ action: "cancel" }, "cancelled")}
           onSubmit={(response, outcome) => submitRaw(response, outcome)}
         />
       ) : isQuestion ? (

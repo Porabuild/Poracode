@@ -295,10 +295,12 @@ msgstr "Modele: {0}"
 msgid "{0} needs authentication."
 msgstr "{0} wymaga uwierzytelnienia."
 
+#. placeholder {0}: params.sourceText
 #. placeholder {0}: structuredElicitation.sourceText
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
-msgid "{0} needs input."
-msgstr "{0} wymaga danych wejściowych."
+#~ msgid "{0} needs input."
+#~ msgstr "{0} wymaga danych wejściowych."
 
 #. placeholder {0}: index + 1
 #. placeholder {1}: guide!.stops.length
@@ -1710,11 +1712,11 @@ msgstr "Inny właściciel Poracode zajmuje już katalog główny danych tego po�
 msgid "Another Poracode process is updating these credentials. Wait and try again."
 msgstr "Inny proces Poracode aktualizuje te dane uwierzytelniające. Poczekaj i spróbuj ponownie."
 
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/QuestionFormActions.tsx
 msgid "Answer every question to submit"
 msgstr "Odpowiedz na wszystkie pytania, aby wysłać"
 
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/QuestionFormActions.tsx
 msgid "Answer this question to continue"
 msgstr "Odpowiedz na to pytanie, aby kontynuować"
 
@@ -2709,8 +2711,6 @@ msgstr "Nie można użyć tego wyboru modelu w tym interfejsie"
 #: src/renderer/components/thread/ThreadFollowUpEditor.tsx
 #: src/renderer/components/thread/ThreadForkDialog.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
 #: src/renderer/pwa/push/WebPushPermissionPrompt.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeDialog.tsx
@@ -4327,9 +4327,7 @@ msgstr "Użycie kontekstu"
 msgid "Context windows"
 msgstr "Okna kontekstu"
 
-#: src/renderer/components/thread/ThreadMessageReplyPanel.tsx
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/QuestionFormActions.tsx
 msgid "Continue"
 msgstr "Kontynuuj"
 
@@ -5225,7 +5223,7 @@ msgstr "Data i godzina"
 msgid "Days"
 msgstr "Dni"
 
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/QuestionFormActions.tsx
 msgid "Decline"
 msgstr "Odmów"
 
@@ -11977,9 +11975,9 @@ msgstr "Opcje"
 msgid "or"
 msgstr "lub"
 
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/userInputForm.tsx
-msgid "Or write a custom answer"
-msgstr "Lub napisz niestandardową odpowiedź"
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/QuestionOptions.tsx
+#~ msgid "Or write a custom answer"
+#~ msgstr "Lub napisz niestandardową odpowiedź"
 
 #: src/renderer/utils/projectIconColors.ts
 msgid "Orange"
@@ -13806,7 +13804,6 @@ msgstr "Zdalny adres URL"
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 #: src/renderer/components/providers/settings/ModelProviderManager.tsx
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredCustomValues.tsx
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Remove"
@@ -15451,6 +15448,11 @@ msgstr "Zaznacz wszystkie sesje"
 msgid "Select all skills"
 msgstr "Wybierz wszystkie umiejętności"
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/userInputForm.tsx
+msgid "Select all that apply"
+msgstr "Zaznacz wszystkie pasujące"
+
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "Select an agent to see its prompt and outcome."
 msgstr "Wybierz agenta, aby zobaczyć jego monit i wynik."
@@ -16273,6 +16275,10 @@ msgstr "Niektóre wątki są wstrzymane"
 msgid "Some values are unavailable. Check the calculator inputs."
 msgstr "Niektóre wartości są niedostępne. Sprawdź dane wejściowe kalkulatora."
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/QuestionOptions.tsx
+msgid "Something else…"
+msgstr "Coś innego…"
+
 #: src/mobile/QrScanner.tsx
 #~ msgid "Something went wrong starting the camera. Enter the endpoint and token below to pair instead."
 #~ msgstr "Coś poszło nie tak podczas uruchamiania kamery. Zamiast tego wpisz poniżej endpoint i token, aby sparować."
@@ -16767,10 +16773,7 @@ msgstr "Subagenci"
 #~ msgid "Subagents enabled for this thread"
 #~ msgstr "Subagenci włączeni dla tego wątku"
 
-#: src/renderer/components/thread/ThreadMessageReplyPanel.tsx
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/QuestionRows.tsx
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/QuestionFormActions.tsx
 msgid "Submit"
 msgstr "Prześlij"
 
@@ -18652,6 +18655,10 @@ msgstr "Wpisz na urządzeniu"
 msgid "Type to search files"
 msgstr "Wpisz tekst, aby wyszukać pliki"
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/userInputForm.tsx
+msgid "Type your answer…"
+msgstr "Wpisz odpowiedź…"
+
 #. placeholder {0}: agent.label
 #. placeholder {0}: agentStatus.label
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
@@ -20447,6 +20454,10 @@ msgstr "Most WSL jest niedostępny dla kontroli źródeł."
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "WSL: {distro}"
 msgstr "WSL: {distro}"
+
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
+msgid "Yes"
+msgstr "Tak"
 
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "You’re all caught up."

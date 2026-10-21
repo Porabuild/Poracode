@@ -295,10 +295,12 @@ msgstr "Моделей: {0}"
 msgid "{0} needs authentication."
 msgstr "{0} потребує автентифікації."
 
+#. placeholder {0}: params.sourceText
 #. placeholder {0}: structuredElicitation.sourceText
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
-msgid "{0} needs input."
-msgstr "{0} потребує введення."
+#~ msgid "{0} needs input."
+#~ msgstr "{0} потребує введення."
 
 #. placeholder {0}: index + 1
 #. placeholder {1}: guide!.stops.length
@@ -1710,11 +1712,11 @@ msgstr "Інший власник Poracode вже займає корінь да
 msgid "Another Poracode process is updating these credentials. Wait and try again."
 msgstr "Інший процес Poracode оновлює ці облікові дані. Зачекайте та спробуйте ще раз."
 
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/QuestionFormActions.tsx
 msgid "Answer every question to submit"
 msgstr "Дайте відповіді на всі запитання, щоб надіслати"
 
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/QuestionFormActions.tsx
 msgid "Answer this question to continue"
 msgstr "Дайте відповідь на це запитання, щоб продовжити"
 
@@ -2709,8 +2711,6 @@ msgstr "Цей вибір моделі не можна використовув�
 #: src/renderer/components/thread/ThreadFollowUpEditor.tsx
 #: src/renderer/components/thread/ThreadForkDialog.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
 #: src/renderer/pwa/push/WebPushPermissionPrompt.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeDialog.tsx
@@ -4327,9 +4327,7 @@ msgstr "Використання контексту"
 msgid "Context windows"
 msgstr "Контекстні вікна"
 
-#: src/renderer/components/thread/ThreadMessageReplyPanel.tsx
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/QuestionFormActions.tsx
 msgid "Continue"
 msgstr "Продовжити"
 
@@ -5225,7 +5223,7 @@ msgstr "Дата й час"
 msgid "Days"
 msgstr "Дні"
 
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/QuestionFormActions.tsx
 msgid "Decline"
 msgstr "Відхилити"
 
@@ -11977,9 +11975,9 @@ msgstr "Параметри"
 msgid "or"
 msgstr "або"
 
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/userInputForm.tsx
-msgid "Or write a custom answer"
-msgstr "Або напишіть власну відповідь"
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/QuestionOptions.tsx
+#~ msgid "Or write a custom answer"
+#~ msgstr "Або напишіть власну відповідь"
 
 #: src/renderer/utils/projectIconColors.ts
 msgid "Orange"
@@ -13806,7 +13804,6 @@ msgstr "URL віддаленого репозиторію"
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 #: src/renderer/components/providers/settings/ModelProviderManager.tsx
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredCustomValues.tsx
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Remove"
@@ -15451,6 +15448,11 @@ msgstr "Вибрати всі сесії"
 msgid "Select all skills"
 msgstr "Вибрати всі навички"
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/userInputForm.tsx
+msgid "Select all that apply"
+msgstr "Виберіть усі відповідні варіанти"
+
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "Select an agent to see its prompt and outcome."
 msgstr "Виберіть агента, щоб побачити його промпт і результат."
@@ -16273,6 +16275,10 @@ msgstr "Деякі треди призупинено"
 msgid "Some values are unavailable. Check the calculator inputs."
 msgstr "Деякі значення недоступні. Перевірте вхідні дані калькулятора."
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/QuestionOptions.tsx
+msgid "Something else…"
+msgstr "Інше…"
+
 #: src/mobile/QrScanner.tsx
 #~ msgid "Something went wrong starting the camera. Enter the endpoint and token below to pair instead."
 #~ msgstr "Не вдалося запустити камеру. Натомість введіть endpoint і токен нижче, щоб підключити."
@@ -16767,10 +16773,7 @@ msgstr "Субагенти"
 #~ msgid "Subagents enabled for this thread"
 #~ msgstr "Субагенти увімкнено для цього треду"
 
-#: src/renderer/components/thread/ThreadMessageReplyPanel.tsx
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/QuestionRows.tsx
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/QuestionFormActions.tsx
 msgid "Submit"
 msgstr "Надіслати"
 
@@ -18652,6 +18655,10 @@ msgstr "Введення на пристрої"
 msgid "Type to search files"
 msgstr "Введіть запит для пошуку файлів"
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/userInputForm.tsx
+msgid "Type your answer…"
+msgstr "Введіть відповідь…"
+
 #. placeholder {0}: agent.label
 #. placeholder {0}: agentStatus.label
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
@@ -20447,6 +20454,10 @@ msgstr "Міст WSL недоступний для керування кодом
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "WSL: {distro}"
 msgstr "WSL: {distro}"
+
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
+msgid "Yes"
+msgstr "Так"
 
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "You’re all caught up."

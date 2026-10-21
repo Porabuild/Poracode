@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
-import { existsSync } from "node:fs";
-import { mkdir, mkdtemp, readFile, rename, rm, writeFile } from "node:fs/promises";
-import { createRequire } from "node:module";
+import fs, { existsSync } from "node:fs";
+import { mkdir, mkdtemp, readFile, realpath, rename, rm, writeFile } from "node:fs/promises";
+import { createRequire, syncBuiltinESMExports } from "node:module";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
@@ -181,10 +181,24 @@ await test(
       await runtime?.close();
       await rm(root, { recursive: true, force: true });
     });
-    await rm(join(root, "src/backend"), { recursive: true });
-    await assert.rejects(watchRuntime({ root }), /ENOENT/);
-    await mkdir(join(root, "src/backend"));
-    await writeFile(join(root, "src/backend/index.ts"), "export const value='initial';");
+    const setupError = new Error("watcher setup failed");
+    const failureDirectory = await realpath(join(root, runtimeSourceRoots[1]));
+    const originalWatch = fs.watch;
+    let watcherClose;
+    const watchMock = t.mock.method(fs, "watch", (directory, options, listener) => {
+      if (directory === failureDirectory && options.recursive) throw setupError;
+      const watcher = originalWatch(directory, options, listener);
+      if (options.recursive) watcherClose = t.mock.method(watcher, "close");
+      return watcher;
+    });
+    syncBuiltinESMExports();
+    try {
+      await assert.rejects(watchRuntime({ root }), setupError);
+      assert.equal(watcherClose.mock.callCount(), 1);
+    } finally {
+      watchMock.mock.restore();
+      syncBuiltinESMExports();
+    }
     await writeFile(join(root, ".tmp/delay-build"), "");
     let published = false;
     runtime = await watchRuntime({
