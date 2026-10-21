@@ -44,6 +44,7 @@ vi.mock("@/renderer/state/fileCheckpointActions", () => ({
 }));
 vi.mock("@/renderer/state/projectRootNamesStore", () => ({ useProjectRootNames: () => undefined }));
 vi.mock("./ChatScrollControls", () => ({ ChatScrollControls: () => null }));
+vi.mock("./ChatPromptRail", () => ({ ChatPromptRail: () => null }));
 vi.mock("./parts/items/SubAgentOverlay", () => ({ SubAgentOpenController: () => null }));
 // Keep the actual pane authority, Markdown pipeline, leaf and byte cache. This
 // fixture substitutes only virtual list layout and unrelated host persistence.

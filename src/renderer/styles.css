@@ -7650,3 +7650,25 @@ html[data-compact-layout] .poracode-thread-composer-section > .m-thread-compose-
 [data-poracode-pane-hidden] *::after {
   animation-play-state: paused !important;
 }
+
+/* Preview card of the chat prompt rail: eases in beside the hovered tick. */
+@keyframes poracode-prompt-rail-card-in {
+  from {
+    opacity: 0;
+    transform: translateX(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.poracode-prompt-rail-card {
+  animation: poracode-prompt-rail-card-in 120ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .poracode-prompt-rail-card {
+    animation: none;
+  }
+}

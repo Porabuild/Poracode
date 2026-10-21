@@ -6,24 +6,6 @@ export interface RenderedRowBounds {
 }
 
 /**
- * Lowest timeline index among rendered rows that overlap the viewport. The
- * virtualizer keeps rows mounted outside the viewport too, so rows entirely
- * above or below it are skipped. Null when no row overlaps.
- */
-export function findFirstVisibleRowIndex(
-  rows: Iterable<RenderedRowBounds>,
-  viewportTop: number,
-  viewportBottom: number,
-): number | null {
-  let first: number | null = null;
-  for (const row of rows) {
-    if (row.bottom <= viewportTop || row.top >= viewportBottom) continue;
-    if (first === null || row.index < first) first = row.index;
-  }
-  return first;
-}
-
-/**
  * Index of the prompt that the content at the top of the viewport answers:
  * the nearest prompt at or above the first visible row. Null when that prompt
  * is itself the first visible row (it is on screen) or no prompt precedes it.
@@ -37,4 +19,28 @@ export function findStickyPromptIndex(
     return index === firstVisibleIndex ? null : index;
   }
   return null;
+}
+
+export interface VisibleRowRange {
+  first: number;
+  last: number;
+}
+
+/**
+ * Lowest and highest timeline index among rendered rows that overlap the
+ * viewport. Null when no row overlaps.
+ */
+export function findVisibleRowRange(
+  rows: Iterable<RenderedRowBounds>,
+  viewportTop: number,
+  viewportBottom: number,
+): VisibleRowRange | null {
+  let range: VisibleRowRange | null = null;
+  for (const row of rows) {
+    if (row.bottom <= viewportTop || row.top >= viewportBottom) continue;
+    range = range
+      ? { first: Math.min(range.first, row.index), last: Math.max(range.last, row.index) }
+      : { first: row.index, last: row.index };
+  }
+  return range;
 }

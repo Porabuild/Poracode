@@ -1,4 +1,3 @@
-import { useEffect, useEffectEvent, useState } from "react";
 import { Button } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import type { MessageItemPayload } from "@/shared/contracts";
@@ -11,11 +10,8 @@ import { useChatFindStore } from "@/renderer/state/chatFindStore";
 import { getRuntimeItemPayload } from "@/renderer/state/slices/runtimeEventSlice";
 import type { ChatTimelineEntry } from "./chatPaneSelectors";
 import { buildUserPromptPreview } from "./parts/items/userPromptText";
-import {
-  findFirstVisibleRowIndex,
-  findStickyPromptIndex,
-  type RenderedRowBounds,
-} from "./stickyPromptTarget";
+import { findStickyPromptIndex } from "./stickyPromptTarget";
+import { useVisibleRowRange } from "./useVisibleRowRange";
 
 interface StickyPromptProps {
   threadId: string;
@@ -40,52 +36,20 @@ export function StickyPrompt({
   onScrollToEntry,
 }: StickyPromptProps) {
   const { t } = useLingui();
-  const [promptItemId, setPromptItemId] = useState<string | null>(null);
   const isFindOpen = useChatFindStore((state) => state.activeThreadId === threadId);
+  const firstVisibleIndex = useVisibleRowRange(scrollElement, entries)?.first ?? null;
+  const promptItemId = useAppStore((state) => {
+    if (firstVisibleIndex === null) return null;
+    const itemsById = state.runtimeItemsByIdByThread[threadId];
+    const promptIndex = findStickyPromptIndex(firstVisibleIndex, (index) => {
+      const entry = entries[index];
+      return entry?.kind === "item" && itemsById?.[entry.id]?.type === "user_message";
+    });
+    return promptIndex === null ? null : (entries[promptIndex]?.id ?? null);
+  });
   const promptItem = useAppStore((state) =>
     promptItemId === null ? undefined : state.runtimeItemsByIdByThread[threadId]?.[promptItemId],
   );
-
-  const syncPrompt = useEffectEvent((currentEntries: readonly ChatTimelineEntry[]) => {
-    if (!scrollElement) return;
-    const viewport = scrollElement.getBoundingClientRect();
-    const rows: RenderedRowBounds[] = [];
-    for (const row of scrollElement.querySelectorAll<HTMLElement>("[data-chat-virtual-row]")) {
-      const rect = row.getBoundingClientRect();
-      rows.push({ index: Number(row.dataset.index), top: rect.top, bottom: rect.bottom });
-    }
-    const firstVisibleIndex = findFirstVisibleRowIndex(rows, viewport.top, viewport.bottom);
-    const itemsById = useAppStore.getState().runtimeItemsByIdByThread[threadId];
-    const promptIndex =
-      firstVisibleIndex === null
-        ? null
-        : findStickyPromptIndex(firstVisibleIndex, (index) => {
-            const entry = currentEntries[index];
-            return entry?.kind === "item" && itemsById?.[entry.id]?.type === "user_message";
-          });
-    setPromptItemId(promptIndex === null ? null : (currentEntries[promptIndex]?.id ?? null));
-  });
-
-  // Rows mount, move and resize as the user scrolls, older pages load, or the
-  // tail streams. Each of those either fires a scroll event or changes
-  // `entries`, so re-resolve the prompt on both, at most once per frame.
-  useEffect(() => {
-    if (!scrollElement) return;
-    let frame: number | null = null;
-    const schedule = () => {
-      if (frame !== null) return;
-      frame = requestAnimationFrame(() => {
-        frame = null;
-        syncPrompt(entries);
-      });
-    };
-    schedule();
-    scrollElement.addEventListener("scroll", schedule, { passive: true });
-    return () => {
-      scrollElement.removeEventListener("scroll", schedule);
-      if (frame !== null) cancelAnimationFrame(frame);
-    };
-  }, [scrollElement, entries]);
 
   const payload = promptItem
     ? getRuntimeItemPayload<MessageItemPayload>(promptItem, "user_message")

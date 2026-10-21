@@ -20,6 +20,8 @@ import {
   dbGetThreadContextUsage,
   dbGetLatestThreadRuntimeAnchorItemId,
   dbGetThreadConversationItemsPage,
+  dbGetThreadPromptIndex,
+  dbReadThreadPromptIndex,
   dbGetThreadRuntimeItems,
   dbGetThreadRuntimeItemsPage,
   dbReplaceThreadRuntimeItems,
@@ -1118,5 +1120,96 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
       },
     ]);
     expect((await dbGetLatestThreadGoalItem("thread-1"))?.id).toBe("goal-new");
+  });
+
+  it("lists every top-level prompt in order with a truncated first text block", async () => {
+    const userMessage = (id: string, content: unknown[], parentItemId?: string) => ({
+      id,
+      type: "user_message" as const,
+      state: "completed" as const,
+      payload: { content },
+      streams: {},
+      ...(parentItemId ? { parentItemId } : {}),
+    });
+    await dbReplaceThreadRuntimeItems("thread-1", [
+      userMessage("first", [{ kind: "text", text: "First question" }]),
+      { id: "reply", type: "assistant_message", state: "completed", streams: {} },
+      userMessage("with-image", [
+        { kind: "image", name: "shot.png" },
+        { kind: "text", text: "x".repeat(500) },
+      ]),
+      userMessage("sub-agent-prompt", [{ kind: "text", text: "child" }], "tool-1"),
+      userMessage("image-only", [{ kind: "image", name: "only.png" }]),
+    ]);
+
+    const index = await dbGetThreadPromptIndex("thread-1");
+    expect(index.truncated).toBe(false);
+    expect(index.prompts.map((prompt) => prompt.itemId)).toEqual([
+      "first",
+      "with-image",
+      "image-only",
+    ]);
+    expect(index.prompts[0]?.text).toBe("First question");
+    expect(index.prompts[1]?.text).toBe("x".repeat(300));
+    expect(index.prompts[2]?.text).toBe("");
+    const positions = index.prompts.map((prompt) => prompt.position);
+    expect(positions).toEqual([...positions].sort((a, b) => a - b));
+  });
+
+  it("keeps the newest prompts in order and reports when older ones were left out", async () => {
+    await dbReplaceThreadRuntimeItems(
+      "thread-1",
+      Array.from({ length: 5 }, (_, index) => ({
+        id: `prompt-${index}`,
+        type: "user_message" as const,
+        state: "completed" as const,
+        payload: { content: [{ kind: "text", text: `Prompt ${index}` }] },
+        streams: {},
+      })),
+    );
+
+    const index = dbReadThreadPromptIndex("thread-1", 3);
+    expect(index.truncated).toBe(true);
+    expect(index.prompts.map((prompt) => prompt.itemId)).toEqual([
+      "prompt-2",
+      "prompt-3",
+      "prompt-4",
+    ]);
+    expect(dbReadThreadPromptIndex("thread-1", 5).truncated).toBe(false);
+  });
+
+  it("yields an empty preview, not a failed read, for content that is not an array of blocks", async () => {
+    const prompt = (id: string, payload: unknown) => ({
+      id,
+      type: "user_message" as const,
+      state: "completed" as const,
+      payload,
+      streams: {},
+    });
+    await dbReplaceThreadRuntimeItems("thread-1", [
+      prompt("string-content", { content: "hello" }),
+      prompt("string-blocks", { content: ["hello"] }),
+      prompt("object-content", { content: { a: { kind: "text", text: "nested" } } }),
+      prompt("null-content", { content: null }),
+      prompt("second-block", {
+        content: [
+          { kind: "image", name: "a.png" },
+          { kind: "text", text: "after the image" },
+        ],
+      }),
+    ]);
+
+    const index = await dbGetThreadPromptIndex("thread-1");
+    expect(index.prompts.map((entry) => [entry.itemId, entry.text])).toEqual([
+      ["string-content", ""],
+      ["string-blocks", ""],
+      ["object-content", ""],
+      ["null-content", ""],
+      ["second-block", "after the image"],
+    ]);
+  });
+
+  it("returns an empty index for a thread without prompts", async () => {
+    expect(await dbGetThreadPromptIndex("thread-1")).toEqual({ prompts: [], truncated: false });
   });
 });

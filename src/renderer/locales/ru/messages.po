@@ -13123,6 +13123,10 @@ msgstr "Перенос этого профиля в собственный ко�
 msgid "Prompt"
 msgstr "Промпт"
 
+#: src/renderer/components/thread/ChatPane/ChatPromptRail.tsx
+msgid "Prompt navigation"
+msgstr "Навигация по промптам"
+
 #: src/renderer/components/providers/codex/index.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Prompts"
@@ -15149,6 +15153,7 @@ msgstr "Множитель скорости прокрутки для буфер
 msgid "Scroll to bottom"
 msgstr "Прокрутить вниз"
 
+#: src/renderer/components/thread/ChatPane/ChatPromptRail.tsx
 #: src/renderer/components/thread/ChatPane/StickyPrompt.tsx
 msgid "Scroll to prompt: {preview}"
 msgstr "Прокрутить к промпту: {preview}"
@@ -17220,6 +17225,10 @@ msgstr "Это не код сопряжения Poracode."
 #: src/mobile/routeComponents.tsx
 #~ msgid "That pairing code is no longer valid. Open Settings → Remote Access on the desktop, press New code, and pair again."
 #~ msgstr "Этот код привязки больше не действует. Откройте на десктопе Настройки → Удалённый доступ, нажмите «Новый код» и повторите привязку."
+
+#: src/renderer/components/thread/ChatPane/ChatPane.tsx
+msgid "That prompt is no longer available."
+msgstr "Этот промпт больше недоступен."
 
 #: src/mobile/routeComponents.tsx
 #~ msgid "That QR code isn't a Poracode pairing link."

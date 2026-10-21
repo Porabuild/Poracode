@@ -70,6 +70,7 @@ export {
   dbGetThreadRuntimeItemCommitted,
   dbGetThreadRuntimeItem,
   dbGetLatestThreadGoalItem,
+  dbGetThreadPromptIndex,
   dbGetThreadRuntimeItems,
   dbGetThreadRuntimeItemCursor,
   dbGetThreadRuntimeItemsAfter,

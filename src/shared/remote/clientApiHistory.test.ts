@@ -75,6 +75,29 @@ describe("bounded historical reads", () => {
     expect(new URL(String(fetchImpl.mock.calls[1]?.[0])).searchParams.get("afterSeq")).toBe("7");
   });
 
+  it("reads the prompt index from an authenticated, encoded route and validates it", async () => {
+    const fetchImpl = vi.fn<RemoteFetch>(async () =>
+      Response.json({
+        prompts: [{ itemId: "prompt/1", position: 4, text: "Hello" }],
+        truncated: true,
+      }),
+    );
+    const client = new RemoteDesktopClient("https://host.test", "private-token", fetchImpl);
+
+    await expect(client.threadPromptIndex("thread space")).resolves.toEqual({
+      prompts: [{ itemId: "prompt/1", position: 4, text: "Hello" }],
+      truncated: true,
+    });
+    const [url, init] = fetchImpl.mock.calls[0]!;
+    expect(String(url)).toContain("/api/threads/thread%20space/history/prompts");
+    expect(new Headers(init?.headers).get("authorization")).toBe("Bearer private-token");
+
+    const malformed = new RemoteDesktopClient("https://host.test", "token", async () =>
+      Response.json({ prompts: [{ itemId: "", position: -1, text: 1 }] }),
+    );
+    await expect(malformed.threadPromptIndex("thread")).rejects.toThrow(/history prompt index/);
+  });
+
   it("rejects a buffered detail response after cancellation", async () => {
     const held = Promise.withResolvers<void>();
     const fetchImpl = vi.fn<RemoteFetch>(async () => {

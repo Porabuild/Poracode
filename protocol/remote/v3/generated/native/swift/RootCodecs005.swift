@@ -73,6 +73,14 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
+  static let routeU2EThreadU2DHistoryU2DPromptsU2EPath: RemoteRootCodec<ProcedurecancelExtractContextRequest_09b78d9c1d> = .init(id: "route.thread-history-prompts.path", schema: RemoteSchemas.schema_09b78d9c1d4c3a6b)
+}
+
+public extension RemoteRootCodecs {
+  static let routeU2EThreadU2DHistoryU2DPromptsU2EResponse: RemoteRootCodec<RoutethreadU2DHistoryU2DPromptsResponse_3264c4f1e6> = .init(id: "route.thread-history-prompts.response", schema: RemoteSchemas.schema_3264c4f1e6231fa5)
+}
+
+public extension RemoteRootCodecs {
   static let routeU2EThreadU2DHistoryU2EPath: RemoteRootCodec<ProcedurecancelExtractContextRequest_09b78d9c1d> = .init(id: "route.thread-history.path", schema: RemoteSchemas.schema_09b78d9c1d4c3a6b)
 }
 

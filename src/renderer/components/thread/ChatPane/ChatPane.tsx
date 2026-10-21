@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ConversationSearchJump } from "./ConversationSearchJump";
-import { Trans } from "@lingui/react/macro";
-import { Button } from "@heroui/react";
+import { Trans, useLingui } from "@lingui/react/macro";
+import { Button, toast } from "@heroui/react";
 import { useShallow } from "zustand/react/shallow";
 import { isThreadTurnActive, type ProjectLocation, type Thread } from "@/shared/contracts";
 import { isHomeProjectId } from "@/shared/homeScope";
@@ -60,7 +60,9 @@ import { ImportedThreadNotice } from "./parts/ImportedThreadNotice";
 import { MessageList, type CheckpointRevertActions } from "./parts/MessageList";
 import { ThreadForkOrigin, ThreadForkTurnAction } from "../ThreadForkControls";
 import { SubAgentOpenController } from "./parts/items/SubAgentOverlay";
+import { ChatPromptRail } from "./ChatPromptRail";
 import { StickyPrompt } from "./StickyPrompt";
+import { usePromptJump } from "./usePromptJump";
 import { resolveThreadMarkdownImageRoots } from "../threadMarkdownImageRoots";
 import { resolveThreadTranscriptMarkdownFormatter } from "../threadTranscriptMarkdown";
 
@@ -119,6 +121,7 @@ export function ChatPane(props: ChatPaneProps) {
     checkpointActions,
     checkpointProjectLocation,
   } = props;
+  const { t } = useLingui();
   const { id: threadId, projectId, status, worktreePath, worktreeBranch } = thread;
   const browserImageReadiness = useRemoteBridgeImageReadiness();
   const managedImageSession = useManagedLoopbackImageSession();
@@ -138,6 +141,16 @@ export function ChatPane(props: ChatPaneProps) {
   const registerScrollToIndex = (handler: ScrollToIndex | null) => {
     scrollToIndexRef.current = handler;
   };
+  // Leave the tail before a jump so a streaming reply cannot re-pin the view
+  // to the bottom while it scrolls up.
+  const leaveTail = () => {
+    scrollControlsRef.current?.markUserScrollIntent();
+    scrollControlsRef.current?.disableStickToBottom();
+  };
+  const scrollToEntry = (index: number) => {
+    leaveTail();
+    scrollToIndexRef.current?.(index, { align: "start", animated: true });
+  };
   // `scrollEl` mirrors the LegendList-owned scroll node as React state for the
   // find controller and the shared scroll controls.
   const { setScrollContainer, scrollRef, scrollEl, scrollFadeStyle } =
@@ -154,6 +167,16 @@ export function ChatPane(props: ChatPaneProps) {
   const timelineEntries = useAppStore(
     useShallow((s) => selectVisibleThreadTimelineEntries(s, threadId, hiddenRuntimeItemId)),
   );
+  const promptJump = usePromptJump({
+    threadId,
+    entries: timelineEntries,
+    scrollToIndexRef,
+    beforeScroll: leaveTail,
+    onUnavailable: () => toast.warning(t`That prompt is no longer available.`),
+  });
+  // While a jump pages history in, every consumer of the list index space (the
+  // transcript, sticky prompt, rail) keeps the snapshot the rows were built from.
+  const listEntries = promptJump.frozenEntries ?? timelineEntries;
   // Settling the empty loading placeholder does not settle the first history
   // rows. A later initial response must be measured and pinned before reveal.
   const isInitialScrollSettled =
@@ -518,7 +541,7 @@ export function ChatPane(props: ChatPaneProps) {
             <MessageList
               key={threadId}
               threadId={threadId}
-              entries={timelineEntries}
+              entries={listEntries}
               isTurnActive={isLive}
               {...(isManagedThread
                 ? {
@@ -540,7 +563,9 @@ export function ChatPane(props: ChatPaneProps) {
               registerVirtualScrollToBottom={(handler) => {
                 virtualScrollToBottomRef.current = handler;
               }}
-              scrollClassName="min-h-0 flex-1 overflow-y-auto [overflow-anchor:none] [scrollbar-gutter:stable]"
+              scrollClassName={`min-h-0 flex-1 overflow-y-auto [overflow-anchor:none] [scrollbar-gutter:stable] transition-opacity duration-150 motion-reduce:transition-none ${
+                promptJump.hidden ? "opacity-0" : ""
+              }`}
               scrollStyle={scrollFadeStyle}
               contentClassName={`min-h-full ${isInitialScrollSettled ? "" : "pointer-events-none opacity-0"}`}
               emptyContent={
@@ -677,16 +702,19 @@ export function ChatPane(props: ChatPaneProps) {
             <StickyPrompt
               key={`sticky-prompt:${threadId}`}
               threadId={threadId}
-              entries={timelineEntries}
+              entries={listEntries}
               scrollElement={scrollEl}
               isEnabled={isInitialScrollSettled}
-              onScrollToEntry={(index) => {
-                // Leave the tail before the jump so a streaming reply cannot
-                // re-pin the view to the bottom while it scrolls up.
-                scrollControlsRef.current?.markUserScrollIntent();
-                scrollControlsRef.current?.disableStickToBottom();
-                scrollToIndexRef.current?.(index, { align: "start", animated: true });
-              }}
+              onScrollToEntry={scrollToEntry}
+            />
+            <ChatPromptRail
+              key={`prompt-rail:${threadId}`}
+              threadId={threadId}
+              entries={listEntries}
+              scrollElement={scrollEl}
+              isEnabled={isInitialScrollSettled}
+              pendingPromptId={promptJump.pendingId}
+              onJumpToPrompt={promptJump.jumpToPrompt}
             />
             <ChatFindBar
               threadId={threadId}

@@ -354,6 +354,7 @@ export function createLocalIpcHandlers(
     dbGetThreadRuntimeItems: (payload) => callDatabase("dbGetThreadRuntimeItems", payload),
     dbGetThreadRuntimeItemsPage: (payload) => callDatabase("dbGetThreadRuntimeItemsPage", payload),
     dbGetLatestThreadGoalItem: (payload) => callDatabase("dbGetLatestThreadGoalItem", payload),
+    dbGetThreadPromptIndex: (payload) => callDatabase("dbGetThreadPromptIndex", payload),
     dbTruncateThreadRuntimeAfter: (payload) =>
       callDatabase("dbTruncateThreadRuntimeAfter", payload),
     revertCheckpoint: (payload) => options.revertCheckpoint(payload),

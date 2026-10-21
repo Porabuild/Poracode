@@ -3360,6 +3360,33 @@
         }
       },
       {
+        "id": "thread-history-prompts",
+        "scopes": ["session:read"],
+        "batch": "thread-lifecycle",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": ["src/shared/remote/contract/routes/threads.ts"]
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Desktop prompt-rail navigation over history that paging has not loaded. Native adoption of this opt-in history route is pending; native clients retain complete compatible history responses."
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": ["src/shared/remote/contract/routes/threads.ts"]
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Desktop prompt-rail navigation over history that paging has not loaded. Native adoption of this opt-in history route is pending; native clients retain complete compatible history responses."
+          }
+        }
+      },
+      {
         "id": "thread-history-changes",
         "scopes": ["session:read"],
         "batch": "thread-lifecycle",

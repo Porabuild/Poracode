@@ -31,6 +31,7 @@ import {
   threadTurnsQuerySchema,
 } from "../routeSchemas";
 import { checkpointRevertResultSchema } from "../../../contracts";
+import { persistedPromptIndexSchema } from "../../../ipc/schemas";
 import type { RemoteHttpRouteContract } from "../types";
 import { historyItemDetailSchema, historyItemDetailQuerySchema } from "../../historyPresentation";
 import { historyResumeQuerySchema, historyResumeResponseSchema } from "../../historyResume";
@@ -65,6 +66,20 @@ export const threadRoutes: readonly RemoteHttpRouteContract[] = [
     queryParameters: ["notices", "maxBytes", "maxDecodeBytes"],
     request: { bodyKind: "empty", querySchema: historyItemDetailQuerySchema },
     response: { wireKind: "json", status: 200, jsonSchema: historyItemDetailSchema },
+  }),
+  // Prompt rail: the thread's newest top-level user prompts without loading the
+  // transcript, so the rail can offer history that paging has not reached.
+  // Additive and opt-in: a host without it answers 404 and the client keeps the
+  // rail over the transcript it has loaded.
+  defineRoute({
+    id: "thread-history-prompts",
+    method: "GET",
+    path: "/api/threads/{threadId}/history/prompts",
+    auth: "bearer",
+    scopes: ["session:read"],
+    audit: noAudit("read"),
+    request: { bodyKind: "empty" },
+    response: { wireKind: "json", status: 200, jsonSchema: persistedPromptIndexSchema },
   }),
   defineRoute({
     id: "thread-list",

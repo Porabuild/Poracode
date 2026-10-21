@@ -13123,6 +13123,10 @@ msgstr "Đang chuyển hồ sơ này vào thư mục gốc dữ liệu riêng…
 msgid "Prompt"
 msgstr "Lời nhắc"
 
+#: src/renderer/components/thread/ChatPane/ChatPromptRail.tsx
+msgid "Prompt navigation"
+msgstr "Điều hướng prompt"
+
 #: src/renderer/components/providers/codex/index.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Prompts"
@@ -15149,6 +15153,7 @@ msgstr "Hệ số nhân tốc độ cuộn cho bộ đệm cuộn ngược đầ
 msgid "Scroll to bottom"
 msgstr "Cuộn xuống dưới cùng"
 
+#: src/renderer/components/thread/ChatPane/ChatPromptRail.tsx
 #: src/renderer/components/thread/ChatPane/StickyPrompt.tsx
 msgid "Scroll to prompt: {preview}"
 msgstr "Cuộn đến lời nhắc: {preview}"
@@ -17220,6 +17225,10 @@ msgstr "Đó không phải là mã ghép nối Poracode."
 #: src/mobile/routeComponents.tsx
 #~ msgid "That pairing code is no longer valid. Open Settings → Remote Access on the desktop, press New code, and pair again."
 #~ msgstr "Mã ghép đôi này không còn hiệu lực. Trên desktop, hãy mở Cài đặt → Truy cập từ xa, nhấn “Mã mới” rồi ghép đôi lại."
+
+#: src/renderer/components/thread/ChatPane/ChatPane.tsx
+msgid "That prompt is no longer available."
+msgstr "Prompt này không còn khả dụng."
 
 #: src/mobile/routeComponents.tsx
 #~ msgid "That QR code isn't a Poracode pairing link."
