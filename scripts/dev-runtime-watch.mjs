@@ -62,10 +62,13 @@ export async function watchRuntime({
             )
             .map((entry) => entry.id);
       const started = performance.now();
+      // A previous build can remove the owned root while this reload is queued.
+      await mkdir(buildRoot, { recursive: true });
       const staging = await mkdtemp(join(buildRoot, "build-"));
       if (dirname(staging) !== buildRoot)
         throw new Error("Development staging directory is outside its owned build root.");
       try {
+        if (closed) return;
         console.log(`[dev-runtime] building ${rebuildAll ? "all entries" : selected.join(", ")}`);
         const entries = await new Promise((done, reject) => {
           let message;
@@ -151,9 +154,11 @@ export async function watchRuntime({
     closed = true;
     for (const watcher of watchers) watcher.close();
     worker?.kill("SIGTERM");
+    const forceTimer = setTimeout(() => worker?.kill("SIGKILL"), 2_000);
     try {
       await queue.close();
     } finally {
+      clearTimeout(forceTimer);
       rejectReady(new Error("Development runtime stopped before its first successful build."));
       await release();
     }
