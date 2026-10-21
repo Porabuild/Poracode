@@ -46,6 +46,7 @@ async function fixture(
     readPage: async () => ({ threads: [], nextCursor: null }),
   },
 ) {
+  mkdirSync("tmp", { recursive: true });
   const root = mkdtempSync(join(process.cwd(), "tmp/desktop-admin-"));
   const paths = resolveHostRootPaths(join(root, "profile"));
   const owner = HostOwnerLease.acquire(paths, "desktop");

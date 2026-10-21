@@ -59,11 +59,10 @@ it.each([
   expect(f.output()).toBe("Hello\n");
 });
 
-it("rejects empty, excessive, WSL or options-only file selections before connecting", () => {
+it("rejects empty, excessive or options-only file selections before connecting", () => {
   for (const extra of [
     ["--file", "", "Explain"],
     [...Array.from({ length: 17 }, () => ["--file", "same.txt"]).flat(), "Explain"],
-    ["--file", "\\\\wsl.localhost\\Selected\\file.txt", "Explain"],
     ["--file", "file.txt", "--options"],
   ])
     expect(() => parseRunCli([...args, ...extra])).toThrow(/native|16|for a task/u);
@@ -86,6 +85,24 @@ it("rejects empty, excessive, WSL or options-only file selections before connect
       "Explain",
     ])!.command,
   ).toMatchObject({ files: Array(16).fill(resolve("same.txt")) });
+});
+
+it("interprets WSL UNC spelling according to the native host", () => {
+  const file = "\\\\wsl.localhost\\Selected\\file.txt";
+  const parse = () => parseRunCli([...args, "--file", file, "Explain"]);
+  let outcome: unknown;
+  try {
+    outcome = parse()!.command;
+  } catch (error) {
+    outcome = error;
+  }
+  expect(outcome).toMatchObject(
+    process.platform === "win32"
+      ? {
+          message: "--file requires native files on this host; WSL file fallback is not supported.",
+        }
+      : { files: [resolve(file)] },
+  );
 });
 
 it("negotiates opt-in interaction before preparation and keeps scripts noninteractive", async () => {

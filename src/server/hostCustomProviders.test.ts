@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { afterEach, expect, it, vi } from "vitest";
 import { HostOwnerController } from "@/backend/ownership/HostOwnerController";
@@ -18,6 +18,7 @@ afterEach(async () => {
   vi.restoreAllMocks();
 });
 async function fixture() {
+  mkdirSync(resolve("tmp/cli-custom-acp-20261021"), { recursive: true });
   const root = mkdtempSync(resolve("tmp/cli-custom-acp-20261021/test-"));
   const owner = HostOwnerController.acquire(join(root, "profile"), "headless");
   const runtime = await owner.initialize({ mode: "headless" });

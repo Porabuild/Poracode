@@ -13,6 +13,7 @@ import { afterEach, expect, it } from "vitest";
 import { ptyJobReplySchema } from "./contracts/ptyJobOwner";
 import { readPtyJobOwnerArtifact } from "./ptyJobOwnerArtifact";
 
+mkdirSync("tmp", { recursive: true });
 const scratch = realpathSync.native(join(process.cwd(), "tmp"));
 const roots: string[] = [];
 function fixture() {

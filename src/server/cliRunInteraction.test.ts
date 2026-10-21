@@ -88,7 +88,7 @@ function fixture(multiSelect = false, raw = false) {
 it("submits only explicitly chosen advertised options and escapes provider terminal controls", async () => {
   const f = fixture();
   await f.interaction.poll();
-  expect(f.text()).toContain("Review\\u001b[2J action");
+  await vi.waitFor(() => expect(f.text()).toContain("Review\\u001b[2J action"));
   expect(f.text()).toContain("fixture command");
   expect(f.replies()).toHaveLength(0);
   f.input.write("1\r");

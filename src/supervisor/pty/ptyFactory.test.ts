@@ -32,6 +32,7 @@ afterEach(() => {
 });
 
 function fixture() {
+  mkdirSync("tmp", { recursive: true });
   const root = mkdtempSync(join(realpathSync.native("tmp"), "controlled-pty-assets-"));
   roots.push(root);
   const resourcesDirectory = join(root, "resources");

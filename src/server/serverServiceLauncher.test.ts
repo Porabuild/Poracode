@@ -13,6 +13,7 @@ import { join, sep } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { readServiceLauncher } from "./serverServiceLauncher";
 
+mkdirSync("tmp", { recursive: true });
 const scratch = realpathSync.native(join(process.cwd(), "tmp"));
 const roots: string[] = [];
 const hash = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");

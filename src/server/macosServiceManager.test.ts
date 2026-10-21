@@ -31,6 +31,7 @@ import type { RunningOwnerProbe } from "./serverUpgradeIdentity";
 
 const roots: string[] = [];
 afterEach(() => {
+  if (roots.length === 0) return;
   const scratch = realpathSync.native(join(process.cwd(), "tmp"));
   for (const root of roots.splice(0)) {
     if (!realpathSync.native(root).startsWith(`${scratch}${sep}`))
@@ -39,6 +40,7 @@ afterEach(() => {
   }
 });
 function fixture() {
+  mkdirSync("tmp", { recursive: true });
   const root = realpathSync.native(mkdtempSync(join(process.cwd(), "tmp", "macos-service-")));
   roots.push(root);
   const prefix = join(root, "prefix"),

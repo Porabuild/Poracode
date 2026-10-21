@@ -40,6 +40,7 @@ it.skipIf(process.platform !== "win32" || process.env.PORACODE_TEST_NATIVE_SERVI
       realpathSync.native(resources),
       `win32-${architecture}`,
     );
+    mkdirSync("tmp", { recursive: true });
     const scratch = realpathSync.native(join(process.cwd(), "tmp"));
     const root = mkdtempSync(join(scratch, "windows-service-native-")),
       prefix = join(root, "selected prefix"),

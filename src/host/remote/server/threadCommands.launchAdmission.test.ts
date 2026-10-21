@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { HostOwnerController } from "@/backend/ownership/HostOwnerController";
@@ -19,6 +19,7 @@ import { startPersistedThread } from "./threadCommands";
 
 let directory: string, owner: HostOwnerController, project: Project;
 beforeEach(async () => {
+  mkdirSync("tmp", { recursive: true });
   directory = mkdtempSync(resolve("tmp/host-launch-admission-"));
   owner = HostOwnerController.acquire(join(directory, "profile"), "headless");
   const runtime = await owner.initialize({ mode: "headless" });

@@ -18,6 +18,7 @@ let root: string;
 let path: string;
 const controllers: AbortController[] = [];
 beforeEach(() => {
+  mkdirSync("tmp", { recursive: true });
   root = mkdtempSync(join(process.cwd(), "tmp/cli-logs-test-"));
   path = join(root, "server.log");
 });

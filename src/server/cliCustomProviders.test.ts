@@ -1,4 +1,4 @@
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { afterEach, expect, it, vi } from "vitest";
 import {
@@ -30,6 +30,7 @@ const metadata = {
   models: [],
 };
 function setup() {
+  mkdirSync(resolve("tmp/cli-custom-acp-20261021"), { recursive: true });
   const root = mkdtempSync(resolve("tmp/cli-custom-acp-20261021/cli-"));
   const definition = join(root, "definition.json");
   writeFileSync(definition, JSON.stringify({ binary: "owned-agent", args: ["hidden-argument"] }));

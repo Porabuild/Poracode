@@ -12,6 +12,7 @@ let directory: string, entry: string, marker: string;
 beforeAll(async () => {
   directory = mkdtempSync(join(tmpdir(), "poracode-cli-loading-"));
   mkdirSync(join(directory, "lib"));
+  mkdirSync(join(directory, "resources", "wsl-helpers"), { recursive: true });
   entry = join(directory, "lib", "server.cjs");
   marker = join(directory, "composition-loaded");
   writeFileSync(
@@ -41,6 +42,7 @@ function run(args: string[], preload = "probe.cjs") {
     NODE_PATH: fileURLToPath(new URL("../../node_modules/", import.meta.url)),
   };
   delete env.NODE_OPTIONS;
+  delete env.PORACODE_APP_VERSION;
   return execute(process.execPath, ["--require", join(directory, preload), entry, ...args], {
     env,
     windowsHide: true,

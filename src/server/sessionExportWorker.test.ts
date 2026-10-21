@@ -1,7 +1,7 @@
 import { fork, type ChildProcess, type ForkOptions } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import { once } from "node:events";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
@@ -32,6 +32,7 @@ const children: Array<{
   closed: Promise<[number | null, NodeJS.Signals | null]>;
 }> = [];
 beforeAll(async () => {
+  mkdirSync("tmp", { recursive: true });
   artifacts = mkdtempSync(resolve("tmp/session-export-worker-"));
   entry = join(artifacts, "sessionExportWorker.cjs");
   const source = createRuntimePayloadProjectionSource(process.cwd()).source;

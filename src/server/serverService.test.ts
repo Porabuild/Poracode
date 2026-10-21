@@ -59,6 +59,7 @@ describe("service command help", () => {
   });
 });
 afterEach(() => {
+  if (roots.length === 0) return;
   const scratch = realpathSync.native(join(process.cwd(), "tmp"));
   for (const root of roots.splice(0)) {
     if (!realpathSync.native(root).startsWith(`${scratch}${sep}`))

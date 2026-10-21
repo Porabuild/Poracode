@@ -17,7 +17,7 @@ import fs, {
 } from "node:fs";
 import { syncBuiltinESMExports } from "node:module";
 import { tmpdir } from "node:os";
-import { basename, dirname, join, resolve } from "node:path";
+import { basename, delimiter, dirname, join, resolve } from "node:path";
 import { after, test } from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import {
@@ -109,8 +109,13 @@ void test("first-install progress stays on stderr before a structured runtime re
     npmCli,
     "process.stdout.write('Owned installer progress\\n'); process.stderr.write('Owned installer warning\\n');",
   );
+  if (process.platform !== "win32")
+    writeFileSync(join(root, "npm"), `#!/usr/bin/env node\n${readFileSync(npmCli, "utf8")}`, {
+      mode: 0o755,
+    });
   const env = {
     ...process.env,
+    ...(process.platform !== "win32" ? { PATH: `${root}${delimiter}${process.env.PATH}` } : {}),
     npm_execpath: npmCli,
     PORACODE_BASE_DIR: join(root, "profile"),
     PORACODE_RUNTIME_CACHE_DIR: join(root, "cache"),

@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, beforeEach, expect, it } from "vitest";
 import { desktopHostControlGrantSchema } from "@/shared/desktopHostControl";
@@ -13,6 +13,7 @@ let owner: HostOwnerLease;
 let fence: HostDataFence;
 let connected: boolean;
 beforeEach(() => {
+  mkdirSync("tmp", { recursive: true });
   root = mkdtempSync(join(process.cwd(), "tmp/delegated-control-"));
   const paths = resolveHostRootPaths(join(root, "profile"));
   owner = HostOwnerLease.acquire(paths, "desktop");

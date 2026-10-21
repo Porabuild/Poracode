@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { mkdtempSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import * as fs from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { afterEach, expect, it, vi } from "vitest";
@@ -49,6 +49,7 @@ afterEach(async () => {
 });
 
 async function fixture(resume = false, withFiles = false) {
+  mkdirSync(resolve("tmp/cli-run-workflow-20261021"), { recursive: true });
   const root = mkdtempSync(resolve("tmp/cli-run-workflow-20261021/test-"));
   const owner = HostOwnerController.acquire(join(root, "profile"), "headless");
   const owned = await owner.initialize({ mode: "headless" });

@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { mkdtemp, readdir, readFile, writeFile, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, readFile, writeFile, rm } from "node:fs/promises";
 import { resolve, join } from "node:path";
 import { Writable } from "node:stream";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -10,6 +10,7 @@ import { parseSessionExportCli, runSessionExportCli } from "./cliSessionExport";
 
 const directories: string[] = [];
 async function directory() {
+  await mkdir("tmp", { recursive: true });
   const path = await mkdtemp(resolve("tmp/cli-session-export-test-"));
   directories.push(path);
   return path;

@@ -66,6 +66,7 @@ const RUNTIME_DEPS = [
   "micromatch",
   "node-pty",
   "proper-lockfile",
+  "qrcode",
   "sharp",
   "smol-toml",
   "vscode-jsonrpc",
