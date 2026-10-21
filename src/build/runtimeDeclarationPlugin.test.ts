@@ -9,13 +9,14 @@ import { setTimeout as delay } from "node:timers/promises";
 import { pathToFileURL } from "node:url";
 import { build } from "tsdown";
 import { afterEach, expect, it } from "vitest";
-import { runtimeDeclarationPlugin } from "./runtimeDeclarationPlugin";
+import { runtimeDeclarationPlugin, withRuntimeDeclarationBatch } from "./runtimeDeclarationPlugin";
 import {
   SSH_RUNTIME_ENTRY_CONFIG,
   sshRuntimeBuildManifestSchema,
 } from "../shared/sshRuntimeManifest";
 import { verifyRuntimeResources } from "../shared/runtimeResourceInventory";
 import { RUNTIME_BUILD_SOURCE_HASH as SOURCE_HASH_PLACEHOLDER } from "../shared/runtimeBuildIdentity";
+
 import { readRuntimeSourceDeclaration } from "./runtimeSourceDeclaration";
 
 const taskRequire = createRequire(import.meta.url);
@@ -40,8 +41,8 @@ async function fixture() {
     "src/supervisor/agents/plugin/forward-runtime",
     "packages/agents-usage/src",
     "packages/poracode-cli/lib",
-    "resources/plugins",
     "native/pty-job-owner",
+    "resources/plugins",
     "scripts",
     "out",
   ])
@@ -53,11 +54,11 @@ async function fixture() {
     "scripts/prepare-agent-plugins.mjs",
     "scripts/prepare-pty-job-owner.mjs",
     "native/pty-job-owner/main.rs",
+    "packages/poracode-cli/lib/completion.mjs",
+    "packages/poracode-cli/lib/desktopBundle.mjs",
     "scripts/server-native-overlay.mjs",
     "scripts/server-release-install.mjs",
     "scripts/server-host-tools.mjs",
-    "packages/poracode-cli/lib/completion.mjs",
-    "packages/poracode-cli/lib/desktopBundle.mjs",
   ])
     await writeFile(join(root, path), "");
   await writeFile(join(root, "package.json"), JSON.stringify({ private: true, type: "module" }));
@@ -161,6 +162,84 @@ it("refuses a bundled application module outside the declared source roots", asy
           manifestEntry: "supervisor",
         }),
       ],
+    }),
+  ).rejects.toThrow(/outside the runtime declaration/);
+});
+
+it("shares a fresh declaration across a finite batch of actual builds", async () => {
+  const root = await fixture();
+  const buildBatch = () =>
+    withRuntimeDeclarationBatch(root, { fixture: true }, async (batch) => {
+      await Promise.all(
+        ["backendHost", "supervisor"].map(async (name) => {
+          const entryPath =
+            name === "backendHost" ? "src/backend/index.ts" : "src/supervisor/index.ts";
+          const bundles = await build({
+            config: false,
+            cwd: root,
+            entry: { [name]: entryPath },
+            format: "cjs",
+            platform: "node",
+            dts: false,
+            clean: false,
+            outDir: "out",
+            logLevel: "silent",
+            plugins: [
+              runtimeDeclarationPlugin({
+                ...options(root, entryPath),
+                ...(name === "supervisor" ? { manifestEntry: "supervisor" as const } : {}),
+                batch,
+              }),
+            ],
+          });
+          await Promise.all(bundles.map((bundle) => bundle[Symbol.asyncDispose]()));
+        }),
+      );
+    });
+  await buildBatch();
+  const first = await manifest(root);
+  expect(await hostHash(root)).toBe(first.sourceHash);
+  await writeFile(join(root, "src/supervisor/runtime.ts"), "export const value='next batch';");
+  await buildBatch();
+  const next = await manifest(root);
+  expect(next.sourceHash).not.toBe(first.sourceHash);
+  expect(await hostHash(root)).toBe(next.sourceHash);
+});
+
+it("rejects input changes during a batch and prevents reuse outside its scope", async () => {
+  const root = await fixture();
+  const expired = await withRuntimeDeclarationBatch(
+    root,
+    { fixture: true },
+    async (batch) => batch,
+  );
+  expect(() => expired.read(root, { fixture: true })).toThrow(/does not match/);
+  await expect(
+    withRuntimeDeclarationBatch(root, { fixture: true }, async (current) => {
+      expect(() => current.read(root, { fixture: false })).toThrow(/does not match/);
+      expect(() => current.read(join(root, "src"), { fixture: true })).toThrow(/does not match/);
+      await writeFile(join(root, "src/supervisor/runtime.ts"), "export const value='mid-build';");
+    }),
+  ).rejects.toThrow(/inputs changed during the build/);
+});
+
+it("still enforces the bundled input closure inside a finite batch", async () => {
+  const root = await fixture();
+  await writeFile(join(root, "src/undeclared.ts"), "export const value='must declare';");
+  await writeFile(join(root, "src/supervisor/index.ts"), "export {value} from '../undeclared';");
+  await expect(
+    withRuntimeDeclarationBatch(root, { fixture: true }, async (batch) => {
+      await build({
+        config: false,
+        cwd: root,
+        entry: { supervisor: "src/supervisor/index.ts" },
+        format: "cjs",
+        platform: "node",
+        dts: false,
+        outDir: "out",
+        logLevel: "silent",
+        plugins: [runtimeDeclarationPlugin({ ...options(root, "src/supervisor/index.ts"), batch })],
+      });
     }),
   ).rejects.toThrow(/outside the runtime declaration/);
 });

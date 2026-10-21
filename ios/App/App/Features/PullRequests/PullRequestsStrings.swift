@@ -79,7 +79,12 @@ enum PullRequestsStrings {
     case .files: ProjectWorkspaceStrings.files
     case .checks: checks
     case .conversation: conversation
+    case .guide: guideText("Guide")
     }
+  }
+
+  static func guideText(_ value: String) -> String {
+    localized("pullRequests.parity." + value, value)
   }
 
   private static func localized(_ key: String, _ fallback: String) -> String {

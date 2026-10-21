@@ -32,6 +32,8 @@ struct RichChatTimelineView: View {
   /// runtime while the transcript is being replaced would act on items the
   /// user is no longer looking at.
   let isRefreshing: Bool
+  var requestFork: ((String) -> Void)? = nil
+  var forkBoundaryItemID: String? = nil
 
   @Environment(\.richChatCompactOverlayClearance) private var compactOverlayClearance
 
@@ -44,6 +46,9 @@ struct RichChatTimelineView: View {
   var body: some View {
     let projection = controller.state.timeline
     let actions = timelineActions(for: projection)
+    let displayedTurns = controller.state.displayedCompletedTurns(in: projection)
+    let boundaryIndex = controller.state.completedTurns.firstIndex { $0.anchorItemID == forkBoundaryItemID }
+    let displayedBoundary = boundaryIndex.flatMap { displayedTurns.indices.contains($0) ? displayedTurns[$0].anchorItemID : nil } ?? forkBoundaryItemID
     ScrollViewReader { proxy in
       ScrollView {
         LazyVStack(alignment: .leading, spacing: 6) {
@@ -70,6 +75,29 @@ struct RichChatTimelineView: View {
                 actions: actions
               )
               .id(entry.stableID)
+              if !isBusy, !isRefreshing, let requestFork,
+                let displayTurn = controller.state.displayedCompletedTurns(in: projection)
+                  .first(where: { entry.rootItemIDs.contains($0.anchorItemID ?? "") }),
+                let rawAnchor = controller.state.completedTurns
+                  .first(where: { $0.startedAtMilliseconds == displayTurn.startedAtMilliseconds })?.anchorItemID
+              {
+                Button(RichChatMessageActionStrings.forkAction, systemImage: "arrow.triangle.branch") {
+                  requestFork(rawAnchor)
+                }
+                .font(.caption)
+                .tint(.secondary)
+                .labelStyle(.iconOnly)
+                .help(RichChatMessageActionStrings.forkAction)
+              }
+              if let displayedBoundary, entry.rootItemIDs.contains(displayedBoundary) {
+                HStack {
+                  Rectangle().frame(height: 1)
+                  Text(RichChatMessageActionStrings.forkBoundary).font(.caption)
+                  Rectangle().frame(height: 1)
+                }
+                .foregroundStyle(.secondary)
+                .padding(.vertical, 8)
+              }
             }
           }
           Color.clear
@@ -164,12 +192,19 @@ struct RichChatTimelineView: View {
 
   private func timelineActions(for projection: RichTimelineProjection?) -> RichChatTimelineActions {
     let allowsActions = canOperate && !isRefreshing && !isBusy
+    let rawItems = projection?.rawItems ?? []
+    let boundaryIndex = rawItems.firstIndex { $0.id == forkBoundaryItemID }
+    var inheritedIDs = forkBoundaryItemID == nil ? Set<String>() : Set(rawItems.prefix((boundaryIndex ?? (rawItems.count - 1)) + 1).map(\.id))
+    for item in rawItems {
+      if let parent = item.parentItemID, inheritedIDs.contains(parent) { inheritedIDs.insert(item.id) }
+    }
     return RichChatTimelineActions(
       lastVisibleItemID: projection?.visibleEntries.last?.lastItemID,
       rawItems: projection?.rawItems ?? [],
       completedTurns: controller.state.displayedCompletedTurns(in: projection),
       checkpoints: checkpointController.state.collection,
       isTurnActive: controller.state.transcript?.openTurn == true,
+      inheritedItemIDs: inheritedIDs,
       requestRevert: allowsActions && allowsCheckpointRevert
         ? { plan in revertIntent = plan } : nil,
       requestTruncate: allowsActions
@@ -239,6 +274,12 @@ struct RichChatTimelineView: View {
 }
 
 extension RichTimelineEntry {
+  fileprivate var rootItemIDs: [String] {
+    switch self {
+    case .item(let node): [node.item.id]
+    case .group(_, let members): members.map { $0.item.id }
+    }
+  }
   var stableID: String {
     switch self {
     case .item(let node): node.item.id

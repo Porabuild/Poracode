@@ -146,7 +146,7 @@ describe("non-blocking message reply forms", () => {
         }),
     );
     show();
-    const input = screen.getByPlaceholderText("Or write a custom answer");
+    const input = screen.getByPlaceholderText("Something else…");
     fireEvent.change(input, { target: { value: "  another scope  " } });
     fireEvent.keyDown(input, { key: "Enter" });
     fireEvent.submit(input.closest("form")!);

@@ -29,9 +29,11 @@ import { fileURLToPath } from "node:url";
 import { scanRuntimeExternals } from "./runtime-externals.mjs";
 import { prepareDesktopCli } from "./prepare-desktop-cli.mjs";
 import { preparePackagedDeviceHub } from "./prepare-device-hub.mjs";
-import { readRuntimeClosure } from "./runtime-closure.mjs";
+import { pinInstalledVersions, readRuntimeClosure } from "./runtime-closure.mjs";
+import { npmInvocation } from "./server-host-tools.mjs";
 import { verifyRuntimeResources } from "../src/shared/runtimeResourceInventory.ts";
 import { readPtyJobOwnerArtifact } from "../src/shared/ptyJobOwnerArtifact.ts";
+import { SUPPORTED_LOCALES } from "../src/shared/locale.ts";
 import {
   MAC_NOTARIZE_VERSION,
   verifyMacNotarizationDependency,
@@ -146,13 +148,13 @@ export function verifyDesktopPtyTargets(resourceRoot, arches) {
 // inside SDK code at app launch. Walk each external's installed package.json
 // and pull in any non-optional peer that the root itself declares as a dep —
 // this stays explicit regardless of the installer's auto-peer behavior.
-function expandPeerDeps(externals, rootPkg) {
+function expandPeerDeps(externals, rootPkg, nodeModulesDir) {
   const expanded = new Set();
   const rootHasDep = (name) =>
     Boolean(rootPkg.dependencies?.[name] ?? rootPkg.devDependencies?.[name]);
 
   for (const name of externals) {
-    const pkgPath = resolve(repoRoot, "node_modules", name, "package.json");
+    const pkgPath = join(nodeModulesDir, name, "package.json");
     if (!existsSync(pkgPath)) continue;
     const pkg = JSON.parse(readFileSync(pkgPath, "utf8"));
     const peers = pkg.peerDependencies ?? {};
@@ -167,31 +169,22 @@ function expandPeerDeps(externals, rootPkg) {
   return [...expanded];
 }
 
-function buildStagePackageJson(rootPkg) {
-  const pick = (name) => rootPkg.dependencies?.[name] ?? rootPkg.devDependencies?.[name] ?? null;
-
-  const dependencies = {};
-  const peerDeps = expandPeerDeps(RUNTIME_DEPS, rootPkg);
+export function buildStagePackageJson(rootPkg, nodeModulesDir = join(repoRoot, "node_modules")) {
+  const pinOptions = {
+    rootPackage: {
+      ...rootPkg,
+      dependencies: { ...rootPkg.devDependencies, ...rootPkg.dependencies },
+    },
+    nodeModulesDir,
+  };
+  const peerDeps = expandPeerDeps(RUNTIME_DEPS, rootPkg, nodeModulesDir);
   const allRuntime = [...RUNTIME_DEPS, ...peerDeps];
-  for (const name of allRuntime) {
-    const version = pick(name);
-    if (!version) {
-      throw new Error(`Runtime dep ${name} not found in root package.json`);
-    }
-    dependencies[name] = version;
-  }
+  const dependencies = pinInstalledVersions(allRuntime, pinOptions);
   if (peerDeps.length > 0) {
     console.log(`[stage] pulled in peer deps: ${peerDeps.join(", ")}`);
   }
 
-  const devDependencies = {};
-  for (const name of STAGE_DEV_DEPS) {
-    const version = pick(name);
-    if (!version) {
-      throw new Error(`Stage dev dep ${name} not found in root package.json`);
-    }
-    devDependencies[name] = version;
-  }
+  const devDependencies = pinInstalledVersions(STAGE_DEV_DEPS, pinOptions);
 
   return {
     name: rootPkg.name,
@@ -206,6 +199,7 @@ function buildStagePackageJson(rootPkg) {
     main: rootPkg.main ?? "dist/main/main.cjs",
     dependencies,
     devDependencies,
+    ...(rootPkg.overrides ? { overrides: rootPkg.overrides } : {}),
     engines: rootPkg.engines,
   };
 }
@@ -246,16 +240,8 @@ function copyPackagedDist(stageRoot) {
   }
 }
 
-// The Claude Agent SDK lists `@anthropic-ai/claude-agent-sdk-<plat>-<arch>` as
-// optionalDependencies — each platform pack contains a ~200 MB precompiled
-// SEA binary of the `claude` CLI. The asar exclusion in the staged
-// electron-builder.yml keeps them out of the shipped app; this prune shrinks
-// the stage tmpdir and speeds up electron-builder's file walk.
-//
-// Safe to delete after `npm install` returned: the platform packs are pure
-// binary blobs with no postinstall hooks, and the SDK only `require`s them
-// lazily at runtime (when `pathToClaudeCodeExecutable` is unset) — which we
-// always set on posix and route through wsl.exe on WSL.
+// These optional SEA binaries are never used by our provider launcher. Keep
+// the other optionals: dmg-builder requires dmg-license even during import.
 function pruneStageBinaries(stageRoot) {
   const anthropicDir = join(stageRoot, "node_modules", "@anthropic-ai");
   if (!existsSync(anthropicDir)) return;
@@ -266,9 +252,8 @@ function pruneStageBinaries(stageRoot) {
       pruned += 1;
     }
   }
-  if (pruned > 0) {
+  if (pruned > 0)
     console.log(`[stage] pruned ${pruned} @anthropic-ai/claude-agent-sdk-* platform pack(s)`);
-  }
 }
 
 function copyArtifactsBack(stageReleaseDir, outputDir) {
@@ -368,8 +353,7 @@ async function main() {
     const rootPkg = JSON.parse(readFileSync(resolve(repoRoot, "package.json"), "utf8"));
     const stagePkg = buildStagePackageJson(rootPkg);
     if (platform === "mac") {
-      // This flat npm stage does not inherit the root dependency overrides.
-      stagePkg.overrides = { "@electron/notarize": MAC_NOTARIZE_VERSION };
+      stagePkg.overrides = { ...stagePkg.overrides, "@electron/notarize": MAC_NOTARIZE_VERSION };
     }
     writeFileSync(join(stageRoot, "package.json"), `${JSON.stringify(stagePkg, null, 2)}\n`);
 
@@ -394,33 +378,17 @@ async function main() {
       ),
     );
 
-    // 6. Install prod + stage devdeps with a genuinely flat npm layout.
-    //    electron-builder's file walker (and our asar globs) expect this.
-    //    npm runs electron's postinstall and the native dependency build
-    //    scripts by default. The stage's deps are pinned to versions the root
-    //    project already trusts.
-    //    We DON'T disable optionals because electron-builder's dmg-builder
-    //    requires the `dmg-license` optionalDependency unconditionally at
-    //    import time. Instead we install optionals normally, then surgically
-    //    delete the only optional we actually want gone: the Claude SDK's
-    //    platform-specific `claude` SEA binary (~200 MB).
-    //    The stage tmpdir is fresh each run, so any generated package-lock.json
-    //    is ephemeral and gets discarded with the stage.
-    //    We install with npm, not pnpm, here. pnpm's hoisted layout still keeps
-    //    packages behind a node_modules/.pnpm virtual store with Windows
-    //    junctions; on CI runners electron-builder's own grandchild dependency
-    //    async-exit-hook (electron-builder -> builder-util -> temp-file ->
-    //    async-exit-hook) fails to resolve through those junctions, crashing the
-    //    first electron-builder pass. The pnpm .cmd NODE_PATH fallback then
-    //    re-invokes it, and that second pass packs better-sqlite3 incorrectly
-    //    (source-only, inside the asar, native binary dropped) -> the app
-    //    crashes at launch with "Could not locate the bindings file".
-    //    --config.shamefully-hoist=true did NOT fix it. npm produces a genuinely
-    //    flat node_modules (no .pnpm, no junctions) where every transitive
-    //    resolves, and electron-builder then uses its well-trodden npm collector.
-    //    npm runs native build scripts by default, so electron/better-sqlite3/
-    //    node-pty all build without pnpm's build-gating flags.
-    run("npm", ["install", "--no-audit", "--no-fund", "--loglevel=error"], { cwd: stageRoot });
+    // 6. Use a fresh flat npm layout: electron-builder's dependency collector
+    // cannot reliably walk the workspace's virtual-store links on Windows.
+    const npm = npmInvocation([
+      "install",
+      "--include=dev",
+      "--ignore-scripts=false",
+      "--no-audit",
+      "--no-fund",
+      "--loglevel=error",
+    ]);
+    run(npm.command, npm.args, { cwd: stageRoot, shell: npm.shell });
     if (platform === "mac") {
       const notarizeVersion = verifyMacNotarizationDependency(stageRoot);
       console.log(
@@ -566,6 +534,13 @@ export function buildElectronBuilderConfig(
     : "";
   const macEntitlements = "build/entitlements.mac.plist";
   const macEntitlementsInherit = "build/entitlements.mac.plist";
+  const electronLanguages = [
+    ...new Set(
+      SUPPORTED_LOCALES.flatMap((locale) =>
+        locale === "en" ? ["en-US", "en-GB"] : [locale, locale.replaceAll("-", "_")],
+      ),
+    ),
+  ];
   const packagedDistFilesYaml = PACKAGED_DIST_FILES.map((glob) =>
     glob.startsWith("!") ? `  - "${glob}"` : `  - ${glob}`,
   ).join("\n");
@@ -573,6 +548,7 @@ export function buildElectronBuilderConfig(
   return `appId: ${appId}
 productName: ${productName}
 copyright: Copyright (C) 2026 Poracode
+electronLanguages: ${JSON.stringify(electronLanguages)}
 
 directories:
   output: release
@@ -583,6 +559,7 @@ ${packagedDistFilesYaml}${desktopCliFiles}
   - package.json
   - node_modules/**/*
   - "!node_modules/**/*.map"
+  - "!node_modules/effect/src/**/*"
   # The SDK's optionalDependencies include a 200+MB precompiled \`claude\` SEA
   # binary per platform. We ship without it; users provide \`claude\` via PATH.
   - "!node_modules/@anthropic-ai/claude-agent-sdk-*/**/*"

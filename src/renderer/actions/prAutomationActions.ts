@@ -2,9 +2,16 @@ import { toast } from "@heroui/react";
 import { msg } from "@lingui/core/macro";
 import { getProjectAgentStatuses } from "@/shared/agentStatus";
 import { authStateForPresentation } from "@/shared/agentSelection";
-import type { AgentStatus, PrWatch, Project, ScheduledTaskConfig } from "@/shared/contracts";
+import type {
+  AgentStatus,
+  ForgeRepository,
+  PrWatch,
+  Project,
+  ScheduledTaskConfig,
+} from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
 import { readBridge } from "@/renderer/bridge";
+import { reviewScopeFromSource } from "@/shared/forgeRemote";
 import {
   getConflictResolverCandidates,
   readConflictResolverSettingsForProject,
@@ -53,10 +60,12 @@ export async function applyDefaultPrAutomation(input: {
   project: Project;
   prNumber: number;
   headBranch: string;
+  source?: ForgeRepository;
   worktreePath?: string | undefined;
 }): Promise<PrWatch | null> {
   const settings = useSharedSettings.getState();
   if (settings.prAutomationDefault === "off") return null;
+  if (input.source?.capabilities.autoFix === false) return null;
 
   const statuses = useAgentStatusesStore.getState();
   const automation = resolvePrAutomationAgent(
@@ -71,16 +80,21 @@ export async function applyDefaultPrAutomation(input: {
   }
 
   try {
-    return await readBridge().upsertPrWatch({
+    const payload = {
       projectId: input.project.id,
       prNumber: input.prNumber,
       headBranch: input.headBranch,
       ...(input.worktreePath ? { worktreePath: input.worktreePath } : {}),
       watchEnabled: true,
-      autoMerge: settings.prAutomationDefault === "merge",
+      autoMerge:
+        settings.prAutomationDefault === "merge" && input.source?.capabilities.autoMerge !== false,
       agentKind: automation.agentKind,
       config: automation.config,
-    });
+    };
+    const reviewScope = reviewScopeFromSource(input.source);
+    return reviewScope
+      ? await readBridge().upsertForgePrWatch({ ...payload, reviewScope })
+      : await readBridge().upsertPrWatch(payload);
   } catch (error) {
     toast.warning(
       i18n._(

@@ -691,6 +691,10 @@ export class BackendDesktopServices {
       }
       case "upsertPrWatch":
         return this.durable.prWatchService.upsert(payload as never) as BackendServiceResult<Name>;
+      case "upsertForgePrWatch":
+        return this.durable.prWatchService.upsertScoped(payload as never) as Promise<
+          BackendServiceResult<Name>
+        >;
       case "deletePrWatch": {
         const input = payload as { projectId: string; prNumber: number };
         this.durable.prWatchService.delete(input.projectId, input.prNumber);

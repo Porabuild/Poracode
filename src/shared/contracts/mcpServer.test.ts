@@ -13,6 +13,8 @@ import {
   mergeMcpServers,
   normalizeBuiltInMcpDisabledTools,
   resolveEnabledMcpServers,
+  resolveNewThreadMcpConfig,
+  resolveMcpLaunchSnapshot,
   type McpServer,
 } from "./mcpServer";
 import { TOOLS as browserTools } from "@/host/browser/mcp/tools/specs";
@@ -31,6 +33,85 @@ function server(id: string, name: string, enabled = true): McpServer {
     transport: { type: "stdio", command: "node", args: [], env: {} },
   };
 }
+
+describe("resolveNewThreadMcpConfig", () => {
+  const settings = {
+    enabledMcpServers: { browser: true, crossagents: true, chrome: true, "computer-use": true },
+    disabledBuiltInMcpServers: {},
+  };
+  const location = { kind: "posix", path: "/repo" } as const;
+
+  it("uses standing defaults and respects hard disables", () => {
+    expect(resolveNewThreadMcpConfig(settings, {}, "gui", location)).toEqual({
+      browserMcp: true,
+      crossagentMcp: true,
+      chromeMcp: true,
+      computerUse: true,
+    });
+    expect(
+      resolveNewThreadMcpConfig(
+        { ...settings, disabledBuiltInMcpServers: { browser: true } },
+        {},
+        "gui",
+        location,
+        { browser: true },
+      ),
+    ).not.toHaveProperty("browserMcp");
+  });
+
+  it("respects provider scopes and WSL availability", () => {
+    expect(
+      resolveNewThreadMcpConfig(settings, { mcpScope: { gui: "none" } }, "gui", location),
+    ).toEqual({});
+    expect(resolveNewThreadMcpConfig(settings, {}, "terminal", location)).toEqual({});
+    expect(
+      resolveNewThreadMcpConfig(settings, {}, "gui", {
+        kind: "wsl",
+        distro: "Ubuntu",
+        linuxPath: "/repo",
+        uncPath: "\\\\wsl$\\Ubuntu\\repo",
+      }),
+    ).toEqual({ browserMcp: true, crossagentMcp: true });
+  });
+
+  it("keeps per-draft mentions and implicit client tools separate from standing defaults", () => {
+    expect(
+      resolveNewThreadMcpConfig(
+        { ...settings, enabledMcpServers: {} },
+        {},
+        "gui",
+        location,
+        { browser: true },
+        ["computer-use"],
+      ),
+    ).toEqual({ browserMcp: true, computerUse: true });
+    expect(settings.enabledMcpServers).toEqual({
+      browser: true,
+      crossagents: true,
+      chrome: true,
+      "computer-use": true,
+    });
+  });
+});
+
+it("resolves individual custom MCP choices after project overrides without changing defaults", () => {
+  const global = [server("global", "tool"), server("off", "off", false)];
+  const project = [server("project", "TOOL", false)];
+  const settings = {
+    mcpServers: global,
+    disabledBuiltInMcpServers: {},
+    disabledBuiltInMcpTools: {},
+  };
+  expect(resolveMcpLaunchSnapshot(settings, project).mcpServers).toEqual([]);
+  expect(
+    resolveMcpLaunchSnapshot(settings, project, { project: true, off: true }).mcpServers.map(
+      (entry) => entry.id,
+    ),
+  ).toEqual(["project", "off"]);
+  expect(resolveMcpLaunchSnapshot(settings, [], { global: false }).mcpServers).toEqual([]);
+  expect(project[0]?.enabled).toBe(false);
+  expect(global[1]?.enabled).toBe(false);
+});
 
 describe("mcpServerSchema", () => {
   it("keeps the disabled-tools schema transform-free for the remote-v3 wire", () => {

@@ -351,6 +351,30 @@ describe("ClaudeSdkSession", () => {
     await session.dispose();
   });
 
+  it("acknowledges inherited context only after the SDK consumes the prompt", async () => {
+    const fake = createFakeQuery();
+    mockSdk.query.mockReturnValue(fake.runtime);
+    const session = await ClaudeSdkSession.create({
+      threadId: "thread-fork-admission",
+      projectLocation,
+      config,
+      presentationMode: "gui",
+    });
+    const admitted = vi.fn<() => void>();
+    await session.openThread(config);
+    await session.startTurn("continue fork", config, undefined, { onPromptSubmitted: admitted });
+    expect(admitted).not.toHaveBeenCalled();
+    fake.emitMessage(
+      sdkAssistantMessage("session-fork", "reply-1", "The inherited context is present."),
+    );
+    await flushAsyncWork();
+    expect(admitted).toHaveBeenCalledOnce();
+    fake.emitMessage(sdkAssistantMessage("session-fork", "reply-2", "Still working."));
+    await flushAsyncWork();
+    expect(admitted).toHaveBeenCalledOnce();
+    await session.dispose();
+  });
+
   it("awaits the spawned process tree on dispose", async () => {
     const fake = createFakeQuery();
     mockSdk.query.mockReturnValue(fake.runtime);

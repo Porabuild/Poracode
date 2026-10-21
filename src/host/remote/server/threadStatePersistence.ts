@@ -11,6 +11,7 @@ import {
   type PersistedCompletedTurn,
 } from "@/host/db";
 import { sortOrderForThread } from "./snapshots";
+import { commitRuntimeThreadPrefixSync } from "@/host/db/runtimePersistenceRuntime";
 
 type ThreadStateEvent = Extract<SupervisorEvent, { type: "thread-state" }>;
 
@@ -66,6 +67,11 @@ export function persistThreadStateEvent(event: ThreadStateEvent): void {
   // "working"/"launching" state.
   const nowIso = new Date().toISOString();
   const turnTiming = deriveThreadTurnTiming(thread, event.status, nowIso);
+  if (isThreadTurnActive(thread.status) && !isThreadTurnActive(event.status)) {
+    // The state control queue can run ahead of the buffered canonical writes.
+    // Commit the reply before choosing the completed turn's durable anchor.
+    commitRuntimeThreadPrefixSync(event.threadId);
+  }
   const nextSessionRef =
     event.sessionRef &&
     (thread.sessionRef?.providerSessionId !== event.sessionRef.providerSessionId ||
@@ -106,7 +112,6 @@ function appendCompletedTurnIfClosed(
   const startedAt = parseTurnIso(nextTurnTiming.lastTurnStartedAt);
   const endedAt = parseTurnIso(nextTurnTiming.lastTurnEndedAt);
   if (startedAt === null || endedAt === null) return;
-  if (endedAt - startedAt < 1000) return;
   if (
     prevThread.lastTurnStartedAt === nextTurnTiming.lastTurnStartedAt &&
     prevThread.lastTurnEndedAt === nextTurnTiming.lastTurnEndedAt

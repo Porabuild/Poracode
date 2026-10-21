@@ -1,12 +1,17 @@
 import { randomUUID } from "node:crypto";
+import { stat } from "node:fs/promises";
+import { isAbsolute } from "node:path";
 import {
   DEFAULT_TERMINAL_SIZE,
   resolveMcpLaunchSnapshot,
+  mergeMcpServers,
   scheduledTaskConfigSchema,
   type AgentKind,
   type AgentStatusesResponse,
+  type LoadedPlugin,
   type Project,
   type ProjectLocation,
+  type PromptSegment,
   type RemoteThreadCommand,
   type ScheduledTaskConfig,
   type StartThreadPayload,
@@ -17,6 +22,8 @@ import type { SelectionBinding } from "@/shared/selectionBinding.schemas";
 import type { SharedSettings } from "@/shared/settings";
 import { isHomeProjectId } from "@/shared/homeScope";
 import { msg } from "@/shared/messages";
+import { mimeForPath } from "@/shared/promptContent";
+import { isBuiltInToolPlugin, resolveInstalledPluginState } from "@/shared/plugins/catalog";
 import {
   captureProjectExecutionScope,
   hasSameProjectExecutionScope,
@@ -24,10 +31,7 @@ import {
 import { makeThreadTitle } from "@/shared/threadTitle";
 import { buildWorktreeLocation, resolveWorktreePlacement } from "@/shared/worktree";
 import { generateWorktreeBranch } from "@/shared/worktreeBranch";
-import {
-  resolveHostThreadTitlePrompt,
-  resolveUnrestrictedThreadPermissions,
-} from "./threadLaunchConfig";
+import { resolveHostThreadTitlePrompt, resolveHostThreadLaunchConfig } from "./threadLaunchConfig";
 
 /** Host surface the launcher needs — the same main-side seams schedules use. */
 export interface AppThreadLauncherDeps {
@@ -35,6 +39,7 @@ export interface AppThreadLauncherDeps {
   startThread(payload: StartThreadPayload): Promise<unknown>;
   /** Cached agent detection for the given WSL distros (supervisor request). */
   getAgentStatuses(wslDistros: string[]): Promise<AgentStatusesResponse>;
+  getPlugins(location: ProjectLocation): Promise<LoadedPlugin[]>;
   /**
    * Create a git worktree (new branch) in the project's repo; returns its path.
    * Receives the already-read shared settings so a single launch reads them once.
@@ -80,6 +85,13 @@ export interface CreateAppThreadRequest {
   prNumber?: number;
   /** Home-thread workspace tag; ignored for real projects. */
   workspaceId?: string;
+  browserMcp?: boolean;
+  crossagentMcp?: boolean;
+  chromeMcp?: boolean;
+  computerUse?: boolean;
+  mcpServers?: Record<string, boolean>;
+  plugins?: Record<string, boolean>;
+  attachments?: Array<Omit<Extract<PromptSegment, { kind: "attachment" }>, "kind">>;
 }
 
 /**
@@ -133,6 +145,45 @@ export async function createAppThread(
   // Read shared settings once and flow the value to every consumer below
   // (worktree placement + the launch MCP snapshot).
   const settings = deps.getSharedSettings();
+  const customServers = mergeMcpServers(settings.mcpServers, project.mcpServers ?? []);
+  for (const id of Object.keys(request.mcpServers ?? {})) {
+    if (!customServers.some((server) => server.id === id)) {
+      throw new Error(`Unknown MCP server id: ${id}`);
+    }
+  }
+  const plugins = request.plugins ? await deps.getPlugins(project.location) : [];
+  const pluginMcpDefaults: Record<string, boolean> = {};
+  for (const [name, enabled] of Object.entries(request.plugins ?? {})) {
+    const plugin = plugins.find((entry) => entry.name === name);
+    if (!plugin || !resolveInstalledPluginState(plugin, settings.installedPlugins)) {
+      throw new Error(`Plugin is not installed: ${name}`);
+    }
+    if (isBuiltInToolPlugin(plugin)) {
+      for (const id of plugin.poracode.builtInMcpServerIds) pluginMcpDefaults[id] = enabled;
+    }
+  }
+  const segments: PromptSegment[] = [];
+  for (const attachment of request.attachments ?? []) {
+    if (!isAbsolute(attachment.path) || !(await stat(attachment.path)).isFile()) {
+      throw new Error(
+        `Attachment must be an absolute path to a file on this host: ${attachment.path}`,
+      );
+    }
+    const mimeType = attachment.mimeType ?? mimeForPath(attachment.path);
+    segments.push({ kind: "attachment", path: attachment.path, ...(mimeType ? { mimeType } : {}) });
+  }
+  if (segments.length > 0) segments.push({ kind: "text", content: request.prompt });
+  const launchSettings = {
+    ...settings,
+    enabledMcpServers: {
+      ...settings.enabledMcpServers,
+      ...pluginMcpDefaults,
+      ...(request.browserMcp !== undefined ? { browser: request.browserMcp } : {}),
+      ...(request.crossagentMcp !== undefined ? { crossagents: request.crossagentMcp } : {}),
+      ...(request.chromeMcp !== undefined ? { chrome: request.chromeMcp } : {}),
+      ...(request.computerUse !== undefined ? { "computer-use": request.computerUse } : {}),
+    },
+  };
   const scope = captureProjectExecutionScope(project);
   // The project row can move or disappear while the launch awaits; every
   // checkpoint below re-reads it and compares the real location and remote
@@ -177,11 +228,18 @@ export async function createAppThread(
       ...(selection.selectionBinding !== undefined
         ? { selectionBinding: selection.selectionBinding }
         : {}),
-      ...(await resolveUnrestrictedThreadPermissions(
+      ...(await resolveHostThreadLaunchConfig(
         deps.getAgentStatuses,
         request.agentKind,
         threadLocation,
+        launchSettings,
       )),
+      ...(request.mcpServers !== undefined ? { mcpServerOverrides: request.mcpServers } : {}),
+      ...(request.plugins !== undefined ? { pluginOverrides: request.plugins } : {}),
+      ...(request.browserMcp === false ? { browserMcp: false } : {}),
+      ...(request.crossagentMcp === false ? { crossagentMcp: false } : {}),
+      ...(request.chromeMcp === false ? { chromeMcp: false } : {}),
+      ...(request.computerUse === false ? { computerUse: false } : {}),
     };
     assertProjectScope();
     options.admitLaunch?.();
@@ -238,6 +296,7 @@ export async function createAppThread(
       agentKind: request.agentKind,
       config,
       prompt: request.prompt,
+      ...(segments.length > 0 ? { segments } : {}),
       ...(customTitle ? { title: customTitle } : {}),
       presentationMode: "gui",
       launchRuntime: false,
@@ -255,9 +314,10 @@ export async function createAppThread(
       agentKind: request.agentKind,
       config,
       prompt: request.prompt,
+      ...(segments.length > 0 ? { segments } : {}),
       initialSize: DEFAULT_TERMINAL_SIZE,
       presentationMode: "gui",
-      ...resolveMcpLaunchSnapshot(settings, project.mcpServers ?? []),
+      ...resolveMcpLaunchSnapshot(settings, project.mcpServers ?? [], config.mcpServerOverrides),
     };
 
     await deps.startThread(startPayload);

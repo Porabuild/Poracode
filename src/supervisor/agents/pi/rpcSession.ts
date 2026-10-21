@@ -255,6 +255,7 @@ export class PiRpcSession implements StructuredSessionHandle {
         this.failTurn(response.error ?? "Pi rejected the prompt.");
         return;
       }
+      options?.onPromptSubmitted?.();
       // Extension commands and prompt handlers can complete without starting an
       // agent run, so no agent_settled event follows them. If no agent run
       // begins shortly after acceptance, settle the turn locally.

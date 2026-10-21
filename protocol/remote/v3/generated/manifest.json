@@ -719,6 +719,15 @@
     },
     {
       "auth": "bearer",
+      "id": "pr-watch-scoped-upsert",
+      "method": "POST",
+      "path": "/api/pr-watches/scoped",
+      "scopes": [
+        "session:operate"
+      ]
+    },
+    {
+      "auth": "bearer",
       "id": "pr-watch-delete",
       "method": "DELETE",
       "path": "/api/pr-watches",
@@ -1589,6 +1598,76 @@
       "scope": "session:read"
     },
     {
+      "name": "forgeGetRepository",
+      "owner": "projectLocation",
+      "scope": "session:read"
+    },
+    {
+      "name": "forgeGetPrViewedFiles",
+      "owner": "projectLocation",
+      "scope": "session:read"
+    },
+    {
+      "name": "forgeGetPrReviewGuide",
+      "owner": "projectLocation",
+      "scope": "session:read"
+    },
+    {
+      "name": "forgeWritePrReviewGuide",
+      "owner": "projectLocation",
+      "scope": "session:operate"
+    },
+    {
+      "name": "forgeSetPrFileViewed",
+      "owner": "projectLocation",
+      "scope": "session:operate"
+    },
+    {
+      "name": "forgeEditPrComment",
+      "owner": "projectLocation",
+      "scope": "session:operate"
+    },
+    {
+      "name": "forgeGetPrForBranch",
+      "owner": "projectLocation",
+      "scope": "session:read"
+    },
+    {
+      "name": "forgeListPrs",
+      "owner": "projectLocation",
+      "scope": "session:read"
+    },
+    {
+      "name": "forgeListPullRequests",
+      "owner": "projectLocation",
+      "scope": "session:read"
+    },
+    {
+      "name": "forgeGetPrChecks",
+      "owner": "projectLocation",
+      "scope": "session:read"
+    },
+    {
+      "name": "forgeGetPrFiles",
+      "owner": "projectLocation",
+      "scope": "session:read"
+    },
+    {
+      "name": "forgeGetPrDiff",
+      "owner": "projectLocation",
+      "scope": "session:read"
+    },
+    {
+      "name": "forgeGetPrDetails",
+      "owner": "projectLocation",
+      "scope": "session:read"
+    },
+    {
+      "name": "forgeGetPrReviewComments",
+      "owner": "projectLocation",
+      "scope": "session:read"
+    },
+    {
       "name": "ghListPullRequests",
       "owner": "projectLocation",
       "scope": "session:read"
@@ -1801,6 +1880,61 @@
       "owner": "projectLocation",
       "scope": "session:operate",
       "timeout": "long"
+    },
+    {
+      "name": "forgeCreatePr",
+      "owner": "projectLocation",
+      "scope": "session:operate",
+      "timeout": "long"
+    },
+    {
+      "name": "forgeMergePr",
+      "owner": "projectLocation",
+      "scope": "session:operate",
+      "timeout": "long"
+    },
+    {
+      "name": "forgeMergePrAtHead",
+      "owner": "projectLocation",
+      "scope": "session:operate",
+      "timeout": "long"
+    },
+    {
+      "name": "forgeClosePr",
+      "owner": "projectLocation",
+      "scope": "session:operate"
+    },
+    {
+      "name": "forgeReopenPr",
+      "owner": "projectLocation",
+      "scope": "session:operate"
+    },
+    {
+      "name": "forgeMarkPrReady",
+      "owner": "projectLocation",
+      "scope": "session:operate"
+    },
+    {
+      "name": "forgeSubmitPrReview",
+      "owner": "projectLocation",
+      "scope": "session:operate",
+      "timeout": "long"
+    },
+    {
+      "name": "forgeUpdatePrBranch",
+      "owner": "projectLocation",
+      "scope": "session:operate",
+      "timeout": "long"
+    },
+    {
+      "name": "forgePostPrComment",
+      "owner": "projectLocation",
+      "scope": "session:operate"
+    },
+    {
+      "name": "forgeEditPr",
+      "owner": "projectLocation",
+      "scope": "session:operate"
     },
     {
       "name": "ghMergePr",

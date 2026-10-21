@@ -132,6 +132,7 @@ export interface SpawnThreadInput {
   config: ThreadConfig;
   initialSize: TerminalSize;
   launchPrompt: string;
+  initialInstructions?: string;
   command?: CommandSpec;
   /**
    * Extra env injected into the agent PTY (merged on top of agentEnv +
@@ -176,10 +177,14 @@ export function effectiveLaunchConfig(
     return config;
   }
   const next = { ...config };
-  if (pluginBuiltInMcpServerIds.includes("browser")) next.browserMcp = true;
-  if (pluginBuiltInMcpServerIds.includes("crossagents")) next.crossagentMcp = true;
-  if (pluginBuiltInMcpServerIds.includes("computer-use")) next.computerUse = true;
-  if (pluginBuiltInMcpServerIds.includes("chrome")) next.chromeMcp = true;
+  if (config.browserMcp !== false && pluginBuiltInMcpServerIds.includes("browser"))
+    next.browserMcp = true;
+  if (config.crossagentMcp !== false && pluginBuiltInMcpServerIds.includes("crossagents"))
+    next.crossagentMcp = true;
+  if (config.computerUse !== false && pluginBuiltInMcpServerIds.includes("computer-use"))
+    next.computerUse = true;
+  if (config.chromeMcp !== false && pluginBuiltInMcpServerIds.includes("chrome"))
+    next.chromeMcp = true;
   if (disabledBuiltInMcpServerIds.includes("browser")) next.browserMcp = false;
   if (disabledBuiltInMcpServerIds.includes("crossagents")) next.crossagentMcp = false;
   if (disabledBuiltInMcpServerIds.includes("computer-use")) next.computerUse = false;
@@ -412,6 +417,9 @@ export class SpawnPipeline {
       payload.agentKind,
       {
         includeExternalServers: true,
+        ...(runtimeConfig.pluginOverrides
+          ? { pluginOverrides: runtimeConfig.pluginOverrides }
+          : {}),
         ...(payload.segments?.some((segment) => segment.kind === "skill" && segment.pluginId)
           ? { nativePluginAdapter: adapter }
           : {}),
@@ -439,6 +447,9 @@ export class SpawnPipeline {
           presentationMode: requestedPresentation,
           nativePlugins,
           segments: wslSegments,
+          ...(runtimeConfig.pluginOverrides
+            ? { pluginOverrides: runtimeConfig.pluginOverrides }
+            : {}),
         })) ?? wslSegments)
       : wslSegments;
     let effectiveSegments =
@@ -825,6 +836,9 @@ export class SpawnPipeline {
           config: runtimeConfig,
           initialSize: payload.initialSize,
           launchPrompt: "",
+          ...(payload.initialInstructions
+            ? { initialInstructions: payload.initialInstructions }
+            : {}),
           structuredSession,
           ...(payload.resourceLease ? { resourceLease: payload.resourceLease } : {}),
           ...(resolvedSessionRef ? { sessionRef: resolvedSessionRef } : {}),
@@ -1231,6 +1245,9 @@ export class SpawnPipeline {
           launchPrompt: "",
           structuredSession,
           initialStatus: hasPrompt ? "working" : "idle",
+          ...(session.pendingInitialInstructions
+            ? { initialInstructions: session.pendingInitialInstructions }
+            : {}),
           initialAttention: hasPrompt ? "working" : "none",
           suppressInitialStructuredIdle: hasPrompt,
           resourceLease,
@@ -1270,10 +1287,7 @@ export class SpawnPipeline {
           );
         const startOptions = {
           userMessageItemId: optimisticItemId,
-          ...structuredTurnTextOptions(
-            { structuredSession, slashCommands: session.slashCommands },
-            turn,
-          ),
+          ...structuredTurnTextOptions(replacement, turn),
         };
         try {
           const result = await structuredSession.startTurn(
@@ -1588,6 +1602,9 @@ export class SpawnPipeline {
         ),
       terminalSize: input.initialSize,
       launchPrompt: input.launchPrompt,
+      ...(input.initialInstructions
+        ? { pendingInitialInstructions: input.initialInstructions }
+        : {}),
       ...(input.sessionRef ? { sessionRef: input.sessionRef } : {}),
       status: input.initialStatus ?? "launching",
       attention: input.initialAttention ?? "none",
@@ -1606,6 +1623,11 @@ export class SpawnPipeline {
       ...(input.structuredSession ? { structuredSession: input.structuredSession } : {}),
     };
 
+    session.onInitialInstructionsApplied = () => {
+      if (!ctx.isCurrentSession(session)) return;
+      session.initialInstructionsApplied = true;
+      ctx.outputPipeline.emitState(session);
+    };
     ctx.sessionRuntimeLifecycle.attach(session);
     // The process effect exists once the runtime is published: a PTY spawn
     // succeeded and/or a structured handle is attached. Idempotent.
@@ -1897,7 +1919,12 @@ export class SpawnPipeline {
           const contributions = await this.ctx.options.resolvePluginLaunchContributions?.(
             projectLocation,
             agentKind,
-            { includeExternalServers: false },
+            {
+              includeExternalServers: false,
+              ...(turnConfig.pluginOverrides
+                ? { pluginOverrides: turnConfig.pluginOverrides }
+                : {}),
+            },
           );
           if (!isCurrent()) return [];
           const snapshot = {

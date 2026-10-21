@@ -645,6 +645,14 @@ describe("claude one-shot selection consumption", () => {
       { readOnlyWorkspace: true, selection: { model: "haiku" } },
     );
     expect(general?.args).toContain("--permission-mode");
+    expect(adapter.capabilities.supportsReadOnlyOneShotWorkspace).toBe(true);
+    expect(general?.args).toContain("--safe-mode");
+    expect(general?.args).toContain("--restricted");
+    expect(general?.args).toContain("--disable-slash-commands");
+    expect(general?.args).toContain("Read,Glob,Grep");
+    expect(general?.args).toContain(
+      "Bash,Edit,Write,NotebookEdit,WebFetch,WebSearch,Task,Skill,mcp__*",
+    );
 
     const textOnly = await adapter.buildTextOnlyOneShotCommand?.(
       "haiku",

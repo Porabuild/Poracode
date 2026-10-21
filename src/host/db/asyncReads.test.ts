@@ -278,6 +278,7 @@ describe("worker-backed SQLite reads", () => {
     const controller = new RuntimePersistenceController({
       write: applyThreadRuntimeEventsNow,
       bounds: { maxPendingEventsPerThread: 1 },
+      capacityRelief: false,
       flushIntervalMs: 60_000,
     });
     try {

@@ -463,12 +463,17 @@ export function createClaudeAdapter(options: ClaudeAdapterOptions = {}): AgentAd
         fast,
         oneShotOptions?.readOnlyWorkspace
           ? [
+              "--safe-mode",
+              "--restricted",
+              "--disable-slash-commands",
+              "--tools",
+              "Read,Glob,Grep",
               "--permission-mode",
               "plan",
               "--allowedTools",
               "Read,Glob,Grep",
               "--disallowedTools",
-              "Bash,Edit,Write,NotebookEdit,WebFetch,WebSearch,Task,Skill",
+              "Bash,Edit,Write,NotebookEdit,WebFetch,WebSearch,Task,Skill,mcp__*",
               "--mcp-config",
               JSON.stringify({ mcpServers: {} }),
               "--strict-mcp-config",

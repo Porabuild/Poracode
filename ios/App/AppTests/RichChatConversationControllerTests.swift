@@ -4,6 +4,23 @@ import XCTest
 
 @MainActor
 final class RichChatConversationControllerTests: XCTestCase {
+  func testCommandDoesNotReuseAPreviousSuccessAfterCancellation() async {
+    let gateway = RichChatControllerGatewayFake()
+    let controller = RichChatConversationController(gateway: gateway)
+    controller.activate(access: RichChatControllerTestValues.access(), threadID: "thread-rich")
+    let command = RichChatThreadCommand(payload: ["kind": .string("acknowledge")])
+    let first = await controller.runCommand(command)
+    XCTAssertTrue(first)
+    let barrier = RichChatControllerTestBarrier()
+    await gateway.configureMutation(.value(()), barrier: barrier)
+    let cancelled = Task { await controller.runCommand(command) }
+    await barrier.waitUntilReached()
+    cancelled.cancel()
+    await barrier.release()
+    let result = await cancelled.value
+    XCTAssertFalse(result)
+  }
+
   func testSendReportsOnlyAnOwnedConfirmedSuccess() async {
     let successfulGateway = RichChatControllerGatewayFake()
     await successfulGateway.configureMutation(.value(()))

@@ -25,6 +25,7 @@ export function PrAutomationSlider(props: {
   ariaLabel: string;
   className?: string | undefined;
   isDisabled?: boolean | undefined;
+  autoMergeAvailable?: boolean;
 }) {
   const [draftValue, setDraftValue] = useState(MODE_VALUES[props.value]);
   const draftMode = modeForValue(draftValue);
@@ -50,9 +51,9 @@ export function PrAutomationSlider(props: {
         aria-label={props.ariaLabel}
         {...(props.isDisabled !== undefined ? { isDisabled: props.isDisabled } : {})}
         minValue={0}
-        maxValue={2}
+        maxValue={props.autoMergeAvailable === false ? 1 : 2}
         step={1}
-        value={draftValue}
+        value={props.autoMergeAvailable === false ? Math.min(draftValue, 1) : draftValue}
         onChange={(value) => setDraftValue(numericValue(value))}
         onChangeEnd={(value) => void commit(value)}
       >
@@ -61,24 +62,29 @@ export function PrAutomationSlider(props: {
           <Slider.Thumb className="border-0 bg-accent shadow-sm after:bg-white" />
         </Slider.Track>
       </Slider>
-      <div aria-hidden="true" className="mt-1.5 grid grid-cols-3 text-[10px] leading-none">
+      <div
+        aria-hidden="true"
+        className={`mt-1.5 grid ${props.autoMergeAvailable === false ? "grid-cols-2" : "grid-cols-3"} text-[10px] leading-none`}
+      >
         <span className={draftMode === "off" ? "font-medium text-accent" : "text-muted"}>
           <Trans>Off</Trans>
         </span>
         <span
-          className={`text-center ${
+          className={`${props.autoMergeAvailable === false ? "text-right" : "text-center"} ${
             draftMode === "fix" ? "font-medium text-accent" : "text-muted"
           }`}
         >
           <Trans>Auto Fix</Trans>
         </span>
-        <span
-          className={`text-right ${
-            draftMode === "merge" ? "font-medium text-accent" : "text-muted"
-          }`}
-        >
-          <Trans>Auto Merge</Trans>
-        </span>
+        {props.autoMergeAvailable !== false && (
+          <span
+            className={`text-right ${
+              draftMode === "merge" ? "font-medium text-accent" : "text-muted"
+            }`}
+          >
+            <Trans>Auto Merge</Trans>
+          </span>
+        )}
       </div>
     </div>
   );

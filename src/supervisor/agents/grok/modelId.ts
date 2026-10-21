@@ -7,4 +7,5 @@ export const {
   variantId: grokFastVariantId,
   canonicalId: canonicalGrokModelId,
   normalizeConfig: normalizeGrokModelConfig,
+  foldCapabilities: foldGrokFastModels,
 } = createModelVariant("-build-fast");

@@ -630,8 +630,12 @@ export async function composeHeadlessRemoteHost(
           throw error;
         }
       },
-      resolveMcpLaunchSnapshot: (projectId) =>
-        resolveMcpLaunchSnapshot(getSharedSettings(), dbGetProject(projectId)?.mcpServers ?? []),
+      resolveMcpLaunchSnapshot: (projectId, overrides) =>
+        resolveMcpLaunchSnapshot(
+          getSharedSettings(),
+          dbGetProject(projectId)?.mcpServers ?? [],
+          overrides,
+        ),
       settings: settings.remoteSettingsGateway(settings.mcpSettings),
       attachments: {
         save: (input) => saveUploadedAttachmentFile(paths, input),

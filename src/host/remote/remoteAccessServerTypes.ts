@@ -36,6 +36,7 @@ import type {
   PrWatch,
   PrWatchAgentSync,
   PrWatchInput,
+  ForgePrWatchInput,
   RemoteThreadCommand,
   ScheduledTask,
   ScheduledTaskInput,
@@ -524,7 +525,10 @@ export interface RemoteAccessServerOptions {
    */
   readonly experimentAuthority?: RemoteExperimentAuthority;
   /** Resolve authoritative MCP settings for a remotely launched persisted thread. */
-  resolveMcpLaunchSnapshot?(projectId: string): McpLaunchSnapshot;
+  resolveMcpLaunchSnapshot?(
+    projectId: string,
+    overrides?: Record<string, boolean>,
+  ): McpLaunchSnapshot;
   /** Built-in browser bridge: tab commands plus screencast mirroring. */
   readonly browser?: RemoteBrowserGatewayLike;
   readonly deviceWorkspace?: import("../devices/DeviceWorkspaceService").DeviceWorkspaceService;
@@ -622,6 +626,7 @@ export interface RemoteAccessServerOptions {
     get(projectId: string, prNumber: number): PrWatch | null;
     requestCheck(projectId: string, prNumber: number): void;
     upsert(input: PrWatchInput): PrWatch;
+    upsertScoped?(input: ForgePrWatchInput): Promise<PrWatch>;
     delete(projectId: string, prNumber: number): void;
     syncAgent(agent: PrWatchAgentSync): void;
   };

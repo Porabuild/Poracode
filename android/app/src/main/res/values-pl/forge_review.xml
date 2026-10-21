@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="forge_review_guide">Przewodnik</string>
+    <string name="forge_review_writer">Autor przewodnika</string>
+    <string name="forge_review_model">Model przewodnika</string>
+    <string name="forge_review_instructions">Instrukcje przewodnika po przeglądzie</string>
+    <string name="forge_review_write">Napisz przewodnik</string>
+    <string name="forge_review_rewrite">Napisz przewodnik ponownie</string>
+    <string name="forge_review_no_writer">Wybierz autora przewodnika obsługującego przestrzeń roboczą z wymuszonym trybem tylko do odczytu.</string>
+    <string name="forge_review_generating">Trwa pisanie przewodnika. Możesz opuścić ten przegląd i wrócić, gdy będzie gotowy.</string>
+    <string name="forge_review_failed">Nie udało się napisać przewodnika. Spróbuj napisać go ponownie.</string>
+    <string name="forge_review_stale">Ten przewodnik jest nieaktualny. Napisz go ponownie, aby zobaczyć fragmenty bieżącej zmiany.</string>
+    <string name="forge_review_look_closely">Sprawdź uważnie</string>
+    <string name="forge_review_back">Powrót</string>
+    <string name="forge_review_next">Dalej</string>
+    <string name="forge_review_finish">Zakończ przegląd</string>
+    <string name="forge_review_viewed_source">Przejrzano na hoście źródłowym</string>
+    <string name="forge_review_viewed_host">Przejrzano w Poracode</string>
+    <string name="forge_review_changed">Zmieniono</string>
+    <string name="forge_review_edit_comment">Edytuj komentarz</string>
+    <string name="forge_review_offline">Offline</string>
+</resources>

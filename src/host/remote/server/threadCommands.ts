@@ -50,6 +50,7 @@ import { prepareHostWorktree, removeHostWorktree } from "./hostWorktreeLifecycle
 import { sortOrderForThread } from "./snapshots";
 import { applyThreadMetadataCommand, threadMetadataClosesSession } from "./threadMetadataCommands";
 import { createRemoteThread } from "./threadCreation";
+import { dbForkThread } from "@/host/db/threadForks";
 
 export { runRemoteProcedure } from "./threadProcedure";
 export { applyRemoteThreadSwitch, retargetRemoteThreadForSwitch } from "./threadSwitch";
@@ -155,6 +156,9 @@ export async function applyRemoteThreadCommand(
   onCatalogCommitted?: CatalogIntentCommittedSignal,
 ): Promise<boolean> {
   switch (command.kind) {
+    case "fork":
+      await dbForkThread(command, onCatalogCommitted);
+      return false;
     case "create":
       createRemoteThread(command, onCatalogCommitted);
       return false;
@@ -317,7 +321,8 @@ export async function ensureRemoteThreadRunning(
   const project = dbGetProjects().find((entry) => entry.id === thread.projectId);
   if (!project) throw new RemoteHttpError("project_not_found", msg("remote.project.notFound"), 404);
   const mcpSnapshot =
-    ctx.options.resolveMcpLaunchSnapshot?.(thread.projectId) ?? emptyMcpLaunchSnapshot();
+    ctx.options.resolveMcpLaunchSnapshot?.(thread.projectId, thread.config.mcpServerOverrides) ??
+    emptyMcpLaunchSnapshot();
   return ctx.options.callSupervisor("ensureThreadRunning", {
     threadId,
     projectLocation: thread.worktreePath
@@ -399,7 +404,8 @@ export async function startPersistedThread(
     ? buildWorktreeLocation(project.location, command.worktreePath)
     : project.location;
   const mcpSnapshot =
-    host.resolveMcpLaunchSnapshot?.(command.projectId) ?? emptyMcpLaunchSnapshot();
+    host.resolveMcpLaunchSnapshot?.(command.projectId, command.config.mcpServerOverrides) ??
+    emptyMcpLaunchSnapshot();
   // The durable row written above IS the retained evidence: a failed supervisor
   // response does NOT prove the provider never started (the launch may have
   // spawned before the reply was lost), so the row is deliberately not deleted

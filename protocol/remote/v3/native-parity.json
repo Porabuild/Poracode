@@ -5,16 +5,54 @@
   "entries": {
     "httpRoutes": [
       {
+        "id": "pr-watch-scoped-upsert",
+        "scopes": ["session:operate"],
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "note": "Generated codecs include the scoped review contract. Native transport and account/capability UI do not yet invoke this new operation; legacy GitHub operations remain available."
+      },
+      {
         "id": "conversation-search",
         "scopes": ["session:read"],
         "batch": "thread-lifecycle",
         "ios": {
-          "wire": { "disposition": "planned", "evidence": [] },
-          "ui": { "disposition": "planned", "evidence": [] }
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
         },
         "android": {
-          "wire": { "disposition": "planned", "evidence": [] },
-          "ui": { "disposition": "planned", "evidence": [] }
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
         },
         "note": "Capability-gated saved-message search is available to the shared renderer and app controls; native search UI is planned."
       },
@@ -2484,7 +2522,7 @@
         "id": "thread-command",
         "scopes": ["session:operate"],
         "batch": "thread-lifecycle",
-        "note": "iOS exposes the additive clear-group command from Home, project, and thread-detail actions; the host also clears a one-member remainder. Kotlin bindings include the variant, while Android's native action UI does not yet expose ungrouping. The additive catalogMutations v1 kinds (relative thread reorder, nullable workspace) are host-authority source evidence only: neither native transport has been taught the new discriminators yet, so the platform dispositions below describe the pre-existing kinds and make no claim about them. Metadata-only create is used by the managed desktop before worktree preparation; native and paired clients retain their existing start flow. Generated create codecs do not claim native UI adoption.",
+        "note": "iOS exposes the additive clear-group command from Home, project, and thread-detail actions; the host also clears a one-member remainder. Kotlin bindings include the variant, while Android's native action UI does not yet expose ungrouping. The additive catalogMutations v1 kinds (relative thread reorder, nullable workspace) are host-authority source evidence only: neither native transport has been taught the new discriminators yet, so the platform dispositions below describe the pre-existing kinds and make no claim about them. Metadata-only create is used by the managed desktop before worktree preparation; native and paired clients retain their existing start flow. Generated create codecs do not claim native UI adoption. Fork v1 is negotiated through environment.threadForks; both native rich-chat clients send an idempotent command to the new thread id, retain the selected source boundary, show a source link and open the created thread. UI evidence remains source-only until device journeys run. Fork v1 is negotiated through environment.threadForks; both native rich-chat clients send an idempotent command to the new thread id, retain the selected source boundary, show a source link and open the created thread. UI evidence remains source-only until device journeys run.",
         "ios": {
           "wire": {
             "disposition": "implemented",
@@ -2496,14 +2534,16 @@
               "ios/App/App/Features/Home/HomeComposerActions.swift",
               "ios/App/App/Features/Threads/ThreadWorktreeMoveController.swift",
               "ios/App/App/Features/Threads/ThreadDetailDestinations.swift",
-              "ios/App/App/Transport/RemoteWriterProtocol.swift"
+              "ios/App/App/Transport/RemoteWriterProtocol.swift",
+              "ios/App/App/Transport/RichChat/SelectedRichChatConversationGateway.swift"
             ]
           },
           "ui": {
             "disposition": "partial",
             "evidence": [
               "ios/App/App/Features/Home/ProjectThreadsView.swift",
-              "ios/App/App/Features/Threads/ThreadDetailActionMenu.swift"
+              "ios/App/App/Features/Threads/ThreadDetailActionMenu.swift",
+              "ios/App/App/Features/RichChat/UI/Pages/RichChatThreadView.swift"
             ],
             "note": "No checked-in device journey exercises this surface yet (no screen-registry entry, no device-test evidence); the ui story is asserted from the cited production source only."
           }
@@ -2514,13 +2554,15 @@
             "evidence": [
               "android/app/src/main/kotlin/com/poracode/app/transport/threads/ThreadLifecycleRemoteApiClient.kt",
               "android/app/src/main/kotlin/com/poracode/app/ui/thread/ThreadLifecycleActions.kt",
-              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteHttpExecutor.kt"
+              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteHttpExecutor.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/richchat/GeneratedRichChatRemoteTransport.kt"
             ]
           },
           "ui": {
             "disposition": "partial",
             "evidence": [
-              "android/app/src/main/kotlin/com/poracode/app/ui/thread/ThreadLifecycleActions.kt"
+              "android/app/src/main/kotlin/com/poracode/app/ui/thread/ThreadLifecycleActions.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichChatForkDialog.kt"
             ],
             "note": "No screen-registry entry yet: no device journey exercises a dedicated screen for it. The cited surface-side sources are ThreadLifecycleActions.kt."
           }
@@ -3850,6 +3892,777 @@
       }
     ],
     "procedures": [
+      {
+        "id": "forgeClosePr",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Transport/Projects/GitHubOperations/ForgeReviewRemoteV3Contract.swift",
+              "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
+              "ios/App/App/Transport/Projects/GitHubOperations/SelectedGitHubOperationsGateway.swift"
+            ]
+          },
+          "ui": {
+            "disposition": "partial",
+            "evidence": [
+              "ios/App/App/Features/Projects/GitHubOperations/ForgeReviewController.swift",
+              "ios/App/App/Features/PullRequests/PullRequestReviewPageView.swift",
+              "ios/App/App/Features/PullRequests/PullRequestReviewSections.swift",
+              "ios/App/App/Features/PullRequests/PullRequestGuideView.swift"
+            ],
+            "note": "Scoped native review controls are wired; independent iOS device evidence is still required."
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/protocol/forge/RemoteV3ForgeReviewContract.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/ProjectWorkspaceRemoteApiClient.kt",
+              "android/app/src/main/kotlin/com/poracode/app/session/projects/GithubOperationsGateway.kt"
+            ]
+          },
+          "ui": {
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/session/projects/ForgeReviewController.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGithubPane.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/GithubPullRequestDetailPane.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ForgeReviewGuidePane.kt"
+            ],
+            "note": "Scoped native review controls are wired; independent Android device evidence is still required."
+          }
+        },
+        "note": "Generated native codecs, authenticated transports, exact-host gateways, and account-scoped review UI; device verification remains open."
+      },
+      {
+        "id": "forgeCreatePr",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Transport/Projects/GitHubOperations/ForgeReviewRemoteV3Contract.swift",
+              "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
+              "ios/App/App/Transport/Projects/GitHubOperations/SelectedGitHubOperationsGateway.swift"
+            ]
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/protocol/forge/RemoteV3ForgeReviewContract.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/ProjectWorkspaceRemoteApiClient.kt",
+              "android/app/src/main/kotlin/com/poracode/app/session/projects/GithubOperationsGateway.kt"
+            ]
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "note": "Generated native codecs and authenticated exact-host transports are implemented. Native discovery and creation screens still use legacy operations and need scoped UI integration."
+      },
+      {
+        "id": "forgeEditPr",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Transport/Projects/GitHubOperations/ForgeReviewRemoteV3Contract.swift",
+              "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
+              "ios/App/App/Transport/Projects/GitHubOperations/SelectedGitHubOperationsGateway.swift"
+            ]
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/protocol/forge/RemoteV3ForgeReviewContract.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/ProjectWorkspaceRemoteApiClient.kt",
+              "android/app/src/main/kotlin/com/poracode/app/session/projects/GithubOperationsGateway.kt"
+            ]
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "note": "Generated native codecs and authenticated exact-host transports are implemented. Native discovery and creation screens still use legacy operations and need scoped UI integration."
+      },
+      {
+        "id": "forgeGetPrChecks",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Transport/Projects/GitHubOperations/ForgeReviewRemoteV3Contract.swift",
+              "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
+              "ios/App/App/Transport/Projects/GitHubOperations/SelectedGitHubOperationsGateway.swift"
+            ]
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/protocol/forge/RemoteV3ForgeReviewContract.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/ProjectWorkspaceRemoteApiClient.kt",
+              "android/app/src/main/kotlin/com/poracode/app/session/projects/GithubOperationsGateway.kt"
+            ]
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "note": "Generated native codecs and authenticated exact-host transports are implemented. Native discovery and creation screens still use legacy operations and need scoped UI integration."
+      },
+      {
+        "id": "forgeGetPrDetails",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Transport/Projects/GitHubOperations/ForgeReviewRemoteV3Contract.swift",
+              "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
+              "ios/App/App/Transport/Projects/GitHubOperations/SelectedGitHubOperationsGateway.swift"
+            ]
+          },
+          "ui": {
+            "disposition": "partial",
+            "evidence": [
+              "ios/App/App/Features/Projects/GitHubOperations/ForgeReviewController.swift",
+              "ios/App/App/Features/PullRequests/PullRequestReviewPageView.swift",
+              "ios/App/App/Features/PullRequests/PullRequestReviewSections.swift",
+              "ios/App/App/Features/PullRequests/PullRequestGuideView.swift"
+            ],
+            "note": "Scoped native review controls are wired; independent iOS device evidence is still required."
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/protocol/forge/RemoteV3ForgeReviewContract.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/ProjectWorkspaceRemoteApiClient.kt",
+              "android/app/src/main/kotlin/com/poracode/app/session/projects/GithubOperationsGateway.kt"
+            ]
+          },
+          "ui": {
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/session/projects/ForgeReviewController.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGithubPane.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/GithubPullRequestDetailPane.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ForgeReviewGuidePane.kt"
+            ],
+            "note": "Scoped native review controls are wired; independent Android device evidence is still required."
+          }
+        },
+        "note": "Generated native codecs, authenticated transports, exact-host gateways, and account-scoped review UI; device verification remains open."
+      },
+      {
+        "id": "forgeGetPrDiff",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Transport/Projects/GitHubOperations/ForgeReviewRemoteV3Contract.swift",
+              "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
+              "ios/App/App/Transport/Projects/GitHubOperations/SelectedGitHubOperationsGateway.swift"
+            ]
+          },
+          "ui": {
+            "disposition": "partial",
+            "evidence": [
+              "ios/App/App/Features/Projects/GitHubOperations/ForgeReviewController.swift",
+              "ios/App/App/Features/PullRequests/PullRequestReviewPageView.swift",
+              "ios/App/App/Features/PullRequests/PullRequestReviewSections.swift",
+              "ios/App/App/Features/PullRequests/PullRequestGuideView.swift"
+            ],
+            "note": "Scoped native review controls are wired; independent iOS device evidence is still required."
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/protocol/forge/RemoteV3ForgeReviewContract.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/ProjectWorkspaceRemoteApiClient.kt",
+              "android/app/src/main/kotlin/com/poracode/app/session/projects/GithubOperationsGateway.kt"
+            ]
+          },
+          "ui": {
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/session/projects/ForgeReviewController.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGithubPane.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/GithubPullRequestDetailPane.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ForgeReviewGuidePane.kt"
+            ],
+            "note": "Scoped native review controls are wired; independent Android device evidence is still required."
+          }
+        },
+        "note": "Generated native codecs, authenticated transports, exact-host gateways, and account-scoped review UI; device verification remains open."
+      },
+      {
+        "id": "forgeGetPrFiles",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Transport/Projects/GitHubOperations/ForgeReviewRemoteV3Contract.swift",
+              "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
+              "ios/App/App/Transport/Projects/GitHubOperations/SelectedGitHubOperationsGateway.swift"
+            ]
+          },
+          "ui": {
+            "disposition": "partial",
+            "evidence": [
+              "ios/App/App/Features/Projects/GitHubOperations/ForgeReviewController.swift",
+              "ios/App/App/Features/PullRequests/PullRequestReviewPageView.swift",
+              "ios/App/App/Features/PullRequests/PullRequestReviewSections.swift",
+              "ios/App/App/Features/PullRequests/PullRequestGuideView.swift"
+            ],
+            "note": "Scoped native review controls are wired; independent iOS device evidence is still required."
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/protocol/forge/RemoteV3ForgeReviewContract.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/ProjectWorkspaceRemoteApiClient.kt",
+              "android/app/src/main/kotlin/com/poracode/app/session/projects/GithubOperationsGateway.kt"
+            ]
+          },
+          "ui": {
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/session/projects/ForgeReviewController.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGithubPane.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/GithubPullRequestDetailPane.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ForgeReviewGuidePane.kt"
+            ],
+            "note": "Scoped native review controls are wired; independent Android device evidence is still required."
+          }
+        },
+        "note": "Generated native codecs, authenticated transports, exact-host gateways, and account-scoped review UI; device verification remains open."
+      },
+      {
+        "id": "forgeGetPrForBranch",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Transport/Projects/GitHubOperations/ForgeReviewRemoteV3Contract.swift",
+              "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
+              "ios/App/App/Transport/Projects/GitHubOperations/SelectedGitHubOperationsGateway.swift"
+            ]
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/protocol/forge/RemoteV3ForgeReviewContract.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/ProjectWorkspaceRemoteApiClient.kt",
+              "android/app/src/main/kotlin/com/poracode/app/session/projects/GithubOperationsGateway.kt"
+            ]
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "note": "Generated native codecs and authenticated exact-host transports are implemented. Native discovery and creation screens still use legacy operations and need scoped UI integration."
+      },
+      {
+        "id": "forgeGetPrReviewComments",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Transport/Projects/GitHubOperations/ForgeReviewRemoteV3Contract.swift",
+              "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
+              "ios/App/App/Transport/Projects/GitHubOperations/SelectedGitHubOperationsGateway.swift"
+            ]
+          },
+          "ui": {
+            "disposition": "partial",
+            "evidence": [
+              "ios/App/App/Features/Projects/GitHubOperations/ForgeReviewController.swift",
+              "ios/App/App/Features/PullRequests/PullRequestReviewPageView.swift",
+              "ios/App/App/Features/PullRequests/PullRequestReviewSections.swift",
+              "ios/App/App/Features/PullRequests/PullRequestGuideView.swift"
+            ],
+            "note": "Scoped native review controls are wired; independent iOS device evidence is still required."
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/protocol/forge/RemoteV3ForgeReviewContract.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/ProjectWorkspaceRemoteApiClient.kt",
+              "android/app/src/main/kotlin/com/poracode/app/session/projects/GithubOperationsGateway.kt"
+            ]
+          },
+          "ui": {
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/session/projects/ForgeReviewController.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGithubPane.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/GithubPullRequestDetailPane.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ForgeReviewGuidePane.kt"
+            ],
+            "note": "Scoped native review controls are wired; independent Android device evidence is still required."
+          }
+        },
+        "note": "Generated native codecs, authenticated transports, exact-host gateways, and account-scoped review UI; device verification remains open."
+      },
+      {
+        "id": "forgeGetRepository",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Transport/Projects/GitHubOperations/ForgeReviewRemoteV3Contract.swift",
+              "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
+              "ios/App/App/Transport/Projects/GitHubOperations/SelectedGitHubOperationsGateway.swift"
+            ]
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/protocol/forge/RemoteV3ForgeReviewContract.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/ProjectWorkspaceRemoteApiClient.kt",
+              "android/app/src/main/kotlin/com/poracode/app/session/projects/GithubOperationsGateway.kt"
+            ]
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "note": "Generated native codecs and authenticated exact-host transports are implemented. Native discovery and creation screens still use legacy operations and need scoped UI integration."
+      },
+      {
+        "id": "forgeListPrs",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Transport/Projects/GitHubOperations/ForgeReviewRemoteV3Contract.swift",
+              "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
+              "ios/App/App/Transport/Projects/GitHubOperations/SelectedGitHubOperationsGateway.swift"
+            ]
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/protocol/forge/RemoteV3ForgeReviewContract.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/ProjectWorkspaceRemoteApiClient.kt",
+              "android/app/src/main/kotlin/com/poracode/app/session/projects/GithubOperationsGateway.kt"
+            ]
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "note": "Generated native codecs and authenticated exact-host transports are implemented. Native discovery and creation screens still use legacy operations and need scoped UI integration."
+      },
+      {
+        "id": "forgeListPullRequests",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Transport/Projects/GitHubOperations/ForgeReviewRemoteV3Contract.swift",
+              "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
+              "ios/App/App/Transport/Projects/GitHubOperations/SelectedGitHubOperationsGateway.swift"
+            ]
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/protocol/forge/RemoteV3ForgeReviewContract.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/ProjectWorkspaceRemoteApiClient.kt",
+              "android/app/src/main/kotlin/com/poracode/app/session/projects/GithubOperationsGateway.kt"
+            ]
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "note": "Generated native codecs and authenticated exact-host transports are implemented. Native discovery and creation screens still use legacy operations and need scoped UI integration."
+      },
+      {
+        "id": "forgeMarkPrReady",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Transport/Projects/GitHubOperations/ForgeReviewRemoteV3Contract.swift",
+              "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
+              "ios/App/App/Transport/Projects/GitHubOperations/SelectedGitHubOperationsGateway.swift"
+            ]
+          },
+          "ui": {
+            "disposition": "partial",
+            "evidence": [
+              "ios/App/App/Features/Projects/GitHubOperations/ForgeReviewController.swift",
+              "ios/App/App/Features/PullRequests/PullRequestReviewPageView.swift",
+              "ios/App/App/Features/PullRequests/PullRequestReviewSections.swift",
+              "ios/App/App/Features/PullRequests/PullRequestGuideView.swift"
+            ],
+            "note": "Scoped native review controls are wired; independent iOS device evidence is still required."
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/protocol/forge/RemoteV3ForgeReviewContract.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/ProjectWorkspaceRemoteApiClient.kt",
+              "android/app/src/main/kotlin/com/poracode/app/session/projects/GithubOperationsGateway.kt"
+            ]
+          },
+          "ui": {
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/session/projects/ForgeReviewController.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGithubPane.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/GithubPullRequestDetailPane.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ForgeReviewGuidePane.kt"
+            ],
+            "note": "Scoped native review controls are wired; independent Android device evidence is still required."
+          }
+        },
+        "note": "Generated native codecs, authenticated transports, exact-host gateways, and account-scoped review UI; device verification remains open."
+      },
+      {
+        "id": "forgeMergePr",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Transport/Projects/GitHubOperations/ForgeReviewRemoteV3Contract.swift",
+              "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
+              "ios/App/App/Transport/Projects/GitHubOperations/SelectedGitHubOperationsGateway.swift"
+            ]
+          },
+          "ui": {
+            "disposition": "partial",
+            "evidence": [
+              "ios/App/App/Features/Projects/GitHubOperations/ForgeReviewController.swift",
+              "ios/App/App/Features/PullRequests/PullRequestReviewPageView.swift",
+              "ios/App/App/Features/PullRequests/PullRequestReviewSections.swift",
+              "ios/App/App/Features/PullRequests/PullRequestGuideView.swift"
+            ],
+            "note": "Scoped native review controls are wired; independent iOS device evidence is still required."
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/protocol/forge/RemoteV3ForgeReviewContract.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/ProjectWorkspaceRemoteApiClient.kt",
+              "android/app/src/main/kotlin/com/poracode/app/session/projects/GithubOperationsGateway.kt"
+            ]
+          },
+          "ui": {
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/session/projects/ForgeReviewController.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGithubPane.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/GithubPullRequestDetailPane.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ForgeReviewGuidePane.kt"
+            ],
+            "note": "Scoped native review controls are wired; independent Android device evidence is still required."
+          }
+        },
+        "note": "Generated native codecs, authenticated transports, exact-host gateways, and account-scoped review UI; device verification remains open."
+      },
+      {
+        "id": "forgeMergePrAtHead",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Transport/Projects/GitHubOperations/ForgeReviewRemoteV3Contract.swift",
+              "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
+              "ios/App/App/Transport/Projects/GitHubOperations/SelectedGitHubOperationsGateway.swift"
+            ]
+          },
+          "ui": {
+            "disposition": "partial",
+            "evidence": [
+              "ios/App/App/Features/Projects/GitHubOperations/ForgeReviewController.swift",
+              "ios/App/App/Features/PullRequests/PullRequestReviewPageView.swift",
+              "ios/App/App/Features/PullRequests/PullRequestReviewSections.swift",
+              "ios/App/App/Features/PullRequests/PullRequestGuideView.swift"
+            ],
+            "note": "Scoped native review controls are wired; independent iOS device evidence is still required."
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/protocol/forge/RemoteV3ForgeReviewContract.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/ProjectWorkspaceRemoteApiClient.kt",
+              "android/app/src/main/kotlin/com/poracode/app/session/projects/GithubOperationsGateway.kt"
+            ]
+          },
+          "ui": {
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/session/projects/ForgeReviewController.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGithubPane.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/GithubPullRequestDetailPane.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ForgeReviewGuidePane.kt"
+            ],
+            "note": "Scoped native review controls are wired; independent Android device evidence is still required."
+          }
+        },
+        "note": "Generated native codecs, authenticated transports, exact-host gateways, and account-scoped review UI; device verification remains open."
+      },
+      {
+        "id": "forgePostPrComment",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Transport/Projects/GitHubOperations/ForgeReviewRemoteV3Contract.swift",
+              "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
+              "ios/App/App/Transport/Projects/GitHubOperations/SelectedGitHubOperationsGateway.swift"
+            ]
+          },
+          "ui": {
+            "disposition": "partial",
+            "evidence": [
+              "ios/App/App/Features/Projects/GitHubOperations/ForgeReviewController.swift",
+              "ios/App/App/Features/PullRequests/PullRequestReviewPageView.swift",
+              "ios/App/App/Features/PullRequests/PullRequestReviewSections.swift",
+              "ios/App/App/Features/PullRequests/PullRequestGuideView.swift"
+            ],
+            "note": "Scoped native review controls are wired; independent iOS device evidence is still required."
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/protocol/forge/RemoteV3ForgeReviewContract.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/ProjectWorkspaceRemoteApiClient.kt",
+              "android/app/src/main/kotlin/com/poracode/app/session/projects/GithubOperationsGateway.kt"
+            ]
+          },
+          "ui": {
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/session/projects/ForgeReviewController.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGithubPane.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/GithubPullRequestDetailPane.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ForgeReviewGuidePane.kt"
+            ],
+            "note": "Scoped native review controls are wired; independent Android device evidence is still required."
+          }
+        },
+        "note": "Generated native codecs, authenticated transports, exact-host gateways, and account-scoped review UI; device verification remains open."
+      },
+      {
+        "id": "forgeReopenPr",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Transport/Projects/GitHubOperations/ForgeReviewRemoteV3Contract.swift",
+              "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
+              "ios/App/App/Transport/Projects/GitHubOperations/SelectedGitHubOperationsGateway.swift"
+            ]
+          },
+          "ui": {
+            "disposition": "partial",
+            "evidence": [
+              "ios/App/App/Features/Projects/GitHubOperations/ForgeReviewController.swift",
+              "ios/App/App/Features/PullRequests/PullRequestReviewPageView.swift",
+              "ios/App/App/Features/PullRequests/PullRequestReviewSections.swift",
+              "ios/App/App/Features/PullRequests/PullRequestGuideView.swift"
+            ],
+            "note": "Scoped native review controls are wired; independent iOS device evidence is still required."
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/protocol/forge/RemoteV3ForgeReviewContract.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/ProjectWorkspaceRemoteApiClient.kt",
+              "android/app/src/main/kotlin/com/poracode/app/session/projects/GithubOperationsGateway.kt"
+            ]
+          },
+          "ui": {
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/session/projects/ForgeReviewController.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGithubPane.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/GithubPullRequestDetailPane.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ForgeReviewGuidePane.kt"
+            ],
+            "note": "Scoped native review controls are wired; independent Android device evidence is still required."
+          }
+        },
+        "note": "Generated native codecs, authenticated transports, exact-host gateways, and account-scoped review UI; device verification remains open."
+      },
+      {
+        "id": "forgeSubmitPrReview",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Transport/Projects/GitHubOperations/ForgeReviewRemoteV3Contract.swift",
+              "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
+              "ios/App/App/Transport/Projects/GitHubOperations/SelectedGitHubOperationsGateway.swift"
+            ]
+          },
+          "ui": {
+            "disposition": "partial",
+            "evidence": [
+              "ios/App/App/Features/Projects/GitHubOperations/ForgeReviewController.swift",
+              "ios/App/App/Features/PullRequests/PullRequestReviewPageView.swift",
+              "ios/App/App/Features/PullRequests/PullRequestReviewSections.swift",
+              "ios/App/App/Features/PullRequests/PullRequestGuideView.swift"
+            ],
+            "note": "Scoped native review controls are wired; independent iOS device evidence is still required."
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/protocol/forge/RemoteV3ForgeReviewContract.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/ProjectWorkspaceRemoteApiClient.kt",
+              "android/app/src/main/kotlin/com/poracode/app/session/projects/GithubOperationsGateway.kt"
+            ]
+          },
+          "ui": {
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/session/projects/ForgeReviewController.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGithubPane.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/GithubPullRequestDetailPane.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ForgeReviewGuidePane.kt"
+            ],
+            "note": "Scoped native review controls are wired; independent Android device evidence is still required."
+          }
+        },
+        "note": "Generated native codecs, authenticated transports, exact-host gateways, and account-scoped review UI; device verification remains open."
+      },
+      {
+        "id": "forgeUpdatePrBranch",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Transport/Projects/GitHubOperations/ForgeReviewRemoteV3Contract.swift",
+              "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
+              "ios/App/App/Transport/Projects/GitHubOperations/SelectedGitHubOperationsGateway.swift"
+            ]
+          },
+          "ui": {
+            "disposition": "partial",
+            "evidence": [
+              "ios/App/App/Features/Projects/GitHubOperations/ForgeReviewController.swift",
+              "ios/App/App/Features/PullRequests/PullRequestReviewPageView.swift",
+              "ios/App/App/Features/PullRequests/PullRequestReviewSections.swift",
+              "ios/App/App/Features/PullRequests/PullRequestGuideView.swift"
+            ],
+            "note": "Scoped native review controls are wired; independent iOS device evidence is still required."
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/protocol/forge/RemoteV3ForgeReviewContract.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/ProjectWorkspaceRemoteApiClient.kt",
+              "android/app/src/main/kotlin/com/poracode/app/session/projects/GithubOperationsGateway.kt"
+            ]
+          },
+          "ui": {
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/session/projects/ForgeReviewController.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGithubPane.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/GithubPullRequestDetailPane.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ForgeReviewGuidePane.kt"
+            ],
+            "note": "Scoped native review controls are wired; independent Android device evidence is still required."
+          }
+        },
+        "note": "Generated native codecs, authenticated transports, exact-host gateways, and account-scoped review UI; device verification remains open."
+      },
       {
         "id": "getProviderUsage",
         "batch": "settings-integrations",
@@ -8233,6 +9046,231 @@
             "note": "Live action controls and owner fencing have focused test coverage. Paired-host device journeys are pending before full UI parity can be claimed."
           }
         }
+      },
+      {
+        "id": "forgeGetPrViewedFiles",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Transport/Projects/GitHubOperations/ForgeReviewRemoteV3Contract.swift",
+              "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
+              "ios/App/App/Transport/Projects/GitHubOperations/SelectedGitHubOperationsGateway.swift"
+            ]
+          },
+          "ui": {
+            "disposition": "partial",
+            "evidence": [
+              "ios/App/App/Features/Projects/GitHubOperations/ForgeReviewController.swift",
+              "ios/App/App/Features/PullRequests/PullRequestReviewPageView.swift",
+              "ios/App/App/Features/PullRequests/PullRequestReviewSections.swift",
+              "ios/App/App/Features/PullRequests/PullRequestGuideView.swift"
+            ],
+            "note": "Scoped native review controls are wired; independent iOS device evidence is still required."
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/protocol/forge/RemoteV3ForgeReviewContract.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/ProjectWorkspaceRemoteApiClient.kt",
+              "android/app/src/main/kotlin/com/poracode/app/session/projects/GithubOperationsGateway.kt"
+            ]
+          },
+          "ui": {
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/session/projects/ForgeReviewController.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGithubPane.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/GithubPullRequestDetailPane.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ForgeReviewGuidePane.kt"
+            ],
+            "note": "Scoped native review controls are wired; independent Android device evidence is still required."
+          }
+        },
+        "note": "Generated native codecs, authenticated transports, exact-host gateways, and account-scoped review UI; device verification remains open."
+      },
+      {
+        "id": "forgeSetPrFileViewed",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Transport/Projects/GitHubOperations/ForgeReviewRemoteV3Contract.swift",
+              "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
+              "ios/App/App/Transport/Projects/GitHubOperations/SelectedGitHubOperationsGateway.swift"
+            ]
+          },
+          "ui": {
+            "disposition": "partial",
+            "evidence": [
+              "ios/App/App/Features/Projects/GitHubOperations/ForgeReviewController.swift",
+              "ios/App/App/Features/PullRequests/PullRequestReviewPageView.swift",
+              "ios/App/App/Features/PullRequests/PullRequestReviewSections.swift",
+              "ios/App/App/Features/PullRequests/PullRequestGuideView.swift"
+            ],
+            "note": "Scoped native review controls are wired; independent iOS device evidence is still required."
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/protocol/forge/RemoteV3ForgeReviewContract.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/ProjectWorkspaceRemoteApiClient.kt",
+              "android/app/src/main/kotlin/com/poracode/app/session/projects/GithubOperationsGateway.kt"
+            ]
+          },
+          "ui": {
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/session/projects/ForgeReviewController.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGithubPane.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/GithubPullRequestDetailPane.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ForgeReviewGuidePane.kt"
+            ],
+            "note": "Scoped native review controls are wired; independent Android device evidence is still required."
+          }
+        },
+        "note": "Generated native codecs, authenticated transports, exact-host gateways, and account-scoped review UI; device verification remains open."
+      },
+      {
+        "id": "forgeEditPrComment",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Transport/Projects/GitHubOperations/ForgeReviewRemoteV3Contract.swift",
+              "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
+              "ios/App/App/Transport/Projects/GitHubOperations/SelectedGitHubOperationsGateway.swift"
+            ]
+          },
+          "ui": {
+            "disposition": "partial",
+            "evidence": [
+              "ios/App/App/Features/Projects/GitHubOperations/ForgeReviewController.swift",
+              "ios/App/App/Features/PullRequests/PullRequestReviewPageView.swift",
+              "ios/App/App/Features/PullRequests/PullRequestReviewSections.swift",
+              "ios/App/App/Features/PullRequests/PullRequestGuideView.swift"
+            ],
+            "note": "Scoped native review controls are wired; independent iOS device evidence is still required."
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/protocol/forge/RemoteV3ForgeReviewContract.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/ProjectWorkspaceRemoteApiClient.kt",
+              "android/app/src/main/kotlin/com/poracode/app/session/projects/GithubOperationsGateway.kt"
+            ]
+          },
+          "ui": {
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/session/projects/ForgeReviewController.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGithubPane.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/GithubPullRequestDetailPane.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ForgeReviewGuidePane.kt"
+            ],
+            "note": "Scoped native review controls are wired; independent Android device evidence is still required."
+          }
+        },
+        "note": "Generated native codecs, authenticated transports, exact-host gateways, and account-scoped review UI; device verification remains open."
+      },
+      {
+        "id": "forgeGetPrReviewGuide",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Transport/Projects/GitHubOperations/ForgeReviewRemoteV3Contract.swift",
+              "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
+              "ios/App/App/Transport/Projects/GitHubOperations/SelectedGitHubOperationsGateway.swift"
+            ]
+          },
+          "ui": {
+            "disposition": "partial",
+            "evidence": [
+              "ios/App/App/Features/Projects/GitHubOperations/ForgeReviewController.swift",
+              "ios/App/App/Features/PullRequests/PullRequestReviewPageView.swift",
+              "ios/App/App/Features/PullRequests/PullRequestReviewSections.swift",
+              "ios/App/App/Features/PullRequests/PullRequestGuideView.swift"
+            ],
+            "note": "Scoped native review controls are wired; independent iOS device evidence is still required."
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/protocol/forge/RemoteV3ForgeReviewContract.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/ProjectWorkspaceRemoteApiClient.kt",
+              "android/app/src/main/kotlin/com/poracode/app/session/projects/GithubOperationsGateway.kt"
+            ]
+          },
+          "ui": {
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/session/projects/ForgeReviewController.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGithubPane.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/GithubPullRequestDetailPane.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ForgeReviewGuidePane.kt"
+            ],
+            "note": "Scoped native review controls are wired; independent Android device evidence is still required."
+          }
+        },
+        "note": "Generated native codecs, authenticated transports, exact-host gateways, and account-scoped review UI; device verification remains open."
+      },
+      {
+        "id": "forgeWritePrReviewGuide",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Transport/Projects/GitHubOperations/ForgeReviewRemoteV3Contract.swift",
+              "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
+              "ios/App/App/Transport/Projects/GitHubOperations/SelectedGitHubOperationsGateway.swift"
+            ]
+          },
+          "ui": {
+            "disposition": "partial",
+            "evidence": [
+              "ios/App/App/Features/Projects/GitHubOperations/ForgeReviewController.swift",
+              "ios/App/App/Features/PullRequests/PullRequestReviewPageView.swift",
+              "ios/App/App/Features/PullRequests/PullRequestReviewSections.swift",
+              "ios/App/App/Features/PullRequests/PullRequestGuideView.swift"
+            ],
+            "note": "Scoped native review controls are wired; independent iOS device evidence is still required."
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/protocol/forge/RemoteV3ForgeReviewContract.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/ProjectWorkspaceRemoteApiClient.kt",
+              "android/app/src/main/kotlin/com/poracode/app/session/projects/GithubOperationsGateway.kt"
+            ]
+          },
+          "ui": {
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/session/projects/ForgeReviewController.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ProjectGithubPane.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/GithubPullRequestDetailPane.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/ForgeReviewGuidePane.kt"
+            ],
+            "note": "Scoped native review controls are wired; independent Android device evidence is still required."
+          }
+        },
+        "note": "Generated native codecs, authenticated transports, exact-host gateways, and account-scoped review UI; device verification remains open."
       }
     ],
     "webSocketClientMessages": [

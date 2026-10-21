@@ -15,6 +15,8 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 /** Composition root for project controllers, deliberately separate from the 499-line AppSession. */
@@ -27,11 +29,14 @@ class ProjectSessionRuntime(
     dispatcher: CoroutineDispatcher,
     refreshSnapshot: () -> Unit,
     val syncPreferences: ProjectSyncPreferences,
+    reviewCache: ForgeReviewDiskCache? = null,
     clock: ProjectNotesClock = ProjectNotesClock { Instant.now().toString() },
     refreshDelayMs: Long = DebouncedProjectRefreshScheduler.DEFAULT_DELAY_MS,
 ) {
     private val leaseSource = SelectedProjectHostLeaseSource(appState.value)
     val hostLease: StateFlow<ProjectHostLease?> = leaseSource.state
+    private val mutableGuideWriters = MutableStateFlow<List<com.poracode.app.model.AgentStatusEntry>>(emptyList())
+    val guideWriters = mutableGuideWriters.asStateFlow()
     private val provider = RepositoryProjectRemoteGatewayProvider(
         repository,
         remoteFactory,
@@ -49,7 +54,7 @@ class ProjectSessionRuntime(
     val gitGateway = GeneratedGitOperationsGateway(hostLease, workspaceProvider)
     val gitOperations = GitOperationsController(hostLease, gitGateway)
     val githubGateway = GeneratedGithubOperationsGateway(hostLease, workspaceProvider)
-    val githubOperations = GithubOperationsController(hostLease, githubGateway)
+    val githubOperations = GithubOperationsController(hostLease, githubGateway, reviewCache)
     private val refreshScheduler = DebouncedProjectRefreshScheduler(
         scope = scope,
         dispatcher = dispatcher,
@@ -90,6 +95,10 @@ class ProjectSessionRuntime(
     private val observation: Job = scope.launch(dispatcher) {
         appState.collect { state ->
             leaseSource.update(state)
+            mutableGuideWriters.value = (state.hostReplay.agentWindowsStatuses + state.hostReplay.agentWslStatuses + state.hostReplay.agentMergedStatuses.values)
+                .distinctBy { it.identityKey }.filter {
+                    it.installed && it.authState != "missing" && it.capabilities["supportsReadOnlyOneShotWorkspace"] == kotlinx.serialization.json.JsonPrimitive(true)
+                }
             driveGitRefresh(state)
             installSnapshotIfCurrent(state)
         }

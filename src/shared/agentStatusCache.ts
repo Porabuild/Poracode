@@ -9,8 +9,9 @@ import {
 } from "./contracts/agent";
 
 // The supervisor and passive owner inventories share this codec. Moving it
-// preserves v67's serialized fields and derivation; no cache bump is needed.
-export const STATUS_CACHE_VERSION = 67;
+// preserves the supervisor's v68 decision: re-probe cached statuses that lack
+// the read-only one-shot workspace capability. Passive reads share that version.
+export const STATUS_CACHE_VERSION = 68;
 
 export interface AgentStatusCacheSnapshot {
   state: "available" | "missing" | "invalid" | "incompatible" | "unavailable";

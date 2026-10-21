@@ -26,6 +26,9 @@ const threadConfigShape = {
   crossagentMcp: z.boolean().optional(),
   computerUse: z.boolean().optional(),
   chromeMcp: z.boolean().optional(),
+  /** Optional so pre-upgrade rows retain host/project defaults without migration. */
+  mcpServerOverrides: z.record(z.string().min(1), z.boolean()).optional(),
+  pluginOverrides: z.record(z.string().min(1), z.boolean()).optional(),
   /** Runtime environment selected for a provider that cannot execute natively. */
   executionEnvironment: z.object({ kind: z.literal("wsl"), distro: z.string().min(1) }).optional(),
   /** Transcript this thread was imported from; drives the notice and re-import dedupe. */
@@ -36,6 +39,22 @@ export const threadConfigBaseSchema = z.object(threadConfigShape);
 
 export const threadConfigSchema = threadConfigBaseSchema;
 export type ThreadConfig = z.infer<typeof threadConfigSchema>;
+
+/** Older clients omit per-thread tool choices; explicit empty maps clear them. */
+export function retainThreadToolOverrides(
+  config: ThreadConfig,
+  previous: ThreadConfig,
+): ThreadConfig {
+  return {
+    ...config,
+    ...(config.mcpServerOverrides === undefined && previous.mcpServerOverrides !== undefined
+      ? { mcpServerOverrides: previous.mcpServerOverrides }
+      : {}),
+    ...(config.pluginOverrides === undefined && previous.pluginOverrides !== undefined
+      ? { pluginOverrides: previous.pluginOverrides }
+      : {}),
+  };
+}
 
 export const providerDraftConfigSchema = threadConfigBaseSchema;
 export type ProviderDraftConfig = z.infer<typeof providerDraftConfigSchema>;
@@ -123,7 +142,19 @@ export function isThreadConfigEqual(
     left.crossagentMcp === right.crossagentMcp &&
     left.computerUse === right.computerUse &&
     left.chromeMcp === right.chromeMcp &&
+    areToolOverridesEqual(left.mcpServerOverrides, right.mcpServerOverrides) &&
+    areToolOverridesEqual(left.pluginOverrides, right.pluginOverrides) &&
     left.executionEnvironment?.kind === right.executionEnvironment?.kind &&
     left.executionEnvironment?.distro === right.executionEnvironment?.distro
   );
+}
+
+function areToolOverridesEqual(
+  left: Record<string, boolean> | undefined,
+  right: Record<string, boolean> | undefined,
+): boolean {
+  if (left === right) return true;
+  if (!left || !right) return false;
+  const keys = Object.keys(left);
+  return keys.length === Object.keys(right).length && keys.every((key) => left[key] === right[key]);
 }

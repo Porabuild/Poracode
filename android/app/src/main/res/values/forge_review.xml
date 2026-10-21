@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="forge_review_guide">Guide</string>
+    <string name="forge_review_writer">Guide writer</string>
+    <string name="forge_review_model">Guide model</string>
+    <string name="forge_review_instructions">Review guide instructions</string>
+    <string name="forge_review_write">Write guide</string>
+    <string name="forge_review_rewrite">Rewrite guide</string>
+    <string name="forge_review_no_writer">Select a guide writer that supports an enforced read-only workspace.</string>
+    <string name="forge_review_generating">Writing guide. You can leave this review and return when it is ready.</string>
+    <string name="forge_review_failed">Could not write the guide. Try rewriting it.</string>
+    <string name="forge_review_stale">This guide is out of date. Rewrite it to see excerpts for the current change.</string>
+    <string name="forge_review_look_closely">Look closely</string>
+    <string name="forge_review_back">Back</string>
+    <string name="forge_review_next">Next</string>
+    <string name="forge_review_finish">Finish review</string>
+    <string name="forge_review_viewed_source">Viewed on source host</string>
+    <string name="forge_review_viewed_host">Viewed in Poracode</string>
+    <string name="forge_review_changed">Changed</string>
+    <string name="forge_review_edit_comment">Edit comment</string>
+    <string name="forge_review_offline">Offline</string>
+</resources>

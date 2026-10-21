@@ -26,6 +26,7 @@ function renderChecksTab(checksStatus: PrChecksStatus) {
 describe("PrTabsPill", () => {
   it("colors the Checks tab icon green when checks pass", () => {
     expect(renderChecksTab("SUCCESS")).toHaveClass("text-success");
+    expect(screen.getByRole("tab", { name: /Passed/ })).toBeInTheDocument();
   });
 
   it("colors the Checks tab icon yellow when checks are pending", () => {

@@ -4,7 +4,6 @@ import { msg } from "@lingui/core/macro";
 import { Trans } from "@lingui/react/macro";
 import type {
   AgentStatus,
-  BuiltInMcpServerId,
   Project,
   ProjectDraftConfig,
   ProviderDraftConfig,
@@ -13,13 +12,8 @@ import type {
 } from "@/shared/contracts";
 import { HOME_PROJECT_NAME, isHomeProject } from "@/shared/homeScope";
 import { readBridge } from "@/renderer/bridge";
-import { getComputerUseScope } from "@/renderer/components/composer/computerUseScope";
+import { resolveNewThreadMcpConfig } from "@/shared/contracts";
 import { useImplicitMcpServers } from "@/renderer/components/composer/implicitMcpServers";
-import {
-  chromeMcpServer,
-  COMPUTER_USE_MCP_ID,
-  resolveMcpScope,
-} from "@/renderer/components/composer/composerMcpServers";
 import { getConfigNormalizer } from "@/renderer/components/providers/providerComposer";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
@@ -1404,26 +1398,18 @@ export function ThreadDraftView(props: {
   // actually supports. A persistent enable with a "none" scope must NOT set the
   // config flag — otherwise the composer would show a phantom "on" state and the
   // scope-reset effect there would fight it.
-  const effectiveMcp = (id: BuiltInMcpServerId, mention: boolean, scope: string) =>
-    disabledBuiltInMcpServers[id] !== true &&
-    (mention ||
-      ((implicitMcpServers.includes(id) || enabledMcpServers[id] === true) && scope !== "none"));
-  const selectedMcpScope = resolveMcpScope(selectedAgent.capabilities.mcpScope, presentationMode);
-  const effectiveBrowserMcp = effectiveMcp("browser", browserMcpMention, selectedMcpScope);
-  const effectiveCrossagentMcp = effectiveMcp(
-    "crossagents",
-    crossagentMcpMention,
-    selectedMcpScope,
-  );
-  const effectiveChromeMcp = effectiveMcp(
-    "chrome",
-    chromeMcpMention,
-    chromeMcpServer.getScope(selectedAgent.capabilities, presentationMode, project.location),
-  );
-  const effectiveComputerUse = effectiveMcp(
-    COMPUTER_USE_MCP_ID,
-    computerUseMention,
-    getComputerUseScope(selectedAgent.capabilities, presentationMode, project.location),
+  const mcpConfig = resolveNewThreadMcpConfig(
+    { enabledMcpServers, disabledBuiltInMcpServers },
+    selectedAgent.capabilities,
+    presentationMode,
+    project.location,
+    {
+      browser: browserMcpMention,
+      crossagents: crossagentMcpMention,
+      chrome: chromeMcpMention,
+      "computer-use": computerUseMention,
+    },
+    implicitMcpServers,
   );
 
   return (
@@ -1503,10 +1489,7 @@ export function ThreadDraftView(props: {
               ...(approvalPolicy ? { approvalPolicy } : {}),
               ...(approvalsReviewer ? { approvalsReviewer } : {}),
               ...(sandboxMode ? { sandboxMode } : {}),
-              ...(effectiveBrowserMcp ? { browserMcp: true } : {}),
-              ...(effectiveCrossagentMcp ? { crossagentMcp: true } : {}),
-              ...(effectiveChromeMcp ? { chromeMcp: true } : {}),
-              ...(effectiveComputerUse ? { computerUse: true } : {}),
+              ...mcpConfig,
             }}
             compact={compactComposer}
             {...(props.chatOnly ? { hideWorkspaceControls: true } : {})}

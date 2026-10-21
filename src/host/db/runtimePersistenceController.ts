@@ -75,19 +75,32 @@ export {
  * control writes stay serviceable through their reserved path.
  */
 const DEFAULT_FLUSH_INTERVAL_MS = 250;
-const DEFAULT_SHUTDOWN_DRAIN_MS = 1_000;
+/**
+ * The close drain has no deadline of its own: it stops when the queue is empty
+ * or storage fails. Every chunk commits independently, so the owning process's
+ * outer shutdown/kill deadline only ever cuts off the uncommitted remainder;
+ * a fixed local deadline would abandon events the process still had time for.
+ */
+const DEFAULT_SHUTDOWN_DRAIN_MS = Number.POSITIVE_INFINITY;
 const DEFAULT_FENCE_DEADLINE_MS = 2_000;
 const DEFAULT_FENCE_MAX_HOLD_MS = 5_000;
 const DEFAULT_MUTATION_DEADLINE_MS = 5_000;
 const FLUSH_MAX_THREADS = 4;
 const FLUSH_MAX_BYTES = 4 * 1024 * 1024;
 const FLUSH_MAX_MS = 5;
+/** Wall-clock budget for one aged-backlog relief; the scheduler continues it. */
+const AGED_RELIEF_MAX_MS = 50;
 
 export interface RuntimePersistenceControllerOptions {
   write: RuntimeWriteFlush;
   /** Optional outer-commit capability for bounded scheduled groups; fences stay single-thread. */
   atomicBatchWriter?: RuntimeAtomicBatchWriter;
   bounds?: Partial<RuntimeQueueBounds>;
+  /**
+   * Commit pending events synchronously before a count/byte bound refuses
+   * (default true). Tests disable it to model storage that cannot keep up.
+   */
+  capacityRelief?: boolean;
   flushIntervalMs?: number;
   recoverAfterMs?: number;
   retryableFailureThreshold?: number;
@@ -199,6 +212,7 @@ export class RuntimePersistenceController {
       this.options.now,
       options.atomicBatchWriter,
       options.onCapacityChange,
+      (threadId, scope) => this.relieveCapacity(scope, threadId),
     );
     this.health = new RuntimePersistenceHealth({
       observe: () => this.observation(),
@@ -429,6 +443,7 @@ export class RuntimePersistenceController {
    * closes bulk admission and raises a global stop.
    */
   admit(threadId: string, events: readonly RuntimeEvent[]): RuntimeAdmission {
+    this.relieveAgedBacklog();
     const admission = this.admission.admit(threadId, events);
     this.scheduleAdmission(admission);
     return admission;
@@ -448,6 +463,7 @@ export class RuntimePersistenceController {
     id: string,
     events: readonly RuntimeEvent[],
   ): RuntimeReservedAdmission {
+    this.relieveAgedBacklog();
     const admission = this.admission.admitReserved(threadId, id, events);
     this.scheduleAdmission(admission);
     return admission;
@@ -462,9 +478,20 @@ export class RuntimePersistenceController {
     if (admission.kind === "accepted") {
       // Accepted events (including the prefix of a partial admission) are
       // committed by the bounded scheduler; without this the queue would only
-      // drain when a reader or mutation happens to ask.
-      if (this.queue.forceFlushThreadIds().length > 0) this.scheduleImmediateFlush();
-      else this.scheduleFlush(this.options.flushIntervalMs);
+      // drain when a reader or mutation happens to ask. A backlog of one
+      // budgeted batch drains immediately, unless storage is inside a retry
+      // backoff that the immediate cycle would otherwise cancel.
+      if (
+        this.queue.forceFlushThreadIds().length > 0 ||
+        (this.queue.pendingBytes() >= FLUSH_MAX_BYTES && this.health.isStorageRetryDue())
+      ) {
+        this.scheduleImmediateFlush();
+      } else {
+        this.scheduleFlush(this.options.flushIntervalMs);
+      }
+      // A queue left at its hard global bound would otherwise flip health to
+      // `refusing` and refuse every thread's next batch; commit it down first.
+      if (this.health.isAtHardGlobalBound()) this.relieveCapacity("global");
       this.health.evaluateWatermarks();
     }
   }
@@ -1077,6 +1104,14 @@ export class RuntimePersistenceController {
     this.shutdownReport = null;
   }
 
+  /**
+   * Test-only: disable synchronous capacity relief so a configured bound
+   * refuses immediately, the way storage that cannot keep up still does.
+   */
+  setCapacityReliefForTests(enabled: boolean): void {
+    this.options.capacityRelief = enabled;
+  }
+
   /** Test-only reset of health counters (not part of the production contract). */
   resetCountersForTests(): void {
     this.health.resetCountersForTests();
@@ -1118,6 +1153,9 @@ export class RuntimePersistenceController {
     this.fenceControl.processDueControlOperations();
     this.health.maybeRecover();
     this.health.maybeRecoverFromRefusing();
+    // Commit a backlog past the age pause point before the age bound below
+    // turns it into a refusal.
+    this.relieveAgedBacklog();
     const age = this.queue.oldestPendingAgeMs(this.options.now());
     const bounds = this.queue.getBounds();
     if (age !== null && age >= bounds.maxPendingAgeMs) {
@@ -1154,6 +1192,62 @@ export class RuntimePersistenceController {
     this.scheduleFlush(
       this.queue.hasPending() ? this.health.currentRetryDelayMs() : this.options.flushIntervalMs,
     );
+  }
+
+  /**
+   * Synchronous capacity relief for admission: commit one bounded chunk of the
+   * bound thread's prefix (or of the oldest pending thread for a global bound)
+   * so a burst waits on SQLite instead of being refused. The admission loop
+   * calls again until the event fits, so the host blocks only for the bytes the
+   * burst needs, never for a whole backlog. A read fence that pins the prefix
+   * is preempted (its reader gets a retryable refusal). A storage failure
+   * stops relief and takes the normal failure/backoff path, so the caller then
+   * refuses truthfully. True only when an event committed.
+   */
+  private relieveCapacity(scope: RuntimeRefusalScope, threadId?: string): boolean {
+    if (this.options.capacityRelief === false || this.health.isAdmissionClosed()) return false;
+    // Fatal storage never recovers, and failing storage retries only on its
+    // backoff schedule; any other refusing state is a backlog verdict that
+    // committing the backlog resolves.
+    if (this.health.getState() === "refusing" && this.health.getLastErrorClass() === "fatal")
+      return false;
+    if (!this.health.isStorageRetryDue()) return false;
+    const threadIds =
+      scope === "thread" && threadId !== undefined ? [threadId] : this.queue.pendingThreadIds();
+    for (const id of threadIds) {
+      if (this.queue.isPinned(id)) this.fenceControl.preemptFences(id);
+      const started = this.options.now();
+      const outcome = this.queue.flushThreadThrough(
+        id,
+        Number.MAX_SAFE_INTEGER,
+        DEFAULT_RUNTIME_FLUSH_CHUNK,
+      );
+      this.health.recordDuration(this.options.now() - started);
+      if (outcome.kind === "failed") {
+        this.applyFailure(outcome.error, classifyStorageError(outcome.error), id);
+        return false;
+      }
+      if (outcome.kind === "committed" && outcome.committedEvents > 0) {
+        this.health.noteReliefSuccess();
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Past the age pause point, commit the backlog before the age bound refuses.
+   * Bounded per call; the admission and flush cycles that call it continue.
+   */
+  private relieveAgedBacklog(): void {
+    const pauseAgeMs = this.queue.getBounds().maxPendingAgeMs / 2;
+    const started = this.options.now();
+    while (this.options.now() - started < AGED_RELIEF_MAX_MS) {
+      const age = this.queue.oldestPendingAgeMs(this.options.now());
+      if (age === null || age < pauseAgeMs) return;
+      // Each relief commits at least one event or reports no progress.
+      if (!this.relieveCapacity("global")) return;
+    }
   }
 
   /** Returns true when the cycle failed (a backoff timer was scheduled). */

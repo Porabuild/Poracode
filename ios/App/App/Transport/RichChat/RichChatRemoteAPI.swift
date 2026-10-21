@@ -266,7 +266,7 @@ struct GeneratedRichChatRemoteAPI: RichChatRemoteAPI, Sendable {
       try GeneratedRemoteV3Contract.richThreadCommand(threadID: threadID, command: command)
     }
     let body = try RichJSON.decode(route.body).objectValue
-    let isStart = body?["kind"]?.stringValue == "start"
+    let isStart = ["start", "fork"].contains(body?["kind"]?.stringValue ?? "")
     let headers =
       isStart
       ? [ProtocolConstants.commandIdHeader: command.commandID ?? "thread-start:\(threadID)"]

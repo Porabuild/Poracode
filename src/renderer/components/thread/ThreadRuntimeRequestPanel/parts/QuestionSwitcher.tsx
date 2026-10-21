@@ -1,46 +1,75 @@
+import type { KeyboardEvent } from "react";
 import { Check } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
-import type { UserInputFormAnswer, UserInputFormQuestion } from "../userInputForm";
-import { questionHasAnswer } from "../userInputForm";
 
+export type QuestionStep = { id: string; label: string; answered: boolean };
+
+/** Compact step tabs; the header already shows the active question's title. */
 export function QuestionSwitcher(props: {
-  questions: readonly UserInputFormQuestion[];
-  answers: Record<string, UserInputFormAnswer>;
-  customAnswers: Record<string, string>;
+  steps: readonly QuestionStep[];
   activeIndex: number;
   isDisabled: boolean;
   onSelect: (index: number) => void;
 }) {
-  const { questions, answers, customAnswers, activeIndex, isDisabled, onSelect } = props;
+  const { steps, activeIndex, isDisabled, onSelect } = props;
   const { t } = useLingui();
-  if (questions.length <= 1) return null;
+  if (steps.length <= 1) return null;
+
+  // Tablist pattern: arrows move between steps, Home/End jump to the ends.
+  function handleKey(event: KeyboardEvent<HTMLButtonElement>, index: number) {
+    let next: number;
+    switch (event.key) {
+      case "ArrowRight":
+        next = (index + 1) % steps.length;
+        break;
+      case "ArrowLeft":
+        next = (index - 1 + steps.length) % steps.length;
+        break;
+      case "Home":
+        next = 0;
+        break;
+      case "End":
+        next = steps.length - 1;
+        break;
+      default:
+        return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    onSelect(next);
+    const tabs = event.currentTarget.parentElement?.querySelectorAll<HTMLElement>('[role="tab"]');
+    tabs?.[next]?.focus();
+  }
+
   return (
     <div
       role="tablist"
       aria-label={t`Questions`}
-      className="mt-0.5 flex gap-1 overflow-x-auto pb-0.5"
+      className="flex max-w-full items-center gap-1 overflow-x-auto p-0.5"
     >
-      {questions.map((question, index) => {
+      {steps.map((step, index) => {
         const isActive = index === activeIndex;
-        const hasAnswer = questionHasAnswer(question, answers, customAnswers);
         return (
           <button
-            key={question.id}
+            key={step.id}
             type="button"
             role="tab"
             aria-selected={isActive}
+            tabIndex={isActive ? 0 : -1}
+            aria-label={step.label}
+            title={step.label}
             disabled={isDisabled}
             onClick={() => onSelect(index)}
-            className={`flex min-w-0 shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[11px] transition-colors disabled:opacity-60 ${
-              isActive
-                ? "bg-foreground/10 text-foreground"
-                : "text-[color:var(--muted)] hover:bg-foreground/5 hover:text-foreground"
-            }`}
+            onKeyDown={(event) => handleKey(event, index)}
+            className={`flex size-5 shrink-0 items-center justify-center rounded-[5px] text-[10px] font-medium transition-colors [font-variant-numeric:tabular-nums] outline-none focus-visible:focus-ring disabled:opacity-60 ${
+              step.answered
+                ? "bg-accent text-accent-foreground"
+                : isActive
+                  ? "bg-[var(--row-active)] text-foreground"
+                  : "text-[color:var(--muted)] hover:bg-[var(--row-hover)] hover:text-foreground"
+            } ${isActive ? "ring-1 ring-foreground/40 ring-offset-1 ring-offset-[var(--composer-surface)]" : ""}`}
           >
-            <span className="flex size-3.5 shrink-0 items-center justify-center rounded-sm border border-foreground/20 text-[9px] [font-variant-numeric:tabular-nums]">
-              {hasAnswer ? <Check className="size-2.5" /> : index + 1}
-            </span>
-            <span className="max-w-32 truncate">{question.header}</span>
+            {step.answered ? <Check className="size-3" strokeWidth={3} aria-hidden /> : index + 1}
           </button>
         );
       })}

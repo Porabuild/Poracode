@@ -41,7 +41,6 @@ import { ChatFindBar, type ScrollToIndex } from "@/renderer/components/find/Chat
 import { ChatPaneActionsContext, type ChatPaneActions } from "./chatPaneActionsContext";
 import { ChatReaderFollowContext, createChatReaderFollowSignal } from "./chatReaderFollow";
 import { ChatScrollControls, type ChatScrollControlsHandle } from "./ChatScrollControls";
-import { ThreadHistoryNoticeBanner } from "./parts/HistoryNoticeBanner";
 import {
   ChatConnectingFooter,
   ChatTurnElapsedFooter,
@@ -59,6 +58,7 @@ import { createChatPaneFileActions } from "./chatPaneFileActions";
 import { createMarkdownLocalImageAuthority } from "./markdownLocalImageAuthority";
 import { ImportedThreadNotice } from "./parts/ImportedThreadNotice";
 import { MessageList, type CheckpointRevertActions } from "./parts/MessageList";
+import { ThreadForkOrigin, ThreadForkTurnAction } from "../ThreadForkControls";
 import { SubAgentOpenController } from "./parts/items/SubAgentOverlay";
 import { StickyPrompt } from "./StickyPrompt";
 import { resolveThreadMarkdownImageRoots } from "../threadMarkdownImageRoots";
@@ -398,6 +398,12 @@ export function ChatPane(props: ChatPaneProps) {
   );
   const completedTurnsByAnchor = useAppStore((s) => selectCompletedTurnsByAnchorItem(s, threadId));
   const mostRecentCompletedTurnAnchor = mostRecentDisplayableCompletedTurn?.anchorItemId ?? null;
+  const completedTurnHasAssistantActions = useAppStore(
+    (state) =>
+      mostRecentCompletedTurnAnchor !== null &&
+      state.runtimeItemsByIdByThread[threadId]?.[mostRecentCompletedTurnAnchor]?.type ===
+        "assistant_message",
+  );
   const completedTurnAnchorAtTail = isCompletedTurnAnchorAtTimelineTail(
     mostRecentCompletedTurnAnchor,
     timelineEntries,
@@ -468,7 +474,7 @@ export function ChatPane(props: ChatPaneProps) {
           {thread.config.importedFrom ? (
             <ImportedThreadNotice importedFrom={thread.config.importedFrom} />
           ) : null}
-          <div className="relative min-h-0 flex-1">
+          <div className="relative flex min-h-0 flex-1 flex-col">
             {truncateReloadBlocked ? (
               <div className="flex items-center justify-between gap-2 border-b border-warning-soft-foreground/20 bg-warning-soft/60 px-3 py-1.5 text-xs text-warning-soft-foreground">
                 <span>
@@ -498,7 +504,7 @@ export function ChatPane(props: ChatPaneProps) {
                 <Trans>Server offline — this conversation may be out of date.</Trans>
               </div>
             ) : null}
-            <ThreadHistoryNoticeBanner threadId={threadId} />
+            <ThreadForkOrigin threadId={threadId} />
             <ConversationSearchJump
               threadId={threadId}
               ready={isInitialScrollSettled}
@@ -534,7 +540,7 @@ export function ChatPane(props: ChatPaneProps) {
               registerVirtualScrollToBottom={(handler) => {
                 virtualScrollToBottomRef.current = handler;
               }}
-              scrollClassName="min-h-0 h-full overflow-y-auto [overflow-anchor:none] [scrollbar-gutter:stable]"
+              scrollClassName="min-h-0 flex-1 overflow-y-auto [overflow-anchor:none] [scrollbar-gutter:stable]"
               scrollStyle={scrollFadeStyle}
               contentClassName={`min-h-full ${isInitialScrollSettled ? "" : "pointer-events-none opacity-0"}`}
               emptyContent={
@@ -568,11 +574,24 @@ export function ChatPane(props: ChatPaneProps) {
                 ) : isHydrating && !showWorkingTimer ? (
                   <ChatConnectingFooter />
                 ) : showTailLoader && tailTurn ? (
-                  <ChatTurnElapsedFooter
-                    turn={tailTurn}
-                    isPaused={isTurnPaused}
-                    isWaitingForBackground={isWaitingForBackground && !isTurnPaused}
-                  />
+                  <div className="group/checkpoint">
+                    <ChatTurnElapsedFooter
+                      turn={tailTurn}
+                      isPaused={isTurnPaused}
+                      isWaitingForBackground={isWaitingForBackground && !isTurnPaused}
+                    />
+                    {completedTurnCanRenderInTail &&
+                    !completedTurnHasAssistantActions &&
+                    mostRecentDisplayableCompletedTurn?.anchorItemId ? (
+                      <div className="mx-auto w-full max-w-[920px] px-4 pb-2">
+                        <ThreadForkTurnAction
+                          threadId={threadId}
+                          itemId={mostRecentDisplayableCompletedTurn.anchorItemId}
+                          startedAt={mostRecentDisplayableCompletedTurn.startedAt}
+                        />
+                      </div>
+                    ) : null}
+                  </div>
                 ) : null
               }
               onWheelCapture={(event) => {

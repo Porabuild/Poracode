@@ -5,6 +5,7 @@ import { browserProcedures } from "./procedures/browser";
 import { dbProcedures } from "./procedures/db";
 import { experimentProcedures } from "./procedures/experiment";
 import { githubProcedures } from "./procedures/github";
+import { forgeProcedures } from "./procedures/forge";
 import { gitProcedures } from "./procedures/git";
 import { lspProcedures } from "./procedures/lsp";
 import { liveVoiceProcedures } from "./procedures/liveVoice";
@@ -32,6 +33,7 @@ export const groupedIpcProcedures = {
   git: gitProcedures,
   experiment: experimentProcedures,
   github: githubProcedures,
+  forge: forgeProcedures,
   projectTree: projectTreeProcedures,
   settings: settingsProcedures,
   ssh: sshProcedures,
@@ -59,6 +61,7 @@ export const ipcProcedureMap = {
   ...gitProcedures,
   ...experimentProcedures,
   ...githubProcedures,
+  ...forgeProcedures,
   ...projectTreeProcedures,
   ...settingsProcedures,
   ...sshProcedures,
@@ -110,6 +113,8 @@ export type IpcProcedureName = keyof IpcProcedureMap;
  * Network enablement adds a main-local name only; existing operations stay compatible.
  * Model-provider management is additive; older peers reject the unknown name
  * before effects. Native configuration and credential formats remain provider-owned.
+ * Review marks, owned-comment edits and guides add negotiated names only;
+ * existing peers reject unknown names before effects, so hop 18 stays compatible.
  */
 export const IPC_PROCEDURE_MAP_VERSION = CLIENT_HOST_HOP_VERSION;
 
@@ -318,6 +323,7 @@ export const MAIN_LOCAL_PROCEDURE_NAMES = [
   "getPrWatch",
   "checkPrWatch",
   "upsertPrWatch",
+  "upsertForgePrWatch",
   "deletePrWatch",
   "syncPrWatchAgent",
 ] as const satisfies readonly IpcProcedureName[];

@@ -27,6 +27,7 @@ struct RemoteEnvironmentDescriptor: Codable, Sendable, Equatable {
     }
 
     struct Capabilities: Codable, Sendable, Equatable {
+        var threadForks: VersionedCapability? = nil
         var pushRouting: VersionedCapability?
         /// Additive since browser-origin forward entry shipped. Absent on older
         /// hosts; unknown keys on newer hosts are ignored by the decoder.
@@ -149,6 +150,8 @@ struct ThreadConfig: Codable, Sendable, Hashable {
     var crossagentMcp: Bool?
     var computerUse: Bool?
     var chromeMcp: Bool?
+    var mcpServerOverrides: [String: Bool]?
+    var pluginOverrides: [String: Bool]?
     var executionEnvironment: RemoteExecutionEnvironment?
 
     static let empty = ThreadConfig(model: "default")
@@ -186,6 +189,7 @@ struct RemoteSessionRef: Codable, Sendable, Hashable {
 }
 
 struct RemoteThread: Codable, Sendable, Identifiable, Hashable {
+    var forkedFrom: JSONValue? = nil
     var id: String
     var remoteServerId: String?
     var remoteId: String?

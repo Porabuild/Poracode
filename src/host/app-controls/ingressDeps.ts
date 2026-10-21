@@ -170,6 +170,8 @@ export function buildSharedAppControlsIngressDeps(
         {
           startThread: (payload) => call("startThread", payload),
           getAgentStatuses: (wslDistros) => call("getAgentStatuses", { wslDistros }),
+          getPlugins: (projectLocation) =>
+            call("listPlugins", { projectLocation }).then((inventory) => inventory.plugins),
           addWorktree: ({ location, branch, settings }) =>
             call("gitAddWorktree", {
               projectLocation: location,

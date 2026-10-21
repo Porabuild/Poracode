@@ -118,13 +118,7 @@ describe("effectiveLaunchConfig — single gate for built-in MCP disables", () =
   });
 
   it("enables MCPs bundled by installed plugins while global disables still win", () => {
-    const config = {
-      ...baseConfig,
-      browserMcp: false,
-      crossagentMcp: false,
-      computerUse: false,
-      chromeMcp: false,
-    };
+    const config = { model: baseConfig.model };
 
     expect(
       effectiveLaunchConfig(
@@ -139,6 +133,19 @@ describe("effectiveLaunchConfig — single gate for built-in MCP disables", () =
       computerUse: true,
       chromeMcp: false,
     });
+  });
+
+  it("preserves explicit per-thread disables when another plugin contributes the same built-in", () => {
+    const config = {
+      ...baseConfig,
+      browserMcp: false,
+      crossagentMcp: false,
+      computerUse: false,
+      chromeMcp: false,
+    };
+    expect(
+      effectiveLaunchConfig(config, [], ["browser", "crossagents", "computer-use", "chrome"]),
+    ).toEqual(config);
   });
 });
 

@@ -116,6 +116,7 @@ const THREAD_PHASE1_RAW_COLUMNS = [
 const THREAD_PHASE1_JSON_COLUMNS = [
   "t.config",
   "t.session_ref",
+  "t.forked_from",
   "t.additional_directories",
 ] as const;
 
@@ -164,6 +165,7 @@ const THREAD_PHASE2_COLUMNS = [
   "group_id",
   "group_name",
   "parent_thread_id",
+  "forked_from",
   "archived",
   "archived_at",
   "done",

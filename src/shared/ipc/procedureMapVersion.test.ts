@@ -74,6 +74,9 @@ import { isRemoteProcedure } from "../remote/procedures";
 // the remote allowlist and existing merge payload stay unchanged, so hop 18 stays compatible.
 // Network access adds a main-local name. Existing names and payloads stay valid;
 // older peers reject the new name before dispatch, so the hop version stays 18.
+// Account-scoped forge reviews and watch saves use distinct additive names.
+// Old peers reject them before effects; callers never retry an identity-scoped
+// mutation through an older unscoped name, so the hop stays 18.
 // Model-provider management adds one supervisor name, outside the remote
 // allowlist. Existing peers reject unknown names before effects; hop 18 stays.
 // Plugin catalogs/accounts add local supervisor names only. Older peers reject
@@ -96,7 +99,9 @@ import { isRemoteProcedure } from "../remote/procedures";
 // the new name before reservation or spawn, so hop 18 remains compatible.
 // Controlled request replies add only a supervisor-local name. Unknown names
 // loud-refuse before launch; old control/reservation schemas and hop18 stay valid.
-const HOP_PIN = `${IPC_PROCEDURE_MAP_VERSION}:9120922d8159c29cf28bc19f26fc9369fe7d22afd391b36c27a5c7789a80fa3e`;
+// Synced review marks, owned-comment edits and guides add capability-gated names.
+// Existing shapes remain valid; older peers reject new names before effects.
+const HOP_PIN = `${IPC_PROCEDURE_MAP_VERSION}:a918fcd4e7cef81c1d44b23e94380f90b1bdf7124260df56380c683649c26178`;
 
 describe("IPC procedure map versioning", () => {
   it("keeps nonce reservations local, closed and distinct from legacy execution control", () => {

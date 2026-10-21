@@ -4,7 +4,7 @@ import Foundation
   import FoundationNetworking
 #endif
 
-actor GitHubOperationsHTTPTransport: GitHubOperationsRemoteAPI {
+actor GitHubOperationsHTTPTransport: GitHubOperationsRemoteAPI, ForgeReviewRemoteAPI {
   typealias Loader = @Sendable (URLRequest) async throws -> (Data, URLResponse)
 
   private let endpoint: URL
@@ -51,6 +51,50 @@ actor GitHubOperationsHTTPTransport: GitHubOperationsRemoteAPI {
   ) async throws -> GitHubOperationResult {
     let metadata = GitHubOperationsRemoteV3Contract.metadata(for: request.procedure)
     let body = try GitHubOperationsRemoteV3Contract.request(request)
+    let data = try await sendProcedure(body: body, isMutation: metadata.isMutation)
+    do {
+      try Task.checkCancellation()
+      guard let envelope = try JSONDecoder().decode(GitHubJSONValue.self, from: data).objectValue else {
+        throw GitHubOperationsFailure.invalidResponse
+      }
+      let resultData: Data
+      if metadata.resultKind == .omitted {
+        guard envelope.isEmpty else { throw GitHubOperationsFailure.invalidResponse }
+        resultData = data
+      } else {
+        guard Set(envelope.keys) == ["result"], let value = envelope["result"] else {
+          throw GitHubOperationsFailure.invalidResponse
+        }
+        resultData = try JSONEncoder().encode(value)
+      }
+      return try GitHubOperationsRemoteV3Contract.result(for: request.procedure, response: resultData)
+    } catch is CancellationError {
+      throw CancellationError()
+    } catch {
+      if metadata.isMutation { throw GitHubOperationsFailure.ambiguousOutcome }
+      throw GitHubOperationsFailure.invalidResponse
+    }
+  }
+
+  func remoteForgeReviewOperation(
+    _ operation: ForgeReviewOperation,
+    payload: GitHubDocument
+  ) async throws -> GitHubDocument {
+    let body = try ForgeReviewRemoteV3Contract.request(operation, payload: payload)
+    let isMutation = operation.scope == .operate
+    let data = try await sendProcedure(body: body, isMutation: isMutation)
+    do {
+      try Task.checkCancellation()
+      return try ForgeReviewRemoteV3Contract.result(operation, response: data)
+    } catch is CancellationError {
+      throw CancellationError()
+    } catch {
+      if isMutation { throw GitHubOperationsFailure.ambiguousOutcome }
+      throw GitHubOperationsFailure.invalidResponse
+    }
+  }
+
+  private func sendProcedure(body: Data, isMutation: Bool) async throws -> Data {
     let urlRequest: URLRequest
     do {
       urlRequest = try await makeRequest(body: body)
@@ -70,21 +114,21 @@ actor GitHubOperationsHTTPTransport: GitHubOperationsRemoteAPI {
       throw CancellationError()
     } catch {
       if Task.isCancelled { throw CancellationError() }
-      if metadata.isMutation { throw GitHubOperationsFailure.ambiguousOutcome }
+      if isMutation { throw GitHubOperationsFailure.ambiguousOutcome }
       throw GitHubOperationsFailure.transport
     }
 
     guard let http = response as? HTTPURLResponse else {
-      if metadata.isMutation { throw GitHubOperationsFailure.ambiguousOutcome }
+      if isMutation { throw GitHubOperationsFailure.ambiguousOutcome }
       throw GitHubOperationsFailure.invalidResponse
     }
     guard data.count <= maximumResponseBytes else {
-      if metadata.isMutation { throw GitHubOperationsFailure.ambiguousOutcome }
+      if isMutation { throw GitHubOperationsFailure.ambiguousOutcome }
       throw GitHubOperationsFailure.invalidResponse
     }
 
     guard (200..<300).contains(http.statusCode) else {
-      if metadata.isMutation,
+      if isMutation,
         RemoteMutationClassification.classify(statusCode: http.statusCode)
           == .requestMayHaveCommitted
       {
@@ -93,18 +137,7 @@ actor GitHubOperationsHTTPTransport: GitHubOperationsRemoteAPI {
       throw sanitizedHTTPFailure(statusCode: http.statusCode, data: data)
     }
 
-    do {
-      try Task.checkCancellation()
-      return try GitHubOperationsRemoteV3Contract.result(
-        for: request.procedure,
-        response: data
-      )
-    } catch is CancellationError {
-      throw CancellationError()
-    } catch {
-      if metadata.isMutation { throw GitHubOperationsFailure.ambiguousOutcome }
-      throw GitHubOperationsFailure.invalidResponse
-    }
+    return data
   }
 
   private func makeRequest(body: Data) async throws -> URLRequest {

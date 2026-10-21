@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="forge_review_guide">Hướng dẫn</string>
+    <string name="forge_review_writer">Tác nhân viết hướng dẫn</string>
+    <string name="forge_review_model">Mô hình viết hướng dẫn</string>
+    <string name="forge_review_instructions">Chỉ dẫn cho hướng dẫn đánh giá</string>
+    <string name="forge_review_write">Viết hướng dẫn</string>
+    <string name="forge_review_rewrite">Viết lại hướng dẫn</string>
+    <string name="forge_review_no_writer">Chọn tác nhân viết hướng dẫn hỗ trợ không gian làm việc bị giới hạn bắt buộc ở chế độ chỉ đọc.</string>
+    <string name="forge_review_generating">Đang viết hướng dẫn. Bạn có thể rời phần đánh giá này và quay lại khi hướng dẫn sẵn sàng.</string>
+    <string name="forge_review_failed">Không thể viết hướng dẫn. Hãy thử viết lại.</string>
+    <string name="forge_review_stale">Hướng dẫn này đã cũ. Hãy viết lại để xem đoạn trích của thay đổi hiện tại.</string>
+    <string name="forge_review_look_closely">Xem xét kỹ</string>
+    <string name="forge_review_back">Quay lại</string>
+    <string name="forge_review_next">Tiếp</string>
+    <string name="forge_review_finish">Hoàn tất đánh giá</string>
+    <string name="forge_review_viewed_source">Đã xem trên máy chủ nguồn</string>
+    <string name="forge_review_viewed_host">Đã xem trong Poracode</string>
+    <string name="forge_review_changed">Đã thay đổi</string>
+    <string name="forge_review_edit_comment">Sửa bình luận</string>
+    <string name="forge_review_offline">Ngoại tuyến</string>
+</resources>

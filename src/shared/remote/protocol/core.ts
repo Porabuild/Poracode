@@ -25,9 +25,18 @@ import { gitStatePatchSchema } from "../../gitState";
 // Optional background-task timing/progress and opaque Stop actions remain additive
 // within v14: old readers ignore them; old hosts omit them and keep tasks read-only.
 // Task kinds, session actions, persisted data and compatibility ranges are unchanged.
+// Optional review source/capability metadata and new forge procedure names are additive:
+// old native readers ignore metadata; old hosts reject scoped operations before effects.
+// Scoped watch writes use a distinct route and require v1 public source authority.
+// An old watch remains readable but paused until explicitly re-armed; unknown scope
+// versions are refused without replacing persisted bytes (host schema 64).
 // Optional usage.spent tokens/cost and ProfileTokenStats.costs are additive:
 // prior Zod and generated native readers strip unknown object fields. Old hosts
 // omit them; the Costs tab reports unavailable. No discriminator meaning changes.
+// Fork v1 is capability-negotiated before its new command is sent; lineage is
+// optional and old thread rows remain valid. Older hosts never receive the kind.
+// Optional thread tool overrides remain additive: absent maps keep old defaults,
+// and the host retains durable choices when older clients omit them on mutation.
 export const PORACODE_REMOTE_PROTOCOL_VERSION = 14;
 export const REMOTE_COMMAND_ID_HEADER = "x-poracode-command-id";
 
@@ -381,6 +390,8 @@ export const remoteEnvironmentCapabilitiesSchema = z.object({
   threadHistoryResume: z.object({ versions: remoteCapabilityVersionsSchema }).optional(),
   /** Provider-only conversation snapshots in per-turn client context. */
   conversationSnapshots: z.object({ versions: remoteCapabilityVersionsSchema }).optional(),
+  /** Independent completed-turn snapshots with durable first-prompt context. */
+  threadForks: z.object({ versions: remoteCapabilityVersionsSchema }).optional(),
   terminalCursorSync: remoteTerminalCursorSyncCapabilitySchema.optional(),
   pushRouting: remotePushRoutingCapabilitySchema.optional(),
   browserForward: remoteBrowserForwardCapabilitySchema.optional(),

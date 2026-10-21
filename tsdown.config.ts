@@ -90,7 +90,7 @@ const standaloneMcpOptions = {
   format: "esm" as const,
   sourcemap,
   dts: false,
-  minify: false,
+  minify: isProd,
   define: buildDefines,
   deps: {
     ...deps,
@@ -218,7 +218,7 @@ export default defineConfig(
       target: "node22" as const,
       sourcemap,
       dts: false,
-      minify: false,
+      minify: isProd,
       define: buildDefines,
       deps,
     },

@@ -347,12 +347,14 @@ describe("versioned device Hub artifact admission", () => {
     ).toBeNull();
   });
 
-  it("refuses pre-adapter and unknown future manifests without rewriting them", async () => {
+  it("refuses old untrimmed and unknown future artifacts without rewriting them", async () => {
     const f = await fixture();
-    for (const version of [0, 2]) {
+    for (const version of [0, 1, DEVICE_HUB_ARTIFACT_VERSION + 1]) {
       const path = join(f.root, "win32-x64", "manifest.json");
-      await writeFile(path, JSON.stringify({ ...f.manifest, version }));
+      const bytes = JSON.stringify({ ...f.manifest, version });
+      await writeFile(path, bytes);
       expect(await readDeviceHubArtifact(f.root, f.signal, f.target)).toBeNull();
+      expect(await readFile(path, "utf8")).toBe(bytes);
     }
   });
 

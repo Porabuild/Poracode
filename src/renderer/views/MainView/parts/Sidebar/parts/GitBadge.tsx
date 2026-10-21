@@ -16,8 +16,10 @@ import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import {
   aggregatePrChecksStatus,
   combineChecksStatus,
+  describePrStatus,
   getPrStatusTone,
   isPrActive,
+  PR_STATUS_LABEL,
   PR_TONE_TEXT_CLASS,
 } from "@/renderer/utils/prStatus";
 import type { DragSourceData } from "@/renderer/dnd";
@@ -100,7 +102,6 @@ export function GitBadge(props: {
     hasStatus,
     isRepo,
     branch,
-    remotePlatform,
     ghAvailable,
     totalInsertions,
     totalDeletions,
@@ -129,7 +130,6 @@ export function GitBadge(props: {
         hasStatus: gitStatus !== undefined,
         isRepo: gitStatus?.isRepo ?? false,
         branch: currentBranch,
-        remotePlatform: gitStatus?.remoteInfo?.platform,
         ghAvailable: s.ghAvailable[props.projectId] ?? false,
         totalInsertions: gitStatus?.totalInsertions ?? 0,
         totalDeletions: gitStatus?.totalDeletions ?? 0,
@@ -160,13 +160,7 @@ export function GitBadge(props: {
 
   useEffect(() => {
     if (props.worktreePath) return;
-    if (
-      !isRepo ||
-      !branch ||
-      !projectLocation ||
-      !ghAvailable ||
-      (remotePlatform !== "github" && remotePlatform !== "unknown")
-    ) {
+    if (!isRepo || !branch || !projectLocation || !ghAvailable) {
       useGitStore.getState().setPrData(projectPrKey, null);
       return;
     }
@@ -201,7 +195,6 @@ export function GitBadge(props: {
     branch,
     projectLocation,
     ghAvailable,
-    remotePlatform,
   ]);
 
   const hasChanges = totalInsertions > 0 || totalDeletions > 0;
@@ -239,6 +232,16 @@ export function GitBadge(props: {
   const hasVisiblePr =
     prState !== undefined && (isWorktree || (prState !== "merged" && prState !== "closed"));
   const showPrIcon = hasVisiblePr || canCreatePr;
+  const prStatusLabel = hasVisiblePr
+    ? t(
+        PR_STATUS_LABEL[
+          describePrStatus(prState, checksStatus, { reviewDecision, mergeable, mergeStateStatus })
+        ],
+      )
+    : undefined;
+  const gitStatusLabel = prStatusLabel
+    ? t`Git status for ${props.projectName}: ${prStatusLabel}`
+    : t`Git status for ${props.projectName}`;
   const showWorktreeFork = (props.fallbackToWorktreeIcon ?? false) && isWorktree && !showPrIcon;
   if (!showWorktreeFork && (!isRepo || (!hasChanges && !showPrIcon))) {
     return (
@@ -248,7 +251,7 @@ export function GitBadge(props: {
             ref={elementRef}
             role="button"
             tabIndex={0}
-            aria-label={t`Git status for ${props.projectName}`}
+            aria-label={gitStatusLabel}
             className={`${gitBadgeButtonClass} ${gitBadgeIconPaddingClass} ${props.compact ? "poracode-compact-git-badge" : ""} ${
               props.isActive ? activeGitBadgeClass : hiddenGitBadgeClass
             }`}
@@ -286,7 +289,8 @@ export function GitBadge(props: {
       ref={elementRef}
       role="button"
       tabIndex={0}
-      aria-label={t`Git status for ${props.projectName}`}
+      aria-label={gitStatusLabel}
+      title={prStatusLabel}
       className={`${gitBadgeButtonClass} ${
         hasChanges ? gitBadgeTextPaddingClass : gitBadgeIconPaddingClass
       } ${props.compact ? "poracode-compact-git-badge" : ""} ${props.isActive ? activeGitBadgeClass : ""}`}

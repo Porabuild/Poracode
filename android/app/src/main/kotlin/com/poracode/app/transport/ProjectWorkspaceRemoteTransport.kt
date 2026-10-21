@@ -111,6 +111,9 @@ interface ProjectWorkspaceRemoteGateway {
     /** Executes exactly one generated-contract GitHub procedure call. */
     suspend fun githubCall(procedure: GithubProcedure, payload: JsonObject): JsonElement =
         throw UnsupportedOperationException("GitHub procedure transport is unavailable")
+
+    suspend fun forgeReviewCall(procedure: com.poracode.app.protocol.forge.ForgeReviewOperation, payload: JsonObject): JsonElement =
+        throw UnsupportedOperationException("Source review procedure transport is unavailable")
 }
 
 fun interface ProjectWorkspaceRemoteGatewayProvider {

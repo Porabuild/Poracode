@@ -164,6 +164,24 @@ describe.skipIf(!sqliteAvailable)("catalogReads (real sqlite)", () => {
     expect(projected.workspaceGrantRevision).toBeGreaterThan(0);
   });
 
+  it("retains fork lineage across catalog refreshes and accounts for its JSON size", () => {
+    const forkedFrom: NonNullable<Thread["forkedFrom"]> = {
+      version: 1,
+      threadId: "source",
+      title: "Source 🥑".repeat(500),
+      throughItemId: "reply",
+      inheritedTurnCount: 1,
+      contextStrategy: "transcript",
+    };
+    dbUpsertThread(testThread({ forkedFrom, canResumeWithConfig: true }), 0);
+    const [projected] = dbReadCatalogThreadPhase2(["thread-1"]);
+    expect(projected?.forkedFrom).toEqual(forkedFrom);
+    expect(projected?.canResumeWithConfig).toBe(true);
+    const actual = JSON.stringify(threadSchema.parse(projected));
+    const page = dbReadCatalogThreadPhase1({ mode: "page", order: "manual", limit: 1 });
+    expect(page.rows[0]!.boundWireBytes).toBeGreaterThanOrEqual(serializedWireByteLength(actual));
+  });
+
   it("includes committed directory JSON in the payload-free phase-1 size bound", () => {
     dbUpsertThread(testThread(), 0);
     commitDirectories(

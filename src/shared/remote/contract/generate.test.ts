@@ -81,13 +81,13 @@ describe("remote v3 generator", () => {
       expect(ir.doNotEdit).toMatch(/Do not edit/i);
       expect(ir.protocolVersion).toBe(14);
       expect(ir.bindingFormatVersion).toBe(2);
-      expect(ir.generatorVersion).toBe(6);
+      expect(ir.generatorVersion).toBe(7);
       expect(ir.sourceHash).toMatch(/^sha256:[a-f0-9]{64}$/);
       expect(ir.manifestHash).toMatch(/^sha256:[a-f0-9]{64}$/);
-      expect(ir.inventory.routes).toBe(116);
-      expect(ir.inventory.procedures).toBe(130);
-      expect(ir.inventory.voidProcedureResults).toBe(50);
-      expect(ir.inventory.jsonProcedureResults).toBe(80);
+      expect(ir.inventory.routes).toBe(117);
+      expect(ir.inventory.procedures).toBe(154);
+      expect(ir.inventory.voidProcedureResults).toBe(59);
+      expect(ir.inventory.jsonProcedureResults).toBe(95);
       expect(ir.routes.map((route) => route.id)).toEqual(
         [...ir.routes.map((route) => route.id)].sort(compareUnicodeCodePoints),
       );

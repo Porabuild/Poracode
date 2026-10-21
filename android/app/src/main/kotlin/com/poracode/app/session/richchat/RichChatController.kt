@@ -217,9 +217,9 @@ class RichChatController(
             gateway.clearSteer(it.host, it.threadId)
         }
 
-    suspend fun threadCommand(command: JsonObject): RichChatOperationResult<Unit> =
+    suspend fun threadCommand(command: JsonObject, destinationThreadId: String? = null): RichChatOperationResult<Unit> =
         mutate(OP_COMMAND, RichChatCapability.Operate) {
-            gateway.threadCommand(it.host, it.threadId, command)
+            gateway.threadCommand(it.host, destinationThreadId ?: it.threadId, command)
         }
 
     /**

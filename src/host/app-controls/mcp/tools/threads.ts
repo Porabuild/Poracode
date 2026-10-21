@@ -80,6 +80,15 @@ const createArgsSchema = z.object({
     .object({ enabled: z.boolean(), branch: z.string().trim().min(1).max(255).optional() })
     .optional(),
   workspaceId: z.string().trim().min(1).optional(),
+  browserMcp: z.boolean().optional(),
+  crossagentMcp: z.boolean().optional(),
+  chromeMcp: z.boolean().optional(),
+  computerUse: z.boolean().optional(),
+  mcpServers: z.record(z.string().min(1), z.boolean()).optional(),
+  plugins: z.record(z.string().min(1), z.boolean()).optional(),
+  attachments: z
+    .array(z.object({ path: z.string().min(1), mimeType: z.string().min(1).optional() }).strict())
+    .optional(),
 });
 const sendArgsSchema = z.object({
   threadId: z.string().min(1),
@@ -155,7 +164,7 @@ export const threadTools: ToolDomain = {
     {
       name: "create_thread",
       description:
-        "Create and launch a new app thread in a project (visible in the user's sidebar). The calling thread's agent and model are used unless overridden. Optionally run it in a fresh git worktree. For Home threads, workspaceId files the new conversation into a workspace (id or unique name from list_workspaces); omitted Home threads inherit the calling thread's workspace when possible. Project threads follow their project's workspace — use update_project to file a project.",
+        "Create and launch a new app thread in a project (visible in the user's sidebar). The calling thread's agent and model are used unless overridden. Plugins and MCPs follow the New thread page's saved defaults. Override browserMcp, crossagentMcp, chromeMcp, or computerUse per thread; provider/platform restrictions and global hard disables still apply. mcpServers maps configured server ids (from list_mcp_servers or get_project) to booleans; plugins maps installed manifest names (from get_settings installedPlugins) to booleans. These choices affect only the new thread and survive resume. Attach files or images with attachments: [{path, mimeType?}], using absolute paths on the host; image types are inferred from extensions. Optionally run it in a fresh git worktree. For Home threads, workspaceId files the new conversation into a workspace (id or unique name from list_workspaces); omitted Home threads inherit the calling thread's workspace when possible. Project threads follow their project's workspace — use update_project to file a project.",
       inputSchema: {
         type: "object",
         additionalProperties: false,
@@ -168,6 +177,24 @@ export const threadTools: ToolDomain = {
           effort: { type: "string", minLength: 1 },
           title: { type: "string", minLength: 1, maxLength: 200 },
           workspaceId: { type: "string", minLength: 1 },
+          browserMcp: { type: "boolean" },
+          crossagentMcp: { type: "boolean" },
+          chromeMcp: { type: "boolean" },
+          computerUse: { type: "boolean" },
+          mcpServers: { type: "object", additionalProperties: { type: "boolean" } },
+          plugins: { type: "object", additionalProperties: { type: "boolean" } },
+          attachments: {
+            type: "array",
+            items: {
+              type: "object",
+              additionalProperties: false,
+              required: ["path"],
+              properties: {
+                path: { type: "string", minLength: 1 },
+                mimeType: { type: "string", minLength: 1 },
+              },
+            },
+          },
           worktree: {
             type: "object",
             additionalProperties: false,
@@ -424,6 +451,13 @@ export const threadTools: ToolDomain = {
         model,
         ...(effort ? { effort } : {}),
         ...(sourceThread?.config.fast !== undefined ? { fast: sourceThread.config.fast } : {}),
+        ...(parsed.browserMcp !== undefined ? { browserMcp: parsed.browserMcp } : {}),
+        ...(parsed.crossagentMcp !== undefined ? { crossagentMcp: parsed.crossagentMcp } : {}),
+        ...(parsed.chromeMcp !== undefined ? { chromeMcp: parsed.chromeMcp } : {}),
+        ...(parsed.computerUse !== undefined ? { computerUse: parsed.computerUse } : {}),
+        ...(parsed.mcpServers !== undefined ? { mcpServers: parsed.mcpServers } : {}),
+        ...(parsed.plugins !== undefined ? { plugins: parsed.plugins } : {}),
+        ...(parsed.attachments !== undefined ? { attachments: parsed.attachments } : {}),
         ...(parsed.title ? { title: parsed.title } : {}),
         ...(workspaceId ? { workspaceId } : {}),
         ...(parsed.worktree?.enabled
@@ -600,7 +634,11 @@ function buildResumeStartPayload(
     initialSize: DEFAULT_TERMINAL_SIZE,
     ...(thread.sessionRef ? { sessionRef: thread.sessionRef } : {}),
     ...(thread.presentationMode ? { presentationMode: thread.presentationMode } : {}),
-    ...resolveMcpLaunchSnapshot(ctx.settings.read(), project.mcpServers ?? []),
+    ...resolveMcpLaunchSnapshot(
+      ctx.settings.read(),
+      project.mcpServers ?? [],
+      thread.config.mcpServerOverrides,
+    ),
   };
 }
 

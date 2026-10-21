@@ -8,6 +8,7 @@ import { ThreadExecutionControl } from "./threadExecutionControl";
 import { toError } from "@/shared/errorMessage";
 import { msg } from "@/shared/messages";
 import { ThreadSessionAbsenceRefusalError } from "@/shared/threadSessionRefusal";
+import { retainThreadToolOverrides } from "@/shared/contracts/config";
 import type {
   ListThreadSessionActionsPayload,
   InvokeThreadSessionActionPayload,
@@ -939,7 +940,7 @@ export class ThreadSessionManager {
     const prompt = this.formatSegmentsForPrompt(session, policySegments, payload.prompt);
     const effectiveConfig = applyHomeScopePermissions(
       effectiveProjectLocation(session),
-      payload.config,
+      retainThreadToolOverrides(payload.config, session.config),
       session.adapter.capabilities,
     );
     const inlineInstructions = await this.resolveSkillTurnInjection(session, policySegments);
@@ -1264,7 +1265,7 @@ export class ThreadSessionManager {
           : payload.config;
       const effectiveConfig = applyHomeScopePermissions(
         effectiveProjectLocation(session),
-        turnConfig,
+        retainThreadToolOverrides(turnConfig, session.config),
         session.adapter.capabilities,
       );
 
@@ -1465,7 +1466,7 @@ export class ThreadSessionManager {
     }
     const config = applyHomeScopePermissions(
       effectiveProjectLocation(session),
-      payload.config,
+      retainThreadToolOverrides(payload.config, session.config),
       session.adapter.capabilities,
     );
     assertWorkspaceLiveConfig(session, config);
@@ -1640,12 +1641,21 @@ export class ThreadSessionManager {
       const contributions = await this.options.resolvePluginLaunchContributions?.(
         session.projectLocation,
         session.agentKind,
-        { includeExternalServers: false, nativePluginAdapter: session.adapter },
+        {
+          includeExternalServers: false,
+          nativePluginAdapter: session.adapter,
+          ...(session.config.pluginOverrides
+            ? { pluginOverrides: session.config.pluginOverrides }
+            : {}),
+        },
       );
       if (contributions) session.nativePlugins = contributions.nativePlugins;
     }
     return (
       (await this.options.filterPluginSkillSegments?.({
+        ...(session.config.pluginOverrides
+          ? { pluginOverrides: session.config.pluginOverrides }
+          : {}),
         agentKind: session.agentKind,
         projectLocation: session.projectLocation,
         ...(session.presentationMode
@@ -1797,7 +1807,7 @@ export class ThreadSessionManager {
 
       const effectiveConfig = applyHomeScopePermissions(
         effectiveProjectLocation(session),
-        payload.config,
+        retainThreadToolOverrides(payload.config, session.config),
         session.adapter.capabilities,
       );
       assertWorkspaceLiveConfig(session, effectiveConfig);

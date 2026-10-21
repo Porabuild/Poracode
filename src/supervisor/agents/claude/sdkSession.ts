@@ -137,6 +137,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
   private listener: StructuredSessionListener | undefined;
   private mapperState: ClaudeMapperState;
   private promptQueue = new AsyncPromptQueue();
+  private pendingPromptAdmission: { generation: number; acknowledge: () => void } | undefined;
   private queryRuntime: Query | undefined;
   private queryReady: Promise<Query> | undefined;
   // Query.close() initiates shutdown; captured children prove it has finished.
@@ -407,6 +408,9 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
       options?.turnContext,
     );
     if (this.disposed || generation !== this.submissionGeneration) return;
+    this.pendingPromptAdmission = options?.onPromptSubmitted
+      ? { generation, acknowledge: options.onPromptSubmitted }
+      : undefined;
     this.promptQueue.push(message);
   }
 
@@ -1543,6 +1547,11 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     ) {
       this.sessionHasHistory = true;
       this.activeResumeAt = undefined;
+      const admission = this.pendingPromptAdmission;
+      if (admission?.generation === this.submissionGeneration) {
+        this.pendingPromptAdmission = undefined;
+        admission.acknowledge();
+      }
     }
     const sessionId =
       "session_id" in message && typeof message.session_id === "string"

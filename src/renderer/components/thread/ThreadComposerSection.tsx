@@ -1,4 +1,3 @@
-import { capabilitiesForSessionConfig } from "@/shared/sessionConfigCapabilities";
 import {
   useEffect,
   useEffectEvent,
@@ -17,7 +16,10 @@ import { friendlyError } from "@/shared/messages";
 import type { FollowUpBehavior } from "@/shared/settings";
 import { useThreadFollowUpQueue } from "@/renderer/state/threadFollowUpQueueStore";
 import { agentStatusForPresentation, hasSelectableReasoning } from "@/shared/agentSelection";
-import { canonicalProviderModelId } from "@/renderer/components/providers/modelConfig";
+import {
+  canonicalProviderModelId,
+  composerCapabilitiesForSession,
+} from "@/renderer/components/providers/modelConfig";
 import {
   changeThreadConfig,
   clearThreadPendingSteer,
@@ -107,6 +109,7 @@ import type { TerminalPaneHandle } from "./TerminalPane";
 import { ThreadComposerDocks } from "./ThreadComposerDocks";
 import { selectPendingMessageReplyIds } from "./messageReplyForms";
 import { ThreadResumeUnavailableDock } from "./ThreadResumeUnavailableDock";
+import { ThreadHistoryNoticeDock, useVisibleThreadHistoryNotice } from "./ThreadHistoryNoticeDock";
 import {
   usePluginMentionItems,
   useSkillSlashCommandState,
@@ -388,7 +391,8 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     presentationAgentStatus && presentationMode === "gui"
       ? {
           ...presentationAgentStatus,
-          capabilities: capabilitiesForSessionConfig(
+          capabilities: composerCapabilitiesForSession(
+            thread.agentKind,
             presentationAgentStatus.capabilities,
             thread.sessionConfigOptions,
           ),
@@ -664,7 +668,19 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
       message={resumeUnavailableMessage}
     />
   ) : null;
-  const composerResumeNotice = compactLayout ? null : resumeUnavailableNotice;
+  const historyNotice = useVisibleThreadHistoryNotice(thread.id);
+  const historyNoticeDock =
+    historyNotice && !usesTerminalPresentation ? (
+      <ThreadHistoryNoticeDock threadId={thread.id} entry={historyNotice} />
+    ) : null;
+  const composerNotices =
+    historyNoticeDock || resumeUnavailableNotice ? (
+      <>
+        {historyNoticeDock}
+        {resumeUnavailableNotice}
+      </>
+    ) : null;
+  const composerDockNotice = compactLayout ? null : composerNotices;
   // Gate the inline docks only. `activeRuntimeRequest` still drives the
   // composer's deny-with-feedback submit path, and `authRequired` still disables
   // submit/voice, when a host renders these docks itself.
@@ -679,7 +695,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   const composerRuntimeRequest = hideActionDocks ? undefined : activeRuntimeRequest;
   const composerPendingSteer = hideActionDocks ? undefined : visiblePendingSteer;
   const composerFollowUpQueue = hideActionDocks ? undefined : followUpQueue;
-  const showAuthInComposer = authRequired && !hideActionDocks;
+  const showAuthInComposer = (authRequired || hasRuntimeAuthError) && !hideActionDocks;
   const reportedContextUsage = useAppStore((s) =>
     canShowRuntimeChrome ? s.runtimeContextByThread[thread.id] : undefined,
   );
@@ -1022,7 +1038,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                   <ComposerActionDocks
                     thread={thread}
                     agentStatus={agentStatus}
-                    notice={resumeUnavailableNotice}
+                    notice={composerNotices}
                     onRestoreComposerFocus={restoreComposerFocus}
                     {...(props.onOpenProjectRelativePath
                       ? {
@@ -1100,7 +1116,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                       authRequired ? "auth-required" : "auth-ready",
                     ].join("|")}
                     fixedContent={
-                      composerResumeNotice !== null ||
+                      composerDockNotice !== null ||
                       hasActiveSubAgent ||
                       hasBackgroundTasks ||
                       showContextInComposer ||
@@ -1114,7 +1130,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                       composerFollowUpQueue ||
                       showCommandPanel ? (
                         <ThreadComposerDocks
-                          notice={composerResumeNotice}
+                          notice={composerDockNotice}
                           hasActiveSubAgent={hasActiveSubAgent}
                           hasBackgroundTasks={hasBackgroundTasks}
                           showContextInComposer={showContextInComposer}

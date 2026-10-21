@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="forge_review_guide">指南</string>
+    <string name="forge_review_writer">指南编写代理</string>
+    <string name="forge_review_model">指南模型</string>
+    <string name="forge_review_instructions">审查指南指令</string>
+    <string name="forge_review_write">编写指南</string>
+    <string name="forge_review_rewrite">重写指南</string>
+    <string name="forge_review_no_writer">请选择支持强制只读工作区的指南编写代理。</string>
+    <string name="forge_review_generating">正在编写指南。你可以离开此审查，待指南就绪后再返回。</string>
+    <string name="forge_review_failed">无法编写指南，请尝试重写。</string>
+    <string name="forge_review_stale">此指南已过期。请重写以查看当前更改的摘录。</string>
+    <string name="forge_review_look_closely">仔细检查</string>
+    <string name="forge_review_back">返回</string>
+    <string name="forge_review_next">下一步</string>
+    <string name="forge_review_finish">完成审查</string>
+    <string name="forge_review_viewed_source">已在源托管平台查看</string>
+    <string name="forge_review_viewed_host">已在 Poracode 中查看</string>
+    <string name="forge_review_changed">已更改</string>
+    <string name="forge_review_edit_comment">编辑评论</string>
+    <string name="forge_review_offline">离线</string>
+</resources>

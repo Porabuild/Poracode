@@ -3,11 +3,11 @@
   "contract": "poracode.remote",
   "protocolVersion": 14,
   "bindingFormatVersion": 2,
-  "manifestHash": "sha256:e78f3045a2e3b146869f782aaf67ee4ea5fc25eb2a0115cd10864e648520885b",
-  "keyCount": 298,
+  "manifestHash": "sha256:2e6e22062f5b64950ddc92ad9a8b871ac9e88e139f26b13d3c0b5d5d33e09a88",
+  "keyCount": 323,
   "counts": {
-    "route": 116,
-    "procedure": 130,
+    "route": 117,
+    "procedure": 154,
     "ws-client": 9,
     "ws-server": 11,
     "replay": 16,
@@ -85,6 +85,102 @@
     "procedure:finalizeFileCheckpoint": {
       "kind": "procedure",
       "id": "finalizeFileCheckpoint"
+    },
+    "procedure:forgeClosePr": {
+      "kind": "procedure",
+      "id": "forgeClosePr"
+    },
+    "procedure:forgeCreatePr": {
+      "kind": "procedure",
+      "id": "forgeCreatePr"
+    },
+    "procedure:forgeEditPr": {
+      "kind": "procedure",
+      "id": "forgeEditPr"
+    },
+    "procedure:forgeEditPrComment": {
+      "kind": "procedure",
+      "id": "forgeEditPrComment"
+    },
+    "procedure:forgeGetPrChecks": {
+      "kind": "procedure",
+      "id": "forgeGetPrChecks"
+    },
+    "procedure:forgeGetPrDetails": {
+      "kind": "procedure",
+      "id": "forgeGetPrDetails"
+    },
+    "procedure:forgeGetPrDiff": {
+      "kind": "procedure",
+      "id": "forgeGetPrDiff"
+    },
+    "procedure:forgeGetPrFiles": {
+      "kind": "procedure",
+      "id": "forgeGetPrFiles"
+    },
+    "procedure:forgeGetPrForBranch": {
+      "kind": "procedure",
+      "id": "forgeGetPrForBranch"
+    },
+    "procedure:forgeGetPrReviewComments": {
+      "kind": "procedure",
+      "id": "forgeGetPrReviewComments"
+    },
+    "procedure:forgeGetPrReviewGuide": {
+      "kind": "procedure",
+      "id": "forgeGetPrReviewGuide"
+    },
+    "procedure:forgeGetPrViewedFiles": {
+      "kind": "procedure",
+      "id": "forgeGetPrViewedFiles"
+    },
+    "procedure:forgeGetRepository": {
+      "kind": "procedure",
+      "id": "forgeGetRepository"
+    },
+    "procedure:forgeListPrs": {
+      "kind": "procedure",
+      "id": "forgeListPrs"
+    },
+    "procedure:forgeListPullRequests": {
+      "kind": "procedure",
+      "id": "forgeListPullRequests"
+    },
+    "procedure:forgeMarkPrReady": {
+      "kind": "procedure",
+      "id": "forgeMarkPrReady"
+    },
+    "procedure:forgeMergePr": {
+      "kind": "procedure",
+      "id": "forgeMergePr"
+    },
+    "procedure:forgeMergePrAtHead": {
+      "kind": "procedure",
+      "id": "forgeMergePrAtHead"
+    },
+    "procedure:forgePostPrComment": {
+      "kind": "procedure",
+      "id": "forgePostPrComment"
+    },
+    "procedure:forgeReopenPr": {
+      "kind": "procedure",
+      "id": "forgeReopenPr"
+    },
+    "procedure:forgeSetPrFileViewed": {
+      "kind": "procedure",
+      "id": "forgeSetPrFileViewed"
+    },
+    "procedure:forgeSubmitPrReview": {
+      "kind": "procedure",
+      "id": "forgeSubmitPrReview"
+    },
+    "procedure:forgeUpdatePrBranch": {
+      "kind": "procedure",
+      "id": "forgeUpdatePrBranch"
+    },
+    "procedure:forgeWritePrReviewGuide": {
+      "kind": "procedure",
+      "id": "forgeWritePrReviewGuide"
     },
     "procedure:generateCommitMessage": {
       "kind": "procedure",
@@ -865,6 +961,10 @@
     "route:pr-watch-read": {
       "kind": "route",
       "id": "pr-watch-read"
+    },
+    "route:pr-watch-scoped-upsert": {
+      "kind": "route",
+      "id": "pr-watch-scoped-upsert"
     },
     "route:pr-watch-upsert": {
       "kind": "route",

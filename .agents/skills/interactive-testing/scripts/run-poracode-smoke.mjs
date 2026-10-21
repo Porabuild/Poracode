@@ -471,7 +471,16 @@ process.stdin.on("data", (chunk) => {
   );
   execFileSync(
     process.execPath,
-    ["--no-warnings", seedScript, "--baseDir", dataDir, "--projectDir", projectDir, "--reset"],
+    [
+      "--no-warnings",
+      seedScript,
+      "--baseDir",
+      dataDir,
+      "--projectDir",
+      projectDir,
+      "--reset",
+      ...(mode === "mock" ? ["--fork-fixture"] : []),
+    ],
     { cwd: repoRoot, stdio: "inherit", windowsHide: process.platform === "win32" },
   );
 }

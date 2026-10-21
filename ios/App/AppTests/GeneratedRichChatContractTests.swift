@@ -3,6 +3,17 @@ import XCTest
 @testable import App
 
 final class GeneratedRichChatContractTests: XCTestCase {
+  func testForkUsesTheNewThreadPathAndRetainsTheSourceBoundary() throws {
+    let payload: [String: RichJSON] = [
+      "kind": .string("fork"), "sourceThreadId": .string("source-thread"),
+      "throughItemId": .string("completed-reply"), "title": .string("Alternative"),
+    ]
+    let route = try GeneratedRemoteV3Contract.richThreadCommand(
+      threadID: "new-thread", command: RichChatThreadCommand(payload: payload))
+    XCTAssertEqual(route.pathValues["threadId"], "new-thread")
+    XCTAssertEqual(try object(route.body), payload)
+  }
+
   func testSendGoalSteerRequestAndCommandCrossGeneratedRoots() throws {
     let send = try GeneratedRemoteV3Contract.richSend(
       threadID: "thread /東京",

@@ -11,7 +11,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   sshRuntimeManifestFileName,
@@ -114,7 +114,12 @@ function stageDirectories(cacheDir: string): string[] {
 
 function tarEntries(archivePath: string): string[] {
   const tar = process.platform === "win32" ? "tar.exe" : "tar";
-  return execFileSync(tar, ["-tzf", archivePath], { encoding: "utf8" })
+  // Relative name from the archive's directory, as the builder does: GNU tar on
+  // Windows reads an absolute `C:\…` path as an rsh `host:file` spec.
+  return execFileSync(tar, ["-tzf", basename(archivePath)], {
+    cwd: dirname(archivePath),
+    encoding: "utf8",
+  })
     .split(/\r?\n/g)
     .filter(Boolean)
     .sort();

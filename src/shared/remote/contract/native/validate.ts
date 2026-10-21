@@ -12,6 +12,9 @@ import type {
 const SHA256 = /^sha256:[a-f0-9]{64}$/;
 const QUERY_KINDS = new Set(["string", "int", "decimal", "0-or-1", "JSON-string"]);
 const PORTABLE_VALIDATORS = new Set([
+  "forge.host.https",
+  "forge.watch.scope-identity",
+  "forge.edit.fields",
   "git.add-worktree.frozen-source",
   "git.delete-branch.remote-cannot-have-owner",
   "git.remove-worktree.owner-requires-branch",

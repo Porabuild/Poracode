@@ -9,7 +9,7 @@ import {
   sourceAgentPluginFiles,
 } from "../shared/runtimeResourceInventory.ts";
 
-const sourceRoots = [
+export const runtimeSourceRoots = [
   "src/backend",
   "src/build",
   "src/host",
@@ -19,7 +19,7 @@ const sourceRoots = [
   "src/supervisor",
   "packages/agents-usage/src",
 ];
-const configurationFiles = [
+export const runtimeConfigurationFiles = [
   "tsdown.config.ts",
   "tsconfig.json",
   "package.json",
@@ -76,8 +76,8 @@ export function readRuntimeSourceDeclaration(
       } else throw new Error(`Runtime input is not a regular file: ${path}`);
     }
   };
-  for (const path of sourceRoots) visit(join(root, path));
-  for (const path of configurationFiles) {
+  for (const path of runtimeSourceRoots) visit(join(root, path));
+  for (const path of runtimeConfigurationFiles) {
     const absolute = resolve(root, path);
     if (!existsSync(absolute) || !lstatSync(absolute).isFile())
       throw new Error(`Required runtime build input is missing: ${path}`);

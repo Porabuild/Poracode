@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { projectLocationSchema } from "./common";
+import type { ForgeRepository } from "./forge";
 
 /** Identifies a signed-in account so the supervisor can scope `gh` to it. */
 export const gitHubAccountRefSchema = z.object({
@@ -13,10 +14,13 @@ export const prMergeMethodSchema = z.enum(["merge", "squash", "rebase"]);
 export type PrMergeMethod = z.infer<typeof prMergeMethodSchema>;
 
 export interface PrData {
+  /** Absent on pre-forge hosts; those results retain the GitHub semantics. */
+  source?: ForgeRepository;
   number: number;
   state: PrState;
   /** Last commit that belonged to this pull request's head branch. */
   headSha?: string;
+  isCrossRepository?: boolean;
   title: string;
   url: string;
   baseBranch: string;
@@ -113,6 +117,7 @@ export interface PrReviewSummary {
 }
 
 export interface PrDetails {
+  source?: ForgeRepository;
   number: number;
   title: string;
   body: string;
@@ -130,6 +135,7 @@ export interface PrDetails {
   comments: PrComment[];
   reviews: PrReviewSummary[];
   checks: PrCheck[];
+  reviewThreads?: PrReviewThread[];
 }
 
 export interface GhCheckAvailableResult {
