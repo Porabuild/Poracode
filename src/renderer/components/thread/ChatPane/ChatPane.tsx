@@ -459,6 +459,18 @@ export function ChatPane(props: ChatPaneProps) {
   // request before that round-trip completes, leaving status stuck at
   // `needs_approval` even though the user has already answered.
   const isTurnPaused = hasOpenRuntimeRequest;
+  const tailForkAction =
+    completedTurnCanRenderInTail &&
+    !completedTurnHasAssistantActions &&
+    mostRecentDisplayableCompletedTurn?.anchorItemId ? (
+      <div className="mx-auto w-full max-w-[920px] px-4 pb-2">
+        <ThreadForkTurnAction
+          threadId={threadId}
+          itemId={mostRecentDisplayableCompletedTurn.anchorItemId}
+          startedAt={mostRecentDisplayableCompletedTurn.startedAt}
+        />
+      </div>
+    ) : null;
   const showEmptyHint = isEmpty && !isLive && !isConnecting && hydrationStatus === undefined;
   const isHydrating = isEmpty && hydrationStatus === "pending";
   const hydrationFailed = isEmpty && hydrationStatus === "failed";
@@ -595,7 +607,13 @@ export function ChatPane(props: ChatPaneProps) {
                 isWorktreeProvisioning ? (
                   <ChatWorktreeProvisioningFooter />
                 ) : isConnecting ? (
-                  <ChatConnectingFooter />
+                  // Keep the completed turn's fork row while reconnecting so the
+                  // swap to "Worked for" keeps the footer height and the pinned
+                  // transcript does not jump.
+                  <div className="group/checkpoint">
+                    <ChatConnectingFooter />
+                    {tailForkAction}
+                  </div>
                 ) : isHydrating && !showWorkingTimer ? (
                   <ChatConnectingFooter />
                 ) : showTailLoader && tailTurn ? (
@@ -605,17 +623,7 @@ export function ChatPane(props: ChatPaneProps) {
                       isPaused={isTurnPaused}
                       isWaitingForBackground={isWaitingForBackground && !isTurnPaused}
                     />
-                    {completedTurnCanRenderInTail &&
-                    !completedTurnHasAssistantActions &&
-                    mostRecentDisplayableCompletedTurn?.anchorItemId ? (
-                      <div className="mx-auto w-full max-w-[920px] px-4 pb-2">
-                        <ThreadForkTurnAction
-                          threadId={threadId}
-                          itemId={mostRecentDisplayableCompletedTurn.anchorItemId}
-                          startedAt={mostRecentDisplayableCompletedTurn.startedAt}
-                        />
-                      </div>
-                    ) : null}
+                    {tailForkAction}
                   </div>
                 ) : null
               }
