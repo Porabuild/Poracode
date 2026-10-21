@@ -1734,6 +1734,22 @@ describe("ChatPane", () => {
     expect(badge).toHaveAttribute("aria-label", "Computer Use");
   });
 
+  it("renders a skill picked from a plugin as a skill badge, not the plugin", async () => {
+    const thread = makeThread();
+    seedUserMessageContent(thread.id, [
+      { kind: "skill", name: "finalize", invocation: "/finalize", pluginId: "app-controls" },
+    ]);
+
+    const { container } = renderChatPane(thread);
+    await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
+
+    const badge = container.querySelector('[data-skill-name="finalize"]');
+    expect(badge).toHaveTextContent("finalize");
+    expect(badge).toHaveAttribute("aria-label", "Skill: finalize");
+    expect(badge).not.toHaveAttribute("data-plugin-id");
+    expect(badge?.querySelector("svg.lucide-sparkles")).toBeInTheDocument();
+  });
+
   it("keeps a leading slash command when a later skill chip is present", async () => {
     const thread = makeThread();
     seedUserMessageContent(thread.id, [

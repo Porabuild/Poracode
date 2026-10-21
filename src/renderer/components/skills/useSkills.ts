@@ -182,7 +182,8 @@ function buildSkillSlashCommand(
     skillProvider: localizedPlugin?.name ?? skill.providerLabel,
     skillScope: skill.scope,
     ...(skill.pluginId ? { pluginId: skill.pluginId } : {}),
-    ...(skill.pluginName ? { pluginName: localizedPlugin?.name ?? skill.pluginName } : {}),
+    // No `pluginName`: it marks an @-mention of the whole plugin, which
+    // usePluginMentionItems adds; a slash-picked plugin skill shows its own name.
   };
 }
 
