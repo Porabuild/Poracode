@@ -27,7 +27,7 @@ import { ThreadAuthRequiredDock } from "./ThreadAuthRequiredDock";
 import { ThreadBackgroundTasksDock } from "./ThreadBackgroundTasksDock";
 import { ThreadTodoDock } from "./ThreadTodoDock";
 import type { ThreadContextUsageSummary } from "./threadContextUsage";
-import type { ThreadErrorDockState } from "./threadErrorState";
+import { isRuntimeAuthError, type ThreadErrorDockState } from "./threadErrorState";
 import type { ThreadGoalDockState } from "./threadGoalState";
 import type { ThreadTodoDockState } from "./threadTodoState";
 
@@ -183,7 +183,16 @@ export function ThreadComposerDocks(props: ThreadComposerDocksProps) {
         />
       ) : null}
       {authRequired && agentStatus ? (
-        <ThreadAuthRequiredDock agentStatus={agentStatus} {...(project ? { project } : {})} />
+        <ThreadAuthRequiredDock
+          threadId={threadId}
+          agentStatus={agentStatus}
+          {...(project ? { project } : {})}
+          onAuthenticated={() => {
+            errorDockStates
+              .filter(isRuntimeAuthError)
+              .forEach((state) => onDismissError(state.sourceItemId));
+          }}
+        />
       ) : null}
       {pendingSteer ? (
         <ThreadPendingSteerStrip pending={pendingSteer} onCancel={onCancelPendingSteer} />

@@ -482,6 +482,7 @@ describe("ThreadComposerSection", () => {
     agentStatus?: AgentStatus;
     autoFocusComposer?: boolean;
     errorDockStates?: ThreadErrorDockState[];
+    onDismissError?: (sourceItemId: string) => void;
     onSubmitInput?: (prompt: string, segments?: unknown) => Promise<void>;
     onOpenProjectRelativePath?: (path: string, lineNumber?: number) => void;
     saveClipboardImage?: SaveClipboardImage;
@@ -503,7 +504,7 @@ describe("ThreadComposerSection", () => {
         goalDockState={null}
         errorDockStates={opts?.errorDockStates ?? []}
         onGoalDockDismiss={() => undefined}
-        onDismissError={() => undefined}
+        onDismissError={opts?.onDismissError ?? (() => undefined)}
         {...(opts?.onSubmitInput ? { onSubmitInput: opts.onSubmitInput } : {})}
         {...(opts?.autoFocusComposer !== undefined
           ? { autoFocusComposer: opts.autoFocusComposer }
@@ -523,6 +524,7 @@ describe("ThreadComposerSection", () => {
     agentStatus?: AgentStatus;
     autoFocusComposer?: boolean;
     errorDockStates?: ThreadErrorDockState[];
+    onDismissError?: (sourceItemId: string) => void;
     onSubmitInput?: ReturnType<typeof vi.fn<(prompt: string, segments?: unknown) => Promise<void>>>;
     onOpenProjectRelativePath?: (path: string, lineNumber?: number) => void;
     saveClipboardImage?: SaveClipboardImage;
@@ -3112,6 +3114,163 @@ describe("ThreadComposerSection", () => {
     fireEvent.click(screen.getByText("send"));
 
     expect(onSubmitInput).not.toHaveBeenCalled();
+  });
+
+  it.each([false, true])(
+    "offers login for runtime auth failures despite cached authenticated detection (compact: %s)",
+    async (compact) => {
+      if (compact)
+        vi.stubGlobal(
+          "matchMedia",
+          vi.fn((query: string) => ({
+            media: query,
+            matches: query === "(max-width: 767px)",
+            onchange: null,
+            addEventListener: () => undefined,
+            removeEventListener: () => undefined,
+            addListener: () => undefined,
+            removeListener: () => undefined,
+            dispatchEvent: () => true,
+          })),
+        );
+      const onDismissError = vi.fn<(id: string) => void>();
+      const errors: ThreadErrorDockState[] = [
+        { sourceItemId: "expired-auth", message: "Failed to authenticate" },
+        { sourceItemId: "warning", message: "Please run /login soon", severity: "warning" },
+        { sourceItemId: "network", message: "Request failed" },
+      ];
+      const options = {
+        agentStatus: { ...codexGuiStatus, loginCommand: "codex login" },
+        errorDockStates: errors,
+        onDismissError,
+      };
+      const { rerender, onSubmitInput } = renderComposer(options);
+      if (compact) fireEvent.click(screen.getByRole("button", { name: "Sign in required" }));
+      expect(screen.getByRole("button", { name: "Login" })).toBeVisible();
+
+      fireEvent.click(screen.getByRole("button", { name: "Login" }));
+      act(() => loginActions.runAgentLoginCommand.mock.calls.at(-1)?.[0].onCommandComplete?.(1));
+      expect(onDismissError).not.toHaveBeenCalled();
+      await waitFor(() => expect(screen.getByRole("button", { name: "Login" })).toBeEnabled());
+      fireEvent.click(screen.getByRole("button", { name: "Login" }));
+      act(() => loginActions.runAgentLoginCommand.mock.calls.at(-1)?.[0].onCommandComplete?.(0));
+      expect(onDismissError.mock.calls).toEqual([["expired-auth"]]);
+
+      rerender(composerElement({ ...options, errorDockStates: errors.slice(1), onSubmitInput }));
+      await waitFor(() => expect(screen.queryByText("Sign in required")).not.toBeInTheDocument());
+      typeComposerText(screen.getByRole("textbox"), "retry after login");
+      fireEvent.click(screen.getByText("send"));
+      await waitFor(() => expect(onSubmitInput).toHaveBeenCalled());
+    },
+  );
+
+  it.each(["authenticated", "missing", "unknown"] as const)(
+    "keeps retry governed by detection when a historical auth error reappears (%s)",
+    async (authState) => {
+      const { onSubmitInput } = renderComposer({
+        agentStatus: { ...codexGuiStatus, authState, loginCommand: "codex login" },
+        errorDockStates: [{ sourceItemId: "historical-auth", message: "Failed to authenticate" }],
+      });
+      expect(screen.getByRole("button", { name: "Login" })).toBeVisible();
+      typeComposerText(screen.getByRole("textbox"), "retry after signing in elsewhere");
+      fireEvent.click(screen.getByText("send"));
+      await waitFor(() =>
+        expect(onSubmitInput).toHaveBeenCalledTimes(authState === "authenticated" ? 1 : 0),
+      );
+    },
+  );
+
+  it.each(["authenticated", "missing"] as const)(
+    "dismisses runtime auth failures only when an explicit refresh reports %s",
+    async (authState) => {
+      const onDismissError = vi.fn<(id: string) => void>();
+      bridgeMock.refreshAgentStatuses.mockResolvedValueOnce({
+        windows: [{ ...codexGuiStatus, authState }],
+        wsl: [],
+      });
+      renderComposer({
+        agentStatus: { ...codexGuiStatus, loginCommand: "codex login" },
+        errorDockStates: [{ sourceItemId: "expired-auth", message: "Failed to authenticate" }],
+        onDismissError,
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Refresh Codex authentication" }));
+      await waitFor(() =>
+        expect(screen.getByRole("button", { name: "Refresh Codex authentication" })).toBeEnabled(),
+      );
+      expect(onDismissError.mock.calls).toEqual(
+        authState === "authenticated" ? [["expired-auth"]] : [],
+      );
+    },
+  );
+
+  it("keeps the runtime auth failure when refresh only authenticates another presentation", async () => {
+    const onDismissError = vi.fn<(id: string) => void>();
+    bridgeMock.refreshAgentStatuses.mockResolvedValueOnce({
+      windows: [{ ...codexGuiStatus, presentationAuthStates: { gui: "missing" } }],
+      wsl: [],
+    });
+    renderComposer({
+      errorDockStates: [{ sourceItemId: "expired-auth", message: "Failed to authenticate" }],
+      onDismissError,
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Refresh Codex authentication" }));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Refresh Codex authentication" })).toBeEnabled(),
+    );
+    expect(onDismissError).not.toHaveBeenCalled();
+  });
+
+  it("does not dismiss runtime auth failures from paired-host cached inventory", async () => {
+    const original = useRemoteServersStore.getState();
+    const originalProjects = useAppStore.getState().projects;
+    const refreshServer = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+    const onDismissError = vi.fn<(id: string) => void>();
+    useRemoteServersStore.setState({
+      refreshServer,
+      runtime: {
+        "desktop-1": {
+          status: "online",
+          projects: [],
+          threads: [],
+          agentStatuses: {
+            windows: [codexGuiStatus],
+            wsl: [],
+            updatedAt: new Date().toISOString(),
+          },
+        },
+      },
+    });
+    useAppStore.setState({
+      projects: [
+        {
+          id: "project-1",
+          name: "Paired repo",
+          location: { kind: "posix", path: "/repo" },
+          remoteServerId: "desktop-1",
+          remoteId: "remote-project-1",
+          createdAt: new Date().toISOString(),
+        },
+      ],
+    });
+    try {
+      renderComposer({
+        errorDockStates: [{ sourceItemId: "expired-auth", message: "Failed to authenticate" }],
+        onDismissError,
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Refresh Codex authentication" }));
+      await waitFor(() =>
+        expect(screen.getByRole("button", { name: "Refresh Codex authentication" })).toBeEnabled(),
+      );
+      expect(refreshServer).toHaveBeenCalledWith("desktop-1");
+      expect(onDismissError).not.toHaveBeenCalled();
+      expect(bridgeMock.refreshAgentStatuses).not.toHaveBeenCalled();
+    } finally {
+      useRemoteServersStore.setState({
+        refreshServer: original.refreshServer,
+        runtime: original.runtime,
+      });
+      useAppStore.setState({ projects: originalProjects });
+    }
   });
 
   it("shows compact authentication as a key bubble that opens the sign-in card", () => {
