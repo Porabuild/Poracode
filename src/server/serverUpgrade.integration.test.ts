@@ -4,28 +4,26 @@ import {
   existsSync,
   mkdtempSync,
   readFileSync,
-  readdirSync,
   readlinkSync,
   realpathSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join, resolve } from "node:path";
 import Database from "better-sqlite3";
 import { afterEach, describe, expect, it } from "vitest";
 import { callHostControl } from "@/backend/ownership/hostControlClient";
 import { readHostOwnerRecord } from "@/backend/ownership/hostOwnerLease";
 import { canonicalHostPath, resolveHostRootPaths } from "@/backend/ownership/hostRootPaths";
 import { installServerPrefix } from "../../scripts/install-server-prefix.mjs";
-import { resolveTar, tarCommand } from "../../scripts/server-host-tools.mjs";
 import { resolveBetterSqliteNativeBindingOptions } from "@/host/db/nativeBinding";
 import {
   removeConversationSearchFixtureSchema,
   removeCostSchemaForDowngrade,
 } from "@/host/db/runtimeItems.testFixtures";
 import { stopRunningServer } from "./serverStop";
+import { findTarball, runTar, tarballSupportsD4 } from "./serverUpgradeArtifact";
 import { readReleaseBuildIdentity } from "./serverUpgradeIdentity";
 import { upgradeServerPrefix } from "./serverUpgrade";
 import {
@@ -50,61 +48,6 @@ import {
  * This is not a released N-1 artifact: a real published previous release
  * remains a release gate (recorded in tmp/v2-production/d4-review-corrections.md).
  */
-
-/** Run one tar operation with the host's resolved tar (bsdtar on Windows, never Git-bash GNU tar). */
-function runTar(
-  args: readonly string[],
-  options: { encoding?: "utf8"; maxBuffer?: number; stdio?: "pipe" } = {},
-) {
-  const [command, commandArgs] = tarCommand(resolveTar(), [...args]) as [string, string[]];
-  return execFileSync(command, commandArgs, options as never) as unknown as string;
-}
-
-const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
-// Test hook so the required-mode failure is verifiable without touching dist/.
-const distDir = process.env.PORACODE_SERVER_DIST_DIR?.trim() || join(repoRoot, "dist");
-
-/**
- * The current assembly recipe ships `scripts/server-release-install.mjs`, and
- * the install path refuses archives carrying symlink entries. A stale tarball
- * from an older recipe cannot be installed by design, so skip instead of
- * failing on unrelated dist/ leftovers.
- */
-function findTarball(): string | null {
-  if (!existsSync(distDir)) return null;
-  const tarballs = readdirSync(distDir)
-    .filter((name) => name.startsWith("poracode-server-") && name.endsWith(".tar.gz"))
-    .sort()
-    .reverse();
-  for (const name of tarballs) {
-    const path = join(distDir, name);
-    try {
-      const listing = runTar(["-tzf", path], { encoding: "utf8" });
-      if (listing.includes("scripts/server-release-install.mjs")) return path;
-    } catch {
-      // Unreadable candidate; try the next one.
-    }
-  }
-  return null;
-}
-
-/** A pre-D4 bundle cannot answer the authenticated status/admit operations. */
-function tarballSupportsD4(path: string): boolean {
-  try {
-    const members = runTar(["-tzf", path], { encoding: "utf8" }).split(/\r?\n/u);
-    const entrypointMember = members.find(
-      (member) => member.replace(/^\.\//u, "") === "lib/server.cjs",
-    );
-    if (!entrypointMember) return false;
-    const entrypoint = runTar(["-xzf", path, "-O", entrypointMember], {
-      encoding: "utf8",
-      maxBuffer: 256 * 1024 * 1024,
-    });
-    return entrypoint.includes("not-staging") && entrypoint.includes("identity-mismatch");
-  } catch {
-    return false;
-  }
-}
 
 const tarball = findTarball();
 const runnable = tarball !== null && tarballSupportsD4(tarball);
@@ -352,7 +295,10 @@ async function waitForHealth(port: number, want: boolean, timeoutMs: number): Pr
 function ownerRecord(profile: string): { pid?: number; phase?: string } | null {
   const path = `${profile}.host-owner.json`;
   if (!existsSync(path)) return null;
-  return JSON.parse(readFileSync(path, "utf8")) as { pid?: number; phase?: string };
+  return JSON.parse(readFileSync(path, "utf8")) as {
+    pid?: number;
+    phase?: string;
+  };
 }
 
 async function waitForOwnerPhase(profile: string, phase: string, timeoutMs: number): Promise<void> {
@@ -564,7 +510,11 @@ describe.runIf(runnable)("serverUpgrade real-install integration (V6 D.4)", () =
         // Default IO end to end: real tar extract, real overlay, real
         // `npm install`, real doctor, and a restart that must find the
         // running daemon through its owner-lease record (no pid file exists).
-        const result = await upgradeServerPrefix({ from: tarball!, prefix, json: true });
+        const result = await upgradeServerPrefix({
+          from: tarball!,
+          prefix,
+          json: true,
+        });
         if (!result.ok) console.error("[serverUpgrade.integration] upgrade failed:", result);
         expect(result.ok).toBe(true);
         expect(result.rolledBack).toBe(false);
