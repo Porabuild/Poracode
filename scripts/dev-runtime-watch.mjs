@@ -68,6 +68,7 @@ export async function watchRuntime({
       if (dirname(staging) !== buildRoot)
         throw new Error("Development staging directory is outside its owned build root.");
       try {
+        if (closed) return;
         console.log(`[dev-runtime] building ${rebuildAll ? "all entries" : selected.join(", ")}`);
         const entries = await new Promise((done, reject) => {
           let message;
@@ -152,26 +153,12 @@ export async function watchRuntime({
     if (closed) return;
     closed = true;
     for (const watcher of watchers) watcher.close();
-    const child = worker;
-    child?.kill("SIGTERM");
-    let forceTimer;
+    worker?.kill("SIGTERM");
+    const forceTimer = setTimeout(() => worker?.kill("SIGKILL"), 2_000);
     try {
-      // A compiler that ignores SIGTERM must not keep the dev process, or CI, alive.
-      await Promise.race([
-        queue.close(),
-        new Promise((done) => {
-          forceTimer = setTimeout(done, 2_000);
-        }),
-      ]);
+      await queue.close();
     } finally {
       clearTimeout(forceTimer);
-      if (child && child.exitCode === null && child.signalCode === null) {
-        child.kill("SIGKILL");
-        await Promise.race([
-          new Promise((done) => child.once("exit", done)),
-          new Promise((done) => setTimeout(done, 1_000)),
-        ]);
-      }
       rejectReady(new Error("Development runtime stopped before its first successful build."));
       await release();
     }

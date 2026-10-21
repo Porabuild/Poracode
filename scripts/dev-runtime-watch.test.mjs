@@ -7,6 +7,7 @@ import { join, resolve } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { pathToFileURL } from "node:url";
 import test from "node:test";
+import { lock } from "proper-lockfile";
 import { watchRuntime } from "./dev-runtime-watch.mjs";
 import {
   runtimeConfigurationFiles,
@@ -55,7 +56,7 @@ const sharedAsset='shared-'+JSON.parse(readFileSync(root+'/src/shared/asset-name
 export default ['backendHost','supervisor','preload'].map(name=>{
 const entryPath=name==='backendHost'?'src/backend/index.ts':name==='supervisor'?'src/supervisor/index.ts':'src/main/preload.ts';
 return {entry:{[name]:entryPath},format:'cjs',platform:'node',target:'node24',dts:false,clean:false,
-plugins:[{name:'fixture-delay',async buildStart(){if(existsSync(root+'/.tmp/delay-build')){writeFileSync(root+'/.tmp/build-started',String(process.pid));await new Promise(done=>setTimeout(done,400));}},generateBundle(){this.emitFile({type:'asset',fileName:sharedAsset,source:'shared by all entries'});}},
+plugins:[{name:'fixture-delay',async buildStart(){if(existsSync(root+'/.tmp/ignore-term')){process.on('SIGTERM',()=>{});writeFileSync(root+'/.tmp/build-started',String(process.pid));await new Promise(()=>setInterval(()=>{},1000));}if(existsSync(root+'/.tmp/delay-build')){writeFileSync(root+'/.tmp/build-started',String(process.pid));await new Promise(done=>setTimeout(done,400));}},generateBundle(){this.emitFile({type:'asset',fileName:sharedAsset,source:'shared by all entries'});}},
 ...(name==='preload'?[]:[runtimeDeclarationPlugin({root,entryPath,buildOptions:{fixture:true},dependencies:${JSON.stringify(dependencies)},...(name==='supervisor'?{manifestEntry:'supervisor'}:{})})])]};});`,
   );
   return root;
@@ -200,5 +201,81 @@ await test(
     await assert.rejects(runtime.ready, /stopped before/);
     assert.equal(published, false);
     assert.throws(() => process.kill(childPid, 0), { code: "ESRCH" });
+  },
+);
+
+await test(
+  "holds ownership until an in-flight publication has drained",
+  { timeout: 15_000 },
+  async (t) => {
+    const root = await fixture();
+    const publishing = Promise.withResolvers();
+    const finishPublishing = Promise.withResolvers();
+    let runtime;
+    let published = false;
+    t.after(async () => {
+      finishPublishing.resolve();
+      await runtime?.close();
+      await rm(root, { recursive: true, force: true });
+    });
+    runtime = await watchRuntime({
+      root,
+      beforePublish: async () => {
+        publishing.resolve();
+        await finishPublishing.promise;
+      },
+      onPublished: async () => {
+        published = true;
+      },
+    });
+    await publishing.promise;
+    let closed = false;
+    const closing = runtime.close().then(() => {
+      closed = true;
+    });
+    await delay(2_200);
+    assert.equal(closed, false);
+    await assert.rejects(lock(join(root, ".tmp/dev-runtime")), { code: "ELOCKED" });
+    finishPublishing.resolve();
+    await closing;
+    await assert.rejects(runtime.ready, /stopped before/);
+    assert.equal(published, false);
+    assert.equal(existsSync(join(root, "dist/main/backendHost.cjs")), false);
+    const release = await lock(join(root, ".tmp/dev-runtime"));
+    await release();
+  },
+);
+
+await test(
+  "kills a compiler that ignores SIGTERM before releasing ownership",
+  { timeout: 15_000, skip: process.platform === "win32" },
+  async (t) => {
+    const root = await fixture();
+    let runtime;
+    let published = false;
+    t.after(async () => {
+      await runtime?.close();
+      await rm(root, { recursive: true, force: true });
+    });
+    await writeFile(join(root, ".tmp/ignore-term"), "");
+    runtime = await watchRuntime({
+      root,
+      onPublished: async () => {
+        published = true;
+      },
+      onError: () => {},
+    });
+    await waitFor(() => existsSync(join(root, ".tmp/build-started")));
+    const childPid = Number(await readFile(join(root, ".tmp/build-started"), "utf8"));
+    const closing = runtime.close();
+    await delay(100);
+    assert.doesNotThrow(() => process.kill(childPid, 0));
+    await assert.rejects(lock(join(root, ".tmp/dev-runtime")), { code: "ELOCKED" });
+    await closing;
+    await assert.rejects(runtime.ready, /stopped before/);
+    assert.equal(published, false);
+    assert.throws(() => process.kill(childPid, 0), { code: "ESRCH" });
+    const release = await lock(join(root, ".tmp/dev-runtime"));
+    await release();
   },
 );
