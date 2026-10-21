@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import fs, { existsSync } from "node:fs";
-import { mkdir, mkdtemp, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, realpath, rename, rm, writeFile } from "node:fs/promises";
 import { createRequire, syncBuiltinESMExports } from "node:module";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -182,13 +182,13 @@ await test(
       await rm(root, { recursive: true, force: true });
     });
     const setupError = new Error("watcher setup failed");
+    const failureDirectory = await realpath(join(root, runtimeSourceRoots[1]));
     const originalWatch = fs.watch;
     let watcherClose;
-    let watchCalls = 0;
-    const watchMock = t.mock.method(fs, "watch", (...args) => {
-      if (++watchCalls === 2) throw setupError;
-      const watcher = originalWatch(...args);
-      watcherClose = t.mock.method(watcher, "close");
+    const watchMock = t.mock.method(fs, "watch", (directory, options, listener) => {
+      if (directory === failureDirectory && options.recursive) throw setupError;
+      const watcher = originalWatch(directory, options, listener);
+      if (options.recursive) watcherClose = t.mock.method(watcher, "close");
       return watcher;
     });
     syncBuiltinESMExports();
