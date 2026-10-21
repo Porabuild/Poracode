@@ -273,10 +273,8 @@ msgstr "{0} が匿名化された差分を比較しています…"
 msgid "{0} is offline. Showing last known status."
 msgstr "{0} はオフラインです。最後に確認したステータスを表示しています。"
 
-#. placeholder {0}: formatTokens(context.maxTokens)
 #. placeholder {0}: summary.maxLabel
 #: src/renderer/components/thread/ThreadContextDock.tsx
-#: src/renderer/components/thread/ThreadDetailsDocks.tsx
 msgid "{0} limit"
 msgstr "{0}制限"
 
@@ -569,8 +567,8 @@ msgstr "{imported, plural, one {#件のセッションをインポートしま�
 #~ msgstr "{label} · 以前のセッション用。新しいスレッドでは再度ログインしてください。"
 
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
-msgid "{label} account usage"
-msgstr "{label} アカウントの使用状況"
+#~ msgid "{label} account usage"
+#~ msgstr "{label} アカウントの使用状況"
 
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx

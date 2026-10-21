@@ -72,6 +72,7 @@ export function ThreadImagesDock({
         <ThreadDockHeader
           icon={artifacts.length > 0 ? FileText : Images}
           title={label}
+          collapse={{ collapsed, onToggle: () => setCollapsed(!collapsed) }}
           countLabel={
             <span className="[font-variant-numeric:tabular-nums]">
               {gallery.length + artifacts.length}
