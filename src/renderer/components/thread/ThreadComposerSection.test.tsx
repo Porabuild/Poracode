@@ -31,6 +31,10 @@ import { useThreadBackgroundTasksDockStore } from "@/renderer/state/threadBackgr
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useThreadFollowUpQueueStore } from "@/renderer/state/threadFollowUpQueueStore";
+import {
+  __resetThreadHistoryNoticeStoreForTest,
+  recordThreadHistoryNoticeRead,
+} from "@/renderer/state/remote/historyNoticeStore";
 import type { SaveClipboardImage } from "../composer/useAttachments";
 import { ThreadComposerSection } from "./ThreadComposerSection";
 import { ImplicitMcpServersContext } from "../composer/implicitMcpServers";
@@ -914,6 +918,48 @@ describe("ThreadComposerSection", () => {
     rerender(composerElement({ thread }));
     expect(menu().mcpServers.find((item) => item.descriptor.id === "chrome")?.visible).toBe(true);
   });
+
+  it.each([false, true])(
+    "shows the history notice in the composer docks for chat threads only (compact: %s)",
+    (compact) => {
+      if (compact)
+        vi.stubGlobal(
+          "matchMedia",
+          vi.fn((query: string) => ({
+            media: query,
+            matches: query === "(max-width: 767px)",
+            onchange: null,
+            addEventListener: () => undefined,
+            removeEventListener: () => undefined,
+            addListener: () => undefined,
+            removeListener: () => undefined,
+            dispatchEvent: () => true,
+          })),
+        );
+      const notice = {
+        kind: "history-incomplete" as const,
+        source: "exact" as const,
+        reason: "thread-bytes" as const,
+        refusedEvents: 21,
+        refusedBytes: 1401655,
+        acknowledgedCount: 1,
+        firstAcknowledgedAt: 1,
+        lastAcknowledgedAt: 2,
+      };
+      try {
+        recordThreadHistoryNoticeRead(guiThread.id, "local", notice);
+        recordThreadHistoryNoticeRead(terminalThread.id, "local", notice);
+        const { unmount } = renderComposer();
+        expect(screen.getByRole("button", { name: "Dismiss warning" })).toBeInTheDocument();
+        unmount();
+
+        renderComposer({ thread: terminalThread, agentStatus: claudeTerminalStatus });
+        expect(screen.queryByRole("button", { name: "Dismiss warning" })).toBeNull();
+      } finally {
+        __resetThreadHistoryNoticeStoreForTest();
+      }
+    },
+  );
 
   it("hides provider controls for active terminal threads", () => {
     renderComposer({

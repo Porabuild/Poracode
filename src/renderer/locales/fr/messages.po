@@ -3775,6 +3775,7 @@ msgid "Collapse todo dock"
 msgstr "Réduire le dock des tâches"
 
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 #: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 msgid "Collapse warning"
 msgstr "Réduire l'avertissement"
@@ -4348,11 +4349,11 @@ msgstr "Continuez dans..."
 msgid "Continue one conversation until a stop condition or limit is reached."
 msgstr "Poursuivez une conversation jusqu’à ce qu’une condition d’arrêt ou une limite soit atteinte."
 
-#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 msgid "Continue with incomplete history"
 msgstr "Continuer avec l'historique incomplet"
 
-#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 msgid "Continuing will keep the remaining history and mark this episode acknowledged; it does not restore the missing content."
 msgstr "Continuer conservera l'historique restant et marquera cet épisode comme acquitté ; le contenu manquant n'est pas restauré."
 
@@ -5935,6 +5936,7 @@ msgstr "Détection terminée"
 
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 msgid "Dismiss"
 msgstr "Rejeter"
 
@@ -5943,6 +5945,7 @@ msgid "Dismiss error"
 msgstr "Ignorer l'erreur"
 
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 msgid "Dismiss warning"
 msgstr "Ignorer l'avertissement"
 
@@ -6716,6 +6719,7 @@ msgid "Expand visual"
 msgstr "Agrandir le visuel"
 
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 #: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 msgid "Expand warning"
 msgstr "Développer l'avertissement"
@@ -12196,11 +12200,11 @@ msgstr "Dossier parent"
 #~ msgid "Parent folder, e.g. /home/me/projects"
 #~ msgstr "Dossier parent, par ex. /home/me/projects"
 
-#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 msgid "Part of this conversation's history may be missing on the server. Review the recovery options before continuing."
 msgstr "Une partie de l'historique de cette conversation est peut-être manquante sur le serveur. Examinez les options de récupération avant de continuer."
 
-#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 msgid "Part of this conversation's history was lost on the server and could not be shown. At least {refusedEvents} events / {refusedBytes} bytes are affected."
 msgstr "Une partie de l'historique de cette conversation a été perdue sur le serveur et n'a pas pu être affichée. Au moins {refusedEvents} événements / {refusedBytes} octets sont concernés."
 
@@ -14605,7 +14609,7 @@ msgstr "Examiner la PR #{prNumber} pour {0}"
 msgid "Review presentation"
 msgstr "Présentation de la revue"
 
-#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 msgid "Review recovery"
 msgstr "Examiner la récupération"
 
@@ -17226,7 +17230,7 @@ msgstr "Cette session distante n’existait déjà plus."
 #~ msgid "the {0} WSL user"
 #~ msgstr "l’utilisateur WSL {0}"
 
-#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 msgid "The acknowledgement failed."
 msgstr "L'acquittement a échoué."
 
@@ -17432,7 +17436,7 @@ msgstr "La conversation heartbeat n’existe plus."
 msgid "The heartbeat conversation uses a different agent."
 msgstr "La conversation heartbeat utilise un autre agent."
 
-#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 #: src/renderer/state/remote/historyNoticeActions.ts
 msgid "The history notice could not be read from the server."
 msgstr "L'avis d'historique n'a pas pu être lu depuis le serveur."
@@ -17454,7 +17458,7 @@ msgstr "L'hôte a renvoyé un point de terminaison d'appairage d'environnement n
 msgid "The host stops and restarts this environment's owner with the bundled runtime. The child's data directory is not touched."
 msgstr "L'hôte arrête puis redémarre le propriétaire de cet environnement avec le runtime fourni. Le répertoire de données de l'enfant n'est pas modifié."
 
-#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 msgid "The incomplete-history notice changed on the server. Review the updated details before continuing."
 msgstr "L'avis d'historique incomplet a changé sur le serveur. Examinez les détails mis à jour avant de continuer."
 
@@ -17625,7 +17629,7 @@ msgstr "Le tour sélectionné contient encore du travail en cours."
 msgid "The server configuration is invalid."
 msgstr "La configuration du serveur n’est pas valide."
 
-#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 msgid "The server could not confirm the acknowledgement. Retry to continue."
 msgstr "Le serveur n'a pas pu confirmer l'acquittement. Réessayez pour continuer."
 
@@ -17938,7 +17942,7 @@ msgstr "cet environnement"
 msgid "This environment's host identity changed. Re-pair it explicitly from the host."
 msgstr "L'identité d'hôte de cet environnement a changé. Réappairez-le explicitement depuis l'hôte."
 
-#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 msgid "This episode has been acknowledged; the missing content is not restored."
 msgstr "Cet épisode a été acquitté ; le contenu manquant n'est pas restauré."
 
@@ -20013,6 +20017,7 @@ msgid "Warming up WSL shell environment…"
 msgstr "Préparation de l'environnement shell WSL…"
 
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 #: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Warning"

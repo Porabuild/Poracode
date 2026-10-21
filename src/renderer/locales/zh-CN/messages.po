@@ -3775,6 +3775,7 @@ msgid "Collapse todo dock"
 msgstr "折叠待办事项面板"
 
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 #: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 msgid "Collapse warning"
 msgstr "折叠警告"
@@ -4348,11 +4349,11 @@ msgstr "在其他工具中继续..."
 msgid "Continue one conversation until a stop condition or limit is reached."
 msgstr "持续使用同一个对话，直到满足停止条件或达到限制。"
 
-#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 msgid "Continue with incomplete history"
 msgstr "继续查看不完整的历史记录"
 
-#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 msgid "Continuing will keep the remaining history and mark this episode acknowledged; it does not restore the missing content."
 msgstr "继续将保留剩余的历史记录并将此事件标记为已确认；缺失的内容不会恢复。"
 
@@ -5935,6 +5936,7 @@ msgstr "发现完成"
 
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 msgid "Dismiss"
 msgstr "关闭"
 
@@ -5943,6 +5945,7 @@ msgid "Dismiss error"
 msgstr "忽略错误"
 
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 msgid "Dismiss warning"
 msgstr "忽略警告"
 
@@ -6716,6 +6719,7 @@ msgid "Expand visual"
 msgstr "放大可视化内容"
 
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 #: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 msgid "Expand warning"
 msgstr "展开警告"
@@ -12196,11 +12200,11 @@ msgstr "父文件夹"
 #~ msgid "Parent folder, e.g. /home/me/projects"
 #~ msgstr "父文件夹，例如 /home/me/projects"
 
-#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 msgid "Part of this conversation's history may be missing on the server. Review the recovery options before continuing."
 msgstr "此对话的部分历史记录可能在服务器上缺失。继续之前请查看恢复选项。"
 
-#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 msgid "Part of this conversation's history was lost on the server and could not be shown. At least {refusedEvents} events / {refusedBytes} bytes are affected."
 msgstr "此对话的部分历史记录已在服务器上丢失，无法显示。至少影响 {refusedEvents} 个事件 / {refusedBytes} 字节。"
 
@@ -14605,7 +14609,7 @@ msgstr "查看{0}的 PR #{prNumber}"
 msgid "Review presentation"
 msgstr "评审显示"
 
-#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 msgid "Review recovery"
 msgstr "查看恢复"
 
@@ -17226,7 +17230,7 @@ msgstr "该远程会话已不存在。"
 #~ msgid "the {0} WSL user"
 #~ msgstr "{0} WSL 用户"
 
-#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 msgid "The acknowledgement failed."
 msgstr "确认失败。"
 
@@ -17432,7 +17436,7 @@ msgstr "心跳对话已不存在。"
 msgid "The heartbeat conversation uses a different agent."
 msgstr "心跳对话使用了其他代理。"
 
-#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 #: src/renderer/state/remote/historyNoticeActions.ts
 msgid "The history notice could not be read from the server."
 msgstr "无法从服务器读取历史记录通知。"
@@ -17454,7 +17458,7 @@ msgstr "主机返回了无效的环境配对端点。"
 msgid "The host stops and restarts this environment's owner with the bundled runtime. The child's data directory is not touched."
 msgstr "主机将使用内置运行时停止并重启此环境的所有者。不会改动子级的数据目录。"
 
-#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 msgid "The incomplete-history notice changed on the server. Review the updated details before continuing."
 msgstr "不完整历史记录通知已在服务器上更改。继续之前请查看更新的详细信息。"
 
@@ -17625,7 +17629,7 @@ msgstr "所选轮次仍有正在进行的任务。"
 msgid "The server configuration is invalid."
 msgstr "服务器配置无效。"
 
-#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 msgid "The server could not confirm the acknowledgement. Retry to continue."
 msgstr "服务器无法确认该确认操作。重试以继续。"
 
@@ -17938,7 +17942,7 @@ msgstr "这个环境"
 msgid "This environment's host identity changed. Re-pair it explicitly from the host."
 msgstr "此环境的主机身份已更改。请从主机显式重新配对。"
 
-#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 msgid "This episode has been acknowledged; the missing content is not restored."
 msgstr "此事件已确认；缺失的内容不会恢复。"
 
@@ -20013,6 +20017,7 @@ msgid "Warming up WSL shell environment…"
 msgstr "正在预热 WSL shell 环境..."
 
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 #: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Warning"
