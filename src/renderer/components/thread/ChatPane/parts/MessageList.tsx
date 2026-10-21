@@ -672,6 +672,11 @@ function CompletedTurnIndicator({
   threadId: string;
   record: CompletedTurnRecord;
 }) {
+  const hasAssistantActions = useAppStore(
+    (state) =>
+      record.anchorItemId !== null &&
+      state.runtimeItemsByIdByThread[threadId]?.[record.anchorItemId]?.type === "assistant_message",
+  );
   const elapsedSeconds = Math.max(0, Math.floor((record.endedAt - record.startedAt) / 1000));
   const elapsed = formatElapsed(elapsedSeconds);
   return (
@@ -682,7 +687,7 @@ function CompletedTurnIndicator({
             <Trans>Worked for {elapsed}</Trans>
           </span>
         ) : null}
-        {record.anchorItemId ? (
+        {record.anchorItemId && !hasAssistantActions ? (
           <ThreadForkTurnAction
             threadId={threadId}
             itemId={record.anchorItemId}
