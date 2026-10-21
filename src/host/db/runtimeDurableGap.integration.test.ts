@@ -187,6 +187,8 @@ describe.skipIf(!sqliteAvailable)(
     it("an authoritative rebase clears gap + older touches atomically, keeps the live touch, and never truncates", async () => {
       vi.useFakeTimers();
       vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
+      // Model storage that committed nothing for the whole age bound.
+      runtimePersistenceController.setCapacityReliefForTests(false);
       dbApplyThreadRuntimeEvents(A, [started(A, "one")]);
       vi.setSystemTime(new Date("2026-01-01T00:00:31.000Z"));
       const refused = dbApplyThreadRuntimeEvents(A, [delta(A, "one", "aged out")]);
@@ -233,6 +235,8 @@ describe.skipIf(!sqliteAvailable)(
     it("delete cascades the durable evidence and forgets the in-memory markers", () => {
       vi.useFakeTimers();
       vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
+      // Model storage that committed nothing for the whole age bound.
+      runtimePersistenceController.setCapacityReliefForTests(false);
       dbApplyThreadRuntimeEvents(A, [started(A, "one")]);
       vi.setSystemTime(new Date("2026-01-01T00:00:31.000Z"));
       dbApplyThreadRuntimeEvents(A, [delta(A, "one", "aged")]);

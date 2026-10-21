@@ -17,6 +17,7 @@ import {
   dbReplaceThreadRuntimeSnapshot,
 } from "./runtimeItems";
 import { RuntimePersistenceController } from "./runtimePersistenceController";
+import { DEFAULT_RUNTIME_QUEUE_BOUNDS } from "./runtimeWriteQueue";
 import {
   beginRuntimeFence,
   flushRuntimeFence,
@@ -39,6 +40,8 @@ import { persistSupervisorEvent } from "@/host/remote/server/runtimePersistence"
 const THREAD_A = "thread-a";
 const THREAD_B = "thread-b";
 const MIB = 1024 * 1024;
+const THREAD_EVENT_CAP = DEFAULT_RUNTIME_QUEUE_BOUNDS.maxPendingEventsPerThread;
+const GLOBAL_BYTE_CAP = DEFAULT_RUNTIME_QUEUE_BOUNDS.maxPendingBytesGlobal;
 
 function started(threadId: string, itemId: string): RuntimeEvent {
   return {
@@ -104,10 +107,38 @@ describe.skipIf(!sqliteAvailable)("B1 persistence correction (real SQLite)", () 
   });
 
   describe("admission refusal, contamination, and authoritative rebase", () => {
+    it("persists a large tool-output burst past the per-thread byte bound without a gap", async () => {
+      const bounds = runtimePersistenceController.getBounds();
+      const previous = { ...bounds };
+      Object.assign(bounds, { maxPendingBytesPerThread: MIB });
+      try {
+        // Screenshot-sized tool results arriving in one burst (~2 MiB).
+        const events = Array.from({ length: 20 }, (_, index) => [
+          started(THREAD_A, `tool-${index}`),
+          delta(THREAD_A, `tool-${index}`, "x".repeat(100 * 1024)),
+        ]).flat();
+        const outcome = persistSupervisorEvent({
+          type: "thread-runtime-events",
+          threadId: THREAD_A,
+          events,
+        });
+        expect(outcome.kind).toBe("publish");
+        expect(getRuntimeContamination(THREAD_A)).toBeNull();
+        expect(getSqlite().prepare("SELECT COUNT(*) AS n FROM thread_runtime_gaps").get()).toEqual({
+          n: 0,
+        });
+        await dbFlushThreadRuntimeWrites(THREAD_A);
+        expect(dbReadThreadRuntimeItems(THREAD_A)).toHaveLength(20);
+      } finally {
+        Object.assign(bounds, previous);
+      }
+    });
+
     it("publishes only the accepted prefix, refuses reads for the affected thread, and serves summaries", async () => {
+      runtimePersistenceController.setCapacityReliefForTests(false);
       const batch = [
         started(THREAD_A, "a"),
-        ...Array.from({ length: 5_000 }, () => delta(THREAD_A, "a", "x")),
+        ...Array.from({ length: THREAD_EVENT_CAP }, () => delta(THREAD_A, "a", "x")),
       ];
       const outcome = persistSupervisorEvent({
         type: "thread-runtime-events",
@@ -118,7 +149,7 @@ describe.skipIf(!sqliteAvailable)("B1 persistence correction (real SQLite)", () 
       if (outcome.kind !== "publish-partial") throw new Error("expected partial publication");
       // The refused suffix is never published; the accepted prefix is exact.
       expect(outcome.event).toMatchObject({ type: "thread-runtime-events", threadId: THREAD_A });
-      expect((outcome.event as { events: RuntimeEvent[] }).events).toHaveLength(5_000);
+      expect((outcome.event as { events: RuntimeEvent[] }).events).toHaveLength(THREAD_EVENT_CAP);
       expect(outcome.droppedEvents).toBe(1);
       expect(outcome.droppedBytes).toBeGreaterThan(0);
 
@@ -164,13 +195,14 @@ describe.skipIf(!sqliteAvailable)("B1 persistence correction (real SQLite)", () 
     });
 
     it("publishes a deferred reset only after its durable rebase applied", async () => {
+      runtimePersistenceController.setCapacityReliefForTests(false);
       persistSupervisorEvent({
         type: "thread-runtime-events",
         threadId: THREAD_A,
         events: [
           started(THREAD_A, "a"),
           delta(THREAD_A, "a", "before reset"),
-          ...Array.from({ length: 5_000 }, () => delta(THREAD_A, "a", "y")),
+          ...Array.from({ length: THREAD_EVENT_CAP }, () => delta(THREAD_A, "a", "y")),
         ],
       });
       // 5001+ events: the prefix commits, the suffix is refused and contaminates.
@@ -194,6 +226,7 @@ describe.skipIf(!sqliteAvailable)("B1 persistence correction (real SQLite)", () 
     it("keeps a global age refusal as explicit contamination until a deliberate rebase", async () => {
       vi.useFakeTimers();
       vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
+      runtimePersistenceController.setCapacityReliefForTests(false);
       try {
         dbApplyThreadRuntimeEvents(THREAD_A, [started(THREAD_A, "kept")]);
         // The accepted event ages past the 30 s bound without a successful
@@ -374,6 +407,7 @@ describe.skipIf(!sqliteAvailable)("B1 persistence correction (real SQLite)", () 
       inFlightWindowBytes?: number | null;
       write?: (threadId: string, events: readonly RuntimeEvent[]) => void;
       now?: () => number;
+      capacityRelief?: boolean;
     }): { controller: RuntimePersistenceController; signals: RuntimeProducerSignal[] } {
       const signals: RuntimeProducerSignal[] = [];
       const controller = new RuntimePersistenceController({
@@ -384,6 +418,7 @@ describe.skipIf(!sqliteAvailable)("B1 persistence correction (real SQLite)", () 
           ? { inFlightWindowBytes: options.inFlightWindowBytes }
           : {}),
         ...(options.now ? { now: options.now } : {}),
+        ...(options.capacityRelief !== undefined ? { capacityRelief: options.capacityRelief } : {}),
         onSignal: (signal) => signals.push(signal),
       });
       return { controller, signals };
@@ -391,11 +426,11 @@ describe.skipIf(!sqliteAvailable)("B1 persistence correction (real SQLite)", () 
 
     it("computes the pause threshold from the advertised in-flight window and clamps without enlarging the bound", () => {
       const { controller } = controllerWithSignals({ inFlightWindowBytes: 14 * MIB });
-      expect(controller.getPauseThresholdBytes()).toBe(32 * MIB - 14 * MIB - MIB);
+      expect(controller.getPauseThresholdBytes()).toBe(GLOBAL_BYTE_CAP - 14 * MIB - MIB);
       expect(controller.isPauseThresholdClamped()).toBe(false);
 
-      controller.setInFlightWindowBytes(64 * MIB);
-      expect(controller.getBounds().maxPendingBytesGlobal).toBe(32 * MIB);
+      controller.setInFlightWindowBytes(2 * GLOBAL_BYTE_CAP);
+      expect(controller.getBounds().maxPendingBytesGlobal).toBe(GLOBAL_BYTE_CAP);
       expect(controller.isPauseThresholdClamped()).toBe(true);
       expect(controller.getPauseThresholdBytes()).toBe(MIB);
     });
@@ -408,6 +443,7 @@ describe.skipIf(!sqliteAvailable)("B1 persistence correction (real SQLite)", () 
           maxPendingEventsGlobal: 100,
           maxPendingBytesGlobal: 10 * MIB,
         },
+        capacityRelief: false,
         write: (threadId, events) => applyThreadRuntimeEventsNow(threadId, events),
       });
       expect(
@@ -435,6 +471,7 @@ describe.skipIf(!sqliteAvailable)("B1 persistence correction (real SQLite)", () 
           maxPendingEventsPerThread: 10,
           maxPendingBytesPerThread: MIB,
         },
+        capacityRelief: false,
         write: (threadId, events) => applyThreadRuntimeEventsNow(threadId, events),
       });
       expect(
@@ -474,6 +511,7 @@ describe.skipIf(!sqliteAvailable)("B1 persistence correction (real SQLite)", () 
           maxPendingBytesPerThread: MIB,
           maxPendingBytesGlobal: 32 * MIB,
         },
+        capacityRelief: false,
       });
       expect(slotController.admit(THREAD_A, [delta(THREAD_A, "a", "x".repeat(2 * MIB))]).kind).toBe(
         "accepted",

@@ -10,6 +10,8 @@ import {
 
 const MIB = 1024 * 1024;
 const budget = { maxThreads: 4, maxBytes: 4 * MIB, maxMs: 5 };
+// The oversize-slot cases below are sized against a 4 MiB per-thread bound.
+const bounds = { maxPendingBytesPerThread: 4 * MIB };
 function delta(threadId: string, text: string, itemId = "item"): RuntimeEvent {
   return { type: "content.delta", threadId, itemId, stream: "assistant_text", delta: text };
 }
@@ -79,7 +81,7 @@ describe("atomic runtime queue prefixes", () => {
     const groups: string[][] = [];
     const queue = new RuntimeWriteQueue(
       () => undefined,
-      {},
+      bounds,
       () => 0,
       (batches) => {
         groups.push(batches.map((b) => b.threadId));
@@ -121,7 +123,7 @@ describe("atomic runtime queue prefixes", () => {
   it("keeps the 1 MiB prefix and 4 MiB ordinary group cap when callers request larger chunks", () => {
     const queue = new RuntimeWriteQueue(
       () => undefined,
-      {},
+      bounds,
       () => 0,
       () => ({ kind: "committed" }),
     );
@@ -145,7 +147,7 @@ describe("atomic runtime queue prefixes", () => {
     let flushClock = 0;
     const queue = new RuntimeWriteQueue(
       () => undefined,
-      {},
+      bounds,
       () => 10,
       () => {
         flushClock += 5;
@@ -169,7 +171,7 @@ describe("atomic runtime queue prefixes", () => {
     const groups: number[][] = [];
     const queue = new RuntimeWriteQueue(
       () => undefined,
-      {},
+      bounds,
       () => 0,
       (batches) => {
         groups.push(
@@ -214,7 +216,7 @@ describe("atomic runtime queue prefixes", () => {
     const groups: string[][] = [];
     const queue = new RuntimeWriteQueue(
       () => undefined,
-      {},
+      bounds,
       () => 0,
       (batches) => {
         groups.push(batches.map((b) => b.threadId));
