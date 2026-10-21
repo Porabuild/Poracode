@@ -113,6 +113,9 @@ export class RuntimePersistenceHealth {
   private producerSignal: "none" | "pause" | "stop" = "none";
   private retryableFailureTimes: number[] = [];
   private lastFailureAt: number | null = null;
+  private lastStorageFailureAt: number | null = null;
+  /** A storage failure no later write has succeeded past (flag, not clock order). */
+  private storageFailurePending = false;
   private lastSuccessAt: number | null = null;
   private retryBackoffIndex = 0;
   private storageBackoffIndex = 0;
@@ -263,6 +266,8 @@ export class RuntimePersistenceHealth {
   applyFailure(error: unknown, errorClass: RuntimeStorageErrorClass, threadId?: string): void {
     const now = this.options.now();
     this.lastFailureAt = now;
+    this.lastStorageFailureAt = now;
+    this.storageFailurePending = true;
     this.lastErrorClass = errorClass;
     if (errorClass === "retryable") {
       this.flushFailuresRetryable += 1;
@@ -298,18 +303,54 @@ export class RuntimePersistenceHealth {
   }
 
   noteQueueSuccess(): void {
+    this.noteReliefSuccess();
+    this.maybeRecoverFromRefusing();
+    this.evaluateWatermarks();
+  }
+
+  /**
+   * A committed admission-relief chunk: storage success evidence without a
+   * watermark verdict, which the relief's own backlog would otherwise trip
+   * mid-drain.
+   */
+  noteReliefSuccess(): void {
     this.flushSuccesses += 1;
     this.retryBackoffIndex = 0;
     this.storageBackoffIndex = 0;
     this.lastSuccessAt = this.options.now();
+    this.storageFailurePending = false;
     this.maybeRecover();
-    this.maybeRecoverFromRefusing();
-    this.evaluateWatermarks();
+  }
+
+  /**
+   * Whether an unscheduled write (admission relief, an early flush) may run:
+   * storage has not failed since its last success, or the backoff delay of the
+   * last scheduled retry has elapsed. Reads state only.
+   */
+  isStorageRetryDue(): boolean {
+    const failedAt = this.lastStorageFailureAt;
+    if (!this.storageFailurePending || failedAt === null) return true;
+    const storage = this.lastErrorClass === "storage";
+    const backoff = storage ? this.options.storageBackoffMs : this.options.retryBackoffMs;
+    // `currentRetryDelayMs` advanced the index after handing out the delay.
+    const step = Math.max(0, (storage ? this.storageBackoffIndex : this.retryBackoffIndex) - 1);
+    const delayMs = backoff[Math.min(step, backoff.length - 1)] ?? 1_000;
+    return this.options.now() - failedAt >= delayMs;
+  }
+
+  /** The queue is at its hard global count or byte bound. */
+  isAtHardGlobalBound(): boolean {
+    const observation = this.options.observe();
+    return (
+      observation.pendingBytes >= observation.bounds.maxPendingBytesGlobal ||
+      observation.pendingEvents >= observation.bounds.maxPendingEventsGlobal
+    );
   }
 
   /** A successful control write is also evidence that storage works again. */
   noteSuccessWithoutQueue(): void {
     this.lastSuccessAt = this.options.now();
+    this.storageFailurePending = false;
     this.retryBackoffIndex = 0;
     this.storageBackoffIndex = 0;
     this.maybeRecover();
@@ -365,14 +406,13 @@ export class RuntimePersistenceHealth {
     const observation = this.options.observe();
     const bounds = observation.bounds;
     const age = observation.oldestPendingAgeMs ?? 0;
-    const hardBytes = observation.pendingBytes >= bounds.maxPendingBytesGlobal;
-    const hardEvents = observation.pendingEvents >= bounds.maxPendingEventsGlobal;
-    if (hardBytes || hardEvents || age >= bounds.maxPendingAgeMs) {
+    const hardCap = this.isAtHardGlobalBound();
+    if (hardCap || age >= bounds.maxPendingAgeMs) {
       this.noteRefusalFailure();
       this.transitionTo("refusing");
       this.emitSignal({
         kind: "stop",
-        reason: hardBytes || hardEvents ? "hard-cap" : "age",
+        reason: hardCap ? "hard-cap" : "age",
       });
       return;
     }
@@ -436,6 +476,8 @@ export class RuntimePersistenceHealth {
     this.producerSignal = "none";
     this.retryableFailureTimes = [];
     this.lastFailureAt = null;
+    this.lastStorageFailureAt = null;
+    this.storageFailurePending = false;
     this.lastSuccessAt = null;
     this.retryBackoffIndex = 0;
     this.storageBackoffIndex = 0;

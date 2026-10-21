@@ -122,6 +122,7 @@ describe("RuntimePersistenceController state machine", () => {
         maxPendingEventsPerThread: 2,
         maxPendingBytesPerThread: 1_000_000,
       },
+      capacityRelief: false,
       flushIntervalMs: 60_000,
       onSignal: (signal) => signals.push(signal.kind),
     });
@@ -144,6 +145,7 @@ describe("RuntimePersistenceController state machine", () => {
         maxPendingEventsPerThread: 1,
         maxPendingBytesPerThread: 1_000_000,
       },
+      capacityRelief: false,
       flushIntervalMs: 60_000,
     });
     controller.admit("t1", [delta("1")]);
@@ -193,6 +195,7 @@ describe("RuntimePersistenceController state machine", () => {
     const controller = new RuntimePersistenceController({
       write: () => undefined,
       bounds: { maxPendingAgeMs: 1_000 },
+      capacityRelief: false,
       flushIntervalMs: 60_000,
       now: () => nowMs,
       onSignal: (signal) => signals.push(signal),
@@ -240,6 +243,7 @@ describe("RuntimePersistenceController mutation contract", () => {
     const controller = new RuntimePersistenceController({
       write: () => undefined,
       bounds: { maxPendingEventsPerThread: 1 },
+      capacityRelief: false,
       flushIntervalMs: 60_000,
     });
     controller.admit("t1", [delta("kept")]);
@@ -398,6 +402,7 @@ describe("RuntimePersistenceController delete ordering", () => {
     const controller = new RuntimePersistenceController({
       write: () => undefined,
       bounds: { maxPendingEventsPerThread: 1 },
+      capacityRelief: false,
       flushIntervalMs: 60_000,
     });
     expect(controller.admit("t1", [delta("kept")]).kind).toBe("accepted");
@@ -463,6 +468,7 @@ describe("RuntimePersistenceController synchronous mutation fast path", () => {
     const controller = new RuntimePersistenceController({
       write: () => undefined,
       bounds: { maxPendingEventsPerThread: 1 },
+      capacityRelief: false,
       flushIntervalMs: 60_000,
     });
     expect(controller.admit("t1", [delta("kept")]).kind).toBe("accepted");
@@ -490,6 +496,7 @@ describe("RuntimePersistenceController synchronous mutation fast path", () => {
     const controller = new RuntimePersistenceController({
       write: () => undefined,
       bounds: { maxPendingEventsPerThread: 1 },
+      capacityRelief: false,
       flushIntervalMs: 60_000,
     });
     expect(controller.admit("t1", [delta("kept")]).kind).toBe("accepted");

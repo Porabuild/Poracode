@@ -3775,6 +3775,7 @@ msgid "Collapse todo dock"
 msgstr "할 일 도크 접기"
 
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 #: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 msgid "Collapse warning"
 msgstr "경고 접기"
@@ -4348,11 +4349,11 @@ msgstr "다음에서 계속..."
 msgid "Continue one conversation until a stop condition or limit is reached."
 msgstr "중지 조건이나 제한에 도달할 때까지 하나의 대화를 계속합니다."
 
-#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 msgid "Continue with incomplete history"
 msgstr "불완전한 기록으로 계속"
 
-#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 msgid "Continuing will keep the remaining history and mark this episode acknowledged; it does not restore the missing content."
 msgstr "계속하면 남은 기록이 유지되고 이 에피소드가 확인됨으로 표시됩니다. 누락된 내용은 복원되지 않습니다."
 
@@ -5935,6 +5936,7 @@ msgstr "검색 완료"
 
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 msgid "Dismiss"
 msgstr "닫기"
 
@@ -5943,6 +5945,7 @@ msgid "Dismiss error"
 msgstr "오류 무시"
 
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 msgid "Dismiss warning"
 msgstr "경고 무시"
 
@@ -6716,6 +6719,7 @@ msgid "Expand visual"
 msgstr "시각 자료 확대"
 
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 #: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 msgid "Expand warning"
 msgstr "경고 펼치기"
@@ -12197,11 +12201,11 @@ msgstr "상위 폴더"
 #~ msgid "Parent folder, e.g. /home/me/projects"
 #~ msgstr "상위 폴더, 예: /home/me/projects"
 
-#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 msgid "Part of this conversation's history may be missing on the server. Review the recovery options before continuing."
 msgstr "이 대화 기록의 일부가 서버에 없을 수 있습니다. 계속하기 전에 복구 옵션을 검토하세요."
 
-#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 msgid "Part of this conversation's history was lost on the server and could not be shown. At least {refusedEvents} events / {refusedBytes} bytes are affected."
 msgstr "이 대화 기록의 일부가 서버에서 손실되어 표시할 수 없습니다. 최소 {refusedEvents}개 이벤트 / {refusedBytes}바이트가 영향을 받았습니다."
 
@@ -14606,7 +14610,7 @@ msgstr "{0}에 대한 PR #{prNumber} 검토"
 msgid "Review presentation"
 msgstr "리뷰 표시"
 
-#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 msgid "Review recovery"
 msgstr "복구 검토"
 
@@ -17227,7 +17231,7 @@ msgstr "해당 원격 세션은 이미 없어졌습니다."
 #~ msgid "the {0} WSL user"
 #~ msgstr "{0} WSL 사용자"
 
-#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 msgid "The acknowledgement failed."
 msgstr "확인에 실패했습니다."
 
@@ -17433,7 +17437,7 @@ msgstr "하트비트 대화가 더 이상 존재하지 않습니다."
 msgid "The heartbeat conversation uses a different agent."
 msgstr "하트비트 대화가 다른 에이전트를 사용합니다."
 
-#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 #: src/renderer/state/remote/historyNoticeActions.ts
 msgid "The history notice could not be read from the server."
 msgstr "서버에서 기록 알림을 읽지 못했습니다."
@@ -17455,7 +17459,7 @@ msgstr "호스트가 잘못된 환경 페어링 엔드포인트를 반환했습�
 msgid "The host stops and restarts this environment's owner with the bundled runtime. The child's data directory is not touched."
 msgstr "호스트는 번들 런타임으로 이 환경의 소유자를 중지하고 다시 시작합니다. 자식의 데이터 디렉터리는 변경되지 않습니다."
 
-#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 msgid "The incomplete-history notice changed on the server. Review the updated details before continuing."
 msgstr "불완전한 기록 알림이 서버에서 변경되었습니다. 계속하기 전에 업데이트된 세부 정보를 검토하세요."
 
@@ -17626,7 +17630,7 @@ msgstr "선택한 턴에 아직 진행 중인 작업이 있습니다."
 msgid "The server configuration is invalid."
 msgstr "서버 구성이 잘못되었습니다."
 
-#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 msgid "The server could not confirm the acknowledgement. Retry to continue."
 msgstr "서버가 확인을 확정하지 못했습니다. 계속하려면 다시 시도하세요."
 
@@ -17939,7 +17943,7 @@ msgstr "이 환경"
 msgid "This environment's host identity changed. Re-pair it explicitly from the host."
 msgstr "이 환경의 호스트 ID가 변경되었습니다. 호스트에서 명시적으로 다시 페어링하세요."
 
-#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 msgid "This episode has been acknowledged; the missing content is not restored."
 msgstr "이 에피소드는 확인되었습니다. 누락된 내용은 복원되지 않습니다."
 
@@ -20014,6 +20018,7 @@ msgid "Warming up WSL shell environment…"
 msgstr "WSL 셸 환경 준비 중…"
 
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 #: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Warning"

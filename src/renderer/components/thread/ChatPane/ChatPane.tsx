@@ -41,7 +41,6 @@ import { ChatFindBar, type ScrollToIndex } from "@/renderer/components/find/Chat
 import { ChatPaneActionsContext, type ChatPaneActions } from "./chatPaneActionsContext";
 import { ChatReaderFollowContext, createChatReaderFollowSignal } from "./chatReaderFollow";
 import { ChatScrollControls, type ChatScrollControlsHandle } from "./ChatScrollControls";
-import { ThreadHistoryNoticeBanner } from "./parts/HistoryNoticeBanner";
 import {
   ChatConnectingFooter,
   ChatTurnElapsedFooter,
@@ -505,7 +504,6 @@ export function ChatPane(props: ChatPaneProps) {
                 <Trans>Server offline — this conversation may be out of date.</Trans>
               </div>
             ) : null}
-            <ThreadHistoryNoticeBanner threadId={threadId} />
             <ThreadForkOrigin threadId={threadId} />
             <ConversationSearchJump
               threadId={threadId}
