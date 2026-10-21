@@ -2348,6 +2348,40 @@ describe("ChatPane", () => {
     expect(screen.queryByRole("button", { name: "Copy message" })).not.toBeInTheDocument();
   });
 
+  it("keeps the footer fork row while reconnecting so the footer height does not change", () => {
+    const thread = { ...makeThread(), status: "idle" as const };
+    useAppStore.setState({ threads: [thread] });
+    useAppStore.getState().applyRuntimeEvent(thread.id, {
+      type: "item.started",
+      threadId: thread.id,
+      itemId: "tool-1",
+      itemType: "tool_call",
+      payload: { name: "Read", status: "completed", args: { file_path: "hello.txt" } },
+    });
+    useAppStore
+      .getState()
+      .hydrateThreadCompletedTurns(thread.id, [
+        { startedAt: 1000, endedAt: 76000, anchorItemId: "tool-1" },
+      ]);
+    useAppStore.setState({
+      threads: [thread],
+      connectingThreadIds: { [thread.id]: "connection-1" },
+    });
+
+    renderChatPane(thread);
+
+    expect(screen.getByText("Connecting…")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Fork from here" })).toBeInTheDocument();
+
+    act(() => {
+      useAppStore.getState().finishThreadConnecting(thread.id, "connection-1");
+    });
+
+    expect(screen.queryByText("Connecting…")).not.toBeInTheDocument();
+    expect(screen.getByText("Worked for 1m 15s")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Fork from here" })).toBeInTheDocument();
+  });
+
   it("renders a completed turn whose stored anchor is an unrendered goal item", () => {
     const thread = {
       ...makeThread(),
