@@ -20,6 +20,7 @@ const repoRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 // fresh UUID-scoped registry key. Never downloads a compiler or touches real PATH.
 async function exerciseDesktopCliRegistration(channel) {
   const commandName = channel === "nightly" ? "poracode-next" : "poracode";
+  const productFilename = channel === "nightly" ? "Poracode Nightly" : "Poracode";
   const cache = join(process.env.LOCALAPPDATA, "electron-builder", "Cache", "nsis");
   const nsisDir = process.env.PORACODE_TEST_NSIS_DIR ?? join(cache, "nsis-3.0.4.1-nsis-3.0.4.1");
   const plugins =
@@ -52,7 +53,7 @@ async function exerciseDesktopCliRegistration(channel) {
   const program = join(root, "registry-fixture.exe");
   const result = join(root, "result.txt");
   const definitions = {
-    APP_EXECUTABLE_FILENAME: "Poracode.exe",
+    PRODUCT_FILENAME: productFilename,
     BUILD_RESOURCES_DIR: root,
     PORACODE_CLI_SOURCE: join(repoRoot, "build", "desktop-cli.nsh"),
     PORACODE_CLI_ENV_KEY: `${ownKey}\\Environment`,
@@ -111,7 +112,7 @@ async function exerciseDesktopCliRegistration(channel) {
   const nativeEnv = Object.fromEntries(
     Object.entries(process.env).filter(([key]) => allowed.has(key.toUpperCase())),
   );
-  execFileSync(compiler, ["/V2", join(root, "fixture.nsi")], {
+  execFileSync(compiler, ["/WX", "/V2", join(root, "fixture.nsi")], {
     cwd: root,
     env: { ...nativeEnv, NSISDIR: nsisDir },
     windowsHide: true,
@@ -143,7 +144,7 @@ async function exerciseDesktopCliRegistration(channel) {
   };
   const receiptPath = join(root, "receipt.json");
   writeFileSync(receiptPath, JSON.stringify(receipt, null, 2) + "\n");
-  const workerImage = join(prefix, "Poracode.exe");
+  const workerImage = join(prefix, `${productFilename}.exe`);
   copyFileSync(program, workerImage);
   const worker = spawn(workerImage, ["/GuardWorker"], {
     cwd: root,
