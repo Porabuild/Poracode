@@ -13,6 +13,7 @@ import {
 import type { SupervisorEvent } from "@/shared/ipc";
 import type { LocalUsageCollector } from "./localUsageCollectors";
 import { UsageService } from "./usageService";
+import { createNodeHttpClient } from "./usageHttpClient";
 
 const NOW = 1_700_000_000_000;
 
@@ -66,6 +67,44 @@ afterEach(() => {
 });
 
 describe("UsageService", () => {
+  it("publishes successful startup usage after a transient connection failure", async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockRejectedValueOnce(new TypeError("fetch failed", { cause: { code: "ECONNRESET" } }))
+      .mockResolvedValueOnce(new Response(CLAUDE_BODY, { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const events: SupervisorEvent[] = [];
+    let collected!: () => void;
+    const ready = new Promise<void>((resolve) => {
+      collected = resolve;
+    });
+    const service = new UsageService({
+      emit: (event) => {
+        events.push(event);
+        if (event.type === "provider-usage-all") collected();
+      },
+      cachePath: tempCachePath(),
+      host: { ...makeHost({ claude: { accessToken: "fixture" } }), http: createNodeHttpClient() },
+      providerIds: ["claude"],
+      profileSources: () => [],
+      localCollectors: [],
+    });
+    try {
+      expect(await service.getProviderUsage({})).toEqual({ snapshots: [], fromCache: false });
+      await ready;
+      const result = await service.getProviderUsage({});
+      expect(result.snapshots).toMatchObject([{ providerId: "claude", status: "ok" }]);
+      expect(result.snapshots[0]?.windows).toHaveLength(2);
+      expect(events.filter((event) => event.type === "provider-usage")).toMatchObject([
+        { snapshot: { providerId: "claude", status: "ok" } },
+      ]);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    } finally {
+      service.stop();
+      vi.unstubAllGlobals();
+    }
+  });
+
   it.each([4, 6, 7, 8, 9, 10, 11, 12])(
     "discards snapshots from obsolete collector cache version %i",
     async (version) => {
