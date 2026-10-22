@@ -41,7 +41,7 @@ export const deviceTools: ToolDomain = {
       name: "control_device",
       description:
         "Start or send tap/swipe/text/hardware-key input to this thread's attached control-mode device while the Devices plugin is enabled. No separate agent-consent prompt, host-desktop input, shell commands, device shutdown, arbitrary targets, or permission elevation. For coordinates capture a fresh screenshot first; on a stale-frame error capture again. ADB text accepts printable ASCII; iOS has no Back key.",
-      inputSchema: z.toJSONSchema(deviceActionSchema),
+      inputSchema: { ...z.toJSONSchema(deviceActionSchema), type: "object" },
     },
   ],
   handlers: {
