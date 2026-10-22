@@ -9223,6 +9223,7 @@ msgstr "Ładowanie marketplace…"
 msgid "Loading matched message…"
 msgstr "Wczytywanie znalezionej wiadomości…"
 
+#: src/renderer/components/thread/ChatPane/parts/items/MarkdownVideo.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorMediaViews.tsx
 msgid "Loading media preview…"
@@ -14401,6 +14402,7 @@ msgstr "Tylko użycie zachowane na tym hoście."
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/components/thread/ChatPane/ChatPane.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/MarkdownVideo.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/useHistoryItemDetails.tsx
 #: src/renderer/components/thread/SideChat/SideChatBody.tsx
 #: src/renderer/components/thread/SideChat/SideChatThreadView.tsx
@@ -18036,6 +18038,7 @@ msgstr "Ten komputer"
 msgid "This machine (local)"
 msgstr "Ta maszyna (lokalnie)"
 
+#: src/renderer/components/thread/ChatPane/parts/items/MarkdownVideo.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorMediaViews.tsx
 msgid "This media preview is unavailable."
 msgstr "Podgląd tego pliku multimedialnego jest niedostępny."
@@ -19805,6 +19808,7 @@ msgid "via {0}"
 msgstr "przez {0}"
 
 #: src/renderer/components/media/NativeMediaView.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/MarkdownVideo.tsx
 msgid "Video preview"
 msgstr "Podgląd wideo"
 

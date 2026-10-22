@@ -9232,6 +9232,7 @@ msgstr "Loading marketplace…"
 msgid "Loading matched message…"
 msgstr "Loading matched message…"
 
+#: src/renderer/components/thread/ChatPane/parts/items/MarkdownVideo.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorMediaViews.tsx
 msgid "Loading media preview…"
@@ -14410,6 +14411,7 @@ msgstr "Retained usage on this host only."
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/components/thread/ChatPane/ChatPane.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/MarkdownVideo.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/useHistoryItemDetails.tsx
 #: src/renderer/components/thread/SideChat/SideChatBody.tsx
 #: src/renderer/components/thread/SideChat/SideChatThreadView.tsx
@@ -18045,6 +18047,7 @@ msgstr "This machine"
 msgid "This machine (local)"
 msgstr "This machine (local)"
 
+#: src/renderer/components/thread/ChatPane/parts/items/MarkdownVideo.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorMediaViews.tsx
 msgid "This media preview is unavailable."
 msgstr "This media preview is unavailable."
@@ -19818,6 +19821,7 @@ msgid "via {0}"
 msgstr "via {0}"
 
 #: src/renderer/components/media/NativeMediaView.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/MarkdownVideo.tsx
 msgid "Video preview"
 msgstr "Video preview"
 

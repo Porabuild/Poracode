@@ -1,4 +1,5 @@
 import { isImagePath, toLocalFileUrl } from "./promptContent";
+import { chatVideoFilePath, isChatVideoSource, isVideoPath } from "./chatVideo";
 
 export interface MarkdownLocalImageOptions {
   /** Project / worktree filesystem root for project-relative image paths. */
@@ -20,6 +21,7 @@ export function rewriteMarkdownLocalImageUrls(
   text: string,
   options?: MarkdownLocalImageOptions,
 ): string {
+  text = rewriteMarkdownLocalVideoUrls(text, options);
   if (!text.includes("![")) return text;
   // Only complete `![…](…)` forms — incomplete streaming tails stay untouched.
   return text.replace(
@@ -27,10 +29,66 @@ export function rewriteMarkdownLocalImageUrls(
     (full, alt: string, angleUrl: string | undefined, bareUrl: string | undefined) => {
       const rawUrl = (angleUrl ?? bareUrl ?? "").trim();
       if (!rawUrl) return full;
+      // Videos already passed through code-aware rewriting above.
+      if (isVideoPath(rawUrl)) return full;
       const rewritten = resolveMarkdownImageUrl(rawUrl, options);
       if (!rewritten) return full;
       // Angle brackets keep the URL opaque to markdown's backslash escapes.
       return `![${alt}](<${rewritten}>)`;
+    },
+  );
+}
+
+/** Preserve Windows video destinations before CommonMark consumes backslashes. */
+export function rewriteMarkdownLocalVideoUrls(
+  text: string,
+  options?: MarkdownLocalImageOptions,
+): string {
+  if (!text.includes("](")) return text;
+  let fence: { marker: string; length: number } | undefined;
+  let prose = "";
+  let result = "";
+  for (const line of text.match(/[^\n]*(?:\n|$)/g) ?? []) {
+    const match = /^ {0,3}(`{3,}|~{3,})(.*?)(?:\r?\n)?$/.exec(line);
+    if (fence) {
+      result += line;
+      if (
+        match &&
+        match[1]![0] === fence.marker &&
+        match[1]!.length >= fence.length &&
+        !match[2]!.trim()
+      )
+        fence = undefined;
+    } else if (match && !(match[1]![0] === "`" && match[2]!.includes("`"))) {
+      result += rewriteVideoProse(prose, options) + line;
+      prose = "";
+      fence = { marker: match[1]![0]!, length: match[1]!.length };
+    } else if (/^(?: {4}|\t)/u.test(line)) {
+      result += rewriteVideoProse(prose, options) + line;
+      prose = "";
+    } else {
+      prose += line;
+    }
+  }
+  return result + rewriteVideoProse(prose, options);
+}
+
+function rewriteVideoProse(text: string, options?: MarkdownLocalImageOptions): string {
+  return text.replace(
+    /(`+)[\s\S]*?(?<!`)\1(?!`)|(!?\[[^\]]*\])\((?:<([^>\n]+)>|([^)\n]+))\)/g,
+    (
+      full,
+      code: string | undefined,
+      label: string | undefined,
+      angleUrl: string | undefined,
+      bareUrl: string | undefined,
+    ) => {
+      if (code || !label) return full;
+      const url = (angleUrl ?? bareUrl ?? "").trim();
+      if (!isChatVideoSource(url)) return full;
+      const path = chatVideoFilePath(url);
+      const rewritten = path ? resolveMarkdownImageUrl(path, options) : null;
+      return rewritten ? `${label}(<${rewritten}>)` : full;
     },
   );
 }
@@ -61,7 +119,7 @@ export function resolveMarkdownImageUrl(
     return toLocalFileUrl(trimmed);
   }
 
-  if (!isImagePath(trimmed) || trimmed.includes("://")) return null;
+  if ((!isImagePath(trimmed) && !isVideoPath(trimmed)) || trimmed.includes("://")) return null;
 
   const absolute = resolveRelativeImagePath(trimmed, options);
   return absolute ? toLocalFileUrl(absolute) : null;

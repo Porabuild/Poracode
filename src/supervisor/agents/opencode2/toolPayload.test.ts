@@ -1,8 +1,23 @@
 import { describe, expect, it } from "vitest";
-import { createOpenCode2ToolItem, openCode2ToolPayload } from "./toolPayload";
+import {
+  applyOpenCode2ToolContent,
+  createOpenCode2ToolItem,
+  openCode2ToolPayload,
+} from "./toolPayload";
+import { readToolVideoSources } from "@/shared/chatVideo";
 import { readOpenCode2String } from "./readers";
 
 describe("OpenCode 2 plugin tool classification", () => {
+  it("normalizes native video file content into standard resource links", () => {
+    const item = createOpenCode2ToolItem("video", "record_demo");
+    applyOpenCode2ToolContent(item, [
+      { type: "text", text: "Recorded" },
+      { type: "file", uri: "file:///tmp/demo.mp4", mime: "video/mp4", name: "Demo" },
+    ]);
+    expect(readToolVideoSources(openCode2ToolPayload(item).result)).toEqual([
+      { src: "file:///tmp/demo.mp4", name: "Demo", mimeType: "video/mp4" },
+    ]);
+  });
   it.each(["create_goal", "delete_calendar_event", "shell_preferences", "plugin_websearch_config"])(
     "keeps %s as a generic tool without invented file or shell fields",
     (name) => {

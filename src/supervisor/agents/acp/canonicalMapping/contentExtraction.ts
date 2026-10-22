@@ -8,6 +8,7 @@
 
 import type { CanonicalItemType } from "@/shared/contracts";
 import { readMcpAppResource } from "@/shared/mcpAppResources";
+import { readToolVideoSources } from "@/shared/chatVideo";
 import { readFileChangePath } from "../../fileChangeSummary";
 
 export function normalizeToolText(value: string | null | undefined): string | undefined {
@@ -23,13 +24,16 @@ export function firstNonEmptyLine(text: string): string | undefined {
     .find((line) => line.length > 0);
 }
 
-/** Preserve standard resource blocks instead of flattening an MCP App to text. */
-export function extractToolCallMcpAppResult(
+/** Preserve standard renderable resource blocks instead of flattening them to text. */
+export function extractToolCallResourceResult(
   content: unknown,
   rawOutput?: unknown,
-): unknown | undefined {
-  if (readMcpAppResource(rawOutput)) return rawOutput;
-  if (!Array.isArray(content)) return;
+  resolveTerminalOutput?: (terminalId: string) => string | undefined,
+  terminalIdHint?: string,
+): (Record<string, unknown> & { content: unknown[] }) | undefined {
+  if (readMcpAppResource(rawOutput))
+    return rawOutput as Record<string, unknown> & { content: unknown[] };
+  if (!Array.isArray(content) && readToolVideoSources(rawOutput).length === 0) return;
   const rawResult =
     rawOutput && typeof rawOutput === "object" && !Array.isArray(rawOutput)
       ? (rawOutput as Record<string, unknown>)
@@ -38,14 +42,23 @@ export function extractToolCallMcpAppResult(
     ...rawResult,
     content: [
       ...(Array.isArray(rawResult.content) ? rawResult.content : []),
-      ...content.flatMap((entry) =>
+      ...(Array.isArray(rawOutput) ? rawOutput : []),
+      ...(typeof rawOutput === "string" && rawOutput ? [{ type: "text", text: rawOutput }] : []),
+      ...(Array.isArray(content) ? content : []).flatMap((entry) =>
         entry && typeof entry === "object" && entry.type === "content" && entry.content
           ? [entry.content]
           : [],
       ),
     ],
   };
-  return readMcpAppResource(result) ? result : undefined;
+  if (!readMcpAppResource(result) && readToolVideoSources(result).length === 0) return;
+  const terminalText = extractToolCallContentText(
+    Array.isArray(content) ? content.filter((entry) => entry?.type === "terminal") : undefined,
+    resolveTerminalOutput,
+    terminalIdHint,
+  );
+  if (terminalText) result.content.push({ type: "text", text: terminalText });
+  return result;
 }
 
 export function extractToolLocations(

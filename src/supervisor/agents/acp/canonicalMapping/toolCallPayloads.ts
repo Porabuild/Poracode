@@ -15,7 +15,7 @@ import { readDiffSummary, readStringField } from "../../fileChangeSummary";
 import {
   extractFileChangePath,
   extractToolCallContentImages,
-  extractToolCallMcpAppResult,
+  extractToolCallResourceResult,
   extractToolCallContentText,
   extractToolLocations,
   normalizeToolText,
@@ -61,7 +61,11 @@ export function buildAcpToolCallPayload(
   // finalization (`finalizeToolCallPayload`) guarantees it never stays nameless.
   const name = title ?? kind;
   const contentResult = extractToolCallContentText(toolCall.content, resolveTerminalOutput);
-  const mcpAppResult = extractToolCallMcpAppResult(toolCall.content, toolCall.rawOutput);
+  const resourceResult = extractToolCallResourceResult(
+    toolCall.content,
+    toolCall.rawOutput,
+    resolveTerminalOutput,
+  );
   // Images may be inline base64, a `uri`-only reference, or — for a completed
   // read-kind call — only named by `locations`; the session-injected resolver
   // is what turns the latter two into renderable data URLs.
@@ -76,8 +80,8 @@ export function buildAcpToolCallPayload(
     ...(name ? { name } : {}),
     args: toolCall.rawInput,
     status,
-    ...(mcpAppResult !== undefined
-      ? { result: mcpAppResult }
+    ...(resourceResult !== undefined
+      ? { result: resourceResult }
       : contentResult !== undefined
         ? { result: contentResult }
         : {}),
@@ -101,7 +105,16 @@ export function buildAcpToolCallPayload(
         : undefined;
     return {
       ...base,
-      ...(commandResult !== undefined ? { result: commandResult } : {}),
+      ...(commandResult !== undefined
+        ? {
+            result: resourceResult
+              ? {
+                  ...resourceResult,
+                  content: [...resourceResult.content, { type: "text", text: commandResult }],
+                }
+              : commandResult,
+          }
+        : {}),
       command,
       ...(cwd ? { cwd } : {}),
     };
@@ -179,7 +192,12 @@ export function buildAcpToolCallUpdatePayload(
   const contentDiffs = isFileChange ? extractAcpFileChangesFromContent(toolCall.content) : [];
   const contentDiffText = isFileChange ? joinAcpContentFileChangeDiffs(contentDiffs) : undefined;
   const result =
-    extractToolCallMcpAppResult(toolCall.content, toolCall.rawOutput) ??
+    extractToolCallResourceResult(
+      toolCall.content,
+      toolCall.rawOutput,
+      resolveTerminalOutput,
+      item.terminalId,
+    ) ??
     pickAcpToolCallResult({
       contentDiffText,
       rawOutput: toolCall.rawOutput,

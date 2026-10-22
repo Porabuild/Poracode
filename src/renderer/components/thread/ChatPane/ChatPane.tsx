@@ -234,6 +234,7 @@ export function ChatPane(props: ChatPaneProps) {
     );
     const contentActions: ChatPaneActions = {
       threadId,
+      ...(targetContext ? { mediaLocation: targetContext.projectLocation } : {}),
       // Image custody is independent of project/file actions, including Home.
       // An explicit empty owner resolver must never fall through globally.
       remoteImageRefUrl: isRemoteSession()
