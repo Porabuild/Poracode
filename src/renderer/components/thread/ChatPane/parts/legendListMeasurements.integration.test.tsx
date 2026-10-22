@@ -26,6 +26,27 @@ import {
 } from "./legendListMeasurementFixtures";
 
 describe("actual LegendList measurement retirement", () => {
+  it("shrinks prompt trailing space as the reply grows without moving the prompt", () => {
+    const onSizeChanged = vi.fn<(size: number) => void>();
+    const view = mount(rows(0, 2), {
+      anchoredEndSpace: { anchorIndex: 1, anchorOffset: 0, onSizeChanged },
+    });
+    view.update(rows(0, 2));
+    settle();
+    expect(onSizeChanged).toHaveBeenLastCalledWith(200);
+    view.scroll(40);
+    view.update(rows(0, 3));
+    settle();
+    measure("row-2", 180);
+    settle();
+    expect(onSizeChanged).toHaveBeenLastCalledWith(20);
+    expect(view.offset("row-1")).toBe(0);
+    measure("row-2", 250);
+    settle();
+    expect(onSizeChanged).toHaveBeenLastCalledWith(0);
+    expect(view.offset("row-1")).toBe(0);
+  });
+
   it.each([false, true])(
     "honors explicit parent width over a measured bootstrap width, explicit=%s",
     (explicit) => {

@@ -1,5 +1,6 @@
 import { act, fireEvent, screen } from "@testing-library/react";
 import { createRef } from "react";
+import type { AnchoredEndSpaceConfig } from "@legendapp/list/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import type { ChatTimelineEntry } from "../chatPaneSelectors";
@@ -21,6 +22,7 @@ type MockLegendProps = {
   getItemType: (item: ChatTimelineEntry, index: number) => string;
   initialScrollAtEnd: boolean;
   maintainScrollAtEnd: unknown;
+  anchoredEndSpace?: AnchoredEndSpaceConfig;
   maintainScrollAtEndThreshold: number;
   maintainVisibleContentPosition: unknown;
   onStartReached?: () => void;
@@ -99,6 +101,10 @@ vi.mock("@legendapp/list/react", async () => {
                   top + (legendSizes.get(props.keyExtractor(item, itemIndex)) ?? MOCK_ROW_SIZE),
                 0,
               ),
+          positionByKey: (key: string) => {
+            const index = props.data.findIndex((entry) => entry.id === key);
+            return index < 0 ? undefined : index * MOCK_ROW_SIZE;
+          },
           sizeAtIndex: (index: number) => {
             const item = props.data[index];
             return item
@@ -230,7 +236,213 @@ describe("MessageList", () => {
       runtimeItemsByIdByThread: {},
       runtimeItemChildrenByParentByThread: {},
       runtimeCompletedTurnsByThread: {},
+      chatScrollToPromptRequests: {},
+      chatScrollToBottomTokens: {},
     }));
+  });
+
+  it.each([false, true])(
+    "scrolls the submitted prompt to the top with trailing space, reduced motion=%s",
+    (reducedMotion) => {
+      const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+      const matchMedia = vi.spyOn(window, "matchMedia").mockReturnValue({
+        matches: reducedMotion,
+        media: mediaQuery.media,
+        onchange: null,
+        addListener: () => undefined,
+        removeListener: () => undefined,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+        dispatchEvent: () => false,
+      });
+      vi.useFakeTimers();
+      try {
+        seedCompletedItem("thread-1", "old-prompt", "user_message");
+        seedCompletedItem("thread-1", "answer", "assistant_message");
+        const onNewPrompt = vi.fn<() => void>();
+        const onPromptScrollWrite = vi.fn<(top: number) => void>();
+        const { rerender, container } = render(
+          <MessageList
+            threadId="thread-1"
+            entries={makeEntries(["old-prompt", "answer"])}
+            onNewPrompt={onNewPrompt}
+            onPromptScrollWrite={onPromptScrollWrite}
+          />,
+        );
+        act(() => {
+          useAppStore.getState().requestChatScrollToPrompt("thread-1");
+        });
+        expect((latestLegendProps.current as MockLegendProps).anchoredEndSpace).toBeUndefined();
+        expect(onNewPrompt).not.toHaveBeenCalled();
+        act(() => seedCompletedItem("thread-1", "new-prompt", "user_message"));
+        rerender(
+          <MessageList
+            threadId="thread-1"
+            entries={makeEntries(["old-prompt", "answer", "new-prompt"])}
+            onNewPrompt={onNewPrompt}
+            onPromptScrollWrite={onPromptScrollWrite}
+          />,
+        );
+        const props = latestLegendProps.current as MockLegendProps;
+        expect(onNewPrompt).toHaveBeenCalledOnce();
+        expect(props.maintainScrollAtEnd).toBe(false);
+        expect(props.anchoredEndSpace).toMatchObject({ anchorIndex: 2, anchorOffset: 0 });
+        const scroller = container.querySelector<HTMLElement>("[data-poracode-chat-scroller]")!;
+        act(() =>
+          props.anchoredEndSpace?.onReady?.({ anchorIndex: 2, anchorKey: "new-prompt", size: 400 }),
+        );
+        act(() => {
+          vi.advanceTimersByTime(80);
+        });
+        expect(scroller.scrollTop).toBeGreaterThan(0);
+        expect(scroller.scrollTop).toBeLessThanOrEqual(200);
+        expect(scroller.scrollTop === 200).toBe(reducedMotion);
+        act(() => {
+          vi.advanceTimersByTime(128);
+        });
+        expect(scroller.scrollTop).toBe(200);
+        expect(onPromptScrollWrite).toHaveBeenLastCalledWith(200);
+        act(() => {
+          useAppStore.getState().requestChatScrollToBottom("thread-1");
+        });
+        expect((latestLegendProps.current as MockLegendProps).anchoredEndSpace).toBeUndefined();
+      } finally {
+        vi.useRealTimers();
+        matchMedia.mockRestore();
+      }
+    },
+  );
+
+  it("cancels the prompt animation on a manual scroll", () => {
+    vi.useFakeTimers();
+    try {
+      seedCompletedItem("thread-1", "old-prompt", "user_message");
+      const { rerender, container } = render(
+        <MessageList
+          threadId="thread-1"
+          entries={makeEntries(["old-prompt"])}
+          onStartReached={() => undefined}
+        />,
+      );
+      act(() => {
+        useAppStore.getState().requestChatScrollToPrompt("thread-1");
+      });
+      act(() => seedCompletedItem("thread-1", "new-prompt", "user_message"));
+      rerender(
+        <MessageList
+          threadId="thread-1"
+          entries={makeEntries(["old-prompt", "new-prompt"])}
+          onStartReached={() => undefined}
+        />,
+      );
+      const props = latestLegendProps.current as MockLegendProps;
+      const scroller = container.querySelector<HTMLElement>("[data-poracode-chat-scroller]")!;
+      act(() =>
+        props.anchoredEndSpace?.onReady?.({ anchorIndex: 1, anchorKey: "new-prompt", size: 400 }),
+      );
+      act(() => {
+        vi.advanceTimersByTime(80);
+      });
+      fireEvent.wheel(scroller, { deltaY: -40 });
+      const stoppedAt = scroller.scrollTop;
+      act(() => {
+        vi.advanceTimersByTime(200);
+      });
+      expect(scroller.scrollTop).toBe(stoppedAt);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("honors manual navigation before a queued prompt arrives", () => {
+    seedCompletedItem("thread-1", "old-prompt", "user_message");
+    const { rerender, container } = render(
+      <MessageList
+        threadId="thread-1"
+        entries={makeEntries(["old-prompt"])}
+        onStartReached={() => undefined}
+      />,
+    );
+    act(() => {
+      useAppStore.getState().requestChatScrollToPrompt("thread-1", true);
+    });
+    fireEvent.wheel(container.querySelector("[data-poracode-chat-scroller]")!, { deltaY: -40 });
+    act(() => {
+      seedCompletedItem("thread-1", "queued-prompt", "user_message");
+    });
+    rerender(
+      <MessageList
+        threadId="thread-1"
+        entries={makeEntries(["old-prompt", "queued-prompt"])}
+        onStartReached={() => undefined}
+      />,
+    );
+    expect((latestLegendProps.current as MockLegendProps).anchoredEndSpace).toBeUndefined();
+  });
+
+  it("anchors each queued prompt and consumes requests across a remount", () => {
+    seedCompletedItem("thread-1", "old-prompt", "user_message");
+    const { rerender, unmount } = render(
+      <MessageList threadId="thread-1" entries={makeEntries(["old-prompt"])} />,
+    );
+    act(() => {
+      useAppStore.getState().requestChatScrollToPrompt("thread-1", true);
+      useAppStore.getState().requestChatScrollToPrompt("thread-1", true);
+      seedCompletedItem("thread-1", "queued-1", "user_message");
+    });
+    rerender(<MessageList threadId="thread-1" entries={makeEntries(["old-prompt", "queued-1"])} />);
+    expect((latestLegendProps.current as MockLegendProps).anchoredEndSpace?.anchorIndex).toBe(1);
+    act(() => {
+      seedCompletedItem("thread-1", "queued-2", "user_message");
+    });
+    const entries = makeEntries(["old-prompt", "queued-1", "queued-2"]);
+    rerender(<MessageList threadId="thread-1" entries={entries} />);
+    expect((latestLegendProps.current as MockLegendProps).anchoredEndSpace?.anchorIndex).toBe(2);
+    expect(useAppStore.getState().chatScrollToPromptRequests["thread-1"]).toBeUndefined();
+    unmount();
+    render(<MessageList threadId="thread-1" entries={entries} />);
+    expect((latestLegendProps.current as MockLegendProps).anchoredEndSpace).toBeUndefined();
+  });
+
+  it("retargets the prompt by identity when history is prepended during its animation", () => {
+    vi.useFakeTimers();
+    try {
+      seedCompletedItem("thread-1", "old-prompt", "user_message");
+      const { rerender, container } = render(
+        <MessageList threadId="thread-1" entries={makeEntries(["old-prompt"])} />,
+      );
+      act(() => {
+        useAppStore.getState().requestChatScrollToPrompt("thread-1");
+        seedCompletedItem("thread-1", "new-prompt", "user_message");
+      });
+      rerender(
+        <MessageList threadId="thread-1" entries={makeEntries(["old-prompt", "new-prompt"])} />,
+      );
+      act(() => {
+        (latestLegendProps.current as MockLegendProps).anchoredEndSpace?.onReady?.({
+          anchorIndex: 1,
+          anchorKey: "new-prompt",
+          size: 400,
+        });
+      });
+      act(() => {
+        vi.advanceTimersByTime(80);
+      });
+      rerender(
+        <MessageList
+          threadId="thread-1"
+          entries={makeEntries(["older", "old-prompt", "new-prompt"])}
+        />,
+      );
+      act(() => {
+        vi.advanceTimersByTime(128);
+      });
+      expect(container.querySelector<HTMLElement>("[data-poracode-chat-scroller]")!.scrollTop).toBe(
+        200,
+      );
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("configures LegendList anchoring and dynamic-size preservation", () => {

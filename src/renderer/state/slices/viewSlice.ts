@@ -36,6 +36,7 @@ export interface ViewSlice {
   focusedPaneId: string | null;
   pendingComposerFocusThreadId: string | null;
   chatScrollToBottomTokens: Record<string, number>;
+  chatScrollToPromptRequests: Record<string, { afterItemId: string | null; remaining: number }>;
   /**
    * Optimistic, urgent active-thread id used only for instant sidebar-row
    * highlighting on click. Decoupled from `view.panes` (which drives the heavy
@@ -48,6 +49,7 @@ export interface ViewSlice {
   requestComposerFocus: (threadId: string) => void;
   clearComposerFocusRequest: (threadId: string) => void;
   requestChatScrollToBottom: (threadId: string) => void;
+  requestChatScrollToPrompt: (threadId: string, queued?: boolean) => void;
   setPendingActiveThread: (threadId: string | null) => void;
   openDraft: (projectId: string) => void;
   openDraftSideBySide: (projectId: string) => void;
@@ -96,6 +98,7 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
   focusedPaneId: null,
   pendingComposerFocusThreadId: null,
   chatScrollToBottomTokens: {},
+  chatScrollToPromptRequests: {},
   pendingActiveThreadId: null,
   groupLayouts: {},
   setFocusedPane: (paneId) => set({ focusedPaneId: paneId }),
@@ -110,7 +113,29 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
         ...state.chatScrollToBottomTokens,
         [threadId]: (state.chatScrollToBottomTokens[threadId] ?? 0) + 1,
       },
+      chatScrollToPromptRequests: Object.fromEntries(
+        Object.entries(state.chatScrollToPromptRequests).filter(([id]) => id !== threadId),
+      ),
     })),
+  requestChatScrollToPrompt: (threadId, queued = false) =>
+    set((state) => {
+      const ids = state.runtimeItemIdsByThread[threadId] ?? [];
+      const items = state.runtimeItemsByIdByThread[threadId];
+      const afterItemId =
+        ids.findLast((id) => items?.[id]?.type === "user_message" && !items[id]?.parentItemId) ??
+        null;
+      return {
+        chatScrollToPromptRequests: {
+          ...state.chatScrollToPromptRequests,
+          [threadId]: {
+            afterItemId,
+            remaining: queued
+              ? (state.chatScrollToPromptRequests[threadId]?.remaining ?? 0) + 1
+              : 1,
+          },
+        },
+      };
+    }),
   setPendingActiveThread: (threadId) => set({ pendingActiveThreadId: threadId }),
   openDraft: (projectId) => set({ view: { kind: "draft", projectId } }),
   openDraftSideBySide: (projectId) =>
