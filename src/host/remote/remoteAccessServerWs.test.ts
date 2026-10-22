@@ -128,15 +128,18 @@ describe("sendRaw aggregate accounting", () => {
       }
       const payload = randomBytes(48 * 1024).toString("base64");
       const sockets = [...clients.keys()];
+      const deadline = Date.now() + 5_000;
       for (let wave = 0; wave < 20; wave += 1) {
         for (let frame = 0; frame < 16; frame += 1) {
           for (const socket of sockets) expect(sendRaw(host, socket, payload)).toBe(true);
         }
-        await new Promise<void>((resolve) => setImmediate(resolve));
+        // A loop yield does not guarantee socket drainage on every OS. Keep
+        // each burst below the cap and observe readers before producing more.
+        const expected = (wave + 1) * 16;
+        while (received.some((count) => count < expected) && Date.now() < deadline)
+          await new Promise((resolve) => setTimeout(resolve, 5));
+        expect(received).toEqual(Array.from({ length: 8 }, () => expected));
       }
-      const deadline = Date.now() + 5_000;
-      while (received.some((count) => count < 320) && Date.now() < deadline)
-        await new Promise((resolve) => setTimeout(resolve, 5));
       expect(received).toEqual(Array.from({ length: 8 }, () => 320));
       expect(peers.every((peer) => peer.readyState === WebSocket.OPEN)).toBe(true);
     } finally {
@@ -144,6 +147,22 @@ describe("sendRaw aggregate accounting", () => {
       for (const socket of server.clients) socket.terminate();
       await new Promise<void>((resolve) => server.close(() => resolve()));
     }
+  });
+
+  it.each([
+    { bytes: 65_535, compress: true, reservedBytes: 65_549 },
+    { bytes: 65_536, compress: false, reservedBytes: 65_546 },
+    { bytes: 65_537, compress: false, reservedBytes: 65_547 },
+  ])("reserves $reservedBytes bytes with compress=$compress for $bytes payload bytes", (input) => {
+    const { host, admission, clients } = createHost();
+    const socket = new TestSocket();
+    const ws = attach(clients, socket, "alice");
+
+    expect(sendRaw(host, ws, "x".repeat(input.bytes))).toBe(true);
+    expect(socket.compression).toEqual([input.compress]);
+    expect(admission.outboundQueuedBytes("alice")).toBe(input.reservedBytes);
+    socket.flushSends();
+    expect(admission.outboundQueuedBytes("alice")).toBe(0);
   });
 
   it("reserves the framed byte size and releases it on the write callback", () => {
