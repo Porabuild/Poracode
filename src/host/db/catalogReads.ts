@@ -178,6 +178,7 @@ const THREAD_PHASE2_COLUMNS = [
   "active_turn_started_at",
   "last_turn_started_at",
   "last_turn_ended_at",
+  "interrupted_turn",
 ].join(", ");
 
 /** Project columns the remote project schema emits. `mcp_servers` is stripped

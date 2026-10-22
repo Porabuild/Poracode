@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { RuntimeEvent } from "@/shared/contracts";
 import { nativeBindingEnv, sqliteAvailable, testThread } from "@/host/db/runtimeItems.testFixtures";
 import { closeDatabase, getSqlite, initDatabase } from "@/host/db/connection";
-import { dbUpsertProject, dbUpsertThread } from "@/host/db/projectsThreads";
+import { dbGetThread, dbUpsertProject, dbUpsertThread } from "@/host/db/projectsThreads";
 import {
   dbApplyThreadRuntimeEvents,
   dbFlushThreadRuntimeWrites,
@@ -17,6 +17,7 @@ import {
   getRuntimePersistenceSample,
   getRuntimePersistenceState,
 } from "@/host/db/runtimePersistenceRuntime";
+import { withPendingInterruptedTurn } from "./pendingInterruptedTurns";
 import { persistSupervisorEvent, resetDeferredThreadResetsForTests } from "./runtimePersistence";
 
 const THREAD_ID = "thread-1";
@@ -134,4 +135,29 @@ describe.skipIf(!sqliteAvailable)("persistSupervisorEvent failure contract", () 
     expect(await dbGetThreadRuntimeItems(THREAD_ID)).toHaveLength(0);
     expect(getRuntimePersistenceState()?.state).not.toBe("refusing");
   });
+
+  it.each([
+    { reported: "error" as const, stored: "error" },
+    { reported: null, stored: undefined },
+  ])(
+    "keeps a reported cut-off marker ($reported) when a newer state replaces its queued write",
+    async ({ reported, stored }) => {
+      vi.useFakeTimers();
+      dbUpsertThread(testThread(), 0, undefined, "restart");
+      const state = {
+        type: "thread-state",
+        threadId: THREAD_ID,
+        attention: "none",
+        canResumeWithConfig: true,
+      } as const;
+      persistSupervisorEvent({ ...state, status: "error", interruptedTurn: reported });
+      persistSupervisorEvent({ ...state, status: "idle" });
+      // Reads made before the row write lands already show the reported marker.
+      expect(withPendingInterruptedTurn(dbGetThread(THREAD_ID)!).interruptedTurn).toBe(stored);
+      await vi.advanceTimersByTimeAsync(10);
+      expect(dbGetThread(THREAD_ID)).toMatchObject({ status: "idle" });
+      expect(dbGetThread(THREAD_ID)?.interruptedTurn).toBe(stored);
+      expect(withPendingInterruptedTurn(dbGetThread(THREAD_ID)!)).toEqual(dbGetThread(THREAD_ID));
+    },
+  );
 });

@@ -23,7 +23,7 @@ export interface SessionRuntimeLifecycleContext {
   ptyLifecycle: Pick<PtyLifecycle, "track" | "resolveExit" | "kill">;
   outputPipeline: Pick<
     ThreadOutputPipeline,
-    "emitState" | "updateState" | "handlePtyData" | "clearSessionTimers"
+    "emitState" | "updateState" | "noteTurnFailed" | "handlePtyData" | "clearSessionTimers"
   >;
   runtimeEventRouter: Pick<RuntimeEventRouter, "flush" | "append">;
   steerCoordinator: Pick<SteerCoordinator, "maybeDrainPendingSteer"> &
@@ -245,6 +245,9 @@ export class SessionRuntimeLifecycle {
     this.context.runtimeEventRouter.append(session.threadId, event);
     if (event.type === "turn.started") {
       this.context.steerCoordinator.noteSteerTurnStarted?.(session);
+    }
+    if (event.type === "turn.completed" && event.state === "failed") {
+      this.context.outputPipeline.noteTurnFailed(session);
     }
     this.context.followUpQueue?.onStructuredRuntimeEvent(session, event);
   }

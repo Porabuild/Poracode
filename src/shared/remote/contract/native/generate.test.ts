@@ -76,7 +76,7 @@ describe("remote v3 native binding generator", () => {
         // their native mirrors; native adoption stays planned in native-parity.json.
         // Source-host reviews add one route, twenty-four procedures, and their native mirrors;
         // device workspaces add fourteen routes; saved-message search and fork instructions add roots.
-        sourceHash: "sha256:79e75e719888e047638b351aad3038663e56f21f6375e4592cd9b8518ba5ddd7",
+        sourceHash: "sha256:d57cd2d7beb247474b5ca22638eb087da7ee102c68d0a7316c6bacfcb851d099",
         manifestHash: "sha256:b5f09ec84c281e9691a8d776e583090efb443be7461e2a581e6714dea91bde28",
         counts: {
           routes: 118,
@@ -87,7 +87,7 @@ describe("remote v3 native binding generator", () => {
           // 10 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
           webSocketServerVariants: 11,
           schemaRoots: 525,
-          structuralTypes: 1170,
+          structuralTypes: 1171,
           semanticValidators: 25,
           swiftFiles: 73,
           kotlinFiles: 63,

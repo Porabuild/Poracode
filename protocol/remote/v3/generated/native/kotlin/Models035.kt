@@ -6,7 +6,7 @@ import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
 @Serializable
-data class RoutethreadU2DHistoryResponse_6bea80c666(
+data class RoutethreadU2DHistoryResponse_c33191b130(
     @SerialName("backgroundTasks") val backgroundTasks: RemoteField<ProcedurereadThreadBackgroundTasksResult_00675d64d4> = RemoteField.Missing,
     @SerialName("completedTurns") val completedTurns: List<RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1U2DSnapshotU2DCompletedTurnsU2DItem_df96bd315b>,
     @SerialName("completedTurnsNextCursor") val completedTurnsNextCursor: RemoteField<String> = RemoteField.Missing,
@@ -22,7 +22,7 @@ data class RoutethreadU2DHistoryResponse_6bea80c666(
     @SerialName("snapshotSeq") val snapshotSeq: Long,
     @SerialName("terminalScrollback") val terminalScrollback: RemoteField<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b> = RemoteField.Missing,
     @SerialName("terminalSize") val terminalSize: RemoteField<ProcedureensureThreadRunningRequestU2DInitialSize_55ee222c09> = RemoteField.Missing,
-    @SerialName("thread") val thread: RouteshellU2DSnapshotResponseU2DThreadsU2DItem_131fd1869b,
+    @SerialName("thread") val thread: RouteshellU2DSnapshotResponseU2DThreadsU2DItem_8b5062dd3e,
     @SerialName("updatedAt") val updatedAt: String,
 ) {
     companion object {
@@ -42,7 +42,7 @@ data class RoutethreadU2DHistoryResponse_6bea80c666(
             RemoteFieldDescriptor("snapshotSeq", "Long", true, false, 0.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("terminalScrollback", "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("terminalSize", "ProcedureensureThreadRunningRequestU2DInitialSize_55ee222c09", false, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("thread", "RouteshellU2DSnapshotResponseU2DThreadsU2DItem_131fd1869b", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("thread", "RouteshellU2DSnapshotResponseU2DThreadsU2DItem_8b5062dd3e", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("updatedAt", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
         ), listOf())
     }
@@ -175,7 +175,7 @@ data class RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1U2DSnapshotU2DRun
 }
 
 @Serializable
-data class RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1U2DSnapshot_02cd82b5f5(
+data class RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1U2DSnapshot_65ca4d51ed(
     @SerialName("backgroundTasks") val backgroundTasks: RemoteField<ProcedurereadThreadBackgroundTasksResult_00675d64d4> = RemoteField.Missing,
     @SerialName("completedTurns") val completedTurns: List<RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1U2DSnapshotU2DCompletedTurnsU2DItem_df96bd315b>,
     @SerialName("completedTurnsNextCursor") val completedTurnsNextCursor: RemoteField<String>,
@@ -191,7 +191,7 @@ data class RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1U2DSnapshot_02cd8
     @SerialName("snapshotSeq") val snapshotSeq: Long,
     @SerialName("terminalScrollback") val terminalScrollback: RemoteField<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b> = RemoteField.Missing,
     @SerialName("terminalSize") val terminalSize: RemoteField<ProcedureensureThreadRunningRequestU2DInitialSize_55ee222c09> = RemoteField.Missing,
-    @SerialName("thread") val thread: RouteshellU2DSnapshotResponseU2DThreadsU2DItem_131fd1869b,
+    @SerialName("thread") val thread: RouteshellU2DSnapshotResponseU2DThreadsU2DItem_8b5062dd3e,
     @SerialName("updatedAt") val updatedAt: String,
 ) {
     companion object {
@@ -211,21 +211,21 @@ data class RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1U2DSnapshot_02cd8
             RemoteFieldDescriptor("snapshotSeq", "Long", true, false, 0.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("terminalScrollback", "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("terminalSize", "ProcedureensureThreadRunningRequestU2DInitialSize_55ee222c09", false, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("thread", "RouteshellU2DSnapshotResponseU2DThreadsU2DItem_131fd1869b", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("thread", "RouteshellU2DSnapshotResponseU2DThreadsU2DItem_8b5062dd3e", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("updatedAt", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
         ), listOf())
     }
 }
 
 @Serializable
-data class RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1_9dbd178945(
+data class RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1_dc71cded27(
     @SerialName("kind") val kind: RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1U2DKind_9e712b4f87,
-    @SerialName("snapshot") val snapshot: RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1U2DSnapshot_02cd82b5f5,
+    @SerialName("snapshot") val snapshot: RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1U2DSnapshot_65ca4d51ed,
 ) {
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
             RemoteFieldDescriptor("kind", "RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1U2DKind_9e712b4f87", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("snapshot", "RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1U2DSnapshot_02cd82b5f5", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("snapshot", "RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1U2DSnapshot_65ca4d51ed", true, false, null, null, null, null, null, null, null, null, listOf()),
         ), listOf())
     }
 }
@@ -249,7 +249,7 @@ enum class RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D2U2DKind_e1a91348d
 }
 
 @Serializable
-data class RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D2_4de8e3eae9(
+data class RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D2_49869afe51(
     @SerialName("backgroundTasks") val backgroundTasks: RemoteField<ProcedurereadThreadBackgroundTasksResult_00675d64d4> = RemoteField.Missing,
     @SerialName("batches") val batches: List<RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D2U2DBatchesU2DItem_191ccdb4e4>,
     @SerialName("completedTurns") val completedTurns: List<RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1U2DSnapshotU2DCompletedTurnsU2DItem_df96bd315b>,
@@ -261,7 +261,7 @@ data class RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D2_4de8e3eae9(
     @SerialName("runtimeResumeCursor") val runtimeResumeCursor: String,
     @SerialName("runtimeStateCurrent") val runtimeStateCurrent: RemoteField<Boolean> = RemoteField.Missing,
     @SerialName("snapshotSeq") val snapshotSeq: Long,
-    @SerialName("thread") val thread: RouteshellU2DSnapshotResponseU2DThreadsU2DItem_131fd1869b,
+    @SerialName("thread") val thread: RouteshellU2DSnapshotResponseU2DThreadsU2DItem_8b5062dd3e,
 ) {
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
@@ -276,30 +276,30 @@ data class RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D2_4de8e3eae9(
             RemoteFieldDescriptor("runtimeResumeCursor", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("runtimeStateCurrent", "Boolean", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("snapshotSeq", "Long", true, false, 0.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("thread", "RouteshellU2DSnapshotResponseU2DThreadsU2DItem_131fd1869b", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("thread", "RouteshellU2DSnapshotResponseU2DThreadsU2DItem_8b5062dd3e", true, false, null, null, null, null, null, null, null, null, listOf()),
         ), listOf())
     }
 }
 
-@Serializable(with = RoutethreadU2DHistoryU2DChangesResponse_4127023e4a.Serializer::class)
-sealed interface RoutethreadU2DHistoryU2DChangesResponse_4127023e4a {
-    data class Option1(val value: RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1_9dbd178945) : RoutethreadU2DHistoryU2DChangesResponse_4127023e4a
-    data class Option2(val value: RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D2_4de8e3eae9) : RoutethreadU2DHistoryU2DChangesResponse_4127023e4a
-    object Serializer : KSerializer<RoutethreadU2DHistoryU2DChangesResponse_4127023e4a> {
-        override val descriptor: SerialDescriptor = buildClassSerialDescriptor("RoutethreadU2DHistoryU2DChangesResponse_4127023e4a")
-        override fun deserialize(decoder: Decoder): RoutethreadU2DHistoryU2DChangesResponse_4127023e4a {
-            val jsonDecoder = decoder as? JsonDecoder ?: throw SerializationException("RoutethreadU2DHistoryU2DChangesResponse_4127023e4a supports JSON only")
+@Serializable(with = RoutethreadU2DHistoryU2DChangesResponse_05092e776a.Serializer::class)
+sealed interface RoutethreadU2DHistoryU2DChangesResponse_05092e776a {
+    data class Option1(val value: RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1_dc71cded27) : RoutethreadU2DHistoryU2DChangesResponse_05092e776a
+    data class Option2(val value: RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D2_49869afe51) : RoutethreadU2DHistoryU2DChangesResponse_05092e776a
+    object Serializer : KSerializer<RoutethreadU2DHistoryU2DChangesResponse_05092e776a> {
+        override val descriptor: SerialDescriptor = buildClassSerialDescriptor("RoutethreadU2DHistoryU2DChangesResponse_05092e776a")
+        override fun deserialize(decoder: Decoder): RoutethreadU2DHistoryU2DChangesResponse_05092e776a {
+            val jsonDecoder = decoder as? JsonDecoder ?: throw SerializationException("RoutethreadU2DHistoryU2DChangesResponse_05092e776a supports JSON only")
             val element = jsonDecoder.decodeJsonElement()
-            val matches = mutableListOf<RemoteUnionMatch<RoutethreadU2DHistoryU2DChangesResponse_4127023e4a>>()
-            RemoteUnionCodec.tryOption(matches, 1, RemoteUnionCodec.matchesProperty(element, "kind", listOf(JsonPrimitive("snapshot")))) { Option1(jsonDecoder.json.decodeFromJsonElement<RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1_9dbd178945>(element)) }
-            RemoteUnionCodec.tryOption(matches, 2, RemoteUnionCodec.matchesProperty(element, "kind", listOf(JsonPrimitive("events")))) { Option2(jsonDecoder.json.decodeFromJsonElement<RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D2_4de8e3eae9>(element)) }
-            return RemoteUnionCodec.single("RoutethreadU2DHistoryU2DChangesResponse_4127023e4a", matches)
+            val matches = mutableListOf<RemoteUnionMatch<RoutethreadU2DHistoryU2DChangesResponse_05092e776a>>()
+            RemoteUnionCodec.tryOption(matches, 1, RemoteUnionCodec.matchesProperty(element, "kind", listOf(JsonPrimitive("snapshot")))) { Option1(jsonDecoder.json.decodeFromJsonElement<RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1_dc71cded27>(element)) }
+            RemoteUnionCodec.tryOption(matches, 2, RemoteUnionCodec.matchesProperty(element, "kind", listOf(JsonPrimitive("events")))) { Option2(jsonDecoder.json.decodeFromJsonElement<RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D2_49869afe51>(element)) }
+            return RemoteUnionCodec.single("RoutethreadU2DHistoryU2DChangesResponse_05092e776a", matches)
         }
-        override fun serialize(encoder: Encoder, value: RoutethreadU2DHistoryU2DChangesResponse_4127023e4a) {
-            val jsonEncoder = encoder as? JsonEncoder ?: throw SerializationException("RoutethreadU2DHistoryU2DChangesResponse_4127023e4a supports JSON only")
+        override fun serialize(encoder: Encoder, value: RoutethreadU2DHistoryU2DChangesResponse_05092e776a) {
+            val jsonEncoder = encoder as? JsonEncoder ?: throw SerializationException("RoutethreadU2DHistoryU2DChangesResponse_05092e776a supports JSON only")
             val element = when (value) {
-                is Option1 -> jsonEncoder.json.encodeToJsonElement<RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1_9dbd178945>(value.value)
-                is Option2 -> jsonEncoder.json.encodeToJsonElement<RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D2_4de8e3eae9>(value.value)
+                is Option1 -> jsonEncoder.json.encodeToJsonElement<RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1_dc71cded27>(value.value)
+                is Option2 -> jsonEncoder.json.encodeToJsonElement<RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D2_49869afe51>(value.value)
             }
             jsonEncoder.encodeJsonElement(element)
         }

@@ -3,6 +3,7 @@ import {
   workspaceGrantRevisionSchema,
 } from "@/shared/workspaceDirectorySelection";
 import type { ProjectLocation, Project, Thread } from "@/shared/contracts";
+import { threadTurnInterruptionSchema } from "@/shared/contracts";
 import {
   readPersistedProjectDraftConfig,
   readPersistedThreadConfig,
@@ -69,6 +70,7 @@ export interface ThreadRow {
   active_turn_started_at: string | null;
   last_turn_started_at: string | null;
   last_turn_ended_at: string | null;
+  interrupted_turn: string | null;
 }
 
 // ── Converters ──────────────────────────────────────────────────────
@@ -182,7 +184,14 @@ export function rowToThread(row: ThreadRow): Thread {
     ...(row.active_turn_started_at ? { activeTurnStartedAt: row.active_turn_started_at } : {}),
     ...(row.last_turn_started_at ? { lastTurnStartedAt: row.last_turn_started_at } : {}),
     ...(row.last_turn_ended_at ? { lastTurnEndedAt: row.last_turn_ended_at } : {}),
+    ...readInterruptedTurn(row.interrupted_turn),
   };
+}
+
+/** A value from a newer release reads as "nothing to resume", never as a guess. */
+function readInterruptedTurn(value: string | null): Pick<Thread, "interruptedTurn"> {
+  const parsed = threadTurnInterruptionSchema.safeParse(value);
+  return parsed.success ? { interruptedTurn: parsed.data } : {};
 }
 
 export function safeParse(json: string): unknown {
