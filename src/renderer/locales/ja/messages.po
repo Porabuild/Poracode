@@ -1979,7 +1979,6 @@ msgid "At least two worktrees must be created. Any partial experiment was cleane
 msgstr "少なくとも 2 つのワークツリーを作成する必要があります。途中まで作成された実験はクリーンアップされました。"
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
-#: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Attach"
 msgstr "添付する"
 
@@ -5631,6 +5630,10 @@ msgstr "デバイスへのアクセスが期限切れです。もう一度接続
 msgid "Device accessibility"
 msgstr "デバイスのアクセシビリティ"
 
+#: src/renderer/components/devices/DeviceListItem.tsx
+msgid "Device actions"
+msgstr "デバイスの操作"
+
 #: src/renderer/components/devices/DeviceTools.tsx
 msgid "Device appearance"
 msgstr "デバイスの外観"
@@ -8768,8 +8771,8 @@ msgid "Invalid visual specification. Showing source only."
 msgstr "ビジュアルの定義が無効です。ソースのみ表示しています。"
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
-msgid "iOS Simulator requires a macOS host with Xcode."
-msgstr "iOS Simulator には Xcode を備えた macOS ホストが必要です。"
+#~ msgid "iOS Simulator requires a macOS host with Xcode."
+#~ msgstr "iOS Simulator には Xcode を備えた macOS ホストが必要です。"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "iPad Air"
@@ -11893,6 +11896,14 @@ msgstr "工数ピッカーを開く"
 msgid "Open the model picker"
 msgstr "モデルピッカーを開く"
 
+#: src/renderer/components/devices/DeviceListItem.tsx
+msgid "Open view only"
+msgstr "閲覧のみで開く"
+
+#: src/renderer/components/devices/DeviceListItem.tsx
+msgid "Open with control"
+msgstr "操作して開く"
+
 #: src/renderer/components/providers/opencode/manifest.ts
 msgid "OpenCode"
 msgstr "OpenCode"
@@ -14834,7 +14845,7 @@ msgstr "ワークフローを実行"
 msgid "running"
 msgstr "実行中"
 
-#: src/renderer/components/devices/DeviceWorkspace.tsx
+#: src/renderer/components/devices/DeviceListItem.tsx
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/SchedulesView/parts/scheduleRunStatus.ts
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
@@ -16479,7 +16490,7 @@ msgstr "この ToDo から新しいスレッドを開始します"
 #~ msgid "Start a new thread to put an agent to work from this device."
 #~ msgstr "このデバイスからエージェントを動かすには、新しいスレッドを開始してください。"
 
-#: src/renderer/components/devices/DeviceWorkspace.tsx
+#: src/renderer/components/devices/DeviceListItem.tsx
 msgid "Start device"
 msgstr "デバイスを起動"
 
@@ -16558,7 +16569,7 @@ msgid "Started {targetLabel} thread"
 msgstr "{targetLabel}スレッドを開始しました"
 
 #. Button label while the microphone test is starting
-#: src/renderer/components/devices/DeviceWorkspace.tsx
+#: src/renderer/components/devices/DeviceListItem.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/RemoteAccessSidebarIcon.tsx
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
@@ -16703,7 +16714,7 @@ msgstr "音声入力を停止する"
 msgid "Stop when"
 msgstr "停止条件"
 
-#: src/renderer/components/devices/DeviceWorkspace.tsx
+#: src/renderer/components/devices/DeviceListItem.tsx
 msgid "Stopped"
 msgstr "停止中"
 

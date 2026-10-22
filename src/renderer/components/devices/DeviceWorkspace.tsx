@@ -59,10 +59,17 @@ import { LiveDevicePreview } from "./LiveDevicePreview";
 import { DeviceTools } from "./DeviceTools";
 import { DevicePreviewStage } from "./DevicePreviewStage";
 import { DeviceDetachedWindow } from "./DeviceDetachedWindow";
+import { DeviceListItem, type DeviceListAction } from "./DeviceListItem";
 
 function isDevicesSurfaceActive(panel: ReturnType<typeof usePanelStore.getState>): boolean {
   return panel.rightPanelTab === "devices" || panel.rightPanelSplit?.tab === "devices";
 }
+
+/** A platform diagnostic the user can act on; a host simply lacking the platform is not one. */
+type PlatformNoticeStatus = Exclude<
+  DeviceInventory["platforms"][number]["status"],
+  "unsupported_host"
+>;
 
 export function DeviceWorkspace({
   threadId,
@@ -80,8 +87,8 @@ export function DeviceWorkspace({
   const [session, setSession] = useState<DeviceSession | null>(null);
   const sessionRef = useRef<DeviceSession | null>(null);
   const detachSessionRef = useRef<((sessionId: string) => Promise<unknown>) | null>(null);
-  const [selected, setSelected] = useState<string | null>(null);
-  const [control, setControl] = useState(false);
+  /** A stopped device the user asked to open; attach once the start poll sees it running. */
+  const pendingOpenRef = useRef<{ id: string; access: "view" | "control" } | null>(null);
   const [busy, setBusy] = useState(false);
   const [errorMessage, setError] = useState<string | null>(null);
   const [frame, setFrame] = useState<DeviceFrame | null>(null);
@@ -133,7 +140,6 @@ export function DeviceWorkspace({
     element: HTMLButtonElement;
   } | null>(null);
   const imageRef = useRef<HTMLImageElement>(null);
-  const device = inventory?.devices.find((entry) => entry.id === selected);
   const wantsLive = liveAvailable && !snapshotMode && !paused && visible;
   const live = useDeviceLivePreview(threadId, session, wantsLive, (error, id) => {
     if (sessionRef.current?.id === id) report(error);
@@ -296,8 +302,40 @@ export function DeviceWorkspace({
     };
   }, [inventory, paused, visible, session]);
 
-  async function attach(target: DeviceTarget, isCurrent: () => boolean, start = false) {
+  // A click on a stopped device boots it through the start lease; this opens
+  // the preview as soon as the running poll observes the device.
+  const openPendingFromEffect = useEffectEvent(
+    (target: DeviceTarget, access: "view" | "control") => {
+      void perform((isCurrent) => attach(target, isCurrent, { access }));
+    },
+  );
+
+  useEffect(() => {
+    if (!visible) {
+      pendingOpenRef.current = null;
+      return;
+    }
+    if (session || busy || paused || !inventory) return;
+    const pending = pendingOpenRef.current;
+    if (!pending) return;
+    const target = inventory.devices.find((entry) => entry.id === pending.id);
+    if (!target) {
+      pendingOpenRef.current = null;
+      return;
+    }
+    if (target.state !== "running") return;
+    pendingOpenRef.current = null;
+    openPendingFromEffect(target, pending.access);
+  }, [inventory, session, busy, paused, visible]);
+
+  async function attach(
+    target: DeviceTarget,
+    isCurrent: () => boolean,
+    options: { start?: boolean; access?: "view" | "control" } = {},
+  ) {
     if (!inventory) return;
+    const start = options.start === true;
+    const access = options.access ?? "view";
     await detach();
     if (!isCurrent()) return;
     const attached = await withThreadDeviceClient(threadId, async (client, id) => ({
@@ -307,8 +345,8 @@ export function DeviceWorkspace({
         version: 1,
         generation: inventory.generation,
         deviceId: target.id,
-        access: start || control ? "control" : "view",
-        agentAccess: start ? "none" : control ? "control" : "view",
+        access: start ? "control" : access,
+        agentAccess: start ? "none" : access,
       }),
     }));
     const next = attached.session;
@@ -332,6 +370,30 @@ export function DeviceWorkspace({
         if (isCurrent()) await refresh(undefined, isCurrent);
       }
     }
+  }
+  async function openDevice(
+    target: DeviceTarget,
+    isCurrent: () => boolean,
+    access: "view" | "control" = "view",
+  ) {
+    if (target.state === "running") {
+      await attach(target, isCurrent, { access });
+      return;
+    }
+    // Boot through a temporary control lease, then open once the running poll
+    // observes the device; attaching while it is still starting cannot stream.
+    await attach(target, isCurrent, { start: true });
+    if (isCurrent()) pendingOpenRef.current = { id: target.id, access };
+  }
+  function handleDeviceAction(target: DeviceTarget, action: DeviceListAction) {
+    pendingOpenRef.current = null;
+    if (action === "start") {
+      void perform((isCurrent) => attach(target, isCurrent, { start: true }));
+      return;
+    }
+    void perform((isCurrent) =>
+      openDevice(target, isCurrent, action === "open-control" ? "control" : "view"),
+    );
   }
   async function send(action: DeviceAction) {
     const current = sessionRef.current;
@@ -426,9 +488,8 @@ export function DeviceWorkspace({
             ? { kind: "reconnecting" as const, label: t`Reconnecting` }
             : { kind: "connecting" as const, label: t`Connecting` };
 
-  const statusLabels = {
+  const statusLabels: Record<PlatformNoticeStatus, string> = {
     ready: t`Ready`,
-    unsupported_host: t`iOS Simulator requires a macOS host with Xcode.`,
     missing_sdk: t`Install Android SDK Emulator and platform-tools, then create an AVD.`,
     missing_xcode: t`Install Xcode and an iOS Simulator runtime on this host.`,
     missing_idb: t`Install Meta idb and idb_companion on this host for iOS input and accessibility.`,
@@ -507,13 +568,12 @@ export function DeviceWorkspace({
   const accessLabel = session ? (session.access === "control" ? t`Control` : t`View only`) : null;
   const headerTitle = (
     <>
-      <Smartphone className="size-3.5 shrink-0 text-muted" />
       <Tooltip>
         <Tooltip.Trigger
           className={`${panelHeaderTooltipTriggerResetClass} min-w-0`}
           style={{ flexShrink: 1 }}
         >
-          <span className="block truncate text-xs font-medium text-muted">
+          <span className="block truncate text-left text-xs font-medium leading-tight text-foreground @max-[400px]:text-[11px]">
             {session?.device.name ?? t`Devices`}
           </span>
         </Tooltip.Trigger>
@@ -711,20 +771,22 @@ export function DeviceWorkspace({
         {!session ? (
           <div className="space-y-3">
             <div className="min-w-0 space-y-2 overflow-auto">
-              <p className="text-xs text-foreground-muted">
+              <p className="text-xs text-muted">
                 <Trans>Simulators and emulators on this thread’s host</Trans>
               </p>
               {!inventory ? (
                 !errorMessage ? (
-                  <p>
+                  <div className="flex items-center gap-2 px-2 py-2 text-xs text-muted">
+                    <PixelLoader size="xs" />
                     <Trans>Loading…</Trans>
-                  </p>
+                  </div>
                 ) : null
               ) : (
                 <>
-                  {inventory.platforms
-                    .filter((entry) => entry.status !== "ready" || entry.diagnostic)
-                    .map((entry) => (
+                  {inventory.platforms.map((entry) => {
+                    if (entry.status === "unsupported_host") return null;
+                    if (entry.status === "ready" && !entry.diagnostic) return null;
+                    return (
                       <div
                         key={entry.platform}
                         className="rounded-lg bg-[var(--row-hover)] p-2 text-xs text-foreground-muted"
@@ -743,82 +805,25 @@ export function DeviceWorkspace({
                           </details>
                         ) : null}
                       </div>
-                    ))}
+                    );
+                  })}
                   {inventory.devices.length === 0 ? (
                     <p className="py-4 text-center text-foreground-muted">
                       <Trans>No simulators or emulators found.</Trans>
                     </p>
                   ) : (
                     inventory.devices.map((entry) => (
-                      <Button
+                      <DeviceListItem
                         key={entry.id}
-                        fullWidth
-                        variant={selected === entry.id ? "tertiary" : "ghost"}
-                        className="h-auto justify-start gap-2 px-2 py-2 text-left"
-                        aria-pressed={selected === entry.id}
-                        onPress={() => setSelected(entry.id)}
-                      >
-                        <Smartphone className="size-4 shrink-0 text-muted" />
-                        <span className="min-w-0 flex-1 truncate">
-                          {entry.name}
-                          <span className="block text-xs text-foreground-muted">
-                            {entry.platform === "ios" ? "iOS" : "Android"} ·{" "}
-                            {entry.state === "running"
-                              ? t`Running`
-                              : entry.state === "starting"
-                                ? t`Starting`
-                                : t`Stopped`}
-                          </span>
-                        </span>
-                      </Button>
+                        device={entry}
+                        busy={busy}
+                        onAction={(action) => handleDeviceAction(entry, action)}
+                      />
                     ))
                   )}
                 </>
               )}
             </div>
-            {device ? (
-              <div className="space-y-2 border-t border-[var(--border)] pt-3">
-                <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    variant={!control ? "secondary" : "ghost"}
-                    aria-pressed={!control}
-                    onPress={() => setControl(false)}
-                  >
-                    <Trans>View only</Trans>
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant={control ? "secondary" : "ghost"}
-                    aria-pressed={control}
-                    isDisabled={!device.input}
-                    onPress={() => setControl(true)}
-                  >
-                    <Trans>Control</Trans>
-                  </Button>
-                </div>
-                <Button
-                  size="sm"
-                  fullWidth
-                  variant="tertiary"
-                  isDisabled={busy || device.state !== "running"}
-                  onPress={() => void perform((isCurrent) => attach(device, isCurrent))}
-                >
-                  <Trans>Attach</Trans>
-                </Button>
-                {device.state === "stopped" ? (
-                  <Button
-                    size="sm"
-                    fullWidth
-                    variant="secondary"
-                    isDisabled={busy}
-                    onPress={() => void perform((isCurrent) => attach(device, isCurrent, true))}
-                  >
-                    <Trans>Start device</Trans>
-                  </Button>
-                ) : null}
-              </div>
-            ) : null}
           </div>
         ) : (
           <div

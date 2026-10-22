@@ -337,7 +337,12 @@ export function UnifiedRightPanel(props: {
           ref={headerLeadingRef}
           className="flex min-w-0 max-w-[55%] shrink-0 items-center gap-1.5 overflow-hidden"
         >
-          {hasConversationModel ? (
+          {activeTab === "devices" && devicesThreadId ? (
+            <div
+              ref={devicesTitleRef}
+              className={`${dragCtl} flex min-w-0 flex-1 items-center gap-1`}
+            />
+          ) : hasConversationModel ? (
             <div className="flex min-w-0 flex-1 items-center">{conversationModel}</div>
           ) : projectName ? (
             <PanelHeaderProjectName
@@ -349,6 +354,12 @@ export function UnifiedRightPanel(props: {
         </div>
         <div className="flex-1" />
         <div ref={headerAccessoryRef} className="flex shrink-0 items-center gap-1.5 empty:hidden">
+          {activeTab === "devices" && devicesThreadId ? (
+            <div
+              ref={devicesActionsRef}
+              className={`${dragCtl} flex shrink-0 items-center gap-1`}
+            />
+          ) : null}
           {activeTab === "git" && onExpandGitToOverlay && (
             <button
               type="button"
@@ -511,15 +522,6 @@ export function UnifiedRightPanel(props: {
           <PanelRightClose className="size-3.5" />
         </button>
       </div>
-      {activeTab === "devices" ? (
-        <div
-          className={`poracode-overlay-header poracode-overlay-header--no-drag ${panelHeaderRowClass}`}
-          data-device-header=""
-        >
-          <div ref={devicesTitleRef} className="flex min-w-0 flex-1 items-center gap-1" />
-          <div ref={devicesActionsRef} className="flex shrink-0 items-center gap-1" />
-        </div>
-      ) : null}
       {hasSubagentTitle ? (
         <AgentPanelTitleRow
           className="poracode-right-panel-subagent-meta"
