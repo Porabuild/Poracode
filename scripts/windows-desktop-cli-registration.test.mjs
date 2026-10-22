@@ -193,6 +193,26 @@ async function exerciseDesktopCliRegistration(channel) {
     assert.equal(worker.exitCode, null, "The guard must not terminate the owned running fixture.");
     execFileSync(program, [], { cwd: root, env: nativeEnv, windowsHide: true });
     assert.equal(readFileSync(result, "utf8"), "PASS");
+    const heldUpdateStartedAt = Date.now();
+    assert.throws(
+      () =>
+        execFileSync(program, ["--updated", "/GuardHold"], {
+          cwd: root,
+          env: nativeEnv,
+          windowsHide: true,
+          timeout: 45_000,
+        }),
+      (error) => error.status === 2,
+      "An automatic update must refuse if the selected runtime does not retire.",
+    );
+    assert.ok(Date.now() - heldUpdateStartedAt >= 30_000, "Allow the bounded shutdown wait.");
+    assert.equal(worker.exitCode, null, "An automatic update must not terminate the held runtime.");
+    execFileSync(program, ["--updated"], {
+      cwd: root,
+      env: nativeEnv,
+      windowsHide: true,
+      timeout: 45_000,
+    });
   } catch (error) {
     failure = error;
   }
