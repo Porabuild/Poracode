@@ -8,6 +8,8 @@
  */
 
 const messages = {
+  "thread.permission.persistentUnavailable":
+    "This request has no matching persistent approval. Choose Allow once.",
   "thread.execution.owned":
     "Another client is running this thread. Stop that run before replacing the thread or sending more input.",
   "forge.commentNotEditable": "Only your own comments on this pull request can be edited.",

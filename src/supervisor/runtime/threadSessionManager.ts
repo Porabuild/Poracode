@@ -2179,7 +2179,7 @@ export class ThreadSessionManager {
     // owning child handle first and only fall through to the parent session
     // when the id isn't a subagent request.
     if (
-      this.options.crossagentMcp?.resolveChildRequest(
+      await this.options.crossagentMcp?.resolveChildRequest(
         payload.requestId,
         payload.response,
         payload.threadId,

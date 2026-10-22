@@ -453,6 +453,63 @@ describe("native plugin metadata demand", () => {
   );
 });
 
+describe("forwarded child request resolution", () => {
+  it("awaits child resolution, propagates rejection, and falls through only for unhandled requests", async () => {
+    const parentResolve = vi.fn<NonNullable<StructuredSessionHandle["resolveServerRequest"]>>(
+      async () => undefined,
+    );
+    const { adapter } = createAdapter({
+      ...createStructuredSession(),
+      resolveServerRequest: parentResolve,
+    });
+    const resolveChildRequest =
+      vi.fn<NonNullable<ThreadSessionManagerOptions["crossagentMcp"]>["resolveChildRequest"]>();
+    const manager = createManager(adapter, () => {}, {
+      crossagentMcp: {
+        register: () => undefined,
+        registerProviderSession: () => undefined,
+        unregister: () => {},
+        cancelForeground: () => {},
+        cancelAll: () => {},
+        resolveChildRequest,
+      },
+    });
+    await manager.startThread({
+      threadId: THREAD_ID,
+      projectLocation: PROJECT_LOCATION,
+      agentKind: AGENT_KIND,
+      config: { model: "fixture-model" },
+      prompt: "",
+      initialSize: INITIAL_SIZE,
+      presentationMode: "gui",
+    });
+    const request = {
+      threadId: THREAD_ID,
+      requestId: "child::permission",
+      method: "requestPermission",
+      response: { optionId: "always" },
+    };
+    const child = deferred<boolean>();
+    resolveChildRequest.mockReturnValueOnce(child.promise);
+    const settled = vi.fn<() => void>();
+    const pending = manager.resolveThreadServerRequest(request);
+    void pending.then(settled, settled);
+    await Promise.resolve();
+    expect(settled).not.toHaveBeenCalled();
+    expect(parentResolve).not.toHaveBeenCalled();
+    child.reject(new Error("Unavailable persistent approval"));
+    await expect(pending).rejects.toThrow("Unavailable persistent approval");
+    expect(parentResolve).not.toHaveBeenCalled();
+
+    resolveChildRequest.mockResolvedValueOnce(true);
+    await manager.resolveThreadServerRequest(request);
+    expect(parentResolve).not.toHaveBeenCalled();
+    resolveChildRequest.mockResolvedValueOnce(false);
+    await manager.resolveThreadServerRequest(request);
+    expect(parentResolve).toHaveBeenCalledWith(request.requestId, request.response);
+  });
+});
+
 describe("live built-in MCP resolution", () => {
   it.each([true, false])(
     "does not mutate a replacement's Crossagents credentials after old browser preparation (%s)",
@@ -482,7 +539,7 @@ describe("live built-in MCP resolution", () => {
           cancelAll: vi.fn<(threadId: string) => void>(),
           resolveChildRequest: vi
             .fn<NonNullable<ThreadSessionManagerOptions["crossagentMcp"]>["resolveChildRequest"]>()
-            .mockReturnValue(false),
+            .mockResolvedValue(false),
         },
       });
       const launch = {
