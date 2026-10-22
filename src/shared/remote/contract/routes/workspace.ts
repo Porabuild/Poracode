@@ -136,7 +136,7 @@ export const workspaceRoutes: readonly RemoteHttpRouteContract[] = [
     auth: "bearer-or-query",
     scopes: ["session:read"],
     audit: auditEvent("file_read"),
-    queryParameters: ["path", "ticket"],
+    queryParameters: ["path", "ticket", "variant"],
     request: { bodyKind: "empty", querySchema: localImageQuerySchema },
     response: {
       wireKind: "binary",
@@ -169,7 +169,7 @@ export const workspaceRoutes: readonly RemoteHttpRouteContract[] = [
     auth: "bearer-or-query",
     scopes: ["session:read"],
     audit: auditEvent("file_read"),
-    queryParameters: ["path", "ticket"],
+    queryParameters: ["path", "ticket", "variant"],
     request: { bodyKind: "empty", querySchema: runtimeImageQuerySchema },
     response: {
       wireKind: "binary",

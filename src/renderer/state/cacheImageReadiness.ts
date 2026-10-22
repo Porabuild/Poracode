@@ -10,17 +10,19 @@ export function createCacheImageReadiness(
   cache: RemoteEnvironmentImageCache,
 ): RemoteImageReadiness {
   return {
-    resolveRef: (ref) => cache.resolutionForImageKey(environmentImageRefKey(ref)).url,
-    subscribeRef: (ref, listener, priority) =>
-      cache.subscribeImageKey(environmentImageRefKey(ref), listener, priority),
-    requestRef: (ref, priority) => {
-      cache.imageRefResolution(ref, priority);
+    resolveRef: (ref, variant) =>
+      cache.resolutionForImageKey(environmentImageRefKey(ref, variant)).url,
+    subscribeRef: (ref, listener, priority, variant) =>
+      cache.subscribeImageKey(environmentImageRefKey(ref, variant), listener, priority),
+    requestRef: (ref, priority, variant) => {
+      cache.imageRefResolution(ref, priority, variant);
     },
-    resolvePath: (path) => cache.resolutionForImageKey(environmentLocalImageKey(path)).url,
-    subscribePath: (path, listener, priority) =>
-      cache.subscribeImageKey(environmentLocalImageKey(path), listener, priority),
-    requestPath: (path, priority) => {
-      cache.localImageResolution(path, priority);
+    resolvePath: (path, variant) =>
+      cache.resolutionForImageKey(environmentLocalImageKey(path, variant)).url,
+    subscribePath: (path, listener, priority, variant) =>
+      cache.subscribeImageKey(environmentLocalImageKey(path, variant), listener, priority),
+    requestPath: (path, priority, variant) => {
+      cache.localImageResolution(path, priority, variant);
     },
   };
 }

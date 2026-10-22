@@ -57,7 +57,8 @@ import type {
 import { RevertCheckpointRefusedError, type BackendHostCore } from "./BackendHostCore";
 import { BackendDurableServices } from "./BackendDurableServices";
 import { BackendRemoteBrowserProxy } from "./BackendRemoteBrowserProxy";
-import { generateBackendImagePreview } from "./BackendImagePreview";
+import { generateBackendImageCardVariant } from "./BackendImagePreview";
+import { generateImagePreview } from "@/host/remote/server/imagePreviewGenerator";
 import { joinRuntimeShutdown } from "./joinRuntimeShutdown";
 import { createBackendSettingsAccess, type BackendSettingsAccess } from "./BackendSettingsService";
 import { type BackendSettingsNotifications } from "./BackendSettingsNotifications";
@@ -353,7 +354,8 @@ export class BackendDesktopServices {
           notifyUserNotification: (notification) =>
             options.emitNativeEvent({ type: "user-notification", notification }),
           notifyEventInterestsChanged: ignoreRemoteEventInterests,
-          imagePreviewGenerator: generateBackendImagePreview,
+          imagePreviewGenerator: generateImagePreview,
+          imageCardVariantGenerator: generateBackendImageCardVariant,
           reportError: options.reportError,
           scheduleService: this.durable.scheduleService,
           deviceWorkspace: this.durable.deviceWorkspace,

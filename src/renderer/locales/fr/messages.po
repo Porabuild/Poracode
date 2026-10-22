@@ -6916,6 +6916,7 @@ msgstr "Échec de la création de la pull request : {detail}"
 #~ msgstr "Impossible d'interrompre le fil de discussion distant."
 
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 msgid "Failed to load"
 msgstr "Échec du chargement"
 

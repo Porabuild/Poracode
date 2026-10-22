@@ -136,9 +136,19 @@ export const ROUTE_QUERY_CODECS: Readonly<Record<string, readonly QueryParameter
   "forward-enter": [param("fwt", "string", false)],
   // Gate 6 item 4.6 (S6): the image routes' `<img>` credential is the one-time
   // path-scoped ticket; the raw bearer query parameter is gone from the wire.
-  "local-image": [param("path", "string", false), param("ticket", "string", true)],
+  // `variant=card` optionally selects the host's downscaled display variant;
+  // hosts without a variant generator (and older hosts) serve full bytes.
+  "local-image": [
+    param("path", "string", false),
+    param("ticket", "string", true),
+    param("variant", "string", true),
+  ],
   "file-media": [param("ticket", "string", false)],
-  "runtime-image": [param("path", "JSON-string", false), param("ticket", "string", true)],
+  "runtime-image": [
+    param("path", "JSON-string", false),
+    param("ticket", "string", true),
+    param("variant", "string", true),
+  ],
   "attachment-upload": [param("threadId", "string", false), param("name", "string", false)],
   "schedule-runs-read": [param("id", "string", false)],
   "automations-snapshot": [
@@ -279,6 +289,7 @@ export const decodedForwardEnterQuerySchema = z.object({
 export const decodedLocalImageQuerySchema = z.object({
   path: z.string().min(1),
   ticket: z.string().min(1).optional(),
+  variant: z.string().optional(),
 });
 
 export const decodedRuntimeImageQuerySchema = z.object({
@@ -287,6 +298,7 @@ export const decodedRuntimeImageQuerySchema = z.object({
     .min(1)
     .max(8),
   ticket: z.string().min(1).optional(),
+  variant: z.string().optional(),
 });
 
 export const decodedAttachmentUploadQuerySchema = z.object({

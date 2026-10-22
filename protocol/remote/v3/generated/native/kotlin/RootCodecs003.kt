@@ -209,8 +209,8 @@ val RemoteRootCodecs.routeU2ELocalU2DImageU2DTicketU2ERequest: RemoteRootCodec<R
 val RemoteRootCodecs.routeU2ELocalU2DImageU2DTicketU2EResponse: RemoteRootCodec<RouteenvironmentU2DWebsocketU2DTicketResponse_b9dfb5a053>
     get() = RemoteRootCodec("route.local-image-ticket.response", serializer<RouteenvironmentU2DWebsocketU2DTicketResponse_b9dfb5a053>(), schema_b9dfb5a053707da9)
 
-val RemoteRootCodecs.routeU2ELocalU2DImageU2EQuery: RemoteRootCodec<RoutelocalU2DImageQuery_dd4531e3bf>
-    get() = RemoteRootCodec("route.local-image.query", serializer<RoutelocalU2DImageQuery_dd4531e3bf>(), schema_dd4531e3bf06232b)
+val RemoteRootCodecs.routeU2ELocalU2DImageU2EQuery: RemoteRootCodec<RoutelocalU2DImageQuery_e788b86a30>
+    get() = RemoteRootCodec("route.local-image.query", serializer<RoutelocalU2DImageQuery_e788b86a30>(), schema_e788b86a30c28e0d)
 
 val RemoteRootCodecs.routeU2EMcpU2DSettingsU2DCommandU2ERequest: RemoteRootCodec<RoutemcpU2DSettingsU2DCommandRequest_f92ad486ec>
     get() = RemoteRootCodec("route.mcp-settings-command.request", serializer<RoutemcpU2DSettingsU2DCommandRequest_f92ad486ec>(), schema_f92ad486eceff5e1)
@@ -374,8 +374,8 @@ val RemoteRootCodecs.routeU2ERequestU2DResolveU2EResponse: RemoteRootCodec<Route
 val RemoteRootCodecs.routeU2ERuntimeU2DImageU2EPath: RemoteRootCodec<RouteruntimeU2DImagePath_815909fa96>
     get() = RemoteRootCodec("route.runtime-image.path", serializer<RouteruntimeU2DImagePath_815909fa96>(), schema_815909fa96d68d7b)
 
-val RemoteRootCodecs.routeU2ERuntimeU2DImageU2EQuery: RemoteRootCodec<RouteruntimeU2DImageQuery_1de2de5621>
-    get() = RemoteRootCodec("route.runtime-image.query", serializer<RouteruntimeU2DImageQuery_1de2de5621>(), schema_1de2de5621f360c2)
+val RemoteRootCodecs.routeU2ERuntimeU2DImageU2EQuery: RemoteRootCodec<RouteruntimeU2DImageQuery_864ab6444b>
+    get() = RemoteRootCodec("route.runtime-image.query", serializer<RouteruntimeU2DImageQuery_864ab6444b>(), schema_864ab6444b74d387)
 
 val RemoteRootCodecs.routeU2EScheduleU2DRunU2DCommandU2ERequest: RemoteRootCodec<RoutescheduleU2DRunU2DCommandRequest_c4921dbeb3>
     get() = RemoteRootCodec("route.schedule-run-command.request", serializer<RoutescheduleU2DRunU2DCommandRequest_c4921dbeb3>(), schema_c4921dbeb36e2b97)

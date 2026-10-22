@@ -6925,6 +6925,7 @@ msgstr "Failed to create pull request: {detail}"
 #~ msgstr "Failed to interrupt remote thread."
 
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 msgid "Failed to load"
 msgstr "Failed to load"
 

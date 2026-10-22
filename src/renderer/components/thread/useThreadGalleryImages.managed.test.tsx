@@ -34,11 +34,16 @@ import {
 } from "@/renderer/state/managedLoopbackImages";
 import { useRemoteImageRefUrl } from "@/renderer/state/remoteServers/useRemoteImageReadiness";
 import { AppProvider } from "@/renderer/components/ui/provider";
+import { usePanelStore } from "@/renderer/state/panelStore";
+import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { usePanelVisibility } from "@/renderer/views/MainView/parts/AppShell/parts/usePanelVisibility";
+import { ThreadDocksPanel } from "./ThreadDocksPanel";
 import { ImageLightboxHost } from "@/renderer/components/composer/ImageLightbox";
 import {
   getThreadGalleryImages,
   openThreadGallery,
   useThreadGalleryImages,
+  useThreadGalleryCollection,
 } from "./useThreadGalleryImages";
 import {
   buildGalleryResolversFromState,
@@ -138,6 +143,48 @@ beforeEach(() => {
   setRemoteImageRefResolver(() => "https://poisoned.test/image");
 });
 afterEach(teardownManagedImageFixture);
+
+it("keeps layout and hidden dock consumers passive until the gallery is visible", async () => {
+  const activation = createImageActivation();
+  publishImageActivation(activation);
+  installManagedImageRuntime();
+  seedThread();
+  useAppStore.setState({ view: { kind: "thread", panes: [threadId] } });
+  usePanelStore.setState({ threadDocksPanelOpen: false, rightPanelTab: "git" });
+  useSharedSettings.setState({ threadDocksPlacement: "right" });
+  const layout = renderHook(() => usePanelVisibility());
+  const dock = render(
+    <AppProvider>
+      <ThreadDocksPanel threadId={threadId} visible={false} />
+    </AppProvider>,
+  );
+  expect(activation.client.fetchTicketedImageBytes).not.toHaveBeenCalled();
+  act(() => usePanelStore.getState().openThreadDocksPanel("images"));
+  expect(layout.result.current.sidePanelOpen).toBe(true);
+  dock.rerender(
+    <AppProvider>
+      <ThreadDocksPanel threadId={threadId} visible />
+    </AppProvider>,
+  );
+  await waitFor(() => expect(activation.client.fetchTicketedImageBytes).toHaveBeenCalledTimes(1));
+});
+
+it("requests pending full-resolution gallery images only while the thread lightbox is open", async () => {
+  const activation = createImageActivation();
+  publishImageActivation(activation);
+  installManagedImageRuntime();
+  seedThread();
+  const collection = renderHook(() =>
+    useThreadGalleryCollection(threadId, { requestPending: false }),
+  );
+  mountLightbox();
+  expect(activation.client.fetchTicketedImageBytes).not.toHaveBeenCalled();
+  act(() => openThreadGallery(collection.result.current.images, inline, 0, threadId));
+  await waitFor(() => expect(collection.result.current.images).toHaveLength(2));
+  expect(activation.client.fetchTicketedImageBytes).toHaveBeenCalledTimes(1);
+  fireEvent.keyDown(window, { key: "ArrowRight" });
+  expect(screen.getByRole("img")).toHaveAttribute("src", "blob:managed-image-1");
+});
 
 it("retries a failed gallery download after the existing backoff expires", async () => {
   vi.useFakeTimers();

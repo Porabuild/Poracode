@@ -5,7 +5,7 @@ import { usePanelStore, type RightPanelTab } from "@/renderer/state/panelStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useThreadDocksPanelAvailable } from "@/renderer/components/thread/useThreadDocksSummary";
-import { useThreadGalleryImages } from "@/renderer/components/thread/useThreadGalleryImages";
+import { useThreadGalleryCollection } from "@/renderer/components/thread/useThreadGalleryImages";
 import { useFocusedThreadId } from "@/renderer/hooks/uiSelectors";
 
 /**
@@ -72,11 +72,16 @@ export function usePanelVisibility() {
   const bottomTerminalOpen = useBottomTerminalVisible();
   const informationalDocksPanelOpen = useThreadDocksPanelAvailable();
   const threadDocksPanelOpen = usePanelStore((s) => s.threadDocksPanelOpen);
-  const gallery = useThreadGalleryImages(currentThreadId ?? undefined);
+  const gallery = useThreadGalleryCollection(currentThreadId ?? undefined, {
+    requestPending: false,
+  });
+  const hasImages =
+    gallery.images.length + gallery.pendingRemoteRefs.length + gallery.pendingRemotePaths.length >
+    0;
   const docksPanelOpen =
     informationalDocksPanelOpen ||
     (threadDocksPanelOpen &&
-      gallery.length > 0 &&
+      hasImages &&
       (threadDocksPlacement === "right" || threadDocksFocus === "images"));
 
   const isTerminalRight = terminalPosition === "right";

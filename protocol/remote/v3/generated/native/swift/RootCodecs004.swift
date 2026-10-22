@@ -113,7 +113,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2ELocalU2DImageU2EQuery: RemoteRootCodec<RoutelocalU2DImageQuery_dd4531e3bf> = .init(id: "route.local-image.query", schema: RemoteSchemas.schema_dd4531e3bf06232b)
+  static let routeU2ELocalU2DImageU2EQuery: RemoteRootCodec<RoutelocalU2DImageQuery_e788b86a30> = .init(id: "route.local-image.query", schema: RemoteSchemas.schema_e788b86a30c28e0d)
 }
 
 public extension RemoteRootCodecs {
@@ -333,7 +333,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2ERuntimeU2DImageU2EQuery: RemoteRootCodec<RouteruntimeU2DImageQuery_1de2de5621> = .init(id: "route.runtime-image.query", schema: RemoteSchemas.schema_1de2de5621f360c2)
+  static let routeU2ERuntimeU2DImageU2EQuery: RemoteRootCodec<RouteruntimeU2DImageQuery_864ab6444b> = .init(id: "route.runtime-image.query", schema: RemoteSchemas.schema_864ab6444b74d387)
 }
 
 public extension RemoteRootCodecs {

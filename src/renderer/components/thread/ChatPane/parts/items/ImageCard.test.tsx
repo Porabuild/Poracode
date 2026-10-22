@@ -1,5 +1,6 @@
 import { act, fireEvent, render } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { toast } from "@heroui/react";
 import { AppProvider } from "@/renderer/components/ui/provider";
 import { ImageCard } from "./ImageCard";
 import type { ImageViewSource } from "./imageViewSource";
@@ -8,12 +9,14 @@ import * as imageActions from "@/renderer/utils/imageActions";
 import * as bridge from "@/renderer/bridge";
 import * as lightbox from "@/renderer/components/composer/ImageLightbox";
 
+const context = vi.hoisted(() => ({ threadId: "thread" }));
+
 vi.mock("../../../useThreadGalleryImages", () => ({
   getThreadGalleryImages: vi.fn<typeof getThreadGalleryImages>(() => []),
   openThreadGallery: vi.fn<typeof openThreadGallery>(),
 }));
 vi.mock("../../chatPaneActionsContext", () => ({
-  useChatPaneActions: () => ({ threadId: "thread" }),
+  useChatPaneActions: () => context,
 }));
 
 const PREVIEW = "data:image/jpeg;base64,QQ==";
@@ -31,10 +34,10 @@ function source(overrides: Partial<ImageViewSource> = {}): ImageViewSource {
   };
 }
 
-function renderCard(s: ImageViewSource) {
+function renderCard(s: ImageViewSource, resolveFullSrc?: () => Promise<string>) {
   const view = render(
     <AppProvider>
-      <ImageCard source={s} />
+      <ImageCard source={s} {...(resolveFullSrc ? { resolveFullSrc } : {})} />
     </AppProvider>,
   );
   const img = view.container.querySelector("img")!;
@@ -43,6 +46,136 @@ function renderCard(s: ImageViewSource) {
 }
 
 describe("ImageCard", () => {
+  it.each(["empty", "failure"])(
+    "does not use card bytes for image actions after full-resolution %s",
+    async (outcome) => {
+      const resolveFull = vi.fn<() => Promise<string>>(() =>
+        outcome === "empty" ? Promise.resolve("") : Promise.reject(new Error("offline")),
+      );
+      const copyBytes = vi.spyOn(imageActions, "toClipboardPngBytes");
+      const fetchBytes = vi.spyOn(imageActions, "fetchImageBytes");
+      const preview = vi.spyOn(lightbox, "openImageLightbox");
+      const danger = vi.spyOn(toast, "danger").mockImplementation(() => "image-error");
+      const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+      try {
+        const { view } = renderCard(source({ src: "blob:card-jpeg" }), resolveFull);
+        await act(async () => {
+          fireEvent.click(view.getByRole("button", { name: "Copy image" }));
+          fireEvent.click(view.getByRole("button", { name: "Download image" }));
+          fireEvent.click(view.getByRole("button", { name: "Open image preview" }));
+        });
+        expect(copyBytes).not.toHaveBeenCalled();
+        expect(fetchBytes).not.toHaveBeenCalled();
+        expect(preview).not.toHaveBeenCalled();
+        expect(danger).toHaveBeenCalledTimes(3);
+      } finally {
+        copyBytes.mockRestore();
+        fetchBytes.mockRestore();
+        preview.mockRestore();
+        danger.mockRestore();
+        log.mockRestore();
+      }
+    },
+  );
+
+  it.each(["replacement", "thread change", "unmount", "newer modal", "latest click"])(
+    "ignores a delayed preview after %s",
+    async (change) => {
+      const first = Promise.withResolvers<string>();
+      const second = Promise.withResolvers<string>();
+      const resolveFull = vi
+        .fn<() => Promise<string>>()
+        .mockReturnValueOnce(first.promise)
+        .mockReturnValueOnce(second.promise);
+      const preview = vi.spyOn(lightbox, "openImageLightbox");
+      try {
+        const { view } = renderCard(source({ src: "blob:card" }), resolveFull);
+        fireEvent.click(view.getByRole("button", { name: "Open image preview" }));
+        if (change === "replacement")
+          view.rerender(
+            <AppProvider>
+              <ImageCard source={source({ src: "blob:other" })} />
+            </AppProvider>,
+          );
+        if (change === "unmount") view.unmount();
+        if (change === "thread change") {
+          context.threadId = "other-thread";
+          view.rerender(
+            <AppProvider>
+              <ImageCard source={source({ src: "blob:card" })} resolveFullSrc={resolveFull} />
+            </AppProvider>,
+          );
+        }
+        if (change === "newer modal") {
+          lightbox.openImageLightbox([{ src: "blob:other" }], 0);
+          lightbox.closeImageLightbox();
+        }
+        if (change === "latest click")
+          fireEvent.click(view.getByRole("button", { name: "Open image preview" }));
+        preview.mockClear();
+        await act(async () => first.resolve("blob:full-original"));
+        expect(preview).not.toHaveBeenCalled();
+        if (change === "latest click") {
+          await act(async () => second.resolve("blob:full-current"));
+        }
+        expect(preview.mock.calls).toEqual(
+          change === "latest click"
+            ? [
+                [
+                  [
+                    {
+                      src: "blob:full-current",
+                      alt: "A screenshot",
+                      mime: "image/png",
+                      fileName: "shot.png",
+                    },
+                  ],
+                  0,
+                ],
+              ]
+            : [],
+        );
+      } finally {
+        context.threadId = "thread";
+        lightbox.closeImageLightbox();
+        preview.mockRestore();
+      }
+    },
+  );
+
+  it("copies and downloads original bytes instead of the displayed card", async () => {
+    const full = source({ src: "blob:full-resolution", fileName: "original.png" });
+    const bytes = new Uint8Array([137, 80, 78, 71]);
+    const copyBytes = vi.spyOn(imageActions, "toClipboardPngBytes").mockResolvedValue(bytes);
+    const fetchBytes = vi.spyOn(imageActions, "fetchImageBytes").mockResolvedValue(bytes);
+    const copy = vi
+      .fn<ReturnType<typeof bridge.readBridge>["copyImageToClipboard"]>()
+      .mockResolvedValue(true);
+    const save = vi
+      .fn<ReturnType<typeof bridge.readBridge>["saveImageFile"]>()
+      .mockResolvedValue(null);
+    const read = vi
+      .spyOn(bridge, "readBridge")
+      .mockReturnValue({ copyImageToClipboard: copy, saveImageFile: save } as unknown as ReturnType<
+        typeof bridge.readBridge
+      >);
+    try {
+      const { view } = renderCard({ ...full, src: "blob:display-card" }, async () => full.src);
+      await act(async () => {
+        fireEvent.click(view.getByRole("button", { name: "Copy image" }));
+        fireEvent.click(view.getByRole("button", { name: "Download image" }));
+      });
+      expect(copyBytes).toHaveBeenCalledExactlyOnceWith(full);
+      expect(fetchBytes).toHaveBeenCalledExactlyOnceWith(full.src);
+      expect(copy).toHaveBeenCalledExactlyOnceWith({ data: bytes });
+      expect(save).toHaveBeenCalledExactlyOnceWith({ data: bytes, suggestedName: full.fileName });
+    } finally {
+      copyBytes.mockRestore();
+      fetchBytes.mockRestore();
+      read.mockRestore();
+    }
+  });
+
   it("keeps pending image previews inactive until the image bytes resolve", () => {
     const preview = vi.spyOn(lightbox, "openImageLightbox").mockImplementation(() => undefined);
     vi.mocked(openThreadGallery).mockClear();

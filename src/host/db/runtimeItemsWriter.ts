@@ -6,6 +6,7 @@ import { recordUsageSpentFromRuntimeEvents } from "@/host/profile/usageLedger";
 import { getSqlite } from "./connection";
 import { withRuntimeBusyTimeout } from "./runtimeBusyTimeout";
 import { commitRuntimeAtomicWrite } from "./runtimeAtomicWrite";
+import { notifyRuntimeItemsCommitted } from "./runtimeItemCommitListeners";
 import type { RuntimeAtomicBatchWriter, RuntimeWriteBatch } from "./runtimeWriteQueue";
 import { safeParse } from "./rowMappers";
 import type { PersistedRuntimeItem } from "./runtimeItems";
@@ -145,6 +146,7 @@ export function applyThreadRuntimeEventsNow(
   withRuntimeBusyTimeout(() => {
     writerStatements(sqlite).writeEvents(threadId, events);
   });
+  notifyRuntimeItemsCommitted(threadId, events);
 }
 
 /**
@@ -157,9 +159,13 @@ export function applyThreadRuntimeEventsNow(
  */
 export const applyRuntimeEventBatchesNow: RuntimeAtomicBatchWriter = (batches) => {
   const sqlite = getSqlite();
-  return commitRuntimeAtomicWrite(sqlite, () => {
+  const result = commitRuntimeAtomicWrite(sqlite, () => {
     writerStatements(sqlite).writeBatches(batches);
   });
+  if (result.kind === "committed") {
+    for (const batch of batches) notifyRuntimeItemsCommitted(batch.threadId, batch.events);
+  }
+  return result;
 };
 
 function applyRuntimeEventsInTransaction(

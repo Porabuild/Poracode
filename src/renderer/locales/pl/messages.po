@@ -6916,6 +6916,7 @@ msgstr "Nie udało się utworzyć żądania ściągnięcia: {detail}"
 #~ msgstr "Nie udało się przerwać zdalnego wątku."
 
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 msgid "Failed to load"
 msgstr "Nie udało się załadować"
 

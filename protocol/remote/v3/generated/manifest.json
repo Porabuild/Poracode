@@ -416,7 +416,8 @@
       "path": "/api/files/image",
       "queryParameters": [
         "path",
-        "ticket"
+        "ticket",
+        "variant"
       ],
       "scopes": [
         "session:read"
@@ -508,7 +509,8 @@
       "path": "/api/threads/{threadId}/items/{itemId}/image",
       "queryParameters": [
         "path",
-        "ticket"
+        "ticket",
+        "variant"
       ],
       "scopes": [
         "session:read"

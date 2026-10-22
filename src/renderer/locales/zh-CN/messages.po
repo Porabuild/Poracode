@@ -6916,6 +6916,7 @@ msgstr "无法创建拉取请求：{detail}"
 #~ msgstr "无法中断远程线程。"
 
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 msgid "Failed to load"
 msgstr "加载失败"
 

@@ -53,9 +53,29 @@ const EMPTY_COLLECTION: ThreadGalleryCollection = {
  * up when its authenticated blob lands. Ready coordinates remain subscribed
  * so ordinary cache eviction also removes revoked URLs without a store tick.
  */
+export interface UseThreadGalleryOptions {
+  /**
+   * Whether pending host-held images are fetched in the background. Only a
+   * consumer that displays the images (dock, lightbox) should pay for that:
+   * the count bubble mounts on every thread open, and requesting the whole
+   * history there fills the bounded image-fetch queue with offscreen oldest
+   * images ahead of the transcript cards the user is looking at.
+   */
+  readonly requestPending?: boolean;
+}
+
 export function useThreadGalleryImages(
   threadId: string | undefined,
+  options?: UseThreadGalleryOptions,
 ): readonly ThreadGalleryImage[] {
+  return useThreadGalleryCollection(threadId, options).images;
+}
+
+export function useThreadGalleryCollection(
+  threadId: string | undefined,
+  options?: UseThreadGalleryOptions,
+): ThreadGalleryCollection {
+  const requestPending = options?.requestPending !== false;
   const locale = i18nSingleton.locale;
   const itemIds = useAppStore((s) =>
     threadId ? (s.runtimeItemIdsByThread[threadId] ?? EMPTY_IDS) : EMPTY_IDS,
@@ -127,12 +147,12 @@ export function useThreadGalleryImages(
   const pendingRefs = collection.pendingRemoteRefs;
   const pendingPaths = collection.pendingRemotePaths;
   const pendingKey = [
-    ...pendingRefs.map(environmentImageRefKey),
-    ...pendingPaths.map(environmentLocalImageKey),
+    ...pendingRefs.map((ref) => environmentImageRefKey(ref)),
+    ...pendingPaths.map((path) => environmentLocalImageKey(path)),
   ].join("\n");
   const readinessKey = [
-    ...readyRefs.map(environmentImageRefKey),
-    ...readyPaths.map(environmentLocalImageKey),
+    ...readyRefs.map((ref) => environmentImageRefKey(ref)),
+    ...readyPaths.map((path) => environmentLocalImageKey(path)),
     pendingKey,
   ].join("\n");
   const readyRefsRef = useRef(readyRefs);
@@ -170,15 +190,23 @@ export function useThreadGalleryImages(
       setReadinessRevision((revision) => revision + 1);
     };
     const unsubscribes = [
-      ...readyRefsRef.current.map((ref) => readiness.subscribeRef(ref, onTransition, "background")),
-      ...readyPathsRef.current.map((path) =>
-        readiness.subscribePath(path, onTransition, "background"),
+      ...readyRefsRef.current.map((ref) =>
+        readiness.subscribeRef(ref, onTransition, "background", undefined, requestPending),
       ),
-      ...refs.map((ref) => readiness.subscribeRef(ref, onTransition, "background")),
-      ...paths.map((path) => readiness.subscribePath(path, onTransition, "background")),
+      ...readyPathsRef.current.map((path) =>
+        readiness.subscribePath(path, onTransition, "background", undefined, requestPending),
+      ),
+      ...refs.map((ref) =>
+        readiness.subscribeRef(ref, onTransition, "background", undefined, requestPending),
+      ),
+      ...paths.map((path) =>
+        readiness.subscribePath(path, onTransition, "background", undefined, requestPending),
+      ),
     ];
-    for (const ref of refs) readiness.requestRef(ref, "background");
-    for (const path of paths) readiness.requestPath(path, "background");
+    if (requestPending) {
+      for (const ref of refs) readiness.requestRef(ref, "background");
+      for (const path of paths) readiness.requestPath(path, "background");
+    }
     return () => {
       for (const unsubscribe of unsubscribes) unsubscribe();
     };
@@ -193,6 +221,7 @@ export function useThreadGalleryImages(
     remoteServerRecord,
     isManagedThread,
     managedImageSession,
+    requestPending,
   ]);
 
   const previousImagesRef = useRef<readonly ThreadGalleryImage[] | undefined>(undefined);
@@ -202,7 +231,7 @@ export function useThreadGalleryImages(
     if (previous && previous !== images) updateImageLightboxFromThread(threadId, images);
   }, [threadId, images]);
 
-  return images;
+  return collection;
 }
 
 /**

@@ -13,8 +13,8 @@ object RemoteContractMetadata {
     const val protocolVersion = 14
     const val bindingFormatVersion = 2
     const val generatorVersion = 7
-    const val sourceHash = "sha256:79e75e719888e047638b351aad3038663e56f21f6375e4592cd9b8518ba5ddd7"
-    const val manifestHash = "sha256:b5f09ec84c281e9691a8d776e583090efb443be7461e2a581e6714dea91bde28"
+    const val sourceHash = "sha256:f6d9164e35a330e97c3d1113c1f2a7fbf31146d1d183eb4a7f4357cdb1d07c73"
+    const val manifestHash = "sha256:ec54bd073c141e96aa6a0217251754ff1f4f8bcb1b267d582dad19b02621ae89"
     val validationBoundary = RemoteValidationBoundary.ROOT_CODEC_ONLY
     val generatedModelSerializationSemantics = RemoteGeneratedSerializerSemantics.NON_VALIDATING_REPRESENTATION_ONLY
     val portableTransformIds = listOf("agent-settings.strip-sensitive", "push.routing.client-connection-id.lowercase", "string.trim")
@@ -72,7 +72,7 @@ object RemoteContractMetadata {
         RemoteRouteDescriptor("host-update", "GET", "/api/host-update", "bearer", listOf("projects:manage"), "empty", "json", 200, "RemoteUnit", "RoutehostU2DUpdateU2DCheckResponse_5f2c2d7fde", listOf()),
         RemoteRouteDescriptor("host-update-check", "POST", "/api/host-update/check", "bearer", listOf("projects:manage"), "empty", "json", 200, "RemoteUnit", "RoutehostU2DUpdateU2DCheckResponse_5f2c2d7fde", listOf()),
         RemoteRouteDescriptor("host-update-install", "POST", "/api/host-update/install", "bearer", listOf("projects:manage"), "empty", "json", 202, "RemoteUnit", "RoutehostU2DUpdateU2DInstallResponse_81055c9199", listOf()),
-        RemoteRouteDescriptor("local-image", "GET", "/api/files/image", "bearer-or-query", listOf("session:read"), "empty", "binary", 200, "RemoteUnit", "ByteArray", listOf(RemoteQueryParameterDescriptor("path", "string", false, false), RemoteQueryParameterDescriptor("ticket", "string", true, false))),
+        RemoteRouteDescriptor("local-image", "GET", "/api/files/image", "bearer-or-query", listOf("session:read"), "empty", "binary", 200, "RemoteUnit", "ByteArray", listOf(RemoteQueryParameterDescriptor("path", "string", false, false), RemoteQueryParameterDescriptor("ticket", "string", true, false), RemoteQueryParameterDescriptor("variant", "string", true, false))),
         RemoteRouteDescriptor("local-image-ticket", "POST", "/api/files/image-ticket", "bearer", listOf("session:read"), "json", "json", 200, "RoutelocalU2DImageU2DTicketRequest_757b67af10", "RouteenvironmentU2DWebsocketU2DTicketResponse_b9dfb5a053", listOf()),
         RemoteRouteDescriptor("mcp-settings-command", "POST", "/api/settings/mcp-servers/command", "bearer", listOf("projects:manage"), "json", "json", 200, "RoutemcpU2DSettingsU2DCommandRequest_f92ad486ec", "RoutemcpU2DSettingsU2DCommandResponse_e761211b82", listOf()),
         RemoteRouteDescriptor("mcp-settings-operation", "POST", "/api/settings/mcp-servers/operation", "bearer", listOf("projects:manage"), "json", "json", 200, "RoutemcpU2DSettingsU2DOperationRequest_e8fbf0f2cb", "RoutemcpU2DSettingsU2DOperationResponse_20b48750f1", listOf()),
@@ -103,7 +103,7 @@ object RemoteContractMetadata {
         RemoteRouteDescriptor("push-register", "POST", "/api/push/register", "bearer", listOf("session:operate"), "json", "json", 200, "RoutepushU2DRegisterRequest_98c9ef3e40", "RoutepushU2DRegisterResponse_9633843f8b", listOf()),
         RemoteRouteDescriptor("push-unregister", "POST", "/api/push/unregister", "bearer", listOf("session:operate"), "json", "json", 200, "RoutepushU2DUnregisterRequest_8f934fd77b", "RoutepushU2DRegisterResponse_9633843f8b", listOf()),
         RemoteRouteDescriptor("request-resolve", "POST", "/api/threads/{threadId}/requests/resolve", "bearer", listOf("requests:resolve"), "json", "json", 200, "RouterequestU2DResolveRequest_3df8195e90", "RoutedeviceU2DDetachResponse_badd682f35", listOf()),
-        RemoteRouteDescriptor("runtime-image", "GET", "/api/threads/{threadId}/items/{itemId}/image", "bearer-or-query", listOf("session:read"), "empty", "binary", 200, "RemoteUnit", "ByteArray", listOf(RemoteQueryParameterDescriptor("path", "JSON-string", false, false), RemoteQueryParameterDescriptor("ticket", "string", true, false))),
+        RemoteRouteDescriptor("runtime-image", "GET", "/api/threads/{threadId}/items/{itemId}/image", "bearer-or-query", listOf("session:read"), "empty", "binary", 200, "RemoteUnit", "ByteArray", listOf(RemoteQueryParameterDescriptor("path", "JSON-string", false, false), RemoteQueryParameterDescriptor("ticket", "string", true, false), RemoteQueryParameterDescriptor("variant", "string", true, false))),
         RemoteRouteDescriptor("schedule-run-command", "POST", "/api/schedules/runs/command", "bearer", listOf("session:operate"), "json", "json", 200, "RoutescheduleU2DRunU2DCommandRequest_c4921dbeb3", "RoutescheduleU2DRunU2DCommandResponse_6f4c2b2449", listOf()),
         RemoteRouteDescriptor("schedule-run-inbox", "GET", "/api/schedules/inbox", "bearer", listOf("session:read"), "empty", "json", 200, "RemoteUnit", "RoutescheduleU2DRunU2DInboxResponse_d9b927ff80", listOf(RemoteQueryParameterDescriptor("filter", "string", false, false), RemoteQueryParameterDescriptor("limit", "int", true, false), RemoteQueryParameterDescriptor("cursor", "string", true, false), RemoteQueryParameterDescriptor("search", "string", true, false))),
         RemoteRouteDescriptor("schedule-runs-read", "GET", "/api/schedules/runs", "bearer", listOf("session:read"), "empty", "json", 200, "RemoteUnit", "RoutescheduleU2DRunU2DInboxResponse_d9b927ff80", listOf(RemoteQueryParameterDescriptor("id", "string", false, false))),
