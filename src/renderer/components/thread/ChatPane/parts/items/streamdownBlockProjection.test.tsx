@@ -62,6 +62,35 @@ function Fixture({
   );
 }
 
+function comparableMarkup(container: HTMLElement): string {
+  const clone = container.cloneNode(true) as HTMLElement;
+  const generatedIds = new Map<string, string>();
+  // React Aria assigns different IDs to the two independently mounted fixtures.
+  for (const [index, element] of clone
+    .querySelectorAll('[data-rac][id^="react-aria-"]')
+    .entries()) {
+    generatedIds.set(element.id, `react-aria-${index}`);
+  }
+  for (const element of clone.querySelectorAll("*")) {
+    for (const attribute of element.attributes) {
+      if (
+        attribute.name === "id" ||
+        attribute.name === "for" ||
+        attribute.name === "aria-labelledby" ||
+        attribute.name === "aria-describedby" ||
+        attribute.name === "aria-controls" ||
+        attribute.name === "aria-owns"
+      ) {
+        attribute.value = attribute.value
+          .split(" ")
+          .map((id) => generatedIds.get(id) ?? id)
+          .join(" ");
+      }
+    }
+  }
+  return clone.innerHTML;
+}
+
 function renderPair(text: string, actions: ChatPaneActions | null = null) {
   const candidate = render(<Fixture text={text} oracle={false} actions={actions} />);
   const oracle = render(<Fixture text={text} oracle actions={actions} />);
@@ -73,7 +102,9 @@ function renderPair(text: string, actions: ChatPaneActions | null = null) {
       oracle.rerender(<Fixture text={nextText} oracle actions={nextActions} />);
     },
     async expectEqual() {
-      await waitFor(() => expect(candidate.container.innerHTML).toBe(oracle.container.innerHTML));
+      await waitFor(() =>
+        expect(comparableMarkup(candidate.container)).toBe(comparableMarkup(oracle.container)),
+      );
       const candidateRange = document.createRange();
       const oracleRange = document.createRange();
       candidateRange.selectNodeContents(candidate.container);
