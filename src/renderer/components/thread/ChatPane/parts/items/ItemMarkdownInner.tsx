@@ -36,6 +36,7 @@ import { LC_SELECTOR_LANG, tryParseSelectorPayload } from "./SelectorBadge";
 import { normalizeGfmTableSeparators, normalizeShortCodeFenceClosers } from "./ItemMarkdown";
 import { normalizeHighlightLanguage } from "./languageDetect";
 import { parseProjectPathRef, type ProjectPathRef } from "./parseProjectPathRef";
+import { normalizeWindowsDrivePath } from "@/shared/pathUtils";
 import { chatRemarkMath, withChatMathRehype } from "@/renderer/markdown/mathPlugins";
 import { splitStreamdownMarkdownBlocks } from "@/renderer/markdown/streamdownBlockSplitter";
 import {
@@ -541,7 +542,7 @@ function renderPathChip(
 ) {
   const normalized = projectLocation
     ? normalizeChatProjectPath(ref.path, projectLocation)
-    : ref.path;
+    : normalizeWindowsDrivePath(ref.path);
   if (ref.kind === "file") {
     return (
       <InlineFilePathChip

@@ -1,5 +1,6 @@
 import type { Project, ProjectLocation } from "@/shared/contracts";
 import { isHomeProjectId } from "@/shared/homeScope";
+import { normalizeWindowsDrivePath } from "@/shared/pathUtils";
 import { readBridge } from "@/renderer/bridge";
 import { activateFileEditorContext } from "@/renderer/actions/fileEditorContext";
 import { useFileEditorStore, type FileEditorRootContext } from "@/renderer/state/fileEditorStore";
@@ -89,7 +90,7 @@ export function createChatPaneFileActions({
  * filenames may also contain literal backslashes and trailing spaces.
  */
 function resolveHomeFilePath(rawPath: string, location: ProjectLocation): string {
-  let path = rawPath;
+  let path = normalizeWindowsDrivePath(rawPath);
   if (/^file:\/\//i.test(path)) {
     const url = new URL(path);
     path = decodeURIComponent(url.pathname);
