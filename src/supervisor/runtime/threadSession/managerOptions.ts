@@ -101,7 +101,7 @@ export interface ThreadSessionManagerOptions {
       requestId: ThreadServerRequestId,
       response: unknown,
       parentThreadId: string,
-    ): boolean;
+    ): Promise<boolean>;
   };
   /**
    * Optional: resolves how a WSL distro reaches host-bound services (NAT

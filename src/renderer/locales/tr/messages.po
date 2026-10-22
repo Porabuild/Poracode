@@ -18186,6 +18186,10 @@ msgid "This removes the worktree on \"{0}\", then deletes the branch."
 msgstr "Bu, \"{0}\" üzerindeki çalışma ağacını kaldırır, ardından dalı siler."
 
 #: src/renderer/i18n/sharedMessages.ts
+msgid "This request has no matching persistent approval. Choose Allow once."
+msgstr "Bu istek için eşleşen kalıcı bir onay yok. “Bir kez izin ver” seçeneğini seçin."
+
+#: src/renderer/i18n/sharedMessages.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
 msgid "This review watch uses an unsupported source-scope version. Update the app before changing it."
 msgstr "Bu inceleme izlemesi desteklenmeyen bir kaynak kapsamı sürümü kullanıyor. Değiştirmeden önce uygulamayı güncelleyin."

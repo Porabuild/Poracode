@@ -4284,7 +4284,7 @@ describe("sdkCanonicalMapping — requests", () => {
     });
   });
 
-  it("falls back to a single Always-allow option when no suggestions are present", () => {
+  it("offers only one-time approval when the SDK provides no persistent permission update", () => {
     const event = mapClaudePermissionRequest({
       threadId: "thread-1",
       requestId: "perm-4",
@@ -4295,7 +4295,6 @@ describe("sdkCanonicalMapping — requests", () => {
       payload: {
         options: [
           { optionId: "accept", label: "Allow once" },
-          { optionId: "acceptForSession", label: "Always allow" },
           { optionId: "decline", label: "Deny" },
         ],
       },

@@ -58,9 +58,7 @@ export function mapClaudePermissionRequest(input: {
 
 function buildPermissionOptions(suggestions: readonly PermissionSuggestion[]): UserInputOption[] {
   const options: UserInputOption[] = [{ optionId: "accept", label: "Allow once" }];
-  if (suggestions.length === 0) {
-    options.push({ optionId: "acceptForSession", label: "Always allow" });
-  } else {
+  if (suggestions.length > 0) {
     suggestions.forEach((suggestion, index) => {
       options.push({
         optionId: `${ACCEPT_SUGGESTION_OPTION_PREFIX}${index}`,

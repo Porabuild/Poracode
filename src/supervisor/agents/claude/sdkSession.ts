@@ -30,6 +30,7 @@ import type {
 } from "@/shared/contracts";
 import { areAgentSlashCommandsEqual, isThreadConfigEqual } from "@/shared/contracts";
 import { awaitProcessTermination } from "@/shared/awaitProcessTermination";
+import { msg } from "@/shared/messages";
 import { buildClaudeMcpServers } from "../userMcp";
 import {
   createKnownSessionRef,
@@ -50,7 +51,10 @@ import { resolveAgentBinaryPath } from "../binaryResolver";
 import { DeferredTurnCompletion } from "./deferredTurnCompletion";
 import { clearBackgroundTasks, hasAwaitedBackgroundWork } from "./canonicalMapping/backgroundTasks";
 import { ClaudeBackgroundTaskControls } from "./backgroundTaskControls";
-import { isSubAgentParentTool } from "./canonicalMapping/toolClassification";
+import {
+  isExitPlanModeToolName,
+  isSubAgentParentTool,
+} from "./canonicalMapping/toolClassification";
 import { applyClaudeContextSuffix } from "./argv";
 import {
   buildClaudeQuestionAnswerEvents,
@@ -95,11 +99,14 @@ import { buildSdkUserMessage } from "./sdkPrompt";
 import {
   basePermissionModeForConfig,
   buildDenyMessage,
+  canBypassPlanPermission,
+  exitPlanApprovalMode,
   isQuestionCancelResponse,
   normalizeQuestionAnswersForSdk,
   permissionDecision,
   permissionModeForConfig,
   rawQuestionAnswers,
+  type PendingPermission,
   type PendingRequest,
 } from "./sdkResponses";
 
@@ -156,6 +163,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
   private appliedContextSize: string | undefined;
   private sessionHasHistory = false;
   private appliedPermissionMode: PermissionMode | undefined;
+  private bypassPlanPermissions = false;
   private appliedSandboxDisabled = false;
   private readonly mcpServers: ClaudeSdkMcpServers;
   private appliedUltracode = false;
@@ -360,6 +368,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     options?: StartTurnOptions,
   ): Promise<void> {
     if (this.disposed) return;
+    this.bypassPlanPermissions = false;
     // The CLI reads its auto-compact window at launch: applyFlagSettings does
     // not change the effective window (verified with SDK/CLI 0.3.296/2.1.296).
     // A relaunch would end the CLI's background tasks, so while any are live
@@ -390,12 +399,24 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     await this.syncModel(query, config);
     if (!isCurrent()) return;
     const permissionMode = permissionModeForConfig(config);
+    const basePermissionMode = basePermissionModeForConfig(config);
+    const bypassPlan = config.mode === "plan" && basePermissionMode === "bypassPermissions";
+    if (config.mode === "plan" && (bypassPlan || basePermissionMode === "auto")) {
+      // Native Plan entry remembers the preceding mode. Re-enter Auto so its
+      // classifier survives a policy/model change while already planning.
+      // Confirm Bypass is permitted before honoring it in canUseTool; the
+      // SDK's allowDangerouslySkipPermissions only makes it selectable.
+      await query.setPermissionMode(basePermissionMode);
+      this.appliedPermissionMode = basePermissionMode;
+      if (!isCurrent()) return;
+    }
     if (permissionMode !== this.appliedPermissionMode || config.mode === "plan") {
       await query.setPermissionMode(permissionMode);
       this.appliedPermissionMode = permissionMode;
     }
 
     if (!isCurrent()) return;
+    this.bypassPlanPermissions = bypassPlan;
     await this.syncSandbox(query, config);
     if (!isCurrent()) return;
     await this.syncUltracodeFlag(query);
@@ -641,7 +662,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
   }
 
   private async syncSandbox(runtime: Query, config: ThreadConfig): Promise<void> {
-    const disabled = permissionModeForConfig(config) === "bypassPermissions";
+    const disabled = basePermissionModeForConfig(config) === "bypassPermissions";
     if (disabled === this.appliedSandboxDisabled) return;
     // Bypass is Poracode's full-access choice. Inheriting a project's Bash
     // sandbox here prevents native browser launches even after tool approval.
@@ -805,6 +826,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     this.streamStarted = false;
     this.appliedModel = undefined;
     this.appliedPermissionMode = undefined;
+    this.bypassPlanPermissions = false;
     this.appliedUltracode = false;
     this.appliedFast = false;
     this.startQuery(resumeSessionId, resumeSessionAt, retirement);
@@ -878,9 +900,8 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
       this.settleElicitation(requestId, result);
       return;
     }
-    this.pendingRequests.delete(requestId);
-
     if (pending.kind === "question") {
+      this.pendingRequests.delete(requestId);
       if (isQuestionCancelResponse(response)) {
         pending.resolve({ behavior: "deny", message: "User cancelled tool execution." });
         this.emitRuntimeEvents([
@@ -921,14 +942,60 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
       return;
     }
 
+    if (pending.resolving) return pending.resolving;
+    const resolving = this.resolvePermissionRequest(requestId, pending, response);
+    pending.resolving = resolving;
+    try {
+      await resolving;
+    } finally {
+      delete pending.resolving;
+    }
+  }
+
+  private async resolvePermissionRequest(
+    requestId: ThreadServerRequestId,
+    pending: PendingPermission,
+    response: unknown,
+  ): Promise<void> {
     const decision = permissionDecision(response);
+    if (
+      decision.kind === "acceptForSession" &&
+      (!pending.suggestions?.length ||
+        (decision.suggestionIndex !== undefined && !pending.suggestions[decision.suggestionIndex]))
+    ) {
+      // An older client may still display the former synthetic Always allow
+      // option. Keep the request open rather than silently treating it as once.
+      throw new Error(msg("thread.permission.persistentUnavailable"));
+    }
     if (decision.kind === "accept" || decision.kind === "acceptForSession") {
+      let approvedPlanMode: PermissionMode | undefined;
+      if (isExitPlanModeToolName(pending.toolName)) {
+        // Approval resumes this same turn, before the saved client config
+        // reaches startTurn. Leave native Plan active until the response's
+        // permission update atomically applies the selected policy.
+        this.bypassPlanPermissions = false;
+        approvedPlanMode =
+          exitPlanApprovalMode(response) ?? basePermissionModeForConfig(this.currentConfig);
+        const runtime = await this.requireQuery();
+        if (this.pendingRequests.get(requestId) !== pending) return;
+        const config: ThreadConfig = {
+          ...this.currentConfig,
+          mode: "agent",
+          approvalPolicy: approvedPlanMode,
+        };
+        await this.syncSandbox(runtime, config);
+        if (this.pendingRequests.get(requestId) !== pending) return;
+        this.currentConfig = config;
+        this.appliedPermissionMode = approvedPlanMode;
+      }
+      this.pendingRequests.delete(requestId);
       const pickedSuggestion =
         decision.suggestionIndex !== undefined
           ? pending.suggestions?.[decision.suggestionIndex]
           : undefined;
-      const updatedPermissions: PermissionUpdate[] | undefined =
-        decision.kind === "acceptForSession" && pending.suggestions
+      const updatedPermissions: PermissionUpdate[] | undefined = approvedPlanMode
+        ? [{ type: "setMode", mode: approvedPlanMode, destination: "session" }]
+        : decision.kind === "acceptForSession" && pending.suggestions
           ? pickedSuggestion
             ? [pickedSuggestion]
             : pending.suggestions
@@ -950,6 +1017,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
       return;
     }
 
+    this.pendingRequests.delete(requestId);
     pending.resolve({
       behavior: "deny",
       message: buildDenyMessage(decision.kind, pending),
@@ -1441,6 +1509,11 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
 
   private readonly canUseTool: CanUseTool = async (toolName, toolInput, callbackOptions) => {
     if (this.disposed) return { behavior: "deny", message: "Session closed." };
+    if (callbackOptions.signal.aborted)
+      return { behavior: "deny", message: "User cancelled tool execution." };
+    if (this.bypassPlanPermissions && canBypassPlanPermission(toolName, callbackOptions)) {
+      return { behavior: "allow", updatedInput: toolInput };
+    }
     if (toolName === "AskUserQuestion") {
       const requestId = `claude-question-${randomUUID()}` as ThreadServerRequestId;
       const questions = parseClaudeQuestions(toolInput);
@@ -1470,12 +1543,15 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     }
 
     const requestId = `claude-perm-${randomUUID()}` as ThreadServerRequestId;
+    const suggestions = callbackOptions.suppressAlwaysAllowRule
+      ? undefined
+      : callbackOptions.suggestions;
     return await new Promise<PermissionResult>((resolve) => {
       this.pendingRequests.set(requestId, {
         kind: "permission",
         toolName,
         toolInput,
-        ...(callbackOptions.suggestions ? { suggestions: [...callbackOptions.suggestions] } : {}),
+        ...(suggestions ? { suggestions: [...suggestions] } : {}),
         resolve,
       });
       callbackOptions.signal.addEventListener(
@@ -1499,7 +1575,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
             ? { decisionReason: callbackOptions.decisionReason }
             : {}),
           ...(callbackOptions.toolUseID ? { toolUseID: callbackOptions.toolUseID } : {}),
-          ...(callbackOptions.suggestions ? { suggestions: callbackOptions.suggestions } : {}),
+          ...(suggestions ? { suggestions } : {}),
         }),
       ]);
       this.updatePendingRequestStatus();
