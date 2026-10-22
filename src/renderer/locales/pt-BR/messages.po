@@ -6916,6 +6916,7 @@ msgstr "Falha ao criar pull request: {detail}"
 #~ msgstr "Não foi possível interromper o tópico remoto."
 
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 msgid "Failed to load"
 msgstr "Falha ao carregar"
 

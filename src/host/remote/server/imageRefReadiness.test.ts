@@ -24,6 +24,7 @@ import { remoteImageRefPath } from "@/shared/remote";
 import { RemoteAccessServer } from "../RemoteAccessServer";
 import { baseOptions, exchangeToken } from "../environments/environmentProxyTestFixtures";
 import { resolveImageRefAfterFence } from "./imageRefProjection";
+import { clearImageBytesCache } from "./imageBytesCache";
 
 const image = "data:image/png;base64,iVBORw0KGgo=";
 const bytes = Buffer.from("iVBORw0KGgo=", "base64");
@@ -62,6 +63,7 @@ describe.skipIf(!sqliteAvailable)("image reference readiness", () => {
   });
 
   afterEach(() => {
+    clearImageBytesCache();
     closeDatabase();
     rmSync(dir, { recursive: true, force: true });
     delete process.env.PORACODE_BETTER_SQLITE3_NATIVE_BINDING;
@@ -140,6 +142,76 @@ describe.skipIf(!sqliteAvailable)("image reference readiness", () => {
       expect((await resolveImageRefAfterFence("thread-1", "image", ["images", 0]))?.data).toEqual(
         replacementBytes,
       );
+    },
+  );
+
+  it("serves replacement bytes after a cached committed image is replaced and removed", async () => {
+    // First resolve populates the decoded-bytes cache.
+    expect((await resolveImageRefAfterFence("thread-1", "image", ["images", 0]))?.data).toEqual(
+      bytes,
+    );
+    const replacementBytes = Buffer.concat([bytes, Buffer.from([4, 5, 6])]);
+    const admission = admit([
+      {
+        type: "item.updated",
+        threadId: "thread-1",
+        itemId: "image",
+        payload: { images: [`data:image/png;base64,${replacementBytes.toString("base64")}`] },
+      },
+    ]);
+    expect(admission.kind).toBe("accepted");
+    // The fence flush commits the replacement and the writer's post-commit
+    // listener must drop the cached entry: new bytes, never the cached ones.
+    expect((await resolveImageRefAfterFence("thread-1", "image", ["images", 0]))?.data).toEqual(
+      replacementBytes,
+    );
+    const removal = admit([
+      {
+        type: "item.updated",
+        threadId: "thread-1",
+        itemId: "image",
+        payload: { images: [] },
+      },
+    ]);
+    expect(removal.kind).toBe("accepted");
+    expect(await resolveImageRefAfterFence("thread-1", "image", ["images", 0])).toBeNull();
+  });
+
+  it.each(["replacement", "removal"] as const)(
+    "does not cache fenced image bytes after a queued history %s",
+    async (mutation) => {
+      expect(
+        admit([
+          {
+            type: "item.updated",
+            threadId: "thread-1",
+            itemId: "image",
+            payload: { images: [image] },
+          },
+        ]).kind,
+      ).toBe("accepted");
+      const replacementBytes = Buffer.concat([bytes, Buffer.from([7, 8, 9])]);
+      const request = resolveImageRefAfterFence("thread-1", "image", ["images", 0]);
+      const replacement = dbReplaceThreadRuntimeItems(
+        "thread-1",
+        mutation === "replacement"
+          ? [
+              {
+                id: "image",
+                type: "image_view",
+                state: "completed",
+                payload: {
+                  images: [`data:image/png;base64,${replacementBytes.toString("base64")}`],
+                },
+                streams: {},
+              },
+            ]
+          : [],
+      );
+      expect((await request)?.data).toEqual(bytes);
+      await replacement;
+      const current = await resolveImageRefAfterFence("thread-1", "image", ["images", 0]);
+      expect(current?.data ?? null).toEqual(mutation === "replacement" ? replacementBytes : null);
     },
   );
 

@@ -125,6 +125,7 @@ export interface BackendHostCoreOptions {
   dbPath: string;
   /** Packaged read-only worker; direct/offline database harnesses omit it. */
   databaseReadWorkerPath?: string;
+  databaseReadImagePreviews?: boolean;
   databaseSchemaMode?: "migrate" | "validate";
   markLiveThreadsInactiveOnOpen?: boolean;
   /**
@@ -204,7 +205,11 @@ export class BackendHostCore {
         ? initDatabase(options.dbPath, { schemaMode: options.databaseSchemaMode })
         : initDatabase(options.dbPath);
       if (options.databaseReadWorkerPath) {
-        enableAsyncDatabaseReads(options.dbPath, options.databaseReadWorkerPath);
+        enableAsyncDatabaseReads(
+          options.dbPath,
+          options.databaseReadWorkerPath,
+          options.databaseReadImagePreviews,
+        );
       }
       this.preparedDatabaseWriteAdmission = capturePreparedDatabaseWriteAdmission(
         database,

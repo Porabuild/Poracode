@@ -6916,6 +6916,7 @@ msgstr "풀 요청 생성 실패: {detail}"
 #~ msgstr "원격 스레드를 중단하지 못했습니다."
 
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 msgid "Failed to load"
 msgstr "불러오기 실패"
 

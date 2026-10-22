@@ -6915,6 +6915,7 @@ msgstr "プル リクエストの作成に失敗しました:{detail}"
 #~ msgstr "リモートスレッドを中断できませんでした。"
 
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 msgid "Failed to load"
 msgstr "読み込みに失敗しました"
 

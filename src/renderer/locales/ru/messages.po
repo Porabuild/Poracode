@@ -6916,6 +6916,7 @@ msgstr "Не удалось создать pull request: {detail}"
 #~ msgstr "Не удалось прервать удалённый тред."
 
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 msgid "Failed to load"
 msgstr "Не удалось загрузить"
 

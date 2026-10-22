@@ -11,6 +11,7 @@ import { ChevronLeft, ChevronRight, X, ZoomIn, ZoomOut } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import { attachmentImageUrl, type Attachment } from "./useAttachments";
 import { ImageLightboxActions } from "./ImageLightboxActions";
+import { useThreadGalleryImages } from "../thread/useThreadGalleryImages";
 
 /** A pre-resolved image for the lightbox: a renderable URL plus an accessible label. */
 export interface LightboxImage {
@@ -46,6 +47,10 @@ const SCALE_STEP = 0.5;
 let lightboxState: LightboxState | null = null;
 let lightboxNonce = 0;
 const lightboxListeners = new Set<() => void>();
+
+export function imageLightboxRevision(): number {
+  return lightboxNonce;
+}
 
 function emitLightboxChange() {
   for (const listener of lightboxListeners) listener();
@@ -119,6 +124,7 @@ export function openAttachmentLightbox(
 
 export function closeImageLightbox(): void {
   if (lightboxState === null) return;
+  lightboxNonce++;
   lightboxState = null;
   emitLightboxChange();
 }
@@ -126,6 +132,7 @@ export function closeImageLightbox(): void {
 export const ImageLightboxHost = memo(function ImageLightboxHost() {
   const state = useSyncExternalStore(subscribeLightbox, getLightboxSnapshot, getLightboxSnapshot);
   useEffect(() => closeImageLightbox, []);
+  useThreadGalleryImages(state?.liveThreadId ?? undefined);
   if (!state) return null;
   return (
     <ImageLightboxView

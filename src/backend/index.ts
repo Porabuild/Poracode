@@ -229,6 +229,7 @@ async function initialize(
     baseDir,
     dbPath,
     databaseReadWorkerPath: join(dirname(supervisor.supervisorPath), "databaseReadWorker.cjs"),
+    databaseReadImagePreviews: request.payload.desktop !== undefined,
     databaseSchemaMode: "migrate",
     markLiveThreadsInactiveOnOpen: true,
     // Desktop main resolves the fence from the same canonical root mapping as

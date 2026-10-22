@@ -5,10 +5,6 @@ import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
-internal val schema_745963f66484f8a1: RemoteSchema by lazy {
-    RemoteSchema(type = "object", additionalSchema = schema_c1d4a9f752e166b1, propertyNames = schema_bf0b727f7b1c6d07, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
-}
-
 internal val schema_74659b54c1ae64b8: RemoteSchema by lazy {
     RemoteSchema(unionKind = "anyOf", options = listOf(schema_f9da03570b6c69fa, schema_b7c373d0981a5441), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
@@ -407,6 +403,10 @@ internal val schema_861b7e521ad93c4b: RemoteSchema by lazy {
 
 internal val schema_86230e1fa3f38188: RemoteSchema by lazy {
     RemoteSchema(type = "string", literals = listOf(JsonPrimitive("wsl-user")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
+internal val schema_864ab6444b74d387: RemoteSchema by lazy {
+    RemoteSchema(type = "object", required = setOf("path"), properties = mapOf("path" to schema_84c6a19f87f29012, "ticket" to schema_36fea325bf1aca70, "variant" to schema_bf0b727f7b1c6d07), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
 internal val schema_868bf1042a1bbba1: RemoteSchema by lazy {

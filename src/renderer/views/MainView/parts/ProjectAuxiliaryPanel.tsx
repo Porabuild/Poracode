@@ -38,7 +38,7 @@ import { ThreadDocksPanel } from "@/renderer/components/thread/ThreadDocksPanel"
 import { SideChatModelText } from "@/renderer/components/thread/SideChat/SideChatModelText";
 import { SideChatBody } from "@/renderer/components/thread/SideChat/SideChatBody";
 import { useSideChatPanelStore } from "@/renderer/components/thread/SideChat/sideChatPanelStore";
-import { useThreadGalleryImages } from "@/renderer/components/thread/useThreadGalleryImages";
+import { useThreadGalleryCollection } from "@/renderer/components/thread/useThreadGalleryImages";
 import { ThreadDocksPlacementToggle } from "@/renderer/components/thread/ThreadDocksPlacementToggle";
 import { panelHeaderIconButtonClass } from "@/renderer/components/layout/sidebarChrome";
 import { useThreadDocksPanelAvailable } from "@/renderer/components/thread/useThreadDocksSummary";
@@ -190,12 +190,15 @@ export function ProjectAuxiliaryPanel(props: {
   // an open flag. The explicit threadDocksPanelOpen state still owns dismissal.
   const docksPlacement = useSharedSettings((s) => s.threadDocksPlacement);
   const threadDocksFocus = usePanelStore((s) => s.threadDocksFocus);
-  const gallery = useThreadGalleryImages(
+  const gallery = useThreadGalleryCollection(
     currentThreadId !== null && (docksPlacement === "right" || threadDocksFocus === "images")
       ? currentThreadId
       : undefined,
+    { requestPending: false },
   );
-  const imagesInCurrentThread = gallery.length > 0;
+  const imagesInCurrentThread =
+    gallery.images.length + gallery.pendingRemoteRefs.length + gallery.pendingRemotePaths.length >
+    0;
   const docksTabAvailable = docksInCurrentThread || imagesInCurrentThread;
 
   const gitPanelOpen = !!gitReviewContext && gitReviewAsPanel;
@@ -535,6 +538,9 @@ export function ProjectAuxiliaryPanel(props: {
               <ThreadDocksPanel
                 key={currentThreadId}
                 threadId={currentThreadId}
+                visible={
+                  props.visible && (activeTab === "docks" || rightPanelSplit?.tab === "docks")
+                }
                 {...(currentThreadProjectLocation
                   ? { projectLocation: currentThreadProjectLocation }
                   : {})}

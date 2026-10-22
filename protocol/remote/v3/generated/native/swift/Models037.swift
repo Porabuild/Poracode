@@ -264,18 +264,21 @@ public enum RouteruntimeU2DImageQueryU2DPathU2DItem_941a12a3ce: Codable, Sendabl
   }
 }
 
-public struct RouteruntimeU2DImageQuery_1de2de5621: Codable, Sendable, RemoteModelMetadata {
+public struct RouteruntimeU2DImageQuery_864ab6444b: Codable, Sendable, RemoteModelMetadata {
   public var path: [RouteruntimeU2DImageQueryU2DPathU2DItem_941a12a3ce]
   public var ticket: RemoteField<String> = .missing
+  public var variant: RemoteField<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b> = .missing
   public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
   public static let fields: [RemoteFieldDescriptor] = [
     .init(wireName: "path", typeName: "[RouteruntimeU2DImageQueryU2DPathU2DItem_941a12a3ce]", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: 1, maxItems: 8, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "ticket", typeName: "String", required: false, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "variant", typeName: "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
   ]
   public static let semanticValidatorIds: [String] = []
   private enum CodingKeys: String, CodingKey {
     case path = "path"
     case ticket = "ticket"
+    case variant = "variant"
   }
 }
 

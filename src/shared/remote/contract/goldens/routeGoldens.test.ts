@@ -105,6 +105,19 @@ describe("remote HTTP route goldens", () => {
     }
   });
 
+  it.each(["local-image", "runtime-image"])(
+    "preserves legacy %s queries and the optional card variant",
+    (id) => {
+      const route = REMOTE_HTTP_ROUTES.find((candidate) => candidate.id === id)!;
+      const legacy = { path: id === "local-image" ? "/image.png" : ["images", 0] };
+      expect(route.request.querySchema?.parse(legacy)).toEqual(legacy);
+      expect(route.request.querySchema?.parse({ ...legacy, variant: "card" })).toEqual({
+        ...legacy,
+        variant: "card",
+      });
+    },
+  );
+
   it("omits path threadId from path-scoped bodies", () => {
     for (const id of EMPTY_THREAD_ROUTES) {
       const route = REMOTE_HTTP_ROUTES.find((candidate) => candidate.id === id);

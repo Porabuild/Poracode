@@ -6916,6 +6916,7 @@ msgstr "Không tạo được pull request: {detail}"
 #~ msgstr "Không thể ngắt luồng từ xa."
 
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 msgid "Failed to load"
 msgstr "Tải thất bại"
 

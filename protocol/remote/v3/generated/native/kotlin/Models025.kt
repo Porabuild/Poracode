@@ -123,14 +123,16 @@ class RoutehostU2DUpdateU2DInstallResponse_81055c9199 {
 }
 
 @Serializable
-data class RoutelocalU2DImageQuery_dd4531e3bf(
+data class RoutelocalU2DImageQuery_e788b86a30(
     @SerialName("path") val path: String,
     @SerialName("ticket") val ticket: RemoteField<String> = RemoteField.Missing,
+    @SerialName("variant") val variant: RemoteField<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b> = RemoteField.Missing,
 ) {
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
             RemoteFieldDescriptor("path", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("ticket", "String", false, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("variant", "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", false, false, null, null, null, null, null, null, null, null, listOf()),
         ), listOf())
     }
 }

@@ -1,4 +1,5 @@
 import { fork, type ChildProcess } from "node:child_process";
+import { cacheImagePreview, readImagePreviewSnapshot } from "../remote/server/imagePreview";
 import { decodeDatabaseReadFailure } from "./databaseReadErrors";
 import type {
   DatabaseReadArguments,
@@ -42,6 +43,7 @@ export class AsyncDatabaseReads {
   constructor(
     private readonly dbPath: string,
     private readonly workerPath: string,
+    private readonly imagePreviews = false,
   ) {}
 
   read<K extends DatabaseReadOperation>(
@@ -84,6 +86,16 @@ export class AsyncDatabaseReads {
           id: slot.job.id,
           operation: slot.job.operation,
           args: slot.job.args,
+          ...(this.imagePreviews &&
+          (slot.job.operation === "boundedSnapshot" || slot.job.operation === "boundedItems")
+            ? {
+                imagePreviews: readImagePreviewSnapshot(
+                  slot.job.operation === "boundedSnapshot"
+                    ? (slot.job.args[0] as string)
+                    : (slot.job.args[0] as { threadId: string }).threadId,
+                ),
+              }
+            : {}),
         });
       } catch (error) {
         this.failSlot(slot, error);
@@ -125,6 +137,7 @@ export class AsyncDatabaseReads {
         kind: "initialize",
         version: DATABASE_READ_WORKER_PROTOCOL_VERSION,
         dbPath: this.dbPath,
+        imagePreviews: this.imagePreviews,
       });
     }
   }
@@ -140,6 +153,14 @@ export class AsyncDatabaseReads {
       return;
     }
     const message = parsed.data;
+    if (message.kind === "image-preview") {
+      if (!this.imagePreviews || !slot.ready) {
+        this.failSlot(slot, new DatabaseReadUnavailableError("Unexpected image preview."));
+        return;
+      }
+      cacheImagePreview(message.entry);
+      return;
+    }
     if (message.kind === "ready") {
       if (slot.ready) {
         this.failSlot(
@@ -241,9 +262,13 @@ export class AsyncDatabaseReads {
 
 let currentReads: AsyncDatabaseReads | null = null;
 
-export function enableAsyncDatabaseReads(dbPath: string, workerPath: string): void {
+export function enableAsyncDatabaseReads(
+  dbPath: string,
+  workerPath: string,
+  imagePreviews = false,
+): void {
   if (currentReads) throw new Error("Database reader is already initialized.");
-  currentReads = new AsyncDatabaseReads(dbPath, workerPath);
+  currentReads = new AsyncDatabaseReads(dbPath, workerPath, imagePreviews);
 }
 
 /** Direct/offline database users keep their existing synchronous read contract. */

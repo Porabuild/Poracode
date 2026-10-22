@@ -42,9 +42,11 @@ import {
 export function ThreadDocksPanel({
   threadId,
   projectLocation,
+  visible = true,
 }: {
   threadId: string;
   projectLocation?: ProjectLocation;
+  visible?: boolean;
 }) {
   const { t } = useLingui();
   const goalDockState = useVisibleThreadGoalDockState(threadId);
@@ -58,14 +60,14 @@ export function ThreadDocksPanel({
   const setOrder = useSharedSettings((s) => s.setThreadDocksOrder);
   const docksPlacement = useSharedSettings((s) => s.threadDocksPlacement);
   const summary = useThreadDocksSummary(threadId, goalDockState, todoDockState);
-  const gallery = useThreadGalleryImages(threadId);
+  const docksShowing = usePanelStore((s) => s.threadDocksPanelOpen && s.rightPanelTab === "docks");
+  const gallery = useThreadGalleryImages(threadId, { requestPending: visible });
   const artifacts = useThreadArtifacts(threadId);
   const threadExists = useAppStore((state) =>
     state.threads.some((thread) => thread.id === threadId),
   );
   const usage = useThreadAgentUsage(threadId);
   const focus = usePanelStore((s) => s.threadDocksFocus);
-  const docksShowing = usePanelStore((s) => s.threadDocksPanelOpen && s.rightPanelTab === "docks");
   const containerRef = useRef<HTMLDivElement>(null);
   const lastScrolledFocusRef = useRef<ThreadDockFocus | null>(null);
 
