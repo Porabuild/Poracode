@@ -157,7 +157,7 @@ function seedImageOnlyThread(): void {
 }
 
 describe("ProjectAuxiliaryPanel", () => {
-  it("keeps panel navigation above device-only header targets without adding a row to Notes", async () => {
+  it("keeps device title and actions inside the shared panel header", async () => {
     const { UnifiedRightPanel } = await vi.importActual<
       typeof import("@/renderer/components/layout/UnifiedRightPanel")
     >("@/renderer/components/layout/UnifiedRightPanel");
@@ -189,12 +189,10 @@ describe("ProjectAuxiliaryPanel", () => {
     );
     const view = render(panel("devices"));
     const rows = view.container.querySelectorAll(".poracode-overlay-header");
-    expect(rows).toHaveLength(2);
-    expect(rows[1]).toHaveClass("poracode-overlay-header--no-drag");
+    expect(rows).toHaveLength(1);
     expect(rows[0]?.contains(document.getElementById("panel-devices-thread-a"))).toBe(true);
-    expect(title.mock.calls.at(-1)?.[0]?.parentElement).toBe(rows[1]);
-    expect(actions.mock.calls.at(-1)?.[0]?.parentElement).toBe(rows[1]);
-    expect(rows[1]?.querySelector('[title="Hide panel"]')).toBeNull();
+    expect(rows[0]?.contains(title.mock.calls.at(-1)?.[0] ?? null)).toBe(true);
+    expect(rows[0]?.contains(actions.mock.calls.at(-1)?.[0] ?? null)).toBe(true);
     view.rerender(panel("notes"));
     expect(view.container.querySelectorAll(".poracode-overlay-header")).toHaveLength(1);
     expect(view.container.querySelector("[data-device-header]")).toBeNull();

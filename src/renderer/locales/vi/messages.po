@@ -1980,7 +1980,6 @@ msgid "At least two worktrees must be created. Any partial experiment was cleane
 msgstr "Cần tạo ít nhất hai cây làm việc. Mọi thử nghiệm chỉ được tạo một phần đã được dọn dẹp."
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
-#: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Attach"
 msgstr "Đính kèm"
 
@@ -5632,6 +5631,10 @@ msgstr "Quyền truy cập thiết bị đã hết hạn. Hãy kết nối lại
 msgid "Device accessibility"
 msgstr "Trợ năng thiết bị"
 
+#: src/renderer/components/devices/DeviceListItem.tsx
+msgid "Device actions"
+msgstr "Thao tác thiết bị"
+
 #: src/renderer/components/devices/DeviceTools.tsx
 msgid "Device appearance"
 msgstr "Giao diện thiết bị"
@@ -8769,8 +8772,8 @@ msgid "Invalid visual specification. Showing source only."
 msgstr "Đặc tả trực quan không hợp lệ. Chỉ hiển thị mã nguồn."
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
-msgid "iOS Simulator requires a macOS host with Xcode."
-msgstr "iOS Simulator yêu cầu máy chủ macOS có Xcode."
+#~ msgid "iOS Simulator requires a macOS host with Xcode."
+#~ msgstr "iOS Simulator yêu cầu máy chủ macOS có Xcode."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "iPad Air"
@@ -11895,6 +11898,14 @@ msgstr "Mở bộ chọn nỗ lực"
 msgid "Open the model picker"
 msgstr "Mở bộ chọn mô hình"
 
+#: src/renderer/components/devices/DeviceListItem.tsx
+msgid "Open view only"
+msgstr "Mở chỉ xem"
+
+#: src/renderer/components/devices/DeviceListItem.tsx
+msgid "Open with control"
+msgstr "Mở với điều khiển"
+
 #: src/renderer/components/providers/opencode/manifest.ts
 msgid "OpenCode"
 msgstr "OpenCode"
@@ -14836,7 +14847,7 @@ msgstr "Chạy quy trình"
 msgid "running"
 msgstr "đang chạy"
 
-#: src/renderer/components/devices/DeviceWorkspace.tsx
+#: src/renderer/components/devices/DeviceListItem.tsx
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/SchedulesView/parts/scheduleRunStatus.ts
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
@@ -16481,7 +16492,7 @@ msgstr "Bắt đầu một chủ đề mới từ việc cần làm này"
 #~ msgid "Start a new thread to put an agent to work from this device."
 #~ msgstr "Bắt đầu một luồng mới để cho agent làm việc từ thiết bị này."
 
-#: src/renderer/components/devices/DeviceWorkspace.tsx
+#: src/renderer/components/devices/DeviceListItem.tsx
 msgid "Start device"
 msgstr "Khởi động thiết bị"
 
@@ -16560,7 +16571,7 @@ msgid "Started {targetLabel} thread"
 msgstr "Đã bắt đầu chủ đề {targetLabel}"
 
 #. Button label while the microphone test is starting
-#: src/renderer/components/devices/DeviceWorkspace.tsx
+#: src/renderer/components/devices/DeviceListItem.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/RemoteAccessSidebarIcon.tsx
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
@@ -16705,7 +16716,7 @@ msgstr "Dừng nhập bằng giọng nói"
 msgid "Stop when"
 msgstr "Dừng khi"
 
-#: src/renderer/components/devices/DeviceWorkspace.tsx
+#: src/renderer/components/devices/DeviceListItem.tsx
 msgid "Stopped"
 msgstr "Đã dừng"
 

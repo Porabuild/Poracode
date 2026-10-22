@@ -1980,7 +1980,6 @@ msgid "At least two worktrees must be created. Any partial experiment was cleane
 msgstr "Au moins deux arbres de travail doivent être créés. Toute expérience créée partiellement a été nettoyée."
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
-#: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Attach"
 msgstr "Joindre"
 
@@ -5632,6 +5631,10 @@ msgstr "L’accès à l’appareil a expiré. Rattachez-le à nouveau."
 msgid "Device accessibility"
 msgstr "Accessibilité de l’appareil"
 
+#: src/renderer/components/devices/DeviceListItem.tsx
+msgid "Device actions"
+msgstr "Actions de l’appareil"
+
 #: src/renderer/components/devices/DeviceTools.tsx
 msgid "Device appearance"
 msgstr "Apparence de l’appareil"
@@ -8769,8 +8772,8 @@ msgid "Invalid visual specification. Showing source only."
 msgstr "Spécification de visuel invalide. Seul le code source est affiché."
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
-msgid "iOS Simulator requires a macOS host with Xcode."
-msgstr "Le simulateur iOS nécessite un hôte macOS avec Xcode."
+#~ msgid "iOS Simulator requires a macOS host with Xcode."
+#~ msgstr "Le simulateur iOS nécessite un hôte macOS avec Xcode."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "iPad Air"
@@ -11894,6 +11897,14 @@ msgstr "Ouvrir le sélecteur d'effort"
 msgid "Open the model picker"
 msgstr "Ouvrir le sélecteur de modèle"
 
+#: src/renderer/components/devices/DeviceListItem.tsx
+msgid "Open view only"
+msgstr "Ouvrir en consultation seule"
+
+#: src/renderer/components/devices/DeviceListItem.tsx
+msgid "Open with control"
+msgstr "Ouvrir pour contrôler"
+
 #: src/renderer/components/providers/opencode/manifest.ts
 msgid "OpenCode"
 msgstr "OpenCode"
@@ -14835,7 +14846,7 @@ msgstr "Exécuter le workflow"
 msgid "running"
 msgstr "en cours d'exécution"
 
-#: src/renderer/components/devices/DeviceWorkspace.tsx
+#: src/renderer/components/devices/DeviceListItem.tsx
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/SchedulesView/parts/scheduleRunStatus.ts
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
@@ -16480,7 +16491,7 @@ msgstr "Démarrer un nouveau fil de discussion à partir de cette tâche"
 #~ msgid "Start a new thread to put an agent to work from this device."
 #~ msgstr "Démarrez un nouveau fil pour lancer un agent depuis cet appareil."
 
-#: src/renderer/components/devices/DeviceWorkspace.tsx
+#: src/renderer/components/devices/DeviceListItem.tsx
 msgid "Start device"
 msgstr "Démarrer l’appareil"
 
@@ -16559,7 +16570,7 @@ msgid "Started {targetLabel} thread"
 msgstr "Fil de discussion {targetLabel} démarré"
 
 #. Button label while the microphone test is starting
-#: src/renderer/components/devices/DeviceWorkspace.tsx
+#: src/renderer/components/devices/DeviceListItem.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/RemoteAccessSidebarIcon.tsx
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
@@ -16704,7 +16715,7 @@ msgstr "Arrêter la saisie vocale"
 msgid "Stop when"
 msgstr "Arrêter lorsque"
 
-#: src/renderer/components/devices/DeviceWorkspace.tsx
+#: src/renderer/components/devices/DeviceListItem.tsx
 msgid "Stopped"
 msgstr "Arrêté"
 

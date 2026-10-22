@@ -1980,7 +1980,6 @@ msgid "At least two worktrees must be created. Any partial experiment was cleane
 msgstr "En az iki çalışma ağacı oluşturulmalıdır. Kısmen oluşturulan deney temizlendi."
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
-#: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Attach"
 msgstr "Ekle"
 
@@ -5632,6 +5631,10 @@ msgstr "Cihaz erişiminin süresi doldu. Yeniden bağlayın."
 msgid "Device accessibility"
 msgstr "Cihaz erişilebilirliği"
 
+#: src/renderer/components/devices/DeviceListItem.tsx
+msgid "Device actions"
+msgstr "Cihaz eylemleri"
+
 #: src/renderer/components/devices/DeviceTools.tsx
 msgid "Device appearance"
 msgstr "Cihaz görünümü"
@@ -8769,8 +8772,8 @@ msgid "Invalid visual specification. Showing source only."
 msgstr "Geçersiz görsel tanımı. Yalnızca kaynak gösteriliyor."
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
-msgid "iOS Simulator requires a macOS host with Xcode."
-msgstr "iOS Simulator, Xcode yüklü bir macOS ana makinesi gerektirir."
+#~ msgid "iOS Simulator requires a macOS host with Xcode."
+#~ msgstr "iOS Simulator, Xcode yüklü bir macOS ana makinesi gerektirir."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "iPad Air"
@@ -11895,6 +11898,14 @@ msgstr "Çaba seçiciyi aç"
 msgid "Open the model picker"
 msgstr "Model seçiciyi açın"
 
+#: src/renderer/components/devices/DeviceListItem.tsx
+msgid "Open view only"
+msgstr "Yalnızca görüntüleme olarak aç"
+
+#: src/renderer/components/devices/DeviceListItem.tsx
+msgid "Open with control"
+msgstr "Kontrol ile aç"
+
 #: src/renderer/components/providers/opencode/manifest.ts
 msgid "OpenCode"
 msgstr "OpenCode"
@@ -14836,7 +14847,7 @@ msgstr "İş akışını çalıştır"
 msgid "running"
 msgstr "çalışıyor"
 
-#: src/renderer/components/devices/DeviceWorkspace.tsx
+#: src/renderer/components/devices/DeviceListItem.tsx
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/SchedulesView/parts/scheduleRunStatus.ts
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
@@ -16481,7 +16492,7 @@ msgstr "Bu yapılacaklardan yeni bir konu başlatın"
 #~ msgid "Start a new thread to put an agent to work from this device."
 #~ msgstr "Bu cihazdan bir ajanı çalıştırmak için yeni bir iş parçacığı başlatın."
 
-#: src/renderer/components/devices/DeviceWorkspace.tsx
+#: src/renderer/components/devices/DeviceListItem.tsx
 msgid "Start device"
 msgstr "Cihazı başlat"
 
@@ -16560,7 +16571,7 @@ msgid "Started {targetLabel} thread"
 msgstr "{targetLabel} iş parçacığı başlatıldı"
 
 #. Button label while the microphone test is starting
-#: src/renderer/components/devices/DeviceWorkspace.tsx
+#: src/renderer/components/devices/DeviceListItem.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/RemoteAccessSidebarIcon.tsx
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
@@ -16705,7 +16716,7 @@ msgstr "Ses girişini durdur"
 msgid "Stop when"
 msgstr "Şu durumda durdur"
 
-#: src/renderer/components/devices/DeviceWorkspace.tsx
+#: src/renderer/components/devices/DeviceListItem.tsx
 msgid "Stopped"
 msgstr "Durduruldu"
 

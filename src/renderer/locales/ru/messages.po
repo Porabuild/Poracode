@@ -1980,7 +1980,6 @@ msgid "At least two worktrees must be created. Any partial experiment was cleane
 msgstr "Необходимо создать как минимум два worktree. Все данные незавершённого эксперимента были удалены."
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
-#: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Attach"
 msgstr "Прикрепить"
 
@@ -5632,6 +5631,10 @@ msgstr "Срок доступа к устройству истёк. Подклю
 msgid "Device accessibility"
 msgstr "Специальные возможности устройства"
 
+#: src/renderer/components/devices/DeviceListItem.tsx
+msgid "Device actions"
+msgstr "Действия с устройством"
+
 #: src/renderer/components/devices/DeviceTools.tsx
 msgid "Device appearance"
 msgstr "Оформление устройства"
@@ -8769,8 +8772,8 @@ msgid "Invalid visual specification. Showing source only."
 msgstr "Некорректное описание визуализации. Показан только исходный код."
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
-msgid "iOS Simulator requires a macOS host with Xcode."
-msgstr "Симулятор iOS требует хост macOS с Xcode."
+#~ msgid "iOS Simulator requires a macOS host with Xcode."
+#~ msgstr "Симулятор iOS требует хост macOS с Xcode."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "iPad Air"
@@ -11895,6 +11898,14 @@ msgstr "Открыть выбор усилия"
 msgid "Open the model picker"
 msgstr "Открыть выбор модели"
 
+#: src/renderer/components/devices/DeviceListItem.tsx
+msgid "Open view only"
+msgstr "Открыть только для просмотра"
+
+#: src/renderer/components/devices/DeviceListItem.tsx
+msgid "Open with control"
+msgstr "Открыть с управлением"
+
 #: src/renderer/components/providers/opencode/manifest.ts
 msgid "OpenCode"
 msgstr "OpenCode"
@@ -14836,7 +14847,7 @@ msgstr "Запустить рабочий процесс"
 msgid "running"
 msgstr "выполняется"
 
-#: src/renderer/components/devices/DeviceWorkspace.tsx
+#: src/renderer/components/devices/DeviceListItem.tsx
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/SchedulesView/parts/scheduleRunStatus.ts
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
@@ -16481,7 +16492,7 @@ msgstr "Создать новый тред из этой задачи"
 #~ msgid "Start a new thread to put an agent to work from this device."
 #~ msgstr "Начните новый поток, чтобы запустить агента с этого устройства."
 
-#: src/renderer/components/devices/DeviceWorkspace.tsx
+#: src/renderer/components/devices/DeviceListItem.tsx
 msgid "Start device"
 msgstr "Запустить устройство"
 
@@ -16560,7 +16571,7 @@ msgid "Started {targetLabel} thread"
 msgstr "Тред {targetLabel} запущен"
 
 #. Button label while the microphone test is starting
-#: src/renderer/components/devices/DeviceWorkspace.tsx
+#: src/renderer/components/devices/DeviceListItem.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/RemoteAccessSidebarIcon.tsx
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
@@ -16705,7 +16716,7 @@ msgstr "Остановить голосовой ввод"
 msgid "Stop when"
 msgstr "Условие остановки"
 
-#: src/renderer/components/devices/DeviceWorkspace.tsx
+#: src/renderer/components/devices/DeviceListItem.tsx
 msgid "Stopped"
 msgstr "Остановлено"
 
