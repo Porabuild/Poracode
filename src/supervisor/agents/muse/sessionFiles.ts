@@ -1,4 +1,4 @@
-import { existsSync, readdirSync } from "node:fs";
+import { readdir } from "node:fs/promises";
 import { join, posix } from "node:path";
 import type { ProjectLocation, SessionRef } from "@/shared/contracts";
 import {
@@ -95,12 +95,12 @@ function joinMusePath(location: ProjectLocation, ...parts: string[]): string {
 
 /**
  * Recursively collect UUID session directory names under `root` (date-sharded
- * YYYY/MM/DD/<uuid>). Native-only sync walk used for the pre-spawn snapshot.
+ * YYYY/MM/DD/<uuid>). Native-only walk used for the pre-spawn snapshot.
  */
-function collectNativeSessionIds(root: string, into: Set<string>, depth = 0): void {
-  if (depth > 4 || !existsSync(root)) return;
+async function collectNativeSessionIds(root: string, into: Set<string>, depth = 0): Promise<void> {
+  if (depth > 4) return;
   try {
-    for (const entry of readdirSync(root, { withFileTypes: true })) {
+    for (const entry of await readdir(root, { withFileTypes: true })) {
       if (!entry.isDirectory()) continue;
       if (isMuseSessionUuid(entry.name)) {
         into.add(entry.name);
@@ -108,7 +108,7 @@ function collectNativeSessionIds(root: string, into: Set<string>, depth = 0): vo
       }
       // Date shards are digits-only (YYYY / MM / DD).
       if (/^\d{2,4}$/.test(entry.name)) {
-        collectNativeSessionIds(join(root, entry.name), into, depth + 1);
+        await collectNativeSessionIds(join(root, entry.name), into, depth + 1);
       }
     }
   } catch {
@@ -118,15 +118,16 @@ function collectNativeSessionIds(root: string, into: Set<string>, depth = 0): vo
 
 /**
  * Record existing Muse session UUIDs before spawning so discovery can ignore
- * them. Sync + native only; WSL discovery instead filters candidates by the
+ * them. Native only; WSL discovery instead filters candidates by the
  * workspace metadata written into each session log.
  */
-export function snapshotMusePreSpawnSessions(location: ProjectLocation): void {
+export async function snapshotMusePreSpawnSessions(location: ProjectLocation): Promise<void> {
   const ids = new Set<string>();
+  if (location.kind !== "wsl") {
+    const root = getNativeSessionsRoot();
+    await collectNativeSessionIds(root, ids);
+  }
   preSpawnSnapshots.set(snapshotKey(location), ids);
-  if (location.kind === "wsl") return;
-  const root = getNativeSessionsRoot();
-  collectNativeSessionIds(root, ids);
 }
 
 /**

@@ -1,8 +1,13 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import * as fsPromises from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ProjectLocation, ResolvedMcpServer, ThreadConfig } from "@/shared/contracts";
+
+vi.mock("node:fs/promises", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("node:fs/promises")>()),
+}));
 
 const detectAgentInstallMock = vi.hoisted(() => vi.fn<(...args: unknown[]) => Promise<unknown>>());
 const readAgentCommandOutputMock = vi.hoisted(() =>
@@ -470,7 +475,7 @@ describe("muse session discovery (native)", () => {
 
   it("discovers the session dir created after the pre-spawn snapshot", async () => {
     makeSession(["2026", "08", "05"], "11111111-1111-1111-1111-111111111111");
-    snapshotMusePreSpawnSessions(loc);
+    await snapshotMusePreSpawnSessions(loc);
     makeSession(["2026", "08", "05"], "22222222-2222-2222-2222-222222222222");
 
     const ref = await discoverMuseSessionRef(loc);
@@ -479,12 +484,40 @@ describe("muse session discovery (native)", () => {
 
   it("returns undefined when no new sessions exist", async () => {
     makeSession(["2026", "08", "05"], "11111111-1111-1111-1111-111111111111");
-    snapshotMusePreSpawnSessions(loc);
+    await snapshotMusePreSpawnSessions(loc);
     expect(await discoverMuseSessionRef(loc)).toBeUndefined();
   });
 
+  it("retains the completed snapshot while another launch scans", async () => {
+    makeSession(["2026", "08", "05"], "11111111-1111-1111-1111-111111111111");
+    await snapshotMusePreSpawnSessions(loc);
+    const read = fsPromises.readdir;
+    let entered!: () => void;
+    let release!: () => void;
+    const started = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    const blocked = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const spy = vi.spyOn(fsPromises, "readdir").mockImplementationOnce(async (...args) => {
+      entered();
+      await blocked;
+      return read(...args);
+    });
+    const pending = snapshotMusePreSpawnSessions(loc);
+    await started;
+    try {
+      expect(await discoverMuseSessionRef(loc)).toBeUndefined();
+    } finally {
+      release();
+      await pending;
+      spy.mockRestore();
+    }
+  });
+
   it("does not bind a concurrent session created for another project", async () => {
-    snapshotMusePreSpawnSessions(loc);
+    await snapshotMusePreSpawnSessions(loc);
     makeSession(
       ["2026", "08", "05"],
       "33333333-3333-3333-3333-333333333333",
@@ -504,7 +537,7 @@ describe("muse session discovery (native)", () => {
     // (`approval-review/`, `cron.db`, `*.sqlite3`) inside the top-level uuid
     // dir. Discovery must bind the top id only — the walk never descends past
     // the YYYY/MM/DD/<uuid> level.
-    snapshotMusePreSpawnSessions(loc);
+    await snapshotMusePreSpawnSessions(loc);
     const top = "55555555-5555-5555-5555-555555555555";
     makeSession(["2026", "09", "02"], top);
     const topDir = join(dataHome, "sessions", "2026", "09", "02", top);

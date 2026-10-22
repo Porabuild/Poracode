@@ -17,27 +17,29 @@ const memory = vi.hoisted(() => ({
   }),
 }));
 
-vi.mock("node:fs", async (importActual) => {
-  const actual = await importActual<typeof import("node:fs")>();
+vi.mock("node:fs/promises", async (importActual) => {
+  const actual = await importActual<typeof import("node:fs/promises")>();
   const requireOwned = (path: unknown) => {
     if (path !== memory.path) throw new Error("Unexpected filesystem access");
   };
   return {
     ...actual,
-    readFileSync: vi.fn<(path: unknown) => string>((path: unknown) => {
+    readFile: vi.fn<(path: unknown) => Promise<string>>(async (path: unknown) => {
       requireOwned(path);
       if (memory.cache === undefined)
         throw Object.assign(new Error("Cache absent"), { code: "ENOENT" });
       return memory.cache;
     }),
-    writeFileSync: vi.fn<(path: unknown, data: unknown) => void>((path: unknown, data: unknown) => {
-      requireOwned(path);
-      if (memory.failWrite) throw new Error("Owned cache write failed");
-      if (typeof data !== "string") throw new Error("Expected UTF-8 cache text");
-      memory.cache = data;
-      memory.writes.push(data);
-    }),
-    unlinkSync: vi.fn<(path: unknown) => void>((path: unknown) => {
+    writeFile: vi.fn<(path: unknown, data: unknown) => Promise<void>>(
+      async (path: unknown, data: unknown) => {
+        requireOwned(path);
+        if (memory.failWrite) throw new Error("Owned cache write failed");
+        if (typeof data !== "string") throw new Error("Expected UTF-8 cache text");
+        memory.cache = data;
+        memory.writes.push(data);
+      },
+    ),
+    unlink: vi.fn<(path: unknown) => Promise<void>>(async (path: unknown) => {
       requireOwned(path);
       memory.unlinks++;
       if (memory.failUnlink) throw new Error("Owned cache unlink failed");

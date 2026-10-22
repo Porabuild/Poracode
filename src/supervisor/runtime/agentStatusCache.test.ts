@@ -18,15 +18,18 @@ function makeTempDir(): string {
   return dir;
 }
 
-function makeRuntime(emit: ConstructorParameters<typeof SupervisorRuntime>[0]): SupervisorRuntime {
+async function makeRuntime(
+  emit: ConstructorParameters<typeof SupervisorRuntime>[0],
+): Promise<SupervisorRuntime> {
   const runtime = new SupervisorRuntime(emit);
   runtimesToDispose.push(runtime);
+  await runtime.whenReady();
   return runtime;
 }
 
-afterEach(() => {
+afterEach(async () => {
   for (const runtime of runtimesToDispose.splice(0)) {
-    runtime.dispose();
+    await runtime.disposeAsync();
   }
   if (poracodeDataDirBeforeTests === undefined) {
     delete process.env.PORACODE_DATA_DIR;
@@ -40,21 +43,22 @@ afterEach(() => {
 });
 
 describe("agent status cache", () => {
-  it("re-probes the previous built-in inventory after an upgrade", () => {
+  it("re-probes the previous built-in inventory after an upgrade", async () => {
     const dataDir = makeTempDir();
     process.env.PORACODE_DATA_DIR = dataDir;
     const { cacheDir, statusCachePath } = resolvePoracodePaths(dataDir);
     mkdirSync(cacheDir, { recursive: true });
     writeFileSync(statusCachePath, JSON.stringify({ version: 64, windows: [], wsl: [] }));
-    const service = makeRuntime(() => {}).agentStatusService as unknown as {
+    let service: {
       readCachedStatuses(): unknown;
     };
+    service = (await makeRuntime(() => {})).agentStatusService as unknown as typeof service;
     expect(service.readCachedStatuses()).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
   it.each([40, 41, 47])(
     "invalidates v%i catalogs that omitted confirmed empty effort ladders",
-    (version) => {
+    async (version) => {
       const dataDir = makeTempDir();
       process.env.PORACODE_DATA_DIR = dataDir;
       const { cacheDir, statusCachePath } = resolvePoracodePaths(dataDir);
@@ -83,7 +87,7 @@ describe("agent status cache", () => {
         ],
         wsl: [],
       };
-      const service = makeRuntime(() => {}).agentStatusService as unknown as {
+      let service: {
         readCachedStatuses(distros: string[]): unknown;
       };
       // This missing per-model key is valid data: only its old producer version
@@ -92,16 +96,18 @@ describe("agent status cache", () => {
         statusCachePath,
         JSON.stringify({ ...snapshot, version: STATUS_CACHE_VERSION }),
       );
+      service = (await makeRuntime(() => {})).agentStatusService as unknown as typeof service;
       expect(service.readCachedStatuses([])).toMatchObject({
         fromCache: true,
         windows: snapshot.windows,
       });
       writeFileSync(statusCachePath, JSON.stringify({ ...snapshot, version }));
+      service = (await makeRuntime(() => {})).agentStatusService as unknown as typeof service;
       expect(service.readCachedStatuses([])).toEqual({ windows: [], wsl: [], fromCache: false });
     },
   );
 
-  it("invalidates the previous negotiated-control inventory", () => {
+  it("invalidates the previous negotiated-control inventory", async () => {
     const dataDir = makeTempDir();
     process.env.PORACODE_DATA_DIR = dataDir;
     const { cacheDir, statusCachePath } = resolvePoracodePaths(dataDir);
@@ -130,8 +136,7 @@ describe("agent status cache", () => {
       ],
       wsl: [],
     };
-    const runtime = makeRuntime(() => {});
-    const service = runtime.agentStatusService as unknown as {
+    let service: {
       readCachedStatuses: (distros: readonly string[]) => {
         windows: AgentStatus[];
         fromCache: boolean;
@@ -139,15 +144,17 @@ describe("agent status cache", () => {
     };
     // The fixture is valid today; invalidation depends on its version, not parsing.
     writeFileSync(statusCachePath, JSON.stringify({ ...snapshot, version: STATUS_CACHE_VERSION }));
+    service = (await makeRuntime(() => {})).agentStatusService as unknown as typeof service;
     expect(service.readCachedStatuses([])).toMatchObject({
       fromCache: true,
       windows: snapshot.windows,
     });
     writeFileSync(statusCachePath, JSON.stringify({ ...snapshot, version: 42 }));
+    service = (await makeRuntime(() => {})).agentStatusService as unknown as typeof service;
     expect(service.readCachedStatuses([])).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
-  it("invalidates v43 caches holding the raw flat composite inventory and legacy composite Fast declaration", () => {
+  it("invalidates v43 caches holding the raw flat composite inventory and legacy composite Fast declaration", async () => {
     // Family-relation projection derives from fresh capability data and no
     // longer declares composite Fast on the raw capability path. A v43 cache
     // still carries the flat composite rows — one row per encoded tuple
@@ -182,8 +189,7 @@ describe("agent status cache", () => {
         settingDefs: [],
       },
     };
-    const runtime = makeRuntime(() => {});
-    const service = runtime.agentStatusService as unknown as {
+    let service: {
       readCachedStatuses: (distros: readonly string[]) => {
         windows: AgentStatus[];
         fromCache: boolean;
@@ -194,6 +200,7 @@ describe("agent status cache", () => {
       statusCachePath,
       JSON.stringify({ windows: [staleStatus], wsl: [], version: STATUS_CACHE_VERSION }),
     );
+    service = (await makeRuntime(() => {})).agentStatusService as unknown as typeof service;
     expect(service.readCachedStatuses([])).toMatchObject({
       fromCache: true,
       windows: [staleStatus],
@@ -202,12 +209,13 @@ describe("agent status cache", () => {
       statusCachePath,
       JSON.stringify({ windows: [staleStatus], wsl: [], version: 43 }),
     );
+    service = (await makeRuntime(() => {})).agentStatusService as unknown as typeof service;
     expect(service.readCachedStatuses([])).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
   it.each([44, 45, 46])(
     "invalidates v%s fallback inventories before surface-scoped family intent refresh",
-    (version) => {
+    async (version) => {
       const dataDir = makeTempDir();
       process.env.PORACODE_DATA_DIR = dataDir;
       const { cacheDir, statusCachePath } = resolvePoracodePaths(dataDir);
@@ -251,7 +259,7 @@ describe("agent status cache", () => {
           },
         },
       };
-      const service = makeRuntime(() => {}).agentStatusService as unknown as {
+      let service: {
         readCachedStatuses: (distros: readonly string[]) => {
           windows: AgentStatus[];
           fromCache: boolean;
@@ -261,16 +269,18 @@ describe("agent status cache", () => {
         statusCachePath,
         JSON.stringify({ windows: [staleStatus], wsl: [], version: STATUS_CACHE_VERSION }),
       );
+      service = (await makeRuntime(() => {})).agentStatusService as unknown as typeof service;
       expect(service.readCachedStatuses([])).toMatchObject({
         fromCache: true,
         windows: [staleStatus],
       });
       writeFileSync(statusCachePath, JSON.stringify({ windows: [staleStatus], wsl: [], version }));
+      service = (await makeRuntime(() => {})).agentStatusService as unknown as typeof service;
       expect(service.readCachedStatuses([])).toEqual({ windows: [], wsl: [], fromCache: false });
     },
   );
 
-  it("invalidates v37 snapshots before derived model capability refresh", () => {
+  it("invalidates v37 snapshots before derived model capability refresh", async () => {
     const dataDir = makeTempDir();
     process.env.PORACODE_DATA_DIR = dataDir;
     const { cacheDir, statusCachePath } = resolvePoracodePaths(dataDir);
@@ -294,14 +304,14 @@ describe("agent status cache", () => {
         wsl: [],
       }),
     );
-    const runtime = makeRuntime(() => {});
+    const runtime = await makeRuntime(() => {});
     const service = runtime.agentStatusService as unknown as {
       readCachedStatuses(distros: string[]): unknown;
     };
     expect(STATUS_CACHE_VERSION).toBe(68);
     expect(service.readCachedStatuses([])).toEqual({ windows: [], wsl: [], fromCache: false });
   });
-  it("invalidates v32 snapshots so connected accounts and credentials are re-probed", () => {
+  it("invalidates v32 snapshots so connected accounts and credentials are re-probed", async () => {
     const dataDir = makeTempDir();
     process.env.PORACODE_DATA_DIR = dataDir;
     const { cacheDir, statusCachePath } = resolvePoracodePaths(dataDir);
@@ -316,7 +326,7 @@ describe("agent status cache", () => {
         wsl: [],
       }),
     );
-    const runtime = makeRuntime(() => {});
+    const runtime = await makeRuntime(() => {});
     const service = runtime.agentStatusService as unknown as {
       readCachedStatuses(distros: string[]): unknown;
     };
@@ -327,7 +337,7 @@ describe("agent status cache", () => {
   it.each([
     32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55,
     56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66,
-  ])("invalidates pre-integration v%i status snapshots", (version) => {
+  ])("invalidates pre-integration v%i status snapshots", async (version) => {
     const dataDir = makeTempDir();
     process.env.PORACODE_DATA_DIR = dataDir;
     const { cacheDir, statusCachePath } = resolvePoracodePaths(dataDir);
@@ -340,14 +350,14 @@ describe("agent status cache", () => {
         wsl: [],
       }),
     );
-    const runtime = makeRuntime(() => {});
+    const runtime = await makeRuntime(() => {});
     const service = runtime.agentStatusService as unknown as {
       readCachedStatuses(distros: string[]): unknown;
     };
     expect(service.readCachedStatuses([])).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
-  it("invalidates v33 snapshots so skill invocations are re-probed", () => {
+  it("invalidates v33 snapshots so skill invocations are re-probed", async () => {
     const dataDir = makeTempDir();
     process.env.PORACODE_DATA_DIR = dataDir;
     const { cacheDir, statusCachePath } = resolvePoracodePaths(dataDir);
@@ -380,14 +390,14 @@ describe("agent status cache", () => {
         wsl: [],
       }),
     );
-    const runtime = makeRuntime(() => {});
+    const runtime = await makeRuntime(() => {});
     const service = runtime.agentStatusService as unknown as {
       readCachedStatuses(distros: string[]): unknown;
     };
     expect(STATUS_CACHE_VERSION).toBe(68);
     expect(service.readCachedStatuses([])).toEqual({ windows: [], wsl: [], fromCache: false });
   });
-  it("invalidates v11 caches produced before successful ACP sessions established auth", () => {
+  it("invalidates v11 caches produced before successful ACP sessions established auth", async () => {
     const dataDir = makeTempDir();
     process.env.PORACODE_DATA_DIR = dataDir;
 
@@ -410,7 +420,7 @@ describe("agent status cache", () => {
       }),
     );
 
-    const runtime = makeRuntime(() => {});
+    const runtime = await makeRuntime(() => {});
     const cached = (
       runtime.agentStatusService as unknown as {
         readCachedStatuses: (wslDistros: readonly string[]) => {
@@ -424,7 +434,7 @@ describe("agent status cache", () => {
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
-  it("invalidates v9 caches produced without the Grok login-shell environment", () => {
+  it("invalidates v9 caches produced without the Grok login-shell environment", async () => {
     const dataDir = makeTempDir();
     process.env.PORACODE_DATA_DIR = dataDir;
 
@@ -446,7 +456,7 @@ describe("agent status cache", () => {
       }),
     );
 
-    const runtime = makeRuntime(() => {});
+    const runtime = await makeRuntime(() => {});
     const cached = (
       runtime.agentStatusService as unknown as {
         readCachedStatuses: (wslDistros: readonly string[]) => {
@@ -460,7 +470,7 @@ describe("agent status cache", () => {
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
-  it("invalidates v13 caches whose terminal auth methods lack baseSpawnEnv-derived env", () => {
+  it("invalidates v13 caches whose terminal auth methods lack baseSpawnEnv-derived env", async () => {
     // Pre-v14 statuses assembled terminal auth methods WITHOUT the provider's
     // baseSpawnEnv (antigravity's `AGY_CLI_DISABLE_AUTO_UPDATE` did not exist
     // on the method). Serving that stale status would build the `agy` login
@@ -488,7 +498,7 @@ describe("agent status cache", () => {
       }),
     );
 
-    const runtime = makeRuntime(() => {});
+    const runtime = await makeRuntime(() => {});
     const cached = (
       runtime.agentStatusService as unknown as {
         readCachedStatuses: (wslDistros: readonly string[]) => {
@@ -502,7 +512,7 @@ describe("agent status cache", () => {
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
-  it("invalidates v14 caches produced before ACP thinking capabilities", () => {
+  it("invalidates v14 caches produced before ACP thinking capabilities", async () => {
     const dataDir = makeTempDir();
     process.env.PORACODE_DATA_DIR = dataDir;
 
@@ -524,7 +534,7 @@ describe("agent status cache", () => {
       }),
     );
 
-    const runtime = makeRuntime(() => {});
+    const runtime = await makeRuntime(() => {});
     const cached = (
       runtime.agentStatusService as unknown as {
         readCachedStatuses: (wslDistros: readonly string[]) => {
@@ -538,7 +548,7 @@ describe("agent status cache", () => {
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
-  it("invalidates v17 caches that grouped Cursor Grok under Other models", () => {
+  it("invalidates v17 caches that grouped Cursor Grok under Other models", async () => {
     const dataDir = makeTempDir();
     process.env.PORACODE_DATA_DIR = dataDir;
 
@@ -563,7 +573,7 @@ describe("agent status cache", () => {
       }),
     );
 
-    const runtime = makeRuntime(() => {});
+    const runtime = await makeRuntime(() => {});
     const cached = (
       runtime.agentStatusService as unknown as {
         readCachedStatuses: (wslDistros: readonly string[]) => {
@@ -577,7 +587,7 @@ describe("agent status cache", () => {
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
-  it("invalidates v18 caches holding Command Code's curated fallback models", () => {
+  it("invalidates v18 caches holding Command Code's curated fallback models", async () => {
     const dataDir = makeTempDir();
     process.env.PORACODE_DATA_DIR = dataDir;
 
@@ -606,7 +616,7 @@ describe("agent status cache", () => {
       }),
     );
 
-    const runtime = makeRuntime(() => {});
+    const runtime = await makeRuntime(() => {});
     const cached = (
       runtime.agentStatusService as unknown as {
         readCachedStatuses: (wslDistros: readonly string[]) => {
@@ -620,7 +630,7 @@ describe("agent status cache", () => {
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
-  it("invalidates v19 caches probed under kind-global agent settings", () => {
+  it("invalidates v19 caches probed under kind-global agent settings", async () => {
     const dataDir = mkdtempSync(join(tmpdir(), "poracode-cache-"));
     process.env.PORACODE_DATA_DIR = dataDir;
 
@@ -642,7 +652,7 @@ describe("agent status cache", () => {
       }),
     );
 
-    const runtime = makeRuntime(() => {});
+    const runtime = await makeRuntime(() => {});
     const cached = (
       runtime.agentStatusService as unknown as {
         readCachedStatuses: (wslDistros: readonly string[]) => {
@@ -658,7 +668,7 @@ describe("agent status cache", () => {
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
-  it("invalidates v20 terminal-only Antigravity caches", () => {
+  it("invalidates v20 terminal-only Antigravity caches", async () => {
     const dataDir = makeTempDir();
     process.env.PORACODE_DATA_DIR = dataDir;
     const { cacheDir, statusCachePath } = resolvePoracodePaths(dataDir);
@@ -682,7 +692,7 @@ describe("agent status cache", () => {
       }),
     );
 
-    const runtime = makeRuntime(() => {});
+    const runtime = await makeRuntime(() => {});
     const cached = (
       runtime.agentStatusService as unknown as {
         readCachedStatuses: (wslDistros: readonly string[]) => {
@@ -696,7 +706,7 @@ describe("agent status cache", () => {
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
-  it("invalidates v22 native terminal-only Muse statuses", () => {
+  it("invalidates v22 native terminal-only Muse statuses", async () => {
     const dataDir = makeTempDir();
     process.env.PORACODE_DATA_DIR = dataDir;
     const { cacheDir, statusCachePath } = resolvePoracodePaths(dataDir);
@@ -728,7 +738,7 @@ describe("agent status cache", () => {
       }),
     );
 
-    const runtime = makeRuntime(() => {});
+    const runtime = await makeRuntime(() => {});
     const cached = (
       runtime.agentStatusService as unknown as {
         readCachedStatuses: (wslDistros: readonly string[]) => {
@@ -743,7 +753,7 @@ describe("agent status cache", () => {
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
-  it("invalidates v35 Muse statuses cached under WSL-routed Windows detection", () => {
+  it("invalidates v35 Muse statuses cached under WSL-routed Windows detection", async () => {
     // Pre-v36 detection routed native Windows projects into WSL for Muse, so
     // the Windows status always reported `installed: false`. v36 probes the
     // Windows host natively; the stale negative must be re-probed.
@@ -779,7 +789,7 @@ describe("agent status cache", () => {
       }),
     );
 
-    const runtime = makeRuntime(() => {});
+    const runtime = await makeRuntime(() => {});
     const cached = (
       runtime.agentStatusService as unknown as {
         readCachedStatuses: (wslDistros: readonly string[]) => {
@@ -794,7 +804,7 @@ describe("agent status cache", () => {
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
-  it("invalidates v38 Muse statuses cached without thread title commands", () => {
+  it("invalidates v38 Muse statuses cached without thread title commands", async () => {
     // Pre-v39 statuses lack `threadTitleCommands`, so a cached Muse status
     // would keep titling `/goal <objective>` threads from the raw command.
     const dataDir = makeTempDir();
@@ -819,7 +829,7 @@ describe("agent status cache", () => {
       }),
     );
 
-    const runtime = makeRuntime(() => {});
+    const runtime = await makeRuntime(() => {});
     const cached = (
       runtime.agentStatusService as unknown as {
         readCachedStatuses: (wslDistros: readonly string[]) => {
@@ -834,7 +844,7 @@ describe("agent status cache", () => {
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
-  it("invalidates v59 Muse statuses cached without launch MCP scope", () => {
+  it("invalidates v59 Muse statuses cached without launch MCP scope", async () => {
     // Pre-v60 statuses declared `mcpScope: none` for Muse, so a cached
     // status would keep hiding its MCP toggles after launch MCP wiring.
     const dataDir = makeTempDir();
@@ -862,7 +872,7 @@ describe("agent status cache", () => {
       }),
     );
 
-    const runtime = makeRuntime(() => {});
+    const runtime = await makeRuntime(() => {});
     const cached = (
       runtime.agentStatusService as unknown as {
         readCachedStatuses: (wslDistros: readonly string[]) => {
@@ -877,7 +887,7 @@ describe("agent status cache", () => {
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
-  it("invalidates v36 Cursor ACP statuses cached before parameterized picker", () => {
+  it("invalidates v36 Cursor ACP statuses cached before parameterized picker", async () => {
     const dataDir = makeTempDir();
     process.env.PORACODE_DATA_DIR = dataDir;
     const { cacheDir, statusCachePath } = resolvePoracodePaths(dataDir);
@@ -901,7 +911,7 @@ describe("agent status cache", () => {
       }),
     );
 
-    const runtime = makeRuntime(() => {});
+    const runtime = await makeRuntime(() => {});
     const cached = (
       runtime.agentStatusService as unknown as {
         readCachedStatuses: (wslDistros: readonly string[]) => {
@@ -916,7 +926,7 @@ describe("agent status cache", () => {
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
-  it("invalidates v23 ACP labels in both native and WSL caches", () => {
+  it("invalidates v23 ACP labels in both native and WSL caches", async () => {
     const dataDir = makeTempDir();
     process.env.PORACODE_DATA_DIR = dataDir;
     const { cacheDir, statusCachePath } = resolvePoracodePaths(dataDir);
@@ -935,7 +945,7 @@ describe("agent status cache", () => {
         wsl: [{ ...staleStatus, envKind: "wsl", wslDistro: "Ubuntu" }],
       }),
     );
-    const runtime = makeRuntime(() => {});
+    const runtime = await makeRuntime(() => {});
     const cached = (
       runtime.agentStatusService as unknown as {
         readCachedStatuses: (distros: readonly string[]) => unknown;
@@ -944,7 +954,7 @@ describe("agent status cache", () => {
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
-  it("invalidates v24 terminal auth environments in native and WSL caches", () => {
+  it("invalidates v24 terminal auth environments in native and WSL caches", async () => {
     const dataDir = makeTempDir();
     process.env.PORACODE_DATA_DIR = dataDir;
     const { cacheDir, statusCachePath } = resolvePoracodePaths(dataDir);
@@ -967,7 +977,7 @@ describe("agent status cache", () => {
         wsl: [{ ...staleStatus, envKind: "wsl", envDistro: "Ubuntu" }],
       }),
     );
-    const runtime = makeRuntime(() => {});
+    const runtime = await makeRuntime(() => {});
     const cached = (
       runtime.agentStatusService as unknown as {
         readCachedStatuses: (distros: readonly string[]) => unknown;
@@ -977,7 +987,7 @@ describe("agent status cache", () => {
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
-  it("invalidates v33 caches carrying a Cursor SDK install derived from PATH", () => {
+  it("invalidates v33 caches carrying a Cursor SDK install derived from PATH", async () => {
     // Pre-v34 detection re-derived the SDK install location on every pass by
     // asking a package manager for its global root, so a cached
     // `sdk.installed: false` could describe an installation that was intact on
@@ -1007,7 +1017,7 @@ describe("agent status cache", () => {
         ],
       }),
     );
-    const runtime = makeRuntime(() => {});
+    const runtime = await makeRuntime(() => {});
     const cached = (
       runtime.agentStatusService as unknown as {
         readCachedStatuses: (distros: readonly string[]) => unknown;
@@ -1017,7 +1027,7 @@ describe("agent status cache", () => {
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
-  it("invalidates v67 Claude statuses cached before the read-only one-shot workspace capability", () => {
+  it("invalidates v67 Claude statuses cached before the read-only one-shot workspace capability", async () => {
     const dataDir = makeTempDir();
     process.env.PORACODE_DATA_DIR = dataDir;
     const { cacheDir, statusCachePath } = resolvePoracodePaths(dataDir);
@@ -1038,7 +1048,7 @@ describe("agent status cache", () => {
         wsl: [],
       }),
     );
-    const runtime = makeRuntime(() => {});
+    const runtime = await makeRuntime(() => {});
     const cached = (
       runtime.agentStatusService as unknown as {
         readCachedStatuses: (distros: readonly string[]) => unknown;
@@ -1048,7 +1058,7 @@ describe("agent status cache", () => {
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
-  it("migrates stale cached settingDefs to current schema", () => {
+  it("migrates stale cached settingDefs to current schema", async () => {
     const dataDir = makeTempDir();
     process.env.PORACODE_DATA_DIR = dataDir;
 
@@ -1102,7 +1112,7 @@ describe("agent status cache", () => {
     );
 
     const emitted: unknown[] = [];
-    const runtime = makeRuntime((event) => {
+    const runtime = await makeRuntime((event) => {
       emitted.push(event);
     });
 
@@ -1177,7 +1187,7 @@ describe("agent status cache", () => {
     });
   });
 
-  it("adds adapter default slash commands to stale cached statuses", () => {
+  it("adds adapter default slash commands to stale cached statuses", async () => {
     const dataDir = makeTempDir();
     process.env.PORACODE_DATA_DIR = dataDir;
 
@@ -1212,7 +1222,7 @@ describe("agent status cache", () => {
       }),
     );
 
-    const runtime = makeRuntime(() => {});
+    const runtime = await makeRuntime(() => {});
     const cached = (
       runtime.agentStatusService as unknown as {
         readCachedStatuses: (wslDistros: readonly string[]) => {
@@ -1228,7 +1238,7 @@ describe("agent status cache", () => {
     );
   });
 
-  it("round-trips runtime variants and session routing through the disk cache schema", () => {
+  it("round-trips runtime variants and session routing through the disk cache schema", async () => {
     const dataDir = makeTempDir();
     process.env.PORACODE_DATA_DIR = dataDir;
 
@@ -1267,7 +1277,7 @@ describe("agent status cache", () => {
       }),
     );
 
-    const runtime = makeRuntime(() => {});
+    const runtime = await makeRuntime(() => {});
     const cached = (
       runtime.agentStatusService as unknown as {
         readCachedStatuses: (wslDistros: readonly string[]) => {

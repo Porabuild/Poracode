@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { WebSocket } from "ws";
+import { WebSocket, WebSocketServer } from "ws";
+import { randomBytes } from "node:crypto";
+import { once } from "node:events";
+import { REMOTE_PER_MESSAGE_DEFLATE } from "./server/wsConnections";
 import { dropWebSocketClient, sendControlFrame, sendRaw } from "./remoteAccessServerWs";
 import {
   PrincipalAdmissionController,
@@ -20,8 +23,10 @@ class TestSocket {
   private writeCallbacks: Array<(error?: Error) => void> = [];
   private closeListeners: Array<() => void> = [];
 
-  send(data: string, callback?: (error?: Error) => void): void {
+  readonly compression: boolean[] = [];
+  send(data: string, options: { compress: boolean }, callback?: (error?: Error) => void): void {
     this.sent.push(data);
+    this.compression.push(options.compress);
     if (callback) this.writeCallbacks.push(callback);
   }
 
@@ -100,6 +105,47 @@ function attach(
 }
 
 describe("sendRaw aggregate accounting", () => {
+  it("keeps reading clients connected through sustained incompressible 64 KiB bursts", async () => {
+    const server = new WebSocketServer({ port: 0, perMessageDeflate: REMOTE_PER_MESSAGE_DEFLATE });
+    const peers: WebSocket[] = [];
+    const { host, clients } = createHost();
+    try {
+      await once(server, "listening");
+      const address = server.address();
+      if (typeof address === "string" || address === null) throw new Error("Expected TCP listener");
+      const received = Array.from({ length: 8 }, () => 0);
+      for (let index = 0; index < received.length; index += 1) {
+        const connected = once(server, "connection");
+        const peer = new WebSocket(`ws://127.0.0.1:${address.port}`);
+        peers.push(peer);
+        peer.on("message", () => {
+          received[index]! += 1;
+        });
+        await once(peer, "open");
+        const [socket] = (await connected) as [WebSocket];
+        clients.set(socket, { sessionId: `reader-${index}` });
+        expect(peer.extensions).toContain("permessage-deflate");
+      }
+      const payload = randomBytes(48 * 1024).toString("base64");
+      const sockets = [...clients.keys()];
+      for (let wave = 0; wave < 20; wave += 1) {
+        for (let frame = 0; frame < 16; frame += 1) {
+          for (const socket of sockets) expect(sendRaw(host, socket, payload)).toBe(true);
+        }
+        await new Promise<void>((resolve) => setImmediate(resolve));
+      }
+      const deadline = Date.now() + 5_000;
+      while (received.some((count) => count < 320) && Date.now() < deadline)
+        await new Promise((resolve) => setTimeout(resolve, 5));
+      expect(received).toEqual(Array.from({ length: 8 }, () => 320));
+      expect(peers.every((peer) => peer.readyState === WebSocket.OPEN)).toBe(true);
+    } finally {
+      for (const peer of peers) peer.terminate();
+      for (const socket of server.clients) socket.terminate();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
   it("reserves the framed byte size and releases it on the write callback", () => {
     const { host, admission, clients } = createHost({
       maxQueuedBytesPerPrincipal: 10_000,

@@ -18,6 +18,7 @@ import {
   modelIds,
   seedBaseline,
 } from "./fixtures/agentStatusServiceFixture";
+import { writeFile } from "node:fs/promises";
 // Register the owned filesystem/probe mocks before loading the service.
 import { readSupervisorSharedSettings } from "@/supervisor/runtime/supervisorSharedSettings";
 
@@ -58,9 +59,10 @@ describe("AgentStatusService accepted readiness publication", () => {
     expect(slow).not.toHaveBeenCalled();
   });
 
-  it("prunes orphaned saved registry statuses on the first reconciliation without probing", () => {
+  it("prunes orphaned saved registry statuses on the first reconciliation without probing", async () => {
     seedBaseline();
     const { service, events } = setup([adapter(SLOW, vi.fn<AgentAdapter["detectInstall"]>())]);
+    await service.ready;
     service.reconcileAgentRegistry([]);
     expect(service.getCachedCapabilities(FAST)).toBeUndefined();
     expect(service.getCachedCapabilities(SLOW)?.models[0]?.id).toBe("baseline-slow");
@@ -77,6 +79,7 @@ describe("AgentStatusService accepted readiness publication", () => {
       started = true;
       void current.service.getAgentStatuses({ wslDistros: [] });
     });
+    await current.service.ready;
     current.service.reconcileAgentRegistry([]);
     expect(current.events.map((event) => event.type)).toEqual(["windows-agent-statuses"]);
     const full = activeDetection(current.service);
@@ -89,6 +92,33 @@ describe("AgentStatusService accepted readiness publication", () => {
     if (memory.cli.mock.calls.length !== 0)
       throw new Error("Unexpected subprocess/probe invocation");
   });
+  it.each([false, true])(
+    "does not restore a retired provider after a deferred cache write with peer=%s",
+    async (keepPeer) => {
+      const entries = [adapter(FAST, async () => status(FAST, "removed"))];
+      if (keepPeer) entries.push(adapter(SLOW, async () => status(SLOW, "kept")));
+      const { service, registry } = setup(entries);
+      const entered = deferred<void>();
+      const release = deferred<void>();
+      const writer = vi.mocked(writeFile).getMockImplementation()!;
+      vi.mocked(writeFile).mockImplementationOnce(async (...args) => {
+        entered.resolve();
+        await release.promise;
+        return writer(...args);
+      });
+      const detection = service.refreshAgentStatuses({ wslDistros: [] });
+      await entered.promise;
+      registry.delete(FAST);
+      service.reconcileAgentRegistry([FAST]);
+      expect(service.getCachedCapabilities(FAST)).toBeUndefined();
+      release.resolve();
+      const result = await detection;
+      expect(result.windows.map((row) => row.kind)).toEqual(keepPeer ? [SLOW] : []);
+      expect(service.getCachedCapabilities(FAST)).toBeUndefined();
+      expect(memory.cache).toBeUndefined();
+    },
+  );
+
   it("keeps a cold scoped native refresh within its requested provider and leaves startup discovery eligible", async () => {
     const selected = vi.fn<AgentAdapter["detectInstall"]>(async () => status(FAST, "selected"));
     const unrelated = vi.fn<AgentAdapter["detectInstall"]>(async () => status(SLOW, "unrelated"));
@@ -205,6 +235,7 @@ describe("AgentStatusService accepted readiness publication", () => {
   it("joins a cold full inventory wholly superseded before its probes start", async () => {
     const detect = vi.fn<AgentAdapter["detectInstall"]>(async () => status(FAST, "scoped-current"));
     const { service } = setup([adapter(FAST, detect)]);
+    await service.ready;
     const read = service.getAgentStatuses({ wslDistros: [] });
     const full = activeDetection(service);
     const scoped = service.refreshAgentStatuses({
@@ -222,6 +253,7 @@ describe("AgentStatusService accepted readiness publication", () => {
     const selected = vi.fn<AgentAdapter["detectInstall"]>(async () => status(FAST, "selected"));
     const unrelated = vi.fn<AgentAdapter["detectInstall"]>(async () => status(SLOW, "unrelated"));
     const { service } = setup([adapter(FAST, selected), adapter(SLOW, unrelated)]);
+    await service.ready;
     const read = service.getAgentStatuses({ wslDistros: [] });
     const full = activeDetection(service);
     const scoped = service.refreshAgentStatuses({
@@ -236,13 +268,14 @@ describe("AgentStatusService accepted readiness publication", () => {
     expect(unrelated).not.toHaveBeenCalled();
     expect(memory.writes).toEqual([]);
   });
-  it("preserves legacy native/WSL cache rows, caller filtering and adapter defaults", () => {
+  it("preserves legacy native/WSL cache rows, caller filtering and adapter defaults", async () => {
     memory.cache = JSON.stringify({
       version: STATUS_CACHE_VERSION,
       windows: [status(FAST, "legacy-native")],
       wsl: [{ ...status(FAST, "legacy-wsl"), envDistro: DISTRO, version: "4.0" }],
     });
     const { service } = setup([adapter(FAST, vi.fn<AgentAdapter["detectInstall"]>())]);
+    await service.ready;
     const cacheReader = service as unknown as {
       readCachedStatuses(distros: readonly string[]): {
         windows: AgentStatus[];
@@ -436,6 +469,7 @@ describe("AgentStatusService accepted readiness publication", () => {
     const gate = deferred<AgentStatus>();
     const detect = vi.fn<AgentAdapter["detectInstall"]>(() => gate.promise);
     const { service, firstNativeReady } = setup([adapter(FAST, detect)]);
+    await service.ready;
     expect(service.getCachedCapabilities(FAST)?.models.map((m) => m.id)).toEqual(["baseline-fast"]);
     memory.failUnlink = true;
     service.invalidateAgentStatuses();

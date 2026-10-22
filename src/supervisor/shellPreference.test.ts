@@ -119,8 +119,8 @@ describe("Windows shell preference", () => {
     expect(resolveExecutable).toHaveBeenCalledExactlyOnceWith("pwsh.exe");
   });
 
-  it("detects MSIX package images in automatic preference order", () => {
-    const shells = detectWindowsShells(
+  it("detects MSIX package images in automatic preference order", async () => {
+    const shells = await detectWindowsShells(
       (name) => {
         if (name === "pwsh.exe") return msixImage;
         if (name === "powershell.exe") {
@@ -136,15 +136,15 @@ describe("Windows shell preference", () => {
     expect(shells[0]?.path).toBe(msixImage);
   });
 
-  it("replaces a Windows Store execution alias with a launchable MSI or MSIX image", () => {
-    const fromMsi = detectWindowsShells(
+  it("replaces a Windows Store execution alias with a launchable MSI or MSIX image", async () => {
+    const fromMsi = await detectWindowsShells(
       (name) => (name === "pwsh.exe" ? storeAlias : undefined),
       (path) => path === msiImage,
       { extraPwshPaths: [msiImage, storeAlias], resolvePwshVersion: () => undefined },
     );
     expect(fromMsi[0]).toEqual({ kind: "pwsh", path: msiImage, version: "7" });
 
-    const fromMsix = detectWindowsShells(
+    const fromMsix = await detectWindowsShells(
       (name) => (name === "pwsh.exe" ? storeAlias : undefined),
       (path) => path === msixImage,
       { extraPwshPaths: [msixImage] },
@@ -152,8 +152,8 @@ describe("Windows shell preference", () => {
     expect(fromMsix[0]).toEqual({ kind: "pwsh", path: msixImage, version: "7.6.1" });
   });
 
-  it("finds installer-layout pwsh when PATH has no hit", () => {
-    const shells = detectWindowsShells(
+  it("finds installer-layout pwsh when PATH has no hit", async () => {
+    const shells = await detectWindowsShells(
       () => undefined,
       (path) => path === scoopImage,
       {
@@ -163,10 +163,10 @@ describe("Windows shell preference", () => {
     expect(shells[0]).toEqual({ kind: "pwsh", path: scoopImage });
   });
 
-  it("lists every launchable pwsh location so side-by-side versions can be chosen", () => {
+  it("lists every launchable pwsh location so side-by-side versions can be chosen", async () => {
     const v71 = "C:\\Program Files\\PowerShell\\7.1\\pwsh.exe";
     const v72 = "C:\\Program Files\\PowerShell\\7.2\\pwsh.exe";
-    const shells = detectWindowsShells(
+    const shells = await detectWindowsShells(
       (name) => (name === "pwsh.exe" ? v72 : undefined),
       (path) => path === v71 || path === v72,
       { extraPwshPaths: [v71, v72] },
@@ -177,9 +177,9 @@ describe("Windows shell preference", () => {
     ]);
   });
 
-  it("probes the product version when the install folder only identifies PowerShell 7", () => {
+  it("probes the product version when the install folder only identifies PowerShell 7", async () => {
     const resolvePwshVersion = vi.fn<(path: string) => string>(() => "7.6.5");
-    const shells = detectWindowsShells(
+    const shells = await detectWindowsShells(
       (name) => (name === "pwsh.exe" ? msiImage : undefined),
       (path) => path === msiImage,
       { extraPwshPaths: [msiImage], resolvePwshVersion },
@@ -189,11 +189,11 @@ describe("Windows shell preference", () => {
     expect(resolvePwshVersion).toHaveBeenCalledWith(msiImage);
   });
 
-  it("probes Preview MSIX images instead of presenting their package version as stable", () => {
+  it("probes Preview MSIX images instead of presenting their package version as stable", async () => {
     const previewImage =
       "C:\\Program Files\\WindowsApps\\Microsoft.PowerShellPreview_7.6.0.0_x64__8wekyb3d8bbwe\\pwsh.exe";
     const resolvePwshVersion = vi.fn<(path: string) => string>(() => "7.6.0-preview.3");
-    const shells = detectWindowsShells(
+    const shells = await detectWindowsShells(
       (name) => (name === "pwsh.exe" ? previewImage : undefined),
       (path) => path === previewImage,
       { extraPwshPaths: [previewImage], resolvePwshVersion },
@@ -229,8 +229,8 @@ describe("Windows shell preference", () => {
     });
   });
 
-  it("keeps the Store alias only when no launchable pwsh image exists", () => {
-    const shells = detectWindowsShells(
+  it("keeps the Store alias only when no launchable pwsh image exists", async () => {
+    const shells = await detectWindowsShells(
       (name) => (name === "pwsh.exe" ? storeAlias : undefined),
       () => false,
       { extraPwshPaths: [] },
@@ -346,9 +346,11 @@ describe("Windows shell preference", () => {
 });
 
 describe.skipIf(process.platform !== "win32")("installed Windows pwsh 7", () => {
-  it("discovers MSI, Store/MSIX, or installer pwsh without returning the execution alias", () => {
+  it("discovers MSI, Store/MSIX, or installer pwsh without returning the execution alias", async () => {
     const wellKnown = windowsPwshWellKnownPaths().find((path) => existsSync(path));
-    const pwsh = detectWindowsShells(() => undefined).find((shell) => shell.kind === "pwsh");
+    const pwsh = (await detectWindowsShells(() => undefined)).find(
+      (shell) => shell.kind === "pwsh",
+    );
     expect(wellKnown ? pwsh?.path.toLowerCase() : wellKnown).toBe(wellKnown?.toLowerCase());
     expect(pwsh ? isWindowsAppExecutionAlias(pwsh.path) : false).toBe(false);
     expect(pwsh ? existsSync(pwsh.path) : true).toBe(true);

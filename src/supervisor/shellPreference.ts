@@ -1,10 +1,16 @@
-import { spawnSync } from "node:child_process";
+import { execFile, spawnSync } from "node:child_process";
+import { promisify } from "node:util";
+
 import { existsSync, readdirSync, realpathSync } from "node:fs";
 import { homedir } from "node:os";
 import { win32 } from "node:path";
 import type { AvailableWindowsShell, SharedSettings, WindowsShellKind } from "@/shared/settings";
 import { WINDOWS_SHELL_AUTO } from "@/shared/settings";
 import { getWindowsSystemCommand } from "./agents/base/shellBasics";
+
+const execFileAsync = promisify(execFile);
+const APPX_POWERSHELL_LOCATIONS_COMMAND =
+  "Get-AppxPackage -Name Microsoft.PowerShell* -ErrorAction SilentlyContinue | Sort-Object { if ($_.Name -eq 'Microsoft.PowerShell') { 0 } else { 1 } } | ForEach-Object { $_.InstallLocation }";
 
 export interface WindowsShellPreference {
   shell: string;
@@ -41,7 +47,7 @@ export interface DetectWindowsShellsOptions {
   /** Test seam: installed pwsh paths that are not PATH-resolved. */
   extraPwshPaths?: readonly string[];
   /** Test seam for resolving the product version of generic install paths. */
-  resolvePwshVersion?: (path: string) => string | undefined;
+  resolvePwshVersion?: (path: string) => string | undefined | Promise<string | undefined>;
 }
 
 /** Store/MSIX App Execution Alias, deprioritized when a real package image is discoverable. */
@@ -145,12 +151,7 @@ function listMsixPwshFromAppx(pathExists: (path: string) => boolean): string[] {
   const powershell = getWindowsSystemCommand("WindowsPowerShell\\v1.0\\powershell.exe");
   const result = spawnSync(
     powershell,
-    [
-      "-NoProfile",
-      "-NonInteractive",
-      "-Command",
-      "Get-AppxPackage -Name Microsoft.PowerShell* -ErrorAction SilentlyContinue | Sort-Object { if ($_.Name -eq 'Microsoft.PowerShell') { 0 } else { 1 } } | ForEach-Object { $_.InstallLocation }",
-    ],
+    ["-NoProfile", "-NonInteractive", "-Command", APPX_POWERSHELL_LOCATIONS_COMMAND],
     { encoding: "utf8", shell: false, timeout: 5_000, windowsHide: true },
   );
   if (result.error || result.status !== 0) return [];
@@ -221,20 +222,23 @@ export function parsePwshVersion(stdout: string): string | undefined {
     .find((line) => /^\d+(?:\.\d+){1,3}(?:-[0-9A-Za-z.-]+)?$/u.test(line));
 }
 
-export function probePwshVersion(path: string): string | undefined {
-  const result = spawnSync(
-    path,
-    [
-      "-NoLogo",
-      "-NoProfile",
-      "-NonInteractive",
-      "-Command",
-      "$PSVersionTable.PSVersion.ToString()",
-    ],
-    { encoding: "utf8", shell: false, timeout: 5_000, windowsHide: true },
-  );
-  if (result.error || result.status !== 0) return undefined;
-  return parsePwshVersion(`${result.stdout ?? ""}`);
+export async function probePwshVersion(path: string): Promise<string | undefined> {
+  try {
+    const { stdout } = await execFileAsync(
+      path,
+      [
+        "-NoLogo",
+        "-NoProfile",
+        "-NonInteractive",
+        "-Command",
+        "$PSVersionTable.PSVersion.ToString()",
+      ],
+      { encoding: "utf8", shell: false, timeout: 5_000, windowsHide: true },
+    );
+    return parsePwshVersion(stdout);
+  } catch {
+    return undefined;
+  }
 }
 
 function toPwshShell(
@@ -295,23 +299,50 @@ function pushShell(
  * resolution is tried first; Store/MSIX aliases and installer layouts are
  * then resolved to a real pwsh.exe so node-pty can spawn it.
  */
-export function detectWindowsShells(
-  resolveExecutable: ResolveWindowsExecutable,
+export async function detectWindowsShells(
+  resolveExecutable: (name: string) => string | undefined | Promise<string | undefined>,
   pathExists: (path: string) => boolean = existsSync,
   options?: DetectWindowsShellsOptions,
-): AvailableWindowsShell[] {
+): Promise<AvailableWindowsShell[]> {
   if (process.platform !== "win32") return [];
 
   const shells: AvailableWindowsShell[] = [];
   const seenPaths = new Set<string>();
-  const resolvedPwsh = resolveExecutable("pwsh.exe") ?? resolveExecutable("pwsh");
+  const resolvedPwsh = (await resolveExecutable("pwsh.exe")) ?? (await resolveExecutable("pwsh"));
   const installedPwsh =
     options?.extraPwshPaths !== undefined
       ? uniqueExistingPaths(options.extraPwshPaths, pathExists)
-      : findInstalledWindowsPwsh(pathExists);
+      : findInstalledWindowsPwsh(pathExists, { probeAppx: false });
+  if (
+    options?.extraPwshPaths === undefined &&
+    pathExists === existsSync &&
+    !installedPwsh.some((path) => /Microsoft\.PowerShell(?:Preview)?_/iu.test(path))
+  ) {
+    try {
+      const { stdout } = await execFileAsync(
+        getWindowsSystemCommand("WindowsPowerShell\\v1.0\\powershell.exe"),
+        ["-NoProfile", "-NonInteractive", "-Command", APPX_POWERSHELL_LOCATIONS_COMMAND],
+        { encoding: "utf8", shell: false, timeout: 5_000, windowsHide: true },
+      );
+      installedPwsh.push(
+        ...parseAppxInstallLocations(stdout)
+          .map((dir) => win32.join(dir, "pwsh.exe"))
+          .filter(pathExists),
+      );
+    } catch {
+      /* Appx discovery is best effort. */
+    }
+  }
   const resolvePwshVersion = options?.resolvePwshVersion ?? probePwshVersion;
   for (const path of collectLaunchablePwsh(resolvedPwsh, installedPwsh)) {
-    const shell = toPwshShell(path, resolvePwshVersion);
+    const inferred = toPwshShell(path, () => undefined);
+    const needsProbe =
+      !inferred.version ||
+      inferred.version === "7" ||
+      inferred.version === "7-preview" ||
+      /Microsoft\.PowerShellPreview_/iu.test(path);
+    const version = needsProbe ? await resolvePwshVersion(path) : undefined;
+    const shell = toPwshShell(path, () => version);
     const key = canonicalizeWindowsPath(shell.path).toLowerCase();
     if (seenPaths.has(key)) continue;
     seenPaths.add(key);
@@ -322,8 +353,8 @@ export function detectWindowsShells(
   pushShell(
     shells,
     seenPaths,
-    resolveExecutable("powershell.exe") ??
-      resolveExecutable("powershell") ??
+    (await resolveExecutable("powershell.exe")) ??
+      (await resolveExecutable("powershell")) ??
       (pathExists(legacyPowerShell) ? legacyPowerShell : undefined),
     "powershell",
   );
@@ -332,7 +363,7 @@ export function detectWindowsShells(
   pushShell(
     shells,
     seenPaths,
-    resolveExecutable("cmd.exe") ?? resolveExecutable("cmd") ?? commandPrompt,
+    (await resolveExecutable("cmd.exe")) ?? (await resolveExecutable("cmd")) ?? commandPrompt,
     "cmd",
   );
   return shells;
@@ -342,13 +373,12 @@ export function detectPowerShell(
   resolveExecutable: ResolveWindowsExecutable,
 ): DetectedPowerShell | undefined {
   if (process.platform !== "win32") return undefined;
-  return (
-    resolveConfiguredPowerShell?.() ??
-    detectWindowsShells(resolveExecutable, () => false, {
-      extraPwshPaths: [],
-      resolvePwshVersion: () => undefined,
-    }).find((shell): shell is DetectedPowerShell => shell.kind !== "cmd")
-  );
+  const configured = resolveConfiguredPowerShell?.();
+  if (configured) return configured;
+  const pwsh = resolveExecutable("pwsh.exe") ?? resolveExecutable("pwsh");
+  if (pwsh) return toPwshShell(pwsh, () => undefined) as DetectedPowerShell;
+  const powershell = resolveExecutable("powershell.exe") ?? resolveExecutable("powershell");
+  return powershell ? { path: powershell, kind: "powershell" } : undefined;
 }
 
 /** Resolve a launch host without enumerating the full Settings catalog. */

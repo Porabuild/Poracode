@@ -2196,9 +2196,9 @@ describe("RemoteAccessServer", () => {
   });
 
   it("accepts authenticated remote attachment uploads", async () => {
-    const save = vi.fn<(input: { threadId: string; fileName: string; data: Uint8Array }) => string>(
-      () => "C:\\attachments\\notes.md",
-    );
+    const save = vi.fn<
+      (input: { threadId: string; fileName: string; data: Uint8Array }) => Promise<string>
+    >(async () => "C:\\attachments\\notes.md");
     const server = createTestServer({
       truncateThreadRuntime: () => {},
       appVersion: "1.0.0",

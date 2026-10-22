@@ -187,6 +187,7 @@ async function shutdownSupervisor(exitCode = 0): Promise<void> {
 async function handleRequest(
   request: SupervisorRequest | ThreadWorkspaceRuntimeRequest,
 ): Promise<unknown> {
+  await runtime.whenReady();
   if (isThreadWorkspaceRuntimeRequest(request))
     return workspaceRequest(request.payload, request.type);
   const handler = handlers[request.type];

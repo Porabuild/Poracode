@@ -4,7 +4,7 @@ import {
   STATUS_CACHE_VERSION,
 } from "@/shared/agentStatusCache";
 import { execFile } from "node:child_process";
-import { readFileSync, unlinkSync, writeFileSync } from "node:fs";
+import { readFile, unlink, writeFile } from "node:fs/promises";
 import { promisify } from "node:util";
 import {
   type AgentCapability,
@@ -317,7 +317,23 @@ export class AgentStatusService {
   private pendingWslDistroList: Promise<string[]> | undefined;
   private wslDistroCache: { value: string[]; expiresAt: number } | undefined;
 
-  constructor(private readonly options: AgentStatusServiceOptions) {}
+  private cacheText: string | undefined;
+  private cacheGeneration = 0;
+  private cacheIo: Promise<void> = Promise.resolve();
+  private cacheLoaded = false;
+  readonly ready: Promise<void>;
+
+  constructor(private readonly options: AgentStatusServiceOptions) {
+    const generation = this.cacheGeneration;
+    this.ready = readFile(options.statusCachePath, "utf8")
+      .then((text) => {
+        if (this.cacheGeneration === generation) this.cacheText = text;
+      })
+      .catch(() => {})
+      .then(() => {
+        this.cacheLoaded = true;
+      });
+  }
 
   async listWslDistros(): Promise<string[]> {
     if (process.platform !== "win32") return [];
@@ -361,6 +377,7 @@ export class AgentStatusService {
   }
 
   async getAgentStatuses(payload: GetAgentStatusesPayload): Promise<AgentStatusesResponse> {
+    if (!this.cacheLoaded) await this.ready;
     const wslDistros = [...new Set(payload.wslDistros)];
     const accepted = this.readAcceptedStatuses(wslDistros);
     this.detectStartupAgentStatusesBackground(wslDistros);
@@ -400,6 +417,10 @@ export class AgentStatusService {
   }
 
   reconcileAgentRegistry(changedKinds: readonly string[]): void {
+    if (!this.cacheLoaded) {
+      void this.ready.then(() => this.reconcileAgentRegistry(changedKinds));
+      return;
+    }
     const baseline = this.readAcceptedStatuses();
     const affected = new Set([
       ...changedKinds,
@@ -412,6 +433,7 @@ export class AgentStatusService {
       ...this.fullDetectionJobs.keys(),
       ...[...this.scopedDetectionJobs].map((job) => job.ticket),
     ]);
+    this.clearDiskCache(this.readAcceptedStatuses());
     this.registryPublicationPending = true;
     this.publishRegistryStatuses();
   }
@@ -565,7 +587,7 @@ export class AgentStatusService {
         // A cold scoped result is useful live readiness, not a complete saved
         // inventory. Leave startup discovery eligible and retain partial rows
         // in memory until a full sweep can persist the complete baseline.
-        this.completeDetection(job.ticket);
+        await this.completeDetection(job.ticket);
         return this.readAcceptedStatuses();
       });
       return { ...this.readAcceptedStatuses(wslDistros), fromCache: false };
@@ -671,7 +693,8 @@ export class AgentStatusService {
    */
   private readCachedStatuses(wslDistros?: readonly string[]): AgentStatusesResponse {
     try {
-      const raw = readFileSync(this.options.statusCachePath, "utf8");
+      const raw = this.cacheText;
+      if (raw === undefined) return { windows: [], wsl: [], fromCache: false };
       const decoded = decodeAgentStatusCache(JSON.parse(raw));
       return {
         windows: decoded.statuses.windows.map((status) =>
@@ -717,31 +740,16 @@ export class AgentStatusService {
     };
   }
 
-  private clearDiskCache(): void {
-    try {
-      unlinkSync(this.options.statusCachePath);
-    } catch {
-      // best-effort: missing or unreadable files are already a cache miss
-    }
-  }
-
-  private writeDiskCache(windows: AgentStatus[], wsl: AgentStatus[]): boolean {
-    try {
-      writeFileSync(
-        this.options.statusCachePath,
-        JSON.stringify({
+  private clearDiskCache(retained?: AgentStatusesResponse): void {
+    this.cacheGeneration += 1;
+    this.cacheText = retained?.fromCache
+      ? JSON.stringify({
           version: STATUS_CACHE_VERSION,
-          windows,
-          wsl,
-          savedAt: new Date().toISOString(),
-        }),
-        "utf8",
-      );
-      return true;
-    } catch {
-      // best-effort cache
-      return false;
-    }
+          windows: retained.windows,
+          wsl: retained.wsl,
+        })
+      : undefined;
+    this.cacheIo = this.cacheIo.then(() => unlink(this.options.statusCachePath)).catch(() => {});
   }
 
   private readSettings(): ReturnType<typeof normalizeSharedSettings> {
@@ -756,6 +764,8 @@ export class AgentStatusService {
     const pending = Promise.resolve()
       .then(async () => {
         if (previous) await previous.catch(() => ({ windows: [], wsl: [] }));
+        await this.ready;
+        await this.cacheIo;
         return task();
       })
       .finally(() => {
@@ -846,12 +856,34 @@ export class AgentStatusService {
     );
   }
 
-  private completeDetection(ticket: AgentStatusPublicationTicket, fullInventory = false): void {
+  private async completeDetection(
+    ticket: AgentStatusPublicationTicket,
+    fullInventory = false,
+  ): Promise<void> {
     this.publication.complete(ticket, fullInventory);
     const accepted = this.readAcceptedStatuses();
     if (!this.publication.canPersist(ticket, accepted.fromCache)) return;
-    if (this.writeDiskCache(accepted.windows, accepted.wsl))
+    const generation = this.cacheGeneration;
+    const text = JSON.stringify({
+      version: STATUS_CACHE_VERSION,
+      windows: accepted.windows,
+      wsl: accepted.wsl,
+      savedAt: new Date().toISOString(),
+    });
+    const write = this.cacheIo.then(async () => {
+      if (!this.publication.canPersist(ticket, accepted.fromCache)) return;
+      await writeFile(this.options.statusCachePath, text, "utf8");
+      if (
+        this.cacheGeneration !== generation ||
+        !this.publication.canPersist(ticket, accepted.fromCache)
+      )
+        return;
+      this.cacheText = text;
       this.publication.persisted(ticket, accepted.fromCache);
+    });
+    this.cacheIo = write.catch(() => {});
+    await this.cacheIo;
+    if (this.cacheGeneration !== generation) await this.cacheIo;
   }
 
   private async runDetection(
@@ -865,7 +897,7 @@ export class AgentStatusService {
       // Newer scoped requests can own every target before this queued sweep
       // starts. Their joins still cover its complete inventory; retired or
       // invalidated tickets cannot grant persistence.
-      this.completeDetection(job.ticket, true);
+      await this.completeDetection(job.ticket, true);
       return this.readAcceptedStatuses();
     }
     const settings = this.readSettings();
@@ -956,7 +988,7 @@ export class AgentStatusService {
       this.emitDetectionList(job.ticket, "native");
     }
 
-    this.completeDetection(job.ticket, true);
+    await this.completeDetection(job.ticket, true);
     return this.readAcceptedStatuses();
   }
 }

@@ -1,6 +1,16 @@
 import { FILE_SAVE_CONFLICT_MESSAGE } from "@/shared/fileSaveErrors";
 import type { Dirent, Stats } from "node:fs";
-import { cp, lstat, mkdir, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
+import {
+  cp,
+  lstat,
+  mkdir,
+  opendir,
+  readdir,
+  readFile,
+  rm,
+  stat,
+  writeFile,
+} from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, isAbsolute, join, posix, resolve } from "node:path";
 import type {
@@ -104,17 +114,24 @@ function validateEntryName(name: string): string {
   return trimmed;
 }
 
+// One shared collator: `localeCompare` with options rebuilds collation
+// machinery per comparison (~25x slower when sorting thousands of entries).
+const entryNameCollator = new Intl.Collator(undefined, {
+  numeric: true,
+  sensitivity: "base",
+});
+
 function sortEntries(entries: ProjectTreeEntry[]): ProjectTreeEntry[] {
   return entries.toSorted((a, b) => {
     if (a.type !== b.type) return a.type === "directory" ? -1 : 1;
-    return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: "base" });
+    return entryNameCollator.compare(a.name, b.name);
   });
 }
 
 function sortHostEntries(entries: HostDirectoryEntry[]): HostDirectoryEntry[] {
   return entries.toSorted((a, b) => {
     if (a.type !== b.type) return a.type === "directory" ? -1 : 1;
-    return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: "base" });
+    return entryNameCollator.compare(a.name, b.name);
   });
 }
 
@@ -123,6 +140,8 @@ export class ProjectTreeService {
     this.resolveEntryPath(location, path),
   );
   private wslClient: WslBridgeClient | undefined;
+  private activeChildProbes = 0;
+  private readonly childProbeWaiters: Array<() => void> = [];
 
   /** Late-bound so the supervisor can wire the bridge client after boot. */
   setWslClient(client: WslBridgeClient): void {
@@ -163,7 +182,6 @@ export class ProjectTreeService {
       visible.map(async (entry): Promise<ProjectTreeEntry> => {
         const path = joinRelativePath(directoryPath, entry.name);
         const isDir = entry.isDirectory() || symlinkDirs.has(entry.name);
-
         if (isDir) {
           return {
             path,
@@ -1001,11 +1019,29 @@ export class ProjectTreeService {
   }
 
   private async directoryHasVisibleChildren(fullPath: string): Promise<boolean> {
-    const entries = await readdir(fullPath, { withFileTypes: true }).catch((error) => {
+    if (this.activeChildProbes >= 32) {
+      await new Promise<void>((resume) => this.childProbeWaiters.push(resume));
+    } else {
+      this.activeChildProbes += 1;
+    }
+    // Early-exit scan: a full readdir per child directory makes listing a
+    // wide directory cost O(total entries in all child directories).
+    let dir: Awaited<ReturnType<typeof opendir>> | undefined;
+    try {
+      dir = await opendir(fullPath);
+      for (let entry = await dir.read(); entry !== null; entry = await dir.read()) {
+        if (entry.name !== ".git") return true;
+      }
+      return false;
+    } catch (error) {
       console.warn(`[project-tree] failed to read directory ${fullPath}:`, error);
-      return [] as import("node:fs").Dirent[];
-    });
-    return entries.some((entry) => entry.name !== ".git");
+      return false;
+    } finally {
+      await dir?.close().catch(() => {});
+      const next = this.childProbeWaiters.shift();
+      if (next) next();
+      else this.activeChildProbes -= 1;
+    }
   }
 
   private invalidateCaches(location: ProjectLocation): void {

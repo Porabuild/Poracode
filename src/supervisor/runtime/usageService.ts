@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { readFile, writeFile } from "node:fs/promises";
 import {
   allUsageProviderDescriptors,
   createUsageCollectorRegistry,
@@ -44,6 +44,7 @@ import { withMacKeychainAuthorizationRetry } from "./macKeychain";
 // v12 refreshes Antigravity quota with the CLI User-Agent and dynamic group/cadence keys
 // so stale Claude-only v11 snapshots are discarded on upgrade.
 // v13 reads OpenCode 2's active native credential instead of obsolete JSON keys.
+// Async cache I/O preserves the v13 shape and account-source identities.
 const USAGE_CACHE_VERSION = 13;
 /** The full default provider set, from the package catalog (single source of truth). */
 const DEFAULT_PROVIDER_IDS: readonly string[] = allUsageProviderDescriptors().map((d) => d.id);
@@ -112,6 +113,9 @@ export class UsageService {
   /** In-flight refreshes keyed by their sorted id-set, so identical concurrent refreshes coalesce. */
   private readonly refreshesInFlight = new Map<string, Promise<ProviderUsageResponse>>();
   private autoRefreshTimer: NodeJS.Timeout | undefined;
+  /** Serializes best-effort cache writes so concurrent refreshes cannot tear the file. */
+  private cacheWrite: Promise<void> = Promise.resolve();
+  private readonly cacheLoaded: Promise<void>;
   private stopped = false;
 
   constructor(private readonly options: UsageServiceOptions) {
@@ -123,7 +127,7 @@ export class UsageService {
     this.localCollectors = new Map(
       (options.localCollectors ?? createLocalUsageCollectors()).map((c) => [c.id, c]),
     );
-    this.loadCache();
+    this.cacheLoaded = options.collectionEnabled === false ? Promise.resolve() : this.loadCache();
   }
 
   private defaultProviderIds(collectors: ReadonlyMap<string, UsageProfileCollector>): string[] {
@@ -222,6 +226,7 @@ export class UsageService {
    * Publish removals immediately so paired clients stop showing another login's quota. */
   async reconcileProfileSources(): Promise<void> {
     if (this.options.collectionEnabled === false) return;
+    await this.cacheLoaded;
     const collectors = this.profileCollectors();
     await this.profileCacheIdentities.synchronize(collectors, [...collectors.keys()]);
     const showEstimatedCost = this.readUsageSettings().showEstimatedCost;
@@ -230,7 +235,7 @@ export class UsageService {
       type: "provider-usage-all",
       snapshots: showEstimatedCost ? snapshots : snapshots.map(withoutEstimatedCost),
     });
-    this.writeCache();
+    await this.writeCache();
   }
 
   /** Return cache immediately; background collection follows the owning host's
@@ -238,6 +243,7 @@ export class UsageService {
   async getProviderUsage(payload: ProviderUsagePayload): Promise<ProviderUsageResponse> {
     if (this.stopped || this.options.collectionEnabled === false)
       return { snapshots: [], fromCache: false };
+    await this.cacheLoaded;
     const scope = this.readScope();
     const ids = this.resolveIds(payload, scope);
     await this.profileCacheIdentities.synchronize(scope.collectors, ids);
@@ -267,6 +273,7 @@ export class UsageService {
   async refreshProviderUsage(payload: ProviderUsagePayload): Promise<ProviderUsageResponse> {
     if (this.stopped || this.options.collectionEnabled === false)
       return { snapshots: [], fromCache: false };
+    await this.cacheLoaded;
     const ids = this.resolveIds(payload);
     if (ids.length === 0) {
       return { snapshots: [], fromCache: false };
@@ -369,15 +376,15 @@ export class UsageService {
     }
     // A later account check may retire an earlier row while this loop awaits.
     // Do not return that retired row in the batch's final response.
-    snapshots = committed.filter(
-      (snapshot) => this.snapshots.get(snapshot.providerId) === snapshot,
-    );
     const all = [...this.snapshots.values()];
     this.options.emit({
       type: "provider-usage-all",
       snapshots: showEstimatedCost ? all : all.map(withoutEstimatedCost),
     });
-    this.writeCache();
+    await this.writeCache();
+    snapshots = committed.filter(
+      (snapshot) => this.snapshots.get(snapshot.providerId) === snapshot,
+    );
     return {
       snapshots: showEstimatedCost ? snapshots : snapshots.map(withoutEstimatedCost),
       fromCache: false,
@@ -545,6 +552,7 @@ export class UsageService {
    */
   async refreshDueProviders(): Promise<string[]> {
     if (this.options.collectionEnabled === false || this.stopped) return [];
+    await this.cacheLoaded;
     const settings = this.readSharedSettings();
     const ids = this.dueProviderIds(settings);
     if (ids.length === 0) return [];
@@ -572,10 +580,9 @@ export class UsageService {
     this.scheduleNextTick(this.nextTickDelayMs(this.readSharedSettings()));
   }
 
-  private loadCache(): void {
+  private async loadCache(): Promise<void> {
     try {
-      if (!existsSync(this.options.cachePath)) return;
-      const parsed = JSON.parse(readFileSync(this.options.cachePath, "utf8")) as UsageCacheFile;
+      const parsed = JSON.parse(await readFile(this.options.cachePath, "utf8")) as UsageCacheFile;
       if (parsed.version !== USAGE_CACHE_VERSION || !Array.isArray(parsed.snapshots)) return;
       this.profileCacheIdentities.load(parsed.profileIdentities);
       for (const snapshot of parsed.snapshots) {
@@ -589,20 +596,19 @@ export class UsageService {
     }
   }
 
-  private writeCache(): void {
-    try {
-      writeFileSync(
-        this.options.cachePath,
-        JSON.stringify({
-          version: USAGE_CACHE_VERSION,
-          snapshots: [...this.snapshots.values()],
-          profileIdentities: this.profileCacheIdentities.serialize(),
-          savedAt: new Date().toISOString(),
-        }),
-        "utf8",
-      );
-    } catch {
-      // best-effort cache
-    }
+  private writeCache(): Promise<void> {
+    const contents = JSON.stringify({
+      version: USAGE_CACHE_VERSION,
+      snapshots: [...this.snapshots.values()],
+      profileIdentities: this.profileCacheIdentities.serialize(),
+      savedAt: new Date().toISOString(),
+    });
+    // Best-effort cache: write off the event loop, serialized against itself.
+    // Callers in refresh paths await this so an immediately following cache
+    // read (here or in a new process) never sees a torn file.
+    this.cacheWrite = this.cacheWrite
+      .then(() => writeFile(this.options.cachePath, contents, "utf8"))
+      .catch(() => {});
+    return this.cacheWrite;
   }
 }

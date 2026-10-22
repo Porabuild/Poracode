@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { RuntimeEvent } from "@/shared/contracts";
+import { estimateRuntimeEventBytes } from "@/shared/runtimeEventSize";
 import { RuntimePersistenceController, classifyStorageError } from "./runtimePersistenceController";
 import {
   RuntimePersistenceDegradedError,
@@ -41,6 +42,49 @@ describe("classifyStorageError", () => {
 });
 
 describe("RuntimePersistenceController state machine", () => {
+  it("yields a large-delta backlog between bounded commits without losing admissions", async () => {
+    const writes: number[] = [];
+    const controller = new RuntimePersistenceController({
+      write: (_id, events) => {
+        writes.push(events.reduce((sum, event) => sum + estimateRuntimeEventBytes(event), 0));
+      },
+      atomicBatchWriter: (batches) => {
+        writes.push(
+          batches.reduce(
+            (sum, batch) =>
+              sum +
+              batch.events.reduce((bytes, event) => bytes + estimateRuntimeEventBytes(event), 0),
+            0,
+          ),
+        );
+        return { kind: "committed" };
+      },
+      flushIntervalMs: 60_000,
+    });
+    try {
+      for (let index = 0; index < 8; index += 1) {
+        const id = `large-${index}`;
+        const events = Array.from({ length: 12 }, () => ({
+          ...delta("x".repeat(64 * 1024)),
+          threadId: id,
+        }));
+        expect(controller.admit(id, events)).toMatchObject({
+          kind: "accepted",
+          acceptedEvents: 12,
+        });
+      }
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      expect(writes.length).toBeGreaterThan(0);
+      expect(Math.max(...writes)).toBeLessThanOrEqual(256 * 1024);
+      expect(controller.hasPending()).toBe(true);
+      expect(controller.sample().refusedEvents).toBe(0);
+      expect(controller.shutdown()).toMatchObject({ kind: "drained" });
+      expect(controller.sample().committedThroughPersistSeq).toBe(96);
+    } finally {
+      controller.stopTimers();
+    }
+  });
+
   it("enters degraded after the retryable failure threshold and emits pause", () => {
     let nowMs = 1_000;
     const signals: string[] = [];

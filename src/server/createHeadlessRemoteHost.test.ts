@@ -956,13 +956,13 @@ describe("createHeadlessRemoteHost", () => {
       host.server as unknown as {
         options: {
           attachments?: {
-            save(input: { threadId: string; fileName: string; data: Uint8Array }): string;
+            save(input: { threadId: string; fileName: string; data: Uint8Array }): Promise<string>;
           };
         };
       }
     ).options.attachments?.save;
 
-    const path = save?.({
+    const path = await save?.({
       threadId: "thread-1",
       fileName: "notes.md",
       data: new TextEncoder().encode("helper upload"),

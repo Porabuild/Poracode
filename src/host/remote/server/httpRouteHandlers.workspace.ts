@@ -306,7 +306,7 @@ export const WORKSPACE_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, WorkspaceRout
       throw new RemoteHttpError("empty_attachment", "The attachment is empty.", 400);
     }
     writeJson(res, 200, {
-      path: attachments.save({ threadId, fileName, data }),
+      path: await attachments.save({ threadId, fileName, data }),
     });
   },
 
