@@ -1,4 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import type {
   AgentStatusesResponse,
   CloseThreadPayload,
@@ -301,6 +304,26 @@ async function callTool(url: string, token: string, name: string, args: Record<s
 }
 
 describe("AppControlsMcpIngress", () => {
+  it("advertises the complete tool catalog to a standard MCP client", async () => {
+    ingress = new AppControlsMcpIngress(deps());
+    const info = await ingress.start();
+    const client = new Client({ name: "catalog-regression", version: "1.0.0" });
+    try {
+      await client.connect(
+        new StreamableHTTPClientTransport(new URL(`${info.url}/mcp?thread=thread-1`), {
+          requestInit: { headers: { Authorization: `Bearer ${info.token}` } },
+        }) as Transport,
+      );
+      const { tools } = await client.listTools();
+      expect(tools.find((tool) => tool.name === "control_device")?.inputSchema).toMatchObject({
+        type: "object",
+        oneOf: expect.any(Array),
+      });
+    } finally {
+      await client.close();
+    }
+  });
+
   it("joins a concurrent listen and refuses to advertise or restart a closed ingress", async () => {
     ingress = new AppControlsMcpIngress(deps());
     const starting = ingress.start();
