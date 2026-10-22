@@ -8,6 +8,7 @@ import { MAX_NATIVE_VISUALS_PER_MESSAGE } from "@/shared/nativeVisuals";
 import type { MessageItemPayload } from "@/shared/contracts";
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { useAppStore } from "@/renderer/state/appStore";
+import { formatMessageTimestamp } from "@/renderer/utils/formatTime";
 import type { RuntimeStreamRetention } from "@/renderer/state/slices/runtimeStreamRetention";
 import { HYDRATED_STREAM_HEAD_CHARS } from "@/renderer/state/slices/runtimeStreamRetention";
 import {
@@ -40,12 +41,17 @@ export const AssistantMessage = memo(function AssistantMessage({
   item,
   isTurnActive,
 }: AssistantMessageProps) {
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
   const actions = useChatPaneActions();
   const completedTurnStartedAt = useAppStore((state) =>
     item.parentItemId
       ? undefined
       : selectCompletedTurnsByAnchorItem(state, threadId).get(item.id)?.startedAt,
+  );
+  const completedTurnEndedAt = useAppStore((state) =>
+    item.parentItemId
+      ? undefined
+      : selectCompletedTurnsByAnchorItem(state, threadId).get(item.id)?.endedAt,
   );
   // The copy action only appears under a turn's *final* answer: the message
   // must be the last top-level item of its turn — any trailing item (another
@@ -138,7 +144,7 @@ export const AssistantMessage = memo(function AssistantMessage({
           {showCopyButton ? (
             <CopyTextButton text={rawText} label={t`Copy message`} />
           ) : reserveCopyButtonSpace ? (
-            <span aria-hidden="true" className="block size-5" />
+            <span aria-hidden="true" className="block size-[var(--m-tap-min,1.5rem)]" />
           ) : null}
           {completedTurnStartedAt !== undefined ? (
             <ThreadForkTurnAction
@@ -146,6 +152,15 @@ export const AssistantMessage = memo(function AssistantMessage({
               itemId={item.id}
               startedAt={completedTurnStartedAt}
             />
+          ) : null}
+          {showCopyButton && completedTurnEndedAt !== undefined ? (
+            <time
+              dateTime={new Date(completedTurnEndedAt).toISOString()}
+              title={i18n.date(completedTurnEndedAt, { dateStyle: "full", timeStyle: "long" })}
+              className="ml-1 whitespace-nowrap text-[length:var(--lc-chat-font-size-meta)] tabular-nums text-muted"
+            >
+              {formatMessageTimestamp(completedTurnEndedAt, i18n.locale)}
+            </time>
           ) : null}
         </div>
       ) : null}

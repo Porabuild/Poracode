@@ -3,6 +3,7 @@ import { Tooltip, toast } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { Copy } from "lucide-react";
 import { friendlyError } from "@/shared/messages";
+import { Button } from "@/renderer/components/common/Button";
 
 interface CopyTextButtonProps {
   text: string;
@@ -33,12 +34,14 @@ export function CopyTextButton({ text, label }: CopyTextButtonProps) {
   return (
     <Tooltip delay={300} isOpen={isTooltipOpen} onOpenChange={setIsTooltipOpen}>
       <Tooltip.Trigger>
-        <button
-          type="button"
+        <Button
+          variant="ghost"
+          size="sm"
+          isIconOnly
           aria-label={copyState === "copied" ? t`Copied` : label}
-          className="flex size-5 items-center justify-center rounded text-muted/70 transition-colors hover:bg-foreground/5 hover:text-foreground"
-          onClick={(event) => {
-            event.stopPropagation();
+          className="size-6 min-w-6 text-muted"
+          onClick={(event) => event.stopPropagation()}
+          onPress={() => {
             navigator.clipboard
               .writeText(text)
               .then(() => {
@@ -64,8 +67,8 @@ export function CopyTextButton({ text, label }: CopyTextButtonProps) {
               });
           }}
         >
-          <Copy className="size-3" />
-        </button>
+          <Copy className="size-3.5" />
+        </Button>
       </Tooltip.Trigger>
       <Tooltip.Content placement="top">
         {copyState === "copied" ? t`Copied` : label}
