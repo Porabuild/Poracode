@@ -117,14 +117,15 @@ FunctionEnd
 
 !macro customCheckAppRunning
   Call ${PORACODE_CLI_PREFIX}PoraCliCheckRunning
-  ${If} $PoraCliRunning == 1
+  ${If} $PoraCliRunning != 0
     ${StdUtils.TestParameter} $PoraCliExitWait "updated"
     ${If} $PoraCliExitWait == "true"
       ; quitAndInstall starts the installer before the desktop's shutdown join.
-      ; Wait for that owner to retire; never terminate a bundled server.
+      ; Exiting processes can be unqueryable. Wait for a qualified clear snapshot;
+      ; never terminate a bundled server or accept unknown ownership.
       System::Call 'kernel32::GetTickCount() i .s'
       Pop $PoraCliExitStarted
-      ${DoWhile} $PoraCliRunning == 1
+      ${DoWhile} $PoraCliRunning != 0
         System::Call 'kernel32::GetTickCount() i .s'
         Pop $PoraCliExitWait
         IntOp $PoraCliExitWait $PoraCliExitWait - $PoraCliExitStarted

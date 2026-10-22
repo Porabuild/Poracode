@@ -22,7 +22,16 @@ OutFile "${FIXTURE_EXE}"
 
 Section
   ${GetParameters} $0
+  ${If} $0 == "/GuardUnqualifiedWorker"
+    ; Deny new process-query handles while retaining the parent's existing handle.
+    System::Call 'advapi32::ConvertStringSecurityDescriptorToSecurityDescriptorW(w "D:P", i 1, *p .r1, p 0) i.r2'
+    !insertmacro Expect "$2" "1" "create empty process DACL"
+    System::Call 'advapi32::SetKernelObjectSecurity(p -1, i 4, p r1) i.r2'
+    System::Call 'kernel32::LocalFree(p r1)'
+    !insertmacro Expect "$2" "1" "deny new process-query handles"
+  ${EndIf}
   ${If} $0 == "/GuardWorker"
+  ${OrIf} $0 == "/GuardUnqualifiedWorker"
     FileOpen $9 "${FIXTURE_ROOT}\guard-ready" w
     FileWrite $9 "ready"
     FileClose $9
@@ -34,6 +43,13 @@ Section
     worker_shutdown:
       Sleep 1500
     worker_done:
+    SetErrorLevel 0
+    Quit
+  ${EndIf}
+  ${If} $0 == "/GuardUnknown"
+    StrCpy $INSTDIR "${FIXTURE_ROOT}"
+    Call PoraCliCheckRunning
+    !insertmacro Expect "$PoraCliRunning" "2" "unqueryable matching runtime remains unqualified"
     SetErrorLevel 0
     Quit
   ${EndIf}
