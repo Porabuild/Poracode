@@ -18,6 +18,8 @@ import {
   readThreadForkInitialInstructions,
 } from "./threadForks";
 import { resolvePoracodePaths } from "@/shared/poracodePaths";
+import * as attachmentStorage from "@/host/attachments/attachmentStorage";
+import * as persistence from "./runtimePersistenceRuntime";
 import { saveUploadedAttachmentFile } from "@/host/attachments/attachmentStorage";
 import { assertRequiredDatabaseSchema } from "./migrations";
 
@@ -95,6 +97,7 @@ describe.skipIf(!sqliteAvailable)("independent thread forks", () => {
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
     closeDatabase();
     rmSync(dir, { recursive: true, force: true });
     delete process.env.PORACODE_BETTER_SQLITE3_NATIVE_BINDING;
@@ -172,44 +175,73 @@ describe.skipIf(!sqliteAvailable)("independent thread forks", () => {
     expect(committed).not.toHaveBeenCalled();
   });
 
-  it("owns inherited uploads independently and protects inherited checkpoints", async () => {
-    const path = saveUploadedAttachmentFile(resolvePoracodePaths(dir), {
-      threadId: "thread-1",
-      fileName: "design.txt",
-      data: Buffer.from("three blue squares"),
-    });
-    await dbReplaceThreadRuntimeSnapshot(
-      "thread-1",
-      [
-        {
-          id: "u1",
-          type: "user_message",
-          state: "completed",
-          streams: {},
-          payload: { content: [{ kind: "file", path, source: "attachment" }] },
-        },
-        {
-          id: "a1",
-          type: "assistant_message",
-          state: "completed",
-          streams: { assistant_text: "Read design" },
-        },
-      ],
-      [turns[0]!],
-      null,
-    );
-    await dbForkThread(command);
-    const items = await dbGetThreadRuntimeItems("fork");
-    const copiedPath = (items[0]!.payload as { content: { path: string }[] }).content[0]!.path;
-    expect(copiedPath).not.toBe(path);
-    dbDeleteThread("thread-1");
-    rmSync(path);
-    expect(existsSync(copiedPath)).toBe(true);
-    expect(readFileSync(copiedPath, "utf8")).toBe("three blue squares");
-    expect(readThreadForkInitialInstructions("fork")).toContain(JSON.stringify(copiedPath));
-    expect(isInheritedThreadForkItem("fork", "a1")).toBe(true);
-    expect(isInheritedThreadForkItem("fork", "new-message")).toBe(false);
-  });
+  it.each([false, true])(
+    "owns inherited uploads and refuses revoked source fences=%s before commit",
+    async (revoke) => {
+      const path = await saveUploadedAttachmentFile(resolvePoracodePaths(dir), {
+        threadId: "thread-1",
+        fileName: "design.txt",
+        data: Buffer.from("three blue squares"),
+      });
+      await dbReplaceThreadRuntimeSnapshot(
+        "thread-1",
+        [
+          {
+            id: "u1",
+            type: "user_message",
+            state: "completed",
+            streams: {},
+            payload: { content: [{ kind: "file", path, source: "attachment" }] },
+          },
+          {
+            id: "a1",
+            type: "assistant_message",
+            state: "completed",
+            streams: { assistant_text: "Read design" },
+          },
+        ],
+        [turns[0]!],
+        null,
+      );
+      if (revoke) {
+        let token: ReturnType<typeof persistence.beginRuntimeFence> | undefined;
+        const begin = persistence.beginRuntimeFence;
+        vi.spyOn(persistence, "beginRuntimeFence").mockImplementation((id) => {
+          token = begin(id);
+          return token;
+        });
+        const save = attachmentStorage.saveUploadedAttachmentFile;
+        vi.spyOn(attachmentStorage, "saveUploadedAttachmentFile").mockImplementation(
+          async (...args) => {
+            const copied = await save(...args);
+            persistence.releaseRuntimeFence(token!);
+            return copied;
+          },
+        );
+      }
+      const outcome = await dbForkThread(command).then(
+        () => "committed",
+        (error: unknown) => (error instanceof Error ? error.message : "invalid refusal"),
+      );
+      expect(outcome).toBe(
+        revoke
+          ? "Runtime fence read was attempted before its prefix committed or after release."
+          : "committed",
+      );
+      expect(dbGetThread("fork")?.id ?? null).toBe(revoke ? null : "fork");
+      if (revoke) return;
+      const items = await dbGetThreadRuntimeItems("fork");
+      const copiedPath = (items[0]!.payload as { content: { path: string }[] }).content[0]!.path;
+      expect(copiedPath).not.toBe(path);
+      dbDeleteThread("thread-1");
+      rmSync(path);
+      expect(existsSync(copiedPath)).toBe(true);
+      expect(readFileSync(copiedPath, "utf8")).toBe("three blue squares");
+      expect(readThreadForkInitialInstructions("fork")).toContain(JSON.stringify(copiedPath));
+      expect(isInheritedThreadForkItem("fork", "a1")).toBe(true);
+      expect(isInheritedThreadForkItem("fork", "new-message")).toBe(false);
+    },
+  );
 
   it("migrates a previous-version database without changing its conversations", () => {
     const sqlite = getSqlite();

@@ -62,7 +62,7 @@ import {
   type WindowsShellPreference,
 } from "./shellPreference";
 import { getWindowsSystemCommand } from "./agents/base/shellBasics";
-import { resolveExecutablePath } from "./agents/base/processRuntime";
+import { resolveExecutablePath, resolveExecutablePathAsync } from "./agents/base/processRuntime";
 import { AgentStatusService, detectWslAgentStatuses } from "./runtime/agentStatusService";
 import { createLocalUsageCollectors } from "./runtime/localUsageCollectors";
 import { UsageService } from "./runtime/usageService";
@@ -177,7 +177,10 @@ export class SupervisorRuntime {
   readonly projectTreeService = new ProjectTreeService();
   private readonly adapters = new Map<AgentKind, AgentAdapter>();
   private availableWindowsShellsCache:
-    | { shells: ReturnType<typeof detectWindowsShells>; ts: number }
+    | { shells: Awaited<ReturnType<typeof detectWindowsShells>>; ts: number }
+    | undefined;
+  private availableWindowsShellsInFlight:
+    | Promise<Awaited<ReturnType<typeof detectWindowsShells>>>
     | undefined;
   private resolveLaunchWindowsPowerShell =
     createWindowsPowerShellLaunchResolver(resolveExecutablePath);
@@ -706,6 +709,10 @@ export class SupervisorRuntime {
     );
   }
 
+  whenReady(): Promise<void> {
+    return this.agentStatusService.ready;
+  }
+
   getAvailableWindowsShells() {
     return process.platform === "win32" ? this.getCachedAvailableWindowsShells() : [];
   }
@@ -819,16 +826,25 @@ export class SupervisorRuntime {
     return this.threadSessionManager.getThreadFollowUpQueue(threadId);
   }
 
-  private getCachedAvailableWindowsShells() {
+  private async getCachedAvailableWindowsShells() {
     const now = Date.now();
     if (this.availableWindowsShellsCache && now - this.availableWindowsShellsCache.ts < 60_000) {
       return this.availableWindowsShellsCache.shells;
     }
-    const shells = detectWindowsShells(resolveExecutablePath);
-    this.availableWindowsShellsCache = { shells, ts: now };
-    this.resolveLaunchWindowsPowerShell =
-      createWindowsPowerShellLaunchResolver(resolveExecutablePath);
-    return shells;
+    if (this.availableWindowsShellsInFlight) return this.availableWindowsShellsInFlight;
+    const pending = (async () => {
+      const shells = await detectWindowsShells(resolveExecutablePathAsync);
+      this.availableWindowsShellsCache = { shells, ts: Date.now() };
+      this.resolveLaunchWindowsPowerShell =
+        createWindowsPowerShellLaunchResolver(resolveExecutablePath);
+      return shells;
+    })();
+    this.availableWindowsShellsInFlight = pending;
+    try {
+      return await pending;
+    } finally {
+      this.availableWindowsShellsInFlight = undefined;
+    }
   }
 
   private resolveWindowsPowerShell(): WindowsShellPreference {

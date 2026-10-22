@@ -145,8 +145,8 @@ async function fixture(
     truncateThreadRuntime() {},
   });
   cleanups.push(() => server.dispose());
-  const save = vi.fn<(input: Parameters<typeof saveUploadedAttachmentFile>[1]) => string>((input) =>
-    saveUploadedAttachmentFile(runtime.paths, input),
+  const save = vi.fn<(input: Parameters<typeof saveUploadedAttachmentFile>[1]) => Promise<string>>(
+    (input) => saveUploadedAttachmentFile(runtime.paths, input),
   );
   const administration = createHostAdministration({
     ...(withAttachments ? { attachments: { save } } : {}),

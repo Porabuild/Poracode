@@ -1,4 +1,5 @@
-import { existsSync, readdirSync, realpathSync } from "node:fs";
+import { existsSync, realpathSync } from "node:fs";
+import { readdir } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import slugify from "@sindresorhus/slugify";
@@ -111,23 +112,29 @@ function cwdFor(location: ProjectLocation): string {
 
 /**
  * Record the real transcript ids present for this cwd right before spawning so
- * discovery can ignore them and pick only the new session. Sync + native-only
+ * discovery can ignore them and pick only the new session. Native-only
  * (WSL discovery ranks purely by mtime, like grok).
  */
-export function snapshotCommandCodePreSpawnSessions(location: ProjectLocation, cwd: string): void {
-  preSpawnIds = new Set();
-  preSpawnKey = sanitizeCommandCodeCwd(cwd);
-  if (location.kind === "wsl") return;
-  const dir = projectDir(location, preSpawnKey);
-  if (!dir || !existsSync(dir)) return;
+export async function snapshotCommandCodePreSpawnSessions(
+  location: ProjectLocation,
+  cwd: string,
+): Promise<void> {
+  const ids = new Set<string>();
+  const key = sanitizeCommandCodeCwd(cwd);
   try {
-    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (location.kind === "wsl") return;
+    const dir = projectDir(location, key);
+    if (!dir) return;
+    for (const entry of await readdir(dir, { withFileTypes: true })) {
       if (!entry.isFile()) continue;
       const id = commandCodeTranscriptId(entry.name);
-      if (id) preSpawnIds.add(id);
+      if (id) ids.add(id);
     }
   } catch {
     // Best effort; discovery still ranks by mtime when the snapshot is empty.
+  } finally {
+    preSpawnIds = ids;
+    preSpawnKey = key;
   }
 }
 

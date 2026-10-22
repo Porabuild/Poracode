@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { mkdirSync, mkdtempSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import * as fs from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { afterEach, expect, it, vi } from "vitest";
 import { HostOwnerController } from "@/backend/ownership/HostOwnerController";
 import { initDatabase, closeDatabase, getSqlite } from "@/host/db/connection";
@@ -33,6 +33,7 @@ import type { SupervisorEvent } from "@/shared/ipc/events";
 import { ThreadExecutionControl } from "@/supervisor/runtime/threadExecutionControl";
 import { HostRuns } from "./hostRuns";
 import type { AdminSupervisorCall } from "./hostProviderAuth";
+import { AttachmentReclaimService } from "@/host/attachments/attachmentReclaim";
 import { saveUploadedAttachmentFile } from "@/host/attachments/attachmentStorage";
 
 vi.mock("node:fs/promises", async (importOriginal) => {
@@ -155,8 +156,8 @@ async function fixture(resume = false, withFiles = false) {
     throw new Error(`Unexpected fixture call ${name}`);
   });
   const changed = vi.fn<() => void>();
-  const save = vi.fn<(input: Parameters<typeof saveUploadedAttachmentFile>[1]) => string>((input) =>
-    saveUploadedAttachmentFile(owned.paths, input),
+  const save = vi.fn<(input: Parameters<typeof saveUploadedAttachmentFile>[1]) => Promise<string>>(
+    (input) => saveUploadedAttachmentFile(owned.paths, input),
   );
   const runs = new HostRuns({
     call,
@@ -342,7 +343,7 @@ it.each([false, true])(
     const starting = f.runs.execute({ action: "run-start", runId: f.prepared.runId }, f.context);
     await f.launched.promise;
     const payload = f.launchPort.mock.calls[0]![0];
-    const savedPath = f.save.mock.results[0]!.value;
+    const savedPath = await f.save.mock.results[0]!.value;
     expect(payload.segments).toEqual([
       { kind: "text", content: resume ? f.resumeCommand.prompt : f.command.prompt },
       { kind: "attachment", path: savedPath, mimeType: "text/plain" },
@@ -359,18 +360,33 @@ it.each([false, true])(
   },
 );
 
-it("publishes the fresh thread before a queued reclaim scan can see its synchronous copies", async () => {
+it("keeps unpublished attachment copies owned across a reclaim scan", async () => {
   const f = await fixture(false, true);
   const save = f.save.getMockImplementation()!;
-  const observed = Promise.withResolvers<boolean>();
-  f.save.mockImplementation((input) => {
-    const path = save(input);
-    queueMicrotask(() => observed.resolve(Boolean(dbGetThread(input.threadId))));
+  f.save.mockImplementation(async (input) => {
+    const path = await save(input);
+    expect(dbGetThread(input.threadId)).toBeNull();
+    const scanned = Promise.withResolvers<void>();
+    const reclaim = new AttachmentReclaimService({
+      attachmentsDir: dirname(dirname(path)),
+      listLiveThreadIds: () => {
+        scanned.resolve();
+        return [];
+      },
+      startupScanDelayMs: 0,
+    });
+    try {
+      reclaim.start();
+      await scanned.promise;
+    } finally {
+      await reclaim.dispose();
+    }
+    expect(readFileSync(path, "utf8")).toBe("File contents 世界");
     return path;
   });
   const starting = f.runs.execute({ action: "run-start", runId: f.prepared.runId }, f.context);
   await f.launched.promise;
-  expect(await observed.promise).toBe(true);
+  expect(dbGetThread(f.prepared.threadId)).not.toBeNull();
   f.completed();
   await starting;
 });

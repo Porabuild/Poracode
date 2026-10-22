@@ -320,6 +320,9 @@ jobs:
       - name: Remote protocol perf suite
         run: bun run test:perf:remote
 
+      - name: Project tree perf suite
+        run: bun run test:perf:project-tree
+
   ci_gate:
     name: Test
     if: ${{ always() }}

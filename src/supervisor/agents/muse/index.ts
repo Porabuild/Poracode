@@ -87,7 +87,7 @@ export function createMuseAdapter(): AgentAdapter {
       // Muse mints its own session UUID; snapshot existing sessions so
       // discoverSessionRef can identify the new one. Returning no sessionRef
       // enables that discovery path.
-      snapshotMusePreSpawnSessions(location);
+      await snapshotMusePreSpawnSessions(location);
       const mcp = await buildMuseTerminalMcpForLocation(location, launchOptions?.mcpServers ?? []);
       const args = buildMuseArgs(config, prompt, mcp.args);
       return {

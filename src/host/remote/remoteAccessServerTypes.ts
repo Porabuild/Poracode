@@ -607,7 +607,7 @@ export interface RemoteAccessServerOptions {
   };
   /** Persists an attachment uploaded by an authenticated remote composer. */
   readonly attachments?: {
-    save(input: { threadId: string; fileName: string; data: Uint8Array }): string;
+    save(input: { threadId: string; fileName: string; data: Uint8Array }): Promise<string>;
   };
   readonly schedules?: {
     list(): ScheduledTask[];

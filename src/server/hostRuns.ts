@@ -41,6 +41,7 @@ import {
 } from "@/shared/contracts/threadExecution";
 import { startPersistedThread } from "@/host/remote/server/threadCommands";
 import { dbGetProject, dbGetThread } from "@/host/db";
+import { retainThreadAttachmentDirectory } from "@/host/attachments/attachmentStorage";
 import {
   beginRuntimeFence,
   flushRuntimeFence,
@@ -673,6 +674,7 @@ export class HostRuns {
   }
 
   private async start(job: Run, context: HostControlContext) {
+    let releaseAttachments: (() => void) | undefined;
     const cancel = () =>
       this.stop(job, "cancelled", "The CLI caller disconnected or cancelled this run.");
     context.signal.addEventListener("abort", cancel, { once: true });
@@ -735,12 +737,13 @@ export class HostRuns {
       }
       let attached: PromptSegment[] | undefined;
       if (job.files) {
+        releaseAttachments = retainThreadAttachmentDirectory(job.threadId);
         const uploads = await readRunAttachments(job.files, admit);
         admit();
         attached = [{ kind: "text", content: job.input.prompt }];
         for (const upload of uploads) {
           admit();
-          const path = this.options.attachments!.save({ threadId: job.threadId, ...upload });
+          const path = await this.options.attachments!.save({ threadId: job.threadId, ...upload });
           const mimeType = mimeForPath(path);
           attached.push({ kind: "attachment", path, ...(mimeType ? { mimeType } : {}) });
         }
@@ -810,8 +813,7 @@ export class HostRuns {
           title: job.input.prompt.replace(/\s+/gu, " ").slice(0, 80) || "CLI run",
           presentationMode: "gui",
         };
-        // Attachment storage is synchronous. Publish the new row before yielding
-        // so reclamation cannot detach files between copying and thread ownership.
+        // The attachment hold spans asynchronous copies through the row commit.
         await startPersistedThread(
           {
             ...(this.options.resolveMcpLaunchSnapshot
@@ -824,6 +826,8 @@ export class HostRuns {
           dispatch,
         );
       }
+      releaseAttachments?.();
+      releaseAttachments = undefined;
       await job.stopped.promise;
     } catch (error) {
       this.stop(
@@ -835,6 +839,7 @@ export class HostRuns {
         ),
       );
     }
+    releaseAttachments?.();
     // Keep the abort listener through retirement and persistence, so a late
     // cancellation cannot become an authenticated completion acknowledgement.
     try {
