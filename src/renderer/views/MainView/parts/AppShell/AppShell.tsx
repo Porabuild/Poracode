@@ -18,7 +18,6 @@ import {
 } from "@/renderer/components/layout/windowChrome";
 import { useTwoRafReady } from "@/renderer/hooks/useTwoRafReady";
 import { useSidebarGlassActive } from "@/renderer/hooks/useGlassState";
-import { usePanelStore } from "@/renderer/state/panelStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { macosTrafficLightPadClass } from "@/renderer/components/layout/sidebarChrome";
@@ -472,7 +471,6 @@ export function AppShell(props: {
   const layoutMetricsReady = shellWidth > 0;
 
   const panelVisibility = usePanelVisibility();
-  const hasDeviceWorkspace = usePanelStore((s) => s.deviceWorkspaceThreadId !== null);
   // Panel intent can outlive its desktop content when the viewport becomes
   // compact. Only a panel rendered by this shell may own an overlay/backdrop.
   const rightPanelOpen =
@@ -741,7 +739,6 @@ export function AppShell(props: {
                 overlay={rightPanelAsOverlay}
                 overlayReady={rightOverlayReadyForDisplay}
                 overlayTop={rightOverlayTop}
-                preserveContentAcrossOverlay={hasDeviceWorkspace}
               >
                 {rightPanel}
               </AsideSlot>
@@ -761,7 +758,6 @@ export function AppShell(props: {
               overlay={gitPanelAsOverlay}
               overlayReady={rightOverlayReadyForDisplay}
               overlayTop={rightOverlayTop}
-              preserveContentAcrossOverlay={hasDeviceWorkspace}
             >
               {gitPanel}
             </AsideSlot>
