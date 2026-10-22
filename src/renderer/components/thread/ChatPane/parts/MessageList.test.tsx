@@ -694,6 +694,42 @@ describe("MessageList", () => {
     expect(onKeyDownCapture).toHaveBeenCalledTimes(7);
   });
 
+  it("retries an overflowing transcript at the top after its edge request fails", async () => {
+    const onStartReached = vi.fn<() => Promise<boolean>>().mockResolvedValue(false);
+    const view = render(
+      <MessageList
+        threadId="thread-1"
+        entries={makeEntries(["tail"])}
+        onStartReached={onStartReached}
+      />,
+    );
+    const scroller = view.container.querySelector<HTMLElement>("[data-poracode-chat-scroller]")!;
+    Object.defineProperties(scroller, {
+      clientHeight: { configurable: true, value: 776 },
+      scrollHeight: { configurable: true, value: 4000 },
+    });
+    const props = latestLegendProps.current as MockLegendProps;
+    await act(async () => props.onStartReached?.());
+    expect(onStartReached).toHaveBeenCalledOnce();
+    // No native scroll event follows another upward gesture at scrollTop zero.
+    fireEvent.wheel(scroller, { deltaY: 1 });
+    scroller.scrollTop = 100;
+    fireEvent.wheel(scroller, { deltaY: -1 });
+    expect(onStartReached).toHaveBeenCalledOnce();
+    scroller.scrollTop = 0;
+    await act(async () => fireEvent.wheel(scroller, { deltaY: -1 }));
+    expect(onStartReached).toHaveBeenCalledTimes(2);
+    await act(async () => fireEvent.keyDown(scroller, { key: "PageUp" }));
+    expect(onStartReached).toHaveBeenCalledTimes(3);
+    const input = document.createElement("textarea");
+    scroller.appendChild(input);
+    fireEvent.wheel(input, { deltaY: -1 });
+    fireEvent.keyDown(input, { key: "Home" });
+    expect(onStartReached).toHaveBeenCalledTimes(3);
+    act(() => props.onContentSizeCommit?.({ size: 4000, horizontal: false }));
+    expect(onStartReached).toHaveBeenCalledTimes(3);
+  });
+
   it.each([false, true])(
     "measures inline completion unless unmounted before its frame: %s",
     async (unmountBeforeFrame) => {
