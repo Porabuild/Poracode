@@ -185,7 +185,7 @@ describe("ChatPromptRail", () => {
     document.body.innerHTML = "";
   });
 
-  it("draws one tick per prompt and marks the one the visible content answers", () => {
+  it("draws one tick per prompt and marks the one the last visible row answers", () => {
     const { scroller, scrollTo } = createScroller();
     renderRail(scroller);
 
@@ -195,9 +195,25 @@ describe("ChatPromptRail", () => {
     ]);
     expect(screen.getAllByRole("button")[0]).toHaveAttribute("aria-current", "true");
 
+    // The next prompt only grazes the bottom edge, so it is not visible yet.
+    scrollTo(1);
+    expect(screen.getAllByRole("button")[0]).toHaveAttribute("aria-current", "true");
+
+    // Both prompts are visible; emphasize the lower one, even partially shown.
+    scrollTo(ROW_HEIGHT / 2);
+    const [first, second] = screen.getAllByRole("button");
+    expect(first).not.toHaveAttribute("aria-current");
+    expect(second).toHaveAttribute("aria-current", "true");
+    expect(first!.firstElementChild).toHaveStyle({ transform: "scaleX(0.5)" });
+    expect(second!.firstElementChild).toHaveStyle({ transform: "scaleX(0.667)" });
+
     scrollTo(3 * ROW_HEIGHT);
     expect(screen.getAllByRole("button")[1]).toHaveAttribute("aria-current", "true");
     expect(screen.getAllByRole("button")[0]).not.toHaveAttribute("aria-current");
+
+    scrollTo(0);
+    expect(screen.getAllByRole("button")[0]).toHaveAttribute("aria-current", "true");
+    expect(screen.getAllByRole("button")[1]).not.toHaveAttribute("aria-current");
   });
 
   it("moves the browsed window by wheel distance, not by event count", async () => {
