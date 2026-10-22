@@ -92,7 +92,7 @@ export function ChatPromptRail({
 
   const count = prompts.length;
   const loadedIndexes = prompts.map((prompt) => prompt.loadedIndex);
-  const activePosition = findActivePromptPosition(loadedIndexes, visibleRange?.first ?? null);
+  const activePosition = findActivePromptPosition(loadedIndexes, visibleRange?.last ?? null);
 
   // A native, non-passive listener: React's `onWheel` cannot cancel the gesture.
   // A thread with more prompts than ticks lets the wheel browse the ticks, so

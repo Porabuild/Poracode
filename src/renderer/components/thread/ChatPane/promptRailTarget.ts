@@ -96,22 +96,22 @@ export function buildRailPrompts(
 }
 
 /**
- * Position of the prompt the first visible row belongs to: the nearest loaded
+ * Position of the prompt the last visible row belongs to: the nearest loaded
  * prompt at or above it. Before the first loaded prompt it is that prompt, and
  * before any measurement it is the last one (the transcript opens at the end).
  */
 export function findActivePromptPosition(
   loadedIndexes: readonly (number | null)[],
-  firstVisibleIndex: number | null,
+  lastVisibleIndex: number | null,
 ): number {
-  if (firstVisibleIndex === null) return loadedIndexes.length - 1;
+  if (lastVisibleIndex === null) return loadedIndexes.length - 1;
   let active = -1;
   let firstLoaded = -1;
   for (let position = 0; position < loadedIndexes.length; position += 1) {
     const loadedIndex = loadedIndexes[position];
     if (loadedIndex === null || loadedIndex === undefined) continue;
     if (firstLoaded < 0) firstLoaded = position;
-    if (loadedIndex > firstVisibleIndex) break;
+    if (loadedIndex > lastVisibleIndex) break;
     active = position;
   }
   return active >= 0 ? active : Math.max(firstLoaded, 0);
