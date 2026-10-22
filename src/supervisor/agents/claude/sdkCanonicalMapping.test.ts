@@ -4170,6 +4170,19 @@ describe("sdkCanonicalMapping — requests", () => {
       'mcp__github__search: {"query":"deploy"}',
     ],
     ["ViewImage", { path: "screen.png" }, "file_read_approval", "ViewImage: screen.png"],
+    [
+      "mcp__permission-fixture__guide",
+      {},
+      "tool_call_approval",
+      "mcp__permission-fixture__guide: {}",
+    ],
+    [
+      "WebFetch",
+      { url: "https://example.com" },
+      "tool_call_approval",
+      'WebFetch: {"url":"https://example.com"}',
+    ],
+    ["CustomTool", {}, "tool_call_approval", "CustomTool: {}"],
   ] as const)("maps Claude %s permissions to %s", (toolName, toolInput, requestType, summary) => {
     expect(
       mapClaudePermissionRequest({
@@ -4201,6 +4214,7 @@ describe("sdkCanonicalMapping — requests", () => {
     expect(event).toMatchObject({
       type: "request.opened",
       requestId: "perm-plan",
+      requestType: "tool_call_approval",
       payload: {
         summary: "Proposed plan",
         details: {

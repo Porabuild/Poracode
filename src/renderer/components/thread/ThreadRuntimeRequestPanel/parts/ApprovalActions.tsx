@@ -1,5 +1,5 @@
-import type { ReactNode } from "react";
-import { Button, Dropdown, Label } from "@heroui/react";
+import { useId, type ReactNode } from "react";
+import { Button, Dropdown, Label, Tooltip } from "@heroui/react";
 import { ChevronDown } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import type { CanonicalRequestType, UserInputOption } from "@/shared/contracts";
@@ -32,40 +32,34 @@ export function ApprovalActions(props: {
     <div className={rootClassName}>
       {leadingAction}
       {negatives.map((option) => (
-        <Button
+        <ApprovalOptionButton
           key={option.optionId}
-          size="sm"
+          option={option}
           isDisabled={isDisabled}
           variant="ghost"
           className={negativeButtonClassName}
-          onPress={() => onSelect(option.optionId)}
-        >
-          {option.label}
-        </Button>
+          onSelect={onSelect}
+        />
       ))}
       {primary ? (
-        <Button
-          size="sm"
+        <ApprovalOptionButton
+          option={primary}
           variant="tertiary"
           isDisabled={isDisabled}
           className={buttonClassName}
-          onPress={() => onSelect(primary.optionId)}
-        >
-          {primary.label}
-        </Button>
+          onSelect={onSelect}
+        />
       ) : null}
       {showAllOptions
         ? positiveAlternates.map((option) => (
-            <Button
+            <ApprovalOptionButton
               key={option.optionId}
-              size="sm"
+              option={option}
               variant="tertiary"
               isDisabled={isDisabled}
               className={buttonClassName}
-              onPress={() => onSelect(option.optionId)}
-            >
-              {option.label}
-            </Button>
+              onSelect={onSelect}
+            />
           ))
         : null}
       {primary && positiveAlternates.length > 0 && !showAllOptions ? (
@@ -91,5 +85,43 @@ export function ApprovalActions(props: {
         </Dropdown>
       ) : null}
     </div>
+  );
+}
+
+function ApprovalOptionButton(props: {
+  option: UserInputOption;
+  variant: "ghost" | "tertiary";
+  isDisabled: boolean;
+  className: string;
+  onSelect: (optionId: string) => void;
+}) {
+  const { option, variant, isDisabled, className, onSelect } = props;
+  const descriptionId = useId();
+  const button = (
+    <Button
+      size="sm"
+      variant={variant}
+      isDisabled={isDisabled}
+      className={className}
+      {...(option.description ? { "aria-describedby": descriptionId } : {})}
+      onPress={() => onSelect(option.optionId)}
+    >
+      {option.label}
+    </Button>
+  );
+  if (!option.description) return button;
+  return (
+    <Tooltip delay={400}>
+      {button}
+      <span id={descriptionId} hidden>
+        {option.description}
+      </span>
+      <Tooltip.Content
+        placement="top"
+        className="max-w-[28rem] whitespace-pre-wrap break-words text-xs"
+      >
+        {option.description}
+      </Tooltip.Content>
+    </Tooltip>
   );
 }
