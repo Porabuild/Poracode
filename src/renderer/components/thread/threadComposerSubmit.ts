@@ -237,7 +237,12 @@ export function submitComposerPrompt(segments: PromptSegment[], ctx: ComposerSub
   useAppStore.getState().clearThreadDraftContent(thread.id);
   ctx.setIsSubmitting(true);
   if (!usesTerminalPresentation) {
-    useAppStore.getState().requestChatScrollToBottom(thread.id);
+    useAppStore
+      .getState()
+      .requestChatScrollToPrompt(
+        thread.id,
+        ctx.usesPendingSteerPath && ctx.followUpBehavior === "queue",
+      );
   }
 
   let focusPromise = Promise.resolve();

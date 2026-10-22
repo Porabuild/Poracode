@@ -777,6 +777,7 @@ export function appendOptimisticInitialUserMessage(
   const itemId = allocateInitialUserMessageItemId(thread, prompt, segments);
   if (!itemId) return undefined;
 
+  useAppStore.getState().requestChatScrollToPrompt(thread.id);
   useAppStore.getState().applyRuntimeEvent(thread.id, {
     type: "item.started",
     threadId: thread.id,
