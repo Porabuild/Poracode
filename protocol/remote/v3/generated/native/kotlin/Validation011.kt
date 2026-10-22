@@ -5,6 +5,10 @@ import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
+internal val schema_c6b76607f48c889e: RemoteSchema by lazy {
+    RemoteSchema(type = "object", required = setOf("type"), properties = mapOf("type" to schema_21c479c8dedbe09d), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
 internal val schema_c6ca4f58c0a3ffa4: RemoteSchema by lazy {
     RemoteSchema(type = "object", required = setOf("repairedWorktrees"), properties = mapOf("repairedWorktrees" to schema_56aa0e45cbdce0d0), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
@@ -175,6 +179,10 @@ internal val schema_cdcee850f284e657: RemoteSchema by lazy {
 
 internal val schema_cdd89e732d29ca0e: RemoteSchema by lazy {
     RemoteSchema(type = "object", required = setOf("threadId", "type", "usage"), properties = mapOf("threadId" to schema_bf0b727f7b1c6d07, "type" to schema_1fbc0e0d793ae9f1, "usage" to schema_80ac3a097b3c79c7), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
+internal val schema_ce3c00029996f548: RemoteSchema by lazy {
+    RemoteSchema(type = "array", items = schema_8b5062dd3eaae277, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
 internal val schema_ce6e21bdeb9c2f10: RemoteSchema by lazy {
@@ -439,12 +447,4 @@ internal val schema_dba220fea45f4f88: RemoteSchema by lazy {
 
 internal val schema_dc69d1c3f1fc465e: RemoteSchema by lazy {
     RemoteSchema(type = "object", required = setOf("sourceScope"), properties = mapOf("sourceScope" to schema_6a2600edfb55d776), additionalAllowed = false, unknownPolicy = RemoteUnknownFieldPolicy.REJECT)
-}
-
-internal val schema_dc97711e2c23c867: RemoteSchema by lazy {
-    RemoteSchema(type = "array", items = schema_d66267c393bb4ec4, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
-}
-
-internal val schema_dc99757951407418: RemoteSchema by lazy {
-    RemoteSchema(unionKind = "oneOf", options = listOf(schema_ce6e21bdeb9c2f10, schema_3d188d85aa0799fe), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }

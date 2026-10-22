@@ -33,7 +33,11 @@ import type { SliceCreator } from "./shared";
 import { clearRuntimeStructuralChangeHint } from "../runtimeStructuralChanges";
 import { forgetTimelineMeasurements } from "../timelineMeasurementCache";
 import { forgetThreadGalleryCache } from "../threadGalleryCache";
-import { carryPendingThreadInput, confirmPendingThreadInput } from "../pendingThreadInput";
+import {
+  carryPendingThreadInput,
+  confirmPendingThreadInput,
+  noteThreadInterruptedTurnStated,
+} from "../pendingThreadInput";
 import { noteRendererCreatedThreadIntent } from "../managedRootCatalog/rootCreateIntent";
 import { terminateStaleSubAgentItems } from "./staleSubAgents";
 import { msg } from "@lingui/core/macro";
@@ -164,6 +168,8 @@ export interface ThreadSlice {
       threadStatusSource?: ThreadStatusSource;
       forceCloseActiveTurn?: boolean;
       errorMessage?: string;
+      /** Null clears a cut-off turn; undefined keeps it until a turn starts. */
+      interruptedTurn?: Thread["interruptedTurn"] | null;
     },
   ) => void;
   /**
@@ -695,6 +701,9 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
       ) {
         return {};
       }
+      if (currentThread && input.interruptedTurn !== undefined) {
+        noteThreadInterruptedTurnStated(threadId);
+      }
       let changed = false;
       let turnUpdate: TurnCloseUpdate = {
         runtimeCompletedTurnsByThread: state.runtimeCompletedTurnsByThread,
@@ -783,6 +792,12 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
         // not on working rebroadcasts after the user marks done mid-turn.
         const turnStarted = input.status === "working" && thread.status !== "working";
         const activityClearsDone = turnStarted && thread.done;
+        const nextInterruptedTurn =
+          input.interruptedTurn !== undefined
+            ? (input.interruptedTurn ?? undefined)
+            : turnStarted
+              ? undefined
+              : thread.interruptedTurn;
 
         if (
           thread.status === effectiveStatus &&
@@ -796,7 +811,8 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
           thread.activeTurnStartedAt === nextTurnTiming.activeTurnStartedAt &&
           thread.lastTurnStartedAt === nextTurnTiming.lastTurnStartedAt &&
           thread.lastTurnEndedAt === nextTurnTiming.lastTurnEndedAt &&
-          (input.errorMessage === undefined || thread.errorMessage === input.errorMessage)
+          (input.errorMessage === undefined || thread.errorMessage === input.errorMessage) &&
+          thread.interruptedTurn === nextInterruptedTurn
         ) {
           return thread;
         }
@@ -824,6 +840,9 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
             ? { sessionConfigOptions: input.sessionConfigOptions }
             : {}),
           ...(input.errorMessage !== undefined ? { errorMessage: input.errorMessage } : {}),
+          ...(nextInterruptedTurn !== thread.interruptedTurn
+            ? { interruptedTurn: nextInterruptedTurn }
+            : {}),
           ...(turnStarted ? { updatedAt: nowIso } : {}),
           ...(activityClearsDone ? { done: false, doneAt: undefined } : {}),
           ...nextTurnTiming,

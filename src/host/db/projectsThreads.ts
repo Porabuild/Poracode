@@ -280,6 +280,11 @@ export function dbUpsertThread(
   thread: Thread,
   sortOrder: number,
   onCatalogCommitted?: CatalogIntentCommittedSignal,
+  /**
+   * Host-owned cut-off marker, committed with the row so a crash cannot keep
+   * one without the other. Absent leaves the stored marker alone.
+   */
+  interruptedTurn?: Thread["interruptedTurn"] | null,
 ): void {
   const sqlite = getSqlite();
   sqlite
@@ -293,6 +298,9 @@ export function dbUpsertThread(
       const options = { writeThreadStatusSource: true } as const;
       runThreadUpsert(prepareThreadUpsertStatement(sqlite, options), thread, sortOrder, options);
       if (isNewRow) noteMainCreatedThread(thread.id);
+      if (interruptedTurn !== undefined) {
+        updateThreadInterruptedTurn(sqlite, thread.id, interruptedTurn);
+      }
     })
     .immediate();
   onCatalogCommitted?.();
@@ -365,16 +373,34 @@ export function dbSetThreadGroup(threadId: string, groupId: string, groupName: s
  * ("launching"/"working"/...) is stale by definition once the process boots.
  * DB-level counterpart of the renderer's `markThreadsInactiveOnLaunch`; the
  * headless server calls it at startup since it has no renderer to self-heal.
+ * A turn that was still running is remembered as cut off by the restart, so
+ * the user can resume it instead of typing "continue".
  */
 export function dbMarkLiveThreadsInactive(): void {
   getSqlite()
     .prepare(
       `UPDATE threads
-       SET status = 'inactive', attention = 'none', active_turn_started_at = NULL
+       SET status = 'inactive', attention = 'none', active_turn_started_at = NULL,
+           interrupted_turn = CASE
+             WHEN status IN ('launching', 'working', 'needs_approval', 'needs_reply')
+               THEN 'restart'
+             ELSE interrupted_turn
+           END
        WHERE status NOT IN ('inactive', 'error')`,
     )
     .run();
   notifyProjectThreadDataChanged();
+}
+
+function updateThreadInterruptedTurn(
+  sqlite: ReturnType<typeof getSqlite>,
+  threadId: string,
+  value: Thread["interruptedTurn"] | null,
+): boolean {
+  const result = sqlite
+    .prepare("UPDATE threads SET interrupted_turn = ? WHERE id = ? AND interrupted_turn IS NOT ?")
+    .run(value ?? null, threadId, value ?? null);
+  return result.changes > 0;
 }
 
 export function dbDeleteThread(threadId: string): void {

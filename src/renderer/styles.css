@@ -7443,11 +7443,11 @@ html[data-compact-layout]
 /* The generated placeholder is a pseudo-element, so WebKit can paint its
    unbroken first line through the absolutely-positioned summary even though
    the editor itself reserves that space. Make the collapsed prompt a true
-   one-line label; the full copy is available as soon as the composer opens. */
+   one-line label; the full copy is available as soon as the composer opens.
+   An empty prompt can still pin the send slot (the resume button), so this
+   keys off :empty alone. */
 html[data-compact-layout]
-  .m-thread-compose-dock:is(:not([data-expanded]), [data-compact-content]):not(
-    [data-input-has-content]
-  )
+  .m-thread-compose-dock:is(:not([data-expanded]), [data-compact-content])
   .poracode-composer-shell
   .poracode-mention-input:empty::before {
   display: block;

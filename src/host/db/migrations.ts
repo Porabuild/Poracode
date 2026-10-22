@@ -1007,6 +1007,14 @@ export const DATABASE_MIGRATIONS = [
     rollback: "forward-only",
     migrate: (sqlite) => addColumnIfMissing(sqlite, "pr_watches", "review_scope", "TEXT"),
   },
+  {
+    version: 66,
+    name: "remember turns cut off before they finished",
+    rollback: "rollback-compatible",
+    // Additive: older rows have no cut-off turn to resume, and older code
+    // ignores the column. Never inferred from history.
+    migrate: (sqlite) => addColumnIfMissing(sqlite, "threads", "interrupted_turn", "TEXT"),
+  },
 ] as const satisfies readonly DatabaseMigration[];
 
 export const LATEST_SCHEMA_VERSION = DATABASE_MIGRATIONS[DATABASE_MIGRATIONS.length - 1]!.version;
@@ -1149,6 +1157,7 @@ const SAFE_COLUMN_REPAIRS = [
   ["threads", "active_turn_started_at", "TEXT"],
   ["threads", "last_turn_started_at", "TEXT"],
   ["threads", "last_turn_ended_at", "TEXT"],
+  ["threads", "interrupted_turn", "TEXT"],
   ["thread_runtime_items", "parent_item_id", "TEXT"],
   ["scheduled_tasks", "project_id", "TEXT"],
   ["pr_watches", "blocked_reason", "TEXT"],
@@ -1250,6 +1259,7 @@ const REQUIRED_COLUMNS = {
     "active_turn_started_at",
     "last_turn_started_at",
     "last_turn_ended_at",
+    "interrupted_turn",
   ],
   thread_runtime_items: [
     "thread_id",

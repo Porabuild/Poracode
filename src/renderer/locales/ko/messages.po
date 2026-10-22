@@ -4335,6 +4335,10 @@ msgstr "컨텍스트 창"
 msgid "Continue"
 msgstr "계속"
 
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Continue from where you left off."
+msgstr "중단된 지점부터 계속 진행해 주세요."
+
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Continue in another provider"
@@ -14199,6 +14203,10 @@ msgstr "중지에 필요한 신뢰도입니다."
 msgid "Required reviews, conversations, or status checks not met."
 msgstr "필수 검토, 대화 또는 상태 확인이 충족되지 않았습니다."
 
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Resend last message"
+msgstr "마지막 메시지 다시 보내기"
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
 msgid "reset"
 msgstr "재설정"
@@ -14376,6 +14384,10 @@ msgstr "목표 재개"
 #: src/renderer/components/thread/ThreadFollowUpQueue.tsx
 msgid "Resume queued follow-ups"
 msgstr "대기 중인 후속 메시지 재개"
+
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Resume response"
+msgstr "응답 재개"
 
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Retained usage on this host only."

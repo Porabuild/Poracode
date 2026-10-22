@@ -4335,6 +4335,10 @@ msgstr "Kontextfenster"
 msgid "Continue"
 msgstr "Weiter"
 
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Continue from where you left off."
+msgstr "Mach dort weiter, wo du aufgehört hast."
+
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Continue in another provider"
@@ -14199,6 +14203,10 @@ msgstr "Erforderliche Konfidenz vor dem Beenden."
 msgid "Required reviews, conversations, or status checks not met."
 msgstr "Erforderliche Bewertungen, Gespräche oder Statusprüfungen wurden nicht erfüllt."
 
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Resend last message"
+msgstr "Letzte Nachricht erneut senden"
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
 msgid "reset"
 msgstr "zurückgesetzt"
@@ -14376,6 +14384,10 @@ msgstr "Ziel fortsetzen"
 #: src/renderer/components/thread/ThreadFollowUpQueue.tsx
 msgid "Resume queued follow-ups"
 msgstr "Eingereihte Nachfragen fortsetzen"
+
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Resume response"
+msgstr "Antwort fortsetzen"
 
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Retained usage on this host only."

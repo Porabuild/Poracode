@@ -1150,7 +1150,9 @@ export class ThreadSessionManager {
         !this.sessions.has(threadId) &&
         !this.recentlyRemovedThreadIds.has(threadId)
       ) {
-        publishUnpublishedStartFailure(threadId, error, this.runtimeEventRouter);
+        publishUnpublishedStartFailure(threadId, error, this.runtimeEventRouter, {
+          carriedPrompt: payload.prompt.trim().length > 0 || (payload.segments?.length ?? 0) > 0,
+        });
       }
       throw error;
     } finally {
@@ -1411,6 +1413,8 @@ export class ThreadSessionManager {
           attention: "none",
           canResumeWithConfig: false,
           forceCloseActiveTurn: true,
+          // Stop is the user deciding this turn is over: nothing to resume.
+          interruptedTurn: null,
         });
         return;
       }
@@ -1425,8 +1429,18 @@ export class ThreadSessionManager {
         attention: "none",
         canResumeWithConfig: false,
         forceCloseActiveTurn: true,
+        interruptedTurn: null,
       });
       return;
+    }
+    // A Stop can land after the turn already failed (a phone sent it late),
+    // and a provider can report a failure while it winds down. Neither may
+    // offer to resume a turn the user chose to end; a session that has not
+    // said either yet retires the host's kept marker too.
+    session.turnStopRequested = true;
+    if (session.interruptedTurn !== null) {
+      session.interruptedTurn = null;
+      this.outputPipeline.emitState(session);
     }
     this.options.crossagentMcp?.cancelForeground(payload.threadId);
     await this.structuredInterruptWatchdog.interruptStructuredTurn(session);

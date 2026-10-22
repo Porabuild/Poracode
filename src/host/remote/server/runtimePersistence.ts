@@ -18,6 +18,12 @@ import {
   type TrustedRuntimePayloadAdmission,
 } from "@/shared/runtimePayloadOriginProtocol";
 import type { RemoteBroadcastEvent } from "./context";
+import {
+  notePendingInterruptedTurn,
+  pendingInterruptedTurn,
+  resetPendingInterruptedTurnsForTests,
+  settlePendingInterruptedTurn,
+} from "./pendingInterruptedTurns";
 import { persistThreadStateEvent } from "./threadStatePersistence";
 
 /**
@@ -206,10 +212,21 @@ function dispatchPersist(
       // write was actually queued. A refused control reserve means the row
       // would never be rebuilt, so publishing the state would claim a durable
       // transition that does not exist.
+      // A newer state replaces a queued one, but the cut-off marker is only
+      // reported when it changes, so carry it into the write that replaced it.
+      if (event.interruptedTurn !== undefined) {
+        notePendingInterruptedTurn(event.threadId, event.interruptedTurn);
+      }
       const queued = enqueueRuntimeControlOperation({
         key: `thread-state:${event.threadId}`,
         describe: `thread-state ${event.threadId}`,
-        run: () => persistThreadStateEvent(event),
+        run: () => {
+          const interruptedTurn = pendingInterruptedTurn(event.threadId);
+          persistThreadStateEvent(
+            interruptedTurn === undefined ? event : { ...event, interruptedTurn },
+          );
+          settlePendingInterruptedTurn(event.threadId);
+        },
       });
       if (queued === "refused") {
         return { kind: "withhold", reason: "refused", threadIds: [event.threadId] };
@@ -314,4 +331,5 @@ const pendingResetThreadIds = new Set<string>();
 /** Test helper: clears the diagnostics-only pending-reset marker set. */
 export function resetDeferredThreadResetsForTests(): void {
   pendingResetThreadIds.clear();
+  resetPendingInterruptedTurnsForTests();
 }

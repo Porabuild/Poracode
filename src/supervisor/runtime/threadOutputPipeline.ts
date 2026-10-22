@@ -3,7 +3,7 @@ import { stripAnsiPreservingLayout } from "@/shared/ansi";
 import type { ThreadAttention, ThreadStatus, ThreadStatusSource } from "@/shared/contracts";
 import { extractOscEventsFromPtyStream } from "@/shared/osc";
 import { TranscriptBuffer } from "@/shared/transcriptBuffer";
-import { isThreadConfigEqual } from "@/shared/contracts";
+import { isThreadConfigEqual, isThreadTurnActive } from "@/shared/contracts";
 import type { TerminalStatusHint } from "../agents/base";
 import { BufferedLogWriter } from "./bufferedLogWriter";
 import type {
@@ -156,6 +156,13 @@ export class ThreadOutputPipeline {
     errorMessage?: string,
     options: { forceCloseActiveTurn?: boolean } = {},
   ): void {
+    // Only a change is news: the host keeps the marker, and a rewind can
+    // retire it there without this session knowing.
+    const changedInterruptedTurn =
+      session.interruptedTurn !== session.reportedInterruptedTurn
+        ? session.interruptedTurn
+        : undefined;
+    session.reportedInterruptedTurn = session.interruptedTurn;
     this.options.emit({
       type: "thread-state",
       threadId: session.threadId,
@@ -172,6 +179,7 @@ export class ThreadOutputPipeline {
       ...(session.sessionConfigOptions !== undefined
         ? { sessionConfigOptions: session.sessionConfigOptions }
         : {}),
+      ...(changedInterruptedTurn !== undefined ? { interruptedTurn: changedInterruptedTurn } : {}),
       // Ride along on every state change so the renderer learns whether this
       // session resolved `read_thread` as soon as it launches. Without this the
       // flag only travelled in pulled snapshots, which a client refetches on
@@ -225,10 +233,36 @@ export class ThreadOutputPipeline {
       session.workingSilenceTimer = undefined;
     }
 
+    if (status === "working" && session.status !== "working") {
+      session.interruptedTurn = null;
+      session.turnStopRequested = false;
+    } else if (
+      status === "error" &&
+      isThreadTurnActive(session.status) &&
+      session.structuredTurnInterruptRequested !== true &&
+      session.turnStopRequested !== true
+    ) {
+      session.interruptedTurn = "error";
+    }
     session.status = status;
     session.attention = attention;
     session.lastStatusChangeAt = Date.now();
     this.emitState(session, errorMessage, options);
+  }
+
+  /**
+   * A provider can report a failed turn and then settle `idle` instead of
+   * `error` (Claude API and rate-limit failures do). Remember the cut-off turn
+   * unless the user asked to stop it.
+   */
+  noteTurnFailed(session: SessionRuntime): void {
+    if (session.structuredTurnInterruptRequested === true || session.turnStopRequested === true) {
+      return;
+    }
+    if (session.interruptedTurn === "error") return;
+    session.interruptedTurn = "error";
+    // While the turn is still live, the settling state carries the marker.
+    if (!isThreadTurnActive(session.status)) this.emitState(session);
   }
 
   /**

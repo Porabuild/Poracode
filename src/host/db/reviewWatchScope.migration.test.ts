@@ -92,7 +92,7 @@ describe.skipIf(!sqliteAvailable)("persisted review watch scope schema65", () =>
       DATABASE_MIGRATIONS.filter((migration) => migration.version > 61).map(
         (migration) => migration.version,
       ),
-    ).toEqual([62, 63, 64, 65]);
+    ).toEqual([62, 63, 64, 65, 66]);
     old.close();
     const upgraded = initDatabase(path);
     expect(upgraded.prepare("SELECT * FROM pr_watches").get()).toEqual({
@@ -105,7 +105,7 @@ describe.skipIf(!sqliteAvailable)("persisted review watch scope schema65", () =>
     expect(rawScope()).toBeNull();
     expect(
       upgraded.prepare("SELECT value FROM app_state WHERE key='schema_version'").get(),
-    ).toEqual({ value: "65" });
+    ).toEqual({ value: "66" });
   });
 
   it.each(["account", "repository"])(

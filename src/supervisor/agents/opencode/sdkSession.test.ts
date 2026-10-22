@@ -527,6 +527,180 @@ describe("OpencodeSdkSession", () => {
     expect(secondDispose).toHaveBeenCalledTimes(1);
   });
 
+  it("reports a turn whose reply failed as failed, not completed", async () => {
+    const replyFailed = Promise.withResolvers<void>();
+    const assistantInfo = {
+      id: "msg_failed",
+      parentID: "msg_user",
+      sessionID: "ses_failed",
+      role: "assistant",
+      mode: "build",
+      agent: "build",
+      path: { cwd: "/repo", root: "/repo" },
+      cost: 0,
+      tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+      modelID: "big-pickle",
+      providerID: "opencode",
+      time: { created: 0 },
+      error: { name: "APIError", data: { message: "Quota exceeded", isRetryable: false } },
+    };
+    const stream = (async function* () {
+      await replyFailed.promise;
+      yield {
+        directory: "/repo",
+        payload: {
+          id: "evt-failed",
+          type: "message.updated",
+          properties: { sessionID: "ses_failed", info: assistantInfo },
+        },
+      };
+      yield {
+        directory: "/repo",
+        payload: { id: "evt-idle", type: "session.idle", properties: { sessionID: "ses_failed" } },
+      };
+    })();
+    mocks.acquireOpenCodeServer.mockResolvedValue({
+      eventClient: {
+        global: {
+          event: vi
+            .fn<() => Promise<{ stream: AsyncGenerator<unknown> }>>()
+            .mockResolvedValue({ stream }),
+        },
+      },
+      client: {
+        command: { list: vi.fn<() => Promise<{ data: [] }>>().mockResolvedValue({ data: [] }) },
+        session: {
+          create: vi
+            .fn<() => Promise<{ data: { id: string } }>>()
+            .mockResolvedValue({ data: { id: "ses_failed" } }),
+          promptAsync: vi.fn<() => Promise<unknown>>(async () => ({})),
+          update: vi.fn<() => Promise<unknown>>(async () => ({})),
+          abort: vi.fn<() => Promise<unknown>>(async () => ({})),
+          status: vi.fn<() => Promise<unknown>>(async () => ({ data: {} })),
+        },
+      },
+      baseUrl: "http://127.0.0.1:0",
+      handle: {},
+      dispose: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+    });
+    const runtimeEvents: RuntimeEvent[] = [];
+    const session = await OpencodeSdkSession.create({
+      threadId: "thread-failed",
+      projectLocation,
+      config,
+      presentationMode: "gui",
+    });
+    session.setListener({
+      onClose: () => {},
+      onError: () => {},
+      onUpdate: () => {},
+      onRuntimeEvent: (event) => runtimeEvents.push(event),
+    });
+    await session.activate();
+    await session.openThread(config);
+    await session.startTurn("hello", config);
+    replyFailed.resolve();
+
+    await vi.waitFor(() => {
+      expect(runtimeEvents.some((event) => event.type === "turn.completed")).toBe(true);
+    });
+    expect(runtimeEvents.find((event) => event.type === "turn.completed")).toMatchObject({
+      state: "failed",
+    });
+    await session.dispose();
+  });
+
+  it("reports a reply that failed before the prompt was acknowledged as failed", async () => {
+    const promptSent = Promise.withResolvers<void>();
+    const settled = Promise.withResolvers<void>();
+    let sent = false;
+    const stream = (async function* () {
+      await promptSent.promise;
+      yield {
+        directory: "/repo",
+        payload: {
+          id: "evt-failed",
+          type: "message.updated",
+          properties: {
+            sessionID: "ses_fast",
+            info: {
+              id: "msg_failed",
+              parentID: "msg_user",
+              sessionID: "ses_fast",
+              role: "assistant",
+              mode: "build",
+              agent: "build",
+              path: { cwd: "/repo", root: "/repo" },
+              cost: 0,
+              tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+              modelID: "big-pickle",
+              providerID: "opencode",
+              time: { created: 0 },
+              error: { name: "APIError", data: { message: "Unauthorized", isRetryable: false } },
+            },
+          },
+        },
+      };
+      yield {
+        directory: "/repo",
+        payload: { id: "evt-idle", type: "session.idle", properties: { sessionID: "ses_fast" } },
+      };
+    })();
+    mocks.acquireOpenCodeServer.mockResolvedValue({
+      eventClient: {
+        global: {
+          event: vi
+            .fn<() => Promise<{ stream: AsyncGenerator<unknown> }>>()
+            .mockResolvedValue({ stream }),
+        },
+      },
+      client: {
+        command: { list: vi.fn<() => Promise<{ data: [] }>>().mockResolvedValue({ data: [] }) },
+        session: {
+          create: vi
+            .fn<() => Promise<{ data: { id: string } }>>()
+            .mockResolvedValue({ data: { id: "ses_fast" } }),
+          // The acknowledgement arrives only after the reply failed and settled.
+          promptAsync: vi.fn<() => Promise<unknown>>(async () => {
+            sent = true;
+            promptSent.resolve();
+            await settled.promise;
+            return {};
+          }),
+          update: vi.fn<() => Promise<unknown>>(async () => ({})),
+          abort: vi.fn<() => Promise<unknown>>(async () => ({})),
+          status: vi.fn<() => Promise<unknown>>(async () => ({ data: {} })),
+        },
+      },
+      baseUrl: "http://127.0.0.1:0",
+      handle: {},
+      dispose: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+    });
+    const runtimeEvents: RuntimeEvent[] = [];
+    const session = await OpencodeSdkSession.create({
+      threadId: "thread-fast-failed",
+      projectLocation,
+      config,
+      presentationMode: "gui",
+    });
+    session.setListener({
+      onClose: () => {},
+      onError: () => {},
+      onUpdate: (update) => {
+        if (sent && update.status === "idle") settled.resolve();
+      },
+      onRuntimeEvent: (event) => runtimeEvents.push(event),
+    });
+    await session.activate();
+    await session.openThread(config);
+    await session.startTurn("hello", config);
+
+    expect(runtimeEvents.filter((event) => event.type === "turn.completed")).toEqual([
+      expect.objectContaining({ state: "failed" }),
+    ]);
+    await session.dispose();
+  });
+
   it("joins the shared pool and forwards the MCP set", async () => {
     const dispose = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
     mocks.acquireOpenCodeServer.mockResolvedValue({

@@ -826,3 +826,91 @@ describe("ThreadOutputPipeline / emitState session config options", () => {
     expect(emittedInventoryState(emit)).not.toHaveProperty("sessionConfigOptions");
   });
 });
+
+describe("ThreadOutputPipeline / cut-off turn marker", () => {
+  function liveSession(overrides: Record<string, unknown> = {}) {
+    return {
+      threadId: "t1",
+      status: "working",
+      attention: "working",
+      agentKind: "claude",
+      config: {},
+      canResumeWithConfig: true,
+      adapter: { capabilities: { presentationMode: "gui" } },
+      ...overrides,
+    } as unknown as SessionRuntime;
+  }
+
+  function states(emit: ReturnType<typeof vi.fn<() => void>>) {
+    return (emit.mock.calls as unknown as Array<[Record<string, unknown>]>)
+      .map((call) => call[0])
+      .filter((event) => event.type === "thread-state");
+  }
+
+  it("marks a turn that ended in an error", () => {
+    const emit = vi.fn<() => void>();
+    pipeline(emit).updateState(liveSession(), "error", "error", "Rate limited");
+    expect(states(emit).at(-1)).toMatchObject({ status: "error", interruptedTurn: "error" });
+  });
+
+  it("never marks a turn the user stopped", () => {
+    const emit = vi.fn<() => void>();
+    const p = pipeline(emit);
+    const session = liveSession({ structuredTurnInterruptRequested: true });
+    p.noteTurnFailed(session);
+    p.updateState(session, "error", "error");
+    expect(states(emit)).toHaveLength(1);
+    expect(states(emit)[0]).not.toHaveProperty("interruptedTurn");
+  });
+
+  it("keeps a stopped turn unmarked after its stop request settled", () => {
+    const emit = vi.fn<() => void>();
+    const p = pipeline(emit);
+    // ACP reports the error status first; the failed turn event follows it.
+    const session = liveSession({ turnStopRequested: true });
+    p.updateState(session, "error", "error", "Quota exceeded");
+    p.noteTurnFailed(session);
+    expect(states(emit)).toHaveLength(1);
+    expect(states(emit)[0]).not.toHaveProperty("interruptedTurn");
+
+    // The next turn is the user's again: its failure marks it.
+    p.updateState(session, "working", "working");
+    p.updateState(session, "error", "error", "Quota exceeded");
+    expect(states(emit).at(-1)).toMatchObject({ status: "error", interruptedTurn: "error" });
+  });
+
+  it("carries a failed turn that settles idle, then clears it when the next turn starts", () => {
+    const emit = vi.fn<() => void>();
+    const p = pipeline(emit);
+    const session = liveSession();
+    // Claude reports the failed turn before its idle status.
+    p.noteTurnFailed(session);
+    expect(states(emit)).toHaveLength(0);
+    p.updateState(session, "idle", "none");
+    expect(states(emit).at(-1)).toMatchObject({ status: "idle", interruptedTurn: "error" });
+    p.updateState(session, "working", "working");
+    expect(states(emit).at(-1)).toMatchObject({ status: "working", interruptedTurn: null });
+  });
+
+  it("tells the host about the marker only when it changes", () => {
+    const emit = vi.fn<() => void>();
+    const p = pipeline(emit);
+    const session = liveSession();
+    p.updateState(session, "error", "error", "Rate limited");
+    // A later state change must not restore a marker the host retired.
+    p.updateState(session, "idle", "none");
+    expect(states(emit).at(-1)).not.toHaveProperty("interruptedTurn");
+    p.updateState(session, "working", "working");
+    expect(states(emit).at(-1)).toMatchObject({ interruptedTurn: null });
+  });
+
+  it("emits a failure reported after the turn already settled", () => {
+    const emit = vi.fn<() => void>();
+    const p = pipeline(emit);
+    const session = liveSession({ status: "idle", attention: "none" });
+    p.noteTurnFailed(session);
+    p.noteTurnFailed(session);
+    expect(states(emit)).toHaveLength(1);
+    expect(states(emit)[0]).toMatchObject({ status: "idle", interruptedTurn: "error" });
+  });
+});

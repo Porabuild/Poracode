@@ -4334,6 +4334,10 @@ msgstr "コンテキストウィンドウ"
 msgid "Continue"
 msgstr "続ける"
 
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Continue from where you left off."
+msgstr "中断したところから続けてください。"
+
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Continue in another provider"
@@ -14197,6 +14201,10 @@ msgstr "停止に必要な信頼度です。"
 msgid "Required reviews, conversations, or status checks not met."
 msgstr "必要なレビュー、会話、ステータスチェックが満たされていません。"
 
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Resend last message"
+msgstr "最後のメッセージを再送信"
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
 msgid "reset"
 msgstr "リセット"
@@ -14374,6 +14382,10 @@ msgstr "目標を再開"
 #: src/renderer/components/thread/ThreadFollowUpQueue.tsx
 msgid "Resume queued follow-ups"
 msgstr "キューに入ったフォローアップを再開"
+
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Resume response"
+msgstr "応答を再開"
 
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Retained usage on this host only."

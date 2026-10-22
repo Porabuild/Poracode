@@ -4335,6 +4335,10 @@ msgstr "Cửa sổ ngữ cảnh"
 msgid "Continue"
 msgstr "Tiếp tục"
 
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Continue from where you left off."
+msgstr "Hãy tiếp tục từ chỗ bạn đã dừng lại."
+
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Continue in another provider"
@@ -14199,6 +14203,10 @@ msgstr "Độ tin cậy cần thiết trước khi dừng."
 msgid "Required reviews, conversations, or status checks not met."
 msgstr "Các đánh giá, cuộc trò chuyện hoặc kiểm tra trạng thái bắt buộc không được đáp ứng."
 
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Resend last message"
+msgstr "Gửi lại tin nhắn cuối"
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
 msgid "reset"
 msgstr "đặt lại"
@@ -14376,6 +14384,10 @@ msgstr "Tiếp tục mục tiêu"
 #: src/renderer/components/thread/ThreadFollowUpQueue.tsx
 msgid "Resume queued follow-ups"
 msgstr "Tiếp tục tin nhắn tiếp theo trong hàng đợi"
+
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Resume response"
+msgstr "Tiếp tục phản hồi"
 
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Retained usage on this host only."

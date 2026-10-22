@@ -1,6 +1,6 @@
 import { ReactNode, useEffect, useEffectEvent, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ArrowUp, FileUp, MoreHorizontal, Square, X } from "lucide-react";
+import { ArrowUp, FileUp, MoreHorizontal, Play, Square, X } from "lucide-react";
 import { ToggleButton, Tooltip } from "@heroui/react";
 import type { MessageDescriptor } from "@lingui/core";
 import { Trans, useLingui } from "@lingui/react/macro";
@@ -253,6 +253,8 @@ export function ThreadComposer(props: {
   submitContent?: ReactNode;
   /** A caller-selected primary control, e.g. live voice on an empty composer. */
   submitControl?: ReactNode;
+  /** Takes the empty composer's send slot to pick a cut-off turn back up. */
+  resume?: { label: string; onPress: () => void } | undefined;
   submitVariant?: ButtonProps["variant"];
   submitDisabled: boolean;
   submitPending?: boolean;
@@ -284,6 +286,7 @@ export function ThreadComposer(props: {
     submitLabel,
     submitContent,
     submitControl,
+    resume,
     submitVariant,
     submitDisabled,
     submitPending = false,
@@ -902,6 +905,24 @@ export function ThreadComposer(props: {
           <Tooltip.Content>
             <Trans>Stop response</Trans>
           </Tooltip.Content>
+        </Tooltip>
+      );
+    }
+    if (resume) {
+      return (
+        <Tooltip delay={0}>
+          <Tooltip.Trigger>
+            <Button
+              isIconOnly
+              aria-label={resume.label}
+              className="poracode-composer-send"
+              onPress={resume.onPress}
+              size="sm"
+            >
+              <Play className="size-3.5 fill-current" />
+            </Button>
+          </Tooltip.Trigger>
+          <Tooltip.Content>{resume.label}</Tooltip.Content>
         </Tooltip>
       );
     }

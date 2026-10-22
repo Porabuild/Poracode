@@ -1,4 +1,8 @@
 import { expect, it, vi } from "vitest";
+import {
+  notePendingInterruptedTurn,
+  settlePendingInterruptedTurn,
+} from "./pendingInterruptedTurns";
 import { ThreadLiveReadState, seedThreadLiveReadState } from "./threadLiveReadState";
 import { SessionConfigInventory } from "./sessionConfigInventory";
 import type { RemoteBroadcastEvent, RemoteServerContext } from "./context";
@@ -202,4 +206,20 @@ it("keeps known completion after exit but cannot certify an unowned runtime leve
     runtimeStateCurrent: true,
     thread: { status: "idle" },
   });
+});
+
+it("shows a reported cut-off marker until its row write lands", () => {
+  const state = new ThreadLiveReadState();
+  const cutOff = { ...thread, interruptedTurn: "restart" as const };
+  notePendingInterruptedTurn(thread.id, "error");
+  expect(state.projectSnapshotRuntime(thread).thread.interruptedTurn).toBe("error");
+  state.observe({ ...working, status: "idle", attention: "none" });
+  expect(state.projectSnapshotRuntime(thread)).toMatchObject({
+    runtimeStateCurrent: true,
+    thread: { interruptedTurn: "error" },
+  });
+  notePendingInterruptedTurn(thread.id, null);
+  expect(state.projectSnapshotRuntime(cutOff).thread).not.toHaveProperty("interruptedTurn");
+  settlePendingInterruptedTurn(thread.id);
+  expect(state.projectSnapshotRuntime(cutOff).thread.interruptedTurn).toBe("restart");
 });

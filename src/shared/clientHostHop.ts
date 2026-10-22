@@ -53,6 +53,8 @@
 // legacy watch saves cannot bind an unscoped watch to the active source account.
 // Fork initial instructions and their admission acknowledgment are optional,
 // same-bundle host/supervisor fields; existing procedure payloads remain valid.
+// The cut-off turn marker on threads and thread-state events is optional; absent
+// means an older host and leaves the renderer's marker alone.
 export const CLIENT_HOST_HOP_VERSION = 18 as const;
 /** The previous artifact hop, kept as an old reader for pre-upgrade regressions. */
 export const PREVIOUS_CLIENT_HOST_HOP_VERSION = 17 as const;

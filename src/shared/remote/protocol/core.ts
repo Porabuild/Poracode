@@ -37,6 +37,8 @@ import { gitStatePatchSchema } from "../../gitState";
 // optional and old thread rows remain valid. Older hosts never receive the kind.
 // Optional thread tool overrides remain additive: absent maps keep old defaults,
 // and the host retains durable choices when older clients omit them on mutation.
+// Optional thread.interruptedTurn is additive: old readers ignore it and old hosts
+// omit it, so no resume button shows. Only the host writes it (schema 66).
 export const PORACODE_REMOTE_PROTOCOL_VERSION = 14;
 export const REMOTE_COMMAND_ID_HEADER = "x-poracode-command-id";
 
