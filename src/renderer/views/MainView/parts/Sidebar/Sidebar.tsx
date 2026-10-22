@@ -1,17 +1,8 @@
 import { useCommandPaletteStore } from "@/renderer/commands/commandPaletteStore";
-import {
-  ChevronRight,
-  Globe,
-  House,
-  PanelLeft,
-  Plus,
-  Search,
-  Settings2,
-  TerminalSquare,
-} from "lucide-react";
+import { Globe, House, PanelLeft, Plus, Search, Settings2, TerminalSquare } from "lucide-react";
 import { startTransition, useEffect, useState } from "react";
+import { useShallow } from "zustand/shallow";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { AnimatedTerminalIcon } from "@/renderer/components/common/AnimatedTerminalIcon";
 import { getAppName } from "@/shared/appName";
 import { isHomeProject } from "@/shared/homeScope";
 import { SidebarButton } from "@/renderer/components/common/SidebarButton";
@@ -21,7 +12,6 @@ import {
 } from "@/renderer/components/layout/sidebarChrome";
 import { useSidebar } from "@/renderer/views/MainView/parts/AppShell/AppShell";
 import { SIDEBAR_MIN_WIDTH } from "@/renderer/views/MainView/parts/AppShell/parts/useResizablePanels";
-import { SidebarPanelDragButton } from "@/renderer/views/MainView/parts/Sidebar/parts/SidebarPanelDragButton";
 import { SidebarProjectSection } from "@/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectSection";
 import {
   selectBrowserPanelAvailable,
@@ -37,15 +27,9 @@ import {
   toggleBrowserPanel,
 } from "@/renderer/actions/panelActions";
 import { ProviderUsageRail } from "@/renderer/components/providers/ProviderUsageRail";
-import { openTerminal, toggleGlobalTerminal } from "@/renderer/actions/terminalActions";
+import { toggleGlobalTerminal } from "@/renderer/actions/terminalActions";
 import { openNewThread } from "@/renderer/actions/threadActions";
-import {
-  useCurrentProjectId,
-  useCurrentWorktreePath,
-  useIsProjectTerminalActive,
-  useIsProjectTerminalBusy,
-  useIsProjectTerminalOpen,
-} from "@/renderer/hooks/uiSelectors";
+import { useCurrentProjectId, useCurrentWorktreePath } from "@/renderer/hooks/uiSelectors";
 import { useScrollFade } from "@/renderer/hooks/useScrollFade";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useIsPanelTabVisible } from "@/renderer/state/panelDockSelectors";
@@ -60,7 +44,7 @@ import {
 import { CollapsedThreadRail } from "./parts/CollapsedThreadRail";
 import { SidebarFlatThreadList } from "./parts/SidebarFlatThreadList";
 import { SidebarFooterNav } from "./parts/SidebarFooterNav";
-import { SidebarProjectThreadList } from "./parts/SidebarProjectThreadList";
+import { SidebarHomeSection } from "./parts/SidebarHomeSection";
 import { UpdateButtons } from "./parts/UpdateButtons";
 import { useSidebarShortcuts } from "./parts/sidebarShortcuts";
 import { WhatsNewButton } from "./parts/WhatsNewButton";
@@ -77,41 +61,14 @@ function prewarmSettings(): void {
   void DeferredSettingsOverlay.preload();
 }
 
-function HomeTerminalButton(props: { projectId: string; projectName: string }) {
-  const { t } = useLingui();
-  const hasTerminal = useIsProjectTerminalOpen(props.projectId);
-  const isActiveTerminal = useIsProjectTerminalActive(props.projectId);
-  const isBusy = useIsProjectTerminalBusy(props.projectId);
-  // Match thread / project-header collapse so idle home terminal does not
-  // reserve row width for the project title.
-  const hiddenPanelButtonClass =
-    "w-0 -mr-[3px] overflow-hidden p-0 opacity-0 pointer-events-none group-hover:w-[18px] group-hover:mr-0 group-hover:p-0.5 group-hover:opacity-100 group-hover:pointer-events-auto focus-visible:w-[18px] focus-visible:mr-0 focus-visible:p-0.5 focus-visible:opacity-100 focus-visible:pointer-events-auto";
-  return (
-    <SidebarPanelDragButton
-      panel="terminal"
-      projectId={props.projectId}
-      ariaLabel={t`Terminal for ${props.projectName}`}
-      className={`flex h-[18px] shrink-0 cursor-grab items-center justify-center rounded transition-[opacity,color,background-color] hover:bg-[var(--row-hover)] hover:text-foreground active:cursor-grabbing ${
-        isActiveTerminal
-          ? "w-[18px] p-0.5 text-accent"
-          : hasTerminal
-            ? "w-[18px] p-0.5 text-foreground"
-            : `text-muted/60 ${hiddenPanelButtonClass}`
-      }`}
-      onPress={() => openTerminal(props.projectId)}
-    >
-      <AnimatedTerminalIcon className="size-3.5" isBusy={isBusy} />
-    </SidebarPanelDragButton>
-  );
-}
-
 export function Sidebar() {
   const { t } = useLingui();
   // Only the active workspace's projects; Home is handled separately below and
   // belongs to every workspace.
   const projectIds = useWorkspaceProjectIds();
   const hiddenProjectCount = useProjectIdsHiddenByWorkspace().size;
-  const homeProject = useAppStore((state) => state.projects.find(isHomeProject));
+  // Desktop has its own Home; a browser client mirrors one per paired machine.
+  const homeProjects = useAppStore(useShallow((state) => state.projects.filter(isHomeProject)));
   const homeScopeEnabled = useSharedSettings((s) => s.homeScopeEnabled);
   const remoteAccessEnabled = useSharedSettings((s) => s.remoteAccessEnabled);
   const showRemoteAccess = hasClientCapability("localBackend");
@@ -135,11 +92,7 @@ export function Sidebar() {
   const terminalAtBottom = useSharedSettings((s) => s.terminalPosition === "bottom");
   const globalTerminalOpen = globalTerminalPanelOpen && (terminalAtBottom || terminalOnScreen);
   const openSearch = useCommandPaletteStore((s) => s.open);
-  const isHomeProjectCollapsed = useSidebarUiStore((s) =>
-    homeProject ? (s.collapsedProjects[homeProject.id] ?? false) : false,
-  );
   const setProjectCollapsed = useSidebarUiStore((s) => s.setProjectCollapsed);
-  const toggleProjectCollapsed = useSidebarUiStore((s) => s.toggleProjectCollapsed);
   const setWorktreeCollapsed = useSidebarUiStore((s) => s.setWorktreeCollapsed);
   const { isCollapsed, expand } = useSidebar();
   const openHome = useAppStore((s) => s.openHome);
@@ -322,7 +275,7 @@ export function Sidebar() {
         className={`${sidebarColumnLayoutClass} ${isCollapsed ? "invisible" : ""}`}
         style={{ minWidth: SIDEBAR_MIN_WIDTH }}
       >
-        {projectIds.length === 0 && !(homeScopeEnabled && homeProject) ? (
+        {projectIds.length === 0 && !(homeScopeEnabled && homeProjects.length > 0) ? (
           <div
             ref={setScrollContainer}
             className={`${sidebarBodyScrollClass()} flex items-center justify-center`}
@@ -353,38 +306,11 @@ export function Sidebar() {
             style={scrollFadeStyle}
           >
             <div className="space-y-4">
-              {homeScopeEnabled && homeProject ? (
-                <section className="space-y-0.5">
-                  <SidebarButton
-                    icon={
-                      <ChevronRight
-                        className={`size-3.5 shrink-0 text-muted transition-transform ${
-                          isHomeProjectCollapsed ? "" : "rotate-90"
-                        }`}
-                      />
-                    }
-                    label={
-                      <span className="flex items-center gap-1.5">
-                        <House className="size-3.5 shrink-0 text-muted" />
-                        <span className="truncate text-xs font-semibold text-foreground">
-                          <Trans>Home</Trans>
-                        </span>
-                      </span>
-                    }
-                    className="poracode-sidebar-project-nudge !pl-1"
-                    onPress={() => toggleProjectCollapsed(homeProject.id)}
-                    suffix={
-                      <HomeTerminalButton
-                        projectId={homeProject.id}
-                        projectName={homeProject.name}
-                      />
-                    }
-                  />
-                  {isHomeProjectCollapsed ? null : (
-                    <SidebarProjectThreadList project={homeProject} sortMode={sortMode} />
-                  )}
-                </section>
-              ) : null}
+              {homeScopeEnabled
+                ? homeProjects.map((project) => (
+                    <SidebarHomeSection key={project.id} project={project} sortMode={sortMode} />
+                  ))
+                : null}
               {projectIds.map((projectId, projectIndex) => (
                 <SidebarProjectSection
                   key={projectId}

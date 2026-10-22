@@ -87,7 +87,7 @@ describe("threadActions", () => {
     refreshServer.mockReset().mockResolvedValue(undefined);
     sendThreadCommand.mockReset().mockResolvedValue(undefined);
     toast.danger.mockReset();
-    useRemoteServersStore.setState({ refreshServer, sendThreadCommand, servers: [] });
+    useRemoteServersStore.setState({ refreshServer, sendThreadCommand, servers: [], runtime: {} });
     useAppStore.setState((state) => ({
       ...state,
       projects: [],
@@ -223,6 +223,31 @@ describe("threadActions", () => {
 
     await waitFor(() => {
       expect(useAppStore.getState().view).toEqual({ kind: "draft", projectId: beta.id });
+    });
+  });
+
+  it("starts an untargeted new thread in the Home of a machine that is online", async () => {
+    useSharedSettings.setState({ homeScopeEnabled: true });
+    const mirroredHome = (desktopId: string): Project => ({
+      id: `remote:${desktopId}:project:${HOME_PROJECT_ID}`,
+      name: "Home",
+      location: { kind: "posix", path: "/home/me", remoteServerId: desktopId },
+      remoteServerId: desktopId,
+      remoteId: HOME_PROJECT_ID,
+      disabled: true,
+      createdAt: "2026-07-29T00:00:00.000Z",
+    });
+    const offline = mirroredHome("d1");
+    const online = mirroredHome("d2");
+    useAppStore.setState({ projects: [offline, online] });
+    useRemoteServersStore.setState({
+      runtime: { d1: { status: "offline" }, d2: { status: "online" } },
+    } as never);
+
+    openNewThread();
+
+    await waitFor(() => {
+      expect(useAppStore.getState().view).toEqual({ kind: "draft", projectId: online.id });
     });
   });
 

@@ -7967,7 +7967,7 @@ msgstr "History"
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/views/HomeView.tsx
-#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarHomeSection.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 #: src/renderer/views/WelcomeOverlay.tsx
 msgid "Home"
@@ -10676,7 +10676,6 @@ msgstr "New thread — {projectName}"
 msgid "New thread from this to-do"
 msgstr "New thread from this to-do"
 
-#. placeholder {0}: homeProject.name
 #. placeholder {0}: project.name
 #: src/renderer/views/HomeView.tsx
 msgid "New thread in {0}"
@@ -17155,10 +17154,10 @@ msgstr "Terminal font face"
 #. placeholder {0}: project.name
 #. placeholder {0}: props.projectName
 #. placeholder {0}: props.worktreeBranch
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarHomeSection.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/WorktreeGroupHeader.tsx
-#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 msgid "Terminal for {0}"
 msgstr "Terminal for {0}"
 
