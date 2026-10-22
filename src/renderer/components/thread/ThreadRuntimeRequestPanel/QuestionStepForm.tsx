@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, type ReactNode, type KeyboardEvent } from "react";
-import { handleQuestionOptionKey } from "./questionOptionKeyboard";
+import { handleOptionKey } from "./optionKeyboard";
 
 export function isQuestionStepEnter(event: KeyboardEvent): boolean {
   return (
@@ -67,7 +67,8 @@ export function QuestionStepForm(props: {
       ref={formRef}
       noValidate
       onKeyDownCapture={(event) => {
-        if (!isDisabled && handleQuestionOptionKey(event, event.currentTarget)) return;
+        if (!isDisabled && handleOptionKey(event, event.currentTarget, "[data-question-option]"))
+          return;
         if ((event.target as HTMLElement).closest("[data-question-enter-local]")) return;
         // Modified Enter must not fall through to native implicit submission.
         // Shift+Enter in a textarea retains its normal newline behavior.

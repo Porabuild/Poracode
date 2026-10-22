@@ -6,7 +6,11 @@ const NAVIGATION_KEYS = new Set(["ArrowUp", "ArrowDown", "Home", "End"]);
  * Navigate choices without selecting (arrows wrap, Home/End jump to the ends);
  * number keys activate the matching visible option.
  */
-export function handleQuestionOptionKey(event: KeyboardEvent, container: HTMLElement): boolean {
+export function handleOptionKey(
+  event: KeyboardEvent,
+  container: HTMLElement,
+  optionSelector: string,
+): boolean {
   if (
     event.altKey ||
     event.ctrlKey ||
@@ -28,7 +32,7 @@ export function handleQuestionOptionKey(event: KeyboardEvent, container: HTMLEle
   if (isCustomRow ? !event.key.startsWith("Arrow") : ownsOptionKeys(target)) return false;
 
   const options = [
-    ...container.querySelectorAll<HTMLButtonElement | HTMLInputElement>("[data-question-option]"),
+    ...container.querySelectorAll<HTMLButtonElement | HTMLInputElement>(optionSelector),
   ];
   const available = options.filter((option) => !option.disabled);
   if (available.length === 0) return false;
