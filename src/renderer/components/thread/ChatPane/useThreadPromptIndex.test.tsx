@@ -3,11 +3,20 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PersistedPromptIndex } from "@/shared/ipc";
 import { useThreadPromptIndex } from "./useThreadPromptIndex";
 
-const { readThreadPromptIndex } = vi.hoisted(() => ({
+const { readThreadPromptIndex, cache } = vi.hoisted(() => ({
+  cache: new Map<string, PersistedPromptIndex>(),
   readThreadPromptIndex:
     vi.fn<(threadId: string, signal?: AbortSignal) => Promise<PersistedPromptIndex | null>>(),
 }));
-vi.mock("@/renderer/state/threadPromptIndex", () => ({ readThreadPromptIndex }));
+vi.mock("@/renderer/state/threadPromptIndex", () => ({
+  threadPromptIndexOwner: () => "host",
+  readCachedThreadPromptIndex: (threadId: string) => cache.get(threadId),
+  readThreadPromptIndex: async (threadId: string, signal?: AbortSignal) => {
+    const index = await readThreadPromptIndex(threadId, signal);
+    if (index && !signal?.aborted) cache.set(threadId, index);
+    return index;
+  },
+}));
 
 const INDEX: PersistedPromptIndex = {
   prompts: [{ itemId: "prompt-1", position: 2, text: "Hello" }],
@@ -23,6 +32,7 @@ describe("useThreadPromptIndex", () => {
   beforeEach(() => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     readThreadPromptIndex.mockReset();
+    cache.clear();
   });
 
   afterEach(() => {
@@ -33,7 +43,7 @@ describe("useThreadPromptIndex", () => {
     const { result } = renderHook(() => useThreadPromptIndex("thread-1", false));
     await settle(10_000);
     expect(readThreadPromptIndex).not.toHaveBeenCalled();
-    expect(result.current).toBeNull();
+    expect(result.current).toBeUndefined();
   });
 
   it("does not read the index again when the rail hides and shows", async () => {
@@ -94,5 +104,32 @@ describe("useThreadPromptIndex", () => {
       "thread-2",
     ]);
     expect(result.current).toEqual(INDEX);
+  });
+  it("returns the retained index on the first render after reopening", async () => {
+    readThreadPromptIndex.mockResolvedValue(INDEX);
+    const first = renderHook(() => useThreadPromptIndex("thread-1", true));
+    await settle(0);
+    first.unmount();
+    const reopened = renderHook(() => useThreadPromptIndex("thread-1", true));
+    expect(reopened.result.current).toBe(INDEX);
+    await settle(0);
+    expect(readThreadPromptIndex).toHaveBeenCalledOnce();
+  });
+
+  it("keeps each thread's index when switching away and back", async () => {
+    const second = { prompts: [{ itemId: "other", position: 0, text: "Other" }], truncated: false };
+    readThreadPromptIndex.mockResolvedValueOnce(INDEX).mockResolvedValueOnce(second);
+    const { result, rerender } = renderHook(
+      ({ threadId }) => useThreadPromptIndex(threadId, true),
+      { initialProps: { threadId: "thread-1" } },
+    );
+    await settle(0);
+    rerender({ threadId: "thread-2" });
+    await settle(0);
+    expect(result.current).toBe(second);
+    rerender({ threadId: "thread-1" });
+    expect(result.current).toBe(INDEX);
+    await settle(0);
+    expect(readThreadPromptIndex).toHaveBeenCalledTimes(2);
   });
 });

@@ -13,6 +13,11 @@ import {
 } from "../remoteServers/eventSocketRegistry";
 import type { RuntimeChatItem } from "../slices/runtimeEventSlice";
 import {
+  cachedThreadPromptIndex,
+  forgetThreadPromptIndex,
+  loadThreadPromptIndex,
+} from "../threadPromptIndexCache";
+import {
   canonicalText,
   connection,
   deltaFrame,
@@ -41,11 +46,53 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  forgetThreadPromptIndex(viewThread);
   clearPendingRuntimeEvents();
   forgetThreadRuntimeWindow(viewThread);
   __resetEventSocketRegistryForTest();
   useAppStore.setState(original, true);
 });
+
+it.each([true, false])(
+  "retires the prompt index only when a snapshot loses coverage (disjoint: %s)",
+  async (disjoint) => {
+    const owner = {};
+    const saved = {
+      prompts: [{ itemId: "prompt-old", position: 0, text: "Old prompt" }],
+      truncated: false,
+    };
+    useAppStore.setState({ threads: [{ ...thread, id: viewThread, remoteServerId: connection }] });
+    useAppStore
+      .getState()
+      .hydrateThreadRuntimeItems(viewThread, [
+        { id: "prompt-old", type: "user_message", state: "completed", streams: {} },
+      ]);
+    await loadThreadPromptIndex(
+      viewThread,
+      owner,
+      () => Promise.resolve(saved),
+      () => true,
+    );
+    const page = historyResult("ordinary", "completed").page;
+    const result = applyThreadSnapshot(
+      projectRemoteThreadSnapshot(connection, {
+        ...page,
+        thread: { ...thread, status: "idle" },
+        runtimeItems: [
+          {
+            id: disjoint ? "prompt-new" : "prompt-old",
+            type: "user_message",
+            state: "completed",
+            streams: {},
+          },
+        ],
+      }),
+      { fromServer: true },
+    );
+    expect(result.installedAuthoritativeHistory).toBe(true);
+    expect(cachedThreadPromptIndex(viewThread, owner)).toEqual(disjoint ? undefined : saved);
+  },
+);
 
 describe.each(["ordinary", "unicode"] as const)("%s capped full-store catch-up", (kind) => {
   it.each(["updated", "completed"] as const)("installs an aligned committed %s item", (state) => {

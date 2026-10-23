@@ -80,7 +80,7 @@ export function ChatPromptRail({
   const railPane = useRailPane(scrollElement);
   const hasRoom = railPane !== null && railPane.gutter >= RAIL_MIN_GUTTER_PX;
   const promptIndex = useThreadPromptIndex(threadId, hasRoom);
-  const prompts = buildRailPrompts(promptIndex, entries, loadedPromptIndexes);
+  const prompts = buildRailPrompts(promptIndex ?? null, entries, loadedPromptIndexes);
   const visibleRange = useVisibleRowRange(hasRoom ? scrollElement : null, entries);
 
   useEffect(
@@ -123,7 +123,15 @@ export function ChatPromptRail({
     return () => node.removeEventListener("wheel", onWheel);
   };
 
-  if (!isEnabled || isFindOpen || prompts.length < 2 || !railPane || !hasRoom) return null;
+  if (
+    !isEnabled ||
+    isFindOpen ||
+    promptIndex === undefined ||
+    prompts.length < 2 ||
+    !railPane ||
+    !hasRoom
+  )
+    return null;
 
   const openPreviewAt = (position: number) => {
     if (closeTimerRef.current !== null) clearTimeout(closeTimerRef.current);
