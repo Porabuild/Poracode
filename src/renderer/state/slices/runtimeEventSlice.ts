@@ -14,6 +14,7 @@ import type { HistoryRuntimeItem } from "@/shared/remote/historyPresentation";
 import type { SliceCreator } from "./shared";
 import { clearRuntimeStructuralChangeHint } from "../runtimeStructuralChanges";
 import { forgetThreadGalleryCache } from "../threadGalleryCache";
+import { forgetThreadPromptIndex } from "../threadPromptIndexCache";
 import {
   applyRuntimeEventsToState,
   applyRuntimeEventBatchesToState,
@@ -361,6 +362,7 @@ export const createRuntimeEventSlice: SliceCreator<RuntimeEventSlice> = (set) =>
 
   clearThreadRuntimeEvents: (threadId, options) =>
     set((state) => {
+      forgetThreadPromptIndex(threadId);
       clearRuntimeStructuralChangeHint(threadId);
       forgetThreadGalleryCache(threadId);
       if (
@@ -508,6 +510,7 @@ export const createRuntimeEventSlice: SliceCreator<RuntimeEventSlice> = (set) =>
 
   evictThreadRuntimeItems: (threadId) =>
     set((state) => {
+      forgetThreadPromptIndex(threadId);
       clearRuntimeStructuralChangeHint(threadId);
       forgetThreadGalleryCache(threadId);
       if (!(threadId in state.runtimeItemIdsByThread)) return {};
@@ -556,6 +559,9 @@ export const createRuntimeEventSlice: SliceCreator<RuntimeEventSlice> = (set) =>
       const endIndex = Math.min(startIndex + count, itemIds.length);
       const removedIds = itemIds.slice(startIndex, endIndex).filter((id) => !preserveIds?.has(id));
       if (removedIds.length === 0) return {};
+      // The outline may predate prompts in the removed prefix. Once their
+      // transcript coverage is gone, a fresh index must recover those IDs.
+      forgetThreadPromptIndex(threadId);
       const itemsById = state.runtimeItemsByIdByThread[threadId] ?? {};
       const nextItemsById = { ...itemsById };
       for (const id of removedIds) delete nextItemsById[id];
