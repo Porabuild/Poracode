@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, renderHook, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppProvider } from "@/renderer/components/ui/provider";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -7,6 +7,7 @@ import type { PersistedPromptIndex } from "@/shared/ipc";
 import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
 import type { ChatTimelineEntry } from "./chatPaneSelectors";
 import { ChatPromptRail } from "./ChatPromptRail";
+import { useRailPane } from "./useRailPane";
 
 const { readThreadPromptIndex } = vi.hoisted(() => ({
   readThreadPromptIndex: vi.fn<
@@ -148,16 +149,26 @@ const tickLabels = () =>
 
 /** Reports once as soon as it observes, the way a real ResizeObserver does. */
 class ImmediateResizeObserver {
-  constructor(private readonly callback: () => void) {}
+  static callbacks = new Set<() => void>();
+  constructor(private readonly callback: () => void) {
+    ImmediateResizeObserver.callbacks.add(callback);
+  }
   observe() {
     this.callback();
   }
   unobserve() {}
-  disconnect() {}
+  disconnect() {
+    ImmediateResizeObserver.callbacks.delete(this.callback);
+  }
+
+  static notify() {
+    for (const callback of ImmediateResizeObserver.callbacks) callback();
+  }
 }
 
 describe("ChatPromptRail", () => {
   beforeEach(() => {
+    ImmediateResizeObserver.callbacks.clear();
     readThreadPromptIndex.mockReset();
     readThreadPromptIndex.mockResolvedValue(null);
     vi.stubGlobal("ResizeObserver", ImmediateResizeObserver);
@@ -561,6 +572,31 @@ describe("ChatPromptRail", () => {
     expect(scroller.closest("[data-poracode-thread-pane]")).toContainElement(
       screen.getByRole("toolbar"),
     );
+  });
+
+  it("keeps the rail anchor stable when the composer resizes the transcript", () => {
+    const { scroller } = createScroller();
+    let transcriptHeight = 600;
+    scroller.getBoundingClientRect = () => new DOMRect(100, 32, 1000, transcriptHeight);
+    const { result } = renderHook(() => useRailPane(scroller));
+    const anchor = result.current;
+    expect(anchor?.pane).toBe(scroller.closest("[data-poracode-thread-pane]"));
+
+    for (const height of [400, 200, 600]) {
+      act(() => {
+        transcriptHeight = height;
+        ImmediateResizeObserver.notify();
+      });
+      expect(result.current).toBe(anchor);
+    }
+
+    // Horizontal changes still determine whether the rail has room to show.
+    act(() => {
+      scroller.getBoundingClientRect = () => new DOMRect(0, 32, 920, transcriptHeight);
+      ImmediateResizeObserver.notify();
+    });
+    expect(result.current?.gutter).toBe(0);
+    expect(result.current).not.toBe(anchor);
   });
 
   it("is not drawn for a single prompt", () => {

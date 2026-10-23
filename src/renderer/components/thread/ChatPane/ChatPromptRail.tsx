@@ -165,13 +165,10 @@ export function ChatPromptRail({
     setFocusPosition(target);
   };
 
-  // The wrapper spans the transcript's height across the whole pane; it never
-  // intercepts pointer events outside the rail itself.
+  // Center within the pane so composer growth cannot move the rail. The
+  // wrapper never intercepts pointer events outside the rail itself.
   return createPortal(
-    <div
-      className="pointer-events-none absolute inset-x-0 z-10"
-      style={{ top: railPane.top, bottom: railPane.bottom }}
-    >
+    <div className="pointer-events-none absolute inset-0 z-10">
       <div
         ref={attachWheel}
         role="toolbar"
