@@ -17339,8 +17339,8 @@ msgstr "Đã đạt giới hạn giao diện tùy chỉnh. Hãy xóa một giao 
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
-msgid "The default background refresh cadence, used for any provider without its own interval set below. Set to 0 to turn off (manual only). The 2-minute floor respects provider rate limits."
-msgstr "Nhịp làm mới nền mặc định, được dùng cho mọi nhà cung cấp chưa đặt khoảng thời gian riêng bên dưới. Đặt thành 0 để tắt (chỉ làm mới thủ công). Mức tối thiểu 2 phút tôn trọng giới hạn tốc độ của nhà cung cấp."
+msgid "The default background refresh cadence. Providers may use a slower default unless an interval is set below. Set to 0 to turn off (manual only). The minimum interval is 2 minutes."
+msgstr "Khoảng thời gian làm mới nền mặc định. Nhà cung cấp có thể dùng khoảng mặc định dài hơn nếu không đặt khoảng thời gian bên dưới. Đặt thành 0 để tắt làm mới tự động (chỉ thủ công). Khoảng thời gian tối thiểu là 2 phút."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "The desktop server is still coming online."

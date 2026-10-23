@@ -17338,8 +17338,8 @@ msgstr "La limite de thèmes personnalisés est atteinte. Supprimez un thème av
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
-msgid "The default background refresh cadence, used for any provider without its own interval set below. Set to 0 to turn off (manual only). The 2-minute floor respects provider rate limits."
-msgstr "La cadence de rafraîchissement en arrière-plan par défaut, utilisée pour tout fournisseur sans intervalle propre défini ci-dessous. Réglez sur 0 pour désactiver (manuel uniquement). Le plancher de 2 minutes respecte les limites de débit du fournisseur."
+msgid "The default background refresh cadence. Providers may use a slower default unless an interval is set below. Set to 0 to turn off (manual only). The minimum interval is 2 minutes."
+msgstr "La fréquence d’actualisation par défaut en arrière-plan. Les fournisseurs peuvent utiliser une fréquence plus lente si aucun intervalle n’est défini ci-dessous. Réglez sur 0 pour désactiver l’actualisation automatique (mode manuel uniquement). L’intervalle minimum est de 2 minutes."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "The desktop server is still coming online."
