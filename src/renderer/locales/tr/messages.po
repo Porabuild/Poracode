@@ -17339,8 +17339,8 @@ msgstr "Özel tema sınırına ulaşıldı. Başka bir tema eklemeden önce bir 
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
-msgid "The default background refresh cadence, used for any provider without its own interval set below. Set to 0 to turn off (manual only). The 2-minute floor respects provider rate limits."
-msgstr "Aşağıda kendi aralığı ayarlanmamış sağlayıcılar için kullanılan varsayılan arka plan yenileme aralığı. Kapatmak için 0'a ayarlayın (yalnızca manuel). 2 dakikalık alt sınır, sağlayıcının hız sınırlarına uyar."
+msgid "The default background refresh cadence. Providers may use a slower default unless an interval is set below. Set to 0 to turn off (manual only). The minimum interval is 2 minutes."
+msgstr "Varsayılan arka plan yenileme aralığı. Aşağıda bir aralık ayarlanmadıkça sağlayıcılar daha uzun bir varsayılan aralık kullanabilir. Otomatik yenilemeyi kapatmak için 0 yapın (yalnızca manuel). En kısa aralık 2 dakikadır."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "The desktop server is still coming online."

@@ -17339,8 +17339,8 @@ msgstr "Досягнуто ліміту власних тем. Видаліть 
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
-msgid "The default background refresh cadence, used for any provider without its own interval set below. Set to 0 to turn off (manual only). The 2-minute floor respects provider rate limits."
-msgstr "Періодичність фонового оновлення за замовчуванням, що застосовується до будь-якого провайдера без власного інтервалу, заданого нижче. Встановіть 0, щоб вимкнути (лише вручну). Нижня межа у 2 хвилини враховує обмеження частоти провайдера."
+msgid "The default background refresh cadence. Providers may use a slower default unless an interval is set below. Set to 0 to turn off (manual only). The minimum interval is 2 minutes."
+msgstr "Типовий інтервал оновлення у фоні. Провайдери можуть використовувати довший інтервал, якщо нижче не задано інший. Установіть 0, щоб вимкнути автоматичне оновлення (лише вручну). Мінімальний інтервал — 2 хвилини."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "The desktop server is still coming online."

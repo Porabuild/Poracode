@@ -17339,8 +17339,8 @@ msgstr "Достигнут лимит пользовательских тем. �
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
-msgid "The default background refresh cadence, used for any provider without its own interval set below. Set to 0 to turn off (manual only). The 2-minute floor respects provider rate limits."
-msgstr "Частота фонового обновления по умолчанию, используется для любого провайдера без собственного интервала, заданного ниже. Установите 0, чтобы отключить (только вручную). Нижний предел в 2 минуты учитывает ограничения частоты запросов провайдера."
+msgid "The default background refresh cadence. Providers may use a slower default unless an interval is set below. Set to 0 to turn off (manual only). The minimum interval is 2 minutes."
+msgstr "Интервал обновления в фоне по умолчанию. Провайдеры могут использовать более длительный интервал, если ниже не задан другой. Установите 0, чтобы отключить автоматическое обновление (только вручную). Минимальный интервал — 2 минуты."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "The desktop server is still coming online."

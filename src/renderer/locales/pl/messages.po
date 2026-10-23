@@ -17339,8 +17339,8 @@ msgstr "Osiągnięto limit własnych motywów. Usuń motyw przed dodaniem kolejn
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
-msgid "The default background refresh cadence, used for any provider without its own interval set below. Set to 0 to turn off (manual only). The 2-minute floor respects provider rate limits."
-msgstr "Domyślna częstotliwość odświeżania w tle, używana dla każdego dostawcy bez własnego interwału ustawionego poniżej. Ustaw na 0, aby wyłączyć (tylko ręcznie). Minimum 2 minuty respektuje limity żądań dostawcy."
+msgid "The default background refresh cadence. Providers may use a slower default unless an interval is set below. Set to 0 to turn off (manual only). The minimum interval is 2 minutes."
+msgstr "Domyślny interwał odświeżania w tle. Dostawcy mogą stosować dłuższy interwał domyślny, jeśli poniżej nie ustawiono innego. Ustaw 0, aby wyłączyć automatyczne odświeżanie (tylko ręcznie). Minimalny interwał wynosi 2 minuty."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "The desktop server is still coming online."
