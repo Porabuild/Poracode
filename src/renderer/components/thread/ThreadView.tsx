@@ -396,7 +396,7 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
             className={`poracode-thread-pane-header px-2 ${headerNeedsTrafficLightPad ? macosTrafficLightPadClass : ""}`}
           >
             <div
-              className={`${dragHandleRef ? "poracode-content-over-drag-region" : "poracode-content-over-drag-region--drag"} @container ${alignClass} flex w-full max-w-[920px] items-center gap-2 py-1`}
+              className={`${dragHandleRef ? "poracode-content-over-drag-region" : "poracode-content-over-drag-region--drag"} @container ${alignClass} flex min-h-8 w-full max-w-[920px] items-center gap-2 py-1`}
             >
               <ThreadHeaderStatusButton
                 threadId={thread.id}
