@@ -403,8 +403,8 @@ msgstr "{0} auf Version {newVersion} aktualisiert."
 
 #. placeholder {0}: agentStatus.label
 #: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
-msgid "{0} updated to v{resolvedLatest}."
-msgstr "{0} auf Version {resolvedLatest} aktualisiert."
+#~ msgid "{0} updated to v{resolvedLatest}."
+#~ msgstr "{0} auf Version {resolvedLatest} aktualisiert."
 
 #. placeholder {0}: agent.label
 #. placeholder {0}: status.label
@@ -707,6 +707,10 @@ msgstr "{stepCount, plural, one {# Schritt} other {# Schritte}}"
 #: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
 msgid "{totalAdditions} additions and {totalDeletions} deletions"
 msgstr "{totalAdditions} Hinzufügungen und {totalDeletions} Löschungen"
+
+#: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
+msgid "{updateLabel} updated to v{resolvedLatest}."
+msgstr "{updateLabel} auf Version {resolvedLatest} aktualisiert."
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "{used} tokens"
@@ -5130,6 +5134,7 @@ msgid "Cursor SDK update targets"
 msgstr "Ziele für Cursor-SDK-Aktualisierung"
 
 #: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
+#: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 msgid "Cursor SDK updated to v{nextVersion}."
 msgstr "Cursor SDK wurde auf v{nextVersion} aktualisiert."
 
@@ -19041,6 +19046,18 @@ msgstr "{0} kann nicht aktualisiert werden: {detailText}"
 msgid "Unable to update {0}."
 msgstr "{0} kann nicht aktualisiert werden."
 
+#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+msgid "Unable to update {agentLabel}."
+msgstr "{agentLabel} kann nicht aktualisiert werden."
+
+#: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
+msgid "Unable to update {updateLabel}."
+msgstr "{updateLabel} kann nicht aktualisiert werden."
+
+#: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
+msgid "Unable to update Cursor SDK."
+msgstr "Cursor SDK kann nicht aktualisiert werden."
+
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
 msgid "Unable to update learned tags."
 msgstr "Erlernte Tags konnten nicht aktualisiert werden."
@@ -19379,6 +19396,10 @@ msgstr "Cursor SDK aktualisieren"
 #: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
 msgid "Update Cursor SDK in {environment}"
 msgstr "Cursor SDK in {environment} aktualisieren"
+
+#: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
+msgid "Update Cursor SDK to v{availableVersion}"
+msgstr "Cursor SDK auf v{availableVersion} aktualisieren"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Update error: {detail}"

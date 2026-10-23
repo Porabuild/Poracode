@@ -403,8 +403,8 @@ msgstr "{0} zaktualizowano do wersji {newVersion}."
 
 #. placeholder {0}: agentStatus.label
 #: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
-msgid "{0} updated to v{resolvedLatest}."
-msgstr "{0} zaktualizowano do wersji {resolvedLatest}."
+#~ msgid "{0} updated to v{resolvedLatest}."
+#~ msgstr "{0} zaktualizowano do wersji {resolvedLatest}."
 
 #. placeholder {0}: agent.label
 #. placeholder {0}: status.label
@@ -707,6 +707,10 @@ msgstr "{stepCount, plural, one {# krok} few {# kroki} many {# kroków} other {#
 #: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
 msgid "{totalAdditions} additions and {totalDeletions} deletions"
 msgstr "{totalAdditions} dodań i {totalDeletions} usunięć"
+
+#: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
+msgid "{updateLabel} updated to v{resolvedLatest}."
+msgstr "{updateLabel} zaktualizowano do wersji {resolvedLatest}."
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "{used} tokens"
@@ -5130,6 +5134,7 @@ msgid "Cursor SDK update targets"
 msgstr "Miejsca aktualizacji Cursor SDK"
 
 #: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
+#: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 msgid "Cursor SDK updated to v{nextVersion}."
 msgstr "Zaktualizowano Cursor SDK do v{nextVersion}."
 
@@ -19041,6 +19046,18 @@ msgstr "Nie można zaktualizować {0}: {detailText}"
 msgid "Unable to update {0}."
 msgstr "Nie można zaktualizować {0}."
 
+#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+msgid "Unable to update {agentLabel}."
+msgstr "Nie można zaktualizować {agentLabel}."
+
+#: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
+msgid "Unable to update {updateLabel}."
+msgstr "Nie można zaktualizować {updateLabel}."
+
+#: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
+msgid "Unable to update Cursor SDK."
+msgstr "Nie można zaktualizować Cursor SDK."
+
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
 msgid "Unable to update learned tags."
 msgstr "Nie udało się zaktualizować wyuczonych tagów."
@@ -19379,6 +19396,10 @@ msgstr "Zaktualizuj Cursor SDK"
 #: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
 msgid "Update Cursor SDK in {environment}"
 msgstr "Zaktualizuj Cursor SDK w {environment}"
+
+#: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
+msgid "Update Cursor SDK to v{availableVersion}"
+msgstr "Zaktualizuj Cursor SDK do v{availableVersion}"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Update error: {detail}"

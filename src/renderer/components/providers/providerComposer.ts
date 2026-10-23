@@ -88,6 +88,11 @@ export interface ComposerRuntimeUpdate {
   installedVersion?: string;
   npmPackage?: NpmPackageVersionQuery;
   command?: string;
+  /**
+   * Shell command for a probed target version. Used when a floating range
+   * would leave an already-satisfying install unchanged.
+   */
+  commandForVersion?: (version: string) => string | undefined;
 }
 
 type ComposerRuntimeUpdateResolver = (input: {
