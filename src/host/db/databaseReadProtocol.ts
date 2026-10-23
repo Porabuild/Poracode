@@ -8,12 +8,8 @@ import {
   IMAGE_PREVIEW_MAX_ENTRY_BYTES,
 } from "../remote/server/imagePreview";
 
-// Read-only worker messages are internal to one installed runtime. Reject a
-// stale worker before opening its connection. Database migrations and the
-// optional public search capability are versioned separately.
-// v2 adds the bounded conversation-search reads and revisioned index batches.
-// v3 carries bounded preview snapshots and generated-preview notifications.
-export const DATABASE_READ_WORKER_PROTOCOL_VERSION = 3 as const;
+import { DATABASE_READ_WORKER_PROTOCOL_VERSION } from "./databaseReadVersion";
+export { DATABASE_READ_WORKER_PROTOCOL_VERSION } from "./databaseReadVersion";
 
 export const databaseImagePreviewSchema = z
   .strictObject({

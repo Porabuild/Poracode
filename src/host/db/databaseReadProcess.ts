@@ -1,6 +1,6 @@
 import { Worker } from "node:worker_threads";
 import { z } from "zod";
-import { DATABASE_READ_WORKER_PROTOCOL_VERSION } from "./databaseReadProtocol";
+import { DATABASE_READ_WORKER_PROTOCOL_VERSION } from "./databaseReadVersion";
 
 const initializationSchema = z.strictObject({
   kind: z.literal("initialize"),

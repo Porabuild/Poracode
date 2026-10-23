@@ -1007,6 +1007,19 @@ export const DATABASE_MIGRATIONS = [
     rollback: "forward-only",
     migrate: (sqlite) => addColumnIfMissing(sqlite, "pr_watches", "review_scope", "TEXT"),
   },
+  {
+    version: 66,
+    name: "index manual catalog ordering",
+    // Index-only: existing rows and all cursor formats remain valid. Avoid
+    // updated_at indexes, which amplify writes on frequent metadata updates.
+    rollback: "rollback-compatible",
+    migrate: (sqlite) => {
+      sqlite.exec(`
+        CREATE INDEX IF NOT EXISTS idx_threads_catalog_manual ON threads(sort_order, id);
+        CREATE INDEX IF NOT EXISTS idx_projects_catalog_manual ON projects(sort_order, id);
+      `);
+    },
+  },
 ] as const satisfies readonly DatabaseMigration[];
 
 export const LATEST_SCHEMA_VERSION = DATABASE_MIGRATIONS[DATABASE_MIGRATIONS.length - 1]!.version;
