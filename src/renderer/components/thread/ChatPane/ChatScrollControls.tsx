@@ -55,6 +55,7 @@ export type ChatScrollControlsHandle = {
   beginVirtualizerLayoutChange(): void;
   beginLiveVirtualizerLayoutChange(): void;
   disableStickToBottom(): void;
+  anchorToPrompt(): void;
   isStickToBottom(): boolean;
   markUserScrollIntent(): void;
   hasRecentUserScrollIntent(): boolean;
@@ -103,12 +104,14 @@ export function ChatScrollControls(props: {
     onInitialScrollSettled,
   } = props;
   const scrollToBottomToken = useAppStore((s) => s.chatScrollToBottomTokens[threadId] ?? 0);
+  const clearChatPromptAnchor = useAppStore((s) => s.clearChatPromptAnchor);
   // When the thread's composer publishes a bubble-row slot, the button joins
   // that row; otherwise it floats over the pane (sub-agent overlays, previews).
   const bubbleSlot = useComposerBubbleSlotStore((s) => s.byThread[threadId] ?? null);
   const initialLayoutChangeTokenRef = useRef(layoutChangeToken);
   const lastScrollTopRef = useRef(0);
   const stickToBottomRef = useRef(true);
+  const promptAnchoredRef = useRef(false);
   const pinRafRef = useRef<number | null>(null);
   const layoutSyncRafRef = useRef<number | null>(null);
   const layoutSyncSecondRafRef = useRef<number | null>(null);
@@ -184,10 +187,23 @@ export function ChatScrollControls(props: {
     if (!el) return;
     const isAtBottom = isElementAtBottom(el);
     const readerPaused = readerFollow?.isFollowing() === false;
-    if (isAtBottom && !readerPaused) stickToBottomRef.current = true;
+    if (isAtBottom && !readerPaused && !promptAnchoredRef.current) stickToBottomRef.current = true;
     setShowScrollDown(
-      readerPaused || nextShowScrollDown({ stickToBottom: stickToBottomRef.current, isAtBottom }),
+      readerPaused ||
+        nextShowScrollDown({
+          stickToBottom: stickToBottomRef.current,
+          isAtBottom: isContentAtBottom(el),
+        }),
     );
+  }
+
+  function isContentAtBottom(el: HTMLElement) {
+    // Reserved reply space permits top-aligned prompts without hiding messages.
+    return isElementAtBottom({
+      scrollHeight: el.scrollHeight - Number(el.dataset.chatEndSpaceSize ?? 0),
+      scrollTop: el.scrollTop,
+      clientHeight: el.clientHeight,
+    });
   }
 
   function disableStickToBottom() {
@@ -204,7 +220,7 @@ export function ChatScrollControls(props: {
     invalidateBottomPin();
     stickToBottomRef.current = false;
     const el = scrollRef.current;
-    setShowScrollDown(!el || !isElementAtBottom(el));
+    setShowScrollDown(!el || !isContentAtBottom(el));
   }
   disableStickToBottomRef.current = disableStickToBottom;
 
@@ -248,7 +264,7 @@ export function ChatScrollControls(props: {
     lastSeenScrollHeightRef.current = scrollHeight;
     lastSeenClientHeightRef.current = clientHeight;
     lastScrollTopRef.current = scrollTop;
-    stickToBottomRef.current = true;
+    stickToBottomRef.current = !promptAnchoredRef.current;
     setShowScrollDown(false);
   }
 
@@ -269,7 +285,7 @@ export function ChatScrollControls(props: {
       !isElementAtBottom({ scrollHeight, clientHeight, scrollTop })
     ) {
       stickToBottomRef.current = false;
-      setShowScrollDown(true);
+      setShowScrollDown(!isContentAtBottom(el));
       return;
     }
     const now = performance.now();
@@ -581,6 +597,10 @@ export function ChatScrollControls(props: {
     beginVirtualizerLayoutChange,
     beginLiveVirtualizerLayoutChange,
     disableStickToBottom,
+    anchorToPrompt: () => {
+      disableStickToBottom();
+      promptAnchoredRef.current = true;
+    },
     isStickToBottom: () => stickToBottomRef.current,
     markUserScrollIntent,
     hasRecentUserScrollIntent,
@@ -590,6 +610,7 @@ export function ChatScrollControls(props: {
   }));
 
   useLayoutEffect(() => {
+    promptAnchoredRef.current = false;
     readerFollow?.resume();
     cancelScheduledPin();
     cancelScheduledLayoutSync();
@@ -645,6 +666,7 @@ export function ChatScrollControls(props: {
   useLayoutEffect(() => {
     if (scrollToBottomToken === initialScrollTokenRef.current) return;
     initialScrollTokenRef.current = scrollToBottomToken;
+    promptAnchoredRef.current = false;
     // A fresh submission explicitly resumes following the tail, even if it
     // lands inside the short scroll-away intent window.
     userScrollIntentUntilRef.current = 0;
@@ -732,8 +754,9 @@ export function ChatScrollControls(props: {
         // Arm intent so ResizeObserver / streaming re-pins stay blocked for the
         // rest of the thumb drag (which may never have set intent itself).
         markUserScrollIntent();
+        promptAnchoredRef.current = false;
         disableStickToBottomRef.current();
-        readerFollow?.pause();
+        if (!isContentAtBottom(el)) readerFollow?.pause();
       } else if (
         shouldReenableStickToBottom({
           prevScrollTop,
@@ -745,7 +768,7 @@ export function ChatScrollControls(props: {
         // Don't re-enable sticky when the user is actively scrolling upward but
         // is still within `BOTTOM_EPSILON_PX` of the bottom — otherwise a tiny
         // wheel-up gets snapped back by the next streaming delta.
-        if (readerFollow?.isFollowing() === false) {
+        if (readerFollow?.isFollowing() === false || promptAnchoredRef.current) {
           const userReturnedToEnd =
             !isProgrammaticScroll &&
             nextScrollTop > prevScrollTop &&
@@ -789,7 +812,10 @@ export function ChatScrollControls(props: {
       }
       setShowScrollDown(
         readerFollow?.isFollowing() === false ||
-          nextShowScrollDown({ stickToBottom: stickToBottomRef.current, isAtBottom }),
+          nextShowScrollDown({
+            stickToBottom: stickToBottomRef.current,
+            isAtBottom: isContentAtBottom(el),
+          }),
       );
     };
 
@@ -876,6 +902,8 @@ export function ChatScrollControls(props: {
   useEffect(() => cancelScheduledPin, []);
 
   function resumeReaderFollowing() {
+    promptAnchoredRef.current = false;
+    clearChatPromptAnchor(threadId);
     // The button is an explicit request to resume following the tail. Do not
     // let the short scroll-away intent window discard the first press.
     userScrollIntentUntilRef.current = 0;

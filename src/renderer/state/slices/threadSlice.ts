@@ -499,9 +499,12 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
       forgetThreadGalleryCache(threadId);
       confirmPendingThreadInput(threadId);
       const nextThreads = state.threads.filter((thread) => thread.id !== threadId);
+      const chatPromptAnchorIds = Object.fromEntries(
+        Object.entries(state.chatPromptAnchorIds).filter(([id]) => id !== threadId),
+      );
 
       if (nextThreads.length === state.threads.length) {
-        return {};
+        return { chatPromptAnchorIds };
       }
 
       useThreadFollowUpQueueStore.getState().setQueue(threadId, null);
@@ -558,6 +561,7 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
           Object.entries(state.pendingLaunchUserMessageItemIds).filter(([id]) => id !== threadId),
         ),
         runtimeItemIdsByThread,
+        chatPromptAnchorIds,
         runtimeItemsByIdByThread,
         runtimeRequestsByThread,
         runtimeContextByThread,
@@ -984,7 +988,13 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
         return keep;
       });
       if (nextThreads.length === state.threads.length) return {};
-      return { threads: nextThreads };
+      const keptThreadIds = new Set(nextThreads.map((thread) => thread.id));
+      return {
+        threads: nextThreads,
+        chatPromptAnchorIds: Object.fromEntries(
+          Object.entries(state.chatPromptAnchorIds).filter(([id]) => keptThreadIds.has(id)),
+        ),
+      };
     }),
   archiveOldDoneThreads: (maxAgeDays) =>
     set((state) => {

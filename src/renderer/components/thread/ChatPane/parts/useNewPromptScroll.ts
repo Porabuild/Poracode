@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useRef, useState, type RefObject } from "react";
+import { useCallback, useLayoutEffect, useRef, type RefObject } from "react";
 import type { AnchoredEndSpaceConfig, LegendListRef } from "@legendapp/list/react";
 import { useAppStore } from "@/renderer/state/appStore";
 import type { ChatTimelineEntry } from "../chatPaneSelectors";
@@ -21,6 +21,7 @@ export function useNewPromptScroll({
 }) {
   const request = useAppStore((state) => state.chatScrollToPromptRequests[threadId]);
   const bottomToken = useAppStore((state) => state.chatScrollToBottomTokens[threadId] ?? 0);
+  const anchorId = useAppStore((state) => state.chatPromptAnchorIds[threadId] ?? null);
   const latestPromptId = useAppStore((state) => {
     const items = state.runtimeItemsByIdByThread[threadId];
     return (
@@ -35,14 +36,15 @@ export function useNewPromptScroll({
   const seenRequest = useRef(request);
   const seenBottomToken = useRef(bottomToken);
   const pendingRequest = useRef(request);
-  const pendingAnimation = useRef<string | null>(null);
+  const pendingAnimation = useRef<string | null>(anchorId);
+  const restoringAnchor = useRef(anchorId !== null);
   const animationFrame = useRef<number | null>(null);
-  const [anchorId, setAnchorId] = useState<string | null>(null);
   const anchorIndex = entries.findIndex((entry) => entry.id === anchorId);
 
   const cancelAnimation = useCallback(() => {
     pendingRequest.current = undefined;
     pendingAnimation.current = null;
+    restoringAnchor.current = false;
     if (animationFrame.current !== null) cancelAnimationFrame(animationFrame.current);
     animationFrame.current = null;
   }, []);
@@ -52,7 +54,6 @@ export function useNewPromptScroll({
       seenBottomToken.current = bottomToken;
       pendingRequest.current = undefined;
       cancelAnimation();
-      setAnchorId(null);
     }
     if (request !== seenRequest.current) {
       seenRequest.current = request;
@@ -78,13 +79,22 @@ export function useNewPromptScroll({
       const requests = { ...state.chatScrollToPromptRequests };
       if (nextRequest) requests[threadId] = nextRequest;
       else delete requests[threadId];
-      return { chatScrollToPromptRequests: requests };
+      return {
+        chatScrollToPromptRequests: requests,
+        chatPromptAnchorIds: { ...state.chatPromptAnchorIds, [threadId]: latestPromptId },
+      };
     });
     onNewPrompt?.();
-    setAnchorId(latestPromptId);
   }, [request, bottomToken, latestPromptId, onNewPrompt, cancelAnimation, threadId]);
 
   useLayoutEffect(() => cancelAnimation, [cancelAnimation]);
+
+  useLayoutEffect(() => {
+    if (anchorIndex >= 0) return;
+    if (anchorId === null && animationFrame.current !== null) cancelAnimation();
+    const element = listRef.current?.getScrollableNode();
+    if (element) delete element.dataset.chatEndSpaceSize;
+  }, [anchorId, anchorIndex, cancelAnimation, listRef]);
 
   const anchoredEndSpace: AnchoredEndSpaceConfig | undefined =
     anchorIndex < 0
@@ -92,6 +102,10 @@ export function useNewPromptScroll({
       : {
           anchorIndex,
           anchorOffset: PROMPT_TOP_OFFSET_PX,
+          onSizeChanged: (size) => {
+            const element = listRef.current?.getScrollableNode();
+            if (element) element.dataset.chatEndSpaceSize = String(size);
+          },
           onReady: ({ anchorKey }) => {
             if (!anchorKey || pendingAnimation.current !== anchorKey) return;
             pendingAnimation.current = null;
@@ -99,9 +113,13 @@ export function useNewPromptScroll({
             if (!element) return;
             onNewPrompt?.();
             const from = element.scrollTop;
-            const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+            const reducedMotion =
+              restoringAnchor.current ||
+              window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+            restoringAnchor.current = false;
             let startedAt: number | undefined;
             const step = (now: number) => {
+              if (startedAt === undefined) onNewPrompt?.();
               startedAt ??= now;
               const progress = reducedMotion
                 ? 1

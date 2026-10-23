@@ -568,8 +568,8 @@ export function ChatPane(props: ChatPaneProps) {
               scrollContentRef={contentRef}
               onContentHeightChange={() => scrollControlsRef.current?.onContentHeightChange()}
               onNewPrompt={() => {
-                readerFollow.pause();
-                scrollControlsRef.current?.disableStickToBottom();
+                readerFollow.resume();
+                scrollControlsRef.current?.anchorToPrompt();
               }}
               onPromptScrollWrite={(top) => scrollControlsRef.current?.noteProgrammaticScroll(top)}
               onVirtualizerLayoutChange={() =>

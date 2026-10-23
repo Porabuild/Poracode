@@ -6,8 +6,16 @@ import { ChatScrollControls, type ChatScrollControlsHandle } from "./ChatScrollC
 
 let scrollToBottomToken = 0;
 vi.mock("@/renderer/state/appStore", () => ({
-  useAppStore: (selector: (s: { chatScrollToBottomTokens: Record<string, number> }) => unknown) =>
-    selector({ chatScrollToBottomTokens: { "thread-1": scrollToBottomToken } }),
+  useAppStore: (
+    selector: (s: {
+      chatScrollToBottomTokens: Record<string, number>;
+      clearChatPromptAnchor: (threadId: string) => void;
+    }) => unknown,
+  ) =>
+    selector({
+      chatScrollToBottomTokens: { "thread-1": scrollToBottomToken },
+      clearChatPromptAnchor: () => undefined,
+    }),
 }));
 vi.mock("@/renderer/state/panelResizeSignal", () => ({
   isPanelResizing: () => false,
