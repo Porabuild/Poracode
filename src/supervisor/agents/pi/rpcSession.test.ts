@@ -9,6 +9,7 @@ import type { AppStoreState } from "@/renderer/state/slices/shared";
 import { createKnownSessionRef, type StructuredSessionUpdate } from "../base";
 import { PiRpcClient } from "./rpcClient";
 import { PiRpcSession } from "./rpcSession";
+import { readToolVideoSources } from "@/shared/chatVideo";
 
 // A minimal stand-in for `pi --mode rpc` so the session's protocol handling is
 // exercised deterministically without a live provider or the (removed) SDK.
@@ -50,10 +51,10 @@ rl.on("line", (line) => {
       send({ type: "agent_settled" });
       return;
     }
-    if (text.includes("MCP_VISUAL")) {
+    if (text.includes("MCP_VISUAL") || text.includes("MCP_VIDEO")) {
       send({ type: "agent_start" });
       send({ type: "tool_execution_start", toolCallId: "app-call", toolName: "mcp__fixture__chart", args: {} });
-      const details = { content: [{ type: "resource", resource: { uri: "ui://fixture/chart", mimeType: "text/html;profile=mcp-app", text: "<h1>Chart</h1>" } }], structuredContent: { value: 42 } };
+      const details = text.includes("MCP_VIDEO") ? { content: [{type:"resource_link",uri:"file:///tmp/demo.mp4",mimeType:"video/mp4",name:"Demo"}] } : { content: [{ type: "resource", resource: { uri: "ui://fixture/chart", mimeType: "text/html;profile=mcp-app", text: "<h1>Chart</h1>" } }], structuredContent: { value: 42 } };
       send({ type: "tool_execution_end", toolCallId: "app-call", toolName: "mcp__fixture__chart", result: { content: [{ type: "text", text: "Fallback" }], details } });
       send({ type: "agent_settled" });
       return;
@@ -228,6 +229,28 @@ describe("PiRpcSession (mock pi --mode rpc)", () => {
           }),
         }),
       );
+    } finally {
+      await session.dispose();
+    }
+  });
+
+  it("preserves MCP video resources through the RPC subprocess", async () => {
+    const { session, events } = await createSession();
+    try {
+      await session.startTurn("MCP_VIDEO", { model: "mock/model", effort: "off" });
+      const completed = events.find(
+        (event) =>
+          event.type === "item.completed" &&
+          "payload" in event &&
+          (event.payload as { name?: unknown })?.name === "mcp__fixture__chart",
+      );
+      const result =
+        completed && "payload" in completed
+          ? (completed.payload as { result?: unknown }).result
+          : undefined;
+      expect(readToolVideoSources(result)).toEqual([
+        { src: "file:///tmp/demo.mp4", mimeType: "video/mp4", name: "Demo" },
+      ]);
     } finally {
       await session.dispose();
     }

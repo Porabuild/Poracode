@@ -9223,6 +9223,7 @@ msgstr "마켓플레이스 로드 중…"
 msgid "Loading matched message…"
 msgstr "일치하는 메시지 불러오는 중…"
 
+#: src/renderer/components/thread/ChatPane/parts/items/MarkdownVideo.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorMediaViews.tsx
 msgid "Loading media preview…"
@@ -14401,6 +14402,7 @@ msgstr "이 호스트에 보관된 사용량만 포함합니다."
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/components/thread/ChatPane/ChatPane.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/MarkdownVideo.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/useHistoryItemDetails.tsx
 #: src/renderer/components/thread/SideChat/SideChatBody.tsx
 #: src/renderer/components/thread/SideChat/SideChatThreadView.tsx
@@ -18036,6 +18038,7 @@ msgstr "이 기기"
 msgid "This machine (local)"
 msgstr "이 머신(로컬)"
 
+#: src/renderer/components/thread/ChatPane/parts/items/MarkdownVideo.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorMediaViews.tsx
 msgid "This media preview is unavailable."
 msgstr "이 미디어 미리보기를 사용할 수 없습니다."
@@ -19805,6 +19808,7 @@ msgid "via {0}"
 msgstr "{0}을(를) 통해"
 
 #: src/renderer/components/media/NativeMediaView.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/MarkdownVideo.tsx
 msgid "Video preview"
 msgstr "동영상 미리보기"
 

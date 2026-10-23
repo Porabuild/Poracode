@@ -9223,6 +9223,7 @@ msgstr "正在加载市场…"
 msgid "Loading matched message…"
 msgstr "正在加载匹配的消息…"
 
+#: src/renderer/components/thread/ChatPane/parts/items/MarkdownVideo.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorMediaViews.tsx
 msgid "Loading media preview…"
@@ -14400,6 +14401,7 @@ msgstr "仅显示此主机保留的用量。"
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/components/thread/ChatPane/ChatPane.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/MarkdownVideo.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/useHistoryItemDetails.tsx
 #: src/renderer/components/thread/SideChat/SideChatBody.tsx
 #: src/renderer/components/thread/SideChat/SideChatThreadView.tsx
@@ -18035,6 +18037,7 @@ msgstr "此设备"
 msgid "This machine (local)"
 msgstr "本机（本地）"
 
+#: src/renderer/components/thread/ChatPane/parts/items/MarkdownVideo.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorMediaViews.tsx
 msgid "This media preview is unavailable."
 msgstr "此媒体预览不可用。"
@@ -19804,6 +19807,7 @@ msgid "via {0}"
 msgstr "通过{0}"
 
 #: src/renderer/components/media/NativeMediaView.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/MarkdownVideo.tsx
 msgid "Video preview"
 msgstr "视频预览"
 

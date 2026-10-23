@@ -2,6 +2,8 @@ import { memo, useContext, useMemo } from "react";
 import { Surface } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { assistantDisplayText } from "@/shared/assistantMessageText";
+import { isChatVideoSource } from "@/shared/chatVideo";
+import { MarkdownVideo } from "./MarkdownVideo";
 import { splitInlineVisuals } from "@/shared/inlineVisuals";
 import { RUNTIME_STREAM_ELISION_NOTICE_PREFIX } from "@/shared/runtimeStreamRetentionPolicy";
 import { MAX_NATIVE_VISUALS_PER_MESSAGE } from "@/shared/nativeVisuals";
@@ -102,6 +104,9 @@ export const AssistantMessage = memo(function AssistantMessage({
     [actions?.remoteImageRefUrl, actions?.remoteImageReadiness, payload?.content],
   );
   const showCopyButton = finalAnswerStatus === "confirmed" && !isStreaming && rawText.length > 0;
+  const videos = (payload?.content ?? []).filter(
+    (block) => block.kind === "file" && isChatVideoSource(block.path, block.mimeType),
+  );
   // The tail answer's copy action becomes available only once its turn
   // settles. Reserve the same strip while the answer is still a candidate so
   // revealing the button cannot grow the virtual row and move the transcript
@@ -123,6 +128,16 @@ export const AssistantMessage = memo(function AssistantMessage({
     <Surface variant="transparent" className={chatMessageSurfaceClass}>
       <div className="min-w-0 leading-snug">
         {textBody}
+        {videos.map((block, index) =>
+          block.kind === "file" ? (
+            <MarkdownVideo
+              key={`${block.path}:${index}`}
+              src={block.path}
+              {...(block.name ? { name: block.name } : {})}
+              {...(block.mimeType ? { mimeType: block.mimeType } : {})}
+            />
+          ) : null,
+        )}
         {imageSources.length > 0 ? (
           <div className="mt-1 flex flex-col gap-2">
             {imageSources.map((source, index) => (
@@ -133,7 +148,7 @@ export const AssistantMessage = memo(function AssistantMessage({
             ))}
           </div>
         ) : null}
-        {isStreaming && rawText.length === 0 && imageSources.length === 0 ? (
+        {isStreaming && rawText.length === 0 && imageSources.length === 0 && videos.length === 0 ? (
           <div className="text-foreground-muted">
             <PixelLoader size="xxs" />
           </div>

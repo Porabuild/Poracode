@@ -26,6 +26,197 @@ function note(update: SessionNotification["update"]): SessionNotification {
 }
 
 describe("mapAcpSessionUpdate", () => {
+  it("keeps video resources alongside command-resolved output without an explicit terminal reference", () => {
+    const state = createAcpMapperState("video-command-thread");
+    state.resolveTerminalOutputByCommand = () => "recording finished\n";
+    const resource = {
+      type: "resource_link",
+      uri: "file:///tmp/demo.mp4",
+      mimeType: "video/mp4",
+      name: "Demo",
+    };
+    const events = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call",
+        toolCallId: "record",
+        title: "Record demo",
+        kind: "execute",
+        status: "completed",
+        rawInput: { command: "record demo" },
+        content: [{ type: "content", content: resource }],
+      } as SessionNotification["update"]),
+      state,
+    );
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        payload: expect.objectContaining({
+          result: { content: [resource, { type: "text", text: "recording finished\n" }] },
+        }),
+      }),
+    );
+  });
+
+  it.each(["tool_call", "tool_call_update"] as const)(
+    "preserves array-valued video rawOutput on %s",
+    (sessionUpdate) => {
+      const state = createAcpMapperState("video-array-thread");
+      if (sessionUpdate === "tool_call_update")
+        mapAcpSessionUpdate(
+          note({
+            sessionUpdate: "tool_call",
+            toolCallId: "record",
+            title: "Record demo",
+            kind: "other",
+            status: "in_progress",
+          }),
+          state,
+        );
+      const resource = {
+        type: "resource_link",
+        uri: "file:///tmp/demo.mp4",
+        mimeType: "video/mp4",
+        name: "Demo",
+      };
+      const events = mapAcpSessionUpdate(
+        note({
+          sessionUpdate,
+          toolCallId: "record",
+          title: "Record demo",
+          kind: "other",
+          status: "completed",
+          rawOutput: [resource],
+        } as SessionNotification["update"]),
+        state,
+      );
+      expect(events).toContainEqual(
+        expect.objectContaining({
+          payload: expect.objectContaining({ result: { content: [resource] } }),
+        }),
+      );
+    },
+  );
+  it.each(["tool_call", "tool_call_update"] as const)(
+    "preserves terminal output alongside video resources on %s",
+    (sessionUpdate) => {
+      const state = createAcpMapperState("video-terminal-thread");
+      state.resolveTerminalOutput = () => "recording finished\n";
+      if (sessionUpdate === "tool_call_update")
+        mapAcpSessionUpdate(
+          note({
+            sessionUpdate: "tool_call",
+            toolCallId: "video",
+            title: "Record video",
+            kind: "execute",
+            status: "in_progress",
+          }),
+          state,
+        );
+      const events = mapAcpSessionUpdate(
+        note({
+          sessionUpdate,
+          toolCallId: "video",
+          title: "Record video",
+          kind: "execute",
+          status: "completed",
+          content: [
+            { type: "terminal", terminalId: "recording-terminal" },
+            {
+              type: "content",
+              content: {
+                type: "resource_link",
+                uri: "file:///tmp/demo.mp4",
+                mimeType: "video/mp4",
+                name: "Demo",
+              },
+            },
+          ],
+        } as SessionNotification["update"]),
+        state,
+      );
+      expect(events).toContainEqual(
+        expect.objectContaining({
+          payload: expect.objectContaining({
+            result: {
+              content: [
+                expect.objectContaining({ type: "resource_link" }),
+                { type: "text", text: "recording finished\n" },
+              ],
+            },
+          }),
+        }),
+      );
+    },
+  );
+  it("retains video resource URIs and MIME types in assistant file blocks", () => {
+    const events = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "agent_message_chunk",
+        content: {
+          type: "resource_link",
+          uri: "file:///C:/clips/my%20demo.mp4",
+          name: "Demo",
+          mimeType: "video/mp4",
+        },
+      }),
+      createAcpMapperState("video-thread"),
+    );
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        type: "item.updated",
+        payload: {
+          content: [
+            {
+              kind: "file",
+              path: "file:///C:/clips/my%20demo.mp4",
+              name: "Demo",
+              mimeType: "video/mp4",
+            },
+          ],
+        },
+      }),
+    );
+  });
+
+  it.each(["tool_call", "tool_call_update"] as const)(
+    "preserves standard video resources on %s",
+    (sessionUpdate) => {
+      const state = createAcpMapperState("video-thread");
+      if (sessionUpdate === "tool_call_update")
+        mapAcpSessionUpdate(
+          note({
+            sessionUpdate: "tool_call",
+            toolCallId: "video",
+            title: "record_demo",
+            kind: "other",
+            status: "in_progress",
+          }),
+          state,
+        );
+      const resource = {
+        type: "resource_link",
+        uri: "file:///tmp/demo.webm",
+        name: "Demo",
+        mimeType: "video/webm",
+      };
+      const events = mapAcpSessionUpdate(
+        note({
+          sessionUpdate,
+          toolCallId: "video",
+          title: "record_demo",
+          kind: "other",
+          status: "completed",
+          content: [{ type: "content", content: resource }],
+        } as SessionNotification["update"]),
+        state,
+      );
+      expect(events).toContainEqual(
+        expect.objectContaining({
+          payload: expect.objectContaining({ status: "success", result: { content: [resource] } }),
+        }),
+      );
+    },
+  );
+
   it("preserves standard MCP App resources from both opening and terminal updates", () => {
     const content = [
       {

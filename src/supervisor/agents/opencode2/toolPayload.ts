@@ -9,6 +9,7 @@
  */
 
 import type { CanonicalItemType } from "@/shared/contracts";
+import { isChatVideoSource } from "@/shared/chatVideo";
 import { readNonNegativeInteger } from "../contextUsage";
 import { readOpenCode2Number, readOpenCode2Record, readOpenCode2String } from "./readers";
 
@@ -127,10 +128,18 @@ export function applyOpenCode2ToolContent(
       continue;
     }
     if (record.type === "file" && typeof record.uri === "string") {
+      const video = isChatVideoSource(
+        record.uri,
+        typeof record.mime === "string" ? record.mime : undefined,
+      );
       files.push({
-        type: "file",
+        type: video ? "resource_link" : "file",
         uri: record.uri,
-        ...(typeof record.mime === "string" ? { mime: record.mime } : {}),
+        ...(typeof record.mime === "string"
+          ? video
+            ? { mimeType: record.mime }
+            : { mime: record.mime }
+          : {}),
         ...(typeof record.name === "string" ? { name: record.name } : {}),
       });
       // Inline `data:` images ride the canonical `images` channel so the

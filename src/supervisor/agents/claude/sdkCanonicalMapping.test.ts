@@ -20,10 +20,56 @@ import {
   startClaudeTurn,
 } from "./sdkCanonicalMapping";
 import { hasAwaitedBackgroundWork } from "./canonicalMapping/backgroundTasks";
+import { readToolVideoSources } from "@/shared/chatVideo";
 
 function streamEvent(event: Record<string, unknown>): SDKMessage {
   return { type: "stream_event", session_id: "claude-session", event } as unknown as SDKMessage;
 }
+
+it.each(["sdk_result", "content_block"])("retains video resources from %s", (carrier) => {
+  const state = createClaudeMapperState("video-thread");
+  mapClaudeSdkMessage(
+    streamEvent({
+      type: "content_block_start",
+      index: 0,
+      content_block: {
+        type: "tool_use",
+        id: "video-tool",
+        name: "mcp__fixture__record",
+        input: {},
+      },
+    }),
+    state,
+  );
+  const content = [
+    { type: "resource_link", uri: "file:///tmp/demo.mp4", mimeType: "video/mp4", name: "Demo" },
+  ];
+  const events = mapClaudeSdkMessage(
+    {
+      type: "user",
+      ...(carrier === "sdk_result" ? { tool_use_result: { content } } : {}),
+      message: {
+        role: "user",
+        content: [
+          {
+            type: "tool_result",
+            tool_use_id: "video-tool",
+            content: carrier === "sdk_result" ? "Demo ready" : content,
+          },
+        ],
+      },
+    } as unknown as SDKMessage,
+    state,
+  );
+  const updated = events.find(
+    (event) => event.type === "item.updated" && event.itemId === "video-tool",
+  );
+  expect(
+    updated && "payload" in updated
+      ? readToolVideoSources((updated.payload as { result?: unknown }).result)
+      : [],
+  ).toEqual([{ src: "file:///tmp/demo.mp4", name: "Demo", mimeType: "video/mp4" }]);
+});
 
 it("preserves embedded MCP App resources on their original tool item", () => {
   const state = createClaudeMapperState("app-thread");
