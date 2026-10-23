@@ -129,10 +129,10 @@ export function createMuseAdapter(): AgentAdapter {
     discoverSessionRef: makeMuseDiscoverSessionRef(),
     watchSessionRef: makeMuseWatchSessionRef(),
 
-    buildDirectInput(prompt) {
+    buildDirectInput(prompt, _segments, _config, projectLocation) {
       // The TUI treats bulk writes as paste, so an embedded `\r` becomes a
       // literal newline. Pause briefly between text and Enter (kimi-style).
-      return [prompt, "@wait:200", "\x1b[13;1u"];
+      return [prompt, "@wait:200", projectLocation?.kind === "windows" ? "\r" : "\x1b[13;1u"];
     },
 
     // `muse resume <uuid>` accepts no positional prompt. Always hand the first
