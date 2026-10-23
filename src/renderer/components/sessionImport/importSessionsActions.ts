@@ -8,6 +8,10 @@ import { isWindows, readBridge } from "@/renderer/bridge";
 import { resolveSavedProviderDraftConfig } from "@/renderer/components/thread/threadDraftViewHelpers";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useAppStore } from "@/renderer/state/appStore";
+import {
+  dropPendingManagedRootLaunch,
+  pinManagedRootThread,
+} from "@/renderer/state/managedRootCatalog/rootCatalogStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { getActiveWorkspaceId } from "@/renderer/state/workspaceStore";
 
@@ -120,8 +124,23 @@ export async function importSessions(input: {
         discoveredAt: new Date().toISOString(),
       },
     });
+    const release = pinManagedRootThread(thread.id);
+    const bridge = readBridge();
+    let persisted = false;
     try {
-      await readBridge().importSessionTranscript({
+      if (created) {
+        const project = useAppStore.getState().projects.find((entry) => entry.id === projectId);
+        if (project) await bridge.dbUpsertProject(project);
+      }
+      // App-store persistence owns UI preferences, not host catalog rows.
+      // Save the resumable row before replay so success survives a reload and
+      // runtime events always have a durable thread to belong to.
+      const resumable = useAppStore.getState().threads.find((entry) => entry.id === thread.id)!;
+      await bridge.dbUpsertThread(resumable);
+      persisted = true;
+      // Its next open must resume this session, not create and launch a new one.
+      dropPendingManagedRootLaunch(thread.id);
+      await bridge.importSessionTranscript({
         threadId: thread.id,
         agentKind: session.agentKind,
         path: session.path,
@@ -130,10 +149,17 @@ export async function importSessions(input: {
       threadIds.set(session.id, thread.id);
       imported += 1;
     } catch (error) {
+      if (persisted) await bridge.dbDeleteThread(thread.id);
       store.deleteThread(thread.id);
-      if (created) store.deleteProject(projectId);
+      if (created) {
+        await bridge.dbDeleteProject(projectId);
+        store.deleteProject(projectId);
+      }
       failed += 1;
       toast.danger(friendlyError(error));
+    } finally {
+      dropPendingManagedRootLaunch(thread.id);
+      release();
     }
   }
   return { imported, failed, threadIds };
