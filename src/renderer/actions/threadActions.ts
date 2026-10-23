@@ -34,6 +34,7 @@ import {
 } from "@/renderer/state/managedRootCatalog/rootCatalogStore";
 import { refreshManagedRootCatalogSoon } from "@/renderer/state/managedRootCatalog/rootCatalogAdapter";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import { isRemoteProjectUnreachable } from "@/renderer/state/remoteServers/reachability";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useSidebarUiStore } from "@/renderer/state/sidebarUiStore";
 import { shouldConfirmThreadDelete } from "@/renderer/state/threadDeletePreference";
@@ -216,8 +217,11 @@ function resolveNewThreadProjectId(): string | undefined {
   return (
     visibleId(getCurrentProjectId()) ??
     visibleId(getLastWorkspaceProjectId()) ??
+    // A browser client mirrors one Home per paired machine; skip offline ones.
     (useSharedSettings.getState().homeScopeEnabled
-      ? store.projects.find(isHomeProject)?.id
+      ? store.projects.find(
+          (project) => isHomeProject(project) && !isRemoteProjectUnreachable(project),
+        )?.id
       : undefined) ??
     store.projects.find((project) => !isHomeProject(project) && isVisible(project))?.id ??
     // Nothing in this workspace: better a draft in another workspace's project

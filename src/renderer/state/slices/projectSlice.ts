@@ -12,7 +12,7 @@ import type {
   GitHubAccountRef,
   McpServer,
 } from "@/shared/contracts";
-import { HOME_PROJECT_ID, HOME_PROJECT_NAME } from "@/shared/homeScope";
+import { HOME_PROJECT_ID, HOME_PROJECT_NAME, isHomeProjectId } from "@/shared/homeScope";
 import { isDraftPaneId, parseDraftProjectId } from "@/shared/paneId";
 import { getProjectName } from "@/shared/wsl";
 import { findProjectLocationConflict, projectIdentityKey } from "@/shared/projectIdentity";
@@ -379,7 +379,7 @@ export const createProjectSlice: SliceCreator<ProjectSlice> = (set, get) => ({
       if (from === to) return {};
       // Home is synthetic and belongs to every workspace, so it stays unfiled.
       const shouldMove = (project: Project) =>
-        project.workspaceId === from && project.id !== HOME_PROJECT_ID;
+        project.workspaceId === from && !isHomeProjectId(project.id);
       if (!state.projects.some(shouldMove)) return {};
       return {
         projects: state.projects.map((project) =>

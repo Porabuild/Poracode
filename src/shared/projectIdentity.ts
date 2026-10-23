@@ -1,5 +1,5 @@
 import type { Project, ProjectLocation } from "./contracts";
-import { HOME_PROJECT_ID } from "./homeScope";
+import { isHomeProjectId } from "./homeScope";
 import { mergeProjectSettings } from "./projectSettingsMerge";
 
 export interface ProjectIdentityOptions {
@@ -36,7 +36,7 @@ export function projectIdentityKey(
   options?: ProjectIdentityOptions,
 ): string {
   // Home is a synthetic project, not a project registered at the home path.
-  if (project.id === HOME_PROJECT_ID) return `home:${project.id}`;
+  if (isHomeProjectId(project.id)) return `home:${project.id}`;
   const remoteServerId = project.remoteServerId ?? project.location.remoteServerId;
   // A remote host canonicalizes its own POSIX paths. The client's filesystem
   // policy must not collapse two distinct Linux folders when viewed on macOS.
