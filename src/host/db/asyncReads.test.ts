@@ -134,6 +134,35 @@ function pool(path = workerPath, imagePreviews = false) {
 }
 
 describe("worker-backed SQLite reads", () => {
+  it("reads through an IPC process that never loads SQLite or image dependencies", async () => {
+    const guard = join(directory, "control-dependencies.cjs");
+    writeFileSync(
+      guard,
+      `
+      const {isMainThread}=require('node:worker_threads');
+      if(isMainThread){
+        const Module=require('node:module'),load=Module._load;
+        Module._load=function(name,...rest){
+          if(name==='better-sqlite3'||name==='sharp')throw Error('Heavy dependency in IPC loop: '+name);
+          return load.call(this,name,...rest);
+        };
+      }
+    `,
+    );
+    const previous = process.env.NODE_OPTIONS;
+    process.env.NODE_OPTIONS = `${previous ?? ""} --require=${JSON.stringify(guard)}`;
+    const reads = pool();
+    try {
+      expect(await reads.read("runtimeItems", ["thread-1"])).toEqual(
+        dbReadThreadRuntimeItems("thread-1"),
+      );
+    } finally {
+      await reads.close();
+      if (previous === undefined) delete process.env.NODE_OPTIONS;
+      else process.env.NODE_OPTIONS = previous;
+    }
+  });
+
   it("generates and persists previews from bounded history and restores them into replacement workers", async () => {
     const previewDir = join(directory, "image-previews-v1");
     await setImagePreviewStoreDir(previewDir);
