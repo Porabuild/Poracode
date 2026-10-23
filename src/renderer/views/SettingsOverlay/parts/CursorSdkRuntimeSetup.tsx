@@ -7,14 +7,18 @@ import { readBridge } from "@/renderer/bridge";
 import { Input, PixelLoader } from "@/renderer/components/common";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
-import { findProjectForStatus } from "@/renderer/utils/acpRegistryAuth";
+import {
+  findProjectForStatus,
+  findStatusForTarget,
+  scopeEnvForStatus,
+} from "@/renderer/utils/acpRegistryAuth";
 import {
   CURSOR_SDK_MAX_EXCLUSIVE_MAJOR,
   CURSOR_SDK_MIN_SUPPORTED_VERSION,
   CURSOR_SDK_PACKAGE_NAME,
 } from "@/shared/agents/cursorSdkPackage";
 import { isNewerVersion } from "@/shared/agents/updateResolver";
-import type { AgentStatus } from "@/shared/contracts";
+import type { AgentStatus, AgentStatusesResponse } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
 import {
   canUpdateCursorSdk,
@@ -78,6 +82,10 @@ export function CursorProfileApiKeySetup(props: {
   );
 }
 
+function isAgentStatusesResponse(value: unknown): value is AgentStatusesResponse {
+  return !!value && typeof value === "object" && "windows" in value && "wsl" in value;
+}
+
 function SdkPackageRow(props: {
   agentKind: string;
   status: AgentStatus | undefined;
@@ -123,20 +131,32 @@ function SdkPackageRow(props: {
     };
   }, [props.agentKind]);
 
-  const hasNewerSupportedVersion =
+  const availableVersion =
     latestSupportedVersion !== undefined &&
     installState.sdkVersion !== undefined &&
-    isNewerVersion(latestSupportedVersion, installState.sdkVersion);
-  const canUpdate = status ? canUpdateCursorSdk(status) && hasNewerSupportedVersion : false;
+    isNewerVersion(latestSupportedVersion, installState.sdkVersion)
+      ? latestSupportedVersion
+      : undefined;
+  const canUpdate = status ? canUpdateCursorSdk(status) && availableVersion !== undefined : false;
 
   const runPackageCommand = (purpose: "install" | "update") => {
-    if (pending || (purpose === "update" && (!status || !canUpdate))) return;
+    if (pending || (purpose === "update" && (!status || !canUpdate || !availableVersion))) return;
+    const targetVersion = availableVersion;
+    if (
+      purpose === "update" &&
+      (!status ||
+        !targetVersion ||
+        (project && !cursorSdkUpdateCommand(status, project, targetVersion)))
+    ) {
+      toast.danger(t`Unable to update Cursor SDK.`);
+      return;
+    }
     setPending(true);
     const opened = runAgentInstallCommand({
       label: purpose === "update" ? t`Update Cursor SDK` : t`Install Cursor SDK`,
       command:
-        purpose === "update" && status
-          ? (targetProject) => cursorSdkUpdateCommand(status, targetProject) ?? ""
+        purpose === "update" && status && targetVersion
+          ? (targetProject) => cursorSdkUpdateCommand(status, targetProject, targetVersion) ?? ""
           : cursorSdkInstallCommand,
       ...(purpose === "update" ? { purpose } : {}),
       ...(project ? { project } : {}),
@@ -145,8 +165,25 @@ function SdkPackageRow(props: {
           setPending(false);
           return;
         }
+        const previousVersion = installState.sdkVersion;
         void props
           .refreshStatus()
+          .then((response) => {
+            if (purpose !== "update" || !status || !targetVersion) return;
+            const refreshed = isAgentStatusesResponse(response)
+              ? findStatusForTarget(response, status.kind, scopeEnvForStatus(status))
+              : undefined;
+            const nextVersion = refreshed
+              ? cursorRuntimeInstallState(refreshed).sdkVersion
+              : undefined;
+            if (!nextVersion || isNewerVersion(targetVersion, nextVersion)) {
+              toast.danger(t`Unable to update Cursor SDK.`);
+              return;
+            }
+            if (nextVersion !== previousVersion) {
+              toast.success(t`Cursor SDK updated to v${nextVersion}.`);
+            }
+          })
           .catch((error) => toast.danger(friendlyError(error)))
           .finally(() => setPending(false));
       },
@@ -162,6 +199,7 @@ function SdkPackageRow(props: {
           <>
             {"@cursor/sdk"}
             {installState.sdkVersion ? ` · v${installState.sdkVersion}` : null}
+            {canUpdate && availableVersion ? ` → v${availableVersion}` : null}
           </>
         ) : (
           <Trans>@cursor/sdk is not installed.</Trans>
@@ -180,17 +218,18 @@ function SdkPackageRow(props: {
           <Download className="size-3" />
           <Trans>Install</Trans>
         </Button>
-      ) : canUpdate ? (
+      ) : canUpdate && availableVersion ? (
         <Button
           size="sm"
           variant="tertiary"
           className="h-7 min-h-7 shrink-0 gap-1 px-2 text-[11px]"
-          aria-label={t`Update Cursor SDK`}
+          aria-label={t`Update Cursor SDK to v${availableVersion}`}
           isPending={pending}
           onPress={() => runPackageCommand("update")}
         >
           <RefreshCw className="size-3" />
           <Trans>Update</Trans>
+          <span className="tabular-nums">{`v${availableVersion}`}</span>
         </Button>
       ) : null}
     </CursorRuntimeCardRow>

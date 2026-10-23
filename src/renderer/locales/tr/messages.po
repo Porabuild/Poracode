@@ -403,8 +403,8 @@ msgstr "{0} v{newVersion} sürümüne güncellendi."
 
 #. placeholder {0}: agentStatus.label
 #: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
-msgid "{0} updated to v{resolvedLatest}."
-msgstr "{0} v{resolvedLatest} sürümüne güncellendi."
+#~ msgid "{0} updated to v{resolvedLatest}."
+#~ msgstr "{0} v{resolvedLatest} sürümüne güncellendi."
 
 #. placeholder {0}: agent.label
 #. placeholder {0}: status.label
@@ -707,6 +707,10 @@ msgstr "{stepCount, plural, other {# adım}}"
 #: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
 msgid "{totalAdditions} additions and {totalDeletions} deletions"
 msgstr "{totalAdditions} ekleme ve {totalDeletions} silme"
+
+#: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
+msgid "{updateLabel} updated to v{resolvedLatest}."
+msgstr "{updateLabel} v{resolvedLatest} sürümüne güncellendi."
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "{used} tokens"
@@ -5130,6 +5134,7 @@ msgid "Cursor SDK update targets"
 msgstr "Cursor SDK güncelleme hedefleri"
 
 #: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
+#: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 msgid "Cursor SDK updated to v{nextVersion}."
 msgstr "Cursor SDK v{nextVersion} sürümüne güncellendi."
 
@@ -19041,6 +19046,18 @@ msgstr "{0} güncellenemiyor: {detailText}"
 msgid "Unable to update {0}."
 msgstr "{0} güncellenemiyor."
 
+#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+msgid "Unable to update {agentLabel}."
+msgstr "{agentLabel} güncellenemiyor."
+
+#: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
+msgid "Unable to update {updateLabel}."
+msgstr "{updateLabel} güncellenemiyor."
+
+#: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
+msgid "Unable to update Cursor SDK."
+msgstr "Cursor SDK güncellenemiyor."
+
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
 msgid "Unable to update learned tags."
 msgstr "Öğrenilmiş etiketler güncellenemiyor."
@@ -19379,6 +19396,10 @@ msgstr "Cursor SDK'yı güncelle"
 #: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
 msgid "Update Cursor SDK in {environment}"
 msgstr "{environment} ortamındaki Cursor SDK'yı güncelle"
+
+#: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
+msgid "Update Cursor SDK to v{availableVersion}"
+msgstr "Cursor SDK'yı v{availableVersion} sürümüne güncelle"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Update error: {detail}"

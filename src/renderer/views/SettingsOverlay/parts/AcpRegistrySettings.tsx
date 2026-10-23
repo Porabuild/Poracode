@@ -22,6 +22,7 @@ import {
   type Project,
   type RefreshAgentScope,
 } from "@/shared/contracts";
+import { isNewerVersion } from "@/shared/agents/updateResolver";
 import { friendlyError } from "@/shared/messages";
 import { msg } from "@lingui/core/macro";
 import { isWindows, readBridge } from "@/renderer/bridge";
@@ -118,7 +119,7 @@ interface InstallTarget {
 }
 
 interface NativeInstallAction extends InstallTarget {
-  command?: string | ((project: Project) => string);
+  command?: string | ((project: Project, targetVersion?: string) => string);
   registryAgentId?: string;
   verifyRuntimeId?: string;
 }
@@ -645,8 +646,8 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
                 : { kind: "native" },
             ...(update.command
               ? {
-                  command: (targetProject: Project) =>
-                    update.command?.(status, targetProject) ?? "",
+                  command: (targetProject: Project, targetVersion?: string) =>
+                    update.command?.(status, targetProject, targetVersion) ?? "",
                 }
               : {}),
             ...(update.registryAgentId ? { registryAgentId: update.registryAgentId } : {}),
@@ -773,6 +774,43 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
       if (!action) return;
       const update = action.slot.update;
       if (!update) return;
+      const npmPackage = update.npmPackage;
+      const command = action.command;
+      if (npmPackage && typeof command === "function") {
+        void readBridge()
+          .getLatestAgentVersion({ agentKind: action.status.kind, npmPackage })
+          .then((result) => {
+            const targetVersion = result.version;
+            const installedVersion = detectAgentRuntime(action.slot, action.status).version;
+            if (!targetVersion) {
+              setError(t`Unable to update ${agentLabel}.`);
+              return;
+            }
+            if (installedVersion && !isNewerVersion(targetVersion, installedVersion)) {
+              toast.success(t(update.upToDateToast));
+              return;
+            }
+            startRuntimeUpdate(
+              {
+                ...action,
+                command: (project: Project) => command(project, targetVersion),
+              },
+              targetVersion,
+            );
+          })
+          .catch((probeError: unknown) => {
+            setError(
+              probeError instanceof Error ? probeError.message : t`Unable to update ${agentLabel}.`,
+            );
+          });
+        return;
+      }
+      startRuntimeUpdate(action);
+    };
+
+    const startRuntimeUpdate = (action: NativeRuntimeUpdateAction, expectedVersion?: string) => {
+      const update = action.slot.update;
+      if (!update) return;
       const previousVersion = detectAgentRuntime(action.slot, action.status).version;
       setError(undefined);
       setPendingAgentId(agent.id);
@@ -816,6 +854,9 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
             (!refreshedRuntime.installed || nextVersion !== action.expectedRegistryVersion)
           ) {
             throw new Error(t`Unable to refresh ${agentLabel} status.`);
+          }
+          if (expectedVersion && (!nextVersion || isNewerVersion(expectedVersion, nextVersion))) {
+            throw new Error(t`Unable to update ${agentLabel}.`);
           }
           if (nextVersion && nextVersion !== previousVersion) {
             toast.success(t(update.updatedToast(nextVersion)));

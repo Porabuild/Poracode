@@ -403,8 +403,8 @@ msgstr "{0} updated to v{newVersion}."
 
 #. placeholder {0}: agentStatus.label
 #: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
-msgid "{0} updated to v{resolvedLatest}."
-msgstr "{0} updated to v{resolvedLatest}."
+#~ msgid "{0} updated to v{resolvedLatest}."
+#~ msgstr "{0} updated to v{resolvedLatest}."
 
 #. placeholder {0}: agent.label
 #. placeholder {0}: status.label
@@ -707,6 +707,10 @@ msgstr "{stepCount, plural, one {# step} other {# steps}}"
 #: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
 msgid "{totalAdditions} additions and {totalDeletions} deletions"
 msgstr "{totalAdditions} additions and {totalDeletions} deletions"
+
+#: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
+msgid "{updateLabel} updated to v{resolvedLatest}."
+msgstr "{updateLabel} updated to v{resolvedLatest}."
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "{used} tokens"
@@ -5139,6 +5143,7 @@ msgid "Cursor SDK update targets"
 msgstr "Cursor SDK update targets"
 
 #: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
+#: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 msgid "Cursor SDK updated to v{nextVersion}."
 msgstr "Cursor SDK updated to v{nextVersion}."
 
@@ -19051,8 +19056,16 @@ msgid "Unable to update {0}."
 msgstr "Unable to update {0}."
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-#~ msgid "Unable to update {agentLabel}."
-#~ msgstr "Unable to update {agentLabel}."
+msgid "Unable to update {agentLabel}."
+msgstr "Unable to update {agentLabel}."
+
+#: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
+msgid "Unable to update {updateLabel}."
+msgstr "Unable to update {updateLabel}."
+
+#: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
+msgid "Unable to update Cursor SDK."
+msgstr "Unable to update Cursor SDK."
 
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
 msgid "Unable to update learned tags."
@@ -19392,6 +19405,10 @@ msgstr "Update Cursor SDK"
 #: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
 msgid "Update Cursor SDK in {environment}"
 msgstr "Update Cursor SDK in {environment}"
+
+#: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
+msgid "Update Cursor SDK to v{availableVersion}"
+msgstr "Update Cursor SDK to v{availableVersion}"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Update error: {detail}"

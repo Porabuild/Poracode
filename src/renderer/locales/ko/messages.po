@@ -403,8 +403,8 @@ msgstr "{0}이 v{newVersion}로 업데이트되었습니다."
 
 #. placeholder {0}: agentStatus.label
 #: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
-msgid "{0} updated to v{resolvedLatest}."
-msgstr "{0}이 v{resolvedLatest}로 업데이트되었습니다."
+#~ msgid "{0} updated to v{resolvedLatest}."
+#~ msgstr "{0}이 v{resolvedLatest}로 업데이트되었습니다."
 
 #. placeholder {0}: agent.label
 #. placeholder {0}: status.label
@@ -707,6 +707,10 @@ msgstr "{stepCount, plural, other {# 단계}}"
 #: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
 msgid "{totalAdditions} additions and {totalDeletions} deletions"
 msgstr "{totalAdditions}개 추가, {totalDeletions}개 삭제"
+
+#: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
+msgid "{updateLabel} updated to v{resolvedLatest}."
+msgstr "{updateLabel}이 v{resolvedLatest}로 업데이트되었습니다."
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "{used} tokens"
@@ -5130,6 +5134,7 @@ msgid "Cursor SDK update targets"
 msgstr "Cursor SDK 업데이트 대상"
 
 #: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
+#: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 msgid "Cursor SDK updated to v{nextVersion}."
 msgstr "Cursor SDK를 v{nextVersion}(으)로 업데이트했습니다."
 
@@ -19041,6 +19046,18 @@ msgstr "{0}을(를) 업데이트할 수 없습니다: {detailText}"
 msgid "Unable to update {0}."
 msgstr "{0}을(를) 업데이트할 수 없습니다."
 
+#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+msgid "Unable to update {agentLabel}."
+msgstr "{agentLabel}을(를) 업데이트할 수 없습니다."
+
+#: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
+msgid "Unable to update {updateLabel}."
+msgstr "{updateLabel}을(를) 업데이트할 수 없습니다."
+
+#: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
+msgid "Unable to update Cursor SDK."
+msgstr "Cursor SDK를 업데이트할 수 없습니다."
+
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
 msgid "Unable to update learned tags."
 msgstr "학습된 태그를 업데이트할 수 없습니다."
@@ -19379,6 +19396,10 @@ msgstr "Cursor SDK 업데이트"
 #: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
 msgid "Update Cursor SDK in {environment}"
 msgstr "{environment}에서 Cursor SDK 업데이트"
+
+#: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
+msgid "Update Cursor SDK to v{availableVersion}"
+msgstr "Cursor SDK를 v{availableVersion}(으)로 업데이트"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Update error: {detail}"
