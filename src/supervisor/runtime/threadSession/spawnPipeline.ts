@@ -276,19 +276,21 @@ export function composeResolvedMcpServers(
       | undefined,
     timeoutMs = DEFAULT_MCP_SERVER_TIMEOUT_MS,
     approvalMode?: "approve",
-  ): ResolvedMcpServer | undefined =>
-    config
+  ): ResolvedMcpServer | undefined => {
+    const disabledTools = config?.disabledTools ?? snapshot.disabledBuiltInMcpTools?.[id];
+    return config
       ? {
           id,
           name: BUILT_IN_MCP_SERVER_NAMES[id],
           timeoutMs,
           transport: { type: "http", url: config.url, headers: config.headers },
-          ...(config.disabledTools && config.disabledTools.length > 0
-            ? { disabledTools: [...config.disabledTools] }
+          ...(disabledTools && disabledTools.length > 0
+            ? { disabledTools: [...disabledTools] }
             : {}),
           ...(approvalMode ? { approvalMode } : {}),
         }
       : undefined;
+  };
   return [
     ...snapshot.mcpServers,
     http("browser", browserMcp),
@@ -1818,9 +1820,8 @@ export class SpawnPipeline {
     mcpLaunchSnapshot: McpLaunchSnapshot,
     identity?: McpThreadIdentity,
   ): Promise<AppControlsMcpHttpConfig | undefined> {
-    if (mcpLaunchSnapshot.disabledBuiltInMcpServerIds.includes("app-controls")) {
-      return Promise.resolve(undefined);
-    }
+    // Poracode is attached to every provider. Older clients can still send a
+    // saved server disable; only individual tool restrictions apply here.
     return resolveAppControlsMcpHttpConfigForLaunch(location, this.ctx.options.wslHostAccess, {
       ...identity,
       disabledTools: mcpLaunchSnapshot.disabledBuiltInMcpTools?.["app-controls"] ?? [],

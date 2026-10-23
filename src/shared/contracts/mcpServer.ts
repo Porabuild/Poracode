@@ -537,6 +537,15 @@ export const builtInMcpServerDisabledSchema = z
   .default({});
 export type BuiltInMcpServerDisabled = z.infer<typeof builtInMcpServerDisabledSchema>;
 
+/** Old settings stay readable; Poracode's always-on server ignores saved disables. */
+export function normalizeBuiltInMcpServerDisabled(
+  disabled: BuiltInMcpServerDisabled,
+): BuiltInMcpServerDisabled {
+  const normalized = { ...disabled };
+  delete normalized["app-controls"];
+  return normalized;
+}
+
 /** Standing new-thread defaults, with draft mentions and client-inherent tools applied. */
 export function resolveNewThreadMcpConfig(
   settings: {
@@ -589,7 +598,8 @@ export function normalizeBuiltInMcpDisabledTools(
 export function disabledBuiltInMcpServerIds(
   disabled: BuiltInMcpServerDisabled,
 ): BuiltInMcpServerId[] {
-  return BUILT_IN_MCP_SERVER_IDS.filter((id) => disabled[id] === true);
+  const normalized = normalizeBuiltInMcpServerDisabled(disabled);
+  return BUILT_IN_MCP_SERVER_IDS.filter((id) => normalized[id] === true);
 }
 
 /** Custom servers plus built-in disables resolved for a thread launch. */
