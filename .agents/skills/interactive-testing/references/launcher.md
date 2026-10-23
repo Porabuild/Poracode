@@ -62,6 +62,12 @@ but some Windows PTY hosts report exit 1 even after a clean teardown — do not
 infer failure from that exit code. `stop` allows 60 seconds by default;
 `--timeout <seconds>` changes the deadline without weakening the checks.
 
+A successful stop removes `runtime/` and leaves the rest of the session
+directory (profile, fixture, artifacts). A failed or killed teardown leaves the
+frozen runtime, about 2.6 GB. After cited evidence is copied to `tmp/`, delete
+that session root once its owner PID is gone. See
+[Safety and teardown](../SKILL.md#safety-and-teardown).
+
 ## Session reuse and selection
 
 The launcher reuses an existing healthy session only when its source bytes and
