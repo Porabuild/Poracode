@@ -73,8 +73,9 @@ describe("database migration registry", () => {
       [63, "index saved conversation text"],
       [64, "retain independent conversation fork lineage"],
       [65, "pin review watch source identity"],
+      [66, "index manual catalog ordering"],
     ]);
-    expect(LATEST_SCHEMA_VERSION).toBe(65);
+    expect(LATEST_SCHEMA_VERSION).toBe(66);
     expect(() => validateMigrationRegistry()).not.toThrow();
   });
 
@@ -112,9 +113,9 @@ describe("database migration registry", () => {
     // instead of silently defaulting to rollback-compatible.
     expect(MIGRATION_ROLLBACK_CLASSIFICATION_REQUIRED_FROM).toBe(48);
     expect(describeMigrationRollbackPolicy().at(-1)).toEqual({
-      version: 65,
-      name: "pin review watch source identity",
-      rollback: "forward-only",
+      version: 66,
+      name: "index manual catalog ordering",
+      rollback: "rollback-compatible",
     });
     // Migrations below the floor keep their reviewed defaults.
     expect(() =>

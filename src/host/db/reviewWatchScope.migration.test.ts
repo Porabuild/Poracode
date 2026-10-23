@@ -77,7 +77,7 @@ describe.skipIf(!sqliteAvailable)("persisted review watch scope schema65", () =>
     ).review_scope;
   }
 
-  it("advances a real schema 61 artifact through schema 65 without binding old watches", () => {
+  it("upgrades a real schema 61 artifact without binding old watches", () => {
     const path = join(root, "legacy.sqlite");
     const old = createSchema53PayloadOriginDatabase(path);
     migrateSchema53FixtureThrough(old, 61);
@@ -89,9 +89,9 @@ describe.skipIf(!sqliteAvailable)("persisted review watch scope schema65", () =>
     const before = old.prepare("SELECT * FROM pr_watches").get();
     const history = captureSchema53PayloadOriginEvidence(old);
     expect(
-      DATABASE_MIGRATIONS.filter((migration) => migration.version > 61).map(
-        (migration) => migration.version,
-      ),
+      DATABASE_MIGRATIONS.filter(
+        (migration) => migration.version > 61 && migration.version <= 65,
+      ).map((migration) => migration.version),
     ).toEqual([62, 63, 64, 65]);
     old.close();
     const upgraded = initDatabase(path);
@@ -105,7 +105,7 @@ describe.skipIf(!sqliteAvailable)("persisted review watch scope schema65", () =>
     expect(rawScope()).toBeNull();
     expect(
       upgraded.prepare("SELECT value FROM app_state WHERE key='schema_version'").get(),
-    ).toEqual({ value: "65" });
+    ).toEqual({ value: "66" });
   });
 
   it.each(["account", "repository"])(

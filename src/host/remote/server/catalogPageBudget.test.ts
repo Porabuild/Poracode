@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   buildCatalogItemTooLargeBody,
   CatalogItemTooLargeError,
@@ -30,6 +30,24 @@ function rowsWithBound(bytes: readonly number[]) {
 }
 
 describe("catalogPageBudget", () => {
+  it("serializes a fitting page once while retaining exact UTF-8 and decode accounting", () => {
+    const rows = ["é", "😀", '\\"\n', ...Array.from({ length: 47 }, (_, i) => `${i}`)];
+    const serialize = vi.fn<(slice: readonly string[]) => string>((slice) =>
+      JSON.stringify({ rows: slice }),
+    );
+    const body = JSON.stringify({ rows });
+    const sizes = measureCatalogBody(body);
+    const result = serializeCatalogRowsWithinExactCaps({
+      rows,
+      serialize,
+      caps: caps(sizes.wireBytes, sizes.decodeBytes),
+      onOversized: () => new Error("unexpected"),
+      onEnvelopeOversized: () => new Error("unexpected"),
+    });
+    expect(result).toEqual({ rows, body, sizes });
+    expect(serialize).toHaveBeenCalledTimes(1);
+  });
+
   it("resolves effective caps by clamping to the host ceiling and shrinking the soft target", () => {
     const host = resolveCatalogEffectiveCaps({});
     expect(host.maxWireBytes).toBe(32 * 1024 * 1024);
