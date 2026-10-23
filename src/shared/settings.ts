@@ -26,6 +26,7 @@ import {
   mcpServerListSchema,
   installedPluginsSchema,
   normalizeBuiltInMcpDisabledTools,
+  normalizeBuiltInMcpServerDisabled,
   workspaceListSchema,
 } from "./contracts";
 import {
@@ -1680,6 +1681,11 @@ export function migrateSharedSettingsValues(
       sidebarShortcutOrder: normalizeSidebarShortcutOrder(normalized.sidebarShortcutOrder),
       // Older orders remain valid; normalization appends newly supported sections.
       threadDocksOrder: normalizeThreadDocksOrder(normalized.threadDocksOrder),
+      // Keep the wire schema compatible with saved settings from before the
+      // always-on Poracode policy; normalize at both host and client loads.
+      disabledBuiltInMcpServers: normalizeBuiltInMcpServerDisabled(
+        normalized.disabledBuiltInMcpServers,
+      ),
       // Legacy `chrome_`-prefixed tool names are normalized once here at the
       // load boundary so the Zod schema (and the remote-v3 wire derived from
       // it) can stay transform-free.

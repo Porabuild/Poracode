@@ -113,6 +113,20 @@ it("resolves individual custom MCP choices after project overrides without chang
   expect(global[1]?.enabled).toBe(false);
 });
 
+it("ignores a legacy Poracode server disable while preserving other server and tool restrictions", () => {
+  expect(
+    resolveMcpLaunchSnapshot({
+      mcpServers: [],
+      disabledBuiltInMcpServers: { "app-controls": true, browser: true },
+      disabledBuiltInMcpTools: { "app-controls": ["create_thread"] },
+    }),
+  ).toEqual({
+    mcpServers: [],
+    disabledBuiltInMcpServerIds: ["browser"],
+    disabledBuiltInMcpTools: { "app-controls": ["create_thread"] },
+  });
+});
+
 describe("mcpServerSchema", () => {
   it("keeps the disabled-tools schema transform-free for the remote-v3 wire", () => {
     // Legacy normalization lives at the settings load boundary

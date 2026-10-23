@@ -9,6 +9,22 @@ import {
 } from "./settings";
 
 describe("shared settings defaults", () => {
+  it("loads pre-upgrade Poracode disables without disabling its always-on MCP server", () => {
+    expect(
+      normalizeSharedSettings({
+        disabledBuiltInMcpServers: { "app-controls": true, browser: true },
+        disabledBuiltInMcpTools: { "app-controls": ["create_thread"] },
+      }),
+    ).toMatchObject({
+      disabledBuiltInMcpServers: { browser: true },
+      disabledBuiltInMcpTools: { "app-controls": ["create_thread"] },
+    });
+    expect(
+      normalizeSharedSettings({ disabledBuiltInMcpServers: { "app-controls": true } })
+        .disabledBuiltInMcpServers,
+    ).toEqual({});
+  });
+
   it("keeps pre-LAN settings loopback-only without changing remote enablement", () => {
     const prior = { remoteAccessEnabled: true, remoteAccessTailscaleHttps: true };
     expect(normalizeSharedSettings(prior)).toMatchObject({

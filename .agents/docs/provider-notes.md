@@ -113,8 +113,15 @@ validating the version. The minimum CLI is `OPENCODE2_MIN_VERSION`
   rollback, and resume all use the V2 API. Permission policy is applied per
   session before a turn, without separate server processes per policy.
 - **Terminal:** model, variant, agent, and permissions are persisted through the
-  API before attaching the real PTY with `--session`; the default TUI command
-  has no model/agent flags. Status uses terminal heuristics (no V2 hook plugin).
+  API before attaching the real PTY with `--session` and `--server`. The PTY
+  retains a lease on the configured supervisor server and receives its password
+  through `OPENCODE_PASSWORD`, so the native background service cannot replace
+  its MCP set. Terminal pools are isolated by directory and resolved MCP config
+  because their credentials can identify one thread. Existing native and legacy
+  databases remain valid; only in-memory process ownership changes. Resume waits
+  for the preceding terminal's interruption and disposal, keeping late cleanup
+  from interrupting its successor. The default TUI command has no model/agent
+  flags. Status uses terminal heuristics (no V2 hook plugin).
   GUI cross-agent MCP calls use trusted provider-session routing.
 - **MCP and generation:** provider settings manage the directory-scoped MCP set.
   Utility generation uses `session.generate` without a tool loop, then removes
