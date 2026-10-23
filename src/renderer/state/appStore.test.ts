@@ -159,6 +159,17 @@ describe("appStore runtime config sync", () => {
     expect(useAppStore.getState().connectingThreadIds["thread-1"]).toBeUndefined();
   });
 
+  it("keeps prompt anchors transient and clears only the explicit bottom-scroll target", () => {
+    useAppStore.setState({ chatPromptAnchorIds: { first: "prompt-1", second: "prompt-2" } });
+    const partialize = useAppStore.persist.getOptions().partialize!;
+    expect(partialize(useAppStore.getState())).not.toHaveProperty("chatPromptAnchorIds");
+
+    useAppStore.getState().requestChatScrollToBottom("first");
+    expect(useAppStore.getState().chatPromptAnchorIds).toEqual({ second: "prompt-2" });
+    useAppStore.getState().clearChatPromptAnchor("second");
+    expect(useAppStore.getState().chatPromptAnchorIds).toEqual({});
+  });
+
   it("reuses an existing project when the same location is added again", () => {
     const first = useAppStore.getState().addProject({ kind: "windows", path: "C:\\repo\\" });
     const second = useAppStore

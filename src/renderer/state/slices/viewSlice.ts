@@ -37,6 +37,8 @@ export interface ViewSlice {
   pendingComposerFocusThreadId: string | null;
   chatScrollToBottomTokens: Record<string, number>;
   chatScrollToPromptRequests: Record<string, { afterItemId: string | null; remaining: number }>;
+  /** Renderer-only anchors survive pane remounts without persisting scroll state. */
+  chatPromptAnchorIds: Record<string, string>;
   /**
    * Optimistic, urgent active-thread id used only for instant sidebar-row
    * highlighting on click. Decoupled from `view.panes` (which drives the heavy
@@ -50,6 +52,7 @@ export interface ViewSlice {
   clearComposerFocusRequest: (threadId: string) => void;
   requestChatScrollToBottom: (threadId: string) => void;
   requestChatScrollToPrompt: (threadId: string, queued?: boolean) => void;
+  clearChatPromptAnchor: (threadId: string) => void;
   setPendingActiveThread: (threadId: string | null) => void;
   openDraft: (projectId: string) => void;
   openDraftSideBySide: (projectId: string) => void;
@@ -99,6 +102,7 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
   pendingComposerFocusThreadId: null,
   chatScrollToBottomTokens: {},
   chatScrollToPromptRequests: {},
+  chatPromptAnchorIds: {},
   pendingActiveThreadId: null,
   groupLayouts: {},
   setFocusedPane: (paneId) => set({ focusedPaneId: paneId }),
@@ -115,6 +119,9 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
       },
       chatScrollToPromptRequests: Object.fromEntries(
         Object.entries(state.chatScrollToPromptRequests).filter(([id]) => id !== threadId),
+      ),
+      chatPromptAnchorIds: Object.fromEntries(
+        Object.entries(state.chatPromptAnchorIds).filter(([id]) => id !== threadId),
       ),
     })),
   requestChatScrollToPrompt: (threadId, queued = false) =>
@@ -135,6 +142,13 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
           },
         },
       };
+    }),
+  clearChatPromptAnchor: (threadId) =>
+    set((state) => {
+      if (!state.chatPromptAnchorIds[threadId]) return {};
+      const anchors = { ...state.chatPromptAnchorIds };
+      delete anchors[threadId];
+      return { chatPromptAnchorIds: anchors };
     }),
   setPendingActiveThread: (threadId) => set({ pendingActiveThreadId: threadId }),
   openDraft: (projectId) => set({ view: { kind: "draft", projectId } }),
