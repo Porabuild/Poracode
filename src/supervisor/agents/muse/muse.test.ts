@@ -41,6 +41,7 @@ import {
   snapshotMusePreSpawnSessions,
 } from "./sessionFiles";
 import { detectMuseTerminalStatus, isMuseReadyForInitialPrompt } from "./terminal";
+import { buildMuseTerminalMcpForLocation } from "./mcpSupport";
 
 const location = { kind: "posix", path: "/tmp/demo" } as ProjectLocation;
 const config = { mode: "agent", model: "muse-spark-1.3" } as ThreadConfig;
@@ -317,6 +318,15 @@ describe("createMuseAdapter launch / resume argv", () => {
     expect(adapter.buildDirectInput?.("hello")).toEqual(["hello", "@wait:200", "\x1b[13;1u"]);
   });
 
+  it("submits Windows console input with carriage return instead of Kitty Enter", () => {
+    expect(
+      adapter.buildDirectInput?.("hello", undefined, undefined, {
+        kind: "windows",
+        path: "C:\\repo",
+      }),
+    ).toEqual(["hello", "@wait:200", "\r"]);
+  });
+
   it("defers initial prompts to the TUI so resumed sessions receive them", () => {
     expect(adapter.shouldDeferPromptToTerminal?.(config)).toBe(true);
   });
@@ -341,6 +351,75 @@ describe("createMuseAdapter launch / resume argv", () => {
     });
     expect(adapter.buildOneShotCommand?.("", undefined, undefined)).toBeUndefined();
   });
+});
+
+describe("Muse Windows launcher", () => {
+  it.each([true, false])("uses the installed executable with MCP enabled: %s", async (withMcp) => {
+    const root = mkdtempSync(join(tmpdir(), "muse-launcher-"));
+    const shim = join(root, "muse.cmd");
+    const executable = join(root, "muse-bin-1.4.12-R6909.1.exe");
+    writeFileSync(shim, "@echo off");
+    writeFileSync(executable, "");
+    writeFileSync(join(root, ".muse-version"), "1.4.12-R6909.1\n");
+    resolveAgentBinaryPathMock.mockReturnValue(shim);
+    readAgentCommandOutputMock.mockClear();
+    readAgentCommandOutputMock.mockResolvedValue({
+      ok: true,
+      stdout: "--config <KEY=VALUE>",
+      stderr: "",
+    });
+    const mcpServers: ResolvedMcpServer[] = withMcp
+      ? [
+          {
+            id: "tools",
+            name: "tools",
+            timeoutMs: 30_000,
+            transport: { type: "http", url: "https://example.test/mcp", headers: {} },
+          },
+        ]
+      : [];
+    try {
+      const target: ProjectLocation = { kind: "windows", path: root };
+      const adapter = createMuseAdapter();
+      const launched = await adapter.buildLaunchArgv(target, config, "hi", undefined, {
+        mcpServers,
+      });
+      const resumed = await adapter.buildResumeArgv(
+        target,
+        config,
+        "",
+        createKnownSessionRef("session"),
+        { mcpServers },
+      );
+      expect(launched.binary).toBe(executable);
+      expect(resumed.binary).toBe(executable);
+      expect(launched.args.includes("-c")).toBe(withMcp);
+      expect(readAgentCommandOutputMock.mock.calls.map((call) => call[1])).toEqual(
+        withMcp ? [executable, executable] : [],
+      );
+    } finally {
+      resolveAgentBinaryPathMock.mockReset();
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it.each([undefined, "../../outside", "future-version", "1.0.2-R1.1"])(
+    "keeps the shim for an older or incomplete installation (%s)",
+    async (version) => {
+      const root = mkdtempSync(join(tmpdir(), "muse-launcher-"));
+      const shim = join(root, "muse.cmd");
+      writeFileSync(shim, "@echo off");
+      if (version !== undefined) writeFileSync(join(root, ".muse-version"), version);
+      resolveAgentBinaryPathMock.mockReturnValue(shim);
+      try {
+        const launch = await buildMuseTerminalMcpForLocation({ kind: "windows", path: root }, []);
+        expect(launch.binary).toBe(shim);
+      } finally {
+        resolveAgentBinaryPathMock.mockReset();
+        rmSync(root, { recursive: true, force: true });
+      }
+    },
+  );
 });
 
 describe("detectMuseTerminalStatus", () => {
