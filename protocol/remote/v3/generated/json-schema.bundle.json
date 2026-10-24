@@ -58341,6 +58341,99 @@
       "type": "object",
       "x-poracode-unknownFields": "strip"
     },
+    "route.thread-agent-vision.path": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "threadId": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "threadId"
+      ],
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
+    },
+    "route.thread-agent-vision.query": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "preview": {
+          "enum": [
+            "0",
+            "1"
+          ],
+          "type": "string"
+        }
+      },
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
+    },
+    "route.thread-agent-vision.response": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "properties": {
+            "capturedAt": {
+              "type": "number"
+            },
+            "image": {
+              "maxLength": 3145728,
+              "pattern": "^data:image\\/(?:png|jpeg);base64,[A-Za-z0-9+/=]+$",
+              "type": "string"
+            },
+            "source": {
+              "enum": [
+                "browser",
+                "chrome",
+                "computer"
+              ],
+              "type": "string"
+            },
+            "status": {
+              "enum": [
+                "running",
+                "idle",
+                "error"
+              ],
+              "type": "string"
+            },
+            "streamVersion": {
+              "const": 1,
+              "type": "number"
+            },
+            "target": {
+              "type": "string"
+            },
+            "toolName": {
+              "type": "string"
+            },
+            "updatedAt": {
+              "type": "number"
+            },
+            "version": {
+              "const": 1,
+              "type": "number"
+            }
+          },
+          "required": [
+            "version",
+            "source",
+            "toolName",
+            "status",
+            "updatedAt"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
     "route.thread-checkpoint-revert.path": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": true,
@@ -67907,13 +68000,13 @@
     "jsonProcedureResults": 95,
     "procedures": 154,
     "replayableEventTypes": 16,
-    "routes": 118,
+    "routes": 119,
     "runtimeEventTypes": 16,
     "voidProcedureResults": 59,
-    "webSocketClientMessages": 9,
-    "webSocketServerMessages": 11
+    "webSocketClientMessages": 11,
+    "webSocketServerMessages": 12
   },
-  "manifestHash": "sha256:ec54bd073c141e96aa6a0217251754ff1f4f8bcb1b267d582dad19b02621ae89",
+  "manifestHash": "sha256:4d01146c9d26969743e91367ebe4dd46850c2c049d04d6cf6745b091de8fdcad",
   "protocolVersion": 14,
-  "sourceHash": "sha256:f6d9164e35a330e97c3d1113c1f2a7fbf31146d1d183eb4a7f4357cdb1d07c73"
+  "sourceHash": "sha256:01687fad8368485644ee6aaaa7c0a9815c5a559167585b140050f302feab4a99"
 }

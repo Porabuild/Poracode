@@ -14,14 +14,14 @@
     "jsonProcedureResults": 95,
     "procedures": 154,
     "replayableEventTypes": 16,
-    "routes": 118,
+    "routes": 119,
     "runtimeEventTypes": 16,
     "voidProcedureResults": 59,
-    "webSocketClientMessages": 9,
-    "webSocketServerMessages": 11
+    "webSocketClientMessages": 11,
+    "webSocketServerMessages": 12
   },
   "manifestFormatVersion": 1,
-  "manifestHash": "sha256:ec54bd073c141e96aa6a0217251754ff1f4f8bcb1b267d582dad19b02621ae89",
+  "manifestHash": "sha256:4d01146c9d26969743e91367ebe4dd46850c2c049d04d6cf6745b091de8fdcad",
   "portableTransformIds": [
     "agent-settings.strip-sensitive",
     "push.routing.client-connection-id.lowercase",
@@ -61630,6 +61630,129 @@
     },
     {
       "auth": "bearer",
+      "id": "thread-agent-vision",
+      "method": "GET",
+      "path": "/api/threads/{threadId}/agent-vision",
+      "pathParameters": [
+        "threadId"
+      ],
+      "queryCodecs": [
+        {
+          "kind": "string",
+          "name": "preview",
+          "optional": true,
+          "repeated": false
+        }
+      ],
+      "queryParameters": [
+        "preview"
+      ],
+      "request": {
+        "bodyKind": "empty",
+        "pathSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": true,
+          "properties": {
+            "threadId": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "threadId"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        "querySchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": true,
+          "properties": {
+            "preview": {
+              "enum": [
+                "0",
+                "1"
+              ],
+              "type": "string"
+            }
+          },
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        }
+      },
+      "response": {
+        "jsonSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "properties": {
+                "capturedAt": {
+                  "type": "number"
+                },
+                "image": {
+                  "maxLength": 3145728,
+                  "pattern": "^data:image\\/(?:png|jpeg);base64,[A-Za-z0-9+/=]+$",
+                  "type": "string"
+                },
+                "source": {
+                  "enum": [
+                    "browser",
+                    "chrome",
+                    "computer"
+                  ],
+                  "type": "string"
+                },
+                "status": {
+                  "enum": [
+                    "running",
+                    "idle",
+                    "error"
+                  ],
+                  "type": "string"
+                },
+                "streamVersion": {
+                  "const": 1,
+                  "type": "number"
+                },
+                "target": {
+                  "type": "string"
+                },
+                "toolName": {
+                  "type": "string"
+                },
+                "updatedAt": {
+                  "type": "number"
+                },
+                "version": {
+                  "const": 1,
+                  "type": "number"
+                }
+              },
+              "required": [
+                "version",
+                "source",
+                "toolName",
+                "status",
+                "updatedAt"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "status": 200,
+        "wireKind": "json"
+      },
+      "scopes": [
+        "session:read"
+      ]
+    },
+    {
+      "auth": "bearer",
       "id": "thread-checkpoint-revert",
       "idempotency": "command-id-header",
       "method": "POST",
@@ -71943,10 +72066,12 @@
     "void-envelope.omit-result",
     "void-result.omit-field"
   ],
-  "sourceHash": "sha256:f6d9164e35a330e97c3d1113c1f2a7fbf31146d1d183eb4a7f4357cdb1d07c73",
+  "sourceHash": "sha256:01687fad8368485644ee6aaaa7c0a9815c5a559167585b140050f302feab4a99",
   "unknownObjectFields": "ignore",
   "webSocket": {
     "clientMessages": [
+      "agent-vision-unwatch",
+      "agent-vision-watch",
       "browser-input",
       "browser-unwatch",
       "browser-watch",
@@ -72056,6 +72181,57 @@
       },
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "oneOf": [
+        {
+          "additionalProperties": true,
+          "properties": {
+            "threadId": {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": {
+              "const": "agent-vision-watch",
+              "type": "string"
+            },
+            "version": {
+              "const": 1,
+              "type": "number"
+            },
+            "watchId": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "version",
+            "threadId",
+            "watchId"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        {
+          "additionalProperties": true,
+          "properties": {
+            "type": {
+              "const": "agent-vision-unwatch",
+              "type": "string"
+            },
+            "watchId": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "watchId"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
         {
           "additionalProperties": true,
           "properties": {
@@ -72432,6 +72608,7 @@
       }
     ],
     "serverMessages": [
+      "agent-vision-frame",
       "browser-frame",
       "browser-mirror-status",
       "browser-state",
@@ -72617,6 +72794,89 @@
       },
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "oneOf": [
+        {
+          "additionalProperties": true,
+          "properties": {
+            "type": {
+              "const": "agent-vision-frame",
+              "type": "string"
+            },
+            "vision": {
+              "anyOf": [
+                {
+                  "additionalProperties": true,
+                  "properties": {
+                    "capturedAt": {
+                      "type": "number"
+                    },
+                    "image": {
+                      "maxLength": 3145728,
+                      "pattern": "^data:image\\/(?:png|jpeg);base64,[A-Za-z0-9+/=]+$",
+                      "type": "string"
+                    },
+                    "source": {
+                      "enum": [
+                        "browser",
+                        "chrome",
+                        "computer"
+                      ],
+                      "type": "string"
+                    },
+                    "status": {
+                      "enum": [
+                        "running",
+                        "idle",
+                        "error"
+                      ],
+                      "type": "string"
+                    },
+                    "streamVersion": {
+                      "const": 1,
+                      "type": "number"
+                    },
+                    "target": {
+                      "type": "string"
+                    },
+                    "toolName": {
+                      "type": "string"
+                    },
+                    "updatedAt": {
+                      "type": "number"
+                    },
+                    "version": {
+                      "const": 1,
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "version",
+                    "source",
+                    "toolName",
+                    "status",
+                    "updatedAt"
+                  ],
+                  "type": "object",
+                  "x-poracode-unknownFields": "strip"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "watchId": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "watchId",
+            "vision"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
         {
           "additionalProperties": true,
           "properties": {

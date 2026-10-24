@@ -1444,6 +1444,11 @@ msgstr "Đã có bản cập nhật tác nhân"
 msgid "Agent usage"
 msgstr "Mức sử dụng tác nhân"
 
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
+msgid "Agent vision"
+msgstr "Tầm nhìn của tác tử"
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Agent: {description}"
 msgstr "Tác nhân: {description}"
@@ -1451,6 +1456,10 @@ msgstr "Tác nhân: {description}"
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Agent: {subagent}"
 msgstr "Tác nhân: {subagent}"
+
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Agent's view"
+msgstr "Màn hình của tác tử"
 
 #: src/renderer/components/thread/ThreadDockBubbles.tsx
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
@@ -2535,6 +2544,7 @@ msgstr "Duyệt, kiểm tra và thử nghiệm trang web trong trình duyệt t�
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/plugins/pluginCopy.ts
 #: src/renderer/components/providers/settings/ProviderMcpServersSection.tsx
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
@@ -3367,6 +3377,10 @@ msgstr "CLI"
 msgid "CLI hooks"
 msgstr "Hook CLI"
 
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Click"
+msgstr "Nhấp"
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Click a shortcut to record a new key, or ＋ to add another."
 msgstr "Nhấp vào một phím tắt để ghi lại phím mới, hoặc ＋ để thêm phím khác."
@@ -3549,6 +3563,10 @@ msgstr "Đóng ngăn"
 msgid "Close Pane"
 msgstr "Đóng ngăn"
 
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Close picture-in-picture"
+msgstr "Đóng hình trong hình"
+
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Close plan"
 msgstr "Đóng kế hoạch"
@@ -3562,6 +3580,7 @@ msgstr "Đóng PR"
 #~ msgstr "Đóng đánh giá PR"
 
 #: src/renderer/components/composer/ImageLightbox.tsx
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 msgid "Close preview"
 msgstr "Đóng bản xem trước"
 
@@ -3728,6 +3747,10 @@ msgstr "Thu gọn {label}"
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
 msgid "Collapse agent usage"
 msgstr "Thu gọn mức sử dụng tác tử"
+
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Collapse agent vision"
+msgstr "Thu gọn tầm nhìn của tác tử"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions.tsx
 msgid "Collapse all"
@@ -4017,6 +4040,10 @@ msgstr "Nền ô nhập"
 #: src/renderer/components/thread/ThreadComposer.tsx
 msgid "Composer controls"
 msgstr "Điều khiển trình soạn thảo"
+
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Computer use"
+msgstr "Sử dụng máy tính"
 
 #: src/renderer/components/composer/AttachmentBar.tsx
 #: src/renderer/components/composer/ComposerAddMenu.tsx
@@ -6108,6 +6135,10 @@ msgstr "Các tệp tải xuống từ trình duyệt tích hợp được lưu t
 msgid "Draft"
 msgstr "Bản nháp"
 
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Drag"
+msgstr "Kéo"
+
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Drag to reorder how providers appear in the model picker."
@@ -6694,6 +6725,10 @@ msgstr "Mở rộng {label}"
 msgid "Expand agent usage"
 msgstr "Mở rộng mức sử dụng tác tử"
 
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Expand agent vision"
+msgstr "Mở rộng tầm nhìn của tác tử"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions.tsx
 msgid "Expand all"
 msgstr "Mở rộng tất cả"
@@ -6897,6 +6932,7 @@ msgstr "thất bại"
 
 #: src/renderer/components/providers/antigravity/taskNotificationMarkdown.ts
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentMessageList.tsx
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
@@ -10472,6 +10508,7 @@ msgid "Nature & weather"
 msgstr "Thiên nhiên và thời tiết"
 
 #: src/renderer/commands/CommandPalette.tsx
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 msgid "Navigate"
 msgstr "Điều hướng"
 
@@ -11497,6 +11534,10 @@ msgstr "Thông báo cho tôi về"
 msgid "npx"
 msgstr "npx"
 
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Observe"
+msgstr "Quan sát"
+
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Observed"
 msgstr "Đã quan sát"
@@ -11635,6 +11676,10 @@ msgstr "Mở tất cả"
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 msgid "Open all in group"
 msgstr "Mở tất cả trong nhóm"
+
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Open app"
+msgstr "Mở ứng dụng"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
 msgid "Open as page"
@@ -11818,6 +11863,10 @@ msgstr "Mở trên GitHub"
 msgid "Open over SSH"
 msgstr "Mở qua SSH"
 
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Open picture-in-picture"
+msgstr "Mở hình trong hình"
+
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
 msgid "Open plan"
 msgstr "Mở kế hoạch"
@@ -11844,6 +11893,7 @@ msgid "Open PR on source host"
 msgstr "Mở PR trên máy chủ nguồn"
 
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 msgid "Open preview"
 msgstr "Mở xem trước"
 
@@ -12434,6 +12484,10 @@ msgstr "đang chờ xem xét"
 msgid "Pending steer"
 msgstr "Đang chờ chỉ đạo"
 
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Perform actions"
+msgstr "Thực hiện thao tác"
+
 #. placeholder {0}: clearTarget.threads.length
 #. placeholder {1}: clearTarget.label
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
@@ -12881,6 +12935,10 @@ msgstr "Cấu hình sẵn"
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
 msgid "Press Enter to apply."
 msgstr "Nhấn Enter để áp dụng."
+
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Press key"
+msgstr "Nhấn phím"
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Press shortcut…"
@@ -15177,6 +15235,7 @@ msgid "Scoped review watches are unavailable on this host. Update the host befor
 msgstr "Máy chủ này không hỗ trợ theo dõi đánh giá có phạm vi nguồn. Cập nhật máy chủ trước khi bật tự động hóa."
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 msgid "Screenshot"
 msgstr "Ảnh chụp màn hình"
 
@@ -15184,6 +15243,10 @@ msgstr "Ảnh chụp màn hình"
 #: src/renderer/commands/shortcutCatalog.ts
 msgid "Scripts"
 msgstr "Tập lệnh"
+
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Scroll"
+msgstr "Cuộn"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
@@ -18719,6 +18782,10 @@ msgstr "Nhập ít nhất hai ký tự để tìm kiếm tin nhắn"
 msgid "Type on device"
 msgstr "Nhập trên thiết bị"
 
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Type text"
+msgstr "Nhập văn bản"
+
 #: src/renderer/commands/CommandPalette.tsx
 msgid "Type to search files"
 msgstr "Nhập để tìm kiếm tệp"
@@ -18870,6 +18937,10 @@ msgstr "Không thể mở cửa sổ thiết bị."
 #: src/renderer/commands/registry.ts
 msgid "Unable to open file"
 msgstr "Không thể mở tập tin"
+
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Unable to open picture-in-picture"
+msgstr "Không thể mở hình trong hình"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorModal.tsx
 msgid "Unable to open the file"
@@ -20045,6 +20116,10 @@ msgstr "Đang chờ xác thực {env} {methodName}. Các tác nhân được ph�
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Waiting for {methodName} authentication. Detected agents will refresh when it finishes."
 msgstr "Đang chờ xác thực {methodName}. Các tác nhân được phát hiện sẽ làm mới khi hoàn tất."
+
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Waiting for a preview"
+msgstr "Đang chờ bản xem trước"
 
 #: src/renderer/components/thread/ThreadPendingSteerStrip.tsx
 msgid "waiting for agent to stop"

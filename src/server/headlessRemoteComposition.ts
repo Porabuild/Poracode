@@ -346,6 +346,14 @@ export async function composeHeadlessRemoteHost(
         ...(options.reportError ? { reportError: (error) => options.reportError?.(error) } : {}),
       },
       onEvent: (event) => {
+        if (
+          event.type === "thread-exited" ||
+          (event.type === "thread-state" &&
+            event.status !== "working" &&
+            event.status !== "launching")
+        ) {
+          hostServicesRef?.agentVision.stop(event.threadId);
+        }
         administration?.observe(event);
         if (durableServices?.observeSupervisorEvent(event)) return;
         options.onSupervisorEvent?.(event);
@@ -368,6 +376,7 @@ export async function composeHeadlessRemoteHost(
       },
       onRuntimeGapAcknowledged: createRuntimeGapAcknowledgedHook(() => serverRef),
       onReset: () => {
+        hostServicesRef?.agentVision.stopAll();
         administration?.reset();
         durableServices?.handleSupervisorReset();
         // Match the desktop backend: a supervisor crash leaves durable rows
@@ -579,6 +588,8 @@ export async function composeHeadlessRemoteHost(
 
     const server: RemoteAccessServer = new RemoteAccessServer({
       deviceWorkspace: durableServices.deviceWorkspace,
+      readAgentVision: (threadId, preview, streaming) =>
+        hostServices.agentVision.read(threadId, preview, streaming),
       appVersion: options.appVersion,
       hostMode: "helper",
       hostCapabilities: hostServices.capabilities,

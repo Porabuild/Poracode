@@ -437,13 +437,13 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2EThreadU2DCheckpointU2DRevertU2EPath: RemoteRootCodec<ProcedurecancelExtractContextRequest_09b78d9c1d> = .init(id: "route.thread-checkpoint-revert.path", schema: RemoteSchemas.schema_09b78d9c1d4c3a6b)
+  static let routeU2EThreadU2DAgentU2DVisionU2EPath: RemoteRootCodec<ProcedurecancelExtractContextRequest_09b78d9c1d> = .init(id: "route.thread-agent-vision.path", schema: RemoteSchemas.schema_09b78d9c1d4c3a6b)
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2EThreadU2DCheckpointU2DRevertU2ERequest: RemoteRootCodec<RoutethreadU2DCheckpointU2DRevertRequest_40f9a6009b> = .init(id: "route.thread-checkpoint-revert.request", schema: RemoteSchemas.schema_40f9a6009bf15988)
+  static let routeU2EThreadU2DAgentU2DVisionU2EQuery: RemoteRootCodec<RoutethreadU2DAgentU2DVisionQuery_5ffd0d821b> = .init(id: "route.thread-agent-vision.query", schema: RemoteSchemas.schema_5ffd0d821b1e57a8)
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2EThreadU2DCheckpointU2DRevertU2EResponse: RemoteRootCodec<RoutethreadU2DCheckpointU2DRevertResponse_8dfc34ff21> = .init(id: "route.thread-checkpoint-revert.response", schema: RemoteSchemas.schema_8dfc34ff217d09b7)
+  static let routeU2EThreadU2DAgentU2DVisionU2EResponse: RemoteRootCodec<RoutethreadU2DAgentU2DVisionResponse_af80d04059> = .init(id: "route.thread-agent-vision.response", schema: RemoteSchemas.schema_af80d040598805ef)
 }

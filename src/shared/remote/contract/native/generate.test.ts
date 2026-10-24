@@ -76,18 +76,18 @@ describe("remote v3 native binding generator", () => {
         // their native mirrors; native adoption stays planned in native-parity.json.
         // Source-host reviews add one route, twenty-four procedures, and their native mirrors;
         // device workspaces add fourteen routes; saved-message search and fork instructions add roots.
-        sourceHash: "sha256:f6d9164e35a330e97c3d1113c1f2a7fbf31146d1d183eb4a7f4357cdb1d07c73",
-        manifestHash: "sha256:ec54bd073c141e96aa6a0217251754ff1f4f8bcb1b267d582dad19b02621ae89",
+        sourceHash: "sha256:01687fad8368485644ee6aaaa7c0a9815c5a559167585b140050f302feab4a99",
+        manifestHash: "sha256:4d01146c9d26969743e91367ebe4dd46850c2c049d04d6cf6745b091de8fdcad",
         counts: {
-          routes: 118,
+          routes: 119,
           procedures: 154,
           voidProcedureResults: 59,
           jsonProcedureResults: 95,
-          webSocketClientVariants: 9,
-          // 10 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
-          webSocketServerVariants: 11,
-          schemaRoots: 525,
-          structuralTypes: 1170,
+          webSocketClientVariants: 11,
+          // 11 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
+          webSocketServerVariants: 12,
+          schemaRoots: 531,
+          structuralTypes: 1182,
           semanticValidators: 25,
           swiftFiles: 73,
           kotlinFiles: 63,
@@ -362,7 +362,7 @@ describe("remote v3 native binding generator", () => {
       const output = buildNativeBindingOutput(ir, manifest).files;
       for (const language of ["swift", "kotlin"] as const) {
         const adapters = rootAdapters(graph, language);
-        expect(adapters).toHaveLength(525);
+        expect(adapters).toHaveLength(531);
         expect(
           adapters
             .map((adapter) => adapter.id)

@@ -1444,6 +1444,11 @@ msgstr "에이전트 업데이트 사용 가능"
 msgid "Agent usage"
 msgstr "에이전트 사용"
 
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
+msgid "Agent vision"
+msgstr "에이전트 시야"
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Agent: {description}"
 msgstr "에이전트: {description}"
@@ -1451,6 +1456,10 @@ msgstr "에이전트: {description}"
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Agent: {subagent}"
 msgstr "에이전트: {subagent}"
+
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Agent's view"
+msgstr "에이전트 화면"
 
 #: src/renderer/components/thread/ThreadDockBubbles.tsx
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
@@ -2535,6 +2544,7 @@ msgstr "Poracode의 격리된 내장 브라우저에서 웹사이트를 탐색�
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/plugins/pluginCopy.ts
 #: src/renderer/components/providers/settings/ProviderMcpServersSection.tsx
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
@@ -3367,6 +3377,10 @@ msgstr "CLI"
 msgid "CLI hooks"
 msgstr "CLI 후크"
 
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Click"
+msgstr "클릭"
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Click a shortcut to record a new key, or ＋ to add another."
 msgstr "단축키를 클릭하여 새 키를 기록하거나 ＋를 눌러 추가하세요."
@@ -3549,6 +3563,10 @@ msgstr "창 닫기"
 msgid "Close Pane"
 msgstr "창 닫기"
 
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Close picture-in-picture"
+msgstr "화면 속 화면 닫기"
+
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Close plan"
 msgstr "계획 종료"
@@ -3562,6 +3580,7 @@ msgstr "PR 닫기"
 #~ msgstr "PR 리뷰 닫기"
 
 #: src/renderer/components/composer/ImageLightbox.tsx
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 msgid "Close preview"
 msgstr "미리보기 닫기"
 
@@ -3728,6 +3747,10 @@ msgstr "{label} 접기"
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
 msgid "Collapse agent usage"
 msgstr "에이전트 사용량 접기"
+
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Collapse agent vision"
+msgstr "에이전트 시야 접기"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions.tsx
 msgid "Collapse all"
@@ -4017,6 +4040,10 @@ msgstr "입력창 배경"
 #: src/renderer/components/thread/ThreadComposer.tsx
 msgid "Composer controls"
 msgstr "작성기 컨트롤"
+
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Computer use"
+msgstr "컴퓨터 사용"
 
 #: src/renderer/components/composer/AttachmentBar.tsx
 #: src/renderer/components/composer/ComposerAddMenu.tsx
@@ -6108,6 +6135,10 @@ msgstr "내장 브라우저에서 다운로드한 항목은 이 기록에 저장
 msgid "Draft"
 msgstr "초안"
 
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Drag"
+msgstr "드래그"
+
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Drag to reorder how providers appear in the model picker."
@@ -6694,6 +6725,10 @@ msgstr "{label} 펼치기"
 msgid "Expand agent usage"
 msgstr "에이전트 사용량 펼치기"
 
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Expand agent vision"
+msgstr "에이전트 시야 펼치기"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions.tsx
 msgid "Expand all"
 msgstr "모두 펼치기"
@@ -6897,6 +6932,7 @@ msgstr "실패"
 
 #: src/renderer/components/providers/antigravity/taskNotificationMarkdown.ts
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentMessageList.tsx
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
@@ -10472,6 +10508,7 @@ msgid "Nature & weather"
 msgstr "자연 및 날씨"
 
 #: src/renderer/commands/CommandPalette.tsx
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 msgid "Navigate"
 msgstr "탐색"
 
@@ -11497,6 +11534,10 @@ msgstr "나에게 알림"
 msgid "npx"
 msgstr "npx"
 
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Observe"
+msgstr "관찰"
+
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Observed"
 msgstr "관찰됨"
@@ -11635,6 +11676,10 @@ msgstr "모두 열기"
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 msgid "Open all in group"
 msgstr "그룹에서 모두 열기"
+
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Open app"
+msgstr "앱 열기"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
 msgid "Open as page"
@@ -11818,6 +11863,10 @@ msgstr "GitHub에서 열기"
 msgid "Open over SSH"
 msgstr "SSH로 열기"
 
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Open picture-in-picture"
+msgstr "화면 속 화면 열기"
+
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
 msgid "Open plan"
 msgstr "계획 열기"
@@ -11844,6 +11893,7 @@ msgid "Open PR on source host"
 msgstr "소스 호스트에서 PR 열기"
 
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 msgid "Open preview"
 msgstr "미리보기 열기"
 
@@ -12434,6 +12484,10 @@ msgstr "검토 대기 중"
 msgid "Pending steer"
 msgstr "조정 대기 중"
 
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Perform actions"
+msgstr "작업 수행"
+
 #. placeholder {0}: clearTarget.threads.length
 #. placeholder {1}: clearTarget.label
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
@@ -12881,6 +12935,10 @@ msgstr "프리셋"
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
 msgid "Press Enter to apply."
 msgstr "Enter 키를 눌러 적용하세요."
+
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Press key"
+msgstr "키 누르기"
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Press shortcut…"
@@ -15177,6 +15235,7 @@ msgid "Scoped review watches are unavailable on this host. Update the host befor
 msgstr "이 호스트에서는 소스 범위가 지정된 리뷰 감시를 사용할 수 없습니다. 자동화를 활성화하기 전에 호스트를 업데이트하세요."
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 msgid "Screenshot"
 msgstr "스크린샷"
 
@@ -15184,6 +15243,10 @@ msgstr "스크린샷"
 #: src/renderer/commands/shortcutCatalog.ts
 msgid "Scripts"
 msgstr "스크립트"
+
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Scroll"
+msgstr "스크롤"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
@@ -18719,6 +18782,10 @@ msgstr "메시지를 검색하려면 두 글자 이상 입력하세요"
 msgid "Type on device"
 msgstr "기기에 입력"
 
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Type text"
+msgstr "텍스트 입력"
+
 #: src/renderer/commands/CommandPalette.tsx
 msgid "Type to search files"
 msgstr "입력하여 파일 검색"
@@ -18870,6 +18937,10 @@ msgstr "기기 창을 열 수 없습니다."
 #: src/renderer/commands/registry.ts
 msgid "Unable to open file"
 msgstr "파일을 열 수 없습니다."
+
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Unable to open picture-in-picture"
+msgstr "화면 속 화면을 열 수 없습니다"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorModal.tsx
 msgid "Unable to open the file"
@@ -20045,6 +20116,10 @@ msgstr "{env} {methodName} 인증을 기다리는 중입니다. 감지된 에이
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Waiting for {methodName} authentication. Detected agents will refresh when it finishes."
 msgstr "{methodName} 인증을 기다리는 중입니다. 감지된 에이전트는 완료되면 새로 고쳐집니다."
+
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Waiting for a preview"
+msgstr "미리보기 대기 중"
 
 #: src/renderer/components/thread/ThreadPendingSteerStrip.tsx
 msgid "waiting for agent to stop"

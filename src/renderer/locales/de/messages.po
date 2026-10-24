@@ -1444,6 +1444,11 @@ msgstr "Agent-Update verfügbar"
 msgid "Agent usage"
 msgstr "Agent-Nutzung"
 
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
+msgid "Agent vision"
+msgstr "Agentenansicht"
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Agent: {description}"
 msgstr "Agent:{description}"
@@ -1451,6 +1456,10 @@ msgstr "Agent:{description}"
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Agent: {subagent}"
 msgstr "Agent:{subagent}"
+
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Agent's view"
+msgstr "Ansicht des Agenten"
 
 #: src/renderer/components/thread/ThreadDockBubbles.tsx
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
@@ -2535,6 +2544,7 @@ msgstr "Websites im isolierten In-App-Browser von Poracode ansehen, prüfen und 
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/plugins/pluginCopy.ts
 #: src/renderer/components/providers/settings/ProviderMcpServersSection.tsx
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
@@ -3367,6 +3377,10 @@ msgstr "CLI"
 msgid "CLI hooks"
 msgstr "CLI-Hooks"
 
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Click"
+msgstr "Klicken"
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Click a shortcut to record a new key, or ＋ to add another."
 msgstr "Klicke auf ein Tastenkürzel, um eine neue Taste aufzuzeichnen, oder auf ＋, um ein weiteres hinzuzufügen."
@@ -3549,6 +3563,10 @@ msgstr "Bereich schließen"
 msgid "Close Pane"
 msgstr "Bereich schließen"
 
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Close picture-in-picture"
+msgstr "Bild-in-Bild schließen"
+
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Close plan"
 msgstr "Plan schließen"
@@ -3562,6 +3580,7 @@ msgstr "PR schließen"
 #~ msgstr "PR-Review schließen"
 
 #: src/renderer/components/composer/ImageLightbox.tsx
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 msgid "Close preview"
 msgstr "Vorschau schließen"
 
@@ -3728,6 +3747,10 @@ msgstr "{label} einklappen"
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
 msgid "Collapse agent usage"
 msgstr "Agent-Nutzung einklappen"
+
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Collapse agent vision"
+msgstr "Agentenansicht einklappen"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions.tsx
 msgid "Collapse all"
@@ -4017,6 +4040,10 @@ msgstr "Hintergrund des Eingabefelds"
 #: src/renderer/components/thread/ThreadComposer.tsx
 msgid "Composer controls"
 msgstr "Composer-Steuerung"
+
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Computer use"
+msgstr "Computersteuerung"
 
 #: src/renderer/components/composer/AttachmentBar.tsx
 #: src/renderer/components/composer/ComposerAddMenu.tsx
@@ -6108,6 +6135,10 @@ msgstr "Downloads aus dem integrierten Browser werden in diesem Verlauf gespeich
 msgid "Draft"
 msgstr "Entwurf"
 
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Drag"
+msgstr "Ziehen"
+
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Drag to reorder how providers appear in the model picker."
@@ -6694,6 +6725,10 @@ msgstr "Erweitern Sie {label}"
 msgid "Expand agent usage"
 msgstr "Agent-Nutzung ausklappen"
 
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Expand agent vision"
+msgstr "Agentenansicht ausklappen"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions.tsx
 msgid "Expand all"
 msgstr "Alles erweitern"
@@ -6897,6 +6932,7 @@ msgstr "fehlgeschlagen"
 
 #: src/renderer/components/providers/antigravity/taskNotificationMarkdown.ts
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentMessageList.tsx
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
@@ -10472,6 +10508,7 @@ msgid "Nature & weather"
 msgstr "Natur & Wetter"
 
 #: src/renderer/commands/CommandPalette.tsx
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 msgid "Navigate"
 msgstr "Navigieren"
 
@@ -11497,6 +11534,10 @@ msgstr "Benachrichtigen über"
 msgid "npx"
 msgstr "npx"
 
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Observe"
+msgstr "Beobachten"
+
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Observed"
 msgstr "Beobachtet"
@@ -11635,6 +11676,10 @@ msgstr "Alle öffnen"
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 msgid "Open all in group"
 msgstr "Alle in der Gruppe öffnen"
+
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Open app"
+msgstr "App öffnen"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
 msgid "Open as page"
@@ -11818,6 +11863,10 @@ msgstr "Auf GitHub öffnen"
 msgid "Open over SSH"
 msgstr "Über SSH öffnen"
 
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Open picture-in-picture"
+msgstr "Bild-in-Bild öffnen"
+
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
 msgid "Open plan"
 msgstr "Plan öffnen"
@@ -11844,6 +11893,7 @@ msgid "Open PR on source host"
 msgstr "PR auf dem Quellhost öffnen"
 
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 msgid "Open preview"
 msgstr "Vorschau öffnen"
 
@@ -12434,6 +12484,10 @@ msgstr "noch ausstehende Überprüfung"
 msgid "Pending steer"
 msgstr "Ausstehende Lenkung"
 
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Perform actions"
+msgstr "Aktionen ausführen"
+
 #. placeholder {0}: clearTarget.threads.length
 #. placeholder {1}: clearTarget.label
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
@@ -12881,6 +12935,10 @@ msgstr "Voreinstellungen"
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
 msgid "Press Enter to apply."
 msgstr "Zum Anwenden die Eingabetaste drücken."
+
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Press key"
+msgstr "Taste drücken"
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Press shortcut…"
@@ -15177,6 +15235,7 @@ msgid "Scoped review watches are unavailable on this host. Update the host befor
 msgstr "Quellgebundene Review-Überwachungen sind auf diesem Host nicht verfügbar. Aktualisiere den Host vor dem Aktivieren der Automatisierung."
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 msgid "Screenshot"
 msgstr "Screenshot"
 
@@ -15184,6 +15243,10 @@ msgstr "Screenshot"
 #: src/renderer/commands/shortcutCatalog.ts
 msgid "Scripts"
 msgstr "Skripte"
+
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Scroll"
+msgstr "Scrollen"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
@@ -18719,6 +18782,10 @@ msgstr "Mindestens zwei Zeichen eingeben, um Nachrichten zu durchsuchen"
 msgid "Type on device"
 msgstr "Auf Gerät tippen"
 
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Type text"
+msgstr "Text eingeben"
+
 #: src/renderer/commands/CommandPalette.tsx
 msgid "Type to search files"
 msgstr "Tippe, um Dateien zu suchen"
@@ -18870,6 +18937,10 @@ msgstr "Gerätefenster konnte nicht geöffnet werden."
 #: src/renderer/commands/registry.ts
 msgid "Unable to open file"
 msgstr "Datei kann nicht geöffnet werden"
+
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Unable to open picture-in-picture"
+msgstr "Bild-in-Bild kann nicht geöffnet werden"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorModal.tsx
 msgid "Unable to open the file"
@@ -20045,6 +20116,10 @@ msgstr "Warten auf {env}-{methodName}-Authentifizierung. Erkannte Agenten werden
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Waiting for {methodName} authentication. Detected agents will refresh when it finishes."
 msgstr "Warten auf {methodName}-Authentifizierung. Erkannte Agenten werden aktualisiert, wenn der Vorgang abgeschlossen ist."
+
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Waiting for a preview"
+msgstr "Vorschau wird geladen"
 
 #: src/renderer/components/thread/ThreadPendingSteerStrip.tsx
 msgid "waiting for agent to stop"

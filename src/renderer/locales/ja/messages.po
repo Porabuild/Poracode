@@ -1443,6 +1443,11 @@ msgstr "エージェントのアップデートが利用可能"
 msgid "Agent usage"
 msgstr "エージェントの使用"
 
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
+msgid "Agent vision"
+msgstr "エージェントの視覚"
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Agent: {description}"
 msgstr "エージェント:{description}"
@@ -1450,6 +1455,10 @@ msgstr "エージェント:{description}"
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Agent: {subagent}"
 msgstr "エージェント:{subagent}"
+
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Agent's view"
+msgstr "エージェントの表示"
 
 #: src/renderer/components/thread/ThreadDockBubbles.tsx
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
@@ -2534,6 +2543,7 @@ msgstr "Poracode の隔離された組み込みブラウザーで Web サイト�
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/plugins/pluginCopy.ts
 #: src/renderer/components/providers/settings/ProviderMcpServersSection.tsx
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
@@ -3366,6 +3376,10 @@ msgstr "CLI"
 msgid "CLI hooks"
 msgstr "CLIフック"
 
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Click"
+msgstr "クリック"
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Click a shortcut to record a new key, or ＋ to add another."
 msgstr "ショートカットをクリックして新しいキーを記録するか、＋で別のキーを追加します。"
@@ -3548,6 +3562,10 @@ msgstr "ペインを閉じる"
 msgid "Close Pane"
 msgstr "ペインを閉じる"
 
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Close picture-in-picture"
+msgstr "ピクチャーインピクチャーを閉じる"
+
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Close plan"
 msgstr "計画を閉じる"
@@ -3561,6 +3579,7 @@ msgstr "PRを閉じる"
 #~ msgstr "PR レビューを閉じる"
 
 #: src/renderer/components/composer/ImageLightbox.tsx
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 msgid "Close preview"
 msgstr "プレビューを閉じる"
 
@@ -3727,6 +3746,10 @@ msgstr "{label}を折りたたむ"
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
 msgid "Collapse agent usage"
 msgstr "エージェントの使用状況を折りたたむ"
+
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Collapse agent vision"
+msgstr "エージェントの視覚を折りたたむ"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions.tsx
 msgid "Collapse all"
@@ -4016,6 +4039,10 @@ msgstr "入力欄の背景"
 #: src/renderer/components/thread/ThreadComposer.tsx
 msgid "Composer controls"
 msgstr "コンポーザーの操作"
+
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Computer use"
+msgstr "コンピューター操作"
 
 #: src/renderer/components/composer/AttachmentBar.tsx
 #: src/renderer/components/composer/ComposerAddMenu.tsx
@@ -6107,6 +6134,10 @@ msgstr "内蔵ブラウザからのダウンロードはこの履歴に保存さ
 msgid "Draft"
 msgstr "草案"
 
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Drag"
+msgstr "ドラッグ"
+
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Drag to reorder how providers appear in the model picker."
@@ -6693,6 +6724,10 @@ msgstr "{label}を展開する"
 msgid "Expand agent usage"
 msgstr "エージェントの使用状況を展開"
 
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Expand agent vision"
+msgstr "エージェントの視覚を展開"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions.tsx
 msgid "Expand all"
 msgstr "すべて展開"
@@ -6896,6 +6931,7 @@ msgstr "失敗しました"
 
 #: src/renderer/components/providers/antigravity/taskNotificationMarkdown.ts
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentMessageList.tsx
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
@@ -10470,6 +10506,7 @@ msgid "Nature & weather"
 msgstr "自然と天気"
 
 #: src/renderer/commands/CommandPalette.tsx
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 msgid "Navigate"
 msgstr "移動"
 
@@ -11495,6 +11532,10 @@ msgstr "通知する対象"
 msgid "npx"
 msgstr "npx"
 
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Observe"
+msgstr "観察"
+
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Observed"
 msgstr "観測済み"
@@ -11633,6 +11674,10 @@ msgstr "すべて開く"
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 msgid "Open all in group"
 msgstr "グループ内ですべてを開く"
+
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Open app"
+msgstr "アプリを開く"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
 msgid "Open as page"
@@ -11816,6 +11861,10 @@ msgstr "GitHub で開く"
 msgid "Open over SSH"
 msgstr "SSH で開く"
 
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Open picture-in-picture"
+msgstr "ピクチャーインピクチャーを開く"
+
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
 msgid "Open plan"
 msgstr "プランを開く"
@@ -11842,6 +11891,7 @@ msgid "Open PR on source host"
 msgstr "ソースホストで PR を開く"
 
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 msgid "Open preview"
 msgstr "プレビューを開く"
 
@@ -12432,6 +12482,10 @@ msgstr "審査待ち"
 msgid "Pending steer"
 msgstr "保留中のステアリング"
 
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Perform actions"
+msgstr "操作を実行"
+
 #. placeholder {0}: clearTarget.threads.length
 #. placeholder {1}: clearTarget.label
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
@@ -12879,6 +12933,10 @@ msgstr "プリセット"
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
 msgid "Press Enter to apply."
 msgstr "Enterキーで適用します。"
+
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Press key"
+msgstr "キーを押す"
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Press shortcut…"
@@ -15175,6 +15233,7 @@ msgid "Scoped review watches are unavailable on this host. Update the host befor
 msgstr "このホストではソース範囲を指定したレビュー監視を利用できません。自動化を有効にする前にホストを更新してください。"
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 msgid "Screenshot"
 msgstr "スクリーンショット"
 
@@ -15182,6 +15241,10 @@ msgstr "スクリーンショット"
 #: src/renderer/commands/shortcutCatalog.ts
 msgid "Scripts"
 msgstr "スクリプト"
+
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Scroll"
+msgstr "スクロール"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
@@ -18717,6 +18780,10 @@ msgstr "メッセージを検索するには2文字以上入力してくださ�
 msgid "Type on device"
 msgstr "デバイスに入力"
 
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Type text"
+msgstr "テキストを入力"
+
 #: src/renderer/commands/CommandPalette.tsx
 msgid "Type to search files"
 msgstr "入力してファイルを検索"
@@ -18868,6 +18935,10 @@ msgstr "デバイスのウィンドウを開けませんでした。"
 #: src/renderer/commands/registry.ts
 msgid "Unable to open file"
 msgstr "ファイルを開けません"
+
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Unable to open picture-in-picture"
+msgstr "ピクチャーインピクチャーを開けません"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorModal.tsx
 msgid "Unable to open the file"
@@ -20043,6 +20114,10 @@ msgstr "{env}{methodName}認証を待機しています。検出されたエー�
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Waiting for {methodName} authentication. Detected agents will refresh when it finishes."
 msgstr "{methodName}認証を待機しています。検出されたエージェントは終了時に更新されます。"
+
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Waiting for a preview"
+msgstr "プレビューを待機中"
 
 #: src/renderer/components/thread/ThreadPendingSteerStrip.tsx
 msgid "waiting for agent to stop"

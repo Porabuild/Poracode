@@ -1444,6 +1444,11 @@ msgstr "代理更新可用"
 msgid "Agent usage"
 msgstr "智能体使用情况"
 
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
+msgid "Agent vision"
+msgstr "智能体视野"
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Agent: {description}"
 msgstr "代理：{description}"
@@ -1451,6 +1456,10 @@ msgstr "代理：{description}"
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Agent: {subagent}"
 msgstr "代理：{subagent}"
+
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Agent's view"
+msgstr "智能体画面"
 
 #: src/renderer/components/thread/ThreadDockBubbles.tsx
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
@@ -2535,6 +2544,7 @@ msgstr "在 Poracode 隔离的内置浏览器中浏览、检查并测试网站�
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/plugins/pluginCopy.ts
 #: src/renderer/components/providers/settings/ProviderMcpServersSection.tsx
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
@@ -3367,6 +3377,10 @@ msgstr "CLI"
 msgid "CLI hooks"
 msgstr "CLI 挂钩"
 
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Click"
+msgstr "点击"
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Click a shortcut to record a new key, or ＋ to add another."
 msgstr "点击快捷键以录制新的按键，或点击 ＋ 添加另一个。"
@@ -3549,6 +3563,10 @@ msgstr "关闭窗格"
 msgid "Close Pane"
 msgstr "关闭窗格"
 
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Close picture-in-picture"
+msgstr "关闭画中画"
+
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Close plan"
 msgstr "关闭计划"
@@ -3562,6 +3580,7 @@ msgstr "关闭 PR"
 #~ msgstr "关闭 PR 评审"
 
 #: src/renderer/components/composer/ImageLightbox.tsx
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 msgid "Close preview"
 msgstr "关闭预览"
 
@@ -3728,6 +3747,10 @@ msgstr "折叠{label}"
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
 msgid "Collapse agent usage"
 msgstr "折叠智能体用量"
+
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Collapse agent vision"
+msgstr "收起智能体视野"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions.tsx
 msgid "Collapse all"
@@ -4017,6 +4040,10 @@ msgstr "输入框背景"
 #: src/renderer/components/thread/ThreadComposer.tsx
 msgid "Composer controls"
 msgstr "Composer 控件"
+
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Computer use"
+msgstr "电脑操作"
 
 #: src/renderer/components/composer/AttachmentBar.tsx
 #: src/renderer/components/composer/ComposerAddMenu.tsx
@@ -6108,6 +6135,10 @@ msgstr "内置浏览器中的下载内容会保存在此记录中。"
 msgid "Draft"
 msgstr "草稿"
 
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Drag"
+msgstr "拖动"
+
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Drag to reorder how providers appear in the model picker."
@@ -6694,6 +6725,10 @@ msgstr "展开{label}"
 msgid "Expand agent usage"
 msgstr "展开智能体用量"
 
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Expand agent vision"
+msgstr "展开智能体视野"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions.tsx
 msgid "Expand all"
 msgstr "全部展开"
@@ -6897,6 +6932,7 @@ msgstr "失败了"
 
 #: src/renderer/components/providers/antigravity/taskNotificationMarkdown.ts
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentMessageList.tsx
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
@@ -10471,6 +10507,7 @@ msgid "Nature & weather"
 msgstr "自然与天气"
 
 #: src/renderer/commands/CommandPalette.tsx
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 msgid "Navigate"
 msgstr "导航"
 
@@ -11496,6 +11533,10 @@ msgstr "通知我有关"
 msgid "npx"
 msgstr "npx"
 
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Observe"
+msgstr "观察"
+
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Observed"
 msgstr "已观察"
@@ -11634,6 +11675,10 @@ msgstr "打开全部"
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 msgid "Open all in group"
 msgstr "组内全部打开"
+
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Open app"
+msgstr "打开应用"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
 msgid "Open as page"
@@ -11817,6 +11862,10 @@ msgstr "在 GitHub 上打开"
 msgid "Open over SSH"
 msgstr "通过 SSH 打开"
 
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Open picture-in-picture"
+msgstr "打开画中画"
+
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
 msgid "Open plan"
 msgstr "打开计划"
@@ -11843,6 +11892,7 @@ msgid "Open PR on source host"
 msgstr "在源托管平台上打开 PR"
 
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 msgid "Open preview"
 msgstr "打开预览"
 
@@ -12433,6 +12483,10 @@ msgstr "待审查"
 msgid "Pending steer"
 msgstr "等待引导"
 
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Perform actions"
+msgstr "执行操作"
+
 #. placeholder {0}: clearTarget.threads.length
 #. placeholder {1}: clearTarget.label
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
@@ -12880,6 +12934,10 @@ msgstr "预设"
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
 msgid "Press Enter to apply."
 msgstr "按 Enter 应用。"
+
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Press key"
+msgstr "按键"
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Press shortcut…"
@@ -15176,6 +15234,7 @@ msgid "Scoped review watches are unavailable on this host. Update the host befor
 msgstr "此主机不支持带源范围的评审监控。请更新主机后再启用自动化。"
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 msgid "Screenshot"
 msgstr "屏幕截图"
 
@@ -15183,6 +15242,10 @@ msgstr "屏幕截图"
 #: src/renderer/commands/shortcutCatalog.ts
 msgid "Scripts"
 msgstr "脚本"
+
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Scroll"
+msgstr "滚动"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
@@ -18718,6 +18781,10 @@ msgstr "请输入至少两个字符以搜索消息"
 msgid "Type on device"
 msgstr "在设备上输入"
 
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Type text"
+msgstr "输入文本"
+
 #: src/renderer/commands/CommandPalette.tsx
 msgid "Type to search files"
 msgstr "输入以搜索文件"
@@ -18869,6 +18936,10 @@ msgstr "无法打开设备窗口。"
 #: src/renderer/commands/registry.ts
 msgid "Unable to open file"
 msgstr "无法打开文件"
+
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Unable to open picture-in-picture"
+msgstr "无法打开画中画"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorModal.tsx
 msgid "Unable to open the file"
@@ -20044,6 +20115,10 @@ msgstr "等待{env}{methodName}验证。检测到的代理将在完成后刷新�
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Waiting for {methodName} authentication. Detected agents will refresh when it finishes."
 msgstr "等待{methodName}身份验证。检测到的代理将在完成后刷新。"
+
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Waiting for a preview"
+msgstr "正在等待预览"
 
 #: src/renderer/components/thread/ThreadPendingSteerStrip.tsx
 msgid "waiting for agent to stop"

@@ -1444,6 +1444,11 @@ msgstr "Temsilci güncellemesi mevcut"
 msgid "Agent usage"
 msgstr "Ajan kullanımı"
 
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
+msgid "Agent vision"
+msgstr "Ajanın görüşü"
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Agent: {description}"
 msgstr "Temsilci: {description}"
@@ -1451,6 +1456,10 @@ msgstr "Temsilci: {description}"
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Agent: {subagent}"
 msgstr "Temsilci: {subagent}"
+
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Agent's view"
+msgstr "Ajanın ekranı"
 
 #: src/renderer/components/thread/ThreadDockBubbles.tsx
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
@@ -2535,6 +2544,7 @@ msgstr "Poracode'un yalıtılmış uygulama içi tarayıcısında siteleri gezin
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/plugins/pluginCopy.ts
 #: src/renderer/components/providers/settings/ProviderMcpServersSection.tsx
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
@@ -3367,6 +3377,10 @@ msgstr "CLI"
 msgid "CLI hooks"
 msgstr "CLI kancaları"
 
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Click"
+msgstr "Tıkla"
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Click a shortcut to record a new key, or ＋ to add another."
 msgstr "Yeni bir tuş kaydetmek için bir kısayola tıklayın veya başka bir tane eklemek için ＋ simgesine tıklayın."
@@ -3549,6 +3563,10 @@ msgstr "Bölmeyi kapat"
 msgid "Close Pane"
 msgstr "Bölmeyi Kapat"
 
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Close picture-in-picture"
+msgstr "Resim içinde resmi kapat"
+
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Close plan"
 msgstr "Planı kapat"
@@ -3562,6 +3580,7 @@ msgstr "PR'yi kapat"
 #~ msgstr "PR incelemesini kapat"
 
 #: src/renderer/components/composer/ImageLightbox.tsx
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 msgid "Close preview"
 msgstr "Önizlemeyi kapat"
 
@@ -3728,6 +3747,10 @@ msgstr "{label} daralt"
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
 msgid "Collapse agent usage"
 msgstr "Ajan kullanımını daralt"
+
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Collapse agent vision"
+msgstr "Ajanın görüşünü daralt"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions.tsx
 msgid "Collapse all"
@@ -4017,6 +4040,10 @@ msgstr "Giriş alanı arka planı"
 #: src/renderer/components/thread/ThreadComposer.tsx
 msgid "Composer controls"
 msgstr "Composer denetimleri"
+
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Computer use"
+msgstr "Bilgisayar kullanımı"
 
 #: src/renderer/components/composer/AttachmentBar.tsx
 #: src/renderer/components/composer/ComposerAddMenu.tsx
@@ -6108,6 +6135,10 @@ msgstr "Yerleşik tarayıcıdan indirilenler bu geçmişe kaydedilir."
 msgid "Draft"
 msgstr "Taslak"
 
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Drag"
+msgstr "Sürükle"
+
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Drag to reorder how providers appear in the model picker."
@@ -6694,6 +6725,10 @@ msgstr "{label} genişlet"
 msgid "Expand agent usage"
 msgstr "Ajan kullanımını genişlet"
 
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Expand agent vision"
+msgstr "Ajanın görüşünü genişlet"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions.tsx
 msgid "Expand all"
 msgstr "Tümünü genişlet"
@@ -6897,6 +6932,7 @@ msgstr "başarısız oldu"
 
 #: src/renderer/components/providers/antigravity/taskNotificationMarkdown.ts
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentMessageList.tsx
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
@@ -10472,6 +10508,7 @@ msgid "Nature & weather"
 msgstr "Doğa ve hava durumu"
 
 #: src/renderer/commands/CommandPalette.tsx
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 msgid "Navigate"
 msgstr "Gezin"
 
@@ -11497,6 +11534,10 @@ msgstr "Beni bilgilendir"
 msgid "npx"
 msgstr "npx"
 
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Observe"
+msgstr "Gözlemle"
+
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Observed"
 msgstr "Gözlemlendi"
@@ -11635,6 +11676,10 @@ msgstr "Tümünü Aç"
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 msgid "Open all in group"
 msgstr "Gruptakilerin tümünü aç"
+
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Open app"
+msgstr "Uygulamayı aç"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
 msgid "Open as page"
@@ -11818,6 +11863,10 @@ msgstr "GitHub'da aç"
 msgid "Open over SSH"
 msgstr "SSH ile aç"
 
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Open picture-in-picture"
+msgstr "Resim içinde resim aç"
+
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
 msgid "Open plan"
 msgstr "Planı aç"
@@ -11844,6 +11893,7 @@ msgid "Open PR on source host"
 msgstr "PR'ı kaynak sunucusunda aç"
 
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 msgid "Open preview"
 msgstr "Önizlemeyi aç"
 
@@ -12434,6 +12484,10 @@ msgstr "inceleme bekleniyor"
 msgid "Pending steer"
 msgstr "Yönlendirme bekleniyor"
 
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Perform actions"
+msgstr "İşlemleri gerçekleştir"
+
 #. placeholder {0}: clearTarget.threads.length
 #. placeholder {1}: clearTarget.label
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
@@ -12881,6 +12935,10 @@ msgstr "Hazır ayarlar"
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
 msgid "Press Enter to apply."
 msgstr "Uygulamak için Enter tuşuna basın."
+
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Press key"
+msgstr "Tuşa bas"
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Press shortcut…"
@@ -15177,6 +15235,7 @@ msgid "Scoped review watches are unavailable on this host. Update the host befor
 msgstr "Kaynak kapsamlı inceleme izleme bu sunucuda kullanılamıyor. Otomasyonu etkinleştirmeden önce sunucuyu güncelleyin."
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 msgid "Screenshot"
 msgstr "Ekran görüntüsü"
 
@@ -15184,6 +15243,10 @@ msgstr "Ekran görüntüsü"
 #: src/renderer/commands/shortcutCatalog.ts
 msgid "Scripts"
 msgstr "Komut dosyaları"
+
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Scroll"
+msgstr "Kaydır"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
@@ -18719,6 +18782,10 @@ msgstr "Mesaj aramak için en az iki karakter yazın"
 msgid "Type on device"
 msgstr "Cihaza yaz"
 
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Type text"
+msgstr "Metin yaz"
+
 #: src/renderer/commands/CommandPalette.tsx
 msgid "Type to search files"
 msgstr "Dosya aramak için yazın"
@@ -18870,6 +18937,10 @@ msgstr "Cihaz penceresi açılamadı."
 #: src/renderer/commands/registry.ts
 msgid "Unable to open file"
 msgstr "Dosya açılamıyor"
+
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Unable to open picture-in-picture"
+msgstr "Resim içinde resim açılamadı"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorModal.tsx
 msgid "Unable to open the file"
@@ -20045,6 +20116,10 @@ msgstr "{env} {methodName} kimlik doğrulaması bekleniyor. Tamamlandığında a
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Waiting for {methodName} authentication. Detected agents will refresh when it finishes."
 msgstr "{methodName} kimlik doğrulaması bekleniyor. Tamamlandığında algılanan aracılar yenilenecektir."
+
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Waiting for a preview"
+msgstr "Önizleme bekleniyor"
 
 #: src/renderer/components/thread/ThreadPendingSteerStrip.tsx
 msgid "waiting for agent to stop"

@@ -125,6 +125,7 @@ function param(name: string, kind: QueryCodecKind, optional: boolean): QueryPara
 
 /** HTTP route query-parameter codecs, keyed by route id. */
 export const ROUTE_QUERY_CODECS: Readonly<Record<string, readonly QueryParameterCodec[]>> = {
+  "thread-agent-vision": [param("preview", "string", true)],
   "conversation-search": [
     param("version", "string", false),
     param("query", "string", false),
