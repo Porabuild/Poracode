@@ -232,6 +232,23 @@ describe("UserInputForm step keyboard navigation", () => {
     expect(document.activeElement).toBe(color);
   });
 
+  it("keeps visible labels on both unanswered and answered question tabs", () => {
+    const { getByRole } = renderQuestions(details);
+    const color = getByRole("tab", { name: "Color" });
+    const notes = getByRole("tab", { name: "Notes" });
+    expect(color.textContent).toContain("Color");
+    expect(notes.textContent).toContain("Notes");
+    fireEvent.click(getByRole("option", { name: /Blue/ }));
+    fireEvent.change(getByRole("textbox"), { target: { value: "Ready" } });
+    expect(color.textContent).toBe("Color");
+    expect(notes.textContent).toBe("Notes");
+    expect(color.querySelector("svg")).not.toBeNull();
+    expect(notes.querySelector("svg")).not.toBeNull();
+    fireEvent.click(color);
+    expect(color.getAttribute("aria-selected")).toBe("true");
+    expect(getByRole("option", { name: /Blue/ }).getAttribute("aria-selected")).toBe("true");
+  });
+
   it("Enter on a custom answer advances, then only the final step submits", () => {
     const { getByRole, onSubmit } = renderQuestions(details);
     const custom = getByRole("textbox");

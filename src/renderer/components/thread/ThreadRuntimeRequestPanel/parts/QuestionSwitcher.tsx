@@ -4,7 +4,7 @@ import { useLingui } from "@lingui/react/macro";
 
 export type QuestionStep = { id: string; label: string; answered: boolean };
 
-/** Compact step tabs; the header already shows the active question's title. */
+/** Labeled step tabs keep each question identifiable after it is answered. */
 export function QuestionSwitcher(props: {
   steps: readonly QuestionStep[];
   activeIndex: number;
@@ -61,7 +61,7 @@ export function QuestionSwitcher(props: {
             disabled={isDisabled}
             onClick={() => onSelect(index)}
             onKeyDown={(event) => handleKey(event, index)}
-            className={`flex size-5 shrink-0 items-center justify-center rounded-[5px] text-[10px] font-medium transition-colors [font-variant-numeric:tabular-nums] outline-none focus-visible:focus-ring disabled:opacity-60 ${
+            className={`flex h-5 min-w-0 shrink-0 items-center gap-1 rounded-[5px] px-1.5 text-[11px] font-medium transition-colors outline-none focus-visible:focus-ring disabled:opacity-60 ${
               step.answered
                 ? "bg-accent text-accent-foreground"
                 : isActive
@@ -69,7 +69,13 @@ export function QuestionSwitcher(props: {
                   : "text-[color:var(--muted)] hover:bg-[var(--row-hover)] hover:text-foreground"
             } ${isActive ? "ring-1 ring-foreground/40 ring-offset-1 ring-offset-[var(--composer-surface)]" : ""}`}
           >
-            {step.answered ? <Check className="size-3" strokeWidth={3} aria-hidden /> : index + 1}
+            <span
+              aria-hidden
+              className="flex size-3 shrink-0 items-center justify-center text-[10px] [font-variant-numeric:tabular-nums]"
+            >
+              {step.answered ? <Check className="size-3" strokeWidth={3} /> : index + 1}
+            </span>
+            <span className="max-w-32 truncate">{step.label}</span>
           </button>
         );
       })}
