@@ -297,6 +297,65 @@ describe("ChatScrollControls", () => {
     },
   );
 
+  it.each(["button", "user end"])("keeps reserved reply space on %s", (returnAction) => {
+    vi.useFakeTimers();
+    let scrollTop = 800;
+    const scrollEl = document.createElement("div");
+    Object.defineProperties(scrollEl, {
+      scrollHeight: { configurable: true, get: () => 1000 },
+      clientHeight: { configurable: true, get: () => 200 },
+      scrollTop: {
+        configurable: true,
+        get: () => scrollTop,
+        set: (value: number) => {
+          scrollTop = Math.min(value, 800);
+        },
+      },
+    });
+    const readerFollow = createChatReaderFollowSignal();
+    const controlsRef = createRef<ChatScrollControlsHandle>();
+    const { getByRole } = renderWithI18n(
+      <Harness
+        scrollEl={scrollEl}
+        controlsRef={controlsRef}
+        virtualScrollToBottom={() => undefined}
+        readerFollow={readerFollow}
+      />,
+    );
+    act(() => {
+      scrollEl.dataset.chatEndSpaceSize = "150";
+      controlsRef.current?.anchorToPrompt();
+      controlsRef.current?.noteProgrammaticScroll(800);
+      fireEvent.scroll(scrollEl);
+    });
+    act(() => {
+      controlsRef.current?.markUserScrollIntent();
+      scrollTop = 300;
+      fireEvent.scroll(scrollEl);
+    });
+    act(() => {
+      vi.advanceTimersByTime(50);
+    });
+    const button = getByRole("button", { hidden: true });
+    expect(readerFollow.isFollowing()).toBe(false);
+    expect(button).toBeEnabled();
+
+    if (returnAction === "button") {
+      fireEvent.click(button);
+    } else {
+      act(() => {
+        controlsRef.current?.markUserScrollIntent();
+        scrollTop = 800;
+        fireEvent.scroll(scrollEl);
+      });
+    }
+    expect(scrollTop).toBe(800);
+    expect(readerFollow.isFollowing()).toBe(true);
+    expect(controlsRef.current?.isStickToBottom()).toBe(true);
+    expect(clearChatPromptAnchor).not.toHaveBeenCalled();
+    expect(button).toBeDisabled();
+  });
+
   it("skips scrollTop writes and virtualizer reconcile when already at bottom", () => {
     const scrollEl = document.createElement("div");
     const scrollTopSetter = vi.fn<(value: number) => void>();
