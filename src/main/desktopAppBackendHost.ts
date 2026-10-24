@@ -110,6 +110,14 @@ function createNativeRequestHandler(
         return null;
       case "browser-state":
         return deps.browser.state();
+      case "agent-vision":
+        return (
+          desktopApp.hostServices?.agentVision.read(
+            request.payload.threadId,
+            request.payload.preview,
+            request.payload.streaming,
+          ) ?? null
+        );
       case "browser-command":
         return deps.browser.command(request.payload);
       case "browser-input":

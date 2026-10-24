@@ -1,4 +1,6 @@
 import { defineRoute, remoteOkResponseSchema } from "../helpers";
+import { z } from "zod";
+import { agentVisionResponseSchema } from "../../../agentVision";
 import { auditEvent, noAudit } from "../../auditKinds";
 import {
   checkpointRevertBodySchema,
@@ -37,6 +39,20 @@ import { historyItemDetailSchema, historyItemDetailQuerySchema } from "../../his
 import { historyResumeQuerySchema, historyResumeResponseSchema } from "../../historyResume";
 
 export const threadRoutes: readonly RemoteHttpRouteContract[] = [
+  defineRoute({
+    id: "thread-agent-vision",
+    method: "GET",
+    path: "/api/threads/{threadId}/agent-vision",
+    auth: "bearer",
+    scopes: ["session:read"],
+    audit: noAudit("read"),
+    queryParameters: ["preview"],
+    request: {
+      bodyKind: "empty",
+      querySchema: z.object({ preview: z.enum(["0", "1"]).optional() }),
+    },
+    response: { wireKind: "json", status: 200, jsonSchema: agentVisionResponseSchema },
+  }),
   defineRoute({
     id: "thread-history-changes",
     method: "GET",

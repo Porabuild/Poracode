@@ -114,6 +114,7 @@ describe("shared settings defaults", () => {
   it("normalizes and reorders thread docks without moving hidden dock slots", () => {
     expect(normalizeThreadDocksOrder(["plan", "plan"])).toEqual([
       "plan",
+      "vision",
       "goal",
       "agents",
       "backgroundTasks",
@@ -134,7 +135,7 @@ describe("shared settings defaults", () => {
   it("preserves existing saved dock order and appends context and usage on upgrade", () => {
     const priorOrder = ["images", "plan", "agents", "goal", "backgroundTasks"];
     const upgraded = normalizeSharedSettings({ threadDocksOrder: priorOrder });
-    expect(upgraded.threadDocksOrder).toEqual([...priorOrder, "context", "usage"]);
+    expect(upgraded.threadDocksOrder).toEqual([...priorOrder, "vision", "context", "usage"]);
     expect(
       reorderVisibleThreadDocks(
         upgraded.threadDocksOrder,
@@ -142,7 +143,16 @@ describe("shared settings defaults", () => {
         3,
         0,
       ),
-    ).toEqual(["usage", "images", "agents", "goal", "backgroundTasks", "plan", "context"]);
+    ).toEqual([
+      "usage",
+      "images",
+      "agents",
+      "goal",
+      "backgroundTasks",
+      "vision",
+      "plan",
+      "context",
+    ]);
   });
 
   it("enables notifications and displays them for visible threads by default", () => {

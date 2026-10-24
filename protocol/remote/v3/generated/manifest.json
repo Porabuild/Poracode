@@ -75,6 +75,18 @@
   "httpRoutes": [
     {
       "auth": "bearer",
+      "id": "thread-agent-vision",
+      "method": "GET",
+      "path": "/api/threads/{threadId}/agent-vision",
+      "queryParameters": [
+        "preview"
+      ],
+      "scopes": [
+        "session:read"
+      ]
+    },
+    {
+      "auth": "bearer",
       "id": "conversation-search",
       "method": "GET",
       "path": "/api/search/conversations",
@@ -2108,6 +2120,8 @@
   ],
   "webSocket": {
     "clientMessages": [
+      "agent-vision-unwatch",
+      "agent-vision-watch",
       "browser-input",
       "browser-unwatch",
       "browser-watch",
@@ -2119,6 +2133,7 @@
       "thread-item-interests"
     ],
     "outOfBandMessages": [
+      "agent-vision-frame",
       "browser-state",
       "browser-frame",
       "browser-mirror-status",
@@ -2163,6 +2178,7 @@
       "warning"
     ],
     "serverMessages": [
+      "agent-vision-frame",
       "browser-frame",
       "browser-mirror-status",
       "browser-state",

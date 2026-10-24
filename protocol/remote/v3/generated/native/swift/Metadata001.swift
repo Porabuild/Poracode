@@ -8,8 +8,8 @@ public enum RemoteContractMetadata {
   public static let protocolVersion = 14
   public static let bindingFormatVersion = 2
   public static let generatorVersion = 7
-  public static let sourceHash = "sha256:f6d9164e35a330e97c3d1113c1f2a7fbf31146d1d183eb4a7f4357cdb1d07c73"
-  public static let manifestHash = "sha256:ec54bd073c141e96aa6a0217251754ff1f4f8bcb1b267d582dad19b02621ae89"
+  public static let sourceHash = "sha256:01687fad8368485644ee6aaaa7c0a9815c5a559167585b140050f302feab4a99"
+  public static let manifestHash = "sha256:4d01146c9d26969743e91367ebe4dd46850c2c049d04d6cf6745b091de8fdcad"
   public static let validationBoundary: RemoteValidationBoundary = .rootCodecOnly
   public static let generatedModelCodableSemantics: RemoteGeneratedSerializerSemantics = .nonValidatingRepresentationOnly
   public static let portableTransformIds = ["agent-settings.strip-sensitive", "push.routing.client-connection-id.lowercase", "string.trim"]
@@ -111,6 +111,7 @@ public enum RemoteContractMetadata {
     .init(id: "terminal-resize", method: "POST", path: "/api/threads/{threadId}/terminal/resize", auth: "bearer", scopes: ["terminal:operate"], bodyKind: "json", responseKind: "json", status: 200, requestType: "ProcedureensureThreadRunningRequestU2DInitialSize_55ee222c09", responseType: "RoutedeviceU2DDetachResponse_badd682f35", queryCodecs: []),
     .init(id: "terminal-start", method: "POST", path: "/api/terminal/start", auth: "bearer", scopes: ["terminal:operate"], bodyKind: "json", responseKind: "json", status: 200, requestType: "RouteterminalU2DStartRequest_b03238f553", responseType: "RoutedeviceU2DDetachResponse_badd682f35", queryCodecs: []),
     .init(id: "terminal-write", method: "POST", path: "/api/threads/{threadId}/terminal/write", auth: "bearer", scopes: ["terminal:operate"], bodyKind: "json", responseKind: "json", status: 200, requestType: "RouteterminalU2DWriteRequest_6c6fca7050", responseType: "RoutedeviceU2DDetachResponse_badd682f35", queryCodecs: []),
+    .init(id: "thread-agent-vision", method: "GET", path: "/api/threads/{threadId}/agent-vision", auth: "bearer", scopes: ["session:read"], bodyKind: "empty", responseKind: "json", status: 200, requestType: "RemoteUnit", responseType: "RoutethreadU2DAgentU2DVisionResponse_af80d04059", queryCodecs: [.init(name: "preview", kind: "string", optional: true, repeated: false)]),
     .init(id: "thread-checkpoint-revert", method: "POST", path: "/api/threads/{threadId}/checkpoint-revert", auth: "bearer", scopes: ["session:operate"], bodyKind: "json", responseKind: "json", status: 200, requestType: "RoutethreadU2DCheckpointU2DRevertRequest_40f9a6009b", responseType: "RoutethreadU2DCheckpointU2DRevertResponse_8dfc34ff21", queryCodecs: []),
     .init(id: "thread-close", method: "POST", path: "/api/threads/{threadId}/close", auth: "bearer", scopes: ["session:operate"], bodyKind: "json", responseKind: "json", status: 200, requestType: "RoutehostU2DUpdateU2DInstallResponse_81055c9199", responseType: "RoutedeviceU2DDetachResponse_badd682f35", queryCodecs: []),
     .init(id: "thread-command", method: "POST", path: "/api/threads/{threadId}/command", auth: "bearer", scopes: ["session:operate"], bodyKind: "json", responseKind: "json", status: 200, requestType: "RoutethreadU2DCommandRequest_6364a5845d", responseType: "RoutedeviceU2DDetachResponse_badd682f35", queryCodecs: []),
@@ -290,25 +291,28 @@ public enum RemoteContractMetadata {
     .init(name: "writeProjectFile", scope: "session:operate", owner: "projectLocation", resultKind: "json", requestType: "ProcedurewriteProjectFileRequest_aba5d69bfd", resultType: "ProcedurewriteExternalFileResult_c5c2ecebba"),
   ]
   public static let webSocketVariants: [RemoteWebSocketVariantDescriptor] = [
-    .init(direction: "client", type: "browser-input", modelType: "WebSocketClientMessageU2DOptionU2D4_d550ef9994"),
-    .init(direction: "client", type: "browser-unwatch", modelType: "WebSocketClientMessageU2DOptionU2D3_0e8f58f429"),
-    .init(direction: "client", type: "browser-watch", modelType: "WebSocketClientMessageU2DOptionU2D2_2b7b34c95b"),
-    .init(direction: "client", type: "git-state-interests", modelType: "WebSocketClientMessageU2DOptionU2D8_d2299af726"),
-    .init(direction: "client", type: "ping", modelType: "WebSocketClientMessageU2DOptionU2D1_1709690cf0"),
-    .init(direction: "client", type: "terminal-unwatch", modelType: "WebSocketClientMessageU2DOptionU2D6_5af10e67b4"),
-    .init(direction: "client", type: "terminal-watch", modelType: "WebSocketClientMessageU2DOptionU2D5_838adcbcaf"),
-    .init(direction: "client", type: "terminal-watch-baseline-ack", modelType: "WebSocketClientMessageU2DOptionU2D7_3f58316dbb"),
-    .init(direction: "client", type: "thread-item-interests", modelType: "WebSocketClientMessageU2DOptionU2D9_93bef3a552"),
-    .init(direction: "server", type: "browser-frame", modelType: "WebSocketServerMessageU2DOptionU2D6_8f58c1d1ac"),
-    .init(direction: "server", type: "browser-mirror-status", modelType: "WebSocketServerMessageU2DOptionU2D7_0ad133ee58"),
-    .init(direction: "server", type: "browser-state", modelType: "WebSocketServerMessageU2DOptionU2D5_bd23acb1d6"),
-    .init(direction: "server", type: "desktop-event", modelType: "WebSocketServerMessageU2DOptionU2D11_f1c1581e17"),
-    .init(direction: "server", type: "event", modelType: "WebSocketServerMessageU2DOptionU2D2_3897f50212"),
-    .init(direction: "server", type: "pong", modelType: "WebSocketServerMessageU2DOptionU2D4_17b50a5a25"),
-    .init(direction: "server", type: "ready", modelType: "WebSocketServerMessageU2DOptionU2D1_13762c62f0"),
-    .init(direction: "server", type: "resync-required", modelType: "WebSocketServerMessageU2DOptionU2D3_a633f9a256"),
-    .init(direction: "server", type: "terminal-output", modelType: "WebSocketServerMessageU2DOptionU2D8_95d0adeb5b"),
-    .init(direction: "server", type: "terminal-watch-baseline-chunk", modelType: "WebSocketServerMessageU2DOptionU2D10_e65689e97e"),
-    .init(direction: "server", type: "terminal-watch-result", modelType: "WebSocketServerMessageU2DOptionU2D9_4655073d71"),
+    .init(direction: "client", type: "agent-vision-unwatch", modelType: "WebSocketClientMessageU2DOptionU2D2_107db71e16"),
+    .init(direction: "client", type: "agent-vision-watch", modelType: "WebSocketClientMessageU2DOptionU2D1_9eaa25e68d"),
+    .init(direction: "client", type: "browser-input", modelType: "WebSocketClientMessageU2DOptionU2D6_d550ef9994"),
+    .init(direction: "client", type: "browser-unwatch", modelType: "WebSocketClientMessageU2DOptionU2D5_0e8f58f429"),
+    .init(direction: "client", type: "browser-watch", modelType: "WebSocketClientMessageU2DOptionU2D4_2b7b34c95b"),
+    .init(direction: "client", type: "git-state-interests", modelType: "WebSocketClientMessageU2DOptionU2D10_d2299af726"),
+    .init(direction: "client", type: "ping", modelType: "WebSocketClientMessageU2DOptionU2D3_1709690cf0"),
+    .init(direction: "client", type: "terminal-unwatch", modelType: "WebSocketClientMessageU2DOptionU2D8_5af10e67b4"),
+    .init(direction: "client", type: "terminal-watch", modelType: "WebSocketClientMessageU2DOptionU2D7_838adcbcaf"),
+    .init(direction: "client", type: "terminal-watch-baseline-ack", modelType: "WebSocketClientMessageU2DOptionU2D9_3f58316dbb"),
+    .init(direction: "client", type: "thread-item-interests", modelType: "WebSocketClientMessageU2DOptionU2D11_93bef3a552"),
+    .init(direction: "server", type: "agent-vision-frame", modelType: "WebSocketServerMessageU2DOptionU2D1_48916cddaa"),
+    .init(direction: "server", type: "browser-frame", modelType: "WebSocketServerMessageU2DOptionU2D7_8f58c1d1ac"),
+    .init(direction: "server", type: "browser-mirror-status", modelType: "WebSocketServerMessageU2DOptionU2D8_0ad133ee58"),
+    .init(direction: "server", type: "browser-state", modelType: "WebSocketServerMessageU2DOptionU2D6_bd23acb1d6"),
+    .init(direction: "server", type: "desktop-event", modelType: "WebSocketServerMessageU2DOptionU2D12_f1c1581e17"),
+    .init(direction: "server", type: "event", modelType: "WebSocketServerMessageU2DOptionU2D3_3897f50212"),
+    .init(direction: "server", type: "pong", modelType: "WebSocketServerMessageU2DOptionU2D5_17b50a5a25"),
+    .init(direction: "server", type: "ready", modelType: "WebSocketServerMessageU2DOptionU2D2_13762c62f0"),
+    .init(direction: "server", type: "resync-required", modelType: "WebSocketServerMessageU2DOptionU2D4_a633f9a256"),
+    .init(direction: "server", type: "terminal-output", modelType: "WebSocketServerMessageU2DOptionU2D9_95d0adeb5b"),
+    .init(direction: "server", type: "terminal-watch-baseline-chunk", modelType: "WebSocketServerMessageU2DOptionU2D11_e65689e97e"),
+    .init(direction: "server", type: "terminal-watch-result", modelType: "WebSocketServerMessageU2DOptionU2D10_4655073d71"),
   ]
 }

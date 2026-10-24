@@ -396,7 +396,7 @@ describe("language-neutral remote protocol v3 contract", () => {
       sorted(literalTypesInSchema(protocolSource, "remoteWebSocketClientMessageSchema")),
     );
     expect(sorted(manifest.webSocket.serverMessages)).toEqual(
-      sorted(literalTypesInSchema(protocolSource, "remoteWebSocketServerMessageSchema")),
+      sorted(remoteWebSocketServerMessageSchema.options.map((option) => option.shape.type.value)),
     );
 
     const runtimeEventSource = readSource("src/shared/contracts/runtimeEvent.ts");

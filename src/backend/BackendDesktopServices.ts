@@ -333,6 +333,11 @@ export class BackendDesktopServices {
           ...(experimentAuthority ? { experimentAuthority } : {}),
           dispatchThreadCommand,
           browser: this.browser,
+          readAgentVision: (threadId, preview, streaming) =>
+            options.requestNative({
+              operation: "agent-vision",
+              payload: { threadId, preview, ...(streaming ? { streaming } : {}) },
+            }) as Promise<import("@/shared/agentVision").AgentVision | null>,
           // The controller's settings patches commit through the same authority
           // as every other writer; the committed broadcast happens in the
           // authority's onCommitted hook.

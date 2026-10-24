@@ -3,13 +3,13 @@
   "contract": "poracode.remote",
   "protocolVersion": 14,
   "bindingFormatVersion": 2,
-  "manifestHash": "sha256:697d1251630bfff37cbf668d05b4780cb6891dd98a170da78827b02a4d5fbf27",
-  "keyCount": 324,
+  "manifestHash": "sha256:0833bf9b6bdea785dca133a37913bbc605a1fdcc095c632522385844160a5050",
+  "keyCount": 328,
   "counts": {
-    "route": 118,
+    "route": 119,
     "procedure": 154,
-    "ws-client": 9,
-    "ws-server": 11,
+    "ws-client": 11,
+    "ws-server": 12,
     "replay": 16,
     "runtime": 16
   },
@@ -1082,6 +1082,10 @@
       "kind": "route",
       "id": "terminal-write"
     },
+    "route:thread-agent-vision": {
+      "kind": "route",
+      "id": "thread-agent-vision"
+    },
     "route:thread-checkpoint-revert": {
       "kind": "route",
       "id": "thread-checkpoint-revert"
@@ -1230,6 +1234,14 @@
       "kind": "runtime",
       "id": "warning"
     },
+    "ws-client:agent-vision-unwatch": {
+      "kind": "ws-client",
+      "id": "agent-vision-unwatch"
+    },
+    "ws-client:agent-vision-watch": {
+      "kind": "ws-client",
+      "id": "agent-vision-watch"
+    },
     "ws-client:browser-input": {
       "kind": "ws-client",
       "id": "browser-input"
@@ -1265,6 +1277,10 @@
     "ws-client:thread-item-interests": {
       "kind": "ws-client",
       "id": "thread-item-interests"
+    },
+    "ws-server:agent-vision-frame": {
+      "kind": "ws-server",
+      "id": "agent-vision-frame"
     },
     "ws-server:browser-frame": {
       "kind": "ws-server",

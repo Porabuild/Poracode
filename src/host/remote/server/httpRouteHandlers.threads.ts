@@ -94,6 +94,7 @@ async function forwardThreadBodyPost(
 }
 
 type ThreadRouteId =
+  | "thread-agent-vision"
   | "thread-history-changes"
   | "thread-history-item"
   | "thread-history-prompts"
@@ -121,6 +122,14 @@ type ThreadRouteId =
 
 /** Thread-group HTTP route handlers (contract `threadRoutes`). */
 export const THREAD_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, ThreadRouteId> = {
+  "thread-agent-vision": async ({ ctx, res, params, url }) => {
+    const threadId = requirePathParam(params, "threadId");
+    const thread = dbGetThread(threadId);
+    if (!thread) throw new RemoteHttpError("not_found", "Thread not found.", 404);
+    res.setHeader("Cache-Control", "no-store");
+    const preview = url.searchParams.get("preview") !== "0";
+    writeJson(res, 200, (await ctx.options.readAgentVision?.(threadId, preview)) ?? null);
+  },
   "thread-history-item": handleHistoryItemDetails,
   "thread-history-prompts": handleHistoryPromptIndex,
   "thread-history-changes": handleThreadHistoryResume,

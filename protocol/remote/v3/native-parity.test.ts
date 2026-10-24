@@ -58,11 +58,11 @@ const UI_DISPOSITIONS = [
 ] as const;
 
 const EXPECTED_COUNTS = {
-  httpRoutes: 118,
+  httpRoutes: 119,
   procedures: 154,
-  webSocketClientMessages: 9,
+  webSocketClientMessages: 11,
   // 10 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
-  webSocketServerMessages: 11,
+  webSocketServerMessages: 12,
   replayableEventTypes: 16,
   runtimeEventTypes: 16,
 } as const;

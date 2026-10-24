@@ -267,6 +267,7 @@ const sidebarShortcutIdSchema = z.union([
 export type SidebarShortcutId = z.infer<typeof sidebarShortcutIdSchema>;
 
 export const THREAD_DOCK_KINDS = [
+  "vision",
   "goal",
   "plan",
   "agents",
