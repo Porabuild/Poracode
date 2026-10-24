@@ -1,4 +1,7 @@
-import { CATALOG_HOST_WIRE_MAX_BYTES } from "@/shared/remote/historyReadContract";
+import {
+  CATALOG_HOST_WIRE_MAX_BYTES,
+  HISTORY_LATEST_TURN_MAX_WIRE_BYTES,
+} from "@/shared/remote/historyReadContract";
 import {
   hasDeferredHistoryStreams,
   type HistoryRuntimeItem,
@@ -16,17 +19,20 @@ import { projectRuntimeItemsImageRefs } from "./imageRefProjection";
 /** Select and materialize a contiguous newest-first window. Soft estimates
  * describe the projected response; the original conservative bounds still
  * cap payload materialization. Exact projected sizes govern the final pack.
+ * `protectLatestTurn` lets a tail read keep the newest prompt's turn past the
+ * soft target, within the latest-turn ceiling and the client's caps.
  * Call only inside the held history fence. */
 export function readProjectedHistoryWindow(
   threadId: string,
   rows: readonly HistoryPageRowMeta[],
   softWireBytes: number,
   caps: CatalogEffectiveCaps,
-  compactDetails = false,
+  options: { readonly compactDetails?: boolean; readonly protectLatestTurn?: boolean } = {},
 ): {
   readonly keptMeta: readonly HistoryPageRowMeta[];
   readonly projectedDesc: readonly HistoryRuntimeItem[];
 } {
+  const compactDetails = options.compactDetails === true;
   if (compactDetails)
     rows = rows.map((row) =>
       hasDeferredHistoryStreams(row.type, row.state)
@@ -51,6 +57,20 @@ export function readProjectedHistoryWindow(
       dbMeasureHistoryStreamHeadEscaped(threadId, first.itemId),
     );
   }
+  const latestTurnRows = options.protectLatestTurn
+    ? rows.findIndex((row) => row.type === "user_message" && row.parentItemId === null) + 1
+    : 0;
+  // Half the client's effective cap stays for the rest of the envelope, so the
+  // builder's cap trim cannot cut the protected prompt.
+  const latestTurnWireBytes = Math.max(
+    softWireBytes,
+    Math.min(
+      Math.min(caps.maxWireBytes, caps.maxDecodeBytes / 2) / 2,
+      HISTORY_LATEST_TURN_MAX_WIRE_BYTES,
+    ),
+  );
+  const budgetAt = (index: number) =>
+    index < latestTurnRows ? latestTurnWireBytes : softWireBytes;
   const keptMeta: HistoryPageRowMeta[] = [];
   const projectedDesc: HistoryRuntimeItem[] = [];
   let wireBytes = 2;
@@ -68,7 +88,7 @@ export function readProjectedHistoryWindow(
       const isFirst = keptMeta.length === 0 && index === batchStart;
       if (
         !isFirst &&
-        (estimatedBytes + estimate > softWireBytes ||
+        (estimatedBytes + estimate > budgetAt(index) ||
           materializationBound + bound > CATALOG_HOST_WIRE_MAX_BYTES)
       )
         break;
@@ -103,14 +123,14 @@ export function readProjectedHistoryWindow(
       );
       // The first display unit is soft-exempt; hard caps are checked by the
       // builder against the complete serialized envelope. Never cut a group.
-      if (keptMeta.length > 0 && wireBytes + actualBytes > softWireBytes)
+      if (keptMeta.length > 0 && wireBytes + actualBytes > budgetAt(start))
         return { keptMeta, projectedDesc };
       keptMeta.push(...meta);
       projectedDesc.push(...items);
       wireBytes += actualBytes;
       start = end;
     }
-    if (wireBytes >= softWireBytes) break;
+    if (wireBytes >= budgetAt(index)) break;
     // Overestimates can leave room. Continue from the next unit using the
     // exact size already admitted instead of returning an undersized page.
   }

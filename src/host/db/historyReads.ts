@@ -150,6 +150,14 @@ type HistoryMaterializedSqlRow = RuntimeTimelineItemRow;
 
 const HISTORY_PROBE_BATCH = 400;
 const HISTORY_ITEM_FETCH_BATCH = 500;
+/**
+ * Realistic per-row serialization overhead (keys, punctuation, small raw
+ * columns) for the soft packing estimate. The 4 KiB `CATALOG_ROW_ENVELOPE_BYTES`
+ * reserve stays in the hard bound; charging it here made a run of small tool
+ * rows look several times larger than it serializes, so a tail group that fits
+ * the soft target was cut from the initial page.
+ */
+const HISTORY_ROW_PACKING_ENVELOPE_BYTES = 512;
 
 /** Stored and exact escaped/plain sizes of one item's appended stream tail. */
 interface HistoryTailSize {
@@ -392,7 +400,7 @@ class HistoryTimelineClassifier {
       payloadBytes += refEstimate - bytes;
     }
     return (
-      CATALOG_ROW_ENVELOPE_BYTES +
+      HISTORY_ROW_PACKING_ENVELOPE_BYTES +
       (this.projectionInputs.get(row.item_id)?.spec.maxWireExpansionBytes ?? 0) +
       Math.max(0, payloadBytes) +
       seedBytes +

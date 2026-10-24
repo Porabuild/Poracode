@@ -52,7 +52,7 @@ export function readBoundedHistorySnapshotData(
     phase1.rows,
     itemsSoft,
     caps,
-    input.compactDetails,
+    { compactDetails: input.compactDetails, protectLatestTurn: true },
   );
 
   const turnsPhase1 = dbReadCompletedTurnPhase1(threadId, {
@@ -103,7 +103,8 @@ export function readBoundedHistoryItems(
     phase1.rows,
     soft,
     caps,
-    compactDetails,
+    // Only the tail read owns the latest turn; older pages keep the soft cut.
+    { compactDetails, protectLatestTurn: input.beforePosition === undefined },
   );
   const pageItemsAsc = [...projectedDesc].reverse();
   const omitted = keptMeta.length < phase1.rows.length || phase1.moreBeyondWindow;
