@@ -1306,6 +1306,10 @@ msgstr "Add tag"
 msgid "Add tag..."
 msgstr "Add tag..."
 
+#: src/renderer/components/common/EditContextMenuHost.tsx
+msgid "Add to chat"
+msgstr "Add to chat"
+
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 msgid "Add to composer"
 msgstr "Add to composer"
@@ -1318,6 +1322,10 @@ msgstr "Add to favorites"
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "Add to Home Screen"
 msgstr "Add to Home Screen"
+
+#: src/renderer/components/common/EditContextMenuHost.tsx
+msgid "Add to side chat"
+msgstr "Add to side chat"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoList.tsx
 msgid "Add to-do"
@@ -4438,6 +4446,7 @@ msgstr "Copied raw TCP address + connect ticket (LAN only) — send the ticket a
 msgid "Copied to clipboard"
 msgstr "Copied to clipboard"
 
+#: src/renderer/components/common/EditContextMenuHost.tsx
 #: src/renderer/components/terminal/XTermSurface.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Copy"
@@ -4495,6 +4504,7 @@ msgstr "Copy ignored files"
 msgid "Copy image"
 msgstr "Copy image"
 
+#: src/renderer/components/common/EditContextMenuHost.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Copy link"
 msgstr "Copy link"
@@ -5178,6 +5188,10 @@ msgstr "custom path"
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 msgid "Custom theme"
 msgstr "Custom theme"
+
+#: src/renderer/components/common/EditContextMenuHost.tsx
+msgid "Cut"
+msgstr "Cut"
 
 #: src/renderer/commands/composerCommands.ts
 msgid "Cycle permission mode"
@@ -11758,6 +11772,14 @@ msgstr "Open in browser"
 msgid "Open in editor"
 msgstr "Open in editor"
 
+#: src/renderer/components/common/EditContextMenuHost.tsx
+msgid "Open in Poracode browser"
+msgstr "Open in Poracode browser"
+
+#: src/renderer/components/common/EditContextMenuHost.tsx
+msgid "Open in system browser"
+msgstr "Open in system browser"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 msgid "Open job on GitHub"
 msgstr "Open job on GitHub"
@@ -12291,6 +12313,7 @@ msgid "Passwords are encrypted in Poracode's local credential store. Password va
 msgstr "Passwords are encrypted in Poracode's local credential store. Password values are requested only when you reveal, copy, or edit them."
 
 #: src/renderer/commands/shortcutCatalog.ts
+#: src/renderer/components/common/EditContextMenuHost.tsx
 #: src/renderer/components/terminal/XTermSurface.tsx
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
@@ -15466,6 +15489,7 @@ msgstr "Select a workflow to see its runs."
 msgid "Select account"
 msgstr "Select account"
 
+#: src/renderer/components/common/EditContextMenuHost.tsx
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 #: src/renderer/components/skills/SkillImportModal.tsx

@@ -1300,6 +1300,10 @@ msgstr "タグを追加"
 msgid "Add tag..."
 msgstr "タグを追加..."
 
+#: src/renderer/components/common/EditContextMenuHost.tsx
+msgid "Add to chat"
+msgstr "チャットに追加"
+
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 msgid "Add to composer"
 msgstr "コンポーザーに追加"
@@ -1312,6 +1316,10 @@ msgstr "お気に入りに追加"
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "Add to Home Screen"
 msgstr "ホーム画面に追加"
+
+#: src/renderer/components/common/EditContextMenuHost.tsx
+msgid "Add to side chat"
+msgstr "サイドチャットに追加"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoList.tsx
 msgid "Add to-do"
@@ -4428,6 +4436,7 @@ msgstr "生の TCP アドレスと接続チケットをコピーしました（L
 msgid "Copied to clipboard"
 msgstr "クリップボードにコピーしました"
 
+#: src/renderer/components/common/EditContextMenuHost.tsx
 #: src/renderer/components/terminal/XTermSurface.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Copy"
@@ -4485,6 +4494,7 @@ msgstr "無視されたファイルをコピーする"
 msgid "Copy image"
 msgstr "画像をコピー"
 
+#: src/renderer/components/common/EditContextMenuHost.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Copy link"
 msgstr "リンクをコピー"
@@ -5168,6 +5178,10 @@ msgstr "カスタムパス"
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 msgid "Custom theme"
 msgstr "カスタムテーマ"
+
+#: src/renderer/components/common/EditContextMenuHost.tsx
+msgid "Cut"
+msgstr "切り取り"
 
 #: src/renderer/commands/composerCommands.ts
 msgid "Cycle permission mode"
@@ -11747,6 +11761,14 @@ msgstr "ブラウザで開く"
 msgid "Open in editor"
 msgstr "エディタで開く"
 
+#: src/renderer/components/common/EditContextMenuHost.tsx
+msgid "Open in Poracode browser"
+msgstr "Poracode ブラウザで開く"
+
+#: src/renderer/components/common/EditContextMenuHost.tsx
+msgid "Open in system browser"
+msgstr "システムブラウザで開く"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 msgid "Open job on GitHub"
 msgstr "GitHub でジョブを開く"
@@ -12280,6 +12302,7 @@ msgid "Passwords are encrypted in Poracode's local credential store. Password va
 msgstr "パスワードは Poracode のローカル資格情報ストアで暗号化されています。パスワードの値は、表示、コピー、編集するときにのみ取得されます。"
 
 #: src/renderer/commands/shortcutCatalog.ts
+#: src/renderer/components/common/EditContextMenuHost.tsx
 #: src/renderer/components/terminal/XTermSurface.tsx
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
@@ -15455,6 +15478,7 @@ msgstr "実行を表示するワークフローを選択してください。"
 msgid "Select account"
 msgstr "アカウントの選択"
 
+#: src/renderer/components/common/EditContextMenuHost.tsx
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 #: src/renderer/components/skills/SkillImportModal.tsx

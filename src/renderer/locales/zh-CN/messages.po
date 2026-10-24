@@ -1301,6 +1301,10 @@ msgstr "添加标签"
 msgid "Add tag..."
 msgstr "添加标签..."
 
+#: src/renderer/components/common/EditContextMenuHost.tsx
+msgid "Add to chat"
+msgstr "添加到聊天"
+
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 msgid "Add to composer"
 msgstr "添加到编写器"
@@ -1313,6 +1317,10 @@ msgstr "添加到收藏夹"
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "Add to Home Screen"
 msgstr "添加到主屏幕"
+
+#: src/renderer/components/common/EditContextMenuHost.tsx
+msgid "Add to side chat"
+msgstr "添加到侧边聊天"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoList.tsx
 msgid "Add to-do"
@@ -4429,6 +4437,7 @@ msgstr "已复制原始 TCP 地址 + 连接票据（仅限局域网）— 请将
 msgid "Copied to clipboard"
 msgstr "已复制到剪贴板"
 
+#: src/renderer/components/common/EditContextMenuHost.tsx
 #: src/renderer/components/terminal/XTermSurface.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Copy"
@@ -4486,6 +4495,7 @@ msgstr "复制忽略的文件"
 msgid "Copy image"
 msgstr "复制图片"
 
+#: src/renderer/components/common/EditContextMenuHost.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Copy link"
 msgstr "复制链接"
@@ -5169,6 +5179,10 @@ msgstr "自定义路径"
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 msgid "Custom theme"
 msgstr "自定义主题"
+
+#: src/renderer/components/common/EditContextMenuHost.tsx
+msgid "Cut"
+msgstr "剪切"
 
 #: src/renderer/commands/composerCommands.ts
 msgid "Cycle permission mode"
@@ -11748,6 +11762,14 @@ msgstr "在浏览器中打开"
 msgid "Open in editor"
 msgstr "在编辑器中打开"
 
+#: src/renderer/components/common/EditContextMenuHost.tsx
+msgid "Open in Poracode browser"
+msgstr "在 Poracode 浏览器中打开"
+
+#: src/renderer/components/common/EditContextMenuHost.tsx
+msgid "Open in system browser"
+msgstr "在系统浏览器中打开"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 msgid "Open job on GitHub"
 msgstr "在 GitHub 上打开作业"
@@ -12281,6 +12303,7 @@ msgid "Passwords are encrypted in Poracode's local credential store. Password va
 msgstr "密码在 Poracode 的本地凭据存储中加密。只有在您显示、复制或编辑密码时，才会请求密码值。"
 
 #: src/renderer/commands/shortcutCatalog.ts
+#: src/renderer/components/common/EditContextMenuHost.tsx
 #: src/renderer/components/terminal/XTermSurface.tsx
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
@@ -15456,6 +15479,7 @@ msgstr "选择一个工作流以查看其运行记录。"
 msgid "Select account"
 msgstr "选择账户"
 
+#: src/renderer/components/common/EditContextMenuHost.tsx
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 #: src/renderer/components/skills/SkillImportModal.tsx

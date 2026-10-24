@@ -1301,6 +1301,10 @@ msgstr "Ajouter une étiquette"
 msgid "Add tag..."
 msgstr "Ajouter une étiquette..."
 
+#: src/renderer/components/common/EditContextMenuHost.tsx
+msgid "Add to chat"
+msgstr "Ajouter à la conversation"
+
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 msgid "Add to composer"
 msgstr "Ajouter au compositeur"
@@ -1313,6 +1317,10 @@ msgstr "Ajouter aux favoris"
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "Add to Home Screen"
 msgstr "Ajouter à l'écran d'accueil"
+
+#: src/renderer/components/common/EditContextMenuHost.tsx
+msgid "Add to side chat"
+msgstr "Ajouter à la conversation annexe"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoList.tsx
 msgid "Add to-do"
@@ -4429,6 +4437,7 @@ msgstr "Adresse TCP brute + ticket de connexion copiés (LAN uniquement) — env
 msgid "Copied to clipboard"
 msgstr "Copié dans le presse-papiers"
 
+#: src/renderer/components/common/EditContextMenuHost.tsx
 #: src/renderer/components/terminal/XTermSurface.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Copy"
@@ -4486,6 +4495,7 @@ msgstr "Copier les fichiers ignorés"
 msgid "Copy image"
 msgstr "Copier l'image"
 
+#: src/renderer/components/common/EditContextMenuHost.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Copy link"
 msgstr "Copier le lien"
@@ -5169,6 +5179,10 @@ msgstr "chemin personnalisé"
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 msgid "Custom theme"
 msgstr "Thème personnalisé"
+
+#: src/renderer/components/common/EditContextMenuHost.tsx
+msgid "Cut"
+msgstr "Couper"
 
 #: src/renderer/commands/composerCommands.ts
 msgid "Cycle permission mode"
@@ -11748,6 +11762,14 @@ msgstr "Ouvrir dans le navigateur"
 msgid "Open in editor"
 msgstr "Ouvrir dans l'éditeur"
 
+#: src/renderer/components/common/EditContextMenuHost.tsx
+msgid "Open in Poracode browser"
+msgstr "Ouvrir dans le navigateur Poracode"
+
+#: src/renderer/components/common/EditContextMenuHost.tsx
+msgid "Open in system browser"
+msgstr "Ouvrir dans le navigateur du système"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 msgid "Open job on GitHub"
 msgstr "Ouvrir la tâche sur GitHub"
@@ -12281,6 +12303,7 @@ msgid "Passwords are encrypted in Poracode's local credential store. Password va
 msgstr "Les mots de passe sont chiffrés dans le magasin local d’identifiants de Poracode. Leur valeur n’est demandée que lorsque vous les affichez, les copiez ou les modifiez."
 
 #: src/renderer/commands/shortcutCatalog.ts
+#: src/renderer/components/common/EditContextMenuHost.tsx
 #: src/renderer/components/terminal/XTermSurface.tsx
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
@@ -15456,6 +15479,7 @@ msgstr "Sélectionnez un workflow pour voir ses exécutions."
 msgid "Select account"
 msgstr "Sélectionnez un compte"
 
+#: src/renderer/components/common/EditContextMenuHost.tsx
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 #: src/renderer/components/skills/SkillImportModal.tsx
