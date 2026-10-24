@@ -99,6 +99,12 @@ export const UserMessage = memo(function UserMessage({
           ? remoteBridgeLocalImageUrl(path)
           : useRemoteServersStore.getState().localImageUrl(remoteServerId, path)
     : undefined;
+  // Own-host files already have a native `poracode-local://` URL. Routing them
+  // through the managed image cache paints an empty slot, then swaps in a blob
+  // URL once the fetch lands — the thumb flickers when a new thread's first
+  // message appears. Host-held paths (another machine, or this browser) still
+  // need that cache; the local protocol cannot load them.
+  const hostHeldAttachmentImages = imageUrlForPath !== undefined || isRemoteSession();
   const [isExpanded, setIsExpanded] = useState(false);
   const [hasVisualOverflow, setHasVisualOverflow] = useState(false);
   // Starts false so the body renders clamped on first paint; flipped true after
@@ -301,7 +307,7 @@ export const UserMessage = memo(function UserMessage({
               layout="flush"
               imagesAsPreview
               {...(imageUrlForPath ? { imageUrlForPath } : {})}
-              {...(actions?.remoteImageReadiness
+              {...(hostHeldAttachmentImages && actions?.remoteImageReadiness
                 ? { remoteImageReadiness: actions.remoteImageReadiness }
                 : {})}
               onPreviewImage={(att) => {
