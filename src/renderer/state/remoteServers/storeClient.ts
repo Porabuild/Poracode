@@ -138,12 +138,26 @@ export function createRemoteServerClientBindings(
       current?.endpoint === server.endpoint ? current.accessToken : server.accessToken;
     const client = get().clientFactory(server.endpoint, accessToken);
     const incarnation = current ? ensureConnectionIncarnation(connectionKey) : undefined;
+    const isCurrent = () =>
+      incarnation !== undefined &&
+      ownsConnectionIncarnation(connectionKey, incarnation) &&
+      get().servers.some(
+        (entry) =>
+          remoteConnectionKey(entry) === connectionKey && entry.endpoint === server.endpoint,
+      );
     client.setTokenLifecycle({
-      refreshToken: () => refreshTokenForDesktop(connectionKey),
+      accessToken: () =>
+        isCurrent()
+          ? get().servers.find(
+              (entry) =>
+                remoteConnectionKey(entry) === connectionKey && entry.endpoint === server.endpoint,
+            )?.accessToken
+          : undefined,
+      refreshToken: () => (isCurrent() ? refreshTokenForDesktop(connectionKey) : undefined),
       onTokensRefreshed: (tokens) => {
         // A delayed rotation from a removed or re-paired connection can neither
         // resurrect a deleted grant nor overwrite a freshly paired one.
-        if (incarnation === undefined || !ownsConnectionIncarnation(connectionKey, incarnation)) {
+        if (!isCurrent()) {
           return;
         }
         persistAccessToken(connectionKey, tokens.accessToken);

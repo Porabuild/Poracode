@@ -106,6 +106,11 @@ export abstract class RemoteClientAuth extends RemoteClientTransport {
    * new tokens or null when this client has no lifecycle to refresh with.
    */
   override async refreshTokens(): Promise<RemoteTokenSnapshot | null> {
+    // A 401 may arrive after a sibling client already rotated the shared
+    // pairing. Retry with its bearer instead of invalidating it again.
+    if (this.syncAccessToken() && this.accessToken) {
+      return { accessToken: this.accessToken };
+    }
     const refreshToken = this.tokenLifecycle?.refreshToken();
     if (!refreshToken) return null;
     const key = `${this.endpoint}\0${refreshToken}`;

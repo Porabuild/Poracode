@@ -317,6 +317,15 @@ export abstract class RemoteClientTransport extends RemoteClientPinCore {
     return "";
   }
 
+  /** Adopt another client's rotation without minting another token pair. */
+  protected syncAccessToken(): boolean {
+    if (!this.tokenLifecycle?.accessToken) return false;
+    const current = this.tokenLifecycle.accessToken();
+    if (current === this.accessToken) return false;
+    this.accessToken = current;
+    return true;
+  }
+
   protected async requestJson(
     path: string,
     init: RemoteJsonRequestInit = {},
@@ -333,6 +342,7 @@ export abstract class RemoteClientTransport extends RemoteClientPinCore {
       }
     }
 
+    this.syncAccessToken();
     const method = init.method ?? "GET";
     const headers: Record<string, string> = { ...init.headers };
     if (init.body !== undefined) {

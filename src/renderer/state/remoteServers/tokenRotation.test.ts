@@ -236,6 +236,33 @@ describe("persisted connection token rotation", () => {
     },
   );
 
+  it.each(["request", "parent"] as const)(
+    "shares the current bearer with a long-lived %s client",
+    async (kind) => {
+      const server = host();
+      await loadReleasedPairing(server.fetch);
+      const first = await useRemoteServersStore
+        .getState()
+        .withClient(CONNECTION_ID, async (client) => client);
+      const second =
+        kind === "parent"
+          ? parentClientForConnection(CONNECTION_ID)!
+          : await useRemoteServersStore
+              .getState()
+              .withClient(CONNECTION_ID, async (client) => client);
+      const results: unknown[] = [];
+      for (let index = 0; index < 27; index += 1) {
+        results.push(
+          await (index % 2 === 0 ? first : second)
+            .websocketTicket()
+            .catch((error: unknown) => error),
+        );
+      }
+      expect(server.refreshAttempts()).toBe(1);
+      expect(results).toEqual(Array.from({ length: 27 }, () => "ticket"));
+    },
+  );
+
   it("preserves single-flight rotation for concurrent clients", async () => {
     let release = () => {};
     const gate = new Promise<void>((resolve) => {
