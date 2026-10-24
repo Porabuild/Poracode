@@ -68,6 +68,7 @@ import {
   isCompletedWithoutTurn,
   primeProjectShellEnv,
   resolveLaunchSpec,
+  type StartTurnOptions,
   type StructuredTurnResult,
 } from "../agents/base";
 import { ensureNodePtySpawnHelperExecutable } from "../nodePty";
@@ -1300,7 +1301,7 @@ export class ThreadSessionManager {
         // Guaranteed to have a sessionRef here — the no-ref case threw above.
         directInput.markStarted(session);
         this.followUpQueue.noteDirectTurnSubmitted(session);
-        await this.restartThreadSettlingFailure(session, turn);
+        await this.restartUntilPromptSubmitted(session, turn);
         return;
       }
       if (
@@ -1311,7 +1312,7 @@ export class ThreadSessionManager {
       ) {
         directInput.markStarted(session);
         this.followUpQueue.noteDirectTurnSubmitted(session);
-        await this.restartThreadSettlingFailure(session, turn);
+        await this.restartUntilPromptSubmitted(session, turn);
         return;
       }
       // Route through the structured session when either the adapter is
@@ -2341,9 +2342,10 @@ export class ThreadSessionManager {
   private async restartThreadSettlingFailure(
     session: SessionRuntime,
     turn: QueuedStructuredTurn,
+    options: Pick<StartTurnOptions, "onPromptSubmitted"> = {},
   ): Promise<void | StructuredTurnResult> {
     try {
-      return await this.spawnPipeline.restartThread(session, turn);
+      return await this.spawnPipeline.restartThread(session, turn, options);
     } catch (error) {
       if (this.isCurrentSession(session)) {
         const message = error instanceof Error ? error.message : String(error);
@@ -2359,6 +2361,20 @@ export class ThreadSessionManager {
       }
       throw error;
     }
+  }
+
+  private restartUntilPromptSubmitted(
+    session: SessionRuntime,
+    turn: QueuedStructuredTurn,
+  ): Promise<void> {
+    const admission = Promise.withResolvers<void>();
+    void this.restartThreadSettlingFailure(session, turn, {
+      onPromptSubmitted: () => admission.resolve(),
+    }).then(
+      () => admission.resolve(),
+      (error: unknown) => admission.reject(error),
+    );
+    return admission.promise;
   }
 
   private rememberRemovedThread(threadId: string): void {

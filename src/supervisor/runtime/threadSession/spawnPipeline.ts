@@ -60,6 +60,7 @@ import {
   type CommandSpec,
   type StructuredSessionHandle,
   type StructuredTurnResult,
+  type StartTurnOptions,
   isCompletedWithoutTurn,
   createKnownSessionRef,
   defaultFormatPromptSegments,
@@ -1060,6 +1061,7 @@ export class SpawnPipeline {
   async restartThread(
     session: SessionRuntime,
     turn: QueuedStructuredTurn,
+    options: Pick<StartTurnOptions, "onPromptSubmitted"> = {},
   ): Promise<void | StructuredTurnResult> {
     const ctx = this.ctx;
     const { prompt } = turn;
@@ -1287,9 +1289,18 @@ export class SpawnPipeline {
                 }
               : undefined,
           );
+        const textOptions = structuredTurnTextOptions(replacement, turn);
+        const onPromptSubmitted =
+          textOptions.onPromptSubmitted || options.onPromptSubmitted
+            ? () => {
+                textOptions.onPromptSubmitted?.();
+                options.onPromptSubmitted?.();
+              }
+            : undefined;
         const startOptions = {
           userMessageItemId: optimisticItemId,
-          ...structuredTurnTextOptions(replacement, turn),
+          ...textOptions,
+          ...(onPromptSubmitted ? { onPromptSubmitted } : {}),
         };
         try {
           const result = await structuredSession.startTurn(
