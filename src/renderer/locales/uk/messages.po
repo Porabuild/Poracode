@@ -1301,6 +1301,10 @@ msgstr "Додати тег"
 msgid "Add tag..."
 msgstr "Додати тег..."
 
+#: src/renderer/components/common/EditContextMenuHost.tsx
+msgid "Add to chat"
+msgstr "Додати в чат"
+
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 msgid "Add to composer"
 msgstr "Додати до Composer"
@@ -1313,6 +1317,10 @@ msgstr "Додати до обраного"
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "Add to Home Screen"
 msgstr "Додати на головний екран"
+
+#: src/renderer/components/common/EditContextMenuHost.tsx
+msgid "Add to side chat"
+msgstr "Додати в бічний чат"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoList.tsx
 msgid "Add to-do"
@@ -4429,6 +4437,7 @@ msgstr "Скопійовано пряму TCP-адресу + квиток під
 msgid "Copied to clipboard"
 msgstr "Скопійовано до буфера обміну"
 
+#: src/renderer/components/common/EditContextMenuHost.tsx
 #: src/renderer/components/terminal/XTermSurface.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Copy"
@@ -4486,6 +4495,7 @@ msgstr "Копіювати ігноровані файли"
 msgid "Copy image"
 msgstr "Копіювати зображення"
 
+#: src/renderer/components/common/EditContextMenuHost.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Copy link"
 msgstr "Копіювати посилання"
@@ -5169,6 +5179,10 @@ msgstr "власний шлях"
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 msgid "Custom theme"
 msgstr "Власна тема"
+
+#: src/renderer/components/common/EditContextMenuHost.tsx
+msgid "Cut"
+msgstr "Вирізати"
 
 #: src/renderer/commands/composerCommands.ts
 msgid "Cycle permission mode"
@@ -11749,6 +11763,14 @@ msgstr "Відкрити в браузері"
 msgid "Open in editor"
 msgstr "Відкрити в редакторі"
 
+#: src/renderer/components/common/EditContextMenuHost.tsx
+msgid "Open in Poracode browser"
+msgstr "Відкрити в браузері Poracode"
+
+#: src/renderer/components/common/EditContextMenuHost.tsx
+msgid "Open in system browser"
+msgstr "Відкрити в системному браузері"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 msgid "Open job on GitHub"
 msgstr "Відкрити завдання на GitHub"
@@ -12282,6 +12304,7 @@ msgid "Passwords are encrypted in Poracode's local credential store. Password va
 msgstr "Паролі зашифровано в локальному сховищі облікових даних Poracode. Значення паролів запитуються лише тоді, коли ви їх показуєте, копіюєте або редагуєте."
 
 #: src/renderer/commands/shortcutCatalog.ts
+#: src/renderer/components/common/EditContextMenuHost.tsx
 #: src/renderer/components/terminal/XTermSurface.tsx
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
@@ -15457,6 +15480,7 @@ msgstr "Виберіть workflow, щоб переглянути його зап
 msgid "Select account"
 msgstr "Вибрати акаунт"
 
+#: src/renderer/components/common/EditContextMenuHost.tsx
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 #: src/renderer/components/skills/SkillImportModal.tsx

@@ -506,7 +506,7 @@ export function ChatPane(props: ChatPaneProps) {
   return (
     <ChatReaderFollowContext.Provider value={readerFollow}>
       <ChatPaneActionsContext.Provider value={paneActionsOverride ?? paneActions}>
-        <div className="flex h-full min-h-0 flex-col">
+        <div className="flex h-full min-h-0 flex-col" data-thread-id={thread.id}>
           {thread.config.importedFrom ? (
             <ImportedThreadNotice importedFrom={thread.config.importedFrom} />
           ) : null}
