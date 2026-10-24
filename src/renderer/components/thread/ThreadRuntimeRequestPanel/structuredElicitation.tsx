@@ -264,12 +264,14 @@ export function StructuredElicitationForm(props: {
           description={description}
           hint={activeProperty?.type === "array" ? t`Select all that apply` : undefined}
           steps={
-            <QuestionSwitcher
-              steps={steps}
-              activeIndex={activeIndex}
-              isDisabled={isDisabled}
-              onSelect={(index) => setActiveFieldKey(fields[index]?.[0] ?? null)}
-            />
+            steps.length > 1 ? (
+              <QuestionSwitcher
+                steps={steps}
+                activeIndex={activeIndex}
+                isDisabled={isDisabled}
+                onSelect={(index) => setActiveFieldKey(fields[index]?.[0] ?? null)}
+              />
+            ) : undefined
           }
         />
       }
@@ -280,6 +282,9 @@ export function StructuredElicitationForm(props: {
           canSubmit={activeIndex < fields.length - 1 ? canAdvance : !hasMissing}
           isDisabled={isDisabled}
           isPending={props.isPending === true}
+          {...(params.mode === "form" && activeIndex < fields.length - 1 && !hasMissing
+            ? { onSubmitEarly: () => submitAccept() }
+            : {})}
           onDecline={() => onSubmit({ action: "decline" }, "declined")}
         />
       }

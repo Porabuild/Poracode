@@ -123,6 +123,75 @@ describe("StructuredElicitationForm", () => {
     );
   });
 
+  it("submits all answers early from another step", () => {
+    const { onSubmit } = renderForm();
+    pickChoice("Auth", "Paste a token");
+    pickChoice("Checks", "Run tests");
+    fireEvent.click(screen.getByRole("tab", { name: "Auth" }));
+
+    expect(screen.getByRole("button", { name: "Continue" })).toBeDefined();
+    const submit = screen.getByRole("button", { name: "Submit" });
+    fireEvent.click(submit);
+
+    expect(onSubmit).toHaveBeenCalledExactlyOnceWith(
+      { action: "accept", content: { q0: "Paste a token", q1: ["Tests"] } },
+      "answered",
+    );
+  });
+
+  it("places the source above the tabs and active question", () => {
+    renderForm({
+      acpElicitation: {
+        mode: "form",
+        message: "Set up the TUI",
+        requestedSchema: {
+          type: "object",
+          required: ["home", "owner"],
+          properties: {
+            home: {
+              type: "string",
+              title: "Fork home",
+              description: "Where should the forked TUI source live?",
+              oneOf: [
+                { const: "fork", title: "GitHub fork" },
+                { const: "vendor", title: "Vendored crates" },
+              ],
+            },
+            owner: {
+              type: "string",
+              title: "No owner",
+              description: "What should the TUI do without an owner?",
+              oneOf: [
+                { const: "serve", title: "Start a server" },
+                { const: "refuse", title: "Refuse" },
+              ],
+            },
+          },
+        },
+      },
+    });
+    const tablist = screen.getByRole("tablist", { name: "Questions" });
+    const eyebrow = screen.getByText("ACP agent · Set up the TUI");
+    const question = screen.getByText(
+      (_content, element) =>
+        element?.tagName === "P" &&
+        element.textContent === "Where should the forked TUI source live? *",
+    );
+
+    expect(eyebrow.closest(".border-b")).not.toBeNull();
+    expect(tablist.closest(".border-b")).toBeNull();
+    expect(question.closest(".border-b")).toBeNull();
+    expect(
+      eyebrow.compareDocumentPosition(tablist) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      tablist.compareDocumentPosition(question) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(screen.getAllByText("Fork home").every((element) => tablist.contains(element))).toBe(
+      true,
+    );
+  });
+
   it("keeps multi-select answers while navigating and validates every step", () => {
     const { onSubmit } = renderForm();
     fireEvent.click(screen.getByRole("tab", { name: /Checks/ }));
@@ -763,6 +832,8 @@ describe("StructuredElicitationForm", () => {
         elicitationId: "e1",
       },
     });
+    expect(screen.getByRole("button", { name: "Continue" })).toBeDefined();
+    expect(screen.queryByRole("button", { name: "Submit" })).toBeNull();
     fireEvent.click(screen.getByText("Open required URL"));
     expect(openExternal).toHaveBeenCalledWith("https://example.test/login");
   });
