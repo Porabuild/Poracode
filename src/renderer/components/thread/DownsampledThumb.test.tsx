@@ -22,6 +22,7 @@ describe("DownsampledThumb", () => {
       <DownsampledThumb
         src="https://x.test/shot.png"
         alt="shot"
+        cssPx={96}
         className="size-full object-cover [image-rendering:high-quality]"
       />,
     );
@@ -38,11 +39,23 @@ describe("DownsampledThumb", () => {
 
   it("swaps to the downsampled blob URL after load", async () => {
     downsampleLoadedImage.mockResolvedValue("blob:thumb");
-    const { container } = render(<DownsampledThumb src="https://x.test/shot.png" alt="shot" />);
+    const { container } = render(
+      <DownsampledThumb src="https://x.test/shot.png" alt="shot" cssPx={96} />,
+    );
     fireEvent.load(container.querySelector("img")!);
     await waitFor(() => {
       expect(container.querySelector("img")).toHaveAttribute("src", "blob:thumb");
     });
+  });
+
+  it("loads a desktop local file as a host-resized thumbnail without page downsampling", () => {
+    const { container } = render(
+      <DownsampledThumb src="poracode-local://local/tmp/shot.png" alt="shot" cssPx={96} />,
+    );
+    const img = container.querySelector("img")!;
+    expect(img).toHaveAttribute("src", "poracode-local://local/tmp/shot.png?thumb=96");
+    fireEvent.load(img);
+    expect(downsampleLoadedImage).not.toHaveBeenCalled();
   });
 
   it("revokes a late thumbnail when the tile unmounts before downsample finishes", async () => {
@@ -54,7 +67,7 @@ describe("DownsampledThumb", () => {
     );
     const revoke = vi.spyOn(URL, "revokeObjectURL");
     const { container, unmount } = render(
-      <DownsampledThumb src="https://x.test/shot.png" alt="shot" />,
+      <DownsampledThumb src="https://x.test/shot.png" alt="shot" cssPx={96} />,
     );
     fireEvent.load(container.querySelector("img")!);
     unmount();

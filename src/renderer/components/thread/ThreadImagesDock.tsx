@@ -139,6 +139,7 @@ export function ThreadImagesDock({
                       <DownsampledThumb
                         src={img.src}
                         alt={img.alt || ""}
+                        cssPx={96}
                         className="size-full rounded-[inherit] object-cover [image-rendering:high-quality]"
                       />
                       <span
