@@ -290,16 +290,22 @@ export function UserInputForm(props: {
           description={hasDistinctHeader ? activeQuestion.question : undefined}
           hint={activeQuestion.multiSelect ? t`Select all that apply` : undefined}
           steps={
-            <QuestionSwitcher
-              steps={controller.questions.map((question) => ({
-                id: question.id,
-                label: question.header,
-                answered: questionHasAnswer(question, controller.answers, controller.customAnswers),
-              }))}
-              activeIndex={controller.activeIndex}
-              isDisabled={isDisabled}
-              onSelect={controller.setActiveIndex}
-            />
+            controller.questions.length > 1 ? (
+              <QuestionSwitcher
+                steps={controller.questions.map((question) => ({
+                  id: question.id,
+                  label: question.header,
+                  answered: questionHasAnswer(
+                    question,
+                    controller.answers,
+                    controller.customAnswers,
+                  ),
+                }))}
+                activeIndex={controller.activeIndex}
+                isDisabled={isDisabled}
+                onSelect={controller.setActiveIndex}
+              />
+            ) : undefined
           }
         />
       }
@@ -310,6 +316,9 @@ export function UserInputForm(props: {
           canSubmit={isLastStep ? allQuestionsAnswered : canAdvance}
           isDisabled={isDisabled}
           isPending={props.isPending ?? false}
+          {...(!isLastStep && allQuestionsAnswered
+            ? { onSubmitEarly: () => onSubmit(controller.buildResponse(), "answered") }
+            : {})}
           {...(props.onDecline ? { onDecline: props.onDecline } : {})}
         />
       }
