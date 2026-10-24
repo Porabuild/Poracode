@@ -106,9 +106,15 @@ export function useNewPromptScroll({
             const element = listRef.current?.getScrollableNode();
             if (element) element.dataset.chatEndSpaceSize = String(size);
           },
-          onReady: ({ anchorKey }) => {
+          onReady: ({ anchorKey, size }) => {
             if (!anchorKey || pendingAnimation.current !== anchorKey) return;
             pendingAnimation.current = null;
+            if (restoringAnchor.current && size <= 0) {
+              // The reply filled its space while the pane was away; show its tail.
+              restoringAnchor.current = false;
+              useAppStore.getState().clearChatPromptAnchor(threadId);
+              return;
+            }
             const element = listRef.current?.getScrollableNode();
             if (!element) return;
             onNewPrompt?.();

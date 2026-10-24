@@ -120,9 +120,6 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
       chatScrollToPromptRequests: Object.fromEntries(
         Object.entries(state.chatScrollToPromptRequests).filter(([id]) => id !== threadId),
       ),
-      chatPromptAnchorIds: Object.fromEntries(
-        Object.entries(state.chatPromptAnchorIds).filter(([id]) => id !== threadId),
-      ),
     })),
   requestChatScrollToPrompt: (threadId, queued = false) =>
     set((state) => {
