@@ -169,10 +169,12 @@ export const AssistantMessage = memo(function AssistantMessage({
             />
           ) : null}
           {showCopyButton && completedTurnEndedAt !== undefined ? (
+            /* A 24px line box matches the icon buttons, so the text snaps to
+               pixels with them instead of drifting 1px at fractional offsets. */
             <time
               dateTime={new Date(completedTurnEndedAt).toISOString()}
               title={i18n.date(completedTurnEndedAt, { dateStyle: "full", timeStyle: "long" })}
-              className="ml-1 whitespace-nowrap text-[length:var(--lc-chat-font-size-meta)] tabular-nums text-muted"
+              className="ml-1 whitespace-nowrap text-[length:var(--lc-chat-font-size-meta)] leading-6 tabular-nums text-muted"
             >
               {formatMessageTimestamp(completedTurnEndedAt, i18n.locale)}
             </time>
