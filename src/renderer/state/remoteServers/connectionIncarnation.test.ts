@@ -222,26 +222,37 @@ beforeEach(async () => {
   useRemoteServersStore.getState().setSocketFactory(() => makeSocket());
 });
 
-afterEach(() => {
+afterEach(async () => {
   __resetEnvironmentSessionsForTest();
   __resetRemoteServersStoreForTest();
+  // Rotation now also queues secure access-token writes. Join those before
+  // the next case resets the vault's process-local caches and generations.
+  await useRemoteServersStore.persist.getOptions().storage!.getItem("poracode-remote-servers");
   __resetRefreshTokensForTest();
   localStorage.clear();
 });
 
 describe("connection incarnation across store re-pair and removal", () => {
-  it.each([
-    { route: "direct" as const, assertsNewPin: true },
-    // The SSH route carries no QR fingerprint, so only the session/token
-    // adoption is asserted (its pin handling is unchanged).
-    { route: "ssh" as const, assertsNewPin: false },
-    { route: "standalone" as const, assertsNewPin: true },
-  ])(
-    "retires the captured parent incarnation on a $route re-pair before the commit",
-    async ({ route, assertsNewPin }) => {
+  it.each(
+    [
+      { route: "direct" as const, assertsNewPin: true },
+      // The SSH route carries no QR fingerprint, so only the session/token
+      // adoption is asserted (its pin handling is unchanged).
+      { route: "ssh" as const, assertsNewPin: false },
+      { route: "standalone" as const, assertsNewPin: true },
+    ].flatMap((entry) => [
+      { ...entry, clientKind: "parent" as const },
+      { ...entry, clientKind: "request" as const },
+    ]),
+  )(
+    "retires the captured $clientKind incarnation on a $route re-pair before the commit",
+    async ({ route, assertsNewPin, clientKind }) => {
       useRemoteServersStore.setState({ servers: [parentRecord(), childRecord()] });
       const firstParent = parentClientForConnection(PARENT_KEY);
       expect(firstParent).toBeDefined();
+      if (clientKind === "request") {
+        await useRemoteServersStore.getState().withClient(PARENT_KEY, async (client) => client);
+      }
       const retired = created.at(-1)!;
       expect(retired.lifecycle).not.toBeNull();
 
@@ -250,6 +261,7 @@ describe("connection incarnation across store re-pair and removal", () => {
         refreshToken: "old-grant",
       });
       await expectVault(connectionSubject, "old-grant");
+      expect(useRemoteServersStore.getState().servers[0]?.accessToken).toBe("old-access");
 
       await rePairVia(route);
       await expectVault(connectionSubject, "fresh-grant");
@@ -266,53 +278,65 @@ describe("connection incarnation across store re-pair and removal", () => {
       // the vault: the fresh grant survives.
       retired.lifecycle!.onTokensRefreshed({ accessToken: "stale", refreshToken: "stale-old" });
       expect(refreshTokenForSubject(connectionSubject)).toBe("fresh-grant");
+      expect(
+        useRemoteServersStore
+          .getState()
+          .servers.find((server) => server.connectionId === PARENT_KEY)?.accessToken,
+      ).toBe("fresh-access");
       await expectVault(connectionSubject, "fresh-grant");
     },
     30_000,
   );
 
-  it("removes the parent session and fences delayed writes, including an in-flight vault write", async () => {
-    useRemoteServersStore.setState({ servers: [parentRecord(), childRecord()] });
-    parentClientForConnection(PARENT_KEY);
-    const retired = created.at(-1)!;
-    retired.lifecycle!.onTokensRefreshed({ accessToken: "live", refreshToken: "grant-1" });
-    await expectVault(connectionSubject, "grant-1");
-
-    // Hold the next encryption, so a rotation is mid-write when removal runs.
-    const realEncrypt = crypto.subtle.encrypt.bind(crypto.subtle);
-    let release: (() => void) | null = null;
-    const gate = new Promise<void>((resolve) => {
-      release = resolve;
-    });
-    let held = false;
-    const encryptSpy = vi.spyOn(crypto.subtle, "encrypt").mockImplementation(async (...args) => {
-      if (!held) {
-        held = true;
-        await gate;
+  it.each(["parent", "request"] as const)(
+    "fences removed %s clients, including an in-flight vault write",
+    async (clientKind) => {
+      useRemoteServersStore.setState({ servers: [parentRecord(), childRecord()] });
+      parentClientForConnection(PARENT_KEY);
+      if (clientKind === "request") {
+        await useRemoteServersStore.getState().withClient(PARENT_KEY, async (client) => client);
       }
-      return realEncrypt(...args);
-    });
-    try {
-      retired.lifecycle!.onTokensRefreshed({ accessToken: "live-2", refreshToken: "grant-2" });
-      await vi.waitFor(() => expect(held).toBe(true), { timeout: 5_000 });
+      const retired = created.at(-1)!;
+      retired.lifecycle!.onTokensRefreshed({ accessToken: "live", refreshToken: "grant-1" });
+      await expectVault(connectionSubject, "grant-1");
 
-      // The actual store removal (the dependent child needs the explicit
-      // cascade confirmation).
-      useRemoteServersStore.getState().removeServer(PARENT_KEY, { cascadeEnvironments: true });
-      expect(useRemoteServersStore.getState().servers).toHaveLength(0);
-      expect(refreshTokenForSubject(connectionSubject)).toBeUndefined();
+      // Hold the next encryption, so a rotation is mid-write when removal runs.
+      const realEncrypt = crypto.subtle.encrypt.bind(crypto.subtle);
+      let release: (() => void) | null = null;
+      const gate = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      let held = false;
+      const encryptSpy = vi.spyOn(crypto.subtle, "encrypt").mockImplementation(async (...args) => {
+        if (!held) {
+          held = true;
+          await gate;
+        }
+        return realEncrypt(...args);
+      });
+      try {
+        retired.lifecycle!.onTokensRefreshed({ accessToken: "live-2", refreshToken: "grant-2" });
+        await vi.waitFor(() => expect(held).toBe(true), { timeout: 5_000 });
 
-      // A delayed rotation after removal is refused outright.
-      retired.lifecycle!.onTokensRefreshed({ accessToken: "stale", refreshToken: "resurrected" });
-      expect(refreshTokenForSubject(connectionSubject)).toBeUndefined();
+        // The actual store removal (the dependent child needs the explicit
+        // cascade confirmation).
+        useRemoteServersStore.getState().removeServer(PARENT_KEY, { cascadeEnvironments: true });
+        expect(useRemoteServersStore.getState().servers).toHaveLength(0);
+        expect(refreshTokenForSubject(connectionSubject)).toBeUndefined();
 
-      // The in-flight write lands first, then the removal's queued delete
-      // wins: the deleted grant stays deleted.
-      release!();
-      await expectVault(connectionSubject, undefined);
-    } finally {
-      release!();
-      encryptSpy.mockRestore();
-    }
-  }, 30_000);
+        // A delayed rotation after removal is refused outright.
+        retired.lifecycle!.onTokensRefreshed({ accessToken: "stale", refreshToken: "resurrected" });
+        expect(refreshTokenForSubject(connectionSubject)).toBeUndefined();
+
+        // The in-flight write lands first, then the removal's queued delete
+        // wins: the deleted grant stays deleted.
+        release!();
+        await expectVault(connectionSubject, undefined);
+      } finally {
+        release!();
+        encryptSpy.mockRestore();
+      }
+    },
+    30_000,
+  );
 });
