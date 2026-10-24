@@ -29,8 +29,8 @@ export function QuestionFormHeader(props: {
         </p>
         {description ? <p className="text-xs text-foreground/75">{description}</p> : null}
         {hint ? <p className="text-[11px] text-[color:var(--muted)]">{hint}</p> : null}
+        {steps ? <div className="min-w-0 pt-1.5 empty:hidden">{steps}</div> : null}
       </div>
-      {steps ? <div className="min-w-0 max-w-[50%] shrink-0">{steps}</div> : null}
     </div>
   );
 }
