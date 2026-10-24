@@ -4,15 +4,15 @@ import type { RemoteWebSocketClientMessage, RemoteWebSocketServerMessage } from 
 
 type Sender = (message: RemoteWebSocketClientMessage) => boolean;
 interface Watch {
-  ownerId: string;
+  ownerId: string | undefined;
   threadId: string;
   watchId: string;
   listeners: Set<(vision: AgentVision | null) => void>;
 }
-const senders = new Map<string, Sender>();
+const senders = new Map<string | undefined, Sender>();
 const watches = new Map<string, Watch>();
 
-export function hasAgentVisionStream(ownerId: string): boolean {
+export function hasAgentVisionStream(ownerId: string | undefined): boolean {
   return senders.has(ownerId);
 }
 
@@ -25,7 +25,7 @@ function start(watch: Watch) {
   });
 }
 
-export function setAgentVisionSocketSender(ownerId: string, next: Sender | null): void {
+export function setAgentVisionSocketSender(ownerId: string | undefined, next: Sender | null): void {
   const previous = senders.get(ownerId);
   if (previous === next) return;
   if (next) senders.set(ownerId, next);
@@ -39,7 +39,7 @@ export function setAgentVisionSocketSender(ownerId: string, next: Sender | null)
 }
 
 export function subscribeAgentVisionStream(
-  ownerId: string,
+  ownerId: string | undefined,
   threadId: string,
   listener: (vision: AgentVision | null) => void,
 ): () => void {
@@ -61,7 +61,7 @@ export function subscribeAgentVisionStream(
 }
 
 export function handleAgentVisionServerMessage(
-  ownerId: string,
+  ownerId: string | undefined,
   message: RemoteWebSocketServerMessage,
 ): boolean {
   if (message.type !== "agent-vision-frame") return false;

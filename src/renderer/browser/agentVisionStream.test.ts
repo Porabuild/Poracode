@@ -8,6 +8,26 @@ import {
 } from "./agentVisionStream";
 
 describe("Agent Vision stream subscriptions", () => {
+  it("keeps managed and paired owners distinct for the same thread", () => {
+    const managed = vi.fn<(message: RemoteWebSocketClientMessage) => boolean>(() => true);
+    const paired = vi.fn<(message: RemoteWebSocketClientMessage) => boolean>(() => true);
+    const listener = vi.fn<(vision: AgentVision | null) => void>();
+    setAgentVisionSocketSender(undefined, managed);
+    setAgentVisionSocketSender("undefined", paired);
+    const stop = subscribeAgentVisionStream(undefined, "thread", listener);
+    expect(paired).not.toHaveBeenCalled();
+    const watch = managed.mock.calls[0]![0];
+    if (watch.type !== "agent-vision-watch") throw new Error("Expected watch");
+    const frame = { type: "agent-vision-frame" as const, watchId: watch.watchId, vision: null };
+    handleAgentVisionServerMessage("undefined", frame);
+    expect(listener).not.toHaveBeenCalled();
+    handleAgentVisionServerMessage(undefined, frame);
+    expect(listener).toHaveBeenCalledOnce();
+    stop();
+    setAgentVisionSocketSender(undefined, null);
+    setAgentVisionSocketSender("undefined", null);
+  });
+
   it("shares a watch between panel and popout, fences owners, and restores it on reconnect", () => {
     const first = vi.fn<(message: RemoteWebSocketClientMessage) => boolean>(() => true);
     const next = vi.fn<(message: RemoteWebSocketClientMessage) => boolean>(() => true);

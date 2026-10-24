@@ -21,7 +21,10 @@ export function subscribeAgentVisionPictureInPicture(listener: () => void): () =
   };
 }
 
-export function isAgentVisionPictureInPicture(ownerId: string, threadId: string): boolean {
+export function isAgentVisionPictureInPicture(
+  ownerId: string | undefined,
+  threadId: string,
+): boolean {
   return (
     current?.key === JSON.stringify([ownerId, threadId]) &&
     document.pictureInPictureElement === current.video
@@ -40,7 +43,7 @@ function release(preview: PreviewWindow) {
 
 /** The browser owns the one always-on-top window; its stream outlives the panel. */
 export async function toggleAgentVisionPictureInPicture(
-  ownerId: string,
+  ownerId: string | undefined,
   threadId: string,
   vision: AgentVision,
 ): Promise<void> {

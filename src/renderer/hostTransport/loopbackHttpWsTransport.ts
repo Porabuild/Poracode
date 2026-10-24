@@ -726,7 +726,7 @@ async function startOwnedDesktopLoopbackIntake(isCurrentStartup: () => boolean):
     },
     onTerminalReady: (send) => {
       if (!isCurrentIntake()) return;
-      setAgentVisionSocketSender(MANAGED_LOOPBACK_DESKTOP_ID, send);
+      setAgentVisionSocketSender(undefined, send);
       feed.setRemoteTerminalSocketSender(
         feed.managedTerminalFeedId(),
         send as (message: RemoteWebSocketClientMessage) => boolean,
@@ -735,17 +735,12 @@ async function startOwnedDesktopLoopbackIntake(isCurrentStartup: () => boolean):
     },
     onTerminalLost: () => {
       if (!isCurrentIntake()) return;
-      setAgentVisionSocketSender(MANAGED_LOOPBACK_DESKTOP_ID, null);
+      setAgentVisionSocketSender(undefined, null);
       feed.setRemoteTerminalSocketSender(feed.managedTerminalFeedId(), null);
     },
     onServerFrame: (message) => {
       if (!isCurrentIntake()) return false;
-      if (
-        handleAgentVisionServerMessage(
-          MANAGED_LOOPBACK_DESKTOP_ID,
-          message as RemoteWebSocketServerMessage,
-        )
-      )
+      if (handleAgentVisionServerMessage(undefined, message as RemoteWebSocketServerMessage))
         return true;
       return feed.handleRemoteTerminalServerMessage(
         feed.managedTerminalFeedId(),

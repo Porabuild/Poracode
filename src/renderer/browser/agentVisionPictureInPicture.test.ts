@@ -23,7 +23,8 @@ afterEach(() => {
 });
 
 describe("Agent Vision picture-in-picture", () => {
-  it("keeps its own live subscription and releases media and capture on native close", async () => {
+  it("keeps its managed live subscription and releases capture on native close", async () => {
+    const ownerId = undefined;
     let element: HTMLVideoElement | null = null;
     const trackStop = vi.fn<() => void>();
     const draw = vi.fn<() => void>();
@@ -76,15 +77,15 @@ describe("Agent Vision picture-in-picture", () => {
       updatedAt: 1,
       image: "data:image/jpeg;base64,aGVsbG8=",
     };
-    await toggleAgentVisionPictureInPicture("host", "thread", vision);
-    expect(isAgentVisionPictureInPicture("host", "thread")).toBe(true);
-    expect(fixture.subscribe).toHaveBeenCalledWith("host", "thread", expect.any(Function));
+    await toggleAgentVisionPictureInPicture(ownerId, "thread", vision);
+    expect(isAgentVisionPictureInPicture(ownerId, "thread")).toBe(true);
+    expect(fixture.subscribe).toHaveBeenCalledWith(ownerId, "thread", expect.any(Function));
     const onFrame = fixture.subscribe.mock.calls[0]![2] as (frame: AgentVision) => void;
     onFrame({ ...vision, source: "computer" });
     await Promise.resolve();
     expect(draw).toHaveBeenCalledTimes(2);
     await document.exitPictureInPicture();
-    expect(isAgentVisionPictureInPicture("host", "thread")).toBe(false);
+    expect(isAgentVisionPictureInPicture(ownerId, "thread")).toBe(false);
     expect(fixture.stop).toHaveBeenCalledOnce();
     expect(trackStop).toHaveBeenCalledOnce();
     expect(pause).toHaveBeenCalledOnce();

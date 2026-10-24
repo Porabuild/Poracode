@@ -14,7 +14,6 @@ import {
   ThreadDockIconButton,
 } from "./ThreadDockUI";
 import { Button } from "@/renderer/components/common/Button";
-import { MANAGED_LOOPBACK_DESKTOP_ID } from "@/renderer/hostTransport/managedIdentity";
 import {
   hasAgentVisionStream,
   subscribeAgentVisionStream,
@@ -36,7 +35,7 @@ export function useThreadAgentVision(threadId: string, visible: boolean, preview
   useEffect(() => {
     if (!visible) return;
     const controller = new AbortController();
-    const ownerId = remoteServerId ?? MANAGED_LOOPBACK_DESKTOP_ID;
+    const ownerId = remoteServerId;
     let stopStream: (() => void) | undefined;
     let timer: ReturnType<typeof setTimeout> | undefined;
     async function poll() {
@@ -98,7 +97,7 @@ export function ThreadAgentVisionDock({
 }) {
   const { t } = useLingui();
   const thread = useThread(threadId);
-  const ownerId = thread?.remoteServerId ?? MANAGED_LOOPBACK_DESKTOP_ID;
+  const ownerId = thread?.remoteServerId;
   const targetId = thread?.remoteId ?? threadId;
   const poppedOut = useSyncExternalStore(
     subscribeAgentVisionPictureInPicture,

@@ -15,7 +15,6 @@ import {
   setAgentVisionSocketSender,
   handleAgentVisionServerMessage,
 } from "@/renderer/browser/agentVisionStream";
-import { MANAGED_LOOPBACK_DESKTOP_ID } from "@/renderer/hostTransport/managedIdentity";
 import type { RemoteWebSocketClientMessage } from "@/shared/remote";
 
 const fixture = vi.hoisted(() => ({
@@ -53,7 +52,7 @@ describe("ThreadAgentVisionDock", () => {
   it("polls only without a stream and preserves a reconnected stream after a failed fallback", async () => {
     vi.useFakeTimers();
     const send = vi.fn<(message: RemoteWebSocketClientMessage) => boolean>(() => true);
-    setAgentVisionSocketSender(MANAGED_LOOPBACK_DESKTOP_ID, send);
+    setAgentVisionSocketSender(undefined, send);
     fixture.agentVision
       .mockReset()
       .mockResolvedValueOnce({ ...vision, streamVersion: 1 })
@@ -64,7 +63,7 @@ describe("ThreadAgentVisionDock", () => {
     const watch = send.mock.calls[0]![0];
     if (watch.type !== "agent-vision-watch") throw new Error("Expected watch");
     act(() => {
-      handleAgentVisionServerMessage(MANAGED_LOOPBACK_DESKTOP_ID, {
+      handleAgentVisionServerMessage(undefined, {
         type: "agent-vision-frame",
         watchId: watch.watchId,
         vision,
@@ -76,14 +75,14 @@ describe("ThreadAgentVisionDock", () => {
     expect(fixture.agentVision).toHaveBeenCalledTimes(1);
     const fallback = Promise.withResolvers<AgentVision | null>();
     fixture.agentVision.mockReturnValueOnce(fallback.promise);
-    act(() => setAgentVisionSocketSender(MANAGED_LOOPBACK_DESKTOP_ID, null));
+    act(() => setAgentVisionSocketSender(undefined, null));
     await act(async () => {
       await vi.advanceTimersByTimeAsync(1000);
     });
     expect(fixture.agentVision).toHaveBeenCalledTimes(2);
     act(() => {
-      setAgentVisionSocketSender(MANAGED_LOOPBACK_DESKTOP_ID, send);
-      handleAgentVisionServerMessage(MANAGED_LOOPBACK_DESKTOP_ID, {
+      setAgentVisionSocketSender(undefined, send);
+      handleAgentVisionServerMessage(undefined, {
         type: "agent-vision-frame",
         watchId: watch.watchId,
         vision,
@@ -92,7 +91,7 @@ describe("ThreadAgentVisionDock", () => {
     await act(async () => fallback.reject(new Error("HTTP unavailable")));
     expect(hook.result.current).toEqual(vision);
     hook.unmount();
-    setAgentVisionSocketSender(MANAGED_LOOPBACK_DESKTOP_ID, null);
+    setAgentVisionSocketSender(undefined, null);
   });
   it("enlarges a live preview, follows new frames and sources, and closes with Escape", async () => {
     const view = render(
