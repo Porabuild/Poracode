@@ -149,15 +149,20 @@ it.each(
   act(() =>
     observer.visibility([target(cards[0]!), true], [target(cards[1]!), mode === "hidden pane"]),
   );
+  const firstImage = kind === "attachment" ? cards[0]!.querySelector("img") : null;
+  const sameNode = (card: Element) =>
+    kind === "attachment" ? firstImage : card.querySelector("img");
   await complete(0);
   await waitFor(() => expect(cards[0]!.querySelector("img")?.src).toBe("blob:visible-1"));
+  expect(cards[0]!.querySelector("img")).toBe(sameNode(cards[0]!));
+  expect(kind === "attachment" ? observer.elements.has(firstImage!) : true).toBe(true);
 
   if (mode === "hidden pane") view.rerender(fixture([false, true]));
   else act(() => observer.visibility([target(cards[0]!), false], [target(cards[1]!), true]));
   await waitFor(() => expect(fetches).toHaveLength(2));
   await complete(1);
   await waitFor(() => expect(cards[1]!.querySelector("img")?.src).toBe("blob:visible-2"));
-  expect(cards[0]!.querySelector("img")).toBeNull();
+  expect(cards[0]!.querySelector("img")?.getAttribute("src") ?? "").toBe("");
 
   // No retry-clock advance: leaving the viewport released foreground demand,
   // so this background eviction must not impose the 15-second failure latch.
@@ -166,6 +171,7 @@ it.each(
   await waitFor(() => expect(fetches).toHaveLength(3));
   await complete(2);
   await waitFor(() => expect(cards[0]!.querySelector("img")?.src).toBe("blob:visible-3"));
+  expect(cards[0]!.querySelector("img")).toBe(sameNode(cards[0]!));
   expect([...view.container.querySelectorAll(selector)]).toEqual(cards);
   view.unmount();
   expect(observer.elements.size).toBe(0);

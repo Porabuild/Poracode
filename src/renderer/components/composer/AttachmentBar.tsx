@@ -139,17 +139,22 @@ function AttachmentImage(props: {
     activeReadiness ? "" : attachmentImageUrl(attachment, imageUrlForPath),
     priority,
   );
-  return url ? (
-    <img
-      ref={viewportRef}
-      className={className}
-      src={url}
-      alt={alt}
-      decoding="async"
-      draggable={false}
-    />
-  ) : (
-    <Skeleton ref={viewportRef} className={className} role="img" aria-label={alt} />
+  // The watched node has to stay mounted. Swapping a skeleton for an <img>
+  // rebinds the viewport observer; its first report says the new node is off
+  // screen, the fetch is dropped, and the placeholder comes back. That cycle
+  // repeats for as long as the bytes keep arriving.
+  return (
+    <span className="poracode-attachment-image-slot">
+      <img
+        ref={viewportRef}
+        className={`${className}${url ? "" : " opacity-0"}`}
+        alt={url ? alt : ""}
+        decoding="async"
+        draggable={false}
+        {...(url ? { src: url } : { "aria-hidden": true })}
+      />
+      {url ? null : <Skeleton className="absolute inset-0" role="img" aria-label={alt} />}
+    </span>
   );
 }
 

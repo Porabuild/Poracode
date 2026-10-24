@@ -26,13 +26,18 @@ describe("AttachmentBar", () => {
         remoteImageReadiness={readiness}
       />,
     );
-    expect(container.querySelector("img")).toBeNull();
+    const pending = container.querySelector("img");
+    expect(pending).not.toBeNull();
+    expect(pending).toHaveAttribute("aria-hidden", "true");
+    expect(pending?.getAttribute("src")).toBeNull();
     expect(screen.getByRole("img", { name: "image.png" })).toBeInTheDocument();
     act(() => {
       url = "blob:ready";
       notify();
     });
-    expect(screen.getByAltText("image.png")).toHaveAttribute("src", "blob:ready");
+    const ready = screen.getByAltText("image.png");
+    expect(ready).toBe(pending);
+    expect(ready).toHaveAttribute("src", "blob:ready");
   });
 
   it("renders image attachments as labeled inset chips by default", () => {
