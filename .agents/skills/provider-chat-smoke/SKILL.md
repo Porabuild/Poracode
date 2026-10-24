@@ -8,8 +8,8 @@ description: Smoke tests real provider chat threads and ACP sessions end to end 
 This skill adds provider-chat gates on top of `interactive-testing`. Launch,
 drive, screenshot, and tear down exactly as that skill describes, using a
 managed `--mode real` session for live gates. Keep the work in the disposable
-fixture project, never approve a write, and leave the smoke profile for
-inspection.
+fixture project, never approve a write, and delete the smoke session directory
+when the run finishes. Copy cited screenshots and reports into `tmp/` first.
 
 ## Plan
 
@@ -109,7 +109,7 @@ before writing a verdict:
 
 Give a verdict per provider and per gate: PASS, FAIL, SKIPPED, or NOT
 APPLICABLE, with connection/capability evidence, session-reference continuity,
-error count with the first three errors, and screenshot/report paths. Keep real
+error count with the first three errors, and screenshot/report paths under `tmp/`. Keep real
 provider evidence separate from mocked protocol coverage.
 
 For providers whose server runs in WSL, teardown hygiene is part of the verdict:

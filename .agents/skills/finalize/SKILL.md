@@ -17,6 +17,7 @@ If the target or ownership is genuinely ambiguous, resolve it before publication
 3. Use `interactive-testing` for real manual QA of affected app behavior, with an isolated managed session. Add
    `provider-chat-smoke` or `mobile-apps` when applicable. For visible UI changes, capture comparable before/after
    screenshots as required by `pull-request`. Record real interactions and outcomes; tests do not replace manual QA.
+   When that pass finishes, delete its smoke session directory, as interactive-testing requires.
    Finish heavy app builds before starting the full test suite; avoid overlapping baseline/branch builds and tests.
    Reuse valid captures and managed builds while their relevant source, fixtures, and runtime inputs are unchanged.
 4. Fix confirmed QA issues, then run the full `verify` gate and every applicable conditional gate on the final tree.

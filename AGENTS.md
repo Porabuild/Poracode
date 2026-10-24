@@ -35,6 +35,7 @@ These protect process ownership, the provider plugin model, and users' persisted
 - **File size:** split a file into focused modules once it grows past one responsibility rather than extending it; large mixed files are where regressions hide.
 - **TypeScript:** with `exactOptionalPropertyTypes`, use a conditional spread instead of passing `undefined` to an optional prop.
 - **Scratch output:** investigation dumps, screenshots, and temporary files go in `tmp/` or `.tmp/` (gitignored), never the repo root or tracked folders.
+- **Test cleanup:** when a run finishes, fails, or you abandon it, delete the disposable trees it created. A managed smoke session under `~/.poracode-smoke` is a frozen app of about 2.6 GB: stop it, copy any report or screenshot you will cite into `tmp/`, then delete that session directory. Do the same for other large generated trees this run no longer needs (native-e2e run directories, derived data). Honor `PORACODE_NATIVE_E2E_KEEP=1`. Leave small evidence the open task still cites, including `tmp/pr-shots/`. Never delete another live session, the real Poracode profile, or the smoke parent itself. Procedure: [interactive-testing](.agents/skills/interactive-testing/SKILL.md#safety-and-teardown).
 
 ## Done means
 
@@ -42,6 +43,7 @@ These protect process ownership, the provider plugin model, and users' persisted
 - Checks ran for real: for a focused change, nearby tests plus touched-file lint and format plus `bun run typecheck`; when asked to make everything green or before a PR is marked ready, the full gate. The `verify` skill owns the exact list.
 - For shared behavior, check desktop and standalone composition paths and the affected client contracts. Verify relevant no-client, multi-client, and reconnect behavior; a renderer test alone does not prove host behavior or native-client parity. Platform-only work needs only its affected surfaces.
 - The report names what was verified and what was not.
+- Disposable test output this run created is gone, unless the user asked to keep that session. Cited smoke reports and screenshots live in `tmp/`; the session directory under `~/.poracode-smoke` does not.
 
 ## Commits and pull requests
 
