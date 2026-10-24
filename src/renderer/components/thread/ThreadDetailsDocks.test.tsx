@@ -218,6 +218,20 @@ describe("Thread details", () => {
     expect(screen.queryByText("session-one")).not.toBeInTheDocument();
   });
 
+  it("does not highlight a hovered section header", () => {
+    render(
+      <AppProvider>
+        <ThreadWorkspaceDock threadId="t1" />
+      </AppProvider>,
+    );
+    const header = screen.getByRole("button", { name: "Thread context" });
+    expect(header).toHaveClass(
+      "[--button-bg-hover:transparent]",
+      "[--button-bg-pressed:transparent]",
+    );
+    expect(within(header).getByText("Thread context").className).not.toContain("hover:");
+  });
+
   it("shows the provider icon and compact usage, then expands account details", () => {
     useProviderUsageStore.getState().setSnapshots([
       {

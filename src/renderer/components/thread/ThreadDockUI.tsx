@@ -89,7 +89,7 @@ export function ThreadDockHeader({
       {collapse ? (
         <Button
           variant="ghost"
-          className="h-full min-w-0 flex-1 justify-start gap-2 rounded-none px-0 text-left text-xs font-normal"
+          className="h-full min-w-0 flex-1 justify-start gap-2 rounded-none px-0 text-left text-xs font-normal [--button-bg-hover:transparent] [--button-bg-pressed:transparent]"
           aria-label={title}
           aria-expanded={!collapse.collapsed}
           onPress={collapse.onToggle}
