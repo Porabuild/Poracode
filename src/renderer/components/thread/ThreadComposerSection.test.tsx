@@ -1541,7 +1541,7 @@ describe("ThreadComposerSection", () => {
     await waitFor(() => expect(screen.getByRole("textbox")).toHaveTextContent("reverted draft"));
     expect(screen.getByAltText("reverted.png")).toHaveAttribute(
       "src",
-      "poracode-local://local/C:/attachments/reverted.png",
+      "poracode-local://local/C:/attachments/reverted.png?thumb=32",
     );
     expect(useAppStore.getState().threadDraftContents[guiThread.id]?.segments).toEqual([
       { kind: "text", content: "reverted draft" },
@@ -1776,7 +1776,7 @@ describe("ThreadComposerSection", () => {
       await waitFor(() => {
         expect(screen.getByAltText("Image 1.png")).toHaveAttribute(
           "src",
-          "poracode-local://local/C:/attachments/thread-gui-idle/image-1.png",
+          "poracode-local://local/C:/attachments/thread-gui-idle/image-1.png?thumb=32",
         );
       });
       expect(screen.getByRole("textbox")).toHaveTextContent("unsent note");
@@ -2444,7 +2444,7 @@ describe("ThreadComposerSection", () => {
       expect(revokeObjectURL).toHaveBeenCalledWith("blob:app/pasted-1");
       expect(screen.getByAltText("Image 1.png")).toHaveAttribute(
         "src",
-        "poracode-local://local/C:/attachments/thread-gui-idle/image-1.png",
+        "poracode-local://local/C:/attachments/thread-gui-idle/image-1.png?thumb=32",
       );
     } finally {
       Reflect.deleteProperty(URL, "createObjectURL");

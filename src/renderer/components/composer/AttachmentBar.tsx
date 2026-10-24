@@ -11,6 +11,7 @@ import { useRemoteImagePathUrl } from "@/renderer/state/remoteServers/useRemoteI
 import type { RemoteImageReadiness } from "@/renderer/state/remoteServers/environmentSessions";
 import { attachmentImageUrl, type Attachment } from "./useAttachments";
 import { useImageViewportPriority } from "@/renderer/components/common/useImageViewportPriority";
+import { useDownsampledImageSrc } from "@/renderer/components/thread/useDownsampledImageSrc";
 
 /**
  * Enabled-MCP indicator, parameterized by a {@link ComposerMcpServerDescriptor}
@@ -117,6 +118,9 @@ export function ComputerUseChip(props: {
   );
 }
 
+/** Chip and preview thumbs render at 1.6em / 1.75rem; leave headroom for text scaling. */
+const ATTACHMENT_THUMB_CSS_PX = 32;
+
 /**
  * Attachment thumbnail with environment keyed readiness (R3): a host-held path
  * on an environment resolves through its subscription instead of waiting for
@@ -139,6 +143,11 @@ function AttachmentImage(props: {
     activeReadiness ? "" : attachmentImageUrl(attachment, imageUrlForPath),
     priority,
   );
+  // A full-size screenshot in this small box flickers: whenever a neighbor
+  // repaints (a turn's working indicator), an async decode is re-rastered
+  // low-quality, then sharp. Decode synchronously and paint a device-pixel
+  // thumbnail so there is no large raster left to rescale.
+  const { displaySrc, onLoad } = useDownsampledImageSrc(url, ATTACHMENT_THUMB_CSS_PX);
   // The watched node has to stay mounted. Swapping a skeleton for an <img>
   // rebinds the viewport observer; its first report says the new node is off
   // screen, the fetch is dropped, and the placeholder comes back. That cycle
@@ -149,9 +158,10 @@ function AttachmentImage(props: {
         ref={viewportRef}
         className={`${className}${url ? "" : " opacity-0"}`}
         alt={url ? alt : ""}
-        decoding="async"
+        decoding="sync"
         draggable={false}
-        {...(url ? { src: url } : { "aria-hidden": true })}
+        onLoad={onLoad}
+        {...(url ? { src: displaySrc } : { "aria-hidden": true })}
       />
       {url ? null : <Skeleton className="absolute inset-0" role="img" aria-label={alt} />}
     </span>

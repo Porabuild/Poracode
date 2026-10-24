@@ -3,12 +3,14 @@ import { join, normalize, resolve } from "node:path";
 import { net, protocol } from "electron";
 import type { ProjectLocation } from "@/shared/contracts";
 import type { PoracodePaths } from "@/shared/poracodePaths";
+import { readLocalImageThumbPx } from "@/shared/localImageThumb";
 import { resolveLocalFileUrlPath } from "@/shared/promptContent";
 import { getProjectFsPath } from "@/shared/wsl";
 import {
   getThreadAttachmentDir,
   sanitizeAttachmentPathPart,
 } from "@/host/attachments/attachmentStorage";
+import { createLocalImageThumb } from "./localImageThumb";
 
 async function writeUniqueAttachmentFile(
   directory: string,
@@ -163,13 +165,18 @@ export function registerLocalFileProtocolScheme(): void {
 
 export function installLocalFileProtocolHandler(): void {
   for (const scheme of LOCAL_FILE_PROTOCOL_SCHEMES) {
-    protocol.handle(scheme, (request) => {
+    protocol.handle(scheme, async (request) => {
       const { pathToFileURL } = require("node:url") as typeof import("node:url");
       const filePath = resolveLocalFileUrlPath(request.url);
       if (filePath.includes("\0")) {
         return new Response("invalid path", { status: 400 });
       }
       const normalized = resolve(filePath);
+      const thumbPx = readLocalImageThumbPx(request.url);
+      const thumb = thumbPx === null ? null : await createLocalImageThumb(normalized, thumbPx);
+      if (thumb) {
+        return new Response(new Uint8Array(thumb), { headers: { "content-type": "image/png" } });
+      }
       return net.fetch(pathToFileURL(normalized).href);
     });
   }

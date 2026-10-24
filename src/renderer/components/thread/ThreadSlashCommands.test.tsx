@@ -1315,7 +1315,7 @@ describe("ThreadSlashCommands", () => {
       const restoredThumb = await screen.findByAltText("Image 1.png");
       expect(restoredThumb).toHaveAttribute(
         "src",
-        "poracode-local://local/C:/attachments/draft-project-1/image-1.png",
+        "poracode-local://local/C:/attachments/draft-project-1/image-1.png?thumb=32",
       );
       // Drafts persist as the composer's crash-recovery mirror (cleared on
       // submit, not on mount-restore); the mirror carries the durable path.
