@@ -113,8 +113,8 @@ val RemoteRootCodecs.routeU2EThreadU2DHistoryU2DItemU2EResponse: RemoteRootCodec
 val RemoteRootCodecs.routeU2EThreadU2DHistoryU2DItemsU2EPath: RemoteRootCodec<ProcedurecancelExtractContextRequest_09b78d9c1d>
     get() = RemoteRootCodec("route.thread-history-items.path", serializer<ProcedurecancelExtractContextRequest_09b78d9c1d>(), schema_09b78d9c1d4c3a6b)
 
-val RemoteRootCodecs.routeU2EThreadU2DHistoryU2DItemsU2EQuery: RemoteRootCodec<RoutethreadU2DHistoryU2DItemsQuery_625450aae6>
-    get() = RemoteRootCodec("route.thread-history-items.query", serializer<RoutethreadU2DHistoryU2DItemsQuery_625450aae6>(), schema_625450aae672e384)
+val RemoteRootCodecs.routeU2EThreadU2DHistoryU2DItemsU2EQuery: RemoteRootCodec<RoutethreadU2DHistoryU2DItemsQuery_ad31e0c5f6>
+    get() = RemoteRootCodec("route.thread-history-items.query", serializer<RoutethreadU2DHistoryU2DItemsQuery_ad31e0c5f6>(), schema_ad31e0c5f63e1a50)
 
 val RemoteRootCodecs.routeU2EThreadU2DHistoryU2DItemsU2EResponse: RemoteRootCodec<RoutethreadU2DHistoryU2DItemsResponse_2b43031625>
     get() = RemoteRootCodec("route.thread-history-items.response", serializer<RoutethreadU2DHistoryU2DItemsResponse_2b43031625>(), schema_2b430316258b9c31)
@@ -128,8 +128,8 @@ val RemoteRootCodecs.routeU2EThreadU2DHistoryU2DPromptsU2EResponse: RemoteRootCo
 val RemoteRootCodecs.routeU2EThreadU2DHistoryU2EPath: RemoteRootCodec<ProcedurecancelExtractContextRequest_09b78d9c1d>
     get() = RemoteRootCodec("route.thread-history.path", serializer<ProcedurecancelExtractContextRequest_09b78d9c1d>(), schema_09b78d9c1d4c3a6b)
 
-val RemoteRootCodecs.routeU2EThreadU2DHistoryU2EQuery: RemoteRootCodec<RoutethreadU2DHistoryQuery_8015752827>
-    get() = RemoteRootCodec("route.thread-history.query", serializer<RoutethreadU2DHistoryQuery_8015752827>(), schema_8015752827e2b146)
+val RemoteRootCodecs.routeU2EThreadU2DHistoryU2EQuery: RemoteRootCodec<RoutethreadU2DHistoryQuery_677d43553d>
+    get() = RemoteRootCodec("route.thread-history.query", serializer<RoutethreadU2DHistoryQuery_677d43553d>(), schema_677d43553d291527)
 
 val RemoteRootCodecs.routeU2EThreadU2DHistoryU2EResponse: RemoteRootCodec<RoutethreadU2DHistoryResponse_6bea80c666>
     get() = RemoteRootCodec("route.thread-history.response", serializer<RoutethreadU2DHistoryResponse_6bea80c666>(), schema_6bea80c666a89338)

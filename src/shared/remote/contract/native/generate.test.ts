@@ -78,9 +78,10 @@ describe("remote v3 native binding generator", () => {
         // device workspaces add fourteen routes; saved-message search and fork instructions add roots;
         // review labels, reviewers, reactions, drafts and commit diffs add nine procedures;
         // the optional review-thread diff side adds one field; optional async reply source IDs
-        // preserve wire versions.
-        sourceHash: "sha256:58b378c79554237f02959419d9f1249040f1b2d657a853c210549a39d77332ac",
-        manifestHash: "sha256:a0982caef593a943c439a60c413b4e84517c6ec5341fc8b6c9c419b9acd2b043",
+        // preserve wire versions; the optional `deferBodies` history query parameter adds one
+        // structural type (its literal).
+        sourceHash: "sha256:027a9cf40de12ba9ee9cfc374b3352054ff15b65d23b6d682bf49b413d8522cd",
+        manifestHash: "sha256:18b76a337bdc91d98475d116d7501e948d79900013ffee2a34b1f4fa17cd1c3c",
         counts: {
           routes: 119,
           procedures: 163,
@@ -90,7 +91,7 @@ describe("remote v3 native binding generator", () => {
           // 11 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
           webSocketServerVariants: 12,
           schemaRoots: 544,
-          structuralTypes: 1198,
+          structuralTypes: 1199,
           semanticValidators: 25,
           swiftFiles: 75,
           kotlinFiles: 65,

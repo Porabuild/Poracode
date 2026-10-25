@@ -1,5 +1,24 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
+public enum WebSocketClientMessageU2DOptionU2D8U2DType_af6b6f72d4: String, Codable, Sendable {
+  case `terminalU2DUnwatch` = "terminal-unwatch"
+}
+
+public struct WebSocketClientMessageU2DOptionU2D8_5af10e67b4: Codable, Sendable, RemoteModelMetadata {
+  public var id: String
+  public var typeValue: WebSocketClientMessageU2DOptionU2D8U2DType_af6b6f72d4
+  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
+  public static let fields: [RemoteFieldDescriptor] = [
+    .init(wireName: "id", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "type", typeName: "WebSocketClientMessageU2DOptionU2D8U2DType_af6b6f72d4", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+  ]
+  public static let semanticValidatorIds: [String] = []
+  private enum CodingKeys: String, CodingKey {
+    case id = "id"
+    case typeValue = "type"
+  }
+}
+
 public struct WebSocketClientMessageU2DOptionU2D9U2DCursorSync_23a1c447c0: Codable, Sendable, RemoteModelMetadata {
   public var throughCursor: Int64
   public var version: RouteprofileU2DCoreU2DStatsResponseU2DPromptHeatmapU2DCellsU2DItemU2DIntensityU2DOptionU2D3_f8ba039a2f
@@ -426,25 +445,4 @@ public struct WebSocketServerMessageU2DOptionU2D4_a633f9a256: Codable, Sendable,
 
 public enum WebSocketServerMessageU2DOptionU2D5U2DType_d8768c073f: String, Codable, Sendable {
   case `pong` = "pong"
-}
-
-public struct WebSocketServerMessageU2DOptionU2D5_17b50a5a25: Codable, Sendable, RemoteModelMetadata {
-  public var id: RemoteField<String> = .missing
-  public var receivedAt: Double
-  public var sentAt: RemoteField<Double> = .missing
-  public var typeValue: WebSocketServerMessageU2DOptionU2D5U2DType_d8768c073f
-  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
-  public static let fields: [RemoteFieldDescriptor] = [
-    .init(wireName: "id", typeName: "String", required: false, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "receivedAt", typeName: "Double", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "sentAt", typeName: "Double", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "type", typeName: "WebSocketServerMessageU2DOptionU2D5U2DType_d8768c073f", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-  ]
-  public static let semanticValidatorIds: [String] = []
-  private enum CodingKeys: String, CodingKey {
-    case id = "id"
-    case receivedAt = "receivedAt"
-    case sentAt = "sentAt"
-    case typeValue = "type"
-  }
 }

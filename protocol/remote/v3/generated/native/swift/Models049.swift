@@ -1,5 +1,26 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
+public struct WebSocketServerMessageU2DOptionU2D5_17b50a5a25: Codable, Sendable, RemoteModelMetadata {
+  public var id: RemoteField<String> = .missing
+  public var receivedAt: Double
+  public var sentAt: RemoteField<Double> = .missing
+  public var typeValue: WebSocketServerMessageU2DOptionU2D5U2DType_d8768c073f
+  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
+  public static let fields: [RemoteFieldDescriptor] = [
+    .init(wireName: "id", typeName: "String", required: false, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "receivedAt", typeName: "Double", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "sentAt", typeName: "Double", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "type", typeName: "WebSocketServerMessageU2DOptionU2D5U2DType_d8768c073f", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+  ]
+  public static let semanticValidatorIds: [String] = []
+  private enum CodingKeys: String, CodingKey {
+    case id = "id"
+    case receivedAt = "receivedAt"
+    case sentAt = "sentAt"
+    case typeValue = "type"
+  }
+}
+
 public enum WebSocketServerMessageU2DOptionU2D6U2DType_47e02a8368: String, Codable, Sendable {
   case `browserU2DState` = "browser-state"
 }

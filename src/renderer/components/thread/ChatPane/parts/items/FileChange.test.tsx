@@ -1,10 +1,78 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { AppProvider } from "@/renderer/components/ui/provider";
+import { ChatPaneActionsContext } from "../../chatPaneActionsContext";
 import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
+import { acquireHistoryItemDetails } from "@/renderer/state/historyItemDetails";
 import { FileChange } from "./FileChange";
 
+vi.mock("@/renderer/state/historyItemDetails", () => ({
+  acquireHistoryItemDetails: vi.fn<typeof acquireHistoryItemDetails>(),
+}));
+
 describe("FileChange", () => {
+  afterEach(() => vi.mocked(acquireHistoryItemDetails).mockReset());
+
+  it("loads the complete row when a deferred row is expanded", async () => {
+    const full = makeFileChangeItem();
+    const { args: _args, result: _result, ...header } = full.payload as Record<string, unknown>;
+    const deferred: RuntimeChatItem = { ...full, payload: header, detailsDeferred: true };
+    vi.mocked(acquireHistoryItemDetails).mockReturnValue({
+      promise: Promise.resolve(full as never),
+      release() {},
+    });
+    render(
+      <AppProvider>
+        <ChatPaneActionsContext.Provider value={{ threadId: "thread-1" }}>
+          <FileChange item={deferred} />
+        </ChatPaneActionsContext.Provider>
+      </AppProvider>,
+    );
+
+    // The header and totals come from the deferred row; nothing is fetched yet.
+    expect(screen.getByText("+1")).toBeInTheDocument();
+    expect(acquireHistoryItemDetails).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByText("foo.ts"));
+
+    await waitFor(() => {
+      expect(document.body).toHaveTextContent(/old/);
+      expect(document.body).toHaveTextContent(/new/);
+    });
+    expect(acquireHistoryItemDetails).toHaveBeenCalledWith("thread-1", deferred);
+  });
+
+  it("offers Retry when the deferred row cannot be loaded", async () => {
+    const full = makeFileChangeItem();
+    const { args: _args, result: _result, ...header } = full.payload as Record<string, unknown>;
+    const deferred: RuntimeChatItem = { ...full, payload: header, detailsDeferred: true };
+    vi.mocked(acquireHistoryItemDetails).mockReturnValue({
+      promise: Promise.reject(new Error("offline")),
+      release() {},
+    });
+    render(
+      <AppProvider>
+        <ChatPaneActionsContext.Provider value={{ threadId: "thread-1" }}>
+          <FileChange item={deferred} />
+        </ChatPaneActionsContext.Provider>
+      </AppProvider>,
+    );
+
+    fireEvent.click(screen.getByText("foo.ts"));
+    const retry = await screen.findByRole("button", { name: "Retry" });
+
+    vi.mocked(acquireHistoryItemDetails).mockReturnValue({
+      promise: Promise.resolve(full as never),
+      release() {},
+    });
+    fireEvent.click(retry);
+
+    await waitFor(() => {
+      expect(document.body).toHaveTextContent(/old/);
+      expect(document.body).toHaveTextContent(/new/);
+    });
+  });
+
   it("colors diff summary counts", () => {
     render(
       <AppProvider>

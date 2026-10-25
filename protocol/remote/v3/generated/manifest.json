@@ -924,6 +924,7 @@
       "path": "/api/threads/{threadId}/history/items",
       "queryParameters": [
         "projection",
+        "deferBodies",
         "reads",
         "notices",
         "beforePosition",
@@ -943,6 +944,7 @@
       "path": "/api/threads/{threadId}/history",
       "queryParameters": [
         "projection",
+        "deferBodies",
         "reads",
         "notices",
         "runtimePage",
