@@ -462,6 +462,9 @@ export class ThreadSessionManager {
       status: session.status,
       attention: session.attention,
       config: session.config,
+      ...(session.status === "error" && session.errorMessage
+        ? { errorMessage: session.errorMessage }
+        : {}),
       ...(session.launchConfig ? { launchConfig: session.launchConfig } : {}),
       threadMentionToolsAvailable: session.threadMentionToolsAvailable === true,
       ...(session.sessionRef ? { sessionRef: session.sessionRef } : {}),
@@ -491,10 +494,8 @@ export class ThreadSessionManager {
   /**
    * Surface a structured-session failure on both axes: status (so the icon
    * goes red) and a runtime `error` event (so `ThreadErrorDock` and the chat
-   * stream actually render the message). The supervisor stores `errorMessage`
-   * on the thread state, but no renderer surface reads `thread.errorMessage`
-   * — only the runtime error item drives `ThreadErrorDock` — so without the
-   * event the user sees a red icon and nothing else.
+   * stream actually render the message while that transient item lives. The
+   * status `errorMessage` still explains the red status once the item is gone.
    */
   private failStructuredSession(session: SessionRuntime, error: unknown): void {
     this.structuredFailureReporter.capture(session, error);
