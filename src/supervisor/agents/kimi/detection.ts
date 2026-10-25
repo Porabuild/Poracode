@@ -313,7 +313,15 @@ export const kimiDetectionSpec: DetectionSpec = {
           "-NoProfile",
           "-NonInteractive",
           "-Command",
-          "irm https://code.kimi.com/kimi-code/install.ps1 | iex",
+          // A Node host started from PowerShell 7 can pass its PSModulePath to
+          // Windows PowerShell 5.1, hiding the edition's Get-FileHash function.
+          // Prefer this shell's modules and load its checksum helper before
+          // running the installer; only this child process's environment changes.
+          [
+            "$env:PSModulePath = (Join-Path $PSHOME 'Modules') + [IO.Path]::PathSeparator + $env:PSModulePath",
+            "Import-Module (Join-Path $PSHOME 'Modules/Microsoft.PowerShell.Utility/Microsoft.PowerShell.Utility.psd1') -Force -ErrorAction Stop",
+            "irm https://code.kimi.com/kimi-code/install.ps1 | iex",
+          ].join("; "),
         ],
       },
     },
