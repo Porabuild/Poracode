@@ -73,6 +73,7 @@ import {
   getDetachedSubAgentToolCallIdForNotification,
   mapAcpGoalSlashCommand,
   mapAcpSessionUpdate,
+  attributeAcpCommandTerminal,
   type AcpMapperState,
 } from "./canonicalMapping";
 import { awaitProcessTermination } from "@/shared/awaitProcessTermination";
@@ -101,6 +102,7 @@ import {
   type AcpOpenedSessionKind,
 } from "./sessionOpenedSetup";
 import { describeConfigOptionsWithRoles } from "./sessionConfigOptions";
+import { buildTerminalCommandLine, normalizeTerminalCommandText } from "./sessionTerminalLaunch";
 
 // ── Helpers ──────────────────────────────────────────────────────
 
@@ -291,6 +293,16 @@ export interface AcpSessionBehavior {
   suppressOutputAfterInterrupt?: boolean;
   /** Keep noisy provider diagnostics out of the parent process console. */
   suppressStderrLogging?: boolean;
+  /**
+   * How a client-hosted terminal (`terminal/create`) that the agent never
+   * references from tool content is matched to its command tool call.
+   * `lookup` (default) resolves output by command text whenever the row is
+   * mapped — correct when the agent creates the terminal before reporting the
+   * call. `attribute-on-create` binds each new terminal to the oldest open
+   * command call running exactly that command and disables command-text lookup,
+   * so an agent that reports the call first never shows an earlier run's output.
+   */
+  unreferencedTerminalCorrelation?: "lookup" | "attribute-on-create";
 }
 
 export interface AcpStructuredSessionOptions {
@@ -481,6 +493,7 @@ export interface AcpExternalSessionUpdateSource {
 }
 
 export class AcpStructuredSession implements StructuredSessionHandle {
+  private static readonly MAX_PENDING_UNREFERENCED_TERMINALS = 32;
   launchOptions: AgentLaunchOptions;
 
   private loadSessionErrorRewriter: (error: unknown, sessionId: string) => Error =
@@ -637,6 +650,8 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   private agentSessionCapabilities: SessionCapabilities | undefined;
   private agentMcpCapabilities: McpCapabilities | undefined;
   private mapperState: AcpMapperState | undefined;
+  // Agents may request an unreferenced terminal before or after reporting its tool call.
+  private pendingUnreferencedTerminals: { terminalId: string; command: string }[] | undefined;
   /**
    * Last `background_tasks.changed` list emitted by this session. Any
    * text-stream extension may produce that event; the session only mirrors
@@ -953,8 +968,10 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       // get inlined as the canonical `result` payload.
       this.mapperState.resolveTerminalOutput = (terminalId) =>
         this.terminalManager.getTerminalOutput(terminalId);
-      this.mapperState.resolveTerminalOutputByCommand = (command) =>
-        this.terminalManager.resolveAcpTerminalOutputByCommand(command);
+      if (this.behavior?.unreferencedTerminalCorrelation !== "attribute-on-create") {
+        this.mapperState.resolveTerminalOutputByCommand = (command) =>
+          this.terminalManager.resolveAcpTerminalOutputByCommand(command);
+      }
       // Agents that report an image result by reference (a `uri`-only image
       // block, or only a read-kind tool call's `locations`) need a filesystem
       // read the pure mapper can't do itself. Leave the hook unset when this
@@ -2179,9 +2196,32 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     return {};
   }
 
-  private handleCreateTerminal(params: CreateTerminalRequest) {
+  private async handleCreateTerminal(params: CreateTerminalRequest) {
     if (this.terminalCapability === false) throw RequestError.methodNotFound("terminal/create");
-    return this.terminalManager.handleCreateTerminal(params);
+    const response = await this.terminalManager.handleCreateTerminal(params);
+    if (this.behavior?.unreferencedTerminalCorrelation === "attribute-on-create") {
+      const target = normalizeTerminalCommandText(
+        buildTerminalCommandLine(params.command, params.args ?? []),
+      );
+      if (target) {
+        const attributed = attributeAcpCommandTerminal(
+          this.ensureMapperState(),
+          response.terminalId,
+          (command) => normalizeTerminalCommandText(command) === target,
+        );
+        if (!attributed) {
+          const pendingTerminals = (this.pendingUnreferencedTerminals ??= []);
+          pendingTerminals.push({
+            terminalId: response.terminalId,
+            command: target,
+          });
+          if (pendingTerminals.length > AcpStructuredSession.MAX_PENDING_UNREFERENCED_TERMINALS) {
+            pendingTerminals.shift();
+          }
+        }
+      }
+    }
+    return response;
   }
 
   private handleTerminalOutput(params: TerminalOutputRequest) {
@@ -2191,6 +2231,12 @@ export class AcpStructuredSession implements StructuredSessionHandle {
 
   private handleReleaseTerminal(params: ReleaseTerminalRequest): void {
     if (this.terminalCapability === false) throw RequestError.methodNotFound("terminal/release");
+    if (this.behavior?.unreferencedTerminalCorrelation === "attribute-on-create") {
+      const pendingTerminals = this.pendingUnreferencedTerminals;
+      const pendingIndex =
+        pendingTerminals?.findIndex((entry) => entry.terminalId === params.terminalId) ?? -1;
+      if (pendingIndex >= 0) pendingTerminals!.splice(pendingIndex, 1);
+    }
     this.terminalManager.handleReleaseTerminal(params);
   }
 
@@ -2448,6 +2494,26 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       const events = mapAcpSessionUpdate(params, mapperState, {
         ...(suppressInterruptedOutput ? { suppressAgentOutput: true } : {}),
       });
+      if (
+        this.behavior?.unreferencedTerminalCorrelation === "attribute-on-create" &&
+        (update.sessionUpdate === "tool_call" || update.sessionUpdate === "tool_call_update")
+      ) {
+        const pendingTerminals = (this.pendingUnreferencedTerminals ??= []);
+        for (let index = 0; index < pendingTerminals.length;) {
+          const pending = pendingTerminals[index]!;
+          if (
+            attributeAcpCommandTerminal(
+              mapperState,
+              pending.terminalId,
+              (command) => normalizeTerminalCommandText(command) === pending.command,
+            )
+          ) {
+            pendingTerminals.splice(index, 1);
+          } else {
+            index++;
+          }
+        }
+      }
       this.rememberAcpToolCallItemId(params, events);
       if (events.length > 0) {
         this.emitRuntimeEvents(events);
