@@ -1,7 +1,35 @@
 import type { RemoteImageRefValue } from "@/shared/remote";
-import { environmentImageRefKey } from "@/shared/remote/clientEnvironmentImages";
+import {
+  environmentImageRefKey,
+  environmentLocalImageKey,
+} from "@/shared/remote/clientEnvironmentImages";
 import { resolveLocalFileUrlPath } from "@/shared/promptContent";
 import type { ImageViewSource } from "./imageViewSource";
+import type { LightboxImage } from "@/renderer/components/composer/ImageLightbox";
+import type { RemoteImageReadiness } from "@/renderer/state/remoteServers/environmentSessions";
+
+export function galleryImageResource(
+  readiness: RemoteImageReadiness,
+  target: RemoteImageRefValue | string,
+): NonNullable<LightboxImage["resource"]> {
+  return typeof target === "string"
+    ? {
+        key: environmentLocalImageKey(target),
+        getSnapshot: () => readiness.resolvePath(target),
+        subscribe: (listener) => readiness.subscribePath(target, listener, "foreground"),
+        request: () => {
+          readiness.requestPath(target, "foreground");
+        },
+      }
+    : {
+        key: environmentImageRefKey(target),
+        getSnapshot: () => readiness.resolveRef(target),
+        subscribe: (listener) => readiness.subscribeRef(target, listener, "foreground"),
+        request: () => {
+          readiness.requestRef(target, "foreground");
+        },
+      };
+}
 
 /** Coordinate provenance survives URL deduplication and pending-to-ready changes. */
 export class GalleryImageReadiness {

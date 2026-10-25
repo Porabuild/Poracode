@@ -65,7 +65,7 @@ export function ThreadDocksPanel({
   const [visionCollapse, setVisionCollapse] = useState({ threadId, collapsed: false });
   const visionCollapsed = visionCollapse.threadId === threadId && visionCollapse.collapsed;
   const vision = useThreadAgentVision(threadId, visible, !visionCollapsed);
-  const gallery = useThreadGalleryImages(threadId, { requestPending: visible });
+  const gallery = useThreadGalleryImages(threadId, { lightbox: true, requestPending: visible });
   const artifacts = useThreadArtifacts(threadId);
   const threadExists = useAppStore((state) =>
     state.threads.some((thread) => thread.id === threadId),
