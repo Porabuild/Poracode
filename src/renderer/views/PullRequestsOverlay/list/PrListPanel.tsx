@@ -157,10 +157,8 @@ function PrListPanelView(props: PrListPanelProps & { controller: PrListControlle
         <div className="relative">
           <Search
             aria-hidden
-            className={`pointer-events-none absolute z-10 size-3.5 text-muted ${
-              compact
-                ? "left-[calc(var(--m-page-inline)+0.75rem)] top-1/2 -translate-y-[calc(50%+4px)]"
-                : "left-2.5 top-1/2 -translate-y-1/2"
+            className={`pointer-events-none absolute top-1/2 z-10 size-3.5 -translate-y-1/2 text-muted ${
+              compact ? "left-3" : "left-2.5"
             }`}
           />
           <TextField
@@ -172,7 +170,7 @@ function PrListPanelView(props: PrListPanelProps & { controller: PrListControlle
             }}
           >
             <Input
-              className={compact ? "h-10 pl-8 text-sm" : "h-8 pl-8 text-xs"}
+              className={compact ? "h-10 pl-9 text-sm" : "h-8 pl-8 text-xs"}
               placeholder={t`Search or paste a PR link`}
               onKeyDown={(event) => {
                 if (event.key === "Enter") submitSearch();
