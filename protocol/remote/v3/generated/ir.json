@@ -3267,6 +3267,10 @@
                   "x-poracode-unknownFields": "strip"
                 },
                 "type": "array"
+              },
+              "sourceItemId": {
+                "minLength": 1,
+                "type": "string"
               }
             },
             "required": [
@@ -29090,6 +29094,10 @@
                   "x-poracode-unknownFields": "strip"
                 },
                 "type": "array"
+              },
+              "sourceItemId": {
+                "minLength": 1,
+                "type": "string"
               }
             },
             "required": [
@@ -69718,6 +69726,10 @@
                     "x-poracode-unknownFields": "strip"
                   },
                   "type": "array"
+                },
+                "sourceItemId": {
+                  "minLength": 1,
+                  "type": "string"
                 }
               },
               "required": [
@@ -70764,6 +70776,10 @@
                     "x-poracode-unknownFields": "strip"
                   },
                   "type": "array"
+                },
+                "sourceItemId": {
+                  "minLength": 1,
+                  "type": "string"
                 }
               },
               "required": [
@@ -72066,7 +72082,7 @@
     "void-envelope.omit-result",
     "void-result.omit-field"
   ],
-  "sourceHash": "sha256:01687fad8368485644ee6aaaa7c0a9815c5a559167585b140050f302feab4a99",
+  "sourceHash": "sha256:b3c0e9a8c99dd59c196220222e3e3220798ea874fe604354c5ce6a552f03ad07",
   "unknownObjectFields": "ignore",
   "webSocket": {
     "clientMessages": [
