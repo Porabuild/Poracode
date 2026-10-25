@@ -5056,6 +5056,13 @@ button.poracode-thread-mention-chip:active {
   background: color-mix(in oklab, var(--accent) 12%, var(--surface));
 }
 
+/* Display-only twin for rows that already sit inside a button. */
+.poracode-inline-path-chip--static,
+.poracode-inline-path-chip--static:hover {
+  cursor: inherit;
+  background: color-mix(in oklab, var(--accent) 12%, var(--surface));
+}
+
 .poracode-inline-path-chip__icon {
   width: 1em;
   height: 1em;
