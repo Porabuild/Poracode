@@ -138,6 +138,12 @@ export const questionAnswerEntrySchema = z.object({
 export type QuestionAnswerEntry = z.infer<typeof questionAnswerEntrySchema>;
 
 export const questionAnswerItemPayloadSchema = z.object({
+  /**
+   * Canonical assistant-message id for an async reply. Optional and additive:
+   * existing answers remain valid; older readers retain the ordinary prompt.
+   * No storage or wire version bump is needed.
+   */
+  sourceItemId: z.string().min(1).optional(),
   questions: z.array(questionAnswerEntrySchema),
 });
 export type QuestionAnswerItemPayload = z.infer<typeof questionAnswerItemPayloadSchema>;

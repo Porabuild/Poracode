@@ -2422,7 +2422,8 @@
             ],
             "note": "No checked-in device journey exercises this surface yet (no screen-registry entry, no device-test evidence); the ui story is asserted from the cited production source only."
           }
-        }
+        },
+        "note": "Generated codecs accept optional question-answer sourceItemId on resumed input. Native async reply-form UI is not implemented; ordinary thread input remains supported."
       },
       {
         "id": "terminal-start",
@@ -2626,7 +2627,8 @@
               "screen:android.thread-send"
             ]
           }
-        }
+        },
+        "note": "Generated codecs accept optional question-answer sourceItemId. Native async reply-form UI is not implemented; ordinary thread input remains supported."
       },
       {
         "id": "thread-interrupt",
