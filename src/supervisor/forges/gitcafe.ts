@@ -4,9 +4,10 @@ import type {
   ForgeEditPrPayload,
   ForgeEditPrCommentPayload,
   ForgeRepository,
+  ForgeReviewDraftComment,
+  ForgeReviewerRef,
   GhCreatePrPayload,
   GhGetPrDetailsResult,
-  PrAuthor,
   PrComment,
   PrData,
   PrMergeMethod,
@@ -16,10 +17,12 @@ import type {
   PullRequestSummary,
 } from "@/shared/contracts";
 import { ForgeApi } from "./api";
+import { author, filePatch, GitCafeMetadata, labels } from "./gitcafeMetadata";
 import {
   assertHead,
   checksStatus,
   encodePath,
+  lifecycleEvents,
   normalizedCheck,
   num,
   object,
@@ -32,13 +35,6 @@ import {
   type ForgeReviewAdapter,
 } from "./types";
 
-function author(raw: unknown): PrAuthor {
-  const r = object(raw);
-  return {
-    login: str(r.handle) || str(r.login) || str(r.actorId),
-    ...(str(r.avatarUrl) ? { avatarUrl: str(r.avatarUrl) } : {}),
-  };
-}
 function comment(r: ApiObject): PrComment {
   return {
     id: str(r.id),
@@ -50,11 +46,13 @@ function comment(r: ApiObject): PrComment {
 
 export class GitCafeReview implements ForgeReviewAdapter {
   private readonly repo: string;
+  private readonly metadata: GitCafeMetadata;
   constructor(
     readonly source: ForgeRepository,
     private readonly api: ForgeApi,
   ) {
     this.repo = `repos/${encodePath(source.repository)}`;
+    this.metadata = new GitCafeMetadata(api, this.repo);
   }
   private path(number?: number) {
     return `${this.repo}/pulls/${number ?? ""}`;
@@ -89,8 +87,12 @@ export class GitCafeReview implements ForgeReviewAdapter {
       mergeStateStatus: draft ? "DRAFT" : "UNKNOWN",
     };
   }
-  async list(state: "open" | "all", branch?: string): Promise<PullRequestSummary[]> {
-    const q = new URLSearchParams({ limit: "100", ...(state === "open" ? { state: "open" } : {}) });
+  async list(
+    state: "open" | "all" | "closed" | "merged",
+    branch?: string,
+  ): Promise<PullRequestSummary[]> {
+    // The host's "closed" state already excludes merged reviews.
+    const q = new URLSearchParams({ limit: "100", ...(state === "all" ? {} : { state }) });
     return (await this.api.list(`${this.path()}?${q}`, "items"))
       .filter((r) => !branch || r.sourceBranch === branch)
       .map((r) => ({
@@ -103,6 +105,7 @@ export class GitCafeReview implements ForgeReviewAdapter {
         reviewRequested: rows(r.reviewers).some(
           (user) => author(user).login === this.source.account?.login,
         ),
+        labels: labels(r.labels),
       }));
   }
   private async status(number: number) {
@@ -124,36 +127,17 @@ export class GitCafeReview implements ForgeReviewAdapter {
     const files = await this.files(number);
     const patches: string[] = [];
     for (const file of files) {
-      const f = object(
-        (
-          await this.api.json(
-            `${this.path(number)}/diff-file?${new URLSearchParams({ path: file.path })}`,
-          )
-        ).file,
-      );
-      if (f.tooLarge === true || f.hunksOmitted === true)
-        throw new Error(msg("forge.diffUnavailable"));
-      const a = JSON.stringify(`a/${str(f.oldPath) || file.path}`),
-        b = JSON.stringify(`b/${file.path}`);
-      if (f.binary === true) {
-        patches.push(`diff --git ${a} ${b}\nBinary files ${a} and ${b} differ\n`);
-        continue;
-      }
-      const hunks = rows(f.hunks)
-        .map(
-          (h) =>
-            `@@ -${num(h.oldStart)},${num(h.oldLines)} +${num(h.newStart)},${num(h.newLines)} @@\n${rows(
-              h.lines,
-            )
-              .map(
-                (l) =>
-                  `${str(l.origin)}${str(l.content)}${str(l.content).endsWith("\n") ? "" : "\n"}`,
-              )
-              .join("")}`,
-        )
-        .join("");
       patches.push(
-        `diff --git ${a} ${b}\n--- ${f.status === "added" ? "/dev/null" : a}\n+++ ${f.status === "deleted" ? "/dev/null" : b}\n${hunks}`,
+        filePatch(
+          object(
+            (
+              await this.api.json(
+                `${this.path(number)}/diff-file?${new URLSearchParams({ path: file.path })}`,
+              )
+            ).file,
+          ),
+          file.path,
+        ),
       );
     }
     return patches.join("");
@@ -178,26 +162,44 @@ export class GitCafeReview implements ForgeReviewAdapter {
         isOutdated: false,
         ...(str(root.path) ? { path: str(root.path) } : {}),
         ...(num(root.line) ? { line: num(root.line) } : {}),
+        // The host reports "left" or "right"; any other value leaves the side to the client default.
+        ...(num(root.line) && (root.side === "left" || root.side === "right")
+          ? { side: root.side === "left" ? "LEFT" : "RIGHT" }
+          : {}),
         comments: group.map(comment),
       };
     });
   }
   async details(number: number): Promise<GhGetPrDetailsResult> {
-    const [r, status, commits, comments, rawReviews, files] = await Promise.all([
+    const [r, status, commits, comments, rawReviews, files, metadata] = await Promise.all([
       this.api.json(this.path(number)),
       this.status(number),
       this.api.list(`${this.path(number)}/commits?limit=100`, "items"),
       this.comments(number),
       this.api.list(`${this.path(number)}/reviews?limit=100`, "items"),
       this.files(number),
+      this.metadata.read(number),
     ]);
     const merge = object(status.merge),
       verdict = object(merge.verdict),
       permission = object(r.capabilities);
+    // Label and draft-state changes need pull request contents write, which
+    // `edit` reports; reviewer requests and draft reviews need review write.
+    const {
+      labels: labelEdits,
+      convertToDraft,
+      reviewRequests,
+      reviewDrafts,
+      ...capabilities
+    } = this.source.capabilities;
     const source = {
       ...this.source,
       capabilities: {
-        ...this.source.capabilities,
+        ...capabilities,
+        ...(labelEdits && permission.edit === true ? { labels: labelEdits } : {}),
+        ...(convertToDraft && permission.edit === true ? { convertToDraft } : {}),
+        ...(reviewRequests && permission.review !== false ? { reviewRequests } : {}),
+        ...(reviewDrafts && permission.review !== false ? { reviewDrafts } : {}),
         autoFix: this.source.capabilities.autoFix && r.isCrossFork === false,
         mergeMethods:
           permission.merge === false
@@ -246,6 +248,8 @@ export class GitCafeReview implements ForgeReviewAdapter {
     }));
     if (Array.isArray(merge.reasons) && merge.reasons.includes("changes-requested"))
       pr.reviewDecision = "CHANGES_REQUESTED";
+    const reactions = metadata.reactions;
+    const opened = { createdAt: str(r.createdAt), author: author(r.author) };
     return {
       pr,
       details: {
@@ -259,7 +263,7 @@ export class GitCafeReview implements ForgeReviewAdapter {
         additions: files.reduce((a, f) => a + f.additions, 0),
         deletions: files.reduce((a, f) => a + f.deletions, 0),
         changedFiles: files.length,
-        createdAt: str(r.createdAt),
+        createdAt: opened.createdAt,
         mergedAt: str(r.mergedAt) || null,
         closedAt: str(r.closedAt) || null,
         commits: commits.map((c) => ({
@@ -274,9 +278,21 @@ export class GitCafeReview implements ForgeReviewAdapter {
           .filter(
             (c) => !c.path && !c.deletedAt && !c.hiddenAt && (c.threadId === c.id || !c.threadId),
           )
-          .map(comment),
+          .map((c) => ({
+            ...comment(c),
+            ...(reactions ? { reactions: reactions.get(str(c.id)) ?? [] } : {}),
+          })),
         reviews,
         checks,
+        ...(metadata.labels ? { labels: metadata.labels } : {}),
+        ...(metadata.requestedReviewers ? { requestedReviewers: metadata.requestedReviewers } : {}),
+        // The host has no event feed; lifecycle timestamps are the whole timeline.
+        timeline: lifecycleEvents({
+          ...opened,
+          mergedAt: str(r.mergedAt),
+          closedAt: str(r.closedAt),
+        }),
+        ...(reactions ? { reactions: reactions.get("") ?? [] } : {}),
       },
     };
   }
@@ -346,15 +362,43 @@ export class GitCafeReview implements ForgeReviewAdapter {
     if (result.state === "failed") throw new Error(msg("forge.mergeFailed"));
     // Accepted is queued, not merged. Callers must read the authoritative PR state.
   }
-  async setState(number: number, state: "closed" | "open" | "ready") {
+  async setState(number: number, state: "closed" | "open" | "ready" | "draft") {
     const r = await this.api.json(this.path(number));
-    await this.api.json(
-      `${this.path(number)}/${state === "open" ? "reopen" : state === "closed" ? "close" : "ready"}`,
-      "POST",
-      { expectedVersion: num(r.version) },
-    );
+    const action = { open: "reopen", closed: "close", ready: "ready", draft: "draft" }[state];
+    await this.api.json(`${this.path(number)}/${action}`, "POST", {
+      expectedVersion: num(r.version),
+    });
   }
   async updateBranch(): Promise<void> {
     unsupported(this.source);
+  }
+  labelCandidates() {
+    return this.metadata.labelCandidates();
+  }
+  setLabels(number: number, add: string[], remove: string[]) {
+    return this.metadata.setLabels(number, add, remove);
+  }
+  reviewerCandidates(number: number, query?: string) {
+    return this.metadata.reviewerCandidates(number, query);
+  }
+  requestReviewers(number: number, add: ForgeReviewerRef[], remove: ForgeReviewerRef[]) {
+    return this.metadata.requestReviewers(number, add, remove);
+  }
+  commitDiff(number: number, commit: string) {
+    return this.metadata.commitDiff(number, commit);
+  }
+  react(number: number, subjectId: string | undefined, content: string, reacted: boolean) {
+    return this.metadata.react(number, subjectId, content, reacted);
+  }
+  submitDraft(
+    number: number,
+    input: {
+      decision: PrReviewDecision;
+      body: string;
+      headSha: string;
+      comments: ForgeReviewDraftComment[];
+    },
+  ) {
+    return this.metadata.submitDraft(number, input);
   }
 }

@@ -29,6 +29,16 @@ const messages = {
     "The source host returned an invalid response. Update the integration or open the review on its source host.",
   "forge.headChanged":
     "The pull request head changed or is unavailable. Refresh and review it before merging.",
+  "forge.reviewHeadChanged":
+    "The pull request changed after these line comments were drafted. Refresh and check them before submitting.",
+  "forge.reviewDraftPartial":
+    "Some line comments were posted, but the review did not finish. Refresh before submitting again.",
+  "forge.labelUnknown":
+    "That label does not exist in this repository. Refresh the label list and try again.",
+  "forge.reviewDraftExists":
+    "You have an unfinished review on the source host. Submit or discard it there before submitting this one.",
+  "forge.commitNotInReview":
+    "That commit is not part of this pull request. Refresh and choose a commit from its history.",
   "forge.outsideApi": "The source host returned a link outside the selected API.",
   "forge.http": "Source host {host} returned HTTP {status}.",
   "forge.pagination": "Source host pagination did not complete. Narrow the review query.",

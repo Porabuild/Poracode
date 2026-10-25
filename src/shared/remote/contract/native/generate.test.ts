@@ -73,22 +73,24 @@ describe("remote v3 native binding generator", () => {
         // Background task timing, progress and Stop add two structural types.
         // Optional question-answer metadata adds three structural types and two Swift chunks.
         // Source-host reviews add one route, twenty-four procedures, and their native mirrors;
-        // device workspaces add fourteen routes; saved-message search and fork instructions add roots.
-        sourceHash: "sha256:aba3abee454fc813fa61f84ce4d8f3b593fb45a5824decc43dd594ad86456de2",
-        manifestHash: "sha256:53be762a4dddf0d0217f62422622d282f8e502340ebed99e03c979449ec5e49d",
+        // device workspaces add fourteen routes; saved-message search and fork instructions add roots;
+        // review labels, reviewers, reactions, drafts and commit diffs add nine procedures;
+        // the optional review-thread diff side adds one field and no root or type.
+        sourceHash: "sha256:5f3cdb8f129d1865162ae85f369349e3f6c3ea6b1f0a87dcbba65f82b325df7c",
+        manifestHash: "sha256:20f13200b1e7218620dc05b5174e1bd9b8ddf1fd35a371848ce3ce91023db440",
         counts: {
           routes: 117,
-          procedures: 154,
-          voidProcedureResults: 59,
-          jsonProcedureResults: 95,
+          procedures: 163,
+          voidProcedureResults: 64,
+          jsonProcedureResults: 99,
           webSocketClientVariants: 9,
           // 10 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
           webSocketServerVariants: 11,
-          schemaRoots: 523,
-          structuralTypes: 1167,
+          schemaRoots: 536,
+          structuralTypes: 1183,
           semanticValidators: 25,
-          swiftFiles: 73,
-          kotlinFiles: 62,
+          swiftFiles: 74,
+          kotlinFiles: 63,
           stateMachines: 5,
         },
       });
@@ -360,7 +362,7 @@ describe("remote v3 native binding generator", () => {
       const output = buildNativeBindingOutput(ir, manifest).files;
       for (const language of ["swift", "kotlin"] as const) {
         const adapters = rootAdapters(graph, language);
-        expect(adapters).toHaveLength(523);
+        expect(adapters).toHaveLength(536);
         expect(
           adapters
             .map((adapter) => adapter.id)

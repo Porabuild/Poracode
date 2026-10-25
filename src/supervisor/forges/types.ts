@@ -2,23 +2,30 @@ import { msg } from "@/shared/messages";
 import type {
   ForgeEditPrPayload,
   ForgeEditPrCommentPayload,
+  ForgePrLabelCandidatesResult,
+  ForgePrReviewerCandidatesResult,
   ForgeRepository,
+  ForgeReviewDraftComment,
+  ForgeReviewerRef,
   GhCreatePrPayload,
   GhGetPrDetailsResult,
+  PrAuthor,
   PrCheck,
   PrComment,
   PrData,
   PrFile,
+  PrLabel,
   PrMergeMethod,
   PrReviewDecision,
   PrReviewThread,
+  PrTimelineEvent,
   PullRequestSummary,
 } from "@/shared/contracts";
 
 /** Bound to one repository and one credential. Failed actions never change either. */
 export interface ForgeReviewAdapter {
   source: ForgeRepository;
-  list(state: "open" | "all", branch?: string): Promise<PullRequestSummary[]>;
+  list(state: "open" | "all" | "closed" | "merged", branch?: string): Promise<PullRequestSummary[]>;
   details(number: number): Promise<GhGetPrDetailsResult>;
   files(number: number): Promise<PrFile[]>;
   diff(number: number): Promise<string>;
@@ -30,8 +37,35 @@ export interface ForgeReviewAdapter {
   editComment?(input: ForgeEditPrCommentPayload): Promise<void>;
   review(number: number, decision: PrReviewDecision, body: string): Promise<void>;
   merge(number: number, method: PrMergeMethod, expectedHeadSha?: string): Promise<void>;
-  setState(number: number, state: "closed" | "open" | "ready"): Promise<void>;
+  setState(number: number, state: "closed" | "open" | "ready" | "draft"): Promise<void>;
   updateBranch(number: number, rebase: boolean): Promise<void>;
+  // Optional operations; the service checks the matching capability before calling.
+  labelCandidates?(): Promise<ForgePrLabelCandidatesResult>;
+  setLabels?(number: number, add: string[], remove: string[]): Promise<void>;
+  reviewerCandidates?(number: number, query?: string): Promise<ForgePrReviewerCandidatesResult>;
+  requestReviewers?(
+    number: number,
+    add: ForgeReviewerRef[],
+    remove: ForgeReviewerRef[],
+  ): Promise<void>;
+  commitDiff?(number: number, commit: string): Promise<string>;
+  /** `subjectId` is a comment id; absent reacts to the review description. */
+  react?(
+    number: number,
+    subjectId: string | undefined,
+    content: string,
+    reacted: boolean,
+  ): Promise<void>;
+  /** Anchors are on `headSha`, which the service has already confirmed is current. */
+  submitDraft?(
+    number: number,
+    input: {
+      decision: PrReviewDecision;
+      body: string;
+      headSha: string;
+      comments: ForgeReviewDraftComment[];
+    },
+  ): Promise<void>;
 }
 
 export type ApiObject = Record<string, unknown>;
@@ -85,6 +119,56 @@ export function assertHead(actual: string | undefined, expected?: string): strin
   }
   return actual;
 }
+/** Host label colors arrive as `#rrggbb`, `rrggbb`, or not at all; anything else is dropped. */
+export function labelColor(value: unknown): string | undefined {
+  const color = str(value).replace(/^#/, "");
+  return /^[0-9a-f]{6}$/i.test(color) ? color.toLowerCase() : undefined;
+}
+
+/** Maps one host label row (`{ name, color, description }`) to `PrLabel`. */
+export function labelFrom(raw: unknown): PrLabel | undefined {
+  const r = object(raw);
+  const name = str(r.name);
+  if (!name) return undefined;
+  const color = labelColor(r.color);
+  return {
+    name,
+    ...(color ? { color } : {}),
+    ...(str(r.description) ? { description: str(r.description) } : {}),
+  };
+}
+
+/**
+ * Lifecycle events derived from review timestamps, for hosts without an event
+ * feed. A host with real events uses those instead of this fallback.
+ */
+export function lifecycleEvents(details: {
+  createdAt?: string | undefined;
+  author?: PrAuthor | undefined;
+  mergedAt?: string | null | undefined;
+  mergedBy?: PrAuthor | null | undefined;
+  closedAt?: string | null | undefined;
+}): PrTimelineEvent[] {
+  const events: PrTimelineEvent[] = [];
+  if (details.createdAt)
+    events.push({
+      id: "opened",
+      kind: "opened",
+      createdAt: details.createdAt,
+      ...(details.author ? { actor: details.author } : {}),
+    });
+  if (details.mergedAt)
+    events.push({
+      id: "merged",
+      kind: "merged",
+      createdAt: details.mergedAt,
+      ...(details.mergedBy ? { actor: details.mergedBy } : {}),
+    });
+  else if (details.closedAt)
+    events.push({ id: "closed", kind: "closed", createdAt: details.closedAt });
+  return events;
+}
+
 export function unsupported(source: ForgeRepository): never {
   throw new Error(msg("forge.unsupported", { forge: source.forge }));
 }

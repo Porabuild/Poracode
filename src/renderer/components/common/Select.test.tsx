@@ -52,6 +52,23 @@ describe("Select rich options", () => {
     expect(onChange).toHaveBeenCalledWith("beta");
   });
 
+  it("lets a long selected label shrink inside the trigger so it truncates", () => {
+    render(
+      <Select
+        aria-label="Project"
+        options={[
+          { id: "long", label: "A very long option label that must not push past the trigger" },
+        ]}
+        value="long"
+        onChange={vi.fn<(value: string) => void>()}
+      />,
+    );
+
+    const trigger = screen.getByLabelText("Project");
+    expect(trigger.querySelector(".select__value")).toHaveClass("min-w-0");
+    expect(trigger.querySelector(".truncate")).toHaveTextContent("A very long option label");
+  });
+
   it("renders and selects rich options in the mobile drawer", async () => {
     responsiveMenuState.mobile = true;
     const onChange = vi.fn<(value: string) => void>();

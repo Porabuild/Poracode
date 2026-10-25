@@ -83,7 +83,10 @@ import { isRemoteProcedure } from "../remote/procedures";
 // them before effects; existing payloads and the remote allowlist stay unchanged.
 // Synced review marks, owned-comment edits and guides add capability-gated names.
 // Existing shapes remain valid; older peers reject new names before effects.
-const HOP_PIN = `${IPC_PROCEDURE_MAP_VERSION}:fa0bb5f5a92e6b97e8c60b9d7569a2e34df99b1ae17ccccc25f268b20a11a4e1`;
+// Review labels, reviewers, reactions, line-comment drafts, commit diffs, draft
+// conversion and state lists add new names plus optional result fields and
+// capabilities. Older peers reject the names before effects; hop 18 stays.
+const HOP_PIN = `${IPC_PROCEDURE_MAP_VERSION}:584872c46febbd10831c5ef92e63ae73252bb3d1bd00c937f50640963166806c`;
 
 describe("IPC procedure map versioning", () => {
   it("keeps write-only model provider management outside the remote allowlist", () => {

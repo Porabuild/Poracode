@@ -38,6 +38,8 @@ import {
 } from "./githubMappers";
 import { parseGitHubActionsWorkflowYaml } from "./githubWorkflowDefinition";
 import { parsePrReviewThreads, PR_REVIEW_THREADS_QUERY } from "./githubReviewThreads";
+import { withPrMetadata } from "./githubPrMetadata";
+import { GitHubPrMetadataCommands } from "./githubPrMetadataCommands";
 import { getGitHubViewedFiles, setGitHubFileViewed } from "./githubViewedFiles";
 import { msg as sharedMsg } from "@/shared/messages";
 
@@ -60,6 +62,10 @@ const GH_ACCOUNT_PROBE_TIMEOUT = 15_000;
 const GH_REPO_PAGE_SIZE = 100;
 const GH_REPO_MAX_PAGES = 5;
 const PULL_REQUEST_LIST_LIMIT = 1_000;
+// Closed and merged history grows without bound; the newest page is enough. History rows
+// leave out the computed fields (check rollup, mergeability), which a finished review never
+// needs and which make GitHub answer a 100-row page with HTTP 502/504 (cli/cli, Porabuild/Poracode).
+const PULL_REQUEST_HISTORY_LIMIT = 100;
 const WORKFLOW_LIST_LIMIT = 100;
 const WORKFLOW_RUN_LIST_LIMIT = 50;
 const PR_DIFF_MAX_BUFFER_BYTES = 50 * 1024 * 1024;
@@ -71,7 +77,10 @@ const PR_VIEW_FIELDS =
 // doesn't need viewerDidAuthor, so we skip the extra `gh api user` lookup).
 const PR_LIST_FIELDS =
   "number,headRefName,headRefOid,url,state,title,baseRefName,isDraft,reviewDecision,statusCheckRollup,updatedAt,mergeable,mergeStateStatus,isCrossRepository";
-const PULL_REQUEST_LIST_FIELDS = `${PR_LIST_FIELDS},author,additions,deletions,reviewRequests`;
+const PULL_REQUEST_LIST_FIELDS = `${PR_LIST_FIELDS},author,additions,deletions,reviewRequests,labels`;
+const PULL_REQUEST_HISTORY_FIELDS = PULL_REQUEST_LIST_FIELDS.split(",")
+  .filter((field) => !["statusCheckRollup", "mergeable", "mergeStateStatus"].includes(field))
+  .join(",");
 const PR_CHECK_FIELDS = "name,state,bucket,link,startedAt,completedAt,workflow";
 const PR_CHECK_PENDING_STATES = new Set([
   "EXPECTED",
@@ -228,7 +237,8 @@ function classifyError(error: unknown, operation: string): Error {
 
   if (
     lower.includes("command not found") ||
-    lower.includes("gh: not found") ||
+    // A shell's "gh: not found", not gh api's own "gh: Not Found (HTTP 404)".
+    (lower.includes("gh: not found") && !lower.includes("(http 404)")) ||
     lower.includes("is not recognized") ||
     lower.includes("enoent")
   ) {
@@ -1110,17 +1120,24 @@ export class GitHubService {
     }
   }
 
-  /** List open PRs with viewer-specific metadata for the global Pull Requests page. */
-  async listPullRequests(location: ProjectLocation): Promise<GhListPullRequestsResult> {
+  /**
+   * List PRs with viewer-specific metadata for the global Pull Requests page.
+   * gh's `closed` state includes merged PRs, so closed-only adds `is:unmerged`.
+   */
+  async listPullRequests(
+    location: ProjectLocation,
+    state: "open" | "closed" | "merged" | "all" = "open",
+  ): Promise<GhListPullRequestsResult> {
     const args = [
       "pr",
       "list",
       "--state",
-      "open",
+      state,
+      ...(state === "closed" ? ["--search", "is:unmerged"] : []),
       "--limit",
-      String(PULL_REQUEST_LIST_LIMIT),
+      String(state === "open" ? PULL_REQUEST_LIST_LIMIT : PULL_REQUEST_HISTORY_LIMIT),
       "--json",
-      PULL_REQUEST_LIST_FIELDS,
+      state === "open" ? PULL_REQUEST_LIST_FIELDS : PULL_REQUEST_HISTORY_FIELDS,
     ];
 
     try {
@@ -1136,9 +1153,10 @@ export class GitHubService {
         viewerLogin = results[1]?.ok ? results[1].stdout.trim() || undefined : undefined;
         this.viewerLoginCache.set(key, viewerLogin ?? null);
       } else {
+        // The open list is the identity refresh point; history reuses its answer.
         [stdout, viewerLogin] = await Promise.all([
           this.runGh(location, args),
-          this.getViewerLogin(location, true),
+          this.getViewerLogin(location, state === "open"),
         ]);
       }
 
@@ -1226,6 +1244,42 @@ export class GitHubService {
     }
   }
 
+  async markPrDraft(location: ProjectLocation, prNumber: number): Promise<void> {
+    try {
+      await this.runGh(location, ["pr", "ready", String(prNumber), "--undo"]);
+    } catch (err) {
+      throw classifyError(err, "pr ready --undo");
+    }
+  }
+
+  /** Label, reviewer, reaction, review-draft and commit-diff commands on this service's scope. */
+  prMetadata(location: ProjectLocation): GitHubPrMetadataCommands {
+    return new GitHubPrMetadataCommands({
+      run: async (args, operation, options) => {
+        try {
+          return await this.runGh(location, args, options);
+        } catch (err) {
+          throw classifyError(err, operation);
+        }
+      },
+      runWithInput: async (args, body, operation) => {
+        const file = await createGhBodyFile(
+          location,
+          "poracode-gh-input",
+          JSON.stringify(body),
+          this.wslClient,
+        );
+        try {
+          return await this.runGh(location, [...args, "--input", file.cliPath]);
+        } catch (err) {
+          throw classifyError(err, operation);
+        } finally {
+          await file.cleanup().catch(() => {});
+        }
+      },
+    });
+  }
+
   /** `gh pr update-branch <n>` — merge (or rebase) the base branch into the PR branch. */
   async updatePrBranch(location: ProjectLocation, prNumber: number, rebase = false): Promise<void> {
     try {
@@ -1290,9 +1344,17 @@ export class GitHubService {
     }
   }
 
-  async getPrDetails(location: ProjectLocation, prNumber: number): Promise<GhGetPrDetailsResult> {
+  /**
+   * `metadata: false` skips the optional reactions/timeline read for callers
+   * that only need core state or checks.
+   */
+  async getPrDetails(
+    location: ProjectLocation,
+    prNumber: number,
+    options?: { metadata?: boolean },
+  ): Promise<GhGetPrDetailsResult> {
     try {
-      const [stdout, viewerLogin] = await Promise.all([
+      const [stdout, viewerLogin, metadata] = await Promise.all([
         this.runGh(location, [
           "pr",
           "view",
@@ -1312,12 +1374,22 @@ export class GitHubService {
             "commits",
             "comments",
             "reviews",
+            "labels",
+            "reviewRequests",
           ].join(","),
         ]),
         this.getViewerLogin(location),
+        options?.metadata === false
+          ? undefined
+          : this.prMetadata(location)
+              .readMetadata(prNumber)
+              .catch(() => undefined),
       ]);
       const raw = JSON.parse(stdout) as Record<string, unknown>;
-      return { details: mapPrDetails(raw), pr: mapPrData(raw, viewerLogin) };
+      return {
+        details: withPrMetadata(mapPrDetails(raw), metadata),
+        pr: mapPrData(raw, viewerLogin),
+      };
     } catch (err) {
       throw classifyError(err, "pr view --json (details)");
     }

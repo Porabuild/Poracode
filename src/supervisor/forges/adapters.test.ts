@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
-import type { ForgeKind, ForgeRepository } from "@/shared/contracts";
+import type { ForgeKind } from "@/shared/contracts";
 import { ghGetPrDetailsResultSchema } from "@/shared/contracts";
-import { ForgeApi, type ForgeHttpRequest } from "./api";
-import { FORGE_CAPABILITIES } from "./connection";
+import { ForgeApi } from "./api";
+import { testSource, testTransport } from "./adapterTestKit";
 import { GitLabReview } from "./gitlab";
 import { GiteaReview } from "./gitea";
 import { BitbucketReview } from "./bitbucket";
@@ -82,45 +82,15 @@ it("refuses a GitCafe comment changed after the service preflight", async () => 
   expect(f.writes()).toEqual([]);
 });
 
-function source(forge: ForgeKind): ForgeRepository {
-  return {
-    forge,
-    host: "https://forge.example",
-    repository: "team/app",
-    remote: "origin",
-    account: { forge, host: "https://forge.example", login: "viewer" },
-    capabilities: structuredClone(FORGE_CAPABILITIES[forge]),
-  };
-}
+const source = testSource;
 function transport(routes: Record<string, unknown>) {
-  const requests: ForgeHttpRequest[] = [];
-  const api = new ForgeApi(
-    "https://forge.example/api",
-    { Authorization: "Bearer fixture" },
-    async (request) => {
-      requests.push(request);
-      const path = new URL(request.url).pathname.replace(/^\/api\//, "");
-      const key = `${request.method} ${path}`;
-      if (!(key in routes)) throw new Error(`Unexpected request: ${key}`);
-      const body = routes[key];
-      return {
-        status: 200,
-        headers: {},
-        body: typeof body === "string" ? body : JSON.stringify(body),
-      };
-    },
-  );
+  const result = testTransport(routes);
   return {
-    api,
-    requests,
+    ...result,
     writes: () =>
-      requests
-        .filter((r) => r.method !== "GET")
-        .map((r) => ({
-          method: r.method,
-          path: new URL(r.url).pathname,
-          body: r.body ? (JSON.parse(r.body) as unknown) : undefined,
-        })),
+      result
+        .writes()
+        .map((write) => ({ method: write.method, path: write.path, body: write.body })),
   };
 }
 

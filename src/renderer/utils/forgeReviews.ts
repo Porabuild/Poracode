@@ -1,4 +1,4 @@
-import type { ForgeRepository } from "@/shared/contracts";
+import type { ForgeAccountRef, ForgeRepository } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
 import type { IpcProcedurePayload } from "@/shared/ipc";
 
@@ -82,5 +82,56 @@ export function reviewClient(source?: ForgeRepository) {
       bridge.forgeEditPr(source ? { ...input, ...account } : input),
     editComment: (input: IpcProcedurePayload<"forgeEditPrComment">) =>
       bridge.forgeEditPrComment(source ? { ...input, ...account } : input),
+    reopen: (input: IpcProcedurePayload<"ghReopenPr">) =>
+      source ? bridge.forgeReopenPr({ ...input, ...account }) : bridge.ghReopenPr(input),
   };
+}
+
+type ScopedInput<Name extends keyof ScopedProcedures> = Omit<
+  IpcProcedurePayload<Name>,
+  "forgeAccount" | "forgeRepository"
+>;
+interface ScopedProcedures {
+  forgeListPrLabelCandidates: true;
+  forgeListPrReviewerCandidates: true;
+  forgeSetPrLabels: true;
+  forgeRequestPrReviewers: true;
+  forgeConvertPrToDraft: true;
+  forgeGetPrCommitDiff: true;
+  forgeSetPrReaction: true;
+  forgeSubmitPrReviewDraft: true;
+}
+
+/**
+ * Operations that exist only on account-scoped hosts. Callers check the matching
+ * capability first; a source without an account has none of them.
+ */
+export function scopedReviewClient(source: ForgeRepository & { account: ForgeAccountRef }) {
+  const bridge = readBridge();
+  const scope = { forgeAccount: source.account, forgeRepository: source.repository };
+  return {
+    labelCandidates: (input: ScopedInput<"forgeListPrLabelCandidates">) =>
+      bridge.forgeListPrLabelCandidates({ ...input, ...scope }),
+    reviewerCandidates: (input: ScopedInput<"forgeListPrReviewerCandidates">) =>
+      bridge.forgeListPrReviewerCandidates({ ...input, ...scope }),
+    setLabels: (input: ScopedInput<"forgeSetPrLabels">) =>
+      bridge.forgeSetPrLabels({ ...input, ...scope }),
+    requestReviewers: (input: ScopedInput<"forgeRequestPrReviewers">) =>
+      bridge.forgeRequestPrReviewers({ ...input, ...scope }),
+    convertToDraft: (input: ScopedInput<"forgeConvertPrToDraft">) =>
+      bridge.forgeConvertPrToDraft({ ...input, ...scope }),
+    commitDiff: (input: ScopedInput<"forgeGetPrCommitDiff">) =>
+      bridge.forgeGetPrCommitDiff({ ...input, ...scope }),
+    react: (input: ScopedInput<"forgeSetPrReaction">) =>
+      bridge.forgeSetPrReaction({ ...input, ...scope }),
+    submitDraft: (input: ScopedInput<"forgeSubmitPrReviewDraft">) =>
+      bridge.forgeSubmitPrReviewDraft({ ...input, ...scope }),
+  };
+}
+
+/** The scoped client when this source has a pinned account, otherwise undefined. */
+export function scopedReviewSource(
+  source: ForgeRepository | undefined,
+): (ForgeRepository & { account: ForgeAccountRef }) | undefined {
+  return source?.account ? (source as ForgeRepository & { account: ForgeAccountRef }) : undefined;
 }

@@ -7,6 +7,7 @@ import kotlinx.serialization.json.*
 
 enum class ForgeReviewOperation(val wireName: String) {
     ClosePr("forgeClosePr"),
+    ConvertPrToDraft("forgeConvertPrToDraft"),
     CreatePr("forgeCreatePr"),
     EditPr("forgeEditPr"),
     EditPrComment("forgeEditPrComment"),
@@ -19,6 +20,8 @@ enum class ForgeReviewOperation(val wireName: String) {
     GetPrReviewGuide("forgeGetPrReviewGuide"),
     GetPrViewedFiles("forgeGetPrViewedFiles"),
     GetRepository("forgeGetRepository"),
+    ListPrLabelCandidates("forgeListPrLabelCandidates"),
+    ListPrReviewerCandidates("forgeListPrReviewerCandidates"),
     ListPrs("forgeListPrs"),
     ListPullRequests("forgeListPullRequests"),
     MarkPrReady("forgeMarkPrReady"),
@@ -26,7 +29,9 @@ enum class ForgeReviewOperation(val wireName: String) {
     MergePrAtHead("forgeMergePrAtHead"),
     PostPrComment("forgePostPrComment"),
     ReopenPr("forgeReopenPr"),
+    RequestPrReviewers("forgeRequestPrReviewers"),
     SetPrFileViewed("forgeSetPrFileViewed"),
+    SetPrLabels("forgeSetPrLabels"),
     SubmitPrReview("forgeSubmitPrReview"),
     UpdatePrBranch("forgeUpdatePrBranch"),
     WritePrReviewGuide("forgeWritePrReviewGuide"),
@@ -73,6 +78,7 @@ object RemoteV3ForgeReviewContract {
 
 private fun ForgeReviewOperation.requestCodec(): RemoteRootCodec<*> = when (this) {
     ForgeReviewOperation.ClosePr -> RemoteRootCodecs.procedureU2EForgeClosePrU2ERequest
+    ForgeReviewOperation.ConvertPrToDraft -> RemoteRootCodecs.procedureU2EForgeConvertPrToDraftU2ERequest
     ForgeReviewOperation.CreatePr -> RemoteRootCodecs.procedureU2EForgeCreatePrU2ERequest
     ForgeReviewOperation.EditPr -> RemoteRootCodecs.procedureU2EForgeEditPrU2ERequest
     ForgeReviewOperation.EditPrComment -> RemoteRootCodecs.procedureU2EForgeEditPrCommentU2ERequest
@@ -85,6 +91,8 @@ private fun ForgeReviewOperation.requestCodec(): RemoteRootCodec<*> = when (this
     ForgeReviewOperation.GetPrReviewGuide -> RemoteRootCodecs.procedureU2EForgeGetPrReviewGuideU2ERequest
     ForgeReviewOperation.GetPrViewedFiles -> RemoteRootCodecs.procedureU2EForgeGetPrViewedFilesU2ERequest
     ForgeReviewOperation.GetRepository -> RemoteRootCodecs.procedureU2EForgeGetRepositoryU2ERequest
+    ForgeReviewOperation.ListPrLabelCandidates -> RemoteRootCodecs.procedureU2EForgeListPrLabelCandidatesU2ERequest
+    ForgeReviewOperation.ListPrReviewerCandidates -> RemoteRootCodecs.procedureU2EForgeListPrReviewerCandidatesU2ERequest
     ForgeReviewOperation.ListPrs -> RemoteRootCodecs.procedureU2EForgeListPrsU2ERequest
     ForgeReviewOperation.ListPullRequests -> RemoteRootCodecs.procedureU2EForgeListPullRequestsU2ERequest
     ForgeReviewOperation.MarkPrReady -> RemoteRootCodecs.procedureU2EForgeMarkPrReadyU2ERequest
@@ -92,7 +100,9 @@ private fun ForgeReviewOperation.requestCodec(): RemoteRootCodec<*> = when (this
     ForgeReviewOperation.MergePrAtHead -> RemoteRootCodecs.procedureU2EForgeMergePrAtHeadU2ERequest
     ForgeReviewOperation.PostPrComment -> RemoteRootCodecs.procedureU2EForgePostPrCommentU2ERequest
     ForgeReviewOperation.ReopenPr -> RemoteRootCodecs.procedureU2EForgeReopenPrU2ERequest
+    ForgeReviewOperation.RequestPrReviewers -> RemoteRootCodecs.procedureU2EForgeRequestPrReviewersU2ERequest
     ForgeReviewOperation.SetPrFileViewed -> RemoteRootCodecs.procedureU2EForgeSetPrFileViewedU2ERequest
+    ForgeReviewOperation.SetPrLabels -> RemoteRootCodecs.procedureU2EForgeSetPrLabelsU2ERequest
     ForgeReviewOperation.SubmitPrReview -> RemoteRootCodecs.procedureU2EForgeSubmitPrReviewU2ERequest
     ForgeReviewOperation.UpdatePrBranch -> RemoteRootCodecs.procedureU2EForgeUpdatePrBranchU2ERequest
     ForgeReviewOperation.WritePrReviewGuide -> RemoteRootCodecs.procedureU2EForgeWritePrReviewGuideU2ERequest
@@ -100,6 +110,7 @@ private fun ForgeReviewOperation.requestCodec(): RemoteRootCodec<*> = when (this
 
 private fun ForgeReviewOperation.resultCodec(): RemoteRootCodec<*>? = when (this) {
     ForgeReviewOperation.ClosePr -> null
+    ForgeReviewOperation.ConvertPrToDraft -> null
     ForgeReviewOperation.CreatePr -> RemoteRootCodecs.procedureU2EForgeCreatePrU2EResult
     ForgeReviewOperation.EditPr -> null
     ForgeReviewOperation.EditPrComment -> null
@@ -112,6 +123,8 @@ private fun ForgeReviewOperation.resultCodec(): RemoteRootCodec<*>? = when (this
     ForgeReviewOperation.GetPrReviewGuide -> RemoteRootCodecs.procedureU2EForgeGetPrReviewGuideU2EResult
     ForgeReviewOperation.GetPrViewedFiles -> RemoteRootCodecs.procedureU2EForgeGetPrViewedFilesU2EResult
     ForgeReviewOperation.GetRepository -> RemoteRootCodecs.procedureU2EForgeGetRepositoryU2EResult
+    ForgeReviewOperation.ListPrLabelCandidates -> RemoteRootCodecs.procedureU2EForgeListPrLabelCandidatesU2EResult
+    ForgeReviewOperation.ListPrReviewerCandidates -> RemoteRootCodecs.procedureU2EForgeListPrReviewerCandidatesU2EResult
     ForgeReviewOperation.ListPrs -> RemoteRootCodecs.procedureU2EForgeListPrsU2EResult
     ForgeReviewOperation.ListPullRequests -> RemoteRootCodecs.procedureU2EForgeListPullRequestsU2EResult
     ForgeReviewOperation.MarkPrReady -> null
@@ -119,7 +132,9 @@ private fun ForgeReviewOperation.resultCodec(): RemoteRootCodec<*>? = when (this
     ForgeReviewOperation.MergePrAtHead -> null
     ForgeReviewOperation.PostPrComment -> RemoteRootCodecs.procedureU2EForgePostPrCommentU2EResult
     ForgeReviewOperation.ReopenPr -> null
+    ForgeReviewOperation.RequestPrReviewers -> null
     ForgeReviewOperation.SetPrFileViewed -> RemoteRootCodecs.procedureU2EForgeSetPrFileViewedU2EResult
+    ForgeReviewOperation.SetPrLabels -> null
     ForgeReviewOperation.SubmitPrReview -> null
     ForgeReviewOperation.UpdatePrBranch -> null
     ForgeReviewOperation.WritePrReviewGuide -> RemoteRootCodecs.procedureU2EForgeWritePrReviewGuideU2EResult
