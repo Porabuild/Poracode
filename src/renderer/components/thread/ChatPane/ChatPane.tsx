@@ -64,6 +64,7 @@ import { MessageList, type CheckpointRevertActions } from "./parts/MessageList";
 import { ThreadForkOrigin, ThreadForkTurnAction } from "../ThreadForkControls";
 import { SubAgentOpenController } from "./parts/items/SubAgentOverlay";
 import { ChatPromptRail } from "./ChatPromptRail";
+import { promptAnchorScrollTop } from "./promptAnchorScrollTop";
 import { StickyPrompt } from "./StickyPrompt";
 import { usePromptJump } from "./usePromptJump";
 import { resolveThreadMarkdownImageRoots } from "../threadMarkdownImageRoots";
@@ -157,7 +158,11 @@ export function ChatPane(props: ChatPaneProps) {
   // `scrollEl` mirrors the LegendList-owned scroll node as React state for the
   // find controller and the shared scroll controls.
   const { setScrollContainer, scrollRef, scrollEl, scrollFadeStyle } =
-    useScrollFade<HTMLDivElement>({ contentRef });
+    useScrollFade<HTMLDivElement>({
+      contentRef,
+      // A freshly sent prompt is parked flush at the top; the top fade would dim it.
+      getTopFlushScrollTop: (el) => promptAnchorScrollTop(el, threadId),
+    });
   const [initialScrollSettlement, setInitialScrollSettlement] = useState<{
     threadId: string;
     hasVisibleHistory: boolean;
