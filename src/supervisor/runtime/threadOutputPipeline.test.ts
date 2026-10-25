@@ -89,6 +89,30 @@ describe("resolveThreadStatusSource", () => {
   });
 });
 
+describe("ThreadOutputPipeline error reason", () => {
+  it("retains an error reason only while the session remains in error", () => {
+    const p = pipeline();
+    const session = {
+      threadId: "t1",
+      status: "idle",
+      attention: "none",
+      agentKind: "codex",
+      config: {},
+      canResumeWithConfig: false,
+      adapter: { capabilities: { presentationMode: "gui" } },
+    } as unknown as SessionRuntime;
+
+    p.updateState(session, "error", "error", "boom");
+    expect(session.errorMessage).toBe("boom");
+
+    p.updateState(session, "error", "error");
+    expect(session.errorMessage).toBe("boom");
+
+    p.updateState(session, "idle", "none");
+    expect(session).not.toHaveProperty("errorMessage");
+  });
+});
+
 describe("ThreadOutputPipeline / CLI hook disables L2", () => {
   it("getLatestTerminalStatusHint returns null without calling detectTerminalStatus when hook is active", () => {
     const p = pipeline();
