@@ -27,6 +27,7 @@ import {
   type RuntimeChatItem,
 } from "@/renderer/state/slices/runtimeEventSlice";
 import { openExternalWithFeedback } from "@/renderer/utils/openExternal";
+import { formatMessageTimestamp } from "@/renderer/utils/formatTime";
 import { useLongPress } from "@/renderer/hooks/useLongPress";
 import { openThread } from "@/renderer/actions/threadActions";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -35,6 +36,7 @@ import { remoteBridgeLocalImageUrl } from "@/renderer/browser/remoteBridge";
 import { isRemoteSession } from "@/renderer/bridge";
 import { useChatPaneActions } from "../../chatPaneActionsContext";
 import { normalizeChatProjectPath } from "../../chatPathUtils";
+import { selectUserMessageSentAt } from "../../chatPaneSelectors";
 import { openUserMessageActions } from "../../userMessageActions";
 import { CheckpointRevertButton, type CheckpointRevertRequest } from "../CheckpointRevertControls";
 import { chatPromptSurfaceClass } from "./chatMessageSurface";
@@ -81,8 +83,9 @@ export const UserMessage = memo(function UserMessage({
   item,
   checkpointRevert,
 }: UserMessageProps) {
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
   const actions = useChatPaneActions();
+  const sentAt = useAppStore((state) => selectUserMessageSentAt(state, threadId, item.id));
   const remoteServerId = useAppStore(
     (state) => state.threads.find((thread) => thread.id === threadId)?.remoteServerId,
   );
@@ -327,7 +330,18 @@ export const UserMessage = memo(function UserMessage({
         </>
       ) : null}
       {!compact ? (
-        <div className="poracode-message-action-strip absolute right-2 top-2 z-10 flex items-center gap-0.5 opacity-0 transition-opacity group-hover/checkpoint:opacity-100 focus-within:opacity-100">
+        // The strip's height is one text line, so its centered buttons line up
+        // with a single-row message instead of hanging below it.
+        <div className="poracode-message-action-strip absolute right-2 top-2 z-10 flex h-[calc(var(--lc-chat-font-size)*1.375)] items-center gap-0.5 rounded-full bg-surface-tertiary pl-1 opacity-0 transition-opacity group-hover/checkpoint:opacity-100 focus-within:opacity-100">
+          {sentAt !== undefined ? (
+            <time
+              dateTime={new Date(sentAt).toISOString()}
+              title={i18n.date(sentAt, { dateStyle: "full", timeStyle: "long" })}
+              className="mr-1 whitespace-nowrap text-[length:var(--lc-chat-font-size-meta)] tabular-nums text-muted"
+            >
+              {formatMessageTimestamp(sentAt, i18n.locale)}
+            </time>
+          ) : null}
           {checkpointRevert ? (
             <CheckpointRevertButton
               itemId={checkpointRevert.itemId}
