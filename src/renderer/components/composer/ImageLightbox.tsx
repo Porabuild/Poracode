@@ -17,6 +17,10 @@ import { useThreadGalleryImages } from "../thread/useThreadGalleryImages";
 export interface LightboxImage {
   /** Renderable image URL — a `data:`, `poracode-local://`, or remote URL. */
   src: string;
+  /** Already-displayed thumbnail to retain until the original is decoded. */
+  previewSrc?: string;
+  width?: number;
+  height?: number;
   /** Accessible label / alt text. */
   alt?: string;
   /** Original download name and MIME type, retained when the display URL is opaque. */
@@ -100,7 +104,25 @@ export function updateImageLightboxFromThread(
 ): void {
   if (!lightboxState || threadId === undefined || lightboxState.liveThreadId !== threadId) return;
   if (lightboxState.images === images) return;
-  lightboxState = { ...lightboxState, images };
+  const previousImages = new Map(lightboxState.images.map((image) => [imageKey(image), image]));
+  lightboxState = {
+    ...lightboxState,
+    images: images.map((image) => {
+      const previous = previousImages.get(imageKey(image));
+      const previewSrc = previous?.src === image.src ? previous.previewSrc : undefined;
+      return previewSrc ? { ...previous, ...image, previewSrc } : image;
+    }),
+  };
+  emitLightboxChange();
+}
+
+export function updateImageLightboxFromPreview(
+  previewSrc: string,
+  images: readonly LightboxImage[],
+  liveThreadId?: string,
+): void {
+  if (!lightboxState?.images.some((image) => image.src === previewSrc)) return;
+  lightboxState = { ...lightboxState, images, liveThreadId: liveThreadId ?? null };
   emitLightboxChange();
 }
 
@@ -176,8 +198,8 @@ export function ImageLightboxView(props: {
     pointerId: number;
     pointerStart: Point;
     panStart: Point;
-    /** Image index the drag started on; a stale drag never pans a new image. */
-    index: number;
+    /** Source the drag started on; a stale drag never pans a different image. */
+    src: string;
   } | null>(null);
   const selected = images[index];
   const resource = selected?.resource;
@@ -210,11 +232,35 @@ export function ImageLightboxView(props: {
   const [previousImages, setPreviousImages] = useState(images);
   if (previousImages !== images) {
     const previousSrc = imageKey(previousImages[index]);
-    const located = previousSrc ? images.findIndex((image) => imageKey(image) === previousSrc) : -1;
+    const located = previousSrc
+      ? images.findIndex(
+          (image) => imageKey(image) === previousSrc || image.previewSrc === previousSrc,
+        )
+      : -1;
     const nextIndex = located >= 0 ? located : Math.min(index, Math.max(0, images.length - 1));
     setPreviousImages(images);
+    if (located >= 0) setPrevImageKey({ initial: initialIndex, current: nextIndex });
     if (nextIndex !== index) setIndex(nextIndex);
   }
+
+  const [decodedSrc, setDecodedSrc] = useState<string>();
+  const fullSrc = current?.src;
+  const previewSrc = current?.src === selected?.src ? current?.previewSrc : undefined;
+  useEffect(() => {
+    if (!fullSrc || !previewSrc || fullSrc === previewSrc) return;
+    let active = true;
+    const image = new Image();
+    image.src = fullSrc;
+    void image.decode().then(
+      () => {
+        if (active) setDecodedSrc(fullSrc);
+      },
+      () => {},
+    );
+    return () => {
+      active = false;
+    };
+  }, [fullSrc, previewSrc]);
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -239,6 +285,7 @@ export function ImageLightboxView(props: {
   }, [scale]);
 
   if (!current) return null;
+  const currentImageKey = previewSrc ?? imageKey(current) ?? current.src;
 
   function zoomBy(delta: number) {
     const nextScale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, scale + delta));
@@ -254,13 +301,13 @@ export function ImageLightboxView(props: {
       pointerId: event.pointerId,
       pointerStart: { x: event.clientX, y: event.clientY },
       panStart: pan,
-      index,
+      src: currentImageKey,
     };
   }
 
   function handlePointerMove(event: ReactPointerEvent<HTMLImageElement>) {
     const drag = dragRef.current;
-    if (!drag || drag.pointerId !== event.pointerId || drag.index !== index) return;
+    if (!drag || drag.pointerId !== event.pointerId || drag.src !== currentImageKey) return;
     event.preventDefault();
     setPan(
       clampPan(
@@ -323,15 +370,25 @@ export function ImageLightboxView(props: {
         </button>
       ) : null}
 
-      <div ref={stageRef} className="poracode-image-lightbox__stage">
+      <div
+        ref={stageRef}
+        className="poracode-image-lightbox__stage"
+        style={{ containerType: "size" }}
+      >
         {current.src ? (
           <img // eslint-disable-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- the image supports pointer-drag panning; keyboard image navigation remains on the dialog
             ref={imageRef}
             className={`poracode-image-lightbox__image${scale > MIN_SCALE ? " poracode-image-lightbox__image--zoomed" : ""}`}
-            src={current.src}
+            src={previewSrc && decodedSrc !== current.src ? previewSrc : current.src}
             alt={current.alt ?? ""}
             style={{
               transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${scale})`,
+              ...(previewSrc && current.width && current.height
+                ? {
+                    width: `min(100%, calc(100cqh * ${current.width} / ${current.height}))`,
+                    aspectRatio: `${current.width} / ${current.height}`,
+                  }
+                : {}),
             }}
             onClick={(event) => event.stopPropagation()}
             onPointerDown={handlePointerDown}
