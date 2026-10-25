@@ -185,6 +185,40 @@ export function extractToolCallContentText(
   return parts.length > 0 ? parts.join("\n") : undefined;
 }
 
+/** ACP search tools may report matches as resource links instead of text. */
+export function extractToolCallResourceLinkResult(content: unknown): string | undefined {
+  if (!Array.isArray(content)) return undefined;
+  const targets: string[] = [];
+  for (const entry of content) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) continue;
+    const contentEntry = entry as Record<string, unknown>;
+    if (contentEntry.type !== "content") continue;
+    const block = contentEntry.content;
+    if (!block || typeof block !== "object" || Array.isArray(block)) continue;
+    const resourceLink = block as Record<string, unknown>;
+    if (resourceLink.type !== "resource_link") continue;
+    const uri =
+      typeof resourceLink.uri === "string" && resourceLink.uri.trim().length > 0
+        ? resourceLink.uri
+        : undefined;
+    let target: string | undefined;
+    if (uri && /^file:/i.test(uri)) {
+      try {
+        const url = new URL(uri);
+        const path = decodeURIComponent(url.pathname);
+        target = url.host && url.host.toLowerCase() !== "localhost" ? `//${url.host}${path}` : path;
+        target = target.replace(/^\/([A-Za-z]:\/)/, "$1");
+      } catch {
+        target = uri;
+      }
+    } else {
+      target = uri ?? (typeof resourceLink.name === "string" ? resourceLink.name : undefined);
+    }
+    if (target?.trim()) targets.push(target);
+  }
+  return targets.length > 0 ? targets.join("\n") : undefined;
+}
+
 /**
  * Optional context that lets {@link extractToolCallContentImages} recover
  * images an agent referenced instead of inlining. All fields are optional: with

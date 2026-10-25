@@ -816,6 +816,11 @@ export interface AgentPromptFormatter {
   buildTerminalPreInputs?(config: ThreadConfig): string[][] | undefined;
   /** Translate a canonical goal control into the provider's native prompt command. */
   buildGoalControlPrompt?(control: ThreadGoalControl): string | undefined;
+  /**
+   * The provider has no goal pause verb; interrupting its running turn pauses
+   * the active goal, so route canonical `pause` control to thread interruption.
+   */
+  goalPauseInterruptsTurn?: boolean;
   buildDirectInput?(
     prompt: string,
     segments?: PromptSegment[],

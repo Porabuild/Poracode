@@ -327,11 +327,11 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
     }),
     {
       name: "poracode-agent-statuses-v1",
-      version: 64,
+      version: 65,
       // Discovery interaction flags are excluded by partialize and do not
       // change the persisted format.
-      // v64 mirrors supervisor STATUS_CACHE_VERSION=68: refresh discovery
-      // for the read-only one-shot workspace capability used by review guides.
+      // v65 mirrors supervisor STATUS_CACHE_VERSION=69: refresh Devin discovery
+      // for the /goal <objective> thread-title command.
       migrate: (persisted) => {
         const prev = (persisted ?? {}) as Partial<AgentStatusesStore>;
         return {

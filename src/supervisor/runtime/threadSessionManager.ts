@@ -1442,6 +1442,10 @@ export class ThreadSessionManager {
       await session.structuredSession.controlGoal(control);
       return;
     }
+    if (control.action === "pause" && session.adapter.goalPauseInterruptsTurn) {
+      await this.interruptThread({ threadId });
+      return;
+    }
     const prompt = session.adapter.buildGoalControlPrompt?.(control);
     if (!prompt) throw new Error(`${session.adapter.label} does not support this goal control.`);
     await this.sendThreadInput({ threadId, prompt, config: session.config });
