@@ -225,6 +225,27 @@ describe("SortableThreadItem", () => {
     useThreadHasDraftMock.mockReturnValue(false);
   });
 
+  it.each([
+    { done: false, struck: false },
+    { done: true, struck: true },
+  ])("shows a skill in the title as a chip (done: $done)", ({ done, struck }) => {
+    const { container } = render(
+      <SortableThreadItem
+        thread={makeThread({ title: "$finalize the release", done })}
+        threadIndex={1}
+        project={project}
+        showWorktreeBadge={false}
+        editingThreadId={null}
+        setEditingThreadId={vi.fn<(id: string | null) => void>()}
+        group="project-entries:project-1"
+      />,
+    );
+    const chip = container.querySelector(".poracode-slash-chip");
+    expect(chip).toHaveAttribute("data-skill-name", "finalize");
+    expect(container).not.toHaveTextContent("$finalize");
+    expect(Boolean(container.querySelector(".line-through"))).toBe(struck);
+  });
+
   it("keeps the row visually working while the thread has background activity", () => {
     const thread = makeThread();
     useThreadHasBackgroundActivityMock.mockReturnValue(true);

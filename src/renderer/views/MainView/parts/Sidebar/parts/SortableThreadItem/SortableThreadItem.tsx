@@ -3,6 +3,7 @@ import { useExperimentStore } from "@/renderer/state/experimentStore";
 import { useSortable } from "@dnd-kit/react/sortable";
 import { useIsDraggingThread, type DragSourceData } from "@/renderer/dnd";
 import { SidebarButton } from "@/renderer/components/common/SidebarButton";
+import { threadTitleNode } from "@/renderer/components/promptChips/threadTitleNode";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { getStatusTone } from "@/renderer/components/providers/statusTone";
 import { ThreadProviderIcon } from "@/renderer/components/providers/ThreadProviderIcon";
@@ -103,9 +104,11 @@ export function SortableThreadItem(props: {
 
   const stacked = projectTag != null;
   const titleNode = thread.done ? (
-    <span className="opacity-50 line-through">{thread.title}</span>
+    <span className="opacity-50 line-through [&_.poracode-slash-chip__name]:line-through">
+      {threadTitleNode(thread.title)}
+    </span>
   ) : (
-    thread.title
+    threadTitleNode(thread.title)
   );
   const suffixProps = {
     thread,
