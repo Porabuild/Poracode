@@ -6,7 +6,9 @@ import {
   useRef,
   useState,
 } from "react";
+import { createPortal } from "react-dom";
 import type { LucideIcon } from "lucide-react";
+import { PluginIcon } from "@/renderer/components/plugins/PluginIcon";
 import type {
   AgentSlashCommand,
   FileEntry,
@@ -396,6 +398,7 @@ export const MentionInput = forwardRef<
     .map((item) => `${item.threadId}:${item.updatedAt}:${item.title}:${item.projectName ?? ""}`)
     .join(",");
   const editorRef = useRef<HTMLDivElement>(null);
+  const [pluginIconTargets, setPluginIconTargets] = useState<HTMLElement[]>([]);
   const imeConfirmEventTimeStampRef = useRef<number | null>(null);
   const lastSlashQueryRef = useRef<string | null>(null);
   const voicePreviewRef = useRef<HTMLSpanElement | null>(null);
@@ -754,6 +757,31 @@ export const MentionInput = forwardRef<
     }
   }, [autoFocus]);
 
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    let currentTargets: HTMLElement[] = [];
+    const syncPluginIcons = () => {
+      const targets = [...editor.querySelectorAll<HTMLElement>("[data-plugin-icon]")];
+      if (
+        targets.length === currentTargets.length &&
+        targets.every((target, index) => target === currentTargets[index])
+      ) {
+        return;
+      }
+      for (const target of targets) {
+        // Undo snapshots can restore cloned artwork; the portal owns its replacement.
+        if (!currentTargets.includes(target)) target.replaceChildren();
+      }
+      currentTargets = targets;
+      setPluginIconTargets(targets);
+    };
+    const observer = new MutationObserver(syncPluginIcons);
+    observer.observe(editor, { childList: true, subtree: true });
+    syncPluginIcons();
+    return () => observer.disconnect();
+  }, []);
+
   function checkMentionState() {
     const query = detectTriggerQuery("@");
     setMention(query !== null ? { query } : null);
@@ -1100,6 +1128,13 @@ export const MentionInput = forwardRef<
         onClick={checkMentionState}
         {...({ placeholder } as React.HTMLAttributes<HTMLDivElement>)}
       />
+      {pluginIconTargets.map((target, index) =>
+        createPortal(
+          <PluginIcon pluginId={target.dataset.pluginIcon!} className="size-full" />,
+          target,
+          `${index}`,
+        ),
+      )}
       {mention && liveRange && results.length > 0 && (
         <MentionPopover
           results={results}
