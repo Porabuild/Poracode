@@ -167,7 +167,7 @@ struct RichChatAdaptiveComposer<Summary: View, Toolbar: View, Trailing: View>: V
   @ViewBuilder let toolbar: () -> Toolbar
   @ViewBuilder let trailing: () -> Trailing
 
-  @FocusState private var focused: Bool
+  @State private var focused = false
   @State private var expandedHasFocused = false
   @AppStorage(PoracodeChatTextSize.storageKey) private var storedTextSize = PoracodeChatTextSize.defaultValue
 

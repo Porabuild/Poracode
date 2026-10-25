@@ -139,7 +139,9 @@ class Android37WireLabFamilyInstrumentedTest {
     fun familyTerminalKeystrokeWritesToPty() {
         pairUntilHome()
         compose.onNodeWithContentDescription(context.getString(R.string.home_more)).performClick()
-        compose.onNodeWithTag("home_more_terminal").performScrollTo().performClick()
+        compose.onNodeWithTag("home_more_terminal").performScrollTo()
+        waitForEnabledTag("home_more_terminal")
+        compose.onNodeWithTag("home_more_terminal").performClick()
         if (isRealPeer) {
             // Real host: the seeded project is named, not the mock fixture id.
             val projectLabel = realArg("projectLabel", "native-e2e-fixture")
@@ -178,7 +180,9 @@ class Android37WireLabFamilyInstrumentedTest {
     fun familyGitStagesFromWorkspace() {
         pairUntilHome()
         compose.onNodeWithContentDescription(context.getString(R.string.home_more)).performClick()
-        compose.onNodeWithTag("home_more_projects").performScrollTo().performClick()
+        compose.onNodeWithTag("home_more_projects").performScrollTo()
+        waitForEnabledTag("home_more_projects")
+        compose.onNodeWithTag("home_more_projects").performClick()
         val projectLabel = if (isRealPeer) realArg("projectLabel", "native-e2e-fixture") else "Fixture Project"
         compose.waitUntil(15_000) { hasText(projectLabel) }
         compose.onNodeWithText(projectLabel).performClick()

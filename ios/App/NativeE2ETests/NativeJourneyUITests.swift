@@ -83,9 +83,11 @@ final class NativeJourneyUITests: XCTestCase {
     XCTAssertTrue(newThread.waitForExistence(timeout: 5))
     try await waitUntilEnabled(newThread)
     newThread.tap()
-    XCTAssertTrue(app.textViews["native-e2e.new-thread-prompt"].waitForExistence(timeout: 5))
+    let newThreadPrompt = app.textViews["native-e2e.new-thread-prompt"]
+    XCTAssertTrue(newThreadPrompt.waitForExistence(timeout: 5))
     attachScreenshot("01b-quick-compose")
     app.buttons["Cancel"].tap()
+    try await poll { !newThreadPrompt.exists && thread.isHittable }
 
     thread.tap()
     XCTAssertTrue(app.staticTexts["Fixture response"].waitForExistence(timeout: 15))
