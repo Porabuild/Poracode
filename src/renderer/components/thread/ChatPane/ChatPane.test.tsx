@@ -7,6 +7,7 @@ import { assistantDisplayText } from "@/shared/assistantMessageText";
 import { AppProvider } from "@/renderer/components/ui/provider";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useThreadForkStore } from "@/renderer/state/threadForkStore";
+import { installRuntimeHistoryRecovery } from "@/renderer/state/runtimeInterestHydration";
 import { useRevertedPromptStore } from "../revertedPrompt";
 import { ChatPane } from "./ChatPane";
 import { byTextContent } from "@/renderer/testUtils/text";
@@ -353,7 +354,20 @@ describe("ChatPane", () => {
     expect(screen.queryByText("No messages yet")).not.toBeInTheDocument();
   });
 
-  it("keeps a loaded reply's completed timer when a history refresh fails", async () => {
+  it("offers one history retry when supplementary content is visible without message rows", async () => {
+    const thread = { ...makeThread(), status: "idle" as const };
+    useAppStore.setState({
+      threads: [thread],
+      runtimeHydrationStatus: { [thread.id]: "failed" },
+    });
+
+    renderChatPane(thread, { hasSupplementaryContent: true });
+
+    expect(await screen.findAllByRole("button", { name: "Retry" })).toHaveLength(1);
+    expect(screen.getByText("Messages could not be loaded.")).toBeInTheDocument();
+  });
+
+  it("keeps a loaded reply and its completed timer while offering recovery retry", async () => {
     const thread = {
       ...makeThread(),
       status: "idle" as const,
@@ -365,10 +379,21 @@ describe("ChatPane", () => {
       runtimeHydrationStatus: { [thread.id]: "failed" },
     });
     seedAssistantMessage(thread.id, "Previously loaded reply");
-    renderChatPane(thread);
-    expect(await screen.findByText("Previously loaded reply")).toBeInTheDocument();
-    expect(screen.getByText(/^Worked for/)).toBeInTheDocument();
-    expect(screen.queryByText("Messages could not be loaded.")).not.toBeInTheDocument();
+    const recover = vi.fn<(threadId: string) => void>();
+    const uninstall = installRuntimeHistoryRecovery(recover);
+    try {
+      renderChatPane(thread);
+      expect(await screen.findByText("Previously loaded reply")).toBeInTheDocument();
+      expect(screen.getByText(/^Worked for/)).toBeInTheDocument();
+      expect(screen.getByText("Messages could not be loaded.")).toBeInTheDocument();
+      await waitFor(() => expect(recover).toHaveBeenCalledExactlyOnceWith(thread.id));
+      recover.mockClear();
+      fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+      expect(recover).toHaveBeenCalledExactlyOnceWith(thread.id);
+      expect(screen.getByText("Previously loaded reply")).toBeInTheDocument();
+    } finally {
+      uninstall();
+    }
   });
 
   it.each(["idle", "inactive", "working"] as const)(

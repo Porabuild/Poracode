@@ -92,6 +92,7 @@ export function createLocalSnapshotRecovery(deps: {
 
   const strategy: RuntimeEventRecoveryStrategy = {
     preservesOpenRequests: true,
+    preservesTranscript: true,
     recoverFromQueueOverflow: (threadIds) => {
       if (threadIds.length === 1) {
         const [threadId] = threadIds;
