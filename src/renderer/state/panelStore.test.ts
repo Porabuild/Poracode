@@ -1,6 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { initializeAdaptiveLayout, resetAdaptiveLayoutForTest } from "@/renderer/adaptiveLayout";
-import { DOCKABLE_PANEL_TABS, selectAnyObstructingOverlayOpen, usePanelStore } from "./panelStore";
+import {
+  DOCKABLE_PANEL_TABS,
+  selectAnyObstructingOverlayOpen,
+  selectPullRequestsOverlayVisible,
+  usePanelStore,
+} from "./panelStore";
 import { useFileEditorStore } from "./fileEditorStore";
 import { useCommandPaletteStore } from "@/renderer/commands/commandPaletteStore";
 import {
@@ -20,6 +25,7 @@ function resetPanelStore() {
     gitReviewAsPanel: false,
     gitOverlayOpen: false,
     prReviewContext: null,
+    pullRequestsOverlayOpen: false,
     githubActionsContext: null,
     filesPanelContext: null,
     subAgentPanelContext: null,
@@ -285,6 +291,47 @@ describe("setPrReviewContext", () => {
     usePanelStore.getState().setPrReviewContext(context);
 
     expect(usePanelStore.getState().prReviewContext).toEqual(context);
+  });
+});
+
+describe("pull-request overlay", () => {
+  beforeEach(() => {
+    resetPanelStore();
+  });
+
+  afterEach(() => {
+    resetPanelStore();
+  });
+
+  it("is visible for the list alone, a selected review alone, or both", () => {
+    expect(selectPullRequestsOverlayVisible(usePanelStore.getState())).toBe(false);
+
+    usePanelStore.getState().openPullRequestsOverlay();
+    expect(selectPullRequestsOverlayVisible(usePanelStore.getState())).toBe(true);
+    expect(selectAnyObstructingOverlayOpen()).toBe(true);
+
+    usePanelStore.getState().closePullRequestsOverlay();
+    usePanelStore.getState().setPrReviewContext({ projectId: "p", prNumber: 7 });
+    expect(selectPullRequestsOverlayVisible(usePanelStore.getState())).toBe(true);
+  });
+
+  it("closing clears the list and the selected review together", () => {
+    usePanelStore.getState().openPullRequestsOverlay();
+    usePanelStore.getState().setPrReviewContext({ projectId: "p", prNumber: 7 });
+
+    usePanelStore.getState().closePullRequestsOverlay();
+
+    expect(usePanelStore.getState().pullRequestsOverlayOpen).toBe(false);
+    expect(usePanelStore.getState().prReviewContext).toBeNull();
+    expect(selectAnyObstructingOverlayOpen()).toBe(false);
+  });
+
+  it("selecting a review keeps the list open", () => {
+    usePanelStore.getState().openPullRequestsOverlay();
+    usePanelStore.getState().openPullRequestsOverlay();
+
+    usePanelStore.getState().setPrReviewContext({ projectId: "p", prNumber: 7 });
+    expect(usePanelStore.getState().pullRequestsOverlayOpen).toBe(true);
   });
 });
 

@@ -104,9 +104,9 @@ export const DeferredGitReviewOverlay = preloadable(() =>
   ),
 );
 
-export const DeferredPrReviewOverlay = preloadable(() =>
-  import("@/renderer/views/PrReviewOverlay/PrReviewOverlay").then(
-    (module) => module.PrReviewOverlay,
+export const DeferredPullRequestsOverlay = preloadable(() =>
+  import("@/renderer/views/PullRequestsOverlay/PullRequestsOverlay").then(
+    (module) => module.PullRequestsOverlay,
   ),
 );
 
@@ -150,7 +150,7 @@ const desktopPrewarmTasks = [
   DeferredFileEditorOverlay.preload,
   DeferredGitReviewPanel.preload,
   DeferredGitReviewOverlay.preload,
-  DeferredPrReviewOverlay.preload,
+  DeferredPullRequestsOverlay.preload,
   DeferredGitHubActionsView.preload,
   DeferredInlineDiffView.preload,
 ] as const;
@@ -162,7 +162,7 @@ const compactPrewarmTasks = [
   DeferredProjectSettingsOverlay.preload,
   DeferredGitReviewPanel.preload,
   DeferredGitReviewOverlay.preload,
-  DeferredPrReviewOverlay.preload,
+  DeferredPullRequestsOverlay.preload,
   DeferredGitHubActionsView.preload,
   DeferredInlineDiffView.preload,
 ] as const;
