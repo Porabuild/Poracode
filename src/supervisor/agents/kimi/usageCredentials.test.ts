@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseKimiCliCredential, parseKimiEnv } from "./kimiCredentials";
+import { parseKimiCliCredential, parseKimiEnv } from "./usageCredentials";
 
 const NOW = 1_700_000_000_000;
 
