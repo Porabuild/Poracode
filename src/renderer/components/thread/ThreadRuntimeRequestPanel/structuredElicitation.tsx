@@ -1,9 +1,11 @@
 import { useId, useState, type ReactNode } from "react";
 import { StructuredElicitationField } from "./StructuredElicitationField";
 import { QuestionStepForm } from "./QuestionStepForm";
+import { QuestionFormActions } from "./parts/QuestionFormActions";
 import { QuestionSwitcher } from "./parts/QuestionSwitcher";
-import { Button } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
+import { Plug } from "lucide-react";
+import { QuestionFormHeader } from "./parts/QuestionFormHeader";
 import type { RequestOutcome } from "@/shared/contracts";
 import { openExternalWithFeedback } from "@/renderer/utils/openExternal";
 
@@ -157,6 +159,7 @@ function ExternalElicitationLink(props: { href: string; className?: string; chil
 export function StructuredElicitationForm(props: {
   params: StructuredElicitationParams;
   isDisabled: boolean;
+  isPending?: boolean;
   onSubmit: (response: unknown, outcome: RequestOutcome) => void;
 }) {
   const { params, isDisabled, onSubmit } = props;
@@ -166,6 +169,7 @@ export function StructuredElicitationForm(props: {
     params.mode === "form" ? initialStructuredFormValues(params.requestedSchema.properties) : {},
   );
   const [activeFieldKey, setActiveFieldKey] = useState<string | null>(null);
+  const [customAnswerFields, setCustomAnswerFields] = useState<Record<string, boolean>>({});
   const requiredKeys = params.mode === "form" ? (params.requestedSchema.required ?? []) : [];
   function visibleFields(values: Record<string, StructuredFormValue>) {
     return params.mode === "form"
@@ -180,23 +184,21 @@ export function StructuredElicitationForm(props: {
     fields.findIndex(([key]) => key === activeFieldKey),
   );
   const activeField = fields[activeIndex];
-  const questions = fields.map(([id, property]) => ({
-    id,
-    header: property.title ?? id,
-    question: property.description ?? property.title ?? id,
-    isSecret: false,
-    multiSelect: property.type === "array",
-    options: null,
-  }));
-  const answers = Object.fromEntries(
-    fields.map(([key, property]) => [
-      key,
+  const activeProperty = activeField?.[1];
+  const steps = fields.map(([key, property]) => ({
+    id: key,
+    label: property.title ?? key,
+    answered:
       !emptyStructuredValue(formValues[key]) &&
-      validStructuredValue(property, formValues[key], requiredKeys.includes(key))
-        ? String(formValues[key])
-        : "",
-    ]),
-  );
+      validStructuredValue(property, formValues[key], requiredKeys.includes(key)),
+  }));
+  const title = activeProperty ? (activeProperty.title ?? activeField![0]) : params.message;
+  const description = activeProperty?.description;
+  // The server's request text says why it asks; keep it unless the field repeats it.
+  const sourceLine =
+    params.message && params.message !== title && params.message !== description
+      ? `${params.sourceText} · ${params.message}`
+      : params.sourceText;
   const canAdvance =
     !activeField ||
     validStructuredValue(
@@ -253,6 +255,39 @@ export function StructuredElicitationForm(props: {
       isDisabled={isDisabled}
       onAdvance={() => advance()}
       onSubmit={() => submitAccept()}
+      header={
+        <QuestionFormHeader
+          icon={Plug}
+          eyebrow={sourceLine}
+          title={title}
+          required={!!activeField && requiredKeys.includes(activeField[0])}
+          description={description}
+          hint={activeProperty?.type === "array" ? t`Select all that apply` : undefined}
+          steps={
+            steps.length > 1 ? (
+              <QuestionSwitcher
+                steps={steps}
+                activeIndex={activeIndex}
+                isDisabled={isDisabled}
+                onSelect={(index) => setActiveFieldKey(fields[index]?.[0] ?? null)}
+              />
+            ) : undefined
+          }
+        />
+      }
+      footer={
+        <QuestionFormActions
+          formId={formId}
+          isLastStep={params.mode === "form" && activeIndex >= fields.length - 1}
+          canSubmit={activeIndex < fields.length - 1 ? canAdvance : !hasMissing}
+          isDisabled={isDisabled}
+          isPending={props.isPending === true}
+          {...(params.mode === "form" && activeIndex < fields.length - 1 && !hasMissing
+            ? { onSubmitEarly: () => submitAccept() }
+            : {})}
+          onDecline={() => onSubmit({ action: "decline" }, "declined")}
+        />
+      }
     >
       {params.mode === "url" ? (
         <ExternalElicitationLink
@@ -277,14 +312,6 @@ export function StructuredElicitationForm(props: {
               ) : null}
             </ExternalElicitationLink>
           ))}
-          <QuestionSwitcher
-            questions={questions}
-            answers={answers}
-            customAnswers={{}}
-            activeIndex={activeIndex}
-            isDisabled={isDisabled}
-            onSelect={(index) => setActiveFieldKey(fields[index]?.[0] ?? null)}
-          />
           {fields.slice(activeIndex, activeIndex + 1).map(([key, property]) => (
             <StructuredElicitationField
               key={key}
@@ -294,8 +321,16 @@ export function StructuredElicitationForm(props: {
               formValues={formValues}
               requiredKeys={requiredKeys}
               isDisabled={isDisabled}
+              isCustomAnswer={
+                Object.hasOwn(customAnswerFields, key) ? customAnswerFields[key] : undefined
+              }
               setFormValues={setFormValues}
+              onCustomAnswer={(value) => {
+                setCustomAnswerFields((current) => ({ ...current, [key]: true }));
+                setFormValues((current) => ({ ...current, [key]: value }));
+              }}
               onSingleChoice={(value, submitOnLast) => {
+                setCustomAnswerFields((current) => ({ ...current, [key]: false }));
                 if (validStructuredValue(property, value, requiredKeys.includes(key))) {
                   const values = { ...formValues, [key]: value };
                   const visible = visibleFields(values);
@@ -307,33 +342,6 @@ export function StructuredElicitationForm(props: {
           ))}
         </div>
       )}
-      <div className="flex flex-wrap items-center justify-end gap-1 pt-1">
-        <Button
-          isDisabled={isDisabled}
-          size="sm"
-          variant="ghost"
-          className="text-muted"
-          onPress={() => onSubmit({ action: "cancel" }, "cancelled")}
-        >
-          <Trans>Cancel</Trans>
-        </Button>
-        <Button
-          isDisabled={isDisabled}
-          size="sm"
-          variant="ghost"
-          onPress={() => onSubmit({ action: "decline" }, "declined")}
-        >
-          <Trans>Decline</Trans>
-        </Button>
-        <Button
-          isDisabled={isDisabled || (activeIndex < fields.length - 1 ? !canAdvance : hasMissing)}
-          size="sm"
-          variant="secondary"
-          type="submit"
-        >
-          {params.mode === "url" || activeIndex < fields.length - 1 ? t`Continue` : t`Submit`}
-        </Button>
-      </div>
     </QuestionStepForm>
   );
 }

@@ -26,6 +26,29 @@ describe("ThreadTodoDock", () => {
     ],
   };
 
+  it("toggles from the right-panel header without coupling its close action", () => {
+    const onCollapsedChange = vi.fn<(collapsed: boolean) => void>();
+    const onRetire = vi.fn<() => void>();
+    render(
+      <AppProvider>
+        <ThreadTodoDock
+          collapsed={false}
+          placement="right"
+          state={state}
+          onCollapsedChange={onCollapsedChange}
+          onRetire={onRetire}
+        />
+      </AppProvider>,
+    );
+    const header = screen.getByRole("button", { name: "Plan" });
+    expect(header).toHaveAttribute("aria-expanded", "true");
+    fireEvent.click(header);
+    expect(onCollapsedChange).toHaveBeenCalledExactlyOnceWith(true);
+    fireEvent.click(screen.getByRole("button", { name: "Close plan" }));
+    expect(onRetire).toHaveBeenCalledTimes(1);
+    expect(onCollapsedChange).toHaveBeenCalledTimes(1);
+  });
+
   it("auto-scrolls the active item into view and exposes collapse controls", () => {
     const onCollapsedChange = vi.fn<(collapsed: boolean) => void>();
 
@@ -42,6 +65,7 @@ describe("ThreadTodoDock", () => {
     );
 
     expect(scrollIntoView).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("button", { name: "Plan" })).not.toBeInTheDocument();
 
     for (const name of ["Collapse todo dock", "Close plan"]) {
       expect(screen.getByRole("button", { name })).toHaveClass("h-6", "w-6");

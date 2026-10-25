@@ -106,7 +106,7 @@ const sdkStatus: AgentStatus = {
     sdk: {
       presentationMode: "gui",
       installed: true,
-      version: "1.0.24",
+      version: "1.0.38",
       installationSource: "global-npm",
       authState: "authenticated",
       authUsesProviderLogin: false,
@@ -150,7 +150,7 @@ describe("ThreadAgentUpdateDock", () => {
     resetAcpRegistryListingCache();
     bridgeMock.getLatestAgentVersion
       .mockReset()
-      .mockResolvedValue({ version: "1.0.31", source: "npm" });
+      .mockResolvedValue({ version: "1.0.40", source: "npm" });
     bridgeMock.listAcpRegistry.mockReset().mockResolvedValue({
       version: "1.0.0",
       agents: [
@@ -176,10 +176,25 @@ describe("ThreadAgentUpdateDock", () => {
   });
 
   it("shows and updates the selected Cursor SDK runtime instead of Cursor ACP", async () => {
+    const updatedSdk = {
+      ...sdkStatus,
+      runtimeVariants: {
+        ...sdkStatus.runtimeVariants,
+        sdk: {
+          ...sdkStatus.runtimeVariants!.sdk!,
+          version: "1.0.40",
+        },
+      },
+    };
+    bridgeMock.refreshAgentStatuses.mockResolvedValue({
+      windows: [updatedSdk],
+      wsl: [],
+      fromCache: false,
+    });
     render(<ThreadAgentUpdateDock agentStatus={sdkStatus} project={project} />);
 
     expect(
-      await screen.findByText(/Cursor SDK: This computer · v1\.0\.24 → v1\.0\.31/u),
+      await screen.findByText(/Cursor SDK: This computer · v1\.0\.38 → v1\.0\.40/u),
     ).toBeInTheDocument();
     expect(screen.queryByText(/2026\.07\.09/u)).toBeNull();
     expect(bridgeMock.getLatestAgentVersion).toHaveBeenCalledWith({
@@ -196,7 +211,7 @@ describe("ThreadAgentUpdateDock", () => {
     expect(runAgentInstallCommandMock).toHaveBeenCalledWith(
       expect.objectContaining({
         label: "Cursor SDK",
-        command: expect.stringContaining("npm install -g '@cursor/sdk@^1.0.38'"),
+        command: expect.stringContaining("npm install -g '@cursor/sdk@1.0.40'"),
         purpose: "update",
       }),
     );
@@ -210,6 +225,25 @@ describe("ThreadAgentUpdateDock", () => {
       agentKinds: ["cursor"],
       envs: [{ kind: "native" }],
     });
+    expect(toastMock.success).toHaveBeenCalledWith("Cursor SDK updated to v1.0.40.");
+    expect(toastMock.danger).not.toHaveBeenCalled();
+  });
+
+  it("does not report a Cursor SDK update that left the installed version unchanged", async () => {
+    bridgeMock.refreshAgentStatuses.mockResolvedValue({
+      windows: [sdkStatus],
+      wsl: [],
+      fromCache: false,
+    });
+    render(<ThreadAgentUpdateDock agentStatus={sdkStatus} project={project} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Update" }));
+    await act(async () => {
+      runAgentInstallCommandMock.mock.calls[0]?.[0].onCommandComplete?.(0);
+    });
+
+    expect(toastMock.danger).toHaveBeenCalledWith("Unable to update Cursor SDK.");
+    expect(toastMock.success).not.toHaveBeenCalled();
   });
 
   it("keeps the provider binary updater for the selected Cursor ACP runtime", async () => {

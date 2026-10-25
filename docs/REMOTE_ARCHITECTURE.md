@@ -108,10 +108,10 @@ per-route handler table, so a route that is not in the registry fails
 typecheck. The `v3` directory name is retained; the current wire protocol
 version is 14. The inventory describes:
 
-- 117 HTTP routes;
+- 119 HTTP routes;
 - 163 supervisor procedures;
-- 9 client-to-server WebSocket messages; and
-- 11 server-to-client WebSocket messages (including the admission-gated `desktop-event` stream).
+- 11 client-to-server WebSocket messages; and
+- 12 server-to-client WebSocket messages (including the admission-gated `desktop-event` stream).
 
 `bun run protocol:remote:v3:check` is side-effect free and rejects missing,
 extra, or stale generated artifacts, including a hand-edited manifest.

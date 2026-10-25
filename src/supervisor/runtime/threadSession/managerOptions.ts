@@ -15,6 +15,7 @@ import type { HostResourceAdmission } from "../hostResourceAdmission";
 import type { AgentAdapter, AgentNativePlugin } from "../../agents/base";
 import type { WindowsShellPreference } from "../../shellPreference";
 import type { HostDiagnosticsSnapshot } from "@/shared/lsp";
+import type { TerminalPtyFactory } from "../../pty/managedPty";
 
 export interface ThreadSessionManagerOptions {
   /**
@@ -28,6 +29,8 @@ export interface ThreadSessionManagerOptions {
   settingsPath: string;
   readDisableCliHookPlugin(): boolean;
   adapters: Map<AgentKind, AgentAdapter>;
+  /** Platform PTY owner; absent uses the existing direct node-pty route. */
+  createPty?: TerminalPtyFactory;
   resolveWindowsShell(runtime?: "preferred" | "powershell"): WindowsShellPreference;
   /** Live host diagnostics for the exact execution location; unavailable is distinct from empty. */
   readHostDiagnostics?(
@@ -94,7 +97,11 @@ export interface ThreadSessionManagerOptions {
      * `true` when the id belonged to a subagent (namespaced under a run) and was
      * handled; `false` to fall through to the normal session resolve path.
      */
-    resolveChildRequest(requestId: ThreadServerRequestId, response: unknown): boolean;
+    resolveChildRequest(
+      requestId: ThreadServerRequestId,
+      response: unknown,
+      parentThreadId: string,
+    ): Promise<boolean>;
   };
   /**
    * Optional: resolves how a WSL distro reaches host-bound services (NAT
@@ -120,6 +127,7 @@ export interface ThreadSessionManagerOptions {
     agentKind: AgentKind,
     options?: {
       includeExternalServers: boolean;
+      pluginOverrides?: Record<string, boolean>;
       /** Inspect explicit skill metadata through the adapter captured for this session's launch. */
       nativePluginAdapter?: Pick<AgentAdapter, "listNativePlugins">;
     },
@@ -138,6 +146,7 @@ export interface ThreadSessionManagerOptions {
   prepareSkillsForLaunch?(projectLocation: ProjectLocation, agentKind: AgentKind): Promise<void>;
   /** Enforce plugin skill policy before a segment reaches a provider. */
   filterPluginSkillSegments?(input: {
+    pluginOverrides?: Record<string, boolean>;
     agentKind: AgentKind;
     projectLocation: ProjectLocation;
     presentationMode?: ThreadPresentationMode;

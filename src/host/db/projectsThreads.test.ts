@@ -29,6 +29,7 @@ import {
   dbSetState,
   dbUpsertProject,
   dbUpsertThread,
+  dbUpdateThreadMetadata,
 } from "./projectsThreads";
 import { onProjectThreadDataChanged } from "./projectThreadChanges";
 import {
@@ -121,6 +122,53 @@ describe("projectsThreads (real sqlite round-trip)", () => {
     closeDatabase();
     rmSync(dir, { recursive: true, force: true });
     delete process.env.PORACODE_BETTER_SQLITE3_NATIVE_BINDING;
+  });
+
+  it("updates fresh metadata without rewriting configuration, runtime state, order or history", () => {
+    const original = testThread({ starred: true, status: "working" });
+    dbUpsertThread(original, 17.5);
+    const sqlite = getSqlite();
+    const config = '{ "model": "sonnet", "futureField": { "keep": true } }';
+    sqlite.prepare("UPDATE threads SET config = ? WHERE id = ?").run(config, original.id);
+    dbAppendThreadTerminalOutput(original.id, "Retained history", "Retained history".length);
+    const before = sqlite.prepare("SELECT * FROM threads WHERE id = ?").get(original.id) as Record<
+      string,
+      unknown
+    >;
+    const updated = dbUpdateThreadMetadata(original.id, (current) => {
+      expect(current.status).toBe("working");
+      return { ...current, title: "New title", archived: true, archivedAt: "2026-10-21T00:00:00Z" };
+    });
+    expect(updated?.title).toBe("New title");
+    const after = sqlite.prepare("SELECT * FROM threads WHERE id = ?").get(original.id) as Record<
+      string,
+      unknown
+    >;
+    const allowed = new Set(["title", "archived", "archived_at"]);
+    const retained = (row: Record<string, unknown>) =>
+      Object.fromEntries(Object.entries(row).filter(([key]) => !allowed.has(key)));
+    expect(retained(after)).toEqual(retained(before));
+    expect(after.config).toBe(config);
+    expect(dbGetThreadTerminalScrollback(original.id)).toBe("Retained history");
+  });
+
+  it("does not recreate missing metadata or commit a rejected computation", () => {
+    dbUpsertThread(testThread(), 2);
+    expect(() =>
+      dbUpdateThreadMetadata("thread-1", () => {
+        throw new Error("identity changed");
+      }),
+    ).toThrow("identity changed");
+    expect(dbGetThread("thread-1")?.title).toBe("Test thread");
+    let called = false;
+    expect(
+      dbUpdateThreadMetadata("missing", (thread) => {
+        called = true;
+        return thread;
+      }),
+    ).toBeNull();
+    expect(called).toBe(false);
+    expect(dbGetThread("missing")).toBeNull();
   });
 
   it("finds normalized locations without loading unrelated projects", () => {

@@ -1,6 +1,9 @@
+import { STATUS_CACHE_VERSION } from "@/shared/agentStatusCache";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AgentStatus } from "@/shared/contracts";
 import type { AgentAdapter } from "@/supervisor/agents/base";
+import { normalizeSharedSettings } from "@/shared/settings";
+import { localMachineKey } from "@/shared/machines";
 import {
   memory,
   FAST,
@@ -15,21 +18,264 @@ import {
   modelIds,
   seedBaseline,
 } from "./fixtures/agentStatusServiceFixture";
+import { writeFile } from "node:fs/promises";
 // Register the owned filesystem/probe mocks before loading the service.
-import { STATUS_CACHE_VERSION } from "@/supervisor/runtime/agentStatusService";
+import { readSupervisorSharedSettings } from "@/supervisor/runtime/supervisorSharedSettings";
 
 describe("AgentStatusService accepted readiness publication", () => {
+  it("reconciles removed registry kinds without dropping unrelated observations or accepting their late probes", async () => {
+    seedBaseline();
+    const held = deferred<AgentStatus>();
+    const fast = vi.fn<AgentAdapter["detectInstall"]>(() => held.promise);
+    const slow = vi.fn<AgentAdapter["detectInstall"]>(async () => status(SLOW, "unrelated"));
+    const { service, registry, events } = setup([adapter(FAST, fast), adapter(SLOW, slow)]);
+    const scoped = service.refreshAgentStatuses({
+      wslDistros: [],
+      scope: { agentKinds: [FAST], envs: [{ kind: "native" }] },
+    });
+    await vi.waitFor(() => expect(fast).toHaveBeenCalledOnce());
+    await service.getAgentStatuses({ wslDistros: [] });
+    const full = activeDetection(service);
+    registry.delete(FAST);
+    service.reconcileAgentRegistry([FAST]);
+    expect(service.getCachedCapabilities(FAST)).toBeUndefined();
+    expect(service.getCachedCapabilities(SLOW)?.models[0]?.id).toBe("baseline-slow");
+    expect(events).toEqual([]);
+    service.cancelAgentDiscovery();
+    held.resolve(status(FAST, "obsolete"));
+    expect(modelIds(await scoped)).toBeUndefined();
+    await full.catch(() => undefined);
+    expect(events).toContainEqual({
+      type: "windows-agent-statuses",
+      statuses: [expect.objectContaining({ kind: SLOW })],
+    });
+    expect(events).toContainEqual({
+      type: "wsl-agent-statuses",
+      statuses: [expect.objectContaining({ kind: SLOW, envDistro: "OtherDistro" })],
+    });
+    expect(
+      events.some((event) => event.type === "agent-status-updated" && event.status.kind === FAST),
+    ).toBe(false);
+    expect(slow).not.toHaveBeenCalled();
+  });
+
+  it("prunes orphaned saved registry statuses on the first reconciliation without probing", async () => {
+    seedBaseline();
+    const { service, events } = setup([adapter(SLOW, vi.fn<AgentAdapter["detectInstall"]>())]);
+    await service.ready;
+    service.reconcileAgentRegistry([]);
+    expect(service.getCachedCapabilities(FAST)).toBeUndefined();
+    expect(service.getCachedCapabilities(SLOW)?.models[0]?.id).toBe("baseline-slow");
+    expect(events).toHaveLength(2);
+    expect(memory.writes).toEqual([]);
+  });
+
+  it("defers remaining registry bulk events when a client starts discovery from the first event", async () => {
+    seedBaseline();
+    const held = deferred<AgentStatus>();
+    let started = false;
+    const current = setup([adapter(SLOW, async () => held.promise)], (event) => {
+      if (event.type !== "windows-agent-statuses" || started) return;
+      started = true;
+      void current.service.getAgentStatuses({ wslDistros: [] });
+    });
+    await current.service.ready;
+    current.service.reconcileAgentRegistry([]);
+    expect(current.events.map((event) => event.type)).toEqual(["windows-agent-statuses"]);
+    const full = activeDetection(current.service);
+    held.resolve(status(SLOW, "fresh"));
+    await full;
+    expect(current.events.some((event) => event.type === "wsl-agent-statuses")).toBe(true);
+    expect(current.service.getCachedCapabilities(SLOW)?.models[0]?.id).toBe("fresh");
+  });
   afterEach(() => {
     if (memory.cli.mock.calls.length !== 0)
       throw new Error("Unexpected subprocess/probe invocation");
   });
-  it("preserves legacy native/WSL cache rows, caller filtering and adapter defaults", () => {
+  it.each([false, true])(
+    "does not restore a retired provider after a deferred cache write with peer=%s",
+    async (keepPeer) => {
+      const entries = [adapter(FAST, async () => status(FAST, "removed"))];
+      if (keepPeer) entries.push(adapter(SLOW, async () => status(SLOW, "kept")));
+      const { service, registry } = setup(entries);
+      const entered = deferred<void>();
+      const release = deferred<void>();
+      const writer = vi.mocked(writeFile).getMockImplementation()!;
+      vi.mocked(writeFile).mockImplementationOnce(async (...args) => {
+        entered.resolve();
+        await release.promise;
+        return writer(...args);
+      });
+      const detection = service.refreshAgentStatuses({ wslDistros: [] });
+      await entered.promise;
+      registry.delete(FAST);
+      service.reconcileAgentRegistry([FAST]);
+      expect(service.getCachedCapabilities(FAST)).toBeUndefined();
+      release.resolve();
+      const result = await detection;
+      expect(result.windows.map((row) => row.kind)).toEqual(keepPeer ? [SLOW] : []);
+      expect(service.getCachedCapabilities(FAST)).toBeUndefined();
+      expect(memory.cache).toBeUndefined();
+    },
+  );
+
+  it("keeps a cold scoped native refresh within its requested provider and leaves startup discovery eligible", async () => {
+    const selected = vi.fn<AgentAdapter["detectInstall"]>(async () => status(FAST, "selected"));
+    const unrelated = vi.fn<AgentAdapter["detectInstall"]>(async () => status(SLOW, "unrelated"));
+    const { service, events } = setup([adapter(FAST, selected), adapter(SLOW, unrelated)]);
+    const result = await service.refreshAgentStatuses({
+      wslDistros: [],
+      scope: { agentKinds: [FAST], envs: [{ kind: "native" }] },
+    });
+    expect(selected).toHaveBeenCalledOnce();
+    expect(unrelated).not.toHaveBeenCalled();
+    expect(modelIds(result)).toEqual(["selected"]);
+    expect(result.fromCache).toBe(false);
+    expect(memory.writes).toEqual([]);
+    expect(memory.cache).toBeUndefined();
+    expect(events).toEqual([
+      {
+        type: "agent-status-updated",
+        status: expect.objectContaining({ kind: FAST, envKind: nativeEnv }),
+      },
+    ]);
+    const beforeFull = await service.getAgentStatuses({ wslDistros: [] });
+    expect(modelIds(beforeFull)).toEqual(["selected"]);
+    expect(beforeFull.fromCache).toBe(false);
+    await activeDetection(service);
+    expect(selected).toHaveBeenCalledTimes(2);
+    expect(unrelated).toHaveBeenCalledOnce();
+    expect(memory.writes).toHaveLength(1);
+    expect(
+      events.some(
+        (event) => event.type === "windows-agent-statuses" && event.statuses.length === 2,
+      ),
+    ).toBe(true);
+    expect((await service.getAgentStatuses({ wslDistros: [] })).fromCache).toBe(true);
+  });
+
+  it("does not widen a cold scoped WSL refresh to native or other providers", async () => {
+    const selected = vi.fn<AgentAdapter["detectInstall"]>(async (context) => {
+      expect(context).toMatchObject({ envKind: "wsl", distro: DISTRO });
+      return { ...status(FAST, "wsl-selected"), envKind: "wsl", envDistro: DISTRO };
+    });
+    const unrelated = vi.fn<AgentAdapter["detectInstall"]>(async () => status(SLOW, "unrelated"));
+    const { service, events } = setup([adapter(FAST, selected), adapter(SLOW, unrelated)]);
+    const result = await service.refreshAgentStatuses({
+      wslDistros: [DISTRO, "OtherDistro"],
+      scope: { agentKinds: [FAST], envs: [{ kind: "wsl", distro: DISTRO }] },
+    });
+    expect(result.windows).toEqual([]);
+    expect(result.wsl.map((entry) => [entry.kind, entry.envDistro])).toEqual([[FAST, DISTRO]]);
+    expect(selected).toHaveBeenCalledOnce();
+    expect(unrelated).not.toHaveBeenCalled();
+    expect(memory.writes).toEqual([]);
+    expect(events).toHaveLength(1);
+  });
+
+  it("does not discover unrelated providers for an absent scoped adapter on a cold profile", async () => {
+    const detect = vi.fn<AgentAdapter["detectInstall"]>(async () => status(FAST, "unrelated"));
+    const { service, events } = setup([adapter(FAST, detect)]);
+    expect(
+      await service.refreshAgentStatuses({
+        wslDistros: [],
+        scope: { agentKinds: ["absent"], envs: [{ kind: "native" }] },
+      }),
+    ).toEqual({ windows: [], wsl: [], fromCache: false });
+    expect(detect).not.toHaveBeenCalled();
+    expect(events).toEqual([]);
+    expect(memory.writes).toEqual([]);
+  });
+
+  it("keeps a cold scoped refresh owned when startup discovery is cancelled", async () => {
+    const held = deferred<AgentStatus>();
+    const detect = vi.fn<AgentAdapter["detectInstall"]>(() => held.promise);
+    const { service, events } = setup([adapter(FAST, detect)]);
+    const pending = service.refreshAgentStatuses({
+      wslDistros: [],
+      scope: { agentKinds: [FAST], envs: [{ kind: "native" }] },
+    });
+    await vi.waitFor(() => expect(detect).toHaveBeenCalledOnce());
+    service.cancelAgentDiscovery();
+    expect(events).toEqual([]);
+    held.resolve(status(FAST, "owned"));
+    expect(modelIds(await pending)).toEqual(["owned"]);
+    expect(service.getCachedCapabilities(FAST)?.models[0]?.id).toBe("owned");
+    expect(memory.writes).toEqual([]);
+  });
+
+  it("persists a complete cold discovery after a newer scoped target joins", async () => {
+    const old = deferred<AgentStatus>();
+    const selected = vi
+      .fn<AgentAdapter["detectInstall"]>()
+      .mockImplementationOnce(() => old.promise)
+      .mockResolvedValueOnce(status(FAST, "fresh-selected"));
+    const unrelated = vi.fn<AgentAdapter["detectInstall"]>(async () =>
+      status(SLOW, "full-unrelated"),
+    );
+    const { service } = setup([adapter(FAST, selected), adapter(SLOW, unrelated)]);
+    await service.getAgentStatuses({ wslDistros: [] });
+    const full = activeDetection(service);
+    await vi.waitFor(() => expect(selected).toHaveBeenCalledOnce());
+    const scoped = service.refreshAgentStatuses({
+      wslDistros: [],
+      scope: { agentKinds: [FAST], envs: [{ kind: "native" }] },
+    });
+    old.resolve(status(FAST, "obsolete"));
+    await full;
+    const result = await scoped;
+    expect(modelIds(result)).toEqual(["fresh-selected"]);
+    expect(modelIds(result, SLOW)).toEqual(["full-unrelated"]);
+    expect(memory.writes).toHaveLength(1);
+    expect(selected).toHaveBeenCalledTimes(2);
+    expect(unrelated).toHaveBeenCalledOnce();
+    expect((await service.getAgentStatuses({ wslDistros: [] })).fromCache).toBe(true);
+  });
+
+  it("joins a cold full inventory wholly superseded before its probes start", async () => {
+    const detect = vi.fn<AgentAdapter["detectInstall"]>(async () => status(FAST, "scoped-current"));
+    const { service } = setup([adapter(FAST, detect)]);
+    await service.ready;
+    const read = service.getAgentStatuses({ wslDistros: [] });
+    const full = activeDetection(service);
+    const scoped = service.refreshAgentStatuses({
+      wslDistros: [],
+      scope: { agentKinds: [FAST], envs: [{ kind: "native" }] },
+    });
+    await read;
+    await full;
+    expect(modelIds(await scoped)).toEqual(["scoped-current"]);
+    expect(detect).toHaveBeenCalledOnce();
+    expect(memory.writes).toHaveLength(1);
+  });
+
+  it("never treats a cancelled cold full inventory as permission to persist a scoped subset", async () => {
+    const selected = vi.fn<AgentAdapter["detectInstall"]>(async () => status(FAST, "selected"));
+    const unrelated = vi.fn<AgentAdapter["detectInstall"]>(async () => status(SLOW, "unrelated"));
+    const { service } = setup([adapter(FAST, selected), adapter(SLOW, unrelated)]);
+    await service.ready;
+    const read = service.getAgentStatuses({ wslDistros: [] });
+    const full = activeDetection(service);
+    const scoped = service.refreshAgentStatuses({
+      wslDistros: [],
+      scope: { agentKinds: [FAST], envs: [{ kind: "native" }] },
+    });
+    service.cancelAgentDiscovery();
+    await read;
+    await full.catch(() => undefined);
+    expect(modelIds(await scoped)).toEqual(["selected"]);
+    expect(selected).toHaveBeenCalledOnce();
+    expect(unrelated).not.toHaveBeenCalled();
+    expect(memory.writes).toEqual([]);
+  });
+  it("preserves legacy native/WSL cache rows, caller filtering and adapter defaults", async () => {
     memory.cache = JSON.stringify({
       version: STATUS_CACHE_VERSION,
       windows: [status(FAST, "legacy-native")],
       wsl: [{ ...status(FAST, "legacy-wsl"), envDistro: DISTRO, version: "4.0" }],
     });
     const { service } = setup([adapter(FAST, vi.fn<AgentAdapter["detectInstall"]>())]);
+    await service.ready;
     const cacheReader = service as unknown as {
       readCachedStatuses(distros: readonly string[]): {
         windows: AgentStatus[];
@@ -44,6 +290,65 @@ describe("AgentStatusService accepted readiness publication", () => {
     cached.models[0]!.id = "caller-mutated";
     expect(service.getCachedCapabilities(FAST)?.models[0]?.id).toBe("legacy-native");
     expect(memory.writes).toHaveLength(0);
+  });
+
+  it("probes only the selected native adapter on a cold profile without publishing a false full cache", async () => {
+    const selected = vi.fn<AgentAdapter["detectInstall"]>(async () => status(FAST, "selected"));
+    const unrelated = vi.fn<AgentAdapter["detectInstall"]>(async () => {
+      throw new Error("Unrelated provider must not be probed");
+    });
+    const { service, events } = setup([adapter(FAST, selected), adapter(SLOW, unrelated)]);
+    const result = await service.probeSelectedAgent({ version: 1, agentKind: FAST });
+    expect(result).toMatchObject({
+      version: 1,
+      environment: "native",
+      agentKind: FAST,
+      status: { kind: FAST, envKind: nativeEnv, capabilities: { models: [{ id: "selected" }] } },
+    });
+    expect(selected).toHaveBeenCalledOnce();
+    expect(unrelated).not.toHaveBeenCalled();
+    expect(memory.writes).toEqual([]);
+    expect(memory.cache).toBeUndefined();
+    expect(events).toEqual([]);
+    expect(service.getCachedCapabilities(FAST)).toBeUndefined();
+  });
+
+  it("uses effective native enablement for a selected read instead of global display defaults", async () => {
+    const detect = vi.fn<AgentAdapter["detectInstall"]>(async () =>
+      status(FAST, "native-selected"),
+    );
+    const { service } = setup([adapter(FAST, detect)]);
+    const settings = normalizeSharedSettings({});
+    settings.disabledAgents = [FAST];
+    settings.machineScopeModes.disabledAgents = "per-machine";
+    settings.machineSettings[localMachineKey({ kind: "native" })] = { disabledAgents: [] };
+    vi.mocked(readSupervisorSharedSettings).mockReturnValueOnce(settings);
+    const result = await service.probeSelectedAgent({ version: 1, agentKind: FAST });
+    expect(result.status?.capabilities.models[0]?.id).toBe("native-selected");
+    expect(detect).toHaveBeenCalledOnce();
+    settings.disabledAgents = [];
+    settings.machineSettings[localMachineKey({ kind: "native" })] = { disabledAgents: [FAST] };
+    vi.mocked(readSupervisorSharedSettings).mockReturnValueOnce(settings);
+    await service.probeSelectedAgent({ version: 1, agentKind: FAST });
+    expect(detect).toHaveBeenCalledOnce();
+    expect(memory.writes).toEqual([]);
+  });
+
+  it("keeps existing cache bytes and readiness unchanged after a selected probe", async () => {
+    seedBaseline();
+    const before = memory.cache;
+    const { service } = setup([adapter(FAST, async () => status(FAST, "fresh-selected"))]);
+    const result = await service.probeSelectedAgent({ version: 1, agentKind: FAST });
+    expect(result.status?.capabilities.models[0]?.id).toBe("fresh-selected");
+    expect(memory.cache).toBe(before);
+    expect(memory.writes).toEqual([]);
+    expect(service.getCachedCapabilities(FAST)?.models[0]?.id).toBe("baseline-fast");
+    expect(await service.probeSelectedAgent({ version: 1, agentKind: "unknown" })).toMatchObject({
+      status: null,
+    });
+    await expect(
+      service.probeSelectedAgent({ version: 2, agentKind: FAST } as never),
+    ).rejects.toThrow("Invalid input");
   });
 
   it("exposes completed native readiness before another adapter settles and owns returned snapshots", async () => {
@@ -164,6 +469,7 @@ describe("AgentStatusService accepted readiness publication", () => {
     const gate = deferred<AgentStatus>();
     const detect = vi.fn<AgentAdapter["detectInstall"]>(() => gate.promise);
     const { service, firstNativeReady } = setup([adapter(FAST, detect)]);
+    await service.ready;
     expect(service.getCachedCapabilities(FAST)?.models.map((m) => m.id)).toEqual(["baseline-fast"]);
     memory.failUnlink = true;
     service.invalidateAgentStatuses();

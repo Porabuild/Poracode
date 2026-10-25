@@ -88,8 +88,8 @@ export interface ServerDoctorReport {
           };
           /**
            * D4: true when the owner answered the additive authenticated status
-           * operation. False means a pre-D4 owner: it can be drained, but its
-           * build identity is not provable.
+           * operation. False also covers desktop lifecycle and unavailable or
+           * unverifiable status; it does not establish owner age or upgrade rights.
            */
           readonly statusSupported: boolean;
           readonly admission: "held" | "open" | null;

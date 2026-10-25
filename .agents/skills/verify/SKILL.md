@@ -61,7 +61,7 @@ Add these when the change touches the matching area:
 
 `.github/workflows/ci.yml` runs these on every PR; docs-only changes (`docs/`, `*.md`) skip everything except Format.
 
-- Typecheck: `bun run typecheck` (Bun, three threads; `bun run typecheck:tsc` is available for compiler comparison).
+- Typecheck: `bun run typecheck` (Bun, all available cores; `bun run typecheck:tsc` is available for compiler comparison).
 - Lint: `bun run lint`, `bun run architecture:check`, smoke-harness and release/qualification script tests, and the native-e2e `managedAppSession` and `operationMap` locks.
 - Format: `actionlint` on workflows, then `bun run fmt:check`.
 - Canonical web build: `bun run build:web`.

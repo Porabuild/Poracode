@@ -145,6 +145,19 @@ final class GeneratedThreadLifecycleContractTests: XCTestCase {
 
   // MARK: - v9 pinned execution environment (shared fixture round-trip)
 
+  func testPerThreadToolChoicesSurviveNativeLifecycleRoundTrip() throws {
+    let source = Data(#"{"model":"fixture","mcpServerOverrides":{"custom":true},"pluginOverrides":{"github":false}}"#.utf8)
+    let config = try JSONDecoding.decode(ThreadConfig.self, from: source)
+    let lifecycle = config.lifecycleLaunchConfiguration
+    let restored = ThreadConfig(lifecycle)
+    XCTAssertEqual(restored.mcpServerOverrides, ["custom": true])
+    XCTAssertEqual(restored.pluginOverrides, ["github": false])
+    let encoded = try JSONEncoder().encode(ThreadLaunchConfiguration(restored))
+    let object = try XCTUnwrap(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+    XCTAssertEqual(object["mcpServerOverrides"] as? [String: Bool], ["custom": true])
+    XCTAssertEqual(object["pluginOverrides"] as? [String: Bool], ["github": false])
+  }
+
   /// The host replaces thread configs wholesale on every config-carrying
   /// mutation. These tests pin that the WSL distro selected on the desktop
   /// (`thread-config-execution-environment.json`) survives the native

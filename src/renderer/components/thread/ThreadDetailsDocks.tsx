@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FolderGit2, Gauge } from "lucide-react";
+import { FolderGit2 } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { baseAgentKind } from "@/shared/contracts";
 import { getProjectFsPath } from "@/shared/wsl";
@@ -15,12 +15,22 @@ import {
 } from "@/renderer/components/providers/usageProviders";
 import { UsageWindowBars } from "@/renderer/components/providers/UsageWindowBars";
 import { UsageCostLine } from "@/renderer/components/providers/UsageCostLine";
-import { formatTokens } from "@/renderer/components/providers/usageFormat";
+import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
+import {
+  formatMoney,
+  formatTokens,
+  formatWindowValue,
+  usageWindowDisplayLabel,
+} from "@/renderer/components/providers/usageFormat";
+import { ThreadContextUsageDetails } from "./ThreadContextDock";
+import { resolveThreadContextUsageSummary } from "./threadContextUsage";
 import { ThreadDockCollapseButton, ThreadDockHeader, ThreadDockSection } from "./ThreadDockUI";
 
 export function ThreadWorkspaceDock({ threadId }: { threadId: string }) {
   const { t } = useLingui();
   const [collapsed, setCollapsed] = useState(true);
+  const selectedThread = useThread(threadId);
+  const context = useAppStore((state) => state.runtimeContextByThread[threadId]);
   const projectId = useAppStore(
     (state) => state.threads.find((thread) => thread.id === threadId)?.projectId,
   );
@@ -49,7 +59,16 @@ export function ThreadWorkspaceDock({ threadId }: { threadId: string }) {
           ? state.statuses[projectId]?.branch
           : undefined,
     ) ?? worktreeBranch;
-  if (!projectId) return null;
+  if (!selectedThread || !projectId) return null;
+  const hasContext =
+    context?.usedTokens !== undefined ||
+    context?.maxTokens !== undefined ||
+    Boolean(context?.breakdown?.length);
+  const contextSummary = resolveThreadContextUsageSummary({
+    thread: selectedThread,
+    agentStatus: undefined,
+    reportedUsage: context,
+  });
   const rows = [
     { label: t`Workspace`, value: projectName },
     { label: t`Path`, value: projectPath },
@@ -62,6 +81,7 @@ export function ThreadWorkspaceDock({ threadId }: { threadId: string }) {
       <ThreadDockHeader
         icon={FolderGit2}
         title={t`Thread context`}
+        collapse={{ collapsed, onToggle: () => setCollapsed(!collapsed) }}
         actions={
           <ThreadDockCollapseButton
             collapsed={collapsed}
@@ -69,16 +89,25 @@ export function ThreadWorkspaceDock({ threadId }: { threadId: string }) {
             onPress={() => setCollapsed(!collapsed)}
           />
         }
-      />
+      >
+        {collapsed ? (
+          <span className="ml-auto min-w-0 truncate text-right text-[0.85em] tabular-nums text-muted">
+            {hasContext ? contextSummary.detail : (branch ?? projectName)}
+          </span>
+        ) : null}
+      </ThreadDockHeader>
       {!collapsed ? (
-        <dl className="space-y-2 px-3 pb-3">
-          {rows.map((row) => (
-            <div key={row.label} className="min-w-0">
-              <dt className="text-[0.6875rem] text-muted">{row.label}</dt>
-              <dd className="select-text break-all leading-5 text-foreground">{row.value}</dd>
-            </div>
-          ))}
-        </dl>
+        <>
+          {hasContext ? <ThreadContextUsageDetails summary={contextSummary} /> : null}
+          <dl className="space-y-2 px-3 pb-3">
+            {rows.map((row) => (
+              <div key={row.label} className="min-w-0">
+                <dt className="text-[0.6875rem] text-muted">{row.label}</dt>
+                <dd className="select-text break-all leading-5 text-foreground">{row.value}</dd>
+              </div>
+            ))}
+          </dl>
+        </>
       ) : null}
     </ThreadDockSection>
   );
@@ -103,30 +132,44 @@ export function useThreadAgentUsage(threadId: string) {
       ? host.usage.snapshots.find((entry) => entry.providerId === providerId)
       : undefined
     : localSnapshot;
-  const context = useAppStore((state) => state.runtimeContextByThread[threadId]);
   const reported = snapshot?.status === "ok" ? snapshot : undefined;
   const showEstimatedCost = useSharedSettings((state) => state.usage.showEstimatedCost);
   const showCost = Boolean(reported?.cost && (!reported.cost.estimated || showEstimatedCost));
-  const hasContext = context?.usedTokens !== undefined || context?.maxTokens !== undefined;
-  if (!thread || (!hasContext && !reported?.windows.length && !showCost && !reported?.tokens))
-    return null;
+  if (!thread || (!reported?.windows.length && !showCost && !reported?.tokens)) return null;
   const label =
     resolveDisplayedProviders([], [], remoteServerId ? undefined : agentInstances).find(
       (provider) => provider.id === providerId,
     )?.label ?? baseAgentKind(providerId);
-  return { remoteServerId, context, reported, hasContext, showCost, label, host };
+  return { remoteServerId, reported, showCost, label, host };
 }
 
 export function ThreadAgentUsageDock({ usage }: { usage: ReturnType<typeof useThreadAgentUsage> }) {
   const { t } = useLingui();
-  const [collapsed, setCollapsed] = useState(false);
-  if (!usage) return null;
-  const { remoteServerId, context, reported, hasContext, showCost, label, host } = usage;
+  const [collapsed, setCollapsed] = useState(true);
+  if (!usage?.reported) return null;
+  const { remoteServerId, reported, showCost, label, host } = usage;
+  const primaryWindow = reported.windows[0];
+  const summary = primaryWindow
+    ? `${usageWindowDisplayLabel(primaryWindow)} ${formatWindowValue(primaryWindow)}`
+    : showCost && reported.cost
+      ? `${reported.cost.estimated ? "~" : ""}${formatMoney(reported.cost.amount, reported.cost.currency)}`
+      : reported.tokens?.total !== undefined
+        ? t`${formatTokens(reported.tokens.total)} tokens`
+        : undefined;
   return (
     <ThreadDockSection placement="right" collapsed={collapsed} ariaLabel={t`Agent usage`}>
       <ThreadDockHeader
-        icon={Gauge}
+        icon={
+          <span role="img" aria-label={label}>
+            <ProviderIcon
+              kind={reported.providerId}
+              fallbackLabel={label}
+              className="size-3.5 shrink-0"
+            />
+          </span>
+        }
         title={t`Usage`}
+        collapse={{ collapsed, onToggle: () => setCollapsed(!collapsed) }}
         actions={
           <ThreadDockCollapseButton
             collapsed={collapsed}
@@ -134,46 +177,26 @@ export function ThreadAgentUsageDock({ usage }: { usage: ReturnType<typeof useTh
             onPress={() => setCollapsed(!collapsed)}
           />
         }
-      />
+      >
+        {collapsed ? (
+          <span className="ml-auto min-w-0 truncate text-right text-[0.85em] tabular-nums text-muted">
+            {summary}
+          </span>
+        ) : null}
+      </ThreadDockHeader>
       {!collapsed ? (
-        <div className="space-y-3 px-3 pb-3">
-          {hasContext && context ? (
-            <div className="flex min-w-0 items-baseline justify-between gap-2">
-              <span className="text-muted">
-                <Trans>Thread context</Trans>
-              </span>
-              <span className="text-right tabular-nums text-foreground">
-                {context.usedTokens !== undefined ? formatTokens(context.usedTokens) : null}
-                {context.usedTokens !== undefined && context.maxTokens !== undefined ? " / " : null}
-                {context.maxTokens !== undefined
-                  ? t`${formatTokens(context.maxTokens)} limit`
-                  : null}
-              </span>
-            </div>
+        <div className="min-w-0 space-y-2 px-3 pb-3">
+          {reported.windows.length > 0 ? <UsageWindowBars windows={reported.windows} /> : null}
+          {reported.tokens?.total !== undefined && (!showCost || reported.tokens.total === 0) ? (
+            <p className="tabular-nums">
+              <Trans>{formatTokens(reported.tokens.total)} tokens</Trans>
+              {reported.tokens.period ? ` · ${reported.tokens.period}` : null}
+            </p>
           ) : null}
-          {reported && (reported.windows.length > 0 || reported.tokens || showCost) ? (
-            <div className="min-w-0 space-y-2">
-              <p className="break-words text-muted">
-                <Trans>{label} account usage</Trans>
-              </p>
-              {reported.windows.length > 0 ? (
-                <UsageWindowBars windows={reported.windows} showPace={false} showReset={false} />
-              ) : null}
-              {reported.tokens?.total !== undefined &&
-              (!showCost || reported.tokens.total === 0) ? (
-                <p className="tabular-nums">
-                  <Trans>{formatTokens(reported.tokens.total)} tokens</Trans>
-                  {reported.tokens.period ? ` · ${reported.tokens.period}` : null}
-                </p>
-              ) : null}
-              {showCost ? (
-                <UsageCostLine snapshot={reported} className="break-words text-xs text-muted" />
-              ) : null}
-              {remoteServerId ? (
-                <HostUsageStatus view={host} className="text-xs text-muted" />
-              ) : null}
-            </div>
+          {showCost ? (
+            <UsageCostLine snapshot={reported} className="break-words text-xs text-muted" />
           ) : null}
+          {remoteServerId ? <HostUsageStatus view={host} className="text-xs text-muted" /> : null}
         </div>
       ) : null}
     </ThreadDockSection>

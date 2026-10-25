@@ -33,7 +33,7 @@ export function ThreadForkTurnAction({
   );
   if (!available || findExperimentByThreadId(threadId)) return null;
   return (
-    <Tooltip delay={150}>
+    <Tooltip delay={300}>
       <Tooltip.Trigger className="opacity-100 transition-opacity [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover/checkpoint:opacity-100 [@media(hover:hover)]:focus-within:opacity-100">
         <Button
           variant="ghost"

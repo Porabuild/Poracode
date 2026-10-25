@@ -1,6 +1,7 @@
 import { CROSSAGENT_MCP_TIMEOUT_MS } from "@/supervisor/crossagentMcp/waitTiming";
 import { randomUUID } from "node:crypto";
 import { spawn } from "node-pty";
+import type { TerminalPtyFactory } from "../../pty/managedPty";
 import {
   MockAgentLaunchBlockedError,
   assertAgentLaunchAllowed,
@@ -59,6 +60,7 @@ import {
   type CommandSpec,
   type StructuredSessionHandle,
   type StructuredTurnResult,
+  type StartTurnOptions,
   isCompletedWithoutTurn,
   createKnownSessionRef,
   defaultFormatPromptSegments,
@@ -176,10 +178,14 @@ export function effectiveLaunchConfig(
     return config;
   }
   const next = { ...config };
-  if (pluginBuiltInMcpServerIds.includes("browser")) next.browserMcp = true;
-  if (pluginBuiltInMcpServerIds.includes("crossagents")) next.crossagentMcp = true;
-  if (pluginBuiltInMcpServerIds.includes("computer-use")) next.computerUse = true;
-  if (pluginBuiltInMcpServerIds.includes("chrome")) next.chromeMcp = true;
+  if (config.browserMcp !== false && pluginBuiltInMcpServerIds.includes("browser"))
+    next.browserMcp = true;
+  if (config.crossagentMcp !== false && pluginBuiltInMcpServerIds.includes("crossagents"))
+    next.crossagentMcp = true;
+  if (config.computerUse !== false && pluginBuiltInMcpServerIds.includes("computer-use"))
+    next.computerUse = true;
+  if (config.chromeMcp !== false && pluginBuiltInMcpServerIds.includes("chrome"))
+    next.chromeMcp = true;
   if (disabledBuiltInMcpServerIds.includes("browser")) next.browserMcp = false;
   if (disabledBuiltInMcpServerIds.includes("crossagents")) next.crossagentMcp = false;
   if (disabledBuiltInMcpServerIds.includes("computer-use")) next.computerUse = false;
@@ -271,19 +277,21 @@ export function composeResolvedMcpServers(
       | undefined,
     timeoutMs = DEFAULT_MCP_SERVER_TIMEOUT_MS,
     approvalMode?: "approve",
-  ): ResolvedMcpServer | undefined =>
-    config
+  ): ResolvedMcpServer | undefined => {
+    const disabledTools = config?.disabledTools ?? snapshot.disabledBuiltInMcpTools?.[id];
+    return config
       ? {
           id,
           name: BUILT_IN_MCP_SERVER_NAMES[id],
           timeoutMs,
           transport: { type: "http", url: config.url, headers: config.headers },
-          ...(config.disabledTools && config.disabledTools.length > 0
-            ? { disabledTools: [...config.disabledTools] }
+          ...(disabledTools && disabledTools.length > 0
+            ? { disabledTools: [...disabledTools] }
             : {}),
           ...(approvalMode ? { approvalMode } : {}),
         }
       : undefined;
+  };
   return [
     ...snapshot.mcpServers,
     http("browser", browserMcp),
@@ -323,6 +331,7 @@ export interface SpawnPipelineContext {
   failStructuredSession(session: SessionRuntime, error: unknown): void;
   onStructuredTurnCompletedWithoutTurn(session: SessionRuntime): void;
   isCurrentSession(session: SessionRuntime): boolean;
+  isExecutionControlled(threadId: string): boolean;
   resolveAgentSettings(
     adapter: AgentAdapter,
     location?: ProjectLocation,
@@ -411,6 +420,9 @@ export class SpawnPipeline {
       payload.agentKind,
       {
         includeExternalServers: true,
+        ...(runtimeConfig.pluginOverrides
+          ? { pluginOverrides: runtimeConfig.pluginOverrides }
+          : {}),
         ...(payload.segments?.some((segment) => segment.kind === "skill" && segment.pluginId)
           ? { nativePluginAdapter: adapter }
           : {}),
@@ -438,6 +450,9 @@ export class SpawnPipeline {
           presentationMode: requestedPresentation,
           nativePlugins,
           segments: wslSegments,
+          ...(runtimeConfig.pluginOverrides
+            ? { pluginOverrides: runtimeConfig.pluginOverrides }
+            : {}),
         })) ?? wslSegments)
       : wslSegments;
     let effectiveSegments =
@@ -1046,6 +1061,7 @@ export class SpawnPipeline {
   async restartThread(
     session: SessionRuntime,
     turn: QueuedStructuredTurn,
+    options: Pick<StartTurnOptions, "onPromptSubmitted"> = {},
   ): Promise<void | StructuredTurnResult> {
     const ctx = this.ctx;
     const { prompt } = turn;
@@ -1273,9 +1289,18 @@ export class SpawnPipeline {
                 }
               : undefined,
           );
+        const textOptions = structuredTurnTextOptions(replacement, turn);
+        const onPromptSubmitted =
+          textOptions.onPromptSubmitted || options.onPromptSubmitted
+            ? () => {
+                textOptions.onPromptSubmitted?.();
+                options.onPromptSubmitted?.();
+              }
+            : undefined;
         const startOptions = {
           userMessageItemId: optimisticItemId,
-          ...structuredTurnTextOptions(replacement, turn),
+          ...textOptions,
+          ...(onPromptSubmitted ? { onPromptSubmitted } : {}),
         };
         try {
           const result = await structuredSession.startTurn(
@@ -1520,13 +1545,21 @@ export class SpawnPipeline {
         ...terminalEnv,
       };
       try {
-        pty = spawn(command.command, command.args, {
-          name: process.platform === "win32" ? "xterm-color" : terminalEnv.TERM,
-          cols: input.initialSize.cols,
-          rows: input.initialSize.rows,
-          cwd: command.cwd ?? process.cwd(),
-          env: ptyEnv,
-        });
+        const createPty: TerminalPtyFactory =
+          ctx.options.createPty ?? ((file, args, options) => spawn(file, args, options));
+        pty = createPty(
+          command.command,
+          command.args,
+          {
+            name: process.platform === "win32" ? "xterm-color" : terminalEnv.TERM,
+            cols: input.initialSize.cols,
+            rows: input.initialSize.rows,
+            cwd: command.cwd ?? process.cwd(),
+            env: ptyEnv,
+          },
+          input.projectLocation,
+          ctx.isExecutionControlled(input.threadId),
+        );
       } catch (error) {
         try {
           void Promise.resolve(command.cleanup?.()).catch(() => {
@@ -1798,9 +1831,8 @@ export class SpawnPipeline {
     mcpLaunchSnapshot: McpLaunchSnapshot,
     identity?: McpThreadIdentity,
   ): Promise<AppControlsMcpHttpConfig | undefined> {
-    if (mcpLaunchSnapshot.disabledBuiltInMcpServerIds.includes("app-controls")) {
-      return Promise.resolve(undefined);
-    }
+    // Poracode is attached to every provider. Older clients can still send a
+    // saved server disable; only individual tool restrictions apply here.
     return resolveAppControlsMcpHttpConfigForLaunch(location, this.ctx.options.wslHostAccess, {
       ...identity,
       disabledTools: mcpLaunchSnapshot.disabledBuiltInMcpTools?.["app-controls"] ?? [],
@@ -1899,7 +1931,12 @@ export class SpawnPipeline {
           const contributions = await this.ctx.options.resolvePluginLaunchContributions?.(
             projectLocation,
             agentKind,
-            { includeExternalServers: false },
+            {
+              includeExternalServers: false,
+              ...(turnConfig.pluginOverrides
+                ? { pluginOverrides: turnConfig.pluginOverrides }
+                : {}),
+            },
           );
           if (!isCurrent()) return [];
           const snapshot = {

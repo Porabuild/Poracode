@@ -244,6 +244,9 @@ export const createProjectSlice: SliceCreator<ProjectSlice> = (set, get) => ({
       return {
         projects: nextProjects,
         threads: nextThreads,
+        chatPromptAnchorIds: Object.fromEntries(
+          Object.entries(state.chatPromptAnchorIds).filter(([id]) => !projectThreadIds.has(id)),
+        ),
         pendingThreadConfigByThreadId: retainPendingThreadConfigs(
           state.pendingThreadConfigByThreadId,
           nextThreads,

@@ -169,7 +169,7 @@ export async function applyRemoteThreadCommand(
       });
       return false;
     case "start":
-      await startRemoteThread(ctx, command);
+      await startPersistedThread(ctx.options, command);
       return false;
     case "rename":
       updateRemoteThread(command.threadId, (thread) => applyThreadMetadataCommand(thread, command));
@@ -321,7 +321,8 @@ export async function ensureRemoteThreadRunning(
   const project = dbGetProjects().find((entry) => entry.id === thread.projectId);
   if (!project) throw new RemoteHttpError("project_not_found", msg("remote.project.notFound"), 404);
   const mcpSnapshot =
-    ctx.options.resolveMcpLaunchSnapshot?.(thread.projectId) ?? emptyMcpLaunchSnapshot();
+    ctx.options.resolveMcpLaunchSnapshot?.(thread.projectId, thread.config.mcpServerOverrides) ??
+    emptyMcpLaunchSnapshot();
   return ctx.options.callSupervisor("ensureThreadRunning", {
     threadId,
     projectLocation: thread.worktreePath
@@ -338,10 +339,14 @@ export async function ensureRemoteThreadRunning(
   });
 }
 
-async function startRemoteThread(
-  ctx: RemoteServerContext,
+/** Host-local admission does not replace the caller's runtime retirement ownership. */
+export async function startPersistedThread(
+  host: Pick<RemoteServerContext["options"], "callSupervisor" | "resolveMcpLaunchSnapshot">,
   command: Extract<RemoteThreadCommand, { kind: "start" }>,
+  admitLaunch?: () => void,
+  dispatchLaunch?: (payload: StartThreadPayload) => Promise<StartThreadResult>,
 ): Promise<void> {
+  admitLaunch?.();
   const project = dbGetProjects().find((entry) => entry.id === command.projectId);
   if (!project) {
     throw new RemoteHttpError("project_not_found", msg("remote.project.notFound"), 404);
@@ -355,7 +360,7 @@ async function startRemoteThread(
     command.title !== undefined
       ? ""
       : await resolveHostThreadTitlePrompt(
-          (wslDistros) => ctx.options.callSupervisor("getAgentStatuses", { wslDistros }),
+          (wslDistros) => host.callSupervisor("getAgentStatuses", { wslDistros }),
           command.agentKind,
           project.location,
           titlePromptFromSegments(command.prompt, command.segments),
@@ -392,20 +397,23 @@ async function startRemoteThread(
     updatedAt: now,
     activeTurnStartedAt: now,
   };
+  admitLaunch?.();
   dbUpsertThread(thread, sortOrderForThread(threads, command.threadId));
 
   const projectLocation = command.worktreePath
     ? buildWorktreeLocation(project.location, command.worktreePath)
     : project.location;
   const mcpSnapshot =
-    ctx.options.resolveMcpLaunchSnapshot?.(command.projectId) ?? emptyMcpLaunchSnapshot();
+    host.resolveMcpLaunchSnapshot?.(command.projectId, command.config.mcpServerOverrides) ??
+    emptyMcpLaunchSnapshot();
   // The durable row written above IS the retained evidence: a failed supervisor
   // response does NOT prove the provider never started (the launch may have
   // spawned before the reply was lost), so the row is deliberately not deleted
   // here. Absence must never be treated as proof of no effect; the route's
   // receipt already records `uncertain`, and a later resume reconciles the real
   // session state while the row keeps any client reconcile read truthful.
-  await ctx.options.callSupervisor("startThread", {
+  admitLaunch?.();
+  const launch: StartThreadPayload = {
     threadId: command.threadId,
     projectLocation,
     agentKind: command.agentKind,
@@ -419,7 +427,9 @@ async function startRemoteThread(
     // Per-turn context reaches the launch only; the row and title above never see it.
     ...(command.clientContext ? { clientContext: command.clientContext } : {}),
     ...mcpSnapshot,
-  });
+  };
+  if (dispatchLaunch) await dispatchLaunch(launch);
+  else await host.callSupervisor("startThread", launch);
 }
 
 function updateRemoteThread(threadId: string, update: (thread: Thread) => Thread): void {

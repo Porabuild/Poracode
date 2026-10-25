@@ -17,6 +17,15 @@ import org.junit.Test
  * host default. Fixture is shared with iOS/TS: protocol/remote/v3/fixtures.
  */
 class ThreadConfigExecutionEnvironmentTest {
+    @Test
+    fun perThreadToolChoicesSurviveDecodeAndWireEncoding() {
+        val raw = """{"model":"fixture","mcpServerOverrides":{"custom":true},"pluginOverrides":{"github":false}}"""
+        val config = RemoteJson.decodeFromString(ThreadConfig.serializer(), raw)
+        assertEquals(mapOf("custom" to true), config.mcpServerOverrides)
+        assertEquals(mapOf("github" to false), config.pluginOverrides)
+        assertEquals(RemoteJson.parseToJsonElement(raw).jsonObject, config.toJsonObject())
+    }
+
     private fun readConfigFixture(): String {
         val stream = javaClass.classLoader!!.getResourceAsStream(
             "fixtures/thread-config-execution-environment.json",

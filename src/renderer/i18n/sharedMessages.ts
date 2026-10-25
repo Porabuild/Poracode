@@ -11,6 +11,13 @@ import { i18n } from "./i18n";
  * arguments resolved with the values passed to `msg()`.
  */
 export const SHARED_MESSAGE_DESCRIPTORS: Record<MessageKey, MessageDescriptor> = {
+  "thread.permission.persistentUnavailable": msg({
+    message: "This request has no matching persistent approval. Choose Allow once.",
+  }),
+  "thread.execution.owned": msg({
+    message:
+      "Another client is running this thread. Stop that run before replacing the thread or sending more input.",
+  }),
   "forge.commentNotEditable": msg({
     message: "Only your own comments on this pull request can be edited.",
   }),

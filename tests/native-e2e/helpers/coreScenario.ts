@@ -143,6 +143,9 @@ export async function exerciseCoreWebSocket(
 ): Promise<void> {
   const first = await openReadySocket(harness, accessToken);
   assert.deepEqual(first.ready, { type: "ready", seq: 0 });
+  first.ws.send(JSON.stringify(CLIENT_WS_FIXTURES["agent-vision-watch"]));
+  assert.equal(((await first.next()) as { type: string }).type, "agent-vision-frame");
+  first.ws.send(JSON.stringify(CLIENT_WS_FIXTURES["agent-vision-unwatch"]));
   first.ws.send(JSON.stringify(CLIENT_WS_FIXTURES["browser-watch"]));
   for (let index = 0; index < 3; index += 1) await first.next();
   for (const type of [

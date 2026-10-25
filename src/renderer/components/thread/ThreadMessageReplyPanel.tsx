@@ -1,8 +1,6 @@
 import { useId, useRef, useState } from "react";
-import { Button, toast } from "@heroui/react";
+import { toast } from "@heroui/react";
 import { useShallow } from "zustand/react/shallow";
-import { useLingui } from "@lingui/react/macro";
-import { HelpCircle } from "lucide-react";
 import type { MessageItemPayload, MessageReplyForm as ReplyForm } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
 import { submitThreadInput } from "@/renderer/actions/threadRuntimeActions";
@@ -12,11 +10,9 @@ import { useThreadRuntimeItem } from "@/renderer/state/useThreadRuntimeItem";
 import { getRuntimeItemPayload } from "@/renderer/state/slices/runtimeEventSlice";
 import {
   asUserInputFormDetails,
-  questionHasAnswer,
   UserInputForm,
   useUserInputFormController,
 } from "./ThreadRuntimeRequestPanel/userInputForm";
-import { QuestionSwitcher } from "./ThreadRuntimeRequestPanel/parts/QuestionSwitcher";
 import { ThreadDockSection } from "./ThreadDockUI";
 import { selectMessageReplyState, selectPendingMessageReplyIds } from "./messageReplyForms";
 import { buildMessageReplyAnswer } from "./ChatPane/parts/items/messageReplyAnswerPayload";
@@ -44,7 +40,6 @@ export function ThreadMessageReplyPanel({
   itemId: string;
   form: ReplyForm;
 }) {
-  const { t } = useLingui();
   const formId = useId();
   const inFlight = useRef(false);
   const [sending, setSending] = useState(false);
@@ -66,12 +61,6 @@ export function ThreadMessageReplyPanel({
   if (!controller || submitted || replyState === "answered" || replyState === "pending")
     return null;
   const disabled = sending || !available;
-  const activeQuestion = controller.questions[controller.activeIndex];
-  const isLastStep = controller.activeIndex === controller.questions.length - 1;
-  const canAdvance =
-    activeQuestion &&
-    questionHasAnswer(activeQuestion, controller.answers, controller.customAnswers);
-
   async function submit(response: unknown) {
     if (inFlight.current || disabled || !response || typeof response !== "object") return;
     const answers = (response as { answers?: Record<string, unknown> }).answers;
@@ -87,7 +76,7 @@ export function ThreadMessageReplyPanel({
     setSending(true);
     try {
       await submitThreadInput(threadId, prompt, undefined, {
-        questionAnswer: buildMessageReplyAnswer(form, values),
+        questionAnswer: { ...buildMessageReplyAnswer(form, values), sourceItemId: itemId },
       });
       setSubmitted(true);
     } catch (error) {
@@ -103,35 +92,11 @@ export function ThreadMessageReplyPanel({
   return (
     <ThreadDockSection className="!text-xs" placement="composer" collapsed={false}>
       <div data-message-reply-form>
-        <div className="flex flex-wrap items-start gap-x-2 gap-y-1 px-2 py-1.5 leading-snug">
-          <HelpCircle className="mt-0.5 size-3.5 shrink-0 text-foreground-muted" aria-hidden />
-          <div className="min-w-0 flex-1 basis-64">
-            <div className="font-semibold text-foreground">{activeQuestion?.question}</div>
-            <QuestionSwitcher
-              questions={controller.questions}
-              answers={controller.answers}
-              customAnswers={controller.customAnswers}
-              activeIndex={controller.activeIndex}
-              isDisabled={disabled}
-              onSelect={controller.setActiveIndex}
-            />
-          </div>
-          <Button
-            size="sm"
-            variant="tertiary"
-            type="submit"
-            form={formId}
-            className="ml-auto shrink-0"
-            isDisabled={disabled || (isLastStep ? !controller.allAnswered : !canAdvance)}
-          >
-            {isLastStep ? t`Submit` : t`Continue`}
-          </Button>
-        </div>
         <UserInputForm
           formId={formId}
           controller={controller}
           isDisabled={disabled}
-          {...(activeQuestion ? { summary: activeQuestion.question } : {})}
+          isPending={sending}
           wrapOptionLabels
           onSubmit={(response) => {
             void submit(response);

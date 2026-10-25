@@ -189,42 +189,47 @@ describe("Claude SDK native features", () => {
     expect(h.updates.at(-1)).toMatchObject({ status: "working", attention: "working" });
   });
 
-  it("keeps permission attention when an MCP form settles before a pending tool approval", async () => {
-    const h = await createSession();
-    await h.session.startTurn("Run fixture", { model: "sonnet" });
-    const form = h.options.onElicitation!(request, {
-      signal: new AbortController().signal,
-      requestId: "form",
-    });
-    const permission = h.options.canUseTool!(
-      "Bash",
-      { command: "pwd" },
-      {
+  it.each([
+    ["Bash", "command_execution_approval"],
+    ["mcp__permission-fixture__guide", "tool_call_approval"],
+  ])(
+    "keeps permission attention when an MCP form settles before a pending %s approval",
+    async (toolName, requestType) => {
+      const h = await createSession();
+      await h.session.startTurn("Run fixture", { model: "sonnet" });
+      const form = h.options.onElicitation!(request, {
         signal: new AbortController().signal,
-        toolUseID: "permission",
-        requestId: "permission",
-      },
-    );
-    await h.session.resolveServerRequest(opened(h.events).requestId as ThreadServerRequestId, {
-      action: "cancel",
-    });
-    expect(await form).toEqual({ action: "cancel" });
-    expect(h.updates.at(-1)).toMatchObject({
-      status: "needs_approval",
-      attention: "needs_approval",
-    });
-    const approval = h.events.find(
-      (event) =>
-        event.type === "request.opened" && event.requestType === "command_execution_approval",
-    );
-    if (!approval || approval.type !== "request.opened")
-      throw new Error("Missing approval request");
-    await h.session.resolveServerRequest(approval.requestId as ThreadServerRequestId, {
-      optionId: "decline",
-    });
-    expect(await permission).toMatchObject({ behavior: "deny" });
-    expect(h.updates.at(-1)).toMatchObject({ status: "working", attention: "working" });
-  });
+        requestId: "form",
+      });
+      const permission = h.options.canUseTool!(
+        toolName,
+        { command: "pwd" },
+        {
+          signal: new AbortController().signal,
+          toolUseID: "permission",
+          requestId: "permission",
+        },
+      );
+      await h.session.resolveServerRequest(opened(h.events).requestId as ThreadServerRequestId, {
+        action: "cancel",
+      });
+      expect(await form).toEqual({ action: "cancel" });
+      expect(h.updates.at(-1)).toMatchObject({
+        status: "needs_approval",
+        attention: "needs_approval",
+      });
+      const approval = h.events.find(
+        (event) => event.type === "request.opened" && event.requestType === requestType,
+      );
+      if (!approval || approval.type !== "request.opened")
+        throw new Error("Missing approval request");
+      await h.session.resolveServerRequest(approval.requestId as ThreadServerRequestId, {
+        optionId: "decline",
+      });
+      expect(await permission).toMatchObject({ behavior: "deny" });
+      expect(h.updates.at(-1)).toMatchObject({ status: "working", attention: "working" });
+    },
+  );
 
   it("settles matching URL auth completions once without settling another server's identical ID", async () => {
     const h = await createSession();

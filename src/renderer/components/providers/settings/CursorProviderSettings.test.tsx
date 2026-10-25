@@ -251,7 +251,7 @@ beforeEach(() => {
   // release than the detected one (1.0.24 in these fixtures).
   bridgeMock.getLatestAgentVersion
     .mockReset()
-    .mockResolvedValue({ version: "1.0.31", source: "npm" });
+    .mockResolvedValue({ version: "1.0.40", source: "npm" });
   bridgeMock.setProfileEnvironment.mockReset().mockImplementation(async ({ instanceId }) => ({
     id: instanceId,
     driver: "cursor",
@@ -737,7 +737,7 @@ describe("CursorProviderSettings", () => {
     expect(screen.getByText("Installed · Authenticated · work@yieldmo.com")).toBeInTheDocument();
   });
 
-  it("combines runtime availability detected in different environments", () => {
+  it("combines runtime availability detected in different environments", async () => {
     const acpOnly: AgentStatus = {
       ...runtimeStatus,
       runtimeVariants: {
@@ -774,7 +774,9 @@ describe("CursorProviderSettings", () => {
     expect(screen.getByRole("radio", { name: /ACP/ })).toBeEnabled();
     expect(screen.getByRole("radio", { name: /SDK/ })).toBeEnabled();
     expect(
-      screen.getByText((_, element) => element?.textContent === "@cursor/sdk · v1.0.24"),
+      await screen.findByText(
+        (_, element) => element?.textContent === "@cursor/sdk · v1.0.24 → v1.0.40",
+      ),
     ).toBeInTheDocument();
   });
 
@@ -796,11 +798,14 @@ describe("CursorProviderSettings", () => {
     );
 
     expect(
-      screen.getByText((_, element) => element?.textContent === "@cursor/sdk · v1.0.24"),
+      await screen.findByText(
+        (_, element) => element?.textContent === "@cursor/sdk · v1.0.24 → v1.0.40",
+      ),
     ).toBeInTheDocument();
     const updateButton = await vi.waitFor(() =>
-      screen.getByRole("button", { name: "Update Cursor SDK" }),
+      screen.getByRole("button", { name: "Update Cursor SDK to v1.0.40" }),
     );
+    expect(updateButton).toHaveTextContent("v1.0.40");
     fireEvent.click(updateButton);
 
     expect(runAgentInstallCommandMock).toHaveBeenCalledWith(
@@ -810,12 +815,79 @@ describe("CursorProviderSettings", () => {
       }),
     );
     const input = runAgentInstallCommandMock.mock.calls[0]![0];
+    const command = input.command as (project: {
+      id: string;
+      name: string;
+      location: { kind: "windows"; path: string };
+      createdAt: string;
+    }) => string;
+    expect(
+      command({
+        id: "project",
+        name: "Project",
+        location: { kind: "windows", path: "C:\\repo" },
+        createdAt: "2026-07-27T00:00:00.000Z",
+      }),
+    ).toContain("npm install -g '@cursor/sdk@1.0.40'");
+    bridgeMock.refreshAgentStatuses.mockResolvedValueOnce({
+      windows: [
+        {
+          ...runtimeStatus,
+          runtimeVariants: {
+            ...runtimeStatus.runtimeVariants,
+            sdk: { ...runtimeStatus.runtimeVariants!.sdk!, version: "1.0.40" },
+          },
+        },
+      ],
+      wsl: [],
+      fromCache: false,
+    } as never);
     await act(async () => input.onCommandComplete?.(0));
     await vi.waitFor(() =>
       expect(bridgeMock.refreshAgentStatuses).toHaveBeenCalledWith([], {
         agentKinds: ["cursor", "cursor:work"],
       }),
     );
+    expect(toastMock.success).toHaveBeenCalledWith("Cursor SDK updated to v1.0.40.");
+    expect(toastMock.danger).not.toHaveBeenCalled();
+  });
+
+  it("does not treat another environment's SDK version as this update", async () => {
+    const wslStatus: AgentStatus = {
+      ...runtimeStatus,
+      envKind: "wsl",
+      envDistro: "Ubuntu",
+      runtimeVariants: {
+        ...runtimeStatus.runtimeVariants,
+        sdk: {
+          ...runtimeStatus.runtimeVariants!.sdk!,
+          version: "1.0.38",
+        },
+      },
+    };
+    render(<CursorProviderSettings agentKind="cursor" statuses={[wslStatus]} wslDistros={[]} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Update Cursor SDK to v1.0.40" }));
+    const input = runAgentInstallCommandMock.mock.calls[0]![0];
+    bridgeMock.refreshAgentStatuses.mockResolvedValueOnce({
+      windows: [
+        {
+          ...runtimeStatus,
+          runtimeVariants: {
+            ...runtimeStatus.runtimeVariants,
+            sdk: { ...runtimeStatus.runtimeVariants!.sdk!, version: "1.0.40" },
+          },
+        },
+      ],
+      wsl: [wslStatus],
+      fromCache: false,
+    } as never);
+    await act(async () => input.onCommandComplete?.(0));
+
+    await vi.waitFor(() =>
+      expect(toastMock.danger).toHaveBeenCalledWith("Unable to update Cursor SDK."),
+    );
+    expect(toastMock.success).not.toHaveBeenCalled();
   });
 
   it("hides the SDK update button when the newest supported release is installed", async () => {
@@ -835,7 +907,7 @@ describe("CursorProviderSettings", () => {
     );
 
     await vi.waitFor(() => expect(bridgeMock.getLatestAgentVersion).toHaveBeenCalled());
-    expect(screen.queryByRole("button", { name: "Update Cursor SDK" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Update Cursor SDK/u })).toBeNull();
   });
 
   it("hides the SDK update button when the version probe fails", async () => {
@@ -845,7 +917,7 @@ describe("CursorProviderSettings", () => {
     );
 
     await vi.waitFor(() => expect(bridgeMock.getLatestAgentVersion).toHaveBeenCalled());
-    expect(screen.queryByRole("button", { name: "Update Cursor SDK" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Update Cursor SDK/u })).toBeNull();
   });
 
   it("offers SDK installation when the package is not detected", () => {

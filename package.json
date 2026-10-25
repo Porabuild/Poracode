@@ -21,7 +21,7 @@
   "scripts": {
     "postinstall": "node scripts/ensure-native-deps.mjs --electron-native && bun run codex-protocol:gen",
     "setup:native": "node scripts/ensure-native-deps.mjs --electron-native",
-    "dev": "concurrently -k -n renderer,electron,app -c cyan,magenta,yellow \"bun run dev:renderer\" \"bun run dev:electron\" \"bun run dev:app\"",
+    "dev": "concurrently -k -n renderer,electron -c cyan,magenta \"bun run dev:renderer\" \"bun run dev:app\"",
     "dev:test": "cross-env VITE_PORACODE_SKIP_WELCOME=1 bun run dev",
     "devtools": "node scripts/dev-react-devtools.mjs",
     "dev:devtools": "cross-env PORACODE_REACT_DEVTOOLS=1 concurrently -n react-devtools,app -c green,gray \"bun run devtools\" \"bun run dev\"",
@@ -32,8 +32,8 @@
     "dev:web": "cross-env PORACODE_DEV_SERVER_PORT=3101 bun run dev:web:client",
     "dev:web:client": "node scripts/free-port.mjs && cross-env PORACODE_BUILD_TARGET=web vite",
     "preview:web": "cross-env PORACODE_BUILD_TARGET=web vite preview",
-    "dev:electron": "tsdown --watch",
-    "dev:app": "node scripts/ensure-native-deps.mjs --electron-native && wait-on dist/main/main.cjs dist/main/databaseReadWorker.cjs dist/main/legacyMigrationWorker.cjs dist/main/mcpProbeWorker.mjs dist/main/cursorSdkWorker.mjs dist/main/commandCodeMcpMod.mjs dist/main/piMcpExtension.mjs dist/main/mcpStdioWorker.mjs && node scripts/prepare-computer-use-helper.mjs --host-only --dev && node scripts/prepare-wsl-helpers.mjs && node scripts/prepare-agent-plugins.mjs && node scripts/wait-dev-server.mjs && node scripts/dev-launch.mjs",
+    "dev:electron": "node scripts/prepare-pty-job-owner.mjs --if-supported && node scripts/dev-runtime-watch.mjs",
+    "dev:app": "node scripts/dev-launch.mjs",
     "build": "bun run build:renderer && bun run build:electron",
     "build:renderer": "vite build",
     "build:extension": "cross-env PORACODE_BUILD_TARGET=extension vite build && node scripts/package-chrome-extension.mjs",
@@ -43,11 +43,13 @@
     "dev:web:server:run:native": "cross-env PORACODE_REMOTE_ACCESS_PORT=49152 node scripts/dev-web-server.mjs",
     "dev:ios": "node scripts/native-dev-ios.mjs",
     "dev:android": "node scripts/native-dev-android.mjs",
-    "build:electron": "cross-env NODE_ENV=production tsdown",
+    "build:electron": "node scripts/prepare-pty-job-owner.mjs --if-supported && cross-env NODE_ENV=production tsdown",
     "start": "bun run setup:native && electron .",
     "server": "node dist/main/server.cjs",
     "relay": "node dist/main/relay.cjs",
     "prepare:server-native": "node scripts/prepare-server-native.mjs",
+    "prepare:service-launcher": "node scripts/prepare-service-launcher.mjs",
+    "prepare:pty-job-owner": "node scripts/prepare-pty-job-owner.mjs",
     "assemble:server-tarball": "node scripts/assemble-server-tarball.mjs",
     "install:server-prefix": "node scripts/install-server-prefix.mjs",
     "qualify:server-install": "node scripts/server-install-qualification.mjs",
@@ -57,7 +59,7 @@
     "prepare:computer-use-helper": "node scripts/prepare-computer-use-helper.mjs --host-only",
     "prepare:agent-plugins": "node scripts/prepare-agent-plugins.mjs",
     "prepare:device-hub": "node scripts/prepare-device-hub.mjs",
-    "prepare:package-assets": "node scripts/prepare-wsl-helpers.mjs && node scripts/prepare-agent-plugins.mjs",
+    "prepare:package-assets": "node scripts/prepare-wsl-helpers.mjs && node scripts/prepare-agent-plugins.mjs && node scripts/prepare-pty-job-owner.mjs --if-supported",
     "prepare:web:ssh": "bun run build:electron && bun run prepare:package-assets && node scripts/build-web-ssh-runtime.mjs",
     "prepare:desktop-package-assets": "node scripts/prepare-computer-use-helper.mjs --require && bun run prepare:package-assets",
     "sentry:sourcemaps": "node scripts/sentry-sourcemaps.mjs",
@@ -71,7 +73,7 @@
     "dist:linux": "node scripts/build-desktop-artifact.mjs --platform linux",
     "dist:mac": "node scripts/build-desktop-artifact.mjs --platform mac",
     "dist:mac:arm": "node scripts/build-desktop-artifact.mjs --platform mac --target dmg --arch arm64",
-    "typecheck": "bun check -p tsconfig.json --threads 3",
+    "typecheck": "bun check -p tsconfig.json",
     "typecheck:tsc": "bun run tsc --noEmit -p tsconfig.json",
     "architecture:check": "node scripts/architecture-imports.mjs audit && node --test scripts/architecture-imports.test.mjs",
     "typecheck:website": "bun run --cwd website typecheck",
@@ -83,6 +85,7 @@
     "test:perf:cli-hook": "vitest run --configLoader runner --config vitest.perf.config.ts src/supervisor/runtime/cliHookEventChain.perf.test.ts",
     "test:perf:browser": "cross-env PORACODE_BROWSER_BENCH=1 vitest run --configLoader runner --config vitest.perf.config.ts src/main/browser/browserWorkflow.perf.test.ts",
     "test:perf:remote": "vitest run --configLoader runner --config vitest.perf.config.ts src/renderer/state/remote/remoteProtocol.perf.test.ts",
+    "test:perf:project-tree": "vitest run --configLoader runner --config vitest.perf.config.ts src/supervisor/projectTree.perf.test.ts",
     "test:integration:providers": "vitest run --configLoader runner --config vitest.integration.config.ts",
     "test:native-dev": "node --test scripts/native-dev-lib.test.mjs",
     "v2perf:qualify": "node scripts/v2-perf-qualify.mjs",
@@ -211,24 +214,23 @@
     "@vitest/coverage-v8": "5.0.0",
     "acorn": "^8.18.0",
     "babel-plugin-react-compiler": "1.0.0",
-    "bun": "1.4.3-canary.20261017.1",
+    "bun": "1.4.3-canary.20261021.1",
     "concurrently": "^10.0.5",
     "cross-env": "^10.1.0",
     "electron": "44.4.4",
     "electron-builder": "^26.15.3",
-    "electronmon": "^2.0.4",
     "esbuild": "0.28.1",
     "fake-indexeddb": "^6.2.5",
     "husky": "^9.1.7",
     "jsdom": "30.0.1",
     "lint-staged": "^17.5.0",
+    "oxc-transform-react": "0.147.0",
     "postcss": "^8.5.26",
     "react-devtools": "^7.0.1",
     "tsdown": "^0.22.14",
     "typescript": "^7.0.2",
     "vite": "8.2.2",
-    "vitest": "5.0.0",
-    "wait-on": "^9.1.0"
+    "vitest": "5.0.0"
   },
   "overrides": {
     "@babel/core@>=7.0.0 <7.29.6": "^7.29.6",
@@ -272,16 +274,7 @@
   "engines": {
     "node": ">=24.10.0"
   },
-  "packageManager": "bun@1.4.3-canary.20261017.1",
-  "electronmon": {
-    "patterns": [
-      "!*",
-      "!*/**",
-      "dist/main/**",
-      "dist/electron-native/**",
-      "dist/server-native/**"
-    ]
-  },
+  "packageManager": "bun@1.4.3-canary.20261021.1",
   "packageExtensions": {
     "@huggingface/transformers@4.2.0": {
       "dependencies": {
@@ -307,7 +300,7 @@
   "patchedDependencies": {
     "@agentclientprotocol/sdk@1.4.0": "patches/@agentclientprotocol__sdk@1.4.0.patch",
     "@legendapp/list@3.3.3": "patches/@legendapp__list@3.3.3.patch",
-    "bun@1.4.3-canary.20261017.1": "patches/bun@1.4.3-canary.20261017.1.patch",
+    "bun@1.4.3-canary.20261021.1": "patches/bun@1.4.3-canary.20261021.1.patch",
     "monaco-editor@0.56.0": "patches/monaco-editor@0.56.0.patch",
     "@expo/hub-client@1.5.0": "patches/@expo__hub-client@1.5.0.patch"
   },

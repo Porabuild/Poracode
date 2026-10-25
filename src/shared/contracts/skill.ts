@@ -93,6 +93,7 @@ export const skillScanResultSchema = z.object({
 export type SkillScanResult = z.infer<typeof skillScanResultSchema>;
 
 export const scanSkillsPayloadSchema = z.object({
+  pluginOverrides: z.record(z.string().min(1), z.boolean()).optional(),
   projectLocation: projectLocationSchema.optional(),
   wslDistro: z.string().min(1).optional(),
   agentKind: z.string().min(1).optional(),

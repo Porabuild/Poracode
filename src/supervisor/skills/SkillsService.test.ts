@@ -440,6 +440,22 @@ describe("SkillsService", () => {
 
     installedPlugins = setInstalledPluginEnabled(installPlugin({}, pkg.plugin), pkg.plugin, false);
     expect(await bundledService.filterPluginSkillSegments([pluginSegment])).toEqual([]);
+    expect(
+      await bundledService.filterPluginSkillSegments([pluginSegment], {
+        pluginOverrides: { "browser-tools": true },
+      }),
+    ).toEqual([pluginSegment]);
+    expect(installedPlugins["browser-tools"]?.enabled).toBe(false);
+    const threadScan = await bundledService.scan({
+      projectLocation,
+      agentKind: "claude",
+      pluginOverrides: { "browser-tools": true },
+    });
+    expect(threadScan.skills.find((entry) => entry.name === "browser-control")?.enabled).toBe(true);
+    const defaultScan = await bundledService.scan({ projectLocation, agentKind: "claude" });
+    expect(defaultScan.skills.find((entry) => entry.name === "browser-control")?.enabled).toBe(
+      false,
+    );
 
     installedPlugins = setInstalledPluginEnabled({}, pkg.plugin, false);
     expect(await bundledService.filterPluginSkillSegments([pluginSegment])).toEqual([]);

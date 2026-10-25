@@ -60,6 +60,10 @@ export const BUILT_IN_USAGE_PROVIDER_DESCRIPTORS = {
     needsLogin: true,
     browserSessionForDetails: true,
     windowIds: ["session-5h", "weekly"],
+    refreshPolicy: {
+      defaultIntervalMinutes: 15,
+      rateLimitBackoffMs: [15, 30, 60].map((minutes) => minutes * 60_000),
+    },
   },
   factory: {
     id: "factory",

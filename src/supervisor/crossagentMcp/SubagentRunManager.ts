@@ -619,18 +619,25 @@ export class SubagentRunManager {
    * `namespacedRequestId` is the `${runId}::${requestId}` id the parent stream
    * carried. Returns `false` when it isn't a subagent request (no delimiter, or
    * an unknown run) so the caller can fall through to the normal session path;
-   * `true` once the owning run is found (best-effort resolve on its handle).
+   * `true` once the owning run is found. Resolution errors propagate so clients
+   * keep the request available for retry.
    */
-  resolveChildServerRequest(requestId: ThreadServerRequestId, response: unknown): boolean {
+  async resolveChildServerRequest(
+    requestId: ThreadServerRequestId,
+    response: unknown,
+    parentThreadId: string,
+  ): Promise<boolean> {
     const parsed = parseNamespacedRequestId(requestId);
     if (!parsed) return false;
     const record = this.runs.get(parsed.runId);
     if (!record) return false;
+    if (record.parentThreadId !== parentThreadId)
+      throw new SubagentSpawnError("This request belongs to another parent thread.");
+    if (record.handle?.resolveServerRequest) {
+      await record.handle.resolveServerRequest(parsed.requestId, response);
+    }
     record.pendingRequestIds.delete(parsed.requestId);
     this.lifecycle.emit(record.parentThreadId, "changed");
-    if (record.handle?.resolveServerRequest) {
-      void record.handle.resolveServerRequest(parsed.requestId, response).catch(() => {});
-    }
     return true;
   }
 

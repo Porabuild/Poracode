@@ -13,6 +13,7 @@ import type { RemoteAccessServerOptions } from "./remoteAccessServerTypes";
  * re-exports it for the modules that historically imported it from there.
  */
 export const DEFAULT_MAX_WEBSOCKET_OUTBOUND_BUFFER_BYTES = 4 * 1024 * 1024;
+const MAX_COMPRESSED_FRAME_BYTES = 64 * 1024;
 
 /**
  * Minimal host slice every outbound send path reads. The orchestrator's
@@ -131,14 +132,17 @@ export function sendRaw(
   byteLength?: number,
 ): boolean {
   const payloadBytes = byteLength ?? Buffer.byteLength(data, "utf8");
+  // Large frames otherwise retain their full input behind the deflate queue,
+  // exhausting a healthy reader's budget before socket writes can progress.
+  const compress = payloadBytes < MAX_COMPRESSED_FRAME_BYTES;
   // `bufferedAmount` counts framed transport bytes, so both the per-socket cap
   // and the aggregate reservation are charged the conservative encoded frame
-  // size (header plus worst-case deflate expansion), not just the payload.
+  // size (header plus worst-case deflate expansion when enabled), not just the payload.
   return sendReservedFrame(
     host,
     ws,
-    outboundFrameBytes(payloadBytes),
-    (settle) => (settle ? ws.send(data, settle) : ws.send(data)),
+    outboundFrameBytes(payloadBytes, compress),
+    (settle) => ws.send(data, { compress }, settle),
     onSent,
   );
 }

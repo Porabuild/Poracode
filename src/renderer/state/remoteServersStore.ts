@@ -139,24 +139,26 @@ export { hydrateRefreshTokens, __peekRefreshTokenForTest };
 export const useRemoteServersStore = create<RemoteServersState>()(
   persist(
     (set, get) => {
-      configureEnvironmentSessions({
-        getState: get,
-        clientFactory: () => get().clientFactory,
-        certPinForConnection: certPinForDesktop,
-        refreshTokenForSubject,
-        rememberRefreshToken: rememberRefreshTokenForSubject,
-        writeRefreshTokenToVault,
-        deleteRefreshTokenFromVault,
-      });
       const {
         setRemoteServerFailure,
         reportRemoteServerError,
+        persistAccessToken,
         clientForServer,
         requireClient,
         directImagesFor,
         withClient,
         checkHostUpdateInBackground,
       } = createRemoteServerClientBindings({ set, get }, certPinForDesktop);
+      configureEnvironmentSessions({
+        getState: get,
+        clientFactory: () => get().clientFactory,
+        persistAccessToken,
+        certPinForConnection: certPinForDesktop,
+        refreshTokenForSubject,
+        rememberRefreshToken: rememberRefreshTokenForSubject,
+        writeRefreshTokenToVault,
+        deleteRefreshTokenFromVault,
+      });
 
       const terminalConnections = createTerminalFeedConnections(
         (desktopId, sender, capabilities) => {
@@ -410,6 +412,8 @@ export const useRemoteServersStore = create<RemoteServersState>()(
       // Browser default filings reuse the released string/null project pins.
       // v2 documents, including explicit unfiling and cached projects, remain
       // valid; workspaceFilings.test covers delayed hydration and reload.
+      // Token rotation updates existing bearer slots through secure storage;
+      // v1/v2 records and encrypted vault keys remain valid without a bump.
       version: 2,
       /**
        * v1 → v2: `connectionId` becomes the per-connection key.

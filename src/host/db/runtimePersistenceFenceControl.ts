@@ -300,6 +300,23 @@ export class RuntimeFenceControl {
     }
   }
 
+  /**
+   * Admission preempts reads: cancel the thread's fences and drop its pin so
+   * accepted canonical events can commit. A preempted reader settles with the
+   * same retryable refusal as an expired fence; a write is never refused to
+   * keep a read's boundary.
+   */
+  preemptFences(threadId: string): void {
+    this.scheduler.cancelFencesForThread(threadId);
+    for (const token of [...this.heldFences]) {
+      if (token.threadId !== threadId || token.released) continue;
+      token.released = true;
+      this.heldFences.delete(token);
+      this.scheduler.settleFence(token);
+    }
+    this.options.host.setPin(threadId, null);
+  }
+
   /** Number of queued fence/mutation waiters (diagnostics/tests). */
   waiterCount(threadId?: string): number {
     return this.scheduler.waiterCount(threadId);

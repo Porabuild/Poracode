@@ -30,6 +30,20 @@ describe("runtimeEventSchema discriminated union", () => {
     };
     expect(messageItemPayloadSchema.parse(roundTrip(current))).toEqual(current);
   });
+  it("keeps uncorrelated answers valid and round-trips their optional source item", () => {
+    const previous = {
+      content: [{ kind: "text", text: "Which scope?\nA" }],
+      questionAnswer: {
+        questions: [{ header: "", question: "Which scope?", selected: [{ label: "A" }] }],
+      },
+    };
+    expect(messageItemPayloadSchema.parse(roundTrip(previous))).toEqual(previous);
+    const current = {
+      ...previous,
+      questionAnswer: { ...previous.questionAnswer, sourceItemId: "question-1" },
+    };
+    expect(messageItemPayloadSchema.parse(roundTrip(current))).toEqual(current);
+  });
   it("preserves pre-reply-form messages and round-trips optional non-blocking questions", () => {
     const previous = { content: [{ kind: "text", text: "Which scope?\n- A\n- B" }] };
     expect(messageItemPayloadSchema.parse(roundTrip(previous))).toEqual(previous);

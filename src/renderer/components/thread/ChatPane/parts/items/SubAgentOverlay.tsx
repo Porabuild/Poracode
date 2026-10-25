@@ -174,7 +174,7 @@ export function SubAgentContent({
       ) : (
         <SubAgentMessageList
           key={target}
-          historyReady={historyReadyFor === target}
+          historyReady={childEntries.length > 0 || historyReadyFor === target}
           initialScrollRevealDelayMs={initialScrollRevealDelayMs}
           threadId={threadId}
           parentItemId={parentItemId}

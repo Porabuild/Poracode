@@ -104,12 +104,12 @@ export function createKimiAdapter(): AgentAdapter {
     // `installer` (re-runs the official install script non-interactively). This
     // also keeps the supervisor and the renderer's command preview in sync.
 
-    buildLaunchArgv(location, config, prompt) {
+    async buildLaunchArgv(location, config, prompt) {
       // Kimi mints its own opaque session id and exposes no flag to pre-assign
       // one, so snapshot the existing session dirs here and let the runtime
       // discover the real id afterward (discoverSessionRef below). Returning no
       // sessionRef is what enables that discovery path.
-      snapshotKimiPreSpawnSessions(location);
+      await snapshotKimiPreSpawnSessions(location);
       const args = buildKimiArgs(config, prompt);
       return { binary: "kimi", args };
     },

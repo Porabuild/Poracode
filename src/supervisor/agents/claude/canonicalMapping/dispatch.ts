@@ -1,5 +1,6 @@
 import type { SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 import { readMcpAppResource } from "@/shared/mcpAppResources";
+import { readToolVideoSources } from "@/shared/chatVideo";
 import type { RuntimeEvent, ToolCallProgress, TurnState } from "@/shared/contracts";
 import { readFileChangePath, readStringField } from "../../fileChangeSummary";
 import type { ClaudeMapperState } from "../sdkCanonicalMappingState";
@@ -539,6 +540,12 @@ function mapClaudeSdkMessageInner(
       const text = extractText(obj.content);
       const images = extractToolResultImages(obj.content);
       const mcpResult = (message as { tool_use_result?: unknown }).tool_use_result;
+      const resourceResult =
+        readMcpAppResource(mcpResult) || readToolVideoSources(mcpResult).length > 0
+          ? mcpResult
+          : readToolVideoSources({ content: obj.content }).length > 0
+            ? { content: obj.content }
+            : text;
       if (tool.toolName === "Workflow") {
         const workflow = workflowFromToolUseResult(
           (message as { tool_use_result?: unknown }).tool_use_result,
@@ -599,12 +606,7 @@ function mapClaudeSdkMessageInner(
         itemId: tool.itemId,
         payload:
           hasToolCallPayload(tool.itemType) || tool.itemType === "file_change"
-            ? toolPayload(
-                tool,
-                isError ? "error" : "success",
-                readMcpAppResource(mcpResult) ? mcpResult : text,
-                images,
-              )
+            ? toolPayload(tool, isError ? "error" : "success", resourceResult, images)
             : toolPayload(tool, isError ? "error" : "success"),
       });
       events.push({ type: "item.completed", threadId: state.threadId, itemId: tool.itemId });

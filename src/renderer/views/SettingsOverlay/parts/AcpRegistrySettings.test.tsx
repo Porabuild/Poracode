@@ -520,14 +520,17 @@ describe("AcpRegistrySettings", () => {
       within(cursorCard as HTMLElement).getByText(/SDK v1\.0\.31 \(global npm\)/u),
     ).toBeInTheDocument();
 
+    bridge.getLatestAgentVersion.mockResolvedValue({ source: "npm", version: "1.0.40" });
     fireEvent.click(within(cursorCard as HTMLElement).getByRole("button", { name: "Update SDK" }));
 
-    expect(runAgentInstallCommandMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        label: "Update Cursor SDK",
-        command: expect.any(Function),
-        onCommandComplete: expect.any(Function),
-      }),
+    await waitFor(() =>
+      expect(runAgentInstallCommandMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          label: "Update Cursor SDK",
+          command: expect.any(Function),
+          onCommandComplete: expect.any(Function),
+        }),
+      ),
     );
     const updateInput = runAgentInstallCommandMock.mock.calls.at(-1)?.[0] as
       | { command: (project: Project) => string }
@@ -540,7 +543,7 @@ describe("AcpRegistrySettings", () => {
           location: { kind: "posix", path: "/repo" },
         }),
       ),
-    ).toContain("npm install -g '@cursor/sdk@^1.0.38'");
+    ).toContain("npm install -g '@cursor/sdk@1.0.40'");
   });
 
   it("shows externally managed SDK versions without a misleading update action", async () => {

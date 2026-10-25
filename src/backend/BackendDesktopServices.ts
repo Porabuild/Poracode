@@ -1,9 +1,18 @@
-import { dbGetThreads, onProjectThreadDataChanged } from "@/host/db";
+import { dbGetProject, dbGetThread, dbGetThreads, onProjectThreadDataChanged } from "@/host/db";
+import { callDatabaseRpc } from "@/host/db/databaseRpc";
+import { persistedThreadPageSchema } from "@/shared/ipc/schemas";
+import { resolveMcpLaunchSnapshot } from "@/shared/contracts";
+import { saveUploadedAttachmentFile } from "@/host/attachments/attachmentStorage";
+import { DesktopHostAdministration } from "./DesktopHostAdministration";
+import { delegatedDesktopControl } from "./ownership/delegatedHostControl";
 import { dirname, join } from "node:path";
 import { inactivateLiveThreads } from "./inactivateLiveThreads";
 import { resolvePoracodePaths } from "@/shared/poracodePaths";
 import { runOwnedExperimentWorktreePreparation } from "@/host/remote/experimentOwnership";
-import { SupervisorUnavailableError } from "@/host/supervisor/SupervisorClient";
+import {
+  SupervisorUnavailableError,
+  type SupervisorCallOptions,
+} from "@/host/supervisor/SupervisorClient";
 import type {
   IpcProcedurePayload,
   IpcProcedureResult,
@@ -48,7 +57,8 @@ import type {
 import { RevertCheckpointRefusedError, type BackendHostCore } from "./BackendHostCore";
 import { BackendDurableServices } from "./BackendDurableServices";
 import { BackendRemoteBrowserProxy } from "./BackendRemoteBrowserProxy";
-import { generateBackendImagePreview } from "./BackendImagePreview";
+import { generateBackendImageCardVariant } from "./BackendImagePreview";
+import { generateImagePreview } from "@/host/remote/server/imagePreviewGenerator";
 import { joinRuntimeShutdown } from "./joinRuntimeShutdown";
 import { createBackendSettingsAccess, type BackendSettingsAccess } from "./BackendSettingsService";
 import { type BackendSettingsNotifications } from "./BackendSettingsNotifications";
@@ -102,6 +112,7 @@ export class BackendDesktopServices {
   private readonly browser: BackendRemoteBrowserProxy;
   private readonly stopProjectionWatch: () => void;
   private readonly settings: BackendSettingsAccess;
+  private readonly administration: DesktopHostAdministration | null;
   private updateStatus: RemoteHostUpdateStatus | null = null;
 
   constructor(private readonly options: BackendDesktopServicesOptions) {
@@ -322,6 +333,11 @@ export class BackendDesktopServices {
           ...(experimentAuthority ? { experimentAuthority } : {}),
           dispatchThreadCommand,
           browser: this.browser,
+          readAgentVision: (threadId, preview, streaming) =>
+            options.requestNative({
+              operation: "agent-vision",
+              payload: { threadId, preview, ...(streaming ? { streaming } : {}) },
+            }) as Promise<import("@/shared/agentVision").AgentVision | null>,
           // The controller's settings patches commit through the same authority
           // as every other writer; the committed broadcast happens in the
           // authority's onCommitted hook.
@@ -343,7 +359,8 @@ export class BackendDesktopServices {
           notifyUserNotification: (notification) =>
             options.emitNativeEvent({ type: "user-notification", notification }),
           notifyEventInterestsChanged: ignoreRemoteEventInterests,
-          imagePreviewGenerator: generateBackendImagePreview,
+          imagePreviewGenerator: generateImagePreview,
+          imageCardVariantGenerator: generateBackendImageCardVariant,
           reportError: options.reportError,
           scheduleService: this.durable.scheduleService,
           deviceWorkspace: this.durable.deviceWorkspace,
@@ -376,6 +393,57 @@ export class BackendDesktopServices {
           },
         })
       : null;
+    if (desktop?.localControl) {
+      const custody = host.getDataCustody();
+      if (!custody || !desktop.dataFencePath || !desktop.hostCapabilities)
+        throw new Error(
+          "Desktop administration requires existing data custody and composed host capabilities.",
+        );
+      const authority = delegatedDesktopControl({
+        grant: desktop.localControl,
+        dataRoot: initialize.baseDir,
+        dataFencePath: desktop.dataFencePath,
+        custody,
+        ownerPid: process.ppid,
+        assertParentActive: () => {
+          if (!process.connected) throw new Error("The desktop control owner is disconnected.");
+        },
+      });
+      this.administration = new DesktopHostAdministration({
+        attachments: {
+          save: (input) =>
+            saveUploadedAttachmentFile(resolvePoracodePaths(initialize.baseDir), input),
+        },
+        statusCachePath: resolvePoracodePaths(initialize.baseDir).statusCachePath,
+        authority,
+        capabilities: { ...desktop.hostCapabilities, ssh: Boolean(options.environments) },
+        call: (name, payload, callOptions) => this.callSupervisor(name, payload, callOptions),
+        server: () => {
+          const server = this.remote?.getServer();
+          if (!server)
+            throw new Error("The desktop host listener is not ready. Retry after desktop startup.");
+          return server;
+        },
+        settings: this.settings,
+        readSettings: getSharedSettings,
+        // Desktop initialization already provided its persistent sealing key;
+        // settings writes retain the same authority/persistence guard as UI edits.
+        assertCanPersistSecrets: () => authority.assertActive(),
+        sessions: {
+          readThread: dbGetThread,
+          readPage: async (payload) =>
+            persistedThreadPageSchema.parse(
+              await callDatabaseRpc({ name: "dbGetThreadsPage", payload }),
+            ),
+        },
+        sessionExportWorker: {
+          path: join(dirname(initialize.supervisor.supervisorPath), "sessionExportWorker.cjs"),
+          dbPath: initialize.dbPath,
+        },
+        resolveMcpLaunchSnapshot: (projectId) =>
+          resolveMcpLaunchSnapshot(getSharedSettings(), dbGetProject(projectId)?.mcpServers ?? []),
+      });
+    } else this.administration = null;
   }
 
   getSupervisorExtraEnv(): Record<string, string> {
@@ -399,9 +467,11 @@ export class BackendDesktopServices {
     // children must not hold the local listener or renderer startup hostage.
     void this.options.environments?.start().catch(this.options.reportError);
     await this.remote?.startIfEnabled();
+    await this.administration?.start().catch(this.options.reportError);
   }
 
   observeSupervisorEvent(event: SupervisorEvent): boolean {
+    this.administration?.observe(event);
     if (this.durable.observeSupervisorEvent(event)) return true;
     this.remote?.handleSupervisorEvent(event);
     return false;
@@ -413,6 +483,7 @@ export class BackendDesktopServices {
    * cannot shadow the fresh supervisor's live reads.
    */
   handleSupervisorReset(): void {
+    this.administration?.reset();
     this.durable.handleSupervisorReset();
     this.remote?.handleSupervisorReset();
   }
@@ -491,9 +562,12 @@ export class BackendDesktopServices {
   callSupervisor<Name extends SupervisorProcedureName>(
     name: Name,
     payload: IpcProcedurePayload<Name>,
+    options?: Pick<SupervisorCallOptions, "assertLaunchCurrent">,
   ): Promise<IpcProcedureResult<Name>> {
     const dispatch = (): Promise<IpcProcedureResult<Name>> =>
-      this.options.host.supervisorClient.call(name, payload);
+      options
+        ? this.options.host.supervisorClient.call(name, payload, options)
+        : this.options.host.supervisorClient.call(name, payload);
     if (name !== "createExperimentWorktrees") return dispatch();
     return runOwnedExperimentWorktreePreparation(
       payload as CreateExperimentWorktreesPayload,
@@ -661,6 +735,7 @@ export class BackendDesktopServices {
     void joinRuntimeShutdown(
       [
         () => this.stopProjectionWatch(),
+        () => this.administration?.dispose(),
         () => this.durable.dispose(),
         () => this.browser.dispose(),
         () => this.remote?.dispose(),

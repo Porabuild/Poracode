@@ -1,4 +1,5 @@
 import { randomBytes } from "node:crypto";
+import { join } from "node:path";
 import { saveUploadedAttachmentFile } from "@/host/attachments/attachmentStorage";
 import { dbGetProject, dbGetProjects, dbGetThreads } from "@/host/db";
 import { readSharedSettingsFile } from "@/host/sharedSettingsFile";
@@ -24,7 +25,11 @@ import {
 import { readOrCreateRemoteAccessIdentity } from "@/host/remote/identity";
 import { createForwardOriginIdentity } from "@/host/remote/portForward/forwardOriginIdentity";
 import { readOrCreateForwardOriginSecret } from "@/host/remote/portForward/forwardOriginSecret";
-import { setImagePreviewGenerator } from "@/host/remote/server/imagePreview";
+import {
+  setImagePreviewGenerator,
+  setImagePreviewStoreDir,
+} from "@/host/remote/server/imagePreview";
+import { setImageCardVariantGenerator } from "@/host/remote/server/imageCardVariant";
 import {
   createPortForwarding,
   type PortForwarding,
@@ -226,8 +231,18 @@ export async function performDesktopRemoteAccessStart(
     attempt.coordinator = coordinator;
     refs.pushCoordinator = coordinator;
     setImagePreviewGenerator(options.imagePreviewGenerator ?? null);
+    // Previews persist as a derived, disposable file cache so the first
+    // thread open after a restart shows the blurred stand-in instead of an
+    // empty box. Only a composition with a generator can produce them.
+    await setImagePreviewStoreDir(
+      options.imagePreviewGenerator
+        ? join(resolvePoracodePaths(options.paths.baseDir).cacheDir, "image-previews-v1")
+        : null,
+    );
+    setImageCardVariantGenerator(options.imageCardVariantGenerator ?? null);
     const server: RemoteAccessServer = new RemoteAccessServer({
       ...(options.deviceWorkspace ? { deviceWorkspace: options.deviceWorkspace } : {}),
+      ...(options.readAgentVision ? { readAgentVision: options.readAgentVision } : {}),
       appVersion: options.appVersion,
       ...(options.environments
         ? environmentRemoteAccessOptions(options.environments, authStore, () => {
@@ -273,9 +288,13 @@ export async function performDesktopRemoteAccessStart(
       ...(options.revertCheckpoint ? { revertCheckpoint: options.revertCheckpoint } : {}),
       ...(options.experimentAuthority ? { experimentAuthority: options.experimentAuthority } : {}),
       dispatchThreadCommand: options.dispatchThreadCommand,
-      resolveMcpLaunchSnapshot: (projectId) => {
+      resolveMcpLaunchSnapshot: (projectId, overrides) => {
         const settings = readSharedSettingsFile(options.paths.settingsPath);
-        return resolveMcpLaunchSnapshot(settings, dbGetProject(projectId)?.mcpServers ?? []);
+        return resolveMcpLaunchSnapshot(
+          settings,
+          dbGetProject(projectId)?.mcpServers ?? [],
+          overrides,
+        );
       },
       ...(options.browser
         ? { browser: options.browser }

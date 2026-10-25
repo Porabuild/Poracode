@@ -139,12 +139,12 @@ export function createGrokAdapter(): AgentAdapter {
       return status;
     },
 
-    buildLaunchArgv(location, config, prompt, sessionRef, _launchOptions) {
+    async buildLaunchArgv(location, config, prompt, sessionRef, _launchOptions) {
       const cwd = location.kind === "wsl" ? location.linuxPath : location.path;
       // Snapshot existing session dirs so discoverSessionRef can identify the
       // new UUID Grok creates if the pre-assigned `-s` id is ever ignored and
       // the PTY ends up creating its own session.
-      snapshotGrokPreSpawnSessions(location, cwd);
+      await snapshotGrokPreSpawnSessions(location, cwd);
 
       // Resolve the session ID before spawning the PTY: resume a known one
       // with `-r`, otherwise pre-assign a fresh UUID with `-s` (grok 0.2.118,
@@ -155,7 +155,7 @@ export function createGrokAdapter(): AgentAdapter {
       const known = sessionRef?.providerSessionId;
       const sessionId = known ?? randomUUID();
       const sessionArg = known
-        ? resolveGrokSessionArg(location, cwd, known)
+        ? await resolveGrokSessionArg(location, cwd, known)
         : ({ kind: "new", sessionId } as const);
 
       const args = buildGrokArgs(
@@ -173,13 +173,13 @@ export function createGrokAdapter(): AgentAdapter {
       };
     },
 
-    buildResumeArgv(location, config, prompt, sessionRef) {
+    async buildResumeArgv(location, config, prompt, sessionRef) {
       const cwd = location.kind === "wsl" ? location.linuxPath : location.path;
       const known = sessionRef?.providerSessionId;
       const args = buildGrokArgs(
         withGrokCliModel(config, capabilities.fastModels),
         prompt,
-        known ? resolveGrokSessionArg(location, cwd, known) : undefined,
+        known ? await resolveGrokSessionArg(location, cwd, known) : undefined,
       );
       return { binary: "grok", args };
     },

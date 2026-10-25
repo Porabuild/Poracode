@@ -1,5 +1,8 @@
 import { z } from "zod";
 import { agentKindSchema, projectLocationSchema } from "./common";
+import type { ProjectLocation, ThreadPresentationMode } from "./common";
+import { resolveComposerMcpScope, type AgentCapability } from "./agent";
+import type { ThreadConfig } from "./config";
 
 export const DEFAULT_MCP_SERVER_TIMEOUT_MS = 30_000;
 
@@ -534,6 +537,42 @@ export const builtInMcpServerDisabledSchema = z
   .default({});
 export type BuiltInMcpServerDisabled = z.infer<typeof builtInMcpServerDisabledSchema>;
 
+/** Old settings stay readable; Poracode's always-on server ignores saved disables. */
+export function normalizeBuiltInMcpServerDisabled(
+  disabled: BuiltInMcpServerDisabled,
+): BuiltInMcpServerDisabled {
+  const normalized = { ...disabled };
+  delete normalized["app-controls"];
+  return normalized;
+}
+
+/** Standing new-thread defaults, with draft mentions and client-inherent tools applied. */
+export function resolveNewThreadMcpConfig(
+  settings: {
+    enabledMcpServers: Record<string, boolean>;
+    disabledBuiltInMcpServers: BuiltInMcpServerDisabled;
+  },
+  capabilities: Pick<AgentCapability, "mcpScope">,
+  presentationMode: ThreadPresentationMode,
+  location: ProjectLocation,
+  mentions: Partial<Record<BuiltInMcpServerId, boolean>> = {},
+  implicitMcpServers: readonly BuiltInMcpServerId[] = [],
+): Partial<Pick<ThreadConfig, "browserMcp" | "crossagentMcp" | "chromeMcp" | "computerUse">> {
+  const scope = resolveComposerMcpScope(capabilities.mcpScope, presentationMode);
+  const enabled = (id: BuiltInMcpServerId, available = true) =>
+    settings.disabledBuiltInMcpServers[id] !== true &&
+    (mentions[id] === true ||
+      ((implicitMcpServers.includes(id) || settings.enabledMcpServers[id] === true) &&
+        scope !== "none" &&
+        available));
+  return {
+    ...(enabled("browser") ? { browserMcp: true } : {}),
+    ...(enabled("crossagents") ? { crossagentMcp: true } : {}),
+    ...(enabled("chrome", location.kind !== "wsl") ? { chromeMcp: true } : {}),
+    ...(enabled("computer-use", location.kind !== "wsl") ? { computerUse: true } : {}),
+  };
+}
+
 export const builtInMcpDisabledToolsSchema = z
   .partialRecord(z.enum(BUILT_IN_MCP_SERVER_IDS), z.array(z.string().min(1)))
   .default({});
@@ -559,7 +598,8 @@ export function normalizeBuiltInMcpDisabledTools(
 export function disabledBuiltInMcpServerIds(
   disabled: BuiltInMcpServerDisabled,
 ): BuiltInMcpServerId[] {
-  return BUILT_IN_MCP_SERVER_IDS.filter((id) => disabled[id] === true);
+  const normalized = normalizeBuiltInMcpServerDisabled(disabled);
+  return BUILT_IN_MCP_SERVER_IDS.filter((id) => normalized[id] === true);
 }
 
 /** Custom servers plus built-in disables resolved for a thread launch. */
@@ -586,9 +626,16 @@ export function resolveMcpLaunchSnapshot(
     disabledBuiltInMcpTools: BuiltInMcpDisabledTools;
   },
   projectMcpServers: readonly McpServer[] = [],
+  overrides: Record<string, boolean> = {},
 ): McpLaunchSnapshot {
   return {
-    mcpServers: resolveEnabledMcpServers(mergeMcpServers(settings.mcpServers, projectMcpServers)),
+    mcpServers: resolveEnabledMcpServers(
+      mergeMcpServers(settings.mcpServers, projectMcpServers).map((server) =>
+        Object.hasOwn(overrides, server.id)
+          ? { ...server, enabled: overrides[server.id]! }
+          : server,
+      ),
+    ),
     disabledBuiltInMcpServerIds: disabledBuiltInMcpServerIds(settings.disabledBuiltInMcpServers),
     disabledBuiltInMcpTools: settings.disabledBuiltInMcpTools,
   };

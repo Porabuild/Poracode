@@ -42,6 +42,7 @@ import {
 } from "./desktopAppState";
 import { ensureMainWindow } from "./desktopAppWindows";
 import { startDesktopApp } from "./desktopAppReady";
+import { registerMacDesktopCli, shouldRegisterMacDesktopCli } from "./desktopCliRegistration";
 
 // Electron can remain alive after its launching terminal or dev runner exits.
 // Install this before any startup logging so a detached diagnostic pipe cannot
@@ -269,7 +270,40 @@ if (!hasSingleInstanceLock) {
 
   void app
     .whenReady()
-    .then(startDesktopApp)
+    .then(async () => {
+      await startDesktopApp();
+      // This common continuation also runs after attached-mode startup. Command
+      // validation does not delay host admission; disposable/dev launches skip it.
+      if (
+        shouldRegisterMacDesktopCli({
+          platform: process.platform,
+          isPackaged: app.isPackaged,
+          isDev,
+          baseDirOverride,
+          legacyBaseDirOverride,
+          env: process.env,
+        })
+      ) {
+        try {
+          const result = registerMacDesktopCli({
+            resourcesDir: process.resourcesPath,
+            executablePath: process.execPath,
+            appVersion: app.getVersion(),
+            electronVersion: process.versions.electron,
+            channel,
+            appDataDir: app.getPath("appData"),
+            path: process.env.PATH ?? "",
+          });
+          if (result.state === "registered") console.info("[desktop-cli] %s", result.detail);
+          else console.warn("[desktop-cli] %s", result.detail);
+        } catch (error) {
+          console.warn(
+            "[desktop-cli] Command registration was not confirmed; desktop startup will continue.",
+            error,
+          );
+        }
+      }
+    })
     .catch((error: unknown) => {
       captureMainException(error, { "poracode.feature_area": "main-initialization" });
       // Never-silent refusal (V5 H5): a startup failure — e.g. a standalone

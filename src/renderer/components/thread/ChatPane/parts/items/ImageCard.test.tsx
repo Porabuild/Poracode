@@ -1,5 +1,6 @@
 import { act, fireEvent, render } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { toast } from "@heroui/react";
 import { AppProvider } from "@/renderer/components/ui/provider";
 import { ImageCard } from "./ImageCard";
 import type { ImageViewSource } from "./imageViewSource";
@@ -8,12 +9,14 @@ import * as imageActions from "@/renderer/utils/imageActions";
 import * as bridge from "@/renderer/bridge";
 import * as lightbox from "@/renderer/components/composer/ImageLightbox";
 
+const context = vi.hoisted(() => ({ threadId: "thread" }));
+
 vi.mock("../../../useThreadGalleryImages", () => ({
   getThreadGalleryImages: vi.fn<typeof getThreadGalleryImages>(() => []),
   openThreadGallery: vi.fn<typeof openThreadGallery>(),
 }));
 vi.mock("../../chatPaneActionsContext", () => ({
-  useChatPaneActions: () => ({ threadId: "thread" }),
+  useChatPaneActions: () => context,
 }));
 
 const PREVIEW = "data:image/jpeg;base64,QQ==";
@@ -31,10 +34,10 @@ function source(overrides: Partial<ImageViewSource> = {}): ImageViewSource {
   };
 }
 
-function renderCard(s: ImageViewSource) {
+function renderCard(s: ImageViewSource, resolveFullSrc?: () => Promise<string>) {
   const view = render(
     <AppProvider>
-      <ImageCard source={s} />
+      <ImageCard source={s} {...(resolveFullSrc ? { resolveFullSrc } : {})} />
     </AppProvider>,
   );
   const img = view.container.querySelector("img")!;
@@ -43,6 +46,341 @@ function renderCard(s: ImageViewSource) {
 }
 
 describe("ImageCard", () => {
+  it.each([false, true])(
+    "opens the card immediately and upgrades without reopening (gallery: %s)",
+    async (inGallery) => {
+      const original = Promise.withResolvers<string>();
+      const resolveFull = vi.fn<() => Promise<string>>(() => original.promise);
+      const bytes = new Uint8Array([137, 80, 78, 71]);
+      const fetchBytes = vi.spyOn(imageActions, "fetchImageBytes").mockResolvedValue(bytes);
+      const preview = vi.spyOn(lightbox, "openImageLightbox");
+      const upgrade = vi.spyOn(lightbox, "updateImageLightboxFromPreview");
+      const gallery = [{ src: "blob:other" }, { src: "blob:full" }];
+      if (inGallery) vi.mocked(getThreadGalleryImages).mockReturnValueOnce(gallery);
+      try {
+        const { view } = renderCard(source({ src: "blob:card" }), resolveFull);
+        fireEvent.click(view.getByRole("button", { name: "Open image preview" }));
+        expect(preview).toHaveBeenCalledExactlyOnceWith(
+          [
+            {
+              src: "blob:card",
+              previewSrc: "blob:card",
+              alt: "A screenshot",
+              mime: "image/png",
+              fileName: "shot.png",
+              width: 800,
+              height: 600,
+              readBytes: expect.any(Function),
+            },
+          ],
+          0,
+        );
+        expect(upgrade).not.toHaveBeenCalled();
+        const revision = lightbox.imageLightboxRevision();
+        const readBytes = preview.mock.calls[0]![0][0]!.readBytes!();
+        expect(fetchBytes).not.toHaveBeenCalled();
+        await act(async () => original.resolve("blob:full"));
+        await expect(readBytes).resolves.toEqual(bytes);
+        expect(fetchBytes).toHaveBeenCalledExactlyOnceWith("blob:full");
+        const image = {
+          src: "blob:full",
+          previewSrc: "blob:card",
+          alt: "A screenshot",
+          mime: "image/png",
+          fileName: "shot.png",
+          width: 800,
+          height: 600,
+        };
+        expect(upgrade).toHaveBeenCalledExactlyOnceWith(
+          "blob:card",
+          inGallery ? [gallery[0], image] : [image],
+          inGallery ? "thread" : undefined,
+        );
+        expect(preview).toHaveBeenCalledTimes(1);
+        expect(lightbox.imageLightboxRevision()).toBe(revision);
+      } finally {
+        lightbox.closeImageLightbox();
+        fetchBytes.mockRestore();
+        preview.mockRestore();
+        upgrade.mockRestore();
+      }
+    },
+  );
+
+  it("preserves the selected resource and pending neighbors when upgrading into the live gallery", async () => {
+    const original = Promise.withResolvers<string>();
+    const preview = vi.spyOn(lightbox, "openImageLightbox");
+    const upgrade = vi.spyOn(lightbox, "updateImageLightboxFromPreview");
+    const resource = {
+      key: "selected-coordinate",
+      subscribe: vi.fn<(listener: () => void) => () => void>(() => () => {}),
+      getSnapshot: vi.fn<() => string>(() => "blob:full"),
+      request: vi.fn<() => void>(),
+    };
+    const neighbor = {
+      src: "",
+      alt: "Pending neighbor",
+      resource: {
+        key: "pending-coordinate",
+        subscribe: vi.fn<(listener: () => void) => () => void>(() => () => {}),
+        getSnapshot: vi.fn<() => string>(() => ""),
+        request: vi.fn<() => void>(),
+      },
+    };
+    vi.mocked(getThreadGalleryImages).mockClear();
+    vi.mocked(getThreadGalleryImages).mockReturnValueOnce([neighbor, { src: "", resource }]);
+    try {
+      const { view } = renderCard(source({ src: "blob:card" }), () => original.promise);
+      fireEvent.click(view.getByRole("button", { name: "Open image preview" }));
+      expect(preview).toHaveBeenCalledOnce();
+      expect(upgrade).not.toHaveBeenCalled();
+      await act(async () => original.resolve("blob:full"));
+      expect(getThreadGalleryImages).toHaveBeenCalledExactlyOnceWith("thread", { lightbox: true });
+      expect(upgrade).toHaveBeenCalledExactlyOnceWith(
+        "blob:card",
+        [
+          neighbor,
+          {
+            src: "blob:full",
+            previewSrc: "blob:card",
+            alt: "A screenshot",
+            mime: "image/png",
+            fileName: "shot.png",
+            width: 800,
+            height: 600,
+            resource,
+          },
+        ],
+        "thread",
+      );
+      expect(upgrade.mock.calls[0]![1][0]).toBe(neighbor);
+      expect(upgrade.mock.calls[0]![1][1]!.resource).toBe(resource);
+      expect(neighbor.resource.request).not.toHaveBeenCalled();
+    } finally {
+      lightbox.closeImageLightbox();
+      preview.mockRestore();
+      upgrade.mockRestore();
+    }
+  });
+
+  it("retains the displayed card dimensions when image metadata has no dimensions", async () => {
+    const original = Promise.withResolvers<string>();
+    const preview = vi.spyOn(lightbox, "openImageLightbox");
+    const upgrade = vi.spyOn(lightbox, "updateImageLightboxFromPreview");
+    const card = source({ src: "blob:card" });
+    delete card.width;
+    delete card.height;
+    try {
+      const { view, img } = renderCard(card, () => original.promise);
+      Object.defineProperties(img, {
+        naturalWidth: { value: 768 },
+        naturalHeight: { value: 512 },
+      });
+      fireEvent.click(view.getByRole("button", { name: "Open image preview" }));
+      expect(preview).toHaveBeenCalledExactlyOnceWith(
+        [expect.objectContaining({ src: "blob:card", width: 768, height: 512 })],
+        0,
+      );
+      expect(upgrade).not.toHaveBeenCalled();
+      await act(async () => original.resolve("blob:full"));
+      expect(upgrade).toHaveBeenCalledExactlyOnceWith(
+        "blob:card",
+        [
+          expect.objectContaining({
+            src: "blob:full",
+            previewSrc: "blob:card",
+            width: 768,
+            height: 512,
+          }),
+        ],
+        undefined,
+      );
+    } finally {
+      lightbox.closeImageLightbox();
+      preview.mockRestore();
+      upgrade.mockRestore();
+    }
+  });
+
+  it("uses the EXIF-oriented card dimensions instead of unrotated source metadata", async () => {
+    const original = Promise.withResolvers<string>();
+    const preview = vi.spyOn(lightbox, "openImageLightbox");
+    const upgrade = vi.spyOn(lightbox, "updateImageLightboxFromPreview");
+    try {
+      const { view, img } = renderCard(
+        source({ src: "blob:rotated-card", width: 1600, height: 1000 }),
+        () => original.promise,
+      );
+      Object.defineProperties(img, {
+        naturalWidth: { value: 600 },
+        naturalHeight: { value: 960 },
+      });
+      fireEvent.click(view.getByRole("button", { name: "Open image preview" }));
+      expect(preview).toHaveBeenCalledExactlyOnceWith(
+        [expect.objectContaining({ src: "blob:rotated-card", width: 600, height: 960 })],
+        0,
+      );
+      expect(upgrade).not.toHaveBeenCalled();
+      await act(async () => original.resolve("blob:full"));
+      expect(upgrade).toHaveBeenCalledExactlyOnceWith(
+        "blob:rotated-card",
+        [
+          expect.objectContaining({
+            src: "blob:full",
+            previewSrc: "blob:rotated-card",
+            width: 600,
+            height: 960,
+          }),
+        ],
+        undefined,
+      );
+    } finally {
+      lightbox.closeImageLightbox();
+      preview.mockRestore();
+      upgrade.mockRestore();
+    }
+  });
+
+  it.each(["empty", "failure"])(
+    "does not use card bytes for image actions after full-resolution %s",
+    async (outcome) => {
+      const resolveFull = vi.fn<() => Promise<string>>(() =>
+        outcome === "empty" ? Promise.resolve("") : Promise.reject(new Error("offline")),
+      );
+      const copyBytes = vi.spyOn(imageActions, "toClipboardPngBytes");
+      const fetchBytes = vi.spyOn(imageActions, "fetchImageBytes");
+      const preview = vi.spyOn(lightbox, "openImageLightbox");
+      const upgrade = vi.spyOn(lightbox, "updateImageLightboxFromPreview");
+      const danger = vi.spyOn(toast, "danger").mockImplementation(() => "image-error");
+      const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+      try {
+        const { view } = renderCard(source({ src: "blob:card-jpeg" }), resolveFull);
+        await act(async () => {
+          fireEvent.click(view.getByRole("button", { name: "Copy image" }));
+          fireEvent.click(view.getByRole("button", { name: "Download image" }));
+          fireEvent.click(view.getByRole("button", { name: "Open image preview" }));
+        });
+        expect(copyBytes).not.toHaveBeenCalled();
+        expect(fetchBytes).not.toHaveBeenCalled();
+        expect(preview).toHaveBeenCalledExactlyOnceWith(
+          [expect.objectContaining({ src: "blob:card-jpeg", readBytes: expect.any(Function) })],
+          0,
+        );
+        expect(upgrade).not.toHaveBeenCalled();
+        expect(danger).toHaveBeenCalledTimes(3);
+      } finally {
+        copyBytes.mockRestore();
+        fetchBytes.mockRestore();
+        preview.mockRestore();
+        upgrade.mockRestore();
+        lightbox.closeImageLightbox();
+        danger.mockRestore();
+        log.mockRestore();
+      }
+    },
+  );
+
+  it.each(["replacement", "thread change", "unmount", "newer modal", "latest click"])(
+    "ignores a delayed preview upgrade after %s",
+    async (change) => {
+      const first = Promise.withResolvers<string>();
+      const second = Promise.withResolvers<string>();
+      const resolveFull = vi
+        .fn<() => Promise<string>>()
+        .mockReturnValueOnce(first.promise)
+        .mockReturnValueOnce(second.promise);
+      const upgrade = vi.spyOn(lightbox, "updateImageLightboxFromPreview");
+      try {
+        const { view } = renderCard(source({ src: "blob:card" }), resolveFull);
+        fireEvent.click(view.getByRole("button", { name: "Open image preview" }));
+        if (change === "replacement")
+          view.rerender(
+            <AppProvider>
+              <ImageCard source={source({ src: "blob:other" })} />
+            </AppProvider>,
+          );
+        if (change === "unmount") view.unmount();
+        if (change === "thread change") {
+          context.threadId = "other-thread";
+          view.rerender(
+            <AppProvider>
+              <ImageCard source={source({ src: "blob:card" })} resolveFullSrc={resolveFull} />
+            </AppProvider>,
+          );
+        }
+        if (change === "newer modal") {
+          lightbox.openImageLightbox([{ src: "blob:other" }], 0);
+          lightbox.closeImageLightbox();
+        }
+        if (change === "latest click")
+          fireEvent.click(view.getByRole("button", { name: "Open image preview" }));
+        await act(async () => first.resolve("blob:full-original"));
+        expect(upgrade).not.toHaveBeenCalled();
+        if (change === "latest click") {
+          await act(async () => second.resolve("blob:full-current"));
+        }
+        expect(upgrade.mock.calls).toEqual(
+          change === "latest click"
+            ? [
+                [
+                  "blob:card",
+                  [
+                    {
+                      src: "blob:full-current",
+                      previewSrc: "blob:card",
+                      alt: "A screenshot",
+                      mime: "image/png",
+                      fileName: "shot.png",
+                      width: 800,
+                      height: 600,
+                    },
+                  ],
+                  undefined,
+                ],
+              ]
+            : [],
+        );
+      } finally {
+        context.threadId = "thread";
+        lightbox.closeImageLightbox();
+        upgrade.mockRestore();
+      }
+    },
+  );
+
+  it("copies and downloads original bytes instead of the displayed card", async () => {
+    const full = source({ src: "blob:full-resolution", fileName: "original.png" });
+    const bytes = new Uint8Array([137, 80, 78, 71]);
+    const copyBytes = vi.spyOn(imageActions, "toClipboardPngBytes").mockResolvedValue(bytes);
+    const fetchBytes = vi.spyOn(imageActions, "fetchImageBytes").mockResolvedValue(bytes);
+    const copy = vi
+      .fn<ReturnType<typeof bridge.readBridge>["copyImageToClipboard"]>()
+      .mockResolvedValue(true);
+    const save = vi
+      .fn<ReturnType<typeof bridge.readBridge>["saveImageFile"]>()
+      .mockResolvedValue(null);
+    const read = vi
+      .spyOn(bridge, "readBridge")
+      .mockReturnValue({ copyImageToClipboard: copy, saveImageFile: save } as unknown as ReturnType<
+        typeof bridge.readBridge
+      >);
+    try {
+      const { view } = renderCard({ ...full, src: "blob:display-card" }, async () => full.src);
+      await act(async () => {
+        fireEvent.click(view.getByRole("button", { name: "Copy image" }));
+        fireEvent.click(view.getByRole("button", { name: "Download image" }));
+      });
+      expect(copyBytes).toHaveBeenCalledExactlyOnceWith(full);
+      expect(fetchBytes).toHaveBeenCalledExactlyOnceWith(full.src);
+      expect(copy).toHaveBeenCalledExactlyOnceWith({ data: bytes });
+      expect(save).toHaveBeenCalledExactlyOnceWith({ data: bytes, suggestedName: full.fileName });
+    } finally {
+      copyBytes.mockRestore();
+      fetchBytes.mockRestore();
+      read.mockRestore();
+    }
+  });
+
   it("keeps pending image previews inactive until the image bytes resolve", () => {
     const preview = vi.spyOn(lightbox, "openImageLightbox").mockImplementation(() => undefined);
     vi.mocked(openThreadGallery).mockClear();

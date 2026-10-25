@@ -6,10 +6,29 @@ runs:
     - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
       with:
         node-version: "24"
+    - name: Read pinned Bun version
+      id: bun-version
+      shell: bash
+      run: |
+        node -e "require('node:fs').appendFileSync(process.env.GITHUB_OUTPUT, 'version=' + require('./package.json').devDependencies.bun + '\n')"
     - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
         path: ${{ runner.temp }}/poracode-bun
-        key: bun-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('package.json') }}
+        key: bun-${{ runner.os }}-${{ runner.arch }}-${{ steps.bun-version.outputs.version }}
     - name: Install pinned Bun
       shell: bash
       run: node scripts/setup-bun.mjs
+    - name: Locate package download caches
+      id: registry-cache
+      shell: bash
+      run: |
+        echo "bun=$(bun pm cache)" >> "$GITHUB_OUTPUT"
+        echo "npm=$(npm config get cache)" >> "$GITHUB_OUTPUT"
+    - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      with:
+        path: |
+          ${{ steps.registry-cache.outputs.bun }}
+          ${{ steps.registry-cache.outputs.npm }}
+        key: registry-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('bun.lock', 'scripts/device-hub-runtime/package-lock.json') }}
+        restore-keys: |
+          registry-${{ runner.os }}-${{ runner.arch }}-

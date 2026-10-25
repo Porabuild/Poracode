@@ -215,6 +215,17 @@ export async function readManagedRootRuntimeHistoryGap(
   return result;
 }
 
+/** The newest prompts of a root thread, read over the managed loopback leg. */
+export async function readManagedRootPromptIndex(
+  threadId: string,
+  signal?: AbortSignal,
+): Promise<Awaited<ReturnType<RemoteDesktopClient["threadPromptIndex"]>>> {
+  const activation = requireActivation();
+  const result = await activation.client.threadPromptIndex(threadId, signal ? { signal } : {});
+  assertSameActivation(activation);
+  return result;
+}
+
 /** True when a root read's error is the host's authoritative "no such row". */
 export function isManagedRootThreadAbsentError(error: unknown): boolean {
   return error instanceof RemoteClientError && error.status === 404;

@@ -8,7 +8,8 @@ Universal AI agent orchestrator with Electron, web/PWA, and independent native i
 
 - Package manager: `Bun` (version pinned in `package.json#packageManager`); Node >= 24.10.0.
 - `bun run dev` — run the app. `bun run build` then `bun run dist` — package it.
-- `bun run typecheck` (Bun, three threads; `bun run typecheck:tsc` compares with TypeScript 7), `bun run lint` (Bun), `bun run fmt` / `bun run fmt:check` (Bun), `bun run test` (vitest).
+- Local renderer builds skip hidden source maps; set `PORACODE_SOURCEMAPS=1` to generate them. Release CI generates them on the Sentry upload job.
+- `bun run typecheck` (Bun, all available cores; `bun run typecheck:tsc` compares with TypeScript 7), `bun run lint` (Bun), `bun run fmt` / `bun run fmt:check` (Bun), `bun run test` (vitest).
 - Targeted tests: `bun run vitest run <paths>`. Jest-only flags such as `--runInBand` do not exist here.
 - The pre-commit hook runs lint-staged (Bun lint `--type-aware --fix --deny-warnings` and format) and then `bun run typecheck`.
 
@@ -28,12 +29,13 @@ These protect process ownership, the provider plugin model, and users' persisted
 
 - **Placement:** before implementing a feature, consider state ownership, lifetime, affected clients, and platform dependencies, then choose the appropriate layer. Shared host behavior must work under both desktop and the independent CLI server; presentation and platform behavior can stay client-owned. Use the [architecture placement guide](.agents/docs/architecture.md#choosing-where-a-change-belongs), and trace existing callers before introducing a new service or transport.
 - **React:** React Compiler handles memoization; add `useMemo`, `useCallback`, or `React.memo` only to escape it. Keep `babel-plugin-react-compiler` pinned to an exact version. Store subscription and render rules: [editing-rules.md](.agents/docs/editing-rules.md).
-- **React UI:** HeroUI v3 for non-terminal renderer UI; use the `heroui-react` skill when working with its components. Follow existing app patterns and shared variants before raw library defaults, and keep visual scope to what was asked. For an absolutely positioned tooltip, put the positioning on an out-of-flow wrapper around a normally positioned `Tooltip.Trigger`; the trigger is `inline-block` and otherwise anchors to the wrong box.
+- **React UI:** HeroUI v3 for non-terminal renderer UI; use the `heroui-react` skill when working with its components. Before adding or styling a control, check for an existing shared component or variant and reuse it when it fits. Inspect nearby elements and match their component, size, icon scale, spacing, colors, borders, and hover/focus states; use a different treatment only when its role calls for it. Follow existing app patterns before raw library defaults, and keep visual scope to what was asked. For an absolutely positioned tooltip, put the positioning on an out-of-flow wrapper around a normally positioned `Tooltip.Trigger`; the trigger is `inline-block` and otherwise anchors to the wrong box.
 - **Providers:** normalize provider-native payloads at the provider boundary, and look for an existing extension point before editing a shared module. When changing a provider's behavior, check its current payloads or protocol, and cross-provider parity where it applies.
 - **Debugging:** for runtime and chat bugs (timers, notifications, resume, launch), trace thread runtime state before changing the display layer. For performance complaints, look for render invalidation, measurement loops, and sync I/O before cosmetic fixes.
 - **File size:** split a file into focused modules once it grows past one responsibility rather than extending it; large mixed files are where regressions hide.
 - **TypeScript:** with `exactOptionalPropertyTypes`, use a conditional spread instead of passing `undefined` to an optional prop.
 - **Scratch output:** investigation dumps, screenshots, and temporary files go in `tmp/` or `.tmp/` (gitignored), never the repo root or tracked folders.
+- **Test cleanup:** when a run finishes, fails, or you abandon it, delete the disposable trees it created. A managed smoke session under `~/.poracode-smoke` is a frozen app of about 2.6 GB: stop it, copy any report or screenshot you will cite into `tmp/`, then delete that session directory. Do the same for other large generated trees this run no longer needs (native-e2e run directories, derived data). Honor `PORACODE_NATIVE_E2E_KEEP=1`. Leave small evidence the open task still cites, including `tmp/pr-shots/`. Never delete another live session, the real Poracode profile, or the smoke parent itself. Procedure: [interactive-testing](.agents/skills/interactive-testing/SKILL.md#safety-and-teardown).
 
 ## Done means
 
@@ -41,6 +43,7 @@ These protect process ownership, the provider plugin model, and users' persisted
 - Checks ran for real: for a focused change, nearby tests plus touched-file lint and format plus `bun run typecheck`; when asked to make everything green or before a PR is marked ready, the full gate. The `verify` skill owns the exact list.
 - For shared behavior, check desktop and standalone composition paths and the affected client contracts. Verify relevant no-client, multi-client, and reconnect behavior; a renderer test alone does not prove host behavior or native-client parity. Platform-only work needs only its affected surfaces.
 - The report names what was verified and what was not.
+- Disposable test output this run created is gone, unless the user asked to keep that session. Cited smoke reports and screenshots live in `tmp/`; the session directory under `~/.poracode-smoke` does not.
 
 ## Commits and pull requests
 

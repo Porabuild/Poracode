@@ -3,6 +3,8 @@ import { dirname, join } from "node:path";
 import { homedir } from "node:os";
 import { saveUploadedAttachmentFile } from "@/host/attachments/attachmentStorage";
 import { dbGetProject, dbGetProjects, dbGetThread, dbGetThreads, dbUpdateProject } from "@/host/db";
+import { callDatabaseRpc } from "@/host/db/databaseRpc";
+import { persistedThreadPageSchema } from "@/shared/ipc/schemas";
 import {
   BackendHostCore,
   RevertCheckpointRefusedError,
@@ -55,6 +57,7 @@ import type { HeadlessRemoteHostOptions } from "./createHeadlessRemoteHost";
 import { resolveLocalProxyBase } from "./headlessProxyBase";
 import { readOwnedHeadlessRelaySecret } from "./headlessRelaySecret";
 import { HostControlServer } from "@/backend/ownership/HostControlServer";
+import { createHostAdministration } from "./hostAdministration";
 import { resolveRunningBuildIdentity } from "./serverUpgradeIdentity";
 import {
   composeHeadlessSettingsAuthority,
@@ -88,11 +91,14 @@ export async function composeHeadlessRemoteHost(
 ): Promise<HeadlessRemoteComposition> {
   options.signal?.throwIfAborted();
   const isDev = options.isDev ?? false;
-  const host = options.host ?? remoteAccessHost();
-  const port = await resolveRemoteAccessPort({
-    host,
-    ...(options.port !== undefined ? { port: options.port } : {}),
-  });
+  const localOnly = options.localAdministrationOnly === true;
+  const host = localOnly ? "127.0.0.1" : (options.host ?? remoteAccessHost());
+  const port = localOnly
+    ? 0
+    : await resolveRemoteAccessPort({
+        host,
+        ...(options.port !== undefined ? { port: options.port } : {}),
+      });
   const paths = runtime.paths;
   options.signal?.throwIfAborted();
   runtime.lease.assertActive();
@@ -120,6 +126,7 @@ export async function composeHeadlessRemoteHost(
   let retainedStartupCustody: RetainedStartupCustody | null = null;
   let settingsAuthority: HeadlessSettingsComposition | null = null;
   let control: HostControlServer | null = null;
+  let administration: ReturnType<typeof createHostAdministration> | null = null;
   // D4 staging admission: a candidate opens its database (running any pending
   // migrations) but holds the remote listener until the upgrader proves and
   // admits this exact build, so a failed qualification cannot have accepted
@@ -171,6 +178,8 @@ export async function composeHeadlessRemoteHost(
   let stopping = false;
   let disposed = false;
   let starting: Promise<RemoteAccessServerInfo> | null = null;
+  let localStarting: Promise<void> | null = null;
+  let localReady = false;
   let disposal: Promise<void> | null = null;
   const assertRunning = () => {
     options.signal?.throwIfAborted();
@@ -194,7 +203,6 @@ export async function composeHeadlessRemoteHost(
       () => serverRef?.dispose(),
       // The advertisement names this server's endpoint, so it stops with it.
       () => stopMdnsAdvertiser(),
-      () => control?.dispose(),
       () => pushCoordinator?.dispose(),
       async () => {
         const services = hostServicesRef;
@@ -242,7 +250,26 @@ export async function composeHeadlessRemoteHost(
       () => durableServices?.dispose(),
       // Drains queued authority commits before the lease is released.
       () => settingsAuthority?.dispose(),
-      () => backendHostRef?.disposeSupervisor(),
+      async () => {
+        const failures: unknown[] = [];
+        // Login terminals must retire while their supervisor is still callable.
+        for (const close of [
+          () => control?.dispose(),
+          () => administration?.dispose(),
+          () => backendHostRef?.disposeSupervisor(),
+        ]) {
+          try {
+            await close();
+          } catch (error) {
+            failures.push(error);
+          }
+        }
+        if (failures.length)
+          throw new AggregateError(
+            failures,
+            "Administration and supervisor shutdown did not complete.",
+          );
+      },
       // Starting admission was closed above. A failed/cancelled start still has
       // to finish before its resources or the owning controller can be released.
       () =>
@@ -250,6 +277,7 @@ export async function composeHeadlessRemoteHost(
           () => undefined,
           () => undefined,
         ),
+      () => localStarting?.catch(() => undefined),
     ])
       .then(() => {
         portForwardingRef?.dispose();
@@ -318,6 +346,15 @@ export async function composeHeadlessRemoteHost(
         ...(options.reportError ? { reportError: (error) => options.reportError?.(error) } : {}),
       },
       onEvent: (event) => {
+        if (
+          event.type === "thread-exited" ||
+          (event.type === "thread-state" &&
+            event.status !== "working" &&
+            event.status !== "launching")
+        ) {
+          hostServicesRef?.agentVision.stop(event.threadId);
+        }
+        administration?.observe(event);
         if (durableServices?.observeSupervisorEvent(event)) return;
         options.onSupervisorEvent?.(event);
         serverRef?.publishSupervisorEvent(event);
@@ -339,6 +376,8 @@ export async function composeHeadlessRemoteHost(
       },
       onRuntimeGapAcknowledged: createRuntimeGapAcknowledgedHook(() => serverRef),
       onReset: () => {
+        hostServicesRef?.agentVision.stopAll();
+        administration?.reset();
         durableServices?.handleSupervisorReset();
         // Match the desktop backend: a supervisor crash leaves durable rows
         // `working`, and without a renderer launch sweep those statuses stay
@@ -514,12 +553,15 @@ export async function composeHeadlessRemoteHost(
     // In dev, advertise loopback by default so the iOS simulator's WebView can
     // reach the server (iOS ATS `NSAllowsLocalNetworking` permits loopback but not
     // a plain-http LAN IP). An explicit env/option override still wins.
-    const advertisedHost =
-      options.advertisedHost ??
-      (isDev
-        ? process.env.PORACODE_REMOTE_ACCESS_ADVERTISED_HOST?.trim() || "127.0.0.1"
-        : remoteAccessAdvertisedHost({ bindHost: host }));
-    const pairingAppUrl = options.pairingAppUrl ?? remoteAccessPairingAppUrl();
+    const advertisedHost = localOnly
+      ? "127.0.0.1"
+      : (options.advertisedHost ??
+        (isDev
+          ? process.env.PORACODE_REMOTE_ACCESS_ADVERTISED_HOST?.trim() || "127.0.0.1"
+          : remoteAccessAdvertisedHost({ bindHost: host })));
+    const pairingAppUrl = localOnly
+      ? undefined
+      : (options.pairingAppUrl ?? remoteAccessPairingAppUrl());
 
     // Dedicated persistent origin secret + configured HTTPS base → the
     // browser-forward child-origin identity. Created always (the relay v2
@@ -531,7 +573,7 @@ export async function composeHeadlessRemoteHost(
     let relayForwardOrigin: ForwardOriginIdentity | null = null;
     let relayPublicOrigin: string | null = null;
     const forwardOrigin = createForwardOriginIdentity({
-      baseUrl: remoteForwardBaseUrl(),
+      baseUrl: localOnly ? undefined : remoteForwardBaseUrl(),
       originSecret: forwardOriginSecret,
       serverId: identity.desktopId,
     });
@@ -546,6 +588,8 @@ export async function composeHeadlessRemoteHost(
 
     const server: RemoteAccessServer = new RemoteAccessServer({
       deviceWorkspace: durableServices.deviceWorkspace,
+      readAgentVision: (threadId, preview, streaming) =>
+        hostServices.agentVision.read(threadId, preview, streaming),
       appVersion: options.appVersion,
       hostMode: "helper",
       hostCapabilities: hostServices.capabilities,
@@ -572,8 +616,14 @@ export async function composeHeadlessRemoteHost(
       host,
       port,
       advertisedHost,
+      ...(localOnly ? { tls: null } : {}),
       ...(pairingAppUrl ? { pairingAppUrl } : {}),
-      callSupervisor: (name, payload) => supervisorClient.call(name, payload),
+      callSupervisor: (name, payload) => {
+        // Listener attachment seeds existing runtimes; a cold host has none.
+        if (name === "getThreadSnapshots" && supervisorClient.isSupervisorProvenAbsent())
+          return Promise.resolve([] as never);
+        return supervisorClient.call(name, payload);
+      },
       peekResourceAdmissionStatus: () => supervisorClient.peekResourceAdmissionStatus(),
       // B1: the durable gap/notice store is this composition's own backend
       // host, so the capability is advertised and the routes serve real state.
@@ -591,8 +641,12 @@ export async function composeHeadlessRemoteHost(
           throw error;
         }
       },
-      resolveMcpLaunchSnapshot: (projectId) =>
-        resolveMcpLaunchSnapshot(getSharedSettings(), dbGetProject(projectId)?.mcpServers ?? []),
+      resolveMcpLaunchSnapshot: (projectId, overrides) =>
+        resolveMcpLaunchSnapshot(
+          getSharedSettings(),
+          dbGetProject(projectId)?.mcpServers ?? [],
+          overrides,
+        ),
       settings: settings.remoteSettingsGateway(settings.mcpSettings),
       attachments: {
         save: (input) => saveUploadedAttachmentFile(paths, input),
@@ -616,11 +670,35 @@ export async function composeHeadlessRemoteHost(
       getRelayPublicOrigin: () => relayPublicOrigin,
     });
     serverRef = server;
+    administration = createHostAdministration({
+      attachments: { save: (input) => saveUploadedAttachmentFile(paths, input) },
+      statusCachePath: paths.statusCachePath,
+      call: (name, payload, callOptions) =>
+        callOptions
+          ? supervisorClient.call(name, payload, callOptions)
+          : supervisorClient.call(name, payload),
+      resolveMcpLaunchSnapshot: (projectId) =>
+        resolveMcpLaunchSnapshot(getSharedSettings(), dbGetProject(projectId)?.mcpServers ?? []),
+      ...(options.sessionExportWorkerPath
+        ? { sessionExportWorker: { path: options.sessionExportWorkerPath, dbPath: paths.dbPath } }
+        : {}),
+      sessions: {
+        readThread: dbGetThread,
+        readPage: async (payload) =>
+          persistedThreadPageSchema.parse(
+            await callDatabaseRpc({ name: "dbGetThreadsPage", payload }),
+          ),
+      },
+      server,
+      settings,
+      readSettings: getSharedSettings,
+      assertCanPersistSecrets: () => runtime.credentialCapabilities.assertCanPersistSecrets(),
+    });
     control = new HostControlServer({
       lease: runtime.lease,
       ...(options.reportError ? { reportError: options.reportError } : {}),
       describe: () => ({
-        state: stopping ? "stopping" : server.getInfo() ? "ready" : "starting",
+        state: stopping ? "stopping" : localReady || server.getInfo() ? "ready" : "starting",
         remoteProtocolVersion: PORACODE_REMOTE_PROTOCOL_VERSION,
         endpoint: server.getInfo()?.httpBaseUrl ?? null,
         capabilities: hostServicesRef?.capabilities ?? UNCOMPOSED_HOST_CAPABILITIES,
@@ -628,7 +706,7 @@ export async function composeHeadlessRemoteHost(
       // D4 authenticated identity: the exact immutable build this process is
       // running, published only on the mutually authenticated control surface.
       status: () => ({
-        state: stopping ? "stopping" : server.getInfo() ? "ready" : "starting",
+        state: stopping ? "stopping" : localReady || server.getInfo() ? "ready" : "starting",
         admission: admissionOpen ? "open" : "held",
         endpoint: server.getInfo()?.httpBaseUrl ?? null,
         build: buildIdentity,
@@ -645,6 +723,7 @@ export async function composeHeadlessRemoteHost(
           context.pairingPreset ? { preset: context.pairingPreset } : undefined,
         );
       },
+      administer: (input, context) => administration!.administer(input, context),
     });
 
     return {
@@ -652,6 +731,8 @@ export async function composeHeadlessRemoteHost(
       forwardOriginSecret,
       hostServices,
       start() {
+        if (localOnly)
+          return Promise.reject(new Error("A local task owner cannot start paired access."));
         try {
           assertRunning();
         } catch (error) {
@@ -665,6 +746,27 @@ export async function composeHeadlessRemoteHost(
           barrier.reject(error);
         });
         return starting;
+      },
+      startLocalAdministration() {
+        if (!localOnly)
+          return Promise.reject(new Error("This host was composed for server access."));
+        try {
+          assertRunning();
+        } catch (error) {
+          return Promise.reject(error);
+        }
+        if (localStarting) return localStarting;
+        const barrier = Promise.withResolvers<void>();
+        localStarting = barrier.promise;
+        void (async () => {
+          await hostServicesRef?.start();
+          await durableServices?.startIngress();
+          assertRunning();
+          await control?.start();
+          assertRunning();
+          localReady = true;
+        })().then(barrier.resolve, barrier.reject);
+        return localStarting;
       },
       dispose,
     };

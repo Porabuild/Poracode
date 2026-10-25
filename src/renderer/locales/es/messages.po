@@ -34,6 +34,10 @@ msgstr "(Borrador)"
 msgid "(no branch)"
 msgstr "(sin rama)"
 
+#: src/renderer/views/PrReviewOverlay/parts/PrCommitsTab.tsx
+#~ msgid "(no message)"
+#~ msgstr "(sin mensaje)"
+
 #. placeholder {0}: candidates.length
 #. placeholder {0}: props.candidates.length
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
@@ -281,10 +285,8 @@ msgstr "{0} está comparando los diffs anonimizados…"
 msgid "{0} is offline. Showing last known status."
 msgstr "{0} está sin conexión. Se muestra el último estado conocido."
 
-#. placeholder {0}: formatTokens(context.maxTokens)
 #. placeholder {0}: summary.maxLabel
 #: src/renderer/components/thread/ThreadContextDock.tsx
-#: src/renderer/components/thread/ThreadDetailsDocks.tsx
 msgid "{0} limit"
 msgstr "Límite de {0}"
 
@@ -303,10 +305,12 @@ msgstr "{0} modelos"
 msgid "{0} needs authentication."
 msgstr "{0} necesita autenticación."
 
+#. placeholder {0}: params.sourceText
 #. placeholder {0}: structuredElicitation.sourceText
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
-msgid "{0} needs input."
-msgstr "{0} necesita una entrada."
+#~ msgid "{0} needs input."
+#~ msgstr "{0} necesita una entrada."
 
 #. placeholder {0}: index + 1
 #. placeholder {1}: guide!.stops.length
@@ -411,8 +415,8 @@ msgstr "{0} actualizado a v{newVersion}."
 
 #. placeholder {0}: agentStatus.label
 #: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
-msgid "{0} updated to v{resolvedLatest}."
-msgstr "{0} actualizado a v{resolvedLatest}."
+#~ msgid "{0} updated to v{resolvedLatest}."
+#~ msgstr "{0} actualizado a v{resolvedLatest}."
 
 #. placeholder {0}: agent.label
 #. placeholder {0}: status.label
@@ -592,8 +596,8 @@ msgstr "{imported, plural, one {Se importó # sesión.} other {Se importaron # s
 #~ msgstr "{label} · Sesiones anteriores; vuelve a iniciar sesión para los nuevos hilos."
 
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
-msgid "{label} account usage"
-msgstr "Uso de la cuenta de {label}"
+#~ msgid "{label} account usage"
+#~ msgstr "Uso de la cuenta de {label}"
 
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
@@ -742,6 +746,14 @@ msgstr "{serverName} de {providerLabel}: {disabledLabel}"
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentMessageList.tsx
 msgid "{stepCount, plural, one {# step} other {# steps}}"
 msgstr "{stepCount, plural, one {# paso} other {# pasos}}"
+
+#: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
+#~ msgid "{totalAdditions} additions and {totalDeletions} deletions"
+#~ msgstr "{totalAdditions} adiciones y {totalDeletions} eliminaciones"
+
+#: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
+msgid "{updateLabel} updated to v{resolvedLatest}."
+msgstr "{updateLabel} actualizado a v{resolvedLatest}."
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "{used} tokens"
@@ -904,6 +916,11 @@ msgstr "<0/> inició un hilo de revisión"
 #: src/renderer/components/thread/ThreadContextDock.tsx
 msgid "<0/>% Full"
 msgstr "<0/>% lleno"
+
+#. placeholder {0}: checks.length
+#: src/renderer/views/PrReviewOverlay/parts/PrChecksTab.tsx
+#~ msgid "<0>{passed}</0> of {0} checks passed"
+#~ msgstr "<0>{passed}</0> de {0} comprobaciones superadas"
 
 #. placeholder {0}: snapshot.cost.period
 #: src/renderer/components/providers/UsageCostLine.tsx
@@ -1437,6 +1454,10 @@ msgstr "Añadir este comentario al chat del agente"
 msgid "Add to agent"
 msgstr "Añadir al agente"
 
+#: src/renderer/components/common/EditContextMenuHost.tsx
+msgid "Add to chat"
+msgstr "Añadir al chat"
+
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 msgid "Add to composer"
 msgstr "Agregar al composer"
@@ -1453,6 +1474,10 @@ msgstr "Agregar a la pantalla de inicio"
 #: src/renderer/views/PullRequestsOverlay/changes/inlineComments.tsx
 msgid "Add to review"
 msgstr "Añadir a la revisión"
+
+#: src/renderer/components/common/EditContextMenuHost.tsx
+msgid "Add to side chat"
+msgstr "Añadir al chat aparte"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoList.tsx
 msgid "Add to-do"
@@ -1532,6 +1557,7 @@ msgid "Agent is active and ready"
 msgstr "El agente está activo y listo"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentHeader.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Agent is currently disabled"
 msgstr "El agente está deshabilitado actualmente"
 
@@ -1579,6 +1605,11 @@ msgstr "Actualización de agente disponible"
 msgid "Agent usage"
 msgstr "Uso de agentes"
 
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
+msgid "Agent vision"
+msgstr "Visión del agente"
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Agent: {description}"
 msgstr "Agente: {description}"
@@ -1586,6 +1617,10 @@ msgstr "Agente: {description}"
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Agent: {subagent}"
 msgstr "Agente: {subagent}"
+
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Agent's view"
+msgstr "Vista del agente"
 
 #: src/renderer/components/thread/ThreadDockBubbles.tsx
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
@@ -1859,6 +1894,10 @@ msgstr "Otra automatización ya está usando esta conversación."
 msgid "Another chat uses this same tree. File restore could overwrite that chat's changes."
 msgstr "Otro chat usa este mismo árbol. Restaurar archivos podría sobrescribir los cambios de ese chat."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Another client is running this thread. Stop that run before replacing the thread or sending more input."
+msgstr "Otro cliente está ejecutando este hilo. Detén esa ejecución antes de reemplazar el hilo o enviar más entradas."
+
 #: src/renderer/actions/experimentOperationState.ts
 msgid "Another operation for this experiment is still running."
 msgstr "Otra operación de este experimento todavía está en curso."
@@ -1875,11 +1914,11 @@ msgstr "Otro propietario de Poracode ya ocupa la raíz de datos de esta conexió
 msgid "Another Poracode process is updating these credentials. Wait and try again."
 msgstr "Otro proceso de Poracode está actualizando estas credenciales. Espera e inténtalo de nuevo."
 
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/QuestionFormActions.tsx
 msgid "Answer every question to submit"
 msgstr "Responde todas las preguntas para enviar"
 
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/QuestionFormActions.tsx
 msgid "Answer this question to continue"
 msgstr "Responde esta pregunta para continuar"
 
@@ -2164,7 +2203,6 @@ msgid "At least two worktrees must be created. Any partial experiment was cleane
 msgstr "Se deben crear al menos dos worktrees. Se limpió cualquier experimento creado parcialmente."
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
-#: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Attach"
 msgstr "Adjuntar"
 
@@ -2239,6 +2277,10 @@ msgstr "Autenticación no disponible"
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Author"
 msgstr "Autor"
+
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+#~ msgid "Authored"
+#~ msgstr "Creadas"
 
 #: src/renderer/views/PullRequestsOverlay/list/PrListPanel.tsx
 msgid "Authored by me"
@@ -2713,6 +2755,7 @@ msgstr "Navega, inspecciona y prueba sitios web en el navegador aislado integrad
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/plugins/pluginCopy.ts
 #: src/renderer/components/providers/settings/ProviderMcpServersSection.tsx
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
@@ -2823,6 +2866,10 @@ msgstr "Negocios y finanzas"
 msgid "Business and operations"
 msgstr "Negocio y operaciones"
 
+#: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
+#~ msgid "by <0>{author}</0>"
+#~ msgstr "por <0>{author}</0>"
+
 #: src/renderer/views/ProfileOverlay/parts/ModelUsage.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "by prompts"
@@ -2903,8 +2950,6 @@ msgstr "No se puede usar esta selección de modelo en esta interfaz"
 #: src/renderer/components/thread/ThreadFollowUpEditor.tsx
 #: src/renderer/components/thread/ThreadForkDialog.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
 #: src/renderer/pwa/push/WebPushPermissionPrompt.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeDialog.tsx
@@ -3121,6 +3166,10 @@ msgstr "Los cambios se aplican a los chats nuevos. Los proveedores que admiten r
 #: src/renderer/components/providers/devin/sessionSettingsPanel.tsx
 #~ msgid "Changes apply to this running Devin session."
 #~ msgstr "Los cambios se aplican a esta sesión de Devin en curso."
+
+#: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
+#~ msgid "Changes in PR"
+#~ msgstr "Cambios en el PR"
 
 #: src/renderer/views/PullRequestsOverlay/list/PrListMenuSections.tsx
 #: src/renderer/views/PullRequestsOverlay/list/PrListRow.tsx
@@ -3595,6 +3644,10 @@ msgstr "CLI"
 msgid "CLI hooks"
 msgstr "Hooks de CLI"
 
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Click"
+msgstr "Hacer clic"
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Click a shortcut to record a new key, or ＋ to add another."
 msgstr "Haz clic en un atajo para registrar una nueva tecla, o en ＋ para añadir otro."
@@ -3781,6 +3834,10 @@ msgstr "Cerrar panel"
 msgid "Close Pane"
 msgstr "Cerrar panel"
 
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Close picture-in-picture"
+msgstr "Cerrar imagen en imagen"
+
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Close plan"
 msgstr "Cerrar plan"
@@ -3794,6 +3851,7 @@ msgstr "Cerrar PR"
 #~ msgstr "Cerrar revisión del PR"
 
 #: src/renderer/components/composer/ImageLightbox.tsx
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 msgid "Close preview"
 msgstr "Cerrar vista previa"
 
@@ -3971,6 +4029,10 @@ msgstr "Contraer {path}"
 msgid "Collapse agent usage"
 msgstr "Contraer uso del agente"
 
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Collapse agent vision"
+msgstr "Contraer visión del agente"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions.tsx
 #: src/renderer/views/PullRequestsOverlay/changes/ChangesToolbar.tsx
 #: src/renderer/views/PullRequestsOverlay/changes/ChangesToolbarCompact.tsx
@@ -4033,6 +4095,7 @@ msgid "Collapse todo dock"
 msgstr "Contraer panel de tareas"
 
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 #: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 msgid "Collapse warning"
 msgstr "Contraer advertencia"
@@ -4283,6 +4346,10 @@ msgstr "Fondo del cuadro de entrada"
 #: src/renderer/components/thread/ThreadComposer.tsx
 msgid "Composer controls"
 msgstr "Controles del Redactor"
+
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Computer use"
+msgstr "Uso del ordenador"
 
 #: src/renderer/components/composer/AttachmentBar.tsx
 #: src/renderer/components/composer/ComposerAddMenu.tsx
@@ -4617,9 +4684,7 @@ msgstr "Uso del contexto"
 msgid "Context windows"
 msgstr "Ventanas de contexto"
 
-#: src/renderer/components/thread/ThreadMessageReplyPanel.tsx
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/QuestionFormActions.tsx
 msgid "Continue"
 msgstr "Continuar"
 
@@ -4640,11 +4705,11 @@ msgstr "Continuar en..."
 msgid "Continue one conversation until a stop condition or limit is reached."
 msgstr "Continúa una conversación hasta que se alcance una condición de detención o un límite."
 
-#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 msgid "Continue with incomplete history"
 msgstr "Continuar con el historial incompleto"
 
-#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 msgid "Continuing will keep the remaining history and mark this episode acknowledged; it does not restore the missing content."
 msgstr "Continuar conservará el historial restante y marcará este episodio como reconocido; no restaura el contenido que falta."
 
@@ -4716,6 +4781,7 @@ msgstr "Se copió la dirección TCP directa + el ticket de conexión (solo LAN) 
 msgid "Copied to clipboard"
 msgstr "Copiado al portapapeles"
 
+#: src/renderer/components/common/EditContextMenuHost.tsx
 #: src/renderer/components/terminal/XTermSurface.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Copy"
@@ -4773,6 +4839,7 @@ msgstr "Copiar archivos ignorados"
 msgid "Copy image"
 msgstr "Copiar imagen"
 
+#: src/renderer/components/common/EditContextMenuHost.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 #: src/renderer/views/PullRequestsOverlay/compact/PrCompactMenu.tsx
 #: src/renderer/views/PullRequestsOverlay/detail/PrDetailHeader.tsx
@@ -5436,6 +5503,7 @@ msgid "Cursor SDK update targets"
 msgstr "Destinos de actualización del SDK de Cursor"
 
 #: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
+#: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 msgid "Cursor SDK updated to v{nextVersion}."
 msgstr "El SDK de Cursor se actualizó a v{nextVersion}."
 
@@ -5470,6 +5538,10 @@ msgstr "ruta personalizada"
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 msgid "Custom theme"
 msgstr "Tema personalizado"
+
+#: src/renderer/components/common/EditContextMenuHost.tsx
+msgid "Cut"
+msgstr "Cortar"
 
 #: src/renderer/commands/composerCommands.ts
 msgid "Cycle permission mode"
@@ -5532,7 +5604,7 @@ msgstr "Fecha y hora"
 msgid "Days"
 msgstr "Días"
 
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/QuestionFormActions.tsx
 msgid "Decline"
 msgstr "Rechazar"
 
@@ -5946,6 +6018,10 @@ msgstr "El acceso al dispositivo ha caducado. Vuelve a adjuntarlo."
 msgid "Device accessibility"
 msgstr "Accesibilidad del dispositivo"
 
+#: src/renderer/components/devices/DeviceListItem.tsx
+msgid "Device actions"
+msgstr "Acciones del dispositivo"
+
 #: src/renderer/components/devices/DeviceTools.tsx
 msgid "Device appearance"
 msgstr "Apariencia del dispositivo"
@@ -6262,6 +6338,7 @@ msgstr "Descubrimiento completado"
 
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 msgid "Dismiss"
 msgstr "Descartar"
 
@@ -6270,6 +6347,7 @@ msgid "Dismiss error"
 msgstr "Descartar error"
 
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 msgid "Dismiss warning"
 msgstr "Descartar advertencia"
 
@@ -6422,6 +6500,10 @@ msgstr "Borradores"
 #: src/renderer/views/PullRequestsOverlay/list/PrListMenuSections.tsx
 msgid "Drafts only"
 msgstr "Solo borradores"
+
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Drag"
+msgstr "Arrastrar"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -7035,6 +7117,10 @@ msgstr "Expandir {path}"
 msgid "Expand agent usage"
 msgstr "Expandir uso del agente"
 
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Expand agent vision"
+msgstr "Expandir visión del agente"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions.tsx
 #: src/renderer/views/PullRequestsOverlay/changes/ChangesToolbar.tsx
 #: src/renderer/views/PullRequestsOverlay/changes/ChangesToolbarCompact.tsx
@@ -7087,6 +7173,7 @@ msgid "Expand visual"
 msgstr "Ampliar visualización"
 
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 #: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 msgid "Expand warning"
 msgstr "Expandir advertencia"
@@ -7243,6 +7330,7 @@ msgstr "fallido"
 
 #: src/renderer/components/providers/antigravity/taskNotificationMarkdown.ts
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentMessageList.tsx
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
@@ -7280,6 +7368,7 @@ msgstr "Error al crear el pull request: {detail}"
 #~ msgstr "No se pudo interrumpir el hilo remoto."
 
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 msgid "Failed to load"
 msgstr "Error al cargar"
 
@@ -7509,6 +7598,10 @@ msgstr "Filtrar tabla"
 #: src/renderer/views/PullRequestsOverlay/timeline/TimelineTab.tsx
 msgid "Filter timeline"
 msgstr "Filtrar línea de tiempo"
+
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+#~ msgid "Filters"
+#~ msgstr "Filtros"
 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Finalize"
@@ -9194,8 +9287,8 @@ msgid "Invalid visual specification. Showing source only."
 msgstr "Especificación de visualización no válida. Solo se muestra el código fuente."
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
-msgid "iOS Simulator requires a macOS host with Xcode."
-msgstr "El simulador de iOS requiere un host macOS con Xcode."
+#~ msgid "iOS Simulator requires a macOS host with Xcode."
+#~ msgstr "El simulador de iOS requiere un host macOS con Xcode."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "iPad Air"
@@ -9676,6 +9769,7 @@ msgstr "Cargando marketplace…"
 msgid "Loading matched message…"
 msgstr "Cargando el mensaje encontrado…"
 
+#: src/renderer/components/thread/ChatPane/parts/items/MarkdownVideo.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorMediaViews.tsx
 msgid "Loading media preview…"
@@ -9766,6 +9860,7 @@ msgid "Loading:"
 msgstr "Cargando:"
 
 #: src/renderer/app.tsx
+#: src/renderer/components/composer/ImageLightbox.tsx
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/components/providers/settings/ModelProviderManager.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/useHistoryItemDetails.tsx
@@ -10951,6 +11046,7 @@ msgid "Nature & weather"
 msgstr "Naturaleza y clima"
 
 #: src/renderer/commands/CommandPalette.tsx
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 msgid "Navigate"
 msgstr "Navegar"
 
@@ -11365,6 +11461,10 @@ msgstr "No se reportaron comprobaciones para este PR."
 #~ msgid "No commands found"
 #~ msgstr "No se encontraron comandos"
 
+#: src/renderer/views/PrReviewOverlay/parts/PrCommitsTab.tsx
+#~ msgid "No commits found."
+#~ msgstr "No se encontraron commits."
+
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/providers/settings/ProviderMcpServersSection.tsx
 msgid "No configured MCP servers yet"
@@ -11425,6 +11525,10 @@ msgstr "No se detectaron servidores de desarrollo"
 #: src/renderer/views/GitReviewOverlay/parts/GitDiffContent/parts/DiffSection.tsx
 msgid "No diff available for {0}"
 msgstr "No hay diff disponible para {0}"
+
+#: src/renderer/components/diff/DiffCardList.tsx
+#~ msgid "No diff for {visiblePath}"
+#~ msgstr "No hay diff para {visiblePath}"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
 msgid "No downloads match your search"
@@ -12009,6 +12113,10 @@ msgstr "npx"
 msgid "Number copied"
 msgstr "Número copiado"
 
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Observe"
+msgstr "Observar"
+
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Observed"
 msgstr "Observado"
@@ -12170,6 +12278,10 @@ msgstr "Abrir todo"
 msgid "Open all in group"
 msgstr "Abrir todo en el grupo"
 
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Open app"
+msgstr "Abrir aplicación"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
 msgid "Open as page"
 msgstr "Abrir como página"
@@ -12197,6 +12309,10 @@ msgstr "Abrir pestaña del navegador"
 msgid "Open candidate {0}: {label}"
 msgstr "Abrir candidato {0}: {label}"
 
+#: src/renderer/views/PrReviewOverlay/parts/PrChecksTab.tsx
+#~ msgid "Open check"
+#~ msgstr "Abrir comprobación"
+
 #. placeholder {0}: check.name
 #: src/renderer/views/PullRequestsOverlay/summary/RailChecks.tsx
 msgid "Open check {0}"
@@ -12214,6 +12330,10 @@ msgstr "Abrir el comentario de {0}"
 #: src/renderer/views/PrReviewOverlay/parts/PrCommitsTab.tsx
 #~ msgid "Open commit on GitHub"
 #~ msgstr "Abrir commit en GitHub"
+
+#: src/renderer/views/PrReviewOverlay/parts/PrCommitsTab.tsx
+#~ msgid "Open commit on source host"
+#~ msgstr "Abrir commit en el servidor de origen"
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
@@ -12308,6 +12428,14 @@ msgstr "Abrir en el navegador"
 msgid "Open in editor"
 msgstr "Abrir en el editor"
 
+#: src/renderer/components/common/EditContextMenuHost.tsx
+msgid "Open in Poracode browser"
+msgstr "Abrir en el navegador de Poracode"
+
+#: src/renderer/components/common/EditContextMenuHost.tsx
+msgid "Open in system browser"
+msgstr "Abrir en el navegador del sistema"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 msgid "Open job on GitHub"
 msgstr "Abrir trabajo en GitHub"
@@ -12360,6 +12488,10 @@ msgstr "Abrir en el servidor de origen"
 msgid "Open over SSH"
 msgstr "Abrir por SSH"
 
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Open picture-in-picture"
+msgstr "Abrir imagen en imagen"
+
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
 msgid "Open plan"
 msgstr "Abrir plan"
@@ -12381,7 +12513,12 @@ msgstr "Abrir PR #{prNumber}: {prStatusLabel}"
 #~ msgid "Open PR on GitHub"
 #~ msgstr "Abrir PR en GitHub"
 
+#: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
+#~ msgid "Open PR on source host"
+#~ msgstr "Abrir PR en el servidor de origen"
+
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 msgid "Open preview"
 msgstr "Abrir vista previa"
 
@@ -12478,6 +12615,14 @@ msgstr "Abrir el selector de modelo"
 msgid "Open thread in summary"
 msgstr "Abrir hilo en el resumen"
 
+#: src/renderer/components/devices/DeviceListItem.tsx
+msgid "Open view only"
+msgstr "Abrir solo para visualizar"
+
+#: src/renderer/components/devices/DeviceListItem.tsx
+msgid "Open with control"
+msgstr "Abrir para controlar"
+
 #: src/renderer/components/providers/opencode/manifest.ts
 msgid "OpenCode"
 msgstr "OpenCode"
@@ -12565,9 +12710,9 @@ msgstr "Opciones"
 msgid "or"
 msgstr "o"
 
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/userInputForm.tsx
-msgid "Or write a custom answer"
-msgstr "O escribe una respuesta personalizada"
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/QuestionOptions.tsx
+#~ msgid "Or write a custom answer"
+#~ msgstr "O escribe una respuesta personalizada"
 
 #: src/renderer/utils/projectIconColors.ts
 msgid "Orange"
@@ -12797,11 +12942,11 @@ msgstr "Carpeta principal"
 #~ msgid "Parent folder, e.g. /home/me/projects"
 #~ msgstr "Carpeta principal, p. ej. /home/me/projects"
 
-#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 msgid "Part of this conversation's history may be missing on the server. Review the recovery options before continuing."
 msgstr "Parte del historial de esta conversación puede faltar en el servidor. Revisa las opciones de recuperación antes de continuar."
 
-#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 msgid "Part of this conversation's history was lost on the server and could not be shown. At least {refusedEvents} events / {refusedBytes} bytes are affected."
 msgstr "Parte del historial de esta conversación se perdió en el servidor y no se pudo mostrar. Se ven afectados al menos {refusedEvents} eventos / {refusedBytes} bytes."
 
@@ -12860,6 +13005,7 @@ msgid "Passwords are encrypted in Poracode's local credential store. Password va
 msgstr "Las contraseñas se cifran en el almacén local de credenciales de Poracode. Los valores de las contraseñas solo se solicitan cuando las muestras, copias o editas."
 
 #: src/renderer/commands/shortcutCatalog.ts
+#: src/renderer/components/common/EditContextMenuHost.tsx
 #: src/renderer/components/terminal/XTermSurface.tsx
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
@@ -12992,6 +13138,10 @@ msgstr "Revisión pendiente"
 #: src/renderer/components/thread/ThreadPendingSteerStrip.tsx
 msgid "Pending steer"
 msgstr "Dirección pendiente"
+
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Perform actions"
+msgstr "Realizar acciones"
 
 #. placeholder {0}: clearTarget.threads.length
 #. placeholder {1}: clearTarget.label
@@ -13418,6 +13568,14 @@ msgstr "Automatización de PR: Fusión automática"
 msgid "PR options"
 msgstr "Opciones de PR"
 
+#: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
+#~ msgid "PR Review"
+#~ msgstr "Revisión de PR"
+
+#: src/renderer/views/PrReviewOverlay/parts/PrTabsPill.tsx
+#~ msgid "PR sections"
+#~ msgstr "Secciones de PR"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 msgid "PR title (leave empty to auto-generate)"
 msgstr "Título del PR (dejar vacío para autogenerar)"
@@ -13445,6 +13603,10 @@ msgstr "Preajustes"
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
 msgid "Press Enter to apply."
 msgstr "Pulsa Intro para aplicar."
+
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Press key"
+msgstr "Pulsar tecla"
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Press shortcut…"
@@ -13729,6 +13891,10 @@ msgstr "Promoviendo este perfil al directorio de datos propio…"
 msgid "Prompt"
 msgstr "Prompt"
 
+#: src/renderer/components/thread/ChatPane/ChatPromptRail.tsx
+msgid "Prompt navigation"
+msgstr "Navegación de prompts"
+
 #: src/renderer/components/providers/codex/index.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Prompts"
@@ -13885,6 +14051,10 @@ msgstr "Pull request {0}"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Pull request #{number} was created, but marking it as draft failed. Refresh before changing its state."
 msgstr "Se creó la solicitud de incorporación #{number}, pero no se pudo marcar como borrador. Actualiza antes de cambiar su estado."
+
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+#~ msgid "Pull request category"
+#~ msgstr "Categoría de pull request"
 
 #. placeholder {0}: friendlyError(error)
 #: src/renderer/actions/prAutomationActions.ts
@@ -14438,7 +14608,6 @@ msgstr "URL del remoto"
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 #: src/renderer/components/providers/settings/ModelProviderManager.tsx
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredCustomValues.tsx
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Remove"
@@ -15036,6 +15205,7 @@ msgstr "Solo el uso conservado en este host."
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/components/thread/ChatPane/ChatPane.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/MarkdownVideo.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/useHistoryItemDetails.tsx
 #: src/renderer/components/thread/SideChat/SideChatBody.tsx
 #: src/renderer/components/thread/SideChat/SideChatThreadView.tsx
@@ -15211,6 +15381,10 @@ msgstr "Revisión y Resumidor son los únicos tipos de agente raíz que la CLI d
 #~ msgid "Review and track work across your GitHub accounts."
 #~ msgstr "Revisa y haz seguimiento del trabajo en tus cuentas de GitHub."
 
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+#~ msgid "Review and track work across your source hosts."
+#~ msgstr "Revisa y sigue el trabajo en tus servidores de origen."
+
 #. placeholder {0}: props.candidateNumber
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 msgid "Review candidate {0} ({label}) changes"
@@ -15277,7 +15451,7 @@ msgstr "Revisar PR #{prNumber} de {0}"
 msgid "Review presentation"
 msgstr "Presentación de revisión"
 
-#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 msgid "Review recovery"
 msgstr "Revisar recuperación"
 
@@ -15305,6 +15479,10 @@ msgstr "Candidatos a revisor"
 #: src/renderer/views/PullRequestsOverlay/summary/RailReviewers.tsx
 msgid "Reviewers"
 msgstr "Revisores"
+
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+#~ msgid "Reviewing"
+#~ msgstr "Para revisar"
 
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 #~ msgid "Reviewing each candidate's changes to recommend a winner."
@@ -15520,7 +15698,7 @@ msgstr "Ejecutar flujo de trabajo"
 msgid "running"
 msgstr "en ejecución"
 
-#: src/renderer/components/devices/DeviceWorkspace.tsx
+#: src/renderer/components/devices/DeviceListItem.tsx
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/PullRequestsOverlay/list/PrListMenuSections.tsx
 #: src/renderer/views/SchedulesView/parts/scheduleRunStatus.ts
@@ -15823,6 +16001,7 @@ msgid "Scoped review watches are unavailable on this host. Update the host befor
 msgstr "Las supervisiones con ámbito de origen no están disponibles en este servidor. Actualízalo antes de activar la automatización."
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 msgid "Screenshot"
 msgstr "Captura de pantalla"
 
@@ -15830,6 +16009,10 @@ msgstr "Captura de pantalla"
 #: src/renderer/commands/shortcutCatalog.ts
 msgid "Scripts"
 msgstr "Scripts"
+
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Scroll"
+msgstr "Desplazarse"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
@@ -15841,6 +16024,7 @@ msgstr "Multiplicador de la velocidad de desplazamiento del búfer de historial 
 msgid "Scroll to bottom"
 msgstr "Desplazar al final"
 
+#: src/renderer/components/thread/ChatPane/ChatPromptRail.tsx
 #: src/renderer/components/thread/ChatPane/StickyPrompt.tsx
 msgid "Scroll to prompt: {preview}"
 msgstr "Desplazar al prompt: {preview}"
@@ -15973,6 +16157,10 @@ msgstr "Buscar plugins"
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 msgid "Search plugins, skills, and servers..."
 msgstr "Buscar plugins, skills y servidores..."
+
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+#~ msgid "Search pull requests"
+#~ msgstr "Buscar pull requests"
 
 #: src/renderer/sidebar/ChatSidebarHeader.tsx
 msgid "Search recent chats"
@@ -16141,6 +16329,7 @@ msgstr "Selecciona un workflow para ver sus ejecuciones."
 msgid "Select account"
 msgstr "Seleccionar cuenta"
 
+#: src/renderer/components/common/EditContextMenuHost.tsx
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 #: src/renderer/components/skills/SkillImportModal.tsx
@@ -16162,6 +16351,11 @@ msgstr "Seleccionar todas las sesiones"
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "Select all skills"
 msgstr "Seleccionar todos los skills"
+
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/userInputForm.tsx
+msgid "Select all that apply"
+msgstr "Selecciona todas las que correspondan"
 
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "Select an agent to see its prompt and outcome."
@@ -16866,8 +17060,8 @@ msgid "Skill runs"
 msgstr "Ejecuciones de skills"
 
 #: src/renderer/components/composer/SlashCommandChip.ts
+#: src/renderer/components/promptChips/PromptChips.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
-#: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 #: src/renderer/components/thread/ThreadCommandPanel.tsx
 msgid "Skill: {skill}"
 msgstr "Habilidad: {skill}"
@@ -17017,6 +17211,10 @@ msgstr "Algunos valores no están disponibles. Revisa los valores de la calculad
 #: src/renderer/views/PullRequestsOverlay/timeline/TimelineEventPhrase.tsx
 msgid "Someone"
 msgstr "Alguien"
+
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/QuestionOptions.tsx
+msgid "Something else…"
+msgstr "Otra cosa…"
 
 #: src/mobile/QrScanner.tsx
 #~ msgid "Something went wrong starting the camera. Enter the endpoint and token below to pair instead."
@@ -17227,7 +17425,7 @@ msgstr "Iniciar un nuevo hilo a partir de esta tarea pendiente"
 msgid "Start a thread in this worktree"
 msgstr "Iniciar un hilo en este worktree"
 
-#: src/renderer/components/devices/DeviceWorkspace.tsx
+#: src/renderer/components/devices/DeviceListItem.tsx
 msgid "Start device"
 msgstr "Iniciar dispositivo"
 
@@ -17306,7 +17504,7 @@ msgid "Started {targetLabel} thread"
 msgstr "Hilo {targetLabel} iniciado"
 
 #. Button label while the microphone test is starting
-#: src/renderer/components/devices/DeviceWorkspace.tsx
+#: src/renderer/components/devices/DeviceListItem.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/RemoteAccessSidebarIcon.tsx
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
@@ -17458,7 +17656,7 @@ msgstr "Detener entrada de voz"
 msgid "Stop when"
 msgstr "Detener cuando"
 
-#: src/renderer/components/devices/DeviceWorkspace.tsx
+#: src/renderer/components/devices/DeviceListItem.tsx
 msgid "Stopped"
 msgstr "Detenido"
 
@@ -17538,10 +17736,7 @@ msgstr "Subagentes"
 #~ msgid "Subagents enabled for this thread"
 #~ msgstr "Subagentes habilitados para este hilo"
 
-#: src/renderer/components/thread/ThreadMessageReplyPanel.tsx
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/QuestionRows.tsx
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/QuestionFormActions.tsx
 msgid "Submit"
 msgstr "Enviar"
 
@@ -18002,6 +18197,10 @@ msgstr "Esa etiqueta no existe en este repositorio. Actualiza la lista de etique
 #~ msgid "That pairing code is no longer valid. Open Settings → Remote Access on the desktop, press New code, and pair again."
 #~ msgstr "Ese código de emparejamiento ya no es válido. Abre Ajustes → Acceso remoto en el escritorio, pulsa «Nuevo código» y vuelve a emparejar."
 
+#: src/renderer/components/thread/ChatPane/ChatPane.tsx
+msgid "That prompt is no longer available."
+msgstr "Ese prompt ya no está disponible."
+
 #: src/renderer/views/PullRequestsOverlay/list/PrListPanel.tsx
 msgid "That pull request is not in this list. Try another state filter."
 msgstr "Esa pull request no está en esta lista. Prueba con otro filtro de estado."
@@ -18023,7 +18222,7 @@ msgstr "Esa sesión remota ya no existía."
 msgid "The {branch} branch on {remote} is not this pull request's head (it may belong to a fork or have moved)."
 msgstr "La rama {branch} en {remote} no es la cabecera de este pull request (puede pertenecer a un fork o haberse movido)."
 
-#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 msgid "The acknowledgement failed."
 msgstr "No se pudo confirmar el reconocimiento."
 
@@ -18042,6 +18241,10 @@ msgstr "El agente sigue respondiendo. Vuelve a preguntar cuando termine."
 #: src/renderer/components/common/EffortContextMenu/ContextSizeReloadPopover.tsx
 msgid "The agent session reloads to apply the new context size; the conversation is kept."
 msgstr "La sesión del agente se reinicia para aplicar el nuevo tamaño de contexto; la conversación se conserva."
+
+#: src/renderer/components/thread/useThreadDockState.ts
+msgid "The agent stopped because of an error."
+msgstr "El agente se detuvo debido a un error."
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProfileIdentity.tsx
 #~ msgid "The API key below is used by Cursor CLI, ACP, and SDK for this profile."
@@ -18109,8 +18312,13 @@ msgstr "Se ha alcanzado el límite de temas personalizados. Elimina un tema ante
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
-msgid "The default background refresh cadence, used for any provider without its own interval set below. Set to 0 to turn off (manual only). The 2-minute floor respects provider rate limits."
-msgstr "La cadencia de actualización en segundo plano predeterminada, usada para cualquier proveedor sin un intervalo propio definido abajo. Ponlo en 0 para desactivar (solo manual). El mínimo de 2 minutos respeta los límites de frecuencia del proveedor."
+#~ msgid "The default background refresh cadence, used for any provider without its own interval set below. Set to 0 to turn off (manual only). The 2-minute floor respects provider rate limits."
+#~ msgstr "La cadencia de actualización en segundo plano predeterminada, usada para cualquier proveedor sin un intervalo propio definido abajo. Ponlo en 0 para desactivar (solo manual). El mínimo de 2 minutos respeta los límites de frecuencia del proveedor."
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "The default background refresh cadence. Providers may use a slower default unless an interval is set below. Set to 0 to turn off (manual only). The minimum interval is 2 minutes."
+msgstr "La frecuencia predeterminada de actualización en segundo plano. Los proveedores pueden usar una frecuencia más lenta si no se establece un intervalo abajo. Establece 0 para desactivarla (solo manual). El intervalo mínimo es de 2 minutos."
 
 #: src/renderer/hooks/usePrWriteActions.ts
 msgid "The description changed since you started editing. Reload and reapply your edit."
@@ -18237,7 +18445,7 @@ msgstr "La conversación de heartbeat ya no existe."
 msgid "The heartbeat conversation uses a different agent."
 msgstr "La conversación de heartbeat usa un agente diferente."
 
-#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 #: src/renderer/state/remote/historyNoticeActions.ts
 msgid "The history notice could not be read from the server."
 msgstr "No se pudo leer el aviso de historial del servidor."
@@ -18263,7 +18471,7 @@ msgstr "El host devolvió un endpoint de vinculación de entorno no válido."
 msgid "The host stops and restarts this environment's owner with the bundled runtime. The child's data directory is not touched."
 msgstr "El host detiene y reinicia el propietario de este entorno con el runtime incluido. No se toca el directorio de datos del hijo."
 
-#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 msgid "The incomplete-history notice changed on the server. Review the updated details before continuing."
 msgstr "El aviso de historial incompleto cambió en el servidor. Revisa los detalles actualizados antes de continuar."
 
@@ -18458,7 +18666,7 @@ msgstr "El turno seleccionado aún contiene trabajo activo."
 msgid "The server configuration is invalid."
 msgstr "La configuración del servidor no es válida."
 
-#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 msgid "The server could not confirm the acknowledgement. Retry to continue."
 msgstr "El servidor no pudo confirmar el reconocimiento. Reintenta para continuar."
 
@@ -18788,7 +18996,7 @@ msgstr "este entorno"
 msgid "This environment's host identity changed. Re-pair it explicitly from the host."
 msgstr "La identidad del host de este entorno cambió. Vuelve a vincularlo explícitamente desde el host."
 
-#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 msgid "This episode has been acknowledged; the missing content is not restored."
 msgstr "Este episodio ha sido reconocido; el contenido que falta no se restaura."
 
@@ -18861,6 +19069,7 @@ msgstr "Esta máquina"
 msgid "This machine (local)"
 msgstr "Esta máquina (local)"
 
+#: src/renderer/components/thread/ChatPane/parts/items/MarkdownVideo.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorMediaViews.tsx
 msgid "This media preview is unavailable."
 msgstr "Esta vista previa del archivo multimedia no está disponible."
@@ -18954,6 +19163,10 @@ msgstr "Este proyecto no tiene un remoto de origen compatible."
 msgid "This project's remote server is offline. Reconnect it to start a thread."
 msgstr "El servidor remoto de este proyecto está sin conexión. Vuelve a conectarlo para iniciar un hilo."
 
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
+msgid "This provider configuration has no detected runtime on the selected machine."
+msgstr "No se ha detectado ningún entorno de ejecución para esta configuración del proveedor en el equipo seleccionado."
+
 #: src/renderer/views/PullRequestsOverlay/summary/SummaryTab.tsx
 msgid "This pull request could not be loaded."
 msgstr "No se pudo cargar esta pull request."
@@ -19014,6 +19227,10 @@ msgstr "Esto elimina el worktree en \"{0}\" y cierra {1, plural, one {# hilo vin
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "This removes the worktree on \"{0}\", then deletes the branch."
 msgstr "Esto elimina el worktree en \"{0}\" y luego elimina la rama."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This request has no matching persistent approval. Choose Allow once."
+msgstr "Esta solicitud no tiene una autorización permanente correspondiente. Elige «Permitir una vez»."
 
 #: src/renderer/i18n/sharedMessages.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
@@ -19524,9 +19741,17 @@ msgstr "Escribe al menos dos caracteres para buscar mensajes"
 msgid "Type on device"
 msgstr "Escribir en el dispositivo"
 
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Type text"
+msgstr "Escribir texto"
+
 #: src/renderer/commands/CommandPalette.tsx
 msgid "Type to search files"
 msgstr "Escribe para buscar archivos"
+
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/userInputForm.tsx
+msgid "Type your answer…"
+msgstr "Escribe tu respuesta…"
 
 #. placeholder {0}: agent.label
 #. placeholder {0}: agentStatus.label
@@ -19671,6 +19896,10 @@ msgstr "No se pudo abrir la ventana del dispositivo."
 #: src/renderer/commands/registry.ts
 msgid "Unable to open file"
 msgstr "No se puede abrir el archivo"
+
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Unable to open picture-in-picture"
+msgstr "No se puede abrir imagen en imagen"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorModal.tsx
 msgid "Unable to open the file"
@@ -19870,6 +20099,18 @@ msgstr "No se puede actualizar {0}: {detailText}"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Unable to update {0}."
 msgstr "No se puede actualizar {0}."
+
+#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+msgid "Unable to update {agentLabel}."
+msgstr "No se puede actualizar {agentLabel}."
+
+#: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
+msgid "Unable to update {updateLabel}."
+msgstr "No se puede actualizar {updateLabel}."
+
+#: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
+msgid "Unable to update Cursor SDK."
+msgstr "No se puede actualizar el SDK de Cursor."
 
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
 msgid "Unable to update learned tags."
@@ -20212,6 +20453,10 @@ msgstr "Actualizar el SDK de Cursor"
 #: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
 msgid "Update Cursor SDK in {environment}"
 msgstr "Actualizar el SDK de Cursor en {environment}"
+
+#: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
+msgid "Update Cursor SDK to v{availableVersion}"
+msgstr "Actualizar el SDK de Cursor a v{availableVersion}"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Update error: {detail}"
@@ -20641,6 +20886,7 @@ msgid "via {0}"
 msgstr "vía {0}"
 
 #: src/renderer/components/media/NativeMediaView.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/MarkdownVideo.tsx
 msgid "Video preview"
 msgstr "Vista previa de vídeo"
 
@@ -20841,6 +21087,10 @@ msgstr "Esperando la autenticación de {methodName} en {env}. Los agentes detect
 msgid "Waiting for {methodName} authentication. Detected agents will refresh when it finishes."
 msgstr "Esperando la autenticación de {methodName}. Los agentes detectados se actualizarán cuando finalice."
 
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Waiting for a preview"
+msgstr "Esperando una vista previa"
+
 #: src/renderer/components/thread/ThreadPendingSteerStrip.tsx
 msgid "waiting for agent to stop"
 msgstr "esperando a que el agente se detenga"
@@ -20898,6 +21148,7 @@ msgid "Warming up WSL shell environment…"
 msgstr "Preparando el entorno de shell de WSL…"
 
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 #: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Warning"
@@ -21340,6 +21591,10 @@ msgstr "El puente WSL no está disponible para el control de código."
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "WSL: {distro}"
 msgstr "WSL: {distro}"
+
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
+msgid "Yes"
+msgstr "Sí"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "You have an unfinished review on the source host. Submit or discard it there before submitting this one."

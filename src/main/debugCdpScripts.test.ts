@@ -83,10 +83,10 @@ describe("managed CDP scripts", () => {
     expect(runnerSource).toContain('const userDataDir = join(root, "userData")');
     expect(runnerSource).toContain("smokeElectronLaunch(runtime, userDataDir");
     expect(runtimeSource).toContain("PORACODE_CDP_USER_DATA_DIR: userDataDir");
-    expect(devLaunchSource).toContain("`--user-data-dir=${cdpUserDataDir}`");
-    expect(devLaunchSource).toContain("const app = spawn(electronPath");
+    expect(devLaunchSource).toContain("`--user-data-dir=${userDataDir}`");
+    expect(devLaunchSource).toContain('require("electron")');
     expect(devLaunchSource).toContain('windowsHide: process.platform === "win32"');
-    expect(devLaunchSource).toContain('execSync("electronmon .", { stdio: "inherit", env })');
+    expect(devLaunchSource).toContain('resolve(root, "scripts/dev-electron-hook.cjs")');
   });
 
   it("reports readiness from renderer and CDP state only", async () => {

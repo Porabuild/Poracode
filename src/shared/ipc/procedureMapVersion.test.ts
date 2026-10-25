@@ -81,14 +81,192 @@ import { isRemoteProcedure } from "../remote/procedures";
 // allowlist. Existing peers reject unknown names before effects; hop 18 stays.
 // Plugin catalogs/accounts add local supervisor names only. Older peers reject
 // them before effects; existing payloads and the remote allowlist stay unchanged.
+// Scoped authentication adds one supervisor-only name with a closed version-1
+// start/cancel payload. Legacy authenticateAcpAgent is unchanged; old peers
+// reject the new name before spawning. Remote allowlists and hop 18 stay valid.
+// Controlled integration OAuth is another supervisor-only, closed version-1
+// name. Legacy MCP/plugin payloads stay unchanged; old peers reject the new name
+// before discovery. It is absent from the remote allowlist; hop 18 stays valid.
+// Controlled thread execution is additive and supervisor-local. Its closed v1
+// prepare/start/cancel envelope carries an opaque reservation id; old supervisors
+// reject the distinct name before reservation or spawn. Existing thread payloads
+// and remote allowlists are unchanged, so hop 18 remains compatible.
+// Selected native status probing is a distinct supervisor-local v1 read. It
+// neither triggers baseline discovery/auto-install nor alters cache versions.
+// Older peers reject the new name; existing payloads/remote allowlists and hop 18 stay valid.
+// Nonce-addressable reservations add a supervisor-only closed v1 name. Legacy
+// execution control v1 and public allowlists stay unchanged; older peers reject
+// the new name before reservation or spawn, so hop 18 remains compatible.
+// Controlled request replies add only a supervisor-local name. Unknown names
+// loud-refuse before launch; old control/reservation schemas and hop18 stay valid.
 // Synced review marks, owned-comment edits and guides add capability-gated names.
 // Existing shapes remain valid; older peers reject new names before effects.
 // Review labels, reviewers, reactions, line-comment drafts, commit diffs, draft
 // conversion and state lists add new names plus optional result fields and
 // capabilities. Older peers reject the names before effects; hop 18 stays.
-const HOP_PIN = `${IPC_PROCEDURE_MAP_VERSION}:584872c46febbd10831c5ef92e63ae73252bb3d1bd00c937f50640963166806c`;
+// Prompt rail: `dbGetThreadPromptIndex` is an additive read routed to the
+// owning host through the remote IPC adapter (`thread-history-prompts`). An
+// older main/host rejects the unknown name, and an older paired host answers
+// 404 for the route, before any effect; the renderer treats both as "no index"
+// (the rail shows the loaded transcript), so hop 18 stays compatible.
+const HOP_PIN = `${IPC_PROCEDURE_MAP_VERSION}:8fc9eefaa4ec4eefbdcbfd6af67cb912a467d66a25c9c28d39d7dc69b166392f`;
 
 describe("IPC procedure map versioning", () => {
+  it("keeps nonce reservations local, closed and distinct from legacy execution control", () => {
+    const procedure = ipcProcedureMap.reserveThreadExecution;
+    expect(procedure.transport).toBe("supervisor");
+    expect(isRemoteProcedure("reserveThreadExecution")).toBe(false);
+    const payload = {
+      version: 1,
+      action: "prepare",
+      operationId: "d41082c9-a0ae-49cd-a9e4-8ee7bce11f3d",
+      threadId: "thread",
+    };
+    expect(procedure.payloadSchema.parse(payload)).toEqual(payload);
+    expect(ipcProcedureMap.controlThreadExecution.payloadSchema.safeParse(payload).success).toBe(
+      false,
+    );
+    for (const change of [
+      { version: 2 },
+      { signal: {} },
+      { operationId: "invalid" },
+      { action: "start" },
+      { agentKind: "foreign" },
+    ])
+      expect(procedure.payloadSchema.safeParse({ ...payload, ...change }).success).toBe(false);
+  });
+  it("keeps native selected probes local and refuses future, WSL or widened inputs", () => {
+    const procedure = ipcProcedureMap.probeSelectedAgent;
+    expect(procedure.transport).toBe("supervisor");
+    expect(isRemoteProcedure("probeSelectedAgent")).toBe(false);
+    expect(procedure.payloadSchema.parse({ version: 1, agentKind: "selected" })).toEqual({
+      version: 1,
+      agentKind: "selected",
+    });
+    for (const input of [
+      { version: 2 },
+      { wslDistro: "Other" },
+      { scope: { agentKinds: ["foreign"] } },
+      { credentialKey: "foreign" },
+    ])
+      expect(
+        procedure.payloadSchema.safeParse({ version: 1, agentKind: "selected", ...input }).success,
+      ).toBe(false);
+  });
+  it("keeps controlled execution local and refuses future or widened envelopes", () => {
+    const requests = ipcProcedureMap.controlledThreadRequest;
+    expect(requests.transport).toBe("supervisor");
+    expect(isRemoteProcedure("controlledThreadRequest")).toBe(false);
+    const qualify = {
+      version: 2,
+      action: "qualify",
+      operationId: "d41082c9-a0ae-49cd-a9e4-8ee7bce11f3d",
+      threadId: "thread",
+    };
+    expect(requests.payloadSchema.safeParse(qualify).success).toBe(true);
+    for (const extra of [
+      { version: 1 },
+      { version: 3 },
+      { signal: {} },
+      { response: {} },
+      { credentialKey: "foreign" },
+    ])
+      expect(requests.payloadSchema.safeParse({ ...qualify, ...extra }).success).toBe(false);
+    const answer = { ...qualify, action: "respond", requestId: "ask", response: {} };
+    expect(requests.payloadSchema.safeParse(answer).success).toBe(false);
+    expect(
+      requests.payloadSchema.safeParse({
+        ...answer,
+        requestToken: "a17686b0-0441-4df4-b40b-fbd58bbce2d5",
+      }).success,
+    ).toBe(true);
+    const procedure = ipcProcedureMap.controlThreadExecution;
+    expect(procedure.transport).toBe("supervisor");
+    expect(isRemoteProcedure("controlThreadExecution")).toBe(false);
+    const prepare = { version: 1, action: "prepare", threadId: "thread" };
+    expect(procedure.payloadSchema.safeParse(prepare).success).toBe(true);
+    for (const input of [
+      { ...prepare, version: 2 },
+      { ...prepare, operationId: "d41082c9-a0ae-49cd-a9e4-8ee7bce11f3d" },
+      { ...prepare, signal: {} },
+      { ...prepare, action: "replace" },
+    ])
+      expect(procedure.payloadSchema.safeParse(input).success).toBe(false);
+    expect(
+      procedure.payloadSchema.safeParse({ version: 1, action: "cancel", operationId: "not-a-uuid" })
+        .success,
+    ).toBe(false);
+    expect(
+      procedure.payloadSchema.safeParse({
+        version: 1,
+        action: "cancel",
+        operationId: "d41082c9-a0ae-49cd-a9e4-8ee7bce11f3d",
+        threadId: "foreign",
+      }).success,
+    ).toBe(false);
+  });
+  it("keeps integration OAuth control local and refuses unknown versions or credential selectors", () => {
+    expect(isRemoteProcedure("controlMcpAuthentication")).toBe(false);
+    const procedure = ipcProcedureMap.controlMcpAuthentication;
+    expect(procedure.transport).toBe("supervisor");
+    const start = {
+      version: 1,
+      action: "start",
+      operationId: "d41082c9-a0ae-49cd-a9e4-8ee7bce11f3d",
+      target: {
+        scope: "plugin-service",
+        pluginName: "fixture",
+        serverName: "tools",
+        label: "Work",
+      },
+    };
+    expect(procedure.payloadSchema.safeParse(start).success).toBe(true);
+    expect(procedure.payloadSchema.safeParse({ ...start, version: 2 }).success).toBe(false);
+    expect(procedure.payloadSchema.safeParse({ ...start, signal: {} }).success).toBe(false);
+    expect(
+      procedure.payloadSchema.safeParse({
+        ...start,
+        target: { ...start.target, credentialKey: "private" },
+      }).success,
+    ).toBe(false);
+    expect(
+      procedure.payloadSchema.safeParse({
+        version: 1,
+        action: "cancel",
+        operationId: start.operationId,
+        target: start.target,
+      }).success,
+    ).toBe(false);
+  });
+  it("keeps scoped authentication local and refuses future/extended control envelopes", () => {
+    expect(isRemoteProcedure("controlAcpAuthentication")).toBe(false);
+    const procedure = ipcProcedureMap.controlAcpAuthentication;
+    expect(procedure.transport).toBe("supervisor");
+    const start = {
+      version: 1,
+      action: "start",
+      operationId: "d41082c9-a0ae-49cd-a9e4-8ee7bce11f3d",
+      agentKind: "fixture",
+      methodId: "approval",
+    };
+    expect(procedure.payloadSchema.safeParse(start).success).toBe(true);
+    expect(procedure.payloadSchema.safeParse({ ...start, version: 2 }).success).toBe(false);
+    expect(procedure.payloadSchema.safeParse({ ...start, signal: {} }).success).toBe(false);
+    expect(
+      procedure.payloadSchema.safeParse({
+        version: 1,
+        action: "cancel",
+        operationId: start.operationId,
+        agentKind: "other",
+      }).success,
+    ).toBe(false);
+    expect(
+      ipcProcedureMap.authenticateAcpAgent.payloadSchema.safeParse({
+        agentKind: "fixture",
+        methodId: "approval",
+      }).success,
+    ).toBe(true);
+  });
   it("keeps write-only model provider management outside the remote allowlist", () => {
     expect(isRemoteProcedure("manageModelProviders")).toBe(false);
     expect(ipcProcedureMap.manageModelProviders.transport).toBe("supervisor");

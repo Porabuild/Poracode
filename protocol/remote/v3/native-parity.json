@@ -5,6 +5,32 @@
   "entries": {
     "httpRoutes": [
       {
+        "id": "thread-agent-vision",
+        "scopes": ["session:read"],
+        "batch": "explicitly-desktop-only",
+        "ios": {
+          "wire": {
+            "disposition": "desktop-only",
+            "evidence": ["src/renderer/components/thread/ThreadAgentVisionDock.tsx"]
+          },
+          "ui": {
+            "disposition": "desktop-only",
+            "evidence": ["src/renderer/components/thread/ThreadAgentVisionDock.tsx"]
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "desktop-only",
+            "evidence": ["src/renderer/components/thread/ThreadAgentVisionDock.tsx"]
+          },
+          "ui": {
+            "disposition": "desktop-only",
+            "evidence": ["src/renderer/components/thread/ThreadAgentVisionDock.tsx"]
+          }
+        },
+        "note": "Agent Vision is a renderer Thread Info right-panel dock. Native clients have no Thread Info panel; their production transports do not invoke this optional read route."
+      },
+      {
         "id": "pr-watch-scoped-upsert",
         "scopes": ["session:operate"],
         "batch": "settings-integrations",
@@ -2396,7 +2422,8 @@
             ],
             "note": "No checked-in device journey exercises this surface yet (no screen-registry entry, no device-test evidence); the ui story is asserted from the cited production source only."
           }
-        }
+        },
+        "note": "Generated codecs accept optional question-answer sourceItemId on resumed input. Native async reply-form UI is not implemented; ordinary thread input remains supported."
       },
       {
         "id": "terminal-start",
@@ -2600,7 +2627,8 @@
               "screen:android.thread-send"
             ]
           }
-        }
+        },
+        "note": "Generated codecs accept optional question-answer sourceItemId. Native async reply-form UI is not implemented; ordinary thread input remains supported."
       },
       {
         "id": "thread-interrupt",
@@ -3356,6 +3384,33 @@
             "disposition": "planned",
             "evidence": [],
             "note": "Desktop thread-opening optimization. Native adoption of this opt-in history route is pending; native clients retain complete compatible history responses."
+          }
+        }
+      },
+      {
+        "id": "thread-history-prompts",
+        "scopes": ["session:read"],
+        "batch": "thread-lifecycle",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": ["src/shared/remote/contract/routes/threads.ts"]
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Desktop prompt-rail navigation over history that paging has not loaded. Native adoption of this opt-in history route is pending; native clients retain complete compatible history responses."
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": ["src/shared/remote/contract/routes/threads.ts"]
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Desktop prompt-rail navigation over history that paging has not loaded. Native adoption of this opt-in history route is pending; native clients retain complete compatible history responses."
           }
         }
       },
@@ -9587,6 +9642,56 @@
     ],
     "webSocketClientMessages": [
       {
+        "id": "agent-vision-watch",
+        "batch": "explicitly-desktop-only",
+        "ios": {
+          "wire": {
+            "disposition": "desktop-only",
+            "evidence": ["src/renderer/components/thread/ThreadAgentVisionDock.tsx"]
+          },
+          "ui": {
+            "disposition": "desktop-only",
+            "evidence": ["src/renderer/components/thread/ThreadAgentVisionDock.tsx"]
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "desktop-only",
+            "evidence": ["src/renderer/components/thread/ThreadAgentVisionDock.tsx"]
+          },
+          "ui": {
+            "disposition": "desktop-only",
+            "evidence": ["src/renderer/components/thread/ThreadAgentVisionDock.tsx"]
+          }
+        },
+        "note": "Agent Vision streaming is opt-in from the renderer Thread Info panel or its picture-in-picture window. Native clients have no Thread Info panel and never subscribe; generated wire models remain available."
+      },
+      {
+        "id": "agent-vision-unwatch",
+        "batch": "explicitly-desktop-only",
+        "ios": {
+          "wire": {
+            "disposition": "desktop-only",
+            "evidence": ["src/renderer/components/thread/ThreadAgentVisionDock.tsx"]
+          },
+          "ui": {
+            "disposition": "desktop-only",
+            "evidence": ["src/renderer/components/thread/ThreadAgentVisionDock.tsx"]
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "desktop-only",
+            "evidence": ["src/renderer/components/thread/ThreadAgentVisionDock.tsx"]
+          },
+          "ui": {
+            "disposition": "desktop-only",
+            "evidence": ["src/renderer/components/thread/ThreadAgentVisionDock.tsx"]
+          }
+        },
+        "note": "Agent Vision streaming is opt-in from the renderer Thread Info panel or its picture-in-picture window. Native clients have no Thread Info panel and never subscribe; generated wire models remain available."
+      },
+      {
         "id": "ping",
         "batch": "foundation",
         "ios": {
@@ -9906,6 +10011,31 @@
       }
     ],
     "webSocketServerMessages": [
+      {
+        "id": "agent-vision-frame",
+        "batch": "explicitly-desktop-only",
+        "ios": {
+          "wire": {
+            "disposition": "desktop-only",
+            "evidence": ["src/renderer/components/thread/ThreadAgentVisionDock.tsx"]
+          },
+          "ui": {
+            "disposition": "desktop-only",
+            "evidence": ["src/renderer/components/thread/ThreadAgentVisionDock.tsx"]
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "desktop-only",
+            "evidence": ["src/renderer/components/thread/ThreadAgentVisionDock.tsx"]
+          },
+          "ui": {
+            "disposition": "desktop-only",
+            "evidence": ["src/renderer/components/thread/ThreadAgentVisionDock.tsx"]
+          }
+        },
+        "note": "Agent Vision streaming is opt-in from the renderer Thread Info panel or its picture-in-picture window. Native clients have no Thread Info panel and never subscribe; generated wire models remain available."
+      },
       {
         "id": "ready",
         "batch": "foundation",

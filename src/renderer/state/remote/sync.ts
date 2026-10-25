@@ -47,6 +47,7 @@ import {
 import { invalidateRuntimeHistoryRead, runtimeHistoryBoundary } from "../runtimeHistoryBoundary";
 import { clearRuntimeStructuralChangeHint } from "../runtimeStructuralChanges";
 import { forgetThreadGalleryCache } from "../threadGalleryCache";
+import { forgetThreadPromptIndex } from "../threadPromptIndexCache";
 import { snapshotOlderThanAppliedSeq } from "./snapshotSeqArbitration";
 import { isBrowserClientRuntime } from "@/renderer/clientRuntime";
 import { cacheBrowserThreadSnapshot } from "@/renderer/browser/offlineThreadCache";
@@ -225,6 +226,8 @@ export function applyThreadSnapshot(
       snapshot.runtimeNextCursor,
     );
     const { items } = installation;
+    const retainedIds = new Set(items.map((item) => item.id));
+    if (existingIds.some((id) => !retainedIds.has(id))) forgetThreadPromptIndex(threadId);
     // Cursor and items share the actual installation proof. A stale snapshot
     // never reaches this point, and every replacement fences awaited pages.
     seedOlderThreadRuntimeItemsCursor(threadId, snapshot.runtimeNextCursor ?? null, installation);

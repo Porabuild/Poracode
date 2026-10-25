@@ -100,7 +100,16 @@ export function projectMutableRow(project: Project) {
   };
 }
 
-function rowToLocation(row: ProjectRow): ProjectLocation {
+export function rowToLocation(
+  row: Pick<
+    ProjectRow,
+    | "location_kind"
+    | "location_path"
+    | "location_distro"
+    | "location_linux_path"
+    | "location_unc_path"
+  >,
+): ProjectLocation {
   if (row.location_kind === "wsl") {
     return {
       kind: "wsl",

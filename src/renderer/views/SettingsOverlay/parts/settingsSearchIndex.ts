@@ -607,7 +607,7 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     section: "usage",
     anchor: "usage.autoRefreshMinutes",
     title: msg`Default auto-refresh (minutes)`,
-    description: msg`The default background refresh cadence, used for any provider without its own interval set below. Set to 0 to turn off (manual only). The 2-minute floor respects provider rate limits.`,
+    description: msg`The default background refresh cadence. Providers may use a slower default unless an interval is set below. Set to 0 to turn off (manual only). The minimum interval is 2 minutes.`,
     keywords:
       "automatic update poll interval background fetch refresh frequency default per provider",
     desktopOnly: true,

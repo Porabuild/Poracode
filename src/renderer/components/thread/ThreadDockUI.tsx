@@ -1,4 +1,10 @@
-import { forwardRef, type MouseEventHandler, type ReactNode } from "react";
+import {
+  forwardRef,
+  isValidElement,
+  type MouseEventHandler,
+  type ReactElement,
+  type ReactNode,
+} from "react";
 import { Tooltip } from "@heroui/react";
 import { ChevronDown } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
@@ -46,21 +52,23 @@ export function ThreadDockHeader({
   title,
   countLabel,
   actions,
+  collapse,
   stackedContent = false,
   children,
 }: {
-  icon: React.ElementType<{ className?: string }>;
+  icon: React.ElementType<{ className?: string }> | ReactElement;
   iconClassName?: string;
   title: string;
   countLabel?: ReactNode;
   actions?: ReactNode;
+  collapse?: { collapsed: boolean; onToggle: () => void };
   stackedContent?: boolean;
   children?: ReactNode;
 }) {
-  return (
-    <div className="flex h-8 items-center gap-2 px-2 leading-none">
-      <Icon className={`size-3.5 shrink-0 ${iconClassName}`} />
-      <div
+  const content = (
+    <>
+      {isValidElement(Icon) ? Icon : <Icon className={`size-3.5 shrink-0 ${iconClassName}`} />}
+      <span
         className={`flex min-w-0 flex-1 leading-none ${
           stackedContent ? "flex-col items-start gap-0.5" : "items-baseline gap-2"
         }`}
@@ -73,7 +81,24 @@ export function ThreadDockHeader({
           </span>
         )}
         {children}
-      </div>
+      </span>
+    </>
+  );
+  return (
+    <div className="flex h-8 items-center gap-2 px-2 leading-none">
+      {collapse ? (
+        <Button
+          variant="ghost"
+          className="h-full min-w-0 flex-1 justify-start gap-2 rounded-none px-0 text-left text-xs font-normal [--button-bg-hover:transparent] [--button-bg-pressed:transparent] [&_svg]:mx-0"
+          aria-label={title}
+          aria-expanded={!collapse.collapsed}
+          onPress={collapse.onToggle}
+        >
+          {content}
+        </Button>
+      ) : (
+        content
+      )}
       {actions}
     </div>
   );

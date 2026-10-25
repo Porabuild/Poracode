@@ -32,6 +32,8 @@ export type ChatPaneActions = {
   isThreadOpenSettling?: () => boolean;
   registerVirtualScrollToBottom?: (handler: (() => void) | null) => void;
   projectLocation?: ProjectLocation | undefined;
+  /** Owning filesystem for inline media, including Home without project actions. */
+  mediaLocation?: ProjectLocation | undefined;
   /**
    * Top-level entry names for the chat's project, used to validate path-like
    * tokens before chipping them. Empty until the project tree responds.

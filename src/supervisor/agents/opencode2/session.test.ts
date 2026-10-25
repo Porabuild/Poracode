@@ -9,9 +9,19 @@ import { clearOpenCode2SessionDatabases, openCode2SessionDatabaseEnv } from "./d
 import { OpenCode2Session } from "./session";
 
 const mocks = vi.hoisted(() => ({
+  readOpenCode2GoalState: vi.fn<() => Promise<unknown>>().mockResolvedValue(undefined),
+  resolveOpenCode2GoalStatePath: vi.fn<() => Promise<string | undefined>>(
+    async () => "/goals.json",
+  ),
   acquireOpenCode2Server: vi.fn<(input: unknown) => Promise<unknown>>(),
   subscribeOpenCode2ServerEvents:
     vi.fn<(input: { client: unknown; subscription: unknown }) => () => void>(),
+}));
+
+vi.mock("./goals", async (importActual) => ({
+  ...(await importActual<typeof import("./goals")>()),
+  resolveOpenCode2GoalStatePath: mocks.resolveOpenCode2GoalStatePath,
+  readOpenCode2GoalState: mocks.readOpenCode2GoalState,
 }));
 
 vi.mock("./client", async (importActual) => {
@@ -73,6 +83,7 @@ function makeClient(): OpenCode2Client {
     agent: { list: vi.fn<() => Promise<{ data: unknown[] }>>().mockResolvedValue({ data: [] }) },
     skill: { list: vi.fn<() => Promise<{ data: unknown[] }>>().mockResolvedValue({ data: [] }) },
     command: { list: vi.fn<() => Promise<{ data: unknown[] }>>().mockResolvedValue({ data: [] }) },
+    config: { get: vi.fn<() => Promise<unknown[]>>().mockResolvedValue([]) },
     permission: {
       list: vi.fn<() => Promise<unknown>>().mockResolvedValue([]),
       reply: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
@@ -178,6 +189,337 @@ function makeClientWith(overrides: OpenCode2ServerOverrides): OpenCode2Client {
 
 describe("OpenCode2Session", () => {
   afterEach(clearOpenCode2SessionDatabases);
+
+  it("hydrates plugin goals, routes UI controls through native commands and stops polling on disposal", async () => {
+    const goal = {
+      id: "goal-1",
+      sessionID: "ses_new",
+      objective: "Finish task",
+      status: "active",
+      updatedAt: 100,
+    };
+    mocks.readOpenCode2GoalState.mockResolvedValue(goal);
+    const command = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+    const client = makeClientWith({
+      "command.list": vi
+        .fn<() => Promise<unknown>>()
+        .mockResolvedValue({ data: [{ name: "goal" }, { name: "pause_goal" }] }),
+      "session.command": command,
+    });
+    const h = await makeSession({ client });
+    try {
+      await vi.waitFor(() =>
+        expect(h.events).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              type: "item.started",
+              itemType: "goal",
+              payload: expect.objectContaining({ objective: "Finish task" }),
+            }),
+          ]),
+        ),
+      );
+      await h.session.controlGoal({ action: "pause" });
+      expect(command).toHaveBeenLastCalledWith({
+        sessionID: "ses_new",
+        name: "pause_goal",
+        text: "",
+      });
+      await h.session.controlGoal({ action: "edit", objective: "Updated task" });
+      expect(command).toHaveBeenLastCalledWith({
+        sessionID: "ses_new",
+        name: "goal",
+        text: "edit Updated task",
+      });
+      await h.session.controlGoal({ action: "resume" });
+      expect(command).toHaveBeenLastCalledWith({
+        sessionID: "ses_new",
+        name: "goal",
+        text: "resume",
+      });
+      mocks.readOpenCode2GoalState.mockResolvedValue(null);
+      await h.session.controlGoal({ action: "clear" });
+      expect(command).toHaveBeenLastCalledWith({
+        sessionID: "ses_new",
+        name: "goal",
+        text: "clear",
+      });
+      expect(h.events).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ type: "item.updated", payload: { action: "cleared" } }),
+        ]),
+      );
+    } finally {
+      await h.session.dispose();
+      mocks.readOpenCode2GoalState.mockResolvedValue(undefined);
+    }
+    const reads = mocks.readOpenCode2GoalState.mock.calls.length;
+    await new Promise((resolve) => setTimeout(resolve, 1100));
+    expect(mocks.readOpenCode2GoalState).toHaveBeenCalledTimes(reads);
+  });
+
+  it("hydrates goals when config and plugin lookup fail without dropping slash commands", async () => {
+    mocks.readOpenCode2GoalState.mockResolvedValue({
+      id: "goal-1",
+      sessionID: "ses_new",
+      objective: "Finish task",
+      status: "active",
+      updatedAt: 100,
+    });
+    const h = await makeSession({
+      client: makeClientWith({
+        "command.list": vi
+          .fn<() => Promise<unknown>>()
+          .mockResolvedValue({ data: [{ name: "goal", description: "Set a goal" }] }),
+        "config.get": vi.fn<() => Promise<unknown>>().mockRejectedValue(new Error("config down")),
+        "plugin.list": vi
+          .fn<() => Promise<unknown>>()
+          .mockResolvedValueOnce({
+            data: [{ source: { type: "builtin" }, state: { status: "active" } }],
+          })
+          .mockRejectedValue(new Error("plugins down")),
+      }),
+    });
+    try {
+      await vi.waitFor(() =>
+        expect(h.events).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              type: "item.started",
+              itemType: "goal",
+              payload: expect.objectContaining({ objective: "Finish task" }),
+            }),
+          ]),
+        ),
+      );
+      expect(
+        h.updates.some((update) => update.slashCommands?.some((command) => command.id === "goal")),
+      ).toBe(true);
+    } finally {
+      await h.session.dispose();
+      mocks.readOpenCode2GoalState.mockResolvedValue(undefined);
+    }
+  });
+
+  it("retries goal-state resolution after the path lookup misses", async () => {
+    mocks.resolveOpenCode2GoalStatePath
+      .mockResolvedValueOnce(undefined)
+      .mockResolvedValue("/goals.json");
+    mocks.readOpenCode2GoalState.mockResolvedValue({
+      id: "goal-1",
+      sessionID: "ses_new",
+      objective: "Finish task",
+      status: "active",
+      updatedAt: 100,
+    });
+    const h = await makeSession({
+      client: makeClientWith({
+        "command.list": vi
+          .fn<() => Promise<unknown>>()
+          .mockResolvedValue({ data: [{ name: "goal" }] }),
+      }),
+    });
+    try {
+      await vi.waitFor(
+        () =>
+          expect(mocks.readOpenCode2GoalState).toHaveBeenCalledWith(
+            projectLocation,
+            "/goals.json",
+            "ses_new",
+          ),
+        { timeout: 2500 },
+      );
+      expect(mocks.resolveOpenCode2GoalStatePath.mock.calls.length).toBeGreaterThan(1);
+    } finally {
+      await h.session.dispose();
+      mocks.readOpenCode2GoalState.mockResolvedValue(undefined);
+      mocks.resolveOpenCode2GoalStatePath.mockReset();
+      mocks.resolveOpenCode2GoalStatePath.mockResolvedValue("/goals.json");
+    }
+  });
+
+  it("does not expose goal commands without a plugin or create a model prompt on failure", async () => {
+    const h = await makeSession();
+    try {
+      await expect(h.session.controlGoal({ action: "pause" })).rejects.toThrow(
+        "goal plugin command is unavailable",
+      );
+      expect(h.client.session.prompt).not.toHaveBeenCalled();
+    } finally {
+      await h.session.dispose();
+    }
+  });
+
+  it("hydrates renamed and command-disabled goal plugins", async () => {
+    for (const enabled of [true, false]) {
+      mocks.readOpenCode2GoalState.mockResolvedValue({
+        id: "goal-1",
+        sessionID: "ses_new",
+        objective: "Restored goal",
+        status: "paused",
+        updatedAt: 100,
+      });
+      const command = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+      const client = makeClientWith({
+        "command.list": vi
+          .fn<() => Promise<unknown>>()
+          .mockResolvedValue({ data: enabled ? [{ name: "mission" }] : [] }),
+        "config.get": vi.fn<() => Promise<unknown>>().mockResolvedValue([
+          {
+            type: "document",
+            info: {
+              plugins: [
+                {
+                  package: "@prevalentware/opencode-goal-plugin",
+                  options: { command_name: "mission", register_command: enabled },
+                },
+              ],
+            },
+          },
+        ]),
+        "plugin.list": vi.fn<() => Promise<unknown>>().mockResolvedValue({
+          data: [{ id: "local.goal-mode.server", state: { status: "active" } }],
+        }),
+        "session.command": command,
+      });
+      const h = await makeSession({ client });
+      try {
+        await vi.waitFor(() =>
+          expect(h.events).toEqual(
+            expect.arrayContaining([
+              expect.objectContaining({
+                type: "item.started",
+                itemType: "goal",
+                payload: expect.objectContaining({
+                  objective: "Restored goal",
+                  availableActions: enabled ? ["edit", "resume", "clear"] : [],
+                }),
+              }),
+            ]),
+          ),
+        );
+        const result = await h.session
+          .controlGoal({ action: "resume" })
+          .catch((error: unknown) => error);
+        expect(result instanceof Error).toBe(!enabled);
+        expect(command.mock.calls).toEqual(
+          enabled ? [[{ sessionID: "ses_new", name: "mission", text: "resume" }]] : [],
+        );
+      } finally {
+        await h.session.dispose();
+        mocks.readOpenCode2GoalState.mockResolvedValue(undefined);
+      }
+    }
+  });
+
+  it("releases Resume on reflected native state while its goal loop RPC is still pending", async () => {
+    const goal = {
+      id: "goal-1",
+      sessionID: "ses_new",
+      objective: "Goal",
+      status: "paused",
+      updatedAt: 100,
+    };
+    mocks.readOpenCode2GoalState.mockResolvedValue(goal);
+    const pending = Promise.withResolvers<void>();
+    const command = vi
+      .fn<() => Promise<void>>()
+      .mockResolvedValue(undefined)
+      .mockImplementationOnce(() => pending.promise);
+    const h = await makeSession({
+      client: makeClientWith({
+        "command.list": vi
+          .fn<() => Promise<unknown>>()
+          .mockResolvedValue({ data: [{ name: "goal" }, { name: "pause_goal" }] }),
+        "session.command": command,
+      }),
+    });
+    try {
+      await vi.waitFor(() =>
+        expect(h.events).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({ type: "item.started", itemType: "goal" }),
+          ]),
+        ),
+      );
+      const resume = h.session.controlGoal({ action: "resume" });
+      await vi.waitFor(() => expect(command).toHaveBeenCalledTimes(1));
+      mocks.readOpenCode2GoalState.mockResolvedValue({ ...goal, status: "active", updatedAt: 200 });
+      await resume;
+      await h.session.controlGoal({ action: "pause" });
+      expect(command).toHaveBeenLastCalledWith({
+        sessionID: "ses_new",
+        name: "pause_goal",
+        text: "",
+      });
+      pending.reject(new Error("late command failure"));
+      await vi.waitFor(() => expect(h.errors).toHaveLength(1));
+    } finally {
+      pending.resolve();
+      await h.session.dispose();
+      mocks.readOpenCode2GoalState.mockResolvedValue(undefined);
+    }
+  });
+
+  it("does not let an in-flight file read overwrite a newer tool snapshot", async () => {
+    const pending = Promise.withResolvers<unknown>();
+    mocks.readOpenCode2GoalState.mockReturnValue(pending.promise);
+    const h = await makeSession({
+      client: makeClientWith({
+        "command.list": vi
+          .fn<() => Promise<unknown>>()
+          .mockResolvedValue({ data: [{ name: "goal" }] }),
+      }),
+    });
+    try {
+      await vi.waitFor(() => expect(mocks.readOpenCode2GoalState).toHaveBeenCalled());
+      h.subscription?.onEvent(
+        event("session.tool.input.started", {
+          sessionID: "ses_new",
+          assistantMessageID: "msg-goal",
+          id: "tool-goal",
+          name: "create_goal",
+        }),
+      );
+      h.subscription?.onEvent(
+        event("session.tool.success", {
+          sessionID: "ses_new",
+          assistantMessageID: "msg-goal",
+          id: "tool-goal",
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                goal: {
+                  id: "goal-1",
+                  sessionID: "ses_new",
+                  objective: "Latest goal",
+                  status: "active",
+                  updatedAt: 200,
+                },
+              }),
+            },
+          ],
+        }),
+      );
+      pending.resolve(null);
+      await pending.promise;
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(
+        h.events.some((entry) => entry.type === "item.started" && entry.itemType === "goal"),
+      ).toBe(true);
+      expect(
+        h.events.some(
+          (entry) =>
+            (entry.type === "item.started" || entry.type === "item.updated") &&
+            (entry.payload as { action?: string })?.action === "cleared",
+        ),
+      ).toBe(false);
+    } finally {
+      await h.session.dispose();
+      mocks.readOpenCode2GoalState.mockResolvedValue(undefined);
+    }
+  });
   beforeEach(() => {
     mocks.acquireOpenCode2Server.mockReset();
     mocks.subscribeOpenCode2ServerEvents.mockReset();
@@ -1129,8 +1471,12 @@ function typesOf(events: RuntimeEvent[]): string[] {
 
 it("publishes the loaded command catalog to listeners attached after openThread", async () => {
   const { session, updates } = await makeSession();
+  await vi.waitFor(() =>
+    expect(
+      updates.find((update) => update.slashCommands?.length)?.slashCommands?.length,
+    ).toBeGreaterThan(0),
+  );
   const initialCatalog = updates.find((update) => update.slashCommands?.length)?.slashCommands;
-  expect(initialCatalog?.length).toBeGreaterThan(0);
   const onUpdate = vi.fn<(update: StructuredSessionUpdate) => void>();
   session.setListener({ onClose: () => {}, onError: () => {}, onRuntimeEvent: () => {}, onUpdate });
   expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ slashCommands: initialCatalog }));

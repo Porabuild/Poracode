@@ -613,6 +613,56 @@ describe("ThreadSlashCommands", () => {
     ]);
   });
 
+  it.each([
+    { pluginId: "review-tools", pluginName: "Review", expectedPluginName: "Review" },
+    { pluginId: "review-tools", pluginName: undefined, expectedPluginName: undefined },
+    { pluginId: "other-plugin", pluginName: "Review", expectedPluginName: undefined },
+    { pluginId: undefined, pluginName: "Review", expectedPluginName: undefined },
+  ])(
+    "rebinds $pluginId with plugin label $pluginName to $expectedPluginName",
+    ({ pluginId, pluginName, expectedPluginName }) => {
+      const [rebound] = rebindSkillSegments(
+        [
+          {
+            kind: "skill",
+            name: "review-code",
+            path: "/old/SKILL.md",
+            invocation: "$review-code",
+            provider: "Codex",
+            scope: "global",
+            pluginId: "review-tools",
+            ...(pluginName ? { pluginName } : {}),
+          },
+        ],
+        [
+          {
+            id: "review-code",
+            label: "review-code",
+            section: "skills",
+            skillName: "review-code",
+            skillPath: "/project/.gemini/skills/review-code/SKILL.md",
+            skillInvocation: "/review-code",
+            skillProvider: "Gemini",
+            skillScope: "project",
+            ...(pluginId ? { pluginId } : {}),
+          },
+        ],
+        (name) => `Use the ${name} skill.`,
+      );
+
+      expect(rebound).toEqual({
+        kind: "skill",
+        name: "review-code",
+        path: "/project/.gemini/skills/review-code/SKILL.md",
+        invocation: "/review-code",
+        provider: "Gemini",
+        scope: "project",
+        ...(pluginId ? { pluginId } : {}),
+        ...(expectedPluginName ? { pluginName: expectedPluginName } : {}),
+      });
+    },
+  );
+
   it("binds typed leading skill text to a skill segment with the provider invocation", () => {
     expect(
       bindLeadingSkillInvocation(
@@ -1147,6 +1197,7 @@ describe("ThreadSlashCommands", () => {
   });
 
   it("binds a seeded plugin and enables its built-in MCP servers", async () => {
+    const onStart = vi.fn<(input: unknown) => void>();
     const onConfigChange = vi.fn<(patch: Partial<Thread["config"]>) => void>((patch) => {
       if (patch.computerUse !== true) return;
       expect(screen.getByLabelText("Computer Use")).toBeInTheDocument();
@@ -1215,7 +1266,7 @@ describe("ThreadSlashCommands", () => {
       enableMcpServerIds: ["computer-use"],
     });
 
-    await renderDraftComposer(makeAgentStatus(), vi.fn(), "gui", onConfigChange);
+    await renderDraftComposer(makeAgentStatus(), onStart, "gui", onConfigChange);
 
     await waitFor(() => expect(onConfigChange).toHaveBeenCalledWith({ computerUse: true }));
     const pluginChip = screen.getByLabelText("Computer Use");
@@ -1223,6 +1274,22 @@ describe("ThreadSlashCommands", () => {
     expect(pluginChip.querySelector("svg")).not.toBeNull();
     expect(screen.getByRole("textbox")).toHaveTextContent("Computer Use Inspect the desktop");
     expect(useAppStore.getState().pendingComposerSeeds[draftProject.id]).toBeUndefined();
+
+    fireEvent.keyDown(screen.getByRole("textbox"), { key: "Enter" });
+
+    expect(onStart).toHaveBeenCalledWith(
+      expect.objectContaining({
+        segments: expect.arrayContaining([
+          expect.objectContaining({
+            kind: "skill",
+            name: "operate-desktop",
+            invocation: "$operate-desktop",
+            pluginId: "computer-use",
+            pluginName: "Computer Use",
+          }),
+        ]),
+      }),
+    );
   });
 
   it("saves draft composer content on ordinary unmount", () => {
@@ -1315,7 +1382,7 @@ describe("ThreadSlashCommands", () => {
       const restoredThumb = await screen.findByAltText("Image 1.png");
       expect(restoredThumb).toHaveAttribute(
         "src",
-        "poracode-local://local/C:/attachments/draft-project-1/image-1.png",
+        "poracode-local://local/C:/attachments/draft-project-1/image-1.png?thumb=32",
       );
       // Drafts persist as the composer's crash-recovery mirror (cleared on
       // submit, not on mount-restore); the mirror carries the durable path.

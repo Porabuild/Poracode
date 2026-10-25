@@ -42,6 +42,7 @@ export interface PluginSkillPolicyContext {
   projectLocation?: ProjectLocation;
   capabilities?: AgentCapability;
   presentationMode?: ThreadPresentationMode;
+  pluginOverrides?: Record<string, boolean>;
 }
 
 export interface PluginSkillPolicyOptions {
@@ -195,7 +196,7 @@ export class PluginSkillPolicy {
       );
       if (!root) return [];
       const { plugin } = root;
-      const state = resolveInstalledPluginState(plugin, installedPlugins);
+      const state = resolveInstalledPluginState(plugin, installedPlugins, context.pluginOverrides);
       if (!state) return [];
       if (!this.isSupported(plugin, context)) return [];
       const label = plugin.poracode.title ?? plugin.name;
@@ -329,7 +330,7 @@ export class PluginSkillPolicy {
       const parts = match.relativePath.split(/[\\/]/u);
       const folder = parts[0]!;
       const { plugin } = match.root;
-      const state = resolveInstalledPluginState(plugin, installedPlugins);
+      const state = resolveInstalledPluginState(plugin, installedPlugins, context.pluginOverrides);
       const allowed = Boolean(
         isDeclaredSkillFile(match) &&
         state &&

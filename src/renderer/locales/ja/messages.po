@@ -34,6 +34,10 @@ msgstr "（案）"
 msgid "(no branch)"
 msgstr "（ブランチなし）"
 
+#: src/renderer/views/PrReviewOverlay/parts/PrCommitsTab.tsx
+#~ msgid "(no message)"
+#~ msgstr "(メッセージはありません)"
+
 #. placeholder {0}: candidates.length
 #. placeholder {0}: props.candidates.length
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
@@ -281,10 +285,8 @@ msgstr "{0} が匿名化された差分を比較しています…"
 msgid "{0} is offline. Showing last known status."
 msgstr "{0} はオフラインです。最後に確認したステータスを表示しています。"
 
-#. placeholder {0}: formatTokens(context.maxTokens)
 #. placeholder {0}: summary.maxLabel
 #: src/renderer/components/thread/ThreadContextDock.tsx
-#: src/renderer/components/thread/ThreadDetailsDocks.tsx
 msgid "{0} limit"
 msgstr "{0}制限"
 
@@ -303,10 +305,12 @@ msgstr "{0} 個のモデル"
 msgid "{0} needs authentication."
 msgstr "{0}には認証が必要です。"
 
+#. placeholder {0}: params.sourceText
 #. placeholder {0}: structuredElicitation.sourceText
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
-msgid "{0} needs input."
-msgstr "{0}には入力が必要です。"
+#~ msgid "{0} needs input."
+#~ msgstr "{0}には入力が必要です。"
 
 #. placeholder {0}: index + 1
 #. placeholder {1}: guide!.stops.length
@@ -411,8 +415,8 @@ msgstr "{0}が v{newVersion}に更新されました。"
 
 #. placeholder {0}: agentStatus.label
 #: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
-msgid "{0} updated to v{resolvedLatest}."
-msgstr "{0}が v{resolvedLatest}に更新されました。"
+#~ msgid "{0} updated to v{resolvedLatest}."
+#~ msgstr "{0}が v{resolvedLatest}に更新されました。"
 
 #. placeholder {0}: agent.label
 #. placeholder {0}: status.label
@@ -592,8 +596,8 @@ msgstr "{imported, plural, one {#件のセッションをインポートしま�
 #~ msgstr "{label} · 以前のセッション用。新しいスレッドでは再度ログインしてください。"
 
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
-msgid "{label} account usage"
-msgstr "{label} アカウントの使用状況"
+#~ msgid "{label} account usage"
+#~ msgstr "{label} アカウントの使用状況"
 
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
@@ -741,6 +745,14 @@ msgstr "{providerLabel} の {serverName}: {disabledLabel}"
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentMessageList.tsx
 msgid "{stepCount, plural, one {# step} other {# steps}}"
 msgstr "{stepCount, plural, other {# ステップ}}"
+
+#: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
+#~ msgid "{totalAdditions} additions and {totalDeletions} deletions"
+#~ msgstr "{totalAdditions} 行追加、{totalDeletions} 行削除"
+
+#: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
+msgid "{updateLabel} updated to v{resolvedLatest}."
+msgstr "{updateLabel}が v{resolvedLatest}に更新されました。"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "{used} tokens"
@@ -903,6 +915,11 @@ msgstr "<0/> がレビュースレッドを開始しました"
 #: src/renderer/components/thread/ThreadContextDock.tsx
 msgid "<0/>% Full"
 msgstr "<0/>% 使用"
+
+#. placeholder {0}: checks.length
+#: src/renderer/views/PrReviewOverlay/parts/PrChecksTab.tsx
+#~ msgid "<0>{passed}</0> of {0} checks passed"
+#~ msgstr "<0>{passed}</0> 件の{0}チェックに合格しました"
 
 #. placeholder {0}: snapshot.cost.period
 #: src/renderer/components/providers/UsageCostLine.tsx
@@ -1436,6 +1453,10 @@ msgstr "このコメントをエージェントのチャットに追加"
 msgid "Add to agent"
 msgstr "エージェントに追加"
 
+#: src/renderer/components/common/EditContextMenuHost.tsx
+msgid "Add to chat"
+msgstr "チャットに追加"
+
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 msgid "Add to composer"
 msgstr "コンポーザーに追加"
@@ -1452,6 +1473,10 @@ msgstr "ホーム画面に追加"
 #: src/renderer/views/PullRequestsOverlay/changes/inlineComments.tsx
 msgid "Add to review"
 msgstr "レビューに追加"
+
+#: src/renderer/components/common/EditContextMenuHost.tsx
+msgid "Add to side chat"
+msgstr "サイドチャットに追加"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoList.tsx
 msgid "Add to-do"
@@ -1531,6 +1556,7 @@ msgid "Agent is active and ready"
 msgstr "エージェントはアクティブで準備完了です"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentHeader.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Agent is currently disabled"
 msgstr "エージェントは現在無効になっています"
 
@@ -1578,6 +1604,11 @@ msgstr "エージェントのアップデートが利用可能"
 msgid "Agent usage"
 msgstr "エージェントの使用"
 
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
+msgid "Agent vision"
+msgstr "エージェントの視覚"
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Agent: {description}"
 msgstr "エージェント:{description}"
@@ -1585,6 +1616,10 @@ msgstr "エージェント:{description}"
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Agent: {subagent}"
 msgstr "エージェント:{subagent}"
+
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Agent's view"
+msgstr "エージェントの表示"
 
 #: src/renderer/components/thread/ThreadDockBubbles.tsx
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
@@ -1858,6 +1893,10 @@ msgstr "別の自動化がこの会話をすでに使用しています。"
 msgid "Another chat uses this same tree. File restore could overwrite that chat's changes."
 msgstr "別のチャットはこれと同じツリーを使用します。ファイルを復元すると、チャットの変更が上書きされる可能性があります。"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Another client is running this thread. Stop that run before replacing the thread or sending more input."
+msgstr "別のクライアントがこのスレッドを実行しています。スレッドを置き換えたり、追加の入力を送信したりする前に、その実行を停止してください。"
+
 #: src/renderer/actions/experimentOperationState.ts
 msgid "Another operation for this experiment is still running."
 msgstr "この実験の別の操作がまだ実行中です。"
@@ -1874,11 +1913,11 @@ msgstr "別の Poracode オーナーがこの接続のデータルートをす�
 msgid "Another Poracode process is updating these credentials. Wait and try again."
 msgstr "別の Poracode プロセスがこの認証情報を更新しています。しばらく待って再試行してください。"
 
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/QuestionFormActions.tsx
 msgid "Answer every question to submit"
 msgstr "送信するにはすべての質問に回答してください"
 
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/QuestionFormActions.tsx
 msgid "Answer this question to continue"
 msgstr "続行するには、この質問に回答してください"
 
@@ -2163,7 +2202,6 @@ msgid "At least two worktrees must be created. Any partial experiment was cleane
 msgstr "少なくとも 2 つのワークツリーを作成する必要があります。途中まで作成された実験はクリーンアップされました。"
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
-#: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Attach"
 msgstr "添付する"
 
@@ -2238,6 +2276,10 @@ msgstr "認証を利用できません"
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Author"
 msgstr "作成者"
+
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+#~ msgid "Authored"
+#~ msgstr "自分が作成"
 
 #: src/renderer/views/PullRequestsOverlay/list/PrListPanel.tsx
 msgid "Authored by me"
@@ -2712,6 +2754,7 @@ msgstr "Poracode の隔離された組み込みブラウザーで Web サイト�
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/plugins/pluginCopy.ts
 #: src/renderer/components/providers/settings/ProviderMcpServersSection.tsx
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
@@ -2822,6 +2865,10 @@ msgstr "ビジネスと金融"
 msgid "Business and operations"
 msgstr "ビジネスと運用"
 
+#: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
+#~ msgid "by <0>{author}</0>"
+#~ msgstr "<0>{author}</0> によって"
+
 #: src/renderer/views/ProfileOverlay/parts/ModelUsage.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "by prompts"
@@ -2902,8 +2949,6 @@ msgstr "この画面ではこのモデル設定を使用できません"
 #: src/renderer/components/thread/ThreadFollowUpEditor.tsx
 #: src/renderer/components/thread/ThreadForkDialog.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
 #: src/renderer/pwa/push/WebPushPermissionPrompt.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeDialog.tsx
@@ -3120,6 +3165,10 @@ msgstr "変更は新しいチャットに適用されます。スキルのライ
 #: src/renderer/components/providers/devin/sessionSettingsPanel.tsx
 #~ msgid "Changes apply to this running Devin session."
 #~ msgstr "変更は実行中のこの Devin セッションに適用されます。"
+
+#: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
+#~ msgid "Changes in PR"
+#~ msgstr "PR の変更点"
 
 #: src/renderer/views/PullRequestsOverlay/list/PrListMenuSections.tsx
 #: src/renderer/views/PullRequestsOverlay/list/PrListRow.tsx
@@ -3594,6 +3643,10 @@ msgstr "CLI"
 msgid "CLI hooks"
 msgstr "CLIフック"
 
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Click"
+msgstr "クリック"
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Click a shortcut to record a new key, or ＋ to add another."
 msgstr "ショートカットをクリックして新しいキーを記録するか、＋で別のキーを追加します。"
@@ -3780,6 +3833,10 @@ msgstr "ペインを閉じる"
 msgid "Close Pane"
 msgstr "ペインを閉じる"
 
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Close picture-in-picture"
+msgstr "ピクチャーインピクチャーを閉じる"
+
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Close plan"
 msgstr "計画を閉じる"
@@ -3793,6 +3850,7 @@ msgstr "PRを閉じる"
 #~ msgstr "PR レビューを閉じる"
 
 #: src/renderer/components/composer/ImageLightbox.tsx
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 msgid "Close preview"
 msgstr "プレビューを閉じる"
 
@@ -3970,6 +4028,10 @@ msgstr "{path} を折りたたむ"
 msgid "Collapse agent usage"
 msgstr "エージェントの使用状況を折りたたむ"
 
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Collapse agent vision"
+msgstr "エージェントの視覚を折りたたむ"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions.tsx
 #: src/renderer/views/PullRequestsOverlay/changes/ChangesToolbar.tsx
 #: src/renderer/views/PullRequestsOverlay/changes/ChangesToolbarCompact.tsx
@@ -4032,6 +4094,7 @@ msgid "Collapse todo dock"
 msgstr "todo ドックを折りたたむ"
 
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 #: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 msgid "Collapse warning"
 msgstr "警告を折りたたむ"
@@ -4282,6 +4345,10 @@ msgstr "入力欄の背景"
 #: src/renderer/components/thread/ThreadComposer.tsx
 msgid "Composer controls"
 msgstr "コンポーザーの操作"
+
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Computer use"
+msgstr "コンピューター操作"
 
 #: src/renderer/components/composer/AttachmentBar.tsx
 #: src/renderer/components/composer/ComposerAddMenu.tsx
@@ -4616,9 +4683,7 @@ msgstr "コンテキストの使用量"
 msgid "Context windows"
 msgstr "コンテキストウィンドウ"
 
-#: src/renderer/components/thread/ThreadMessageReplyPanel.tsx
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/QuestionFormActions.tsx
 msgid "Continue"
 msgstr "続ける"
 
@@ -4639,11 +4704,11 @@ msgstr "...で続行"
 msgid "Continue one conversation until a stop condition or limit is reached."
 msgstr "停止条件または上限に達するまで、1つの会話を継続します。"
 
-#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 msgid "Continue with incomplete history"
 msgstr "不完全な履歴のまま続行"
 
-#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 msgid "Continuing will keep the remaining history and mark this episode acknowledged; it does not restore the missing content."
 msgstr "続行すると残りの履歴が保持され、このエピソードは確認済みとして記録されます。失われた内容は復元されません。"
 
@@ -4715,6 +4780,7 @@ msgstr "生の TCP アドレスと接続チケットをコピーしました（L
 msgid "Copied to clipboard"
 msgstr "クリップボードにコピーしました"
 
+#: src/renderer/components/common/EditContextMenuHost.tsx
 #: src/renderer/components/terminal/XTermSurface.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Copy"
@@ -4772,6 +4838,7 @@ msgstr "無視されたファイルをコピーする"
 msgid "Copy image"
 msgstr "画像をコピー"
 
+#: src/renderer/components/common/EditContextMenuHost.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 #: src/renderer/views/PullRequestsOverlay/compact/PrCompactMenu.tsx
 #: src/renderer/views/PullRequestsOverlay/detail/PrDetailHeader.tsx
@@ -5435,6 +5502,7 @@ msgid "Cursor SDK update targets"
 msgstr "Cursor SDK の更新先"
 
 #: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
+#: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 msgid "Cursor SDK updated to v{nextVersion}."
 msgstr "Cursor SDK を v{nextVersion} に更新しました。"
 
@@ -5469,6 +5537,10 @@ msgstr "カスタムパス"
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 msgid "Custom theme"
 msgstr "カスタムテーマ"
+
+#: src/renderer/components/common/EditContextMenuHost.tsx
+msgid "Cut"
+msgstr "切り取り"
 
 #: src/renderer/commands/composerCommands.ts
 msgid "Cycle permission mode"
@@ -5531,7 +5603,7 @@ msgstr "日付と時刻"
 msgid "Days"
 msgstr "曜日"
 
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/QuestionFormActions.tsx
 msgid "Decline"
 msgstr "辞退"
 
@@ -5945,6 +6017,10 @@ msgstr "デバイスへのアクセスが期限切れです。もう一度接続
 msgid "Device accessibility"
 msgstr "デバイスのアクセシビリティ"
 
+#: src/renderer/components/devices/DeviceListItem.tsx
+msgid "Device actions"
+msgstr "デバイスの操作"
+
 #: src/renderer/components/devices/DeviceTools.tsx
 msgid "Device appearance"
 msgstr "デバイスの外観"
@@ -6261,6 +6337,7 @@ msgstr "発見が完了しました"
 
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 msgid "Dismiss"
 msgstr "閉じる"
 
@@ -6269,6 +6346,7 @@ msgid "Dismiss error"
 msgstr "エラーを閉じる"
 
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 msgid "Dismiss warning"
 msgstr "警告を閉じる"
 
@@ -6421,6 +6499,10 @@ msgstr "ドラフト"
 #: src/renderer/views/PullRequestsOverlay/list/PrListMenuSections.tsx
 msgid "Drafts only"
 msgstr "ドラフトのみ"
+
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Drag"
+msgstr "ドラッグ"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -7034,6 +7116,10 @@ msgstr "{path} を展開"
 msgid "Expand agent usage"
 msgstr "エージェントの使用状況を展開"
 
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Expand agent vision"
+msgstr "エージェントの視覚を展開"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions.tsx
 #: src/renderer/views/PullRequestsOverlay/changes/ChangesToolbar.tsx
 #: src/renderer/views/PullRequestsOverlay/changes/ChangesToolbarCompact.tsx
@@ -7086,6 +7172,7 @@ msgid "Expand visual"
 msgstr "ビジュアルを拡大"
 
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 #: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 msgid "Expand warning"
 msgstr "警告を展開"
@@ -7242,6 +7329,7 @@ msgstr "失敗しました"
 
 #: src/renderer/components/providers/antigravity/taskNotificationMarkdown.ts
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentMessageList.tsx
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
@@ -7279,6 +7367,7 @@ msgstr "プル リクエストの作成に失敗しました:{detail}"
 #~ msgstr "リモートスレッドを中断できませんでした。"
 
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 msgid "Failed to load"
 msgstr "読み込みに失敗しました"
 
@@ -7508,6 +7597,10 @@ msgstr "表を絞り込む"
 #: src/renderer/views/PullRequestsOverlay/timeline/TimelineTab.tsx
 msgid "Filter timeline"
 msgstr "タイムラインを絞り込む"
+
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+#~ msgid "Filters"
+#~ msgstr "フィルター"
 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Finalize"
@@ -9193,8 +9286,8 @@ msgid "Invalid visual specification. Showing source only."
 msgstr "ビジュアルの定義が無効です。ソースのみ表示しています。"
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
-msgid "iOS Simulator requires a macOS host with Xcode."
-msgstr "iOS Simulator には Xcode を備えた macOS ホストが必要です。"
+#~ msgid "iOS Simulator requires a macOS host with Xcode."
+#~ msgstr "iOS Simulator には Xcode を備えた macOS ホストが必要です。"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "iPad Air"
@@ -9675,6 +9768,7 @@ msgstr "マーケットプレイスを読み込み中…"
 msgid "Loading matched message…"
 msgstr "一致したメッセージを読み込み中…"
 
+#: src/renderer/components/thread/ChatPane/parts/items/MarkdownVideo.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorMediaViews.tsx
 msgid "Loading media preview…"
@@ -9765,6 +9859,7 @@ msgid "Loading:"
 msgstr "読み込み中:"
 
 #: src/renderer/app.tsx
+#: src/renderer/components/composer/ImageLightbox.tsx
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/components/providers/settings/ModelProviderManager.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/useHistoryItemDetails.tsx
@@ -10949,6 +11044,7 @@ msgid "Nature & weather"
 msgstr "自然と天気"
 
 #: src/renderer/commands/CommandPalette.tsx
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 msgid "Navigate"
 msgstr "移動"
 
@@ -11363,6 +11459,10 @@ msgstr "この PR についてはチェックが報告されていません。"
 #~ msgid "No commands found"
 #~ msgstr "コマンドが見つかりません"
 
+#: src/renderer/views/PrReviewOverlay/parts/PrCommitsTab.tsx
+#~ msgid "No commits found."
+#~ msgstr "コミットが見つかりませんでした。"
+
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/providers/settings/ProviderMcpServersSection.tsx
 msgid "No configured MCP servers yet"
@@ -11423,6 +11523,10 @@ msgstr "開発サーバーが検出されませんでした"
 #: src/renderer/views/GitReviewOverlay/parts/GitDiffContent/parts/DiffSection.tsx
 msgid "No diff available for {0}"
 msgstr "{0}に利用できる差分はありません"
+
+#: src/renderer/components/diff/DiffCardList.tsx
+#~ msgid "No diff for {visiblePath}"
+#~ msgstr "{visiblePath}の差分はありません"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
 msgid "No downloads match your search"
@@ -12007,6 +12111,10 @@ msgstr "npx"
 msgid "Number copied"
 msgstr "番号をコピーしました"
 
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Observe"
+msgstr "観察"
+
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Observed"
 msgstr "観測済み"
@@ -12168,6 +12276,10 @@ msgstr "すべて開く"
 msgid "Open all in group"
 msgstr "グループ内ですべてを開く"
 
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Open app"
+msgstr "アプリを開く"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
 msgid "Open as page"
 msgstr "ページとして開く"
@@ -12195,6 +12307,10 @@ msgstr "ブラウザタブを開く"
 msgid "Open candidate {0}: {label}"
 msgstr "候補 {0} を開く：{label}"
 
+#: src/renderer/views/PrReviewOverlay/parts/PrChecksTab.tsx
+#~ msgid "Open check"
+#~ msgstr "チェックを開く"
+
 #. placeholder {0}: check.name
 #: src/renderer/views/PullRequestsOverlay/summary/RailChecks.tsx
 msgid "Open check {0}"
@@ -12212,6 +12328,10 @@ msgstr "{0} のコメントを開く"
 #: src/renderer/views/PrReviewOverlay/parts/PrCommitsTab.tsx
 #~ msgid "Open commit on GitHub"
 #~ msgstr "GitHub でコミットを開く"
+
+#: src/renderer/views/PrReviewOverlay/parts/PrCommitsTab.tsx
+#~ msgid "Open commit on source host"
+#~ msgstr "ソースホストでコミットを開く"
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
@@ -12306,6 +12426,14 @@ msgstr "ブラウザで開く"
 msgid "Open in editor"
 msgstr "エディタで開く"
 
+#: src/renderer/components/common/EditContextMenuHost.tsx
+msgid "Open in Poracode browser"
+msgstr "Poracode ブラウザで開く"
+
+#: src/renderer/components/common/EditContextMenuHost.tsx
+msgid "Open in system browser"
+msgstr "システムブラウザで開く"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 msgid "Open job on GitHub"
 msgstr "GitHub でジョブを開く"
@@ -12358,6 +12486,10 @@ msgstr "ソースホストで開く"
 msgid "Open over SSH"
 msgstr "SSH で開く"
 
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Open picture-in-picture"
+msgstr "ピクチャーインピクチャーを開く"
+
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
 msgid "Open plan"
 msgstr "プランを開く"
@@ -12379,7 +12511,12 @@ msgstr "PR #{prNumber}を開く: {prStatusLabel}"
 #~ msgid "Open PR on GitHub"
 #~ msgstr "GitHub で PR を開く"
 
+#: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
+#~ msgid "Open PR on source host"
+#~ msgstr "ソースホストで PR を開く"
+
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 msgid "Open preview"
 msgstr "プレビューを開く"
 
@@ -12476,6 +12613,14 @@ msgstr "モデルピッカーを開く"
 msgid "Open thread in summary"
 msgstr "概要でスレッドを開く"
 
+#: src/renderer/components/devices/DeviceListItem.tsx
+msgid "Open view only"
+msgstr "閲覧のみで開く"
+
+#: src/renderer/components/devices/DeviceListItem.tsx
+msgid "Open with control"
+msgstr "操作して開く"
+
 #: src/renderer/components/providers/opencode/manifest.ts
 msgid "OpenCode"
 msgstr "OpenCode"
@@ -12563,9 +12708,9 @@ msgstr "オプション"
 msgid "or"
 msgstr "または"
 
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/userInputForm.tsx
-msgid "Or write a custom answer"
-msgstr "またはカスタムの回答を作成します"
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/QuestionOptions.tsx
+#~ msgid "Or write a custom answer"
+#~ msgstr "またはカスタムの回答を作成します"
 
 #: src/renderer/utils/projectIconColors.ts
 msgid "Orange"
@@ -12795,11 +12940,11 @@ msgstr "親フォルダー"
 #~ msgid "Parent folder, e.g. /home/me/projects"
 #~ msgstr "親フォルダー（例: /home/me/projects）"
 
-#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 msgid "Part of this conversation's history may be missing on the server. Review the recovery options before continuing."
 msgstr "この会話の履歴の一部がサーバー上にない可能性があります。続行する前に復旧オプションを確認してください。"
 
-#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 msgid "Part of this conversation's history was lost on the server and could not be shown. At least {refusedEvents} events / {refusedBytes} bytes are affected."
 msgstr "この会話の履歴の一部がサーバー上で失われ、表示できませんでした。少なくとも {refusedEvents} 件のイベント / {refusedBytes} バイトが影響を受けています。"
 
@@ -12858,6 +13003,7 @@ msgid "Passwords are encrypted in Poracode's local credential store. Password va
 msgstr "パスワードは Poracode のローカル資格情報ストアで暗号化されています。パスワードの値は、表示、コピー、編集するときにのみ取得されます。"
 
 #: src/renderer/commands/shortcutCatalog.ts
+#: src/renderer/components/common/EditContextMenuHost.tsx
 #: src/renderer/components/terminal/XTermSurface.tsx
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
@@ -12990,6 +13136,10 @@ msgstr "レビュー待ち"
 #: src/renderer/components/thread/ThreadPendingSteerStrip.tsx
 msgid "Pending steer"
 msgstr "保留中のステアリング"
+
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Perform actions"
+msgstr "操作を実行"
 
 #. placeholder {0}: clearTarget.threads.length
 #. placeholder {1}: clearTarget.label
@@ -13416,6 +13566,14 @@ msgstr "PR の自動化: 自動マージ"
 msgid "PR options"
 msgstr "PRオプション"
 
+#: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
+#~ msgid "PR Review"
+#~ msgstr "PRレビュー"
+
+#: src/renderer/views/PrReviewOverlay/parts/PrTabsPill.tsx
+#~ msgid "PR sections"
+#~ msgstr "PRセクション"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 msgid "PR title (leave empty to auto-generate)"
 msgstr "PR タイトル (自動生成するには空のままにしてください)"
@@ -13443,6 +13601,10 @@ msgstr "プリセット"
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
 msgid "Press Enter to apply."
 msgstr "Enterキーで適用します。"
+
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Press key"
+msgstr "キーを押す"
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Press shortcut…"
@@ -13727,6 +13889,10 @@ msgstr "このプロフィールを専用データルートへ移行していま
 msgid "Prompt"
 msgstr "プロンプト"
 
+#: src/renderer/components/thread/ChatPane/ChatPromptRail.tsx
+msgid "Prompt navigation"
+msgstr "プロンプトナビゲーション"
+
 #: src/renderer/components/providers/codex/index.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Prompts"
@@ -13883,6 +14049,10 @@ msgstr "プルリクエスト {0}"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Pull request #{number} was created, but marking it as draft failed. Refresh before changing its state."
 msgstr "プルリクエスト #{number} は作成されましたが、下書きへの変更に失敗しました。状態を変更する前に更新してください。"
+
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+#~ msgid "Pull request category"
+#~ msgstr "プルリクエストのカテゴリ"
 
 #. placeholder {0}: friendlyError(error)
 #: src/renderer/actions/prAutomationActions.ts
@@ -14436,7 +14606,6 @@ msgstr "リモートURL"
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 #: src/renderer/components/providers/settings/ModelProviderManager.tsx
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredCustomValues.tsx
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Remove"
@@ -15034,6 +15203,7 @@ msgstr "このホストに保存された使用量のみです。"
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/components/thread/ChatPane/ChatPane.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/MarkdownVideo.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/useHistoryItemDetails.tsx
 #: src/renderer/components/thread/SideChat/SideChatBody.tsx
 #: src/renderer/components/thread/SideChat/SideChatThreadView.tsx
@@ -15209,6 +15379,10 @@ msgstr "レビューと要約は Devin の CLI が受け付ける唯一のルー
 #~ msgid "Review and track work across your GitHub accounts."
 #~ msgstr "GitHub アカウント全体の作業をレビュー・追跡します。"
 
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+#~ msgid "Review and track work across your source hosts."
+#~ msgstr "ソースホスト全体の作業をレビューして追跡します。"
+
 #. placeholder {0}: props.candidateNumber
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 msgid "Review candidate {0} ({label}) changes"
@@ -15275,7 +15449,7 @@ msgstr "{0}の PR #{prNumber}を確認します"
 msgid "Review presentation"
 msgstr "レビュー表示"
 
-#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 msgid "Review recovery"
 msgstr "復旧を確認"
 
@@ -15303,6 +15477,10 @@ msgstr "レビュアー候補"
 #: src/renderer/views/PullRequestsOverlay/summary/RailReviewers.tsx
 msgid "Reviewers"
 msgstr "レビュアー"
+
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+#~ msgid "Reviewing"
+#~ msgstr "レビュー中"
 
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 #~ msgid "Reviewing each candidate's changes to recommend a winner."
@@ -15518,7 +15696,7 @@ msgstr "ワークフローを実行"
 msgid "running"
 msgstr "実行中"
 
-#: src/renderer/components/devices/DeviceWorkspace.tsx
+#: src/renderer/components/devices/DeviceListItem.tsx
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/PullRequestsOverlay/list/PrListMenuSections.tsx
 #: src/renderer/views/SchedulesView/parts/scheduleRunStatus.ts
@@ -15821,6 +15999,7 @@ msgid "Scoped review watches are unavailable on this host. Update the host befor
 msgstr "このホストではソース範囲を指定したレビュー監視を利用できません。自動化を有効にする前にホストを更新してください。"
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 msgid "Screenshot"
 msgstr "スクリーンショット"
 
@@ -15828,6 +16007,10 @@ msgstr "スクリーンショット"
 #: src/renderer/commands/shortcutCatalog.ts
 msgid "Scripts"
 msgstr "スクリプト"
+
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Scroll"
+msgstr "スクロール"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
@@ -15839,6 +16022,7 @@ msgstr "端末のスクロールバック バッファのスクロール速度�
 msgid "Scroll to bottom"
 msgstr "一番下までスクロール"
 
+#: src/renderer/components/thread/ChatPane/ChatPromptRail.tsx
 #: src/renderer/components/thread/ChatPane/StickyPrompt.tsx
 msgid "Scroll to prompt: {preview}"
 msgstr "プロンプトまでスクロール: {preview}"
@@ -15971,6 +16155,10 @@ msgstr "プラグインを検索"
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 msgid "Search plugins, skills, and servers..."
 msgstr "プラグイン・スキル・サーバーを検索..."
+
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+#~ msgid "Search pull requests"
+#~ msgstr "プルリクエストを検索"
 
 #: src/renderer/sidebar/ChatSidebarHeader.tsx
 msgid "Search recent chats"
@@ -16139,6 +16327,7 @@ msgstr "実行を表示するワークフローを選択してください。"
 msgid "Select account"
 msgstr "アカウントの選択"
 
+#: src/renderer/components/common/EditContextMenuHost.tsx
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 #: src/renderer/components/skills/SkillImportModal.tsx
@@ -16160,6 +16349,11 @@ msgstr "すべてのセッションを選択"
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "Select all skills"
 msgstr "すべてのスキルを選択"
+
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/userInputForm.tsx
+msgid "Select all that apply"
+msgstr "当てはまるものをすべて選択"
 
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "Select an agent to see its prompt and outcome."
@@ -16864,8 +17058,8 @@ msgid "Skill runs"
 msgstr "スキル実行"
 
 #: src/renderer/components/composer/SlashCommandChip.ts
+#: src/renderer/components/promptChips/PromptChips.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
-#: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 #: src/renderer/components/thread/ThreadCommandPanel.tsx
 msgid "Skill: {skill}"
 msgstr "スキル:{skill}"
@@ -17015,6 +17209,10 @@ msgstr "一部の値を表示できません。計算ツールの入力値を確
 #: src/renderer/views/PullRequestsOverlay/timeline/TimelineEventPhrase.tsx
 msgid "Someone"
 msgstr "誰か"
+
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/QuestionOptions.tsx
+msgid "Something else…"
+msgstr "その他…"
 
 #: src/mobile/QrScanner.tsx
 #~ msgid "Something went wrong starting the camera. Enter the endpoint and token below to pair instead."
@@ -17225,7 +17423,7 @@ msgstr "この ToDo から新しいスレッドを開始します"
 msgid "Start a thread in this worktree"
 msgstr "このワークツリーでスレッドを開始"
 
-#: src/renderer/components/devices/DeviceWorkspace.tsx
+#: src/renderer/components/devices/DeviceListItem.tsx
 msgid "Start device"
 msgstr "デバイスを起動"
 
@@ -17304,7 +17502,7 @@ msgid "Started {targetLabel} thread"
 msgstr "{targetLabel}スレッドを開始しました"
 
 #. Button label while the microphone test is starting
-#: src/renderer/components/devices/DeviceWorkspace.tsx
+#: src/renderer/components/devices/DeviceListItem.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/RemoteAccessSidebarIcon.tsx
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
@@ -17456,7 +17654,7 @@ msgstr "音声入力を停止する"
 msgid "Stop when"
 msgstr "停止条件"
 
-#: src/renderer/components/devices/DeviceWorkspace.tsx
+#: src/renderer/components/devices/DeviceListItem.tsx
 msgid "Stopped"
 msgstr "停止中"
 
@@ -17536,10 +17734,7 @@ msgstr "サブエージェント"
 #~ msgid "Subagents enabled for this thread"
 #~ msgstr "このスレッドに対してサブエージェントが有効になっています"
 
-#: src/renderer/components/thread/ThreadMessageReplyPanel.tsx
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/QuestionRows.tsx
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/QuestionFormActions.tsx
 msgid "Submit"
 msgstr "送信する"
 
@@ -18000,6 +18195,10 @@ msgstr "そのラベルはこのリポジトリに存在しません。ラベル
 #~ msgid "That pairing code is no longer valid. Open Settings → Remote Access on the desktop, press New code, and pair again."
 #~ msgstr "このペアリングコードは無効になりました。デスクトップで設定 → リモートアクセスを開き、「新しいコード」を押してから再度ペアリングしてください。"
 
+#: src/renderer/components/thread/ChatPane/ChatPane.tsx
+msgid "That prompt is no longer available."
+msgstr "このプロンプトは利用できなくなりました。"
+
 #: src/renderer/views/PullRequestsOverlay/list/PrListPanel.tsx
 msgid "That pull request is not in this list. Try another state filter."
 msgstr "そのプルリクエストはこの一覧にありません。別の状態フィルターをお試しください。"
@@ -18021,7 +18220,7 @@ msgstr "そのリモートセッションはすでに存在しません。"
 msgid "The {branch} branch on {remote} is not this pull request's head (it may belong to a fork or have moved)."
 msgstr "{remote} 上のブランチ {branch} はこのプルリクエストの先頭ではありません（フォークのブランチか、移動した可能性があります）。"
 
-#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 msgid "The acknowledgement failed."
 msgstr "確認に失敗しました。"
 
@@ -18040,6 +18239,10 @@ msgstr "エージェントがまだ回答中です。完了してからもう一
 #: src/renderer/components/common/EffortContextMenu/ContextSizeReloadPopover.tsx
 msgid "The agent session reloads to apply the new context size; the conversation is kept."
 msgstr "新しいコンテキストサイズを適用するためにエージェントのセッションが再読み込みされます。会話は保持されます。"
+
+#: src/renderer/components/thread/useThreadDockState.ts
+msgid "The agent stopped because of an error."
+msgstr "エージェントがエラーのため停止しました。"
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProfileIdentity.tsx
 #~ msgid "The API key below is used by Cursor CLI, ACP, and SDK for this profile."
@@ -18107,8 +18310,13 @@ msgstr "カスタムテーマの上限に達しました。新しいテーマを
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
-msgid "The default background refresh cadence, used for any provider without its own interval set below. Set to 0 to turn off (manual only). The 2-minute floor respects provider rate limits."
-msgstr "既定のバックグラウンド更新間隔です。下で独自の間隔を設定していないプロバイダーに使用されます。オフにするには 0 に設定します (手動のみ)。2 分の下限はプロバイダーのレート制限を考慮したものです。"
+#~ msgid "The default background refresh cadence, used for any provider without its own interval set below. Set to 0 to turn off (manual only). The 2-minute floor respects provider rate limits."
+#~ msgstr "既定のバックグラウンド更新間隔です。下で独自の間隔を設定していないプロバイダーに使用されます。オフにするには 0 に設定します (手動のみ)。2 分の下限はプロバイダーのレート制限を考慮したものです。"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "The default background refresh cadence. Providers may use a slower default unless an interval is set below. Set to 0 to turn off (manual only). The minimum interval is 2 minutes."
+msgstr "バックグラウンド更新の既定の間隔です。以下で間隔を設定しない場合、プロバイダーによっては更新間隔が長くなることがあります。0 に設定すると自動更新が無効になります（手動のみ）。最小間隔は 2 分です。"
 
 #: src/renderer/hooks/usePrWriteActions.ts
 msgid "The description changed since you started editing. Reload and reapply your edit."
@@ -18235,7 +18443,7 @@ msgstr "ハートビートの会話は存在しません。"
 msgid "The heartbeat conversation uses a different agent."
 msgstr "ハートビートの会話では別のエージェントが使用されています。"
 
-#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 #: src/renderer/state/remote/historyNoticeActions.ts
 msgid "The history notice could not be read from the server."
 msgstr "サーバーから履歴通知を読み取れませんでした。"
@@ -18261,7 +18469,7 @@ msgstr "ホストが無効な環境ペアリングエンドポイントを返し
 msgid "The host stops and restarts this environment's owner with the bundled runtime. The child's data directory is not touched."
 msgstr "ホストは同梱ランタイムでこの環境の所有者を停止して再起動します。子のデータディレクトリは変更されません。"
 
-#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 msgid "The incomplete-history notice changed on the server. Review the updated details before continuing."
 msgstr "不完全な履歴の通知がサーバー上で変更されました。続行する前に更新された詳細を確認してください。"
 
@@ -18456,7 +18664,7 @@ msgstr "選択したターンには実行中の作業が残っています。"
 msgid "The server configuration is invalid."
 msgstr "サーバー構成が無効です。"
 
-#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 msgid "The server could not confirm the acknowledgement. Retry to continue."
 msgstr "サーバーが確認を確定できませんでした。続行するには再試行してください。"
 
@@ -18786,7 +18994,7 @@ msgstr "この環境"
 msgid "This environment's host identity changed. Re-pair it explicitly from the host."
 msgstr "この環境のホスト ID が変更されました。ホストから明示的に再ペアリングしてください。"
 
-#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 msgid "This episode has been acknowledged; the missing content is not restored."
 msgstr "このエピソードは確認済みです。失われた内容は復元されません。"
 
@@ -18859,6 +19067,7 @@ msgstr "このマシン"
 msgid "This machine (local)"
 msgstr "このマシン（ローカル）"
 
+#: src/renderer/components/thread/ChatPane/parts/items/MarkdownVideo.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorMediaViews.tsx
 msgid "This media preview is unavailable."
 msgstr "このメディアのプレビューは利用できません。"
@@ -18952,6 +19161,10 @@ msgstr "このプロジェクトには対応するソースホストのリモー
 msgid "This project's remote server is offline. Reconnect it to start a thread."
 msgstr "このプロジェクトのリモートサーバーはオフラインです。スレッドを開始するには再接続してください。"
 
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
+msgid "This provider configuration has no detected runtime on the selected machine."
+msgstr "選択したマシンでは、このプロバイダー設定のランタイムは検出されていません。"
+
 #: src/renderer/views/PullRequestsOverlay/summary/SummaryTab.tsx
 msgid "This pull request could not be loaded."
 msgstr "このプルリクエストを読み込めませんでした。"
@@ -19012,6 +19225,10 @@ msgstr "これにより、「{0}」のワークツリーが削除され、{1, pl
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "This removes the worktree on \"{0}\", then deletes the branch."
 msgstr "これにより、「{0}」のワークツリーが削除され、その後ブランチが削除されます。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This request has no matching persistent approval. Choose Allow once."
+msgstr "このリクエストに対応する永続的な許可はありません。「今回のみ許可」を選択してください。"
 
 #: src/renderer/i18n/sharedMessages.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
@@ -19522,9 +19739,17 @@ msgstr "メッセージを検索するには2文字以上入力してくださ�
 msgid "Type on device"
 msgstr "デバイスに入力"
 
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Type text"
+msgstr "テキストを入力"
+
 #: src/renderer/commands/CommandPalette.tsx
 msgid "Type to search files"
 msgstr "入力してファイルを検索"
+
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/userInputForm.tsx
+msgid "Type your answer…"
+msgstr "回答を入力…"
 
 #. placeholder {0}: agent.label
 #. placeholder {0}: agentStatus.label
@@ -19669,6 +19894,10 @@ msgstr "デバイスのウィンドウを開けませんでした。"
 #: src/renderer/commands/registry.ts
 msgid "Unable to open file"
 msgstr "ファイルを開けません"
+
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Unable to open picture-in-picture"
+msgstr "ピクチャーインピクチャーを開けません"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorModal.tsx
 msgid "Unable to open the file"
@@ -19868,6 +20097,18 @@ msgstr "{0}を更新できません:{detailText}"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Unable to update {0}."
 msgstr "{0}を更新できません。"
+
+#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+msgid "Unable to update {agentLabel}."
+msgstr "{agentLabel}を更新できません。"
+
+#: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
+msgid "Unable to update {updateLabel}."
+msgstr "{updateLabel}を更新できません。"
+
+#: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
+msgid "Unable to update Cursor SDK."
+msgstr "Cursor SDK を更新できません。"
 
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
 msgid "Unable to update learned tags."
@@ -20210,6 +20451,10 @@ msgstr "Cursor SDK を更新"
 #: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
 msgid "Update Cursor SDK in {environment}"
 msgstr "{environment} の Cursor SDK を更新"
+
+#: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
+msgid "Update Cursor SDK to v{availableVersion}"
+msgstr "Cursor SDK を v{availableVersion} に更新"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Update error: {detail}"
@@ -20639,6 +20884,7 @@ msgid "via {0}"
 msgstr "{0}経由"
 
 #: src/renderer/components/media/NativeMediaView.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/MarkdownVideo.tsx
 msgid "Video preview"
 msgstr "動画プレビュー"
 
@@ -20839,6 +21085,10 @@ msgstr "{env}{methodName}認証を待機しています。検出されたエー�
 msgid "Waiting for {methodName} authentication. Detected agents will refresh when it finishes."
 msgstr "{methodName}認証を待機しています。検出されたエージェントは終了時に更新されます。"
 
+#: src/renderer/components/thread/ThreadAgentVisionDock.tsx
+msgid "Waiting for a preview"
+msgstr "プレビューを待機中"
+
 #: src/renderer/components/thread/ThreadPendingSteerStrip.tsx
 msgid "waiting for agent to stop"
 msgstr "エージェントが停止するのを待っています"
@@ -20896,6 +21146,7 @@ msgid "Warming up WSL shell environment…"
 msgstr "WSL シェル環境をウォームアップしています…"
 
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 #: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Warning"
@@ -21338,6 +21589,10 @@ msgstr "ソース管理用の WSL ブリッジを利用できません。"
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "WSL: {distro}"
 msgstr "WSL：{distro}"
+
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
+msgid "Yes"
+msgstr "はい"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "You have an unfinished review on the source host. Submit or discard it there before submitting this one."

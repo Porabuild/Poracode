@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { createAcpInboundStream, AcpInboundFrameLimitError } from "./sessionInboundStream";
+import {
+  ACP_INBOUND_FRAME_MAX_BYTES,
+  createAcpInboundStream,
+  AcpInboundFrameLimitError,
+} from "./sessionInboundStream";
 import { ndJsonStream, type AnyMessage } from "@agentclientprotocol/sdk";
 import { filterAcpInboundNoise, filterAcpStdoutNonJsonLines } from "./sessionStreamFilter";
 
@@ -46,6 +50,64 @@ async function collect(stream: ReadableStream<AnyMessage>) {
 }
 
 describe("pull-based ACP byte framing", () => {
+  it("delivers a large cumulative multi-file diff frame intact", async () => {
+    const oldText = `${"x".repeat(900_000 - 1)}\n`;
+    const newText = `${"y".repeat(900_000 - 1)}\n`;
+    const content = Array.from({ length: 12 }, (_, index) => ({
+      type: "diff",
+      path: `catalog-${index + 1}.po`,
+      oldText,
+      newText,
+    }));
+    const bytes = encoder.encode(
+      `${JSON.stringify({
+        jsonrpc: "2.0",
+        method: "session/update",
+        params: {
+          sessionId: "large-diff",
+          update: {
+            sessionUpdate: "tool_call_update",
+            toolCallId: "multi-edit",
+            status: "in_progress",
+            content,
+          },
+        },
+      })}\n`,
+    );
+    const chunkSize = 64 * 1024;
+    const chunks = Array.from({ length: Math.ceil(bytes.byteLength / chunkSize) }, (_, index) =>
+      bytes.subarray(index * chunkSize, (index + 1) * chunkSize),
+    );
+
+    expect(bytes.byteLength).toBeGreaterThan(8 * 1024 * 1024 + 64 * 1024);
+    expect(bytes.byteLength).toBeLessThan(ACP_INBOUND_FRAME_MAX_BYTES);
+
+    const [value] = await collect(
+      createAcpInboundStream(output().stream, input(chunks).stream).readable,
+    );
+    const receivedContent = (
+      value as {
+        params: {
+          update: {
+            content: Array<{ path: string; oldText: string; newText: string }>;
+          };
+        };
+      }
+    ).params.update.content;
+    expect(receivedContent.map((block) => block.path)).toEqual(
+      Array.from({ length: 12 }, (_, index) => `catalog-${index + 1}.po`),
+    );
+    expect(
+      receivedContent.every(
+        (block) =>
+          block.oldText.length === 900_000 &&
+          block.newText.length === 900_000 &&
+          block.oldText.endsWith("\n") &&
+          block.newText.endsWith("\n"),
+      ),
+    ).toBe(true);
+  });
+
   it("one-byte fragments use bounded fixed blocks rather than one retained object per byte", async () => {
     const bytes = encoder.encode(
       JSON.stringify({ ...message(1), params: { text: "x".repeat(40000) } }) + "\n",

@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { toast } from "@heroui/react";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CanonicalContentBlock, Project, Thread } from "@/shared/contracts";
@@ -6,6 +6,8 @@ import { HOME_PROJECT_ID } from "@/shared/homeScope";
 import { assistantDisplayText } from "@/shared/assistantMessageText";
 import { AppProvider } from "@/renderer/components/ui/provider";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useThreadForkStore } from "@/renderer/state/threadForkStore";
+import { installRuntimeHistoryRecovery } from "@/renderer/state/runtimeInterestHydration";
 import { useRevertedPromptStore } from "../revertedPrompt";
 import { ChatPane } from "./ChatPane";
 import { byTextContent } from "@/renderer/testUtils/text";
@@ -352,7 +354,20 @@ describe("ChatPane", () => {
     expect(screen.queryByText("No messages yet")).not.toBeInTheDocument();
   });
 
-  it("keeps a loaded reply's completed timer when a history refresh fails", async () => {
+  it("offers one history retry when supplementary content is visible without message rows", async () => {
+    const thread = { ...makeThread(), status: "idle" as const };
+    useAppStore.setState({
+      threads: [thread],
+      runtimeHydrationStatus: { [thread.id]: "failed" },
+    });
+
+    renderChatPane(thread, { hasSupplementaryContent: true });
+
+    expect(await screen.findAllByRole("button", { name: "Retry" })).toHaveLength(1);
+    expect(screen.getByText("Messages could not be loaded.")).toBeInTheDocument();
+  });
+
+  it("keeps a loaded reply and its completed timer while offering recovery retry", async () => {
     const thread = {
       ...makeThread(),
       status: "idle" as const,
@@ -364,10 +379,21 @@ describe("ChatPane", () => {
       runtimeHydrationStatus: { [thread.id]: "failed" },
     });
     seedAssistantMessage(thread.id, "Previously loaded reply");
-    renderChatPane(thread);
-    expect(await screen.findByText("Previously loaded reply")).toBeInTheDocument();
-    expect(screen.getByText(/^Worked for/)).toBeInTheDocument();
-    expect(screen.queryByText("Messages could not be loaded.")).not.toBeInTheDocument();
+    const recover = vi.fn<(threadId: string) => void>();
+    const uninstall = installRuntimeHistoryRecovery(recover);
+    try {
+      renderChatPane(thread);
+      expect(await screen.findByText("Previously loaded reply")).toBeInTheDocument();
+      expect(screen.getByText(/^Worked for/)).toBeInTheDocument();
+      expect(screen.getByText("Messages could not be loaded.")).toBeInTheDocument();
+      await waitFor(() => expect(recover).toHaveBeenCalledExactlyOnceWith(thread.id));
+      recover.mockClear();
+      fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+      expect(recover).toHaveBeenCalledExactlyOnceWith(thread.id);
+      expect(screen.getByText("Previously loaded reply")).toBeInTheDocument();
+    } finally {
+      uninstall();
+    }
   });
 
   it.each(["idle", "inactive", "working"] as const)(
@@ -659,6 +685,34 @@ describe("ChatPane", () => {
     await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
 
     expect(getScrollElement(container).className).toContain("[overflow-anchor:none]");
+  });
+
+  it("sizes the chat scroller below in-flow banners so the tail stays above the composer", async () => {
+    const thread: Thread = {
+      ...makeThread(),
+      forkedFrom: {
+        version: 1,
+        threadId: "thread-source",
+        title: "Source thread",
+        throughItemId: "assistant-source",
+        inheritedTurnCount: 1,
+        contextStrategy: "transcript",
+      },
+    };
+    useAppStore.setState({ threads: [thread] });
+    seedAssistantMessage(thread.id, "Inspect output");
+
+    const { container } = renderChatPane(thread);
+    await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
+
+    // A full-height scroller placed after a banner overflows its container by
+    // the banner height, hiding the "Working for" footer under the composer.
+    const scroller = getScrollElement(container);
+    const banner = screen.getByTestId("thread-fork-source");
+    expect(banner.parentElement).toBe(scroller.parentElement);
+    expect(scroller.parentElement?.className).toContain("flex-col");
+    expect(scroller.className).toContain("flex-1");
+    expect(scroller.className).not.toContain("h-full");
   });
 
   it("does not disturb the native end anchor when bottom-pinned content collapses", async () => {
@@ -1706,6 +1760,22 @@ describe("ChatPane", () => {
     expect(badge).toHaveAttribute("aria-label", "Computer Use");
   });
 
+  it("renders a skill picked from a plugin as a skill badge, not the plugin", async () => {
+    const thread = makeThread();
+    seedUserMessageContent(thread.id, [
+      { kind: "skill", name: "finalize", invocation: "/finalize", pluginId: "app-controls" },
+    ]);
+
+    const { container } = renderChatPane(thread);
+    await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
+
+    const badge = container.querySelector('[data-skill-name="finalize"]');
+    expect(badge).toHaveTextContent("finalize");
+    expect(badge).toHaveAttribute("aria-label", "Skill: finalize");
+    expect(badge).not.toHaveAttribute("data-plugin-id");
+    expect(badge?.querySelector("svg.lucide-sparkles")).toBeInTheDocument();
+  });
+
   it("keeps a leading slash command when a later skill chip is present", async () => {
     const thread = makeThread();
     seedUserMessageContent(thread.id, [
@@ -2213,6 +2283,128 @@ describe("ChatPane", () => {
 
     const label = screen.getByText("Worked for 1m 15s");
     expect(label.closest(".surface")).not.toBeNull();
+  });
+
+  it.each(["latest", "historical", "sub-second"])(
+    "keeps the %s turn's fork beside copy instead of its elapsed footer",
+    (position) => {
+      const thread = { ...makeThread(), status: "idle" as const };
+      useAppStore.setState({ threads: [thread] });
+      seedAssistantMessage(thread.id, "Final answer");
+      completeAssistantMessage(thread.id);
+      useAppStore.getState().hydrateThreadCompletedTurns(thread.id, [
+        {
+          startedAt: 1000,
+          endedAt: position === "sub-second" ? 1500 : 76000,
+          anchorItemId: ASSISTANT_ITEM_ID,
+        },
+      ]);
+      if (position === "historical") seedUserMessage(thread.id, "Follow-up", "user-2");
+      useAppStore.setState({ threads: [thread] });
+
+      renderChatPane(thread);
+
+      const copy = within(screen.getByText("Final answer").closest(".surface")!).getByRole(
+        "button",
+        { name: "Copy message" },
+      );
+      const fork = screen.getByRole("button", { name: "Fork from here" });
+      expect(copy.closest(".poracode-message-action-strip")).toContainElement(fork);
+      expect(
+        screen.queryByText("Worked for 1m 15s")?.closest(".surface")?.contains(fork) ?? false,
+      ).toBe(false);
+      fireEvent.click(fork);
+      expect(useThreadForkStore.getState()).toMatchObject({
+        sourceThreadId: thread.id,
+        throughItemId: ASSISTANT_ITEM_ID,
+      });
+      useThreadForkStore.getState().close();
+    },
+  );
+
+  it("forks from the persisted anchor when a hidden goal ends an assistant turn", () => {
+    const thread = { ...makeThread(), status: "idle" as const };
+    useAppStore.setState({ threads: [thread] });
+    seedAssistantMessage(thread.id, "Final answer");
+    completeAssistantMessage(thread.id);
+    useAppStore.getState().applyRuntimeEvent(thread.id, {
+      type: "item.started",
+      threadId: thread.id,
+      itemId: "goal-1",
+      itemType: "goal",
+      payload: { entries: [{ id: "1", title: "Ship it", status: "completed" }] },
+    });
+    useAppStore
+      .getState()
+      .hydrateThreadCompletedTurns(thread.id, [
+        { startedAt: 1000, endedAt: 76000, anchorItemId: "goal-1" },
+      ]);
+    useAppStore.setState({ threads: [thread] });
+
+    const { container } = renderChatPane(thread);
+
+    const fork = screen.getByRole("button", { name: "Fork from here" });
+    expect(container.querySelector(".poracode-message-action-strip")).toContainElement(fork);
+    fireEvent.click(fork);
+    expect(useThreadForkStore.getState().throughItemId).toBe("goal-1");
+    useThreadForkStore.getState().close();
+  });
+
+  it("keeps the footer fork when the turn ends with a tool instead of an answer", () => {
+    const thread = { ...makeThread(), status: "idle" as const };
+    useAppStore.setState({ threads: [thread] });
+    useAppStore.getState().applyRuntimeEvent(thread.id, {
+      type: "item.started",
+      threadId: thread.id,
+      itemId: "tool-1",
+      itemType: "tool_call",
+      payload: { name: "Read", status: "completed", args: { file_path: "hello.txt" } },
+    });
+    useAppStore
+      .getState()
+      .hydrateThreadCompletedTurns(thread.id, [
+        { startedAt: 1000, endedAt: 76000, anchorItemId: "tool-1" },
+      ]);
+    useAppStore.setState({ threads: [thread] });
+
+    renderChatPane(thread);
+
+    expect(screen.getByRole("button", { name: "Fork from here" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Copy message" })).not.toBeInTheDocument();
+  });
+
+  it("keeps the footer fork row while reconnecting so the footer height does not change", () => {
+    const thread = { ...makeThread(), status: "idle" as const };
+    useAppStore.setState({ threads: [thread] });
+    useAppStore.getState().applyRuntimeEvent(thread.id, {
+      type: "item.started",
+      threadId: thread.id,
+      itemId: "tool-1",
+      itemType: "tool_call",
+      payload: { name: "Read", status: "completed", args: { file_path: "hello.txt" } },
+    });
+    useAppStore
+      .getState()
+      .hydrateThreadCompletedTurns(thread.id, [
+        { startedAt: 1000, endedAt: 76000, anchorItemId: "tool-1" },
+      ]);
+    useAppStore.setState({
+      threads: [thread],
+      connectingThreadIds: { [thread.id]: "connection-1" },
+    });
+
+    renderChatPane(thread);
+
+    expect(screen.getByText("Connecting…")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Fork from here" })).toBeInTheDocument();
+
+    act(() => {
+      useAppStore.getState().finishThreadConnecting(thread.id, "connection-1");
+    });
+
+    expect(screen.queryByText("Connecting…")).not.toBeInTheDocument();
+    expect(screen.getByText("Worked for 1m 15s")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Fork from here" })).toBeInTheDocument();
   });
 
   it("renders a completed turn whose stored anchor is an unrendered goal item", () => {

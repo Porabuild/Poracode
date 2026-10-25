@@ -89,7 +89,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2EExperimentU2DCommandU2ERequest: RemoteRootCodec<RouteexperimentU2DCommandRequest_1cd4b83478> = .init(id: "route.experiment-command.request", schema: RemoteSchemas.schema_1cd4b8347823edb1)
+  static let routeU2EExperimentU2DCommandU2ERequest: RemoteRootCodec<RouteexperimentU2DCommandRequest_8e79bc80a7> = .init(id: "route.experiment-command.request", schema: RemoteSchemas.schema_8e79bc80a7c7760e)
 }
 
 public extension RemoteRootCodecs {
@@ -165,7 +165,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2ELocalU2DImageU2EQuery: RemoteRootCodec<RoutelocalU2DImageQuery_dd4531e3bf> = .init(id: "route.local-image.query", schema: RemoteSchemas.schema_dd4531e3bf06232b)
+  static let routeU2ELocalU2DImageU2EQuery: RemoteRootCodec<RoutelocalU2DImageQuery_e788b86a30> = .init(id: "route.local-image.query", schema: RemoteSchemas.schema_e788b86a30c28e0d)
 }
 
 public extension RemoteRootCodecs {
@@ -301,11 +301,11 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2EProjectU2DCommandU2ERequest: RemoteRootCodec<RouteprojectU2DCommandRequest_f806b38202> = .init(id: "route.project-command.request", schema: RemoteSchemas.schema_f806b382027c278d)
+  static let routeU2EProjectU2DCommandU2ERequest: RemoteRootCodec<RouteprojectU2DCommandRequest_2c19dd5367> = .init(id: "route.project-command.request", schema: RemoteSchemas.schema_2c19dd5367fc67fa)
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2EProjectU2DCommandU2EResponse: RemoteRootCodec<RouteprojectU2DCommandResponse_4b9241d0f3> = .init(id: "route.project-command.response", schema: RemoteSchemas.schema_4b9241d0f311f397)
+  static let routeU2EProjectU2DCommandU2EResponse: RemoteRootCodec<RouteprojectU2DCommandResponse_9567576693> = .init(id: "route.project-command.response", schema: RemoteSchemas.schema_9567576693bf6845)
 }
 
 public extension RemoteRootCodecs {
@@ -313,7 +313,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2EProjectU2DListU2EResponse: RemoteRootCodec<RouteprojectU2DListResponse_8c0ef7d6db> = .init(id: "route.project-list.response", schema: RemoteSchemas.schema_8c0ef7d6db14930e)
+  static let routeU2EProjectU2DListU2EResponse: RemoteRootCodec<RouteprojectU2DListResponse_cbb540e860> = .init(id: "route.project-list.response", schema: RemoteSchemas.schema_cbb540e86008ae40)
 }
 
 public extension RemoteRootCodecs {
@@ -385,7 +385,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2ERuntimeU2DImageU2EQuery: RemoteRootCodec<RouteruntimeU2DImageQuery_1de2de5621> = .init(id: "route.runtime-image.query", schema: RemoteSchemas.schema_1de2de5621f360c2)
+  static let routeU2ERuntimeU2DImageU2EQuery: RemoteRootCodec<RouteruntimeU2DImageQuery_864ab6444b> = .init(id: "route.runtime-image.query", schema: RemoteSchemas.schema_864ab6444b74d387)
 }
 
 public extension RemoteRootCodecs {
@@ -441,7 +441,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2EShellU2DSnapshotU2EResponse: RemoteRootCodec<RouteshellU2DSnapshotResponse_8be1bbb49c> = .init(id: "route.shell-snapshot.response", schema: RemoteSchemas.schema_8be1bbb49c258646)
+  static let routeU2EShellU2DSnapshotU2EResponse: RemoteRootCodec<RouteshellU2DSnapshotResponse_c0f5e8e0e2> = .init(id: "route.shell-snapshot.response", schema: RemoteSchemas.schema_c0f5e8e0e2be6d7d)
 }
 
 public extension RemoteRootCodecs {

@@ -81,6 +81,8 @@ export function installShutdown(
     readonly drainDeadlineMs?: number;
     /** Test seam; defaults to `process.platform`. */
     readonly platform?: NodeJS.Platform;
+    /** One-task owners preserve task failure after their joined drain. */
+    readonly exitCode?: () => 0 | 1;
   } = {},
 ): ShutdownControl {
   let shuttingDown = false;
@@ -90,7 +92,8 @@ export function installShutdown(
   const drainDeadlineMs = options.drainDeadlineMs ?? DEFAULT_SHUTDOWN_DRAIN_DEADLINE_MS;
   // Armed before disposal starts and deliberately not cleared by a disposal
   // failure: the deadline is the hard bound on how long surviving handles
-  // may keep the owner lease. Only a confirmed disposal clears it and exits 0.
+  // may keep the owner lease. Only confirmed disposal clears it and exits
+  // with the selected task status (zero for normal server/relay shutdown).
   const armDeadline = (retainLoop: boolean): void => {
     if (deadline !== undefined) return;
     const timer = setTimeout(() => {
@@ -139,7 +142,7 @@ export function installShutdown(
       void dispose().then(() => {
         if (forced) return;
         clearTimeout(deadline);
-        process.exit(0);
+        process.exit(options.exitCode?.() ?? 0);
       }, unconfirmed);
     } catch (error) {
       unconfirmed(error);

@@ -21,6 +21,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, readdirSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { npmInvocation } from "./server-host-tools.mjs";
+import { runtimeResourceIdentitySchema } from "../src/shared/sshRuntimeManifest.ts";
 
 /** Version of the packaging-side closure contract this module writes. */
 export const RUNTIME_CLOSURE_FORMAT_VERSION = 1;
@@ -34,6 +35,7 @@ export function readRuntimeClosure(mainBundleDir) {
   const files = new Map();
   const dependencies = new Set();
   const manifestFiles = [];
+  const resources = new Map();
   for (const name of readdirSync(mainBundleDir)) {
     if (!name.endsWith(".ssh-runtime-manifest.json")) continue;
     const path = join(mainBundleDir, name);
@@ -41,6 +43,13 @@ export function readRuntimeClosure(mainBundleDir) {
     manifestFiles.push(name);
     for (const file of manifest.files ?? []) files.set(file.path, file);
     for (const dependency of manifest.dependencies ?? []) dependencies.add(dependency);
+    for (const candidate of manifest.resources ?? []) {
+      const resource = runtimeResourceIdentitySchema.parse(candidate);
+      const previous = resources.get(resource.kind);
+      if (previous && previous.sha256 !== resource.sha256)
+        throw new Error(`Runtime manifests disagree about resource ${resource.kind}.`);
+      resources.set(resource.kind, resource);
+    }
   }
   if (manifestFiles.length === 0) {
     throw new Error(`No ssh-runtime manifests in ${mainBundleDir}. Build first (bun run build).`);
@@ -50,6 +59,7 @@ export function readRuntimeClosure(mainBundleDir) {
     files: [...files.values()],
     dependencies: [...dependencies].sort(),
     manifestFiles,
+    resources: [...resources.values()],
   };
 }
 

@@ -42,6 +42,7 @@ import {
 } from "./historyRead";
 import { buildThreadRuntimeItemsPage, buildThreadSnapshot } from "./snapshots";
 import { handleHistoryItemDetails } from "./historyItemDetails";
+import { handleHistoryPromptIndex } from "./historyPromptIndex";
 import { runThreadRuntimeMutation } from "@/host/db/runtimePersistenceRuntime";
 import { runtimeHistoryRevision } from "@/host/db/runtimeHistoryRevision";
 import { persistThreadStateEvent } from "./threadStatePersistence";
@@ -312,6 +313,39 @@ describe.skipIf(!sqliteAvailable)("B4 bounded history server composition", () =>
     ).toBe("serialized-exact");
   });
 
+  it("lists the thread's prompts without reading transcript bodies", async () => {
+    await dbReplaceThreadRuntimeItems("thread-1", [
+      item(0, { type: "user_message", payload: { content: [{ kind: "text", text: "First" }] } }),
+      item(1, { type: "assistant_message", streams: { assistant_text: "Reply ".repeat(500) } }),
+      item(2, { type: "user_message", payload: { content: [{ kind: "text", text: "Second" }] } }),
+    ]);
+    const response = await invoke(
+      handleHistoryPromptIndex as unknown as (call: never) => Promise<void>,
+      "http://host/api/threads/thread-1/history/prompts",
+      { threadId: "thread-1" },
+    );
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.body) as {
+      prompts: Array<{ itemId: string; text: string }>;
+      truncated: boolean;
+    };
+    expect(body.truncated).toBe(false);
+    expect(body.prompts.map((prompt) => [prompt.itemId, prompt.text])).toEqual([
+      ["item-000", "First"],
+      ["item-002", "Second"],
+    ]);
+  });
+
+  it("answers 404 for a thread that does not exist", async () => {
+    await expect(
+      invoke(
+        handleHistoryPromptIndex as unknown as (call: never) => Promise<void>,
+        "http://host/api/threads/missing/history/prompts",
+        { threadId: "missing" },
+      ),
+    ).rejects.toMatchObject({ code: "thread_not_found", status: 404 });
+  });
+
   it("preserves the async mutation identity through the public persistence facade", async () => {
     let callbackRan = false;
     const before = runtimeHistoryRevision("thread-1");
@@ -558,6 +592,110 @@ describe.skipIf(!sqliteAvailable)("B4 bounded history server composition", () =>
     );
     expect(payloadSelects).toHaveLength(1);
     expect(payloadSelects[0]!.split("?").length - 1).toBe(2);
+  });
+
+  it("keeps a long run of small tool rows in the initial tail when it fits the soft target", async () => {
+    // 300 rows serialize far below 1 MiB, but charging the 4 KiB hard-bound
+    // envelope per row estimated the group above it and left only the reply.
+    const toolRows = Array.from({ length: 300 }, (_, index) =>
+      item(index + 1, { type: "command_execution", payload: { command: `step ${index}` } }),
+    );
+    await dbReplaceThreadRuntimeItems("thread-1", [
+      item(0, { type: "user_message", payload: { content: [{ kind: "text", text: "Go" }] } }),
+      ...toolRows,
+      item(301, { streams: { assistant_text: "Done" } }),
+    ]);
+
+    const body = await buildBoundedThreadSnapshot(context(), "thread-1", negotiation());
+    expect(serializedWireByteLength(body)).toBeLessThan(HISTORY_ITEMS_SOFT_PACK_WIRE_BYTES);
+    const snapshot = boundedThreadSnapshotSchema.parse(JSON.parse(body));
+    expect(snapshot.runtimeItems).toHaveLength(302);
+    expect(snapshot.runtimeItems[0]!.id).toBe("item-000");
+  });
+
+  it("keeps the whole latest turn in the initial tail beyond the soft target", async () => {
+    const bulk = "b".repeat(900_000);
+    await dbReplaceThreadRuntimeItems("thread-1", [
+      item(0, { type: "user_message", payload: { content: [{ kind: "text", text: "Old" }] } }),
+      item(1, { streams: { assistant_text: "Old reply" } }),
+      item(2, { type: "user_message", payload: { content: [{ kind: "text", text: "Latest" }] } }),
+      ...[3, 4, 5].map((index) =>
+        item(index, {
+          type: "dynamic_tool_call",
+          payload: { name: "Fetch", status: "success", result: bulk },
+        }),
+      ),
+      item(6, { streams: { assistant_text: "Done" } }),
+    ]);
+
+    const body = await buildBoundedThreadSnapshot(context(), "thread-1", negotiation());
+    expect(serializedWireByteLength(body)).toBeGreaterThan(HISTORY_ITEMS_SOFT_PACK_WIRE_BYTES);
+    const snapshot = boundedThreadSnapshotSchema.parse(JSON.parse(body));
+    expect(snapshot.runtimeItems.map((entry) => entry.id)).toEqual([
+      "item-002",
+      "item-003",
+      "item-004",
+      "item-005",
+      "item-006",
+    ]);
+    expect(snapshot.runtimeNextCursor).not.toBeNull();
+  });
+
+  it("falls back to the soft cut when the latest turn exceeds the client's caps", async () => {
+    const bulk = "b".repeat(900_000);
+    await dbReplaceThreadRuntimeItems("thread-1", [
+      item(0, { type: "user_message", payload: { content: [{ kind: "text", text: "Latest" }] } }),
+      ...[1, 2, 3].map((index) =>
+        item(index, {
+          type: "dynamic_tool_call",
+          payload: { name: "Fetch", status: "success", result: bulk },
+        }),
+      ),
+      item(4, { streams: { assistant_text: "Done" } }),
+    ]);
+
+    let body = "";
+    const sql = await captureSqlAsync(async () => {
+      body = await buildBoundedThreadSnapshot(
+        context(),
+        "thread-1",
+        negotiation("&maxBytes=2500000"),
+      );
+    });
+    const snapshot = boundedThreadSnapshotSchema.parse(JSON.parse(body));
+    expect(snapshot.runtimeItems.map((entry) => entry.id)).toEqual(["item-004"]);
+    expect(snapshot.runtimeNextCursor).not.toBeNull();
+    // The oversized turn is never materialized just to be trimmed away.
+    const pageSelects = sql.filter((statement) =>
+      /SELECT item_id, type, state, payload, streams[\s\S]*item_id IN \(/u.test(statement),
+    );
+    expect(pageSelects).toHaveLength(1);
+    expect(pageSelects[0]!.split("?").length - 1).toBe(2);
+  });
+
+  it("keeps the soft cut for older pages", async () => {
+    const bulk = "b".repeat(900_000);
+    await dbReplaceThreadRuntimeItems("thread-1", [
+      item(0, { type: "user_message", payload: { content: [{ kind: "text", text: "First" }] } }),
+      ...[1, 2, 3].map((index) =>
+        item(index, {
+          type: "dynamic_tool_call",
+          payload: { name: "Fetch", status: "success", result: bulk },
+        }),
+      ),
+      item(4, { streams: { assistant_text: "First reply" } }),
+      item(5, { type: "user_message", payload: { content: [{ kind: "text", text: "Second" }] } }),
+      item(6, { streams: { assistant_text: "Second reply" } }),
+    ]);
+
+    const page = JSON.parse(
+      await buildBoundedThreadHistoryItems(
+        { threadId: "thread-1", limit: 500, beforePosition: 5 },
+        negotiation().caps,
+      ),
+    ) as { items: { id: string }[]; nextCursor: number | null };
+    expect(page.items.map((entry) => entry.id)).toEqual(["item-004"]);
+    expect(page.nextCursor).not.toBeNull();
   });
 
   it("accepts a 2 MiB page-of-one above the soft target and refuses it exactly under a 1 MiB declaration", async () => {

@@ -82,6 +82,7 @@ describe.each(["opencode", "opencode2"])("%s usage", (agentKind) => {
       </>,
     );
     expect(screen.getByRole("button", { name: "OpenCode usage" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Usage" }));
     for (const label of ["OpenCode usage", "Agent usage"]) {
       const section = within(screen.getByRole("region", { name: label }));
       expect(section.getByRole("progressbar", { name: "Session (5h)" })).toHaveAttribute(

@@ -106,4 +106,41 @@ describe("revertedPromptToDraft", () => {
       unavailable.segments,
     );
   });
+
+  it("restores a plugin mention as the plugin, not its core skill", () => {
+    const command: AgentSlashCommand = {
+      id: "app-controls",
+      label: "Poracode",
+      section: "skills",
+      skillName: "app-controls",
+      skillInvocation: "/app-controls",
+      skillProvider: "Poracode",
+      skillScope: "global",
+      pluginId: "app-controls",
+    };
+    const restored = revertedPromptToDraft(
+      [
+        {
+          kind: "skill",
+          name: "app-controls",
+          invocation: "/app-controls",
+          pluginId: "app-controls",
+          pluginName: "Poracode",
+        },
+      ],
+      [command],
+    );
+
+    expect(restored.segments).toEqual([
+      {
+        kind: "skill",
+        name: "app-controls",
+        invocation: "/app-controls",
+        provider: "Poracode",
+        scope: "global",
+        pluginId: "app-controls",
+        pluginName: "Poracode",
+      },
+    ]);
+  });
 });

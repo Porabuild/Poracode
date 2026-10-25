@@ -14,6 +14,7 @@ import type { HistoryRuntimeItem } from "@/shared/remote/historyPresentation";
 import type { SliceCreator } from "./shared";
 import { clearRuntimeStructuralChangeHint } from "../runtimeStructuralChanges";
 import { forgetThreadGalleryCache } from "../threadGalleryCache";
+import { forgetThreadPromptIndex } from "../threadPromptIndexCache";
 import {
   applyRuntimeEventsToState,
   applyRuntimeEventBatchesToState,
@@ -188,7 +189,10 @@ export interface RuntimeEventSlice {
   applyRuntimeEventBatches(
     batches: ReadonlyArray<{ threadId: string; events: RuntimeEvent[] }>,
   ): void;
-  clearThreadRuntimeEvents(threadId: string, options?: { keepOpenRequests?: boolean }): void;
+  clearThreadRuntimeEvents(
+    threadId: string,
+    options?: { keepOpenRequests?: boolean; keepTranscript?: boolean },
+  ): void;
   /**
    * Force-terminate any still-running sub-agent tool_call items in a thread.
    * Used when a thread has no live agent attached (after DB hydration, or when
@@ -361,6 +365,7 @@ export const createRuntimeEventSlice: SliceCreator<RuntimeEventSlice> = (set) =>
 
   clearThreadRuntimeEvents: (threadId, options) =>
     set((state) => {
+      forgetThreadPromptIndex(threadId);
       clearRuntimeStructuralChangeHint(threadId);
       forgetThreadGalleryCache(threadId);
       if (
@@ -392,13 +397,17 @@ export const createRuntimeEventSlice: SliceCreator<RuntimeEventSlice> = (set) =>
       const { [threadId]: _droppedOpenTurn, ...runtimeOpenTurnByThread } =
         state.runtimeOpenTurnByThread;
       return {
-        runtimeItemIdsByThread,
-        runtimeItemsByIdByThread,
+        ...(options?.keepTranscript
+          ? {}
+          : {
+              runtimeItemIdsByThread,
+              runtimeItemsByIdByThread,
+              runtimeStructuralVersionByThread,
+              runtimeCompletedTurnsByThread,
+            }),
         ...(options?.keepOpenRequests ? {} : { runtimeRequestsByThread }),
         runtimeContextByThread,
         runtimeBackgroundTasksByThread,
-        runtimeStructuralVersionByThread,
-        runtimeCompletedTurnsByThread,
         runtimeOpenTurnByThread,
       };
     }),
@@ -508,6 +517,7 @@ export const createRuntimeEventSlice: SliceCreator<RuntimeEventSlice> = (set) =>
 
   evictThreadRuntimeItems: (threadId) =>
     set((state) => {
+      forgetThreadPromptIndex(threadId);
       clearRuntimeStructuralChangeHint(threadId);
       forgetThreadGalleryCache(threadId);
       if (!(threadId in state.runtimeItemIdsByThread)) return {};
@@ -556,6 +566,9 @@ export const createRuntimeEventSlice: SliceCreator<RuntimeEventSlice> = (set) =>
       const endIndex = Math.min(startIndex + count, itemIds.length);
       const removedIds = itemIds.slice(startIndex, endIndex).filter((id) => !preserveIds?.has(id));
       if (removedIds.length === 0) return {};
+      // The outline may predate prompts in the removed prefix. Once their
+      // transcript coverage is gone, a fresh index must recover those IDs.
+      forgetThreadPromptIndex(threadId);
       const itemsById = state.runtimeItemsByIdByThread[threadId] ?? {};
       const nextItemsById = { ...itemsById };
       for (const id of removedIds) delete nextItemsById[id];

@@ -118,6 +118,7 @@ export const BACKEND_DATABASE_PROCEDURE_NAMES = [
   "dbSyncChanges",
   "dbGetThreadRuntimeItems",
   "dbGetThreadRuntimeItemsPage",
+  "dbGetThreadPromptIndex",
   "dbGetThreadsPage",
   "dbGetLatestThreadGoalItem",
   "dbTruncateThreadRuntimeAfter",
@@ -173,6 +174,8 @@ export interface BackendHostInitializePayload {
   desktop?: {
     channel: "stable" | "nightly";
     settingsPath: string;
+    /** Closed optional delegation v1; acknowledged before main admits the backend. */
+    localControl?: import("./desktopHostControl").DesktopHostControlGrant;
     devServerUrl?: string;
     /**
      * Data-custody fence path (`<ns>.host-data.sqlite`, `hostDataFence.ts`).
@@ -343,6 +346,10 @@ export type BackendServiceCall = {
 }[BackendServiceProcedureName];
 
 export type BackendNativeRequest =
+  | {
+      operation: "agent-vision";
+      payload: { threadId: string; preview: boolean; streaming?: boolean };
+    }
   | { operation: "dispatch-thread-command"; payload: RemoteThreadCommand }
   | { operation: "open-thread"; payload: { threadId: string } }
   | { operation: "notify-user"; payload: { title: string; body: string; threadId: string } }
@@ -649,6 +656,7 @@ export function isBackendHostOutboundMessage(
           "check-for-update",
           "install-update",
           "browser-state",
+          "agent-vision",
           "browser-command",
           "browser-input",
           "browser-watch-start",

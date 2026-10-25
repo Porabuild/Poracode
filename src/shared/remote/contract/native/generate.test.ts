@@ -72,25 +72,28 @@ describe("remote v3 native binding generator", () => {
         // Optional core PR state preserves the previous details-only result shape.
         // Background task timing, progress and Stop add two structural types.
         // Optional question-answer metadata adds three structural types and two Swift chunks.
+        // The additive prompt-rail history route adds one route, its response root and
+        // their native mirrors; native adoption stays planned in native-parity.json.
         // Source-host reviews add one route, twenty-four procedures, and their native mirrors;
         // device workspaces add fourteen routes; saved-message search and fork instructions add roots;
         // review labels, reviewers, reactions, drafts and commit diffs add nine procedures;
-        // the optional review-thread diff side adds one field and no root or type.
-        sourceHash: "sha256:5f3cdb8f129d1865162ae85f369349e3f6c3ea6b1f0a87dcbba65f82b325df7c",
-        manifestHash: "sha256:20f13200b1e7218620dc05b5174e1bd9b8ddf1fd35a371848ce3ce91023db440",
+        // the optional review-thread diff side adds one field; optional async reply source IDs
+        // preserve wire versions.
+        sourceHash: "sha256:58b378c79554237f02959419d9f1249040f1b2d657a853c210549a39d77332ac",
+        manifestHash: "sha256:a0982caef593a943c439a60c413b4e84517c6ec5341fc8b6c9c419b9acd2b043",
         counts: {
-          routes: 117,
+          routes: 119,
           procedures: 163,
           voidProcedureResults: 64,
           jsonProcedureResults: 99,
-          webSocketClientVariants: 9,
-          // 10 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
-          webSocketServerVariants: 11,
-          schemaRoots: 536,
-          structuralTypes: 1183,
+          webSocketClientVariants: 11,
+          // 11 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
+          webSocketServerVariants: 12,
+          schemaRoots: 544,
+          structuralTypes: 1198,
           semanticValidators: 25,
-          swiftFiles: 74,
-          kotlinFiles: 63,
+          swiftFiles: 75,
+          kotlinFiles: 65,
           stateMachines: 5,
         },
       });
@@ -362,7 +365,7 @@ describe("remote v3 native binding generator", () => {
       const output = buildNativeBindingOutput(ir, manifest).files;
       for (const language of ["swift", "kotlin"] as const) {
         const adapters = rootAdapters(graph, language);
-        expect(adapters).toHaveLength(536);
+        expect(adapters).toHaveLength(544);
         expect(
           adapters
             .map((adapter) => adapter.id)

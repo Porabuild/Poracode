@@ -1,4 +1,12 @@
 import { randomUUID } from "node:crypto";
+import {
+  HOST_ADMIN_MAX_REQUEST_BYTES,
+  HOST_ADMIN_MAX_RESPONSE_BYTES,
+  HOST_ADMIN_TIMEOUT_MS,
+  hostAdminResultSchema,
+  type HostAdminRequest,
+  type HostAdminResult,
+} from "@/shared/hostAdminProtocol";
 import { request, type IncomingMessage } from "node:http";
 import {
   HOST_CONTROL_MAX_RESPONSE_BYTES,
@@ -21,20 +29,24 @@ import type { HostRootPaths } from "./hostRootPaths";
 import { createHostControlRequestProof, verifyHostControlResponse } from "./hostControlAuth";
 
 type ControlOperation = HostControlRequest["operation"];
-type ControlResult<Name extends ControlOperation> = Name extends "describe"
-  ? HostDescription
-  : Name extends "issue-pairing"
-    ? { pairingUrl: string }
-    : Name extends "shutdown"
-      ? HostControlShutdownResult
-      : HostControlStatusResult;
+type ControlResult<Name extends ControlOperation> = Name extends "admin"
+  ? HostAdminResult
+  : Name extends "describe"
+    ? HostDescription
+    : Name extends "issue-pairing"
+      ? { pairingUrl: string }
+      : Name extends "shutdown"
+        ? HostControlShutdownResult
+        : HostControlStatusResult;
 /** Operation payloads are validated per operation by the request schema. */
 export type HostControlCallPayload =
+  | HostAdminRequest
   | { readonly preset?: "operator" | "viewer" }
   | { readonly expectedVersion: string; readonly expectedEntrypointSha256: string }
   | Record<string, never>;
 
 export interface HostControlCallOptions {
+  expectedGeneration?: string;
   requestId?: string;
   timeoutMs?: number;
   signal?: AbortSignal;
@@ -70,8 +82,11 @@ export async function callHostControl<Name extends ControlOperation>(
 ): Promise<{ requestId: string; ownerGeneration: string; result: ControlResult<Name> }> {
   options.signal?.throwIfAborted();
   const discovery = readHostControlDiscovery(paths);
-  const timeoutMs = options.timeoutMs ?? 5_000;
-  if (!Number.isSafeInteger(timeoutMs) || timeoutMs <= 0 || timeoutMs > 5_000)
+  if (options.expectedGeneration && discovery.ownerGeneration !== options.expectedGeneration)
+    throw new Error("Host owner changed; retry the command explicitly.");
+  const maxTimeout = operation === "admin" ? HOST_ADMIN_TIMEOUT_MS : 5_000;
+  const timeoutMs = options.timeoutMs ?? maxTimeout;
+  if (!Number.isSafeInteger(timeoutMs) || timeoutMs <= 0 || timeoutMs > maxTimeout)
     throw new Error("Invalid host control request deadline.");
   const input = hostControlRequestSchema.parse({
     version: HOST_CONTROL_PROTOCOL_VERSION,
@@ -81,6 +96,8 @@ export async function callHostControl<Name extends ControlOperation>(
     payload: options.payload ?? {},
   });
   const body = Buffer.from(JSON.stringify(input));
+  if (body.length > HOST_ADMIN_MAX_REQUEST_BYTES)
+    throw new Error("Host control request too large.");
   const authority = `127.0.0.1:${discovery.transport.port}`;
   const authorization = createHostControlRequestProof(discovery.token, {
     method: "POST",
@@ -128,7 +145,7 @@ export async function callHostControl<Name extends ControlOperation>(
         response = incoming;
         void readBoundedNodeRequestBody(
           incoming,
-          HOST_CONTROL_MAX_RESPONSE_BYTES,
+          operation === "admin" ? HOST_ADMIN_MAX_RESPONSE_BYTES : HOST_CONTROL_MAX_RESPONSE_BYTES,
           () => new Error("Host control response exceeded its size limit."),
         )
           .then((bytes) => {
@@ -159,13 +176,20 @@ export async function callHostControl<Name extends ControlOperation>(
             if (!reply.ok) throw new HostControlRefusedError(reply.error.code);
             if (status !== 200) throw new Error("Invalid host control status.");
             const value =
-              operation === "describe"
-                ? hostDescriptionSchema.parse(reply.result)
-                : operation === "issue-pairing"
-                  ? hostControlPairingResultSchema.parse(reply.result)
-                  : operation === "shutdown"
-                    ? hostControlShutdownResultSchema.parse(reply.result)
-                    : hostControlStatusResultSchema.parse(reply.result);
+              operation === "admin"
+                ? hostAdminResultSchema.parse(reply.result)
+                : operation === "describe"
+                  ? hostDescriptionSchema.parse(reply.result)
+                  : operation === "issue-pairing"
+                    ? hostControlPairingResultSchema.parse(reply.result)
+                    : operation === "shutdown"
+                      ? hostControlShutdownResultSchema.parse(reply.result)
+                      : hostControlStatusResultSchema.parse(reply.result);
+            if (
+              input.operation === "admin" &&
+              (!("adminVersion" in value) || value.adminVersion !== input.payload.adminVersion)
+            )
+              throw new Error("Host administration response version did not match the request.");
             if (
               "dataRoot" in value &&
               (value.dataRoot !== paths.dataRoot ||

@@ -11,6 +11,7 @@ import {
 } from "@/renderer/state/runtimeStructuralChanges";
 import { assistantDisplayText, hasVisibleAssistantText } from "@/shared/assistantMessageText";
 import { readMcpAppResource } from "@/shared/mcpAppResources";
+import { completedToolVideoSources, isChatVideoSource } from "@/shared/chatVideo";
 import { isMessageReplyFormFallback } from "../messageReplyForms";
 import type { MessageItemPayload, ToolCallPayload } from "@/shared/contracts";
 import { RUNTIME_REQUEST_ITEM_TYPE } from "@/shared/contracts";
@@ -373,6 +374,7 @@ function isToolGroupItem(item: RuntimeChatItem): boolean {
   // default grouping — `imageViewRendersInline` mirrors ImageView's render
   // decision so the two never disagree.
   const payload = item.payload as ToolCallPayload | undefined;
+  if (completedToolVideoSources(item).length > 0) return false;
   if (
     isToolLikeItem(item) &&
     (imageViewRendersInline(payload) ||
@@ -458,7 +460,12 @@ export function isVisibleRuntimeItem(item: RuntimeChatItem): boolean {
   // text, hiding the row). Inline image payloads keep the row regardless.
   if (item.type === "assistant_message" && item.state === "completed") {
     const payload = getRuntimeItemPayload<MessageItemPayload>(item, "assistant_message");
-    const hasImage = payload?.content.some((block) => block.kind === "image") ?? false;
+    const hasImage =
+      payload?.content.some(
+        (block) =>
+          block.kind === "image" ||
+          (block.kind === "file" && isChatVideoSource(block.path, block.mimeType)),
+      ) ?? false;
     const hasReplyForm = (payload?.replyForm?.questions.length ?? 0) > 0;
     if (!hasImage && hasReplyForm && isMessageReplyFormFallback(item, assistantDisplayText(item)))
       return false;

@@ -19,6 +19,11 @@ function closeAllMenus(): void {
   for (const close of [...menuCloseStack]) close();
 }
 
+/** Closes every open context menu so a new right-click menu replaces it. */
+export function dismissOpenContextMenus(): void {
+  closeAllMenus();
+}
+
 /**
  * Marks a {@link ContextMenuSurface} backdrop. Hosts that run their own
  * outside-press dismissal can look for this to recognise a press that the menu
@@ -58,6 +63,8 @@ export interface ContextMenuItem {
   variant?: "default" | "danger" | "warning";
   isDisabled?: boolean;
   disabledReason?: string;
+  /** Keyboard hint drawn at the trailing edge, such as `Ctrl+C`. Not announced. */
+  shortcut?: string;
 }
 
 export interface ContextMenuSubmenu {
@@ -204,6 +211,14 @@ function DropdownItemRow({
           {item.label}
         </Label>
       )}
+      {item.shortcut ? (
+        <span
+          aria-hidden
+          className={`${item.endAction ? "" : "ml-auto"} shrink-0 pl-4 text-xs text-muted`}
+        >
+          {item.shortcut}
+        </span>
+      ) : null}
       {item.endAction ? (
         <Button
           isIconOnly

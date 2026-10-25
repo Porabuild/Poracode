@@ -167,9 +167,13 @@ describe.skipIf(process.platform === "win32")(
       expect(request.type).toBe("request.opened");
       if (request.type !== "request.opened") throw new Error("Missing forwarded request");
       expect(
-        manager.resolveChildServerRequest(request.requestId, {
-          optionId: "reject",
-        }),
+        manager.resolveChildServerRequest(
+          request.requestId,
+          {
+            optionId: "reject",
+          },
+          request.threadId,
+        ),
       ).toBe(true);
       const settled = await call("run_workflow", {
         action: "wait",

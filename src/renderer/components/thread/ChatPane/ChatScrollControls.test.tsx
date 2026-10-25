@@ -11,10 +11,19 @@ import {
 } from "./chatReaderFollow";
 
 let scrollToBottomToken = 0;
+const clearChatPromptAnchor = vi.fn<(threadId: string) => void>();
 
 vi.mock("@/renderer/state/appStore", () => ({
-  useAppStore: (selector: (s: { chatScrollToBottomTokens: Record<string, number> }) => unknown) =>
-    selector({ chatScrollToBottomTokens: { "thread-1": scrollToBottomToken } }),
+  useAppStore: (
+    selector: (s: {
+      chatScrollToBottomTokens: Record<string, number>;
+      clearChatPromptAnchor: (threadId: string) => void;
+    }) => unknown,
+  ) =>
+    selector({
+      chatScrollToBottomTokens: { "thread-1": scrollToBottomToken },
+      clearChatPromptAnchor,
+    }),
 }));
 
 vi.mock("@/renderer/state/panelResizeSignal", () => ({
@@ -69,6 +78,7 @@ function Harness({
 describe("ChatScrollControls", () => {
   beforeEach(() => {
     scrollToBottomToken = 0;
+    clearChatPromptAnchor.mockClear();
   });
 
   afterEach(() => {
@@ -122,6 +132,228 @@ describe("ChatScrollControls", () => {
       />,
     );
     expect(getByRole("button", { hidden: true })).toHaveClass("absolute", "bottom-4", "left-1/2");
+  });
+
+  it("ignores reserved reply space but shows the button when actual content is below the viewport", () => {
+    vi.useFakeTimers();
+    let scrollTop = 800;
+    const scrollEl = document.createElement("div");
+    Object.defineProperties(scrollEl, {
+      scrollHeight: { configurable: true, get: () => 1000 },
+      clientHeight: { configurable: true, get: () => 200 },
+      scrollTop: {
+        configurable: true,
+        get: () => scrollTop,
+        set: (value: number) => {
+          scrollTop = Math.min(value, 800);
+        },
+      },
+    });
+    const controlsRef = createRef<ChatScrollControlsHandle>();
+    const { getByRole } = renderWithI18n(
+      <Harness
+        scrollEl={scrollEl}
+        controlsRef={controlsRef}
+        virtualScrollToBottom={() => undefined}
+      />,
+    );
+    const button = getByRole("button", { hidden: true });
+    act(() => {
+      scrollEl.dataset.chatEndSpaceSize = "400";
+      controlsRef.current?.disableStickToBottom();
+      controlsRef.current?.noteProgrammaticScroll(400);
+      scrollTop = 400;
+      fireEvent.scroll(scrollEl);
+    });
+    expect(button).toBeDisabled();
+    expect(controlsRef.current?.isStickToBottom()).toBe(false);
+
+    act(() => controlsRef.current?.onContentHeightChange());
+    act(() => {
+      vi.advanceTimersByTime(50);
+    });
+    expect(button).toBeDisabled();
+    expect(scrollTop).toBe(400);
+
+    act(() => {
+      // Reply growth consumes the spacer without changing scrollHeight.
+      scrollEl.dataset.chatEndSpaceSize = "300";
+      controlsRef.current?.onContentHeightChange();
+    });
+    act(() => {
+      vi.advanceTimersByTime(50);
+    });
+    expect(button).toBeEnabled();
+    expect(scrollTop).toBe(400);
+
+    act(() => {
+      // A viewport/content change can make the actual tail visible again.
+      scrollEl.dataset.chatEndSpaceSize = "400";
+      controlsRef.current?.onContentHeightChange();
+    });
+    act(() => {
+      vi.advanceTimersByTime(50);
+    });
+    expect(button).toBeDisabled();
+
+    act(() => {
+      delete scrollEl.dataset.chatEndSpaceSize;
+      controlsRef.current?.onContentHeightChange();
+    });
+    act(() => {
+      vi.advanceTimersByTime(50);
+    });
+    expect(button).toBeEnabled();
+  });
+
+  it.each(["button", "user end"])(
+    "keeps a top-aligned prompt anchored until %s",
+    (returnAction) => {
+      vi.useFakeTimers();
+      let scrollTop = 800;
+      let scrollHeight = 1000;
+      const scrollEl = document.createElement("div");
+      Object.defineProperties(scrollEl, {
+        scrollHeight: { configurable: true, get: () => scrollHeight },
+        clientHeight: { configurable: true, get: () => 200 },
+        scrollTop: {
+          configurable: true,
+          get: () => scrollTop,
+          set: (value: number) => {
+            scrollTop = Math.min(value, scrollHeight - 200);
+          },
+        },
+      });
+      const readerFollow = createChatReaderFollowSignal();
+      const controlsRef = createRef<ChatScrollControlsHandle>();
+      const { getByRole } = renderWithI18n(
+        <Harness
+          scrollEl={scrollEl}
+          controlsRef={controlsRef}
+          virtualScrollToBottom={() => undefined}
+          readerFollow={readerFollow}
+        />,
+      );
+      const button = getByRole("button", { hidden: true });
+      act(() => {
+        scrollEl.dataset.chatEndSpaceSize = "100";
+        controlsRef.current?.anchorToPrompt();
+        controlsRef.current?.noteProgrammaticScroll(800);
+        fireEvent.scroll(scrollEl);
+        controlsRef.current?.onContentHeightChange();
+      });
+      act(() => {
+        vi.advanceTimersByTime(50);
+      });
+      expect(button).toBeDisabled();
+      expect(controlsRef.current?.isStickToBottom()).toBe(false);
+      expect(readerFollow.isFollowing()).toBe(true);
+
+      act(() => {
+        // Pointerdown can arm scroll intent without moving the transcript.
+        controlsRef.current?.markUserScrollIntent();
+        controlsRef.current?.disableStickToBottom();
+        controlsRef.current?.onContentHeightChange();
+      });
+      act(() => {
+        vi.advanceTimersByTime(50);
+      });
+      expect(controlsRef.current?.isStickToBottom()).toBe(false);
+
+      act(() => {
+        scrollEl.dataset.chatEndSpaceSize = "0";
+        scrollHeight = 1400;
+        controlsRef.current?.onContentHeightChange();
+      });
+      act(() => {
+        vi.advanceTimersByTime(50);
+      });
+      expect(scrollTop).toBe(800);
+      expect(button).toBeEnabled();
+      if (returnAction === "button") {
+        fireEvent.click(button);
+      } else {
+        act(() => {
+          controlsRef.current?.markUserScrollIntent();
+          scrollTop = 1200;
+          fireEvent.scroll(scrollEl);
+        });
+      }
+      expect(scrollTop).toBe(1200);
+      expect(clearChatPromptAnchor).toHaveBeenCalledWith("thread-1");
+      expect(controlsRef.current?.isStickToBottom()).toBe(true);
+      expect(button).toBeDisabled();
+
+      act(() => {
+        // Scrolling within blank reply space does not hide any messages.
+        scrollEl.dataset.chatEndSpaceSize = "400";
+        controlsRef.current?.markUserScrollIntent();
+        controlsRef.current?.disableStickToBottom();
+        scrollTop = 1100;
+        fireEvent.scroll(scrollEl);
+      });
+      expect(readerFollow.isFollowing()).toBe(true);
+      expect(button).toBeDisabled();
+    },
+  );
+
+  it.each(["button", "user end"])("keeps reserved reply space on %s", (returnAction) => {
+    vi.useFakeTimers();
+    let scrollTop = 800;
+    const scrollEl = document.createElement("div");
+    Object.defineProperties(scrollEl, {
+      scrollHeight: { configurable: true, get: () => 1000 },
+      clientHeight: { configurable: true, get: () => 200 },
+      scrollTop: {
+        configurable: true,
+        get: () => scrollTop,
+        set: (value: number) => {
+          scrollTop = Math.min(value, 800);
+        },
+      },
+    });
+    const readerFollow = createChatReaderFollowSignal();
+    const controlsRef = createRef<ChatScrollControlsHandle>();
+    const { getByRole } = renderWithI18n(
+      <Harness
+        scrollEl={scrollEl}
+        controlsRef={controlsRef}
+        virtualScrollToBottom={() => undefined}
+        readerFollow={readerFollow}
+      />,
+    );
+    act(() => {
+      scrollEl.dataset.chatEndSpaceSize = "150";
+      controlsRef.current?.anchorToPrompt();
+      controlsRef.current?.noteProgrammaticScroll(800);
+      fireEvent.scroll(scrollEl);
+    });
+    act(() => {
+      controlsRef.current?.markUserScrollIntent();
+      scrollTop = 300;
+      fireEvent.scroll(scrollEl);
+    });
+    act(() => {
+      vi.advanceTimersByTime(50);
+    });
+    const button = getByRole("button", { hidden: true });
+    expect(readerFollow.isFollowing()).toBe(false);
+    expect(button).toBeEnabled();
+
+    if (returnAction === "button") {
+      fireEvent.click(button);
+    } else {
+      act(() => {
+        controlsRef.current?.markUserScrollIntent();
+        scrollTop = 800;
+        fireEvent.scroll(scrollEl);
+      });
+    }
+    expect(scrollTop).toBe(800);
+    expect(readerFollow.isFollowing()).toBe(true);
+    expect(controlsRef.current?.isStickToBottom()).toBe(true);
+    expect(clearChatPromptAnchor).not.toHaveBeenCalled();
+    expect(button).toBeDisabled();
   });
 
   it("skips scrollTop writes and virtualizer reconcile when already at bottom", () => {

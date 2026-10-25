@@ -1,9 +1,10 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 import { AppProvider } from "@/renderer/components/ui/provider";
 import { useAppStore } from "@/renderer/state/appStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { useProviderUsageStore } from "@/renderer/state/providerUsageStore";
 import { useThreadGoalDockStore } from "@/renderer/state/threadGoalDockStore";
 import { useThreadBackgroundTasksDockStore } from "@/renderer/state/threadBackgroundTasksDockStore";
 import { ThreadDocksPanel } from "./ThreadDocksPanel";
@@ -46,6 +47,7 @@ describe("ThreadDocksPanel", () => {
     expect(bubble).toHaveAttribute("aria-pressed", "true");
   });
   beforeEach(() => {
+    useProviderUsageStore.setState({ snapshots: {} });
     usePanelStore.setState({ threadDocksPanelOpen: false, threadDocksFocus: null });
     useThreadGoalDockStore.setState({ dismissedByThread: {} });
     useThreadBackgroundTasksDockStore.setState({
@@ -302,9 +304,51 @@ describe("ThreadDocksPanel", () => {
         element.getAttribute("data-dock-kind"),
       ),
     ).toEqual(["backgroundTasks", "images", "plan"]);
+    const header = screen.getByRole("button", { name: "Images" });
+    fireEvent.click(header);
+    expect(header).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("button", { name: "Open image 1 of 1" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Collapse images" }));
+    expect(header).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("button", { name: "Open image 1 of 1" })).not.toBeInTheDocument();
   });
 
-  it("includes context and reported usage in saved order with drag handles", async () => {
+  it("toggles background tasks from the header while keeping dismissal independent", () => {
+    useAppStore.setState({
+      runtimeBackgroundTasksByThread: {
+        "thread-1": [
+          { taskId: "one", kind: "command", description: "First task" },
+          { taskId: "two", kind: "command", description: "Second task" },
+        ],
+      },
+    });
+    render(
+      <AppProvider>
+        <ThreadDocksPanel threadId="thread-1" />
+      </AppProvider>,
+    );
+    const header = screen.getByRole("button", { name: "Background tasks" });
+    fireEvent.click(header);
+    expect(header).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByText("First task")).not.toBeInTheDocument();
+    expect(screen.getByText("Second task")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Expand background tasks" }));
+    expect(header).toHaveAttribute("aria-expanded", "true");
+    const region = within(screen.getByRole("region", { name: "Background tasks" }));
+    fireEvent.click(region.getByRole("button", { name: "Close background tasks" }));
+    expect(screen.queryByText("First task")).not.toBeInTheDocument();
+    expect(useThreadBackgroundTasksDockStore.getState().collapsed).toBe(false);
+  });
+
+  it("keeps context and account usage as independent top-level collapsible sections", async () => {
+    useProviderUsageStore.getState().setSnapshots([
+      {
+        providerId: "codex",
+        status: "ok",
+        fetchedAt: Date.now(),
+        windows: [{ id: "session", label: "Session", usedPercent: 48 }],
+      },
+    ]);
     useAppStore.setState({
       threads: [
         {
@@ -345,16 +389,31 @@ describe("ThreadDocksPanel", () => {
     expect(screen.getByRole("button", { name: "Reorder Thread context" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Reorder Usage" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Expand thread context" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Collapse agent usage" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Expand agent usage" })).toBeInTheDocument();
+    const context = screen.getByRole("button", { name: "Thread context" });
+    const usage = screen.getByRole("button", { name: "Usage" });
+    expect(context).toHaveTextContent("123 tokens");
+    expect(usage).toHaveTextContent("Session 48%");
+    expect(context.closest("[data-dock-kind]")).toHaveAttribute("data-dock-kind", "context");
+    expect(usage.closest("[data-dock-kind]")).toHaveAttribute("data-dock-kind", "usage");
+    fireEvent.click(context);
+    expect(context).toHaveAttribute("aria-expanded", "true");
+    expect(usage).toHaveAttribute("aria-expanded", "false");
+    expect(screen.getByText("123 used")).toBeInTheDocument();
+    fireEvent.click(usage);
+    expect(screen.getByRole("progressbar", { name: "Session" })).toBeInTheDocument();
+    fireEvent.click(context);
+    expect(usage).toHaveAttribute("aria-expanded", "true");
     expect(
       [...container.querySelectorAll("[data-dock-kind]")].map((element) =>
         element.getAttribute("data-dock-kind"),
       ),
     ).toEqual(["usage", "context", "plan", "backgroundTasks"]);
     await act(async () => {
-      useAppStore.setState({ runtimeContextByThread: {} });
+      useProviderUsageStore.setState({ snapshots: {} });
     });
     expect(screen.queryByRole("button", { name: "Reorder Usage" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Reorder Thread context" })).toBeInTheDocument();
   });
 
   it("keeps composer-placed informational docks out of image-focused Thread info", () => {

@@ -1,16 +1,10 @@
-import {
-  mcpServerSchema,
-  type McpServer,
-  type McpTransport,
-  type Project,
-  type ProjectLocation,
-} from "@/shared/contracts";
+import { type McpServer, type Project, type ProjectLocation } from "@/shared/contracts";
 import type {
   RemoteMcpSettingsCommand,
   RemoteMcpSettingsScope,
 } from "@/shared/remote/contract/routeSchemas";
 import type { SharedSettings } from "@/shared/settings";
-import { REDACTED_VALUE, redactMcpServer, restoreRedactedTransport } from "@/host/mcpSettings";
+import { redactMcpServer, sameMcpServerName, upsertMcpServerDefinition } from "@/host/mcpSettings";
 import { RemoteHttpError } from "./auth";
 
 export interface RemoteMcpSettingsGateway {
@@ -94,26 +88,7 @@ function upsert(
   dependencies: RemoteMcpSettingsGatewayDependencies,
 ): void {
   const servers = readScope(scope, dependencies);
-  const existing = servers.find((server) => server.id === incoming.id);
-  const transport = existing
-    ? restoreRedactedTransport(incoming.transport, existing.transport)
-    : incoming.transport;
-  if (containsRedaction(transport)) {
-    throw badRequest("mcp_redaction_without_existing_secret");
-  }
-  const server = mcpServerSchema.parse({ ...incoming, transport });
-  if (
-    servers.some((candidate) => candidate.id !== server.id && sameName(candidate.name, server.name))
-  ) {
-    throw badRequest("mcp_duplicate_name");
-  }
-  writeScope(
-    scope,
-    existing
-      ? servers.map((candidate) => (candidate.id === server.id ? server : candidate))
-      : [...servers, server],
-    dependencies,
-  );
+  writeScope(scope, upsertMcpServerDefinition(servers, incoming, badRequest), dependencies);
 }
 
 function remove(
@@ -145,7 +120,7 @@ function move(
   }
   if (
     destinationServers.some(
-      (candidate) => candidate.id !== server.id && sameName(candidate.name, server.name),
+      (candidate) => candidate.id !== server.id && sameMcpServerName(candidate.name, server.name),
     )
   ) {
     throw badRequest("mcp_duplicate_name");
@@ -193,14 +168,6 @@ function requireProject(
     throw new RemoteHttpError("mcp_project_not_found", "Project not found.", 404);
   }
   return project;
-}
-
-function containsRedaction(transport: McpTransport): boolean {
-  return JSON.stringify(transport).includes(REDACTED_VALUE);
-}
-
-function sameName(left: string, right: string): boolean {
-  return left.trim().toLowerCase() === right.trim().toLowerCase();
 }
 
 function sameScope(left: RemoteMcpSettingsScope, right: RemoteMcpSettingsScope): boolean {

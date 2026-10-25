@@ -1,12 +1,22 @@
 import { parseServeCliOptions } from "./serverConfig";
 import { parseUpgradeCliOptions } from "./serverUpgrade";
+import { parseServiceCliOptions } from "./serverService";
+import { parseSetupCliOptions } from "./cliSetup";
+import { parseStatusCliOptions } from "./cliStatus";
+import { parseLogsCliOptions } from "./cliLogs";
 
 export type ServerCliCommand =
+  | "admin"
+  | "configure"
+  | "completion"
+  | "setup"
+  | "service"
   | "serve"
   | "pair-json"
   | "status-json"
   | "activate"
   | "doctor"
+  | "logs"
   | "backup"
   | "init-tls"
   | "upgrade"
@@ -62,10 +72,10 @@ export function parseInitTlsCliOptions(args: readonly string[]): InitTlsCliOptio
   return { json, ...(certPath ? { certPath } : {}), ...(keyPath ? { keyPath } : {}) };
 }
 
-const PAIR_USAGE = "Usage: poracode-server pair --json [--scope viewer|operator]";
+const PAIR_USAGE = "Usage: poracode-server pair [--json] [--scope viewer|operator]";
 
 export interface PairCliOptions {
-  readonly json: true;
+  readonly json: boolean;
   readonly scope?: "operator" | "viewer";
 }
 
@@ -85,12 +95,41 @@ export function parsePairCliOptions(args: readonly string[]): PairCliOptions {
       throw new Error(PAIR_USAGE);
     }
   }
-  if (!json) throw new Error(PAIR_USAGE);
-  return { json: true, ...(scope ? { scope } : {}) };
+  return { json, ...(scope ? { scope } : {}) };
 }
 
 export function parseServerCliCommand(args: readonly string[]): ServerCliCommand {
   if (args.length === 0) return "serve";
+  if (args[0] === "completion") return "completion";
+  if (
+    [
+      "providers",
+      "run",
+      "projects",
+      "auth",
+      "clients",
+      "pairings",
+      "plugins",
+      "mcp",
+      "sessions",
+      "configure",
+      "setup",
+      "pair",
+      "connect",
+      "status",
+      "service",
+      "serve",
+      "stop",
+      "doctor",
+      "logs",
+      "activate",
+      "backup",
+      "init-tls",
+      "upgrade",
+    ].includes(args[0]!) &&
+    ["--help", "-h"].includes(args.at(-1)!)
+  )
+    return "help";
   if (args.length === 1 && ["--help", "-h", "help"].includes(args[0]!)) return "help";
   // Truthful artifact version (plan D1/D3); must be checked before the serve
   // branch, which claims every leading `--` flag.
@@ -101,11 +140,37 @@ export function parseServerCliCommand(args: readonly string[]): ServerCliCommand
     parseServeCliOptions(args);
     return "serve";
   }
-  if (args[0] === "pair") {
+  if (
+    [
+      "providers",
+      "projects",
+      "run",
+      "auth",
+      "clients",
+      "pairings",
+      "plugins",
+      "mcp",
+      "sessions",
+    ].includes(args[0]!)
+  )
+    return "admin";
+  if (args[0] === "configure") return "configure";
+  if (args[0] === "setup") {
+    parseSetupCliOptions(args.slice(1));
+    return "setup";
+  }
+  if (args[0] === "service") {
+    parseServiceCliOptions(args.slice(1));
+    return "service";
+  }
+  if (args[0] === "pair" || args[0] === "connect") {
     parsePairCliOptions(args.slice(1));
     return "pair-json";
   }
-  if (args.length === 2 && args[0] === "status" && args[1] === "--json") return "status-json";
+  if (args[0] === "status") {
+    parseStatusCliOptions(args.slice(1));
+    return "status-json";
+  }
   if (args[0] === "activate") {
     parseActivateCliOptions(args.slice(1));
     return "activate";
@@ -113,6 +178,10 @@ export function parseServerCliCommand(args: readonly string[]): ServerCliCommand
   if (args[0] === "doctor") {
     parseDoctorCliOptions(args.slice(1));
     return "doctor";
+  }
+  if (args[0] === "logs") {
+    parseLogsCliOptions(args.slice(1));
+    return "logs";
   }
   if (args[0] === "backup") {
     parseBackupCliOptions(args.slice(1));
@@ -122,18 +191,32 @@ export function parseServerCliCommand(args: readonly string[]): ServerCliCommand
     parseInitTlsCliOptions(args.slice(1));
     return "init-tls";
   }
-  if (args.length === 1 && args[0] === "stop") return "stop";
+  if (args[0] === "stop") {
+    parseStopCliOptions(args.slice(1));
+    return "stop";
+  }
   if (args[0] === "upgrade") {
     parseUpgradeCliOptions(args.slice(1));
     return "upgrade";
   }
   throw new Error(
     `Usage: poracode-server [serve [--config <path>] [--host <host>] [--port <port>] [--trusted-proxies <list>] | ` +
-      "activate [--json] [--sign-in-again] | doctor [--json] [--log-file <path>] | " +
+      "activate [--json] [--sign-in-again] | doctor [--json] [--log-file <path>] | logs [--follow] [--lines N] [--json] | " +
       "backup --to <directory> [--json] | init-tls [--json] [--cert <path>] [--key <path>] | " +
       "upgrade (--from <tarball> | --resume [--from <tarball>] | --abandon-journal --confirm) [--prefix <path>] [--json] | " +
-      "pair --json [--scope viewer|operator] | status --json | stop | --version | --help]",
+      "setup [--start|--no-start] [--open|--no-open] [--skip-auth] | pair --json [--scope viewer|operator] | status [--details] [--json] | stop [--if-pid PID] | --version | --help]",
   );
+}
+
+export function parseStopCliOptions(args: readonly string[]): { expectedPid?: number } {
+  // Local to the pinned launcher/server release. Older parsers refuse this
+  // option before shutdown; never retry with an unqualified profile stop.
+  if (!args.length) return {};
+  if (args.length === 2 && args[0] === "--if-pid" && /^[1-9]\d*$/u.test(args[1]!)) {
+    const expectedPid = Number(args[1]);
+    if (Number.isSafeInteger(expectedPid)) return { expectedPid };
+  }
+  throw new Error("Usage: poracode-server stop [--if-pid <positive-integer>]");
 }
 
 /** Deliberate activation flags; anything unknown is a usage error. */

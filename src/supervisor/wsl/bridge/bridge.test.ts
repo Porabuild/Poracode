@@ -494,6 +494,58 @@ describeOnPosix("bridge.mjs fs endpoints", () => {
     expect(link?.isDirectoryLink).toBe(true);
   });
 
+  it("serves directory requests while checkpoint Git is waiting", async () => {
+    git(projectRoot, "init");
+    const tools = mkdtempSync(join(tmpdir(), "poracode-bridge-slow-git-"));
+    const entered = join(tools, "entered");
+    const release = join(tools, "release");
+    writeFileSync(
+      join(tools, "git"),
+      `#!/bin/sh
+if [ "$1" = "rev-parse" ] && [ "$2" = "--is-inside-work-tree" ]; then
+  touch "$PORACODE_TEST_GIT_ENTERED"
+  while [ ! -e "$PORACODE_TEST_GIT_RELEASE" ]; do sleep 0.01; done
+fi
+exec /usr/bin/git "$@"
+`,
+      { mode: 0o755 },
+    );
+    const slow = await startBridge({
+      PATH: `${tools}:${process.env.PATH}`,
+      PORACODE_TEST_GIT_ENTERED: entered,
+      PORACODE_TEST_GIT_RELEASE: release,
+    });
+    const checkpoint = post(`${slow.baseUrl}/v1/git/checkpoint-snapshot`, {
+      projectRoot,
+      ref: "refs/poracode/checkpoints/thread/item",
+      metadata: { threadId: "thread" },
+    });
+    try {
+      const deadline = Date.now() + 5_000;
+      while (!existsSync(entered) && Date.now() < deadline)
+        await new Promise((resolve) => setTimeout(resolve, 5));
+      expect(existsSync(entered)).toBe(true);
+      const response = await Promise.race([
+        post(`${slow.baseUrl}/v1/fs/readdir`, { projectRoot, path: projectRoot }),
+        new Promise<never>((_resolve, reject) =>
+          setTimeout(
+            () => reject(new Error("Folder request waited on checkpoint Git")),
+            1_000,
+          ).unref(),
+        ),
+      ]);
+      expect(response.status).toBe(200);
+    } finally {
+      writeFileSync(release, "release");
+      try {
+        expect((await checkpoint).status).toBe(200);
+      } finally {
+        await slow.dispose();
+        rmSync(tools, { recursive: true, force: true });
+      }
+    }
+  });
+
   it("creates git checkpoint snapshots inside the bridge process", async () => {
     git(projectRoot, "init");
     git(projectRoot, "config", "user.email", "test@example.com");
@@ -700,6 +752,28 @@ describeOnPosix("bridge.mjs fs endpoints", () => {
     expect(envelope.ok).toBe(true);
     expect(envelope.data).toMatchObject({ ok: true, stdout: "missing", exitCode: 0 });
   });
+
+  it("closes login-shell stdin before collecting its environment", async () => {
+    const shell = join(projectRoot, "login-shell");
+    writeFileSync(
+      shell,
+      "#!/bin/sh\nread unused || true\nexport PORACODE_TEST_LOGIN_EOF=ready\nenv -0\n",
+      { mode: 0o755 },
+    );
+    const login = await startBridge({ SHELL: shell });
+    try {
+      const result = await post(`${login.baseUrl}/v1/process/exec`, {
+        cwd: projectRoot,
+        command: "/bin/sh",
+        args: ["-c", 'printf %s "$PORACODE_TEST_LOGIN_EOF"'],
+        loginEnv: true,
+      });
+      expect(result.status).toBe(200);
+      expect(result.body).toMatchObject({ data: { ok: true, stdout: "ready" } });
+    } finally {
+      await login.dispose();
+    }
+  }, 5_000);
 
   it("runs login-env git execs without exposing the bridge secret to hooks", async () => {
     git(projectRoot, "init");

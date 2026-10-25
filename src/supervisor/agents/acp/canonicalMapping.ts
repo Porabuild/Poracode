@@ -20,6 +20,13 @@
 export { createAcpMapperState, type AcpMapperState } from "./canonicalMapping/state";
 export { closeOpenTurnItems } from "./canonicalMapping/toolCallPayloads";
 export {
+  PORACODE_ACP_COMMAND_STATUS_META_KEY,
+  readAcpCommandStatus,
+  withAcpCommandStatus,
+  type AcpCommandStatus,
+} from "./canonicalMapping/commandStatus";
+export { attributeAcpCommandTerminal } from "./canonicalMapping/commandTerminals";
+export {
   mapAcpCanonicalGoalUpdate,
   PORACODE_ACP_GOAL_META_KEY,
   type AcpCanonicalGoalUpdate,

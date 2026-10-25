@@ -2,6 +2,7 @@ import { unified } from "unified";
 import remarkParse from "remark-parse";
 import { assistantDisplayText } from "@/shared/assistantMessageText";
 import { fileNameFromPath, isImagePath } from "@/shared/promptContent";
+import { normalizeWindowsDrivePath } from "@/shared/pathUtils";
 import type { MessageItemPayload } from "@/shared/contracts";
 import { useAppStore } from "@/renderer/state/appStore";
 import {
@@ -54,7 +55,7 @@ function itemArtifacts(
   for (const block of payload?.content ?? []) {
     if (block.kind === "file" && !isImagePath(block.path) && !block.mimeType?.startsWith("image/"))
       artifacts.push({
-        target: block.path,
+        target: normalizeWindowsDrivePath(block.path),
         name: block.name || fileNameFromPath(block.path),
         external: false,
       });
@@ -147,7 +148,11 @@ function artifactFromHref(href: string): ThreadArtifact | undefined {
   const filePath =
     ref?.kind === "file" ? ref.path : /\.[a-z\d]{1,12}$/i.test(path) ? path : undefined;
   if (!filePath || isImagePath(filePath)) return undefined;
-  return { target: filePath, name: fileNameFromPath(filePath), external: false };
+  return {
+    target: normalizeWindowsDrivePath(filePath),
+    name: fileNameFromPath(filePath),
+    external: false,
+  };
 }
 
 export function collectThreadArtifacts(

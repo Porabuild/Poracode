@@ -37,9 +37,9 @@ const PATH_SCOPED_BODIES = {
 } as const;
 
 describe("remote HTTP route goldens", () => {
-  it("covers exactly 117 unique routes", () => {
-    expect(REMOTE_HTTP_ROUTES).toHaveLength(117);
-    expect(new Set(REMOTE_HTTP_ROUTES.map((route) => route.id)).size).toBe(117);
+  it("covers exactly 119 unique routes", () => {
+    expect(REMOTE_HTTP_ROUTES).toHaveLength(119);
+    expect(new Set(REMOTE_HTTP_ROUTES.map((route) => route.id)).size).toBe(119);
   });
 
   it("keeps preview-v1 an enumerated read facade with strictly versioned grant requests", () => {
@@ -104,6 +104,19 @@ describe("remote HTTP route goldens", () => {
       }
     }
   });
+
+  it.each(["local-image", "runtime-image"])(
+    "preserves legacy %s queries and the optional card variant",
+    (id) => {
+      const route = REMOTE_HTTP_ROUTES.find((candidate) => candidate.id === id)!;
+      const legacy = { path: id === "local-image" ? "/image.png" : ["images", 0] };
+      expect(route.request.querySchema?.parse(legacy)).toEqual(legacy);
+      expect(route.request.querySchema?.parse({ ...legacy, variant: "card" })).toEqual({
+        ...legacy,
+        variant: "card",
+      });
+    },
+  );
 
   it("omits path threadId from path-scoped bodies", () => {
     for (const id of EMPTY_THREAD_ROUTES) {

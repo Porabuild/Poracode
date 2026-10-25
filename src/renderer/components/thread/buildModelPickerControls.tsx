@@ -1,4 +1,3 @@
-import { capabilitiesForSessionConfig } from "@/shared/sessionConfigCapabilities";
 import { Zap } from "lucide-react";
 import { msg } from "@lingui/core/macro";
 import { toast } from "@heroui/react";
@@ -21,6 +20,7 @@ import {
 } from "@/shared/modelFamilySelection";
 import { i18n } from "@/renderer/i18n/i18n";
 import {
+  composerCapabilitiesForSession,
   defaultFastEnabled,
   normalizeProviderModelConfig,
 } from "@/renderer/components/providers/modelConfig";
@@ -591,8 +591,11 @@ export function buildControls(
   if (!agentStatus) return [];
 
   // Resolve the surface before the live overlay: retained detection overrides
-  // must not replace the current session's negotiated ladder.
-  const presentationCapabilities = capabilitiesForSessionConfig(
+  // must not replace the current session's negotiated ladder. The provider
+  // projection runs after that overlay so a variant the session lists as its
+  // own model folds back into the control detection already uses.
+  const presentationCapabilities = composerCapabilitiesForSession(
+    thread.agentKind,
     capabilitiesForPresentation(agentStatus.capabilities, presentationMode),
     thread.sessionConfigOptions,
   );

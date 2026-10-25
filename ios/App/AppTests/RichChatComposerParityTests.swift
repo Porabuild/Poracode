@@ -757,7 +757,7 @@ final class RichChatComposerParityTests: XCTestCase {
         provider: "Review Plugin",
         scope: "project",
         pluginID: "review-plugin",
-        pluginName: "Review Plugin"
+        pluginName: nil
       )
     )
   }

@@ -1,0 +1,1114 @@
+{
+  "//": "Live devin acp 3000.11.205 wire (tool notifications + client terminal/create order), local session with terminal capability. streaming = Claude-family model streaming exec input; batched = model emitting complete exec calls at once.",
+  "streaming": {
+    "events": [
+      {
+        "notification": {
+          "sessionId": "fixture-session",
+          "update": {
+            "sessionUpdate": "tool_call",
+            "toolCallId": "toolu_01MdJ33EYQGMpiWdNGG1zfCr",
+            "title": "Running command",
+            "kind": "execute",
+            "rawInput": "",
+            "_meta": {
+              "cognition.ai/inferenceToolName": "exec",
+              "cognition.ai/timestamp": "2026-10-24T21:31:30.229372400+00:00"
+            }
+          }
+        }
+      },
+      {
+        "notification": {
+          "sessionId": "fixture-session",
+          "update": {
+            "sessionUpdate": "tool_call_update",
+            "toolCallId": "toolu_01MdJ33EYQGMpiWdNGG1zfCr",
+            "title": "Running command",
+            "content": [
+              {
+                "type": "content",
+                "content": {
+                  "type": "resource",
+                  "resource": {
+                    "mimeType": "text/x-shellscript",
+                    "text": "echo poracode-",
+                    "uri": "tool://preview"
+                  },
+                  "_meta": {
+                    "cognition.ai/preview_is_shell_command": true
+                  }
+                }
+              }
+            ],
+            "rawInput": {
+              "command": "echo poracode-"
+            },
+            "_meta": {
+              "cognition.ai/inferenceToolName": "exec"
+            }
+          }
+        }
+      },
+      {
+        "notification": {
+          "sessionId": "fixture-session",
+          "update": {
+            "sessionUpdate": "tool_call_update",
+            "toolCallId": "toolu_01MdJ33EYQGMpiWdNGG1zfCr",
+            "title": "Running command",
+            "content": [
+              {
+                "type": "content",
+                "content": {
+                  "type": "resource",
+                  "resource": {
+                    "mimeType": "text/x-shellscript",
+                    "text": "echo poracode-capture-start; ping -",
+                    "uri": "tool://preview"
+                  },
+                  "_meta": {
+                    "cognition.ai/preview_is_shell_command": true
+                  }
+                }
+              }
+            ],
+            "rawInput": {
+              "command": "echo poracode-capture-start; ping -"
+            },
+            "_meta": {
+              "cognition.ai/inferenceToolName": "exec"
+            }
+          }
+        }
+      },
+      {
+        "notification": {
+          "sessionId": "fixture-session",
+          "update": {
+            "sessionUpdate": "tool_call_update",
+            "toolCallId": "toolu_01MdJ33EYQGMpiWdNGG1zfCr",
+            "title": "Running command",
+            "content": [
+              {
+                "type": "content",
+                "content": {
+                  "type": "resource",
+                  "resource": {
+                    "mimeType": "text/x-shellscript",
+                    "text": "echo poracode-capture-start; ping -n 3 127.0.",
+                    "uri": "tool://preview"
+                  },
+                  "_meta": {
+                    "cognition.ai/preview_is_shell_command": true
+                  }
+                }
+              }
+            ],
+            "rawInput": {
+              "command": "echo poracode-capture-start; ping -n 3 127.0."
+            },
+            "_meta": {
+              "cognition.ai/inferenceToolName": "exec"
+            }
+          }
+        }
+      },
+      {
+        "notification": {
+          "sessionId": "fixture-session",
+          "update": {
+            "sessionUpdate": "tool_call_update",
+            "toolCallId": "toolu_01MdJ33EYQGMpiWdNGG1zfCr",
+            "title": "Running command",
+            "content": [
+              {
+                "type": "content",
+                "content": {
+                  "type": "resource",
+                  "resource": {
+                    "mimeType": "text/x-shellscript",
+                    "text": "echo poracode-capture-start; ping -n 3 127.0.0.1",
+                    "uri": "tool://preview"
+                  },
+                  "_meta": {
+                    "cognition.ai/preview_is_shell_command": true
+                  }
+                }
+              }
+            ],
+            "rawInput": {
+              "command": "echo poracode-capture-start; ping -n 3 127.0.0.1"
+            },
+            "_meta": {
+              "cognition.ai/inferenceToolName": "exec"
+            }
+          }
+        }
+      },
+      {
+        "notification": {
+          "sessionId": "fixture-session",
+          "update": {
+            "sessionUpdate": "tool_call_update",
+            "toolCallId": "toolu_01MdJ33EYQGMpiWdNGG1zfCr",
+            "title": "Running command",
+            "content": [
+              {
+                "type": "content",
+                "content": {
+                  "type": "resource",
+                  "resource": {
+                    "mimeType": "text/x-shellscript",
+                    "text": "echo poracode-capture-start; ping -n 3 127.0.0.1",
+                    "uri": "tool://preview"
+                  },
+                  "_meta": {
+                    "cognition.ai/preview_is_shell_command": true
+                  }
+                }
+              }
+            ],
+            "rawInput": {
+              "command": "echo poracode-capture-start; ping -n 3 127.0.0.1",
+              "description": "Run first"
+            },
+            "_meta": {
+              "cognition.ai/inferenceToolName": "exec"
+            }
+          }
+        }
+      },
+      {
+        "notification": {
+          "sessionId": "fixture-session",
+          "update": {
+            "sessionUpdate": "tool_call_update",
+            "toolCallId": "toolu_01MdJ33EYQGMpiWdNGG1zfCr",
+            "title": "Running command",
+            "content": [
+              {
+                "type": "content",
+                "content": {
+                  "type": "resource",
+                  "resource": {
+                    "mimeType": "text/x-shellscript",
+                    "text": "echo poracode-capture-start; ping -n 3 127.0.0.1",
+                    "uri": "tool://preview"
+                  },
+                  "_meta": {
+                    "cognition.ai/preview_is_shell_command": true
+                  }
+                }
+              }
+            ],
+            "rawInput": {
+              "command": "echo poracode-capture-start; ping -n 3 127.0.0.1",
+              "description": "Run first command"
+            },
+            "_meta": {
+              "cognition.ai/inferenceToolName": "exec"
+            }
+          }
+        }
+      },
+      {
+        "notification": {
+          "sessionId": "fixture-session",
+          "update": {
+            "sessionUpdate": "tool_call_update",
+            "toolCallId": "toolu_01MdJ33EYQGMpiWdNGG1zfCr",
+            "title": "Running command",
+            "content": [
+              {
+                "type": "content",
+                "content": {
+                  "type": "resource",
+                  "resource": {
+                    "mimeType": "text/x-shellscript",
+                    "text": "echo poracode-capture-start; ping -n 3 127.0.0.1",
+                    "uri": "tool://preview"
+                  },
+                  "_meta": {
+                    "cognition.ai/preview_is_shell_command": true
+                  }
+                }
+              }
+            ],
+            "rawInput": {
+              "command": "echo poracode-capture-start; ping -n 3 127.0.0.1",
+              "description": "Run first command"
+            },
+            "_meta": {
+              "cognition.ai/inferenceToolName": "exec"
+            }
+          }
+        }
+      },
+      {
+        "terminalCreated": {
+          "terminalId": "acp-terminal-0",
+          "command": "echo poracode-capture-start; ping -n 3 127.0.0.1"
+        }
+      },
+      {
+        "notification": {
+          "sessionId": "fixture-session",
+          "update": {
+            "sessionUpdate": "tool_call",
+            "toolCallId": "toolu_01MdJ33EYQGMpiWdNGG1zfCr",
+            "title": "Ran echo, ping",
+            "kind": "execute",
+            "content": [
+              {
+                "type": "content",
+                "content": {
+                  "type": "resource",
+                  "resource": {
+                    "mimeType": "text/x-shellscript",
+                    "text": "echo poracode-capture-start; ping -n 3 127.0.0.1",
+                    "uri": "tool://preview"
+                  },
+                  "_meta": {
+                    "cognition.ai/preview_is_shell_command": true
+                  }
+                }
+              }
+            ],
+            "rawInput": {
+              "command": "echo poracode-capture-start; ping -n 3 127.0.0.1"
+            },
+            "_meta": {
+              "cognition.ai/commandNames": ["echo", "ping"],
+              "cognition.ai/inferenceToolName": "exec",
+              "cognition.ai/timestamp": "2026-10-24T21:31:30.496267300+00:00"
+            }
+          }
+        }
+      },
+      {
+        "notification": {
+          "sessionId": "fixture-session",
+          "update": {
+            "sessionUpdate": "tool_call_update",
+            "toolCallId": "toolu_01MdJ33EYQGMpiWdNGG1zfCr",
+            "status": "in_progress",
+            "_meta": {
+              "cognition.ai/inferenceToolName": "exec"
+            }
+          }
+        }
+      },
+      {
+        "notification": {
+          "sessionId": "fixture-session",
+          "update": {
+            "sessionUpdate": "tool_call_update",
+            "toolCallId": "toolu_01MdJ33EYQGMpiWdNGG1zfCr",
+            "status": "completed",
+            "content": [
+              {
+                "type": "content",
+                "content": {
+                  "type": "text",
+                  "text": "Exited with code 0"
+                }
+              }
+            ],
+            "_meta": {
+              "cognition.ai/inferenceToolName": "exec"
+            }
+          }
+        }
+      },
+      {
+        "notification": {
+          "sessionId": "fixture-session",
+          "update": {
+            "sessionUpdate": "tool_call",
+            "toolCallId": "toolu_016QZFR65MtsM48RZPGdc96h",
+            "title": "Running command",
+            "kind": "execute",
+            "rawInput": "",
+            "_meta": {
+              "cognition.ai/inferenceToolName": "exec",
+              "cognition.ai/timestamp": "2026-10-24T21:31:33.686904100+00:00"
+            }
+          }
+        }
+      },
+      {
+        "notification": {
+          "sessionId": "fixture-session",
+          "update": {
+            "sessionUpdate": "tool_call_update",
+            "toolCallId": "toolu_016QZFR65MtsM48RZPGdc96h",
+            "title": "Running command",
+            "content": [
+              {
+                "type": "content",
+                "content": {
+                  "type": "resource",
+                  "resource": {
+                    "mimeType": "text/x-shellscript",
+                    "text": "git --version",
+                    "uri": "tool://preview"
+                  },
+                  "_meta": {
+                    "cognition.ai/preview_is_shell_command": true
+                  }
+                }
+              }
+            ],
+            "rawInput": {
+              "command": "git --version"
+            },
+            "_meta": {
+              "cognition.ai/inferenceToolName": "exec"
+            }
+          }
+        }
+      },
+      {
+        "notification": {
+          "sessionId": "fixture-session",
+          "update": {
+            "sessionUpdate": "tool_call_update",
+            "toolCallId": "toolu_016QZFR65MtsM48RZPGdc96h",
+            "title": "Running command",
+            "content": [
+              {
+                "type": "content",
+                "content": {
+                  "type": "resource",
+                  "resource": {
+                    "mimeType": "text/x-shellscript",
+                    "text": "git --version",
+                    "uri": "tool://preview"
+                  },
+                  "_meta": {
+                    "cognition.ai/preview_is_shell_command": true
+                  }
+                }
+              }
+            ],
+            "rawInput": {
+              "command": "git --version",
+              "description": "Run second command"
+            },
+            "_meta": {
+              "cognition.ai/inferenceToolName": "exec"
+            }
+          }
+        }
+      },
+      {
+        "notification": {
+          "sessionId": "fixture-session",
+          "update": {
+            "sessionUpdate": "tool_call_update",
+            "toolCallId": "toolu_016QZFR65MtsM48RZPGdc96h",
+            "title": "Running command",
+            "content": [
+              {
+                "type": "content",
+                "content": {
+                  "type": "resource",
+                  "resource": {
+                    "mimeType": "text/x-shellscript",
+                    "text": "git --version",
+                    "uri": "tool://preview"
+                  },
+                  "_meta": {
+                    "cognition.ai/preview_is_shell_command": true
+                  }
+                }
+              }
+            ],
+            "rawInput": {
+              "command": "git --version",
+              "description": "Run second command"
+            },
+            "_meta": {
+              "cognition.ai/inferenceToolName": "exec"
+            }
+          }
+        }
+      },
+      {
+        "terminalCreated": {
+          "terminalId": "acp-terminal-1",
+          "command": "git --version"
+        }
+      },
+      {
+        "notification": {
+          "sessionId": "fixture-session",
+          "update": {
+            "sessionUpdate": "tool_call",
+            "toolCallId": "toolu_016QZFR65MtsM48RZPGdc96h",
+            "title": "Ran git",
+            "kind": "execute",
+            "content": [
+              {
+                "type": "content",
+                "content": {
+                  "type": "resource",
+                  "resource": {
+                    "mimeType": "text/x-shellscript",
+                    "text": "git --version",
+                    "uri": "tool://preview"
+                  },
+                  "_meta": {
+                    "cognition.ai/preview_is_shell_command": true
+                  }
+                }
+              }
+            ],
+            "rawInput": {
+              "command": "git --version"
+            },
+            "_meta": {
+              "cognition.ai/commandNames": ["git"],
+              "cognition.ai/inferenceToolName": "exec",
+              "cognition.ai/timestamp": "2026-10-24T21:31:33.847040+00:00"
+            }
+          }
+        }
+      },
+      {
+        "notification": {
+          "sessionId": "fixture-session",
+          "update": {
+            "sessionUpdate": "tool_call_update",
+            "toolCallId": "toolu_016QZFR65MtsM48RZPGdc96h",
+            "status": "in_progress",
+            "_meta": {
+              "cognition.ai/inferenceToolName": "exec"
+            }
+          }
+        }
+      },
+      {
+        "notification": {
+          "sessionId": "fixture-session",
+          "update": {
+            "sessionUpdate": "tool_call_update",
+            "toolCallId": "toolu_016QZFR65MtsM48RZPGdc96h",
+            "status": "completed",
+            "content": [
+              {
+                "type": "content",
+                "content": {
+                  "type": "text",
+                  "text": "Exited with code 0"
+                }
+              }
+            ],
+            "_meta": {
+              "cognition.ai/inferenceToolName": "exec"
+            }
+          }
+        }
+      },
+      {
+        "notification": {
+          "sessionId": "fixture-session",
+          "update": {
+            "sessionUpdate": "tool_call",
+            "toolCallId": "toolu_015rZgvyXitEJaYGGhk4nfQr",
+            "title": "Running command",
+            "kind": "execute",
+            "rawInput": "",
+            "_meta": {
+              "cognition.ai/inferenceToolName": "exec",
+              "cognition.ai/timestamp": "2026-10-24T21:31:35.131695900+00:00"
+            }
+          }
+        }
+      },
+      {
+        "notification": {
+          "sessionId": "fixture-session",
+          "update": {
+            "sessionUpdate": "tool_call_update",
+            "toolCallId": "toolu_015rZgvyXitEJaYGGhk4nfQr",
+            "title": "Running command",
+            "content": [
+              {
+                "type": "content",
+                "content": {
+                  "type": "resource",
+                  "resource": {
+                    "mimeType": "text/x-shellscript",
+                    "text": "cmd /c \"",
+                    "uri": "tool://preview"
+                  },
+                  "_meta": {
+                    "cognition.ai/preview_is_shell_command": true
+                  }
+                }
+              }
+            ],
+            "rawInput": {
+              "command": "cmd /c \""
+            },
+            "_meta": {
+              "cognition.ai/inferenceToolName": "exec"
+            }
+          }
+        }
+      },
+      {
+        "notification": {
+          "sessionId": "fixture-session",
+          "update": {
+            "sessionUpdate": "tool_call_update",
+            "toolCallId": "toolu_015rZgvyXitEJaYGGhk4nfQr",
+            "title": "Running command",
+            "content": [
+              {
+                "type": "content",
+                "content": {
+                  "type": "resource",
+                  "resource": {
+                    "mimeType": "text/x-shellscript",
+                    "text": "cmd /c \"echo failing-on-pur",
+                    "uri": "tool://preview"
+                  },
+                  "_meta": {
+                    "cognition.ai/preview_is_shell_command": true
+                  }
+                }
+              }
+            ],
+            "rawInput": {
+              "command": "cmd /c \"echo failing-on-pur"
+            },
+            "_meta": {
+              "cognition.ai/inferenceToolName": "exec"
+            }
+          }
+        }
+      },
+      {
+        "notification": {
+          "sessionId": "fixture-session",
+          "update": {
+            "sessionUpdate": "tool_call_update",
+            "toolCallId": "toolu_015rZgvyXitEJaYGGhk4nfQr",
+            "title": "Running command",
+            "content": [
+              {
+                "type": "content",
+                "content": {
+                  "type": "resource",
+                  "resource": {
+                    "mimeType": "text/x-shellscript",
+                    "text": "cmd /c \"echo failing-on-purpose & exit 3\"",
+                    "uri": "tool://preview"
+                  },
+                  "_meta": {
+                    "cognition.ai/preview_is_shell_command": true
+                  }
+                }
+              }
+            ],
+            "rawInput": {
+              "command": "cmd /c \"echo failing-on-purpose & exit 3\""
+            },
+            "_meta": {
+              "cognition.ai/inferenceToolName": "exec"
+            }
+          }
+        }
+      },
+      {
+        "notification": {
+          "sessionId": "fixture-session",
+          "update": {
+            "sessionUpdate": "tool_call_update",
+            "toolCallId": "toolu_015rZgvyXitEJaYGGhk4nfQr",
+            "title": "Running command",
+            "content": [
+              {
+                "type": "content",
+                "content": {
+                  "type": "resource",
+                  "resource": {
+                    "mimeType": "text/x-shellscript",
+                    "text": "cmd /c \"echo failing-on-purpose & exit 3\"",
+                    "uri": "tool://preview"
+                  },
+                  "_meta": {
+                    "cognition.ai/preview_is_shell_command": true
+                  }
+                }
+              }
+            ],
+            "rawInput": {
+              "command": "cmd /c \"echo failing-on-purpose & exit 3\"",
+              "description": "Run third command"
+            },
+            "_meta": {
+              "cognition.ai/inferenceToolName": "exec"
+            }
+          }
+        }
+      },
+      {
+        "notification": {
+          "sessionId": "fixture-session",
+          "update": {
+            "sessionUpdate": "tool_call_update",
+            "toolCallId": "toolu_015rZgvyXitEJaYGGhk4nfQr",
+            "title": "Running command",
+            "content": [
+              {
+                "type": "content",
+                "content": {
+                  "type": "resource",
+                  "resource": {
+                    "mimeType": "text/x-shellscript",
+                    "text": "cmd /c \"echo failing-on-purpose & exit 3\"",
+                    "uri": "tool://preview"
+                  },
+                  "_meta": {
+                    "cognition.ai/preview_is_shell_command": true
+                  }
+                }
+              }
+            ],
+            "rawInput": {
+              "command": "cmd /c \"echo failing-on-purpose & exit 3\"",
+              "description": "Run third command"
+            },
+            "_meta": {
+              "cognition.ai/inferenceToolName": "exec"
+            }
+          }
+        }
+      },
+      {
+        "terminalCreated": {
+          "terminalId": "acp-terminal-2",
+          "command": "cmd /c \"echo failing-on-purpose & exit 3\""
+        }
+      },
+      {
+        "notification": {
+          "sessionId": "fixture-session",
+          "update": {
+            "sessionUpdate": "tool_call",
+            "toolCallId": "toolu_015rZgvyXitEJaYGGhk4nfQr",
+            "title": "Ran cmd",
+            "kind": "execute",
+            "content": [
+              {
+                "type": "content",
+                "content": {
+                  "type": "resource",
+                  "resource": {
+                    "mimeType": "text/x-shellscript",
+                    "text": "cmd /c \"echo failing-on-purpose & exit 3\"",
+                    "uri": "tool://preview"
+                  },
+                  "_meta": {
+                    "cognition.ai/preview_is_shell_command": true
+                  }
+                }
+              }
+            ],
+            "rawInput": {
+              "command": "cmd /c \"echo failing-on-purpose & exit 3\""
+            },
+            "_meta": {
+              "cognition.ai/commandNames": ["cmd"],
+              "cognition.ai/inferenceToolName": "exec",
+              "cognition.ai/timestamp": "2026-10-24T21:31:35.338354100+00:00"
+            }
+          }
+        }
+      },
+      {
+        "notification": {
+          "sessionId": "fixture-session",
+          "update": {
+            "sessionUpdate": "tool_call_update",
+            "toolCallId": "toolu_015rZgvyXitEJaYGGhk4nfQr",
+            "status": "in_progress",
+            "_meta": {
+              "cognition.ai/inferenceToolName": "exec"
+            }
+          }
+        }
+      },
+      {
+        "notification": {
+          "sessionId": "fixture-session",
+          "update": {
+            "sessionUpdate": "tool_call_update",
+            "toolCallId": "toolu_015rZgvyXitEJaYGGhk4nfQr",
+            "status": "completed",
+            "content": [
+              {
+                "type": "content",
+                "content": {
+                  "type": "text",
+                  "text": "Exited with code 1"
+                }
+              }
+            ],
+            "_meta": {
+              "cognition.ai/inferenceToolName": "exec"
+            }
+          }
+        }
+      }
+    ],
+    "terminalOutputs": {
+      "acp-terminal-0": "poracode-capture-start\r\n\r\nPinging 127.0.0.1 with 32 bytes of data:\r\nReply from 127.0.0.1: bytes=32 time<1ms TTL=128\r\nReply from 127.0.0.1: bytes=32 time<1ms TTL=128\r\nReply from 127.0.0.1: bytes=32 time<1ms TTL=128\r\n\r\nPing statistics for 127.0.0.1:\r\n    Packets: Sent = 3, Received = 3, Lost = 0 (0% loss),\r\nApproximate round trip times in milli-seconds:\r\n    Minimum = 0ms, Maximum = 0ms, Average = 0ms\r\n",
+      "acp-terminal-1": "git version 2.55.0.windows.5\n",
+      "acp-terminal-2": "failing-on-purpose \r\n"
+    }
+  },
+  "batched": {
+    "events": [
+      {
+        "notification": {
+          "sessionId": "fixture-session",
+          "update": {
+            "sessionUpdate": "tool_call",
+            "toolCallId": "4d4ef8033#c9c69dc139cf4217b2a8ba774102a049",
+            "title": "Running command",
+            "kind": "execute",
+            "content": [
+              {
+                "type": "content",
+                "content": {
+                  "type": "resource",
+                  "resource": {
+                    "mimeType": "text/x-shellscript",
+                    "text": "echo poracode-capture-start; ping -n 3 127.0.0.1",
+                    "uri": "tool://preview"
+                  },
+                  "_meta": {
+                    "cognition.ai/preview_is_shell_command": true
+                  }
+                }
+              }
+            ],
+            "rawInput": {
+              "command": "echo poracode-capture-start; ping -n 3 127.0.0.1"
+            },
+            "_meta": {
+              "cognition.ai/inferenceToolName": "exec",
+              "cognition.ai/timestamp": "2026-10-24T21:43:34.895192800+00:00"
+            }
+          }
+        }
+      },
+      {
+        "notification": {
+          "sessionId": "fixture-session",
+          "update": {
+            "sessionUpdate": "tool_call",
+            "toolCallId": "d15e5e002#37f5a51d5c154610a042e38681ac5456",
+            "title": "Running command",
+            "kind": "execute",
+            "content": [
+              {
+                "type": "content",
+                "content": {
+                  "type": "resource",
+                  "resource": {
+                    "mimeType": "text/x-shellscript",
+                    "text": "git --version",
+                    "uri": "tool://preview"
+                  },
+                  "_meta": {
+                    "cognition.ai/preview_is_shell_command": true
+                  }
+                }
+              }
+            ],
+            "rawInput": {
+              "command": "git --version"
+            },
+            "_meta": {
+              "cognition.ai/inferenceToolName": "exec",
+              "cognition.ai/timestamp": "2026-10-24T21:43:34.895968600+00:00"
+            }
+          }
+        }
+      },
+      {
+        "notification": {
+          "sessionId": "fixture-session",
+          "update": {
+            "sessionUpdate": "tool_call",
+            "toolCallId": "a62e44980#cdabef6ac0e242ed8b2a1c6d4eec5059",
+            "title": "Running command",
+            "kind": "execute",
+            "content": [
+              {
+                "type": "content",
+                "content": {
+                  "type": "resource",
+                  "resource": {
+                    "mimeType": "text/x-shellscript",
+                    "text": "cmd /c \"echo failing-on-purpose & exit 3\"",
+                    "uri": "tool://preview"
+                  },
+                  "_meta": {
+                    "cognition.ai/preview_is_shell_command": true
+                  }
+                }
+              }
+            ],
+            "rawInput": {
+              "command": "cmd /c \"echo failing-on-purpose & exit 3\""
+            },
+            "_meta": {
+              "cognition.ai/inferenceToolName": "exec",
+              "cognition.ai/timestamp": "2026-10-24T21:43:34.896550600+00:00"
+            }
+          }
+        }
+      },
+      {
+        "terminalCreated": {
+          "terminalId": "acp-terminal-0",
+          "command": "echo poracode-capture-start; ping -n 3 127.0.0.1"
+        }
+      },
+      {
+        "notification": {
+          "sessionId": "fixture-session",
+          "update": {
+            "sessionUpdate": "tool_call",
+            "toolCallId": "4d4ef8033#c9c69dc139cf4217b2a8ba774102a049",
+            "title": "Ran echo, ping",
+            "kind": "execute",
+            "content": [
+              {
+                "type": "content",
+                "content": {
+                  "type": "resource",
+                  "resource": {
+                    "mimeType": "text/x-shellscript",
+                    "text": "echo poracode-capture-start; ping -n 3 127.0.0.1",
+                    "uri": "tool://preview"
+                  },
+                  "_meta": {
+                    "cognition.ai/preview_is_shell_command": true
+                  }
+                }
+              }
+            ],
+            "rawInput": {
+              "command": "echo poracode-capture-start; ping -n 3 127.0.0.1"
+            },
+            "_meta": {
+              "cognition.ai/commandNames": ["echo", "ping"],
+              "cognition.ai/inferenceToolName": "exec",
+              "cognition.ai/timestamp": "2026-10-24T21:43:34.906267200+00:00"
+            }
+          }
+        }
+      },
+      {
+        "notification": {
+          "sessionId": "fixture-session",
+          "update": {
+            "sessionUpdate": "tool_call",
+            "toolCallId": "d15e5e002#37f5a51d5c154610a042e38681ac5456",
+            "title": "Ran git",
+            "kind": "execute",
+            "content": [
+              {
+                "type": "content",
+                "content": {
+                  "type": "resource",
+                  "resource": {
+                    "mimeType": "text/x-shellscript",
+                    "text": "git --version",
+                    "uri": "tool://preview"
+                  },
+                  "_meta": {
+                    "cognition.ai/preview_is_shell_command": true
+                  }
+                }
+              }
+            ],
+            "rawInput": {
+              "command": "git --version"
+            },
+            "_meta": {
+              "cognition.ai/commandNames": ["git"],
+              "cognition.ai/inferenceToolName": "exec",
+              "cognition.ai/timestamp": "2026-10-24T21:43:34.906954200+00:00"
+            }
+          }
+        }
+      },
+      {
+        "notification": {
+          "sessionId": "fixture-session",
+          "update": {
+            "sessionUpdate": "tool_call",
+            "toolCallId": "a62e44980#cdabef6ac0e242ed8b2a1c6d4eec5059",
+            "title": "Ran cmd",
+            "kind": "execute",
+            "content": [
+              {
+                "type": "content",
+                "content": {
+                  "type": "resource",
+                  "resource": {
+                    "mimeType": "text/x-shellscript",
+                    "text": "cmd /c \"echo failing-on-purpose & exit 3\"",
+                    "uri": "tool://preview"
+                  },
+                  "_meta": {
+                    "cognition.ai/preview_is_shell_command": true
+                  }
+                }
+              }
+            ],
+            "rawInput": {
+              "command": "cmd /c \"echo failing-on-purpose & exit 3\""
+            },
+            "_meta": {
+              "cognition.ai/commandNames": ["cmd"],
+              "cognition.ai/inferenceToolName": "exec",
+              "cognition.ai/timestamp": "2026-10-24T21:43:34.907404400+00:00"
+            }
+          }
+        }
+      },
+      {
+        "notification": {
+          "sessionId": "fixture-session",
+          "update": {
+            "sessionUpdate": "tool_call_update",
+            "toolCallId": "4d4ef8033#c9c69dc139cf4217b2a8ba774102a049",
+            "status": "in_progress",
+            "_meta": {
+              "cognition.ai/inferenceToolName": "exec"
+            }
+          }
+        }
+      },
+      {
+        "notification": {
+          "sessionId": "fixture-session",
+          "update": {
+            "sessionUpdate": "tool_call_update",
+            "toolCallId": "4d4ef8033#c9c69dc139cf4217b2a8ba774102a049",
+            "status": "completed",
+            "content": [
+              {
+                "type": "content",
+                "content": {
+                  "type": "text",
+                  "text": "Exited with code 0"
+                }
+              }
+            ],
+            "_meta": {
+              "cognition.ai/inferenceToolName": "exec"
+            }
+          }
+        }
+      },
+      {
+        "terminalCreated": {
+          "terminalId": "acp-terminal-1",
+          "command": "git --version"
+        }
+      },
+      {
+        "notification": {
+          "sessionId": "fixture-session",
+          "update": {
+            "sessionUpdate": "tool_call_update",
+            "toolCallId": "d15e5e002#37f5a51d5c154610a042e38681ac5456",
+            "status": "in_progress",
+            "_meta": {
+              "cognition.ai/inferenceToolName": "exec"
+            }
+          }
+        }
+      },
+      {
+        "notification": {
+          "sessionId": "fixture-session",
+          "update": {
+            "sessionUpdate": "tool_call_update",
+            "toolCallId": "d15e5e002#37f5a51d5c154610a042e38681ac5456",
+            "status": "completed",
+            "content": [
+              {
+                "type": "content",
+                "content": {
+                  "type": "text",
+                  "text": "Exited with code 0"
+                }
+              }
+            ],
+            "_meta": {
+              "cognition.ai/inferenceToolName": "exec"
+            }
+          }
+        }
+      },
+      {
+        "terminalCreated": {
+          "terminalId": "acp-terminal-2",
+          "command": "cmd /c \"echo failing-on-purpose & exit 3\""
+        }
+      },
+      {
+        "notification": {
+          "sessionId": "fixture-session",
+          "update": {
+            "sessionUpdate": "tool_call_update",
+            "toolCallId": "a62e44980#cdabef6ac0e242ed8b2a1c6d4eec5059",
+            "status": "in_progress",
+            "_meta": {
+              "cognition.ai/inferenceToolName": "exec"
+            }
+          }
+        }
+      },
+      {
+        "notification": {
+          "sessionId": "fixture-session",
+          "update": {
+            "sessionUpdate": "tool_call_update",
+            "toolCallId": "a62e44980#cdabef6ac0e242ed8b2a1c6d4eec5059",
+            "status": "completed",
+            "content": [
+              {
+                "type": "content",
+                "content": {
+                  "type": "text",
+                  "text": "Exited with code 1"
+                }
+              }
+            ],
+            "_meta": {
+              "cognition.ai/inferenceToolName": "exec"
+            }
+          }
+        }
+      }
+    ],
+    "terminalOutputs": {
+      "acp-terminal-0": "poracode-capture-start\r\n\r\nPinging 127.0.0.1 with 32 bytes of data:\r\nReply from 127.0.0.1: bytes=32 time<1ms TTL=128\r\nReply from 127.0.0.1: bytes=32 time<1ms TTL=128\r\nReply from 127.0.0.1: bytes=32 time<1ms TTL=128\r\n\r\nPing statistics for 127.0.0.1:\r\n    Packets: Sent = 3, Received = 3, Lost = 0 (0% loss),\r\nApproximate round trip times in milli-seconds:\r\n    Minimum = 0ms, Maximum = 0ms, Average = 0ms\r\n",
+      "acp-terminal-1": "git version 2.55.0.windows.5\n",
+      "acp-terminal-2": "failing-on-purpose \r\n"
+    }
+  }
+}

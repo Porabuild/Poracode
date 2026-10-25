@@ -1,4 +1,5 @@
 import { joinRuntimeShutdown } from "@/shared/joinRuntimeShutdown";
+import { McpAuthenticationService } from "./mcp/McpAuthenticationService";
 import { retireMacKeychainCommands } from "./runtime/macKeychainProcess";
 import { NativeMcpSetupCoordinator } from "./runtime/nativeMcpSetupCoordinator";
 import { existsSync, mkdirSync } from "node:fs";
@@ -61,7 +62,7 @@ import {
   type WindowsShellPreference,
 } from "./shellPreference";
 import { getWindowsSystemCommand } from "./agents/base/shellBasics";
-import { resolveExecutablePath } from "./agents/base/processRuntime";
+import { resolveExecutablePath, resolveExecutablePathAsync } from "./agents/base/processRuntime";
 import { AgentStatusService, detectWslAgentStatuses } from "./runtime/agentStatusService";
 import { createLocalUsageCollectors } from "./runtime/localUsageCollectors";
 import { UsageService } from "./runtime/usageService";
@@ -79,6 +80,7 @@ import type { HostResourceAdmissionStatus } from "@/shared/hostResourceAdmission
 import { gitProcessAdmissionUsage } from "./git/gitProcessAdmission";
 import { type SessionRuntime, type ShellSessionRuntime } from "./runtime/sessionTypes";
 import { ThreadSessionManager, writeSubmittedPrompt } from "./runtime/threadSessionManager";
+import { createSupervisorPtyFactory } from "./pty/ptyFactory";
 import { CliHookPluginCoordinator } from "./runtime/cliHookPluginCoordinator";
 import { CrossagentMcpIngress } from "./crossagentMcp/CrossagentMcpIngress";
 import { SubagentRunManager } from "./crossagentMcp/SubagentRunManager";
@@ -175,7 +177,10 @@ export class SupervisorRuntime {
   readonly projectTreeService = new ProjectTreeService();
   private readonly adapters = new Map<AgentKind, AgentAdapter>();
   private availableWindowsShellsCache:
-    | { shells: ReturnType<typeof detectWindowsShells>; ts: number }
+    | { shells: Awaited<ReturnType<typeof detectWindowsShells>>; ts: number }
+    | undefined;
+  private availableWindowsShellsInFlight:
+    | Promise<Awaited<ReturnType<typeof detectWindowsShells>>>
     | undefined;
   private resolveLaunchWindowsPowerShell =
     createWindowsPowerShellLaunchResolver(resolveExecutablePath);
@@ -189,6 +194,7 @@ export class SupervisorRuntime {
   readonly cliHookPluginCoordinator: CliHookPluginCoordinator;
   readonly externalMcpDiscoveryService = new ExternalMcpDiscoveryService();
   readonly mcpOAuthService: McpOAuthService;
+  readonly mcpAuthenticationService: McpAuthenticationService;
   private readonly mcpOAuthRelay: McpOAuthRelay;
   readonly mcpProbeService: McpProbeService;
   readonly skillsService: SkillsService;
@@ -310,6 +316,10 @@ export class SupervisorRuntime {
       baseDir,
       registry: this.pluginRegistry,
       oauth: this.mcpOAuthService,
+    });
+    this.mcpAuthenticationService = new McpAuthenticationService({
+      oauth: this.mcpOAuthService,
+      plugins: this.pluginAccountService,
     });
     this.pluginCatalogService = new PluginCatalogService({
       baseDir,
@@ -518,6 +528,7 @@ export class SupervisorRuntime {
 
     this.threadSessionManager = new ThreadSessionManager({
       emit,
+      createPty: createSupervisorPtyFactory(),
       isDev: this.isDev,
       logsDir: this.logsDir,
       settingsPath: this.settingsPath,
@@ -541,8 +552,8 @@ export class SupervisorRuntime {
         unregister: (threadId) => this.crossagentMcpIngress.unregisterThread(threadId),
         cancelForeground: (threadId) => this.subagentRunManager.cancelForegroundForThread(threadId),
         cancelAll: (threadId) => this.subagentRunManager.cancelAllForThread(threadId),
-        resolveChildRequest: (requestId, response) =>
-          this.subagentRunManager.resolveChildServerRequest(requestId, response),
+        resolveChildRequest: (requestId, response, parentThreadId) =>
+          this.subagentRunManager.resolveChildServerRequest(requestId, response, parentThreadId),
       },
       wslHostAccess: {
         resolveHostAccess: (distro) => resolveWslHostAccess(distro),
@@ -594,6 +605,7 @@ export class SupervisorRuntime {
             hostPlatform: process.platform,
             projectLocation,
             includeExternalServers: selection?.includeExternalServers ?? true,
+            ...(selection?.pluginOverrides ? { pluginOverrides: selection.pluginOverrides } : {}),
           },
         );
         return {
@@ -695,6 +707,10 @@ export class SupervisorRuntime {
         }),
       ),
     );
+  }
+
+  whenReady(): Promise<void> {
+    return this.agentStatusService.ready;
   }
 
   getAvailableWindowsShells() {
@@ -810,16 +826,25 @@ export class SupervisorRuntime {
     return this.threadSessionManager.getThreadFollowUpQueue(threadId);
   }
 
-  private getCachedAvailableWindowsShells() {
+  private async getCachedAvailableWindowsShells() {
     const now = Date.now();
     if (this.availableWindowsShellsCache && now - this.availableWindowsShellsCache.ts < 60_000) {
       return this.availableWindowsShellsCache.shells;
     }
-    const shells = detectWindowsShells(resolveExecutablePath);
-    this.availableWindowsShellsCache = { shells, ts: now };
-    this.resolveLaunchWindowsPowerShell =
-      createWindowsPowerShellLaunchResolver(resolveExecutablePath);
-    return shells;
+    if (this.availableWindowsShellsInFlight) return this.availableWindowsShellsInFlight;
+    const pending = (async () => {
+      const shells = await detectWindowsShells(resolveExecutablePathAsync);
+      this.availableWindowsShellsCache = { shells, ts: Date.now() };
+      this.resolveLaunchWindowsPowerShell =
+        createWindowsPowerShellLaunchResolver(resolveExecutablePath);
+      return shells;
+    })();
+    this.availableWindowsShellsInFlight = pending;
+    try {
+      return await pending;
+    } finally {
+      this.availableWindowsShellsInFlight = undefined;
+    }
   }
 
   private resolveWindowsPowerShell(): WindowsShellPreference {
@@ -1214,7 +1239,10 @@ export class SupervisorRuntime {
     await joinRuntimeShutdown([
       () => this.disposeNativeRuntime(),
       () => retireMacKeychainCommands(),
+      () => this.agentRegistryService.disposeAcpAuthentications(),
       () => this.mcpOAuthRelay.dispose(),
+      () => this.mcpOAuthService.dispose(),
+      () => this.mcpAuthenticationService.dispose(),
       async () => {
         this.disposeWindowsPowerShellPreference();
         this.disposeWslCredentialProjectScope();
@@ -1222,7 +1250,6 @@ export class SupervisorRuntime {
         this.settingsWriter.dispose();
         this.usageService.stop();
         this.mcpProbeService.dispose();
-        this.mcpOAuthService.dispose();
         this.lspManager.dispose();
         await this._projectWatcher?.dispose();
         const ptysExited = await this.threadSessionManager.dispose();

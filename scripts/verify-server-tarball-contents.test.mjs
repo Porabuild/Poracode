@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { execFile, spawnSync } from "node:child_process";
-import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { promisify } from "node:util";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
@@ -94,6 +94,7 @@ void test("tarball verification follows host and cross-target overlay manifest p
       /native-overlay\/better_sqlite3\.node/u,
     );
   } finally {
+    assert.equal(dirname(await realpath(root)), await realpath(tmpdir()));
     await rm(root, { recursive: true, force: true });
   }
 });
@@ -135,10 +136,15 @@ void test("required members include nested Windows overlay names as /-separated 
       "native-overlay/node-pty/win32-x64/conpty/conpty.dll",
       "native-overlay/node-pty/win32-x64/conpty/OpenConsole.exe",
       "native-overlay/better-sqlite3/win32-x64.node",
+      "resources/service-launcher/manifest.json",
+      "resources/service-launcher/win32-x64/service-launcher-v1.exe",
+      "resources/pty-job-owner/manifest.json",
+      "resources/pty-job-owner/win32-x64/pty-job-owner-v1.exe",
     ]) {
       assert.ok(required.includes(member), `${member} must be required`);
     }
   } finally {
+    assert.equal(dirname(await realpath(overlay)), await realpath(tmpdir()));
     await rm(overlay, { recursive: true, force: true });
   }
 });

@@ -23,6 +23,12 @@ export interface AcpToolCallItemState {
    * the content array on subsequent notifications.
    */
   terminalId?: string;
+  /**
+   * Client-hosted terminal attributed to this command call because the agent
+   * ran its command in it without referencing it from content; ignored once a
+   * content-referenced `terminalId` exists.
+   */
+  attributedTerminalId?: string;
 }
 
 export interface ActiveAcpSubAgent {

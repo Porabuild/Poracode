@@ -1,3 +1,7 @@
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import * as fsPromises from "node:fs/promises";
+import * as os from "node:os";
+import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import type { ProjectLocation, ThreadConfig } from "@/shared/contracts";
 import { createCommandCodeAdapter } from ".";
@@ -17,11 +21,58 @@ import {
 import { authJsonHasApiKey, detectCommandCodeInvalidSessionRef } from "./session";
 import {
   commandCodeTranscriptId,
+  discoverCommandCodeSessionRef,
   isUuid,
   sanitizeCommandCodeCwd,
   sanitizeCommandCodeMcpCwd,
+  snapshotCommandCodePreSpawnSessions,
 } from "./sessionFiles";
 import { detectCommandCodeTerminalStatus } from "./terminal";
+
+vi.mock("node:fs/promises", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("node:fs/promises")>()),
+}));
+vi.mock("node:os", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("node:os")>()),
+}));
+
+it("retains the completed session snapshot while another launch scans", async () => {
+  const home = mkdtempSync(join(os.tmpdir(), "commandcode-snapshot-"));
+  const homeSpy = vi.spyOn(os, "homedir").mockReturnValue(home);
+  const cwd = join(home, "project");
+  const location: ProjectLocation = { kind: "posix", path: cwd };
+  const dir = join(home, ".commandcode", "projects", sanitizeCommandCodeCwd(cwd));
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, "11111111-2222-4333-8444-555555555555.jsonl"), "{}");
+  let release!: () => void;
+  let pending: Promise<void> | undefined;
+  const read = fsPromises.readdir;
+  const readSpy = vi.spyOn(fsPromises, "readdir");
+  try {
+    await snapshotCommandCodePreSpawnSessions(location, cwd);
+    let entered!: () => void;
+    const started = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    const blocked = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    readSpy.mockImplementationOnce(async (...args) => {
+      entered();
+      await blocked;
+      return read(...args);
+    });
+    pending = snapshotCommandCodePreSpawnSessions(location, cwd);
+    await started;
+    expect(await discoverCommandCodeSessionRef(location, cwd)).toBeUndefined();
+  } finally {
+    release?.();
+    await pending;
+    readSpy.mockRestore();
+    homeSpy.mockRestore();
+    rmSync(home, { recursive: true, force: true });
+  }
+});
 
 describe("buildCommandCodeArgs", () => {
   const config: ThreadConfig = { model: "claude-opus-4-8" };

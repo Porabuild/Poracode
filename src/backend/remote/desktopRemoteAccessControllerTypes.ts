@@ -18,6 +18,7 @@ import type { ScheduleService } from "@/host/schedules/ScheduleService";
 import type { PrWatchService } from "@/host/prWatch";
 import type { GitStateService } from "@/host/gitState";
 import type { ImagePreviewGenerator } from "@/host/remote/server/imagePreview";
+import type { ImageCardVariantGenerator } from "@/host/remote/server/imageCardVariant";
 import type {
   RemoteAccessServer,
   RemoteAccessServerOptions,
@@ -65,6 +66,7 @@ export interface DesktopRemoteAccessControllerOptions {
   readonly getBrowserPanelManager?: () => BrowserPanelManager | null;
   readonly browser?: RemoteBrowserGatewayLike;
   readonly deviceWorkspace?: RemoteAccessServerOptions["deviceWorkspace"];
+  readonly readAgentVision?: RemoteAccessServerOptions["readAgentVision"];
   /**
    * The composition's settings authority writes. Every patch the controller
    * persists commits through it as scoped compare-and-swap edits; a conflict
@@ -98,6 +100,7 @@ export interface DesktopRemoteAccessControllerOptions {
   readonly gitStateService: GitStateService;
   readonly updates: NonNullable<RemoteAccessServerOptions["updates"]>;
   readonly imagePreviewGenerator?: ImagePreviewGenerator;
+  readonly imageCardVariantGenerator?: ImageCardVariantGenerator;
   /**
    * V6 C.2: host-declared capabilities published on GET /api/host/describe.
    * Main supplies the snapshot that matches composeHostServices.

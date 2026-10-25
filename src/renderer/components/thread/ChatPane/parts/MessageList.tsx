@@ -46,6 +46,7 @@ import { chatMessageSurfaceClass } from "./items/chatMessageSurface";
 import { imageViewRendersInline, resolveImageViewSource } from "./items/imageViewSource";
 import { isToolLikeItem } from "./items/toolCallCategorization";
 import { useTimelineMeasurements } from "./useTimelineMeasurements";
+import { useNewPromptScroll } from "./useNewPromptScroll";
 import { type HistoryStartReached } from "./underfilledHistory";
 import { useUnderfilledHistory } from "./useUnderfilledHistory";
 import {
@@ -80,6 +81,8 @@ interface MessageListProps {
   onLiveVirtualizerLayoutChange?: () => void;
   /** Fires after the virtualizer has measured and completed its initial scroll. */
   onInitialLayoutReady?: () => void;
+  onNewPrompt?: () => void;
+  onPromptScrollWrite?: (top: number) => void;
   registerVirtualScrollToBottom?: (handler: (() => void) | null) => void;
   scrollClassName?: string;
   scrollStyle?: CSSProperties;
@@ -142,6 +145,8 @@ export function MessageList({
   onVirtualizerLayoutChange,
   onLiveVirtualizerLayoutChange,
   onInitialLayoutReady,
+  onNewPrompt,
+  onPromptScrollWrite,
   registerVirtualScrollToBottom,
   scrollClassName,
   scrollStyle,
@@ -167,13 +172,22 @@ export function MessageList({
   const onContentHeightNotification = onContentHeightChange ?? parentActions?.onContentHeightChange;
   const listRef = useRef<LegendListRef | null>(null);
   const scrollElementRef = useRef<HTMLDivElement | null>(null);
+  const { anchoredEndSpace, newPromptReady, cancelAnimation } = useNewPromptScroll({
+    threadId,
+    entries,
+    listRef,
+    onNewPrompt,
+    onScrollWrite: onPromptScrollWrite,
+  });
   const { notifyContentHeight, retryUnderfilledHistory, resetUnderfilledHistory } =
     useUnderfilledHistory({
       threadId,
       oldestVisibleEntryId: entries[0]?.id,
       scrollElementRef,
       onStartReached,
-      onContentHeightChange: onContentHeightNotification,
+      onContentHeightChange: () => {
+        if (!newPromptReady) onContentHeightNotification?.();
+      },
     });
   const entriesRef = useRef(entries);
   useLayoutEffect(() => {
@@ -459,10 +473,15 @@ export function MessageList({
         }
         initialScrollAtEnd
         keyExtractor={(entry) => entry.id}
-        maintainScrollAtEnd={{
-          animated: false,
-          on: { dataChange: true, footerLayout: true, itemLayout: true, layout: true },
-        }}
+        {...(anchoredEndSpace ? { anchoredEndSpace } : {})}
+        maintainScrollAtEnd={
+          anchoredEndSpace || newPromptReady
+            ? false
+            : {
+                animated: false,
+                on: { dataChange: true, footerLayout: true, itemLayout: true, layout: true },
+              }
+        }
         maintainScrollAtEndThreshold={0}
         maintainVisibleContentPosition={{ data: true, size: true }}
         {...(onContentHeightNotification || onStartReached
@@ -515,6 +534,7 @@ export function MessageList({
         {...(onKeyDownCapture || onStartReached
           ? {
               onKeyDownCapture: (event) => {
+                cancelAnimation();
                 onKeyDownCapture?.(event);
                 if (event.key === "ArrowUp" || event.key === "PageUp" || event.key === "Home") {
                   retryUnderfilledHistory(event);
@@ -526,10 +546,14 @@ export function MessageList({
           notifyContentHeight();
           onInitialLayoutReady?.();
         }}
-        {...(onPointerDownCapture ? { onPointerDownCapture } : {})}
+        onPointerDownCapture={(event) => {
+          cancelAnimation();
+          onPointerDownCapture?.(event);
+        }}
         {...(onWheelCapture || onStartReached
           ? {
               onWheelCapture: (event) => {
+                cancelAnimation();
                 onWheelCapture?.(event);
                 if (event.deltaY < 0) retryUnderfilledHistory(event);
               },
@@ -672,6 +696,11 @@ function CompletedTurnIndicator({
   threadId: string;
   record: CompletedTurnRecord;
 }) {
+  const hasAssistantActions = useAppStore(
+    (state) =>
+      record.anchorItemId !== null &&
+      state.runtimeItemsByIdByThread[threadId]?.[record.anchorItemId]?.type === "assistant_message",
+  );
   const elapsedSeconds = Math.max(0, Math.floor((record.endedAt - record.startedAt) / 1000));
   const elapsed = formatElapsed(elapsedSeconds);
   return (
@@ -682,7 +711,7 @@ function CompletedTurnIndicator({
             <Trans>Worked for {elapsed}</Trans>
           </span>
         ) : null}
-        {record.anchorItemId ? (
+        {record.anchorItemId && !hasAssistantActions ? (
           <ThreadForkTurnAction
             threadId={threadId}
             itemId={record.anchorItemId}

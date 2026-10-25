@@ -250,6 +250,33 @@ export const persistedRuntimePageSchema = z.object({
 });
 export type PersistedRuntimePage = z.infer<typeof persistedRuntimePageSchema>;
 
+/** Newest prompts one index read returns; older ones are reported as `truncated`. */
+export const PROMPT_INDEX_MAX_PROMPTS = 2_000;
+/** Characters of a prompt's first text block the host returns (SQL `substr` counts characters). */
+export const PROMPT_INDEX_TEXT_LENGTH = 300;
+
+/**
+ * The top-level user prompts of a thread in transcript order, without loading
+ * the transcript: enough to draw and navigate the prompt rail over history that
+ * paging has not reached yet. `text` is the first text block, truncated.
+ */
+export const persistedPromptIndexSchema = z.object({
+  prompts: z
+    .array(
+      z.object({
+        itemId: z.string().min(1),
+        position: z.number().int().nonnegative(),
+        // `substr` counts characters and `max` counts UTF-16 units: an astral
+        // character is two units, so the longest valid text is twice the cap.
+        text: z.string().max(PROMPT_INDEX_TEXT_LENGTH * 2),
+      }),
+    )
+    .max(PROMPT_INDEX_MAX_PROMPTS),
+  /** True when older prompts than the newest {@link PROMPT_INDEX_MAX_PROMPTS} were left out. */
+  truncated: z.boolean(),
+});
+export type PersistedPromptIndex = z.infer<typeof persistedPromptIndexSchema>;
+
 export const persistedCompletedTurnSchema = z.object({
   startedAt: z.string().min(1),
   endedAt: z.string().min(1),

@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ConversationSearchJump } from "./ConversationSearchJump";
-import { Trans } from "@lingui/react/macro";
-import { Button } from "@heroui/react";
+import { Trans, useLingui } from "@lingui/react/macro";
+import { Button, toast } from "@heroui/react";
 import { useShallow } from "zustand/react/shallow";
 import { isThreadTurnActive, type ProjectLocation, type Thread } from "@/shared/contracts";
 import { isHomeProjectId } from "@/shared/homeScope";
@@ -24,7 +24,10 @@ import {
   releaseThreadRuntimeItems,
   retainThreadRuntimeItems,
 } from "@/renderer/state/chatRuntimePersister";
-import { adoptRuntimeThreadReader } from "@/renderer/state/runtimeInterestHydration";
+import {
+  adoptRuntimeThreadReader,
+  retryThreadRuntimeItems,
+} from "@/renderer/state/runtimeInterestHydration";
 import { useInitialTimelineLayout } from "./parts/useInitialTimelineLayout";
 import {
   finalizeFileCheckpoint,
@@ -41,7 +44,6 @@ import { ChatFindBar, type ScrollToIndex } from "@/renderer/components/find/Chat
 import { ChatPaneActionsContext, type ChatPaneActions } from "./chatPaneActionsContext";
 import { ChatReaderFollowContext, createChatReaderFollowSignal } from "./chatReaderFollow";
 import { ChatScrollControls, type ChatScrollControlsHandle } from "./ChatScrollControls";
-import { ThreadHistoryNoticeBanner } from "./parts/HistoryNoticeBanner";
 import {
   ChatConnectingFooter,
   ChatTurnElapsedFooter,
@@ -61,7 +63,10 @@ import { ImportedThreadNotice } from "./parts/ImportedThreadNotice";
 import { MessageList, type CheckpointRevertActions } from "./parts/MessageList";
 import { ThreadForkOrigin, ThreadForkTurnAction } from "../ThreadForkControls";
 import { SubAgentOpenController } from "./parts/items/SubAgentOverlay";
+import { ChatPromptRail } from "./ChatPromptRail";
+import { promptAnchorScrollTop } from "./promptAnchorScrollTop";
 import { StickyPrompt } from "./StickyPrompt";
+import { usePromptJump } from "./usePromptJump";
 import { resolveThreadMarkdownImageRoots } from "../threadMarkdownImageRoots";
 import { resolveThreadTranscriptMarkdownFormatter } from "../threadTranscriptMarkdown";
 
@@ -120,6 +125,7 @@ export function ChatPane(props: ChatPaneProps) {
     checkpointActions,
     checkpointProjectLocation,
   } = props;
+  const { t } = useLingui();
   const { id: threadId, projectId, status, worktreePath, worktreeBranch } = thread;
   const browserImageReadiness = useRemoteBridgeImageReadiness();
   const managedImageSession = useManagedLoopbackImageSession();
@@ -139,10 +145,24 @@ export function ChatPane(props: ChatPaneProps) {
   const registerScrollToIndex = (handler: ScrollToIndex | null) => {
     scrollToIndexRef.current = handler;
   };
+  // Leave the tail before a jump so a streaming reply cannot re-pin the view
+  // to the bottom while it scrolls up.
+  const leaveTail = () => {
+    scrollControlsRef.current?.markUserScrollIntent();
+    scrollControlsRef.current?.disableStickToBottom();
+  };
+  const scrollToEntry = (index: number) => {
+    leaveTail();
+    scrollToIndexRef.current?.(index, { align: "start", animated: true });
+  };
   // `scrollEl` mirrors the LegendList-owned scroll node as React state for the
   // find controller and the shared scroll controls.
   const { setScrollContainer, scrollRef, scrollEl, scrollFadeStyle } =
-    useScrollFade<HTMLDivElement>({ contentRef });
+    useScrollFade<HTMLDivElement>({
+      contentRef,
+      // A freshly sent prompt is parked flush at the top; the top fade would dim it.
+      getTopFlushScrollTop: (el) => promptAnchorScrollTop(el, threadId),
+    });
   const [initialScrollSettlement, setInitialScrollSettlement] = useState<{
     threadId: string;
     hasVisibleHistory: boolean;
@@ -155,6 +175,16 @@ export function ChatPane(props: ChatPaneProps) {
   const timelineEntries = useAppStore(
     useShallow((s) => selectVisibleThreadTimelineEntries(s, threadId, hiddenRuntimeItemId)),
   );
+  const promptJump = usePromptJump({
+    threadId,
+    entries: timelineEntries,
+    scrollToIndexRef,
+    beforeScroll: leaveTail,
+    onUnavailable: () => toast.warning(t`That prompt is no longer available.`),
+  });
+  // While a jump pages history in, every consumer of the list index space (the
+  // transcript, sticky prompt, rail) keeps the snapshot the rows were built from.
+  const listEntries = promptJump.frozenEntries ?? timelineEntries;
   // Settling the empty loading placeholder does not settle the first history
   // rows. A later initial response must be measured and pinned before reveal.
   const isInitialScrollSettled =
@@ -212,6 +242,7 @@ export function ChatPane(props: ChatPaneProps) {
     );
     const contentActions: ChatPaneActions = {
       threadId,
+      ...(targetContext ? { mediaLocation: targetContext.projectLocation } : {}),
       // Image custody is independent of project/file actions, including Home.
       // An explicit empty owner resolver must never fall through globally.
       remoteImageRefUrl: isRemoteSession()
@@ -399,6 +430,12 @@ export function ChatPane(props: ChatPaneProps) {
   );
   const completedTurnsByAnchor = useAppStore((s) => selectCompletedTurnsByAnchorItem(s, threadId));
   const mostRecentCompletedTurnAnchor = mostRecentDisplayableCompletedTurn?.anchorItemId ?? null;
+  const completedTurnHasAssistantActions = useAppStore(
+    (state) =>
+      mostRecentCompletedTurnAnchor !== null &&
+      state.runtimeItemsByIdByThread[threadId]?.[mostRecentCompletedTurnAnchor]?.type ===
+        "assistant_message",
+  );
   const completedTurnAnchorAtTail = isCompletedTurnAnchorAtTimelineTail(
     mostRecentCompletedTurnAnchor,
     timelineEntries,
@@ -431,9 +468,45 @@ export function ChatPane(props: ChatPaneProps) {
   // request before that round-trip completes, leaving status stuck at
   // `needs_approval` even though the user has already answered.
   const isTurnPaused = hasOpenRuntimeRequest;
+  const tailForkAction =
+    completedTurnCanRenderInTail &&
+    !completedTurnHasAssistantActions &&
+    mostRecentDisplayableCompletedTurn?.anchorItemId ? (
+      <div className="mx-auto w-full max-w-[920px] px-4 pb-2">
+        <ThreadForkTurnAction
+          threadId={threadId}
+          itemId={mostRecentDisplayableCompletedTurn.anchorItemId}
+          startedAt={mostRecentDisplayableCompletedTurn.startedAt}
+        />
+      </div>
+    ) : null;
   const showEmptyHint = isEmpty && !isLive && !isConnecting && hydrationStatus === undefined;
   const isHydrating = isEmpty && hydrationStatus === "pending";
-  const hydrationFailed = isEmpty && hydrationStatus === "failed";
+  const hydrationFailed = hydrationStatus === "failed";
+  const historyLoadFailure = hydrationFailed ? (
+    <div
+      className={`flex items-center gap-3 text-foreground-muted ${
+        isEmpty
+          ? "h-full flex-col justify-center"
+          : "justify-between border-b border-border bg-surface-container/60 px-3 py-1.5 text-xs"
+      }`}
+      role="status"
+    >
+      <span>
+        <Trans>Messages could not be loaded.</Trans>
+      </span>
+      <Button
+        size={isEmpty ? "md" : "sm"}
+        variant={isEmpty ? "tertiary" : "ghost"}
+        onPress={() => {
+          if (isRemoteThread) void hydrateThreadRuntimeItems(threadId);
+          else void retryThreadRuntimeItems(threadId);
+        }}
+      >
+        <Trans>Retry</Trans>
+      </Button>
+    </div>
+  ) : null;
   // The tail loader displays the most recent completed turn's frozen elapsed
   // time when the thread is idle and no newer timeline row exists. Once an
   // optimistic next prompt is appended, keep the completed indicator inline at
@@ -465,11 +538,11 @@ export function ChatPane(props: ChatPaneProps) {
   return (
     <ChatReaderFollowContext.Provider value={readerFollow}>
       <ChatPaneActionsContext.Provider value={paneActionsOverride ?? paneActions}>
-        <div className="flex h-full min-h-0 flex-col">
+        <div className="flex h-full min-h-0 flex-col" data-thread-id={thread.id}>
           {thread.config.importedFrom ? (
             <ImportedThreadNotice importedFrom={thread.config.importedFrom} />
           ) : null}
-          <div className="relative min-h-0 flex-1">
+          <div className="relative flex min-h-0 flex-1 flex-col">
             {truncateReloadBlocked ? (
               <div className="flex items-center justify-between gap-2 border-b border-warning-soft-foreground/20 bg-warning-soft/60 px-3 py-1.5 text-xs text-warning-soft-foreground">
                 <span>
@@ -499,7 +572,7 @@ export function ChatPane(props: ChatPaneProps) {
                 <Trans>Server offline — this conversation may be out of date.</Trans>
               </div>
             ) : null}
-            <ThreadHistoryNoticeBanner threadId={threadId} />
+            {!isEmpty ? historyLoadFailure : null}
             <ThreadForkOrigin threadId={threadId} />
             <ConversationSearchJump
               threadId={threadId}
@@ -514,7 +587,7 @@ export function ChatPane(props: ChatPaneProps) {
             <MessageList
               key={threadId}
               threadId={threadId}
-              entries={timelineEntries}
+              entries={listEntries}
               isTurnActive={isLive}
               {...(isManagedThread
                 ? {
@@ -527,6 +600,11 @@ export function ChatPane(props: ChatPaneProps) {
               setScrollContainer={setScrollContainer}
               scrollContentRef={contentRef}
               onContentHeightChange={() => scrollControlsRef.current?.onContentHeightChange()}
+              onNewPrompt={() => {
+                readerFollow.resume();
+                scrollControlsRef.current?.anchorToPrompt();
+              }}
+              onPromptScrollWrite={(top) => scrollControlsRef.current?.noteProgrammaticScroll(top)}
               onVirtualizerLayoutChange={() =>
                 scrollControlsRef.current?.beginVirtualizerLayoutChange()
               }
@@ -536,24 +614,14 @@ export function ChatPane(props: ChatPaneProps) {
               registerVirtualScrollToBottom={(handler) => {
                 virtualScrollToBottomRef.current = handler;
               }}
-              scrollClassName="min-h-0 h-full overflow-y-auto [overflow-anchor:none] [scrollbar-gutter:stable]"
+              scrollClassName={`min-h-0 flex-1 overflow-y-auto [overflow-anchor:none] [scrollbar-gutter:stable] transition-opacity duration-150 motion-reduce:transition-none ${
+                promptJump.hidden ? "opacity-0" : ""
+              }`}
               scrollStyle={scrollFadeStyle}
               contentClassName={`min-h-full ${isInitialScrollSettled ? "" : "pointer-events-none opacity-0"}`}
               emptyContent={
-                hydrationFailed ? (
-                  <div className="flex h-full flex-col items-center justify-center gap-3 text-foreground-muted">
-                    <span>
-                      <Trans>Messages could not be loaded.</Trans>
-                    </span>
-                    <Button
-                      variant="tertiary"
-                      onPress={() => {
-                        void hydrateThreadRuntimeItems(threadId);
-                      }}
-                    >
-                      <Trans>Retry</Trans>
-                    </Button>
-                  </div>
+                isEmpty && hydrationFailed ? (
+                  historyLoadFailure
                 ) : isEmpty && !showTailLoader && showEmptyHint ? (
                   <div className="flex h-full flex-col items-center justify-center gap-2 text-foreground-muted">
                     <span>
@@ -566,7 +634,13 @@ export function ChatPane(props: ChatPaneProps) {
                 isWorktreeProvisioning ? (
                   <ChatWorktreeProvisioningFooter />
                 ) : isConnecting ? (
-                  <ChatConnectingFooter />
+                  // Keep the completed turn's fork row while reconnecting so the
+                  // swap to "Worked for" keeps the footer height and the pinned
+                  // transcript does not jump.
+                  <div className="group/checkpoint">
+                    <ChatConnectingFooter />
+                    {tailForkAction}
+                  </div>
                 ) : isHydrating && !showWorkingTimer ? (
                   <ChatConnectingFooter />
                 ) : showTailLoader && tailTurn ? (
@@ -576,16 +650,7 @@ export function ChatPane(props: ChatPaneProps) {
                       isPaused={isTurnPaused}
                       isWaitingForBackground={isWaitingForBackground && !isTurnPaused}
                     />
-                    {completedTurnCanRenderInTail &&
-                    mostRecentDisplayableCompletedTurn?.anchorItemId ? (
-                      <div className="mx-auto w-full max-w-[920px] px-4 pb-2">
-                        <ThreadForkTurnAction
-                          threadId={threadId}
-                          itemId={mostRecentDisplayableCompletedTurn.anchorItemId}
-                          startedAt={mostRecentDisplayableCompletedTurn.startedAt}
-                        />
-                      </div>
-                    ) : null}
+                    {tailForkAction}
                   </div>
                 ) : null
               }
@@ -672,16 +737,19 @@ export function ChatPane(props: ChatPaneProps) {
             <StickyPrompt
               key={`sticky-prompt:${threadId}`}
               threadId={threadId}
-              entries={timelineEntries}
+              entries={listEntries}
               scrollElement={scrollEl}
               isEnabled={isInitialScrollSettled}
-              onScrollToEntry={(index) => {
-                // Leave the tail before the jump so a streaming reply cannot
-                // re-pin the view to the bottom while it scrolls up.
-                scrollControlsRef.current?.markUserScrollIntent();
-                scrollControlsRef.current?.disableStickToBottom();
-                scrollToIndexRef.current?.(index, { align: "start", animated: true });
-              }}
+              onScrollToEntry={scrollToEntry}
+            />
+            <ChatPromptRail
+              key={`prompt-rail:${threadId}`}
+              threadId={threadId}
+              entries={listEntries}
+              scrollElement={scrollEl}
+              isEnabled={isInitialScrollSettled}
+              pendingPromptId={promptJump.pendingId}
+              onJumpToPrompt={promptJump.jumpToPrompt}
             />
             <ChatFindBar
               threadId={threadId}

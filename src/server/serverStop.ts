@@ -16,6 +16,7 @@ export const STOP_TIMEOUT_MS = 30_000;
 
 export interface StopServerOptions {
   readonly timeoutMs?: number;
+  readonly expectedPid?: number;
   readonly probe?: (paths: HostRootPaths) => Promise<RunningOwnerProbe | null>;
   readonly request?: OwnerShutdownDeps;
   readonly wait?: Omit<OwnerStoppedWait, "timeoutMs">;
@@ -40,6 +41,10 @@ export async function stopRunningServer(
   const paths = resolveHostRootPaths(profileNamespace);
   const probe = await (options.probe ?? ((p) => probeRunningOwner(p)))(paths);
   if (!probe) return { outcome: "not-running" };
+  if (options.expectedPid !== undefined && probe.pid !== options.expectedPid)
+    throw new RunningOwnerUnreachableError(
+      "The running owner is not the expected child process; refusing to stop it.",
+    );
   let accepted: "accepted" | "unsupported";
   try {
     accepted = await requestOwnerShutdown(paths, probe.generation, options.request);

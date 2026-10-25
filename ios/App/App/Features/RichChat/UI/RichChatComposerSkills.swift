@@ -115,7 +115,9 @@ enum RichChatSkillSelectionFactory {
       provider: skill.pluginName ?? skill.providerLabel,
       scope: scope,
       pluginID: skill.pluginID,
-      pluginName: skill.pluginName
+      // `pluginName` marks an @-mention of the whole plugin; a picked plugin
+      // skill keeps its own name in the chip.
+      pluginName: nil
     )
   }
 }

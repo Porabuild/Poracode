@@ -363,6 +363,27 @@ describe("AssistantMessage", () => {
       expect(screen.getByLabelText("Copy message")).toBeTruthy();
     });
 
+    it("shows the recorded completion timestamp beside the answer actions", () => {
+      seed([answer]);
+      const endedAt = new Date(2026, 9, 23, 9, 5).getTime();
+      useAppStore
+        .getState()
+        .hydrateThreadCompletedTurns("thread-1", [
+          { startedAt: endedAt - 1000, endedAt, anchorItemId: answer.id },
+        ]);
+      const { container } = render(
+        <AppProvider>
+          <AssistantMessage threadId="thread-1" item={answer} isTurnActive={false} />
+        </AppProvider>,
+      );
+      const timestamp = container.querySelector("time");
+      expect(timestamp).toHaveAttribute("datetime", new Date(endedAt).toISOString());
+      expect(timestamp?.closest(".poracode-message-action-strip")).toContainElement(
+        screen.getByLabelText("Copy message"),
+      );
+      expect(timestamp).toHaveAttribute("title");
+    });
+
     it("shows the copy action when the next top-level item is the next user message", () => {
       seed([
         answer,

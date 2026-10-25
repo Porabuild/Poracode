@@ -84,6 +84,64 @@ afterEach(() => {
 });
 
 describe("native side chat ownership", () => {
+  it.each([undefined, "child"])(
+    "delivers panel input to its current composer and preserves the old bootstrap (%s)",
+    (existingThreadId) => {
+      const previousShape = {
+        ...bootstrap,
+        id: "draft",
+        prompt: "unsent",
+        ...(existingThreadId ? { existingThreadId } : {}),
+      };
+      invoke(IPC_WINDOW_CHANNELS.sideChatPanelOpen, main.sender, previousShape);
+      invoke(IPC_WINDOW_CHANNELS.sideChatPanelOpen, main.sender, {
+        ...previousShape,
+        prompt: "stale",
+        appendText: "quote",
+        autoStart: false,
+      });
+      expect(invoke(IPC_WINDOW_CHANNELS.sideChatInfo, main.sender)).toMatchObject({
+        prompt: "unsent",
+      });
+      expect(invoke(IPC_WINDOW_CHANNELS.sideChatInfo, main.sender)).not.toHaveProperty(
+        "appendText",
+      );
+      expect(main.window.webContents.send).toHaveBeenCalledWith(
+        IPC_EVENT_CHANNELS.sideChatWindowsChanged,
+        expect.objectContaining({
+          composerInput: { composerId: existingThreadId ?? "side-chat:draft", text: "quote" },
+        }),
+      );
+    },
+  );
+  it.each([undefined, "child"])(
+    "forwards detached input without replacing its owner's draft (%s)",
+    (existingThreadId) => {
+      const previousShape = {
+        ...bootstrap,
+        id: "draft",
+        prompt: "unsent",
+        ...(existingThreadId ? { existingThreadId } : {}),
+      };
+      invoke(IPC_WINDOW_CHANNELS.sideChatOpen, main.sender, previousShape);
+      invoke(IPC_WINDOW_CHANNELS.sideChatOpen, main.sender, {
+        ...previousShape,
+        prompt: "stale",
+        appendText: "quote",
+        autoStart: false,
+      });
+      expect(createWindow).toHaveBeenCalledTimes(1);
+      expect(invoke(IPC_WINDOW_CHANNELS.sideChatInfo, child.sender)).toMatchObject({
+        prompt: "unsent",
+      });
+      expect(child.window.webContents.send).toHaveBeenCalledWith(
+        IPC_EVENT_CHANNELS.sideChatWindowsChanged,
+        expect.objectContaining({
+          composerInput: { composerId: existingThreadId ?? "side-chat:draft", text: "quote" },
+        }),
+      );
+    },
+  );
   it("retains separate attached conversations per parent and disposes only the closed one", () => {
     const first = { ...bootstrap, id: "first" };
     const second = {

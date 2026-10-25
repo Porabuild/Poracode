@@ -180,12 +180,19 @@ export function serializeCatalogRowsWithinExactCaps<T>(input: {
   readonly onOversized: (first: T, sizes: CatalogSizes) => Error;
   readonly onEnvelopeOversized: (sizes: CatalogSizes) => Error;
 }): CatalogBoundedSerialization<T> {
-  const emptyBody = input.serialize([]);
   if (input.rows.length === 0) {
+    const emptyBody = input.serialize([]);
     const sizes = measureCatalogBody(emptyBody);
     if (!catalogSizesFit(sizes, input.caps)) throw input.onEnvelopeOversized(sizes);
     return { body: emptyBody, rows: [], sizes };
   }
+
+  // Most packed pages already fit. Measure that page once before searching
+  // smaller prefixes, retaining the exact wire/decode checks on both paths.
+  const fullBody = input.serialize(input.rows);
+  const fullSizes = measureCatalogBody(fullBody);
+  if (catalogSizesFit(fullSizes, input.caps))
+    return { body: fullBody, rows: input.rows, sizes: fullSizes };
 
   let low = 1;
   let high = input.rows.length;

@@ -4,6 +4,7 @@
 
 import type { ContentBlock, SessionNotification, SessionUpdate } from "@agentclientprotocol/sdk";
 import type { CanonicalContentBlock, RuntimeEvent } from "@/shared/contracts";
+import { isChatVideoSource } from "@/shared/chatVideo";
 import {
   createContextUsageEvent,
   readNonNegativeInteger,
@@ -77,7 +78,14 @@ function acpContentBlockToCanonical(block: ContentBlock): CanonicalContentBlock 
     };
   }
   if (block.type === "resource_link") {
-    return { kind: "file", path: block.uri.replace(/^file:\/\//, ""), name: block.name };
+    return {
+      kind: "file",
+      path: isChatVideoSource(block.uri, block.mimeType ?? undefined)
+        ? block.uri
+        : block.uri.replace(/^file:\/\//, ""),
+      name: block.name,
+      ...(block.mimeType ? { mimeType: block.mimeType } : {}),
+    };
   }
   return undefined;
 }

@@ -26,6 +26,7 @@ export const REMOTE_IPC_ADAPTER_SPECS = {
   deletePrWatch: "project",
   syncPrWatchAgent: "project",
   dbGetThreadRuntimeItemsPage: "thread",
+  dbGetThreadPromptIndex: "thread",
   dbTruncateThreadRuntimeAfter: "thread",
   // R1: the bounded thread-history derived reads. Each maps onto the EXISTING
   // bounded `/history` route (goal item, context usage) plus the `ct1.`
@@ -79,6 +80,7 @@ type RemoteIpcAdapterClient = Pick<
   | "deletePrWatch"
   | "syncPrWatchAgent"
   | "threadRuntimeItemsPage"
+  | "threadPromptIndex"
   | "truncateThreadRuntimeAfter"
   | "latestThreadGoalItem"
   | "threadCompletedTurns"
@@ -135,6 +137,8 @@ export function invokeRemoteIpcProcedure(
       return client.truncateThreadRuntimeAfter(
         payload as Parameters<RemoteDesktopClient["truncateThreadRuntimeAfter"]>[0],
       );
+    case "dbGetThreadPromptIndex":
+      return client.threadPromptIndex(String((payload as { readonly threadId: string }).threadId));
     case "dbGetLatestThreadGoalItem":
       return client.latestThreadGoalItem(
         String((payload as { readonly threadId: string }).threadId),

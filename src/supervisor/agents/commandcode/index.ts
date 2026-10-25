@@ -141,7 +141,7 @@ export function createCommandCodeAdapter(): AgentAdapter {
       // real id afterward (discoverSessionRef below). Returning no sessionRef
       // is what enables that discovery path; resume then targets the exact id.
       const cwd = location.kind === "wsl" ? location.linuxPath : location.path;
-      snapshotCommandCodePreSpawnSessions(location, cwd);
+      await snapshotCommandCodePreSpawnSessions(location, cwd);
       const mcp = await commandCodeMcpLaunch(location, options?.mcpServers);
       return {
         ...mcp,

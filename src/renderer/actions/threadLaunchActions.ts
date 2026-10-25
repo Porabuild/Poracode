@@ -157,7 +157,11 @@ async function performInitialThreadLaunchPending(
   const projectMcpServers =
     useAppStore.getState().projects.find((project) => project.id === thread.projectId)
       ?.mcpServers ?? [];
-  const mcpLaunchSnapshot = resolveMcpLaunchSnapshot(sharedSettings, projectMcpServers);
+  const mcpLaunchSnapshot = resolveMcpLaunchSnapshot(
+    sharedSettings,
+    projectMcpServers,
+    thread.config.mcpServerOverrides,
+  );
   useAppStore.getState().setThreadMcpLaunchCustomServerNames(
     thread.id,
     mcpLaunchSnapshot.mcpServers.map((server) => server.name),
@@ -773,6 +777,7 @@ export function appendOptimisticInitialUserMessage(
   const itemId = allocateInitialUserMessageItemId(thread, prompt, segments);
   if (!itemId) return undefined;
 
+  useAppStore.getState().requestChatScrollToPrompt(thread.id);
   useAppStore.getState().applyRuntimeEvent(thread.id, {
     type: "item.started",
     threadId: thread.id,
