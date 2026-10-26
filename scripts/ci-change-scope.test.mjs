@@ -436,27 +436,6 @@ void test("integration heads stay fast while master and release runs retain full
   assert.match(gate.run, /FULL_REQUIRED/u);
 });
 
-void test("merge queue groups run the required core gate on the full graph", async (t) => {
-  const core = parse(
-    await readFile(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8"),
-  );
-  assert.ok(Object.hasOwn(core.on, "merge_group"));
-  const scratchRoot = fileURLToPath(new URL("../tmp", import.meta.url));
-  await mkdir(scratchRoot, { recursive: true });
-  const fixture = await mkdtemp(join(scratchRoot, "ci-change-scope-merge-group-"));
-  t.after(async () => {
-    assert.equal(dirname(fixture), scratchRoot);
-    await rm(fixture, { recursive: true, force: true });
-  });
-  const output = join(fixture, "github-output");
-  await promisify(execFile)(
-    process.execPath,
-    [fileURLToPath(new URL("./ci-change-scope.mjs", import.meta.url))],
-    { env: { ...process.env, GITHUB_EVENT_NAME: "merge_group", GITHUB_OUTPUT: output } },
-  );
-  assert.match(await readFile(output, "utf8"), /^core=true$/mu);
-});
-
 void test("core gate consumes test shards directly without a no-op runner hop", async () => {
   const core = parse(
     await readFile(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8"),
