@@ -171,6 +171,9 @@ export interface RemoteTokenSnapshot {
 
 /** The caller-owned refresh-token store behind {@link RemoteDesktopClientOptions.tokenLifecycle}. */
 export interface RemoteTokenLifecycle {
+  /** Current caller-owned bearer, shared by clients of this pairing. Optional
+   * for existing lifecycle implementations; no persisted or wire shape changes. */
+  accessToken?(): string | undefined;
   /** The persisted refresh token for this server record, if any. */
   refreshToken(): string | undefined;
   /** Called after every successful refresh with the NEW token pair. */

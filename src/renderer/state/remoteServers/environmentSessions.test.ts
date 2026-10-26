@@ -28,6 +28,14 @@ import {
   type RefreshSubject,
 } from "./refreshTokens";
 
+function persistAccessTokenFor(state: RemoteServersState) {
+  return (connectionKey: string, accessToken: string) => {
+    state.servers = state.servers.map((server) =>
+      remoteConnectionKey(server) === connectionKey ? { ...server, accessToken } : server,
+    );
+  };
+}
+
 function refreshKey(subject: RefreshSubject): string {
   return refreshSubjectVaultKey(subject);
 }
@@ -223,7 +231,7 @@ function setup(records: readonly RemoteServerRecord[]) {
   } as unknown as RemoteServersState;
   configureEnvironmentSessions({
     getState: () => state,
-    persistAccessToken: () => undefined,
+    persistAccessToken: persistAccessTokenFor(state),
     clientFactory: () => (endpoint) => {
       const fake = fakeParentClient(endpoint);
       parentClients.set(endpoint, fake);
@@ -348,7 +356,7 @@ describe("environmentSessions", () => {
     } as unknown as RemoteServersState;
     configureEnvironmentSessions({
       getState: () => state,
-      persistAccessToken: () => undefined,
+      persistAccessToken: persistAccessTokenFor(state),
       clientFactory: () => (endpoint) => fakeParentClient(endpoint).client,
       certPinForConnection: () => undefined,
       refreshTokenForSubject: () => undefined,
@@ -385,7 +393,7 @@ describe("environmentSessions", () => {
     } as unknown as RemoteServersState;
     configureEnvironmentSessions({
       getState: () => state,
-      persistAccessToken: () => undefined,
+      persistAccessToken: persistAccessTokenFor(state),
       clientFactory: () => (endpoint) => fakeParentClient(endpoint).client,
       certPinForConnection: () => undefined,
       refreshTokenForSubject: () => undefined,
@@ -443,7 +451,7 @@ describe("environmentSessions", () => {
     } as unknown as RemoteServersState;
     configureEnvironmentSessions({
       getState: () => state,
-      persistAccessToken: () => undefined,
+      persistAccessToken: persistAccessTokenFor(state),
       clientFactory: () => (endpoint) => fakeParentClient(endpoint).client,
       certPinForConnection: () => undefined,
       refreshTokenForSubject: () => undefined,
@@ -601,7 +609,7 @@ describe("persisted parent session lifecycle", () => {
     } as unknown as RemoteServersState;
     configureEnvironmentSessions({
       getState: () => state,
-      persistAccessToken: () => undefined,
+      persistAccessToken: persistAccessTokenFor(state),
       clientFactory: () => () => {
         const entry: CapturedParentClient = {
           pins: [],
@@ -672,7 +680,7 @@ describe("child session parent pin identity", () => {
     } as unknown as RemoteServersState;
     configureEnvironmentSessions({
       getState: () => state,
-      persistAccessToken: () => undefined,
+      persistAccessToken: persistAccessTokenFor(state),
       clientFactory: () => (endpoint) => {
         const fake = fakeParentClient(endpoint);
         parentClients.set(endpoint, fake);
