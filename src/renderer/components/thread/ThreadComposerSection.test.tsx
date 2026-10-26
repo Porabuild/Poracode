@@ -1246,7 +1246,7 @@ describe("ThreadComposerSection", () => {
     expect(dock).not.toHaveAttribute("data-expanded");
   });
 
-  it("reports the resting compact dock as the transcript inset, ignoring the expanded composer", () => {
+  it("reports the compact dock as the transcript inset while collapsed and expanded", () => {
     vi.stubGlobal(
       "matchMedia",
       vi.fn((query: string) => ({
@@ -1295,11 +1295,12 @@ describe("ThreadComposerSection", () => {
     resizeDock(100.4);
     expect(onComposerInsetChange).toHaveBeenLastCalledWith(133);
 
+    // The transcript stays readable behind the expanded composer, so the
+    // inset follows the taller dock too.
     fireEvent.focus(input);
     expect(dock).toHaveAttribute("data-expanded");
-    onComposerInsetChange.mockClear();
     resizeDock(320);
-    expect(onComposerInsetChange).not.toHaveBeenCalled();
+    expect(onComposerInsetChange).toHaveBeenLastCalledWith(352);
   });
 
   it("collapses the compact floating dock after the canonical submit succeeds", async () => {

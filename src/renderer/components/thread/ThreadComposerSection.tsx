@@ -148,7 +148,7 @@ type ThreadComposerSectionProps = {
   saveClipboardImage?: SaveClipboardImage | undefined;
   /** Optional surface-specific placeholder for the active-thread input. */
   composerPlaceholder?: string | undefined;
-  /** Compact only: space the collapsed floating dock covers above the pane bottom. */
+  /** Compact only: space the floating dock covers above the pane bottom. */
   onComposerInsetChange?: ((inset: number) => void) | undefined;
   /**
    * Override whether unmodified Enter submits instead of inserting a newline.
@@ -1036,13 +1036,9 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
               if (pane instanceof HTMLElement) {
                 pane.style.setProperty("--m-thread-bubble-height", `${height}px`);
               }
-              // The expanded composer sits over a scrim; only the resting dock
-              // decides how far the transcript must scroll past it.
-              if (isComposerCollapsed) {
-                props.onComposerInsetChange?.(
-                  Math.ceil(height + bottomOffset + COMPOSER_DOCK_CLEARANCE_PX),
-                );
-              }
+              props.onComposerInsetChange?.(
+                Math.ceil(height + bottomOffset + COMPOSER_DOCK_CLEARANCE_PX),
+              );
             }}
             aboveBubble={
               compactLayout ? (
