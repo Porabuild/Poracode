@@ -45,6 +45,7 @@ import {
   resolvePreassembledSshRuntimeArchiveDir,
 } from "./desktopAppHostServices";
 import { QuickComposerLifecycle } from "./window/quickComposerLifecycle";
+import { deferLoginLaunchWindow } from "./window/loginLaunchWindow";
 import { registerDesktopIpc } from "./desktopAppIpc";
 import {
   createDesktopTray,
@@ -226,7 +227,14 @@ export async function startDesktopApp(): Promise<void> {
   // propagates it through the normal startup-failure path.
   void runtimeReady.catch(() => undefined);
 
-  ensureMainWindow(shell.showMainWindowOnReady);
+  if (shell.showMainWindowOnReady) {
+    ensureMainWindow(true);
+  } else {
+    deferLoginLaunchWindow(
+      () => ensureMainWindow(false),
+      () => desktopApp.isQuitting,
+    );
+  }
 
   await createDesktopTray(backend.trayFeed);
 

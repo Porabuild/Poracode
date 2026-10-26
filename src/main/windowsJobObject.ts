@@ -225,7 +225,14 @@ function buildStartError(stderrTail: string, reason?: string): Error {
   );
 }
 
-export class WindowsJobObjectManager {
+/** The job-object owner surface the backend host uses, whichever helper backs it. */
+export interface WindowsJobObjectOwner {
+  start(): Promise<void>;
+  assignPid(pid: number): Promise<void>;
+  dispose(): void;
+}
+
+export class WindowsJobObjectManager implements WindowsJobObjectOwner {
   private child: ChildProcessWithoutNullStreams | null = null;
   private stdoutReader: Interface | null = null;
   private pendingAssignments = new Map<number, PendingAssignment>();

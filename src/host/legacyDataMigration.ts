@@ -252,18 +252,27 @@ function removeMigrationRequest(baseDir: string): void {
   rmSync(requestPath(baseDir), { force: true });
 }
 
-export function migrateLegacyDataOnLaunch(
+/** The settled outcomes a launch can decide without the out-of-process worker. */
+export function settledLegacyDataMigration(
   options: LegacyDataMigrationOptions,
-): LegacyDataMigrationResult {
+): LegacyDataMigrationResult | null {
   const channel = options.channel ?? resolvePoracodeChannel();
   if (!options.allowCustomDataRoot && !isDefaultDataRoot(options.baseDir, channel)) {
     return { status: "unavailable" };
   }
-
-  const requested = existsSync(requestPath(options.baseDir));
-  if (!requested && existsSync(markerPath(options.baseDir))) {
+  if (!existsSync(requestPath(options.baseDir)) && existsSync(markerPath(options.baseDir))) {
     return { status: "already-complete" };
   }
+  return null;
+}
+
+export function migrateLegacyDataOnLaunch(
+  options: LegacyDataMigrationOptions,
+): LegacyDataMigrationResult {
+  const settled = settledLegacyDataMigration(options);
+  if (settled) return settled;
+  const channel = options.channel ?? resolvePoracodeChannel();
+  const requested = existsSync(requestPath(options.baseDir));
 
   const sourceDataDir = legacyDataDir(channel, options.legacyBaseDir);
   const importDataRoot =

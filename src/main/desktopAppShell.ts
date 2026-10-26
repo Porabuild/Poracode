@@ -12,7 +12,7 @@ import { BROWSER_SESSION_PARTITION } from "@/shared/browserPartition";
 import type { PoracodePaths } from "@/shared/poracodePaths";
 import { defaultSharedSettings, type SharedSettings } from "@/shared/settings";
 import { configureSecretStorageKey } from "@/shared/secretStorage";
-import { WindowsJobObjectManager } from "./windowsJobObject";
+import { createWindowsJobObjectOwner } from "./windowsNativeJobObject";
 import { captureMainException } from "./diagnostics/sentry";
 import { installLocalFileProtocolHandler } from "./attachments/localFiles";
 import { installPickerProtocolHandler } from "./browser";
@@ -188,7 +188,7 @@ export function prepareDesktopNativeShell(): DesktopNativeShellBootstrap {
   );
   let jobObjectReady: Promise<void> = Promise.resolve();
   if (process.platform === "win32") {
-    const manager = new WindowsJobObjectManager();
+    const manager = createWindowsJobObjectOwner(bundledOrResourcesDir("pty-job-owner"));
     desktopApp.windowsJobObjectManager = manager;
     jobObjectReady = manager.start().catch((error) => {
       console.error(
