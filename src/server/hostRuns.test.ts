@@ -14,6 +14,7 @@ import {
   releaseRuntimeFence,
 } from "@/host/db/runtimePersistenceRuntime";
 import { persistSupervisorEvent } from "@/host/remote/server/runtimePersistence";
+import { prepareHostRunSelection } from "@/server/hostRunSelection";
 import { agentStatusSchema } from "@/shared/contracts/agent";
 import {
   controlThreadExecutionPayloadSchema,
@@ -21,10 +22,14 @@ import {
   controlledThreadRequestPayloadSchema,
 } from "@/shared/contracts/threadExecution";
 import {
+  HOST_RUN_FORMAT_VERSION,
+  HOST_RUN_TOOL_EVENT_FORMAT_VERSION,
+  HOST_RUN_TOOL_SUMMARY_BYTES,
   hostRunMetadataSchema,
   hostRunReadSchema,
   hostRunResultSchema,
   hostRunRequestReadSchema,
+  type HostRunEvent,
 } from "@/shared/contracts/hostRun";
 import type { BackgroundTask, RuntimeEvent, Thread } from "@/shared/contracts";
 import { normalizeSharedSettings } from "@/shared/settings";
@@ -505,6 +510,131 @@ it("runs through the real persisted writer, reserved controller and committed hi
   await expect(
     f.runs.execute({ action: "run-start", runId: f.prepared.runId }, f.context),
   ).rejects.toThrow("Unknown");
+});
+
+it("keeps legacy run streams at format 1 without tool records", async () => {
+  const f = await fixture();
+  const starting = f.runs.execute({ action: "run-start", runId: f.prepared.runId }, f.context);
+  await f.launched.promise;
+  f.runtime([
+    { type: "turn.started", threadId: f.prepared.threadId, turnId: "turn" },
+    {
+      type: "item.started",
+      threadId: f.prepared.threadId,
+      itemId: "command",
+      itemType: "command_execution",
+      payload: { command: "git status --short" },
+    },
+    {
+      type: "content.delta",
+      threadId: f.prepared.threadId,
+      itemId: "command",
+      stream: "command_output",
+      delta: "untrusted tool output",
+    },
+    {
+      type: "item.completed",
+      threadId: f.prepared.threadId,
+      itemId: "command",
+      payload: { command: "git status --short", status: "completed", exitCode: 0 },
+    },
+    { type: "turn.completed", threadId: f.prepared.threadId, turnId: "turn", state: "completed" },
+  ]);
+  f.idle();
+  await starting;
+  const page = hostRunReadSchema.parse(
+    await f.runs.execute({ action: "run-read", runId: f.prepared.runId, cursor: 0 }, f.context),
+  );
+  expect(page.formatVersion).toBe(HOST_RUN_FORMAT_VERSION);
+  expect(page.events.map((event) => event.type)).toEqual(["run.finished"]);
+  expect(JSON.stringify(page)).not.toContain("git status");
+  expect(JSON.stringify(page)).not.toContain("untrusted tool output");
+});
+
+it("emits bounded sanitized tool lifecycle records only after opt-in", async () => {
+  const f = await fixture();
+  f.runs.enableToolEvents(f.prepared.runId, f.prepared.threadId, f.context);
+  const starting = f.runs.execute({ action: "run-start", runId: f.prepared.runId }, f.context);
+  await f.launched.promise;
+  f.runtime([
+    { type: "turn.started", threadId: f.prepared.threadId, turnId: "turn" },
+    {
+      type: "item.started",
+      threadId: f.prepared.threadId,
+      itemId: "command",
+      itemType: "command_execution",
+      payload: {
+        command: "git status --short --token=secret-value",
+        cwd: "C:/sensitive/path",
+        status: "running",
+      },
+    },
+    {
+      type: "content.delta",
+      threadId: f.prepared.threadId,
+      itemId: "command",
+      stream: "command_output",
+      delta: "private-output-value",
+    },
+    {
+      type: "item.updated",
+      threadId: f.prepared.threadId,
+      itemId: "command",
+      payload: { status: "running" },
+    },
+    {
+      type: "item.completed",
+      threadId: f.prepared.threadId,
+      itemId: "command",
+      payload: {
+        command: "git status --short --token=secret-value",
+        cwd: "C:/sensitive/path",
+        status: "completed",
+        exitCode: 0,
+      },
+    },
+    { type: "turn.completed", threadId: f.prepared.threadId, turnId: "turn", state: "completed" },
+  ]);
+  f.idle();
+  await starting;
+  const page = hostRunReadSchema.parse(
+    await f.runs.execute({ action: "run-read", runId: f.prepared.runId, cursor: 0 }, f.context),
+  );
+  const tools = page.events.filter(
+    (
+      event,
+    ): event is Extract<
+      HostRunEvent,
+      { type: "tool.started" | "tool.updated" | "tool.completed" }
+    > =>
+      event.type === "tool.started" ||
+      event.type === "tool.updated" ||
+      event.type === "tool.completed",
+  );
+  expect(page.formatVersion).toBe(HOST_RUN_TOOL_EVENT_FORMAT_VERSION);
+  expect(tools.map((event) => event.type)).toEqual([
+    "tool.started",
+    "tool.updated",
+    "tool.completed",
+  ]);
+  expect(tools[0]).toMatchObject({
+    toolName: "bash",
+    inputSummary: "command and working directory omitted",
+  });
+  expect(tools.at(-1)).toMatchObject({
+    outputSummary: expect.stringContaining("exit code 0"),
+  });
+  expect(
+    tools.every(
+      (event) =>
+        Buffer.byteLength(event.inputSummary) <= HOST_RUN_TOOL_SUMMARY_BYTES &&
+        (event.outputSummary === undefined ||
+          Buffer.byteLength(event.outputSummary) <= HOST_RUN_TOOL_SUMMARY_BYTES),
+    ),
+  ).toBe(true);
+  expect(JSON.stringify(tools)).not.toContain("secret-value");
+  expect(JSON.stringify(tools)).not.toContain("sensitive/path");
+  expect(JSON.stringify(tools)).not.toContain("private-output-value");
 });
 
 it("continues the exact saved session without recreating metadata, worktree, account reference or history", async () => {
@@ -1350,4 +1480,22 @@ it("stops unread-output overflow explicitly while retaining a bounded final fail
   expect(last).toMatchObject({ type: "run.finished", state: "failed" });
   expect(bytes).toBeLessThanOrEqual(1_048_576);
   expect(f.retirePort).toHaveBeenCalledOnce();
+});
+
+it("run-prepare applies the desktop standing MCP defaults", async () => {
+  const f = await fixture();
+  const selection = await prepareHostRunSelection(f.command, f.context, f.call, () => f.settings);
+  expect(selection.config.crossagentMcp).toBe(true);
+});
+
+it("run-prepare honors disabled crossagents settings", async () => {
+  const f1 = await fixture();
+  f1.settings.enabledMcpServers = { crossagents: false };
+  const second = await prepareHostRunSelection(f1.command, f1.context, f1.call, () => f1.settings);
+  expect(second.config.crossagentMcp).toBeUndefined();
+
+  const f2 = await fixture();
+  f2.settings.disabledBuiltInMcpServers = { crossagents: true };
+  const third = await prepareHostRunSelection(f2.command, f2.context, f2.call, () => f2.settings);
+  expect(third.config.crossagentMcp).toBeUndefined();
 });

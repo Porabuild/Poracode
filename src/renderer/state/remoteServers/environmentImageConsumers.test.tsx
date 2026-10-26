@@ -234,6 +234,7 @@ describe("environment image consumers through rebuilds (C1 F6/R3)", () => {
     });
     configureEnvironmentSessions({
       getState: () => useRemoteServersStore.getState(),
+      persistAccessToken: () => undefined,
       clientFactory: () => () => fakeParentClient(),
       certPinForConnection: () => undefined,
       refreshTokenForSubject: () => undefined,

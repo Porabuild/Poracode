@@ -71,6 +71,9 @@ it("uses only closed admin16 while older envelopes and future custom versions re
   ).toBe(false);
   expect(
     hostAdminResultSchema.safeParse({ adminVersion: 24, outcome: { ok: true, data: {} } }).success,
+  ).toBe(true);
+  expect(
+    hostAdminResultSchema.safeParse({ adminVersion: 25, outcome: { ok: true, data: {} } }).success,
   ).toBe(false);
   expect(hostAdminRequest({ action: "clients-list" }).adminVersion).toBe(1);
 });

@@ -20,6 +20,11 @@ on:
         required: false
         type: string
         default: production
+      tui_manifest:
+        description: "Stage the tui-manifest artifact into resources/tui for the desktop CLI bundle"
+        required: false
+        type: boolean
+        default: false
     secrets:
       MAC_CSC_LINK:
         required: false
@@ -119,6 +124,13 @@ jobs:
           # leave no usable binary) intermittently fail the build. Skip it; the
           # other native deps (node-pty, better-sqlite3) are still verified.
           ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+
+      - name: Stage the TUI download manifest
+        if: ${{ inputs.tui_manifest }}
+        uses: actions/download-artifact@v8
+        with:
+          name: tui-manifest
+          path: resources/tui
 
       - name: Build app
         run: bun run build

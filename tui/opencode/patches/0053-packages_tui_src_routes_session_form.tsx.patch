@@ -1,0 +1,253 @@
+diff --git a/packages/tui/src/routes/session/form.tsx b/packages/tui/src/routes/session/form.tsx
+index cba0071..3b13702 100644
+--- a/packages/tui/src/routes/session/form.tsx
++++ b/packages/tui/src/routes/session/form.tsx
+@@ -184,6 +184,18 @@ export function FormPrompt(props: { form: FormWithLocation }) {
+   })
+   const other = createMemo(() => custom() && store.selected === rows().length)
+   const input = createMemo(() => store.custom[answerField()?.key ?? ""] ?? "")
++  // poracode: masked fields have no textarea; their real value lives in
++  // store.custom and is read from there for commit/clear.
++  const masked = () => {
++    const field = answerField()
++    if (field?.type !== "string") return false
++    const poracode = props.form.metadata?.["poracode"] as
++      | { maskedKeys?: readonly string[] }
++      | undefined
++    return poracode?.maskedKeys?.includes(field.key) === true
++  }
++  const inputText = () =>
++    masked() ? (store.custom[answerField()!.key] ?? "") : (textarea?.plainText ?? "")
+   const customPicked = createMemo(() => {
+     const value = input()
+     if (!value) return false
+@@ -243,6 +255,23 @@ export function FormPrompt(props: { form: FormWithLocation }) {
+   onCleanup(
+     keymap.intercept("key", ({ event, consume }) => {
+       if (!active()) return
++      // poracode: masked fields have no textarea — the same intercept feeds
++      // store.custom, which the bullet display reads.
++      if (masked()) {
++        if (event.ctrl || event.meta || event.option || event.super || event.hyper) return
++        const current = answerField()
++        if (!current) return
++        if (event.name === "backspace" || event.name === "delete") {
++          updateCustom(current, input().slice(0, -1))
++          consume()
++          return
++        }
++        if (!/^[^\p{C}\p{Zl}\p{Zp}]$/u.test(event.sequence)) return
++        updateCustom(current, input() + event.sequence)
++        if (!store.editing) setStore("editing", true)
++        consume()
++        return
++      }
+       if (textual() || !other() || (store.editing && renderer.currentFocusedEditor === textarea)) return
+       if (event.ctrl || event.meta || event.option || event.super || event.hyper) return
+       if ((!store.editing && event.sequence === " ") || !/^[^\p{C}\p{Zl}\p{Zp}]$/u.test(event.sequence)) return
+@@ -354,6 +383,16 @@ export function FormPrompt(props: { form: FormWithLocation }) {
+   usePaste((event) => {
+     if (!active()) return
+     const value = stripAnsiSequences(decodePasteBytes(event.bytes)).replace(/\r\n?/g, "\n")
++    // poracode: masked fields have no textarea; paste lands in store.custom
++    // and displays as bullets.
++    if (masked()) {
++      const current = answerField()
++      if (!current) return
++      updateCustom(current, input() + value)
++      setStore("editing", true)
++      event.preventDefault()
++      return
++    }
+     if (store.editing && renderer.currentFocusedEditor === textarea) {
+       textarea.insertText(value)
+       event.preventDefault()
+@@ -369,6 +408,16 @@ export function FormPrompt(props: { form: FormWithLocation }) {
+       .then((content) => {
+         if (!active() || content?.mime !== "text/plain") return
+         const value = stripAnsiSequences(content.data).replace(/\r\n?/g, "\n")
++        // poracode: masked clipboard paste goes to store.custom, not a
++        // textarea buffer.
++        if (masked()) {
++          const current = answerField()
++          if (current) {
++            updateCustom(current, input() + value)
++            setStore("editing", true)
++          }
++          return
++        }
+         if (store.editing || textual()) {
+           textarea?.insertText(value)
+           return
+@@ -457,7 +506,7 @@ export function FormPrompt(props: { form: FormWithLocation }) {
+       move()
+       return
+     }
+-    if (!commitInput(textarea?.plainText?.trim() ?? "")) {
++    if (!commitInput(inputText().trim())) {
+       if (targetIndex() < store.tab) move()
+       return
+     }
+@@ -562,7 +611,7 @@ export function FormPrompt(props: { form: FormWithLocation }) {
+         title: "Clear answer edit",
+         group: "Form",
+         run() {
+-          const text = textarea?.plainText ?? ""
++          const text = inputText()
+           if (!text) {
+             if (textual()) {
+               cancel()
+@@ -571,7 +620,8 @@ export function FormPrompt(props: { form: FormWithLocation }) {
+             setStore("editing", false)
+             return
+           }
+-          textarea?.setText("")
++          if (masked()) setStore("custom", answerField()!.key, "")
++          else textarea?.setText("")
+         },
+       },
+       {
+@@ -591,7 +641,7 @@ export function FormPrompt(props: { form: FormWithLocation }) {
+         title: "Next field",
+         group: "Form",
+         run: () => {
+-          const text = textarea?.plainText?.trim() ?? ""
++          const text = inputText().trim()
+           submitInput(text)
+         },
+       },
+@@ -600,7 +650,7 @@ export function FormPrompt(props: { form: FormWithLocation }) {
+         title: "Previous field",
+         group: "Form",
+         run: () => {
+-          const text = textarea?.plainText?.trim() ?? ""
++          const text = inputText().trim()
+           submitInput(text, -1)
+         },
+       },
+@@ -620,7 +670,7 @@ export function FormPrompt(props: { form: FormWithLocation }) {
+         title: "Submit answer edit",
+         group: "Form",
+         run: () => {
+-          const text = textarea?.plainText?.trim() ?? ""
++          const text = inputText().trim()
+           const current = answerField()
+           if (!current) return
+           if (textual()) {
+@@ -884,7 +934,17 @@ export function FormPrompt(props: { form: FormWithLocation }) {
+             </box>
+             <Show when={textual() ? answerField()!.key : undefined} keyed>
+               <box paddingLeft={1}>
+-                <textarea
++                {/* poracode: secret questions mask display only — the real
++                    value stays in store.custom and is submitted unchanged. */}
++                <Show
++                  when={!masked()}
++                  fallback={
++                    <text fg={theme.text.base}>
++                      {"•".repeat(store.custom[answerField()?.key ?? ""]?.length ?? 0) || placeholder()}
++                    </text>
++                  }
++                >
++                  <textarea
+                   cursorStyle={config.cursor}
+                   ref={(val: TextareaRenderable) => {
+                     textarea = val
+@@ -906,6 +966,7 @@ export function FormPrompt(props: { form: FormWithLocation }) {
+                   focusedTextColor={theme.text.base}
+                   cursorColor={theme.text.base}
+                 />
++                </Show>
+               </box>
+             </Show>
+             <Show when={!textual()}>
+@@ -1014,8 +1075,11 @@ export function FormPrompt(props: { form: FormWithLocation }) {
+                           when={store.editing}
+                           fallback={
+                             <>
++                              {/* poracode: secret answers show bullets, never the value. */}
+                               <text fg={other() ? theme.text.formfield.focused : theme.text.formfield.base}>
+-                                {input() || "Type your own answer"}
++                                {masked()
++                                  ? "•".repeat(input().length) || "Type your own answer"
++                                  : input() || "Type your own answer"}
+                               </text>
+                               <Show when={!multi() && customPicked()}>
+                                 <text fg={theme.text.formfield.selected}>✓</text>
+@@ -1023,33 +1087,49 @@ export function FormPrompt(props: { form: FormWithLocation }) {
+                             </>
+                           }
+                         >
+-                          <textarea
+-                            flexGrow={1}
+-                            cursorStyle={config.cursor}
+-                            ref={(val: TextareaRenderable) => {
+-                              textarea = val
+-                              val.traits = { status: "ANSWER" }
+-                              queueMicrotask(() => {
+-                                if (val.isDestroyed) return
+-                                val.setText(input())
+-                                val.gotoLineEnd()
+-                                setInputTarget(val)
+-                              })
+-                            }}
+-                            initialValue={input()}
+-                            placeholder="Type your own answer"
+-                            placeholderColor={theme.text.muted}
+-                            minHeight={1}
+-                            maxHeight={6}
+-                            textColor={theme.text.formfield.focused}
+-                            focusedTextColor={theme.text.formfield.focused}
+-                            cursorColor={theme.text.formfield.focused}
+-                            onContentChange={(value) => {
+-                              const current = answerField()
+-                              if (!current || !textarea || textarea.isDestroyed) return
+-                              updateCustom(current, typeof value === "string" ? value : textarea.plainText)
+-                            }}
+-                          />
++                          {/* poracode: masked fields never put the real
++                              secret into an editable buffer — key input lands
++                              in store.custom via updateCustom and the display
++                              shows bullets. */}
++                          <Show
++                            when={!masked()}
++                            fallback={
++                              <text fg={theme.text.formfield.focused}>
++                                {"•".repeat(input().length) || "Type your own answer"}
++                              </text>
++                            }
++                          >
++                            <textarea
++                              flexGrow={1}
++                              cursorStyle={config.cursor}
++                              ref={(val: TextareaRenderable) => {
++                                textarea = val
++                                val.traits = { status: "ANSWER" }
++                                queueMicrotask(() => {
++                                  if (val.isDestroyed) return
++                                  val.setText(input())
++                                  val.gotoLineEnd()
++                                  setInputTarget(val)
++                                })
++                              }}
++                              initialValue={input()}
++                              placeholder="Type your own answer"
++                              placeholderColor={theme.text.muted}
++                              minHeight={1}
++                              maxHeight={6}
++                              textColor={theme.text.formfield.focused}
++                              focusedTextColor={theme.text.formfield.focused}
++                              cursorColor={theme.text.formfield.focused}
++                              onContentChange={(value) => {
++                                const current = answerField()
++                                if (!current || !textarea || textarea.isDestroyed) return
++                                updateCustom(
++                                  current,
++                                  typeof value === "string" ? value : textarea.plainText,
++                                )
++                              }}
++                            />
++                          </Show>
+                         </Show>
+                       </box>
+                     </box>

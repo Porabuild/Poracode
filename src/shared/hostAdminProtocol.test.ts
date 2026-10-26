@@ -68,6 +68,36 @@ describe("local administration version custody", () => {
       }).adminVersion,
     ).toBe(23);
   });
+
+  it("opts tool streams into admin24 while keeping v23 run requests closed and valid", () => {
+    const prepare = {
+      action: "run-prepare" as const,
+      projectId: "project",
+      agentKind: "neutral",
+      model: "model",
+      prompt: "Inspect",
+    };
+    const optedIn = { action: "run-tool-events-prepare" as const, command: prepare };
+    expect(hostAdminRequest(optedIn)).toEqual({ adminVersion: 24, command: optedIn });
+    expect(hostAdminRequestSchema.safeParse({ adminVersion: 23, command: optedIn }).success).toBe(
+      false,
+    );
+    expect(hostAdminRequest(prepare)).toEqual({ adminVersion: 15, command: prepare });
+    expect(
+      hostAdminRequestSchema.parse({
+        adminVersion: 23,
+        command: {
+          action: "run-interactive-prepare",
+          command: prepare,
+        },
+      }).adminVersion,
+    ).toBe(23);
+    expect(
+      hostAdminResultSchema.parse({ adminVersion: 24, outcome: { ok: true, data: {} } })
+        .adminVersion,
+    ).toBe(24);
+  });
+
   it.each([
     {
       action: "run-files-prepare",
@@ -138,7 +168,7 @@ describe("local administration version custody", () => {
     expect(
       hostAdminResultSchema.safeParse({ adminVersion: 24, outcome: { ok: true, data: {} } })
         .success,
-    ).toBe(false);
+    ).toBe(true);
     for (const extra of [
       { projectId: "other" },
       { wslDistro: "Selected" },
@@ -176,7 +206,7 @@ describe("local administration version custody", () => {
     expect(hostAdminRequestSchema.parse(request)).toEqual(request);
   });
 
-  it.each([0, 24, 99])("refuses unsupported admin version %s", (adminVersion) => {
+  it.each([0, 25, 99])("refuses unsupported admin version %s", (adminVersion) => {
     expect(
       hostAdminRequestSchema.safeParse({ adminVersion, command: { action: "clients-list" } })
         .success,

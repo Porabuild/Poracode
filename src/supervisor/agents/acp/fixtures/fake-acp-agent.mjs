@@ -27,6 +27,8 @@
  *   FAKE_LOAD_CAPABILITY           "1" -> advertise and handle session/load
  *   FAKE_SESSION_OPEN_MARKER       path written with the received load/resume method
  *   FAKE_HANG_PROMPT               "1" -> hold session/prompt until session/cancel
+ *   FAKE_PROMPT_EDIT_FILES         N -> emit cumulative edit updates for N files
+ *   FAKE_PROMPT_EDIT_FILE_BYTES    bytes per old/new file text in edit updates
  *   FAKE_BACKGROUND_HOLD_MS        Antigravity-style background wait: session/prompt
  *                                  announces a background command, streams a reply,
  *                                  logs STATE_WAITING_FOR_TASKS to stderr, and only
@@ -68,6 +70,8 @@ const sessionResumeCapability = env.FAKE_SESSION_RESUME_CAPABILITY === "1";
 const loadCapability = env.FAKE_LOAD_CAPABILITY === "1";
 const sessionOpenMarker = env.FAKE_SESSION_OPEN_MARKER;
 const hangPrompt = env.FAKE_HANG_PROMPT === "1";
+const promptEditFiles = Number(env.FAKE_PROMPT_EDIT_FILES ?? 0);
+const promptEditFileBytes = Number(env.FAKE_PROMPT_EDIT_FILE_BYTES ?? 900_000);
 const backgroundHoldMs = Number(env.FAKE_BACKGROUND_HOLD_MS ?? 0);
 const promptMarker = env.FAKE_PROMPT_MARKER;
 const cancelMarker = env.FAKE_CANCEL_MARKER;
@@ -262,6 +266,39 @@ rl.on("line", (line) => {
 
     case "session/prompt":
       if (promptMarker) writeFileSync(promptMarker, SESSION_ID);
+      if (promptEditFiles > 0) {
+        const context = `${"unchanged catalog entry".repeat(4)}\n`.repeat(
+          Math.ceil(promptEditFileBytes / 180),
+        );
+        const files = Array.from({ length: promptEditFiles }, (_, index) => ({
+          path: `file-${index + 1}.txt`,
+          oldText: `${context}old entry\n${context}`,
+          newText: `${context}new entry\n${context}`,
+        }));
+        notifySessionUpdate({
+          sessionUpdate: "tool_call",
+          toolCallId: "fake-multi-edit",
+          kind: "edit",
+          status: "pending",
+          title: `Patched ${promptEditFiles} files`,
+        });
+        for (let count = 1; count <= promptEditFiles; count += 1) {
+          notifySessionUpdate({
+            sessionUpdate: "tool_call_update",
+            toolCallId: "fake-multi-edit",
+            status: "in_progress",
+            content: files.slice(0, count).map((file) => ({ type: "diff", ...file })),
+          });
+        }
+        notifySessionUpdate({
+          sessionUpdate: "tool_call_update",
+          toolCallId: "fake-multi-edit",
+          status: "completed",
+          content: files.map((file) => ({ type: "diff", ...file })),
+        });
+        respond(id, { stopReason: "end_turn" });
+        return;
+      }
       if (backgroundHoldMs > 0) {
         pendingPromptId = id;
         notifySessionUpdate({

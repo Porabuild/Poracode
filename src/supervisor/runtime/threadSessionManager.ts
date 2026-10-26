@@ -462,6 +462,9 @@ export class ThreadSessionManager {
       status: session.status,
       attention: session.attention,
       config: session.config,
+      ...(session.status === "error" && session.errorMessage
+        ? { errorMessage: session.errorMessage }
+        : {}),
       ...(session.launchConfig ? { launchConfig: session.launchConfig } : {}),
       threadMentionToolsAvailable: session.threadMentionToolsAvailable === true,
       ...(session.sessionRef ? { sessionRef: session.sessionRef } : {}),
@@ -491,10 +494,8 @@ export class ThreadSessionManager {
   /**
    * Surface a structured-session failure on both axes: status (so the icon
    * goes red) and a runtime `error` event (so `ThreadErrorDock` and the chat
-   * stream actually render the message). The supervisor stores `errorMessage`
-   * on the thread state, but no renderer surface reads `thread.errorMessage`
-   * — only the runtime error item drives `ThreadErrorDock` — so without the
-   * event the user sees a red icon and nothing else.
+   * stream actually render the message while that transient item lives. The
+   * status `errorMessage` still explains the red status once the item is gone.
    */
   private failStructuredSession(session: SessionRuntime, error: unknown): void {
     this.structuredFailureReporter.capture(session, error);
@@ -1073,6 +1074,16 @@ export class ThreadSessionManager {
     const pending = this.startLocks.get(threadId);
     if (pending) {
       if (payload.providerSwitch) {
+        const pendingStart = this.workspaceStarts.get(threadId);
+        if (pendingStart) {
+          if (pendingStart.agentKind !== payload.providerSwitch.fromAgentKind) {
+            throw new Error(
+              `Provider switch is stale: thread ${threadId} now belongs to ${pendingStart.agentKind}.`,
+            );
+          }
+          this.pendingStartAborts.add(threadId);
+          this.spawnPipeline.cancelPendingStart(threadId);
+        }
         await pending;
         return this.startThread(payload);
       }
@@ -1439,6 +1450,10 @@ export class ThreadSessionManager {
     const session = this.requireSession(threadId);
     if (session.structuredSession?.controlGoal) {
       await session.structuredSession.controlGoal(control);
+      return;
+    }
+    if (control.action === "pause" && session.adapter.goalPauseInterruptsTurn) {
+      await this.interruptThread({ threadId });
       return;
     }
     const prompt = session.adapter.buildGoalControlPrompt?.(control);

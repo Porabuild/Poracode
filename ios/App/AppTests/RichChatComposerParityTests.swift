@@ -549,7 +549,7 @@ final class RichChatComposerParityTests: XCTestCase {
     XCTAssertTrue(thread.contains("ToolbarItem(placement: .principal)"))
     XCTAssertTrue(thread.contains("ThreadDetailTitleView("))
     XCTAssertTrue(title.contains("HomeProviderIcon(kind: thread.agentKind)"))
-    XCTAssertTrue(title.contains("ThreadLifecycleStrings.status(resolvedStatus)"))
+    XCTAssertTrue(title.contains("ThreadLifecycleStrings.status(resolvedStatus, hasSessionRef: thread.sessionRef != nil)"))
     XCTAssertTrue(title.contains("ThreadLifecycleStrings.supportSource(thread.threadStatusSource)"))
     XCTAssertTrue(
       title.contains("ThreadLifecycleStrings.supportDescription(thread.threadStatusSource)")

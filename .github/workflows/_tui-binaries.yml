@@ -1,0 +1,72 @@
+name: TUI binaries (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        description: Git ref to build from.
+        required: true
+        type: string
+
+jobs:
+  # bun build --compile embeds the target's @opentui/core-<platform-arch>
+  # native library; every requested platform package must be installed
+  # (tui/bunfig.toml supportedArchitectures). Linux ships the glibc build.
+  binaries:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: windows-latest, targets: "win32-x64,win32-arm64", family: windows }
+          - { os: macos-15, targets: "darwin-x64,darwin-arm64", family: darwin }
+          - { os: ubuntu-latest, targets: "linux-x64,linux-arm64", family: linux }
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref }}
+      - name: Setup Bun
+        uses: ./.github/actions/setup-bun
+      - name: Install JavaScript dependencies
+        run: bun install --frozen-lockfile --ignore-scripts && node node_modules/bun/install.js
+      - name: Install TUI workspace dependencies
+        run: bun install --cwd tui --frozen-lockfile
+      - name: Build TUI binaries
+        run: bun scripts/build-tui.mjs --targets "${{ matrix.targets }}" --require
+      - name: Upload TUI binaries
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          # Only the binaries — a stray partial manifest.json here would land
+          # as a release asset via the flatten step and shadow the real one.
+          name: poracode-tui-${{ matrix.family }}
+          path: dist/tui/*/poracode-tui-*
+
+  # Merge every target's binary into one sha256/size manifest — the trust root
+  # staged inside the server tarball and desktop CLI resources.
+  manifest:
+    needs: binaries
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref }}
+      - name: Setup Bun
+        uses: ./.github/actions/setup-bun
+      - name: Download TUI binaries
+        uses: actions/download-artifact@v8
+        with:
+          pattern: poracode-tui-*
+          path: dist/tui
+          merge-multiple: true
+      - name: Generate the TUI manifest
+        run: |
+          bun scripts/build-tui.mjs --manifest-only --manifest-out resources/tui/manifest.json
+          test -f resources/tui/manifest.json
+      - name: Upload TUI manifest
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: tui-manifest
+          path: resources/tui/manifest.json

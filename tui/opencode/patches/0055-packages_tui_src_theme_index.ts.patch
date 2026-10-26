@@ -1,0 +1,70 @@
+diff --git a/packages/tui/src/theme/index.ts b/packages/tui/src/theme/index.ts
+index bda19d6..4a174e8 100644
+--- a/packages/tui/src/theme/index.ts
++++ b/packages/tui/src/theme/index.ts
+@@ -1,4 +1,12 @@
+-import { migrateV1, parseThemeDocument, type ThemeDocument, type ModeDefinition } from "@opencode/theme/tui"
++import {
++  migrateV1,
++  parseThemeDocument,
++  resolveThemeDocument,
++  themeModes,
++  type ThemeDocument,
++  type ModeDefinition,
++} from "@opencode/theme/tui"
++import { BRAND } from "../brand"
+ import { resolveThemeColors } from "./resolve"
+ import { DEFAULT_THEMES, type Theme, type ThemeV1Json } from "./v1"
+ import opencode from "./assets/v2/opencode.json" with { type: "json" }
+@@ -24,6 +32,10 @@ export function getOpenCodeTheme() {
+   return document
+ }
+ 
++export function getPoracodeTheme() {
++  return parseTheme(DEFAULT_THEMES[BRAND.defaultTheme], BRAND.defaultTheme)
++}
++
+ let opencode2Theme: ThemeDocument | undefined
+ 
+ // Temporary theme for the "new-designs" experiment. It is not part of allThemes(), so only the
+@@ -42,7 +54,8 @@ function listThemes(): Record<string, ThemeDocumentSource> {
+   }
+   return {
+     ...themes,
+-    system: systemTheme ?? themes.system ?? themes.opencode,
++    // poracode: prefer the host palette when a generated system theme is unavailable.
++    system: systemTheme ?? themes.system ?? themes[BRAND.defaultTheme],
+   }
+ }
+ 
+@@ -70,6 +83,30 @@ export function parseTheme(source: ThemeDocumentSource, name = "theme") {
+   return document
+ }
+ 
++export function resolveThemeWithFallback(
++  name: string,
++  sources: Record<string, ThemeDocumentSource>,
++  requested: "dark" | "light",
++) {
++  const selected = sources[name] ? name : BRAND.defaultTheme
++  const load = (themeName: string) => {
++    const document = parseTheme(sources[themeName]!, themeName)
++    const modes = themeModes(document)
++    const mode = modes.includes(requested) ? requested : (modes[0] ?? requested)
++    return { name: themeName, modes, mode, theme: resolveThemeDocument(document, mode) }
++  }
++
++  try {
++    return load(selected)
++  } catch (error) {
++    if (selected === BRAND.defaultTheme) throw error
++    return {
++      ...load(BRAND.defaultTheme),
++      error: error instanceof Error ? error : new Error(String(error)),
++    }
++  }
++}
++
+ export function subscribeThemes(listener: (themes: Record<string, ThemeDocumentSource>) => void) {
+   listeners.add(listener)
+   return () => listeners.delete(listener)

@@ -219,6 +219,7 @@ describe("SortableThreadItem drag registration accessibility", () => {
     localStorage.clear();
     layoutMock.compact = false;
     useExperimentStore.setState({ experiments: {} });
+    delete document.documentElement.dataset.poracodeDragActive;
   });
 
   it("keeps an experiment candidate row operable instead of branding it a disabled draggable", async () => {
@@ -403,23 +404,126 @@ describe("SortableThreadItem drag registration accessibility", () => {
   it("preserves an in-progress rename across an experiment decision flip", async () => {
     seedExperiment();
     const thread = makeThread("thread-rename", { groupId: EXPERIMENT_ID });
-    const view = render(makeUi({ thread, editingThreadId: thread.id }));
+    const snapshotRef: { current: (() => SortableSnapshot) | null } = { current: null };
+    const view = render(makeUi({ thread, editingThreadId: thread.id, snapshotRef }));
     await settleDndAttributes();
     const rowBefore = getRow(view.container);
     const inputBefore = screen.getByRole("textbox", { name: "Rename thread" });
     expect(document.activeElement).toBe(inputBefore);
     expectRowNotDragBranded(rowBefore);
+    expect(snapshotRef.current?.()).toMatchObject({
+      registered: true,
+      hasElement: false,
+      hasHandle: false,
+    });
 
     useExperimentStore.setState({ experiments: {} });
-    view.rerender(makeUi({ thread, editingThreadId: thread.id }));
+    view.rerender(makeUi({ thread, editingThreadId: thread.id, snapshotRef }));
     await settleDndAttributes();
 
-    // The flip only re-arms dragging: the row and the focused rename editor
-    // keep their nodes, so focus and typed value survive the mode change.
+    // The experiment flip only removes one blocker: the open rename keeps the
+    // row disarmed, so the focused editor cannot start a row drag.
     expect(getRow(view.container)).toBe(rowBefore);
     expect(screen.getByRole("textbox", { name: "Rename thread" })).toBe(inputBefore);
     expect(document.activeElement).toBe(inputBefore);
+    expectRowNotDragBranded(getRow(view.container));
+    expect(snapshotRef.current?.()).toMatchObject({
+      registered: true,
+      hasElement: false,
+      hasHandle: false,
+    });
+
+    // Ending the rename re-arms the same thread's row for dragging. Its node
+    // is replaced here because the tooltip wrapper returns with the title.
+    view.rerender(makeUi({ thread, editingThreadId: null, snapshotRef }));
+    await settleDndAttributes();
     expect(getRow(view.container)).toHaveAttribute("aria-roledescription", "draggable");
+    expect(snapshotRef.current?.()).toMatchObject({
+      registered: true,
+      hasElement: true,
+      hasHandle: true,
+    });
+    fireEvent.keyDown(getRow(view.container), { key: " ", code: "Space" });
+    await settleDndAttributes();
+    expect(document.documentElement.dataset.poracodeDragActive).toBe("true");
+    fireEvent.keyDown(document, { key: "Escape", code: "Escape" });
+    await settleDndAttributes();
+    expect(document.documentElement.dataset.poracodeDragActive).toBeUndefined();
+  });
+
+  it("registers no drag activator while a normal row is being renamed", async () => {
+    const snapshotRef: { current: (() => SortableSnapshot) | null } = { current: null };
+    const thread = makeThread("thread-rename-disarm");
+    const view = render(makeUi({ thread, editingThreadId: thread.id, snapshotRef }));
+    await settleDndAttributes();
+
+    // The rename input lives inside the row-wide drag handle, where dnd-kit
+    // skips its interactive-element guard, so this row must not register one.
+    expectRowNotDragBranded(getRow(view.container));
+    expect(snapshotRef.current?.()).toMatchObject({
+      registered: true,
+      hasElement: false,
+      hasHandle: false,
+    });
+
+    view.rerender(makeUi({ thread, editingThreadId: null, snapshotRef }));
+    await settleDndAttributes();
+
+    expect(getRow(view.container)).toHaveAttribute("aria-roledescription", "draggable");
+    expect(snapshotRef.current?.()).toMatchObject({
+      registered: true,
+      hasElement: true,
+      hasHandle: true,
+    });
+  });
+
+  it("does not start a row drag from a pointer drag inside the rename input", async () => {
+    const thread = makeThread("thread-rename-pointer");
+    const view = render(makeUi({ thread, editingThreadId: thread.id }));
+    await settleDndAttributes();
+    const pointerInit = {
+      bubbles: true,
+      button: 0,
+      isPrimary: true,
+      pointerType: "mouse",
+      clientX: 10,
+      clientY: 10,
+    } as const;
+
+    const input = screen.getByRole("textbox", { name: "Rename thread" });
+    fireEvent.pointerDown(input, pointerInit);
+    fireEvent.pointerMove(input, { ...pointerInit, clientY: 40 });
+    await settleDndAttributes();
+    expect(document.documentElement.dataset.poracodeDragActive).toBeUndefined();
+
+    // Control: the same gesture on this row once the rename ends must drag,
+    // proving the jsdom gesture reaches dnd-kit's pointer sensor.
+    view.rerender(makeUi({ thread }));
+    await settleDndAttributes();
+    const row = getRow(view.container);
+    fireEvent.pointerDown(row, pointerInit);
+    fireEvent.pointerMove(row, { ...pointerInit, clientY: 40 });
+    await settleDndAttributes();
+    expect(document.documentElement.dataset.poracodeDragActive).toBe("true");
+    fireEvent.pointerUp(document);
+    await settleDndAttributes();
+    expect(document.documentElement.dataset.poracodeDragActive).toBeUndefined();
+  });
+
+  it("does not open the thread when a click lands on the row while renaming", async () => {
+    const thread = makeThread("thread-rename-click");
+    const view = render(makeUi({ thread, editingThreadId: thread.id }));
+    await settleDndAttributes();
+
+    // A selection drag released over the row must not open the thread and blur
+    // (commit) the rename input.
+    fireEvent.click(getRow(view.container));
+    expect(vi.mocked(openThread)).not.toHaveBeenCalled();
+
+    view.rerender(makeUi({ thread }));
+    await settleDndAttributes();
+    fireEvent.click(getRow(view.container));
+    expect(vi.mocked(openThread)).toHaveBeenCalledExactlyOnceWith(thread.id);
   });
 
   it("keeps the rename editor working across a compact mode flip", async () => {

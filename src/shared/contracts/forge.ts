@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { agentKindSchema, projectLocationSchema } from "./common";
 import { modelSelectionSchema } from "../selectionBinding.schemas";
+import { prLabelSchema, prReviewerSchema } from "./prMetadata";
 
 export const forgeKindSchema = z.enum([
   "github",
@@ -58,6 +59,19 @@ export const forgeReviewCapabilitiesSchema = z.object({
   /** Whether an automation checkout can push to this review's source repository. */
   autoFix: z.boolean(),
   adminMerge: z.boolean(),
+  // Optional write capabilities: an older host omits them and clients hide the control.
+  /** Labels can be added and removed on a review. */
+  labels: z.literal(true).optional(),
+  /** Reviewers can be requested and un-requested. */
+  reviewRequests: z.literal(true).optional(),
+  /** An open review can return to draft. */
+  convertToDraft: z.literal(true).optional(),
+  /** A single commit of the review can be diffed on its own. */
+  commitDiffs: z.literal(true).optional(),
+  /** Reaction names the host accepts; absent or empty means no reactions. */
+  reactions: z.array(z.string().min(1).max(64)).max(32).optional(),
+  /** Line comments can be drafted and submitted with a review. */
+  reviewDrafts: z.literal(true).optional(),
 });
 export type ForgeReviewCapabilities = z.infer<typeof forgeReviewCapabilitiesSchema>;
 
@@ -199,3 +213,92 @@ export const forgePrReviewGuideResultSchema = z.object({
     .optional(),
 });
 export type ForgePrReviewGuideResult = z.infer<typeof forgePrReviewGuideResultSchema>;
+
+// Label, reviewer, reaction, draft-review, commit-diff, and state-list operations.
+// Each is a new procedure name, so an older host rejects it before any effect.
+
+export const forgeListPrLabelCandidatesPayloadSchema = forgeScopedPrPayloadSchema;
+export type ForgeListPrLabelCandidatesPayload = z.infer<
+  typeof forgeListPrLabelCandidatesPayloadSchema
+>;
+export const forgePrLabelCandidatesResultSchema = z.object({
+  labels: z.array(prLabelSchema),
+  /** The host had more labels than one bounded read returns. */
+  truncated: z.boolean(),
+});
+export type ForgePrLabelCandidatesResult = z.infer<typeof forgePrLabelCandidatesResultSchema>;
+
+export const forgeListPrReviewerCandidatesPayloadSchema = forgeScopedPrPayloadSchema.extend({
+  query: z.string().max(200).optional(),
+});
+export type ForgeListPrReviewerCandidatesPayload = z.infer<
+  typeof forgeListPrReviewerCandidatesPayloadSchema
+>;
+export const forgePrReviewerCandidatesResultSchema = z.object({
+  reviewers: z.array(prReviewerSchema),
+  truncated: z.boolean(),
+});
+export type ForgePrReviewerCandidatesResult = z.infer<typeof forgePrReviewerCandidatesResultSchema>;
+
+// No cross-field refinements here: native bindings cannot express them, and the
+// service treats an empty or self-cancelling change as a no-op.
+const labelNameSchema = z.string().min(1).max(255);
+export const forgeSetPrLabelsPayloadSchema = forgeScopedPrPayloadSchema.extend({
+  add: z.array(labelNameSchema).max(50),
+  remove: z.array(labelNameSchema).max(50),
+});
+export type ForgeSetPrLabelsPayload = z.infer<typeof forgeSetPrLabelsPayloadSchema>;
+
+const reviewerRefSchema = z.object({
+  id: z.string().min(1).max(512),
+  team: z.boolean().optional(),
+});
+export type ForgeReviewerRef = z.infer<typeof reviewerRefSchema>;
+export const forgeRequestPrReviewersPayloadSchema = forgeScopedPrPayloadSchema.extend({
+  add: z.array(reviewerRefSchema).max(25),
+  remove: z.array(reviewerRefSchema).max(25),
+});
+export type ForgeRequestPrReviewersPayload = z.infer<typeof forgeRequestPrReviewersPayloadSchema>;
+
+export const forgeConvertPrToDraftPayloadSchema = forgeScopedPrPayloadSchema;
+export type ForgeConvertPrToDraftPayload = z.infer<typeof forgeConvertPrToDraftPayloadSchema>;
+
+export const forgeGetPrCommitDiffPayloadSchema = forgeScopedPrPayloadSchema.extend({
+  commit: z.string().regex(/^[0-9a-f]{7,64}$/i),
+});
+export type ForgeGetPrCommitDiffPayload = z.infer<typeof forgeGetPrCommitDiffPayloadSchema>;
+export const forgePrCommitDiffResultSchema = z.object({ diff: z.string() });
+export type ForgePrCommitDiffResult = z.infer<typeof forgePrCommitDiffResultSchema>;
+
+export const forgeSetPrReactionPayloadSchema = forgeScopedPrPayloadSchema.extend({
+  /** Comment id; absent targets the review description. */
+  subjectId: z.string().min(1).max(256).optional(),
+  content: z.string().min(1).max(64),
+  reacted: z.boolean(),
+});
+export type ForgeSetPrReactionPayload = z.infer<typeof forgeSetPrReactionPayloadSchema>;
+
+export const forgeReviewDraftCommentSchema = z.object({
+  path: z.string().min(1).max(4096),
+  side: z.enum(["LEFT", "RIGHT"]),
+  line: z.number().int().positive(),
+  /** First line of a multi-line range on the same side; the service drops it unless below `line`. */
+  startLine: z.number().int().positive().optional(),
+  body: z.string().min(1).max(65536),
+});
+export type ForgeReviewDraftComment = z.infer<typeof forgeReviewDraftCommentSchema>;
+export const forgeSubmitPrReviewDraftPayloadSchema = forgeScopedPrPayloadSchema.extend({
+  decision: z.enum(["approve", "request-changes", "comment"]),
+  body: z.string().max(65536),
+  /** Line anchors were drawn on this head; a moved head is refused, not re-anchored. */
+  expectedHeadSha: z.string().regex(/^[0-9a-f]{7,64}$/i),
+  comments: z.array(forgeReviewDraftCommentSchema).min(1).max(100),
+});
+export type ForgeSubmitPrReviewDraftPayload = z.infer<typeof forgeSubmitPrReviewDraftPayloadSchema>;
+
+export const forgeListPullRequestsInStatePayloadSchema = forgeGetRepositoryPayloadSchema.extend({
+  state: z.enum(["closed", "merged", "all"]),
+});
+export type ForgeListPullRequestsInStatePayload = z.infer<
+  typeof forgeListPullRequestsInStatePayloadSchema
+>;

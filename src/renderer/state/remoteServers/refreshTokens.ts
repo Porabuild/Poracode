@@ -117,15 +117,29 @@ function openRefreshVaultDatabase(): Promise<IDBDatabase> {
   return refreshVaultDatabase;
 }
 
+/**
+ * Reads one vault record. A throwing `result` getter (WebKit, see
+ * `TokenVaultDatabase.request`) rejects instead of escaping `onsuccess`.
+ */
+function readVaultRecord<T>(database: IDBDatabase, key: string): Promise<T | undefined> {
+  return new Promise<T | undefined>((resolve, reject) => {
+    const transaction = database.transaction("entries", "readonly");
+    const request = transaction.objectStore("entries").get(key);
+    request.onsuccess = () => {
+      try {
+        resolve(request.result);
+      } catch (error) {
+        reject(error);
+      }
+    };
+    request.onerror = () => reject(request.error ?? new Error("Unable to read the token vault."));
+  });
+}
+
 async function refreshVaultCryptoKey(): Promise<CryptoKey | null> {
   if (typeof crypto === "undefined" || typeof crypto.subtle === "undefined") return null;
   const database = await openRefreshVaultDatabase();
-  const record = await new Promise<{ cryptoKey?: CryptoKey } | undefined>((resolve, reject) => {
-    const transaction = database.transaction("entries", "readonly");
-    const request = transaction.objectStore("entries").get("cryptoKey");
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error ?? new Error("Unable to read the token vault."));
-  });
+  const record = await readVaultRecord<{ cryptoKey?: CryptoKey }>(database, "cryptoKey");
   return record?.cryptoKey ?? null;
 }
 
@@ -135,14 +149,10 @@ async function readRefreshVaultRecord(vaultKey: string): Promise<string | null> 
     const cryptoKey = await refreshVaultCryptoKey();
     if (!cryptoKey) return null;
     const database = await openRefreshVaultDatabase();
-    const record = await new Promise<
-      { iv?: Uint8Array<ArrayBuffer>; data?: ArrayBuffer } | undefined
-    >((resolve, reject) => {
-      const transaction = database.transaction("entries", "readonly");
-      const request = transaction.objectStore("entries").get(vaultKey);
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error ?? new Error("Unable to read the token vault."));
-    });
+    const record = await readVaultRecord<{ iv?: Uint8Array<ArrayBuffer>; data?: ArrayBuffer }>(
+      database,
+      vaultKey,
+    );
     if (!record?.iv || !record.data) return null;
     const plaintext = await crypto.subtle.decrypt(
       { name: "AES-GCM", iv: record.iv },

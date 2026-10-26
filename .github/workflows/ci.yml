@@ -108,6 +108,30 @@ jobs:
       - name: Desktop CLI packaging and bootstrap regressions
         run: node --test scripts/prepare-desktop-cli.test.mjs
 
+  tui:
+    name: TUI
+    needs: changes
+    if: ${{ needs.changes.outputs.core == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+
+      - name: Setup Bun
+        uses: ./.github/actions/setup-bun
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile --ignore-scripts && node node_modules/bun/install.js
+
+      - name: Install TUI dependencies
+        run: bun run tui:install
+
+      - name: Typecheck
+        run: bun run tui:typecheck
+
+      - name: Test
+        run: bun run tui:test
+
   fmt:
     name: Format
     runs-on: ubuntu-latest
@@ -327,7 +351,18 @@ jobs:
     name: Test
     if: ${{ always() }}
     needs:
-      [changes, typecheck, lint, fmt, web_build, runtime_deps, rust_helper, test_shard, test_perf]
+      [
+        changes,
+        typecheck,
+        lint,
+        fmt,
+        tui,
+        web_build,
+        runtime_deps,
+        rust_helper,
+        test_shard,
+        test_perf,
+      ]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -341,7 +376,7 @@ jobs:
           if (!["true", "false"].includes(process.env.CORE_REQUIRED)) throw new Error("core change scope is missing");
           const required = new Set(["changes", "fmt"]);
           if (process.env.CORE_REQUIRED === "true") {
-            for (const name of ["typecheck", "lint", "web_build", "runtime_deps", "rust_helper", "test_shard", "test_perf"]) required.add(name);
+            for (const name of ["typecheck", "lint", "tui", "web_build", "runtime_deps", "rust_helper", "test_shard", "test_perf"]) required.add(name);
           }
           for (const [name, job] of Object.entries(jobs)) {
             const expected = required.has(name) ? "success" : "skipped";

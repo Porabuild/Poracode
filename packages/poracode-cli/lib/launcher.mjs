@@ -2,8 +2,9 @@
  * `poracode` launcher: resolve the pinned runtime, install it into the
  * versioned cache if needed, then hand the terminal to the real server CLI.
  *
- * Bare invocation starts the foreground server. `--version` and `--help` are
- * answered from the launcher itself and never touch the cache or the network.
+ * The pinned runtime decides whether a bare invocation opens the TUI or serves
+ * based on its terminal. `--version` and `--help` are answered here without
+ * touching the cache or the network.
  */
 import { spawn } from "node:child_process";
 import { readFileSync } from "node:fs";

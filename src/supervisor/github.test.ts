@@ -379,6 +379,27 @@ describe("GitHubService", () => {
       expect(result?.isDraft).toBe(true);
     });
 
+    it("maps a closed PR that kept its draft flag to closed", async () => {
+      // Real gh output: closing a draft leaves isDraft true on the closed review.
+      const prJson = JSON.stringify([
+        {
+          number: 45,
+          url: "https://github.com/owner/repo/pull/45",
+          state: "CLOSED",
+          title: "Abandoned",
+          baseRefName: "main",
+          isDraft: true,
+          updatedAt: "2026-04-03T10:00:00Z",
+        },
+      ]);
+      execFileAsyncMock.mockResolvedValue({ stdout: prJson });
+
+      const result = await new GitHubService().getPrForBranch(location, "feature/abandoned");
+
+      expect(result?.state).toBe("closed");
+      expect(result?.isDraft).toBe(true);
+    });
+
     it("maps merged PRs to merged state", async () => {
       const prJson = JSON.stringify([
         {
@@ -2146,6 +2167,41 @@ on:
       expect(args).toContain("name={repo}");
       expect(args).toContain("number=1");
       expect(args.find((arg) => arg.startsWith("query="))).toContain("reviewThreads");
+    });
+
+    it("reports the diff side of each thread and none once the line is outdated", async () => {
+      const thread = (id: string, extra: Record<string, unknown>) =>
+        JSON.stringify({
+          id,
+          isResolved: false,
+          isOutdated: false,
+          path: "src/app.ts",
+          comments: { nodes: [] },
+          ...extra,
+        });
+      execFileAsyncMock.mockResolvedValue({
+        stdout: [
+          thread("removed", { line: 40, diffSide: "LEFT" }),
+          thread("added", { line: 41, diffSide: "RIGHT" }),
+          // GitHub clears `line` when a later commit moves the anchor out of the diff.
+          thread("outdated", { isOutdated: true, line: null, diffSide: "LEFT" }),
+          // An unknown side is never forwarded: clients treat it as the new side anyway.
+          thread("future", { line: 7, diffSide: "BOTH" }),
+          thread("legacy", { line: 9 }),
+        ].join("\n"),
+      });
+
+      const { threads } = await new GitHubService().getPrReviewThreads(location, 1);
+
+      expect(threads.map((t) => [t.id, t.line, t.side])).toEqual([
+        ["removed", 40, "LEFT"],
+        ["added", 41, "RIGHT"],
+        ["outdated", undefined, undefined],
+        ["future", 7, undefined],
+        ["legacy", 9, undefined],
+      ]);
+      const args = buildAgentCommandMock.mock.calls.at(-1)?.[2] as string[];
+      expect(args.find((arg) => arg.startsWith("query="))).toContain("diffSide");
     });
   });
 

@@ -328,6 +328,11 @@ export function isMergedPrRegression(
   );
 }
 
+/** Structural equality for small host-supplied lists (labels, reviewers, reactions, events). */
+function areJsonEqual(a: unknown, b: unknown): boolean {
+  return a === b || JSON.stringify(a) === JSON.stringify(b);
+}
+
 function areAuthorsEqual(a: PrAuthor | null | undefined, b: PrAuthor | null | undefined): boolean {
   if (a === b) return true;
   if (!a || !b) return false;
@@ -365,7 +370,8 @@ function arePrCommentsEqual(a: PrComment, b: PrComment): boolean {
     a.body === b.body &&
     a.createdAt === b.createdAt &&
     a.url === b.url &&
-    areAuthorsEqual(a.author, b.author)
+    areAuthorsEqual(a.author, b.author) &&
+    areJsonEqual(a.reactions ?? [], b.reactions ?? [])
   );
 }
 
@@ -399,6 +405,7 @@ function areReviewThreadsEqual(a: PrReviewThread, b: PrReviewThread): boolean {
     a.isOutdated === b.isOutdated &&
     a.path === b.path &&
     a.line === b.line &&
+    a.side === b.side &&
     areArraysEqual(a.comments, b.comments, arePrCommentsEqual)
   );
 }
@@ -425,7 +432,11 @@ export function arePrDetailsEqual(a: PrDetails | undefined, b: PrDetails): boole
     areArraysEqual(a.comments, b.comments, arePrCommentsEqual) &&
     areArraysEqual(a.reviews, b.reviews, arePrReviewsEqual) &&
     areArraysEqual(a.reviewThreads ?? [], b.reviewThreads ?? [], areReviewThreadsEqual) &&
-    areArraysEqual(a.checks, b.checks, arePrChecksEqual)
+    areArraysEqual(a.checks, b.checks, arePrChecksEqual) &&
+    areJsonEqual(a.labels ?? [], b.labels ?? []) &&
+    areJsonEqual(a.requestedReviewers ?? [], b.requestedReviewers ?? []) &&
+    areJsonEqual(a.reactions ?? [], b.reactions ?? []) &&
+    areJsonEqual(a.timeline ?? [], b.timeline ?? [])
   );
 }
 

@@ -186,12 +186,16 @@ export function rebindSkillSegments(
   return segments.map((segment) => {
     if (segment.kind !== "skill") return segment;
     const command = skills.get(segment.name.toLowerCase());
-    return (
-      skillSegmentFromSlashCommand(command) ?? {
-        kind: "text",
-        content: fallback(segment.name),
-      }
-    );
+    const rebound = skillSegmentFromSlashCommand(command);
+    if (rebound) {
+      return {
+        ...rebound,
+        ...(segment.pluginName && segment.pluginId === rebound.pluginId
+          ? { pluginName: segment.pluginName }
+          : {}),
+      };
+    }
+    return { kind: "text", content: fallback(segment.name) };
   });
 }
 

@@ -1,0 +1,109 @@
+import { expect, test } from "bun:test"
+import { createTestRenderer } from "@opentui/core/testing"
+import { Effect, FileSystem } from "effect"
+import { Global } from "@opencode/util/global"
+import { createEventStream, createFetch, directory, json } from "./fixture/tui-client"
+import { tmpdir } from "./fixture/fixture"
+
+// poracode: secret questions (metadata.poracode.maskedKeys) must show bullets
+// while the real value flows into the answer — typing and pasting alike.
+test("masked form field shows bullets and submits the real value", async () => {
+  await using state = await tmpdir()
+  const setup = await createTestRenderer({ width: 100, height: 30, kittyKeyboard: true })
+  await setup.renderer.setupTerminal()
+  setup.renderer.start()
+  const sessionID = "ses_masked"
+  const replies: string[] = []
+  const form = {
+    id: "form_secret",
+    sessionID,
+    title: "Credentials",
+    metadata: { message: "Enter the password", poracode: { maskedKeys: ["secret"] } },
+    fields: [
+      {
+        key: "secret",
+        type: "string",
+        title: "Password",
+        required: true,
+      },
+    ],
+  }
+  const events = createEventStream()
+  const calls = createFetch((url, request) => {
+    if (url.pathname === `/api/session/${sessionID}`)
+      return json({
+        data: {
+          id: sessionID,
+          projectID: "proj_test",
+          title: "Masked fixture",
+          location: { directory },
+          cost: 0,
+          tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+          time: { created: 0, updated: 0 },
+        },
+      })
+    if (url.pathname === `/api/session/${sessionID}/message`) return json({ data: [], cursor: {} })
+    if (url.pathname === `/api/session/${sessionID}/inbox` || url.pathname === `/api/session/${sessionID}/permission`)
+      return json({ data: [] })
+    if (url.pathname === `/api/session/${sessionID}/form`) return json({ data: [form] })
+    if (url.pathname === `/api/session/${sessionID}/form/form_secret/reply` && request?.method === "POST")
+      return json({ data: { status: "answered" } })
+    return undefined
+  }, events)
+  const server = Bun.serve({
+    port: 0,
+    idleTimeout: 0,
+    fetch: async (request) => {
+      if (request.method === "POST" && request.url.endsWith("/reply")) {
+        const body = await request.text()
+        replies.push(body)
+        return calls.fetch(
+          new Request(request.url, { method: "POST", headers: request.headers, body }),
+        )
+      }
+      return calls.fetch(request)
+    },
+  })
+  const { run } = await import("../src/app")
+  const task = Effect.runPromise(
+    run({
+      app: { name: "test", version: "test", channel: "test" },
+      server: { endpoint: { url: server.url.toString() } },
+      config: { get: async () => ({ animations: false }), update: async () => ({}) },
+      packages: { prepare: async () => ({ directory: "" }) },
+      terminalHandoff: async () => ({ renderer: setup.renderer, mode: "dark", complete: () => {} }),
+      args: { sessionID },
+      log: () => {},
+    }).pipe(Effect.provide(Global.layerWith({ state: state.path })), Effect.provide(FileSystem.layerNoop({}))),
+  )
+  try {
+    await setup.waitForFrame((frame) => /Password/.test(frame))
+    // Select the answer row to enter edit mode; masked fields take input via
+    // the form key intercept (store.custom), not a textarea.
+    setup.mockInput.pressEnter()
+    await setup.waitForVisualIdle()
+    await setup.mockInput.typeText("hunter2")
+    await setup.waitForFrame((frame) => /•{6}/.test(frame))
+    let frame = setup.captureCharFrame()
+    expect(frame).toMatch(/•{6}/)
+    expect(frame).not.toMatch(/hunter2/)
+
+    await setup.mockInput.pasteBracketedText("pasted")
+    await setup.waitForFrame((next) => /•{12}/.test(next))
+    frame = setup.captureCharFrame()
+    expect(frame).toMatch(/•{12}/)
+    expect(frame).not.toMatch(/pasted/)
+
+    // First Enter commits the field and moves to the Submit tab; the second
+    // fires the reply.
+    setup.mockInput.pressEnter()
+    setup.mockInput.pressEnter()
+    await setup.waitFor(() => replies.length > 0)
+    expect(replies.at(-1)).toContain("hunter2pasted")
+    expect(replies.at(-1)).not.toContain("•")
+  } finally {
+    setup.renderer.destroy()
+    server.stop()
+    await task.catch(() => {})
+  }
+})

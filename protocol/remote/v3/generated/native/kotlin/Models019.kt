@@ -6,6 +6,277 @@ import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
 @Serializable
+data class RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DAutomationSnapshot_fdddba9ec6(
+    @SerialName("completionPolicy") val completionPolicy: RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DAutomationSnapshotU2DCompletionPolicy_fc24a3f286,
+    @SerialName("maxIterations") val maxIterations: RemoteField<Long>,
+    @SerialName("maxRuntimeSeconds") val maxRuntimeSeconds: Long,
+    @SerialName("misfirePolicy") val misfirePolicy: RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DAutomationSnapshotU2DMisfirePolicy_bb479bc584,
+    @SerialName("mode") val mode: RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DAutomationSnapshotU2DMode_b588ef57eb,
+    @SerialName("retryPolicy") val retryPolicy: RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DAutomationSnapshotU2DRetryPolicy_de13949691,
+    @SerialName("stopOnError") val stopOnError: Boolean,
+    @SerialName("version") val version: ProcedureconnectThreadVoiceRequestU2DConfigU2DSelectionBindingU2DVersion_7f9f5a0d72,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("completionPolicy", "RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DAutomationSnapshotU2DCompletionPolicy_fc24a3f286", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("maxIterations", "Long", true, true, 1.0, 100.0, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("maxRuntimeSeconds", "Long", true, false, 60.0, 86400.0, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("misfirePolicy", "RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DAutomationSnapshotU2DMisfirePolicy_bb479bc584", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("mode", "RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DAutomationSnapshotU2DMode_b588ef57eb", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("retryPolicy", "RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DAutomationSnapshotU2DRetryPolicy_de13949691", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("stopOnError", "Boolean", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("version", "ProcedureconnectThreadVoiceRequestU2DConfigU2DSelectionBindingU2DVersion_7f9f5a0d72", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf("schedule.automation"))
+    }
+}
+
+typealias RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DCompletedAt_595da89b21 = String?
+
+@Serializable
+data class RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DResultU2DOptionU2D1U2DCompletionEvaluation_b2d5bb9fac(
+    @SerialName("condition") val condition: String,
+    @SerialName("confidence") val confidence: Double,
+    @SerialName("evaluatedAt") val evaluatedAt: String,
+    @SerialName("reason") val reason: String,
+    @SerialName("stopMatched") val stopMatched: Boolean,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("condition", "String", true, false, null, null, 1, 2000, null, null, null, null, listOf("string.trim")),
+            RemoteFieldDescriptor("confidence", "Double", true, false, 0.0, 1.0, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("evaluatedAt", "String", true, false, null, null, null, null, null, null, "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$", "date-time", listOf()),
+            RemoteFieldDescriptor("reason", "String", true, false, null, null, 1, 1000, null, null, null, null, listOf("string.trim")),
+            RemoteFieldDescriptor("stopMatched", "Boolean", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+enum class RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DResultU2DOptionU2D1U2DOutcome_75fa28583d {
+    @SerialName("findings") FINDINGS,
+    @SerialName("no-findings") NOU2DFINDINGS,
+    @SerialName("changed-files") CHANGEDU2DFILES,
+    @SerialName("needs-attention") NEEDSU2DATTENTION,
+    @SerialName("unknown") UNKNOWN,
+}
+
+@Serializable
+enum class RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DResultU2DOptionU2D1U2DSeverity_2d5efa5a79 {
+    @SerialName("info") INFO,
+    @SerialName("warning") WARNING,
+    @SerialName("error") ERROR,
+}
+
+typealias RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DResultU2DOptionU2D1U2DStopReason_7bbdba78cb = String?
+
+typealias RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DResultU2DOptionU2D1U2DSummary_74b3a4e217 = String?
+
+@Serializable
+data class RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DResultU2DOptionU2D1_ae4a760581(
+    @SerialName("archivedAt") val archivedAt: RemoteField<String>,
+    @SerialName("changedFiles") val changedFiles: List<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b>,
+    @SerialName("completionEvaluation") val completionEvaluation: RemoteField<RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DResultU2DOptionU2D1U2DCompletionEvaluation_b2d5bb9fac> = RemoteField.Missing,
+    @SerialName("outcome") val outcome: RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DResultU2DOptionU2D1U2DOutcome_75fa28583d,
+    @SerialName("severity") val severity: RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DResultU2DOptionU2D1U2DSeverity_2d5efa5a79,
+    @SerialName("stopReason") val stopReason: RemoteField<String>,
+    @SerialName("summary") val summary: RemoteField<String>,
+    @SerialName("unread") val unread: Boolean,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("archivedAt", "String", true, true, null, null, null, null, null, null, "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$", "date-time", listOf()),
+            RemoteFieldDescriptor("changedFiles", "List<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b>", true, false, null, null, null, null, null, 100, null, null, listOf()),
+            RemoteFieldDescriptor("completionEvaluation", "RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DResultU2DOptionU2D1U2DCompletionEvaluation_b2d5bb9fac", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("outcome", "RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DResultU2DOptionU2D1U2DOutcome_75fa28583d", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("severity", "RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DResultU2DOptionU2D1U2DSeverity_2d5efa5a79", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("stopReason", "String", true, true, null, null, null, 1000, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("summary", "String", true, true, null, null, null, 2000, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("unread", "Boolean", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+typealias RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DResult_66ee2eb4ed = RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DResultU2DOptionU2D1_ae4a760581?
+
+@Serializable
+enum class RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DStatus_2151c8edcf {
+    @SerialName("running") RUNNING,
+    @SerialName("waiting-for-approval") WAITINGU2DFORU2DAPPROVAL,
+    @SerialName("succeeded") SUCCEEDED,
+    @SerialName("failed") FAILED,
+    @SerialName("cancelled") CANCELLED,
+    @SerialName("interrupted") INTERRUPTED,
+    @SerialName("skipped") SKIPPED,
+}
+
+@Serializable
+enum class RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DTrigger_56296b74a9 {
+    @SerialName("manual") MANUAL,
+    @SerialName("scheduled") SCHEDULED,
+    @SerialName("retry") RETRY,
+}
+
+@Serializable
+data class RouteautomationsU2DSnapshotResponseU2DRunsU2DItem_38754692c8(
+    @SerialName("attempt") val attempt: RemoteField<Long> = RemoteField.Missing,
+    @SerialName("automationSnapshot") val automationSnapshot: RemoteField<RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DAutomationSnapshot_fdddba9ec6> = RemoteField.Missing,
+    @SerialName("completedAt") val completedAt: RemoteField<String>,
+    @SerialName("error") val error: RemoteField<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b>,
+    @SerialName("id") val id: String,
+    @SerialName("iteration") val iteration: RemoteField<Long> = RemoteField.Missing,
+    @SerialName("result") val result: RemoteField<RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DResultU2DOptionU2D1_ae4a760581> = RemoteField.Missing,
+    @SerialName("scheduleId") val scheduleId: String,
+    @SerialName("scheduledFor") val scheduledFor: RemoteField<String> = RemoteField.Missing,
+    @SerialName("startedAt") val startedAt: String,
+    @SerialName("status") val status: RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DStatus_2151c8edcf,
+    @SerialName("summary") val summary: RemoteField<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b>,
+    @SerialName("threadId") val threadId: String,
+    @SerialName("trigger") val trigger: RemoteField<RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DTrigger_56296b74a9> = RemoteField.Missing,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("attempt", "Long", false, false, null, 9007199254740991.0, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("automationSnapshot", "RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DAutomationSnapshot_fdddba9ec6", false, false, null, null, null, null, null, null, null, null, listOf("schedule.automation")),
+            RemoteFieldDescriptor("completedAt", "String", true, true, null, null, null, null, null, null, "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$", "date-time", listOf()),
+            RemoteFieldDescriptor("error", "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", true, true, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("id", "String", true, false, null, null, null, null, null, null, "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$", "uuid", listOf()),
+            RemoteFieldDescriptor("iteration", "Long", false, false, null, 9007199254740991.0, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("result", "RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DResultU2DOptionU2D1_ae4a760581", false, true, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("scheduleId", "String", true, false, null, null, null, null, null, null, "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$", "uuid", listOf()),
+            RemoteFieldDescriptor("scheduledFor", "String", false, false, null, null, null, null, null, null, "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$", "date-time", listOf()),
+            RemoteFieldDescriptor("startedAt", "String", true, false, null, null, null, null, null, null, "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$", "date-time", listOf()),
+            RemoteFieldDescriptor("status", "RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DStatus_2151c8edcf", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("summary", "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", true, true, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("threadId", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("trigger", "RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DTrigger_56296b74a9", false, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+data class RouteautomationsU2DSnapshotResponseU2DSchedulesU2DItemU2DConfig_f69100925f(
+    @SerialName("contextSize") val contextSize: RemoteField<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b> = RemoteField.Missing,
+    @SerialName("effort") val effort: RemoteField<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b> = RemoteField.Missing,
+    @SerialName("fast") val fast: RemoteField<Boolean> = RemoteField.Missing,
+    @SerialName("model") val model: String,
+    @SerialName("selectionBinding") val selectionBinding: RemoteField<ProcedureconnectThreadVoiceRequestU2DConfigU2DSelectionBinding_a11ab76af3> = RemoteField.Missing,
+    @SerialName("thinking") val thinking: RemoteField<Boolean> = RemoteField.Missing,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.REJECT, listOf(
+            RemoteFieldDescriptor("contextSize", "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("effort", "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("fast", "Boolean", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("model", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("selectionBinding", "ProcedureconnectThreadVoiceRequestU2DConfigU2DSelectionBinding_a11ab76af3", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("thinking", "Boolean", false, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+enum class RouteautomationsU2DSnapshotResponseU2DSchedulesU2DItemU2DLastStatus_aa5449703b {
+    @SerialName("never") NEVER,
+    @SerialName("running") RUNNING,
+    @SerialName("waiting-for-approval") WAITINGU2DFORU2DAPPROVAL,
+    @SerialName("succeeded") SUCCEEDED,
+    @SerialName("failed") FAILED,
+    @SerialName("cancelled") CANCELLED,
+    @SerialName("interrupted") INTERRUPTED,
+    @SerialName("skipped") SKIPPED,
+}
+
+@Serializable
+enum class RouteautomationsU2DSnapshotResponseU2DSchedulesU2DItemU2DRecurrenceU2DOptionU2D1U2DKind_6f5933af03 {
+    @SerialName("hourly") HOURLY,
+}
+
+@Serializable
+data class RouteautomationsU2DSnapshotResponseU2DSchedulesU2DItemU2DRecurrenceU2DOptionU2D1_a467b0ed1c(
+    @SerialName("kind") val kind: RouteautomationsU2DSnapshotResponseU2DSchedulesU2DItemU2DRecurrenceU2DOptionU2D1U2DKind_6f5933af03,
+    @SerialName("minute") val minute: Long,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("kind", "RouteautomationsU2DSnapshotResponseU2DSchedulesU2DItemU2DRecurrenceU2DOptionU2D1U2DKind_6f5933af03", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("minute", "Long", true, false, 0.0, 59.0, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+enum class RouteautomationsU2DSnapshotResponseU2DSchedulesU2DItemU2DRecurrenceU2DOptionU2D2U2DKind_475f91db7d {
+    @SerialName("weekly") WEEKLY,
+}
+
+@Serializable
+data class RouteautomationsU2DSnapshotResponseU2DSchedulesU2DItemU2DRecurrenceU2DOptionU2D2_ac7865b2a5(
+    @SerialName("days") val days: List<Long>,
+    @SerialName("kind") val kind: RouteautomationsU2DSnapshotResponseU2DSchedulesU2DItemU2DRecurrenceU2DOptionU2D2U2DKind_475f91db7d,
+    @SerialName("time") val time: String,
+    @SerialName("timeZone") val timeZone: RemoteField<String> = RemoteField.Missing,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("days", "List<Long>", true, false, null, null, null, null, 1, null, null, null, listOf()),
+            RemoteFieldDescriptor("kind", "RouteautomationsU2DSnapshotResponseU2DSchedulesU2DItemU2DRecurrenceU2DOptionU2D2U2DKind_475f91db7d", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("time", "String", true, false, null, null, null, null, null, null, "^([01]\\d|2[0-3]):[0-5]\\d$", null, listOf()),
+            RemoteFieldDescriptor("timeZone", "String", false, false, null, null, 1, 128, null, null, null, null, listOf("schedule.time-zone", "string.trim")),
+        ), listOf())
+    }
+}
+
+@Serializable
+enum class RouteautomationsU2DSnapshotResponseU2DSchedulesU2DItemU2DRecurrenceU2DOptionU2D3U2DKind_e5ee0a0722 {
+    @SerialName("once") ONCE,
+}
+
+@Serializable
+data class RouteautomationsU2DSnapshotResponseU2DSchedulesU2DItemU2DRecurrenceU2DOptionU2D3_d1c4cb16ae(
+    @SerialName("kind") val kind: RouteautomationsU2DSnapshotResponseU2DSchedulesU2DItemU2DRecurrenceU2DOptionU2D3U2DKind_e5ee0a0722,
+    @SerialName("runAt") val runAt: String,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("kind", "RouteautomationsU2DSnapshotResponseU2DSchedulesU2DItemU2DRecurrenceU2DOptionU2D3U2DKind_e5ee0a0722", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("runAt", "String", true, false, null, null, null, null, null, null, "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$", "date-time", listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+enum class RouteautomationsU2DSnapshotResponseU2DSchedulesU2DItemU2DRecurrenceU2DOptionU2D4U2DKind_6cf695d23a {
+    @SerialName("interval") INTERVAL,
+}
+
+@Serializable
+enum class RouteautomationsU2DSnapshotResponseU2DSchedulesU2DItemU2DRecurrenceU2DOptionU2D4U2DUnit_e4a434d61c {
+    @SerialName("minutes") MINUTES,
+    @SerialName("hours") HOURS,
+    @SerialName("days") DAYS,
+}
+
+@Serializable
+data class RouteautomationsU2DSnapshotResponseU2DSchedulesU2DItemU2DRecurrenceU2DOptionU2D4_84ccfb83d8(
+    @SerialName("every") val every: Long,
+    @SerialName("kind") val kind: RouteautomationsU2DSnapshotResponseU2DSchedulesU2DItemU2DRecurrenceU2DOptionU2D4U2DKind_6cf695d23a,
+    @SerialName("unit") val unit: RouteautomationsU2DSnapshotResponseU2DSchedulesU2DItemU2DRecurrenceU2DOptionU2D4U2DUnit_e4a434d61c,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("every", "Long", true, false, 1.0, 999.0, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("kind", "RouteautomationsU2DSnapshotResponseU2DSchedulesU2DItemU2DRecurrenceU2DOptionU2D4U2DKind_6cf695d23a", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("unit", "RouteautomationsU2DSnapshotResponseU2DSchedulesU2DItemU2DRecurrenceU2DOptionU2D4U2DUnit_e4a434d61c", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+enum class RouteautomationsU2DSnapshotResponseU2DSchedulesU2DItemU2DRecurrenceU2DOptionU2D5U2DKind_a050e4e432 {
+    @SerialName("cron") CRON,
+}
+
+@Serializable
 data class RouteautomationsU2DSnapshotResponseU2DSchedulesU2DItemU2DRecurrenceU2DOptionU2D5_0a49efe270(
     @SerialName("expression") val expression: String,
     @SerialName("kind") val kind: RouteautomationsU2DSnapshotResponseU2DSchedulesU2DItemU2DRecurrenceU2DOptionU2D5U2DKind_a050e4e432,
@@ -171,280 +442,4 @@ data class RoutebrowserU2DCommandRequestU2DOptionU2D3_483d5aa44f(
 @Serializable
 enum class RoutebrowserU2DCommandRequestU2DOptionU2D4U2DKind_ed1865d937 {
     @SerialName("move-tab") MOVEU2DTAB,
-}
-
-@Serializable
-enum class RoutebrowserU2DCommandRequestU2DOptionU2D4U2DPosition_3512bd687e {
-    @SerialName("before") BEFORE,
-    @SerialName("after") AFTER,
-}
-
-@Serializable
-data class RoutebrowserU2DCommandRequestU2DOptionU2D4_875b3bd940(
-    @SerialName("kind") val kind: RoutebrowserU2DCommandRequestU2DOptionU2D4U2DKind_ed1865d937,
-    @SerialName("position") val position: RoutebrowserU2DCommandRequestU2DOptionU2D4U2DPosition_3512bd687e,
-    @SerialName("tabId") val tabId: String,
-    @SerialName("targetTabId") val targetTabId: String,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("kind", "RoutebrowserU2DCommandRequestU2DOptionU2D4U2DKind_ed1865d937", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("position", "RoutebrowserU2DCommandRequestU2DOptionU2D4U2DPosition_3512bd687e", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("tabId", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("targetTabId", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable
-enum class RoutebrowserU2DCommandRequestU2DOptionU2D5U2DKind_9063020a6c {
-    @SerialName("navigate") NAVIGATE,
-}
-
-@Serializable
-data class RoutebrowserU2DCommandRequestU2DOptionU2D5_290453f28a(
-    @SerialName("kind") val kind: RoutebrowserU2DCommandRequestU2DOptionU2D5U2DKind_9063020a6c,
-    @SerialName("tabId") val tabId: String,
-    @SerialName("url") val url: String,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("kind", "RoutebrowserU2DCommandRequestU2DOptionU2D5U2DKind_9063020a6c", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("tabId", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("url", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable
-enum class RoutebrowserU2DCommandRequestU2DOptionU2D6U2DKind_6801e053c0 {
-    @SerialName("back") BACK,
-}
-
-@Serializable
-data class RoutebrowserU2DCommandRequestU2DOptionU2D6_82fdb78988(
-    @SerialName("kind") val kind: RoutebrowserU2DCommandRequestU2DOptionU2D6U2DKind_6801e053c0,
-    @SerialName("tabId") val tabId: String,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("kind", "RoutebrowserU2DCommandRequestU2DOptionU2D6U2DKind_6801e053c0", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("tabId", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable
-enum class RoutebrowserU2DCommandRequestU2DOptionU2D7U2DKind_3e68ba0d03 {
-    @SerialName("forward") FORWARD,
-}
-
-@Serializable
-data class RoutebrowserU2DCommandRequestU2DOptionU2D7_500ee37993(
-    @SerialName("kind") val kind: RoutebrowserU2DCommandRequestU2DOptionU2D7U2DKind_3e68ba0d03,
-    @SerialName("tabId") val tabId: String,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("kind", "RoutebrowserU2DCommandRequestU2DOptionU2D7U2DKind_3e68ba0d03", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("tabId", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable
-enum class RoutebrowserU2DCommandRequestU2DOptionU2D8U2DKind_41be750b56 {
-    @SerialName("reload") RELOAD,
-}
-
-@Serializable
-data class RoutebrowserU2DCommandRequestU2DOptionU2D8_22c8bcdab9(
-    @SerialName("kind") val kind: RoutebrowserU2DCommandRequestU2DOptionU2D8U2DKind_41be750b56,
-    @SerialName("tabId") val tabId: String,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("kind", "RoutebrowserU2DCommandRequestU2DOptionU2D8U2DKind_41be750b56", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("tabId", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable(with = RoutebrowserU2DCommandRequest_80a9ff940d.Serializer::class)
-sealed interface RoutebrowserU2DCommandRequest_80a9ff940d {
-    data class Option1(val value: RoutebrowserU2DCommandRequestU2DOptionU2D1_3328521e00) : RoutebrowserU2DCommandRequest_80a9ff940d
-    data class Option2(val value: RoutebrowserU2DCommandRequestU2DOptionU2D2_51f2acb99e) : RoutebrowserU2DCommandRequest_80a9ff940d
-    data class Option3(val value: RoutebrowserU2DCommandRequestU2DOptionU2D3_483d5aa44f) : RoutebrowserU2DCommandRequest_80a9ff940d
-    data class Option4(val value: RoutebrowserU2DCommandRequestU2DOptionU2D4_875b3bd940) : RoutebrowserU2DCommandRequest_80a9ff940d
-    data class Option5(val value: RoutebrowserU2DCommandRequestU2DOptionU2D5_290453f28a) : RoutebrowserU2DCommandRequest_80a9ff940d
-    data class Option6(val value: RoutebrowserU2DCommandRequestU2DOptionU2D6_82fdb78988) : RoutebrowserU2DCommandRequest_80a9ff940d
-    data class Option7(val value: RoutebrowserU2DCommandRequestU2DOptionU2D7_500ee37993) : RoutebrowserU2DCommandRequest_80a9ff940d
-    data class Option8(val value: RoutebrowserU2DCommandRequestU2DOptionU2D8_22c8bcdab9) : RoutebrowserU2DCommandRequest_80a9ff940d
-    object Serializer : KSerializer<RoutebrowserU2DCommandRequest_80a9ff940d> {
-        override val descriptor: SerialDescriptor = buildClassSerialDescriptor("RoutebrowserU2DCommandRequest_80a9ff940d")
-        override fun deserialize(decoder: Decoder): RoutebrowserU2DCommandRequest_80a9ff940d {
-            val jsonDecoder = decoder as? JsonDecoder ?: throw SerializationException("RoutebrowserU2DCommandRequest_80a9ff940d supports JSON only")
-            val element = jsonDecoder.decodeJsonElement()
-            val matches = mutableListOf<RemoteUnionMatch<RoutebrowserU2DCommandRequest_80a9ff940d>>()
-            RemoteUnionCodec.tryOption(matches, 1, RemoteUnionCodec.matchesProperty(element, "kind", listOf(JsonPrimitive("create-tab")))) { Option1(jsonDecoder.json.decodeFromJsonElement<RoutebrowserU2DCommandRequestU2DOptionU2D1_3328521e00>(element)) }
-            RemoteUnionCodec.tryOption(matches, 2, RemoteUnionCodec.matchesProperty(element, "kind", listOf(JsonPrimitive("close-tab")))) { Option2(jsonDecoder.json.decodeFromJsonElement<RoutebrowserU2DCommandRequestU2DOptionU2D2_51f2acb99e>(element)) }
-            RemoteUnionCodec.tryOption(matches, 3, RemoteUnionCodec.matchesProperty(element, "kind", listOf(JsonPrimitive("activate-tab")))) { Option3(jsonDecoder.json.decodeFromJsonElement<RoutebrowserU2DCommandRequestU2DOptionU2D3_483d5aa44f>(element)) }
-            RemoteUnionCodec.tryOption(matches, 4, RemoteUnionCodec.matchesProperty(element, "kind", listOf(JsonPrimitive("move-tab")))) { Option4(jsonDecoder.json.decodeFromJsonElement<RoutebrowserU2DCommandRequestU2DOptionU2D4_875b3bd940>(element)) }
-            RemoteUnionCodec.tryOption(matches, 5, RemoteUnionCodec.matchesProperty(element, "kind", listOf(JsonPrimitive("navigate")))) { Option5(jsonDecoder.json.decodeFromJsonElement<RoutebrowserU2DCommandRequestU2DOptionU2D5_290453f28a>(element)) }
-            RemoteUnionCodec.tryOption(matches, 6, RemoteUnionCodec.matchesProperty(element, "kind", listOf(JsonPrimitive("back")))) { Option6(jsonDecoder.json.decodeFromJsonElement<RoutebrowserU2DCommandRequestU2DOptionU2D6_82fdb78988>(element)) }
-            RemoteUnionCodec.tryOption(matches, 7, RemoteUnionCodec.matchesProperty(element, "kind", listOf(JsonPrimitive("forward")))) { Option7(jsonDecoder.json.decodeFromJsonElement<RoutebrowserU2DCommandRequestU2DOptionU2D7_500ee37993>(element)) }
-            RemoteUnionCodec.tryOption(matches, 8, RemoteUnionCodec.matchesProperty(element, "kind", listOf(JsonPrimitive("reload")))) { Option8(jsonDecoder.json.decodeFromJsonElement<RoutebrowserU2DCommandRequestU2DOptionU2D8_22c8bcdab9>(element)) }
-            return RemoteUnionCodec.single("RoutebrowserU2DCommandRequest_80a9ff940d", matches)
-        }
-        override fun serialize(encoder: Encoder, value: RoutebrowserU2DCommandRequest_80a9ff940d) {
-            val jsonEncoder = encoder as? JsonEncoder ?: throw SerializationException("RoutebrowserU2DCommandRequest_80a9ff940d supports JSON only")
-            val element = when (value) {
-                is Option1 -> jsonEncoder.json.encodeToJsonElement<RoutebrowserU2DCommandRequestU2DOptionU2D1_3328521e00>(value.value)
-                is Option2 -> jsonEncoder.json.encodeToJsonElement<RoutebrowserU2DCommandRequestU2DOptionU2D2_51f2acb99e>(value.value)
-                is Option3 -> jsonEncoder.json.encodeToJsonElement<RoutebrowserU2DCommandRequestU2DOptionU2D3_483d5aa44f>(value.value)
-                is Option4 -> jsonEncoder.json.encodeToJsonElement<RoutebrowserU2DCommandRequestU2DOptionU2D4_875b3bd940>(value.value)
-                is Option5 -> jsonEncoder.json.encodeToJsonElement<RoutebrowserU2DCommandRequestU2DOptionU2D5_290453f28a>(value.value)
-                is Option6 -> jsonEncoder.json.encodeToJsonElement<RoutebrowserU2DCommandRequestU2DOptionU2D6_82fdb78988>(value.value)
-                is Option7 -> jsonEncoder.json.encodeToJsonElement<RoutebrowserU2DCommandRequestU2DOptionU2D7_500ee37993>(value.value)
-                is Option8 -> jsonEncoder.json.encodeToJsonElement<RoutebrowserU2DCommandRequestU2DOptionU2D8_22c8bcdab9>(value.value)
-            }
-            jsonEncoder.encodeJsonElement(element)
-        }
-    }
-}
-
-@Serializable
-data class RoutebrowserU2DCommandResponseU2DStateU2DTabsU2DItem_7a4831c3c0(
-    @SerialName("canGoBack") val canGoBack: Boolean,
-    @SerialName("canGoForward") val canGoForward: Boolean,
-    @SerialName("faviconUrl") val faviconUrl: RemoteField<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b> = RemoteField.Missing,
-    @SerialName("loading") val loading: Boolean,
-    @SerialName("tabId") val tabId: String,
-    @SerialName("title") val title: ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b,
-    @SerialName("url") val url: ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("canGoBack", "Boolean", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("canGoForward", "Boolean", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("faviconUrl", "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", false, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("loading", "Boolean", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("tabId", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("title", "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("url", "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", true, false, null, null, null, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable
-data class RoutebrowserU2DCommandResponseU2DState_ecc6edb616(
-    @SerialName("activeTabId") val activeTabId: RemoteField<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b>,
-    @SerialName("tabs") val tabs: List<RoutebrowserU2DCommandResponseU2DStateU2DTabsU2DItem_7a4831c3c0>,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("activeTabId", "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", true, true, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("tabs", "List<RoutebrowserU2DCommandResponseU2DStateU2DTabsU2DItem_7a4831c3c0>", true, false, null, null, null, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable
-data class RoutebrowserU2DCommandResponse_1b7f16955d(
-    @SerialName("state") val state: RoutebrowserU2DCommandResponseU2DState_ecc6edb616,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("state", "RoutebrowserU2DCommandResponseU2DState_ecc6edb616", true, false, null, null, null, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable
-data class RoutecatalogU2DMembershipRequest_2b8805d864(
-    @SerialName("projectIds") val projectIds: RemoteField<List<String>> = RemoteField.Missing,
-    @SerialName("threadIds") val threadIds: RemoteField<List<String>> = RemoteField.Missing,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("projectIds", "List<String>", false, false, null, null, null, null, null, 200, null, null, listOf()),
-            RemoteFieldDescriptor("threadIds", "List<String>", false, false, null, null, null, null, null, 200, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable
-data class RoutecatalogU2DMembershipResponse_afbf6761fa(
-    @SerialName("existingProjectIds") val existingProjectIds: List<String>,
-    @SerialName("existingThreadIds") val existingThreadIds: List<String>,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("existingProjectIds", "List<String>", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("existingThreadIds", "List<String>", true, false, null, null, null, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable
-enum class RouteconversationU2DSearchQueryU2DIncludeArchived_003a95dd16 {
-    @SerialName("true") TRUE,
-    @SerialName("false") FALSE,
-}
-
-@Serializable
-enum class RouteconversationU2DSearchQueryU2DVersion_8795ea0289 {
-    @SerialName("1") N1,
-}
-
-@Serializable
-data class RouteconversationU2DSearchQuery_07b9b9802d(
-    @SerialName("cursor") val cursor: RemoteField<String> = RemoteField.Missing,
-    @SerialName("includeArchived") val includeArchived: RemoteField<RouteconversationU2DSearchQueryU2DIncludeArchived_003a95dd16> = RemoteField.Missing,
-    @SerialName("limit") val limit: RemoteField<Long> = RemoteField.Missing,
-    @SerialName("projectId") val projectId: RemoteField<String> = RemoteField.Missing,
-    @SerialName("query") val query: String,
-    @SerialName("version") val version: RouteconversationU2DSearchQueryU2DVersion_8795ea0289,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("cursor", "String", false, false, null, null, null, 1024, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("includeArchived", "RouteconversationU2DSearchQueryU2DIncludeArchived_003a95dd16", false, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("limit", "Long", false, false, 1.0, 50.0, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("projectId", "String", false, false, null, null, 1, 200, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("query", "String", true, false, null, null, 1, 500, null, null, null, null, listOf("string.trim")),
-            RemoteFieldDescriptor("version", "RouteconversationU2DSearchQueryU2DVersion_8795ea0289", true, false, null, null, null, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable
-enum class RouteconversationU2DSearchResponseU2DEntriesU2DItemU2DRole_ff05783d57 {
-    @SerialName("user") USER,
-    @SerialName("assistant") ASSISTANT,
-}
-
-@Serializable
-data class RouteconversationU2DSearchResponseU2DEntriesU2DItem_c52c624815(
-    @SerialName("archived") val archived: Boolean,
-    @SerialName("excerpt") val excerpt: String,
-    @SerialName("itemId") val itemId: String,
-    @SerialName("projectId") val projectId: String,
-    @SerialName("projectName") val projectName: String,
-    @SerialName("role") val role: RouteconversationU2DSearchResponseU2DEntriesU2DItemU2DRole_ff05783d57,
-    @SerialName("threadId") val threadId: String,
-    @SerialName("title") val title: String,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("archived", "Boolean", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("excerpt", "String", true, false, null, null, null, 320, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("itemId", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("projectId", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("projectName", "String", true, false, null, null, null, 200, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("role", "RouteconversationU2DSearchResponseU2DEntriesU2DItemU2DRole_ff05783d57", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("threadId", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("title", "String", true, false, null, null, null, 300, null, null, null, null, listOf()),
-        ), listOf())
-    }
 }

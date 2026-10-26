@@ -1,7 +1,7 @@
 # poracode
 
-Run the Poracode standalone server from a version-pinned, checksum-verified
-runtime artifact.
+Run the Poracode standalone server, TUI, or one-shot prompt from a
+version-pinned, checksum-verified runtime artifact.
 
 Provider, client, pairing, plugin/MCP and session administration can also use an
 already-running desktop owner: select its exact profile with `--base-dir`.
@@ -11,9 +11,12 @@ independent client grant; legacy `pair`/`connect` desktop attach remains refused
 Server start/stop/upgrade and service commands retain their standalone scope.
 
 ```sh
-npx poracode@<version>                 # server + open the local web app
+npx poracode@<version>                 # TUI in a terminal; serve without opening when non-interactive
+npx poracode@<version> tui [DIRECTORY] # explicitly open the TUI
+npx poracode@<version> -p "PROMPT"     # one-shot prompt
 npx poracode@<version> serve           # server only, without opening a browser
 npx poracode@<version> serve --open    # server + explicitly open the web app
+npx poracode@<version> --open          # retain the web-app shortcut
 npx poracode@<version> setup --start --open # guided configuration, server + web app, provider setup
 npx poracode@<version> pair --json     # request a pairing URL from the running owner
 npx poracode@<version> doctor --json   # read-only diagnostics
@@ -25,11 +28,23 @@ npx poracode@<version> --version
 
 For a persistent command, install the same version with
 `npm install --global poracode@<version>`, then run `poracode` or `poracode serve`.
-Both modes serve the bundled web client. Bare invocation automatically opens it
-in a local interactive terminal; SSH/headless sessions skip automatic opening.
-Use `--open` to request opening explicitly or `--no-open` to suppress it. The
-server stays in the foreground until stopped; no background service or Electron
-desktop application is installed by these commands.
+Bare invocation opens the TUI when both stdin and stdout are terminals; otherwise
+it retains the foreground-server behavior and does not open a browser. Use
+`poracode serve --open` (or `poracode --open`) for the web app; `--no-open` means
+server only. This does not install the Electron desktop app or a managed service.
+
+The TUI and `-p`/`--print` use the existing profile and provider runtime. If no
+owner is running, they start a detached `serve` process and wait for its local
+control endpoint. The owner remains running after the TUI exits; stop it with
+`poracode stop` and the same `--base-dir`. Provider/model/effort and the
+approval/sandbox values actually used for the thread default from the TUI
+selection in `<profile>/tui/last-model.json`; absent safety defaults require
+explicit `--approval-policy`/`--sandbox` values.
+
+The TUI saves one session per profile in `<profile>/tui/session.json` and
+reuses it on every launch (concurrent TUIs share it); if the host rejects it,
+the CLI pairs once, relaunches, and revokes only that exact previous session.
+`clients list` and `clients revoke SESSION_ID` still manage entries.
 
 Browser opening uses an independent one-minute operator pairing grant without
 rotating the desktop QR or logging its token. If opening fails, the server keeps
@@ -85,8 +100,8 @@ download path.
 ## Commands
 
 All arguments after the executable are forwarded to the pinned runtime, so the
-server commands — `serve`, `pair`, `status`, `doctor`, `backup`, `init-tls`,
-`activate`, `stop`, and `upgrade` — behave exactly as documented for the
+commands - `serve`, `tui`, `-p`, `pair`, `status`, `doctor`, `backup`, `init-tls`,
+`activate`, `stop`, and `upgrade` - behave exactly as documented for the
 standalone server. `poracode --help` lists them. `poracode stop` asks the
 running server of the selected profile to drain and exit; on Windows it is the
 only graceful stop, and the npm-installed `poracode.cmd` shim runs the launcher.

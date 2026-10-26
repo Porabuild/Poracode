@@ -7,9 +7,11 @@ Universal AI agent orchestrator with Electron, web/PWA, and independent native i
 ## Commands
 
 - Package manager: `Bun` (version pinned in `package.json#packageManager`); Node >= 24.10.0.
+- Installed CLI: bare interactive `poracode` opens the TUI; use `poracode -p "PROMPT" --directory PATH` for one-shot runs and `poracode serve --open` for the web app.
 - `bun run dev` — run the app. `bun run build` then `bun run dist` — package it.
 - Local renderer builds skip hidden source maps; set `PORACODE_SOURCEMAPS=1` to generate them. Release CI generates them on the Sentry upload job.
 - `bun run typecheck` (Bun, all available cores; `bun run typecheck:tsc` compares with TypeScript 7), `bun run lint` (Bun), `bun run fmt` / `bun run fmt:check` (Bun), `bun run test` (vitest).
+- TUI: `bun run tui:install`, `bun run tui:typecheck`, `bun run tui:test`, `bun run tui:dev`; validation harness and compile smoke: `bun run --cwd tui dev:opencode-server` and `bun run --cwd tui build:smoke`.
 - Targeted tests: `bun run vitest run <paths>`. Jest-only flags such as `--runInBand` do not exist here.
 - The pre-commit hook runs lint-staged (Bun lint `--type-aware --fix --deny-warnings` and format) and then `bun run typecheck`.
 

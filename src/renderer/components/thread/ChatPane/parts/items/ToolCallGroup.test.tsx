@@ -5,6 +5,12 @@ import { useAppStore } from "@/renderer/state/appStore";
 import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
 import { ToolCallGroup } from "./ToolCallGroup";
 import { byTextContent } from "@/renderer/testUtils/text";
+import { acquireHistoryItemDetails } from "@/renderer/state/historyItemDetails";
+import { ChatPaneActionsContext } from "../../chatPaneActionsContext";
+
+vi.mock("@/renderer/state/historyItemDetails", () => ({
+  acquireHistoryItemDetails: vi.fn<typeof acquireHistoryItemDetails>(),
+}));
 
 describe("ToolCallGroup", () => {
   beforeEach(() => {
@@ -1642,5 +1648,132 @@ describe("ToolCallGroup sliding window", () => {
     } finally {
       matchMedia.mockRestore();
     }
+  });
+});
+
+describe("ToolCallGroup deferred file changes", () => {
+  const threadId = "thread-deferred";
+
+  beforeEach(() => {
+    localStorage.clear();
+    vi.mocked(acquireHistoryItemDetails).mockReset();
+  });
+
+  function deferred(item: RuntimeChatItem): RuntimeChatItem {
+    const { args: _args, result: _result, ...header } = item.payload as Record<string, unknown>;
+    return { ...item, payload: header, detailsDeferred: true };
+  }
+
+  function mockDetails(full: readonly RuntimeChatItem[]) {
+    vi.mocked(acquireHistoryItemDetails).mockImplementation((_thread, source) => ({
+      promise: Promise.resolve(full.find((item) => item.id === source.id) as never),
+      release() {},
+    }));
+  }
+
+  /** The collapsed per-file rows ("Edit · path"), excluding the group header. */
+  function editRowButtons() {
+    return screen
+      .queryAllByRole("button")
+      .filter((button) => button.textContent?.startsWith("Edit") === true);
+  }
+
+  function renderDeferredGroup(items: readonly RuntimeChatItem[]) {
+    seedThread(threadId, items);
+    return render(
+      <AppProvider>
+        <ChatPaneActionsContext.Provider value={{ threadId }}>
+          <ToolCallGroup
+            threadId={threadId}
+            itemIds={items.map((item) => item.id)}
+            isLive
+            isReasoningLive
+          />
+        </ChatPaneActionsContext.Provider>
+      </AppProvider>,
+    );
+  }
+
+  it("merges a same-file run into one diff once its deferred rows load", async () => {
+    const full = [
+      makeFileChangeItem("file-1", { added: 4, removed: 2 }),
+      makeFileChangeItem("file-2", { added: 5, removed: 3 }),
+    ];
+    mockDetails(full);
+    const view = renderDeferredGroup(full.map(deferred));
+
+    // The header totals come from the deferred rows; nothing loads while collapsed.
+    expect(screen.getByRole("button", { name: /2 edits:/i })).toBeInTheDocument();
+    expect(acquireHistoryItemDetails).not.toHaveBeenCalled();
+
+    expandGroup(/2 edits:/i);
+
+    const viewport = getViewport(view.container);
+    await waitFor(() => {
+      expect((viewport.textContent?.match(/new/g) ?? []).length).toBeGreaterThanOrEqual(2);
+    });
+    expect(within(viewport).queryAllByRole("button")).toHaveLength(0);
+    expect(acquireHistoryItemDetails).toHaveBeenCalledTimes(2);
+  });
+
+  it("renders the same merged diff for resolved deferred rows as for complete rows", async () => {
+    // Overlapping patches over one range: whatever the viewer shows for complete
+    // rows, resolving deferred rows must show exactly the same.
+    const full = [
+      makeFileChangeItem("file-1", { added: 4, removed: 2 }),
+      makeFileChangeItem("file-2", { added: 5, removed: 3 }),
+      makeFileChangeItem("file-3", { added: 6, removed: 4 }),
+    ];
+    const bodyText = async (items: readonly RuntimeChatItem[]) => {
+      const view = renderDeferredGroup(items);
+      expandGroup(/3 edits:/i);
+      const viewport = getViewport(view.container);
+      await waitFor(() => expect(viewport.textContent).toContain("new"));
+      const text = viewport.textContent;
+      view.unmount();
+      return text;
+    };
+
+    const complete = await bodyText(full);
+    mockDetails(full);
+    const resolved = await bodyText(full.map(deferred));
+
+    expect(resolved).toBe(complete);
+  });
+
+  it("falls back to ordinary rows, in order, when a deferred row fails to load", async () => {
+    const full = [
+      makeFileChangeItem("file-1", { added: 4, removed: 2 }),
+      makeFileChangeItem("file-2", { added: 5, removed: 3 }),
+    ];
+    // One failing read must not discard the row that did load or block the body.
+    vi.mocked(acquireHistoryItemDetails).mockImplementation((_thread, source) => ({
+      promise:
+        source.id === "file-2"
+          ? Promise.reject(new Error("offline"))
+          : Promise.resolve(full[0] as never),
+      release() {},
+    }));
+    renderDeferredGroup(full.map(deferred));
+
+    expandGroup(/2 edits:/i);
+
+    await waitFor(() => expect(editRowButtons()).toHaveLength(2));
+    const rows = editRowButtons();
+    // Collapsed rows keep their own totals, in the original order.
+    expect(rows[0]).toHaveTextContent("+4");
+    expect(rows[1]).toHaveTextContent("+5");
+    expect(screen.queryByRole("button", { name: "Retry" })).not.toBeInTheDocument();
+  });
+
+  it("renders a long deferred run as ordinary rows without loading it up front", () => {
+    const full = Array.from({ length: 13 }, (_, index) => makeFileChangeItem(`file-${index}`));
+    mockDetails(full);
+    renderDeferredGroup(full.map(deferred));
+
+    expandGroup(/13 edits:/i);
+
+    expect(acquireHistoryItemDetails).not.toHaveBeenCalled();
+    expect(editRowButtons()).toHaveLength(13);
   });
 });

@@ -1,0 +1,12 @@
+diff --git a/packages/tui/tsconfig.json b/packages/tui/tsconfig.json
+index c7eaa1c..1d688de 100644
+--- a/packages/tui/tsconfig.json
++++ b/packages/tui/tsconfig.json
+@@ -9,5 +9,6 @@
+     "noUncheckedIndexedAccess": false,
+     "noUnusedLocals": true
+   },
+-  "references": [{ "path": "../core" }]
++  "references": [{ "path": "../core" }],
++  "include": ["src", "../../../src/dev/simulation-frontend.d.ts"]
+ }

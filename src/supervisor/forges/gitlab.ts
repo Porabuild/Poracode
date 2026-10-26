@@ -3,9 +3,9 @@ import type {
   ForgeEditPrPayload,
   ForgeEditPrCommentPayload,
   ForgeRepository,
+  ForgeReviewerRef,
   GhCreatePrPayload,
   GhGetPrDetailsResult,
-  PrAuthor,
   PrComment,
   PrData,
   PrMergeMethod,
@@ -15,6 +15,23 @@ import type {
   PullRequestSummary,
 } from "@/shared/contracts";
 import { ForgeApi, ForgeHttpError } from "./api";
+import {
+  gitlabAuthor as author,
+  gitlabLabels,
+  gitlabReactions,
+  gitlabReviewers,
+  gitlabTimeline,
+  gitlabUnifiedDiff,
+} from "./gitlabMetadata";
+import {
+  gitlabLabelCandidates,
+  gitlabReact,
+  gitlabRequestReviewers,
+  gitlabReviewerCandidates,
+  gitlabSetLabels,
+  gitlabSubmitDraft,
+  type GitLabTarget,
+} from "./gitlabWrites";
 import {
   assertHead,
   checksStatus,
@@ -29,13 +46,10 @@ import {
   type ForgeReviewAdapter,
 } from "./types";
 
-const author = (raw: unknown): PrAuthor => {
-  const r = object(raw);
-  return {
-    login: str(r.username) || str(r.name),
-    ...(str(r.avatar_url) ? { avatarUrl: str(r.avatar_url) } : {}),
-  };
-};
+const LIST_STATES = { open: "opened", all: "all", closed: "closed", merged: "merged" } as const;
+const DRAFT_PREFIX = /^(?:draft:|wip:|\[draft\]|\(draft\))\s*/i;
+/** Newest comments whose award emoji `details()` reads; each one costs a request. */
+const COMMENT_REACTION_LIMIT = 20;
 function comment(r: ApiObject): PrComment {
   return {
     id: String(r.id),
@@ -131,11 +145,17 @@ export class GitLabReview implements ForgeReviewAdapter {
       reviewRequested: rows(r.reviewers).some(
         (user) => str(user.username) === this.source.account?.login,
       ),
+      ...(Array.isArray(r.labels) ? { labels: gitlabLabels(r.labels) } : {}),
     };
   }
-  async list(state: "open" | "all", branch?: string): Promise<PullRequestSummary[]> {
+  async list(
+    state: "open" | "all" | "closed" | "merged",
+    branch?: string,
+  ): Promise<PullRequestSummary[]> {
+    // GitLab's "closed" state already excludes merged requests.
     const q = new URLSearchParams({
-      state: state === "open" ? "opened" : "all",
+      state: LIST_STATES[state],
+      with_labels_details: "true",
       per_page: "100",
       order_by: "updated_at",
       sort: "desc",
@@ -191,24 +211,57 @@ export class GitLabReview implements ForgeReviewAdapter {
             notes.some((n) => n.resolvable === true) &&
             notes.filter((n) => n.resolvable === true).every((n) => n.resolved === true),
           isOutdated: first.position !== null && Boolean(first.position) && !position.head_sha,
-          ...(str(position.new_path) ? { path: str(position.new_path) } : {}),
-          ...(num(position.new_line) ? { line: num(position.new_line) } : {}),
+          ...(str(position.new_path) || str(position.old_path)
+            ? { path: str(position.new_path) || str(position.old_path) }
+            : {}),
+          // A removed line has only `old_line`; a context line has both and is drawn on the new side.
+          ...(num(position.new_line)
+            ? { line: num(position.new_line), side: "RIGHT" }
+            : num(position.old_line)
+              ? { line: num(position.old_line), side: "LEFT" }
+              : {}),
           comments: notes.map(comment),
         };
       });
   }
   async details(number: number): Promise<GhGetPrDetailsResult> {
-    const [r, notes, commits, files, checks, approvals] = await Promise.all([
-      this.api.json(this.path(number)),
-      this.api.list(`${this.path(number)}/notes?per_page=100&sort=asc`),
-      this.api.list(`${this.path(number)}/commits?per_page=100`),
-      this.files(number),
-      this.checks(number),
-      this.api.json(`${this.path(number)}/approvals`).catch((error): ApiObject => {
-        if (error instanceof ForgeHttpError && error.status === 404) return {};
-        throw error;
-      }),
-    ]);
+    // Label details, events, and award emoji are optional: a failed read leaves the field absent.
+    const optional = <T>(read: Promise<T>) => read.catch(() => undefined);
+    const [r, notes, commits, files, checks, approvals, labeled, stateEvents, labelEvents, awards] =
+      await Promise.all([
+        this.api.json(this.path(number)),
+        this.api.list(`${this.path(number)}/notes?per_page=100&sort=asc`),
+        this.api.list(`${this.path(number)}/commits?per_page=100`),
+        this.files(number),
+        this.checks(number),
+        this.api.json(`${this.path(number)}/approvals`).catch((error): ApiObject => {
+          if (error instanceof ForgeHttpError && error.status === 404) return {};
+          throw error;
+        }),
+        // The single-request endpoint returns label names only; the list endpoint adds details.
+        optional(this.api.value(`${this.path()}?iids[]=${number}&with_labels_details=true`)),
+        optional(this.api.list(`${this.path(number)}/resource_state_events?per_page=100`)),
+        optional(this.api.list(`${this.path(number)}/resource_label_events?per_page=100`)),
+        optional(this.api.list(`${this.path(number)}/award_emoji?per_page=100`)),
+      ]);
+    const viewer = this.source.account?.login;
+    const comments = notes.filter((n) => n.system !== true && !n.position).map(comment);
+    const commentAwards = await Promise.all(
+      comments.map((c, index) =>
+        index < comments.length - COMMENT_REACTION_LIMIT
+          ? Promise.resolve(undefined)
+          : optional(
+              this.api.list(
+                `${this.path(number)}/notes/${encodeURIComponent(c.id)}/award_emoji?per_page=100`,
+              ),
+            ),
+      ),
+    );
+    for (const [index, c] of comments.entries()) {
+      const awarded = commentAwards[index];
+      if (awarded) c.reactions = gitlabReactions(awarded, viewer);
+    }
+    const labelDetails = rows(labeled).find((m) => m.iid === number);
     const reviews: PrReviewSummary[] = rows(approvals.approved_by).map((a) => {
       const user = object(a.user);
       return {
@@ -225,6 +278,9 @@ export class GitLabReview implements ForgeReviewAdapter {
       pr.reviewDecision = "REVIEW_REQUIRED";
       pr.mergeStateStatus = "BLOCKED";
     }
+    const createdAt = str(r.created_at),
+      mergedAt = str(r.merged_at) || null,
+      closedAt = str(r.closed_at) || null;
     return {
       pr,
       details: {
@@ -238,9 +294,9 @@ export class GitLabReview implements ForgeReviewAdapter {
         additions: files.reduce((a, f) => a + f.additions, 0),
         deletions: files.reduce((a, f) => a + f.deletions, 0),
         changedFiles: files.length,
-        createdAt: str(r.created_at),
-        mergedAt: str(r.merged_at) || null,
-        closedAt: str(r.closed_at) || null,
+        createdAt,
+        mergedAt,
+        closedAt,
         commits: commits.map((c) => ({
           oid: str(c.id),
           abbreviatedOid: str(c.short_id),
@@ -250,9 +306,29 @@ export class GitLabReview implements ForgeReviewAdapter {
           author: { login: str(c.author_name) },
           url: str(c.web_url),
         })),
-        comments: notes.filter((n) => n.system !== true && !n.position).map(comment),
+        comments,
         reviews,
         checks,
+        labels: gitlabLabels(labelDetails ? labelDetails.labels : r.labels),
+        // GitLab keeps reviewers listed after they review; all listed reviewers stay requested.
+        requestedReviewers: gitlabReviewers(r.reviewers),
+        ...(stateEvents && labelEvents
+          ? {
+              timeline: gitlabTimeline({
+                createdAt,
+                author: author(r.author),
+                mergedAt,
+                mergedBy: str(object(r.merge_user ?? r.merged_by).username)
+                  ? author(r.merge_user ?? r.merged_by)
+                  : null,
+                closedAt,
+                stateEvents,
+                labelEvents,
+                notes,
+              }),
+            }
+          : {}),
+        ...(awards ? { reactions: gitlabReactions(awards, viewer) } : {}),
       },
     };
   }
@@ -307,18 +383,54 @@ export class GitLabReview implements ForgeReviewAdapter {
       should_remove_source_branch: false,
     });
   }
-  async setState(number: number, state: "closed" | "open" | "ready") {
-    const r = state === "ready" ? await this.api.json(this.path(number)) : null;
-    await this.api.json(
-      this.path(number),
-      "PUT",
-      r
-        ? { title: str(r.title).replace(/^(?:draft:|wip:|\[draft\]|\(draft\))\s*/i, "") }
-        : { state_event: state === "open" ? "reopen" : "close" },
-    );
+  async setState(number: number, state: "closed" | "open" | "ready" | "draft") {
+    if (state === "closed" || state === "open") {
+      await this.api.json(this.path(number), "PUT", {
+        state_event: state === "open" ? "reopen" : "close",
+      });
+      return;
+    }
+    // GitLab's draft status is the title prefix.
+    const r = await this.api.json(this.path(number));
+    const title = str(r.title);
+    if (state === "ready") {
+      await this.api.json(this.path(number), "PUT", { title: title.replace(DRAFT_PREFIX, "") });
+      return;
+    }
+    if (r.draft === true || r.work_in_progress === true || DRAFT_PREFIX.test(title)) return;
+    await this.api.json(this.path(number), "PUT", { title: `Draft: ${title}` });
   }
   async updateBranch(number: number, rebase: boolean) {
     if (!rebase) unsupported(this.source);
     await this.api.json(`${this.path(number)}/rebase`, "PUT");
+  }
+  private target(number?: number): GitLabTarget {
+    return { api: this.api, source: this.source, project: this.project, review: this.path(number) };
+  }
+  labelCandidates() {
+    return gitlabLabelCandidates(this.target());
+  }
+  setLabels(number: number, add: string[], remove: string[]) {
+    return gitlabSetLabels(this.target(number), add, remove);
+  }
+  reviewerCandidates(number: number, query?: string) {
+    return gitlabReviewerCandidates(this.target(number), query);
+  }
+  requestReviewers(number: number, add: ForgeReviewerRef[], remove: ForgeReviewerRef[]) {
+    return gitlabRequestReviewers(this.target(number), add, remove);
+  }
+  async commitDiff(number: number, commit: string) {
+    const files = await this.api.list(
+      `${this.project}/repository/commits/${encodeURIComponent(commit)}/diff?per_page=100`,
+    );
+    if (files.some((r) => r.too_large === true || r.collapsed === true))
+      throw new Error(msg("forge.diffUnavailable"));
+    return gitlabUnifiedDiff(files);
+  }
+  react(number: number, subjectId: string | undefined, content: string, reacted: boolean) {
+    return gitlabReact(this.target(number), subjectId, content, reacted);
+  }
+  submitDraft(number: number, input: Parameters<typeof gitlabSubmitDraft>[1]) {
+    return gitlabSubmitDraft(this.target(number), input);
   }
 }

@@ -1,0 +1,12 @@
+{
+  "name": "@opencode/simulation",
+  "version": "2.1.4",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./protocol": "./src/protocol/index.ts"
+  },
+  "dependencies": {
+    "@opencode/protocol": "workspace:*"
+  }
+}

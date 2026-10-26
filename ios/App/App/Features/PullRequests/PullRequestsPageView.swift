@@ -281,6 +281,9 @@ struct PullRequestsPageView: View {
         .font(.caption)
         .foregroundStyle(.secondary)
         .lineLimit(1)
+        if !entry.summary.labels.isEmpty {
+          PullRequestLabelFlow(labels: entry.summary.labels, limit: 3)
+        }
       }
       Spacer(minLength: 8)
       VStack(alignment: .trailing, spacing: 4) {

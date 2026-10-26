@@ -38,5 +38,6 @@
     "lingui.config.ts",
     "vitest.config.ts",
     "vitest.integration.config.ts"
-  ]
+  ],
+  "exclude": ["tui/**"]
 }

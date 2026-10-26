@@ -49,6 +49,21 @@ reports genuinely land after `end_turn`, so the wait is bounded, not zero.
 
 ## Devin
 
+- Exec input streams after the call opens, and commands run in Poracode-hosted
+  terminals without content references; the adapter declares
+  `attribute-on-create` correlation and annotates its `Exited with code N`
+  completion status.
+- Tool-call normalization turns read line summaries into lazy file reads,
+  supplies image paths, suppresses the question-call duplicate, and appends
+  web-search URLs from metadata.
+- Fusion sidekick activity arrives without a handoff tool call: its tool calls
+  carry `cognition.ai/sidekick: true`, and its unmarked todo `plan` update renders
+  inline in the lead transcript and replaces the lead's plan.
+- Devin's native goals map snapshot metadata to the shared goal item and split
+  continuation messages. Resume and clear use prompts; pause interrupts the
+  active turn via `goalPauseInterruptsTurn`. Goal state is process-local;
+  no-goal replies clear a stale dock. The 50-turn auto-pause was not captured
+  live; a paused snapshot would display as Paused.
 - Terminal uses Smart permissions; structured Chat uses Bypass (Plan still
   selects the ACP plan mode). Signed-in ACP also advertises Smart; Bypass
   remains the requested GUI policy. The adapter declares a `resolveMode` hook

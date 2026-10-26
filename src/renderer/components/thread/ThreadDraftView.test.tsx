@@ -1660,7 +1660,7 @@ describe("ThreadDraftView", () => {
 
     render(<ThreadDraftView project={remoteProject} agentStatuses={[]} onStart={() => {}} />);
 
-    expect(screen.getByText("Connecting…")).toBeInTheDocument();
+    expect(screen.getByText("Connecting to host…")).toBeInTheDocument();
     expect(screen.queryByText("Connection error")).not.toBeInTheDocument();
     expect(screen.queryByText("No supported agents detected")).not.toBeInTheDocument();
   });
@@ -1688,7 +1688,7 @@ describe("ThreadDraftView", () => {
       <ThreadDraftView project={remoteProject} agentStatuses={[codexStatus]} onStart={onStart} />,
     );
 
-    expect(screen.queryByText("Connecting…")).not.toBeInTheDocument();
+    expect(screen.queryByText("Connecting to host…")).not.toBeInTheDocument();
     const composer = composerSpy.mock.lastCall?.[0] as { submitDisabled?: boolean };
     expect(composer.submitDisabled).toBe(true);
     fireEvent.click(screen.getByText("set-prompt"));

@@ -38,6 +38,7 @@ import { usePanelStore } from "@/renderer/state/panelStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { usePanelVisibility } from "@/renderer/views/MainView/parts/AppShell/parts/usePanelVisibility";
 import { ThreadDocksPanel } from "./ThreadDocksPanel";
+import { ThreadImagesBubble } from "./ThreadImagesBubble";
 import { ImageLightboxHost } from "@/renderer/components/composer/ImageLightbox";
 import {
   getThreadGalleryImages,
@@ -169,7 +170,7 @@ it("keeps layout and hidden dock consumers passive until the gallery is visible"
   await waitFor(() => expect(activation.client.fetchTicketedImageBytes).toHaveBeenCalledTimes(1));
 });
 
-it("requests pending full-resolution gallery images only while the thread lightbox is open", async () => {
+it("requests a pending full-resolution gallery image only when selected in the lightbox", async () => {
   const activation = createImageActivation();
   publishImageActivation(activation);
   installManagedImageRuntime();
@@ -180,11 +181,95 @@ it("requests pending full-resolution gallery images only while the thread lightb
   mountLightbox();
   expect(activation.client.fetchTicketedImageBytes).not.toHaveBeenCalled();
   act(() => openThreadGallery(collection.result.current.images, inline, 0, threadId));
+  expect(screen.getByText("1 / 2")).toBeInTheDocument();
+  expect(activation.client.fetchTicketedImageBytes).not.toHaveBeenCalled();
+  fireEvent.keyDown(window, { key: "ArrowRight" });
   await waitFor(() => expect(collection.result.current.images).toHaveLength(2));
   expect(activation.client.fetchTicketedImageBytes).toHaveBeenCalledTimes(1);
-  fireEvent.keyDown(window, { key: "ArrowRight" });
   expect(screen.getByRole("img")).toHaveAttribute("src", "blob:managed-image-1");
 });
+
+it.each(["managed", "browser", "attached Electron"] as const)(
+  "navigates all 66 %s images with a full cache and reloads evicted originals",
+  async (surface) => {
+    const activation = createImageActivation(async (path) => {
+      const url = new URL(path, "http://fixture");
+      const id = Number(url.pathname.match(/ref-(\d+)/)?.[1] ?? 0);
+      return {
+        ...imageBytes,
+        bytes: new Uint8Array([id, url.searchParams.has("variant") ? 1 : 0]),
+      };
+    });
+    publishImageActivation(activation);
+    const host = installManagedImageRuntime();
+    if (surface !== "managed") {
+      installRemoteImageRuntime(surface, host);
+      setRemoteBridgeClient(activation.client, null);
+    }
+    seedThread();
+    const refs = Array.from({ length: 65 }, (_, index) => ({ ...hostRef, itemId: `ref-${index}` }));
+    useAppStore.setState((state) => ({
+      runtimeItemIdsByThread: { [threadId]: [...refs.map((ref) => ref.itemId), "inline-first"] },
+      runtimeItemsByIdByThread: {
+        [threadId]: {
+          "inline-first": state.runtimeItemsByIdByThread[threadId]!["inline-first"]!,
+          ...Object.fromEntries(
+            refs.map((ref) => [
+              ref.itemId,
+              {
+                id: ref.itemId,
+                type: "image_view" as const,
+                state: "completed" as const,
+                streams: {},
+                payload: { images: [remoteImageRef(ref)] },
+              },
+            ]),
+          ),
+        },
+      },
+    }));
+    const readiness =
+      surface === "managed"
+        ? readManagedLoopbackImageSession()!.readiness
+        : getRemoteBridgeImageReadiness()!;
+    for (const ref of refs.slice(0, 64)) readiness.requestRef(ref, "foreground", "card");
+    await waitFor(() => expect(createObjectUrl).toHaveBeenCalledTimes(64));
+    const collection = renderHook(() =>
+      useThreadGalleryCollection(threadId, { requestPending: false }),
+    );
+    expect(collection.result.current.images).toHaveLength(1);
+    expect(collection.result.current.pendingRemoteRefs).toHaveLength(65);
+    render(
+      <AppProvider>
+        <ThreadImagesBubble threadId={threadId} />
+      </AppProvider>,
+    );
+    expect(document.querySelector("[data-images-bubble]")).toHaveTextContent("66");
+    mountLightbox();
+    act(() => openThreadGallery(collection.result.current.images, inline, 0, threadId));
+    expect(screen.getByText("1 / 66")).toBeInTheDocument();
+    expect(activation.client.fetchTicketedImageBytes).toHaveBeenCalledTimes(64);
+    for (let index = 0; index < 65; index++) {
+      fireEvent.keyDown(window, { key: "ArrowRight" });
+      expect(screen.getByText(`${index + 2} / 66`)).toBeInTheDocument();
+      await waitFor(() =>
+        expect(screen.getByRole("img")).toHaveAttribute("src", `blob:managed-image-${65 + index}`),
+      );
+    }
+    fireEvent.keyDown(window, { key: "ArrowRight" });
+    expect(screen.getByRole("img")).toHaveAttribute("src", inline);
+    fireEvent.keyDown(window, { key: "ArrowRight" });
+    await waitFor(() =>
+      expect(screen.getByRole("img")).toHaveAttribute("src", "blob:managed-image-130"),
+    );
+    expect(screen.getByText("2 / 66")).toBeInTheDocument();
+    expect(activation.client.fetchTicketedImageBytes).toHaveBeenCalledTimes(130);
+    expect(document.querySelector("[data-images-bubble]")).toHaveTextContent("66");
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).toBeNull();
+  },
+  15_000,
+);
 
 it("retries a failed gallery download after the existing backoff expires", async () => {
   vi.useFakeTimers();
@@ -270,6 +355,12 @@ it("updates a mounted gallery and lightbox with every image from one tool row", 
   expect(result.current.map((image) => image.src)).toEqual([inline]);
   expect(activation.client.fetchTicketedImageBytes).toHaveBeenCalledTimes(2);
   mountLightbox();
+  render(
+    <AppProvider>
+      <ThreadImagesBubble threadId={threadId} />
+      <ThreadDocksPanel threadId={threadId} visible={false} />
+    </AppProvider>,
+  );
   act(() => openThreadGallery(result.current, inline, 0, threadId));
   await act(async () => held.resolve(imageBytes));
   await waitFor(() =>
@@ -279,9 +370,41 @@ it("updates a mounted gallery and lightbox with every image from one tool row", 
   expect(createObjectUrl).toHaveBeenCalledOnce();
   expect(activation.client.fetchTicketedImageBytes).toHaveBeenCalledTimes(2);
   expect(getThreadGalleryImages(threadId)).toBe(result.current);
+  expect(document.querySelector("[data-images-bubble]")).toHaveTextContent("3");
+  expect(document.querySelector("[data-images-dock]")).toHaveTextContent("3");
+  expect(screen.getByText("2 / 3")).toBeInTheDocument();
   expect(screen.getByRole("img")).toHaveAttribute("src", inline);
   fireEvent.click(screen.getByRole("button", { name: "Previous image" }));
   expect(screen.getByRole("img")).toHaveAttribute("src", "blob:managed-image-1");
+  fireEvent.click(screen.getByRole("button", { name: "Expand images" }));
+  fireEvent.click(screen.getByRole("button", { name: "Open image 3 of 3" }));
+  expect(screen.getByText("3 / 3")).toBeInTheDocument();
+});
+
+it("retains pending browser attachments and project-relative markdown in lightbox order", async () => {
+  const held = Promise.withResolvers<RemoteEnvironmentImageBytes>();
+  const activation = createImageActivation(() => held.promise);
+  const host = installManagedImageRuntime();
+  installRemoteImageRuntime("browser", host);
+  setRemoteBridgeClient(activation.client, null);
+  seedThread();
+  addLocalPathItems();
+  const gallery = getThreadGalleryImages(threadId, { lightbox: true });
+  expect(gallery.map((image) => image.resource?.key ?? image.src)).toEqual([
+    "path:/fixture/images/native.png",
+    "path:/tmp/local.png",
+    inline,
+    'ref:managed-gallery/ref-only/["images",0]',
+  ]);
+  expect(activation.client.fetchTicketedImageBytes).not.toHaveBeenCalled();
+  mountLightbox();
+  act(() => openThreadGallery(gallery, undefined, 1, threadId));
+  expect(screen.getByText("2 / 4")).toBeInTheDocument();
+  expect(screen.getByRole("status")).toHaveTextContent("Loading…");
+  expect(activation.client.fetchTicketedImageBytes).toHaveBeenCalledTimes(1);
+  await act(async () => held.resolve(imageBytes));
+  expect(screen.getByRole("img")).toHaveAttribute("src", "blob:managed-image-1");
+  expect(screen.getByText("2 / 4")).toBeInTheDocument();
 });
 
 it.each(["project", HOME_PROJECT_ID])(
@@ -298,7 +421,7 @@ it.each(["project", HOME_PROJECT_ID])(
     expect(getThreadGalleryImages(threadId)).toBe(result.current);
     mountLightbox();
     act(() => openThreadGallery(result.current, inline, 0, threadId));
-    expect(screen.queryByRole("button", { name: "Next image" })).toBeNull();
+    expect(screen.getByText("1 / 2")).toBeInTheDocument();
     await act(async () => held.resolve(imageBytes));
     await waitFor(() =>
       expect(result.current.map((image) => image.src)).toEqual([inline, "blob:managed-image-1"]),
@@ -383,9 +506,9 @@ it("rebuilds a fully-ready lightbox and click-time cache on reset with the same 
   expect(revokeObjectUrl).toHaveBeenCalledWith("blob:managed-image-1");
   expect(activation.client.fetchTicketedImageBytes).toHaveBeenCalledTimes(2);
   expect(getThreadGalleryImages(threadId)).toBe(result.current);
-  expect(screen.getByRole("img")).not.toHaveAttribute("src", "blob:managed-image-1");
-  fireEvent.click(screen.getByRole("button", { name: "Next image" }));
   expect(screen.getByRole("img")).toHaveAttribute("src", "blob:managed-image-2");
+  fireEvent.click(screen.getByRole("button", { name: "Next image" }));
+  expect(screen.getByRole("img")).toHaveAttribute("src", inline);
 });
 
 it("invalidates click-time custody without a mounted gallery or an incidental store update", async () => {
@@ -652,22 +775,28 @@ it("refreshes a fully-ready gallery and open lightbox on ordinary cache eviction
   act(() => openThreadGallery(result.current, result.current[1]!.src, 0, threadId));
   expect(screen.getByRole("img")).toHaveAttribute("src", "blob:managed-image-1");
   const readiness = readManagedLoopbackImageSession()!.readiness;
-  act(() => {
-    for (let index = 0; index < 64; index++)
-      readiness.requestRef({ ...hostRef, itemId: `pressure-${index}` });
-  });
-  await waitFor(() => expect(result.current.map((image) => image.src)).toEqual([inline]));
-  expect(getThreadGalleryImages(threadId)).toBe(result.current);
-  expect(screen.getByRole("img")).toHaveAttribute("src", inline);
-  expect(revokeObjectUrl).toHaveBeenCalledWith("blob:managed-image-1");
-  expect(useAppStore.getState().runtimeItemsByIdByThread).toBe(slices);
-  // The evicted coordinate remains latched; gallery invalidation cannot drive
-  // a refetch loop merely because the producer's data has not changed.
-  expect(
-    vi
-      .mocked(activation.client.fetchTicketedImageBytes)
-      .mock.calls.filter(([path]) => path.includes("/items/ref-only/")),
-  ).toHaveLength(1);
+  vi.useFakeTimers();
+  try {
+    act(() => {
+      for (let index = 0; index < 64; index++)
+        readiness.requestRef({ ...hostRef, itemId: `pressure-${index}` });
+    });
+    expect(screen.getByText("2 / 2")).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("Loading…");
+    await act(async () => vi.advanceTimersByTimeAsync(15_000));
+    expect(screen.getByRole("img")).toHaveAttribute("src", "blob:managed-image-2");
+    expect(getThreadGalleryImages(threadId)).toBe(result.current);
+    expect(revokeObjectUrl).toHaveBeenCalledWith("blob:managed-image-1");
+    expect(useAppStore.getState().runtimeItemsByIdByThread).toBe(slices);
+    // Foreground eviction keeps its backoff, then reloads the same selection.
+    expect(
+      vi
+        .mocked(activation.client.fetchTicketedImageBytes)
+        .mock.calls.filter(([path]) => path.includes("/items/ref-only/")),
+    ).toHaveLength(2);
+  } finally {
+    vi.useRealTimers();
+  }
 });
 
 it.each(["managed", "browser", "attached Electron"] as const)(

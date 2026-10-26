@@ -57,7 +57,7 @@ export default defineConfig({
     // the sharded unit suite — sibling shard workers contend for the same
     // cores and flip the budgets. They are collected by vitest.perf.config.ts
     // and run via the `test:perf:*` scripts / the dedicated CI perf job.
-    exclude: ["dist", "node_modules", "**/*.perf.test.ts"],
+    exclude: ["dist", "node_modules", "tui/**", "**/*.perf.test.ts"],
     projects: [
       rendererProject({
         name: "renderer",

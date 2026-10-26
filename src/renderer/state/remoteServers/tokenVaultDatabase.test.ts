@@ -1,6 +1,7 @@
 import { IDBFactory } from "fake-indexeddb";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TokenVaultDatabase, TOKEN_VAULT_OPERATION_TIMEOUT_MS } from "./tokenVaultDatabase";
+import { throwFromResult, webKitKeyRestoreError } from "./webKitResultFailure.testFixtures";
 
 const DATABASE_NAME = "lightcode-mobile-vault";
 let vault: TokenVaultDatabase;
@@ -224,6 +225,24 @@ describe("bounded token-vault database", () => {
       expect(vi.getTimerCount()).toBe(0);
     },
   );
+
+  it("fails a read whose result getter throws without letting the handler throw", async () => {
+    const restoreFailure = webKitKeyRestoreError();
+    const escaped: unknown[] = [];
+    await vault.request("readwrite", "write", (store) =>
+      store.put({ key: "cryptoKey", secret: "original" }),
+    );
+    const result = vault.request("readonly", "read", (store) => {
+      const request = store.get("cryptoKey");
+      throwFromResult(request, restoreFailure, escaped);
+      return request;
+    });
+    await expect(result).rejects.toBe(restoreFailure);
+    expect(escaped).toEqual([]);
+    expect(invalidated).toHaveBeenCalledTimes(1);
+    expect(vi.getTimerCount()).toBe(0);
+    expect(await readValue("cryptoKey")).toEqual({ key: "cryptoKey", secret: "original" });
+  });
 
   it("rejects a readonly transaction abort rather than returning a missing key", async () => {
     const result = vault.request("readonly", "read", (store) => {

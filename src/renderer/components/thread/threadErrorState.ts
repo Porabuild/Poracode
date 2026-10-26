@@ -24,6 +24,15 @@ const errorDockStatesCache = new Map<
 
 const errorDockStateByItem = new WeakMap<RuntimeChatItem, ThreadErrorDockState>();
 
+/** A thread whose status is `error` must explain itself without a transient error item. */
+export function withThreadStatusErrorDock(
+  itemStates: ThreadErrorDockState[],
+  statusError: ThreadErrorDockState | null,
+): ThreadErrorDockState[] {
+  if (!statusError || itemStates.some((state) => state.severity !== "warning")) return itemStates;
+  return [...itemStates, statusError];
+}
+
 /** Errors since the latest user message, oldest → newest (composer order). */
 export function selectThreadErrorDockStates(
   state: AppStoreState,
