@@ -123,6 +123,9 @@ import { ComposerInfoChips } from "@/renderer/components/mobileComposer/Composer
 import { revertedPromptToDraft, useRevertedPromptStore } from "./revertedPrompt";
 import { usePromptRecall } from "./usePromptRecall";
 
+/** Breathing room between the last transcript row and the floating dock. */
+const COMPOSER_DOCK_CLEARANCE_PX = 12;
+
 type ThreadComposerSectionProps = {
   threadId: string;
   fallbackThread: Thread;
@@ -145,6 +148,8 @@ type ThreadComposerSectionProps = {
   saveClipboardImage?: SaveClipboardImage | undefined;
   /** Optional surface-specific placeholder for the active-thread input. */
   composerPlaceholder?: string | undefined;
+  /** Compact only: space the collapsed floating dock covers above the pane bottom. */
+  onComposerInsetChange?: ((inset: number) => void) | undefined;
   /**
    * Override whether unmodified Enter submits instead of inserting a newline.
    * Defaults to submit on desktop (Electron and desktop PWA) and newline on
@@ -190,7 +195,7 @@ function AdaptiveThreadComposerDock(props: {
   summary?: ReactNode;
   inputHasContent?: boolean;
   expansionLocked?: boolean;
-  onDockHeightChange?: (height: number) => void;
+  onDockHeightChange?: (height: number, bottomOffset: number) => void;
   onExpandedChange: (expanded: boolean) => void;
 }) {
   if (!props.compact) return props.children;
@@ -1026,10 +1031,17 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
             collapsedTapLabel={resumeUnavailableMessage ?? t`Send a message...`}
             inputHasContent={hasContent}
             expansionLocked={activeRuntimeRequest !== undefined}
-            onDockHeightChange={(height) => {
+            onDockHeightChange={(height, bottomOffset) => {
               const pane = composerSectionRef.current?.closest("[data-poracode-thread-pane]");
               if (pane instanceof HTMLElement) {
                 pane.style.setProperty("--m-thread-bubble-height", `${height}px`);
+              }
+              // The expanded composer sits over a scrim; only the resting dock
+              // decides how far the transcript must scroll past it.
+              if (isComposerCollapsed) {
+                props.onComposerInsetChange?.(
+                  Math.ceil(height + bottomOffset + COMPOSER_DOCK_CLEARANCE_PX),
+                );
               }
             }}
             aboveBubble={

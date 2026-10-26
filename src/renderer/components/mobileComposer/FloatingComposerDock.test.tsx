@@ -345,6 +345,50 @@ describe("FloatingComposerDock", () => {
     }
   });
 
+  it("reports the dock height with its resolved bottom offset", () => {
+    const observed: { callback: ResizeObserverCallback; target: Element }[] = [];
+    globalThis.ResizeObserver = class ResizeObserver {
+      constructor(private readonly callback: ResizeObserverCallback) {}
+      observe(target: Element) {
+        observed.push({ callback: this.callback, target });
+      }
+      unobserve() {}
+      disconnect() {}
+    };
+    const onDockHeightChange = vi.fn<(height: number, bottomOffset: number) => void>();
+    render(
+      <FloatingComposerDock
+        keyboardKey="thread-1"
+        expanded={false}
+        scrimLabel="Close composer"
+        collapsedTapLabel="Open composer"
+        onExpandedChange={() => {}}
+        onDockHeightChange={onDockHeightChange}
+      >
+        <div />
+      </FloatingComposerDock>,
+    );
+    const dock = document.querySelector<HTMLElement>(".m-compose-dock");
+    expect(dock).not.toBeNull();
+    dock!.style.bottom = "18px";
+    const dockObserver = observed.find((entry) => entry.target === dock);
+    expect(dockObserver).toBeDefined();
+
+    act(() => {
+      dockObserver!.callback(
+        [
+          {
+            borderBoxSize: [{ blockSize: 96, inlineSize: 320 }],
+            target: dock,
+          } as unknown as ResizeObserverEntry,
+        ],
+        {} as ResizeObserver,
+      );
+    });
+
+    expect(onDockHeightChange).toHaveBeenLastCalledWith(96, 18);
+  });
+
   it("expands a controlled dock when the composer gains focus natively (mouse)", () => {
     render(<ControlledDockHarness />);
     const input = screen.getByRole("textbox", { name: "Composer input" });

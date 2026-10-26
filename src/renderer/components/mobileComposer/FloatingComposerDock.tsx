@@ -83,7 +83,7 @@ export function FloatingComposerDock(props: {
    * the info chips) clear of the composer. Covers `aboveBubble` too — chrome
    * anchored to this height must clear the whole dock, not just the bubble.
    */
-  readonly onDockHeightChange?: ((height: number) => void) | undefined;
+  readonly onDockHeightChange?: ((height: number, bottomOffset: number) => void) | undefined;
 }) {
   const dockRef = useRef<HTMLDivElement | null>(null);
   const bubbleRef = useRef<HTMLDivElement | null>(null);
@@ -295,7 +295,11 @@ export function FloatingComposerDock(props: {
     if (!onDockHeightChange || !dock) return;
     const observer = new ResizeObserver((entries) => {
       const entry = entries[entries.length - 1];
-      if (entry) onDockHeightChange(entry.borderBoxSize?.[0]?.blockSize ?? dock.offsetHeight);
+      if (!entry) return;
+      onDockHeightChange(
+        entry.borderBoxSize?.[0]?.blockSize ?? dock.offsetHeight,
+        Number.parseFloat(getComputedStyle(dock).bottom) || 0,
+      );
     });
     observer.observe(dock);
     return () => observer.disconnect();

@@ -491,6 +491,7 @@ describe("ThreadComposerSection", () => {
     onOpenProjectRelativePath?: (path: string, lineNumber?: number) => void;
     saveClipboardImage?: SaveClipboardImage;
     pickFiles?: () => Promise<string[] | null>;
+    onComposerInsetChange?: (inset: number) => void;
   }) {
     const thread = opts?.thread ?? guiThread;
     const agentStatus = opts?.agentStatus ?? codexGuiStatus;
@@ -518,6 +519,9 @@ describe("ThreadComposerSection", () => {
           : {})}
         {...(opts?.saveClipboardImage ? { saveClipboardImage: opts.saveClipboardImage } : {})}
         {...(opts?.pickFiles ? { pickFiles: opts.pickFiles } : {})}
+        {...(opts?.onComposerInsetChange
+          ? { onComposerInsetChange: opts.onComposerInsetChange }
+          : {})}
         onTodoDockCollapsedChange={() => undefined}
       />
     );
@@ -533,6 +537,7 @@ describe("ThreadComposerSection", () => {
     onOpenProjectRelativePath?: (path: string, lineNumber?: number) => void;
     saveClipboardImage?: SaveClipboardImage;
     pickFiles?: () => Promise<string[] | null>;
+    onComposerInsetChange?: (inset: number) => void;
   }) {
     const onSubmitInput =
       opts?.onSubmitInput ??
@@ -1239,6 +1244,62 @@ describe("ThreadComposerSection", () => {
     expect(dock).toHaveAttribute("data-expanded");
     fireEvent.click(screen.getByRole("button", { name: "Collapse composer" }));
     expect(dock).not.toHaveAttribute("data-expanded");
+  });
+
+  it("reports the resting compact dock as the transcript inset, ignoring the expanded composer", () => {
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn((query: string) => ({
+        media: query,
+        matches: query === "(max-width: 767px)",
+        onchange: null,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+        addListener: () => undefined,
+        removeListener: () => undefined,
+        dispatchEvent: () => true,
+      })),
+    );
+    const observed: { callback: ResizeObserverCallback; target: Element }[] = [];
+    vi.stubGlobal(
+      "ResizeObserver",
+      class ResizeObserver {
+        constructor(private readonly callback: ResizeObserverCallback) {}
+        observe(target: Element) {
+          observed.push({ callback: this.callback, target });
+        }
+        unobserve() {}
+        disconnect() {}
+      },
+    );
+    const onComposerInsetChange = vi.fn<(inset: number) => void>();
+    renderComposer({ onComposerInsetChange });
+    const input = screen.getByRole("textbox");
+    const dock = input.closest<HTMLElement>(".m-thread-compose-dock")!;
+    dock.style.bottom = "20px";
+    const resizeDock = (blockSize: number) => {
+      const latest = observed.filter((entry) => entry.target === dock).at(-1);
+      act(() => {
+        latest?.callback(
+          [
+            {
+              borderBoxSize: [{ blockSize, inlineSize: 360 }],
+              target: dock,
+            } as unknown as ResizeObserverEntry,
+          ],
+          {} as ResizeObserver,
+        );
+      });
+    };
+
+    resizeDock(100.4);
+    expect(onComposerInsetChange).toHaveBeenLastCalledWith(133);
+
+    fireEvent.focus(input);
+    expect(dock).toHaveAttribute("data-expanded");
+    onComposerInsetChange.mockClear();
+    resizeDock(320);
+    expect(onComposerInsetChange).not.toHaveBeenCalled();
   });
 
   it("collapses the compact floating dock after the canonical submit succeeds", async () => {

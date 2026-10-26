@@ -16,6 +16,7 @@ import { clearTimelineMeasurementCache } from "./timelineMeasurementCache";
 type MockLegendProps = {
   data: readonly ChatTimelineEntry[];
   dataKey: string;
+  contentInsetEndAdjustment?: number;
   drawDistance?: number;
   estimatedItemSize: number;
   getFixedItemSize: (item: ChatTimelineEntry, index: number, type: string) => number | undefined;
@@ -585,6 +586,19 @@ describe("MessageList", () => {
       expect(scrollElement.style.maskImage).toBe(scrollStyle?.maskImage ?? "");
     },
   );
+
+  it("passes an overlaying composer inset to LegendList's end-inset math", () => {
+    const view = render(<MessageList threadId="thread-1" entries={makeEntries(["item-1"])} />);
+    expect(
+      (latestLegendProps.current as MockLegendProps).contentInsetEndAdjustment,
+    ).toBeUndefined();
+
+    view.rerender(
+      <MessageList threadId="thread-1" entries={makeEntries(["item-1"])} bottomInset={140} />,
+    );
+
+    expect((latestLegendProps.current as MockLegendProps).contentInsetEndAdjustment).toBe(140);
+  });
 
   it("keeps long assistant rows out of short-message size estimates", () => {
     seedStartedItem("thread-1", "short", "assistant_message");
