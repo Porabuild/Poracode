@@ -3,13 +3,13 @@
   "contract": "poracode.remote",
   "protocolVersion": 14,
   "bindingFormatVersion": 2,
-  "manifestHash": "sha256:697d1251630bfff37cbf668d05b4780cb6891dd98a170da78827b02a4d5fbf27",
-  "keyCount": 324,
+  "manifestHash": "sha256:04e7aef5333301d068e6dab99291a51673b133fba8c315206a9b665b767137dc",
+  "keyCount": 337,
   "counts": {
-    "route": 118,
-    "procedure": 154,
-    "ws-client": 9,
-    "ws-server": 11,
+    "route": 119,
+    "procedure": 163,
+    "ws-client": 11,
+    "ws-server": 12,
     "replay": 16,
     "runtime": 16
   },
@@ -90,6 +90,10 @@
       "kind": "procedure",
       "id": "forgeClosePr"
     },
+    "procedure:forgeConvertPrToDraft": {
+      "kind": "procedure",
+      "id": "forgeConvertPrToDraft"
+    },
     "procedure:forgeCreatePr": {
       "kind": "procedure",
       "id": "forgeCreatePr"
@@ -105,6 +109,10 @@
     "procedure:forgeGetPrChecks": {
       "kind": "procedure",
       "id": "forgeGetPrChecks"
+    },
+    "procedure:forgeGetPrCommitDiff": {
+      "kind": "procedure",
+      "id": "forgeGetPrCommitDiff"
     },
     "procedure:forgeGetPrDetails": {
       "kind": "procedure",
@@ -138,6 +146,14 @@
       "kind": "procedure",
       "id": "forgeGetRepository"
     },
+    "procedure:forgeListPrLabelCandidates": {
+      "kind": "procedure",
+      "id": "forgeListPrLabelCandidates"
+    },
+    "procedure:forgeListPrReviewerCandidates": {
+      "kind": "procedure",
+      "id": "forgeListPrReviewerCandidates"
+    },
     "procedure:forgeListPrs": {
       "kind": "procedure",
       "id": "forgeListPrs"
@@ -145,6 +161,10 @@
     "procedure:forgeListPullRequests": {
       "kind": "procedure",
       "id": "forgeListPullRequests"
+    },
+    "procedure:forgeListPullRequestsInState": {
+      "kind": "procedure",
+      "id": "forgeListPullRequestsInState"
     },
     "procedure:forgeMarkPrReady": {
       "kind": "procedure",
@@ -166,13 +186,29 @@
       "kind": "procedure",
       "id": "forgeReopenPr"
     },
+    "procedure:forgeRequestPrReviewers": {
+      "kind": "procedure",
+      "id": "forgeRequestPrReviewers"
+    },
     "procedure:forgeSetPrFileViewed": {
       "kind": "procedure",
       "id": "forgeSetPrFileViewed"
     },
+    "procedure:forgeSetPrLabels": {
+      "kind": "procedure",
+      "id": "forgeSetPrLabels"
+    },
+    "procedure:forgeSetPrReaction": {
+      "kind": "procedure",
+      "id": "forgeSetPrReaction"
+    },
     "procedure:forgeSubmitPrReview": {
       "kind": "procedure",
       "id": "forgeSubmitPrReview"
+    },
+    "procedure:forgeSubmitPrReviewDraft": {
+      "kind": "procedure",
+      "id": "forgeSubmitPrReviewDraft"
     },
     "procedure:forgeUpdatePrBranch": {
       "kind": "procedure",
@@ -1082,6 +1118,10 @@
       "kind": "route",
       "id": "terminal-write"
     },
+    "route:thread-agent-vision": {
+      "kind": "route",
+      "id": "thread-agent-vision"
+    },
     "route:thread-checkpoint-revert": {
       "kind": "route",
       "id": "thread-checkpoint-revert"
@@ -1230,6 +1270,14 @@
       "kind": "runtime",
       "id": "warning"
     },
+    "ws-client:agent-vision-unwatch": {
+      "kind": "ws-client",
+      "id": "agent-vision-unwatch"
+    },
+    "ws-client:agent-vision-watch": {
+      "kind": "ws-client",
+      "id": "agent-vision-watch"
+    },
     "ws-client:browser-input": {
       "kind": "ws-client",
       "id": "browser-input"
@@ -1265,6 +1313,10 @@
     "ws-client:thread-item-interests": {
       "kind": "ws-client",
       "id": "thread-item-interests"
+    },
+    "ws-server:agent-vision-frame": {
+      "kind": "ws-server",
+      "id": "agent-vision-frame"
     },
     "ws-server:browser-frame": {
       "kind": "ws-server",

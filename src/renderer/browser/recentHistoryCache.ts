@@ -3,11 +3,13 @@ import {
   historyRuntimeItemSchema,
   type HistoryRuntimeItem,
 } from "@/shared/remote/historyPresentation";
+import { HISTORY_ITEMS_SOFT_PACK_WIRE_BYTES } from "@/shared/remote/historyReadContract";
 
 /** A separate v1 derived cache: never imports expanded/offline history records. */
 const DATABASE = "poracode-recent-history-v1";
 const STORE = "tails";
-export const RECENT_HISTORY_MAX_BYTES = 1024 * 1024;
+/** Follows the host's tail budget; an older build reads a larger record as a miss. */
+export const RECENT_HISTORY_MAX_BYTES = HISTORY_ITEMS_SOFT_PACK_WIRE_BYTES;
 const MAX_TOTAL_BYTES = 8 * RECENT_HISTORY_MAX_BYTES;
 const MAX_ENTRIES = 20;
 const recordSchema = z.object({

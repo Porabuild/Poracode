@@ -2293,17 +2293,63 @@ html[data-compact-layout] .m-back--with-title {
 
 /* Dedicated compact Git/files page. Keep all density and chrome changes inside
    this shell so the desktop docked panels retain their existing layout. */
-html[data-compact-layout] .m-mobile-workspace__tabs {
+html[data-compact-layout] :is(.m-mobile-workspace__tabs, .m-pr-tabs) {
   height: var(--m-tap-min);
 }
 
-html[data-compact-layout] .m-mobile-workspace__tabs [role="tab"] {
+html[data-compact-layout] :is(.m-mobile-workspace__tabs, .m-pr-tabs) [role="tab"] {
   min-height: calc(var(--m-tap-min) - 0.25rem);
   font-size: 0.8125rem;
 }
 
 html[data-compact-layout] .m-mobile-workspace__tabbar {
   padding-bottom: calc(0.5rem + env(safe-area-inset-bottom));
+}
+
+/* Pull-request detail: the whole review is one scroll, and the bottom row (Ask,
+   tabs, primary action) floats over it like the Usage page's controls. */
+html[data-compact-layout] .m-pr-scroll {
+  padding-bottom: calc(var(--m-floating-control-height) + 3rem + env(safe-area-inset-bottom));
+  scroll-padding-bottom: calc(
+    var(--m-floating-control-height) + 3rem + env(safe-area-inset-bottom)
+  );
+  overscroll-behavior: contain;
+  /* Nothing on this page may widen it sideways. */
+  overflow-x: hidden;
+}
+
+html[data-compact-layout] .m-pr-tabbar {
+  position: absolute;
+  right: var(--m-page-inline);
+  bottom: calc(0.75rem + env(safe-area-inset-bottom));
+  left: var(--m-page-inline);
+  z-index: 20;
+  pointer-events: none;
+}
+
+html[data-compact-layout] .m-pr-tabs [role="tab"] {
+  min-width: 0;
+}
+
+/* Pressing a segment must not rescale the pill (it reads as the tabs changing size). */
+html[data-compact-layout] .m-pr-tabs:active,
+html[data-compact-layout] .m-pr-tabs[data-pressed="true"] {
+  transform: none;
+}
+
+/* The shared mobile Select trigger is only styled inside Settings; here it is a
+   full-width field (commit scope, guide writer and model). */
+html[data-compact-layout] .m-pr-scroll .m-field-picker {
+  display: flex;
+  width: 100%;
+  min-height: 2.5rem;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: var(--m-list-row-radius);
+  background: var(--m-list-row-surface);
+  padding-inline: 0.75rem;
+  font-size: 0.8125rem;
+  text-align: left;
 }
 
 html[data-compact-layout] .m-mobile-file-editor__actions {
@@ -5056,6 +5102,13 @@ button.poracode-thread-mention-chip:active {
   background: color-mix(in oklab, var(--accent) 12%, var(--surface));
 }
 
+/* Display-only twin for rows that already sit inside a button. */
+.poracode-inline-path-chip--static,
+.poracode-inline-path-chip--static:hover {
+  cursor: inherit;
+  background: color-mix(in oklab, var(--accent) 12%, var(--surface));
+}
+
 .poracode-inline-path-chip__icon {
   width: 1em;
   height: 1em;
@@ -5195,6 +5248,19 @@ button.poracode-thread-mention-chip:active {
   overflow: hidden;
   cursor: var(--interactive-cursor);
   contain: layout paint;
+}
+
+.poracode-attachment-image-slot {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.poracode-attachment-image-preview .poracode-attachment-image-slot {
+  width: 100%;
+  height: 100%;
 }
 
 .poracode-attachment-image-preview img {
@@ -5901,6 +5967,17 @@ html[data-platform="darwin"][data-client-host="electron"] .poracode-sidebar-proj
 }
 .lc-chat-markdown li > p {
   margin: 0.05em 0;
+}
+/* GFM task lists: the checkbox replaces the bullet and sits on the text's centre line. */
+.lc-chat-markdown ul.contains-task-list {
+  list-style: none;
+  padding-left: 0.25em;
+}
+.lc-chat-markdown li.task-list-item > input[type="checkbox"] {
+  width: 0.9em;
+  height: 0.9em;
+  margin: 0 0.25em 0 0;
+  vertical-align: -0.12em;
 }
 .lc-chat-markdown li > ol,
 .lc-chat-markdown li > ul {

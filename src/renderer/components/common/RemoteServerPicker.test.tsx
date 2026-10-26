@@ -5,7 +5,7 @@ import { RemoteServerPicker } from "./RemoteServerPicker";
 
 type PickerStoreState = {
   servers: Array<{ desktopId: string; endpoint: string; label: string }>;
-  runtime: Record<string, { status: "online" }>;
+  runtime: Record<string, { status: "online" | "offline" }>;
 };
 
 const pickerState = vi.hoisted<PickerStoreState>(() => ({
@@ -105,6 +105,7 @@ describe("RemoteServerPicker", () => {
     pickerState.servers = [
       { desktopId: "desktop-1", endpoint: "https://desktop.test", label: "Mac Studio" },
     ];
+    pickerState.runtime = { "desktop-1": { status: "online" } };
     const onChange = vi.fn<(desktopId: string | null) => void>();
     const { rerender } = render(
       <RemoteServerPicker value={null} includeLocal opensUpward onChange={onChange} />,
@@ -130,6 +131,32 @@ describe("RemoteServerPicker", () => {
     );
     fireEvent.click(within(remoteMenu).getByRole("option", { name: "Local" }));
     expect(onChange).toHaveBeenLastCalledWith(null);
+  });
+
+  it("leaves offline machines out of the menu but keeps the selected one", async () => {
+    layout.compact = false;
+    pickerState.servers = [
+      { desktopId: "desktop-1", endpoint: "https://one.test", label: "Mac Studio" },
+      { desktopId: "desktop-2", endpoint: "https://two.test", label: "MacBook 16" },
+      { desktopId: "desktop-3", endpoint: "https://three.test", label: "Mac mini" },
+    ];
+    pickerState.runtime = {
+      "desktop-1": { status: "online" },
+      "desktop-2": { status: "offline" },
+    };
+    render(
+      <RemoteServerPicker
+        value="desktop-3"
+        includeLocal
+        onChange={vi.fn<(desktopId: string | null) => void>()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Connections" }));
+    const menu = await screen.findByRole("listbox", { name: "Connections" });
+    expect(within(menu).getByRole("option", { name: "Mac Studio" })).toBeInTheDocument();
+    expect(within(menu).getByRole("option", { name: "Mac mini" })).toBeInTheDocument();
+    expect(within(menu).queryByRole("option", { name: "MacBook 16" })).not.toBeInTheDocument();
   });
 
   it("keeps the compact sheet and its selected machine state", async () => {

@@ -316,7 +316,16 @@ describe("sharedSettingsFile", () => {
       agentInstances: {},
       collapseTerminalComposer: false,
       threadDocksPlacement: "composer",
-      threadDocksOrder: ["goal", "plan", "agents", "backgroundTasks", "images", "context", "usage"],
+      threadDocksOrder: [
+        "goal",
+        "plan",
+        "agents",
+        "backgroundTasks",
+        "images",
+        "vision",
+        "context",
+        "usage",
+      ],
       cliPickerTarget: "ask",
       staleThreadUnloadMinutes: 20,
       autoArchiveDoneAfterDays: 7,
@@ -581,7 +590,16 @@ describe("sharedSettingsFile", () => {
       themeMode: "dark",
       collapseTerminalComposer: true,
       threadDocksPlacement: "right",
-      threadDocksOrder: ["goal", "plan", "agents", "backgroundTasks", "images", "context", "usage"],
+      threadDocksOrder: [
+        "vision",
+        "goal",
+        "plan",
+        "agents",
+        "backgroundTasks",
+        "images",
+        "context",
+        "usage",
+      ],
     });
   });
 

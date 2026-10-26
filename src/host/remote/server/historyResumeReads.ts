@@ -4,7 +4,6 @@ import {
 } from "@/shared/remote/historyResume";
 import { queryCodecsForRoute, decodeQueryValue } from "@/shared/remote/contract/queryCodecs";
 import {
-  HISTORY_ITEMS_SOFT_PACK_WIRE_BYTES,
   HISTORY_TURNS_SOFT_PACK_WIRE_BYTES,
   encodeCompletedTurnCursor,
 } from "@/shared/remote/historyReadContract";
@@ -29,6 +28,9 @@ import { catalogSizesFit, measureCatalogBody } from "./catalogPageBudget";
 import { requirePathParam, type HttpRouteCall } from "./httpRouteHandlers.shared";
 import { writeBoundedHistoryResponse } from "./historyReadHandlers";
 import { RemoteHttpError } from "../auth";
+
+/** A replay carries full rows; a larger gap falls back to the bounded tail. */
+const HISTORY_RESUME_REPLAY_MAX_WIRE_BYTES = 1024 * 1024;
 
 /** One response: thread-local replay, or a normal-sized authoritative tail after expiry/reset. */
 export async function handleThreadHistoryResume(call: HttpRouteCall): Promise<void> {
@@ -131,7 +133,7 @@ async function readThreadHistoryResume(call: HttpRouteCall): Promise<string> {
   }
   if (
     body === null ||
-    Buffer.byteLength(body, "utf8") > HISTORY_ITEMS_SOFT_PACK_WIRE_BYTES ||
+    Buffer.byteLength(body, "utf8") > HISTORY_RESUME_REPLAY_MAX_WIRE_BYTES ||
     !catalogSizesFit(measureCatalogBody(body), negotiation.caps)
   )
     return fallback();

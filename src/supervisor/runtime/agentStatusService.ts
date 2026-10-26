@@ -161,6 +161,7 @@ const execFileAsync = promisify(execFile);
 // v67 refreshes native Auto Review permissions and their default.
 // v68 re-probes Claude so statuses cached without the read-only one-shot workspace capability
 // (needed to offer it as a review-guide writer) are not reused.
+// v69 re-probes Devin so cached statuses gain the `/goal <objective>` thread-title command.
 const WSL_AGENT_DETECTION_TIMEOUT_MS = 60_000;
 const WSL_LXSS_REGISTRY_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss";
 

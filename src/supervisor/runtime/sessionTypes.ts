@@ -110,6 +110,8 @@ export interface SessionRuntime {
    */
   sessionConfigOptions?: SessionConfigOptions | null;
   status: ThreadStatus;
+  /** Latest runtime error reason while `status` is `error`; cleared on any other status. */
+  errorMessage?: string;
   attention: ThreadAttention;
   canResumeWithConfig: boolean;
   terminalSize: TerminalSize;

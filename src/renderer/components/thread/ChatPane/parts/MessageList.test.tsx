@@ -310,6 +310,12 @@ describe("MessageList", () => {
         act(() => {
           useAppStore.getState().requestChatScrollToBottom("thread-1");
         });
+        expect((latestLegendProps.current as MockLegendProps).anchoredEndSpace).toMatchObject({
+          anchorIndex: 2,
+        });
+        act(() => {
+          useAppStore.getState().clearChatPromptAnchor("thread-1");
+        });
         expect((latestLegendProps.current as MockLegendProps).anchoredEndSpace).toBeUndefined();
         expect(scroller.dataset.chatEndSpaceSize).toBeUndefined();
       } finally {
@@ -434,6 +440,10 @@ describe("MessageList", () => {
       const other = render(<MessageList threadId="thread-2" entries={[]} />);
       expect((latestLegendProps.current as MockLegendProps).anchoredEndSpace).toBeUndefined();
       other.unmount();
+      act(() => {
+        // Opening the thread again re-arms its bottom pin without dropping the anchor.
+        useAppStore.getState().requestChatScrollToBottom("thread-1");
+      });
 
       const onNewPrompt = vi.fn<() => void>();
       const restored = render(
@@ -460,12 +470,29 @@ describe("MessageList", () => {
         restored.container.querySelector<HTMLElement>("[data-poracode-chat-scroller]")!.scrollTop,
       ).toBe(100);
       expect(onNewPrompt).toHaveBeenCalled();
-      act(() => {
-        useAppStore.getState().requestChatScrollToBottom("thread-1");
-      });
       restored.unmount();
-      render(<MessageList threadId="thread-1" entries={entries} />);
+
+      // A reply that filled its space while away leaves the reader at its tail.
+      const onFilledNewPrompt = vi.fn<() => void>();
+      const filled = render(
+        <MessageList threadId="thread-1" entries={entries} onNewPrompt={onFilledNewPrompt} />,
+      );
+      act(() =>
+        (latestLegendProps.current as MockLegendProps).anchoredEndSpace?.onReady?.({
+          anchorIndex: 1,
+          anchorKey: "new-prompt",
+          size: 0,
+        }),
+      );
+      act(() => {
+        vi.advanceTimersByTime(16);
+      });
+      expect(useAppStore.getState().chatPromptAnchorIds["thread-1"]).toBeUndefined();
       expect((latestLegendProps.current as MockLegendProps).anchoredEndSpace).toBeUndefined();
+      expect(onFilledNewPrompt).not.toHaveBeenCalled();
+      expect(
+        filled.container.querySelector<HTMLElement>("[data-poracode-chat-scroller]")!.scrollTop,
+      ).toBe(0);
       vi.useRealTimers();
     },
   );

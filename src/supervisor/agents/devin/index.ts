@@ -195,6 +195,12 @@ export function createDevinAdapter(options: DevinAdapterOptions = {}): AgentAdap
     buildTerminalPreInputs(config) {
       return config.mode === "plan" ? [["/plan", "@wait:200", "\r"]] : undefined;
     },
+    buildGoalControlPrompt(control) {
+      if (control.action === "resume") return "/goal resume";
+      if (control.action === "clear") return "/goal clear";
+      return undefined;
+    },
+    goalPauseInterruptsTurn: true,
     shouldDeferPromptToTerminal(config) {
       return config.mode === "plan";
     },

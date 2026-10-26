@@ -140,6 +140,35 @@ class ForgeReviewController(
         }
     }
 
+    /**
+     * Account-scoped read for editor candidates (labels, reviewers). Refused for cached or stale
+     * entries so an offline snapshot never reaches the host; returns null on refusal or failure.
+     */
+    suspend fun readCandidates(target: ProjectWorkspaceTarget, expected: ForgeReviewEntry,
+        operation: ForgeReviewOperation, fields: Map<String, JsonElement> = emptyMap()): JsonElement? {
+        if (gateway == null || operation.isMutation) return null
+        val entry = state.value[target.identity] ?: return null
+        if (entry.source != expected.source || entry.number != expected.number || entry.owner != expected.owner || entry.isCached) return null
+        val (lease, failure) = session.currentLease(ProjectCapability.Read)
+        if (lease == null || failure != null) {
+            update(target.identity) { it.copy(failure = failure ?: ProjectOperationFailure.NoSession) }
+            return null
+        }
+        return try {
+            val result = gateway.callForge(lease, target, operation, payload(target, entry, fields))
+            val current = state.value[target.identity]
+            if (!session.isCurrent(lease) || current?.source != entry.source || current?.number != entry.number || current?.owner != entry.owner) null else result
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            val current = state.value[target.identity]
+            if (session.isCurrent(lease) && current?.source == entry.source && current?.number == entry.number) update(target.identity) {
+                it.copy(failure = error.asProjectFailure(ProjectCapability.Read, false))
+            }
+            null
+        }
+    }
+
     suspend fun mutate(target: ProjectWorkspaceTarget, expected: ForgeReviewEntry,
         operation: ForgeReviewOperation, fields: Map<String, JsonElement>): Boolean =
         locks.getOrPut(target.identity) { Mutex() }.withLock {

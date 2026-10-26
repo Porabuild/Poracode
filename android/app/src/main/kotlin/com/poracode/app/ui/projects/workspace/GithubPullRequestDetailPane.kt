@@ -74,6 +74,7 @@ internal fun GithubPullRequestDetailPane(
     refreshGuide: suspend () -> Unit = {},
     finishReview: () -> Unit = {},
     editComment: suspend (Map<String, JsonElement>) -> Boolean = { false },
+    metadata: ReviewMetadataActions = ReviewMetadataActions.None,
 ) {
     if (number <= 0) {
         EmptyStateView(
@@ -97,6 +98,8 @@ internal fun GithubPullRequestDetailPane(
 
     var tabName by rememberSaveable(number) { mutableStateOf(PullRequestReviewTab.Overview.name) }
     var openFile by rememberSaveable(number) { mutableStateOf("") }
+    var metadataSheet by rememberSaveable(number) { mutableStateOf("") }
+    val openMetadataSheet: (ReviewMetadataSheet) -> Unit = { metadataSheet = it.name }
     val tabs = PullRequestReviewTab.entries.filter { it != PullRequestReviewTab.Guide || forge?.capabilities?.boolean("reviewGuides") == true }
     val tab = tabs.firstOrNull { it.name == tabName }
         ?: PullRequestReviewTab.Overview
@@ -143,7 +146,7 @@ internal fun GithubPullRequestDetailPane(
                 }
 
                 section == PullRequestReviewTab.Overview ->
-                    PullRequestOverviewSection(details, Modifier.fillMaxSize())
+                    PullRequestOverviewSection(details, Modifier.fillMaxSize(), metadata, openMetadataSheet)
 
                 section == PullRequestReviewTab.Files ->
                     PullRequestFilesSection(files, Modifier.fillMaxSize(), forge, canMutate, mutate) { openFile = it }
@@ -159,8 +162,17 @@ internal fun GithubPullRequestDetailPane(
                     details?.reviews.orEmpty(),
                     Modifier.fillMaxSize(),
                     forge, canMutate, editComment,
+                    details?.requestedReviewers.orEmpty(), details?.timeline.orEmpty(), metadata, openMetadataSheet,
                 )
             }
+        }
+    }
+    when (metadataSheet) {
+        ReviewMetadataSheet.Labels.name -> if (metadata.editing.labels) {
+            LabelEditorSheet(details?.labels.orEmpty(), metadata) { metadataSheet = "" }
+        }
+        ReviewMetadataSheet.Reviewers.name -> if (metadata.editing.reviewRequests) {
+            ReviewerEditorSheet(details?.requestedReviewers.orEmpty(), metadata) { metadataSheet = "" }
         }
     }
 }
@@ -209,7 +221,7 @@ private fun PullRequestHeader(
 }
 
 @Composable
-private fun DiffCounts(additions: Long, deletions: Long) {
+internal fun DiffCounts(additions: Long, deletions: Long) {
     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(
             stringResource(R.string.github_additions, additions),
@@ -225,7 +237,12 @@ private fun DiffCounts(additions: Long, deletions: Long) {
 }
 
 @Composable
-private fun PullRequestOverviewSection(details: PullRequestDetailsRow?, modifier: Modifier) {
+private fun PullRequestOverviewSection(
+    details: PullRequestDetailsRow?,
+    modifier: Modifier,
+    metadata: ReviewMetadataActions,
+    openSheet: (ReviewMetadataSheet) -> Unit,
+) {
     if (details == null) {
         EmptyStateView(
             stringResource(R.string.github_details),
@@ -235,6 +252,7 @@ private fun PullRequestOverviewSection(details: PullRequestDetailsRow?, modifier
         return
     }
     LazyColumn(modifier, contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp)) {
+        pullRequestLabelItems(details.labels, metadata, openSheet)
         if (details.body.isNotBlank()) {
             item("description") {
                 SectionHeader(stringResource(R.string.github_description))

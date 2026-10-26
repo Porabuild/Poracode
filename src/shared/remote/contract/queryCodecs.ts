@@ -1,6 +1,9 @@
 import { z } from "zod";
 import { CATALOG_READS_CAPABILITY } from "../catalogReadContract";
-import { HISTORY_DETAILS_PROJECTION } from "../historyPresentation";
+import {
+  HISTORY_DEFER_FILE_CHANGE_BODIES,
+  HISTORY_DETAILS_PROJECTION,
+} from "../historyPresentation";
 import { REMOTE_RUNTIME_HISTORY_NOTICES_DECLARATION } from "../protocol/runtimeHistoryNotice";
 
 /**
@@ -125,6 +128,7 @@ function param(name: string, kind: QueryCodecKind, optional: boolean): QueryPara
 
 /** HTTP route query-parameter codecs, keyed by route id. */
 export const ROUTE_QUERY_CODECS: Readonly<Record<string, readonly QueryParameterCodec[]>> = {
+  "thread-agent-vision": [param("preview", "string", true)],
   "conversation-search": [
     param("version", "string", false),
     param("query", "string", false),
@@ -166,6 +170,7 @@ export const ROUTE_QUERY_CODECS: Readonly<Record<string, readonly QueryParameter
   "pr-watch-read": [param("projectId", "string", false), param("prNumber", "int", false)],
   "thread-history": [
     param("projection", "string", true),
+    param("deferBodies", "string", true),
     param("reads", "string", true),
     param("notices", "string", true),
     param("runtimePage", "string", true),
@@ -191,6 +196,7 @@ export const ROUTE_QUERY_CODECS: Readonly<Record<string, readonly QueryParameter
   ],
   "thread-history-items": [
     param("projection", "string", true),
+    param("deferBodies", "string", true),
     param("reads", "string", true),
     param("notices", "string", true),
     param("beforePosition", "int", true),
@@ -329,6 +335,7 @@ const decodedNoticesDeclarationSchema = z.literal(REMOTE_RUNTIME_HISTORY_NOTICES
 
 export const decodedThreadHistoryQuerySchema = z.object({
   projection: z.literal(HISTORY_DETAILS_PROJECTION).optional(),
+  deferBodies: z.literal(HISTORY_DEFER_FILE_CHANGE_BODIES).optional(),
   reads: decodedReadsCapabilitySchema.optional(),
   notices: decodedNoticesDeclarationSchema.optional(),
   runtimePage: z.literal("1").optional(),
@@ -343,6 +350,7 @@ export const decodedThreadHistoryQuerySchema = z.object({
 
 export const decodedThreadHistoryItemsQuerySchema = z.object({
   projection: z.literal(HISTORY_DETAILS_PROJECTION).optional(),
+  deferBodies: z.literal(HISTORY_DEFER_FILE_CHANGE_BODIES).optional(),
   reads: decodedReadsCapabilitySchema.optional(),
   notices: decodedNoticesDeclarationSchema.optional(),
   beforePosition: z.number().int().nonnegative().optional(),

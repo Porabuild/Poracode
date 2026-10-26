@@ -4,9 +4,11 @@ import {
   adoptRuntimeThreadReader,
   prepareRuntimeThreadReader,
   installRuntimeHistoryRecovery,
+  retryThreadRuntimeItems,
 } from "./runtimeInterestHydration";
 
 const mocks = vi.hoisted(() => ({
+  hydrationStatus: {} as Record<string, "pending" | "failed">,
   hydrated: vi.fn<(threadId: string) => boolean>(() => false),
   hydrate: vi.fn<(threadId: string) => Promise<void>>(async () => {}),
   retain: vi.fn<(threadId: string) => void>(),
@@ -26,9 +28,48 @@ vi.mock("./chatRuntimePersister", () => ({
   releaseThreadRuntimeItems: mocks.release,
 }));
 vi.mock("./rendererEventInterests", () => ({ retainRendererEventInterest: mocks.retainInterest }));
+vi.mock("./appStore", () => ({
+  useAppStore: { getState: () => ({ runtimeHydrationStatus: mocks.hydrationStatus }) },
+}));
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.hydrated.mockReturnValue(false);
+  mocks.hydrationStatus = {};
+});
+
+it.each([false, true])(
+  "reopens failed history through its recovery owner with continuous coverage %s",
+  async (continuous) => {
+    mocks.hydrationStatus["thread-1"] = "failed";
+    mocks.retainInterest.mockReturnValue({
+      continuous,
+      release: vi.fn<() => void>(),
+      ready: Promise.resolve(),
+    });
+    const recover = vi.fn<(threadId: string) => void>();
+    const uninstall = installRuntimeHistoryRecovery(recover);
+    const reader = retainRuntimeThreadReader("thread-1");
+    try {
+      await reader.ready;
+      expect(recover).toHaveBeenCalledExactlyOnceWith("thread-1");
+      expect(mocks.hydrate).not.toHaveBeenCalled();
+    } finally {
+      reader.release();
+      uninstall();
+    }
+  },
+);
+
+it("retries failed history through the reducer that owns queued deltas", () => {
+  const recover = vi.fn<(threadId: string) => void>();
+  const uninstall = installRuntimeHistoryRecovery(recover);
+  try {
+    void retryThreadRuntimeItems("thread-1");
+    expect(recover).toHaveBeenCalledExactlyOnceWith("thread-1");
+    expect(mocks.hydrate).not.toHaveBeenCalled();
+  } finally {
+    uninstall();
+  }
 });
 
 it("fetches one cold baseline after live coverage is established", async () => {

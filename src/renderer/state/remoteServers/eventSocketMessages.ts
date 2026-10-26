@@ -1,4 +1,5 @@
 import { rememberHistoryContentOmissions } from "../historyDelivery";
+import { handleAgentVisionServerMessage } from "@/renderer/browser/agentVisionStream";
 import type { RemoteDesktopClient } from "@/shared/remote/client";
 import { handleBrowserServerMessage } from "@/renderer/browser/browserMirror";
 import { releaseRemoteTerminal, remoteTerminalOwner } from "@/renderer/remoteProcedureRouter";
@@ -207,6 +208,7 @@ export function bindEventSocketMessages(ctx: EventSocketConnectionContext): () =
           entry.health?.acceptPong(message.id);
           return;
         }
+        if (handleAgentVisionServerMessage(connectionKey, message)) return;
         if (handleRemoteTerminalServerMessage(connectionKey, message)) {
           return;
         }

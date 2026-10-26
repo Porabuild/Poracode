@@ -5,6 +5,13 @@ import {
 import { FIXTURE_PROJECT_ID, FIXTURE_TERMINAL_ID, FIXTURE_THREAD_ID } from "./labFixtures.ts";
 
 export const CLIENT_WS_FIXTURES = {
+  "agent-vision-watch": {
+    type: "agent-vision-watch",
+    version: 1,
+    threadId: FIXTURE_THREAD_ID,
+    watchId: "vision-fixture",
+  },
+  "agent-vision-unwatch": { type: "agent-vision-unwatch", watchId: "vision-fixture" },
   ping: { type: "ping", id: "ping-fixture-001", sentAt: 1_786_543_200_000 },
   "browser-watch": { type: "browser-watch" },
   "browser-unwatch": { type: "browser-unwatch" },

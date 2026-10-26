@@ -6,7 +6,10 @@ import {
   HISTORY_ITEMS_MAX_LIMIT,
 } from "@/shared/remote/historyReadContract";
 import { remoteTimelineEntryCountSchema } from "@/shared/remote";
-import { HISTORY_DETAILS_PROJECTION } from "@/shared/remote/historyPresentation";
+import {
+  HISTORY_DEFER_FILE_CHANGE_BODIES,
+  HISTORY_DETAILS_PROJECTION,
+} from "@/shared/remote/historyPresentation";
 import { RemoteHttpError } from "../auth";
 import { resolveCatalogEffectiveCaps, type CatalogEffectiveCaps } from "./catalogPageBudget";
 import { parseRuntimeHistoryNoticesDeclaration } from "./runtimeHistoryNoticeGate";
@@ -24,6 +27,8 @@ import { parseRuntimeHistoryNoticesDeclaration } from "./runtimeHistoryNoticeGat
 
 export interface HistoryReadNegotiation {
   readonly compactDetails?: boolean;
+  /** `deferBodies=file_change`: completed file-change rows leave their bodies to the detail route. */
+  readonly deferFileChangeBodies?: boolean;
   readonly declared: boolean;
   /** The request declared `notices=v1` (can render the durable notice). */
   readonly noticesDeclared: boolean;
@@ -68,6 +73,14 @@ export function parseHistoryReadNegotiation(url: URL): HistoryReadNegotiation {
     throw invalid("Unsupported history projection.", "invalid_history_projection");
   if (projection !== null && reads !== CATALOG_READS_CAPABILITY)
     throw invalid("Compact history requires bounded reads.", "invalid_history_projection");
+  const deferBodies = params.get("deferBodies");
+  if (deferBodies !== null && deferBodies !== HISTORY_DEFER_FILE_CHANGE_BODIES)
+    throw invalid("Unsupported history body deferral.", "invalid_history_defer_bodies");
+  if (deferBodies !== null && projection === null)
+    throw invalid(
+      "Body deferral requires the compact history projection.",
+      "invalid_history_defer_bodies",
+    );
   if (reads === null) {
     return {
       declared: false,
@@ -97,6 +110,7 @@ export function parseHistoryReadNegotiation(url: URL): HistoryReadNegotiation {
   return {
     declared: true,
     ...(projection ? { compactDetails: true } : {}),
+    ...(deferBodies !== null ? { deferFileChangeBodies: true } : {}),
     noticesDeclared,
     caps: resolveCatalogEffectiveCaps({
       ...(maxBytes !== undefined ? { maxBytes } : {}),

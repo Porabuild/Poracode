@@ -1,5 +1,5 @@
 import { AppProvider } from "@/renderer/components/ui/provider";
-import { act, fireEvent, render, renderHook } from "@testing-library/react";
+import { act, fireEvent, render, renderHook, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { ThreadRuntimeRequestPanel } from "./ThreadRuntimeRequestPanel";
 import {
@@ -32,6 +32,29 @@ const details: UserInputFormDetails = {
     },
   ],
 };
+
+function renderStandaloneUserInputForm() {
+  const onSubmit = vi.fn<(response: unknown, outcome: string) => void>();
+  function Form() {
+    const controller = useUserInputFormController(details)!;
+    return (
+      <UserInputForm
+        formId="early-submit-question"
+        controller={controller}
+        isDisabled={false}
+        onSubmit={onSubmit}
+      />
+    );
+  }
+  return {
+    ...render(
+      <AppProvider>
+        <Form />
+      </AppProvider>,
+    ),
+    onSubmit,
+  };
+}
 
 describe("useUserInputFormController.allAnswered", () => {
   it("starts false when questions are unanswered", () => {
@@ -78,6 +101,8 @@ describe("runtime question actions", () => {
         />
       </AppProvider>,
     );
+    expect(screen.getByText("Color")).toBeDefined();
+    expect(screen.queryByRole("tablist")).toBeNull();
     const submit = getByRole("button", { name: "Submit" }) as HTMLButtonElement;
     expect(submit.disabled).toBe(true);
     fireEvent.click(submit);
@@ -92,6 +117,47 @@ describe("runtime question actions", () => {
       response: { answers: { color: "blue" } },
       analytics: { outcome: "answered", requestType: "tool_user_input" },
     });
+  });
+
+  it("submits all answers early from another step while keeping Continue available", () => {
+    const onResolve = vi.fn<() => Promise<void>>().mockReturnValue(new Promise<void>(() => {}));
+    render(
+      <AppProvider>
+        <ThreadRuntimeRequestPanel
+          threadId="question-thread"
+          request={{
+            requestId: "question-early-submit",
+            threadId: "question-thread",
+            requestType: "tool_user_input",
+            receivedAt: "2026-10-20T00:00:00Z",
+            payload: {
+              summary: "Questions",
+              details: { userInputForm: details },
+            },
+          }}
+          onResolve={onResolve}
+        />
+      </AppProvider>,
+    );
+    expect(screen.queryByRole("button", { name: "Submit" })).toBeNull();
+    fireEvent.click(screen.getByRole("option", { name: /Blue/ }));
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "Ready" } });
+    expect(screen.getByRole("button", { name: "Submit" })).toBeDefined();
+    expect(screen.queryByRole("button", { name: "Continue" })).toBeNull();
+    fireEvent.click(screen.getByRole("tab", { name: "Color" }));
+    const continueButton = screen.getByRole("button", { name: "Continue" });
+    const submit = screen.getByRole("button", { name: "Submit" });
+
+    fireEvent.click(submit);
+
+    expect(onResolve).toHaveBeenCalledExactlyOnceWith({
+      requestId: "question-early-submit",
+      method: "requestPermission",
+      response: { answers: { color: "blue", notes: "Ready" } },
+      analytics: { outcome: "answered", requestType: "tool_user_input" },
+    });
+    expect(submit.hasAttribute("data-pending")).toBe(true);
+    expect(continueButton.hasAttribute("data-pending")).toBe(false);
   });
 
   it("titles the form with the active question and dismisses with one Decline", () => {
@@ -163,6 +229,41 @@ describe("UserInputForm submission guard", () => {
   });
 });
 
+describe("UserInputForm early submission", () => {
+  it("submits complete answers from an earlier step", () => {
+    const { onSubmit } = renderStandaloneUserInputForm();
+    expect(screen.queryByRole("button", { name: "Submit" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Continue" })).toBeDefined();
+
+    fireEvent.click(screen.getByRole("option", { name: /Blue/ }));
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "Ready" } });
+    expect(screen.getAllByRole("button", { name: "Submit" })).toHaveLength(1);
+    expect(screen.queryByRole("button", { name: "Continue" })).toBeNull();
+
+    fireEvent.click(screen.getByRole("tab", { name: "Color" }));
+    expect(screen.getByRole("button", { name: "Continue" })).toBeDefined();
+    const submit = screen.getByRole("button", { name: "Submit" });
+    fireEvent.click(submit);
+
+    expect(onSubmit).toHaveBeenCalledExactlyOnceWith(
+      { answers: { color: "blue", notes: "Ready" } },
+      "answered",
+    );
+  });
+
+  it("places step tabs before the active question text", () => {
+    renderStandaloneUserInputForm();
+    const tablist = screen.getByRole("tablist", { name: "Questions" });
+    const question = screen.getByText(details.questions[0]!.question);
+
+    expect(screen.getAllByText("Color").every((element) => tablist.contains(element))).toBe(true);
+    expect(question.closest(".border-b")).toBeNull();
+    expect(
+      tablist.compareDocumentPosition(question) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+});
+
 describe("UserInputForm step keyboard navigation", () => {
   function renderQuestions(formDetails: UserInputFormDetails, isDisabled = false) {
     const onSubmit = vi.fn<(response: unknown, outcome: string) => void>();
@@ -230,6 +331,23 @@ describe("UserInputForm step keyboard navigation", () => {
     expect(document.activeElement).toBe(notes);
     fireEvent.keyDown(notes, { key: "Home" });
     expect(document.activeElement).toBe(color);
+  });
+
+  it("keeps visible labels on both unanswered and answered question tabs", () => {
+    const { getByRole } = renderQuestions(details);
+    const color = getByRole("tab", { name: "Color" });
+    const notes = getByRole("tab", { name: "Notes" });
+    expect(color.textContent).toContain("Color");
+    expect(notes.textContent).toContain("Notes");
+    fireEvent.click(getByRole("option", { name: /Blue/ }));
+    fireEvent.change(getByRole("textbox"), { target: { value: "Ready" } });
+    expect(color.textContent).toBe("Color");
+    expect(notes.textContent).toBe("Notes");
+    expect(color.querySelector("svg")).not.toBeNull();
+    expect(notes.querySelector("svg")).not.toBeNull();
+    fireEvent.click(color);
+    expect(color.getAttribute("aria-selected")).toBe("true");
+    expect(getByRole("option", { name: /Blue/ }).getAttribute("aria-selected")).toBe("true");
   });
 
   it("Enter on a custom answer advances, then only the final step submits", () => {

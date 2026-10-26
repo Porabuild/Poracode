@@ -26,6 +26,7 @@ import {
 import {
   hydrateThreadRuntimeItemsForInterest,
   installRuntimeHistoryRecovery,
+  retryThreadRuntimeItems,
 } from "@/renderer/state/runtimeInterestHydration";
 import {
   activate,
@@ -44,6 +45,144 @@ import {
 
 beforeEach(setupManagedRootFixture);
 afterEach(teardownManagedRootFixture);
+
+it.each([
+  ["reset", "retry"],
+  ["overflow", "retry"],
+  ["reset", "reopen"],
+  ["overflow", "reopen"],
+] as const)(
+  "keeps loaded history through a failed %s recovery and replaces it on %s",
+  async (trigger, action) => {
+    const threadId = `history-retained-${trigger}-${action}`;
+    seedThread(threadId);
+    seedRuntimeItems(threadId, 2);
+    await activate({ preloadProcedures: { dbSetState: () => null } });
+    retainThreadRuntimeItems(threadId);
+    await hydrateThreadRuntimeItems(threadId);
+    const loadedIds = useAppStore.getState().runtimeItemIdsByThread[threadId];
+    const client = readManagedLoopbackActivation()!.client;
+    const held = Promise.withResolvers<void>();
+    const read = vi.spyOn(client, "boundedThreadHistory").mockImplementationOnce(async () => {
+      await held.promise;
+      throw new Error("History temporarily unavailable");
+    });
+    let reducer: SupervisorEventReducer;
+    const recovery = createLocalSnapshotRecovery({ getArbitration: () => reducer.arbitration });
+    reducer = createSupervisorEventReducer({
+      recovery: recovery.strategy,
+      onSequencedEvent: recovery.noteSequencedSupervisorEvent,
+      queueLimits: { maxEvents: 1 },
+    });
+    const uninstall = installRuntimeHistoryRecovery(reducer.recoverRuntimeHistory);
+    useAppStore.getState().applyRuntimeEvent(threadId, {
+      type: "request.opened",
+      threadId,
+      requestId: "expired-approval",
+      requestType: "tool_user_input",
+      payload: { summary: "Expired question" },
+    });
+    const emptyProjections: string[] = [];
+    const unsubscribe = useAppStore.subscribe((state) => {
+      if (!state.runtimeItemIdsByThread[threadId]?.length) emptyProjections.push("empty");
+    });
+    try {
+      if (trigger === "reset") reducer.dispatch({ type: "thread-reset", threadId });
+      else
+        reducer.dispatch({
+          type: "thread-runtime-events",
+          threadId,
+          events: [0, 1].map((index) => ({
+            type: "item.started",
+            threadId,
+            itemId: `overflow-${index}`,
+            itemType: "assistant_message",
+          })),
+        });
+      await vi.waitFor(() => expect(read).toHaveBeenCalledOnce());
+      expect(useAppStore.getState().runtimeItemIdsByThread[threadId]).toBe(loadedIds);
+      expect(
+        useAppStore
+          .getState()
+          .runtimeRequestsByThread[threadId]?.map((request) => request.requestId) ?? [],
+      ).toEqual(trigger === "reset" ? [] : ["expired-approval"]);
+      reducer.dispatch({
+        type: "thread-runtime-event",
+        threadId,
+        event: {
+          type: "request.opened",
+          threadId,
+          requestId: "new-approval",
+          requestType: "tool_user_input",
+          payload: { summary: "New question" },
+        },
+      });
+      reducer.dispatch(
+        {
+          type: "thread-runtime-event",
+          threadId,
+          event: {
+            type: "item.started",
+            threadId,
+            itemId: "queued-during-recovery",
+            itemType: "assistant_message",
+          },
+        },
+        7,
+        { sequenceSpace: "loopback" },
+      );
+      reducer.flushSync(threadId);
+      expect(useAppStore.getState().runtimeItemIdsByThread[threadId]).toBe(loadedIds);
+      expect(emptyProjections).toEqual([]);
+      held.resolve();
+      await vi.waitFor(() =>
+        expect(useAppStore.getState().runtimeHydrationStatus[threadId]).toBe("failed"),
+      );
+      expect(useAppStore.getState().runtimeItemIdsByThread[threadId]).toBe(loadedIds);
+      getSqlite()
+        .prepare("DELETE FROM thread_runtime_items WHERE thread_id = ? AND item_id = 'item-1'")
+        .run(threadId);
+      if (action === "retry") void retryThreadRuntimeItems(threadId);
+      else void hydrateThreadRuntimeItemsForInterest(threadId, true);
+      await vi.waitFor(() => {
+        expect(useAppStore.getState().runtimeHydrationStatus[threadId]).toBeUndefined();
+        expect(useAppStore.getState().runtimeItemIdsByThread[threadId]).toEqual(["item-0"]);
+      });
+      reducer.flushSync(threadId);
+      expect(useAppStore.getState().runtimeItemIdsByThread[threadId]).toEqual(["item-0"]);
+      expect(useAppStore.getState().runtimeRequestsByThread[threadId]?.at(-1)?.requestId).toBe(
+        "new-approval",
+      );
+      reducer.dispatch(
+        {
+          type: "thread-runtime-event",
+          threadId,
+          event: {
+            type: "item.started",
+            threadId,
+            itemId: "live-after-retry",
+            itemType: "assistant_message",
+          },
+        },
+        8,
+        { sequenceSpace: "loopback" },
+      );
+      reducer.flushSync(threadId);
+      expect(useAppStore.getState().runtimeItemIdsByThread[threadId]).toEqual([
+        "item-0",
+        "live-after-retry",
+      ]);
+    } finally {
+      held.resolve();
+      unsubscribe();
+      uninstall();
+      read.mockRestore();
+      releaseThreadRuntimeItems(threadId);
+      reducer.clear();
+    }
+  },
+  60_000,
+);
 
 it("recovers on a new connection while the retired reader is waiting to retry", async () => {
   const threadId = "history-retry-reconnect";

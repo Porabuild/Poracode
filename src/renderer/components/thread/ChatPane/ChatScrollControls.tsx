@@ -903,7 +903,11 @@ export function ChatScrollControls(props: {
 
   function resumeReaderFollowing() {
     promptAnchoredRef.current = false;
-    clearChatPromptAnchor(threadId);
+    // Keep reply space the prompt still has; clearing it would shrink the
+    // transcript under the reader and pull the prompt down.
+    if (Number(scrollRef.current?.dataset.chatEndSpaceSize ?? 0) <= 0) {
+      clearChatPromptAnchor(threadId);
+    }
     // The button is an explicit request to resume following the tail. Do not
     // let the short scroll-away intent window discard the first press.
     userScrollIntentUntilRef.current = 0;

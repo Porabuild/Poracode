@@ -1,4 +1,5 @@
 import sharp from "sharp";
+import { isAnimatedPng } from "@/shared/imageDimensions";
 
 /**
  * Downscaled transcript-card variant: bounded to 960px on either axis
@@ -15,15 +16,7 @@ export async function generateBackendImageCardVariant({
   const image = sharp(data);
   const metadata = await image.metadata();
   if ((metadata.pages ?? 1) > 1) return null;
-  // libvips exposes APNG as a single PNG page; its animation control chunk
-  // precedes the first image-data chunk.
-  if (metadata.format === "png") {
-    for (let offset = 8; offset + 12 <= data.length; offset += 12 + data.readUInt32BE(offset)) {
-      const chunk = data.toString("ascii", offset + 4, offset + 8);
-      if (chunk === "acTL") return null;
-      if (chunk === "IDAT") break;
-    }
-  }
+  if (metadata.format === "png" && isAnimatedPng(data)) return null;
   const variant = await image
     .autoOrient()
     .resize({ width: 960, height: 960, fit: "inside", withoutEnlargement: true })

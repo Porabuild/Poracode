@@ -42,6 +42,108 @@ enum PullRequestsStrings {
     localized("pullRequests.state.unavailable", "Pair a desktop to see pull requests.")
   }
 
+  static var labels: String { localized("pullRequests.metadata.labels", "Labels") }
+  static var editLabels: String { localized("pullRequests.metadata.editLabels", "Edit labels") }
+  static var requestReview: String {
+    localized("pullRequests.metadata.requestReview", "Request review")
+  }
+  static var convertToDraft: String {
+    localized("pullRequests.metadata.convertToDraft", "Convert to draft")
+  }
+  static var requestedReviewers: String {
+    localized("pullRequests.metadata.requestedReviewers", "Requested reviewers")
+  }
+  static var suggestedReviewers: String {
+    localized("pullRequests.metadata.suggestedReviewers", "Suggested reviewers")
+  }
+  static var team: String { localized("pullRequests.metadata.team", "Team") }
+  static var apply: String { localized("pullRequests.metadata.apply", "Apply") }
+  static var searchReviewers: String {
+    localized("pullRequests.metadata.searchReviewers", "Search people and teams")
+  }
+  static var noLabels: String {
+    localized("pullRequests.metadata.noLabels", "No labels available.")
+  }
+  static var noReviewers: String {
+    localized("pullRequests.metadata.noReviewers", "No matching reviewers.")
+  }
+  static var labelsTruncated: String {
+    localized("pullRequests.metadata.labelsTruncated", "Only the first labels are listed.")
+  }
+  static var reviewersTruncated: String {
+    localized(
+      "pullRequests.metadata.reviewersTruncated",
+      "Only the first matches are listed. Refine the search to find others."
+    )
+  }
+  static var timeline: String { localized("pullRequests.timeline.title", "Timeline") }
+
+  static func addReviewer(_ name: String) -> String {
+    String(format: localized("pullRequests.metadata.addReviewer", "Add %@"), name)
+  }
+
+  static func removeReviewer(_ name: String) -> String {
+    String(format: localized("pullRequests.metadata.removeReviewer", "Remove %@"), name)
+  }
+
+  static func keepReviewer(_ name: String) -> String {
+    String(format: localized("pullRequests.metadata.keepReviewer", "Keep %@"), name)
+  }
+
+  static func moreLabels(_ count: Int64) -> String {
+    String(format: localized("pullRequests.metadata.moreLabels", "+%lld"), count)
+  }
+
+  /// The row text for one timeline event, or nil when the host omitted what the kind needs.
+  static func timelineText(_ event: PullRequestTimelineEvent) -> String? {
+    switch event.kind {
+    case .opened: return localized("pullRequests.timeline.opened", "Opened")
+    case .closed: return localized("pullRequests.timeline.closed", "Closed")
+    case .reopened: return localized("pullRequests.timeline.reopened", "Reopened")
+    case .merged: return localized("pullRequests.timeline.merged", "Merged")
+    case .ready: return localized("pullRequests.timeline.ready", "Marked ready for review")
+    case .draft: return localized("pullRequests.timeline.draft", "Converted to draft")
+    case .forcePushed: return localized("pullRequests.timeline.forcePushed", "Force-pushed")
+    case .labeled:
+      guard let label = event.label else { return nil }
+      return String(format: localized("pullRequests.timeline.labeled", "Added label %@"), label.name)
+    case .unlabeled:
+      guard let label = event.label else { return nil }
+      return String(
+        format: localized("pullRequests.timeline.unlabeled", "Removed label %@"), label.name)
+    case .reviewRequested:
+      guard let reviewer = event.reviewer else { return nil }
+      return String(
+        format: localized("pullRequests.timeline.reviewRequested", "Requested review from %@"),
+        reviewer.displayName
+      )
+    case .reviewRequestRemoved:
+      guard let reviewer = event.reviewer else { return nil }
+      return String(
+        format: localized(
+          "pullRequests.timeline.reviewRequestRemoved", "Removed the review request for %@"),
+        reviewer.displayName
+      )
+    case .baseChanged:
+      guard let from = event.fromRef, let to = event.toRef else {
+        return localized("pullRequests.timeline.baseChangedPlain", "Changed the base branch")
+      }
+      return String(
+        format: localized("pullRequests.timeline.baseChanged", "Changed base from %1$@ to %2$@"),
+        from, to
+      )
+    case .renamed:
+      guard let from = event.fromRef, let to = event.toRef else {
+        return localized("pullRequests.timeline.renamedPlain", "Renamed the pull request")
+      }
+      return String(
+        format: localized("pullRequests.timeline.renamed", "Renamed from %1$@ to %2$@"),
+        from, to
+      )
+    case .system: return event.text
+    }
+  }
+
   static func projectFailure(_ project: String) -> String {
     String(
       format: localized("pullRequests.projectFailure", "Could not load pull requests for %@."),

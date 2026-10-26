@@ -35,6 +35,15 @@ final class ForgeReviewController {
   }
 
   var viewerLogin: String? { source?["account"]?.objectValue?["login"]?.stringValue }
+
+  /// An optional write control (`labels`, `reviewRequests`, `convertToDraft`) is offered only when
+  /// the host advertises it for this review, the grant allows writes, and the review is live; a
+  /// cached snapshot never offers one.
+  func offers(_ capability: String) -> Bool {
+    capabilities[capability]?.boolValue == true && !isCached && gateway != nil
+      && context?.permits(.operate) == true
+  }
+
   var canMutate: Bool {
     context?.isUsable == true && context?.permits(.operate) == true && !loading && !mutating && !isCached
   }
@@ -166,6 +175,46 @@ final class ForgeReviewController {
       if !(error is CancellationError) { failure = GitHubFailureMapper.map(error) }
       return false
     }
+  }
+
+  /// Candidate lookups are live reads: the result never enters `documents`, so it is never cached
+  /// or shown offline. Nil when the lookup could not run, was superseded, or failed.
+  func candidates(_ operation: ForgeReviewOperation, fields: [String: GitHubJSONValue] = [:]) async -> GitHubDocument? {
+    guard operation == .forgeListPrLabelCandidates || operation == .forgeListPrReviewerCandidates,
+      let context, context.isUsable, context.permits(.read), !isCached, let gateway, let payload = payload(fields)
+    else { return nil }
+    let owner = revision
+    failure = nil
+    do {
+      let result = try await gateway.callForge(operation, payload: payload, lease: context.lease)
+      return owns(owner, context) ? result : nil
+    } catch {
+      guard owns(owner, context), !(error is CancellationError) else { return nil }
+      failure = GitHubFailureMapper.map(error)
+      return nil
+    }
+  }
+
+  @discardableResult
+  func setLabels(add: [String], remove: [String]) async -> Bool {
+    guard offers("labels"), !add.isEmpty || !remove.isEmpty else { return false }
+    return await mutate(.forgeSetPrLabels, fields: [
+      "add": .array(add.map(GitHubJSONValue.string)), "remove": .array(remove.map(GitHubJSONValue.string)),
+    ])
+  }
+
+  @discardableResult
+  func requestReviewers(add: [GitHubReviewerSummary], remove: [GitHubReviewerSummary]) async -> Bool {
+    guard offers("reviewRequests"), !add.isEmpty || !remove.isEmpty else { return false }
+    return await mutate(.forgeRequestPrReviewers, fields: [
+      "add": .array(add.map(\.reference)), "remove": .array(remove.map(\.reference)),
+    ])
+  }
+
+  @discardableResult
+  func convertToDraft() async -> Bool {
+    guard offers("convertToDraft") else { return false }
+    return await mutate(.forgeConvertPrToDraft, fields: [:])
   }
 
   func viewedFingerprint(_ path: String) -> String? {

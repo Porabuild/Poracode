@@ -83,6 +83,8 @@ export type ProviderUsageAllSupervisorEvent = Extract<
 export interface RuntimeEventRecoveryStrategy {
   /** Transcript-only snapshots do not replace the live pending-request map. */
   readonly preservesOpenRequests?: boolean;
+  /** Keeps loaded history until recovery can synchronously install its replacement. */
+  readonly preservesTranscript?: boolean;
   readonly recoverFromQueueOverflow: (
     threadIds: readonly string[],
     resume: () => void,
@@ -474,14 +476,15 @@ export function createSupervisorEventReducer(
         useAppStore.getState().setRuntimeHydrationStatus(batch.threadId, "failed");
       } else {
         // The backend persists runtime events before broadcasting them. Once
-        // the final-consumer queue overflows, clear the partial projection and
-        // re-read authoritative history (injected strategy) before accepting
-        // new deltas.
+        // the final-consumer queue overflows, re-read authoritative history
+        // (injected strategy) before accepting new deltas.
         overflowed.push(batch.threadId);
         runtimeRecoveryInFlight.add(batch.threadId);
-        useAppStore.getState().clearThreadRuntimeEvents(batch.threadId, {
-          keepOpenRequests: config.recovery.preservesOpenRequests === true,
-        });
+        if (!config.recovery.preservesTranscript) {
+          useAppStore.getState().clearThreadRuntimeEvents(batch.threadId, {
+            keepOpenRequests: config.recovery.preservesOpenRequests === true,
+          });
+        }
         forgetThreadRuntimeWindow(batch.threadId);
         useAppStore.getState().clearAllPendingSteer(batch.threadId);
         clearRuntimeItemStoreSelectorCacheForThread(batch.threadId);
@@ -593,11 +596,13 @@ export function createSupervisorEventReducer(
         return;
       case "thread-reset": {
         queue.discard(event.threadId);
-        useAppStore.getState().clearThreadRuntimeEvents(event.threadId);
+        if (config.recovery.preservesTranscript) queue.block(event.threadId);
+        useAppStore.getState().clearThreadRuntimeEvents(event.threadId, {
+          keepTranscript: config.recovery.preservesTranscript === true,
+        });
         forgetThreadRuntimeWindow(event.threadId);
         useAppStore.getState().clearAllPendingSteer(event.threadId);
-        // The reset wiped the in-memory transcript: drop the selector caches
-        // for the thread in BOTH flavors so no pane can render stale items.
+        // Drop derived caches even when the recovery retains the loaded rows.
         clearRuntimeItemStoreSelectorCacheForThread(event.threadId);
         options?.sideEffects?.onThreadReset?.(event.threadId);
         if (!runtimeRecoveryInFlight.has(event.threadId)) {

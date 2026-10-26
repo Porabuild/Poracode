@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ComputerUseMcpIngress, type ComputerUseMcpIngressOptions } from "./ComputerUseMcpIngress";
+import { AgentVisionService } from "@/host/AgentVisionService";
 import { StreamableHttpMcpIngress } from "../mcp/StreamableHttpMcpIngress";
 import type { ComputerUseDriver, ComputerUseInteractiveResult } from "./mcp/types";
 
@@ -91,6 +92,49 @@ afterEach(async () => {
 });
 
 describe("ComputerUseMcpIngress", () => {
+  it("previews only the observed window and stops capturing when the user exits", async () => {
+    const vision = new AgentVisionService();
+    const window = { app: "test.app", id: 7, title: "Test window" };
+    const state = {
+      window,
+      mode: "passive" as const,
+      accessibility: null,
+      screenshots: [{ id: "shot", zIndex: 0, mimeType: "image/jpeg", data: "aGVsbG8=" }],
+    };
+    const observationGate = Promise.withResolvers<typeof state>();
+    const driver = createDriver({
+      getWindowState: vi
+        .fn<ComputerUseDriver["getWindowState"]>()
+        .mockReturnValueOnce(observationGate.promise)
+        .mockResolvedValue(state),
+    });
+    ingress = new ComputerUseMcpIngress({ driver, vision, observationSettleMs: 0 });
+    const info = await ingress.start();
+    const observing = callTool(info, "get_window_state", { window });
+    await vi.waitFor(() => expect(driver.getWindowState).toHaveBeenCalledOnce());
+    expect(await vision.read("thread-1")).toMatchObject({
+      status: "running",
+      image: "data:image/jpeg;base64,aGVsbG8=",
+    });
+    observationGate.resolve(state);
+    expect((await observing).status).toBe(200);
+    expect(await vision.read("thread-1", false)).toMatchObject({
+      source: "computer",
+      target: "Test window",
+    });
+    expect(driver.getWindowState).toHaveBeenCalledTimes(2);
+    expect(await vision.read("thread-1")).toMatchObject({
+      image: "data:image/jpeg;base64,aGVsbG8=",
+    });
+    expect(driver.getWindowState).toHaveBeenLastCalledWith(
+      expect.objectContaining({ window, include_text: false, max_dimension: 960 }),
+    );
+    ingress.interruptActiveActions(["thread-1"]);
+    const clock = vi.spyOn(Date, "now").mockReturnValue(Date.now() + 2000);
+    await vision.read("thread-1");
+    clock.mockRestore();
+    expect(driver.getWindowState).toHaveBeenCalledTimes(2);
+  });
   it("prewarms the native driver after the MCP ingress starts", async () => {
     const driver = createDriver();
     ingress = new ComputerUseMcpIngress({ driver, observationSettleMs: 0 });

@@ -5,6 +5,7 @@ import {
   releaseThreadRuntimeItems,
 } from "./chatRuntimePersister";
 import { retainRendererEventInterest } from "./rendererEventInterests";
+import { useAppStore } from "./appStore";
 
 interface RuntimeThreadReader {
   readonly ready: Promise<void>;
@@ -79,6 +80,12 @@ export function installRuntimeHistoryRecovery(recover: RuntimeHistoryRecovery): 
   };
 }
 
+/** A failed recovery still owns its blocked deltas; retry through that owner. */
+export function retryThreadRuntimeItems(threadId: string): Promise<void> | void {
+  if (recoverRuntimeHistory) return recoverRuntimeHistory(threadId);
+  return hydrateThreadRuntimeItems(threadId);
+}
+
 /** Called only after the pane's live-interest lease is ready. A cached
  * transcript is current only across continuous wire coverage; a reopened
  * pane otherwise needs the same authoritative baseline as queue recovery. */
@@ -86,7 +93,11 @@ export function hydrateThreadRuntimeItemsForInterest(
   threadId: string,
   continuous: boolean,
 ): Promise<void> | void {
-  if (!continuous && hasHydratedThreadRuntimeItems(threadId) && recoverRuntimeHistory) {
+  if (
+    recoverRuntimeHistory &&
+    (useAppStore.getState().runtimeHydrationStatus[threadId] === "failed" ||
+      (!continuous && hasHydratedThreadRuntimeItems(threadId)))
+  ) {
     recoverRuntimeHistory(threadId);
     return;
   }

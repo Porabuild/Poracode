@@ -6,6 +6,14 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ProjectLocation } from "@/shared/contracts";
 import { GitCheckpointService } from "./checkpointService";
+import { execGit } from "./exec";
+import { GitProcessAdmissionError } from "./gitProcessAdmission";
+
+// Pass-through spy so a test can count the git processes a service call spawns.
+vi.mock("./exec", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./exec")>();
+  return { ...actual, execGit: vi.fn<typeof actual.execGit>(actual.execGit) };
+});
 
 function hasGit(): boolean {
   try {
@@ -201,5 +209,149 @@ describe.skipIf(!hasGit())("GitCheckpointService", () => {
     await expect(
       service.list({ threadId: "thread-1", projectLocation: location }),
     ).resolves.toMatchObject({ checkpoints: [{ ref: legacyRef }] });
+  });
+
+  describe("list", () => {
+    async function createCheckpoints(
+      service: GitCheckpointService,
+      location: ProjectLocation,
+      threadId: string,
+      count: number,
+    ) {
+      const created = [];
+      for (let index = 0; index < count; index += 1) {
+        created.push(
+          await service.create({
+            threadId,
+            checkpointItemId: `${threadId}-item-${index}`,
+            projectLocation: location,
+          }),
+        );
+      }
+      return created;
+    }
+
+    it("reads every checkpoint of a thread with a single git process", async () => {
+      const { dir, location } = makeRepo();
+      const service = new GitCheckpointService();
+      const mine = await createCheckpoints(service, location, "thread-1", 5);
+      await createCheckpoints(service, location, "thread-2", 2);
+
+      vi.mocked(execGit).mockClear();
+      const listed = await service.list({ threadId: "thread-1", projectLocation: location });
+
+      expect(execGit).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(execGit).mock.calls[0]![1][0]).toBe("for-each-ref");
+      expect(listed.checkpoints.map((checkpoint) => checkpoint.checkpointItemId).sort()).toEqual(
+        mine.map((checkpoint) => checkpoint.checkpointItemId).sort(),
+      );
+      for (const checkpoint of listed.checkpoints) {
+        // The batched read must report what per-ref reads report.
+        expect(checkpoint.commit).toBe(git(dir, "rev-parse", checkpoint.ref).trim());
+        expect(checkpoint.threadId).toBe("thread-1");
+        expect(checkpoint.capturedAt).toBe(mine.find((c) => c.ref === checkpoint.ref)!.capturedAt);
+      }
+    });
+
+    it("falls back to reading ref by ref when the batched output is not whole records", async () => {
+      const { location } = makeRepo();
+      const service = new GitCheckpointService();
+      const mine = await createCheckpoints(service, location, "thread-1", 3);
+
+      vi.mocked(execGit).mockClear();
+      vi.mocked(execGit).mockResolvedValueOnce("not a record list");
+      const listed = await service.list({ threadId: "thread-1", projectLocation: location });
+
+      expect(listed.checkpoints.map((checkpoint) => checkpoint.ref).sort()).toEqual(
+        mine.map((checkpoint) => checkpoint.ref).sort(),
+      );
+      // The malformed batch, the name listing, then two reads per ref.
+      expect(vi.mocked(execGit).mock.calls.length).toBe(2 + 2 * mine.length);
+    });
+
+    it("falls back to reading ref by ref when the batched read itself fails", async () => {
+      const { location } = makeRepo();
+      const service = new GitCheckpointService();
+      const mine = await createCheckpoints(service, location, "thread-1", 2);
+
+      vi.mocked(execGit).mockClear();
+      vi.mocked(execGit).mockRejectedValueOnce(new Error("stdout maxBuffer length exceeded"));
+      const listed = await service.list({ threadId: "thread-1", projectLocation: location });
+
+      expect(listed.checkpoints.map((checkpoint) => checkpoint.ref).sort()).toEqual(
+        mine.map((checkpoint) => checkpoint.ref).sort(),
+      );
+    });
+
+    it("rethrows an admission refusal instead of spawning more git processes", async () => {
+      const { location } = makeRepo();
+      const service = new GitCheckpointService();
+      await createCheckpoints(service, location, "thread-1", 2);
+
+      vi.mocked(execGit).mockClear();
+      vi.mocked(execGit).mockRejectedValueOnce(
+        new GitProcessAdmissionError(
+          "git_admission_queue_full",
+          {} as never,
+          "git admission queue is full",
+        ),
+      );
+
+      await expect(
+        service.list({ threadId: "thread-1", projectLocation: location }),
+      ).rejects.toBeInstanceOf(GitProcessAdmissionError);
+      expect(execGit).toHaveBeenCalledTimes(1);
+    });
+
+    it("lists a ref that points at an annotated tag of a checkpoint through the per-ref read", async () => {
+      const { dir, location } = makeRepo();
+      const service = new GitCheckpointService();
+      const [checkpoint] = await createCheckpoints(service, location, "thread-1", 1);
+      git(dir, "tag", "-a", "-m", "wrap", "wrapper", checkpoint!.commit);
+      git(dir, "update-ref", checkpoint!.ref, git(dir, "rev-parse", "wrapper").trim());
+
+      const listed = await service.list({ threadId: "thread-1", projectLocation: location });
+
+      // A tag object is not a commit: it is peeled exactly as before.
+      expect(listed.checkpoints).toMatchObject([
+        { ref: checkpoint!.ref, commit: checkpoint!.commit, threadId: "thread-1" },
+      ]);
+    });
+
+    it("lists turn checkpoints with their base and changed files", async () => {
+      const { dir, location } = makeRepo();
+      const service = new GitCheckpointService();
+      await service.create({
+        threadId: "thread-1",
+        checkpointItemId: "user-1",
+        projectLocation: location,
+      });
+      writeFileSync(join(dir, "README.md"), "after\n");
+      const turn = await service.finalize({
+        threadId: "thread-1",
+        checkpointItemId: "assistant-1",
+        baseCheckpointItemId: "user-1",
+        projectLocation: location,
+      });
+
+      const listed = await service.list({ threadId: "thread-1", projectLocation: location });
+
+      expect(listed.turns).toHaveLength(1);
+      expect(listed.turns[0]).toEqual(turn);
+      expect(listed.checkpoints.map((checkpoint) => checkpoint.checkpointItemId).sort()).toEqual([
+        "assistant-1",
+        "user-1",
+      ]);
+    });
+
+    it("returns nothing for a thread without checkpoints", async () => {
+      const { location } = makeRepo();
+      const service = new GitCheckpointService();
+      await createCheckpoints(service, location, "thread-1", 1);
+
+      await expect(
+        service.list({ threadId: "thread-without", projectLocation: location }),
+      ).resolves.toEqual({ checkpoints: [], turns: [] });
+    });
   });
 });

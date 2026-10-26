@@ -75,6 +75,18 @@
   "httpRoutes": [
     {
       "auth": "bearer",
+      "id": "thread-agent-vision",
+      "method": "GET",
+      "path": "/api/threads/{threadId}/agent-vision",
+      "queryParameters": [
+        "preview"
+      ],
+      "scopes": [
+        "session:read"
+      ]
+    },
+    {
+      "auth": "bearer",
       "id": "conversation-search",
       "method": "GET",
       "path": "/api/search/conversations",
@@ -912,6 +924,7 @@
       "path": "/api/threads/{threadId}/history/items",
       "queryParameters": [
         "projection",
+        "deferBodies",
         "reads",
         "notices",
         "beforePosition",
@@ -931,6 +944,7 @@
       "path": "/api/threads/{threadId}/history",
       "queryParameters": [
         "projection",
+        "deferBodies",
         "reads",
         "notices",
         "runtimePage",
@@ -1679,6 +1693,26 @@
       "scope": "session:read"
     },
     {
+      "name": "forgeListPullRequestsInState",
+      "owner": "projectLocation",
+      "scope": "session:read"
+    },
+    {
+      "name": "forgeListPrLabelCandidates",
+      "owner": "projectLocation",
+      "scope": "session:read"
+    },
+    {
+      "name": "forgeListPrReviewerCandidates",
+      "owner": "projectLocation",
+      "scope": "session:read"
+    },
+    {
+      "name": "forgeGetPrCommitDiff",
+      "owner": "projectLocation",
+      "scope": "session:read"
+    },
+    {
       "name": "ghListPullRequests",
       "owner": "projectLocation",
       "scope": "session:read"
@@ -1948,6 +1982,32 @@
       "scope": "session:operate"
     },
     {
+      "name": "forgeSetPrLabels",
+      "owner": "projectLocation",
+      "scope": "session:operate"
+    },
+    {
+      "name": "forgeRequestPrReviewers",
+      "owner": "projectLocation",
+      "scope": "session:operate"
+    },
+    {
+      "name": "forgeConvertPrToDraft",
+      "owner": "projectLocation",
+      "scope": "session:operate"
+    },
+    {
+      "name": "forgeSetPrReaction",
+      "owner": "projectLocation",
+      "scope": "session:operate"
+    },
+    {
+      "name": "forgeSubmitPrReviewDraft",
+      "owner": "projectLocation",
+      "scope": "session:operate",
+      "timeout": "long"
+    },
+    {
       "name": "ghMergePr",
       "owner": "projectLocation",
       "scope": "session:operate",
@@ -2108,6 +2168,8 @@
   ],
   "webSocket": {
     "clientMessages": [
+      "agent-vision-unwatch",
+      "agent-vision-watch",
       "browser-input",
       "browser-unwatch",
       "browser-watch",
@@ -2119,6 +2181,7 @@
       "thread-item-interests"
     ],
     "outOfBandMessages": [
+      "agent-vision-frame",
       "browser-state",
       "browser-frame",
       "browser-mirror-status",
@@ -2163,6 +2226,7 @@
       "warning"
     ],
     "serverMessages": [
+      "agent-vision-frame",
       "browser-frame",
       "browser-mirror-status",
       "browser-state",

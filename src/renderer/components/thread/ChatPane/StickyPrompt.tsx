@@ -6,6 +6,12 @@ import {
   floatingGlassBubbleClass,
   floatingGlassSurfaceClass,
 } from "@/renderer/components/layout/floatingGlass";
+import { InlinePromptPieces } from "@/renderer/components/promptChips/PromptChips";
+import {
+  compactInlinePieces,
+  hasChipPiece,
+  inlinePiecesFromContent,
+} from "@/renderer/components/promptChips/promptInlinePieces";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useChatFindStore } from "@/renderer/state/chatFindStore";
 import { getRuntimeItemPayload } from "@/renderer/state/slices/runtimeEventSlice";
@@ -59,6 +65,9 @@ export function StickyPrompt({
     ? getRuntimeItemPayload<MessageItemPayload>(promptItem, "user_message")
     : undefined;
   const preview = payload ? buildUserPromptPreview(payload.content) : null;
+  const previewPieces = payload
+    ? compactInlinePieces(inlinePiecesFromContent(payload.content))
+    : [];
 
   useLayoutEffect(() => {
     if (!scrollElement || promptItemId === null || preview === null || !isEnabled || isFindOpen)
@@ -128,7 +137,7 @@ export function StickyPrompt({
           className={`${floatingGlassSurfaceClass} ${floatingGlassBubbleClass} pointer-events-auto h-7 w-full min-w-0 justify-start rounded-full px-3 text-muted transition-colors hover:text-foreground`}
         >
           <span className="min-w-0 truncate text-[length:var(--lc-chat-font-size-meta)]">
-            {preview}
+            {hasChipPiece(previewPieces) ? <InlinePromptPieces pieces={previewPieces} /> : preview}
           </span>
         </Button>
       </div>
