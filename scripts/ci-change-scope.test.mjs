@@ -13,12 +13,34 @@ import lintStaged from "../lint-staged.config.js";
 import { classifyChanges, fullScope } from "./ci-change-scope.mjs";
 
 void test("documentation-only changes skip expensive CI lanes", () => {
-  assert.deepEqual(classifyChanges(["README.md", "docs/STANDALONE_SERVER.md"]), {
-    core: false,
-    nativeAndroid: false,
-    nativeIos: false,
-    nativeShared: false,
-  });
+  assert.deepEqual(
+    classifyChanges([
+      "README.md",
+      "docs/STANDALONE_SERVER.md",
+      ".github/PULL_REQUEST_TEMPLATE.md",
+      ".agents/docs/architecture.md",
+      ".agents/skills/verify/SKILL.md",
+    ]),
+    {
+      core: false,
+      nativeAndroid: false,
+      nativeIos: false,
+      nativeShared: false,
+    },
+  );
+});
+
+void test("markdown that ships or feeds tests runs the core lanes", () => {
+  for (const path of [
+    "resources/plugins/subagent-delegation/skills/subagent-delegation/SKILL.md",
+    "resources/skills/skill-creator-poracode/SKILL.md",
+    "src/supervisor/agents/codex/protocol/README.md",
+    "packages/poracode-cli/README.md",
+    "protocol/remote/v3/NATIVE_PROTOCOL_POLICY.md",
+    "tui/opencode/UPSTREAM.md",
+  ]) {
+    assert.equal(classifyChanges([path]).core, true, path);
+  }
 });
 
 void test("platform-only changes run only the affected native clients", () => {
@@ -412,6 +434,27 @@ void test("integration heads stay fast while master and release runs retain full
   const gate = native.jobs.native_gate.steps.at(-1);
   assert.equal(gate.env.FULL_REQUIRED, "${{ needs.changes.outputs.full }}");
   assert.match(gate.run, /FULL_REQUIRED/u);
+});
+
+void test("merge queue groups run the required core gate on the full graph", async (t) => {
+  const core = parse(
+    await readFile(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8"),
+  );
+  assert.ok(Object.hasOwn(core.on, "merge_group"));
+  const scratchRoot = fileURLToPath(new URL("../tmp", import.meta.url));
+  await mkdir(scratchRoot, { recursive: true });
+  const fixture = await mkdtemp(join(scratchRoot, "ci-change-scope-merge-group-"));
+  t.after(async () => {
+    assert.equal(dirname(fixture), scratchRoot);
+    await rm(fixture, { recursive: true, force: true });
+  });
+  const output = join(fixture, "github-output");
+  await promisify(execFile)(
+    process.execPath,
+    [fileURLToPath(new URL("./ci-change-scope.mjs", import.meta.url))],
+    { env: { ...process.env, GITHUB_EVENT_NAME: "merge_group", GITHUB_OUTPUT: output } },
+  );
+  assert.match(await readFile(output, "utf8"), /^core=true$/mu);
 });
 
 void test("core gate consumes test shards directly without a no-op runner hop", async () => {

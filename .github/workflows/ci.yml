@@ -5,6 +5,7 @@ on:
     branches: [master, poracode/v2, poracode/v4-integration]
   push:
     branches: [master, poracode/v2, poracode/v4-integration]
+  merge_group:
   workflow_dispatch:
 
 permissions:

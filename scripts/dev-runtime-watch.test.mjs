@@ -74,6 +74,15 @@ async function waitFor(condition) {
   assert.fail("Development runtime did not reach the expected state.");
 }
 
+async function compilerPid(root) {
+  let pid = 0;
+  await waitFor(async () => {
+    pid = Number(await readFile(join(root, ".tmp/build-started"), "utf8").catch(() => ""));
+    return Number.isSafeInteger(pid) && pid > 0;
+  });
+  return pid;
+}
+
 function output(root, entry) {
   const path = join(root, "dist/main", `${entry}.cjs`);
   delete taskRequire.cache[taskRequire.resolve(path)];
@@ -212,8 +221,7 @@ await test(
       },
       onError: () => {},
     });
-    await waitFor(() => existsSync(join(root, ".tmp/build-started")));
-    const childPid = Number(await readFile(join(root, ".tmp/build-started"), "utf8"));
+    const childPid = await compilerPid(root);
     await runtime.close();
     await assert.rejects(runtime.ready, /stopped before/);
     assert.equal(published, false);
@@ -282,8 +290,7 @@ await test(
       },
       onError: () => {},
     });
-    await waitFor(() => existsSync(join(root, ".tmp/build-started")));
-    const childPid = Number(await readFile(join(root, ".tmp/build-started"), "utf8"));
+    const childPid = await compilerPid(root);
     const closing = runtime.close();
     await delay(100);
     assert.doesNotThrow(() => process.kill(childPid, 0));
