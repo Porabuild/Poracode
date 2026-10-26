@@ -1,5 +1,5 @@
 diff --git a/packages/tui/src/mini/theme.ts b/packages/tui/src/mini/theme.ts
-index 4f8e197..bb3fa80 100644
+index 4f8e197..a986081 100644
 --- a/packages/tui/src/mini/theme.ts
 +++ b/packages/tui/src/mini/theme.ts
 @@ -1,6 +1,7 @@
@@ -11,7 +11,24 @@ index 4f8e197..bb3fa80 100644
  import { ansiToRgba } from "../theme/color"
  import { discoverThemes } from "../theme/discovery"
  import { generateSystem, terminalMode } from "../theme/system"
-@@ -196,11 +197,11 @@ function map(
+@@ -19,6 +20,8 @@ export type RunSplashTheme = {
+   left: ColorInput
+   right: ColorInput
+   leftShadow: ColorInput
++  // poracode: the Pora dot keeps the brand accent in the exit mark.
++  brand: ColorInput
+ }
+ 
+ export type RunFooterTheme = {
+@@ -175,6 +178,7 @@ function map(
+       left: nearestIndexed(indexed, theme.text.muted),
+       right: nearestIndexed(indexed, theme.text.base),
+       leftShadow: nearestIndexed(indexed, theme.background.raised.base),
++      brand: nearestIndexed(indexed, theme.text.brand),
+     },
+     block: {
+       text: scrollback(theme.text.base),
+@@ -196,11 +200,11 @@ function map(
  }
  
  export const RUN_THEME_FALLBACK = map(
@@ -25,7 +42,16 @@ index 4f8e197..bb3fa80 100644
    ansiPalette,
  )
  
-@@ -286,7 +287,7 @@ export async function resolveRunTheme(
+@@ -241,7 +245,7 @@ function monoTheme(mode: "dark" | "light"): RunTheme {
+       tool: { body: foreground },
+       error: { body: foreground },
+     },
+-    splash: { left: foreground, right: foreground, leftShadow: background },
++    splash: { left: foreground, right: foreground, leftShadow: background, brand: foreground },
+     block: {
+       text: foreground,
+       muted: foreground,
+@@ -286,7 +290,7 @@ export async function resolveRunTheme(
      renderer.themeMode ??
      (colors && terminalMode(colors)) ??
      (config?.mode === "light" ? "light" : "dark")
@@ -34,7 +60,7 @@ index 4f8e197..bb3fa80 100644
    if (name === "system" && !colors) {
      return mode === "light" ? RUN_THEME_FALLBACK_LIGHT : RUN_THEME_FALLBACK
    }
-@@ -298,7 +299,7 @@ export async function resolveRunTheme(
+@@ -298,7 +302,7 @@ export async function resolveRunTheme(
        if (themeModes(document).includes(mode)) return resolveThemeDocument(document, mode)
      })
      .catch(() => undefined)
@@ -43,7 +69,7 @@ index 4f8e197..bb3fa80 100644
    const indexed = colors
      ? ansiPalette.map((color, index) => (colors.palette[index] ? RGBA.fromIndex(index, colors.palette[index]!) : color))
      : ansiPalette
-@@ -323,6 +324,6 @@ async function themeSource(
+@@ -323,6 +327,6 @@ async function themeSource(
    const custom = await discoverThemes(
      configDirectories(process.env.OPENCODE_CONFIG_DIR ?? Global.Path.config, process.cwd()),
    )

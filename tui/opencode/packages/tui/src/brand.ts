@@ -4,7 +4,6 @@ export const BRAND = {
   website: "https://poracode.com/",
   defaultTheme: "poracode",
   updatesEnabled: false,
-  wordmark: { beforeDot: "PORA", dot: ".", afterDot: "CODE", compact: "P." },
   palette: {
     light: {
       background: "#f1f1f4",

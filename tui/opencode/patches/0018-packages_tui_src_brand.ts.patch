@@ -1,16 +1,15 @@
 diff --git a/packages/tui/src/brand.ts b/packages/tui/src/brand.ts
 new file mode 100644
-index 0000000..14dabb3
+index 0000000..b94e3be
 --- /dev/null
 +++ b/packages/tui/src/brand.ts
-@@ -0,0 +1,58 @@
+@@ -0,0 +1,57 @@
 +// poracode: product identity and terminal theme anchors.
 +export const BRAND = {
 +  name: "Poracode",
 +  website: "https://poracode.com/",
 +  defaultTheme: "poracode",
 +  updatesEnabled: false,
-+  wordmark: { beforeDot: "PORA", dot: ".", afterDot: "CODE", compact: "P." },
 +  palette: {
 +    light: {
 +      background: "#f1f1f4",

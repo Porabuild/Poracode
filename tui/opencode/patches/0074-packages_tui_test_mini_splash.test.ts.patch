@@ -1,8 +1,16 @@
 diff --git a/packages/tui/test/mini/splash.test.ts b/packages/tui/test/mini/splash.test.ts
-index 37c778d..73a5bf1 100644
+index 37c778d..3bd8d32 100644
 --- a/packages/tui/test/mini/splash.test.ts
 +++ b/packages/tui/test/mini/splash.test.ts
-@@ -46,7 +46,7 @@ test.each([
+@@ -11,6 +11,7 @@ const theme = {
+   left: RGBA.fromIndex(8, "#666666"),
+   right: RGBA.defaultForeground("#cccccc"),
+   leftShadow: RGBA.defaultBackground("#111111"),
++  brand: RGBA.fromHex("#8892ef"),
+ }
+ 
+ async function renderSplash(writer: ScrollbackWriter, width: number) {
+@@ -46,7 +47,7 @@ test.each([
    { width: 20, mono: false, detail: "/home/研究/長いディレクトリ/画面/設定/界e\u0301🙂", metadata: " · 界e\u0301🙂" },
  ])("entry renders metadata with distinct foreground roles (%o)", async (input) => {
    const result = await renderSplash(entrySplash({ ...input, version: "local", theme }), input.width)
@@ -11,7 +19,7 @@ index 37c778d..73a5bf1 100644
    expect(result.rows).toEqual(["", label + input.metadata])
    const labelStyle = result.spans.find((span) => span.text === label)
    expect(labelStyle?.width).toBe(stringWidth(label))
-@@ -59,14 +59,14 @@ test.each([
+@@ -59,14 +60,14 @@ test.each([
  })
  
  test.each([
@@ -34,7 +42,7 @@ index 37c778d..73a5bf1 100644
  ])("entry progressively admits the basename, whole version, and parent directories (%o)", (input) => {
    const layout = entrySplashLayout({ ...input, detail: "~/src/wt/oc-mini-v2" })
    expect(layout.label + layout.metadata).toBe(input.expected)
-@@ -111,8 +111,8 @@ test.each([false, true])("entry layout preserves admitted information at every w
+@@ -111,8 +112,8 @@ test.each([false, true])("entry layout preserves admitted information at every w
          }
          if (layout.version && detail) expect(layout.path).not.toBe("")
          if (layout.path) expect(suffix(detail!)).toEndWith(suffix(layout.path))
@@ -45,7 +53,7 @@ index 37c778d..73a5bf1 100644
          previous = layout
        }
        expect(previous.path).toBe(detail ?? "")
-@@ -122,7 +122,7 @@ test.each([false, true])("entry layout preserves admitted information at every w
+@@ -122,7 +123,7 @@ test.each([false, true])("entry layout preserves admitted information at every w
  })
  
  test.each([false, true])("entry skips abbreviated paths that are longer than the full path (mono=%s)", (mono) => {
@@ -54,7 +62,7 @@ index 37c778d..73a5bf1 100644
    const metadata = mono ? " vlocal - a/b/c" : " vlocal · a/b/c"
    expect(
      entrySplashLayout({ width: stringWidth(label + metadata), version: "local", detail: "a/b/c", mono }),
-@@ -175,15 +175,15 @@ test.each(
+@@ -175,15 +176,15 @@ test.each(
      exitSplash({ ...input, title: "Review mini layout", session_id: sessionID, theme }),
      input.width,
    )
@@ -73,7 +81,7 @@ index 37c778d..73a5bf1 100644
      expect(result.rows[1].includes("Session  Review mini layout")).toBe(input.showSession)
      expect(result.rows[2]).toContain("Continue " + command)
    } else {
-@@ -191,6 +191,6 @@ test.each(
+@@ -191,6 +192,6 @@ test.each(
      expect(result.rows).toHaveLength(1 + Math.ceil(command.length / input.width))
    }
    if (input.mono) expect(result.rows.join("")).not.toMatch(/[^\x20-\x7e]/)

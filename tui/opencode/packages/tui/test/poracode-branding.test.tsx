@@ -5,6 +5,7 @@ import { BRAND, displayThemeName } from "../src/brand"
 import { resolve as resolveConfig } from "../src/config"
 import { allThemes, parseTheme, resolveThemeWithFallback } from "../src/theme"
 import { createAppFixture } from "./fixture/app"
+import { agent } from "./fixture/local"
 import { json } from "./fixture/tui-client"
 
 test("Poracode is the default built-in theme without replacing a user choice", () => {
@@ -44,6 +45,11 @@ test("the rendered home screen uses Poracode branding only", async () => {
     config: { animations: false },
     fetch: (url) => {
       if (url.pathname === "/path") return json({ home: "", state: "", config: "", worktree, directory })
+      if (url.pathname === "/api/agent")
+        return json({
+          location: { directory, project: { id: "proj_test", directory: worktree, canonical: worktree } },
+          data: [agent("build")],
+        })
       if (url.pathname === "/api/location")
         return json({ directory, project: { id: "proj_test", directory: worktree, canonical: worktree } })
       if (url.pathname === "/api/fs/list")
@@ -54,9 +60,13 @@ test("the rendered home screen uses Poracode branding only", async () => {
     },
   })
   await app.ready
-  await app.waitForFrame((frame) => frame.includes("PORA.CODE"))
+  await app.waitForFrame((frame) => frame.includes("█▀▀█ █▀▀█ █▀▀▄ ▀▀▀█   █▀▀▀ █▀▀█ █▀▀█ █▀▀█"))
+  await app.waitForFrame((frame) => frame.includes("No model selected"))
 
   const frame = app.captureCharFrame()
-  expect(frame).toContain("PORA.CODE")
+  expect(frame).toContain("█▀▀█ █▀▀█ █▀▀▄ ▀▀▀█   █▀▀▀ █▀▀█ █▀▀█ █▀▀█")
+  expect(frame).not.toContain("PORA.CODE")
   expect(frame.toLowerCase()).not.toContain("opencode")
+  expect(frame).toContain("No model selected")
+  expect(frame).not.toContain("Connect a provider")
 })
