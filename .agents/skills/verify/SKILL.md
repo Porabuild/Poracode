@@ -56,6 +56,7 @@ Add these when the change touches the matching area:
 - **Provider runtime behavior**: `bun run test:integration:providers` when the provider CLIs are available; otherwise say it was not run.
 - **Visible UI or app-shell behavior**: a mock smoke run via the `interactive-testing` skill (`bun run smoke:integration` wraps its runner).
 - **Smoke harness scripts** (`.agents/skills/interactive-testing/scripts/`): `node --test .agents/skills/interactive-testing/scripts/*.test.mjs`.
+- **TUI** (`tui/`): `bun run tui:typecheck` and `bun run tui:test`.
 
 ## CI map
 
@@ -67,6 +68,7 @@ Add these when the change touches the matching area:
 - Canonical web build: `bun run build:web`.
 - Runtime dependencies: `bun run build:electron` plus the runtime-deps check in `scripts/build-desktop-artifact.mjs`.
 - Rust helper: `cargo fmt`, `clippy`, `test`, `doc`, `deny`.
+- TUI: `bun run tui:typecheck` and `bun run tui:test`.
 - Test shards: `bun run test` split 8 ways.
 - Perf suites: `bun run test:perf:cli-hook` and `bun run test:perf:remote`.
 
