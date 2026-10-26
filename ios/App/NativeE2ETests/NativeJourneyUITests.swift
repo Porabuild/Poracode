@@ -86,6 +86,10 @@ final class NativeJourneyUITests: XCTestCase {
     XCTAssertTrue(app.textViews["native-e2e.new-thread-prompt"].waitForExistence(timeout: 5))
     attachScreenshot("01b-quick-compose")
     app.buttons["Cancel"].tap()
+    // A thread tap issued while the sheet is still dismissing is swallowed.
+    await fulfillment(of: [XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "exists == false"),
+      object: app.textViews["native-e2e.new-thread-prompt"])], timeout: 5)
 
     thread.tap()
     XCTAssertTrue(app.staticTexts["Fixture response"].waitForExistence(timeout: 15))

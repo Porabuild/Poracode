@@ -167,7 +167,9 @@ struct RichChatAdaptiveComposer<Summary: View, Toolbar: View, Trailing: View>: V
   @ViewBuilder let toolbar: () -> Toolbar
   @ViewBuilder let trailing: () -> Trailing
 
-  @FocusState private var focused: Bool
+  /// Plain state, not `@FocusState`: the editor is a UIKit text view, so no
+  /// SwiftUI view is bound to a focus state. The text view owns first responder.
+  @State private var focused = false
   @State private var expandedHasFocused = false
   @AppStorage(PoracodeChatTextSize.storageKey) private var storedTextSize = PoracodeChatTextSize.defaultValue
 
@@ -233,7 +235,7 @@ struct RichChatAdaptiveComposer<Summary: View, Toolbar: View, Trailing: View>: V
     RichChatComposerTextInput(
       text: $text,
       selection: $selection,
-      focused: Binding(get: { focused }, set: { focused = $0 }),
+      focused: $focused,
       lineLimit: lineLimit,
       placeholder: RichChatStrings.message,
       pointSize: PoracodeChatTextRole.body.pointSize(for: storedTextSize),
