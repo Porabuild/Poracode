@@ -394,7 +394,8 @@ internal fun HomeQuickComposeOverlay(
                         canOperate = state.canSessionOperate,
                         busy = busy,
                         uploading = uploading,
-                        canStart = (prompt.isNotBlank() || queuedMentionSegments.isNotEmpty()) && !busy && !uploading &&
+                        canStart = (prompt.isNotBlank() || queuedMentionSegments.isNotEmpty() ||
+                            attachments.isNotEmpty()) && !busy && !uploading &&
                             state.canSessionOperate,
                         onCaptureFromCamera = captureFromCamera,
                         onPickAttachment = { attachmentLauncher.launch(arrayOf("*/*")) },

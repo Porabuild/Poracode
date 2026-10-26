@@ -169,7 +169,8 @@ fun RichChatComposer(
             mentionThreads = mentionThreads,
         )
     }
-    val hasPrompt = draft.isNotBlank() || queuedSegments.isNotEmpty()
+    val hasSendableContent =
+        draft.isNotBlank() || queuedSegments.isNotEmpty() || attachments.isNotEmpty()
     Surface(modifier = modifier.fillMaxWidth(), tonalElevation = 3.dp) {
         Column(
             Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
@@ -321,7 +322,7 @@ fun RichChatComposer(
                     maxLines = 6,
                     enabled = enabled,
                 )
-                if (sending || (isTurnActive && !hasPrompt)) {
+                if (sending || (isTurnActive && !hasSendableContent)) {
                     IconButton(
                         onClick = onInterrupt,
                         enabled = enabled,
@@ -343,21 +344,21 @@ fun RichChatComposer(
                             .size(48.dp)
                             .clip(CircleShape)
                             .background(
-                                if (enabled && hasPrompt && !uploading) {
+                                if (enabled && hasSendableContent && !uploading) {
                                     MaterialTheme.colorScheme.primary
                                 } else {
                                     MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
                                 },
                             )
                             .combinedClickable(
-                                enabled = enabled && hasPrompt && !uploading,
+                                enabled = enabled && hasSendableContent && !uploading,
                                 onClick = onSend,
                                 onLongClick = if (isTurnActive) onQueueSend else null,
                             ),
                     ) {
                         Icon(
                             Icons.AutoMirrored.Filled.Send,
-                            tint = if (enabled && hasPrompt && !uploading) {
+                            tint = if (enabled && hasSendableContent && !uploading) {
                                 MaterialTheme.colorScheme.onPrimary
                             } else {
                                 MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)

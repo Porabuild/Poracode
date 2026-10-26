@@ -132,6 +132,13 @@ class RichChatUiLogicTest {
     }
 
     @Test
+    fun composerPromptAllowsAnAttachmentOnlySubmission() {
+        assertEquals("", RichChatUiLogic.composerPrompt("", emptyList(), hasAttachments = true))
+        assertEquals(null, RichChatUiLogic.composerPrompt("  ", emptyList()))
+        assertEquals("hi", RichChatUiLogic.composerPrompt(" hi ", emptyList(), hasAttachments = true))
+    }
+
+    @Test
     fun sessionActionOwnerKeyCoversEverySessionIdentityAxis() {
         val ref = com.poracode.app.model.RemoteSessionRef(
             providerSessionId = "sess-1",
