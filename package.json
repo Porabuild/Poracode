@@ -65,7 +65,7 @@
     "sentry:sourcemaps": "node scripts/sentry-sourcemaps.mjs",
     "clean:sourcemaps": "node scripts/clean-sourcemaps.mjs",
     "codex-protocol:gen": "bun run --cwd packages/codex-protocol generate",
-    "tui:install": "bun install --cwd tui --frozen-lockfile",
+    "tui:install": "bun install --cwd tui --frozen-lockfile --cpu=\"*\" --os=\"*\"",
     "tui:build": "bun scripts/build-tui.mjs",
     "tui:typecheck": "bun run --cwd tui typecheck",
     "tui:test": "bun run --cwd tui test",
