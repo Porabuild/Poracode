@@ -5,7 +5,13 @@ import { join, resolve } from "node:path";
 import type { ChildProcess } from "node:child_process";
 import { expect, it, vi } from "vitest";
 import { SERVER_INSTALL_LAYOUT_VERSION, type ServerInstallLayout } from "./serverInstallLayout";
-import { createTuiBootstrap, resolveTuiLaunch, resolveTuiLaunchForRun, runCliTui } from "./cliTui";
+import {
+  createTuiBootstrap,
+  resolveTuiLaunch,
+  resolveTuiLaunchForRun,
+  runCliTui,
+  TuiLaunchUnavailableError,
+} from "./cliTui";
 import { TUI_BOOTSTRAP_VERSION, tuiBootstrapSchema } from "@/shared/tuiBootstrap";
 import { parseTuiSession } from "@/shared/tuiSession";
 import { remoteAccessTokenResultSchema } from "@/shared/remote/protocol/core";
@@ -90,7 +96,7 @@ it("emits a session-mode bootstrap without a pairing URL", () => {
   expect(bootstrap).not.toHaveProperty("pairingUrl");
 });
 
-it("resolves the checkout Bun entry or the staged prefix binary", () => {
+it("resolves the checkout Bun entry and reports a prefix with no binary", () => {
   const root = resolve("tui-launch-fixture");
   const checkout = layout("checkout", root);
   const bun = join(
@@ -119,11 +125,49 @@ it("resolves the checkout Bun entry or the staged prefix binary", () => {
     }),
   ).toEqual({ command: pathBun, args: [source], cwd: join(root, "tui") });
 
+  // A prefix install stages manifest.json only — no binary lives at
+  // resources/tui/poracode.exe, so a launch resolves via download or fails.
   const prefix = layout("prefix", root);
-  const staged = join(prefix.resourcesDir, "tui", "poracode.exe");
-  expect(
-    resolveTuiLaunch(prefix, { directory, env: {}, fileExists: (path) => path === staged }),
-  ).toEqual({ command: staged, args: [], cwd: directory });
+  expect(() => resolveTuiLaunch(prefix, { directory, env: {}, fileExists: () => false })).toThrow(
+    TuiLaunchUnavailableError,
+  );
+});
+
+it("resolves the launch before touching the owner and fails clean when none exists", async () => {
+  const profile = await mkdtemp(join(tmpdir(), "poracode-cli-tui-"));
+  const order: string[] = [];
+  const prefix = layout("prefix", resolve("tui-prefix-fixture"));
+  const ensureOwner = vi.fn<typeof ensureCliOwner>(async () => {
+    order.push("owner");
+    return {
+      requestId: "status-request",
+      ownerGeneration: "owner-generation",
+      description: {} as HostDescription,
+    } as HostStatusResponse;
+  });
+  try {
+    await expect(
+      runCliTui(
+        {} satisfies TuiCliOptions,
+        { profileNamespace: profile, directory },
+        {
+          appVersion: "1.2.3",
+          env: {},
+          ensureOwner,
+          fileExists: () => false,
+          layout: prefix,
+          resolveLaunch: async () => {
+            order.push("launch");
+            throw new TuiLaunchUnavailableError("no TUI binary");
+          },
+        },
+      ),
+    ).rejects.toBeInstanceOf(TuiLaunchUnavailableError);
+    expect(order).toEqual(["launch"]);
+    expect(ensureOwner).not.toHaveBeenCalled();
+  } finally {
+    await rm(profile, { recursive: true, force: true });
+  }
 });
 
 it("prefers PORACODE_TUI_BIN and propagates the child exit code with a validated bootstrap", async () => {
@@ -232,18 +276,18 @@ it("prefers PORACODE_TUI_BIN and propagates the child exit code with a validated
   }
 });
 
-it("prefers a staged binary over the download tier and falls back to the checkout entry", async () => {
+it("falls back to the checkout entry and fails a prefix without a binary", async () => {
   const root = resolve("tui-launch-fixture");
   const prefix = layout("prefix", root);
-  const staged = join(prefix.resourcesDir, "tui", "poracode.exe");
-  expect(
-    await resolveTuiLaunchForRun(prefix, {
+  await expect(
+    resolveTuiLaunchForRun(prefix, {
       directory,
       env: {},
       appVersion: "1.2.3",
-      fileExists: (path) => path === staged,
+      fileExists: () => false,
+      fetchImpl: (async () => new Response("not found", { status: 404 })) as typeof fetch,
     }),
-  ).toEqual({ command: staged, args: [], cwd: directory });
+  ).rejects.toBeInstanceOf(TuiLaunchUnavailableError);
 
   const checkout = layout("checkout", root);
   const bun = join(

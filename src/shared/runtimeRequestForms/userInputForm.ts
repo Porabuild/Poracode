@@ -114,6 +114,8 @@ export function userInputValueList(value: UserInputFormAnswer | undefined): stri
   return Array.isArray(value) ? value : [];
 }
 
+// Whitespace-only text is as unanswered: the supervisor rejects empty answer
+// entries, so the gate and the trimmed payload must agree.
 export function hasUserInputAnswer(value: UserInputFormAnswer | undefined): boolean {
   if (Array.isArray(value)) return value.length > 0;
   return typeof value === "string" && value.trim().length > 0;

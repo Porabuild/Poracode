@@ -22,6 +22,7 @@ import {
 } from "./runtimeEventReducer";
 import { markLiveCrossagentItems, terminateStaleSubAgentItems } from "./staleSubAgents";
 import { hydrateRuntimeStream, type RuntimeStreamRetention } from "./runtimeStreamRetention";
+import { getRuntimeItemPayload } from "@/shared/runtimeItemVisibility";
 
 /**
  * Frozen "Worked for X" record for a turn that has finished. Persisted so the
@@ -271,7 +272,6 @@ export interface RuntimeEventSlice {
   upsertThreadFileCheckpointTurn(threadId: string, checkpoint: FileCheckpointTurn): void;
 }
 
-import { getRuntimeItemPayload } from "@/shared/checkpointRevert";
 /**
  * Typed accessor for a runtime item's payload. Returns `undefined` when the
  * item is the wrong canonical type, so chat-part components can treat the

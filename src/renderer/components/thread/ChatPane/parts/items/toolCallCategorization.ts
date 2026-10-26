@@ -17,6 +17,7 @@ import {
   getRuntimeItemPayload,
   type RuntimeChatItem,
 } from "@/renderer/state/slices/runtimeEventSlice";
+import { getToolLikePayload, isToolLikeItem } from "@/shared/runtimeItemVisibility";
 import { parseMcpName } from "@/shared/toolCallClassification";
 import { extractAcpDiffSummary, readAcpStringField } from "./acpToolPayload";
 import { commandIntentDisplay } from "./commandSummary";
@@ -378,7 +379,6 @@ function deriveItemCategory(item: RuntimeChatItem): GroupCategory {
   return categorizeVerbPrefix(payload.name ?? "");
 }
 
-import { isToolLikeItem, getToolLikePayload } from "@/shared/checkpointRevert";
 export { isToolLikeItem, getToolLikePayload };
 
 export function categorizeCommandExecution(item: RuntimeChatItem): GroupCategory {

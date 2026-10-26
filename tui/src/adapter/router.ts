@@ -1,4 +1,4 @@
-import { mkdir } from "node:fs/promises";
+import { mkdir, rename, writeFile } from "node:fs/promises";
 import { Buffer } from "node:buffer";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -176,6 +176,64 @@ export function createRouter(input: {
     }
   >();
   const states = new Map<string, ThreadStatus>();
+  // Staged /undo targets. The vendored prompt commits before the next send
+  // (and /redo clears), so the irreversible checkpointRevert runs on commit —
+  // staging alone never touches the host.
+  const pendingReverts = new Map<string, { messageID: string; checkpointItemId: string }>();
+  const emitRevertEvent = (
+    type: "session.revert.staged" | "session.revert.cleared" | "session.revert.committed",
+    sessionID: string,
+    extra: Record<string, unknown>,
+  ) =>
+    input.events.emit(
+      openCodeEvent(type, { sessionID, ...extra } as never, {
+        durable: {
+          aggregateID: sessionID,
+          seq: input.events.nextDurableSequence(sessionID),
+          version: 1,
+        },
+        location: { directory: input.bootstrap.directory },
+      }),
+    );
+  // A staged revert commits the stored checkpoint when the user sends the next
+  // prompt without going through revert.commit — /undo stays reversible until
+  // then. Failure surfaces like the commit route's and keeps the prompt away.
+  const commitPendingRevert = async (sessionID: string) => {
+    const pendingRevert = pendingReverts.get(sessionID);
+    if (!pendingRevert) return undefined;
+    const result = await input.client.checkpointRevert({
+      threadId: threadId(sessionID),
+      checkpointItemId: pendingRevert.checkpointItemId,
+      operationKey: mintCheckpointOperationKey(),
+    });
+    if (debug)
+      void logAdapterDebug(input.bootstrap.home, {
+        source: "revert.commit",
+        threadId: threadId(sessionID),
+        messageID: pendingRevert.messageID,
+        checkpointItemId: pendingRevert.checkpointItemId,
+        result,
+      });
+    if (result.outcome === "ambiguous")
+      return {
+        status: 409,
+        error: {
+          code: "conflict",
+          message: "The revert outcome is uncertain — reopen the thread to check.",
+        },
+      };
+    if (result.outcome === "failed")
+      return {
+        status: 400,
+        error: {
+          code: "invalid_request",
+          message: "Can't restore files for that turn (no checkpoint was captured.)",
+        },
+      };
+    pendingReverts.delete(sessionID);
+    emitRevertEvent("session.revert.committed", sessionID, { to: pendingRevert.messageID });
+    return undefined;
+  };
   const pending = new Map<
     string,
     {
@@ -495,13 +553,12 @@ export function createRouter(input: {
         currentProject.location,
         remoteThread?.worktreePath,
       );
-      const [listed, completedTurns, items] = await Promise.all([
+      const [listed, completedTurns] = await Promise.all([
         input.client.callRemoteProcedure("listFileCheckpoints", {
           threadId: rawThreadId,
           projectLocation,
         }),
         input.client.threadCompletedTurns(rawThreadId),
-        listThreadItems(rawThreadId),
       ]);
       const listedRecords = record(listed);
       const checkpointRows = Array.isArray(listedRecords.checkpoints)
@@ -514,19 +571,50 @@ export function createRouter(input: {
       const finalizedAnchorsHost = new Set(
         turnRows.map((value) => String(record(value).checkpointItemId ?? "")),
       );
-      const itemIndex = new Map(items.map((item, index) => [item.id, index]));
+      // Completed turns whose anchor is not yet finalized locally or on the
+      // host. When nothing is pending the item listing never runs — turns are
+      // frequent and pages are the expensive part.
+      const candidates = completedTurns
+        .map((turn) => (turn as { anchorItemId?: string | null }).anchorItemId)
+        .filter(
+          (anchor): anchor is string =>
+            typeof anchor === "string" &&
+            !finalizedAnchors.has(`${rawThreadId}\0${anchor}`) &&
+            !finalizedAnchorsHost.has(anchor),
+        );
+      if (candidates.length === 0) return 0;
+      // Page newest-first only until every candidate anchor and the preceding
+      // user_message (its checkpoint base) is seen — anchors sit near the
+      // tail, so the latest page almost always suffices.
+      const unresolved = new Set(candidates);
+      const awaitingBase = new Set<string>();
+      const bases = new Map<string, string>();
+      let beforePosition: number | undefined;
+      for (
+        let pageIndex = 0;
+        pageIndex < 200 && (unresolved.size > 0 || awaitingBase.size > 0);
+        pageIndex += 1
+      ) {
+        const page = await input.client.threadRuntimeItemsPage({
+          threadId: rawThreadId,
+          ...(beforePosition !== undefined ? { beforePosition } : {}),
+          limit: 500,
+        });
+        for (let index = page.items.length - 1; index >= 0; index -= 1) {
+          const item = page.items[index]!;
+          if (unresolved.delete(item.id)) awaitingBase.add(item.id);
+          if (item.type === "user_message" && awaitingBase.size > 0) {
+            for (const anchor of awaitingBase) bases.set(anchor, item.id);
+            awaitingBase.clear();
+          }
+        }
+        if (page.nextCursor == null) break;
+        beforePosition = page.nextCursor;
+      }
       let finalized = 0;
-      for (const turn of completedTurns) {
-        const anchor = (turn as { anchorItemId?: string | null }).anchorItemId;
-        if (typeof anchor !== "string") continue;
+      for (const anchor of candidates) {
         const key = `${rawThreadId}\0${anchor}`;
-        if (finalizedAnchors.has(key) || finalizedAnchorsHost.has(anchor)) continue;
-        // Base = the nearest user_message at or before the anchor.
-        const anchorIndex = itemIndex.get(anchor);
-        if (anchorIndex === undefined) continue;
-        const base = items
-          .slice(0, anchorIndex + 1)
-          .findLast((item) => item.type === "user_message")?.id;
+        const base = bases.get(anchor);
         if (!base || !capturedBases.has(base)) continue;
         finalizedAnchors.add(key);
         try {
@@ -537,6 +625,7 @@ export function createRouter(input: {
             projectLocation,
           });
           finalized += 1;
+          capturedCheckpoints.get(rawThreadId)?.delete(base);
           if (debug)
             void logAdapterDebug(input.bootstrap.home, {
               source: "checkpoint.finalize",
@@ -568,12 +657,13 @@ export function createRouter(input: {
     }
   };
   // completedTurns lags turn.completed — retry briefly until the new anchor
-  // shows up (or nothing needs finalizing).
+  // shows up. Retries only run while this adapter still has a captured
+  // checkpoint awaiting its finalize; nothing pending means a single pass.
   const scheduleCheckpointReconcile = (rawThreadId: string) => {
     void (async () => {
       for (let attempt = 0; attempt < 5; attempt += 1) {
-        const finalized = await reconcileCheckpoints(rawThreadId);
-        if (finalized > 0) return;
+        await reconcileCheckpoints(rawThreadId);
+        if ((capturedCheckpoints.get(rawThreadId)?.size ?? 0) === 0) return;
         await new Promise((resolve) => setTimeout(resolve, 400));
       }
     })();
@@ -899,6 +989,45 @@ export function createRouter(input: {
       input.bootstrap.directory,
   });
 
+  // last-model.json is a convenience preference, never a prompt blocker:
+  // parse failures and write errors are logged, never thrown.
+  const persistLastModel = async (patch: Record<string, unknown>) => {
+    const home = process.env.PORACODE_TUI_HOME;
+    if (!home) return;
+    try {
+      await mkdir(home, { recursive: true });
+      const preferencePath = join(home, TUI_LAST_MODEL_FILE_NAME);
+      const previous = record(
+        await Bun.file(preferencePath)
+          .json()
+          .catch(() => undefined),
+      );
+      if (previous.version !== undefined && previous.version !== LAST_MODEL_VERSION) {
+        if (debug)
+          await logAdapterDebug(home, {
+            source: "last-model.write-skipped",
+            version: previous.version,
+          });
+        return;
+      }
+      const next = tuiLastModelSchema.parse({
+        ...previous,
+        version: LAST_MODEL_VERSION,
+        ...patch,
+        updatedAt: new Date().toISOString(),
+      });
+      const temporary = `${preferencePath}.tmp`;
+      await writeFile(temporary, `${JSON.stringify(next)}\n`, "utf8");
+      await rename(temporary, preferencePath);
+    } catch (error) {
+      if (debug)
+        await logAdapterDebug(home, {
+          source: "last-model.write-failed",
+          error: error instanceof Error ? error.message : String(error),
+        });
+    }
+  };
+
   const agentStatuses = async () => {
     if (!statuses) {
       const fetched = await input.client.agentStatuses({ omitSlashCommands: true });
@@ -1002,6 +1131,9 @@ export function createRouter(input: {
       title: value.title,
       // poracode: child threads (isSubAgent) surface as subsessions.
       ...(value.parentThreadId ? { parentID: sessionId(value.parentThreadId) } : {}),
+      ...(pendingReverts.has(sessionId(value.id))
+        ? { revert: { messageID: pendingReverts.get(sessionId(value.id))!.messageID } }
+        : {}),
       location: { directory: sessionDirectory },
     } satisfies SessionInfo;
     return output;
@@ -1313,6 +1445,10 @@ export function createRouter(input: {
     const currentProject = await resolveProject();
     const raw = sessions.get(session);
     const id = raw?.threadId ?? threadId(session);
+    // A staged /undo commits before the next prompt — send paths that skipped
+    // revert.commit land here.
+    const revertError = await commitPendingRevert(session);
+    if (revertError) return revertError;
     const model = record(body.model);
     const agentID = String(body.agent ?? raw?.agentID ?? "build");
     const providerID = String(
@@ -1343,7 +1479,10 @@ export function createRouter(input: {
     );
     const selectedStatus = (await agentStatuses()).find((status) => status.kind === providerID);
     if (!selectedStatus || !selectedModel)
-      throw new Error("Choose an installed provider and model");
+      return {
+        status: 400,
+        error: { code: "invalid_request", message: "Choose an installed provider and model" },
+      };
     activeProviderID = providerID;
     const guiCapabilities =
       selectedStatus.capabilities.presentationCapabilities?.gui ?? selectedStatus.capabilities;
@@ -2003,37 +2142,13 @@ export function createRouter(input: {
       ...(config.approvalPolicy ? { approvalPolicy: config.approvalPolicy } : {}),
       ...(config.sandboxMode ? { sandboxMode: config.sandboxMode } : {}),
     });
-    const home = process.env.PORACODE_TUI_HOME;
-    if (home) {
-      await mkdir(home, { recursive: true });
-      const preferencePath = join(home, TUI_LAST_MODEL_FILE_NAME);
-      const existingPreference = await Bun.file(preferencePath)
-        .json()
-        .catch(() => undefined);
-      const previous = record(existingPreference);
-      if (previous.version === undefined || previous.version === LAST_MODEL_VERSION) {
-        await Bun.write(
-          preferencePath,
-          JSON.stringify(
-            tuiLastModelSchema.parse({
-              ...previous,
-              version: LAST_MODEL_VERSION,
-              provider: providerID,
-              model: selectedModel,
-              ...(config.effort ? { effort: config.effort } : {}),
-              ...(config.approvalPolicy ? { approvalPolicy: config.approvalPolicy } : {}),
-              ...(config.sandboxMode ? { sandboxMode: config.sandboxMode } : {}),
-              updatedAt: new Date().toISOString(),
-            }),
-          ) + "\n",
-        );
-      } else if (debug) {
-        await logAdapterDebug(home, {
-          source: "last-model.write-skipped",
-          version: previous.version,
-        });
-      }
-    }
+    await persistLastModel({
+      provider: providerID,
+      model: selectedModel,
+      ...(config.effort ? { effort: config.effort } : {}),
+      ...(config.approvalPolicy ? { approvalPolicy: config.approvalPolicy } : {}),
+      ...(config.sandboxMode ? { sandboxMode: config.sandboxMode } : {}),
+    });
     const output: SessionPromptOutput = {
       id: messageId(userMessageItemId),
       sessionID: session,
@@ -2929,7 +3044,9 @@ export function createRouter(input: {
             },
             400,
           );
-        await sendPrompt(compactSession, { text: "/compact" });
+        const compactResult = await sendPrompt(compactSession, { text: "/compact" });
+        if ("error" in compactResult)
+          return json({ error: compactResult.error }, compactResult.status ?? 400);
         // session.compact declares 200 + SessionInboxCompaction.
         return json({
           data: {
@@ -2951,7 +3068,11 @@ export function createRouter(input: {
         const name = typeof body.name === "string" ? body.name.trim() : "";
         if (!name) throw new Error("A slash command name is required.");
         const args = typeof body.text === "string" ? body.text : "";
-        await sendPrompt(session, { text: `/${name}${args ? ` ${args}` : ""}` });
+        const commandResult = await sendPrompt(session, {
+          text: `/${name}${args ? ` ${args}` : ""}`,
+        });
+        if ("error" in commandResult)
+          return json({ error: commandResult.error }, commandResult.status ?? 400);
         return new Response(null, { status: 204 });
       }
       const interruptMatch = path.match(/^\/api\/session\/([^/]+)\/interrupt$/u);
@@ -3542,10 +3663,15 @@ export function createRouter(input: {
             },
             400,
           );
-        const result = await input.client.checkpointRevert({
-          threadId: rawId,
+        // Stage only marks the boundary — the irreversible checkpointRevert
+        // runs on commit, which the vendored prompt sends before the next
+        // message. Until then /redo (clear) restores the view.
+        pendingReverts.set(revertSession, {
+          messageID: String(body.messageID ?? ""),
           checkpointItemId,
-          operationKey: mintCheckpointOperationKey(),
+        });
+        emitRevertEvent("session.revert.staged", revertSession, {
+          revert: { messageID: String(body.messageID ?? "") },
         });
         if (debug)
           void logAdapterDebug(input.bootstrap.home, {
@@ -3553,41 +3679,31 @@ export function createRouter(input: {
             threadId: rawId,
             messageID: String(body.messageID ?? ""),
             checkpointItemId,
-            result,
           });
-        if (result.outcome === "ambiguous")
-          return json(
-            {
-              error: {
-                code: "conflict",
-                message: "The revert outcome is uncertain — reopen the thread to check.",
-              },
-            },
-            409,
-          );
-        if (result.outcome === "failed")
-          return json(
-            {
-              error: {
-                code: "invalid_request",
-                message: "Can't restore files for that turn (no checkpoint was captured.)",
-              },
-            },
-            400,
-          );
         // session.revert.stage declares 200 + SessionRevert — the vendored
         // undo prefills the prompt from the staged message.
         return json({ data: { messageID: String(body.messageID ?? "") } });
       }
       const revertEndMatch = path.match(/^\/api\/session\/([^/]+)\/revert\/(commit|clear)$/u);
       if (revertEndMatch && method === "POST") {
-        // commit and clear both declare 204 + empty — Poracode reverts are
-        // final, so clearing is a no-op rather than a redo.
+        const revertSession = decodeURIComponent(revertEndMatch[1]!);
+        if (revertEndMatch[2] === "commit" && pendingReverts.has(revertSession)) {
+          const failure = await commitPendingRevert(revertSession);
+          if (failure) return json({ error: failure.error }, failure.status);
+          return new Response(null, { status: 204 });
+        }
+        pendingReverts.delete(revertSession);
+        emitRevertEvent("session.revert.cleared", revertSession, {});
         return new Response(null, { status: 204 });
       }
       // The generated client sends revert.clear as DELETE /session/{id}/revert.
       const revertDeleteMatch = path.match(/^\/api\/session\/([^/]+)\/revert$/u);
-      if (revertDeleteMatch && method === "DELETE") return new Response(null, { status: 204 });
+      if (revertDeleteMatch && method === "DELETE") {
+        const revertSession = decodeURIComponent(revertDeleteMatch[1]!);
+        pendingReverts.delete(revertSession);
+        emitRevertEvent("session.revert.cleared", revertSession, {});
+        return new Response(null, { status: 204 });
+      }
       // Background tasks surface as vendored shells. Only the last progress
       // snapshot is available — output pages read it as a byte range.
       if (path === "/api/shell" && method === "GET") {
@@ -4005,6 +4121,7 @@ export function createRouter(input: {
     }
     if (value.type === "thread-reset" && typeof value.threadId === "string") {
       states.delete(value.threadId);
+      pendingReverts.delete(sessionId(value.threadId));
       input.resetThread(value.threadId);
       input.events.resync();
       return;
@@ -4035,6 +4152,7 @@ export function createRouter(input: {
       // A checkpoint revert truncates the transcript on the host — drop the
       // per-session runtime state and resync like a thread-reset.
       if (itemEvent.type === "runtime.truncated") {
+        pendingReverts.delete(sessionId(value.threadId));
         input.resetThread(value.threadId);
         input.events.resync();
       }
@@ -4336,34 +4454,16 @@ export function createRouter(input: {
       ...(choice.contextSize ? { contextSize: choice.contextSize } : {}),
     };
     sessions.set(session, updated);
-    const home = process.env.PORACODE_TUI_HOME;
-    if (home) {
-      const preferencePath = join(home, TUI_LAST_MODEL_FILE_NAME);
-      const previous = record(
-        await Bun.file(preferencePath)
-          .json()
-          .catch(() => undefined),
-      );
-      if (previous.version === undefined || previous.version === LAST_MODEL_VERSION)
-        await Bun.write(
-          preferencePath,
-          JSON.stringify(
-            tuiLastModelSchema.parse({
-              ...previous,
-              version: LAST_MODEL_VERSION,
-              ...(updated.providerID ? { provider: updated.providerID } : {}),
-              ...(updated.model ? { model: updated.model } : {}),
-              ...(updated.effort ? { effort: updated.effort } : {}),
-              ...(updated.fast !== undefined ? { fast: updated.fast } : {}),
-              ...(updated.thinking !== undefined ? { thinking: updated.thinking } : {}),
-              ...(updated.contextSize ? { contextSize: updated.contextSize } : {}),
-              ...(choice.approvalPolicy ? { approvalPolicy: choice.approvalPolicy } : {}),
-              ...(choice.sandboxMode ? { sandboxMode: choice.sandboxMode } : {}),
-              updatedAt: new Date().toISOString(),
-            }),
-          ) + "\n",
-        );
-    }
+    await persistLastModel({
+      ...(updated.providerID ? { provider: updated.providerID } : {}),
+      ...(updated.model ? { model: updated.model } : {}),
+      ...(updated.effort ? { effort: updated.effort } : {}),
+      ...(updated.fast !== undefined ? { fast: updated.fast } : {}),
+      ...(updated.thinking !== undefined ? { thinking: updated.thinking } : {}),
+      ...(updated.contextSize ? { contextSize: updated.contextSize } : {}),
+      ...(choice.approvalPolicy ? { approvalPolicy: choice.approvalPolicy } : {}),
+      ...(choice.sandboxMode ? { sandboxMode: choice.sandboxMode } : {}),
+    });
     return { ok: true as const };
   };
 

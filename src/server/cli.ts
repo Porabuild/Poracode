@@ -66,7 +66,7 @@ import { ServerUpgradeBusyError, ServerUpgradeLockUnreadableError } from "./serv
 import { ServerUpgradeServiceTargetError } from "./serverUpgradeRestart";
 import { requestPairingFromRunningServer } from "./pairingControl";
 import { ensureCliOwner } from "./cliOwner";
-import { runCliTui } from "./cliTui";
+import { runCliTui, TuiLaunchUnavailableError } from "./cliTui";
 import {
   parseActivateCliOptions,
   assertTuiTerminal,
@@ -774,7 +774,16 @@ function dispatchCli(capturedBuild?: HostBuildIdentity): void {
                 oneShot: true,
               })
             : command === "tui"
-              ? runTuiCommand(args.slice(1), capturedBuild, baseDirArgument)
+              ? args.length === 0
+                ? // Bare interactive `poracode` predates the TUI: an install
+                  // with no TUI binary keeps the old behavior instead of
+                  // failing. Explicit `poracode tui` still reports the error.
+                  runTuiCommand(args.slice(1), capturedBuild, baseDirArgument).catch((error) => {
+                    if (!(error instanceof TuiLaunchUnavailableError)) throw error;
+                    writeSync(2, `${error.message}\n`);
+                    return serve(parseServeCliOptions([]), true, capturedBuild);
+                  })
+                : runTuiCommand(args.slice(1), capturedBuild, baseDirArgument)
               : command === "configure"
                 ? runConfigure(profileNamespace(), args.slice(1))
                 : command === "setup"

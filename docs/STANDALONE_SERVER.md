@@ -64,13 +64,17 @@ first model from run options is used. Approval and sandbox values use a matching
 saved TUI selection; if absent, `-p` lists the advertised choices and requires
 explicit flags. It never chooses the first approval or sandbox option, and no
 permission is automatically approved. A checkout requires `bun run tui:install`;
-packaged builds resolve their staged TUI binary or an explicit `PORACODE_TUI_BIN`.
+packaged builds download the TUI binary for their platform on first use,
+verify its size and SHA-256 against the manifest staged in the install, and
+cache it in the user cache; `PORACODE_TUI_BIN` overrides. When no TUI binary is
+available a bare `poracode` falls back to the server + web app, while
+`poracode tui` reports the error.
 
-Each TUI launch pairs a `Poracode TUI` client entry. The pairing exchange does
-not return its revocable client-session ID, so the CLI cannot safely revoke that
-exact entry on exit. Use `clients list` and `clients revoke SESSION_ID` to
-inspect or remove entries. Pairing credentials remain separate from provider
-logins.
+The TUI saves one session per profile in `<profile>/tui/session.json` and
+reuses it on every launch (concurrent TUIs share it); if the host rejects it,
+the CLI pairs once, relaunches, and revokes only that exact previous session.
+`clients list` and `clients revoke SESSION_ID` still manage entries. Pairing
+credentials remain separate from provider logins.
 
 - Pin the version (`poracode@<version>`). There is no mutable `latest` runtime
   URL and no unverified download path.

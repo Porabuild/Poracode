@@ -513,6 +513,90 @@ describe("live TUI projections", () => {
     expect(assistant.content).toContainEqual({ type: "text", text: "Authoritative snapshot" });
     harness.close();
   });
+
+  test("resetThread clears the open run so a replayed item.started re-emits", () => {
+    const translator = createEventTranslator(context, () => 1);
+    translator.translate({
+      type: "thread-runtime-events",
+      threadId: thread,
+      events: [
+        { type: "turn.started", threadId: thread, turnId: "turn-1" },
+        {
+          type: "item.started",
+          threadId: thread,
+          itemId: "assistant-1",
+          itemType: "assistant_message",
+          payload: { content: [] },
+        },
+      ],
+    });
+    expect(translator.hasActiveRun(sessionID)).toBe(true);
+    translator.resetThread(thread);
+    expect(translator.hasActiveRun(sessionID)).toBe(false);
+    const replayed = translator.translate({
+      type: "thread-runtime-events",
+      threadId: thread,
+      events: [
+        {
+          type: "item.started",
+          threadId: thread,
+          itemId: "assistant-1",
+          itemType: "assistant_message",
+          payload: { content: [] },
+        },
+      ],
+    });
+    expect(replayed.some((event) => event.type === "session.text.started")).toBe(true);
+  });
+
+  test("a TUI-answered form emits no trailing form.cancelled on request.resolved", () => {
+    const translator = createEventTranslator(context, () => 1);
+    const opened = translator.translate({
+      type: "thread-runtime-events",
+      threadId: thread,
+      events: [
+        {
+          type: "request.opened",
+          threadId: thread,
+          requestId: "question-1",
+          requestType: "tool_user_input",
+          payload: {
+            summary: "Choose a color",
+            details: {
+              userInputForm: {
+                questions: [
+                  {
+                    id: "color",
+                    header: "Color",
+                    question: "Choose one",
+                    options: [{ optionId: "blue", label: "Blue" }],
+                    multiSelect: false,
+                  },
+                ],
+              },
+            },
+          },
+        },
+      ],
+    });
+    expect(opened.some((event) => event.type === "form.created")).toBe(true);
+    // The reply route forgets the form request before resolveRequest, so the
+    // resolved event must not emit a cancelled after the replied.
+    translator.forgetFormRequest(thread, "question-1");
+    const resolved = translator.translate({
+      type: "thread-runtime-events",
+      threadId: thread,
+      events: [
+        {
+          type: "request.resolved",
+          threadId: thread,
+          requestId: "question-1",
+          outcome: "answered",
+        },
+      ],
+    });
+    expect(resolved.filter((event) => event.type === "form.cancelled")).toEqual([]);
+  });
 });
 
 async function createHarness(initial: SessionMessageInfo[] = []) {

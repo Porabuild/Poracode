@@ -787,7 +787,7 @@ export function createEventTranslator(
     return id;
   };
   const forgetFormRequest = (threadId: string, requestId: string) => {
-    sessions.get(threadId)?.forms.delete(requestId);
+    sessions.get(sessionId(threadId))?.forms.delete(requestId);
   };
 
   return {
@@ -796,7 +796,12 @@ export function createEventTranslator(
     recordFormRequest,
     forgetFormRequest,
     resetThread(threadId: string) {
-      sessions.delete(threadId);
+      const sessionKey = sessionId(threadId);
+      sessions.delete(sessionKey);
+      for (const key of sessions.keys()) {
+        if (key.startsWith(`${sessionKey}__`)) sessions.delete(key);
+      }
+      itemParents.delete(threadId);
       for (const key of permissionReplies.keys()) {
         if (key.startsWith(`${threadId}\0`)) permissionReplies.delete(key);
       }
@@ -810,10 +815,6 @@ export function createEventTranslator(
       return state !== undefined && (state.turnOpen === true || state.run !== undefined);
     },
   };
-}
-
-export function translateRemoteEvent(value: unknown) {
-  return createEventTranslator(new Map(), () => 1).translate(value);
 }
 
 function progress(sessionID: string, run: Run, part: ToolPart) {

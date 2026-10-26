@@ -1,4 +1,5 @@
 import type { MessageItemPayload, QuestionAnswerItemPayload } from "@/shared/contracts";
+import { isMessageReplyFormFallback } from "@/shared/runtimeItemVisibility";
 import type { AppStoreState } from "@/renderer/state/slices/shared";
 import { getRuntimeItemPayload } from "@/renderer/state/slices/runtimeEventSlice";
 import { readThreadInputDelivery } from "@/renderer/state/threadInputDelivery";
@@ -119,6 +120,5 @@ export function selectMessageReplyState(
   return messageReplyForms(state, threadId).replyStates.get(itemId) ?? "none";
 }
 
-import { isMessageReplyFormFallback } from "@/shared/checkpointRevert";
 /** Generated question text belongs to the composer; independent assistant context stays in chat. */
 export { isMessageReplyFormFallback };

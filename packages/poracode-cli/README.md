@@ -41,10 +41,10 @@ approval/sandbox values actually used for the thread default from the TUI
 selection in `<profile>/tui/last-model.json`; absent safety defaults require
 explicit `--approval-policy`/`--sandbox` values.
 
-Each TUI launch pairs a `Poracode TUI` client entry. Pairing exchange does not
-return the revocable client-session ID, so the CLI cannot safely revoke that
-exact entry on exit; use `clients list` and `clients revoke SESSION_ID` to
-inspect or remove client entries.
+The TUI saves one session per profile in `<profile>/tui/session.json` and
+reuses it on every launch (concurrent TUIs share it); if the host rejects it,
+the CLI pairs once, relaunches, and revokes only that exact previous session.
+`clients list` and `clients revoke SESSION_ID` still manage entries.
 
 Browser opening uses an independent one-minute operator pairing grant without
 rotating the desktop QR or logging its token. If opening fails, the server keeps

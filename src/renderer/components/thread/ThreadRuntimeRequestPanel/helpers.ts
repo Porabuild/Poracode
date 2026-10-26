@@ -18,6 +18,13 @@ export {
 } from "@/shared/runtimeRequestForms";
 export type { OpenCodePermissionDetails } from "@/shared/runtimeRequestForms";
 
+/**
+ * Default approve/deny options used when the request carries none. The
+ * `optionId`s are the stable identifiers that drive selection + the
+ * negative-option detection (`isNegativeOption` matches on `optionId`), so only
+ * the display `label` is localized — and built fresh per call so it tracks the
+ * active locale.
+ */
 export function getDefaultApprovalOptions(): UserInputOption[] {
   return [
     { optionId: "allow", label: i18n._(msg`Allow`) },

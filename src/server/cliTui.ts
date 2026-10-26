@@ -127,6 +127,15 @@ export async function resolveTuiLaunchForRun(
   return resolveCheckoutLaunch(layout, { ...options, platform, env, exists, directory });
 }
 
+/** No TUI binary or checkout entrypoint exists for this install — a
+ * configuration fact, not a crash: bare `poracode` falls back to serve+open. */
+export class TuiLaunchUnavailableError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "TuiLaunchUnavailableError";
+  }
+}
+
 function resolveCheckoutLaunch(
   layout: ServerInstallLayout,
   options: ResolveTuiLaunchOptions & {
@@ -137,9 +146,8 @@ function resolveCheckoutLaunch(
   },
 ): TuiLaunchPlan {
   if (layout.kind === "prefix") {
-    const expected = join(layout.resourcesDir, "tui", "poracode.exe");
-    throw new Error(
-      `The TUI executable is not installed at ${expected}. Reinstall the TUI or set PORACODE_TUI_BIN.`,
+    throw new TuiLaunchUnavailableError(
+      `No TUI binary for ${options.platform}-${options.arch ?? process.arch} in this install; set PORACODE_TUI_BIN or use \`poracode serve --open\`.`,
     );
   }
 
@@ -171,9 +179,7 @@ export function resolveTuiBinary(
     if (!exists(binary)) throw new Error(`PORACODE_TUI_BIN is not a file: ${binary}`);
     return binary;
   }
-  if (layout.kind !== "prefix") return undefined;
-  const binary = join(layout.resourcesDir, "tui", "poracode.exe");
-  return exists(binary) ? binary : undefined;
+  return undefined;
 }
 
 export async function runCliTui(
@@ -217,6 +223,23 @@ export async function runCliTui(
   const directory = resolve(
     input.directory ?? options.directory ?? dependencies.cwd ?? process.cwd(),
   );
+  // Resolve the launch before starting the owner or registering the project:
+  // an install with no TUI binary should fail without leaving state behind.
+  const layout = dependencies.layout ?? resolveServerInstallLayout({ libDir: __dirname });
+  const appVersion =
+    dependencies.appVersion ??
+    input.capturedBuild?.version ??
+    resolveServerVersion({ layout }).version;
+  const launch = await (dependencies.resolveLaunch ?? resolveTuiLaunchForRun)(layout, {
+    directory,
+    env,
+    appVersion,
+    ...(dependencies.platform !== undefined ? { platform: dependencies.platform } : {}),
+    ...(dependencies.arch !== undefined ? { arch: dependencies.arch } : {}),
+    ...(dependencies.pathValue !== undefined ? { pathValue: dependencies.pathValue } : {}),
+    ...(dependencies.fileExists !== undefined ? { fileExists: dependencies.fileExists } : {}),
+    ...(dependencies.fetchImpl !== undefined ? { fetchImpl: dependencies.fetchImpl } : {}),
+  });
   const owner = await (dependencies.ensureOwner ?? ensureCliOwner)(input.profileNamespace, {
     ...(input.baseDir !== undefined ? { baseDir: input.baseDir } : {}),
     ...(input.capturedBuild !== undefined ? { capturedBuild: input.capturedBuild } : {}),
@@ -235,21 +258,6 @@ export async function runCliTui(
   // A saved session skips pairing entirely — one dedicated client entry per
   // profile. The TUI exits 77 when the host rejects it; pair once and relaunch.
   const savedSession = readSavedTuiSession(home);
-  const layout = dependencies.layout ?? resolveServerInstallLayout({ libDir: __dirname });
-  const appVersion =
-    dependencies.appVersion ??
-    input.capturedBuild?.version ??
-    resolveServerVersion({ layout }).version;
-  const launch = await (dependencies.resolveLaunch ?? resolveTuiLaunchForRun)(layout, {
-    directory,
-    env,
-    appVersion,
-    ...(dependencies.platform !== undefined ? { platform: dependencies.platform } : {}),
-    ...(dependencies.arch !== undefined ? { arch: dependencies.arch } : {}),
-    ...(dependencies.pathValue !== undefined ? { pathValue: dependencies.pathValue } : {}),
-    ...(dependencies.fileExists !== undefined ? { fileExists: dependencies.fileExists } : {}),
-    ...(dependencies.fetchImpl !== undefined ? { fetchImpl: dependencies.fetchImpl } : {}),
-  });
   const bootstrapArgs = {
     ...(options.continue !== undefined ? { continue: options.continue } : {}),
     ...(options.sessionId !== undefined ? { sessionId: options.sessionId } : {}),

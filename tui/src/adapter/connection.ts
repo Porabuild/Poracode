@@ -168,7 +168,21 @@ export function pairingEndpoint(pairingUrl: string): {
   return { endpoint, credential: pairing.token, certFingerprint };
 }
 
+// The verified leaf PEM is stable while the endpoint holds its cert, so
+// probing once per endpoint+fingerprint avoids a TLS handshake per request.
+// A fetch failure drops the cache so a rotated cert re-probes on the retry.
+const verifiedPins = new Map<string, PinnedTlsCertificate>();
+
 function pinnedFetch(endpoint: string, certFingerprint: string | undefined): RemoteFetch {
+  const cacheKey = certFingerprint ? `${endpoint}\0${certFingerprint}` : undefined;
+  const certificate = async (fresh: boolean) => {
+    if (!certFingerprint || !cacheKey) return undefined;
+    const cached = fresh ? undefined : verifiedPins.get(cacheKey);
+    if (cached) return cached;
+    const probed = await probePinnedCertificate(endpoint, certFingerprint);
+    verifiedPins.set(cacheKey, probed);
+    return probed;
+  };
   return async (url, init) => {
     if (
       certFingerprint &&
@@ -176,22 +190,28 @@ function pinnedFetch(endpoint: string, certFingerprint: string | undefined): Rem
       init.certFingerprint.toLowerCase() !== certFingerprint
     )
       throw new RemoteTlsPinError("The request certificate pin does not match the pairing link.");
-    const certificate = certFingerprint
-      ? await probePinnedCertificate(endpoint, certFingerprint)
-      : undefined;
     const body =
       init?.body === undefined
         ? undefined
         : typeof init.body === "string"
           ? init.body
           : new Uint8Array(init.body).buffer;
-    return globalThis.fetch(url, {
-      ...(init?.method ? { method: init.method } : {}),
-      ...(init?.headers ? { headers: init.headers } : {}),
-      ...(body !== undefined ? { body } : {}),
-      ...(init?.signal ? { signal: init.signal } : {}),
-      ...(certificate ? { tls: { ca: certificate.pem } } : {}),
-    } as RequestInit & { tls?: { ca: string } });
+    const send = (resolved: PinnedTlsCertificate | undefined) =>
+      globalThis.fetch(url, {
+        ...(init?.method ? { method: init.method } : {}),
+        ...(init?.headers ? { headers: init.headers } : {}),
+        ...(body !== undefined ? { body } : {}),
+        ...(init?.signal ? { signal: init.signal } : {}),
+        ...(resolved ? { tls: { ca: resolved.pem } } : {}),
+      } as RequestInit & { tls?: { ca: string } });
+    const first = await certificate(false);
+    try {
+      return await send(first);
+    } catch (error) {
+      if (!certFingerprint || first === undefined) throw error;
+      if (cacheKey) verifiedPins.delete(cacheKey);
+      return send(await certificate(true));
+    }
   };
 }
 
@@ -235,17 +255,42 @@ function writeSessionFile(home: string, session: TuiSession): void {
 
 /**
  * Serializes refresh-token rotation across concurrent TUIs sharing one
- * session entry: the reader reloads the file under the lock, so a rotation
- * written by the winner is what the loser presents — not a stale hash that
- * would revoke the family.
+ * session entry: the whole read-refresh-persist sequence runs under the lock,
+ * so a rotation written by the winner is what the loser presents — not a
+ * stale hash that would revoke the family. The lock file carries { pid, at };
+ * a lock is broken when its holder process is gone or it outlives 90 s (a
+ * refresh POST can take the 60 s request timeout plus the TLS probe).
  */
-async function withSessionLock<T>(home: string, run: () => T): Promise<T> {
+const SESSION_LOCK_STALE_MS = 90_000;
+const SESSION_LOCK_WAIT_MS = 95_000;
+
+function lockIsStale(lock: string): boolean {
+  try {
+    const holder = JSON.parse(readFileSync(lock, "utf8")) as { pid?: unknown; at?: unknown };
+    if (typeof holder.pid === "number") {
+      try {
+        process.kill(holder.pid, 0);
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === "ESRCH") return true;
+      }
+    }
+    if (typeof holder.at === "number" && Date.now() - holder.at > SESSION_LOCK_STALE_MS)
+      return true;
+    return false;
+  } catch {
+    // Unreadable lock file — treat it as stale.
+    return true;
+  }
+}
+
+async function withSessionLock<T>(home: string, run: () => Promise<T>): Promise<T> {
   const lock = join(home, TUI_SESSION_LOCK_NAME);
-  const deadline = Date.now() + 5_000;
+  const deadline = Date.now() + SESSION_LOCK_WAIT_MS;
   for (;;) {
     try {
       const handle = openSync(lock, "wx");
       try {
+        writeFileSync(handle, JSON.stringify({ pid: process.pid, at: Date.now() }));
         return await run();
       } finally {
         closeSync(handle);
@@ -253,7 +298,8 @@ async function withSessionLock<T>(home: string, run: () => T): Promise<T> {
       }
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
-      if (Date.now() >= deadline) throw error;
+      if (lockIsStale(lock)) rmSync(lock, { force: true });
+      else if (Date.now() >= deadline) throw error;
       await new Promise((resolve) => setTimeout(resolve, 25));
     }
   }
@@ -294,24 +340,23 @@ export async function connectRemoteSession(home: string) {
   const certFingerprint = session.certFingerprint;
   const fetch = pinnedFetch(endpoint, certFingerprint);
   let tokens = sessionTokens(session);
-  const persist = async (next: RemoteTokenSnapshot) => {
+  const persist = (next: RemoteTokenSnapshot) => {
     tokens = next;
-    const current = await withSessionLock(home, () =>
-      persistedFrom(endpoint, certFingerprint, next, session.sessionId),
-    );
-    writeSessionFile(home, current);
+    // Already inside runExclusive during refresh — write session.json
+    // synchronously (temp + rename) without taking the lock again.
+    writeSessionFile(home, persistedFrom(endpoint, certFingerprint, next, session.sessionId));
   };
   const client = new RemoteDesktopClient(endpoint, tokens.accessToken, fetch, {
     ...pinnedOptions(endpoint, certFingerprint),
     tokenLifecycle: {
+      runExclusive: (run) => withSessionLock(home, run),
       // Always reload under the lock: a concurrent TUI's rotation wins.
       refreshToken: () => readSessionFile(home)?.refreshToken,
-      onTokensRefreshed: (next) => void persist(next),
+      onTokensRefreshed: persist,
     },
   });
   try {
-    const refreshed = await client.refreshTokens();
-    if (refreshed) await persist(refreshed);
+    await client.refreshTokens();
   } catch (error) {
     throw new TuiReauthRequiredError(
       `The saved TUI session was rejected (${error instanceof Error ? error.message : String(error)}).`,
@@ -346,15 +391,14 @@ export async function createRemoteClient(pairingUrl: string, home?: string) {
   const client = new RemoteDesktopClient(pairing.endpoint, tokens.accessToken, fetch, {
     ...pinOptions,
     tokenLifecycle: {
+      ...(home ? { runExclusive: (run) => withSessionLock(home, run) } : {}),
       refreshToken: () => (home ? readSessionFile(home)?.refreshToken : tokens.refreshToken),
       onTokensRefreshed: (next) => {
         tokens = next;
         if (home)
-          void withSessionLock(home, () =>
+          writeSessionFile(
+            home,
             persistedFrom(pairing.endpoint, certFingerprint, next, result.sessionId),
-          ).then(
-            (session) => writeSessionFile(home, session),
-            () => undefined,
           );
       },
     },

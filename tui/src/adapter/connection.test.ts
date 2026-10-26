@@ -1,8 +1,19 @@
 import { X509Certificate } from "node:crypto";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { createServer } from "node:tls";
 import { describe, expect, it } from "bun:test";
 import { generateSelfSignedTlsMaterial } from "@/host/remote/server/tlsMaterial";
 import {
+  TUI_SESSION_FILE_NAME,
+  TUI_SESSION_LOCK_NAME,
+  TUI_SESSION_VERSION,
+  tuiSessionSchema,
+  type TuiSession,
+} from "@/shared/tuiSession";
+import {
+  connectRemoteSession,
   pairingEndpoint,
   probePinnedCertificate,
   RemoteTlsPinError,
@@ -77,5 +88,113 @@ describe("TUI TLS certificate pinning", () => {
       credential: "token",
       certFingerprint: material.fingerprint,
     });
+  });
+});
+
+describe("TUI session refresh lock", () => {
+  const writeSession = (home: string, session: TuiSession) =>
+    writeFileSync(join(home, TUI_SESSION_FILE_NAME), JSON.stringify(session));
+  const readSession = (home: string) =>
+    tuiSessionSchema.parse(JSON.parse(readFileSync(join(home, TUI_SESSION_FILE_NAME), "utf8")));
+
+  it("serializes concurrent refresh across clients sharing one session file", async () => {
+    const home = mkdtempSync(join(tmpdir(), "tui-session-"));
+    const original = globalThis.fetch;
+    // Fake host: rotates the refresh token on each exchange and rejects a
+    // reused (already-rotated) token like RefreshTokenReuseError does.
+    let current = "refresh-0";
+    let generation = 0;
+    const presented: string[] = [];
+    const reused: string[] = [];
+    try {
+      writeSession(home, {
+        version: TUI_SESSION_VERSION,
+        endpoint: "http://127.0.0.1:38987",
+        accessToken: "access-0",
+        refreshToken: "refresh-0",
+        refreshExpiresAtMs: Date.now() + 86_400_000,
+      });
+      globalThis.fetch = (async (url: RequestInfo | URL, init?: RequestInit) => {
+        if (new URL(String(url)).pathname !== "/oauth/token")
+          return new Response("{}", { status: 404 });
+        const body = JSON.parse(String(init?.body)) as { refreshToken: string };
+        presented.push(body.refreshToken);
+        if (body.refreshToken !== current) {
+          reused.push(body.refreshToken);
+          return new Response(
+            JSON.stringify({ error: { code: "refresh_token_reused", message: "reused" } }),
+            { status: 401, headers: { "content-type": "application/json" } },
+          );
+        }
+        generation += 1;
+        current = `refresh-${generation}`;
+        // Yield so the two refreshers really interleave on the lock.
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        return new Response(
+          JSON.stringify({
+            accessToken: `access-${generation}`,
+            tokenType: "Bearer",
+            expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
+            scopes: ["session:read"],
+            refreshToken: current,
+            refreshTokenExpiresAt: new Date(Date.now() + 86_400_000).toISOString(),
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        );
+      }) as typeof fetch;
+
+      const first = await connectRemoteSession(home);
+      const second = await connectRemoteSession(home);
+      first.dispose();
+      second.dispose();
+      expect(reused).toEqual([]);
+      // The second connect re-read the file under the lock and presented the
+      // token the first rotation persisted — never the stale original.
+      expect(presented).toEqual(["refresh-0", "refresh-1"]);
+      expect(readSession(home).refreshToken).toBe("refresh-2");
+    } finally {
+      globalThis.fetch = original;
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  it("breaks a session.lock left by a dead process", async () => {
+    const home = mkdtempSync(join(tmpdir(), "tui-session-"));
+    const original = globalThis.fetch;
+    try {
+      writeSession(home, {
+        version: TUI_SESSION_VERSION,
+        endpoint: "http://127.0.0.1:38987",
+        accessToken: "access-0",
+        refreshToken: "refresh-0",
+        refreshExpiresAtMs: Date.now() + 86_400_000,
+      });
+      // A lock from a pid that cannot exist, written long ago.
+      writeFileSync(join(home, TUI_SESSION_LOCK_NAME), JSON.stringify({ pid: 4_000_000, at: 0 }));
+      let refreshed = false;
+      globalThis.fetch = (async (url: RequestInfo | URL) => {
+        if (new URL(String(url)).pathname !== "/oauth/token")
+          return new Response("{}", { status: 404 });
+        refreshed = true;
+        return new Response(
+          JSON.stringify({
+            accessToken: "access-1",
+            tokenType: "Bearer",
+            expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
+            scopes: ["session:read"],
+            refreshToken: "refresh-1",
+            refreshTokenExpiresAt: new Date(Date.now() + 86_400_000).toISOString(),
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        );
+      }) as typeof fetch;
+      const session = await connectRemoteSession(home);
+      session.dispose();
+      expect(refreshed).toBe(true);
+      expect(readSession(home).refreshToken).toBe("refresh-1");
+    } finally {
+      globalThis.fetch = original;
+      rmSync(home, { recursive: true, force: true });
+    }
   });
 });

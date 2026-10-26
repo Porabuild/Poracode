@@ -12,7 +12,7 @@ import { readMcpAppResource } from "@/shared/mcpAppResources";
 import { completedToolVideoSources } from "@/shared/chatVideo";
 import type { ToolCallPayload } from "@/shared/contracts";
 import { isDelegatedAgentTool } from "@/shared/toolCallClassification";
-import { isVisibleRuntimeItem } from "@/shared/checkpointRevert";
+import { isVisibleRuntimeItem } from "@/shared/runtimeItemVisibility";
 import { imageViewRendersInline } from "./parts/items/imageViewSource";
 import {
   isToolGroupItem as isGroupableItemType,
