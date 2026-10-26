@@ -35,24 +35,46 @@ matching GitHub release, verifies its sha256, installs it atomically into a
 versioned cache, and then hands the terminal to the artifact's server CLI.
 
 ```sh
-npx poracode@<version>                 # server + open the local web app
+npx poracode@<version>                 # TUI in a terminal; serve without opening when non-interactive
+npx poracode@<version> tui [DIRECTORY] # explicitly open the TUI
+npx poracode@<version> -p "PROMPT"     # one-shot prompt
 npx poracode@<version> serve           # server only; no browser opening
 npx poracode@<version> serve --open    # server + explicitly open the web app
+npx poracode@<version> --open          # retain the web-app shortcut
 npx poracode@<version> pair --json     # request a pairing URL
 npx poracode@<version> doctor --json   # read-only diagnostics
 npx poracode@<version> --version
 ```
 
 To keep the command installed, use `npm install --global poracode@<version>`,
-then `poracode` for server + web app or `poracode serve` for server only. Both
-modes serve the bundled web client and keep the server in the foreground.
-Bare invocation opens the browser only in a local interactive terminal;
-SSH/headless sessions skip automatic opening. `--open` explicitly requests it,
-and `--no-open` suppresses it. This does not install the Electron desktop app or
-a background service. Browser opening uses a separate one-minute operator
-pairing grant, keeps its token out of logs, and never rotates the desktop QR.
-An opener failure leaves the server running; `pair --json` with the same profile
-provides a fresh link. Pairing credentials are separate from provider logins.
+then `poracode` opens the TUI when both stdin and stdout are terminals; a
+non-interactive invocation retains the foreground server behavior and does not
+open a browser. Use `poracode serve --open` (or `poracode --open`) for the web
+app. `--no-open` means server only. This does not install the Electron desktop
+app or a managed service.
+
+The TUI and `-p`/`--print` use the existing profile and provider runtime. If no
+owner is running, they start a detached `serve` process and wait for its local
+control endpoint. The owner remains running after the TUI exits; use
+`poracode stop` with the same `--base-dir` to stop it. `-p` prints the
+final assistant output; `--format json` streams the existing controlled-run
+NDJSON. Provider, model, and effort default from the matching TUI selection in
+`<profile>/tui/last-model.json`; if no saved model applies for the provider, the
+first model from run options is used. Approval and sandbox values use a matching
+saved TUI selection; if absent, `-p` lists the advertised choices and requires
+explicit flags. It never chooses the first approval or sandbox option, and no
+permission is automatically approved. A checkout requires `bun run tui:install`;
+packaged builds download the TUI binary for their platform on first use,
+verify its size and SHA-256 against the manifest staged in the install, and
+cache it in the user cache; `PORACODE_TUI_BIN` overrides. When no TUI binary is
+available a bare `poracode` falls back to the server + web app, while
+`poracode tui` reports the error.
+
+The TUI saves one session per profile in `<profile>/tui/session.json` and
+reuses it on every launch (concurrent TUIs share it); if the host rejects it,
+the CLI pairs once, relaunches, and revokes only that exact previous session.
+`clients list` and `clients revoke SESSION_ID` still manage entries. Pairing
+credentials remain separate from provider logins.
 
 - Pin the version (`poracode@<version>`). There is no mutable `latest` runtime
   URL and no unverified download path.
@@ -67,9 +89,9 @@ provides a fresh link. Pairing credentials are separate from provider logins.
   use). `PORACODE_RUNTIME_TARGET` overrides target detection only for
   qualification.
 - All arguments are forwarded to the pinned runtime, so `serve`, `pair`,
-  `status`, `doctor`, `backup`, `init-tls`, and `upgrade` behave exactly as
-  documented below. The launcher also exports `PORACODE_APP_VERSION` for the
-  pinned artifact version.
+  `status`, `doctor`, `backup`, `init-tls`, `upgrade`, `tui`, and `-p` behave
+  exactly as documented below. The launcher also exports `PORACODE_APP_VERSION`
+  for the pinned artifact version.
 
 Publication status: the release workflow packs and publishes this package only
 when npm publishing is enabled for the repository (`NPM_PUBLISH_ENABLED`); see
@@ -90,7 +112,11 @@ versions and first-party file hashes, then retains that verified code and build
 identity for the process lifetime. An incomplete, tampered or future
 bundle refuses; it never selects another installed runtime. `--base-dir` and
 explicit resource overrides retain their existing meaning, and a running owner
-is never stopped or replaced implicitly. Managed-service installation still
+is never stopped or replaced implicitly. Background owner startup re-invokes
+the same `desktop-cli/bootstrap.mjs` with `ELECTRON_RUN_AS_NODE=1`, so the
+captured bundle is revalidated. If the invocation is not through that verified
+bootstrap, auto-start refuses with guidance to open the desktop app or run
+`poracode serve` explicitly. Managed-service installation still
 requires supported native Node and an explicitly selected service prefix.
 Standalone `upgrade` also requires the native Node CLI: the desktop command
 refuses it before effects. Update the desktop through its own updater.
@@ -757,8 +783,9 @@ Standalone execution starts provider ingress and local authenticated
 administration only. It opens no paired HTTP/WebSocket listener, relay or browser,
 does not register a browser native host, reconnect saved environments, or start
 schedules/PR watches. Listener/TLS/relay deployment configuration is not applied.
-Output retains the existing text or version-1 NDJSON format, with diagnostics on
-stderr. Success requires task/history/runtime retirement and host shutdown;
+Text output is unchanged. JSON uses format 2 with opt-in tool records when the
+owner supports local-admin v24; an older owner retains format-1 NDJSON.
+Diagnostics remain on stderr. Success requires task/history/runtime retirement and host shutdown;
 Ctrl+C, stream loss and authenticated stop use the existing bounded shutdown
 drain. The selected structured provider must already be installed and configured.
 
@@ -776,12 +803,13 @@ before registration. Both phases use the same authenticated owner generation;
 normal project-ID runs retain v15 and exact saved-session preparation retains
 v19. A new registration remains if provider/configuration validation or the
 subsequent run fails; inspect `projects list` before retrying. Existing disabled
-projects refuse without being enabled or replaced. Script output remains the
-same text/version-1 NDJSON, and `--options --format json` includes the selected
-project ID. The v20-only internal reply uses formatVersion 1 with
-`scope: "controlled-directory-run"` and echoes project metadata plus the
-existing options or prepared-run result. It adds no public remote operation or
-credential domain.
+projects refuse without being enabled or replaced. Text output is unchanged;
+JSON tool records use format 2 only after local-admin v24 opt-in, while older
+owners retain format-1 NDJSON. `--options --format json` includes the selected
+project ID. The v20-only directory envelope remains formatVersion 1 with
+`scope: "controlled-directory-run"`; its nested run metadata is format 1 for
+legacy runs or format 2 after the v24 tool-event opt-in. It adds no public remote
+operation or credential domain.
 
 Add `--interactive` with a quoted prompt for terminal review of task permissions
 and questions (closed local-admin v23). It requires terminal stdin and stderr;
@@ -789,9 +817,9 @@ and questions (closed local-admin v23). It requires terminal stdin and stderr;
 or comma-separated numbers for multi-select. Empty input never approves. Use
 `j` for advanced hidden JSON input (24 KiB maximum). Complex forms require their
 adapter's response shape; use a client for guided form entry. Invalid JSON is
-not submitted. Provider authentication
-stays under the separate `auth` commands. Requests/details go to stderr, keeping
-text/version-1 NDJSON stdout unchanged. Resolved or replaced prompts close;
+not submitted. Provider authentication stays under the separate `auth`
+commands. Requests/details go to stderr; text output is unchanged, and JSON
+uses negotiated format 2 or legacy format 1. Resolved or replaced prompts close;
 stale/duplicate replies refuse. Ctrl+C or caller loss cancels the exact run and
 joins terminal writes and runtime retirement. Older owners refuse the v23
 preparation wrapper before effects; older supervisors refuse its distinct local
@@ -816,9 +844,9 @@ new contents. Copies use the canonical prompt/history attachment pipeline and
 remain with retained sessions if the originals are later edited or deleted.
 Existing provider/model support determines whether content is inlined or passed
 as a file reference. A directory registration can remain after file validation
-or a later task failure; inspect `projects list` before retrying. Output retains
-the existing text/version-1 NDJSON shape; no public upload route or credential
-domain is added.
+or a later task failure; inspect `projects list` before retrying. Text output is
+unchanged; tool-enabled JSON runs use format 2, with older-owner fallback to
+format 1. No public upload route or credential domain is added.
 
 Custom native ACP registrations use `providers custom` (local-admin v16,
 command/JSON version1). `command.json` contains an existing executable and argv,

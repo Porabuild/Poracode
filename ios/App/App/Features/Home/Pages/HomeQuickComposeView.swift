@@ -56,7 +56,7 @@ struct HomeQuickComposeView: View {
   @State var importing = false
   @State var preparingWorktree = false
   @State var failureMessage: String?
-  @FocusState var promptFocused: Bool
+  @State var promptFocused = false
 
   init(
     session: AppSession,

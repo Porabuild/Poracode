@@ -1,0 +1,22 @@
+preload = ["@opentui/solid/preload"]
+
+[install]
+saveTextLockfile = true
+# The vendored workspace packages resolve shared dependencies (solid-js and
+# friends) from tui/node_modules, so pin the flat layout instead of inheriting
+# the machine's default linker (CI and fresh machines default to isolated).
+linker = "hoisted"
+# Installs every @opentui/core-<platform>-<arch> variant so `bun run tui:build`
+# can cross-compile from any runner; each binary still embeds only its own
+# platform's native library via the resolver pin in scripts/build-tui.mjs.
+supportedArchitectures = { os = [
+  "win32",
+  "darwin",
+  "linux",
+], cpu = [
+  "x64",
+  "arm64",
+], libc = [
+  "glibc",
+  "musl",
+] }

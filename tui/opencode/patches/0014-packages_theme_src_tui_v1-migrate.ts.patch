@@ -1,0 +1,13 @@
+diff --git a/packages/theme/src/tui/v1-migrate.ts b/packages/theme/src/tui/v1-migrate.ts
+index f99d365..666985d 100644
+--- a/packages/theme/src/tui/v1-migrate.ts
++++ b/packages/theme/src/tui/v1-migrate.ts
+@@ -117,6 +117,8 @@ function migrateMode(theme: Theme, mode: Mode): ThemeDefinition {
+     categorical: uniqueCategorical.length ? uniqueCategorical : ["neutral"],
+     text: {
+       base: text,
++      // poracode: legacy theme accents supply the new semantic brand token.
++      brand: color("accent"),
+       muted: textMuted,
+       action: {
+         primary: {

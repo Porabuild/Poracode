@@ -23,6 +23,7 @@ import {
   type ThreadConfig,
 } from "@/shared/contracts";
 import type { SharedSettings } from "@/shared/settings";
+import { resolveNewThreadMcpConfig } from "@/shared/contracts/mcpServer";
 import { effectiveAgentSettings, effectiveDisabledAgents } from "@/shared/machineSettings";
 import { localMachineKey } from "@/shared/machines";
 import type { AdminSupervisorCall } from "./hostProviderAuth";
@@ -157,12 +158,26 @@ export async function prepareHostRunSelection(
         `Select an explicit advertised ${label}. Run run --options with the same project and provider. No task was launched.`,
       );
   }
+  // One-shot runs follow the desktop's standing MCP defaults (Crossagents on
+  // by default); no mention picks and no implicit client tools.
+  const settings = readSettings();
+  const project = dbGetProject(input.projectId);
   const config: ThreadConfig = {
     model: input.model,
     ...(input.effort !== undefined ? { effort: input.effort } : {}),
     ...(input.approvalPolicy !== undefined ? { approvalPolicy: input.approvalPolicy } : {}),
     ...(input.sandboxMode !== undefined ? { sandboxMode: input.sandboxMode } : {}),
-    crossagentMcp: false,
+    ...(project
+      ? resolveNewThreadMcpConfig(
+          {
+            enabledMcpServers: settings.enabledMcpServers,
+            disabledBuiltInMcpServers: settings.disabledBuiltInMcpServers,
+          },
+          status.capabilities,
+          "gui",
+          project.location,
+        )
+      : {}),
   };
   return { config, instanceId, assertSelection };
 }

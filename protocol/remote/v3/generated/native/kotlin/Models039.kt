@@ -6,6 +6,19 @@ import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
 @Serializable
+data class WebSocketClientMessageU2DOptionU2D8_5af10e67b4(
+    @SerialName("id") val id: String,
+    @SerialName("type") val type: WebSocketClientMessageU2DOptionU2D8U2DType_af6b6f72d4,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("id", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("type", "WebSocketClientMessageU2DOptionU2D8U2DType_af6b6f72d4", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
 data class WebSocketClientMessageU2DOptionU2D9U2DCursorSync_23a1c447c0(
     @SerialName("throughCursor") val throughCursor: Long,
     @SerialName("version") val version: RouteprofileU2DCoreU2DStatsResponseU2DPromptHeatmapU2DCellsU2DItemU2DIntensityU2DOptionU2D3_f8ba039a2f,
@@ -426,21 +439,4 @@ data class WebSocketServerMessageU2DOptionU2D7U2DMetadata_7d9e4e8a68(
 @Serializable
 enum class WebSocketServerMessageU2DOptionU2D7U2DType_c2894654f1 {
     @SerialName("browser-frame") BROWSERU2DFRAME,
-}
-
-@Serializable
-data class WebSocketServerMessageU2DOptionU2D7_8f58c1d1ac(
-    @SerialName("data") val data: String,
-    @SerialName("metadata") val metadata: WebSocketServerMessageU2DOptionU2D7U2DMetadata_7d9e4e8a68,
-    @SerialName("tabId") val tabId: String,
-    @SerialName("type") val type: WebSocketServerMessageU2DOptionU2D7U2DType_c2894654f1,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("data", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("metadata", "WebSocketServerMessageU2DOptionU2D7U2DMetadata_7d9e4e8a68", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("tabId", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("type", "WebSocketServerMessageU2DOptionU2D7U2DType_c2894654f1", true, false, null, null, null, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
 }

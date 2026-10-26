@@ -6,12 +6,13 @@ import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
 @Serializable
-data class RoutetokenU2DExchangeResponse_6da7b36735(
+data class RoutetokenU2DExchangeResponse_22f14841c0(
     @SerialName("accessToken") val accessToken: String,
     @SerialName("expiresAt") val expiresAt: String,
     @SerialName("refreshToken") val refreshToken: RemoteField<String> = RemoteField.Missing,
     @SerialName("refreshTokenExpiresAt") val refreshTokenExpiresAt: RemoteField<String> = RemoteField.Missing,
     @SerialName("scopes") val scopes: List<String>,
+    @SerialName("sessionId") val sessionId: RemoteField<String> = RemoteField.Missing,
     @SerialName("tokenType") val tokenType: RoutetokenU2DExchangeResponseU2DTokenType_7c8fd050dd,
 ) {
     companion object {
@@ -21,6 +22,7 @@ data class RoutetokenU2DExchangeResponse_6da7b36735(
             RemoteFieldDescriptor("refreshToken", "String", false, false, null, null, 1, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("refreshTokenExpiresAt", "String", false, false, null, null, 1, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("scopes", "List<String>", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("sessionId", "String", false, false, null, null, 1, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("tokenType", "RoutetokenU2DExchangeResponseU2DTokenType_7c8fd050dd", true, false, null, null, null, null, null, null, null, null, listOf()),
         ), listOf())
     }
@@ -434,17 +436,4 @@ data class WebSocketClientMessageU2DOptionU2D7_838adcbcaf(
 @Serializable
 enum class WebSocketClientMessageU2DOptionU2D8U2DType_af6b6f72d4 {
     @SerialName("terminal-unwatch") TERMINALU2DUNWATCH,
-}
-
-@Serializable
-data class WebSocketClientMessageU2DOptionU2D8_5af10e67b4(
-    @SerialName("id") val id: String,
-    @SerialName("type") val type: WebSocketClientMessageU2DOptionU2D8U2DType_af6b6f72d4,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("id", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("type", "WebSocketClientMessageU2DOptionU2D8U2DType_af6b6f72d4", true, false, null, null, null, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
 }

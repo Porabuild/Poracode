@@ -2210,6 +2210,111 @@ describe("RemoteDesktopClient token lifecycle (Gate 6 item 4.6)", () => {
     ]);
   });
 
+  it("runs the refresh read-exchange-persist inside runExclusive when the lifecycle provides it", async () => {
+    const order: string[] = [];
+    let currentRefresh = "lc_refresh_old";
+    const fetch = vi.fn<RemoteFetch>(async (url, init) => {
+      const path = new URL(String(url)).pathname;
+      if (path === "/oauth/token") {
+        // Assert the token read inside the exclusive section — the value the
+        // store holds *now*, not whatever a stale snapshot carried.
+        const body = JSON.parse(String(init?.body)) as { refreshToken: string };
+        order.push(`exchange:${body.refreshToken}`);
+        currentRefresh = "lc_refresh_new";
+        return jsonResponse(200, {
+          accessToken: "lc_access_new",
+          tokenType: "Bearer",
+          expiresAt: "2099-01-02T00:00:00.000Z",
+          scopes: ["session:read"],
+          refreshToken: "lc_refresh_new",
+          refreshTokenExpiresAt: "2099-02-01T00:00:00.000Z",
+        });
+      }
+      return jsonResponse(200, { ok: true });
+    });
+    const client = new RemoteDesktopClient(endpoint, "lc_access_stale", fetch, {
+      tokenLifecycle: {
+        refreshToken: () => {
+          order.push(`read:${currentRefresh}`);
+          return currentRefresh;
+        },
+        onTokensRefreshed: () => order.push("persist"),
+        runExclusive: async <T>(run: () => Promise<T>) => {
+          order.push("lock");
+          const result = await run();
+          order.push("unlock");
+          return result;
+        },
+      },
+    });
+
+    const tokens = await client.refreshTokens();
+    expect(tokens?.accessToken).toBe("lc_access_new");
+    expect(order).toEqual([
+      "lock",
+      "read:lc_refresh_old",
+      "exchange:lc_refresh_old",
+      "persist",
+      "unlock",
+    ]);
+  });
+
+  it("calls runExclusive as a method on the lifecycle object", async () => {
+    const boundLifecycle = {
+      inside: undefined as string | undefined,
+      refreshToken: () => "lc_refresh_old",
+      onTokensRefreshed: () => {},
+      // Depends on `this` — an unbound call would throw or read undefined.
+      async runExclusive<T>(
+        this: { inside: string | undefined },
+        run: () => Promise<T>,
+      ): Promise<T> {
+        this.inside = "bound";
+        return run();
+      },
+    };
+    const fetch = vi.fn<RemoteFetch>(async () =>
+      jsonResponse(200, {
+        accessToken: "a",
+        tokenType: "Bearer",
+        expiresAt: "2099-01-02T00:00:00.000Z",
+        scopes: ["session:read"],
+        refreshToken: "r",
+      }),
+    );
+    const client = new RemoteDesktopClient(endpoint, "stale", fetch, {
+      tokenLifecycle: boundLifecycle,
+    });
+    await client.refreshTokens();
+    expect(boundLifecycle.inside).toBe("bound");
+  });
+
+  it("behaves identically when the lifecycle has no runExclusive", async () => {
+    const readTokens: string[] = [];
+    const fetch = vi.fn<RemoteFetch>(async (url) => {
+      if (new URL(String(url)).pathname === "/oauth/token")
+        return jsonResponse(200, {
+          accessToken: "a",
+          tokenType: "Bearer",
+          expiresAt: "2099-01-02T00:00:00.000Z",
+          scopes: ["session:read"],
+          refreshToken: "r",
+        });
+      return jsonResponse(200, {});
+    });
+    const client = new RemoteDesktopClient(endpoint, "stale", fetch, {
+      tokenLifecycle: {
+        refreshToken: () => {
+          readTokens.push("read");
+          return "old";
+        },
+        onTokensRefreshed: () => {},
+      },
+    });
+    await client.refreshTokens();
+    expect(readTokens).toEqual(["read"]);
+  });
+
   it("does not retry again when the post-refresh retry is also unauthorized", async () => {
     let tokenCalls = 0;
     const fetch = vi.fn<RemoteFetch>(async (url) => {

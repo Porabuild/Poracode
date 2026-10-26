@@ -1,0 +1,11 @@
+diff --git a/packages/tui/test/util/presentation.test.ts b/packages/tui/test/util/presentation.test.ts
+index d1aab4e..e5d1724 100644
+--- a/packages/tui/test/util/presentation.test.ts
++++ b/packages/tui/test/util/presentation.test.ts
+@@ -4,5 +4,5 @@ import { sessionEpilogue } from "../../src/util/presentation"
+ test("formats session continuation summary", () => {
+   const epilogue = sessionEpilogue({ title: "A session", sessionID: "ses_123" })
+   expect(epilogue).toContain("A session")
+-  expect(epilogue).toContain("opencode -s ses_123")
++  expect(epilogue).toContain("poracode tui --session ses_123")
+ })

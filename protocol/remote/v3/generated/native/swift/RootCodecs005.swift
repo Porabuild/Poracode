@@ -277,7 +277,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2ETokenU2DExchangeU2EResponse: RemoteRootCodec<RoutetokenU2DExchangeResponse_6da7b36735> = .init(id: "route.token-exchange.response", schema: RemoteSchemas.schema_6da7b367355578d7)
+  static let routeU2ETokenU2DExchangeU2EResponse: RemoteRootCodec<RoutetokenU2DExchangeResponse_22f14841c0> = .init(id: "route.token-exchange.response", schema: RemoteSchemas.schema_22f14841c064490b)
 }
 
 public extension RemoteRootCodecs {

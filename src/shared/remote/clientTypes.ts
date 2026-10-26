@@ -175,6 +175,10 @@ export interface RemoteTokenLifecycle {
   refreshToken(): string | undefined;
   /** Called after every successful refresh with the NEW token pair. */
   onTokensRefreshed(tokens: RemoteTokenSnapshot): void;
+  /** Serializes the read-refresh-persist sequence across processes sharing one
+   * token store (a rotated refresh token consumed twice revokes the session
+   * family server-side). Absent = today's behavior: in-process dedupe only. */
+  runExclusive?<T>(run: () => Promise<T>): Promise<T>;
 }
 
 export type RemoteCertFingerprintProbe = (url: URL) => Promise<string | null>;

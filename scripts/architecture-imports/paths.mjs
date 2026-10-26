@@ -36,7 +36,7 @@ export const GENERATED_PATH_PATTERN =
 export const FIXTURE_PATH_PATTERN =
   /(?:^|\/)(?:__fixtures__|fixtures|testFixtures|\.testFixtures)(?:\/|$)|Fixtures?\.[cm]?[jt]sx?$/u;
 export const NON_SOURCE_PATTERN =
-  /(?:^|\/)(?:node_modules|\.git|dist|build|out|coverage|\.tmp|tmp|\.next|vendor|Pods|DerivedData|xcuserdata)(?:\/|$)/u;
+  /^(?:tui(?:\/|$))|(?:^|\/)(?:node_modules|\.git|dist|build|out|coverage|\.tmp|tmp|\.next|vendor|Pods|DerivedData|xcuserdata)(?:\/|$)/u;
 export const DATA_OR_BINDING_PATTERN =
   /(?:^|\/)(?:native-bindings\.json|.*\.po|.*\.svg|.*\.png|.*\.json|.*\.md)$/u;
 export const NON_CANDIDATE_ROOT_PATTERN = /^(?:resources|build|branding|public|native)\//u;

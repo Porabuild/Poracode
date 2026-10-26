@@ -64,6 +64,7 @@ import { administerProject } from "./hostProjects";
 import { hostProjectAdditionSchema } from "@/shared/contracts/hostProjects";
 import {
   HOST_RUN_FORMAT_VERSION,
+  HOST_RUN_TOOL_EVENT_FORMAT_VERSION,
   hostRunDirectoryPreparationSchema,
   hostRunMetadataSchema,
 } from "@/shared/contracts/hostRun";
@@ -140,6 +141,27 @@ export function createHostAdministration(options: {
   async function execute(input: HostAdminCommand, context: HostControlContext): Promise<unknown> {
     context.assertActive();
     switch (input.action) {
+      case "run-tool-events-prepare": {
+        const result = await execute(input.command, context);
+        const command =
+          input.command.action === "run-interactive-prepare"
+            ? input.command.command
+            : input.command;
+        if (
+          command.action === "run-directory-prepare" ||
+          command.action === "run-directory-files-prepare"
+        ) {
+          const directory = hostRunDirectoryPreparationSchema.parse(result);
+          runs.enableToolEvents(directory.run.runId, directory.run.threadId, context);
+          return {
+            ...directory,
+            run: { ...directory.run, formatVersion: HOST_RUN_TOOL_EVENT_FORMAT_VERSION },
+          };
+        }
+        const metadata = hostRunMetadataSchema.parse(result);
+        runs.enableToolEvents(metadata.runId, metadata.threadId, context);
+        return { ...metadata, formatVersion: HOST_RUN_TOOL_EVENT_FORMAT_VERSION };
+      }
       case "run-interactive-prepare": {
         const result = await execute(input.command, context);
         const metadata =
