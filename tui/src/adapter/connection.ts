@@ -7,6 +7,7 @@ import {
   readFileSync,
   renameSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from "node:fs";
 import { isIP } from "node:net";
@@ -31,6 +32,7 @@ import {
   RemoteSocketHealthMonitor,
   RemoteSocketReconnectPolicy,
 } from "@/shared/remote/socketPolicy";
+import { logAdapterDebug } from "./diagnostics";
 import { record, stringValue } from "./toolMapping";
 import {
   parseTuiSession,
@@ -170,14 +172,14 @@ export function pairingEndpoint(pairingUrl: string): {
 
 // The verified leaf PEM is stable while the endpoint holds its cert, so
 // probing once per endpoint+fingerprint avoids a TLS handshake per request.
-// A fetch failure drops the cache so a rotated cert re-probes on the retry.
+// A fetch failure drops the cache so the next request re-probes.
 const verifiedPins = new Map<string, PinnedTlsCertificate>();
 
-function pinnedFetch(endpoint: string, certFingerprint: string | undefined): RemoteFetch {
+export function pinnedFetch(endpoint: string, certFingerprint: string | undefined): RemoteFetch {
   const cacheKey = certFingerprint ? `${endpoint}\0${certFingerprint}` : undefined;
-  const certificate = async (fresh: boolean) => {
+  const certificate = async () => {
     if (!certFingerprint || !cacheKey) return undefined;
-    const cached = fresh ? undefined : verifiedPins.get(cacheKey);
+    const cached = verifiedPins.get(cacheKey);
     if (cached) return cached;
     const probed = await probePinnedCertificate(endpoint, certFingerprint);
     verifiedPins.set(cacheKey, probed);
@@ -204,13 +206,14 @@ function pinnedFetch(endpoint: string, certFingerprint: string | undefined): Rem
         ...(init?.signal ? { signal: init.signal } : {}),
         ...(resolved ? { tls: { ca: resolved.pem } } : {}),
       } as RequestInit & { tls?: { ca: string } });
-    const first = await certificate(false);
     try {
-      return await send(first);
+      return await send(await certificate());
     } catch (error) {
-      if (!certFingerprint || first === undefined) throw error;
+      // Never resend: the request may have reached the server (non-idempotent
+      // POSTs), and a rotated cert changes the fingerprint so a re-probe
+      // cannot help — drop the cached pin for the next attempt and rethrow.
       if (cacheKey) verifiedPins.delete(cacheKey);
-      return send(await certificate(true));
+      throw error;
     }
   };
 }
@@ -263,6 +266,9 @@ function writeSessionFile(home: string, session: TuiSession): void {
  */
 const SESSION_LOCK_STALE_MS = 90_000;
 const SESSION_LOCK_WAIT_MS = 95_000;
+// Between the holder's openSync("wx") and its writeFileSync the file is
+// briefly empty or unparsable — that alone is not staleness.
+const SESSION_LOCK_EMPTY_STALE_MS = 5_000;
 
 function lockIsStale(lock: string): boolean {
   try {
@@ -278,8 +284,14 @@ function lockIsStale(lock: string): boolean {
       return true;
     return false;
   } catch {
-    // Unreadable lock file — treat it as stale.
-    return true;
+    // Unreadable or empty — normal while the holder is between open("wx") and
+    // its write; stale only if it has stayed that way for ~5 s.
+    try {
+      return Date.now() - statSync(lock).mtimeMs > SESSION_LOCK_EMPTY_STALE_MS;
+    } catch {
+      // Gone between the failed read and stat — already released.
+      return true;
+    }
   }
 }
 
@@ -343,8 +355,16 @@ export async function connectRemoteSession(home: string) {
   const persist = (next: RemoteTokenSnapshot) => {
     tokens = next;
     // Already inside runExclusive during refresh — write session.json
-    // synchronously (temp + rename) without taking the lock again.
-    writeSessionFile(home, persistedFrom(endpoint, certFingerprint, next, session.sessionId));
+    // synchronously (temp + rename) without taking the lock again. A persist
+    // failure must not fault the refresh itself.
+    try {
+      writeSessionFile(home, persistedFrom(endpoint, certFingerprint, next, session.sessionId));
+    } catch (error) {
+      void logAdapterDebug(home, {
+        source: "session.persist",
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
   };
   const client = new RemoteDesktopClient(endpoint, tokens.accessToken, fetch, {
     ...pinnedOptions(endpoint, certFingerprint),
@@ -396,10 +416,17 @@ export async function createRemoteClient(pairingUrl: string, home?: string) {
       onTokensRefreshed: (next) => {
         tokens = next;
         if (home)
-          writeSessionFile(
-            home,
-            persistedFrom(pairing.endpoint, certFingerprint, next, result.sessionId),
-          );
+          try {
+            writeSessionFile(
+              home,
+              persistedFrom(pairing.endpoint, certFingerprint, next, result.sessionId),
+            );
+          } catch (error) {
+            void logAdapterDebug(home, {
+              source: "session.persist",
+              error: error instanceof Error ? error.message : String(error),
+            });
+          }
       },
     },
   });

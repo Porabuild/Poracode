@@ -2222,6 +2222,36 @@ describe("RemoteDesktopClient token lifecycle (Gate 6 item 4.6)", () => {
     ]);
   });
 
+  it("calls runExclusive as a method on the lifecycle object", async () => {
+    const boundLifecycle = {
+      inside: undefined as string | undefined,
+      refreshToken: () => "lc_refresh_old",
+      onTokensRefreshed: () => {},
+      // Depends on `this` — an unbound call would throw or read undefined.
+      async runExclusive<T>(
+        this: { inside: string | undefined },
+        run: () => Promise<T>,
+      ): Promise<T> {
+        this.inside = "bound";
+        return run();
+      },
+    };
+    const fetch = vi.fn<RemoteFetch>(async () =>
+      jsonResponse(200, {
+        accessToken: "a",
+        tokenType: "Bearer",
+        expiresAt: "2099-01-02T00:00:00.000Z",
+        scopes: ["session:read"],
+        refreshToken: "r",
+      }),
+    );
+    const client = new RemoteDesktopClient(endpoint, "stale", fetch, {
+      tokenLifecycle: boundLifecycle,
+    });
+    await client.refreshTokens();
+    expect(boundLifecycle.inside).toBe("bound");
+  });
+
   it("behaves identically when the lifecycle has no runExclusive", async () => {
     const readTokens: string[] = [];
     const fetch = vi.fn<RemoteFetch>(async (url) => {

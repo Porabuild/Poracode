@@ -4820,6 +4820,48 @@ test("no finalize without a base checkpoint or a matching anchor", async () => {
   expect(calls.some((call) => call.name === "finalizeFileCheckpoint")).toBe(false);
 });
 
+test("an anchor whose base was never captured stops paging on later turns", async () => {
+  let itemPages = 0;
+  const client = promptClient({
+    threadRuntimeItemsPage: async () => {
+      itemPages += 1;
+      return {
+        items: [
+          { id: "u1", type: "user_message", state: "completed", streams: {}, payload: {} },
+          {
+            id: "anchor-1",
+            type: "assistant_message",
+            state: "completed",
+            streams: {},
+            payload: {},
+          },
+        ],
+        nextCursor: null,
+      };
+    },
+    threadCompletedTurns: async () => [{ turnId: "turn-1", anchorItemId: "anchor-1" }],
+    callRemoteProcedure: async (name: string) =>
+      // The base u1 has no captured checkpoint — anchor-1 can never finalize.
+      name === "listFileCheckpoints" ? { checkpoints: [], turns: [] } : null,
+  });
+  const { value } = router(client);
+  const fireTurn = () =>
+    value.handleRemoteEvent({
+      type: "thread-runtime-events",
+      threadId: "thread-1",
+      events: [
+        { type: "turn.completed", threadId: "thread-1", turnId: "turn-1", state: "completed" },
+      ],
+    });
+  fireTurn();
+  await new Promise((resolve) => setTimeout(resolve, 1500));
+  fireTurn();
+  await new Promise((resolve) => setTimeout(resolve, 1500));
+  // The anchor's base was found once and remembered as uncapturable — later
+  // reconciles never page the thread again.
+  expect(itemPages).toBe(1);
+});
+
 test("a checkpoint failure never blocks the prompt", async () => {
   const client = promptClient({
     sendThreadInput: async () => ({}),

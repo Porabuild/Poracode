@@ -1,10 +1,6 @@
-import { mkdir, rename, writeFile } from "node:fs/promises";
-import { Buffer } from "node:buffer";
-import { join, relative } from "node:path";
-import { fileURLToPath } from "node:url";
 import type {
   AgentInfo,
-  SessionInboxUser,
+  SessionInfo,
   AgentListOutput,
   CommandListOutput,
   ConfigGetOutput,
@@ -30,10 +26,8 @@ import type {
   SessionCreateOutput,
   SessionActiveOutput,
   SessionGetOutput,
-  SessionInfo,
   SessionInboxListOutput,
   SessionListOutput,
-  SessionPromptOutput,
   ServerInfoOutput,
   VcsBaseOutput,
   VcsBranchListOutput,
@@ -42,44 +36,18 @@ import type {
   VcsStatusOutput,
 } from "@opencode/client";
 import {
-  DEFAULT_TERMINAL_SIZE,
-  RUNTIME_REQUEST_ITEM_TYPE,
-  agentStatusSchema,
-  canonicalRequestTypeSchema,
   isThreadTurnActive,
-  pendingSteerStateSchema,
-  type PendingSteerState,
-  goalItemPayloadSchema,
-  type GoalItemPayload,
   listProjectTreeResultSchema,
-  requestPayloadSchema,
   threadConfigSchema,
   threadStatusSchema,
   type AgentStatus,
-  type ProjectLocation,
-  type ThreadStatus,
   type Thread,
-  type ThreadConfig,
-  type RequestPayload,
 } from "@/shared/contracts";
-import { deriveLocationFromPath } from "@/shared/createProject";
-import {
-  findCheckpointBeforeUserMessage,
-  mintCheckpointOperationKey,
-} from "@/shared/checkpointRevert";
-import {
-  handoffContextInstruction,
-  readThreadToolEnabled,
-  resolveProviderHandoffStrategy,
-  targetGuaranteesReadThreadTool,
-} from "@/shared/providerHandoff";
-import { resolveComposerMcpScope } from "@/shared/contracts/agent";
-import { isHomeProjectId } from "@/shared/homeScope";
+import { findCheckpointBeforeUserMessage } from "@/shared/checkpointRevert";
 import { stripAnsiPreservingLayout } from "@/shared/ansi";
 import { assistantDisplayText } from "@/shared/assistantMessageText";
 import { hostSupportsThreadLaunchMetadata } from "@/shared/remote/protocol/threadLaunchMetadata";
 import { sideChatLaunchInput } from "@/shared/sideChatLaunchInput";
-import { projectIdentityKey } from "@/shared/projectIdentity";
 import { resolveProjectLocation } from "@/shared/worktree";
 import {
   gitBranchListResultSchema,
@@ -88,57 +56,56 @@ import {
   gitStatusResultSchema,
 } from "@/shared/contracts/gitResults";
 import { readProjectFileResultSchema } from "@/shared/contracts/projectTreeResults";
-import type { RemoteAgentStatuses, RemoteProject } from "@/shared/remote";
-import { RemoteClientError, type RemoteDesktopClient } from "@/shared/remote/client";
+import type { RemoteDesktopClient } from "@/shared/remote/client";
 import { remoteThreadsChangedEventSchema } from "@/shared/remote/protocol/resources";
-import { isThreadSessionAbsenceRefusal } from "@/shared/threadSessionRefusal";
 import { canForkThread } from "@/shared/threadFork";
 import { hostSupportsCatalogMutations } from "@/shared/remote/protocol/catalogMutations";
-import { getMiniModelId, resolveUtilityTaskConfig } from "@/shared/utilityTaskConfig";
-import { resolveUtilitySelection } from "@/shared/utilitySelection";
-import type { ModelSelection } from "@/shared/selectionBinding.schemas";
-import { resolveNewThreadMcpConfig } from "@/shared/contracts/mcpServer";
-import { toolCallPayloadSchema } from "@/shared/contracts/runtimeEvent";
-import type { PersistedRuntimeItem } from "@/shared/ipc/schemas";
-import {
-  TUI_LAST_MODEL_FILE_NAME,
-  TUI_LAST_MODEL_VERSION,
-  tuiLastModelSchema,
-} from "@/shared/tuiBootstrap";
+import { TUI_LAST_MODEL_VERSION } from "@/shared/tuiBootstrap";
 import type { TuiBootstrap } from "../bootstrap";
 import { historyMessagePage, historyMessages } from "./history";
 import {
   itemId,
-  messageId,
   parseSubSessionId,
   permissionId,
   permissionRequestId,
-  requestIdFromFormId,
   sessionId,
-  subSessionId,
   threadId,
 } from "./ids";
+import { selectPermissionOption } from "./permissions";
 import {
-  DEFAULT_PERMISSION_OPTIONS,
-  selectPermissionOption,
-  type PermissionOption,
-} from "./permissions";
-import {
-  ELICITATION_PERMISSION_OPTIONS,
   elicitationReply,
   emptyFormElicitationPayload,
   formAnswerSchema,
   formDismissalForRequest,
-  formInfoForRequest,
   formResponseForRequest,
 } from "./forms";
 import { EventStreamHub, openCodeEvent, type ThreadEventContext } from "./events";
+import { createRouterState } from "./router/state";
+import { createRevert } from "./router/revert";
+import { createInbox } from "./router/inbox";
+import { createGoals } from "./router/goals";
+import { createCheckpoints } from "./router/checkpoints";
+import { createShells } from "./router/shells";
+import { createSubagents } from "./router/subagents";
+import { createTitles } from "./router/titles";
+import { createCatalog } from "./router/catalog";
+import { createThreads } from "./router/threads";
+import { createRequests } from "./router/requests";
+import { createPrompt } from "./router/prompt";
+import {
+  gitFileStatus,
+  json,
+  parseGitDiff,
+  record,
+  supportsGui,
+  supportsMode,
+} from "./router/helpers";
+import type { RouterContext } from "./router/context";
 import { z } from "zod";
 import { logAdapterDebug, logAdapterError, summarizeAdapterInput } from "./diagnostics";
 
 // Version 1 stays additive; unknown future versions must not be overwritten.
 export const LAST_MODEL_VERSION = TUI_LAST_MODEL_VERSION;
-const recordSchema = z.record(z.string(), z.unknown());
 
 export function createRouter(input: {
   bootstrap: TuiBootstrap;
@@ -155,2010 +122,99 @@ export function createRouter(input: {
   hasActiveRun: (sessionID: string) => boolean;
   registerThreadContext: (threadId: string, context: ThreadEventContext) => void;
 }) {
-  const sessions = new Map<
-    string,
-    {
-      threadId: string;
-      projectId: string;
-      agentID?: string;
-      providerID?: string;
-      model?: string;
-      effort?: string;
-      fast?: boolean;
-      thinking?: boolean;
-      contextSize?: string;
-      approvalPolicy?: string;
-      sandboxMode?: string;
-      worktreePath?: string;
-      worktreeBranch?: string;
-      createdAt?: number;
-      remoteStarted?: boolean;
-    }
-  >();
-  const states = new Map<string, ThreadStatus>();
-  // Staged /undo targets. The vendored prompt commits before the next send
-  // (and /redo clears), so the irreversible checkpointRevert runs on commit —
-  // staging alone never touches the host.
-  const pendingReverts = new Map<string, { messageID: string; checkpointItemId: string }>();
-  const emitRevertEvent = (
-    type: "session.revert.staged" | "session.revert.cleared" | "session.revert.committed",
-    sessionID: string,
-    extra: Record<string, unknown>,
-  ) =>
-    input.events.emit(
-      openCodeEvent(type, { sessionID, ...extra } as never, {
-        durable: {
-          aggregateID: sessionID,
-          seq: input.events.nextDurableSequence(sessionID),
-          version: 1,
-        },
-        location: { directory: input.bootstrap.directory },
-      }),
-    );
-  // A staged revert commits the stored checkpoint when the user sends the next
-  // prompt without going through revert.commit — /undo stays reversible until
-  // then. Failure surfaces like the commit route's and keeps the prompt away.
-  const commitPendingRevert = async (sessionID: string) => {
-    const pendingRevert = pendingReverts.get(sessionID);
-    if (!pendingRevert) return undefined;
-    const result = await input.client.checkpointRevert({
-      threadId: threadId(sessionID),
-      checkpointItemId: pendingRevert.checkpointItemId,
-      operationKey: mintCheckpointOperationKey(),
-    });
-    if (debug)
-      void logAdapterDebug(input.bootstrap.home, {
-        source: "revert.commit",
-        threadId: threadId(sessionID),
-        messageID: pendingRevert.messageID,
-        checkpointItemId: pendingRevert.checkpointItemId,
-        result,
-      });
-    if (result.outcome === "ambiguous")
-      return {
-        status: 409,
-        error: {
-          code: "conflict",
-          message: "The revert outcome is uncertain — reopen the thread to check.",
-        },
-      };
-    if (result.outcome === "failed")
-      return {
-        status: 400,
-        error: {
-          code: "invalid_request",
-          message: "Can't restore files for that turn (no checkpoint was captured.)",
-        },
-      };
-    pendingReverts.delete(sessionID);
-    emitRevertEvent("session.revert.committed", sessionID, { to: pendingRevert.messageID });
-    return undefined;
-  };
-  const pending = new Map<
-    string,
-    {
-      requestId: string;
-      threadId: string;
-      requestType: z.infer<typeof canonicalRequestTypeSchema>;
-      payload: RequestPayload;
-      options: PermissionOption[];
-      elicitation?: boolean;
-    }
-  >();
-  const pendingRequestKey = (rawThreadId: string, requestId: string) =>
-    JSON.stringify([rawThreadId, requestId]);
-
-  // Inbox cache: the host owns one pending-steer slot plus an ordered
-  // follow-up queue per thread; we mirror them so the vendored inbox list,
-  // cancel, and delivery-change routes can answer without inventing state.
-  type InboxState = {
-    steer: PendingSteerState | null;
-    queue: PendingSteerState[];
-    paused: boolean;
-    seeded: boolean;
-  };
-  const inbox = new Map<string, InboxState>();
-  // Items we cancelled locally so the host's next drop is reported as
-  // cancelled, not delivered.
-  const cancelledInboxIds = new Set<string>();
-  const inboxKey = (rawThreadId: string, id: string) => `${rawThreadId}${id}`;
-  const inboxEntry = (rawThreadId: string) => {
-    let entry = inbox.get(rawThreadId);
-    if (!entry) {
-      entry = { steer: null, queue: [], paused: false, seeded: false };
-      inbox.set(rawThreadId, entry);
-    }
-    return entry;
-  };
-  const inboxUserItem = (
-    rawThreadId: string,
-    value: PendingSteerState,
-    delivery: "steer" | "queue",
-  ): SessionInboxUser => ({
-    id: value.id,
-    sessionID: sessionId(rawThreadId),
-    time: { created: value.stagedAt },
-    type: "user",
-    payload: {
-      text: value.prompt,
-      ...(value.segments?.length
-        ? {
-            files: value.segments
-              .filter((segment) => segment.kind === "attachment" || segment.kind === "file")
-              .map((segment) => ({
-                data: "",
-                mime:
-                  "mimeType" in segment && segment.mimeType
-                    ? segment.mimeType
-                    : "application/octet-stream",
-                source: { type: "uri" as const, uri: segment.path },
-              })),
-          }
-        : {}),
-    },
-    delivery,
-  });
-  const emitInboxEvent = (
-    rawThreadId: string,
-    type: "session.inbox.enqueued" | "session.inbox.delivered" | "session.inbox.cancelled",
-    value: PendingSteerState,
-    delivery: "steer" | "queue",
-  ) => {
-    const sessionID = sessionId(rawThreadId);
-    const item = inboxUserItem(rawThreadId, value, delivery);
-    const durable = {
-      aggregateID: sessionID,
-      seq: input.events.nextDurableSequence(sessionID),
-      version: 1 as const,
-    };
-    if (type === "session.inbox.enqueued") {
-      input.events.emit(
-        openCodeEvent(
-          type,
-          { sessionID, inboxID: value.id, item },
-          { durable, location: { directory: input.bootstrap.directory } },
-        ),
-      );
-      return;
-    }
-    input.events.emit(
-      openCodeEvent(
-        type,
-        { sessionID, inboxID: value.id },
-        { durable, location: { directory: input.bootstrap.directory } },
-      ),
-    );
-  };
-  const dropInboxItem = (
-    rawThreadId: string,
-    value: PendingSteerState,
-    delivery: "steer" | "queue",
-  ) => {
-    const key = inboxKey(rawThreadId, value.id);
-    emitInboxEvent(
-      rawThreadId,
-      cancelledInboxIds.delete(key) ? "session.inbox.cancelled" : "session.inbox.delivered",
-      value,
-      delivery,
-    );
-  };
-  const updateInboxSteer = (rawThreadId: string, value: unknown) => {
-    const entry = inboxEntry(rawThreadId);
-    const next = pendingSteerStateSchema.safeParse(value).data ?? null;
-    const prev = entry.steer;
-    if (prev && (!next || next.id !== prev.id)) dropInboxItem(rawThreadId, prev, "steer");
-    if (next && (!prev || prev.id !== next.id)) {
-      entry.steer = next;
-      emitInboxEvent(rawThreadId, "session.inbox.enqueued", next, "steer");
-      return;
-    }
-    entry.steer = next;
-  };
-  const updateInboxQueue = (rawThreadId: string, value: unknown) => {
-    const entry = inboxEntry(rawThreadId);
-    const parsed = z
-      .object({ items: z.array(pendingSteerStateSchema), paused: z.boolean().default(false) })
-      .safeParse(value);
-    const next = parsed.success ? parsed.data.items : [];
-    const nextIds = new Set(next.map((item) => item.id));
-    const previous = entry.queue.filter((item) => !nextIds.has(item.id));
-    for (const item of previous) dropInboxItem(rawThreadId, item, "queue");
-    const previousIds = new Set(entry.queue.map((item) => item.id));
-    for (const item of next)
-      if (!previousIds.has(item.id))
-        emitInboxEvent(rawThreadId, "session.inbox.enqueued", item, "queue");
-    entry.queue = next;
-    if (parsed.success) entry.paused = parsed.data.paused;
-  };
-  // Seed the queue once per thread on session load; a host that predates the
-  // follow-up procedures answers with an error, which stays an empty queue.
-  const seedInbox = async (rawThreadId: string) => {
-    const entry = inboxEntry(rawThreadId);
-    if (entry.seeded) return;
-    entry.seeded = true;
-    try {
-      const queue = await input.client.callRemoteProcedure("getThreadFollowUpQueue", {
-        threadId: rawThreadId,
-      });
-      updateInboxQueue(rawThreadId, queue);
-    } catch {
-      /* old host without follow-up procedures */
-    }
-  };
-
-  // Goal state: the host owns it; we mirror the latest goal item per thread
-  // for the plugin's status line and palette commands.
-  const goals = new Map<string, GoalItemPayload>();
-  const goalListeners = new Set<(rawThreadId: string) => void>();
-  const recordGoal = (rawThreadId: string, payload: unknown) => {
-    const parsed = goalItemPayloadSchema.safeParse(payload);
-    if (!parsed.success) return;
-    const goal = parsed.data;
-    if (goal.action === "cleared" || goal.status === "cancelled") goals.delete(rawThreadId);
-    else goals.set(rawThreadId, goal);
-    for (const listener of goalListeners) listener(rawThreadId);
-  };
-  const seedBackgroundTasks = async (rawThreadId: string) => {
-    if (backgroundTasks.has(rawThreadId)) return;
-    let result: unknown = null;
-    try {
-      result = await input.client.callRemoteProcedure("readThreadBackgroundTasks", {
-        threadId: rawThreadId,
-      });
-    } catch {
-      // Old hosts answer an empty task list.
-    }
-    const tasks = record(result).tasks;
-    backgroundTasks.set(rawThreadId, Array.isArray(tasks) ? tasks.map(record) : []);
-  };
-
-  const seedGoal = async (rawThreadId: string) => {
-    try {
-      const item = await input.client.latestThreadGoalItem(rawThreadId);
-      if (item) recordGoal(rawThreadId, item.payload);
-    } catch {
-      /* older hosts without goal support */
-    }
-  };
-  const goalState = async (session: string) => {
-    const goal = goals.get(threadId(session));
-    if (!goal || !goal.objective) return undefined;
-    return {
-      objective: goal.objective,
-      status: goal.status ?? "active",
-      availableActions: goal.availableActions ?? [],
-      ...(goal.tokensUsed !== undefined ? { tokensUsed: goal.tokensUsed } : {}),
-      ...(goal.tokenBudget !== undefined ? { tokenBudget: goal.tokenBudget } : {}),
-      ...(goal.timeUsedSeconds !== undefined ? { timeUsedSeconds: goal.timeUsedSeconds } : {}),
-      ...(goal.lastReason ? { lastReason: goal.lastReason } : {}),
-    };
-  };
-  const controlGoal = async (
-    session: string,
-    control: { action: "pause" | "resume" | "clear" | "edit"; objective?: string },
-  ) => {
-    const rawId = threadId(session);
-    const goal = goals.get(rawId);
-    if (!goal) return { error: "This thread has no goal." };
-    if (!goal.availableActions?.includes(control.action))
-      return { error: `The current goal can't be ${control.action} right now.` };
-    if (control.action === "edit") {
-      const objective = control.objective?.trim() ?? "";
-      if (objective.length === 0 || objective.length > 4000)
-        return { error: "Goal objective must be 1-4000 characters." };
-      await input.client.controlThreadGoal({ threadId: rawId, action: "edit", objective });
-      return { ok: true as const };
-    }
-    await input.client.controlThreadGoal({ threadId: rawId, action: control.action });
-    return { ok: true as const };
-  };
-  const subscribeGoal = (listener: (rawThreadId: string) => void) => {
-    goalListeners.add(listener);
-    return () => {
-      goalListeners.delete(listener);
-    };
-  };
-  const goalSupported = async (session: string) => {
-    const remote = await cachedThreadById(threadId(session));
-    if (!remote) return false;
-    try {
-      const commands = await input.client.agentSlashCommands(remote.agentKind);
-      return commands.commands.some((command) => command.id === "goal");
-    } catch {
-      return false;
-    }
-  };
-  // Subagent subscriptions: the host buffers a subagent's child events until
-  // its task item completes unless a client subscribes. We subscribe while a
-  // running subagent's virtual session is open, unsubscribe on completion and
-  // on adapter shutdown; failures are debug-log noise only.
-  // Worktrees created through this adapter — the first thread to use one
-  // sends isNewWorktree so the host runs prepare-worktree setup.
-  const createdWorktrees = new Map<string, string>();
-
-  // Pending in-place provider switches per session: picking another provider's
-  // model in an existing session stages the switch; the next prompt launches
-  // the thread under the target provider through startThread + providerSwitch.
-  const pendingSwitches = new Map<string, { providerID: string; modelID: string }>();
-  // The latest thread-state's threadMentionToolsAvailable per thread — whether
-  // the thread's last session actually resolved the built-in read_thread tool.
-  const threadMentionTools = new Map<string, boolean>();
-
-  // User-message item ids for which the adapter captured a file checkpoint,
-  // per thread. checkpointRevert's files phase only restores turns whose base
-  // user message has one — send paths create it pre-dispatch, turn.completed
-  // finalizes against the turn's anchor.
-  const capturedCheckpoints = new Map<string, Set<string>>();
-  const finalizedAnchors = new Set<string>();
-  const captureFileCheckpoint = async (
-    rawThreadId: string,
-    checkpointItemId: string | undefined,
-    projectLocation: unknown,
-  ) => {
-    if (!checkpointItemId) return;
-    const currentProject = await resolveProject();
-    if (isHomeProjectId(currentProject.id)) return;
-    try {
-      await input.client.callRemoteProcedure("createFileCheckpoint", {
-        threadId: rawThreadId,
-        checkpointItemId,
-        projectLocation,
-      });
-      let captured = capturedCheckpoints.get(rawThreadId);
-      if (!captured) {
-        captured = new Set();
-        capturedCheckpoints.set(rawThreadId, captured);
-      }
-      captured.add(checkpointItemId);
-      if (debug)
-        void logAdapterDebug(input.bootstrap.home, {
-          source: "checkpoint.create",
-          threadId: rawThreadId,
-          checkpointItemId,
-        });
-    } catch (error) {
-      if (debug)
-        void logAdapterDebug(input.bootstrap.home, {
-          source: "file-checkpoint.create",
-          threadId: rawThreadId,
-          checkpointItemId,
-          error: error instanceof Error ? error.message : String(error),
-        });
-    }
-  };
-  const reconciling = new Set<string>();
-  // `!command` shells: exit resolvers keyed by shellId and the one-shot
-  // context stash keyed by session id (cap 3).
-  const pendingShellExits = new Map<string, () => void>();
-  const pendingShellTimeouts = new Set<string>();
-  const shellStash = new Map<string, { command: string; output: string }[]>();
-  // Per-session MCP toggles — applied to the next thread launch, never a live
-  // restart. Custom MCP definitions and installed plugins are not
-  // remote-readable, so only the built-in flags surface here.
-  const sessionMcpPending = new Map<string, Map<string, boolean>>();
-  // The session the vendored UI is currently on — last viewed or loaded —
-  // the implicit target for its session-scoped actions (MCP toggles).
-  let currentSession: string | undefined;
-  // Desktop parity: after any turn completes, finalize every completed turn
-  // whose anchor lacks a checkpoint — hydrating from the host's checkpoint
-  // list, not just what this adapter captured in-session.
-  const reconcileCheckpoints = async (rawThreadId: string): Promise<number> => {
-    if (reconciling.has(rawThreadId)) return 0;
-    reconciling.add(rawThreadId);
-    try {
-      const currentProject = await resolveProject();
-      if (isHomeProjectId(currentProject.id)) return 0;
-      const remoteThread = await cachedThreadById(rawThreadId);
-      const projectLocation = resolveProjectLocation(
-        currentProject.location,
-        remoteThread?.worktreePath,
-      );
-      const [listed, completedTurns] = await Promise.all([
-        input.client.callRemoteProcedure("listFileCheckpoints", {
-          threadId: rawThreadId,
-          projectLocation,
-        }),
-        input.client.threadCompletedTurns(rawThreadId),
-      ]);
-      const listedRecords = record(listed);
-      const checkpointRows = Array.isArray(listedRecords.checkpoints)
-        ? listedRecords.checkpoints
-        : [];
-      const turnRows = Array.isArray(listedRecords.turns) ? listedRecords.turns : [];
-      const capturedBases = new Set(
-        checkpointRows.map((value) => String(record(value).checkpointItemId ?? "")),
-      );
-      const finalizedAnchorsHost = new Set(
-        turnRows.map((value) => String(record(value).checkpointItemId ?? "")),
-      );
-      // Completed turns whose anchor is not yet finalized locally or on the
-      // host. When nothing is pending the item listing never runs — turns are
-      // frequent and pages are the expensive part.
-      const candidates = completedTurns
-        .map((turn) => (turn as { anchorItemId?: string | null }).anchorItemId)
-        .filter(
-          (anchor): anchor is string =>
-            typeof anchor === "string" &&
-            !finalizedAnchors.has(`${rawThreadId}\0${anchor}`) &&
-            !finalizedAnchorsHost.has(anchor),
-        );
-      if (candidates.length === 0) return 0;
-      // Page newest-first only until every candidate anchor and the preceding
-      // user_message (its checkpoint base) is seen — anchors sit near the
-      // tail, so the latest page almost always suffices.
-      const unresolved = new Set(candidates);
-      const awaitingBase = new Set<string>();
-      const bases = new Map<string, string>();
-      let beforePosition: number | undefined;
-      for (
-        let pageIndex = 0;
-        pageIndex < 200 && (unresolved.size > 0 || awaitingBase.size > 0);
-        pageIndex += 1
-      ) {
-        const page = await input.client.threadRuntimeItemsPage({
-          threadId: rawThreadId,
-          ...(beforePosition !== undefined ? { beforePosition } : {}),
-          limit: 500,
-        });
-        for (let index = page.items.length - 1; index >= 0; index -= 1) {
-          const item = page.items[index]!;
-          if (unresolved.delete(item.id)) awaitingBase.add(item.id);
-          if (item.type === "user_message" && awaitingBase.size > 0) {
-            for (const anchor of awaitingBase) bases.set(anchor, item.id);
-            awaitingBase.clear();
-          }
-        }
-        if (page.nextCursor == null) break;
-        beforePosition = page.nextCursor;
-      }
-      let finalized = 0;
-      for (const anchor of candidates) {
-        const key = `${rawThreadId}\0${anchor}`;
-        const base = bases.get(anchor);
-        if (!base || !capturedBases.has(base)) continue;
-        finalizedAnchors.add(key);
-        try {
-          await input.client.callRemoteProcedure("finalizeFileCheckpoint", {
-            threadId: rawThreadId,
-            checkpointItemId: anchor,
-            baseCheckpointItemId: base,
-            projectLocation,
-          });
-          finalized += 1;
-          capturedCheckpoints.get(rawThreadId)?.delete(base);
-          if (debug)
-            void logAdapterDebug(input.bootstrap.home, {
-              source: "checkpoint.finalize",
-              threadId: rawThreadId,
-              anchorItemId: anchor,
-              baseCheckpointItemId: base,
-            });
-        } catch (error) {
-          finalizedAnchors.delete(key);
-          if (debug)
-            void logAdapterDebug(input.bootstrap.home, {
-              source: "checkpoint.finalize",
-              threadId: rawThreadId,
-              error: error instanceof Error ? error.message : String(error),
-            });
-        }
-      }
-      return finalized;
-    } catch (error) {
-      if (debug)
-        void logAdapterDebug(input.bootstrap.home, {
-          source: "checkpoint.reconcile",
-          threadId: rawThreadId,
-          error: error instanceof Error ? error.message : String(error),
-        });
-      return 0;
-    } finally {
-      reconciling.delete(rawThreadId);
-    }
-  };
-  // completedTurns lags turn.completed — retry briefly until the new anchor
-  // shows up. Retries only run while this adapter still has a captured
-  // checkpoint awaiting its finalize; nothing pending means a single pass.
-  const scheduleCheckpointReconcile = (rawThreadId: string) => {
-    void (async () => {
-      for (let attempt = 0; attempt < 5; attempt += 1) {
-        await reconcileCheckpoints(rawThreadId);
-        if ((capturedCheckpoints.get(rawThreadId)?.size ?? 0) === 0) return;
-        await new Promise((resolve) => setTimeout(resolve, 400));
-      }
-    })();
-  };
-
-  // Agent background tasks per thread, surfaced to the vendored TUI as shells.
-  // background_tasks.changed replaces the full list; the store seeds on session
-  // load via readThreadBackgroundTasks.
-  const backgroundTasks = new Map<string, Record<string, unknown>[]>();
-  const shellIdFor = (rawThreadId: string, taskId: string) =>
-    `sh_bgt_${rawThreadId.replace(/[^A-Za-z0-9_-]/gu, "_")}__${taskId.replace(/[^A-Za-z0-9_-]/gu, "_")}`;
-  const parseShellId = (id: string) => {
-    if (!id.startsWith("sh_bgt_")) return undefined;
-    const rest = id.slice(7);
-    const sep = rest.indexOf("__");
-    if (sep <= 0 || sep >= rest.length - 2) return undefined;
-    return { rawThreadId: rest.slice(0, sep), taskId: rest.slice(sep + 2) };
-  };
-  const taskFor = (id: string) => {
-    const parsed = parseShellId(id);
-    if (!parsed) return undefined;
-    const task = (backgroundTasks.get(parsed.rawThreadId) ?? []).find(
-      (value) => String(value.taskId ?? "") === parsed.taskId,
-    );
-    return task ? { task, rawThreadId: parsed.rawThreadId } : undefined;
-  };
-  const shellInfoFor = (rawThreadId: string, task: Record<string, unknown>, cwd: string) => ({
-    id: shellIdFor(rawThreadId, String(task.taskId ?? "")),
-    status: "running" as const,
-    command: String(task.description ?? ""),
-    cwd,
-    shell: "",
-    file: "",
-    metadata: {},
-    time: {
-      started:
-        typeof task.startedAt === "number"
-          ? task.startedAt
-          : Date.parse(String(task.startedAt ?? "")) || Date.now(),
-    },
-  });
-  const applyBackgroundTasks = (
-    rawThreadId: string,
-    tasks: Record<string, unknown>[],
-    cwd: string,
-  ) => {
-    const previous = backgroundTasks.get(rawThreadId) ?? [];
-    const previousIds = new Set(previous.map((value) => String(value.taskId ?? "")));
-    const nextIds = new Set(tasks.map((value) => String(value.taskId ?? "")));
-    backgroundTasks.set(rawThreadId, tasks);
-    for (const task of tasks) {
-      const taskId = String(task.taskId ?? "");
-      if (!previousIds.has(taskId))
-        input.events.emit(
-          openCodeEvent(
-            "shell.created",
-            { info: shellInfoFor(rawThreadId, task, cwd) } as never,
-            {},
-          ),
-        );
-    }
-    for (const oldId of previousIds)
-      if (!nextIds.has(oldId))
-        input.events.emit(
-          openCodeEvent("shell.deleted", { id: shellIdFor(rawThreadId, oldId) }, {}),
-        );
-  };
-
-  const subagentSubscriptions = new Set<string>();
-  const subagentKey = (rawThreadId: string, taskItemId: string) => `${rawThreadId}${taskItemId}`;
-  const subscribeSubagent = (rawThreadId: string, taskItemId: string) => {
-    const key = subagentKey(rawThreadId, taskItemId);
-    if (subagentSubscriptions.has(key)) return;
-    subagentSubscriptions.add(key);
-    void input.client
-      .callRemoteProcedure("subagentSubscribe", {
-        threadId: rawThreadId,
-        parentItemId: taskItemId,
-      })
-      .catch(async (error) => {
-        subagentSubscriptions.delete(key);
-        if (debug)
-          await logAdapterDebug(input.bootstrap.home, {
-            source: "subagent.subscribe",
-            error: error instanceof Error ? error.message : String(error),
-          });
-      });
-  };
-  const unsubscribeSubagent = (rawThreadId: string, taskItemId: string) => {
-    const key = subagentKey(rawThreadId, taskItemId);
-    if (!subagentSubscriptions.delete(key)) return;
-    void input.client
-      .callRemoteProcedure("subagentUnsubscribe", {
-        threadId: rawThreadId,
-        parentItemId: taskItemId,
-      })
-      .catch(async (error) => {
-        if (debug)
-          await logAdapterDebug(input.bootstrap.home, {
-            source: "subagent.unsubscribe",
-            error: error instanceof Error ? error.message : String(error),
-          });
-      });
-  };
-  const disposeSubagentSubscriptions = () => {
-    for (const key of [...subagentSubscriptions]) {
-      const [rawThreadId, taskItemId] = key.split("");
-      if (rawThreadId && taskItemId) unsubscribeSubagent(rawThreadId, taskItemId);
-    }
-  };
-
-  const goalLine = (session: string) => {
-    const goal = goals.get(threadId(session));
-    if (!goal?.objective) return undefined;
-    const objective =
-      goal.objective.length > 60 ? `${goal.objective.slice(0, 57)}...` : goal.objective;
-    const tokens =
-      goal.tokensUsed !== undefined
-        ? ` · ${goal.tokensUsed}${goal.tokenBudget ? `/${goal.tokenBudget}` : ""} tokens`
-        : "";
-    return `Goal · ${goal.status ?? "active"} · ${objective}${tokens}`;
-  };
-
-  // followUpBehavior is a remote setting; fetch once, default steer.
-  let followUpBehavior: "steer" | "queue" | undefined;
-  const followUpDelivery = async () => {
-    if (followUpBehavior) return followUpBehavior;
-    try {
-      const settings = await input.client.settings();
-      followUpBehavior = settings.followUpBehavior === "queue" ? "queue" : "steer";
-    } catch {
-      followUpBehavior = "steer";
-    }
-    return followUpBehavior;
-  };
-
-  // AI titles: desktop owners title forwarded starts themselves, so the TUI
-  // only generates on hosts without a browser panel — plus explicit /rename.
-  let hostDescription: { browserPanel?: boolean } | undefined;
-  const hostOwnsTitles = async () => {
-    if (hostDescription === undefined) {
-      hostDescription =
-        typeof input.client.describeHost === "function"
-          ? await input.client.describeHost().catch(() => ({}))
-          : {};
-    }
-    return hostDescription.browserPanel === true;
-  };
-  let cachedSettings: Record<string, unknown> | undefined;
-  const remoteSettings = async () => {
-    if (!cachedSettings) {
-      try {
-        cachedSettings = record(await input.client.settings());
-      } catch {
-        cachedSettings = {};
-      }
-    }
-    return cachedSettings;
-  };
-  const titleGenChoice = async (thread: Thread, location: ProjectLocation) => {
-    const settings = await remoteSettings();
-    const wsl = location.kind === "wsl";
-    const provider = String(settings[wsl ? "wslTitleGenProvider" : "titleGenProvider"] ?? "auto");
-    if (provider === "disabled") return { error: "Title generation is disabled in settings." };
-    const statuses = await agentStatuses();
-    const specific = statuses.find(
-      (value) => value.kind === provider && hasGuiAuthentication(value),
-    );
-    const candidate =
-      provider === "auto" || !specific
-        ? statuses.find((value) => value.kind === thread.agentKind)
-        : specific;
-    // The host refuses title generation without a concrete model/effort; the
-    // desktop derives them through the shared utility-selection helpers.
-    const config = resolveUtilityTaskConfig(candidate, "", "", () => undefined, {
-      fallbackModelIds: (agent) => [getMiniModelId(agent)],
-      fallbackEfforts: (_agent, _defaults, available) => ["low", available[0]],
-    });
-    const settingsSelection =
-      provider !== "auto" && specific
-        ? (settings[wsl ? "wslTitleGenSelection" : "titleGenSelection"] as
-            | ModelSelection
-            | undefined)
-        : undefined;
-    const selection = resolveUtilitySelection(
-      settingsSelection,
-      { model: "", effort: "", fast: false },
-      () => ({ model: config.model, effort: config.effort, fast: false }),
-    );
-    return { agentKind: candidate?.kind ?? thread.agentKind, selection };
-  };
-  const generateTitle = async (thread: Thread, prompt: string, currentProject: RemoteProject) => {
-    const location = resolveProjectLocation(currentProject.location, thread.worktreePath);
-    const choice = await titleGenChoice(thread, location);
-    if ("error" in choice) throw new Error(choice.error);
-    const result = record(
-      await input.client.callRemoteProcedure("generateTitle", {
-        projectLocation: location,
-        agentKind: choice.agentKind,
-        prompt,
-        selection: choice.selection,
-      }),
-    );
-    const title = String(result.title ?? "");
-    if (!title) throw new Error("Title generation returned no title");
-    return title;
-  };
-  const firstPromptText = async (rawThreadId: string) => {
-    try {
-      const index = await input.client.threadPromptIndex(rawThreadId);
-      // A truncated index is newest-first — its oldest listed prompt is not
-      // the thread's first, so fall through to the history scan.
-      if (!index.truncated) {
-        const oldest = index.prompts.reduce((best, entry) =>
-          entry.position < best.position ? entry : best,
-        );
-        if (oldest?.text) return oldest.text;
-      }
-    } catch {
-      /* older hosts lack the prompt index route */
-    }
-    const items = await listThreadItems(rawThreadId);
-    const first = items.find((item) => item.type === "user_message");
-    const blocks = Array.isArray(record(first?.payload).content)
-      ? (record(first?.payload).content as unknown[])
-      : [];
-    return blocks
-      .flatMap((block) => (record(block).kind === "text" ? [String(record(block).text ?? "")] : []))
-      .join("");
-  };
-  const renameThreadTo = async (rawThreadId: string, title: string) => {
-    await input.client.sendThreadCommand({ kind: "rename", threadId: rawThreadId, title });
-    const cached = threadCache.get(rawThreadId);
-    if (cached) threadCache.set(rawThreadId, { ...cached, title });
-  };
-  // Auto title after a fresh start: background only, never delays the prompt.
-  // Renames only while the title still equals the start-time fallback.
-  const autoTitle = (rawThreadId: string, prompt: string, currentProject: RemoteProject) => {
-    void (async () => {
-      if (await hostOwnsTitles()) return;
-      const started = (await listThreads()).find((value) => value.id === rawThreadId);
-      if (!started) return;
-      const title = await generateTitle(started, prompt, currentProject);
-      const current = (await listThreads()).find((value) => value.id === rawThreadId);
-      if (!current || current.title !== started.title) return;
-      await renameThreadTo(rawThreadId, title);
-    })().catch(async (error) => {
-      if (debug)
-        await logAdapterDebug(input.bootstrap.home, {
-          source: "title.auto",
-          error: error instanceof Error ? error.message : String(error),
-        });
-    });
-  };
-  const threadCache = new Map<string, Thread>();
-  let project: RemoteProject | undefined;
-  let statuses: RemoteAgentStatuses | undefined;
-  let defaultModel: { providerID: string; model: string } | undefined;
-  // The vendored client picks the default on first prompt; resolve it lazily
-  // here so a fresh profile's first send binds a provider without needing a
-  // /api/model/default round-trip first.
-  const resolveDefaultModel = async () => {
-    if (defaultModel) return defaultModel;
-    const settings = await input.client.settings();
-    defaultModel = (await agentStatuses()).filter(supportsGui).flatMap((status) => {
-      const capabilities = status.capabilities.presentationCapabilities?.gui ?? status.capabilities;
-      const models = capabilities.models ?? status.capabilities.models;
-      if (models.length === 0) return [];
-      return [
-        {
-          providerID: status.kind,
-          model: String(record(settings.agentSettings[status.kind]).model ?? "") || models[0]!.id,
-        },
-      ];
-    })[0];
-    return defaultModel;
-  };
-  let activeProviderID: string | undefined;
-  const debug = process.env.PORACODE_TUI_DEBUG === "1";
-  const wslLocation =
-    deriveLocationFromPath(input.bootstrap.directory, process.platform).kind === "wsl";
-
-  const resolveProject = async () => {
-    if (project) return project;
-    const page = await input.client.boundedProjectListPage({
-      mode: "inventory",
-      projectLimit: 100,
-    });
-    const projects = page.projects;
-    if (input.bootstrap.projectId)
-      project = projects.find((value) => value.id === input.bootstrap.projectId);
-    const location = deriveLocationFromPath(input.bootstrap.directory, process.platform);
-    project ??= projects.find(
-      (value) =>
-        projectIdentityKey(value) ===
-        projectIdentityKey({
-          location: { ...location, remoteServerId: value.location.remoteServerId },
-          remoteServerId: value.remoteServerId,
-        }),
-    );
-    if (!project) {
-      const added = await input.client.projectCommand({
-        kind: "add-existing",
-        path: input.bootstrap.directory,
-      });
-      project =
-        added.project ??
-        (await input.client.boundedProjectListPage({ mode: "inventory" })).projects.find(
-          (value) => projectIdentityKey(value) === projectIdentityKey({ location }),
-        );
-    }
-    if (!project) throw new Error("The current folder is not registered on the Poracode host");
-    return project;
-  };
-
-  // The vendored data layer publishes every location-scoped catalog under
-  // locationKey(response.location); echo the requested directory so a
-  // worktree session finds lists answered for its own location.
-  const requestLocation = (url: URL) => ({
-    directory:
-      url.searchParams.get("location[directory]") ??
-      url.searchParams.get("location.directory") ??
-      input.bootstrap.directory,
-  });
-
-  // last-model.json is a convenience preference, never a prompt blocker:
-  // parse failures and write errors are logged, never thrown.
-  const persistLastModel = async (patch: Record<string, unknown>) => {
-    const home = process.env.PORACODE_TUI_HOME;
-    if (!home) return;
-    try {
-      await mkdir(home, { recursive: true });
-      const preferencePath = join(home, TUI_LAST_MODEL_FILE_NAME);
-      const previous = record(
-        await Bun.file(preferencePath)
-          .json()
-          .catch(() => undefined),
-      );
-      if (previous.version !== undefined && previous.version !== LAST_MODEL_VERSION) {
-        if (debug)
-          await logAdapterDebug(home, {
-            source: "last-model.write-skipped",
-            version: previous.version,
-          });
-        return;
-      }
-      const next = tuiLastModelSchema.parse({
-        ...previous,
-        version: LAST_MODEL_VERSION,
-        ...patch,
-        updatedAt: new Date().toISOString(),
-      });
-      const temporary = `${preferencePath}.tmp`;
-      await writeFile(temporary, `${JSON.stringify(next)}\n`, "utf8");
-      await rename(temporary, preferencePath);
-    } catch (error) {
-      if (debug)
-        await logAdapterDebug(home, {
-          source: "last-model.write-failed",
-          error: error instanceof Error ? error.message : String(error),
-        });
-    }
-  };
-
-  const agentStatuses = async () => {
-    if (!statuses) {
-      const fetched = await input.client.agentStatuses({ omitSlashCommands: true });
-      statuses ??= fetched;
-      if (debug)
-        await logAdapterDebug(input.bootstrap.home, {
-          source: "agent-statuses-http",
-          windows: fetched.windows.map(summarizeAgentStatus),
-          wsl: fetched.wsl.map(summarizeAgentStatus),
-        });
-    }
-    const current = statuses;
-    return [...current.windows, ...(wslLocation ? current.wsl : [])].filter(
-      (status) => status.installed,
-    );
-  };
-  const hasGuiAuthentication = (status: AgentStatus) =>
-    (status.presentationAuthStates?.gui ?? status.authState) === "authenticated";
-
-  const emptyStatuses = (): RemoteAgentStatuses => ({
-    windows: [],
-    wsl: [],
-    updatedAt: new Date().toISOString(),
-  });
-
-  // A statuses change can unlock Plan and new models — emit the vendored
-  // list-refresh events, never resync() (that tears down the event stream
-  // and the composer stops submitting).
-  const emitProviderRefresh = () => {
-    for (const type of [
-      "integration.updated",
-      "provider.updated",
-      "model.updated",
-      "agent.updated",
-    ] as const)
-      input.events.emit(
-        openCodeEvent(type, {}, { location: { directory: input.bootstrap.directory } }),
-      );
-  };
-  const statusSignature = (list: AgentStatus[]) => JSON.stringify(list);
-  const handleAgentStatusEvent = (value: Record<string, unknown>) => {
-    if (value.type === "windows-agent-statuses" || value.type === "wsl-agent-statuses") {
-      if (value.type === "wsl-agent-statuses" && !wslLocation) return false;
-      const parsed = z.array(agentStatusSchema).safeParse(value.statuses);
-      if (!parsed.success) return false;
-      const current = statuses ?? emptyStatuses();
-      const before = statusSignature(
-        value.type === "windows-agent-statuses" ? current.windows : current.wsl,
-      );
-      statuses =
-        value.type === "windows-agent-statuses"
-          ? { ...current, windows: parsed.data, updatedAt: new Date().toISOString() }
-          : { ...current, wsl: parsed.data, updatedAt: new Date().toISOString() };
-      if (debug)
-        void logAdapterDebug(input.bootstrap.home, {
-          source: value.type,
-          statuses: parsed.data.map(summarizeAgentStatus),
-        });
-      if (statusSignature(parsed.data) !== before) emitProviderRefresh();
-      return true;
-    }
-    if (value.type !== "agent-status-updated") return false;
-    const parsed = agentStatusSchema.safeParse(value.status);
-    if (!parsed.success) return false;
-    const status = parsed.data;
-    const isWsl = status.envKind === "wsl";
-    if (isWsl && !wslLocation) return false;
-    const current = statuses ?? emptyStatuses();
-    const field = isWsl ? "wsl" : "windows";
-    const previous = current[field];
-    const index = previous.findIndex((entry) => entry.kind === status.kind);
-    const updated =
-      index < 0
-        ? [...previous, status]
-        : previous.map((entry, currentIndex) => (currentIndex === index ? status : entry));
-    const previousSignature = statusSignature(previous);
-    statuses = { ...current, [field]: updated, updatedAt: new Date().toISOString() };
-    if (debug)
-      void logAdapterDebug(input.bootstrap.home, {
-        source: value.type,
-        statuses: [summarizeAgentStatus(status)],
-      });
-    if (statusSignature(current[field]) !== previousSignature) emitProviderRefresh();
-    return true;
-  };
-
-  const projectLocation = (value: RemoteProject): ProjectLocation => value.location;
-  const directoryOf = (value: ProjectLocation) =>
-    value.kind === "wsl" ? value.uncPath : value.path;
-
-  const toSession = (value: Thread, currentProject: RemoteProject): SessionInfo => {
-    const sessionDirectory = value.worktreePath ?? directoryOf(currentProject.location);
-    const output = {
-      id: sessionId(value.id),
-      projectID: currentProject.id,
-      agent: value.config.mode === "plan" ? "plan" : "build",
-      model: { id: value.config.model, providerID: value.agentKind },
-      cost: 0,
-      tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
-      time: { created: Date.parse(value.createdAt), updated: Date.parse(value.updatedAt) },
-      title: value.title,
-      // poracode: child threads (isSubAgent) surface as subsessions.
-      ...(value.parentThreadId ? { parentID: sessionId(value.parentThreadId) } : {}),
-      ...(pendingReverts.has(sessionId(value.id))
-        ? { revert: { messageID: pendingReverts.get(sessionId(value.id))!.messageID } }
-        : {}),
-      location: { directory: sessionDirectory },
-    } satisfies SessionInfo;
-    return output;
-  };
-
-  // Virtual read-only subsessions for subagent task items: the canonical
-  // tool_call payload carries no child-thread reference, so each subagent item
-  // becomes a `ses_<thread>__<item>` session whose messages are the parent's
-  // items nested under it via `parentItemId`.
-  const listThreadItems = async (rawThreadId: string) => {
-    // Pages arrive newest-first (each beforePosition step goes one page
-    // older), so reverse page order to get a chronological array.
-    const pages: PersistedRuntimeItem[][] = [];
-    let beforePosition: number | undefined;
-    for (;;) {
-      const page = await input.client.threadRuntimeItemsPage({
-        threadId: rawThreadId,
-        ...(beforePosition !== undefined ? { beforePosition } : {}),
-        limit: 500,
-      });
-      pages.push(page.items);
-      if (page.nextCursor == null) break;
-      beforePosition = page.nextCursor;
-      if (pages.length >= 200) {
-        if (debug)
-          void logAdapterDebug(input.bootstrap.home, {
-            source: "items.page-cap",
-            threadId: rawThreadId,
-            pages: pages.length,
-          });
-        break;
-      }
-    }
-    return pages.reverse().flat();
-  };
-
-  const isSubAgentItem = (item: PersistedRuntimeItem) =>
-    item.type === "tool_call" &&
-    toolCallPayloadSchema.safeParse(item.payload).data?.isSubAgent === true;
-
-  // A `ses_<thread>__<item>` id is a live subsession only when no real thread
-  // resolves to the same id — real thread ids always win.
-  // poracode: desktop terminal-mode threads are hidden in the TUI. A thread's
-  // presentation resolves like the renderer model picker: the thread's own
-  // field first, then its provider's capability, defaulting to "terminal".
-  const presentationOf = (value: Thread, statusList: AgentStatus[]) =>
-    value.presentationMode ??
-    statusList.find((status) => status.kind === value.agentKind)?.capabilities.presentationMode ??
-    "terminal";
-  const isGuiThread = (value: Thread, statusList: AgentStatus[]) =>
-    presentationOf(value, statusList) === "gui";
-  const guiThreads = async () => {
-    const threads = await listThreads();
-    const statusList =
-      typeof input.client.agentStatuses === "function" ? await agentStatuses() : [];
-    return threads.filter((value) => isGuiThread(value, statusList));
-  };
-  // The visibility gates resolve the thread from the cache (kept current by
-  // listThreads + refreshChangedThreads) and only fetch on a miss, so hot
-  // routes (prompt/interrupt) do not add a host round-trip.
-  const cachedThreadById = async (rawId: string) => {
-    let hit = threadCache.get(rawId);
-    if (!hit && typeof input.client.boundedThreadListPage === "function")
-      hit = await findThreadById(rawId);
-    return hit;
-  };
-  const statusListNow = async () =>
-    typeof input.client.agentStatuses === "function" ? await agentStatuses() : [];
-  const isHiddenThread = async (rawId: string) => {
-    const hit = await cachedThreadById(rawId);
-    return hit !== undefined && !isGuiThread(hit, await statusListNow());
-  };
-  const visibleThread = async (rawId: string) => {
-    const hit = await cachedThreadById(rawId);
-    return hit !== undefined && isGuiThread(hit, await statusListNow()) ? hit : undefined;
-  };
-
-  const isLiveSubSession = async (session: string) => {
-    const parsed = parseSubSessionId(session);
-    if (!parsed) return false;
-    const threads = await guiThreads();
-    if (threads.some((value) => value.id === threadId(session))) return false;
-    const parent = threads.find((value) => value.id === parsed.threadId);
-    if (!parent) return false;
-    return (await listThreadItems(parent.id)).some(
-      (value) => value.id === parsed.itemId && isSubAgentItem(value),
-    );
-  };
-
-  const toSubSession = (
-    parent: Thread,
-    item: PersistedRuntimeItem,
-    currentProject: RemoteProject,
-  ): SessionInfo => {
-    const payload = toolCallPayloadSchema.safeParse(item.payload);
-    return {
-      id: subSessionId(parent.id, item.id),
-      projectID: currentProject.id,
-      agent: parent.config.mode === "plan" ? "plan" : "build",
-      model: { id: parent.config.model, providerID: parent.agentKind },
-      cost: 0,
-      tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
-      time: { created: Date.parse(parent.createdAt), updated: Date.parse(parent.updatedAt) },
-      title:
-        (payload.success ? (payload.data.title ?? payload.data.name) : undefined) ??
-        "Subagent session",
-      parentID: sessionId(parent.id),
-      location: { directory: directoryOf(currentProject.location) },
-    } satisfies SessionInfo;
-  };
-
-  const collectThreads = (page: { threads: Thread[] }) => {
-    for (const value of page.threads) {
-      threadCache.set(value.id, value);
-      input.registerThreadContext(value.id, {
-        agent: value.config.mode === "plan" ? "plan" : "build",
-        providerID: value.agentKind,
-        model: value.config.model,
-        location: { directory: input.bootstrap.directory },
-      });
-    }
-  };
-  const threadListPage = async (continuation?: {
-    cursor: string;
-    after: unknown;
-  }): Promise<{ threads: Thread[]; next?: { cursor: string; after: unknown } }> => {
-    const result = await input.client.boundedThreadListPage(
-      continuation
-        ? {
-            mode: "page",
-            order: "updated",
-            limit: 100,
-            cursor: continuation.cursor,
-            after: continuation.after as never,
-          }
-        : { mode: "page", order: "updated", limit: 100 },
-    );
-    collectThreads(result.page);
-    const nextCursor = record(result.page).nextCursor;
-    const after = record(result).reads ?? record(result.page).proof;
-    return {
-      threads: result.page.threads,
-      // Only page onward when the host gave a real proof — sending the whole
-      // result as `after` breaks the continuation contract.
-      ...(typeof nextCursor === "string" && nextCursor && after !== undefined
-        ? { next: { cursor: nextCursor, after } }
-        : {}),
-    };
-  };
-  const listThreads = async () => (await threadListPage()).threads;
-  // Older threads than the newest page are reachable: a cachedThreadById miss
-  // pages onward (10 pages of 100) until it hits, so deep threads still open.
-  const findThreadById = async (rawId: string) => {
-    let continuation: { cursor: string; after: unknown } | undefined;
-    for (let page = 0; page < 10; page += 1) {
-      const result = await threadListPage(continuation);
-      const hit = result.threads.find((value) => value.id === rawId);
-      if (hit) return hit;
-      continuation = result.next;
-      if (!continuation) return undefined;
-    }
-    return undefined;
-  };
-  // Opaque vendored cursor: `tp1.` + base64({cursor, after}) — wraps the host's
-  // continuation token + the page proof the continuation needs.
-  const encodeThreadCursor = (next: { cursor: string; after: unknown }) =>
-    `tp1.${Buffer.from(JSON.stringify(next), "utf8").toString("base64url")}`;
-  const decodeThreadCursor = (value: string | null) => {
-    if (!value?.startsWith("tp1.")) return undefined;
-    try {
-      return record(JSON.parse(Buffer.from(value.slice(4), "base64url").toString("utf8"))) as {
-        cursor: string;
-        after: unknown;
-      };
-    } catch {
-      return undefined;
-    }
-  };
-
-  const rememberPendingRequest = (
-    rawThreadId: string,
-    requestId: string,
-    requestType: unknown,
-    payload: unknown,
-  ) => {
-    const parsedType = canonicalRequestTypeSchema.safeParse(requestType);
-    const parsedPayload = requestPayloadSchema.safeParse(payload);
-    if (!parsedType.success || !parsedPayload.success) return undefined;
-    const options =
-      parsedType.data === "tool_user_input"
-        ? (parsedPayload.data.options ?? []).map((option) => ({
-            optionId: option.optionId,
-            name: option.label,
-          }))
-        : parsedPayload.data.options?.length
-          ? parsedPayload.data.options.map((option) => ({
-              optionId: option.optionId,
-              name: option.label,
-            }))
-          : DEFAULT_PERMISSION_OPTIONS;
-    const saved = {
-      requestId,
-      threadId: rawThreadId,
-      requestType: parsedType.data,
-      payload: parsedPayload.data,
-      options,
-      ...(parsedType.data === "tool_user_input" && emptyFormElicitationPayload(parsedPayload.data)
-        ? { elicitation: true as const }
-        : {}),
-    };
-    pending.set(pendingRequestKey(rawThreadId, requestId), saved);
-    return saved;
-  };
-
-  const permissionItemFor = (
-    session: string,
-    pendingRequest: Awaited<ReturnType<typeof pendingRequestsForSession>>[number],
-  ): PermissionListOutput[number] => {
-    const elicitation = pendingRequest.elicitation
-      ? emptyFormElicitationPayload(pendingRequest.payload)
-      : undefined;
-    return {
-      id: permissionId(pendingRequest.requestId) as PermissionListOutput[number]["id"],
-      sessionID: session,
-      action: elicitation ? "elicitation" : pendingRequest.requestType,
-      resources: [],
-      message: elicitation?.message || pendingRequest.payload.summary,
-      metadata: {
-        requestType: pendingRequest.requestType,
-        options: elicitation
-          ? [...ELICITATION_PERMISSION_OPTIONS]
-          : pendingRequest.payload.options?.length
-            ? pendingRequest.payload.options
-            : DEFAULT_PERMISSION_OPTIONS.map(({ optionId, name }) => ({
-                optionId,
-                label: name,
-              })),
-      },
-    };
-  };
-  const pendingRequestsForSession = async (session: string) => {
-    const rawThreadId = threadId(session);
-    if (sessions.get(session)?.remoteStarted === false) return [];
-    const page = await input.client
-      .threadRuntimeItemsPage({ threadId: rawThreadId, limit: 500 })
-      .catch((error: unknown) => {
-        if (
-          error instanceof RemoteClientError &&
-          error.status === 404 &&
-          error.code === "thread_not_found"
-        )
-          return { items: [] };
-        throw error;
-      });
-    const openRequestIds = new Set<string>();
-    for (const item of page.items) {
-      if (item.type !== RUNTIME_REQUEST_ITEM_TYPE || item.state !== "started") continue;
-      const saved = record(item.payload);
-      if (typeof saved.requestId !== "string") continue;
-      openRequestIds.add(pendingRequestKey(rawThreadId, saved.requestId));
-      const request = rememberPendingRequest(
-        rawThreadId,
-        saved.requestId,
-        saved.requestType,
-        saved.payload,
-      );
-      if (request?.requestType === "tool_user_input")
-        input.recordFormRequest(rawThreadId, saved.requestId);
-    }
-    for (const [key, request] of pending) {
-      if (request.threadId !== rawThreadId || openRequestIds.has(key)) continue;
-      if (request.requestType === "tool_user_input")
-        input.forgetFormRequest(rawThreadId, request.requestId);
-      pending.delete(key);
-    }
-    return [...pending.entries()]
-      .filter(([, request]) => request.threadId === rawThreadId)
-      .map(([, request]) => request);
-  };
-
-  const pendingFormRequest = async (session: string, rawFormID: string) => {
-    const rawThreadId = threadId(session);
-    const requestId = requestIdFromFormId(rawFormID, rawThreadId);
-    if (!requestId) return undefined;
-    const key = pendingRequestKey(rawThreadId, requestId);
-    let request = pending.get(key);
-    if (!request) {
-      await pendingRequestsForSession(session);
-      request = pending.get(key);
-    }
-    if (!request || request.requestType !== "tool_user_input") return undefined;
-    return request;
-  };
-  const formFromPending = (request: {
-    requestId: string;
-    threadId: string;
-    requestType: z.infer<typeof canonicalRequestTypeSchema>;
-    payload: RequestPayload;
-  }) =>
-    formInfoForRequest({
-      type: "request.opened",
-      threadId: request.threadId,
-      requestId: request.requestId,
-      requestType: request.requestType,
-      payload: request.payload,
-    });
-
-  const sendPrompt = async (session: string, body: Record<string, unknown>) => {
-    const currentProject = await resolveProject();
-    const raw = sessions.get(session);
-    const id = raw?.threadId ?? threadId(session);
-    // A staged /undo commits before the next prompt — send paths that skipped
-    // revert.commit land here.
-    const revertError = await commitPendingRevert(session);
-    if (revertError) return revertError;
-    const model = record(body.model);
-    const agentID = String(body.agent ?? raw?.agentID ?? "build");
-    const providerID = String(
-      model.providerID ?? raw?.providerID ?? (await resolveDefaultModel())?.providerID ?? "",
-    );
-    const selectedModel = String(
-      model.id ?? raw?.model ?? body.modelID ?? (await resolveDefaultModel())?.model ?? "",
-    );
-    const effort = String(model.variant ?? raw?.effort ?? body.effort ?? "");
-    const promptPartsSchema = z.array(z.record(z.string(), z.unknown()));
-    const messageParts = promptPartsSchema.safeParse(record(body.message).parts);
-    const bodyParts = promptPartsSchema.safeParse(body.parts);
-    const promptParts = messageParts.success
-      ? messageParts.data
-      : bodyParts.success
-        ? bodyParts.data
-        : [];
-    const text =
-      typeof body.text === "string"
-        ? body.text
-        : promptParts
-            .filter((part) => record(part).type === "text")
-            .map((part) => String(record(part).text ?? ""))
-            .join("");
-    const message = record(body.message);
-    const userMessageItemId = itemId(
-      String(message.id ?? body.messageID ?? body.id ?? crypto.randomUUID()),
-    );
-    const selectedStatus = (await agentStatuses()).find((status) => status.kind === providerID);
-    if (!selectedStatus || !selectedModel)
-      return {
-        status: 400,
-        error: { code: "invalid_request", message: "Choose an installed provider and model" },
-      };
-    activeProviderID = providerID;
-    const guiCapabilities =
-      selectedStatus.capabilities.presentationCapabilities?.gui ?? selectedStatus.capabilities;
-    // Files arrive as {uri} entries: `data:` URIs are pasted/inline files
-    // uploaded to the host, `file:` URIs are @file mentions that become
-    // project-relative file segments (desktop serializeMentions shape).
-    const mentionSchema = z.object({
-      start: z.number().int().nonnegative(),
-      end: z.number().int().nonnegative(),
-      text: z.string(),
-    });
-    const attachmentSchema = z.object({
-      uri: z.string().min(1),
-      name: z.string().optional(),
-      description: z.string().optional(),
-      mention: mentionSchema.optional(),
-    });
-    const attachments = z.array(attachmentSchema).safeParse(body.files ?? body.attachments);
-    const MAX_ATTACHMENTS = 8;
-    const MAX_ATTACHMENT_BYTES = 4 * 1024 * 1024;
-    type FileSegment =
-      | { kind: "attachment"; path: string; mimeType: string }
-      | { kind: "file"; path: string };
-    const parsedFiles: { segment: FileSegment; mention?: z.infer<typeof mentionSchema> }[] = [];
-    // Prompt-attached skills — {id:"scope:name", mention:{start,end}} — become
-    // skill segments at their mention offsets, removed from the flat prompt.
-    const skillRefs = z
-      .array(z.object({ id: z.string(), mention: mentionSchema.optional() }))
-      .safeParse(body.skills);
-    const parsedSkills: {
-      segment: {
-        kind: "skill";
-        name: string;
-        provider: string;
-        scope: "global" | "project";
-        invocation: string;
-        path?: string;
-        pluginId?: string;
-      };
-      mention?: z.infer<typeof mentionSchema>;
-    }[] = [];
-    if (skillRefs.success && skillRefs.data.length > 0) {
-      const skillProject = await resolveProject();
-      const scanned = await input.client
-        .callRemoteProcedure("scanSkills", { projectLocation: skillProject.location })
-        .catch(() => null);
-      const skillRows = record(scanned).plugins;
-      const available = (Array.isArray(skillRows) ? skillRows : []).map((value) => {
-        const entry = record(value);
-        const name = String(entry.name ?? "");
-        const scope = String(entry.scope ?? "project");
-        return {
-          id: scope + ":" + name,
-          name,
-          provider: String(entry.provider ?? ""),
-          scope,
-          invocation: String(entry.invocation ?? entry.name ?? name),
-          ...(typeof entry.path === "string" ? { path: entry.path } : {}),
-          ...(typeof entry.pluginId === "string" ? { pluginId: entry.pluginId } : {}),
-        };
-      });
-      for (const ref of skillRefs.data) {
-        const skill = available.find((value) => value.id === ref.id);
-        if (!skill)
-          return {
-            status: 400,
-            error: { code: "invalid_request", message: "Unknown skill " + ref.id + "." },
-          };
-        parsedSkills.push({
-          segment: {
-            kind: "skill",
-            name: skill.name,
-            provider: skill.provider,
-            scope: skill.scope === "global" ? "global" : "project",
-            invocation: skill.invocation,
-            ...(skill.path ? { path: skill.path } : {}),
-            ...(skill.pluginId ? { pluginId: skill.pluginId } : {}),
-          },
-          ...(ref.mention ? { mention: ref.mention } : {}),
-        });
-      }
-    }
-    if (body.files !== undefined && !attachments.success)
-      return { error: { code: "invalid_request", message: "Malformed files entry" }, status: 400 };
-    if (attachments.success && attachments.data.length > 0) {
-      if (attachments.data.length > MAX_ATTACHMENTS)
-        return {
-          error: {
-            code: "invalid_request",
-            message: `Too many attachments (max ${MAX_ATTACHMENTS})`,
-          },
-          status: 400,
-        };
-      const acceptsImages = selectedStatus.capabilities.readsImageAttachmentsFromHost !== false;
-      const projectDir = directoryOf(currentProject.location);
-      for (const file of attachments.data) {
-        const uri = file.uri;
-        if (uri.startsWith("data:")) {
-          const match = /^data:([^;,]*)(;base64)?,([\s\S]*)$/u.exec(uri);
-          if (!match)
-            return {
-              error: { code: "invalid_request", message: "Malformed data: attachment URI" },
-              status: 400,
-            };
-          const mime = match[1] || "application/octet-stream";
-          if (match[2] === undefined)
-            return {
-              error: {
-                code: "invalid_request",
-                message: "Only base64-encoded data: URIs are supported",
-              },
-              status: 400,
-            };
-          const bytes = Buffer.from(match[3] ?? "", "base64");
-          if (bytes.length > MAX_ATTACHMENT_BYTES)
-            return {
-              error: {
-                code: "invalid_request",
-                message: `Attachment ${file.name ?? "file"} exceeds ${MAX_ATTACHMENT_BYTES / 1024 / 1024}MB`,
-              },
-              status: 400,
-            };
-          if (mime.startsWith("image/") && !acceptsImages)
-            return {
-              error: {
-                code: "invalid_request",
-                message: "This provider does not accept image attachments",
-              },
-              status: 400,
-            };
-          const uploaded = await input.client.uploadAttachment({
-            threadId: id,
-            fileName: file.name ?? (mime.startsWith("image/") ? "Image.png" : "file"),
-            data: bytes,
-          });
-          parsedFiles.push({
-            segment: { kind: "attachment", path: uploaded, mimeType: mime },
-            ...(file.mention ? { mention: file.mention } : {}),
-          });
-          continue;
-        }
-        if (uri.startsWith("file:")) {
-          let filePath: string;
-          try {
-            filePath = fileURLToPath(uri);
-          } catch {
-            return {
-              error: { code: "invalid_request", message: `Malformed file: URI ${uri}` },
-              status: 400,
-            };
-          }
-          const relativePath = relative(projectDir, filePath).replaceAll("\\", "/");
-          // Inside the project it becomes a file-mention segment; outside, the
-          // mention text already in the prompt carries the reference.
-          if (relativePath !== "" && !relativePath.startsWith("../") && relativePath !== "..")
-            parsedFiles.push({
-              segment: { kind: "file", path: relativePath },
-              ...(file.mention ? { mention: file.mention } : {}),
-            });
-          continue;
-        }
-        return {
-          error: {
-            code: "invalid_request",
-            message: `Unsupported attachment URI scheme: ${uri.split(":", 1)[0]}`,
-          },
-          status: 400,
-        };
-      }
-    }
-    // Ordered segments: the host consumes segments instead of the flat text
-    // when any are present, so the text has to be woven back in around each
-    // mention (desktop serializes chips in prompt order). Files without a
-    // mention lead; empty text chunks are dropped. The flat prompt drops only
-    // attachment-mention placeholders — @file mention text stays.
-    const segments: Array<
-      | FileSegment
-      | { kind: "text"; content: string }
-      | {
-          kind: "skill";
-          name: string;
-          provider: string;
-          scope: "global" | "project";
-          invocation: string;
-          path?: string;
-          pluginId?: string;
-        }
-    > = [];
-    let promptText = text;
-    if (parsedFiles.length > 0 || parsedSkills.length > 0) {
-      for (const file of parsedFiles.filter((entry) => !entry.mention)) segments.push(file.segment);
-      for (const skill of parsedSkills.filter((entry) => !entry.mention))
-        segments.push(skill.segment);
-      const mentioned: {
-        segment: FileSegment | (typeof parsedSkills)[number]["segment"];
-        mention: z.infer<typeof mentionSchema>;
-      }[] = [...parsedFiles, ...parsedSkills].filter(
-        (entry): entry is typeof entry & { mention: z.infer<typeof mentionSchema> } =>
-          entry.mention !== undefined,
-      );
-      mentioned.sort((left, right) => left.mention.start - right.mention.start);
-      let cursor = 0;
-      for (const entry of mentioned) {
-        const before = text.slice(cursor, entry.mention.start);
-        if (before.trim().length > 0) segments.push({ kind: "text", content: before });
-        segments.push(entry.segment);
-        cursor = entry.mention.end;
-      }
-      const tail = text.slice(cursor);
-      if (tail.trim().length > 0) segments.push({ kind: "text", content: tail });
-      promptText = mentioned
-        .filter((entry) => entry.segment.kind === "attachment" || entry.segment.kind === "skill")
-        .sort((left, right) => right.mention.start - left.mention.start)
-        .reduce(
-          (value, entry) => value.slice(0, entry.mention.start) + value.slice(entry.mention.end),
-          text,
-        )
-        .replace(/\s+/g, " ")
-        .trim();
-    }
-    // `!command` output becomes one-shot model context — prepended to the
-    // final prompt and segments, once, AFTER the mention rewrite.
-    const stashedShell = shellStash.get(session);
-    if (stashedShell?.length) {
-      const preamble = stashedShell
-        .map(
-          (entry) =>
-            `Shell output the user ran before this message:\n$ ${entry.command}\n${entry.output}`,
-        )
-        .join("\n\n");
-      segments.unshift({ kind: "text", content: `${preamble}\n\n` });
-      promptText = `${preamble}\n\n${promptText}`;
-      shellStash.delete(session);
-    }
-    const mode = agentID === "plan" ? "plan" : "agent";
-    input.registerThreadContext(id, {
-      agent: agentID,
-      providerID,
-      model: selectedModel,
-      location: { directory: directoryOf(currentProject.location) },
-    });
-    await input.setThreadInterests([id]);
-    // Cache-first: the route's visibility gate already refreshed the list
-    // when this request needed it; only miss when nothing has listed yet.
-    const remoteThread =
-      threadCache.get(id) ?? (await listThreads()).find((value) => value.id === id);
-    const savedConfigMatches = raw?.providerID === providerID && raw.model === selectedModel;
-    const remoteConfigMatches =
-      remoteThread?.agentKind === providerID && remoteThread.config.model === selectedModel;
-    // Same-provider threads keep their host config (executionEnvironment,
-    // MCP/tool overrides, reviewer, importedFrom) — only the fields the TUI
-    // owns are overlaid. A model change drops the stale selectionBinding; a
-    // different provider starts from an empty base.
-    const sameProvider = remoteThread?.agentKind === providerID;
-    const base: ThreadConfig | Record<string, never> =
-      remoteThread && sameProvider ? remoteThread.config : {};
-    const modelChanged = "model" in base && base.model !== selectedModel;
-    const { selectionBinding: _droppedBinding, ...baseRest } = base as ThreadConfig;
-    const config: ThreadConfig = {
-      ...(modelChanged ? baseRest : base),
-      model: selectedModel,
-      ...(effort ? { effort } : {}),
-      ...(savedConfigMatches && raw?.fast !== undefined ? { fast: raw.fast } : {}),
-      ...(savedConfigMatches && raw?.thinking !== undefined ? { thinking: raw.thinking } : {}),
-      ...(savedConfigMatches && raw?.contextSize ? { contextSize: raw.contextSize } : {}),
-      mode,
-      approvalPolicy:
-        (savedConfigMatches ? raw.approvalPolicy : undefined) ??
-        (remoteConfigMatches ? remoteThread?.config.approvalPolicy : undefined) ??
-        guiCapabilities.defaultApprovalPolicy ??
-        selectedStatus.capabilities.defaultApprovalPolicy,
-      sandboxMode:
-        (savedConfigMatches ? raw.sandboxMode : undefined) ??
-        (remoteConfigMatches ? remoteThread?.config.sandboxMode : undefined) ??
-        guiCapabilities.defaultSandboxMode ??
-        selectedStatus.capabilities.defaultSandboxMode,
-    };
-    let switchedProvider = false;
-    // Per-session MCP toggles apply at launch — overlay the pending flags
-    // and clear them so they fire exactly once per thread start.
-    const pendingMcp = sessionMcpPending.get(session) ?? sessionMcpPending.get("");
-    if (pendingMcp) {
-      const target = config as Record<string, unknown>;
-      for (const [server, enabled] of pendingMcp) {
-        const field =
-          server === "crossagents"
-            ? "crossagentMcp"
-            : server === "browser"
-              ? "browserMcp"
-              : server === "chrome"
-                ? "chromeMcp"
-                : undefined;
-        if (field) target[field] = enabled;
-        else {
-          const overrides = record(target.mcpServerOverrides);
-          overrides[server] = enabled;
-          target.mcpServerOverrides = overrides;
-        }
-      }
-    }
-    const pendingSwitch = pendingSwitches.get(session);
-    if (pendingSwitch && remoteThread) {
-      // In-place provider switch: relaunch this thread under the target
-      // provider — no sessionRef, no ensureRunning.
-      const targetStatus = (await agentStatuses()).find(
-        (value) => value.kind === pendingSwitch.providerID,
-      );
-      if (!targetStatus)
-        return {
-          error: {
-            code: "unsupported",
-            message: `Provider ${pendingSwitch.providerID} is not installed.`,
-          },
-          status: 400,
-        };
-      const switchConfig: ThreadConfig = { ...config };
-      const remoteConfig = record(remoteThread.config);
-      if (resolveComposerMcpScope(targetStatus.capabilities.mcpScope, "gui") !== "none") {
-        for (const key of [
-          "crossagentMcp",
-          "browserMcp",
-          "chromeMcp",
-          "mcpServerOverrides",
-          "pluginOverrides",
-        ])
-          if (remoteConfig[key] !== undefined)
-            (switchConfig as Record<string, unknown>)[key] = remoteConfig[key];
-      }
-      // Pending MCP toggles apply after the remote-config carry-over, or the
-      // switch silently drops them.
-      if (pendingMcp) {
-        const target = switchConfig as Record<string, unknown>;
-        for (const [server, enabled] of pendingMcp) {
-          const field =
-            server === "crossagents"
-              ? "crossagentMcp"
-              : server === "browser"
-                ? "browserMcp"
-                : server === "chrome"
-                  ? "chromeMcp"
-                  : undefined;
-          if (field) target[field] = enabled;
-          else {
-            const overrides = record(target.mcpServerOverrides);
-            overrides[server] = enabled;
-            target.mcpServerOverrides = overrides;
-          }
-        }
-      }
-      const switchSettings = await remoteSettings();
-      const switchContextStrategy = resolveProviderHandoffStrategy({
-        sourcePresentationMode: "gui",
-        targetPresentationMode: "gui",
-        isMirroredThread: false,
-        readThreadToolEnabled: readThreadToolEnabled({
-          disabledBuiltInMcpServers: record(switchSettings.disabledBuiltInMcpServers) as never,
-          disabledBuiltInMcpTools: record(switchSettings.disabledBuiltInMcpTools) as never,
-        }),
-        threadResolvedReadThreadTool: threadMentionTools.get(id) === true,
-        targetReadThreadToolGuaranteed: targetGuaranteesReadThreadTool(
-          targetStatus.capabilities,
-          "gui",
-        ),
-      });
-      let switchPrompt = promptText;
-      let switchSegments = segments;
-      if (switchContextStrategy === "context-file" && remoteThread.sessionRef) {
-        const extracted = record(
-          await input.client.callRemoteProcedure("extractContext", {
-            threadId: id,
-            agentKind: remoteThread.agentKind,
-            sessionRef: remoteThread.sessionRef,
-            projectLocation: resolveProjectLocation(
-              currentProject.location,
-              remoteThread.worktreePath,
-            ),
-            ...(remoteThread.worktreePath ? { worktreePath: remoteThread.worktreePath } : {}),
-          }),
-        );
-        const instruction = handoffContextInstruction(
-          extracted as unknown as Parameters<typeof handoffContextInstruction>[0],
-        );
-        const uploaded = await input.client.uploadAttachment({
-          threadId: id,
-          fileName: "handoff-context.md",
-          data: new TextEncoder().encode(String(extracted.summary ?? "")),
-        });
-        switchPrompt = `${instruction}\n\n${promptText}`;
-        switchSegments = [
-          { kind: "text", content: `${instruction}\n\n` },
-          { kind: "attachment", path: uploaded, mimeType: "text/markdown" },
-          { kind: "text", content: "\n\n" },
-          ...(segments.length > 0 ? segments : [{ kind: "text" as const, content: promptText }]),
-        ];
-      }
-      const switchRequest = {
-        threadId: id,
-        projectLocation: resolveProjectLocation(currentProject.location, remoteThread.worktreePath),
-        agentKind: pendingSwitch.providerID,
-        config: switchConfig,
-        prompt: switchPrompt,
-        ...(switchSegments.length > 0 ? { segments: switchSegments } : {}),
-        ...(userMessageItemId ? { userMessageItemId } : {}),
-        initialSize: DEFAULT_TERMINAL_SIZE,
-        providerSwitch: {
-          fromAgentKind: remoteThread.agentKind,
-          handoffItemId: `handoff-${crypto.randomUUID()}`,
-          contextStrategy: switchContextStrategy,
-        },
-      } satisfies Parameters<RemoteDesktopClient["startThread"]>[0];
-      try {
-        await captureFileCheckpoint(id, userMessageItemId, switchRequest.projectLocation);
-        await input.client.startThread(switchRequest);
-        sessionMcpPending.delete(session);
-        sessionMcpPending.delete("");
-      } catch (error) {
-        // The pending switch stays — the next prompt retries it.
-        const status = (error as { status?: unknown }).status === 409 ? 409 : 500;
-        return {
-          error: {
-            code: status === 409 ? "conflict" : "internal_error",
-            message: error instanceof Error ? error.message : "The provider switch failed.",
-          },
-          status,
-        };
-      }
-      pendingSwitches.delete(session);
-      switchedProvider = true;
-      input.registerThreadContext(id, {
-        agent: config.mode === "plan" ? "plan" : "build",
-        providerID: pendingSwitch.providerID,
-        model: pendingSwitch.modelID,
-        location: {
-          directory: directoryOf(
-            resolveProjectLocation(currentProject.location, remoteThread.worktreePath),
-          ),
-        },
-      });
-    }
-    const status = states.get(id);
-    if (!switchedProvider && status && isThreadTurnActive(status)) {
-      // Delivery: the prompt body's explicit choice wins, then the remote
-      // followUpBehavior setting, default steer.
-      const delivery =
-        body.delivery === "steer" || body.delivery === "queue"
-          ? body.delivery
-          : await followUpDelivery();
-      if (delivery === "queue") {
-        try {
-          await input.client.callRemoteProcedure("queueThreadFollowUp", {
-            threadId: id,
-            prompt: promptText,
-            config,
-            ...(segments.length > 0 ? { segments } : {}),
-          });
-        } catch (error) {
-          if (error instanceof RemoteClientError)
-            return {
-              error: {
-                code: "unsupported",
-                message: "This Poracode host can't queue follow-ups.",
-              },
-              status: 501,
-            };
-          throw error;
-        }
-      } else {
-        // Desktop parity: decline an open approval before steering so the
-        // agent is not left waiting on an answer it cannot get. Form and
-        // elicitation requests are not approvals — leave them alone.
-        for (const request of await pendingRequestsForSession(session)) {
-          if (request.requestType === "tool_user_input") continue;
-          const optionId = selectPermissionOption(request.options, "reject");
-          if (!optionId) continue;
-          try {
-            await input.client.resolveRequest({
-              threadId: id,
-              requestId: request.requestId,
-              method: "requestPermission",
-              response: { optionId },
-            });
-          } catch {
-            /* the approval may have resolved concurrently */
-          }
-          input.recordPermissionReply(id, request.requestId, "reject");
-          pending.delete(pendingRequestKey(id, request.requestId));
-        }
-        await input.client.setPendingSteer({
-          threadId: id,
-          prompt: promptText,
-          config,
-          ...(segments.length > 0 ? { segments } : {}),
-        });
-      }
-    } else if (remoteThread && !switchedProvider) {
-      const sendRequest = {
-        threadId: id,
-        prompt: promptText,
-        config,
-        userMessageItemId,
-        ...(segments.length > 0 ? { segments } : {}),
-      };
-      try {
-        // File checkpoints are captured by the sending client — checkpointRevert's
-        // files phase needs one per turn's base user message.
-        await captureFileCheckpoint(
-          id,
-          userMessageItemId,
-          resolveProjectLocation(currentProject.location, remoteThread.worktreePath),
-        );
-        await input.client.sendThreadInput(sendRequest);
-        sessionMcpPending.delete(session);
-        sessionMcpPending.delete("");
-      } catch (error) {
-        await logAdapterError({
-          home: input.bootstrap.home,
-          method: "POST",
-          route: `/api/session/${session}/prompt`,
-          input: { hostRequest: sendRequest },
-          error,
-        });
-        if (
-          !(error instanceof RemoteClientError) ||
-          error.status !== 422 ||
-          error.requestMayHaveCommitted !== false ||
-          !isThreadSessionAbsenceRefusal(error)
-        )
-          throw error;
-        const latestThread = (await listThreads()).find((value) => value.id === id);
-        if (!latestThread)
-          throw new Error(
-            "This thread can no longer be resumed because it no longer exists on the host.",
-            { cause: error },
-          );
-        if (!latestThread.sessionRef && !latestThread.canResumeWithConfig)
-          throw new Error(
-            "This thread cannot be resumed because the host has no session reference or resumable configuration.",
-            { cause: error },
-          );
-        const resumeProject =
-          latestThread.projectId === currentProject.id
-            ? currentProject
-            : (
-                await input.client.boundedProjectListPage({ mode: "inventory", projectLimit: 100 })
-              ).projects.find((value) => value.id === latestThread.projectId);
-        if (!resumeProject)
-          throw new Error(
-            "This thread cannot be resumed because its project location is unavailable.",
-            { cause: error },
-          );
-        const resumeLocation = resolveProjectLocation(
-          resumeProject.location,
-          latestThread.worktreePath,
-        );
-        input.registerThreadContext(id, {
-          agent: latestThread.config.mode === "plan" ? "plan" : "build",
-          providerID: latestThread.agentKind,
-          model: latestThread.config.model,
-          location: { directory: directoryOf(resumeLocation) },
-        });
-        const resumeRequest = {
-          threadId: id,
-          projectLocation: resumeLocation,
-          agentKind: latestThread.agentKind,
-          ...(latestThread.agentInstanceId
-            ? { agentInstanceId: latestThread.agentInstanceId }
-            : {}),
-          config: latestThread.config,
-          prompt: promptText,
-          ...(userMessageItemId ? { userMessageItemId } : {}),
-          initialSize: DEFAULT_TERMINAL_SIZE,
-          ...(latestThread.sessionRef ? { sessionRef: latestThread.sessionRef } : {}),
-          ...(latestThread.presentationMode
-            ? { presentationMode: latestThread.presentationMode }
-            : {}),
-        } satisfies Parameters<RemoteDesktopClient["startThread"]>[0];
-        try {
-          await captureFileCheckpoint(id, userMessageItemId, resumeRequest.projectLocation);
-          await input.client.startThread(resumeRequest);
-          sessionMcpPending.delete(session);
-          sessionMcpPending.delete("");
-        } catch (resumeError) {
-          await logAdapterError({
-            home: input.bootstrap.home,
-            method: "POST",
-            route: `/api/session/${session}/prompt`,
-            input: { hostRequest: resumeRequest, operation: "resume" },
-            error: resumeError,
-          });
-          throw resumeError;
-        }
-      }
-    } else if (!switchedProvider) {
-      // Fresh threads get the desktop's standing MCP defaults (Crossagents on
-      // by default). No mentions and no implicit client tools.
-      const startConfig: ThreadConfig = { ...config };
-      const startSettings = await remoteSettings();
-      const mcpSettings = record(startSettings.enabledMcpServers);
-      const disabledBuiltIn = record(startSettings.disabledBuiltInMcpServers);
-      if (Object.keys(mcpSettings).length > 0 || Object.keys(disabledBuiltIn).length > 0) {
-        Object.assign(
-          startConfig,
-          resolveNewThreadMcpConfig(
-            {
-              enabledMcpServers: mcpSettings as Record<string, boolean>,
-              disabledBuiltInMcpServers: disabledBuiltIn as never,
-            },
-            selectedStatus.capabilities,
-            "gui",
-            currentProject.location,
-          ),
-        );
-      }
-      const startWorktreePath = raw?.worktreePath;
-      const startIsNewWorktree = startWorktreePath
-        ? createdWorktrees.delete(startWorktreePath)
-        : undefined;
-      const startRequest = {
-        threadId: id,
-        projectId: currentProject.id,
-        agentKind: providerID,
-        config: startConfig,
-        prompt: promptText,
-        userMessageItemId,
-        presentationMode: "gui",
-        ...(startWorktreePath ? { worktreePath: startWorktreePath } : {}),
-        ...(raw?.worktreeBranch ? { worktreeBranch: raw.worktreeBranch } : {}),
-        ...(startIsNewWorktree ? { isNewWorktree: true } : {}),
-      } satisfies Parameters<RemoteDesktopClient["startNewThread"]>[0];
-      try {
-        await captureFileCheckpoint(
-          id,
-          userMessageItemId,
-          resolveProjectLocation(currentProject.location, startRequest.worktreePath),
-        );
-        await input.client.startNewThread(startRequest);
-        sessionMcpPending.delete(session);
-        sessionMcpPending.delete("");
-        autoTitle(id, text, currentProject);
-      } catch (error) {
-        await logAdapterError({
-          home: input.bootstrap.home,
-          method: "POST",
-          route: `/api/session/${session}/prompt`,
-          input: { hostRequest: startRequest },
-          error,
-        });
-        throw error;
-      }
-    }
-    sessions.set(session, {
-      ...raw,
-      threadId: id,
-      projectId: currentProject.id,
-      createdAt: raw?.createdAt ?? Date.now(),
-      remoteStarted: true,
-      ...(config.approvalPolicy ? { approvalPolicy: config.approvalPolicy } : {}),
-      ...(config.sandboxMode ? { sandboxMode: config.sandboxMode } : {}),
-    });
-    await persistLastModel({
-      provider: providerID,
-      model: selectedModel,
-      ...(config.effort ? { effort: config.effort } : {}),
-      ...(config.approvalPolicy ? { approvalPolicy: config.approvalPolicy } : {}),
-      ...(config.sandboxMode ? { sandboxMode: config.sandboxMode } : {}),
-    });
-    const output: SessionPromptOutput = {
-      id: messageId(userMessageItemId),
-      sessionID: session,
-      time: { created: Date.now() },
-      type: "user",
-      payload: { text, files: [], skills: [] },
-      delivery: "steer",
-    };
-    return { data: output };
-  };
+  const ctx = createRouterState(input) as RouterContext;
+  // Sequential assigns: prompt.ts destructures ctx at factory-eval time, so
+  // every earlier factory's members must already be on ctx when it runs.
+  Object.assign(ctx, createRevert(ctx));
+  Object.assign(ctx, createInbox(ctx));
+  Object.assign(ctx, createGoals(ctx));
+  Object.assign(ctx, createCheckpoints(ctx));
+  Object.assign(ctx, createShells(ctx));
+  Object.assign(ctx, createSubagents(ctx));
+  Object.assign(ctx, createTitles(ctx));
+  Object.assign(ctx, createCatalog(ctx));
+  Object.assign(ctx, createThreads(ctx));
+  Object.assign(ctx, createRequests(ctx));
+  Object.assign(ctx, createPrompt(ctx));
+  const {
+    sessions,
+    states,
+    pendingReverts,
+    pending,
+    cancelledInboxIds,
+    createdWorktrees,
+    pendingSwitches,
+    threadMentionTools,
+    pendingShellExits,
+    pendingShellTimeouts,
+    shellStash,
+    sessionMcpPending,
+    backgroundTasks,
+    subagentSubscriptions,
+    threadCache,
+    emitRevertEvent,
+    commitPendingRevert,
+    inboxKey,
+    inboxEntry,
+    inboxUserItem,
+    emitInboxEvent,
+    updateInboxSteer,
+    updateInboxQueue,
+    seedInbox,
+    recordGoal,
+    seedBackgroundTasks,
+    seedGoal,
+    goalState,
+    controlGoal,
+    subscribeGoal,
+    goalSupported,
+    goalLine,
+    reconcileCheckpoints,
+    scheduleCheckpointReconcile,
+    taskFor,
+    shellInfoFor,
+    applyBackgroundTasks,
+    subagentKey,
+    subscribeSubagent,
+    unsubscribeSubagent,
+    disposeSubagentSubscriptions,
+    remoteSettings,
+    generateTitle,
+    firstPromptText,
+    renameThreadTo,
+    resolveDefaultModel,
+    resolveProject,
+    requestLocation,
+    persistLastModel,
+    agentStatuses,
+    hasGuiAuthentication,
+    handleAgentStatusEvent,
+    projectLocation,
+    directoryOf,
+    toSession,
+    listThreadItems,
+    isSubAgentItem,
+    presentationOf,
+    isGuiThread,
+    guiThreads,
+    statusListNow,
+    isHiddenThread,
+    visibleThread,
+    isLiveSubSession,
+    toSubSession,
+    cachedThreadById,
+    threadListPage,
+    listThreads,
+    encodeThreadCursor,
+    decodeThreadCursor,
+    pendingRequestKey,
+    rememberPendingRequest,
+    permissionItemFor,
+    pendingRequestsForSession,
+    pendingFormRequest,
+    formFromPending,
+    sendPrompt,
+  } = ctx;
 
   const handleRequest = async (request: Request): Promise<Response> => {
     const url = new URL(request.url);
@@ -2318,24 +374,24 @@ export function createRouter(input: {
         // client fetches this once at mount, so wait briefly for the first
         // GUI-capable provider to appear instead of locking in `data: null`.
         const deadline = Date.now() + 15_000;
-        while (!defaultModel && Date.now() < deadline) {
-          statuses = await input.client.agentStatuses({ omitSlashCommands: true });
-          defaultModel = await resolveDefaultModel();
-          if (!defaultModel) await new Promise((resolve) => setTimeout(resolve, 500));
+        while (!ctx.defaultModel && Date.now() < deadline) {
+          ctx.statuses = await input.client.agentStatuses({ omitSlashCommands: true });
+          ctx.defaultModel = await resolveDefaultModel();
+          if (!ctx.defaultModel) await new Promise((resolve) => setTimeout(resolve, 500));
         }
         const agents = (await agentStatuses()).filter(supportsGui);
-        const defaultStatus = agents.find((status) => status.kind === defaultModel?.providerID);
+        const defaultStatus = agents.find((status) => status.kind === ctx.defaultModel?.providerID);
         const defaultCapabilities =
           defaultStatus?.capabilities.presentationCapabilities?.gui ?? defaultStatus?.capabilities;
-        const data: ModelInfo | null = defaultModel
+        const data: ModelInfo | null = ctx.defaultModel
           ? ({
-              id: defaultModel.model,
-              modelID: defaultModel.model,
-              providerID: defaultModel.providerID,
-              name: defaultModel.model,
+              id: ctx.defaultModel.model,
+              modelID: ctx.defaultModel.model,
+              providerID: ctx.defaultModel.providerID,
+              name: ctx.defaultModel.model,
               capabilities: { tools: true, input: ["text"], output: ["text"] },
               variants: (
-                defaultCapabilities?.modelEfforts?.[defaultModel.model] ??
+                defaultCapabilities?.modelEfforts?.[ctx.defaultModel.model] ??
                 defaultCapabilities?.efforts ??
                 []
               ).map((id) => ({ id })),
@@ -2429,7 +485,7 @@ export function createRouter(input: {
               isGuiThread(value, statusList) && value.projectId === current.id && !value.archived,
           )
           .map((value) => toSession(value, current));
-        if (debug)
+        if (ctx.debug)
           void logAdapterDebug(input.bootstrap.home, {
             source: "session.list",
             projectIdLength: current.id.length,
@@ -2491,7 +547,7 @@ export function createRouter(input: {
             // Neither the current steer nor a queued item — a delivered
             // prompt's inbox id looks exactly like this. 204 as a no-op;
             // never clearPendingSteer blindly or an unrelated steer dies.
-            if (debug)
+            if (ctx.debug)
               void logAdapterDebug(input.bootstrap.home, {
                 source: "inbox.delete",
                 threadId: rawThreadId,
@@ -2500,7 +556,7 @@ export function createRouter(input: {
               });
           }
         }
-        if (debug)
+        if (ctx.debug)
           void logAdapterDebug(input.bootstrap.home, {
             source: "inbox.delete",
             threadId: rawThreadId,
@@ -2592,7 +648,7 @@ export function createRouter(input: {
           typeof body.approvalPolicy === "string" ? body.approvalPolicy : undefined;
         const sandboxMode = typeof body.sandboxMode === "string" ? body.sandboxMode : undefined;
         const remoteThreadID = threadId(id);
-        if (providerID) activeProviderID = providerID;
+        if (providerID) ctx.activeProviderID = providerID;
         // A session created inside a listed worktree starts its thread there —
         // the host runs prepare-worktree setup via the worktree fields.
         const requestedDirectory = String(record(body.location).directory ?? "");
@@ -2700,7 +756,7 @@ export function createRouter(input: {
       }
       const viewMatch = path.match(/^\/api\/session\/([^/]+)\/view$/u);
       if (viewMatch && (method === "POST" || method === "PUT")) {
-        currentSession = decodeURIComponent(viewMatch[1]!);
+        ctx.currentSession = decodeURIComponent(viewMatch[1]!);
         // session.view: the host only clears a finished marker. Fall back to
         // the cached status so a thread that finished before this TUI
         // connected still clears.
@@ -2949,7 +1005,7 @@ export function createRouter(input: {
             ),
           );
         }
-        activeProviderID = remoteThread.agentKind;
+        ctx.activeProviderID = remoteThread.agentKind;
         const limit = Math.max(1, Math.min(100, Number(url.searchParams.get("limit")) || 20));
         const cursor = url.searchParams.get("cursor") ?? undefined;
         const output = await historyMessagePage(
@@ -2963,7 +1019,7 @@ export function createRouter(input: {
               limit: pageSize,
               targetTimelineEntryCount: Math.max(1, Math.min(100, limit)),
             });
-            if (debug)
+            if (ctx.debug)
               await logAdapterDebug(input.bootstrap.home, {
                 source: "message.list.page",
                 cursor: beforePosition !== undefined,
@@ -2974,7 +1030,7 @@ export function createRouter(input: {
             return page;
           },
         );
-        if (debug)
+        if (ctx.debug)
           await logAdapterDebug(input.bootstrap.home, {
             source: "message.list",
             cursor: cursor !== undefined,
@@ -3100,7 +1156,7 @@ export function createRouter(input: {
         const liveStatus = states.get(id) ?? remoteThread?.status;
         const turnActive = liveStatus !== undefined && isThreadTurnActive(liveStatus);
         const runActive = input.hasActiveRun(interruptSession);
-        if (debug)
+        if (ctx.debug)
           await logAdapterDebug(input.bootstrap.home, {
             source: "session.interrupt",
             threadID: id,
@@ -3126,7 +1182,7 @@ export function createRouter(input: {
           const agentID = String(body.agent ?? "build");
           if (agentID === "plan") {
             const status = (await agentStatuses()).find(
-              (value) => value.kind === (current.providerID ?? activeProviderID),
+              (value) => value.kind === (current.providerID ?? ctx.activeProviderID),
             );
             if (!status || !supportsMode(status, "plan")) {
               return json(
@@ -3197,7 +1253,7 @@ export function createRouter(input: {
           delete updated.sandboxMode;
         }
         sessions.set(id, updated);
-        activeProviderID = providerID;
+        ctx.activeProviderID = providerID;
         input.registerThreadContext(rawThreadID, {
           agent: current.agentID ?? "build",
           providerID,
@@ -3209,7 +1265,7 @@ export function createRouter(input: {
       const sessionMatch = path.match(/^\/api\/session\/([^/]+)$/u);
       if (sessionMatch && method === "GET") {
         const sessionID = decodeURIComponent(sessionMatch[1]!);
-        currentSession = sessionID;
+        ctx.currentSession = sessionID;
         const localSession = sessions.get(sessionID);
         if (localSession?.remoteStarted === false) {
           const createdAt = localSession.createdAt ?? Date.now();
@@ -3231,7 +1287,7 @@ export function createRouter(input: {
             time: { created: createdAt, updated: createdAt },
             location: { directory: input.bootstrap.directory },
           } satisfies SessionInfo;
-          if (debug)
+          if (ctx.debug)
             void logAdapterDebug(input.bootstrap.home, {
               source: "session.get-local",
               sessionIDLength: sessionID.length,
@@ -3242,7 +1298,7 @@ export function createRouter(input: {
         const currentProject = await resolveProject();
         const remoteThreads = await guiThreads();
         const remoteThread = remoteThreads.find((value) => value.id === id);
-        if (debug)
+        if (ctx.debug)
           void logAdapterDebug(input.bootstrap.home, {
             source: "session.get",
             threadIDLength: id.length,
@@ -3274,7 +1330,7 @@ export function createRouter(input: {
           });
           return json({ error: { code: "not_found", message: "Session not found" } }, 404);
         }
-        activeProviderID = remoteThread.agentKind;
+        ctx.activeProviderID = remoteThread.agentKind;
         const output: SessionGetOutput = toSession(remoteThread, currentProject);
         return json({ data: output });
       }
@@ -3673,7 +1729,7 @@ export function createRouter(input: {
         emitRevertEvent("session.revert.staged", revertSession, {
           revert: { messageID: String(body.messageID ?? "") },
         });
-        if (debug)
+        if (ctx.debug)
           void logAdapterDebug(input.bootstrap.home, {
             source: "revert.stage",
             threadId: rawId,
@@ -3730,7 +1786,7 @@ export function createRouter(input: {
           ["browser", "browserMcp"],
           ["chrome", "chromeMcp"],
         ] as const;
-        const sessionID = currentSession ?? "";
+        const sessionID = ctx.currentSession ?? "";
         const pendingList = sessionMcpPending.get(sessionID) ?? sessionMcpPending.get("");
         const data: McpListOutput["data"] = [];
         for (const [id] of builtIns) {
@@ -3749,7 +1805,7 @@ export function createRouter(input: {
         const enabled = mcpToggleMatch[2] === "connect";
         // The vendored dialog sends no session — apply to the last-viewed
         // session; "" = location default for the next new thread.
-        const sessionID = currentSession ?? "";
+        const sessionID = ctx.currentSession ?? "";
         let pendingToggle = sessionMcpPending.get(sessionID);
         if (!pendingToggle) {
           pendingToggle = new Map();
@@ -4019,9 +2075,9 @@ export function createRouter(input: {
       }
       if (path === "/api/command" && method === "GET") {
         const providerID =
-          activeProviderID ??
+          ctx.activeProviderID ??
           [...sessions.values()].reverse().find((session) => session.providerID)?.providerID ??
-          defaultModel?.providerID;
+          ctx.defaultModel?.providerID;
         if (!providerID)
           return json({
             location: requestLocation(url),
@@ -4094,7 +2150,7 @@ export function createRouter(input: {
   const handle = async (request: Request): Promise<Response> => {
     const started = Date.now();
     const response = await handleRequest(request);
-    if (debug)
+    if (ctx.debug)
       void logAdapterDebug(input.bootstrap.home, {
         source: "request",
         method: request.method,
@@ -4173,7 +2229,7 @@ export function createRouter(input: {
     }
     const status = threadStatusSchema.safeParse(value.status);
     if (value.type === "thread-state" && typeof value.threadId === "string" && status.success) {
-      if (debug && states.get(value.threadId) !== status.data)
+      if (ctx.debug && states.get(value.threadId) !== status.data)
         void logAdapterDebug(input.bootstrap.home, {
           source: "thread-state",
           threadId: value.threadId,
@@ -4377,7 +2433,7 @@ export function createRouter(input: {
     const current = sessions.get(session);
     const remote = (await listThreads()).find((value) => value.id === threadId(session));
     const status = (await agentStatuses()).find(
-      (value) => value.kind === (current?.providerID ?? remote?.agentKind ?? activeProviderID),
+      (value) => value.kind === (current?.providerID ?? remote?.agentKind ?? ctx.activeProviderID),
     );
     const caps = status?.capabilities.presentationCapabilities?.gui ?? status?.capabilities;
     const model = current?.model ?? remote?.config.model;
@@ -4626,7 +2682,7 @@ export function createRouter(input: {
       return undefined;
     }
   };
-  // This project's archived GUI threads — pages through the host list the
+  // this project's archived GUI threads — pages through the host list the
   // same way the session list does (archived threads age off the first page).
   const archivedThreads = async () => {
     const currentProject = await resolveProject();
@@ -4695,83 +2751,4 @@ export function createRouter(input: {
     loginCandidates,
     disposeSubagentSubscriptions,
   };
-}
-
-function gitFileStatus(status: string): "added" | "deleted" | "modified" {
-  const normalized = status.toLowerCase();
-  if (normalized.includes("deleted")) return "deleted";
-  if (normalized.includes("added") || normalized.includes("untracked")) return "added";
-  return "modified";
-}
-
-function parseGitDiff(diff: string): VcsDiffOutput["data"] {
-  return diff
-    .split(/^diff --git /mu)
-    .slice(1)
-    .map((chunk) => {
-      const patch = `diff --git ${chunk}`;
-      const oldPath = patch.match(/^--- a\/(.+)$/mu)?.[1];
-      const newPath = patch.match(/^\+\+\+ b\/(.+)$/mu)?.[1];
-      const file = newPath ?? oldPath ?? "";
-      const status: VcsDiffOutput["data"][number]["status"] =
-        patch.includes("deleted file mode") || (!newPath && oldPath)
-          ? "deleted"
-          : patch.includes("new file mode") || (!oldPath && newPath)
-            ? "added"
-            : "modified";
-      const lines = patch.split(/\r?\n/u);
-      return {
-        file,
-        patch,
-        additions: lines.filter((line) => line.startsWith("+") && !line.startsWith("+++")).length,
-        deletions: lines.filter((line) => line.startsWith("-") && !line.startsWith("---")).length,
-        status,
-      };
-    })
-    .filter((entry) => entry.file.length > 0);
-}
-
-function json(value: unknown, status = 200) {
-  return new Response(JSON.stringify(value), {
-    status,
-    headers: { "content-type": "application/json" },
-  });
-}
-
-function record(value: unknown): Record<string, unknown> {
-  const parsed = recordSchema.safeParse(value);
-  return parsed.success ? parsed.data : {};
-}
-
-function supportsGui(status: AgentStatus) {
-  const capabilities = status.capabilities;
-  return (
-    capabilities.presentationMode === "gui" ||
-    capabilities.presentationModes?.includes("gui") === true ||
-    capabilities.presentationCapabilities?.gui !== undefined ||
-    Object.values(status.runtimeVariants ?? {}).some(
-      (variant) => variant.presentationMode === "gui",
-    )
-  );
-}
-
-function summarizeAgentStatus(status: AgentStatus) {
-  const capabilities = status.capabilities.presentationCapabilities?.gui ?? status.capabilities;
-  return {
-    kind: status.kind,
-    label: status.label,
-    installed: status.installed,
-    authState: status.presentationAuthStates?.gui ?? status.authState,
-    envKind: status.envKind ?? null,
-    gui: supportsGui(status),
-    modelLabels: (capabilities.models ?? [])
-      .slice(0, 8)
-      .map(({ label }) => label)
-      .join("|"),
-  };
-}
-
-function supportsMode(status: AgentStatus, mode: "agent" | "plan" | "autopilot") {
-  const capabilities = status.capabilities.presentationCapabilities?.gui ?? status.capabilities;
-  return capabilities.modes?.includes(mode) === true;
 }
