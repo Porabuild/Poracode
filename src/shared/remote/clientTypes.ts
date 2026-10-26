@@ -208,6 +208,9 @@ export const LOCAL_IMAGE_TICKET_CACHE_MAX_ENTRIES = 64;
  */
 export const LONG_REMOTE_REQUEST_TIMEOUT_MS = 5 * 60_000;
 
+/** Native session restoration can take several minutes before accepting input. */
+export const THREAD_START_REMOTE_REQUEST_TIMEOUT_MS = 10 * 60_000;
+
 export function defaultClientMetadata(): RemoteClientMetadata {
   const userAgent = globalThis.navigator?.userAgent;
   const isMobile = userAgent ? /\bMobile\b/i.test(userAgent) : false;

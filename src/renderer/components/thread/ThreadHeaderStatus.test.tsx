@@ -117,8 +117,8 @@ describe("ThreadHeaderStatusButton", () => {
     );
 
     expect(
-      getByRole("button", { name: "Claude: Connecting…. Hover for status details." }),
+      getByRole("button", { name: "Claude: Resuming session…. Hover for status details." }),
     ).toBeInTheDocument();
-    expect(getByText("Connecting…")).toBeInTheDocument();
+    expect(getByText("Resuming session…")).toBeInTheDocument();
   });
 });

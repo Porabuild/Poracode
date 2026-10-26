@@ -1280,7 +1280,7 @@ export function ThreadDraftView(props: {
       <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
         <PixelLoader size="md" />
         <p className="text-sm text-muted">
-          <Trans>Connecting…</Trans>
+          <Trans>Connecting to host…</Trans>
         </p>
       </div>
     );

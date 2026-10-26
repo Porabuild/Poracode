@@ -51,8 +51,14 @@ internal fun RichChatThreadTopBar(
             Column {
                 Text(title, maxLines = 1)
                 thread?.let {
+                    val statusLabel = if (it.status == "launching") {
+                        stringResource(
+                            if (it.sessionRef != null) R.string.thread_status_resuming
+                            else R.string.thread_status_starting_agent,
+                        )
+                    } else it.status
                     Text(
-                        stringResource(R.string.thread_status_line, it.agentKind, it.status),
+                        stringResource(R.string.thread_status_line, it.agentKind, statusLabel),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

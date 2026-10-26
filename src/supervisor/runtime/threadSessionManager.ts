@@ -1074,6 +1074,16 @@ export class ThreadSessionManager {
     const pending = this.startLocks.get(threadId);
     if (pending) {
       if (payload.providerSwitch) {
+        const pendingStart = this.workspaceStarts.get(threadId);
+        if (pendingStart) {
+          if (pendingStart.agentKind !== payload.providerSwitch.fromAgentKind) {
+            throw new Error(
+              `Provider switch is stale: thread ${threadId} now belongs to ${pendingStart.agentKind}.`,
+            );
+          }
+          this.pendingStartAborts.add(threadId);
+          this.spawnPipeline.cancelPendingStart(threadId);
+        }
         await pending;
         return this.startThread(payload);
       }

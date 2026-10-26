@@ -4557,6 +4557,12 @@ msgstr "연결됨"
 msgid "Connecting"
 msgstr "연결 중"
 
+#: src/renderer/bootstrap.ts
+#: src/renderer/components/thread/TerminalThreadContent.tsx
+#: src/renderer/components/thread/ThreadDraftView.tsx
+msgid "Connecting to host…"
+msgstr "호스트에 연결 중…"
+
 #: src/mobile/views/BrowserView.tsx
 #~ msgid "Connecting to the desktop browser…"
 #~ msgstr "데스크톱 브라우저에 연결 중…"
@@ -4574,12 +4580,8 @@ msgstr "음성 연결 중…"
 msgid "Connecting..."
 msgstr "연결 중..."
 
-#: src/renderer/bootstrap.ts
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
 #: src/renderer/components/providers/HostUsageView.tsx
-#: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
-#: src/renderer/components/thread/ThreadDraftView.tsx
-#: src/renderer/components/thread/ThreadHeaderStatus.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineSelect.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
@@ -9536,8 +9538,8 @@ msgstr "스레드 시작"
 #~ msgstr "시작 중"
 
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
-msgid "Launching…"
-msgstr "실행 중…"
+#~ msgid "Launching…"
+#~ msgstr "실행 중…"
 
 #: src/renderer/components/providers/devin/modelPricing.ts
 #: src/renderer/i18n/sharedMessages.ts
@@ -9774,6 +9776,10 @@ msgstr "일치하는 메시지 불러오는 중…"
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorMediaViews.tsx
 msgid "Loading media preview…"
 msgstr "미디어 미리보기 로드 중…"
+
+#: src/renderer/components/thread/ChatPane/ChatPane.tsx
+msgid "Loading messages…"
+msgstr "메시지 불러오는 중…"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesPanel.tsx
 msgid "Loading notes…"
@@ -15193,6 +15199,10 @@ msgstr "목표 재개"
 msgid "Resume queued follow-ups"
 msgstr "대기 중인 후속 메시지 재개"
 
+#: src/renderer/components/thread/ThreadHeaderStatus.tsx
+msgid "Resuming session…"
+msgstr "세션 재개 중…"
+
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Retained usage on this host only."
 msgstr "이 호스트에 보관된 사용량만 포함합니다."
@@ -17510,6 +17520,10 @@ msgstr "{targetLabel} 스레드를 시작했습니다."
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Starting"
 msgstr "시작 중"
+
+#: src/renderer/components/thread/ThreadHeaderStatus.tsx
+msgid "Starting agent…"
+msgstr "에이전트 시작 중…"
 
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
 msgid "Starting camera…"

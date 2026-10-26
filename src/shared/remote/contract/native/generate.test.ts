@@ -81,8 +81,8 @@ describe("remote v3 native binding generator", () => {
         // preserve wire versions; the optional `deferBodies` history query parameter adds one
         // structural type (its literal).
         // Optional sessionId on the token-exchange result moves the source hash only.
-        sourceHash: "sha256:e7b87d384696a2be90658d1b40a29c1a6b6638c0622e731dcd496c86c9373ec9",
-        manifestHash: "sha256:18b76a337bdc91d98475d116d7501e948d79900013ffee2a34b1f4fa17cd1c3c",
+        sourceHash: "sha256:2ca73a56e36012d4eabe85960622247e6471bb486be6d4e0f0c1f735790940d6",
+        manifestHash: "sha256:0af95549f6385c5f08e5dfeb224d10486c18d5b19acb6ba934351dbea0e0dea4",
         counts: {
           routes: 119,
           procedures: 163,

@@ -4557,6 +4557,12 @@ msgstr "Conectado"
 msgid "Connecting"
 msgstr "Conectando"
 
+#: src/renderer/bootstrap.ts
+#: src/renderer/components/thread/TerminalThreadContent.tsx
+#: src/renderer/components/thread/ThreadDraftView.tsx
+msgid "Connecting to host…"
+msgstr "Conectando con el host…"
+
 #: src/mobile/views/BrowserView.tsx
 #~ msgid "Connecting to the desktop browser…"
 #~ msgstr "Conectando al navegador del escritorio…"
@@ -4574,12 +4580,8 @@ msgstr "Conectando voz…"
 msgid "Connecting..."
 msgstr "Conectando..."
 
-#: src/renderer/bootstrap.ts
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
 #: src/renderer/components/providers/HostUsageView.tsx
-#: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
-#: src/renderer/components/thread/ThreadDraftView.tsx
-#: src/renderer/components/thread/ThreadHeaderStatus.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineSelect.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
@@ -9536,8 +9538,8 @@ msgstr "Iniciar hilo"
 #~ msgstr "Iniciando"
 
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
-msgid "Launching…"
-msgstr "Lanzando…"
+#~ msgid "Launching…"
+#~ msgstr "Lanzando…"
 
 #: src/renderer/components/providers/devin/modelPricing.ts
 #: src/renderer/i18n/sharedMessages.ts
@@ -9774,6 +9776,10 @@ msgstr "Cargando el mensaje encontrado…"
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorMediaViews.tsx
 msgid "Loading media preview…"
 msgstr "Cargando vista previa del archivo multimedia…"
+
+#: src/renderer/components/thread/ChatPane/ChatPane.tsx
+msgid "Loading messages…"
+msgstr "Cargando mensajes…"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesPanel.tsx
 msgid "Loading notes…"
@@ -15193,6 +15199,10 @@ msgstr "Reanudar objetivo"
 msgid "Resume queued follow-ups"
 msgstr "Reanudar seguimientos en cola"
 
+#: src/renderer/components/thread/ThreadHeaderStatus.tsx
+msgid "Resuming session…"
+msgstr "Reanudando sesión…"
+
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Retained usage on this host only."
 msgstr "Solo el uso conservado en este host."
@@ -17510,6 +17520,10 @@ msgstr "Hilo {targetLabel} iniciado"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Starting"
 msgstr "Iniciando"
+
+#: src/renderer/components/thread/ThreadHeaderStatus.tsx
+msgid "Starting agent…"
+msgstr "Iniciando agente…"
 
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
 msgid "Starting camera…"

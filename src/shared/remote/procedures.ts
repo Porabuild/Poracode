@@ -230,8 +230,9 @@ export const REMOTE_PROCEDURE_SPECS = {
   gitWatchProject: operate("projectLocation"),
   gitWatchWorktrees: operate("project"),
   gitUnwatchProject: operate("project"),
-  startThread: operate("projectLocation"),
-  ensureThreadRunning: operate("projectLocation"),
+  // Restoring a large native session can exceed a minute before it can accept input.
+  startThread: longRunning(operate("projectLocation")),
+  ensureThreadRunning: longRunning(operate("projectLocation")),
   createRevertAnchor: operate("thread"),
   restoreToRevertAnchor: operate("thread"),
   relocateProject: manageProjects("project"),

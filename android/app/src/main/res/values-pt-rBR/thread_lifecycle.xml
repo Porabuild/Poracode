@@ -24,4 +24,6 @@
     <string name="archived_threads_title">Threads arquivadas</string>
     <string name="archived_threads_description">Restaure ou exclua definitivamente as threads arquivadas.</string>
     <string name="archived_threads_empty">Nenhuma thread arquivada</string>
+    <string name="thread_status_starting_agent">Iniciando agente…</string>
+    <string name="thread_status_resuming">Retomando sessão…</string>
 </resources>

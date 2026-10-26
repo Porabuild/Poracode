@@ -2083,12 +2083,14 @@
     {
       "name": "startThread",
       "owner": "projectLocation",
-      "scope": "session:operate"
+      "scope": "session:operate",
+      "timeout": "long"
     },
     {
       "name": "ensureThreadRunning",
       "owner": "projectLocation",
-      "scope": "session:operate"
+      "scope": "session:operate",
+      "timeout": "long"
     },
     {
       "name": "createRevertAnchor",

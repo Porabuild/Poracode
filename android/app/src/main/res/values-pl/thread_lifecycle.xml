@@ -24,4 +24,6 @@
     <string name="archived_threads_title">Zarchiwizowane wątki</string>
     <string name="archived_threads_description">Przywróć lub trwale usuń zarchiwizowane wątki.</string>
     <string name="archived_threads_empty">Brak zarchiwizowanych wątków</string>
+    <string name="thread_status_starting_agent">Uruchamianie agenta…</string>
+    <string name="thread_status_resuming">Wznawianie sesji…</string>
 </resources>

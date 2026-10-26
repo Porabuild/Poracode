@@ -176,6 +176,12 @@ export interface StructuredSessionHandle {
   /** Whether a provider-native root or child session belongs to this thread. */
   ownsProviderSession?(providerSessionId: string): boolean;
   activate?(): Promise<void>;
+  /**
+   * Disposal can retire this handle while openThread is pending. A late open
+   * result must neither adopt session state nor acquire new process resources.
+   * Absent: startup joins openThread before disposal.
+   */
+  readonly supportsOpenCancellation?: boolean;
   openThread?(config: ThreadConfig, sessionRef?: SessionRef): Promise<string>;
   ensureResumeArtifacts?(): Promise<void>;
   waitForRolloutFile?(timeoutMs?: number): Promise<void>;

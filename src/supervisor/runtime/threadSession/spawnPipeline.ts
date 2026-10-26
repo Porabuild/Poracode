@@ -353,6 +353,8 @@ export async function resolveThreadExecution(
   return { location, config };
 }
 
+class PendingStartCancelledError extends Error {}
+
 /**
  * Spawn orchestration for agent threads: initial launches, restarts of
  * inactive-but-resumable threads, and the shared `spawnThread` runtime-session
@@ -360,7 +362,28 @@ export async function resolveThreadExecution(
  * Extracted from `ThreadSessionManager`.
  */
 export class SpawnPipeline {
+  private readonly pendingStartCancellations = new Map<string, () => void>();
+
   constructor(private readonly ctx: SpawnPipelineContext) {}
+
+  cancelPendingStart(threadId: string): void {
+    this.pendingStartCancellations.get(threadId)?.();
+  }
+
+  private async awaitPendingStart<T>(threadId: string, open: () => Promise<T>): Promise<T> {
+    let cancel!: () => void;
+    const cancelled = new Promise<never>((_resolve, reject) => {
+      cancel = () => reject(new PendingStartCancelledError("Thread startup was cancelled."));
+    });
+    this.pendingStartCancellations.set(threadId, cancel);
+    try {
+      return await Promise.race([open(), cancelled]);
+    } finally {
+      if (this.pendingStartCancellations.get(threadId) === cancel) {
+        this.pendingStartCancellations.delete(threadId);
+      }
+    }
+  }
 
   async startThreadInner(
     payload: StartThreadRuntimeInput & {
@@ -729,10 +752,11 @@ export class SpawnPipeline {
     let openedStructuredThreadId: string | undefined;
     if (structuredSession?.openThread) {
       try {
-        openedStructuredThreadId = await structuredSession.openThread(
-          launchConfig,
-          payload.sessionRef,
-        );
+        openedStructuredThreadId = structuredSession.supportsOpenCancellation
+          ? await this.awaitPendingStart(payload.threadId, () =>
+              structuredSession.openThread!(launchConfig, payload.sessionRef),
+            )
+          : await structuredSession.openThread(launchConfig, payload.sessionRef);
       } catch (error) {
         // Capture before dispose: some handles retire their getter with their
         // transport. Failed configuration must not lose an allocated identity.
@@ -768,6 +792,7 @@ export class SpawnPipeline {
             canResumeWithConfig,
           );
         }
+        if (error instanceof PendingStartCancelledError) return { threadId: payload.threadId };
         if (ctx.pendingStartInterrupts.delete(payload.threadId)) {
           publishUnpublishedStartInterruption(payload.threadId, failure, ctx.runtimeEventRouter);
           return { threadId: payload.threadId };

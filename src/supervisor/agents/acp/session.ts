@@ -493,6 +493,7 @@ export interface AcpExternalSessionUpdateSource {
 }
 
 export class AcpStructuredSession implements StructuredSessionHandle {
+  readonly supportsOpenCancellation = true;
   private static readonly MAX_PENDING_UNREFERENCED_TERMINALS = 32;
   launchOptions: AgentLaunchOptions;
 
