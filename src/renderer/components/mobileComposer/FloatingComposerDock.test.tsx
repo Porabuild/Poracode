@@ -345,7 +345,7 @@ describe("FloatingComposerDock", () => {
     }
   });
 
-  it("reports the dock height with its resolved bottom offset", () => {
+  it("reports the dock on resize, after its transform settles, and on viewport resize", () => {
     const observed: { callback: ResizeObserverCallback; target: Element }[] = [];
     globalThis.ResizeObserver = class ResizeObserver {
       constructor(private readonly callback: ResizeObserverCallback) {}
@@ -355,7 +355,7 @@ describe("FloatingComposerDock", () => {
       unobserve() {}
       disconnect() {}
     };
-    const onDockHeightChange = vi.fn<(height: number, bottomOffset: number) => void>();
+    const onDockHeightChange = vi.fn<(height: number, dock: HTMLElement) => void>();
     render(
       <FloatingComposerDock
         keyboardKey="thread-1"
@@ -368,9 +368,8 @@ describe("FloatingComposerDock", () => {
         <div />
       </FloatingComposerDock>,
     );
-    const dock = document.querySelector<HTMLElement>(".m-compose-dock");
-    expect(dock).not.toBeNull();
-    dock!.style.bottom = "18px";
+    const dock = document.querySelector<HTMLElement>(".m-compose-dock")!;
+    const bubble = dock.querySelector<HTMLElement>(".m-compose-bubble")!;
     const dockObserver = observed.find((entry) => entry.target === dock);
     expect(dockObserver).toBeDefined();
 
@@ -385,8 +384,24 @@ describe("FloatingComposerDock", () => {
         {} as ResizeObserver,
       );
     });
+    expect(onDockHeightChange).toHaveBeenLastCalledWith(96, dock);
 
-    expect(onDockHeightChange).toHaveBeenLastCalledWith(96, 18);
+    // A keyboard lift moves the dock with a transform and resizes nothing.
+    onDockHeightChange.mockClear();
+    act(() => {
+      bubble.dispatchEvent(new Event("transitionend", { bubbles: true }));
+    });
+    expect(onDockHeightChange).not.toHaveBeenCalled();
+    act(() => {
+      dock.dispatchEvent(new Event("transitionend", { bubbles: true }));
+    });
+    expect(onDockHeightChange).toHaveBeenCalledWith(expect.any(Number), dock);
+
+    onDockHeightChange.mockClear();
+    act(() => {
+      window.dispatchEvent(new Event("resize"));
+    });
+    expect(onDockHeightChange).toHaveBeenCalledWith(expect.any(Number), dock);
   });
 
   it("expands a controlled dock when the composer gains focus natively (mouse)", () => {

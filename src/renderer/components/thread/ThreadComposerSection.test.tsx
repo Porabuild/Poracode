@@ -1246,7 +1246,7 @@ describe("ThreadComposerSection", () => {
     expect(dock).not.toHaveAttribute("data-expanded");
   });
 
-  it("reports the compact dock as the transcript inset while collapsed and expanded", () => {
+  it("reports the transcript inset from the rendered dock geometry", () => {
     vi.stubGlobal(
       "matchMedia",
       vi.fn((query: string) => ({
@@ -1273,10 +1273,21 @@ describe("ThreadComposerSection", () => {
       },
     );
     const onComposerInsetChange = vi.fn<(inset: number) => void>();
-    renderComposer({ onComposerInsetChange });
+    // The real nesting: the chat scroller and the composer section share the
+    // thread pane, and the dock's offset comes from its positioned ancestor.
+    render(
+      <div data-poracode-thread-pane="">
+        <div data-poracode-chat-scroller="true" />
+        {composerElement({ onComposerInsetChange })}
+      </div>,
+    );
+    const scroller = document.querySelector<HTMLElement>("[data-poracode-chat-scroller]")!;
     const input = screen.getByRole("textbox");
     const dock = input.closest<HTMLElement>(".m-thread-compose-dock")!;
-    dock.style.bottom = "20px";
+    const rect = (top: number, bottom: number) => ({ top, bottom }) as DOMRect;
+    // 844px viewport, 34px safe area plus the 12px offset, 98px dock.
+    vi.spyOn(scroller, "getBoundingClientRect").mockReturnValue(rect(0, 844));
+    const dockRect = vi.spyOn(dock, "getBoundingClientRect").mockReturnValue(rect(700, 798));
     const resizeDock = (blockSize: number) => {
       const latest = observed.filter((entry) => entry.target === dock).at(-1);
       act(() => {
@@ -1292,15 +1303,22 @@ describe("ThreadComposerSection", () => {
       });
     };
 
-    resizeDock(100.4);
-    expect(onComposerInsetChange).toHaveBeenLastCalledWith(133);
+    resizeDock(98);
+    expect(onComposerInsetChange).toHaveBeenLastCalledWith(144);
 
-    // The transcript stays readable behind the expanded composer, so the
-    // inset follows the taller dock too.
+    // The expanded composer is taller and the transcript stays readable.
     fireEvent.focus(input);
     expect(dock).toHaveAttribute("data-expanded");
-    resizeDock(320);
-    expect(onComposerInsetChange).toHaveBeenLastCalledWith(352);
+    dockRect.mockReturnValue(rect(520, 798));
+    resizeDock(278);
+    expect(onComposerInsetChange).toHaveBeenLastCalledWith(324);
+
+    // A keyboard lift translates the dock without resizing it.
+    dockRect.mockReturnValue(rect(220, 498));
+    act(() => {
+      dock.dispatchEvent(new Event("transitionend", { bubbles: true }));
+    });
+    expect(onComposerInsetChange).toHaveBeenLastCalledWith(624);
   });
 
   it("collapses the compact floating dock after the canonical submit succeeds", async () => {

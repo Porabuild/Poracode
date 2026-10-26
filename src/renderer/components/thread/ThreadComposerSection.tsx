@@ -123,9 +123,6 @@ import { ComposerInfoChips } from "@/renderer/components/mobileComposer/Composer
 import { revertedPromptToDraft, useRevertedPromptStore } from "./revertedPrompt";
 import { usePromptRecall } from "./usePromptRecall";
 
-/** Breathing room between the last transcript row and the floating dock. */
-const COMPOSER_DOCK_CLEARANCE_PX = 12;
-
 type ThreadComposerSectionProps = {
   threadId: string;
   fallbackThread: Thread;
@@ -195,7 +192,7 @@ function AdaptiveThreadComposerDock(props: {
   summary?: ReactNode;
   inputHasContent?: boolean;
   expansionLocked?: boolean;
-  onDockHeightChange?: (height: number, bottomOffset: number) => void;
+  onDockHeightChange?: (height: number, dock: HTMLElement) => void;
   onExpandedChange: (expanded: boolean) => void;
 }) {
   if (!props.compact) return props.children;
@@ -1031,13 +1028,20 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
             collapsedTapLabel={resumeUnavailableMessage ?? t`Send a message...`}
             inputHasContent={hasContent}
             expansionLocked={activeRuntimeRequest !== undefined}
-            onDockHeightChange={(height, bottomOffset) => {
+            onDockHeightChange={(height, dock) => {
               const pane = composerSectionRef.current?.closest("[data-poracode-thread-pane]");
-              if (pane instanceof HTMLElement) {
-                pane.style.setProperty("--m-thread-bubble-height", `${height}px`);
-              }
+              if (!(pane instanceof HTMLElement)) return;
+              pane.style.setProperty("--m-thread-bubble-height", `${height}px`);
+              // Measure rendered geometry: the safe-area offset sits on an
+              // ancestor and the keyboard lift is a transform.
+              const viewport = pane.querySelector("[data-poracode-chat-scroller]") ?? pane;
               props.onComposerInsetChange?.(
-                Math.ceil(height + bottomOffset + COMPOSER_DOCK_CLEARANCE_PX),
+                Math.max(
+                  0,
+                  Math.ceil(
+                    viewport.getBoundingClientRect().bottom - dock.getBoundingClientRect().top,
+                  ),
+                ),
               );
             }}
             aboveBubble={
