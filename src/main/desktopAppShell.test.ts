@@ -74,6 +74,12 @@ vi.mock("./windowsJobObject", () => ({
   },
 }));
 
+vi.mock("./windowsNativeJobObject", () => ({
+  createWindowsJobObjectOwner: vi.fn<() => { start(): Promise<void> }>(() => ({
+    start: vi.fn<() => Promise<void>>(async () => {}),
+  })),
+}));
+
 vi.mock("./attachments/localFiles", () => ({
   installLocalFileProtocolHandler: hoisted.installLocalFileProtocolHandler,
 }));

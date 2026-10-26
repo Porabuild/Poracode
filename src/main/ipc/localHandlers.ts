@@ -397,7 +397,7 @@ export function createLocalIpcHandlers(
       if (options.hostOffersAutoUpdate?.() === false) return;
       options.autoUpdater.installUpdate();
     },
-    browserGetState: () => requireBrowserPanel(options.getBrowserPanelManager).snapshot(),
+    browserGetState: () => requireBrowserPanel(options.getBrowserPanelManager).snapshotForHost(),
     browserCreateTab: (payload) =>
       requireBrowserPanel(options.getBrowserPanelManager).createTab({
         ...(payload.url !== undefined ? { url: payload.url } : {}),

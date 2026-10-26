@@ -20,6 +20,8 @@ export type RunSplashTheme = {
   left: ColorInput
   right: ColorInput
   leftShadow: ColorInput
+  // poracode: the Pora dot keeps the brand accent in the exit mark.
+  brand: ColorInput
 }
 
 export type RunFooterTheme = {
@@ -176,6 +178,7 @@ function map(
       left: nearestIndexed(indexed, theme.text.muted),
       right: nearestIndexed(indexed, theme.text.base),
       leftShadow: nearestIndexed(indexed, theme.background.raised.base),
+      brand: nearestIndexed(indexed, theme.text.brand),
     },
     block: {
       text: scrollback(theme.text.base),
@@ -242,7 +245,7 @@ function monoTheme(mode: "dark" | "light"): RunTheme {
       tool: { body: foreground },
       error: { body: foreground },
     },
-    splash: { left: foreground, right: foreground, leftShadow: background },
+    splash: { left: foreground, right: foreground, leftShadow: background, brand: foreground },
     block: {
       text: foreground,
       muted: foreground,

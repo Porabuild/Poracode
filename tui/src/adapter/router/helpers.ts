@@ -4,6 +4,22 @@ import type { AgentStatus } from "@/shared/contracts";
 
 export const recordSchema = z.record(z.string(), z.unknown());
 
+// The GUI presentation view of a provider's capabilities: the same shape
+// /api/model lists, shared so every caller resolves identical model sets.
+const guiCapabilities = (status: AgentStatus) =>
+  status.capabilities.presentationCapabilities?.gui ?? status.capabilities;
+export const guiModels = (status: AgentStatus) =>
+  guiCapabilities(status).models ?? status.capabilities.models ?? [];
+export const guiModelEfforts = (status: AgentStatus, modelID: string) => {
+  const capabilities = guiCapabilities(status);
+  return (
+    capabilities.modelEfforts?.[modelID] ??
+    status.capabilities.modelEfforts[modelID] ??
+    capabilities.efforts ??
+    status.capabilities.efforts
+  );
+};
+
 export function gitFileStatus(status: string): "added" | "deleted" | "modified" {
   const normalized = status.toLowerCase();
   if (normalized.includes("deleted")) return "deleted";

@@ -26,6 +26,9 @@ import type { z } from "zod";
 
 export interface RouterInput {
   bootstrap: TuiBootstrap;
+  /** Test seams for the cold-start status poll (ms). */
+  statusPollIntervalMs?: number;
+  statusPollDeadlineMs?: number;
   client: RemoteDesktopClient;
   events: EventStreamHub;
   setThreadInterests: (ids: readonly string[]) => void | Promise<void>;
@@ -111,6 +114,9 @@ export interface RouterContext {
   currentSession: string | undefined;
   project: RemoteProject | undefined;
   statuses: RemoteAgentStatuses | undefined;
+  statusesRevision: number;
+  statusesSettled: boolean;
+  statusPollAbort: AbortController | undefined;
   defaultModel: { providerID: string; model: string } | undefined;
   activeProviderID: string | undefined;
 
@@ -148,6 +154,11 @@ export interface RouterContext {
   agentStatuses: () => Promise<AgentStatus[]>;
   hasGuiAuthentication: (status: AgentStatus) => boolean;
   resolveDefaultModel: () => Promise<{ providerID: string; model: string } | undefined>;
+  resolveDefaultSelection: () => Promise<
+    { providerID: string; model: string; variant?: string } | undefined
+  >;
+  applyStatusesSnapshot: (fetched: RemoteAgentStatuses) => boolean;
+  disposeStatusPolling: () => void;
   requestLocation: (url: URL) => { directory: string };
   persistLastModel: (patch: Record<string, unknown>) => Promise<void>;
   emptyStatuses: () => RemoteAgentStatuses;

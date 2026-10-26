@@ -21,7 +21,7 @@ import type { AutoUpdaterController } from "./updates/autoUpdater";
 import { BackendHostClient } from "./backend/BackendHostClient";
 import { buildDesktopBackendInitialize } from "./backend/desktopBackendInitialize";
 import { BackendStateStore } from "./backend/BackendStateStore";
-import { openThreadFromTray } from "./desktopAppWindows";
+import { ensureMainWindow, openThreadFromTray } from "./desktopAppWindows";
 import { getSideChatWindows } from "./window/sideChatWindows";
 import {
   applyThreadActivity,
@@ -93,6 +93,7 @@ function createNativeRequestHandler(
             );
           }
           desktopApp.pendingThreadCommands.push(request.payload);
+          if ((!window || window.isDestroyed()) && !desktopApp.isQuitting) ensureMainWindow(false);
           return true;
         }
         window.webContents.send(IPC_EVENT_CHANNELS.remoteThreadCommand, request.payload);
@@ -102,7 +103,7 @@ function createNativeRequestHandler(
         openThreadFromTray(request.payload.threadId);
         return true;
       case "notify-user":
-        return showOsNotification(request.payload, () => desktopApp.mainWindow);
+        return showOsNotification(request.payload, () => desktopApp.mainWindow, openThreadFromTray);
       case "check-for-update":
         return deps.getAutoUpdater().checkForUpdate();
       case "install-update":
@@ -174,7 +175,11 @@ function createNativeEventHandler(trayFeed: DesktopTrayFeed): (event: BackendNat
         }
         // Zero-window desktop fallback: nothing else would show, so main
         // raises the OS notification itself (click reopens the thread).
-        showUserNotificationFallback(event.notification, () => desktopApp.mainWindow);
+        showUserNotificationFallback(
+          event.notification,
+          () => desktopApp.mainWindow,
+          openThreadFromTray,
+        );
         return;
       }
     }

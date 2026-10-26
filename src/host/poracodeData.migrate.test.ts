@@ -40,6 +40,7 @@ import {
   readLegacyDataMigrationMarker,
   requestLegacyDataMigration,
   resolveLegacyElectronUserDataDir,
+  settledLegacyDataMigration,
 } from "./legacyDataMigration";
 import { preparePoracodeDataRoot } from "./poracodeData";
 
@@ -200,6 +201,30 @@ describe("complete Lightcode data migration", () => {
     expect(requestLegacyDataMigration({ baseDir: newDir(), ...migrationOptions() })).toEqual({
       status: "no-legacy-data",
     });
+  });
+
+  it("settles already-complete without the worker once the marker exists", () => {
+    prepareWithMigration();
+
+    expect(settledLegacyDataMigration({ baseDir: newDir(), ...migrationOptions() })).toEqual({
+      status: "already-complete",
+    });
+  });
+
+  it("stays unsettled when a request file exists even with the marker present", () => {
+    prepareWithMigration();
+    writeFileSync(`${newDir()}.lightcode-migration-request-v1`, "{}");
+
+    expect(settledLegacyDataMigration({ baseDir: newDir(), ...migrationOptions() })).toBeNull();
+  });
+
+  it("settles unavailable for a custom root and stays unsettled without a marker", () => {
+    const customDir = join(ctx.home, "custom-data");
+
+    expect(settledLegacyDataMigration({ baseDir: customDir, ...migrationOptions() })).toEqual({
+      status: "unavailable",
+    });
+    expect(settledLegacyDataMigration({ baseDir: newDir(), ...migrationOptions() })).toBeNull();
   });
 
   it("does not import into a custom data root", () => {

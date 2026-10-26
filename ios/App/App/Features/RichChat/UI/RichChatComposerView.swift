@@ -100,13 +100,14 @@ struct RichChatComposerView: View {
     let hasPrompt =
       !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
       || !queuedSegments.isEmpty || !skills.isEmpty || !mcps.isEmpty
+    let canSend = hasPrompt || !attachments.isEmpty
     let canOpenControls = agentStatus != nil && canConfigure
     return RichChatAdaptiveComposer(
       text: $draft,
       selection: $draftSelection,
       isExpanded: $composerExpanded,
       hasPrompt: hasPrompt,
-      hasTrailingAction: hasPrompt || isTurnActive || controller.state.isSending,
+      hasTrailingAction: canSend || isTurnActive || controller.state.isSending,
       submit: { send() }
     ) {
       RichChatComposerInlineConfiguration(
@@ -149,7 +150,7 @@ struct RichChatComposerView: View {
       )
     } trailing: {
       RichChatComposerTrailingAction(
-        hasPrompt: hasPrompt,
+        hasPrompt: canSend,
         isTurnActive: isTurnActive,
         isSending: controller.state.isSending,
         showsSendWhenEmpty: composerExpanded,
@@ -237,10 +238,10 @@ struct RichChatComposerView: View {
     let text =
       typedText.isEmpty
       ? structuredPrompt.joined(separator: " ") : typedText
-    guard !text.isEmpty else { return }
     let attachmentSegments = attachments.map {
       RichPromptSegment.attachment(path: $0.remotePath, mimeType: $0.mimeType)
     }
+    guard !text.isEmpty || !attachmentSegments.isEmpty else { return }
     let textSegments: [RichPromptSegment] = typedText.isEmpty ? [] : [.text(content: draft)]
     let contextSegments = (queuedSegments + skills.map(\.segment) + mcps.map(\.segment))
       .flatMap { [$0, RichPromptSegment.text(content: " ")] }

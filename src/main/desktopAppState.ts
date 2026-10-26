@@ -23,7 +23,7 @@ import type { ComputerUseDesktopOverlay, ComputerUseMcpIngress } from "./compute
 import type { QuickComposerShortcutManager } from "./quickComposerShortcut";
 import { createSleepInhibitor } from "./sleepInhibitor";
 import type { TrayHandle } from "./tray";
-import type { WindowsJobObjectManager } from "./windowsJobObject";
+import type { WindowsJobObjectOwner } from "./windowsJobObject";
 import type { QuickComposerLifecycle } from "./window/quickComposerLifecycle";
 
 export const isDev = Boolean(process.env.VITE_DEV_SERVER_URL);
@@ -88,7 +88,7 @@ export interface DesktopAppState {
   // (attach binds the ephemeral shell state for main recreation).
   quickComposerLifecycle: QuickComposerLifecycle | null;
   pendingTrayThreadId: string | null;
-  windowsJobObjectManager: WindowsJobObjectManager | null;
+  windowsJobObjectManager: WindowsJobObjectOwner | null;
   browserPanelManager: BrowserPanelManager | null;
   browserMcpIngress: BrowserMcpIngress | null;
   computerUseMcpIngress: ComputerUseMcpIngress | null;

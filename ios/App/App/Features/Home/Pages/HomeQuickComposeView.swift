@@ -268,12 +268,15 @@ struct HomeQuickComposeView: View {
       || !fileMentions.isEmpty
       || !mentionedMCPs.isEmpty
       || !skills.isEmpty
+      || !attachments.isEmpty
   }
 
   var compactPrompt: String {
     let text = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
     let mentions = fileMentions.map { "@\($0)" } + mentionedMCPs.map { "@\($0.name)" } + skills.map(\.invocation)
-    return text.isEmpty ? mentions.joined(separator: " ") : text
+    if !text.isEmpty { return text }
+    if !mentions.isEmpty { return mentions.joined(separator: " ") }
+    return attachments.map(\.name).joined(separator: " ")
   }
 
   var canStart: Bool {

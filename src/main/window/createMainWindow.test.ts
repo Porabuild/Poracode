@@ -8,6 +8,7 @@ const setUserAgent = vi.hoisted(() => vi.fn<(userAgent: string) => void>());
 let browserWindowOptions: Record<string, unknown> | null = null;
 let webContentsHandlers: Record<string, (...args: never[]) => void> = {};
 let windowHandlers: Record<string, (...args: never[]) => void> = {};
+let windowOnceHandlers: Record<string, (...args: never[]) => void> = {};
 
 vi.mock("electron", () => ({
   BrowserWindow: class BrowserWindow {
@@ -26,11 +27,14 @@ vi.mock("electron", () => ({
       browserWindowOptions = options;
     }
 
-    once = vi.fn<() => void>();
+    once = vi.fn<(event: string, handler: (...args: never[]) => void) => void>((event, handler) => {
+      windowOnceHandlers[event] = handler;
+    });
     on = vi.fn<(event: string, handler: (...args: never[]) => void) => void>((event, handler) => {
       windowHandlers[event] = handler;
     });
     isMaximized = vi.fn<() => boolean>(() => false);
+    isVisible = vi.fn<() => boolean>(() => false);
     isDestroyed = vi.fn<() => boolean>(() => false);
     getNormalBounds = vi.fn<() => { x: number; y: number; width: number; height: number }>(() => ({
       x: 0,
@@ -69,6 +73,7 @@ describe("createMainWindow", () => {
     browserWindowOptions = null;
     webContentsHandlers = {};
     windowHandlers = {};
+    windowOnceHandlers = {};
   });
 
   it("applies the browser user agent to the window and sanitizes attached webviews", async () => {
@@ -245,5 +250,55 @@ describe("createMainWindow", () => {
       JSON.stringify({ ...bounds, isMaximized: false }),
     );
     expect(onClosed).toHaveBeenCalledOnce();
+  });
+
+  async function createWindowWithSavedMaximizedBounds(showOnReady: boolean) {
+    const { createMainWindow } = await import("./createMainWindow");
+    dbGetState.mockReturnValue(
+      JSON.stringify({ x: 0, y: 0, width: 1200, height: 800, isMaximized: true }),
+    );
+    return createMainWindow({
+      state: { get: dbGetState, set: dbSetState },
+      title: "Poracode",
+      isDev: false,
+      channel: "stable",
+      preloadPath: "/tmp/preload.cjs",
+      rendererHtmlPath: "/tmp/index.html",
+      appVersion: "1.2.1",
+      posthogEnableDev: false,
+      posthogEnabled: false,
+      posthogHost: "",
+      posthogKey: "",
+      sentryEnabled: false,
+      windowChromeHeight: 32,
+      browserUserAgent: "Poracode",
+      appearance: "dark",
+      sidebarTranslucency: false,
+      showOnReady,
+      onClosed: vi.fn<() => void>(),
+    });
+  }
+
+  it("defers the saved-bounds maximize until the first show on a hidden start", async () => {
+    const window = await createWindowWithSavedMaximizedBounds(false);
+
+    windowOnceHandlers["ready-to-show"]?.({} as never);
+
+    expect(window.maximize).not.toHaveBeenCalled();
+    expect(window.show).not.toHaveBeenCalled();
+    expect(window.once).toHaveBeenCalledWith("show", expect.any(Function));
+
+    windowOnceHandlers["show"]?.({} as never);
+
+    expect(window.maximize).toHaveBeenCalledOnce();
+  });
+
+  it("maximizes and shows on ready when the window shows on ready", async () => {
+    const window = await createWindowWithSavedMaximizedBounds(true);
+
+    windowOnceHandlers["ready-to-show"]?.({} as never);
+
+    expect(window.maximize).toHaveBeenCalledOnce();
+    expect(window.show).toHaveBeenCalledOnce();
   });
 });

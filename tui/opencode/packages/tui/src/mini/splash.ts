@@ -16,7 +16,7 @@ import {
 import { Locale } from "../util/locale"
 import { BRAND } from "../brand"
 import { stringWidth } from "../util/string-width"
-import { go } from "../logo"
+import { mark } from "../logo"
 import { monoTruncate } from "./mono"
 import type { RunSplashTheme } from "./theme"
 
@@ -41,7 +41,7 @@ export type SplashMeta = {
 
 type Cell = {
   char: string
-  mark: "text" | "full" | "mix" | "top"
+  mark: "text" | "full" | "mix" | "top" | "brand"
 }
 
 function cells(line: string): Cell[] {
@@ -59,6 +59,12 @@ function cells(line: string): Cell[] {
 
     if (char === "~") {
       list.push({ char: "▀", mark: "top" })
+      continue
+    }
+
+    // poracode: the Pora dot keeps the brand colour in the exit mark.
+    if (char === ".") {
+      list.push({ char: "▀", mark: "brand" })
       continue
     }
 
@@ -148,11 +154,17 @@ function draw(
     top: number
     fg: ColorInput
     shadow: ColorInput
+    brand?: ColorInput
     attrs?: number
   },
 ) {
   let x = input.left
   for (const cell of cells(row)) {
+    if (cell.mark === "brand") {
+      push(lines, x, input.top, cell.char, input.brand ?? input.fg, undefined, input.attrs)
+      x += 1
+      continue
+    }
     if (cell.mark === "full" || cell.mark === "mix") {
       push(lines, x, input.top, cell.char, input.fg, input.shadow, input.attrs)
       x += 1
@@ -177,10 +189,10 @@ function buildExit(input: SplashWriterInput, ctx: ScrollbackRenderContext): Scro
   const left = input.theme.left
   const right = input.theme.right
   const leftShadow = input.theme.leftShadow
-  // poracode: the mark is a small P glyph matching the brand.
-  const mark = input.mono ? ["[P]"] : go.right.slice(1)
+  // poracode: the mark is the P. brand glyph; the dot keeps the brand colour.
+  const markRows = input.mono ? ["[P]"] : mark
   const top = 1
-  const body_left = (mark[0]?.length ?? 0) + 2
+  const body_left = (markRows[0]?.length ?? 0) + 2
   const session = "Session  "
   const label = "Continue "
   // poracode: resume through the Poracode CLI.
@@ -189,12 +201,13 @@ function buildExit(input: SplashWriterInput, ctx: ScrollbackRenderContext): Scro
   const commandHeight = wide ? 1 : Math.ceil(stringWidth(command) / width)
 
   if (wide) {
-    for (let i = 0; i < mark.length; i += 1) {
-      draw(lines, mark[i] ?? "", {
+    for (let i = 0; i < markRows.length; i += 1) {
+      draw(lines, markRows[i] ?? "", {
         left: 0,
         top: top + i,
         fg: left,
         shadow: leftShadow,
+        brand: input.theme.brand,
       })
     }
 
@@ -205,7 +218,7 @@ function buildExit(input: SplashWriterInput, ctx: ScrollbackRenderContext): Scro
     push(lines, body_left, top + 1, label, left)
   }
 
-  const height = top + (wide ? Math.max(mark.length, 2) : commandHeight)
+  const height = top + (wide ? Math.max(markRows.length, 2) : commandHeight)
   const root = new BoxRenderable(ctx.renderContext, {
     position: "absolute",
     left: 0,
