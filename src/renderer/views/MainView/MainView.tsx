@@ -109,24 +109,24 @@ export function MainView(props: { storeHydrated: boolean; runtimeSnapshotsReady:
             },
           );
         }
-        const missingWslDistro = findMissingWslDistro(wslDistros, response.wsl);
         if (response.fromCache) {
           useAgentStatusesStore.getState().hydrateFromCache({
             windows: response.windows,
             wsl: response.wsl,
           });
-          if (!missingWslDistro) {
-            return;
+          const missingWslDistro = findMissingWslDistro(wslDistros, response.wsl);
+          if (missingWslDistro) {
+            useAgentStatusesStore
+              .getState()
+              .beginStartupDiscovery({ kind: "wsl", distro: missingWslDistro });
           }
-          useAgentStatusesStore
-            .getState()
-            .beginFirstLaunchDiscovery({ kind: "wsl", distro: missingWslDistro });
           return;
         }
 
+        const missingWslDistro = findMissingWslDistro(wslDistros, response.wsl);
         useAgentStatusesStore
           .getState()
-          .beginFirstLaunchDiscovery(
+          .beginStartupDiscovery(
             missingWslDistro ? { kind: "wsl", distro: missingWslDistro } : undefined,
           );
       })

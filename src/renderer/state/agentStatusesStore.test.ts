@@ -36,6 +36,7 @@ function reset() {
     wslAgentStatuses: [],
     windowsLoaded: false,
     wslLoaded: false,
+    hasCompletedDiscovery: false,
     inFirstLaunchDiscovery: false,
     discoveryScanning: false,
     discoveryAutoHideCancelled: false,
@@ -47,6 +48,119 @@ function reset() {
 beforeEach(reset);
 
 describe("persisted agent status cache", () => {
+  it("keeps a newly requested WSL distro loading in the background after cache hydration", () => {
+    const ubuntu: ProjectLocation = {
+      kind: "wsl",
+      distro: "Ubuntu",
+      linuxPath: "/project",
+      uncPath: "\\\\wsl$\\Ubuntu\\project",
+    };
+    useAgentStatusesStore.getState().hydrateFromCache({ windows: [makeStatus()], wsl: [] });
+    useAgentStatusesStore.getState().beginStartupDiscovery({ kind: "wsl", distro: "Ubuntu" });
+
+    expect(useAgentStatusesStore.getState()).toMatchObject({
+      windowsLoaded: true,
+      wslLoaded: false,
+      inFirstLaunchDiscovery: false,
+    });
+    expect(isDetectingAgentsForLocation(useAgentStatusesStore.getState(), ubuntu)).toBe(true);
+
+    useAgentStatusesStore
+      .getState()
+      .setWslAgentStatuses([makeStatus({ envKind: "wsl", envDistro: "Ubuntu" })]);
+    expect(isDetectingAgentsForLocation(useAgentStatusesStore.getState(), ubuntu)).toBe(false);
+    expect(useAgentStatusesStore.getState().inFirstLaunchDiscovery).toBe(false);
+  });
+
+  it.each(["posix", "windows"] as const)(
+    "refreshes an invalidated %s upgrade cache without repeating fullscreen discovery",
+    async (envKind) => {
+      localStorage.setItem(
+        "poracode-agent-statuses-v1",
+        JSON.stringify({
+          version: 64,
+          state: {
+            agentStatuses: [makeStatus({ envKind })],
+            wslAgentStatuses: [],
+            windowsLoaded: true,
+            wslLoaded: true,
+          },
+        }),
+      );
+      await useAgentStatusesStore.persist.rehydrate();
+      const state = useAgentStatusesStore.getState();
+      expect(state).toMatchObject({
+        agentStatuses: [],
+        windowsLoaded: false,
+        hasCompletedDiscovery: true,
+      });
+      state.beginStartupDiscovery();
+      // An invalidated WSL cache must not reopen onboarding either.
+      state.beginStartupDiscovery({ kind: "wsl", distro: "Ubuntu" });
+      expect(useAgentStatusesStore.getState().inFirstLaunchDiscovery).toBe(false);
+      const fresh = makeStatus({ envKind, version: "new" });
+      state.setAgentStatuses([fresh]);
+      expect(useAgentStatusesStore.getState().agentStatuses).toEqual([fresh]);
+
+      // Explicit Settings refresh still opens the discovery screen.
+      state.beginFirstLaunchDiscovery({ kind: "all", wslDistros: [] });
+      expect(useAgentStatusesStore.getState().inFirstLaunchDiscovery).toBe(true);
+    },
+  );
+
+  it("keeps current-version cached agents and infers discovery history from older writers", async () => {
+    const status = makeStatus();
+    localStorage.setItem(
+      "poracode-agent-statuses-v1",
+      JSON.stringify({
+        version: 65,
+        state: {
+          agentStatuses: [status],
+          wslAgentStatuses: [],
+          windowsLoaded: true,
+          wslLoaded: true,
+        },
+      }),
+    );
+    await useAgentStatusesStore.persist.rehydrate();
+    expect(useAgentStatusesStore.getState()).toMatchObject({
+      agentStatuses: [status],
+      windowsLoaded: true,
+      hasCompletedDiscovery: true,
+    });
+  });
+
+  it("preserves discovery history across another invalidation before a rescan completes", async () => {
+    const options = useAgentStatusesStore.persist.getOptions();
+    localStorage.setItem(
+      "poracode-agent-statuses-v1",
+      JSON.stringify({
+        version: 64,
+        state: { hasCompletedDiscovery: true, windowsLoaded: false, agentStatuses: [] },
+      }),
+    );
+    await useAgentStatusesStore.persist.rehydrate();
+    expect(useAgentStatusesStore.getState()).toMatchObject({
+      hasCompletedDiscovery: true,
+      windowsLoaded: false,
+    });
+    const persisted = options.partialize!(useAgentStatusesStore.getState());
+    expect(persisted).toHaveProperty("hasCompletedDiscovery", true);
+  });
+
+  it("shows fullscreen startup discovery for a new profile and remembers an empty completed scan", async () => {
+    localStorage.removeItem("poracode-agent-statuses-v1");
+    await useAgentStatusesStore.persist.rehydrate();
+    useAgentStatusesStore.getState().beginStartupDiscovery();
+    expect(useAgentStatusesStore.getState().inFirstLaunchDiscovery).toBe(true);
+    useAgentStatusesStore.getState().setAgentStatuses([]);
+    expect(useAgentStatusesStore.getState().hasCompletedDiscovery).toBe(true);
+    useAgentStatusesStore.getState().resetDiscoveredAgents();
+    await useAgentStatusesStore.persist.rehydrate();
+    useAgentStatusesStore.getState().beginStartupDiscovery();
+    expect(useAgentStatusesStore.getState().inFirstLaunchDiscovery).toBe(false);
+  });
+
   it("does not persist manual discovery refresh cancellation", () => {
     useAgentStatusesStore.setState({ discoveryAutoHideCancelled: true });
     const persisted = useAgentStatusesStore.persist.getOptions().partialize!(
@@ -396,6 +510,7 @@ describe("persisted agent status cache", () => {
     const migrated = await options.migrate!(persisted, 39);
     expect(migrated).toEqual({
       ...persisted,
+      hasCompletedDiscovery: true,
       agentStatuses: [],
       wslAgentStatuses: [],
       windowsLoaded: false,
@@ -440,6 +555,7 @@ describe("persisted agent status cache", () => {
       };
       expect(await options.migrate!(persisted, version)).toEqual({
         ...persisted,
+        hasCompletedDiscovery: true,
         agentStatuses: [],
         wslAgentStatuses: [],
         windowsLoaded: false,
@@ -1290,6 +1406,7 @@ it.each([29, 32, 33, 44, 51, 52, 53, 54, 55, 60, 61, 62, 63])(
     expect(options.version).toBe(65);
     expect(await options.migrate!(previous, version)).toEqual({
       ...previous,
+      hasCompletedDiscovery: true,
       agentStatuses: [],
       wslAgentStatuses: [],
       windowsLoaded: false,

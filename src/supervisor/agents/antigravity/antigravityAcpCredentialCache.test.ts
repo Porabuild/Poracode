@@ -18,13 +18,20 @@ describe("Antigravity ACP credential cache", () => {
   let cacheDir: string;
   let store: CredentialStore;
   const readKeychainFingerprint = vi.fn<() => Promise<string | undefined>>();
+  const resolveFileCredentials = vi.fn<ResolveCredentials>();
 
   function createCache(resolveCredentials: ResolveCredentials) {
-    return createAntigravityAcpCredentialCache(store, resolveCredentials, readKeychainFingerprint);
+    return createAntigravityAcpCredentialCache(
+      store,
+      resolveCredentials,
+      readKeychainFingerprint,
+      resolveFileCredentials,
+    );
   }
 
   beforeEach(() => {
     readKeychainFingerprint.mockReset().mockResolvedValue(CREDENTIALS.keychainFingerprint);
+    resolveFileCredentials.mockReset().mockResolvedValue(undefined);
     mkdirSync("tmp", { recursive: true });
     cacheDir = mkdtempSync(join("tmp", "antigravity-credentials-"));
     store = {
@@ -163,6 +170,18 @@ describe("Antigravity ACP credential cache", () => {
     expect(resolveCredentials).not.toHaveBeenCalled();
   });
 
+  it("retries a temporarily absent Keychain item after restart without requesting its password", async () => {
+    await createCache(async () => CREDENTIALS).resolve();
+    readKeychainFingerprint.mockResolvedValueOnce(undefined).mockResolvedValue("recreated-source");
+    const resolveCredentials = vi.fn<ResolveCredentials>(async () => CREDENTIALS);
+    const restarted = createCache(resolveCredentials);
+
+    await expect(restarted.resolve()).resolves.toBeUndefined();
+    expect(resolveCredentials).not.toHaveBeenCalled();
+    await expect(restarted.resolve()).resolves.toEqual(CREDENTIALS);
+    expect(resolveCredentials).not.toHaveBeenCalled();
+  });
+
   it("adopts the recreated item fingerprint once the reused grant is confirmed", async () => {
     await createCache(async () => CREDENTIALS).resolve();
     readKeychainFingerprint.mockResolvedValue("recreated-source");
@@ -210,7 +229,20 @@ describe("Antigravity ACP credential cache", () => {
     readKeychainFingerprint.mockResolvedValue(undefined);
     const resolveCredentials = vi.fn<ResolveCredentials>(async () => undefined);
     await expect(createCache(resolveCredentials).resolve()).resolves.toBeUndefined();
-    expect(resolveCredentials).toHaveBeenCalledOnce();
+    expect(resolveCredentials).not.toHaveBeenCalled();
+    expect(resolveFileCredentials).toHaveBeenCalledOnce();
+  });
+
+  it("uses file credentials when the Keychain grant's source is no longer available", async () => {
+    await createCache(async () => CREDENTIALS).resolve();
+    readKeychainFingerprint.mockResolvedValue(undefined);
+    const { keychainFingerprint: _fingerprint, ...fileCredentials } = CREDENTIALS;
+    resolveFileCredentials.mockResolvedValue(fileCredentials);
+    const resolveCredentials = vi.fn<ResolveCredentials>(async () => undefined);
+
+    await expect(createCache(resolveCredentials).resolve()).resolves.toEqual(fileCredentials);
+    expect(resolveCredentials).not.toHaveBeenCalled();
+    expect(resolveFileCredentials).toHaveBeenCalledOnce();
   });
 
   it("keeps file and WSL credentials process-local and rereads their source after restart", async () => {
