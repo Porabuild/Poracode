@@ -78,6 +78,7 @@ import {
 export interface EnvironmentSessionDependencies {
   readonly getState: () => RemoteServersState;
   readonly clientFactory: () => RemoteDesktopClientFactory;
+  readonly persistAccessToken: (connectionKey: string, accessToken: string) => void;
   readonly certPinForConnection: (connectionKey: string) => string | undefined;
   readonly refreshTokenForSubject: (subject: RefreshSubject) => string | undefined;
   readonly rememberRefreshToken: (subject: RefreshSubject, token: string) => void;
@@ -256,6 +257,7 @@ function parentSessionFor(server: RemoteServerRecord): PersistedParentSession {
       if (parentSessions.get(refKey) !== session) return;
       if (!ownsConnectionIncarnation(connectionKey, incarnation)) return;
       session.accessToken = tokens.accessToken;
+      api.persistAccessToken(connectionKey, tokens.accessToken);
       if (tokens.refreshToken !== undefined) {
         api.rememberRefreshToken(
           { kind: "connection", connectionId: connectionKey },

@@ -60,6 +60,23 @@ new autonomous turn: a nonempty batch of only replacing text deltas must neither
 reopen work nor extend an orphan turn's idle window. New items, appends, and
 other lifecycle events keep the ordinary activity rules.
 
+### Command tool calls and client terminals
+
+Command execution tools may stream `rawInput.command` and `rawInput.cwd` after
+the call opens; the shared mapper refreshes those fields as they arrive.
+`AcpSessionBehavior.unreferencedTerminalCorrelation` controls client-hosted
+terminals that are not referenced from tool content: the default `lookup`
+matches output by command text, while `attribute-on-create` binds a newly
+created terminal to the oldest open command call with the exact normalized
+command. Providers may declare `poracodeCommandStatus` metadata when a command
+tool's text content is a completion status line rather than command output.
+The provider parses its own status format; the shared mapper composes the
+terminal output with that line and applies a declared `exitCode`.
+Search calls that report matches as resource links use decoded file targets or
+their URI/name when no text result exists. Windows client-terminal wrappers
+propagate native exit codes because PowerShell otherwise reports `1` for any
+failing native command.
+
 ### Prompt usage and notifications
 
 Prompt usage semantics are declared through `AcpSessionBehavior`.

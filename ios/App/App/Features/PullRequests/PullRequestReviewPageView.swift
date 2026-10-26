@@ -22,6 +22,7 @@ struct PullRequestReviewPageView: View {
 
   @State private var section = PullRequestReviewSection.overview
   @State private var sheet: PullRequestReviewSheet?
+  @State private var metadataSheet: PullRequestMetadataSheet?
   @State private var presentedState: String
   @State private var presentedAsDraft: Bool
   @State private var pendingForgeRequest: GitHubOperationRequest?
@@ -90,6 +91,14 @@ struct PullRequestReviewPageView: View {
       }
       .toolbar { toolbarContent }
       .task(id: loadIdentity) { await load() }
+      .sheet(item: $metadataSheet) { sheet in
+        switch sheet {
+        case .labels:
+          PullRequestLabelsSheet(forge: forge, current: details?.labels ?? [])
+        case .reviewers:
+          PullRequestReviewersSheet(forge: forge, requested: details?.requestedReviewers ?? [])
+        }
+      }
       .sheet(item: $sheet) { sheet in
         PullRequestReviewActionSheet(
           sheet: sheet,
@@ -172,7 +181,9 @@ struct PullRequestReviewPageView: View {
           comments: mergedComments,
           reviews: details?.reviews ?? [],
           threads: conversation.threads,
-          forge: isScoped ? forge : nil
+          forge: isScoped ? forge : nil,
+          requestedReviewers: details?.requestedReviewers ?? [],
+          timeline: details?.timeline ?? []
         )
       case .guide:
         PullRequestGuideView(forge: forge, writers: guideWriters) { sheet = .review }
@@ -235,6 +246,36 @@ struct PullRequestReviewPageView: View {
               GitHubOperationsStrings.action(.ghMarkPrReady),
               systemImage: "checkmark.seal"
             )
+          }
+        }
+
+        if isScoped, presentedState == "open", !presentedAsDraft, forge.offers("convertToDraft") {
+          Button {
+            Task {
+              if await forge.convertToDraft() {
+                presentedAsDraft = true
+                presentedState = "draft"
+              }
+            }
+          } label: {
+            Label(PullRequestsStrings.convertToDraft, systemImage: "pencil.circle")
+          }
+        }
+
+        if isScoped, presentedState == "open" || presentedState == "draft" {
+          if forge.offers("labels") {
+            Button {
+              metadataSheet = .labels
+            } label: {
+              Label(PullRequestsStrings.editLabels, systemImage: "tag")
+            }
+          }
+          if forge.offers("reviewRequests") {
+            Button {
+              metadataSheet = .reviewers
+            } label: {
+              Label(PullRequestsStrings.requestReview, systemImage: "person.crop.circle.badge.plus")
+            }
           }
         }
 

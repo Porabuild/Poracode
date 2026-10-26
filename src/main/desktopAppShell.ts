@@ -81,6 +81,7 @@ export function updatePowerSaveBlocker(): void {
 export function applyThreadActivity(changes: readonly NativeThreadActivityChange[]): void {
   let changed = false;
   for (const change of changes) {
+    if (!change.active) desktopApp.hostServices?.agentVision.stop(change.threadId);
     if (change.active) {
       if (desktopApp.workingThreads.has(change.threadId)) continue;
       desktopApp.workingThreads.add(change.threadId);
@@ -98,6 +99,7 @@ export function applyThreadActivity(changes: readonly NativeThreadActivityChange
  * thread here. Without this a restart could keep a stale sleep blocker.
  */
 export function resetThreadActivity(): void {
+  desktopApp.hostServices?.agentVision.stopAll();
   desktopApp.workingThreads.clear();
   updatePowerSaveBlocker();
 }

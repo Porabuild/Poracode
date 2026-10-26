@@ -50,7 +50,8 @@ import {
  * and classification, but phase 1 reads only:
  *
  * - `item_id, position, type, state, parent_item_id` (small metadata),
- * - `length(CAST(payload/streams AS BLOB))` per row,
+ * - `octet_length(payload/streams)` per row (record-header bytes; unlike
+ *   `length(CAST(x AS BLOB))` it never walks a large value's overflow pages),
  * - variable metadata-key and head-block byte lengths for selected items,
  * - `SUM(length(CAST(text AS BLOB)))` per item for appended stream tails,
  * - narrow probes for only the rows classification genuinely needs:
@@ -179,8 +180,8 @@ const HISTORY_VERBATIM_LOWER_CODE_POINTS =
 
 function historyMetadataColumns(compactDetails: boolean): string {
   return `item_id, position, type, state, parent_item_id,
-    length(CAST(COALESCE(payload, '') AS BLOB)) AS payload_bytes,
-    ${compactDetails ? "CASE WHEN type = 'command_execution' AND state = 'completed' THEN 0 ELSE length(CAST(COALESCE(streams, '') AS BLOB)) END" : "length(CAST(COALESCE(streams, '') AS BLOB))"} AS streams_bytes,
+    COALESCE(octet_length(payload), 0) AS payload_bytes,
+    ${compactDetails ? "CASE WHEN type = 'command_execution' AND state = 'completed' THEN 0 ELSE COALESCE(octet_length(streams), 0) END" : "COALESCE(octet_length(streams), 0)"} AS streams_bytes,
     ${HISTORY_VERBATIM_LOWER_WIRE} AS base_lower_wire,
     ${HISTORY_VERBATIM_LOWER_CODE_POINTS} AS base_lower_cps,
     (SELECT COUNT(*) FROM thread_runtime_item_stream_state s

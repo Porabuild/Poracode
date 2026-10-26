@@ -1,4 +1,4 @@
-import { act, renderHook } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ForgeRepository, PrData, PrDetails } from "@/shared/contracts";
 import { ghMergePrAtHeadPayloadSchema } from "@/shared/contracts";
@@ -397,12 +397,102 @@ describe("usePrWriteActions", () => {
     expect(bridgeMock.forgeEditPr).not.toHaveBeenCalled();
   });
 
+  describe("editing against the live review", () => {
+    const key = "__branchname:p1:feature";
+    const staleDetails = { ...reviewDetails, title: "Old title", body: "Loaded body" };
+
+    function setup(liveBody: string) {
+      const prior = { ...openPr, source };
+      useGitStore.setState({
+        prData: { [key]: prior },
+        prDetails: { "p1#7": staleDetails },
+      });
+      bridgeMock.forgeGetPrDetails.mockResolvedValue({
+        pr: prior,
+        details: { ...reviewDetails, title: "Live title", body: liveBody },
+      });
+      bridgeMock.forgeEditPr.mockResolvedValue(undefined);
+      const onRefresh = vi.fn<() => void>();
+      const { result } = renderHook(() =>
+        usePrWriteActions({
+          projectLocation: { kind: "posix", path: "/repo" },
+          projectId: "p1",
+          prKey: key,
+          onRefresh,
+        }),
+      );
+      return { result, onRefresh };
+    }
+
+    it("sends the live description for a title-only edit, not the loaded copy", async () => {
+      const { result, onRefresh } = setup("Newer host description");
+
+      await act(async () => {
+        expect(await result.current.handleEditPr({ title: " Renamed " })).toBe(true);
+      });
+
+      expect(bridgeMock.forgeEditPr).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ title: "Renamed", body: "Newer host description" }),
+      );
+      expect(useGitStore.getState().prDetails["p1#7"]).toMatchObject({
+        title: "Renamed",
+        body: "Newer host description",
+      });
+      expect(onRefresh).toHaveBeenCalledOnce();
+    });
+
+    it("sends the live title for a description-only edit", async () => {
+      const { result } = setup("Loaded body");
+
+      await act(async () => {
+        expect(
+          await result.current.handleEditPr({ body: "Rewritten", expectedBody: "Loaded body" }),
+        ).toBe(true);
+      });
+
+      expect(bridgeMock.forgeEditPr).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ title: "Live title", body: "Rewritten" }),
+      );
+      expect(useGitStore.getState().prDetails["p1#7"]?.body).toBe("Rewritten");
+    });
+
+    it("refuses a description edit started from a stale copy without writing", async () => {
+      const { result, onRefresh } = setup("Newer host description");
+
+      await act(async () => {
+        expect(
+          await result.current.handleEditPr({ body: "Rewritten", expectedBody: "Loaded body" }),
+        ).toBe(false);
+      });
+
+      expect(bridgeMock.forgeEditPr).not.toHaveBeenCalled();
+      expect(toastDangerMock).toHaveBeenCalledExactlyOnceWith(
+        "The description changed since you started editing. Reload and reapply your edit.",
+      );
+      expect(useGitStore.getState().prDetails["p1#7"]?.body).toBe("Loaded body");
+      expect(onRefresh).not.toHaveBeenCalled();
+    });
+
+    it("writes nothing when neither field is edited or the title is blank", async () => {
+      const { result } = setup("Loaded body");
+
+      await act(async () => {
+        expect(await result.current.handleEditPr({})).toBe(false);
+        expect(await result.current.handleEditPr({ title: "   " })).toBe(false);
+      });
+
+      expect(bridgeMock.forgeGetPrDetails).not.toHaveBeenCalled();
+      expect(bridgeMock.forgeEditPr).not.toHaveBeenCalled();
+    });
+  });
+
   it("saves a scoped edit and drops it when the source is replaced first", async () => {
     const prior = { ...openPr, source };
     useGitStore.setState({
       prData: { "__branchname:p1:feature": prior },
       prDetails: { "p1#7": reviewDetails },
     });
+    bridgeMock.forgeGetPrDetails.mockResolvedValue({ pr: prior, details: reviewDetails });
     let release: (() => void) | undefined;
     bridgeMock.forgeEditPr.mockImplementation(
       () =>
@@ -420,9 +510,7 @@ describe("usePrWriteActions", () => {
       }),
     );
     const pending = result.current.handleEditPr({ title: " Renamed ", body: "Notes" });
-    await act(async () => {
-      await Promise.resolve();
-    });
+    await waitFor(() => expect(bridgeMock.forgeEditPr).toHaveBeenCalledTimes(1));
     expect(bridgeMock.forgeEditPr).toHaveBeenCalledExactlyOnceWith(
       expect.objectContaining({
         prNumber: 7,
@@ -456,6 +544,7 @@ describe("usePrWriteActions", () => {
           rejectClose = reject;
         }),
     );
+    bridgeMock.forgeGetPrDetails.mockResolvedValue({ pr: prior, details: reviewDetails });
     let releaseEdit: (() => void) | undefined;
     bridgeMock.forgeEditPr.mockImplementation(
       () =>
@@ -480,9 +569,7 @@ describe("usePrWriteActions", () => {
       source: { ...source, repository: "other/app" },
     });
     const editing = result.current.handleEditPr({ title: "Current", body: "Notes" });
-    await act(async () => {
-      await Promise.resolve();
-    });
+    await waitFor(() => expect(bridgeMock.forgeEditPr).toHaveBeenCalledTimes(1));
     expect(result.current.pendingAction).toBe("edit");
     await act(async () => {
       rejectClose(new Error("old close failed"));

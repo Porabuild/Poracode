@@ -30,6 +30,15 @@ import type {
   ForgeClosePrPayload,
   ForgeReopenPrPayload,
   ForgeUpdatePrBranchPayload,
+  ForgeListPullRequestsInStatePayload,
+  ForgeListPrLabelCandidatesPayload,
+  ForgeListPrReviewerCandidatesPayload,
+  ForgeSetPrLabelsPayload,
+  ForgeRequestPrReviewersPayload,
+  ForgeConvertPrToDraftPayload,
+  ForgeGetPrCommitDiffPayload,
+  ForgeSetPrReactionPayload,
+  ForgeSubmitPrReviewDraftPayload,
   PrData,
   ProjectLocation,
 } from "@/shared/contracts";
@@ -50,6 +59,22 @@ import {
   reviewGuideFingerprint,
   type ReviewGuideSnapshot,
 } from "./reviewGuides";
+
+/**
+ * Deduplicates an add/remove request. An entry in both lists is ambiguous, so it
+ * is dropped from both and left unchanged on the host.
+ */
+function netChanges<T>(add: T[], remove: T[], key: (value: T) => string) {
+  const unique = (values: T[], excluded: Set<string>) => [
+    ...new Map(
+      values.filter((value) => !excluded.has(key(value))).map((value) => [key(value), value]),
+    ).values(),
+  ];
+  return {
+    add: unique(add, new Set(remove.map(key))),
+    remove: unique(remove, new Set(add.map(key))),
+  };
+}
 
 /** Shared review entrypoint for desktop, remote/native clients, MCP and watches. */
 export class ForgeReviewService {
@@ -378,5 +403,99 @@ export class ForgeReviewService {
     const adapter = await this.required(input);
     if (!adapter.source.capabilities.edit) unsupported(adapter.source);
     await adapter.edit(input);
+  }
+  async listPullRequestsInState(input: ForgeListPullRequestsInStatePayload) {
+    const adapter = await this.adapter(
+      input.projectLocation,
+      input.forgeAccount,
+      input.forgeRepository,
+    );
+    if (!adapter) return { pullRequests: [] };
+    const pullRequests = await adapter.list(input.state);
+    return {
+      pullRequests,
+      ...(adapter.source.account ? { viewerLogin: adapter.source.account.login } : {}),
+    };
+  }
+  async listPrLabelCandidates(input: ForgeListPrLabelCandidatesPayload) {
+    const adapter = await this.required(input);
+    if (!adapter.source.capabilities.labels || !adapter.labelCandidates)
+      unsupported(adapter.source);
+    return adapter.labelCandidates();
+  }
+  async setPrLabels(input: ForgeSetPrLabelsPayload) {
+    const adapter = await this.required(input);
+    if (!adapter.source.capabilities.labels || !adapter.setLabels) unsupported(adapter.source);
+    const { add, remove } = netChanges(
+      input.add.map((name) => name.trim()).filter(Boolean),
+      input.remove.map((name) => name.trim()).filter(Boolean),
+      (name) => name,
+    );
+    if (!add.length && !remove.length) return;
+    await adapter.setLabels(input.prNumber, add, remove);
+  }
+  async listPrReviewerCandidates(input: ForgeListPrReviewerCandidatesPayload) {
+    const adapter = await this.required(input);
+    if (!adapter.source.capabilities.reviewRequests || !adapter.reviewerCandidates)
+      unsupported(adapter.source);
+    return adapter.reviewerCandidates(input.prNumber, input.query?.trim() || undefined);
+  }
+  async requestPrReviewers(input: ForgeRequestPrReviewersPayload) {
+    const adapter = await this.required(input);
+    if (!adapter.source.capabilities.reviewRequests || !adapter.requestReviewers)
+      unsupported(adapter.source);
+    const { add, remove } = netChanges(
+      input.add,
+      input.remove,
+      (ref) => `${ref.team ? "team" : "user"}:${ref.id}`,
+    );
+    if (!add.length && !remove.length) return;
+    await adapter.requestReviewers(input.prNumber, add, remove);
+  }
+  async convertPrToDraft(input: ForgeConvertPrToDraftPayload) {
+    const adapter = await this.required(input);
+    if (!adapter.source.capabilities.convertToDraft) unsupported(adapter.source);
+    await adapter.setState(input.prNumber, "draft");
+  }
+  async getPrCommitDiff(input: ForgeGetPrCommitDiffPayload) {
+    const adapter = await this.required(input);
+    if (!adapter.source.capabilities.commitDiffs || !adapter.commitDiff)
+      unsupported(adapter.source);
+    // Only commits listed on the review are readable; an arbitrary SHA could reach
+    // history the review never exposed.
+    const wanted = input.commit.toLowerCase();
+    const matches = (await adapter.details(input.prNumber)).details.commits.filter((commit) =>
+      commit.oid.toLowerCase().startsWith(wanted),
+    );
+    if (matches.length !== 1) throw new Error(msg("forge.commitNotInReview"));
+    return { diff: await adapter.commitDiff(input.prNumber, matches[0]!.oid) };
+  }
+  async setPrReaction(input: ForgeSetPrReactionPayload) {
+    const adapter = await this.required(input);
+    if (!adapter.react || !adapter.source.capabilities.reactions?.includes(input.content))
+      unsupported(adapter.source);
+    await adapter.react(input.prNumber, input.subjectId, input.content, input.reacted);
+  }
+  async submitPrReviewDraft(input: ForgeSubmitPrReviewDraftPayload) {
+    const adapter = await this.required(input);
+    if (
+      !adapter.source.capabilities.reviewDrafts ||
+      !adapter.submitDraft ||
+      !adapter.source.capabilities.reviewDecisions.includes(input.decision)
+    )
+      unsupported(adapter.source);
+    if (input.decision === "request-changes" && !input.body.trim())
+      throw new Error(msg("forge.bodyRequired"));
+    const head = (await adapter.details(input.prNumber)).pr?.headSha;
+    if (!head || head.toLowerCase() !== input.expectedHeadSha.toLowerCase())
+      throw new Error(msg("forge.reviewHeadChanged"));
+    await adapter.submitDraft(input.prNumber, {
+      decision: input.decision,
+      body: input.body,
+      headSha: head,
+      comments: input.comments.map(({ startLine, ...comment }) =>
+        startLine !== undefined && startLine < comment.line ? { ...comment, startLine } : comment,
+      ),
+    });
   }
 }

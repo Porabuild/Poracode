@@ -10,6 +10,7 @@ import { workspaceRoutes } from "./workspace";
 
 /** Manifest `httpRoutes` order is the stable inventory order. */
 const MANIFEST_ROUTE_IDS = [
+  "thread-agent-vision",
   "conversation-search",
   "environment",
   "environment-legacy",

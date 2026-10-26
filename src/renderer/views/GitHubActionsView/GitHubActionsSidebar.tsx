@@ -21,7 +21,6 @@ import {
   ProjectSelectorIcon,
   useProjectRemoteServerLookup,
 } from "@/renderer/components/common/ProjectRemoteServer";
-import { isRemoteProjectStatusUnreachable } from "@/renderer/state/remoteServers/reachability";
 import {
   overlaySidebarColumnClass,
   overlaySidebarSurfaceClass,
@@ -142,14 +141,7 @@ export function GitHubActionsSidebar(props: {
                     {props.projects.map((project) => {
                       const remote = remoteServerFor(project);
                       return (
-                        <Dropdown.Item
-                          key={project.id}
-                          id={project.id}
-                          textValue={project.name}
-                          // An offline machine can't serve workflows, so its
-                          // projects stay visible but unpickable.
-                          isDisabled={isRemoteProjectStatusUnreachable(project, remote.status)}
-                        >
+                        <Dropdown.Item key={project.id} id={project.id} textValue={project.name}>
                           <ProjectSelectorIcon project={project} remote={remote} />
                           <Label>{project.name}</Label>
                           {remote.serverName ? (

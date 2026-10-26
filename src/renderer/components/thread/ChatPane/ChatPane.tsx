@@ -24,7 +24,10 @@ import {
   releaseThreadRuntimeItems,
   retainThreadRuntimeItems,
 } from "@/renderer/state/chatRuntimePersister";
-import { adoptRuntimeThreadReader } from "@/renderer/state/runtimeInterestHydration";
+import {
+  adoptRuntimeThreadReader,
+  retryThreadRuntimeItems,
+} from "@/renderer/state/runtimeInterestHydration";
 import { useInitialTimelineLayout } from "./parts/useInitialTimelineLayout";
 import {
   finalizeFileCheckpoint,
@@ -61,6 +64,7 @@ import { MessageList, type CheckpointRevertActions } from "./parts/MessageList";
 import { ThreadForkOrigin, ThreadForkTurnAction } from "../ThreadForkControls";
 import { SubAgentOpenController } from "./parts/items/SubAgentOverlay";
 import { ChatPromptRail } from "./ChatPromptRail";
+import { promptAnchorScrollTop } from "./promptAnchorScrollTop";
 import { StickyPrompt } from "./StickyPrompt";
 import { usePromptJump } from "./usePromptJump";
 import { resolveThreadMarkdownImageRoots } from "../threadMarkdownImageRoots";
@@ -154,7 +158,11 @@ export function ChatPane(props: ChatPaneProps) {
   // `scrollEl` mirrors the LegendList-owned scroll node as React state for the
   // find controller and the shared scroll controls.
   const { setScrollContainer, scrollRef, scrollEl, scrollFadeStyle } =
-    useScrollFade<HTMLDivElement>({ contentRef });
+    useScrollFade<HTMLDivElement>({
+      contentRef,
+      // A freshly sent prompt is parked flush at the top; the top fade would dim it.
+      getTopFlushScrollTop: (el) => promptAnchorScrollTop(el, threadId),
+    });
   const [initialScrollSettlement, setInitialScrollSettlement] = useState<{
     threadId: string;
     hasVisibleHistory: boolean;
@@ -474,7 +482,31 @@ export function ChatPane(props: ChatPaneProps) {
     ) : null;
   const showEmptyHint = isEmpty && !isLive && !isConnecting && hydrationStatus === undefined;
   const isHydrating = isEmpty && hydrationStatus === "pending";
-  const hydrationFailed = isEmpty && hydrationStatus === "failed";
+  const hydrationFailed = hydrationStatus === "failed";
+  const historyLoadFailure = hydrationFailed ? (
+    <div
+      className={`flex items-center gap-3 text-foreground-muted ${
+        isEmpty
+          ? "h-full flex-col justify-center"
+          : "justify-between border-b border-border bg-surface-container/60 px-3 py-1.5 text-xs"
+      }`}
+      role="status"
+    >
+      <span>
+        <Trans>Messages could not be loaded.</Trans>
+      </span>
+      <Button
+        size={isEmpty ? "md" : "sm"}
+        variant={isEmpty ? "tertiary" : "ghost"}
+        onPress={() => {
+          if (isRemoteThread) void hydrateThreadRuntimeItems(threadId);
+          else void retryThreadRuntimeItems(threadId);
+        }}
+      >
+        <Trans>Retry</Trans>
+      </Button>
+    </div>
+  ) : null;
   // The tail loader displays the most recent completed turn's frozen elapsed
   // time when the thread is idle and no newer timeline row exists. Once an
   // optimistic next prompt is appended, keep the completed indicator inline at
@@ -540,6 +572,7 @@ export function ChatPane(props: ChatPaneProps) {
                 <Trans>Server offline — this conversation may be out of date.</Trans>
               </div>
             ) : null}
+            {!isEmpty ? historyLoadFailure : null}
             <ThreadForkOrigin threadId={threadId} />
             <ConversationSearchJump
               threadId={threadId}
@@ -587,20 +620,8 @@ export function ChatPane(props: ChatPaneProps) {
               scrollStyle={scrollFadeStyle}
               contentClassName={`min-h-full ${isInitialScrollSettled ? "" : "pointer-events-none opacity-0"}`}
               emptyContent={
-                hydrationFailed ? (
-                  <div className="flex h-full flex-col items-center justify-center gap-3 text-foreground-muted">
-                    <span>
-                      <Trans>Messages could not be loaded.</Trans>
-                    </span>
-                    <Button
-                      variant="tertiary"
-                      onPress={() => {
-                        void hydrateThreadRuntimeItems(threadId);
-                      }}
-                    >
-                      <Trans>Retry</Trans>
-                    </Button>
-                  </div>
+                isEmpty && hydrationFailed ? (
+                  historyLoadFailure
                 ) : isEmpty && !showTailLoader && showEmptyHint ? (
                   <div className="flex h-full flex-col items-center justify-center gap-2 text-foreground-muted">
                     <span>

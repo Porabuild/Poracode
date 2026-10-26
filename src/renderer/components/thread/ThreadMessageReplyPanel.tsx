@@ -76,7 +76,7 @@ export function ThreadMessageReplyPanel({
     setSending(true);
     try {
       await submitThreadInput(threadId, prompt, undefined, {
-        questionAnswer: buildMessageReplyAnswer(form, values),
+        questionAnswer: { ...buildMessageReplyAnswer(form, values), sourceItemId: itemId },
       });
       setSubmitted(true);
     } catch (error) {

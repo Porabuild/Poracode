@@ -268,6 +268,7 @@ describe("sharedSettingsStore", () => {
     expect(useSharedSettings.getState().threadDocksOrder).toEqual([
       "backgroundTasks",
       "plan",
+      "vision",
       "goal",
       "agents",
       "images",

@@ -15,6 +15,11 @@ import {
 import type { CatalogEffectiveCaps } from "./catalogPageBudget";
 import { refuseOversizedHistoryBound } from "./historyReadBudget";
 import { projectRuntimeItemsImageRefs } from "./imageRefProjection";
+import {
+  DEFERRED_FILE_CHANGE_PACKING_BYTES,
+  isDeferrableFileChangeRow,
+  slimDeferredFileChange,
+} from "./historyBodyDeferral";
 
 /** Select and materialize a contiguous newest-first window. Soft estimates
  * describe the projected response; the original conservative bounds still
@@ -27,12 +32,27 @@ export function readProjectedHistoryWindow(
   rows: readonly HistoryPageRowMeta[],
   softWireBytes: number,
   caps: CatalogEffectiveCaps,
-  options: { readonly compactDetails?: boolean; readonly protectLatestTurn?: boolean } = {},
+  options: {
+    readonly compactDetails?: boolean;
+    readonly deferFileChangeBodies?: boolean;
+    readonly protectLatestTurn?: boolean;
+  } = {},
 ): {
   readonly keptMeta: readonly HistoryPageRowMeta[];
   readonly projectedDesc: readonly HistoryRuntimeItem[];
 } {
   const compactDetails = options.compactDetails === true;
+  const deferFileChanges = compactDetails && options.deferFileChangeBodies === true;
+  if (deferFileChanges)
+    // The bound stays conservative: it caps what one read materializes.
+    rows = rows.map((row) =>
+      isDeferrableFileChangeRow(row.type, row.state)
+        ? {
+            ...row,
+            packingWireBytes: Math.min(row.packingWireBytes, DEFERRED_FILE_CHANGE_PACKING_BYTES),
+          }
+        : row,
+    );
   if (compactDetails)
     rows = rows.map((row) =>
       hasDeferredHistoryStreams(row.type, row.state)
@@ -93,8 +113,24 @@ export function readProjectedHistoryWindow(
       )
         break;
       if (isFirst && bound > CATALOG_HOST_WIRE_MAX_BYTES) {
-        // A page-of-one lets the existing exact hard-cap refusal name the row.
-        index += 1;
+        // The conservative bound exceeding the hard cap does not prove the real
+        // size does. Cut the unit by row at the soft target so a long tool run
+        // pages in a few reads; a page of one row still reaches the exact
+        // hard-cap refusal that names it.
+        let cut = index + 1;
+        let cutBound = rows[index]!.boundWireBytes;
+        let cutEstimate = estimatedBytes + rows[index]!.packingWireBytes;
+        while (
+          cut < end &&
+          cutBound + rows[cut]!.boundWireBytes <= CATALOG_HOST_WIRE_MAX_BYTES &&
+          cutEstimate + rows[cut]!.packingWireBytes <= budgetAt(cut)
+        ) {
+          cutBound += rows[cut]!.boundWireBytes;
+          cutEstimate += rows[cut]!.packingWireBytes;
+          cut += 1;
+        }
+        materializationBound += cutBound;
+        index = cut;
         unitEnds.push(index);
         break;
       }
@@ -111,7 +147,10 @@ export function readProjectedHistoryWindow(
       { compactDetails },
     );
     const byId = new Map(
-      projectRuntimeItemsImageRefs(threadId, materialized).map((item) => [item.id, item]),
+      projectRuntimeItemsImageRefs(threadId, materialized).map((item) => [
+        item.id,
+        deferFileChanges ? slimDeferredFileChange(item) : item,
+      ]),
     );
     let start = batchStart;
     for (const end of unitEnds) {

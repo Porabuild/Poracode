@@ -1,4 +1,8 @@
 import type { HostServiceCapabilities } from "@/shared/hostControlProtocol";
+import {
+  setAgentVisionSocketSender,
+  handleAgentVisionServerMessage,
+} from "@/renderer/browser/agentVisionStream";
 import { parseIpcProcedureArgs, type IpcProcedureName } from "@/shared/ipc";
 import { msg } from "@/shared/messages";
 import { msg as linguiMsg } from "@lingui/core/macro";
@@ -722,6 +726,7 @@ async function startOwnedDesktopLoopbackIntake(isCurrentStartup: () => boolean):
     },
     onTerminalReady: (send) => {
       if (!isCurrentIntake()) return;
+      setAgentVisionSocketSender(undefined, send);
       feed.setRemoteTerminalSocketSender(
         feed.managedTerminalFeedId(),
         send as (message: RemoteWebSocketClientMessage) => boolean,
@@ -730,10 +735,13 @@ async function startOwnedDesktopLoopbackIntake(isCurrentStartup: () => boolean):
     },
     onTerminalLost: () => {
       if (!isCurrentIntake()) return;
+      setAgentVisionSocketSender(undefined, null);
       feed.setRemoteTerminalSocketSender(feed.managedTerminalFeedId(), null);
     },
     onServerFrame: (message) => {
       if (!isCurrentIntake()) return false;
+      if (handleAgentVisionServerMessage(undefined, message as RemoteWebSocketServerMessage))
+        return true;
       return feed.handleRemoteTerminalServerMessage(
         feed.managedTerminalFeedId(),
         message as RemoteWebSocketServerMessage,

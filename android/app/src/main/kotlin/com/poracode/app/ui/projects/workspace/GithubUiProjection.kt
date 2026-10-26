@@ -11,6 +11,12 @@ internal data class PullRequestRow(
     val branch: String,
     val state: String,
     val source: JsonObject? = null,
+    val labels: List<PullRequestLabelRow> = emptyList(),
+    val author: String? = null,
+    val additions: Long = 0L,
+    val deletions: Long = 0L,
+    val checksStatus: String? = null,
+    val reviewRequested: Boolean = false,
 )
 
 internal data class WorkflowRow(val id: Long, val name: String)
@@ -33,11 +39,46 @@ internal fun githubUiGate(
     )
 }
 
+internal data class PullRequestActionAvailability(
+    val review: Boolean,
+    val merge: Boolean,
+    val ready: Boolean,
+    val updateBranch: Boolean,
+    val convertToDraft: Boolean,
+    val close: Boolean,
+    val reopen: Boolean,
+)
+
+internal fun pullRequestActionAvailability(state: String, isDraft: Boolean): PullRequestActionAvailability {
+    val active = state == "open" || state == "draft"
+    return PullRequestActionAvailability(
+        review = active,
+        merge = active,
+        ready = active && (isDraft || state == "draft"),
+        updateBranch = active,
+        convertToDraft = active,
+        close = active,
+        reopen = state == "closed",
+    )
+}
+
 internal fun JsonElement?.pullRequestRows(): List<PullRequestRow> =
     arrayObjects("pullRequests").mapNotNull { row ->
         val pr = row["pr"] as? JsonObject ?: return@mapNotNull null
         val number = pr.long("number") ?: return@mapNotNull null
-        PullRequestRow(number, pr.string("title"), row.string("headBranch"), pr.string("state"), pr["source"] as? JsonObject)
+        PullRequestRow(
+            number,
+            pr.string("title"),
+            row.string("headBranch"),
+            pr.string("state"),
+            pr["source"] as? JsonObject,
+            row.labelRows(),
+            author = row.child("author")?.stringOrNull("login"),
+            additions = row.long("additions") ?: 0L,
+            deletions = row.long("deletions") ?: 0L,
+            checksStatus = pr.stringOrNull("checksStatus"),
+            reviewRequested = row.boolean("reviewRequested"),
+        )
     }
 
 internal fun JsonElement?.workflowRows() = arrayObjects("workflows").mapNotNull {

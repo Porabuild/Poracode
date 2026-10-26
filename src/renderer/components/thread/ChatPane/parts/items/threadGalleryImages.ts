@@ -1,6 +1,6 @@
 import { extractMarkdownGalleryImages } from "./threadGalleryMarkdownImages";
 export { extractMarkdownGalleryImages } from "./threadGalleryMarkdownImages";
-import { GalleryImageReadiness } from "./threadGalleryImageReadiness";
+import { GalleryImageReadiness, galleryImageResource } from "./threadGalleryImageReadiness";
 import { assistantDisplayText } from "@/shared/assistantMessageText";
 import type { MessageItemPayload, ToolCallPayload } from "@/shared/contracts";
 import {
@@ -66,6 +66,8 @@ export interface ThreadGalleryCollection {
 }
 
 export interface ThreadGalleryResolvers {
+  /** Lightbox enumeration retains cache coordinates even before their bytes load. */
+  lightboxReadiness?: RemoteImageReadiness;
   /** Resolve a user-attachment path (remote desktop image endpoint). */
   imageUrlForPath?: ((path: string) => string) | undefined;
   /** Resolve a host-held image reference (remote desktop image endpoint). */
@@ -99,11 +101,12 @@ export function collectThreadGallery(
   const seen = new Set<string>();
 
   const push = (image: ThreadGalleryImage | null | undefined) => {
-    if (!image || !image.src) return;
+    if (!image || (!image.src && !image.resource)) return;
     // One source is one gallery image even when repeated with different alt
     // text. This also keeps click-by-source navigation unambiguous.
-    if (seen.has(image.src)) return;
-    seen.add(image.src);
+    const key = image.resource?.key ?? image.src;
+    if (seen.has(key)) return;
+    seen.add(key);
     gallery.push(image);
   };
 
@@ -120,6 +123,9 @@ export function collectThreadGallery(
         readiness.recordPath(att.path, src);
         push({
           src,
+          ...(resolvers.lightboxReadiness && (!src || src.startsWith("blob:"))
+            ? { resource: galleryImageResource(resolvers.lightboxReadiness, att.path) }
+            : {}),
           ...(att.name ? { alt: att.name, fileName: att.name } : {}),
           ...(mime ? { mime } : {}),
         });
@@ -135,7 +141,15 @@ export function collectThreadGallery(
         );
         if (!source) continue;
         readiness.recordRef(source);
-        push({ src: source.src, alt: source.alt, mime: source.mime, fileName: source.fileName });
+        push({
+          src: source.src,
+          alt: source.alt,
+          mime: source.mime,
+          fileName: source.fileName,
+          ...(resolvers.lightboxReadiness && source.remoteRef
+            ? { resource: galleryImageResource(resolvers.lightboxReadiness, source.remoteRef) }
+            : {}),
+        });
       }
       // Pure text deltas intentionally do not invalidate the gallery cache.
       // Collect markdown once the item completes, when its structural version
@@ -165,7 +179,15 @@ export function collectThreadGallery(
         const source = sources[index];
         if (!source) continue;
         readiness.recordRef(source);
-        push({ src: source.src, alt: source.alt, mime: source.mime, fileName: source.fileName });
+        push({
+          src: source.src,
+          alt: source.alt,
+          mime: source.mime,
+          fileName: source.fileName,
+          ...(resolvers.lightboxReadiness && source.remoteRef
+            ? { resource: galleryImageResource(resolvers.lightboxReadiness, source.remoteRef) }
+            : {}),
+        });
       }
     }
   }
@@ -408,6 +430,14 @@ export function getCachedThreadGallery(
   resolvers: ThreadGalleryResolvers,
   revision: GalleryCacheRevision,
 ): ThreadGalleryCollection {
+  // Live subscriptions retain their owning client and are never admitted to the
+  // bounded, data-only gallery cache. The lightbox hook memoizes this collection.
+  if (resolvers.lightboxReadiness) {
+    return collectThreadGallery(
+      itemIds.flatMap((id) => (itemsById[id] ? [itemsById[id]!] : [])),
+      resolvers,
+    );
+  }
   const cached = readThreadGalleryCache(
     threadId,
     itemIds,

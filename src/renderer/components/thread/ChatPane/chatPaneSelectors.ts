@@ -578,6 +578,8 @@ export function getChildTimelineEntriesStoreSelector(
  */
 interface ResolvedCompletedTurns {
   byAnchor: ReadonlyMap<string, CompletedTurnRecord>;
+  /** Turn start time keyed by the user message that opened the turn. */
+  startedAtByUserMessage: ReadonlyMap<string, number>;
   mostRecentDisplayable: CompletedTurnRecord | null;
 }
 
@@ -594,6 +596,7 @@ const resolvedCompletedTurnsCache = new WeakMap<
 const EMPTY_TURN_ANCHOR_MAP: ReadonlyMap<string, CompletedTurnRecord> = new Map();
 const EMPTY_RESOLVED_TURNS: ResolvedCompletedTurns = Object.freeze({
   byAnchor: EMPTY_TURN_ANCHOR_MAP,
+  startedAtByUserMessage: new Map(),
   mostRecentDisplayable: null,
 });
 
@@ -680,6 +683,26 @@ function buildResolvedCompletedTurns(
     }
   }
 
+  // Items carry no timestamp of their own; a prompt's send time is the start of
+  // the turn it opened. When several prompts precede one turn end (a steer sent
+  // mid-turn, or an earlier turn that left no row), the opener is ambiguous, so
+  // none of them gets a time rather than a wrong one.
+  const startedAtByUserMessage = new Map<string, number>();
+  let pendingUserMessageIds: string[] = [];
+  for (const itemId of itemIds) {
+    const item = items?.[itemId];
+    if (item?.type === "user_message" && !item.parentItemId) {
+      pendingUserMessageIds.push(itemId);
+      continue;
+    }
+    const record = byAnchor.get(itemId);
+    if (!record || pendingUserMessageIds.length === 0) continue;
+    if (pendingUserMessageIds.length === 1) {
+      startedAtByUserMessage.set(pendingUserMessageIds[0]!, record.startedAt);
+    }
+    pendingUserMessageIds = [];
+  }
+
   let mostRecentDisplayable: CompletedTurnRecord | null = null;
   for (let index = records.length - 1; index >= 0; index -= 1) {
     const record = records[index]!;
@@ -689,7 +712,16 @@ function buildResolvedCompletedTurns(
     }
   }
 
-  return { byAnchor, mostRecentDisplayable };
+  return { byAnchor, startedAtByUserMessage, mostRecentDisplayable };
+}
+
+/** When the turn opened by this user message started, once that turn has completed. */
+export function selectUserMessageSentAt(
+  state: AppStoreState,
+  threadId: string,
+  itemId: string,
+): number | undefined {
+  return selectResolvedCompletedTurns(state, threadId).startedAtByUserMessage.get(itemId);
 }
 
 /**

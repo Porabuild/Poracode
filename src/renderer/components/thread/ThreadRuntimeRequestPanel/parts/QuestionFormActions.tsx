@@ -10,11 +10,21 @@ export function QuestionFormActions(props: {
   isDisabled: boolean;
   /** The answer is being sent; the step action shows progress. */
   isPending?: boolean;
+  onSubmitEarly?: () => void;
   /** Turns the request down without answering (cancel or decline, per protocol). */
   onDecline?: () => void;
 }) {
-  const { formId, isLastStep, canSubmit, isDisabled, isPending = false, onDecline } = props;
+  const {
+    formId,
+    isLastStep,
+    canSubmit,
+    isDisabled,
+    isPending = false,
+    onSubmitEarly,
+    onDecline,
+  } = props;
   const { t } = useLingui();
+  const earlySubmit = isLastStep ? undefined : onSubmitEarly;
   const disabledReason = isLastStep
     ? t`Answer every question to submit`
     : t`Answer this question to continue`;
@@ -31,6 +41,17 @@ export function QuestionFormActions(props: {
           <Trans>Decline</Trans>
         </Button>
       ) : null}
+      {earlySubmit ? (
+        <Button
+          isDisabled={isDisabled}
+          isPending={isPending}
+          size="sm"
+          variant="tertiary"
+          onPress={earlySubmit}
+        >
+          {t`Submit`}
+        </Button>
+      ) : null}
       <Tooltip delay={0} isDisabled={canSubmit || isDisabled}>
         <Tooltip.Trigger
           role="group"
@@ -40,7 +61,7 @@ export function QuestionFormActions(props: {
           <Button
             form={formId}
             isDisabled={isDisabled || !canSubmit}
-            isPending={isPending}
+            isPending={isPending && !earlySubmit}
             size="sm"
             type="submit"
             variant="primary"

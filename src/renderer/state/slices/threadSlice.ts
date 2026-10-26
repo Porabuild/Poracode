@@ -787,6 +787,7 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
         // not on working rebroadcasts after the user marks done mid-turn.
         const turnStarted = input.status === "working" && thread.status !== "working";
         const activityClearsDone = turnStarted && thread.done;
+        const nextErrorMessage = input.errorMessage ?? thread.errorMessage;
 
         if (
           thread.status === effectiveStatus &&
@@ -800,7 +801,9 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
           thread.activeTurnStartedAt === nextTurnTiming.activeTurnStartedAt &&
           thread.lastTurnStartedAt === nextTurnTiming.lastTurnStartedAt &&
           thread.lastTurnEndedAt === nextTurnTiming.lastTurnEndedAt &&
-          (input.errorMessage === undefined || thread.errorMessage === input.errorMessage)
+          (effectiveStatus === "error"
+            ? input.errorMessage === undefined || thread.errorMessage === input.errorMessage
+            : thread.errorMessage === undefined)
         ) {
           return thread;
         }
@@ -813,8 +816,10 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
         );
 
         changed = true;
+        const threadWithoutErrorMessage = { ...thread };
+        delete threadWithoutErrorMessage.errorMessage;
         return {
-          ...thread,
+          ...threadWithoutErrorMessage,
           status: effectiveStatus,
           attention: effectiveAttention,
           config: nextConfig,
@@ -827,7 +832,9 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
           ...(input.sessionConfigOptions !== undefined
             ? { sessionConfigOptions: input.sessionConfigOptions }
             : {}),
-          ...(input.errorMessage !== undefined ? { errorMessage: input.errorMessage } : {}),
+          ...(effectiveStatus === "error" && nextErrorMessage !== undefined
+            ? { errorMessage: nextErrorMessage }
+            : {}),
           ...(turnStarted ? { updatedAt: nowIso } : {}),
           ...(activityClearsDone ? { done: false, doneAt: undefined } : {}),
           ...nextTurnTiming,
@@ -1248,6 +1255,8 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
             snapshot.sessionConfigOptions !== undefined &&
             JSON.stringify(thread.sessionConfigOptions) !==
               JSON.stringify(snapshot.sessionConfigOptions);
+          const nextErrorMessage =
+            runtime.status === "error" ? (snapshot.errorMessage ?? thread.errorMessage) : undefined;
 
           if (
             thread.status === runtime.status &&
@@ -1255,7 +1264,9 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
             isThreadConfigEqual(thread.config, nextConfig) &&
             thread.canResumeWithConfig === snapshot.canResumeWithConfig &&
             thread.threadStatusSource === snapshot.threadStatusSource &&
-            thread.errorMessage === snapshot.errorMessage &&
+            (runtime.status === "error"
+              ? snapshot.errorMessage === undefined || thread.errorMessage === snapshot.errorMessage
+              : thread.errorMessage === undefined) &&
             thread.activeTurnStartedAt === nextTurnTiming.activeTurnStartedAt &&
             thread.lastTurnStartedAt === nextTurnTiming.lastTurnStartedAt &&
             thread.lastTurnEndedAt === nextTurnTiming.lastTurnEndedAt &&
@@ -1274,8 +1285,10 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
           );
 
           changed = true;
+          const threadWithoutErrorMessage = { ...thread };
+          delete threadWithoutErrorMessage.errorMessage;
           return {
-            ...thread,
+            ...threadWithoutErrorMessage,
             status: runtime.status,
             attention: runtime.attention,
             config: nextConfig,
@@ -1283,7 +1296,9 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
             ...(snapshot.threadStatusSource !== undefined
               ? { threadStatusSource: snapshot.threadStatusSource }
               : {}),
-            ...(snapshot.errorMessage !== undefined ? { errorMessage: snapshot.errorMessage } : {}),
+            ...(runtime.status === "error" && nextErrorMessage !== undefined
+              ? { errorMessage: nextErrorMessage }
+              : {}),
             ...(snapshot.sessionRef ? { sessionRef: snapshot.sessionRef } : {}),
             ...(snapshot.slashCommands !== undefined
               ? { slashCommands: snapshot.slashCommands }

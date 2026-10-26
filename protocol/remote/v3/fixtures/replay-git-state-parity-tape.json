@@ -867,6 +867,7 @@
   },
   "sequencing": {
     "outOfBandTypes": [
+      "agent-vision-frame",
       "browser-state",
       "browser-frame",
       "browser-mirror-status",

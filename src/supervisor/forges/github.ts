@@ -1,15 +1,19 @@
-import type {
-  ForgeEditPrPayload,
-  ForgeEditPrCommentPayload,
-  ForgeRepository,
-  GhCreatePrPayload,
-  PrMergeMethod,
-  PrData,
-  PrReviewDecision,
-  ProjectLocation,
+import {
+  PR_REACTION_CONTENTS,
+  type ForgeEditPrPayload,
+  type ForgeEditPrCommentPayload,
+  type ForgeRepository,
+  type ForgeReviewDraftComment,
+  type ForgeReviewerRef,
+  type GhCreatePrPayload,
+  type PrMergeMethod,
+  type PrData,
+  type PrReactionContent,
+  type PrReviewDecision,
+  type ProjectLocation,
 } from "@/shared/contracts";
 import { GitHubService } from "../github";
-import type { ForgeReviewAdapter } from "./types";
+import { unsupported, type ForgeReviewAdapter } from "./types";
 
 export class GitHubReview implements ForgeReviewAdapter {
   constructor(
@@ -29,7 +33,7 @@ export class GitHubReview implements ForgeReviewAdapter {
       },
     };
   }
-  async list(state: "open" | "all", branch?: string) {
+  async list(state: "open" | "all" | "closed" | "merged", branch?: string) {
     if (branch) {
       const pr = await this.service.getPrForBranch(this.location, branch);
       return pr
@@ -45,16 +49,7 @@ export class GitHubReview implements ForgeReviewAdapter {
           ]
         : [];
     }
-    if (state === "all")
-      return Object.entries(await this.service.listPrs(this.location)).map(([headBranch, pr]) => ({
-        pr: this.withSource(pr),
-        headBranch,
-        additions: 0,
-        deletions: 0,
-        repository: this.source.repository,
-        reviewRequested: false,
-      }));
-    const result = await this.service.listPullRequests(this.location);
+    const result = await this.service.listPullRequests(this.location, state);
     if (result.viewerLogin)
       this.source.account = { forge: "github", host: this.source.host, login: result.viewerLogin };
     return result.pullRequests.map((r) => ({ ...r, pr: this.withSource(r.pr) }));
@@ -85,7 +80,8 @@ export class GitHubReview implements ForgeReviewAdapter {
     return this.service.setPrFileViewed(this.location, number, path, viewed);
   }
   async checks(number: number) {
-    return (await this.service.getPrDetails(this.location, number)).details.checks;
+    return (await this.service.getPrDetails(this.location, number, { metadata: false })).details
+      .checks;
   }
   async threads(number: number) {
     return (await this.service.getPrReviewThreads(this.location, number)).threads;
@@ -126,12 +122,47 @@ export class GitHubReview implements ForgeReviewAdapter {
   merge(number: number, method: PrMergeMethod, expectedHeadSha?: string) {
     return this.service.mergePr(this.location, number, method, false, expectedHeadSha);
   }
-  setState(number: number, state: "closed" | "open" | "ready") {
+  setState(number: number, state: "closed" | "open" | "ready" | "draft") {
     return state === "closed"
       ? this.service.closePr(this.location, number)
       : state === "open"
         ? this.service.reopenPr(this.location, number)
-        : this.service.markPrReady(this.location, number);
+        : state === "draft"
+          ? this.service.markPrDraft(this.location, number)
+          : this.service.markPrReady(this.location, number);
+  }
+  labelCandidates() {
+    return this.service.prMetadata(this.location).labelCandidates();
+  }
+  setLabels(number: number, add: string[], remove: string[]) {
+    return this.service.prMetadata(this.location).setLabels(number, add, remove);
+  }
+  reviewerCandidates(number: number, query?: string) {
+    return this.service.prMetadata(this.location).reviewerCandidates(number, query);
+  }
+  requestReviewers(number: number, add: ForgeReviewerRef[], remove: ForgeReviewerRef[]) {
+    const owner = this.source.repository.split("/")[0]!;
+    return this.service.prMetadata(this.location).requestReviewers(number, owner, add, remove);
+  }
+  commitDiff(_number: number, commit: string) {
+    return this.service.prMetadata(this.location).commitDiff(commit);
+  }
+  react(number: number, subjectId: string | undefined, content: string, reacted: boolean) {
+    if (!PR_REACTION_CONTENTS.includes(content as PrReactionContent)) unsupported(this.source);
+    return this.service
+      .prMetadata(this.location)
+      .react(number, subjectId, content as PrReactionContent, reacted);
+  }
+  submitDraft(
+    number: number,
+    input: {
+      decision: PrReviewDecision;
+      body: string;
+      headSha: string;
+      comments: ForgeReviewDraftComment[];
+    },
+  ) {
+    return this.service.prMetadata(this.location).submitDraft(number, input);
   }
   updateBranch(number: number, rebase: boolean) {
     return this.service.updatePrBranch(this.location, number, rebase);

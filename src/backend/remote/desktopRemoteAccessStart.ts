@@ -242,6 +242,7 @@ export async function performDesktopRemoteAccessStart(
     setImageCardVariantGenerator(options.imageCardVariantGenerator ?? null);
     const server: RemoteAccessServer = new RemoteAccessServer({
       ...(options.deviceWorkspace ? { deviceWorkspace: options.deviceWorkspace } : {}),
+      ...(options.readAgentVision ? { readAgentVision: options.readAgentVision } : {}),
       appVersion: options.appVersion,
       ...(options.environments
         ? environmentRemoteAccessOptions(options.environments, authStore, () => {

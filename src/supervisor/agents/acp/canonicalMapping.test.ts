@@ -449,6 +449,48 @@ describe("mapAcpSessionUpdate", () => {
     expect(state.goalItemId).toBeUndefined();
   });
 
+  it("preserves an explicitly empty lastReason to clear a stale summary", () => {
+    const state = createAcpMapperState("t-goal-reason");
+    mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "agent_message_chunk",
+        content: { type: "text", text: "" },
+        _meta: {
+          [PORACODE_ACP_GOAL_META_KEY]: {
+            action: "set",
+            objective: "Wait for input",
+            status: "paused",
+            lastReason: "Waiting for a file",
+          },
+        },
+      } as SessionNotification["update"]),
+      state,
+    );
+
+    const itemId = state.goalItemId!;
+    const updated = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "agent_message_chunk",
+        content: { type: "text", text: "" },
+        _meta: {
+          [PORACODE_ACP_GOAL_META_KEY]: {
+            action: "updated",
+            objective: "Wait for input",
+            status: "paused",
+            lastReason: "",
+          },
+        },
+      } as SessionNotification["update"]),
+      state,
+    );
+
+    expect(updated[0]).toMatchObject({
+      type: "item.updated",
+      itemId,
+      payload: { lastReason: "" },
+    });
+  });
+
   it("clears an active canonical ACP goal item", () => {
     const state = createAcpMapperState("t-goal-clear");
     mapAcpSessionUpdate(
