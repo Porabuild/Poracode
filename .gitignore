@@ -63,3 +63,6 @@ website/out/
 
 # Per-developer agent settings
 .claude/settings.local.json
+tui/node_modules/
+tui/dist/
+tui/**/*.tsbuildinfo

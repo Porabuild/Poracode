@@ -10,6 +10,7 @@ import {
 import { friendlyError } from "@/shared/messages";
 import { applyOptimisticRequestResolution } from "@/renderer/state/runtimeRequestActions";
 import type { OpenRuntimeRequest } from "@/renderer/state/slices/runtimeEventSlice";
+import { buildUserInputFormDismissResponse } from "@/shared/runtimeRequestForms";
 import { ItemMarkdown } from "../ChatPane/parts/items/ItemMarkdown";
 import { ThreadDockSection } from "../ThreadDockUI";
 import {
@@ -271,7 +272,7 @@ export function ThreadRuntimeRequestPanel(props: ThreadRuntimeRequestPanelProps)
           controller={userInputFormController}
           isDisabled={resolving}
           isPending={pendingOutcome === "answered"}
-          onDecline={() => submitRaw({ action: "cancel" }, "cancelled")}
+          onDecline={() => submitRaw(buildUserInputFormDismissResponse(), "cancelled")}
           onSubmit={(response, outcome) => submitRaw(response, outcome)}
         />
       ) : isQuestion ? (

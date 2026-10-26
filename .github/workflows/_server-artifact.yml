@@ -41,6 +41,11 @@ on:
         required: false
         type: number
         default: 7
+      tui_manifest:
+        description: "Stage the tui-manifest artifact into resources/tui for the tarball"
+        required: false
+        type: boolean
+        default: false
     outputs:
       version:
         description: "Version embedded in the qualified artifacts"
@@ -153,6 +158,13 @@ jobs:
             -v "$PWD":/work -w /armbuild node:24-bookworm \
             sh -c "cp -R /work/dist/server-native-cross/node-pty /armbuild/np && cd /armbuild/np && node -p 'require(\"node-addon-api\").include_dir' >/dev/null && rm -rf build && npm rebuild --offline && cp build/Release/pty.node /work/dist/server-native-cross/linux-arm64/pty.node"
         shell: bash
+
+      - name: Stage the TUI download manifest
+        if: ${{ inputs.tui_manifest }}
+        uses: actions/download-artifact@v8
+        with:
+          name: tui-manifest
+          path: resources/tui
 
       - name: Build and assemble the server artifact
         env:

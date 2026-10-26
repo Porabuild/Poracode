@@ -268,17 +268,13 @@ export interface RuntimeEventSlice {
   upsertThreadFileCheckpointTurn(threadId: string, checkpoint: FileCheckpointTurn): void;
 }
 
+import { getRuntimeItemPayload } from "@/shared/checkpointRevert";
 /**
  * Typed accessor for a runtime item's payload. Returns `undefined` when the
  * item is the wrong canonical type, so chat-part components can treat the
  * cast as validated rather than blind.
  */
-export function getRuntimeItemPayload<T>(
-  item: RuntimeChatItem,
-  expectedType: CanonicalItemType,
-): T | undefined {
-  return item.type === expectedType ? (item.payload as T | undefined) : undefined;
-}
+export { getRuntimeItemPayload };
 
 /**
  * Fresh per-thread runtime maps. Extracted so a full reset (e.g. the mobile

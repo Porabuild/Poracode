@@ -1,0 +1,18 @@
+diff --git a/packages/util/src/global.ts b/packages/util/src/global.ts
+index 5fe51f8..6370330 100644
+--- a/packages/util/src/global.ts
++++ b/packages/util/src/global.ts
+@@ -76,7 +76,12 @@ const acquire = (input: Partial<Interface>) =>
+ 
+ const layer = Layer.effect(
+   Service,
+-  Effect.suspend(() => acquire({ config: process.env.OPENCODE_CONFIG_DIR ?? Path.config })),
++  Effect.suspend(() =>
++    acquire({
++      // poracode: Do not let the OpenCode-only override escape the isolated TUI config root.
++      config: process.env.PORACODE_TUI_HOME ? Path.config : (process.env.OPENCODE_CONFIG_DIR ?? Path.config),
++    }),
++  ),
+ )
+ 
+ export const node = makeGlobalNode({ service: Service, layer: layer, deps: [] })

@@ -1,9 +1,4 @@
-import type {
-  BuiltInMcpDisabledTools,
-  BuiltInMcpServerDisabled,
-  Project,
-  Thread,
-} from "@/shared/contracts";
+import type { Project, Thread } from "@/shared/contracts";
 import { getBasename } from "@/shared/pathUtils";
 import { normalizeWorktreePathForComparison } from "@/shared/worktree";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -24,15 +19,8 @@ export type ThreadMentionScope =
  * launch-time half of the answer, from the same settings the launch snapshot is
  * resolved from. A live session's own snapshot is the other half.
  */
-export function readThreadToolEnabled(settings: {
-  disabledBuiltInMcpServers: BuiltInMcpServerDisabled;
-  disabledBuiltInMcpTools: BuiltInMcpDisabledTools;
-}): boolean {
-  return (
-    settings.disabledBuiltInMcpServers["app-controls"] !== true &&
-    !(settings.disabledBuiltInMcpTools["app-controls"] ?? []).includes("read_thread")
-  );
-}
+import { readThreadToolEnabled } from "@/shared/providerHandoff";
+export { readThreadToolEnabled };
 
 function recencyValue(updatedAt: string): number {
   const value = Date.parse(updatedAt);

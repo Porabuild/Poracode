@@ -1,5 +1,9 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
+public enum WebSocketClientMessageU2DOptionU2D4U2DType_64570e2249: String, Codable, Sendable {
+  case `browserU2DInput` = "browser-input"
+}
+
 public struct WebSocketClientMessageU2DOptionU2D4_d550ef9994: Codable, Sendable, RemoteModelMetadata {
   public var input: WebSocketClientMessageU2DOptionU2D4U2DInput_2c0b30d69c
   public var typeValue: WebSocketClientMessageU2DOptionU2D4U2DType_64570e2249

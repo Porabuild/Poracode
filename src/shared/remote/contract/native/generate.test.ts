@@ -76,7 +76,8 @@ describe("remote v3 native binding generator", () => {
         // their native mirrors; native adoption stays planned in native-parity.json.
         // Source-host reviews add one route, twenty-four procedures, and their native mirrors;
         // device workspaces add fourteen routes; saved-message search and fork instructions add roots.
-        sourceHash: "sha256:f6d9164e35a330e97c3d1113c1f2a7fbf31146d1d183eb4a7f4357cdb1d07c73",
+        // Optional sessionId on the token-exchange result moves the source hash only.
+        sourceHash: "sha256:2a62bd8366a3f862ea8d79aad754c82be41f54fcc385594de8916d1d3fb02ef5",
         manifestHash: "sha256:ec54bd073c141e96aa6a0217251754ff1f4f8bcb1b267d582dad19b02621ae89",
         counts: {
           routes: 118,

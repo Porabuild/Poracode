@@ -1,5 +1,13 @@
 import { createHash } from "node:crypto";
-import { chmodSync, cpSync, lstatSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  cpSync,
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  readFileSync,
+  writeFileSync,
+} from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { readRuntimeClosure } from "./runtime-closure.mjs";
@@ -56,6 +64,16 @@ export function prepareDesktopCli(options) {
       "\n",
   );
   publish(`${DESKTOP_CLI_PREFIX}/resources/.desktop-cli-v1`, "1\n");
+  // The TUI binary manifest is the download trust root inside the packaged
+  // CLI layout; absent manifests resolve to a clear "not available" error.
+  const tuiManifestPath =
+    options.tuiManifestPath ?? join(options.stageRoot, "resources", "tui", "manifest.json");
+  if (existsSync(tuiManifestPath)) {
+    const tuiManifest = readFileSync(tuiManifestPath, "utf8");
+    if (JSON.parse(tuiManifest)?.formatVersion !== 1)
+      throw new Error(`Invalid TUI manifest at ${tuiManifestPath}`);
+    publish(`${DESKTOP_CLI_PREFIX}/resources/tui/manifest.json`, tuiManifest);
+  }
   // The same renderer the desktop packages already supports browser bootstrap;
   // keep the CLI on those exact bytes instead of choosing a stale second build.
   cpSync(options.rendererDir, join(prefix, "renderer"), { recursive: true, dereference: false });

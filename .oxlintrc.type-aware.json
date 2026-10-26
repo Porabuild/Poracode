@@ -13,5 +13,5 @@
     "typescript/no-misused-spread": "error",
     "typescript/only-throw-error": "error"
   },
-  "ignorePatterns": ["dist", "node_modules"]
+  "ignorePatterns": ["dist", "node_modules", "tui/**"]
 }

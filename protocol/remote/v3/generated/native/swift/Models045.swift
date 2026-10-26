@@ -236,12 +236,13 @@ public enum RoutetokenU2DExchangeResponseU2DTokenType_7c8fd050dd: String, Codabl
   case `bearer` = "Bearer"
 }
 
-public struct RoutetokenU2DExchangeResponse_6da7b36735: Codable, Sendable, RemoteModelMetadata {
+public struct RoutetokenU2DExchangeResponse_22f14841c0: Codable, Sendable, RemoteModelMetadata {
   public var accessToken: String
   public var expiresAt: String
   public var refreshToken: RemoteField<String> = .missing
   public var refreshTokenExpiresAt: RemoteField<String> = .missing
   public var scopes: [String]
+  public var sessionId: RemoteField<String> = .missing
   public var tokenType: RoutetokenU2DExchangeResponseU2DTokenType_7c8fd050dd
   public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
   public static let fields: [RemoteFieldDescriptor] = [
@@ -250,6 +251,7 @@ public struct RoutetokenU2DExchangeResponse_6da7b36735: Codable, Sendable, Remot
     .init(wireName: "refreshToken", typeName: "String", required: false, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "refreshTokenExpiresAt", typeName: "String", required: false, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "scopes", typeName: "[String]", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "sessionId", typeName: "String", required: false, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "tokenType", typeName: "RoutetokenU2DExchangeResponseU2DTokenType_7c8fd050dd", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
   ]
   public static let semanticValidatorIds: [String] = []
@@ -259,6 +261,7 @@ public struct RoutetokenU2DExchangeResponse_6da7b36735: Codable, Sendable, Remot
     case refreshToken = "refreshToken"
     case refreshTokenExpiresAt = "refreshTokenExpiresAt"
     case scopes = "scopes"
+    case sessionId = "sessionId"
     case tokenType = "tokenType"
   }
 }
@@ -443,8 +446,4 @@ public enum WebSocketClientMessageU2DOptionU2D4U2DInput_2c0b30d69c: Codable, Sen
     case .option4(let value): try container.encode(value)
     }
   }
-}
-
-public enum WebSocketClientMessageU2DOptionU2D4U2DType_64570e2249: String, Codable, Sendable {
-  case `browserU2DInput` = "browser-input"
 }

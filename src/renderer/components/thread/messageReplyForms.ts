@@ -1,11 +1,7 @@
 import type { MessageItemPayload, QuestionAnswerItemPayload } from "@/shared/contracts";
 import type { AppStoreState } from "@/renderer/state/slices/shared";
-import {
-  getRuntimeItemPayload,
-  type RuntimeChatItem,
-} from "@/renderer/state/slices/runtimeEventSlice";
+import { getRuntimeItemPayload } from "@/renderer/state/slices/runtimeEventSlice";
 import { readThreadInputDelivery } from "@/renderer/state/threadInputDelivery";
-import { isMessageReplyFormFallbackText } from "@/shared/messageReplyForm";
 import { readMessageReplyAnswer } from "./ChatPane/parts/items/messageReplyAnswerPayload";
 
 const EMPTY_IDS: readonly string[] = Object.freeze([]);
@@ -102,8 +98,6 @@ export function selectMessageReplyState(
   return messageReplyForms(state, threadId).replyStates.get(itemId) ?? "none";
 }
 
+import { isMessageReplyFormFallback } from "@/shared/checkpointRevert";
 /** Generated question text belongs to the composer; independent assistant context stays in chat. */
-export function isMessageReplyFormFallback(item: RuntimeChatItem, text: string): boolean {
-  const form = getRuntimeItemPayload<MessageItemPayload>(item, "assistant_message")?.replyForm;
-  return !item.parentItemId && isMessageReplyFormFallbackText(form, text);
-}
+export { isMessageReplyFormFallback };

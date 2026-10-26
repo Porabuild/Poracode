@@ -648,6 +648,9 @@ export const remoteAccessTokenResultSchema = z.object({
   refreshToken: z.string().min(1).optional(),
   /** Absolute ISO expiry of `refreshToken` when it is present. */
   refreshTokenExpiresAt: z.string().min(1).optional(),
+  // The created access-session id; lets a re-pairing client revoke its own
+  // previous session exactly (TUI session.json). Older hosts omit it.
+  sessionId: z.string().min(1).optional(),
 });
 export type RemoteAccessTokenResult = z.infer<typeof remoteAccessTokenResultSchema>;
 

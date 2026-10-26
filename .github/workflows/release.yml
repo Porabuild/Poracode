@@ -105,7 +105,7 @@ jobs:
 
   # ── Step 2: Build installers for each platform ───────────────────
   build:
-    needs: prepare
+    needs: [prepare, tui_manifest]
     if: ${{ !inputs.dry_run }}
     uses: ./.github/workflows/_build.yml
     with:
@@ -113,6 +113,7 @@ jobs:
       version: ${{ needs.prepare.outputs.version }}
       channel: stable
       sentry_environment: production
+      tui_manifest: true
     secrets:
       MAC_CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
       MAC_CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
@@ -121,21 +122,86 @@ jobs:
       APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
       SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
 
+  # ── Step 2c: Compile the per-target TUI binaries ─────────────────
+  # bun build --compile embeds the target's @opentui/core-<platform-arch>
+  # native library; every requested platform package must be installed
+  # (tui/bunfig.toml supportedArchitectures). Linux ships the glibc build.
+  tui_binaries:
+    needs: prepare
+    if: ${{ !inputs.dry_run }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: windows-latest, targets: "win32-x64,win32-arm64", family: windows }
+          - { os: macos-15, targets: "darwin-x64,darwin-arm64", family: darwin }
+          - { os: ubuntu-latest, targets: "linux-x64,linux-arm64", family: linux }
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.prepare.outputs.source_ref }}
+      - name: Setup Bun
+        uses: ./.github/actions/setup-bun
+      - name: Install JavaScript dependencies
+        run: bun install --frozen-lockfile --ignore-scripts && node node_modules/bun/install.js
+      - name: Install TUI workspace dependencies
+        run: bun install --cwd tui --frozen-lockfile
+      - name: Build TUI binaries
+        run: bun scripts/build-tui.mjs --targets "${{ matrix.targets }}" --require
+      - name: Upload TUI binaries
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: poracode-tui-${{ matrix.family }}
+          path: dist/tui/
+
+  # Merge every target's binary into one sha256/size manifest — the trust root
+  # staged inside the server tarball and desktop CLI resources.
+  tui_manifest:
+    needs: [prepare, tui_binaries]
+    if: ${{ !inputs.dry_run }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.prepare.outputs.source_ref }}
+      - name: Setup Bun
+        uses: ./.github/actions/setup-bun
+      - name: Download TUI binaries
+        uses: actions/download-artifact@v8
+        with:
+          pattern: poracode-tui-*
+          path: dist/tui
+          merge-multiple: true
+      - name: Generate the TUI manifest
+        run: |
+          bun scripts/build-tui.mjs --manifest-only --manifest-out resources/tui/manifest.json
+          test -f resources/tui/manifest.json
+      - name: Upload TUI manifest
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: tui-manifest
+          path: resources/tui/manifest.json
+
   # ── Step 2b: Build and qualify the standalone server artifact ────
   # Plan D3: the release promotes the exact bytes this job qualified; it never
   # rebuilds the tarball after tests.
   server_artifact:
-    needs: prepare
+    needs: [prepare, tui_manifest]
     if: ${{ !inputs.dry_run }}
     uses: ./.github/workflows/_server-artifact.yml
     with:
       ref: ${{ needs.prepare.outputs.source_ref }}
       version: ${{ needs.prepare.outputs.version }}
       artifact_name: poracode-server-artifact
+      tui_manifest: true
 
   # ── Step 3: Create GitHub Release with auto-generated notes ──────
   release:
-    needs: [prepare, build, server_artifact]
+    needs: [prepare, build, server_artifact, tui_binaries]
     if: ${{ !inputs.dry_run }}
     runs-on: ubuntu-latest
 
@@ -153,6 +219,18 @@ jobs:
           path: ${{ runner.temp }}/release-assets
           pattern: poracode-server-artifact-qualified-*
           merge-multiple: true
+
+      # The per-target compiled TUI binaries ship as release assets; the CLI
+      # downloads and verifies them against the staged manifest on first use.
+      - name: Download the TUI binaries
+        uses: actions/download-artifact@v8
+        with:
+          path: ${{ runner.temp }}/release-assets
+          pattern: poracode-tui-*
+          merge-multiple: true
+
+      - name: Flatten TUI binaries into the asset root
+        run: find "${{ runner.temp }}/release-assets" -mindepth 2 -name 'poracode-tui-*' -type f -exec mv -f '{}' "${{ runner.temp }}/release-assets/" \;
 
       - name: List release assets
         run: ls -lh "${{ runner.temp }}/release-assets"
