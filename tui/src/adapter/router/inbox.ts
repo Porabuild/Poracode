@@ -1,9 +1,11 @@
+import { json } from "./helpers";
+import { logAdapterDebug } from "../diagnostics";
+import { sessionId, threadId } from "../ids";
+import type { SessionInboxListOutput, SessionInboxUser } from "@opencode/client";
 import { z } from "zod";
-import type { SessionInboxUser } from "@opencode/client";
 import { pendingSteerStateSchema, type PendingSteerState } from "@/shared/contracts";
 import { openCodeEvent } from "../events";
-import { sessionId } from "../ids";
-import type { RouterContext } from "./context";
+import type { RouteArgs, RouterContext } from "./context";
 
 export function createInbox(ctx: RouterContext) {
   const inboxKey = (rawThreadId: string, id: string) => `${rawThreadId}${id}`;
@@ -140,4 +142,161 @@ export function createInbox(ctx: RouterContext) {
     updateInboxQueue,
     seedInbox,
   };
+}
+
+/** Session inbox routes: GET list, DELETE + PATCH item. */
+export async function handleInboxRoutes({
+  ctx,
+  method,
+  path,
+  readBody,
+}: RouteArgs): Promise<Response | undefined> {
+  const {
+    input,
+    sessions,
+    cancelledInboxIds,
+    inboxKey,
+    inboxEntry,
+    inboxUserItem,
+    emitInboxEvent,
+    seedInbox,
+    cachedThreadById,
+  } = ctx;
+
+  const inboxMatch = path.match(/^\/api\/session\/([^/]+)\/inbox$/u);
+  if (inboxMatch && method === "GET") {
+    const rawThreadId = threadId(decodeURIComponent(inboxMatch[1]!));
+    await seedInbox(rawThreadId);
+    const entry = inboxEntry(rawThreadId);
+    const data: SessionInboxListOutput = [
+      ...(entry.steer ? [inboxUserItem(rawThreadId, entry.steer, "steer")] : []),
+      ...entry.queue.map((item) => inboxUserItem(rawThreadId, item, "queue")),
+    ];
+    return json({ data });
+  }
+  const inboxItemMatch = path.match(/^\/api\/session\/([^/]+)\/inbox\/([^/]+)$/u);
+  if (inboxItemMatch && method === "DELETE") {
+    const rawThreadId = threadId(decodeURIComponent(inboxItemMatch[1]!));
+    const inboxID = decodeURIComponent(inboxItemMatch[2]!);
+    const entry = inboxEntry(rawThreadId);
+    if (entry.steer?.id === inboxID) {
+      const dropped = entry.steer;
+      const key = inboxKey(rawThreadId, inboxID);
+      cancelledInboxIds.add(key);
+      try {
+        await input.client.clearPendingSteer(rawThreadId);
+      } finally {
+        if (entry.steer === dropped) entry.steer = null;
+        if (cancelledInboxIds.delete(key))
+          emitInboxEvent(rawThreadId, "session.inbox.cancelled", dropped, "steer");
+      }
+    } else {
+      const index = entry.queue.findIndex((item) => item.id === inboxID);
+      if (index >= 0) {
+        const key = inboxKey(rawThreadId, inboxID);
+        const dropped = entry.queue[index]!;
+        cancelledInboxIds.add(key);
+        try {
+          await input.client.callRemoteProcedure("removeQueuedThreadFollowUp", {
+            threadId: rawThreadId,
+            id: inboxID,
+          });
+        } finally {
+          if (entry.queue[index] === dropped) entry.queue.splice(index, 1);
+          if (cancelledInboxIds.delete(key))
+            emitInboxEvent(rawThreadId, "session.inbox.cancelled", dropped, "queue");
+        }
+      } else {
+        // Neither the current steer nor a queued item — a delivered
+        // prompt's inbox id looks exactly like this. 204 as a no-op;
+        // never clearPendingSteer blindly or an unrelated steer dies.
+        if (ctx.debug)
+          void logAdapterDebug(input.bootstrap.home, {
+            source: "inbox.delete",
+            threadId: rawThreadId,
+            inboxID,
+            resolution: "noop",
+          });
+      }
+    }
+    if (ctx.debug)
+      void logAdapterDebug(input.bootstrap.home, {
+        source: "inbox.delete",
+        threadId: rawThreadId,
+        inboxID,
+        resolution:
+          entry.steer?.id === inboxID
+            ? "steer"
+            : entry.queue.some((item) => item.id === inboxID)
+              ? "queue"
+              : "noop",
+      });
+    return new Response(null, { status: 204 });
+  }
+  if (inboxItemMatch && method === "PATCH") {
+    // session.inbox.update: change a pending item's delivery mode.
+    const rawThreadId = threadId(decodeURIComponent(inboxItemMatch[1]!));
+    const inboxID = decodeURIComponent(inboxItemMatch[2]!);
+    const body = await readBody();
+    const delivery =
+      body.delivery === "steer" || body.delivery === "queue" ? body.delivery : undefined;
+    if (!delivery)
+      return json(
+        { error: { code: "invalid_request", message: "delivery must be steer or queue" } },
+        400,
+      );
+    const entry = inboxEntry(rawThreadId);
+    const sessionID = sessionId(rawThreadId);
+    if (delivery === "steer" && entry.queue.some((item) => item.id === inboxID)) {
+      await input.client.callRemoteProcedure("steerQueuedThreadFollowUp", {
+        threadId: rawThreadId,
+        id: inboxID,
+      });
+      input.events.emit(
+        openCodeEvent(
+          "session.inbox.delivery.changed",
+          { sessionID, inboxID, delivery: "steer" },
+          {
+            durable: {
+              aggregateID: sessionID,
+              seq: input.events.nextDurableSequence(sessionID),
+              version: 1 as const,
+            },
+            location: { directory: input.bootstrap.directory },
+          },
+        ),
+      );
+    } else if (delivery === "queue" && entry.steer?.id === inboxID) {
+      const item = entry.steer;
+      const remoteThread = await cachedThreadById(rawThreadId);
+      await input.client.clearPendingSteer(rawThreadId);
+      await input.client.callRemoteProcedure("queueThreadFollowUp", {
+        threadId: rawThreadId,
+        prompt: item.prompt,
+        ...(item.segments ? { segments: item.segments } : {}),
+        config: remoteThread?.config ?? {
+          model: sessions.get(sessionID)?.model ?? "",
+          mode: "agent" as const,
+        },
+      });
+      entry.steer = null;
+      input.events.emit(
+        openCodeEvent(
+          "session.inbox.delivery.changed",
+          { sessionID, inboxID, delivery: "queue" },
+          {
+            durable: {
+              aggregateID: sessionID,
+              seq: input.events.nextDurableSequence(sessionID),
+              version: 1 as const,
+            },
+            location: { directory: input.bootstrap.directory },
+          },
+        ),
+      );
+    }
+    // Same delivery or unknown item: no-op per openapi.
+    return new Response(null, { status: 204 });
+  }
+  return undefined;
 }

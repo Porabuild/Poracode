@@ -1,8 +1,12 @@
-import { mintCheckpointOperationKey } from "@/shared/checkpointRevert";
+import {
+  findCheckpointBeforeUserMessage,
+  mintCheckpointOperationKey,
+} from "@/shared/checkpointRevert";
+import { json, record } from "./helpers";
+import { itemId, parseSubSessionId, threadId } from "../ids";
 import { openCodeEvent } from "../events";
-import { threadId } from "../ids";
 import { logAdapterDebug } from "../diagnostics";
-import type { RouterContext } from "./context";
+import type { RouteArgs, RouterContext } from "./context";
 
 export function createRevert(ctx: RouterContext) {
   const emitRevertEvent = (
@@ -60,4 +64,93 @@ export function createRevert(ctx: RouterContext) {
     return undefined;
   };
   return { emitRevertEvent, commitPendingRevert };
+}
+
+/** Revert stage/commit/clear/delete routes. */
+export async function handleRevertRoutes({
+  ctx,
+  method,
+  path,
+  readBody,
+}: RouteArgs): Promise<Response | undefined> {
+  const {
+    input,
+    pendingReverts,
+    emitRevertEvent,
+    commitPendingRevert,
+    listThreadItems,
+    isHiddenThread,
+  } = ctx;
+
+  const revertStageMatch = path.match(/^\/api\/session\/([^/]+)\/revert\/stage$/u);
+  if (revertStageMatch && method === "POST") {
+    const revertSession = decodeURIComponent(revertStageMatch[1]!);
+    const rawId = threadId(revertSession);
+    if (parseSubSessionId(revertSession))
+      return json({ error: { code: "read_only", message: "This session is read-only" } }, 400);
+    if (await isHiddenThread(rawId))
+      return json({ error: { code: "not_found", message: "Session not found" } }, 404);
+    const body = record(await readBody());
+    const userItemId = itemId(String(body.messageID ?? ""));
+    const items = await listThreadItems(rawId);
+    const itemsById = Object.fromEntries(items.map((item) => [item.id, item]));
+    const checkpointItemId = findCheckpointBeforeUserMessage(
+      items.map((item) => item.id),
+      itemsById,
+      userItemId,
+    );
+    if (!checkpointItemId)
+      return json(
+        {
+          error: {
+            code: "invalid_request",
+            message: "Nothing to undo before the first message.",
+          },
+        },
+        400,
+      );
+    // Stage only marks the boundary — the irreversible checkpointRevert
+    // runs on commit, which the vendored prompt sends before the next
+    // message. Until then /redo (clear) restores the view.
+    pendingReverts.set(revertSession, {
+      messageID: String(body.messageID ?? ""),
+      checkpointItemId,
+    });
+    emitRevertEvent("session.revert.staged", revertSession, {
+      revert: { messageID: String(body.messageID ?? "") },
+    });
+    if (ctx.debug)
+      void logAdapterDebug(input.bootstrap.home, {
+        source: "revert.stage",
+        threadId: rawId,
+        messageID: String(body.messageID ?? ""),
+        checkpointItemId,
+      });
+    // session.revert.stage declares 200 + SessionRevert — the vendored
+    // undo prefills the prompt from the staged message.
+    return json({ data: { messageID: String(body.messageID ?? "") } });
+  }
+  const revertEndMatch = path.match(/^\/api\/session\/([^/]+)\/revert\/(commit|clear)$/u);
+  if (revertEndMatch && method === "POST") {
+    const revertSession = decodeURIComponent(revertEndMatch[1]!);
+    if (revertEndMatch[2] === "commit" && pendingReverts.has(revertSession)) {
+      const failure = await commitPendingRevert(revertSession);
+      if (failure) return json({ error: failure.error }, failure.status);
+      return new Response(null, { status: 204 });
+    }
+    pendingReverts.delete(revertSession);
+    emitRevertEvent("session.revert.cleared", revertSession, {});
+    return new Response(null, { status: 204 });
+  }
+  // The generated client sends revert.clear as DELETE /session/{id}/revert.
+  const revertDeleteMatch = path.match(/^\/api\/session\/([^/]+)\/revert$/u);
+  if (revertDeleteMatch && method === "DELETE") {
+    const revertSession = decodeURIComponent(revertDeleteMatch[1]!);
+    pendingReverts.delete(revertSession);
+    emitRevertEvent("session.revert.cleared", revertSession, {});
+    return new Response(null, { status: 204 });
+  }
+  // Background tasks surface as vendored shells. Only the last progress
+  // snapshot is available — output pages read it as a byte range.
+  return undefined;
 }

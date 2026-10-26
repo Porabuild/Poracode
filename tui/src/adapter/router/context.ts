@@ -246,6 +246,54 @@ export interface RouterContext {
     body: Record<string, unknown>,
   ) => Promise<Response | { status: number; error: { code: string; message: string } }>;
 
+  // facade.ts — session options shape consumed by the plugin layer
+  sessionOptions: (session: string) => Promise<{
+    approvalPolicies: readonly { id: string; label: string }[];
+    sandboxModes: readonly { id: string; label: string }[];
+    fast: { offered: boolean; disabledReason: string | undefined };
+    thinking: { offered: boolean };
+    contextSizes: readonly { id: string; label: string }[];
+    defaults: { approvalPolicy: string | undefined; sandboxMode: string | undefined };
+  }>;
+  setSessionOptions: (
+    session: string,
+    choice: {
+      approvalPolicy?: string;
+      sandboxMode?: string;
+      fast?: boolean;
+      thinking?: boolean;
+      contextSize?: string;
+    },
+  ) => Promise<{ error: string; status: number } | { ok: true }>;
+  exportSession: (
+    session: string,
+    remoteThread?: Thread,
+  ) => Promise<{ info: SessionInfo; messages: unknown[] }>;
+
+  // remoteEvents.ts
+  handleRemoteEvent: (event: unknown) => void;
+
+  // facade.ts
+  offeredProviders: () => Promise<{ id: string; label: string; model: string | undefined }[]>;
+  threadFlags: (session: string) => Promise<{ starred: boolean; done: boolean } | undefined>;
+  setStarred: (
+    session: string,
+    starred: boolean,
+  ) => Promise<{ starred: boolean; done: boolean } | undefined>;
+  setDone: (
+    session: string,
+    done: boolean,
+  ) => Promise<{ starred: boolean; done: boolean } | undefined>;
+  resumeQueue: (session: string) => Promise<{ resumed: boolean }>;
+  sessionActions: (sessionID: string) => Promise<{ id: string }[]>;
+  invokeSessionAction: (sessionID: string, actionId: string) => Promise<unknown>;
+  archivedThreads: () => Promise<Thread[]>;
+  providerUsage: () => Promise<
+    Awaited<ReturnType<NonNullable<RemoteDesktopClient["providerUsage"]>>> | undefined
+  >;
+  startSideChat: (sessionID: string, question: string) => Promise<string>;
+  loginCandidates: () => Promise<{ kind: string; label: string; wslDistro?: string }[]>;
+
   // revert.ts
   emitRevertEvent: (
     type: "session.revert.staged" | "session.revert.cleared" | "session.revert.committed",
@@ -288,4 +336,5 @@ export type RouteArgs = {
   method: string;
   path: string;
   readBody: () => Promise<Record<string, unknown>>;
+  inputSummary: () => unknown;
 };
