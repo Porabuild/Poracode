@@ -356,6 +356,7 @@ export class RemoteAuthStore {
       scopes: [...requestedScopes],
       refreshToken,
       refreshTokenExpiresAt: toIso(refreshExpiresAtMs),
+      sessionId: session.id,
     };
   }
 
@@ -414,6 +415,7 @@ export class RemoteAuthStore {
       scopes: [...session.scopes],
       refreshToken,
       refreshTokenExpiresAt: toIso(session.refreshExpiresAtMs ?? rotated.expiresAtMs),
+      sessionId: rotated.id,
     };
   }
 

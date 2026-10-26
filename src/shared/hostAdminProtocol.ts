@@ -9,9 +9,14 @@ import { sessionExportCommandSchema } from "./contracts/sessionExport";
 import { hostProjectCommandSchema } from "./contracts/hostProjects";
 import {
   hostRunCommandSchema,
+  hostRunPreparationCommandSchema,
   hostRunResumePreparationCommandSchema,
   hostRunDirectoryCommandSchema,
+  hostRunDirectoryPreparationCommandSchema,
   hostRunFilesCommandSchema,
+  hostRunFilesPreparationCommandSchema,
+  hostRunFilesResumeCommandSchema,
+  hostRunFilesDirectoryCommandSchema,
   hostRunInteractiveCommandSchema,
 } from "./contracts/hostRun";
 import { customAcpAgentCommandSchema } from "./contracts/customAcpAgents";
@@ -81,6 +86,22 @@ export const HOST_ADMIN_V21_VERSION = 21;
 export const HOST_ADMIN_V22_VERSION = 22;
 // Qualify exact supervisor request-incarnation custody before interactive effects.
 export const HOST_ADMIN_V23_VERSION = 23;
+// Tool activity is an opt-in extension; v1-v23 callers retain the old event stream.
+export const HOST_ADMIN_V24_VERSION = 24;
+
+const hostRunToolEventsPreparationCommandSchema = z.union([
+  hostRunPreparationCommandSchema,
+  hostRunResumePreparationCommandSchema,
+  hostRunDirectoryPreparationCommandSchema,
+  hostRunFilesPreparationCommandSchema,
+  hostRunFilesResumeCommandSchema,
+  hostRunFilesDirectoryCommandSchema,
+  hostRunInteractiveCommandSchema.options[0],
+]);
+export const hostRunToolEventsCommandSchema = z.strictObject({
+  action: z.literal("run-tool-events-prepare"),
+  command: hostRunToolEventsPreparationCommandSchema,
+});
 export const hostAdminCustomAcpCommandSchema = z.strictObject({
   action: z.literal("custom-providers"),
   command: customAcpAgentCommandSchema,
@@ -528,7 +549,8 @@ export type HostAdminCommand =
   | z.infer<typeof hostRunResumePreparationCommandSchema>
   | z.infer<typeof hostRunDirectoryCommandSchema>
   | z.infer<typeof hostRunFilesCommandSchema>
-  | z.infer<typeof hostRunInteractiveCommandSchema>;
+  | z.infer<typeof hostRunInteractiveCommandSchema>
+  | z.infer<typeof hostRunToolEventsCommandSchema>;
 export const hostAdminV1RequestSchema = z.strictObject({
   adminVersion: z.literal(HOST_ADMIN_VERSION),
   command: hostAdminCommandSchema,
@@ -623,6 +645,10 @@ export const hostAdminRequestSchema = z.discriminatedUnion("adminVersion", [
     adminVersion: z.literal(HOST_ADMIN_V23_VERSION),
     command: hostRunInteractiveCommandSchema,
   }),
+  z.strictObject({
+    adminVersion: z.literal(HOST_ADMIN_V24_VERSION),
+    command: hostRunToolEventsCommandSchema,
+  }),
 ]);
 export type HostAdminRequest = z.infer<typeof hostAdminRequestSchema>;
 export function hostAdminRequest(command: HostAdminCommand): HostAdminRequest {
@@ -672,7 +698,10 @@ export function hostAdminRequest(command: HostAdminCommand): HostAdminRequest {
                                             ? HOST_ADMIN_V20_VERSION
                                             : hostRunFilesCommandSchema.safeParse(command).success
                                               ? HOST_ADMIN_V21_VERSION
-                                              : HOST_ADMIN_V23_VERSION,
+                                              : hostRunToolEventsCommandSchema.safeParse(command)
+                                                    .success
+                                                ? HOST_ADMIN_V24_VERSION
+                                                : HOST_ADMIN_V23_VERSION,
     command,
   });
 }
@@ -707,5 +736,6 @@ export const hostAdminResultSchema = z.discriminatedUnion("adminVersion", [
   hostAdminV1ResultSchema.extend({ adminVersion: z.literal(HOST_ADMIN_V21_VERSION) }),
   hostAdminV1ResultSchema.extend({ adminVersion: z.literal(HOST_ADMIN_V22_VERSION) }),
   hostAdminV1ResultSchema.extend({ adminVersion: z.literal(HOST_ADMIN_V23_VERSION) }),
+  hostAdminV1ResultSchema.extend({ adminVersion: z.literal(HOST_ADMIN_V24_VERSION) }),
 ]);
 export type HostAdminResult = z.infer<typeof hostAdminResultSchema>;

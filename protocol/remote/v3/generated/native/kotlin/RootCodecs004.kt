@@ -224,8 +224,8 @@ val RemoteRootCodecs.routeU2EThreadU2DTurnsU2EResponse: RemoteRootCodec<Routethr
 val RemoteRootCodecs.routeU2ETokenU2DExchangeU2ERequest: RemoteRootCodec<RoutetokenU2DExchangeRequest_39bc2baf33>
     get() = RemoteRootCodec("route.token-exchange.request", serializer<RoutetokenU2DExchangeRequest_39bc2baf33>(), schema_39bc2baf33179ca7)
 
-val RemoteRootCodecs.routeU2ETokenU2DExchangeU2EResponse: RemoteRootCodec<RoutetokenU2DExchangeResponse_6da7b36735>
-    get() = RemoteRootCodec("route.token-exchange.response", serializer<RoutetokenU2DExchangeResponse_6da7b36735>(), schema_6da7b367355578d7)
+val RemoteRootCodecs.routeU2ETokenU2DExchangeU2EResponse: RemoteRootCodec<RoutetokenU2DExchangeResponse_22f14841c0>
+    get() = RemoteRootCodec("route.token-exchange.response", serializer<RoutetokenU2DExchangeResponse_22f14841c0>(), schema_22f14841c064490b)
 
 val RemoteRootCodecs.routeU2EWebsocketU2DTicketU2EResponse: RemoteRootCodec<RouteenvironmentU2DWebsocketU2DTicketResponse_b9dfb5a053>
     get() = RemoteRootCodec("route.websocket-ticket.response", serializer<RouteenvironmentU2DWebsocketU2DTicketResponse_b9dfb5a053>(), schema_b9dfb5a053707da9)

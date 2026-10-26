@@ -13,7 +13,7 @@ object RemoteContractMetadata {
     const val protocolVersion = 14
     const val bindingFormatVersion = 2
     const val generatorVersion = 7
-    const val sourceHash = "sha256:027a9cf40de12ba9ee9cfc374b3352054ff15b65d23b6d682bf49b413d8522cd"
+    const val sourceHash = "sha256:e7b87d384696a2be90658d1b40a29c1a6b6638c0622e731dcd496c86c9373ec9"
     const val manifestHash = "sha256:18b76a337bdc91d98475d116d7501e948d79900013ffee2a34b1f4fa17cd1c3c"
     val validationBoundary = RemoteValidationBoundary.ROOT_CODEC_ONLY
     val generatedModelSerializationSemantics = RemoteGeneratedSerializerSemantics.NON_VALIDATING_REPRESENTATION_ONLY
@@ -136,7 +136,7 @@ object RemoteContractMetadata {
         RemoteRouteDescriptor("thread-steer-clear", "POST", "/api/threads/{threadId}/steer/clear", "bearer", listOf("session:operate"), "json", "json", 200, "RoutehostU2DUpdateU2DInstallResponse_81055c9199", "RoutedeviceU2DDetachResponse_badd682f35", listOf()),
         RemoteRouteDescriptor("thread-steer-set", "POST", "/api/threads/{threadId}/steer/set", "bearer", listOf("session:operate"), "json", "json", 200, "RoutethreadU2DSteerU2DSetRequest_0c65944950", "RoutedeviceU2DDetachResponse_badd682f35", listOf()),
         RemoteRouteDescriptor("thread-turns", "GET", "/api/threads/{threadId}/turns", "bearer", listOf("session:read"), "empty", "json", 200, "RemoteUnit", "RoutethreadU2DTurnsResponse_1f8c0bbd10", listOf(RemoteQueryParameterDescriptor("reads", "string", true, false), RemoteQueryParameterDescriptor("notices", "string", true, false), RemoteQueryParameterDescriptor("cursor", "string", true, false), RemoteQueryParameterDescriptor("limit", "int", true, false), RemoteQueryParameterDescriptor("completedTurnsLimit", "int", true, false), RemoteQueryParameterDescriptor("maxBytes", "int", true, false), RemoteQueryParameterDescriptor("maxDecodeBytes", "int", true, false))),
-        RemoteRouteDescriptor("token-exchange", "POST", "/oauth/token", "pairing-token", listOf(), "json", "json", 200, "RoutetokenU2DExchangeRequest_39bc2baf33", "RoutetokenU2DExchangeResponse_6da7b36735", listOf()),
+        RemoteRouteDescriptor("token-exchange", "POST", "/oauth/token", "pairing-token", listOf(), "json", "json", 200, "RoutetokenU2DExchangeRequest_39bc2baf33", "RoutetokenU2DExchangeResponse_22f14841c0", listOf()),
         RemoteRouteDescriptor("websocket-ticket", "POST", "/api/auth/websocket-ticket", "bearer", listOf("session:read"), "empty", "json", 200, "RemoteUnit", "RouteenvironmentU2DWebsocketU2DTicketResponse_b9dfb5a053", listOf()),
     )
     val procedures = listOf(

@@ -75005,6 +75005,10 @@
               },
               "type": "array"
             },
+            "sessionId": {
+              "minLength": 1,
+              "type": "string"
+            },
             "tokenType": {
               "const": "Bearer",
               "type": "string"
@@ -75088,7 +75092,7 @@
     "void-envelope.omit-result",
     "void-result.omit-field"
   ],
-  "sourceHash": "sha256:027a9cf40de12ba9ee9cfc374b3352054ff15b65d23b6d682bf49b413d8522cd",
+  "sourceHash": "sha256:e7b87d384696a2be90658d1b40a29c1a6b6638c0622e731dcd496c86c9373ec9",
   "unknownObjectFields": "ignore",
   "webSocket": {
     "clientMessages": [

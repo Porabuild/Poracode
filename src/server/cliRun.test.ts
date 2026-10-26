@@ -1,7 +1,10 @@
+import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { Readable, Writable } from "node:stream";
-import { resolve } from "node:path";
+import { join, resolve } from "node:path";
+import { tmpdir } from "node:os";
 import { deriveLocationFromPath } from "@/shared/createProject";
 import { expect, it, vi } from "vitest";
+import { HostControlUnsupportedOperationError } from "@/backend/ownership/hostControlClient";
 import type { HostAdminCommand } from "@/shared/hostAdminProtocol";
 import {
   hostAdminRequest,
@@ -10,12 +13,14 @@ import {
 } from "@/shared/hostAdminProtocol";
 import {
   hostRunEventSchema,
+  hostRunOptionsSchema,
   type HostRunEvent,
   type HostRunFinished,
 } from "@/shared/contracts/hostRun";
+import { TUI_HOME_DIRECTORY, TUI_LAST_MODEL_FILE_NAME } from "@/shared/tuiBootstrap";
 import { parseServerCliCommand } from "./cliParse";
 import { cliCommandHelp } from "./cliHelp";
-import { parseRunCli, runRunCli } from "./cliRun";
+import { parseRunCli, prepareRunCli, resolveRunCliDefaults, runRunCli } from "./cliRun";
 
 const metadata = {
   formatVersion: 1,
@@ -161,11 +166,13 @@ it("validates a file continuation's exact saved identity before sending start or
 
 it("keeps standalone lifetime local to the CLI and leaves both admin envelopes unchanged", () => {
   const fresh = parseRunCli([...args, "--standalone", "Explain"])!;
-  if (fresh.options) throw new Error("Expected a fresh run");
+  if (fresh.options || fresh.command.action !== "run-prepare")
+    throw new Error("Expected a fresh run");
   expect(fresh.standalone).toBe(true);
   expect(hostAdminRequest({ ...fresh.command, prompt: fresh.prompt! }).adminVersion).toBe(15);
   const saved = parseRunCli(["run", "--standalone", "--session", "thread", "Continue"])!;
-  if (saved.options) throw new Error("Expected a saved run");
+  if (saved.options || saved.command.action !== "run-resume-prepare")
+    throw new Error("Expected a saved run");
   expect(saved.standalone).toBe(true);
   expect(hostAdminRequest({ ...saved.command, prompt: saved.prompt! }).adminVersion).toBe(19);
   expect(parseRunCli([...args, "Explain"])!.standalone).toBe(false);
@@ -176,6 +183,10 @@ function fixture(
     { type: "text.delta", itemId: "reply", text: "Hello", replace: false },
     final,
   ],
+  available: {
+    readonly approvalPolicies?: { readonly id: string; readonly label: string }[];
+    readonly sandboxModes?: { readonly id: string; readonly label: string }[];
+  } = {},
 ) {
   const completed = Promise.withResolvers<unknown>();
   let output = "";
@@ -185,15 +196,24 @@ function fixture(
       callback();
     },
   });
+  let toolEvents = false;
   const request = vi.fn<(command: HostAdminCommand, signal?: AbortSignal) => Promise<unknown>>(
-    async (command) => {
+    async (requestCommand) => {
+      const command =
+        requestCommand.action === "run-tool-events-prepare"
+          ? requestCommand.command.action === "run-interactive-prepare"
+            ? requestCommand.command.command
+            : requestCommand.command
+          : requestCommand;
+      if (requestCommand.action === "run-tool-events-prepare") toolEvents = true;
+      const runMetadata = toolEvents ? { ...metadata, formatVersion: 2 } : metadata;
       if (
         command.action === "run-prepare" ||
         command.action === "run-resume-prepare" ||
         command.action === "run-files-prepare" ||
         command.action === "run-resume-files-prepare"
       )
-        return metadata;
+        return runMetadata;
       const project = (directory: string) => ({
         id: "project",
         name: "Fixture",
@@ -210,7 +230,7 @@ function fixture(
           scope: "controlled-directory-run",
           project: project(command.directory),
           created: true,
-          run: metadata,
+          run: runMetadata,
         };
       if (command.action === "run-options" || command.action === "run-directory-options") {
         const options = {
@@ -219,8 +239,8 @@ function fixture(
           projectId: command.action === "run-options" ? command.projectId : "project",
           agentKind: command.agentKind,
           models: [{ id: "model", label: "Model", efforts: ["high"] }],
-          approvalPolicies: [],
-          sandboxModes: [],
+          approvalPolicies: available.approvalPolicies ?? [],
+          sandboxModes: available.sandboxModes ?? [],
         };
         return command.action === "run-options"
           ? options
@@ -234,16 +254,16 @@ function fixture(
       }
       if (command.action === "run-start") return completed.promise;
       if (command.action === "run-cancel") {
-        completed.resolve({ ...metadata, result: final });
-        return { ...metadata, retired: true };
+        completed.resolve({ ...runMetadata, result: final });
+        return { ...runMetadata, retired: true };
       }
       if (command.action === "run-read") {
         completed.resolve({
-          ...metadata,
+          ...runMetadata,
           result: events.find((event) => event.type === "run.finished") ?? final,
         });
         return {
-          ...metadata,
+          ...runMetadata,
           cursor: command.cursor,
           nextCursor: command.cursor + events.length,
           events,
@@ -338,7 +358,7 @@ it("selects deliberate closed local v15 while preserving every earlier request e
   expect(hostAdminRequestSchema.safeParse({ adminVersion: 20, command }).success).toBe(false);
   expect(
     hostAdminResultSchema.safeParse({ adminVersion: 24, outcome: { ok: true, data: {} } }).success,
-  ).toBe(false);
+  ).toBe(true);
   expect(
     hostAdminRequestSchema.safeParse({
       adminVersion: 15,
@@ -534,10 +554,9 @@ it("reads continuation from bounded stdin and does not adopt or cancel a malform
     f.connect,
     f,
   );
-  expect(f.request.mock.calls[0]![0]).toEqual({
-    action: "run-resume-prepare",
-    threadId: "thread",
-    prompt: "Continue 世界",
+  expect(f.request.mock.calls[0]![0]).toMatchObject({
+    action: "run-tool-events-prepare",
+    command: { action: "run-resume-prepare", threadId: "thread" },
   });
   const mismatched = fixture();
   mismatched.request.mockResolvedValueOnce({ ...metadata, threadId: "foreign" });
@@ -566,6 +585,29 @@ it("preserves authoritative replacement semantics in text and versioned JSON out
   const events: HostRunEvent[] = [
     { type: "text.delta", itemId: "reply", text: "old", replace: false },
     { type: "text.delta", itemId: "reply", text: "New 世界", replace: true },
+    {
+      type: "tool.started",
+      itemId: "command",
+      itemType: "command_execution",
+      toolName: "bash",
+      inputSummary: "command and working directory omitted",
+    },
+    {
+      type: "tool.updated",
+      itemId: "command",
+      itemType: "command_execution",
+      toolName: "bash",
+      inputSummary: "command and working directory omitted",
+      outputSummary: "status running",
+    },
+    {
+      type: "tool.completed",
+      itemId: "command",
+      itemType: "command_execution",
+      toolName: "bash",
+      inputSummary: "command and working directory omitted",
+      outputSummary: "status completed; exit code 0",
+    },
     final,
   ];
   const text = fixture(events);
@@ -579,11 +621,42 @@ it("preserves authoritative replacement semantics in text and versioned JSON out
       .trim()
       .split("\n")
       .map((line) => JSON.parse(line)),
-  ).toEqual(events.map((event) => ({ ...metadata, ...event })));
+  ).toEqual(events.map((event) => ({ ...metadata, formatVersion: 2, ...event })));
+  expect(json.request.mock.calls[0]?.[0]).toMatchObject({
+    action: "run-tool-events-prepare",
+    command: { action: "run-prepare" },
+  });
   expect(json.request.mock.calls.at(-1)?.[0]).toEqual({
     action: "run-cancel",
     runId: metadata.runId,
   });
+});
+
+it("falls back to a legacy preparation when the owner refuses admin24", async () => {
+  const f = fixture([
+    { type: "text.delta", itemId: "reply", text: "Legacy", replace: false },
+    final,
+  ]);
+  const original = f.request.getMockImplementation()!;
+  f.request.mockImplementation(async (command, signal) => {
+    if (command.action === "run-tool-events-prepare")
+      throw new Error("This running owner does not support CLI administration.", {
+        cause: new HostControlUnsupportedOperationError(400),
+      });
+    return original(command, signal);
+  });
+  await runRunCli(parseRunCli([...args, "--format", "json", "Explain"])!, f.connect, f);
+  const lines = f
+    .output()
+    .trim()
+    .split("\n")
+    .map((line) => JSON.parse(line));
+  expect(lines.map((line) => line.type)).toEqual(["text.delta", "run.finished"]);
+  expect(lines.every((line) => line.formatVersion === 1)).toBe(true);
+  expect(f.request.mock.calls.map(([command]) => command.action)).toContain(
+    "run-tool-events-prepare",
+  );
+  expect(f.request.mock.calls.map(([command]) => command.action)).toContain("run-prepare");
 });
 
 it("reads a bounded UTF-8 stdin prompt before contacting the owner", async () => {
@@ -620,6 +693,228 @@ it("prints the selected runtime's options without preparing or starting a task",
     agentKind: "neutral",
   });
   expect(() => parseRunCli([...args, "--options"])).toThrow("accepts the project");
+});
+
+it("reads the pre-policy version-1 TUI selection and defaults the run through run-directory-options", async () => {
+  const profile = await mkdtemp(join(tmpdir(), "poracode-cli-run-defaults-"));
+  try {
+    const home = join(profile, TUI_HOME_DIRECTORY);
+    await mkdir(home, { recursive: true });
+    await writeFile(
+      join(home, TUI_LAST_MODEL_FILE_NAME),
+      JSON.stringify({
+        version: 1,
+        provider: "neutral",
+        model: "model",
+        effort: "high",
+        updatedAt: "2026-10-21T00:00:00.000Z",
+      }),
+    );
+    const input = await prepareRunCli(
+      ["run", "--directory", resolve("project"), "Reply with exactly: OK"],
+      profile,
+    );
+    if (!input || !("defaultSelection" in input) || !input.defaultSelection)
+      throw new Error("Expected a defaulted run selection");
+    expect(input.defaultSelection.lastModel).toMatchObject({
+      version: 1,
+      provider: "neutral",
+      model: "model",
+      effort: "high",
+    });
+    expect(input.defaultSelection.lastModel?.approvalPolicy).toBeUndefined();
+    expect(input.defaultSelection.lastModel?.sandboxMode).toBeUndefined();
+    const f = fixture();
+    await runRunCli(input, f.connect, f);
+    expect(f.request.mock.calls[0]?.[0]).toMatchObject({
+      action: "run-directory-options",
+      agentKind: "neutral",
+    });
+    expect(f.request.mock.calls[1]?.[0]).toMatchObject({
+      action: "run-directory-prepare",
+      agentKind: "neutral",
+      model: "model",
+      effort: "high",
+    });
+    expect(f.output()).toBe("Hello\n");
+  } finally {
+    await rm(profile, { recursive: true, force: true });
+  }
+});
+
+it("uses the first model when the saved provider differs and no safety choices are advertised", () => {
+  const options = hostRunOptionsSchema.parse({
+    formatVersion: 1,
+    scope: "controlled-run-options",
+    projectId: "project",
+    agentKind: "neutral",
+    models: [{ id: "first", label: "First", efforts: [] }],
+    approvalPolicies: [],
+    sandboxModes: [],
+  });
+  expect(
+    resolveRunCliDefaults(
+      {
+        target: { kind: "project", projectId: "project" },
+        provider: "neutral",
+        lastModel: {
+          version: 1,
+          provider: "previous-provider",
+          model: "removed-model",
+          effort: "high",
+          updatedAt: "2026-10-21T00:00:00.000Z",
+        },
+      },
+      options,
+    ),
+  ).toEqual({
+    model: "first",
+  });
+});
+
+it("uses saved TUI approval and sandbox values for the matching provider and model", () => {
+  const options = hostRunOptionsSchema.parse({
+    formatVersion: 1,
+    scope: "controlled-run-options",
+    projectId: "project",
+    agentKind: "neutral",
+    models: [{ id: "model", label: "Model", efforts: ["high"] }],
+    approvalPolicies: [{ id: "saved-ask", label: "Ask each time" }],
+    sandboxModes: [{ id: "saved-write", label: "Workspace write" }],
+  });
+  expect(
+    resolveRunCliDefaults(
+      {
+        target: { kind: "project", projectId: "project" },
+        provider: "neutral",
+        lastModel: {
+          version: 1,
+          provider: "neutral",
+          model: "model",
+          effort: "high",
+          approvalPolicy: "saved-ask",
+          sandboxMode: "saved-write",
+          updatedAt: "2026-10-21T00:00:00.000Z",
+        },
+      },
+      options,
+    ),
+  ).toEqual({
+    model: "model",
+    effort: "high",
+    approvalPolicy: "saved-ask",
+    sandboxMode: "saved-write",
+  });
+});
+
+it("gives explicit safety flags precedence over matching saved TUI values", () => {
+  const options = hostRunOptionsSchema.parse({
+    formatVersion: 1,
+    scope: "controlled-run-options",
+    projectId: "project",
+    agentKind: "neutral",
+    models: [{ id: "model", label: "Model", efforts: [] }],
+    approvalPolicies: [
+      { id: "saved-ask", label: "Saved ask" },
+      { id: "explicit-ask", label: "Explicit ask" },
+    ],
+    sandboxModes: [
+      { id: "saved-write", label: "Saved write" },
+      { id: "explicit-read", label: "Explicit read" },
+    ],
+  });
+  expect(
+    resolveRunCliDefaults(
+      {
+        target: { kind: "project", projectId: "project" },
+        provider: "neutral",
+        explicitModel: "model",
+        approvalPolicy: "explicit-ask",
+        sandboxMode: "explicit-read",
+        lastModel: {
+          version: 1,
+          provider: "neutral",
+          model: "model",
+          approvalPolicy: "saved-ask",
+          sandboxMode: "saved-write",
+          updatedAt: "2026-10-21T00:00:00.000Z",
+        },
+      },
+      options,
+    ),
+  ).toEqual({
+    model: "model",
+    approvalPolicy: "explicit-ask",
+    sandboxMode: "explicit-read",
+  });
+});
+
+it("refuses before run preparation when safety defaults are absent and lists advertised choices", async () => {
+  const profile = await mkdtemp(join(tmpdir(), "poracode-cli-run-safety-"));
+  try {
+    const home = join(profile, TUI_HOME_DIRECTORY);
+    await mkdir(home, { recursive: true });
+    await writeFile(
+      join(home, TUI_LAST_MODEL_FILE_NAME),
+      JSON.stringify({
+        version: 1,
+        provider: "neutral",
+        model: "model",
+        updatedAt: "2026-10-21T00:00:00.000Z",
+      }),
+    );
+    const input = await prepareRunCli(["run", "--project", "project", "Explain"], profile, {
+      oneShot: true,
+    });
+    if (!input || !("defaultSelection" in input) || !input.defaultSelection)
+      throw new Error("Expected a defaulted one-shot selection");
+    const f = fixture(undefined, {
+      approvalPolicies: [{ id: "on-request", label: "Ask before action" }],
+      sandboxModes: [{ id: "workspace-write", label: "Workspace write" }],
+    });
+    await expect(runRunCli(input, f.connect, f)).rejects.toThrow(
+      /Advertised --approval-policy choices: on-request \(Ask before action\)[\s\S]*Advertised --sandbox choices: workspace-write \(Workspace write\)/u,
+    );
+    expect(f.request.mock.calls.map(([command]) => command.action)).toEqual(["run-options"]);
+  } finally {
+    await rm(profile, { recursive: true, force: true });
+  }
+});
+
+it("requires a provider choice when neither the command nor the TUI has a last selection", async () => {
+  const profile = await mkdtemp(join(tmpdir(), "poracode-cli-run-no-default-"));
+  try {
+    await expect(
+      prepareRunCli(["run", "--directory", resolve("project"), "Explain"], profile),
+    ).rejects.toThrow(/poracode providers list/u);
+  } finally {
+    await rm(profile, { recursive: true, force: true });
+  }
+});
+
+it("keeps explicit run validation and rejects print-mode conflicts", () => {
+  const explicit = parseRunCli([...args, "Explain"]);
+  expect(explicit).toMatchObject({
+    options: false,
+    command: {
+      action: "run-prepare",
+      projectId: "project",
+      agentKind: "neutral",
+      model: "model",
+    },
+  });
+  expect(explicit && "defaultSelection" in explicit ? explicit.defaultSelection : undefined).toBe(
+    undefined,
+  );
+  expect(() =>
+    parseRunCli(["run", "--directory", "C:/repo", "--options", "Prompt"], { oneShot: true }),
+  ).toThrow("Supply one quoted prompt");
+  expect(() => parseRunCli(["run", "--options"], { oneShot: true })).toThrow(
+    "--print cannot be combined with --options",
+  );
+  expect(() => parseRunCli(["run", "--session", "thread", "Prompt"], { oneShot: true })).toThrow(
+    "--print cannot be combined with --session",
+  );
 });
 
 it.each(["", " ", "/clear"])(

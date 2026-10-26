@@ -1,0 +1,32 @@
+diff --git a/packages/tui/src/util/presentation.ts b/packages/tui/src/util/presentation.ts
+index eb24ad0..1255665 100644
+--- a/packages/tui/src/util/presentation.ts
++++ b/packages/tui/src/util/presentation.ts
+@@ -1,4 +1,5 @@
+-import { logo } from "../logo"
++// poracode: Poracode block art for the session epilogue.
++import { art } from "../logo"
+ 
+ const reset = "\x1b[0m"
+ const bold = "\x1b[1m"
+@@ -16,9 +17,9 @@ function wordmark(pad = "") {
+       })
+       .join("")
+ 
+-  return logo.left.map((line, index) => {
++  return art.left.map((line, index) => {
+     const left = draw(line, dim, "\x1b[38;5;235m", "\x1b[48;5;235m")
+-    const right = draw(logo.right[index] ?? "", reset, "\x1b[38;5;238m", "\x1b[48;5;238m")
++    const right = draw(art.right[index] ?? "", reset, "\x1b[38;5;238m", "\x1b[48;5;238m")
+     return `${pad}${left} ${right}`
+   })
+ }
+@@ -29,7 +30,7 @@ export function sessionEpilogue(input: { title: string; sessionID?: string }) {
+     ...wordmark("  "),
+     "",
+     `  ${weak("Session")}${bold}${input.title}${reset}`,
+-    `  ${weak("Continue")}${bold}opencode -s ${input.sessionID}${reset}`,
++    `  ${weak("Continue")}${bold}poracode tui --session ${input.sessionID}${reset}`,
+     "",
+   ].join("\n")
+ }

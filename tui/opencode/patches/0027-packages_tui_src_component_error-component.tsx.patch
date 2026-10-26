@@ -1,0 +1,145 @@
+diff --git a/packages/tui/src/component/error-component.tsx b/packages/tui/src/component/error-component.tsx
+index 48ad4b1..89d0355 100644
+--- a/packages/tui/src/component/error-component.tsx
++++ b/packages/tui/src/component/error-component.tsx
+@@ -6,6 +6,7 @@ import { useClipboard } from "../context/clipboard"
+ import { useExit } from "../context/exit"
+ import { useTuiApp } from "../context/runtime"
+ import { describeOS, describeTerminal } from "../util/system"
++import { BRAND } from "../brand"
+ 
+ export function ErrorComponent(props: { error: Error; reset: () => void; mode?: "dark" | "light" }) {
+   const term = useTerminalDimensions()
+@@ -14,40 +15,28 @@ export function ErrorComponent(props: { error: Error; reset: () => void; mode?:
+   const app = useTuiApp()
+   const [copyState, setCopyState] = createSignal<"idle" | "copied" | "failed">("idle")
+ 
+-  // Safe fallback palette per mode (mirrors theme/assets/opencode.json) since the
+-  // theme context may be the thing that crashed.
++  // poracode: keep fatal screens on the built-in brand palette if theme setup failed.
+   const isLight = props.mode === "light"
+-  const colors = isLight
+-    ? {
+-        bg: "#ffffff",
+-        element: "#f5f5f5",
+-        borderSubtle: "#d4d4d4",
+-        text: "#1a1a1a",
+-        muted: "#8a8a8a",
+-        primary: "#3b7dd8",
+-        onPrimary: "#ffffff",
+-        error: "#d1383d",
+-        success: "#3d9a57",
+-      }
+-    : {
+-        bg: "#0a0a0a",
+-        element: "#1e1e1e",
+-        borderSubtle: "#3c3c3c",
+-        text: "#eeeeee",
+-        muted: "#808080",
+-        primary: "#fab283",
+-        onPrimary: "#0a0a0a",
+-        error: "#e06c75",
+-        success: "#7fd88f",
+-      }
++  const palette = isLight ? BRAND.palette.light : BRAND.palette.dark
++  const colors = {
++    bg: palette.background,
++    element: palette.raised,
++    borderSubtle: palette.borderSubtle,
++    text: palette.foreground,
++    muted: palette.muted,
++    primary: palette.accent,
++    onPrimary: palette.accentForeground,
++    error: palette.danger,
++    success: palette.success,
++  }
+ 
+   const message = props.error.message || "An unknown error occurred."
+   const stack = props.error.stack || "No stack trace available."
+-  const issueURL = buildIssueURL(message, stack, app.version)
++  const report = buildCrashReport(message, stack, app.version)
+ 
+   const copyReport = () => {
+     void clipboard
+-      .write(issueURL.toString())
++      .write(report)
+       .then(() => setCopyState("copied"))
+       .catch(() => setCopyState("failed"))
+   }
+@@ -117,7 +106,7 @@ export function ErrorComponent(props: { error: Error; reset: () => void; mode?:
+         {/* Headline */}
+         <box flexDirection="column" alignItems="center" flexShrink={0}>
+           <text attributes={TextAttributes.BOLD} fg={colors.text}>
+-            OpenCode crashed
++            {BRAND.name} crashed
+           </text>
+           <Show when={showSubtext()}>
+             <text fg={colors.muted}>An unexpected error stopped the session.</text>
+@@ -205,12 +194,12 @@ export function ErrorComponent(props: { error: Error; reset: () => void; mode?:
+           <box flexDirection="column" alignItems="center" flexShrink={0}>
+             <text fg={colors.muted}>
+               {copyState() === "copied"
+-                ? "Report copied — paste it into a new GitHub issue."
++              ? "Report copied. Share it with the Poracode team."
+                 : copyState() === "failed"
+                   ? "Clipboard write failed. Try again or report the crash manually."
+-                  : "Copy the report and open a GitHub issue to help us fix this."}
++                  : "Copy the report to share it with the Poracode team."}
+             </text>
+-            <text fg={colors.muted}>OpenCode {app.version}</text>
++            <text fg={colors.muted}>{BRAND.name} {app.version}</text>
+           </box>
+         </Show>
+       </box>
+@@ -218,41 +207,14 @@ export function ErrorComponent(props: { error: Error; reset: () => void; mode?:
+   )
+ }
+ 
+-function buildIssueURL(message: string, stack: string, version: string) {
+-  // Field keys match the ids in .github/ISSUE_TEMPLATE/bug-report.yml so the issue
+-  // form opens pre-filled. Populating os/terminal/reproduce keeps the report past
+-  // the contributing-guidelines compliance check, which pushes for system info.
+-  const url = new URL("https://github.com/anomalyco/opencode/issues/new?template=bug-report.yml")
+-  url.searchParams.set("title", `TUI crash: ${message}`)
+-  url.searchParams.set("opencode-version", version)
+-  url.searchParams.set("os", describeOS())
+-  url.searchParams.set("terminal", describeTerminal())
+-  url.searchParams.set(
+-    "reproduce",
+-    "Reported automatically from the OpenCode crash screen. If you can, describe what you were doing when it crashed.",
+-  )
+-
+-  // Budget the stack against the fully URL-encoded length (not the raw length) so
+-  // the final link stays under GitHub's practical limit; flag truncation so a
+-  // clipped trace is obvious. searchParams.set handles encoding without throwing,
+-  // so measuring url.toString() is both correct and safe on any input.
+-  const MAX_URL_LENGTH = 6000
+-  const marker = "\n… (truncated)"
+-  const head = `The OpenCode TUI crashed with an unexpected error.\n\n**Error:** ${message}\n\n**Stack trace:**\n`
+-  const setBody = (body: string) => url.searchParams.set("description", head + "```\n" + body + "\n```")
+-
+-  setBody(stack)
+-  if (url.toString().length <= MAX_URL_LENGTH) return url
+-
+-  // Largest raw stack prefix whose encoded URL (with the marker) still fits.
+-  let lo = 0
+-  let hi = stack.length
+-  while (lo < hi) {
+-    const mid = Math.ceil((lo + hi) / 2)
+-    setBody(stack.slice(0, mid) + marker)
+-    if (url.toString().length <= MAX_URL_LENGTH) lo = mid
+-    else hi = mid - 1
+-  }
+-  setBody(stack.slice(0, lo) + marker)
+-  return url
++function buildCrashReport(message: string, stack: string, version: string) {
++  return [
++    `${BRAND.name} TUI crash report`,
++    `Version: ${version}`,
++    `OS: ${describeOS()}`,
++    `Terminal: ${describeTerminal()}`,
++    `Error: ${message}`,
++    "Stack trace:",
++    stack.slice(0, 6000),
++  ].join("\n")
+ }

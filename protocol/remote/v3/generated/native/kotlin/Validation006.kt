@@ -5,6 +5,10 @@ import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
+internal val schema_5ae95e3b3c8a9ee1: RemoteSchema by lazy {
+    RemoteSchema(type = "string", minLength = 1, maxLength = 2000, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
 internal val schema_5af10e67b405a136: RemoteSchema by lazy {
     RemoteSchema(type = "object", required = setOf("id", "type"), properties = mapOf("id" to schema_36fea325bf1aca70, "type" to schema_af6b6f72d4304b97), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
@@ -407,10 +411,6 @@ internal val schema_6d5eecaeceee62b9: RemoteSchema by lazy {
 
 internal val schema_6d6f1fde7308a250: RemoteSchema by lazy {
     RemoteSchema(type = "string", literals = listOf(JsonPrimitive("lf"), JsonPrimitive("crlf")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
-}
-
-internal val schema_6da7b367355578d7: RemoteSchema by lazy {
-    RemoteSchema(type = "object", required = setOf("accessToken", "expiresAt", "scopes", "tokenType"), properties = mapOf("accessToken" to schema_36fea325bf1aca70, "expiresAt" to schema_36fea325bf1aca70, "refreshToken" to schema_36fea325bf1aca70, "refreshTokenExpiresAt" to schema_36fea325bf1aca70, "scopes" to schema_515482d2104d1efa, "tokenType" to schema_7c8fd050dd5e98a8), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
 internal val schema_6da82c72b226f41d: RemoteSchema by lazy {

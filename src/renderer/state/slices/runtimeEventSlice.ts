@@ -22,6 +22,7 @@ import {
 } from "./runtimeEventReducer";
 import { markLiveCrossagentItems, terminateStaleSubAgentItems } from "./staleSubAgents";
 import { hydrateRuntimeStream, type RuntimeStreamRetention } from "./runtimeStreamRetention";
+import { getRuntimeItemPayload } from "@/shared/runtimeItemVisibility";
 
 /**
  * Frozen "Worked for X" record for a turn that has finished. Persisted so the
@@ -276,12 +277,7 @@ export interface RuntimeEventSlice {
  * item is the wrong canonical type, so chat-part components can treat the
  * cast as validated rather than blind.
  */
-export function getRuntimeItemPayload<T>(
-  item: RuntimeChatItem,
-  expectedType: CanonicalItemType,
-): T | undefined {
-  return item.type === expectedType ? (item.payload as T | undefined) : undefined;
-}
+export { getRuntimeItemPayload };
 
 /**
  * Fresh per-thread runtime maps. Extracted so a full reset (e.g. the mobile

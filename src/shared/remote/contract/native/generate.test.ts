@@ -80,7 +80,8 @@ describe("remote v3 native binding generator", () => {
         // the optional review-thread diff side adds one field; optional async reply source IDs
         // preserve wire versions; the optional `deferBodies` history query parameter adds one
         // structural type (its literal).
-        sourceHash: "sha256:027a9cf40de12ba9ee9cfc374b3352054ff15b65d23b6d682bf49b413d8522cd",
+        // Optional sessionId on the token-exchange result moves the source hash only.
+        sourceHash: "sha256:e7b87d384696a2be90658d1b40a29c1a6b6638c0622e731dcd496c86c9373ec9",
         manifestHash: "sha256:18b76a337bdc91d98475d116d7501e948d79900013ffee2a34b1f4fa17cd1c3c",
         counts: {
           routes: 119,

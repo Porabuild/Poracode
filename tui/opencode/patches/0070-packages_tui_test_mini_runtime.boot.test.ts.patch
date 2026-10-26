@@ -1,0 +1,13 @@
+diff --git a/packages/tui/test/mini/runtime.boot.test.ts b/packages/tui/test/mini/runtime.boot.test.ts
+index 9870036..7a290cf 100644
+--- a/packages/tui/test/mini/runtime.boot.test.ts
++++ b/packages/tui/test/mini/runtime.boot.test.ts
+@@ -35,7 +35,7 @@ describe("run runtime boot", () => {
+       }),
+     )
+ 
+-    expect(result.theme).toEqual({ mode: "light" })
++    expect(result.theme).toEqual({ mode: "light", name: "poracode" })
+     expect(result.leader.timeout).toBe(450)
+     expect(result.cursor).toEqual({ style: "underline", blinking: false })
+     expect(resolveMiniSettings(result)).toEqual({

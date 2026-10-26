@@ -1,4 +1,9 @@
 {
   "endOfLine": "lf",
-  "ignorePatterns": ["protocol/remote/v3/generated/**"]
+  "ignorePatterns": [
+    "protocol/remote/v3/generated/**",
+    "tui/opencode/**",
+    "tui/node_modules/**",
+    "tui/dist/**"
+  ]
 }
