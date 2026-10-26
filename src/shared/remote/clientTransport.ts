@@ -227,8 +227,13 @@ export abstract class RemoteClientTransport extends RemoteClientPinCore {
     if (response.status === 401 && !retried && this.tokenLifecycle?.refreshToken()) {
       await response.body?.cancel().catch(() => undefined);
       try {
-        // Another request may have rotated the token while this one was in flight.
-        if (this.accessToken !== usedToken || (await this.refreshTokens())) {
+        // Another request or a sibling client may have rotated the token while
+        // this one was in flight; renew only when the rejected bearer is current.
+        this.syncAccessToken();
+        if (
+          (this.accessToken !== undefined && this.accessToken !== usedToken) ||
+          (await this.refreshTokens())
+        ) {
           return this.fetchImageBytesWithBearer(url, signal, true);
         }
       } catch {
@@ -469,8 +474,13 @@ export abstract class RemoteClientTransport extends RemoteClientPinCore {
           this.tokenLifecycle?.refreshToken()
         ) {
           try {
-            // Another request may have rotated while this old-token response was in flight.
-            const alreadyRotated = headers.authorization !== `Bearer ${this.accessToken}`;
+            // Another request or a sibling client may have rotated while this
+            // old-token response was in flight; renew only when the rejected
+            // bearer is still the current one.
+            this.syncAccessToken();
+            const alreadyRotated =
+              this.accessToken !== undefined &&
+              headers.authorization !== `Bearer ${this.accessToken}`;
             if (alreadyRotated || (await this.refreshTokens())) {
               return await this.requestJson(path, init, { isRefreshRetry: true });
             }
