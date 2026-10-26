@@ -110,7 +110,7 @@ final class RichChatConversationController {
 
   @discardableResult
   func send(_ input: RichChatSendInput) async -> Bool {
-    guard !input.prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+    guard RichPromptSegment.isSendable(prompt: input.prompt, segments: input.segments) else {
       state.failure = .invalidRequest
       return false
     }
@@ -190,7 +190,7 @@ final class RichChatConversationController {
 
   @discardableResult
   func setPendingSteer(_ input: RichSetPendingSteerInput) async -> Bool {
-    guard !input.prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+    guard RichPromptSegment.isSendable(prompt: input.prompt, segments: input.segments) else {
       state.failure = .invalidRequest
       return false
     }
@@ -211,7 +211,7 @@ final class RichChatConversationController {
   /// `thread-follow-up-queue` broadcast, which is the source of truth.
   @discardableResult
   func queueFollowUp(_ input: RichSetPendingSteerInput) async -> Bool {
-    guard !input.prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+    guard RichPromptSegment.isSendable(prompt: input.prompt, segments: input.segments) else {
       state.failure = .invalidRequest
       return false
     }

@@ -326,11 +326,11 @@ export type StartThreadResult = z.infer<typeof startThreadResultSchema>;
  * arrives with an empty prompt and the attachment in `segments`. Applied as a
  * refinement so the payload's `prompt` stays a plain string for callers.
  */
-const sendableInput = {
+export const sendableInput = {
   message: "prompt or an attachment is required",
   path: ["prompt"],
 };
-function hasSendableInput(input: {
+export function hasSendableInput(input: {
   prompt: string;
   segments?: readonly z.infer<typeof promptSegmentSchema>[] | undefined;
 }): boolean {

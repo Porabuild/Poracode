@@ -346,6 +346,30 @@ final class RichChatComposerParityTests: XCTestCase {
     XCTAssertFalse(thread.contains("\"needs_reply\"].contains(status)"))
   }
 
+  func testAttachmentOnlyComposerSubmitsWithAnEmptyPrompt() throws {
+    let composer = try Self.source("App/Features/RichChat/UI/RichChatComposerView.swift")
+    let home = try Self.source("App/Features/Home/Pages/HomeQuickComposeView.swift")
+    let actions = try Self.source("App/Features/Home/HomeComposerActions.swift")
+    let pendingSteer = try Self.source("App/Features/RichChat/RichPendingSteer.swift")
+
+    // Attachments alone arm the send affordance and let the submission
+    // through as prompt "" plus attachment segments (host sendable-input rule).
+    XCTAssertTrue(composer.contains("let canSend = hasPrompt || !attachments.isEmpty"))
+    XCTAssertTrue(
+      composer.contains("hasTrailingAction: canSend || isTurnActive || controller.state.isSending")
+    )
+    XCTAssertTrue(composer.contains("hasPrompt: canSend,"))
+    XCTAssertTrue(composer.contains("guard !text.isEmpty || !attachmentSegments.isEmpty"))
+    XCTAssertTrue(home.contains("|| !attachments.isEmpty"))
+    XCTAssertTrue(home.contains("attachments.map(\\.name).joined(separator: \" \")"))
+    XCTAssertTrue(actions.contains("guard !text.isEmpty || !attachments.isEmpty"))
+    XCTAssertTrue(
+      pendingSteer.contains(
+        "static func isSendable(prompt: String, segments: [RichPromptSegment]?) -> Bool"
+      )
+    )
+  }
+
   func testNewComposerStringsAreTranslatedInEveryLocale() throws {
     let locales: Set<String> = [
       "en", "de", "es", "fr", "ja", "ko", "pl", "pt-BR", "ru", "tr", "uk", "vi", "zh-Hans",
