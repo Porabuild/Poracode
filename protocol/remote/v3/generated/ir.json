@@ -21,7 +21,7 @@
     "webSocketServerMessages": 12
   },
   "manifestFormatVersion": 1,
-  "manifestHash": "sha256:a0982caef593a943c439a60c413b4e84517c6ec5341fc8b6c9c419b9acd2b043",
+  "manifestHash": "sha256:18b76a337bdc91d98475d116d7501e948d79900013ffee2a34b1f4fa17cd1c3c",
   "portableTransformIds": [
     "agent-settings.strip-sensitive",
     "push.routing.client-connection-id.lowercase",
@@ -66202,6 +66202,12 @@
         },
         {
           "kind": "string",
+          "name": "deferBodies",
+          "optional": true,
+          "repeated": false
+        },
+        {
+          "kind": "string",
           "name": "reads",
           "optional": true,
           "repeated": false
@@ -66251,6 +66257,7 @@
       ],
       "queryParameters": [
         "projection",
+        "deferBodies",
         "reads",
         "notices",
         "runtimePage",
@@ -66292,6 +66299,10 @@
               "maximum": 500,
               "minimum": 1,
               "type": "integer"
+            },
+            "deferBodies": {
+              "const": "file_change",
+              "type": "string"
             },
             "maxBytes": {
               "$ref": "#/$defs/__schema0"
@@ -70206,6 +70217,12 @@
         },
         {
           "kind": "string",
+          "name": "deferBodies",
+          "optional": true,
+          "repeated": false
+        },
+        {
+          "kind": "string",
           "name": "reads",
           "optional": true,
           "repeated": false
@@ -70249,6 +70266,7 @@
       ],
       "queryParameters": [
         "projection",
+        "deferBodies",
         "reads",
         "notices",
         "beforePosition",
@@ -70289,6 +70307,10 @@
               "maximum": 9007199254740991,
               "minimum": 0,
               "type": "integer"
+            },
+            "deferBodies": {
+              "const": "file_change",
+              "type": "string"
             },
             "limit": {
               "maximum": 500,
@@ -75066,7 +75088,7 @@
     "void-envelope.omit-result",
     "void-result.omit-field"
   ],
-  "sourceHash": "sha256:58b378c79554237f02959419d9f1249040f1b2d657a853c210549a39d77332ac",
+  "sourceHash": "sha256:027a9cf40de12ba9ee9cfc374b3352054ff15b65d23b6d682bf49b413d8522cd",
   "unknownObjectFields": "ignore",
   "webSocket": {
     "clientMessages": [

@@ -1,4 +1,7 @@
-import { HISTORY_DETAILS_PROJECTION } from "./historyPresentation";
+import {
+  HISTORY_DEFER_FILE_CHANGE_BODIES,
+  HISTORY_DETAILS_PROJECTION,
+} from "./historyPresentation";
 import { z } from "zod";
 import {
   REMOTE_COMMAND_ID_HEADER,
@@ -265,7 +268,10 @@ export abstract class RemoteClientThreadsApi extends RemoteClientHostApi {
     options: RemoteBoundedThreadHistoryOptions = {},
   ): Promise<RemoteBoundedThreadHistoryResult> {
     const search = new URLSearchParams();
-    if (options.compactDetails) search.set("projection", HISTORY_DETAILS_PROJECTION);
+    if (options.compactDetails) {
+      search.set("projection", HISTORY_DETAILS_PROJECTION);
+      search.set("deferBodies", HISTORY_DEFER_FILE_CHANGE_BODIES);
+    }
     search.set("reads", REMOTE_BOUNDED_READS_CAPABILITY);
     search.set("runtimePage", "1");
     search.set(
@@ -314,7 +320,10 @@ export abstract class RemoteClientThreadsApi extends RemoteClientHostApi {
       );
     }
     const search = new URLSearchParams();
-    if (input.compactDetails) search.set("projection", HISTORY_DETAILS_PROJECTION);
+    if (input.compactDetails) {
+      search.set("projection", HISTORY_DETAILS_PROJECTION);
+      search.set("deferBodies", HISTORY_DEFER_FILE_CHANGE_BODIES);
+    }
     search.set("reads", REMOTE_BOUNDED_READS_CAPABILITY);
     search.set(
       "limit",

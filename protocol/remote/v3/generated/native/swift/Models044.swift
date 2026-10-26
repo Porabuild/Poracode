@@ -171,8 +171,9 @@ public enum RoutethreadU2DGoalRequest_54c8350637: Codable, Sendable {
   }
 }
 
-public struct RoutethreadU2DHistoryQuery_8015752827: Codable, Sendable, RemoteModelMetadata {
+public struct RoutethreadU2DHistoryQuery_677d43553d: Codable, Sendable, RemoteModelMetadata {
   public var completedTurnsLimit: RemoteField<Int64> = .missing
+  public var deferBodies: RemoteField<RoutethreadU2DHistoryU2DItemsQueryU2DDeferBodies_30a537a934> = .missing
   public var maxBytes: RemoteField<Int64> = .missing
   public var maxDecodeBytes: RemoteField<Int64> = .missing
   public var notices: RemoteField<RoutethreadU2DHistoryU2DChangesQueryU2DNotices_f67f6cbe63> = .missing
@@ -184,6 +185,7 @@ public struct RoutethreadU2DHistoryQuery_8015752827: Codable, Sendable, RemoteMo
   public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
   public static let fields: [RemoteFieldDescriptor] = [
     .init(wireName: "completedTurnsLimit", typeName: "Int64", required: false, nullable: false, minimum: 1, maximum: 500, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "deferBodies", typeName: "RoutethreadU2DHistoryU2DItemsQueryU2DDeferBodies_30a537a934", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "maxBytes", typeName: "Int64", required: false, nullable: false, minimum: 1, maximum: 9007199254740991, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "maxDecodeBytes", typeName: "Int64", required: false, nullable: false, minimum: 1, maximum: 9007199254740991, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "notices", typeName: "RoutethreadU2DHistoryU2DChangesQueryU2DNotices_f67f6cbe63", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
@@ -196,6 +198,7 @@ public struct RoutethreadU2DHistoryQuery_8015752827: Codable, Sendable, RemoteMo
   public static let semanticValidatorIds: [String] = []
   private enum CodingKeys: String, CodingKey {
     case completedTurnsLimit = "completedTurnsLimit"
+    case deferBodies = "deferBodies"
     case maxBytes = "maxBytes"
     case maxDecodeBytes = "maxDecodeBytes"
     case notices = "notices"
