@@ -7,6 +7,7 @@ import { remoteProjectSchema } from "@/shared/remote/protocol/resources";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 import type { RemoteDesktopClient } from "@/shared/remote/client";
 
 test("plan mode refuses providers without it and toggles validate against capabilities", async () => {
@@ -367,17 +368,37 @@ test("steer declines an open approval first; queue leaves it alone", async () =>
 
 test("file: mention maps to a project-relative segment; outside and bad schemes refuse", async () => {
   const sent: unknown[] = [];
-  const client = S.promptClient({
+  const home = await mkdtemp(join(tmpdir(), "poracode-file-mention-"));
+  const prev = process.env.PORACODE_TUI_HOME;
+  process.env.PORACODE_TUI_HOME = home;
+  // The inside/outside URIs are built from the running platform's paths so the
+  // test's file:// URLs decode to real project-relative locations on any OS.
+  const isWindows = process.platform === "win32";
+  const projectPath = isWindows ? "C:/repo" : "/repo";
+  const insideUri = pathToFileURL(isWindows ? "C:/repo/src/notes.md" : "/repo/src/notes.md").href;
+  const outsideUri = pathToFileURL(isWindows ? "C:/other/secret.md" : "/other/secret.md").href;
+  const client2 = S.promptClient({
     sendThreadInput: async (input: unknown) => {
       sent.push(input);
       return {};
     },
+    ...(isWindows
+      ? {}
+      : {
+          boundedProjectListPage: async () => ({
+            projects: [
+              remoteProjectSchema.parse({
+                id: "project-1",
+                name: "project",
+                location: { kind: "posix", path: projectPath },
+                createdAt: "2026-01-01T00:00:00.000Z",
+              }),
+            ],
+          }),
+        }),
   });
-  const home = await mkdtemp(join(tmpdir(), "poracode-file-mention-"));
-  const prev = process.env.PORACODE_TUI_HOME;
-  process.env.PORACODE_TUI_HOME = home;
   try {
-    const { value } = S.router(client, home);
+    const { value } = S.router(client2, home, undefined, projectPath);
     const post = (body: PromptBody) =>
       value.handle(
         new Request("http://poracode.invalid/api/session/ses_thread-1/prompt", {
@@ -389,7 +410,7 @@ test("file: mention maps to a project-relative segment; outside and bad schemes 
 
     const inside = await post({
       text: "read this",
-      files: [{ uri: "file:///C:/repo/src/notes.md", name: "notes.md" }],
+      files: [{ uri: insideUri, name: "notes.md" }],
     });
     expect(inside.status).toBe(200);
     expect(sent.at(-1)).toMatchObject({
@@ -401,7 +422,7 @@ test("file: mention maps to a project-relative segment; outside and bad schemes 
 
     const outside = await post({
       text: "read that",
-      files: [{ uri: "file:///C:/other/secret.md", name: "secret.md" }],
+      files: [{ uri: outsideUri, name: "secret.md" }],
     });
     expect(outside.status).toBe(200);
     expect(sent.at(-1)).not.toHaveProperty("segments");
