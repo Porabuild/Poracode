@@ -470,6 +470,78 @@ describe("Grok unified zero-usage periods", () => {
     });
   });
 
+  const malformedPeriods = [
+    { label: "object start", currentPeriod: { ...period, start: {} } },
+    { label: "array start", currentPeriod: { ...period, start: [] } },
+    { label: "boolean start", currentPeriod: { ...period, start: true } },
+    { label: "object end", currentPeriod: { ...period, end: {} } },
+    { label: "array end", currentPeriod: { ...period, end: [] } },
+    { label: "boolean end", currentPeriod: { ...period, end: false } },
+  ];
+
+  it.each(malformedPeriods)("uses valid legacy billing for $label", async ({ currentPeriod }) => {
+    const { host, routes, requested } = hostFor({ ...zeroConfig, currentPeriod });
+    routes[GROK_BILLING_ENDPOINT] = {
+      body: JSON.stringify({
+        config: {
+          monthlyLimit: { val: 100 },
+          used: { val: 42 },
+          billingPeriodStart: period.start,
+          billingPeriodEnd: period.end,
+        },
+      }),
+    };
+
+    const snapshot = await collectGrok(host);
+
+    expect(snapshot).toMatchObject({
+      status: "ok",
+      windows: [{ usedPercent: 42, used: 42, limit: 100 }],
+    });
+    expect(requested).toEqual([
+      GROK_CREDITS_ENDPOINT,
+      GROK_BILLING_ENDPOINT,
+      GROK_SETTINGS_ENDPOINT,
+    ]);
+  });
+
+  it.each(malformedPeriods)(
+    "uses the cookie when both billing responses have $label",
+    async ({ currentPeriod }) => {
+      const { host, routes, requested } = hostFor({ ...zeroConfig, currentPeriod });
+      routes[GROK_BILLING_ENDPOINT] = routes[GROK_CREDITS_ENDPOINT];
+
+      const snapshot = await collectGrok(host);
+
+      expect(snapshot.status).toBe("ok");
+      expect(snapshot.windows[0]?.usedPercent).toBe(42.5);
+      expect(requested).toEqual([
+        GROK_CREDITS_ENDPOINT,
+        GROK_BILLING_ENDPOINT,
+        GROK_GRPC_ENDPOINT,
+        GROK_SETTINGS_ENDPOINT,
+      ]);
+    },
+  );
+
+  it.each([1, 1000])("preserves numeric period bounds at epoch scale %s", async (scale) => {
+    const { host, requested } = hostFor({
+      ...zeroConfig,
+      currentPeriod: {
+        start: Date.parse(period.start) / scale,
+        end: Date.parse(period.end) / scale,
+      },
+    });
+
+    const snapshot = await collectGrok(host);
+
+    expect(snapshot).toMatchObject({
+      status: "ok",
+      windows: [{ usedPercent: 0, resetsAt: Date.parse(period.end) }],
+    });
+    expect(requested).toEqual([GROK_CREDITS_ENDPOINT, GROK_SETTINGS_ENDPOINT]);
+  });
+
   it.each([
     ["missing unified marker", { currentPeriod: period }],
     ["false unified marker", { ...zeroConfig, isUnifiedBillingUser: false }],

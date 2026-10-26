@@ -108,8 +108,18 @@ function grokBillingHasData(billingBody: unknown, nowMs: number): boolean {
   if (config.isUnifiedBillingUser !== true || Object.hasOwn(config, "creditUsagePercent")) {
     return false;
   }
-  const start = toEpochMs(config.currentPeriod?.start);
-  const end = toEpochMs(config.currentPeriod?.end);
+  // Network JSON can violate the declared shape; only pass supported runtime
+  // types to the shared formatter so malformed bounds keep the fallback.
+  const startValue: unknown = config.currentPeriod?.start;
+  const endValue: unknown = config.currentPeriod?.end;
+  if (
+    (typeof startValue !== "string" && typeof startValue !== "number") ||
+    (typeof endValue !== "string" && typeof endValue !== "number")
+  ) {
+    return false;
+  }
+  const start = toEpochMs(startValue);
+  const end = toEpochMs(endValue);
   return start !== undefined && end !== undefined && start <= nowMs && nowMs < end;
 }
 
