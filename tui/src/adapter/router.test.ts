@@ -3,6 +3,9 @@ import { fileURLToPath } from "node:url";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, setSystemTime, test } from "bun:test";
+import { createRoot } from "solid-js";
+import { OpenCode } from "@opencode/client";
+import { createData, type CreateDataInput } from "@opencode/client/solid";
 import type {
   IntegrationListOutput,
   MessageListOutput,
@@ -4528,17 +4531,17 @@ test("generated client request table: supported ops answer the declared contract
   // Top-level body shape per startup GET the vendored UI reads — "map" = a
   // server-keyed record, "array" = a JSON array, a list = required object keys.
   const shapes = new Map<string, "array" | "map" | string[]>([
-    ["GET /api/mcp", "map"],
+    ["GET /api/mcp", ["location", "data"]],
     ["GET /api/session", ["data", "cursor"]],
     ["GET /api/provider", ["data"]],
     ["GET /api/integration", ["data"]],
     ["GET /api/agent", ["data"]],
-    ["GET /api/model", "map"],
+    ["GET /api/model", ["location", "data"]],
     ["GET /api/config", "array"],
     ["GET /api/command", ["data"]],
     ["GET /api/skill", ["data"]],
     ["GET /api/project", "array"],
-    ["GET /api/vcs", "map"],
+    ["GET /api/vcs", ["location", "data"]],
     ["GET /api/location", "map"],
   ]);
   const failures: string[] = [];
@@ -4843,9 +4846,11 @@ test("mcp list reports the built-in toggles; disabled-by-host omitted", async ()
   );
   const response = await value.handle(new Request("http://poracode.invalid/api/mcp"));
   expect(response.status).toBe(200);
-  const data = await response.json();
-  expect(Object.keys(data).sort()).toEqual(["browser", "crossagents"]);
-  expect(data.browser.status).toBe("connected");
+  const body = await response.json();
+  expect(body.location.directory).toBe("C:/repo");
+  const data = body.data as { name: string; status: { status: string } }[];
+  expect(data.map((server) => server.name).sort()).toEqual(["browser", "crossagents"]);
+  expect(data.find((server) => server.name === "browser")?.status.status).toBe("connected");
   // A pending per-session toggle flips the reported status for that server.
   await value.handle(new Request("http://poracode.invalid/api/session/ses_thread-1"));
   await value.handle(
@@ -4854,7 +4859,57 @@ test("mcp list reports the built-in toggles; disabled-by-host omitted", async ()
     }),
   );
   const toggled = await value.handle(new Request("http://poracode.invalid/api/mcp"));
-  expect((await toggled.json()).browser.status).toBe("disabled");
+  const toggledData = ((await toggled.json()) as { data: typeof data }).data;
+  expect(toggledData.find((server) => server.name === "browser")?.status.status).toBe("disabled");
+});
+
+test("the generated client syncs every location catalog, including a second location", async () => {
+  const client = promptClient({
+    callRemoteProcedure: async () => null,
+    agentSlashCommands: async () => ({ commands: [] }),
+  });
+  const { value } = router(client);
+  // The real generated promise client, driven against the in-process router
+  // exactly like tui/src/main.ts wires adapter.fetch into the vendored UI.
+  const api = OpenCode.make({
+    baseUrl: "http://poracode.invalid/",
+    fetch: ((input: RequestInfo | URL, init?: RequestInit) =>
+      value.handle(new Request(input, init))) as typeof fetch,
+  });
+  const root = createRoot((close) => {
+    const event: CreateDataInput["event"] = {
+      on: () => () => undefined,
+      listen: () => () => undefined,
+    };
+    return { data: createData({ api: () => api, directory: "C:/repo", event }), close };
+  });
+  try {
+    // The startup sync reads every location-scoped catalog; a response without
+    // a matching location rejects here and the session route loses its composer.
+    await root.data.location.sync();
+    const servers = root.data.location.mcp.server.list();
+    expect(servers?.map((server) => server.name).sort()).toEqual([
+      "browser",
+      "chrome",
+      "crossagents",
+    ]);
+    expect(servers?.find((server) => server.name === "crossagents")?.status.status).toBe(
+      "connected",
+    );
+    // A worktree session syncs its own location; the adapter must echo the
+    // requested directory or the data layer keys the catalog somewhere else.
+    const worktree = { directory: "D:/worktree" };
+    await root.data.location.sync(worktree);
+    expect(root.data.location.agent.list(worktree)).toBeDefined();
+    expect(
+      root.data.location.mcp.server
+        .list(worktree)
+        ?.map((s) => s.name)
+        .sort(),
+    ).toEqual(["browser", "chrome", "crossagents"]);
+  } finally {
+    root.close();
+  }
 });
 
 test("mcp connect/disconnect stages a per-session toggle applied at launch", async () => {

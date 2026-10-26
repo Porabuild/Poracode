@@ -16,6 +16,7 @@ import type {
   IntegrationInfo,
   IntegrationListOutput,
   LocationGetOutput,
+  McpListOutput,
   MigrationV1StatusOutput,
   ModelDefaultOutput,
   ModelInfo,
@@ -887,6 +888,16 @@ export function createRouter(input: {
     if (!project) throw new Error("The current folder is not registered on the Poracode host");
     return project;
   };
+
+  // The vendored data layer publishes every location-scoped catalog under
+  // locationKey(response.location); echo the requested directory so a
+  // worktree session finds lists answered for its own location.
+  const requestLocation = (url: URL) => ({
+    directory:
+      url.searchParams.get("location[directory]") ??
+      url.searchParams.get("location.directory") ??
+      input.bootstrap.directory,
+  });
 
   const agentStatuses = async () => {
     if (!statuses) {
@@ -2063,10 +2074,7 @@ export function createRouter(input: {
       if (path === "/api/location" && method === "GET") {
         const current = await resolveProject();
         const projectDirectory = directoryOf(projectLocation(current));
-        const directory =
-          url.searchParams.get("location.directory") ??
-          url.searchParams.get("location[directory]") ??
-          input.bootstrap.directory;
+        const directory = requestLocation(url).directory;
         const output: LocationGetOutput = {
           directory,
           project: { id: current.id, directory: projectDirectory, canonical: projectDirectory },
@@ -2103,7 +2111,7 @@ export function createRouter(input: {
           ...(guiStatuses.some((status) => supportsMode(status, "plan")) ? [planAgent] : []),
         ];
         const output: AgentListOutput = {
-          location: { directory: input.bootstrap.directory },
+          location: requestLocation(url),
           data,
         };
         return json(output);
@@ -2133,7 +2141,7 @@ export function createRouter(input: {
             package: "poracode",
           }));
         const output: ProviderListOutput = {
-          location: { directory: input.bootstrap.directory },
+          location: requestLocation(url),
           data,
         };
         return json(output);
@@ -2149,7 +2157,7 @@ export function createRouter(input: {
             connections: [{ type: "env", name: status.kind }],
           }));
         const output: IntegrationListOutput = {
-          location: { directory: input.bootstrap.directory },
+          location: requestLocation(url),
           data,
         };
         return json(output);
@@ -2185,7 +2193,7 @@ export function createRouter(input: {
           });
         });
         const output: ModelListOutput = {
-          location: { directory: input.bootstrap.directory },
+          location: requestLocation(url),
           data,
         };
         return json(output);
@@ -2224,7 +2232,7 @@ export function createRouter(input: {
             } satisfies ModelInfo)
           : null;
         const output: ModelDefaultOutput = {
-          location: { directory: input.bootstrap.directory },
+          location: requestLocation(url),
           data,
         };
         return json(output);
@@ -2255,7 +2263,7 @@ export function createRouter(input: {
         const data = result.entries
           .filter((entry) => requestedType === null || entry.type === requestedType)
           .map((entry) => ({ path: entry.path, type: entry.type }));
-        return json({ location: { directory: input.bootstrap.directory }, data });
+        return json({ location: requestLocation(url), data });
       }
       const fileReadMatch = path.match(/^\/api\/fs\/read\/(.+)$/u);
       if (fileReadMatch && method === "GET") {
@@ -2290,7 +2298,7 @@ export function createRouter(input: {
           }),
         );
         const output: FileListOutput = {
-          location: { directory: input.bootstrap.directory },
+          location: requestLocation(url),
           data: result.entries.map((entry) => ({ path: entry.path, type: entry.type })),
         };
         return json(output);
@@ -3589,7 +3597,7 @@ export function createRouter(input: {
         for (const thread of await guiThreads())
           for (const task of backgroundTasks.get(thread.id) ?? [])
             output.push(shellInfoFor(thread.id, task, cwd));
-        return json({ location: { directory: input.bootstrap.directory }, data: output });
+        return json({ location: requestLocation(url), data: output });
       }
       // Vendored MCP surface: the three built-in toggles only — custom MCP
       // definitions and installed plugins are not remote-readable (the host
@@ -3608,15 +3616,14 @@ export function createRouter(input: {
         ] as const;
         const sessionID = currentSession ?? "";
         const pendingList = sessionMcpPending.get(sessionID) ?? sessionMcpPending.get("");
-        // The vendored mcp dialog/sidebar reads each entry's `.status` — the
-        // contract is a map keyed by server name, not a list.
-        const data: Record<string, { status: string }> = {};
+        const data: McpListOutput["data"] = [];
         for (const [id] of builtIns) {
           if (disabled.has(id)) continue;
           const enabled = pendingList?.get(id) ?? true;
-          data[id] = { status: enabled ? "connected" : "disabled" };
+          data.push({ name: id, status: { status: enabled ? "connected" : "disabled" } });
         }
-        return json(data);
+        const output: McpListOutput = { location: requestLocation(url), data };
+        return json(output);
       }
       const mcpToggleMatch = path.match(
         /^\/api\/experimental\/mcp\/([^/]+)\/(connect|disconnect)$/u,
@@ -3666,7 +3673,7 @@ export function createRouter(input: {
             scope,
           };
         });
-        return json({ location: { directory: input.bootstrap.directory }, data });
+        return json({ location: requestLocation(url), data });
       }
       // `!command` — a one-off host dev shell, never a local spawn. PTY bytes
       // stream over the watched-terminal socket seam; the vendored UI reads
@@ -3780,7 +3787,7 @@ export function createRouter(input: {
         if (!hit) return json({ error: { code: "not_found", message: "Shell not found" } }, 404);
         const currentProject = await resolveProject();
         return json({
-          location: { directory: input.bootstrap.directory },
+          location: requestLocation(url),
           data: shellInfoFor(hit.rawThreadId, hit.task, directoryOf(currentProject.location)),
         });
       }
@@ -3794,7 +3801,7 @@ export function createRouter(input: {
         const output = bytes.slice(cursor, cursor + limit);
         const end = cursor + output.length;
         return json({
-          location: { directory: input.bootstrap.directory },
+          location: requestLocation(url),
           data: {
             output: new TextDecoder().decode(output),
             cursor: end,
@@ -3901,7 +3908,7 @@ export function createRouter(input: {
           defaultModel?.providerID;
         if (!providerID)
           return json({
-            location: { directory: input.bootstrap.directory },
+            location: requestLocation(url),
             data: [],
           } satisfies CommandListOutput);
         try {
@@ -3910,16 +3917,16 @@ export function createRouter(input: {
             name: command.id,
             ...(command.description ? { description: command.description } : {}),
           }));
-          return json({ location: { directory: input.bootstrap.directory }, data });
+          return json({ location: requestLocation(url), data });
         } catch {
           return json({
-            location: { directory: input.bootstrap.directory },
+            location: requestLocation(url),
             data: [],
           } satisfies CommandListOutput);
         }
       }
       if (/\/api\/(file\/find|vcs|worktree|command|skill|mcp|reference|shell)/u.test(path)) {
-        return json({ location: { directory: input.bootstrap.directory }, data: [] });
+        return json({ location: requestLocation(url), data: [] });
       }
       if (path === "/api/config" && method === "GET") {
         const output: ConfigGetOutput = [];
@@ -3927,7 +3934,7 @@ export function createRouter(input: {
       }
       if (path === "/api/form" && method === "GET") {
         const output: FormListOutput = {
-          location: { directory: input.bootstrap.directory },
+          location: requestLocation(url),
           data: [],
         };
         return json(output);
