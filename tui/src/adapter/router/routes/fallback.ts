@@ -1,3 +1,4 @@
+import { logAdapterDebug } from "../../diagnostics";
 import { json } from "../helpers";
 import type {
   CommandListOutput,
@@ -44,7 +45,21 @@ export async function handleFallbackRoutes({
     return json({ location: requestLocation(url), data: [] });
   }
   if (path === "/api/config" && method === "GET") {
-    const output: ConfigGetOutput = [];
+    // last-model.json (shared with `poracode -p`) is the TUI default; the
+    // TUI's own recent list still drives the picker's Recent section. The
+    // default is a convenience: a failing resolution must never 500 the
+    // route or the vendored location sync would surface an error screen.
+    const selection = await ctx.resolveDefaultSelection().catch(async (error: unknown) => {
+      if (ctx.debug)
+        await logAdapterDebug(ctx.input.bootstrap.home, {
+          source: "config.default-failed",
+          error: error instanceof Error ? error.message : String(error),
+        });
+      return undefined;
+    });
+    const output: ConfigGetOutput = selection
+      ? ([{ type: "document", info: { model: selection } }] as ConfigGetOutput)
+      : [];
     return json(output);
   }
   if (path === "/api/form" && method === "GET") {

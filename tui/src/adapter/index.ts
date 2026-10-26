@@ -120,6 +120,7 @@ export async function createAdapter(bootstrap: TuiBootstrap) {
     loginCandidates: router.loginCandidates,
     async dispose() {
       router.disposeSubagentSubscriptions();
+      router.disposeStatusPolling();
       socket?.dispose();
       events.dispose();
       if (debugInterval) clearInterval(debugInterval);

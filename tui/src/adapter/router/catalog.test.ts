@@ -8,6 +8,7 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { RemoteDesktopClient } from "@/shared/remote/client";
+import type { EventStreamHub } from "../events";
 import type { IntegrationListOutput, ModelListOutput, ProviderListOutput } from "@opencode/client";
 
 test("routes project file search/read and the active provider command catalog", async () => {
@@ -578,4 +579,247 @@ test("location reload answers 204 without resyncing the event stream", async () 
   );
   expect(response.status).toBe(204);
   expect(emitted).toEqual([]);
+});
+
+const guiStatus = (over: Record<string, unknown> = {}) =>
+  agentStatusSchema.parse({
+    kind: "codex",
+    label: "Codex",
+    installed: true,
+    authState: "authenticated",
+    capabilities: {
+      presentationModes: ["terminal", "gui"],
+      models: [
+        { id: "gpt-5", label: "GPT-5" },
+        { id: "gpt-5-mini", label: "GPT-5 Mini" },
+      ],
+      modelEfforts: { "gpt-5": ["low", "medium", "high"] },
+    },
+    ...over,
+  });
+
+const captureEmitted = (events: EventStreamHub) => {
+  const emitted: string[] = [];
+  const emit = events.emit.bind(events);
+  events.emit = ((event: Parameters<EventStreamHub["emit"]>[0]) => {
+    const type = (event as { type?: string }).type;
+    if (type) emitted.push(type);
+    return emit(event);
+  }) as never;
+  return emitted;
+};
+
+test("cold start polls statuses until a usable provider appears", async () => {
+  let calls = 0;
+  const status = guiStatus();
+  const client = {
+    agentStatuses: async () => ({ windows: calls++ === 0 ? [] : [status], wsl: [] }),
+    settings: async () => ({ agentSettings: {} }),
+  } as unknown as RemoteDesktopClient;
+  const { events, value } = S.router(client, S.bootstrap.home, undefined, S.bootstrap.directory, {
+    statusPollIntervalMs: 5,
+    statusPollDeadlineMs: 5_000,
+  });
+  const emitted = captureEmitted(events);
+
+  const first = await value.handle(new Request("http://poracode.invalid/api/model"));
+  expect((await first.json()).data).toEqual([]);
+  await Bun.sleep(60);
+  const later = await value.handle(new Request("http://poracode.invalid/api/model"));
+  expect((await later.json()).data.map((m: { modelID: string }) => m.modelID)).toEqual([
+    "gpt-5",
+    "gpt-5-mini",
+  ]);
+  expect(emitted).toContain("model.updated");
+  expect(emitted).toContain("config.updated");
+
+  const before = calls;
+  value.handleRemoteEvent({ type: "windows-agent-statuses", statuses: [status] });
+  await Bun.sleep(60);
+  expect(calls).toBe(before);
+});
+
+test("warm start does not poll when the first snapshot is usable", async () => {
+  let calls = 0;
+  const client = {
+    agentStatuses: async () => {
+      calls += 1;
+      return { windows: [guiStatus()], wsl: [] };
+    },
+    settings: async () => ({ agentSettings: {} }),
+  } as unknown as RemoteDesktopClient;
+  const { value } = S.router(client, S.bootstrap.home, undefined, S.bootstrap.directory, {
+    statusPollIntervalMs: 5,
+    statusPollDeadlineMs: 2_000,
+  });
+  await value.handle(new Request("http://poracode.invalid/api/model"));
+  await Bun.sleep(40);
+  expect(calls).toBe(1);
+});
+
+test("a status event landing mid-poll is not overwritten by the stale fetch", async () => {
+  let calls = 0;
+  let release: (() => void) | undefined;
+  const client = {
+    agentStatuses: async () => {
+      calls += 1;
+      if (calls === 1) return { windows: [], wsl: [] };
+      await new Promise<void>((resolve) => (release = resolve));
+      return { windows: [guiStatus()], wsl: [] };
+    },
+    settings: async () => ({ agentSettings: {} }),
+  } as unknown as RemoteDesktopClient;
+  const { value } = S.router(client, S.bootstrap.home, undefined, S.bootstrap.directory, {
+    statusPollIntervalMs: 5,
+    statusPollDeadlineMs: 5_000,
+  });
+  await value.handle(new Request("http://poracode.invalid/api/model"));
+  await Bun.sleep(30);
+  expect(release).toBeDefined();
+  const live = guiStatus({ kind: "claude", label: "Claude" });
+  value.handleRemoteEvent({ type: "windows-agent-statuses", statuses: [live] });
+  release!();
+  await Bun.sleep(30);
+  const response = await value.handle(new Request("http://poracode.invalid/api/model"));
+  const providers = (await response.json()).data.map((m: { providerID: string }) => m.providerID);
+  expect(providers).toEqual(["claude", "claude"]);
+});
+
+test("config documents answer the last-used model with its saved variant", async () => {
+  const home = await mkdtemp(join(tmpdir(), "poracode-last-model-"));
+  const previous = process.env.PORACODE_TUI_HOME;
+  process.env.PORACODE_TUI_HOME = home;
+  try {
+    await Bun.write(
+      join(home, TUI_LAST_MODEL_FILE_NAME),
+      JSON.stringify({
+        version: 1,
+        provider: "codex",
+        model: "gpt-5",
+        effort: "high",
+        updatedAt: new Date().toISOString(),
+      }),
+    );
+    const client = {
+      agentStatuses: async () => ({ windows: [guiStatus()], wsl: [] }),
+      settings: async () => ({ agentSettings: {} }),
+    } as unknown as RemoteDesktopClient;
+    const { value } = S.router(client, home);
+    const response = await value.handle(new Request("http://poracode.invalid/api/config"));
+    expect(await response.json()).toMatchObject([
+      {
+        type: "document",
+        info: { model: { providerID: "codex", model: "gpt-5", variant: "high" } },
+      },
+    ]);
+  } finally {
+    if (previous === undefined) delete process.env.PORACODE_TUI_HOME;
+    else process.env.PORACODE_TUI_HOME = previous;
+    await rm(home, { recursive: true, force: true });
+  }
+});
+
+test("config default falls back when the last model's provider is unusable", async () => {
+  const home = await mkdtemp(join(tmpdir(), "poracode-last-model-"));
+  const previous = process.env.PORACODE_TUI_HOME;
+  process.env.PORACODE_TUI_HOME = home;
+  try {
+    await Bun.write(
+      join(home, TUI_LAST_MODEL_FILE_NAME),
+      JSON.stringify({
+        version: 1,
+        provider: "codex",
+        model: "gpt-5",
+        updatedAt: new Date().toISOString(),
+      }),
+    );
+    const claude = guiStatus({ kind: "claude", label: "Claude" });
+    const codex = guiStatus({ kind: "codex", label: "Codex", authState: "missing" });
+    const client = {
+      agentStatuses: async () => ({ windows: [codex, claude], wsl: [] }),
+      settings: async () => ({ agentSettings: { claude: { model: "gpt-5-mini" } } }),
+    } as unknown as RemoteDesktopClient;
+    const { value } = S.router(client, home);
+    const response = await value.handle(new Request("http://poracode.invalid/api/config"));
+    expect(await response.json()).toMatchObject([
+      { type: "document", info: { model: { providerID: "claude", model: "gpt-5-mini" } } },
+    ]);
+  } finally {
+    if (previous === undefined) delete process.env.PORACODE_TUI_HOME;
+    else process.env.PORACODE_TUI_HOME = previous;
+    await rm(home, { recursive: true, force: true });
+  }
+});
+
+test("config default uses the first GUI model when the configured one is missing", async () => {
+  const client = {
+    agentStatuses: async () => ({ windows: [guiStatus()], wsl: [] }),
+    settings: async () => ({ agentSettings: { codex: { model: "gone-model" } } }),
+  } as unknown as RemoteDesktopClient;
+  const { value } = S.router(client);
+  const response = await value.handle(new Request("http://poracode.invalid/api/config"));
+  expect(await response.json()).toMatchObject([
+    { type: "document", info: { model: { providerID: "codex", model: "gpt-5" } } },
+  ]);
+});
+
+test("config default stays empty while nothing usable is discovered", async () => {
+  const client = {
+    agentStatuses: async () => ({ windows: [], wsl: [] }),
+    settings: async () => ({ agentSettings: {} }),
+  } as unknown as RemoteDesktopClient;
+  const { value } = S.router(client);
+  const response = await value.handle(new Request("http://poracode.invalid/api/config"));
+  expect(await response.json()).toEqual([]);
+});
+
+test("config default answers empty when settings resolution fails", async () => {
+  const client = {
+    agentStatuses: async () => ({ windows: [guiStatus()], wsl: [] }),
+    settings: async () => {
+      throw new Error("settings down");
+    },
+  } as unknown as RemoteDesktopClient;
+  const { value } = S.router(client);
+  const response = await value.handle(new Request("http://poracode.invalid/api/config"));
+  expect(response.status).toBe(200);
+  expect(await response.json()).toEqual([]);
+});
+
+test("config default answers empty when the status fetch fails", async () => {
+  const client = {
+    agentStatuses: async () => {
+      throw new Error("statuses down");
+    },
+    settings: async () => ({ agentSettings: {} }),
+  } as unknown as RemoteDesktopClient;
+  const { value } = S.router(client);
+  const response = await value.handle(new Request("http://poracode.invalid/api/config"));
+  expect(response.status).toBe(200);
+  expect(await response.json()).toEqual([]);
+});
+
+test("config default ignores a last-model file from another version", async () => {
+  const home = await mkdtemp(join(tmpdir(), "poracode-last-model-"));
+  const previous = process.env.PORACODE_TUI_HOME;
+  process.env.PORACODE_TUI_HOME = home;
+  try {
+    await Bun.write(
+      join(home, TUI_LAST_MODEL_FILE_NAME),
+      '{"version":2,"provider":"zzz","model":"gone"}',
+    );
+    const client = {
+      agentStatuses: async () => ({ windows: [guiStatus()], wsl: [] }),
+      settings: async () => ({ agentSettings: {} }),
+    } as unknown as RemoteDesktopClient;
+    const { value } = S.router(client, home);
+    const response = await value.handle(new Request("http://poracode.invalid/api/config"));
+    expect(await response.json()).toMatchObject([
+      { type: "document", info: { model: { providerID: "codex", model: "gpt-5" } } },
+    ]);
+  } finally {
+    if (previous === undefined) delete process.env.PORACODE_TUI_HOME;
+    else process.env.PORACODE_TUI_HOME = previous;
+    await rm(home, { recursive: true, force: true });
+  }
 });
