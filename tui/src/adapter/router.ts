@@ -35,6 +35,9 @@ export function createRouter(input: {
   client: RemoteDesktopClient;
   events: EventStreamHub;
   setThreadInterests: (ids: readonly string[]) => void | Promise<void>;
+  /** Test seams for the cold-start status poll (ms). */
+  statusPollIntervalMs?: number;
+  statusPollDeadlineMs?: number;
   watchTerminal?: (id: string, onOutput: (data: string) => void) => void;
   unwatchTerminal?: (id: string) => void;
   translate: (event: unknown) => OpenCodeEvent[];
@@ -68,6 +71,7 @@ export function createRouter(input: {
     goalSupported,
     goalLine,
     disposeSubagentSubscriptions,
+    disposeStatusPolling,
     sendPrompt,
     handleRemoteEvent,
     sessionOptions,
@@ -197,5 +201,6 @@ export function createRouter(input: {
     startSideChat,
     loginCandidates,
     disposeSubagentSubscriptions,
+    disposeStatusPolling,
   };
 }

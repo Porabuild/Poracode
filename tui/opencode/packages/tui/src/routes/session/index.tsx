@@ -87,6 +87,7 @@ import { FormPrompt } from "./form"
 import { DialogExportOptions } from "../../ui/dialog-export-options"
 import { DialogExportResult } from "../../ui/dialog-export-result"
 import { sessionEpilogue } from "../../util/presentation"
+import { tint } from "../../theme/color"
 import { useConfig, useNewDesigns } from "../../config"
 import { useClipboard } from "../../context/clipboard"
 import { nextThinkingMode, type ThinkingMode } from "../../context/thinking"
@@ -170,6 +171,7 @@ export function Session(props: {
   const configState = useConfig()
   const config = configState.data
   const theme = useTheme()
+  const dimensions = useTerminalDimensions()
   const promptRef = usePromptRef()
   const session = createMemo(() => data.session.get(route.sessionID))
   const messages = () => data.session.message.list(route.sessionID)
@@ -194,7 +196,16 @@ export function Session(props: {
 
   createEffect(() => {
     const title = Locale.truncate(session()?.title ?? "", 50)
-    setEpilogue(sessionEpilogue({ title, sessionID: session()?.id }))
+    // poracode: the epilogue wordmark follows the live width and carries the
+    // theme's brand dot and tinted shadow colours.
+    setEpilogue(
+      sessionEpilogue({
+        title,
+        sessionID: session()?.id,
+        width: dimensions().width,
+        colors: { brand: theme.text.brand, shadow: tint(theme.background.base, theme.text.base, 0.25) },
+      }),
+    )
   })
   onCleanup(() => setEpilogue())
   const descendantSessionIDs = createMemo(() => {
@@ -236,7 +247,6 @@ export function Session(props: {
   const disabled = createMemo(() => promptedPermissions().length > 0 || forms().length > 0)
 
   const renderer = useRenderer()
-  const dimensions = useTerminalDimensions()
   const thinkingMode = createMemo<ThinkingMode>(() => config.session?.thinking ?? "hide")
   const showScrollbar = createMemo(() => config.session?.scrollbar ?? false)
   const markdownMode = createMemo(() => config.session?.markdown ?? "rendered")

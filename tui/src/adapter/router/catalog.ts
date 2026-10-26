@@ -12,7 +12,7 @@ import { projectIdentityKey } from "@/shared/projectIdentity";
 import type { RemoteAgentStatuses } from "@/shared/remote";
 import { openCodeEvent } from "../events";
 import { logAdapterDebug } from "../diagnostics";
-import { record, supportsGui, summarizeAgentStatus } from "./helpers";
+import { guiModelEfforts, guiModels, record, supportsGui, summarizeAgentStatus } from "./helpers";
 import type { RouterContext } from "./context";
 
 /**
@@ -21,24 +21,63 @@ import type { RouterContext } from "./context";
  */
 export function createCatalog(ctx: RouterContext) {
   const LAST_MODEL_VERSION = TUI_LAST_MODEL_VERSION;
+  const usableStatus = (status: AgentStatus) =>
+    status.installed &&
+    supportsGui(status) &&
+    hasGuiAuthentication(status) &&
+    guiModels(status).length > 0;
+
+  // The vendored TUI resolves its default from the location config documents
+  // (/api/config): the last-used model wins, else the first usable provider in
+  // host order (its configured agentSettings model, else its first GUI model).
+  const resolveDefaultSelection = async (): Promise<
+    { providerID: string; model: string; variant?: string } | undefined
+  > => {
+    const usable = (await agentStatuses()).filter(usableStatus);
+    const home = process.env.PORACODE_TUI_HOME;
+    if (home) {
+      const preference = tuiLastModelSchema.safeParse(
+        await Bun.file(join(home, TUI_LAST_MODEL_FILE_NAME))
+          .json()
+          .catch(() => undefined),
+      );
+      if (preference.success) {
+        const last = preference.data;
+        const status = usable.find((value) => value.kind === last.provider);
+        if (status && guiModels(status).some((option) => option.id === last.model)) {
+          const variant =
+            last.effort && guiModelEfforts(status, last.model).includes(last.effort)
+              ? last.effort
+              : undefined;
+          ctx.defaultModel = { providerID: last.provider, model: last.model };
+          return {
+            providerID: last.provider,
+            model: last.model,
+            ...(variant ? { variant } : {}),
+          };
+        }
+      }
+    }
+    const first = usable[0];
+    if (!first) {
+      ctx.defaultModel = undefined;
+      return undefined;
+    }
+    const settings = await ctx.input.client.settings();
+    const preferred = String(record(settings.agentSettings[first.kind]).model ?? "");
+    const chosen =
+      guiModels(first).find((option) => option.id === preferred)?.id ?? guiModels(first)[0]!.id;
+    ctx.defaultModel = { providerID: first.kind, model: chosen };
+    return { providerID: first.kind, model: chosen };
+  };
+
   // The vendored client picks the default on first prompt; resolve it lazily
   // here so a fresh profile's first send binds a provider without needing a
-  // /api/model/default round-trip first.
+  // /api/model/default round-trip first. Recomputed on every call - statuses
+  // arrive progressively, so a permanent cache would freeze stale results.
   const resolveDefaultModel = async () => {
-    if (ctx.defaultModel) return ctx.defaultModel;
-    const settings = await ctx.input.client.settings();
-    ctx.defaultModel = (await agentStatuses()).filter(supportsGui).flatMap((status) => {
-      const capabilities = status.capabilities.presentationCapabilities?.gui ?? status.capabilities;
-      const models = capabilities.models ?? status.capabilities.models;
-      if (models.length === 0) return [];
-      return [
-        {
-          providerID: status.kind,
-          model: String(record(settings.agentSettings[status.kind]).model ?? "") || models[0]!.id,
-        },
-      ];
-    })[0];
-    return ctx.defaultModel;
+    const selection = await resolveDefaultSelection();
+    return selection ? { providerID: selection.providerID, model: selection.model } : undefined;
   };
 
   const resolveProject = async () => {
@@ -123,6 +162,60 @@ export function createCatalog(ctx: RouterContext) {
     }
   };
 
+  // Replaces the cached snapshot only when a relevant list actually changed;
+  // emits the refresh events so the vendored TUI refetches its catalogs.
+  const applyStatusesSnapshot = (fetched: RemoteAgentStatuses): boolean => {
+    const current = ctx.statuses ?? emptyStatuses();
+    const changed =
+      statusSignature(fetched.windows) !== statusSignature(current.windows) ||
+      (ctx.wslLocation && statusSignature(fetched.wsl) !== statusSignature(current.wsl));
+    if (!changed) return false;
+    ctx.statuses = {
+      windows: fetched.windows,
+      wsl: fetched.wsl,
+      updatedAt: fetched.updatedAt ?? new Date().toISOString(),
+    };
+    emitProviderRefresh();
+    return true;
+  };
+
+  // Cold start: the first HTTP snapshot is usually empty while provider probes
+  // finish one by one and only the bulk event refreshes the client. Poll the
+  // host until the bulk event for the active environment lands so the model
+  // picker fills progressively instead of showing "No items available".
+  const startStatusPoll = () => {
+    if (ctx.statusPollAbort) return;
+    const abort = (ctx.statusPollAbort = new AbortController());
+    const interval = ctx.input.statusPollIntervalMs ?? 1_000;
+    const deadline = Date.now() + (ctx.input.statusPollDeadlineMs ?? 60_000);
+    const started = Date.now();
+    void (async () => {
+      while (!abort.signal.aborted && !ctx.statusesSettled && Date.now() < deadline) {
+        const revision = ctx.statusesRevision;
+        try {
+          const fetched = await ctx.input.client.agentStatuses({ omitSlashCommands: true });
+          if (ctx.debug)
+            await logAdapterDebug(ctx.input.bootstrap.home, {
+              source: "agent-statuses-poll",
+              elapsedMs: Date.now() - started,
+              statuses: [...fetched.windows, ...fetched.wsl].map(summarizeAgentStatus),
+            });
+          // A status event that landed while this poll was in flight wins.
+          if (!abort.signal.aborted && !ctx.statusesSettled && ctx.statusesRevision === revision)
+            applyStatusesSnapshot(fetched);
+        } catch (error) {
+          if (ctx.debug)
+            await logAdapterDebug(ctx.input.bootstrap.home, {
+              source: "agent-statuses-poll-error",
+              error: error instanceof Error ? error.message : String(error),
+            });
+        }
+        if (ctx.statusesSettled || abort.signal.aborted || Date.now() >= deadline) break;
+        await new Promise((resolve) => setTimeout(resolve, interval));
+      }
+    })();
+  };
+
   const agentStatuses = async () => {
     if (!ctx.statuses) {
       const fetched = await ctx.input.client.agentStatuses({ omitSlashCommands: true });
@@ -133,6 +226,11 @@ export function createCatalog(ctx: RouterContext) {
           windows: fetched.windows.map(summarizeAgentStatus),
           wsl: fetched.wsl.map(summarizeAgentStatus),
         });
+      const snapshot = ctx.statuses;
+      const usable = [...snapshot.windows, ...(ctx.wslLocation ? snapshot.wsl : [])].some(
+        usableStatus,
+      );
+      if (!ctx.statusesSettled && !usable) startStatusPoll();
     }
     const current = ctx.statuses;
     return [...current.windows, ...(ctx.wslLocation ? current.wsl : [])].filter(
@@ -159,6 +257,9 @@ export function createCatalog(ctx: RouterContext) {
       "provider.updated",
       "model.updated",
       "agent.updated",
+      // config.updated makes the TUI re-read the location config documents
+      // (and with them the default model) as providers keep arriving.
+      "config.updated",
     ] as const)
       ctx.input.events.emit(
         openCodeEvent(type, {}, { location: { directory: ctx.input.bootstrap.directory } }),
@@ -178,6 +279,9 @@ export function createCatalog(ctx: RouterContext) {
         value.type === "windows-agent-statuses"
           ? { ...current, windows: parsed.data, updatedAt: new Date().toISOString() }
           : { ...current, wsl: parsed.data, updatedAt: new Date().toISOString() };
+      ctx.statusesRevision += 1;
+      // The bulk event for the active environment ends discovery.
+      if ((value.type === "wsl-agent-statuses") === ctx.wslLocation) ctx.statusesSettled = true;
       if (ctx.debug)
         void logAdapterDebug(ctx.input.bootstrap.home, {
           source: value.type,
@@ -202,6 +306,7 @@ export function createCatalog(ctx: RouterContext) {
         : previous.map((entry, currentIndex) => (currentIndex === index ? status : entry));
     const previousSignature = statusSignature(previous);
     ctx.statuses = { ...current, [field]: updated, updatedAt: new Date().toISOString() };
+    ctx.statusesRevision += 1;
     if (ctx.debug)
       void logAdapterDebug(ctx.input.bootstrap.home, {
         source: value.type,
@@ -210,8 +315,13 @@ export function createCatalog(ctx: RouterContext) {
     if (statusSignature(current[field]) !== previousSignature) emitProviderRefresh();
     return true;
   };
+  const disposeStatusPolling = () => ctx.statusPollAbort?.abort();
+
   return {
     resolveDefaultModel,
+    resolveDefaultSelection,
+    applyStatusesSnapshot,
+    disposeStatusPolling,
     resolveProject,
     requestLocation,
     persistLastModel,

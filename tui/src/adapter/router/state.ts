@@ -58,6 +58,9 @@ export function createRouterState(input: RouterInput) {
     currentSession: undefined as string | undefined,
     project: undefined as RemoteProject | undefined,
     statuses: undefined as RemoteAgentStatuses | undefined,
+    statusesRevision: 0,
+    statusesSettled: false,
+    statusPollAbort: undefined as AbortController | undefined,
     defaultModel: undefined as { providerID: string; model: string } | undefined,
     activeProviderID: undefined as string | undefined,
   };

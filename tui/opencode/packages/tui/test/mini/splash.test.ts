@@ -11,6 +11,7 @@ const theme = {
   left: RGBA.fromIndex(8, "#666666"),
   right: RGBA.defaultForeground("#cccccc"),
   leftShadow: RGBA.defaultBackground("#111111"),
+  brand: RGBA.fromHex("#8892ef"),
 }
 
 async function renderSplash(writer: ScrollbackWriter, width: number) {

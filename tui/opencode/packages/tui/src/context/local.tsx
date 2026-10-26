@@ -398,9 +398,10 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         parsed: createMemo(() => {
           const value = currentSelection()
           if (!value) {
+            // poracode: provider onboarding is disabled; point at model choice instead.
             return {
-              provider: "Connect a provider",
-              model: "No provider selected",
+              provider: "Choose a configured model",
+              model: "No model selected",
               reasoning: false,
             }
           }

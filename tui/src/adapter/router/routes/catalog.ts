@@ -1,6 +1,6 @@
 import { openCodeEvent } from "../../events";
 import { threadId } from "../../ids";
-import { json, record, supportsGui, supportsMode } from "../helpers";
+import { guiModelEfforts, guiModels, json, record, supportsGui, supportsMode } from "../helpers";
 import { isThreadTurnActive, type AgentStatus } from "@/shared/contracts";
 import type {
   AgentInfo,
@@ -116,8 +116,7 @@ export async function handleCatalogRoutes({
   if (path === "/api/model" && method === "GET") {
     const data: ModelInfo[] = (await agentStatuses()).filter(supportsGui).flatMap((status) => {
       const capabilities = status.capabilities.presentationCapabilities?.gui ?? status.capabilities;
-      const models = capabilities.models ?? status.capabilities.models;
-      return models.map((option) => {
+      return guiModels(status).map((option) => {
         const model: ModelInfo = {
           id: option.id,
           modelID: option.id,
@@ -127,12 +126,7 @@ export async function handleCatalogRoutes({
             : {}),
           name: option.label,
           capabilities: { tools: true, input: ["text"], output: ["text"] },
-          variants: (
-            capabilities.modelEfforts?.[option.id] ??
-            status.capabilities.modelEfforts[option.id] ??
-            capabilities.efforts ??
-            status.capabilities.efforts
-          ).map((id) => ({ id })),
+          variants: guiModelEfforts(status, option.id).map((id) => ({ id })),
           time: { released: 0 },
           cost: [],
           status: "active",
@@ -154,8 +148,8 @@ export async function handleCatalogRoutes({
     // GUI-capable provider to appear instead of locking in `data: null`.
     const deadline = Date.now() + 15_000;
     while (!ctx.defaultModel && Date.now() < deadline) {
-      ctx.statuses = await input.client.agentStatuses({ omitSlashCommands: true });
-      ctx.defaultModel = await resolveDefaultModel();
+      ctx.applyStatusesSnapshot(await input.client.agentStatuses({ omitSlashCommands: true }));
+      await resolveDefaultModel();
       if (!ctx.defaultModel) await new Promise((resolve) => setTimeout(resolve, 500));
     }
     const agents = (await agentStatuses()).filter(supportsGui);
