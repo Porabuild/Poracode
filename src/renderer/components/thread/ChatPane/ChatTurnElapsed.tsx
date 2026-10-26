@@ -59,10 +59,8 @@ export function ChatWorktreeProvisioningFooter() {
   );
 }
 
-export function ChatConnectingFooter() {
-  const { t } = useLingui();
+export function ChatStatusFooter({ text }: { text: string }) {
   const textRef = useRef<HTMLSpanElement>(null);
-  const text = t`Connecting…`;
   useShimmerRef(textRef, true);
 
   return (

@@ -70,6 +70,28 @@ final class CapturingURLProtocol: URLProtocol {
 }
 
 final class RemoteAPIClientPathTests: XCTestCase {
+    func testThreadStartOverridesTheDefaultRequestDeadline() async throws {
+        CapturingURLProtocol.reset()
+        CapturingURLProtocol.responseStatus = 200
+        CapturingURLProtocol.responseBody = Data(#"{"threadId":"thread-1"}"#.utf8)
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [CapturingURLProtocol.self]
+        config.timeoutIntervalForResource = 30
+        let client = RemoteAPIClient(
+            endpoint: "https://host.example",
+            accessToken: "access-token",
+            session: URLSession(configuration: config),
+            requestTimeout: 30
+        )
+        _ = try await client.executeThreadLifecycleRequest(
+            ThreadLifecycleHTTPRequest(
+                method: "POST", path: "/api/threads/start", body: Data("{}".utf8),
+                headers: [:], timeout: 600))
+        XCTAssertEqual(CapturingURLProtocol.lastRequest?.timeoutInterval, 600)
+        _ = try await client.requestData(path: "/api/environment")
+        XCTAssertEqual(CapturingURLProtocol.lastRequest?.timeoutInterval, 30)
+    }
+
     override func tearDown() {
         CapturingURLProtocol.reset()
         super.tearDown()

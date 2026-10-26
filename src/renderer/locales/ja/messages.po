@@ -4556,6 +4556,12 @@ msgstr "接続済み"
 msgid "Connecting"
 msgstr "接続中"
 
+#: src/renderer/bootstrap.ts
+#: src/renderer/components/thread/TerminalThreadContent.tsx
+#: src/renderer/components/thread/ThreadDraftView.tsx
+msgid "Connecting to host…"
+msgstr "ホストに接続中…"
+
 #: src/mobile/views/BrowserView.tsx
 #~ msgid "Connecting to the desktop browser…"
 #~ msgstr "デスクトップのブラウザに接続しています…"
@@ -4573,12 +4579,8 @@ msgstr "音声に接続中…"
 msgid "Connecting..."
 msgstr "接続中..."
 
-#: src/renderer/bootstrap.ts
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
 #: src/renderer/components/providers/HostUsageView.tsx
-#: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
-#: src/renderer/components/thread/ThreadDraftView.tsx
-#: src/renderer/components/thread/ThreadHeaderStatus.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineSelect.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
@@ -9535,8 +9537,8 @@ msgstr "スレッドを起動する"
 #~ msgstr "起動中"
 
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
-msgid "Launching…"
-msgstr "起動中…"
+#~ msgid "Launching…"
+#~ msgstr "起動中…"
 
 #: src/renderer/components/providers/devin/modelPricing.ts
 #: src/renderer/i18n/sharedMessages.ts
@@ -9773,6 +9775,10 @@ msgstr "一致したメッセージを読み込み中…"
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorMediaViews.tsx
 msgid "Loading media preview…"
 msgstr "メディアのプレビューを読み込み中…"
+
+#: src/renderer/components/thread/ChatPane/ChatPane.tsx
+msgid "Loading messages…"
+msgstr "メッセージを読み込み中…"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesPanel.tsx
 msgid "Loading notes…"
@@ -15191,6 +15197,10 @@ msgstr "目標を再開"
 msgid "Resume queued follow-ups"
 msgstr "キューに入ったフォローアップを再開"
 
+#: src/renderer/components/thread/ThreadHeaderStatus.tsx
+msgid "Resuming session…"
+msgstr "セッションを再開中…"
+
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Retained usage on this host only."
 msgstr "このホストに保存された使用量のみです。"
@@ -17508,6 +17518,10 @@ msgstr "{targetLabel}スレッドを開始しました"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Starting"
 msgstr "開始しています"
+
+#: src/renderer/components/thread/ThreadHeaderStatus.tsx
+msgid "Starting agent…"
+msgstr "エージェントを起動中…"
 
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
 msgid "Starting camera…"

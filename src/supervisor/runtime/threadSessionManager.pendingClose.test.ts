@@ -408,6 +408,86 @@ afterEach(async () => {
 });
 
 describe("confirmed close of a pending start", () => {
+  it.each([false, true])(
+    "switches provider after confirmed disposal (open cancellation supported: %s)",
+    async (supportsOpenCancellation) => {
+      const entered = deferred();
+      const gate = deferred();
+      const disposing = deferred();
+      const disposal = deferred();
+      const source = handle();
+      Object.assign(source, { supportsOpenCancellation });
+      const target = handle();
+      const next = adapter("next-fixture", target);
+      const hold = async () => {
+        entered.resolve();
+        await gate.promise;
+        return "fixture-session";
+      };
+      source.openThread = vi.fn<NonNullable<StructuredSessionHandle["openThread"]>>(hold);
+      source.dispose = vi.fn<StructuredSessionHandle["dispose"]>(() => {
+        disposing.resolve();
+        return disposal.promise;
+      });
+      const manager = managerFor([adapter("fixture", source), next]);
+      const start = manager.startThread(payload());
+      await entered.promise;
+      const replacement = manager.startThread({
+        ...payload("next-fixture"),
+        providerSwitch: { fromAgentKind: "fixture", handoffItemId: "handoff" },
+      });
+      try {
+        await drain();
+        expect(source.dispose).toHaveBeenCalledTimes(supportsOpenCancellation ? 1 : 0);
+        expect(next.createStructuredSession).not.toHaveBeenCalled();
+        if (!supportsOpenCancellation) {
+          gate.resolve();
+        }
+        await disposing.promise;
+        expect(next.createStructuredSession).not.toHaveBeenCalled();
+        expect(manager.hostResourceAdmission.usage().total).toBe(1);
+        disposal.resolve();
+        await Promise.all([start, replacement]);
+        expect(manager.sessions.get("pending-close")?.structuredSession).toBe(target);
+        expect(source.dispose).toHaveBeenCalledOnce();
+        expect(target.dispose).not.toHaveBeenCalled();
+        gate.resolve();
+        await drain();
+        expect(manager.sessions.get("pending-close")?.structuredSession).toBe(target);
+      } finally {
+        gate.resolve();
+        disposal.resolve();
+        await Promise.allSettled([start, replacement]);
+      }
+    },
+  );
+
+  it("refuses a stale provider switch without cancelling a pending successor", async () => {
+    const entered = deferred();
+    const gate = deferred();
+    const source = handle();
+    source.openThread = vi.fn<NonNullable<StructuredSessionHandle["openThread"]>>(async () => {
+      entered.resolve();
+      await gate.promise;
+      return "fixture-session";
+    });
+    const manager = managerFor([adapter("fixture", source), adapter("next-fixture", handle())]);
+    const start = manager.startThread(payload());
+    await entered.promise;
+    try {
+      await expect(
+        manager.startThread({
+          ...payload("next-fixture"),
+          providerSwitch: { fromAgentKind: "old-fixture" },
+        }),
+      ).rejects.toThrow("Provider switch is stale");
+      expect(source.dispose).not.toHaveBeenCalled();
+    } finally {
+      gate.resolve();
+      await start;
+    }
+  });
+
   it("joins an immediately cancelled initial start without creating a handle", async () => {
     const session = handle();
     const provider = adapter("fixture", session);

@@ -32,6 +32,7 @@ class ThreadLifecycleRemoteApiClient private constructor(
             path = "/api/threads/start",
             method = "POST",
             jsonBody = GeneratedRemoteV3ThreadLifecycleContract.startExistingRequest(request),
+            timeoutMs = 600_000,
             extraHeaders = mapOf(
                 ProtocolConstants.COMMAND_ID_HEADER to request.commandId.value,
             ),
@@ -45,6 +46,7 @@ class ThreadLifecycleRemoteApiClient private constructor(
             path = "/api/threads/${encodePath(threadId)}/command",
             method = "POST",
             jsonBody = GeneratedRemoteV3ThreadLifecycleContract.commandRequest(command),
+            timeoutMs = if (command is ThreadLifecycleCommand.Start) 600_000 else null,
             extraHeaders = command.commandId?.let {
                 mapOf(ProtocolConstants.COMMAND_ID_HEADER to it.value)
             }.orEmpty(),

@@ -44,8 +44,9 @@ import { ChatFindBar, type ScrollToIndex } from "@/renderer/components/find/Chat
 import { ChatPaneActionsContext, type ChatPaneActions } from "./chatPaneActionsContext";
 import { ChatReaderFollowContext, createChatReaderFollowSignal } from "./chatReaderFollow";
 import { ChatScrollControls, type ChatScrollControlsHandle } from "./ChatScrollControls";
+import { threadRuntimeStatusLabel } from "../ThreadHeaderStatus";
 import {
-  ChatConnectingFooter,
+  ChatStatusFooter,
   ChatTurnElapsedFooter,
   ChatWorktreeProvisioningFooter,
   type TurnTiming,
@@ -633,16 +634,18 @@ export function ChatPane(props: ChatPaneProps) {
               footer={
                 isWorktreeProvisioning ? (
                   <ChatWorktreeProvisioningFooter />
-                ) : isConnecting ? (
+                ) : isConnecting || status === "launching" ? (
                   // Keep the completed turn's fork row while reconnecting so the
                   // swap to "Worked for" keeps the footer height and the pinned
                   // transcript does not jump.
                   <div className="group/checkpoint">
-                    <ChatConnectingFooter />
+                    <ChatStatusFooter
+                      text={threadRuntimeStatusLabel(thread, t, { isConnecting })}
+                    />
                     {tailForkAction}
                   </div>
                 ) : isHydrating && !showWorkingTimer ? (
-                  <ChatConnectingFooter />
+                  <ChatStatusFooter text={t`Loading messages…`} />
                 ) : showTailLoader && tailTurn ? (
                   <div className="group/checkpoint">
                     <ChatTurnElapsedFooter

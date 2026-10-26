@@ -324,7 +324,7 @@ describe("ChatPane", () => {
     // First read in flight: the empty hint is suppressed, loading shows.
     useAppStore.setState({ runtimeHydrationStatus: { [thread.id]: "pending" } });
     await waitFor(() => expect(screen.queryByText("No messages yet")).not.toBeInTheDocument());
-    expect(screen.getByText("Connecting…")).toBeInTheDocument();
+    expect(screen.getByText("Loading messages…")).toBeInTheDocument();
 
     // Failed read: error with retry; retrying re-runs the hydration.
     useAppStore.setState({ runtimeHydrationStatus: { [thread.id]: "failed" } });
@@ -340,7 +340,28 @@ describe("ChatPane", () => {
     expect(screen.queryByText("Messages could not be loaded.")).not.toBeInTheDocument();
   });
 
-  it("shows connecting without starting a working timer during GUI reconnect", () => {
+  it.each([false, true])("names agent startup accurately (saved session: %s)", (resuming) => {
+    const thread: Thread = {
+      ...makeThread(),
+      status: "launching",
+      ...(resuming
+        ? {
+            sessionRef: {
+              providerSessionId: "saved-session",
+              discoveredAt: new Date().toISOString(),
+            },
+          }
+        : {}),
+    };
+    useAppStore.setState({ threads: [thread] });
+    renderChatPane(thread);
+    expect(
+      screen.getByText(resuming ? "Resuming session…" : "Starting agent…"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/^Working for/)).not.toBeInTheDocument();
+  });
+
+  it("shows session resumption without starting a working timer during GUI reconnect", () => {
     const thread = { ...makeThread(), status: "idle" as const };
     useAppStore.setState({
       threads: [thread],
@@ -349,7 +370,7 @@ describe("ChatPane", () => {
 
     renderChatPane(thread);
 
-    expect(screen.getByText("Connecting…")).toBeInTheDocument();
+    expect(screen.getByText("Resuming session…")).toBeInTheDocument();
     expect(screen.queryByText(/^Working for/)).not.toBeInTheDocument();
     expect(screen.queryByText("No messages yet")).not.toBeInTheDocument();
   });
@@ -445,7 +466,7 @@ describe("ChatPane", () => {
     renderChatPane(thread);
 
     expect(await screen.findByText(/^Working for/)).toBeInTheDocument();
-    expect(screen.queryByText("Connecting…")).not.toBeInTheDocument();
+    expect(screen.queryByText("Loading messages…")).not.toBeInTheDocument();
   });
 
   it.each([
@@ -454,7 +475,7 @@ describe("ChatPane", () => {
     ["inactive", 75_000],
     ["inactive", 700],
   ] as const)(
-    "keeps connecting while an %s thread's completed history is loading (%i ms turn)",
+    "shows message loading while an %s thread's completed history is loading (%i ms turn)",
     async (status, durationMs) => {
       const startedAt = "2026-05-01T12:00:00.000Z";
       const thread = {
@@ -470,7 +491,7 @@ describe("ChatPane", () => {
 
       renderChatPane(thread);
 
-      expect(await screen.findByText("Connecting…")).toBeInTheDocument();
+      expect(await screen.findByText("Loading messages…")).toBeInTheDocument();
       expect(screen.queryByText(/^Worked for/)).not.toBeInTheDocument();
     },
   );
@@ -2395,14 +2416,14 @@ describe("ChatPane", () => {
 
     renderChatPane(thread);
 
-    expect(screen.getByText("Connecting…")).toBeInTheDocument();
+    expect(screen.getByText("Resuming session…")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Fork from here" })).toBeInTheDocument();
 
     act(() => {
       useAppStore.getState().finishThreadConnecting(thread.id, "connection-1");
     });
 
-    expect(screen.queryByText("Connecting…")).not.toBeInTheDocument();
+    expect(screen.queryByText("Resuming session…")).not.toBeInTheDocument();
     expect(screen.getByText("Worked for 1m 15s")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Fork from here" })).toBeInTheDocument();
   });

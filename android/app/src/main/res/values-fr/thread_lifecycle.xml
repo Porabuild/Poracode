@@ -24,4 +24,6 @@
     <string name="archived_threads_title">Fils archivés</string>
     <string name="archived_threads_description">Restaurez ou supprimez définitivement les fils archivés.</string>
     <string name="archived_threads_empty">Aucun fil archivé</string>
+    <string name="thread_status_starting_agent">Démarrage de l’agent…</string>
+    <string name="thread_status_resuming">Reprise de la session…</string>
 </resources>
