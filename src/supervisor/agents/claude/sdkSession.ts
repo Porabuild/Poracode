@@ -1910,7 +1910,10 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     try {
       const runtime = this.queryRuntime;
       if (!runtime) return;
-      const usage = await runtime.getContextUsage();
+      // This refresh runs after every result and on the goal tick. `summary`
+      // answers from the last response's usage instead of issuing a
+      // token-count API call per category; CLIs that predate it ignore it.
+      const usage = await runtime.getContextUsage({ detail: "summary" });
       if (this.disposed || runtime !== this.queryRuntime) return;
       const event = mapClaudeContextUsageResponse(this.input.threadId, usage);
       if (event) this.emitRuntimeEvents([event]);

@@ -350,14 +350,14 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
     }),
     {
       name: "poracode-agent-statuses-v1",
-      version: 65,
-      // hasCompletedDiscovery is additive: old readers ignore it. Keep v65
+      version: 66,
+      // hasCompletedDiscovery is additive: old readers ignore it. Keep v66
       // inventories valid; infer the flag from older snapshots before clearing
       // outdated capabilities, independently of supervisor STATUS_CACHE_VERSION.
       // Discovery interaction flags are excluded by partialize and do not
       // change the persisted format.
-      // v65 mirrors supervisor STATUS_CACHE_VERSION=69: refresh Devin discovery
-      // for the /goal <objective> thread-title command.
+      // v66 mirrors supervisor STATUS_CACHE_VERSION=70: refresh Claude
+      // discovery so 400k, not 1M, is the default context window.
       migrate: (persisted) => {
         const prev = (persisted ?? {}) as Partial<AgentStatusesStore>;
         return {

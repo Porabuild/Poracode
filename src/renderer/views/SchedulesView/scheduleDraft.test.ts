@@ -31,7 +31,7 @@ const baseTask: ScheduledTask = {
 };
 
 describe("scheduleDraft projectId", () => {
-  it("defaults new schedules to the model's highest supported effort", () => {
+  it("defaults new schedules to the provider's declared effort", () => {
     const agent = {
       kind: "test",
       capabilities: {
@@ -41,7 +41,7 @@ describe("scheduleDraft projectId", () => {
         defaultEffort: "low",
       },
     } as unknown as AgentStatus;
-    expect(newScheduleDraft(agent).effort).toBe("max");
+    expect(newScheduleDraft(agent).effort).toBe("low");
   });
 
   it("defaults new drafts to the Home scope (null)", () => {
