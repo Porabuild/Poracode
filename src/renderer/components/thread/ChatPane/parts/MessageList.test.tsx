@@ -69,6 +69,7 @@ const MOCK_ROW_SIZE = 100;
 
 vi.mock("@legendapp/list/react", async () => {
   const React = await import("react");
+  const positionListeners = new Map<string, Set<(position: number | undefined) => void>>();
   return {
     LegendList: React.forwardRef(function MockLegendList(
       props: MockLegendProps,
@@ -115,6 +116,14 @@ vi.mock("@legendapp/list/react", async () => {
           listen: (name: string, listener: () => void) => {
             if (name === "totalSize") totalSizeListener.current = listener;
             return unsubscribeMock;
+          },
+          listenToPosition: (key: string, cb: (position: number | undefined) => void) => {
+            let set = positionListeners.get(key);
+            if (!set) positionListeners.set(key, (set = new Set()));
+            set.add(cb);
+            return () => {
+              set.delete(cb);
+            };
           },
         }),
         scrollToEnd: scrollToEndMock,
@@ -325,6 +334,36 @@ describe("MessageList", () => {
       }
     },
   );
+
+  it("applies the prompt floor to the content container while a prompt is anchored", () => {
+    seedCompletedItem("thread-1", "old-prompt", "user_message");
+    seedCompletedItem("thread-1", "answer", "assistant_message");
+    const { rerender, container } = render(
+      <MessageList
+        threadId="thread-1"
+        entries={makeEntries(["old-prompt", "answer"])}
+        onStartReached={() => undefined}
+      />,
+    );
+    act(() => {
+      useAppStore.getState().requestChatScrollToPrompt("thread-1");
+    });
+    act(() => seedCompletedItem("thread-1", "new-prompt", "user_message"));
+    rerender(
+      <MessageList
+        threadId="thread-1"
+        entries={makeEntries(["old-prompt", "answer", "new-prompt"])}
+        onStartReached={() => undefined}
+      />,
+    );
+    const content = container.querySelector<HTMLElement>(".legend-list-content-container")!;
+    expect(content.style.getPropertyValue("--chat-prompt-floor")).toBe("200px");
+    expect(content.style.minHeight).toContain("var(--chat-prompt-floor");
+    act(() => {
+      useAppStore.getState().clearChatPromptAnchor("thread-1");
+    });
+    expect(content.style.getPropertyValue("--chat-prompt-floor")).toBe("");
+  });
 
   it.each(["manual scroll", "return to bottom"])("cancels the prompt animation on %s", (action) => {
     vi.useFakeTimers();

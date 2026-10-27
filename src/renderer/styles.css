@@ -5657,12 +5657,18 @@ html[data-platform="darwin"][data-client-host="electron"] .poracode-sidebar-proj
 /* Adaptive diff line-number gutter.
    In unified mode @git-diff-view reserves TWO number columns (old + new) and
    sizes the gutter to (aside + 5px) * 2 ≈ 90px. That's fine on the full-width
-   Git review, but wastes a quarter of the width in a narrow panel — the chat
-   inline diff, a split editor, PR file cards, or a small window — half of it an
-   empty old-number column on added/new files. We collapse the gutter to the
-   single relevant number whenever the diff's OWN container is ≤768px wide.
+   Git review, but wastes a quarter of the width in a narrow panel — a split
+   editor, PR file cards, or a small window — half of it an empty old-number
+   column on added/new files. We collapse the gutter to the single relevant
+   number whenever the diff's OWN container is ≤768px wide.
 
-   This is a container query, not a viewport media query: a 420px chat pane
+   Surfaces that should always be compact add .poracode-compact-diff-gutter to
+   the diff or an ancestor. Chat edit diffs do: the transcript column is capped
+   at 920px, so a full-width chat diff lands just above 768px and would keep
+   the wide gutter. The compact-diff-gutter variant emits each rule below for
+   both conditions at build time.
+
+   This is a container query, not a viewport media query: a 420px panel
    inside an 1800px window still compacts, and a full-width review stays as-is.
    .diff-view-wrapper is the library's per-diff root (w-full block), so its
    inline-size tracks the panel width. The adaptive renderer uses this one
@@ -5678,47 +5684,52 @@ html[data-platform="darwin"][data-client-host="electron"] .poracode-sidebar-proj
 
    Gated on @supports selector(:has(*)) so engines without :has() keep the
    default gutter — no regression, just no improvement. */
+@custom-variant compact-diff-gutter {
+  @container (max-width: 768px) {
+    @slot;
+  }
+  &:where(.poracode-compact-diff-gutter, .poracode-compact-diff-gutter *) {
+    @slot;
+  }
+}
+
 .diff-view-wrapper {
   container-type: inline-size;
 }
 
 @supports selector(:has(*)) {
-  @container (max-width: 768px) {
-    .diff-view-wrapper .diff-line-num,
-    .diff-view-wrapper .diff-line-hunk-action {
-      width: 48px !important;
-      min-width: 48px !important;
-      max-width: none !important;
-      padding-left: 4px !important;
-      padding-right: 6px !important;
-    }
+  .diff-view-wrapper {
+    @variant compact-diff-gutter {
+      .diff-line-num,
+      .diff-line-hunk-action {
+        width: 48px !important;
+        min-width: 48px !important;
+        max-width: none !important;
+        padding-left: 4px !important;
+        padding-right: 6px !important;
+      }
 
-    /* Drop the 10px spacer between the old/new numbers. */
-    .diff-view-wrapper .diff-line-num > div > span:nth-child(2) {
-      display: none !important;
-    }
+      /* Drop the 10px spacer between the old/new numbers. */
+      .diff-line-num > div > span:nth-child(2) {
+        display: none !important;
+      }
 
-    /* Added / context lines: the new-line number (3rd span) is present — show it
-       alone, full width, and hide the old-line number. */
-    .diff-view-wrapper
-      .diff-line-num
-      > div:has(> span:nth-child(3):not(:empty))
-      > span:nth-child(1) {
-      display: none !important;
-    }
-    .diff-view-wrapper
-      .diff-line-num
-      > div:has(> span:nth-child(3):not(:empty))
-      > span:nth-child(3) {
-      width: 100% !important;
-    }
+      /* Added / context lines: the new-line number (3rd span) is present — show it
+         alone, full width, and hide the old-line number. */
+      .diff-line-num > div:has(> span:nth-child(3):not(:empty)) > span:nth-child(1) {
+        display: none !important;
+      }
+      .diff-line-num > div:has(> span:nth-child(3):not(:empty)) > span:nth-child(3) {
+        width: 100% !important;
+      }
 
-    /* Pure deletion lines: no new-line number (3rd span empty) — show the old. */
-    .diff-view-wrapper .diff-line-num > div:has(> span:nth-child(3):empty) > span:nth-child(3) {
-      display: none !important;
-    }
-    .diff-view-wrapper .diff-line-num > div:has(> span:nth-child(3):empty) > span:nth-child(1) {
-      width: 100% !important;
+      /* Pure deletion lines: no new-line number (3rd span empty) — show the old. */
+      .diff-line-num > div:has(> span:nth-child(3):empty) > span:nth-child(3) {
+        display: none !important;
+      }
+      .diff-line-num > div:has(> span:nth-child(3):empty) > span:nth-child(1) {
+        width: 100% !important;
+      }
     }
   }
 }

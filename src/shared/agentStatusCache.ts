@@ -8,10 +8,10 @@ import {
   type AgentStatusesResponse,
 } from "./contracts/agent";
 
-// The supervisor and passive owner inventories share this codec. Moving it
-// preserves the supervisor's v69 decision: re-probe Devin statuses that lack
-// the `/goal <objective>` thread-title command. Passive reads share that version.
-export const STATUS_CACHE_VERSION = 69;
+// The supervisor and passive owner inventories share this codec. v70 re-probes
+// Claude statuses cached with 1M ahead of 400k, which made 1M the default
+// context window. Passive reads share that version.
+export const STATUS_CACHE_VERSION = 70;
 
 export interface AgentStatusCacheSnapshot {
   state: "available" | "missing" | "invalid" | "incompatible" | "unavailable";

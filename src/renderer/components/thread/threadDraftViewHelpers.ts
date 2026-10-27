@@ -17,8 +17,8 @@ import {
   agentStatusForPresentation,
   modelSelectionFor,
   resolveModelSelection,
+  resolveReasoningSelection,
 } from "@/shared/agentSelection";
-import { resolvePreferredEffort } from "@/renderer/utils/effortSelection";
 import { modelFamilyForModel } from "@/shared/modelFamilySelection";
 import { i18n } from "@/renderer/i18n/i18n";
 import type { ProviderModelPreference } from "@/shared/settings";
@@ -145,7 +145,7 @@ export function resolveModelValue(agent: AgentStatus, preferred?: string): strin
 }
 
 export function resolveEffortValue(agent: AgentStatus, model: string, preferred?: string): string {
-  return resolvePreferredEffort(agent.capabilities, model, preferred);
+  return resolveReasoningSelection(agent.capabilities, model, preferred);
 }
 
 export function resolveContextSizeValue(

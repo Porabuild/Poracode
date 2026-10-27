@@ -162,6 +162,7 @@ const execFileAsync = promisify(execFile);
 // v68 re-probes Claude so statuses cached without the read-only one-shot workspace capability
 // (needed to offer it as a review-guide writer) are not reused.
 // v69 re-probes Devin so cached statuses gain the `/goal <objective>` thread-title command.
+// v70 re-probes Claude so cached statuses default to the 400k context window, not 1M.
 const WSL_AGENT_DETECTION_TIMEOUT_MS = 60_000;
 const WSL_LXSS_REGISTRY_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss";
 

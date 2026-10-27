@@ -146,6 +146,7 @@ export function useNewPromptScroll({
 
   return {
     anchoredEndSpace,
+    anchorKey: anchorIndex >= 0 ? anchorId : null,
     newPromptReady:
       request !== undefined && latestPromptId !== null && latestPromptId !== request.afterItemId,
     cancelAnimation: () => {

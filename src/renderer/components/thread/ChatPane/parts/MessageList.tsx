@@ -47,6 +47,7 @@ import { imageViewRendersInline, resolveImageViewSource } from "./items/imageVie
 import { isToolLikeItem } from "./items/toolCallCategorization";
 import { useTimelineMeasurements } from "./useTimelineMeasurements";
 import { useNewPromptScroll } from "./useNewPromptScroll";
+import { PROMPT_FLOOR_CSS_VAR, usePromptReserveFloor } from "./usePromptReserveFloor";
 import { type HistoryStartReached } from "./underfilledHistory";
 import { useUnderfilledHistory } from "./useUnderfilledHistory";
 import {
@@ -175,7 +176,7 @@ export function MessageList({
   const onContentHeightNotification = onContentHeightChange ?? parentActions?.onContentHeightChange;
   const listRef = useRef<LegendListRef | null>(null);
   const scrollElementRef = useRef<HTMLDivElement | null>(null);
-  const { anchoredEndSpace, newPromptReady, cancelAnimation } = useNewPromptScroll({
+  const { anchoredEndSpace, anchorKey, newPromptReady, cancelAnimation } = useNewPromptScroll({
     threadId,
     entries,
     listRef,
@@ -197,6 +198,7 @@ export function MessageList({
     entriesRef.current = entries;
   });
   const virtualSizeBoxRef = useRef<HTMLDivElement | null>(null);
+  usePromptReserveFloor({ anchorKey, listRef, contentElementRef: virtualSizeBoxRef });
   const [pendingRevert, setPendingRevert] = useState<{
     itemId: string;
     userItemId: string;
@@ -528,6 +530,9 @@ export function MessageList({
           // and content-size model must match the DOM or the scroller lands
           // short of the bottom and the scroll-down control never hides.
           paddingBottom: CONTENT_TAIL_PADDING_PX,
+          // Prompt floor keeps the scroll range tall enough for a flush anchor;
+          // an unset var falls back to 100%, same as min-h-full.
+          minHeight: `calc(var(${PROMPT_FLOOR_CSS_VAR}, 0px) + 100%)`,
           WebkitMaskImage:
             "linear-gradient(to bottom, black calc(100% - 14px), rgb(0 0 0 / var(--lc-chat-bottom-mask-end-alpha, 0)))",
           maskImage:
