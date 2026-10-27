@@ -7,6 +7,14 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 export const DESKTOP_CLI_BOOTSTRAP_VERSION = 1;
 export const DESKTOP_CLI_PREFIX = "app.asar/dist/cli-runtime";
+// Shared with AppImage re-entry. The defaults and bootstrap format stay unchanged.
+export const DESKTOP_CLI_RESOURCE_DIRECTORIES = Object.freeze({
+  PORACODE_WSL_HELPERS_DIR: "wsl-helpers",
+  PORACODE_BUNDLED_SKILLS_DIR: "skills",
+  PORACODE_BUNDLED_PLUGINS_DIR: "plugins",
+  PORACODE_AGENT_PLUGINS_DIR: "agent-plugins",
+  PORACODE_COMPUTER_USE_HELPER_ROOT: "computer-use-helper",
+});
 const MANIFEST_KEYS = [
   "formatVersion",
   "runtime",
@@ -268,13 +276,7 @@ export function runDesktopBundle(options) {
       options.home ?? homedir(),
       bundle.channel === "nightly" ? ".poracode-nightly" : ".poracode",
     );
-  for (const [key, directory] of Object.entries({
-    PORACODE_WSL_HELPERS_DIR: "wsl-helpers",
-    PORACODE_BUNDLED_SKILLS_DIR: "skills",
-    PORACODE_BUNDLED_PLUGINS_DIR: "plugins",
-    PORACODE_AGENT_PLUGINS_DIR: "agent-plugins",
-    PORACODE_COMPUTER_USE_HELPER_ROOT: "computer-use-helper",
-  }))
+  for (const [key, directory] of Object.entries(DESKTOP_CLI_RESOURCE_DIRECTORIES))
     if (!env[key]?.trim()) env[key] = join(bundle.resourcesDir, directory);
   // Keep the same process/stdio and server-owned shutdown path; no GUI owner,
   // download, profile activation, or service installation is implicit here.
