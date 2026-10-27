@@ -15,6 +15,7 @@ export function parseSpawnRequest(
   inheritedFallbacks?: SpawnAgentSelection[],
   inheritedRetryMode?: "startup" | "any-failure",
   selectionProvenance?: DispatchSelectionProvenance,
+  crewRole?: SpawnAgentRequest["crewRole"],
 ): SpawnAgentRequest {
   parseResultMode(args);
   const agent = typeof args.provider === "string" ? args.provider : "";
@@ -94,6 +95,7 @@ export function parseSpawnRequest(
           },
         }
       : {}),
+    ...(crewRole ? { crewRole } : {}),
     agent,
     prompt,
     ...(args.result_mode === "compact" ? { resultMode: "compact" as const } : {}),
@@ -111,6 +113,7 @@ interface InheritedFallback {
   fallbacks: SpawnAgentSelection[] | undefined;
   retryMode: "startup" | "any-failure" | undefined;
   selectionProvenance?: DispatchSelectionProvenance;
+  crewRole?: SpawnAgentRequest["crewRole"];
 }
 
 export function parseSpawnRequests(
@@ -135,6 +138,7 @@ export function parseSpawnRequests(
       inheritedForTask?.fallbacks,
       inheritedForTask?.retryMode,
       inheritedForTask?.selectionProvenance,
+      inheritedForTask?.crewRole,
     );
   });
 }

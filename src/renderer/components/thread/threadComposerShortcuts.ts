@@ -47,6 +47,7 @@ function cycleMenuControl(control: ComposerControl): boolean {
     control.kind === "static" ||
     control.kind === "provider-model" ||
     control.kind === "effort-context" ||
+    control.kind === "crew" ||
     control.isDisabled ||
     !control.onChange
   ) {
@@ -132,7 +133,8 @@ function runComposerAction(
         if (
           candidate.kind === "static" ||
           candidate.kind === "provider-model" ||
-          candidate.kind === "effort-context"
+          candidate.kind === "effort-context" ||
+          candidate.kind === "crew"
         ) {
           return false;
         }

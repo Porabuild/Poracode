@@ -104,6 +104,7 @@ export function makeHarness(options?: {
   baseSpawnEnv?: Record<string, string>;
   projectLocation?: ProjectLocation;
   executionEnvironment?: ThreadConfig["executionEnvironment"];
+  parentCrew?: ThreadConfig["crew"];
   resume?: {
     sessionId: string;
     open?: (handle: FakeHandle, sessionRef: SessionRef | undefined) => Promise<string>;
@@ -178,6 +179,7 @@ export function makeHarness(options?: {
               crossagentMcp: true,
               computerUse: true,
               chromeMcp: true,
+              ...(options?.parentCrew !== undefined ? { crew: options.parentCrew } : {}),
             },
           }
         : undefined,

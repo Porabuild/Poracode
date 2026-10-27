@@ -2,6 +2,7 @@ import { z } from "zod";
 import { agentKindSchema, threadModeSchema } from "./common";
 import { selectionBindingSchema, type SelectionBinding } from "../selectionBinding.schemas.ts";
 import { threadImportedFromSchema } from "./sessionImport";
+import { isThreadConfigCrewEqual, threadConfigCrewSchema } from "../crew";
 
 const threadConfigShape = {
   model: z.string().min(1),
@@ -18,6 +19,11 @@ const threadConfigShape = {
    * provider-draft and project-draft config schemas.
    */
   selectionBinding: selectionBindingSchema.optional(),
+  /**
+   * Crew binding: null explicitly clears it; absence may come from an older
+   * writer and is retained when updating an existing thread.
+   */
+  crew: threadConfigCrewSchema.optional(),
   mode: threadModeSchema.optional(),
   approvalPolicy: z.string().optional(),
   approvalsReviewer: z.string().optional(),
@@ -40,7 +46,7 @@ export const threadConfigBaseSchema = z.object(threadConfigShape);
 export const threadConfigSchema = threadConfigBaseSchema;
 export type ThreadConfig = z.infer<typeof threadConfigSchema>;
 
-/** Older clients omit per-thread tool choices; explicit empty maps clear them. */
+/** Older clients omit per-thread tool choices and crew; explicit empty maps and crew: null clear them. */
 export function retainThreadToolOverrides(
   config: ThreadConfig,
   previous: ThreadConfig,
@@ -53,6 +59,7 @@ export function retainThreadToolOverrides(
     ...(config.pluginOverrides === undefined && previous.pluginOverrides !== undefined
       ? { pluginOverrides: previous.pluginOverrides }
       : {}),
+    ...(config.crew === undefined && previous.crew !== undefined ? { crew: previous.crew } : {}),
   };
 }
 
@@ -134,6 +141,7 @@ export function isThreadConfigEqual(
     left.fast === right.fast &&
     left.thinking === right.thinking &&
     areSelectionBindingsEqual(left.selectionBinding, right.selectionBinding) &&
+    isThreadConfigCrewEqual(left.crew, right.crew) &&
     left.mode === right.mode &&
     left.approvalPolicy === right.approvalPolicy &&
     left.approvalsReviewer === right.approvalsReviewer &&

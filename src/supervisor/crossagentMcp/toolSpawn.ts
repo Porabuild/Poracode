@@ -2,8 +2,10 @@ import { normalizeCrossagentTags } from "@/shared/crossagentRanking";
 import { MAX_CONCURRENT_CHILDREN_PER_PARENT } from "./SubagentRunManager";
 import { errorResult, runToolResult, parseOutputMode, parseWaitTimeoutMs } from "./toolResult";
 import { parseSpawnRequest, parseSpawnRequests, parseResultMode } from "./toolRequests";
+import { resolveCrewRoleSpawn } from "./crewRoles";
 import type {
   McpToolResult,
+  SpawnAgentRequest,
   SpawnableAgent,
   ExplicitSpawnAgentSelection,
   SpawnAgentSelection,
@@ -12,7 +14,7 @@ import type { SubagentToolContext } from "./toolRegistry";
 import type { DispatchSelectionProvenance } from "./dispatchTrace";
 
 interface ResolvedSelectionArgs {
-  provenance: DispatchSelectionProvenance;
+  provenance?: DispatchSelectionProvenance;
   args: Record<string, unknown>;
   tags: string[];
   explicitFields: ExplicitSpawnAgentSelection["explicitFields"];
@@ -137,6 +139,10 @@ export async function spawnAgent(
   const outputOptions = { outputMode: parseOutputMode(args) };
   const timeoutMs = parseWaitTimeoutMs(args);
   const background = args.background === true;
+  const crew = ctx.getCrew?.();
+  if (args.role !== undefined && (typeof args.role !== "string" || args.role.length === 0)) {
+    return errorResult("role must be a non-empty crew role id");
+  }
   const rosterCache = new Map<string, Promise<SpawnableAgent[]>>();
   const agentsFor = (selectionArgs: Record<string, unknown>) => {
     const selectionTags = normalizeCrossagentTags(selectionArgs.tags);
@@ -165,9 +171,15 @@ export async function spawnAgent(
       ...(typeof args.model === "string" ? { model: args.model } : {}),
       ...(typeof args.reasoning === "string" ? { reasoning: args.reasoning } : {}),
       ...(typeof args.fast === "boolean" ? { fast: args.fast } : {}),
+      ...(typeof args.role === "string" ? { role: args.role } : {}),
+      ...(args.role !== undefined && args.fallbacks !== undefined
+        ? { fallbacks: args.fallbacks }
+        : {}),
       ...(typeof args.permissions === "string" ? { permissions: args.permissions } : {}),
     };
-    const resolvedTasks: Array<ResolvedSelectionArgs | null> = await Promise.all(
+    const resolvedTasks: Array<
+      (ResolvedSelectionArgs & { crewRole?: SpawnAgentRequest["crewRole"] }) | null
+    > = await Promise.all(
       tasks.map(async (task) => {
         if (!task || typeof task !== "object" || Array.isArray(task)) {
           return null;
@@ -176,7 +188,7 @@ export async function spawnAgent(
           string,
           unknown
         >;
-        const taskArgs = {
+        const taskArgs: Record<string, unknown> = {
           ...batchSelection,
           ...taskProperties,
           ...(typeof provider === "string" && provider.length > 0 ? { provider } : {}),
@@ -185,7 +197,22 @@ export async function spawnAgent(
           ...(typeof fast === "boolean" ? { fast } : {}),
           ...(typeof permissions === "string" ? { permissions } : {}),
         };
-        return resolveSelectionArgs(taskArgs, await agentsFor(taskArgs));
+        const agents = await agentsFor(taskArgs);
+        const roleSpawn = resolveCrewRoleSpawn(taskArgs, crew, agents);
+        if (roleSpawn) {
+          return {
+            args: roleSpawn.args,
+            tags: normalizeCrossagentTags(taskArgs.tags),
+            explicitFields: {
+              provider: false,
+              model: false,
+              effort: false,
+              fast: false,
+            },
+            crewRole: roleSpawn.crewRole,
+          };
+        }
+        return resolveSelectionArgs(taskArgs, agents);
       }),
     );
     const requests = parseSpawnRequests(
@@ -196,7 +223,8 @@ export async function spawnAgent(
       resolvedTasks.map((entry) => ({
         fallbacks: entry?.inheritedFallbacks,
         retryMode: entry?.inheritedRetryMode,
-        ...(entry ? { selectionProvenance: entry.provenance } : {}),
+        ...(entry?.provenance ? { selectionProvenance: entry.provenance } : {}),
+        ...(entry?.crewRole ? { crewRole: entry.crewRole } : {}),
       })),
     ).map((request) => {
       const { background: _taskBackground, ...rest } = request;
@@ -228,6 +256,30 @@ export async function spawnAgent(
         { ...outputOptions, fullOutput: args.full_output === true, currentAttemptOnly: true },
       ),
     });
+  }
+
+  if (args.role !== undefined || crew?.policy === "crew-only") {
+    const roster = args.role !== undefined && crew ? await agentsFor(args) : [];
+    const roleSpawn = resolveCrewRoleSpawn(args, crew, roster);
+    if (roleSpawn) {
+      const request = parseSpawnRequest(
+        roleSpawn.args,
+        undefined,
+        undefined,
+        undefined,
+        roleSpawn.crewRole,
+      );
+      const { runId } = ctx.runManager.spawn(ctx.parentThreadId, request);
+      if (background) {
+        return runToolResult({ run_id: runId, status: "running", output: "" });
+      }
+      const result = await ctx.runManager.waitFor(runId, timeoutMs, ctx.parentThreadId, {
+        ...outputOptions,
+        fullOutput: args.full_output === true,
+        currentAttemptOnly: true,
+      });
+      return runToolResult({ run_id: runId, ...result });
+    }
   }
 
   const resolved = resolveSelectionArgs(args, await agentsFor(args));

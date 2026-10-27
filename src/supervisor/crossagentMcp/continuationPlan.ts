@@ -49,6 +49,7 @@ export function prepareContinuation(
     ...(attempt.config.effort ? { effort: attempt.config.effort } : {}),
     ...(attempt.config.fast === true ? { fast: true } : {}),
     ...(run.plan.resultMode ? { resultMode: run.plan.resultMode } : {}),
+    ...(run.plan.crewRole ? { crewRole: run.plan.crewRole } : {}),
     prompt,
     background,
     dispatchProvenance: {

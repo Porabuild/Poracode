@@ -22,6 +22,7 @@ export function buildStandardGuiSlashCommands(
 ): AgentSlashCommand[] {
   return [
     guiSlashCommand("model", i18n._(msg`Open the model picker`)),
+    guiSlashCommand("crew", i18n._(msg`Open the crew roster`)),
     guiSlashCommand("plan", i18n._(msg`Switch this chat to plan mode`)),
     guiSlashCommand("agent", i18n._(msg`Switch this chat to agent mode`)),
     ...extras,
@@ -33,6 +34,7 @@ export function buildStandardGuiSlashCommands(
 export function resolveStandardLocalSlashAction(typed: string): LocalSlashCommandAction | null {
   const normalized = typed.trim().toLowerCase();
   if (normalized === "/model") return { kind: "open-control", target: "model" };
+  if (normalized === "/crew") return { kind: "open-control", target: "crew" };
   if (normalized === "/effort") return { kind: "open-control", target: "effort" };
   if (normalized === "/fast") return { kind: "toggle-fast" };
   if (normalized === "/plan") return { kind: "set-mode", mode: "plan" };

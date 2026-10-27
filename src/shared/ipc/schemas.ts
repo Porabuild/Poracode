@@ -94,6 +94,11 @@ export const readThreadPayloadSchema = z.object({
   threadId: z.string().min(1),
 });
 
+export const cancelCrossagentRunPayloadSchema = z.object({
+  threadId: z.string().min(1),
+  runId: z.string().min(1),
+});
+
 export const subAgentSubscribePayloadSchema = z.object({
   threadId: z.string().min(1),
   parentItemId: z.string().min(1),

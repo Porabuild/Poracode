@@ -106,7 +106,7 @@ import { isRemoteProcedure } from "../remote/procedures";
 // older main/host rejects the unknown name, and an older paired host answers
 // 404 for the route, before any effect; the renderer treats both as "no index"
 // (the rail shows the loaded transcript), so hop 18 stays compatible.
-const HOP_PIN = `${IPC_PROCEDURE_MAP_VERSION}:7315c1089af47eea99eabea3c4a863532cb76dbcaa73cfe941ac788063165bcb`;
+const HOP_PIN = `${IPC_PROCEDURE_MAP_VERSION}:ac211d43b984acd92a94b07d458cc054065a7fba04d0129b0f8d565a21dedf75`;
 
 describe("IPC procedure map versioning", () => {
   it("keeps nonce reservations local, closed and distinct from legacy execution control", () => {

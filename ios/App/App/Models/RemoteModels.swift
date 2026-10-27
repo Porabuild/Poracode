@@ -153,8 +153,59 @@ struct ThreadConfig: Codable, Sendable, Hashable {
     var mcpServerOverrides: [String: Bool]?
     var pluginOverrides: [String: Bool]?
     var executionEnvironment: RemoteExecutionEnvironment?
+    var crew: JSONValue? = nil
 
     static let empty = ThreadConfig(model: "default")
+}
+
+extension ThreadConfig {
+    private enum CodingKeys: String, CodingKey {
+        case model, effort, contextSize, fast, thinking, mode, approvalPolicy
+        case approvalsReviewer, sandboxMode, browserMcp, crossagentMcp, computerUse, chromeMcp
+        case mcpServerOverrides, pluginOverrides, executionEnvironment, crew
+    }
+
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        model = try values.decode(String.self, forKey: .model)
+        effort = try values.decodeIfPresent(String.self, forKey: .effort)
+        contextSize = try values.decodeIfPresent(String.self, forKey: .contextSize)
+        fast = try values.decodeIfPresent(Bool.self, forKey: .fast)
+        thinking = try values.decodeIfPresent(Bool.self, forKey: .thinking)
+        mode = try values.decodeIfPresent(String.self, forKey: .mode)
+        approvalPolicy = try values.decodeIfPresent(String.self, forKey: .approvalPolicy)
+        approvalsReviewer = try values.decodeIfPresent(String.self, forKey: .approvalsReviewer)
+        sandboxMode = try values.decodeIfPresent(String.self, forKey: .sandboxMode)
+        browserMcp = try values.decodeIfPresent(Bool.self, forKey: .browserMcp)
+        crossagentMcp = try values.decodeIfPresent(Bool.self, forKey: .crossagentMcp)
+        computerUse = try values.decodeIfPresent(Bool.self, forKey: .computerUse)
+        chromeMcp = try values.decodeIfPresent(Bool.self, forKey: .chromeMcp)
+        mcpServerOverrides = try values.decodeIfPresent([String: Bool].self, forKey: .mcpServerOverrides)
+        pluginOverrides = try values.decodeIfPresent([String: Bool].self, forKey: .pluginOverrides)
+        executionEnvironment = try values.decodeIfPresent(RemoteExecutionEnvironment.self, forKey: .executionEnvironment)
+        crew = values.contains(.crew) ? try values.decode(JSONValue.self, forKey: .crew) : nil
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var values = encoder.container(keyedBy: CodingKeys.self)
+        try values.encode(model, forKey: .model)
+        try values.encodeIfPresent(effort, forKey: .effort)
+        try values.encodeIfPresent(contextSize, forKey: .contextSize)
+        try values.encodeIfPresent(fast, forKey: .fast)
+        try values.encodeIfPresent(thinking, forKey: .thinking)
+        try values.encodeIfPresent(mode, forKey: .mode)
+        try values.encodeIfPresent(approvalPolicy, forKey: .approvalPolicy)
+        try values.encodeIfPresent(approvalsReviewer, forKey: .approvalsReviewer)
+        try values.encodeIfPresent(sandboxMode, forKey: .sandboxMode)
+        try values.encodeIfPresent(browserMcp, forKey: .browserMcp)
+        try values.encodeIfPresent(crossagentMcp, forKey: .crossagentMcp)
+        try values.encodeIfPresent(computerUse, forKey: .computerUse)
+        try values.encodeIfPresent(chromeMcp, forKey: .chromeMcp)
+        try values.encodeIfPresent(mcpServerOverrides, forKey: .mcpServerOverrides)
+        try values.encodeIfPresent(pluginOverrides, forKey: .pluginOverrides)
+        try values.encodeIfPresent(executionEnvironment, forKey: .executionEnvironment)
+        try values.encodeIfPresent(crew, forKey: .crew)
+    }
 }
 
 struct RemoteSlashCommand: Codable, Sendable, Hashable {

@@ -213,7 +213,8 @@ extension ThreadConfig {
       chromeMcp: chromeMcp,
       executionEnvironment: executionEnvironment,
       mcpServerOverrides: mcpServerOverrides,
-      pluginOverrides: pluginOverrides
+      pluginOverrides: pluginOverrides,
+      crew: crew
     )
   }
 }

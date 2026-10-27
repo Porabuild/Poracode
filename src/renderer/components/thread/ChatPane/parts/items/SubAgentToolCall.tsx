@@ -31,10 +31,16 @@ import {
   hasSubAgentProgressMeta,
   readSubAgentLiveLabel,
 } from "./subAgentProgressMeta";
-import { deriveToolDisplay, isCrossagentTool, isWorkflowTool } from "./toolDisplay";
+import {
+  deriveToolDisplay,
+  isCrossagentTool,
+  isWorkflowTool,
+  readSubAgentType,
+} from "./toolDisplay";
 import { parseWorkflowInfo } from "./workflowDisplay";
 import { WorkflowResultGroup } from "./WorkflowResultGroup";
 import { useShimmer } from "@/renderer/thinkingAnimator";
+import { useCompactLayout } from "@/renderer/adaptiveLayout";
 
 interface SubAgentToolCallProps {
   threadId: string;
@@ -47,6 +53,7 @@ export const SubAgentToolCall = memo(function SubAgentToolCall({
 }: SubAgentToolCallProps) {
   const { t } = useLingui();
   const { _ } = useLinguiContext();
+  const compactLayout = useCompactLayout();
   const payload = getRuntimeItemPayload<ToolCallPayload>(item, "tool_call");
   const childCount = useAppStore(getChildItemIdsStoreSelector(threadId, item.id)).length;
   const openSubAgent = useAppStore((s) => s.openSubAgent);
@@ -92,6 +99,19 @@ export const SubAgentToolCall = memo(function SubAgentToolCall({
     payload.subAgentStatus === "cancelled" ||
     (isCrossagent && payload.crossagentStatus === "cancelled");
   const displayTitle = normalizeCallTitleSeparator(display.title);
+  const args =
+    payload.args && typeof payload.args === "object" && !Array.isArray(payload.args)
+      ? (payload.args as Record<string, unknown>)
+      : undefined;
+  const role = (payload.subAgentType ?? readSubAgentType(args))?.trim();
+  const nameSegments = payload.name.split(/\s+[—-]\s+/);
+  const taskFromName = nameSegments.length > 1 ? nameSegments.slice(0, -1).join(" - ") : undefined;
+  const task =
+    (typeof args?.description === "string" && args.description.trim()) ||
+    payload.title?.trim() ||
+    taskFromName ||
+    display.title.replace(/^Crossagent(?:\s*\([^)]*\))?:\s*/i, "");
+  const modelMeta = nameSegments.at(-1)?.split(" · ") ?? [];
   const displayPrefix = display.parts
     ? normalizeCallTitleSeparator(display.parts.prefix)
     : undefined;
@@ -115,6 +135,41 @@ export const SubAgentToolCall = memo(function SubAgentToolCall({
     workflowIsLive,
     t,
   );
+  const compactMeta = [role, modelMeta[0], modelMeta[1]]
+    .filter((part): part is string => typeof part === "string" && Boolean(part.trim()))
+    .join(" · ");
+
+  if (compactLayout && isCrossagent) {
+    return (
+      <div className="flex min-w-0 flex-col pl-4">
+        <button
+          type="button"
+          onClick={() => openSubAgent(threadId, item.id)}
+          className={`group ${chatRowClass} min-w-0 gap-1.5 text-[length:var(--lc-chat-font-size-command)] leading-tight ${chatRowHoverClass}`}
+          aria-label={t`Open Crossagent: ${task}`}
+          {...(describesCancelledStatus ? { "aria-describedby": statusDescriptionId } : {})}
+        >
+          <Bot className="size-3 shrink-0 text-muted" />
+          <span
+            ref={titleRef}
+            className={`min-w-0 flex-1 truncate ${isRunning ? "poracode-thinking-text" : ""}`}
+            {...(isRunning ? { "data-poracode-shimmer-text": task } : {})}
+          >
+            {task}
+          </span>
+          <ChevronRight className={chatRowIndicatorClass} />
+        </button>
+        {compactMeta || status.rightLabel ? (
+          <span className="min-w-0 truncate pl-[18px] text-[11px] leading-tight text-muted">
+            {compactMeta}
+            {compactMeta && status.rightLabel ? " · " : null}
+            {status.rightLabel}
+          </span>
+        ) : null}
+        {resultText ? <SubAgentResultDisclosure text={resultText} isCrossagent /> : null}
+      </div>
+    );
+  }
 
   return (
     <div className="flex w-full min-w-0 flex-col gap-1 pl-4">

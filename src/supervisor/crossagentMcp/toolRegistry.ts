@@ -3,6 +3,7 @@ import {
   uniqueCoreSkillForBuiltInMcp,
 } from "@/shared/plugins/builtInCoreSkills";
 import type { AgentKind, AgentStatus } from "@/shared/contracts";
+import type { ThreadCrewBinding } from "@/shared/crew";
 import { modelSelectionFor } from "@/shared/agentSelection";
 import {
   crossagentRankingPreferences,
@@ -34,6 +35,7 @@ import {
   TIMEOUT_S_DESCRIPTION,
 } from "./toolResult";
 import { parseRunIds, parseSpawnRequests } from "./toolRequests";
+import { crewListDescription } from "./crewRoles";
 import { resolveSelectionArgs, spawnAgent } from "./toolSpawn";
 import { dispatchWorkflow } from "./toolWorkflow";
 import { steerAgent } from "./toolSteer";
@@ -156,6 +158,11 @@ const TASK_TAGS_PROPERTY = {
 
 const SUBAGENT_TASK_PROPERTIES = {
   ...SUBAGENT_SELECTION_PROPERTIES,
+  role: {
+    type: "string",
+    description:
+      "Crew role id from list_agents (for example `builder`) when this thread has a crew. The role sets provider, model, reasoning and Fast; omit those.",
+  },
   prompt: { type: "string", description: "Self-contained task for the subagent." },
   result_mode: {
     type: "string",
@@ -223,6 +230,7 @@ const RAW_TOOLS: ToolSpec[] = [
             "On start, return immediately only when useful independent work remains. Default waits for completion, attention or timeout.",
         },
         ...SUBAGENT_SELECTION_PROPERTIES,
+        role: SUBAGENT_TASK_PROPERTIES.role,
         tasks: {
           type: "array",
           minItems: 1,
@@ -259,7 +267,7 @@ const RAW_TOOLS: ToolSpec[] = [
   {
     name: "list_agents",
     description:
-      "Choose an unknown provider from the ranked roster. Skip when the provider is already known: get_agent supplies its options, or spawn directly with known selection values.",
+      "Choose an unknown provider from the ranked roster. When this thread has a crew, also returns its roles. Skip when the provider is already known: get_agent supplies its options, or spawn directly with known selection values.",
     inputSchema: {
       type: "object",
       properties: { tags: TASK_TAGS_PROPERTY },
@@ -285,7 +293,7 @@ const RAW_TOOLS: ToolSpec[] = [
   {
     name: "spawn_agent",
     description:
-      "Call only after the user has explicitly asked to delegate work to another agent in this thread (for example via an @Crossagents mention); that ask covers the rest of the thread, but never spawn before it. Spawn one task-tagged agent and wait for its result by default. Omitted selection fields resolve from contextual rank. With tasks=[...], root provider/model/reasoning/fast/permissions are batch defaults and each task may override them. Set background=true to return a run_id immediately, or pass tasks=[...] to launch several agents in parallel.",
+      "Call only after the user has explicitly asked to delegate work to another agent in this thread (for example via an @Crossagents mention or by giving the thread a crew); that ask covers the rest of the thread, but never spawn before it. Spawn one task-tagged agent and wait for its result by default. Omitted selection fields resolve from contextual rank. With tasks=[...], root provider/model/reasoning/fast/permissions are batch defaults and each task may override them. Set background=true to return a run_id immediately, or pass tasks=[...] to launch several agents in parallel.",
     inputSchema: {
       type: "object",
       properties: {
@@ -633,6 +641,7 @@ export interface SubagentToolContext {
   parentThreadId: string;
   runManager: SubagentRunManager;
   listSpawnableAgents: (tags?: readonly string[]) => Promise<SpawnableAgent[]>;
+  getCrew?: () => ThreadCrewBinding | undefined;
   recordExplicitSelections?: (selections: readonly ExplicitSpawnAgentSelection[]) => void;
   listRoutingOverrides?: () => readonly CrossagentRoutingOverride[];
   setRoutingOverride?: (override: CrossagentRoutingOverride) => void | Promise<void>;
@@ -734,10 +743,21 @@ export async function dispatchTool(
 ): Promise<McpToolResult> {
   try {
     switch (name) {
-      case "list_agents":
-        return jsonResult(
-          (await ctx.listSpawnableAgents(normalizeCrossagentTags(args.tags))).map(summarizeAgent),
+      case "list_agents": {
+        const agents = await ctx.listSpawnableAgents(normalizeCrossagentTags(args.tags));
+        const crew = ctx.getCrew?.();
+        if (!crew) return jsonResult(agents.map(summarizeAgent));
+        const description = crewListDescription(
+          crew,
+          agents,
+          ctx.runManager.listRuns(ctx.parentThreadId),
         );
+        return jsonResult(
+          crew.policy === "crew-first"
+            ? { ...description, agents: agents.map(summarizeAgent) }
+            : description,
+        );
+      }
       case "get_agent": {
         const id = typeof args.id === "string" ? args.id : "";
         if (!id) return errorResult("id is required");
@@ -769,6 +789,29 @@ export async function dispatchTool(
       // Hidden compatibility aliases for provider sessions initialized against
       // the earlier, wider tool catalog.
       case "spawn_agents": {
+        const hasTaskRole =
+          Array.isArray(args.tasks) &&
+          args.tasks.some(
+            (task) => !!task && typeof task === "object" && !Array.isArray(task) && "role" in task,
+          );
+        if (
+          (ctx.getCrew?.() || args.role !== undefined || hasTaskRole) &&
+          Array.isArray(args.tasks)
+        ) {
+          const result = await spawnAgent({ ...args, background: true }, ctx);
+          if (result.isError) return result;
+          const payload = JSON.parse(result.content[0]?.text ?? "{}") as {
+            runs?: Array<{ run_id?: string }>;
+          };
+          return jsonResult(
+            {
+              run_ids: (payload.runs ?? []).flatMap((run) =>
+                typeof run.run_id === "string" ? [run.run_id] : [],
+              ),
+            },
+            WAIT_AGAIN_INSTRUCTION,
+          );
+        }
         const requests = parseSpawnRequests(args).map((request) => ({
           ...request,
           background: true as const,

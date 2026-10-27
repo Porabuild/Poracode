@@ -1,7 +1,7 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
 public extension RemoteRootCodecs {
-  static let procedureU2ERollbackThreadConversationU2ERequest: RemoteRootCodec<ProcedurerollbackThreadConversationRequest_9c63009f65> = .init(id: "procedure.rollbackThreadConversation.request", schema: RemoteSchemas.schema_9c63009f65a656d2)
+  static let procedureU2ERollbackThreadConversationU2ERequest: RemoteRootCodec<ProcedurerollbackThreadConversationRequest_73c9129973> = .init(id: "procedure.rollbackThreadConversation.request", schema: RemoteSchemas.schema_73c9129973be0018)
 }
 
 public extension RemoteRootCodecs {
@@ -37,7 +37,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let procedureU2EStartThreadU2ERequest: RemoteRootCodec<ProcedureensureThreadRunningRequest_432d234f21> = .init(id: "procedure.startThread.request", schema: RemoteSchemas.schema_432d234f21987810)
+  static let procedureU2EStartThreadU2ERequest: RemoteRootCodec<ProcedureensureThreadRunningRequest_953818c843> = .init(id: "procedure.startThread.request", schema: RemoteSchemas.schema_953818c8438534fc)
 }
 
 public extension RemoteRootCodecs {

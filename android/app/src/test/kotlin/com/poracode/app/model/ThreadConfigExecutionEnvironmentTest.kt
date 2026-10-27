@@ -5,6 +5,7 @@ import com.poracode.app.model.threads.ThreadCommandId
 import com.poracode.app.model.threads.ThreadLifecycleCommand
 import com.poracode.app.model.threads.ThreadTerminalSize
 import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.JsonNull
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -24,6 +25,32 @@ class ThreadConfigExecutionEnvironmentTest {
         assertEquals(mapOf("custom" to true), config.mcpServerOverrides)
         assertEquals(mapOf("github" to false), config.pluginOverrides)
         assertEquals(RemoteJson.parseToJsonElement(raw).jsonObject, config.toJsonObject())
+    }
+
+    @Test
+    fun crewOpaqueValueSurvivesConfigAndProjectDraftRoundTrips() {
+        val raw = """{"model":"fixture","crew":{"version":42,"future":{"roles":[1,true,"x"]}}}"""
+        val config = RemoteJson.decodeFromString(ThreadConfig.serializer(), raw)
+        assertEquals(
+            RemoteJson.parseToJsonElement(raw).jsonObject,
+            config.toJsonObject(),
+        )
+
+        val explicitNone = ThreadConfig(model = "fixture", crew = JsonNull)
+        assertEquals(JsonNull, explicitNone.toJsonObject()["crew"])
+        val decodedNone = RemoteJson.decodeFromString(
+            ThreadConfig.serializer(),
+            """{"model":"fixture","crew":null}""",
+        )
+        assertEquals(JsonNull, decodedNone.crew)
+        assertEquals(JsonNull, decodedNone.toJsonObject()["crew"])
+        val projectDraft = ProjectDraftConfig(
+            agentKind = "fixture",
+            model = "fixture",
+            crew = config.crew,
+        )
+        val encoded = RemoteJson.encodeToJsonElement(ProjectDraftConfig.serializer(), projectDraft)
+        assertEquals(config.crew, encoded.jsonObject["crew"])
     }
 
     private fun readConfigFixture(): String {

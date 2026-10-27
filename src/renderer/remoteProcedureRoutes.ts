@@ -249,6 +249,7 @@ export const NON_ROUTER_PROJECT_PROCEDURES = {
 
   // Cross-agent routing and memory — this device's config
   getCrossagentRouting: "local-shell: this device's cross-agent routing config",
+  cancelCrossagentRun: "local-shell: cancels this host's crossagent child runs",
   confirmCrossagentRoutingOverride: "local-shell: this device's routing override decision",
   removeCrossagentRoutingOverride: "local-shell: this device's routing override decision",
   updateCrossagentMemoryEntryTags: "local-shell: this device's memory catalog",

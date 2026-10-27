@@ -1339,3 +1339,151 @@ it("emits a family intent for the projected family row and an exact intent for a
   });
   second.unmount();
 });
+
+it("places saved crews in Poracode and sends a crew choice", async () => {
+  const onChange = vi.fn<(selection: { agentKind: string; model: string }) => void>();
+  const onCrewSelect = vi.fn<(choice: { crewId: string } | { newCrew: true }) => void>();
+  render(
+    <ProviderModelMenu
+      providers={[makeNamedProvider("codex", "Codex", 1)]}
+      currentAgentKind="codex"
+      currentModel="model-1"
+      crewSection={{
+        entries: [
+          {
+            crewId: "crew-review",
+            name: "Review board",
+            leadLabel: "Opus 5.5",
+            leadKind: "claude",
+            helperKinds: ["codex"],
+            details: "Lead: Opus 5.5\nBuilder: GPT-5.5\nReviewer: GPT-5.5 Mini",
+          },
+        ],
+        currentCrewId: "crew-review",
+        canCreate: true,
+        onSelect: onCrewSelect,
+      }}
+      onChange={onChange}
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Select model" }));
+  const listbox = await screen.findByRole("listbox");
+  expect(within(listbox).getByText("Poracode")).toBeInTheDocument();
+  expect(within(listbox).getByText("Review board")).toBeInTheDocument();
+  expect(within(listbox).getByText("New crew")).toBeInTheDocument();
+  expect(within(listbox).getByRole("option", { name: /Review board/ })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
+  expect(
+    within(listbox)
+      .getAllByRole("option")
+      .filter((option) => option.getAttribute("aria-selected") === "true"),
+  ).toHaveLength(1);
+  expect(within(listbox).getByRole("option", { name: /Review board/ })).toHaveTextContent(
+    "Opus 5.5",
+  );
+  fireEvent.click(within(listbox).getByRole("option", { name: /Review board/ }));
+  await waitFor(() => expect(onCrewSelect).toHaveBeenCalledWith({ crewId: "crew-review" }));
+  expect(onChange).not.toHaveBeenCalled();
+});
+
+it("filters Crew names and hides New crew while searching", async () => {
+  render(
+    <ProviderModelMenu
+      providers={[makeNamedProvider("codex", "Codex", 1)]}
+      currentAgentKind="codex"
+      currentModel="model-1"
+      crewSection={{
+        entries: [
+          {
+            crewId: "crew-review",
+            name: "Review board",
+            leadLabel: "Opus 5.5",
+            leadKind: "claude",
+            helperKinds: ["codex"],
+            details: "Lead: Opus 5.5\nBuilder: GPT-5.5\nReviewer: GPT-5.5 Mini",
+          },
+          {
+            crewId: "crew-night",
+            name: "Night shift",
+            leadLabel: "GPT-5.5",
+            leadKind: "codex",
+            helperKinds: ["codex"],
+            details: "Lead: GPT-5.5\nBuilder: GPT-5.5 Mini",
+          },
+        ],
+        canCreate: false,
+        onSelect: vi.fn<(choice: { crewId: string } | { newCrew: true }) => void>(),
+      }}
+      onChange={() => {}}
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Select model" }));
+  const search = await screen.findByRole("combobox");
+  fireEvent.change(search, { target: { value: "night" } });
+  await waitFor(() => expect(screen.getByText("Night shift")).toBeInTheDocument());
+  expect(screen.queryByText("Review board")).not.toBeInTheDocument();
+  expect(screen.queryByText("New crew")).not.toBeInTheDocument();
+});
+
+it("selects the current Crew with Enter", async () => {
+  const onCrewSelect = vi.fn<(choice: { crewId: string } | { newCrew: true }) => void>();
+  render(
+    <ProviderModelMenu
+      providers={[makeNamedProvider("codex", "Codex", 1)]}
+      currentAgentKind="codex"
+      currentModel="model-1"
+      crewSection={{
+        entries: [
+          {
+            crewId: "crew-review",
+            name: "Review board",
+            leadLabel: "Opus 5.5",
+            leadKind: "claude",
+            helperKinds: ["codex"],
+            details: "Lead: Opus 5.5\nBuilder: GPT-5.5\nReviewer: GPT-5.5 Mini",
+          },
+          {
+            crewId: "crew-night",
+            name: "Night shift",
+            leadLabel: "GPT-5.5",
+            leadKind: "codex",
+            helperKinds: ["codex"],
+            details: "Lead: GPT-5.5\nBuilder: GPT-5.5 Mini",
+          },
+        ],
+        currentCrewId: "crew-review",
+        canCreate: false,
+        onSelect: onCrewSelect,
+      }}
+      onChange={() => {}}
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Select model" }));
+  const search = await screen.findByRole("combobox");
+  fireEvent.keyDown(search, { key: "Enter" });
+  await waitFor(() => {
+    expect(onCrewSelect).toHaveBeenCalledWith({ crewId: "crew-review" });
+  });
+});
+
+it("hides New crew when the lead cannot create one", async () => {
+  render(
+    <ProviderModelMenu
+      providers={[makeNamedProvider("codex", "Codex", 1)]}
+      currentAgentKind="codex"
+      currentModel="model-1"
+      crewSection={{
+        entries: [],
+        canCreate: false,
+        onSelect: vi.fn<(choice: { crewId: string } | { newCrew: true }) => void>(),
+      }}
+      onChange={() => {}}
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Select model" }));
+  const listbox = await screen.findByRole("listbox");
+  expect(within(listbox).queryByText("New crew")).not.toBeInTheDocument();
+  expect(within(listbox).queryByText("Poracode")).not.toBeInTheDocument();
+});

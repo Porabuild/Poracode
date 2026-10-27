@@ -7,6 +7,91 @@ import {
   reorderVisibleThreadDocks,
   sharedSettingsSchema,
 } from "./settings";
+import { QWEN_RETIRED_PREVIEW_MODEL_ID } from "./agents/qwenModels";
+
+const validCrew = {
+  id: "ship",
+  name: "Ship crew",
+  lead: { agentKind: "claude", model: "opus-5.5" },
+  policy: "crew-only",
+  roles: [
+    {
+      id: "builder",
+      label: "Builder",
+      selection: { agentKind: "codex", model: "gpt-5.5" },
+    },
+  ],
+};
+
+describe("shared settings crews", () => {
+  it("adds an empty crew list to pre-crews settings without changing other values", () => {
+    const normalized = normalizeSharedSettings({ themeMode: "light", providerOrder: ["codex"] });
+    expect(normalized.crews).toEqual([]);
+    expect(normalized.themeMode).toBe("light");
+    expect(normalized.providerOrder).toEqual(["codex"]);
+  });
+
+  it("drops only malformed or duplicate crews and normalizes each valid roster", () => {
+    const normalized = normalizeSharedSettings({
+      crews: [
+        validCrew,
+        { ...validCrew, id: "broken", roles: [{ id: "bad id" }] },
+        { ...validCrew, name: "Duplicate id" },
+        {
+          ...validCrew,
+          id: "normalized",
+          roles: [
+            validCrew.roles[0],
+            { ...validCrew.roles[0], id: "builder-two", label: " builder " },
+          ],
+        },
+      ],
+    });
+    expect(normalized.crews).toHaveLength(2);
+    expect(normalized.crews.map((crew) => crew.id)).toEqual(["ship", "normalized"]);
+    expect(normalized.crews[1]?.roles).toHaveLength(1);
+  });
+
+  it("runs provider alias, retired-model and selection normalization on crew members", () => {
+    const normalized = normalizeSharedSettings({
+      crews: [
+        {
+          ...validCrew,
+          lead: {
+            agentKind: "acp-generic:antigravity-acp",
+            model: "gemini-3.5-flash-low",
+          },
+          roles: [
+            {
+              ...validCrew.roles[0],
+              selection: { agentKind: "qwen", model: QWEN_RETIRED_PREVIEW_MODEL_ID },
+              fallbacks: [
+                {
+                  agentKind: "acp-generic:antigravity-acp",
+                  model: "gemini-3.5-flash-low",
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+    expect(normalized.crews[0]?.lead).toMatchObject({
+      agentKind: "antigravity",
+      model: "gemini-3.5-flash",
+      effort: "Medium",
+    });
+    expect(normalized.crews[0]?.roles[0]?.selection).toMatchObject({
+      agentKind: "qwen",
+      model: "qwen3.8-max",
+    });
+    expect(normalized.crews[0]?.roles[0]?.fallbacks?.[0]).toMatchObject({
+      agentKind: "antigravity",
+      model: "gemini-3.5-flash",
+      effort: "Medium",
+    });
+  });
+});
 
 describe("shared settings defaults", () => {
   it("loads pre-upgrade Poracode disables without disabling its always-on MCP server", () => {

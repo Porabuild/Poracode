@@ -76,10 +76,17 @@ export interface ThreadMentionItem {
   worktreeName?: string | undefined;
 }
 
+/** A crew role offered as an `@`-mention; selecting it inserts plain text. */
+export interface CrewMentionItem {
+  label: string;
+  detail?: string;
+}
+
 /** Stable empty list so an omitted `mcpMentions` prop doesn't churn renders. */
 const EMPTY_MCP_MENTIONS: readonly McpMentionItem[] = [];
 const EMPTY_PLUGIN_MENTIONS: readonly PluginMentionItem[] = [];
 const EMPTY_THREAD_MENTIONS: readonly ThreadMentionItem[] = [];
+const EMPTY_CREW_MENTIONS: readonly CrewMentionItem[] = [];
 
 export function buildMentionResults(
   fileResults: FileEntry[],
@@ -87,6 +94,7 @@ export function buildMentionResults(
   mcpMentions: readonly McpMentionItem[] = EMPTY_MCP_MENTIONS,
   pluginMentions: readonly PluginMentionItem[] = EMPTY_PLUGIN_MENTIONS,
   threadMentions: readonly ThreadMentionItem[] = EMPTY_THREAD_MENTIONS,
+  crewMentions: readonly CrewMentionItem[] = EMPTY_CREW_MENTIONS,
 ): MentionEntry[] {
   const q = query.trim().toLowerCase();
   // Case-insensitive prefix match on the display name or a stable alias.
@@ -141,7 +149,15 @@ export function buildMentionResults(
         detail,
       };
     });
-  return [...pluginResults, ...mcpResults, ...threadResults, ...fileResults];
+  const crewResults: MentionEntry[] = crewMentions
+    .filter((item) => q.length === 0 || item.label.toLowerCase().startsWith(q))
+    .map((item) => ({
+      type: "crew" as const,
+      path: item.label,
+      name: item.label,
+      ...(item.detail ? { detail: item.detail } : {}),
+    }));
+  return [...pluginResults, ...mcpResults, ...crewResults, ...threadResults, ...fileResults];
 }
 
 export interface MentionInputHandle {
@@ -352,6 +368,7 @@ export const MentionInput = forwardRef<
     mcpMentions?: readonly McpMentionItem[];
     pluginMentions?: readonly PluginMentionItem[];
     threadMentions?: readonly ThreadMentionItem[];
+    crewMentions?: readonly CrewMentionItem[];
     onMcpMentionSelect?: (id: string) => void;
     /** Portal target for the mention popover; see MentionPopover.portalContainer. */
     popoverPortalContainer?: Element | null;
@@ -388,6 +405,7 @@ export const MentionInput = forwardRef<
   const mcpMentions = props.mcpMentions ?? EMPTY_MCP_MENTIONS;
   const pluginMentions = props.pluginMentions ?? EMPTY_PLUGIN_MENTIONS;
   const threadMentions = props.threadMentions ?? EMPTY_THREAD_MENTIONS;
+  const crewMentions = props.crewMentions ?? EMPTY_CREW_MENTIONS;
   // Stable dependency key: which MCP mentions are offered, independent of the
   // array's per-render identity (mirrors the old boolean flags in the effect).
   const mcpMentionKey = mcpMentions.map((item) => `${item.id}:${item.enabled}`).join(",");
@@ -395,6 +413,7 @@ export const MentionInput = forwardRef<
   const threadMentionKey = threadMentions
     .map((item) => `${item.threadId}:${item.updatedAt}:${item.title}:${item.projectName ?? ""}`)
     .join(",");
+  const crewMentionKey = crewMentions.map((item) => `${item.label}:${item.detail ?? ""}`).join(",");
   const editorRef = useRef<HTMLDivElement>(null);
   const imeConfirmEventTimeStampRef = useRef<number | null>(null);
   const lastSlashQueryRef = useRef<string | null>(null);
@@ -419,6 +438,7 @@ export const MentionInput = forwardRef<
     mcpMentions,
     pluginMentions,
     threadMentions,
+    crewMentions,
   );
 
   // Restart keyboard navigation at the top whenever the query or the result
@@ -430,13 +450,15 @@ export const MentionInput = forwardRef<
     mcp: mcpMentionKey,
     plugin: pluginMentionKey,
     thread: threadMentionKey,
+    crew: crewMentionKey,
   });
   if (
     prevMentionResults.query !== mention?.query ||
     prevMentionResults.files !== fileResults ||
     prevMentionResults.mcp !== mcpMentionKey ||
     prevMentionResults.plugin !== pluginMentionKey ||
-    prevMentionResults.thread !== threadMentionKey
+    prevMentionResults.thread !== threadMentionKey ||
+    prevMentionResults.crew !== crewMentionKey
   ) {
     setPrevMentionResults({
       query: mention?.query,
@@ -444,6 +466,7 @@ export const MentionInput = forwardRef<
       mcp: mcpMentionKey,
       plugin: pluginMentionKey,
       thread: threadMentionKey,
+      crew: crewMentionKey,
     });
     setActiveIndex(0);
   }
@@ -782,6 +805,24 @@ export const MentionInput = forwardRef<
 
     const range = detectTriggerRange("@");
     if (!range) return;
+
+    if (entry.type === "crew") {
+      const sel = window.getSelection();
+      if (!sel) return;
+      sel.removeAllRanges();
+      sel.addRange(range);
+      range.deleteContents();
+      const text = document.createTextNode(`@${entry.name} `);
+      range.insertNode(text);
+      const nextRange = document.createRange();
+      nextRange.setStartAfter(text);
+      nextRange.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(nextRange);
+      setMention(null);
+      notifyTextChange();
+      return;
+    }
 
     if (entry.type === "thread") {
       const sel = window.getSelection();

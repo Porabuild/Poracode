@@ -8,6 +8,7 @@ import type {
   ThreadFollowUpQueueState,
   ThreadConfig,
 } from "@/shared/contracts";
+import { threadCrewBinding } from "@/shared/crew";
 import {
   changeThreadConfig,
   resolveThreadServerRequest,
@@ -122,6 +123,7 @@ export function ThreadComposerDocks(props: ThreadComposerDocksProps) {
     onSlashActiveIndexChange,
     onSelectCommand,
   } = props;
+  const crewBinding = threadCrewBinding(threadConfig);
 
   const firstInformationalDock = hasActiveSubAgent
     ? "agents"
@@ -140,6 +142,7 @@ export function ThreadComposerDocks(props: ThreadComposerDocksProps) {
           threadId={threadId}
           projectLocation={projectLocation}
           placement="composer"
+          {...(crewBinding ? { crewBinding } : {})}
           showPlacementToggle={firstInformationalDock === "agents"}
         />
       ) : null}

@@ -17,6 +17,7 @@ import { MODEL_MENU_ROW_HEIGHT, MODEL_MENU_ROW_HEIGHT_MOBILE } from "./parts/mod
 import { useMenuSearchAutofocus } from "./parts/useMenuSearchAutofocus";
 import { splitModelLabel } from "./parts/splitModelLabel";
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
+import { PoracodeGlyph } from "@/renderer/components/common/PoracodeGlyph";
 import { ResponsiveMenuSurface, useResponsiveMenu } from "../ResponsiveMenuSurface";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { effectiveProviderOrder } from "@/shared/machineSettings";
@@ -42,6 +43,21 @@ export type { ProviderModelSelection, ProviderModelSelectionIntent } from "./par
 
 export type { ProviderModelMenuProvider };
 
+export interface ProviderModelCrewSection {
+  entries: Array<{
+    crewId: string;
+    name: string;
+    leadLabel: string;
+    leadKind: string;
+    helperKinds: string[];
+    details: string;
+  }>;
+  currentCrewId?: string;
+  current?: { name: string };
+  canCreate: boolean;
+  onSelect: (choice: { crewId: string } | { newCrew: true }) => void;
+}
+
 export interface ProviderModelMenuProps {
   /** Providers to surface (typically all installed agents for draft, locked-only otherwise). */
   providers: ProviderModelMenuProvider[];
@@ -51,8 +67,14 @@ export interface ProviderModelMenuProps {
    * model normalization, hidden models, favorites, recents and fallback rows.
    */
   optionScope?: { label: string; icon: ReactNode; options: readonly ScopedModelOption[] };
-  /** Full-width field trigger for a picker embedded in a configuration panel. */
-  triggerAppearance?: "composer" | "field";
+  crewSection?: ProviderModelCrewSection;
+  /** Full-width field trigger for a configuration panel; "label" is a bare text
+   * trigger for inline rows that carry their own provider icon. */
+  triggerAppearance?: "composer" | "field" | "label";
+  /** Text shown inside a "label" trigger; defaults to the current model name. */
+  triggerLabel?: string;
+  /** Accessible name for the trigger and menu surface (defaults to "Select model"). */
+  menuLabel?: string;
   currentAgentKind: string;
   currentModel: string;
   /** When set, only this provider's rows are rendered. */
@@ -108,6 +130,7 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
   const {
     providers,
     optionScope,
+    crewSection,
     triggerAppearance = "composer",
     currentAgentKind,
     currentModel,
@@ -124,7 +147,7 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
   } = props;
 
   const { t } = useLingui();
-  const menuLabel = optionScope?.label ?? t`Select model`;
+  const menuLabel = optionScope?.label ?? props.menuLabel ?? t`Select model`;
   const { mobile } = useResponsiveMenu();
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -188,8 +211,10 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
         ? currentFamilyDisplay.selectorSummary
         : undefined
       : currentSubProvider?.label);
-  const currentName = optionScope ? currentLabel : currentLabelParts.name;
-  const currentDisplayLabel = currentSubLabel ? `${currentName} · ${currentSubLabel}` : currentName;
+  const currentName =
+    crewSection?.current?.name ?? (optionScope ? currentLabel : currentLabelParts.name);
+  const currentDisplayLabel =
+    !crewSection?.current && currentSubLabel ? `${currentName} · ${currentSubLabel}` : currentName;
   // Snapshot the favorites/recents lists when the menu opens so rows stay
   // stable while it is open; the search-field focus stays in the effect below.
   const [prevMenuOpen, setPrevMenuOpen] = useState(isOpen);
@@ -242,7 +267,7 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
     if (optionScope) {
       return buildScopedModelItems(optionScope.options, searchValue, currentAgentKind, menuLabel);
     }
-    return buildProviderModelItems({
+    const modelItems = buildProviderModelItems({
       providers,
       search: searchValue,
       ...(lockedAgentKind ? { lockedAgentKind } : {}),
@@ -254,23 +279,63 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
       hiddenModels,
       providerOrder,
     });
+    if (!crewSection) return modelItems;
+    const query = searchValue.trim().toLocaleLowerCase();
+    const crewRows = crewSection.entries
+      .filter((entry) => !query || entry.name.toLocaleLowerCase().includes(query))
+      .map((entry) => ({
+        type: "crew" as const,
+        id: `crew:${entry.crewId}`,
+        crewId: entry.crewId,
+        name: entry.name,
+        leadLabel: entry.leadLabel,
+        leadKind: entry.leadKind,
+        helperKinds: entry.helperKinds,
+        details: entry.details,
+        isCurrent: entry.crewId === crewSection.currentCrewId,
+      }));
+    const newCrewLabel = t`New crew`;
+    const newCrewRow =
+      crewSection.canCreate && (!query || newCrewLabel.toLocaleLowerCase().includes(query))
+        ? [
+            {
+              type: "new-crew" as const,
+              id: "crew:new",
+              label: newCrewLabel,
+              meta: t`Lead + 1 helper`,
+            },
+          ]
+        : [];
+    if (crewRows.length === 0 && newCrewRow.length === 0) return modelItems;
+    return [
+      { type: "header-crews" as const, id: "header-crews" },
+      ...crewRows,
+      ...newCrewRow,
+      ...modelItems,
+    ];
   }
 
   const items = isOpen ? buildItemsForSearch(deferredSearch) : [];
 
   // Highlight the current model wherever it appears (provider section, favorites, recents).
   // Inside a projected family the single family row highlights for any member.
-  const selectedKeys = new Set<string>([
-    `fav:${currentAgentKind}:${effectiveCurrentModel}`,
-    `recent:${currentAgentKind}:${effectiveCurrentModel}`,
-    `model:${currentProviderKey}:${effectiveCurrentModel}`,
-    ...(currentFamilyDisplay && currentProvider
-      ? [`model:${currentProviderKey}:${currentFamilyDisplay.representativeModel}`]
-      : []),
-    // An exact favorite/recent row of the current model keeps its highlight
-    // even though its item id differs from the projected family row's.
-    `model-exact:${currentProviderKey}:${effectiveCurrentModel}`,
-  ]);
+  const selectedKeys = new Set<string>(
+    crewSection?.current || crewSection?.currentCrewId
+      ? crewSection.currentCrewId
+        ? [`crew:${crewSection.currentCrewId}`]
+        : []
+      : [
+          `fav:${currentAgentKind}:${effectiveCurrentModel}`,
+          `recent:${currentAgentKind}:${effectiveCurrentModel}`,
+          `model:${currentProviderKey}:${effectiveCurrentModel}`,
+          ...(currentFamilyDisplay && currentProvider
+            ? [`model:${currentProviderKey}:${currentFamilyDisplay.representativeModel}`]
+            : []),
+          // An exact favorite/recent row of the current model keeps its highlight
+          // even though its item id differs from the projected family row's.
+          `model-exact:${currentProviderKey}:${effectiveCurrentModel}`,
+        ],
+  );
 
   // Rows mirror the Fast preference saved per model. An explicit value wins;
   // otherwise `defaultFastEnabled` applies. A saved fast-sibling id counts as
@@ -356,7 +421,18 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
   }
 
   function handleSelect(itemId: string) {
-    selectModelItem(items.find((item) => item.id === itemId));
+    const selected = items.find((item) => item.id === itemId);
+    if (selected?.type === "crew" && crewSection) {
+      handleOpenChange(false);
+      crewSection.onSelect({ crewId: selected.crewId });
+      return;
+    }
+    if (selected?.type === "new-crew" && crewSection) {
+      handleOpenChange(false);
+      crewSection.onSelect({ newCrew: true });
+      return;
+    }
+    selectModelItem(selected);
   }
 
   const trigger = (
@@ -371,44 +447,54 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
       className={
         triggerAppearance === "field"
           ? "w-full min-w-0 justify-between px-2"
-          : "poracode-composer-menu poracode-composer-model-control min-w-0 px-2.5"
+          : triggerAppearance === "label"
+            ? "h-5 min-w-0 max-w-full gap-0 rounded px-1 text-xs leading-5 hover:bg-foreground/5"
+            : "poracode-composer-menu poracode-composer-model-control min-w-0 px-2.5"
       }
       {...(mobile ? { onPress: () => handleOpenChange(true) } : {})}
     >
-      {optionScope ? (
-        optionScope.icon
+      {triggerAppearance === "label" ? (
+        <span className="truncate">{props.triggerLabel ?? (currentName || menuLabel)}</span>
       ) : (
-        <ProviderIcon
-          kind={currentAgentKind}
-          {...(currentProvider?.icon ? { icon: currentProvider.icon } : {})}
-          fallbackLabel={currentProvider?.label}
-          tone="active"
-          className="size-3.5 shrink-0"
-        />
-      )}
-      <span
-        data-collapse-tier={collapseTier}
-        className={
-          hideLabelOnWrap
-            ? `poracode-composer-label-hideable flex min-w-0 flex-col items-start justify-center gap-0.5${forceHideLabel ? " is-hidden" : ""}`
-            : "flex min-w-0 flex-col items-start justify-center gap-0.5"
-        }
-      >
-        <span className="max-w-full truncate leading-tight">{currentName || menuLabel}</span>
-        {currentSubLabel ? (
-          <span className="max-w-full truncate text-[10px] font-medium leading-tight text-muted/70">
-            {currentSubLabel}
+        <>
+          {crewSection?.current ? (
+            <PoracodeGlyph className="size-3.5 shrink-0" />
+          ) : optionScope ? (
+            optionScope.icon
+          ) : (
+            <ProviderIcon
+              kind={currentAgentKind}
+              {...(currentProvider?.icon ? { icon: currentProvider.icon } : {})}
+              fallbackLabel={currentProvider?.label}
+              tone="active"
+              className="size-3.5 shrink-0"
+            />
+          )}
+          <span
+            data-collapse-tier={collapseTier}
+            className={
+              hideLabelOnWrap
+                ? `poracode-composer-label-hideable flex min-w-0 flex-col items-start justify-center gap-0.5${forceHideLabel ? " is-hidden" : ""}`
+                : "flex min-w-0 flex-col items-start justify-center gap-0.5"
+            }
+          >
+            <span className="max-w-full truncate leading-tight">{currentName || menuLabel}</span>
+            {!crewSection?.current && currentSubLabel ? (
+              <span className="max-w-full truncate text-[10px] font-medium leading-tight text-muted/70">
+                {currentSubLabel}
+              </span>
+            ) : null}
           </span>
-        ) : null}
-      </span>
-      <ChevronDown
-        data-collapse-tier={collapseTier}
-        className={
-          hideLabelOnWrap
-            ? `poracode-composer-label-hideable size-3.5 text-muted${forceHideLabel ? " is-hidden" : ""}`
-            : "size-3.5 text-muted"
-        }
-      />
+          <ChevronDown
+            data-collapse-tier={collapseTier}
+            className={
+              hideLabelOnWrap
+                ? `poracode-composer-label-hideable size-3.5 text-muted${forceHideLabel ? " is-hidden" : ""}`
+                : "size-3.5 text-muted"
+            }
+          />
+        </>
+      )}
     </Button>
   );
 
@@ -434,7 +520,11 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
           if (e.key === "Enter") {
             e.preventDefault();
             if (search !== deferredSearch) {
-              selectModelItem(buildItemsForSearch(search).find((item) => item.type === "model"));
+              const firstSelectable = buildItemsForSearch(search).find(
+                (item) => item.type === "model" || item.type === "crew" || item.type === "new-crew",
+              );
+              if (firstSelectable?.type === "model") selectModelItem(firstSelectable);
+              else if (firstSelectable) handleSelect(firstSelectable.id);
             } else if (items.length > 0) {
               windowedListRef.current?.selectActive();
             }

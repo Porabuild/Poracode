@@ -1,5 +1,6 @@
 import pluginManifest from "../../../resources/plugins/subagent-delegation/plugin.json";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { ThreadCrewBinding } from "@/shared/crew";
 import { JSON_KEEPALIVE_INTERVAL_MS } from "./jsonResponseKeepalive";
 import { CROSSAGENT_PROVIDER_SESSION_ID_ARG, CrossagentMcpIngress } from "./CrossagentMcpIngress";
 import type { SubagentRunManager } from "./SubagentRunManager";
@@ -89,14 +90,17 @@ describe("CrossagentMcpIngress", () => {
   let providerMcpUrl: string;
   let spawned: Array<{ parentThreadId: string } & SpawnAgentRequest>;
   let setWaitFor: ReturnType<typeof makeRunManager>["setWaitFor"];
+  let crews: Map<string, ThreadCrewBinding>;
 
   beforeEach(async () => {
     const rm = makeRunManager();
     spawned = rm.spawned;
     setWaitFor = rm.setWaitFor;
+    crews = new Map();
     ingress = new CrossagentMcpIngress({
       runManager: rm.runManager,
       getSpawnableAgents: async () => AGENTS,
+      getThreadCrew: (threadId) => crews.get(threadId),
       resolveProviderSessionThreadId: (sessionId) => PROVIDER_SESSION_THREADS[sessionId],
       getRoutingGuide: () => "PREFER codex for search.",
     });
@@ -317,6 +321,57 @@ describe("CrossagentMcpIngress", () => {
     expect(body.result.instructions).toContain("PREFER codex for search.");
   });
 
+  it("adds the crew brief and role note only on a crew thread's own connection", async () => {
+    crews.set("thread-1", {
+      version: 1,
+      name: "Night shift",
+      policy: "crew-only",
+      roles: [
+        {
+          id: "builder",
+          label: "Builder",
+          selection: { agentKind: "codex", model: "gpt-5.5" },
+        },
+      ],
+    });
+    const init = await (await rpc("initialize")).json();
+    expect(init.result.instructions).toContain(CROSSAGENT_MCP_INSTRUCTIONS_BASE);
+    expect(init.result.instructions).toContain(
+      '[crew] The user gave this thread a Poracode crew named "Night shift" (Crew only).',
+    );
+    expect(init.result.instructions).toContain("- builder (Builder): codex/gpt-5.5.");
+    const list = await (await rpc("tools/list")).json();
+    const descriptionOf = (name: string) =>
+      (list.result.tools as Array<{ name: string; description: string }>).find(
+        (tool) => tool.name === name,
+      )?.description;
+    const note =
+      "This thread has a crew (Crew only): pass role=<id> (builder); spawns without a role are refused.";
+    expect(descriptionOf("spawn_agent")).toContain(note);
+    expect(descriptionOf("run_workflow")).toContain(note);
+    expect(descriptionOf("list_agents")).not.toContain(note);
+
+    const providerInit = await (await providerRpc("initialize")).json();
+    expect(providerInit.result.instructions).not.toContain("[crew]");
+    const providerList = await (await providerRpc("tools/list")).json();
+    expect(
+      (providerList.result.tools as Array<{ name: string; description: string }>).find(
+        (tool) => tool.name === "spawn_agent",
+      )?.description,
+    ).not.toContain("This thread has a crew");
+  });
+
+  it("leaves crew-less threads unchanged", async () => {
+    const init = await (await rpc("initialize")).json();
+    expect(init.result.instructions).not.toContain("[crew]");
+    const list = await (await rpc("tools/list")).json();
+    expect(
+      (list.result.tools as Array<{ name: string; description: string }>).every(
+        (tool) => !tool.description.includes("This thread has a crew"),
+      ),
+    ).toBe(true);
+  });
+
   it("lists the subagent tools", async () => {
     const res = await rpc("tools/list");
     const body = await res.json();
@@ -403,6 +458,26 @@ describe("CrossagentMcpIngress", () => {
         learnedTags: [],
       },
     ]);
+  });
+
+  it("resolves the crew from the routed parent for each list_agents call", async () => {
+    crews.set("thread-1", {
+      version: 1,
+      name: "Ship crew",
+      policy: "crew-only",
+      roles: [
+        {
+          id: "builder",
+          label: "Builder",
+          selection: { agentKind: "codex", model: "gpt-5.5" },
+        },
+      ],
+    });
+    const res = await rpc("tools/call", { name: "list_agents", arguments: {} });
+    const body = (await res.json()) as { result: { content: Array<{ text: string }> } };
+    expect(JSON.parse(body.result.content[0]!.text)).toMatchObject({
+      crew: { name: "Ship crew", policy: "crew-only", roles: [{ role: "builder" }] },
+    });
   });
 
   it("dispatches get_agent by provider id", async () => {

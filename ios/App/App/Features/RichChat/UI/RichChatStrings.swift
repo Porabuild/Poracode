@@ -74,6 +74,19 @@ enum RichChatStrings {
 
   static let addAttachment = value("rich_chat_add_attachment", "Add attachment")
   static let composerControls = value("rich_chat_composer_controls", "Composer controls")
+  static let crew = value("rich_chat_crew", "Crew")
+  static let crewLead = value("rich_chat_crew_lead", "Lead")
+  static let crewNoEdits = value(
+    "rich_chat_crew_no_edits", "Told not to edit files. Not enforced."
+  )
+  static let crewOnly = value("rich_chat_crew_only", "Crew only")
+  static let crewFirst = value("rich_chat_crew_first", "Crew first")
+  static let done = value("rich_chat_done", "Done")
+  static let fastMode = value("rich_chat_fast_mode", "Fast")
+  static func crewHelpers(_ count: Int) -> String {
+    let format = value("rich_chat_crew_helpers_count", "+%lld helpers")
+    return String(format: format, locale: .current, Int64(count))
+  }
   static let thinking = value("rich_chat_thinking", "Thinking")
   static let invalidAttachment = value(
     "rich_chat_attachment_invalid", "Choose a non-empty file no larger than 20 MiB."

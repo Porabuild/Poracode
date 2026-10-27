@@ -346,6 +346,7 @@ const remoteSettingsWireBaseSchema = sharedSettingsSchema.pick(
 // Keep reads from older v3 hosts valid while new hosts include the complete object.
 export const remoteSettingsWireSchema = remoteSettingsWireBaseSchema.extend({
   usage: sharedSettingsSchema.shape.usage.optional(),
+  crews: sharedSettingsSchema.shape.crews.removeDefault().optional(),
   followUpBehavior: sharedSettingsSchema.shape.followUpBehavior.optional().default("steer"),
   searchUseIgnoreFiles: sharedSettingsSchema.shape.searchUseIgnoreFiles.optional(),
   searchExclude: sharedSettingsSchema.shape.searchExclude.optional(),

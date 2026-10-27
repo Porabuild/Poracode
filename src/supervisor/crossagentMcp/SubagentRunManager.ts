@@ -232,6 +232,20 @@ export class SubagentRunManager {
     return this.lifecycle.subscribe(parentThreadId, listener);
   }
 
+  roleRunningCount(parentThreadId: string, roleId: string): number {
+    let count = 0;
+    for (const record of this.runs.values()) {
+      if (
+        record.parentThreadId === parentThreadId &&
+        record.status === "running" &&
+        record.plan.crewRole?.id === roleId
+      ) {
+        count += 1;
+      }
+    }
+    return count;
+  }
+
   /** Host-only join without MCP transport deadlines or parent model polling. */
   async waitForSettlement(parentThreadId: string, runId: string): Promise<SubagentWaitResult> {
     const record = this.ownedRun(runId, parentThreadId);
@@ -265,7 +279,37 @@ export class SubagentRunManager {
       );
     }
     const plans = requests.map((request) => prepareSubagentRun(this.deps, parent, request));
+    this.assertCrewRoleParallelLimits(parentThreadId, plans);
     return plans.map((plan) => this.startRun(parentThreadId, plan));
+  }
+
+  private assertCrewRoleParallelLimits(
+    parentThreadId: string,
+    plans: readonly PreparedSubagentRun[],
+  ): void {
+    const requestedByRole = new Map<
+      string,
+      { count: number; role: NonNullable<PreparedSubagentRun["crewRole"]> }
+    >();
+    for (const plan of plans) {
+      const role = plan.crewRole;
+      if (!role) continue;
+      const request = requestedByRole.get(role.id);
+      requestedByRole.set(role.id, { role, count: (request?.count ?? 0) + 1 });
+    }
+    for (const { role, count } of requestedByRole.values()) {
+      const running = this.roleRunningCount(parentThreadId, role.id);
+      if (count > role.parallel) {
+        throw new SubagentSpawnError(
+          `Role ${role.label} allows ${role.parallel} run(s) at once; this call asked for ${count}.`,
+        );
+      }
+      if (running + count > role.parallel) {
+        throw new SubagentSpawnError(
+          `Role ${role.label} allows ${role.parallel} run(s) at once and ${running} are running. Wait for one to finish.`,
+        );
+      }
+    }
   }
 
   private startRun(
@@ -335,6 +379,7 @@ export class SubagentRunManager {
       status: "running",
       isCrossagent: true,
       crossagentStatus: "running",
+      ...(plan.crewRole ? { subAgentType: plan.crewRole.label } : {}),
     };
     this.deps.host.appendRuntimeEvent(parentThreadId, {
       type: "item.started",
@@ -403,6 +448,7 @@ export class SubagentRunManager {
         background: record.background,
         attempt: record.attemptIndex + 1,
         attempt_count: record.plan.attempts.length,
+        ...(record.plan.crewRole ? { role: record.plan.crewRole.id } : {}),
         can_steer:
           canContinueRun(record) ||
           (record.status === "running" &&
@@ -530,6 +576,7 @@ export class SubagentRunManager {
       if (this.activeCountForParent(parentThreadId) >= MAX_CONCURRENT_CHILDREN_PER_PARENT) {
         throw new SubagentSpawnError("Too many concurrent subagents to start a follow-up");
       }
+      this.assertCrewRoleParallelLimits(parentThreadId, [plan]);
       // Keep completed reports, workflow joins and transcript cursors immutable.
       // Only the run receipt is new: the provider conversation keeps its identity.
       const next = this.startRun(parentThreadId, plan, {
@@ -745,6 +792,7 @@ export class SubagentRunManager {
           name: attempt.label,
           status: "running",
           isCrossagent: true,
+          ...(record.plan.crewRole ? { subAgentType: record.plan.crewRole.label } : {}),
           progress: { stepCount: record.stepCount },
         },
       });
@@ -828,7 +876,10 @@ export class SubagentRunManager {
             type: "item.updated",
             threadId: record.parentThreadId,
             itemId: syntheticItemId(record.runId),
-            payload: { progress: { stepCount: record.stepCount } },
+            payload: {
+              progress: { stepCount: record.stepCount },
+              ...(record.plan.crewRole ? { subAgentType: record.plan.crewRole.label } : {}),
+            },
           });
         }
         {
@@ -1060,6 +1111,7 @@ export class SubagentRunManager {
       status: record.status === "completed" ? "success" : "error",
       isCrossagent: true,
       crossagentStatus: record.status,
+      ...(record.plan.crewRole ? { subAgentType: record.plan.crewRole.label } : {}),
       ...(record.stepCount > 0 ? { progress: { stepCount: record.stepCount } } : {}),
       ...(text ? { result: text } : {}),
     };

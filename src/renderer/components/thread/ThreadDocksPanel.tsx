@@ -4,6 +4,7 @@ import { isSortable, useSortable } from "@dnd-kit/react/sortable";
 import { GripVertical } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { ProjectLocation } from "@/shared/contracts";
+import { threadCrewBinding } from "@/shared/crew";
 import {
   normalizeThreadDocksOrder,
   reorderVisibleThreadDocks,
@@ -67,9 +68,11 @@ export function ThreadDocksPanel({
   const vision = useThreadAgentVision(threadId, visible, !visionCollapsed);
   const gallery = useThreadGalleryImages(threadId, { requestPending: visible });
   const artifacts = useThreadArtifacts(threadId);
-  const threadExists = useAppStore((state) =>
-    state.threads.some((thread) => thread.id === threadId),
+  const thread = useAppStore((state) =>
+    state.threads.find((candidate) => candidate.id === threadId),
   );
+  const crewBinding = threadCrewBinding(thread?.config);
+  const threadExists = thread !== undefined;
   const usage = useThreadAgentUsage(threadId);
   const focus = usePanelStore((s) => s.threadDocksFocus);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -89,7 +92,7 @@ export function ThreadDocksPanel({
   const focusedDockMounted =
     (focus === "goal" && goalDockState !== null) ||
     (focus === "plan" && todoDockState !== null) ||
-    (focus === "agents" && summary.agentCount > 0) ||
+    (focus === "agents" && (summary.agentCount > 0 || crewBinding !== undefined)) ||
     (focus === "backgroundTasks" && summary.backgroundTaskCount > 0) ||
     (focus === "images" && (gallery.length > 0 || artifacts.length > 0)) ||
     (focus === "context" && threadExists) ||
@@ -139,10 +142,12 @@ export function ThreadDocksPanel({
       />
     ) : null,
     agents:
-      summary.agentCount > 0 ? (
+      summary.agentCount > 0 || crewBinding ? (
         <ActiveSubAgentTile
           threadId={threadId}
           placement="right"
+          {...(crewBinding ? { crewBinding } : {})}
+          {...(thread ? { thread } : {})}
           {...(projectLocation ? { projectLocation } : {})}
         />
       ) : null,

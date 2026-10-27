@@ -157,4 +157,10 @@
     <string name="tls_pin_mismatch">El certificado TLS del servidor no coincide con la huella del código de emparejamiento. Vuelva a emparejar desde el panel de acceso remoto del escritorio.</string>
     <string name="rich_chat_context_reload_body">El nuevo tamaño del contexto se aplica a partir de tu próximo mensaje. La sesión del agente se recarga antes de enviar ese mensaje; la conversación se conserva.</string>
     <string name="rich_chat_context_reload_stops_subagents">Los subagentes que sigan en ejecución cuando se recargue la sesión se detendrán.</string>
+    <string name="rich_chat_crew">Equipo</string>
+    <string name="rich_chat_crew_helpers_count">+%1$d ayudantes</string>
+    <string name="rich_chat_crew_lead">Líder</string>
+    <string name="rich_chat_crew_no_edits">Indicación de no editar archivos. No se aplica.</string>
+    <string name="rich_chat_crew_policy_only">Solo equipo</string>
+    <string name="rich_chat_crew_policy_first">Equipo primero</string>
 </resources>

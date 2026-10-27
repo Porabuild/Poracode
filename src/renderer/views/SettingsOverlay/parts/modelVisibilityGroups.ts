@@ -36,7 +36,7 @@ export function collectHeaderModelGroups(
       if (!groups.has(item.id)) groups.set(item.id, []);
     } else if (item.type === "header-plain") {
       subHeaderId = null;
-    } else {
+    } else if (item.type === "model") {
       const entry: ModelVisibilityEntry = {
         hiddenModelsKey: item.hiddenModelsKey,
         modelIds: item.familyModelIds ?? [item.modelId],

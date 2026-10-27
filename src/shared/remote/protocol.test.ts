@@ -8,6 +8,7 @@ import {
   remotePushRegistrationSchema,
   remoteAccessPairingInfoSchema,
   remoteSettingsPatchSchema,
+  remoteSettingsSchema,
   remoteShellSnapshotSchema,
   remoteTerminalCursorSchema,
   remoteTerminalOutputCursorSyncV1Schema,
@@ -18,6 +19,15 @@ import {
 } from "./protocol";
 
 describe("device-local terminal settings", () => {
+  it("accepts remote settings from a host that predates the crews field", () => {
+    const legacy = pickRemoteSettings(defaultSharedSettings);
+    delete legacy.crews;
+    expect(remoteSettingsSchema.parse(legacy)).not.toHaveProperty("crews");
+    expect(remoteSettingsPatchSchema.parse({ titleGenProvider: "claude" })).not.toHaveProperty(
+      "crews",
+    );
+  });
+
   it("keeps sidebar preferences outside the remote-editable projection", () => {
     const settings = pickRemoteSettings({
       ...defaultSharedSettings,

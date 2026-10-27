@@ -29,6 +29,7 @@ export interface ResolvedSpawnAttempt {
 export interface PreparedSubagentRun {
   dispatchTrace?: DispatchTraceSnapshot;
   prompt: string;
+  crewRole?: NonNullable<SpawnAgentRequest["crewRole"]>;
   resultMode?: "compact";
   projectLocation: ProjectLocation;
   background: boolean;
@@ -74,16 +75,31 @@ export function prepareSubagentRun(
     }
   });
 
-  const workerPrompt = `${WORKER_INSTRUCTIONS}\n\n${prompt}`;
+  const workerPrompt = request.crewRole
+    ? `${WORKER_INSTRUCTIONS}\n\n${crewRolePreamble(request.crewRole)}\n\n${prompt}`
+    : `${WORKER_INSTRUCTIONS}\n\n${prompt}`;
   return {
     dispatchTrace: snapshotDispatchTrace(request, attempts, request.retryMode ?? "startup"),
     prompt: request.resultMode === "compact" ? compactResultPrompt(workerPrompt) : workerPrompt,
+    ...(request.crewRole ? { crewRole: request.crewRole } : {}),
     ...(request.resultMode ? { resultMode: request.resultMode } : {}),
     projectLocation: parent.projectLocation,
     background: request.background === true,
     retryMode: request.retryMode ?? "startup",
     attempts,
   };
+}
+
+function crewRolePreamble(role: NonNullable<SpawnAgentRequest["crewRole"]>): string {
+  const brief = role.brief?.trim().replace(/\s+/g, " ");
+  const normalizedBrief = brief && !/[.!?]$/.test(brief) ? `${brief}.` : brief;
+  return (
+    `Crew role: ${role.label}.` +
+    (normalizedBrief ? ` ${normalizedBrief}` : "") +
+    (role.noEdits
+      ? " This role is told not to edit files: do not create, modify or delete files; report what you find instead."
+      : "")
+  );
 }
 
 function resolveAttempt(

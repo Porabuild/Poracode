@@ -29,6 +29,7 @@ import type {
 } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
 import { crossagentRankingPreferences } from "@/shared/crossagentRanking";
+import { threadCrewBinding } from "@/shared/crew";
 import type { CrossagentRoutingState } from "@/shared/crossagentRanking";
 import type { ConfirmCrossagentRoutingOverridePayload } from "@/shared/ipc/procedures/mcp";
 import type { ConfirmSupervisorSettingsEditsPayload } from "@/shared/ipc/procedures/settings";
@@ -174,6 +175,10 @@ export class SupervisorRuntime {
   readonly githubService = new GitHubService();
   readonly forgeReviewService = new ForgeReviewService(this.githubService);
   readonly fileIndexService = new FileIndexService();
+
+  cancelCrossagentRun(runId: string, parentThreadId?: string): Promise<void> {
+    return this.subagentRunManager.cancel(runId, parentThreadId);
+  }
   readonly projectTreeService = new ProjectTreeService();
   private readonly adapters = new Map<AgentKind, AgentAdapter>();
   private availableWindowsShellsCache:
@@ -481,6 +486,8 @@ export class SupervisorRuntime {
     this.crossagentMcpIngress = new CrossagentMcpIngress({
       runManager: this.subagentRunManager,
       getSpawnableAgents: (tags) => this.getCrossagentSpawnableAgents(tags),
+      getThreadCrew: (threadId) =>
+        threadCrewBinding(this.threadSessionManager.getThreadConfig(threadId)),
       resolveProviderSessionThreadId: (sessionId) =>
         this.threadSessionManager.getThreadIdByProviderSessionId(sessionId),
       // User-configured routing guidance, read live from shared settings (the

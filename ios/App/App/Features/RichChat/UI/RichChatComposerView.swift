@@ -77,15 +77,28 @@ struct RichChatComposerView: View {
     }
     .padding(.horizontal, 16)
     .padding(.vertical, 8)
-    .sheet(item: $controlsPresented) { _ in
-      RichChatComposerControlsSheet(
-        configuration: $configuration,
-        agentStatus: agentStatus,
-        presentationMode: .gui,
-        sessionConfigOptions: sessionConfigOptions,
-        hiddenModels: hiddenModels,
-        hasStartedSession: hasStartedSession
-      )
+    .sheet(item: $controlsPresented) { presentation in
+      switch presentation {
+      case .controls:
+        RichChatComposerControlsSheet(
+          configuration: $configuration,
+          agentStatus: agentStatus,
+          presentationMode: .gui,
+          sessionConfigOptions: sessionConfigOptions,
+          hiddenModels: hiddenModels,
+          hasStartedSession: hasStartedSession
+        )
+      case .crew:
+        if let crewPresentation {
+          RichChatCrewRosterSheet(
+            crew: crewPresentation,
+            leadAgentKind: agentKind,
+            leadModel: configuration.model,
+            leadEffort: configuration.effort,
+            leadFast: configuration.fast == true
+          )
+        }
+      }
     }
     .sheet(isPresented: $showsSkillPicker) {
       if let skillPickerContext {
@@ -114,6 +127,8 @@ struct RichChatComposerView: View {
         configuration: configuration,
         catalog: slashCommandCatalog,
         canOpen: canOpenControls,
+        crew: crewPresentation,
+        openCrew: { controlsPresented = .crew },
         open: { controlsPresented = .controls }
       )
     } toolbar: {
@@ -160,6 +175,10 @@ struct RichChatComposerView: View {
         send: { send() }
       )
     }
+  }
+
+  private var crewPresentation: RichChatCrewPresentation? {
+    RichChatCrewPresentation(opaqueValue: configuration.crew)
   }
 
   private func attachmentButton(

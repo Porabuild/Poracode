@@ -1,5 +1,19 @@
 import { normalizeTurnClientContextUrl } from "@/shared/turnClientContextUrl";
-import type { AgentSlashCommand, TurnClientContext } from "@/shared/contracts";
+import {
+  resolveComposerMcpScope,
+  type AgentCapability,
+  type AgentSlashCommand,
+  type McpLaunchSnapshot,
+  type ThreadConfig,
+  type ThreadPresentationMode,
+  type TurnClientContext,
+} from "@/shared/contracts";
+import { canLeadCrew, crewFingerprint, threadCrewBinding } from "@/shared/crew";
+import {
+  CREW_REMOVED_BRIEF_TEXT,
+  crewChangedBriefText,
+  crewSetBriefText,
+} from "@/supervisor/crossagentMcp/crewBrief";
 import type { StartTurnOptions, StructuredSessionHandle } from "../agents/base";
 
 const TURN_CLIENT_CONTEXT_PREFIX = "[client context] ";
@@ -91,6 +105,21 @@ export function invokesAdvertisedCommand(
 
 /** The live session a structured turn is delivered to. */
 export interface TurnContextTarget {
+  config?: ThreadConfig | undefined;
+  launchConfig?: ThreadConfig | undefined;
+  mcpLaunchSnapshot?: Pick<McpLaunchSnapshot, "disabledBuiltInMcpServerIds"> | undefined;
+  adapter?: {
+    capabilities: Pick<
+      AgentCapability,
+      "mcpConfigSource" | "crossagentMcpRouting" | "mcpScope" | "presentationMode"
+    >;
+  };
+  presentationMode?: ThreadPresentationMode | undefined;
+  crewBriefDelivered?: string | undefined;
+  onCrewBriefDelivered?: ((fingerprint: string) => void) | undefined;
+  crossagentsMcpAvailable?: boolean | undefined;
+  /** When supplied, reflects the resolved MCP set for this exact turn. */
+  crossagentsMcpAttached?: boolean | undefined;
   pendingInitialInstructions?: string | undefined;
   onInitialInstructionsApplied?: () => void;
   readonly structuredSession?: Pick<StructuredSessionHandle, "placesTurnContext"> | undefined;
@@ -109,34 +138,98 @@ export function structuredTurnTextOptions(
   target: TurnContextTarget | undefined,
   turn: {
     readonly prompt: string;
+    readonly config?: ThreadConfig | undefined;
+    readonly crossagentsMcpAttached?: boolean | undefined;
     readonly inlineInstructions?: string;
     readonly turnContext?: string;
   },
 ): Pick<StartTurnOptions, "inlineInstructions" | "turnContext" | "onPromptSubmitted"> {
-  const inheritedInstructions = invokesAdvertisedCommand(turn.prompt, target?.slashCommands)
-    ? undefined
-    : target?.pendingInitialInstructions;
+  const invokesCommand = invokesAdvertisedCommand(turn.prompt, target?.slashCommands);
+  const inheritedInstructions = invokesCommand ? undefined : target?.pendingInitialInstructions;
+  const crewBrief = invokesCommand ? undefined : crewBriefForTurn(target, turn);
   const turnInstructions = joinInstructions(inheritedInstructions, turn.inlineInstructions);
-  const admission =
-    inheritedInstructions && target
-      ? {
-          onPromptSubmitted: () => {
-            if (target.pendingInitialInstructions !== inheritedInstructions) return;
+  const onPromptSubmitted =
+    target && (inheritedInstructions || crewBrief)
+      ? () => {
+          if (
+            inheritedInstructions &&
+            target.pendingInitialInstructions === inheritedInstructions
+          ) {
             target.pendingInitialInstructions = undefined;
             target.onInitialInstructionsApplied?.();
-          },
+          }
+          if (crewBrief) {
+            target.crewBriefDelivered = crewBrief.fingerprint;
+            target.onCrewBriefDelivered?.(crewBrief.fingerprint);
+          }
         }
-      : {};
+      : undefined;
+  const admission = onPromptSubmitted ? { onPromptSubmitted } : {};
+  const turnContextWithCrew = joinInstructions(turn.turnContext, crewBrief?.text);
   if (target?.structuredSession?.placesTurnContext) {
     return {
       ...admission,
       ...(turnInstructions ? { inlineInstructions: turnInstructions } : {}),
-      ...(turn.turnContext ? { turnContext: turn.turnContext } : {}),
+      ...(turnContextWithCrew ? { turnContext: turnContextWithCrew } : {}),
     };
   }
-  const turnContext = invokesAdvertisedCommand(turn.prompt, target?.slashCommands)
-    ? undefined
-    : turn.turnContext;
+  const turnContext = invokesCommand ? undefined : turnContextWithCrew;
   const inlineInstructions = joinInstructions(turnContext, turnInstructions);
   return { ...admission, ...(inlineInstructions ? { inlineInstructions } : {}) };
+}
+
+function crewBriefForTurn(
+  target: TurnContextTarget | undefined,
+  turn: {
+    readonly config?: ThreadConfig | undefined;
+    readonly crossagentsMcpAttached?: boolean | undefined;
+  },
+): { fingerprint: string; text: string } | undefined {
+  if (!target) return undefined;
+  const config = turn.config ?? target.config;
+  const binding = threadCrewBinding(config);
+  const fingerprint = crewFingerprint(binding);
+  const delivered = target.crewBriefDelivered;
+  if (fingerprint === "" ? !delivered : delivered === fingerprint) return undefined;
+  if (!isCrossagentsAttachedForTurn(target, config, binding, turn.crossagentsMcpAttached)) {
+    return undefined;
+  }
+  if (fingerprint === "" || !binding) {
+    return delivered ? { fingerprint: "", text: CREW_REMOVED_BRIEF_TEXT } : undefined;
+  }
+  return {
+    fingerprint,
+    text:
+      delivered === undefined || delivered === ""
+        ? crewSetBriefText(binding)
+        : crewChangedBriefText(binding),
+  };
+}
+
+function isCrossagentsAttachedForTurn(
+  target: TurnContextTarget,
+  config: ThreadConfig | undefined,
+  binding: ReturnType<typeof threadCrewBinding>,
+  turnOverride: boolean | undefined,
+): boolean {
+  const launchConfig = target.launchConfig;
+  if (target.crossagentsMcpAvailable === false) return false;
+  if (target.mcpLaunchSnapshot?.disabledBuiltInMcpServerIds.includes("crossagents")) return false;
+  const capabilities = target.adapter?.capabilities;
+  const mode = target.presentationMode ?? capabilities?.presentationMode;
+  if (!capabilities || !mode) return false;
+  if (capabilities.mcpConfigSource === "agentSettings") {
+    if (turnOverride !== undefined) return turnOverride;
+    return target.crossagentsMcpAttached === true;
+  }
+  const scope = resolveComposerMcpScope(capabilities.mcpScope, mode);
+  if (scope === "none") return false;
+  if (scope !== "always") {
+    return target.crossagentsMcpAttached ?? launchConfig?.crossagentMcp === true;
+  }
+  if (turnOverride !== undefined) return turnOverride;
+  const crewEnablesCrossagents = binding !== undefined && canLeadCrew(capabilities, mode);
+  if (crewEnablesCrossagents) return true;
+  if (config?.crossagentMcp === true) return true;
+  return config?.crossagentMcp === undefined && target.crossagentsMcpAttached === true;
 }

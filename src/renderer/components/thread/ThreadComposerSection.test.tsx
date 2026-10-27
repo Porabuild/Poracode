@@ -28,6 +28,7 @@ import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { initializeAdaptiveLayout, resetAdaptiveLayoutForTest } from "@/renderer/adaptiveLayout";
 import { useThreadTodoDockStore } from "@/renderer/state/threadTodoDockStore";
 import { useThreadBackgroundTasksDockStore } from "@/renderer/state/threadBackgroundTasksDockStore";
+import { useThreadComposerControlStore } from "@/renderer/state/threadComposerControlStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useThreadFollowUpQueueStore } from "@/renderer/state/threadFollowUpQueueStore";
@@ -78,6 +79,7 @@ const analytics = vi.hoisted(() => ({
 }));
 
 const composerAddMenuSpy = vi.hoisted(() => vi.fn<(props: unknown) => void>());
+const composerControlsSpy = vi.hoisted(() => vi.fn<(controls: unknown) => void>());
 
 vi.mock("@/renderer/analytics/posthog", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/renderer/analytics/posthog")>()),
@@ -135,6 +137,7 @@ vi.mock("./ThreadComposer", () => ({
       currentModel?: string;
       effortValue?: string;
       efforts?: Array<{ id: string; label: string }>;
+      openSignal?: number;
     }>;
     fixedContent?: ReactNode;
     attachmentBar?: ReactNode;
@@ -145,40 +148,46 @@ vi.mock("./ThreadComposer", () => ({
     onStop?: () => void;
     onSubmit: () => void;
     submitDisabled?: boolean;
-  }) => (
-    <div data-testid="thread-composer">
-      {props.fixedContent}
-      {props.attachmentBar}
-      {props.inputContent}
-      {typeof props.leadingControls === "function"
-        ? props.leadingControls()
-        : props.leadingControls}
-      {typeof props.afterControls === "function" ? props.afterControls() : props.afterControls}
-      <output data-testid="control-kinds">
-        {props.controls?.map((control) => control.kind ?? control.label ?? "").join(",") ?? ""}
-      </output>
-      <output data-testid="effort-options">
-        {props.controls
-          ?.find((control) => control.kind === "effort-context")
-          ?.efforts?.map((option) => option.id)
-          .join(",") ?? ""}
-      </output>
-      <output data-testid="attach-files-enabled">{props.onAttachFiles ? "yes" : "no"}</output>
-      {props.onStop && props.submitDisabled ? (
-        <button type="button" aria-label="Stop response" onClick={props.onStop}>
-          stop
+  }) => {
+    composerControlsSpy(props.controls ?? []);
+    return (
+      <div data-testid="thread-composer">
+        {props.fixedContent}
+        {props.attachmentBar}
+        {props.inputContent}
+        {typeof props.leadingControls === "function"
+          ? props.leadingControls()
+          : props.leadingControls}
+        {typeof props.afterControls === "function" ? props.afterControls() : props.afterControls}
+        <output data-testid="control-kinds">
+          {props.controls?.map((control) => control.kind ?? control.label ?? "").join(",") ?? ""}
+        </output>
+        <output data-testid="crew-open-signal">
+          {props.controls?.find((control) => control.kind === "crew")?.openSignal ?? ""}
+        </output>
+        <output data-testid="effort-options">
+          {props.controls
+            ?.find((control) => control.kind === "effort-context")
+            ?.efforts?.map((option) => option.id)
+            .join(",") ?? ""}
+        </output>
+        <output data-testid="attach-files-enabled">{props.onAttachFiles ? "yes" : "no"}</output>
+        {props.onStop && props.submitDisabled ? (
+          <button type="button" aria-label="Stop response" onClick={props.onStop}>
+            stop
+          </button>
+        ) : null}
+        <button
+          type="button"
+          data-submit-disabled={props.submitDisabled}
+          disabled={props.submitDisabled}
+          onClick={props.onSubmit}
+        >
+          send
         </button>
-      ) : null}
-      <button
-        type="button"
-        data-submit-disabled={props.submitDisabled}
-        disabled={props.submitDisabled}
-        onClick={props.onSubmit}
-      >
-        send
-      </button>
-    </div>
-  ),
+      </div>
+    );
+  },
 }));
 
 const guiThread: Thread = {
@@ -321,6 +330,7 @@ describe("ThreadComposerSection", () => {
     useComposerInputInbox.setState({ itemsByComposer: {} });
     useRevertedPromptStore.setState({ byThread: {} });
     useThreadFollowUpQueueStore.setState({ byThread: {} });
+    useThreadComposerControlStore.setState({ requestsByThreadId: {}, nextNonce: 0 });
     bridgeMock.queueThreadFollowUp.mockReset().mockResolvedValue(undefined);
     bridgeMock.getThreadFollowUpQueue.mockReset().mockResolvedValue(null);
     bridgeMock.isRemoteSession.mockReturnValue(false);
@@ -336,6 +346,7 @@ describe("ThreadComposerSection", () => {
     analytics.captureProductEvent.mockClear();
     analytics.captureThreadPromptSubmitted.mockClear();
     composerAddMenuSpy.mockClear();
+    composerControlsSpy.mockClear();
     runtimeActions.changeThreadConfig.mockClear();
     runtimeActions.resolveThreadServerRequest.mockClear();
     runtimeActions.resolveThreadServerRequest.mockResolvedValue(undefined);
@@ -378,6 +389,142 @@ describe("ThreadComposerSection", () => {
     );
 
     expect(screen.queryByRole("button", { name: "Review changes" })).toBeNull();
+  });
+
+  it("opens the active Crew roster for a Thread info control request", async () => {
+    const crew = {
+      version: 1 as const,
+      crewId: "crew-review",
+      name: "Review board",
+      policy: "crew-only" as const,
+      roles: [
+        {
+          id: "builder",
+          label: "Builder",
+          selection: { agentKind: "codex", model: "gpt-5.5" },
+        },
+      ],
+    };
+    const savedCrew = {
+      id: "crew-review",
+      name: "Review board",
+      lead: { agentKind: "codex", model: "gpt-5.5", effort: "high", fast: false },
+      roles: crew.roles,
+      policy: "crew-only" as const,
+      updatedAt: 1,
+    };
+    const thread = { ...guiThread, config: { ...guiThread.config, crew } };
+    useAppStore.setState({
+      threads: [thread],
+      runtimeLaunchConfigByThreadId: {
+        [thread.id]: { ...thread.config, crossagentMcp: true },
+      },
+    });
+    useSharedSettings.setState({ crews: [savedCrew] });
+    useThreadComposerControlStore.getState().requestOpenControl(thread.id, "crew");
+    renderComposer({ thread });
+    await waitFor(() => {
+      expect(screen.getByTestId("control-kinds")).toHaveTextContent("crew");
+      expect(screen.getByTestId("crew-open-signal")).not.toHaveTextContent("");
+    });
+  });
+
+  it("applies a same-provider saved Crew pick in one normalized config write", () => {
+    const status: AgentStatus = {
+      ...codexGuiStatus,
+      capabilities: {
+        ...codexGuiStatus.capabilities,
+        mcpScope: { gui: "launch", terminal: "none" },
+      },
+    };
+    const savedCrew = {
+      id: "crew-saved",
+      name: "Review board",
+      lead: { agentKind: "codex", model: "gpt-5.4", effort: "low", fast: false },
+      roles: [
+        {
+          id: "builder",
+          label: "Builder",
+          selection: { agentKind: "claude", model: "opus-5.5", effort: "high" },
+        },
+      ],
+      policy: "crew-only" as const,
+      updatedAt: 1,
+    };
+    const thread = {
+      ...guiThread,
+      config: { model: "gpt-5.4", effort: "low", fast: false },
+    };
+    useSharedSettings.setState({ crews: [savedCrew] });
+    useAppStore.setState({
+      threads: [thread],
+      runtimeLaunchConfigByThreadId: {
+        [thread.id]: { model: thread.config.model, crossagentMcp: true },
+      },
+    });
+    renderComposer({ thread, agentStatus: status });
+    const controls = composerControlsSpy.mock.lastCall?.[0] as
+      | Array<{ kind?: string; crewSection?: { onSelect: (choice: { crewId: string }) => void } }>
+      | undefined;
+    const picker = controls?.find((control) => control.kind === "provider-model");
+    expect(picker?.crewSection).toBeDefined();
+    act(() => picker?.crewSection?.onSelect({ crewId: savedCrew.id }));
+    expect(runtimeActions.changeThreadConfig).toHaveBeenCalledTimes(1);
+    expect(runtimeActions.changeThreadConfig).toHaveBeenCalledWith(
+      thread.id,
+      expect.objectContaining({
+        model: "gpt-5.4",
+        effort: "low",
+        fast: false,
+        crew: expect.objectContaining({ crewId: savedCrew.id }),
+      }),
+    );
+  });
+
+  it("keeps the active lead when selecting a Crew whose lead uses another provider", () => {
+    const status: AgentStatus = {
+      ...codexGuiStatus,
+      capabilities: {
+        ...codexGuiStatus.capabilities,
+        mcpScope: { gui: "launch", terminal: "none" },
+      },
+    };
+    const savedCrew = {
+      id: "crew-other-lead",
+      name: "Review board",
+      lead: { agentKind: "claude", model: "claude-opus-5", effort: "high", fast: false },
+      roles: [
+        {
+          id: "builder",
+          label: "Builder",
+          selection: { agentKind: "claude", model: "claude-opus-5", effort: "low" },
+        },
+      ],
+      policy: "crew-only" as const,
+      updatedAt: 1,
+    };
+    const thread = { ...guiThread, config: { ...guiThread.config, model: "gpt-5.4" } };
+    useSharedSettings.setState({ crews: [savedCrew] });
+    useAppStore.setState({
+      runtimeLaunchConfigByThreadId: {
+        [thread.id]: { ...thread.config, crossagentMcp: true },
+      },
+    });
+    renderComposer({ thread, agentStatus: status });
+    const controls = composerControlsSpy.mock.lastCall?.[0] as
+      | Array<{ kind?: string; crewSection?: { onSelect: (choice: { crewId: string }) => void } }>
+      | undefined;
+    const picker = controls?.find((control) => control.kind === "provider-model");
+    expect(picker?.crewSection).toBeDefined();
+    act(() => picker?.crewSection?.onSelect({ crewId: savedCrew.id }));
+    expect(runtimeActions.changeThreadConfig).toHaveBeenCalledTimes(1);
+    expect(runtimeActions.changeThreadConfig).toHaveBeenCalledWith(
+      thread.id,
+      expect.objectContaining({
+        model: "gpt-5.4",
+        crew: expect.objectContaining({ crewId: savedCrew.id }),
+      }),
+    );
   });
 
   it("floats the composer bubbles in one anchored wrapper above the composer", () => {

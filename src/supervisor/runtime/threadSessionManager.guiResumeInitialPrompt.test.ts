@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AgentKind, PromptSegment, SessionRef } from "@/shared/contracts";
+import { crewFingerprint } from "@/shared/crew";
 import { decodeThreadIdentity } from "@/shared/browserMcpThread";
 import * as browserMcp from "../agents/browserMcp";
 import type { SupervisorEvent } from "@/shared/ipc";
@@ -103,7 +104,14 @@ type StartTurnCall = {
   prompt: string;
   config: unknown;
   segments: PromptSegment[] | undefined;
-  options: { userMessageItemId?: string; inlineInstructions?: string } | undefined;
+  options:
+    | {
+        userMessageItemId?: string;
+        inlineInstructions?: string;
+        turnContext?: string;
+        onPromptSubmitted?: () => void;
+      }
+    | undefined;
 };
 
 function createStructuredSession() {
@@ -655,6 +663,68 @@ describe("live built-in MCP resolution", () => {
 });
 
 describe("GUI resume initial prompt admission", () => {
+  it("forces Crossagents for an initial crew turn and records brief delivery on the session", async () => {
+    const structured = createStructuredSession();
+    const { adapter, createStructuredSession: factory } = createAdapter(structured);
+    adapter.capabilities.mcpScope = { gui: "always" };
+    const crew = {
+      version: 1 as const,
+      name: "Ship crew",
+      policy: "crew-only" as const,
+      roles: [
+        {
+          id: "builder",
+          label: "Builder",
+          selection: { agentKind: "codex", model: "gpt-5.5" },
+        },
+      ],
+    };
+    const crossagentConfig = {
+      url: "http://127.0.0.1:43210/mcp",
+      token: "fixture-token",
+      headers: { Authorization: "Bearer fixture-token" },
+    };
+    type CrossagentHooks = NonNullable<ThreadSessionManagerOptions["crossagentMcp"]>;
+    const register = vi.fn<CrossagentHooks["register"]>(() => crossagentConfig);
+    const manager = createManager(adapter, () => {}, {
+      crossagentMcp: {
+        register,
+        registerProviderSession: register,
+        unregister: vi.fn<CrossagentHooks["unregister"]>(),
+        cancelForeground: vi.fn<CrossagentHooks["cancelForeground"]>(),
+        cancelAll: vi.fn<CrossagentHooks["cancelAll"]>(),
+        resolveChildRequest: vi.fn<CrossagentHooks["resolveChildRequest"]>(async () => false),
+      },
+    });
+    await manager.startThread({
+      threadId: THREAD_ID,
+      projectLocation: PROJECT_LOCATION,
+      agentKind: AGENT_KIND,
+      config: { model: "fixture-model", crossagentMcp: false, crew },
+      prompt: "Delegate the implementation",
+      initialSize: INITIAL_SIZE,
+      presentationMode: "gui",
+    });
+
+    const session = manager.sessions.get(THREAD_ID)!;
+    expect(register).toHaveBeenCalledWith(THREAD_ID, []);
+    expect(session.launchConfig?.crossagentMcp).toBe(true);
+    expect(manager.getThreadConfig(THREAD_ID)?.crew).toEqual(crew);
+    expect(manager.getThreadConfig("missing")).toBeUndefined();
+    expect(structured.startTurnCalls[0]?.options?.inlineInstructions).toContain(
+      '[crew] The user gave this thread a Poracode crew named "Ship crew"',
+    );
+    expect(session.crewBriefDelivered).toBeUndefined();
+    const resolveForTurn = factory.mock.calls[0]![0].resolveMcpServersForTurn!;
+    const perTurnServers = await resolveForTurn(
+      { model: "fixture-model", crossagentMcp: false, crew },
+      () => true,
+    );
+    expect(perTurnServers.some((server) => server.id === "crossagents")).toBe(true);
+    structured.startTurnCalls[0]?.options?.onPromptSubmitted?.();
+    expect(session.crewBriefDelivered).toBe(crewFingerprint(crew));
+  });
+
   it("admits an explicit resume prompt exactly once against the exact owned reference", async () => {
     const structured = createStructuredSession();
     const { adapter, createStructuredSession: structuredFactory } = createAdapter(structured);

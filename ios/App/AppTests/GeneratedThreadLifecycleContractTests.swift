@@ -3,6 +3,29 @@ import XCTest
 @testable import App
 
 final class GeneratedThreadLifecycleContractTests: XCTestCase {
+  func testThreadConfigPreservesOpaqueCrewBindingAndExplicitNull() throws {
+    let raw = Data(
+      #"{"model":"fixture","crew":{"version":9,"name":"future crew","roles":[{"label":"Builder","selection":{"agentKind":"future","model":"opaque"} }],"unknown":{"preserve":[1,true,"x"]}}}"#.utf8
+    )
+    let config = try JSONDecoding.decode(ThreadConfig.self, from: raw)
+    let reencoded = try JSONDecoding.encoder.encode(config)
+    XCTAssertEqual(
+      try JSONDecoding.decode(JSONValue.self, from: reencoded),
+      try JSONDecoding.decode(JSONValue.self, from: raw)
+    )
+    XCTAssertEqual(ThreadLaunchConfiguration(config).crew, config.crew)
+
+    let explicitNone = try JSONDecoding.decode(
+      ThreadConfig.self,
+      from: Data(#"{"model":"fixture","crew":null}"#.utf8)
+    )
+    let encodedNone = try JSONDecoding.encoder.encode(explicitNone)
+    XCTAssertEqual(
+      try JSONDecoding.decode(JSONValue.self, from: encodedNone),
+      try JSONDecoding.decode(JSONValue.self, from: Data(#"{"model":"fixture","crew":null}"#.utf8))
+    )
+  }
+
   func testGeneratedMetadataPinsBothLifecycleRoutes() throws {
     let start = try GeneratedRemoteV3Contract.threadLifecycleRouteContract(
       id: "thread-start-existing")

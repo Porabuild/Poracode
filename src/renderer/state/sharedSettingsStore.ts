@@ -31,6 +31,13 @@ import {
   type SharedSettings,
   type SharedSettingsInput,
 } from "@/shared/settings";
+import {
+  isThreadConfigCrewEqual,
+  MAX_SAVED_CREWS,
+  normalizeCrewRoles,
+  savedCrewSchema,
+  type SavedCrew,
+} from "@/shared/crew";
 import type { AiContentLanguage, LocaleSetting } from "@/shared/locale";
 import type {
   GitReviewMode,
@@ -172,6 +179,8 @@ interface SharedSettingsState extends SharedSettings {
    */
   setMcpServerEnabled: (id: string, enabled: boolean) => void;
   setMcpServers: (servers: McpServer[]) => void;
+  upsertCrew: (crew: SavedCrew) => void;
+  deleteCrew: (id: string) => void;
   setBuiltInMcpServerDisabled: (id: BuiltInMcpServerId, disabled: boolean) => void;
   setBuiltInMcpToolEnabled: (id: BuiltInMcpServerId, tool: string, enabled: boolean) => void;
   installPlugin: (plugin: LoadedPlugin) => void;
@@ -429,6 +438,7 @@ function providerDraftConfigEqual(
 ): boolean {
   return (
     a !== undefined &&
+    isThreadConfigCrewEqual(a.crew, b.crew) &&
     areSelectionBindingsEqual(a.selectionBinding, b.selectionBinding) &&
     a.model === b.model &&
     a.effort === b.effort &&
@@ -899,6 +909,30 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     set({ mcpServers });
     persistSettings(selectSharedSettings(get()));
   },
+  upsertCrew: (crew) => {
+    const parsed = savedCrewSchema.safeParse(crew);
+    if (!parsed.success) return;
+    const normalized = { ...parsed.data, roles: normalizeCrewRoles(parsed.data.roles) };
+    if (normalized.roles.length === 0) return;
+    const crews = get().crews;
+    const index = crews.findIndex((entry) => entry.id === normalized.id);
+    if (index < 0 && crews.length >= MAX_SAVED_CREWS) return;
+    const nextCrew: SavedCrew = { ...normalized, updatedAt: Date.now() };
+    set({
+      crews:
+        index < 0
+          ? [...crews, nextCrew]
+          : crews.map((entry, entryIndex) => (entryIndex === index ? nextCrew : entry)),
+    });
+    persistSettings(selectSharedSettings(get()));
+  },
+  deleteCrew: (id) => {
+    const crews = get().crews;
+    const next = crews.filter((crew) => crew.id !== id);
+    if (next.length === crews.length) return;
+    set({ crews: next });
+    persistSettings(selectSharedSettings(get()));
+  },
   setBuiltInMcpServerDisabled: (id, disabled) => {
     const current = get().disabledBuiltInMcpServers;
     if ((current[id] ?? false) === disabled) return;
@@ -1342,6 +1376,7 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
     remotePushEnabled: state.remotePushEnabled,
     remotePushRedactContent: state.remotePushRedactContent,
     workspaces: state.workspaces,
+    crews: state.crews,
     favoriteModels: state.favoriteModels,
     recentModels: state.recentModels,
     agentSelectionUsage: state.agentSelectionUsage,
