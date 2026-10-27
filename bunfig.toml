@@ -7,6 +7,9 @@ publicHoistPattern = ["*"]
 # Preserve the seven-day supply-chain gate and its reviewed exceptions.
 minimumReleaseAge = 604800
 minimumReleaseAgeExcludes = [
+  "@modelcontextprotocol/client@2.4.0",
+  "@modelcontextprotocol/core@2.4.0",
+  "@modelcontextprotocol/server@2.4.0",
   "bun@1.4.3-canary.20261021.1",
   "@oven/bun-darwin-aarch64@1.4.3-canary.20261021.1",
   "@oven/bun-darwin-x64@1.4.3-canary.20261021.1",

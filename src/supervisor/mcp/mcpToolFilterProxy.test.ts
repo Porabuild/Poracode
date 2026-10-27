@@ -50,6 +50,8 @@ const GAMMA_TOOL: Tool = {
     properties: { value: { type: "string" } },
     required: ["value"],
   },
+  annotations: { readOnlyHint: true, openWorldHint: false },
+  _meta: { ui: { resourceUri: "ui://gamma/view", visibility: ["model", "app"] } },
 };
 const FAILING_TOOL: Tool = {
   name: "failing",
@@ -332,6 +334,7 @@ describe("mcpToolFilterProxy", () => {
     const listed = await downstream.listTools();
 
     expect(listed.tools.map((tool) => tool.name)).toEqual(["alpha", "gamma", "failing"]);
+    expect(listed.tools.find((tool) => tool.name === "gamma")).toEqual(GAMMA_TOOL);
     // The two upstream pages were both fetched (v2 auto-aggregates the
     // no-cursor call page by page).
     expect(upstream.listCursors).toEqual([undefined, "page2"]);
@@ -361,6 +364,24 @@ describe("mcpToolFilterProxy", () => {
 
     expect(failing.isError).toBe(true);
     expect(failing.content).toEqual([{ type: "text", text: "boom" }]);
+  });
+
+  it("preserves tool call metadata alongside nested arguments", async () => {
+    const upstream = await startUpstreamFixture();
+    let received: unknown;
+    upstream.server.setRequestHandler("tools/call", async (request) => {
+      received = request.params;
+      return { content: [{ type: "text", text: "ok" }] };
+    });
+    const { downstream } = await startProxyThroughMemory({ upstream, disabledTools: [] });
+    await downstream.listTools();
+    const params = {
+      name: "alpha",
+      arguments: { nested: { values: [1, "two", null], enabled: false } },
+      _meta: { "example.com/context": { account: "one", flags: ["a", "b"] } },
+    };
+    await downstream.callTool(params);
+    expect(received).toMatchObject(params);
   });
 
   it("rejects tools/call for a disabled tool without contacting upstream", async () => {
