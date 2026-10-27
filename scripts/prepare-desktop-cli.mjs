@@ -96,7 +96,7 @@ export function prepareDesktopCli(options) {
     helperDir,
     writeManifest({ platform, channel, executableName, electronVersion }) {
       if (
-        !["win32", "darwin"].includes(platform) ||
+        !["win32", "darwin", "linux"].includes(platform) ||
         !["stable", "nightly"].includes(channel) ||
         !desktopCliExecutableName(executableName)
       )
@@ -134,7 +134,7 @@ export function prepareDesktopCli(options) {
               "  hops=$((hops + 1))",
               "done",
               'dir=$(CDPATH= cd -P "$(dirname "$self")" && pwd) || exit 1',
-              `app="$dir/../../MacOS/"${shellWord(executableName)}`,
+              `app="$dir/${platform === "darwin" ? "../../MacOS/" : "../../"}"${shellWord(executableName)}`,
               'if [ ! -x "$app" ]; then',
               '  echo "Poracode desktop has moved or been removed. Open or reinstall the selected desktop release to repair its command." >&2',
               "  exit 127",
