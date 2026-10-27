@@ -491,6 +491,7 @@ describe("ThreadComposerSection", () => {
     onOpenProjectRelativePath?: (path: string, lineNumber?: number) => void;
     saveClipboardImage?: SaveClipboardImage;
     pickFiles?: () => Promise<string[] | null>;
+    onComposerInsetChange?: (inset: number) => void;
   }) {
     const thread = opts?.thread ?? guiThread;
     const agentStatus = opts?.agentStatus ?? codexGuiStatus;
@@ -518,6 +519,9 @@ describe("ThreadComposerSection", () => {
           : {})}
         {...(opts?.saveClipboardImage ? { saveClipboardImage: opts.saveClipboardImage } : {})}
         {...(opts?.pickFiles ? { pickFiles: opts.pickFiles } : {})}
+        {...(opts?.onComposerInsetChange
+          ? { onComposerInsetChange: opts.onComposerInsetChange }
+          : {})}
         onTodoDockCollapsedChange={() => undefined}
       />
     );
@@ -533,6 +537,7 @@ describe("ThreadComposerSection", () => {
     onOpenProjectRelativePath?: (path: string, lineNumber?: number) => void;
     saveClipboardImage?: SaveClipboardImage;
     pickFiles?: () => Promise<string[] | null>;
+    onComposerInsetChange?: (inset: number) => void;
   }) {
     const onSubmitInput =
       opts?.onSubmitInput ??
@@ -1239,6 +1244,81 @@ describe("ThreadComposerSection", () => {
     expect(dock).toHaveAttribute("data-expanded");
     fireEvent.click(screen.getByRole("button", { name: "Collapse composer" }));
     expect(dock).not.toHaveAttribute("data-expanded");
+  });
+
+  it("reports the transcript inset from the rendered dock geometry", () => {
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn((query: string) => ({
+        media: query,
+        matches: query === "(max-width: 767px)",
+        onchange: null,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+        addListener: () => undefined,
+        removeListener: () => undefined,
+        dispatchEvent: () => true,
+      })),
+    );
+    const observed: { callback: ResizeObserverCallback; target: Element }[] = [];
+    vi.stubGlobal(
+      "ResizeObserver",
+      class ResizeObserver {
+        constructor(private readonly callback: ResizeObserverCallback) {}
+        observe(target: Element) {
+          observed.push({ callback: this.callback, target });
+        }
+        unobserve() {}
+        disconnect() {}
+      },
+    );
+    const onComposerInsetChange = vi.fn<(inset: number) => void>();
+    // The real nesting: the chat scroller and the composer section share the
+    // thread pane, and the dock's offset comes from its positioned ancestor.
+    render(
+      <div data-poracode-thread-pane="">
+        <div data-poracode-chat-scroller="true" />
+        {composerElement({ onComposerInsetChange })}
+      </div>,
+    );
+    const scroller = document.querySelector<HTMLElement>("[data-poracode-chat-scroller]")!;
+    const input = screen.getByRole("textbox");
+    const dock = input.closest<HTMLElement>(".m-thread-compose-dock")!;
+    const rect = (top: number, bottom: number) => ({ top, bottom }) as DOMRect;
+    // 844px viewport, 34px safe area plus the 12px offset, 98px dock.
+    vi.spyOn(scroller, "getBoundingClientRect").mockReturnValue(rect(0, 844));
+    const dockRect = vi.spyOn(dock, "getBoundingClientRect").mockReturnValue(rect(700, 798));
+    const resizeDock = (blockSize: number) => {
+      const latest = observed.filter((entry) => entry.target === dock).at(-1);
+      act(() => {
+        latest?.callback(
+          [
+            {
+              borderBoxSize: [{ blockSize, inlineSize: 360 }],
+              target: dock,
+            } as unknown as ResizeObserverEntry,
+          ],
+          {} as ResizeObserver,
+        );
+      });
+    };
+
+    resizeDock(98);
+    expect(onComposerInsetChange).toHaveBeenLastCalledWith(144);
+
+    // The expanded composer is taller and the transcript stays readable.
+    fireEvent.focus(input);
+    expect(dock).toHaveAttribute("data-expanded");
+    dockRect.mockReturnValue(rect(520, 798));
+    resizeDock(278);
+    expect(onComposerInsetChange).toHaveBeenLastCalledWith(324);
+
+    // A keyboard lift translates the dock without resizing it.
+    dockRect.mockReturnValue(rect(220, 498));
+    act(() => {
+      dock.dispatchEvent(new Event("transitionend", { bubbles: true }));
+    });
+    expect(onComposerInsetChange).toHaveBeenLastCalledWith(624);
   });
 
   it("collapses the compact floating dock after the canonical submit succeeds", async () => {

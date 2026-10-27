@@ -96,6 +96,8 @@ interface MessageListProps {
   onKeyDownCapture?: KeyboardEventHandler<HTMLDivElement>;
   onStartReached?: HistoryStartReached;
   drawDistance?: number;
+  /** End inset for an overlaying composer, kept in LegendList's scroll math. */
+  bottomInset?: number;
   /**
    * Reverting is transcript-local today. Disable it while a turn is live so
    * late provider events cannot append onto a truncated timeline.
@@ -160,6 +162,7 @@ export function MessageList({
   onKeyDownCapture,
   onStartReached,
   drawDistance,
+  bottomInset,
   canRevertCheckpoints = true,
   checkpointGuard,
   checkpointActions,
@@ -476,6 +479,7 @@ export function MessageList({
         initialScrollAtEnd
         keyExtractor={(entry) => entry.id}
         {...(anchoredEndSpace ? { anchoredEndSpace } : {})}
+        {...(bottomInset ? { contentInsetEndAdjustment: bottomInset } : {})}
         maintainScrollAtEnd={
           anchoredEndSpace || newPromptReady
             ? false

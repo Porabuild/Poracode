@@ -145,6 +145,8 @@ type ThreadComposerSectionProps = {
   saveClipboardImage?: SaveClipboardImage | undefined;
   /** Optional surface-specific placeholder for the active-thread input. */
   composerPlaceholder?: string | undefined;
+  /** Compact only: space the floating dock covers above the pane bottom. */
+  onComposerInsetChange?: ((inset: number) => void) | undefined;
   /**
    * Override whether unmodified Enter submits instead of inserting a newline.
    * Defaults to submit on desktop (Electron and desktop PWA) and newline on
@@ -190,7 +192,7 @@ function AdaptiveThreadComposerDock(props: {
   summary?: ReactNode;
   inputHasContent?: boolean;
   expansionLocked?: boolean;
-  onDockHeightChange?: (height: number) => void;
+  onDockHeightChange?: (height: number, dock: HTMLElement) => void;
   onExpandedChange: (expanded: boolean) => void;
 }) {
   if (!props.compact) return props.children;
@@ -1026,11 +1028,21 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
             collapsedTapLabel={resumeUnavailableMessage ?? t`Send a message...`}
             inputHasContent={hasContent}
             expansionLocked={activeRuntimeRequest !== undefined}
-            onDockHeightChange={(height) => {
+            onDockHeightChange={(height, dock) => {
               const pane = composerSectionRef.current?.closest("[data-poracode-thread-pane]");
-              if (pane instanceof HTMLElement) {
-                pane.style.setProperty("--m-thread-bubble-height", `${height}px`);
-              }
+              if (!(pane instanceof HTMLElement)) return;
+              pane.style.setProperty("--m-thread-bubble-height", `${height}px`);
+              // Measure rendered geometry: the safe-area offset sits on an
+              // ancestor and the keyboard lift is a transform.
+              const viewport = pane.querySelector("[data-poracode-chat-scroller]") ?? pane;
+              props.onComposerInsetChange?.(
+                Math.max(
+                  0,
+                  Math.ceil(
+                    viewport.getBoundingClientRect().bottom - dock.getBoundingClientRect().top,
+                  ),
+                ),
+              );
             }}
             aboveBubble={
               compactLayout ? (
