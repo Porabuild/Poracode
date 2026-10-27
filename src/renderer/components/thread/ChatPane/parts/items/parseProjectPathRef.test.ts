@@ -42,6 +42,28 @@ describe("parseProjectPathRef", () => {
     expect(parseProjectPathRef("hello")).toBeNull();
   });
 
+  it.each([
+    "/var/...",
+    "/private/var/...",
+    "/var/.../report.ts:12",
+    "src/…/report.ts",
+    "src/..../report.ts",
+    "src/…/",
+  ])("leaves abbreviated paths as text: %s", (path) => {
+    expect(parseProjectPathRef(path)).toBeNull();
+  });
+
+  it.each(["src/.", "src/.."])("recognizes dot directories as folders: %s", (path) => {
+    expect(parseProjectPathRef(path)).toEqual({ kind: "folder", path });
+  });
+
+  it.each(["src/.env", "src/.gitignore", "src/../main.ts", "./src/main.ts"])(
+    "still recognizes concrete dotfile and relative paths: %s",
+    (path) => {
+      expect(parseProjectPathRef(path)).toEqual({ kind: "file", path });
+    },
+  );
+
   describe("with rootNames validation", () => {
     const rootNames = new Set(["src", "package.json", "scripts"]);
 
