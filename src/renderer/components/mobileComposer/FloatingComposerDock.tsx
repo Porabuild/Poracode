@@ -313,9 +313,13 @@ export function FloatingComposerDock(props: {
     };
   }, [onDockHeightChange]);
 
+  // An instant keyboard lift has no transition to end; re-measure once per lift.
+  const reportedLiftRef = useRef<number | null>(null);
   useEffect(() => {
     const dock = dockRef.current;
-    if (dock) onDockHeightChange?.(dock.offsetHeight, dock);
+    if (!dock || !onDockHeightChange || reportedLiftRef.current === liftOffset) return;
+    reportedLiftRef.current = liftOffset;
+    onDockHeightChange(dock.offsetHeight, dock);
   }, [liftOffset, onDockHeightChange]);
 
   useEffect(
