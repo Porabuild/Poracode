@@ -16,6 +16,7 @@ import type {
   ProviderListOutput,
 } from "@opencode/client";
 import type { RouteArgs } from "../context";
+import { CREW_PROVIDER_ID, usableCrews } from "../crews";
 
 /** Agent/provider/integration/model catalog routes plus MCP and skill. */
 export async function handleCatalogRoutes({
@@ -81,16 +82,35 @@ export async function handleCatalogRoutes({
     ];
     return json(output);
   }
+  const offeredCrews = async () =>
+    usableCrews(
+      (await remoteSettings()).crews,
+      await agentStatuses(),
+      (status) => supportsGui(status) && hasGuiAuthentication(status),
+    );
+
   if (path === "/api/provider" && method === "GET") {
-    const data: ProviderInfo[] = (await agentStatuses())
-      .filter(supportsGui)
-      .map((status: AgentStatus) => ({
+    const crews = await offeredCrews();
+    const data: ProviderInfo[] = [
+      ...(crews.length > 0
+        ? [
+            {
+              id: CREW_PROVIDER_ID,
+              integrationID: CREW_PROVIDER_ID,
+              name: "Poracode",
+              activation: "enabled" as const,
+              package: "poracode",
+            },
+          ]
+        : []),
+      ...(await agentStatuses()).filter(supportsGui).map((status: AgentStatus) => ({
         id: status.kind,
         ...(hasGuiAuthentication(status) ? { integrationID: status.kind } : {}),
         name: status.label,
-        activation: hasGuiAuthentication(status) ? "enabled" : "disabled",
+        activation: hasGuiAuthentication(status) ? ("enabled" as const) : ("disabled" as const),
         package: "poracode",
-      }));
+      })),
+    ];
     const output: ProviderListOutput = {
       location: requestLocation(url),
       data,
@@ -98,15 +118,28 @@ export async function handleCatalogRoutes({
     return json(output);
   }
   if (path === "/api/integration" && method === "GET") {
-    const data: IntegrationInfo[] = (await agentStatuses())
-      .filter(supportsGui)
-      .filter(hasGuiAuthentication)
-      .map((status) => ({
-        id: status.kind,
-        name: status.label,
-        methods: [],
-        connections: [{ type: "env", name: status.kind }],
-      }));
+    const crews = await offeredCrews();
+    const data: IntegrationInfo[] = [
+      ...(crews.length > 0
+        ? [
+            {
+              id: CREW_PROVIDER_ID,
+              name: "Poracode",
+              methods: [],
+              connections: [{ type: "env" as const, name: CREW_PROVIDER_ID }],
+            },
+          ]
+        : []),
+      ...(await agentStatuses())
+        .filter(supportsGui)
+        .filter(hasGuiAuthentication)
+        .map((status) => ({
+          id: status.kind,
+          name: status.label,
+          methods: [],
+          connections: [{ type: "env" as const, name: status.kind }],
+        })),
+    ];
     const output: IntegrationListOutput = {
       location: requestLocation(url),
       data,
@@ -136,6 +169,21 @@ export async function handleCatalogRoutes({
         return model;
       });
     });
+    data.unshift(
+      ...(await offeredCrews()).map((crew): ModelInfo => ({
+        id: crew.id,
+        modelID: crew.id,
+        providerID: CREW_PROVIDER_ID,
+        name: crew.name,
+        capabilities: { tools: true, input: ["text"], output: ["text"] },
+        variants: [],
+        time: { released: 0 },
+        cost: [],
+        status: "active",
+        enabled: true,
+        limit: { context: 128_000, output: 8_192 },
+      })),
+    );
     const output: ModelListOutput = {
       location: requestLocation(url),
       data,

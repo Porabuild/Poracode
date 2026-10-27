@@ -20,6 +20,8 @@ import { itemId, messageId, threadId } from "../ids";
 import { selectPermissionOption } from "../permissions";
 import { record } from "./helpers";
 import type { RouterContext } from "./context";
+import { CREW_PROVIDER_ID, usableCrews } from "./crews";
+import { crewBindingFromSavedCrew } from "@/shared/crew";
 
 /** The /api/session/:id/prompt path — new threads, resume, fork, side-chat. */
 export function createPrompt(ctx: RouterContext) {
@@ -58,13 +60,29 @@ export function createPrompt(ctx: RouterContext) {
     if (revertError) return revertError;
     const model = record(body.model);
     const agentID = String(body.agent ?? raw?.agentID ?? "build");
-    const providerID = String(
+    const pickedProviderID = String(
       model.providerID ?? raw?.providerID ?? (await resolveDefaultModel())?.providerID ?? "",
     );
-    const selectedModel = String(
+    const pickedModel = String(
       model.id ?? raw?.model ?? body.modelID ?? (await resolveDefaultModel())?.model ?? "",
     );
-    const effort = String(model.variant ?? raw?.effort ?? body.effort ?? "");
+    const crew =
+      pickedProviderID === CREW_PROVIDER_ID
+        ? usableCrews((await ctx.remoteSettings()).crews, await agentStatuses(), () => true).find(
+            (candidate) => candidate.id === pickedModel,
+          )
+        : undefined;
+    if (pickedProviderID === CREW_PROVIDER_ID && !crew)
+      return {
+        status: 400,
+        error: { code: "invalid_request", message: "That crew is no longer available" },
+      };
+    const providerID = crew ? crew.lead.agentKind : pickedProviderID;
+    const selectedModel = crew ? crew.lead.model : pickedModel;
+    const effort = crew
+      ? (crew.lead.effort ?? "")
+      : String(model.variant ?? raw?.effort ?? body.effort ?? "");
+    const explicitModelPick = model.providerID !== undefined;
     const promptPartsSchema = z.array(z.record(z.string(), z.unknown()));
     const messageParts = promptPartsSchema.safeParse(record(body.message).parts);
     const bodyParts = promptPartsSchema.safeParse(body.parts);
@@ -351,6 +369,11 @@ export function createPrompt(ctx: RouterContext) {
     const config: ThreadConfig = {
       ...(modelChanged ? baseRest : base),
       model: selectedModel,
+      ...(crew
+        ? { crew: crewBindingFromSavedCrew(crew) }
+        : explicitModelPick && remoteThread?.config.crew
+          ? { crew: null }
+          : {}),
       ...(effort ? { effort } : {}),
       ...(savedConfigMatches && raw?.fast !== undefined ? { fast: raw.fast } : {}),
       ...(savedConfigMatches && raw?.thinking !== undefined ? { thinking: raw.thinking } : {}),

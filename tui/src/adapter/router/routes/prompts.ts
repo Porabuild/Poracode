@@ -4,6 +4,7 @@ import { threadId } from "../../ids";
 import { json, record, supportsMode } from "../helpers";
 import { isThreadTurnActive } from "@/shared/contracts";
 import type { RouteArgs } from "../context";
+import { CREW_PROVIDER_ID, usableCrews } from "../crews";
 
 /** Prompt, compact, command, interrupt, and selection routes. */
 export async function handlePromptRoutes({
@@ -199,10 +200,20 @@ export async function handlePromptRoutes({
     const modelID = String(model.id ?? current.model ?? "");
     const effort = typeof model.variant === "string" ? model.variant : undefined;
     if (!providerID || !modelID) throw new Error("Choose an installed provider and model");
+    const crew =
+      providerID === CREW_PROVIDER_ID
+        ? usableCrews((await ctx.remoteSettings()).crews, await agentStatuses(), () => true).find(
+            (candidate) => candidate.id === modelID,
+          )
+        : undefined;
+    if (providerID === CREW_PROVIDER_ID && !crew)
+      throw new Error("That crew is no longer available");
+    const leadProviderID = crew ? crew.lead.agentKind : providerID;
+    const leadModelID = crew ? crew.lead.model : modelID;
     // A model from another provider on an existing thread stages an
     // in-place provider switch; the next prompt carries it.
     const remoteThread = threadCache.get(rawThreadID) ?? (await visibleThread(rawThreadID));
-    if (remoteThread && remoteThread.agentKind !== providerID) {
+    if (remoteThread && remoteThread.agentKind !== leadProviderID) {
       const switchStatus = states.get(rawThreadID) ?? remoteThread.status;
       if (switchStatus === "launching" || switchStatus === "working")
         return json(
@@ -214,8 +225,8 @@ export async function handlePromptRoutes({
           },
           409,
         );
-      pendingSwitches.set(id, { providerID, modelID });
-      const targetStatus = (await agentStatuses()).find((value) => value.kind === providerID);
+      pendingSwitches.set(id, { providerID: leadProviderID, modelID: leadModelID });
+      const targetStatus = (await agentStatuses()).find((value) => value.kind === leadProviderID);
       input.events.emit(
         openCodeEvent(
           "tui.toast.show",

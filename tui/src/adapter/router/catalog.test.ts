@@ -823,3 +823,44 @@ test("config default ignores a last-model file from another version", async () =
     await rm(home, { recursive: true, force: true });
   }
 });
+
+test("offers saved crews under a Poracode provider when the lead can lead a crew", async () => {
+  const claude = agentStatusSchema.parse({
+    kind: "claude",
+    label: "Claude Code",
+    installed: true,
+    authState: "authenticated",
+    capabilities: {
+      presentationModes: ["terminal", "gui"],
+      mcpScope: { terminal: "launch", gui: "always" },
+      models: [{ id: "opus", label: "Opus" }],
+    },
+  });
+  const crew = {
+    id: "crew-ship",
+    name: "Ship crew",
+    lead: { agentKind: "claude", model: "opus" },
+    roles: [{ id: "builder", label: "Builder", selection: { agentKind: "claude", model: "opus" } }],
+    policy: "crew-only",
+  };
+  const client = {
+    agentStatuses: async () => ({ windows: [claude], wsl: [] }),
+    settings: async () => ({ agentSettings: {}, crews: [crew] }),
+    boundedProjectListPage: async () => ({ projects: [] }),
+  } as unknown as RemoteDesktopClient;
+  const { value } = S.router(client);
+  const providers = (await (
+    await value.handle(new Request("http://poracode.invalid/api/provider"))
+  ).json()) as ProviderListOutput;
+  expect(providers.data[0]).toMatchObject({
+    id: "poracode",
+    name: "Poracode",
+    activation: "enabled",
+  });
+  const models = (await (
+    await value.handle(new Request("http://poracode.invalid/api/model"))
+  ).json()) as { data: Array<{ id: string; providerID: string; name: string }> };
+  expect(models.data).toContainEqual(
+    expect.objectContaining({ id: "crew-ship", providerID: "poracode", name: "Ship crew" }),
+  );
+});

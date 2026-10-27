@@ -1040,3 +1040,52 @@ test("a pending mcp toggle survives a provider switch into startThread", async (
   );
   expect(switched.at(-1)?.config.browserMcp).toBe(false);
 });
+
+test("picking a saved crew stages a switch to its lead and the next prompt carries the crew", async () => {
+  const starts: unknown[] = [];
+  const claude = {
+    ...JSON.parse(JSON.stringify(S.promptFixture.status)),
+    kind: "claude",
+    label: "Claude Code",
+    capabilities: {
+      ...JSON.parse(JSON.stringify(S.promptFixture.status.capabilities)),
+      mcpScope: { terminal: "launch", gui: "always" },
+      models: [{ id: "opus", label: "Opus" }],
+    },
+  };
+  const crew = {
+    id: "crew-ship",
+    name: "Ship crew",
+    lead: { agentKind: "claude", model: "opus" },
+    roles: [{ id: "builder", label: "Builder", selection: { agentKind: "claude", model: "opus" } }],
+    policy: "crew-only",
+  };
+  const client = S.promptClient({
+    agentStatuses: async () => ({ windows: [S.promptFixture.status, claude], wsl: [] }),
+    settings: async () => ({ agentSettings: {}, crews: [crew] }),
+    sendThreadInput: async () => ({}),
+    startThread: async (payload: unknown) => starts.push(payload),
+    callRemoteProcedure: async () => null,
+  });
+  const { value } = S.router(client);
+  const pick = await value.handle(
+    new Request("http://poracode.invalid/api/session/ses_thread-1/model", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ model: { providerID: "poracode", id: "crew-ship" } }),
+    }),
+  );
+  expect(pick.status).toBe(204);
+  const prompt = await value.handle(
+    new Request("http://poracode.invalid/api/session/ses_thread-1/prompt", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ text: "delegate this" }),
+    }),
+  );
+  expect(prompt.status).toBe(200);
+  expect(starts.at(-1)).toMatchObject({
+    agentKind: "claude",
+    config: { model: "opus", crew: { version: 1, crewId: "crew-ship", policy: "crew-only" } },
+  });
+});
