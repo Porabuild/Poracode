@@ -43,6 +43,8 @@ bun run typecheck
 bun run test
 ```
 
+Under `finalize`, which merges only after CI passes on the exact pushed head, CI's sharded `bun run test` replaces the local run: run the other three locally plus the focused tests (focused gate step 2). Every other flow runs all four.
+
 ## Conditional gates
 
 Add these when the change touches the matching area:

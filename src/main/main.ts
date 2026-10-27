@@ -42,7 +42,9 @@ import {
 } from "./desktopAppState";
 import { ensureMainWindow } from "./desktopAppWindows";
 import { startDesktopApp } from "./desktopAppReady";
-import { registerMacDesktopCli, shouldRegisterMacDesktopCli } from "./desktopCliRegistration";
+import { shouldRegisterPosixDesktopCli } from "./desktopCliRegistration";
+import { registerPosixDesktopCliForShell } from "./desktopCliShell";
+import { selectedDesktopAppImage } from "@/shared/desktopAppImage";
 
 // Electron can remain alive after its launching terminal or dev runner exits.
 // Install this before any startup logging so a detached diagnostic pipe cannot
@@ -275,7 +277,7 @@ if (!hasSingleInstanceLock) {
       // This common continuation also runs after attached-mode startup. Command
       // validation does not delay host admission; disposable/dev launches skip it.
       if (
-        shouldRegisterMacDesktopCli({
+        shouldRegisterPosixDesktopCli({
           platform: process.platform,
           isPackaged: app.isPackaged,
           isDev,
@@ -285,7 +287,13 @@ if (!hasSingleInstanceLock) {
         })
       ) {
         try {
-          const result = registerMacDesktopCli({
+          const appImagePath = selectedDesktopAppImage({
+            platform: process.platform,
+            resourcesDir: process.resourcesPath,
+            executablePath: process.execPath,
+            env: process.env,
+          });
+          const result = await registerPosixDesktopCliForShell({
             resourcesDir: process.resourcesPath,
             executablePath: process.execPath,
             appVersion: app.getVersion(),
@@ -293,6 +301,8 @@ if (!hasSingleInstanceLock) {
             channel,
             appDataDir: app.getPath("appData"),
             path: process.env.PATH ?? "",
+            env: process.env,
+            ...(appImagePath ? { appImagePath } : {}),
           });
           if (result.state === "registered") console.info("[desktop-cli] %s", result.detail);
           else console.warn("[desktop-cli] %s", result.detail);

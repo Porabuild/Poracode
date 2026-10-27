@@ -11,7 +11,7 @@ on:
 jobs:
   # bun build --compile embeds the target's @opentui/core-<platform-arch>
   # native library; every requested platform package must be installed
-  # (tui/bunfig.toml supportedArchitectures). Linux ships the glibc build.
+  # (`bun run tui:install` installs all variants). Linux ships the glibc build.
   binaries:
     strategy:
       fail-fast: false
@@ -32,7 +32,7 @@ jobs:
       - name: Install JavaScript dependencies
         run: bun install --frozen-lockfile --ignore-scripts && node node_modules/bun/install.js
       - name: Install TUI workspace dependencies
-        run: bun install --cwd tui --frozen-lockfile
+        run: bun run tui:install
       - name: Build TUI binaries
         run: bun scripts/build-tui.mjs --targets "${{ matrix.targets }}" --require
       - name: Upload TUI binaries

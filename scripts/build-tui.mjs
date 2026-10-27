@@ -12,7 +12,7 @@
  * resolver redirect, so every binary embeds exactly the native library for
  * that platform (never a sibling variant, never all of them). Cross-compiling
  * therefore needs every requested platform package installed — install all
- * OpenTUI variants with bunfig `[install] supportedArchitectures`.
+ * OpenTUI variants with `bun run tui:install`.
  *
  * Linux targets ship the glibc build (`bun-linux-*` and `@opentui/core-linux-*`
  * glibc variants). musl hosts cannot run a glibc-compiled bun runtime anyway,
@@ -68,8 +68,8 @@ async function buildTarget(target) {
   const nativeEntry = join(tuiRoot, "node_modules", spec.native, "index.bun.js");
   if (!existsSync(nativeEntry))
     throw new Error(
-      `Missing ${spec.native} in tui/node_modules. Install the platform package ` +
-        `(bunfig [install] supportedArchitectures) before building ${target}.`,
+      `Missing ${spec.native} in tui/node_modules. Run bun run tui:install ` +
+        `before building ${target}.`,
     );
   const outfile = join(distDir, target, assetName(target));
   mkdirSync(dirname(outfile), { recursive: true });

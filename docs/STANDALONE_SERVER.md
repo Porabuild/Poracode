@@ -100,7 +100,7 @@ launcher's runtime format is the same tarball.
 
 ### 2.1 Desktop-bundled entry
 
-Windows and macOS packaging also stages a command under
+Windows, macOS, and Linux packaging also stages a command under
 `<desktop-resources>/desktop-cli/`: `poracode.cmd` on Windows, `poracode` on macOS,
 and `poracode-next[.cmd]` for Nightly. This command uses that installation's
 Electron runtime in Node mode, without a separate Node/npm installation or a
@@ -121,11 +121,18 @@ requires supported native Node and an explicitly selected service prefix.
 Standalone `upgrade` also requires the native Node CLI: the desktop command
 refuses it before effects. Update the desktop through its own updater.
 
-The macOS source attempts command registration after successful packaged startup,
-including attached mode. It uses an existing suitable writable directory on
-`PATH`, preserves existing commands (including npm installations), and keeps
-Stable/Nightly ownership separate. It does not edit shell profiles or request
-elevation. If registration is unavailable, the startup log gives the exact
+The macOS and Linux apps attempt command registration after successful packaged startup,
+including attached mode. It reads the user's interactive login shell `PATH`,
+preserves existing commands (including npm installations), and keeps
+Stable/Nightly ownership separate. If no suitable writable directory exists,
+it creates `~/.local/bin` and appends PATH setup to the current shell's startup
+configuration (zsh, bash, or fish), preserving existing settings. A new terminal
+loads that setup; no elevation is needed. Linux packages use a separate
+`poracode-desktop` / `poracode-nightly-desktop` executable for the GUI. AppImage
+commands use a durable launcher that reopens the original image and discovers
+its fresh mount, so closing the desktop or updating in place does not break the CLI.
+AppImage artifacts keep a versionless filename so the updater replaces that same image.
+If registration is unavailable, the startup log gives the exact
 bundled command path. Dev, CI, CDP and custom-profile launches skip registration.
 
 Windows NSIS source registers the desktop command directory in the installing

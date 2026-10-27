@@ -6,6 +6,11 @@ import {
   HostControlUnsupportedOperationError,
 } from "@/backend/ownership/hostControlClient";
 import type { HostBuildIdentity } from "@/shared/hostControlProtocol";
+import {
+  desktopAppImageLaunchArguments,
+  desktopAppImageOwnerEnvironment,
+  selectedDesktopAppImage,
+} from "@/shared/desktopAppImage";
 import { requestHostStatusFromRunningServer, type HostStatusResponse } from "./pairingControl";
 import { serverLogFilePath } from "./serverLogFile";
 import {
@@ -42,6 +47,7 @@ export interface EnsureCliOwnerOptions {
   readonly execArgv?: readonly string[];
   readonly entrypoint?: string;
   readonly env?: NodeJS.ProcessEnv;
+  readonly platform?: NodeJS.Platform;
   readonly writeStderr?: (text: string) => void;
   readonly sleep?: (milliseconds: number) => Promise<void>;
   readonly now?: () => number;
@@ -92,17 +98,31 @@ export async function ensureCliOwner(
   let spawnFailure: Error | undefined;
   let childExitCode: number | null | undefined;
   try {
+    const env = options.env ?? process.env;
+    const execPath = options.execPath ?? process.execPath;
+    const appImage = options.capturedBuild
+      ? selectedDesktopAppImage({
+          platform: options.platform ?? process.platform,
+          resourcesDir: dirname(dirname(resolve(entrypoint))),
+          executablePath: execPath,
+          env,
+        })
+      : undefined;
     const child = (options.spawn ?? spawnProcess)(
-      options.execPath ?? process.execPath,
+      appImage ?? execPath,
       [
-        ...(options.execArgv ?? process.execArgv),
-        entrypoint,
+        // A detached owner needs its own mount after this CLI exits.
+        ...(appImage
+          ? desktopAppImageLaunchArguments()
+          : [...(options.execArgv ?? process.execArgv), entrypoint]),
         "serve",
         ...(options.baseDir !== undefined ? ["--base-dir", options.baseDir] : []),
       ],
       {
         detached: true,
-        env: options.env ?? process.env,
+        env: appImage
+          ? desktopAppImageOwnerEnvironment(env, dirname(dirname(resolve(entrypoint))))
+          : env,
         stdio: "ignore",
         windowsHide: true,
       },

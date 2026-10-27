@@ -1,6 +1,6 @@
 import { EventEmitter } from "node:events";
 import type { ChildProcess } from "node:child_process";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
@@ -9,6 +9,7 @@ import type { HostBuildIdentity, HostDescription } from "@/shared/hostControlPro
 import { RunningOwnerRefusedError } from "./serverUpgradeIdentity";
 import { ensureCliOwner, type EnsureCliOwnerOptions } from "./cliOwner";
 import { serverLogFilePath } from "./serverLogFile";
+import { desktopAppImageLaunchArguments } from "@/shared/desktopAppImage";
 
 const status = {
   requestId: "request",
@@ -34,6 +35,64 @@ const capturedBuild: HostBuildIdentity = {
 };
 
 describe("CLI background owner resolution", () => {
+  it("starts a captured AppImage owner through its durable image with a separate mount", async () => {
+    const profile = await mkdtemp(join(tmpdir(), "poracode-cli-image-owner-"));
+    try {
+      const mount = join(profile, "ephemeral mount");
+      const resources = join(mount, "resources");
+      const image = join(profile, "Poracode-Linux-x86_64.AppImage");
+      const executable = join(mount, "poracode-desktop");
+      await mkdir(resources, { recursive: true });
+      await writeFile(image, "durable image");
+      await writeFile(executable, "mounted executable");
+      const env = {
+        APPIMAGE: image,
+        APPDIR: mount,
+        ELECTRON_RUN_AS_NODE: "1",
+        PORACODE_WSL_HELPERS_DIR: join(await realpath(resources), "wsl-helpers"),
+        PORACODE_BUNDLED_SKILLS_DIR: join(await realpath(resources), "skills"),
+        PORACODE_BUNDLED_PLUGINS_DIR: join(profile, "custom-plugins"),
+      };
+      const spawn = vi.fn<OwnerSpawner>(() => child());
+      let probes = 0;
+      await ensureCliOwner(profile, {
+        capturedBuild,
+        baseDir: profile,
+        platform: "linux",
+        env,
+        execPath: executable,
+        execArgv: ["-e", "the original CLI evaluation must not be inherited"],
+        entrypoint: join(resources, "desktop-cli", "bootstrap.mjs"),
+        spawn,
+        ownerProbe: async () => null,
+        statusProbe: async () => {
+          if (probes++ === 0) throw new Error("owner absent");
+          return status;
+        },
+        writeStderr: () => undefined,
+      });
+      expect(spawn).toHaveBeenCalledExactlyOnceWith(
+        await realpath(image),
+        [...desktopAppImageLaunchArguments(), "serve", "--base-dir", profile],
+        {
+          detached: true,
+          env: {
+            APPIMAGE: image,
+            APPDIR: "",
+            ELECTRON_RUN_AS_NODE: "1",
+            NODE_OPTIONS: "",
+            NODE_PATH: "",
+            PORACODE_BUNDLED_PLUGINS_DIR: join(profile, "custom-plugins"),
+          },
+          stdio: "ignore",
+          windowsHide: true,
+        },
+      );
+      expect(env.PORACODE_WSL_HELPERS_DIR).toBe(join(await realpath(resources), "wsl-helpers"));
+    } finally {
+      await rm(profile, { recursive: true, force: true });
+    }
+  });
   it("uses an existing owner without spawning", async () => {
     const profile = await mkdtemp(join(tmpdir(), "poracode-cli-owner-"));
     try {
