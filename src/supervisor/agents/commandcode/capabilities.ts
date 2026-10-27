@@ -120,6 +120,9 @@ export async function probeCommandCodeCapabilities(
     preferTerminalLogin: true,
     ...(acp?.authState ? { authState: acp.authState } : {}),
     ...modelCapabilities,
+    // Models found only by the terminal effort probe declare no default; their
+    // ladders start at "low". ACP model defaults still take precedence.
+    defaultEffort: "medium",
     reportsSkillCatalog: supportsAcp,
     presentationModes: supportsAcp ? ["terminal", "gui"] : ["terminal"],
     mcpScope: { terminal: "launch", gui: supportsAcp ? "launch" : "none" },

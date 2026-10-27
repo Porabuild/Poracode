@@ -93,7 +93,7 @@ function createFakeQuery(initCommands: Array<Record<string, string>> = []) {
     .fn<(mode: PermissionMode) => Promise<void>>()
     .mockResolvedValue(undefined);
   const getContextUsage = vi
-    .fn<() => Promise<SDKControlGetContextUsageResponse>>()
+    .fn<(opts?: { detail?: "summary" | "full" }) => Promise<SDKControlGetContextUsageResponse>>()
     .mockResolvedValue({
       categories: [{ name: "Messages", tokens: 42_000, color: "#3366ff", kind: "used" }],
       totalTokens: 42_000,
@@ -1400,6 +1400,7 @@ describe("ClaudeSdkSession", () => {
     await flushAsyncWork();
 
     expect(fake.getContextUsage).toHaveBeenCalledTimes(1);
+    expect(fake.getContextUsage).toHaveBeenCalledWith({ detail: "summary" });
     expect(runtimeEvents).toContainEqual({
       type: "context.updated",
       threadId: "thread-claude-context",

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ProjectLocation, ThreadConfig } from "@/shared/contracts";
+import { resolveReasoningSelection } from "@/shared/agentSelection";
 import { createKnownSessionRef } from "../base";
 import { buildPiArgs, buildPiOneShotArgs, splitPiModelId } from "./argv";
 import {
@@ -158,6 +159,22 @@ describe("Pi capability defaults", () => {
     expect(piDefaultCapabilities.models).toEqual([]);
     expect(piDefaultCapabilities.efforts).toEqual([]);
     expect(piDefaultCapabilities.modelEfforts).toEqual({});
+  });
+
+  it("starts reasoning models thinking instead of at their leading off tier", () => {
+    const capabilities = {
+      ...piDefaultCapabilities,
+      models: [
+        { id: "a/reasoning", label: "Reasoning" },
+        { id: "a/plain", label: "Plain" },
+      ],
+      modelEfforts: {
+        "a/reasoning": ["off", "minimal", "low", "medium", "high", "xhigh", "max"],
+        "a/plain": ["off"],
+      },
+    };
+    expect(resolveReasoningSelection(capabilities, "a/reasoning")).toBe("medium");
+    expect(resolveReasoningSelection(capabilities, "a/plain")).toBe("off");
   });
 
   it("parses Pi's native model table for WSL terminal discovery", () => {

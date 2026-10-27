@@ -17,6 +17,8 @@ import { QODER_DEFAULT_MODEL_ID } from "./argv";
 export const qoderDefaultCapabilities: AgentCapability = {
   models: [{ id: QODER_DEFAULT_MODEL_ID, label: "Auto" }],
   efforts: ["none", "low", "medium", "high", "xhigh", "max"],
+  // The built-in ladder lists "none" first; probes may declare their own default.
+  defaultEffort: "medium",
   modelEfforts: {},
   modes: ["agent", "plan"],
   approvalPolicies: [
