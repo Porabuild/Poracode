@@ -1818,8 +1818,8 @@ msgid "Allow eval"
 msgstr "評価を許可する"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-msgid "Allow paired devices to connect through LAN and Tailscale IP addresses. Connections use HTTP unless TLS is configured. Enable only on trusted networks."
-msgstr "ペアリング済みのデバイスがLANおよびTailscaleのIPアドレスで接続できるようにします。TLSが設定されていない場合、接続にはHTTPが使用されます。信頼できるネットワークでのみ有効にしてください。"
+#~ msgid "Allow paired devices to connect through LAN and Tailscale IP addresses. Connections use HTTP unless TLS is configured. Enable only on trusted networks."
+#~ msgstr "ペアリング済みのデバイスがLANおよびTailscaleのIPアドレスで接続できるようにします。TLSが設定されていない場合、接続にはHTTPが使用されます。信頼できるネットワークでのみ有効にしてください。"
 
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "Allow replacing conflicting managed skills"
@@ -6079,8 +6079,12 @@ msgid "Devices & tools"
 msgstr "デバイスとツール"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-msgid "Devices can pair while this desktop is reachable."
-msgstr "このデスクトップに到達できる間、デバイスをペアリングできます。"
+msgid "Devices can pair while this desktop is reachable on your local network. Connections use HTTP unless TLS is configured; use only on trusted networks."
+msgstr "このデスクトップがローカルネットワークで到達可能な間、デバイスをペアリングできます。TLSを設定しない限り、接続はHTTPを使用します。信頼できるネットワークでのみ使用してください。"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#~ msgid "Devices can pair while this desktop is reachable."
+#~ msgstr "このデスクトップに到達できる間、デバイスをペアリングできます。"
 
 #: src/renderer/components/providers/devin/manifest.ts
 msgid "Devin"
@@ -11097,8 +11101,8 @@ msgid "Needs reply"
 msgstr "返信が必要です"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-msgid "Network access"
-msgstr "ネットワークアクセス"
+#~ msgid "Network access"
+#~ msgstr "ネットワークアクセス"
 
 #: src/renderer/utils/prStatus.ts
 msgid "Neutral"
@@ -20133,8 +20137,8 @@ msgid "Unable to update native MCP configuration. Refresh and review the configu
 msgstr "ネイティブMCP設定を更新できませんでした。再試行する前に設定を再読み込みして確認してください。"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-msgid "Unable to update network access."
-msgstr "ネットワークアクセスを更新できませんでした。"
+#~ msgid "Unable to update network access."
+#~ msgstr "ネットワークアクセスを更新できませんでした。"
 
 #: src/renderer/components/providers/settings/ModelProviderManager.tsx
 msgid "Unable to update providers. Check the native configuration for overrides."

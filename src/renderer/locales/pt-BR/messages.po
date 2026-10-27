@@ -1819,8 +1819,8 @@ msgid "Allow eval"
 msgstr "Permitir avaliação"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-msgid "Allow paired devices to connect through LAN and Tailscale IP addresses. Connections use HTTP unless TLS is configured. Enable only on trusted networks."
-msgstr "Permita que dispositivos pareados se conectem por endereços IP de LAN e Tailscale. As conexões usam HTTP, a menos que o TLS esteja configurado. Ative apenas em redes confiáveis."
+#~ msgid "Allow paired devices to connect through LAN and Tailscale IP addresses. Connections use HTTP unless TLS is configured. Enable only on trusted networks."
+#~ msgstr "Permita que dispositivos pareados se conectem por endereços IP de LAN e Tailscale. As conexões usam HTTP, a menos que o TLS esteja configurado. Ative apenas em redes confiáveis."
 
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "Allow replacing conflicting managed skills"
@@ -6080,8 +6080,12 @@ msgid "Devices & tools"
 msgstr "Dispositivos e ferramentas"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-msgid "Devices can pair while this desktop is reachable."
-msgstr "Dispositivos podem parear enquanto este desktop estiver acessível."
+msgid "Devices can pair while this desktop is reachable on your local network. Connections use HTTP unless TLS is configured; use only on trusted networks."
+msgstr "Os dispositivos podem ser pareados enquanto este desktop estiver acessível na sua rede local. As conexões usam HTTP, a menos que o TLS esteja configurado; use apenas em redes confiáveis."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#~ msgid "Devices can pair while this desktop is reachable."
+#~ msgstr "Dispositivos podem parear enquanto este desktop estiver acessível."
 
 #: src/renderer/components/providers/devin/manifest.ts
 msgid "Devin"
@@ -11099,8 +11103,8 @@ msgid "Needs reply"
 msgstr "Precisa de resposta"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-msgid "Network access"
-msgstr "Acesso à rede"
+#~ msgid "Network access"
+#~ msgstr "Acesso à rede"
 
 #: src/renderer/utils/prStatus.ts
 msgid "Neutral"
@@ -20135,8 +20139,8 @@ msgid "Unable to update native MCP configuration. Refresh and review the configu
 msgstr "Não foi possível atualizar a configuração MCP nativa. Atualize e revise a configuração antes de tentar novamente."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-msgid "Unable to update network access."
-msgstr "Não foi possível atualizar o acesso à rede."
+#~ msgid "Unable to update network access."
+#~ msgstr "Não foi possível atualizar o acesso à rede."
 
 #: src/renderer/components/providers/settings/ModelProviderManager.tsx
 msgid "Unable to update providers. Check the native configuration for overrides."
