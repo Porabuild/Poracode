@@ -73,7 +73,7 @@ extension HomeQuickComposeView {
       RichChatComposerTextInput(
         text: $prompt,
         selection: $promptSelection,
-        focused: Binding(get: { promptFocused }, set: { promptFocused = $0 }),
+        focused: $promptFocused,
         lineLimit: 4...7,
         placeholder: launchSeed?.promptPlaceholder ?? HomeStrings.quickComposePrompt
       )

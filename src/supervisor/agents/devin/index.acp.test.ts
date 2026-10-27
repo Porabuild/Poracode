@@ -330,6 +330,7 @@ describe("Devin structured-session wiring", () => {
       strictConfigSelection: true,
       promptUsageCounterKind: "per-call",
       promptUsageReportsContext: false,
+      unreferencedTerminalCorrelation: "attribute-on-create",
       // Live local receipt: config writes are confirmed mid-prompt.
       allowConfigWritesDuringPrompt: true,
       // Local binds the native `speed` select onto the shared ThreadConfig

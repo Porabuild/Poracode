@@ -6,6 +6,7 @@ import {
   emptyMcpLaunchSnapshot,
   type RemoteThreadCommand,
   type RuntimeEvent,
+  type CanonicalItemType,
   type StartThreadPayload,
   type Thread,
   type PromptSegment,
@@ -18,6 +19,8 @@ import {
   HOST_RUN_BUFFER_BYTES,
   HOST_RUN_CHUNK_BYTES,
   HOST_RUN_FORMAT_VERSION,
+  HOST_RUN_TOOL_EVENT_FORMAT_VERSION,
+  HOST_RUN_TOOL_SUMMARY_BYTES,
   hostRunCommandSchema,
   hostRunResumePreparationCommandSchema,
   type HostRunCommand,
@@ -94,6 +97,8 @@ interface Run {
   checking?: Promise<void>;
   result?: HostRunFinished;
   interactive?: boolean;
+  toolEvents: boolean;
+  readonly toolItems: Map<string, RunToolItem>;
   readonly requests: Map<
     string,
     {
@@ -103,6 +108,89 @@ interface Run {
       supervisorToken?: string;
     }
   >;
+}
+
+interface RunToolItem {
+  readonly itemType: CanonicalItemType;
+  payload: Record<string, unknown>;
+  outputBytes: number;
+  lastUpdate?: string;
+}
+
+const runToolItemTypes: ReadonlySet<CanonicalItemType> = new Set([
+  "command_execution",
+  "file_change",
+  "tool_call",
+  "mcp_tool_call",
+  "dynamic_tool_call",
+  "web_search",
+  "image_view",
+  "plan",
+]);
+
+function recordValue(value: unknown): Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function boundedToolSummary(value: string) {
+  const sanitized = redactDiagnosticLine(value);
+  let summary = "";
+  let bytes = 0;
+  for (const character of sanitized) {
+    const length = Buffer.byteLength(character);
+    if (bytes + length > HOST_RUN_TOOL_SUMMARY_BYTES) break;
+    summary += character;
+    bytes += length;
+  }
+  return summary;
+}
+
+function summarizeToolItem(item: RunToolItem) {
+  const { itemType, payload, outputBytes } = item;
+  const args = recordValue(payload.args);
+  const toolName =
+    itemType === "command_execution"
+      ? "bash"
+      : itemType === "file_change"
+        ? payload.changeKind === "create"
+          ? "write"
+          : "edit"
+        : boundedToolSummary(typeof payload.name === "string" ? payload.name : itemType);
+  const inputSummary =
+    itemType === "command_execution"
+      ? "command and working directory omitted"
+      : itemType === "file_change"
+        ? `${String(payload.changeKind ?? "file")} change; path omitted`
+        : itemType === "tool_call" ||
+            itemType === "mcp_tool_call" ||
+            itemType === "dynamic_tool_call"
+          ? `arguments omitted (${Object.keys(args).length} fields)`
+          : itemType === "web_search"
+            ? "search query omitted"
+            : itemType === "image_view"
+              ? "image path omitted"
+              : `plan content omitted (${Array.isArray(payload.steps) ? payload.steps.length : 0} steps)`;
+  const details = [
+    typeof payload.status === "string" ? `status ${payload.status}` : undefined,
+    typeof payload.exitCode === "number" ? `exit code ${payload.exitCode}` : undefined,
+    typeof payload.durationMs === "number" ? `duration ${payload.durationMs} ms` : undefined,
+    outputBytes > 0 ? `${outputBytes} output bytes` : undefined,
+    toolResultSummary(payload.result),
+  ].filter((value) => value !== undefined);
+  return {
+    toolName: boundedToolSummary(toolName),
+    inputSummary: boundedToolSummary(inputSummary),
+    ...(details.length ? { outputSummary: boundedToolSummary(details.join("; ")) } : {}),
+  };
+}
+
+function toolResultSummary(value: unknown) {
+  if (typeof value === "string") return `result text (${Buffer.byteLength(value)} bytes)`;
+  if (Array.isArray(value)) return `result list (${value.length} items)`;
+  if (value !== null && typeof value === "object") return "structured result";
+  return undefined;
 }
 
 /** Active runs belong to a held local request; idle leases cover only unused/results metadata. */
@@ -230,6 +318,8 @@ export class HostRuns {
           idle: false,
           reservationRequested: false,
           checkRevision: 0,
+          toolEvents: false,
+          toolItems: new Map(),
           requests: new Map(),
         };
         this.jobs.set(job.id, job);
@@ -330,6 +420,14 @@ export class HostRuns {
     if (!job || job.threadId !== threadId || job.started || job.reason || this.closed)
       throw new Error("The prepared interactive run is no longer available. No run was started.");
     job.interactive = true;
+  }
+
+  enableToolEvents(runId: string, threadId: string, context: HostControlContext): void {
+    context.assertActive();
+    const job = this.jobs.get(runId);
+    if (!job || job.threadId !== threadId || job.started || job.reason || this.closed)
+      throw new Error("The prepared CLI run is no longer available. No run was started.");
+    job.toolEvents = true;
   }
 
   async interact(
@@ -476,7 +574,7 @@ export class HostRuns {
 
   private metadata(job: Run) {
     return {
-      formatVersion: HOST_RUN_FORMAT_VERSION,
+      formatVersion: job.toolEvents ? HOST_RUN_TOOL_EVENT_FORMAT_VERSION : HOST_RUN_FORMAT_VERSION,
       scope: "controlled-run" as const,
       runId: job.id,
       threadId: job.threadId,
@@ -508,6 +606,31 @@ export class HostRuns {
     } else if (event.type === "turn.completed" && event.turnId === job.turnId) {
       job.turnState = event.state;
       this.checkCompletion(job);
+    } else if (
+      job.toolEvents &&
+      event.type === "item.started" &&
+      runToolItemTypes.has(event.itemType)
+    ) {
+      const tool: RunToolItem = {
+        itemType: event.itemType,
+        payload: recordValue(event.payload),
+        outputBytes: 0,
+      };
+      job.toolItems.set(event.itemId, tool);
+      this.toolEvent(job, "tool.started", event.itemId, tool);
+    } else if (job.toolEvents && event.type === "item.updated") {
+      const tool = job.toolItems.get(event.itemId);
+      if (tool) {
+        tool.payload = { ...tool.payload, ...recordValue(event.payload) };
+        this.toolEvent(job, "tool.updated", event.itemId, tool);
+      }
+    } else if (job.toolEvents && event.type === "item.completed") {
+      const tool = job.toolItems.get(event.itemId);
+      if (tool) {
+        tool.payload = { ...tool.payload, ...recordValue(event.payload) };
+        this.toolEvent(job, "tool.completed", event.itemId, tool);
+        job.toolItems.delete(event.itemId);
+      }
     } else if (event.type === "content.delta" && event.stream === "assistant_text") {
       for (let offset = 0; offset < event.delta.length;) {
         let end = Math.min(offset + 4_096, event.delta.length);
@@ -525,6 +648,16 @@ export class HostRuns {
       }
       if (event.replace && event.delta === "")
         this.enqueue(job, { type: "text.delta", itemId: event.itemId, text: "", replace: true });
+    } else if (
+      job.toolEvents &&
+      event.type === "content.delta" &&
+      (event.stream === "command_output" || event.stream === "file_change_output")
+    ) {
+      const tool = job.toolItems.get(event.itemId);
+      if (tool)
+        tool.outputBytes = event.replace
+          ? Buffer.byteLength(event.delta)
+          : tool.outputBytes + Buffer.byteLength(event.delta);
     } else if (event.type === "request.opened") {
       job.checkRevision++;
       this.enqueue(job, {
@@ -594,6 +727,24 @@ export class HostRuns {
     job.queue.push({ event, bytes });
     job.bytes += bytes;
     return true;
+  }
+
+  private toolEvent(
+    job: Run,
+    type: "tool.started" | "tool.updated" | "tool.completed",
+    itemId: string,
+    tool: RunToolItem,
+  ) {
+    const summary = summarizeToolItem(tool);
+    const fingerprint = JSON.stringify(summary);
+    if (type === "tool.updated" && tool.lastUpdate === fingerprint) return;
+    tool.lastUpdate = fingerprint;
+    this.enqueue(job, {
+      type,
+      itemId,
+      itemType: tool.itemType,
+      ...summary,
+    });
   }
 
   private checkCompletion(job: Run): void {

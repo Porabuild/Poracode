@@ -47,11 +47,11 @@ import {
   capabilitiesForPresentation,
   filterHiddenModels,
   modelSelectionFor,
+  resolveReasoningSelection,
   withModelVisible,
 } from "@/shared/agentSelection";
 import type { ComposerControl } from "./ThreadComposer";
 import { formatEffortLabel, supportsUsableFastMode } from "./threadDraftViewHelpers";
-import { resolvePreferredEffort } from "@/renderer/utils/effortSelection";
 import type { ProviderModelPreference } from "@/shared/settings";
 import { threadCrewBinding } from "@/shared/crew";
 
@@ -257,7 +257,7 @@ export function patchConfigForModelChange(
     (nextContextIds ? "" : (capabilities.defaultContextSize ?? ""));
   return {
     model,
-    effort: resolvePreferredEffort(capabilities, model, current.effort),
+    effort: resolveReasoningSelection(capabilities, model, current.effort),
     contextSize: nextContextSize,
     fast: supportsUsableFastMode(capabilities, model)
       ? (current.fast ?? defaultFastEnabled(agentKind))

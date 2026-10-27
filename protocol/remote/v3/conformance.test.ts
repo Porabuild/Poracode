@@ -284,6 +284,10 @@ const EXPECTED_PROCEDURE_NAMES = [
   "forgeGetPrDiff",
   "forgeGetPrDetails",
   "forgeGetPrReviewComments",
+  "forgeListPullRequestsInState",
+  "forgeListPrLabelCandidates",
+  "forgeListPrReviewerCandidates",
+  "forgeGetPrCommitDiff",
   "ghListPullRequests",
   "ghGetPrChecks",
   "ghGetPrFiles",
@@ -334,6 +338,11 @@ const EXPECTED_PROCEDURE_NAMES = [
   "forgeUpdatePrBranch",
   "forgePostPrComment",
   "forgeEditPr",
+  "forgeSetPrLabels",
+  "forgeRequestPrReviewers",
+  "forgeConvertPrToDraft",
+  "forgeSetPrReaction",
+  "forgeSubmitPrReviewDraft",
   "ghMergePr",
   "ghClosePr",
   "ghReopenPr",
@@ -427,7 +436,7 @@ describe("language-neutral remote protocol v3 contract", () => {
   it("keeps the complete generic procedure inventory and metadata aligned", () => {
     const manifestNames = manifest.procedures.map((procedure) => procedure.name);
     const authoritativeNames = Object.keys(REMOTE_PROCEDURE_SPECS);
-    expect(EXPECTED_PROCEDURE_NAMES).toHaveLength(154);
+    expect(EXPECTED_PROCEDURE_NAMES).toHaveLength(163);
     expect(new Set(EXPECTED_PROCEDURE_NAMES).size).toBe(EXPECTED_PROCEDURE_NAMES.length);
     expect(new Set(manifestNames).size).toBe(manifestNames.length);
     expect(manifestNames).toEqual([...EXPECTED_PROCEDURE_NAMES]);

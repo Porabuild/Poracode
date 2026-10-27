@@ -33,8 +33,13 @@ internal fun PullRequestConversationSection(
     forge: ForgeReviewEntry?,
     canMutate: Boolean,
     editComment: suspend (Map<String, JsonElement>) -> Boolean,
+    requestedReviewers: List<PullRequestReviewerRow> = emptyList(),
+    timeline: List<PullRequestTimelineRow> = emptyList(),
+    metadata: ReviewMetadataActions = ReviewMetadataActions.None,
+    openSheet: (ReviewMetadataSheet) -> Unit = {},
 ) {
-    if (conversation.isEmpty && reviews.isEmpty()) {
+    if (conversation.isEmpty && reviews.isEmpty() && requestedReviewers.isEmpty() && timeline.isEmpty() &&
+        !metadata.editing.reviewRequests) {
         EmptyStateView(
             stringResource(R.string.github_conversation),
             stringResource(R.string.github_no_conversation),
@@ -50,6 +55,7 @@ internal fun PullRequestConversationSection(
                 ForgeCommentEditor(conversation.comments[index], null, forge, canMutate, editComment)
             }
         }
+        requestedReviewerItems(requestedReviewers, metadata, openSheet)
         if (reviews.isNotEmpty()) {
             item("reviews-header") { SectionHeader(stringResource(R.string.github_reviews)) }
             items(reviews.size, key = { "r${reviews[it].id}" }) { index ->
@@ -82,12 +88,19 @@ internal fun PullRequestConversationSection(
                     ) {
                         thread.path?.let {
                             Text(
-                                it,
+                                if (thread.line != null) "$it:${thread.line}" else it,
                                 Modifier.weight(1f),
                                 style = MaterialTheme.typography.labelSmall,
                                 fontFamily = FontFamily.Monospace,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                        if (thread.isOldSide) {
+                            Text(
+                                stringResource(R.string.github_thread_old_side),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                         Icon(
@@ -110,6 +123,7 @@ internal fun PullRequestConversationSection(
                 }
             }
         }
+        pullRequestTimelineItems(timeline)
     }
 }
 

@@ -6,6 +6,8 @@
     <string name="github_refresh">刷新 GitHub</string><string name="github_no_pull_requests">未找到拉取请求。</string>
     <string name="github_pr_title">拉取请求标题</string><string name="github_head_branch">来源分支</string><string name="github_base_branch">基础分支</string><string name="github_create_pr">创建拉取请求</string>
     <string name="github_pr_summary">#%1$d · %2$s · %3$s</string><string name="github_select_pr">选择一个拉取请求进行查看。</string><string name="github_pr_number">拉取请求 #%1$d</string>
+    <string name="github_pr_row_summary">%1$s · #%2$d · %3$s · %4$s</string>
+    <string name="github_review_requested">已请求你进行审查</string>
     <string name="github_ready">标记为就绪</string><string name="github_update_branch">更新分支</string><string name="github_reopen">重新打开</string><string name="github_close">关闭</string><string name="github_merge">合并</string><string name="github_approve">批准</string><string name="github_post_comment">发布评论</string><string name="github_details">详情</string><string name="github_checks">检查</string><string name="github_files">文件</string><string name="github_reviews">审查</string>    <string name="github_dispatch">运行工作流</string><string name="github_rerun">重新运行</string><string name="github_cancel_run">取消运行</string><string name="github_delete_run">删除运行</string>    <string name="github_discover_accounts">查找 GitHub 帐户</string><string name="github_account">%1$s（%2$s）</string>
     <string name="github_change_reconciled">结果不确定。Poracode 未重试该操作，并且只获取了一次最新的 GitHub 状态。</string>
     <string name="github_request_changes">请求更改</string>
@@ -32,6 +34,7 @@
     <string name="github_back_to_list">返回列表</string>
     <string name="github_open_externally">在浏览器中打开</string>
     <string name="github_thread_resolved">已解决</string>
+    <string name="github_thread_old_side">旧侧</string>
     <string name="github_thread_unresolved">未解决</string>
     <string name="github_ref">引用</string>
     <string name="github_rerun_failed">重跑失败的作业</string>

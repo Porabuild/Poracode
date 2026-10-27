@@ -11,17 +11,17 @@
   "generatorVersion": 7,
   "inventory": {
     "blockedProcedureResults": [],
-    "jsonProcedureResults": 95,
-    "procedures": 154,
+    "jsonProcedureResults": 99,
+    "procedures": 163,
     "replayableEventTypes": 16,
     "routes": 119,
     "runtimeEventTypes": 16,
-    "voidProcedureResults": 59,
+    "voidProcedureResults": 64,
     "webSocketClientMessages": 11,
     "webSocketServerMessages": 12
   },
   "manifestFormatVersion": 1,
-  "manifestHash": "sha256:4d01146c9d26969743e91367ebe4dd46850c2c049d04d6cf6745b091de8fdcad",
+  "manifestHash": "sha256:0af95549f6385c5f08e5dfeb224d10486c18d5b19acb6ba934351dbea0e0dea4",
   "portableTransformIds": [
     "agent-settings.strip-sensitive",
     "push.routing.client-connection-id.lowercase",
@@ -3580,6 +3580,10 @@
                   "x-poracode-unknownFields": "strip"
                 },
                 "type": "array"
+              },
+              "sourceItemId": {
+                "minLength": 1,
+                "type": "string"
               }
             },
             "required": [
@@ -4165,7 +4169,8 @@
           "x-poracode-unknownFields": "strip"
         }
       },
-      "scope": "session:operate"
+      "scope": "session:operate",
+      "timeout": "long"
     },
     {
       "name": "extractContext",
@@ -4879,6 +4884,157 @@
       "scope": "session:operate"
     },
     {
+      "name": "forgeConvertPrToDraft",
+      "owner": "projectLocation",
+      "request": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": true,
+        "properties": {
+          "forgeAccount": {
+            "additionalProperties": true,
+            "properties": {
+              "forge": {
+                "enum": [
+                  "github",
+                  "gitlab",
+                  "forgejo",
+                  "gitea",
+                  "bitbucket",
+                  "azure-devops",
+                  "gitcafe"
+                ],
+                "type": "string"
+              },
+              "host": {
+                "format": "uri",
+                "type": "string",
+                "x-poracode-semanticValidators": [
+                  "forge.host.https"
+                ]
+              },
+              "login": {
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "forge",
+              "host",
+              "login"
+            ],
+            "type": "object",
+            "x-poracode-unknownFields": "strip"
+          },
+          "forgeRepository": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "prNumber": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "projectLocation": {
+            "oneOf": [
+              {
+                "additionalProperties": true,
+                "properties": {
+                  "kind": {
+                    "const": "windows",
+                    "type": "string"
+                  },
+                  "path": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "remoteServerId": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "path"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              },
+              {
+                "additionalProperties": true,
+                "properties": {
+                  "distro": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "kind": {
+                    "const": "wsl",
+                    "type": "string"
+                  },
+                  "linuxPath": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "remoteServerId": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "uncPath": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "distro",
+                  "linuxPath",
+                  "uncPath"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              },
+              {
+                "additionalProperties": true,
+                "properties": {
+                  "kind": {
+                    "const": "posix",
+                    "type": "string"
+                  },
+                  "path": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "remoteServerId": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "path"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              }
+            ]
+          }
+        },
+        "required": [
+          "projectLocation",
+          "forgeAccount",
+          "forgeRepository",
+          "prNumber"
+        ],
+        "type": "object",
+        "x-poracode-unknownFields": "strip"
+      },
+      "result": {
+        "kind": "omitted",
+        "never": "null",
+        "presence": "omitted"
+      },
+      "scope": "session:operate"
+    },
+    {
       "name": "forgeCreatePr",
       "owner": "projectLocation",
       "request": {
@@ -5052,6 +5208,11 @@
                 "gitcafe"
               ],
               "type": "string"
+            },
+            "__schema1": {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
             }
           },
           "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -5155,6 +5316,14 @@
                       },
                       "type": "array"
                     },
+                    "commitDiffs": {
+                      "const": true,
+                      "type": "boolean"
+                    },
+                    "convertToDraft": {
+                      "const": true,
+                      "type": "boolean"
+                    },
                     "draft": {
                       "type": "boolean"
                     },
@@ -5162,6 +5331,10 @@
                       "type": "boolean"
                     },
                     "expectedHeadMerge": {
+                      "type": "boolean"
+                    },
+                    "labels": {
+                      "const": true,
                       "type": "boolean"
                     },
                     "mergeMethods": {
@@ -5173,6 +5346,13 @@
                         ],
                         "type": "string"
                       },
+                      "type": "array"
+                    },
+                    "reactions": {
+                      "items": {
+                        "$ref": "#/$defs/__schema1"
+                      },
+                      "maxItems": 32,
                       "type": "array"
                     },
                     "rebaseBranch": {
@@ -5192,7 +5372,15 @@
                       },
                       "type": "array"
                     },
+                    "reviewDrafts": {
+                      "const": true,
+                      "type": "boolean"
+                    },
                     "reviewGuides": {
+                      "const": true,
+                      "type": "boolean"
+                    },
+                    "reviewRequests": {
                       "const": true,
                       "type": "boolean"
                     },
@@ -5843,6 +6031,174 @@
       "scope": "session:read"
     },
     {
+      "name": "forgeGetPrCommitDiff",
+      "owner": "projectLocation",
+      "request": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": true,
+        "properties": {
+          "commit": {
+            "pattern": "^[0-9a-f]{7,64}$",
+            "type": "string"
+          },
+          "forgeAccount": {
+            "additionalProperties": true,
+            "properties": {
+              "forge": {
+                "enum": [
+                  "github",
+                  "gitlab",
+                  "forgejo",
+                  "gitea",
+                  "bitbucket",
+                  "azure-devops",
+                  "gitcafe"
+                ],
+                "type": "string"
+              },
+              "host": {
+                "format": "uri",
+                "type": "string",
+                "x-poracode-semanticValidators": [
+                  "forge.host.https"
+                ]
+              },
+              "login": {
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "forge",
+              "host",
+              "login"
+            ],
+            "type": "object",
+            "x-poracode-unknownFields": "strip"
+          },
+          "forgeRepository": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "prNumber": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "projectLocation": {
+            "oneOf": [
+              {
+                "additionalProperties": true,
+                "properties": {
+                  "kind": {
+                    "const": "windows",
+                    "type": "string"
+                  },
+                  "path": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "remoteServerId": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "path"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              },
+              {
+                "additionalProperties": true,
+                "properties": {
+                  "distro": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "kind": {
+                    "const": "wsl",
+                    "type": "string"
+                  },
+                  "linuxPath": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "remoteServerId": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "uncPath": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "distro",
+                  "linuxPath",
+                  "uncPath"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              },
+              {
+                "additionalProperties": true,
+                "properties": {
+                  "kind": {
+                    "const": "posix",
+                    "type": "string"
+                  },
+                  "path": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "remoteServerId": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "path"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              }
+            ]
+          }
+        },
+        "required": [
+          "projectLocation",
+          "forgeAccount",
+          "forgeRepository",
+          "prNumber",
+          "commit"
+        ],
+        "type": "object",
+        "x-poracode-unknownFields": "strip"
+      },
+      "result": {
+        "kind": "json",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": true,
+          "properties": {
+            "diff": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "diff"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        }
+      },
+      "scope": "session:read"
+    },
+    {
       "name": "forgeGetPrDetails",
       "owner": "projectLocation",
       "request": {
@@ -6042,6 +6398,14 @@
                       },
                       "type": "array"
                     },
+                    "commitDiffs": {
+                      "const": true,
+                      "type": "boolean"
+                    },
+                    "convertToDraft": {
+                      "const": true,
+                      "type": "boolean"
+                    },
                     "draft": {
                       "type": "boolean"
                     },
@@ -6049,6 +6413,10 @@
                       "type": "boolean"
                     },
                     "expectedHeadMerge": {
+                      "type": "boolean"
+                    },
+                    "labels": {
+                      "const": true,
                       "type": "boolean"
                     },
                     "mergeMethods": {
@@ -6060,6 +6428,13 @@
                         ],
                         "type": "string"
                       },
+                      "type": "array"
+                    },
+                    "reactions": {
+                      "items": {
+                        "$ref": "#/$defs/__schema2"
+                      },
+                      "maxItems": 32,
                       "type": "array"
                     },
                     "rebaseBranch": {
@@ -6079,7 +6454,15 @@
                       },
                       "type": "array"
                     },
+                    "reviewDrafts": {
+                      "const": true,
+                      "type": "boolean"
+                    },
                     "reviewGuides": {
+                      "const": true,
+                      "type": "boolean"
+                    },
+                    "reviewRequests": {
                       "const": true,
                       "type": "boolean"
                     },
@@ -6154,11 +6537,16 @@
               "type": "string"
             },
             "__schema2": {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            },
+            "__schema3": {
               "exclusiveMinimum": 0,
               "maximum": 9007199254740991,
               "type": "integer"
             },
-            "__schema3": {
+            "__schema4": {
               "additionalProperties": true,
               "properties": {
                 "avatarUrl": {
@@ -6174,16 +6562,16 @@
               "type": "object",
               "x-poracode-unknownFields": "strip"
             },
-            "__schema4": {
+            "__schema5": {
               "maximum": 9007199254740991,
               "minimum": -9007199254740991,
               "type": "integer"
             },
-            "__schema5": {
+            "__schema6": {
               "additionalProperties": true,
               "properties": {
                 "author": {
-                  "$ref": "#/$defs/__schema3"
+                  "$ref": "#/$defs/__schema4"
                 },
                 "body": {
                   "type": "string"
@@ -6193,6 +6581,12 @@
                 },
                 "id": {
                   "type": "string"
+                },
+                "reactions": {
+                  "items": {
+                    "$ref": "#/$defs/__schema7"
+                  },
+                  "type": "array"
                 },
                 "url": {
                   "type": "string"
@@ -6206,6 +6600,80 @@
               ],
               "type": "object",
               "x-poracode-unknownFields": "strip"
+            },
+            "__schema7": {
+              "additionalProperties": true,
+              "properties": {
+                "content": {
+                  "maxLength": 64,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "count": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "viewerReacted": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "content",
+                "count",
+                "viewerReacted"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            "__schema8": {
+              "additionalProperties": true,
+              "properties": {
+                "color": {
+                  "pattern": "^[0-9a-f]{6}$",
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "name": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            "__schema9": {
+              "additionalProperties": true,
+              "properties": {
+                "avatarUrl": {
+                  "type": "string"
+                },
+                "id": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "login": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "team": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "id",
+                "login"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
             }
           },
           "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -6215,10 +6683,10 @@
               "additionalProperties": true,
               "properties": {
                 "additions": {
-                  "$ref": "#/$defs/__schema4"
+                  "$ref": "#/$defs/__schema5"
                 },
                 "author": {
-                  "$ref": "#/$defs/__schema3"
+                  "$ref": "#/$defs/__schema4"
                 },
                 "baseBranch": {
                   "type": "string"
@@ -6227,7 +6695,7 @@
                   "type": "string"
                 },
                 "changedFiles": {
-                  "$ref": "#/$defs/__schema4"
+                  "$ref": "#/$defs/__schema5"
                 },
                 "checks": {
                   "items": {
@@ -6277,7 +6745,7 @@
                 },
                 "comments": {
                   "items": {
-                    "$ref": "#/$defs/__schema5"
+                    "$ref": "#/$defs/__schema6"
                   },
                   "type": "array"
                 },
@@ -6289,7 +6757,7 @@
                         "type": "string"
                       },
                       "author": {
-                        "$ref": "#/$defs/__schema3"
+                        "$ref": "#/$defs/__schema4"
                       },
                       "authoredDate": {
                         "type": "string"
@@ -6322,10 +6790,16 @@
                   "type": "string"
                 },
                 "deletions": {
-                  "$ref": "#/$defs/__schema4"
+                  "$ref": "#/$defs/__schema5"
                 },
                 "headBranch": {
                   "type": "string"
+                },
+                "labels": {
+                  "items": {
+                    "$ref": "#/$defs/__schema8"
+                  },
+                  "type": "array"
                 },
                 "mergedAt": {
                   "anyOf": [
@@ -6340,7 +6814,7 @@
                 "mergedBy": {
                   "anyOf": [
                     {
-                      "$ref": "#/$defs/__schema3"
+                      "$ref": "#/$defs/__schema4"
                     },
                     {
                       "type": "null"
@@ -6348,7 +6822,19 @@
                   ]
                 },
                 "number": {
-                  "$ref": "#/$defs/__schema2"
+                  "$ref": "#/$defs/__schema3"
+                },
+                "reactions": {
+                  "items": {
+                    "$ref": "#/$defs/__schema7"
+                  },
+                  "type": "array"
+                },
+                "requestedReviewers": {
+                  "items": {
+                    "$ref": "#/$defs/__schema9"
+                  },
+                  "type": "array"
                 },
                 "reviewThreads": {
                   "items": {
@@ -6356,7 +6842,7 @@
                     "properties": {
                       "comments": {
                         "items": {
-                          "$ref": "#/$defs/__schema5"
+                          "$ref": "#/$defs/__schema6"
                         },
                         "type": "array"
                       },
@@ -6370,9 +6856,14 @@
                         "type": "boolean"
                       },
                       "line": {
-                        "$ref": "#/$defs/__schema4"
+                        "$ref": "#/$defs/__schema5"
                       },
                       "path": {
+                        "type": "string"
+                      },
+                      "side": {
+                        "maxLength": 64,
+                        "minLength": 1,
                         "type": "string"
                       }
                     },
@@ -6392,7 +6883,7 @@
                     "additionalProperties": true,
                     "properties": {
                       "author": {
-                        "$ref": "#/$defs/__schema3"
+                        "$ref": "#/$defs/__schema4"
                       },
                       "body": {
                         "type": "string"
@@ -6430,6 +6921,51 @@
                 },
                 "source": {
                   "$ref": "#/$defs/__schema0"
+                },
+                "timeline": {
+                  "items": {
+                    "additionalProperties": true,
+                    "properties": {
+                      "actor": {
+                        "$ref": "#/$defs/__schema4"
+                      },
+                      "createdAt": {
+                        "type": "string"
+                      },
+                      "fromRef": {
+                        "type": "string"
+                      },
+                      "id": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "kind": {
+                        "maxLength": 64,
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "label": {
+                        "$ref": "#/$defs/__schema8"
+                      },
+                      "reviewer": {
+                        "$ref": "#/$defs/__schema9"
+                      },
+                      "text": {
+                        "type": "string"
+                      },
+                      "toRef": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "kind",
+                      "createdAt"
+                    ],
+                    "type": "object",
+                    "x-poracode-unknownFields": "strip"
+                  },
+                  "type": "array"
                 },
                 "title": {
                   "type": "string"
@@ -6492,7 +7028,7 @@
                   "type": "string"
                 },
                 "number": {
-                  "$ref": "#/$defs/__schema2"
+                  "$ref": "#/$defs/__schema3"
                 },
                 "reviewDecision": {
                   "type": "string"
@@ -7050,6 +7586,11 @@
                 "gitcafe"
               ],
               "type": "string"
+            },
+            "__schema1": {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
             }
           },
           "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -7155,6 +7696,14 @@
                           },
                           "type": "array"
                         },
+                        "commitDiffs": {
+                          "const": true,
+                          "type": "boolean"
+                        },
+                        "convertToDraft": {
+                          "const": true,
+                          "type": "boolean"
+                        },
                         "draft": {
                           "type": "boolean"
                         },
@@ -7162,6 +7711,10 @@
                           "type": "boolean"
                         },
                         "expectedHeadMerge": {
+                          "type": "boolean"
+                        },
+                        "labels": {
+                          "const": true,
                           "type": "boolean"
                         },
                         "mergeMethods": {
@@ -7173,6 +7726,13 @@
                             ],
                             "type": "string"
                           },
+                          "type": "array"
+                        },
+                        "reactions": {
+                          "items": {
+                            "$ref": "#/$defs/__schema1"
+                          },
+                          "maxItems": 32,
                           "type": "array"
                         },
                         "rebaseBranch": {
@@ -7192,7 +7752,15 @@
                           },
                           "type": "array"
                         },
+                        "reviewDrafts": {
+                          "const": true,
+                          "type": "boolean"
+                        },
                         "reviewGuides": {
+                          "const": true,
+                          "type": "boolean"
+                        },
+                        "reviewRequests": {
                           "const": true,
                           "type": "boolean"
                         },
@@ -7470,6 +8038,34 @@
                 "id": {
                   "type": "string"
                 },
+                "reactions": {
+                  "items": {
+                    "additionalProperties": true,
+                    "properties": {
+                      "content": {
+                        "maxLength": 64,
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "count": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "viewerReacted": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "content",
+                      "count",
+                      "viewerReacted"
+                    ],
+                    "type": "object",
+                    "x-poracode-unknownFields": "strip"
+                  },
+                  "type": "array"
+                },
                 "url": {
                   "type": "string"
                 }
@@ -7518,6 +8114,11 @@
                     "type": "integer"
                   },
                   "path": {
+                    "type": "string"
+                  },
+                  "side": {
+                    "maxLength": 64,
+                    "minLength": 1,
                     "type": "string"
                   }
                 },
@@ -8233,6 +8834,11 @@
                 "gitcafe"
               ],
               "type": "string"
+            },
+            "__schema1": {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
             }
           },
           "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -8294,6 +8900,14 @@
                           },
                           "type": "array"
                         },
+                        "commitDiffs": {
+                          "const": true,
+                          "type": "boolean"
+                        },
+                        "convertToDraft": {
+                          "const": true,
+                          "type": "boolean"
+                        },
                         "draft": {
                           "type": "boolean"
                         },
@@ -8301,6 +8915,10 @@
                           "type": "boolean"
                         },
                         "expectedHeadMerge": {
+                          "type": "boolean"
+                        },
+                        "labels": {
+                          "const": true,
                           "type": "boolean"
                         },
                         "mergeMethods": {
@@ -8312,6 +8930,13 @@
                             ],
                             "type": "string"
                           },
+                          "type": "array"
+                        },
+                        "reactions": {
+                          "items": {
+                            "$ref": "#/$defs/__schema1"
+                          },
+                          "maxItems": 32,
                           "type": "array"
                         },
                         "rebaseBranch": {
@@ -8331,7 +8956,15 @@
                           },
                           "type": "array"
                         },
+                        "reviewDrafts": {
+                          "const": true,
+                          "type": "boolean"
+                        },
                         "reviewGuides": {
+                          "const": true,
+                          "type": "boolean"
+                        },
+                        "reviewRequests": {
                           "const": true,
                           "type": "boolean"
                         },
@@ -8401,6 +9034,393 @@
           },
           "required": [
             "repository"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        }
+      },
+      "scope": "session:read"
+    },
+    {
+      "name": "forgeListPrLabelCandidates",
+      "owner": "projectLocation",
+      "request": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": true,
+        "properties": {
+          "forgeAccount": {
+            "additionalProperties": true,
+            "properties": {
+              "forge": {
+                "enum": [
+                  "github",
+                  "gitlab",
+                  "forgejo",
+                  "gitea",
+                  "bitbucket",
+                  "azure-devops",
+                  "gitcafe"
+                ],
+                "type": "string"
+              },
+              "host": {
+                "format": "uri",
+                "type": "string",
+                "x-poracode-semanticValidators": [
+                  "forge.host.https"
+                ]
+              },
+              "login": {
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "forge",
+              "host",
+              "login"
+            ],
+            "type": "object",
+            "x-poracode-unknownFields": "strip"
+          },
+          "forgeRepository": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "prNumber": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "projectLocation": {
+            "oneOf": [
+              {
+                "additionalProperties": true,
+                "properties": {
+                  "kind": {
+                    "const": "windows",
+                    "type": "string"
+                  },
+                  "path": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "remoteServerId": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "path"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              },
+              {
+                "additionalProperties": true,
+                "properties": {
+                  "distro": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "kind": {
+                    "const": "wsl",
+                    "type": "string"
+                  },
+                  "linuxPath": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "remoteServerId": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "uncPath": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "distro",
+                  "linuxPath",
+                  "uncPath"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              },
+              {
+                "additionalProperties": true,
+                "properties": {
+                  "kind": {
+                    "const": "posix",
+                    "type": "string"
+                  },
+                  "path": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "remoteServerId": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "path"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              }
+            ]
+          }
+        },
+        "required": [
+          "projectLocation",
+          "forgeAccount",
+          "forgeRepository",
+          "prNumber"
+        ],
+        "type": "object",
+        "x-poracode-unknownFields": "strip"
+      },
+      "result": {
+        "kind": "json",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": true,
+          "properties": {
+            "labels": {
+              "items": {
+                "additionalProperties": true,
+                "properties": {
+                  "color": {
+                    "pattern": "^[0-9a-f]{6}$",
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              },
+              "type": "array"
+            },
+            "truncated": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "labels",
+            "truncated"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        }
+      },
+      "scope": "session:read"
+    },
+    {
+      "name": "forgeListPrReviewerCandidates",
+      "owner": "projectLocation",
+      "request": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": true,
+        "properties": {
+          "forgeAccount": {
+            "additionalProperties": true,
+            "properties": {
+              "forge": {
+                "enum": [
+                  "github",
+                  "gitlab",
+                  "forgejo",
+                  "gitea",
+                  "bitbucket",
+                  "azure-devops",
+                  "gitcafe"
+                ],
+                "type": "string"
+              },
+              "host": {
+                "format": "uri",
+                "type": "string",
+                "x-poracode-semanticValidators": [
+                  "forge.host.https"
+                ]
+              },
+              "login": {
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "forge",
+              "host",
+              "login"
+            ],
+            "type": "object",
+            "x-poracode-unknownFields": "strip"
+          },
+          "forgeRepository": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "prNumber": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "projectLocation": {
+            "oneOf": [
+              {
+                "additionalProperties": true,
+                "properties": {
+                  "kind": {
+                    "const": "windows",
+                    "type": "string"
+                  },
+                  "path": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "remoteServerId": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "path"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              },
+              {
+                "additionalProperties": true,
+                "properties": {
+                  "distro": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "kind": {
+                    "const": "wsl",
+                    "type": "string"
+                  },
+                  "linuxPath": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "remoteServerId": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "uncPath": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "distro",
+                  "linuxPath",
+                  "uncPath"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              },
+              {
+                "additionalProperties": true,
+                "properties": {
+                  "kind": {
+                    "const": "posix",
+                    "type": "string"
+                  },
+                  "path": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "remoteServerId": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "path"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              }
+            ]
+          },
+          "query": {
+            "maxLength": 200,
+            "type": "string"
+          }
+        },
+        "required": [
+          "projectLocation",
+          "forgeAccount",
+          "forgeRepository",
+          "prNumber"
+        ],
+        "type": "object",
+        "x-poracode-unknownFields": "strip"
+      },
+      "result": {
+        "kind": "json",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": true,
+          "properties": {
+            "reviewers": {
+              "items": {
+                "additionalProperties": true,
+                "properties": {
+                  "avatarUrl": {
+                    "type": "string"
+                  },
+                  "id": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "login": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "team": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "id",
+                  "login"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              },
+              "type": "array"
+            },
+            "truncated": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "reviewers",
+            "truncated"
           ],
           "type": "object",
           "x-poracode-unknownFields": "strip"
@@ -8559,6 +9579,11 @@
                 "gitcafe"
               ],
               "type": "string"
+            },
+            "__schema1": {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
             }
           },
           "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -8666,6 +9691,14 @@
                             },
                             "type": "array"
                           },
+                          "commitDiffs": {
+                            "const": true,
+                            "type": "boolean"
+                          },
+                          "convertToDraft": {
+                            "const": true,
+                            "type": "boolean"
+                          },
                           "draft": {
                             "type": "boolean"
                           },
@@ -8673,6 +9706,10 @@
                             "type": "boolean"
                           },
                           "expectedHeadMerge": {
+                            "type": "boolean"
+                          },
+                          "labels": {
+                            "const": true,
                             "type": "boolean"
                           },
                           "mergeMethods": {
@@ -8684,6 +9721,13 @@
                               ],
                               "type": "string"
                             },
+                            "type": "array"
+                          },
+                          "reactions": {
+                            "items": {
+                              "$ref": "#/$defs/__schema1"
+                            },
+                            "maxItems": 32,
                             "type": "array"
                           },
                           "rebaseBranch": {
@@ -8703,7 +9747,15 @@
                             },
                             "type": "array"
                           },
+                          "reviewDrafts": {
+                            "const": true,
+                            "type": "boolean"
+                          },
                           "reviewGuides": {
+                            "const": true,
+                            "type": "boolean"
+                          },
+                          "reviewRequests": {
                             "const": true,
                             "type": "boolean"
                           },
@@ -8967,6 +10019,11 @@
               "type": "string"
             },
             "__schema1": {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            },
+            "__schema2": {
               "maximum": 9007199254740991,
               "minimum": -9007199254740991,
               "type": "integer"
@@ -8980,7 +10037,7 @@
                 "additionalProperties": true,
                 "properties": {
                   "additions": {
-                    "$ref": "#/$defs/__schema1"
+                    "$ref": "#/$defs/__schema2"
                   },
                   "author": {
                     "additionalProperties": true,
@@ -8999,10 +10056,34 @@
                     "x-poracode-unknownFields": "strip"
                   },
                   "deletions": {
-                    "$ref": "#/$defs/__schema1"
+                    "$ref": "#/$defs/__schema2"
                   },
                   "headBranch": {
                     "type": "string"
+                  },
+                  "labels": {
+                    "items": {
+                      "additionalProperties": true,
+                      "properties": {
+                        "color": {
+                          "pattern": "^[0-9a-f]{6}$",
+                          "type": "string"
+                        },
+                        "description": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "minLength": 1,
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "name"
+                      ],
+                      "type": "object",
+                      "x-poracode-unknownFields": "strip"
+                    },
+                    "type": "array"
                   },
                   "pr": {
                     "additionalProperties": true,
@@ -9105,6 +10186,14 @@
                                 },
                                 "type": "array"
                               },
+                              "commitDiffs": {
+                                "const": true,
+                                "type": "boolean"
+                              },
+                              "convertToDraft": {
+                                "const": true,
+                                "type": "boolean"
+                              },
                               "draft": {
                                 "type": "boolean"
                               },
@@ -9112,6 +10201,10 @@
                                 "type": "boolean"
                               },
                               "expectedHeadMerge": {
+                                "type": "boolean"
+                              },
+                              "labels": {
+                                "const": true,
                                 "type": "boolean"
                               },
                               "mergeMethods": {
@@ -9123,6 +10216,13 @@
                                   ],
                                   "type": "string"
                                 },
+                                "type": "array"
+                              },
+                              "reactions": {
+                                "items": {
+                                  "$ref": "#/$defs/__schema1"
+                                },
+                                "maxItems": 32,
                                 "type": "array"
                               },
                               "rebaseBranch": {
@@ -9142,7 +10242,537 @@
                                 },
                                 "type": "array"
                               },
+                              "reviewDrafts": {
+                                "const": true,
+                                "type": "boolean"
+                              },
                               "reviewGuides": {
+                                "const": true,
+                                "type": "boolean"
+                              },
+                              "reviewRequests": {
+                                "const": true,
+                                "type": "boolean"
+                              },
+                              "reviewThreads": {
+                                "type": "boolean"
+                              },
+                              "updateBranch": {
+                                "type": "boolean"
+                              },
+                              "viewedFiles": {
+                                "enum": [
+                                  "forge",
+                                  "host"
+                                ],
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "mergeMethods",
+                              "reviewDecisions",
+                              "draft",
+                              "reopen",
+                              "updateBranch",
+                              "rebaseBranch",
+                              "edit",
+                              "checks",
+                              "reviewThreads",
+                              "expectedHeadMerge",
+                              "autoMerge",
+                              "autoFix",
+                              "adminMerge"
+                            ],
+                            "type": "object",
+                            "x-poracode-unknownFields": "strip"
+                          },
+                          "forge": {
+                            "$ref": "#/$defs/__schema0"
+                          },
+                          "host": {
+                            "minLength": 1,
+                            "type": "string"
+                          },
+                          "remote": {
+                            "minLength": 1,
+                            "type": "string"
+                          },
+                          "repository": {
+                            "minLength": 1,
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "forge",
+                          "host",
+                          "repository",
+                          "remote",
+                          "capabilities"
+                        ],
+                        "type": "object",
+                        "x-poracode-unknownFields": "strip"
+                      },
+                      "state": {
+                        "enum": [
+                          "open",
+                          "draft",
+                          "merged",
+                          "closed"
+                        ],
+                        "type": "string"
+                      },
+                      "title": {
+                        "type": "string"
+                      },
+                      "updatedAt": {
+                        "type": "string"
+                      },
+                      "url": {
+                        "type": "string"
+                      },
+                      "viewerDidAuthor": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "number",
+                      "state",
+                      "title",
+                      "url",
+                      "baseBranch",
+                      "isDraft",
+                      "updatedAt"
+                    ],
+                    "type": "object",
+                    "x-poracode-unknownFields": "strip"
+                  },
+                  "repository": {
+                    "type": "string"
+                  },
+                  "reviewRequested": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "pr",
+                  "headBranch",
+                  "additions",
+                  "deletions",
+                  "repository",
+                  "reviewRequested"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              },
+              "type": "array"
+            },
+            "viewerLogin": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "pullRequests"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        }
+      },
+      "scope": "session:read"
+    },
+    {
+      "name": "forgeListPullRequestsInState",
+      "owner": "projectLocation",
+      "request": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": true,
+        "properties": {
+          "forgeAccount": {
+            "additionalProperties": true,
+            "properties": {
+              "forge": {
+                "enum": [
+                  "github",
+                  "gitlab",
+                  "forgejo",
+                  "gitea",
+                  "bitbucket",
+                  "azure-devops",
+                  "gitcafe"
+                ],
+                "type": "string"
+              },
+              "host": {
+                "format": "uri",
+                "type": "string",
+                "x-poracode-semanticValidators": [
+                  "forge.host.https"
+                ]
+              },
+              "login": {
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "forge",
+              "host",
+              "login"
+            ],
+            "type": "object",
+            "x-poracode-unknownFields": "strip"
+          },
+          "forgeRepository": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "projectLocation": {
+            "oneOf": [
+              {
+                "additionalProperties": true,
+                "properties": {
+                  "kind": {
+                    "const": "windows",
+                    "type": "string"
+                  },
+                  "path": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "remoteServerId": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "path"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              },
+              {
+                "additionalProperties": true,
+                "properties": {
+                  "distro": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "kind": {
+                    "const": "wsl",
+                    "type": "string"
+                  },
+                  "linuxPath": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "remoteServerId": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "uncPath": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "distro",
+                  "linuxPath",
+                  "uncPath"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              },
+              {
+                "additionalProperties": true,
+                "properties": {
+                  "kind": {
+                    "const": "posix",
+                    "type": "string"
+                  },
+                  "path": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "remoteServerId": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "path"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              }
+            ]
+          },
+          "state": {
+            "enum": [
+              "closed",
+              "merged",
+              "all"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "projectLocation",
+          "state"
+        ],
+        "type": "object",
+        "x-poracode-unknownFields": "strip"
+      },
+      "result": {
+        "kind": "json",
+        "schema": {
+          "$defs": {
+            "__schema0": {
+              "enum": [
+                "github",
+                "gitlab",
+                "forgejo",
+                "gitea",
+                "bitbucket",
+                "azure-devops",
+                "gitcafe"
+              ],
+              "type": "string"
+            },
+            "__schema1": {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            },
+            "__schema2": {
+              "maximum": 9007199254740991,
+              "minimum": -9007199254740991,
+              "type": "integer"
+            }
+          },
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": true,
+          "properties": {
+            "pullRequests": {
+              "items": {
+                "additionalProperties": true,
+                "properties": {
+                  "additions": {
+                    "$ref": "#/$defs/__schema2"
+                  },
+                  "author": {
+                    "additionalProperties": true,
+                    "properties": {
+                      "avatarUrl": {
+                        "type": "string"
+                      },
+                      "login": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "login"
+                    ],
+                    "type": "object",
+                    "x-poracode-unknownFields": "strip"
+                  },
+                  "deletions": {
+                    "$ref": "#/$defs/__schema2"
+                  },
+                  "headBranch": {
+                    "type": "string"
+                  },
+                  "labels": {
+                    "items": {
+                      "additionalProperties": true,
+                      "properties": {
+                        "color": {
+                          "pattern": "^[0-9a-f]{6}$",
+                          "type": "string"
+                        },
+                        "description": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "minLength": 1,
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "name"
+                      ],
+                      "type": "object",
+                      "x-poracode-unknownFields": "strip"
+                    },
+                    "type": "array"
+                  },
+                  "pr": {
+                    "additionalProperties": true,
+                    "properties": {
+                      "baseBranch": {
+                        "type": "string"
+                      },
+                      "checksStatus": {
+                        "type": "string"
+                      },
+                      "headSha": {
+                        "type": "string"
+                      },
+                      "isCrossRepository": {
+                        "type": "boolean"
+                      },
+                      "isDraft": {
+                        "type": "boolean"
+                      },
+                      "mergeStateStatus": {
+                        "enum": [
+                          "BEHIND",
+                          "BLOCKED",
+                          "CLEAN",
+                          "DIRTY",
+                          "DRAFT",
+                          "HAS_HOOKS",
+                          "UNKNOWN",
+                          "UNSTABLE"
+                        ],
+                        "type": "string"
+                      },
+                      "mergeable": {
+                        "enum": [
+                          "MERGEABLE",
+                          "CONFLICTING",
+                          "UNKNOWN"
+                        ],
+                        "type": "string"
+                      },
+                      "number": {
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991,
+                        "type": "integer"
+                      },
+                      "reviewDecision": {
+                        "type": "string"
+                      },
+                      "source": {
+                        "additionalProperties": true,
+                        "properties": {
+                          "account": {
+                            "additionalProperties": true,
+                            "properties": {
+                              "forge": {
+                                "$ref": "#/$defs/__schema0"
+                              },
+                              "host": {
+                                "format": "uri",
+                                "type": "string",
+                                "x-poracode-semanticValidators": [
+                                  "forge.host.https"
+                                ]
+                              },
+                              "login": {
+                                "minLength": 1,
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "forge",
+                              "host",
+                              "login"
+                            ],
+                            "type": "object",
+                            "x-poracode-unknownFields": "strip"
+                          },
+                          "capabilities": {
+                            "additionalProperties": true,
+                            "properties": {
+                              "adminMerge": {
+                                "type": "boolean"
+                              },
+                              "autoFix": {
+                                "type": "boolean"
+                              },
+                              "autoMerge": {
+                                "type": "boolean"
+                              },
+                              "checks": {
+                                "type": "boolean"
+                              },
+                              "commentEditing": {
+                                "items": {
+                                  "enum": [
+                                    "conversation",
+                                    "inline"
+                                  ],
+                                  "type": "string"
+                                },
+                                "type": "array"
+                              },
+                              "commitDiffs": {
+                                "const": true,
+                                "type": "boolean"
+                              },
+                              "convertToDraft": {
+                                "const": true,
+                                "type": "boolean"
+                              },
+                              "draft": {
+                                "type": "boolean"
+                              },
+                              "edit": {
+                                "type": "boolean"
+                              },
+                              "expectedHeadMerge": {
+                                "type": "boolean"
+                              },
+                              "labels": {
+                                "const": true,
+                                "type": "boolean"
+                              },
+                              "mergeMethods": {
+                                "items": {
+                                  "enum": [
+                                    "merge",
+                                    "squash",
+                                    "rebase"
+                                  ],
+                                  "type": "string"
+                                },
+                                "type": "array"
+                              },
+                              "reactions": {
+                                "items": {
+                                  "$ref": "#/$defs/__schema1"
+                                },
+                                "maxItems": 32,
+                                "type": "array"
+                              },
+                              "rebaseBranch": {
+                                "type": "boolean"
+                              },
+                              "reopen": {
+                                "type": "boolean"
+                              },
+                              "reviewDecisions": {
+                                "items": {
+                                  "enum": [
+                                    "approve",
+                                    "request-changes",
+                                    "comment"
+                                  ],
+                                  "type": "string"
+                                },
+                                "type": "array"
+                              },
+                              "reviewDrafts": {
+                                "const": true,
+                                "type": "boolean"
+                              },
+                              "reviewGuides": {
+                                "const": true,
+                                "type": "boolean"
+                              },
+                              "reviewRequests": {
                                 "const": true,
                                 "type": "boolean"
                               },
@@ -9929,6 +11559,34 @@
             "id": {
               "type": "string"
             },
+            "reactions": {
+              "items": {
+                "additionalProperties": true,
+                "properties": {
+                  "content": {
+                    "maxLength": 64,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "count": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "viewerReacted": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "content",
+                  "count",
+                  "viewerReacted"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              },
+              "type": "array"
+            },
             "url": {
               "type": "string"
             }
@@ -10083,6 +11741,193 @@
         "required": [
           "projectLocation",
           "prNumber"
+        ],
+        "type": "object",
+        "x-poracode-unknownFields": "strip"
+      },
+      "result": {
+        "kind": "omitted",
+        "never": "null",
+        "presence": "omitted"
+      },
+      "scope": "session:operate"
+    },
+    {
+      "name": "forgeRequestPrReviewers",
+      "owner": "projectLocation",
+      "request": {
+        "$defs": {
+          "__schema0": {
+            "additionalProperties": true,
+            "properties": {
+              "id": {
+                "maxLength": 512,
+                "minLength": 1,
+                "type": "string"
+              },
+              "team": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "id"
+            ],
+            "type": "object",
+            "x-poracode-unknownFields": "strip"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": true,
+        "properties": {
+          "add": {
+            "items": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "maxItems": 25,
+            "type": "array"
+          },
+          "forgeAccount": {
+            "additionalProperties": true,
+            "properties": {
+              "forge": {
+                "enum": [
+                  "github",
+                  "gitlab",
+                  "forgejo",
+                  "gitea",
+                  "bitbucket",
+                  "azure-devops",
+                  "gitcafe"
+                ],
+                "type": "string"
+              },
+              "host": {
+                "format": "uri",
+                "type": "string",
+                "x-poracode-semanticValidators": [
+                  "forge.host.https"
+                ]
+              },
+              "login": {
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "forge",
+              "host",
+              "login"
+            ],
+            "type": "object",
+            "x-poracode-unknownFields": "strip"
+          },
+          "forgeRepository": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "prNumber": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "projectLocation": {
+            "oneOf": [
+              {
+                "additionalProperties": true,
+                "properties": {
+                  "kind": {
+                    "const": "windows",
+                    "type": "string"
+                  },
+                  "path": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "remoteServerId": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "path"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              },
+              {
+                "additionalProperties": true,
+                "properties": {
+                  "distro": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "kind": {
+                    "const": "wsl",
+                    "type": "string"
+                  },
+                  "linuxPath": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "remoteServerId": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "uncPath": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "distro",
+                  "linuxPath",
+                  "uncPath"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              },
+              {
+                "additionalProperties": true,
+                "properties": {
+                  "kind": {
+                    "const": "posix",
+                    "type": "string"
+                  },
+                  "path": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "remoteServerId": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "path"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              }
+            ]
+          },
+          "remove": {
+            "items": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "maxItems": 25,
+            "type": "array"
+          }
+        },
+        "required": [
+          "projectLocation",
+          "forgeAccount",
+          "forgeRepository",
+          "prNumber",
+          "add",
+          "remove"
         ],
         "type": "object",
         "x-poracode-unknownFields": "strip"
@@ -10326,6 +12171,346 @@
       "scope": "session:operate"
     },
     {
+      "name": "forgeSetPrLabels",
+      "owner": "projectLocation",
+      "request": {
+        "$defs": {
+          "__schema0": {
+            "maxLength": 255,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": true,
+        "properties": {
+          "add": {
+            "items": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "maxItems": 50,
+            "type": "array"
+          },
+          "forgeAccount": {
+            "additionalProperties": true,
+            "properties": {
+              "forge": {
+                "enum": [
+                  "github",
+                  "gitlab",
+                  "forgejo",
+                  "gitea",
+                  "bitbucket",
+                  "azure-devops",
+                  "gitcafe"
+                ],
+                "type": "string"
+              },
+              "host": {
+                "format": "uri",
+                "type": "string",
+                "x-poracode-semanticValidators": [
+                  "forge.host.https"
+                ]
+              },
+              "login": {
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "forge",
+              "host",
+              "login"
+            ],
+            "type": "object",
+            "x-poracode-unknownFields": "strip"
+          },
+          "forgeRepository": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "prNumber": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "projectLocation": {
+            "oneOf": [
+              {
+                "additionalProperties": true,
+                "properties": {
+                  "kind": {
+                    "const": "windows",
+                    "type": "string"
+                  },
+                  "path": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "remoteServerId": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "path"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              },
+              {
+                "additionalProperties": true,
+                "properties": {
+                  "distro": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "kind": {
+                    "const": "wsl",
+                    "type": "string"
+                  },
+                  "linuxPath": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "remoteServerId": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "uncPath": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "distro",
+                  "linuxPath",
+                  "uncPath"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              },
+              {
+                "additionalProperties": true,
+                "properties": {
+                  "kind": {
+                    "const": "posix",
+                    "type": "string"
+                  },
+                  "path": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "remoteServerId": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "path"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              }
+            ]
+          },
+          "remove": {
+            "items": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "maxItems": 50,
+            "type": "array"
+          }
+        },
+        "required": [
+          "projectLocation",
+          "forgeAccount",
+          "forgeRepository",
+          "prNumber",
+          "add",
+          "remove"
+        ],
+        "type": "object",
+        "x-poracode-unknownFields": "strip"
+      },
+      "result": {
+        "kind": "omitted",
+        "never": "null",
+        "presence": "omitted"
+      },
+      "scope": "session:operate"
+    },
+    {
+      "name": "forgeSetPrReaction",
+      "owner": "projectLocation",
+      "request": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": true,
+        "properties": {
+          "content": {
+            "maxLength": 64,
+            "minLength": 1,
+            "type": "string"
+          },
+          "forgeAccount": {
+            "additionalProperties": true,
+            "properties": {
+              "forge": {
+                "enum": [
+                  "github",
+                  "gitlab",
+                  "forgejo",
+                  "gitea",
+                  "bitbucket",
+                  "azure-devops",
+                  "gitcafe"
+                ],
+                "type": "string"
+              },
+              "host": {
+                "format": "uri",
+                "type": "string",
+                "x-poracode-semanticValidators": [
+                  "forge.host.https"
+                ]
+              },
+              "login": {
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "forge",
+              "host",
+              "login"
+            ],
+            "type": "object",
+            "x-poracode-unknownFields": "strip"
+          },
+          "forgeRepository": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "prNumber": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "projectLocation": {
+            "oneOf": [
+              {
+                "additionalProperties": true,
+                "properties": {
+                  "kind": {
+                    "const": "windows",
+                    "type": "string"
+                  },
+                  "path": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "remoteServerId": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "path"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              },
+              {
+                "additionalProperties": true,
+                "properties": {
+                  "distro": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "kind": {
+                    "const": "wsl",
+                    "type": "string"
+                  },
+                  "linuxPath": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "remoteServerId": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "uncPath": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "distro",
+                  "linuxPath",
+                  "uncPath"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              },
+              {
+                "additionalProperties": true,
+                "properties": {
+                  "kind": {
+                    "const": "posix",
+                    "type": "string"
+                  },
+                  "path": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "remoteServerId": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "path"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              }
+            ]
+          },
+          "reacted": {
+            "type": "boolean"
+          },
+          "subjectId": {
+            "maxLength": 256,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "projectLocation",
+          "forgeAccount",
+          "forgeRepository",
+          "prNumber",
+          "content",
+          "reacted"
+        ],
+        "type": "object",
+        "x-poracode-unknownFields": "strip"
+      },
+      "result": {
+        "kind": "omitted",
+        "never": "null",
+        "presence": "omitted"
+      },
+      "scope": "session:operate"
+    },
+    {
       "name": "forgeSubmitPrReview",
       "owner": "projectLocation",
       "request": {
@@ -10476,6 +12661,228 @@
           "projectLocation",
           "prNumber",
           "decision"
+        ],
+        "type": "object",
+        "x-poracode-unknownFields": "strip"
+      },
+      "result": {
+        "kind": "omitted",
+        "never": "null",
+        "presence": "omitted"
+      },
+      "scope": "session:operate",
+      "timeout": "long"
+    },
+    {
+      "name": "forgeSubmitPrReviewDraft",
+      "owner": "projectLocation",
+      "request": {
+        "$defs": {
+          "__schema0": {
+            "additionalProperties": true,
+            "properties": {
+              "body": {
+                "maxLength": 65536,
+                "minLength": 1,
+                "type": "string"
+              },
+              "line": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              "path": {
+                "maxLength": 4096,
+                "minLength": 1,
+                "type": "string"
+              },
+              "side": {
+                "enum": [
+                  "LEFT",
+                  "RIGHT"
+                ],
+                "type": "string"
+              },
+              "startLine": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "path",
+              "side",
+              "line",
+              "body"
+            ],
+            "type": "object",
+            "x-poracode-unknownFields": "strip"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": true,
+        "properties": {
+          "body": {
+            "maxLength": 65536,
+            "type": "string"
+          },
+          "comments": {
+            "items": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "type": "array"
+          },
+          "decision": {
+            "enum": [
+              "approve",
+              "request-changes",
+              "comment"
+            ],
+            "type": "string"
+          },
+          "expectedHeadSha": {
+            "pattern": "^[0-9a-f]{7,64}$",
+            "type": "string"
+          },
+          "forgeAccount": {
+            "additionalProperties": true,
+            "properties": {
+              "forge": {
+                "enum": [
+                  "github",
+                  "gitlab",
+                  "forgejo",
+                  "gitea",
+                  "bitbucket",
+                  "azure-devops",
+                  "gitcafe"
+                ],
+                "type": "string"
+              },
+              "host": {
+                "format": "uri",
+                "type": "string",
+                "x-poracode-semanticValidators": [
+                  "forge.host.https"
+                ]
+              },
+              "login": {
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "forge",
+              "host",
+              "login"
+            ],
+            "type": "object",
+            "x-poracode-unknownFields": "strip"
+          },
+          "forgeRepository": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "prNumber": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "projectLocation": {
+            "oneOf": [
+              {
+                "additionalProperties": true,
+                "properties": {
+                  "kind": {
+                    "const": "windows",
+                    "type": "string"
+                  },
+                  "path": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "remoteServerId": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "path"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              },
+              {
+                "additionalProperties": true,
+                "properties": {
+                  "distro": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "kind": {
+                    "const": "wsl",
+                    "type": "string"
+                  },
+                  "linuxPath": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "remoteServerId": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "uncPath": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "distro",
+                  "linuxPath",
+                  "uncPath"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              },
+              {
+                "additionalProperties": true,
+                "properties": {
+                  "kind": {
+                    "const": "posix",
+                    "type": "string"
+                  },
+                  "path": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "remoteServerId": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "path"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              }
+            ]
+          }
+        },
+        "required": [
+          "projectLocation",
+          "forgeAccount",
+          "forgeRepository",
+          "prNumber",
+          "decision",
+          "body",
+          "expectedHeadSha",
+          "comments"
         ],
         "type": "object",
         "x-poracode-unknownFields": "strip"
@@ -13917,6 +16324,11 @@
                 "gitcafe"
               ],
               "type": "string"
+            },
+            "__schema1": {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
             }
           },
           "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -14020,6 +16432,14 @@
                       },
                       "type": "array"
                     },
+                    "commitDiffs": {
+                      "const": true,
+                      "type": "boolean"
+                    },
+                    "convertToDraft": {
+                      "const": true,
+                      "type": "boolean"
+                    },
                     "draft": {
                       "type": "boolean"
                     },
@@ -14027,6 +16447,10 @@
                       "type": "boolean"
                     },
                     "expectedHeadMerge": {
+                      "type": "boolean"
+                    },
+                    "labels": {
+                      "const": true,
                       "type": "boolean"
                     },
                     "mergeMethods": {
@@ -14038,6 +16462,13 @@
                         ],
                         "type": "string"
                       },
+                      "type": "array"
+                    },
+                    "reactions": {
+                      "items": {
+                        "$ref": "#/$defs/__schema1"
+                      },
+                      "maxItems": 32,
                       "type": "array"
                     },
                     "rebaseBranch": {
@@ -14057,7 +16488,15 @@
                       },
                       "type": "array"
                     },
+                    "reviewDrafts": {
+                      "const": true,
+                      "type": "boolean"
+                    },
                     "reviewGuides": {
+                      "const": true,
+                      "type": "boolean"
+                    },
+                    "reviewRequests": {
                       "const": true,
                       "type": "boolean"
                     },
@@ -14745,6 +17184,14 @@
                       },
                       "type": "array"
                     },
+                    "commitDiffs": {
+                      "const": true,
+                      "type": "boolean"
+                    },
+                    "convertToDraft": {
+                      "const": true,
+                      "type": "boolean"
+                    },
                     "draft": {
                       "type": "boolean"
                     },
@@ -14752,6 +17199,10 @@
                       "type": "boolean"
                     },
                     "expectedHeadMerge": {
+                      "type": "boolean"
+                    },
+                    "labels": {
+                      "const": true,
                       "type": "boolean"
                     },
                     "mergeMethods": {
@@ -14763,6 +17214,13 @@
                         ],
                         "type": "string"
                       },
+                      "type": "array"
+                    },
+                    "reactions": {
+                      "items": {
+                        "$ref": "#/$defs/__schema2"
+                      },
+                      "maxItems": 32,
                       "type": "array"
                     },
                     "rebaseBranch": {
@@ -14782,7 +17240,15 @@
                       },
                       "type": "array"
                     },
+                    "reviewDrafts": {
+                      "const": true,
+                      "type": "boolean"
+                    },
                     "reviewGuides": {
+                      "const": true,
+                      "type": "boolean"
+                    },
+                    "reviewRequests": {
                       "const": true,
                       "type": "boolean"
                     },
@@ -14857,11 +17323,16 @@
               "type": "string"
             },
             "__schema2": {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            },
+            "__schema3": {
               "exclusiveMinimum": 0,
               "maximum": 9007199254740991,
               "type": "integer"
             },
-            "__schema3": {
+            "__schema4": {
               "additionalProperties": true,
               "properties": {
                 "avatarUrl": {
@@ -14877,16 +17348,16 @@
               "type": "object",
               "x-poracode-unknownFields": "strip"
             },
-            "__schema4": {
+            "__schema5": {
               "maximum": 9007199254740991,
               "minimum": -9007199254740991,
               "type": "integer"
             },
-            "__schema5": {
+            "__schema6": {
               "additionalProperties": true,
               "properties": {
                 "author": {
-                  "$ref": "#/$defs/__schema3"
+                  "$ref": "#/$defs/__schema4"
                 },
                 "body": {
                   "type": "string"
@@ -14896,6 +17367,12 @@
                 },
                 "id": {
                   "type": "string"
+                },
+                "reactions": {
+                  "items": {
+                    "$ref": "#/$defs/__schema7"
+                  },
+                  "type": "array"
                 },
                 "url": {
                   "type": "string"
@@ -14909,6 +17386,80 @@
               ],
               "type": "object",
               "x-poracode-unknownFields": "strip"
+            },
+            "__schema7": {
+              "additionalProperties": true,
+              "properties": {
+                "content": {
+                  "maxLength": 64,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "count": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "viewerReacted": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "content",
+                "count",
+                "viewerReacted"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            "__schema8": {
+              "additionalProperties": true,
+              "properties": {
+                "color": {
+                  "pattern": "^[0-9a-f]{6}$",
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "name": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            "__schema9": {
+              "additionalProperties": true,
+              "properties": {
+                "avatarUrl": {
+                  "type": "string"
+                },
+                "id": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "login": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "team": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "id",
+                "login"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
             }
           },
           "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -14918,10 +17469,10 @@
               "additionalProperties": true,
               "properties": {
                 "additions": {
-                  "$ref": "#/$defs/__schema4"
+                  "$ref": "#/$defs/__schema5"
                 },
                 "author": {
-                  "$ref": "#/$defs/__schema3"
+                  "$ref": "#/$defs/__schema4"
                 },
                 "baseBranch": {
                   "type": "string"
@@ -14930,7 +17481,7 @@
                   "type": "string"
                 },
                 "changedFiles": {
-                  "$ref": "#/$defs/__schema4"
+                  "$ref": "#/$defs/__schema5"
                 },
                 "checks": {
                   "items": {
@@ -14980,7 +17531,7 @@
                 },
                 "comments": {
                   "items": {
-                    "$ref": "#/$defs/__schema5"
+                    "$ref": "#/$defs/__schema6"
                   },
                   "type": "array"
                 },
@@ -14992,7 +17543,7 @@
                         "type": "string"
                       },
                       "author": {
-                        "$ref": "#/$defs/__schema3"
+                        "$ref": "#/$defs/__schema4"
                       },
                       "authoredDate": {
                         "type": "string"
@@ -15025,10 +17576,16 @@
                   "type": "string"
                 },
                 "deletions": {
-                  "$ref": "#/$defs/__schema4"
+                  "$ref": "#/$defs/__schema5"
                 },
                 "headBranch": {
                   "type": "string"
+                },
+                "labels": {
+                  "items": {
+                    "$ref": "#/$defs/__schema8"
+                  },
+                  "type": "array"
                 },
                 "mergedAt": {
                   "anyOf": [
@@ -15043,7 +17600,7 @@
                 "mergedBy": {
                   "anyOf": [
                     {
-                      "$ref": "#/$defs/__schema3"
+                      "$ref": "#/$defs/__schema4"
                     },
                     {
                       "type": "null"
@@ -15051,7 +17608,19 @@
                   ]
                 },
                 "number": {
-                  "$ref": "#/$defs/__schema2"
+                  "$ref": "#/$defs/__schema3"
+                },
+                "reactions": {
+                  "items": {
+                    "$ref": "#/$defs/__schema7"
+                  },
+                  "type": "array"
+                },
+                "requestedReviewers": {
+                  "items": {
+                    "$ref": "#/$defs/__schema9"
+                  },
+                  "type": "array"
                 },
                 "reviewThreads": {
                   "items": {
@@ -15059,7 +17628,7 @@
                     "properties": {
                       "comments": {
                         "items": {
-                          "$ref": "#/$defs/__schema5"
+                          "$ref": "#/$defs/__schema6"
                         },
                         "type": "array"
                       },
@@ -15073,9 +17642,14 @@
                         "type": "boolean"
                       },
                       "line": {
-                        "$ref": "#/$defs/__schema4"
+                        "$ref": "#/$defs/__schema5"
                       },
                       "path": {
+                        "type": "string"
+                      },
+                      "side": {
+                        "maxLength": 64,
+                        "minLength": 1,
                         "type": "string"
                       }
                     },
@@ -15095,7 +17669,7 @@
                     "additionalProperties": true,
                     "properties": {
                       "author": {
-                        "$ref": "#/$defs/__schema3"
+                        "$ref": "#/$defs/__schema4"
                       },
                       "body": {
                         "type": "string"
@@ -15133,6 +17707,51 @@
                 },
                 "source": {
                   "$ref": "#/$defs/__schema0"
+                },
+                "timeline": {
+                  "items": {
+                    "additionalProperties": true,
+                    "properties": {
+                      "actor": {
+                        "$ref": "#/$defs/__schema4"
+                      },
+                      "createdAt": {
+                        "type": "string"
+                      },
+                      "fromRef": {
+                        "type": "string"
+                      },
+                      "id": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "kind": {
+                        "maxLength": 64,
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "label": {
+                        "$ref": "#/$defs/__schema8"
+                      },
+                      "reviewer": {
+                        "$ref": "#/$defs/__schema9"
+                      },
+                      "text": {
+                        "type": "string"
+                      },
+                      "toRef": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "kind",
+                      "createdAt"
+                    ],
+                    "type": "object",
+                    "x-poracode-unknownFields": "strip"
+                  },
+                  "type": "array"
                 },
                 "title": {
                   "type": "string"
@@ -15195,7 +17814,7 @@
                   "type": "string"
                 },
                 "number": {
-                  "$ref": "#/$defs/__schema2"
+                  "$ref": "#/$defs/__schema3"
                 },
                 "reviewDecision": {
                   "type": "string"
@@ -15636,6 +18255,11 @@
                 "gitcafe"
               ],
               "type": "string"
+            },
+            "__schema1": {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
             }
           },
           "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -15741,6 +18365,14 @@
                           },
                           "type": "array"
                         },
+                        "commitDiffs": {
+                          "const": true,
+                          "type": "boolean"
+                        },
+                        "convertToDraft": {
+                          "const": true,
+                          "type": "boolean"
+                        },
                         "draft": {
                           "type": "boolean"
                         },
@@ -15748,6 +18380,10 @@
                           "type": "boolean"
                         },
                         "expectedHeadMerge": {
+                          "type": "boolean"
+                        },
+                        "labels": {
+                          "const": true,
                           "type": "boolean"
                         },
                         "mergeMethods": {
@@ -15759,6 +18395,13 @@
                             ],
                             "type": "string"
                           },
+                          "type": "array"
+                        },
+                        "reactions": {
+                          "items": {
+                            "$ref": "#/$defs/__schema1"
+                          },
+                          "maxItems": 32,
                           "type": "array"
                         },
                         "rebaseBranch": {
@@ -15778,7 +18421,15 @@
                           },
                           "type": "array"
                         },
+                        "reviewDrafts": {
+                          "const": true,
+                          "type": "boolean"
+                        },
                         "reviewGuides": {
+                          "const": true,
+                          "type": "boolean"
+                        },
+                        "reviewRequests": {
                           "const": true,
                           "type": "boolean"
                         },
@@ -16017,6 +18668,34 @@
                 "id": {
                   "type": "string"
                 },
+                "reactions": {
+                  "items": {
+                    "additionalProperties": true,
+                    "properties": {
+                      "content": {
+                        "maxLength": 64,
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "count": {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "viewerReacted": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "content",
+                      "count",
+                      "viewerReacted"
+                    ],
+                    "type": "object",
+                    "x-poracode-unknownFields": "strip"
+                  },
+                  "type": "array"
+                },
                 "url": {
                   "type": "string"
                 }
@@ -16065,6 +18744,11 @@
                     "type": "integer"
                   },
                   "path": {
+                    "type": "string"
+                  },
+                  "side": {
+                    "maxLength": 64,
+                    "minLength": 1,
                     "type": "string"
                   }
                 },
@@ -16862,6 +19546,11 @@
                 "gitcafe"
               ],
               "type": "string"
+            },
+            "__schema1": {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
             }
           },
           "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -16969,6 +19658,14 @@
                             },
                             "type": "array"
                           },
+                          "commitDiffs": {
+                            "const": true,
+                            "type": "boolean"
+                          },
+                          "convertToDraft": {
+                            "const": true,
+                            "type": "boolean"
+                          },
                           "draft": {
                             "type": "boolean"
                           },
@@ -16976,6 +19673,10 @@
                             "type": "boolean"
                           },
                           "expectedHeadMerge": {
+                            "type": "boolean"
+                          },
+                          "labels": {
+                            "const": true,
                             "type": "boolean"
                           },
                           "mergeMethods": {
@@ -16987,6 +19688,13 @@
                               ],
                               "type": "string"
                             },
+                            "type": "array"
+                          },
+                          "reactions": {
+                            "items": {
+                              "$ref": "#/$defs/__schema1"
+                            },
+                            "maxItems": 32,
                             "type": "array"
                           },
                           "rebaseBranch": {
@@ -17006,7 +19714,15 @@
                             },
                             "type": "array"
                           },
+                          "reviewDrafts": {
+                            "const": true,
+                            "type": "boolean"
+                          },
                           "reviewGuides": {
+                            "const": true,
+                            "type": "boolean"
+                          },
+                          "reviewRequests": {
                             "const": true,
                             "type": "boolean"
                           },
@@ -17231,6 +19947,11 @@
               "type": "string"
             },
             "__schema1": {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            },
+            "__schema2": {
               "maximum": 9007199254740991,
               "minimum": -9007199254740991,
               "type": "integer"
@@ -17244,7 +19965,7 @@
                 "additionalProperties": true,
                 "properties": {
                   "additions": {
-                    "$ref": "#/$defs/__schema1"
+                    "$ref": "#/$defs/__schema2"
                   },
                   "author": {
                     "additionalProperties": true,
@@ -17263,10 +19984,34 @@
                     "x-poracode-unknownFields": "strip"
                   },
                   "deletions": {
-                    "$ref": "#/$defs/__schema1"
+                    "$ref": "#/$defs/__schema2"
                   },
                   "headBranch": {
                     "type": "string"
+                  },
+                  "labels": {
+                    "items": {
+                      "additionalProperties": true,
+                      "properties": {
+                        "color": {
+                          "pattern": "^[0-9a-f]{6}$",
+                          "type": "string"
+                        },
+                        "description": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "minLength": 1,
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "name"
+                      ],
+                      "type": "object",
+                      "x-poracode-unknownFields": "strip"
+                    },
+                    "type": "array"
                   },
                   "pr": {
                     "additionalProperties": true,
@@ -17369,6 +20114,14 @@
                                 },
                                 "type": "array"
                               },
+                              "commitDiffs": {
+                                "const": true,
+                                "type": "boolean"
+                              },
+                              "convertToDraft": {
+                                "const": true,
+                                "type": "boolean"
+                              },
                               "draft": {
                                 "type": "boolean"
                               },
@@ -17376,6 +20129,10 @@
                                 "type": "boolean"
                               },
                               "expectedHeadMerge": {
+                                "type": "boolean"
+                              },
+                              "labels": {
+                                "const": true,
                                 "type": "boolean"
                               },
                               "mergeMethods": {
@@ -17387,6 +20144,13 @@
                                   ],
                                   "type": "string"
                                 },
+                                "type": "array"
+                              },
+                              "reactions": {
+                                "items": {
+                                  "$ref": "#/$defs/__schema1"
+                                },
+                                "maxItems": 32,
                                 "type": "array"
                               },
                               "rebaseBranch": {
@@ -17406,7 +20170,15 @@
                                 },
                                 "type": "array"
                               },
+                              "reviewDrafts": {
+                                "const": true,
+                                "type": "boolean"
+                              },
                               "reviewGuides": {
+                                "const": true,
+                                "type": "boolean"
+                              },
+                              "reviewRequests": {
                                 "const": true,
                                 "type": "boolean"
                               },
@@ -18543,6 +21315,34 @@
             },
             "id": {
               "type": "string"
+            },
+            "reactions": {
+              "items": {
+                "additionalProperties": true,
+                "properties": {
+                  "content": {
+                    "maxLength": 64,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "count": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "viewerReacted": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "content",
+                  "count",
+                  "viewerReacted"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              },
+              "type": "array"
             },
             "url": {
               "type": "string"
@@ -29963,6 +32763,10 @@
                   "x-poracode-unknownFields": "strip"
                 },
                 "type": "array"
+              },
+              "sourceItemId": {
+                "minLength": 1,
+                "type": "string"
               }
             },
             "required": [
@@ -30548,7 +33352,8 @@
           "x-poracode-unknownFields": "strip"
         }
       },
-      "scope": "session:operate"
+      "scope": "session:operate",
+      "timeout": "long"
     },
     {
       "name": "steerQueuedThreadFollowUp",
@@ -32960,10 +35765,12 @@
     "extractContext",
     "finalizeFileCheckpoint",
     "forgeClosePr",
+    "forgeConvertPrToDraft",
     "forgeCreatePr",
     "forgeEditPr",
     "forgeEditPrComment",
     "forgeGetPrChecks",
+    "forgeGetPrCommitDiff",
     "forgeGetPrDetails",
     "forgeGetPrDiff",
     "forgeGetPrFiles",
@@ -32972,15 +35779,22 @@
     "forgeGetPrReviewGuide",
     "forgeGetPrViewedFiles",
     "forgeGetRepository",
+    "forgeListPrLabelCandidates",
+    "forgeListPrReviewerCandidates",
     "forgeListPrs",
     "forgeListPullRequests",
+    "forgeListPullRequestsInState",
     "forgeMarkPrReady",
     "forgeMergePr",
     "forgeMergePrAtHead",
     "forgePostPrComment",
     "forgeReopenPr",
+    "forgeRequestPrReviewers",
     "forgeSetPrFileViewed",
+    "forgeSetPrLabels",
+    "forgeSetPrReaction",
     "forgeSubmitPrReview",
+    "forgeSubmitPrReviewDraft",
     "forgeUpdatePrBranch",
     "forgeWritePrReviewGuide",
     "generateCommitMessage",
@@ -61526,6 +64340,14 @@
                       },
                       "type": "array"
                     },
+                    "commitDiffs": {
+                      "const": true,
+                      "type": "boolean"
+                    },
+                    "convertToDraft": {
+                      "const": true,
+                      "type": "boolean"
+                    },
                     "draft": {
                       "type": "boolean"
                     },
@@ -61533,6 +64355,10 @@
                       "type": "boolean"
                     },
                     "expectedHeadMerge": {
+                      "type": "boolean"
+                    },
+                    "labels": {
+                      "const": true,
                       "type": "boolean"
                     },
                     "mergeMethods": {
@@ -61544,6 +64370,13 @@
                         ],
                         "type": "string"
                       },
+                      "type": "array"
+                    },
+                    "reactions": {
+                      "items": {
+                        "$ref": "#/$defs/__schema44"
+                      },
+                      "maxItems": 32,
                       "type": "array"
                     },
                     "rebaseBranch": {
@@ -61563,7 +64396,15 @@
                       },
                       "type": "array"
                     },
+                    "reviewDrafts": {
+                      "const": true,
+                      "type": "boolean"
+                    },
                     "reviewGuides": {
+                      "const": true,
+                      "type": "boolean"
+                    },
+                    "reviewRequests": {
                       "const": true,
                       "type": "boolean"
                     },
@@ -61638,11 +64479,16 @@
               "type": "string"
             },
             "__schema44": {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            },
+            "__schema45": {
               "exclusiveMinimum": 0,
               "maximum": 9007199254740991,
               "type": "integer"
             },
-            "__schema45": {
+            "__schema46": {
               "additionalProperties": true,
               "properties": {
                 "avatarUrl": {
@@ -61658,11 +64504,11 @@
               "type": "object",
               "x-poracode-unknownFields": "strip"
             },
-            "__schema46": {
+            "__schema47": {
               "additionalProperties": true,
               "properties": {
                 "author": {
-                  "$ref": "#/$defs/__schema45"
+                  "$ref": "#/$defs/__schema46"
                 },
                 "body": {
                   "type": "string"
@@ -61672,6 +64518,12 @@
                 },
                 "id": {
                   "type": "string"
+                },
+                "reactions": {
+                  "items": {
+                    "$ref": "#/$defs/__schema48"
+                  },
+                  "type": "array"
                 },
                 "url": {
                   "type": "string"
@@ -61686,12 +64538,37 @@
               "type": "object",
               "x-poracode-unknownFields": "strip"
             },
-            "__schema47": {
+            "__schema48": {
+              "additionalProperties": true,
+              "properties": {
+                "content": {
+                  "maxLength": 64,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "count": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "viewerReacted": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "content",
+                "count",
+                "viewerReacted"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            "__schema49": {
               "additionalProperties": true,
               "properties": {
                 "comments": {
                   "items": {
-                    "$ref": "#/$defs/__schema46"
+                    "$ref": "#/$defs/__schema47"
                   },
                   "type": "array"
                 },
@@ -61709,6 +64586,11 @@
                 },
                 "path": {
                   "type": "string"
+                },
+                "side": {
+                  "maxLength": 64,
+                  "minLength": 1,
+                  "type": "string"
                 }
               },
               "required": [
@@ -61723,6 +64605,55 @@
             "__schema5": {
               "minLength": 1,
               "type": "string"
+            },
+            "__schema50": {
+              "additionalProperties": true,
+              "properties": {
+                "color": {
+                  "pattern": "^[0-9a-f]{6}$",
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "name": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            "__schema51": {
+              "additionalProperties": true,
+              "properties": {
+                "avatarUrl": {
+                  "type": "string"
+                },
+                "id": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "login": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "team": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "id",
+                "login"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
             },
             "__schema6": {
               "const": "posix",
@@ -61933,7 +64864,7 @@
                             "type": "string"
                           },
                           "number": {
-                            "$ref": "#/$defs/__schema44"
+                            "$ref": "#/$defs/__schema45"
                           },
                           "reviewDecision": {
                             "type": "string"
@@ -61982,7 +64913,7 @@
                             "$ref": "#/$defs/__schema40"
                           },
                           "author": {
-                            "$ref": "#/$defs/__schema45"
+                            "$ref": "#/$defs/__schema46"
                           },
                           "baseBranch": {
                             "type": "string"
@@ -62041,7 +64972,7 @@
                           },
                           "comments": {
                             "items": {
-                              "$ref": "#/$defs/__schema46"
+                              "$ref": "#/$defs/__schema47"
                             },
                             "type": "array"
                           },
@@ -62053,7 +64984,7 @@
                                   "type": "string"
                                 },
                                 "author": {
-                                  "$ref": "#/$defs/__schema45"
+                                  "$ref": "#/$defs/__schema46"
                                 },
                                 "authoredDate": {
                                   "type": "string"
@@ -62091,6 +65022,12 @@
                           "headBranch": {
                             "type": "string"
                           },
+                          "labels": {
+                            "items": {
+                              "$ref": "#/$defs/__schema50"
+                            },
+                            "type": "array"
+                          },
                           "mergedAt": {
                             "anyOf": [
                               {
@@ -62104,7 +65041,7 @@
                           "mergedBy": {
                             "anyOf": [
                               {
-                                "$ref": "#/$defs/__schema45"
+                                "$ref": "#/$defs/__schema46"
                               },
                               {
                                 "type": "null"
@@ -62112,11 +65049,23 @@
                             ]
                           },
                           "number": {
-                            "$ref": "#/$defs/__schema44"
+                            "$ref": "#/$defs/__schema45"
+                          },
+                          "reactions": {
+                            "items": {
+                              "$ref": "#/$defs/__schema48"
+                            },
+                            "type": "array"
+                          },
+                          "requestedReviewers": {
+                            "items": {
+                              "$ref": "#/$defs/__schema51"
+                            },
+                            "type": "array"
                           },
                           "reviewThreads": {
                             "items": {
-                              "$ref": "#/$defs/__schema47"
+                              "$ref": "#/$defs/__schema49"
                             },
                             "type": "array"
                           },
@@ -62125,7 +65074,7 @@
                               "additionalProperties": true,
                               "properties": {
                                 "author": {
-                                  "$ref": "#/$defs/__schema45"
+                                  "$ref": "#/$defs/__schema46"
                                 },
                                 "body": {
                                   "type": "string"
@@ -62163,6 +65112,51 @@
                           },
                           "source": {
                             "$ref": "#/$defs/__schema42"
+                          },
+                          "timeline": {
+                            "items": {
+                              "additionalProperties": true,
+                              "properties": {
+                                "actor": {
+                                  "$ref": "#/$defs/__schema46"
+                                },
+                                "createdAt": {
+                                  "type": "string"
+                                },
+                                "fromRef": {
+                                  "type": "string"
+                                },
+                                "id": {
+                                  "minLength": 1,
+                                  "type": "string"
+                                },
+                                "kind": {
+                                  "maxLength": 64,
+                                  "minLength": 1,
+                                  "type": "string"
+                                },
+                                "label": {
+                                  "$ref": "#/$defs/__schema50"
+                                },
+                                "reviewer": {
+                                  "$ref": "#/$defs/__schema51"
+                                },
+                                "text": {
+                                  "type": "string"
+                                },
+                                "toRef": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "kind",
+                                "createdAt"
+                              ],
+                              "type": "object",
+                              "x-poracode-unknownFields": "strip"
+                            },
+                            "type": "array"
                           },
                           "title": {
                             "type": "string"
@@ -62259,7 +65253,7 @@
                       },
                       "reviewThreads": {
                         "items": {
-                          "$ref": "#/$defs/__schema47"
+                          "$ref": "#/$defs/__schema49"
                         },
                         "type": "array"
                       }
@@ -65513,6 +68507,12 @@
         },
         {
           "kind": "string",
+          "name": "deferBodies",
+          "optional": true,
+          "repeated": false
+        },
+        {
+          "kind": "string",
           "name": "reads",
           "optional": true,
           "repeated": false
@@ -65562,6 +68562,7 @@
       ],
       "queryParameters": [
         "projection",
+        "deferBodies",
         "reads",
         "notices",
         "runtimePage",
@@ -65603,6 +68604,10 @@
               "maximum": 500,
               "minimum": 1,
               "type": "integer"
+            },
+            "deferBodies": {
+              "const": "file_change",
+              "type": "string"
             },
             "maxBytes": {
               "$ref": "#/$defs/__schema0"
@@ -69797,6 +72802,12 @@
         },
         {
           "kind": "string",
+          "name": "deferBodies",
+          "optional": true,
+          "repeated": false
+        },
+        {
+          "kind": "string",
           "name": "reads",
           "optional": true,
           "repeated": false
@@ -69840,6 +72851,7 @@
       ],
       "queryParameters": [
         "projection",
+        "deferBodies",
         "reads",
         "notices",
         "beforePosition",
@@ -69880,6 +72892,10 @@
               "maximum": 9007199254740991,
               "minimum": 0,
               "type": "integer"
+            },
+            "deferBodies": {
+              "const": "file_change",
+              "type": "string"
             },
             "limit": {
               "maximum": 500,
@@ -72581,6 +75597,10 @@
                     "x-poracode-unknownFields": "strip"
                   },
                   "type": "array"
+                },
+                "sourceItemId": {
+                  "minLength": 1,
+                  "type": "string"
                 }
               },
               "required": [
@@ -73767,6 +76787,10 @@
                     "x-poracode-unknownFields": "strip"
                   },
                   "type": "array"
+                },
+                "sourceItemId": {
+                  "minLength": 1,
+                  "type": "string"
                 }
               },
               "required": [
@@ -75126,6 +78150,10 @@
               },
               "type": "array"
             },
+            "sessionId": {
+              "minLength": 1,
+              "type": "string"
+            },
             "tokenType": {
               "const": "Bearer",
               "type": "string"
@@ -75209,7 +78237,7 @@
     "void-envelope.omit-result",
     "void-result.omit-field"
   ],
-  "sourceHash": "sha256:34e72aa54a98e8372fc5f194e0d754cb16d8a1f44eae6b3ea34ecfced50a57d5",
+  "sourceHash": "sha256:d1beec30ff0361d1ebb6c8c8d30cc3ff8757bb0a0123c12c5aff0fa8bee2534f",
   "unknownObjectFields": "ignore",
   "webSocket": {
     "clientMessages": [

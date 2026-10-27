@@ -59,7 +59,7 @@ const UI_DISPOSITIONS = [
 
 const EXPECTED_COUNTS = {
   httpRoutes: 119,
-  procedures: 154,
+  procedures: 163,
   webSocketClientMessages: 11,
   // 10 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
   webSocketServerMessages: 12,
@@ -278,6 +278,22 @@ const PLANNED_ABSENCE_TOKENS: Record<
   // Quoted procedure identifiers distinguish the new wire calls from existing UI method names.
   ...Object.fromEntries(
     ["getProviderUsage", "refreshProviderUsage"].map((token) => [
+      token,
+      [
+        { platform: "ios" as Platform, token: `"${token}"` },
+        { platform: "android" as Platform, token: `"${token}"` },
+      ],
+    ]),
+  ),
+  // Scoped review operations that a native platform has not wired keep their quoted wire
+  // name out of that platform's tree until the ledger records the implementation.
+  ...Object.fromEntries(
+    [
+      "forgeListPullRequestsInState",
+      "forgeGetPrCommitDiff",
+      "forgeSetPrReaction",
+      "forgeSubmitPrReviewDraft",
+    ].map((token) => [
       token,
       [
         { platform: "ios" as Platform, token: `"${token}"` },

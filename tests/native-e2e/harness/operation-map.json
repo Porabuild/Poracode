@@ -3,11 +3,11 @@
   "contract": "poracode.remote",
   "protocolVersion": 14,
   "bindingFormatVersion": 2,
-  "manifestHash": "sha256:7078739ca7ec96ef2ad4b42680c6e0c312ed57ce8edc080eeaaefde5b3a17616",
-  "keyCount": 328,
+  "manifestHash": "sha256:89010ef318e5736a315f408f63f9e2c25f72cfb4dbdae16a709be25196e74c3d",
+  "keyCount": 337,
   "counts": {
     "route": 119,
-    "procedure": 154,
+    "procedure": 163,
     "ws-client": 11,
     "ws-server": 12,
     "replay": 16,
@@ -90,6 +90,10 @@
       "kind": "procedure",
       "id": "forgeClosePr"
     },
+    "procedure:forgeConvertPrToDraft": {
+      "kind": "procedure",
+      "id": "forgeConvertPrToDraft"
+    },
     "procedure:forgeCreatePr": {
       "kind": "procedure",
       "id": "forgeCreatePr"
@@ -105,6 +109,10 @@
     "procedure:forgeGetPrChecks": {
       "kind": "procedure",
       "id": "forgeGetPrChecks"
+    },
+    "procedure:forgeGetPrCommitDiff": {
+      "kind": "procedure",
+      "id": "forgeGetPrCommitDiff"
     },
     "procedure:forgeGetPrDetails": {
       "kind": "procedure",
@@ -138,6 +146,14 @@
       "kind": "procedure",
       "id": "forgeGetRepository"
     },
+    "procedure:forgeListPrLabelCandidates": {
+      "kind": "procedure",
+      "id": "forgeListPrLabelCandidates"
+    },
+    "procedure:forgeListPrReviewerCandidates": {
+      "kind": "procedure",
+      "id": "forgeListPrReviewerCandidates"
+    },
     "procedure:forgeListPrs": {
       "kind": "procedure",
       "id": "forgeListPrs"
@@ -145,6 +161,10 @@
     "procedure:forgeListPullRequests": {
       "kind": "procedure",
       "id": "forgeListPullRequests"
+    },
+    "procedure:forgeListPullRequestsInState": {
+      "kind": "procedure",
+      "id": "forgeListPullRequestsInState"
     },
     "procedure:forgeMarkPrReady": {
       "kind": "procedure",
@@ -166,13 +186,29 @@
       "kind": "procedure",
       "id": "forgeReopenPr"
     },
+    "procedure:forgeRequestPrReviewers": {
+      "kind": "procedure",
+      "id": "forgeRequestPrReviewers"
+    },
     "procedure:forgeSetPrFileViewed": {
       "kind": "procedure",
       "id": "forgeSetPrFileViewed"
     },
+    "procedure:forgeSetPrLabels": {
+      "kind": "procedure",
+      "id": "forgeSetPrLabels"
+    },
+    "procedure:forgeSetPrReaction": {
+      "kind": "procedure",
+      "id": "forgeSetPrReaction"
+    },
     "procedure:forgeSubmitPrReview": {
       "kind": "procedure",
       "id": "forgeSubmitPrReview"
+    },
+    "procedure:forgeSubmitPrReviewDraft": {
+      "kind": "procedure",
+      "id": "forgeSubmitPrReviewDraft"
     },
     "procedure:forgeUpdatePrBranch": {
       "kind": "procedure",

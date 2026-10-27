@@ -1,11 +1,13 @@
 import { z } from "zod";
 import {
   agentKindSchema,
+  hasSendableInput,
   promptSegmentSchema,
   projectLocationSchema,
   projectNotesSchema,
   projectSchema,
   runtimeEventSchema,
+  sendableInput,
   threadConfigSchema,
   threadContextUsageSchema,
   threadPresentationModeSchema,
@@ -35,18 +37,20 @@ export const pickFilesOptionsSchema = z
 
 export const quickComposerSubmissionSchema = z.object({
   projectId: z.string().min(1),
-  input: z.object({
-    agentKind: agentKindSchema,
-    config: threadConfigSchema,
-    prompt: z.string().min(1),
-    segments: z.array(promptSegmentSchema).optional(),
-    existingWorktreePath: z.string().min(1).optional(),
-    worktreeBranch: z.string().min(1).optional(),
-    worktreeBaseBranch: z.string().min(1).optional(),
-    worktreeIsNewBranch: z.boolean().optional(),
-    worktreeTransferUncommitted: z.boolean().optional(),
-    presentationMode: threadPresentationModeSchema.optional(),
-  }),
+  input: z
+    .object({
+      agentKind: agentKindSchema,
+      config: threadConfigSchema,
+      prompt: z.string(),
+      segments: z.array(promptSegmentSchema).optional(),
+      existingWorktreePath: z.string().min(1).optional(),
+      worktreeBranch: z.string().min(1).optional(),
+      worktreeBaseBranch: z.string().min(1).optional(),
+      worktreeIsNewBranch: z.boolean().optional(),
+      worktreeTransferUncommitted: z.boolean().optional(),
+      presentationMode: threadPresentationModeSchema.optional(),
+    })
+    .refine(hasSendableInput, sendableInput),
 });
 export type QuickComposerSubmission = z.infer<typeof quickComposerSubmissionSchema>;
 

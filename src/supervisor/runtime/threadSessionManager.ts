@@ -1084,6 +1084,16 @@ export class ThreadSessionManager {
     const pending = this.startLocks.get(threadId);
     if (pending) {
       if (payload.providerSwitch) {
+        const pendingStart = this.workspaceStarts.get(threadId);
+        if (pendingStart) {
+          if (pendingStart.agentKind !== payload.providerSwitch.fromAgentKind) {
+            throw new Error(
+              `Provider switch is stale: thread ${threadId} now belongs to ${pendingStart.agentKind}.`,
+            );
+          }
+          this.pendingStartAborts.add(threadId);
+          this.spawnPipeline.cancelPendingStart(threadId);
+        }
         await pending;
         return this.startThread(payload);
       }
@@ -1450,6 +1460,10 @@ export class ThreadSessionManager {
     const session = this.requireSession(threadId);
     if (session.structuredSession?.controlGoal) {
       await session.structuredSession.controlGoal(control);
+      return;
+    }
+    if (control.action === "pause" && session.adapter.goalPauseInterruptsTurn) {
+      await this.interruptThread({ threadId });
       return;
     }
     const prompt = session.adapter.buildGoalControlPrompt?.(control);

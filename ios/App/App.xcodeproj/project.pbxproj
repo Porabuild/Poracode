@@ -134,6 +134,9 @@
 		PU2000000000000000000008 /* PullRequestReviewActionSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = PU1000000000000000000008 /* PullRequestReviewActionSheet.swift */; };
 		PU2000000000000000000009 /* PullRequestDiffView.swift in Sources */ = {isa = PBXBuildFile; fileRef = PU1000000000000000000009 /* PullRequestDiffView.swift */; };
 		PU2000000000000000000010 /* PullRequestReviewSections.swift in Sources */ = {isa = PBXBuildFile; fileRef = PU1000000000000000000010 /* PullRequestReviewSections.swift */; };
+		PU2000000000000000000011 /* PullRequestReviewMetadata.swift in Sources */ = {isa = PBXBuildFile; fileRef = PU1000000000000000000011 /* PullRequestReviewMetadata.swift */; };
+		PU2000000000000000000012 /* PullRequestReviewMetadataViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = PU1000000000000000000012 /* PullRequestReviewMetadataViews.swift */; };
+		PU2000000000000000000013 /* PullRequestMetadataSheets.swift in Sources */ = {isa = PBXBuildFile; fileRef = PU1000000000000000000013 /* PullRequestMetadataSheets.swift */; };
 		GA2000000000000000000001 /* GitHubActionsProjectsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = GA1000000000000000000001 /* GitHubActionsProjectsView.swift */; };
 		GA2000000000000000000002 /* GitHubActionsPageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = GA1000000000000000000002 /* GitHubActionsPageView.swift */; };
 		GA2000000000000000000003 /* GitHubWorkflowRunsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = GA1000000000000000000003 /* GitHubWorkflowRunsView.swift */; };
@@ -584,6 +587,7 @@
 		A6B6B6B600000000000000C6 /* RichChatFollowUpQueueReplaySlotTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6B6B6B600000000000000C6 /* RichChatFollowUpQueueReplaySlotTests.swift */; };
 		FE1000000005 /* TerminalStartReachabilityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE2000000005 /* TerminalStartReachabilityTests.swift */; };
 		PU4000000000000000000001 /* PullRequestReviewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = PU3000000000000000000001 /* PullRequestReviewTests.swift */; };
+		PU4000000000000000000002 /* PullRequestMetadataTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = PU3000000000000000000002 /* PullRequestMetadataTests.swift */; };
 		A20000000000000000000009 /* RichChatTerminalLocalWebSocketTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000009 /* RichChatTerminalLocalWebSocketTests.swift */; };
 		D6A6717A27F452A1C207A201 /* RemoteAPIClientCompressionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D6A6717A27F452A1C207A202 /* RemoteAPIClientCompressionTests.swift */; };
 		A30000000000000000000001 /* ProjectWorkspaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B30000000000000000000001 /* ProjectWorkspaceView.swift */; };
@@ -974,6 +978,9 @@
 		PU1000000000000000000008 /* PullRequestReviewActionSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PullRequestReviewActionSheet.swift; sourceTree = "<group>"; };
 		PU1000000000000000000009 /* PullRequestDiffView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PullRequestDiffView.swift; sourceTree = "<group>"; };
 		PU1000000000000000000010 /* PullRequestReviewSections.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PullRequestReviewSections.swift; sourceTree = "<group>"; };
+		PU1000000000000000000011 /* PullRequestReviewMetadata.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PullRequestReviewMetadata.swift; sourceTree = "<group>"; };
+		PU1000000000000000000012 /* PullRequestReviewMetadataViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PullRequestReviewMetadataViews.swift; sourceTree = "<group>"; };
+		PU1000000000000000000013 /* PullRequestMetadataSheets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PullRequestMetadataSheets.swift; sourceTree = "<group>"; };
 		GA1000000000000000000001 /* GitHubActionsProjectsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitHubActionsProjectsView.swift; sourceTree = "<group>"; };
 		GA1000000000000000000002 /* GitHubActionsPageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitHubActionsPageView.swift; sourceTree = "<group>"; };
 		GA1000000000000000000003 /* GitHubWorkflowRunsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitHubWorkflowRunsView.swift; sourceTree = "<group>"; };
@@ -1426,6 +1433,7 @@
 		B6B6B6B600000000000000C6 /* RichChatFollowUpQueueReplaySlotTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatFollowUpQueueReplaySlotTests.swift; sourceTree = "<group>"; };
 		FE2000000005 /* TerminalStartReachabilityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalStartReachabilityTests.swift; sourceTree = "<group>"; };
 		PU3000000000000000000001 /* PullRequestReviewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PullRequestReviewTests.swift; sourceTree = "<group>"; };
+		PU3000000000000000000002 /* PullRequestMetadataTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PullRequestMetadataTests.swift; sourceTree = "<group>"; };
 		B20000000000000000000009 /* RichChatTerminalLocalWebSocketTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatTerminalLocalWebSocketTests.swift; sourceTree = "<group>"; };
 		D6A6717A27F452A1C207A202 /* RemoteAPIClientCompressionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteAPIClientCompressionTests.swift; sourceTree = "<group>"; };
 		B30000000000000000000001 /* ProjectWorkspaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectWorkspaceView.swift; sourceTree = "<group>"; };
@@ -2767,6 +2775,7 @@
 				B2000000000000000000000B /* TerminalRawKeyInputTests.swift */,
 				FE2000000005 /* TerminalStartReachabilityTests.swift */,
 				PU3000000000000000000001 /* PullRequestReviewTests.swift */,
+				PU3000000000000000000002 /* PullRequestMetadataTests.swift */,
 				B20000000000000000000009 /* RichChatTerminalLocalWebSocketTests.swift */,
 				D6A6717A27F452A1C207A202 /* RemoteAPIClientCompressionTests.swift */,
 				B30000000000000000000009 /* ProjectWorkspacePresentationTests.swift */,
@@ -2955,6 +2964,9 @@
 				PU1000000000000000000008 /* PullRequestReviewActionSheet.swift */,
 				PU1000000000000000000009 /* PullRequestDiffView.swift */,
 				PU1000000000000000000010 /* PullRequestReviewSections.swift */,
+				PU1000000000000000000011 /* PullRequestReviewMetadata.swift */,
+				PU1000000000000000000012 /* PullRequestReviewMetadataViews.swift */,
+				PU1000000000000000000013 /* PullRequestMetadataSheets.swift */,
 				FC1000000000000000000004 /* PullRequestGuideView.swift */,
 			);
 			path = PullRequests;
@@ -3664,6 +3676,9 @@
 				PU2000000000000000000008 /* PullRequestReviewActionSheet.swift in Sources */,
 				PU2000000000000000000009 /* PullRequestDiffView.swift in Sources */,
 				PU2000000000000000000010 /* PullRequestReviewSections.swift in Sources */,
+				PU2000000000000000000011 /* PullRequestReviewMetadata.swift in Sources */,
+				PU2000000000000000000012 /* PullRequestReviewMetadataViews.swift in Sources */,
+				PU2000000000000000000013 /* PullRequestMetadataSheets.swift in Sources */,
 				A1000000000000000000009B /* GeneratedRichChatContract.swift in Sources */,
 				A1000000000000000000009C /* GeneratedRichChatProcedureContract.swift in Sources */,
 				A1000000000000000000009D /* RichChatRawHTTPClient.swift in Sources */,
@@ -4062,6 +4077,7 @@
 				A2000000000000000000000B /* TerminalRawKeyInputTests.swift in Sources */,
 				FE1000000005 /* TerminalStartReachabilityTests.swift in Sources */,
 				PU4000000000000000000001 /* PullRequestReviewTests.swift in Sources */,
+				PU4000000000000000000002 /* PullRequestMetadataTests.swift in Sources */,
 				A20000000000000000000009 /* RichChatTerminalLocalWebSocketTests.swift in Sources */,
 				D6A6717A27F452A1C207A201 /* RemoteAPIClientCompressionTests.swift in Sources */,
 				A30000000000000000000009 /* ProjectWorkspacePresentationTests.swift in Sources */,

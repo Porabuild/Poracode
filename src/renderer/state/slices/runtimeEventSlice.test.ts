@@ -1063,6 +1063,38 @@ describe("runtimeEventSlice.applyRuntimeEvent", () => {
     expect(store.getState().runtimeItemIdsByThread["t2"]).toEqual(["i2"]);
   });
 
+  it("clears expired requests while keeping a transcript until recovery installs its replacement", () => {
+    apply("t1", {
+      type: "item.started",
+      threadId: "t1",
+      itemId: "i1",
+      itemType: "user_message",
+    });
+    apply("t1", {
+      type: "request.opened",
+      threadId: "t1",
+      requestId: "r1",
+      requestType: "tool_user_input",
+      payload: { summary: "Pick" },
+    });
+    store
+      .getState()
+      .hydrateThreadCompletedTurns("t1", [{ startedAt: 1, endedAt: 2, anchorItemId: "i1" }]);
+    const loaded = store.getState();
+
+    store.getState().clearThreadRuntimeEvents("t1", { keepTranscript: true });
+
+    expect(store.getState().runtimeItemIdsByThread.t1).toBe(loaded.runtimeItemIdsByThread.t1);
+    expect(store.getState().runtimeItemsByIdByThread.t1).toBe(loaded.runtimeItemsByIdByThread.t1);
+    expect(store.getState().runtimeCompletedTurnsByThread.t1).toBe(
+      loaded.runtimeCompletedTurnsByThread.t1,
+    );
+    expect(store.getState().runtimeStructuralVersionByThread.t1).toBe(
+      loaded.runtimeStructuralVersionByThread.t1,
+    );
+    expect(store.getState().runtimeRequestsByThread.t1).toBeUndefined();
+  });
+
   it.each(["checkpoint", "unloaded-checkpoint"])(
     "prunes only server-declared turn anchors when reverting %s",
     (checkpoint) => {

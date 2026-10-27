@@ -2,10 +2,12 @@ import { msg } from "@/shared/messages";
 import type {
   ForgeEditPrPayload,
   ForgeEditPrCommentPayload,
+  ForgePrReviewerCandidatesResult,
   ForgeRepository,
+  ForgeReviewDraftComment,
+  ForgeReviewerRef,
   GhCreatePrPayload,
   GhGetPrDetailsResult,
-  PrAuthor,
   PrComment,
   PrData,
   PrMergeMethod,
@@ -15,6 +17,15 @@ import type {
   PullRequestSummary,
 } from "@/shared/contracts";
 import { ForgeApi } from "./api";
+import {
+  author,
+  boundedPages,
+  inlineAnchor,
+  isUser,
+  outstandingReviewers,
+  reviewer,
+  timeline,
+} from "./bitbucketMetadata";
 import {
   checksStatus,
   encodePath,
@@ -29,15 +40,12 @@ import {
   type ForgeReviewAdapter,
 } from "./types";
 
-function author(raw: unknown): PrAuthor {
-  const r = object(raw);
-  return {
-    login: str(r.uuid) || str(r.nickname) || str(r.display_name),
-    ...(str(object(object(r.links).avatar).href)
-      ? { avatarUrl: str(object(object(r.links).avatar).href) }
-      : {}),
-  };
-}
+const LIST_STATES = {
+  open: ["OPEN"],
+  all: ["OPEN", "MERGED", "DECLINED", "SUPERSEDED"],
+  closed: ["DECLINED", "SUPERSEDED"],
+  merged: ["MERGED"],
+} as const;
 function link(raw: unknown): string {
   return str(object(object(object(raw).links).html).href);
 }
@@ -93,20 +101,24 @@ export class BitbucketReview implements ForgeReviewAdapter {
               ? "draft"
               : "open",
       updatedAt: str(r.updated_on),
-      viewerDidAuthor: author(r.author).login === this.source.account?.login,
+      viewerDidAuthor: isUser(r.author, this.source.account?.login),
       mergeable: "UNKNOWN",
       mergeStateStatus: draft ? "DRAFT" : changes ? "BLOCKED" : "UNKNOWN",
       ...(changes ? { reviewDecision: "CHANGES_REQUESTED" } : {}),
     };
   }
-  async list(state: "open" | "all", branch?: string): Promise<PullRequestSummary[]> {
+  async list(
+    state: "open" | "all" | "closed" | "merged",
+    branch?: string,
+  ): Promise<PullRequestSummary[]> {
     const query = new URLSearchParams({
       pagelen: "100",
       sort: "-updated_on",
+      // The list representation omits reviewers and participants unless requested.
+      fields: "+values.reviewers,+values.participants",
       ...(branch ? { q: `source.branch.name=${JSON.stringify(branch)}` } : {}),
     });
-    for (const value of state === "all" ? ["OPEN", "MERGED", "DECLINED", "SUPERSEDED"] : ["OPEN"])
-      query.append("state", value);
+    for (const value of LIST_STATES[state]) query.append("state", value);
     return (await this.api.list(`${this.path()}?${query}`, "values")).map((r) => ({
       pr: this.pr(r),
       headBranch: str(object(object(r.source).branch).name),
@@ -114,9 +126,7 @@ export class BitbucketReview implements ForgeReviewAdapter {
       additions: 0,
       deletions: 0,
       repository: this.source.repository,
-      reviewRequested: rows(r.reviewers).some(
-        (a) => author(a).login === this.source.account?.login,
-      ),
+      reviewRequested: outstandingReviewers(r).some((a) => isUser(a, this.source.account?.login)),
     }));
   }
   async checks(number: number) {
@@ -156,18 +166,28 @@ export class BitbucketReview implements ForgeReviewAdapter {
         isResolved: Boolean(root.resolution),
         isOutdated: false,
         ...(str(inline.path) ? { path: str(inline.path) } : {}),
-        ...(num(inline.to) || num(inline.from) ? { line: num(inline.to) || num(inline.from) } : {}),
+        // `inline.to` is the new-side line and `inline.from` the old-side line of a removed line.
+        ...(num(inline.to)
+          ? { line: num(inline.to), side: "RIGHT" }
+          : num(inline.from)
+            ? { line: num(inline.from), side: "LEFT" }
+            : {}),
         comments: group.map(comment),
       };
     });
   }
   async details(number: number): Promise<GhGetPrDetailsResult> {
-    const [r, comments, commits, files, checks] = await Promise.all([
+    const [r, comments, commits, files, checks, activity] = await Promise.all([
       this.api.json(this.path(number)),
       this.comments(number),
       this.api.list(`${this.path(number)}/commits?pagelen=100`, "values"),
       this.files(number),
       this.checks(number),
+      // Optional and bounded: the newest entries hold the latest state changes.
+      boundedPages(this.api, `${this.path(number)}/activity?pagelen=50`, 3).then(
+        (page) => page.values,
+        () => undefined,
+      ),
     ]);
     const pr = this.pr(r),
       status = checksStatus(checks);
@@ -207,6 +227,8 @@ export class BitbucketReview implements ForgeReviewAdapter {
         comments: comments.filter((c) => c.deleted !== true && !c.inline && !c.parent).map(comment),
         reviews,
         checks,
+        requestedReviewers: outstandingReviewers(r).flatMap((u) => reviewer(u) ?? []),
+        ...(activity ? { timeline: timeline(r, activity) } : {}),
       },
     };
   }
@@ -268,13 +290,81 @@ export class BitbucketReview implements ForgeReviewAdapter {
       close_source_branch: false,
     });
   }
-  async setState(number: number, state: "closed" | "open" | "ready") {
+  async setState(number: number, state: "closed" | "open" | "ready" | "draft") {
     if (state === "open") unsupported(this.source);
-    await this.api.json(
-      state === "ready" ? this.path(number) : `${this.path(number)}/decline`,
-      state === "ready" ? "PUT" : "POST",
-      state === "ready" ? { draft: false } : {},
-    );
+    if (state === "closed") await this.api.json(`${this.path(number)}/decline`, "POST", {});
+    else await this.api.json(this.path(number), "PUT", { draft: state === "draft" });
+  }
+  async reviewerCandidates(
+    number: number,
+    query?: string,
+  ): Promise<ForgePrReviewerCandidatesResult> {
+    const workspace = this.source.repository.split("/")[0] ?? "";
+    const [r, members] = await Promise.all([
+      this.api.json(this.path(number)),
+      boundedPages(this.api, `workspaces/${encodeURIComponent(workspace)}/members?pagelen=100`, 3),
+    ]);
+    // Bitbucket refuses the author as a reviewer; members have no host-side name search.
+    const owner = str(object(r.author).uuid),
+      needle = query?.toLowerCase();
+    const matches = members.values.flatMap((m) => {
+      const value = reviewer(m.user);
+      if (!value || value.id === owner) return [];
+      return !needle ||
+        [value.login, value.name ?? ""].some((t) => t.toLowerCase().includes(needle))
+        ? [value]
+        : [];
+    });
+    return {
+      reviewers: matches.slice(0, 50),
+      truncated: members.truncated || matches.length > 50,
+    };
+  }
+  /** Bitbucket replaces the whole reviewer list, so the current one is read first. */
+  async requestReviewers(number: number, add: ForgeReviewerRef[], remove: ForgeReviewerRef[]) {
+    if ([...add, ...remove].some((ref) => ref.team)) unsupported(this.source);
+    const r = await this.api.json(this.path(number));
+    const ids = new Set(rows(r.reviewers).map((u) => str(u.uuid)));
+    for (const ref of add) ids.add(ref.id);
+    for (const ref of remove) ids.delete(ref.id);
+    ids.delete("");
+    await this.api.json(this.path(number), "PUT", {
+      title: str(r.title),
+      reviewers: [...ids].map((uuid) => ({ uuid })),
+    });
+  }
+  /** A single-commit spec diffs that commit against its first parent. */
+  commitDiff(number: number, commit: string) {
+    return this.api.text(`${this.repo}/diff/${encodeURIComponent(commit)}`);
+  }
+  /**
+   * Not atomic: each line comment, then the decision, then the summary are separate
+   * writes. Bitbucket comments cannot pin `headSha`; the service already checked it.
+   */
+  async submitDraft(
+    number: number,
+    input: {
+      decision: PrReviewDecision;
+      body: string;
+      headSha: string;
+      comments: ForgeReviewDraftComment[];
+    },
+  ) {
+    let wrote = false;
+    const post = async (path: string, body?: unknown) => {
+      await this.api.json(`${this.path(number)}/${path}`, "POST", body);
+      wrote = true;
+    };
+    try {
+      for (const c of input.comments)
+        await post("comments", { content: { raw: c.body }, inline: inlineAnchor(c) });
+      if (input.decision !== "comment")
+        await post(input.decision === "approve" ? "approve" : "request-changes");
+      if (input.body.trim()) await post("comments", { content: { raw: input.body } });
+    } catch (error) {
+      if (wrote) throw new Error(msg("forge.reviewDraftPartial"), { cause: error });
+      throw error;
+    }
   }
   async updateBranch(): Promise<void> {
     unsupported(this.source);

@@ -101,12 +101,15 @@ import { isRemoteProcedure } from "../remote/procedures";
 // loud-refuse before launch; old control/reservation schemas and hop18 stay valid.
 // Synced review marks, owned-comment edits and guides add capability-gated names.
 // Existing shapes remain valid; older peers reject new names before effects.
+// Review labels, reviewers, reactions, line-comment drafts, commit diffs, draft
+// conversion and state lists add new names plus optional result fields and
+// capabilities. Older peers reject the names before effects; hop 18 stays.
 // Prompt rail: `dbGetThreadPromptIndex` is an additive read routed to the
 // owning host through the remote IPC adapter (`thread-history-prompts`). An
 // older main/host rejects the unknown name, and an older paired host answers
 // 404 for the route, before any effect; the renderer treats both as "no index"
 // (the rail shows the loaded transcript), so hop 18 stays compatible.
-const HOP_PIN = `${IPC_PROCEDURE_MAP_VERSION}:ac211d43b984acd92a94b07d458cc054065a7fba04d0129b0f8d565a21dedf75`;
+const HOP_PIN = `${IPC_PROCEDURE_MAP_VERSION}:e5e8ee6be85faf8c4ec6fb07a9160fabbc70d92604ea951b4c4eb6626205714e`;
 
 describe("IPC procedure map versioning", () => {
   it("keeps nonce reservations local, closed and distinct from legacy execution control", () => {

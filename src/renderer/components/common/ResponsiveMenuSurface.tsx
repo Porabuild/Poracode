@@ -75,6 +75,7 @@ export function ResponsiveMenuSurface(props: {
             {...(contentClassName ? { className: contentClassName } : {})}
           >
             <Popover.Dialog
+              aria-label={props.label}
               {...(props.dialogClassName ? { className: props.dialogClassName } : {})}
             >
               {desktopBody}

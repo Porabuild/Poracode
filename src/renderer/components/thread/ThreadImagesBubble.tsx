@@ -9,7 +9,7 @@ import {
   floatingGlassSurfaceClass,
 } from "@/renderer/components/layout/floatingGlass";
 import { usePanelStore } from "@/renderer/state/panelStore";
-import { useThreadGalleryCollection } from "./useThreadGalleryImages";
+import { useThreadGalleryImages } from "./useThreadGalleryImages";
 import { useThreadArtifacts } from "./threadArtifacts";
 
 /**
@@ -25,11 +25,8 @@ import { useThreadArtifacts } from "./threadArtifacts";
  */
 export function ThreadImagesBubble({ threadId }: { threadId: string }) {
   const { t } = useLingui();
-  const collection = useThreadGalleryCollection(threadId, { requestPending: false });
-  const imageCount =
-    collection.images.length +
-    collection.pendingRemoteRefs.length +
-    collection.pendingRemotePaths.length;
+  const gallery = useThreadGalleryImages(threadId, { lightbox: true, requestPending: false });
+  const imageCount = gallery.length;
   const artifacts = useThreadArtifacts(threadId);
   const panelShowing = usePanelStore((s) => s.threadDocksPanelOpen && s.rightPanelTab === "docks");
   if (imageCount === 0 && artifacts.length === 0) return null;

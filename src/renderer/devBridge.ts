@@ -126,6 +126,7 @@ export function installDevBridge(): void {
         cloneProjectModalOpen: false,
         gitOverlayOpen: false,
         prReviewContext: null,
+        pullRequestsOverlayOpen: false,
         githubActionsContext: null,
         subAgentPanelContext: null,
         browserOverlayOpen: false,

@@ -337,6 +337,9 @@ export function createDevinStructuredSessionLauncher(
                   // write stays a typed rejection, never a silent drop.
                   modelCarriesEffort: (config, sessionOptions) =>
                     devinAcknowledgedModelCarriesEffort(families ?? [], config, sessionOptions),
+                  // Live capture (fixtures/exec-terminal.json): exec is
+                  // reported before terminal/create and has no content reference.
+                  unreferencedTerminalCorrelation: "attribute-on-create" as const,
                 }
               : {}),
           },

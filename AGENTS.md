@@ -7,9 +7,11 @@ Universal AI agent orchestrator with Electron, web/PWA, and independent native i
 ## Commands
 
 - Package manager: `Bun` (version pinned in `package.json#packageManager`); Node >= 24.10.0.
+- Installed CLI: bare interactive `poracode` opens the TUI; use `poracode -p "PROMPT" --directory PATH` for one-shot runs and `poracode serve --open` for the web app.
 - `bun run dev` — run the app. `bun run build` then `bun run dist` — package it.
 - Local renderer builds skip hidden source maps; set `PORACODE_SOURCEMAPS=1` to generate them. Release CI generates them on the Sentry upload job.
 - `bun run typecheck` (Bun, all available cores; `bun run typecheck:tsc` compares with TypeScript 7), `bun run lint` (Bun), `bun run fmt` / `bun run fmt:check` (Bun), `bun run test` (vitest).
+- TUI: `bun run tui:install`, `bun run tui:typecheck`, `bun run tui:test`, `bun run tui:dev`; validation harness and compile smoke: `bun run --cwd tui dev:opencode-server` and `bun run --cwd tui build:smoke`.
 - Targeted tests: `bun run vitest run <paths>`. Jest-only flags such as `--runInBand` do not exist here.
 - The pre-commit hook runs lint-staged (Bun lint `--type-aware --fix --deny-warnings` and format) and then `bun run typecheck`.
 
@@ -52,7 +54,7 @@ Commit or open a PR only when asked. The `commit`, `pull-request`, and `address-
 - Subject and PR title: `type(scope): subject`, imperative, lowercase after the colon, no trailing period, ≤ 72 characters.
 - Work tied to a GitHub issue puts the issue number first: `#123 fix(sidebar): show worktree identity while pending`, branch `123-short-slug`, PR body starting with `Closes #123`. Never invent an issue number.
 - Commit bodies explain why. Stage explicit paths. Never bypass hooks with `--no-verify`.
-- PRs target `master`, open as drafts unless the user says ready, and follow `.github/PULL_REQUEST_TEMPLATE.md`: Summary, Why, Benefits, How verified, Before / After screenshots for any visible UI change, Risk & rollback.
+- PRs target `master`, open as drafts unless the user says ready, and follow `.github/PULL_REQUEST_TEMPLATE.md`: Summary, Why, Benefits, How verified, Before / After (screenshots only when they help review a visible change), Risk & rollback.
 
 ## Skills
 

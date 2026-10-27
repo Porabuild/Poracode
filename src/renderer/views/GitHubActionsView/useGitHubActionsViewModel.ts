@@ -13,6 +13,7 @@ import { isHomeProject } from "@/shared/homeScope";
 import { friendlyError } from "@/shared/messages";
 import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useReachableProjectFilter } from "@/renderer/state/remoteServers/reachability";
 import { useSidebarUiStore } from "@/renderer/state/sidebarUiStore";
 
 const POLL_INTERVAL_MS = 5_000;
@@ -164,9 +165,12 @@ export function resetGitHubActionsCaches(): void {
 
 export function useGitHubActionsViewModel(props: { projectId?: string; runId?: number }) {
   const { t } = useLingui();
+  const isReachable = useReachableProjectFilter();
   const activeProjects = useAppStore(
     useShallow((state) =>
-      state.projects.filter((project) => !project.disabled && !isHomeProject(project)),
+      state.projects.filter(
+        (project) => !project.disabled && !isHomeProject(project) && isReachable(project),
+      ),
     ),
   );
   const openGitHubActions = useAppStore((state) => state.openGitHubActions);

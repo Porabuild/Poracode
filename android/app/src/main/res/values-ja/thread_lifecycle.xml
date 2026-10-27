@@ -24,4 +24,6 @@
     <string name="archived_threads_title">アーカイブ済みスレッド</string>
     <string name="archived_threads_description">アーカイブしたスレッドを復元、または完全に削除します。</string>
     <string name="archived_threads_empty">アーカイブ済みスレッドはありません</string>
+    <string name="thread_status_starting_agent">エージェントを起動中…</string>
+    <string name="thread_status_resuming">セッションを再開中…</string>
 </resources>

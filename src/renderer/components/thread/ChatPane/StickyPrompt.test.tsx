@@ -133,6 +133,40 @@ describe("StickyPrompt", () => {
     expect(onScrollToEntry).toHaveBeenCalledWith(2);
   });
 
+  it("shows a skill in the prompt as the chip the message uses, keeping the readable name", () => {
+    useAppStore.setState({
+      runtimeItemsByIdByThread: {
+        [THREAD_ID]: {
+          ...useAppStore.getState().runtimeItemsByIdByThread[THREAD_ID]!,
+          "prompt-1": {
+            ...message("prompt-1", "user_message", ""),
+            payload: {
+              content: [
+                {
+                  kind: "skill",
+                  name: "finalize",
+                  invocation: "$finalize",
+                  provider: "fixture",
+                  scope: "project",
+                },
+                { kind: "text", text: "  the\n release" },
+              ],
+            },
+          },
+        },
+      },
+    });
+    const { scroller, scrollTo } = createScroller();
+    renderStickyPrompt(scroller);
+    scrollTo(ROW_HEIGHT);
+
+    const button = screen.getByRole("button", { name: "Scroll to prompt: $finalize the release" });
+    const chip = button.querySelector(".poracode-slash-chip");
+    expect(chip).toHaveAttribute("data-skill-name", "finalize");
+    expect(chip?.querySelector(".poracode-slash-chip__name")).toHaveTextContent("finalize");
+    expect(button).toHaveTextContent("finalize the release");
+  });
+
   it("keeps an 8px gap as the next prompt pushes the previous sticky prompt out", () => {
     const { scroller, scrollTo } = createScroller();
     renderStickyPrompt(scroller);

@@ -94,6 +94,7 @@ export async function buildBoundedThreadSnapshot(
       );
       const input = {
         compactDetails: negotiation.compactDetails === true,
+        deferFileChangeBodies: negotiation.deferFileChangeBodies === true,
         includeTerminalScrollback: readsTerminal && !options.omitScrollback,
         completedTurnsLimit: negotiation.completedTurnsLimit,
         targetTimelineEntryCount,
@@ -232,6 +233,7 @@ export async function buildBoundedThreadHistoryItems(
   caps: CatalogEffectiveCaps,
   runtimeNotice?: RemoteRuntimeHistoryNotice,
   compactDetails = false,
+  deferFileChangeBodies = false,
 ): Promise<string> {
   if (!dbGetThread(input.threadId)) {
     throw new RemoteHttpError("thread_not_found", "Thread not found.", 404);
@@ -240,8 +242,17 @@ export async function buildBoundedThreadHistoryItems(
   await flushHistoryFenceOrThrow(input.threadId, fenceToken);
   try {
     return await readRuntimeFenceAsync(fenceToken, () =>
-      readDatabaseAsync("boundedItems", [input, caps, runtimeNotice, compactDetails], () =>
-        readBoundedHistoryItems(input, caps, runtimeNotice, compactDetails),
+      readDatabaseAsync(
+        "boundedItems",
+        [input, caps, runtimeNotice, compactDetails, deferFileChangeBodies],
+        () =>
+          readBoundedHistoryItems(
+            input,
+            caps,
+            runtimeNotice,
+            compactDetails,
+            deferFileChangeBodies,
+          ),
       ),
     );
   } catch (error) {

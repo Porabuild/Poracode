@@ -94,6 +94,9 @@ describe("Command Code ACP capability discovery", () => {
       },
     });
     expect(result?.models?.map((model) => model.id)).toEqual(["plain-model", "reasoning-model"]);
+    // Terminal-probed ladders start at "low"; the declared default keeps new
+    // drafts at medium wherever a model lists it.
+    expect(result?.defaultEffort).toBe("medium");
     expect(cli).toHaveBeenCalledTimes(1);
     expect(probe.mock.calls[0]?.[1]).toEqual(["acp"]);
     expect(probe.mock.calls[0]?.[3]).toMatchObject({

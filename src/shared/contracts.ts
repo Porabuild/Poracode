@@ -12,6 +12,7 @@ export * from "./contracts/github";
 export * from "./contracts/forge";
 export * from "./contracts/forgeOperations";
 export * from "./contracts/githubResults";
+export * from "./contracts/prMetadata";
 export * from "./contracts/appView";
 export * from "./contracts/agentEvent";
 export * from "./contracts/runtimeEvent";

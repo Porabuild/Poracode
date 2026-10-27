@@ -61,9 +61,11 @@ enum ThreadLifecycleStrings {
   )
   static let actionFailed = localized("thread.lifecycle.failed", "Thread Action Failed")
 
-  static func status(_ value: String) -> String {
+  static func status(_ value: String, hasSessionRef: Bool = false) -> String {
     switch value {
-    case "launching": localized("thread.status.launching", "Launching…")
+    case "launching": hasSessionRef
+      ? localized("thread.status.resuming", "Resuming session…")
+      : localized("thread.status.launching", "Starting agent…")
     case "inactive": localized("thread.status.inactive", "Inactive")
     case "error": localized("thread.status.error", "Error")
     case "finished": localized("thread.status.finished", "Finished")

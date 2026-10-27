@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
 import { tmpdir } from "node:os";
@@ -34,6 +35,8 @@ async function startFakeAuthServer(options: {
   refreshGate?: Promise<void>;
   codeExchangeGate?: Promise<void>;
   omitCodeScope?: boolean;
+  issParameterSupported?: boolean;
+  protectedResourceMetadata?: boolean;
 }): Promise<FakeAuthServer> {
   const tokenRequests: URLSearchParams[] = [];
   const registerRequests: string[] = [];
@@ -43,6 +46,17 @@ async function startFakeAuthServer(options: {
   server = createServer((req, res) => {
     const url = new URL(req.url ?? "/", origin);
     if (req.method === "GET" && url.pathname.includes("oauth-protected-resource")) {
+      if (options.protectedResourceMetadata) {
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(
+          JSON.stringify({
+            resource: `${origin}/mcp`,
+            authorization_servers: [origin],
+            scopes_supported: ["notes:read"],
+          }),
+        );
+        return;
+      }
       res.writeHead(404).end();
       return;
     }
@@ -58,6 +72,9 @@ async function startFakeAuthServer(options: {
           grant_types_supported: ["authorization_code", "refresh_token"],
           code_challenge_methods_supported: ["S256"],
           token_endpoint_auth_methods_supported: ["none"],
+          ...(options.issParameterSupported !== undefined
+            ? { authorization_response_iss_parameter_supported: options.issParameterSupported }
+            : {}),
         }),
       );
       return;
@@ -203,7 +220,7 @@ function httpServer(url: string): McpServer {
   };
 }
 
-async function completeBrowserLeg(authorizationUrl: string): Promise<void> {
+async function completeBrowserLeg(authorizationUrl: string, iss?: string): Promise<void> {
   const url = new URL(authorizationUrl);
   const redirectUri = url.searchParams.get("redirect_uri");
   const state = url.searchParams.get("state");
@@ -212,11 +229,137 @@ async function completeBrowserLeg(authorizationUrl: string): Promise<void> {
   const callback = new URL(redirectUri as string);
   callback.searchParams.set("code", "fake-code");
   callback.searchParams.set("state", state ?? "");
+  if (iss !== undefined) callback.searchParams.set("iss", iss);
   const response = await fetch(callback);
   expect(response.status).toBe(200);
 }
 
 describe("McpOAuthService", () => {
+  it.each([false, true])(
+    "completes issuer-bound sign-in with existing credentials: %s",
+    async (existingCredentials) => {
+      const fake = await startFakeAuthServer({ expiresIn: 3600, issParameterSupported: true });
+      const dir = tempDir();
+      const server = httpServer(fake.url);
+      if (existingCredentials)
+        seedV1Store(dir, `${fake.url}/mcp`, { access_token: "expired", expires_in: 1 });
+      const service = makeServiceAt(dir);
+      const begin = await service.begin({ server });
+      if (begin.status !== "redirect") throw new Error("Expected redirect");
+
+      await completeBrowserLeg(begin.authorizationUrl, fake.url);
+      expect(await service.wait({ flowId: begin.flowId })).toEqual({ status: "authorized" });
+      expect(fake.tokenRequests).toHaveLength(1);
+      expect(fake.tokenRequests[0]?.get("code")).toBe("fake-code");
+      expect((await service.applyAuthorizationToServer(server)).transport).toMatchObject({
+        headers: { Authorization: "Bearer at-1" },
+      });
+    },
+  );
+
+  it.each([
+    { issParameterSupported: true, iss: undefined },
+    { issParameterSupported: true, iss: "" },
+    { issParameterSupported: true, iss: "https://other.example" },
+    { issParameterSupported: false, iss: "https://other.example" },
+  ])("rejects an invalid callback issuer: %j", async ({ issParameterSupported, iss }) => {
+    const fake = await startFakeAuthServer({ expiresIn: 3600, issParameterSupported });
+    const service = makeService();
+    const begin = await service.begin({ server: httpServer(fake.url) });
+    if (begin.status !== "redirect") throw new Error("Expected redirect");
+
+    await completeBrowserLeg(begin.authorizationUrl, iss);
+    expect(await service.wait({ flowId: begin.flowId })).toMatchObject({
+      status: "error",
+      message: "The sign-in response did not match the expected authorization server.",
+    });
+    expect(fake.tokenRequests).toEqual([]);
+    expect(service.status().authenticatedUrls).toEqual([]);
+  });
+
+  it("preserves discovered resource, scope, PKCE and issuer-stamped credentials", async () => {
+    const fake = await startFakeAuthServer({
+      expiresIn: 3600,
+      issParameterSupported: true,
+      protectedResourceMetadata: true,
+    });
+    const dir = tempDir();
+    const service = makeServiceAt(dir);
+    const server = httpServer(fake.url);
+    const begin = await service.begin({ server });
+    if (begin.status !== "redirect") throw new Error("Expected redirect");
+    const authorization = new URL(begin.authorizationUrl).searchParams;
+    expect(authorization.get("resource")).toBe(`${fake.url}/mcp`);
+    expect(authorization.get("scope")).toBe("notes:read");
+    expect(authorization.get("code_challenge_method")).toBe("S256");
+    expect(JSON.parse(fake.registerRequests[0]!)).toMatchObject({
+      redirect_uris: [authorization.get("redirect_uri")],
+      grant_types: ["authorization_code", "refresh_token"],
+      response_types: ["code"],
+      token_endpoint_auth_method: "none",
+      application_type: "native",
+      scope: "notes:read",
+    });
+
+    await completeBrowserLeg(begin.authorizationUrl, fake.url);
+    expect(await service.wait({ flowId: begin.flowId })).toEqual({ status: "authorized" });
+    const request = fake.tokenRequests[0]!;
+    expect(request.get("resource")).toBe(`${fake.url}/mcp`);
+    expect(request.get("redirect_uri")).toBe(authorization.get("redirect_uri"));
+    expect(createHash("sha256").update(request.get("code_verifier")!).digest("base64url")).toBe(
+      authorization.get("code_challenge"),
+    );
+    const store = JSON.parse(readFileSync(join(dir, "mcp-oauth.json"), "utf8")) as {
+      servers: Record<string, { clientInformation: string; tokens: string }>;
+    };
+    const entry = store.servers[`${fake.url}/mcp`]!;
+    expect(JSON.parse(decryptSecret(dir, entry.clientInformation))).toMatchObject({
+      client_id: "fake-client",
+      issuer: fake.url,
+      scope: "notes:read",
+    });
+    expect(JSON.parse(decryptSecret(dir, entry.tokens))).toMatchObject({
+      access_token: "at-1",
+      refresh_token: "rt-1",
+      token_type: "Bearer",
+      expires_in: 3600,
+      scope: "notes:read",
+      issuer: fake.url,
+    });
+    expect((await makeServiceAt(dir).applyAuthorizationToServer(server)).transport).toMatchObject({
+      headers: { Authorization: "Bearer at-1" },
+    });
+  });
+
+  it.each(["matching", "mismatched", "missing"])(
+    "validates the %s issuer before displaying an OAuth denial",
+    async (issuer) => {
+      const fake = await startFakeAuthServer({ expiresIn: 3600, issParameterSupported: true });
+      const service = makeService();
+      const begin = await service.begin({ server: httpServer(fake.url) });
+      if (begin.status !== "redirect") throw new Error("Expected redirect");
+      const authorization = new URL(begin.authorizationUrl).searchParams;
+      const callback = new URL(authorization.get("redirect_uri")!);
+      callback.searchParams.set("state", authorization.get("state")!);
+      callback.searchParams.set("error", "access_denied");
+      callback.searchParams.set("error_description", "server-provided denial");
+      if (issuer !== "missing")
+        callback.searchParams.set(
+          "iss",
+          issuer === "matching" ? fake.url : "https://other.example",
+        );
+      expect((await fetch(callback)).status).toBe(200);
+      expect(await service.wait({ flowId: begin.flowId })).toEqual({
+        status: "error",
+        message:
+          issuer === "matching"
+            ? "server-provided denial"
+            : "The sign-in response did not match the expected authorization server.",
+      });
+      expect(fake.tokenRequests).toEqual([]);
+    },
+  );
+
   it("keeps independent plugin account slots at the same endpoint and preserves completed browser results", async () => {
     const fake = await startFakeAuthServer({ expiresIn: 3600 });
     const service = makeService();

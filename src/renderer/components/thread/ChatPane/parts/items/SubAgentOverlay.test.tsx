@@ -595,7 +595,81 @@ describe("SubAgentContent", () => {
     );
   });
 
-  it("waits for history replay and Markdown before mounting the transcript", async () => {
+  it.each(["running", "completed"] as const)(
+    "shows cached %s Crossagent content while resubscribing after a remount",
+    async (status) => {
+      await DeferredItemMarkdownInner.preload();
+      const threadId = "thread-1";
+      const parentItem: RuntimeChatItem = {
+        ...makeSubAgentItem("parent-1"),
+        state: status === "running" ? "started" : "completed",
+        payload: {
+          name: "Cached task",
+          status: status === "running" ? "running" : "success",
+          isCrossagent: true,
+        } satisfies ToolCallPayload,
+      };
+      const child = makeChildItem("assistant-1", parentItem.id, "assistant_message", undefined, {
+        assistant_text: "Cached response",
+      });
+      useAppStore.setState({
+        runtimeItemIdsByThread: { [threadId]: [parentItem.id, child.id] },
+        runtimeItemsByIdByThread: {
+          [threadId]: { [parentItem.id]: parentItem, [child.id]: child },
+        },
+        runtimeStructuralVersionByThread: { [threadId]: 1 },
+      });
+      const content = (
+        <SubAgentContent
+          threadId={threadId}
+          parentItemId={parentItem.id}
+          initialScrollRevealDelayMs={0}
+        />
+      );
+      const firstView = render(content);
+      expect(await screen.findByText("Cached response")).toBeInTheDocument();
+      firstView.unmount();
+      expect(mockBridge.subagentUnsubscribe).toHaveBeenCalledWith({
+        threadId,
+        parentItemId: parentItem.id,
+      });
+
+      const history = Promise.withResolvers<{ history: [] }>();
+      mockBridge.subagentSubscribe.mockReturnValue(history.promise);
+      render(content);
+
+      expect(await screen.findByText("Cached response")).toBeInTheDocument();
+      await waitFor(() =>
+        expect(document.querySelector("[data-poracode-chat-scroller]")).toHaveClass("opacity-100"),
+      );
+      expect(screen.queryByRole("status")).not.toBeInTheDocument();
+      expect(mockBridge.subagentSubscribe).toHaveBeenCalledTimes(2);
+      act(() => {
+        useAppStore.getState().applyRuntimeEvents(threadId, [
+          {
+            type: "item.started",
+            threadId,
+            itemId: "assistant-2",
+            itemType: "assistant_message",
+            parentItemId: parentItem.id,
+          },
+          {
+            type: "content.delta",
+            threadId,
+            itemId: "assistant-2",
+            stream: "assistant_text",
+            delta: "Updated response",
+          },
+        ]);
+      });
+      expect(await screen.findByText("Updated response")).toBeInTheDocument();
+      await act(async () => history.resolve({ history: [] }));
+      expect(screen.getByText("Cached response")).toBeInTheDocument();
+      expect(screen.getByText("Updated response")).toBeInTheDocument();
+    },
+  );
+
+  it("waits for history replay and Markdown before mounting an uncached transcript", async () => {
     const threadId = "thread-1";
     const parentItem = makeSubAgentItem("parent-1");
     const child = makeChildItem("assistant-1", parentItem.id, "assistant_message", undefined, {
@@ -614,8 +688,8 @@ describe("SubAgentContent", () => {
     });
     vi.stubGlobal("cancelIdleCallback", vi.fn());
     useAppStore.setState({
-      runtimeItemIdsByThread: { [threadId]: [parentItem.id, child.id] },
-      runtimeItemsByIdByThread: { [threadId]: { [parentItem.id]: parentItem, [child.id]: child } },
+      runtimeItemIdsByThread: { [threadId]: [parentItem.id] },
+      runtimeItemsByIdByThread: { [threadId]: { [parentItem.id]: parentItem } },
       runtimeStructuralVersionByThread: { [threadId]: 1 },
     });
     const { unmount } = render(
@@ -625,7 +699,16 @@ describe("SubAgentContent", () => {
       await act(async () => idle?.({ didTimeout: false, timeRemaining: () => 50 }));
       expect(screen.queryByText("Prepared message")).not.toBeInTheDocument();
       expect(screen.getByRole("status")).toHaveTextContent("Loading");
-      await act(async () => history.resolve({ history: [] }));
+      await act(async () => {
+        useAppStore.setState({
+          runtimeItemIdsByThread: { [threadId]: [parentItem.id, child.id] },
+          runtimeItemsByIdByThread: {
+            [threadId]: { [parentItem.id]: parentItem, [child.id]: child },
+          },
+          runtimeStructuralVersionByThread: { [threadId]: 2 },
+        });
+        history.resolve({ history: [] });
+      });
       expect(screen.queryByText("Prepared message")).not.toBeInTheDocument();
       await waitFor(() => expect(idle).toBeTypeOf("function"));
       await act(async () => idle?.({ didTimeout: false, timeRemaining: () => 50 }));

@@ -21,9 +21,10 @@ export function threadRuntimeStatusLabel(
     isWaitingForBackground?: boolean;
   },
 ): string {
-  if (opts?.isConnecting) return t(msg`Connecting…`);
+  if (opts?.isConnecting) return t(msg`Resuming session…`);
   const { status, attention } = thread;
-  if (status === "launching") return t(msg`Launching…`);
+  if (status === "launching")
+    return thread.sessionRef ? t(msg`Resuming session…`) : t(msg`Starting agent…`);
   if (status === "inactive") return t(msg`Inactive`);
   if (status === "error") return t(msg`Error`);
   if (status === "needs_approval" || attention === "needs_approval") return t(msg`Needs approval`);

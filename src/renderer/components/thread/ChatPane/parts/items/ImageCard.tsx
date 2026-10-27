@@ -7,6 +7,7 @@ import { readBridge } from "@/renderer/bridge";
 import {
   imageLightboxRevision,
   openImageLightbox,
+  updateImageLightboxFromPreview,
 } from "@/renderer/components/composer/ImageLightbox";
 import {
   getThreadGalleryImages,
@@ -50,6 +51,7 @@ export const ImageCard = memo(function ImageCard({
   // subscription) so rows never re-render on unrelated ticks. Falls back to a
   // single-image preview when rendered outside a thread.
   const threadId = useChatPaneActions()?.threadId;
+  const imageRef = useRef<HTMLImageElement>(null);
   const previewRequest = useRef({ src: source.src, threadId, version: 0 });
   useEffect(() => {
     const owner = { src: source.src, threadId, version: 0 };
@@ -86,6 +88,24 @@ export const ImageCard = memo(function ImageCard({
       openWith(source);
       return;
     }
+    // The displayed variant can be EXIF-rotated relative to source metadata.
+    const width = imageRef.current?.naturalWidth || source.width;
+    const height = imageRef.current?.naturalHeight || source.height;
+    const dimensions = width && height ? { width, height } : {};
+    openImageLightbox(
+      [
+        {
+          src: source.src,
+          previewSrc: source.src,
+          alt: imageAlt,
+          mime: source.mime,
+          fileName: source.fileName,
+          ...dimensions,
+          readBytes: async () => fetchImageBytes((await fullSource()).src),
+        },
+      ],
+      0,
+    );
     const revision = imageLightboxRevision();
     void fullSource()
       .then((full) => {
@@ -93,8 +113,31 @@ export const ImageCard = memo(function ImageCard({
           owner === previewRequest.current &&
           request === owner.version &&
           revision === imageLightboxRevision()
-        )
-          openWith(full);
+        ) {
+          const image = {
+            src: full.src,
+            previewSrc: source.src,
+            alt: imageAlt,
+            mime: source.mime,
+            fileName: source.fileName,
+            ...dimensions,
+          };
+          const gallery = threadId ? getThreadGalleryImages(threadId, { lightbox: true }) : [];
+          const galleryIndex = gallery.findIndex(
+            (candidate) =>
+              candidate.src === full.src || candidate.resource?.getSnapshot() === full.src,
+          );
+          const inGallery = galleryIndex >= 0;
+          updateImageLightboxFromPreview(
+            source.src,
+            inGallery
+              ? gallery.map((candidate, index) =>
+                  index === galleryIndex ? { ...candidate, ...image } : candidate,
+                )
+              : [image],
+            inGallery ? threadId : undefined,
+          );
+        }
       })
       .catch((error) => {
         if (
@@ -152,6 +195,7 @@ export const ImageCard = memo(function ImageCard({
             bitmap while a replacement request loads. Keep the surrounding slot. */}
         {hasSource ? (
           <img
+            ref={imageRef}
             key={source.src}
             src={source.src}
             alt={imageAlt}

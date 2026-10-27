@@ -1,6 +1,6 @@
 import { keyDownAt } from "@/renderer/testUtils/keyboard";
 import { createElement, createRef } from "react";
-import { act, createEvent, fireEvent, render, screen } from "@testing-library/react";
+import { act, createEvent, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { Globe, Monitor, Users } from "lucide-react";
 import type { PromptSegment } from "@/shared/contracts";
@@ -599,6 +599,54 @@ describe("MCP mention selection", () => {
 });
 
 describe("plugin mention selection", () => {
+  it("keeps a plugin's icon through undo and redo without relabeling its finalize skill", async () => {
+    const ref = createRef<MentionInputHandle>();
+    const { unmount } = render(
+      createElement(MentionInput, {
+        ref,
+        placeholder: "Send a message...",
+        projectLocation: undefined,
+        onTextChange: vi.fn<(hasText: boolean) => void>(),
+        onSubmit: vi.fn<(segments: PromptSegment[]) => void>(),
+      }),
+    );
+    const skill: PromptSegment = {
+      kind: "skill",
+      name: "finalize",
+      invocation: "/finalize",
+      provider: "Poracode",
+      scope: "global",
+      pluginId: "app-controls",
+    };
+    act(() => ref.current?.restoreFromSegments([skill]));
+    const editor = screen.getByRole("textbox");
+    const finalize = editor.querySelector('[data-skill-name="finalize"]');
+    expect(finalize).toHaveTextContent("finalize");
+    expect(finalize).toHaveAttribute("aria-label", "Skill: finalize");
+    expect(finalize?.querySelector("svg")).not.toBeNull();
+    expect(finalize?.querySelector("img")).toBeNull();
+
+    const segments: PromptSegment[] = [
+      { ...skill, name: "poracode", invocation: "/poracode", pluginName: "Poracode" },
+    ];
+    act(() => ref.current?.restoreFromSegments(segments, { undoable: true }));
+    await waitFor(() => expect(editor.querySelector("[data-plugin-icon] img")).not.toBeNull());
+    expect(editor.querySelector("[data-plugin-icon] svg")).toBeNull();
+    expect(editor.querySelector('[data-plugin-name="Poracode"]')).toHaveTextContent("Poracode");
+    expect(ref.current?.serializeSegments()).toEqual(segments);
+
+    fireEvent.keyDown(editor, { key: "z", ctrlKey: true });
+    await waitFor(() => expect(editor.querySelector("[data-plugin-icon]")).toBeNull());
+    expect(ref.current?.serializeSegments()).toEqual([skill]);
+    fireEvent.keyDown(editor, { key: "z", ctrlKey: true, shiftKey: true });
+    await waitFor(() => expect(editor.querySelectorAll("[data-plugin-icon] img")).toHaveLength(1));
+    expect(ref.current?.serializeSegments()).toEqual(segments);
+
+    act(() => ref.current?.clear());
+    await waitFor(() => expect(editor).toBeEmptyDOMElement());
+    unmount();
+  });
+
   it("inserts one plugin badge that preserves the core skill and plugin identity", () => {
     const ref = createRef<MentionInputHandle>();
     render(

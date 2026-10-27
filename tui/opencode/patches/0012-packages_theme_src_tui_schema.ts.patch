@@ -1,0 +1,22 @@
+diff --git a/packages/theme/src/tui/schema.ts b/packages/theme/src/tui/schema.ts
+index 7ad4eb8..b65f59c 100644
+--- a/packages/theme/src/tui/schema.ts
++++ b/packages/theme/src/tui/schema.ts
+@@ -88,6 +88,8 @@ const BackgroundFeedbackDefinition = Schema.Struct({
+ 
+ const TextDefinition = Schema.Struct({
+   base: Schema.optional(ColorValue),
++  // poracode: separate brand emphasis from action and formfield states.
++  brand: Schema.optional(ColorValue),
+   muted: Schema.optional(ColorValue),
+   faint: Schema.optional(ColorValue),
+   action: Schema.optional(ActionColorDefinition),
+@@ -222,6 +224,8 @@ const CompleteBackgroundFeedbackDefinition = Schema.Struct({ base: ColorValue })
+ const CompleteThemeTokensDefinition = Schema.Struct({
+   text: Schema.Struct({
+     base: ColorValue,
++    // poracode: themes without this token resolve it from a selected action.
++    brand: Schema.optional(ColorValue),
+     muted: ColorValue,
+     faint: Schema.optional(ColorValue),
+     action: CompleteActionColorDefinition,

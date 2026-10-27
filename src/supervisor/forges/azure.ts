@@ -2,9 +2,10 @@ import { msg } from "@/shared/messages";
 import type {
   ForgeEditPrPayload,
   ForgeRepository,
+  ForgeReviewDraftComment,
+  ForgeReviewerRef,
   GhCreatePrPayload,
   GhGetPrDetailsResult,
-  PrAuthor,
   PrComment,
   PrData,
   PrFile,
@@ -17,6 +18,14 @@ import type {
 } from "@/shared/contracts";
 import { ForgeApi } from "./api";
 import { ForgeRuntime } from "./runtime";
+import {
+  AZURE_LIST_STATUS,
+  AzureReviewMetadata,
+  author,
+  azureLabels,
+  azureRequestedReviewers,
+  azureTimeline,
+} from "./azureMetadata";
 import {
   assertHead,
   checksStatus,
@@ -32,13 +41,6 @@ import {
   type ForgeReviewAdapter,
 } from "./types";
 
-function author(raw: unknown): PrAuthor {
-  const r = object(raw);
-  return {
-    login: str(r.id) || str(r.uniqueName) || str(r.displayName),
-    ...(str(r.imageUrl) ? { avatarUrl: str(r.imageUrl) } : {}),
-  };
-}
 function comment(r: ApiObject, thread: string): PrComment {
   return {
     id: `${thread}:${String(r.id)}`,
@@ -54,6 +56,7 @@ export type AzurePatches = { files: PrFile[]; diff: string };
 export class AzureReview implements ForgeReviewAdapter {
   private readonly project: string;
   private readonly repo: string;
+  private readonly metadata: AzureReviewMetadata;
   constructor(
     readonly source: ForgeRepository,
     private readonly api: ForgeApi,
@@ -65,6 +68,12 @@ export class AzureReview implements ForgeReviewAdapter {
     if (!project || !repo) throw new Error(msg("forge.responseInvalid"));
     this.project = encodeURIComponent(project);
     this.repo = `${this.project}/_apis/git/repositories/${encodeURIComponent(repo)}`;
+    this.metadata = new AzureReviewMetadata({
+      api,
+      project: this.project,
+      url: (path, query) => this.url(path, query),
+      review: (number) => this.path(number),
+    });
   }
   private path(number?: number) {
     return `${this.repo}/pullRequests${number ? `/${number}` : ""}`;
@@ -107,14 +116,17 @@ export class AzureReview implements ForgeReviewAdapter {
       mergeStateStatus: draft ? "DRAFT" : r.mergeStatus === "conflicts" ? "DIRTY" : "UNKNOWN",
     };
   }
-  async list(state: "open" | "all", head?: string): Promise<PullRequestSummary[]> {
+  async list(
+    state: "open" | "all" | "closed" | "merged",
+    head?: string,
+  ): Promise<PullRequestSummary[]> {
     const items: ApiObject[] = [];
     for (let skip = 0; skip < 10000; skip += 100) {
       const page = rows(
         (
           await this.api.json(
             this.url(this.path(), {
-              "searchCriteria.status": state === "open" ? "active" : "all",
+              "searchCriteria.status": AZURE_LIST_STATUS[state],
               $top: "100",
               $skip: String(skip),
               ...(head ? { "searchCriteria.sourceRefName": `refs/heads/${head}` } : {}),
@@ -126,8 +138,10 @@ export class AzureReview implements ForgeReviewAdapter {
       if (page.length < 100) break;
       if (skip === 9900) throw new Error(msg("forge.pagination"));
     }
+    // Labels only when the list carries them; no per-review label reads.
     return items.map((r) => ({
       pr: this.pr(r),
+      ...(Array.isArray(r.labels) ? { labels: azureLabels(r.labels) } : {}),
       headBranch: branch(r.sourceRefName),
       author: author(r.createdBy),
       additions: 0,
@@ -176,8 +190,14 @@ export class AzureReview implements ForgeReviewAdapter {
         ),
     ];
   }
+  private rawThreads(number: number) {
+    return this.api.list(this.url(`${this.path(number)}/threads`), "value");
+  }
   async threads(number: number): Promise<PrReviewThread[]> {
-    return (await this.api.list(this.url(`${this.path(number)}/threads`), "value"))
+    return this.reviewThreads(await this.rawThreads(number));
+  }
+  private reviewThreads(raw: ApiObject[]): PrReviewThread[] {
+    return raw
       .filter((t) => t.isDeleted !== true)
       .map((t) => {
         const context = object(t.threadContext);
@@ -186,9 +206,12 @@ export class AzureReview implements ForgeReviewAdapter {
           isResolved: ["fixed", "wontFix", "closed", "byDesign"].includes(str(t.status)),
           isOutdated: false,
           ...(str(context.filePath) ? { path: str(context.filePath).replace(/^\//, "") } : {}),
+          // A thread on a removed line has only `leftFileStart`; the new side wins when both exist.
           ...(num(object(context.rightFileStart).line)
-            ? { line: num(object(context.rightFileStart).line) }
-            : {}),
+            ? { line: num(object(context.rightFileStart).line), side: "RIGHT" }
+            : num(object(context.leftFileStart).line)
+              ? { line: num(object(context.leftFileStart).line), side: "LEFT" }
+              : {}),
           comments: rows(t.comments)
             .filter((c) => c.isDeleted !== true && c.commentType !== "system")
             .map((c) => comment(c, String(t.id))),
@@ -197,8 +220,13 @@ export class AzureReview implements ForgeReviewAdapter {
   }
   private async patches(number: number): Promise<AzurePatches> {
     const r = await this.api.json(this.url(this.path(number)));
-    const base = assertHead(str(object(r.lastMergeTargetCommit).commitId)),
-      head = assertHead(str(object(r.lastMergeSourceCommit).commitId));
+    return this.sharedPatches(
+      assertHead(str(object(r.lastMergeTargetCommit).commitId)),
+      assertHead(str(object(r.lastMergeSourceCommit).commitId)),
+    );
+  }
+  /** Concurrent reads of the same base/head range share one computation. */
+  private async sharedPatches(base: string, head: string): Promise<AzurePatches> {
     const key = JSON.stringify([
       this.location,
       this.source.host,
@@ -286,14 +314,23 @@ export class AzureReview implements ForgeReviewAdapter {
   async diff(number: number) {
     return (await this.patches(number)).diff;
   }
+  /** The commit against its first parent, which is also their merge base. */
+  async commitDiff(number: number, commit: string) {
+    const raw = await this.api.json(this.url(`${this.repo}/commits/${encodeURIComponent(commit)}`));
+    const parent = Array.isArray(raw.parents) ? str(raw.parents[0]) : "";
+    if (!parent) throw new Error(msg("forge.diffUnavailable"));
+    return (await this.sharedPatches(parent, commit)).diff;
+  }
   async details(number: number): Promise<GhGetPrDetailsResult> {
-    const [r, threads, commits, checks, files] = await Promise.all([
+    const [r, rawThreads, commits, checks, files, labels] = await Promise.all([
       this.api.json(this.url(this.path(number))),
-      this.threads(number),
+      this.rawThreads(number),
       this.api.list(this.url(`${this.path(number)}/commits`), "value"),
       this.checks(number),
       this.files(number),
+      this.metadata.labels(number),
     ]);
+    const threads = this.reviewThreads(rawThreads);
     const pr = this.pr(r),
       status = checksStatus(checks);
     if (status) pr.checksStatus = status;
@@ -339,6 +376,9 @@ export class AzureReview implements ForgeReviewAdapter {
         comments: threads.filter((t) => !t.path).flatMap((t) => t.comments),
         reviews,
         checks,
+        ...(labels ? { labels } : {}),
+        requestedReviewers: azureRequestedReviewers(reviewers),
+        timeline: azureTimeline(r, rawThreads),
       },
     };
   }
@@ -408,14 +448,41 @@ export class AzureReview implements ForgeReviewAdapter {
       },
     });
   }
-  async setState(number: number, state: "closed" | "open" | "ready") {
+  async setState(number: number, state: "closed" | "open" | "ready" | "draft") {
     await this.api.json(
       this.url(this.path(number)),
       "PATCH",
-      state === "ready"
-        ? { isDraft: false }
+      state === "ready" || state === "draft"
+        ? { isDraft: state === "draft" }
         : { status: state === "open" ? "active" : "abandoned" },
     );
+  }
+  labelCandidates() {
+    return this.metadata.labelCandidates();
+  }
+  setLabels(number: number, add: string[], remove: string[]) {
+    return this.metadata.setLabels(number, add, remove);
+  }
+  reviewerCandidates(number: number, query?: string) {
+    return this.metadata.reviewerCandidates(query);
+  }
+  requestReviewers(number: number, add: ForgeReviewerRef[], remove: ForgeReviewerRef[]) {
+    return this.metadata.requestReviewers(number, add, remove);
+  }
+  /** Threads land on the latest iteration, whose head the service matched to `headSha`. */
+  submitDraft(
+    number: number,
+    input: {
+      decision: PrReviewDecision;
+      body: string;
+      headSha: string;
+      comments: ForgeReviewDraftComment[];
+    },
+  ) {
+    return this.metadata.submitDraft(number, input.comments, async () => {
+      if (input.decision !== "comment") await this.review(number, input.decision, input.body);
+      else if (input.body.trim()) await this.comment(number, input.body);
+    });
   }
   async updateBranch(): Promise<void> {
     unsupported(this.source);

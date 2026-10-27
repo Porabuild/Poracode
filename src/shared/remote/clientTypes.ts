@@ -171,10 +171,17 @@ export interface RemoteTokenSnapshot {
 
 /** The caller-owned refresh-token store behind {@link RemoteDesktopClientOptions.tokenLifecycle}. */
 export interface RemoteTokenLifecycle {
+  /** Current caller-owned bearer, shared by clients of this pairing. Optional
+   * for existing lifecycle implementations; no persisted or wire shape changes. */
+  accessToken?(): string | undefined;
   /** The persisted refresh token for this server record, if any. */
   refreshToken(): string | undefined;
   /** Called after every successful refresh with the NEW token pair. */
   onTokensRefreshed(tokens: RemoteTokenSnapshot): void;
+  /** Serializes the read-refresh-persist sequence across processes sharing one
+   * token store (a rotated refresh token consumed twice revokes the session
+   * family server-side). Absent = today's behavior: in-process dedupe only. */
+  runExclusive?<T>(run: () => Promise<T>): Promise<T>;
 }
 
 export type RemoteCertFingerprintProbe = (url: URL) => Promise<string | null>;
@@ -203,6 +210,9 @@ export const LOCAL_IMAGE_TICKET_CACHE_MAX_ENTRIES = 64;
  * a generous deadline instead.
  */
 export const LONG_REMOTE_REQUEST_TIMEOUT_MS = 5 * 60_000;
+
+/** Native session restoration can take several minutes before accepting input. */
+export const THREAD_START_REMOTE_REQUEST_TIMEOUT_MS = 10 * 60_000;
 
 export function defaultClientMetadata(): RemoteClientMetadata {
   const userAgent = globalThis.navigator?.userAgent;

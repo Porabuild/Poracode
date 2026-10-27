@@ -78,6 +78,7 @@ import {
 export interface EnvironmentSessionDependencies {
   readonly getState: () => RemoteServersState;
   readonly clientFactory: () => RemoteDesktopClientFactory;
+  readonly persistAccessToken: (connectionKey: string, accessToken: string) => void;
   readonly certPinForConnection: (connectionKey: string) => string | undefined;
   readonly refreshTokenForSubject: (subject: RefreshSubject) => string | undefined;
   readonly rememberRefreshToken: (subject: RefreshSubject, token: string) => void;
@@ -247,15 +248,22 @@ function parentSessionFor(server: RemoteServerRecord): PersistedParentSession {
     accessToken: server.accessToken,
     ensureLive: null,
   };
+  const isCurrent = () =>
+    parentSessions.get(refKey) === session &&
+    ownsConnectionIncarnation(connectionKey, incarnation) &&
+    findServer(connectionKey)?.endpoint === server.endpoint;
   client.setTokenLifecycle({
+    accessToken: () => (isCurrent() ? findServer(connectionKey)?.accessToken : undefined),
     refreshToken: () =>
-      api.refreshTokenForSubject({ kind: "connection", connectionId: connectionKey }),
+      isCurrent()
+        ? api.refreshTokenForSubject({ kind: "connection", connectionId: connectionKey })
+        : undefined,
     onTokensRefreshed: (tokens) => {
       // Origin fence: a delayed rotation from a replaced session or a retired
       // connection incarnation never updates the live token or the grant.
-      if (parentSessions.get(refKey) !== session) return;
-      if (!ownsConnectionIncarnation(connectionKey, incarnation)) return;
+      if (!isCurrent()) return;
       session.accessToken = tokens.accessToken;
+      api.persistAccessToken(connectionKey, tokens.accessToken);
       if (tokens.refreshToken !== undefined) {
         api.rememberRefreshToken(
           { kind: "connection", connectionId: connectionKey },
@@ -362,7 +370,8 @@ function parentAuthorityFor(
     return {
       accessToken: () => {
         const current = parentSessions.get(refKey);
-        if (current?.kind === "connection") return current.accessToken;
+        if (current?.kind === "connection")
+          return directParentFor(ref)?.accessToken ?? current.accessToken;
         // No live session (never built, or retired by an explicit re-pair that
         // is committing the new record): the persisted record's bearer is the
         // current pairing's token until the next lookup rebuilds the client.

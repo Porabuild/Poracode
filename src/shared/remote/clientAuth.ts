@@ -106,6 +106,15 @@ export abstract class RemoteClientAuth extends RemoteClientTransport {
    * new tokens or null when this client has no lifecycle to refresh with.
    */
   override async refreshTokens(): Promise<RemoteTokenSnapshot | null> {
+    // Method call — an extracted reference would drop the lifecycle's `this`.
+    if (this.tokenLifecycle?.runExclusive)
+      return this.tokenLifecycle.runExclusive(() => this.refreshTokensExclusive());
+    return this.refreshTokensExclusive();
+  }
+
+  private async refreshTokensExclusive(): Promise<RemoteTokenSnapshot | null> {
+    // Re-read inside the exclusive section so a concurrent process's rotation
+    // (persisted while we waited) is what we present, not a stale snapshot.
     const refreshToken = this.tokenLifecycle?.refreshToken();
     if (!refreshToken) return null;
     const key = `${this.endpoint}\0${refreshToken}`;

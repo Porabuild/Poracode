@@ -1,0 +1,36 @@
+import { expect, test } from "bun:test"
+import { mark, pora, wordmarkRows, WORDMARK_FULL_WIDTH, WORDMARK_STACKED_WIDTH } from "../src/logo"
+
+test("keeps the exact pora block art", () => {
+  expect(pora).toEqual([
+    "                   ",
+    "█▀▀█ █▀▀█ █▀▀▄ ▀▀▀█",
+    "█__█ █__█ █    █^^█",
+    "█▀▀▀ ▀▀▀▀ ▀    ▀▀▀▀",
+  ])
+})
+
+test("returns the full wordmark when at least 41 columns are available", () => {
+  for (const available of [WORDMARK_FULL_WIDTH, 60]) {
+    const rows = wordmarkRows(available)
+    expect(rows).toHaveLength(4)
+    for (const row of rows) expect(row).toHaveLength(41)
+    expect(rows[3]?.[20]).toBe(".")
+    expect(rows[1]).toBe("█▀▀█ █▀▀█ █▀▀▄ ▀▀▀█   █▀▀▀ █▀▀█ █▀▀█ █▀▀█")
+  }
+})
+
+test("returns the stacked wordmark between 21 and 40 columns", () => {
+  for (const available of [21, 40]) {
+    const rows = wordmarkRows(available)
+    expect(rows).toHaveLength(7)
+    for (const row of rows) expect(row).toHaveLength(WORDMARK_STACKED_WIDTH)
+    expect(rows[2]?.endsWith(" .")).toBe(true)
+  }
+})
+
+test("returns the P. mark below 21 columns", () => {
+  for (const available of [20, 4]) {
+    expect(wordmarkRows(available)).toEqual(mark)
+  }
+})

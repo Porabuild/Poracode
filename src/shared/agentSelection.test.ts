@@ -64,6 +64,19 @@ describe("agent selection", () => {
     expect(resolveReasoningSelection(gui, "chat-model", "missing")).toBe("high");
   });
 
+  it("defaults reasoning to the declared default, never the strongest tier", () => {
+    const tiered: AgentCapability = {
+      ...capabilities,
+      efforts: ["low", "medium", "high"],
+      defaultEffort: "medium",
+      modelEfforts: { preset: ["low", "medium", "high", "xHigh", "max", "ultracode"] },
+      modelDefaultEfforts: {},
+    };
+    expect(resolveReasoningSelection(tiered, "preset")).toBe("medium");
+    expect(resolveReasoningSelection(tiered, "preset", "ultracode")).toBe("ultracode");
+    expect(resolveReasoningSelection(tiered, "preset", "stale")).toBe("medium");
+  });
+
   it("does not treat an empty catalog as offering the preferred model", () => {
     const empty: AgentCapability = { ...capabilities, models: [] };
     expect(resolveModelSelection(empty, "gpt-5.4")).toBe("");

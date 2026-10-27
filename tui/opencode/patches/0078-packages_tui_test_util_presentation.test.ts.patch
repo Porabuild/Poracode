@@ -1,0 +1,38 @@
+diff --git a/packages/tui/test/util/presentation.test.ts b/packages/tui/test/util/presentation.test.ts
+index d1aab4e..73d7d47 100644
+--- a/packages/tui/test/util/presentation.test.ts
++++ b/packages/tui/test/util/presentation.test.ts
+@@ -1,8 +1,32 @@
+ import { expect, test } from "bun:test"
++import { RGBA } from "@opentui/core"
+ import { sessionEpilogue } from "../../src/util/presentation"
+ 
+ test("formats session continuation summary", () => {
+   const epilogue = sessionEpilogue({ title: "A session", sessionID: "ses_123" })
+   expect(epilogue).toContain("A session")
+-  expect(epilogue).toContain("opencode -s ses_123")
++  expect(epilogue).toContain("poracode tui --session ses_123")
++})
++
++test("renders theme colours as truecolor escapes", () => {
++  const epilogue = sessionEpilogue({
++    title: "A session",
++    sessionID: "ses_123",
++    colors: { brand: RGBA.fromHex("#8892ef"), shadow: RGBA.fromHex("#333333") },
++  })
++  expect(epilogue).toContain("\x1b[38;2;136;146;239m")
++  expect(epilogue).toContain("\x1b[48;2;51;51;51m")
++})
++
++test("falls back to the 256-colour palette without theme colours", () => {
++  const epilogue = sessionEpilogue({ title: "A session", sessionID: "ses_123" })
++  expect(epilogue).toContain("\x1b[38;5;105m")
++  expect(epilogue).toContain("\x1b[48;5;238m")
++})
++
++test("picks the wordmark variant from the available width", () => {
++  // 4 art rows + blank + session + continue + trailing blank
++  expect(sessionEpilogue({ title: "x", width: 80 }).split("\n")).toHaveLength(8)
++  expect(sessionEpilogue({ title: "x", width: 30 }).split("\n")).toHaveLength(11)
++  expect(sessionEpilogue({ title: "x", width: 15 }).split("\n")).toHaveLength(7)
+ })

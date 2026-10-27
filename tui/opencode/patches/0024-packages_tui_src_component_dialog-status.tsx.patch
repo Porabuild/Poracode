@@ -1,0 +1,21 @@
+diff --git a/packages/tui/src/component/dialog-status.tsx b/packages/tui/src/component/dialog-status.tsx
+index f94f906..633c9de 100644
+--- a/packages/tui/src/component/dialog-status.tsx
++++ b/packages/tui/src/component/dialog-status.tsx
+@@ -2,6 +2,7 @@ import { useTheme } from "../context/theme"
+ import { DialogHeader, DialogLayout } from "../ui/dialog"
+ import { useData } from "../context/data"
+ import { For, Match, Switch, Show, createMemo } from "solid-js"
++import { BRAND } from "../brand"
+ 
+ export function DialogStatus() {
+   const data = useData()
+@@ -15,7 +16,7 @@ export function DialogStatus() {
+     return theme.text.muted
+   }
+   return (
+-    <DialogLayout header={<DialogHeader title="Status" />}>
++    <DialogLayout header={<DialogHeader title={`${BRAND.name} status`} />}>
+       <Show when={mcp().length > 0} fallback={<text fg={theme.text.base}>No MCP servers</text>}>
+         <box>
+           <text fg={theme.text.base}>

@@ -183,6 +183,7 @@ export async function writeBrowserReviewCache(key: string, value: unknown): Prom
 const CACHED_READS = new Set<RemoteProcedureName>([
   "ghListPullRequests",
   "forgeListPullRequests",
+  "forgeListPullRequestsInState",
   "ghListPrs",
   "forgeListPrs",
   "forgeGetPrReviewGuide",

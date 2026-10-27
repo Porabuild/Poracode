@@ -17,12 +17,14 @@ import {
   extractToolCallContentImages,
   extractToolCallResourceResult,
   extractToolCallContentText,
+  extractToolCallResourceLinkResult,
   extractToolLocations,
   normalizeToolText,
 } from "./contentExtraction";
 import { closeOpenContentItems, resetMapperForTurnEnd } from "./state";
 import type { AcpMapperState, AcpToolCallItemState } from "./state";
 import { flushTextStreamExtension } from "./textStreamExtension";
+import { readAcpCommandStatus } from "./commandStatus";
 
 /**
  * Build the canonical chat-item payload for an ACP `tool_call`.
@@ -42,6 +44,7 @@ export function buildAcpToolCallPayload(
     rawInput?: unknown;
     rawOutput?: unknown;
     content?: unknown;
+    _meta?: unknown;
     locations?: Array<{ path?: string | null; line?: number | null }> | null;
   },
   status: "running" | "success" | "error",
@@ -66,6 +69,14 @@ export function buildAcpToolCallPayload(
     toolCall.rawOutput,
     resolveTerminalOutput,
   );
+  const resourceLinkResult =
+    itemType === "tool_call" &&
+    kind?.toLowerCase() === "search" &&
+    contentResult === undefined &&
+    resourceResult === undefined &&
+    !hasSubstantialAcpRawOutput(toolCall.rawOutput)
+      ? extractToolCallResourceLinkResult(toolCall.content)
+      : undefined;
   // Images may be inline base64, a `uri`-only reference, or — for a completed
   // read-kind call — only named by `locations`; the session-injected resolver
   // is what turns the latter two into renderable data URLs.
@@ -76,6 +87,8 @@ export function buildAcpToolCallPayload(
     resolveLocalImage,
   });
   const subAgentModel = isSubAgent ? readStringField(toolCall.rawInput, "model") : undefined;
+  const commandStatus =
+    itemType === "command_execution" ? readAcpCommandStatus(toolCall._meta) : undefined;
   const base: Record<string, unknown> = {
     ...(name ? { name } : {}),
     args: toolCall.rawInput,
@@ -84,7 +97,9 @@ export function buildAcpToolCallPayload(
       ? { result: resourceResult }
       : contentResult !== undefined
         ? { result: contentResult }
-        : {}),
+        : resourceLinkResult !== undefined
+          ? { result: resourceLinkResult }
+          : {}),
     ...(images.length > 0 ? { images } : {}),
     ...(title ? { title } : {}),
     ...(kind ? { kind } : {}),
@@ -117,6 +132,7 @@ export function buildAcpToolCallPayload(
         : {}),
       command,
       ...(cwd ? { cwd } : {}),
+      ...(commandStatus?.exitCode !== undefined ? { exitCode: commandStatus.exitCode } : {}),
     };
   }
   if (itemType === "file_change") {
@@ -158,6 +174,7 @@ export function buildAcpToolCallUpdatePayload(
     rawInput?: unknown;
     rawOutput?: unknown;
     content?: unknown;
+    _meta?: unknown;
     locations?: Array<{ path?: string | null; line?: number | null }> | null;
   },
   status: "running" | "success" | "error",
@@ -175,11 +192,33 @@ export function buildAcpToolCallUpdatePayload(
   // JSON; otherwise inline text / terminal output (the `item.terminalId` hint
   // lets us keep snapshotting PTY output when the agent stops including the
   // terminal reference on later status updates).
-  const contentResult = extractToolCallContentText(
-    toolCall.content,
-    resolveTerminalOutput,
-    item.terminalId,
-  );
+  const text = extractToolCallContentText(toolCall.content, resolveTerminalOutput, item.terminalId);
+  const searchKind = kind ?? readPayloadString(item.payload, "kind");
+  const resourceLinkResult =
+    item.itemType === "tool_call" &&
+    searchKind?.toLowerCase() === "search" &&
+    text === undefined &&
+    !hasSubstantialAcpRawOutput(toolCall.rawOutput)
+      ? extractToolCallResourceLinkResult(toolCall.content)
+      : undefined;
+  const commandStatus =
+    item.itemType === "command_execution" ? readAcpCommandStatus(toolCall._meta) : undefined;
+  const attributedOutput =
+    item.itemType === "command_execution" && item.attributedTerminalId && !item.terminalId
+      ? resolveTerminalOutput?.(item.attributedTerminalId)
+      : undefined;
+  let contentResult = text;
+  if (contentResult === undefined && resourceLinkResult !== undefined) {
+    contentResult = resourceLinkResult;
+  }
+  // Attributed terminal output leads and a declared status line follows it.
+  // Without that declaration, the agent's text is its output and stays unchanged.
+  if (attributedOutput) {
+    if (text === undefined) contentResult = attributedOutput;
+    else if (commandStatus) {
+      contentResult = `${attributedOutput}${attributedOutput.endsWith("\n") ? "" : "\n"}${text}`;
+    }
+  }
   const images = extractToolCallContentImages(toolCall.content, {
     // A `tool_call_update` often repeats neither `kind` nor `locations` — both
     // arrived on the opening `tool_call` — so fall back to the tracked payload.
@@ -191,7 +230,7 @@ export function buildAcpToolCallUpdatePayload(
   const isFileChange = item.itemType === "file_change";
   const contentDiffs = isFileChange ? extractAcpFileChangesFromContent(toolCall.content) : [];
   const contentDiffText = isFileChange ? joinAcpContentFileChangeDiffs(contentDiffs) : undefined;
-  const result =
+  const mappedResult =
     extractToolCallResourceResult(
       toolCall.content,
       toolCall.rawOutput,
@@ -203,9 +242,15 @@ export function buildAcpToolCallUpdatePayload(
       rawOutput: toolCall.rawOutput,
       contentResult,
       itemType: item.itemType,
-      payload: item.payload,
+      command:
+        readStringField(toolCall.rawInput, "command") ?? readPayloadString(item.payload, "command"),
       resolveTerminalOutputByCommand,
     });
+  const result =
+    mappedResult ??
+    (item.itemType === "tool_call" && searchKind?.toLowerCase() === "search"
+      ? item.payload.result
+      : undefined);
   // Never let a kind-only update clobber a better title-derived name. A `title`
   // always wins; a bare `kind` only sets the name when the tracked item has none
   // yet (Cursor emits `title`/`kind` piecemeal across updates, and a late `kind`
@@ -221,6 +266,16 @@ export function buildAcpToolCallUpdatePayload(
     ...(locations.length > 0 ? { locations } : {}),
     ...(item.isSubAgent ? { isSubAgent: true } : {}),
   };
+  if (item.itemType === "command_execution") {
+    // Agents that stream tool input (or learn it after the call opens) send
+    // the real command in a later `rawInput`; refresh the captured placeholder,
+    // just as later web-search updates refresh the query.
+    const command = readStringField(toolCall.rawInput, "command");
+    const cwd = readStringField(toolCall.rawInput, "cwd");
+    if (command) payload.command = command;
+    if (cwd) payload.cwd = cwd;
+    if (commandStatus?.exitCode !== undefined) payload.exitCode = commandStatus.exitCode;
+  }
   if (isFileChange) {
     const primary = contentDiffs[0];
     const path = extractFileChangePath(toolCall.rawOutput, title, kind, locations) ?? primary?.path;
@@ -273,7 +328,7 @@ function pickAcpToolCallResult(args: {
   rawOutput: unknown;
   contentResult: string | undefined;
   itemType: AcpToolCallItemState["itemType"];
-  payload: AcpToolCallItemState["payload"];
+  command: string | undefined;
   resolveTerminalOutputByCommand: ((command: string) => string | undefined) | undefined;
 }): unknown {
   if (args.contentDiffText !== undefined) return args.contentDiffText;
@@ -281,7 +336,7 @@ function pickAcpToolCallResult(args: {
   if (args.contentResult !== undefined) return args.contentResult;
   if (args.itemType === "command_execution") {
     return resolveTerminalOutputForCommandPayload(
-      args.payload,
+      args.command,
       args.resolveTerminalOutputByCommand,
     );
   }
@@ -299,8 +354,12 @@ export function finalizeToolCallPayload(
   if (item.itemType !== "command_execution" || payload.result !== undefined) {
     return payload;
   }
+  if (item.attributedTerminalId && !item.terminalId) {
+    const output = state.resolveTerminalOutput?.(item.attributedTerminalId);
+    if (output) return { ...payload, result: output };
+  }
   const result = resolveTerminalOutputForCommandPayload(
-    payload,
+    typeof payload.command === "string" ? payload.command : undefined,
     state.resolveTerminalOutputByCommand,
   );
   return result !== undefined ? { ...payload, result } : payload;
@@ -378,10 +437,9 @@ export function closeOpenTurnItems(state: AcpMapperState): RuntimeEvent[] {
 }
 
 function resolveTerminalOutputForCommandPayload(
-  payload: Record<string, unknown>,
+  command: string | undefined,
   resolveTerminalOutputByCommand: ((command: string) => string | undefined) | undefined,
 ): string | undefined {
-  const command = typeof payload.command === "string" ? payload.command : undefined;
   if (!command || !resolveTerminalOutputByCommand) return undefined;
   return resolveTerminalOutputByCommand(command);
 }

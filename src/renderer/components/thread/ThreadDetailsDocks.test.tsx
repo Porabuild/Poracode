@@ -232,6 +232,15 @@ describe("Thread details", () => {
     expect(within(header).getByText("Thread context").className).not.toContain("hover:");
   });
 
+  it("cancels the button icon margin so collapsible headers align with static ones", () => {
+    render(
+      <AppProvider>
+        <ThreadWorkspaceDock threadId="t1" />
+      </AppProvider>,
+    );
+    expect(screen.getByRole("button", { name: "Thread context" })).toHaveClass("[&_svg]:mx-0");
+  });
+
   it("shows the provider icon and compact usage, then expands account details", () => {
     useProviderUsageStore.getState().setSnapshots([
       {

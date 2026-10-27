@@ -9,14 +9,7 @@ import {
 } from "react";
 import { Link, Surface, toast, Tooltip } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import {
-  ChevronDown,
-  ChevronUp,
-  MessageSquareText,
-  MessagesSquare,
-  Plug,
-  Sparkles,
-} from "lucide-react";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import type { CanonicalContentBlock, MessageItemPayload } from "@/shared/contracts";
 import { AttachmentBar } from "@/renderer/components/composer/AttachmentBar";
 import { openAttachmentLightbox } from "@/renderer/components/composer/ImageLightbox";
@@ -27,19 +20,14 @@ import {
   openThreadGallery,
 } from "@/renderer/components/thread/useThreadGalleryImages";
 import type { Attachment } from "@/renderer/components/composer/useAttachments";
-import {
-  diffCommentTarget,
-  fileNameFromPath,
-  formatDiffCommentPrompt,
-  isImagePath,
-  threadMentionLabel,
-} from "@/shared/promptContent";
+import { fileNameFromPath, isImagePath } from "@/shared/promptContent";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import {
   getRuntimeItemPayload,
   type RuntimeChatItem,
 } from "@/renderer/state/slices/runtimeEventSlice";
 import { openExternalWithFeedback } from "@/renderer/utils/openExternal";
+import { formatMessageTimestamp } from "@/renderer/utils/formatTime";
 import { useLongPress } from "@/renderer/hooks/useLongPress";
 import { openThread } from "@/renderer/actions/threadActions";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -48,12 +36,19 @@ import { remoteBridgeLocalImageUrl } from "@/renderer/browser/remoteBridge";
 import { isRemoteSession } from "@/renderer/bridge";
 import { useChatPaneActions } from "../../chatPaneActionsContext";
 import { normalizeChatProjectPath } from "../../chatPathUtils";
+import { selectUserMessageSentAt } from "../../chatPaneSelectors";
 import { openUserMessageActions } from "../../userMessageActions";
 import { CheckpointRevertButton, type CheckpointRevertRequest } from "../CheckpointRevertControls";
 import { chatPromptSurfaceClass } from "./chatMessageSurface";
 import { CopyTextButton } from "./CopyTextButton";
 import { InlineFilePathChip } from "./InlineFilePathChip";
-import { PluginIcon } from "@/renderer/components/plugins/PluginIcon";
+import {
+  extractLeadingSlashCommand,
+  hasChipPiece,
+  inlinePiecesFromContent,
+  type PromptInlinePiece,
+} from "@/renderer/components/promptChips/promptInlinePieces";
+import { promptChipVisual, PromptSlashChip } from "@/renderer/components/promptChips/PromptChips";
 import { ItemMarkdown } from "./ItemMarkdown";
 import { extractSelectorPayloads } from "./SelectorBadge";
 import { buildUserPromptText } from "./userPromptText";
@@ -88,8 +83,9 @@ export const UserMessage = memo(function UserMessage({
   item,
   checkpointRevert,
 }: UserMessageProps) {
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
   const actions = useChatPaneActions();
+  const sentAt = useAppStore((state) => selectUserMessageSentAt(state, threadId, item.id));
   const remoteServerId = useAppStore(
     (state) => state.threads.find((thread) => thread.id === threadId)?.remoteServerId,
   );
@@ -118,19 +114,9 @@ export const UserMessage = memo(function UserMessage({
   const content = payload?.content ?? [];
   const rawText = buildUserPromptText(content);
   const { slashCommand, body } = extractLeadingSlashCommand(rawText);
-  const acpSkillName = parseAcpSkillCommand(slashCommand);
-  const displaySlashCommand = acpSkillName ?? slashCommand;
   const text = body;
-  const commandPrefixLength = slashCommand ? rawText.length - body.length : 0;
-  const leadingSlashFromSkill = firstInlineContentBlock(content)?.kind === "skill";
-  const hasInlineContent = content.some(
-    (block) =>
-      block.kind === "skill" ||
-      block.kind === "diff_comment" ||
-      block.kind === "mcp" ||
-      block.kind === "thread" ||
-      (block.kind === "file" && block.source !== "attachment"),
-  );
+  const inlinePieces = inlinePiecesFromContent(content);
+  const hasInlineContent = hasChipPiece(inlinePieces);
   const attachments = enrichWithSelectorPayloads(
     buildUserPromptAttachments(content),
     extractSelectorPayloads(rawText),
@@ -268,26 +254,9 @@ export const UserMessage = memo(function UserMessage({
 
   let bodyContent: ReactNode = null;
   let bodyClass = baseBodyClass;
-  // Slash-invocation skills (`/code-review`) flatten to the same leading
-  // token as a real slash command. Prefer the structured skill chip only
-  // when that leading token came from the skill block itself, so a later
-  // skill cannot swallow `/goal`.
-  if (slashCommand && !leadingSlashFromSkill) {
-    const skill = acpSkillName;
+  if (hasInlineContent) {
     bodyClass = inlineBodyClass;
-    bodyContent = (
-      <>
-        <UserMessageSlashChip
-          icon={skill ? <Sparkles aria-hidden="true" /> : "/"}
-          label={displaySlashCommand ?? slashCommand}
-          {...(skill ? { skillName: skill } : {})}
-        />
-        {renderUserMessageInlineContent(content, commandPrefixLength, actions)}
-      </>
-    );
-  } else if (hasInlineContent) {
-    bodyClass = inlineBodyClass;
-    bodyContent = renderUserMessageInlineContent(content, 0, actions);
+    bodyContent = renderUserMessageInlinePieces(inlinePieces, actions);
   } else if (text.length > 0) {
     bodyContent = <ItemMarkdown text={text} />;
   }
@@ -361,7 +330,18 @@ export const UserMessage = memo(function UserMessage({
         </>
       ) : null}
       {!compact ? (
-        <div className="poracode-message-action-strip absolute right-2 top-2 z-10 flex items-center gap-0.5 opacity-0 transition-opacity group-hover/checkpoint:opacity-100 focus-within:opacity-100">
+        // The strip's height is one text line, so its centered buttons line up
+        // with a single-row message instead of hanging below it.
+        <div className="poracode-message-action-strip absolute right-2 top-2 z-10 flex h-[calc(var(--lc-chat-font-size)*1.375)] items-center gap-0.5 rounded-full bg-surface-tertiary pl-1 opacity-0 transition-opacity group-hover/checkpoint:opacity-100 focus-within:opacity-100">
+          {sentAt !== undefined ? (
+            <time
+              dateTime={new Date(sentAt).toISOString()}
+              title={i18n.date(sentAt, { dateStyle: "full", timeStyle: "long" })}
+              className="mr-1 whitespace-nowrap text-[length:var(--lc-chat-font-size-meta)] tabular-nums text-muted"
+            >
+              {formatMessageTimestamp(sentAt, i18n.locale)}
+            </time>
+          ) : null}
           {checkpointRevert ? (
             <CheckpointRevertButton
               itemId={checkpointRevert.itemId}
@@ -375,198 +355,54 @@ export const UserMessage = memo(function UserMessage({
   );
 });
 
-const LEADING_SLASH_COMMAND_RE = /^\/([A-Za-z][A-Za-z0-9_.:-]*)(\s+|$)/;
-const ACP_SKILL_PREFIX_RE = /^skill:/iu;
-
-function extractLeadingSlashCommand(text: string): { slashCommand: string | null; body: string } {
-  const match = text.match(LEADING_SLASH_COMMAND_RE);
-  if (!match) return { slashCommand: null, body: text };
-  return { slashCommand: match[1]!, body: text.slice(match[0].length) };
-}
-
-function parseAcpSkillCommand(slashCommand: string | null): string | undefined {
-  if (!slashCommand || !ACP_SKILL_PREFIX_RE.test(slashCommand)) return undefined;
-  const name = slashCommand.slice(slashCommand.indexOf(":") + 1);
-  return name.length > 0 ? name : undefined;
-}
-
-function firstInlineContentBlock(
-  content: CanonicalContentBlock[],
-): CanonicalContentBlock | undefined {
-  return content.find((block) => {
-    if (block.kind === "text") return block.text.length > 0;
-    return (
-      block.kind === "skill" ||
-      block.kind === "diff_comment" ||
-      block.kind === "mcp" ||
-      block.kind === "thread" ||
-      (block.kind === "file" && block.source !== "attachment")
-    );
-  });
-}
-
-function renderUserMessageInlineContent(
-  content: CanonicalContentBlock[],
-  skipLeadingTextLength: number,
+function renderUserMessageInlinePieces(
+  pieces: PromptInlinePiece[],
   actions: ReturnType<typeof useChatPaneActions>,
 ): ReactNode[] {
-  const nodes: ReactNode[] = [];
-  let remainingSkip = skipLeadingTextLength;
-
-  content.forEach((block, index) => {
-    if (block.kind === "text") {
-      if (remainingSkip >= block.text.length) {
-        remainingSkip -= block.text.length;
-        return;
-      }
-      const text = remainingSkip > 0 ? block.text.slice(remainingSkip) : block.text;
-      remainingSkip = 0;
-      if (text.length > 0) nodes.push(...renderUserMessageText(text, `text-${index}`));
-      return;
-    }
-
-    if (block.kind === "skill") {
-      if (remainingSkip >= block.invocation.length) {
-        remainingSkip -= block.invocation.length;
-        return;
-      }
-      remainingSkip = 0;
-      // Only an @-mention of the whole plugin carries `pluginName`; a skill
-      // picked from a plugin keeps the skill glyph and its own name.
-      const mentionedPluginId = block.pluginName ? block.pluginId : undefined;
-      nodes.push(
-        <UserMessageSlashChip
-          key={`skill-${index}-${block.name}`}
-          icon={
-            mentionedPluginId ? (
-              <PluginIcon pluginId={mentionedPluginId} />
-            ) : (
-              <Sparkles aria-hidden="true" />
-            )
-          }
-          label={block.pluginName ?? block.name}
-          skillName={block.name}
-          {...(mentionedPluginId ? { pluginId: mentionedPluginId } : {})}
-        />,
-      );
-      return;
-    }
-
-    if (block.kind === "diff_comment") {
-      const promptText = formatDiffCommentPrompt(block);
-      if (remainingSkip >= promptText.length) {
-        remainingSkip -= promptText.length;
-        return;
-      }
-      remainingSkip = 0;
-      nodes.push(
-        <UserMessageSlashChip
-          key={`diff-comment-${index}-${block.path}-${block.lineNumber}`}
-          icon={<MessageSquareText aria-hidden="true" />}
-          label={diffCommentTarget(block, true)}
-          title={`${diffCommentTarget(block)}\n${block.body}`}
-        />,
-      );
-      return;
-    }
-
-    if (block.kind === "mcp") {
-      // An @-mention is never part of a leading /slash-command prefix, so —
-      // unlike the skill/file branches — an mcp block can never fall inside the
-      // skipped region and needs no remainingSkip handling.
-      nodes.push(
-        <UserMessageSlashChip
-          key={`mcp-${index}-${block.name}`}
-          icon={<Plug aria-hidden="true" />}
-          label={block.name}
-          mcpName={block.name}
-        />,
-      );
-      return;
-    }
-
-    if (block.kind === "thread") {
-      // A thread mention is never part of a leading /slash-command prefix, so
-      // it can render directly from the original canonical block.
-      nodes.push(
+  return pieces.flatMap((piece): ReactNode[] => {
+    if (piece.kind === "text") return renderUserMessageText(piece.text, piece.key);
+    const { chip } = piece;
+    if (chip.kind === "thread") {
+      const { icon, label } = promptChipVisual(chip);
+      return [
         <UserMessageThreadChip
-          key={`thread-${index}-${block.threadId}`}
-          icon={<MessagesSquare aria-hidden="true" />}
-          threadId={block.threadId}
-          threadTitle={block.title}
+          key={piece.key}
+          icon={icon}
+          label={label}
+          threadId={chip.threadId}
+          threadTitle={chip.title}
         />,
-      );
-      return;
+      ];
     }
-
-    if (block.kind === "file") {
-      if (block.source === "attachment") return;
-      if (remainingSkip >= block.path.length) {
-        remainingSkip -= block.path.length;
-        return;
-      }
-      remainingSkip = 0;
+    if (chip.kind === "file") {
       const path = actions?.projectLocation
-        ? normalizeChatProjectPath(block.path, actions.projectLocation)
-        : block.path;
-      nodes.push(
+        ? normalizeChatProjectPath(chip.path, actions.projectLocation)
+        : chip.path;
+      return [
         <InlineFilePathChip
-          key={`file-${index}-${block.path}`}
+          key={piece.key}
           path={path}
           onOpen={actions?.openProjectRelativePath}
         />,
-      );
+      ];
     }
+    return [<PromptSlashChip key={piece.key} {...promptChipVisual(chip)} />];
   });
-
-  return nodes;
-}
-
-function UserMessageSlashChip({
-  icon,
-  label,
-  skillName,
-  title,
-  mcpName,
-  pluginId,
-}: {
-  icon: ReactNode;
-  label: string;
-  skillName?: string;
-  title?: string;
-  mcpName?: string;
-  pluginId?: string;
-}) {
-  const { t } = useLingui();
-  const skill = label;
-  const resolvedAriaLabel = pluginId ? label : skillName ? t`Skill: ${skill}` : undefined;
-  return (
-    <span
-      className="poracode-slash-chip mr-1.5"
-      title={title ?? label}
-      {...(resolvedAriaLabel ? { "aria-label": resolvedAriaLabel } : {})}
-      {...(skillName ? { "data-skill-name": skillName } : {})}
-      {...(mcpName ? { "data-mcp-name": mcpName } : {})}
-      {...(pluginId ? { "data-plugin-id": pluginId } : {})}
-    >
-      <span className="poracode-slash-chip__slash">{icon}</span>
-      <span className="poracode-slash-chip__name">{label}</span>
-    </span>
-  );
 }
 
 function UserMessageThreadChip({
   icon,
+  label,
   threadId,
   threadTitle,
 }: {
   icon: ReactNode;
+  label: string;
   threadId: string;
   threadTitle: string;
 }) {
   const { t } = useLingui();
   const actions = useChatPaneActions();
-  const label = threadMentionLabel({ threadId, title: threadTitle });
 
   const handleClick = (event: MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();

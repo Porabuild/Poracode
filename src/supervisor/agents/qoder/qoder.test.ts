@@ -233,6 +233,10 @@ describe("buildQoderProbeCapabilities", () => {
     expect(capabilities.preferTerminalLogin).toBe(true);
   });
 
+  it("defaults the built-in ladder to medium rather than its leading none tier", () => {
+    expect(buildQoderProbeCapabilities(undefined).defaultEffort).toBe("medium");
+  });
+
   it("keeps static defaults and never forwards a session-derived auth state", () => {
     const capabilities = buildQoderProbeCapabilities({
       authState: "authenticated",

@@ -13,13 +13,14 @@ import {
 import { join, resolve, sep } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { readSelectedDesktopBundle } from "../../packages/poracode-cli/lib/desktopBundle.mjs";
-import { registerMacDesktopCli, shouldRegisterMacDesktopCli } from "./desktopCliRegistration";
+import { registerPosixDesktopCli, shouldRegisterPosixDesktopCli } from "./desktopCliRegistration";
 
 const effects = vi.hoisted(() => ({
   afterCreate: undefined as (() => void) | undefined,
   beforeCreate: undefined as (() => void) | undefined,
 }));
-vi.mock("../../packages/poracode-cli/lib/desktopBundle.mjs", () => ({
+vi.mock("../../packages/poracode-cli/lib/desktopBundle.mjs", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../packages/poracode-cli/lib/desktopBundle.mjs")>()),
   readSelectedDesktopBundle: vi.fn<typeof readSelectedDesktopBundle>(),
 }));
 vi.mock("node:fs", async (importOriginal) => {
@@ -44,10 +45,10 @@ describe("desktop CLI registration admission", () => {
     env: {},
   };
   it("admits ordinary packaged macOS launches and excludes disposable/other-platform launches", () => {
-    expect(shouldRegisterMacDesktopCli(normal)).toBe(true);
+    expect(shouldRegisterPosixDesktopCli(normal)).toBe(true);
+    expect(shouldRegisterPosixDesktopCli({ ...normal, platform: "linux" })).toBe(true);
     for (const changed of [
       { platform: "win32" as const },
-      { platform: "linux" as const },
       { isPackaged: false },
       { isDev: true },
       { baseDirOverride: "/disposable-profile" },
@@ -56,7 +57,7 @@ describe("desktop CLI registration admission", () => {
       { env: { PORACODE_CDP_PORT: "9222" } },
       { env: { PORACODE_STARTUP_FAILURE_MODE: " quiet " } },
     ])
-      expect(shouldRegisterMacDesktopCli({ ...normal, ...changed })).toBe(false);
+      expect(shouldRegisterPosixDesktopCli({ ...normal, ...changed })).toBe(false);
   });
 });
 
@@ -65,7 +66,7 @@ describe("desktop CLI registration admission", () => {
 describe.skipIf(process.platform === "win32")("owned macOS command binding", () => {
   const scratch = resolve("tmp");
   let root: string;
-  let input: Parameters<typeof registerMacDesktopCli>[0];
+  let input: Parameters<typeof registerPosixDesktopCli>[0];
   let bundle: ReturnType<typeof readSelectedDesktopBundle>;
   let recordPath: string;
   let linkPath: string;
@@ -132,7 +133,7 @@ describe.skipIf(process.platform === "win32")("owned macOS command binding", () 
   });
 
   it("registers the exact selected command and revalidates it after an in-place update", () => {
-    expect(registerMacDesktopCli(input).state).toBe("registered");
+    expect(registerPosixDesktopCli(input).state).toBe("registered");
     expect(lstatSync(linkPath).isSymbolicLink()).toBe(true);
     expect(readlinkSync(linkPath)).toBe(join(bundle.resourcesDir, "desktop-cli", "poracode"));
     const before = JSON.parse(readFileSync(recordPath, "utf8"));
@@ -148,7 +149,7 @@ describe.skipIf(process.platform === "win32")("owned macOS command binding", () 
       appVersion: "2.0.1",
       files: [{ path: "desktop-cli/poracode", bytes: 22, sha256: "b".repeat(64) }],
     });
-    expect(registerMacDesktopCli({ ...input, appVersion: "2.0.1" }).state).toBe("registered");
+    expect(registerPosixDesktopCli({ ...input, appVersion: "2.0.1" }).state).toBe("registered");
     expect(JSON.parse(readFileSync(recordPath, "utf8"))).toMatchObject({
       installationId: before.installationId,
       launcherSha256: "b".repeat(64),
@@ -160,18 +161,92 @@ describe.skipIf(process.platform === "win32")("owned macOS command binding", () 
 
   it("preserves an existing npm-style command, including a broken foreign symlink", () => {
     writeFileSync(linkPath, "existing npm command");
-    expect(registerMacDesktopCli(input).state).toBe("collision");
+    expect(registerPosixDesktopCli(input).state).toBe("collision");
     expect(readFileSync(linkPath, "utf8")).toBe("existing npm command");
     expect(existsSync(recordPath)).toBe(false);
     unlinkSync(linkPath);
     symlinkSync("missing foreign runtime", linkPath);
-    expect(registerMacDesktopCli(input).state).toBe("collision");
+    expect(registerPosixDesktopCli(input).state).toBe("collision");
     expect(readlinkSync(linkPath)).toBe("missing foreign runtime");
     expect(existsSync(recordPath)).toBe(false);
   });
 
+  it("creates a user-bin fallback when Finder PATH contains no suitable directory", () => {
+    const fallback = join(root, "home", ".local", "bin");
+    const result = registerPosixDesktopCli({
+      ...input,
+      path: join(root, "missing-path"),
+      fallbackDirectory: fallback,
+    });
+    expect(result).toMatchObject({ state: "registered", linkPath: join(fallback, "poracode") });
+    expect(readlinkSync(join(fallback, "poracode"))).toBe(result.launcherPath);
+    const previous = readFileSync(recordPath, "utf8");
+    // A pre-upgrade format-1 record keeps its installation identity and location.
+    expect(
+      registerPosixDesktopCli({ ...input, path: fallback, fallbackDirectory: fallback }).state,
+    ).toBe("registered");
+    expect(readFileSync(recordPath, "utf8")).toBe(previous);
+  });
+
+  it("registers a durable AppImage shim and retains it across remounts and updates", () => {
+    const image = join(root, "Poracode Nightly's release.AppImage");
+    writeFileSync(image, "owned AppImage fixture");
+    const linux = { ...input, platform: "linux" as const, appImagePath: image };
+    const result = registerPosixDesktopCli(linux);
+    expect(result.state).toBe("registered");
+    expect(readlinkSync(linkPath)).toBe(result.launcherPath);
+    expect(result.launcherPath).toBe(
+      join(input.appDataDir, "poracode-desktop-cli-stable", "poracode.sh"),
+    );
+    const before = JSON.parse(readFileSync(recordPath, "utf8"));
+    expect(before.appExecutable).toBe(image);
+    const wrapper = readFileSync(result.launcherPath, "utf8");
+    expect(wrapper).toContain("process.env.APPDIR");
+    expect(wrapper).not.toContain(input.resourcesDir);
+    vi.mocked(readSelectedDesktopBundle).mockReturnValue({
+      ...bundle,
+      resourcesDir: join(root, "new ephemeral mount", "resources"),
+      appVersion: "2.0.1",
+      files: [{ path: "desktop-cli/poracode", bytes: 22, sha256: "b".repeat(64) }],
+    });
+    expect(registerPosixDesktopCli({ ...linux, appVersion: "2.0.1" }).state).toBe("registered");
+    expect(JSON.parse(readFileSync(recordPath, "utf8"))).toMatchObject({
+      installationId: before.installationId,
+      appExecutable: image,
+    });
+    expect(readFileSync(result.launcherPath, "utf8")).toBe(wrapper);
+    writeFileSync(result.launcherPath, "foreign changed wrapper");
+    expect(() => registerPosixDesktopCli({ ...linux, appVersion: "2.0.1" })).toThrow(
+      "launcher changed",
+    );
+    expect(readFileSync(result.launcherPath, "utf8")).toBe("foreign changed wrapper");
+  });
+
+  it("prefers an existing writable shell directory over creating the fallback", () => {
+    const fallback = join(root, "home", ".local", "bin");
+    expect(registerPosixDesktopCli({ ...input, fallbackDirectory: fallback }).state).toBe(
+      "registered",
+    );
+    expect(existsSync(linkPath)).toBe(true);
+    expect(existsSync(fallback)).toBe(false);
+  });
+
+  it("does not publish into a disposable version-manager directory on the shell PATH", () => {
+    const fallback = join(root, "home", ".local", "bin");
+    const broken = join(root, "broken bin");
+    symlinkSync(join(root, "removed directory"), broken, "dir");
+    expect(
+      registerPosixDesktopCli({
+        ...input,
+        installationDirectories: [fallback, broken],
+        fallbackDirectory: fallback,
+      }),
+    ).toMatchObject({ state: "registered", linkPath: join(fallback, "poracode") });
+    expect(existsSync(linkPath)).toBe(false);
+  });
+
   it("keeps Stable and Nightly commands and registration generations separate", () => {
-    registerMacDesktopCli(input);
+    registerPosixDesktopCli(input);
     const stable = readFileSync(recordPath, "utf8");
     const nightlyLauncher = join(bundle.resourcesDir, "desktop-cli", "poracode-next");
     writeFileSync(nightlyLauncher, "owned selected nightly command");
@@ -181,7 +256,7 @@ describe.skipIf(process.platform === "win32")("owned macOS command binding", () 
       commandName: "poracode-next",
       files: [{ path: "desktop-cli/poracode-next", bytes: 30, sha256: "b".repeat(64) }],
     });
-    expect(registerMacDesktopCli({ ...input, channel: "nightly" }).state).toBe("registered");
+    expect(registerPosixDesktopCli({ ...input, channel: "nightly" }).state).toBe("registered");
     const nightly = JSON.parse(
       readFileSync(
         join(input.appDataDir, "poracode-desktop-cli-nightly", "registration.json"),
@@ -198,7 +273,7 @@ describe.skipIf(process.platform === "win32")("owned macOS command binding", () 
     const later = join(root, "later bin");
     mkdirSync(later);
     writeFileSync(join(later, "poracode"), "user-managed command");
-    expect(registerMacDesktopCli({ ...input, path: `${input.path}:${later}` }).state).toBe(
+    expect(registerPosixDesktopCli({ ...input, path: `${input.path}:${later}` }).state).toBe(
       "collision",
     );
     expect(existsSync(linkPath)).toBe(false);
@@ -215,14 +290,14 @@ describe.skipIf(process.platform === "win32")("owned macOS command binding", () 
       commandName: "poracode-next",
       files: [{ path: "desktop-cli/poracode-next", bytes: 30, sha256: "b".repeat(64) }],
     });
-    expect(registerMacDesktopCli({ ...input, channel: "nightly" }).state).toBe("registered");
+    expect(registerPosixDesktopCli({ ...input, channel: "nightly" }).state).toBe("registered");
     expect(readFileSync(npmCommand, "utf8")).toBe("npm-owned command");
     expect(readlinkSync(join(input.path, "poracode-next"))).toBe(nightlyLauncher);
     expect(existsSync(recordPath)).toBe(false);
   });
 
   it("returns the exact bundled entry when no absolute existing PATH directory is available", () => {
-    const result = registerMacDesktopCli({
+    const result = registerPosixDesktopCli({
       ...input,
       path: `:relative:$HOME/bin:${join(root, "missing-absolute")}`,
     });
@@ -233,7 +308,7 @@ describe.skipIf(process.platform === "win32")("owned macOS command binding", () 
   });
 
   it("refuses future or extended registration records without replacing their bytes or binding", () => {
-    registerMacDesktopCli(input);
+    registerPosixDesktopCli(input);
     const before = JSON.parse(readFileSync(recordPath, "utf8"));
     for (const changed of [
       { formatVersion: 2 },
@@ -242,7 +317,7 @@ describe.skipIf(process.platform === "win32")("owned macOS command binding", () 
     ]) {
       const bytes = JSON.stringify({ ...before, ...changed });
       writeFileSync(recordPath, bytes);
-      expect(() => registerMacDesktopCli(input)).toThrow(Error);
+      expect(() => registerPosixDesktopCli(input)).toThrow(Error);
       expect(readFileSync(recordPath, "utf8")).toBe(bytes);
       expect(readlinkSync(linkPath)).toBe(before.launcherPath);
       expect(existsSync(lockPath)).toBe(false);
@@ -250,7 +325,7 @@ describe.skipIf(process.platform === "win32")("owned macOS command binding", () 
   });
 
   it("refuses another account or desktop installation instead of adopting its binding", () => {
-    registerMacDesktopCli(input);
+    registerPosixDesktopCli(input);
     const before = JSON.parse(readFileSync(recordPath, "utf8"));
     for (const changed of [
       { account: { kind: "uid", id: before.account.id + 1 } },
@@ -258,7 +333,7 @@ describe.skipIf(process.platform === "win32")("owned macOS command binding", () 
     ]) {
       const bytes = JSON.stringify({ ...before, ...changed });
       writeFileSync(recordPath, bytes);
-      expect(() => registerMacDesktopCli(input)).toThrow(
+      expect(() => registerPosixDesktopCli(input)).toThrow(
         "different desktop installation or account",
       );
       expect(readFileSync(recordPath, "utf8")).toBe(bytes);
@@ -266,18 +341,18 @@ describe.skipIf(process.platform === "win32")("owned macOS command binding", () 
   });
 
   it("recovers a prepared exact-target binding without choosing another command directory", () => {
-    registerMacDesktopCli(input);
+    registerPosixDesktopCli(input);
     const before = JSON.parse(readFileSync(recordPath, "utf8"));
     writeFileSync(recordPath, JSON.stringify({ ...before, state: "prepared" }));
     unlinkSync(linkPath);
-    expect(registerMacDesktopCli(input).state).toBe("registered");
+    expect(registerPosixDesktopCli(input).state).toBe("registered");
     expect(JSON.parse(readFileSync(recordPath, "utf8"))).toMatchObject({
       installationId: before.installationId,
       state: "installed",
     });
     const elsewhere = join(root, "elsewhere");
     mkdirSync(elsewhere);
-    expect(registerMacDesktopCli({ ...input, path: elsewhere }).state).toBe("unavailable");
+    expect(registerPosixDesktopCli({ ...input, path: elsewhere }).state).toBe("unavailable");
     expect(existsSync(join(elsewhere, "poracode"))).toBe(false);
   });
 
@@ -285,7 +360,7 @@ describe.skipIf(process.platform === "win32")("owned macOS command binding", () 
     effects.beforeCreate = () => {
       writeFileSync(linkPath, "concurrent foreign command");
     };
-    expect(() => registerMacDesktopCli(input)).toThrow(Error);
+    expect(() => registerPosixDesktopCli(input)).toThrow(Error);
     expect(readFileSync(linkPath, "utf8")).toBe("concurrent foreign command");
     expect(JSON.parse(readFileSync(recordPath, "utf8")).state).toBe("prepared");
     expect(existsSync(lockPath)).toBe(false);
@@ -295,7 +370,7 @@ describe.skipIf(process.platform === "win32")("owned macOS command binding", () 
     effects.afterCreate = () => {
       writeFileSync(lockPath, "foreign replacement claim");
     };
-    expect(() => registerMacDesktopCli(input)).toThrow("claim changed");
+    expect(() => registerPosixDesktopCli(input)).toThrow("claim changed");
     expect(readFileSync(lockPath, "utf8")).toBe("foreign replacement claim");
     expect(JSON.parse(readFileSync(recordPath, "utf8")).state).toBe("prepared");
     expect(readlinkSync(linkPath)).toBe(join(bundle.resourcesDir, "desktop-cli", "poracode"));
@@ -308,7 +383,7 @@ describe.skipIf(process.platform === "win32")("owned macOS command binding", () 
       unlinkSync(lockPath);
       writeFileSync(lockPath, copied);
     };
-    expect(() => registerMacDesktopCli(input)).toThrow("claim changed");
+    expect(() => registerPosixDesktopCli(input)).toThrow("claim changed");
     expect(readFileSync(lockPath, "utf8")).toBe(copied);
     expect(JSON.parse(readFileSync(recordPath, "utf8")).state).toBe("prepared");
   });
@@ -322,7 +397,7 @@ describe.skipIf(process.platform === "win32")("owned macOS command binding", () 
       });
       writeFileSync(recordPath, futureBytes);
     };
-    expect(() => registerMacDesktopCli(input)).toThrow("metadata changed");
+    expect(() => registerPosixDesktopCli(input)).toThrow("metadata changed");
     expect(readFileSync(recordPath, "utf8")).toBe(futureBytes);
     expect(existsSync(lockPath)).toBe(false);
   });
@@ -331,7 +406,7 @@ describe.skipIf(process.platform === "win32")("owned macOS command binding", () 
     const stateDir = join(input.appDataDir, "poracode-desktop-cli-stable");
     mkdirSync(stateDir, { mode: 0o700 });
     writeFileSync(lockPath, "existing claim");
-    expect(() => registerMacDesktopCli(input)).toThrow(Error);
+    expect(() => registerPosixDesktopCli(input)).toThrow(Error);
     expect(readFileSync(lockPath, "utf8")).toBe("existing claim");
     expect(existsSync(linkPath)).toBe(false);
     expect(existsSync(recordPath)).toBe(false);
@@ -342,7 +417,7 @@ describe.skipIf(process.platform === "win32")("owned macOS command binding", () 
     mkdirSync(foreign);
     writeFileSync(join(foreign, "keep.json"), "foreign bytes");
     symlinkSync(foreign, join(input.appDataDir, "poracode-desktop-cli-stable"), "dir");
-    expect(() => registerMacDesktopCli(input)).toThrow("not private and owned");
+    expect(() => registerPosixDesktopCli(input)).toThrow("not private and owned");
     expect(readFileSync(join(foreign, "keep.json"), "utf8")).toBe("foreign bytes");
     expect(existsSync(join(foreign, "registration.lock"))).toBe(false);
     expect(existsSync(linkPath)).toBe(false);
@@ -350,7 +425,7 @@ describe.skipIf(process.platform === "win32")("owned macOS command binding", () 
 
   it("refuses a mismatched package before registration state exists", () => {
     vi.mocked(readSelectedDesktopBundle).mockReturnValue({ ...bundle, channel: "nightly" });
-    expect(() => registerMacDesktopCli(input)).toThrow("different channel or app version");
+    expect(() => registerPosixDesktopCli(input)).toThrow("different channel or app version");
     expect(existsSync(recordPath)).toBe(false);
     expect(existsSync(linkPath)).toBe(false);
     expect(existsSync(join(input.appDataDir, "poracode-desktop-cli-stable"))).toBe(false);

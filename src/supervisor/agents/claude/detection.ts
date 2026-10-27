@@ -38,7 +38,7 @@ export const claudeCapabilities: AgentCapability = {
   contextSizes: CLAUDE_CONTEXT_SIZES,
   contextSizeChangeReloadsSession: true,
   // Order matters: the first entry is the per-model default. Frontier models
-  // default to 1M (the long-context build users select these for).
+  // default to 400k; 1M stays selectable (see CLAUDE_LONG_CONTEXT_SIZES).
   modelContextSizes: CLAUDE_BUILTIN_MODEL_CONTEXT_SIZES,
   defaultContextSize: "200k",
   fastModels: CLAUDE_BUILTIN_FAST_MODELS,

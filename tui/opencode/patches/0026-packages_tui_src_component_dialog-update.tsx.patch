@@ -1,0 +1,43 @@
+diff --git a/packages/tui/src/component/dialog-update.tsx b/packages/tui/src/component/dialog-update.tsx
+index 9dcf07b..a9437e2 100644
+--- a/packages/tui/src/component/dialog-update.tsx
++++ b/packages/tui/src/component/dialog-update.tsx
+@@ -1,4 +1,5 @@
+ import { createEffect, createMemo, createResource, createSignal, For, Match, onCleanup, Show, Switch } from "solid-js"
++import { BRAND } from "../brand"
+ import { Keymap } from "../context/keymap"
+ import { useNewDesigns } from "../config"
+ import { useTheme } from "../context/theme"
+@@ -92,7 +93,7 @@ export function DialogUpdate(props: {
+         <DialogHeader
+           title={
+             state().type === "installing"
+-              ? "Updating OpenCode"
++              ? `Updating ${BRAND.name}`
+               : state().type === "available" || state().type === "failed"
+                 ? "Update available"
+                 : "Update"
+@@ -137,12 +138,12 @@ export function DialogUpdate(props: {
+             </Match>
+             <Match when={current.type === "available"}>
+               <text fg={theme.text.muted}>
+-                An update is available. After installing, you'll be prompted to restart OpenCode.
++                An update is available. After installing, you'll be prompted to restart {BRAND.name}.
+               </text>
+             </Match>
+             <Match when={current.type === "installing"}>
+               <Spinner shimmer={theme.text.base}>
+-                {current.type === "installing" ? `Installing OpenCode ${current.version}…` : ""}
++                {current.type === "installing" ? `Installing ${BRAND.name} ${current.version}…` : ""}
+               </Spinner>
+             </Match>
+             <Match when={current.type === "installed"}>
+@@ -151,7 +152,7 @@ export function DialogUpdate(props: {
+               </text>
+             </Match>
+             <Match when={current.type === "current"}>
+-              <text fg={theme.text.muted}>OpenCode is already up to date.</text>
++              <text fg={theme.text.muted}>{BRAND.name} is already up to date.</text>
+             </Match>
+             <Match when={current.type === "unavailable"}>
+               <text fg={theme.text.muted} wrapMode="word">

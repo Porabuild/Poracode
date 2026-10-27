@@ -138,6 +138,7 @@ export const threadRoutes: readonly RemoteHttpRouteContract[] = [
     audit: noAudit("read"),
     queryParameters: [
       "projection",
+      "deferBodies",
       "reads",
       "notices",
       "beforePosition",
@@ -162,6 +163,7 @@ export const threadRoutes: readonly RemoteHttpRouteContract[] = [
     audit: noAudit("read"),
     queryParameters: [
       "projection",
+      "deferBodies",
       "reads",
       "notices",
       "runtimePage",

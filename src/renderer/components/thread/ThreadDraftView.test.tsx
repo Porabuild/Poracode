@@ -1725,7 +1725,7 @@ describe("ThreadDraftView", () => {
 
     render(<ThreadDraftView project={remoteProject} agentStatuses={[]} onStart={() => {}} />);
 
-    expect(screen.getByText("Connecting…")).toBeInTheDocument();
+    expect(screen.getByText("Connecting to host…")).toBeInTheDocument();
     expect(screen.queryByText("Connection error")).not.toBeInTheDocument();
     expect(screen.queryByText("No supported agents detected")).not.toBeInTheDocument();
   });
@@ -1753,7 +1753,7 @@ describe("ThreadDraftView", () => {
       <ThreadDraftView project={remoteProject} agentStatuses={[codexStatus]} onStart={onStart} />,
     );
 
-    expect(screen.queryByText("Connecting…")).not.toBeInTheDocument();
+    expect(screen.queryByText("Connecting to host…")).not.toBeInTheDocument();
     const composer = composerSpy.mock.lastCall?.[0] as { submitDisabled?: boolean };
     expect(composer.submitDisabled).toBe(true);
     fireEvent.click(screen.getByText("set-prompt"));
@@ -1931,7 +1931,7 @@ describe("ThreadDraftView", () => {
       expect(providerModel?.currentAgentKind).toBe("codex");
       expect(providerModel?.currentModel).toBe("gpt-5.4");
       const effortContext = props.controls.find((c) => c.kind === "effort-context");
-      expect(effortContext?.effortValue).toBe("xhigh");
+      expect(effortContext?.effortValue).toBe("high");
       const permission = props.controls.find((control) => control.value === "auto-review");
       expect(permission?.options?.some((option) => option.label === "Auto-review")).toBe(true);
     });
@@ -1943,7 +1943,7 @@ describe("ThreadDraftView", () => {
       agentKind: "codex",
       config: {
         model: "gpt-5.4",
-        effort: "xhigh",
+        effort: "high",
         mode: "agent",
         approvalPolicy: "on-request",
         approvalsReviewer: "auto_review",
@@ -2184,7 +2184,7 @@ describe("ThreadDraftView", () => {
       agentKind: "codex",
       config: {
         model: "gpt-5.4",
-        effort: "xhigh",
+        effort: "high",
         mode: "agent",
         approvalPolicy: "on-request",
         approvalsReviewer: "user",
@@ -2268,7 +2268,7 @@ describe("ThreadDraftView", () => {
       agentKind: "codex",
       config: {
         model: "gpt-5.4",
-        effort: "xhigh",
+        effort: "high",
         mode: "agent",
         approvalPolicy: "on-request",
         approvalsReviewer: "auto_review",
@@ -2543,7 +2543,7 @@ describe("ThreadDraftView", () => {
         controls: Array<{ kind?: string; effortValue?: string; currentModel?: string }>;
       };
       const effortContext = props.controls.find((c) => c.kind === "effort-context");
-      expect(effortContext?.effortValue).toBe("xhigh");
+      expect(effortContext?.effortValue).toBe("high");
     });
 
     act(() => {

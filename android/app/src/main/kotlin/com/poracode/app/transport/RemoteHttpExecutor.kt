@@ -43,6 +43,7 @@ internal class RemoteHttpExecutor(
         authorized: Boolean = true,
         extraHeaders: Map<String, String> = emptyMap(),
         expectedStatus: Int? = null,
+        timeoutMs: Long? = null,
     ): String {
         var url = endpointUrl(path).toHttpUrl()
         if (query.isNotEmpty()) {
@@ -80,7 +81,12 @@ internal class RemoteHttpExecutor(
         environment.applyAuthority(requestBuilder)
         cachedRead?.entry?.let { requestBuilder.header("If-None-Match", it.etag) }
         val request = requestBuilder.build()
-        val liveClient = clientForRequest()
+        val liveClient = clientForRequest().let { base ->
+            if (timeoutMs == null) base else base.newBuilder()
+                .callTimeout(timeoutMs, TimeUnit.MILLISECONDS)
+                .readTimeout(timeoutMs, TimeUnit.MILLISECONDS)
+                .build()
+        }
         val deadlineNanos = liveClient.callTimeoutMillis.takeIf { it > 0 }?.let {
             System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(it.toLong())
         }

@@ -19,11 +19,14 @@ import {
   type PrCommitSummary,
   type PrData,
   type PrDetails,
+  type PrLabel,
+  type PrReviewer,
   type PrReviewState,
   type PrReviewSummary,
   type PrState,
   type PullRequestSummary,
 } from "@/shared/contracts";
+import { labelColor } from "./forges/types";
 
 function optionalString(raw: unknown): string | undefined {
   return typeof raw === "string" && raw ? raw : undefined;
@@ -115,11 +118,11 @@ export function mapGitHubActionsRun(raw: unknown): GitHubActionsRun | null {
 }
 
 export function mapPrState(raw: { state: string; isDraft: boolean }): PrState {
-  if (raw.isDraft) return "draft";
   const s = raw.state?.toUpperCase?.() ?? "";
   if (s === "MERGED") return "merged";
+  // A closed review keeps its draft flag, but it is closed, not a draft.
   if (s === "CLOSED") return "closed";
-  return "open";
+  return raw.isDraft ? "draft" : "open";
 }
 
 // `gh pr {list,view} --json statusCheckRollup` returns an array of CheckRun
@@ -198,6 +201,46 @@ export function mapPrAuthor(raw: unknown): PrAuthor | undefined {
   return avatarUrl ? { login, avatarUrl } : { login };
 }
 
+/** Maps a GitHub label from `gh --json labels`, REST, or GraphQL; all share these fields. */
+export function mapPrLabel(raw: unknown): PrLabel | null {
+  if (!raw || typeof raw !== "object") return null;
+  const obj = raw as Record<string, unknown>;
+  const name = optionalString(obj.name);
+  if (!name) return null;
+  const color = labelColor(obj.color);
+  const description = optionalString(obj.description);
+  return { name, ...(color ? { color } : {}), ...(description ? { description } : {}) };
+}
+
+function mapPrLabels(raw: unknown): PrLabel[] | undefined {
+  return Array.isArray(raw)
+    ? raw.map(mapPrLabel).filter((label): label is PrLabel => label !== null)
+    : undefined;
+}
+
+/**
+ * `gh --json reviewRequests` lists users (and bots) by `login` and teams by
+ * `slug`, which gh writes as `org/slug`. The id is what the REST
+ * requested_reviewers endpoint takes back: a login, or a team slug.
+ */
+function mapPrReviewRequests(raw: unknown): PrReviewer[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  return raw.flatMap((entry): PrReviewer[] => {
+    if (!entry || typeof entry !== "object") return [];
+    const obj = entry as Record<string, unknown>;
+    if (obj.__typename === "Team") {
+      const slug = optionalString(obj.slug);
+      if (!slug) return [];
+      const name = optionalString(obj.name);
+      return [{ id: slug, login: slug, ...(name ? { name } : {}), team: true }];
+    }
+    const login = optionalString(obj.login);
+    if (!login) return [];
+    const name = optionalString(obj.name);
+    return [{ id: login, login, ...(name ? { name } : {}) }];
+  });
+}
+
 function repositoryFromPrUrl(rawUrl: unknown): string {
   if (typeof rawUrl !== "string" || !rawUrl) return "";
   try {
@@ -214,6 +257,7 @@ export function mapPullRequestSummary(
   viewerLogin?: string,
 ): PullRequestSummary {
   const author = mapPrAuthor(raw.author);
+  const labels = mapPrLabels(raw.labels);
   const reviewRequested =
     viewerLogin !== undefined &&
     Array.isArray(raw.reviewRequests) &&
@@ -231,6 +275,7 @@ export function mapPullRequestSummary(
     deletions: typeof raw.deletions === "number" ? raw.deletions : 0,
     repository: repositoryFromPrUrl(raw.url),
     reviewRequested,
+    ...(labels ? { labels } : {}),
   };
 }
 
@@ -349,6 +394,8 @@ export function mapPrDetails(raw: Record<string, unknown>): PrDetails {
     : [];
   const mergedBy = mapPrAuthor(raw.mergedBy) ?? null;
   const author = mapPrAuthor(raw.author);
+  const labels = mapPrLabels(raw.labels);
+  const requestedReviewers = mapPrReviewRequests(raw.reviewRequests);
   return {
     number: typeof raw.number === "number" ? raw.number : 0,
     title: typeof raw.title === "string" ? raw.title : "",
@@ -367,6 +414,8 @@ export function mapPrDetails(raw: Record<string, unknown>): PrDetails {
     comments,
     reviews,
     checks,
+    ...(labels ? { labels } : {}),
+    ...(requestedReviewers ? { requestedReviewers } : {}),
   };
 }
 

@@ -9,7 +9,12 @@ import { useGitStore } from "@/renderer/state/gitStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { refreshSinglePr } from "@/renderer/state/gitRefresh";
 import { syncMergedPrBase } from "@/renderer/state/prMergeBaseSync";
-import { reviewClient, reviewSourceIdentity } from "@/renderer/utils/forgeReviews";
+import {
+  reviewClient,
+  reviewSourceIdentity,
+  scopedReviewClient,
+  scopedReviewSource,
+} from "@/renderer/utils/forgeReviews";
 
 const ADMIN_BYPASS_RX = /--admin|base branch policy|not mergeable/i;
 
@@ -26,7 +31,7 @@ export interface UsePrWriteActionsArgs {
 }
 
 /** Which PR write action is currently in flight, so only its button shows a spinner. */
-export type PrWriteAction = "merge" | "close" | "ready" | "update" | "edit";
+export type PrWriteAction = "merge" | "close" | "reopen" | "ready" | "draft" | "update" | "edit";
 
 export interface UsePrWriteActionsResult {
   prLoading: boolean;
@@ -36,9 +41,21 @@ export interface UsePrWriteActionsResult {
   handleMergePr: (method: PrMergeMethod, admin?: boolean) => Promise<void>;
   handleClosePr: () => Promise<void>;
   handleMarkPrReady: () => Promise<void>;
+  handleReopenPr: () => Promise<void>;
+  /** Returns an open review to draft; only offered where the host can. */
+  handleConvertPrToDraft: () => Promise<void>;
   handleUpdatePrBranch: (rebase?: boolean) => Promise<void>;
-  /** Persist a title and description when the source host allows editing. */
-  handleEditPr: (input: { title: string; body: string }) => Promise<boolean>;
+  /**
+   * Persist a title and/or description when the source host allows editing. The
+   * live review is re-read first and every field not being edited keeps its live
+   * value, so an edit never rewrites text it did not touch. When `expectedBody` is
+   * given and the live description differs, nothing is written and `false` returns.
+   */
+  handleEditPr: (input: {
+    title?: string;
+    body?: string;
+    expectedBody?: string;
+  }) => Promise<boolean>;
   /** Refetch this PR's data + details on demand (e.g. the PR block refresh icon). */
   handleRefreshPr: () => Promise<void>;
 }
@@ -202,33 +219,92 @@ export function usePrWriteActions(args: UsePrWriteActionsArgs): UsePrWriteAction
     }
   }
 
-  async function handleEditPr(input: { title: string; body: string }): Promise<boolean> {
+  async function handleReopenPr(): Promise<void> {
     const prData = getCurrentPrData();
-    const title = input.title.trim();
-    if (!prData || !title || prData.source?.capabilities.edit === false) return false;
-    const identity = reviewSourceIdentity(prData.source);
-    const generation = beginAction("edit");
+    if (!prData) return;
+    const generation = beginAction("reopen");
     try {
-      await reviewClient(prData.source).edit({
+      await reviewClient(prData.source).reopen({ projectLocation, prNumber: prData.number });
+      if (getCurrentPrData() !== prData) return;
+      if (prKey) useGitStore.getState().setPrData(prKey, { ...prData, state: "open" });
+      onRefresh();
+    } catch (err) {
+      if (getCurrentPrData() !== prData) return;
+      console.error("[git] reopen PR failed", err);
+      toast.danger(friendlyError(err));
+    } finally {
+      finishAction(generation);
+    }
+  }
+
+  async function handleConvertPrToDraft(): Promise<void> {
+    const prData = getCurrentPrData();
+    const scoped = scopedReviewSource(prData?.source);
+    if (!prData || !scoped?.capabilities.convertToDraft) return;
+    const generation = beginAction("draft");
+    try {
+      await scopedReviewClient(scoped).convertToDraft({
         projectLocation,
         prNumber: prData.number,
-        title,
-        body: input.body,
       });
+      if (getCurrentPrData() !== prData) return;
+      if (prKey)
+        useGitStore.getState().setPrData(prKey, { ...prData, state: "draft", isDraft: true });
+      onRefresh();
+    } catch (err) {
+      if (getCurrentPrData() !== prData) return;
+      console.error("[git] convert PR to draft failed", err);
+      toast.danger(friendlyError(err));
+    } finally {
+      finishAction(generation);
+    }
+  }
+
+  async function handleEditPr(input: {
+    title?: string;
+    body?: string;
+    expectedBody?: string;
+  }): Promise<boolean> {
+    const prData = getCurrentPrData();
+    const editedTitle = input.title?.trim();
+    if (!prData || prData.source?.capabilities.edit === false) return false;
+    if (input.title === undefined ? input.body === undefined : !editedTitle) return false;
+    const identity = reviewSourceIdentity(prData.source);
+    const isCurrentReview = () => {
       const current = getCurrentPrData();
-      if (
-        !current ||
-        current.number !== prData.number ||
-        reviewSourceIdentity(current.source) !== identity
-      ) {
+      return (
+        current !== null &&
+        current.number === prData.number &&
+        reviewSourceIdentity(current.source) === identity
+      );
+    };
+    const generation = beginAction("edit");
+    try {
+      const client = reviewClient(prData.source);
+      const { details: live } = await client.details({
+        projectLocation,
+        prNumber: prData.number,
+      });
+      if (!isCurrentReview()) return false;
+      if (input.expectedBody !== undefined && (live.body ?? "") !== input.expectedBody) {
+        toast.danger(
+          i18n._(
+            msg`The description changed since you started editing. Reload and reapply your edit.`,
+          ),
+        );
         return false;
       }
+      const title = editedTitle ?? live.title;
+      const body = input.body ?? live.body ?? "";
+      await client.edit({ projectLocation, prNumber: prData.number, title, body });
+      const current = getCurrentPrData();
+      if (!current || !isCurrentReview()) return false;
       if (prKey) useGitStore.getState().setPrData(prKey, { ...current, title });
       if (projectId) {
         const detailsKey = `${projectId}#${prData.number}`;
         const details = useGitStore.getState().prDetails[detailsKey];
         if (details && reviewSourceIdentity(details.source) === identity) {
-          useGitStore.getState().setPrDetails(detailsKey, { ...details, title, body: input.body });
+          useGitStore.getState().setPrDetails(detailsKey, { ...details, title, body });
         }
       }
       onRefresh();
@@ -280,6 +356,8 @@ export function usePrWriteActions(args: UsePrWriteActionsArgs): UsePrWriteAction
     handleMergePr,
     handleClosePr,
     handleMarkPrReady,
+    handleReopenPr,
+    handleConvertPrToDraft,
     handleUpdatePrBranch,
     handleEditPr,
     handleRefreshPr,

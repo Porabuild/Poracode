@@ -39,6 +39,11 @@ final class ThreadLifecycleTransportTests: XCTestCase {
     let requests = await http.requests()
     XCTAssertEqual(requests.count, 14)
     XCTAssertEqual(requests[0].path, "/api/threads/start")
+    XCTAssertEqual(requests[0].timeout, 600)
+    XCTAssertEqual(requests[2].timeout, 600)
+    for (index, request) in requests.enumerated() where index != 0 && index != 2 {
+      XCTAssertNil(request.timeout)
+    }
     XCTAssertEqual(
       requests[0].headers[ProtocolConstants.commandIdHeader],
       "start-existing-1"
