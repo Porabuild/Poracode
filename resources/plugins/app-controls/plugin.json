@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "app-controls",
-  "version": "1.7.1",
+  "version": "1.7.2",
   "description": "Read and drive Poracode itself: threads, workspaces, terminal panes, git, pull requests, and schedules.",
   "author": {
     "name": "Poracode",

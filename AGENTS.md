@@ -54,7 +54,7 @@ Commit or open a PR only when asked. The `commit`, `pull-request`, and `address-
 - Subject and PR title: `type(scope): subject`, imperative, lowercase after the colon, no trailing period, ≤ 72 characters.
 - Work tied to a GitHub issue puts the issue number first: `#123 fix(sidebar): show worktree identity while pending`, branch `123-short-slug`, PR body starting with `Closes #123`. Never invent an issue number.
 - Commit bodies explain why. Stage explicit paths. Never bypass hooks with `--no-verify`.
-- PRs target `master`, open as drafts unless the user says ready, and follow `.github/PULL_REQUEST_TEMPLATE.md`: Summary, Why, Benefits, How verified, Before / After screenshots for any visible UI change, Risk & rollback.
+- PRs target `master`, open as drafts unless the user says ready, and follow `.github/PULL_REQUEST_TEMPLATE.md`: Summary, Why, Benefits, How verified, Before / After (screenshots only when they help review a visible change), Risk & rollback.
 
 ## Skills
 

@@ -28,7 +28,7 @@ files on this host, and image MIME types are inferred from their extension.
 
 ## Workflow
 
-Use `commit` for a commit, `create-pr` for publishing a PR with verification and before/after UI screenshots, and
+Use `commit` for a commit, `create-pr` for publishing a PR with verification and any useful UI screenshots, and
 `finalize` when the user requests the complete review, manual QA, fix, publish, and merge workflow. These skills use
 Poracode's Git/GitHub tools so their observed state reaches the UI. Resolve the current thread once for `projectId`
 and the exact `worktreePath`; omitting the path operates on the main checkout. After CLI-only operations such as
