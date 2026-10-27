@@ -1819,8 +1819,8 @@ msgid "Allow eval"
 msgstr "Cho phép eval"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-msgid "Allow paired devices to connect through LAN and Tailscale IP addresses. Connections use HTTP unless TLS is configured. Enable only on trusted networks."
-msgstr "Cho phép thiết bị đã ghép nối kết nối qua địa chỉ IP LAN và Tailscale. Kết nối dùng HTTP trừ khi TLS được cấu hình. Chỉ bật trên mạng đáng tin cậy."
+#~ msgid "Allow paired devices to connect through LAN and Tailscale IP addresses. Connections use HTTP unless TLS is configured. Enable only on trusted networks."
+#~ msgstr "Cho phép thiết bị đã ghép nối kết nối qua địa chỉ IP LAN và Tailscale. Kết nối dùng HTTP trừ khi TLS được cấu hình. Chỉ bật trên mạng đáng tin cậy."
 
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "Allow replacing conflicting managed skills"
@@ -6080,8 +6080,12 @@ msgid "Devices & tools"
 msgstr "Thiết bị và công cụ"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-msgid "Devices can pair while this desktop is reachable."
-msgstr "Thiết bị có thể ghép nối khi máy tính này có thể truy cập được."
+msgid "Devices can pair while this desktop is reachable on your local network. Connections use HTTP unless TLS is configured; use only on trusted networks."
+msgstr "Thiết bị có thể ghép nối khi máy tính này truy cập được trên mạng cục bộ của bạn. Kết nối dùng HTTP trừ khi đã cấu hình TLS; chỉ dùng trên mạng đáng tin cậy."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#~ msgid "Devices can pair while this desktop is reachable."
+#~ msgstr "Thiết bị có thể ghép nối khi máy tính này có thể truy cập được."
 
 #: src/renderer/components/providers/devin/manifest.ts
 msgid "Devin"
@@ -11099,8 +11103,8 @@ msgid "Needs reply"
 msgstr "Cần trả lời"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-msgid "Network access"
-msgstr "Truy cập mạng"
+#~ msgid "Network access"
+#~ msgstr "Truy cập mạng"
 
 #: src/renderer/utils/prStatus.ts
 msgid "Neutral"
@@ -20135,8 +20139,8 @@ msgid "Unable to update native MCP configuration. Refresh and review the configu
 msgstr "Không thể cập nhật cấu hình MCP gốc. Hãy làm mới và xem lại cấu hình trước khi thử lại."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-msgid "Unable to update network access."
-msgstr "Không thể cập nhật quyền truy cập mạng."
+#~ msgid "Unable to update network access."
+#~ msgstr "Không thể cập nhật quyền truy cập mạng."
 
 #: src/renderer/components/providers/settings/ModelProviderManager.tsx
 msgid "Unable to update providers. Check the native configuration for overrides."

@@ -73,6 +73,8 @@ export interface DesktopRemoteAccessStartRefs {
   pushCoordinator: PushCoordinator | null;
   mdnsAdvertiser: MdnsAdvertiser | null;
   portForwarding: PortForwarding | null;
+  /** `bindHost:port` the live `portForwarding` was built for. */
+  portForwardingBind: string | null;
   remoteTailscaleServeActiveUrl: string | null;
   remoteGitSummaries: RemoteGitSummaries;
 }
@@ -123,15 +125,11 @@ export async function performDesktopRemoteAccessStart(
     const identity = readOrCreateRemoteAccessIdentity(options.paths.baseDir);
     // The always-on instance pins the LOOPBACK bind regardless of bind-mode
     // env: a disabled desktop must never expose a wide listener just because
-    // it is running (V5 plan 2.5 completion).
-    const lanEnabled =
-      !attempt.loopbackOnly &&
-      readSharedSettingsFile(options.paths.settingsPath).remoteAccessLanEnabled;
+    // it is running (V5 plan 2.5 completion). The user-enabled instance listens
+    // on the LAN, so the single Remote Access switch is the only exposure gate.
     const remoteHost = attempt.loopbackOnly
       ? DEFAULT_REMOTE_ACCESS_HOST
-      : remoteAccessHost(
-          lanEnabled ? { defaultMode: "lan", plaintextLanAcknowledged: true } : undefined,
-        );
+      : remoteAccessHost({ defaultMode: "lan", plaintextLanAcknowledged: true });
     const port = await resolveRemoteAccessPort({ host: remoteHost });
     // Dedicated persistent origin secret + configured HTTPS base → the
     // browser-forward child-origin identity. A malformed explicit
@@ -202,12 +200,20 @@ export async function performDesktopRemoteAccessStart(
       devWebAppUrl = devUrl.toString();
     }
     const authStore = createPersistentRemoteAuthStore(options.paths.baseDir);
-    // It owns live TCP listeners, so rebuild only after a full disable/failure.
+    // It owns live TCP listeners, so rebuild it only when the bind changes
+    // (loopback <-> enabled) or after a full disable/failure.
+    const portForwardingBind = `${remoteHost}:${port}`;
+    if (refs.portForwarding && refs.portForwardingBind !== portForwardingBind) {
+      const stale = refs.portForwarding;
+      refs.portForwarding = null;
+      stale.dispose();
+    }
     refs.portForwarding ??= createPortForwarding({
       bindHost: remoteHost,
       remoteAccessPort: port,
       ...(forwardOrigin ? { forwardOrigin } : {}),
     });
+    refs.portForwardingBind = portForwardingBind;
     attempt.forwarding = refs.portForwarding;
     const pushGatewayOptions = {
       onError: (error: unknown) =>
@@ -267,7 +273,7 @@ export async function performDesktopRemoteAccessStart(
       // contained by the sink (warn + drop), never the request path.
       audit: createRemoteAuditLog(options.paths.baseDir),
       host: remoteHost,
-      ...(lanEnabled ? { plaintextLanAcknowledged: true } : {}),
+      ...(attempt.loopbackOnly ? {} : { plaintextLanAcknowledged: true }),
       port,
       advertisedHost,
       ...(advertisedResolution.advertisedBaseUrl

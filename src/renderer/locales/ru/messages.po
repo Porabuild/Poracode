@@ -1819,8 +1819,8 @@ msgid "Allow eval"
 msgstr "Разрешить eval"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-msgid "Allow paired devices to connect through LAN and Tailscale IP addresses. Connections use HTTP unless TLS is configured. Enable only on trusted networks."
-msgstr "Разрешить сопряжённым устройствам подключаться по IP-адресам локальной сети и Tailscale. Если TLS не настроен, используется HTTP. Включайте только в доверенных сетях."
+#~ msgid "Allow paired devices to connect through LAN and Tailscale IP addresses. Connections use HTTP unless TLS is configured. Enable only on trusted networks."
+#~ msgstr "Разрешить сопряжённым устройствам подключаться по IP-адресам локальной сети и Tailscale. Если TLS не настроен, используется HTTP. Включайте только в доверенных сетях."
 
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "Allow replacing conflicting managed skills"
@@ -6080,8 +6080,12 @@ msgid "Devices & tools"
 msgstr "Устройства и инструменты"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-msgid "Devices can pair while this desktop is reachable."
-msgstr "Устройства могут подключаться, пока этот рабочий стол доступен."
+msgid "Devices can pair while this desktop is reachable on your local network. Connections use HTTP unless TLS is configured; use only on trusted networks."
+msgstr "Устройства могут сопрягаться, пока этот компьютер доступен в вашей локальной сети. Соединения используют HTTP, если не настроен TLS; используйте только в доверенных сетях."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#~ msgid "Devices can pair while this desktop is reachable."
+#~ msgstr "Устройства могут подключаться, пока этот рабочий стол доступен."
 
 #: src/renderer/components/providers/devin/manifest.ts
 msgid "Devin"
@@ -11099,8 +11103,8 @@ msgid "Needs reply"
 msgstr "Требует ответа"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-msgid "Network access"
-msgstr "Доступ по сети"
+#~ msgid "Network access"
+#~ msgstr "Доступ по сети"
 
 #: src/renderer/utils/prStatus.ts
 msgid "Neutral"
@@ -20135,8 +20139,8 @@ msgid "Unable to update native MCP configuration. Refresh and review the configu
 msgstr "Не удалось обновить конфигурацию MCP для CLI. Обновите и проверьте конфигурацию перед повторной попыткой."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-msgid "Unable to update network access."
-msgstr "Не удалось обновить доступ по сети."
+#~ msgid "Unable to update network access."
+#~ msgstr "Не удалось обновить доступ по сети."
 
 #: src/renderer/components/providers/settings/ModelProviderManager.tsx
 msgid "Unable to update providers. Check the native configuration for overrides."

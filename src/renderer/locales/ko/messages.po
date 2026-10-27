@@ -1819,8 +1819,8 @@ msgid "Allow eval"
 msgstr "평가 허용"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-msgid "Allow paired devices to connect through LAN and Tailscale IP addresses. Connections use HTTP unless TLS is configured. Enable only on trusted networks."
-msgstr "페어링된 기기가 LAN 및 Tailscale IP 주소로 연결하도록 허용합니다. TLS가 구성되지 않은 경우 HTTP를 사용합니다. 신뢰할 수 있는 네트워크에서만 활성화하세요."
+#~ msgid "Allow paired devices to connect through LAN and Tailscale IP addresses. Connections use HTTP unless TLS is configured. Enable only on trusted networks."
+#~ msgstr "페어링된 기기가 LAN 및 Tailscale IP 주소로 연결하도록 허용합니다. TLS가 구성되지 않은 경우 HTTP를 사용합니다. 신뢰할 수 있는 네트워크에서만 활성화하세요."
 
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "Allow replacing conflicting managed skills"
@@ -6080,8 +6080,12 @@ msgid "Devices & tools"
 msgstr "장치 및 도구"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-msgid "Devices can pair while this desktop is reachable."
-msgstr "이 데스크톱에 연결할 수 있는 동안 기기를 페어링할 수 있습니다."
+msgid "Devices can pair while this desktop is reachable on your local network. Connections use HTTP unless TLS is configured; use only on trusted networks."
+msgstr "이 데스크톱이 로컬 네트워크에서 접근 가능한 동안 기기를 페어링할 수 있습니다. TLS를 구성하지 않으면 연결은 HTTP를 사용하므로 신뢰할 수 있는 네트워크에서만 사용하세요."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#~ msgid "Devices can pair while this desktop is reachable."
+#~ msgstr "이 데스크톱에 연결할 수 있는 동안 기기를 페어링할 수 있습니다."
 
 #: src/renderer/components/providers/devin/manifest.ts
 msgid "Devin"
@@ -11099,8 +11103,8 @@ msgid "Needs reply"
 msgstr "답장이 필요함"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-msgid "Network access"
-msgstr "네트워크 액세스"
+#~ msgid "Network access"
+#~ msgstr "네트워크 액세스"
 
 #: src/renderer/utils/prStatus.ts
 msgid "Neutral"
@@ -20135,8 +20139,8 @@ msgid "Unable to update native MCP configuration. Refresh and review the configu
 msgstr "네이티브 MCP 구성을 업데이트할 수 없습니다. 새로 고침하고 구성을 검토한 후 다시 시도하세요."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-msgid "Unable to update network access."
-msgstr "네트워크 액세스를 업데이트할 수 없습니다."
+#~ msgid "Unable to update network access."
+#~ msgstr "네트워크 액세스를 업데이트할 수 없습니다."
 
 #: src/renderer/components/providers/settings/ModelProviderManager.tsx
 msgid "Unable to update providers. Check the native configuration for overrides."

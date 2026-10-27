@@ -1819,8 +1819,8 @@ msgid "Allow eval"
 msgstr "允许评估"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-msgid "Allow paired devices to connect through LAN and Tailscale IP addresses. Connections use HTTP unless TLS is configured. Enable only on trusted networks."
-msgstr "允许已配对的设备通过局域网和 Tailscale IP 地址连接。未配置 TLS 时，连接使用 HTTP。请仅在可信网络上启用。"
+#~ msgid "Allow paired devices to connect through LAN and Tailscale IP addresses. Connections use HTTP unless TLS is configured. Enable only on trusted networks."
+#~ msgstr "允许已配对的设备通过局域网和 Tailscale IP 地址连接。未配置 TLS 时，连接使用 HTTP。请仅在可信网络上启用。"
 
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "Allow replacing conflicting managed skills"
@@ -6080,8 +6080,12 @@ msgid "Devices & tools"
 msgstr "设备与工具"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-msgid "Devices can pair while this desktop is reachable."
-msgstr "当此桌面可访问时，设备可以配对。"
+msgid "Devices can pair while this desktop is reachable on your local network. Connections use HTTP unless TLS is configured; use only on trusted networks."
+msgstr "只要此桌面在你的本地网络中可访问，设备即可配对。除非配置了 TLS，否则连接使用 HTTP；请仅在受信任的网络中使用。"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#~ msgid "Devices can pair while this desktop is reachable."
+#~ msgstr "当此桌面可访问时，设备可以配对。"
 
 #: src/renderer/components/providers/devin/manifest.ts
 msgid "Devin"
@@ -11098,8 +11102,8 @@ msgid "Needs reply"
 msgstr "需要回复"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-msgid "Network access"
-msgstr "网络访问"
+#~ msgid "Network access"
+#~ msgstr "网络访问"
 
 #: src/renderer/utils/prStatus.ts
 msgid "Neutral"
@@ -20134,8 +20138,8 @@ msgid "Unable to update native MCP configuration. Refresh and review the configu
 msgstr "无法更新原生 MCP 配置。请刷新并检查配置后重试。"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-msgid "Unable to update network access."
-msgstr "无法更新网络访问。"
+#~ msgid "Unable to update network access."
+#~ msgstr "无法更新网络访问。"
 
 #: src/renderer/components/providers/settings/ModelProviderManager.tsx
 msgid "Unable to update providers. Check the native configuration for overrides."

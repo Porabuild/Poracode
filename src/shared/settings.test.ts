@@ -25,7 +25,7 @@ describe("shared settings defaults", () => {
     ).toEqual({});
   });
 
-  it("keeps pre-LAN settings loopback-only without changing remote enablement", () => {
+  it("retains the retired LAN preference without changing remote enablement", () => {
     const prior = { remoteAccessEnabled: true, remoteAccessTailscaleHttps: true };
     expect(normalizeSharedSettings(prior)).toMatchObject({
       ...prior,

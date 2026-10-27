@@ -1819,8 +1819,8 @@ msgid "Allow eval"
 msgstr "Değerlendirmeye izin ver"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-msgid "Allow paired devices to connect through LAN and Tailscale IP addresses. Connections use HTTP unless TLS is configured. Enable only on trusted networks."
-msgstr "Eşleştirilmiş cihazların LAN ve Tailscale IP adresleri üzerinden bağlanmasına izin verin. TLS yapılandırılmadıkça bağlantılar HTTP kullanır. Yalnızca güvenilir ağlarda etkinleştirin."
+#~ msgid "Allow paired devices to connect through LAN and Tailscale IP addresses. Connections use HTTP unless TLS is configured. Enable only on trusted networks."
+#~ msgstr "Eşleştirilmiş cihazların LAN ve Tailscale IP adresleri üzerinden bağlanmasına izin verin. TLS yapılandırılmadıkça bağlantılar HTTP kullanır. Yalnızca güvenilir ağlarda etkinleştirin."
 
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "Allow replacing conflicting managed skills"
@@ -6080,8 +6080,12 @@ msgid "Devices & tools"
 msgstr "Cihazlar ve araçlar"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-msgid "Devices can pair while this desktop is reachable."
-msgstr "Cihazlar bu masaüstüne erişilebildiği sürece eşleşebilir."
+msgid "Devices can pair while this desktop is reachable on your local network. Connections use HTTP unless TLS is configured; use only on trusted networks."
+msgstr "Bu masaüstü yerel ağınızda erişilebilir olduğu sürece cihazlar eşleşebilir. TLS yapılandırılmadıkça bağlantılar HTTP kullanır; yalnızca güvenilir ağlarda kullanın."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#~ msgid "Devices can pair while this desktop is reachable."
+#~ msgstr "Cihazlar bu masaüstüne erişilebildiği sürece eşleşebilir."
 
 #: src/renderer/components/providers/devin/manifest.ts
 msgid "Devin"
@@ -11099,8 +11103,8 @@ msgid "Needs reply"
 msgstr "Yanıt gerekiyor"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-msgid "Network access"
-msgstr "Ağ erişimi"
+#~ msgid "Network access"
+#~ msgstr "Ağ erişimi"
 
 #: src/renderer/utils/prStatus.ts
 msgid "Neutral"
@@ -20135,8 +20139,8 @@ msgid "Unable to update native MCP configuration. Refresh and review the configu
 msgstr "Yerel MCP yapılandırması güncellenemedi. Yeniden denemeden önce yapılandırmayı yenileyip inceleyin."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-msgid "Unable to update network access."
-msgstr "Ağ erişimi güncellenemedi."
+#~ msgid "Unable to update network access."
+#~ msgstr "Ağ erişimi güncellenemedi."
 
 #: src/renderer/components/providers/settings/ModelProviderManager.tsx
 msgid "Unable to update providers. Check the native configuration for overrides."

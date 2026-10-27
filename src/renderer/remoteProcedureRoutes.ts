@@ -142,7 +142,7 @@ export const NON_ROUTER_PROJECT_PROCEDURES = {
   setRemoteAccessEnabled:
     "local-shell: toggles this host's remote-access server; trust-surface control stays with the physical host",
   setRemoteAccessLanEnabled:
-    "local-shell: changes this host's network exposure; trust-surface control stays with the physical host",
+    "local-shell: retired no-op kept for client/host hop compatibility; trust-surface control stays with the physical host",
   revokeRemoteAccessSession:
     "local-shell: revokes sessions on this host's server; trust-surface control stays with the physical host",
   getRemoteAccessTailscaleStatus:

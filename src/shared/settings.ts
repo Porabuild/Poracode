@@ -499,7 +499,10 @@ export const sharedSettingsSchema = z.object({
   closeToTray: z.boolean(),
   /** Enable the desktop's remote access server for paired mobile/browser clients. */
   remoteAccessEnabled: z.boolean(),
-  /** Explicit opt-in to LAN listening; older settings remain loopback-only. */
+  /**
+   * Retired: the desktop listens on the LAN whenever remote access is enabled, so
+   * this no longer gates anything. Kept so older settings files stay valid.
+   */
   remoteAccessLanEnabled: z.boolean(),
   /**
    * Advertise a Tailscale MagicDNS HTTPS URL for remote access. When enabled and
