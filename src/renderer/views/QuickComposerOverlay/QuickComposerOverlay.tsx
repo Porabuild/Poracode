@@ -14,6 +14,7 @@ import { ThreadDraftView } from "@/renderer/components/thread/ThreadDraftView";
 import type { DraftStartInput } from "@/renderer/components/thread/ThreadDraftComposerArea";
 import {
   applyAgentStatusSupervisorEvent,
+  applyPartialAgentStatuses,
   isDetectingAgentsForLocation,
   useAgentStatusesStore,
 } from "@/renderer/state/agentStatusesStore";
@@ -95,12 +96,15 @@ export function QuickComposerOverlay() {
       const wslDistros = parseWslProjectDistrosKey(
         buildWslProjectDistrosKey(useAppStore.getState().projects),
       );
+      const statusesBeforeRequest = useAgentStatusesStore.getState();
       const response = await readBridge().getAgentStatuses(wslDistros);
       if (response.fromCache) {
         useAgentStatusesStore.getState().hydrateFromCache({
           windows: response.windows,
           wsl: response.wsl,
         });
+      } else {
+        applyPartialAgentStatuses(response, statusesBeforeRequest);
       }
     };
     // Native show is authoritative: Chromium can keep visibilityState="visible"
@@ -242,7 +246,7 @@ export function QuickComposerOverlay() {
           <QuickComposerUnavailable onOpenMainWindow={() => dismiss(true)}>
             <Trans>Add a project to start</Trans>
           </QuickComposerUnavailable>
-        ) : isDetectingAgents ? (
+        ) : isDetectingAgents && !hasInstalledAgent ? (
           <QuickComposerProjectStatus projectId={project.id} onProjectChange={setSelectedProjectId}>
             <PixelLoader size="sm" />
             <Trans>Detecting agents…</Trans>

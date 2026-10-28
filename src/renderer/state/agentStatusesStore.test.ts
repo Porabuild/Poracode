@@ -3,6 +3,8 @@ import type { AgentStatus, ProjectLocation } from "@/shared/contracts";
 import {
   isDetectingAgentsForLocation,
   isDiscoveryActiveForLocation,
+  applyAgentStatusSupervisorEvent,
+  applyPartialAgentStatuses,
   useAgentStatusesStore,
 } from "./agentStatusesStore";
 
@@ -36,6 +38,8 @@ function reset() {
     wslAgentStatuses: [],
     windowsLoaded: false,
     wslLoaded: false,
+    nativeRevision: 0,
+    wslRevision: 0,
     hasCompletedDiscovery: false,
     inFirstLaunchDiscovery: false,
     discoveryScanning: false,
@@ -73,7 +77,7 @@ describe("persisted agent status cache", () => {
   });
 
   it.each(["posix", "windows"] as const)(
-    "refreshes an invalidated %s upgrade cache without repeating fullscreen discovery",
+    "retains a compatible %s upgrade cache without repeating fullscreen discovery",
     async (envKind) => {
       localStorage.setItem(
         "poracode-agent-statuses-v1",
@@ -90,7 +94,7 @@ describe("persisted agent status cache", () => {
       await useAgentStatusesStore.persist.rehydrate();
       const state = useAgentStatusesStore.getState();
       expect(state).toMatchObject({
-        agentStatuses: [],
+        agentStatuses: [makeStatus({ envKind })],
         windowsLoaded: false,
         hasCompletedDiscovery: true,
       });
@@ -167,6 +171,8 @@ describe("persisted agent status cache", () => {
       useAgentStatusesStore.getState(),
     );
     expect(persisted).not.toHaveProperty("discoveryAutoHideCancelled");
+    expect(persisted).not.toHaveProperty("nativeRevision");
+    expect(persisted).not.toHaveProperty("wslRevision");
   });
 
   it("migrates v65 persisted statuses with 1M as the Claude default window", async () => {
@@ -1424,7 +1430,7 @@ it("refreshes model pricing metadata when model IDs and provider version stay th
 });
 
 // The newly integrated native-account discovery must invalidate both old parents.
-it.each([29, 32, 33, 44, 51, 52, 53, 54, 55, 60, 61, 62, 63])(
+it.each([29, 32, 33, 44, 51, 52, 53, 54, 55, 60, 61, 62])(
   "re-probes v%s account catalogs while preserving unrelated state",
   async (version) => {
     const options = useAgentStatusesStore.persist.getOptions();
@@ -1447,3 +1453,134 @@ it.each([29, 32, 33, 44, 51, 52, 53, 54, 55, 60, 61, 62, 63])(
     });
   },
 );
+
+it.each([63, 64, 65])("retains unchanged v%s inventories in both environments", async (version) => {
+  const native = makeStatus({ kind: "example", label: "Example", envKind: "posix" });
+  const wsl = { ...native, envKind: "wsl" as const, envDistro: "Ubuntu" };
+  const previous = {
+    agentStatuses: [native],
+    wslAgentStatuses: [wsl],
+    windowsLoaded: true,
+    wslLoaded: true,
+    unrelatedPersistedField: { savedChoice: "preserved" },
+  };
+  expect(await useAgentStatusesStore.persist.getOptions().migrate!(previous, version)).toEqual({
+    ...previous,
+    hasCompletedDiscovery: true,
+    windowsLoaded: false,
+    wslLoaded: false,
+  });
+});
+
+it("publishes fresh background discovery rows before a stalled peer finishes", () => {
+  useAgentStatusesStore.setState({ hasCompletedDiscovery: true });
+  useAgentStatusesStore.getState().beginStartupDiscovery();
+  const fresh = makeStatus();
+  applyAgentStatusSupervisorEvent({ type: "agent-detected", status: fresh });
+  expect(useAgentStatusesStore.getState()).toMatchObject({
+    agentStatuses: [fresh],
+    windowsLoaded: false,
+    inFirstLaunchDiscovery: false,
+  });
+  // WSL observations remain scoped and do not finish either environment.
+  const wsl = { ...fresh, envKind: "wsl" as const, envDistro: "Ubuntu" };
+  applyAgentStatusSupervisorEvent({ type: "agent-detected", status: wsl });
+  expect(useAgentStatusesStore.getState()).toMatchObject({
+    agentStatuses: [fresh],
+    wslAgentStatuses: [wsl],
+    windowsLoaded: false,
+    wslLoaded: false,
+  });
+  applyAgentStatusSupervisorEvent({ type: "windows-agent-statuses", statuses: [fresh] });
+  expect(useAgentStatusesStore.getState().windowsLoaded).toBe(true);
+  expect(useAgentStatusesStore.getState().wslLoaded).toBe(false);
+});
+
+it("keeps first-launch discovery open while its streamed rows become usable", () => {
+  useAgentStatusesStore.getState().beginStartupDiscovery();
+  const fresh = makeStatus();
+  applyAgentStatusSupervisorEvent({ type: "agent-detected", status: fresh });
+  expect(useAgentStatusesStore.getState()).toMatchObject({
+    agentStatuses: [fresh],
+    discoveredAgents: [fresh],
+    windowsLoaded: false,
+    hasCompletedDiscovery: false,
+    inFirstLaunchDiscovery: true,
+    discoveryScanning: true,
+  });
+});
+
+it("uses partial RPC observations without rolling back fresher events or completing startup", () => {
+  const before = useAgentStatusesStore.getState();
+  const stale = makeStatus({ version: "old" });
+  const fresh = makeStatus({ version: "fresh" });
+  const peer = makeStatus({ kind: "peer", label: "Peer" });
+  applyAgentStatusSupervisorEvent({ type: "agent-detected", status: fresh });
+  applyPartialAgentStatuses({ windows: [stale, peer], wsl: [], fromCache: false }, before);
+  expect(useAgentStatusesStore.getState()).toMatchObject({
+    agentStatuses: [fresh, peer],
+    windowsLoaded: false,
+  });
+  // A delayed response also cannot restore a row removed by a terminal event.
+  const pending = useAgentStatusesStore.getState();
+  applyAgentStatusSupervisorEvent({ type: "windows-agent-statuses", statuses: [fresh] });
+  applyPartialAgentStatuses({ windows: [stale, peer], wsl: [], fromCache: false }, pending);
+  expect(useAgentStatusesStore.getState().agentStatuses).toEqual([fresh]);
+});
+
+it.each(["posix", "windows"] as const)(
+  "replaces retained legacy native rows with fresh %s observations",
+  async (envKind) => {
+    const stale = makeStatus({ version: "old" });
+    localStorage.setItem(
+      "poracode-agent-statuses-v1",
+      JSON.stringify({
+        version: 65,
+        state: { agentStatuses: [stale], windowsLoaded: true },
+      }),
+    );
+    await useAgentStatusesStore.persist.rehydrate();
+    const before = useAgentStatusesStore.getState();
+    const fresh = makeStatus({ envKind, version: "fresh" });
+    applyAgentStatusSupervisorEvent({ type: "agent-detected", status: fresh });
+    expect(useAgentStatusesStore.getState().agentStatuses).toEqual([fresh]);
+    applyPartialAgentStatuses({ windows: [stale], wsl: [], fromCache: false }, before);
+    expect(useAgentStatusesStore.getState().agentStatuses).toEqual([fresh]);
+  },
+);
+
+it.each([false, true])(
+  "rejects partial responses crossing terminal events when already loaded (wsl=%s)",
+  (isWsl) => {
+    useAgentStatusesStore.setState({ windowsLoaded: true, wslLoaded: true });
+    const before = useAgentStatusesStore.getState();
+    const removed = makeStatus(isWsl ? { envKind: "wsl", envDistro: "Ubuntu" } : {});
+    applyAgentStatusSupervisorEvent({
+      type: isWsl ? "wsl-agent-statuses" : "windows-agent-statuses",
+      statuses: [],
+    });
+    applyPartialAgentStatuses(
+      { windows: isWsl ? [] : [removed], wsl: isWsl ? [removed] : [], fromCache: false },
+      before,
+    );
+    expect(useAgentStatusesStore.getState().agentStatuses).toEqual([]);
+    expect(useAgentStatusesStore.getState().wslAgentStatuses).toEqual([]);
+  },
+);
+
+it("publishes a progressive observation atomically to the composer and discovery list", () => {
+  useAgentStatusesStore.getState().beginStartupDiscovery();
+  let publications = 0;
+  const unsubscribe = useAgentStatusesStore.subscribe(() => {
+    publications++;
+  });
+  try {
+    const fresh = makeStatus();
+    applyAgentStatusSupervisorEvent({ type: "agent-detected", status: fresh });
+    expect(useAgentStatusesStore.getState().agentStatuses).toEqual([fresh]);
+    expect(useAgentStatusesStore.getState().discoveredAgents).toEqual([fresh]);
+    expect(publications).toBe(1);
+  } finally {
+    unsubscribe();
+  }
+});
