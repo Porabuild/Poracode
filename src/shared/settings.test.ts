@@ -24,6 +24,23 @@ const validCrew = {
 };
 
 describe("shared settings crews", () => {
+  it("reads pre-shortcut crews and model history and round-trips optional picker metadata", () => {
+    const legacy = {
+      crews: [validCrew],
+      recentModels: [{ agentKind: "example", modelId: "lead", presentationMode: "gui" }],
+      favoriteModels: [],
+    };
+    const normalized = normalizeSharedSettings(legacy);
+    expect(normalized.crews).toEqual(legacy.crews);
+    expect(normalized.recentModels).toEqual(legacy.recentModels);
+    const current = {
+      ...normalized,
+      crews: [{ ...normalized.crews[0]!, favorite: true, lastUsedAt: 123 }],
+      recentModels: [{ ...normalized.recentModels[0]!, lastUsedAt: 124 }],
+    };
+    expect(normalizeSharedSettings(JSON.parse(JSON.stringify(current)))).toEqual(current);
+  });
+
   it("adds an empty crew list to pre-crews settings without changing other values", () => {
     const normalized = normalizeSharedSettings({ themeMode: "light", providerOrder: ["codex"] });
     expect(normalized.crews).toEqual([]);

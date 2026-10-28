@@ -1522,7 +1522,7 @@ msgstr "Sohbete ekle"
 msgid "Add to composer"
 msgstr "Yazım alanına ekle"
 
-#: src/renderer/components/common/ProviderModelMenu/parts/ModelMenuRow.tsx
+#: src/renderer/components/common/ProviderModelMenu/parts/ModelShortcutActions.tsx
 msgid "Add to favorites"
 msgstr "Favorilere ekle"
 
@@ -5384,6 +5384,10 @@ msgstr "Krediler"
 msgid "Crew"
 msgstr "Crew"
 
+#: src/renderer/commands/registry.ts
+msgid "Crew added to favorites"
+msgstr "Ekip favorilere eklendi"
+
 #: src/renderer/components/thread/CrewDockSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
 msgid "Crew first"
@@ -5416,6 +5420,10 @@ msgstr "Yalnızca Crew: işler sadece bu Crew'e gider"
 msgid "Crew policy"
 msgstr "Ekip ilkesi"
 
+#: src/renderer/commands/registry.ts
+msgid "Crew removed from favorites"
+msgstr "Ekip favorilerden kaldırıldı"
+
 #: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
@@ -5442,6 +5450,7 @@ msgstr "Cron ifadesi"
 msgid "Cross-repository pull requests cannot be checked out here"
 msgstr "Depolar arası çekme istekleri burada checkout edilemez"
 
+#: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Crossagent"
@@ -7661,6 +7670,7 @@ msgid "Favorite"
 msgstr "Favori"
 
 #: src/renderer/components/common/ProviderModelMenu/parts/buildItems.ts
+#: src/renderer/components/common/ProviderModelMenu/parts/crewPickerItems.ts
 msgid "Favorites"
 msgstr "Favoriler"
 
@@ -14695,6 +14705,7 @@ msgid "Receiving visual source…"
 msgstr "Görsel kaynağı alınıyor…"
 
 #: src/renderer/components/common/ProviderModelMenu/parts/buildItems.ts
+#: src/renderer/components/common/ProviderModelMenu/parts/crewPickerItems.ts
 msgid "Recent"
 msgstr "Son"
 
@@ -15087,7 +15098,7 @@ msgstr "Yedeği kaldır"
 msgid "Remove from download history"
 msgstr "İndirme geçmişinden kaldır"
 
-#: src/renderer/components/common/ProviderModelMenu/parts/ModelMenuRow.tsx
+#: src/renderer/components/common/ProviderModelMenu/parts/ModelShortcutActions.tsx
 msgid "Remove from favorites"
 msgstr "Favorilerden kaldır"
 
@@ -15099,7 +15110,7 @@ msgstr "Gruptan kaldır"
 msgid "Remove from panel"
 msgstr "Panelden kaldır"
 
-#: src/renderer/components/common/ProviderModelMenu/parts/ModelMenuRow.tsx
+#: src/renderer/components/common/ProviderModelMenu/parts/ModelShortcutActions.tsx
 msgid "Remove from recent"
 msgstr "Son kullanılanlardan kaldır"
 

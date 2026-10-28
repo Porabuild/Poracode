@@ -181,6 +181,8 @@ interface SharedSettingsState extends SharedSettings {
   setMcpServers: (servers: McpServer[]) => void;
   upsertCrew: (crew: SavedCrew) => void;
   deleteCrew: (id: string) => void;
+  setCrewFavorite: (id: string, favorite: boolean) => void;
+  setCrewLastUsedAt: (id: string, lastUsedAt: number | null) => void;
   setBuiltInMcpServerDisabled: (id: BuiltInMcpServerId, disabled: boolean) => void;
   setBuiltInMcpToolEnabled: (id: BuiltInMcpServerId, tool: string, enabled: boolean) => void;
   installPlugin: (plugin: LoadedPlugin) => void;
@@ -271,6 +273,7 @@ interface SharedSettingsState extends SharedSettings {
     presentationMode: ThreadPresentationMode,
     effort?: string,
     fast?: boolean,
+    crewId?: string,
   ) => void;
 }
 
@@ -917,12 +920,35 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     const crews = get().crews;
     const index = crews.findIndex((entry) => entry.id === normalized.id);
     if (index < 0 && crews.length >= MAX_SAVED_CREWS) return;
-    const nextCrew: SavedCrew = { ...normalized, updatedAt: Date.now() };
+    const nextCrew: SavedCrew = {
+      ...crews[index],
+      ...normalized,
+      updatedAt: Date.now(),
+    };
     set({
       crews:
         index < 0
           ? [...crews, nextCrew]
           : crews.map((entry, entryIndex) => (entryIndex === index ? nextCrew : entry)),
+    });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setCrewFavorite: (id, favorite) => {
+    const crews = get().crews;
+    if (!crews.some((crew) => crew.id === id && (crew.favorite ?? false) !== favorite)) return;
+    set({ crews: crews.map((crew) => (crew.id === id ? { ...crew, favorite } : crew)) });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setCrewLastUsedAt: (id, lastUsedAt) => {
+    const crews = get().crews;
+    if (!crews.some((crew) => crew.id === id && crew.lastUsedAt !== (lastUsedAt ?? undefined)))
+      return;
+    set({
+      crews: crews.map((crew) => {
+        if (crew.id !== id) return crew;
+        const { lastUsedAt: _lastUsedAt, ...rest } = crew;
+        return lastUsedAt === null ? rest : { ...rest, lastUsedAt };
+      }),
     });
     persistSettings(selectSharedSettings(get()));
   },
@@ -1205,18 +1231,24 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     set({ recentModels: next });
     persistSettings(selectSharedSettings(get()));
   },
-  pushRecentModel: (agentKind, modelId, presentationMode, effort, fast) => {
+  pushRecentModel: (agentKind, modelId, presentationMode, effort, fast, crewId) => {
+    const crew = get().crews.find((entry) => entry.id === crewId);
+    const lastUsedAt = Date.now();
     const current = get().recentModels;
     const samePresentation = current.filter((m) => m.presentationMode === presentationMode);
     const otherPresentations = current.filter((m) => m.presentationMode !== presentationMode);
     const filtered = samePresentation.filter(
       (m) => !(m.agentKind === agentKind && m.modelId === modelId),
     );
-    const nextForPresentation = [{ agentKind, modelId, presentationMode }, ...filtered].slice(
-      0,
-      RECENT_MODELS_LIMIT,
-    );
-    const next = [...nextForPresentation, ...otherPresentations].slice(0, RECENT_MODELS_LIMIT * 2);
+    const nextForPresentation = [
+      { agentKind, modelId, presentationMode, lastUsedAt },
+      ...filtered,
+    ].slice(0, RECENT_MODELS_LIMIT);
+    // A crew launch contributes one shortcut, while its lead still contributes
+    // to Crossagents usage ranking. Missing/deleted saved crews fall back to the model.
+    const next = crew
+      ? current
+      : [...nextForPresentation, ...otherPresentations].slice(0, RECENT_MODELS_LIMIT * 2);
     const agentSelectionUsage = incrementAgentSelectionUsage(get().agentSelectionUsage, [
       {
         agentKind,
@@ -1231,10 +1263,18 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
         (m, i) =>
           m.agentKind === next[i]!.agentKind &&
           m.modelId === next[i]!.modelId &&
-          m.presentationMode === next[i]!.presentationMode,
+          m.presentationMode === next[i]!.presentationMode &&
+          m.lastUsedAt === next[i]!.lastUsedAt,
       );
     set({
       ...(recentsUnchanged ? {} : { recentModels: next }),
+      ...(crew
+        ? {
+            crews: get().crews.map((entry) =>
+              entry.id === crew.id ? { ...entry, lastUsedAt } : entry,
+            ),
+          }
+        : {}),
       agentSelectionUsage,
     });
     persistSettings(selectSharedSettings(get()));

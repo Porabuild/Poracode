@@ -304,6 +304,58 @@ describe("sharedSettingsStore", () => {
     ]);
   });
 
+  it("persists crew shortcuts independently of roster edits and removes recent without deleting the crew", () => {
+    const crew = {
+      id: "ship",
+      name: "Ship crew",
+      policy: "crew-only" as const,
+      lead: { agentKind: "example", model: "lead" },
+      roles: [
+        { id: "builder", label: "Builder", selection: { agentKind: "example", model: "helper" } },
+      ],
+    };
+    const settings = useSharedSettings.getState();
+    settings.upsertCrew(crew);
+    settings.setCrewFavorite(crew.id, true);
+    settings.setCrewLastUsedAt(crew.id, 123);
+    settings.upsertCrew({ ...crew, name: "Renamed" });
+    const disk = () =>
+      normalizeSharedSettings(JSON.parse(localStorage.getItem("poracode-shared-settings")!));
+    expect(disk().crews[0]).toMatchObject({ name: "Renamed", favorite: true, lastUsedAt: 123 });
+    settings.setCrewLastUsedAt(crew.id, null);
+    expect(disk().crews[0]).not.toHaveProperty("lastUsedAt");
+    expect(disk().crews[0]?.favorite).toBe(true);
+    settings.setCrewFavorite(crew.id, false);
+    expect(disk().crews[0]?.favorite).toBe(false);
+    settings.setCrewFavorite("deleted", true);
+    settings.setCrewLastUsedAt("deleted", 456);
+    expect(disk().crews).toHaveLength(1);
+  });
+
+  it("records a crew launch as one recent shortcut while counting its lead usage", () => {
+    const crew = {
+      id: "ship",
+      name: "Ship crew",
+      policy: "crew-only" as const,
+      lead: { agentKind: "example", model: "lead" },
+      roles: [
+        { id: "builder", label: "Builder", selection: { agentKind: "example", model: "helper" } },
+      ],
+    };
+    useSharedSettings.getState().upsertCrew(crew);
+    useSharedSettings.getState().pushRecentModel("example", "lead", "gui", "high", false, crew.id);
+    expect(useSharedSettings.getState().recentModels).toEqual([]);
+    expect(useSharedSettings.getState().crews[0]?.lastUsedAt).toEqual(expect.any(Number));
+    expect(useSharedSettings.getState().agentSelectionUsage[0]).toMatchObject({
+      modelId: "lead",
+      count: 1,
+    });
+    useSharedSettings
+      .getState()
+      .pushRecentModel("example", "lead", "gui", "high", false, "deleted");
+    expect(useSharedSettings.getState().recentModels[0]?.modelId).toBe("lead");
+  });
+
   it("updates audio settings", () => {
     useSharedSettings.getState().setAudioSetting("transcriptionLanguage", "es");
     expect(useSharedSettings.getState().audio.transcriptionLanguage).toBe("es");

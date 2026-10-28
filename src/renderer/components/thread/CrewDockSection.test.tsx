@@ -1,6 +1,6 @@
 import { fireEvent, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import type { Thread } from "@/shared/contracts";
+import type { AgentStatus, Thread } from "@/shared/contracts";
 import type { SavedCrew, ThreadCrewBinding } from "@/shared/crew";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
@@ -95,8 +95,8 @@ describe("CrewDockSection", () => {
         thread={thread}
         binding={binding}
         runIds={["run-trimmed", "run-case", "run-other"]}
-        renderRun={(id) => (
-          <div key={id} data-testid={`run-${id}`}>
+        renderRun={(id, taskOnly) => (
+          <div key={id} data-testid={`run-${id}`} data-task-only={taskOnly}>
             {id}
           </div>
         )}
@@ -106,12 +106,48 @@ describe("CrewDockSection", () => {
     const builderRuns = view.container.querySelector('[data-crew-role-runs="builder"]');
     expect(within(builderRuns as HTMLElement).getByTestId("run-run-trimmed")).toBeInTheDocument();
     expect(within(builderRuns as HTMLElement).getByTestId("run-run-case")).toBeInTheDocument();
+    expect(screen.getByTestId("run-run-case")).toHaveAttribute("data-task-only", "true");
+    expect(screen.getByTestId("run-run-other")).toHaveAttribute("data-task-only", "false");
     const other = screen.getByText("Other agents").parentElement;
     expect(within(other as HTMLElement).getByTestId("run-run-other")).toBeInTheDocument();
 
     const member = view.container.querySelector('[data-crew-member-row="Builder"]');
     expect(member?.querySelector('[data-crew-member-line="text"]')).toHaveClass("truncate");
     expect(member?.querySelector('[data-crew-member-line="meta"]')).toHaveClass("truncate");
+  });
+
+  it("shows the helper subprovider alongside provider and effort", () => {
+    useAgentStatusesStore.setState({
+      agentStatuses: [
+        {
+          kind: "codex",
+          label: "Provider",
+          capabilities: {
+            models: [{ id: "gpt-5.5", label: "Model" }],
+            modelSubProvider: { "gpt-5.5": "route" },
+            subProviders: [{ id: "route", label: "Route" }],
+          },
+        } as unknown as AgentStatus,
+      ],
+    });
+    const view = renderWithI18n(
+      <CrewDockSection
+        threadId="thread-1"
+        thread={thread}
+        binding={{
+          ...binding,
+          roles: [{ ...role, selection: { ...role.selection, effort: "high" } }],
+        }}
+        runIds={[]}
+        renderRun={() => null}
+        showPlacementToggle={false}
+      />,
+    );
+    expect(
+      view.container.querySelector(
+        '[data-crew-member-row="Builder"] [data-crew-member-line="meta"]',
+      ),
+    ).toHaveTextContent("Provider · Route · High");
   });
 
   it("routes runs to Other agents after the role is renamed", () => {

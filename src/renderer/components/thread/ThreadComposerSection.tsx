@@ -97,7 +97,6 @@ import {
   crewPickerEntry,
   crewSummary,
   leadSelectionOf,
-  newCrewBinding,
   savedCrewFor,
 } from "@/renderer/components/crew/crewComposerModel";
 import { useCrewHelperOptions } from "@/renderer/components/crew/crewHelperOptions";
@@ -669,13 +668,6 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   const savedCrews = useSharedSettings((state) => state.crews);
   const upsertCrew = useSharedSettings((state) => state.upsertCrew);
   const helperOptions = useCrewHelperOptions();
-  const [crewOpenSignal, setCrewOpenSignal] = useState(0);
-  const [crewOpenPending, setCrewOpenPending] = useState(false);
-  useEffect(() => {
-    if (!crewOpenPending) return;
-    setCrewOpenPending(false);
-    setCrewOpenSignal((signal) => signal + 1);
-  }, [crewOpenPending]);
   const binding = threadCrewBinding(thread.config);
   const lead = leadSelectionOf(thread.agentKind, thread.config);
   const canLeadCurrentCrew = Boolean(
@@ -701,6 +693,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     },
   );
   function selectActiveCrew(choice: { crewId: string } | { newCrew: true }) {
+    if (!binding || "newCrew" in choice) return;
     if (!canLeadCurrentCrew) {
       const label =
         effectiveAgentStatus?.capabilities.models.find(
@@ -709,50 +702,38 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
       toast.danger(t`${label} can't lead a crew. Pick another model first.`);
       return;
     }
-    if ("newCrew" in choice) {
-      if (!defaultHelper) return;
-      const builder = roleTemplates.find((template) => template.id === "builder");
-      if (!builder) return;
-      changeThreadConfig(thread.id, {
-        ...thread.config,
-        crew: newCrewBinding(defaultHelper, builder),
-      });
-      setCrewOpenPending(true);
-      return;
-    }
     const saved = savedCrews.find((candidate) => candidate.id === choice.crewId);
-    if (!saved) return;
+    if (!saved || saved.lead.agentKind !== lead.agentKind) return;
     const savedBinding = crewBindingFromSavedCrew(saved);
-    if (saved.lead.agentKind === thread.agentKind) {
-      crewHandlers?.changeLead(
-        {
-          agentKind: saved.lead.agentKind,
-          model: saved.lead.model,
-          selectionIntent: "exact",
-        },
-        {
-          crew: savedBinding,
-          effort: saved.lead.effort ?? "",
-          fast: saved.lead.fast ?? false,
-          ...(saved.lead.contextSize ? { contextSize: saved.lead.contextSize } : {}),
-        },
-      );
-    } else {
-      changeThreadConfig(thread.id, { ...thread.config, crew: savedBinding });
-    }
+    crewHandlers?.changeLead(
+      {
+        agentKind: saved.lead.agentKind,
+        model: saved.lead.model,
+        selectionIntent: "exact",
+      },
+      {
+        crew: savedBinding,
+        effort: saved.lead.effort ?? "",
+        fast: saved.lead.fast ?? false,
+        ...(saved.lead.contextSize ? { contextSize: saved.lead.contextSize } : {}),
+      },
+    );
   }
   const crewSection =
-    presentationMode === "gui"
+    presentationMode === "gui" && binding
       ? {
-          entries: savedCrews.map((crew) =>
-            crewPickerEntry(crew, helperOptions.modelLabelOf, {
-              lead: t`Lead`,
-              readOnly: t`Read-only`,
-            }),
-          ),
+          onlyCrews: true,
+          entries: savedCrews
+            .filter((crew) => crew.lead.agentKind === lead.agentKind)
+            .map((crew) =>
+              crewPickerEntry(crew, helperOptions.modelLabelOf, {
+                lead: t`Lead`,
+                readOnly: t`Read-only`,
+              }),
+            ),
           ...(binding?.crewId ? { currentCrewId: binding.crewId } : {}),
           ...(binding ? { current: { name: binding.name ?? t`Crew` } } : {}),
-          canCreate: canLeadCurrentCrew && defaultHelper !== undefined,
+          canCreate: false,
           onSelect: selectActiveCrew,
         }
       : undefined;
@@ -787,13 +768,13 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
           onBindingChange: (next: ThreadCrewBinding) =>
             changeThreadConfig(thread.id, { ...thread.config, crew: next }),
           onLeadChange: (next: CrewMemberSelection) => {
-            if (next.model !== lead.model || next.agentKind !== lead.agentKind) {
+            if (next.agentKind !== lead.agentKind) {
+              useContinueInProviderStore.getState().request(thread.id);
+              return;
+            }
+            if (next.model !== lead.model) {
               crewHandlers?.changeLead(
-                {
-                  agentKind: next.agentKind,
-                  model: next.model,
-                  selectionIntent: "exact",
-                },
+                { agentKind: next.agentKind, model: next.model, selectionIntent: "exact" },
                 {
                   crew: binding,
                   effort: next.effort ?? "",
@@ -828,7 +809,6 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
       ? applyCrewComposerControls(rawControls, {
           crewSection,
           ...(activeCrewModel ? { roster: activeCrewModel } : {}),
-          openSignal: crewOpenSignal,
         })
       : rawControls;
   const controlsWithOpenSignal = controls.map((control): ComposerControl => {

@@ -1,3 +1,4 @@
+import { makeThreadTitle } from "@/shared/threadTitle";
 import type { AgentCapability, AgentKind, ProjectLocation, ThreadConfig } from "@/shared/contracts";
 import { capabilitiesForPresentation, validateAgentModelSelection } from "@/shared/agentSelection";
 import type { CrossagentExecution } from "@/shared/crossagentRanking";
@@ -30,6 +31,7 @@ export interface ResolvedSpawnAttempt {
 export interface PreparedSubagentRun {
   dispatchTrace?: DispatchTraceSnapshot;
   prompt: string;
+  title?: string;
   crewRole?: NonNullable<SpawnAgentRequest["crewRole"]>;
   resultMode?: "compact";
   projectLocation: ProjectLocation;
@@ -82,7 +84,9 @@ export function prepareSubagentRun(
   return {
     dispatchTrace: snapshotDispatchTrace(request, attempts, request.retryMode ?? "startup"),
     prompt: request.resultMode === "compact" ? compactResultPrompt(workerPrompt) : workerPrompt,
-    ...(request.crewRole ? { crewRole: request.crewRole } : {}),
+    ...(request.crewRole
+      ? { crewRole: request.crewRole, title: makeThreadTitle(runName || prompt) }
+      : {}),
     ...(request.resultMode ? { resultMode: request.resultMode } : {}),
     projectLocation: parent.projectLocation,
     background: request.background === true,

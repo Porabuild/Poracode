@@ -37,6 +37,8 @@ import {
   recordThreadHistoryNoticeRead,
 } from "@/renderer/state/remote/historyNoticeStore";
 import type { SaveClipboardImage } from "../composer/useAttachments";
+import type { ComposerControl } from "./ThreadComposer";
+import { useContinueInProviderStore } from "@/renderer/state/continueInProviderStore";
 import { ThreadComposerSection } from "./ThreadComposerSection";
 import { ImplicitMcpServersContext } from "../composer/implicitMcpServers";
 import {
@@ -429,7 +431,7 @@ describe("ThreadComposerSection", () => {
     });
   });
 
-  it("applies a same-provider saved Crew pick in one normalized config write", () => {
+  it("applies a different-model same-provider saved Crew pick in one normalized config write", () => {
     const status: AgentStatus = {
       ...codexGuiStatus,
       capabilities: {
@@ -440,7 +442,7 @@ describe("ThreadComposerSection", () => {
     const savedCrew = {
       id: "crew-saved",
       name: "Review board",
-      lead: { agentKind: "codex", model: "gpt-5.4", effort: "low", fast: false },
+      lead: { agentKind: "codex", model: "gpt-5.5", effort: "low", fast: false },
       roles: [
         {
           id: "builder",
@@ -453,9 +455,19 @@ describe("ThreadComposerSection", () => {
     };
     const thread = {
       ...guiThread,
-      config: { model: "gpt-5.4", effort: "low", fast: false },
+      config: {
+        model: "gpt-5.4",
+        effort: "low",
+        fast: false,
+        crew: { version: 1 as const, roles: savedCrew.roles, policy: savedCrew.policy },
+      },
     };
-    useSharedSettings.setState({ crews: [savedCrew] });
+    useSharedSettings.setState({
+      crews: [
+        savedCrew,
+        { ...savedCrew, id: "foreign", lead: { ...savedCrew.lead, agentKind: "claude" } },
+      ],
+    });
     useAppStore.setState({
       threads: [thread],
       runtimeLaunchConfigByThreadId: {
@@ -464,24 +476,44 @@ describe("ThreadComposerSection", () => {
     });
     renderComposer({ thread, agentStatus: status });
     const controls = composerControlsSpy.mock.lastCall?.[0] as
-      | Array<{ kind?: string; crewSection?: { onSelect: (choice: { crewId: string }) => void } }>
+      | Array<{
+          kind?: string;
+          crewSection?: {
+            entries: Array<{ crewId: string }>;
+            onSelect: (choice: { crewId: string }) => void;
+          };
+        }>
       | undefined;
     const picker = controls?.find((control) => control.kind === "provider-model");
-    expect(picker?.crewSection).toBeDefined();
+    expect(picker?.crewSection?.entries.map((entry) => entry.crewId)).toEqual([savedCrew.id]);
+    act(() => picker?.crewSection?.onSelect({ crewId: "foreign" }));
+    expect(runtimeActions.changeThreadConfig).not.toHaveBeenCalled();
     act(() => picker?.crewSection?.onSelect({ crewId: savedCrew.id }));
     expect(runtimeActions.changeThreadConfig).toHaveBeenCalledTimes(1);
     expect(runtimeActions.changeThreadConfig).toHaveBeenCalledWith(
       thread.id,
       expect.objectContaining({
-        model: "gpt-5.4",
+        model: "gpt-5.5",
         effort: "low",
         fast: false,
         crew: expect.objectContaining({ crewId: savedCrew.id }),
       }),
     );
+    const crewControl = (controls as ComposerControl[]).find((control) => control.kind === "crew");
+    if (crewControl?.kind !== "crew") throw new Error("Crew control missing");
+    runtimeActions.changeThreadConfig.mockClear();
+    act(() => crewControl.model.onLeadChange({ agentKind: "codex", model: "gpt-5.5" }));
+    expect(runtimeActions.changeThreadConfig).toHaveBeenCalledWith(
+      thread.id,
+      expect.objectContaining({ model: "gpt-5.5" }),
+    );
+    runtimeActions.changeThreadConfig.mockClear();
+    act(() => crewControl.model.onLeadChange({ agentKind: "claude", model: "opus-5.5" }));
+    expect(runtimeActions.changeThreadConfig).not.toHaveBeenCalled();
+    expect(useContinueInProviderStore.getState().requestedThreadId).toBe(thread.id);
   });
 
-  it("keeps the active lead when selecting a Crew whose lead uses another provider", () => {
+  it("hides crews in a plain thread picker", () => {
     const status: AgentStatus = {
       ...codexGuiStatus,
       capabilities: {
@@ -515,16 +547,7 @@ describe("ThreadComposerSection", () => {
       | Array<{ kind?: string; crewSection?: { onSelect: (choice: { crewId: string }) => void } }>
       | undefined;
     const picker = controls?.find((control) => control.kind === "provider-model");
-    expect(picker?.crewSection).toBeDefined();
-    act(() => picker?.crewSection?.onSelect({ crewId: savedCrew.id }));
-    expect(runtimeActions.changeThreadConfig).toHaveBeenCalledTimes(1);
-    expect(runtimeActions.changeThreadConfig).toHaveBeenCalledWith(
-      thread.id,
-      expect.objectContaining({
-        model: "gpt-5.4",
-        crew: expect.objectContaining({ crewId: savedCrew.id }),
-      }),
-    );
+    expect(picker?.crewSection).toBeUndefined();
   });
 
   it("floats the composer bubbles in one anchored wrapper above the composer", () => {

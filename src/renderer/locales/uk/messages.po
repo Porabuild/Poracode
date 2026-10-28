@@ -1522,7 +1522,7 @@ msgstr "Додати в чат"
 msgid "Add to composer"
 msgstr "Додати до Composer"
 
-#: src/renderer/components/common/ProviderModelMenu/parts/ModelMenuRow.tsx
+#: src/renderer/components/common/ProviderModelMenu/parts/ModelShortcutActions.tsx
 msgid "Add to favorites"
 msgstr "Додати до обраного"
 
@@ -5384,6 +5384,10 @@ msgstr "Кредити"
 msgid "Crew"
 msgstr "Crew"
 
+#: src/renderer/commands/registry.ts
+msgid "Crew added to favorites"
+msgstr "Команду додано до обраного"
+
 #: src/renderer/components/thread/CrewDockSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
 msgid "Crew first"
@@ -5416,6 +5420,10 @@ msgstr "Лише Crew: завдання виконує тільки ця Crew"
 msgid "Crew policy"
 msgstr "Політика команди"
 
+#: src/renderer/commands/registry.ts
+msgid "Crew removed from favorites"
+msgstr "Команду видалено з обраного"
+
 #: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
@@ -5442,6 +5450,7 @@ msgstr "Вираз Cron"
 msgid "Cross-repository pull requests cannot be checked out here"
 msgstr "Перемкнутися на pull request з іншого репозиторію тут не можна"
 
+#: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Crossagent"
@@ -7661,6 +7670,7 @@ msgid "Favorite"
 msgstr "Обране"
 
 #: src/renderer/components/common/ProviderModelMenu/parts/buildItems.ts
+#: src/renderer/components/common/ProviderModelMenu/parts/crewPickerItems.ts
 msgid "Favorites"
 msgstr "Вибране"
 
@@ -14695,6 +14705,7 @@ msgid "Receiving visual source…"
 msgstr "Отримання вихідного коду візуалізації…"
 
 #: src/renderer/components/common/ProviderModelMenu/parts/buildItems.ts
+#: src/renderer/components/common/ProviderModelMenu/parts/crewPickerItems.ts
 msgid "Recent"
 msgstr "Нещодавні"
 
@@ -15087,7 +15098,7 @@ msgstr "Видалити резервний варіант"
 msgid "Remove from download history"
 msgstr "Видалити з історії завантажень"
 
-#: src/renderer/components/common/ProviderModelMenu/parts/ModelMenuRow.tsx
+#: src/renderer/components/common/ProviderModelMenu/parts/ModelShortcutActions.tsx
 msgid "Remove from favorites"
 msgstr "Видалити з обраного"
 
@@ -15099,7 +15110,7 @@ msgstr "Видалити з групи"
 msgid "Remove from panel"
 msgstr "Видалити з панелі"
 
-#: src/renderer/components/common/ProviderModelMenu/parts/ModelMenuRow.tsx
+#: src/renderer/components/common/ProviderModelMenu/parts/ModelShortcutActions.tsx
 msgid "Remove from recent"
 msgstr "Видалити з нещодавніх"
 

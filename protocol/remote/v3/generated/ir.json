@@ -61749,10 +61749,18 @@
             "__schema6": {
               "additionalProperties": true,
               "properties": {
+                "favorite": {
+                  "type": "boolean"
+                },
                 "id": {
                   "maxLength": 64,
                   "minLength": 1,
                   "type": "string"
+                },
+                "lastUsedAt": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
                 },
                 "lead": {
                   "additionalProperties": true,
@@ -62494,10 +62502,18 @@
             "__schema6": {
               "additionalProperties": true,
               "properties": {
+                "favorite": {
+                  "type": "boolean"
+                },
                 "id": {
                   "maxLength": 64,
                   "minLength": 1,
                   "type": "string"
+                },
+                "lastUsedAt": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
                 },
                 "lead": {
                   "additionalProperties": true,
@@ -63160,10 +63176,18 @@
             "__schema6": {
               "additionalProperties": true,
               "properties": {
+                "favorite": {
+                  "type": "boolean"
+                },
                 "id": {
                   "maxLength": 64,
                   "minLength": 1,
                   "type": "string"
+                },
+                "lastUsedAt": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
                 },
                 "lead": {
                   "additionalProperties": true,
@@ -78425,7 +78449,7 @@
     "void-envelope.omit-result",
     "void-result.omit-field"
   ],
-  "sourceHash": "sha256:e833a4533c072f8bf1e6c6d1623905bcf76d360793538992428f161c060bc853",
+  "sourceHash": "sha256:054cab70ec778aca12d0965811a3848768b86a18ec94486eba792aa39b9d58b2",
   "unknownObjectFields": "ignore",
   "webSocket": {
     "clientMessages": [

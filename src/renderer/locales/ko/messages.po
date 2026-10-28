@@ -1522,7 +1522,7 @@ msgstr "채팅에 추가"
 msgid "Add to composer"
 msgstr "작성기에 추가"
 
-#: src/renderer/components/common/ProviderModelMenu/parts/ModelMenuRow.tsx
+#: src/renderer/components/common/ProviderModelMenu/parts/ModelShortcutActions.tsx
 msgid "Add to favorites"
 msgstr "즐겨찾기에 추가"
 
@@ -5384,6 +5384,10 @@ msgstr "크레딧"
 msgid "Crew"
 msgstr "Crew"
 
+#: src/renderer/commands/registry.ts
+msgid "Crew added to favorites"
+msgstr "크루를 즐겨찾기에 추가했습니다"
+
 #: src/renderer/components/thread/CrewDockSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
 msgid "Crew first"
@@ -5416,6 +5420,10 @@ msgstr "크루 전용: 작업을 이 크루에만 할당"
 msgid "Crew policy"
 msgstr "크루 정책"
 
+#: src/renderer/commands/registry.ts
+msgid "Crew removed from favorites"
+msgstr "크루를 즐겨찾기에서 제거했습니다"
+
 #: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
@@ -5442,6 +5450,7 @@ msgstr "Cron 식"
 msgid "Cross-repository pull requests cannot be checked out here"
 msgstr "다른 저장소 간 풀 리퀘스트는 여기서 체크아웃할 수 없습니다"
 
+#: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Crossagent"
@@ -7661,6 +7670,7 @@ msgid "Favorite"
 msgstr "즐겨찾기"
 
 #: src/renderer/components/common/ProviderModelMenu/parts/buildItems.ts
+#: src/renderer/components/common/ProviderModelMenu/parts/crewPickerItems.ts
 msgid "Favorites"
 msgstr "즐겨찾기"
 
@@ -14695,6 +14705,7 @@ msgid "Receiving visual source…"
 msgstr "시각화 소스를 받는 중…"
 
 #: src/renderer/components/common/ProviderModelMenu/parts/buildItems.ts
+#: src/renderer/components/common/ProviderModelMenu/parts/crewPickerItems.ts
 msgid "Recent"
 msgstr "최근"
 
@@ -15087,7 +15098,7 @@ msgstr "대체 항목 제거"
 msgid "Remove from download history"
 msgstr "다운로드 기록에서 제거"
 
-#: src/renderer/components/common/ProviderModelMenu/parts/ModelMenuRow.tsx
+#: src/renderer/components/common/ProviderModelMenu/parts/ModelShortcutActions.tsx
 msgid "Remove from favorites"
 msgstr "즐겨찾기에서 제거"
 
@@ -15099,7 +15110,7 @@ msgstr "그룹에서 제거"
 msgid "Remove from panel"
 msgstr "패널에서 제거"
 
-#: src/renderer/components/common/ProviderModelMenu/parts/ModelMenuRow.tsx
+#: src/renderer/components/common/ProviderModelMenu/parts/ModelShortcutActions.tsx
 msgid "Remove from recent"
 msgstr "최근 모델에서 제거"
 

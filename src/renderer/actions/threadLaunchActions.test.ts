@@ -73,6 +73,7 @@ const mocks = vi.hoisted(() => {
     ensureThreadRunning: vi.fn<(input: unknown) => Promise<{ threadId: string }>>(),
   };
   return {
+    pushRecentModel: vi.fn<(...args: unknown[]) => void>(),
     appState,
     remoteState,
     remoteClient,
@@ -133,7 +134,7 @@ vi.mock("@/renderer/state/fileCheckpointActions", () => ({
 vi.mock("@/renderer/state/sharedSettingsStore", () => ({
   useSharedSettings: {
     getState: () => ({
-      pushRecentModel: vi.fn<(...args: unknown[]) => void>(),
+      pushRecentModel: mocks.pushRecentModel,
       mcpServers: [],
       disabledBuiltInMcpServers: {},
       disabledBuiltInMcpTools: {},
@@ -269,6 +270,36 @@ describe("startThreadFromDraft host transport", () => {
       expect.objectContaining({ threadId: "audio-thread", prompt: "" }),
     );
     expect(mocks.generateTitleAsync).not.toHaveBeenCalled();
+  });
+
+  it("remembers the launched crew for the next draft and recent picker entries", async () => {
+    const crew = {
+      version: 1 as const,
+      crewId: "ship",
+      name: "Ship crew",
+      policy: "crew-only" as const,
+      roles: [
+        { id: "builder", label: "Builder", selection: { agentKind: "example", model: "helper" } },
+      ],
+    };
+    await startThreadFromDraft(localProject, {
+      agentKind: "example",
+      config: { model: "lead", crew },
+      prompt: "hello",
+      presentationMode: "gui",
+    });
+    expect(mocks.appState.updateProjectDraftConfig).toHaveBeenCalledWith(
+      localProject.id,
+      expect.objectContaining({ crew }),
+    );
+    expect(mocks.pushRecentModel).toHaveBeenCalledWith(
+      "example",
+      "lead",
+      "gui",
+      undefined,
+      undefined,
+      "ship",
+    );
   });
 
   it("opens a local thread before its new worktree finishes provisioning", async () => {

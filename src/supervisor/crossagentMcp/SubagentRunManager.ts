@@ -381,6 +381,7 @@ export class SubagentRunManager {
     // Emit the synthetic parent tile so the delegated-agent renderer picks it up.
     const startPayload: ToolCallPayload = {
       name: firstAttempt.label,
+      ...(plan.title ? { title: plan.title } : {}),
       status: "running",
       isCrossagent: true,
       crossagentStatus: "running",
@@ -841,6 +842,7 @@ export class SubagentRunManager {
         itemId: syntheticItemId(record.runId),
         payload: {
           name: attempt.label,
+          ...(record.plan.title ? { title: record.plan.title } : {}),
           status: "running",
           isCrossagent: true,
           ...(record.plan.crewRole ? { subAgentType: record.plan.crewRole.label } : {}),
@@ -1179,6 +1181,7 @@ export class SubagentRunManager {
     record.transcript.releaseSegments(text);
     const payload: ToolCallPayload = {
       name: record.label,
+      ...(record.plan.title ? { title: record.plan.title } : {}),
       status: record.status === "completed" ? "success" : "error",
       isCrossagent: true,
       crossagentStatus: record.status,

@@ -71,6 +71,8 @@ const modelPickerEntrySchema = z.object({
   agentKind: z.string().min(1),
   modelId: z.string().min(1),
   presentationMode: threadPresentationModeSchema.default("terminal"),
+  // Optional history metadata: legacy entries retain their existing list order.
+  lastUsedAt: z.number().int().nonnegative().optional(),
 });
 
 export const agentSelectionUsageEntrySchema = z.object({

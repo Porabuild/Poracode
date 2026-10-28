@@ -41,6 +41,9 @@ export interface ProviderModelCrewRow {
   helperKinds: readonly string[];
   details: string;
   isCurrent: boolean;
+  isFavorite: boolean;
+  isRecent?: boolean;
+  lastUsedAt?: number;
 }
 
 export interface ProviderModelNewCrewRow {

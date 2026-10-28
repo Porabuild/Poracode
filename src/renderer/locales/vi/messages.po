@@ -1522,7 +1522,7 @@ msgstr "Thêm vào cuộc trò chuyện"
 msgid "Add to composer"
 msgstr "Thêm vào trình soạn thảo"
 
-#: src/renderer/components/common/ProviderModelMenu/parts/ModelMenuRow.tsx
+#: src/renderer/components/common/ProviderModelMenu/parts/ModelShortcutActions.tsx
 msgid "Add to favorites"
 msgstr "Thêm vào mục yêu thích"
 
@@ -5384,6 +5384,10 @@ msgstr "Số dư tín dụng"
 msgid "Crew"
 msgstr "Crew"
 
+#: src/renderer/commands/registry.ts
+msgid "Crew added to favorites"
+msgstr "Đã thêm nhóm vào mục yêu thích"
+
 #: src/renderer/components/thread/CrewDockSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
 msgid "Crew first"
@@ -5416,6 +5420,10 @@ msgstr "Chỉ Crew: công việc chỉ giao cho Crew này"
 msgid "Crew policy"
 msgstr "Chính sách nhóm"
 
+#: src/renderer/commands/registry.ts
+msgid "Crew removed from favorites"
+msgstr "Đã xóa nhóm khỏi mục yêu thích"
+
 #: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
@@ -5442,6 +5450,7 @@ msgstr "Biểu thức Cron"
 msgid "Cross-repository pull requests cannot be checked out here"
 msgstr "Không thể checkout tại đây các pull request giữa các kho lưu trữ khác nhau"
 
+#: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Crossagent"
@@ -7661,6 +7670,7 @@ msgid "Favorite"
 msgstr "Yêu thích"
 
 #: src/renderer/components/common/ProviderModelMenu/parts/buildItems.ts
+#: src/renderer/components/common/ProviderModelMenu/parts/crewPickerItems.ts
 msgid "Favorites"
 msgstr "Yêu thích"
 
@@ -14695,6 +14705,7 @@ msgid "Receiving visual source…"
 msgstr "Đang nhận mã nguồn trực quan…"
 
 #: src/renderer/components/common/ProviderModelMenu/parts/buildItems.ts
+#: src/renderer/components/common/ProviderModelMenu/parts/crewPickerItems.ts
 msgid "Recent"
 msgstr "Gần đây"
 
@@ -15087,7 +15098,7 @@ msgstr "Xóa phương án dự phòng"
 msgid "Remove from download history"
 msgstr "Xóa khỏi lịch sử tải xuống"
 
-#: src/renderer/components/common/ProviderModelMenu/parts/ModelMenuRow.tsx
+#: src/renderer/components/common/ProviderModelMenu/parts/ModelShortcutActions.tsx
 msgid "Remove from favorites"
 msgstr "Xóa khỏi mục yêu thích"
 
@@ -15099,7 +15110,7 @@ msgstr "Xóa khỏi nhóm"
 msgid "Remove from panel"
 msgstr "Xóa khỏi bảng điều khiển"
 
-#: src/renderer/components/common/ProviderModelMenu/parts/ModelMenuRow.tsx
+#: src/renderer/components/common/ProviderModelMenu/parts/ModelShortcutActions.tsx
 msgid "Remove from recent"
 msgstr "Xóa khỏi gần đây"
 

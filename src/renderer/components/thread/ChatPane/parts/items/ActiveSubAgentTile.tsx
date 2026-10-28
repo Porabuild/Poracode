@@ -44,6 +44,7 @@ import {
   buildSubAgentRowText,
   hasSubAgentProgressMeta,
   readSubAgentLiveLabel,
+  splitAgentTitleMeta,
 } from "./subAgentProgressMeta";
 
 export type ActiveAgentKind = "subagent" | "crossagent" | "workflow";
@@ -143,13 +144,13 @@ export function ActiveSubAgentTile({
               binding={crewBinding}
               runIds={sectionIds}
               showPlacementToggle={showPlacementToggle && index === 0}
-              renderRun={(id) => (
+              renderRun={(id, taskOnly) => (
                 <ActiveSubAgentRow
                   key={id}
                   threadId={threadId}
                   itemId={id}
                   placement="right"
-                  omitRoleInMeta
+                  taskOnly={taskOnly}
                   {...(projectLocation ? { projectLocation } : {})}
                 />
               )}
@@ -260,7 +261,7 @@ export function ActiveSubAgentRow({
   projectLocation,
   registrationOnly = false,
   placement = "composer",
-  omitRoleInMeta = false,
+  taskOnly = false,
   crewBinding,
 }: {
   threadId: string;
@@ -268,7 +269,8 @@ export function ActiveSubAgentRow({
   projectLocation?: ProjectLocation;
   registrationOnly?: boolean;
   placement?: ThreadDocksPlacement;
-  omitRoleInMeta?: boolean;
+  /** Selection metadata is already shown by the containing crew member. */
+  taskOnly?: boolean;
   crewBinding?: ThreadCrewBinding;
 }) {
   const { t } = useLingui();
@@ -363,12 +365,19 @@ export function ActiveSubAgentRow({
       : undefined;
   const description = typeof args?.description === "string" ? args.description.trim() : undefined;
   const rowTitle = description || display.title;
+  const namedTask = splitAgentTitleMeta(rowTitle);
+  const taskTitle =
+    description ||
+    payload.title?.trim() ||
+    payload.progress?.description?.trim() ||
+    (namedTask.meta ? namedTask.title : rowTitle.includes(" · ") ? t`Crossagent` : rowTitle);
   const role = (payload.subAgentType ?? readSubAgentType(args))?.trim();
   const crewRole = crewBinding?.roles.find(
     (candidate) => candidate.label.trim().toLowerCase() === role?.toLowerCase(),
   );
-  const dockTitle =
-    placement === "composer" && isCrossagentTool(payload) && crewRole && rowTitle !== role
+  const dockTitle = taskOnly
+    ? taskTitle
+    : placement === "composer" && isCrossagentTool(payload) && crewRole && rowTitle !== role
       ? `${crewRole.label}: ${rowTitle}`
       : rowTitle;
   const isDone = !isRunning;
@@ -379,12 +388,14 @@ export function ActiveSubAgentRow({
   // line, agent/model metadata as a smaller muted second line. The composer
   // strip stays one line. Workflow rows keep their inline stats layout.
   const twoLineText =
-    placement === "right" && !workflow
+    placement === "right" && !workflow && !taskOnly
       ? buildSubAgentRowText({
-          rowTitle,
+          // A task title overrides the display name, but the synthetic name
+          // still owns the route shown when this run has no crew member row.
+          rowTitle: isCrossagentTool(payload) && payload.title ? payload.name : rowTitle,
           titleIsDescription: description !== undefined,
           isCrossagent: isCrossagentTool(payload),
-          ...(omitRoleInMeta ? {} : { subAgentType: role }),
+          subAgentType: role,
           progress,
           liveLabel,
           stepCount,
@@ -421,7 +432,7 @@ export function ActiveSubAgentRow({
           <span
             className={`truncate leading-tight ${isDone ? "text-foreground-muted" : "text-foreground"}`}
           >
-            {twoLineText.title}
+            {description || payload.title?.trim() || twoLineText.title}
           </span>
           <span className="truncate text-[0.6875rem] leading-tight text-muted">{metaLine}</span>
         </span>
@@ -438,7 +449,7 @@ export function ActiveSubAgentRow({
         <span className="shrink-0 text-foreground-muted opacity-80">
           <Trans>starting…</Trans>
         </span>
-      ) : metaLine ? null : isRunning ? (
+      ) : metaLine || taskOnly ? null : isRunning ? (
         <SubAgentProgressMeta
           progress={progress}
           liveLabel={liveLabel}

@@ -5,6 +5,7 @@ import {
   QUICK_COMPOSER_COMMAND_ID,
 } from "@/shared/keybindings";
 import { getCurrentProjectId } from "@/renderer/actions/currentProject";
+import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { useGlobalTerminalStore } from "@/renderer/state/globalTerminalStore";
@@ -46,6 +47,42 @@ describe("default keybindings", () => {
       view: { kind: "home" },
       focusedPaneId: null,
     }));
+  });
+
+  it("stars the selected crew in a draft instead of its lead model", async () => {
+    const project = useAppStore.getState().addProject({ kind: "posix", path: "/tmp/crew-test" });
+    const crew = {
+      id: "ship",
+      name: "Ship crew",
+      policy: "crew-only" as const,
+      lead: { agentKind: "example", model: "lead" },
+      roles: [
+        { id: "builder", label: "Builder", selection: { agentKind: "example", model: "helper" } },
+      ],
+    };
+    useSharedSettings.setState({ crews: [crew], favoriteModels: [] });
+    useAppStore.getState().updateProjectDraftConfig(project.id, {
+      agentKind: "example",
+      model: "lead",
+      crew: {
+        version: 1,
+        crewId: crew.id,
+        name: crew.name,
+        policy: crew.policy,
+        roles: crew.roles,
+      },
+    });
+    useAppStore.setState({
+      view: { kind: "thread", panes: [`draft:${project.id}`] },
+      focusedPaneId: `draft:${project.id}`,
+    });
+    const command = buildCommandRegistry().find((entry) => entry.id === "thread.star")!;
+    await command.run();
+    expect(useSharedSettings.getState().crews[0]?.favorite).toBe(true);
+    expect(useSharedSettings.getState().favoriteModels).toEqual([]);
+    await command.run();
+    expect(useSharedSettings.getState().crews[0]?.favorite).toBe(false);
+    useSharedSettings.setState({ crews: [] });
   });
 
   it("reference registered commands", () => {

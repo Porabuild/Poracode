@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import "@/renderer/components/providers/opencode";
@@ -1340,6 +1340,37 @@ it("emits a family intent for the projected family row and an exact intent for a
   second.unmount();
 });
 
+it("limits an existing crew picker to crew presets", async () => {
+  render(
+    <ProviderModelMenu
+      providers={[makeNamedProvider("codex", "Codex", 1)]}
+      currentAgentKind="codex"
+      currentModel="model-1"
+      onChange={() => {}}
+      crewSection={{
+        onlyCrews: true,
+        canCreate: false,
+        onSelect: () => {},
+        entries: [
+          {
+            crewId: "crew-review",
+            name: "Review board",
+            leadLabel: "Model 1",
+            leadKind: "codex",
+            helperKinds: [],
+            details: "Review board",
+          },
+        ],
+      }}
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Select model" }));
+  const list = await screen.findByRole("listbox");
+  expect(within(list).getAllByRole("option")).toHaveLength(1);
+  expect(within(list).getByRole("option", { name: /Review board/ })).toBeInTheDocument();
+  expect(within(list).queryByText("New crew")).not.toBeInTheDocument();
+});
+
 it("places saved crews in Poracode and sends a crew choice", async () => {
   const onChange = vi.fn<(selection: { agentKind: string; model: string }) => void>();
   const onCrewSelect = vi.fn<(choice: { crewId: string } | { newCrew: true }) => void>();
@@ -1486,4 +1517,70 @@ it("hides New crew when the lead cannot create one", async () => {
   const listbox = await screen.findByRole("listbox");
   expect(within(listbox).queryByText("New crew")).not.toBeInTheDocument();
   expect(within(listbox).queryByText("Poracode")).not.toBeInTheDocument();
+});
+
+it("stars a crew without selecting it, restores its favorite shortcut, and removes its recent shortcut", async () => {
+  const crew = {
+    id: "crew-shortcut",
+    name: "Ship crew",
+    policy: "crew-only" as const,
+    lead: { agentKind: "codex", model: "model-1" },
+    roles: [
+      { id: "builder", label: "Builder", selection: { agentKind: "codex", model: "model-1" } },
+    ],
+    lastUsedAt: 123,
+  };
+  useSharedSettings.setState({ crews: [crew], favoriteModels: [], recentModels: [] });
+  const onCrewSelect = vi.fn<(choice: { crewId: string } | { newCrew: true }) => void>();
+  render(
+    <ProviderModelMenu
+      providers={[makeNamedProvider("codex", "Codex", 1)]}
+      currentAgentKind="codex"
+      currentModel="model-1"
+      crewSection={{
+        entries: [
+          {
+            crewId: crew.id,
+            name: crew.name,
+            leadLabel: "Lead",
+            leadKind: "codex",
+            helperKinds: [],
+            details: "Lead",
+          },
+        ],
+        currentCrewId: crew.id,
+        canCreate: false,
+        onSelect: onCrewSelect,
+      }}
+      onChange={() => {}}
+    />,
+  );
+  const trigger = screen.getByRole("button", { name: "Select model" });
+  fireEvent.click(trigger);
+  let listbox = await screen.findByRole("listbox");
+  expect(within(listbox).getByText("Recent")).toBeInTheDocument();
+  const recentRow = within(listbox).getAllByRole("option", { name: /Ship crew/ })[0]!;
+  fireEvent.click(within(recentRow).getByRole("button", { name: "Remove from recent" }));
+  await waitFor(() => expect(within(listbox).queryByText("Recent")).not.toBeInTheDocument());
+  expect(useSharedSettings.getState().crews[0]).not.toHaveProperty("lastUsedAt");
+  await act(async () => new Promise((resolve) => setTimeout(resolve, 60)));
+  const toggle = within(within(listbox).getByRole("option", { name: /Ship crew/ })).getByRole(
+    "button",
+    { name: "Add to favorites" },
+  );
+  act(() => toggle.focus());
+  fireEvent.click(toggle);
+  expect(toggle).toHaveFocus();
+  expect(onCrewSelect).not.toHaveBeenCalled();
+  expect(useSharedSettings.getState().crews[0]?.favorite).toBe(true);
+  fireEvent.keyDown(screen.getByRole("combobox"), { key: "Escape" });
+  await waitFor(() => expect(screen.queryByRole("listbox")).not.toBeInTheDocument());
+  fireEvent.click(trigger);
+  listbox = await screen.findByRole("listbox");
+  expect(within(listbox).getByText("Favorites")).toBeInTheDocument();
+  const options = within(listbox).getAllByRole("option", { name: /Ship crew/ });
+  expect(options).toHaveLength(2);
+  expect(listbox).toHaveAttribute("aria-activedescendant", options[0]!.id);
+  fireEvent.click(options[0]!);
+  await waitFor(() => expect(onCrewSelect).toHaveBeenCalledWith({ crewId: crew.id }));
 });

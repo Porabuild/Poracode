@@ -1521,7 +1521,7 @@ msgstr "チャットに追加"
 msgid "Add to composer"
 msgstr "コンポーザーに追加"
 
-#: src/renderer/components/common/ProviderModelMenu/parts/ModelMenuRow.tsx
+#: src/renderer/components/common/ProviderModelMenu/parts/ModelShortcutActions.tsx
 msgid "Add to favorites"
 msgstr "お気に入りに追加"
 
@@ -5383,6 +5383,10 @@ msgstr "クレジット"
 msgid "Crew"
 msgstr "Crew"
 
+#: src/renderer/commands/registry.ts
+msgid "Crew added to favorites"
+msgstr "クルーをお気に入りに追加しました"
+
 #: src/renderer/components/thread/CrewDockSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
 msgid "Crew first"
@@ -5415,6 +5419,10 @@ msgstr "Crew のみ: 作業はこの Crew に限定"
 msgid "Crew policy"
 msgstr "クルーポリシー"
 
+#: src/renderer/commands/registry.ts
+msgid "Crew removed from favorites"
+msgstr "クルーをお気に入りから削除しました"
+
 #: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
@@ -5441,6 +5449,7 @@ msgstr "Cron 式"
 msgid "Cross-repository pull requests cannot be checked out here"
 msgstr "リポジトリをまたぐプルリクエストはここではチェックアウトできません"
 
+#: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Crossagent"
@@ -7660,6 +7669,7 @@ msgid "Favorite"
 msgstr "お気に入り"
 
 #: src/renderer/components/common/ProviderModelMenu/parts/buildItems.ts
+#: src/renderer/components/common/ProviderModelMenu/parts/crewPickerItems.ts
 msgid "Favorites"
 msgstr "お気に入り"
 
@@ -14693,6 +14703,7 @@ msgid "Receiving visual source…"
 msgstr "ビジュアルのソースを受信中…"
 
 #: src/renderer/components/common/ProviderModelMenu/parts/buildItems.ts
+#: src/renderer/components/common/ProviderModelMenu/parts/crewPickerItems.ts
 msgid "Recent"
 msgstr "最近の"
 
@@ -15085,7 +15096,7 @@ msgstr "フォールバックを削除"
 msgid "Remove from download history"
 msgstr "ダウンロード履歴から削除"
 
-#: src/renderer/components/common/ProviderModelMenu/parts/ModelMenuRow.tsx
+#: src/renderer/components/common/ProviderModelMenu/parts/ModelShortcutActions.tsx
 msgid "Remove from favorites"
 msgstr "お気に入りから削除"
 
@@ -15097,7 +15108,7 @@ msgstr "グループから削除"
 msgid "Remove from panel"
 msgstr "パネルから削除"
 
-#: src/renderer/components/common/ProviderModelMenu/parts/ModelMenuRow.tsx
+#: src/renderer/components/common/ProviderModelMenu/parts/ModelShortcutActions.tsx
 msgid "Remove from recent"
 msgstr "最近使用したモデルから削除"
 

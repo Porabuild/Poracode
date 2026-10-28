@@ -105,6 +105,27 @@ describe("SubagentRunManager", () => {
     });
   });
 
+  it.each([undefined, "Check login flow"])(
+    "publishes a crew task title independently of route metadata (%s)",
+    (name) => {
+      const h = makeHarness();
+      h.manager.spawn(PARENT, {
+        agent: "codex",
+        prompt: "Review\n  the login flow",
+        ...(name ? { name } : {}),
+        crewRole: { id: "builder", label: "Builder", parallel: 1 },
+      });
+      const started = h.appended.find((entry) => entry.event.type === "item.started");
+      expect(
+        (started?.event as Extract<RuntimeEvent, { type: "item.started" }> | undefined)?.payload,
+      ).toMatchObject({
+        title: name ?? "Review the login flow",
+        subAgentType: "Builder",
+        isCrossagent: true,
+      });
+    },
+  );
+
   it("includes the selected effort and enabled Fast mode in the sub-agent name", () => {
     const h = makeHarness();
     h.manager.spawn(PARENT, {
