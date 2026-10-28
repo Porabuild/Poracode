@@ -445,6 +445,7 @@
 		A100000000000000000000BA /* RichChatCheckpointView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000000BA /* RichChatCheckpointView.swift */; };
 		A100000000000000000000BB /* RichChatComposerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000000BB /* RichChatComposerView.swift */; };
 		CC1100000000000000000001 /* RichChatComposerContextBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC2100000000000000000001 /* RichChatComposerContextBar.swift */; };
+		C4E0C4E0C4E0C4E0C4E0C4E0 /* RichChatCrewPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4E1C4E1C4E1C4E1C4E1C4E1 /* RichChatCrewPresentation.swift */; };
 		D71000000000000000000003 /* RichChatComposerConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = D72000000000000000000003 /* RichChatComposerConfiguration.swift */; };
 		D71000000000000000000004 /* RichChatComposerAttachments.swift in Sources */ = {isa = PBXBuildFile; fileRef = D72000000000000000000004 /* RichChatComposerAttachments.swift */; };
 		D71000000000000000000005 /* RichChatCompactControlDock.swift in Sources */ = {isa = PBXBuildFile; fileRef = D72000000000000000000005 /* RichChatCompactControlDock.swift */; };
@@ -1291,6 +1292,7 @@
 		B100000000000000000000BA /* RichChatCheckpointView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatCheckpointView.swift; sourceTree = "<group>"; };
 		B100000000000000000000BB /* RichChatComposerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatComposerView.swift; sourceTree = "<group>"; };
 		CC2100000000000000000001 /* RichChatComposerContextBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatComposerContextBar.swift; sourceTree = "<group>"; };
+		C4E1C4E1C4E1C4E1C4E1C4E1 /* RichChatCrewPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatCrewPresentation.swift; sourceTree = "<group>"; };
 		D72000000000000000000003 /* RichChatComposerConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatComposerConfiguration.swift; sourceTree = "<group>"; };
 		MF20000000000000000000001 /* ModelFamilySelection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelFamilySelection.swift; sourceTree = "<group>"; };
 		MF20000000000000000000002 /* RichChatComposerFamilyControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatComposerFamilyControls.swift; sourceTree = "<group>"; };
@@ -2341,6 +2343,7 @@
 				SB1000000000000000000008 /* RichChatSessionActionForms.swift */,
 				SB1000000000000000000009 /* RichChatSessionActionListings.swift */,
 				CC2100000000000000000001 /* RichChatComposerContextBar.swift */,
+				C4E1C4E1C4E1C4E1C4E1C4E1 /* RichChatCrewPresentation.swift */,
 				D72000000000000000000003 /* RichChatComposerConfiguration.swift */,
 				MF20000000000000000000002 /* RichChatComposerFamilyControls.swift */,
 				D72000000000000000000004 /* RichChatComposerAttachments.swift */,
@@ -3733,6 +3736,7 @@
 				A100000000000000000000BA /* RichChatCheckpointView.swift in Sources */,
 				A100000000000000000000BB /* RichChatComposerView.swift in Sources */,
 				CC1100000000000000000001 /* RichChatComposerContextBar.swift in Sources */,
+				C4E0C4E0C4E0C4E0C4E0C4E0 /* RichChatCrewPresentation.swift in Sources */,
 				D71000000000000000000003 /* RichChatComposerConfiguration.swift in Sources */,
 				MF10000000000000000000001 /* ModelFamilySelection.swift in Sources */,
 				MF10000000000000000000002 /* RichChatComposerFamilyControls.swift in Sources */,
