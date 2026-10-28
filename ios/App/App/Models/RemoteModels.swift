@@ -183,7 +183,12 @@ extension ThreadConfig {
         mcpServerOverrides = try values.decodeIfPresent([String: Bool].self, forKey: .mcpServerOverrides)
         pluginOverrides = try values.decodeIfPresent([String: Bool].self, forKey: .pluginOverrides)
         executionEnvironment = try values.decodeIfPresent(RemoteExecutionEnvironment.self, forKey: .executionEnvironment)
-        crew = values.contains(.crew) ? try values.decode(JSONValue.self, forKey: .crew) : nil
+        // Absent keeps the host's binding untouched; an explicit null is kept as `.null`.
+        if values.contains(.crew) {
+            crew = try values.decode(JSONValue.self, forKey: .crew)
+        } else {
+            crew = nil
+        }
     }
 
     func encode(to encoder: Encoder) throws {
