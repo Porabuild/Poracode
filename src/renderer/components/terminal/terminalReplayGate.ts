@@ -1,6 +1,9 @@
 import type { Terminal } from "@xterm/xterm";
 import { installQueryReplySuppression } from "./terminalQuerySuppression";
 
+// eslint-disable-next-line no-control-regex -- Kitty response frames contain protocol control bytes.
+const KITTY_GRAPHICS_REPLY = /^\x1b_Gi=\d+(?:,p=\d+)?;(?:OK|E[A-Z]+:[^\x1b]*)\x1b\\$/;
+
 /**
  * Gate between historical replay writes and live PTY traffic.
  *
@@ -70,8 +73,13 @@ export class TerminalReplayGate {
    * sequence is being parsed inside an owned replay session. The session ends
    * before the buffered live output is flushed, so those bytes always pass.
    */
-  get isDroppingReplies(): boolean {
-    return this.suppressing && this.suppression.hasPendingReplyScope();
+  shouldDropReply(data: string): boolean {
+    // Kitty image placement can reply after async decoding, beyond the parser
+    // handler's synchronous reply scope. Keyboard input remains enabled.
+    return (
+      this.suppressing &&
+      (this.suppression.hasPendingReplyScope() || KITTY_GRAPHICS_REPLY.test(data))
+    );
   }
 
   /**

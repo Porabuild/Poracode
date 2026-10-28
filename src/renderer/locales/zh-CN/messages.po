@@ -2257,6 +2257,7 @@ msgstr "身份验证"
 msgid "Authenticated"
 msgstr "已通过身份验证"
 
+#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Authentication"
 msgstr "认证"
@@ -6351,6 +6352,7 @@ msgstr "正在发现编码代理……"
 msgid "Discovery complete"
 msgstr "发现完成"
 
+#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 #: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
@@ -6428,6 +6430,7 @@ msgstr "完成"
 #. Notification status: thread is done
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 #: src/renderer/components/providers/settings/ModelProvidersSettings.tsx
+#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/components/thread/AgentDiscoveryDoneButton.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/LabelPicker.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/ReviewerPicker.tsx
@@ -7003,6 +7006,7 @@ msgstr "错误"
 #. Notification status: agent error
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/providers/usageFormat.ts
+#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ErrorItem.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
@@ -8660,6 +8664,7 @@ msgid "Identity file path"
 msgstr "身份文件路径"
 
 #. Microphone input level when not testing
+#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Idle"
@@ -18153,6 +18158,7 @@ msgstr "告诉目标提供商下一步该做什么..."
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/plugins/pluginCopy.ts
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
+#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/GlobalTerminalPanel/GlobalTerminalPanel.tsx
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
@@ -18217,6 +18223,10 @@ msgstr "终端面板 shell"
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Terminal position"
 msgstr "终端位置"
+
+#: src/renderer/components/terminal/TerminalProgramStatus.tsx
+msgid "Terminal program status"
+msgstr "终端程序状态"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
@@ -21154,6 +21164,7 @@ msgstr "请等待线程启动完成，然后再将其移至工作树。"
 msgid "Wait for the thread to finish starting."
 msgstr "等待线程完成启动。"
 
+#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Waiting"
 msgstr "等待中"
@@ -21182,6 +21193,7 @@ msgstr "正在等待预览"
 msgid "waiting for agent to stop"
 msgstr "等待代理停止"
 
+#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/views/SchedulesView/parts/scheduleRunStatus.ts
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
@@ -21499,6 +21511,7 @@ msgstr "工作流程"
 msgid "Workflows added under .github/workflows will appear here."
 msgstr "添加到 .github/workflows 的工作流将显示在此处。"
 
+#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Working"
 msgstr "工作中"

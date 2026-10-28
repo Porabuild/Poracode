@@ -2257,6 +2257,7 @@ msgstr "S'authentifier"
 msgid "Authenticated"
 msgstr "Authentifié"
 
+#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Authentication"
 msgstr "Authentification"
@@ -6351,6 +6352,7 @@ msgstr "Détection des agents de codage…"
 msgid "Discovery complete"
 msgstr "Détection terminée"
 
+#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 #: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
@@ -6428,6 +6430,7 @@ msgstr "fait"
 #. Notification status: thread is done
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 #: src/renderer/components/providers/settings/ModelProvidersSettings.tsx
+#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/components/thread/AgentDiscoveryDoneButton.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/LabelPicker.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/ReviewerPicker.tsx
@@ -7003,6 +7006,7 @@ msgstr "erreur"
 #. Notification status: agent error
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/providers/usageFormat.ts
+#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ErrorItem.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
@@ -8660,6 +8664,7 @@ msgid "Identity file path"
 msgstr "Chemin du fichier d’identité"
 
 #. Microphone input level when not testing
+#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Idle"
@@ -18153,6 +18158,7 @@ msgstr "Dites au fournisseur cible quoi faire ensuite..."
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/plugins/pluginCopy.ts
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
+#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/GlobalTerminalPanel/GlobalTerminalPanel.tsx
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
@@ -18217,6 +18223,10 @@ msgstr "Shell du panneau de terminal"
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Terminal position"
 msgstr "Position du terminal"
+
+#: src/renderer/components/terminal/TerminalProgramStatus.tsx
+msgid "Terminal program status"
+msgstr "État du programme dans le terminal"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
@@ -21154,6 +21164,7 @@ msgstr "Attendez que le fil de discussion ait fini de démarrer avant de le dép
 msgid "Wait for the thread to finish starting."
 msgstr "Attendez que le fil de discussion ait fini de démarrer."
 
+#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Waiting"
 msgstr "En attente"
@@ -21182,6 +21193,7 @@ msgstr "En attente d’un aperçu"
 msgid "waiting for agent to stop"
 msgstr "en attente de l'arrêt de l'agent"
 
+#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/views/SchedulesView/parts/scheduleRunStatus.ts
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
@@ -21499,6 +21511,7 @@ msgstr "Flux de travail"
 msgid "Workflows added under .github/workflows will appear here."
 msgstr "Les workflows ajoutés sous .github/workflows apparaîtront ici."
 
+#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Working"
 msgstr "En cours"

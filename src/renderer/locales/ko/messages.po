@@ -2257,6 +2257,7 @@ msgstr "인증"
 msgid "Authenticated"
 msgstr "인증됨"
 
+#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Authentication"
 msgstr "인증"
@@ -6351,6 +6352,7 @@ msgstr "코딩 에이전트 검색 중…"
 msgid "Discovery complete"
 msgstr "검색 완료"
 
+#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 #: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
@@ -6428,6 +6430,7 @@ msgstr "완료"
 #. Notification status: thread is done
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 #: src/renderer/components/providers/settings/ModelProvidersSettings.tsx
+#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/components/thread/AgentDiscoveryDoneButton.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/LabelPicker.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/ReviewerPicker.tsx
@@ -7003,6 +7006,7 @@ msgstr "오류"
 #. Notification status: agent error
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/providers/usageFormat.ts
+#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ErrorItem.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
@@ -8660,6 +8664,7 @@ msgid "Identity file path"
 msgstr "ID 파일 경로"
 
 #. Microphone input level when not testing
+#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Idle"
@@ -18154,6 +18159,7 @@ msgstr "대상 공급자에게 다음에 무엇을 해야 할지 알려주세요
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/plugins/pluginCopy.ts
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
+#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/GlobalTerminalPanel/GlobalTerminalPanel.tsx
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
@@ -18218,6 +18224,10 @@ msgstr "터미널 패널 셸"
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Terminal position"
 msgstr "터미널 위치"
+
+#: src/renderer/components/terminal/TerminalProgramStatus.tsx
+msgid "Terminal program status"
+msgstr "터미널 프로그램 상태"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
@@ -21155,6 +21165,7 @@ msgstr "작업 트리로 이동하기 전에 스레드 시작이 완료될 때�
 msgid "Wait for the thread to finish starting."
 msgstr "스레드 시작이 완료될 때까지 기다리세요."
 
+#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Waiting"
 msgstr "대기 중"
@@ -21183,6 +21194,7 @@ msgstr "미리보기 대기 중"
 msgid "waiting for agent to stop"
 msgstr "에이전트가 중지되기를 기다리는 중"
 
+#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/views/SchedulesView/parts/scheduleRunStatus.ts
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
@@ -21500,6 +21512,7 @@ msgstr "워크플로"
 msgid "Workflows added under .github/workflows will appear here."
 msgstr ".github/workflows에 추가된 워크플로가 여기에 표시됩니다."
 
+#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Working"
 msgstr "작업 중"
