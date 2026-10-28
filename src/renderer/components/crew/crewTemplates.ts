@@ -1,6 +1,29 @@
 import { msg } from "@lingui/core/macro";
 import type { MessageDescriptor } from "@lingui/core";
-import type { ThreadCrewBinding } from "@/shared/crew";
+import type { CrewMemberSelection, ThreadCrewBinding } from "@/shared/crew";
+import type { CrewRoleTemplate } from "./crewRoleTemplates";
+
+/** Roles for a template, with each role's model chosen by `selectionFor`. */
+export function crewRolesFromTemplate(
+  template: CrewTemplateDescriptor,
+  roleTemplates: readonly CrewRoleTemplate[],
+  selectionFor: (role: CrewRoleTemplate) => CrewMemberSelection,
+): ThreadCrewBinding["roles"] {
+  return template.roles.flatMap((entry) => {
+    const role = roleTemplates.find((candidate) => candidate.id === entry.roleId);
+    if (!role) return [];
+    return [
+      {
+        id: role.id,
+        label: role.label,
+        ...(role.brief ? { brief: role.brief } : {}),
+        ...(role.noEdits ? { noEdits: true as const } : {}),
+        selection: selectionFor(role),
+        ...(entry.parallel && entry.parallel > 1 ? { parallel: entry.parallel } : {}),
+      },
+    ];
+  });
+}
 
 export interface CrewTemplateRole {
   /** A CREW_ROLE_TEMPLATE_DESCRIPTORS id; supplies the label, brief and read-only flag. */

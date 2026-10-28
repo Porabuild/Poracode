@@ -1,6 +1,15 @@
 import { useEffect, useState } from "react";
 import { useLingui } from "@lingui/react/macro";
-import { Check, Lock, LockOpen, Plus, RotateCcw, Save, Settings2 } from "lucide-react";
+import {
+  Check,
+  LayoutTemplate,
+  Lock,
+  LockOpen,
+  Plus,
+  RotateCcw,
+  Save,
+  Settings2,
+} from "lucide-react";
 import { Separator } from "@heroui/react";
 import { Button } from "@/renderer/components/common/Button";
 import { Input } from "@/renderer/components/common/Input";
@@ -23,6 +32,7 @@ import {
 } from "./crewComposerModel";
 import { CrewMemberRow } from "./CrewMemberRow";
 import type { CrewRosterModel } from "./crewComposerModel";
+import { CREW_TEMPLATE_DESCRIPTORS, crewRolesFromTemplate } from "./crewTemplates";
 
 const HEADER_ICON_BUTTON_CLASS =
   "size-6 min-h-6 min-w-6 shrink-0 rounded p-0 text-muted/70 hover:bg-foreground/5 hover:text-foreground";
@@ -38,6 +48,22 @@ export function CrewRosterPanel(props: {
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
   const savedCrew = model.savedCrew;
+  const templateOptions = CREW_TEMPLATE_DESCRIPTORS.map((template) => ({
+    id: template.id,
+    label: t(template.name),
+    hint: t(template.description),
+  }));
+
+  // A new crew can start from a ready-made template: its roles, instructions
+  // and policy replace the draft's helpers, and the lead stays as picked.
+  function applyTemplate(templateId: string) {
+    const template = CREW_TEMPLATE_DESCRIPTORS.find((entry) => entry.id === templateId);
+    const helper = model.defaultHelper;
+    if (!template || !helper) return;
+    const roles = crewRolesFromTemplate(template, model.roleTemplates, () => helper);
+    if (roles.length === 0) return;
+    model.onBindingChange({ ...model.binding, policy: template.policy, roles });
+  }
   const differs = isCrewEdited(model.binding, model.lead, savedCrew);
   const title = model.binding.name?.trim() || t`Crew`;
   const saveOptions = [
@@ -189,13 +215,27 @@ export function CrewRosterPanel(props: {
                 }}
               />
             ) : (
-              <ThreadDockIconButton
-                label={t`Save as crew:`}
-                isDisabled={model.isDisabled}
-                onPress={beginSaveAsNew}
-              >
-                <Save className="size-3.5" />
-              </ThreadDockIconButton>
+              <>
+                <OptionMenu
+                  value=""
+                  placeholder={t`Start from a template`}
+                  tooltip={t`Start from a template`}
+                  icon={<LayoutTemplate className="size-3.5" />}
+                  iconOnly
+                  options={templateOptions}
+                  buttonVariant="ghost"
+                  isDisabled={model.isDisabled || !model.defaultHelper}
+                  className={HEADER_ICON_BUTTON_CLASS}
+                  onChange={applyTemplate}
+                />
+                <ThreadDockIconButton
+                  label={t`Save as crew:`}
+                  isDisabled={model.isDisabled}
+                  onPress={beginSaveAsNew}
+                >
+                  <Save className="size-3.5" />
+                </ThreadDockIconButton>
+              </>
             )}
           </>
         )}

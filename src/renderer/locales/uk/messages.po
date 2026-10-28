@@ -17910,6 +17910,10 @@ msgstr "Почати диктування в поточному полі вво�
 msgid "Start each day with priorities and next steps."
 msgstr "Починайте кожен день із пріоритетів і наступних кроків."
 
+#: src/renderer/components/crew/CrewRosterPanel.tsx
+msgid "Start from a template"
+msgstr "Почати з шаблону"
+
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx

@@ -17919,6 +17919,10 @@ msgstr "Start dictation in the current composer"
 msgid "Start each day with priorities and next steps."
 msgstr "Start each day with priorities and next steps."
 
+#: src/renderer/components/crew/CrewRosterPanel.tsx
+msgid "Start from a template"
+msgstr "Start from a template"
+
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx

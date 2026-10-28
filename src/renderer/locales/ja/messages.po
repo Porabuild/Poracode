@@ -17908,6 +17908,10 @@ msgstr "現在のコンポーザーで音声入力を開始する"
 msgid "Start each day with priorities and next steps."
 msgstr "優先事項と次のステップで一日を始めます。"
 
+#: src/renderer/components/crew/CrewRosterPanel.tsx
+msgid "Start from a template"
+msgstr "テンプレートから始める"
+
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx

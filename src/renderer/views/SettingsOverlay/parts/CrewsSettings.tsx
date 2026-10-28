@@ -21,7 +21,10 @@ import {
   type CrewRosterModel,
 } from "@/renderer/components/crew/crewComposerModel";
 import { CREW_ROLE_TEMPLATE_DESCRIPTORS } from "@/renderer/components/crew/crewRoleTemplates";
-import { CREW_TEMPLATE_DESCRIPTORS } from "@/renderer/components/crew/crewTemplates";
+import {
+  CREW_TEMPLATE_DESCRIPTORS,
+  crewRolesFromTemplate,
+} from "@/renderer/components/crew/crewTemplates";
 import { CrewMemberRow } from "@/renderer/components/crew/CrewMemberRow";
 import { CrewRolePill } from "@/renderer/components/crew/CrewRolePill";
 import { formatEffortLabel } from "@/renderer/components/thread/threadDraftViewHelpers";
@@ -107,20 +110,9 @@ export function CrewsSettings() {
         const selection = model ? helperOptions.selectionFor(provider.kind, model.id) : undefined;
         return selection ? [selection] : [];
       })[0];
-    const roles = template.roles.flatMap((entry) => {
-      const role = roleTemplates.find((candidate) => candidate.id === entry.roleId);
-      if (!role) return [];
-      return [
-        {
-          id: role.id,
-          label: role.label,
-          ...(role.brief ? { brief: role.brief } : {}),
-          ...(role.noEdits ? { noEdits: true as const } : {}),
-          selection: role.noEdits && otherHelper ? otherHelper : firstHelper,
-          ...(entry.parallel && entry.parallel > 1 ? { parallel: entry.parallel } : {}),
-        },
-      ];
-    });
+    const roles = crewRolesFromTemplate(template, roleTemplates, (role) =>
+      role.noEdits && otherHelper ? otherHelper : firstHelper,
+    );
     if (roles.length === 0) return;
     const binding: ThreadCrewBinding = {
       version: CREW_BINDING_VERSION,

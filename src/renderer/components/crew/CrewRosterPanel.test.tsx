@@ -293,3 +293,23 @@ describe("CrewRosterPanel", () => {
     );
   });
 });
+
+describe("CrewRosterPanel templates", () => {
+  it("starts an unsaved crew from a template, keeping the lead", async () => {
+    const { savedCrew: _saved, ...model } = makeModel({
+      onBindingChange: vi.fn<(next: ThreadCrewBinding) => void>(),
+    });
+    renderWithI18n(<CrewRosterPanel model={model} compact={false} />);
+    fireEvent.click(screen.getByRole("button", { name: "Start from a template" }));
+    fireEvent.click(await screen.findByRole("option", { name: /^Review board/u }));
+    await waitFor(() =>
+      expect(model.onBindingChange).toHaveBeenCalledWith(
+        expect.objectContaining({
+          policy: "crew-only",
+          roles: [expect.objectContaining({ id: "reviewer", parallel: 2 })],
+        }),
+      ),
+    );
+    expect(model.onLeadChange).not.toHaveBeenCalled();
+  });
+});

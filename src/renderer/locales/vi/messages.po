@@ -17910,6 +17910,10 @@ msgstr "Bắt đầu đọc chính tả trong trình soạn thảo hiện tại"
 msgid "Start each day with priorities and next steps."
 msgstr "Bắt đầu mỗi ngày với các ưu tiên và bước tiếp theo."
 
+#: src/renderer/components/crew/CrewRosterPanel.tsx
+msgid "Start from a template"
+msgstr "Bắt đầu từ mẫu"
+
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx

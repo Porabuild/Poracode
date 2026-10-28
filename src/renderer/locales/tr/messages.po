@@ -17910,6 +17910,10 @@ msgstr "Geçerli composer'da dikteyi başlat"
 msgid "Start each day with priorities and next steps."
 msgstr "Her güne öncelikler ve sonraki adımlarla başlayın."
 
+#: src/renderer/components/crew/CrewRosterPanel.tsx
+msgid "Start from a template"
+msgstr "Bir şablonla başla"
+
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx

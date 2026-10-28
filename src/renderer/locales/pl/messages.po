@@ -17910,6 +17910,10 @@ msgstr "Rozpocznij dyktowanie w bieżącym kompozytorze"
 msgid "Start each day with priorities and next steps."
 msgstr "Zaczynaj każdy dzień od priorytetów i kolejnych kroków."
 
+#: src/renderer/components/crew/CrewRosterPanel.tsx
+msgid "Start from a template"
+msgstr "Zacznij od szablonu"
+
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx

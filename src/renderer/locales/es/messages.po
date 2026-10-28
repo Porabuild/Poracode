@@ -17910,6 +17910,10 @@ msgstr "Iniciar el dictado en el redactor actual"
 msgid "Start each day with priorities and next steps."
 msgstr "Empieza cada día con prioridades y próximos pasos."
 
+#: src/renderer/components/crew/CrewRosterPanel.tsx
+msgid "Start from a template"
+msgstr "Empezar con una plantilla"
+
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx

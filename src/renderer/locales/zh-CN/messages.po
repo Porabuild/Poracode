@@ -17909,6 +17909,10 @@ msgstr "在当前输入框中开始语音输入"
 msgid "Start each day with priorities and next steps."
 msgstr "以优先事项和后续步骤开启每一天。"
 
+#: src/renderer/components/crew/CrewRosterPanel.tsx
+msgid "Start from a template"
+msgstr "从模板开始"
+
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
