@@ -7,6 +7,16 @@ publicHoistPattern = ["*"]
 # Preserve the seven-day supply-chain gate and its reviewed exceptions.
 minimumReleaseAge = 604800
 minimumReleaseAgeExcludes = [
+  # Reviewed together at xtermjs/xterm.js d8a8247 for OSC 7501 support.
+  "@xterm/xterm@6.1.0-beta.316",
+  "@xterm/addon-clipboard@0.3.0-beta.314",
+  "@xterm/addon-fit@0.12.0-beta.312",
+  "@xterm/addon-image@0.10.0-beta.311",
+  "@xterm/addon-search@0.17.0-beta.311",
+  "@xterm/addon-unicode11@0.10.0-beta.311",
+  "@xterm/addon-web-links@0.13.0-beta.311",
+  "@xterm/addon-webgl@0.20.0-beta.310",
+  "@xterm/addon-program-status@0.1.0",
   "@modelcontextprotocol/client@2.4.0",
   "@modelcontextprotocol/core@2.4.0",
   "@modelcontextprotocol/server@2.4.0",

@@ -4375,13 +4375,18 @@ html[data-app-unfocused] .poracode-provider-icon--finished {
 }
 
 .poracode-terminal-shell {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) var(--poracode-terminal-scrollbar-width);
+  display: flex;
+  flex-direction: column;
   width: calc(100% + var(--poracode-terminal-scrollbar-width));
   background: var(--content-background);
 }
 
-.poracode-terminal-shell > .poracode-terminal-pane {
+.poracode-terminal-viewport {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--poracode-terminal-scrollbar-width);
+}
+
+.poracode-terminal-viewport > .poracode-terminal-pane {
   grid-column: 1;
   width: 100% !important;
 }
