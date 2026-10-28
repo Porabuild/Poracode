@@ -64,6 +64,8 @@ jobs:
         run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
       - name: Build
         env:
+          # Corepack cannot install Bun; setup-bun already supplies the pinned binary.
+          ENABLE_EXPERIMENTAL_COREPACK: "0"
           PORACODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS: ${{ secrets.PORACODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS }}
           PORACODE_MOBILE_APPLE_TEAM_ID: ${{ secrets.PORACODE_MOBILE_APPLE_TEAM_ID || secrets.APPLE_TEAM_ID }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
