@@ -78,8 +78,9 @@ struct RichChatComposerView: View {
     .padding(.horizontal, 16)
     .padding(.vertical, 8)
     .sheet(item: $controlsPresented) { presentation in
-      switch presentation {
-      case .controls:
+      if presentation == .crew {
+        crewRosterSheet
+      } else {
         RichChatComposerControlsSheet(
           configuration: $configuration,
           agentStatus: agentStatus,
@@ -88,16 +89,6 @@ struct RichChatComposerView: View {
           hiddenModels: hiddenModels,
           hasStartedSession: hasStartedSession
         )
-      case .crew:
-        if let crewPresentation {
-          RichChatCrewRosterSheet(
-            crew: crewPresentation,
-            leadAgentKind: agentKind,
-            leadModel: configuration.model,
-            leadEffort: configuration.effort,
-            leadFast: configuration.fast == true
-          )
-        }
       }
     }
     .sheet(isPresented: $showsSkillPicker) {
@@ -176,10 +167,6 @@ struct RichChatComposerView: View {
         send: { send() }
       )
     }
-  }
-
-  private var crewPresentation: RichChatCrewPresentation? {
-    RichChatCrewPresentation(opaqueValue: configuration.crew)
   }
 
   private func attachmentButton(

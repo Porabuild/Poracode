@@ -137,3 +137,23 @@ struct RichChatCrewRosterSheet: View {
     }
   }
 }
+
+extension RichChatComposerView {
+  var crewPresentation: RichChatCrewPresentation? {
+    RichChatCrewPresentation(opaqueValue: configuration.crew)
+  }
+
+  /// The crew roster sheet; empty when the binding cannot be presented.
+  @ViewBuilder
+  var crewRosterSheet: some View {
+    if let crewPresentation {
+      RichChatCrewRosterSheet(
+        crew: crewPresentation,
+        leadAgentKind: agentKind,
+        leadModel: configuration.model,
+        leadEffort: configuration.effort,
+        leadFast: configuration.fast == true
+      )
+    }
+  }
+}
