@@ -302,15 +302,22 @@ test("refreshes provider and model queries from a platform status snapshot", asy
   await reader.cancel();
 
   expect(((await (await providerRequest()).json()) as ProviderListOutput).data).toMatchObject([
+    { id: "poracode", integrationID: "poracode" },
     { id: "codex", activation: "enabled", integrationID: "codex" },
   ]);
   expect(((await (await modelRequest()).json()) as ModelListOutput).data).toMatchObject([
+    { providerID: "poracode", id: "new-crew" },
     { providerID: "codex", id: "model-1" },
   ]);
   const integrations = (await (
     await value.handle(new Request("http://poracode.invalid/api/integration"))
   ).json()) as IntegrationListOutput;
   expect(integrations.data).toMatchObject([
+    {
+      id: "poracode",
+      name: "Poracode",
+      connections: [{ type: "env", name: "poracode" }],
+    },
     {
       id: "codex",
       name: "Codex",
@@ -324,6 +331,7 @@ test("refreshes provider and model queries from a platform status snapshot", asy
     status: { ...status, label: "Codex Updated" },
   });
   expect(((await (await providerRequest()).json()) as ProviderListOutput).data).toMatchObject([
+    { id: "poracode" },
     { id: "codex", name: "Codex Updated" },
   ]);
 });
@@ -370,7 +378,10 @@ test("does not expose WSL provider status to native projects", async () => {
   const wslProviders = (await (
     await wsl.handle(new Request("http://poracode.invalid/api/provider"))
   ).json()) as ProviderListOutput;
-  expect(wslProviders.data).toMatchObject([{ id: "wsl-codex", activation: "enabled" }]);
+  expect(wslProviders.data).toMatchObject([
+    { id: "poracode" },
+    { id: "wsl-codex", activation: "enabled" },
+  ]);
 });
 
 test("model default waits for provider discovery on a fresh profile", async () => {
@@ -611,9 +622,15 @@ const captureEmitted = (events: EventStreamHub) => {
 
 test("cold start polls statuses until a usable provider appears", async () => {
   let calls = 0;
+  let ready = false;
   const status = guiStatus();
   const client = {
-    agentStatuses: async () => ({ windows: calls++ === 0 ? [] : [status], wsl: [] }),
+    // Flag-gated so the catalog's extra status reads do not trip the
+    // call-count boundary between empty and usable.
+    agentStatuses: async () => {
+      calls += 1;
+      return { windows: ready ? [status] : [], wsl: [] };
+    },
     settings: async () => ({ agentSettings: {} }),
   } as unknown as RemoteDesktopClient;
   const { events, value } = S.router(client, S.bootstrap.home, undefined, S.bootstrap.directory, {
@@ -624,9 +641,11 @@ test("cold start polls statuses until a usable provider appears", async () => {
 
   const first = await value.handle(new Request("http://poracode.invalid/api/model"));
   expect((await first.json()).data).toEqual([]);
+  ready = true;
   await Bun.sleep(60);
   const later = await value.handle(new Request("http://poracode.invalid/api/model"));
   expect((await later.json()).data.map((m: { modelID: string }) => m.modelID)).toEqual([
+    "new-crew",
     "gpt-5",
     "gpt-5-mini",
   ]);
@@ -682,7 +701,7 @@ test("a status event landing mid-poll is not overwritten by the stale fetch", as
   await Bun.sleep(30);
   const response = await value.handle(new Request("http://poracode.invalid/api/model"));
   const providers = (await response.json()).data.map((m: { providerID: string }) => m.providerID);
-  expect(providers).toEqual(["claude", "claude"]);
+  expect(providers).toEqual(["poracode", "claude", "claude"]);
 });
 
 test("config documents answer the last-used model with its saved variant", async () => {
@@ -863,4 +882,68 @@ test("offers saved crews under a Poracode provider when the lead can lead a crew
   expect(models.data).toContainEqual(
     expect.objectContaining({ id: "crew-ship", providerID: "poracode", name: "Ship crew" }),
   );
+});
+
+test("the Poracode catalog always offers New crew when a provider can lead", async () => {
+  const claude = agentStatusSchema.parse({
+    kind: "claude",
+    label: "Claude Code",
+    installed: true,
+    authState: "authenticated",
+    capabilities: {
+      presentationModes: ["terminal", "gui"],
+      mcpScope: { terminal: "launch", gui: "always" },
+      models: [{ id: "opus", label: "Opus" }],
+    },
+  });
+  const crew = {
+    id: "crew-ship",
+    name: "Ship crew",
+    lead: { agentKind: "claude", model: "opus" },
+    roles: [{ id: "builder", label: "Builder", selection: { agentKind: "claude", model: "opus" } }],
+    policy: "crew-only",
+  };
+  const client = {
+    agentStatuses: async () => ({ windows: [claude], wsl: [] }),
+    settings: async () => ({ agentSettings: {}, crews: [crew] }),
+    boundedProjectListPage: async () => ({ projects: [] }),
+  } as unknown as RemoteDesktopClient;
+  const { value } = S.router(client);
+  const models = (await (
+    await value.handle(new Request("http://poracode.invalid/api/model"))
+  ).json()) as { data: Array<{ id: string; providerID: string }> };
+  const poracodeModels = models.data.filter((m) => m.providerID === "poracode");
+  expect(poracodeModels.map((m) => m.id)).toEqual(["crew-ship", "new-crew"]);
+  const integrations = (await (
+    await value.handle(new Request("http://poracode.invalid/api/integration"))
+  ).json()) as IntegrationListOutput;
+  expect(integrations.data[0]).toMatchObject({ id: "poracode" });
+});
+
+test("the Poracode catalog disappears when no provider can lead a crew", async () => {
+  const codex = agentStatusSchema.parse({
+    kind: "codex",
+    label: "Codex",
+    installed: true,
+    authState: "authenticated",
+    capabilities: {
+      presentationModes: ["terminal", "gui"],
+      mcpScope: { gui: "none", terminal: "none" },
+      models: [{ id: "m1", label: "M1" }],
+    },
+  });
+  const client = {
+    agentStatuses: async () => ({ windows: [codex], wsl: [] }),
+    settings: async () => ({ agentSettings: {} }),
+    boundedProjectListPage: async () => ({ projects: [] }),
+  } as unknown as RemoteDesktopClient;
+  const { value } = S.router(client);
+  const providers = (await (
+    await value.handle(new Request("http://poracode.invalid/api/provider"))
+  ).json()) as ProviderListOutput;
+  expect(providers.data.some((p) => p.id === "poracode")).toBe(false);
+  const models = (await (
+    await value.handle(new Request("http://poracode.invalid/api/model"))
+  ).json()) as ModelListOutput;
+  expect(models.data.some((m) => m.providerID === "poracode")).toBe(false);
 });

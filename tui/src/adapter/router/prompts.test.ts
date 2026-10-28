@@ -715,6 +715,7 @@ test("model change to another provider stages a switch; the next prompt relaunch
     agentKind: "agent-b",
     config: { model: "m2" },
     prompt: "continue over there",
+    presentationMode: "gui",
     providerSwitch: {
       fromAgentKind: "codex",
       contextStrategy: expect.stringMatching(/^(thread-transcript|context-file)$/u),
@@ -1080,12 +1081,465 @@ test("picking a saved crew stages a switch to its lead and the next prompt carri
     new Request("http://poracode.invalid/api/session/ses_thread-1/prompt", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ text: "delegate this" }),
+      // The TUI selection stays on the Poracode crew entry — the prompt body
+      // carries it like the vendored client does.
+      body: JSON.stringify({
+        text: "delegate this",
+        model: { providerID: "poracode", id: "crew-ship" },
+      }),
     }),
   );
   expect(prompt.status).toBe(200);
   expect(starts.at(-1)).toMatchObject({
     agentKind: "claude",
     config: { model: "opus", crew: { version: 1, crewId: "crew-ship", policy: "crew-only" } },
+  });
+});
+
+test("crew edits ride the next prompt and removing the crew keeps the lead", async () => {
+  const sends: Array<{ config?: Record<string, unknown> }> = [];
+  const codex = {
+    ...JSON.parse(JSON.stringify(S.promptFixture.status)),
+    capabilities: {
+      ...JSON.parse(JSON.stringify(S.promptFixture.status.capabilities)),
+      mcpScope: { gui: "launch" },
+    },
+  };
+  const crew = {
+    id: "crew-ship",
+    name: "Ship crew",
+    lead: { agentKind: "codex", model: "m1" },
+    roles: [{ id: "builder", label: "Builder", selection: { agentKind: "codex", model: "m1" } }],
+    policy: "crew-only",
+  };
+  const client = S.promptClient({
+    agentStatuses: async () => ({ windows: [codex], wsl: [] }),
+    settings: async () => ({ agentSettings: {}, crews: [crew] }),
+    sendThreadInput: async (payload: { config?: Record<string, unknown> }) => {
+      sends.push(payload);
+      return {};
+    },
+    callRemoteProcedure: async () => null,
+  });
+  const { value } = S.router(client);
+  const request = (path: string, body: unknown) =>
+    value.handle(
+      new Request(`http://poracode.invalid/api/session/ses_thread-1/${path}`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      }),
+    );
+  const crewModel = { providerID: "poracode", id: "crew-ship" };
+  expect((await request("model", { model: crewModel })).status).toBe(204);
+  const state = await value.crewState("ses_thread-1");
+  expect(state.binding).toMatchObject({ crewId: "crew-ship", policy: "crew-only" });
+  expect(
+    await value.updateCrew("ses_thread-1", {
+      ...state.binding!,
+      policy: "crew-first",
+      roles: [{ ...state.binding!.roles[0]!, parallel: 2 }],
+    }),
+  ).toEqual({ ok: true });
+  expect((await request("prompt", { text: "go", model: crewModel })).status).toBe(200);
+  expect(sends.at(-1)?.config).toMatchObject({
+    model: "m1",
+    crew: { crewId: "crew-ship", policy: "crew-first", roles: [{ id: "builder", parallel: 2 }] },
+  });
+  expect(await value.updateCrew("ses_thread-1", null)).toEqual({ ok: true });
+  // After removal the TUI selects the lead's ordinary model — the prompt
+  // carries it and clears the crew.
+  expect(
+    (
+      await request("prompt", {
+        text: "solo",
+        model: { providerID: "codex", id: "m1" },
+      })
+    ).status,
+  ).toBe(200);
+  expect(sends.at(-1)?.config).toMatchObject({ model: "m1", crew: null });
+});
+
+test("an ordinary-model prompt on a crew thread clears the crew", async () => {
+  const sends: Array<{ config?: Record<string, unknown> }> = [];
+  const codex = {
+    ...JSON.parse(JSON.stringify(S.promptFixture.status)),
+    capabilities: {
+      ...JSON.parse(JSON.stringify(S.promptFixture.status.capabilities)),
+      mcpScope: { gui: "launch" },
+    },
+  };
+  const crew = {
+    id: "crew-ship",
+    name: "Ship crew",
+    lead: { agentKind: "codex", model: "m1" },
+    roles: [{ id: "builder", label: "Builder", selection: { agentKind: "codex", model: "m1" } }],
+    policy: "crew-only",
+  };
+  const client = S.promptClient({
+    agentStatuses: async () => ({ windows: [codex], wsl: [] }),
+    settings: async () => ({ agentSettings: {}, crews: [crew] }),
+    sendThreadInput: async (payload: { config?: Record<string, unknown> }) => {
+      sends.push(payload);
+      return {};
+    },
+  });
+  const { value } = S.router(client);
+  const request = (path: string, body: unknown) =>
+    value.handle(
+      new Request(`http://poracode.invalid/api/session/ses_thread-1/${path}`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      }),
+    );
+  expect(
+    (await request("model", { model: { providerID: "poracode", id: "crew-ship" } })).status,
+  ).toBe(204);
+  expect(
+    (
+      await request("prompt", {
+        text: "solo",
+        model: { providerID: "codex", id: "m1" },
+      })
+    ).status,
+  ).toBe(200);
+  expect(sends.at(-1)?.config).toMatchObject({ model: "m1", crew: null });
+});
+
+test("a new-crew prompt carries the session binding and the current lead", async () => {
+  const starts: Array<{ config?: Record<string, unknown> }> = [];
+  const codex = {
+    ...JSON.parse(JSON.stringify(S.promptFixture.status)),
+    capabilities: {
+      ...JSON.parse(JSON.stringify(S.promptFixture.status.capabilities)),
+      mcpScope: { gui: "launch" },
+    },
+  };
+  const claude = {
+    ...JSON.parse(JSON.stringify(codex)),
+    kind: "claude",
+    label: "Claude Code",
+    capabilities: {
+      ...JSON.parse(JSON.stringify(codex.capabilities)),
+      models: [{ id: "opus", label: "Opus" }],
+    },
+  };
+  const client = S.promptClient({
+    agentStatuses: async () => ({ windows: [codex, claude], wsl: [] }),
+    startThread: async (payload: { config?: Record<string, unknown> }) => {
+      starts.push(payload);
+      return {};
+    },
+    callRemoteProcedure: async () => null,
+  });
+  const { value } = S.router(client);
+  expect(await value.startNewCrew("ses_thread-1")).toEqual({ ok: true });
+  expect(await value.setCrewLead("ses_thread-1", { agentKind: "claude", model: "opus" })).toEqual({
+    ok: true,
+  });
+  const prompt = await value.handle(
+    new Request("http://poracode.invalid/api/session/ses_thread-1/prompt", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        text: "go",
+        model: { providerID: "poracode", id: "new-crew" },
+      }),
+    }),
+  );
+  expect(prompt.status).toBe(200);
+  expect(starts.at(-1)).toMatchObject({
+    agentKind: "claude",
+    config: {
+      model: "opus",
+      crew: {
+        version: 1,
+        policy: "crew-only",
+        roles: [{ id: "builder", label: "Builder" }],
+      },
+    },
+  });
+});
+
+test("a remote crew binding survives a cold-cache new-crew and saved-id prompt", async () => {
+  const sends: Array<{ config?: Record<string, unknown> }> = [];
+  const claude = {
+    ...JSON.parse(JSON.stringify(S.promptFixture.status)),
+    kind: "claude",
+    label: "Claude Code",
+    capabilities: {
+      ...JSON.parse(JSON.stringify(S.promptFixture.status.capabilities)),
+      mcpScope: { gui: "launch" },
+      models: [{ id: "opus", label: "Opus" }],
+    },
+  };
+  const remoteCrew = {
+    version: 1,
+    crewId: "crew-ship",
+    name: "Ship crew",
+    policy: "crew-first",
+    roles: [{ id: "builder", label: "Builder", selection: { agentKind: "claude", model: "opus" } }],
+  };
+  const client = S.promptClient({
+    agentStatuses: async () => ({ windows: [claude], wsl: [] }),
+    boundedThreadListPage: async () => ({
+      page: {
+        threads: [
+          {
+            ...S.promptFixture.thread,
+            agentKind: "claude",
+            config: { model: "opus", crew: remoteCrew },
+          },
+        ],
+      },
+    }),
+    sendThreadInput: async (payload: { config?: Record<string, unknown> }) => {
+      sends.push(payload);
+      return {};
+    },
+    callRemoteProcedure: async () => null,
+  });
+  const { value } = S.router(client);
+  for (const picked of ["new-crew", "crew-ship"]) {
+    const prompt = await value.handle(
+      new Request("http://poracode.invalid/api/session/ses_thread-1/prompt", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          text: "go",
+          model: { providerID: "poracode", id: picked },
+        }),
+      }),
+    );
+    expect(prompt.status).toBe(200);
+  }
+  for (const sent of sends.slice(-2))
+    expect(sent.config?.crew).toMatchObject({
+      crewId: "crew-ship",
+      policy: "crew-first",
+      roles: [{ id: "builder", label: "Builder" }],
+    });
+});
+
+test("the selection route keeps the crew on a poracode/new-crew pick", async () => {
+  const codex = {
+    ...JSON.parse(JSON.stringify(S.promptFixture.status)),
+    capabilities: {
+      ...JSON.parse(JSON.stringify(S.promptFixture.status.capabilities)),
+      mcpScope: { gui: "launch" },
+    },
+  };
+  const crew = {
+    id: "crew-ship",
+    name: "Ship crew",
+    lead: { agentKind: "codex", model: "m1" },
+    roles: [{ id: "builder", label: "Builder", selection: { agentKind: "codex", model: "m1" } }],
+    policy: "crew-only",
+  };
+  const client = S.promptClient({
+    agentStatuses: async () => ({ windows: [codex], wsl: [] }),
+    settings: async () => ({ agentSettings: {}, crews: [crew] }),
+  });
+  const { value } = S.router(client);
+  const request = (body: unknown) =>
+    value.handle(
+      new Request("http://poracode.invalid/api/session/ses_thread-1/model", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      }),
+    );
+  expect((await request({ model: { providerID: "poracode", id: "crew-ship" } })).status).toBe(204);
+  expect((await request({ model: { providerID: "poracode", id: "new-crew" } })).status).toBe(204);
+  const state = await value.crewState("ses_thread-1");
+  expect(state.binding).toMatchObject({ crewId: "crew-ship", policy: "crew-only" });
+});
+
+test("a prompt without a body model keeps the crew the selection route applied", async () => {
+  const starts: Array<{ config?: Record<string, unknown> }> = [];
+  const client = S.promptClient({
+    startThread: async (payload: { config?: Record<string, unknown> }) => {
+      starts.push(payload);
+      return {};
+    },
+    startNewThread: async (payload: { config?: Record<string, unknown> }) => {
+      starts.push(payload);
+      return { threadId: "thread-new" };
+    },
+    callRemoteProcedure: async () => null,
+  });
+  const { value } = S.router(client);
+  expect(
+    (
+      await value.handle(
+        new Request("http://poracode.invalid/api/session", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            id: "ses_thread-new",
+            model: { providerID: "poracode", id: "new-crew" },
+          }),
+        }),
+      )
+    ).status,
+  ).toBe(200);
+  // The vendored composer commits the selection via POST .../model, then the
+  // prompt arrives with no body model — the record carries the crew.
+  expect(
+    (
+      await value.handle(
+        new Request("http://poracode.invalid/api/session/ses_thread-new/model", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ model: { providerID: "poracode", id: "new-crew" } }),
+        }),
+      )
+    ).status,
+  ).toBe(204);
+  const prompt = await value.handle(
+    new Request("http://poracode.invalid/api/session/ses_thread-new/prompt", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ text: "go" }),
+    }),
+  );
+  expect(prompt.status).toBe(200);
+  expect(starts.at(-1)?.config).toMatchObject({
+    model: "m1",
+    crew: { version: 1, policy: "crew-only" },
+  });
+});
+
+test("a prompt without a body model after an ordinary selection clears the crew", async () => {
+  const sends: Array<{ config?: Record<string, unknown> }> = [];
+  const client = S.promptClient({
+    sendThreadInput: async (payload: { config?: Record<string, unknown> }) => {
+      sends.push(payload);
+      return {};
+    },
+    callRemoteProcedure: async () => null,
+  });
+  const { value } = S.router(client);
+  const request = (path: string, body: unknown) =>
+    value.handle(
+      new Request(`http://poracode.invalid/api/session/ses_thread-1/${path}`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      }),
+    );
+  expect(
+    (await request("model", { model: { providerID: "poracode", id: "new-crew" } })).status,
+  ).toBe(204);
+  expect((await value.crewState("ses_thread-1")).binding).toBeTruthy();
+  // An ordinary pick clears the crew; the following prompt has no body model.
+  expect((await request("model", { model: { providerID: "codex", id: "m1" } })).status).toBe(204);
+  expect((await request("prompt", { text: "solo" })).status).toBe(200);
+  expect(sends.at(-1)?.config).toMatchObject({ model: "m1", crew: null });
+});
+
+test("a prompt without a body model keeps an existing crew", async () => {
+  const sends: Array<{ config?: Record<string, unknown> }> = [];
+  const client = S.promptClient({
+    sendThreadInput: async (payload: { config?: Record<string, unknown> }) => {
+      sends.push(payload);
+      return {};
+    },
+    callRemoteProcedure: async () => null,
+  });
+  const { value } = S.router(client);
+  const request = (path: string, body: unknown) =>
+    value.handle(
+      new Request(`http://poracode.invalid/api/session/ses_thread-1/${path}`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      }),
+    );
+  expect(
+    (await request("model", { model: { providerID: "poracode", id: "new-crew" } })).status,
+  ).toBe(204);
+  expect((await request("prompt", { text: "go" })).status).toBe(200);
+  expect(sends.at(-1)?.config?.crew).toMatchObject({ version: 1, policy: "crew-only" });
+});
+
+test("a prompt without a body model after crew removal sends crew null", async () => {
+  const sends: Array<{ config?: Record<string, unknown> }> = [];
+  const client = S.promptClient({
+    sendThreadInput: async (payload: { config?: Record<string, unknown> }) => {
+      sends.push(payload);
+      return {};
+    },
+    callRemoteProcedure: async () => null,
+  });
+  const { value } = S.router(client);
+  const request = (path: string, body: unknown) =>
+    value.handle(
+      new Request(`http://poracode.invalid/api/session/ses_thread-1/${path}`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      }),
+    );
+  expect(
+    (await request("model", { model: { providerID: "poracode", id: "new-crew" } })).status,
+  ).toBe(204);
+  expect(await value.updateCrew("ses_thread-1", null)).toEqual({ ok: true });
+  expect((await request("prompt", { text: "solo" })).status).toBe(200);
+  expect(sends.at(-1)?.config).toMatchObject({ model: "m1", crew: null });
+});
+
+test("a provider switch proceeds without a summary when context extraction fails", async () => {
+  const starts: unknown[] = [];
+  const uploads: unknown[] = [];
+  const thread = {
+    ...JSON.parse(JSON.stringify(S.promptFixture.thread)),
+    sessionRef: "sess-1",
+  };
+  const statusB = {
+    ...JSON.parse(JSON.stringify(S.promptFixture.status)),
+    kind: "agent-b",
+    capabilities: {
+      ...JSON.parse(JSON.stringify(S.promptFixture.status.capabilities)),
+      models: [{ id: "m2", label: "M2" }],
+    },
+  };
+  const client = S.promptClient({
+    agentStatuses: async () => ({ windows: [S.promptFixture.status, statusB], wsl: [] }),
+    boundedThreadListPage: async () => ({ page: { threads: [thread] } }),
+    startThread: async (payload: unknown) => starts.push(payload),
+    uploadAttachment: async (payload: unknown) => {
+      uploads.push(payload);
+      return "upl/handoff-context.md";
+    },
+    callRemoteProcedure: async (name: string, payload: unknown) => {
+      if (name === "extractContext") throw new Error("Internal server error");
+      return payload as unknown;
+    },
+  });
+  const { value } = S.router(client);
+  // threadMentionToolsAvailable stays absent → context-file strategy.
+  await value.handle(
+    new Request("http://poracode.invalid/api/session/ses_thread-1/model", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ model: { providerID: "agent-b", id: "m2" } }),
+    }),
+  );
+  const response = await value.handle(
+    new Request("http://poracode.invalid/api/session/ses_thread-1/prompt", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ text: "keep going" }),
+    }),
+  );
+  expect(response.status).toBe(200);
+  expect(uploads).toHaveLength(0);
+  const start = starts.at(-1) as Record<string, unknown>;
+  expect(start.prompt).toBe("keep going");
+  expect(start.providerSwitch).toMatchObject({
+    fromAgentKind: "codex",
+    contextStrategy: "context-file",
   });
 });

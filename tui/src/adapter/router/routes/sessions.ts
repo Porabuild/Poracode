@@ -15,6 +15,7 @@ import type {
   SessionListOutput,
 } from "@opencode/client";
 import type { RouteArgs } from "../context";
+import { CREW_PROVIDER_ID, resolveCrewPick, type CrewPick } from "../crews";
 
 /** Session lifecycle routes: list, create, selection, messages, wait, move. */
 export async function handleSessionRoutes({
@@ -100,7 +101,38 @@ export async function handleSessionRoutes({
       typeof body.approvalPolicy === "string" ? body.approvalPolicy : undefined;
     const sandboxMode = typeof body.sandboxMode === "string" ? body.sandboxMode : undefined;
     const remoteThreadID = threadId(id);
-    if (providerID) ctx.activeProviderID = providerID;
+    // A Poracode crew pick resolves to its lead before the record is stored —
+    // the pseudo provider must never reach the session record.
+    let pick: CrewPick | undefined;
+    if (providerID === CREW_PROVIDER_ID) {
+      const { statuses, helperChoices, leadChoices } = await ctx.crewChoices();
+      const sessionLead = ctx.sessionLead(id);
+      const lead =
+        sessionLead &&
+        leadChoices.some(
+          (choice) =>
+            choice.agentKind === sessionLead.agentKind && choice.model === sessionLead.model,
+        )
+          ? sessionLead
+          : leadChoices[0]
+            ? { agentKind: leadChoices[0].agentKind, model: leadChoices[0].model }
+            : undefined;
+      const resolved = resolveCrewPick({
+        pickedModel: modelID,
+        sessionCrew: undefined,
+        sessionLead: lead,
+        saved: await ctx.savedCrews(statuses),
+        leadChoices,
+        helperChoices,
+      });
+      if ("error" in resolved)
+        return json({ error: { code: "invalid_request", message: resolved.error } }, 400);
+      pick = resolved;
+    }
+    const effectiveProviderID = pick ? pick.lead.agentKind : providerID;
+    const effectiveModelID = pick ? pick.lead.model : modelID;
+    const effectiveEffort = pick ? pick.lead.effort : effort;
+    if (effectiveProviderID) ctx.activeProviderID = effectiveProviderID;
     // A session created inside a listed worktree starts its thread there —
     // the host runs prepare-worktree setup via the worktree fields.
     const requestedDirectory = String(record(body.location).directory ?? "");
@@ -125,21 +157,23 @@ export async function handleSessionRoutes({
       threadId: remoteThreadID,
       projectId: current.id,
       agentID,
-      ...(providerID ? { providerID } : {}),
-      ...(modelID ? { model: modelID } : {}),
-      ...(effort ? { effort } : {}),
+      ...(effectiveProviderID ? { providerID: effectiveProviderID } : {}),
+      ...(effectiveModelID ? { model: effectiveModelID } : {}),
+      ...(effectiveEffort ? { effort: effectiveEffort } : {}),
+      ...(pick?.lead.fast !== undefined ? { fast: pick.lead.fast } : {}),
       ...(approvalPolicy ? { approvalPolicy } : {}),
       ...(sandboxMode ? { sandboxMode } : {}),
       ...(worktreePath ? { worktreePath } : {}),
       ...(worktreeBranch ? { worktreeBranch } : {}),
       createdAt,
       remoteStarted: false,
+      ...(pick ? { crew: pick.binding } : {}),
     });
-    if (providerID && modelID) {
+    if (effectiveProviderID && effectiveModelID) {
       input.registerThreadContext(remoteThreadID, {
         agent: agentID,
-        providerID,
-        model: modelID,
+        providerID: effectiveProviderID,
+        model: effectiveModelID,
         location: { directory: worktreePath ?? directoryOf(current.location) },
       });
     }
@@ -147,8 +181,14 @@ export async function handleSessionRoutes({
       id,
       projectID: current.id,
       agent: agentID,
-      ...(providerID && modelID
-        ? { model: { id: modelID, providerID, ...(effort ? { variant: effort } : {}) } }
+      ...(effectiveProviderID && effectiveModelID
+        ? {
+            model: ctx.crewSessionModel(id) ?? {
+              id: effectiveModelID,
+              providerID: effectiveProviderID,
+              ...(effectiveEffort ? { variant: effectiveEffort } : {}),
+            },
+          }
         : {}),
       cost: 0,
       tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
@@ -501,7 +541,7 @@ export async function handleSessionRoutes({
         agent: localSession.agentID ?? "build",
         ...(localSession.providerID && localSession.model
           ? {
-              model: {
+              model: ctx.crewSessionModel(sessionID) ?? {
                 id: localSession.model,
                 providerID: localSession.providerID,
                 ...(localSession.effort ? { variant: localSession.effort } : {}),

@@ -205,7 +205,9 @@ export const titleClient = (options: {
       describeHost: async () => options.describeHost ?? {},
       boundedThreadListPage: async () => {
         listed += 1;
-        const visible = options.threadsAlways === true || listed > 2;
+        // Sessions without a local record still warm the thread cache for
+        // crew resolution — one extra list call widens the lag window.
+        const visible = options.threadsAlways === true || listed > 3;
         return {
           page: {
             threads: visible

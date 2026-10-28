@@ -120,7 +120,10 @@ export function mapToolItem(
             ? jsonRecord({ ...args, command: args.command })
             : args;
     return {
-      name,
+      name:
+        parsed.data.isCrossagent === true && parsed.data.subAgentType
+          ? `${parsed.data.subAgentType} · ${name}`
+          : name,
       input,
       metadata: jsonRecord({}),
       output: bounded(String(parsed.data.result ?? "")),

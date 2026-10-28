@@ -24,6 +24,7 @@ import { handlePromptRoutes } from "./router/routes/prompts";
 import { handleFallbackRoutes } from "./router/routes/fallback";
 import { createRemoteEvents } from "./router/remoteEvents";
 import { createFacade } from "./router/facade";
+import { createCrews } from "./router/crewFacade";
 import { json, record } from "./router/helpers";
 import { logAdapterDebug, logAdapterError, summarizeAdapterInput } from "./diagnostics";
 
@@ -60,6 +61,7 @@ export function createRouter(input: {
   Object.assign(ctx, createTitles(ctx));
   Object.assign(ctx, createCatalog(ctx));
   Object.assign(ctx, createThreads(ctx));
+  Object.assign(ctx, createCrews(ctx));
   Object.assign(ctx, createRequests(ctx));
   Object.assign(ctx, createPrompt(ctx));
   Object.assign(ctx, createRemoteEvents(ctx));
@@ -88,6 +90,14 @@ export function createRouter(input: {
     providerUsage,
     startSideChat,
     loginCandidates,
+    crewState,
+    updateCrew,
+    startNewCrew,
+    setCrewLead,
+    saveCrew,
+    crewLine,
+    crewSidebar,
+    subscribeCrew,
   } = ctx;
 
   const handleRequest = async (request: Request): Promise<Response> => {
@@ -200,6 +210,14 @@ export function createRouter(input: {
     providerUsage,
     startSideChat,
     loginCandidates,
+    crewState,
+    updateCrew,
+    startNewCrew,
+    setCrewLead,
+    saveCrew,
+    crewLine,
+    crewSidebar,
+    subscribeCrew,
     disposeSubagentSubscriptions,
     disposeStatusPolling,
   };

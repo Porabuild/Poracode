@@ -20,7 +20,10 @@ export function createThreads(ctx: RouterContext) {
       id: sessionId(value.id),
       projectID: currentProject.id,
       agent: value.config.mode === "plan" ? "plan" : "build",
-      model: { id: value.config.model, providerID: value.agentKind },
+      model: ctx.crewSessionModel(sessionId(value.id)) ?? {
+        id: value.config.model,
+        providerID: value.agentKind,
+      },
       cost: 0,
       tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
       time: { created: Date.parse(value.createdAt), updated: Date.parse(value.updatedAt) },

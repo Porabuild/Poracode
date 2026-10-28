@@ -16,7 +16,7 @@ import type {
   ProviderListOutput,
 } from "@opencode/client";
 import type { RouteArgs } from "../context";
-import { CREW_PROVIDER_ID, usableCrews } from "../crews";
+import { CREW_PROVIDER_ID } from "../crews";
 
 /** Agent/provider/integration/model catalog routes plus MCP and skill. */
 export async function handleCatalogRoutes({
@@ -82,12 +82,7 @@ export async function handleCatalogRoutes({
     ];
     return json(output);
   }
-  const offeredCrews = async () =>
-    usableCrews(
-      (await remoteSettings()).crews,
-      await agentStatuses(),
-      (status) => supportsGui(status) && hasGuiAuthentication(status),
-    );
+  const offeredCrews = () => ctx.crewCatalog();
 
   if (path === "/api/provider" && method === "GET") {
     const crews = await offeredCrews();

@@ -118,6 +118,14 @@ export async function createAdapter(bootstrap: TuiBootstrap) {
     providerUsage: router.providerUsage,
     startSideChat: router.startSideChat,
     loginCandidates: router.loginCandidates,
+    crewState: router.crewState,
+    updateCrew: router.updateCrew,
+    startNewCrew: router.startNewCrew,
+    setCrewLead: router.setCrewLead,
+    saveCrew: router.saveCrew,
+    crewLine: router.crewLine,
+    crewSidebar: router.crewSidebar,
+    subscribeCrew: router.subscribeCrew,
     async dispose() {
       router.disposeSubagentSubscriptions();
       router.disposeStatusPolling();
