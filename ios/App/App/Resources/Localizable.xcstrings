@@ -18789,6 +18789,7 @@
         "zh-Hans": { "stringUnit": { "state": "translated", "value": "快速" } }
       }
     },
+    "rich_chat_context_percent": {
       "extractionState": "manual",
       "localizations": {
         "en": {
