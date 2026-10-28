@@ -18,7 +18,7 @@ it("keeps delegation inside the crew and tunes brief detail to each helper's mod
     crew({ builder: "gpt-6-luna", reviewer: "haiku", architect: "claude-opus-5-5" }),
   );
   expect(text).toContain(
-    "- Delegate only to the crew through spawn_agent. Do not use your own built-in subagent or task tools.",
+    "- Delegate only through spawn_agent, as the crew policy allows. Do not use your own built-in subagent or task tools.",
   );
   expect(text).toContain(
     "- builder and reviewer run smaller models: give prescriptive tasks (exact files, interfaces and test cases), and do the exploration that shapes your plan yourself.",

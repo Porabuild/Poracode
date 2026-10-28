@@ -420,3 +420,37 @@ it("does not add a role preamble when the request has no crew role", async () =>
   h.handles[0]!.completeTurn("completed");
   await flush();
 });
+
+it("continues a role's helper session unless the lead asks for a fresh one", async () => {
+  const spawn = vi.fn<(parentThreadId: string, request: SpawnAgentRequest) => { runId: string }>(
+    () => ({ runId: "fresh-run" }),
+  );
+  const continueRole = vi.fn<
+    (
+      parentThreadId: string,
+      request: SpawnAgentRequest,
+      background: boolean,
+    ) => Promise<{ runId: string; continuedFrom: string } | undefined>
+  >(async () => ({ runId: "continued-run", continuedFrom: "first-run" }));
+  const manager = { spawn, continueRole } as unknown as SubagentToolContext["runManager"];
+
+  const continued = await dispatchTool(
+    "spawn_agent",
+    { role: "builder", prompt: "Next task", background: true },
+    context(manager, roleCrew()),
+  );
+  expect(JSON.parse(continued.content[0]!.text)).toMatchObject({
+    run_id: "continued-run",
+    continued_from: "first-run",
+    status: "running",
+  });
+  expect(spawn).not.toHaveBeenCalled();
+
+  const fresh = await dispatchTool(
+    "spawn_agent",
+    { role: "builder", prompt: "Unrelated task", background: true, fresh_session: true },
+    context(manager, roleCrew()),
+  );
+  expect(JSON.parse(fresh.content[0]!.text)).toMatchObject({ run_id: "fresh-run" });
+  expect(continueRole).toHaveBeenCalledTimes(1);
+});

@@ -14,7 +14,7 @@ export const CREW_REMOVED_BRIEF_TEXT =
 export function crewPlaybookText(binding: ThreadCrewBinding): string {
   return [
     "How to work with the crew:",
-    "- Delegate only to the crew through spawn_agent. Do not use your own built-in subagent or task tools.",
+    "- Delegate only through spawn_agent, as the crew policy allows. Do not use your own built-in subagent or task tools.",
     "- Keep planning, design decisions, reviewing results and talking to the user yourself. Hand roles the hands-on work: implementing, editing files, running builds and tests, searching large codebases.",
     "- Settle decisions before you delegate. Give each task the goal, the files or interfaces to change, what done means and the exact checks to run, so the helper does not rediscover context or come back with questions.",
     ...briefingLines(binding),

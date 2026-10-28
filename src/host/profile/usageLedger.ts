@@ -241,7 +241,7 @@ export function recordUsageSpentFromRuntimeEvents(
 }
 
 /** Per-thread aggregate key: the lead, a crew role, or a helper without a role. */
-export function threadTokenUsageMember(helper: UsageSpentEvent["usage"]["helper"]): string {
+function threadTokenUsageMember(helper: UsageSpentEvent["usage"]["helper"]): string {
   if (!helper) return "lead";
   return helper.crewRoleId ? `role:${helper.crewRoleId}` : "helper";
 }

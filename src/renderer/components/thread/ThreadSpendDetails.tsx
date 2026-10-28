@@ -20,7 +20,9 @@ export function formatUsd(value: number): string {
 /**
  * Per-member token spend for a thread (lead, crew roles, other helpers) with a
  * list-price dollar estimate. Refetches whenever `refreshKey` changes, which
- * the usage dock ties to context occupancy so it follows the running turn.
+ * the usage dock ties to context occupancy so it follows the running turn, and
+ * periodically while open, because helpers spend while the lead's context
+ * stands still.
  */
 export function ThreadSpendDetails({
   threadId,
@@ -38,10 +40,7 @@ export function ThreadSpendDetails({
   );
   useEffect(() => {
     let cancelled = false;
-    // Coalesce bursts of context updates while a turn streams; with no
-    // reported context yet there is nothing to coalesce, so read at once.
-    const delay = refreshKey > 0 ? 300 : 0;
-    const timer = setTimeout(() => {
+    const load = () => {
       Promise.resolve(readBridge().dbGetThreadTokenUsage(threadId)).then(
         (next) => {
           if (!cancelled) setUsage(next);
@@ -50,10 +49,15 @@ export function ThreadSpendDetails({
           if (!cancelled) setUsage(null);
         },
       );
-    }, delay);
+    };
+    // Coalesce bursts of context updates while a turn streams; with no
+    // reported context yet there is nothing to coalesce, so read at once.
+    const timer = setTimeout(load, refreshKey > 0 ? 300 : 0);
+    const interval = setInterval(load, 15_000);
     return () => {
       cancelled = true;
       clearTimeout(timer);
+      clearInterval(interval);
     };
   }, [threadId, refreshKey]);
 
@@ -78,7 +82,7 @@ export function ThreadSpendDetails({
   const unpriced = usage.members.some((row) => row.pricedTotal < row.total);
 
   return (
-    <div className="flex flex-col gap-1.5 border-t border-divider px-3 pt-2 pb-2">
+    <div className="flex flex-col gap-1.5 border-t border-border px-3 pt-2 pb-2">
       <div className="flex items-center justify-between gap-3 text-xs">
         <span className="font-medium text-foreground">
           <Trans>Spend</Trans>
