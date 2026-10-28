@@ -1109,6 +1109,10 @@ msgstr "Un serveur n'est pas configuré correctement et a été ignoré."
 msgid "a supported coding agent"
 msgstr "un agent de codage pris en charge"
 
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "A tester writes failing tests; a builder makes them pass."
+msgstr "Un testeur écrit des tests qui échouent ; un constructeur les fait passer."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "A voice conversation is already active."
 msgstr "Une conversation vocale est déjà active."
@@ -2663,7 +2667,7 @@ msgstr "Fichier binaire ou aucune différence disponible"
 msgid "Binary files can't be edited here."
 msgstr "Les fichiers binaires ne peuvent pas être modifiés ici."
 
-#: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
+#: src/renderer/components/crew/crewTemplates.ts
 msgid "Blank crew"
 msgstr "Équipe vide"
 
@@ -5744,6 +5748,10 @@ msgstr "Date et heure"
 msgid "Days"
 msgstr "Jours"
 
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "Debug crew"
+msgstr "Équipe de débogage"
+
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/QuestionFormActions.tsx
 msgid "Decline"
 msgstr "Refuser"
@@ -7465,9 +7473,17 @@ msgstr "Les expériences s'exécutent sur la machine qui héberge le projet. Ouv
 msgid "Explicit selections recorded from past delegations — they feed the routing order above. Edit the tags or remove entries to reshape it."
 msgstr "Sélections explicites enregistrées lors de délégations passées — elles alimentent l'ordre de routage ci-dessus. Modifiez les tags ou supprimez des entrées pour le remodeler."
 
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "Explore and plan"
+msgstr "Explorer et planifier"
+
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "Explore, build and review a feature."
+msgstr "Explorer, construire et relire une fonctionnalité."
+
 #: src/renderer/components/crew/crewRoleTemplates.ts
-msgid "Explores code and docs"
-msgstr "Explore le code et la documentation"
+#~ msgid "Explores code and docs"
+#~ msgstr "Explore le code et la documentation"
 
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Exponential backoff"
@@ -7833,9 +7849,17 @@ msgstr "Rechercher dans la page"
 msgid "Find in terminal"
 msgstr "Rechercher dans le terminal"
 
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "Find the root cause first, then fix it with a regression test."
+msgstr "Trouver d’abord la cause racine, puis corriger avec un test de régression."
+
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Finding status"
 msgstr "État du résultat"
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Finds the files, callers and tests a task touches, and reports their paths with a short summary."
+msgstr "Trouve les fichiers, appelants et tests d’une tâche et indique leurs chemins avec un court résumé."
 
 #: src/renderer/views/PullRequestsOverlay/guide/PrGuidePanel.tsx
 msgid "Finish review"
@@ -7961,6 +7985,10 @@ msgstr "Corrigé"
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Fixed delay"
 msgstr "Délai fixe"
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Fixer"
+msgstr "Correcteur"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
 msgid "Flat list"
@@ -8891,8 +8919,16 @@ msgid "Images"
 msgstr "Images"
 
 #: src/renderer/components/crew/crewRoleTemplates.ts
-msgid "Implements changes and runs tests"
-msgstr "Implémente les changements et lance les tests"
+#~ msgid "Implements changes and runs tests"
+#~ msgstr "Implémente les changements et lance les tests"
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Implements the fix with a regression test and confirms the reproduction now passes."
+msgstr "Implémente la correction avec un test de régression et confirme que la reproduction passe."
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Implements the lead's task end to end: edits files, runs the build and tests, and reports what changed."
+msgstr "Réalise la tâche du principal de bout en bout : modifie les fichiers, lance build et tests, résume les changements."
 
 #. Settings section: import existing CLI sessions as threads
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
@@ -9530,6 +9566,10 @@ msgstr "Configuration invalide — conservée, mais désactivée"
 msgid "Invalid visual specification. Showing source only."
 msgstr "Spécification de visuel invalide. Seul le code source est affiché."
 
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Investigator"
+msgstr "Enquêteur"
+
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 #~ msgid "iOS Simulator requires a macOS host with Xcode."
 #~ msgstr "Le simulateur iOS nécessite un hôte macOS avec Xcode."
@@ -9797,6 +9837,10 @@ msgstr "Principal"
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
 msgid "Lead + 1 helper"
 msgstr "Responsable + 1 assistant"
+
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "Lead + Builder"
+msgstr "Principal + Constructeur"
 
 #: src/renderer/components/providers/devin/modelPricing.ts
 #~ msgid "Lead and Sidekick prices are per 1M tokens for each model. Ranges cover model variants."
@@ -12478,6 +12522,10 @@ msgstr "Une fois le {0}"
 msgid "One Header: value pair per line"
 msgstr "Une paire En-tête : valeur par ligne"
 
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "One helper to build your own crew from."
+msgstr "Un assistant pour bâtir votre propre équipe."
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "One KEY=VALUE pair per line"
 msgstr "Une paire KEY=VALUE par ligne"
@@ -13232,6 +13280,10 @@ msgstr "Panneau"
 #: src/renderer/commands/shortcutCatalog.ts
 msgid "Panels and overlays"
 msgstr "Panneaux et superpositions"
+
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "Parallel builders"
+msgstr "Constructeurs en parallèle"
 
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
@@ -15307,6 +15359,10 @@ msgstr "Le hook de pré-réception du dépôt bloque la fusion."
 msgid "Repository URL"
 msgstr "URL du dépôt"
 
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Reproduces the bug and traces it to the root cause, then reports the evidence and the failing code path."
+msgstr "Reproduit le bug, remonte à la cause racine et rapporte les preuves et le chemin de code fautif."
+
 #: src/renderer/views/PullRequestsOverlay/summary/ReviewerPicker.tsx
 msgid "Request a reviewer"
 msgstr "Demander un relecteur"
@@ -15725,7 +15781,7 @@ msgstr "Revue et Résumeur sont les seuls types d'agents racine que la CLI de De
 #~ msgid "Review and track work across your source hosts."
 #~ msgstr "Examinez et suivez le travail sur vos plateformes de code source."
 
-#: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
+#: src/renderer/components/crew/crewTemplates.ts
 msgid "Review board"
 msgstr "Tableau de revue"
 
@@ -15845,8 +15901,12 @@ msgid "Reviews & comments"
 msgstr "Revues et commentaires"
 
 #: src/renderer/components/crew/crewRoleTemplates.ts
-msgid "Reviews diffs and finds bugs"
-msgstr "Relit les diffs et cherche les bugs"
+#~ msgid "Reviews diffs and finds bugs"
+#~ msgstr "Relit les diffs et cherche les bugs"
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Reviews the finished diff for bugs, regressions and missing tests, and reports findings by file and line."
+msgstr "Relit le diff final pour trouver bugs, régressions et tests manquants, avec fichier et ligne."
 
 #: src/renderer/components/providers/devin/liveSessionControls.tsx
 #: src/renderer/components/providers/devin/sessionActionDialog.tsx
@@ -16391,6 +16451,10 @@ msgstr "Les surveillances avec périmètre source sont indisponibles sur cet hô
 #: src/renderer/components/crew/crewRoleTemplates.ts
 msgid "Scout"
 msgstr "Éclaireur"
+
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "Scouts map an unfamiliar codebase before anything changes."
+msgstr "Des éclaireurs cartographient un code inconnu avant tout changement."
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/components/thread/ThreadAgentVisionDock.tsx
@@ -17020,7 +17084,7 @@ msgstr "Partage le propriétaire manquant {0}"
 #~ msgid "Shell arguments"
 #~ msgstr "Arguments du shell"
 
-#: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
+#: src/renderer/components/crew/crewTemplates.ts
 msgid "Ship crew"
 msgstr "Équipe de livraison"
 
@@ -18576,10 +18640,18 @@ msgstr "Arguments du shell du terminal"
 msgid "Terminal tabs"
 msgstr "Onglets du terminal"
 
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "Test and fix"
+msgstr "Tester et corriger"
+
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Test microphone"
 msgstr "Tester le micro"
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Tester"
+msgstr "Testeur"
 
 #: src/renderer/components/plugins/pluginCategories.ts
 msgid "Testing"
@@ -18915,6 +18987,10 @@ msgstr "Le dernier lancement a peut-être déjà démarré. Utilisez Réessayer 
 #: src/renderer/views/PullRequestsOverlay/chat/launchPrAskThread.ts
 msgid "The launch was cancelled."
 msgstr "Le lancement a été annulé."
+
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "The lead plans and reviews; a cheaper builder does the hands-on work."
+msgstr "Le principal planifie et relit ; un constructeur moins cher fait le travail concret."
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the Linux user"
@@ -20159,6 +20235,10 @@ msgstr "Activez l’accès distant pour afficher un code d’association."
 msgid "Turn tracking on or off per provider. Disabled providers are skipped by the auto-refresh."
 msgstr "Activez ou désactivez le suivi par fournisseur. Les fournisseurs désactivés sont ignorés par l'actualisation automatique."
 
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "Two independent read-only reviews of a change."
+msgstr "Deux relectures indépendantes en lecture seule d’un changement."
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Type"
 msgstr "Type"
@@ -20817,6 +20897,10 @@ msgstr "Non vérifié"
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Up one level"
 msgstr "Remonter d'un niveau"
+
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "Up to three builders work on independent tasks at once."
+msgstr "Jusqu’à trois constructeurs travaillent en même temps sur des tâches indépendantes."
 
 #: src/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay.tsx
 msgid "update"
@@ -21998,6 +22082,10 @@ msgstr "Rédiger le guide"
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 msgid "Write notes for this project…"
 msgstr "Écrivez des notes pour ce projet…"
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Writes and runs tests for the change, reproduces reported bugs, and reports failures with the exact command."
+msgstr "Écrit et lance les tests du changement, reproduit les bugs signalés et rapporte les échecs avec la commande exacte."
 
 #: src/renderer/views/PullRequestsOverlay/guide/PrReviewGuideTab.tsx
 msgid "Writing guide. You can leave this review and return when it is ready."

@@ -1108,6 +1108,10 @@ msgstr "正しく設定されていないサーバーをスキップしました
 msgid "a supported coding agent"
 msgstr "サポートされているコーディング エージェント"
 
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "A tester writes failing tests; a builder makes them pass."
+msgstr "テスターが失敗するテストを書き、ビルダーが通るようにします。"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "A voice conversation is already active."
 msgstr "音声会話はすでに開始されています。"
@@ -2662,7 +2666,7 @@ msgstr "バイナリ ファイルまたは利用可能な差分がありませ�
 msgid "Binary files can't be edited here."
 msgstr "ここではバイナリ ファイルを編集できません。"
 
-#: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
+#: src/renderer/components/crew/crewTemplates.ts
 msgid "Blank crew"
 msgstr "空のクルー"
 
@@ -5743,6 +5747,10 @@ msgstr "日付と時刻"
 msgid "Days"
 msgstr "曜日"
 
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "Debug crew"
+msgstr "デバッグクルー"
+
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/QuestionFormActions.tsx
 msgid "Decline"
 msgstr "辞退"
@@ -7464,9 +7472,17 @@ msgstr "実験はプロジェクトをホストしているマシンで実行さ
 msgid "Explicit selections recorded from past delegations — they feed the routing order above. Edit the tags or remove entries to reshape it."
 msgstr "過去の委任から記録された明示的な選択です。上のルーティング順に反映されます。タグを編集するか、エントリを削除して調整してください。"
 
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "Explore and plan"
+msgstr "調査と計画"
+
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "Explore, build and review a feature."
+msgstr "機能を調査し、実装し、レビューします。"
+
 #: src/renderer/components/crew/crewRoleTemplates.ts
-msgid "Explores code and docs"
-msgstr "コードとドキュメントを調査"
+#~ msgid "Explores code and docs"
+#~ msgstr "コードとドキュメントを調査"
 
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Exponential backoff"
@@ -7832,9 +7848,17 @@ msgstr "ページ内検索"
 msgid "Find in terminal"
 msgstr "ターミナル内を検索"
 
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "Find the root cause first, then fix it with a regression test."
+msgstr "まず根本原因を突き止め、回帰テスト付きで修正します。"
+
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Finding status"
 msgstr "検出結果の状態"
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Finds the files, callers and tests a task touches, and reports their paths with a short summary."
+msgstr "タスクに関わるファイル、呼び出し元、テストを見つけ、パスと短い要約を報告します。"
 
 #: src/renderer/views/PullRequestsOverlay/guide/PrGuidePanel.tsx
 msgid "Finish review"
@@ -7960,6 +7984,10 @@ msgstr "修正"
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Fixed delay"
 msgstr "固定遅延"
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Fixer"
+msgstr "修正担当"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
 msgid "Flat list"
@@ -8890,8 +8918,16 @@ msgid "Images"
 msgstr "画像"
 
 #: src/renderer/components/crew/crewRoleTemplates.ts
-msgid "Implements changes and runs tests"
-msgstr "変更を実装してテストを実行"
+#~ msgid "Implements changes and runs tests"
+#~ msgstr "変更を実装してテストを実行"
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Implements the fix with a regression test and confirms the reproduction now passes."
+msgstr "回帰テスト付きで修正を実装し、再現手順が通ることを確認します。"
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Implements the lead's task end to end: edits files, runs the build and tests, and reports what changed."
+msgstr "主モデルのタスクを最後まで実装します。ファイルを編集し、ビルドとテストを実行し、変更点を報告します。"
 
 #. Settings section: import existing CLI sessions as threads
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
@@ -9529,6 +9565,10 @@ msgstr "無効な設定 — 保持されていますが無効化されていま�
 msgid "Invalid visual specification. Showing source only."
 msgstr "ビジュアルの定義が無効です。ソースのみ表示しています。"
 
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Investigator"
+msgstr "調査担当"
+
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 #~ msgid "iOS Simulator requires a macOS host with Xcode."
 #~ msgstr "iOS Simulator には Xcode を備えた macOS ホストが必要です。"
@@ -9796,6 +9836,10 @@ msgstr "主モデル"
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
 msgid "Lead + 1 helper"
 msgstr "リード + ヘルパー 1 人"
+
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "Lead + Builder"
+msgstr "主モデル + ビルダー"
 
 #: src/renderer/components/providers/devin/modelPricing.ts
 #~ msgid "Lead and Sidekick prices are per 1M tokens for each model. Ranges cover model variants."
@@ -12477,6 +12521,10 @@ msgstr "{0}に1回"
 msgid "One Header: value pair per line"
 msgstr "1行につき「ヘッダー: 値」のペアを1つ"
 
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "One helper to build your own crew from."
+msgstr "自分のクルーを作るための 1 人のヘルパー。"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "One KEY=VALUE pair per line"
 msgstr "1行につきKEY=VALUEのペアを1つ"
@@ -13231,6 +13279,10 @@ msgstr "パネル"
 #: src/renderer/commands/shortcutCatalog.ts
 msgid "Panels and overlays"
 msgstr "パネルとオーバーレイ"
+
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "Parallel builders"
+msgstr "並列ビルダー"
 
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
@@ -15306,6 +15358,10 @@ msgstr "リポジトリの pre-receive フックがマージをブロックし�
 msgid "Repository URL"
 msgstr "リポジトリURL"
 
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Reproduces the bug and traces it to the root cause, then reports the evidence and the failing code path."
+msgstr "バグを再現して根本原因まで追跡し、証拠と失敗するコードパスを報告します。"
+
 #: src/renderer/views/PullRequestsOverlay/summary/ReviewerPicker.tsx
 msgid "Request a reviewer"
 msgstr "レビュアーをリクエスト"
@@ -15724,7 +15780,7 @@ msgstr "レビューと要約は Devin の CLI が受け付ける唯一のルー
 #~ msgid "Review and track work across your source hosts."
 #~ msgstr "ソースホスト全体の作業をレビューして追跡します。"
 
-#: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
+#: src/renderer/components/crew/crewTemplates.ts
 msgid "Review board"
 msgstr "レビューボード"
 
@@ -15844,8 +15900,12 @@ msgid "Reviews & comments"
 msgstr "レビューとコメント"
 
 #: src/renderer/components/crew/crewRoleTemplates.ts
-msgid "Reviews diffs and finds bugs"
-msgstr "差分をレビューしてバグを探す"
+#~ msgid "Reviews diffs and finds bugs"
+#~ msgstr "差分をレビューしてバグを探す"
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Reviews the finished diff for bugs, regressions and missing tests, and reports findings by file and line."
+msgstr "完成した差分のバグ、回帰、不足しているテストを確認し、ファイルと行ごとに報告します。"
 
 #: src/renderer/components/providers/devin/liveSessionControls.tsx
 #: src/renderer/components/providers/devin/sessionActionDialog.tsx
@@ -16390,6 +16450,10 @@ msgstr "このホストではソース範囲を指定したレビュー監視を
 #: src/renderer/components/crew/crewRoleTemplates.ts
 msgid "Scout"
 msgstr "スカウト"
+
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "Scouts map an unfamiliar codebase before anything changes."
+msgstr "スカウトが変更前に未知のコードベースを把握します。"
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/components/thread/ThreadAgentVisionDock.tsx
@@ -17019,7 +17083,7 @@ msgstr "存在しないオーナー {0} を共有"
 #~ msgid "Shell arguments"
 #~ msgstr "シェル引数"
 
-#: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
+#: src/renderer/components/crew/crewTemplates.ts
 msgid "Ship crew"
 msgstr "Ship crew"
 
@@ -18575,10 +18639,18 @@ msgstr "ターミナルシェルの引数"
 msgid "Terminal tabs"
 msgstr "ターミナルタブ"
 
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "Test and fix"
+msgstr "テストと修正"
+
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Test microphone"
 msgstr "マイクをテスト"
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Tester"
+msgstr "テスター"
 
 #: src/renderer/components/plugins/pluginCategories.ts
 msgid "Testing"
@@ -18914,6 +18986,10 @@ msgstr "前回の起動はすでに開始されている可能性があります
 #: src/renderer/views/PullRequestsOverlay/chat/launchPrAskThread.ts
 msgid "The launch was cancelled."
 msgstr "起動はキャンセルされました。"
+
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "The lead plans and reviews; a cheaper builder does the hands-on work."
+msgstr "主モデルが計画とレビューを行い、安価なビルダーが実作業を担当します。"
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the Linux user"
@@ -20158,6 +20234,10 @@ msgstr "リモートアクセスをオンにすると、ペアリングコード
 msgid "Turn tracking on or off per provider. Disabled providers are skipped by the auto-refresh."
 msgstr "プロバイダーごとに追跡をオンまたはオフにします。無効化されたプロバイダーは自動更新によってスキップされます。"
 
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "Two independent read-only reviews of a change."
+msgstr "変更に対する 2 つの独立した読み取り専用レビュー。"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Type"
 msgstr "タイプ"
@@ -20816,6 +20896,10 @@ msgstr "未確認"
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Up one level"
 msgstr "一つ上の階層へ"
+
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "Up to three builders work on independent tasks at once."
+msgstr "最大 3 人のビルダーが独立したタスクを同時に進めます。"
 
 #: src/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay.tsx
 msgid "update"
@@ -21997,6 +22081,10 @@ msgstr "ガイドを作成"
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 msgid "Write notes for this project…"
 msgstr "このプロジェクトのメモを書いてください…"
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Writes and runs tests for the change, reproduces reported bugs, and reports failures with the exact command."
+msgstr "変更のテストを書いて実行し、報告されたバグを再現し、失敗を正確なコマンド付きで報告します。"
 
 #: src/renderer/views/PullRequestsOverlay/guide/PrReviewGuideTab.tsx
 msgid "Writing guide. You can leave this review and return when it is ready."

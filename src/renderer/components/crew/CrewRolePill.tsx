@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 import type { CrewRole } from "@/shared/crew";
+import { CREW_ROLE_TEMPLATE_DESCRIPTORS } from "./crewRoleTemplates";
 
 type CrewRoleTone = "lead" | "builder" | "reviewer" | "scout" | "custom";
 
@@ -8,10 +9,11 @@ export function crewRoleTone(
   isLead: boolean,
 ): CrewRoleTone {
   if (isLead) return "lead";
-  if (role?.id === "builder") return "builder";
-  if (role?.id === "reviewer") return "reviewer";
-  if (role?.id === "scout") return "scout";
-  return "custom";
+  // Template roles share the color of the role they resemble (a Fixer builds,
+  // an Investigator scouts); any other role is custom.
+  return (
+    CREW_ROLE_TEMPLATE_DESCRIPTORS.find((template) => template.id === role?.id)?.tone ?? "custom"
+  );
 }
 
 function toneStyle(tone: CrewRoleTone): CSSProperties {

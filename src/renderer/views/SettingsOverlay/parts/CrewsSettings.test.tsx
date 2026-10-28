@@ -100,7 +100,7 @@ describe("CrewsSettings", () => {
   it("creates valid template crews, duplicates with a new id, and deletes after confirmation", async () => {
     renderWithI18n(<CrewsSettings />);
     fireEvent.click(document.querySelector('button[aria-label="New crew"]')!);
-    fireEvent.click(await screen.findByRole("option", { name: "Review board" }));
+    fireEvent.click(await screen.findByRole("option", { name: /^Review board/u }));
     await waitFor(() => expect(useSharedSettings.getState().crews).toHaveLength(1));
     const original = useSharedSettings.getState().crews[0]!;
     expect(original).toMatchObject({
@@ -135,17 +135,17 @@ describe("CrewsSettings", () => {
     );
   });
 
-  it("creates Ship crew with lead, Builder, Reviewer and Scout", async () => {
+  it("creates Ship crew with a Scout, Builder and read-only Reviewer", async () => {
     renderWithI18n(<CrewsSettings />);
     fireEvent.click(document.querySelector('button[aria-label="New crew"]')!);
-    fireEvent.click(await screen.findByRole("option", { name: "Ship crew" }));
+    fireEvent.click(await screen.findByRole("option", { name: /^Ship crew/u }));
     await waitFor(() => expect(useSharedSettings.getState().crews).toHaveLength(1));
     expect(useSharedSettings.getState().crews[0]).toMatchObject({
       name: "Ship crew",
       roles: [
+        { id: "scout", label: "Scout", noEdits: true },
         { id: "builder", label: "Builder" },
-        { id: "reviewer", label: "Reviewer" },
-        { id: "scout", label: "Scout" },
+        { id: "reviewer", label: "Reviewer", noEdits: true },
       ],
     });
   });
@@ -153,7 +153,7 @@ describe("CrewsSettings", () => {
   it("persists edited roles and caps fallbacks at three", async () => {
     renderWithI18n(<CrewsSettings />);
     fireEvent.click(document.querySelector('button[aria-label="New crew"]')!);
-    fireEvent.click(await screen.findByRole("option", { name: "Blank crew" }));
+    fireEvent.click(await screen.findByRole("option", { name: /^Blank crew/u }));
     await waitFor(() => expect(useSharedSettings.getState().crews).toHaveLength(1));
     const saved = useSharedSettings.getState().crews[0]!;
     fireEvent.click(screen.getByRole("button", { name: "Role details" }));

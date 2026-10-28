@@ -1109,6 +1109,10 @@ msgstr "Một máy chủ chưa được cấu hình đúng nên đã bỏ qua."
 msgid "a supported coding agent"
 msgstr "một tác nhân mã hóa được hỗ trợ"
 
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "A tester writes failing tests; a builder makes them pass."
+msgstr "Người kiểm thử viết bài kiểm thử lỗi; người xây dựng làm chúng vượt qua."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "A voice conversation is already active."
 msgstr "Đã có cuộc trò chuyện bằng giọng nói đang hoạt động."
@@ -2663,7 +2667,7 @@ msgstr "Tệp nhị phân hoặc không có khác biệt"
 msgid "Binary files can't be edited here."
 msgstr "Không thể chỉnh sửa tệp nhị phân ở đây."
 
-#: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
+#: src/renderer/components/crew/crewTemplates.ts
 msgid "Blank crew"
 msgstr "Nhóm trống"
 
@@ -5744,6 +5748,10 @@ msgstr "Ngày và giờ"
 msgid "Days"
 msgstr "Ngày"
 
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "Debug crew"
+msgstr "Nhóm gỡ lỗi"
+
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/QuestionFormActions.tsx
 msgid "Decline"
 msgstr "Từ chối"
@@ -7465,9 +7473,17 @@ msgstr "Thí nghiệm chạy trên máy lưu trữ dự án. Hãy mở dự án 
 msgid "Explicit selections recorded from past delegations — they feed the routing order above. Edit the tags or remove entries to reshape it."
 msgstr "Các lựa chọn rõ ràng được ghi lại từ những lần ủy quyền trước — chúng tạo nên thứ tự định tuyến ở trên. Chỉnh sửa thẻ hoặc xóa mục để điều chỉnh."
 
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "Explore and plan"
+msgstr "Khám phá và lập kế hoạch"
+
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "Explore, build and review a feature."
+msgstr "Khám phá, xây dựng và đánh giá một tính năng."
+
 #: src/renderer/components/crew/crewRoleTemplates.ts
-msgid "Explores code and docs"
-msgstr "Khám phá mã và tài liệu"
+#~ msgid "Explores code and docs"
+#~ msgstr "Khám phá mã và tài liệu"
 
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Exponential backoff"
@@ -7833,9 +7849,17 @@ msgstr "Tìm trong trang"
 msgid "Find in terminal"
 msgstr "Tìm trong terminal"
 
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "Find the root cause first, then fix it with a regression test."
+msgstr "Tìm nguyên nhân gốc trước, rồi sửa kèm kiểm thử hồi quy."
+
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Finding status"
 msgstr "Trạng thái kết quả"
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Finds the files, callers and tests a task touches, and reports their paths with a short summary."
+msgstr "Tìm tệp, nơi gọi và bài kiểm thử của tác vụ, rồi báo đường dẫn kèm tóm tắt ngắn."
 
 #: src/renderer/views/PullRequestsOverlay/guide/PrGuidePanel.tsx
 msgid "Finish review"
@@ -7961,6 +7985,10 @@ msgstr "Đã sửa"
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Fixed delay"
 msgstr "Độ trễ cố định"
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Fixer"
+msgstr "Người sửa lỗi"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
 msgid "Flat list"
@@ -8891,8 +8919,16 @@ msgid "Images"
 msgstr "Ảnh"
 
 #: src/renderer/components/crew/crewRoleTemplates.ts
-msgid "Implements changes and runs tests"
-msgstr "Triển khai thay đổi và chạy kiểm thử"
+#~ msgid "Implements changes and runs tests"
+#~ msgstr "Triển khai thay đổi và chạy kiểm thử"
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Implements the fix with a regression test and confirms the reproduction now passes."
+msgstr "Sửa lỗi kèm kiểm thử hồi quy và xác nhận bước tái hiện giờ đã vượt qua."
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Implements the lead's task end to end: edits files, runs the build and tests, and reports what changed."
+msgstr "Làm trọn tác vụ của mô hình chính: sửa tệp, chạy build và kiểm thử, rồi báo những gì đã đổi."
 
 #. Settings section: import existing CLI sessions as threads
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
@@ -9530,6 +9566,10 @@ msgstr "Cấu hình không hợp lệ — đã giữ lại nhưng bị tắt"
 msgid "Invalid visual specification. Showing source only."
 msgstr "Đặc tả trực quan không hợp lệ. Chỉ hiển thị mã nguồn."
 
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Investigator"
+msgstr "Người điều tra"
+
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 #~ msgid "iOS Simulator requires a macOS host with Xcode."
 #~ msgstr "iOS Simulator yêu cầu máy chủ macOS có Xcode."
@@ -9797,6 +9837,10 @@ msgstr "Mô hình chính"
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
 msgid "Lead + 1 helper"
 msgstr "Trưởng nhóm + 1 trợ lý"
+
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "Lead + Builder"
+msgstr "Mô hình chính + Người xây dựng"
 
 #: src/renderer/components/providers/devin/modelPricing.ts
 #~ msgid "Lead and Sidekick prices are per 1M tokens for each model. Ranges cover model variants."
@@ -12479,6 +12523,10 @@ msgstr "Một lần vào {0}"
 msgid "One Header: value pair per line"
 msgstr "Mỗi dòng một cặp Header: giá trị"
 
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "One helper to build your own crew from."
+msgstr "Một trợ lý để tự xây nhóm của bạn."
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "One KEY=VALUE pair per line"
 msgstr "Mỗi dòng một cặp KEY=VALUE"
@@ -13233,6 +13281,10 @@ msgstr "bảng điều khiển"
 #: src/renderer/commands/shortcutCatalog.ts
 msgid "Panels and overlays"
 msgstr "Bảng điều khiển và lớp phủ"
+
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "Parallel builders"
+msgstr "Người xây dựng song song"
 
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
@@ -15308,6 +15360,10 @@ msgstr "Hook pre-receive của kho lưu trữ đang chặn việc hợp nhất."
 msgid "Repository URL"
 msgstr "URL kho lưu trữ"
 
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Reproduces the bug and traces it to the root cause, then reports the evidence and the failing code path."
+msgstr "Tái hiện lỗi, truy đến nguyên nhân gốc, rồi báo bằng chứng và đường dẫn mã bị lỗi."
+
 #: src/renderer/views/PullRequestsOverlay/summary/ReviewerPicker.tsx
 msgid "Request a reviewer"
 msgstr "Yêu cầu người đánh giá"
@@ -15726,7 +15782,7 @@ msgstr "Xem lại và Tóm tắt là những loại tác nhân gốc duy nhất 
 #~ msgid "Review and track work across your source hosts."
 #~ msgstr "Xem xét và theo dõi công việc trên các máy chủ mã nguồn của bạn."
 
-#: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
+#: src/renderer/components/crew/crewTemplates.ts
 msgid "Review board"
 msgstr "Bảng đánh giá"
 
@@ -15846,8 +15902,12 @@ msgid "Reviews & comments"
 msgstr "Đánh giá và bình luận"
 
 #: src/renderer/components/crew/crewRoleTemplates.ts
-msgid "Reviews diffs and finds bugs"
-msgstr "Đánh giá diff và tìm lỗi"
+#~ msgid "Reviews diffs and finds bugs"
+#~ msgstr "Đánh giá diff và tìm lỗi"
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Reviews the finished diff for bugs, regressions and missing tests, and reports findings by file and line."
+msgstr "Xem xét diff hoàn chỉnh để tìm lỗi, hồi quy và kiểm thử còn thiếu, báo theo tệp và dòng."
 
 #: src/renderer/components/providers/devin/liveSessionControls.tsx
 #: src/renderer/components/providers/devin/sessionActionDialog.tsx
@@ -16392,6 +16452,10 @@ msgstr "Máy chủ này không hỗ trợ theo dõi đánh giá có phạm vi ng
 #: src/renderer/components/crew/crewRoleTemplates.ts
 msgid "Scout"
 msgstr "Người trinh sát"
+
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "Scouts map an unfamiliar codebase before anything changes."
+msgstr "Người trinh sát nắm bắt mã nguồn lạ trước khi thay đổi."
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/components/thread/ThreadAgentVisionDock.tsx
@@ -17021,7 +17085,7 @@ msgstr "Dùng chung chủ sở hữu đã mất {0}"
 #~ msgid "Shell arguments"
 #~ msgstr "Đối số shell"
 
-#: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
+#: src/renderer/components/crew/crewTemplates.ts
 msgid "Ship crew"
 msgstr "Nhóm triển khai"
 
@@ -18577,10 +18641,18 @@ msgstr "Đối số shell terminal"
 msgid "Terminal tabs"
 msgstr "Tab đầu cuối"
 
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "Test and fix"
+msgstr "Kiểm thử và sửa"
+
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Test microphone"
 msgstr "Kiểm tra micrô"
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Tester"
+msgstr "Người kiểm thử"
 
 #: src/renderer/components/plugins/pluginCategories.ts
 msgid "Testing"
@@ -18916,6 +18988,10 @@ msgstr "Lần khởi chạy gần nhất có thể đã bắt đầu. Hãy dùng
 #: src/renderer/views/PullRequestsOverlay/chat/launchPrAskThread.ts
 msgid "The launch was cancelled."
 msgstr "Quá trình khởi chạy đã bị hủy."
+
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "The lead plans and reviews; a cheaper builder does the hands-on work."
+msgstr "Mô hình chính lập kế hoạch và đánh giá; người xây dựng rẻ hơn làm phần việc thực tế."
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the Linux user"
@@ -20160,6 +20236,10 @@ msgstr "Bật quyền truy cập từ xa để hiển thị mã ghép nối."
 msgid "Turn tracking on or off per provider. Disabled providers are skipped by the auto-refresh."
 msgstr "Bật hoặc tắt theo dõi cho mỗi nhà cung cấp. Tính năng tự động làm mới sẽ bỏ qua các nhà cung cấp bị vô hiệu hóa."
 
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "Two independent read-only reviews of a change."
+msgstr "Hai lượt đánh giá độc lập, chỉ đọc, cho một thay đổi."
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Type"
 msgstr "Loại"
@@ -20818,6 +20898,10 @@ msgstr "Chưa xác minh"
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Up one level"
 msgstr "Lên một cấp"
+
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "Up to three builders work on independent tasks at once."
+msgstr "Tối đa ba người xây dựng làm đồng thời các tác vụ độc lập."
 
 #: src/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay.tsx
 msgid "update"
@@ -21999,6 +22083,10 @@ msgstr "Viết hướng dẫn"
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 msgid "Write notes for this project…"
 msgstr "Viết ghi chú cho dự án này…"
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Writes and runs tests for the change, reproduces reported bugs, and reports failures with the exact command."
+msgstr "Viết và chạy kiểm thử cho thay đổi, tái hiện lỗi được báo và báo lỗi kèm lệnh chính xác."
 
 #: src/renderer/views/PullRequestsOverlay/guide/PrReviewGuideTab.tsx
 msgid "Writing guide. You can leave this review and return when it is ready."

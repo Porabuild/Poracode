@@ -15,13 +15,13 @@ import {
   crewModelLabelOf,
   isLeadEdited,
   isRoleEdited,
-  newCrewBinding,
   removeRole,
   saveAsNewCrew,
   updateRole,
   type CrewRosterModel,
 } from "@/renderer/components/crew/crewComposerModel";
 import { CREW_ROLE_TEMPLATE_DESCRIPTORS } from "@/renderer/components/crew/crewRoleTemplates";
+import { CREW_TEMPLATE_DESCRIPTORS } from "@/renderer/components/crew/crewTemplates";
 import { CrewMemberRow } from "@/renderer/components/crew/CrewMemberRow";
 import { CrewRolePill } from "@/renderer/components/crew/CrewRolePill";
 import { formatEffortLabel } from "@/renderer/components/thread/threadDraftViewHelpers";
@@ -32,6 +32,7 @@ import { buildProviderModelMenuProviders } from "@/renderer/components/thread/bu
 import { capabilitiesForPresentation, modelSelectionFor } from "@/shared/agentSelection";
 import { getSettingsInstalledAgents } from "@/shared/agentStatus";
 import {
+  CREW_BINDING_VERSION,
   crewBindingFromSavedCrew,
   canLeadCrew,
   MAX_CREW_ROLES,
@@ -40,8 +41,6 @@ import {
   type ThreadCrewBinding,
 } from "@/shared/crew";
 import { SettingsPage } from "./SettingsForm";
-
-const CREW_TEMPLATES = ["ship", "review", "blank"] as const;
 
 export function CrewsSettings() {
   const { t } = useLingui();
@@ -73,11 +72,11 @@ export function CrewsSettings() {
       canLeadCrew(capabilitiesForPresentation(agent.capabilities, "gui"), "gui"),
   });
   const editingCrew = crews.find((crew) => crew.id === editorCrewId);
-  const templateOptions = [
-    { id: "ship", label: t`Ship crew` },
-    { id: "review", label: t`Review board` },
-    { id: "blank", label: t`Blank crew` },
-  ];
+  const templateOptions = CREW_TEMPLATE_DESCRIPTORS.map((template) => ({
+    id: template.id,
+    label: t(template.name),
+    hint: t(template.description),
+  }));
 
   function defaultLeadSelection(): SavedCrew["lead"] | undefined {
     const provider = leadProviders[0];
@@ -92,67 +91,43 @@ export function CrewsSettings() {
     };
   }
 
-  function createFromTemplate(templateId: (typeof CREW_TEMPLATES)[number]) {
+  function createFromTemplate(templateId: string) {
+    const template = CREW_TEMPLATE_DESCRIPTORS.find((entry) => entry.id === templateId);
     const defaultLead = defaultLeadSelection();
-    if (!defaultLead) return;
-    const builder = roleTemplates.find((role) => role.id === "builder");
-    const reviewer = roleTemplates.find((role) => role.id === "reviewer");
-    const scout = roleTemplates.find((role) => role.id === "scout");
+    if (!template || !defaultLead) return;
     const firstHelper = helperOptions.defaultSelectionFor(defaultLead.agentKind);
-    if (!builder || !firstHelper) return;
-
-    let next = newCrewBinding(firstHelper, builder);
-    if (templateId === "ship" && reviewer && scout) {
-      const otherSelections = helperOptions.providers
-        .filter((provider) => provider.kind !== defaultLead.agentKind)
-        .flatMap((provider) => {
-          const model = provider.capabilities.models[0];
-          const selection = model ? helperOptions.selectionFor(provider.kind, model.id) : undefined;
-          return selection ? [selection] : [];
-        });
-      const reviewerSelection = otherSelections[0] ?? firstHelper;
-      const scoutSelection = otherSelections[1] ?? firstHelper;
-      next = {
-        ...next,
-        roles: [
-          next.roles[0]!,
-          { ...reviewer, id: "reviewer", selection: reviewerSelection },
-          { ...scout, id: "scout", selection: scoutSelection },
-        ],
-      };
-    } else if (templateId === "review" && reviewer) {
-      const secondHelper = helperOptions.providers
-        .filter(
-          (provider) =>
-            provider.kind !== defaultLead.agentKind && provider.kind !== firstHelper.agentKind,
-        )
-        .flatMap((provider) => {
-          const model = provider.capabilities.models[0];
-          const selection = model ? helperOptions.selectionFor(provider.kind, model.id) : undefined;
-          return selection ? [selection] : [];
-        })[0];
-      next = {
-        version: next.version,
-        policy: next.policy,
-        roles: [
-          {
-            ...reviewer,
-            id: "reviewer",
-            selection: firstHelper,
-            parallel: 2,
-            ...(secondHelper ? { fallbacks: [secondHelper] } : {}),
-          },
-        ],
-      };
-    }
-
-    const name =
-      templateId === "ship"
-        ? t`Ship crew`
-        : templateId === "review"
-          ? t`Review board`
-          : t`Blank crew`;
-    const saved = saveAsNewCrew(name, next, defaultLead);
+    if (!firstHelper) return;
+    // Read-only roles default to another provider when one is available, so a
+    // review or exploration gets a second model's view. The editor opens next
+    // so the user assigns the models they want.
+    const otherHelper = helperOptions.providers
+      .filter((provider) => provider.kind !== firstHelper.agentKind)
+      .flatMap((provider) => {
+        const model = provider.capabilities.models[0];
+        const selection = model ? helperOptions.selectionFor(provider.kind, model.id) : undefined;
+        return selection ? [selection] : [];
+      })[0];
+    const roles = template.roles.flatMap((entry) => {
+      const role = roleTemplates.find((candidate) => candidate.id === entry.roleId);
+      if (!role) return [];
+      return [
+        {
+          id: role.id,
+          label: role.label,
+          ...(role.brief ? { brief: role.brief } : {}),
+          ...(role.noEdits ? { noEdits: true as const } : {}),
+          selection: role.noEdits && otherHelper ? otherHelper : firstHelper,
+          ...(entry.parallel && entry.parallel > 1 ? { parallel: entry.parallel } : {}),
+        },
+      ];
+    });
+    if (roles.length === 0) return;
+    const binding: ThreadCrewBinding = {
+      version: CREW_BINDING_VERSION,
+      policy: template.policy,
+      roles,
+    };
+    const saved = saveAsNewCrew(t(template.name), binding, defaultLead);
     upsertCrew(saved);
     setEditorCrewId(saved.id);
   }
@@ -186,7 +161,7 @@ export function CrewsSettings() {
             !defaultLeadSelection() ||
             !helperOptions.defaultSelectionFor(leadProviders[0]?.kind ?? "")
           }
-          onChange={(template) => createFromTemplate(template as (typeof CREW_TEMPLATES)[number])}
+          onChange={(template) => createFromTemplate(template)}
         />
       }
     >

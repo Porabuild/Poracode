@@ -1109,6 +1109,10 @@ msgstr "某个服务器配置不正确，已跳过。"
 msgid "a supported coding agent"
 msgstr "支持的编码代理"
 
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "A tester writes failing tests; a builder makes them pass."
+msgstr "测试者编写失败的测试，构建者让它们通过。"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "A voice conversation is already active."
 msgstr "已有正在进行的语音对话。"
@@ -2663,7 +2667,7 @@ msgstr "二进制文件或没有可用的差异"
 msgid "Binary files can't be edited here."
 msgstr "此处无法编辑二进制文件。"
 
-#: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
+#: src/renderer/components/crew/crewTemplates.ts
 msgid "Blank crew"
 msgstr "空白团队"
 
@@ -5744,6 +5748,10 @@ msgstr "日期和时间"
 msgid "Days"
 msgstr "星期"
 
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "Debug crew"
+msgstr "调试团队"
+
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/QuestionFormActions.tsx
 msgid "Decline"
 msgstr "拒绝"
@@ -7465,9 +7473,17 @@ msgstr "实验在托管项目的机器上运行。请在项目所在的主机上
 msgid "Explicit selections recorded from past delegations — they feed the routing order above. Edit the tags or remove entries to reshape it."
 msgstr "从过去的委派中记录的明确选择 — 它们构成上方的路由顺序。编辑标签或删除条目以调整路由。"
 
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "Explore and plan"
+msgstr "探索与规划"
+
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "Explore, build and review a feature."
+msgstr "探索、构建并审查一个功能。"
+
 #: src/renderer/components/crew/crewRoleTemplates.ts
-msgid "Explores code and docs"
-msgstr "探索代码和文档"
+#~ msgid "Explores code and docs"
+#~ msgstr "探索代码和文档"
 
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Exponential backoff"
@@ -7833,9 +7849,17 @@ msgstr "在页面中查找"
 msgid "Find in terminal"
 msgstr "在终端中查找"
 
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "Find the root cause first, then fix it with a regression test."
+msgstr "先找到根本原因，再附带回归测试进行修复。"
+
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Finding status"
 msgstr "发现项状态"
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Finds the files, callers and tests a task touches, and reports their paths with a short summary."
+msgstr "找出任务涉及的文件、调用方和测试，并附简短摘要报告路径。"
 
 #: src/renderer/views/PullRequestsOverlay/guide/PrGuidePanel.tsx
 msgid "Finish review"
@@ -7961,6 +7985,10 @@ msgstr "已修复"
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Fixed delay"
 msgstr "固定延迟"
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Fixer"
+msgstr "修复者"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
 msgid "Flat list"
@@ -8891,8 +8919,16 @@ msgid "Images"
 msgstr "图片"
 
 #: src/renderer/components/crew/crewRoleTemplates.ts
-msgid "Implements changes and runs tests"
-msgstr "实现更改并运行测试"
+#~ msgid "Implements changes and runs tests"
+#~ msgstr "实现更改并运行测试"
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Implements the fix with a regression test and confirms the reproduction now passes."
+msgstr "附带回归测试实现修复，并确认复现步骤现已通过。"
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Implements the lead's task end to end: edits files, runs the build and tests, and reports what changed."
+msgstr "端到端完成主模型的任务：编辑文件、运行构建和测试，并报告改动。"
 
 #. Settings section: import existing CLI sessions as threads
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
@@ -9530,6 +9566,10 @@ msgstr "配置无效——已保留，但已停用"
 msgid "Invalid visual specification. Showing source only."
 msgstr "可视化定义无效。仅显示源代码。"
 
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Investigator"
+msgstr "调查者"
+
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 #~ msgid "iOS Simulator requires a macOS host with Xcode."
 #~ msgstr "iOS Simulator 需要安装了 Xcode 的 macOS 主机。"
@@ -9797,6 +9837,10 @@ msgstr "主模型"
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
 msgid "Lead + 1 helper"
 msgstr "负责人 + 1 位助手"
+
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "Lead + Builder"
+msgstr "主模型 + 构建者"
 
 #: src/renderer/components/providers/devin/modelPricing.ts
 #~ msgid "Lead and Sidekick prices are per 1M tokens for each model. Ranges cover model variants."
@@ -12478,6 +12522,10 @@ msgstr "于 {0} 运行一次"
 msgid "One Header: value pair per line"
 msgstr "每行一组“请求头: 值”"
 
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "One helper to build your own crew from."
+msgstr "一个助手，用来搭建你自己的团队。"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "One KEY=VALUE pair per line"
 msgstr "每行一组 KEY=VALUE"
@@ -13232,6 +13280,10 @@ msgstr "面板"
 #: src/renderer/commands/shortcutCatalog.ts
 msgid "Panels and overlays"
 msgstr "面板和覆盖层"
+
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "Parallel builders"
+msgstr "并行构建者"
 
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
@@ -15307,6 +15359,10 @@ msgstr "存储库预接收挂钩正在阻止合并。"
 msgid "Repository URL"
 msgstr "存储库网址"
 
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Reproduces the bug and traces it to the root cause, then reports the evidence and the failing code path."
+msgstr "复现缺陷并追溯到根本原因，然后报告证据和出错的代码路径。"
+
 #: src/renderer/views/PullRequestsOverlay/summary/ReviewerPicker.tsx
 msgid "Request a reviewer"
 msgstr "请求审查者"
@@ -15725,7 +15781,7 @@ msgstr "“审查”和“摘要器”是 Devin CLI 仅接受的根智能体类�
 #~ msgid "Review and track work across your source hosts."
 #~ msgstr "评审并跟踪各源托管平台上的工作。"
 
-#: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
+#: src/renderer/components/crew/crewTemplates.ts
 msgid "Review board"
 msgstr "审查板"
 
@@ -15845,8 +15901,12 @@ msgid "Reviews & comments"
 msgstr "审查和评论"
 
 #: src/renderer/components/crew/crewRoleTemplates.ts
-msgid "Reviews diffs and finds bugs"
-msgstr "审查差异并查找错误"
+#~ msgid "Reviews diffs and finds bugs"
+#~ msgstr "审查差异并查找错误"
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Reviews the finished diff for bugs, regressions and missing tests, and reports findings by file and line."
+msgstr "审查最终 diff 中的缺陷、回归和缺失的测试，并按文件和行报告。"
 
 #: src/renderer/components/providers/devin/liveSessionControls.tsx
 #: src/renderer/components/providers/devin/sessionActionDialog.tsx
@@ -16391,6 +16451,10 @@ msgstr "此主机不支持带源范围的评审监控。请更新主机后再启
 #: src/renderer/components/crew/crewRoleTemplates.ts
 msgid "Scout"
 msgstr "侦察员"
+
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "Scouts map an unfamiliar codebase before anything changes."
+msgstr "侦察员在任何改动前摸清陌生代码库。"
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/components/thread/ThreadAgentVisionDock.tsx
@@ -17020,7 +17084,7 @@ msgstr "共享的所有者 {0} 已丢失"
 #~ msgid "Shell arguments"
 #~ msgstr "Shell 参数"
 
-#: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
+#: src/renderer/components/crew/crewTemplates.ts
 msgid "Ship crew"
 msgstr "交付团队"
 
@@ -18576,10 +18640,18 @@ msgstr "终端 shell 参数"
 msgid "Terminal tabs"
 msgstr "终端选项卡"
 
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "Test and fix"
+msgstr "测试与修复"
+
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Test microphone"
 msgstr "测试麦克风"
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Tester"
+msgstr "测试者"
 
 #: src/renderer/components/plugins/pluginCategories.ts
 msgid "Testing"
@@ -18915,6 +18987,10 @@ msgstr "上一次启动可能已经开始。再次提问之前，请先使用上
 #: src/renderer/views/PullRequestsOverlay/chat/launchPrAskThread.ts
 msgid "The launch was cancelled."
 msgstr "启动已取消。"
+
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "The lead plans and reviews; a cheaper builder does the hands-on work."
+msgstr "主模型负责规划和审查，更便宜的构建者负责动手工作。"
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the Linux user"
@@ -20159,6 +20235,10 @@ msgstr "开启远程访问以显示配对码。"
 msgid "Turn tracking on or off per provider. Disabled providers are skipped by the auto-refresh."
 msgstr "打开或关闭每个提供商的跟踪。自动刷新会跳过已禁用的提供商。"
 
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "Two independent read-only reviews of a change."
+msgstr "对一个改动的两次独立只读审查。"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Type"
 msgstr "类型"
@@ -20817,6 +20897,10 @@ msgstr "未验证"
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Up one level"
 msgstr "上一级"
+
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "Up to three builders work on independent tasks at once."
+msgstr "最多三名构建者同时处理彼此独立的任务。"
 
 #: src/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay.tsx
 msgid "update"
@@ -21998,6 +22082,10 @@ msgstr "编写指南"
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 msgid "Write notes for this project…"
 msgstr "为这个项目写笔记..."
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Writes and runs tests for the change, reproduces reported bugs, and reports failures with the exact command."
+msgstr "为改动编写并运行测试，复现报告的缺陷，并附带确切命令报告失败。"
 
 #: src/renderer/views/PullRequestsOverlay/guide/PrReviewGuideTab.tsx
 msgid "Writing guide. You can leave this review and return when it is ready."
