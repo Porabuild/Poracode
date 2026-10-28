@@ -9,36 +9,56 @@ struct RichChatComposerInlineConfiguration: View {
   let configuration: ThreadConfig
   let catalog: RichChatComposerControlCatalog
   let canOpen: Bool
+  var crew: RichChatCrewPresentation? = nil
+  var openCrew: (() -> Void)? = nil
   var showsStatusIcons = true
   let open: () -> Void
 
   var body: some View {
-    Button(action: open) {
-      HStack(spacing: 5) {
-        HomeProviderIcon(kind: agentKind)
-          .foregroundStyle(.primary.opacity(0.92))
-          .frame(width: 13, height: 13)
-        Text(catalog.modelLabel(configuration.model))
-          .font(.caption.weight(.semibold))
-          .foregroundStyle(.primary)
-          .lineLimit(1)
-        if let effortLabel {
-          Text(effortLabel)
-            .font(.caption)
-            .foregroundStyle(.secondary)
+    HStack(spacing: 5) {
+      Button(action: open) {
+        HStack(spacing: 5) {
+          HomeProviderIcon(kind: agentKind)
+            .foregroundStyle(.primary.opacity(0.92))
+            .frame(width: 13, height: 13)
+          Text(catalog.modelLabel(configuration.model))
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(.primary)
             .lineLimit(1)
-        }
-        if showsStatusIcons {
-          RichChatComposerModeIcon(configuration: configuration)
-          RichChatComposerStatusIcon(systemImage: "checkmark.shield")
+          if let effortLabel {
+            Text(effortLabel)
+              .font(.caption)
+              .foregroundStyle(.secondary)
+              .lineLimit(1)
+          }
+          if showsStatusIcons {
+            RichChatComposerModeIcon(configuration: configuration)
+            RichChatComposerStatusIcon(systemImage: "checkmark.shield")
+          }
         }
       }
-      .fixedSize(horizontal: true, vertical: false)
+      .buttonStyle(.plain)
+      .tint(.secondary)
+      .allowsHitTesting(canOpen)
+      .accessibilityLabel(RichChatStrings.composerControls)
+      if let crew, let openCrew {
+        let name = crew.name.isEmpty ? RichChatStrings.crew : crew.name
+        Button(action: openCrew) {
+          HStack(spacing: 4) {
+            Image(systemName: "person.2")
+              .foregroundStyle(.secondary)
+            Text(name).lineLimit(1)
+            Text(RichChatStrings.crewHelpers(crew.helperCount))
+              .foregroundStyle(.secondary)
+              .lineLimit(1)
+          }
+          .font(.caption.weight(.semibold))
+        }
+        .buttonStyle(.plain)
+        .tint(.secondary)
+        .accessibilityLabel("\(name), \(RichChatStrings.crewHelpers(crew.helperCount))")
+      }
     }
-    .buttonStyle(.plain)
-    .tint(.secondary)
-    .allowsHitTesting(canOpen)
-    .accessibilityLabel(RichChatStrings.composerControls)
   }
 
   private var effortLabel: String? {

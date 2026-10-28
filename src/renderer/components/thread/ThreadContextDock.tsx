@@ -2,15 +2,21 @@ import { Gauge, X } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { CSSProperties } from "react";
 import { AnimatedNumber } from "@/renderer/components/common/AnimatedNumber";
+import type { ThreadCrewBinding } from "@/shared/crew";
 import { ThreadDockHeader, ThreadDockIconButton, ThreadDockSection } from "./ThreadDockUI";
+import { ThreadSpendDetails } from "./ThreadSpendDetails";
 import type { ThreadContextUsageSummary } from "./threadContextUsage";
 
 export function ThreadContextDock({
   summary,
   onClose,
+  threadId,
+  crewBinding,
 }: {
   summary: ThreadContextUsageSummary;
   onClose: () => void;
+  threadId?: string | undefined;
+  crewBinding?: ThreadCrewBinding | undefined;
 }) {
   const { t } = useLingui();
   // The percentage rolls in place as the thread streams. `%` stays outside the
@@ -36,6 +42,13 @@ export function ThreadContextDock({
         }
       />
       <ThreadContextUsageDetails summary={summary} />
+      {threadId ? (
+        <ThreadSpendDetails
+          threadId={threadId}
+          crewBinding={crewBinding}
+          refreshKey={summary.usedTokens ?? 0}
+        />
+      ) : null}
     </ThreadDockSection>
   );
 }

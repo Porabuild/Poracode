@@ -20,6 +20,7 @@ import { itemId, messageId, threadId } from "../ids";
 import { selectPermissionOption } from "../permissions";
 import { record } from "./helpers";
 import type { RouterContext } from "./context";
+import { CREW_PROVIDER_ID, resolveCrewPick, type CrewPick } from "./crews";
 
 /** The /api/session/:id/prompt path — new threads, resume, fork, side-chat. */
 export function createPrompt(ctx: RouterContext) {
@@ -58,13 +59,49 @@ export function createPrompt(ctx: RouterContext) {
     if (revertError) return revertError;
     const model = record(body.model);
     const agentID = String(body.agent ?? raw?.agentID ?? "build");
-    const providerID = String(
+    const pickedProviderID = String(
       model.providerID ?? raw?.providerID ?? (await resolveDefaultModel())?.providerID ?? "",
     );
-    const selectedModel = String(
+    const pickedModel = String(
       model.id ?? raw?.model ?? body.modelID ?? (await resolveDefaultModel())?.model ?? "",
     );
-    const effort = String(model.variant ?? raw?.effort ?? body.effort ?? "");
+    // Crew state comes from the session record or the remote thread config —
+    // a cold cache would make a crew thread look crew-less.
+    if (!threadCache.has(id) && raw?.remoteStarted !== false) await ctx.visibleThread(id);
+    const sessionCrew = ctx.sessionCrew(session);
+    let pick: CrewPick | undefined;
+    if (pickedProviderID === CREW_PROVIDER_ID) {
+      const { statuses, helperChoices, leadChoices } = await ctx.crewChoices();
+      const resolved = resolveCrewPick({
+        pickedModel,
+        sessionCrew,
+        sessionLead: ctx.sessionLead(session),
+        saved: await ctx.savedCrews(statuses),
+        leadChoices,
+        helperChoices,
+      });
+      if ("error" in resolved)
+        return { status: 400, error: { code: "invalid_request", message: resolved.error } };
+      pick = resolved;
+      ctx.applyCrewPick(session, pick);
+    }
+    const providerID = pick ? pick.lead.agentKind : pickedProviderID;
+    const selectedModel = pick ? pick.lead.model : pickedModel;
+    const effort = pick
+      ? (pick.lead.effort ?? "")
+      : String(model.variant ?? raw?.effort ?? body.effort ?? "");
+    // Only a model in the body is an explicit pick — the vendored composer
+    // sends none, and the selection route already applied the crew choice.
+    const explicitPick = model.providerID !== undefined;
+    const crewForConfig = pick
+      ? pick.binding
+      : explicitPick
+        ? sessionCrew || raw?.crew === null
+          ? null
+          : undefined
+        : raw?.crew === null
+          ? null
+          : sessionCrew;
     const promptPartsSchema = z.array(z.record(z.string(), z.unknown()));
     const messageParts = promptPartsSchema.safeParse(record(body.message).parts);
     const bodyParts = promptPartsSchema.safeParse(body.parts);
@@ -351,6 +388,7 @@ export function createPrompt(ctx: RouterContext) {
     const config: ThreadConfig = {
       ...(modelChanged ? baseRest : base),
       model: selectedModel,
+      ...(crewForConfig !== undefined ? { crew: crewForConfig } : {}),
       ...(effort ? { effort } : {}),
       ...(savedConfigMatches && raw?.fast !== undefined ? { fast: raw.fast } : {}),
       ...(savedConfigMatches && raw?.thinking !== undefined ? { thinking: raw.thinking } : {}),
@@ -457,33 +495,53 @@ export function createPrompt(ctx: RouterContext) {
       let switchPrompt = promptText;
       let switchSegments = segments;
       if (switchContextStrategy === "context-file" && remoteThread.sessionRef) {
-        const extracted = record(
-          await input.client.callRemoteProcedure("extractContext", {
+        // Extraction can fail for agents with no context-file support — the
+        // switch then mirrors the desktop's `extracted: null` and proceeds
+        // without a summary attachment.
+        try {
+          const extracted = record(
+            await input.client.callRemoteProcedure("extractContext", {
+              threadId: id,
+              agentKind: remoteThread.agentKind,
+              sessionRef: remoteThread.sessionRef,
+              projectLocation: resolveProjectLocation(
+                currentProject.location,
+                remoteThread.worktreePath,
+              ),
+              ...(remoteThread.worktreePath ? { worktreePath: remoteThread.worktreePath } : {}),
+            }),
+          );
+          const instruction = handoffContextInstruction(
+            extracted as unknown as Parameters<typeof handoffContextInstruction>[0],
+          );
+          const uploaded = await input.client.uploadAttachment({
             threadId: id,
-            agentKind: remoteThread.agentKind,
-            sessionRef: remoteThread.sessionRef,
-            projectLocation: resolveProjectLocation(
-              currentProject.location,
-              remoteThread.worktreePath,
-            ),
-            ...(remoteThread.worktreePath ? { worktreePath: remoteThread.worktreePath } : {}),
-          }),
-        );
-        const instruction = handoffContextInstruction(
-          extracted as unknown as Parameters<typeof handoffContextInstruction>[0],
-        );
-        const uploaded = await input.client.uploadAttachment({
-          threadId: id,
-          fileName: "handoff-context.md",
-          data: new TextEncoder().encode(String(extracted.summary ?? "")),
-        });
-        switchPrompt = `${instruction}\n\n${promptText}`;
-        switchSegments = [
-          { kind: "text", content: `${instruction}\n\n` },
-          { kind: "attachment", path: uploaded, mimeType: "text/markdown" },
-          { kind: "text", content: "\n\n" },
-          ...(segments.length > 0 ? segments : [{ kind: "text" as const, content: promptText }]),
-        ];
+            fileName: "handoff-context.md",
+            data: new TextEncoder().encode(String(extracted.summary ?? "")),
+          });
+          switchPrompt = `${instruction}\n\n${promptText}`;
+          switchSegments = [
+            { kind: "text", content: `${instruction}\n\n` },
+            { kind: "attachment", path: uploaded, mimeType: "text/markdown" },
+            { kind: "text", content: "\n\n" },
+            ...(segments.length > 0 ? segments : [{ kind: "text" as const, content: promptText }]),
+          ];
+        } catch (error) {
+          await logAdapterError({
+            home: input.bootstrap.home,
+            method: "POST",
+            route: "/api/session/:id/prompt",
+            responseStatus: 500,
+            input: {
+              stage: "extract-context",
+              providerSwitch: {
+                from: remoteThread.agentKind,
+                to: pendingSwitch.providerID,
+              },
+            },
+            error,
+          });
+        }
       }
       const switchRequest = {
         threadId: id,
@@ -494,6 +552,7 @@ export function createPrompt(ctx: RouterContext) {
         ...(switchSegments.length > 0 ? { segments: switchSegments } : {}),
         ...(userMessageItemId ? { userMessageItemId } : {}),
         initialSize: DEFAULT_TERMINAL_SIZE,
+        presentationMode: "gui",
         providerSwitch: {
           fromAgentKind: remoteThread.agentKind,
           handoffItemId: `handoff-${crypto.randomUUID()}`,
@@ -508,6 +567,19 @@ export function createPrompt(ctx: RouterContext) {
       } catch (error) {
         // The pending switch stays — the next prompt retries it.
         const status = (error as { status?: unknown }).status === 409 ? 409 : 500;
+        await logAdapterError({
+          home: input.bootstrap.home,
+          method: "POST",
+          route: "/api/session/:id/prompt",
+          responseStatus: status,
+          input: {
+            providerSwitch: {
+              from: remoteThread.agentKind,
+              to: pendingSwitch.providerID,
+            },
+          },
+          error,
+        });
         return {
           error: {
             code: status === 409 ? "conflict" : "internal_error",
@@ -742,12 +814,14 @@ export function createPrompt(ctx: RouterContext) {
     }
     sessions.set(session, {
       ...raw,
+      ...sessions.get(session),
       threadId: id,
       projectId: currentProject.id,
       createdAt: raw?.createdAt ?? Date.now(),
       remoteStarted: true,
       ...(config.approvalPolicy ? { approvalPolicy: config.approvalPolicy } : {}),
       ...(config.sandboxMode ? { sandboxMode: config.sandboxMode } : {}),
+      ...(crewForConfig !== undefined ? { crew: crewForConfig } : {}),
     });
     await persistLastModel({
       provider: providerID,

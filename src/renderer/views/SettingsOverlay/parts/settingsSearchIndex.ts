@@ -569,6 +569,13 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     keywords: "plugins marketplace extensions apps mcp skills bundles install",
     desktopOnly: true,
   },
+  {
+    section: "crews",
+    anchor: "crews.list",
+    title: msg`Crews`,
+    description: msg`Saved crews: a lead and the helpers it hands work to. Pick one under Poracode in any model picker.`,
+    keywords: "crews crew lead roles builder reviewer scout helpers crossagents fusion team",
+  },
 
   // Browser
   {

@@ -127,6 +127,7 @@ export const BACKEND_DATABASE_PROCEDURE_NAMES = [
   "dbReplaceThreadCompletedTurns",
   "dbReplaceThreadRuntimeSnapshot",
   "dbGetThreadContextUsage",
+  "dbGetThreadTokenUsage",
   "dbGetProjectNotes",
   "dbSetProjectNotes",
   "getScheduleRuns",

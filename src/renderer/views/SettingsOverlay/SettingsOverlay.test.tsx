@@ -398,6 +398,7 @@ describe("SettingsOverlay", () => {
       "SchedulesScheduled tasks on this desktop",
       "AI HelpersTitle, commit, and conflict models",
       "AgentsEnabled agents, model visibility and order",
+      "CrewsSaved crews for the model picker",
       "Archived ThreadsRestore or delete",
     ]);
 

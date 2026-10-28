@@ -18645,6 +18645,150 @@
         }
       }
     },
+    "rich_chat_crew": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Crew" } },
+        "de": { "stringUnit": { "state": "translated", "value": "Crew" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Equipo" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Équipe" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "クルー" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "크루" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Ekipa" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Equipe" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Команда" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Ekip" } },
+        "uk": { "stringUnit": { "state": "translated", "value": "Команда" } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Nhóm" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "团队" } }
+      }
+    },
+    "rich_chat_crew_first": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Crew first" } },
+        "de": { "stringUnit": { "state": "translated", "value": "Crew zuerst" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Equipo primero" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Équipe d’abord" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "クルー優先" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "크루 우선" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Najpierw ekipa" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Equipe primeiro" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Сначала команда" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Önce ekip" } },
+        "uk": { "stringUnit": { "state": "translated", "value": "Спочатку команда" } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Ưu tiên nhóm" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "优先使用团队" } }
+      }
+    },
+    "rich_chat_crew_helpers_count": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "+%lld helpers" } },
+        "de": { "stringUnit": { "state": "translated", "value": "+%lld Helfer" } },
+        "es": { "stringUnit": { "state": "translated", "value": "+%lld ayudantes" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "+%lld assistants" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "ヘルパー +%lld 人" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "헬퍼 +%lld명" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "+%lld pomocników" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "+%lld ajudantes" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "+%lld помощников" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "+%lld yardımcı" } },
+        "uk": { "stringUnit": { "state": "translated", "value": "+%lld помічників" } },
+        "vi": { "stringUnit": { "state": "translated", "value": "+%lld trợ lý" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "+%lld 位助手" } }
+      }
+    },
+    "rich_chat_crew_lead": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Lead" } },
+        "de": { "stringUnit": { "state": "translated", "value": "Leitung" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Líder" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Responsable" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "リード" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "리드" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Lider" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Líder" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Лидер" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Lider" } },
+        "uk": { "stringUnit": { "state": "translated", "value": "Лідер" } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Trưởng nhóm" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "负责人" } }
+      }
+    },
+    "rich_chat_crew_no_edits": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Told not to edit files. Not enforced." } },
+        "de": { "stringUnit": { "state": "translated", "value": "Angewiesen, keine Dateien zu bearbeiten. Nicht erzwungen." } },
+        "es": { "stringUnit": { "state": "translated", "value": "Indicación de no editar archivos. No se aplica." } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Instruction de ne pas modifier les fichiers. Non appliquée." } },
+        "ja": { "stringUnit": { "state": "translated", "value": "ファイルを編集しないよう指示されています。強制ではありません。" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "파일을 편집하지 말라는 지시입니다. 강제되지는 않습니다." } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Instrukcja, aby nie edytować plików. Nie jest wymuszana." } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Instrução para não editar arquivos. Não é aplicada." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Инструкция не редактировать файлы. Не применяется принудительно." } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Dosyaları düzenlememesi söylenmiş. Zorunlu değil." } },
+        "uk": { "stringUnit": { "state": "translated", "value": "Вказівка не редагувати файли. Не примусова." } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Được dặn không sửa tệp. Không bị cưỡng chế." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "已指示不要编辑文件。不会强制执行。" } }
+      }
+    },
+    "rich_chat_crew_only": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Crew only" } },
+        "de": { "stringUnit": { "state": "translated", "value": "Nur Crew" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Solo equipo" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Équipe uniquement" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "クルーのみ" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "크루만" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Tylko ekipa" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Somente equipe" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Только команда" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Yalnızca ekip" } },
+        "uk": { "stringUnit": { "state": "translated", "value": "Лише команда" } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Chỉ nhóm" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "仅限团队" } }
+      }
+    },
+    "rich_chat_done": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Done" } },
+        "de": { "stringUnit": { "state": "translated", "value": "Fertig" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Listo" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Terminé" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "完了" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "완료" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Gotowe" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Concluído" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Готово" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Bitti" } },
+        "uk": { "stringUnit": { "state": "translated", "value": "Готово" } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Xong" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "完成" } }
+      }
+    },
+    "rich_chat_fast_mode": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Fast" } },
+        "de": { "stringUnit": { "state": "translated", "value": "Schnell" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Rápido" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Rapide" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "高速" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "빠르게" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Szybko" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Rápido" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Быстро" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Hızlı" } },
+        "uk": { "stringUnit": { "state": "translated", "value": "Швидко" } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Nhanh" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "快速" } }
+      }
+    },
     "rich_chat_context_percent": {
       "extractionState": "manual",
       "localizations": {

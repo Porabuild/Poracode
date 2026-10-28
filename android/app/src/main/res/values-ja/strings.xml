@@ -157,4 +157,10 @@
     <string name="tls_pin_mismatch">サーバーの TLS 証明書がペアリングコードのフィンガープリントと一致しません。デスクトップのリモートアクセスパネルから再ペアリングしてください。</string>
     <string name="rich_chat_context_reload_body">新しいコンテキストサイズは次のメッセージから適用されます。そのメッセージを送信する前にエージェントのセッションが再読み込みされます。会話は保持されます。</string>
     <string name="rich_chat_context_reload_stops_subagents">セッションの再読み込み時に実行中のサブエージェントはすべて停止されます。</string>
+    <string name="rich_chat_crew">クルー</string>
+    <string name="rich_chat_crew_helpers_count">ヘルパー %1$d 人</string>
+    <string name="rich_chat_crew_lead">リード</string>
+    <string name="rich_chat_crew_no_edits">ファイルを編集しないよう指示されています。強制ではありません。</string>
+    <string name="rich_chat_crew_policy_only">クルーのみ</string>
+    <string name="rich_chat_crew_policy_first">クルー優先</string>
 </resources>

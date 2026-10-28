@@ -530,6 +530,8 @@ export interface UI {
   readonly model: {
     /** The prompt's selected model; variant is undefined for the model default. Reactive when read in a Solid computation. */
     current(): { readonly providerID: string; readonly modelID: string; readonly variant?: string } | undefined
+    /** poracode: Selects a model for the prompt (this session's selection, or the new-session model on home). Returns false when the model is not in the catalog. */
+    set(model: { readonly providerID: string; readonly modelID: string; readonly variant?: string }): boolean
     readonly variant: {
       /** Variant IDs of the selected model. Reactive when read in a Solid computation. */
       list(): readonly string[]

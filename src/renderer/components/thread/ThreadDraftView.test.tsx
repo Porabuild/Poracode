@@ -10,6 +10,7 @@ import { toast } from "@heroui/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import type { AgentStatus, Project, ThreadConfig } from "@/shared/contracts";
+import type { SavedCrew, ThreadCrewBinding } from "@/shared/crew";
 import { HOME_PROJECT_ID, HOME_PROJECT_NAME } from "@/shared/homeScope";
 import { selectionBindingMatches } from "@/shared/selectionBinding";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
@@ -521,6 +522,7 @@ describe("ThreadDraftView", () => {
     useSharedSettings.setState({
       providerConfigs: {},
       providerModelPreferences: {},
+      crews: [],
       agentSettings: {},
       hiddenModels: {},
       disabledAgents: [],
@@ -701,6 +703,69 @@ describe("ThreadDraftView", () => {
     expect(targets?.props.candidates).toHaveLength(1);
     expect(targets?.props.isAddDisabled).toBe(false);
     expect(composer.submitDisabled).toBe(true);
+  });
+
+  it("copies the draft Crew into each experiment candidate config", () => {
+    const crew = {
+      version: 1 as const,
+      crewId: "crew-experiment",
+      name: "Build crew",
+      policy: "crew-first" as const,
+      roles: [
+        {
+          id: "builder",
+          label: "Builder",
+          selection: { agentKind: "claude", model: "opus" },
+          parallel: 2,
+        },
+      ],
+    };
+    const draftProject = {
+      ...project,
+      lastDraftConfig: { agentKind: "codex", model: "gpt-5.4", crew },
+    };
+    useGitStore.setState({
+      statuses: {
+        [project.id]: {
+          isRepo: true,
+          branch: "main",
+          tracking: "origin/main",
+          hasRemote: true,
+          remoteInfo: null,
+          ahead: 0,
+          behind: 0,
+          staged: [],
+          unstaged: [],
+          totalInsertions: 0,
+          totalDeletions: 0,
+        },
+      },
+    });
+    render(
+      <ThreadDraftView
+        project={draftProject}
+        lastDraftConfig={draftProject.lastDraftConfig}
+        agentStatuses={[codexStatus]}
+        onStart={() => {}}
+      />,
+    );
+    const initialComposer = composerSpy.mock.lastCall?.[0] as {
+      afterControls: ReactElement<{ experiment?: { onToggle: (enabled: boolean) => void } }>;
+    };
+    act(() => initialComposer.afterControls.props.experiment?.onToggle(true));
+    const composer = composerSpy.mock.lastCall?.[0] as { fixedContent: ReactNode };
+    const targets = findElementByTypeName(composer.fixedContent, "ExperimentDraftTargets");
+    if (!targets) throw new Error("Expected experiment targets");
+    act(targets.props.onAdd as () => void);
+    const updatedComposer = composerSpy.mock.lastCall?.[0] as { fixedContent: ReactNode };
+    const updatedTargets = findElementByTypeName(
+      updatedComposer.fixedContent,
+      "ExperimentDraftTargets",
+    );
+    const candidateProps = updatedTargets?.props as
+      | { candidates: Array<{ config: ThreadConfig }> }
+      | undefined;
+    expect(candidateProps?.candidates?.[0]?.config.crew).toEqual(crew);
   });
 
   it("renders the quick-composer surface with new-thread project and worktree controls", () => {
@@ -3972,5 +4037,308 @@ describe("ThreadDraftView model family drafts", () => {
       }),
     );
     expect(persistedDraft()?.model).toBe("f-alpha-x-high");
+  });
+
+  it("restores a saved Crew into the draft payload and clears it on an ordinary model pick", async () => {
+    const savedCrew: SavedCrew = {
+      id: "crew-night",
+      name: "Night shift",
+      lead: { agentKind: "codex", model: "gpt-5.4", effort: "high", fast: false },
+      roles: [
+        {
+          id: "builder",
+          label: "Builder",
+          brief: "Implements changes and runs tests",
+          selection: { agentKind: "codex", model: "gpt-5.4-mini", effort: "low" },
+        },
+      ],
+      policy: "crew-only",
+      updatedAt: 1,
+    };
+    const storedCrew: ThreadCrewBinding = {
+      version: 1,
+      crewId: savedCrew.id,
+      name: "Old name",
+      policy: "crew-first",
+      roles: [
+        {
+          id: "reviewer",
+          label: "Reviewer",
+          selection: { agentKind: "codex", model: "gpt-5.4-mini" },
+        },
+      ],
+    };
+    const lastDraftConfig = {
+      agentKind: "codex",
+      model: "gpt-5.4",
+      effort: "high",
+      mode: "agent" as const,
+      crew: storedCrew,
+    };
+    useAppStore.setState({ projects: [project] });
+    useSharedSettings.setState({
+      crews: [savedCrew],
+      lastPresentationModeByAgent: { codex: "gui" },
+    });
+    const onStart = vi.fn<(input: unknown) => void>();
+    render(
+      <ThreadDraftView
+        project={project}
+        agentStatuses={[dualModeCodexStatus]}
+        lastDraftConfig={lastDraftConfig}
+        onStart={onStart}
+      />,
+    );
+    const controls = () =>
+      (composerSpy.mock.lastCall?.[0] as { controls: ComposerControl[] } | undefined)?.controls ??
+      [];
+    await waitFor(() => {
+      expect(controls().find((control) => control.kind === "crew")).toBeDefined();
+    });
+    const crewControl = controls().find((control) => control.kind === "crew");
+    expect(crewControl?.kind === "crew" && crewControl.model.binding).toMatchObject({
+      crewId: savedCrew.id,
+      name: savedCrew.name,
+      roles: [{ id: "builder", label: "Builder" }],
+    });
+
+    fireEvent.click(screen.getByText("set-prompt"));
+    fireEvent.click(screen.getByText("submit"));
+    await waitFor(() => expect(onStart).toHaveBeenCalled());
+    expect(onStart.mock.calls.at(-1)?.[0]).toMatchObject({
+      config: { crew: { crewId: savedCrew.id, name: savedCrew.name } },
+    });
+  });
+
+  it("clears the Crew binding in the persisted draft on an ordinary model pick", async () => {
+    const savedCrew: SavedCrew = {
+      id: "crew-pick",
+      name: "Night shift",
+      lead: { agentKind: "codex", model: "gpt-5.4", effort: "high", fast: false },
+      roles: [
+        {
+          id: "builder",
+          label: "Builder",
+          selection: { agentKind: "codex", model: "gpt-5.4-mini", effort: "low" },
+        },
+      ],
+      policy: "crew-only",
+      updatedAt: 1,
+    };
+    const binding: ThreadCrewBinding = {
+      version: 1,
+      crewId: savedCrew.id,
+      name: savedCrew.name,
+      policy: savedCrew.policy,
+      roles: savedCrew.roles,
+    };
+    const lastDraftConfig = {
+      agentKind: "codex",
+      model: "gpt-5.4",
+      effort: "high",
+      mode: "agent" as const,
+      crew: binding,
+    };
+    useAppStore.setState({ projects: [{ ...project, lastDraftConfig }] });
+    useSharedSettings.setState({
+      crews: [savedCrew],
+      lastPresentationModeByAgent: { codex: "gui" },
+    });
+    render(
+      <ThreadDraftView
+        project={{ ...project, lastDraftConfig }}
+        agentStatuses={[dualModeCodexStatus]}
+        lastDraftConfig={lastDraftConfig}
+        onStart={() => {}}
+      />,
+    );
+    const controls = () =>
+      (composerSpy.mock.lastCall?.[0] as { controls: ComposerControl[] } | undefined)?.controls ??
+      [];
+    await waitFor(() => expect(controls().some((control) => control.kind === "crew")).toBe(true));
+    const modelControl = controls().find((control) => control.kind === "provider-model");
+    if (modelControl?.kind !== "provider-model") throw new Error("Missing provider model control");
+    act(() => modelControl.onChange({ agentKind: "codex", model: "gpt-5.4-mini" }));
+    await waitFor(() => {
+      expect(controls().some((control) => control.kind === "crew")).toBe(false);
+      expect(useAppStore.getState().projects[0]?.lastDraftConfig?.model).toBe("gpt-5.4-mini");
+      expect(useAppStore.getState().projects[0]?.lastDraftConfig?.crew).toBeNull();
+    });
+  });
+
+  it("switches to a saved Crew lead provider and applies explicit effort and Fast overrides", async () => {
+    const claudeGuiStatus: AgentStatus = {
+      kind: "claude",
+      label: "Claude",
+      installed: true,
+      authState: "authenticated",
+      capabilities: {
+        models: [{ id: "opus-5.5", label: "Opus 5.5" }],
+        efforts: ["low", "high"],
+        modelEfforts: { "opus-5.5": ["low", "high"] },
+        modes: ["agent"],
+        approvalPolicies: [],
+        sandboxModes: [],
+        supportsResume: true,
+        supportsDirectInput: true,
+        liveInputMode: "server",
+        presentationMode: "gui",
+        presentationModes: ["gui"],
+        mcpScope: { gui: "launch", terminal: "none" },
+        settingDefs: [],
+      },
+    };
+    const codexGuiStatus: AgentStatus = {
+      ...dualModeCodexStatus,
+      capabilities: {
+        ...dualModeCodexStatus.capabilities,
+        mcpScope: { gui: "launch", terminal: "none" },
+      },
+    };
+    const savedCrew: SavedCrew = {
+      id: "crew-provider-switch",
+      name: "Night shift",
+      lead: { agentKind: "claude", model: "opus-5.5", effort: "high", fast: false },
+      roles: [
+        {
+          id: "builder",
+          label: "Builder",
+          selection: { agentKind: "codex", model: "gpt-5.4" },
+        },
+      ],
+      policy: "crew-only",
+      updatedAt: 1,
+    };
+    const lastDraftConfig = {
+      agentKind: "codex",
+      model: "gpt-5.4",
+      effort: "low",
+      fast: true,
+      mode: "agent" as const,
+    };
+    useAppStore.setState({ projects: [project] });
+    useSharedSettings.setState({
+      crews: [savedCrew],
+      lastPresentationModeByAgent: { codex: "gui", claude: "gui" },
+    });
+    render(
+      <ThreadDraftView
+        project={project}
+        agentStatuses={[codexGuiStatus, claudeGuiStatus]}
+        lastDraftConfig={lastDraftConfig}
+        onStart={() => {}}
+      />,
+    );
+    const modelControl = () =>
+      (
+        composerSpy.mock.lastCall?.[0] as { controls: ComposerControl[] } | undefined
+      )?.controls.find((control) => control.kind === "provider-model");
+    await waitFor(() => expect(modelControl()?.kind).toBe("provider-model"));
+    const control = modelControl();
+    if (control?.kind !== "provider-model" || !control.crewSection) {
+      throw new Error("Missing Poracode picker section");
+    }
+    act(() => control.crewSection!.onSelect({ crewId: savedCrew.id }));
+    await waitFor(() => {
+      expect(useAppStore.getState().projects[0]?.lastDraftConfig).toMatchObject({
+        agentKind: "claude",
+        model: "opus-5.5",
+        effort: "high",
+        fast: false,
+        crew: { crewId: savedCrew.id },
+      });
+    });
+  });
+
+  it.each([
+    { terminalScope: "launch" as const, offered: true },
+    { terminalScope: "none" as const, offered: false },
+  ])(
+    "offers crews in CLI presentation only when the lead has a terminal Crossagents path ($terminalScope)",
+    async ({ terminalScope, offered }) => {
+      const terminalCodexStatus: AgentStatus = {
+        ...dualModeCodexStatus,
+        capabilities: {
+          ...dualModeCodexStatus.capabilities,
+          mcpScope: { gui: "launch", terminal: terminalScope },
+        },
+      };
+      useAppStore.setState({ projects: [project] });
+      useSharedSettings.setState({ crews: [], lastPresentationModeByAgent: { codex: "terminal" } });
+      render(
+        <ThreadDraftView
+          project={project}
+          agentStatuses={[terminalCodexStatus]}
+          lastDraftConfig={{ agentKind: "codex", model: "gpt-5.4", mode: "agent" as const }}
+          onStart={() => {}}
+        />,
+      );
+      const modelControl = () =>
+        (
+          composerSpy.mock.lastCall?.[0] as { controls: ComposerControl[] } | undefined
+        )?.controls.find((control) => control.kind === "provider-model");
+      await waitFor(() => expect(modelControl()?.kind).toBe("provider-model"));
+      const control = modelControl();
+      expect(control?.kind === "provider-model" && control.crewSection !== undefined).toBe(offered);
+    },
+  );
+
+  it("names the current draft lead when a saved Crew model is unavailable", async () => {
+    const warningSpy = vi
+      .spyOn(toast, "warning")
+      .mockImplementation(() => undefined as unknown as ReturnType<typeof toast.warning>);
+    const codexGuiStatus: AgentStatus = {
+      ...dualModeCodexStatus,
+      capabilities: {
+        ...dualModeCodexStatus.capabilities,
+        mcpScope: { gui: "launch", terminal: "none" },
+      },
+    };
+    const savedCrew: SavedCrew = {
+      id: "crew-unavailable",
+      name: "Night shift",
+      lead: { agentKind: "codex", model: "missing-model", effort: "high" },
+      roles: [
+        {
+          id: "builder",
+          label: "Builder",
+          selection: { agentKind: "codex", model: "gpt-5.4-mini" },
+        },
+      ],
+      policy: "crew-only",
+      updatedAt: 1,
+    };
+    useAppStore.setState({ projects: [project] });
+    useSharedSettings.setState({
+      crews: [savedCrew],
+      lastPresentationModeByAgent: { codex: "gui" },
+    });
+    render(
+      <ThreadDraftView
+        project={project}
+        agentStatuses={[codexGuiStatus]}
+        lastDraftConfig={{
+          agentKind: "codex",
+          model: "gpt-5.4",
+          effort: "high",
+          mode: "agent",
+        }}
+        onStart={() => {}}
+      />,
+    );
+    const modelControl = () =>
+      (
+        composerSpy.mock.lastCall?.[0] as { controls: ComposerControl[] } | undefined
+      )?.controls.find((control) => control.kind === "provider-model");
+    await waitFor(() => expect(modelControl()?.kind).toBe("provider-model"));
+    const control = modelControl();
+    if (control?.kind !== "provider-model" || !control.crewSection) {
+      throw new Error("Missing Poracode picker section");
+    }
+    act(() => control.crewSection!.onSelect({ crewId: savedCrew.id }));
+    await waitFor(() => {
+      expect(warningSpy).toHaveBeenCalledWith("Codex isn't available, so 5.4 stays the lead.");
+    });
+    warningSpy.mockRestore();
   });
 });

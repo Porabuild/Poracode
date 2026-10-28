@@ -61,6 +61,7 @@ import { openMcpServersSettings } from "@/renderer/actions/panelActions";
 import { updateProjectMcpServers } from "@/renderer/actions/projectActions";
 import { getComputerUseScope } from "../composer/computerUseScope";
 import { mergeMcpServers } from "@/shared/contracts/mcpServer";
+import { canLeadCrew, threadCrewBinding } from "@/shared/crew";
 import { ThreadCommandPanel } from "./ThreadCommandPanel";
 import {
   bindLeadingSkillUnlessLocalAction,
@@ -76,6 +77,7 @@ import { flattenSegments } from "../composer/serializeMentions";
 import { PresentationModeTabs } from "./PresentationModeTabs";
 import {
   agentStatusForPresentation,
+  capabilitiesForPresentation,
   filterHiddenModels,
   hasSelectableReasoning,
 } from "@/shared/agentSelection";
@@ -262,6 +264,17 @@ export function ContinueInProviderDialog(props: {
         )
       : { model: "" },
   );
+  const sourceCrew = threadCrewBinding(thread.config);
+  const targetCanLeadCrew = Boolean(
+    selectedAgent &&
+    canLeadCrew(
+      capabilitiesForPresentation(selectedAgent.capabilities, targetPresentationMode),
+      targetPresentationMode,
+    ),
+  );
+  const targetConfigForHandoff = sourceCrew
+    ? { ...targetConfig, crew: targetCanLeadCrew ? sourceCrew : null }
+    : targetConfig;
 
   // Every deliberate target edit lands through the shared selection mutation
   // for the target owner: the event alone decides the binding, so a restored
@@ -840,7 +853,7 @@ export function ContinueInProviderDialog(props: {
     if (handoffStrategy() === "thread-transcript") {
       onContinue(
         selectedKind,
-        targetConfig,
+        targetConfigForHandoff,
         targetPresentationMode,
         submission.prompt,
         submission.segments,
@@ -865,7 +878,7 @@ export function ContinueInProviderDialog(props: {
     if (history) {
       onContinue(
         selectedKind,
-        targetConfig,
+        targetConfigForHandoff,
         targetPresentationMode,
         submission.prompt,
         submission.segments,
@@ -881,7 +894,7 @@ export function ContinueInProviderDialog(props: {
       // deliberately does not route. The new provider starts without context.
       onContinue(
         selectedKind,
-        targetConfig,
+        targetConfigForHandoff,
         targetPresentationMode,
         submission.prompt,
         submission.segments,
@@ -903,7 +916,7 @@ export function ContinueInProviderDialog(props: {
       });
       onContinue(
         selectedKind,
-        targetConfig,
+        targetConfigForHandoff,
         targetPresentationMode,
         submission.prompt,
         submission.segments,
@@ -934,7 +947,7 @@ export function ContinueInProviderDialog(props: {
     if (!submission) return;
     onContinue(
       selectedKind,
-      targetConfig,
+      targetConfigForHandoff,
       targetPresentationMode,
       submission.prompt,
       submission.segments,
@@ -945,6 +958,8 @@ export function ContinueInProviderDialog(props: {
 
   const canSubmit = Boolean(selectedKind && targetConfig.model) && !attachments.isUploading;
   const targetProviderFallback = t`the target provider`;
+  const sourceCrewName = sourceCrew?.name ?? t`Crew`;
+  const targetProviderLabel = selectedAgent?.label ?? targetProviderFallback;
   const switchOpensNewThread = !continuesInPlace(sourcePresentationMode, targetPresentationMode);
 
   return (
@@ -978,6 +993,13 @@ export function ContinueInProviderDialog(props: {
                         </Trans>
                       </p>
                     )}
+                    {sourceCrew ? (
+                      <p className="text-center text-xs text-muted">
+                        {targetCanLeadCrew
+                          ? t`${sourceCrewName} comes along.`
+                          : t`${sourceCrewName} stays behind: ${targetProviderLabel} can't lead a crew.`}
+                      </p>
+                    ) : null}
                   </div>
                   <div ref={composerContainerRef} className="relative flex flex-col gap-1.5">
                     {commandPanelPosition && mentionPortalRoot

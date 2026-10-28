@@ -92,6 +92,10 @@ export interface SessionRuntime {
   readonly workspaceScope?: ApprovedThreadWorkspaceScope;
   readonly executionWorkspaceScope?: ApprovedThreadWorkspaceScope;
   config: ThreadConfig;
+  /** Fingerprint last delivered with an admitted structured prompt. */
+  crewBriefDelivered?: string | undefined;
+  crossagentsMcpAttached?: boolean | undefined;
+  crossagentsMcpAvailable?: boolean | undefined;
   /** Effective provider launch config with globally disabled MCP cleared. */
   launchConfig?: ThreadConfig;
   /** MCP launch snapshot reused by restart and recovery paths. */

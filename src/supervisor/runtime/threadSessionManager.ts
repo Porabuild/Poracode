@@ -657,6 +657,10 @@ export class ThreadSessionManager {
     this.stopSessionForCanonicalOverflow(info.threadId, detail);
   }
 
+  getThreadConfig(threadId: string): ThreadConfig | undefined {
+    return this.sessions.get(threadId)?.config;
+  }
+
   /**
    * Subagent host hook: resolve a live parent thread's project location + config
    * so a spawned child can inherit them. Returns undefined once the thread is
@@ -757,6 +761,7 @@ export class ThreadSessionManager {
               session.adapter,
               session.threadId,
               session.projectLocation,
+              session.presentationMode ?? session.adapter.capabilities.presentationMode,
             );
             const mcpServers = await this.spawnPipeline.resolveMcpServersForLaunch({
               location: session.projectLocation,
@@ -768,6 +773,11 @@ export class ThreadSessionManager {
             });
             if (!this.isCurrentSession(session)) return;
             await update(mcpServers);
+            if (this.isCurrentSession(session)) {
+              session.crossagentsMcpAttached = mcpServers.some(
+                (server) => server.id === "crossagents",
+              );
+            }
             if (!this.isCurrentSession(session)) return;
             session.launchConfig = launchConfig;
             this.outputPipeline.emitState(session);

@@ -8,6 +8,7 @@ import type {
   ThreadConfig,
   ThreadPresentationMode,
 } from "@/shared/contracts";
+import type { ThreadConfigCrew } from "@/shared/crew";
 import { baseAgentKind, isThreadConfigEqual } from "@/shared/contracts";
 import { migrateCursorBaseId, parseCursorModelId } from "@/shared/cursorModelId";
 import type { ModelFamilyConfig, ModelSelectionEdit } from "@/shared/modelFamilySelection";
@@ -52,6 +53,7 @@ import {
 import type { ComposerControl } from "./ThreadComposer";
 import { formatEffortLabel, supportsUsableFastMode } from "./threadDraftViewHelpers";
 import type { ProviderModelPreference } from "@/shared/settings";
+import { threadCrewBinding } from "@/shared/crew";
 
 export type ModelPickerConfigPatch = {
   model?: string;
@@ -262,6 +264,14 @@ export function patchConfigForModelChange(
       : false,
     thinking: capabilities.thinkingModels?.includes(model) ?? false,
   };
+}
+
+export interface ActiveComposerCrewHandlers {
+  changeLead: (
+    selection: ProviderModelSelection,
+    overrides: { crew: ThreadConfigCrew; effort?: string; fast?: boolean; contextSize?: string },
+  ) => void;
+  patch: (patch: Partial<ThreadConfig>, crew: ThreadConfigCrew) => void;
 }
 
 export function applyDefaultControlTiers(control: ComposerControl): ComposerControl {
@@ -584,6 +594,7 @@ export function buildControls(
   modelPreferences?: Record<string, ProviderModelPreference>,
   onModelPreferenceChange?: (model: string, preference: ProviderModelPreference) => void,
   machineKey?: string,
+  onCrewHandlers?: (handlers: ActiveComposerCrewHandlers) => void,
 ): ComposerControl[] {
   const presentationMode =
     thread.presentationMode ?? agentStatus?.capabilities.presentationMode ?? "terminal";
@@ -627,8 +638,12 @@ export function buildControls(
   // result is persisted only when it truly differs — a harmless no-op (a
   // retained family-row click, a same-value touch with nothing to revoke)
   // never becomes a native setter acknowledgement or a preference write.
-  const onPatch = (patch: Partial<ThreadConfig>, origin?: ComposerSelectionOrigin) => {
-    const config = applyComposerSelectionMutation({
+  const onPatch = (
+    patch: Partial<ThreadConfig>,
+    origin?: ComposerSelectionOrigin,
+    crewOverride?: ThreadConfigCrew | null,
+  ) => {
+    const resolvedConfig = applyComposerSelectionMutation({
       previous: thread.config,
       effective: effectiveConfig,
       patch,
@@ -636,6 +651,12 @@ export function buildControls(
       capabilities: filteredCaps,
       owner,
     });
+    const config =
+      crewOverride !== undefined
+        ? crewOverride === null && !threadCrewBinding(thread.config)
+          ? resolvedConfig
+          : { ...resolvedConfig, crew: crewOverride }
+        : resolvedConfig;
     if (isThreadConfigEqual(config, thread.config)) return;
     onConfigChange(config);
     onModelPreferenceChange?.(config.model, {
@@ -649,6 +670,94 @@ export function buildControls(
     ...(agentStatus.icon ? { icon: agentStatus.icon } : {}),
     capabilities: filteredCaps,
   };
+
+  const handleProviderModelChange = (
+    selection: ProviderModelSelection,
+    overrides?: { crew: ThreadConfigCrew; effort?: string; fast?: boolean; contextSize?: string },
+  ) => {
+    const { model: selectedModel, selectionIntent } = selection;
+    const current = normalizeProviderModelConfig(
+      thread.agentKind,
+      thread.config,
+      presentationCapabilities.models,
+    );
+    const picked = normalizeProviderModelConfig(
+      thread.agentKind,
+      { model: selectedModel },
+      filteredCaps.models,
+    );
+    const model = picked.model ?? selectedModel;
+    const crewOverride = overrides?.crew ?? null;
+    if (
+      (filteredCaps.modelFamilies?.length ?? 0) > 0 &&
+      (modelFamilyForModel(filteredCaps, model) || modelFamilyForModel(filteredCaps, current.model))
+    ) {
+      const patch = resolveModelSelectionEdit(
+        filteredCaps,
+        thread.config,
+        selectionIntent === "family" ? { kind: "family", model } : { kind: "model", model },
+      );
+      if (!patch) return;
+      onPatch(
+        {
+          ...patch,
+          ...(overrides?.effort !== undefined ? { effort: overrides.effort } : {}),
+          ...(overrides?.fast !== undefined ? { fast: overrides.fast } : {}),
+          ...(overrides?.contextSize ? { contextSize: overrides.contextSize } : {}),
+        },
+        selectionIntent === "family" ? { kind: "family-resolved" } : { kind: "raw-pick" },
+        crewOverride,
+      );
+      return;
+    }
+    if (
+      current.model &&
+      current.model !== model &&
+      current.fast === true &&
+      thread.config.fast !== true
+    ) {
+      onModelPreferenceChange?.(current.model, {
+        ...(thread.config.effort ? { effort: thread.config.effort } : {}),
+        fast: true,
+      });
+    }
+    const preference = modelPreferences?.[model];
+    const fast =
+      overrides?.fast ??
+      preference?.fast ??
+      (picked.model !== selectedModel
+        ? picked.fast
+        : current.model === model
+          ? current.fast
+          : undefined);
+    onPatch(
+      patchConfigForModelChange(
+        filteredCaps,
+        model,
+        {
+          ...(overrides?.effort !== undefined
+            ? { effort: overrides.effort }
+            : preference?.effort !== undefined
+              ? { effort: preference.effort }
+              : {}),
+          ...(overrides?.contextSize
+            ? { contextSize: overrides.contextSize }
+            : effectiveConfig.contextSize
+              ? { contextSize: effectiveConfig.contextSize }
+              : {}),
+          ...(fast !== undefined ? { fast } : {}),
+          ...(effectiveConfig.thinking ? { thinking: effectiveConfig.thinking } : {}),
+        },
+        thread.agentKind,
+      ),
+      { kind: "raw-pick" },
+      crewOverride,
+    );
+  };
+  onCrewHandlers?.({
+    changeLead: handleProviderModelChange,
+    patch: (patch, crew) => onPatch(patch, undefined, crew),
+  });
 
   return appendProviderComposerControls(
     buildModelPickerControls({
@@ -678,81 +787,7 @@ export function buildControls(
               : {}),
           }
         : {}),
-      onProviderModelChange: ({ model: selectedModel, selectionIntent }) => {
-        const current = normalizeProviderModelConfig(
-          thread.agentKind,
-          thread.config,
-          presentationCapabilities.models,
-        );
-        const picked = normalizeProviderModelConfig(
-          thread.agentKind,
-          { model: selectedModel },
-          filteredCaps.models,
-        );
-        const model = picked.model ?? selectedModel;
-        // A pick into or out of a family relation resolves through the shared
-        // edit helper at the event boundary: a projected family row keeps the
-        // family's `family` intent ({} retains the current member), every
-        // exact row — a favorite or recent of the representative included —
-        // selects its exact member, and `null` is a visible rejection. The
-        // origin rides the row's intent, never the resolved patch: only a
-        // family row may mint, while an exact pick — a member, a same-UID
-        // re-pick, or a member patch the helper collateral-computed — keeps
-        // the raw posture and always drops the record; ordinary picks keep
-        // the preference/defaulting flow below.
-        if (
-          (filteredCaps.modelFamilies?.length ?? 0) > 0 &&
-          (modelFamilyForModel(filteredCaps, model) ||
-            modelFamilyForModel(filteredCaps, current.model))
-        ) {
-          const patch = resolveModelSelectionEdit(
-            filteredCaps,
-            thread.config,
-            selectionIntent === "family" ? { kind: "family", model } : { kind: "model", model },
-          );
-          if (!patch) return;
-          onPatch(
-            patch,
-            selectionIntent === "family" ? { kind: "family-resolved" } : { kind: "raw-pick" },
-          );
-          return;
-        }
-        if (
-          current.model &&
-          current.model !== model &&
-          current.fast === true &&
-          thread.config.fast !== true
-        ) {
-          onModelPreferenceChange?.(current.model, {
-            ...(thread.config.effort ? { effort: thread.config.effort } : {}),
-            fast: true,
-          });
-        }
-        const preference = modelPreferences?.[model];
-        const fast =
-          preference?.fast ??
-          (picked.model !== selectedModel
-            ? picked.fast
-            : current.model === model
-              ? current.fast
-              : undefined);
-        onPatch(
-          patchConfigForModelChange(
-            filteredCaps,
-            model,
-            {
-              ...(preference?.effort !== undefined ? { effort: preference.effort } : {}),
-              ...(effectiveConfig.contextSize ? { contextSize: effectiveConfig.contextSize } : {}),
-              ...(fast !== undefined ? { fast } : {}),
-              ...(effectiveConfig.thinking ? { thinking: effectiveConfig.thinking } : {}),
-            },
-            thread.agentKind,
-          ),
-          // The ordinary model-menu path is an explicit raw pick: the record
-          // drops even for a same-UID same-value re-pick.
-          { kind: "raw-pick" },
-        );
-      },
+      onProviderModelChange: handleProviderModelChange,
       onConfigPatch: onPatch,
     }),
     {

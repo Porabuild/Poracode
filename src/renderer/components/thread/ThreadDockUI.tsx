@@ -113,6 +113,7 @@ export function ThreadDockIconButton({
   compact = false,
   ariaExpanded,
   ariaControls,
+  ariaPressed,
   onMouseDown,
   onPress,
   children,
@@ -125,6 +126,7 @@ export function ThreadDockIconButton({
   compact?: boolean;
   ariaExpanded?: boolean;
   ariaControls?: string;
+  ariaPressed?: boolean;
   onMouseDown?: MouseEventHandler<HTMLButtonElement>;
   onPress: () => void;
   children: ReactNode;
@@ -139,6 +141,7 @@ export function ThreadDockIconButton({
           aria-label={label}
           {...(ariaExpanded !== undefined ? { "aria-expanded": ariaExpanded } : {})}
           {...(ariaControls ? { "aria-controls": ariaControls } : {})}
+          {...(ariaPressed !== undefined ? { "aria-pressed": ariaPressed } : {})}
           className={`${compact ? "h-5 w-5" : "h-6 w-6"} min-w-0 shrink-0 text-muted/70 ${
             danger
               ? "hover:bg-danger-500/10 hover:text-danger-500"

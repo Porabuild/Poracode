@@ -1345,3 +1345,170 @@ test("session.wait still 409s at the deadline while a run is active", async () =
   setSystemTime();
   expect(response.status).toBe(409);
 });
+test("session info reports the crew as the model and the real model without one", async () => {
+  const project = remoteProjectSchema.parse({
+    id: "project-1",
+    name: "project",
+    location: { kind: "windows", path: "C:/repo" },
+    createdAt: "2026-01-01T00:00:00.000Z",
+  });
+  const crewThread = (id: string, crew: unknown) => ({
+    id,
+    projectId: "project-1",
+    agentKind: "codex",
+    presentationMode: "gui",
+    config: { mode: "agent", model: "model-1", ...(crew === undefined ? {} : { crew }) },
+    title: "Thread",
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-02T00:00:00.000Z",
+    archived: false,
+  });
+  const unsaved = {
+    version: 1,
+    policy: "crew-only",
+    roles: [{ id: "builder", label: "Builder", selection: { agentKind: "codex", model: "m1" } }],
+  };
+  const saved = { ...unsaved, crewId: "crew-ship", name: "Ship crew" };
+  const client = {
+    agentStatuses: async () => ({ windows: [S.promptFixture.status], wsl: [] }),
+    settings: async () => ({ agentSettings: {} }),
+    boundedProjectListPage: async () => ({ projects: [project] }),
+    boundedThreadListPage: async () => ({
+      page: {
+        threads: [
+          crewThread("thread-unsaved", unsaved),
+          crewThread("thread-saved", saved),
+          crewThread("thread-plain", undefined),
+          crewThread("thread-null", saved),
+        ],
+      },
+    }),
+    threadRuntimeItemsPage: async () => ({ items: [], nextCursor: null }),
+  } as unknown as RemoteDesktopClient;
+  const { value } = S.router(client);
+  const modelOf = async (session: string) =>
+    (
+      (await (
+        await value.handle(new Request(`http://poracode.invalid/api/session/${session}`))
+      ).json()) as { data: SessionInfo }
+    ).data.model;
+  expect(await modelOf("ses_thread-unsaved")).toEqual({ providerID: "poracode", id: "new-crew" });
+  expect(await modelOf("ses_thread-saved")).toEqual({ providerID: "poracode", id: "crew-ship" });
+  expect(await modelOf("ses_thread-plain")).toEqual({ providerID: "codex", id: "model-1" });
+  // A local removal wins over the remote binding until the next prompt sends it.
+  expect(await value.updateCrew("ses_thread-null", null)).toEqual({ ok: true });
+  expect(await modelOf("ses_thread-null")).toEqual({ providerID: "codex", id: "model-1" });
+});
+
+test("a Poracode new-crew session stores the lead and carries the binding into the first prompt", async () => {
+  const starts: Array<{ config?: Record<string, unknown>; agentKind?: string }> = [];
+  const client = S.promptClient({
+    startThread: async (payload: { config?: Record<string, unknown>; agentKind?: string }) => {
+      starts.push(payload);
+      return {};
+    },
+    startNewThread: async (payload: { config?: Record<string, unknown>; agentKind?: string }) => {
+      starts.push(payload);
+      return { threadId: "thread-new" };
+    },
+    callRemoteProcedure: async () => null,
+  });
+  const { value } = S.router(client);
+  const created = await value.handle(
+    new Request("http://poracode.invalid/api/session", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        id: "ses_thread-new",
+        model: { providerID: "poracode", id: "new-crew" },
+      }),
+    }),
+  );
+  expect(created.status).toBe(200);
+  const body = (await created.json()) as { data: { model: { providerID: string; id: string } } };
+  expect(body.data.model).toEqual({ providerID: "poracode", id: "new-crew" });
+  const state = await value.crewState("ses_thread-new");
+  expect(state.lead).toMatchObject({ agentKind: "codex", model: "m1" });
+  expect(state.binding).toMatchObject({ version: 1, policy: "crew-only" });
+  const prompt = await value.handle(
+    new Request("http://poracode.invalid/api/session/ses_thread-new/prompt", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        text: "go",
+        model: { providerID: "poracode", id: "new-crew" },
+      }),
+    }),
+  );
+  expect(prompt.status).toBe(200);
+  expect(starts.at(-1)?.config?.crew).toMatchObject({ version: 1, policy: "crew-only" });
+});
+
+test("a saved crew picked at session create reports its id and lead", async () => {
+  const crew = {
+    id: "crew-ship",
+    name: "Ship crew",
+    lead: { agentKind: "codex", model: "m1" },
+    roles: [{ id: "builder", label: "Builder", selection: { agentKind: "codex", model: "m1" } }],
+    policy: "crew-only",
+  };
+  const client = S.promptClient({
+    settings: async () => ({ agentSettings: {}, crews: [crew] }),
+    callRemoteProcedure: async () => null,
+  });
+  const { value } = S.router(client);
+  const created = await value.handle(
+    new Request("http://poracode.invalid/api/session", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        id: "ses_thread-new",
+        model: { providerID: "poracode", id: "crew-ship" },
+      }),
+    }),
+  );
+  expect(created.status).toBe(200);
+  const body = (await created.json()) as { data: { model: { providerID: string; id: string } } };
+  expect(body.data.model).toEqual({ providerID: "poracode", id: "crew-ship" });
+  const state = await value.crewState("ses_thread-new");
+  expect(state.lead).toMatchObject({ agentKind: "codex", model: "m1" });
+  expect(state.binding).toMatchObject({ crewId: "crew-ship" });
+});
+
+test("new-crew falls back to the first lead-capable model when the default cannot lead", async () => {
+  const codex = {
+    ...JSON.parse(JSON.stringify(S.promptFixture.status)),
+    capabilities: {
+      ...JSON.parse(JSON.stringify(S.promptFixture.status.capabilities)),
+      mcpScope: { gui: "none" },
+    },
+  };
+  const claude = {
+    ...JSON.parse(JSON.stringify(codex)),
+    kind: "claude",
+    label: "Claude Code",
+    capabilities: {
+      ...JSON.parse(JSON.stringify(codex.capabilities)),
+      mcpScope: { gui: "launch" },
+      models: [{ id: "opus", label: "Opus" }],
+    },
+  };
+  const client = S.promptClient({
+    agentStatuses: async () => ({ windows: [codex, claude], wsl: [] }),
+    callRemoteProcedure: async () => null,
+  });
+  const { value } = S.router(client);
+  const created = await value.handle(
+    new Request("http://poracode.invalid/api/session", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        id: "ses_thread-new",
+        model: { providerID: "poracode", id: "new-crew" },
+      }),
+    }),
+  );
+  expect(created.status).toBe(200);
+  const state = await value.crewState("ses_thread-new");
+  expect(state.lead).toMatchObject({ agentKind: "claude", model: "opus" });
+});

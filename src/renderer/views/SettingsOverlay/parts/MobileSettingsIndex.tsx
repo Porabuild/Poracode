@@ -16,6 +16,7 @@ import {
   ShieldCheck,
   Sparkles,
   TerminalSquare,
+  UsersRound,
   type LucideIcon,
 } from "lucide-react";
 import { readBridge } from "@/renderer/bridge";
@@ -103,6 +104,13 @@ export function MobileSettingsIndex(props: {
         hint: t`Enabled agents, model visibility and order`,
         onPress: () => props.onOpenSection("agentsGeneral"),
       },
+      {
+        key: "crews",
+        icon: UsersRound,
+        label: t`Crews`,
+        hint: t`Saved crews for the model picker`,
+        onPress: () => props.onOpenSection("crews"),
+      },
     ];
 
     if (props.showArchived) {
@@ -172,6 +180,12 @@ export function MobileSettingsIndex(props: {
       icon: GitFork,
       label: t`Git`,
       hint: t`Review presentation`,
+    },
+    {
+      section: "crews",
+      icon: UsersRound,
+      label: t`Crews`,
+      hint: t`Saved crews for the model picker`,
     },
   ];
 

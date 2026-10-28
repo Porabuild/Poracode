@@ -1,8 +1,18 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+  type PointerEventHandler,
+} from "react";
 import { useLingui } from "@lingui/react/macro";
 import { DragDropProvider, type DragEndEvent } from "@dnd-kit/react";
 import { isSortable } from "@dnd-kit/react/sortable";
 import { Accessibility } from "@dnd-kit/dom";
+import { Tooltip } from "@heroui/react";
+import { Plus } from "lucide-react";
+import { PoracodeGlyph } from "@/renderer/components/common/PoracodeGlyph";
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
 import type { ThreadPresentationMode } from "@/shared/contracts";
 import type { ModelRef } from "./buildItems";
@@ -20,10 +30,10 @@ const MODEL_MENU_OVERSCAN_ROWS = 16;
 
 interface WindowedItemsMeta {
   structureKey: string;
-  modelRowIndices: number[];
+  selectableRowIndices: number[];
   itemIndexById: Map<string, number>;
-  modelPositionByIndex: Map<number, number>;
-  firstModelId: string | null;
+  selectablePositionByIndex: Map<number, number>;
+  firstSelectableId: string | null;
   stickyHeaderIndexByRow: number[];
   stickySubHeaderIndexByRow: number[];
   itemTopByIndex: number[];
@@ -38,6 +48,7 @@ const windowedItemsMetaCache = new WeakMap<
 function windowedItemHeight(item: ProviderModelItem, modelRowHeight: number): number {
   if (
     item.type === "header-plain" ||
+    item.type === "header-crews" ||
     item.type === "header-provider" ||
     item.type === "header-sub"
   ) {
@@ -73,14 +84,27 @@ function itemTop(meta: WindowedItemsMeta, index: number): number {
 
 function isPrimaryHeader(
   item: ProviderModelItem | undefined,
-): item is Extract<ProviderModelItem, { type: "header-plain" | "header-provider" }> {
-  return item?.type === "header-plain" || item?.type === "header-provider";
+): item is Extract<
+  ProviderModelItem,
+  { type: "header-plain" | "header-crews" | "header-provider" }
+> {
+  return (
+    item?.type === "header-plain" ||
+    item?.type === "header-crews" ||
+    item?.type === "header-provider"
+  );
 }
 
 function isSubHeader(
   item: ProviderModelItem | undefined,
 ): item is Extract<ProviderModelItem, { type: "header-sub" }> {
   return item?.type === "header-sub";
+}
+
+function isSelectableItem(
+  item: ProviderModelItem | undefined,
+): item is Extract<ProviderModelItem, { type: "model" | "crew" | "new-crew" }> {
+  return item?.type === "model" || item?.type === "crew" || item?.type === "new-crew";
 }
 
 function getWindowedItemsMeta(
@@ -91,13 +115,13 @@ function getWindowedItemsMeta(
   if (cached && cached.rowHeight === modelRowHeight) return cached.meta;
 
   const idParts: string[] = [];
-  const modelRowIndices: number[] = [];
+  const selectableRowIndices: number[] = [];
   const itemIndexById = new Map<string, number>();
-  const modelPositionByIndex = new Map<number, number>();
+  const selectablePositionByIndex = new Map<number, number>();
   const stickyHeaderIndexByRow: number[] = [];
   const stickySubHeaderIndexByRow: number[] = [];
   const itemTopByIndex: number[] = [];
-  let firstModelId: string | null = null;
+  let firstSelectableId: string | null = null;
   let currentStickyHeaderIndex = -1;
   let currentStickySubHeaderIndex = -1;
   let totalHeight = 0;
@@ -108,15 +132,20 @@ function getWindowedItemsMeta(
     itemIndexById.set(item.id, index);
     itemTopByIndex.push(totalHeight);
 
-    if (item.type === "header-plain" || item.type === "header-provider") {
+    if (
+      item.type === "header-plain" ||
+      item.type === "header-crews" ||
+      item.type === "header-provider"
+    ) {
       currentStickyHeaderIndex = index;
       currentStickySubHeaderIndex = -1;
     } else if (item.type === "header-sub") {
       currentStickySubHeaderIndex = index;
-    } else if (item.type === "model") {
-      if (firstModelId === null) firstModelId = item.id;
-      modelPositionByIndex.set(index, modelRowIndices.length);
-      modelRowIndices.push(index);
+    }
+    if (isSelectableItem(item)) {
+      if (firstSelectableId === null) firstSelectableId = item.id;
+      selectablePositionByIndex.set(index, selectableRowIndices.length);
+      selectableRowIndices.push(index);
     }
 
     stickyHeaderIndexByRow.push(currentStickyHeaderIndex);
@@ -126,10 +155,10 @@ function getWindowedItemsMeta(
 
   const meta: WindowedItemsMeta = {
     structureKey: idParts.join("|"),
-    modelRowIndices,
+    selectableRowIndices,
     itemIndexById,
-    modelPositionByIndex,
-    firstModelId,
+    selectablePositionByIndex,
+    firstSelectableId,
     stickyHeaderIndexByRow,
     stickySubHeaderIndexByRow,
     itemTopByIndex,
@@ -139,10 +168,10 @@ function getWindowedItemsMeta(
   return meta;
 }
 
-function selectedModelIndex(selectedKeys: Set<string>, meta: WindowedItemsMeta): number {
+function selectedItemIndex(selectedKeys: Set<string>, meta: WindowedItemsMeta): number {
   for (const key of selectedKeys) {
     const index = meta.itemIndexById.get(key);
-    if (index !== undefined && meta.modelPositionByIndex.has(index)) {
+    if (index !== undefined && meta.selectablePositionByIndex.has(index)) {
       return index;
     }
   }
@@ -246,10 +275,10 @@ export const WindowedProviderModelList = forwardRef<
   const [scrollTop, setScrollTop] = useState(0);
   const [activeRowId, setActiveRowId] = useState<string | null>(() => {
     const initialMeta = getWindowedItemsMeta(items, modelRowHeight);
-    const initialSelectedIndex = selectedModelIndex(selectedKeys, initialMeta);
+    const initialSelectedIndex = selectedItemIndex(selectedKeys, initialMeta);
     return (
       (initialSelectedIndex >= 0 ? items[initialSelectedIndex]?.id : undefined) ??
-      initialMeta.firstModelId
+      initialMeta.firstSelectableId
     );
   });
   const [showMobileKeyboardHighlight, setShowMobileKeyboardHighlight] = useState(false);
@@ -265,15 +294,15 @@ export const WindowedProviderModelList = forwardRef<
   }, []);
 
   const meta = getWindowedItemsMeta(items, modelRowHeight);
-  const modelRowIndices = meta.modelRowIndices;
-  const selectedIndex = selectedModelIndex(selectedKeys, meta);
+  const selectableRowIndices = meta.selectableRowIndices;
+  const selectedIndex = selectedItemIndex(selectedKeys, meta);
   const initialActiveRowId =
-    (selectedIndex >= 0 ? items[selectedIndex]?.id : undefined) ?? meta.firstModelId;
+    (selectedIndex >= 0 ? items[selectedIndex]?.id : undefined) ?? meta.firstSelectableId;
   const activeIndex = activeRowId == null ? -1 : (meta.itemIndexById.get(activeRowId) ?? -1);
 
   // The active row resets to the selected/first model whenever the current id
   // stops pointing at a model row (e.g. the search narrows the list).
-  if (!(activeIndex >= 0 && meta.modelPositionByIndex.has(activeIndex))) {
+  if (!(activeIndex >= 0 && meta.selectablePositionByIndex.has(activeIndex))) {
     if (activeRowId !== initialActiveRowId) setActiveRowId(initialActiveRowId);
   }
 
@@ -403,13 +432,16 @@ export const WindowedProviderModelList = forwardRef<
   }, [activeIndex, items, meta, modelRowHeight, scrollRef, totalScrollHeight, viewportHeight]);
 
   function moveActive(delta: number) {
-    if (modelRowIndices.length === 0) return;
+    if (selectableRowIndices.length === 0) return;
     if (mobile) setShowMobileKeyboardHighlight(true);
     shouldAutoScrollRef.current = true;
-    const currentPosition = meta.modelPositionByIndex.get(activeIndex) ?? -1;
+    const currentPosition = meta.selectablePositionByIndex.get(activeIndex) ?? -1;
     const basePosition = currentPosition < 0 ? (delta > 0 ? -1 : 0) : currentPosition;
-    const nextPosition = Math.max(0, Math.min(modelRowIndices.length - 1, basePosition + delta));
-    const nextIndex = modelRowIndices[nextPosition];
+    const nextPosition = Math.max(
+      0,
+      Math.min(selectableRowIndices.length - 1, basePosition + delta),
+    );
+    const nextIndex = selectableRowIndices[nextPosition];
     if (nextIndex !== undefined) {
       setActiveRowId(items[nextIndex]?.id ?? null);
     }
@@ -463,8 +495,10 @@ export const WindowedProviderModelList = forwardRef<
     selectActive() {
       const activeItem =
         items[activeIndex] ??
-        (meta.modelRowIndices[0] === undefined ? undefined : items[meta.modelRowIndices[0]]);
-      if (activeItem?.type === "model") {
+        (meta.selectableRowIndices[0] === undefined
+          ? undefined
+          : items[meta.selectableRowIndices[0]]);
+      if (isSelectableItem(activeItem)) {
         onSelect(activeItem.id);
       }
     },
@@ -510,7 +544,7 @@ export const WindowedProviderModelList = forwardRef<
           );
         }}
         onKeyDown={(event) => {
-          if (modelRowIndices.length === 0) return;
+          if (selectableRowIndices.length === 0) return;
           if (event.key === "ArrowDown") {
             event.preventDefault();
             moveActive(1);
@@ -535,7 +569,7 @@ export const WindowedProviderModelList = forwardRef<
             event.preventDefault();
             if (mobile) setShowMobileKeyboardHighlight(true);
             shouldAutoScrollRef.current = true;
-            const firstIndex = modelRowIndices[0];
+            const firstIndex = selectableRowIndices[0];
             if (firstIndex !== undefined) {
               setActiveRowId(items[firstIndex]?.id ?? null);
             }
@@ -545,7 +579,7 @@ export const WindowedProviderModelList = forwardRef<
             event.preventDefault();
             if (mobile) setShowMobileKeyboardHighlight(true);
             shouldAutoScrollRef.current = true;
-            const lastIndex = modelRowIndices[modelRowIndices.length - 1];
+            const lastIndex = selectableRowIndices[selectableRowIndices.length - 1];
             if (lastIndex !== undefined) {
               setActiveRowId(items[lastIndex]?.id ?? null);
             }
@@ -554,7 +588,7 @@ export const WindowedProviderModelList = forwardRef<
           if ((event.key === "Enter" || event.key === " ") && activeIndex >= 0) {
             event.preventDefault();
             const activeItem = items[activeIndex];
-            if (activeItem?.type === "model") {
+            if (isSelectableItem(activeItem)) {
               onSelect(activeItem.id);
             }
           }
@@ -579,11 +613,57 @@ export const WindowedProviderModelList = forwardRef<
           if (item.type === "header-plain") {
             return <HeaderPlain key={item.id} item={item} className={primaryHeaderClassName} />;
           }
+          if (item.type === "header-crews") {
+            return <HeaderCrews key={item.id} className={primaryHeaderClassName} />;
+          }
           if (item.type === "header-provider") {
             return <HeaderProvider key={item.id} item={item} className={primaryHeaderClassName} />;
           }
           if (item.type === "header-sub") {
             return <HeaderSub key={item.id} item={item} className={subHeaderClassName} />;
+          }
+          if (item.type === "crew") {
+            return (
+              <CrewPickerRow
+                key={item.id}
+                item={item}
+                domId={`${domIdPrefix}-${item.id}`}
+                rowHeight={modelRowHeight}
+                isSelected={selectedKeys.has(item.id)}
+                isActive={itemIndex === activeIndex && (!mobile || showMobileKeyboardHighlight)}
+                onPointerMove={(event) => {
+                  if (mobile || draggingRef.current || ignorePointerRef.current) return;
+                  if (event.movementX === 0 && event.movementY === 0) return;
+                  if (itemIndex === activeIndex) return;
+                  shouldAutoScrollRef.current = false;
+                  setActiveRowId(item.id);
+                }}
+                onSelect={() => {
+                  if (!draggingRef.current) onSelect(item.id);
+                }}
+              />
+            );
+          }
+          if (item.type === "new-crew") {
+            return (
+              <NewCrewPickerRow
+                key={item.id}
+                item={item}
+                domId={`${domIdPrefix}-${item.id}`}
+                rowHeight={modelRowHeight}
+                isActive={itemIndex === activeIndex && (!mobile || showMobileKeyboardHighlight)}
+                onPointerMove={(event) => {
+                  if (mobile || draggingRef.current || ignorePointerRef.current) return;
+                  if (event.movementX === 0 && event.movementY === 0) return;
+                  if (itemIndex === activeIndex) return;
+                  shouldAutoScrollRef.current = false;
+                  setActiveRowId(item.id);
+                }}
+                onSelect={() => {
+                  if (!draggingRef.current) onSelect(item.id);
+                }}
+              />
+            );
           }
           const favoriteIndex = favoriteIndexById.get(item.id) ?? -1;
           // Session favorites stay visible after unstar; preserve their focused row.
@@ -634,13 +714,18 @@ export const WindowedProviderModelList = forwardRef<
 });
 
 function StickyWindowedHeader(props: {
-  headerItem: Extract<ProviderModelItem, { type: "header-plain" | "header-provider" }> | null;
+  headerItem: Extract<
+    ProviderModelItem,
+    { type: "header-plain" | "header-crews" | "header-provider" }
+  > | null;
   subHeaderItem: Extract<ProviderModelItem, { type: "header-sub" }> | null;
 }) {
   const { headerItem, subHeaderItem } = props;
   let content;
   if (headerItem?.type === "header-plain") {
     content = <HeaderPlain item={headerItem} />;
+  } else if (headerItem?.type === "header-crews") {
+    content = <HeaderCrews />;
   } else if (headerItem?.type === "header-provider") {
     content = (
       <HeaderProvider
@@ -661,6 +746,111 @@ function StickyWindowedHeader(props: {
       aria-hidden="true"
     >
       {content}
+    </div>
+  );
+}
+
+function HeaderCrews(props: { className?: string }) {
+  return (
+    <div
+      role="presentation"
+      className={`${props.className ?? ""} poracode-model-menu-header poracode-model-menu-header--provider flex h-7 items-center gap-1.5 border-b border-border/40 bg-overlay px-2 text-[10px] font-semibold uppercase tracking-wider text-muted/80`}
+    >
+      <PoracodeGlyph className="size-3 shrink-0" />
+      <span>Poracode</span>
+    </div>
+  );
+}
+
+function CrewPickerRow(props: {
+  item: Extract<ProviderModelItem, { type: "crew" }>;
+  domId: string;
+  rowHeight: number;
+  isSelected: boolean;
+  isActive: boolean;
+  onPointerMove: PointerEventHandler<HTMLDivElement>;
+  onSelect: () => void;
+}) {
+  const { item, domId, rowHeight, isSelected, isActive, onPointerMove, onSelect } = props;
+  return (
+    <div
+      id={domId}
+      role="option"
+      aria-label={`${item.name}, ${item.details.replaceAll("\n", ", ")}`}
+      aria-selected={isSelected}
+      data-active={isActive ? "true" : undefined}
+      className="poracode-menu-item group mx-1.5 flex cursor-default items-center gap-1.5 px-2 text-foreground"
+      style={{ height: rowHeight }}
+      onPointerMove={onPointerMove}
+      onClick={onSelect}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onSelect();
+        }
+      }}
+      tabIndex={-1}
+    >
+      <Tooltip delay={1000}>
+        <Tooltip.Trigger
+          className="flex min-w-0 flex-1 items-center gap-1.5"
+          role="none"
+          tabIndex={-1}
+        >
+          <span className="min-w-0 truncate text-xs">{item.name}</span>
+          <span className="flex min-w-0 items-center gap-1 text-[11px] text-muted">
+            <ProviderIcon kind={item.leadKind} className="size-3 shrink-0" tone="inactive" />
+            <span className="truncate">{item.leadLabel}</span>
+            {item.helperKinds.length > 0 ? (
+              <span className="ml-0.5 flex shrink-0 items-center gap-0.5">
+                {item.helperKinds.slice(0, 4).map((kind) => (
+                  <ProviderIcon key={kind} kind={kind} className="size-3" tone="inactive" />
+                ))}
+              </span>
+            ) : null}
+          </span>
+        </Tooltip.Trigger>
+        <Tooltip.Content
+          placement="right"
+          className="max-w-72 whitespace-pre-line break-words text-xs"
+        >
+          {item.details}
+        </Tooltip.Content>
+      </Tooltip>
+    </div>
+  );
+}
+
+function NewCrewPickerRow(props: {
+  item: Extract<ProviderModelItem, { type: "new-crew" }>;
+  domId: string;
+  rowHeight: number;
+  isActive: boolean;
+  onPointerMove: PointerEventHandler<HTMLDivElement>;
+  onSelect: () => void;
+}) {
+  const { item, domId, rowHeight, isActive, onPointerMove, onSelect } = props;
+  return (
+    <div
+      id={domId}
+      role="option"
+      aria-selected={false}
+      data-active={isActive ? "true" : undefined}
+      className="poracode-menu-item group mx-1.5 flex cursor-default items-center gap-1.5 px-2 text-foreground"
+      style={{ height: rowHeight }}
+      onPointerMove={onPointerMove}
+      onClick={onSelect}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onSelect();
+        }
+      }}
+      tabIndex={-1}
+    >
+      <Plus className="size-3.5 shrink-0 text-muted" />
+      <span className="min-w-0 flex-1 truncate text-xs">{item.label}</span>
+      <span className="shrink-0 text-[10px] text-muted/80">{item.meta}</span>
     </div>
   );
 }

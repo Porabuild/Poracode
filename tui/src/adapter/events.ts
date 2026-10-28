@@ -388,6 +388,9 @@ export function createEventTranslator(
       return event.presentation === "notice" ? [toast(event.message, "warning", context)] : [];
     }
     if (event.type === "usage.spent") {
+      // Crew helper usage is forwarded into the lead's thread for the ledger;
+      // the session's usage line describes the lead alone.
+      if (event.usage.helper) return [];
       const categories = event.usage.tokens;
       state.lastCost = event.usage.cost?.amount ?? 0;
       return [

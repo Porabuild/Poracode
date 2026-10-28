@@ -157,4 +157,10 @@
     <string name="tls_pin_mismatch">Chứng chỉ TLS của máy chủ không khớp với vân tay từ mã ghép nối. Hãy ghép nối lại từ bảng Remote Access trên máy tính.</string>
     <string name="rich_chat_context_reload_body">Kích thước ngữ cảnh mới áp dụng từ tin nhắn tiếp theo của bạn. Phiên tác nhân sẽ được tải lại trước khi gửi tin nhắn đó; cuộc trò chuyện vẫn được giữ nguyên.</string>
     <string name="rich_chat_context_reload_stops_subagents">Mọi tác nhân phụ vẫn đang chạy khi phiên được tải lại sẽ bị dừng.</string>
+    <string name="rich_chat_crew">Nhóm</string>
+    <string name="rich_chat_crew_helpers_count">+%1$d trợ lý</string>
+    <string name="rich_chat_crew_lead">Trưởng nhóm</string>
+    <string name="rich_chat_crew_no_edits">Được dặn không sửa tệp. Không bị cưỡng chế.</string>
+    <string name="rich_chat_crew_policy_only">Chỉ nhóm</string>
+    <string name="rich_chat_crew_policy_first">Ưu tiên nhóm</string>
 </resources>

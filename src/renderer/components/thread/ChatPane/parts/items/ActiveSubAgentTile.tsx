@@ -14,10 +14,12 @@ import { getRuntimeItemPayload } from "@/renderer/state/slices/runtimeEventSlice
 import {
   isWorkflowRunLive,
   type ProjectLocation,
+  type Thread,
   type ToolCallPayload,
   type WorkflowRun,
 } from "@/shared/contracts";
 import type { ThreadDocksPlacement } from "@/shared/settings";
+import type { ThreadCrewBinding } from "@/shared/crew";
 import { ThreadDocksPlacementToggle } from "../../../ThreadDocksPlacementToggle";
 import {
   deriveToolDisplay,
@@ -35,6 +37,7 @@ import {
   ThreadDockList,
   ThreadDockSection,
 } from "../../../ThreadDockUI";
+import { CrewDockSection } from "../../../CrewDockSection";
 import { parseWorkflowInfo } from "./workflowDisplay";
 import {
   SubAgentProgressMeta,
@@ -79,6 +82,8 @@ export function useActiveAgentKindCounts(threadId: string): Record<ActiveAgentKi
 interface ActiveSubAgentTileProps {
   threadId: string;
   projectLocation?: ProjectLocation;
+  crewBinding?: ThreadCrewBinding;
+  thread?: Thread;
   registrationOnly?: boolean;
   /** Restrict to these dock kinds (default: all). */
   kinds?: readonly ActiveAgentKind[];
@@ -91,6 +96,8 @@ interface ActiveSubAgentTileProps {
 export function ActiveSubAgentTile({
   threadId,
   projectLocation,
+  crewBinding,
+  thread,
   registrationOnly = false,
   kinds: kindFilter,
   placement = "composer",
@@ -99,7 +106,8 @@ export function ActiveSubAgentTile({
   const dismissMany = useThreadSubAgentDockStore((s) => s.dismissMany);
   const { visibleIds, kinds } = useVisibleActiveAgents(threadId);
 
-  if (visibleIds.length === 0) return null;
+  const showCrewDock = placement === "right" && crewBinding !== undefined && thread !== undefined;
+  if (visibleIds.length === 0 && !showCrewDock) return null;
 
   if (registrationOnly) {
     return visibleIds.map((id) => (
@@ -113,21 +121,48 @@ export function ActiveSubAgentTile({
     ));
   }
 
-  const sectionKinds = (["subagent", "crossagent", "workflow"] as const).filter(
+  const sectionOrder = showCrewDock
+    ? (["crossagent", "subagent", "workflow"] as const)
+    : (["subagent", "crossagent", "workflow"] as const);
+  const sectionKinds = sectionOrder.filter(
     (kind) =>
-      (!kindFilter || kindFilter.includes(kind)) && kinds.some((activeKind) => activeKind === kind),
+      (!kindFilter || kindFilter.includes(kind)) &&
+      (kinds.some((activeKind) => activeKind === kind) || (kind === "crossagent" && showCrewDock)),
   );
 
   return (
     <>
       {sectionKinds.map((kind, index) => {
         const sectionIds = visibleIds.filter((_, itemIndex) => kinds[itemIndex] === kind);
+        if (kind === "crossagent" && showCrewDock && thread && crewBinding) {
+          return (
+            <CrewDockSection
+              key={kind}
+              threadId={threadId}
+              thread={thread}
+              binding={crewBinding}
+              runIds={sectionIds}
+              showPlacementToggle={showPlacementToggle && index === 0}
+              renderRun={(id) => (
+                <ActiveSubAgentRow
+                  key={id}
+                  threadId={threadId}
+                  itemId={id}
+                  placement="right"
+                  omitRoleInMeta
+                  {...(projectLocation ? { projectLocation } : {})}
+                />
+              )}
+            />
+          );
+        }
         return (
           <ActiveAgentSection
             key={kind}
             kind={kind}
             threadId={threadId}
             ids={sectionIds}
+            {...(crewBinding ? { crewBinding } : {})}
             dismissMany={dismissMany}
             placement={placement}
             showPlacementToggle={showPlacementToggle && index === 0}
@@ -143,6 +178,7 @@ function ActiveAgentSection({
   kind,
   threadId,
   ids,
+  crewBinding,
   dismissMany,
   placement,
   showPlacementToggle,
@@ -151,6 +187,7 @@ function ActiveAgentSection({
   kind: "subagent" | "crossagent" | "workflow";
   threadId: string;
   ids: readonly string[];
+  crewBinding?: ThreadCrewBinding;
   dismissMany: (threadId: string, itemIds: readonly string[]) => void;
   placement: ThreadDocksPlacement;
   showPlacementToggle: boolean;
@@ -208,6 +245,7 @@ function ActiveAgentSection({
             threadId={threadId}
             itemId={id}
             placement={placement}
+            {...(crewBinding ? { crewBinding } : {})}
             {...(projectLocation ? { projectLocation } : {})}
           />
         ))}
@@ -216,18 +254,22 @@ function ActiveAgentSection({
   );
 }
 
-function ActiveSubAgentRow({
+export function ActiveSubAgentRow({
   threadId,
   itemId,
   projectLocation,
   registrationOnly = false,
   placement = "composer",
+  omitRoleInMeta = false,
+  crewBinding,
 }: {
   threadId: string;
   itemId: string;
   projectLocation?: ProjectLocation;
   registrationOnly?: boolean;
   placement?: ThreadDocksPlacement;
+  omitRoleInMeta?: boolean;
+  crewBinding?: ThreadCrewBinding;
 }) {
   const { t } = useLingui();
   const item = useThreadRuntimeItem(threadId, itemId);
@@ -321,6 +363,14 @@ function ActiveSubAgentRow({
       : undefined;
   const description = typeof args?.description === "string" ? args.description.trim() : undefined;
   const rowTitle = description || display.title;
+  const role = (payload.subAgentType ?? readSubAgentType(args))?.trim();
+  const crewRole = crewBinding?.roles.find(
+    (candidate) => candidate.label.trim().toLowerCase() === role?.toLowerCase(),
+  );
+  const dockTitle =
+    placement === "composer" && isCrossagentTool(payload) && crewRole && rowTitle !== role
+      ? `${crewRole.label}: ${rowTitle}`
+      : rowTitle;
   const isDone = !isRunning;
   const progress = payload?.progress;
   const stepCount = progress?.stepCount ?? childCount;
@@ -334,7 +384,7 @@ function ActiveSubAgentRow({
           rowTitle,
           titleIsDescription: description !== undefined,
           isCrossagent: isCrossagentTool(payload),
-          subAgentType: payload.subAgentType ?? readSubAgentType(args),
+          ...(omitRoleInMeta ? {} : { subAgentType: role }),
           progress,
           liveLabel,
           stepCount,
@@ -345,7 +395,7 @@ function ActiveSubAgentRow({
 
   return (
     <ThreadDockActionRow
-      title={rowTitle}
+      title={dockTitle}
       onClick={() => {
         if (placement === "right") {
           showSubAgentPanel(threadId, item.id, projectLocation, "thread-info");
@@ -379,7 +429,7 @@ function ActiveSubAgentRow({
         <span
           className={`min-w-0 flex-1 truncate leading-5 ${isDone ? "text-foreground-muted" : "text-foreground"}`}
         >
-          {rowTitle}
+          {dockTitle}
         </span>
       )}
       {workflow && workflowRun ? (

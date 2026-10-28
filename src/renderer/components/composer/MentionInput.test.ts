@@ -383,6 +383,44 @@ describe("buildMentionResults", () => {
     expect(results[0]?.path).toBe("aaaaaaaa-1111-4222-8333-666666666666");
   });
 
+  it("lists crew roles only when the crew is active and filters them by query", () => {
+    const crew = [
+      { label: "Builder", detail: "Opus 5.5" },
+      { label: "Scout", detail: "Gemini 3" },
+    ];
+    expect(
+      buildMentionResults(fileResults, "", [], [], [], crew).map((entry) => entry.type),
+    ).toEqual(["crew", "crew", "file"]);
+    expect(buildMentionResults(fileResults, "", [], [], [], [])).toEqual(fileResults);
+    expect(buildMentionResults(fileResults, "sco", [], [], [], crew)).toEqual([
+      { type: "crew", path: "Scout", name: "Scout", detail: "Gemini 3" },
+      ...fileResults,
+    ]);
+  });
+
+  it("inserts a crew role mention as plain text", () => {
+    const ref = createRef<MentionInputHandle>();
+    render(
+      createElement(MentionInput, {
+        ...{
+          placeholder: "Send a message...",
+          projectLocation: undefined,
+          onTextChange: vi.fn<(hasText: boolean) => void>(),
+          onSubmit: vi.fn<(segments: PromptSegment[]) => void>(),
+        },
+        ref,
+        crewMentions: [{ label: "Builder", detail: "Opus 5.5" }],
+      }),
+    );
+
+    const editor = typeMention("build");
+    fireEvent.keyDown(editor, { key: "Enter" });
+
+    expect(editor.textContent).toBe("@Builder ");
+    expect(editor.querySelector("[data-thread-mention-id]")).toBeNull();
+    expect(ref.current?.serializeSegments()).toEqual([{ kind: "text", content: "@Builder " }]);
+  });
+
   it("inserts a thread mention chip that round-trips its title and id", () => {
     const ref = createRef<MentionInputHandle>();
     render(

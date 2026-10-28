@@ -128,6 +128,8 @@ export const remoteSettingsSchema = sharedSettingsSchema
   })
   .extend({
     agentSettings: remoteAgentSettingsSchema,
+    // Optional for older hosts; remote edits must keep the field sparse.
+    crews: sharedSettingsSchema.shape.crews.removeDefault().optional(),
     // Optional for backward-compatible reads from remote-v3 hosts released
     // before native clients could edit usage card ordering and collapse state.
     usage: sharedSettingsSchema.shape.usage.optional(),
@@ -156,6 +158,7 @@ export const remoteSettingsPatchSchema = remoteSettingsSchema
     // Unlike the full response schema, patches must remain sparse; in
     // particular, an unrelated edit must not inject the legacy default.
     followUpBehavior: sharedSettingsSchema.shape.followUpBehavior.optional(),
+    crews: sharedSettingsSchema.shape.crews.removeDefault().optional(),
   });
 export type RemoteSettingsPatch = z.infer<typeof remoteSettingsPatchSchema>;
 

@@ -113,6 +113,8 @@ fun RichChatComposer(
     modifier: Modifier = Modifier,
 ) {
     var showControls by rememberSaveable(contextKey) { mutableStateOf(false) }
+    var showCrewRoster by rememberSaveable(contextKey) { mutableStateOf(false) }
+    val crewPresentation = remember(configuration.crew) { decodeReadOnlyCrew(configuration.crew) }
     var editorValue by remember(contextKey) { mutableStateOf(TextFieldValue(draft, TextRange(draft.length))) }
     val inputValue = if (editorValue.text == draft) editorValue else TextFieldValue(draft, TextRange(draft.length))
     val controlsEnabled = canConfigure && !sending
@@ -202,6 +204,18 @@ fun RichChatComposer(
                             modifier = Modifier
                                 .testTag("rich_chat_composer_controls")
                                 .semantics { contentDescription = controlsDescription },
+                        )
+                    }
+                    crewPresentation?.let { crew ->
+                        RichChatCrewChip(crew = crew, enabled = true) {
+                            showCrewRoster = true
+                        }
+                    }
+                    crewPresentation?.let { crew ->
+                        RichChatCrewChip(
+                            crew = crew,
+                            enabled = controlsEnabled,
+                            onClick = { showCrewRoster = true },
                         )
                     }
 
@@ -386,6 +400,30 @@ fun RichChatComposer(
             },
         )
     }
+    if (showCrewRoster) {
+        crewPresentation?.let { crew ->
+            ReadOnlyCrewRosterSheet(
+                crew = crew,
+                leadAgentKind = currentThread?.agentKind.orEmpty(),
+                leadModel = configuration.model,
+                leadEffort = configuration.effort,
+                leadFast = configuration.fast == true,
+                onDismiss = { showCrewRoster = false },
+        )
+    }
+    if (showCrewRoster) {
+        crewPresentation?.let { crew ->
+            ReadOnlyCrewRosterSheet(
+                crew = crew,
+                leadAgentKind = currentThread?.agentKind.orEmpty(),
+                leadModel = configuration.model,
+                leadEffort = configuration.effort,
+                leadFast = configuration.fast == true,
+                onDismiss = { showCrewRoster = false },
+            )
+        }
+    }
+}
 }
 
 private const val MAX_SUGGESTIONS = 6

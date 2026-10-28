@@ -285,6 +285,18 @@ export function createPluginContext(input: {
           if (!selection) return
           return { providerID: selection.providerID, modelID: selection.modelID, variant: selection.variant }
         },
+        // poracode: programmatic selection for crew picks; skips recents, applies a known variant.
+        set(model) {
+          if (!host.local.model.available({ providerID: model.providerID, modelID: model.modelID }))
+            return false
+          host.local.model.set({ providerID: model.providerID, modelID: model.modelID })
+          if (
+            model.variant !== undefined &&
+            host.local.model.variant.list().includes(model.variant)
+          )
+            host.local.model.variant.set(model.variant)
+          return true
+        },
         variant: {
           list: () => host.local.model.variant.list(),
           set(variant) {

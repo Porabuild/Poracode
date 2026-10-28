@@ -5,7 +5,8 @@ import { formatReasoningLabel } from "@/shared/modelLabels";
 import type { AgentAdapter } from "@/supervisor/agents/base";
 import { SubagentSpawnError } from "./errors";
 import { buildUnrestrictedChildConfig, resolveSubagentExecution } from "./types";
-import type { SpawnAgentRequest, SpawnAgentSelection } from "./types";
+import type { ModelTier, SpawnAgentRequest, SpawnAgentSelection } from "./types";
+import { classifyModelTier } from "./modelTier";
 import { compactResultPrompt } from "./compactResult";
 import { snapshotDispatchTrace, type DispatchTraceSnapshot } from "./dispatchTrace";
 
@@ -29,6 +30,7 @@ export interface ResolvedSpawnAttempt {
 export interface PreparedSubagentRun {
   dispatchTrace?: DispatchTraceSnapshot;
   prompt: string;
+  crewRole?: NonNullable<SpawnAgentRequest["crewRole"]>;
   resultMode?: "compact";
   projectLocation: ProjectLocation;
   background: boolean;
@@ -74,16 +76,41 @@ export function prepareSubagentRun(
     }
   });
 
-  const workerPrompt = `${WORKER_INSTRUCTIONS}\n\n${prompt}`;
+  const workerPrompt = request.crewRole
+    ? `${WORKER_INSTRUCTIONS}\n\n${crewRolePreamble(request.crewRole, classifyModelTier(request.model ?? "", ""))}\n\n${prompt}`
+    : `${WORKER_INSTRUCTIONS}\n\n${prompt}`;
   return {
     dispatchTrace: snapshotDispatchTrace(request, attempts, request.retryMode ?? "startup"),
     prompt: request.resultMode === "compact" ? compactResultPrompt(workerPrompt) : workerPrompt,
+    ...(request.crewRole ? { crewRole: request.crewRole } : {}),
     ...(request.resultMode ? { resultMode: request.resultMode } : {}),
     projectLocation: parent.projectLocation,
     background: request.background === true,
     retryMode: request.retryMode ?? "startup",
     attempts,
   };
+}
+
+function crewRolePreamble(
+  role: NonNullable<SpawnAgentRequest["crewRole"]>,
+  tier: ModelTier,
+): string {
+  const brief = role.brief?.trim().replace(/\s+/g, " ");
+  const normalizedBrief = brief && !/[.!?]$/.test(brief) ? `${brief}.` : brief;
+  return (
+    `Crew role: ${role.label}.` +
+    (normalizedBrief ? ` ${normalizedBrief}` : "") +
+    (role.noEdits
+      ? " This role is told not to edit files: do not create, modify or delete files; report what you find instead."
+      : "") +
+    " Do this work yourself: do not start subagents, including your own built-in subagent or task tools, and do not hand it to other agents." +
+    // Pushback helps when the helper is as strong as the lead; a smaller
+    // model second-guessing the plan costs more than it catches.
+    (tier === "max-capability"
+      ? " If the task looks wrong or incomplete, say so and suggest a fix before implementing."
+      : " Follow the task as written; if it cannot work, stop and report why instead of changing the plan.") +
+    " Finish with a short report for the lead (under 15 lines): what you changed (files), the checks you ran with pass/fail, and anything left open. Do not paste full logs or whole files; the lead reads the diff itself."
+  );
 }
 
 function resolveAttempt(
@@ -153,6 +180,11 @@ function resolveAttempt(
         model,
         ...(selection.effort ? { effort: selection.effort } : {}),
         ...(typeof selection.fast === "boolean" ? { fast: selection.fast } : {}),
+        // A crew member's context length applies only where the provider offers it.
+        ...(selection.contextSize &&
+        capabilities.modelContextSizes?.[model]?.includes(selection.contextSize)
+          ? { contextSize: selection.contextSize }
+          : {}),
       },
       capabilities,
       parentConfig,

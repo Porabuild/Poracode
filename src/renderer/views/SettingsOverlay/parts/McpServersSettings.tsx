@@ -14,7 +14,9 @@ import {
   loadAuthoritativeProjectMcpServers,
 } from "@/renderer/state/projectSettings/projectSettingsLoader";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { usePanelStore } from "@/renderer/state/panelStore";
 import { isHomeProject } from "@/shared/homeScope";
+import { Button } from "@/renderer/components/common/Button";
 import { SettingsPage } from "./SettingsForm";
 import { CrossagentRoutingSection } from "./CrossagentRoutingSection";
 
@@ -108,7 +110,18 @@ export function McpServersSettings() {
             crossagents: {
               title: t`Crossagents`,
               actionLabel: t`Crossagent routing and ranking`,
-              content: <CrossagentRoutingSection />,
+              content: (
+                <div className="space-y-3">
+                  <CrossagentRoutingSection />
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onPress={() => usePanelStore.getState().openSettingsSection("crews")}
+                  >
+                    {t`Crews`}
+                  </Button>
+                </div>
+              ),
               dialogClassName: "sm:max-w-2xl",
             },
           }}

@@ -48,6 +48,13 @@ import {
   LEGACY_ANTIGRAVITY_ACP_KIND,
   normalizePersistedAntigravityModelSelection,
 } from "./agents/antigravity";
+import {
+  MAX_SAVED_CREWS,
+  normalizeCrewRoles,
+  savedCrewSchema,
+  type CrewMemberSelection,
+  type SavedCrew,
+} from "./crew";
 
 export const WINDOWS_SHELL_AUTO = "auto";
 export const WINDOWS_SHELL_ARGUMENTS_MAX = 8_192;
@@ -656,6 +663,8 @@ export const sharedSettingsSchema = z.object({
    * workspaces should scope remote sessions too.
    */
   workspaces: workspaceListSchema,
+  /** Additive field: older settings files omit it and normalize to an empty list. */
+  crews: z.array(savedCrewSchema).max(MAX_SAVED_CREWS).default([]),
   /** User-starred (provider, presentation, model) entries surfaced at the top of the model picker. */
   favoriteModels: z.array(modelPickerEntrySchema),
   /**
@@ -875,6 +884,7 @@ export const defaultSharedSettings: SharedSettings = {
   remotePushEnabled: true,
   remotePushRedactContent: false,
   workspaces: [],
+  crews: [],
   favoriteModels: [],
   recentModels: [],
   agentSelectionUsage: [],
@@ -1058,7 +1068,29 @@ function migrateRetiredQwenPreviewModel(settings: SharedSettings): SharedSetting
         ? { ...primary, fallbacks: migratedFallbacks }
         : primary;
     }),
+    crews: mapSavedCrewSelections(settings.crews, migrateCrewQwenSelection),
   };
+}
+
+function migrateCrewQwenSelection(selection: CrewMemberSelection): CrewMemberSelection {
+  return selection.agentKind === "qwen" && selection.model === QWEN_RETIRED_PREVIEW_MODEL_ID
+    ? { ...selection, model: QWEN_DEFAULT_MODEL_ID }
+    : selection;
+}
+
+function mapSavedCrewSelections(
+  crews: readonly SavedCrew[],
+  mapSelection: (selection: CrewMemberSelection) => CrewMemberSelection,
+): SavedCrew[] {
+  return crews.map((crew) => ({
+    ...crew,
+    lead: mapSelection(crew.lead),
+    roles: crew.roles.map((role) => ({
+      ...role,
+      selection: mapSelection(role.selection),
+      ...(role.fallbacks ? { fallbacks: role.fallbacks.map(mapSelection) } : {}),
+    })),
+  }));
 }
 
 function moveRecordKey<T>(
@@ -1147,6 +1179,17 @@ function migrateAntigravityAcpAliasState(settings: SharedSettings): {
       settings.agentSelectionUsage,
       settings.crossagentSelectionUsage,
     ].some((entries) => entries.some((entry) => entry.agentKind === LEGACY_ANTIGRAVITY_ACP_KIND)) ||
+    settings.crews.some(
+      (crew) =>
+        crew.lead.agentKind === LEGACY_ANTIGRAVITY_ACP_KIND ||
+        crew.roles.some(
+          (role) =>
+            role.selection.agentKind === LEGACY_ANTIGRAVITY_ACP_KIND ||
+            role.fallbacks?.some(
+              (fallback) => fallback.agentKind === LEGACY_ANTIGRAVITY_ACP_KIND,
+            ) === true,
+        ),
+    ) ||
     settings.crossagentRoutingOverrides.some(
       (entry) =>
         entry.agentKind === LEGACY_ANTIGRAVITY_ACP_KIND ||
@@ -1191,6 +1234,20 @@ function migrateAntigravityAcpAliasState(settings: SharedSettings): {
   };
   const migrateProvider = (provider: string) =>
     provider === LEGACY_ANTIGRAVITY_ACP_KIND ? "antigravity" : provider;
+  const migrateCrewSelection = (selection: CrewMemberSelection): CrewMemberSelection => {
+    if (selection.agentKind !== LEGACY_ANTIGRAVITY_ACP_KIND) return selection;
+    const normalized = normalizePersistedAntigravityModelSelection(
+      selection.model,
+      selection.effort,
+      true,
+    );
+    return {
+      ...selection,
+      agentKind: "antigravity",
+      model: normalized.model,
+      ...(normalized.effort ? { effort: normalized.effort } : {}),
+    };
+  };
   const uniqueStrings = (values: string[]) => [...new Set(values.map(migrateProvider))];
   // The legacy kind was the ACP chat provider on its own. Rewriting a disable
   // or crossagents pause onto "antigravity" would hide the provider's whole
@@ -1324,6 +1381,7 @@ function migrateAntigravityAcpAliasState(settings: SharedSettings): {
             ? { fallbacks: entry.fallbacks.map((fallback) => migrateEntry(fallback)) }
             : {}),
         })),
+        crews: mapSavedCrewSelections(settings.crews, migrateCrewSelection),
         commitGenProvider: migrateProvider(settings.commitGenProvider),
         titleGenProvider: migrateProvider(settings.titleGenProvider),
         conflictResolverProvider: migrateProvider(settings.conflictResolverProvider),
@@ -1415,6 +1473,20 @@ function migrateAntigravityAcpAliasState(settings: SharedSettings): {
           modelId: normalized.model,
           ...(normalized.effort ? { effort: normalized.effort } : {}),
         } as T);
+  };
+  const normalizeCrewSelection = (selection: CrewMemberSelection): CrewMemberSelection => {
+    if (selection.agentKind !== "antigravity") return selection;
+    const normalized = normalizePersistedAntigravityModelSelection(
+      selection.model,
+      selection.effort,
+    );
+    return normalized.model === selection.model
+      ? selection
+      : {
+          ...selection,
+          model: normalized.model,
+          ...(normalized.effort ? { effort: normalized.effort } : {}),
+        };
   };
   const normalizeUtilityModel = (
     provider: string,
@@ -1557,6 +1629,7 @@ function migrateAntigravityAcpAliasState(settings: SharedSettings): {
         ? { ...primary, fallbacks: primary.fallbacks.map(normalizeFallback) }
         : primary;
     }),
+    crews: mapSavedCrewSelections(migrated.crews, normalizeCrewSelection),
     commitGenModel: commitGen.model,
     commitGenEffort: commitGen.effort,
     titleGenModel: titleGen.model,
@@ -1597,6 +1670,7 @@ export const ANTIGRAVITY_ACP_ALIAS_MIGRATED_KEYS = [
   "agentSelectionUsage",
   "crossagentSelectionUsage",
   "crossagentRoutingOverrides",
+  "crews",
   "commitGenProvider",
   "titleGenProvider",
   "conflictResolverProvider",
@@ -1634,6 +1708,22 @@ function normalizeMachineSettings(value: unknown): SharedSettings["machineSettin
   return result;
 }
 
+function normalizeSavedCrews(value: unknown): SavedCrew[] {
+  if (!Array.isArray(value)) return [];
+  const crews: SavedCrew[] = [];
+  const ids = new Set<string>();
+  for (const entry of value) {
+    const parsed = savedCrewSchema.safeParse(entry);
+    if (!parsed.success || ids.has(parsed.data.id)) continue;
+    const roles = normalizeCrewRoles(parsed.data.roles);
+    if (roles.length === 0) continue;
+    ids.add(parsed.data.id);
+    crews.push({ ...parsed.data, roles });
+    if (crews.length === MAX_SAVED_CREWS) break;
+  }
+  return crews;
+}
+
 function normalizeSharedSettingsStateImpl(value: unknown): {
   settings: SharedSettings;
   acpAliasMigrated: boolean;
@@ -1647,7 +1737,11 @@ function normalizeSharedSettingsStateImpl(value: unknown): {
   const parsed = settingsUnknownRecordSchema.safeParse(migratedValue);
   if (!parsed.success) return { settings: normalized, acpAliasMigrated: false };
   return migrateSharedSettingsValues(
-    { ...normalized, machineSettings: normalizeMachineSettings(parsed.data.machineSettings) },
+    {
+      ...normalized,
+      machineSettings: normalizeMachineSettings(parsed.data.machineSettings),
+      crews: normalizeSavedCrews(parsed.data.crews),
+    },
     parsed.data,
   );
 }

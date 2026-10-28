@@ -1,6 +1,8 @@
 import { Plugin } from "@opencode/plugin/tui";
-import { createSignal } from "solid-js";
+import { createComponent, createSignal } from "solid-js";
 import type { Adapter } from "../adapter";
+import { registerCrewUi } from "./crew";
+import { SlotText } from "./slotText";
 
 /**
  * Bundled Poracode plugin: contributions that ride the upstream plugin API
@@ -27,18 +29,24 @@ export function createPoracodePlugin(input: { adapter: Adapter }) {
         });
       };
 
+      registerCrewUi(context, adapter);
       const [goalTick, setGoalTick] = createSignal(0);
       adapter.subscribeGoal(() => setGoalTick((value) => value + 1));
       // A compact goal line in the prompt footer; hidden without a goal.
       context.ui.slot({
         append: "prompt.footer.status",
-        render: (slotInput) => {
-          goalTick();
-          if (!slotInput.sessionID) return null;
-          return adapter.goalLine(slotInput.sessionID) ?? null;
-        },
+        render: (slotInput) =>
+          slotInput.sessionID
+            ? createComponent(SlotText, {
+                value: () => {
+                  goalTick();
+                  return adapter.goalLine(slotInput.sessionID!) ?? null;
+                },
+              })
+            : null,
       });
       context.keymap.layer(() => ({
+        mode: "global",
         commands: [
           {
             id: "poracode.about",

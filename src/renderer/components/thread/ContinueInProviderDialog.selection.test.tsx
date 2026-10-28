@@ -123,6 +123,7 @@ const target = {
     liveInputMode: "terminal",
     presentationMode: "terminal",
     presentationModes: ["terminal", "gui"],
+    mcpScope: { gui: "launch", terminal: "none" },
     settingDefs: [],
     modelFamilies: [terminalRelation],
     presentationCapabilities: {
@@ -153,19 +154,22 @@ const source = {
   capabilities: { ...target.capabilities, modelFamilies: [], presentationCapabilities: {} },
 } as unknown as AgentStatus;
 
-function renderDialog() {
+function renderDialog(
+  sourceThread: Thread = thread,
+  targetPresentationMode: "terminal" | "gui" = "terminal",
+) {
   useSharedSettings.setState({
     hiddenModels: {},
     providerConfigs: {},
     providerModelPreferences: {},
-    lastPresentationModeByAgent: { devin: "terminal" },
+    lastPresentationModeByAgent: { devin: targetPresentationMode },
   } as never);
   const onContinue = vi.fn<DialogProps["onContinue"]>();
   render(
     <AppProvider>
       <ContinueInProviderDialog
         isOpen
-        thread={thread}
+        thread={sourceThread}
         projectLocation={{ kind: "posix", path: "/repo" }}
         installedAgents={[source, target]}
         onClose={() => {}}
@@ -264,5 +268,47 @@ describe("ContinueInProviderDialog target family selection", () => {
     expect(config).toMatchObject({ model: "f-alpha-x-low-fast" });
     expect(onContinue.mock.lastCall?.[2]).toBe("terminal");
     toastDanger.mockRestore();
+  });
+
+  it("carries a source crew to a GUI target that can lead it", async () => {
+    const crew = {
+      version: 1 as const,
+      name: "Night shift",
+      policy: "crew-only" as const,
+      roles: [
+        {
+          id: "builder",
+          label: "Builder",
+          selection: { agentKind: "claude", model: "claude-opus-5" },
+        },
+      ],
+    };
+    const sourceThread = { ...thread, config: { ...thread.config, crew } };
+    const onContinue = renderDialog(sourceThread, "gui");
+    expect(screen.getByText("Night shift comes along.")).toBeInTheDocument();
+    const config = await submittedConfig(onContinue);
+    expect(config?.crew).toEqual(crew);
+  });
+
+  it("drops a source crew for a target that cannot lead it", async () => {
+    const crew = {
+      version: 1 as const,
+      name: "Night shift",
+      policy: "crew-only" as const,
+      roles: [
+        {
+          id: "builder",
+          label: "Builder",
+          selection: { agentKind: "claude", model: "claude-opus-5" },
+        },
+      ],
+    };
+    const sourceThread = { ...thread, config: { ...thread.config, crew } };
+    const onContinue = renderDialog(sourceThread, "terminal");
+    expect(
+      screen.getByText("Night shift stays behind: Devin can't lead a crew."),
+    ).toBeInTheDocument();
+    const config = await submittedConfig(onContinue);
+    expect(config?.crew).toBeNull();
   });
 });

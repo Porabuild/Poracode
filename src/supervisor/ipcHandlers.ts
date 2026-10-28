@@ -131,6 +131,7 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
     startShell: (payload) => threads.startShell(payload),
     extractContext: (payload) => generation.extractContext(payload),
     cancelExtractContext: ({ threadId }) => generation.cancelExtractContext(threadId),
+    cancelCrossagentRun: ({ threadId, runId }) => runtime.cancelCrossagentRun(runId, threadId),
     readTerminalScrollback: ({ threadId }) => threads.readTerminalScrollback(threadId),
     readTerminalSize: ({ threadId }) => threads.readTerminalSize(threadId),
     readTerminalSnapshot: ({ threadId }) => threads.readTerminalSnapshot(threadId),

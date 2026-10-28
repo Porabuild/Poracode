@@ -25,6 +25,7 @@ const additiveRemoteSettingsKeys = new Set<keyof RemoteSettings>([
   "usage",
   "searchUseIgnoreFiles",
   "searchExclude",
+  "crews",
 ]);
 // Monotonic id of the most recent push. Only its resolution may write back to
 // desktopSettings, so a slow or failed earlier push can't clobber the value a
@@ -47,12 +48,13 @@ export function applyDesktopSettings(settings: RemoteSettings): void {
   // before that edit; let the push response win instead of flip-flopping.
   if (pendingPushes > 0) return;
   desktopSettings = settings;
-  const { usage, searchUseIgnoreFiles, searchExclude, ...requiredSettings } = settings;
+  const { usage, searchUseIgnoreFiles, searchExclude, crews, ...requiredSettings } = settings;
   applyExternalSharedSettings({
     ...requiredSettings,
     ...(usage !== undefined ? { usage } : {}),
     ...(searchUseIgnoreFiles !== undefined ? { searchUseIgnoreFiles } : {}),
     ...(searchExclude !== undefined ? { searchExclude } : {}),
+    ...(crews !== undefined ? { crews } : {}),
   });
 }
 

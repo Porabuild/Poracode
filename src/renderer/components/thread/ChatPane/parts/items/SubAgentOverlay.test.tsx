@@ -454,6 +454,45 @@ describe("SubAgentContent", () => {
     expect(screen.queryByText("Codex · GPT-5.5 · High · 50 steps")).not.toBeInTheDocument();
   });
 
+  it("prefixes a role run in the composer placement", () => {
+    const threadId = "thread-crew";
+    const crewBinding = {
+      version: 1 as const,
+      policy: "crew-only" as const,
+      roles: [
+        {
+          id: "builder",
+          label: "Builder",
+          selection: { agentKind: "codex", model: "gpt-5.5" },
+        },
+      ],
+    };
+    const run: RuntimeChatItem = {
+      id: "crossagent-builder",
+      type: "tool_call",
+      state: "started",
+      payload: {
+        name: "Codex · GPT-5.5",
+        title: "Review CEO deck",
+        status: "running",
+        isCrossagent: true,
+        subAgentType: "Builder",
+      } satisfies ToolCallPayload,
+      streams: {},
+    };
+    useAppStore.setState({
+      runtimeItemIdsByThread: { [threadId]: [run.id] },
+      runtimeItemsByIdByThread: { [threadId]: { [run.id]: run } },
+      runtimeStructuralVersionByThread: { [threadId]: 1 },
+    });
+    render(
+      <AppProvider>
+        <ActiveSubAgentTile threadId={threadId} placement="composer" crewBinding={crewBinding} />
+      </AppProvider>,
+    );
+    expect(screen.getByText("Builder: Review CEO deck")).toBeInTheDocument();
+  });
+
   it("renders child messages through the main timeline parser", async () => {
     const threadId = "thread-1";
     const parentItem = makeSubAgentItem("parent-1");

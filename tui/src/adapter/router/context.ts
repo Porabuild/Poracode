@@ -23,6 +23,9 @@ import type { TuiBootstrap } from "../../bootstrap";
 import type { EventStreamHub, ThreadEventContext } from "../events";
 import type { formInfoForRequest } from "../forms";
 import type { z } from "zod";
+import type { CrewMemberSelection, SavedCrew, ThreadCrewBinding } from "@/shared/crew";
+import type { CrewResult, CrewSaveResult, CrewState } from "./crewFacade";
+import type { CrewModelChoice, CrewPick } from "./crews";
 
 export interface RouterInput {
   bootstrap: TuiBootstrap;
@@ -75,6 +78,7 @@ export type SessionRecord = {
   worktreeBranch?: string;
   createdAt?: number;
   remoteStarted?: boolean;
+  crew?: ThreadCrewBinding | null;
 };
 
 /**
@@ -283,6 +287,33 @@ export interface RouterContext {
 
   // remoteEvents.ts
   handleRemoteEvent: (event: unknown) => void;
+
+  // crewFacade.ts
+  crewChoices: () => Promise<{
+    statuses: AgentStatus[];
+    helperChoices: CrewModelChoice[];
+    leadChoices: CrewModelChoice[];
+  }>;
+  savedCrews: (statuses?: readonly AgentStatus[]) => Promise<SavedCrew[]>;
+  crewCatalog: () => Promise<{ id: string; name: string }[]>;
+  sessionLead: (session: string) => CrewMemberSelection | undefined;
+  sessionCrew: (session: string) => ThreadCrewBinding | undefined;
+  crewSessionModel: (session: string) => { providerID: string; id: string } | undefined;
+  applyCrewPick: (session: string, pick: CrewPick) => void;
+  crewState: (session: string) => Promise<CrewState>;
+  updateCrew: (session: string, binding: ThreadCrewBinding | null) => Promise<CrewResult>;
+  startNewCrew: (session: string) => Promise<CrewResult>;
+  setCrewLead: (session: string, lead: CrewMemberSelection) => Promise<CrewResult>;
+  saveCrew: (
+    session: string,
+    input: { readonly mode: "update" } | { readonly mode: "new"; readonly name: string },
+  ) => Promise<CrewSaveResult>;
+  crewLine: (session: string) => string | undefined;
+  crewSidebar: (
+    session: string,
+  ) => { title: string; members: { label: string; detail: string }[] } | undefined;
+  subscribeCrew: (listener: () => void) => () => void;
+  notifyCrew: () => void;
 
   // facade.ts
   offeredProviders: () => Promise<{ id: string; label: string; model: string | undefined }[]>;

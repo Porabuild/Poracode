@@ -245,6 +245,7 @@ export const MAIN_LOCAL_PROCEDURE_NAMES = [
   "dbReplaceThreadCompletedTurns",
   "dbReplaceThreadRuntimeSnapshot",
   "dbGetThreadContextUsage",
+  "dbGetThreadTokenUsage",
   "dbGetProjectNotes",
   "dbSetProjectNotes",
   "getUpdateStatus",

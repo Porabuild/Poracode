@@ -134,6 +134,7 @@ import {
   omittedResultSchema,
 } from "../core";
 import {
+  cancelCrossagentRunPayloadSchema,
   readThreadPayloadSchema,
   subAgentSubscribePayloadSchema,
   subAgentSubscribeResultSchema,
@@ -520,6 +521,11 @@ export const threadProcedures = {
     readThreadPayloadSchema,
     omittedResultSchema,
   ),
+  cancelCrossagentRun: definePayloadProcedure<
+    { threadId: string; runId: string },
+    void,
+    "supervisor"
+  >("cancelCrossagentRun", "supervisor", cancelCrossagentRunPayloadSchema, omittedResultSchema),
   readTerminalScrollback: definePayloadProcedure<{ threadId: string }, string, "supervisor">(
     "readTerminalScrollback",
     "supervisor",

@@ -98,6 +98,11 @@ export const readThreadPayloadSchema = z.object({
   threadId: z.string().min(1),
 });
 
+export const cancelCrossagentRunPayloadSchema = z.object({
+  threadId: z.string().min(1),
+  runId: z.string().min(1),
+});
+
 export const subAgentSubscribePayloadSchema = z.object({
   threadId: z.string().min(1),
   parentItemId: z.string().min(1),
@@ -303,6 +308,10 @@ export const dbReplaceRuntimeSnapshotPayloadSchema = z.object({
 });
 
 export const dbGetThreadContextUsagePayloadSchema = z.object({
+  threadId: z.string().min(1),
+});
+
+export const dbGetThreadTokenUsagePayloadSchema = z.object({
   threadId: z.string().min(1),
 });
 

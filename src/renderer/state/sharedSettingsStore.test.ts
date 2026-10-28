@@ -45,6 +45,7 @@ describe("sharedSettingsStore", () => {
       disabledAgents: [],
       favoriteModels: [],
       recentModels: [],
+      crews: [],
       agentSelectionUsage: [],
       crossagentSelectionUsage: [],
       crossagentRoutingOverrides: [],
@@ -72,6 +73,32 @@ describe("sharedSettingsStore", () => {
 
   it("defaults theme to dark", () => {
     expect(useSharedSettings.getState().themeMode).toBe("dark");
+  });
+
+  it("upserts and deletes saved crews through shared settings persistence", () => {
+    const crew = {
+      id: "ship",
+      name: "Ship crew",
+      lead: { agentKind: "claude", model: "opus-5.5" },
+      roles: [
+        {
+          id: "builder",
+          label: "Builder",
+          selection: { agentKind: "codex", model: "gpt-5.5" },
+        },
+      ],
+      policy: "crew-only" as const,
+    };
+    useSharedSettings.getState().upsertCrew(crew);
+    expect(useSharedSettings.getState().crews).toMatchObject([{ ...crew }]);
+    expect(useSharedSettings.getState().crews[0]?.updatedAt).toEqual(expect.any(Number));
+    expect(JSON.parse(localStorage.getItem("poracode-shared-settings")!).crews).toHaveLength(1);
+    useSharedSettings.getState().upsertCrew({ ...crew, name: "Renamed crew" });
+    expect(useSharedSettings.getState().crews).toHaveLength(1);
+    expect(useSharedSettings.getState().crews[0]?.name).toBe("Renamed crew");
+    useSharedSettings.getState().deleteCrew("ship");
+    expect(useSharedSettings.getState().crews).toEqual([]);
+    expect(JSON.parse(localStorage.getItem("poracode-shared-settings")!).crews).toEqual([]);
   });
 
   it("switches theme mode", () => {

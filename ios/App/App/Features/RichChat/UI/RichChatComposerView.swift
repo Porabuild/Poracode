@@ -77,15 +77,19 @@ struct RichChatComposerView: View {
     }
     .padding(.horizontal, 16)
     .padding(.vertical, 8)
-    .sheet(item: $controlsPresented) { _ in
-      RichChatComposerControlsSheet(
-        configuration: $configuration,
-        agentStatus: agentStatus,
-        presentationMode: .gui,
-        sessionConfigOptions: sessionConfigOptions,
-        hiddenModels: hiddenModels,
-        hasStartedSession: hasStartedSession
-      )
+    .sheet(item: $controlsPresented) { presentation in
+      if presentation == .crew {
+        crewRosterSheet
+      } else {
+        RichChatComposerControlsSheet(
+          configuration: $configuration,
+          agentStatus: agentStatus,
+          presentationMode: .gui,
+          sessionConfigOptions: sessionConfigOptions,
+          hiddenModels: hiddenModels,
+          hasStartedSession: hasStartedSession
+        )
+      }
     }
     .sheet(isPresented: $showsSkillPicker) {
       if let skillPickerContext {
@@ -115,6 +119,8 @@ struct RichChatComposerView: View {
         configuration: configuration,
         catalog: slashCommandCatalog,
         canOpen: canOpenControls,
+        crew: crewPresentation,
+        openCrew: { controlsPresented = .crew },
         open: { controlsPresented = .controls }
       )
     } toolbar: {

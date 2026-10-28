@@ -4,6 +4,7 @@ import { threadId } from "../../ids";
 import { json, record, supportsMode } from "../helpers";
 import { isThreadTurnActive } from "@/shared/contracts";
 import type { RouteArgs } from "../context";
+import { CREW_PROVIDER_ID, resolveCrewPick, type CrewPick } from "../crews";
 
 /** Prompt, compact, command, interrupt, and selection routes. */
 export async function handlePromptRoutes({
@@ -199,10 +200,30 @@ export async function handlePromptRoutes({
     const modelID = String(model.id ?? current.model ?? "");
     const effort = typeof model.variant === "string" ? model.variant : undefined;
     if (!providerID || !modelID) throw new Error("Choose an installed provider and model");
+    // Warm the cache before resolving crew state so the remote thread's
+    // config binding is visible.
+    const remoteThread = threadCache.get(rawThreadID) ?? (await visibleThread(rawThreadID));
+    const sessionCrew = ctx.sessionCrew(id);
+    let pick: CrewPick | undefined;
+    if (providerID === CREW_PROVIDER_ID) {
+      const { statuses, helperChoices, leadChoices } = await ctx.crewChoices();
+      const resolved = resolveCrewPick({
+        pickedModel: modelID,
+        sessionCrew,
+        sessionLead: ctx.sessionLead(id),
+        saved: await ctx.savedCrews(statuses),
+        leadChoices,
+        helperChoices,
+      });
+      if ("error" in resolved)
+        return json({ error: { code: "invalid_request", message: resolved.error } }, 400);
+      pick = resolved;
+    }
+    const leadProviderID = pick ? pick.lead.agentKind : providerID;
+    const leadModelID = pick ? pick.lead.model : modelID;
     // A model from another provider on an existing thread stages an
     // in-place provider switch; the next prompt carries it.
-    const remoteThread = threadCache.get(rawThreadID) ?? (await visibleThread(rawThreadID));
-    if (remoteThread && remoteThread.agentKind !== providerID) {
+    if (remoteThread && remoteThread.agentKind !== leadProviderID) {
       const switchStatus = states.get(rawThreadID) ?? remoteThread.status;
       if (switchStatus === "launching" || switchStatus === "working")
         return json(
@@ -214,8 +235,8 @@ export async function handlePromptRoutes({
           },
           409,
         );
-      pendingSwitches.set(id, { providerID, modelID });
-      const targetStatus = (await agentStatuses()).find((value) => value.kind === providerID);
+      pendingSwitches.set(id, { providerID: leadProviderID, modelID: leadModelID });
+      const targetStatus = (await agentStatuses()).find((value) => value.kind === leadProviderID);
       input.events.emit(
         openCodeEvent(
           "tui.toast.show",
@@ -229,22 +250,27 @@ export async function handlePromptRoutes({
     } else {
       pendingSwitches.delete(id);
     }
+    const hadCrew = Boolean(sessionCrew);
     const updated = {
       ...current,
-      providerID,
-      model: modelID,
-      ...(effort ? { effort } : {}),
+      providerID: leadProviderID,
+      model: leadModelID,
+      ...(pick?.lead.effort ? { effort: pick.lead.effort } : !pick && effort ? { effort } : {}),
+      ...(pick?.lead.fast !== undefined ? { fast: pick.lead.fast } : {}),
+      ...(pick ? { crew: pick.binding } : hadCrew ? { crew: null } : {}),
     };
-    if (current.providerID !== providerID) {
+    if (pick && !pick.lead.effort) delete updated.effort;
+    if (current.providerID !== leadProviderID) {
       delete updated.approvalPolicy;
       delete updated.sandboxMode;
     }
     sessions.set(id, updated);
-    ctx.activeProviderID = providerID;
+    ctx.activeProviderID = leadProviderID;
+    ctx.notifyCrew();
     input.registerThreadContext(rawThreadID, {
       agent: current.agentID ?? "build",
-      providerID,
-      model: modelID,
+      providerID: leadProviderID,
+      model: leadModelID,
       location: { directory: directoryOf(currentProject.location) },
     });
     return new Response(null, { status: 204 });

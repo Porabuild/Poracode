@@ -7,6 +7,7 @@ import {
   assertAgentLaunchAllowed,
 } from "@/supervisor/agentLaunchGuard";
 import { capabilitiesForPresentation } from "@/shared/agentSelection";
+import { canLeadCrew, threadCrewBinding } from "@/shared/crew";
 import {
   applyHomeScopePermissions,
   type UnrestrictedPermissionCapabilities,
@@ -23,6 +24,7 @@ import {
   type ThreadConfig,
   type ThreadPresentationMode,
   type ThreadStatus,
+  type AgentCapability,
   type BuiltInMcpServerId,
   type McpLaunchSnapshot,
   type ResolvedMcpServer,
@@ -159,7 +161,14 @@ export interface SpawnThreadInput {
   mcpLaunchSnapshot: McpLaunchSnapshot;
   threadMentionToolsAvailable?: boolean;
   launchConfig?: ThreadConfig;
+  crewBriefDelivered?: string;
+  crossagentsMcpAttached?: boolean;
+  crossagentsMcpAvailable?: boolean;
   nativePlugins?: readonly AgentNativePlugin[];
+}
+
+function hasCrossagentsMcp(servers: readonly ResolvedMcpServer[]): boolean {
+  return servers.some((server) => server.id === "crossagents");
 }
 
 /**
@@ -191,6 +200,24 @@ export function effectiveLaunchConfig(
   if (disabledBuiltInMcpServerIds.includes("computer-use")) next.computerUse = false;
   if (disabledBuiltInMcpServerIds.includes("chrome")) next.chromeMcp = false;
   return next;
+}
+
+export function applyCrewCrossagentMcpFlag(
+  config: ThreadConfig,
+  capabilities: Pick<AgentCapability, "mcpConfigSource" | "crossagentMcpRouting" | "mcpScope">,
+  presentationMode: ThreadPresentationMode,
+  disabledBuiltInMcpServerIds: readonly BuiltInMcpServerId[],
+  crossagentRoutingAvailable: boolean,
+): ThreadConfig {
+  if (!threadCrewBinding(config)) return config;
+  if (disabledBuiltInMcpServerIds.includes("crossagents")) {
+    return config.crossagentMcp === false ? config : { ...config, crossagentMcp: false };
+  }
+  if (!canLeadCrew(capabilities, presentationMode)) return config;
+  if (capabilities.mcpConfigSource === "agentSettings" && !crossagentRoutingAvailable) {
+    return config;
+  }
+  return config.crossagentMcp === true ? config : { ...config, crossagentMcp: true };
 }
 
 /**
@@ -395,6 +422,7 @@ export class SpawnPipeline {
     },
   ): Promise<StartThreadResult> {
     const ctx = this.ctx;
+    let pendingCrewBriefDelivered: string | undefined;
     payload = { ...payload, ...snapshotWorkspaceStart(payload), threadId: payload.threadId };
     const adapter = this.requireAdapter(payload.agentKind);
     assertWorkspaceLaunchSupported(payload.workspaceScope, adapter, payload.presentationMode);
@@ -564,6 +592,7 @@ export class SpawnPipeline {
       adapter,
       payload.threadId,
       executionLocation,
+      requestedPresentation,
     );
     if (optimisticUserMessageItemId) {
       this.emitOptimisticWorkingState(payload.threadId, runtimeConfig, optimisticLaunchConfig);
@@ -628,6 +657,7 @@ export class SpawnPipeline {
       adapter,
       payload.threadId,
       executionLocation,
+      requestedPresentation,
     );
     const resolvedMcpServers = await this.resolveMcpServersForLaunch({
       location: executionLocation,
@@ -878,6 +908,8 @@ export class SpawnPipeline {
           mcpLaunchSnapshot,
           threadMentionToolsAvailable,
           launchConfig,
+          crossagentsMcpAttached: hasCrossagentsMcp(resolvedMcpServers),
+          crossagentsMcpAvailable: ctx.options.crossagentMcp !== undefined,
           nativePlugins,
         });
       } catch (error) {
@@ -895,7 +927,7 @@ export class SpawnPipeline {
           ...(optimisticUserMessageItemId
             ? { userMessageItemId: optimisticUserMessageItemId }
             : {}),
-          ...structuredTurnTextOptions(session, initialTurnText),
+          ...structuredTurnTextOptions(session, { ...initialTurnText, config: launchConfig }),
         };
         void structuredSession
           .startTurn(
@@ -932,8 +964,20 @@ export class SpawnPipeline {
         {
           structuredSession,
           slashCommands: ctx.sessions.get(payload.threadId)?.slashCommands,
+          config: runtimeConfig,
+          launchConfig,
+          mcpLaunchSnapshot,
+          adapter,
+          presentationMode: requestedPresentation,
+          crossagentsMcpAttached: hasCrossagentsMcp(resolvedMcpServers),
+          crossagentsMcpAvailable: ctx.options.crossagentMcp !== undefined,
+          onCrewBriefDelivered: (fingerprint) => {
+            pendingCrewBriefDelivered = fingerprint;
+            const active = ctx.sessions.get(payload.threadId);
+            if (active) active.crewBriefDelivered = fingerprint;
+          },
         },
-        initialTurnText,
+        { ...initialTurnText, config: launchConfig },
       );
       void structuredSession
         .startTurn(
@@ -1060,6 +1104,11 @@ export class SpawnPipeline {
         mcpLaunchSnapshot,
         threadMentionToolsAvailable,
         launchConfig,
+        crossagentsMcpAttached: hasCrossagentsMcp(resolvedMcpServers),
+        crossagentsMcpAvailable: ctx.options.crossagentMcp !== undefined,
+        ...(pendingCrewBriefDelivered !== undefined
+          ? { crewBriefDelivered: pendingCrewBriefDelivered }
+          : {}),
         nativePlugins,
         ...(shouldQueueInitialPrompt ? { pendingLaunchPrompt: initialPrompt } : {}),
         presentationMode: requestedPresentation,
@@ -1184,6 +1233,7 @@ export class SpawnPipeline {
       session.adapter,
       session.threadId,
       executionLocation,
+      session.presentationMode ?? session.adapter.capabilities.presentationMode,
     );
     const resolvedMcpServers = await this.resolveMcpServersForLaunch({
       location: executionLocation,
@@ -1284,6 +1334,8 @@ export class SpawnPipeline {
           mcpLaunchSnapshot,
           threadMentionToolsAvailable: hasThreadMentionTools(resolvedMcpServers),
           launchConfig,
+          crossagentsMcpAttached: hasCrossagentsMcp(resolvedMcpServers),
+          crossagentsMcpAvailable: ctx.options.crossagentMcp !== undefined,
           ...(session.nativePlugins ? { nativePlugins: session.nativePlugins } : {}),
           presentationMode:
             session.presentationMode ?? session.adapter.capabilities.presentationMode,
@@ -1447,6 +1499,8 @@ export class SpawnPipeline {
         mcpLaunchSnapshot,
         threadMentionToolsAvailable: hasThreadMentionTools(resolvedMcpServers),
         launchConfig,
+        crossagentsMcpAttached: hasCrossagentsMcp(resolvedMcpServers),
+        crossagentsMcpAvailable: this.ctx.options.crossagentMcp !== undefined,
         ...(session.nativePlugins ? { nativePlugins: session.nativePlugins } : {}),
         ...(session.presentationMode ? { presentationMode: session.presentationMode } : {}),
       });
@@ -1623,6 +1677,15 @@ export class SpawnPipeline {
         : {}),
       ...(executionWorkspaceScope ? { executionWorkspaceScope } : {}),
       config: input.config,
+      ...(input.crewBriefDelivered !== undefined
+        ? { crewBriefDelivered: input.crewBriefDelivered }
+        : {}),
+      ...(input.crossagentsMcpAttached !== undefined
+        ? { crossagentsMcpAttached: input.crossagentsMcpAttached }
+        : {}),
+      ...(input.crossagentsMcpAvailable !== undefined
+        ? { crossagentsMcpAvailable: input.crossagentsMcpAvailable }
+        : {}),
       mcpLaunchSnapshot,
       ...(input.threadMentionToolsAvailable !== undefined
         ? { threadMentionToolsAvailable: input.threadMentionToolsAvailable }
@@ -1723,6 +1786,7 @@ export class SpawnPipeline {
         adapter,
         crossagentThreadId,
         location,
+        presentationMode ?? adapter.capabilities.presentationMode,
       );
       identity = undefined;
       if (adapter.capabilities.crossagentMcpRouting !== "provider-session") {
@@ -1773,19 +1837,32 @@ export class SpawnPipeline {
     adapter: AgentAdapter,
     crossagentThreadId?: string,
     location?: ProjectLocation,
+    presentationMode: ThreadPresentationMode = adapter.capabilities.presentationMode,
   ): ThreadConfig {
-    if (adapter.capabilities.mcpConfigSource !== "agentSettings") return config;
-    const withProviderSettings = applyAgentSettingsMcpFlags(
-      config,
-      this.ctx.resolveAgentSettings(adapter, location),
-      mcpLaunchSnapshot.disabledBuiltInMcpServerIds,
+    const crossagentRoutingAvailable =
       adapter.capabilities.crossagentMcpRouting === "provider-session" &&
-        crossagentThreadId !== undefined,
-    );
-    return effectiveLaunchConfig(
+      presentationMode === "gui" &&
+      crossagentThreadId !== undefined;
+    const withProviderSettings =
+      adapter.capabilities.mcpConfigSource === "agentSettings"
+        ? applyAgentSettingsMcpFlags(
+            config,
+            this.ctx.resolveAgentSettings(adapter, location),
+            mcpLaunchSnapshot.disabledBuiltInMcpServerIds,
+            crossagentRoutingAvailable,
+          )
+        : config;
+    const effective = effectiveLaunchConfig(
       withProviderSettings,
       mcpLaunchSnapshot.disabledBuiltInMcpServerIds,
       mcpLaunchSnapshot.pluginBuiltInMcpServerIds,
+    );
+    return applyCrewCrossagentMcpFlag(
+      effective,
+      adapter.capabilities,
+      presentationMode,
+      mcpLaunchSnapshot.disabledBuiltInMcpServerIds,
+      crossagentRoutingAvailable,
     );
   }
 
@@ -1971,12 +2048,15 @@ export class SpawnPipeline {
               mcpLaunchSnapshot.pluginBuiltInMcpServerIds ??
               [],
           };
-          return this.resolveMcpServersForLaunch({
+          const servers = await this.resolveMcpServersForLaunch({
             location: projectLocation,
-            config: effectiveLaunchConfig(
+            config: this.resolveMcpLaunchConfig(
               turnConfig,
-              snapshot.disabledBuiltInMcpServerIds,
-              snapshot.pluginBuiltInMcpServerIds,
+              snapshot,
+              adapter,
+              threadId,
+              projectLocation,
+              presentationMode ?? adapter.capabilities.presentationMode,
             ),
             mcpLaunchSnapshot: snapshot,
             ...(mcpIdentity ? { identity: mcpIdentity } : {}),
@@ -1985,6 +2065,11 @@ export class SpawnPipeline {
             isCurrent,
             ...(presentationMode ? { presentationMode } : {}),
           });
+          const session = this.ctx.sessions.get(threadId);
+          if (session && isCurrent()) {
+            session.crossagentsMcpAttached = hasCrossagentsMcp(servers);
+          }
+          return servers;
         },
         ...(sessionRef ? { sessionRef } : {}),
         ...(presentationMode ? { presentationMode } : {}),

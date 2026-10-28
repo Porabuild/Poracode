@@ -24,7 +24,7 @@ it("upgrades schema65 without rewriting rows and seeks both manual catalog order
     ).toEqual([]);
     runDatabaseMigrations(db, 65);
     expect(db.prepare("SELECT value FROM app_state WHERE key='schema_version'").get()).toEqual({
-      value: "66",
+      value: "68",
     });
     expect(
       ["threads", "projects", "thread_runtime_items"].map((table) =>

@@ -80,4 +80,45 @@ describe("ExperimentDraftTargets", () => {
 
     expect(screen.getByRole("region", { name: "Experiment" }).querySelector("ul")).toBeNull();
   });
+
+  it("shows Crew identity, helper count, total agent capacity, and the limit warning", () => {
+    const crewCandidate: ExperimentDraftCandidate = {
+      id: "candidate-crew",
+      agentKind: "codex",
+      agentLabel: "Codex",
+      config: {
+        model: "gpt-5",
+        crew: {
+          version: 1,
+          crewId: "crew-1",
+          name: "Night shift",
+          policy: "crew-only",
+          roles: Array.from({ length: 5 }, (_, index) => ({
+            id: `helper-${index}`,
+            label: `Helper ${index}`,
+            selection: { agentKind: "claude", model: "opus" },
+            parallel: 4,
+          })),
+        },
+      },
+      presentationMode: "gui",
+      modelLabel: "GPT-5",
+    };
+    render(
+      <AppProvider>
+        <ExperimentDraftTargets
+          candidates={[...candidates, crewCandidate]}
+          isSubmitting={false}
+          isAddDisabled={false}
+          onRemove={() => undefined}
+          onCancel={() => undefined}
+          onAdd={() => undefined}
+        />
+      </AppProvider>,
+    );
+    expect(screen.getByText("Night shift")).toBeInTheDocument();
+    expect(screen.getByText(/gpt-5 \+ 20/)).toBeInTheDocument();
+    expect(screen.getByText(/3 candidates/)).toBeInTheDocument();
+    expect(screen.getByText(/up to 23 agents/).closest(".text-danger")).not.toBeNull();
+  });
 });
