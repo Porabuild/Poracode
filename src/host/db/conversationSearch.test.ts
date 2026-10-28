@@ -809,19 +809,35 @@ describe.skipIf(!sqliteAvailable)("saved conversation search", () => {
       expect(() => initReadOnlyDatabase(path)).toThrow(refusal);
       expect(() => initDatabase(path, { schemaMode: "validate" })).toThrow(refusal);
       const sqlite = initDatabase(path);
-      const expected = before.map((table) =>
-        table.name === "app_state"
-          ? {
-              ...table,
-              rows: table.rows.map((row) => {
-                const state = row as { key: string; value: string };
-                return state.key === "schema_version"
-                  ? { ...state, value: String(LATEST_SCHEMA_VERSION) }
-                  : state;
-              }),
-            }
-          : table,
-      );
+      const expected = [
+        ...before.map((table) =>
+          table.name === "app_state"
+            ? {
+                ...table,
+                rows: table.rows.map((row) => {
+                  const state = row as { key: string; value: string };
+                  return state.key === "schema_version"
+                    ? { ...state, value: String(LATEST_SCHEMA_VERSION) }
+                    : state;
+                }),
+              }
+            : table.name === "usage_token_samples"
+              ? // Schema 68 adds the counted basis; older samples keep NULL.
+                {
+                  ...table,
+                  rows: table.rows.map((row) => ({
+                    counted: null,
+                    counted_tokens: null,
+                    ...(row as object),
+                  })),
+                }
+              : table,
+        ),
+        // Schema 67 adds the per-thread token aggregate, empty on upgrade.
+        ...(before.some((table) => table.name === "thread_token_usage")
+          ? []
+          : [{ name: "thread_token_usage", rows: [] }]),
+      ].sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
       expect(canonicalEvidence(sqlite)).toEqual(expected);
       expect(
         sqlite.prepare("SELECT value FROM app_state WHERE key='schema_version'").get(),

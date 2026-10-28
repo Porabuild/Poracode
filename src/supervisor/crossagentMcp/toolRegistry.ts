@@ -43,7 +43,6 @@ import { rankingCandidateOf, resolveSubagentExecution } from "./types";
 import type {
   McpToolResult,
   ExplicitSpawnAgentSelection,
-  ModelTier,
   SpawnableAgent,
   SpawnableAgentSummary,
   ToolSpec,
@@ -51,44 +50,45 @@ import type {
 
 export type { ToolSpec } from "./types";
 
-const FAST_CHEAP_KEYWORDS = ["haiku", "mini", "nano", "lite", "flash", "small", "spark", "fast"];
-const MAX_CAPABILITY_KEYWORDS = ["opus", "fable", "pro", "max", "ultra", "big"];
+import { classifyModelTier } from "./modelTier";
 
-/** Whether `keyword` appears in `haystack` as a whole word (not as a substring of a larger word). */
-function hasWholeWordMatch(haystack: string, keyword: string): boolean {
-  return new RegExp(`\\b${keyword}\\b`, "i").test(haystack);
-}
-
-/**
- * Classify a model into a coarse cost/capability tier from its id/label,
- * keyword-matched case-insensitively and provider-agnostic (no per-provider
- * special-casing). Matches whole words only, so e.g. "gemini" doesn't
- * false-positive on the "mini" keyword.
- */
-export function classifyModelTier(modelId: string, modelLabel: string): ModelTier {
-  const haystack = `${modelId} ${modelLabel}`;
-  if (FAST_CHEAP_KEYWORDS.some((keyword) => hasWholeWordMatch(haystack, keyword)))
-    return "fast-cheap";
-  if (MAX_CAPABILITY_KEYWORDS.some((keyword) => hasWholeWordMatch(haystack, keyword)))
-    return "max-capability";
-  return "balanced";
-}
+export { classifyModelTier };
 
 const CROSSAGENTS_CORE_SKILL = uniqueCoreSkillForBuiltInMcp("crossagents");
 
-/** Keep bootstrap small: some clients repeat initialize instructions in every tool description. */
-export const CROSSAGENT_MCP_INSTRUCTIONS_BASE = [
-  "Delegate only after the user's explicit request in this thread; authorization persists.",
-  `Before first delegation, ${loadPluginCoreSkillPhrase(CROSSAGENTS_CORE_SKILL)} once using its known path or ID.`,
+const AUTHORIZATION_INSTRUCTION =
+  "Delegate only after the user's explicit request in this thread; authorization persists.";
+const CORE_SKILL_INSTRUCTION = `Before first delegation, ${loadPluginCoreSkillPhrase(CROSSAGENTS_CORE_SKILL)} once using its known path or ID.`;
+const TOOL_SETUP_INSTRUCTIONS = [
   "Resolve crossagents-qualified tool names and only needed schemas together. Reuse loaded instructions and batch independent setup.",
   "Known selections can spawn directly; use get_agent for missing model details and list_agents only when the provider is unknown.",
+];
+
+/** Keep bootstrap small: some clients repeat initialize instructions in every tool description. */
+export const CROSSAGENT_MCP_INSTRUCTIONS_BASE = [
+  AUTHORIZATION_INSTRUCTION,
+  CORE_SKILL_INSTRUCTION,
+  ...TOOL_SETUP_INSTRUCTIONS,
 ].join(" ");
 
-export function buildSubagentInstructions(routingGuide?: string): string {
-  const guide = routingGuide?.trim();
-  return guide
-    ? `${CROSSAGENT_MCP_INSTRUCTIONS_BASE}\n\n${guide}`
+/**
+ * Crew threads carry their own delegation playbook in the crew brief, so the
+ * lead skips loading the core skill (a whole extra lead turn and context).
+ */
+export const CROSSAGENT_MCP_CREW_INSTRUCTIONS_BASE = [
+  AUTHORIZATION_INSTRUCTION,
+  ...TOOL_SETUP_INSTRUCTIONS,
+].join(" ");
+
+export function buildSubagentInstructions(
+  routingGuide?: string,
+  options?: { crew?: boolean },
+): string {
+  const base = options?.crew
+    ? CROSSAGENT_MCP_CREW_INSTRUCTIONS_BASE
     : CROSSAGENT_MCP_INSTRUCTIONS_BASE;
+  const guide = routingGuide?.trim();
+  return guide ? `${base}\n\n${guide}` : base;
 }
 
 const SUBAGENT_SELECTION_PROPERTIES = {
@@ -162,6 +162,11 @@ const SUBAGENT_TASK_PROPERTIES = {
     type: "string",
     description:
       "Crew role id from list_agents (for example `builder`) when this thread has a crew. The role sets provider, model, reasoning and Fast; omit those.",
+  },
+  fresh_session: {
+    type: "boolean",
+    description:
+      "With role: start a new helper session instead of continuing that role's previous one. Use only for unrelated work.",
   },
   prompt: { type: "string", description: "Self-contained task for the subagent." },
   result_mode: {

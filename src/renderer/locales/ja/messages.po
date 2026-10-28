@@ -410,6 +410,14 @@ msgstr "{0}トークン"
 msgid "{0} tokens - {when}"
 msgstr "{0}トークン - {when}"
 
+#. placeholder {0}: compactNumber.format(row.total)
+#. placeholder {1}: compactNumber.format(row.tokens.cacheRead)
+#. placeholder {2}: compactNumber.format(row.tokens.cacheWrite)
+#. placeholder {3}: compactNumber.format(row.tokens.output)
+#: src/renderer/components/thread/ThreadSpendDetails.tsx
+msgid "{0} tokens · cached {1} · written {2} · output {3}"
+msgstr "{0} トークン · キャッシュ読み取り {1} · キャッシュ書き込み {2} · 出力 {3}"
+
 #. placeholder {0}: agent.label
 #. placeholder {0}: agent.name
 #. placeholder {1}: agent.version
@@ -7156,6 +7164,14 @@ msgstr "エラー · エージェントでエラーが発生しました"
 msgid "Errors"
 msgstr "エラー"
 
+#: src/renderer/components/thread/ThreadSpendDetails.tsx
+msgid "Estimated at list prices."
+msgstr "定価で見積もり。"
+
+#: src/renderer/components/thread/ThreadSpendDetails.tsx
+msgid "Estimated at list prices. Some usage has no known price."
+msgstr "定価で見積もり。一部の利用には価格情報がありません。"
+
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Estimates and provider-reported costs are separate views of usage; do not add them together. Subscription invoices are not collected."
 msgstr "推定額とプロバイダー報告の費用は同じ使用量の別の表示なので、合算しないでください。サブスクリプションの請求書は収集されません。"
@@ -9734,6 +9750,7 @@ msgstr "スレッドを起動する"
 #: src/renderer/components/thread/CrewDockSection.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftView.tsx
+#: src/renderer/components/thread/ThreadSpendDetails.tsx
 #: src/renderer/i18n/sharedMessages.ts
 #: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
 msgid "Lead"
@@ -12970,6 +12987,7 @@ msgid "Other"
 msgstr "その他"
 
 #: src/renderer/components/thread/CrewDockSection.tsx
+#: src/renderer/components/thread/ThreadSpendDetails.tsx
 msgid "Other agents"
 msgstr "その他のエージェント"
 
@@ -17620,6 +17638,10 @@ msgstr "特定のペルソナ"
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
 msgid "Specific repositories"
 msgstr "特定のリポジトリ"
+
+#: src/renderer/components/thread/ThreadSpendDetails.tsx
+msgid "Spend"
+msgstr "利用額"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/DevTerminalPanel.tsx
 msgid "Split Terminal"

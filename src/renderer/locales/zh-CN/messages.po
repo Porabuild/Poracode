@@ -410,6 +410,14 @@ msgstr "{0} 令牌"
 msgid "{0} tokens - {when}"
 msgstr "{0}个token - {when}"
 
+#. placeholder {0}: compactNumber.format(row.total)
+#. placeholder {1}: compactNumber.format(row.tokens.cacheRead)
+#. placeholder {2}: compactNumber.format(row.tokens.cacheWrite)
+#. placeholder {3}: compactNumber.format(row.tokens.output)
+#: src/renderer/components/thread/ThreadSpendDetails.tsx
+msgid "{0} tokens · cached {1} · written {2} · output {3}"
+msgstr "{0} 个令牌 · 缓存读取 {1} · 缓存写入 {2} · 输出 {3}"
+
 #. placeholder {0}: agent.label
 #. placeholder {0}: agent.name
 #. placeholder {1}: agent.version
@@ -7157,6 +7165,14 @@ msgstr "错误 · 代理遇到错误"
 msgid "Errors"
 msgstr "错误"
 
+#: src/renderer/components/thread/ThreadSpendDetails.tsx
+msgid "Estimated at list prices."
+msgstr "按标价估算。"
+
+#: src/renderer/components/thread/ThreadSpendDetails.tsx
+msgid "Estimated at list prices. Some usage has no known price."
+msgstr "按标价估算。部分用量没有已知价格。"
+
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Estimates and provider-reported costs are separate views of usage; do not add them together. Subscription invoices are not collected."
 msgstr "估算与提供商报告的费用是用量的不同视图，请勿相加。不收集订阅账单。"
@@ -9735,6 +9751,7 @@ msgstr "启动线程"
 #: src/renderer/components/thread/CrewDockSection.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftView.tsx
+#: src/renderer/components/thread/ThreadSpendDetails.tsx
 #: src/renderer/i18n/sharedMessages.ts
 #: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
 msgid "Lead"
@@ -12971,6 +12988,7 @@ msgid "Other"
 msgstr "其他"
 
 #: src/renderer/components/thread/CrewDockSection.tsx
+#: src/renderer/components/thread/ThreadSpendDetails.tsx
 msgid "Other agents"
 msgstr "其他代理"
 
@@ -17621,6 +17639,10 @@ msgstr "指定角色"
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
 msgid "Specific repositories"
 msgstr "指定仓库"
+
+#: src/renderer/components/thread/ThreadSpendDetails.tsx
+msgid "Spend"
+msgstr "花费"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/DevTerminalPanel.tsx
 msgid "Split Terminal"

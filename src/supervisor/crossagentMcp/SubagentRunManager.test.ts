@@ -161,6 +161,32 @@ describe("SubagentRunManager", () => {
     expect(started!.parentItemId).toBe(`sub:${runId}`);
   });
 
+  it("forwards helper usage to the parent, billed to the helper's provider and role", async () => {
+    const h = makeHarness();
+    h.manager.spawn(PARENT, {
+      agent: "codex",
+      prompt: "go",
+      crewRole: { id: "builder", label: "Builder", parallel: 1 },
+    });
+    await flush();
+    const usage = {
+      counterKind: "cumulative" as const,
+      counter: 900,
+      scopeId: "codex-session",
+      epoch: 0,
+      fresh: true,
+      sampleId: "sample-1",
+    };
+    h.handles[0]!.emit({ type: "usage.spent", threadId: "child", usage });
+    expect(h.appended.map((a) => a.event).filter((e) => e.type === "usage.spent")).toEqual([
+      {
+        type: "usage.spent",
+        threadId: PARENT,
+        usage: { ...usage, helper: { agentKind: "codex", crewRoleId: "builder" } },
+      },
+    ]);
+  });
+
   it("updates collapsed step progress while child events are buffered", async () => {
     const h = makeHarness();
     const { runId } = h.manager.spawn(PARENT, { agent: "codex", prompt: "go" });

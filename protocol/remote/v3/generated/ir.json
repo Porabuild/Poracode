@@ -33770,6 +33770,26 @@
                           "fresh": {
                             "type": "boolean"
                           },
+                          "helper": {
+                            "additionalProperties": true,
+                            "properties": {
+                              "agentKind": {
+                                "maxLength": 64,
+                                "minLength": 1,
+                                "type": "string"
+                              },
+                              "crewRoleId": {
+                                "maxLength": 64,
+                                "minLength": 1,
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "agentKind"
+                            ],
+                            "type": "object",
+                            "x-poracode-unknownFields": "strip"
+                          },
                           "model": {
                             "type": "string"
                           },
@@ -34775,6 +34795,26 @@
                           },
                           "fresh": {
                             "type": "boolean"
+                          },
+                          "helper": {
+                            "additionalProperties": true,
+                            "properties": {
+                              "agentKind": {
+                                "maxLength": 64,
+                                "minLength": 1,
+                                "type": "string"
+                              },
+                              "crewRoleId": {
+                                "maxLength": 64,
+                                "minLength": 1,
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "agentKind"
+                            ],
+                            "type": "object",
+                            "x-poracode-unknownFields": "strip"
                           },
                           "model": {
                             "type": "string"
@@ -72284,6 +72324,26 @@
                                     "fresh": {
                                       "type": "boolean"
                                     },
+                                    "helper": {
+                                      "additionalProperties": true,
+                                      "properties": {
+                                        "agentKind": {
+                                          "maxLength": 64,
+                                          "minLength": 1,
+                                          "type": "string"
+                                        },
+                                        "crewRoleId": {
+                                          "maxLength": 64,
+                                          "minLength": 1,
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "agentKind"
+                                      ],
+                                      "type": "object",
+                                      "x-poracode-unknownFields": "strip"
+                                    },
                                     "model": {
                                       "type": "string"
                                     },
@@ -78237,7 +78297,7 @@
     "void-envelope.omit-result",
     "void-result.omit-field"
   ],
-  "sourceHash": "sha256:d1beec30ff0361d1ebb6c8c8d30cc3ff8757bb0a0123c12c5aff0fa8bee2534f",
+  "sourceHash": "sha256:cff8a8f93d2cef32c1d1d584b0f5f1b2a3da090d1b03822e3c2391bfecbeaebb",
   "unknownObjectFields": "ignore",
   "webSocket": {
     "clientMessages": [

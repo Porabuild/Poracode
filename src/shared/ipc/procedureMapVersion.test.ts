@@ -109,7 +109,10 @@ import { isRemoteProcedure } from "../remote/procedures";
 // older main/host rejects the unknown name, and an older paired host answers
 // 404 for the route, before any effect; the renderer treats both as "no index"
 // (the rail shows the loaded transcript), so hop 18 stays compatible.
-const HOP_PIN = `${IPC_PROCEDURE_MAP_VERSION}:e5e8ee6be85faf8c4ec6fb07a9160fabbc70d92604ea951b4c4eb6626205714e`;
+// Per-thread token usage adds one main-local database read name. Older peers
+// reject the unknown name before any effect, existing names and payloads are
+// unchanged, and it stays out of the remote allowlist, so hop 18 stays.
+const HOP_PIN = `${IPC_PROCEDURE_MAP_VERSION}:1490ba24bbaac5dd5f8e16509c2814f3c8286cf4eb40ac3d3f15238a9d2cf85b`;
 
 describe("IPC procedure map versioning", () => {
   it("keeps nonce reservations local, closed and distinct from legacy execution control", () => {

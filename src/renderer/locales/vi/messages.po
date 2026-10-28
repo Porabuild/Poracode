@@ -410,6 +410,14 @@ msgstr "{0} mã thông báo"
 msgid "{0} tokens - {when}"
 msgstr "{0} tokens - {when}"
 
+#. placeholder {0}: compactNumber.format(row.total)
+#. placeholder {1}: compactNumber.format(row.tokens.cacheRead)
+#. placeholder {2}: compactNumber.format(row.tokens.cacheWrite)
+#. placeholder {3}: compactNumber.format(row.tokens.output)
+#: src/renderer/components/thread/ThreadSpendDetails.tsx
+msgid "{0} tokens · cached {1} · written {2} · output {3}"
+msgstr "{0} token · từ bộ nhớ đệm {1} · ghi {2} · đầu ra {3}"
+
 #. placeholder {0}: agent.label
 #. placeholder {0}: agent.name
 #. placeholder {1}: agent.version
@@ -7157,6 +7165,14 @@ msgstr "Lỗi · Tác nhân gặp lỗi"
 msgid "Errors"
 msgstr "Lỗi"
 
+#: src/renderer/components/thread/ThreadSpendDetails.tsx
+msgid "Estimated at list prices."
+msgstr "Ước tính theo giá niêm yết."
+
+#: src/renderer/components/thread/ThreadSpendDetails.tsx
+msgid "Estimated at list prices. Some usage has no known price."
+msgstr "Ước tính theo giá niêm yết. Một phần mức sử dụng chưa có giá."
+
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Estimates and provider-reported costs are separate views of usage; do not add them together. Subscription invoices are not collected."
 msgstr "Ước tính và chi phí do nhà cung cấp báo cáo là các góc nhìn riêng về mức sử dụng; không cộng chúng với nhau. Không thu thập hóa đơn thuê bao."
@@ -9735,6 +9751,7 @@ msgstr "Khởi chạy luồng"
 #: src/renderer/components/thread/CrewDockSection.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftView.tsx
+#: src/renderer/components/thread/ThreadSpendDetails.tsx
 #: src/renderer/i18n/sharedMessages.ts
 #: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
 msgid "Lead"
@@ -12972,6 +12989,7 @@ msgid "Other"
 msgstr "Khác"
 
 #: src/renderer/components/thread/CrewDockSection.tsx
+#: src/renderer/components/thread/ThreadSpendDetails.tsx
 msgid "Other agents"
 msgstr "Tác nhân khác"
 
@@ -17622,6 +17640,10 @@ msgstr "Persona cụ thể"
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
 msgid "Specific repositories"
 msgstr "Kho lưu trữ cụ thể"
+
+#: src/renderer/components/thread/ThreadSpendDetails.tsx
+msgid "Spend"
+msgstr "Chi phí"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/DevTerminalPanel.tsx
 msgid "Split Terminal"

@@ -20,7 +20,12 @@ import { prepareSubagentRun, type PreparedSubagentRun } from "./spawnPlan";
 import type { parseCompactResult } from "./compactResult";
 import { parseCompactRunReport } from "./compactRunResult";
 import { readRunResult } from "./runResult";
-import { canContinueRun, prepareContinuation, type ContinuableRun } from "./continuationPlan";
+import {
+  canContinueRun,
+  prepareContinuation,
+  type ContinuableRun,
+  type ContinuationSelectionUpdate,
+} from "./continuationPlan";
 export { MAX_RUNNING_OUTPUT_TAIL_CHARS } from "./runResult";
 import { RunLifecycle, type RunLifecycleEvent } from "./RunLifecycle";
 import { waitForRuns } from "./waitForRuns";
@@ -540,10 +545,53 @@ export class SubagentRunManager {
     return { runId };
   }
 
+  /**
+   * A crew role keeps one helper conversation: a new task for a role whose
+   * latest run completed on the same provider and model continues that
+   * provider session, so the helper keeps its context instead of rediscovering
+   * the repo. The role's current reasoning and Fast apply to the continued
+   * turn. Returns undefined - the caller spawns fresh - when the role still
+   * has an active run (parallel work), its provider or model changed, or the
+   * session cannot resume.
+   */
+  async continueRole(
+    parentThreadId: string,
+    request: SpawnAgentRequest,
+    background: boolean,
+  ): Promise<{ runId: string; continuedFrom: string } | undefined> {
+    const roleId = request.crewRole?.id;
+    if (!roleId) return undefined;
+    let latest: RunRecord | undefined;
+    for (const record of this.runs.values()) {
+      if (record.parentThreadId !== parentThreadId || record.plan.crewRole?.id !== roleId) continue;
+      if (!record.settled) return undefined;
+      if (!latest || record.createdAt > latest.createdAt) latest = record;
+    }
+    if (!latest || latest.status !== "completed" || latest.continuedBy || latest.resuming)
+      return undefined;
+    const attempt = latest.plan.attempts[latest.attemptIndex];
+    if (
+      !attempt ||
+      attempt.provider !== request.agent ||
+      (request.model !== undefined && attempt.model !== request.model)
+    )
+      return undefined;
+    try {
+      return await this.continueCompletedRun(latest, request.prompt, background, {
+        effort: request.effort,
+        fast: request.fast,
+      });
+    } catch (error) {
+      if (error instanceof SubagentSpawnError) return undefined;
+      throw error;
+    }
+  }
+
   private async continueCompletedRun(
     record: RunRecord,
     prompt: string,
     background: boolean,
+    selectionUpdate?: ContinuationSelectionUpdate,
   ): Promise<{ runId: string; continuedFrom: string }> {
     const parentThreadId = record.parentThreadId;
     if (record.resuming)
@@ -561,6 +609,7 @@ export class SubagentRunManager {
         record,
         prompt,
         background,
+        selectionUpdate,
       );
       // Completion releases readers before process disposal. Join it before
       // reopening the same provider session; concurrent use can corrupt history.
@@ -939,6 +988,26 @@ export class SubagentRunManager {
           ok ? "completed" : "failed",
           ok ? undefined : `Subagent turn ${event.state}`,
         );
+        return;
+      }
+      case "usage.spent": {
+        // Helper consumption is recorded on the parent thread, attributed to
+        // the helper's provider (and crew role) so ledgers never bill it to the
+        // lead. scopeId stays the helper's provider session, keeping its
+        // counter scope separate from the lead's.
+        const provider = record.plan.attempts[attemptIndex]?.provider;
+        if (!provider) return;
+        this.deps.host.appendRuntimeEvent(record.parentThreadId, {
+          type: "usage.spent",
+          threadId: record.parentThreadId,
+          usage: {
+            ...event.usage,
+            helper: {
+              agentKind: provider,
+              ...(record.plan.crewRole ? { crewRoleId: record.plan.crewRole.id } : {}),
+            },
+          },
+        });
         return;
       }
       default:

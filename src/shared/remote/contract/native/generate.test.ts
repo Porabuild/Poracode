@@ -81,7 +81,7 @@ describe("remote v3 native binding generator", () => {
         // preserve wire versions; the optional `deferBodies` history query parameter adds one
         // structural type (its literal).
         // Optional sessionId on the token-exchange result moves the source hash only.
-        sourceHash: "sha256:d1beec30ff0361d1ebb6c8c8d30cc3ff8757bb0a0123c12c5aff0fa8bee2534f",
+        sourceHash: "sha256:cff8a8f93d2cef32c1d1d584b0f5f1b2a3da090d1b03822e3c2391bfecbeaebb",
         manifestHash: "sha256:0af95549f6385c5f08e5dfeb224d10486c18d5b19acb6ba934351dbea0e0dea4",
         counts: {
           routes: 119,
@@ -92,7 +92,7 @@ describe("remote v3 native binding generator", () => {
           // 11 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
           webSocketServerVariants: 12,
           schemaRoots: 544,
-          structuralTypes: 1209,
+          structuralTypes: 1210,
           semanticValidators: 25,
           swiftFiles: 75,
           kotlinFiles: 65,

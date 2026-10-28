@@ -91,6 +91,26 @@ test("maps usage.spent, context.updated, and persisted occupancy to usage events
     tokens: { input: 42_000, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
   });
 
+  // Crew helper usage forwarded into the thread never reaches the lead's usage line.
+  value.handleRemoteEvent({
+    type: "thread-runtime-event",
+    threadId: "thread-1",
+    event: {
+      type: "usage.spent",
+      threadId: "thread-1",
+      usage: {
+        counterKind: "cumulative",
+        counter: 9_000,
+        scopeId: "helper-session",
+        epoch: 0,
+        sampleId: "helper-sample",
+        tokens: { input: 8_000, output: 1_000, cacheRead: 0, cacheWrite: 0 },
+        cost: { amount: 9, currency: "USD" },
+        helper: { agentKind: "codex", crewRoleId: "builder" },
+      },
+    },
+  });
+
   // usage.spent maps canonical categories to the OpenCode token buckets.
   value.handleRemoteEvent({
     type: "thread-runtime-event",

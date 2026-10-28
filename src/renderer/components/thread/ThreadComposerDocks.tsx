@@ -154,7 +154,12 @@ export function ThreadComposerDocks(props: ThreadComposerDocksProps) {
         />
       ) : null}
       {showContextInComposer ? (
-        <ThreadContextDock summary={contextSummary} onClose={onCloseContextDock} />
+        <ThreadContextDock
+          summary={contextSummary}
+          onClose={onCloseContextDock}
+          threadId={threadId}
+          {...(crewBinding ? { crewBinding } : {})}
+        />
       ) : null}
       {props.notice}
       {showErrorInComposer

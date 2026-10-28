@@ -176,6 +176,7 @@ it("promotes the first spawnable role fallback through the tool layer", async ()
       spawned = request;
       return { runId: "run" };
     },
+    continueRole: async () => undefined,
   } as unknown as SubagentToolContext["runManager"];
   const result = await dispatchTool(
     "spawn_agent",
@@ -194,6 +195,7 @@ it("promotes the first spawnable role fallback through the tool layer", async ()
 it("preserves the run_id for a foreground role spawn result", async () => {
   const runManager = {
     spawn: () => ({ runId: "foreground-role-run" }),
+    continueRole: async () => undefined,
     waitFor: async () => ({ status: "completed" as const, output: "Done" }),
   } as unknown as SubagentToolContext["runManager"];
   const result = await dispatchTool(
@@ -212,6 +214,7 @@ it("preserves the run_id for a foreground role spawn result", async () => {
 it("includes run_id in a foreground role spawn result", async () => {
   const runManager = {
     spawn: () => ({ runId: "foreground-role-run" }),
+    continueRole: async () => undefined,
     waitFor: async () => ({ status: "completed" as const, output: "Done" }),
   } as unknown as SubagentToolContext["runManager"];
   const result = await dispatchTool(
@@ -258,7 +261,7 @@ it("includes the role preamble and no-edit instruction in worker turns", async (
   expect(result.isError).not.toBe(true);
   await vi.waitFor(() => expect(h.handles[0]?.startTurns).toHaveLength(1));
   expect(h.handles[0]!.startTurns[0]!.prompt).toContain(
-    "Crew role: Builder. Implements changes and runs tests. This role is told not to edit files: do not create, modify or delete files; report what you find instead.\n\nMake the change",
+    "Crew role: Builder. Implements changes and runs tests. This role is told not to edit files: do not create, modify or delete files; report what you find instead. Do this work yourself: do not start subagents, including your own built-in subagent or task tools, and do not hand it to other agents. Follow the task as written; if it cannot work, stop and report why instead of changing the plan. Finish with a short report for the lead (under 15 lines): what you changed (files), the checks you ran with pass/fail, and anything left open. Do not paste full logs or whole files; the lead reads the diff itself.\n\nMake the change",
   );
   expect(h.inputs[0]!.config).toMatchObject({
     approvalPolicy: "never",
@@ -281,7 +284,9 @@ it("omits optional role brief and no-edit text when absent", async () => {
   );
   expect(result.isError).not.toBe(true);
   await vi.waitFor(() => expect(h.handles[0]?.startTurns).toHaveLength(1));
-  expect(h.handles[0]!.startTurns[0]!.prompt).toContain("Crew role: Builder.\n\nInspect");
+  expect(h.handles[0]!.startTurns[0]!.prompt).toContain(
+    "Crew role: Builder. Do this work yourself: do not start subagents, including your own built-in subagent or task tools, and do not hand it to other agents. Follow the task as written; if it cannot work, stop and report why instead of changing the plan. Finish with a short report for the lead (under 15 lines): what you changed (files), the checks you ran with pass/fail, and anything left open. Do not paste full logs or whole files; the lead reads the diff itself.\n\nInspect",
+  );
   expect(h.handles[0]!.startTurns[0]!.prompt).not.toContain("Told not to edit files");
   h.handles[0]!.completeTurn("completed");
   await flush();

@@ -410,6 +410,14 @@ msgstr "{0} токенов"
 msgid "{0} tokens - {when}"
 msgstr "{0} токенов - {when}"
 
+#. placeholder {0}: compactNumber.format(row.total)
+#. placeholder {1}: compactNumber.format(row.tokens.cacheRead)
+#. placeholder {2}: compactNumber.format(row.tokens.cacheWrite)
+#. placeholder {3}: compactNumber.format(row.tokens.output)
+#: src/renderer/components/thread/ThreadSpendDetails.tsx
+msgid "{0} tokens · cached {1} · written {2} · output {3}"
+msgstr "{0} токенов · из кэша {1} · записано {2} · вывод {3}"
+
 #. placeholder {0}: agent.label
 #. placeholder {0}: agent.name
 #. placeholder {1}: agent.version
@@ -7157,6 +7165,14 @@ msgstr "Ошибка · Агент столкнулся с ошибкой"
 msgid "Errors"
 msgstr "Ошибки"
 
+#: src/renderer/components/thread/ThreadSpendDetails.tsx
+msgid "Estimated at list prices."
+msgstr "Оценка по прейскурантным ценам."
+
+#: src/renderer/components/thread/ThreadSpendDetails.tsx
+msgid "Estimated at list prices. Some usage has no known price."
+msgstr "Оценка по прейскурантным ценам. Для части использования цена неизвестна."
+
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Estimates and provider-reported costs are separate views of usage; do not add them together. Subscription invoices are not collected."
 msgstr "Оценки и расходы по данным провайдера — отдельные представления использования; не складывайте их. Счета за подписку не собираются."
@@ -9735,6 +9751,7 @@ msgstr "Запустить тред"
 #: src/renderer/components/thread/CrewDockSection.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftView.tsx
+#: src/renderer/components/thread/ThreadSpendDetails.tsx
 #: src/renderer/i18n/sharedMessages.ts
 #: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
 msgid "Lead"
@@ -12972,6 +12989,7 @@ msgid "Other"
 msgstr "Прочие"
 
 #: src/renderer/components/thread/CrewDockSection.tsx
+#: src/renderer/components/thread/ThreadSpendDetails.tsx
 msgid "Other agents"
 msgstr "Другие агенты"
 
@@ -17622,6 +17640,10 @@ msgstr "Конкретная персона"
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
 msgid "Specific repositories"
 msgstr "Конкретные репозитории"
+
+#: src/renderer/components/thread/ThreadSpendDetails.tsx
+msgid "Spend"
+msgstr "Расходы"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/DevTerminalPanel.tsx
 msgid "Split Terminal"

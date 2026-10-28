@@ -311,6 +311,10 @@ export const dbGetThreadContextUsagePayloadSchema = z.object({
   threadId: z.string().min(1),
 });
 
+export const dbGetThreadTokenUsagePayloadSchema = z.object({
+  threadId: z.string().min(1),
+});
+
 export const dbGetProjectNotesPayloadSchema = z.object({
   projectId: z.string().min(1),
 });

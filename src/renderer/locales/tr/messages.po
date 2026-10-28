@@ -410,6 +410,14 @@ msgstr "{0} jeton"
 msgid "{0} tokens - {when}"
 msgstr "{0} token - {when}"
 
+#. placeholder {0}: compactNumber.format(row.total)
+#. placeholder {1}: compactNumber.format(row.tokens.cacheRead)
+#. placeholder {2}: compactNumber.format(row.tokens.cacheWrite)
+#. placeholder {3}: compactNumber.format(row.tokens.output)
+#: src/renderer/components/thread/ThreadSpendDetails.tsx
+msgid "{0} tokens · cached {1} · written {2} · output {3}"
+msgstr "{0} token · önbellekten {1} · yazılan {2} · çıktı {3}"
+
 #. placeholder {0}: agent.label
 #. placeholder {0}: agent.name
 #. placeholder {1}: agent.version
@@ -7157,6 +7165,14 @@ msgstr "Hata · Temsilci bir hatayla karşılaştı"
 msgid "Errors"
 msgstr "Hatalar"
 
+#: src/renderer/components/thread/ThreadSpendDetails.tsx
+msgid "Estimated at list prices."
+msgstr "Liste fiyatlarına göre tahmin."
+
+#: src/renderer/components/thread/ThreadSpendDetails.tsx
+msgid "Estimated at list prices. Some usage has no known price."
+msgstr "Liste fiyatlarına göre tahmin. Kullanımın bir kısmının fiyatı bilinmiyor."
+
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Estimates and provider-reported costs are separate views of usage; do not add them together. Subscription invoices are not collected."
 msgstr "Tahminler ve sağlayıcının bildirdiği maliyetler kullanımın ayrı görünümleridir; bunları toplamayın. Abonelik faturaları toplanmaz."
@@ -9735,6 +9751,7 @@ msgstr "Konuyu başlat"
 #: src/renderer/components/thread/CrewDockSection.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftView.tsx
+#: src/renderer/components/thread/ThreadSpendDetails.tsx
 #: src/renderer/i18n/sharedMessages.ts
 #: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
 msgid "Lead"
@@ -12972,6 +12989,7 @@ msgid "Other"
 msgstr "Diğer"
 
 #: src/renderer/components/thread/CrewDockSection.tsx
+#: src/renderer/components/thread/ThreadSpendDetails.tsx
 msgid "Other agents"
 msgstr "Diğer ajanlar"
 
@@ -17622,6 +17640,10 @@ msgstr "Belirli bir persona"
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
 msgid "Specific repositories"
 msgstr "Belirli depolar"
+
+#: src/renderer/components/thread/ThreadSpendDetails.tsx
+msgid "Spend"
+msgstr "Harcama"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/DevTerminalPanel.tsx
 msgid "Split Terminal"

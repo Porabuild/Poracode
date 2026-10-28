@@ -74,8 +74,10 @@ describe("database migration registry", () => {
       [64, "retain independent conversation fork lineage"],
       [65, "pin review watch source identity"],
       [66, "index manual catalog ordering"],
+      [67, "record per-thread token usage by crew member"],
+      [68, "count streamed per-call usage growth"],
     ]);
-    expect(LATEST_SCHEMA_VERSION).toBe(66);
+    expect(LATEST_SCHEMA_VERSION).toBe(68);
     expect(() => validateMigrationRegistry()).not.toThrow();
   });
 
@@ -113,8 +115,8 @@ describe("database migration registry", () => {
     // instead of silently defaulting to rollback-compatible.
     expect(MIGRATION_ROLLBACK_CLASSIFICATION_REQUIRED_FROM).toBe(48);
     expect(describeMigrationRollbackPolicy().at(-1)).toEqual({
-      version: 66,
-      name: "index manual catalog ordering",
+      version: 68,
+      name: "count streamed per-call usage growth",
       rollback: "rollback-compatible",
     });
     // Migrations below the floor keep their reviewed defaults.

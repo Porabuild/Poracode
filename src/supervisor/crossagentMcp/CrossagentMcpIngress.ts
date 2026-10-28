@@ -339,7 +339,9 @@ export class CrossagentMcpIngress {
     try {
       if (method === "initialize") {
         const crew = auth.mode === "thread" ? this.deps.getThreadCrew?.(auth.threadId) : undefined;
-        const instructions = buildSubagentInstructions(this.deps.getRoutingGuide?.());
+        const instructions = buildSubagentInstructions(this.deps.getRoutingGuide?.(), {
+          crew: crew !== undefined,
+        });
         return {
           jsonrpc: "2.0",
           id,

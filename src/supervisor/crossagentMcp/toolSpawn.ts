@@ -269,16 +269,22 @@ export async function spawnAgent(
         undefined,
         roleSpawn.crewRole,
       );
-      const { runId } = ctx.runManager.spawn(ctx.parentThreadId, request);
+      // A role reuses its helper's session unless the lead asks for a fresh one.
+      const continued =
+        args.fresh_session === true
+          ? undefined
+          : await ctx.runManager.continueRole(ctx.parentThreadId, request, background);
+      const { runId } = continued ?? ctx.runManager.spawn(ctx.parentThreadId, request);
+      const continuedFrom = continued ? { continued_from: continued.continuedFrom } : {};
       if (background) {
-        return runToolResult({ run_id: runId, status: "running", output: "" });
+        return runToolResult({ run_id: runId, status: "running", output: "", ...continuedFrom });
       }
       const result = await ctx.runManager.waitFor(runId, timeoutMs, ctx.parentThreadId, {
         ...outputOptions,
         fullOutput: args.full_output === true,
         currentAttemptOnly: true,
       });
-      return runToolResult({ run_id: runId, ...result });
+      return runToolResult({ run_id: runId, ...continuedFrom, ...result });
     }
   }
 

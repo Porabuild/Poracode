@@ -109,7 +109,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2EThreadU2DHistoryU2DChangesU2EResponse: RemoteRootCodec<RoutethreadU2DHistoryU2DChangesResponse_b89f1dec26> = .init(id: "route.thread-history-changes.response", schema: RemoteSchemas.schema_b89f1dec26156496)
+  static let routeU2EThreadU2DHistoryU2DChangesU2EResponse: RemoteRootCodec<RoutethreadU2DHistoryU2DChangesResponse_e370ce8054> = .init(id: "route.thread-history-changes.response", schema: RemoteSchemas.schema_e370ce80543a0b02)
 }
 
 public extension RemoteRootCodecs {

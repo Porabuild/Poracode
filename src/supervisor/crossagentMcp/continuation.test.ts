@@ -293,3 +293,68 @@ it.each([false, true])(
     await flush();
   },
 );
+
+it("continues a crew role's previous helper session for its next task", async () => {
+  const open = vi.fn<(handle: FakeHandle, ref: SessionRef | undefined) => Promise<string>>(
+    async (_handle, ref) => ref?.providerSessionId ?? "role-session",
+  );
+  const h = makeHarness({ resume: { sessionId: "role-session", open } });
+  const crewRole = { id: "builder", label: "Builder", parallel: 1 };
+  const { runId } = h.manager.spawn(PARENT, { agent: "codex", prompt: "First task", crewRole });
+  await flush();
+  answer(h.handles[0]!, "First result");
+  await h.manager.waitForSettlement(PARENT, runId);
+
+  const next = await h.manager.continueRole(
+    PARENT,
+    { agent: "codex", prompt: "Second task", crewRole },
+    true,
+  );
+  await flush();
+  expect(next).toEqual({ runId: expect.any(String), continuedFrom: runId });
+  expect(h.inputs[1]!.sessionRef?.providerSessionId).toBe("role-session");
+  expect(h.handles[1]!.startTurns[0]!.prompt).toContain("Second task");
+
+  // New reasoning or Fast updates the same helper's next turn instead of
+  // starting a new one.
+  answer(h.handles[1]!, "Second result");
+  await h.manager.waitForSettlement(PARENT, next!.runId);
+  const tuned = await h.manager.continueRole(
+    PARENT,
+    { agent: "codex", effort: "low", fast: true, prompt: "Third task", crewRole },
+    true,
+  );
+  await flush();
+  expect(tuned).toEqual({ runId: expect.any(String), continuedFrom: next!.runId });
+  expect(h.inputs[2]!.sessionRef?.providerSessionId).toBe("role-session");
+  expect(h.handles[2]!.startTurns[0]!.config).toMatchObject({ effort: "low", fast: true });
+
+  // A changed role model starts a fresh helper instead of reusing the session.
+  answer(h.handles[2]!, "Third result");
+  await h.manager.waitForSettlement(PARENT, tuned!.runId);
+  expect(
+    await h.manager.continueRole(
+      PARENT,
+      { agent: "codex", model: "other-model", prompt: "Fourth task", crewRole },
+      true,
+    ),
+  ).toBeUndefined();
+  h.manager.cancelAllForThread(PARENT);
+  await flush();
+});
+
+it("starts a fresh helper while the role is still busy", async () => {
+  const h = makeHarness({ resume: { sessionId: "busy-session" } });
+  const crewRole = { id: "builder", label: "Builder", parallel: 2 };
+  h.manager.spawn(PARENT, { agent: "codex", prompt: "Long task", crewRole, background: true });
+  await flush();
+  expect(
+    await h.manager.continueRole(
+      PARENT,
+      { agent: "codex", prompt: "Parallel task", crewRole },
+      true,
+    ),
+  ).toBeUndefined();
+  h.manager.cancelAllForThread(PARENT);
+  await flush();
+});

@@ -8,6 +8,7 @@ import { getSqlite } from "../db/connection";
 import { historicalTokenEstimate } from "@poracode/agents-usage/historical-pricing";
 import {
   usageCostRecordSchema,
+  usageTokenCategoriesSchema,
   type UsageCostRecord,
   type UsageTokenCategories,
 } from "@/shared/contracts/costHistory";
@@ -60,7 +61,7 @@ export function recordUsageSpentFromRuntimeEvents(
   }
   // Full account-scoped kind (e.g. "claude:work"), matching existing
   // usage_events conventions; the global rollup folds to the base provider.
-  const provider = thread.agentKind;
+  const threadProvider = thread.agentKind;
 
   const sqlite = getSqlite();
   const readLedger = sqlite.prepare(
@@ -73,8 +74,29 @@ export function recordUsageSpentFromRuntimeEvents(
     `INSERT INTO usage_token_ledger (provider, scope_id, epoch, last_counter, cost_details) VALUES (?, ?, ?, ?, ?)
      ON CONFLICT(provider, scope_id, epoch) DO UPDATE SET last_counter = excluded.last_counter, cost_details = excluded.cost_details`,
   );
+  const readSample = sqlite.prepare(
+    "SELECT counted, counted_tokens FROM usage_token_samples WHERE sample_id = ?",
+  );
   const insertSample = sqlite.prepare(
-    "INSERT OR IGNORE INTO usage_token_samples (sample_id, ts) VALUES (?, ?)",
+    "INSERT INTO usage_token_samples (sample_id, ts, counted, counted_tokens) VALUES (?, ?, ?, ?)",
+  );
+  const updateSample = sqlite.prepare(
+    "UPDATE usage_token_samples SET counted = ?, counted_tokens = ? WHERE sample_id = ?",
+  );
+  const addThreadUsage = sqlite.prepare(
+    `INSERT INTO thread_token_usage
+       (thread_id, member, provider, model, input, output, cache_read, cache_write, total,
+        cost_usd, priced_total, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(thread_id, member, provider, model) DO UPDATE SET
+       input = input + excluded.input,
+       output = output + excluded.output,
+       cache_read = cache_read + excluded.cache_read,
+       cache_write = cache_write + excluded.cache_write,
+       total = total + excluded.total,
+       cost_usd = cost_usd + excluded.cost_usd,
+       priced_total = priced_total + excluded.priced_total,
+       updated_at = excluded.updated_at`,
   );
 
   sqlite
@@ -82,6 +104,8 @@ export function recordUsageSpentFromRuntimeEvents(
       const rows: UsageEventInput[] = [];
       for (const event of spentEvents) {
         const usage = event.usage;
+        // Helper usage forwarded into this thread is billed to the helper's provider.
+        const provider = usage.helper?.agentKind ?? threadProvider;
         const ts = usage.occurredAt ?? Date.now();
         let amount = 0;
         let tokens = usage.tokens;
@@ -139,10 +163,28 @@ export function recordUsageSpentFromRuntimeEvents(
             // Equal/out-of-order samples count nothing and leave state untouched.
           }
         } else {
-          // per-call: counted only when the dedup insert actually happened.
-          const inserted = insertSample.run(usage.sampleId, ts);
-          if (inserted.changes !== 1) continue;
-          amount = usage.counter;
+          // per-call: a streamed call can re-report its sampleId with growing
+          // counts (output arrives last). Count the first sample in full, then
+          // only increases; replays at the same count add nothing. Rows written
+          // before the counted basis existed were already counted in full.
+          const prior = readSample.get(usage.sampleId) as
+            | { counted: number | null; counted_tokens: string | null }
+            | undefined;
+          const countedTokens = usage.tokens ? JSON.stringify(usage.tokens) : null;
+          if (!prior) {
+            insertSample.run(usage.sampleId, ts, usage.counter, countedTokens);
+            amount = usage.counter;
+          } else {
+            if (prior.counted === null || usage.counter <= prior.counted) continue;
+            const previous = prior.counted_tokens
+              ? usageTokenCategoriesSchema.safeParse(JSON.parse(prior.counted_tokens))
+              : undefined;
+            tokens = tokenDelta(usage.tokens, previous?.success ? previous.data : undefined);
+            // Provider cost on a re-report is not a delta; never count it twice.
+            observed = undefined;
+            updateSample.run(usage.counter, countedTokens, usage.sampleId);
+            amount = usage.counter - prior.counted;
+          }
         }
         if (amount < 0 || (amount === 0 && (usage.counterKind === "cumulative" || !observed)))
           continue;
@@ -154,7 +196,8 @@ export function recordUsageSpentFromRuntimeEvents(
         ) {
           tokens = undefined;
         }
-        const model = usage.model ?? thread.config.model ?? null;
+        // The thread's selected model only describes the lead, never a helper.
+        const model = usage.model ?? (usage.helper ? null : thread.config.model) ?? null;
         // Selected thread settings do not prove which model served a child call.
         const estimate = tokens ? historicalTokenEstimate(usage.model, tokens, ts) : undefined;
         const costDetails: UsageCostRecord = {
@@ -172,10 +215,35 @@ export function recordUsageSpentFromRuntimeEvents(
           value: amount,
           costDetails,
         });
+        if (amount > 0) {
+          // List-price estimate first; a provider-reported USD cost covers the rest.
+          const usd =
+            estimate?.amount ?? (observed?.currency === "USD" ? observed.amount : undefined);
+          addThreadUsage.run(
+            threadId,
+            threadTokenUsageMember(usage.helper),
+            provider,
+            model ?? "",
+            tokens?.input ?? 0,
+            tokens?.output ?? 0,
+            tokens?.cacheRead ?? 0,
+            tokens?.cacheWrite ?? 0,
+            amount,
+            usd ?? 0,
+            usd === undefined ? 0 : amount,
+            ts,
+          );
+        }
       }
       dbAppendUsageEvents(rows);
     })
     .immediate();
+}
+
+/** Per-thread aggregate key: the lead, a crew role, or a helper without a role. */
+export function threadTokenUsageMember(helper: UsageSpentEvent["usage"]["helper"]): string {
+  if (!helper) return "lead";
+  return helper.crewRoleId ? `role:${helper.crewRoleId}` : "helper";
 }
 
 function tokenDelta(

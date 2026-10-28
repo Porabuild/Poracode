@@ -4,7 +4,10 @@ import type { ThreadCrewBinding } from "@/shared/crew";
 import { JSON_KEEPALIVE_INTERVAL_MS } from "./jsonResponseKeepalive";
 import { CROSSAGENT_PROVIDER_SESSION_ID_ARG, CrossagentMcpIngress } from "./CrossagentMcpIngress";
 import type { SubagentRunManager } from "./SubagentRunManager";
-import { CROSSAGENT_MCP_INSTRUCTIONS_BASE } from "./toolRegistry";
+import {
+  CROSSAGENT_MCP_CREW_INSTRUCTIONS_BASE,
+  CROSSAGENT_MCP_INSTRUCTIONS_BASE,
+} from "./toolRegistry";
 import type { SpawnableAgent, SpawnAgentRequest } from "./types";
 
 const AGENTS: SpawnableAgent[] = [
@@ -335,7 +338,9 @@ describe("CrossagentMcpIngress", () => {
       ],
     });
     const init = await (await rpc("initialize")).json();
-    expect(init.result.instructions).toContain(CROSSAGENT_MCP_INSTRUCTIONS_BASE);
+    // The crew brief's playbook replaces the core-skill bootstrap for the lead.
+    expect(init.result.instructions).toContain(CROSSAGENT_MCP_CREW_INSTRUCTIONS_BASE);
+    expect(init.result.instructions).not.toContain("Before first delegation");
     expect(init.result.instructions).toContain(
       '[crew] The user gave this thread a Poracode crew named "Night shift" (Crew only).',
     );
