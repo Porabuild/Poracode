@@ -109,7 +109,12 @@ import { isRemoteProcedure } from "../remote/procedures";
 // older main/host rejects the unknown name, and an older paired host answers
 // 404 for the route, before any effect; the renderer treats both as "no index"
 // (the rail shows the loaded transcript), so hop 18 stays compatible.
-const HOP_PIN = `${IPC_PROCEDURE_MAP_VERSION}:8fc9eefaa4ec4eefbdcbfd6af67cb912a467d66a25c9c28d39d7dc69b166392f`;
+// Agent config defaults: `getAgentConfigDefaults` is an additive supervisor-local,
+// read-only name with a closed `{ agentKind }` request. It is outside the remote
+// allowlist (the browser bridge answers empty), and an older supervisor rejects
+// the name before effects; Settings treats that as "no config.toml hints", so
+// hop 18 stays compatible.
+const HOP_PIN = `${IPC_PROCEDURE_MAP_VERSION}:efc84da3bfb28c3fd52b1758a2833c07ea076e7286be354373fb161c9006cb2c`;
 
 describe("IPC procedure map versioning", () => {
   it("keeps nonce reservations local, closed and distinct from legacy execution control", () => {

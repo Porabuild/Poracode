@@ -314,6 +314,12 @@ const runAgentInstallCommandMock = vi.hoisted(() =>
   >(),
 );
 
+// The Codex advanced section has its own test file and needs real HeroUI parts
+// this module-wide mock does not provide.
+vi.mock("@/renderer/components/providers/settings/CodexAdvancedSettings", () => ({
+  CodexAdvancedSettings: () => null,
+}));
+
 vi.mock("@/renderer/actions/agentLoginActions", () => ({
   runAgentInstallCommand: runAgentInstallCommandMock,
   runAgentLoginCommand: runAgentLoginCommandMock,
