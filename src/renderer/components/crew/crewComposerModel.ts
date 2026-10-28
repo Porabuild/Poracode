@@ -38,13 +38,14 @@ export interface CrewRosterModel {
 
 export function leadSelectionOf(
   agentKind: string,
-  config: Pick<ThreadConfig, "model" | "effort" | "fast">,
+  config: Pick<ThreadConfig, "model" | "effort" | "fast" | "contextSize">,
 ): CrewMemberSelection {
   return {
     agentKind,
     model: config.model,
     ...(config.effort !== undefined ? { effort: config.effort } : {}),
     ...(config.fast !== undefined ? { fast: config.fast } : {}),
+    ...(config.contextSize ? { contextSize: config.contextSize } : {}),
   };
 }
 
@@ -74,7 +75,8 @@ function sameSelection(left: CrewMemberSelection, right: CrewMemberSelection): b
     left.agentKind === right.agentKind &&
     left.model === right.model &&
     sameEffort(left.effort, right.effort) &&
-    left.fast === right.fast
+    left.fast === right.fast &&
+    (left.contextSize || undefined) === (right.contextSize || undefined)
   );
 }
 
@@ -312,7 +314,11 @@ export function crewPickerEntry(
   details: string;
 } {
   const memberLine = (selection: CrewMemberSelection) =>
-    [modelLabelOf(selection), selection.effort ? formatEffortLabel(selection.effort) : undefined]
+    [
+      modelLabelOf(selection),
+      selection.effort ? formatEffortLabel(selection.effort) : undefined,
+      selection.contextSize,
+    ]
       .filter((part): part is string => !!part)
       .join(" · ");
   const roleLines = crew.roles.map((role) => {

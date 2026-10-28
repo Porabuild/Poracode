@@ -33,7 +33,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let procedureU2EConnectThreadVoiceU2ERequest: RemoteRootCodec<ProcedureconnectThreadVoiceRequest_53d94c6ddc> = .init(id: "procedure.connectThreadVoice.request", schema: RemoteSchemas.schema_53d94c6ddce4227a)
+  static let procedureU2EConnectThreadVoiceU2ERequest: RemoteRootCodec<ProcedureconnectThreadVoiceRequest_fef5797c39> = .init(id: "procedure.connectThreadVoice.request", schema: RemoteSchemas.schema_fef5797c39fcd537)
 }
 
 public extension RemoteRootCodecs {
@@ -53,7 +53,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let procedureU2ECreateRevertAnchorU2ERequest: RemoteRootCodec<ProcedurecreateRevertAnchorRequest_03aea8fad1> = .init(id: "procedure.createRevertAnchor.request", schema: RemoteSchemas.schema_03aea8fad1dadad0)
+  static let procedureU2ECreateRevertAnchorU2ERequest: RemoteRootCodec<ProcedurecreateRevertAnchorRequest_c02fd6d3e2> = .init(id: "procedure.createRevertAnchor.request", schema: RemoteSchemas.schema_c02fd6d3e2467512)
 }
 
 public extension RemoteRootCodecs {
@@ -93,7 +93,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let procedureU2EEnsureThreadRunningU2ERequest: RemoteRootCodec<ProcedureensureThreadRunningRequest_4c5f778ce8> = .init(id: "procedure.ensureThreadRunning.request", schema: RemoteSchemas.schema_4c5f778ce8097537)
+  static let procedureU2EEnsureThreadRunningU2ERequest: RemoteRootCodec<ProcedureensureThreadRunningRequest_427109e2c2> = .init(id: "procedure.ensureThreadRunning.request", schema: RemoteSchemas.schema_427109e2c29cd0ad)
 }
 
 public extension RemoteRootCodecs {

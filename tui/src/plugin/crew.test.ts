@@ -1,6 +1,13 @@
 import { expect, test } from "bun:test";
 import type { ThreadCrewBinding } from "@/shared/crew";
-import { memberDetail, registerCrewUi, roleName, withModel, withRole } from "./crew";
+import {
+  memberDetail,
+  registerCrewUi,
+  roleName,
+  withContextSize,
+  withModel,
+  withRole,
+} from "./crew";
 
 test("role names show how many run at once", () => {
   const selection = { agentKind: "codex", model: "gpt" };
@@ -25,6 +32,10 @@ test("changing a model keeps reasoning and Fast only when the new model supports
       label: "Opus",
       efforts: ["low", "high"],
       supportsFast: true,
+      contextSizes: [
+        { id: "200k", label: "200k" },
+        { id: "1m", label: "1M" },
+      ],
     }),
   ).toEqual({ agentKind: "claude", model: "opus", effort: "high", fast: true });
   expect(
@@ -35,8 +46,17 @@ test("changing a model keeps reasoning and Fast only when the new model supports
       label: "Haiku",
       efforts: [],
       supportsFast: false,
+      contextSizes: [],
     }),
   ).toEqual({ agentKind: "claude", model: "haiku" });
+});
+
+test("context length is set, cleared, and shown in the member detail", () => {
+  const selection = { agentKind: "claude", model: "opus", effort: "high" };
+  const withSize = withContextSize(selection, "1m");
+  expect(withSize).toEqual({ ...selection, contextSize: "1m" });
+  expect(withContextSize(withSize, "")).toEqual(selection);
+  expect(memberDetail(withSize, true)).toBe("high · 1m · read-only");
 });
 
 test("role updates replace or remove only the targeted role", () => {

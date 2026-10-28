@@ -1,14 +1,14 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
-public struct RouteexperimentU2DCommandRequestU2DOptionU2D1_9099f5d423: Codable, Sendable, RemoteModelMetadata {
+public struct RouteexperimentU2DCommandRequestU2DOptionU2D1_737c722520: Codable, Sendable, RemoteModelMetadata {
   public var kind: RouteexperimentU2DCommandRequestU2DOptionU2D1U2DKind_1f45188862
   public var record: RouteexperimentU2DCommandRequestU2DOptionU2D1U2DRecord_1be5ac91cc
-  public var threads: [RouteexperimentU2DCommandRequestU2DOptionU2D1U2DThreadsU2DItem_35f79fc1eb]
+  public var threads: [RouteexperimentU2DCommandRequestU2DOptionU2D1U2DThreadsU2DItem_f7d1ddecf7]
   public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
   public static let fields: [RemoteFieldDescriptor] = [
     .init(wireName: "kind", typeName: "RouteexperimentU2DCommandRequestU2DOptionU2D1U2DKind_1f45188862", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "record", typeName: "RouteexperimentU2DCommandRequestU2DOptionU2D1U2DRecord_1be5ac91cc", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "threads", typeName: "[RouteexperimentU2DCommandRequestU2DOptionU2D1U2DThreadsU2DItem_35f79fc1eb]", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: 2, maxItems: 8, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "threads", typeName: "[RouteexperimentU2DCommandRequestU2DOptionU2D1U2DThreadsU2DItem_f7d1ddecf7]", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: 2, maxItems: 8, pattern: nil, format: nil, semanticValidatorIds: []),
   ]
   public static let semanticValidatorIds: [String] = []
   private enum CodingKeys: String, CodingKey {
@@ -115,14 +115,14 @@ public struct RouteexperimentU2DCommandRequestU2DOptionU2D3_c133c6f7b7: Codable,
   }
 }
 
-public enum RouteexperimentU2DCommandRequest_8b7905e0fe: Codable, Sendable {
-  case option1(RouteexperimentU2DCommandRequestU2DOptionU2D1_9099f5d423)
+public enum RouteexperimentU2DCommandRequest_870d4f5b37: Codable, Sendable {
+  case option1(RouteexperimentU2DCommandRequestU2DOptionU2D1_737c722520)
   case option2(RouteexperimentU2DCommandRequestU2DOptionU2D2_aafcd63530)
   case option3(RouteexperimentU2DCommandRequestU2DOptionU2D3_c133c6f7b7)
   public init(from decoder: Decoder) throws {
     let container = try decoder.singleValueContainer()
-    var matches: [(Int, RouteexperimentU2DCommandRequest_8b7905e0fe)] = []
-    if RemoteUnionProbe.matchesProperty(decoder, property: "kind", literals: [.string("create")]), let value = try? container.decode(RouteexperimentU2DCommandRequestU2DOptionU2D1_9099f5d423.self) {
+    var matches: [(Int, RouteexperimentU2DCommandRequest_870d4f5b37)] = []
+    if RemoteUnionProbe.matchesProperty(decoder, property: "kind", literals: [.string("create")]), let value = try? container.decode(RouteexperimentU2DCommandRequestU2DOptionU2D1_737c722520.self) {
       matches.append((1, .option1(value)))
     }
     if RemoteUnionProbe.matchesProperty(decoder, property: "kind", literals: [.string("replace")]), let value = try? container.decode(RouteexperimentU2DCommandRequestU2DOptionU2D2_aafcd63530.self) {
@@ -132,8 +132,8 @@ public enum RouteexperimentU2DCommandRequest_8b7905e0fe: Codable, Sendable {
       matches.append((3, .option3(value)))
     }
     guard matches.count == 1 else {
-      let detail = matches.isEmpty ? "No union option matched RouteexperimentU2DCommandRequest_8b7905e0fe" : "Ambiguous union RouteexperimentU2DCommandRequest_8b7905e0fe matched options " + matches.map { String($0.0) }.joined(separator: ", ")
-      throw DecodingError.typeMismatch(RouteexperimentU2DCommandRequest_8b7905e0fe.self, .init(codingPath: decoder.codingPath, debugDescription: detail))
+      let detail = matches.isEmpty ? "No union option matched RouteexperimentU2DCommandRequest_870d4f5b37" : "Ambiguous union RouteexperimentU2DCommandRequest_870d4f5b37 matched options " + matches.map { String($0.0) }.joined(separator: ", ")
+      throw DecodingError.typeMismatch(RouteexperimentU2DCommandRequest_870d4f5b37.self, .init(codingPath: decoder.codingPath, debugDescription: detail))
     }
     self = matches[0].1
   }

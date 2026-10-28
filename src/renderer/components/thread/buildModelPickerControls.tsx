@@ -269,7 +269,7 @@ export function patchConfigForModelChange(
 export interface ActiveComposerCrewHandlers {
   changeLead: (
     selection: ProviderModelSelection,
-    overrides: { crew: ThreadConfigCrew; effort?: string; fast?: boolean },
+    overrides: { crew: ThreadConfigCrew; effort?: string; fast?: boolean; contextSize?: string },
   ) => void;
   patch: (patch: Partial<ThreadConfig>, crew: ThreadConfigCrew) => void;
 }
@@ -673,7 +673,7 @@ export function buildControls(
 
   const handleProviderModelChange = (
     selection: ProviderModelSelection,
-    overrides?: { crew: ThreadConfigCrew; effort?: string; fast?: boolean },
+    overrides?: { crew: ThreadConfigCrew; effort?: string; fast?: boolean; contextSize?: string },
   ) => {
     const { model: selectedModel, selectionIntent } = selection;
     const current = normalizeProviderModelConfig(
@@ -703,6 +703,7 @@ export function buildControls(
           ...patch,
           ...(overrides?.effort !== undefined ? { effort: overrides.effort } : {}),
           ...(overrides?.fast !== undefined ? { fast: overrides.fast } : {}),
+          ...(overrides?.contextSize ? { contextSize: overrides.contextSize } : {}),
         },
         selectionIntent === "family" ? { kind: "family-resolved" } : { kind: "raw-pick" },
         crewOverride,
@@ -739,7 +740,11 @@ export function buildControls(
             : preference?.effort !== undefined
               ? { effort: preference.effort }
               : {}),
-          ...(effectiveConfig.contextSize ? { contextSize: effectiveConfig.contextSize } : {}),
+          ...(overrides?.contextSize
+            ? { contextSize: overrides.contextSize }
+            : effectiveConfig.contextSize
+              ? { contextSize: effectiveConfig.contextSize }
+              : {}),
           ...(fast !== undefined ? { fast } : {}),
           ...(effectiveConfig.thinking ? { thinking: effectiveConfig.thinking } : {}),
         },

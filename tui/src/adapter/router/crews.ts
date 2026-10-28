@@ -20,6 +20,8 @@ export type CrewModelChoice = {
   readonly label: string;
   readonly efforts: readonly string[];
   readonly supportsFast: boolean;
+  /** Context lengths the model offers; empty unless there is a choice (2+). */
+  readonly contextSizes: readonly { readonly id: string; readonly label: string }[];
 };
 
 export type CrewPick = { readonly binding: ThreadCrewBinding; readonly lead: CrewMemberSelection };
@@ -59,8 +61,18 @@ export function crewModelChoices(
         label: option.label,
         efforts: guiModelEfforts(status, option.id),
         supportsFast: fastModels.includes(option.id),
+        contextSizes: modelContextSizes(status, option.id),
       }));
     });
+}
+
+function modelContextSizes(
+  status: AgentStatus,
+  model: string,
+): { readonly id: string; readonly label: string }[] {
+  const ids = status.capabilities.modelContextSizes?.[model] ?? [];
+  const sizes = (status.capabilities.contextSizes ?? []).filter((size) => ids.includes(size.id));
+  return sizes.length > 1 ? sizes : [];
 }
 
 export function crewModelLabel(

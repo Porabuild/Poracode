@@ -155,3 +155,22 @@ describe("crew helpers", () => {
     ).toBe(false);
   });
 });
+
+describe("crew member context length", () => {
+  it("keeps a member's context length on saved crews and bindings", () => {
+    const parsed = threadCrewBindingSchema.parse({
+      version: CREW_BINDING_VERSION,
+      policy: "crew-only",
+      roles: [
+        {
+          id: "builder",
+          label: "Builder",
+          selection: { agentKind: "claude", model: "opus", contextSize: "1m" },
+          fallbacks: [{ agentKind: "codex", model: "gpt", contextSize: "272k" }],
+        },
+      ],
+    });
+    expect(parsed.roles[0]?.selection.contextSize).toBe("1m");
+    expect(parsed.roles[0]?.fallbacks?.[0]?.contextSize).toBe("272k");
+  });
+});

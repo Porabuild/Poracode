@@ -551,8 +551,8 @@ export class SubagentRunManager {
    * provider session, so the helper keeps its context instead of rediscovering
    * the repo. The role's current reasoning and Fast apply to the continued
    * turn. Returns undefined - the caller spawns fresh - when the role still
-   * has an active run (parallel work), its provider or model changed, or the
-   * session cannot resume.
+   * has an active run (parallel work), its provider, model or context length
+   * changed, or the session cannot resume.
    */
   async continueRole(
     parentThreadId: string,
@@ -573,7 +573,9 @@ export class SubagentRunManager {
     if (
       !attempt ||
       attempt.provider !== request.agent ||
-      (request.model !== undefined && attempt.model !== request.model)
+      (request.model !== undefined && attempt.model !== request.model) ||
+      // A different context length needs a session started with it.
+      (attempt.config.contextSize || undefined) !== (request.contextSize || undefined)
     )
       return undefined;
     try {

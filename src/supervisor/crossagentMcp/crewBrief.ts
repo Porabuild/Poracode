@@ -92,9 +92,12 @@ function roleSection(binding: ThreadCrewBinding): string {
       ? `, ${collapseWhitespace(role.selection.effort)} reasoning`
       : "";
     const fast = role.selection.fast ? ", fast" : "";
+    const context = role.selection.contextSize
+      ? `, ${collapseWhitespace(role.selection.contextSize)} context`
+      : "";
     const brief = role.brief ? ` ${ensureTerminalPeriod(collapseWhitespace(role.brief))}` : "";
     const noEdits = role.noEdits ? " Told not to edit files." : "";
-    return `- ${role.id} (${label}${concurrency}): ${role.selection.agentKind}/${role.selection.model}${reasoning}${fast}.${brief}${noEdits}`;
+    return `- ${role.id} (${label}${concurrency}): ${role.selection.agentKind}/${role.selection.model}${reasoning}${fast}${context}.${brief}${noEdits}`;
   });
   return `Roles:\n${roleLines.join("\n")}`;
 }

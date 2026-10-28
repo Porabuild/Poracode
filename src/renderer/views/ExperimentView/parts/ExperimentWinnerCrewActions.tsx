@@ -2,14 +2,14 @@ import { useState } from "react";
 import { useLingui } from "@lingui/react/macro";
 import { Button } from "@/renderer/components/common/Button";
 import { Input } from "@/renderer/components/common/Input";
-import { isCrewNameValid, saveAsNewCrew } from "@/renderer/components/crew/crewComposerModel";
+import {
+  isCrewNameValid,
+  leadSelectionOf,
+  saveAsNewCrew,
+} from "@/renderer/components/crew/crewComposerModel";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
-import {
-  crewBindingFromSavedCrew,
-  threadCrewBinding,
-  type CrewMemberSelection,
-} from "@/shared/crew";
+import { crewBindingFromSavedCrew, threadCrewBinding } from "@/shared/crew";
 import type { Project, Thread } from "@/shared/contracts";
 
 export function ExperimentWinnerCrewActions(props: {
@@ -46,16 +46,7 @@ export function ExperimentWinnerCrewActions(props: {
 
   function saveCrew() {
     if (!isCrewNameValid(name)) return;
-    const lead: CrewMemberSelection = {
-      agentKind: activeWinnerThread.agentKind,
-      model: activeWinnerThread.config.model,
-      ...(activeWinnerThread.config.effort !== undefined
-        ? { effort: activeWinnerThread.config.effort }
-        : {}),
-      ...(activeWinnerThread.config.fast !== undefined
-        ? { fast: activeWinnerThread.config.fast }
-        : {}),
-    };
+    const lead = leadSelectionOf(activeWinnerThread.agentKind, activeWinnerThread.config);
     const crew = saveAsNewCrew(name, currentBinding, lead);
     upsertCrew(crew);
     applyToProject(crewBindingFromSavedCrew(crew));

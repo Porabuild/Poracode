@@ -36,7 +36,12 @@ export function roleName(role: CrewRole): string {
 }
 
 export function memberDetail(selection: CrewMemberSelection, readOnly?: boolean): string {
-  return [selection.effort, selection.fast ? "fast" : undefined, readOnly ? "read-only" : undefined]
+  return [
+    selection.effort,
+    selection.fast ? "fast" : undefined,
+    selection.contextSize,
+    readOnly ? "read-only" : undefined,
+  ]
     .filter((part): part is string => Boolean(part))
     .join(" · ");
 }
@@ -52,7 +57,20 @@ export function withModel(
       ? { effort: selection.effort }
       : {}),
     ...(selection.fast && choice.supportsFast ? { fast: true } : {}),
+    ...(selection.contextSize &&
+    choice.contextSizes.some((size) => size.id === selection.contextSize)
+      ? { contextSize: selection.contextSize }
+      : {}),
   };
+}
+
+/** Sets or clears a member's context length; an empty value means the model default. */
+export function withContextSize(
+  selection: CrewMemberSelection,
+  contextSize: string,
+): CrewMemberSelection {
+  const { contextSize: _previous, ...rest } = selection;
+  return contextSize ? { ...rest, contextSize } : rest;
 }
 
 export function withRole(
@@ -144,6 +162,19 @@ export function registerCrewUi(context: Plugin.Context, adapter: Adapter) {
     return value;
   };
 
+  const pickContextSize = async (
+    sizes: CrewModelChoice["contextSizes"],
+    current: string | undefined,
+  ) =>
+    context.ui.dialog.select<string>({
+      title: "Context length",
+      current: current ?? "",
+      options: [
+        { title: "Default", value: "" },
+        ...sizes.map((size) => ({ title: size.label, value: size.id })),
+      ],
+    });
+
   const choiceFor = (choices: readonly CrewModelChoice[], selection: CrewMemberSelection) =>
     choices.find(
       (choice) => choice.agentKind === selection.agentKind && choice.model === selection.model,
@@ -156,6 +187,7 @@ export function registerCrewUi(context: Plugin.Context, adapter: Adapter) {
       options: [
         { title: "Model…", value: "model" },
         ...(current?.efforts.length ? [{ title: "Reasoning…", value: "effort" }] : []),
+        ...(current?.contextSizes.length ? [{ title: "Context length…", value: "context" }] : []),
         ...(current?.supportsFast
           ? [{ title: lead.fast ? "Turn Fast off" : "Turn Fast on", value: "fast" }]
           : []),
@@ -169,6 +201,10 @@ export function registerCrewUi(context: Plugin.Context, adapter: Adapter) {
       if (effort === undefined) return;
       const { effort: _previous, ...rest } = lead;
       await done(await adapter.setCrewLead(sessionID, effort ? { ...rest, effort } : rest));
+    } else if (action === "context" && current) {
+      const contextSize = await pickContextSize(current.contextSizes, lead.contextSize);
+      if (contextSize === undefined) return;
+      await done(await adapter.setCrewLead(sessionID, withContextSize(lead, contextSize)));
     } else if (action === "fast") {
       const { fast: _previous, ...rest } = lead;
       await done(await adapter.setCrewLead(sessionID, lead.fast ? rest : { ...rest, fast: true }));
@@ -187,6 +223,7 @@ export function registerCrewUi(context: Plugin.Context, adapter: Adapter) {
       options: [
         { title: "Model…", value: "model" },
         ...(current?.efforts.length ? [{ title: "Reasoning…", value: "effort" }] : []),
+        ...(current?.contextSizes.length ? [{ title: "Context length…", value: "context" }] : []),
         ...(current?.supportsFast
           ? [{ title: role.selection.fast ? "Turn Fast off" : "Turn Fast on", value: "fast" }]
           : []),
@@ -216,6 +253,13 @@ export function registerCrewUi(context: Plugin.Context, adapter: Adapter) {
           const { effort: _previous, ...selection } = value.selection;
           return { ...value, selection: effort ? { ...selection, effort } : selection };
         });
+    } else if (action === "context" && current) {
+      const contextSize = await pickContextSize(current.contextSizes, role.selection.contextSize);
+      if (contextSize !== undefined)
+        next = withRole(binding, role.id, (value) => ({
+          ...value,
+          selection: withContextSize(value.selection, contextSize),
+        }));
     } else if (action === "fast") {
       next = withRole(binding, role.id, (value) => {
         const { fast: _previous, ...selection } = value.selection;

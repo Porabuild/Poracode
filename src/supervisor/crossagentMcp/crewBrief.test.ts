@@ -1,6 +1,6 @@
 import { expect, it, vi } from "vitest";
 import type { ThreadCrewBinding } from "@/shared/crew";
-import { crewPlaybookText } from "./crewBrief";
+import { crewPlaybookText, crewSetBriefText } from "./crewBrief";
 import { flush, makeHarness, PARENT } from "./testHarness";
 
 const crew = (models: Record<string, string>): ThreadCrewBinding => ({
@@ -54,4 +54,18 @@ it("lets a frontier helper push back and tells every helper to work alone", asyn
   expect(prompt).not.toContain("Follow the task as written");
   h.manager.cancelAllForThread(PARENT);
   await flush();
+});
+
+it("names a role's context length in the crew brief", () => {
+  const binding = crew({ builder: "gpt-6-luna" });
+  const withContext: ThreadCrewBinding = {
+    ...binding,
+    roles: binding.roles.map((role) => ({
+      ...role,
+      selection: { ...role.selection, contextSize: "1m" },
+    })),
+  };
+  expect(crewSetBriefText(withContext)).toContain(
+    "- builder (builder): codex/gpt-6-luna, 1m context.",
+  );
 });

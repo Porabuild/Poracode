@@ -329,9 +329,17 @@ it("continues a crew role's previous helper session for its next task", async ()
   expect(h.inputs[2]!.sessionRef?.providerSessionId).toBe("role-session");
   expect(h.handles[2]!.startTurns[0]!.config).toMatchObject({ effort: "low", fast: true });
 
-  // A changed role model starts a fresh helper instead of reusing the session.
+  // A changed role model or context length starts a fresh helper instead of
+  // reusing the session.
   answer(h.handles[2]!, "Third result");
   await h.manager.waitForSettlement(PARENT, tuned!.runId);
+  expect(
+    await h.manager.continueRole(
+      PARENT,
+      { agent: "codex", contextSize: "1m", prompt: "Wider task", crewRole },
+      true,
+    ),
+  ).toBeUndefined();
   expect(
     await h.manager.continueRole(
       PARENT,

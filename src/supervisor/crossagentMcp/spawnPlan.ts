@@ -180,6 +180,11 @@ function resolveAttempt(
         model,
         ...(selection.effort ? { effort: selection.effort } : {}),
         ...(typeof selection.fast === "boolean" ? { fast: selection.fast } : {}),
+        // A crew member's context length applies only where the provider offers it.
+        ...(selection.contextSize &&
+        capabilities.modelContextSizes?.[model]?.includes(selection.contextSize)
+          ? { contextSize: selection.contextSize }
+          : {}),
       },
       capabilities,
       parentConfig,

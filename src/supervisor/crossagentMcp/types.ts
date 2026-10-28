@@ -85,7 +85,7 @@ export function resolveSubagentExecution(adapter: {
  * permission rule in `buildSubagentOneShotCommand`.
  */
 export function buildUnrestrictedChildConfig(
-  child: { model: string; effort?: string; fast?: boolean },
+  child: { model: string; effort?: string; fast?: boolean; contextSize?: string },
   targetCapabilities: Pick<
     AgentCapability,
     "approvalPolicies" | "sandboxModes" | "bypassPermissions"
@@ -96,6 +96,7 @@ export function buildUnrestrictedChildConfig(
     model: child.model,
     ...(child.effort ? { effort: child.effort } : {}),
     ...(typeof child.fast === "boolean" ? { fast: child.fast } : {}),
+    ...(child.contextSize ? { contextSize: child.contextSize } : {}),
     ...resolveUnrestrictedPermissionConfig(targetCapabilities),
     ...(parentConfig?.browserMcp === true ? { browserMcp: true } : {}),
     ...(parentConfig?.computerUse === true ? { computerUse: true } : {}),
@@ -169,6 +170,8 @@ export interface SpawnAgentSelection {
   model?: string;
   effort?: string;
   fast?: boolean;
+  /** Context length id; applied only when the provider offers it for the model. */
+  contextSize?: string;
 }
 
 export interface ExplicitSpawnAgentSelection {

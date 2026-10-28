@@ -92,11 +92,13 @@ export function createCrews(ctx: RouterContext) {
     if (!agentKind || !model) return undefined;
     const effort = current?.effort ?? remote?.config.effort;
     const fast = current?.fast ?? remote?.config.fast;
+    const contextSize = current?.contextSize ?? remote?.config.contextSize;
     return {
       agentKind,
       model,
       ...(effort ? { effort } : {}),
       ...(fast !== undefined ? { fast } : {}),
+      ...(contextSize ? { contextSize } : {}),
     };
   };
 
@@ -151,6 +153,7 @@ export function createCrews(ctx: RouterContext) {
       model: pick.lead.model,
       ...(pick.lead.effort ? { effort: pick.lead.effort } : {}),
       ...(pick.lead.fast !== undefined ? { fast: pick.lead.fast } : {}),
+      ...(pick.lead.contextSize ? { contextSize: pick.lead.contextSize } : {}),
       crew: pick.binding,
     });
     notify();
@@ -208,8 +211,10 @@ export function createCrews(ctx: RouterContext) {
       model: lead.model,
       ...(lead.effort ? { effort: lead.effort } : {}),
       ...(lead.fast !== undefined ? { fast: lead.fast } : {}),
+      ...(lead.contextSize ? { contextSize: lead.contextSize } : {}),
     };
     if (!lead.effort) delete updated.effort;
+    if (!lead.contextSize) delete updated.contextSize;
     if (current.providerID !== lead.agentKind) {
       delete updated.approvalPolicy;
       delete updated.sandboxMode;

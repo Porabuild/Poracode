@@ -1085,6 +1085,7 @@ export function ThreadDraftView(props: {
         crew?: ThreadCrewBinding | null;
         effort?: string;
         fast?: boolean;
+        contextSize?: string;
       },
     ) => void
   >(() => undefined);
@@ -1240,6 +1241,7 @@ export function ThreadDraftView(props: {
       }
       if (overrides?.effort !== undefined) resolved.effort = overrides.effort;
       if (overrides?.fast !== undefined) resolved.fast = overrides.fast;
+      if (overrides?.contextSize) resolved.contextSize = overrides.contextSize;
       // The target config is valid: commit the surface and preserve the source
       // provider's draft snapshot together with the target selection.
       if (targetPresentationMode !== presentationMode) {
@@ -1315,6 +1317,7 @@ export function ThreadDraftView(props: {
             ...patch,
             ...(overrides?.effort !== undefined ? { effort: overrides.effort } : {}),
             ...(overrides?.fast !== undefined ? { fast: overrides.fast } : {}),
+            ...(overrides?.contextSize ? { contextSize: overrides.contextSize } : {}),
           };
           latestConfigPatchRef.current(
             nextPatch,
@@ -1349,6 +1352,7 @@ export function ThreadDraftView(props: {
           ...modelPatch,
           ...(overrides?.effort !== undefined ? { effort: overrides.effort } : {}),
           ...(overrides?.fast !== undefined ? { fast: overrides.fast } : {}),
+          ...(overrides?.contextSize ? { contextSize: overrides.contextSize } : {}),
         },
         undefined,
         overrides?.crew,
@@ -1418,6 +1422,7 @@ export function ThreadDraftView(props: {
         crew: binding,
         effort: saved.lead.effort ?? "",
         fast: saved.lead.fast ?? false,
+        ...(saved.lead.contextSize ? { contextSize: saved.lead.contextSize } : {}),
       },
     );
   }
@@ -1461,12 +1466,17 @@ export function ThreadDraftView(props: {
             ) {
               latestProviderModelChangeRef.current(
                 { agentKind: selection.agentKind, model: selection.model, presentationMode },
-                { effort: selection.effort ?? "", fast: selection.fast ?? false },
+                {
+                  effort: selection.effort ?? "",
+                  fast: selection.fast ?? false,
+                  ...(selection.contextSize ? { contextSize: selection.contextSize } : {}),
+                },
               );
             } else {
               latestConfigPatchRef.current({
                 effort: selection.effort ?? "",
                 fast: selection.fast ?? false,
+                ...(selection.contextSize ? { contextSize: selection.contextSize } : {}),
               });
             }
           },

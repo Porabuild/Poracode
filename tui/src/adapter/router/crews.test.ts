@@ -14,6 +14,7 @@ const choice = (agentKind: string, model: string): CrewModelChoice => ({
   label: model.toUpperCase(),
   efforts: ["low", "high"],
   supportsFast: false,
+  contextSizes: [],
 });
 
 const leadChoices = [choice("claude", "opus")];

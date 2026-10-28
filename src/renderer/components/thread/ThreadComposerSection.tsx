@@ -734,6 +734,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
           crew: savedBinding,
           effort: saved.lead.effort ?? "",
           fast: saved.lead.fast ?? false,
+          ...(saved.lead.contextSize ? { contextSize: saved.lead.contextSize } : {}),
         },
       );
     } else {
@@ -797,11 +798,19 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                   crew: binding,
                   effort: next.effort ?? "",
                   fast: next.fast ?? false,
+                  ...(next.contextSize ? { contextSize: next.contextSize } : {}),
                 },
               );
               return;
             }
-            crewHandlers?.patch({ effort: next.effort ?? "", fast: next.fast ?? false }, binding);
+            crewHandlers?.patch(
+              {
+                effort: next.effort ?? "",
+                fast: next.fast ?? false,
+                ...(next.contextSize ? { contextSize: next.contextSize } : {}),
+              },
+              binding,
+            );
           },
           onSaveToCrew: (saved: SavedCrew, next: ThreadCrewBinding) => {
             upsertCrew(saved);

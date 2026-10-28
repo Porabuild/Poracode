@@ -841,6 +841,11 @@
                 "minLength": 1,
                 "type": "string"
               },
+              "contextSize": {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
               "effort": {
                 "maxLength": 64,
                 "minLength": 1,
@@ -1573,6 +1578,11 @@
             "properties": {
               "agentKind": {
                 "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              "contextSize": {
+                "maxLength": 64,
                 "minLength": 1,
                 "type": "string"
               },
@@ -3016,6 +3026,11 @@
             "properties": {
               "agentKind": {
                 "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              "contextSize": {
+                "maxLength": 64,
                 "minLength": 1,
                 "type": "string"
               },
@@ -28100,6 +28115,11 @@
                 "minLength": 1,
                 "type": "string"
               },
+              "contextSize": {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
               "effort": {
                 "maxLength": 64,
                 "minLength": 1,
@@ -30195,6 +30215,11 @@
                 "minLength": 1,
                 "type": "string"
               },
+              "contextSize": {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
               "effort": {
                 "maxLength": 64,
                 "minLength": 1,
@@ -30670,6 +30695,11 @@
             "properties": {
               "agentKind": {
                 "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              "contextSize": {
+                "maxLength": 64,
                 "minLength": 1,
                 "type": "string"
               },
@@ -32199,6 +32229,11 @@
             "properties": {
               "agentKind": {
                 "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              "contextSize": {
+                "maxLength": 64,
                 "minLength": 1,
                 "type": "string"
               },
@@ -46239,6 +46274,11 @@
                   "minLength": 1,
                   "type": "string"
                 },
+                "contextSize": {
+                  "maxLength": 64,
+                  "minLength": 1,
+                  "type": "string"
+                },
                 "effort": {
                   "maxLength": 64,
                   "minLength": 1,
@@ -53730,6 +53770,11 @@
                   "minLength": 1,
                   "type": "string"
                 },
+                "contextSize": {
+                  "maxLength": 64,
+                  "minLength": 1,
+                  "type": "string"
+                },
                 "effort": {
                   "maxLength": 64,
                   "minLength": 1,
@@ -55327,6 +55372,11 @@
                   "minLength": 1,
                   "type": "string"
                 },
+                "contextSize": {
+                  "maxLength": 64,
+                  "minLength": 1,
+                  "type": "string"
+                },
                 "effort": {
                   "maxLength": 64,
                   "minLength": 1,
@@ -55576,6 +55626,11 @@
               "properties": {
                 "agentKind": {
                   "maxLength": 128,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "contextSize": {
+                  "maxLength": 64,
                   "minLength": 1,
                   "type": "string"
                 },
@@ -61605,6 +61660,11 @@
               "type": "boolean"
             },
             "__schema11": {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            },
+            "__schema12": {
               "additionalProperties": true,
               "properties": {
                 "brief": {
@@ -61613,7 +61673,7 @@
                 },
                 "fallbacks": {
                   "items": {
-                    "$ref": "#/$defs/__schema12"
+                    "$ref": "#/$defs/__schema13"
                   },
                   "maxItems": 3,
                   "type": "array"
@@ -61637,7 +61697,7 @@
                   "type": "integer"
                 },
                 "selection": {
-                  "$ref": "#/$defs/__schema12"
+                  "$ref": "#/$defs/__schema13"
                 }
               },
               "required": [
@@ -61648,11 +61708,14 @@
               "type": "object",
               "x-poracode-unknownFields": "strip"
             },
-            "__schema12": {
+            "__schema13": {
               "additionalProperties": false,
               "properties": {
                 "agentKind": {
                   "$ref": "#/$defs/__schema7"
+                },
+                "contextSize": {
+                  "$ref": "#/$defs/__schema11"
                 },
                 "effort": {
                   "$ref": "#/$defs/__schema9"
@@ -61697,6 +61760,9 @@
                     "agentKind": {
                       "$ref": "#/$defs/__schema7"
                     },
+                    "contextSize": {
+                      "$ref": "#/$defs/__schema11"
+                    },
                     "effort": {
                       "$ref": "#/$defs/__schema9"
                     },
@@ -61728,7 +61794,7 @@
                 },
                 "roles": {
                   "items": {
-                    "$ref": "#/$defs/__schema11"
+                    "$ref": "#/$defs/__schema12"
                   },
                   "maxItems": 6,
                   "minItems": 1,
@@ -62339,6 +62405,11 @@
               "type": "boolean"
             },
             "__schema11": {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            },
+            "__schema12": {
               "additionalProperties": true,
               "properties": {
                 "brief": {
@@ -62347,7 +62418,7 @@
                 },
                 "fallbacks": {
                   "items": {
-                    "$ref": "#/$defs/__schema12"
+                    "$ref": "#/$defs/__schema13"
                   },
                   "maxItems": 3,
                   "type": "array"
@@ -62371,7 +62442,7 @@
                   "type": "integer"
                 },
                 "selection": {
-                  "$ref": "#/$defs/__schema12"
+                  "$ref": "#/$defs/__schema13"
                 }
               },
               "required": [
@@ -62382,11 +62453,14 @@
               "type": "object",
               "x-poracode-unknownFields": "strip"
             },
-            "__schema12": {
+            "__schema13": {
               "additionalProperties": false,
               "properties": {
                 "agentKind": {
                   "$ref": "#/$defs/__schema7"
+                },
+                "contextSize": {
+                  "$ref": "#/$defs/__schema11"
                 },
                 "effort": {
                   "$ref": "#/$defs/__schema9"
@@ -62431,6 +62505,9 @@
                     "agentKind": {
                       "$ref": "#/$defs/__schema7"
                     },
+                    "contextSize": {
+                      "$ref": "#/$defs/__schema11"
+                    },
                     "effort": {
                       "$ref": "#/$defs/__schema9"
                     },
@@ -62462,7 +62539,7 @@
                 },
                 "roles": {
                   "items": {
-                    "$ref": "#/$defs/__schema11"
+                    "$ref": "#/$defs/__schema12"
                   },
                   "maxItems": 6,
                   "minItems": 1,
@@ -62994,6 +63071,11 @@
               "type": "boolean"
             },
             "__schema11": {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            },
+            "__schema12": {
               "additionalProperties": true,
               "properties": {
                 "brief": {
@@ -63002,7 +63084,7 @@
                 },
                 "fallbacks": {
                   "items": {
-                    "$ref": "#/$defs/__schema12"
+                    "$ref": "#/$defs/__schema13"
                   },
                   "maxItems": 3,
                   "type": "array"
@@ -63026,7 +63108,7 @@
                   "type": "integer"
                 },
                 "selection": {
-                  "$ref": "#/$defs/__schema12"
+                  "$ref": "#/$defs/__schema13"
                 }
               },
               "required": [
@@ -63037,11 +63119,14 @@
               "type": "object",
               "x-poracode-unknownFields": "strip"
             },
-            "__schema12": {
+            "__schema13": {
               "additionalProperties": false,
               "properties": {
                 "agentKind": {
                   "$ref": "#/$defs/__schema7"
+                },
+                "contextSize": {
+                  "$ref": "#/$defs/__schema11"
                 },
                 "effort": {
                   "$ref": "#/$defs/__schema9"
@@ -63086,6 +63171,9 @@
                     "agentKind": {
                       "$ref": "#/$defs/__schema7"
                     },
+                    "contextSize": {
+                      "$ref": "#/$defs/__schema11"
+                    },
                     "effort": {
                       "$ref": "#/$defs/__schema9"
                     },
@@ -63117,7 +63205,7 @@
                 },
                 "roles": {
                   "items": {
-                    "$ref": "#/$defs/__schema11"
+                    "$ref": "#/$defs/__schema12"
                   },
                   "maxItems": 6,
                   "minItems": 1,
@@ -63935,6 +64023,11 @@
               "properties": {
                 "agentKind": {
                   "maxLength": 128,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "contextSize": {
+                  "maxLength": 64,
                   "minLength": 1,
                   "type": "string"
                 },
@@ -67557,6 +67650,11 @@
                   "minLength": 1,
                   "type": "string"
                 },
+                "contextSize": {
+                  "maxLength": 64,
+                  "minLength": 1,
+                  "type": "string"
+                },
                 "effort": {
                   "maxLength": 64,
                   "minLength": 1,
@@ -68844,6 +68942,11 @@
               "properties": {
                 "agentKind": {
                   "maxLength": 128,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "contextSize": {
+                  "maxLength": 64,
                   "minLength": 1,
                   "type": "string"
                 },
@@ -71815,6 +71918,11 @@
                   "minLength": 1,
                   "type": "string"
                 },
+                "contextSize": {
+                  "maxLength": 64,
+                  "minLength": 1,
+                  "type": "string"
+                },
                 "effort": {
                   "maxLength": 64,
                   "minLength": 1,
@@ -73569,6 +73677,11 @@
                   "minLength": 1,
                   "type": "string"
                 },
+                "contextSize": {
+                  "maxLength": 64,
+                  "minLength": 1,
+                  "type": "string"
+                },
                 "effort": {
                   "maxLength": 64,
                   "minLength": 1,
@@ -75209,6 +75322,11 @@
                   "minLength": 1,
                   "type": "string"
                 },
+                "contextSize": {
+                  "maxLength": 64,
+                  "minLength": 1,
+                  "type": "string"
+                },
                 "effort": {
                   "maxLength": 64,
                   "minLength": 1,
@@ -76126,6 +76244,11 @@
               "properties": {
                 "agentKind": {
                   "maxLength": 128,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "contextSize": {
+                  "maxLength": 64,
                   "minLength": 1,
                   "type": "string"
                 },
@@ -77260,6 +77383,11 @@
                   "minLength": 1,
                   "type": "string"
                 },
+                "contextSize": {
+                  "maxLength": 64,
+                  "minLength": 1,
+                  "type": "string"
+                },
                 "effort": {
                   "maxLength": 64,
                   "minLength": 1,
@@ -78297,7 +78425,7 @@
     "void-envelope.omit-result",
     "void-result.omit-field"
   ],
-  "sourceHash": "sha256:cff8a8f93d2cef32c1d1d584b0f5f1b2a3da090d1b03822e3c2391bfecbeaebb",
+  "sourceHash": "sha256:e833a4533c072f8bf1e6c6d1623905bcf76d360793538992428f161c060bc853",
   "unknownObjectFields": "ignore",
   "webSocket": {
     "clientMessages": [

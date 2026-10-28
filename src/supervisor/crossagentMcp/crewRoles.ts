@@ -20,6 +20,7 @@ export function crewListDescription(
     model: role.selection.model,
     ...(role.selection.effort ? { reasoning: role.selection.effort } : {}),
     fast: role.selection.fast === true,
+    ...(role.selection.contextSize ? { context_size: role.selection.contextSize } : {}),
     parallel: role.parallel ?? 1,
     running: runningRuns.filter((run) => run.role === role.id && run.status === "running").length,
     available: selectionsForRole(role).some((selection) => selectionIsAvailable(selection, agents)),
@@ -91,6 +92,7 @@ export function resolveCrewRoleSpawn(
     model: primary.model,
     ...(primary.effort !== undefined ? { reasoning: primary.effort } : {}),
     ...(primary.fast !== undefined ? { fast: primary.fast } : {}),
+    ...(primary.contextSize ? { context_size: primary.contextSize } : {}),
     ...(fallbacks.length > 0
       ? {
           fallbacks: fallbacks.map((selection) => ({
@@ -98,6 +100,7 @@ export function resolveCrewRoleSpawn(
             model: selection.model,
             ...(selection.effort !== undefined ? { reasoning: selection.effort } : {}),
             ...(selection.fast !== undefined ? { fast: selection.fast } : {}),
+            ...(selection.contextSize ? { context_size: selection.contextSize } : {}),
           })),
         }
       : {}),

@@ -20,6 +20,7 @@ const crewMemberSelectionShape = {
   model: z.string().min(1).max(256),
   effort: z.string().min(1).max(64).optional(),
   fast: z.boolean().optional(),
+  contextSize: z.string().min(1).max(64).optional(),
 };
 
 export const crewMemberSelectionSchema = z.object(crewMemberSelectionShape).strict();

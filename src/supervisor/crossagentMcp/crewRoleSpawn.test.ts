@@ -1,6 +1,6 @@
 import { expect, it, vi } from "vitest";
 import type { ThreadCrewBinding } from "@/shared/crew";
-import type { RuntimeEvent } from "@/shared/contracts";
+import type { AgentCapability, RuntimeEvent } from "@/shared/contracts";
 import { dispatchTool, type SubagentToolContext } from "./toolRegistry";
 import { makeHarness, PARENT, flush } from "./testHarness";
 import type { SpawnAgentRequest } from "./types";
@@ -453,4 +453,27 @@ it("continues a role's helper session unless the lead asks for a fresh one", asy
   );
   expect(JSON.parse(fresh.content[0]!.text)).toMatchObject({ run_id: "fresh-run" });
   expect(continueRole).toHaveBeenCalledTimes(1);
+});
+
+it("gives a helper the role's context length only when its model offers it", async () => {
+  const statusCapabilities = {
+    models: [{ id: "gpt-5.5", label: "GPT-5.5" }],
+    efforts: ["low", "high"],
+    contextSizes: [
+      { id: "272k", label: "272k" },
+      { id: "1m", label: "1M" },
+    ],
+    modelContextSizes: { "gpt-5.5": ["272k", "1m"] },
+    approvalPolicies: [{ id: "never", label: "Full Access" }],
+    sandboxModes: [{ id: "danger-full-access", label: "Full Access" }],
+    bypassPermissions: { approvalPolicy: "never", sandboxMode: "danger-full-access" },
+  } as unknown as AgentCapability;
+  const h = makeHarness({ statusCapabilities });
+  h.manager.spawn(PARENT, { agent: "codex", model: "gpt-5.5", contextSize: "1m", prompt: "Wide" });
+  h.manager.spawn(PARENT, { agent: "codex", model: "gpt-5.5", contextSize: "2m", prompt: "Odd" });
+  await vi.waitFor(() => expect(h.inputs).toHaveLength(2));
+  expect(h.inputs[0]!.config.contextSize).toBe("1m");
+  expect(h.inputs[1]!.config.contextSize).toBeUndefined();
+  h.manager.cancelAllForThread(PARENT);
+  await flush();
 });

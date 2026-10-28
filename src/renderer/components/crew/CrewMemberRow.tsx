@@ -7,10 +7,36 @@ import { EffortContextMenu } from "@/renderer/components/common/EffortContextMen
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
 import { ThreadDockIconButton } from "@/renderer/components/thread/ThreadDockUI";
 import { modelSelectionFor } from "@/shared/agentSelection";
+import type { AgentCapability } from "@/shared/contracts";
 import type { CrewMemberSelection, CrewRole } from "@/shared/crew";
 import { formatEffortLabel } from "@/renderer/components/thread/threadDraftViewHelpers";
 import { CrewRoleDetails } from "./CrewRoleDetails";
 import type { CrewRosterModel } from "./crewComposerModel";
+
+/** Context lengths a member's model offers; empty unless there is a choice (2+). */
+export function contextSizesFor(
+  capabilities: AgentCapability | undefined,
+  model: string,
+): NonNullable<AgentCapability["contextSizes"]> {
+  const ids = capabilities?.modelContextSizes?.[model];
+  const sizes = ids
+    ? (capabilities?.contextSizes?.filter((size) => ids.includes(size.id)) ?? [])
+    : [];
+  return sizes.length > 1 ? sizes : [];
+}
+
+/** The member's context length, or the model's default when unset or no longer offered. */
+export function contextSizeValueFor(
+  capabilities: AgentCapability | undefined,
+  model: string,
+  preferred: string | undefined,
+): string | undefined {
+  const allowed = capabilities?.modelContextSizes?.[model];
+  if (!allowed?.length) return undefined;
+  if (preferred && allowed.includes(preferred)) return preferred;
+  const fallback = capabilities?.defaultContextSize;
+  return fallback && allowed.includes(fallback) ? fallback : allowed[0];
+}
 
 export function CrewMemberRow(props: {
   model: CrewRosterModel;
@@ -41,14 +67,20 @@ export function CrewMemberRow(props: {
   const effortValue = selection.effort ?? selectionInfo?.reasoning.default;
   const reasoning = effortValue ? formatEffortLabel(effortValue) : undefined;
   const memberLabel = isLead ? t`Lead` : (role?.label ?? "");
+  const contextSizes = contextSizesFor(provider?.capabilities, selection.model);
+  const contextValue = contextSizeValueFor(
+    provider?.capabilities,
+    selection.model,
+    selection.contextSize,
+  );
   const fastAvailable = selectionInfo?.fast.available === true;
   const fastDisabled = !fastAvailable || model.isDisabled;
   const fastDisabledReason =
     selectionInfo?.fast.disabledReason ?? t`Fast is unavailable for this model.`;
 
   // QUICK settings: the pickers change only their own carrier — a model pick
-  // keeps effort when the new model still offers it and drops Fast when the
-  // new model cannot run it.
+  // keeps effort and context length when the new model still offers them and
+  // drops Fast when the new model cannot run it.
   function changeModel(next: { agentKind: string; model: string }) {
     const nextProvider = providers.find((candidate) => candidate.kind === next.agentKind);
     const nextModel = nextProvider?.capabilities.models.find(
@@ -60,11 +92,17 @@ export function CrewMemberRow(props: {
       selection.effort !== undefined && nextInfo.reasoning.values.includes(selection.effort)
         ? selection.effort
         : nextInfo.reasoning.default;
+    const keepsContextSize =
+      selection.contextSize !== undefined &&
+      (nextProvider.capabilities.modelContextSizes?.[next.model] ?? []).includes(
+        selection.contextSize,
+      );
     props.onSelectionChange({
       agentKind: next.agentKind,
       model: next.model,
       ...(nextEffort ? { effort: nextEffort } : {}),
       ...(selection.fast === true && nextInfo.fast.available ? { fast: true } : {}),
+      ...(keepsContextSize ? { contextSize: selection.contextSize } : {}),
     });
   }
 
@@ -83,14 +121,19 @@ export function CrewMemberRow(props: {
   );
 
   const reasoningControl =
-    efforts.length > 1 ? (
+    efforts.length > 1 || contextSizes.length > 0 ? (
       <EffortContextMenu
         triggerAppearance="label"
         label={t`Reasoning for ${memberLabel}`}
-        efforts={efforts}
+        efforts={efforts.length > 1 ? efforts : []}
         {...(effortValue !== undefined ? { effortValue } : {})}
         onEffortChange={(effort) => props.onSelectionChange({ ...selection, effort })}
-        contextSizes={[]}
+        contextSizes={contextSizes}
+        {...(contextValue !== undefined ? { contextValue } : {})}
+        onContextChange={(contextSize) => props.onSelectionChange({ ...selection, contextSize })}
+        // The lead's context length applies to the running session, which
+        // reloads; helpers pick it up on their next run.
+        confirmContextChange={isLead && !model.isDraft}
         isDisabled={model.isDisabled}
       />
     ) : reasoning ? (
