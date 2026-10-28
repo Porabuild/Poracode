@@ -7,6 +7,7 @@ import type { CreateStructuredSessionInput } from "../base";
 const mocks = vi.hoisted(() => ({
   spawn: vi.fn<(...args: unknown[]) => unknown>(),
   terminateChildProcessTree: vi.fn<(child: unknown) => void>(),
+  agentsConfigSupported: true,
 }));
 
 vi.mock("node:child_process", async (importOriginal) => ({
@@ -21,6 +22,9 @@ vi.mock("./argv", () => ({
     command: process.execPath,
     args: [],
   }),
+}));
+vi.mock("./agentsConfigSupport", () => ({
+  isCodexAgentsConfigSupported: () => mocks.agentsConfigSupported,
 }));
 vi.mock("./mcpSkillConflicts", () => ({
   buildCodexMcpSkillConflictArgs: () => [],
@@ -269,6 +273,38 @@ describe("Codex app-server pool", () => {
     ).not.toBe(baseline);
     expect(
       await codexAppServerPoolKey(location, [server], "wsl.exe", "/opt/node/bin/node"),
+    ).not.toBe(baseline);
+  });
+
+  it("keeps one app-server when the CLI cannot take the sub-agent defaults", async () => {
+    mocks.agentsConfigSupported = false;
+    try {
+      const location = { kind: "windows" as const, path: "C:\\repo" };
+      const baseline = await codexAppServerPoolKey(location, []);
+
+      expect(
+        await codexAppServerPoolKey(location, [], undefined, undefined, undefined, {
+          subagentModel: "gpt-6-luna",
+        }),
+      ).toBe(baseline);
+    } finally {
+      mocks.agentsConfigSupported = true;
+    }
+  });
+
+  it("starts a separate app-server when the sub-agent defaults change", async () => {
+    const location = { kind: "windows" as const, path: "C:\\repo" };
+    const baseline = await codexAppServerPoolKey(location, []);
+
+    expect(
+      await codexAppServerPoolKey(location, [], undefined, undefined, undefined, {
+        subagentModel: "",
+      }),
+    ).toBe(baseline);
+    expect(
+      await codexAppServerPoolKey(location, [], undefined, undefined, undefined, {
+        subagentModel: "gpt-6-luna",
+      }),
     ).not.toBe(baseline);
   });
 

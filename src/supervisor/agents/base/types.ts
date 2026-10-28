@@ -788,6 +788,14 @@ export interface AgentDetector {
     status?: AgentStatus;
     wslDistros: string[];
   }): Promise<AgentProviderMetadata | undefined>;
+  /**
+   * Read-only values the provider's own config file already sets on this
+   * machine, keyed by the agent-setting key each backs (plus any
+   * provider-defined hint keys), so Settings can show what applies when the
+   * user leaves a setting empty. Must never write, and resolves to an empty
+   * record when the file is missing or unreadable.
+   */
+  readConfigDefaults?(): Promise<Record<string, string>>;
 }
 
 /**

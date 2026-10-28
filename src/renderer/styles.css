@@ -2096,6 +2096,16 @@ html[data-compact-layout] .poracode-flat-thread-scroll {
   -webkit-overflow-scrolling: touch;
 }
 
+/* The pinned Done section sits below the scrolling rows, so it takes the
+   floating-dock clearance instead of the rows above it. */
+html[data-compact-layout] .poracode-flat-thread-scroll:has(+ .poracode-flat-done-section) {
+  padding-bottom: 0.5rem;
+}
+
+html[data-compact-layout] .poracode-flat-done-section {
+  padding-bottom: calc(var(--m-floating-control-height) + 1.5rem + env(safe-area-inset-bottom));
+}
+
 /* Compact PWA uses the desktop flat-row markup with a larger touch target and
    a faint resting surface. Only interaction controls differ. */
 html[data-compact-layout] .poracode-sidebar-thread-row,
@@ -2573,10 +2583,6 @@ html[data-compact-layout] .m-thread-content {
 
 html[data-compact-layout] .m-thread .m-thread-content [data-poracode-chat-scroller] {
   padding-bottom: 0;
-}
-
-html[data-compact-layout] .m-thread .m-thread-content [data-chat-virtual-size-box="true"] {
-  padding-bottom: calc(var(--m-floating-control-height) + 1.5rem + env(safe-area-inset-bottom));
 }
 
 html[data-compact-layout] .m-thread .m-thread-content button.bottom-4:has(svg.lucide-arrow-down) {

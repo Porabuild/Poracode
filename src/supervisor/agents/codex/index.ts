@@ -21,6 +21,8 @@ import {
 import { resolveNativeTildePath } from "../base/sessionFs";
 import { resolveAgentBinaryPath } from "../binaryResolver";
 import { CodexStructuredSession } from "./acp";
+import { primeCodexAgentsConfigSupport } from "./agentsConfigSupport";
+import { readCodexConfigDefaults } from "./configDefaults";
 import { PERSISTED_RUNTIME_PAYLOAD_FORMAT_OWNER_KEY } from "./persistedRuntimePayload";
 import { buildCodexArgvFor, codexExtraArgsPosition, primeCodexGoalsSupport } from "./argv";
 import { codexDefaultCapabilities, codexDetectionSpec } from "./detection";
@@ -133,6 +135,8 @@ export function createCodexAdapter(options: CodexAdapterOptions = {}): AgentAdap
   let preSpawnRolloutIds = new Set<string>();
   let preSpawnStartedAt = 0;
   const kind = options.kind ?? codexDetectionSpec.kind;
+  const nativeHomeDir =
+    options.homeDir !== undefined ? resolveNativeTildePath(options.homeDir) : undefined;
   const label = options.label ?? codexDetectionSpec.label;
 
   const {
@@ -151,9 +155,7 @@ export function createCodexAdapter(options: CodexAdapterOptions = {}): AgentAdap
     label,
     binary: codexDetectionSpec.binary,
     supportsDeferredMcpAuthorization: true,
-    sessionImport: createCodexSessionImport(
-      options.homeDir !== undefined ? resolveNativeTildePath(options.homeDir) : undefined,
-    ),
+    sessionImport: createCodexSessionImport(nativeHomeDir),
     skillSupport: {
       roots: [
         {
@@ -181,6 +183,7 @@ export function createCodexAdapter(options: CodexAdapterOptions = {}): AgentAdap
       },
     },
     listNativePlugins: async (ctx) => listNativeCodexPlugins(ctx, await pluginDiscoveryHome(ctx)),
+    readConfigDefaults: () => readCodexConfigDefaults(nativeHomeDir),
     ...(codexDetectionSpec.update ? { update: codexDetectionSpec.update } : {}),
     get capabilities() {
       return capabilities;
@@ -259,6 +262,10 @@ export function createCodexAdapter(options: CodexAdapterOptions = {}): AgentAdap
         env ? { ...detectionSpec, probeEnv: env } : detectionSpec,
       );
       primeCodexGoalsSupport(location, status.version, status.executablePath);
+      // A failed or missing version read must not overwrite a known-good answer.
+      if (status.installed && status.version) {
+        primeCodexAgentsConfigSupport(location, status.version);
+      }
       capabilities = status.capabilities;
       return { ...status, kind, label };
     },

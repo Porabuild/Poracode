@@ -1577,6 +1577,10 @@ msgstr "레거시 연결 채택"
 msgid "Advanced"
 msgstr "고급"
 
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Advanced settings"
+msgstr "고급 설정"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Advertise a custom base URL, e.g. a reverse proxy or tunnel. Leave empty for automatic."
 msgstr "사용자 정의 기본 URL을 게시합니다(예: 리버스 프록시 또는 터널). 자동으로 설정하려면 비워 두세요."
@@ -1875,8 +1879,8 @@ msgid "Allow eval"
 msgstr "평가 허용"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-msgid "Allow paired devices to connect through LAN and Tailscale IP addresses. Connections use HTTP unless TLS is configured. Enable only on trusted networks."
-msgstr "페어링된 기기가 LAN 및 Tailscale IP 주소로 연결하도록 허용합니다. TLS가 구성되지 않은 경우 HTTP를 사용합니다. 신뢰할 수 있는 네트워크에서만 활성화하세요."
+#~ msgid "Allow paired devices to connect through LAN and Tailscale IP addresses. Connections use HTTP unless TLS is configured. Enable only on trusted networks."
+#~ msgstr "페어링된 기기가 LAN 및 Tailscale IP 주소로 연결하도록 허용합니다. TLS가 구성되지 않은 경우 HTTP를 사용합니다. 신뢰할 수 있는 네트워크에서만 활성화하세요."
 
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "Allow replacing conflicting managed skills"
@@ -4075,6 +4079,10 @@ msgstr "턴이 실행 중일 때는 Codex가 대화를 압축할 수 없습니�
 msgid "Codex could not compact the conversation: {detail}"
 msgstr "Codex가 대화를 압축하지 못했습니다: {detail}"
 
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Codex default"
+msgstr "Codex 기본값"
+
 #: src/renderer/components/providers/codex/profileSettings.tsx
 msgid "Codex profile home directory"
 msgstr "Codex 프로필 홈 디렉터리"
@@ -5754,6 +5762,7 @@ msgstr "영구 세션, 추론 설정, MCP 도구를 지원하는 DeepSeek Harnes
 
 #: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/components/providers/deepseek/index.tsx
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
@@ -6221,8 +6230,12 @@ msgid "Devices & tools"
 msgstr "장치 및 도구"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-msgid "Devices can pair while this desktop is reachable."
-msgstr "이 데스크톱에 연결할 수 있는 동안 기기를 페어링할 수 있습니다."
+msgid "Devices can pair while this desktop is reachable on your local network. Connections use HTTP unless TLS is configured; use only on trusted networks."
+msgstr "이 데스크톱이 로컬 네트워크에서 접근 가능한 동안 기기를 페어링할 수 있습니다. TLS를 구성하지 않으면 연결은 HTTP를 사용하므로 신뢰할 수 있는 네트워크에서만 사용하세요."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#~ msgid "Devices can pair while this desktop is reachable."
+#~ msgstr "이 데스크톱에 연결할 수 있는 동안 기기를 페어링할 수 있습니다."
 
 #: src/renderer/components/providers/devin/manifest.ts
 msgid "Devin"
@@ -7074,6 +7087,10 @@ msgstr "올바른 일정을 입력하세요"
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
 msgid "Enter a valid value."
 msgstr "유효한 값을 입력하세요."
+
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Enter a whole number from 1 to {CODEX_MAX_SUBAGENTS_LIMIT}."
+msgstr "1에서 {CODEX_MAX_SUBAGENTS_LIMIT} 사이의 정수를 입력하세요."
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #~ msgid "Enter an absolute @cursor/sdk package path, or leave this blank for automatic discovery."
@@ -8134,6 +8151,10 @@ msgstr "출처"
 msgid "From {from} to {to}"
 msgstr "{from}에서 {to}(으)로"
 
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "From config.toml: {configValue}"
+msgstr "config.toml 값: {configValue}"
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
 msgid "From this project"
 msgstr "이 프로젝트에서"
@@ -9094,6 +9115,22 @@ msgstr "이어받은 기록은 여기까지입니다"
 #: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
 msgid "Inheriting the global setting (currently {0})."
 msgstr "전역 설정 상속(현재 {0})"
+
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Inherits the parent effort"
+msgstr "상위 에이전트의 추론 강도를 상속"
+
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Inherits the parent effort: {parentEffort}"
+msgstr "상위 에이전트의 추론 강도를 상속: {parentEffort}"
+
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Inherits the parent model"
+msgstr "상위 에이전트의 모델을 상속"
+
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Inherits the parent model: {parentModel}"
+msgstr "상위 에이전트의 모델을 상속: {parentModel}"
 
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Initial retry delay"
@@ -10499,6 +10536,10 @@ msgstr "최대 활성 터미널 셸"
 msgid "Max active terminal shells, 0 for unlimited"
 msgstr "최대 활성 터미널 셸, 0은 무제한"
 
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Max concurrent sub-agents"
+msgstr "최대 동시 하위 에이전트 수"
+
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Maximize"
@@ -11327,8 +11368,8 @@ msgid "Needs reply"
 msgstr "답장이 필요함"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-msgid "Network access"
-msgstr "네트워크 액세스"
+#~ msgid "Network access"
+#~ msgstr "네트워크 액세스"
 
 #: src/renderer/utils/prStatus.ts
 msgid "Neutral"
@@ -13047,6 +13088,10 @@ msgstr "이 프로젝트의 작업 트리가 생성되는 위치를 재정의합
 msgid "Overrides {conflict}"
 msgstr "{conflict} 재정의"
 
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Overrides config.toml: {configValue}"
+msgstr "config.toml 재정의: {configValue}"
+
 #: src/renderer/components/skills/SkillsManager.tsx
 #~ msgid "Overrides global"
 #~ msgstr "전역 스킬 재정의"
@@ -13541,6 +13586,10 @@ msgstr "Pixel 8"
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Plan"
 msgstr "계획"
+
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Plan mode reasoning effort"
+msgstr "계획 모드 추론 강도"
 
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileQuickCompose.tsx
@@ -15291,9 +15340,14 @@ msgstr "필수 검토, 대화 또는 상태 확인이 충족되지 않았습니�
 msgid "reset"
 msgstr "재설정"
 
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 #: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
 msgid "Reset"
 msgstr "재설정"
+
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Reset advanced settings"
+msgstr "고급 설정 재설정"
 
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisualBlocks.tsx
 msgid "Reset checklist"
@@ -16858,6 +16912,10 @@ msgstr "세션 ID"
 msgid "Set group color"
 msgstr "그룹 색상 설정"
 
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Set in Poracode."
+msgstr "Poracode에서 설정됨."
+
 #: src/renderer/components/devices/DeviceTools.tsx
 msgid "Set location"
 msgstr "위치 설정"
@@ -18053,6 +18111,18 @@ msgstr "이 기기에 저장되며 데스크톱은 자체 값을 유지합니다
 msgid "Structured runtime"
 msgstr "구조화 런타임"
 
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Sub-agent and planning defaults. They override config.toml and apply when a Codex session starts; running sessions keep their current values."
+msgstr "하위 에이전트 및 계획 기본값입니다. config.toml보다 우선하며 Codex 세션이 시작될 때 적용됩니다. 실행 중인 세션은 현재 값을 유지합니다."
+
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Sub-agent model"
+msgstr "하위 에이전트 모델"
+
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Sub-agent reasoning effort"
+msgstr "하위 에이전트 추론 강도"
+
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 msgid "Subagent"
@@ -19126,6 +19196,10 @@ msgstr "SSH 터널이 호환되지 않는 Poracode 서버에 연결되었습니�
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "The stored configuration is invalid. The stored values are kept; saving below replaces them with what this form holds."
 msgstr "저장된 구성이 잘못되었습니다. 저장된 값은 유지되며, 아래에서 저장하면 이 폼의 내용으로 대체됩니다."
+
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "The sub-agent settings need Codex 0.145 or newer. They are ignored until Codex is updated."
+msgstr "하위 에이전트 설정에는 Codex 0.145 이상이 필요합니다. Codex를 업데이트할 때까지 무시됩니다."
 
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "the target provider"
@@ -20490,8 +20564,8 @@ msgid "Unable to update native MCP configuration. Refresh and review the configu
 msgstr "네이티브 MCP 구성을 업데이트할 수 없습니다. 새로 고침하고 구성을 검토한 후 다시 시도하세요."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-msgid "Unable to update network access."
-msgstr "네트워크 액세스를 업데이트할 수 없습니다."
+#~ msgid "Unable to update network access."
+#~ msgstr "네트워크 액세스를 업데이트할 수 없습니다."
 
 #: src/renderer/components/providers/settings/ModelProviderManager.tsx
 msgid "Unable to update providers. Check the native configuration for overrides."

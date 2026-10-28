@@ -17,6 +17,7 @@ import { dirname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { after, test } from "node:test";
 import { prepareDesktopCli } from "./prepare-desktop-cli.mjs";
+import { transformRuntimeClosure } from "./runtime-closure.mjs";
 import { buildElectronBuilderConfig, verifyDesktopPtyTargets } from "./build-desktop-artifact.mjs";
 import { parse as parseYaml } from "yaml";
 import { PLATFORM_PATTERNS } from "../website/src/lib/releases.ts";
@@ -562,6 +563,77 @@ await test("fails packaging on a missing or changed declared runtime rather than
   assert.ok(
     !existsSync(join(input.root, "other-stage", "resources", "desktop-cli", "manifest.json")),
   );
+});
+
+await test("packages real Sentry-injected bytes from the existing runtime manifest format", () => {
+  const input = fixture("linux", "nightly");
+  const manifestPath = join(input.main, "server.ssh-runtime-manifest.json");
+  const before = JSON.parse(readFileSync(manifestPath, "utf8"));
+  const moduleCode = "export const value = 'captured';\n";
+  writeFileSync(join(input.main, "worker.mjs"), moduleCode);
+  before.files.push({
+    path: "worker.mjs",
+    format: "module",
+    bytes: Buffer.byteLength(moduleCode),
+    sha256: createHash("sha256").update(moduleCode).digest("hex"),
+  });
+  writeFileSync(manifestPath, JSON.stringify(before));
+  const options = {
+    stageRoot: join(input.root, "injected-stage"),
+    mainBundleDir: input.main,
+    rendererDir: join(input.root, "renderer"),
+    appVersion: "2.0.0",
+  };
+  const inject = () =>
+    execFileSync(
+      process.execPath,
+      [
+        join(repoRoot, "node_modules/@sentry/cli/bin/sentry-cli"),
+        "sourcemaps",
+        "inject",
+        input.main,
+      ],
+      { stdio: "pipe" },
+    );
+  transformRuntimeClosure(input.main, () => {
+    inject();
+    // Reproduce the previous release failure before the hashes are recaptured.
+    assert.throws(() => prepareDesktopCli(options), /input hash differs/u);
+  });
+  const injectedManifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+  assert.notDeepEqual(injectedManifest.files, before.files);
+  assert.deepEqual({ ...injectedManifest, files: before.files }, before);
+  prepareDesktopCli(options);
+  for (const file of injectedManifest.files) {
+    const bytes = readFileSync(join(input.main, file.path));
+    assert.match(bytes.toString(), /debugId=/u);
+    assert.equal(file.bytes, bytes.length);
+    assert.equal(file.sha256, createHash("sha256").update(bytes).digest("hex"));
+    assert.deepEqual(
+      readFileSync(join(options.stageRoot, "dist/cli-runtime/lib", file.path)),
+      bytes,
+    );
+  }
+  // Upload retries run injection again; already-injected code remains valid.
+  transformRuntimeClosure(input.main, inject);
+  assert.deepEqual(JSON.parse(readFileSync(manifestPath, "utf8")), injectedManifest);
+});
+
+await test("refuses drift and future runtime manifests before source-map injection", () => {
+  const input = fixture();
+  const manifestPath = join(input.main, "server.ssh-runtime-manifest.json");
+  const original = readFileSync(manifestPath, "utf8");
+  const codePath = join(input.main, "lazy.cjs");
+  const code = readFileSync(codePath);
+  writeFileSync(codePath, "// changed before injection\n");
+  const refuse = () => assert.fail("Must refuse before transforming code.");
+  assert.throws(() => transformRuntimeClosure(input.main, refuse), /input hash differs/u);
+  assert.equal(readFileSync(manifestPath, "utf8"), original);
+  writeFileSync(codePath, code);
+  const future = { ...JSON.parse(original), version: 999 };
+  writeFileSync(manifestPath, JSON.stringify(future));
+  assert.throws(() => transformRuntimeClosure(input.main, refuse));
+  assert.deepEqual(JSON.parse(readFileSync(manifestPath, "utf8")), future);
 });
 
 await test("refuses legacy or future server entry versions before command delegation", () => {

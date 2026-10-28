@@ -1577,6 +1577,10 @@ msgstr "Przejmij starsze połączenie"
 msgid "Advanced"
 msgstr "Zaawansowane"
 
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Advanced settings"
+msgstr "Ustawienia zaawansowane"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Advertise a custom base URL, e.g. a reverse proxy or tunnel. Leave empty for automatic."
 msgstr "Ustaw niestandardowy bazowy URL, np. reverse proxy lub tunel. Pozostaw puste, aby ustawić automatycznie."
@@ -1875,8 +1879,8 @@ msgid "Allow eval"
 msgstr "Zezwól na ewaluację"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-msgid "Allow paired devices to connect through LAN and Tailscale IP addresses. Connections use HTTP unless TLS is configured. Enable only on trusted networks."
-msgstr "Zezwalaj sparowanym urządzeniom na łączenie się przez adresy IP sieci LAN i Tailscale. Połączenia używają HTTP, jeśli nie skonfigurowano TLS. Włączaj tylko w zaufanych sieciach."
+#~ msgid "Allow paired devices to connect through LAN and Tailscale IP addresses. Connections use HTTP unless TLS is configured. Enable only on trusted networks."
+#~ msgstr "Zezwalaj sparowanym urządzeniom na łączenie się przez adresy IP sieci LAN i Tailscale. Połączenia używają HTTP, jeśli nie skonfigurowano TLS. Włączaj tylko w zaufanych sieciach."
 
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "Allow replacing conflicting managed skills"
@@ -4075,6 +4079,10 @@ msgstr "Codex nie może skompaktować rozmowy, gdy trwa tura. Wyślij /compact p
 msgid "Codex could not compact the conversation: {detail}"
 msgstr "Codex nie mógł skompaktować rozmowy: {detail}"
 
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Codex default"
+msgstr "Domyślne ustawienie Codex"
+
 #: src/renderer/components/providers/codex/profileSettings.tsx
 msgid "Codex profile home directory"
 msgstr "Katalog domowy profilu Codex"
@@ -5754,6 +5762,7 @@ msgstr "Czat DeepSeek Harness z trwałymi sesjami, ustawieniami rozumowania i na
 
 #: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/components/providers/deepseek/index.tsx
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
@@ -6221,8 +6230,12 @@ msgid "Devices & tools"
 msgstr "Urządzenia i narzędzia"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-msgid "Devices can pair while this desktop is reachable."
-msgstr "Urządzenia mogą się parować, gdy ten komputer jest osiągalny."
+msgid "Devices can pair while this desktop is reachable on your local network. Connections use HTTP unless TLS is configured; use only on trusted networks."
+msgstr "Urządzenia mogą się sparować, dopóki ten komputer jest osiągalny w Twojej sieci lokalnej. Połączenia używają HTTP, o ile nie skonfigurowano TLS; używaj tylko w zaufanych sieciach."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#~ msgid "Devices can pair while this desktop is reachable."
+#~ msgstr "Urządzenia mogą się parować, gdy ten komputer jest osiągalny."
 
 #: src/renderer/components/providers/devin/manifest.ts
 msgid "Devin"
@@ -7074,6 +7087,10 @@ msgstr "Wprowadź prawidłowy harmonogram"
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
 msgid "Enter a valid value."
 msgstr "Wprowadź prawidłową wartość."
+
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Enter a whole number from 1 to {CODEX_MAX_SUBAGENTS_LIMIT}."
+msgstr "Wpisz liczbę całkowitą od 1 do {CODEX_MAX_SUBAGENTS_LIMIT}."
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #~ msgid "Enter an absolute @cursor/sdk package path, or leave this blank for automatic discovery."
@@ -8134,6 +8151,10 @@ msgstr "Z"
 msgid "From {from} to {to}"
 msgstr "Z {from} do {to}"
 
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "From config.toml: {configValue}"
+msgstr "Z config.toml: {configValue}"
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
 msgid "From this project"
 msgstr "Z tego projektu"
@@ -9094,6 +9115,22 @@ msgstr "Tutaj kończy się przejęta historia"
 #: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
 msgid "Inheriting the global setting (currently {0})."
 msgstr "Dziedziczenie ustawienia globalnego (obecnie {0})."
+
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Inherits the parent effort"
+msgstr "Dziedziczy wysiłek rozumowania agenta nadrzędnego"
+
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Inherits the parent effort: {parentEffort}"
+msgstr "Dziedziczy wysiłek rozumowania agenta nadrzędnego: {parentEffort}"
+
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Inherits the parent model"
+msgstr "Dziedziczy model agenta nadrzędnego"
+
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Inherits the parent model: {parentModel}"
+msgstr "Dziedziczy model agenta nadrzędnego: {parentModel}"
 
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Initial retry delay"
@@ -10499,6 +10536,10 @@ msgstr "Maks. aktywnych powłok terminala"
 msgid "Max active terminal shells, 0 for unlimited"
 msgstr "Maks. aktywnych powłok terminala, 0 = bez ograniczeń"
 
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Max concurrent sub-agents"
+msgstr "Maksymalna liczba jednoczesnych subagentów"
+
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Maximize"
@@ -11327,8 +11368,8 @@ msgid "Needs reply"
 msgstr "Potrzebuje odpowiedzi"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-msgid "Network access"
-msgstr "Dostęp do sieci"
+#~ msgid "Network access"
+#~ msgstr "Dostęp do sieci"
 
 #: src/renderer/utils/prStatus.ts
 msgid "Neutral"
@@ -13047,6 +13088,10 @@ msgstr "Zastąp miejsce tworzenia drzew roboczych tego projektu. Dotyczy drzew r
 msgid "Overrides {conflict}"
 msgstr "Zastępuje {conflict}"
 
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Overrides config.toml: {configValue}"
+msgstr "Zastępuje config.toml: {configValue}"
+
 #: src/renderer/components/skills/SkillsManager.tsx
 #~ msgid "Overrides global"
 #~ msgstr "Zastępuje globalną"
@@ -13541,6 +13586,10 @@ msgstr "Pixel 8"
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Plan"
 msgstr "Plan"
+
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Plan mode reasoning effort"
+msgstr "Wysiłek rozumowania w trybie planowania"
 
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileQuickCompose.tsx
@@ -15291,9 +15340,14 @@ msgstr "Nie spełniono wymaganych recenzji, rozmów lub kontroli stanu."
 msgid "reset"
 msgstr "reset"
 
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 #: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
 msgid "Reset"
 msgstr "Resetuj"
+
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Reset advanced settings"
+msgstr "Resetuj ustawienia zaawansowane"
 
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisualBlocks.tsx
 msgid "Reset checklist"
@@ -16858,6 +16912,10 @@ msgstr "Identyfikator sesji"
 msgid "Set group color"
 msgstr "Ustaw kolor grupy"
 
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Set in Poracode."
+msgstr "Ustawiono w Poracode."
+
 #: src/renderer/components/devices/DeviceTools.tsx
 msgid "Set location"
 msgstr "Ustaw lokalizację"
@@ -18053,6 +18111,18 @@ msgstr "Przechowywane na tym urządzeniu; komputer zachowuje własne wartości."
 msgid "Structured runtime"
 msgstr "Środowisko strukturalne"
 
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Sub-agent and planning defaults. They override config.toml and apply when a Codex session starts; running sessions keep their current values."
+msgstr "Domyślne ustawienia subagentów i planowania. Zastępują config.toml i obowiązują od uruchomienia sesji Codex; trwające sesje zachowują bieżące wartości."
+
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Sub-agent model"
+msgstr "Model subagenta"
+
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Sub-agent reasoning effort"
+msgstr "Wysiłek rozumowania subagenta"
+
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 msgid "Subagent"
@@ -19126,6 +19196,10 @@ msgstr "Tunel SSH połączył się z niezgodnym serwerem Poracode."
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "The stored configuration is invalid. The stored values are kept; saving below replaces them with what this form holds."
 msgstr "Zapisana konfiguracja jest nieprawidłowa. Zapisane wartości są zachowywane; zapisanie poniżej zastąpi je zawartością tego formularza."
+
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "The sub-agent settings need Codex 0.145 or newer. They are ignored until Codex is updated."
+msgstr "Ustawienia subagentów wymagają Codex 0.145 lub nowszego. Są ignorowane do czasu aktualizacji Codex."
 
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "the target provider"
@@ -20490,8 +20564,8 @@ msgid "Unable to update native MCP configuration. Refresh and review the configu
 msgstr "Nie można zaktualizować natywnej konfiguracji MCP. Odśwież i sprawdź konfigurację przed ponowną próbą."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-msgid "Unable to update network access."
-msgstr "Nie udało się zaktualizować dostępu do sieci."
+#~ msgid "Unable to update network access."
+#~ msgstr "Nie udało się zaktualizować dostępu do sieci."
 
 #: src/renderer/components/providers/settings/ModelProviderManager.tsx
 msgid "Unable to update providers. Check the native configuration for overrides."

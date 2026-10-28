@@ -83,7 +83,7 @@ export function FloatingComposerDock(props: {
    * the info chips) clear of the composer. Covers `aboveBubble` too — chrome
    * anchored to this height must clear the whole dock, not just the bubble.
    */
-  readonly onDockHeightChange?: ((height: number) => void) | undefined;
+  readonly onDockHeightChange?: ((height: number, dock: HTMLElement) => void) | undefined;
 }) {
   const dockRef = useRef<HTMLDivElement | null>(null);
   const bubbleRef = useRef<HTMLDivElement | null>(null);
@@ -295,11 +295,32 @@ export function FloatingComposerDock(props: {
     if (!onDockHeightChange || !dock) return;
     const observer = new ResizeObserver((entries) => {
       const entry = entries[entries.length - 1];
-      if (entry) onDockHeightChange(entry.borderBoxSize?.[0]?.blockSize ?? dock.offsetHeight);
+      if (entry) onDockHeightChange(entry.borderBoxSize?.[0]?.blockSize ?? dock.offsetHeight, dock);
     });
     observer.observe(dock);
-    return () => observer.disconnect();
+    // The keyboard lift moves the dock with a transform, which resizes nothing;
+    // report again once that motion settles or the viewport changes.
+    const report = () => onDockHeightChange(dock.offsetHeight, dock);
+    const onTransitionEnd = (event: TransitionEvent) => {
+      if (event.target === dock) report();
+    };
+    dock.addEventListener("transitionend", onTransitionEnd);
+    window.addEventListener("resize", report);
+    return () => {
+      observer.disconnect();
+      dock.removeEventListener("transitionend", onTransitionEnd);
+      window.removeEventListener("resize", report);
+    };
   }, [onDockHeightChange]);
+
+  // An instant keyboard lift has no transition to end; re-measure once per lift.
+  const reportedLiftRef = useRef<number | null>(null);
+  useEffect(() => {
+    const dock = dockRef.current;
+    if (!dock || !onDockHeightChange || reportedLiftRef.current === liftOffset) return;
+    reportedLiftRef.current = liftOffset;
+    onDockHeightChange(dock.offsetHeight, dock);
+  }, [liftOffset, onDockHeightChange]);
 
   useEffect(
     () => () => {
