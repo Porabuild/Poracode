@@ -23,6 +23,8 @@ import type {
   UpdateAgentBinaryResult,
   GetLatestAgentVersionPayload,
   GetLatestAgentVersionResult,
+  GetAgentConfigDefaultsPayload,
+  GetAgentConfigDefaultsResult,
   ResolveAgentAccountPayload,
   ResolveAgentAccountResult,
   RemoveAcpRegistryAgentPayload,
@@ -692,6 +694,18 @@ export class AgentRegistryService {
     const adapter = this.deps.adapters.get(payload.agentKind);
     if (!adapter) return { source: "unknown" };
     return getLatestVersionForAdapter(adapter);
+  }
+
+  async getAgentConfigDefaults(
+    payload: GetAgentConfigDefaultsPayload,
+  ): Promise<GetAgentConfigDefaultsResult> {
+    const adapter = this.deps.adapters.get(payload.agentKind);
+    if (!adapter?.readConfigDefaults) return { defaults: {} };
+    const defaults = await adapter.readConfigDefaults().catch((error) => {
+      console.warn(`[supervisor] ${payload.agentKind} config defaults read failed:`, error);
+      return {};
+    });
+    return { defaults };
   }
 
   async resolveAgentAccount(

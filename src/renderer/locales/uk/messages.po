@@ -1521,6 +1521,10 @@ msgstr "Прийняти застаріле з'єднання"
 msgid "Advanced"
 msgstr "Додатково"
 
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Advanced settings"
+msgstr "Додаткові налаштування"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Advertise a custom base URL, e.g. a reverse proxy or tunnel. Leave empty for automatic."
 msgstr "Оголосіть власний базовий URL, наприклад зворотний проксі або тунель. Залиште порожнім для автоматичного режиму."
@@ -4001,6 +4005,10 @@ msgstr "Codex не може стиснути розмову, поки викон
 msgid "Codex could not compact the conversation: {detail}"
 msgstr "Codex не вдалося стиснути розмову: {detail}"
 
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Codex default"
+msgstr "Типове значення Codex"
+
 #: src/renderer/components/providers/codex/profileSettings.tsx
 msgid "Codex profile home directory"
 msgstr "Домашній каталог профілю Codex"
@@ -5624,6 +5632,7 @@ msgstr "Чат DeepSeek Harness зі збереженням сесій, нала
 
 #: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/components/providers/deepseek/index.tsx
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
@@ -6918,6 +6927,10 @@ msgstr "Введіть коректний розклад"
 msgid "Enter a valid value."
 msgstr "Введіть допустиме значення."
 
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Enter a whole number from 1 to {CODEX_MAX_SUBAGENTS_LIMIT}."
+msgstr "Введіть ціле число від 1 до {CODEX_MAX_SUBAGENTS_LIMIT}."
+
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #~ msgid "Enter an absolute @cursor/sdk package path, or leave this blank for automatic discovery."
 #~ msgstr "Введіть абсолютний шлях до пакета @cursor/sdk або залиште поле порожнім для автоматичного виявлення."
@@ -7957,6 +7970,10 @@ msgstr "Звідки"
 msgid "From {from} to {to}"
 msgstr "Від {from} до {to}"
 
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "From config.toml: {configValue}"
+msgstr "Із config.toml: {configValue}"
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
 msgid "From this project"
 msgstr "З цього проєкту"
@@ -8893,6 +8910,22 @@ msgstr "Успадкована історія закінчується тут"
 #: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
 msgid "Inheriting the global setting (currently {0})."
 msgstr "Успадковується глобальне налаштування (зараз {0})."
+
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Inherits the parent effort"
+msgstr "Успадковує зусилля міркування батьківського агента"
+
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Inherits the parent effort: {parentEffort}"
+msgstr "Успадковує зусилля міркування батьківського агента: {parentEffort}"
+
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Inherits the parent model"
+msgstr "Успадковує модель батьківського агента"
+
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Inherits the parent model: {parentModel}"
+msgstr "Успадковує модель батьківського агента: {parentModel}"
 
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Initial retry delay"
@@ -10287,6 +10320,10 @@ msgstr "Макс. активних оболонок термінала"
 #: src/renderer/views/SettingsOverlay/parts/ResourceAdmissionSettings.tsx
 msgid "Max active terminal shells, 0 for unlimited"
 msgstr "Макс. активних оболонок термінала, 0 — без обмежень"
+
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Max concurrent sub-agents"
+msgstr "Максимум одночасних субагентів"
 
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
@@ -12797,6 +12834,10 @@ msgstr "Перевизначте, де створюються worktree цьог�
 msgid "Overrides {conflict}"
 msgstr "Перевизначає {conflict}"
 
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Overrides config.toml: {configValue}"
+msgstr "Перевизначає config.toml: {configValue}"
+
 #: src/renderer/components/skills/SkillsManager.tsx
 #~ msgid "Overrides global"
 #~ msgstr "Перевизначає глобальну"
@@ -13291,6 +13332,10 @@ msgstr "Pixel 8"
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Plan"
 msgstr "План"
+
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Plan mode reasoning effort"
+msgstr "Зусилля міркування в режимі плану"
 
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileQuickCompose.tsx
@@ -15023,9 +15068,14 @@ msgstr "Не виконано обов'язкові рецензії, обгов
 msgid "reset"
 msgstr "скидання"
 
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 #: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
 msgid "Reset"
 msgstr "Скинути"
+
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Reset advanced settings"
+msgstr "Скинути додаткові налаштування"
 
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisualBlocks.tsx
 msgid "Reset checklist"
@@ -16533,6 +16583,10 @@ msgstr "ID сеансу"
 msgid "Set group color"
 msgstr "Задати колір групи"
 
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Set in Poracode."
+msgstr "Задано в Poracode."
+
 #: src/renderer/components/devices/DeviceTools.tsx
 msgid "Set location"
 msgstr "Задати розташування"
@@ -17715,6 +17769,18 @@ msgstr "Зберігається на цьому пристрої; на комп
 msgid "Structured runtime"
 msgstr "Структуроване середовище виконання"
 
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Sub-agent and planning defaults. They override config.toml and apply when a Codex session starts; running sessions keep their current values."
+msgstr "Типові значення для субагентів і планування. Вони перевизначають config.toml і застосовуються під час запуску сесії Codex; запущені сесії зберігають поточні значення."
+
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Sub-agent model"
+msgstr "Модель субагента"
+
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Sub-agent reasoning effort"
+msgstr "Зусилля міркування субагента"
+
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 msgid "Subagent"
@@ -18784,6 +18850,10 @@ msgstr "SSH-тунель підключився до несумісного се
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "The stored configuration is invalid. The stored values are kept; saving below replaces them with what this form holds."
 msgstr "Збережена конфігурація недійсна. Збережені значення залишаються; збереження нижче замінить їх тим, що містить ця форма."
+
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "The sub-agent settings need Codex 0.145 or newer. They are ignored until Codex is updated."
+msgstr "Для налаштувань субагентів потрібен Codex 0.145 або новіший. Вони ігноруються, доки Codex не буде оновлено."
 
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "the target provider"

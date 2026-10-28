@@ -56,6 +56,7 @@ import {
   updateAcpRegistryAgentPayloadSchema,
   updateAgentBinaryPayloadSchema,
   getLatestAgentVersionPayloadSchema,
+  getAgentConfigDefaultsPayloadSchema,
   resolveAgentAccountPayloadSchema,
   writeTerminalPayloadSchema,
 } from "../../contracts";
@@ -114,6 +115,8 @@ import type {
   UpdateAgentBinaryResult,
   GetLatestAgentVersionPayload,
   GetLatestAgentVersionResult,
+  GetAgentConfigDefaultsPayload,
+  GetAgentConfigDefaultsResult,
   ResolveAgentAccountPayload,
   ResolveAgentAccountResult,
   WriteTerminalPayload,
@@ -258,6 +261,11 @@ export const threadProcedures = {
     ResolveAgentAccountResult,
     "supervisor"
   >("resolveAgentAccount", "supervisor", resolveAgentAccountPayloadSchema),
+  getAgentConfigDefaults: definePayloadProcedure<
+    GetAgentConfigDefaultsPayload,
+    GetAgentConfigDefaultsResult,
+    "supervisor"
+  >("getAgentConfigDefaults", "supervisor", getAgentConfigDefaultsPayloadSchema),
   removeAcpRegistryAgent: definePayloadProcedure<
     RemoveAcpRegistryAgentPayload,
     AcpRegistryMutationResult,

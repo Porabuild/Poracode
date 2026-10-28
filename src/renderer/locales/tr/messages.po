@@ -1521,6 +1521,10 @@ msgstr "Eski bağlantıyı devral"
 msgid "Advanced"
 msgstr "Gelişmiş"
 
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Advanced settings"
+msgstr "Gelişmiş ayarlar"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Advertise a custom base URL, e.g. a reverse proxy or tunnel. Leave empty for automatic."
 msgstr "Özel bir temel URL duyurun, örn. bir ters proxy veya tünel. Otomatik için boş bırakın."
@@ -4001,6 +4005,10 @@ msgstr "Bir tur çalışırken Codex konuşmayı sıkıştıramaz. Tur bittiğin
 msgid "Codex could not compact the conversation: {detail}"
 msgstr "Codex konuşmayı sıkıştıramadı: {detail}"
 
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Codex default"
+msgstr "Codex varsayılanı"
+
 #: src/renderer/components/providers/codex/profileSettings.tsx
 msgid "Codex profile home directory"
 msgstr "Codex profili ana dizini"
@@ -5624,6 +5632,7 @@ msgstr "Kalıcı oturumlar, akıl yürütme ayarları ve MCP araçlarıyla DeepS
 
 #: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/components/providers/deepseek/index.tsx
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
@@ -6918,6 +6927,10 @@ msgstr "Geçerli bir zamanlama girin"
 msgid "Enter a valid value."
 msgstr "Geçerli bir değer girin."
 
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Enter a whole number from 1 to {CODEX_MAX_SUBAGENTS_LIMIT}."
+msgstr "1 ile {CODEX_MAX_SUBAGENTS_LIMIT} arasında bir tam sayı girin."
+
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #~ msgid "Enter an absolute @cursor/sdk package path, or leave this blank for automatic discovery."
 #~ msgstr "@cursor/sdk paketi için mutlak bir yol girin veya otomatik keşif için bu alanı boş bırakın."
@@ -7957,6 +7970,10 @@ msgstr "Kaynak"
 msgid "From {from} to {to}"
 msgstr "{from} konumundan {to} konumuna"
 
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "From config.toml: {configValue}"
+msgstr "config.toml'dan: {configValue}"
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
 msgid "From this project"
 msgstr "Bu projeden"
@@ -8893,6 +8910,22 @@ msgstr "Devralınan geçmiş burada sona eriyor"
 #: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
 msgid "Inheriting the global setting (currently {0})."
 msgstr "Genel ayar devralınıyor (şu anda {0})."
+
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Inherits the parent effort"
+msgstr "Üst aracının akıl yürütme çabasını devralır"
+
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Inherits the parent effort: {parentEffort}"
+msgstr "Üst aracının akıl yürütme çabasını devralır: {parentEffort}"
+
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Inherits the parent model"
+msgstr "Üst aracının modelini devralır"
+
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Inherits the parent model: {parentModel}"
+msgstr "Üst aracının modelini devralır: {parentModel}"
 
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Initial retry delay"
@@ -10287,6 +10320,10 @@ msgstr "Maksimum etkin terminal kabuğu"
 #: src/renderer/views/SettingsOverlay/parts/ResourceAdmissionSettings.tsx
 msgid "Max active terminal shells, 0 for unlimited"
 msgstr "Maksimum etkin terminal kabuğu, 0 sınırsız"
+
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Max concurrent sub-agents"
+msgstr "Eşzamanlı alt aracı üst sınırı"
 
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
@@ -12797,6 +12834,10 @@ msgstr "Bu projenin çalışma ağaçlarının nerede oluşturulacağını geçe
 msgid "Overrides {conflict}"
 msgstr "{conflict} kısayolunu geçersiz kılar"
 
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Overrides config.toml: {configValue}"
+msgstr "config.toml'u geçersiz kılar: {configValue}"
+
 #: src/renderer/components/skills/SkillsManager.tsx
 #~ msgid "Overrides global"
 #~ msgstr "Genel olanı geçersiz kılar"
@@ -13291,6 +13332,10 @@ msgstr "Pixel 8"
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Plan"
 msgstr "Plan"
+
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Plan mode reasoning effort"
+msgstr "Plan modu akıl yürütme çabası"
 
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileQuickCompose.tsx
@@ -15023,9 +15068,14 @@ msgstr "Gerekli incelemeler, görüşmeler veya durum kontrolleri karşılanmad�
 msgid "reset"
 msgstr "sıfırlama"
 
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 #: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
 msgid "Reset"
 msgstr "Sıfırla"
+
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Reset advanced settings"
+msgstr "Gelişmiş ayarları sıfırla"
 
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisualBlocks.tsx
 msgid "Reset checklist"
@@ -16533,6 +16583,10 @@ msgstr "Oturum kimliği"
 msgid "Set group color"
 msgstr "Grup rengini ayarla"
 
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Set in Poracode."
+msgstr "Poracode'da ayarlandı."
+
 #: src/renderer/components/devices/DeviceTools.tsx
 msgid "Set location"
 msgstr "Konumu ayarla"
@@ -17715,6 +17769,18 @@ msgstr "Bu cihazda saklanır; masaüstü kendi değerlerini korur."
 msgid "Structured runtime"
 msgstr "Yapılandırılmış çalışma zamanı"
 
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Sub-agent and planning defaults. They override config.toml and apply when a Codex session starts; running sessions keep their current values."
+msgstr "Alt aracı ve planlama varsayılanları. config.toml'u geçersiz kılar ve bir Codex oturumu başlarken uygulanır; çalışan oturumlar mevcut değerlerini korur."
+
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Sub-agent model"
+msgstr "Alt aracı modeli"
+
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Sub-agent reasoning effort"
+msgstr "Alt aracı akıl yürütme çabası"
+
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 msgid "Subagent"
@@ -18784,6 +18850,10 @@ msgstr "SSH tüneli uyumsuz bir Poracode sunucusuna ulaştı."
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "The stored configuration is invalid. The stored values are kept; saving below replaces them with what this form holds."
 msgstr "Kayıtlı yapılandırma geçersiz. Kayıtlı değerler korunur; aşağıda kaydetmek onları bu formun içerdiği değerlerle değiştirir."
+
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "The sub-agent settings need Codex 0.145 or newer. They are ignored until Codex is updated."
+msgstr "Alt aracı ayarları Codex 0.145 veya daha yenisini gerektirir. Codex güncellenene kadar yok sayılır."
 
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "the target provider"

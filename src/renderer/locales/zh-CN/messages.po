@@ -1521,6 +1521,10 @@ msgstr "采用旧版连接"
 msgid "Advanced"
 msgstr "高级"
 
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Advanced settings"
+msgstr "高级设置"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Advertise a custom base URL, e.g. a reverse proxy or tunnel. Leave empty for automatic."
 msgstr "公布自定义基础 URL，例如反向代理或隧道。留空则自动设置。"
@@ -4001,6 +4005,10 @@ msgstr "回合运行期间，Codex 无法压缩对话。请在回合结束后再
 msgid "Codex could not compact the conversation: {detail}"
 msgstr "Codex 无法压缩对话：{detail}"
 
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Codex default"
+msgstr "Codex 默认值"
+
 #: src/renderer/components/providers/codex/profileSettings.tsx
 msgid "Codex profile home directory"
 msgstr "Codex 配置文件主目录"
@@ -5624,6 +5632,7 @@ msgstr "DeepSeek Harness 聊天，支持持久会话、推理设置和 MCP 工�
 
 #: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/components/providers/deepseek/index.tsx
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
@@ -6918,6 +6927,10 @@ msgstr "请输入有效的计划"
 msgid "Enter a valid value."
 msgstr "请输入有效值。"
 
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Enter a whole number from 1 to {CODEX_MAX_SUBAGENTS_LIMIT}."
+msgstr "请输入 1 到 {CODEX_MAX_SUBAGENTS_LIMIT} 之间的整数。"
+
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #~ msgid "Enter an absolute @cursor/sdk package path, or leave this blank for automatic discovery."
 #~ msgstr "输入 @cursor/sdk 软件包的绝对路径，或留空以使用自动发现。"
@@ -7957,6 +7970,10 @@ msgstr "来源"
 msgid "From {from} to {to}"
 msgstr "从 {from} 到 {to}"
 
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "From config.toml: {configValue}"
+msgstr "来自 config.toml：{configValue}"
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
 msgid "From this project"
 msgstr "来自本项目"
@@ -8893,6 +8910,22 @@ msgstr "继承的历史到此结束"
 #: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
 msgid "Inheriting the global setting (currently {0})."
 msgstr "继承全局设置（当前为{0}）。"
+
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Inherits the parent effort"
+msgstr "继承父代理的推理强度"
+
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Inherits the parent effort: {parentEffort}"
+msgstr "继承父代理的推理强度：{parentEffort}"
+
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Inherits the parent model"
+msgstr "继承父代理的模型"
+
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Inherits the parent model: {parentModel}"
+msgstr "继承父代理的模型：{parentModel}"
 
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Initial retry delay"
@@ -10287,6 +10320,10 @@ msgstr "最大活跃终端 shell 数"
 #: src/renderer/views/SettingsOverlay/parts/ResourceAdmissionSettings.tsx
 msgid "Max active terminal shells, 0 for unlimited"
 msgstr "最大活跃终端 shell 数，0 表示不限制"
+
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Max concurrent sub-agents"
+msgstr "最大并发子代理数"
 
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
@@ -12796,6 +12833,10 @@ msgstr "覆盖此项目工作树的创建位置。适用于从现在起创建的
 msgid "Overrides {conflict}"
 msgstr "覆盖 {conflict}"
 
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Overrides config.toml: {configValue}"
+msgstr "覆盖 config.toml：{configValue}"
+
 #: src/renderer/components/skills/SkillsManager.tsx
 #~ msgid "Overrides global"
 #~ msgstr "覆盖全局技能"
@@ -13290,6 +13331,10 @@ msgstr "Pixel 8"
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Plan"
 msgstr "计划"
+
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Plan mode reasoning effort"
+msgstr "计划模式推理强度"
 
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileQuickCompose.tsx
@@ -15022,9 +15067,14 @@ msgstr "未满足所需的审查、对话或状态检查。"
 msgid "reset"
 msgstr "重置"
 
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 #: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
 msgid "Reset"
 msgstr "重置"
+
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Reset advanced settings"
+msgstr "重置高级设置"
 
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisualBlocks.tsx
 msgid "Reset checklist"
@@ -16532,6 +16582,10 @@ msgstr "会话 ID"
 msgid "Set group color"
 msgstr "设置分组颜色"
 
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Set in Poracode."
+msgstr "已在 Poracode 中设置。"
+
 #: src/renderer/components/devices/DeviceTools.tsx
 msgid "Set location"
 msgstr "设置位置"
@@ -17714,6 +17768,18 @@ msgstr "存储在此设备上；桌面端保留自己的设置值。"
 msgid "Structured runtime"
 msgstr "结构化运行时"
 
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Sub-agent and planning defaults. They override config.toml and apply when a Codex session starts; running sessions keep their current values."
+msgstr "子代理和规划的默认值。它们会覆盖 config.toml，并在 Codex 会话启动时生效；运行中的会话保持当前值。"
+
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Sub-agent model"
+msgstr "子代理模型"
+
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Sub-agent reasoning effort"
+msgstr "子代理推理强度"
+
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 msgid "Subagent"
@@ -18783,6 +18849,10 @@ msgstr "SSH 隧道连接到了不兼容的 Poracode 服务器。"
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "The stored configuration is invalid. The stored values are kept; saving below replaces them with what this form holds."
 msgstr "已存储的配置无效。已存储的值会被保留；在下方保存将以表单中的内容替换它们。"
+
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "The sub-agent settings need Codex 0.145 or newer. They are ignored until Codex is updated."
+msgstr "子代理设置需要 Codex 0.145 或更高版本。更新 Codex 之前它们会被忽略。"
 
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "the target provider"

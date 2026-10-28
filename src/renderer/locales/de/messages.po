@@ -1521,6 +1521,10 @@ msgstr "Legacy-Verbindung übernehmen"
 msgid "Advanced"
 msgstr "Erweitert"
 
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Advanced settings"
+msgstr "Erweiterte Einstellungen"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Advertise a custom base URL, e.g. a reverse proxy or tunnel. Leave empty for automatic."
 msgstr "Eine benutzerdefinierte Basis-URL bekanntgeben, z. B. für einen Reverse-Proxy oder Tunnel. Für automatisch leer lassen."
@@ -4001,6 +4005,10 @@ msgstr "Codex kann die Unterhaltung nicht verdichten, während ein Durchgang lä
 msgid "Codex could not compact the conversation: {detail}"
 msgstr "Codex konnte die Unterhaltung nicht verdichten: {detail}"
 
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Codex default"
+msgstr "Codex-Standard"
+
 #: src/renderer/components/providers/codex/profileSettings.tsx
 msgid "Codex profile home directory"
 msgstr "Home-Verzeichnis des Codex-Profils"
@@ -5624,6 +5632,7 @@ msgstr "DeepSeek Harness-Chat mit dauerhaften Sitzungen, Steuerung des Denkaufwa
 
 #: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/components/providers/deepseek/index.tsx
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
@@ -6918,6 +6927,10 @@ msgstr "Gib einen gültigen Zeitplan ein"
 msgid "Enter a valid value."
 msgstr "Gib einen gültigen Wert ein."
 
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Enter a whole number from 1 to {CODEX_MAX_SUBAGENTS_LIMIT}."
+msgstr "Geben Sie eine ganze Zahl von 1 bis {CODEX_MAX_SUBAGENTS_LIMIT} ein."
+
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #~ msgid "Enter an absolute @cursor/sdk package path, or leave this blank for automatic discovery."
 #~ msgstr "Geben Sie einen absoluten Pfad zum @cursor/sdk-Paket ein oder lassen Sie dieses Feld für die automatische Erkennung leer."
@@ -7957,6 +7970,10 @@ msgstr "Von"
 msgid "From {from} to {to}"
 msgstr "Von {from} zu {to}"
 
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "From config.toml: {configValue}"
+msgstr "Aus config.toml: {configValue}"
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
 msgid "From this project"
 msgstr "Aus diesem Projekt"
@@ -8893,6 +8910,22 @@ msgstr "Übernommener Verlauf endet hier"
 #: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
 msgid "Inheriting the global setting (currently {0})."
 msgstr "Übernahme der globalen Einstellung (derzeit {0})."
+
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Inherits the parent effort"
+msgstr "Übernimmt den Aufwand des übergeordneten Agenten"
+
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Inherits the parent effort: {parentEffort}"
+msgstr "Übernimmt den Aufwand des übergeordneten Agenten: {parentEffort}"
+
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Inherits the parent model"
+msgstr "Übernimmt das Modell des übergeordneten Agenten"
+
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Inherits the parent model: {parentModel}"
+msgstr "Übernimmt das Modell des übergeordneten Agenten: {parentModel}"
 
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Initial retry delay"
@@ -10287,6 +10320,10 @@ msgstr "Max. aktive Terminal-Shells"
 #: src/renderer/views/SettingsOverlay/parts/ResourceAdmissionSettings.tsx
 msgid "Max active terminal shells, 0 for unlimited"
 msgstr "Max. aktive Terminal-Shells, 0 für unbegrenzt"
+
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Max concurrent sub-agents"
+msgstr "Maximale Anzahl paralleler Subagenten"
 
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
@@ -12797,6 +12834,10 @@ msgstr "Legt abweichend fest, wo die Worktrees dieses Projekts erstellt werden. 
 msgid "Overrides {conflict}"
 msgstr "Überschreibt {conflict}"
 
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Overrides config.toml: {configValue}"
+msgstr "Überschreibt config.toml: {configValue}"
+
 #: src/renderer/components/skills/SkillsManager.tsx
 #~ msgid "Overrides global"
 #~ msgstr "Überschreibt global"
@@ -13291,6 +13332,10 @@ msgstr "Pixel 8"
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Plan"
 msgstr "Plan"
+
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Plan mode reasoning effort"
+msgstr "Begründungsaufwand im Planmodus"
 
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileQuickCompose.tsx
@@ -15023,9 +15068,14 @@ msgstr "Erforderliche Bewertungen, Gespräche oder Statusprüfungen wurden nicht
 msgid "reset"
 msgstr "zurückgesetzt"
 
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 #: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
 msgid "Reset"
 msgstr "Zurücksetzen"
+
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Reset advanced settings"
+msgstr "Erweiterte Einstellungen zurücksetzen"
 
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisualBlocks.tsx
 msgid "Reset checklist"
@@ -16533,6 +16583,10 @@ msgstr "Sitzungs-ID"
 msgid "Set group color"
 msgstr "Gruppenfarbe festlegen"
 
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Set in Poracode."
+msgstr "In Poracode festgelegt."
+
 #: src/renderer/components/devices/DeviceTools.tsx
 msgid "Set location"
 msgstr "Standort setzen"
@@ -17715,6 +17769,18 @@ msgstr "Auf diesem Gerät gespeichert; der Desktop behält seine eigenen Werte."
 msgid "Structured runtime"
 msgstr "Strukturierte Laufzeit"
 
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Sub-agent and planning defaults. They override config.toml and apply when a Codex session starts; running sessions keep their current values."
+msgstr "Standardwerte für Subagenten und Planung. Sie überschreiben config.toml und gelten beim Start einer Codex-Sitzung; laufende Sitzungen behalten ihre aktuellen Werte."
+
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Sub-agent model"
+msgstr "Subagent-Modell"
+
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Sub-agent reasoning effort"
+msgstr "Begründungsaufwand des Subagenten"
+
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 msgid "Subagent"
@@ -18784,6 +18850,10 @@ msgstr "Der SSH-Tunnel hat einen inkompatiblen Poracode-Server erreicht."
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "The stored configuration is invalid. The stored values are kept; saving below replaces them with what this form holds."
 msgstr "Die gespeicherte Konfiguration ist ungültig. Die gespeicherten Werte bleiben erhalten; das Speichern unten ersetzt sie durch die Inhalte dieses Formulars."
+
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "The sub-agent settings need Codex 0.145 or newer. They are ignored until Codex is updated."
+msgstr "Die Subagent-Einstellungen erfordern Codex 0.145 oder neuer. Sie werden ignoriert, bis Codex aktualisiert wird."
 
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "the target provider"

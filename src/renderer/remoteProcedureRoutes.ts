@@ -237,6 +237,7 @@ export const NON_ROUTER_PROJECT_PROCEDURES = {
     "local-shell: supervisor-owned integration OAuth operations and cancellation stay on this host",
   logoutAcpAgent: "local-shell: clears agent auth on this machine",
   resolveAgentAccount: "local-shell: resolves accounts against this machine's agent auth",
+  getAgentConfigDefaults: "local-shell: reads this machine's agent config file, read-only",
   updateAgentBinary: "local-shell: downloads and swaps this machine's agent binaries",
   getLatestAgentVersion: "local-shell: version probe for this machine's agent installs",
   manageAgentPlugins: "local-shell: manages this machine's agent plugin packages",

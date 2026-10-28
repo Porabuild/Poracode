@@ -1521,6 +1521,10 @@ msgstr "Chuyển kết nối cũ"
 msgid "Advanced"
 msgstr "Nâng cao"
 
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Advanced settings"
+msgstr "Cài đặt nâng cao"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Advertise a custom base URL, e.g. a reverse proxy or tunnel. Leave empty for automatic."
 msgstr "Công bố một URL cơ sở tùy chỉnh, ví dụ một reverse proxy hoặc tunnel. Để trống để dùng tự động."
@@ -4001,6 +4005,10 @@ msgstr "Codex không thể nén cuộc trò chuyện khi một lượt đang ch�
 msgid "Codex could not compact the conversation: {detail}"
 msgstr "Codex không thể nén cuộc trò chuyện: {detail}"
 
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Codex default"
+msgstr "Mặc định của Codex"
+
 #: src/renderer/components/providers/codex/profileSettings.tsx
 msgid "Codex profile home directory"
 msgstr "Thư mục home của hồ sơ Codex"
@@ -5624,6 +5632,7 @@ msgstr "Trò chuyện DeepSeek Harness với phiên được lưu, tùy chỉnh 
 
 #: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/components/providers/deepseek/index.tsx
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
@@ -6918,6 +6927,10 @@ msgstr "Nhập lịch hợp lệ"
 msgid "Enter a valid value."
 msgstr "Nhập giá trị hợp lệ."
 
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Enter a whole number from 1 to {CODEX_MAX_SUBAGENTS_LIMIT}."
+msgstr "Nhập một số nguyên từ 1 đến {CODEX_MAX_SUBAGENTS_LIMIT}."
+
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #~ msgid "Enter an absolute @cursor/sdk package path, or leave this blank for automatic discovery."
 #~ msgstr "Nhập đường dẫn tuyệt đối đến gói @cursor/sdk hoặc để trống để tự động phát hiện."
@@ -7957,6 +7970,10 @@ msgstr "Nguồn"
 msgid "From {from} to {to}"
 msgstr "Từ {from} đến {to}"
 
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "From config.toml: {configValue}"
+msgstr "Từ config.toml: {configValue}"
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
 msgid "From this project"
 msgstr "Từ dự án này"
@@ -8893,6 +8910,22 @@ msgstr "Lịch sử kế thừa kết thúc tại đây"
 #: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
 msgid "Inheriting the global setting (currently {0})."
 msgstr "Kế thừa cài đặt chung (hiện tại {0})."
+
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Inherits the parent effort"
+msgstr "Kế thừa mức nỗ lực suy luận của tác nhân cha"
+
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Inherits the parent effort: {parentEffort}"
+msgstr "Kế thừa mức nỗ lực suy luận của tác nhân cha: {parentEffort}"
+
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Inherits the parent model"
+msgstr "Kế thừa mô hình của tác nhân cha"
+
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Inherits the parent model: {parentModel}"
+msgstr "Kế thừa mô hình của tác nhân cha: {parentModel}"
 
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Initial retry delay"
@@ -10287,6 +10320,10 @@ msgstr "Số shell terminal hoạt động tối đa"
 #: src/renderer/views/SettingsOverlay/parts/ResourceAdmissionSettings.tsx
 msgid "Max active terminal shells, 0 for unlimited"
 msgstr "Số shell terminal hoạt động tối đa, 0 là không giới hạn"
+
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Max concurrent sub-agents"
+msgstr "Số tác nhân phụ chạy đồng thời tối đa"
 
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
@@ -12797,6 +12834,10 @@ msgstr "Ghi đè nơi tạo các cây làm việc của dự án này. Áp dụn
 msgid "Overrides {conflict}"
 msgstr "Ghi đè {conflict}"
 
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Overrides config.toml: {configValue}"
+msgstr "Ghi đè config.toml: {configValue}"
+
 #: src/renderer/components/skills/SkillsManager.tsx
 #~ msgid "Overrides global"
 #~ msgstr "Ghi đè skill toàn cục"
@@ -13291,6 +13332,10 @@ msgstr "Pixel 8"
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Plan"
 msgstr "kế hoạch"
+
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Plan mode reasoning effort"
+msgstr "Mức nỗ lực suy luận ở chế độ kế hoạch"
 
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileQuickCompose.tsx
@@ -15023,9 +15068,14 @@ msgstr "Các đánh giá, cuộc trò chuyện hoặc kiểm tra trạng thái b
 msgid "reset"
 msgstr "đặt lại"
 
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 #: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
 msgid "Reset"
 msgstr "Đặt lại"
+
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Reset advanced settings"
+msgstr "Đặt lại cài đặt nâng cao"
 
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisualBlocks.tsx
 msgid "Reset checklist"
@@ -16533,6 +16583,10 @@ msgstr "ID phiên"
 msgid "Set group color"
 msgstr "Đặt màu nhóm"
 
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Set in Poracode."
+msgstr "Đã đặt trong Poracode."
+
 #: src/renderer/components/devices/DeviceTools.tsx
 msgid "Set location"
 msgstr "Đặt vị trí"
@@ -17715,6 +17769,18 @@ msgstr "Được lưu trên thiết bị này; máy tính để bàn giữ các 
 msgid "Structured runtime"
 msgstr "Môi trường chạy có cấu trúc"
 
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Sub-agent and planning defaults. They override config.toml and apply when a Codex session starts; running sessions keep their current values."
+msgstr "Mặc định cho tác nhân phụ và lập kế hoạch. Chúng ghi đè config.toml và áp dụng khi một phiên Codex bắt đầu; các phiên đang chạy giữ nguyên giá trị hiện tại."
+
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Sub-agent model"
+msgstr "Mô hình tác nhân phụ"
+
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "Sub-agent reasoning effort"
+msgstr "Mức nỗ lực suy luận của tác nhân phụ"
+
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 msgid "Subagent"
@@ -18784,6 +18850,10 @@ msgstr "Đường hầm SSH đã kết nối đến một máy chủ Poracode kh
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "The stored configuration is invalid. The stored values are kept; saving below replaces them with what this form holds."
 msgstr "Cấu hình đã lưu không hợp lệ. Các giá trị đã lưu được giữ lại; lưu bên dưới sẽ thay thế chúng bằng nội dung của biểu mẫu này."
+
+#: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
+msgid "The sub-agent settings need Codex 0.145 or newer. They are ignored until Codex is updated."
+msgstr "Cài đặt tác nhân phụ cần Codex 0.145 trở lên. Chúng bị bỏ qua cho đến khi Codex được cập nhật."
 
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "the target provider"
