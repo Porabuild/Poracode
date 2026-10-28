@@ -4,7 +4,8 @@ import {
   STATUS_CACHE_VERSION,
 } from "@/shared/agentStatusCache";
 import { execFile } from "node:child_process";
-import { readFile, unlink, writeFile } from "node:fs/promises";
+import { readFile, unlink } from "node:fs/promises";
+import { writeFileAtomicAsync } from "@/shared/atomicFileAsync";
 import { promisify } from "node:util";
 import {
   type AgentCapability,
@@ -320,15 +321,32 @@ export class AgentStatusService {
   private wslDistroCache: { value: string[]; expiresAt: number } | undefined;
 
   private cacheText: string | undefined;
+  /** Retained upgrade rows can be valid without forming a complete inventory. */
+  private cacheComplete = true;
   private cacheGeneration = 0;
   private cacheIo: Promise<void> = Promise.resolve();
   private cacheLoaded = false;
+  private futureCacheVersion: number | undefined;
   readonly ready: Promise<void>;
 
   constructor(private readonly options: AgentStatusServiceOptions) {
     const generation = this.cacheGeneration;
     this.ready = readFile(options.statusCachePath, "utf8")
       .then((text) => {
+        try {
+          const cache: unknown = JSON.parse(text);
+          if (
+            cache &&
+            typeof cache === "object" &&
+            "version" in cache &&
+            typeof cache.version === "number" &&
+            cache.version > STATUS_CACHE_VERSION
+          ) {
+            this.futureCacheVersion = cache.version;
+          }
+        } catch {
+          // Malformed disposable observations can be regenerated.
+        }
         if (this.cacheGeneration === generation) this.cacheText = text;
       })
       .catch(() => {})
@@ -380,6 +398,7 @@ export class AgentStatusService {
 
   async getAgentStatuses(payload: GetAgentStatusesPayload): Promise<AgentStatusesResponse> {
     if (!this.cacheLoaded) await this.ready;
+    this.assertCacheWritable();
     const wslDistros = [...new Set(payload.wslDistros)];
     const accepted = this.readAcceptedStatuses(wslDistros);
     this.detectStartupAgentStatusesBackground(wslDistros);
@@ -475,6 +494,10 @@ export class AgentStatusService {
   }
 
   async refreshAgentStatuses(payload: GetAgentStatusesPayload): Promise<AgentStatusesResponse> {
+    // Reserve publication ownership synchronously, even before the cache read
+    // settles, so an immediate Stop can retire this request. The queued task
+    // checks again after ready before any provider probe can run.
+    this.assertCacheWritable();
     const wslDistros = [...new Set(payload.wslDistros)];
     // An explicit refresh is the signal that something changed on disk (an
     // install/update just ran), so bypass the binary-path TTL cache and re-read
@@ -709,7 +732,7 @@ export class AgentStatusService {
               (status.envDistro !== undefined && wslDistros.includes(status.envDistro)),
           )
           .map((status) => this.withCachedCapabilityDefaults(status)),
-        fromCache: decoded.statuses.fromCache,
+        fromCache: decoded.statuses.fromCache && this.cacheComplete,
       };
     } catch {
       return { windows: [], wsl: [], fromCache: false };
@@ -744,14 +767,29 @@ export class AgentStatusService {
 
   private clearDiskCache(retained?: AgentStatusesResponse): void {
     this.cacheGeneration += 1;
-    this.cacheText = retained?.fromCache
+    this.cacheComplete = retained?.fromCache === true;
+    this.cacheText = retained
       ? JSON.stringify({
           version: STATUS_CACHE_VERSION,
           windows: retained.windows,
           wsl: retained.wsl,
         })
       : undefined;
-    this.cacheIo = this.cacheIo.then(() => unlink(this.options.statusCachePath)).catch(() => {});
+    this.cacheIo = this.cacheIo
+      .then(async () => {
+        await this.ready;
+        this.assertCacheWritable();
+        await unlink(this.options.statusCachePath);
+      })
+      .catch(() => {});
+  }
+
+  private assertCacheWritable(): void {
+    if (this.futureCacheVersion !== undefined) {
+      throw new Error(
+        `Agent status cache v${this.futureCacheVersion} requires a newer app; discovery has not started.`,
+      );
+    }
   }
 
   private readSettings(): ReturnType<typeof normalizeSharedSettings> {
@@ -768,6 +806,7 @@ export class AgentStatusService {
         if (previous) await previous.catch(() => ({ windows: [], wsl: [] }));
         await this.ready;
         await this.cacheIo;
+        this.assertCacheWritable();
         return task();
       })
       .finally(() => {
@@ -873,17 +912,21 @@ export class AgentStatusService {
       savedAt: new Date().toISOString(),
     });
     const write = this.cacheIo.then(async () => {
+      this.assertCacheWritable();
       if (!this.publication.canPersist(ticket, accepted.fromCache)) return;
-      await writeFile(this.options.statusCachePath, text, "utf8");
+      await writeFileAtomicAsync(this.options.statusCachePath, text, { encoding: "utf8" });
       if (
         this.cacheGeneration !== generation ||
         !this.publication.canPersist(ticket, accepted.fromCache)
       )
         return;
       this.cacheText = text;
+      this.cacheComplete = true;
       this.publication.persisted(ticket, accepted.fromCache);
     });
-    this.cacheIo = write.catch(() => {});
+    this.cacheIo = write.catch((error: unknown) => {
+      console.warn("[supervisor] failed to save agent status cache", error);
+    });
     await this.cacheIo;
     if (this.cacheGeneration !== generation) await this.cacheIo;
   }

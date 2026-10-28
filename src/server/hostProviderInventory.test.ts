@@ -125,7 +125,7 @@ it.each(["missing", "invalid-json", "invalid-shape", "oversized", "directory"])(
   },
 );
 
-it.each([STATUS_CACHE_VERSION - 1, STATUS_CACHE_VERSION + 1])(
+it.each([66, STATUS_CACHE_VERSION + 1])(
   "does not interpret cache v%s or overwrite it on passive reads",
   async (version) => {
     const f = fixture();
@@ -137,6 +137,23 @@ it.each([STATUS_CACHE_VERSION - 1, STATUS_CACHE_VERSION + 1])(
     );
     expect(result.observation).toEqual({ source: "saved-cache", state: "incompatible", version });
     expect(result.providers).toEqual([]);
+    expect(f.call).not.toHaveBeenCalled();
+    expect(readFileSync(f.statusCachePath, "utf8")).toBe(bytes);
+  },
+);
+
+it.each([67, 68, 69])(
+  "reuses compatible v%s saved observations without discovery or writes",
+  async (version) => {
+    const f = fixture();
+    const bytes = JSON.stringify({ version, windows: [status("unchanged")] });
+    writeFileSync(f.statusCachePath, bytes);
+    const result = await inspectProviderInventory(
+      { action: "providers-inventory", refresh: false },
+      f,
+    );
+    expect(result.observation).toEqual({ source: "saved-cache", state: "available", version });
+    expect(result.providers.map((provider) => provider.kind)).toEqual(["unchanged"]);
     expect(f.call).not.toHaveBeenCalled();
     expect(readFileSync(f.statusCachePath, "utf8")).toBe(bytes);
   },

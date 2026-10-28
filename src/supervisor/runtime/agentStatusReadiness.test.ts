@@ -22,7 +22,80 @@ import { writeFile } from "node:fs/promises";
 // Register the owned filesystem/probe mocks before loading the service.
 import { readSupervisorSharedSettings } from "@/supervisor/runtime/supervisorSharedSettings";
 
+vi.mock("@/shared/agentStatusCacheRegistry", () => ({
+  isAgentStatusCacheEntryCompatible: (kind: string, version: number) =>
+    kind !== "acp-generic:deferred-fixture" || version >= 70,
+}));
+
 describe("AgentStatusService accepted readiness publication", () => {
+  it("retains compatible partial upgrade observations through registry edits without persisting a subset", async () => {
+    seedBaseline();
+    memory.cache = JSON.stringify({ ...JSON.parse(memory.cache!), version: 69 });
+    const { service } = setup([
+      adapter(FAST, async () => status(FAST, "fresh")),
+      adapter(SLOW, async () => status(SLOW, "fresh-peer")),
+    ]);
+    await service.ready;
+    expect(service.getCachedCapabilities(FAST)?.models[0]?.id).toBe("baseline-fast");
+    service.reconcileAgentRegistry([SLOW]);
+    expect(service.getCachedCapabilities(FAST)?.models[0]?.id).toBe("baseline-fast");
+    const scoped = await service.refreshAgentStatuses({
+      wslDistros: [],
+      scope: { agentKinds: [FAST], envs: [{ kind: "native" }] },
+    });
+    expect(scoped.fromCache).toBe(false);
+    expect(modelIds(scoped)).toEqual(["fresh"]);
+    expect(memory.writes).toEqual([]);
+    await service.getAgentStatuses({ wslDistros: [] });
+    await activeDetection(service);
+  });
+  it("refuses future observations without probing, deleting, or rewriting their bytes", async () => {
+    const bytes = JSON.stringify({ version: STATUS_CACHE_VERSION + 1, future: { preserve: true } });
+    memory.cache = bytes;
+    const detect = vi.fn<AgentAdapter["detectInstall"]>(async () => status(FAST, "unwanted"));
+    const { service } = setup([adapter(FAST, detect)]);
+    // Invalidation may race the initial disk read; even then newer bytes stay.
+    service.invalidateAgentStatuses();
+    await expect(service.getAgentStatuses({ wslDistros: [] })).rejects.toThrow(
+      "requires a newer app",
+    );
+    await expect(service.refreshAgentStatuses({ wslDistros: [] })).rejects.toThrow(
+      "requires a newer app",
+    );
+    expect(detect).not.toHaveBeenCalled();
+    expect(memory.unlinks).toBe(0);
+    expect(memory.writes).toEqual([]);
+    expect(memory.cache).toBe(bytes);
+  });
+  it("serves unchanged upgrade observations to multiple clients while re-probing invalidated targets", async () => {
+    seedBaseline();
+    memory.cache = JSON.stringify({ ...JSON.parse(memory.cache!), version: 69 });
+    const held = deferred<AgentStatus>();
+    const slow = vi.fn<AgentAdapter["detectInstall"]>(() => held.promise);
+    const fast = vi.fn<AgentAdapter["detectInstall"]>(async () => status(FAST, "fresh-fast"));
+    const { service, firstNativeReady } = setup([adapter(FAST, fast), adapter(SLOW, slow)]);
+    const response = await service.getAgentStatuses({ wslDistros: [] });
+    expect(response.fromCache).toBe(false);
+    expect(modelIds(response)).toEqual(["baseline-fast"]);
+    expect(modelIds(response, SLOW)).toBeUndefined();
+    expect(service.getCachedCapabilities(FAST)?.models[0]?.id).toBe("baseline-fast");
+    expect(service.getCachedCapabilities(SLOW)).toBeUndefined();
+    await firstNativeReady.promise;
+    // Attach/reconnect must share the same sweep and see fresh accepted rows.
+    const second = await service.getAgentStatuses({ wslDistros: [] });
+    expect(modelIds(second)).toEqual(["fresh-fast"]);
+    expect(fast).toHaveBeenCalledOnce();
+    expect(slow).toHaveBeenCalledOnce();
+    expect(memory.writes).toEqual([]);
+    const detection = activeDetection(service);
+    held.resolve(status(SLOW, "fresh-slow"));
+    await detection;
+    const saved = JSON.parse(memory.cache!);
+    expect(saved.version).toBe(STATUS_CACHE_VERSION);
+    expect(saved.windows).toHaveLength(2);
+    expect((await service.getAgentStatuses({ wslDistros: [] })).fromCache).toBe(true);
+  });
+
   it("reconciles removed registry kinds without dropping unrelated observations or accepting their late probes", async () => {
     seedBaseline();
     const held = deferred<AgentStatus>();
