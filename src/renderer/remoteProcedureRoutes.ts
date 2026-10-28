@@ -133,6 +133,10 @@ export const NON_ROUTER_PROJECT_PROCEDURES = {
   // the remote data plane (the experiment judge walks them).
   dbGetThreadRuntimeItems:
     "local-shell: unbounded full-transcript read; remote clients page the bounded history-items route instead of one raw DB read",
+  // Per-thread crew spend is read from this desktop's own usage ledger; the
+  // remote protocol does not carry it yet, so remote clients show no breakdown.
+  dbGetThreadTokenUsage:
+    "local-shell: per-thread crew spend reads this desktop's usage ledger; the remote protocol does not carry it yet",
 
   // Remote-access server control — the host's own trust surface
   getRemoteAccessPairing:

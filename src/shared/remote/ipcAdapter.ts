@@ -36,7 +36,6 @@ export const REMOTE_IPC_ADAPTER_SPECS = {
   dbGetLatestThreadGoalItem: "thread",
   dbGetThreadCompletedTurns: "thread",
   dbGetThreadContextUsage: "thread",
-  dbGetThreadTokenUsage: "thread",
   revertCheckpoint: "thread",
   sendThreadInput: "thread",
   interruptThread: "thread",
@@ -150,9 +149,6 @@ export function invokeRemoteIpcProcedure(
       );
     case "dbGetThreadContextUsage":
       return client.threadContextUsage(String((payload as { readonly threadId: string }).threadId));
-    case "dbGetThreadTokenUsage":
-      // Not on the remote protocol yet: remote clients show no spend breakdown.
-      return Promise.resolve(null);
     case "revertCheckpoint":
       return client.checkpointRevert(
         payload as Parameters<RemoteDesktopClient["checkpointRevert"]>[0],
