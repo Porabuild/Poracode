@@ -664,6 +664,8 @@ export function ChatPane(props: ChatPaneProps) {
                 if (event.deltaY < 0) {
                   scrollControlsRef.current?.markUserScrollIntent();
                   scrollControlsRef.current?.disableStickToBottom();
+                } else if (event.deltaY > 0) {
+                  scrollControlsRef.current?.markUserScrollTowardEnd();
                 }
               }}
               onPointerDownCapture={(event) => {

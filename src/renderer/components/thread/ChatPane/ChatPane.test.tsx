@@ -1090,6 +1090,83 @@ describe("ChatPane", () => {
     await waitFor(() => expect(metrics.getScrollTop()).toBe(300));
   });
 
+  it.each([true, false])(
+    "resumes following on a downward wheel after layout growth: %s",
+    async (wheelDown) => {
+      const thread = makeThread();
+      seedAssistantMessage(thread.id, "Inspect output");
+
+      let now = 1_000;
+      const performanceNow = vi.spyOn(performance, "now").mockImplementation(() => now);
+      try {
+        const { container } = renderChatPane(thread);
+        await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
+
+        const scrollElement = getScrollElement(container);
+        const contentElement = getContentElement(scrollElement);
+        const metrics = installScrollMetrics(scrollElement, {
+          scrollHeight: 200,
+          clientHeight: 100,
+          scrollTop: 0,
+        });
+
+        // Let the initial settle finish before scrolling: its reveal watchdog
+        // would otherwise force a bottom pin later and mask the wheel wiring.
+        await act(async () => {
+          await new Promise<void>((resolve) =>
+            requestAnimationFrame(() =>
+              requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+            ),
+          );
+        });
+
+        act(() => {
+          metrics.setScrollTop(100);
+          fireEvent.scroll(scrollElement);
+        });
+
+        // Wheel up and scroll away: sticky releases and the reader pauses.
+        act(() => {
+          fireEvent.wheel(scrollElement, { deltaY: -120 });
+          metrics.setScrollTop(20);
+          fireEvent.scroll(scrollElement);
+        });
+
+        // Let the scroll-away intent window lapse.
+        now += 1_000;
+        // Content grows without a scroll event, so the next scroll event sees
+        // growth and cannot take the layout-stable return path.
+        metrics.setScrollHeight(300);
+
+        act(() => {
+          if (wheelDown) fireEvent.wheel(scrollElement, { deltaY: 120 });
+          metrics.setScrollTop(300);
+          fireEvent.scroll(scrollElement);
+        });
+        // Restore the real clock so the streamed append can render.
+        performanceNow.mockRestore();
+
+        act(() => {
+          appendAssistantText(thread.id, " — Open logs");
+        });
+        await screen.findByText(/Open logs/);
+
+        act(() => {
+          metrics.setScrollHeight(400);
+          MockResizeObserver.notify(contentElement);
+        });
+
+        await waitFor(() => expect(metrics.getScrollTop()).toBe(wheelDown ? 400 : 300));
+        await act(async () => {
+          await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+        });
+        expect(metrics.getScrollTop()).toBe(wheelDown ? 400 : 300);
+      } finally {
+        performanceNow.mockRestore();
+      }
+    },
+  );
+
   it("does not release sticky mode for layout-driven upward scroll during tail collapse", async () => {
     const thread = makeThread();
     seedAssistantMessage(thread.id, "Inspect output");
