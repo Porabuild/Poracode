@@ -1337,7 +1337,7 @@ msgstr "Fügen Sie ein Projekt hinzu, bevor Sie sich anmelden."
 msgid "Add a project before updating an agent."
 msgstr "Füge ein Projekt hinzu, bevor du einen Agenten aktualisierst."
 
-#: src/renderer/components/providers/settings/OpenCode2ProviderSettings.tsx
+#: src/renderer/components/providers/settings/ProviderCredentialAccounts.tsx
 msgid "Add a project in this environment before signing in."
 msgstr "Füge vor der Anmeldung ein Projekt in dieser Umgebung hinzu."
 
@@ -2359,6 +2359,7 @@ msgstr "Von mir erstellt"
 msgid "Authorization: Bearer token"
 msgstr "Authorization: Bearer token"
 
+#: src/renderer/components/common/effortLabel.ts
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Auto"
 msgstr "Automatisch"
@@ -7963,6 +7964,10 @@ msgstr "Erstklassige Qoder CLI-Integration mit Poracodes nativen Terminal- und A
 msgid "First-class Qwen Code integration using Poracode's native terminal and ACP runtimes."
 msgstr "Erstklassige Qwen Code-Integration mit Poracodes nativen Terminal- und ACP-Laufzeiten."
 
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Vercel fx integration using Poracode's native terminal and ACP runtimes."
+msgstr "Erstklassige Vercel fx-Integration mit Poracodes nativen Terminal- und ACP-Laufzeiten."
+
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Fit"
 msgstr "Angepasst"
@@ -8225,6 +8230,10 @@ msgstr "Vollständige Konfiguration"
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "Fullscreen overlay"
 msgstr "Vollbild-Overlay"
+
+#: src/renderer/components/providers/fx/manifest.ts
+msgid "fx"
+msgstr "fx"
 
 #: src/renderer/utils/projectIcons.ts
 msgid "Games & fun"
@@ -10284,8 +10293,8 @@ msgstr "Login-Quelle"
 msgid "Login source, config file, organization, and runtime for this configuration. Thread knobs like model and approvals stay on the composer."
 msgstr "Login-Quelle, Konfigurationsdatei, Organisation und Laufzeit für diese Konfiguration. Thread-Optionen wie Modell und Genehmigungen bleiben im Composer."
 
-#: src/renderer/components/providers/settings/OpenCode2ProviderSettings.tsx
 #: src/renderer/components/providers/settings/ProviderAccountsSection.tsx
+#: src/renderer/components/providers/settings/ProviderCredentialAccounts.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Logout"
@@ -15182,7 +15191,7 @@ msgstr "Den verknüpften Skill „{0}“ entfernen? Sein Quellordner wird nicht 
 msgid "Remove the project's experiments before removing the project."
 msgstr "Entfernen Sie die Experimente des Projekts, bevor Sie das Projekt entfernen."
 
-#: src/renderer/components/providers/settings/OpenCode2ProviderSettings.tsx
+#: src/renderer/components/providers/settings/ProviderCredentialAccounts.tsx
 msgid "Remove the saved credential for this provider? You can connect it again from Add provider."
 msgstr "Die gespeicherten Zugangsdaten dieses Anbieters entfernen? Du kannst ihn über „Anbieter hinzufügen“ erneut verbinden."
 
@@ -17436,6 +17445,10 @@ msgstr "Anmeldung erforderlich"
 msgid "Sign in to {0}"
 msgstr "Bei {0} anmelden"
 
+#: src/renderer/components/providers/fx/FxProviderSettings.tsx
+msgid "Sign in to the AI backends fx can use, and sign out of them here."
+msgstr "Melde dich bei den KI-Backends an, die fx nutzen kann, und melde dich hier wieder ab."
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Sign in with the agent CLI."
 msgstr "Mit der Agent-CLI anmelden."
@@ -17453,8 +17466,8 @@ msgstr "{label} abmelden"
 
 #. placeholder {0}: provider.label
 #. placeholder {0}: signingOut?.provider.label ?? ""
-#: src/renderer/components/providers/settings/OpenCode2ProviderSettings.tsx
 #: src/renderer/components/providers/settings/ProviderAccountsSection.tsx
+#: src/renderer/components/providers/settings/ProviderCredentialAccounts.tsx
 msgid "Sign out of {0}"
 msgstr "Bei {0} abmelden"
 

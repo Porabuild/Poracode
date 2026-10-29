@@ -67,6 +67,10 @@ const updateByKind: Record<string, AgentAdapter["update"]> = {
       "https://antigravity-cli-auto-updater-974169037036.us-central1.run.app/manifests/linux_amd64.json",
     ],
   },
+  fx: {
+    builtIn: { binary: "fx", args: ["upgrade"] },
+    latestVersionUrls: ["https://releases.fx.sh/latest.txt"],
+  },
 };
 
 function makeStatus(overrides: Partial<AgentStatus>): AgentStatus {
@@ -571,6 +575,19 @@ describe("getLatestVersionForAdapter", () => {
     expect(result).toEqual({ version: "0.2.3", source: "version-url" });
     expect(fetchSpy).toHaveBeenCalledTimes(1);
     expect(fetchSpy.mock.calls[0]?.[0]).toBe("https://x.ai/cli/stable");
+  });
+
+  it("strips a leading v from plain-text provider version URLs", async () => {
+    const fetchSpy = vi.fn<typeof fetch>().mockResolvedValue({
+      ok: true,
+      text: async () => "v0.0.15\n",
+    } as Response);
+    globalThis.fetch = fetchSpy as unknown as typeof fetch;
+
+    const result = await getLatestVersionForAdapter(makeAdapter("fx"));
+    expect(result).toEqual({ version: "0.0.15", source: "version-url" });
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(fetchSpy.mock.calls[0]?.[0]).toBe("https://releases.fx.sh/latest.txt");
   });
 
   it("extracts a manifest version from provider version URLs", async () => {

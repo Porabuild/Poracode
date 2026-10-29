@@ -162,3 +162,97 @@ implementation with Pi extensions (see
 [Provider Runtime](provider-runtime.md#terminal-mcp-launch-integration)).
 
 `commandcode/` is also the reference template for a TUI-only, non-ACP CLI.
+
+## fx
+
+Vercel's native coding agent (macOS and Linux; Windows through WSL). Terminal
+runs the `fx` TUI and Chat runs `fx acp`. Detection reads `fx status --json`
+(default model, signed-in state) and `fx models --json`, which lists the
+catalog of the active fx provider (Vercel AI Gateway, Codex, or Grok). Users
+switch that provider with `fx provider`; Poracode never does.
+
+fx has no permission flag, so every lane sets `FX_PERMISSION_MODE`
+(`auto`/`ask`/`full-access`). Chat sets it at spawn too: the agent's
+`currentModeId` then already matches and Poracode skips `set_mode` at open,
+because fx persists `set_mode` into `~/.fx/settings.json`. A mode change in a
+running Chat session still updates that saved default, as it does in fx's own
+TUI. One-shots always run with `ask`. Every spawn carries `FX_AUTO_UPGRADE=0`;
+updates go through `fx upgrade`. fx 0.0.15 does not forward a sub-agent's
+approval requests over ACP, so in `ask` a sub-agent that needs one (a shell
+command, for example) waits until the user presses Stop, which settles the turn.
+
+Terminal status comes from OSC 7501 Program Status reports, not screen text;
+`error` maps to idle because the TUI waits for the next prompt. There is no
+prompt positional, so the first prompt is typed once the TUI is ready
+(bracketed paste for multi-line text). fx writes a session only when its first
+prompt starts: fresh launches snapshot `fx sessions --json` for the workspace,
+and a watcher on `~/.fx/sessions/v2` re-runs discovery when the first prompt is
+sent later. Terminal and Chat share sessions (`fx --resume <id>` and ACP
+`session/load`); `fx: saved session not found.` marks a stale ref. fx accepts
+`--resume <id>` only as the last arguments, so launch flags go before it.
+
+fx's ACP inventory puts a `provider` select ahead of `model`, both in the
+`model` category. `normalizeFxAcpConfigOptions` drops `provider` so the shared
+reduction binds the model control to `model`, removes model names that only
+repeat the id (detected friendly names win), and groups `vendor/model` values
+by vendor to match the detected `subProviders`. The composer's Fast toggle is
+bound to the exact `fast` select (`FX_ACP_FAST_CONFIG_BINDING`), so it can
+never claim the higher-priced `ultrafast` select, which fx lists only for AI
+Gateway models that support it. fx's default effort `auto` is offered as the
+last level. Known gap: after a mid-thread model switch, and before a thread's
+first turn, the effort and Fast controls are not shown until the next turn.
+
+`subagent` tool calls with `action: "run"` map to `_toolName: "task"`, and both
+the title and the description drop fx's `Subagent · ` prefix (the agent row
+labels with the title); `action: "message"` stays a plain tool call. fx returns tool output as JSON envelopes (sub-agent
+`{ok, result, error_code}`, fx's own tool errors
+`{error: {type, tool_name, message}}`, MCP `{server, tool, result}`), which the
+fx transform unwraps to the text the tool produced. It also starts a new
+assistant item whenever an `agent_message_chunk` carries a new `messageId`, so
+separate fx messages in one turn do not merge. "[context]" diagnostics arrive
+as agent_message_chunks under their own messageId (at every session start or
+resume when Poracode's injected MCP tools exceed fx's
+`mcp_selected_schema_bytes` budget, and after capability_search truncates a
+schema); the transform marks them and `fxContextNoticeExtension` emits each as
+a hidden `warning` event instead of transcript text. fx caps tool output text
+in ACP updates at about 200 characters with no rawOutput; a cut MCP wrapper is
+decoded to its first text item's visible prefix plus "…", other tools show the
+cut text.
+fx titles every file approval `file_mutation`; `normalizeFxPermissionRequest`
+retitles it with fx's tool and the path (`edit_file src/app.ts`), the way fx
+titles shell approvals (`shell.run <command>`).
+
+Chat steering is native and does not interrupt. fx advertises
+`agentCapabilities._meta.fx.steering`, and the adapter declares
+`FX_ACP_PROMPT_STEERING`: a mid-turn message is sent as a `session/prompt`
+marked `_meta.fx.steer`, fx folds it into the running turn at its next safe
+boundary, and answers it when that turn ends. Attachments, or a steer fx
+rejects because the turn closed first, go out as the next prompt of the same
+turn. `repliesInNewAssistantItem` keeps the in-flight message streaming above
+the steer row: the reply starts a new assistant item.
+
+Ultrafast is fx's own saved setting (`ultrafast_mode`), toggled with
+`/ultrafast` in a Terminal thread and applied by fx in both lanes on supported
+Gateway models. Poracode passes no Ultrafast flag or environment variable, and
+its composer has no Ultrafast switch: a per-thread speed tier beyond Fast would
+be a new shared thread-config field across every client.
+
+MCP: Chat threads get Poracode's servers through `session/new`. fx has no
+per-launch MCP option for Terminal, so Provider Settings offers the shared
+native setup instead (`fx/nativeMcp.ts`): the user picks saved servers and
+installs them into `~/.fx/mcp.json`, in whichever table the file already uses
+(`mcpServers` or `mcp`). Entries fx would refuse (SSE, `cwd`, tool
+restrictions, literal `Authorization` or reserved headers, plain-HTTP
+non-loopback URLs) are shown as ineligible rather than written. WSL has no
+native setup.
+
+Provider Settings lists the fx backends signed in on this machine — AI Gateway,
+Codex, and Grok — from `fx status --json`. Add provider runs
+`fx login <backend>` in the terminal overlay and Logout runs
+`fx logout <backend>` (`fx/credentials.ts`). fx reports `connected_providers`
+only while a non-Gateway backend is selected, so that read-only status call
+pins `FX_PROVIDER=codex` with a placeholder `FX_MODEL`.
+
+Provider Usage runs `fx usage --json` (schema 2) supervisor-side
+(`fx/usage.ts`). The report follows the backend fx is signed in to: an AI
+Gateway budget and spend, ChatGPT plan limits and credits, or a Grok allowance.

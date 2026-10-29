@@ -326,7 +326,7 @@ async function fetchLatestVersionFromUrls(urls: readonly string[]): Promise<stri
             : data.name;
       return typeof value === "string" && value.length > 0 ? value.replace(/^v/, "") : undefined;
     } catch {
-      return trimmed;
+      return trimmed.replace(/^v(?=\d)/, "");
     }
   };
 

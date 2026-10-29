@@ -32,7 +32,7 @@ import type {
   McpTransportKind,
   ResolvedMcpServer,
 } from "@/shared/contracts";
-import type { OscNotification, OscShellEvent, OscTitle } from "@/shared/osc";
+import type { OscNotification, OscProgramStatus, OscShellEvent, OscTitle } from "@/shared/osc";
 import type { McpThreadIdentity } from "@/shared/browserMcpThread";
 import type { HostDiagnosticsSnapshot } from "@/shared/lsp";
 import type { ModelSelection } from "@/shared/selectionBinding.schemas.ts";
@@ -872,6 +872,8 @@ export interface AgentTerminalObserver {
   handleOscNotification?(notification: OscNotification): TerminalStatusHint | null;
   handleOscTitle?(title: OscTitle): TerminalStatusHint | null;
   handleOscShellEvent?(event: OscShellEvent): TerminalStatusHint | null;
+  /** Map an OSC 7501 Program Status update to a terminal status hint. */
+  handleOscProgramStatus?(status: OscProgramStatus): TerminalStatusHint | null;
   oscHintsDeferToHookPlugin?: boolean;
   syncConfigFromTerminalState?(input: SyncConfigFromTerminalStateInput): ThreadConfig | undefined;
 }
