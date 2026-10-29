@@ -94,9 +94,13 @@ describe("rich chat reveal cadence", () => {
       removeListener: vi.fn<MediaQueryList["removeListener"]>(),
       dispatchEvent: vi.fn<MediaQueryList["dispatchEvent"]>(() => false),
     }));
-    const view = render(<SmoothItemMarkdown text="## H\n" isStreaming />);
+    const view = render(
+      <SmoothItemMarkdown text="## H\n" isStreaming initialRevealKey="reduced-initial" />,
+    );
     const target = "## H\n**All text**\ud83c\udf0d\n";
-    view.rerender(<SmoothItemMarkdown text={target} isStreaming />);
+    view.rerender(
+      <SmoothItemMarkdown text={target} isStreaming initialRevealKey="reduced-initial" />,
+    );
     expect(view.getByTestId("markdown").textContent).toBe(target);
     expect(frames.size).toBe(0);
     view.unmount();
