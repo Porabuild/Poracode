@@ -12,6 +12,7 @@ import {
   type ThreadCrewBinding,
 } from "@/shared/crew";
 import type { ProviderModelMenuProvider } from "@/renderer/components/common/ProviderModelMenu/parts/buildItems";
+import type { ComposerControl } from "@/renderer/components/thread/ThreadComposer";
 import { formatEffortLabel } from "@/renderer/components/common/effortLabel";
 import type { CrewHelperOptions } from "./crewHelperOptions";
 import type { CrewRoleTemplate } from "./crewRoleTemplates";
@@ -29,6 +30,13 @@ export interface CrewRosterModel {
   isDisabled: boolean;
   helperNote?: string;
   showFallbacks?: boolean;
+  /**
+   * Transient UI-only: the composer's original Fast toggle for the lead. The
+   * producer already resolved family availability and edit semantics, so the
+   * roster row and shortcut dispatch this exact descriptor instead of
+   * reconstructing Fast from the saved carrier. Never persisted.
+   */
+  leadFastControl?: Extract<ComposerControl, { kind: "toggle" }>;
   onBindingChange: (binding: ThreadCrewBinding) => void;
   onLeadChange: (lead: CrewMemberSelection) => void;
   onSaveToCrew: (savedCrew: SavedCrew, binding: ThreadCrewBinding) => void;

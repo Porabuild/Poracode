@@ -114,7 +114,7 @@ describe("CrewRosterPanel", () => {
       lead: { ...selection, model: "other-model" },
       onBindingChange: vi.fn<(next: ThreadCrewBinding) => void>(),
     });
-    renderWithI18n(<CrewRosterPanel model={model} compact={false} />);
+    renderWithI18n(<CrewRosterPanel model={model} />);
 
     const policy = screen.getByRole("button", {
       name: "Crew only: work goes only to this crew",
@@ -139,7 +139,7 @@ describe("CrewRosterPanel", () => {
       defaultHelper: { agentKind: "claude", model: "opus-5.5", effort: "low" },
       onBindingChange: vi.fn<(next: ThreadCrewBinding) => void>(),
     });
-    renderWithI18n(<CrewRosterPanel model={model} compact={false} />);
+    renderWithI18n(<CrewRosterPanel model={model} />);
     fireEvent.click(screen.getByRole("button", { name: "Add role" }));
     await waitFor(() => {
       expect(model.onBindingChange).toHaveBeenCalledWith(
@@ -157,16 +157,88 @@ describe("CrewRosterPanel", () => {
     const onLeadChange = vi.fn<(next: CrewMemberSelection) => void>();
     const onHandOff = vi.fn<() => void>();
     const model = makeModel({ isDraft: false, onLeadChange, onHandOff });
-    renderWithI18n(<CrewRosterPanel model={model} compact={false} />);
+    renderWithI18n(<CrewRosterPanel model={model} />);
     fireEvent.click(screen.getByRole("button", { name: "Fast for Lead" }));
     expect(onLeadChange).toHaveBeenCalledWith({ ...selection, fast: true });
     fireEvent.click(screen.getByRole("button", { name: "Hand off to another lead…" }));
     expect(onHandOff).toHaveBeenCalledOnce();
   });
 
+  it("renders and dispatches the authoritative lead Fast descriptor", () => {
+    const descriptorOnChange = vi.fn<(value: boolean) => void>();
+    const onLeadChange = vi.fn<(next: CrewMemberSelection) => void>();
+    const model = makeModel({
+      isDraft: false,
+      onLeadChange,
+      leadFastControl: {
+        kind: "toggle",
+        label: "Fast",
+        // Encoded family Fast can be on while the saved carrier stays inert.
+        isSelected: true,
+        onChange: descriptorOnChange,
+      },
+    });
+    renderWithI18n(<CrewRosterPanel model={model} />);
+
+    const fast = screen.getByRole("button", { name: "Fast for Lead" });
+    expect(fast).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(fast);
+    expect(descriptorOnChange).toHaveBeenCalledWith(false);
+    expect(onLeadChange).not.toHaveBeenCalled();
+  });
+
+  it("keeps an unavailable lead Fast descriptor inert", () => {
+    const descriptorOnChange = vi.fn<(value: boolean) => void>();
+    const model = makeModel({
+      leadFastControl: {
+        kind: "toggle",
+        label: "Fast",
+        isSelected: false,
+        disabledReason: "Fast is unavailable for this pairing",
+        onChange: descriptorOnChange,
+      },
+    });
+    renderWithI18n(<CrewRosterPanel model={model} />);
+
+    const fast = screen.getByRole("button", { name: "Fast for Lead" });
+    expect(fast).toHaveAttribute("aria-disabled", "true");
+    fireEvent.click(fast);
+    expect(descriptorOnChange).not.toHaveBeenCalled();
+  });
+
+  it("updates the helper binding from per-member Fast", () => {
+    const onBindingChange = vi.fn<(next: ThreadCrewBinding) => void>();
+    const model = makeModel({ onBindingChange });
+    renderWithI18n(<CrewRosterPanel model={model} />);
+    fireEvent.click(screen.getByRole("button", { name: "Fast for Scout" }));
+    expect(onBindingChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        roles: [
+          expect.objectContaining({
+            id: "scout",
+            selection: expect.objectContaining({
+              agentKind: "claude",
+              model: "opus-5.5",
+              effort: "low",
+              fast: true,
+            }),
+          }),
+        ],
+      }),
+    );
+  });
+
+  it("updates the lead selection from Lead Fast", () => {
+    const onLeadChange = vi.fn<(next: CrewMemberSelection) => void>();
+    const model = makeModel({ onLeadChange });
+    renderWithI18n(<CrewRosterPanel model={model} />);
+    fireEvent.click(screen.getByRole("button", { name: "Fast for Lead" }));
+    expect(onLeadChange).toHaveBeenCalledWith({ ...selection, fast: true });
+  });
+
   it("opens the Crews settings section at the selected crew", () => {
     const model = makeModel();
-    renderWithI18n(<CrewRosterPanel model={model} compact={false} />);
+    renderWithI18n(<CrewRosterPanel model={model} />);
     fireEvent.click(screen.getByRole("button", { name: "Edit crews in settings" }));
     expect(usePanelStore.getState().settingsSection).toBe("crews");
     expect(usePanelStore.getState().settingsAnchor).toBe("crews.crew-review");
@@ -178,9 +250,7 @@ describe("CrewRosterPanel", () => {
       providers: helperOptions.providers.slice(0, 1),
       modelLabelOf: (member) => (member.model === "opus-5.5" ? "Opus 5.5" : member.model),
     };
-    renderWithI18n(
-      <CrewRosterPanel model={makeModel({ helperOptions: options })} compact={false} />,
-    );
+    renderWithI18n(<CrewRosterPanel model={makeModel({ helperOptions: options })} />);
     expect(screen.getAllByText("Opus 5.5").length).toBeGreaterThan(0);
   });
 
@@ -191,7 +261,7 @@ describe("CrewRosterPanel", () => {
       // One provider keeps the "Opus 5.5" row unique in the menu.
       leadProviders: helperOptions.providers.slice(0, 1),
     });
-    renderWithI18n(<CrewRosterPanel model={model} compact={false} />);
+    renderWithI18n(<CrewRosterPanel model={model} />);
     fireEvent.click(screen.getByRole("button", { name: "Model for Lead" }));
     const listbox = await screen.findByRole("listbox", { name: "Models" });
     const option = within(listbox).getByText("Opus 5.5").closest('[role="option"]')!;
@@ -208,7 +278,7 @@ describe("CrewRosterPanel", () => {
   it("changes only the effort from the quick reasoning label", async () => {
     const onBindingChange = vi.fn<(next: ThreadCrewBinding) => void>();
     const model = makeModel({ onBindingChange });
-    renderWithI18n(<CrewRosterPanel model={model} compact={false} />);
+    renderWithI18n(<CrewRosterPanel model={model} />);
     fireEvent.click(screen.getByRole("button", { name: "Reasoning for Scout" }));
     const option = await screen.findByRole("option", { name: "High" });
     fireEvent.click(option);
@@ -241,7 +311,7 @@ describe("CrewRosterPanel", () => {
       binding: { ...base.binding, roles: [role, secondRole] },
       onBindingChange,
     });
-    renderWithI18n(<CrewRosterPanel model={model} compact={false} />);
+    renderWithI18n(<CrewRosterPanel model={model} />);
 
     // The lead has no details button — helpers only (one per role row).
     expect(screen.getAllByRole("button", { name: "Role details" })).toHaveLength(2);
@@ -277,7 +347,7 @@ describe("CrewRosterPanel", () => {
     const onClose = vi.fn<() => void>();
     const openSettingsSection = vi.fn<(section: string, target?: string) => void>();
     usePanelStore.setState({ openSettingsSection });
-    renderWithI18n(<CrewRosterPanel model={makeModel()} compact={false} onClose={onClose} />);
+    renderWithI18n(<CrewRosterPanel model={makeModel()} onClose={onClose} />);
     fireEvent.click(screen.getByRole("button", { name: "Edit crews in settings" }));
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(openSettingsSection).toHaveBeenCalledWith("crews", expect.anything());
@@ -294,12 +364,224 @@ describe("CrewRosterPanel", () => {
   });
 });
 
+describe("CrewRosterPanel subprovider metadata", () => {
+  it("shows explicit model subprovider metadata beside the lead's model", () => {
+    const subCapability: AgentCapability = {
+      ...capability,
+      modelSubProvider: { "gpt-5.5": "opencode-go" },
+      subProviders: [{ id: "opencode-go", label: "OpenCode Go" }],
+    };
+    const model = makeModel({
+      leadProviders: helperOptions.providers.map((provider) =>
+        provider.kind === "codex" ? { ...provider, capabilities: subCapability } : provider,
+      ),
+    });
+    renderWithI18n(<CrewRosterPanel model={model} />);
+
+    const subProvider = screen.getByText("OpenCode Go");
+    expect(subProvider).toHaveAttribute("title", "OpenCode Go");
+    const modelLine = subProvider.parentElement!;
+    expect(within(modelLine).getByRole("button", { name: "Model for Lead" })).toBeInTheDocument();
+    expect(within(modelLine).queryByText("High")).toBeNull();
+    expect(screen.getByText("High")).toBeInTheDocument();
+    expect(screen.queryByText("·")).toBeNull();
+  });
+
+  it("shows explicit model subprovider metadata beside a helper's model", () => {
+    const subCapability: AgentCapability = {
+      ...capability,
+      modelSubProvider: { "opus-5.5": "opencode-go" },
+      subProviders: [{ id: "opencode-go", label: "OpenCode Go" }],
+    };
+    const providers = helperOptions.providers.map((provider) =>
+      provider.kind === "claude" ? { ...provider, capabilities: subCapability } : provider,
+    );
+    const model = makeModel({
+      helperOptions: { ...helperOptions, providers },
+      leadProviders: providers,
+    });
+    renderWithI18n(<CrewRosterPanel model={model} />);
+
+    const subProvider = screen.getByText("OpenCode Go");
+    const modelLine = subProvider.parentElement!;
+    expect(within(modelLine).getByRole("button", { name: "Model for Scout" })).toBeInTheDocument();
+    expect(within(modelLine).queryByText("Low")).toBeNull();
+    expect(screen.getByText("Low")).toBeInTheDocument();
+  });
+
+  it("derives the subprovider from a namespace when no mapping exists", () => {
+    const modelId = "acme/model-x";
+    const subCapability: AgentCapability = {
+      ...capability,
+      models: [...capability.models, { id: modelId, label: "Model X" }],
+      modelEfforts: { ...capability.modelEfforts, [modelId]: ["low", "high"] },
+      subProviders: [{ id: "acme", label: "Acme Labs" }],
+    };
+    const model = makeModel({
+      lead: { ...selection, model: modelId },
+      leadProviders: [{ kind: "codex", label: "Codex", capabilities: subCapability }],
+    });
+    renderWithI18n(<CrewRosterPanel model={model} />);
+
+    const subProvider = screen.getByText("Acme Labs");
+    const modelLine = subProvider.parentElement!;
+    expect(within(modelLine).getByRole("button", { name: "Model for Lead" })).toBeInTheDocument();
+    expect(within(modelLine).queryByText("High")).toBeNull();
+    expect(screen.getByText("High")).toBeInTheDocument();
+  });
+
+  it("adds no subprovider label to a plain model", () => {
+    renderWithI18n(<CrewRosterPanel model={makeModel()} />);
+
+    expect(screen.queryByText("OpenCode Go")).toBeNull();
+    expect(screen.queryByText("·")).toBeNull();
+  });
+
+  it("suppresses a subprovider that restates its parent provider", () => {
+    const modelId = "codex/gpt-5.5";
+    const subCapability: AgentCapability = {
+      ...capability,
+      models: [...capability.models, { id: modelId, label: "GPT-5.5" }],
+      modelEfforts: { ...capability.modelEfforts, [modelId]: ["low", "high"] },
+      subProviders: [{ id: "codex", label: "Codex" }],
+    };
+    const model = makeModel({
+      lead: { ...selection, model: modelId },
+      leadProviders: [{ kind: "codex", label: "Codex", capabilities: subCapability }],
+    });
+    renderWithI18n(<CrewRosterPanel model={model} />);
+
+    expect(screen.queryByText("Codex")).toBeNull();
+  });
+
+  it("suppresses a subprovider that repeats the model name", () => {
+    const modelId = "model-1";
+    const subCapability: AgentCapability = {
+      ...capability,
+      models: [...capability.models, { id: modelId, label: "Model 1" }],
+      modelEfforts: { ...capability.modelEfforts, [modelId]: ["low", "high"] },
+      modelSubProvider: { [modelId]: "family" },
+      subProviders: [{ id: "family", label: " model 1 " }],
+    };
+    const options: CrewHelperOptions = {
+      ...helperOptions,
+      modelLabelOf: (member) => (member.model === modelId ? "Model 1" : member.model),
+    };
+    const model = makeModel({
+      lead: { ...selection, model: modelId },
+      helperOptions: options,
+      leadProviders: [{ kind: "codex", label: "Codex", capabilities: subCapability }],
+    });
+    renderWithI18n(<CrewRosterPanel model={model} />);
+
+    expect(screen.getAllByText(/^model 1$/i)).toHaveLength(1);
+  });
+
+  it("suppresses a subprovider on a projected family member while a plain model keeps it", () => {
+    const familyCapability: AgentCapability = {
+      ...capability,
+      models: [
+        { id: "pair-a", label: "Pair A" },
+        { id: "pair-b", label: "Pair B" },
+        ...capability.models,
+      ],
+      modelEfforts: {
+        "pair-a": ["low", "high"],
+        "pair-b": ["low", "high"],
+        ...capability.modelEfforts,
+      },
+      modelSubProvider: { "pair-b": "opencode-go", "gpt-5.5": "opencode-go" },
+      subProviders: [{ id: "opencode-go", label: "OpenCode Go" }],
+      modelFamilies: [
+        {
+          model: "pair-a",
+          label: "Pair",
+          bindings: { effort: "config", fast: "config" },
+          selectors: [
+            {
+              id: "mode",
+              labelKey: "modelSelection.lead",
+              options: [
+                { id: "a", label: "Alpha" },
+                { id: "b", label: "Beta" },
+              ],
+            },
+          ],
+          members: [
+            { model: "pair-a", selections: { mode: "a" } },
+            { model: "pair-b", selections: { mode: "b" } },
+          ],
+        },
+      ],
+    };
+    const providers = helperOptions.providers.map((provider) => ({
+      ...provider,
+      capabilities: familyCapability,
+    }));
+    const options: CrewHelperOptions = {
+      ...helperOptions,
+      providers,
+      modelLabelOf: (member) =>
+        member.model === "pair-b"
+          ? "Pair B"
+          : member.model === "gpt-5.5"
+            ? "GPT-5.5"
+            : member.model,
+    };
+    const plainHelper: CrewRole = {
+      ...role,
+      selection: { agentKind: "codex", model: "gpt-5.5", effort: "low" },
+    };
+    const base = makeModel();
+    const model = makeModel({
+      binding: { ...base.binding, roles: [plainHelper] },
+      lead: { agentKind: "codex", model: "pair-b", effort: "low" },
+      helperOptions: options,
+      leadProviders: providers,
+    });
+    renderWithI18n(<CrewRosterPanel model={model} />);
+
+    expect(
+      within(screen.getByRole("button", { name: "Model for Lead" })).getByText("Pair B"),
+    ).toBeInTheDocument();
+    const subProvider = screen.getByText("OpenCode Go");
+    expect(screen.getAllByText("OpenCode Go")).toHaveLength(1);
+    expect(
+      within(subProvider.parentElement!).getByRole("button", { name: "Model for Scout" }),
+    ).toBeInTheDocument();
+  });
+
+  it("shows a subprovider without effort and no separator", () => {
+    const modelId = "acme/model-x";
+    const subCapability: AgentCapability = {
+      ...capability,
+      models: [...capability.models, { id: modelId, label: "Model X" }],
+      efforts: [],
+      modelEfforts: {},
+      fastModels: [],
+      modelSubProvider: { [modelId]: "acme" },
+      subProviders: [{ id: "acme", label: "Acme Labs" }],
+    };
+    const model = makeModel({
+      lead: { agentKind: "codex", model: modelId },
+      leadProviders: [{ kind: "codex", label: "Codex", capabilities: subCapability }],
+    });
+    renderWithI18n(<CrewRosterPanel model={model} />);
+
+    const subProvider = screen.getByText("Acme Labs");
+    const modelLine = subProvider.parentElement!;
+    expect(within(modelLine).getByRole("button", { name: "Model for Lead" })).toBeInTheDocument();
+    expect(modelLine).not.toHaveTextContent("·");
+    expect(screen.queryByRole("button", { name: "Reasoning for Lead" })).toBeNull();
+  });
+});
+
 describe("CrewRosterPanel templates", () => {
   it("starts an unsaved crew from a template, keeping the lead", async () => {
     const { savedCrew: _saved, ...model } = makeModel({
       onBindingChange: vi.fn<(next: ThreadCrewBinding) => void>(),
     });
-    renderWithI18n(<CrewRosterPanel model={model} compact={false} />);
+    renderWithI18n(<CrewRosterPanel model={model} />);
     fireEvent.click(screen.getByRole("button", { name: "Start from a template" }));
     fireEvent.click(await screen.findByRole("option", { name: /^Review board/u }));
     await waitFor(() =>

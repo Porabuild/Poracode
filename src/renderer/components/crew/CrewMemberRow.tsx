@@ -3,6 +3,9 @@ import { ArrowLeftRight, PencilOff, SlidersHorizontal, Zap } from "lucide-react"
 import { ToggleButton, Tooltip } from "@heroui/react";
 import { CrewRolePill } from "./CrewRolePill";
 import { ProviderModelMenu } from "@/renderer/components/common/ProviderModelMenu/ProviderModelMenu";
+import { distinctSubProviderLabel } from "@/renderer/components/common/ProviderModelMenu";
+import { modelFamilyMemberDisplay } from "@/renderer/components/common/ProviderModelMenu/parts/modelFamilyDisplay";
+import { splitModelLabel } from "@/renderer/components/common/ProviderModelMenu/parts/splitModelLabel";
 import { EffortContextMenu } from "@/renderer/components/common/EffortContextMenu/EffortContextMenu";
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
 import { ThreadDockIconButton } from "@/renderer/components/thread/ThreadDockUI";
@@ -45,20 +48,31 @@ export function CrewMemberRow(props: {
   isLead: boolean;
   isEdited: boolean;
   isEditing: boolean;
-  compact: boolean;
   onEditToggle: () => void;
   onSelectionChange: (selection: CrewMemberSelection) => void;
   onRoleChange: (patch: Partial<CrewRole>) => void;
   onRemoveRole: () => void;
 }) {
   const { t } = useLingui();
-  const { model, selection, role, isLead, compact } = props;
+  const { model, selection, role, isLead } = props;
   const providers = isLead ? model.leadProviders : model.helperOptions.providers;
   const provider = providers.find((candidate) => candidate.kind === selection.agentKind);
   const selectedModel = provider?.capabilities.models.find(
     (candidate) => candidate.id === selection.model,
   );
   const modelLabel = model.helperOptions.modelLabelOf(selection);
+  const modelFamily = provider
+    ? modelFamilyMemberDisplay(provider.capabilities, selection.model)
+    : undefined;
+  const subProviderLabel =
+    provider && !modelFamily
+      ? distinctSubProviderLabel(
+          selection.model,
+          provider.capabilities,
+          provider.label,
+          splitModelLabel(modelLabel).name,
+        )
+      : undefined;
   const selectionInfo = provider
     ? modelSelectionFor(provider.capabilities, selection.model)
     : undefined;
@@ -74,9 +88,20 @@ export function CrewMemberRow(props: {
     selection.contextSize,
   );
   const fastAvailable = selectionInfo?.fast.available === true;
-  const fastDisabled = !fastAvailable || model.isDisabled;
+  const leadFastControl = isLead ? model.leadFastControl : undefined;
+  // The producer descriptor owns encoded Fast (the saved carrier stays inert)
+  // and the canonical family-resolved edit; helpers keep the local fallback.
+  const fastSelected = leadFastControl ? leadFastControl.isSelected : selection.fast === true;
+  const fastDisabled = leadFastControl
+    ? leadFastControl.isDisabled === true ||
+      Boolean(leadFastControl.disabledReason) ||
+      leadFastControl.onChange === undefined ||
+      model.isDisabled
+    : !fastAvailable || model.isDisabled;
   const fastDisabledReason =
-    selectionInfo?.fast.disabledReason ?? t`Fast is unavailable for this model.`;
+    leadFastControl?.disabledReason ??
+    selectionInfo?.fast.disabledReason ??
+    t`Fast is unavailable for this model.`;
 
   // QUICK settings: the pickers change only their own carrier — a model pick
   // keeps effort and context length when the new model still offers them and
@@ -137,8 +162,8 @@ export function CrewMemberRow(props: {
         isDisabled={model.isDisabled}
       />
     ) : reasoning ? (
-      <span className="inline-flex h-5 shrink-0 items-center px-1 text-xs leading-5 text-muted">
-        {reasoning}
+      <span className="inline-flex h-4 min-w-0 items-center px-1 text-[11px] leading-4 text-muted">
+        <span className="min-w-0 truncate">{reasoning}</span>
       </span>
     ) : null;
 
@@ -159,20 +184,22 @@ export function CrewMemberRow(props: {
     <Tooltip delay={0} isDisabled={!fastDisabled}>
       <ToggleButton
         aria-label={t`Fast for ${memberLabel}`}
-        aria-pressed={selection.fast === true}
+        aria-pressed={fastSelected}
         aria-disabled={fastDisabled}
-        isSelected={selection.fast === true && !fastDisabled}
+        isSelected={fastSelected && !fastDisabled}
         isDisabled={model.isDisabled}
         size="sm"
         variant="ghost"
         className={`size-5 min-h-5 min-w-5 shrink-0 rounded p-0 text-muted hover:text-foreground ${
-          selection.fast === true ? "text-foreground" : ""
+          fastSelected ? "text-foreground" : ""
         }${fastDisabled && !model.isDisabled ? " cursor-not-allowed opacity-50" : ""}`}
         onChange={(fast) => {
-          if (!fastDisabled) props.onSelectionChange({ ...selection, fast });
+          if (fastDisabled) return;
+          if (leadFastControl?.onChange) leadFastControl.onChange(fast);
+          else props.onSelectionChange({ ...selection, fast });
         }}
       >
-        <Zap className="size-3" fill={selection.fast === true ? "currentColor" : "none"} />
+        <Zap className="size-3" fill={fastSelected ? "currentColor" : "none"} />
       </ToggleButton>
       {fastDisabled ? (
         <Tooltip.Content placement="top">{fastDisabledReason}</Tooltip.Content>
@@ -207,14 +234,8 @@ export function CrewMemberRow(props: {
 
   return (
     <>
-      <div
-        className={`grid grid-cols-[8px_14px_minmax(0,1fr)_auto] items-center gap-1 ${
-          compact ? "min-h-10 grid-rows-2" : "h-7"
-        }`}
-      >
-        <span
-          className={`col-start-1 flex size-2 items-center justify-center ${compact ? "row-span-2" : ""}`}
-        >
+      <div className="grid min-h-12 grid-cols-[8px_14px_minmax(0,1fr)_auto] grid-rows-2 items-center gap-x-2 gap-y-1 py-1">
+        <span className="col-start-1 row-span-2 flex size-2 items-center justify-center">
           {props.isEdited ? (
             <Tooltip delay={0}>
               <Tooltip.Trigger aria-label={t`Changed for this thread`}>
@@ -229,46 +250,32 @@ export function CrewMemberRow(props: {
           {...(provider?.icon ? { icon: provider.icon } : {})}
           fallbackLabel={provider?.label ?? selection.agentKind}
           tone="inactive"
-          className="col-start-2 row-start-1 size-3.5 shrink-0"
+          className="col-start-2 row-span-2 size-3.5 shrink-0"
         />
-        <div
-          className={`col-start-3 min-w-0 ${
-            compact ? "row-span-2 grid grid-rows-2 gap-0.5" : "flex items-center gap-0.5"
-          }`}
-        >
-          {compact ? (
-            <>
+        <div className="col-start-3 row-span-2 grid min-w-0 grid-rows-2 gap-0">
+          <span
+            className={`${
+              subProviderLabel
+                ? "grid min-w-0 max-w-full grid-cols-[minmax(0,max-content)_minmax(0,1fr)] items-center gap-x-0.5"
+                : "flex min-w-0 max-w-full items-center"
+            } ${selectedModel ? "text-foreground" : "text-muted"}`}
+          >
+            {modelButton}
+            {subProviderLabel ? (
               <span
-                className={`flex min-w-0 items-center truncate ${
-                  selectedModel ? "text-foreground" : "text-muted"
-                }`}
+                title={subProviderLabel}
+                className="min-w-0 truncate text-[9px] leading-4 text-muted"
               >
-                {modelButton}
+                {subProviderLabel}
               </span>
-              <span className="flex min-w-0 items-center gap-1 truncate">
-                {reasoningControl}
-                {noEditsIcon}
-              </span>
-            </>
-          ) : (
-            <>
-              <span
-                className={`flex min-w-0 items-center ${
-                  selectedModel ? "text-foreground" : "text-muted"
-                }`}
-              >
-                {modelButton}
-              </span>
-              {reasoningControl}
-              {noEditsIcon}
-            </>
-          )}
+            ) : null}
+          </span>
+          <span className="flex min-w-0 max-w-full items-center gap-1">
+            {reasoningControl}
+            {noEditsIcon}
+          </span>
         </div>
-        <span
-          className={`col-start-4 flex items-center justify-end gap-1 ${
-            compact ? "row-span-2" : ""
-          }`}
-        >
+        <span className="col-start-4 row-span-2 flex items-center justify-end gap-1">
           {rolePill}
           {fastToggle}
           {trailing}

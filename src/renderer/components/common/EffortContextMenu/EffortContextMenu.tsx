@@ -165,13 +165,13 @@ export function EffortContextMenu(props: EffortContextMenuProps) {
         triggerAppearance === "field"
           ? "w-full min-w-0 justify-between px-2"
           : triggerAppearance === "label"
-            ? "h-5 min-w-0 gap-0 rounded px-1 text-xs leading-5 text-muted hover:bg-foreground/5 hover:text-foreground"
+            ? "h-4 min-w-0 max-w-full gap-0 rounded px-1 leading-4 text-muted hover:bg-foreground/5 hover:text-foreground"
             : "poracode-composer-menu poracode-composer-effort-control min-w-0 px-2.5"
       }
       {...(mobile ? { onPress: () => handleOpenChange(true) } : {})}
     >
       {triggerAppearance === "label" ? (
-        <span className="truncate">{triggerLabel}</span>
+        <span className="truncate text-[11px]">{triggerLabel}</span>
       ) : (
         <>
           {icon}
@@ -299,7 +299,11 @@ export function EffortContextMenu(props: EffortContextMenuProps) {
       isOpen={isOpen}
       onOpenChange={handleOpenChange}
       label={label ?? t`Effort and context`}
-      {...(triggerAppearance === "field" ? { triggerClassName: "w-full min-w-0" } : {})}
+      {...(triggerAppearance === "field"
+        ? { triggerClassName: "w-full min-w-0" }
+        : triggerAppearance === "label"
+          ? { triggerClassName: "inline-flex min-w-0 max-w-full" }
+          : {})}
       trigger={
         mobile ? (
           trigger

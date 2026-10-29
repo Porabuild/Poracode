@@ -65,7 +65,7 @@ export function CrewRosterMenu(props: {
       isDisabled={isDisabled}
       size="sm"
       variant="ghost"
-      className="poracode-composer-menu min-w-0 px-2.5"
+      className="poracode-composer-menu min-w-0 max-w-full px-2.5"
       {...(mobile ? { onPress: () => handleOpenChange(true) } : {})}
     >
       <SlidersHorizontal className="size-3.5 shrink-0" />
@@ -98,17 +98,11 @@ export function CrewRosterMenu(props: {
       hideSheetHeader
       trigger={trigger}
       placement="top start"
-      contentClassName="w-[320px] max-w-[calc(100vw-2rem)] p-0"
+      contentClassName="w-[360px] max-w-[calc(100vw-2rem)] p-0"
       dialogClassName="flex max-h-[min(42rem,85vh)] flex-col overflow-y-auto !p-0"
       sheetClassName="m-sheet--crew-roster"
     >
-      {() => (
-        <CrewRosterPanel
-          model={panelModel}
-          compact={mobile}
-          onClose={() => handleOpenChange(false)}
-        />
-      )}
+      {() => <CrewRosterPanel model={panelModel} onClose={() => handleOpenChange(false)} />}
     </ResponsiveMenuSurface>
   );
 }

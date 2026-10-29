@@ -39,7 +39,6 @@ const HEADER_ICON_BUTTON_CLASS =
 
 export function CrewRosterPanel(props: {
   model: CrewRosterModel;
-  compact: boolean;
   onClose?: (() => void) | undefined;
 }) {
   const { t } = useLingui();
@@ -117,7 +116,7 @@ export function CrewRosterPanel(props: {
 
   return (
     <section className="flex w-full flex-col">
-      <header className="flex h-8 shrink-0 items-center gap-1 px-2">
+      <header className="flex h-10 shrink-0 items-center gap-1 px-3">
         {editingName ? (
           <>
             <Input
@@ -242,23 +241,22 @@ export function CrewRosterPanel(props: {
       </header>
 
       {model.helperNote ? (
-        <p className="mx-2 mb-1 text-[11px] text-muted">{model.helperNote}</p>
+        <p className="mx-3 mb-1 text-[11px] text-muted">{model.helperNote}</p>
       ) : null}
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-1.5 pb-1.5">
+      <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
         <CrewMemberRow
           model={model}
           selection={model.lead}
           isLead
           isEdited={isLeadEdited(model.lead, savedCrew)}
           isEditing={false}
-          compact={props.compact}
           onEditToggle={() => {}}
           onSelectionChange={model.onLeadChange}
           onRoleChange={() => {}}
           onRemoveRole={() => {}}
         />
-        <Separator className="my-1 h-px w-full bg-border/70" />
+        <Separator className="my-1.5 h-px w-full bg-border/70" />
         {model.binding.roles.map((role) => (
           <CrewMemberRow
             key={role.id}
@@ -268,7 +266,6 @@ export function CrewRosterPanel(props: {
             isLead={false}
             isEdited={isRoleEdited(role, savedCrew)}
             isEditing={editingRoleId === role.id}
-            compact={props.compact}
             onEditToggle={() =>
               setEditingRoleId((current) => (current === role.id ? undefined : role.id))
             }
@@ -287,7 +284,7 @@ export function CrewRosterPanel(props: {
         <Button
           variant="ghost"
           size="sm"
-          className="mt-0.5 h-7 w-full justify-start gap-1.5 px-1.5 text-xs text-muted hover:text-foreground"
+          className="mt-1 h-7 w-full justify-start gap-1.5 px-1.5 text-xs text-muted hover:text-foreground"
           isDisabled={
             model.isDisabled || !model.defaultHelper || model.binding.roles.length >= MAX_CREW_ROLES
           }
