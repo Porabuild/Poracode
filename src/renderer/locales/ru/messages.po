@@ -1337,7 +1337,7 @@ msgstr "Добавьте проект перед входом."
 msgid "Add a project before updating an agent."
 msgstr "Добавьте проект перед обновлением агента."
 
-#: src/renderer/components/providers/settings/OpenCode2ProviderSettings.tsx
+#: src/renderer/components/providers/settings/ProviderCredentialAccounts.tsx
 msgid "Add a project in this environment before signing in."
 msgstr "Перед входом добавьте проект в этой среде."
 
@@ -2359,6 +2359,7 @@ msgstr "Созданные мной"
 msgid "Authorization: Bearer token"
 msgstr "Authorization: Bearer token"
 
+#: src/renderer/components/common/effortLabel.ts
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Auto"
 msgstr "Авто"
@@ -7963,6 +7964,10 @@ msgstr "Первоклассная интеграция Qoder CLI с испол�
 msgid "First-class Qwen Code integration using Poracode's native terminal and ACP runtimes."
 msgstr "Первоклассная интеграция Qwen Code с использованием встроенных сред терминала и ACP в Poracode."
 
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Vercel fx integration using Poracode's native terminal and ACP runtimes."
+msgstr "Первоклассная интеграция Vercel fx с использованием встроенных сред терминала и ACP в Poracode."
+
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Fit"
 msgstr "По ширине"
@@ -8225,6 +8230,10 @@ msgstr "Полная конфигурация"
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "Fullscreen overlay"
 msgstr "Полноэкранное наложение"
+
+#: src/renderer/components/providers/fx/manifest.ts
+msgid "fx"
+msgstr "fx"
 
 #: src/renderer/utils/projectIcons.ts
 msgid "Games & fun"
@@ -10284,8 +10293,8 @@ msgstr "Источник входа"
 msgid "Login source, config file, organization, and runtime for this configuration. Thread knobs like model and approvals stay on the composer."
 msgstr "Источник входа, файл конфигурации, организация и среда выполнения для этой конфигурации. Настройки треда — модель и политики одобрения — остаются в композере."
 
-#: src/renderer/components/providers/settings/OpenCode2ProviderSettings.tsx
 #: src/renderer/components/providers/settings/ProviderAccountsSection.tsx
+#: src/renderer/components/providers/settings/ProviderCredentialAccounts.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Logout"
@@ -15182,7 +15191,7 @@ msgstr "Удалить связанный навык «{0}»? Его исход�
 msgid "Remove the project's experiments before removing the project."
 msgstr "Удалите эксперименты проекта перед удалением проекта."
 
-#: src/renderer/components/providers/settings/OpenCode2ProviderSettings.tsx
+#: src/renderer/components/providers/settings/ProviderCredentialAccounts.tsx
 msgid "Remove the saved credential for this provider? You can connect it again from Add provider."
 msgstr "Удалить сохранённые учётные данные этого провайдера? Вы сможете подключить его снова через «Добавить провайдера»."
 
@@ -17436,6 +17445,10 @@ msgstr "Требуется вход"
 msgid "Sign in to {0}"
 msgstr "Войти в {0}"
 
+#: src/renderer/components/providers/fx/FxProviderSettings.tsx
+msgid "Sign in to the AI backends fx can use, and sign out of them here."
+msgstr "Войдите в ИИ-бэкенды, которые может использовать fx, и выходите из них здесь."
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Sign in with the agent CLI."
 msgstr "Войдите через CLI агента."
@@ -17453,8 +17466,8 @@ msgstr "Выйти {label}"
 
 #. placeholder {0}: provider.label
 #. placeholder {0}: signingOut?.provider.label ?? ""
-#: src/renderer/components/providers/settings/OpenCode2ProviderSettings.tsx
 #: src/renderer/components/providers/settings/ProviderAccountsSection.tsx
+#: src/renderer/components/providers/settings/ProviderCredentialAccounts.tsx
 msgid "Sign out of {0}"
 msgstr "Выйти из {0}"
 

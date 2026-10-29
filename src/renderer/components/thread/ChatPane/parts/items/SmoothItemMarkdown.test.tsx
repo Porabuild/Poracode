@@ -63,10 +63,9 @@ describe("rich chat reveal cadence", () => {
       if (text !== previous) emissions.push(now);
       previous = text;
     }
-    expect(emissions.length).toBeGreaterThan(20);
-    expect(emissions.length).toBeLessThanOrEqual(31);
+    expect(emissions.length).toBe(60);
     for (let i = 1; i < emissions.length; i += 1)
-      expect(emissions[i]! - emissions[i - 1]!).toBeGreaterThanOrEqual(32);
+      expect(emissions[i]! - emissions[i - 1]!).toBeCloseTo(1_000 / 60, 6);
     expect(previous.length).toBeLessThan(target.length);
     view.rerender(<SmoothItemMarkdown text={target} isStreaming={false} />);
     expect(view.getByTestId("markdown").textContent).toBe(target);

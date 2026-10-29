@@ -1337,7 +1337,7 @@ msgstr "登录前添加项目。"
 msgid "Add a project before updating an agent."
 msgstr "请先添加项目，再更新智能体。"
 
-#: src/renderer/components/providers/settings/OpenCode2ProviderSettings.tsx
+#: src/renderer/components/providers/settings/ProviderCredentialAccounts.tsx
 msgid "Add a project in this environment before signing in."
 msgstr "请先在此环境中添加项目，再登录。"
 
@@ -2359,6 +2359,7 @@ msgstr "我创建的"
 msgid "Authorization: Bearer token"
 msgstr "Authorization: Bearer token"
 
+#: src/renderer/components/common/effortLabel.ts
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Auto"
 msgstr "自动"
@@ -7963,6 +7964,10 @@ msgstr "使用 Poracode 原生终端和 ACP 运行时的一流 Qoder CLI 集成�
 msgid "First-class Qwen Code integration using Poracode's native terminal and ACP runtimes."
 msgstr "使用 Poracode 原生终端和 ACP 运行时的一流 Qwen Code 集成。"
 
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Vercel fx integration using Poracode's native terminal and ACP runtimes."
+msgstr "使用 Poracode 原生终端和 ACP 运行时的一流 Vercel fx 集成。"
+
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Fit"
 msgstr "适应"
@@ -8225,6 +8230,10 @@ msgstr "完整配置"
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "Fullscreen overlay"
 msgstr "全屏覆盖"
+
+#: src/renderer/components/providers/fx/manifest.ts
+msgid "fx"
+msgstr "fx"
 
 #: src/renderer/utils/projectIcons.ts
 msgid "Games & fun"
@@ -10284,8 +10293,8 @@ msgstr "登录来源"
 msgid "Login source, config file, organization, and runtime for this configuration. Thread knobs like model and approvals stay on the composer."
 msgstr "此配置的登录来源、配置文件、组织和运行时。模型和审批等线程选项保留在输入框中。"
 
-#: src/renderer/components/providers/settings/OpenCode2ProviderSettings.tsx
 #: src/renderer/components/providers/settings/ProviderAccountsSection.tsx
+#: src/renderer/components/providers/settings/ProviderCredentialAccounts.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Logout"
@@ -15181,7 +15190,7 @@ msgstr "移除已链接的技能“{0}”？其源文件夹不会被删除。"
 msgid "Remove the project's experiments before removing the project."
 msgstr "删除项目前，请先删除该项目的实验。"
 
-#: src/renderer/components/providers/settings/OpenCode2ProviderSettings.tsx
+#: src/renderer/components/providers/settings/ProviderCredentialAccounts.tsx
 msgid "Remove the saved credential for this provider? You can connect it again from Add provider."
 msgstr "要删除此提供商已保存的凭据吗？你可以在“添加提供商”中重新连接。"
 
@@ -17435,6 +17444,10 @@ msgstr "需要登录"
 msgid "Sign in to {0}"
 msgstr "登录 {0}"
 
+#: src/renderer/components/providers/fx/FxProviderSettings.tsx
+msgid "Sign in to the AI backends fx can use, and sign out of them here."
+msgstr "登录 fx 可以使用的 AI 后端，并在此退出登录。"
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Sign in with the agent CLI."
 msgstr "使用代理 CLI 登录。"
@@ -17452,8 +17465,8 @@ msgstr "退出{label}"
 
 #. placeholder {0}: provider.label
 #. placeholder {0}: signingOut?.provider.label ?? ""
-#: src/renderer/components/providers/settings/OpenCode2ProviderSettings.tsx
 #: src/renderer/components/providers/settings/ProviderAccountsSection.tsx
+#: src/renderer/components/providers/settings/ProviderCredentialAccounts.tsx
 msgid "Sign out of {0}"
 msgstr "退出 {0}"
 

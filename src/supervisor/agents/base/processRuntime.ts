@@ -502,9 +502,11 @@ async function probeWslLaunchEnvironment(
     const parsed = parseWslEnvProbeOutput(bridged.stdout);
     if (parsed.shellPath) return parsed;
   }
+  // `--exec`, not `--`: `--` runs the line through the user's default shell,
+  // which expands `$shell` to empty before `sh` ever sees the script.
   const direct = await readCommandOutputAsync(
     getWslCommand(),
-    ["-d", distro, "--", "sh", "-lc", WSL_ENV_PROBE_SCRIPT],
+    ["-d", distro, "--exec", "sh", "-lc", WSL_ENV_PROBE_SCRIPT],
     { timeout: WSL_ENV_PROBE_TIMEOUT_MS },
   );
   return direct.ok ? parseWslEnvProbeOutput(direct.stdout) : {};

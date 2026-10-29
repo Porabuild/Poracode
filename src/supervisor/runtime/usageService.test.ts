@@ -28,7 +28,7 @@ function stubLocalCollectors(): LocalUsageCollector[] {
     collect: (nowMs): Promise<UsageSnapshot> =>
       Promise.resolve({ providerId: id, status: "auth-missing", windows: [], fetchedAt: nowMs }),
   });
-  return [stub("opencode"), stub("antigravity")];
+  return [stub("opencode"), stub("antigravity"), stub("fx")];
 }
 
 const CLAUDE_BODY = JSON.stringify({
@@ -214,6 +214,7 @@ describe("UsageService", () => {
       "cursor",
       "devin",
       "factory",
+      "fx",
       "gemini",
       "grok",
       "kimi",
