@@ -516,6 +516,37 @@ describe("gitStore batch updates", () => {
     expect(secondDetails["p1#42"]?.checks[0]?.conclusion).toBe("SUCCESS");
   });
 
+  it("replaces PR details when only labels, reviewers, reactions or the timeline change", () => {
+    useGitStore.getState().setPrDetails("p1#42", basePrDetails);
+    const comment = {
+      id: "c1",
+      author: { login: "ann" },
+      body: "hi",
+      createdAt: "2026-04-04T00:00:00.000Z",
+    };
+    const changes: Partial<PrDetails>[] = [
+      { labels: [{ name: "bug" }] },
+      { requestedReviewers: [{ id: "u1", login: "ann" }] },
+      { reactions: [{ content: "+1", count: 1, viewerReacted: true }] },
+      {
+        timeline: [{ id: "e1", kind: "closed", createdAt: "2026-04-04T00:00:00.000Z" }],
+      },
+    ];
+    let current: PrDetails = { ...basePrDetails, comments: [comment] };
+    useGitStore.getState().setPrDetails("p1#42", current);
+    for (const change of changes) {
+      current = { ...current, ...change };
+      useGitStore.getState().setPrDetails("p1#42", current);
+      expect(useGitStore.getState().prDetails["p1#42"]).toBe(current);
+    }
+    current = {
+      ...current,
+      comments: [{ ...comment, reactions: [{ content: "heart", count: 1, viewerReacted: true }] }],
+    };
+    useGitStore.getState().setPrDetails("p1#42", current);
+    expect(useGitStore.getState().prDetails["p1#42"]).toBe(current);
+  });
+
   it("replaces PR details when check timing changes", () => {
     useGitStore.getState().setPrDetails("p1#42", basePrDetails);
     const firstDetails = useGitStore.getState().prDetails;

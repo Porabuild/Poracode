@@ -16,6 +16,14 @@ import {
 } from "./fixtures/agentStatusServiceFixture";
 
 describe("full discovery cancellation", () => {
+  it("honors Stop before the initial cache read finishes", async () => {
+    const detect = vi.fn<AgentAdapter["detectInstall"]>(async () => status(FAST, "unwanted"));
+    const { service } = setup([adapter(FAST, detect)]);
+    const refresh = service.refreshAgentStatuses({ wslDistros: [] }).catch((error) => error);
+    service.cancelAgentDiscovery();
+    expect(await refresh).toMatchObject({ message: "Agent discovery cancelled" });
+    expect(detect).not.toHaveBeenCalled();
+  });
   afterEach(() => {
     if (memory.cli.mock.calls.length !== 0)
       throw new Error("Unexpected subprocess/probe invocation");

@@ -1,10 +1,14 @@
 import { toast } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { Check, Copy, Download, Maximize2 } from "lucide-react";
-import { memo, useState, type ReactNode, type Ref } from "react";
+import { memo, useEffect, useRef, useState, type ReactNode, type Ref } from "react";
 import { fetchImageBytes, toClipboardPngBytes } from "@/renderer/utils/imageActions";
 import { readBridge } from "@/renderer/bridge";
-import { openImageLightbox } from "@/renderer/components/composer/ImageLightbox";
+import {
+  imageLightboxRevision,
+  openImageLightbox,
+  updateImageLightboxFromPreview,
+} from "@/renderer/components/composer/ImageLightbox";
 import {
   getThreadGalleryImages,
   openThreadGallery,
@@ -20,6 +24,12 @@ interface ImageCardProps {
   imageClassName?: string;
   isBlock?: boolean;
   viewportRef?: Ref<HTMLSpanElement>;
+  /**
+   * When the displayed `source.src` is a downscaled variant, resolves the
+   * full-resolution URL on demand for preview/copy/download. Resolves ""
+   * when unavailable; actions report the failure without using card bytes.
+   */
+  resolveFullSrc?: () => Promise<string>;
 }
 
 /**
@@ -32,6 +42,7 @@ export const ImageCard = memo(function ImageCard({
   imageClassName,
   isBlock = false,
   viewportRef,
+  resolveFullSrc,
 }: ImageCardProps) {
   const { t } = useLingui();
   const imageAlt = source.alt || t`Image`;
@@ -40,19 +51,102 @@ export const ImageCard = memo(function ImageCard({
   // subscription) so rows never re-render on unrelated ticks. Falls back to a
   // single-image preview when rendered outside a thread.
   const threadId = useChatPaneActions()?.threadId;
-  const openPreview = () => {
-    if (!source.src) return;
+  const imageRef = useRef<HTMLImageElement>(null);
+  const previewRequest = useRef({ src: source.src, threadId, version: 0 });
+  useEffect(() => {
+    const owner = { src: source.src, threadId, version: 0 };
+    previewRequest.current = owner;
+    return () => {
+      owner.version++;
+    };
+  }, [source.src, threadId]);
+  const fullSource = async (): Promise<ImageViewSource> => {
+    if (!resolveFullSrc) return source;
+    const full = await resolveFullSrc();
+    if (!full) throw new Error(t`Failed to load`);
+    return full !== source.src ? { ...source, src: full } : source;
+  };
+  const openWith = (full: ImageViewSource) => {
     if (threadId) {
       const gallery = getThreadGalleryImages(threadId);
-      if (gallery.some((img) => img.src === source.src)) {
-        openThreadGallery(gallery, source.src, 0, threadId);
+      if (gallery.some((img) => img.src === full.src)) {
+        openThreadGallery(gallery, full.src, 0, threadId);
         return;
       }
     }
     openImageLightbox(
-      [{ src: source.src, alt: imageAlt, mime: source.mime, fileName: source.fileName }],
+      [{ src: full.src, alt: imageAlt, mime: source.mime, fileName: source.fileName }],
       0,
     );
+  };
+  const openPreview = () => {
+    if (!source.src) return;
+    const owner = previewRequest.current;
+    const request = ++owner.version;
+    // Without a display variant the preview opens synchronously, as before.
+    if (!resolveFullSrc) {
+      openWith(source);
+      return;
+    }
+    // The displayed variant can be EXIF-rotated relative to source metadata.
+    const width = imageRef.current?.naturalWidth || source.width;
+    const height = imageRef.current?.naturalHeight || source.height;
+    const dimensions = width && height ? { width, height } : {};
+    openImageLightbox(
+      [
+        {
+          src: source.src,
+          previewSrc: source.src,
+          alt: imageAlt,
+          mime: source.mime,
+          fileName: source.fileName,
+          ...dimensions,
+          readBytes: async () => fetchImageBytes((await fullSource()).src),
+        },
+      ],
+      0,
+    );
+    const revision = imageLightboxRevision();
+    void fullSource()
+      .then((full) => {
+        if (
+          owner === previewRequest.current &&
+          request === owner.version &&
+          revision === imageLightboxRevision()
+        ) {
+          const image = {
+            src: full.src,
+            previewSrc: source.src,
+            alt: imageAlt,
+            mime: source.mime,
+            fileName: source.fileName,
+            ...dimensions,
+          };
+          const gallery = threadId ? getThreadGalleryImages(threadId, { lightbox: true }) : [];
+          const galleryIndex = gallery.findIndex(
+            (candidate) =>
+              candidate.src === full.src || candidate.resource?.getSnapshot() === full.src,
+          );
+          const inGallery = galleryIndex >= 0;
+          updateImageLightboxFromPreview(
+            source.src,
+            inGallery
+              ? gallery.map((candidate, index) =>
+                  index === galleryIndex ? { ...candidate, ...image } : candidate,
+                )
+              : [image],
+            inGallery ? threadId : undefined,
+          );
+        }
+      })
+      .catch((error) => {
+        if (
+          owner === previewRequest.current &&
+          request === owner.version &&
+          revision === imageLightboxRevision()
+        )
+          toast.danger(friendlyError(error));
+      });
   };
   // Let the browser paint decoded images without waiting for React's load
   // handler. In particular, reopening a thread can mount an already-cached
@@ -101,6 +195,7 @@ export const ImageCard = memo(function ImageCard({
             bitmap while a replacement request loads. Keep the surrounding slot. */}
         {hasSource ? (
           <img
+            ref={imageRef}
             key={source.src}
             src={source.src}
             alt={imageAlt}
@@ -124,8 +219,8 @@ export const ImageCard = memo(function ImageCard({
       </button>
       {hasSource ? (
         <span className="poracode-image-action-toolbar absolute right-1.5 top-1.5 flex items-center gap-0.5 rounded-lg bg-black/50 p-0.5 backdrop-blur-sm transition-opacity duration-150">
-          <CopyImageButton source={source} />
-          <DownloadImageButton src={source.src} fileName={source.fileName} />
+          <CopyImageButton resolveFullSource={fullSource} />
+          <DownloadImageButton fileName={source.fileName} resolveFullSource={fullSource} />
           <IconButton label={t`Open preview`} onClick={openPreview}>
             <Maximize2 className="size-3.5" />
           </IconButton>
@@ -135,13 +230,17 @@ export const ImageCard = memo(function ImageCard({
   );
 });
 
-function CopyImageButton({ source }: { source: ImageViewSource }) {
+function CopyImageButton({
+  resolveFullSource,
+}: {
+  resolveFullSource: () => Promise<ImageViewSource>;
+}) {
   const { t } = useLingui();
   const [copied, setCopied] = useState(false);
 
   async function onCopy() {
     try {
-      const data = await toClipboardPngBytes(source);
+      const data = await toClipboardPngBytes(await resolveFullSource());
       const ok = await readBridge().copyImageToClipboard({ data });
       if (!ok) {
         console.warn("Clipboard rejected the image (unsupported format)");
@@ -162,11 +261,17 @@ function CopyImageButton({ source }: { source: ImageViewSource }) {
   );
 }
 
-function DownloadImageButton({ src, fileName }: { src: string; fileName: string }) {
+function DownloadImageButton({
+  fileName,
+  resolveFullSource,
+}: {
+  fileName: string;
+  resolveFullSource: () => Promise<ImageViewSource>;
+}) {
   const { t } = useLingui();
   async function onDownload() {
     try {
-      const data = await fetchImageBytes(src);
+      const data = await fetchImageBytes((await resolveFullSource()).src);
       await readBridge().saveImageFile({ data, suggestedName: fileName });
     } catch (err) {
       console.error("Failed to save image", err);

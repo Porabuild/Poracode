@@ -62,7 +62,7 @@ extension HomeQuickComposeView {
       (fileMentions.map { "@\($0)" } + mentionedMCPs.map { "@\($0.name)" } + skills.map(\.invocation))
       .joined(separator: " ")
     let text = typedText.isEmpty ? launchSeed?.defaultPrompt ?? mentionPrompt : typedText
-    guard !text.isEmpty, let project = selectedProject, let defaults,
+    guard !text.isEmpty || !attachments.isEmpty, let project = selectedProject, let defaults,
       let configuration = effectiveConfiguration,
       let target = session.threadLifecycleTarget(threadID: threadID)
     else { return }

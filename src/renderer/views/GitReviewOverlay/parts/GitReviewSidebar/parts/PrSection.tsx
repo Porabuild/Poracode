@@ -20,47 +20,28 @@ import {
   ToggleButton,
   Tooltip,
 } from "@heroui/react";
-import { msg } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
-import type { MessageDescriptor } from "@lingui/core";
 import type { PrMergeMethod, PrWatch } from "@/shared/contracts";
 import { PixelLoader, PrCheckStatusText } from "@/renderer/components/common";
 import type { PrWriteAction } from "@/renderer/hooks/usePrWriteActions";
 import { openExternalWithFeedback } from "@/renderer/utils/openExternal";
 import {
-  usePrMergeStateStatus,
-  usePrMergeable,
   usePrBaseBranch,
   usePrNumber,
-  usePrReviewDecision,
   usePrState,
   usePrTitle,
   usePrUrl,
 } from "@/renderer/state/gitSelectors";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
-import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
-import { usePrCombinedChecksStatus } from "@/renderer/hooks/usePrCombinedChecksStatus";
+import { usePrMergeReadiness } from "@/renderer/hooks/usePrMergeReadiness";
 import {
   countPassedPrChecks,
-  describePrStatus,
-  getPrStatusTone,
-  isPrBlockedOnlyByPendingChecks,
-  isPrBlockedOnlyByPendingReview,
-  PR_STATUS_LABEL,
   PR_TONE_BG_CLASS,
   PR_TONE_TEXT_CLASS,
 } from "@/renderer/utils/prStatus";
 import { GitReviewSection } from "./GitReviewSection";
 import { PrWatchControls } from "./PrWatchControls";
-
-const BLOCK_REASON: Record<string, MessageDescriptor> = {
-  BLOCKED: msg`Required reviews, conversations, or status checks not met.`,
-  BEHIND: msg`Base branch is ahead — branch must be updated first.`,
-  DIRTY: msg`Merge conflicts must be resolved.`,
-  UNSTABLE: msg`Some checks are failing or pending.`,
-  HAS_HOOKS: msg`Repository pre-receive hook is blocking the merge.`,
-};
 
 export function PrSection(props: {
   prKey: string;
@@ -105,16 +86,20 @@ export function PrSection(props: {
   const cacheKey = number !== undefined ? `${projectId}#${number}` : undefined;
   const details = useGitStore((s) => (cacheKey ? s.prDetails[cacheKey] : undefined));
   const source = useGitStore((s) => s.prData[prKey]?.source);
-  const capabilities = details?.source?.capabilities ?? source?.capabilities;
-  const mergeMethods: PrMergeMethod[] = capabilities?.mergeMethods ?? ["merge", "squash", "rebase"];
-  const combinedChecksStatus = usePrCombinedChecksStatus(prKey, cacheKey);
-  const reviewDecision = usePrReviewDecision(prKey);
-  const mergeStateStatus = usePrMergeStateStatus(prKey);
-  const mergeable = usePrMergeable(prKey);
-  const preferredMergeMethod = useSharedSettings((s) => s.prMergeMethod);
-  const prMergeMethod = mergeMethods.includes(preferredMergeMethod)
-    ? preferredMergeMethod
-    : (mergeMethods[0] ?? preferredMergeMethod);
+  const {
+    capabilities,
+    mergeMethods,
+    preferredMethod: prMergeMethod,
+    mergeStateStatus,
+    tone,
+    statusLabel,
+    isPendingChecksBlock,
+    isAwaitingReview,
+    isSoftBlock,
+    isBlocked,
+    blockReason,
+    canBypass,
+  } = usePrMergeReadiness(prKey, cacheKey);
   const requestedDetailsKey = useRef<string | undefined>(undefined);
   const [bypass, setBypass] = useState(false);
 
@@ -134,30 +119,7 @@ export function PrSection(props: {
     void onRefreshPr();
   }, [cacheKey, details, isRefreshingPr, onRefreshPr, state]);
 
-  const reasonKey = mergeable === "CONFLICTING" ? "DIRTY" : mergeStateStatus;
-  const mergeStatus = { reviewDecision, mergeable, mergeStateStatus };
-  const isPendingChecksBlock = isPrBlockedOnlyByPendingChecks(combinedChecksStatus, mergeStatus);
-  const isAwaitingReview = isPrBlockedOnlyByPendingReview(combinedChecksStatus, mergeStatus);
-  const isSoftBlock = isPendingChecksBlock || isAwaitingReview;
-  const tone = getPrStatusTone(state, combinedChecksStatus, mergeStatus);
   const indicatorColor = PR_TONE_BG_CLASS[tone];
-  const statusLabel = state
-    ? t(PR_STATUS_LABEL[describePrStatus(state, combinedChecksStatus, mergeStatus)])
-    : undefined;
-  const isBlocked =
-    isAwaitingReview ||
-    (reasonKey !== undefined &&
-      reasonKey !== "CLEAN" &&
-      reasonKey !== "DRAFT" &&
-      reasonKey !== "UNKNOWN");
-  const blockReasonMsg = reasonKey ? BLOCK_REASON[reasonKey] : undefined;
-  const blockReason = blockReasonMsg ? t(blockReasonMsg) : undefined;
-  // Conflicts and pre-receive hooks can't be admin-bypassed.
-  const canBypass =
-    (capabilities?.adminMerge ?? true) &&
-    isBlocked &&
-    reasonKey !== "DIRTY" &&
-    reasonKey !== "HAS_HOOKS";
 
   const stateBadge = state === "draft" ? t`(Draft)` : "";
   const fallbackTitle =

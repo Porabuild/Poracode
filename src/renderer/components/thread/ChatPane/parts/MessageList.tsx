@@ -46,6 +46,8 @@ import { chatMessageSurfaceClass } from "./items/chatMessageSurface";
 import { imageViewRendersInline, resolveImageViewSource } from "./items/imageViewSource";
 import { isToolLikeItem } from "./items/toolCallCategorization";
 import { useTimelineMeasurements } from "./useTimelineMeasurements";
+import { useNewPromptScroll } from "./useNewPromptScroll";
+import { PROMPT_FLOOR_CSS_VAR, usePromptReserveFloor } from "./usePromptReserveFloor";
 import { type HistoryStartReached } from "./underfilledHistory";
 import { useUnderfilledHistory } from "./useUnderfilledHistory";
 import {
@@ -80,6 +82,8 @@ interface MessageListProps {
   onLiveVirtualizerLayoutChange?: () => void;
   /** Fires after the virtualizer has measured and completed its initial scroll. */
   onInitialLayoutReady?: () => void;
+  onNewPrompt?: () => void;
+  onPromptScrollWrite?: (top: number) => void;
   registerVirtualScrollToBottom?: (handler: (() => void) | null) => void;
   scrollClassName?: string;
   scrollStyle?: CSSProperties;
@@ -92,6 +96,8 @@ interface MessageListProps {
   onKeyDownCapture?: KeyboardEventHandler<HTMLDivElement>;
   onStartReached?: HistoryStartReached;
   drawDistance?: number;
+  /** End inset for an overlaying composer, kept in LegendList's scroll math. */
+  bottomInset?: number;
   /**
    * Reverting is transcript-local today. Disable it while a turn is live so
    * late provider events cannot append onto a truncated timeline.
@@ -142,6 +148,8 @@ export function MessageList({
   onVirtualizerLayoutChange,
   onLiveVirtualizerLayoutChange,
   onInitialLayoutReady,
+  onNewPrompt,
+  onPromptScrollWrite,
   registerVirtualScrollToBottom,
   scrollClassName,
   scrollStyle,
@@ -154,6 +162,7 @@ export function MessageList({
   onKeyDownCapture,
   onStartReached,
   drawDistance,
+  bottomInset,
   canRevertCheckpoints = true,
   checkpointGuard,
   checkpointActions,
@@ -167,19 +176,29 @@ export function MessageList({
   const onContentHeightNotification = onContentHeightChange ?? parentActions?.onContentHeightChange;
   const listRef = useRef<LegendListRef | null>(null);
   const scrollElementRef = useRef<HTMLDivElement | null>(null);
+  const { anchoredEndSpace, anchorKey, newPromptReady, cancelAnimation } = useNewPromptScroll({
+    threadId,
+    entries,
+    listRef,
+    onNewPrompt,
+    onScrollWrite: onPromptScrollWrite,
+  });
   const { notifyContentHeight, retryUnderfilledHistory, resetUnderfilledHistory } =
     useUnderfilledHistory({
       threadId,
       oldestVisibleEntryId: entries[0]?.id,
       scrollElementRef,
       onStartReached,
-      onContentHeightChange: onContentHeightNotification,
+      onContentHeightChange: () => {
+        if (!newPromptReady) onContentHeightNotification?.();
+      },
     });
   const entriesRef = useRef(entries);
   useLayoutEffect(() => {
     entriesRef.current = entries;
   });
   const virtualSizeBoxRef = useRef<HTMLDivElement | null>(null);
+  usePromptReserveFloor({ anchorKey, listRef, contentElementRef: virtualSizeBoxRef });
   const [pendingRevert, setPendingRevert] = useState<{
     itemId: string;
     userItemId: string;
@@ -459,10 +478,16 @@ export function MessageList({
         }
         initialScrollAtEnd
         keyExtractor={(entry) => entry.id}
-        maintainScrollAtEnd={{
-          animated: false,
-          on: { dataChange: true, footerLayout: true, itemLayout: true, layout: true },
-        }}
+        {...(anchoredEndSpace ? { anchoredEndSpace } : {})}
+        {...(bottomInset ? { contentInsetEndAdjustment: bottomInset } : {})}
+        maintainScrollAtEnd={
+          anchoredEndSpace || newPromptReady
+            ? false
+            : {
+                animated: false,
+                on: { dataChange: true, footerLayout: true, itemLayout: true, layout: true },
+              }
+        }
         maintainScrollAtEndThreshold={0}
         maintainVisibleContentPosition={{ data: true, size: true }}
         {...(onContentHeightNotification || onStartReached
@@ -505,6 +530,9 @@ export function MessageList({
           // and content-size model must match the DOM or the scroller lands
           // short of the bottom and the scroll-down control never hides.
           paddingBottom: CONTENT_TAIL_PADDING_PX,
+          // Prompt floor keeps the scroll range tall enough for a flush anchor;
+          // an unset var falls back to 100%, same as min-h-full.
+          minHeight: `calc(var(${PROMPT_FLOOR_CSS_VAR}, 0px) + 100%)`,
           WebkitMaskImage:
             "linear-gradient(to bottom, black calc(100% - 14px), rgb(0 0 0 / var(--lc-chat-bottom-mask-end-alpha, 0)))",
           maskImage:
@@ -515,6 +543,7 @@ export function MessageList({
         {...(onKeyDownCapture || onStartReached
           ? {
               onKeyDownCapture: (event) => {
+                cancelAnimation();
                 onKeyDownCapture?.(event);
                 if (event.key === "ArrowUp" || event.key === "PageUp" || event.key === "Home") {
                   retryUnderfilledHistory(event);
@@ -526,10 +555,14 @@ export function MessageList({
           notifyContentHeight();
           onInitialLayoutReady?.();
         }}
-        {...(onPointerDownCapture ? { onPointerDownCapture } : {})}
+        onPointerDownCapture={(event) => {
+          cancelAnimation();
+          onPointerDownCapture?.(event);
+        }}
         {...(onWheelCapture || onStartReached
           ? {
               onWheelCapture: (event) => {
+                cancelAnimation();
                 onWheelCapture?.(event);
                 if (event.deltaY < 0) retryUnderfilledHistory(event);
               },

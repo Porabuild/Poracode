@@ -41,6 +41,7 @@ import { DevSettings } from "./parts/DevSettings";
 import { McpServersSettings } from "./parts/McpServersSettings";
 import { SkillsSettings } from "./parts/SkillsSettings";
 import { PluginsSettings } from "./parts/PluginsSettings";
+import { CrewsSettings } from "./parts/CrewsSettings";
 import { SettingsSidebar } from "./parts/SettingsSidebar";
 import { useSettingsShortcutDestinations } from "./parts/settingsNavigation";
 import { MobileSettingsIndex } from "./parts/MobileSettingsIndex";
@@ -87,6 +88,7 @@ const SECTION_VIEWS: Partial<Record<SettingsSection, () => ReactNode>> = {
   skills: () => <SkillsSettings />,
   mcpServers: () => <McpServersSettings />,
   plugins: () => <PluginsSettings />,
+  crews: () => <CrewsSettings />,
   browser: () => <BrowserSettings />,
   usage: () => <UsageSettings />,
   import: () => <ImportSettings />,

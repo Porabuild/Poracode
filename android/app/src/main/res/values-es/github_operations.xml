@@ -6,6 +6,8 @@
     <string name="github_refresh">Actualizar GitHub</string><string name="github_no_pull_requests">No se encontraron solicitudes de cambios.</string>
     <string name="github_pr_title">Título de la solicitud</string><string name="github_head_branch">Rama de origen</string><string name="github_base_branch">Rama base</string><string name="github_create_pr">Crear solicitud de cambios</string>
     <string name="github_pr_summary">#%1$d · %2$s · %3$s</string><string name="github_select_pr">Selecciona una solicitud de cambios para inspeccionarla.</string><string name="github_pr_number">Solicitud de cambios #%1$d</string>
+    <string name="github_pr_row_summary">%1$s · #%2$d · %3$s · %4$s</string>
+    <string name="github_review_requested">Se solicita tu revisión</string>
     <string name="github_ready">Marcar como lista</string><string name="github_update_branch">Actualizar rama</string><string name="github_reopen">Reabrir</string><string name="github_close">Cerrar</string><string name="github_merge">Fusionar</string><string name="github_approve">Aprobar</string><string name="github_post_comment">Publicar comentario</string><string name="github_details">Detalles</string><string name="github_checks">Comprobaciones</string><string name="github_files">Archivos</string><string name="github_reviews">Revisiones</string>    <string name="github_dispatch">Ejecutar flujo</string><string name="github_rerun">Volver a ejecutar</string><string name="github_cancel_run">Cancelar ejecución</string><string name="github_delete_run">Eliminar ejecución</string>    <string name="github_discover_accounts">Buscar cuentas de GitHub</string><string name="github_account">%1$s en %2$s</string>
     <string name="github_change_reconciled">El resultado era incierto. Poracode no repitió la acción y consultó una vez el estado más reciente de GitHub.</string>
     <string name="github_request_changes">Solicitar cambios</string>
@@ -32,6 +34,7 @@
     <string name="github_back_to_list">Volver a la lista</string>
     <string name="github_open_externally">Abrir en el navegador</string>
     <string name="github_thread_resolved">Resuelto</string>
+    <string name="github_thread_old_side">Lado antiguo</string>
     <string name="github_thread_unresolved">Sin resolver</string>
     <string name="github_ref">Ref</string>
     <string name="github_rerun_failed">Reejecutar trabajos fallidos</string>

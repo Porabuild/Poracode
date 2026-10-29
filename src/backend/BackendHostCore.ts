@@ -1,4 +1,5 @@
 import { closeAsyncDatabaseReads, enableAsyncDatabaseReads } from "@/host/db/asyncReads";
+import { retirePendingThreadState } from "@/host/remote/server/pendingInterruptedTurns";
 import {
   closeDatabase,
   dbGetThread,
@@ -125,6 +126,7 @@ export interface BackendHostCoreOptions {
   dbPath: string;
   /** Packaged read-only worker; direct/offline database harnesses omit it. */
   databaseReadWorkerPath?: string;
+  databaseReadImagePreviews?: boolean;
   databaseSchemaMode?: "migrate" | "validate";
   markLiveThreadsInactiveOnOpen?: boolean;
   /**
@@ -204,7 +206,11 @@ export class BackendHostCore {
         ? initDatabase(options.dbPath, { schemaMode: options.databaseSchemaMode })
         : initDatabase(options.dbPath);
       if (options.databaseReadWorkerPath) {
-        enableAsyncDatabaseReads(options.dbPath, options.databaseReadWorkerPath);
+        enableAsyncDatabaseReads(
+          options.dbPath,
+          options.databaseReadWorkerPath,
+          options.databaseReadImagePreviews,
+        );
       }
       this.preparedDatabaseWriteAdmission = capturePreparedDatabaseWriteAdmission(
         database,
@@ -599,6 +605,7 @@ export class BackendHostCore {
     if (!result.truncated) {
       return result;
     }
+    retirePendingThreadState(threadId);
     this.options.onEvent({
       type: "thread-runtime-event",
       threadId,

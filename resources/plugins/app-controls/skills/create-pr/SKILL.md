@@ -1,6 +1,6 @@
 ---
 name: create-pr
-description: Commit and push the current worktree and create or update a pull request with an accurate title, description, verification evidence, and before/after screenshots for visible UI changes. Use for Create PR, open a pull request, or publish changes. Does not merge unless requested.
+description: Commit and push the current worktree and create or update a pull request with an accurate title, description, verification evidence, and screenshots where they help review a visible UI change. Use for Create PR, open a pull request, or publish changes. Does not merge unless requested.
 ---
 
 # Create PR
@@ -41,19 +41,32 @@ conversation. Do not claim a check passed without its observed result or call mo
 Pass multiline content as a structured tool argument. For CLI fallback, write it to a temporary body file and use
 `gh pr create` or `gh pr edit` with `--body-file`; preserve actual newlines and literal shell characters.
 
-## Before and after screenshots
+## Screenshots
 
-For every visible UI change, capture real before and after images in the same viewport, theme, data, and interaction
-state. Prefer a before capture taken prior to editing. Otherwise use a separate temporary checkout at the merge base
-with its own dependencies and isolated app profile; never reset or disrupt the user's active worktree.
+Screenshots are for reviewers. Before launching anything, choose the cheapest level that still shows what the diff
+and a sentence cannot, unless the repository's PR rules require more:
+
+- **None**: no visible effect, or one sentence conveys it completely, such as copy or translation edits,
+  accessibility-only changes, or a fix that makes existing UI work without changing how it looks. Say so in the
+  description.
+- **After only**: new UI whose before state is just its absence, such as a new control, dialog, setting, or state.
+  Capture the changed region once and describe the old state in a sentence.
+- **Before and after**: the appearance of existing UI changes and the comparison is the point, such as layout,
+  spacing, sizing, styling, theming, or a visual bug. Capture both in the same viewport, theme, data, and
+  interaction state.
+
+Take shots in the QA session while it is still running instead of launching another. Only the before-and-after
+level needs the old code: prefer a capture taken before editing; otherwise use a separate temporary checkout at the
+merge base with its own dependencies and isolated app profile, and never reset or disrupt the user's active
+worktree.
 
 Use the project's interactive testing workflow when available, or an appropriate connected browser/device tool.
-Capture the changed surface and any additional state needed to demonstrate the fix. Keep scratch images in the
-project's ignored temporary directory. Never fabricate a before image or present a mockup as a running app.
+Capture only the changed surface and the states the change affects. Keep scratch images in the project's ignored
+temporary directory. Never fabricate a before image or present a mockup as a running app.
 
 Upload images through a supported attachment tool. If the installed `gh pr create --help` / `gh pr edit --help`
 advertises `--attach`, use it with each local path (and optional `#alt text`). Put the matching local image references
-in a Before / After Markdown table in the body so gh replaces them with uploaded URLs. Do not assume older gh
+in the body (a Before / After table for comparisons) so gh replaces them with uploaded URLs. Do not assume older gh
 versions support the flag. Read back the body and verify accessible uploaded image URLs, never local paths.
 If capture or upload is blocked, state the exact missing environment or capability; do not claim screenshots exist.
 

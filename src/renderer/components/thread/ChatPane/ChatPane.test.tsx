@@ -7,6 +7,7 @@ import { assistantDisplayText } from "@/shared/assistantMessageText";
 import { AppProvider } from "@/renderer/components/ui/provider";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useThreadForkStore } from "@/renderer/state/threadForkStore";
+import { installRuntimeHistoryRecovery } from "@/renderer/state/runtimeInterestHydration";
 import { useRevertedPromptStore } from "../revertedPrompt";
 import { ChatPane } from "./ChatPane";
 import { byTextContent } from "@/renderer/testUtils/text";
@@ -323,7 +324,7 @@ describe("ChatPane", () => {
     // First read in flight: the empty hint is suppressed, loading shows.
     useAppStore.setState({ runtimeHydrationStatus: { [thread.id]: "pending" } });
     await waitFor(() => expect(screen.queryByText("No messages yet")).not.toBeInTheDocument());
-    expect(screen.getByText("Connecting…")).toBeInTheDocument();
+    expect(screen.getByText("Loading messages…")).toBeInTheDocument();
 
     // Failed read: error with retry; retrying re-runs the hydration.
     useAppStore.setState({ runtimeHydrationStatus: { [thread.id]: "failed" } });
@@ -339,7 +340,28 @@ describe("ChatPane", () => {
     expect(screen.queryByText("Messages could not be loaded.")).not.toBeInTheDocument();
   });
 
-  it("shows connecting without starting a working timer during GUI reconnect", () => {
+  it.each([false, true])("names agent startup accurately (saved session: %s)", (resuming) => {
+    const thread: Thread = {
+      ...makeThread(),
+      status: "launching",
+      ...(resuming
+        ? {
+            sessionRef: {
+              providerSessionId: "saved-session",
+              discoveredAt: new Date().toISOString(),
+            },
+          }
+        : {}),
+    };
+    useAppStore.setState({ threads: [thread] });
+    renderChatPane(thread);
+    expect(
+      screen.getByText(resuming ? "Resuming session…" : "Starting agent…"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/^Working for/)).not.toBeInTheDocument();
+  });
+
+  it("shows session resumption without starting a working timer during GUI reconnect", () => {
     const thread = { ...makeThread(), status: "idle" as const };
     useAppStore.setState({
       threads: [thread],
@@ -348,12 +370,25 @@ describe("ChatPane", () => {
 
     renderChatPane(thread);
 
-    expect(screen.getByText("Connecting…")).toBeInTheDocument();
+    expect(screen.getByText("Resuming session…")).toBeInTheDocument();
     expect(screen.queryByText(/^Working for/)).not.toBeInTheDocument();
     expect(screen.queryByText("No messages yet")).not.toBeInTheDocument();
   });
 
-  it("keeps a loaded reply's completed timer when a history refresh fails", async () => {
+  it("offers one history retry when supplementary content is visible without message rows", async () => {
+    const thread = { ...makeThread(), status: "idle" as const };
+    useAppStore.setState({
+      threads: [thread],
+      runtimeHydrationStatus: { [thread.id]: "failed" },
+    });
+
+    renderChatPane(thread, { hasSupplementaryContent: true });
+
+    expect(await screen.findAllByRole("button", { name: "Retry" })).toHaveLength(1);
+    expect(screen.getByText("Messages could not be loaded.")).toBeInTheDocument();
+  });
+
+  it("keeps a loaded reply and its completed timer while offering recovery retry", async () => {
     const thread = {
       ...makeThread(),
       status: "idle" as const,
@@ -365,10 +400,21 @@ describe("ChatPane", () => {
       runtimeHydrationStatus: { [thread.id]: "failed" },
     });
     seedAssistantMessage(thread.id, "Previously loaded reply");
-    renderChatPane(thread);
-    expect(await screen.findByText("Previously loaded reply")).toBeInTheDocument();
-    expect(screen.getByText(/^Worked for/)).toBeInTheDocument();
-    expect(screen.queryByText("Messages could not be loaded.")).not.toBeInTheDocument();
+    const recover = vi.fn<(threadId: string) => void>();
+    const uninstall = installRuntimeHistoryRecovery(recover);
+    try {
+      renderChatPane(thread);
+      expect(await screen.findByText("Previously loaded reply")).toBeInTheDocument();
+      expect(screen.getByText(/^Worked for/)).toBeInTheDocument();
+      expect(screen.getByText("Messages could not be loaded.")).toBeInTheDocument();
+      await waitFor(() => expect(recover).toHaveBeenCalledExactlyOnceWith(thread.id));
+      recover.mockClear();
+      fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+      expect(recover).toHaveBeenCalledExactlyOnceWith(thread.id);
+      expect(screen.getByText("Previously loaded reply")).toBeInTheDocument();
+    } finally {
+      uninstall();
+    }
   });
 
   it.each(["idle", "inactive", "working"] as const)(
@@ -420,7 +466,7 @@ describe("ChatPane", () => {
     renderChatPane(thread);
 
     expect(await screen.findByText(/^Working for/)).toBeInTheDocument();
-    expect(screen.queryByText("Connecting…")).not.toBeInTheDocument();
+    expect(screen.queryByText("Loading messages…")).not.toBeInTheDocument();
   });
 
   it.each([
@@ -429,7 +475,7 @@ describe("ChatPane", () => {
     ["inactive", 75_000],
     ["inactive", 700],
   ] as const)(
-    "keeps connecting while an %s thread's completed history is loading (%i ms turn)",
+    "shows message loading while an %s thread's completed history is loading (%i ms turn)",
     async (status, durationMs) => {
       const startedAt = "2026-05-01T12:00:00.000Z";
       const thread = {
@@ -445,7 +491,7 @@ describe("ChatPane", () => {
 
       renderChatPane(thread);
 
-      expect(await screen.findByText("Connecting…")).toBeInTheDocument();
+      expect(await screen.findByText("Loading messages…")).toBeInTheDocument();
       expect(screen.queryByText(/^Worked for/)).not.toBeInTheDocument();
     },
   );
@@ -1043,6 +1089,83 @@ describe("ChatPane", () => {
 
     await waitFor(() => expect(metrics.getScrollTop()).toBe(300));
   });
+
+  it.each([true, false])(
+    "resumes following on a downward wheel after layout growth: %s",
+    async (wheelDown) => {
+      const thread = makeThread();
+      seedAssistantMessage(thread.id, "Inspect output");
+
+      let now = 1_000;
+      const performanceNow = vi.spyOn(performance, "now").mockImplementation(() => now);
+      try {
+        const { container } = renderChatPane(thread);
+        await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
+
+        const scrollElement = getScrollElement(container);
+        const contentElement = getContentElement(scrollElement);
+        const metrics = installScrollMetrics(scrollElement, {
+          scrollHeight: 200,
+          clientHeight: 100,
+          scrollTop: 0,
+        });
+
+        // Let the initial settle finish before scrolling: its reveal watchdog
+        // would otherwise force a bottom pin later and mask the wheel wiring.
+        await act(async () => {
+          await new Promise<void>((resolve) =>
+            requestAnimationFrame(() =>
+              requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+            ),
+          );
+        });
+
+        act(() => {
+          metrics.setScrollTop(100);
+          fireEvent.scroll(scrollElement);
+        });
+
+        // Wheel up and scroll away: sticky releases and the reader pauses.
+        act(() => {
+          fireEvent.wheel(scrollElement, { deltaY: -120 });
+          metrics.setScrollTop(20);
+          fireEvent.scroll(scrollElement);
+        });
+
+        // Let the scroll-away intent window lapse.
+        now += 1_000;
+        // Content grows without a scroll event, so the next scroll event sees
+        // growth and cannot take the layout-stable return path.
+        metrics.setScrollHeight(300);
+
+        act(() => {
+          if (wheelDown) fireEvent.wheel(scrollElement, { deltaY: 120 });
+          metrics.setScrollTop(300);
+          fireEvent.scroll(scrollElement);
+        });
+        // Restore the real clock so the streamed append can render.
+        performanceNow.mockRestore();
+
+        act(() => {
+          appendAssistantText(thread.id, " — Open logs");
+        });
+        await screen.findByText(/Open logs/);
+
+        act(() => {
+          metrics.setScrollHeight(400);
+          MockResizeObserver.notify(contentElement);
+        });
+
+        await waitFor(() => expect(metrics.getScrollTop()).toBe(wheelDown ? 400 : 300));
+        await act(async () => {
+          await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+        });
+        expect(metrics.getScrollTop()).toBe(wheelDown ? 400 : 300);
+      } finally {
+        performanceNow.mockRestore();
+      }
+    },
+  );
 
   it("does not release sticky mode for layout-driven upward scroll during tail collapse", async () => {
     const thread = makeThread();
@@ -2370,14 +2493,14 @@ describe("ChatPane", () => {
 
     renderChatPane(thread);
 
-    expect(screen.getByText("Connecting…")).toBeInTheDocument();
+    expect(screen.getByText("Resuming session…")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Fork from here" })).toBeInTheDocument();
 
     act(() => {
       useAppStore.getState().finishThreadConnecting(thread.id, "connection-1");
     });
 
-    expect(screen.queryByText("Connecting…")).not.toBeInTheDocument();
+    expect(screen.queryByText("Resuming session…")).not.toBeInTheDocument();
     expect(screen.getByText("Worked for 1m 15s")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Fork from here" })).toBeInTheDocument();
   });

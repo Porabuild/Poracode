@@ -245,6 +245,8 @@ export class ThreadOutputPipeline {
       session.interruptedTurn = "error";
     }
     session.status = status;
+    if (status !== "error") delete session.errorMessage;
+    else if (errorMessage !== undefined) session.errorMessage = errorMessage;
     session.attention = attention;
     session.lastStatusChangeAt = Date.now();
     this.emitState(session, errorMessage, options);

@@ -1,12 +1,15 @@
 import type { RemoteThreadCommand, Thread } from "@/shared/contracts";
 import { canForkThread, selectThreadForkSnapshot } from "@/shared/threadFork";
 import { msg } from "@/shared/messages";
-import { readFileSync, realpathSync } from "node:fs";
+import { readFile, realpath } from "node:fs/promises";
 import { basename, dirname, isAbsolute, relative, sep } from "node:path";
 import { resolvePoracodePaths } from "@/shared/poracodePaths";
 import { canonicalContentBlockSchema } from "@/shared/contracts/runtimeEvent";
 import { toLocalFileUrl } from "@/shared/promptContent";
-import { saveUploadedAttachmentFile } from "@/host/attachments/attachmentStorage";
+import {
+  retainThreadAttachmentDirectory,
+  saveUploadedAttachmentFile,
+} from "@/host/attachments/attachmentStorage";
 import { getSqlite } from "./connection";
 import type { CatalogIntentCommittedSignal } from "./catalogIntents";
 import { dbGetProject, dbGetThread } from "./projectsThreads";
@@ -33,76 +36,92 @@ export async function dbForkThread(
   onCatalogCommitted?: CatalogIntentCommittedSignal,
 ): Promise<Thread> {
   const token = beginRuntimeFence(command.sourceThreadId);
+  const releaseAttachments = retainThreadAttachmentDirectory(command.threadId);
   try {
     const flushed = await flushRuntimeFence(token);
     if (flushed.kind !== "committed") throw fenceRefusalError(command.sourceThreadId, flushed);
+    if (dbGetThread(command.threadId)) throw new Error(msg("thread.alreadyExists"));
+    const source = dbGetThread(command.sourceThreadId);
+    if (!source || !dbGetProject(source.projectId)) {
+      throw new Error(msg("thread.forkSourceUnavailable"));
+    }
+    if (!canForkThread(source)) {
+      throw new Error(msg("thread.forkSourceActive"));
+    }
+    const snapshot = selectThreadForkSnapshot(
+      dbReadThreadRuntimeItems(source.id),
+      dbGetThreadCompletedTurns(source.id),
+      command.throughItemId,
+    );
+    // Copy owned attachment files before the write transaction so file IO
+    // never runs (or blocks) inside it. The fence stays held across the copy,
+    // so the snapshot cannot change underneath it; the transaction below
+    // re-checks target/source existence before committing.
+    const paths = resolvePoracodePaths(dirname(getSqlite().name));
+    const copiedPaths = new Map<string, string>();
+    let attachmentsRealRoot: string | undefined;
+    for (const item of snapshot.items) {
+      if (item.type !== "user_message" && item.type !== "assistant_message") continue;
+      const payload = item.payload as { content?: unknown } | undefined;
+      if (!Array.isArray(payload?.content)) continue;
+      const content: unknown[] = [];
+      for (const entry of payload.content) {
+        const result = canonicalContentBlockSchema.safeParse(entry);
+        if (!result.success) {
+          content.push(entry);
+          continue;
+        }
+        const block = result.data;
+        if ((block.kind !== "image" && block.kind !== "file") || !block.path) {
+          content.push(entry);
+          continue;
+        }
+        const ownedPath = relative(paths.attachmentsDir, block.path);
+        if (
+          !ownedPath ||
+          ownedPath === ".." ||
+          ownedPath.startsWith(`..${sep}`) ||
+          isAbsolute(ownedPath)
+        ) {
+          content.push(entry);
+          continue;
+        }
+        attachmentsRealRoot ??= await realpath(paths.attachmentsDir);
+        const actualRelative = relative(attachmentsRealRoot, await realpath(block.path));
+        if (
+          actualRelative === ".." ||
+          actualRelative.startsWith(`..${sep}`) ||
+          isAbsolute(actualRelative)
+        )
+          throw new Error(msg("thread.forkContextUnavailable"));
+        let path = copiedPaths.get(block.path);
+        if (!path) {
+          path = await saveUploadedAttachmentFile(paths, {
+            threadId: command.threadId,
+            fileName: basename(block.path),
+            data: await readFile(block.path),
+          });
+          copiedPaths.set(block.path, path);
+        }
+        content.push({
+          ...block,
+          path,
+          ...(block.kind === "image" ? { dataUrl: toLocalFileUrl(path) } : {}),
+        });
+      }
+      item.payload = { ...payload, content };
+    }
     const thread = await runThreadRuntimeMutation(command.threadId, "replace", () =>
       readRuntimeFence(token, () => {
         const sqlite = getSqlite();
         return sqlite
           .transaction(() => {
             if (dbGetThread(command.threadId)) throw new Error(msg("thread.alreadyExists"));
-            const source = dbGetThread(command.sourceThreadId);
-            if (!source || !dbGetProject(source.projectId)) {
+            const currentSource = dbGetThread(source.id);
+            if (!currentSource || !dbGetProject(currentSource.projectId)) {
               throw new Error(msg("thread.forkSourceUnavailable"));
             }
-            if (!canForkThread(source)) {
-              throw new Error(msg("thread.forkSourceActive"));
-            }
-            const snapshot = selectThreadForkSnapshot(
-              dbReadThreadRuntimeItems(source.id),
-              dbGetThreadCompletedTurns(source.id),
-              command.throughItemId,
-            );
-            const paths = resolvePoracodePaths(dirname(sqlite.name));
-            const copiedPaths = new Map<string, string>();
-            for (const item of snapshot.items) {
-              if (item.type !== "user_message" && item.type !== "assistant_message") continue;
-              const payload = item.payload as { content?: unknown } | undefined;
-              if (!Array.isArray(payload?.content)) continue;
-              item.payload = {
-                ...payload,
-                content: payload.content.map((entry: unknown) => {
-                  const result = canonicalContentBlockSchema.safeParse(entry);
-                  if (!result.success) return entry;
-                  const block = result.data;
-                  if ((block.kind !== "image" && block.kind !== "file") || !block.path)
-                    return entry;
-                  const ownedPath = relative(paths.attachmentsDir, block.path);
-                  if (
-                    !ownedPath ||
-                    ownedPath === ".." ||
-                    ownedPath.startsWith(`..${sep}`) ||
-                    isAbsolute(ownedPath)
-                  )
-                    return entry;
-                  const actualRelative = relative(
-                    realpathSync(paths.attachmentsDir),
-                    realpathSync(block.path),
-                  );
-                  if (
-                    actualRelative === ".." ||
-                    actualRelative.startsWith(`..${sep}`) ||
-                    isAbsolute(actualRelative)
-                  )
-                    throw new Error(msg("thread.forkContextUnavailable"));
-                  let path = copiedPaths.get(block.path);
-                  if (!path) {
-                    path = saveUploadedAttachmentFile(paths, {
-                      threadId: command.threadId,
-                      fileName: basename(block.path),
-                      data: readFileSync(block.path),
-                    });
-                    copiedPaths.set(block.path, path);
-                  }
-                  return {
-                    ...block,
-                    path,
-                    ...(block.kind === "image" ? { dataUrl: toLocalFileUrl(path) } : {}),
-                  };
-                }),
-              };
-            }
+            if (!canForkThread(currentSource)) throw new Error(msg("thread.forkSourceActive"));
             const now = new Date().toISOString();
             const fork: Thread = {
               id: command.threadId,
@@ -168,6 +187,7 @@ export async function dbForkThread(
     notifyProjectThreadDataChanged();
     return thread;
   } finally {
+    releaseAttachments();
     releaseRuntimeFence(token);
   }
 }

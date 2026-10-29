@@ -269,7 +269,9 @@ describe("ThreadImagesBubble", () => {
       }),
     });
     render(<ThreadImagesBubble threadId="t-gallery" />);
-    expect(screen.queryByRole("button", { name: "Show images" })).not.toBeInTheDocument();
+    // The bubble counts the pending image without fetching it; the count is
+    // unchanged once the desktop reconnects and the image becomes ready.
+    expect(screen.getByRole("button", { name: "Show images" })).toHaveTextContent("1");
 
     act(() => {
       useRemoteServersStore.setState({
@@ -282,7 +284,7 @@ describe("ThreadImagesBubble", () => {
     expect(screen.getByRole("button", { name: "Show images" })).toHaveTextContent("1");
   });
 
-  it("shows an attachment when its remote image cache becomes ready", () => {
+  it("counts a pending attachment without requesting its bytes", () => {
     seedThreadWithImages("t-gallery");
     const thread = useAppStore.getState().threads[0]!;
     useAppStore.setState({
@@ -292,6 +294,8 @@ describe("ThreadImagesBubble", () => {
     });
     let url = "";
     const listeners = new Set<() => void>();
+    const requestPath = vi.fn<() => void>(() => undefined);
+    const requestRef = vi.fn<() => void>(() => undefined);
     useRemoteServersStore.setState({
       servers: [
         {
@@ -306,17 +310,21 @@ describe("ThreadImagesBubble", () => {
       imageReadinessFor: () => ({
         resolveRef: () => "",
         subscribeRef: () => () => undefined,
-        requestRef: () => undefined,
+        requestRef,
         resolvePath: () => url,
         subscribePath: (_path, listener) => {
           listeners.add(listener);
           return () => listeners.delete(listener);
         },
-        requestPath: () => undefined,
+        requestPath,
       }),
     });
     render(<ThreadImagesBubble threadId="t-gallery" />);
-    expect(screen.queryByRole("button", { name: "Show images" })).not.toBeInTheDocument();
+    // Counted from the pending coordinate, with no background fetch started:
+    // fetching the whole history from this bubble starved visible cards.
+    expect(screen.getByRole("button", { name: "Show images" })).toHaveTextContent("1");
+    expect(requestPath).not.toHaveBeenCalled();
+    expect(requestRef).not.toHaveBeenCalled();
 
     act(() => {
       url = "blob:direct-attachment";

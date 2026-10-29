@@ -35,17 +35,17 @@ export function CheckpointRevertButton(props: {
   return (
     <Tooltip delay={300}>
       <Tooltip.Trigger>
-        <button
-          type="button"
+        <Button
+          variant="ghost"
+          size="sm"
+          isIconOnly
           aria-label={t`Revert to this checkpoint`}
-          className="flex size-5 items-center justify-center rounded text-muted/70 transition-colors hover:bg-foreground/5 hover:text-foreground"
-          onClick={(event) => {
-            event.stopPropagation();
-            props.onRequestRevert(props.itemId);
-          }}
+          className="size-6 min-w-6 text-muted"
+          onClick={(event) => event.stopPropagation()}
+          onPress={() => props.onRequestRevert(props.itemId)}
         >
-          <RotateCcw className="size-3" />
-        </button>
+          <RotateCcw className="size-3.5" />
+        </Button>
       </Tooltip.Trigger>
       <Tooltip.Content placement="top">
         <Trans>Revert to this checkpoint</Trans>

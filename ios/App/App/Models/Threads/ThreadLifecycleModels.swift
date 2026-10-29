@@ -29,6 +29,7 @@ struct ThreadLaunchConfiguration: Codable, Hashable, Sendable {
   var mcpServerOverrides: [String: Bool]?
   var pluginOverrides: [String: Bool]?
   var executionEnvironment: RemoteExecutionEnvironment?
+  var crew: JSONValue?
 
   init(
     model: String,
@@ -46,7 +47,8 @@ struct ThreadLaunchConfiguration: Codable, Hashable, Sendable {
     chromeMcp: Bool? = nil,
     executionEnvironment: RemoteExecutionEnvironment? = nil,
     mcpServerOverrides: [String: Bool]? = nil,
-    pluginOverrides: [String: Bool]? = nil
+    pluginOverrides: [String: Bool]? = nil,
+    crew: JSONValue? = nil
   ) {
     self.model = model
     self.effort = effort
@@ -64,6 +66,7 @@ struct ThreadLaunchConfiguration: Codable, Hashable, Sendable {
     self.executionEnvironment = executionEnvironment
     self.mcpServerOverrides = mcpServerOverrides
     self.pluginOverrides = pluginOverrides
+    self.crew = crew
   }
 }
 

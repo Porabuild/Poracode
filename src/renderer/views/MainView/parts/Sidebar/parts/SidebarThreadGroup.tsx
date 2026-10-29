@@ -26,6 +26,10 @@ import { useExperimentStore } from "@/renderer/state/experimentStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useIsWorktreeCollapsed, useSidebarUiStore } from "@/renderer/state/sidebarUiStore";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
+import {
+  sidebarGroupHeaderButtonClass,
+  sidebarGroupHeaderRowClass,
+} from "@/renderer/components/layout/sidebarChrome";
 import { ExperimentGroupHeader } from "./ExperimentGroupHeader";
 import { InlineRenameInput } from "./InlineRenameInput";
 import { SyncBadge } from "./SyncBadge";
@@ -202,12 +206,14 @@ export function SidebarThreadGroup(props: {
               projectSyncBadge={projectSyncBadge}
             />
           ) : (
-            <div
-              className={`group flex w-full items-center gap-1 rounded px-2 ${compactLayout ? "" : "py-1"}`}
-            >
+            <div className={`${sidebarGroupHeaderRowClass} ${compactLayout ? "" : "py-1"}`}>
               <button
                 type="button"
-                className={`flex min-w-0 flex-1 items-center gap-1.5 text-left text-xs font-medium text-muted ${compactLayout ? "poracode-sidebar-touch-row" : "transition-colors hover:text-foreground"}`}
+                className={`${sidebarGroupHeaderButtonClass} ${
+                  compactLayout
+                    ? "poracode-sidebar-touch-row"
+                    : "transition-colors hover:text-foreground"
+                }`}
                 onClick={() => toggleWorktreeCollapsed(collapseKey)}
               >
                 <ChevronRight

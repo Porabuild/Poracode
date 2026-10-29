@@ -419,7 +419,16 @@ export function readCatalogShellSnapshotPage(
 
   const threadCount = threads.length;
   const projectCount = projects.length;
-  if (fits(threadCount, projectCount)) return finish(threadCount, projectCount);
+  const fullBody = finish(threadCount, projectCount);
+  if (
+    catalogSizesFit(
+      measureCatalogBody(
+        serializeCatalogShellPageBody(fullBody, CATALOG_SHELL_TIMESTAMP_PLACEHOLDER),
+      ),
+      caps,
+    )
+  )
+    return fullBody;
   if (!fits(0, 0)) throw catalogEnvelopeTooLarge(measureCatalogBody(serialize(0, 0)), caps);
 
   if (threadCount > 0) {

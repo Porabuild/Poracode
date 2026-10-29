@@ -1,4 +1,5 @@
 import { isDirectLoopbackPeer, resolvedTrustedProxies } from "./security";
+import { watchAgentVision } from "./agentVisionWatch";
 import { handleDevicePreviewUpgrade } from "./devicePreviewWebSocket";
 import { randomUUID } from "node:crypto";
 import type { IncomingMessage } from "node:http";
@@ -361,9 +362,14 @@ function handleConnection(
   // Browser mirroring is per-connection opt-in (frames are heavy); the
   // gateway's screencast stops once the last watcher unsubscribes.
   let browserWatch: (() => void) | null = null;
+  const visionWatches = new Map<string, () => void>();
   let expiryTimer: ReturnType<typeof setTimeout> | null = null;
+  /** The session's live access deadline: a refresh renews it, and the socket
+   * must follow the renewed deadline instead of the expiry captured when its
+   * ticket was consumed. */
+  const liveExpiresAtMs = () => ctx.auth.accessSessionExpiresAtMs(session.sessionId) ?? 0;
   const scheduleSessionExpiry = () => {
-    const delayMs = session.expiresAtMs - Date.now();
+    const delayMs = liveExpiresAtMs() - Date.now();
     if (delayMs <= 0) {
       if (ws.readyState === WebSocket.OPEN) {
         ws.close(1008, "Remote access session expired");
@@ -383,6 +389,8 @@ function handleConnection(
     }
     browserWatch?.();
     browserWatch = null;
+    for (const stop of visionWatches.values()) stop();
+    visionWatches.clear();
     ctx.gitStateInterests.delete(ws);
     ctx.itemInterests.delete(ws);
     ctx.noticeCapableClients.delete(ws);
@@ -431,7 +439,7 @@ function handleConnection(
       ctx.stopping ||
       ws.readyState !== WebSocket.OPEN ||
       ctx.clients.get(ws) !== session ||
-      session.expiresAtMs <= Date.now()
+      liveExpiresAtMs() <= Date.now()
     )
       return;
     try {
@@ -446,6 +454,21 @@ function handleConnection(
           ...(message.sentAt === undefined ? {} : { sentAt: message.sentAt }),
           receivedAt: Date.now(),
         });
+      }
+      if (message.type === "agent-vision-watch") {
+        if (!session.scopes.includes("session:read")) return;
+        visionWatches.get(message.watchId)?.();
+        if (visionWatches.has(message.watchId) || visionWatches.size < 32)
+          visionWatches.set(
+            message.watchId,
+            watchAgentVision(ctx, ws, session, message.threadId, message.watchId),
+          );
+        return;
+      }
+      if (message.type === "agent-vision-unwatch") {
+        visionWatches.get(message.watchId)?.();
+        visionWatches.delete(message.watchId);
+        return;
       }
       if (message.type === "browser-watch") {
         const gateway = ctx.options.browser;

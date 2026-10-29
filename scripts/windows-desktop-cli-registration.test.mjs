@@ -18,7 +18,7 @@ const repoRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 
 // Dedicated native qualification: compiles and runs only this fixture, using a
 // fresh UUID-scoped registry key. Never downloads a compiler or touches real PATH.
-async function exerciseDesktopCliRegistration(channel) {
+async function exerciseDesktopCliRegistration(channel, unqualified = false) {
   const commandName = channel === "nightly" ? "poracode-next" : "poracode";
   const productFilename = channel === "nightly" ? "Poracode Nightly" : "Poracode";
   const cache = join(process.env.LOCALAPPDATA, "electron-builder", "Cache", "nsis");
@@ -122,6 +122,7 @@ async function exerciseDesktopCliRegistration(channel) {
     formatVersion: 1,
     fixtureId,
     channel,
+    unqualified,
     commandName,
     registryRoot: ownKey,
     compiler: { path: compiler, sha256: sourceHash(compiler) },
@@ -146,7 +147,7 @@ async function exerciseDesktopCliRegistration(channel) {
   writeFileSync(receiptPath, JSON.stringify(receipt, null, 2) + "\n");
   const workerImage = join(prefix, `${productFilename}.exe`);
   copyFileSync(program, workerImage);
-  const worker = spawn(workerImage, ["/GuardWorker"], {
+  const worker = spawn(workerImage, [unqualified ? "/GuardUnqualifiedWorker" : "/GuardWorker"], {
     cwd: root,
     env: nativeEnv,
     stdio: "ignore",
@@ -191,8 +192,32 @@ async function exerciseDesktopCliRegistration(channel) {
       "The observed owner must remain alive until its own fixture barrier is released.",
     );
     assert.equal(worker.exitCode, null, "The guard must not terminate the owned running fixture.");
-    execFileSync(program, [], { cwd: root, env: nativeEnv, windowsHide: true });
-    assert.equal(readFileSync(result, "utf8"), "PASS");
+    if (unqualified) {
+      execFileSync(program, ["/GuardUnknown"], { cwd: root, env: nativeEnv, windowsHide: true });
+    } else {
+      execFileSync(program, [], { cwd: root, env: nativeEnv, windowsHide: true });
+      assert.equal(readFileSync(result, "utf8"), "PASS");
+    }
+    const heldUpdateStartedAt = Date.now();
+    assert.throws(
+      () =>
+        execFileSync(program, ["--updated", "/GuardHold"], {
+          cwd: root,
+          env: nativeEnv,
+          windowsHide: true,
+          timeout: 45_000,
+        }),
+      (error) => error.status === 2,
+      "An automatic update must refuse if the selected runtime does not retire.",
+    );
+    assert.ok(Date.now() - heldUpdateStartedAt >= 30_000, "Allow the bounded shutdown wait.");
+    assert.equal(worker.exitCode, null, "An automatic update must not terminate the held runtime.");
+    execFileSync(program, ["--updated"], {
+      cwd: root,
+      env: nativeEnv,
+      windowsHide: true,
+      timeout: 45_000,
+    });
   } catch (error) {
     failure = error;
   }
@@ -248,5 +273,10 @@ for (const channel of ["stable", "nightly"]) {
     `native Windows ${channel} desktop CLI registry ownership and lossless PATH edits`,
     { skip: process.platform !== "win32" },
     () => exerciseDesktopCliRegistration(channel),
+  );
+  await test(
+    `native Windows unqueryable ${channel} runtime retires before an automatic update`,
+    { skip: process.platform !== "win32" },
+    () => exerciseDesktopCliRegistration(channel, true),
   );
 }

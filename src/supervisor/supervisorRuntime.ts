@@ -29,6 +29,7 @@ import type {
 } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
 import { crossagentRankingPreferences } from "@/shared/crossagentRanking";
+import { threadCrewBinding } from "@/shared/crew";
 import type { CrossagentRoutingState } from "@/shared/crossagentRanking";
 import type { ConfirmCrossagentRoutingOverridePayload } from "@/shared/ipc/procedures/mcp";
 import type { ConfirmSupervisorSettingsEditsPayload } from "@/shared/ipc/procedures/settings";
@@ -62,7 +63,7 @@ import {
   type WindowsShellPreference,
 } from "./shellPreference";
 import { getWindowsSystemCommand } from "./agents/base/shellBasics";
-import { resolveExecutablePath } from "./agents/base/processRuntime";
+import { resolveExecutablePath, resolveExecutablePathAsync } from "./agents/base/processRuntime";
 import { AgentStatusService, detectWslAgentStatuses } from "./runtime/agentStatusService";
 import { createLocalUsageCollectors } from "./runtime/localUsageCollectors";
 import { UsageService } from "./runtime/usageService";
@@ -174,10 +175,17 @@ export class SupervisorRuntime {
   readonly githubService = new GitHubService();
   readonly forgeReviewService = new ForgeReviewService(this.githubService);
   readonly fileIndexService = new FileIndexService();
+
+  cancelCrossagentRun(runId: string, parentThreadId?: string): Promise<void> {
+    return this.subagentRunManager.cancel(runId, parentThreadId);
+  }
   readonly projectTreeService = new ProjectTreeService();
   private readonly adapters = new Map<AgentKind, AgentAdapter>();
   private availableWindowsShellsCache:
-    | { shells: ReturnType<typeof detectWindowsShells>; ts: number }
+    | { shells: Awaited<ReturnType<typeof detectWindowsShells>>; ts: number }
+    | undefined;
+  private availableWindowsShellsInFlight:
+    | Promise<Awaited<ReturnType<typeof detectWindowsShells>>>
     | undefined;
   private resolveLaunchWindowsPowerShell =
     createWindowsPowerShellLaunchResolver(resolveExecutablePath);
@@ -478,6 +486,8 @@ export class SupervisorRuntime {
     this.crossagentMcpIngress = new CrossagentMcpIngress({
       runManager: this.subagentRunManager,
       getSpawnableAgents: (tags) => this.getCrossagentSpawnableAgents(tags),
+      getThreadCrew: (threadId) =>
+        threadCrewBinding(this.threadSessionManager.getThreadConfig(threadId)),
       resolveProviderSessionThreadId: (sessionId) =>
         this.threadSessionManager.getThreadIdByProviderSessionId(sessionId),
       // User-configured routing guidance, read live from shared settings (the
@@ -706,6 +716,10 @@ export class SupervisorRuntime {
     );
   }
 
+  whenReady(): Promise<void> {
+    return this.agentStatusService.ready;
+  }
+
   getAvailableWindowsShells() {
     return process.platform === "win32" ? this.getCachedAvailableWindowsShells() : [];
   }
@@ -819,16 +833,25 @@ export class SupervisorRuntime {
     return this.threadSessionManager.getThreadFollowUpQueue(threadId);
   }
 
-  private getCachedAvailableWindowsShells() {
+  private async getCachedAvailableWindowsShells() {
     const now = Date.now();
     if (this.availableWindowsShellsCache && now - this.availableWindowsShellsCache.ts < 60_000) {
       return this.availableWindowsShellsCache.shells;
     }
-    const shells = detectWindowsShells(resolveExecutablePath);
-    this.availableWindowsShellsCache = { shells, ts: now };
-    this.resolveLaunchWindowsPowerShell =
-      createWindowsPowerShellLaunchResolver(resolveExecutablePath);
-    return shells;
+    if (this.availableWindowsShellsInFlight) return this.availableWindowsShellsInFlight;
+    const pending = (async () => {
+      const shells = await detectWindowsShells(resolveExecutablePathAsync);
+      this.availableWindowsShellsCache = { shells, ts: Date.now() };
+      this.resolveLaunchWindowsPowerShell =
+        createWindowsPowerShellLaunchResolver(resolveExecutablePath);
+      return shells;
+    })();
+    this.availableWindowsShellsInFlight = pending;
+    try {
+      return await pending;
+    } finally {
+      this.availableWindowsShellsInFlight = undefined;
+    }
   }
 
   private resolveWindowsPowerShell(): WindowsShellPreference {

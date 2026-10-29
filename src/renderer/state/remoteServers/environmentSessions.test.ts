@@ -28,6 +28,14 @@ import {
   type RefreshSubject,
 } from "./refreshTokens";
 
+function persistAccessTokenFor(state: RemoteServersState) {
+  return (connectionKey: string, accessToken: string) => {
+    state.servers = state.servers.map((server) =>
+      remoteConnectionKey(server) === connectionKey ? { ...server, accessToken } : server,
+    );
+  };
+}
+
 function refreshKey(subject: RefreshSubject): string {
   return refreshSubjectVaultKey(subject);
 }
@@ -223,6 +231,7 @@ function setup(records: readonly RemoteServerRecord[]) {
   } as unknown as RemoteServersState;
   configureEnvironmentSessions({
     getState: () => state,
+    persistAccessToken: persistAccessTokenFor(state),
     clientFactory: () => (endpoint) => {
       const fake = fakeParentClient(endpoint);
       parentClients.set(endpoint, fake);
@@ -347,6 +356,7 @@ describe("environmentSessions", () => {
     } as unknown as RemoteServersState;
     configureEnvironmentSessions({
       getState: () => state,
+      persistAccessToken: persistAccessTokenFor(state),
       clientFactory: () => (endpoint) => fakeParentClient(endpoint).client,
       certPinForConnection: () => undefined,
       refreshTokenForSubject: () => undefined,
@@ -383,6 +393,7 @@ describe("environmentSessions", () => {
     } as unknown as RemoteServersState;
     configureEnvironmentSessions({
       getState: () => state,
+      persistAccessToken: persistAccessTokenFor(state),
       clientFactory: () => (endpoint) => fakeParentClient(endpoint).client,
       certPinForConnection: () => undefined,
       refreshTokenForSubject: () => undefined,
@@ -440,6 +451,7 @@ describe("environmentSessions", () => {
     } as unknown as RemoteServersState;
     configureEnvironmentSessions({
       getState: () => state,
+      persistAccessToken: persistAccessTokenFor(state),
       clientFactory: () => (endpoint) => fakeParentClient(endpoint).client,
       certPinForConnection: () => undefined,
       refreshTokenForSubject: () => undefined,
@@ -502,8 +514,12 @@ describe("environmentSessions", () => {
     readiness.requestRef(IMAGE_REF, "background");
     readiness.requestPath("/tmp/gallery.png", "background");
     const first = h.environmentClients[0]!.client;
-    expect(first.imageRefResolution).toHaveBeenCalledWith(IMAGE_REF, "background");
-    expect(first.localImageResolution).toHaveBeenCalledWith("/tmp/gallery.png", "background");
+    expect(first.imageRefResolution).toHaveBeenCalledWith(IMAGE_REF, "background", undefined);
+    expect(first.localImageResolution).toHaveBeenCalledWith(
+      "/tmp/gallery.png",
+      "background",
+      undefined,
+    );
     expect(first.subscribeImageKey).toHaveBeenCalledWith(
       environmentImageRefKey(IMAGE_REF),
       listener,
@@ -513,8 +529,38 @@ describe("environmentSessions", () => {
     h.state.servers = [parentRecord(), environmentRecord({ accessToken: "repaired-child" })];
     readiness.resolveRef(IMAGE_REF);
     const replacement = h.environmentClients[1]!.client;
-    expect(replacement.imageRefResolution).toHaveBeenCalledWith(IMAGE_REF, "background");
-    expect(replacement.localImageResolution).toHaveBeenCalledWith("/tmp/gallery.png", "background");
+    expect(replacement.imageRefResolution).toHaveBeenCalledWith(IMAGE_REF, "background", undefined);
+    expect(replacement.localImageResolution).toHaveBeenCalledWith(
+      "/tmp/gallery.png",
+      "background",
+      undefined,
+    );
+    expect(replacement.subscribeImageKey).toHaveBeenCalledWith(
+      environmentImageRefKey(IMAGE_REF),
+      listener,
+      "background",
+    );
+    leaveRef();
+    leavePath();
+  });
+
+  it("rebinds passive image observers without requesting their history", () => {
+    const h = setup([parentRecord(), environmentRecord()]);
+    const readiness = environmentImageReadinessFor(CHILD_KEY)!;
+    const listener = vi.fn<() => void>();
+    const leaveRef = readiness.subscribeRef(IMAGE_REF, listener, "background", undefined, false);
+    const leavePath = readiness.subscribePath(
+      "/tmp/gallery.png",
+      listener,
+      "background",
+      undefined,
+      false,
+    );
+    h.state.servers = [parentRecord(), environmentRecord({ accessToken: "repaired-child" })];
+    readiness.resolveRef(IMAGE_REF);
+    const replacement = h.environmentClients[1]!.client;
+    expect(replacement.imageRefResolution).not.toHaveBeenCalled();
+    expect(replacement.localImageResolution).not.toHaveBeenCalled();
     expect(replacement.subscribeImageKey).toHaveBeenCalledWith(
       environmentImageRefKey(IMAGE_REF),
       listener,
@@ -563,6 +609,7 @@ describe("persisted parent session lifecycle", () => {
     } as unknown as RemoteServersState;
     configureEnvironmentSessions({
       getState: () => state,
+      persistAccessToken: persistAccessTokenFor(state),
       clientFactory: () => () => {
         const entry: CapturedParentClient = {
           pins: [],
@@ -633,6 +680,7 @@ describe("child session parent pin identity", () => {
     } as unknown as RemoteServersState;
     configureEnvironmentSessions({
       getState: () => state,
+      persistAccessToken: persistAccessTokenFor(state),
       clientFactory: () => (endpoint) => {
         const fake = fakeParentClient(endpoint);
         parentClients.set(endpoint, fake);

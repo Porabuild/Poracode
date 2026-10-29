@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { agentVisionResponseSchema, type AgentVision } from "../agentVision";
 import {
   remoteHostDescribeSchema,
   UNKNOWN_HOST_SERVICE_CAPABILITIES,
@@ -663,6 +664,21 @@ export abstract class RemoteClientHostApi extends RemoteClientDevicePreviewApi {
       "browser state",
     );
     return result.state;
+  }
+
+  async agentVision(
+    threadId: string,
+    preview = true,
+    signal?: AbortSignal,
+  ): Promise<AgentVision | null> {
+    return parseResponse(
+      agentVisionResponseSchema,
+      await this.requestJson(
+        `/api/threads/${encodeURIComponent(threadId)}/agent-vision?preview=${preview ? "1" : "0"}`,
+        { ...(signal ? { signal } : {}) },
+      ),
+      "agent vision",
+    );
   }
 
   /** Tab mutation (create/close/activate/navigate/…); returns the new state. */

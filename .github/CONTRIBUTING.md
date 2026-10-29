@@ -39,7 +39,7 @@ Handy scripts:
 2. Keep the change scoped to one thing.
 3. Write commit subjects and the PR title as [Conventional Commits](https://www.conventionalcommits.org/): `type(scope): subject`, imperative, lowercase, no trailing period, 72 characters or fewer. Prefix the issue number when there is one: `#123 fix(sidebar): show worktree identity while pending`.
 4. Before pushing, run `bun run typecheck`, `bun run lint`, `bun run fmt:check`, and `bun run test`. Husky runs `lint-staged` and `typecheck` on commit; don't bypass it with `--no-verify`.
-5. Open a PR against `master` and fill in the template. Start the body with `Closes #123` when it resolves an issue. Include before/after screenshots for any visible UI change, and list only the checks you actually ran.
+5. Open a PR against `master` and fill in the template. Start the body with `Closes #123` when it resolves an issue. Add screenshots when they help review a visible UI change (before/after when existing UI looks different), and list only the checks you actually ran.
 6. The `CI` workflow must pass and reviewers must resolve their threads before merge.
 
 Rebase on the latest `master` before requesting review. Agents working in this repo follow the same flow through the `commit`, `verify`, `pull-request`, and `address-pr-feedback` skills in `.agents/skills/`.

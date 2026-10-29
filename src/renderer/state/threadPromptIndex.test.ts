@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { PersistedPromptIndex } from "@/shared/ipc";
-import { readThreadPromptIndex } from "./threadPromptIndex";
+import { readCachedThreadPromptIndex, readThreadPromptIndex } from "./threadPromptIndex";
+import { forgetThreadPromptIndex } from "./threadPromptIndexCache";
 
 const mocks = vi.hoisted(() => ({
+  activation: {} as object | null,
   isManagedRootHistoryThread: vi.fn<(threadId: string) => boolean>(),
   readManagedRootPromptIndex: vi.fn<(threadId: string, signal?: AbortSignal) => Promise<unknown>>(),
   dbGetThreadPromptIndex: vi.fn<(input: { threadId: string }) => Promise<unknown>>(),
@@ -11,8 +13,14 @@ vi.mock("./managedRootCatalog/rootHistory", () => ({
   isManagedRootHistoryThread: mocks.isManagedRootHistoryThread,
   readManagedRootPromptIndex: mocks.readManagedRootPromptIndex,
 }));
-vi.mock("../bridge", () => ({
-  readBridge: () => ({ dbGetThreadPromptIndex: mocks.dbGetThreadPromptIndex }),
+vi.mock("../bridge", () => {
+  const bridge = { dbGetThreadPromptIndex: mocks.dbGetThreadPromptIndex };
+  return { readBridge: () => bridge };
+});
+vi.mock("../browser/remoteBridge", () => ({ getRemoteBridgeClient: () => null }));
+vi.mock("./appStore", () => ({ useAppStore: { getState: () => ({ threads: [] }) } }));
+vi.mock("../hostTransport/loopbackHttpWsTransport", () => ({
+  readManagedLoopbackActivation: () => mocks.activation,
 }));
 
 const INDEX: PersistedPromptIndex = {
@@ -23,6 +31,8 @@ const INDEX: PersistedPromptIndex = {
 describe("readThreadPromptIndex", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    mocks.activation = {};
+    for (const id of ["thread-1", "remote-thread"]) forgetThreadPromptIndex(id);
   });
 
   it("reads this desktop's own threads over the managed loopback leg", async () => {
@@ -67,5 +77,71 @@ describe("readThreadPromptIndex", () => {
     });
 
     await expect(readThreadPromptIndex("thread-1", controller.signal)).resolves.toBeNull();
+  });
+  it("reuses the complete index across pane remounts without another host read", async () => {
+    mocks.isManagedRootHistoryThread.mockReturnValue(true);
+    mocks.readManagedRootPromptIndex.mockResolvedValue(INDEX);
+    await readThreadPromptIndex("thread-1");
+    expect(readCachedThreadPromptIndex("thread-1")).toBe(INDEX);
+    await readThreadPromptIndex("thread-1");
+    expect(mocks.readManagedRootPromptIndex).toHaveBeenCalledOnce();
+  });
+
+  it("shares an in-flight read and retains it when the first pane leaves", async () => {
+    mocks.isManagedRootHistoryThread.mockReturnValue(true);
+    let complete!: (index: PersistedPromptIndex) => void;
+    mocks.readManagedRootPromptIndex.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          complete = resolve;
+        }),
+    );
+    const controller = new AbortController();
+    const first = readThreadPromptIndex("thread-1", controller.signal);
+    const second = readThreadPromptIndex("thread-1");
+    await Promise.resolve();
+    controller.abort();
+    complete(INDEX);
+    expect(await first).toBeNull();
+    expect(await second).toBe(INDEX);
+    expect(readCachedThreadPromptIndex("thread-1")).toBe(INDEX);
+    expect(mocks.readManagedRootPromptIndex).toHaveBeenCalledOnce();
+  });
+
+  it("discards an old connection's response and reads from the new owner", async () => {
+    mocks.isManagedRootHistoryThread.mockReturnValue(true);
+    let complete!: (index: PersistedPromptIndex) => void;
+    mocks.readManagedRootPromptIndex.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          complete = resolve;
+        }),
+    );
+    const pending = readThreadPromptIndex("thread-1");
+    await Promise.resolve();
+    mocks.activation = {};
+    complete(INDEX);
+    expect(await pending).toBeNull();
+    expect(readCachedThreadPromptIndex("thread-1")).toBeUndefined();
+    mocks.readManagedRootPromptIndex.mockResolvedValue(INDEX);
+    expect(await readThreadPromptIndex("thread-1")).toBe(INDEX);
+    expect(mocks.readManagedRootPromptIndex).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not admit a response invalidated by rollback", async () => {
+    mocks.isManagedRootHistoryThread.mockReturnValue(true);
+    let complete!: (index: PersistedPromptIndex) => void;
+    mocks.readManagedRootPromptIndex.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          complete = resolve;
+        }),
+    );
+    const pending = readThreadPromptIndex("thread-1");
+    await Promise.resolve();
+    forgetThreadPromptIndex("thread-1");
+    complete(INDEX);
+    expect(await pending).toBeNull();
+    expect(readCachedThreadPromptIndex("thread-1")).toBeUndefined();
   });
 });

@@ -109,6 +109,21 @@ it("keeps Devices in the right panel at constrained width instead of docking it 
   expect(screen.getByText("Devices panel").closest("aside")).toHaveClass("fixed");
 });
 
+it.each(["right", "git"])("retains the %s aside when Devices is opened and closed", (slot) => {
+  useSidebarOverlayStore.setState({ shellWidth: 1500 });
+  const panel = <div>Panel content</div>;
+  render(shell(slot === "right" ? panel : undefined, slot === "git" ? panel : undefined));
+  const aside = screen.getByText("Panel content").closest("aside");
+  act(() => {
+    usePanelStore.setState({ deviceWorkspaceThreadId: "thread-1" });
+  });
+  expect(screen.getByText("Panel content").closest("aside")).toBe(aside);
+  act(() => {
+    usePanelStore.setState({ deviceWorkspaceThreadId: null });
+  });
+  expect(screen.getByText("Panel content").closest("aside")).toBe(aside);
+});
+
 it.each(["right", "git"])(
   "retains the Devices controller in the %s slot across responsive transitions",
   (slot) => {

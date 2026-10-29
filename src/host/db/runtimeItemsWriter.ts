@@ -1,11 +1,13 @@
 import Database from "better-sqlite3";
 import type { RuntimeEvent, ThreadContextUsage } from "@/shared/contracts";
+import type { ThreadTokenUsage } from "@/shared/contracts/threadTokenUsage";
 import { RUNTIME_REQUEST_ITEM_TYPE } from "@/shared/contracts";
 import { runtimeRequestItemId } from "./runtimeRequestItemId";
 import { recordUsageSpentFromRuntimeEvents } from "@/host/profile/usageLedger";
 import { getSqlite } from "./connection";
 import { withRuntimeBusyTimeout } from "./runtimeBusyTimeout";
 import { commitRuntimeAtomicWrite } from "./runtimeAtomicWrite";
+import { notifyRuntimeItemsCommitted } from "./runtimeItemCommitListeners";
 import type { RuntimeAtomicBatchWriter, RuntimeWriteBatch } from "./runtimeWriteQueue";
 import { safeParse } from "./rowMappers";
 import type { PersistedRuntimeItem } from "./runtimeItems";
@@ -145,6 +147,7 @@ export function applyThreadRuntimeEventsNow(
   withRuntimeBusyTimeout(() => {
     writerStatements(sqlite).writeEvents(threadId, events);
   });
+  notifyRuntimeItemsCommitted(threadId, events);
 }
 
 /**
@@ -157,9 +160,13 @@ export function applyThreadRuntimeEventsNow(
  */
 export const applyRuntimeEventBatchesNow: RuntimeAtomicBatchWriter = (batches) => {
   const sqlite = getSqlite();
-  return commitRuntimeAtomicWrite(sqlite, () => {
+  const result = commitRuntimeAtomicWrite(sqlite, () => {
     writerStatements(sqlite).writeBatches(batches);
   });
+  if (result.kind === "committed") {
+    for (const batch of batches) notifyRuntimeItemsCommitted(batch.threadId, batch.events);
+  }
+  return result;
 };
 
 function applyRuntimeEventsInTransaction(
@@ -415,6 +422,49 @@ export function readThreadContextUsageInSqlite(
   if (!row) return null;
   const parsed = safeParse(row.usage);
   return parsed && typeof parsed === "object" ? (parsed as ThreadContextUsage) : null;
+}
+
+/** Per-member token totals the usage ledger accumulated for one thread; null when none. */
+export function readThreadTokenUsageInSqlite(
+  sqlite: InstanceType<typeof Database>,
+  threadId: string,
+): ThreadTokenUsage | null {
+  const rows = sqlite
+    .prepare(
+      `SELECT member, provider, model, input, output, cache_read, cache_write, total,
+              cost_usd, priced_total
+       FROM thread_token_usage WHERE thread_id = ? ORDER BY member, provider, model`,
+    )
+    .all(threadId) as Array<{
+    member: string;
+    provider: string;
+    model: string;
+    input: number;
+    output: number;
+    cache_read: number;
+    cache_write: number;
+    total: number;
+    cost_usd: number;
+    priced_total: number;
+  }>;
+  if (rows.length === 0) return null;
+  return {
+    version: 1,
+    members: rows.map((row) => ({
+      member: row.member,
+      provider: row.provider,
+      ...(row.model ? { model: row.model } : {}),
+      tokens: {
+        input: row.input,
+        output: row.output,
+        cacheRead: row.cache_read,
+        cacheWrite: row.cache_write,
+      },
+      total: row.total,
+      costUsd: row.cost_usd,
+      pricedTotal: row.priced_total,
+    })),
+  };
 }
 
 export function replaceThreadContextUsageInSqlite(

@@ -1,0 +1,15 @@
+{
+  "name": "@opencode/latex",
+  "version": "2.1.4",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./markdown": "./src/markdown.ts",
+    "./plugin": "./src/plugin.ts"
+  },
+  "dependencies": {
+    "@opencode/plugin": "workspace:*",
+    "@opentui/core": "catalog:",
+    "string-width": "catalog:"
+  }
+}

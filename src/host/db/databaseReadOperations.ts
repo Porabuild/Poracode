@@ -12,6 +12,7 @@ import {
   dbReadThreadRuntimeItemsAfter,
   dbGetThreadCompletedTurns,
   dbGetThreadContextUsage,
+  dbGetThreadTokenUsage,
 } from "./runtimeItems";
 import { dbGetThreadRuntimeItemCommitted } from "./runtimeItemRead";
 import { dbGetProjects, dbGetState, dbGetThreads, dbGetThreadsPage } from "./projectsThreads";
@@ -78,6 +79,7 @@ export const databaseReadOperations = {
   promptIndex: dbReadThreadPromptIndex,
   completedTurns: dbGetThreadCompletedTurns,
   contextUsage: dbGetThreadContextUsage,
+  tokenUsage: dbGetThreadTokenUsage,
   runtimeSnapshot: readCommittedRuntimeSnapshot,
 };
 

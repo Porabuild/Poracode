@@ -105,12 +105,12 @@ describe("PluginDetail", () => {
     usePanelStore.setState({ settingsOpen: false });
   });
 
-  it("offers publishing skills while preserving settings from the previous plugin version", () => {
+  it("keeps Poracode and its skills available despite disables from the previous plugin version", () => {
     useSharedSettings.setState({
       installedPlugins: {
         "app-controls": {
           version: "1.3.0",
-          enabled: true,
+          enabled: false,
           disabledSkillIds: ["app-controls"],
           disabledMcpServerNames: [],
         },
@@ -123,10 +123,11 @@ describe("PluginDetail", () => {
       return <PluginDetail plugin={plugin} hostPlatform="win32" onBack={() => undefined} />;
     }
     render(<AppControlsDetail />);
-    for (const name of ["Commit", "Create PR", "Finalize"]) {
-      expect(screen.getByRole("switch", { name: `${name} Skill` })).toBeChecked();
+    for (const name of ["Commit", "Create PR", "Finalize", "Poracode"]) {
+      expect(screen.getByText(name, { selector: "span[id*='-skill-']" })).toBeInTheDocument();
     }
-    expect(screen.getByRole("switch", { name: "Poracode Skill" })).not.toBeChecked();
+    expect(screen.queryByRole("switch")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Try now" })).toBeEnabled();
   });
 
   it("updates plugin and skill toggles for a built-in tool plugin", () => {

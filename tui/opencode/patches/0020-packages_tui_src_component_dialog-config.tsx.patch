@@ -1,0 +1,36 @@
+diff --git a/packages/tui/src/component/dialog-config.tsx b/packages/tui/src/component/dialog-config.tsx
+index f2e3f28..31365a1 100644
+--- a/packages/tui/src/component/dialog-config.tsx
++++ b/packages/tui/src/component/dialog-config.tsx
+@@ -1,5 +1,6 @@
+ import { createMemo, createSignal } from "solid-js"
+ import { useConfig, useNewDesigns } from "../config"
++import { BRAND } from "../brand"
+ import { useThemes } from "../context/theme"
+ import { DialogSelect } from "../ui/dialog-select"
+ import { useToast } from "../ui/toast"
+@@ -23,7 +24,7 @@ export const settings: Setting[] = [
+     title: "Theme",
+     category: "Appearance",
+     path: ["theme", "name"],
+-    default: "opencode",
++    default: BRAND.defaultTheme,
+     keywords: ["color scheme", "colors"],
+   },
+   {
+@@ -289,15 +290,6 @@ export const settings: Setting[] = [
+     format: (value) => `${Math.round(Number(value) * 100)}%`,
+     keywords: ["sound volume", "audio volume"],
+   },
+-  {
+-    title: "Release highlights",
+-    category: "Alerts",
+-    path: ["highlights"],
+-    default: true,
+-    values: [false, true],
+-    labels: ["off", "on"],
+-    keywords: ["what's new", "changelog", "release notes"],
+-  },
+   {
+     title: "Window title",
+     category: "Terminal",

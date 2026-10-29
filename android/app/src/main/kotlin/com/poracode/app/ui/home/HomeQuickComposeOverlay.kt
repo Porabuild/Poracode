@@ -222,12 +222,13 @@ internal fun HomeQuickComposeOverlay(
         val base = if (selectedAgent?.kind == defaults?.agentKind && defaults != null) {
             defaults.config
         } else {
-            ThreadConfig(
-                model = selectedCatalog?.models
+                ThreadConfig(
+                    model = selectedCatalog?.models
                     ?.firstOrNull { it.id != modelSeed }
-                    ?.id
-                    ?: modelSeed.ifBlank { "default" },
-            )
+                        ?.id
+                        ?: modelSeed.ifBlank { "default" },
+                    crew = configuration.crew,
+                )
         }
         configuration = selectedAgent?.let {
             HomeQuickComposeCatalog(it, normalizedMode, base, userHiddenModels).normalize(base)
@@ -394,7 +395,8 @@ internal fun HomeQuickComposeOverlay(
                         canOperate = state.canSessionOperate,
                         busy = busy,
                         uploading = uploading,
-                        canStart = (prompt.isNotBlank() || queuedMentionSegments.isNotEmpty()) && !busy && !uploading &&
+                        canStart = (prompt.isNotBlank() || queuedMentionSegments.isNotEmpty() ||
+                            attachments.isNotEmpty()) && !busy && !uploading &&
                             state.canSessionOperate,
                         onCaptureFromCamera = captureFromCamera,
                         onPickAttachment = { attachmentLauncher.launch(arrayOf("*/*")) },

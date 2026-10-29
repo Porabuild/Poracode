@@ -26,12 +26,12 @@ describe("Claude custom context-window catalog", () => {
     },
   };
 
-  it("applies saved custom sizes to configurable models and keeps 1M as their default", () => {
+  it("applies saved custom sizes to configurable models and keeps 400k as their default", () => {
     const capabilities = claudeContextSizeCapabilities(models, {
       contextWindows: '["400k","512k","1m"]',
     });
     expect(capabilities.modelContextSizes).toEqual({
-      "claude-fable-5-1": ["1m", "400k", "512k"],
+      "claude-fable-5-1": ["400k", "512k", "1m"],
       haiku: ["200k"],
       "custom[1m]": ["1m"],
     });
@@ -42,7 +42,7 @@ describe("Claude custom context-window catalog", () => {
     for (const settings of [undefined, { unrelated: true }, { contextWindows: '["99k","2m"]' }]) {
       expect(
         claudeContextSizeCapabilities(models, settings).modelContextSizes?.["claude-fable-5-1"],
-      ).toEqual(["1m", "400k"]);
+      ).toEqual(["400k", "1m"]);
     }
   });
 

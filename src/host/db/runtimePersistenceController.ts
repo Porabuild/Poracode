@@ -86,10 +86,10 @@ const DEFAULT_FENCE_DEADLINE_MS = 2_000;
 const DEFAULT_FENCE_MAX_HOLD_MS = 5_000;
 const DEFAULT_MUTATION_DEADLINE_MS = 5_000;
 const FLUSH_MAX_THREADS = 4;
-const FLUSH_MAX_BYTES = 4 * 1024 * 1024;
+const FLUSH_MAX_BYTES = 256 * 1024;
 const FLUSH_MAX_MS = 5;
 /** Wall-clock budget for one aged-backlog relief; the scheduler continues it. */
-const AGED_RELIEF_MAX_MS = 50;
+const AGED_RELIEF_MAX_MS = FLUSH_MAX_MS;
 
 export interface RuntimePersistenceControllerOptions {
   write: RuntimeWriteFlush;

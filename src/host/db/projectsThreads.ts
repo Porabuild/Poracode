@@ -28,9 +28,10 @@ import {
 
 // ── Public query functions (called from IPC handlers) ───────────────
 
+// Full legacy lists retain insertion order for tied slots, even with catalog indexes.
 export function dbGetProjects(): Project[] {
   const rows = getSqlite()
-    .prepare("SELECT * FROM projects ORDER BY sort_order ASC")
+    .prepare("SELECT * FROM projects ORDER BY sort_order ASC, rowid ASC")
     .all() as ProjectRow[];
   return rows.map(rowToProject);
 }
@@ -92,7 +93,7 @@ export function dbFindProjectByLocation(
 
 export function dbGetThreads(): Thread[] {
   const rows = getSqlite()
-    .prepare("SELECT * FROM threads ORDER BY sort_order ASC")
+    .prepare("SELECT * FROM threads ORDER BY sort_order ASC, rowid ASC")
     .all() as ThreadRow[];
   return rows.map(rowToThread);
 }

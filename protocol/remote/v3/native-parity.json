@@ -5,6 +5,32 @@
   "entries": {
     "httpRoutes": [
       {
+        "id": "thread-agent-vision",
+        "scopes": ["session:read"],
+        "batch": "explicitly-desktop-only",
+        "ios": {
+          "wire": {
+            "disposition": "desktop-only",
+            "evidence": ["src/renderer/components/thread/ThreadAgentVisionDock.tsx"]
+          },
+          "ui": {
+            "disposition": "desktop-only",
+            "evidence": ["src/renderer/components/thread/ThreadAgentVisionDock.tsx"]
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "desktop-only",
+            "evidence": ["src/renderer/components/thread/ThreadAgentVisionDock.tsx"]
+          },
+          "ui": {
+            "disposition": "desktop-only",
+            "evidence": ["src/renderer/components/thread/ThreadAgentVisionDock.tsx"]
+          }
+        },
+        "note": "Agent Vision is a renderer Thread Info right-panel dock. Native clients have no Thread Info panel; their production transports do not invoke this optional read route."
+      },
+      {
         "id": "pr-watch-scoped-upsert",
         "scopes": ["session:operate"],
         "batch": "settings-integrations",
@@ -2396,7 +2422,8 @@
             ],
             "note": "No checked-in device journey exercises this surface yet (no screen-registry entry, no device-test evidence); the ui story is asserted from the cited production source only."
           }
-        }
+        },
+        "note": "Generated codecs accept optional question-answer sourceItemId on resumed input. Native async reply-form UI is not implemented; ordinary thread input remains supported. Native runtime start/resume uses a 600-second request deadline on iOS and Android; other thread commands keep their normal deadlines. Request/response schemas and wire versions are unchanged."
       },
       {
         "id": "terminal-start",
@@ -2522,7 +2549,7 @@
         "id": "thread-command",
         "scopes": ["session:operate"],
         "batch": "thread-lifecycle",
-        "note": "iOS exposes the additive clear-group command from Home, project, and thread-detail actions; the host also clears a one-member remainder. Kotlin bindings include the variant, while Android's native action UI does not yet expose ungrouping. The additive catalogMutations v1 kinds (relative thread reorder, nullable workspace) are host-authority source evidence only: neither native transport has been taught the new discriminators yet, so the platform dispositions below describe the pre-existing kinds and make no claim about them. Metadata-only create is used by the managed desktop before worktree preparation; native and paired clients retain their existing start flow. Generated create codecs do not claim native UI adoption. Fork v1 is negotiated through environment.threadForks; both native rich-chat clients send an idempotent command to the new thread id, retain the selected source boundary, show a source link and open the created thread. UI evidence remains source-only until device journeys run. Fork v1 is negotiated through environment.threadForks; both native rich-chat clients send an idempotent command to the new thread id, retain the selected source boundary, show a source link and open the created thread. UI evidence remains source-only until device journeys run.",
+        "note": "iOS exposes the additive clear-group command from Home, project, and thread-detail actions; the host also clears a one-member remainder. Kotlin bindings include the variant, while Android's native action UI does not yet expose ungrouping. The additive catalogMutations v1 kinds (relative thread reorder, nullable workspace) are host-authority source evidence only: neither native transport has been taught the new discriminators yet, so the platform dispositions below describe the pre-existing kinds and make no claim about them. Metadata-only create is used by the managed desktop before worktree preparation; native and paired clients retain their existing start flow. Generated create codecs do not claim native UI adoption. Fork v1 is negotiated through environment.threadForks; both native rich-chat clients send an idempotent command to the new thread id, retain the selected source boundary, show a source link and open the created thread. UI evidence remains source-only until device journeys run. Fork v1 is negotiated through environment.threadForks; both native rich-chat clients send an idempotent command to the new thread id, retain the selected source boundary, show a source link and open the created thread. UI evidence remains source-only until device journeys run. Native runtime start/resume uses a 600-second request deadline on iOS and Android; other thread commands keep their normal deadlines. Request/response schemas and wire versions are unchanged.",
         "ios": {
           "wire": {
             "disposition": "implemented",
@@ -2600,7 +2627,8 @@
               "screen:android.thread-send"
             ]
           }
-        }
+        },
+        "note": "Generated codecs accept optional question-answer sourceItemId. Native async reply-form UI is not implemented; ordinary thread input remains supported."
       },
       {
         "id": "thread-interrupt",
@@ -2810,7 +2838,7 @@
               "ios/App/App/Features/Terminal/TerminalRawKeyInput.swift",
               "screen:ios.terminal-write"
             ],
-            "note": "E.2 device keystroke-to-PTY journey landed (`NativeFamilyJourneyUITests.testTerminalKeystrokeFamilyWritesToPty`). On-screen (touch) typing remains line-buffered through the command field plus the modifier key row — the standard mobile-terminal compromise."
+            "note": "E.2 device keystroke-to-PTY journey landed (`NativeFamilyJourneyUITests.testTerminalKeystrokeFamilyWritesToPty`). On-screen (touch) typing remains line-buffered through the command field plus the modifier key row \u0432\u0402\u201d the standard mobile-terminal compromise."
           }
         },
         "android": {
@@ -2829,7 +2857,7 @@
               "android/app/src/main/kotlin/com/poracode/app/ui/terminal/TerminalKeyAccessory.kt",
               "screen:android.terminal-write"
             ],
-            "note": "E.2 device keystroke-to-PTY journey landed (`Android37WireLabFamilyInstrumentedTest.familyTerminalKeystrokeWritesToPty`). On-screen (touch) typing remains line-buffered through the command field plus the modifier key row — the standard mobile-terminal compromise."
+            "note": "E.2 device keystroke-to-PTY journey landed (`Android37WireLabFamilyInstrumentedTest.familyTerminalKeystrokeWritesToPty`). On-screen (touch) typing remains line-buffered through the command field plus the modifier key row \u0432\u0402\u201d the standard mobile-terminal compromise."
           }
         }
       },
@@ -4029,6 +4057,318 @@
           }
         },
         "note": "Generated native codecs and authenticated exact-host transports are implemented. Native discovery and creation screens still use legacy operations and need scoped UI integration."
+      },
+      {
+        "id": "forgeListPullRequestsInState",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "note": "Native client support for this scoped review operation is not wired yet."
+      },
+      {
+        "id": "forgeListPrLabelCandidates",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Transport/Projects/GitHubOperations/ForgeReviewRemoteV3Contract.swift",
+              "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
+              "ios/App/App/Transport/Projects/GitHubOperations/SelectedGitHubOperationsGateway.swift"
+            ]
+          },
+          "ui": {
+            "disposition": "partial",
+            "evidence": [
+              "ios/App/App/Features/Projects/GitHubOperations/ForgeReviewController.swift",
+              "ios/App/App/Features/PullRequests/PullRequestMetadataSheets.swift",
+              "ios/App/App/Features/PullRequests/PullRequestReviewPageView.swift"
+            ],
+            "note": "Scoped native review metadata controls are wired; independent iOS device evidence is still required."
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/protocol/forge/RemoteV3ForgeReviewContract.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/ProjectWorkspaceRemoteApiClient.kt",
+              "android/app/src/main/kotlin/com/poracode/app/session/projects/GithubOperationsGateway.kt"
+            ]
+          },
+          "ui": {
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/session/projects/ForgeReviewController.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/GithubPullRequestMetadataSheets.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/GithubPullRequestDetailHost.kt"
+            ],
+            "note": "Scoped native review metadata controls are wired; independent Android device evidence is still required."
+          }
+        }
+      },
+      {
+        "id": "forgeListPrReviewerCandidates",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Transport/Projects/GitHubOperations/ForgeReviewRemoteV3Contract.swift",
+              "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
+              "ios/App/App/Transport/Projects/GitHubOperations/SelectedGitHubOperationsGateway.swift"
+            ]
+          },
+          "ui": {
+            "disposition": "partial",
+            "evidence": [
+              "ios/App/App/Features/Projects/GitHubOperations/ForgeReviewController.swift",
+              "ios/App/App/Features/PullRequests/PullRequestMetadataSheets.swift",
+              "ios/App/App/Features/PullRequests/PullRequestReviewPageView.swift"
+            ],
+            "note": "Scoped native review metadata controls are wired; independent iOS device evidence is still required."
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/protocol/forge/RemoteV3ForgeReviewContract.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/ProjectWorkspaceRemoteApiClient.kt",
+              "android/app/src/main/kotlin/com/poracode/app/session/projects/GithubOperationsGateway.kt"
+            ]
+          },
+          "ui": {
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/session/projects/ForgeReviewController.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/GithubPullRequestMetadataSheets.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/GithubPullRequestDetailHost.kt"
+            ],
+            "note": "Scoped native review metadata controls are wired; independent Android device evidence is still required."
+          }
+        }
+      },
+      {
+        "id": "forgeGetPrCommitDiff",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "note": "Native client support for this scoped review operation is not wired yet."
+      },
+      {
+        "id": "forgeSetPrLabels",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Transport/Projects/GitHubOperations/ForgeReviewRemoteV3Contract.swift",
+              "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
+              "ios/App/App/Transport/Projects/GitHubOperations/SelectedGitHubOperationsGateway.swift"
+            ]
+          },
+          "ui": {
+            "disposition": "partial",
+            "evidence": [
+              "ios/App/App/Features/Projects/GitHubOperations/ForgeReviewController.swift",
+              "ios/App/App/Features/PullRequests/PullRequestMetadataSheets.swift",
+              "ios/App/App/Features/PullRequests/PullRequestReviewMetadataViews.swift",
+              "ios/App/App/Features/PullRequests/PullRequestReviewSections.swift"
+            ],
+            "note": "Scoped native review metadata controls are wired; independent iOS device evidence is still required."
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/protocol/forge/RemoteV3ForgeReviewContract.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/ProjectWorkspaceRemoteApiClient.kt",
+              "android/app/src/main/kotlin/com/poracode/app/session/projects/GithubOperationsGateway.kt"
+            ]
+          },
+          "ui": {
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/session/projects/ForgeReviewController.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/GithubPullRequestMetadataSheets.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/GithubPullRequestMetadataViews.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/GithubPullRequestMetadataProjection.kt"
+            ],
+            "note": "Scoped native review metadata controls are wired; independent Android device evidence is still required."
+          }
+        }
+      },
+      {
+        "id": "forgeRequestPrReviewers",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Transport/Projects/GitHubOperations/ForgeReviewRemoteV3Contract.swift",
+              "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
+              "ios/App/App/Transport/Projects/GitHubOperations/SelectedGitHubOperationsGateway.swift"
+            ]
+          },
+          "ui": {
+            "disposition": "partial",
+            "evidence": [
+              "ios/App/App/Features/Projects/GitHubOperations/ForgeReviewController.swift",
+              "ios/App/App/Features/PullRequests/PullRequestMetadataSheets.swift",
+              "ios/App/App/Features/PullRequests/PullRequestReviewMetadataViews.swift",
+              "ios/App/App/Features/PullRequests/PullRequestReviewSections.swift"
+            ],
+            "note": "Scoped native review metadata controls are wired; independent iOS device evidence is still required."
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/protocol/forge/RemoteV3ForgeReviewContract.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/ProjectWorkspaceRemoteApiClient.kt",
+              "android/app/src/main/kotlin/com/poracode/app/session/projects/GithubOperationsGateway.kt"
+            ]
+          },
+          "ui": {
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/session/projects/ForgeReviewController.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/GithubPullRequestMetadataSheets.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/GithubPullRequestMetadataViews.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/GithubPullRequestConversationSection.kt"
+            ],
+            "note": "Scoped native review metadata controls are wired; independent Android device evidence is still required."
+          }
+        }
+      },
+      {
+        "id": "forgeConvertPrToDraft",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Transport/Projects/GitHubOperations/ForgeReviewRemoteV3Contract.swift",
+              "ios/App/App/Transport/Projects/GitHubOperations/GitHubOperationsHTTPTransport.swift",
+              "ios/App/App/Transport/Projects/GitHubOperations/SelectedGitHubOperationsGateway.swift"
+            ]
+          },
+          "ui": {
+            "disposition": "partial",
+            "evidence": [
+              "ios/App/App/Features/Projects/GitHubOperations/ForgeReviewController.swift",
+              "ios/App/App/Features/PullRequests/PullRequestReviewPageView.swift"
+            ],
+            "note": "Scoped native review metadata controls are wired; independent iOS device evidence is still required."
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/protocol/forge/RemoteV3ForgeReviewContract.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/ProjectWorkspaceRemoteApiClient.kt",
+              "android/app/src/main/kotlin/com/poracode/app/session/projects/GithubOperationsGateway.kt"
+            ]
+          },
+          "ui": {
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/session/projects/ForgeReviewController.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/projects/workspace/GithubPullRequestDetailHost.kt"
+            ],
+            "note": "Scoped native review metadata controls are wired; independent Android device evidence is still required."
+          }
+        }
+      },
+      {
+        "id": "forgeSetPrReaction",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "note": "Native client support for this scoped review operation is not wired yet."
+      },
+      {
+        "id": "forgeSubmitPrReviewDraft",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "note": "Native client support for this scoped review operation is not wired yet."
       },
       {
         "id": "forgeGetPrChecks",
@@ -9302,6 +9642,56 @@
     ],
     "webSocketClientMessages": [
       {
+        "id": "agent-vision-watch",
+        "batch": "explicitly-desktop-only",
+        "ios": {
+          "wire": {
+            "disposition": "desktop-only",
+            "evidence": ["src/renderer/components/thread/ThreadAgentVisionDock.tsx"]
+          },
+          "ui": {
+            "disposition": "desktop-only",
+            "evidence": ["src/renderer/components/thread/ThreadAgentVisionDock.tsx"]
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "desktop-only",
+            "evidence": ["src/renderer/components/thread/ThreadAgentVisionDock.tsx"]
+          },
+          "ui": {
+            "disposition": "desktop-only",
+            "evidence": ["src/renderer/components/thread/ThreadAgentVisionDock.tsx"]
+          }
+        },
+        "note": "Agent Vision streaming is opt-in from the renderer Thread Info panel or its picture-in-picture window. Native clients have no Thread Info panel and never subscribe; generated wire models remain available."
+      },
+      {
+        "id": "agent-vision-unwatch",
+        "batch": "explicitly-desktop-only",
+        "ios": {
+          "wire": {
+            "disposition": "desktop-only",
+            "evidence": ["src/renderer/components/thread/ThreadAgentVisionDock.tsx"]
+          },
+          "ui": {
+            "disposition": "desktop-only",
+            "evidence": ["src/renderer/components/thread/ThreadAgentVisionDock.tsx"]
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "desktop-only",
+            "evidence": ["src/renderer/components/thread/ThreadAgentVisionDock.tsx"]
+          },
+          "ui": {
+            "disposition": "desktop-only",
+            "evidence": ["src/renderer/components/thread/ThreadAgentVisionDock.tsx"]
+          }
+        },
+        "note": "Agent Vision streaming is opt-in from the renderer Thread Info panel or its picture-in-picture window. Native clients have no Thread Info panel and never subscribe; generated wire models remain available."
+      },
+      {
         "id": "ping",
         "batch": "foundation",
         "ios": {
@@ -9621,6 +10011,31 @@
       }
     ],
     "webSocketServerMessages": [
+      {
+        "id": "agent-vision-frame",
+        "batch": "explicitly-desktop-only",
+        "ios": {
+          "wire": {
+            "disposition": "desktop-only",
+            "evidence": ["src/renderer/components/thread/ThreadAgentVisionDock.tsx"]
+          },
+          "ui": {
+            "disposition": "desktop-only",
+            "evidence": ["src/renderer/components/thread/ThreadAgentVisionDock.tsx"]
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "desktop-only",
+            "evidence": ["src/renderer/components/thread/ThreadAgentVisionDock.tsx"]
+          },
+          "ui": {
+            "disposition": "desktop-only",
+            "evidence": ["src/renderer/components/thread/ThreadAgentVisionDock.tsx"]
+          }
+        },
+        "note": "Agent Vision streaming is opt-in from the renderer Thread Info panel or its picture-in-picture window. Native clients have no Thread Info panel and never subscribe; generated wire models remain available."
+      },
       {
         "id": "ready",
         "batch": "foundation",
@@ -11163,5 +11578,5 @@
       }
     ]
   },
-  "migrationNote": "Format 2 splits each platform claim into independent wire and ui columns so the ledger can no longer present wire coverage as UI parity. Migrated from format 1 (2026-09-18, V5 plan item 5.4): every format-1 claim became the wire claim unchanged, and the ui column was seeded by mirroring it, with the UI-surface subset of the evidence as ui evidence (falling back to the full list for protocol-plumbing entries that have no distinct UI file). ui dispositions: implemented = reachable from a user-visible native surface; partial = reachable in part, with a mandatory reason note; planned = wire present, no UI surface yet; desktop-only and unsupported-by-wire mirror the wire claim. The ui column is now maintained separately from wire: flipping one must not flip the other. E.1 re-derivation (2026-09-20, V6): ui implemented additionally requires independent device evidence — a screen-registry entry or a checked-in device test; a note is commentary and grants nothing. Every ui claim failing that rule was honestly downgraded to partial with the evidence gap in its note."
+  "migrationNote": "Format 2 splits each platform claim into independent wire and ui columns so the ledger can no longer present wire coverage as UI parity. Migrated from format 1 (2026-09-18, V5 plan item 5.4): every format-1 claim became the wire claim unchanged, and the ui column was seeded by mirroring it, with the UI-surface subset of the evidence as ui evidence (falling back to the full list for protocol-plumbing entries that have no distinct UI file). ui dispositions: implemented = reachable from a user-visible native surface; partial = reachable in part, with a mandatory reason note; planned = wire present, no UI surface yet; desktop-only and unsupported-by-wire mirror the wire claim. The ui column is now maintained separately from wire: flipping one must not flip the other. E.1 re-derivation (2026-09-20, V6): ui implemented additionally requires independent device evidence \u0432\u0402\u201d a screen-registry entry or a checked-in device test; a note is commentary and grants nothing. Every ui claim failing that rule was honestly downgraded to partial with the evidence gap in its note."
 }

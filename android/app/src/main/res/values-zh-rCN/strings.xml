@@ -157,4 +157,10 @@
     <string name="tls_pin_mismatch">服务器的 TLS 证书与配对码中的指纹不匹配。请从桌面“远程访问”面板重新配对。</string>
     <string name="rich_chat_context_reload_body">新的上下文大小将从你的下一条消息开始生效。发送该消息前会重新加载智能体会话；对话内容会保留。</string>
     <string name="rich_chat_context_reload_stops_subagents">会话重新加载时仍在运行的所有子代理都将停止。</string>
+    <string name="rich_chat_crew">团队</string>
+    <string name="rich_chat_crew_helpers_count">+%1$d 位助手</string>
+    <string name="rich_chat_crew_lead">负责人</string>
+    <string name="rich_chat_crew_no_edits">已指示不要编辑文件。不会强制执行。</string>
+    <string name="rich_chat_crew_policy_only">仅限团队</string>
+    <string name="rich_chat_crew_policy_first">优先团队</string>
 </resources>

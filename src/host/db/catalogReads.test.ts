@@ -1,7 +1,7 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { threadSchema, type Thread } from "@/shared/contracts";
 import {
   CATALOG_ROW_ENVELOPE_BYTES,
@@ -224,6 +224,79 @@ describe.skipIf(!sqliteAvailable)("catalogReads (real sqlite)", () => {
       id: "thread-09",
     });
   });
+
+  it("seeks a late page using the previous tp1 cursor and the manual-order index", () => {
+    insertThreadRows(10_000, { id: (i) => `late-${String(i).padStart(5, "0")}` });
+    const db = getSqlite(),
+      prepare = db.prepare.bind(db),
+      queries: string[] = [];
+    const spy = vi.spyOn(db, "prepare").mockImplementation((sql: string) => {
+      if (sql.includes("FROM threads t")) queries.push(sql);
+      return prepare(sql);
+    });
+    try {
+      const page = dbReadCatalogThreadPhase1({
+        mode: "page",
+        order: "manual",
+        limit: 50,
+        cursor: encodeDbThreadPageCursor({ sortOrder: 9500, id: "late-09500" }),
+      });
+      expect(page.rows.map((row) => row.id)).toEqual(
+        Array.from({ length: 50 }, (_, i) => `late-${String(9501 + i).padStart(5, "0")}`),
+      );
+      expect(queries).toHaveLength(1);
+      const plan = prepare(`EXPLAIN QUERY PLAN ${queries[0]}`).all(9500, "late-09500", 51) as {
+        detail: string;
+      }[];
+      expect(plan.map((row) => row.detail).join(" ")).toContain(
+        "SEARCH t USING INDEX idx_threads_catalog_manual",
+      );
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it.each(["manual", "updated", "created"] as const)(
+    "keeps old cursor ordering through ties for %s",
+    (order) => {
+      insertThreadRows(60, {
+        id: (i) => `tie-${String(i).padStart(3, "0")}`,
+        sortOrder: (i) => Math.floor(i / 4) - 10,
+        updatedAt: (i) => `2026-01-${String(1 + Math.floor(i / 4)).padStart(2, "0")}`,
+      });
+      let cursor: string | undefined;
+      const actual: string[] = [];
+      for (;;) {
+        const page = dbReadCatalogThreadPhase1({
+          mode: "page",
+          order,
+          limit: 7,
+          ...(cursor ? { cursor } : {}),
+        });
+        actual.push(...page.rows.map((row) => row.id));
+        if (!page.moreBeyondWindow) break;
+        const last = page.rows.at(-1)!;
+        cursor = encodeCatalogThreadPaintCursor(
+          order === "manual"
+            ? { order, sortOrder: last.sortOrder, id: last.id }
+            : order === "updated"
+              ? { order, updatedAt: last.updatedAt, id: last.id }
+              : { order, createdAt: last.createdAt, id: last.id },
+        );
+      }
+      const sqlOrder =
+        order === "manual"
+          ? "sort_order,id"
+          : `${order === "updated" ? "updated_at" : "created_at"} DESC,id DESC`;
+      expect(actual).toEqual(
+        (
+          getSqlite().prepare(`SELECT id FROM threads ORDER BY ${sqlOrder}`).all() as {
+            id: string;
+          }[]
+        ).map((row) => row.id),
+      );
+    },
+  );
 
   it("pages updated paint recent-first and continues without overlap", () => {
     insertThreadRows(30, {

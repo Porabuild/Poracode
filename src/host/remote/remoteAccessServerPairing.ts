@@ -114,7 +114,9 @@ export function mintLoopbackRendererCredential(
     ? issuePresetPairingCredential(host, "Browser extension", undefined, {
         ttlMs: BROWSER_EXTENSION_PAIRING_TTL_MS,
       })
-    : issuePresetPairingCredential(host, "Managed renderer");
+    : // One credential per desktop window: its session is memory-only, so an
+      // app restart cannot write another orphan into remote-access-auth.json.
+      issuePresetPairingCredential(host, "Managed renderer", undefined, { ephemeral: true });
   const fingerprint = host.tls?.fingerprint;
   return {
     endpoint,
@@ -134,13 +136,18 @@ export function issuePresetPairingCredential(
   host: RemoteAccessServerHost,
   label: string | undefined,
   preset?: RemoteAccessScopePreset,
-  options?: { readonly ttlMs?: number; readonly scopes?: readonly RemoteAccessScope[] },
+  options?: {
+    readonly ttlMs?: number;
+    readonly scopes?: readonly RemoteAccessScope[];
+    readonly ephemeral?: boolean;
+  },
 ) {
   const scopes = options?.scopes ?? (preset ? remoteAccessScopesForPreset(preset) : undefined);
   const issued = host.auth.issuePairingCredential({
     ...(label ? { label } : {}),
     ...(scopes ? { scopes } : {}),
     ...(options?.ttlMs ? { ttlMs: options.ttlMs } : {}),
+    ...(options?.ephemeral ? { ephemeral: true } : {}),
   });
   // Gate 6 item 4.7 (S7): every issued (or rotated) pairing credential is an
   // audited event. Revoked superseded credentials ride the same line.

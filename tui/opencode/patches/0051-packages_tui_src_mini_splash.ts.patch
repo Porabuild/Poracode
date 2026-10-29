@@ -1,0 +1,108 @@
+diff --git a/packages/tui/src/mini/splash.ts b/packages/tui/src/mini/splash.ts
+index 123b224..8476dfa 100644
+--- a/packages/tui/src/mini/splash.ts
++++ b/packages/tui/src/mini/splash.ts
+@@ -14,8 +14,9 @@ import {
+   type ScrollbackWriter,
+ } from "@opentui/core"
+ import { Locale } from "../util/locale"
++import { BRAND } from "../brand"
+ import { stringWidth } from "../util/string-width"
+-import { go } from "../logo"
++import { mark } from "../logo"
+ import { monoTruncate } from "./mono"
+ import type { RunSplashTheme } from "./theme"
+ 
+@@ -40,7 +41,7 @@ export type SplashMeta = {
+ 
+ type Cell = {
+   char: string
+-  mark: "text" | "full" | "mix" | "top"
++  mark: "text" | "full" | "mix" | "top" | "brand"
+ }
+ 
+ function cells(line: string): Cell[] {
+@@ -61,6 +62,12 @@ function cells(line: string): Cell[] {
+       continue
+     }
+ 
++    // poracode: the Pora dot keeps the brand colour in the exit mark.
++    if (char === ".") {
++      list.push({ char: "▀", mark: "brand" })
++      continue
++    }
++
+     list.push({ char, mark: "text" })
+   }
+ 
+@@ -147,11 +154,17 @@ function draw(
+     top: number
+     fg: ColorInput
+     shadow: ColorInput
++    brand?: ColorInput
+     attrs?: number
+   },
+ ) {
+   let x = input.left
+   for (const cell of cells(row)) {
++    if (cell.mark === "brand") {
++      push(lines, x, input.top, cell.char, input.brand ?? input.fg, undefined, input.attrs)
++      x += 1
++      continue
++    }
+     if (cell.mark === "full" || cell.mark === "mix") {
+       push(lines, x, input.top, cell.char, input.fg, input.shadow, input.attrs)
+       x += 1
+@@ -176,22 +189,25 @@ function buildExit(input: SplashWriterInput, ctx: ScrollbackRenderContext): Scro
+   const left = input.theme.left
+   const right = input.theme.right
+   const leftShadow = input.theme.leftShadow
+-  const mark = input.mono ? ["[O]"] : go.right.slice(1)
++  // poracode: the mark is the P. brand glyph; the dot keeps the brand colour.
++  const markRows = input.mono ? ["[P]"] : mark
+   const top = 1
+-  const body_left = (mark[0]?.length ?? 0) + 2
++  const body_left = (markRows[0]?.length ?? 0) + 2
+   const session = "Session  "
+   const label = "Continue "
+-  const command = `opencode mini -s ${meta.session_id}`
++  // poracode: resume through the Poracode CLI.
++  const command = `poracode tui --session ${meta.session_id}`
+   const wide = body_left + stringWidth(label + command) <= width
+   const commandHeight = wide ? 1 : Math.ceil(stringWidth(command) / width)
+ 
+   if (wide) {
+-    for (let i = 0; i < mark.length; i += 1) {
+-      draw(lines, mark[i] ?? "", {
++    for (let i = 0; i < markRows.length; i += 1) {
++      draw(lines, markRows[i] ?? "", {
+         left: 0,
+         top: top + i,
+         fg: left,
+         shadow: leftShadow,
++        brand: input.theme.brand,
+       })
+     }
+ 
+@@ -202,7 +218,7 @@ function buildExit(input: SplashWriterInput, ctx: ScrollbackRenderContext): Scro
+     push(lines, body_left, top + 1, label, left)
+   }
+ 
+-  const height = top + (wide ? Math.max(mark.length, 2) : commandHeight)
++  const height = top + (wide ? Math.max(markRows.length, 2) : commandHeight)
+   const root = new BoxRenderable(ctx.renderContext, {
+     position: "absolute",
+     left: 0,
+@@ -285,9 +301,10 @@ export function entrySplashLayout(input: { width: number; version: string; detai
+     .map((_, index) => ellipsis + slash + segments.slice(index + 1).join(slash))
+     .reverse()
+     .filter((path) => stringWidth(path) < stringWidth(detail))
+-  let layout = { label: Locale.takeWidth("oc mini", input.width), version: "", path: "", metadata: "" }
++  // poracode: the direct-mode splash carries the Poracode label.
++  let layout = { label: Locale.takeWidth(BRAND.name.toLowerCase(), input.width), version: "", path: "", metadata: "" }
+   const stages = [
+-    { label: `${input.mono ? "[O]" : "▪"} oc mini` },
++    { label: `${input.mono ? "[P]" : "▪"} ${BRAND.name.toLowerCase()}` },
+     ...(leaf ? [{ path: leaf }] : []),
+     ...(input.version ? [{ version: input.version }] : []),
+     ...paths.concat(detail ? [detail] : []).map((path) => ({ path })),

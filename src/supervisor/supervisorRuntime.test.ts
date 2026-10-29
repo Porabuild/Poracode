@@ -111,7 +111,7 @@ describe("SupervisorRuntime Windows launch shells", () => {
     expect(getCachedAvailableWindowsShells).not.toHaveBeenCalled();
   });
 
-  it("refreshes the complete Settings catalog and resets the launch selection", () => {
+  it("refreshes the complete Settings catalog and resets the launch selection", async () => {
     Object.defineProperty(process, "platform", { value: "win32", configurable: true });
     vi.stubEnv("Path", "C:\\older");
     const shells = [
@@ -119,7 +119,9 @@ describe("SupervisorRuntime Windows launch shells", () => {
       { path: "C:\\older\\pwsh.exe", kind: "pwsh" as const, version: "7.4.6" },
       { path: "C:\\Windows\\System32\\cmd.exe", kind: "cmd" as const },
     ];
-    const detectCatalog = vi.spyOn(shellPreference, "detectWindowsShells").mockReturnValue(shells);
+    const detectCatalog = vi
+      .spyOn(shellPreference, "detectWindowsShells")
+      .mockResolvedValue(shells);
     const previousResolver = createWindowsPowerShellLaunchResolver(
       () => undefined,
       (path) => path === "C:\\older\\pwsh.exe",
@@ -128,16 +130,16 @@ describe("SupervisorRuntime Windows launch shells", () => {
     const runtime = Object.create(SupervisorRuntime.prototype) as {
       availableWindowsShellsCache: { shells: typeof shells; ts: number };
       resolveLaunchWindowsPowerShell: ReturnType<typeof createWindowsPowerShellLaunchResolver>;
-      getAvailableWindowsShells(): typeof shells;
+      getAvailableWindowsShells(): Promise<typeof shells>;
     };
     runtime.availableWindowsShellsCache = { shells: [], ts: 0 };
     runtime.resolveLaunchWindowsPowerShell = previousResolver;
 
-    expect(runtime.getAvailableWindowsShells()).toEqual(shells);
+    expect(await runtime.getAvailableWindowsShells()).toEqual(shells);
     expect(detectCatalog).toHaveBeenCalledOnce();
     const refreshedResolver = runtime.resolveLaunchWindowsPowerShell;
     expect(refreshedResolver).not.toBe(previousResolver);
-    expect(runtime.getAvailableWindowsShells()).toEqual(shells);
+    expect(await runtime.getAvailableWindowsShells()).toEqual(shells);
     expect(runtime.resolveLaunchWindowsPowerShell).toBe(refreshedResolver);
     expect(detectCatalog).toHaveBeenCalledOnce();
   });

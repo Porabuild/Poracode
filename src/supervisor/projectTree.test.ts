@@ -1,3 +1,4 @@
+import { opendir } from "node:fs/promises";
 import {
   existsSync,
   mkdirSync,
@@ -13,6 +14,11 @@ import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import type { ProjectLocation } from "@/shared/contracts";
 import { ProjectTreeService } from "./projectTree";
 import type { WslBridgeClient } from "./wsl/bridge/client";
+
+vi.mock("node:fs/promises", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:fs/promises")>();
+  return { ...actual, opendir: vi.fn<typeof actual.opendir>(actual.opendir) };
+});
 
 describe("ProjectTreeService", () => {
   let tempDir: string;
@@ -49,6 +55,69 @@ describe("ProjectTreeService", () => {
       { path: "src", name: "src", type: "directory", hasChildren: true },
       { path: "README.md", name: "README.md", type: "file" },
     ]);
+  });
+
+  it("treats a directory containing only .git as childless and sorts numerically", async () => {
+    mkdirSync(join(tempDir, "git-only", ".git"), { recursive: true });
+    mkdirSync(join(tempDir, "git-plus", ".git"), { recursive: true });
+    writeFileSync(join(tempDir, "git-plus", "file.txt"), "", "utf8");
+    for (const name of ["a10.txt", "a2.txt", "a1.txt"]) {
+      writeFileSync(join(tempDir, name), "", "utf8");
+    }
+
+    const result = await service.listProjectTree({
+      projectLocation: location,
+      directoryPath: "",
+    });
+
+    expect(result.entries).toEqual([
+      { path: "git-only", name: "git-only", type: "directory", hasChildren: false },
+      { path: "git-plus", name: "git-plus", type: "directory", hasChildren: true },
+      { path: "a1.txt", name: "a1.txt", type: "file" },
+      { path: "a2.txt", name: "a2.txt", type: "file" },
+      { path: "a10.txt", name: "a10.txt", type: "file" },
+    ]);
+  });
+
+  it("bounds open child directories across concurrent client listings", async () => {
+    for (let index = 0; index < 96; index += 1) mkdirSync(join(tempDir, `dir-${index}`));
+    const actual = await vi.importActual<typeof import("node:fs/promises")>("node:fs/promises");
+    let active = 0;
+    let peak = 0;
+    vi.mocked(opendir).mockImplementation(async (...args) => {
+      const dir = await actual.opendir(...args);
+      peak = Math.max(peak, ++active);
+      const close = dir.close.bind(dir);
+      Object.defineProperty(dir, "close", {
+        value: async () => {
+          try {
+            await close();
+          } finally {
+            active -= 1;
+          }
+        },
+      });
+      return dir;
+    });
+    try {
+      const results = await Promise.all(
+        Array.from({ length: 3 }, () =>
+          service.listProjectTree({ projectLocation: location, directoryPath: "" }),
+        ),
+      );
+      expect(
+        results.every(
+          (result) =>
+            result.entries.length === 96 &&
+            result.entries.every((entry) => entry.type === "directory" && !entry.hasChildren),
+        ),
+      ).toBe(true);
+      expect(peak).toBeGreaterThan(0);
+      expect(peak).toBeLessThanOrEqual(32);
+      expect(active).toBe(0);
+    } finally {
+      vi.mocked(opendir).mockImplementation(actual.opendir);
+    }
   });
 
   it("reads utf-8 text files and preserves CRLF on write", async () => {

@@ -4,8 +4,14 @@ import type { SubagentRunManager } from "./SubagentRunManager";
 import { parseSpawnRequest } from "./toolRequests";
 import { jsonResult, parseWaitTimeoutMs } from "./toolResult";
 import { resolveSelectionArgs } from "./toolSpawn";
+import { resolveCrewRoleSpawn } from "./crewRoles";
 import type { SubagentToolContext } from "./toolRegistry";
-import type { ExplicitSpawnAgentSelection, McpToolResult, SpawnableAgent } from "./types";
+import type {
+  ExplicitSpawnAgentSelection,
+  McpToolResult,
+  SpawnAgentRequest,
+  SpawnableAgent,
+} from "./types";
 
 const managers = new WeakMap<SubagentRunManager, SubagentWorkflowManager>();
 
@@ -18,6 +24,7 @@ function managerFor(runs: SubagentRunManager): SubagentWorkflowManager {
       waitForSettlement: (parent, runId) => runs.waitForSettlement(parent, runId),
       getStatus: (parent, runId) => runs.getStatus(runId, parent),
       getCapacity: (parent) => runs.getCapacity(parent).available_slots,
+      roleRunningCount: (parent, roleId) => runs.roleRunningCount(parent, roleId),
       subscribe: (parent, listener) => runs.subscribe(parent, listener),
       cancel: (parent, runId) => runs.cancel(runId, parent),
     });
@@ -67,10 +74,17 @@ export async function dispatchWorkflow(
     throw new Error("A workflow requires 1–16 tasks");
   }
   const defaults = Object.fromEntries(
-    ["provider", "model", "reasoning", "fast", "permissions"].flatMap((key) =>
-      args[key] !== undefined ? [[key, args[key]]] : [],
-    ),
+    [
+      "provider",
+      "model",
+      "reasoning",
+      "fast",
+      "permissions",
+      "role",
+      ...(args.role !== undefined ? ["fallbacks"] : []),
+    ].flatMap((key) => (args[key] !== undefined ? [[key, args[key]]] : [])),
   );
+  const crew = ctx.getCrew?.();
   const roster = new Map<string, Promise<SpawnableAgent[]>>();
   const selections: ExplicitSpawnAgentSelection[] = [];
   const tasks: WorkflowTask[] = await Promise.all(
@@ -90,18 +104,34 @@ export async function dispatchWorkflow(
         pending = ctx.listSpawnableAgents(tags);
         roster.set(key, pending);
       }
-      const resolved = resolveSelectionArgs(selection, await pending);
-      const request = parseSpawnRequest(
-        {
-          ...resolved.args,
-          result_mode: task.result_mode === undefined ? "compact" : task.result_mode,
-        },
-        undefined,
-        undefined,
-        resolved.provenance,
-      );
-      if (Object.values(resolved.explicitFields).some(Boolean)) {
-        selections.push({ selection: request, tags, explicitFields: resolved.explicitFields });
+      const agents = await pending;
+      const roleSpawn = resolveCrewRoleSpawn(selection, crew, agents);
+      let request: SpawnAgentRequest;
+      if (roleSpawn) {
+        request = parseSpawnRequest(
+          {
+            ...roleSpawn.args,
+            result_mode: task.result_mode === undefined ? "compact" : task.result_mode,
+          },
+          undefined,
+          undefined,
+          undefined,
+          roleSpawn.crewRole,
+        );
+      } else {
+        const resolved = resolveSelectionArgs(selection, agents);
+        request = parseSpawnRequest(
+          {
+            ...resolved.args,
+            result_mode: task.result_mode === undefined ? "compact" : task.result_mode,
+          },
+          undefined,
+          undefined,
+          resolved.provenance,
+        );
+        if (Object.values(resolved.explicitFields).some(Boolean)) {
+          selections.push({ selection: request, tags, explicitFields: resolved.explicitFields });
+        }
       }
       return { id: task.id, dependsOn, writeScope, request };
     }),

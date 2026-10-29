@@ -1,4 +1,6 @@
 import type { McpThreadIdentity } from "@/shared/browserMcpThread";
+import type { AgentVisionService } from "@/host/AgentVisionService";
+import { captureScreenshotPng } from "../cdp/tools";
 import {
   StreamableHttpMcpIngress,
   type StreamableHttpMcpIngressInfo,
@@ -21,6 +23,7 @@ export type ChromeMcpIngressInfo = StreamableHttpMcpIngressInfo;
  * the shared ingress; this wrapper owns only Chrome-specific context and tools.
  */
 export class ChromeMcpIngress {
+  private vision: AgentVisionService | undefined;
   private allowEval = false;
   private allowDataAccess = false;
   private readonly activeSessions = new Set<string>();
@@ -36,12 +39,71 @@ export class ChromeMcpIngress {
     normalizeToolName: normalizeChromeToolName,
     isKnownToolName: (name) => CHROME_TOOLS.some((tool) => tool.name === name),
     buildContext: (identity) => this.buildContext(identity),
-    dispatchTool: dispatchChromeTool,
+    dispatchTool: (name, args, ctx) => this.dispatchWithVision(name, args, ctx),
     formatToolResult: (_name, result) => formatChromeToolResult(result),
   });
 
   setConnectionAccessor(getter: () => ExternalChromeConnection | null): void {
     this.getConnection = getter;
+  }
+
+  setAgentVision(vision: AgentVisionService): void {
+    this.vision = vision;
+  }
+
+  private async dispatchWithVision(
+    name: string,
+    args: Record<string, unknown>,
+    ctx: ChromeToolContext,
+  ): Promise<unknown> {
+    if (!this.vision || !ctx.threadId || ["api", "status", "list_tabs"].includes(name))
+      return dispatchChromeTool(name, args, ctx);
+    if (name === "disable") {
+      this.vision?.stop(ctx.threadId);
+      return dispatchChromeTool(name, args, ctx);
+    }
+    const originalTarget = ctx.connection?.status();
+    const connection = ctx.connection;
+    let tabId = originalTarget?.attachedTabId;
+    const capture = async () => {
+      if (!connection || tabId == null || connection.status().attachedTabId !== tabId) return null;
+      const bytes = await captureScreenshotPng(connection.cdpSession(tabId), {
+        format: "jpeg",
+        quality: 60,
+      });
+      return { image: `data:image/jpeg;base64,${bytes.toString("base64")}` };
+    };
+    const activity = this.vision.begin(ctx.threadId, "chrome", name, {
+      ...(!["open", "attach"].includes(name)
+        ? {
+            capture,
+            ...(originalTarget?.attachedUrl ? { target: originalTarget.attachedUrl } : {}),
+          }
+        : {}),
+    });
+    try {
+      const result = await dispatchChromeTool(name, args, ctx);
+      const returned =
+        result && typeof result === "object"
+          ? (result as {
+              opened?: { tabId: number; url: string };
+              attached?: { tabId: number; url: string };
+              url?: string;
+            })
+          : undefined;
+      const returnedTab = returned?.opened ?? returned?.attached;
+      tabId = returnedTab?.tabId ?? tabId;
+      const target = returnedTab?.url ?? returned?.url ?? originalTarget?.attachedUrl;
+      activity?.finish({
+        failed: Boolean(result && typeof result === "object" && "error" in result),
+        ...(target ? { target } : {}),
+        capture,
+      });
+      return result;
+    } catch (error) {
+      activity?.finish({ failed: true });
+      throw error;
+    }
   }
 
   setAllowEval(allow: boolean): void {

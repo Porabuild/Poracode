@@ -12,6 +12,13 @@ export const productionRoots = [
 
 export const functionalAreas = [
   {
+    id: "agent-vision",
+    title: "Thread Info preview of browser and computer activity",
+    patterns: [/agentVision/i],
+    automated: ["baseline"],
+    manual: ["changed-surface"],
+  },
+  {
     id: "thread-forks",
     title: "Completed-turn conversation forks and source navigation",
     patterns: [/threadFork/i, /ThreadFork/],

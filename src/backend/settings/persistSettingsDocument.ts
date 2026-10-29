@@ -9,6 +9,8 @@ export interface SettingsPersistenceOptions {
   /** Runs synchronously immediately after rename: publication now reflects a committed file. */
   committed(): void;
   reportError?(error: unknown): void;
+  platform?: NodeJS.Platform;
+  syncDirectory?(path: string): Promise<void>;
 }
 
 /** File sync precedes rename. Directory sync is a post-commit durability step, not rollback. */
@@ -47,22 +49,27 @@ export async function persistSettingsDocument(
     }
     renamed = true;
     options.committed();
-    try {
-      const directory = await open(dirname(path), "r");
+    if ((options.platform ?? process.platform) !== "win32") {
       try {
-        await directory.sync();
-      } finally {
-        await directory.close();
+        await (options.syncDirectory ?? syncDirectory)(dirname(path));
+      } catch (error) {
+        // The file is already committed; returning failure here would invite an incorrect second mutation.
+        reportSettingsError(error, options.reportError);
       }
-    } catch (error) {
-      // Some platforms/filesystems cannot fsync directories. The file is already
-      // committed; returning failure here would invite an incorrect second mutation.
-      reportSettingsError(error, options.reportError);
     }
   } finally {
     if (!renamed)
       await rm(temporary, { force: true }).catch((error: unknown) =>
         reportSettingsError(error, options.reportError),
       );
+  }
+}
+
+async function syncDirectory(path: string) {
+  const directory = await open(path, "r");
+  try {
+    await directory.sync();
+  } finally {
+    await directory.close();
   }
 }

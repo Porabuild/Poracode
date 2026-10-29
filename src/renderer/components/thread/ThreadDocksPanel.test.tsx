@@ -1,12 +1,15 @@
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 import { AppProvider } from "@/renderer/components/ui/provider";
+import type { Thread } from "@/shared/contracts";
+import type { SavedCrew, ThreadCrewBinding } from "@/shared/crew";
 import { useAppStore } from "@/renderer/state/appStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useProviderUsageStore } from "@/renderer/state/providerUsageStore";
 import { useThreadGoalDockStore } from "@/renderer/state/threadGoalDockStore";
 import { useThreadBackgroundTasksDockStore } from "@/renderer/state/threadBackgroundTasksDockStore";
+import { useThreadComposerControlStore } from "@/renderer/state/threadComposerControlStore";
 import { ThreadDocksPanel } from "./ThreadDocksPanel";
 import { ThreadDockBubbles } from "./ThreadDockBubbles";
 import { selectThreadHasDockContent, useThreadDocksSummary } from "./useThreadDocksSummary";
@@ -45,6 +48,67 @@ describe("ThreadDocksPanel", () => {
     expect(screen.getByText(taskLabel)).toBeInTheDocument();
     expect(usePanelStore.getState().threadDocksPanelOpen).toBe(true);
     expect(bubble).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("keeps the Agents dock visible for a crew with no runs and requests the roster", () => {
+    const role = {
+      id: "builder",
+      label: "Builder",
+      selection: { agentKind: "codex", model: "gpt-5.5" },
+    };
+    const binding: ThreadCrewBinding = {
+      version: 1,
+      crewId: "crew-1",
+      name: "Night shift",
+      policy: "crew-only",
+      roles: [role],
+    };
+    const saved: SavedCrew = {
+      id: "crew-1",
+      name: "Night shift",
+      lead: { agentKind: "codex", model: "gpt-5.5" },
+      roles: [role],
+      policy: "crew-only",
+      updatedAt: 1,
+    };
+    const thread = {
+      id: "thread-crew",
+      projectId: "project-1",
+      agentKind: "codex",
+      title: "Crew",
+      config: { model: "gpt-5.5", crew: binding },
+      status: "idle",
+      attention: "none",
+      canResumeWithConfig: true,
+      archived: false,
+      done: false,
+      starred: false,
+      presentationMode: "gui",
+      createdAt: "2026-10-01T00:00:00.000Z",
+      updatedAt: "2026-10-01T00:00:00.000Z",
+    } as unknown as Thread;
+    useAppStore.setState({
+      threads: [thread],
+      runtimeItemIdsByThread: {},
+      runtimeItemsByIdByThread: {},
+    });
+    useSharedSettings.setState({ crews: [saved], threadDocksOrder: ["agents"] });
+    useThreadComposerControlStore.setState({ requestsByThreadId: {}, nextNonce: 0 });
+    usePanelStore.getState().openThreadDocksPanel("agents");
+
+    render(
+      <AppProvider>
+        <ThreadDocksPanel threadId={thread.id} />
+      </AppProvider>,
+    );
+
+    expect(screen.getByText("Night shift")).toBeInTheDocument();
+    expect(screen.getByText("Lead")).toBeInTheDocument();
+    expect(screen.getByText("Builder")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Edit crew" }));
+    expect(useThreadComposerControlStore.getState().requestsByThreadId[thread.id]).toMatchObject({
+      target: "crew",
+    });
   });
   beforeEach(() => {
     useProviderUsageStore.setState({ snapshots: {} });

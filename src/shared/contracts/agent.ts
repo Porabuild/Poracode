@@ -890,6 +890,23 @@ export const resolveAgentAccountResultSchema = z.object({
 });
 export type ResolveAgentAccountResult = z.infer<typeof resolveAgentAccountResultSchema>;
 
+export const getAgentConfigDefaultsPayloadSchema = z.object({
+  agentKind: agentKindSchema,
+});
+export type GetAgentConfigDefaultsPayload = z.infer<typeof getAgentConfigDefaultsPayloadSchema>;
+
+export const getAgentConfigDefaultsResultSchema = z.object({
+  /**
+   * Read-only values the provider's own config file already sets on this
+   * machine, keyed by the agent-setting key each one backs plus any
+   * provider-defined hint keys. Only keys the adapter's `readConfigDefaults`
+   * hook reports appear; empty when the file is missing, unreadable, or the
+   * adapter has no hook.
+   */
+  defaults: z.record(z.string(), z.string()),
+});
+export type GetAgentConfigDefaultsResult = z.infer<typeof getAgentConfigDefaultsResultSchema>;
+
 export function areAgentSlashCommandsEqual(
   left: readonly AgentSlashCommand[] | undefined,
   right: readonly AgentSlashCommand[] | undefined,

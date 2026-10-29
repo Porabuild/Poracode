@@ -1,10 +1,76 @@
-import { act, fireEvent, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
+import { localImageThumbUrl } from "@/shared/localImageThumb";
+import { toLocalFileUrl } from "@/shared/promptContent";
 import { AttachmentBar } from "./AttachmentBar";
 import type { Attachment } from "./useAttachments";
 
+const downsampleLoadedImage = vi.hoisted(() =>
+  vi.fn<(img: HTMLImageElement) => Promise<string | null>>(),
+);
+
+vi.mock("@/renderer/components/thread/imageThumbDownsample", () => ({
+  downsampleLoadedImage,
+}));
+
+afterEach(() => {
+  downsampleLoadedImage.mockReset();
+});
+
 describe("AttachmentBar", () => {
+  it("loads an own-host image as a host-resized thumbnail without page downsampling", () => {
+    render(
+      <AttachmentBar
+        attachments={[{ id: "image", path: "/tmp/shot.png", name: "shot.png", isImage: true }]}
+        imagesAsPreview
+      />,
+    );
+    const img = screen.getByAltText("shot.png");
+    expect(img).toHaveAttribute("src", localImageThumbUrl(toLocalFileUrl("/tmp/shot.png"), 32));
+    fireEvent.load(img);
+    expect(downsampleLoadedImage).not.toHaveBeenCalled();
+  });
+
+  it("paints a downsampled thumbnail on the same image node once the source loads", async () => {
+    let url = "blob:full-1";
+    let notify = () => {};
+    const readiness = {
+      resolvePath: () => url,
+      subscribePath: (_path: string, listener: () => void) => {
+        notify = listener;
+        return () => {};
+      },
+      requestPath: vi.fn<(path: string) => void>(),
+      resolveRef: () => "",
+      subscribeRef: () => () => {},
+      requestRef: () => {},
+    };
+    downsampleLoadedImage.mockResolvedValueOnce("blob:thumb-1");
+    render(
+      <AttachmentBar
+        attachments={[{ id: "image", path: "/tmp/shot.png", name: "shot.png", isImage: true }]}
+        imagesAsPreview
+        remoteImageReadiness={readiness}
+      />,
+    );
+    const img = screen.getByAltText("shot.png");
+    expect(img).toHaveAttribute("src", "blob:full-1");
+
+    fireEvent.load(img);
+    await waitFor(() => expect(img).toHaveAttribute("src", "blob:thumb-1"));
+    // The thumbnail's own load must not downsample again.
+    fireEvent.load(img);
+    expect(downsampleLoadedImage).toHaveBeenCalledOnce();
+
+    act(() => {
+      url = "blob:full-2";
+      notify();
+    });
+    expect(screen.getByAltText("shot.png")).toBe(img);
+    expect(img).toHaveAttribute("src", "blob:full-2");
+  });
+
   it("keeps a pending host thumbnail out of the broken-image state and updates on readiness", () => {
     let url = "";
     let notify = () => {};
@@ -26,14 +92,32 @@ describe("AttachmentBar", () => {
         remoteImageReadiness={readiness}
       />,
     );
-    expect(container.querySelector("img")).toBeNull();
+    const pending = container.querySelector("img");
+    expect(pending).not.toBeNull();
+    expect(pending).toHaveAttribute("aria-hidden", "true");
+    expect(pending?.getAttribute("src")).toBeNull();
     expect(screen.getByRole("img", { name: "image.png" })).toBeInTheDocument();
     act(() => {
       url = "blob:ready";
       notify();
     });
-    expect(screen.getByAltText("image.png")).toHaveAttribute("src", "blob:ready");
+    const ready = screen.getByAltText("image.png");
+    expect(ready).toBe(pending);
+    expect(ready).toHaveAttribute("src", "blob:ready");
   });
+
+  it.each([true, false])(
+    "decodes image thumbnails synchronously so repaints do not swap raster quality (preview: %s)",
+    (imagesAsPreview) => {
+      render(
+        <AttachmentBar
+          attachments={[{ id: "image", path: "/tmp/shot.png", name: "shot.png", isImage: true }]}
+          imagesAsPreview={imagesAsPreview}
+        />,
+      );
+      expect(screen.getByAltText("shot.png")).toHaveAttribute("decoding", "sync");
+    },
+  );
 
   it("renders image attachments as labeled inset chips by default", () => {
     const onPreviewImage = vi.fn<(attachment: Attachment) => void>();

@@ -12,7 +12,7 @@ class ProjectGithubResourceTest {
     fun allTwelveLocalesHaveExactNonEmptyKeyAndPlaceholderParity() {
         val root = androidRoot().resolve("app/src/main/res")
         val source = values(root.resolve("values/github_operations.xml"))
-        assertEquals(69, source.size)
+        assertEquals(72, source.size)
         locales.forEach { locale ->
             val file = root.resolve("values-$locale/github_operations.xml")
             assertTrue("Missing $locale", file.isFile)

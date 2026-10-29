@@ -1,6 +1,7 @@
 import type { RuntimeEvent } from "@/shared/contracts";
 import type { RuntimeEventSlice } from "./runtimeEventSlice";
 import { forgetThreadGalleryCache } from "../threadGalleryCache";
+import { forgetThreadPromptIndex } from "../threadPromptIndexCache";
 
 type TranscriptState = Pick<
   RuntimeEventSlice,
@@ -12,6 +13,7 @@ export function applyRuntimeTruncation(
   threadId: string,
   event: Extract<RuntimeEvent, { type: "runtime.truncated" }>,
 ): Partial<TranscriptState> {
+  forgetThreadPromptIndex(threadId);
   const patch: Partial<TranscriptState> = {};
   const removedAnchors = new Set(event.removedCompletedTurnAnchors);
   const turns = state.runtimeCompletedTurnsByThread[threadId];

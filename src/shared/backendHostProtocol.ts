@@ -127,6 +127,7 @@ export const BACKEND_DATABASE_PROCEDURE_NAMES = [
   "dbReplaceThreadCompletedTurns",
   "dbReplaceThreadRuntimeSnapshot",
   "dbGetThreadContextUsage",
+  "dbGetThreadTokenUsage",
   "dbGetProjectNotes",
   "dbSetProjectNotes",
   "getScheduleRuns",
@@ -346,6 +347,10 @@ export type BackendServiceCall = {
 }[BackendServiceProcedureName];
 
 export type BackendNativeRequest =
+  | {
+      operation: "agent-vision";
+      payload: { threadId: string; preview: boolean; streaming?: boolean };
+    }
   | { operation: "dispatch-thread-command"; payload: RemoteThreadCommand }
   | { operation: "open-thread"; payload: { threadId: string } }
   | { operation: "notify-user"; payload: { title: string; body: string; threadId: string } }
@@ -652,6 +657,7 @@ export function isBackendHostOutboundMessage(
           "check-for-update",
           "install-update",
           "browser-state",
+          "agent-vision",
           "browser-command",
           "browser-input",
           "browser-watch-start",

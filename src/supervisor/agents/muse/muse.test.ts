@@ -1,8 +1,13 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import * as fsPromises from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ProjectLocation, ResolvedMcpServer, ThreadConfig } from "@/shared/contracts";
+
+vi.mock("node:fs/promises", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("node:fs/promises")>()),
+}));
 
 const detectAgentInstallMock = vi.hoisted(() => vi.fn<(...args: unknown[]) => Promise<unknown>>());
 const readAgentCommandOutputMock = vi.hoisted(() =>
@@ -36,6 +41,7 @@ import {
   snapshotMusePreSpawnSessions,
 } from "./sessionFiles";
 import { detectMuseTerminalStatus, isMuseReadyForInitialPrompt } from "./terminal";
+import { buildMuseTerminalMcpForLocation } from "./mcpSupport";
 
 const location = { kind: "posix", path: "/tmp/demo" } as ProjectLocation;
 const config = { mode: "agent", model: "muse-spark-1.3" } as ThreadConfig;
@@ -312,6 +318,15 @@ describe("createMuseAdapter launch / resume argv", () => {
     expect(adapter.buildDirectInput?.("hello")).toEqual(["hello", "@wait:200", "\x1b[13;1u"]);
   });
 
+  it("submits Windows console input with carriage return instead of Kitty Enter", () => {
+    expect(
+      adapter.buildDirectInput?.("hello", undefined, undefined, {
+        kind: "windows",
+        path: "C:\\repo",
+      }),
+    ).toEqual(["hello", "@wait:200", "\r"]);
+  });
+
   it("defers initial prompts to the TUI so resumed sessions receive them", () => {
     expect(adapter.shouldDeferPromptToTerminal?.(config)).toBe(true);
   });
@@ -336,6 +351,75 @@ describe("createMuseAdapter launch / resume argv", () => {
     });
     expect(adapter.buildOneShotCommand?.("", undefined, undefined)).toBeUndefined();
   });
+});
+
+describe("Muse Windows launcher", () => {
+  it.each([true, false])("uses the installed executable with MCP enabled: %s", async (withMcp) => {
+    const root = mkdtempSync(join(tmpdir(), "muse-launcher-"));
+    const shim = join(root, "muse.cmd");
+    const executable = join(root, "muse-bin-1.4.12-R6909.1.exe");
+    writeFileSync(shim, "@echo off");
+    writeFileSync(executable, "");
+    writeFileSync(join(root, ".muse-version"), "1.4.12-R6909.1\n");
+    resolveAgentBinaryPathMock.mockReturnValue(shim);
+    readAgentCommandOutputMock.mockClear();
+    readAgentCommandOutputMock.mockResolvedValue({
+      ok: true,
+      stdout: "--config <KEY=VALUE>",
+      stderr: "",
+    });
+    const mcpServers: ResolvedMcpServer[] = withMcp
+      ? [
+          {
+            id: "tools",
+            name: "tools",
+            timeoutMs: 30_000,
+            transport: { type: "http", url: "https://example.test/mcp", headers: {} },
+          },
+        ]
+      : [];
+    try {
+      const target: ProjectLocation = { kind: "windows", path: root };
+      const adapter = createMuseAdapter();
+      const launched = await adapter.buildLaunchArgv(target, config, "hi", undefined, {
+        mcpServers,
+      });
+      const resumed = await adapter.buildResumeArgv(
+        target,
+        config,
+        "",
+        createKnownSessionRef("session"),
+        { mcpServers },
+      );
+      expect(launched.binary).toBe(executable);
+      expect(resumed.binary).toBe(executable);
+      expect(launched.args.includes("-c")).toBe(withMcp);
+      expect(readAgentCommandOutputMock.mock.calls.map((call) => call[1])).toEqual(
+        withMcp ? [executable, executable] : [],
+      );
+    } finally {
+      resolveAgentBinaryPathMock.mockReset();
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it.each([undefined, "../../outside", "future-version", "1.0.2-R1.1"])(
+    "keeps the shim for an older or incomplete installation (%s)",
+    async (version) => {
+      const root = mkdtempSync(join(tmpdir(), "muse-launcher-"));
+      const shim = join(root, "muse.cmd");
+      writeFileSync(shim, "@echo off");
+      if (version !== undefined) writeFileSync(join(root, ".muse-version"), version);
+      resolveAgentBinaryPathMock.mockReturnValue(shim);
+      try {
+        const launch = await buildMuseTerminalMcpForLocation({ kind: "windows", path: root }, []);
+        expect(launch.binary).toBe(shim);
+      } finally {
+        resolveAgentBinaryPathMock.mockReset();
+        rmSync(root, { recursive: true, force: true });
+      }
+    },
+  );
 });
 
 describe("detectMuseTerminalStatus", () => {
@@ -470,7 +554,7 @@ describe("muse session discovery (native)", () => {
 
   it("discovers the session dir created after the pre-spawn snapshot", async () => {
     makeSession(["2026", "08", "05"], "11111111-1111-1111-1111-111111111111");
-    snapshotMusePreSpawnSessions(loc);
+    await snapshotMusePreSpawnSessions(loc);
     makeSession(["2026", "08", "05"], "22222222-2222-2222-2222-222222222222");
 
     const ref = await discoverMuseSessionRef(loc);
@@ -479,12 +563,40 @@ describe("muse session discovery (native)", () => {
 
   it("returns undefined when no new sessions exist", async () => {
     makeSession(["2026", "08", "05"], "11111111-1111-1111-1111-111111111111");
-    snapshotMusePreSpawnSessions(loc);
+    await snapshotMusePreSpawnSessions(loc);
     expect(await discoverMuseSessionRef(loc)).toBeUndefined();
   });
 
+  it("retains the completed snapshot while another launch scans", async () => {
+    makeSession(["2026", "08", "05"], "11111111-1111-1111-1111-111111111111");
+    await snapshotMusePreSpawnSessions(loc);
+    const read = fsPromises.readdir;
+    let entered!: () => void;
+    let release!: () => void;
+    const started = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    const blocked = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const spy = vi.spyOn(fsPromises, "readdir").mockImplementationOnce(async (...args) => {
+      entered();
+      await blocked;
+      return read(...args);
+    });
+    const pending = snapshotMusePreSpawnSessions(loc);
+    await started;
+    try {
+      expect(await discoverMuseSessionRef(loc)).toBeUndefined();
+    } finally {
+      release();
+      await pending;
+      spy.mockRestore();
+    }
+  });
+
   it("does not bind a concurrent session created for another project", async () => {
-    snapshotMusePreSpawnSessions(loc);
+    await snapshotMusePreSpawnSessions(loc);
     makeSession(
       ["2026", "08", "05"],
       "33333333-3333-3333-3333-333333333333",
@@ -504,7 +616,7 @@ describe("muse session discovery (native)", () => {
     // (`approval-review/`, `cron.db`, `*.sqlite3`) inside the top-level uuid
     // dir. Discovery must bind the top id only — the walk never descends past
     // the YYYY/MM/DD/<uuid> level.
-    snapshotMusePreSpawnSessions(loc);
+    await snapshotMusePreSpawnSessions(loc);
     const top = "55555555-5555-5555-5555-555555555555";
     makeSession(["2026", "09", "02"], top);
     const topDir = join(dataHome, "sessions", "2026", "09", "02", top);

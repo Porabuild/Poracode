@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AgentKind, PromptSegment, SessionRef } from "@/shared/contracts";
+import { crewFingerprint } from "@/shared/crew";
 import { decodeThreadIdentity } from "@/shared/browserMcpThread";
 import * as browserMcp from "../agents/browserMcp";
 import type { SupervisorEvent } from "@/shared/ipc";
@@ -103,7 +104,14 @@ type StartTurnCall = {
   prompt: string;
   config: unknown;
   segments: PromptSegment[] | undefined;
-  options: { userMessageItemId?: string; inlineInstructions?: string } | undefined;
+  options:
+    | {
+        userMessageItemId?: string;
+        inlineInstructions?: string;
+        turnContext?: string;
+        onPromptSubmitted?: () => void;
+      }
+    | undefined;
 };
 
 function createStructuredSession() {
@@ -453,6 +461,63 @@ describe("native plugin metadata demand", () => {
   );
 });
 
+describe("forwarded child request resolution", () => {
+  it("awaits child resolution, propagates rejection, and falls through only for unhandled requests", async () => {
+    const parentResolve = vi.fn<NonNullable<StructuredSessionHandle["resolveServerRequest"]>>(
+      async () => undefined,
+    );
+    const { adapter } = createAdapter({
+      ...createStructuredSession(),
+      resolveServerRequest: parentResolve,
+    });
+    const resolveChildRequest =
+      vi.fn<NonNullable<ThreadSessionManagerOptions["crossagentMcp"]>["resolveChildRequest"]>();
+    const manager = createManager(adapter, () => {}, {
+      crossagentMcp: {
+        register: () => undefined,
+        registerProviderSession: () => undefined,
+        unregister: () => {},
+        cancelForeground: () => {},
+        cancelAll: () => {},
+        resolveChildRequest,
+      },
+    });
+    await manager.startThread({
+      threadId: THREAD_ID,
+      projectLocation: PROJECT_LOCATION,
+      agentKind: AGENT_KIND,
+      config: { model: "fixture-model" },
+      prompt: "",
+      initialSize: INITIAL_SIZE,
+      presentationMode: "gui",
+    });
+    const request = {
+      threadId: THREAD_ID,
+      requestId: "child::permission",
+      method: "requestPermission",
+      response: { optionId: "always" },
+    };
+    const child = deferred<boolean>();
+    resolveChildRequest.mockReturnValueOnce(child.promise);
+    const settled = vi.fn<() => void>();
+    const pending = manager.resolveThreadServerRequest(request);
+    void pending.then(settled, settled);
+    await Promise.resolve();
+    expect(settled).not.toHaveBeenCalled();
+    expect(parentResolve).not.toHaveBeenCalled();
+    child.reject(new Error("Unavailable persistent approval"));
+    await expect(pending).rejects.toThrow("Unavailable persistent approval");
+    expect(parentResolve).not.toHaveBeenCalled();
+
+    resolveChildRequest.mockResolvedValueOnce(true);
+    await manager.resolveThreadServerRequest(request);
+    expect(parentResolve).not.toHaveBeenCalled();
+    resolveChildRequest.mockResolvedValueOnce(false);
+    await manager.resolveThreadServerRequest(request);
+    expect(parentResolve).toHaveBeenCalledWith(request.requestId, request.response);
+  });
+});
+
 describe("live built-in MCP resolution", () => {
   it.each([true, false])(
     "does not mutate a replacement's Crossagents credentials after old browser preparation (%s)",
@@ -482,7 +547,7 @@ describe("live built-in MCP resolution", () => {
           cancelAll: vi.fn<(threadId: string) => void>(),
           resolveChildRequest: vi
             .fn<NonNullable<ThreadSessionManagerOptions["crossagentMcp"]>["resolveChildRequest"]>()
-            .mockReturnValue(false),
+            .mockResolvedValue(false),
         },
       });
       const launch = {
@@ -598,6 +663,68 @@ describe("live built-in MCP resolution", () => {
 });
 
 describe("GUI resume initial prompt admission", () => {
+  it("forces Crossagents for an initial crew turn and records brief delivery on the session", async () => {
+    const structured = createStructuredSession();
+    const { adapter, createStructuredSession: factory } = createAdapter(structured);
+    adapter.capabilities.mcpScope = { gui: "always" };
+    const crew = {
+      version: 1 as const,
+      name: "Ship crew",
+      policy: "crew-only" as const,
+      roles: [
+        {
+          id: "builder",
+          label: "Builder",
+          selection: { agentKind: "codex", model: "gpt-5.5" },
+        },
+      ],
+    };
+    const crossagentConfig = {
+      url: "http://127.0.0.1:43210/mcp",
+      token: "fixture-token",
+      headers: { Authorization: "Bearer fixture-token" },
+    };
+    type CrossagentHooks = NonNullable<ThreadSessionManagerOptions["crossagentMcp"]>;
+    const register = vi.fn<CrossagentHooks["register"]>(() => crossagentConfig);
+    const manager = createManager(adapter, () => {}, {
+      crossagentMcp: {
+        register,
+        registerProviderSession: register,
+        unregister: vi.fn<CrossagentHooks["unregister"]>(),
+        cancelForeground: vi.fn<CrossagentHooks["cancelForeground"]>(),
+        cancelAll: vi.fn<CrossagentHooks["cancelAll"]>(),
+        resolveChildRequest: vi.fn<CrossagentHooks["resolveChildRequest"]>(async () => false),
+      },
+    });
+    await manager.startThread({
+      threadId: THREAD_ID,
+      projectLocation: PROJECT_LOCATION,
+      agentKind: AGENT_KIND,
+      config: { model: "fixture-model", crossagentMcp: false, crew },
+      prompt: "Delegate the implementation",
+      initialSize: INITIAL_SIZE,
+      presentationMode: "gui",
+    });
+
+    const session = manager.sessions.get(THREAD_ID)!;
+    expect(register).toHaveBeenCalledWith(THREAD_ID, []);
+    expect(session.launchConfig?.crossagentMcp).toBe(true);
+    expect(manager.getThreadConfig(THREAD_ID)?.crew).toEqual(crew);
+    expect(manager.getThreadConfig("missing")).toBeUndefined();
+    expect(structured.startTurnCalls[0]?.options?.inlineInstructions).toContain(
+      '[crew] The user gave this thread a Poracode crew named "Ship crew"',
+    );
+    expect(session.crewBriefDelivered).toBeUndefined();
+    const resolveForTurn = factory.mock.calls[0]![0].resolveMcpServersForTurn!;
+    const perTurnServers = await resolveForTurn(
+      { model: "fixture-model", crossagentMcp: false, crew },
+      () => true,
+    );
+    expect(perTurnServers.some((server) => server.id === "crossagents")).toBe(true);
+    structured.startTurnCalls[0]?.options?.onPromptSubmitted?.();
+    expect(session.crewBriefDelivered).toBe(crewFingerprint(crew));
+  });
+
   it("admits an explicit resume prompt exactly once against the exact owned reference", async () => {
     const structured = createStructuredSession();
     const { adapter, createStructuredSession: structuredFactory } = createAdapter(structured);

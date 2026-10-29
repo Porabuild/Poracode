@@ -1,4 +1,6 @@
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { randomBytes } from "node:crypto";
+import sharp from "sharp";
 import { fork } from "node:child_process";
 import { join, resolve as resolvePath } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -44,9 +46,15 @@ import { RemoteAccessServer, type RemoteAccessServerOptions } from "../remote/Re
 import {
   REMOTE_PROTOCOL_VERSION_HEADER,
   REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+  readRemoteImageRef,
 } from "@/shared/remote";
 import { stampCatalogShellPageBody } from "../remote/server/catalogShellBody";
 import { resetStableUpdatedAt } from "../remote/server/stableUpdatedAt";
+import {
+  readImagePreviewSnapshot,
+  resetImagePreviews,
+  setImagePreviewStoreDir,
+} from "../remote/server/imagePreview";
 
 let artifacts: string;
 let workerPath: string;
@@ -113,17 +121,104 @@ beforeEach(() => {
 afterEach(async () => {
   await closeAsyncDatabaseReads();
   await Promise.all(pools.splice(0).map((reader) => reader.close()));
+  resetImagePreviews();
+  await setImagePreviewStoreDir(null);
   closeDatabase();
   rmSync(directory, { recursive: true, force: true });
 });
 
-function pool(path = workerPath) {
-  const reads = new AsyncDatabaseReads(dbPath, path);
+function pool(path = workerPath, imagePreviews = false) {
+  const reads = new AsyncDatabaseReads(dbPath, path, imagePreviews);
   pools.push(reads);
   return reads;
 }
 
 describe("worker-backed SQLite reads", () => {
+  it("reads through an IPC process that never loads SQLite or image dependencies", async () => {
+    const guard = join(directory, "control-dependencies.cjs");
+    writeFileSync(
+      guard,
+      `
+      const {isMainThread}=require('node:worker_threads');
+      if(isMainThread){
+        const Module=require('node:module'),load=Module._load;
+        Module._load=function(name,...rest){
+          if(name==='better-sqlite3'||name==='sharp')throw Error('Heavy dependency in IPC loop: '+name);
+          return load.call(this,name,...rest);
+        };
+      }
+    `,
+    );
+    const previous = process.env.NODE_OPTIONS;
+    process.env.NODE_OPTIONS = `${previous ?? ""} --require=${JSON.stringify(guard)}`;
+    const reads = pool();
+    try {
+      expect(await reads.read("runtimeItems", ["thread-1"])).toEqual(
+        dbReadThreadRuntimeItems("thread-1"),
+      );
+    } finally {
+      await reads.close();
+      if (previous === undefined) delete process.env.NODE_OPTIONS;
+      else process.env.NODE_OPTIONS = previous;
+    }
+  });
+
+  it("generates and persists previews from bounded history and restores them into replacement workers", async () => {
+    const previewDir = join(directory, "image-previews-v1");
+    await setImagePreviewStoreDir(previewDir);
+    const png = await sharp(randomBytes(256 * 256 * 3), {
+      raw: { width: 256, height: 256, channels: 3 },
+    })
+      .png()
+      .toBuffer();
+    await dbReplaceThreadRuntimeItems("thread-1", [
+      {
+        id: "image-1",
+        type: "tool_call",
+        state: "completed",
+        streams: {},
+        payload: {
+          name: "Read",
+          status: "success",
+          images: [`data:image/png;base64,${png.toString("base64")}`],
+        },
+      },
+    ]);
+    const input = { threadId: "thread-1", limit: 50 };
+    const caps = resolveCatalogEffectiveCaps({});
+    const reads = pool(workerPath, true);
+    const first = await reads.read("boundedSnapshot", [
+      "thread-1",
+      {
+        compactDetails: false,
+        includeTerminalScrollback: false,
+        completedTurnsLimit: 10,
+        targetTimelineEntryCount: 50,
+        caps,
+      },
+    ]);
+    const payload = first.projectedDesc[0]!.payload as { images: unknown[] };
+    expect(readRemoteImageRef(payload.images[0])?.preview).toBeUndefined();
+    await vi.waitFor(() => expect(readImagePreviewSnapshot("thread-1")).toHaveLength(1));
+    await vi.waitFor(() =>
+      expect(readdirSync(previewDir).filter((name) => name.endsWith(".json"))).toHaveLength(1),
+    );
+    await reads.close();
+    resetImagePreviews();
+    await setImagePreviewStoreDir(previewDir);
+    const replacement = pool(workerPath, true);
+    const next = JSON.parse(
+      await replacement.read("boundedItems", [input, caps, undefined, false]),
+    );
+    expect(readRemoteImageRef(next.items[0].payload.images[0])?.preview).toMatch(
+      /^data:image\/jpeg;base64,/,
+    );
+    const headless = pool();
+    const without = JSON.parse(
+      await headless.read("boundedItems", [input, caps, undefined, false]),
+    );
+    expect(readRemoteImageRef(without.items[0].payload.images[0])?.preview).toBeUndefined();
+  });
   it("keeps shell response bytes stable after a read process is replaced", async () => {
     resetStableUpdatedAt();
     const negotiation = parseCatalogReadNegotiation(
@@ -422,10 +517,30 @@ describe("worker-backed SQLite reads", () => {
 
   it("refuses an old worker protocol without a synchronous fallback", async () => {
     const stalePath = join(directory, "old-worker.cjs");
-    writeFileSync(stalePath, "process.send({kind:'ready',version:1});");
+    writeFileSync(stalePath, "process.send({kind:'ready',version:2});");
     await expect(pool(stalePath).read("runtimeItems", ["thread-1"])).rejects.toThrow(
       "protocol is incompatible",
     );
+  });
+
+  it("refuses version 2 initialization before opening the database reader", async () => {
+    const child = fork(workerPath, [], {
+      execArgv: [],
+      serialization: "advanced",
+      stdio: ["ignore", "ignore", "ignore", "ipc"],
+      env: { ...process.env, ELECTRON_RUN_AS_NODE: "1" },
+    });
+    const messages: unknown[] = [];
+    child.on("message", (message: unknown) => messages.push(message));
+    const exited = new Promise<void>((resolve) => child.once("exit", () => resolve()));
+    try {
+      child.send({ kind: "initialize", version: 2, dbPath });
+      await exited;
+      expect(messages).toEqual([]);
+    } finally {
+      child.kill("SIGKILL");
+      await exited;
+    }
   });
 
   it("refuses malformed worker frames without throwing from the host message handler", async () => {

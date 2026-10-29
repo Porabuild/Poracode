@@ -21,6 +21,7 @@ class FakeWorker {
   readonly posted: ClientEngineRequest[] = [];
   readonly responded = new Set<number>();
   autoRespond = false;
+  generation = 0;
 
   constructor(_url: URL | string, _options?: WorkerOptions) {
     FakeWorker.instances.push(this);
@@ -28,6 +29,11 @@ class FakeWorker {
 
   postMessage(data: ClientEngineRequest): void {
     this.posted.push(data);
+    if (data.type === "reset") {
+      this.generation = data.generation;
+      return;
+    }
+    if (data.generation !== this.generation) return;
     if (!this.autoRespond) return;
     if (data.type !== "decode-remote") return;
     this.responded.add(data.id);
@@ -253,7 +259,9 @@ describe("client engine lanes (A3 admission and fairness)", () => {
 
     const second = FakeWorker.instances[1]!;
     second.autoRespond = true;
-    await expect(lane.decodeRemote(frame("after"))).resolves.toMatchObject({ ok: true });
+    const recovered = lane.decodeRemote(frame("after")).catch((error: unknown) => error);
+    await vi.advanceTimersByTimeAsync(2_000);
+    expect(await recovered).toMatchObject({ ok: true });
   });
 
   it("stops automatic re-probes after the bounded attempt budget", async () => {

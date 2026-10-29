@@ -20,6 +20,8 @@ import { ToolCallGroup } from "./ToolCallGroup";
 import { MessageReplyAnswer } from "./MessageReplyAnswer";
 import { WebSearchItem } from "./WebSearchItem";
 import { isDelegatedAgentTool } from "./toolDisplay";
+import { completedToolVideoSources } from "@/shared/chatVideo";
+import { MarkdownVideo } from "./MarkdownVideo";
 
 interface ChatItemRowProps {
   threadId: string;
@@ -107,7 +109,15 @@ const SingleChatItemRow = memo(function SingleChatItemRow({
       return <SubAgentToolCall threadId={threadId} item={item} />;
     }
   }
-  return renderItem(threadId, item, isTurnActive, checkpointRevert);
+  const videos = completedToolVideoSources(item);
+  return (
+    <>
+      {renderItem(threadId, item, isTurnActive, checkpointRevert)}
+      {videos.map((video) => (
+        <MarkdownVideo key={video.src} {...video} />
+      ))}
+    </>
+  );
 });
 
 function renderItem(

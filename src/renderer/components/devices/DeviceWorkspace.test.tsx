@@ -192,21 +192,23 @@ async function headerAction(name: string) {
   fireEvent.click(await screen.findByRole("menuitem", { name }));
 }
 
-async function attachControl() {
-  fireEvent.click(await screen.findByRole("button", { name: /Fixture Emulator/ }));
-  fireEvent.click(screen.getByRole("button", { name: "Control" }));
-  fireEvent.click(screen.getByRole("button", { name: "Attach" }));
+async function openDeviceWithControl() {
+  fireEvent.click(await screen.findByRole("button", { name: "Device actions" }));
+  fireEvent.click(await screen.findByRole("menuitem", { name: "Open with control" }));
   await waitFor(() =>
     expect(screen.getByRole("button", { name: "Home" })).toHaveProperty("disabled", false),
   );
 }
 
+async function attachControl() {
+  await openDeviceWithControl();
+}
+
 async function reattach() {
   fireEvent.click(screen.getByRole("button", { name: "Detach" }));
-  await waitFor(() =>
-    expect(screen.getByRole("button", { name: "Attach" })).toHaveProperty("disabled", false),
-  );
-  fireEvent.click(screen.getByRole("button", { name: "Attach" }));
+  await screen.findByRole("button", { name: "Device actions" });
+  fireEvent.click(screen.getByRole("button", { name: "Device actions" }));
+  fireEvent.click(await screen.findByRole("menuitem", { name: "Open with control" }));
   await waitFor(() =>
     expect(screen.getByRole("button", { name: "Home" })).toHaveProperty("disabled", false),
   );
@@ -586,7 +588,6 @@ describe("device workspace UI", () => {
       usePanelStore.getState().setDeviceWorkspaceThreadId("local-thread");
       render(<Workspace />);
       fireEvent.click(await screen.findByRole("button", { name: /Fixture Emulator/ }));
-      fireEvent.click(screen.getByRole("button", { name: "Attach" }));
       await screen.findByRole("button", { name: "Home" });
       const detach = screen.getByRole("button", { name: "Detach" });
       act(() => detach.focus());
@@ -610,15 +611,14 @@ describe("device workspace UI", () => {
     }
   });
 
-  it("shares the selected access mode without a separate agent-consent toggle", async () => {
+  it("opens view only on press and control from the row actions without an agent-consent toggle", async () => {
     setup();
     render(<Workspace />);
     fireEvent.click(await screen.findByRole("button", { name: /Fixture Emulator/ }));
     expect(
       screen.queryByRole("button", { name: /Agent access|Agent control|Agent viewing/ }),
     ).toBeNull();
-    expect(screen.getByText("iOS Simulator requires a macOS host with Xcode.")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Attach" }));
+    expect(screen.queryByText("iOS Simulator requires a macOS host with Xcode.")).toBeNull();
     await waitFor(() =>
       expect(mocks.attachDevice).toHaveBeenCalledWith(
         "host-thread",
@@ -627,9 +627,7 @@ describe("device workspace UI", () => {
     );
     expect(await screen.findByRole("button", { name: "Home" })).toHaveProperty("disabled", true);
     fireEvent.click(screen.getByRole("button", { name: "Detach" }));
-    await screen.findByRole("button", { name: "Control" });
-    fireEvent.click(screen.getByRole("button", { name: "Control" }));
-    fireEvent.click(screen.getByRole("button", { name: "Attach" }));
+    await openDeviceWithControl();
     await waitFor(() =>
       expect(mocks.attachDevice).toHaveBeenLastCalledWith(
         "host-thread",
@@ -668,8 +666,6 @@ describe("device workspace UI", () => {
     expect(await screen.findByText("A device failed to start.")).toBeTruthy();
     fireEvent.click(screen.getByText("Details"));
     expect(screen.getByText("Fixture: emulator exited during startup (1).")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: /Fixture Emulator/ }));
-    expect(screen.getByRole("button", { name: "Start device" })).toHaveProperty("disabled", false);
     mocks.deviceInventory.mockResolvedValue({
       ...inventory,
       platforms: [{ platform: "android", status: "ready" }],
@@ -677,12 +673,35 @@ describe("device workspace UI", () => {
     fireEvent.click(screen.getByRole("button", { name: "Refresh devices" }));
     await waitFor(() => expect(screen.queryByText("A device failed to start.")).toBeNull());
   });
+  it("offers open modes and start from the device row actions", async () => {
+    setup();
+    mocks.deviceInventory.mockResolvedValue({
+      version: 1,
+      generation,
+      platforms: [],
+      devices: [{ ...device, state: "stopped" }],
+    });
+    render(<Workspace />);
+    fireEvent.click(await screen.findByRole("button", { name: "Device actions" }));
+    expect(await screen.findByRole("menuitem", { name: "Open view only" })).toBeTruthy();
+    expect(screen.getByRole("menuitem", { name: "Open with control" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("menuitem", { name: "Start device" }));
+    await waitFor(() =>
+      expect(mocks.deviceAction).toHaveBeenCalledWith("host-thread", "lease-1", { kind: "start" }),
+    );
+    await waitFor(() => expect(mocks.detachDevice).toHaveBeenCalledOnce());
+    // Opening the menu must not run the row's open action: only the start
+    // action's temporary control lease attaches.
+    expect(mocks.attachDevice).toHaveBeenCalledExactlyOnceWith(
+      "host-thread",
+      expect.objectContaining({ access: "control", agentAccess: "none" }),
+    );
+    expect(screen.queryByTestId("device-session-layout")).toBeNull();
+  });
   it("pauses hidden capture and all input while preserving the lease across tabs", async () => {
     setup();
     const view = render(<Workspace />);
-    fireEvent.click(await screen.findByRole("button", { name: /Fixture Emulator/ }));
-    fireEvent.click(screen.getByRole("button", { name: "Control" }));
-    fireEvent.click(screen.getByRole("button", { name: "Attach" }));
+    await openDeviceWithControl();
     await screen.findByRole("button", { name: "Home" });
     await waitFor(() => expect(mocks.deviceFrame).toHaveBeenCalled());
     const input = screen.getByRole("textbox", { name: "Type on device" });
@@ -773,9 +792,8 @@ describe("device workspace UI", () => {
     const pending = Promise.withResolvers<DeviceSession>();
     mocks.attachDevice.mockReturnValueOnce(pending.promise);
     const view = render(<Workspace />);
-    fireEvent.click(await screen.findByRole("button", { name: /Fixture Emulator/ }));
-    fireEvent.click(screen.getByRole("button", { name: "Control" }));
-    fireEvent.click(screen.getByRole("button", { name: "Attach" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Device actions" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Open with control" }));
     await waitFor(() => expect(mocks.attachDevice).toHaveBeenCalledOnce());
     view.rerender(<Workspace key="replacement" threadId="replacement" />);
     routing.replacement = true;
@@ -795,17 +813,14 @@ describe("device workspace UI", () => {
       expect(mocks.detachDevice).toHaveBeenCalledWith("host-thread", "late-lease"),
     );
     expect(mocks.otherDetach).not.toHaveBeenCalled();
-    fireEvent.click(await screen.findByRole("button", { name: /Fixture Emulator/ }));
-    expect(screen.getByRole("button", { name: "View only" }).getAttribute("aria-pressed")).toBe(
-      "true",
-    );
+    expect(await screen.findByRole("button", { name: /Fixture Emulator/ })).toBeTruthy();
     expect(
       screen.queryByRole("button", { name: /Agent access|Agent control|Agent viewing/ }),
     ).toBeNull();
     expect(mocks.attachDevice).toHaveBeenCalledOnce();
   });
 
-  it("starts a stopped device through a temporary control lease without polling it", async () => {
+  it("starts a stopped device through a temporary control lease before opening it", async () => {
     setup();
     mocks.deviceInventory.mockResolvedValue({
       version: 1,
@@ -815,7 +830,6 @@ describe("device workspace UI", () => {
     });
     render(<Workspace />);
     fireEvent.click(await screen.findByRole("button", { name: /Fixture Emulator/ }));
-    fireEvent.click(screen.getByRole("button", { name: "Start device" }));
     await waitFor(() =>
       expect(mocks.deviceAction).toHaveBeenCalledWith("host-thread", "lease-1", { kind: "start" }),
     );
@@ -825,6 +839,35 @@ describe("device workspace UI", () => {
       expect.objectContaining({ access: "control", agentAccess: "none" }),
     );
     expect(mocks.deviceFrame).not.toHaveBeenCalled();
+  });
+
+  it("opens a stopped device once the running poll observes it", async () => {
+    setup();
+    mocks.deviceInventory
+      .mockResolvedValueOnce({
+        version: 1,
+        generation,
+        platforms: [],
+        devices: [{ ...device, state: "stopped" }],
+      })
+      .mockResolvedValue({
+        version: 1,
+        generation,
+        platforms: [],
+        devices: [{ ...device, state: "running" }],
+      });
+    render(<Workspace />);
+    fireEvent.click(await screen.findByRole("button", { name: /Fixture Emulator/ }));
+    await waitFor(() =>
+      expect(mocks.deviceAction).toHaveBeenCalledWith("host-thread", "lease-1", { kind: "start" }),
+    );
+    await waitFor(() =>
+      expect(mocks.attachDevice).toHaveBeenLastCalledWith(
+        "host-thread",
+        expect.objectContaining({ access: "view", agentAccess: "view" }),
+      ),
+    );
+    expect(await screen.findByRole("button", { name: "Home" })).toHaveProperty("disabled", true);
   });
 
   it.each(["success", "expired"] as const)(
@@ -935,7 +978,7 @@ describe("device workspace UI", () => {
       "Device access expired.",
     );
     expect(screen.queryByRole("button", { name: "Detach" })).toBeNull();
-    expect(screen.getByRole("button", { name: "Attach" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Fixture Emulator/ })).toBeTruthy();
   });
 
   it("renders split Navigation, Input, and Capture & View groups with Enter, Backspace, gated live Recents, and inspector copy/close", async () => {

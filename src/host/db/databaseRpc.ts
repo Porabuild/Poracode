@@ -7,6 +7,7 @@ import {
   dbGetState,
   dbGetThreadCompletedTurns,
   dbGetThreadContextUsage,
+  dbGetThreadTokenUsage,
   dbGetThreadRuntimeItems,
   dbGetThreadRuntimeItemsPage,
   dbGetLatestThreadGoalItem,
@@ -104,6 +105,10 @@ export async function callDatabaseRpc(call: BackendDatabaseCall): Promise<unknow
     case "dbGetThreadContextUsage":
       return readDatabaseAsync("contextUsage", [call.payload.threadId], () =>
         dbGetThreadContextUsage(call.payload.threadId),
+      );
+    case "dbGetThreadTokenUsage":
+      return readDatabaseAsync("tokenUsage", [call.payload.threadId], () =>
+        dbGetThreadTokenUsage(call.payload.threadId),
       );
     case "dbGetProjectNotes":
       return readDatabaseAsync("notes", [call.payload.projectId], () =>

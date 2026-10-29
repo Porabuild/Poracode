@@ -57,7 +57,8 @@ import type {
 import { RevertCheckpointRefusedError, type BackendHostCore } from "./BackendHostCore";
 import { BackendDurableServices } from "./BackendDurableServices";
 import { BackendRemoteBrowserProxy } from "./BackendRemoteBrowserProxy";
-import { generateBackendImagePreview } from "./BackendImagePreview";
+import { generateBackendImageCardVariant } from "./BackendImagePreview";
+import { generateImagePreview } from "@/host/remote/server/imagePreviewGenerator";
 import { joinRuntimeShutdown } from "./joinRuntimeShutdown";
 import { createBackendSettingsAccess, type BackendSettingsAccess } from "./BackendSettingsService";
 import { type BackendSettingsNotifications } from "./BackendSettingsNotifications";
@@ -332,6 +333,11 @@ export class BackendDesktopServices {
           ...(experimentAuthority ? { experimentAuthority } : {}),
           dispatchThreadCommand,
           browser: this.browser,
+          readAgentVision: (threadId, preview, streaming) =>
+            options.requestNative({
+              operation: "agent-vision",
+              payload: { threadId, preview, ...(streaming ? { streaming } : {}) },
+            }) as Promise<import("@/shared/agentVision").AgentVision | null>,
           // The controller's settings patches commit through the same authority
           // as every other writer; the committed broadcast happens in the
           // authority's onCommitted hook.
@@ -353,7 +359,8 @@ export class BackendDesktopServices {
           notifyUserNotification: (notification) =>
             options.emitNativeEvent({ type: "user-notification", notification }),
           notifyEventInterestsChanged: ignoreRemoteEventInterests,
-          imagePreviewGenerator: generateBackendImagePreview,
+          imagePreviewGenerator: generateImagePreview,
+          imageCardVariantGenerator: generateBackendImageCardVariant,
           reportError: options.reportError,
           scheduleService: this.durable.scheduleService,
           deviceWorkspace: this.durable.deviceWorkspace,
@@ -622,9 +629,10 @@ export class BackendDesktopServices {
       case "getRemoteAccessTailscaleStatus":
         return this.requireRemote().getTailscaleStatus() as Promise<BackendServiceResult<Name>>;
       case "setRemoteAccessLanEnabled":
-        return this.requireRemote().setLanEnabled(
-          (payload as { enabled: boolean }).enabled,
-        ) as Promise<BackendServiceResult<Name>>;
+        // Retired: the Remote Access switch is the only exposure gate. The
+        // procedure stays so a published peer still resolves it (removing it
+        // would move the client/host hop); it changes nothing.
+        return this.requireRemote().getPairingInfo() as BackendServiceResult<Name>;
       case "setRemoteAccessTailscaleHttps":
         return this.requireRemote().setTailscaleHttps(
           (payload as { enabled: boolean }).enabled,

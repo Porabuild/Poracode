@@ -22,19 +22,53 @@ OutFile "${FIXTURE_EXE}"
 
 Section
   ${GetParameters} $0
+  ${If} $0 == "/GuardUnqualifiedWorker"
+    ; Deny new process-query handles while retaining the parent's existing handle.
+    System::Call 'advapi32::ConvertStringSecurityDescriptorToSecurityDescriptorW(w "D:P", i 1, *p .r1, p 0) i.r2'
+    !insertmacro Expect "$2" "1" "create empty process DACL"
+    System::Call 'advapi32::SetKernelObjectSecurity(p -1, i 4, p r1) i.r2'
+    System::Call 'kernel32::LocalFree(p r1)'
+    !insertmacro Expect "$2" "1" "deny new process-query handles"
+  ${EndIf}
   ${If} $0 == "/GuardWorker"
+  ${OrIf} $0 == "/GuardUnqualifiedWorker"
     FileOpen $9 "${FIXTURE_ROOT}\guard-ready" w
     FileWrite $9 "ready"
     FileClose $9
     worker_wait:
       IfFileExists "${FIXTURE_ROOT}\guard-release" worker_done
+      IfFileExists "${FIXTURE_ROOT}\guard-shutdown" worker_shutdown
       Sleep 25
       Goto worker_wait
+    worker_shutdown:
+      Sleep 1500
     worker_done:
     SetErrorLevel 0
     Quit
   ${EndIf}
+  ${If} $0 == "/GuardUnknown"
+    StrCpy $INSTDIR "${FIXTURE_ROOT}"
+    Call PoraCliCheckRunning
+    !insertmacro Expect "$PoraCliRunning" "2" "unqueryable matching runtime remains unqualified"
+    SetErrorLevel 0
+    Quit
+  ${EndIf}
   ${If} $0 == "/GuardReject"
+    StrCpy $INSTDIR "${FIXTURE_ROOT}"
+    !insertmacro customCheckAppRunning
+    SetErrorLevel 99
+    Quit
+  ${EndIf}
+  ${If} $0 == "--updated"
+    FileOpen $9 "${FIXTURE_ROOT}\guard-shutdown" w
+    FileWrite $9 "shutdown"
+    FileClose $9
+    StrCpy $INSTDIR "${FIXTURE_ROOT}"
+    !insertmacro customCheckAppRunning
+    SetErrorLevel 0
+    Quit
+  ${EndIf}
+  ${If} $0 == "--updated /GuardHold"
     StrCpy $INSTDIR "${FIXTURE_ROOT}"
     !insertmacro customCheckAppRunning
     SetErrorLevel 99
@@ -50,6 +84,14 @@ Section
   !insertmacro Expect "$PoraCliRunning" "0" "same-name process in another verified prefix is not this owner"
   StrCpy $INSTDIR "${FIXTURE_ROOT}"
   StrCpy $PoraCliPerUser 1
+  Call PoraCliAccount
+  StrCpy $8 $PoraCliSid
+  StrCpy $7 0
+  ${DoWhile} $7 < 200
+    Call PoraCliAccount
+    !insertmacro Expect "$PoraCliSid" "$8" "repeated account SID reads stay valid"
+    IntOp $7 $7 + 1
+  ${Loop}
   ; All keys below are a fresh UUID-scoped test hive, never HKCU\Environment.
   DeleteRegKey HKCU "${FIXTURE_REG_ROOT}"
   WriteRegExpandStr HKCU "${PORACODE_CLI_ENV_KEY}" "Path" "%SystemRoot%\literal ü;C:\existing;;"

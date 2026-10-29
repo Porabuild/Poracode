@@ -50,7 +50,11 @@ internal fun launchHomeQuickCompose(
     val launchAgentKind = selectedAgent?.kind ?: defaults?.agentKind ?: return
     val launchConfiguration = catalog?.normalize(configuration)
         ?: configuration.copy(model = configuration.model.ifBlank { "default" })
-    val text = RichChatUiLogic.composerPrompt(prompt, listOfNotNull(skill) + mentionSegments) ?: return
+    val text = RichChatUiLogic.composerPrompt(
+        prompt,
+        listOfNotNull(skill) + mentionSegments,
+        hasAttachments = attachments.isNotEmpty(),
+    ) ?: return
     val segments = RichChatUiLogic.composerSegments(listOfNotNull(skill) + mentionSegments, attachments, prompt)
     scope.launch {
         val result = runtime.controller.execute(

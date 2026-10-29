@@ -117,7 +117,7 @@ export function InlineDiffView({ diffText, filePath, oldText, newText }: InlineD
 
   return (
     <DiffViewErrorBoundary fallback={<CommandOutputViewport text={diffText} language="diff" />}>
-      <div className="flex max-h-[min(24rem,50vh)] flex-col gap-2 overflow-auto [scrollbar-gutter:stable]">
+      <div className="poracode-compact-diff-gutter flex max-h-[min(24rem,50vh)] flex-col gap-2 overflow-auto [scrollbar-gutter:stable]">
         {diffFiles.map(({ key, diffFile }) => (
           <DiffView
             key={key}

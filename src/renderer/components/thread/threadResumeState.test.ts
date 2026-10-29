@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { AppStoreState } from "@/renderer/state/slices/shared";
 import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
 import { selectThreadResumePlan } from "./threadResumeState";
+import { useAppStore } from "@/renderer/state/appStore";
 
 let nextThread = 0;
 
@@ -118,5 +119,44 @@ describe("selectThreadResumePlan", () => {
   it("returns the same plan while the history is unchanged", () => {
     const { state, threadId } = stateWith([typed("u1", "Fix the build")]);
     expect(selectThreadResumePlan(state, threadId)).toBe(selectThreadResumePlan(state, threadId));
+  });
+
+  it("memoizes by history identity across thread keys and reloads after eviction", () => {
+    const { state, threadId } = stateWith([typed("u1", "First")]);
+    const first = selectThreadResumePlan(state, threadId);
+    const alias = {
+      ...state,
+      runtimeItemIdsByThread: { alias: state.runtimeItemIdsByThread[threadId] },
+      runtimeItemsByIdByThread: { alias: state.runtimeItemsByIdByThread[threadId] },
+    } as AppStoreState;
+    expect(selectThreadResumePlan(alias, "alias")).toBe(first);
+    const evicted = { ...state, runtimeItemIdsByThread: {}, runtimeItemsByIdByThread: {} };
+    expect(selectThreadResumePlan(evicted, threadId)).toBeNull();
+    const reloaded = {
+      ...state,
+      runtimeItemsByIdByThread: { [threadId]: { u1: typed("u1", "Reloaded") } },
+    } as AppStoreState;
+    expect(selectThreadResumePlan(reloaded, threadId)).toEqual({
+      kind: "resend",
+      prompt: "Reloaded",
+    });
+    expect(selectThreadResumePlan(state, threadId)).toBe(first);
+  });
+
+  it("forgets evicted store history and derives a fresh plan for a reloaded transcript", () => {
+    const { state, threadId } = stateWith([typed("u1", "Before eviction")]);
+    useAppStore.setState(state);
+    const first = selectThreadResumePlan(useAppStore.getState(), threadId);
+    useAppStore.getState().evictThreadRuntimeItems(threadId);
+    expect(selectThreadResumePlan(useAppStore.getState(), threadId)).toBeNull();
+    useAppStore.setState({
+      runtimeItemIdsByThread: { [threadId]: ["u1"] },
+      runtimeItemsByIdByThread: { [threadId]: { u1: typed("u1", "After reload") } },
+    });
+    const reloaded = selectThreadResumePlan(useAppStore.getState(), threadId);
+    expect(reloaded).toEqual({ kind: "resend", prompt: "After reload" });
+    expect(reloaded).not.toBe(first);
+    expect(selectThreadResumePlan(useAppStore.getState(), threadId)).toBe(reloaded);
+    useAppStore.getState().evictThreadRuntimeItems(threadId);
   });
 });

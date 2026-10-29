@@ -75,7 +75,7 @@ export interface ComposerSubmitContext {
   setHasContent: (value: boolean) => void;
   setIsSubmitting: (value: boolean) => void;
   /** Open the model/effort picker (backs the `/model` and `/effort` commands). */
-  requestOpenControl: (target: "model" | "effort") => void;
+  requestOpenControl: (target: "model" | "effort" | "crew") => void;
   /** Optional surface override for the canonical thread-input action. */
   onSubmitInput?: ((prompt: string, segments?: PromptSegment[]) => Promise<void>) | undefined;
   /** Called after the transport accepts any ordinary, steered, or queued send. */
@@ -187,7 +187,9 @@ export function submitComposerPrompt(segments: PromptSegment[], ctx: ComposerSub
     return;
   }
   if (localAction?.kind === "open-control") {
-    ctx.requestOpenControl(localAction.target);
+    ctx.requestOpenControl(
+      localAction.target === "crew" && !thread.config.crew ? "model" : localAction.target,
+    );
     mentionRef.current?.clear();
     clearComposerText();
     return;
@@ -240,7 +242,12 @@ export function submitComposerPrompt(segments: PromptSegment[], ctx: ComposerSub
   useAppStore.getState().clearThreadDraftContent(thread.id);
   ctx.setIsSubmitting(true);
   if (!usesTerminalPresentation) {
-    useAppStore.getState().requestChatScrollToBottom(thread.id);
+    useAppStore
+      .getState()
+      .requestChatScrollToPrompt(
+        thread.id,
+        ctx.usesPendingSteerPath && ctx.followUpBehavior === "queue",
+      );
   }
 
   let focusPromise = Promise.resolve();

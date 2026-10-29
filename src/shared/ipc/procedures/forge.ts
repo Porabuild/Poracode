@@ -184,4 +184,82 @@ export const forgeProcedures = {
     c.forgeSubmitPrReviewPayloadSchema,
     omittedResultSchema,
   ),
+  forgeListPullRequestsInState: definePayloadProcedure<
+    c.ForgeListPullRequestsInStatePayload,
+    c.GhListPullRequestsResult,
+    "supervisor"
+  >(
+    "forgeListPullRequestsInState",
+    "supervisor",
+    c.forgeListPullRequestsInStatePayloadSchema,
+    c.ghListPullRequestsResultSchema,
+  ),
+  forgeListPrLabelCandidates: definePayloadProcedure<
+    c.ForgeListPrLabelCandidatesPayload,
+    c.ForgePrLabelCandidatesResult,
+    "supervisor"
+  >(
+    "forgeListPrLabelCandidates",
+    "supervisor",
+    c.forgeListPrLabelCandidatesPayloadSchema,
+    c.forgePrLabelCandidatesResultSchema,
+  ),
+  forgeListPrReviewerCandidates: definePayloadProcedure<
+    c.ForgeListPrReviewerCandidatesPayload,
+    c.ForgePrReviewerCandidatesResult,
+    "supervisor"
+  >(
+    "forgeListPrReviewerCandidates",
+    "supervisor",
+    c.forgeListPrReviewerCandidatesPayloadSchema,
+    c.forgePrReviewerCandidatesResultSchema,
+  ),
+  forgeSetPrLabels: definePayloadProcedure<c.ForgeSetPrLabelsPayload, void, "supervisor">(
+    "forgeSetPrLabels",
+    "supervisor",
+    c.forgeSetPrLabelsPayloadSchema,
+    omittedResultSchema,
+  ),
+  forgeRequestPrReviewers: definePayloadProcedure<
+    c.ForgeRequestPrReviewersPayload,
+    void,
+    "supervisor"
+  >(
+    "forgeRequestPrReviewers",
+    "supervisor",
+    c.forgeRequestPrReviewersPayloadSchema,
+    omittedResultSchema,
+  ),
+  forgeConvertPrToDraft: definePayloadProcedure<c.ForgeConvertPrToDraftPayload, void, "supervisor">(
+    "forgeConvertPrToDraft",
+    "supervisor",
+    c.forgeConvertPrToDraftPayloadSchema,
+    omittedResultSchema,
+  ),
+  forgeGetPrCommitDiff: definePayloadProcedure<
+    c.ForgeGetPrCommitDiffPayload,
+    c.ForgePrCommitDiffResult,
+    "supervisor"
+  >(
+    "forgeGetPrCommitDiff",
+    "supervisor",
+    c.forgeGetPrCommitDiffPayloadSchema,
+    c.forgePrCommitDiffResultSchema,
+  ),
+  forgeSetPrReaction: definePayloadProcedure<c.ForgeSetPrReactionPayload, void, "supervisor">(
+    "forgeSetPrReaction",
+    "supervisor",
+    c.forgeSetPrReactionPayloadSchema,
+    omittedResultSchema,
+  ),
+  forgeSubmitPrReviewDraft: definePayloadProcedure<
+    c.ForgeSubmitPrReviewDraftPayload,
+    void,
+    "supervisor"
+  >(
+    "forgeSubmitPrReviewDraft",
+    "supervisor",
+    c.forgeSubmitPrReviewDraftPayloadSchema,
+    omittedResultSchema,
+  ),
 } as const;

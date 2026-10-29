@@ -94,7 +94,14 @@ export function resolveInstalledPluginState(
 ): InstalledPluginState | undefined {
   const stored = installedPlugins[plugin.name];
   if (isAlwaysEnabledPlugin(plugin)) {
-    return { ...(stored ?? defaultInstalledPluginState(plugin)), enabled: true };
+    // Always-on contributions have no enable controls. Older stored disables
+    // must not strand them; per-tool MCP restrictions are managed separately.
+    return {
+      ...(stored ?? defaultInstalledPluginState(plugin)),
+      enabled: true,
+      disabledSkillIds: [],
+      disabledMcpServerNames: [],
+    };
   }
   const state =
     stored ?? (isBuiltInToolPlugin(plugin) ? defaultInstalledPluginState(plugin) : undefined);

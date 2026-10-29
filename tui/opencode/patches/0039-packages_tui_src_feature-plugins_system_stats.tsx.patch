@@ -1,0 +1,30 @@
+diff --git a/packages/tui/src/feature-plugins/system/stats.tsx b/packages/tui/src/feature-plugins/system/stats.tsx
+index 950d322..5fb12a4 100644
+--- a/packages/tui/src/feature-plugins/system/stats.tsx
++++ b/packages/tui/src/feature-plugins/system/stats.tsx
+@@ -8,6 +8,7 @@ import { Logo } from "../../component/logo"
+ import { useTheme } from "../../context/theme"
+ import { tint } from "../../theme/color"
+ import { statsMetrics, statsNumber } from "./stats-data"
++import { BRAND } from "../../brand"
+ 
+ const digits: Record<string, string[]> = {
+   "0": ["111", "101", "101", "101", "111"],
+@@ -62,7 +63,7 @@ export function StatsPoster(props: { stats: SessionStatsInfo }) {
+     <box width={width()} flexDirection="column" alignItems="center" flexShrink={0} gap={compact() ? 1 : 2}>
+       <box width="100%" flexDirection={width() < 44 ? "column" : "row"} justifyContent="space-between">
+         <text fg={theme.text.base} attributes={TextAttributes.BOLD}>
+-          opencode / stats
++          {BRAND.name} / stats
+         </text>
+         <text fg={theme.text.muted}>{dates()}</text>
+       </box>
+@@ -131,7 +132,7 @@ export function StatsPoster(props: { stats: SessionStatsInfo }) {
+         </For>
+       </box>
+       <box width="100%" flexDirection="row" justifyContent="flex-end">
+-        <text fg={theme.text.base}>opencode.ai</text>
++        <text fg={theme.text.base}>poracode.com</text>
+       </box>
+     </box>
+   )

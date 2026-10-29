@@ -2,6 +2,8 @@ import { afterEach, expect, it } from "vitest";
 import type { SideChatBootstrap } from "@/shared/ipc/sideChat";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { auxiliaryThreadIds } from "@/renderer/state/auxiliaryThreadWindows";
+import { useComposerInputInbox } from "@/renderer/state/composerInputInbox";
+import { applyNativeSideChatOwnership } from "./sideChatOwnershipActions";
 import {
   applySideChatPanel,
   updateSideChatPanelDraft,
@@ -16,8 +18,23 @@ const entry = {
 } as SideChatBootstrap;
 afterEach(() => {
   applySideChatPanel(null);
+  useComposerInputInbox.setState({ itemsByComposer: {} });
   usePanelStore.getState().closeAllPanels();
 });
+it.each([true, false])(
+  "delivers selected text in main/auxiliary renderer (%s) and accepts old ownership events",
+  (mainWindow) => {
+    applyNativeSideChatOwnership({ threadIds: [] }, mainWindow);
+    expect(useComposerInputInbox.getState().itemsByComposer).toEqual({});
+    applyNativeSideChatOwnership(
+      { threadIds: [], composerInput: { composerId: "side-chat:entry", text: "quote" } },
+      mainWindow,
+    );
+    expect(useComposerInputInbox.getState().itemsByComposer["side-chat:entry"]).toEqual([
+      [{ kind: "text", content: "quote" }],
+    ]);
+  },
+);
 it("preserves an initial draft through hide/show and ignores edits from replaced panels", () => {
   applySideChatPanel(entry);
   updateSideChatPanelDraft("entry", "Unsent question");

@@ -90,7 +90,7 @@ const h = vi.hoisted(() => {
   }
   return {
     settings: {} as SharedSettings,
-    revertGate: null as Promise<void> | null,
+    portForwardingBinds: [] as Array<{ bindHost: string; remoteAccessPort: number }>,
     servers: [] as Array<
       InstanceType<typeof RemoteAccessServerFixture> & { disposed: boolean; started: boolean }
     >,
@@ -132,7 +132,13 @@ vi.mock("@/host/remote/auth", async (importOriginal) => ({
   createPersistentRemoteAuthStore: () => ({}),
 }));
 vi.mock("@/host/remote/portForward/portForwarding", () => ({
-  createPortForwarding: () => ({ gateway: {}, proxy: {}, dispose() {} }),
+  createPortForwarding: (options: { bindHost: string; remoteAccessPort: number }) => {
+    h.portForwardingBinds.push({
+      bindHost: options.bindHost,
+      remoteAccessPort: options.remoteAccessPort,
+    });
+    return { gateway: {}, proxy: {}, dispose() {} };
+  },
 }));
 vi.mock("@/host/remote/RemoteBrowserGateway", () => ({ RemoteBrowserGateway: class {} }));
 vi.mock("@/host/remote/tailscale", () => ({
@@ -154,7 +160,7 @@ beforeEach(() => {
   vi.stubEnv("PORACODE_REMOTE_ACCESS_HOST", undefined);
   vi.stubEnv("PORACODE_REMOTE_BIND_MODE", undefined);
   h.settings = { ...defaultSharedSettings };
-  h.revertGate = null;
+  h.portForwardingBinds.length = 0;
   h.servers.length = 0;
   h.RemoteAccessServerFixture.nextId = 0;
   vi.spyOn(console, "log").mockImplementation(() => {});
@@ -190,7 +196,6 @@ async function fixture(): Promise<DesktopRemoteAccessController> {
         return h.settings;
       },
       editSettingsField: async (field, compute) => {
-        await h.revertGate;
         const next = compute(h.settings);
         if (next === undefined) delete (h.settings as Record<string, unknown>)[field];
         else (h.settings as Record<string, unknown>)[field] = next;
@@ -217,96 +222,53 @@ async function fixture(): Promise<DesktopRemoteAccessController> {
 }
 
 describe("managed always-on loopback server", () => {
-  it("applies network disablement during a pending Tailscale restart", async () => {
+  it("listens on the LAN once remote access is enabled, ignoring the retired LAN preference", async () => {
     h.settings.remoteAccessEnabled = true;
-    h.settings.remoteAccessLanEnabled = true;
+    // A settings file written before the toggle was removed still stores false.
+    h.settings.remoteAccessLanEnabled = false;
     const controller = await fixture();
     await controller.startIfEnabled();
-    const tailscale = await import("@/host/remote/tailscale");
-    const entered = Promise.withResolvers<void>();
-    const release =
-      Promise.withResolvers<Awaited<ReturnType<typeof tailscale.probeTailscaleStatus>>>();
-    vi.spyOn(tailscale, "probeTailscaleStatus").mockImplementationOnce(() => {
-      entered.resolve();
-      return release.promise;
-    });
-    const restarting = controller.setTailscaleHttps(true);
-    await entered.promise;
-    const disabling = controller.setLanEnabled(false);
-    release.resolve({ state: "not-running" });
-    await Promise.all([restarting, disabling]);
-    expect(h.settings.remoteAccessLanEnabled).toBe(false);
-    expect(h.servers.at(-1)?.options.host).toBe("127.0.0.1");
-    expect(controller.getPairingInfo().status).toBe("ready");
-  });
-
-  it("rebinds for LAN access and returns to loopback when network access is disabled", async () => {
-    h.settings.remoteAccessEnabled = true;
-    const controller = await fixture();
-    await controller.startIfEnabled();
-    await controller.setLanEnabled(true);
-    expect(h.settings.remoteAccessLanEnabled).toBe(true);
     expect(h.servers.at(-1)?.options).toMatchObject({
       host: "0.0.0.0",
       plaintextLanAcknowledged: true,
     });
-    await controller.setLanEnabled(false);
-    expect(h.servers.at(-1)?.options.host).toBe("127.0.0.1");
-    expect(h.settings.remoteAccessLanEnabled).toBe(false);
+  });
+
+  it("returns to loopback when remote access is disabled", async () => {
+    h.settings.remoteAccessEnabled = true;
+    const controller = await fixture();
+    await controller.startIfEnabled();
+    expect(h.servers.at(-1)?.options.host).toBe("0.0.0.0");
+    await controller.setEnabled(false);
+    await vi.waitFor(() => {
+      expect(h.servers.filter((server) => !server.disposed)).toHaveLength(1);
+    });
+    const running = h.servers.filter((server) => !server.disposed);
+    expect(running[0]?.options.host).toBe("127.0.0.1");
+    expect(running[0]?.options.plaintextLanAcknowledged).toBeUndefined();
+  });
+
+  it("rebuilds port forwarding for the new bind when remote access is toggled", async () => {
+    const controller = await fixture();
+    await controller.startIfEnabled();
+    await controller.setEnabled(true);
+    await controller.setEnabled(false);
+    await vi.waitFor(() => {
+      expect(h.portForwardingBinds.map((bind) => bind.bindHost)).toEqual([
+        "127.0.0.1",
+        "0.0.0.0",
+        "127.0.0.1",
+      ]);
+    });
   });
 
   it("keeps a saved LAN preference off the disabled desktop's listener", async () => {
     h.settings.remoteAccessLanEnabled = true;
     const controller = await fixture();
     await controller.startIfEnabled();
-    await controller.setLanEnabled(true);
     expect(h.servers).toHaveLength(1);
     expect(h.servers[0]?.options.host).toBe("127.0.0.1");
     expect(controller.getPairingInfo()).toEqual({ status: "disabled" });
-  });
-
-  it("restores the previous listener and preference after a failed LAN restart", async () => {
-    h.settings.remoteAccessEnabled = true;
-    const controller = await fixture();
-    await controller.startIfEnabled();
-    vi.spyOn(h.RemoteAccessServerFixture.prototype, "start").mockRejectedValueOnce(
-      new Error("LAN bind failed"),
-    );
-    await expect(controller.setLanEnabled(true)).rejects.toThrow("LAN bind failed");
-    expect(h.settings.remoteAccessLanEnabled).toBe(false);
-    expect(h.servers.at(-1)?.options.host).toBe("127.0.0.1");
-    expect(controller.getPairingInfo().status).toBe("ready");
-  });
-
-  it("preserves a concurrent remote disable while rolling back a failed LAN restart", async () => {
-    h.settings.remoteAccessEnabled = true;
-    h.settings.remoteAccessLanEnabled = true;
-    const controller = await fixture();
-    await controller.startIfEnabled();
-    const entered = Promise.withResolvers<void>();
-    const release = Promise.withResolvers<RemoteAccessServerInfo>();
-    vi.spyOn(h.RemoteAccessServerFixture.prototype, "start").mockImplementationOnce(() => {
-      entered.resolve();
-      return release.promise;
-    });
-    const changing = controller.setLanEnabled(false).catch((error: unknown) => error);
-    await entered.promise;
-    await controller.setEnabled(false);
-    const rollback = Promise.withResolvers<void>();
-    h.revertGate = rollback.promise;
-    release.reject(new Error("LAN bind failed"));
-    await vi.waitFor(() => {
-      expect(h.servers).toHaveLength(3);
-      expect(controller.getPairingInfo().status).toBe("disabled");
-    });
-    rollback.resolve();
-    expect(await changing).toMatchObject({ message: "LAN bind failed" });
-    const running = h.servers.filter((server) => !server.disposed);
-    expect(running).toHaveLength(1);
-    expect(running[0]?.options.host).toBe("127.0.0.1");
-    expect(h.settings.remoteAccessEnabled).toBe(false);
-    expect(h.settings.remoteAccessLanEnabled).toBe(true);
-    expect(controller.getPairingInfo().status).toBe("disabled");
   });
 
   it("starts a loopback-bound server from readiness even with remote access disabled", async () => {

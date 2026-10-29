@@ -5,6 +5,7 @@ import {
   environmentImageRefKey,
   environmentLocalImageKey,
   type EnvironmentImagePriority,
+  type EnvironmentImageVariant,
 } from "@/shared/remote/clientEnvironmentImages";
 import {
   RemoteEnvironmentClient,
@@ -77,6 +78,7 @@ import {
 export interface EnvironmentSessionDependencies {
   readonly getState: () => RemoteServersState;
   readonly clientFactory: () => RemoteDesktopClientFactory;
+  readonly persistAccessToken: (connectionKey: string, accessToken: string) => void;
   readonly certPinForConnection: (connectionKey: string) => string | undefined;
   readonly refreshTokenForSubject: (subject: RefreshSubject) => string | undefined;
   readonly rememberRefreshToken: (subject: RefreshSubject, token: string) => void;
@@ -146,8 +148,8 @@ export function environmentProxyEndpoint(parentEndpoint: string, environmentId: 
 
 export function environmentImageKeyForTarget(target: RemoteEnvironmentImageTarget): string {
   return target.kind === "ref"
-    ? environmentImageRefKey(target.ref)
-    : environmentLocalImageKey(target.path);
+    ? environmentImageRefKey(target.ref, target.variant)
+    : environmentLocalImageKey(target.path, target.variant);
 }
 
 function findServer(connectionKey: string): RemoteServerRecord | undefined {
@@ -246,15 +248,22 @@ function parentSessionFor(server: RemoteServerRecord): PersistedParentSession {
     accessToken: server.accessToken,
     ensureLive: null,
   };
+  const isCurrent = () =>
+    parentSessions.get(refKey) === session &&
+    ownsConnectionIncarnation(connectionKey, incarnation) &&
+    findServer(connectionKey)?.endpoint === server.endpoint;
   client.setTokenLifecycle({
+    accessToken: () => (isCurrent() ? findServer(connectionKey)?.accessToken : undefined),
     refreshToken: () =>
-      api.refreshTokenForSubject({ kind: "connection", connectionId: connectionKey }),
+      isCurrent()
+        ? api.refreshTokenForSubject({ kind: "connection", connectionId: connectionKey })
+        : undefined,
     onTokensRefreshed: (tokens) => {
       // Origin fence: a delayed rotation from a replaced session or a retired
       // connection incarnation never updates the live token or the grant.
-      if (parentSessions.get(refKey) !== session) return;
-      if (!ownsConnectionIncarnation(connectionKey, incarnation)) return;
+      if (!isCurrent()) return;
       session.accessToken = tokens.accessToken;
+      api.persistAccessToken(connectionKey, tokens.accessToken);
       if (tokens.refreshToken !== undefined) {
         api.rememberRefreshToken(
           { kind: "connection", connectionId: connectionKey },
@@ -361,7 +370,8 @@ function parentAuthorityFor(
     return {
       accessToken: () => {
         const current = parentSessions.get(refKey);
-        if (current?.kind === "connection") return current.accessToken;
+        if (current?.kind === "connection")
+          return directParentFor(ref)?.accessToken ?? current.accessToken;
         // No live session (never built, or retired by an explicit re-pair that
         // is committing the new record): the persisted record's bearer is the
         // current pairing's token until the next lookup rebuilds the client.
@@ -592,9 +602,13 @@ const environmentImageBindings = new Map<string, Map<string, Set<EnvironmentImag
 function requestBinding(binding: EnvironmentImageBinding): void {
   if (!binding.target || !binding.client) return;
   if (binding.target.kind === "ref") {
-    binding.client.imageRefResolution(binding.target.ref, binding.priority);
+    binding.client.imageRefResolution(binding.target.ref, binding.priority, binding.target.variant);
   } else {
-    binding.client.localImageResolution(binding.target.path, binding.priority);
+    binding.client.localImageResolution(
+      binding.target.path,
+      binding.priority,
+      binding.target.variant,
+    );
   }
 }
 
@@ -776,20 +790,32 @@ export function __resetEnvironmentSessionDependenciesForTest(): void {
  * enumeration of off-screen history into repeated downloads and evictions.
  */
 export interface RemoteImageReadiness {
-  readonly resolveRef: (ref: RemoteImageRefValue) => string;
+  readonly resolveRef: (ref: RemoteImageRefValue, variant?: EnvironmentImageVariant) => string;
   readonly subscribeRef: (
     ref: RemoteImageRefValue,
     listener: () => void,
     priority?: EnvironmentImagePriority,
+    variant?: EnvironmentImageVariant,
+    requestOnRebind?: boolean,
   ) => () => void;
-  readonly requestRef: (ref: RemoteImageRefValue, priority?: EnvironmentImagePriority) => void;
-  readonly resolvePath: (path: string) => string;
+  readonly requestRef: (
+    ref: RemoteImageRefValue,
+    priority?: EnvironmentImagePriority,
+    variant?: EnvironmentImageVariant,
+  ) => void;
+  readonly resolvePath: (path: string, variant?: EnvironmentImageVariant) => string;
   readonly subscribePath: (
     path: string,
     listener: () => void,
     priority?: EnvironmentImagePriority,
+    variant?: EnvironmentImageVariant,
+    requestOnRebind?: boolean,
   ) => () => void;
-  readonly requestPath: (path: string, priority?: EnvironmentImagePriority) => void;
+  readonly requestPath: (
+    path: string,
+    priority?: EnvironmentImagePriority,
+    variant?: EnvironmentImageVariant,
+  ) => void;
 }
 
 /**
@@ -802,28 +828,38 @@ export function environmentImageReadinessFor(
   const server = findServer(connectionKey);
   if (!server || server.transport?.kind !== "environment") return undefined;
   return {
-    resolveRef: (ref) => environmentImageUrl(connectionKey, environmentImageRefKey(ref)),
-    subscribeRef: (ref, listener, priority) =>
+    resolveRef: (ref, variant) =>
+      environmentImageUrl(connectionKey, environmentImageRefKey(ref, variant)),
+    subscribeRef: (ref, listener, priority, variant, requestOnRebind = true) =>
       subscribeEnvironmentImage(
         connectionKey,
-        environmentImageRefKey(ref),
+        environmentImageRefKey(ref, variant),
         listener,
-        { kind: "ref", ref },
+        requestOnRebind ? { kind: "ref", ref, ...(variant ? { variant } : {}) } : undefined,
         priority,
       ),
-    requestRef: (ref, priority) =>
-      requestEnvironmentImage(connectionKey, { kind: "ref", ref }, priority),
-    resolvePath: (path) => environmentImageUrl(connectionKey, environmentLocalImageKey(path)),
-    subscribePath: (path, listener, priority) =>
+    requestRef: (ref, priority, variant) =>
+      requestEnvironmentImage(
+        connectionKey,
+        { kind: "ref", ref, ...(variant ? { variant } : {}) },
+        priority,
+      ),
+    resolvePath: (path, variant) =>
+      environmentImageUrl(connectionKey, environmentLocalImageKey(path, variant)),
+    subscribePath: (path, listener, priority, variant, requestOnRebind = true) =>
       subscribeEnvironmentImage(
         connectionKey,
-        environmentLocalImageKey(path),
+        environmentLocalImageKey(path, variant),
         listener,
-        { kind: "localPath", path },
+        requestOnRebind ? { kind: "localPath", path, ...(variant ? { variant } : {}) } : undefined,
         priority,
       ),
-    requestPath: (path, priority) =>
-      requestEnvironmentImage(connectionKey, { kind: "localPath", path }, priority),
+    requestPath: (path, priority, variant) =>
+      requestEnvironmentImage(
+        connectionKey,
+        { kind: "localPath", path, ...(variant ? { variant } : {}) },
+        priority,
+      ),
   };
 }
 
@@ -850,10 +886,10 @@ export function requestEnvironmentImage(
   const session = environmentSessionForServer(server);
   if (!session) return;
   if (target.kind === "ref") {
-    session.client.imageRefResolution(target.ref, priority);
+    session.client.imageRefResolution(target.ref, priority, target.variant);
     return;
   }
-  session.client.localImageResolution(target.path, priority);
+  session.client.localImageResolution(target.path, priority, target.variant);
 }
 
 /**

@@ -5,6 +5,7 @@ import com.poracode.app.chat.RichPendingSteerEnvelope
 import com.poracode.app.chat.RichReducer
 import com.poracode.app.chat.RichRequestQueue
 import com.poracode.app.chat.RichRuntimeEvent
+import com.poracode.app.chat.containsAttachmentSegment
 import com.poracode.app.model.ThreadConfig
 import com.poracode.app.transport.richchat.RequestResolution
 import com.poracode.app.transport.richchat.ThreadGoalUpdate
@@ -167,7 +168,9 @@ class RichChatController(
         userMessageItemId: String? = null,
     ): RichChatOperationResult<Unit> = sendMutex.withLock {
         val trimmed = prompt.trim()
-        if (trimmed.isEmpty()) return@withLock rejected(RichChatOperationFailure.InvalidRequest)
+        if (trimmed.isEmpty() && !segments.containsAttachmentSegment()) {
+            return@withLock rejected(RichChatOperationFailure.InvalidRequest)
+        }
         val effectiveConfig = config ?: mutableState.value.config
             ?: return@withLock rejected(RichChatOperationFailure.InvalidRequest)
         mutate(OP_SEND, RichChatCapability.Operate) { lease ->

@@ -26,13 +26,11 @@ const NON_OUTPUT_ITEM_TYPES: ReadonlySet<CanonicalItemType> = new Set([
 
 const CONTINUE_PLAN: ThreadResumePlan = { kind: "continue" };
 
-const resumePlanCache = new Map<
-  string,
-  {
-    itemIds: readonly string[] | undefined;
-    itemsById: AppStoreState["runtimeItemsByIdByThread"][string] | undefined;
-    result: ThreadResumePlan | null;
-  }
+// Neither index retains evicted history. Streaming can replace the item map
+// without replacing the IDs, so both identities must be weak keys.
+const resumePlanCache = new WeakMap<
+  readonly string[],
+  WeakMap<AppStoreState["runtimeItemsByIdByThread"][string], ThreadResumePlan | null>
 >();
 
 /** Null when nothing in the loaded history can be resumed. */
@@ -43,12 +41,15 @@ export function selectThreadResumePlan(
   const itemIds = state.runtimeItemIdsByThread[threadId];
   // Streamed text fills an existing row without changing the id list.
   const itemsById = state.runtimeItemsByIdByThread[threadId];
-  const cached = resumePlanCache.get(threadId);
-  if (cached && cached.itemIds === itemIds && cached.itemsById === itemsById) {
-    return cached.result;
-  }
+  if (!itemIds?.length || !itemsById) return null;
+  let byItems = resumePlanCache.get(itemIds);
+  if (byItems?.has(itemsById)) return byItems.get(itemsById)!;
   const result = resolveThreadResumePlan(itemIds, itemsById);
-  resumePlanCache.set(threadId, { itemIds, itemsById, result });
+  if (!byItems) {
+    byItems = new WeakMap();
+    resumePlanCache.set(itemIds, byItems);
+  }
+  byItems.set(itemsById, result);
   return result;
 }
 

@@ -18,6 +18,73 @@ const publish = (replay: ThreadHistoryReplay, threadId: string, seq: number, byt
   );
 
 describe("thread-owned history replay", () => {
+  it("retains hr1 recovery for multi-thread frames within the existing subset byte limits", () => {
+    const replay = new ThreadHistoryReplay();
+    const ids = Array.from({ length: 8 }, (_, i) => `thread-${i}`);
+    const cursors = ids.map((id) => replay.cursor(id, 0));
+    for (let seq = 1; seq <= 64; seq++) {
+      const event = {
+        type: "thread-runtime-events-multi" as const,
+        batches: ids.map((threadId) => ({
+          threadId,
+          events: [delta(threadId, "é😀".repeat(500))],
+        })),
+      };
+      replay.observe(event, seq, true, Buffer.byteLength(JSON.stringify(event)));
+    }
+    for (let i = 0; i < ids.length; i++) {
+      const batches = replay.read(ids[i]!, cursors[i]!, 64)?.batches;
+      expect(batches).toHaveLength(64);
+      expect(batches?.map((batch) => batch.seq)).toEqual(
+        Array.from({ length: 64 }, (_, index) => index + 1),
+      );
+      expect(batches?.every((batch) => batch.events.every((e) => e.threadId === ids[i]))).toBe(
+        true,
+      );
+    }
+  });
+
+  it("still invalidates a genuinely oversized retained multi-thread subset", () => {
+    const replay = new ThreadHistoryReplay();
+    const small = replay.cursor("small", 0);
+    const large = replay.cursor("large", 0);
+    replay.observe(
+      {
+        type: "thread-runtime-events-multi",
+        batches: [
+          { threadId: "small", events: [delta("small")] },
+          { threadId: "large", events: [delta("large", "x".repeat(1024 * 1024))] },
+        ],
+      },
+      1,
+      true,
+      2 * 1024 * 1024,
+    );
+    expect(replay.read("small", small, 1)?.batches).toHaveLength(1);
+    expect(replay.read("large", large, 1)).toBeNull();
+  });
+
+  it("evicts multi-thread subsets when their actual total exceeds the unchanged quota", () => {
+    const ids = ["a", "b", "c", "d"];
+    const bytes = Buffer.byteLength(JSON.stringify([delta("a")]));
+    const replay = new ThreadHistoryReplay({
+      threads: 4,
+      batches: 4,
+      threadBytes: 1000,
+      totalBytes: 2 * bytes,
+    });
+    const cursors = ids.map((id) => replay.cursor(id, 0));
+    const event = {
+      type: "thread-runtime-events-multi" as const,
+      batches: ids.map((threadId) => ({ threadId, events: [delta(threadId)] })),
+    };
+    replay.observe(event, 1, true, Buffer.byteLength(JSON.stringify(event)));
+    expect(replay.read("a", cursors[0]!, 1)).toBeNull();
+    expect(replay.read("b", cursors[1]!, 1)).toBeNull();
+    expect(replay.read("c", cursors[2]!, 1)?.batches).toHaveLength(1);
+    expect(replay.read("d", cursors[3]!, 1)?.batches).toHaveLength(1);
+  });
+
   it("retains a quiet thread independently of another thread's sequence and trims only its own floor", () => {
     const replay = new ThreadHistoryReplay({
       threads: 4,

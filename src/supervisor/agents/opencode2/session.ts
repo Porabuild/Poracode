@@ -8,8 +8,8 @@ import { openCode2SnapshotEvents, readOpenCode2Recovery } from "./recovery";
  *  - **Terminal mode** (default): the runtime calls `activate` → `openThread`
  *    to allocate a session id from the shared `opencode2 serve`, captures it
  *    into `launchOptions.resumeThreadId`, then disposes the handle
- *    (`liveInputMode === "terminal"`). The TUI launches with `--session <id>`
- *    and resumes from the on-disk session store.
+ *    (`liveInputMode === "terminal"`). The TUI takes its own server lease and
+ *    launches with `--server <url> --session <id>` on that configured server.
  *  - **GUI mode**: the handle stays alive for the thread's lifetime. The
  *    shared SSE stream routes V2 events through `eventMapping` → renderer
  *    chat items. `startTurn` calls `session.prompt`; a follow-up submitted
@@ -971,6 +971,7 @@ export class OpenCode2Session implements StructuredSessionHandle {
     const resumeSessionId = this.sessionId ?? this.input.sessionRef?.providerSessionId;
     return {
       projectLocation: this.input.projectLocation,
+      ...(!this.isGui ? { isolateMcpServers: true } : {}),
       ...(resumeSessionId ? { resumeSessionId } : {}),
       ...(mcpServers !== undefined ? { mcpServers } : {}),
     };

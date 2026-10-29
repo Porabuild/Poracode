@@ -164,6 +164,8 @@ data class ThreadConfig(
     val mcpServerOverrides: Map<String, Boolean>? = null,
     val pluginOverrides: Map<String, Boolean>? = null,
     val executionEnvironment: RemoteExecutionEnvironment? = null,
+    @Serializable(with = OpaqueJsonElementSerializer::class)
+    val crew: JsonElement? = null,
 ) {
     fun toJsonObject(): JsonObject = buildJsonObject {
         put("model", model)
@@ -200,6 +202,7 @@ data class ThreadConfig(
                 },
             )
         }
+        crew?.let { put("crew", it) }
     }
 }
 

@@ -133,6 +133,10 @@ export const NON_ROUTER_PROJECT_PROCEDURES = {
   // the remote data plane (the experiment judge walks them).
   dbGetThreadRuntimeItems:
     "local-shell: unbounded full-transcript read; remote clients page the bounded history-items route instead of one raw DB read",
+  // Per-thread crew spend is read from this desktop's own usage ledger; the
+  // remote protocol does not carry it yet, so remote clients show no breakdown.
+  dbGetThreadTokenUsage:
+    "local-shell: per-thread crew spend reads this desktop's usage ledger; the remote protocol does not carry it yet",
 
   // Remote-access server control — the host's own trust surface
   getRemoteAccessPairing:
@@ -142,7 +146,7 @@ export const NON_ROUTER_PROJECT_PROCEDURES = {
   setRemoteAccessEnabled:
     "local-shell: toggles this host's remote-access server; trust-surface control stays with the physical host",
   setRemoteAccessLanEnabled:
-    "local-shell: changes this host's network exposure; trust-surface control stays with the physical host",
+    "local-shell: retired no-op kept for client/host hop compatibility; trust-surface control stays with the physical host",
   revokeRemoteAccessSession:
     "local-shell: revokes sessions on this host's server; trust-surface control stays with the physical host",
   getRemoteAccessTailscaleStatus:
@@ -237,6 +241,7 @@ export const NON_ROUTER_PROJECT_PROCEDURES = {
     "local-shell: supervisor-owned integration OAuth operations and cancellation stay on this host",
   logoutAcpAgent: "local-shell: clears agent auth on this machine",
   resolveAgentAccount: "local-shell: resolves accounts against this machine's agent auth",
+  getAgentConfigDefaults: "local-shell: reads this machine's agent config file, read-only",
   updateAgentBinary: "local-shell: downloads and swaps this machine's agent binaries",
   getLatestAgentVersion: "local-shell: version probe for this machine's agent installs",
   manageAgentPlugins: "local-shell: manages this machine's agent plugin packages",
@@ -249,6 +254,7 @@ export const NON_ROUTER_PROJECT_PROCEDURES = {
 
   // Cross-agent routing and memory — this device's config
   getCrossagentRouting: "local-shell: this device's cross-agent routing config",
+  cancelCrossagentRun: "local-shell: cancels this host's crossagent child runs",
   confirmCrossagentRoutingOverride: "local-shell: this device's routing override decision",
   removeCrossagentRoutingOverride: "local-shell: this device's routing override decision",
   updateCrossagentMemoryEntryTags: "local-shell: this device's memory catalog",

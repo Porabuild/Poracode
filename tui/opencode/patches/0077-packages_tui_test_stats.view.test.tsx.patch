@@ -1,0 +1,22 @@
+diff --git a/packages/tui/test/stats.view.test.tsx b/packages/tui/test/stats.view.test.tsx
+index c904478..a9278ea 100644
+--- a/packages/tui/test/stats.view.test.tsx
++++ b/packages/tui/test/stats.view.test.tsx
+@@ -74,7 +74,7 @@ test("stats shows only this year and returns after errors or success", async ()
+       setup
+         .captureCharFrame()
+         .split("\n")
+-        .find((line) => line.includes("opencode / stats")),
++        .find((line) => line.includes("Poracode / stats")),
+     ).not.toContain("tab")
+     setup.mockInput.pressKey("RETURN")
+     setup.mockInput.pressKey("SPACE")
+@@ -86,7 +86,7 @@ test("stats shows only this year and returns after errors or success", async ()
+     expect(setup.captureCharFrame()).toContain("TOKENS")
+     expect(setup.captureCharFrame()).not.toContain("headline")
+     setup.mockInput.pressKey("ESCAPE")
+-    await setup.waitForFrame((frame) => frame.includes("commands") && !frame.includes("opencode / stats"))
++    await setup.waitForFrame((frame) => frame.includes("commands") && !frame.includes("Poracode / stats"))
+   } finally {
+     if (!setup.renderer.isDestroyed) setup.renderer.destroy()
+     await task.finally(() => server.stop(true))

@@ -90,6 +90,20 @@ export function useUnderfilledHistory({
         ))
     )
       return;
+    const scroller = scrollElementRef.current;
+    if (
+      oldestEntryId !== undefined &&
+      scroller &&
+      scroller.clientHeight > 0 &&
+      scroller.scrollHeight > scroller.clientHeight &&
+      scroller.scrollTop <= 1
+    ) {
+      // At the top another upward gesture produces no scroll event, so a failed
+      // virtualizer edge request would otherwise stay latched. The pager shares
+      // its pending request across repeated gestures.
+      void onStartReached?.();
+      return;
+    }
     trigger.retry({
       threadId,
       oldestEntryId,

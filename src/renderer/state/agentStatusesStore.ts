@@ -5,9 +5,11 @@ import {
   areAgentPresentationRuntimeFieldsEqual,
   areAgentProviderMetadataEqual,
   type AgentStatus,
+  type AgentStatusesResponse,
   type ProjectLocation,
 } from "@/shared/contracts";
 import type { AgentStatusSupervisorEvent } from "@/shared/ipc";
+import { decodeAgentStatusCache } from "@/shared/agentStatusCache";
 
 export type AgentDiscoveryScope =
   | { kind: "native" }
@@ -24,6 +26,11 @@ interface AgentStatusesStore {
   windowsLoaded: boolean;
   /** True once a wsl-agent-statuses event (or cache) has been applied. */
   wslLoaded: boolean;
+  /** Session-only authority counters fence delayed partial RPC replies. */
+  nativeRevision: number;
+  wslRevision: number;
+  /** Survives capability-cache invalidation so upgrades do not repeat onboarding. */
+  hasCompletedDiscovery: boolean;
   /**
    * On first launch (no cache) we render a discovery screen that reveals
    * agent tiles as the supervisor streams `agent-detected` events. Once the
@@ -55,6 +62,7 @@ interface AgentStatusesStore {
    */
   hydrateFromCache: (cached: { windows: AgentStatus[]; wsl: AgentStatus[] }) => void;
   beginFirstLaunchDiscovery: (scope?: AgentDiscoveryScope) => void;
+  beginStartupDiscovery: (scope?: AgentDiscoveryScope) => void;
   resetDiscoveredAgents: () => void;
   pushDiscoveredAgent: (status: AgentStatus) => void;
   /**
@@ -62,9 +70,36 @@ interface AgentStatusesStore {
    * envDistro). Used by scoped refreshes after install/login so we don't
    * overwrite the rest of the list. WSL statuses land in `wslAgentStatuses`;
    * everything else lands in `agentStatuses`.
+   * Progressive observations pass markLoaded=false; only terminal events can
+   * declare that the whole environment has finished loading.
    */
-  mergeAgentStatus: (status: AgentStatus) => void;
+  mergeAgentStatus: (status: AgentStatus, markLoaded?: boolean) => void;
   removeAgentStatus: (kind: string) => void;
+}
+
+function hasCompletedDiscovery(state: Partial<AgentStatusesStore>): boolean {
+  return (
+    state.hasCompletedDiscovery === true ||
+    state.windowsLoaded === true ||
+    (state.agentStatuses?.length ?? 0) > 0
+  );
+}
+
+function sameAgentStatusTarget(a: AgentStatus, b: AgentStatus): boolean {
+  if (a.kind !== b.kind) return false;
+  // Older native rows omit envKind; WSL keeps exact distro identity, including
+  // legacy rows without a distro, rather than falling back to native identity.
+  return a.envKind === "wsl" || b.envKind === "wsl"
+    ? a.envKind === b.envKind && a.envDistro === b.envDistro
+    : true;
+}
+
+function upsertAgentStatus(statuses: AgentStatus[], status: AgentStatus): AgentStatus[] {
+  const index = statuses.findIndex((entry) => sameAgentStatusTarget(entry, status));
+  if (index === -1) return [...statuses, status];
+  return statuses[index] === status
+    ? statuses
+    : statuses.map((entry, i) => (i === index ? status : entry));
 }
 
 function capabilitiesEqual(
@@ -180,9 +215,13 @@ function buildStatusUpdatePatch(
     (isWsl
       ? prev.discoveryScope?.kind === "wsl"
       : prev.discoveryScope?.kind === undefined || prev.discoveryScope.kind === "native");
-  const discoveryPatch: Partial<AgentStatusesStore> = scanCompletes
-    ? { discoveryScanning: false }
-    : {};
+  const discoveryPatch: Partial<AgentStatusesStore> = {
+    ...(isWsl
+      ? { wslRevision: prev.wslRevision + 1 }
+      : { nativeRevision: prev.nativeRevision + 1 }),
+    ...(scanCompletes ? { discoveryScanning: false } : {}),
+    ...(!isWsl && !prev.hasCompletedDiscovery ? { hasCompletedDiscovery: true } : {}),
+  };
   if (equal && currentLoaded) {
     return discoveryPatch;
   }
@@ -199,11 +238,14 @@ function buildStatusUpdatePatch(
 
 export const useAgentStatusesStore = create<AgentStatusesStore>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       agentStatuses: [],
       wslAgentStatuses: [],
       windowsLoaded: false,
       wslLoaded: false,
+      nativeRevision: 0,
+      wslRevision: 0,
+      hasCompletedDiscovery: false,
       inFirstLaunchDiscovery: false,
       discoveryScanning: false,
       discoveryAutoHideCancelled: false,
@@ -216,16 +258,28 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
       setWslAgentStatuses: (incoming) =>
         set((prev) => buildStatusUpdatePatch(prev, incoming, "wsl")),
       hydrateFromCache: ({ windows, wsl }) =>
-        set(() => ({
+        set((prev) => ({
           agentStatuses: windows,
           wslAgentStatuses: wsl,
           windowsLoaded: true,
           wslLoaded: true,
+          nativeRevision: prev.nativeRevision + 1,
+          wslRevision: prev.wslRevision + 1,
+          hasCompletedDiscovery: true,
           inFirstLaunchDiscovery: false,
           discoveryScanning: false,
           discoveryAutoHideCancelled: false,
           discoveryScope: undefined,
         })),
+      beginStartupDiscovery: (scope) => {
+        if (!get().hasCompletedDiscovery) {
+          get().beginFirstLaunchDiscovery(scope);
+        } else if (scope?.kind === "wsl") {
+          // A newly requested distro is still loading even when the returning
+          // user's scan stays in the background.
+          set((prev) => (prev.wslLoaded ? { wslLoaded: false } : prev));
+        }
+      },
       beginFirstLaunchDiscovery: (scope) =>
         set((prev) => {
           const nextScope = scope ?? { kind: "native" };
@@ -270,45 +324,31 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
           // Upsert: a scoped per-row refresh (or a progressive probe result)
           // re-emits an already-listed agent with fresher data — replace its
           // row in place instead of dropping the update.
-          const idx = prev.discoveredAgents.findIndex(
-            (existing) =>
-              existing.kind === status.kind &&
-              existing.envKind === status.envKind &&
-              existing.envDistro === status.envDistro,
-          );
-          if (idx === -1) return { discoveredAgents: [...prev.discoveredAgents, status] };
-          if (prev.discoveredAgents[idx] === status) return prev;
-          const discoveredAgents = prev.discoveredAgents.slice();
-          discoveredAgents[idx] = status;
-          return { discoveredAgents };
+          const discoveredAgents = upsertAgentStatus(prev.discoveredAgents, status);
+          return discoveredAgents === prev.discoveredAgents ? prev : { discoveredAgents };
         }),
-      mergeAgentStatus: (status) =>
+      mergeAgentStatus: (status, markLoaded = true) =>
         set((prev) => {
-          const matches = (entry: AgentStatus) =>
-            entry.kind === status.kind &&
-            entry.envKind === status.envKind &&
-            entry.envDistro === status.envDistro;
-          // Keep a listed discovery row current as probe updates stream in
-          // (the row set itself is owned by the scan — never appended here).
-          const discoveredIdx = prev.discoveredAgents.findIndex(matches);
-          const discoveredAgents =
-            discoveredIdx === -1
-              ? prev.discoveredAgents
-              : prev.discoveredAgents.map((entry, i) => (i === discoveredIdx ? status : entry));
-          if (status.envKind === "wsl") {
-            const idx = prev.wslAgentStatuses.findIndex(matches);
-            const next =
-              idx === -1
-                ? [...prev.wslAgentStatuses, status]
-                : prev.wslAgentStatuses.map((entry, i) => (i === idx ? status : entry));
-            return { wslAgentStatuses: next, wslLoaded: true, discoveredAgents };
-          }
-          const idx = prev.agentStatuses.findIndex(matches);
-          const next =
-            idx === -1
-              ? [...prev.agentStatuses, status]
-              : prev.agentStatuses.map((entry, i) => (i === idx ? status : entry));
-          return { agentStatuses: next, windowsLoaded: true, discoveredAgents };
+          // Progressive observations update both surfaces in one persisted
+          // write. Scoped refreshes only update already-listed discovery rows.
+          const updateDiscovery =
+            prev.discoveredAgents.some((entry) => sameAgentStatusTarget(entry, status)) ||
+            (!markLoaded &&
+              prev.inFirstLaunchDiscovery &&
+              isStatusInDiscoveryScope(status, prev.discoveryScope));
+          const isWsl = status.envKind === "wsl";
+          const next = upsertAgentStatus(
+            isWsl ? prev.wslAgentStatuses : prev.agentStatuses,
+            status,
+          );
+          return {
+            ...(isWsl
+              ? { wslAgentStatuses: next, wslLoaded: prev.wslLoaded || markLoaded }
+              : { agentStatuses: next, windowsLoaded: prev.windowsLoaded || markLoaded }),
+            discoveredAgents: updateDiscovery
+              ? upsertAgentStatus(prev.discoveredAgents, status)
+              : prev.discoveredAgents,
+          };
         }),
       removeAgentStatus: (kind) =>
         set((prev) => {
@@ -327,17 +367,28 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
     }),
     {
       name: "poracode-agent-statuses-v1",
-      version: 64,
+      version: 66,
+      // hasCompletedDiscovery is additive: old readers ignore it. Keep v66
+      // inventories valid; infer the flag from older snapshots before clearing
+      // outdated capabilities, independently of supervisor STATUS_CACHE_VERSION.
       // Discovery interaction flags are excluded by partialize and do not
       // change the persisted format.
-      // v64 mirrors supervisor STATUS_CACHE_VERSION=68: refresh discovery
-      // for the read-only one-shot workspace capability used by review guides.
-      migrate: (persisted) => {
+      // v63-v66 mirror host generations v67-v70. Reuse their unchanged rows
+      // through the host codec; only affected providers need new observations.
+      // Keep v66: current snapshots and persisted fields remain valid.
+      migrate: (persisted, version) => {
         const prev = (persisted ?? {}) as Partial<AgentStatusesStore>;
+        const hostVersions: Record<number, number> = { 63: 67, 64: 68, 65: 69, 66: 70 };
+        const cached = decodeAgentStatusCache({
+          version: hostVersions[version] ?? 1,
+          windows: prev.agentStatuses ?? [],
+          wsl: prev.wslAgentStatuses ?? [],
+        }).statuses;
         return {
           ...prev,
-          agentStatuses: [],
-          wslAgentStatuses: [],
+          hasCompletedDiscovery: hasCompletedDiscovery(prev),
+          agentStatuses: cached.windows,
+          wslAgentStatuses: cached.wsl,
           windowsLoaded: false,
           wslLoaded: false,
         } as AgentStatusesStore;
@@ -348,18 +399,50 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
       // getAgentStatuses RPC resolves. The RPC still runs on launch and
       // overwrites this with fresh results via hydrateFromCache.
       storage: createJSONStorage(() => localStorage),
-      // Persist only the resolved statuses and their loaded flags. The
-      // discovery fields are session-scoped (they drive the first-launch
-      // discovery screen) and must reset to their initial state each launch.
+      merge: (persisted, current) => {
+        const previous = (persisted ?? {}) as Partial<AgentStatusesStore>;
+        return {
+          ...current,
+          ...previous,
+          hasCompletedDiscovery: hasCompletedDiscovery(previous),
+        };
+      },
+      // Persist resolved statuses, their loaded flags, and discovery history.
+      // Discovery interaction fields are session-scoped and reset each launch.
       partialize: (state) => ({
         agentStatuses: state.agentStatuses,
         wslAgentStatuses: state.wslAgentStatuses,
         windowsLoaded: state.windowsLoaded,
         wslLoaded: state.wslLoaded,
+        hasCompletedDiscovery: state.hasCompletedDiscovery,
       }),
     },
   ),
 );
+
+/** Fill a partial RPC view without rolling back events received during its read. */
+export function applyPartialAgentStatuses(
+  response: AgentStatusesResponse,
+  before: Pick<
+    AgentStatusesStore,
+    "agentStatuses" | "wslAgentStatuses" | "nativeRevision" | "wslRevision"
+  >,
+): void {
+  for (const status of [...response.windows, ...response.wsl]) {
+    const current = useAgentStatusesStore.getState();
+    const isWsl = status.envKind === "wsl";
+    if (
+      isWsl
+        ? current.wslRevision !== before.wslRevision
+        : current.nativeRevision !== before.nativeRevision
+    )
+      continue;
+    const matches = (entry: AgentStatus) => sameAgentStatusTarget(entry, status);
+    const previous = (isWsl ? before.wslAgentStatuses : before.agentStatuses).find(matches);
+    const existing = (isWsl ? current.wslAgentStatuses : current.agentStatuses).find(matches);
+    if (existing === previous) current.mergeAgentStatus(status, false);
+  }
+}
 
 /**
  * Fan a supervisor agent-status event into the store. Shared by every surface
@@ -377,7 +460,10 @@ export function applyAgentStatusSupervisorEvent(
   const store = useAgentStatusesStore.getState();
   switch (event.type) {
     case "agent-detected":
-      store.pushDiscoveredAgent(event.status);
+      // Cold/invalidated caches also refresh in the background for returning
+      // users. Publish each accepted row without waiting for the slowest probe
+      // or falsely completing discovery before its terminal bulk event.
+      store.mergeAgentStatus(event.status, false);
       break;
     case "agent-status-updated":
       store.mergeAgentStatus(event.status);

@@ -24,8 +24,11 @@ internal suspend fun submitRichChatComposer(
     activeRequest: RichOpenRequest?,
     queueInsteadOfSteer: Boolean = false,
 ): RichChatOperationResult<Unit>? {
-    val prompt = RichChatUiLogic.composerPrompt(draft, queuedSegments)
-        ?: return null
+    val prompt = RichChatUiLogic.composerPrompt(
+        draft,
+        queuedSegments,
+        hasAttachments = attachments.isNotEmpty(),
+    ) ?: return null
     val segments = RichChatUiLogic.composerSegments(queuedSegments, attachments, draft)
     activeRequest?.let { request ->
         val denial = RichChatUiLogic.composerDenyResolution(request) ?: return@let
@@ -74,10 +77,11 @@ internal fun followUpSubmitAction(
 internal fun RichChatUiLogic.composerPrompt(
     draft: String,
     segments: List<RichPromptSegment>,
+    hasAttachments: Boolean = false,
 ): String? {
     val typed = draft.trim()
     if (typed.isNotEmpty()) return typed
-    return segments.mapNotNull { segment ->
+    val structured = segments.mapNotNull { segment ->
         when (segment) {
             is RichPromptSegment.File -> "@${segment.path}"
             is RichPromptSegment.Skill -> segment.invocation
@@ -87,7 +91,11 @@ internal fun RichChatUiLogic.composerPrompt(
             is RichPromptSegment.Text -> segment.content
             is RichPromptSegment.Attachment -> null
         }
-    }.joinToString(" ").trim().takeIf(String::isNotEmpty)
+    }.joinToString(" ").trim()
+    if (structured.isNotEmpty()) return structured
+    // An attachment on its own is a complete message (the host's sendable-input
+    // rule): it submits with an empty prompt and attachment segments.
+    return if (hasAttachments) "" else null
 }
 
 internal fun RichChatUiLogic.composerSegments(

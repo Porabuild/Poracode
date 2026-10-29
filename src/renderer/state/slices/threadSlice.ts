@@ -505,9 +505,12 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
       forgetThreadGalleryCache(threadId);
       confirmPendingThreadInput(threadId);
       const nextThreads = state.threads.filter((thread) => thread.id !== threadId);
+      const chatPromptAnchorIds = Object.fromEntries(
+        Object.entries(state.chatPromptAnchorIds).filter(([id]) => id !== threadId),
+      );
 
       if (nextThreads.length === state.threads.length) {
-        return {};
+        return { chatPromptAnchorIds };
       }
 
       useThreadFollowUpQueueStore.getState().setQueue(threadId, null);
@@ -564,6 +567,7 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
           Object.entries(state.pendingLaunchUserMessageItemIds).filter(([id]) => id !== threadId),
         ),
         runtimeItemIdsByThread,
+        chatPromptAnchorIds,
         runtimeItemsByIdByThread,
         runtimeRequestsByThread,
         runtimeContextByThread,
@@ -798,6 +802,7 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
             : turnStarted
               ? undefined
               : thread.interruptedTurn;
+        const nextErrorMessage = input.errorMessage ?? thread.errorMessage;
 
         if (
           thread.status === effectiveStatus &&
@@ -811,8 +816,10 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
           thread.activeTurnStartedAt === nextTurnTiming.activeTurnStartedAt &&
           thread.lastTurnStartedAt === nextTurnTiming.lastTurnStartedAt &&
           thread.lastTurnEndedAt === nextTurnTiming.lastTurnEndedAt &&
-          (input.errorMessage === undefined || thread.errorMessage === input.errorMessage) &&
-          thread.interruptedTurn === nextInterruptedTurn
+          thread.interruptedTurn === nextInterruptedTurn &&
+          (effectiveStatus === "error"
+            ? input.errorMessage === undefined || thread.errorMessage === input.errorMessage
+            : thread.errorMessage === undefined)
         ) {
           return thread;
         }
@@ -825,8 +832,10 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
         );
 
         changed = true;
+        const threadWithoutErrorMessage = { ...thread };
+        delete threadWithoutErrorMessage.errorMessage;
         return {
-          ...thread,
+          ...threadWithoutErrorMessage,
           status: effectiveStatus,
           attention: effectiveAttention,
           config: nextConfig,
@@ -839,9 +848,11 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
           ...(input.sessionConfigOptions !== undefined
             ? { sessionConfigOptions: input.sessionConfigOptions }
             : {}),
-          ...(input.errorMessage !== undefined ? { errorMessage: input.errorMessage } : {}),
           ...(nextInterruptedTurn !== thread.interruptedTurn
             ? { interruptedTurn: nextInterruptedTurn }
+            : {}),
+          ...(effectiveStatus === "error" && nextErrorMessage !== undefined
+            ? { errorMessage: nextErrorMessage }
             : {}),
           ...(turnStarted ? { updatedAt: nowIso } : {}),
           ...(activityClearsDone ? { done: false, doneAt: undefined } : {}),
@@ -1003,7 +1014,13 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
         return keep;
       });
       if (nextThreads.length === state.threads.length) return {};
-      return { threads: nextThreads };
+      const keptThreadIds = new Set(nextThreads.map((thread) => thread.id));
+      return {
+        threads: nextThreads,
+        chatPromptAnchorIds: Object.fromEntries(
+          Object.entries(state.chatPromptAnchorIds).filter(([id]) => keptThreadIds.has(id)),
+        ),
+      };
     }),
   archiveOldDoneThreads: (maxAgeDays) =>
     set((state) => {
@@ -1257,6 +1274,8 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
             snapshot.sessionConfigOptions !== undefined &&
             JSON.stringify(thread.sessionConfigOptions) !==
               JSON.stringify(snapshot.sessionConfigOptions);
+          const nextErrorMessage =
+            runtime.status === "error" ? (snapshot.errorMessage ?? thread.errorMessage) : undefined;
 
           if (
             thread.status === runtime.status &&
@@ -1264,7 +1283,9 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
             isThreadConfigEqual(thread.config, nextConfig) &&
             thread.canResumeWithConfig === snapshot.canResumeWithConfig &&
             thread.threadStatusSource === snapshot.threadStatusSource &&
-            thread.errorMessage === snapshot.errorMessage &&
+            (runtime.status === "error"
+              ? snapshot.errorMessage === undefined || thread.errorMessage === snapshot.errorMessage
+              : thread.errorMessage === undefined) &&
             thread.activeTurnStartedAt === nextTurnTiming.activeTurnStartedAt &&
             thread.lastTurnStartedAt === nextTurnTiming.lastTurnStartedAt &&
             thread.lastTurnEndedAt === nextTurnTiming.lastTurnEndedAt &&
@@ -1283,8 +1304,10 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
           );
 
           changed = true;
+          const threadWithoutErrorMessage = { ...thread };
+          delete threadWithoutErrorMessage.errorMessage;
           return {
-            ...thread,
+            ...threadWithoutErrorMessage,
             status: runtime.status,
             attention: runtime.attention,
             config: nextConfig,
@@ -1292,7 +1315,9 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
             ...(snapshot.threadStatusSource !== undefined
               ? { threadStatusSource: snapshot.threadStatusSource }
               : {}),
-            ...(snapshot.errorMessage !== undefined ? { errorMessage: snapshot.errorMessage } : {}),
+            ...(runtime.status === "error" && nextErrorMessage !== undefined
+              ? { errorMessage: nextErrorMessage }
+              : {}),
             ...(snapshot.sessionRef ? { sessionRef: snapshot.sessionRef } : {}),
             ...(snapshot.slashCommands !== undefined
               ? { slashCommands: snapshot.slashCommands }

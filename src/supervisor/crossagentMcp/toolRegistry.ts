@@ -3,6 +3,7 @@ import {
   uniqueCoreSkillForBuiltInMcp,
 } from "@/shared/plugins/builtInCoreSkills";
 import type { AgentKind, AgentStatus } from "@/shared/contracts";
+import type { ThreadCrewBinding } from "@/shared/crew";
 import { modelSelectionFor } from "@/shared/agentSelection";
 import {
   crossagentRankingPreferences,
@@ -34,6 +35,7 @@ import {
   TIMEOUT_S_DESCRIPTION,
 } from "./toolResult";
 import { parseRunIds, parseSpawnRequests } from "./toolRequests";
+import { crewListDescription } from "./crewRoles";
 import { resolveSelectionArgs, spawnAgent } from "./toolSpawn";
 import { dispatchWorkflow } from "./toolWorkflow";
 import { steerAgent } from "./toolSteer";
@@ -41,7 +43,6 @@ import { rankingCandidateOf, resolveSubagentExecution } from "./types";
 import type {
   McpToolResult,
   ExplicitSpawnAgentSelection,
-  ModelTier,
   SpawnableAgent,
   SpawnableAgentSummary,
   ToolSpec,
@@ -49,44 +50,45 @@ import type {
 
 export type { ToolSpec } from "./types";
 
-const FAST_CHEAP_KEYWORDS = ["haiku", "mini", "nano", "lite", "flash", "small", "spark", "fast"];
-const MAX_CAPABILITY_KEYWORDS = ["opus", "fable", "pro", "max", "ultra", "big"];
+import { classifyModelTier } from "./modelTier";
 
-/** Whether `keyword` appears in `haystack` as a whole word (not as a substring of a larger word). */
-function hasWholeWordMatch(haystack: string, keyword: string): boolean {
-  return new RegExp(`\\b${keyword}\\b`, "i").test(haystack);
-}
-
-/**
- * Classify a model into a coarse cost/capability tier from its id/label,
- * keyword-matched case-insensitively and provider-agnostic (no per-provider
- * special-casing). Matches whole words only, so e.g. "gemini" doesn't
- * false-positive on the "mini" keyword.
- */
-export function classifyModelTier(modelId: string, modelLabel: string): ModelTier {
-  const haystack = `${modelId} ${modelLabel}`;
-  if (FAST_CHEAP_KEYWORDS.some((keyword) => hasWholeWordMatch(haystack, keyword)))
-    return "fast-cheap";
-  if (MAX_CAPABILITY_KEYWORDS.some((keyword) => hasWholeWordMatch(haystack, keyword)))
-    return "max-capability";
-  return "balanced";
-}
+export { classifyModelTier };
 
 const CROSSAGENTS_CORE_SKILL = uniqueCoreSkillForBuiltInMcp("crossagents");
 
-/** Keep bootstrap small: some clients repeat initialize instructions in every tool description. */
-export const CROSSAGENT_MCP_INSTRUCTIONS_BASE = [
-  "Delegate only after the user's explicit request in this thread; authorization persists.",
-  `Before first delegation, ${loadPluginCoreSkillPhrase(CROSSAGENTS_CORE_SKILL)} once using its known path or ID.`,
+const AUTHORIZATION_INSTRUCTION =
+  "Delegate only after the user's explicit request in this thread; authorization persists.";
+const CORE_SKILL_INSTRUCTION = `Before first delegation, ${loadPluginCoreSkillPhrase(CROSSAGENTS_CORE_SKILL)} once using its known path or ID.`;
+const TOOL_SETUP_INSTRUCTIONS = [
   "Resolve crossagents-qualified tool names and only needed schemas together. Reuse loaded instructions and batch independent setup.",
   "Known selections can spawn directly; use get_agent for missing model details and list_agents only when the provider is unknown.",
+];
+
+/** Keep bootstrap small: some clients repeat initialize instructions in every tool description. */
+export const CROSSAGENT_MCP_INSTRUCTIONS_BASE = [
+  AUTHORIZATION_INSTRUCTION,
+  CORE_SKILL_INSTRUCTION,
+  ...TOOL_SETUP_INSTRUCTIONS,
 ].join(" ");
 
-export function buildSubagentInstructions(routingGuide?: string): string {
-  const guide = routingGuide?.trim();
-  return guide
-    ? `${CROSSAGENT_MCP_INSTRUCTIONS_BASE}\n\n${guide}`
+/**
+ * Crew threads carry their own delegation playbook in the crew brief, so the
+ * lead skips loading the core skill (a whole extra lead turn and context).
+ */
+export const CROSSAGENT_MCP_CREW_INSTRUCTIONS_BASE = [
+  AUTHORIZATION_INSTRUCTION,
+  ...TOOL_SETUP_INSTRUCTIONS,
+].join(" ");
+
+export function buildSubagentInstructions(
+  routingGuide?: string,
+  options?: { crew?: boolean },
+): string {
+  const base = options?.crew
+    ? CROSSAGENT_MCP_CREW_INSTRUCTIONS_BASE
     : CROSSAGENT_MCP_INSTRUCTIONS_BASE;
+  const guide = routingGuide?.trim();
+  return guide ? `${base}\n\n${guide}` : base;
 }
 
 const SUBAGENT_SELECTION_PROPERTIES = {
@@ -156,6 +158,16 @@ const TASK_TAGS_PROPERTY = {
 
 const SUBAGENT_TASK_PROPERTIES = {
   ...SUBAGENT_SELECTION_PROPERTIES,
+  role: {
+    type: "string",
+    description:
+      "Crew role id from list_agents (for example `builder`) when this thread has a crew. The role sets provider, model, reasoning and Fast; omit those.",
+  },
+  fresh_session: {
+    type: "boolean",
+    description:
+      "With role: start a new helper session instead of continuing that role's previous one. Use only for unrelated work.",
+  },
   prompt: { type: "string", description: "Self-contained task for the subagent." },
   result_mode: {
     type: "string",
@@ -223,6 +235,7 @@ const RAW_TOOLS: ToolSpec[] = [
             "On start, return immediately only when useful independent work remains. Default waits for completion, attention or timeout.",
         },
         ...SUBAGENT_SELECTION_PROPERTIES,
+        role: SUBAGENT_TASK_PROPERTIES.role,
         tasks: {
           type: "array",
           minItems: 1,
@@ -259,7 +272,7 @@ const RAW_TOOLS: ToolSpec[] = [
   {
     name: "list_agents",
     description:
-      "Choose an unknown provider from the ranked roster. Skip when the provider is already known: get_agent supplies its options, or spawn directly with known selection values.",
+      "Choose an unknown provider from the ranked roster. When this thread has a crew, also returns its roles. Skip when the provider is already known: get_agent supplies its options, or spawn directly with known selection values.",
     inputSchema: {
       type: "object",
       properties: { tags: TASK_TAGS_PROPERTY },
@@ -285,7 +298,7 @@ const RAW_TOOLS: ToolSpec[] = [
   {
     name: "spawn_agent",
     description:
-      "Call only after the user has explicitly asked to delegate work to another agent in this thread (for example via an @Crossagents mention); that ask covers the rest of the thread, but never spawn before it. Spawn one task-tagged agent and wait for its result by default. Omitted selection fields resolve from contextual rank. With tasks=[...], root provider/model/reasoning/fast/permissions are batch defaults and each task may override them. Set background=true to return a run_id immediately, or pass tasks=[...] to launch several agents in parallel.",
+      "Call only after the user has explicitly asked to delegate work to another agent in this thread (for example via an @Crossagents mention or by giving the thread a crew); that ask covers the rest of the thread, but never spawn before it. Spawn one task-tagged agent and wait for its result by default. Omitted selection fields resolve from contextual rank. With tasks=[...], root provider/model/reasoning/fast/permissions are batch defaults and each task may override them. Set background=true to return a run_id immediately, or pass tasks=[...] to launch several agents in parallel.",
     inputSchema: {
       type: "object",
       properties: {
@@ -633,6 +646,7 @@ export interface SubagentToolContext {
   parentThreadId: string;
   runManager: SubagentRunManager;
   listSpawnableAgents: (tags?: readonly string[]) => Promise<SpawnableAgent[]>;
+  getCrew?: () => ThreadCrewBinding | undefined;
   recordExplicitSelections?: (selections: readonly ExplicitSpawnAgentSelection[]) => void;
   listRoutingOverrides?: () => readonly CrossagentRoutingOverride[];
   setRoutingOverride?: (override: CrossagentRoutingOverride) => void | Promise<void>;
@@ -734,10 +748,21 @@ export async function dispatchTool(
 ): Promise<McpToolResult> {
   try {
     switch (name) {
-      case "list_agents":
-        return jsonResult(
-          (await ctx.listSpawnableAgents(normalizeCrossagentTags(args.tags))).map(summarizeAgent),
+      case "list_agents": {
+        const agents = await ctx.listSpawnableAgents(normalizeCrossagentTags(args.tags));
+        const crew = ctx.getCrew?.();
+        if (!crew) return jsonResult(agents.map(summarizeAgent));
+        const description = crewListDescription(
+          crew,
+          agents,
+          ctx.runManager.listRuns(ctx.parentThreadId),
         );
+        return jsonResult(
+          crew.policy === "crew-first"
+            ? { ...description, agents: agents.map(summarizeAgent) }
+            : description,
+        );
+      }
       case "get_agent": {
         const id = typeof args.id === "string" ? args.id : "";
         if (!id) return errorResult("id is required");
@@ -769,6 +794,29 @@ export async function dispatchTool(
       // Hidden compatibility aliases for provider sessions initialized against
       // the earlier, wider tool catalog.
       case "spawn_agents": {
+        const hasTaskRole =
+          Array.isArray(args.tasks) &&
+          args.tasks.some(
+            (task) => !!task && typeof task === "object" && !Array.isArray(task) && "role" in task,
+          );
+        if (
+          (ctx.getCrew?.() || args.role !== undefined || hasTaskRole) &&
+          Array.isArray(args.tasks)
+        ) {
+          const result = await spawnAgent({ ...args, background: true }, ctx);
+          if (result.isError) return result;
+          const payload = JSON.parse(result.content[0]?.text ?? "{}") as {
+            runs?: Array<{ run_id?: string }>;
+          };
+          return jsonResult(
+            {
+              run_ids: (payload.runs ?? []).flatMap((run) =>
+                typeof run.run_id === "string" ? [run.run_id] : [],
+              ),
+            },
+            WAIT_AGAIN_INSTRUCTION,
+          );
+        }
         const requests = parseSpawnRequests(args).map((request) => ({
           ...request,
           background: true as const,

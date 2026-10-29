@@ -65,14 +65,18 @@ import { stopRunningServer } from "./serverStop";
 import { ServerUpgradeBusyError, ServerUpgradeLockUnreadableError } from "./serverUpgradeLock";
 import { ServerUpgradeServiceTargetError } from "./serverUpgradeRestart";
 import { requestPairingFromRunningServer } from "./pairingControl";
+import { ensureCliOwner } from "./cliOwner";
+import { runCliTui, TuiLaunchUnavailableError } from "./cliTui";
 import {
   parseActivateCliOptions,
+  assertTuiTerminal,
   parseBackupCliOptions,
   parseDoctorCliOptions,
   parseInitTlsCliOptions,
   parsePairCliOptions,
   parseServerCliCommand,
   parseStopCliOptions,
+  parseTuiCliOptions,
   type ActivateCliOptions,
   type BackupCliOptions,
   type DoctorCliOptions,
@@ -81,7 +85,7 @@ import {
   type ServerCliCommand,
 } from "./cliParse";
 import { writeInitTlsMaterial } from "./initTlsWrite";
-import { runAdminCli, reportAdminError } from "./cliAdmin";
+import { connectHostAdministration, runAdminCli, reportAdminError } from "./cliAdmin";
 import { CLI_ADMIN_HELP, CLI_PROFILE_HELP, cliCommandHelp } from "./cliHelp";
 import { extractBaseDir, runConfigure } from "./cliConfigure";
 import {
@@ -98,7 +102,7 @@ import {
 import { openServerWebApp } from "./cliWebApp";
 import { parseStatusCliOptions, runServerStatus } from "./cliStatus";
 import { CLI_LOGS_HELP, parseLogsCliOptions, runServerLogs } from "./cliLogs";
-import { parseRunCli } from "./cliRun";
+import { prepareRunCli, runRunCli } from "./cliRun";
 
 // Mirrored by DESKTOP_CLI_BOOTSTRAP_VERSION: reject a mismatched packaged entry
 // before dispatch, and retain the verified identity throughout this process.
@@ -593,17 +597,21 @@ function printHelp(args: readonly string[]): void {
     return;
   }
   process.stdout.write(
-    "Headless setup and administration:\n" +
+    "Poracode CLI commands:\n" +
       CLI_ADMIN_HELP +
       SETUP_HELP +
       SERVICE_HELP +
       CLI_COMPLETION_HELP +
       "\n" +
-      "Usage: poracode-server [setup [--start|--no-start] [--skip-auth] | serve [--config <path>] [--host <host>] [--port <port>] [--trusted-proxies <list>] | activate [--json] [--sign-in-again] | doctor [--json] [--log-file <path>] | logs [--follow] [--lines N] [--json] | backup --to <directory> [--json] | init-tls [--json] [--cert <path>] [--key <path>] | upgrade --from <tarball> [--prefix <path>] [--json] | pair --json [--scope viewer|operator] | status [--details] [--json] | stop [--if-pid PID] | --version | --help]\n" +
+      "Usage: poracode [tui [--continue|-c] [--session ID] [--prompt TEXT] [--auto] [DIRECTORY] | " +
+      "-p|--print PROMPT [--provider K] [--model M] [--effort E] [--format text|json] [--directory PATH] | " +
+      "serve [--open|--no-open] [--config <path>] [--host <host>] [--port <port>] [--trusted-proxies <list>] | " +
+      "setup [--start|--no-start] [--skip-auth] | activate [--json] [--sign-in-again] | doctor [--json] [--log-file <path>] | logs [--follow] [--lines N] [--json] | backup --to <directory> [--json] | init-tls [--json] [--cert <path>] [--key <path>] | upgrade --from <tarball> [--prefix <path>] [--json] | pair --json [--scope viewer|operator] | status [--details] [--json] | stop [--if-pid PID] | --version | --help]\n" +
       "\nPORACODE_BASE_DIR selects a profile namespace. The server owns its .host-v1 sibling.\n" +
-      "Bare invocation starts the foreground server and opens the web app in a local interactive terminal.\n" +
-      "Use serve or --no-open for server only; serve --open explicitly requests the browser.\n" +
-      "Both modes read an optional JSON config file —\n" +
+      "Bare invocation opens the TUI when stdin and stdout are terminals; otherwise it serves the current profile without opening a browser.\n" +
+      "Use serve --open (or --open) for the web app; --no-open means server only.\n" +
+      "The TUI and one-shot -p start a detached background server when no owner is running.\n" +
+      "Server invocations read an optional JSON config file -\n" +
       "  <profile>.server.json, an existing <profile>/poracode-server.json (takes precedence),\n" +
       "  or the path given with --config — with fields:\n" +
       "  host, port, bindMode, relayUrl, tlsCert, tlsKey, trustedProxies, logLevel, logMaxBytes,\n" +
@@ -669,6 +677,7 @@ export function runDesktopCli(input: unknown): void {
 function dispatchCli(capturedBuild?: HostBuildIdentity): void {
   let command: ReturnType<typeof parseServerCliCommand>;
   let args: string[];
+  let baseDirArgument: string | undefined;
   try {
     const raw = process.argv.slice(2);
     // Completion words are data, including any --base-dir being completed.
@@ -678,8 +687,12 @@ function dispatchCli(capturedBuild?: HostBuildIdentity): void {
     }
     const parsed = extractBaseDir(raw);
     args = parsed.args;
-    if (parsed.baseDir) process.env.PORACODE_BASE_DIR = parsed.baseDir;
-    command = parseServerCliCommand(args);
+    baseDirArgument = parsed.baseDir;
+    if (baseDirArgument) process.env.PORACODE_BASE_DIR = baseDirArgument;
+    command = parseServerCliCommand(
+      args,
+      process.stdin.isTTY === true && process.stdout.isTTY === true,
+    );
   } catch (error) {
     reportAdminError(error, process.argv.includes("--json"));
     return;
@@ -752,34 +765,54 @@ function dispatchCli(capturedBuild?: HostBuildIdentity): void {
       : command === "logs"
         ? runServerLogs(profileNamespace(), parseLogsCliOptions(args.slice(1)))
         : command === "admin"
-          ? runAdministration(args, capturedBuild)
-          : command === "configure"
-            ? runConfigure(profileNamespace(), args.slice(1))
-            : command === "setup"
-              ? runSetup(profileNamespace(), parseSetupCliOptions(args.slice(1)), (config, open) =>
-                  serve({ config, open }, false, capturedBuild),
-                )
-              : command === "pair-json"
-                ? printPairingJson(parsePairCliOptions(args.slice(1)))
-                : command === "status-json"
-                  ? runServerStatus(profileNamespace(), parseStatusCliOptions(args.slice(1)))
-                  : command === "stop"
-                    ? runStop(parseStopCliOptions(args.slice(1)))
-                    : command === "activate"
-                      ? activateStagedImport(parseActivateCliOptions(args.slice(1)))
-                      : command === "doctor"
-                        ? runDoctor(parseDoctorCliOptions(args.slice(1)))
-                        : command === "backup"
-                          ? runBackup(parseBackupCliOptions(args.slice(1)))
-                          : command === "init-tls"
-                            ? runInitTls(parseInitTlsCliOptions(args.slice(1)))
-                            : command === "upgrade"
-                              ? runUpgrade(parseUpgradeCliOptions(args.slice(1)))
-                              : serve(
-                                  parseServeCliOptions(args),
-                                  args[0] !== "serve",
-                                  capturedBuild,
-                                );
+          ? runAdministration(args, capturedBuild, {
+              ...(baseDirArgument !== undefined ? { baseDir: baseDirArgument } : {}),
+            })
+          : command === "print"
+            ? runAdministration(["run", ...args.slice(1)], capturedBuild, {
+                ...(baseDirArgument !== undefined ? { baseDir: baseDirArgument } : {}),
+                oneShot: true,
+              })
+            : command === "tui"
+              ? args.length === 0
+                ? // Bare interactive `poracode` predates the TUI: an install
+                  // with no TUI binary keeps the old behavior instead of
+                  // failing. Explicit `poracode tui` still reports the error.
+                  runTuiCommand(args.slice(1), capturedBuild, baseDirArgument).catch((error) => {
+                    if (!(error instanceof TuiLaunchUnavailableError)) throw error;
+                    writeSync(2, `${error.message}\n`);
+                    return serve(parseServeCliOptions([]), true, capturedBuild);
+                  })
+                : runTuiCommand(args.slice(1), capturedBuild, baseDirArgument)
+              : command === "configure"
+                ? runConfigure(profileNamespace(), args.slice(1))
+                : command === "setup"
+                  ? runSetup(
+                      profileNamespace(),
+                      parseSetupCliOptions(args.slice(1)),
+                      (config, open) => serve({ config, open }, false, capturedBuild),
+                    )
+                  : command === "pair-json"
+                    ? printPairingJson(parsePairCliOptions(args.slice(1)))
+                    : command === "status-json"
+                      ? runServerStatus(profileNamespace(), parseStatusCliOptions(args.slice(1)))
+                      : command === "stop"
+                        ? runStop(parseStopCliOptions(args.slice(1)))
+                        : command === "activate"
+                          ? activateStagedImport(parseActivateCliOptions(args.slice(1)))
+                          : command === "doctor"
+                            ? runDoctor(parseDoctorCliOptions(args.slice(1)))
+                            : command === "backup"
+                              ? runBackup(parseBackupCliOptions(args.slice(1)))
+                              : command === "init-tls"
+                                ? runInitTls(parseInitTlsCliOptions(args.slice(1)))
+                                : command === "upgrade"
+                                  ? runUpgrade(parseUpgradeCliOptions(args.slice(1)))
+                                  : serve(
+                                      parseServeCliOptions(args),
+                                      args[0] !== "serve",
+                                      capturedBuild,
+                                    );
   operation.catch(async (error) => {
     await performanceDiagnostics?.stop();
     if (error instanceof HeadlessCompositionShutdownError) {
@@ -789,9 +822,17 @@ function dispatchCli(capturedBuild?: HostBuildIdentity): void {
       return;
     }
     if (
-      ["admin", "configure", "setup", "pair-json", "status-json", "service", "logs"].includes(
-        command,
-      )
+      [
+        "admin",
+        "print",
+        "tui",
+        "configure",
+        "setup",
+        "pair-json",
+        "status-json",
+        "service",
+        "logs",
+      ].includes(command)
     ) {
       reportAdminError(error, command !== "logs" && args.includes("--json"));
       return;
@@ -821,13 +862,42 @@ function dispatchCli(capturedBuild?: HostBuildIdentity): void {
   });
 }
 
-async function runAdministration(args: string[], capturedBuild?: HostBuildIdentity) {
-  const run = args[0] === "run" ? parseRunCli(args) : null;
+async function runTuiCommand(
+  args: readonly string[],
+  capturedBuild: HostBuildIdentity | undefined,
+  baseDir: string | undefined,
+) {
+  assertTuiTerminal(process.stdin.isTTY === true, process.stdout.isTTY === true);
+  const options = parseTuiCliOptions(args);
+  const code = await runCliTui(options, {
+    profileNamespace: profileNamespace(),
+    ...(baseDir !== undefined ? { baseDir } : {}),
+    ...(capturedBuild !== undefined ? { capturedBuild } : {}),
+  });
+  if (code !== 0) process.exitCode = code;
+}
+
+async function runAdministration(
+  args: string[],
+  capturedBuild?: HostBuildIdentity,
+  options: { readonly baseDir?: string; readonly oneShot?: boolean } = {},
+) {
+  const profile = profileNamespace();
+  const run = await prepareRunCli(args, profile, {
+    ...(options.oneShot ? { oneShot: true } : {}),
+    defaultDirectory: process.cwd(),
+  });
   if (run?.standalone) {
     const { runStandaloneCli } = await import("./cliStandaloneRun");
-    return runStandaloneCli(profileNamespace(), run, __dirname, capturedBuild);
+    return runStandaloneCli(profile, run, __dirname, capturedBuild);
   }
-  return runAdminCli(profileNamespace(), args);
+  if (run && "defaultSelection" in run && run.defaultSelection)
+    await ensureCliOwner(profile, {
+      ...(options.baseDir !== undefined ? { baseDir: options.baseDir } : {}),
+      ...(capturedBuild !== undefined ? { capturedBuild } : {}),
+    });
+  if (run) return runRunCli(run, (signal) => connectHostAdministration(profile, signal));
+  return runAdminCli(profile, args);
 }
 
 // Importing CLI helpers under the test runner never boots a listener.

@@ -1,22 +1,32 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   open: vi.fn<(...args: unknown[]) => Promise<void>>(),
+  openWindow: vi.fn<(...args: unknown[]) => Promise<void>>(),
+  bind: vi.fn<(...args: unknown[]) => Promise<void>>(),
+  detachedIds: new Set<string>(),
   context: vi.fn<(...args: unknown[]) => Promise<null>>(),
   environment: vi.fn<() => Promise<unknown>>(),
   reopen: vi.fn<(tab: string) => void>(),
   entry: null as {
+    id?: string;
     source: { id: string };
     prompt: string;
     existingThreadId?: string;
   } | null,
 }));
-vi.mock("@/renderer/bridge", () => ({ readBridge: () => ({ openSideChatPanel: mocks.open }) }));
+vi.mock("@/renderer/bridge", () => ({
+  readBridge: () => ({
+    openSideChatPanel: mocks.open,
+    openSideChatWindow: mocks.openWindow,
+    bindSideChatThread: mocks.bind,
+  }),
+}));
 vi.mock("./sideChatContext", () => ({ readSideChatContext: mocks.context }));
 vi.mock("./sideChatPanelStore", () => ({
   useSideChatPanelStore: {
     getState: () => ({
       entry: mocks.entry,
-      detachedIds: new Set(),
+      detachedIds: mocks.detachedIds,
       entries: mocks.entry ? { [mocks.entry.source.id]: mocks.entry } : {},
     }),
   },
@@ -48,7 +58,12 @@ vi.mock("@/renderer/state/remoteServersStore", () => ({
     }),
   },
 }));
-import { openSideChat, showSideChat, sideChatAvailable } from "./sideChatActions";
+import {
+  addSelectionToSideChat,
+  openSideChat,
+  showSideChat,
+  sideChatAvailable,
+} from "./sideChatActions";
 import { retainAuxiliaryThreadId } from "@/renderer/state/auxiliaryThreadWindows";
 
 beforeEach(() => {
@@ -56,11 +71,56 @@ beforeEach(() => {
   mocks.context.mockResolvedValue(null);
   mocks.open.mockResolvedValue();
   mocks.entry = null;
+  mocks.detachedIds.clear();
   mocks.environment.mockResolvedValue({
     capabilities: { conversationSnapshots: { versions: [1] } },
   });
 });
 describe("menu reopening", () => {
+  it("opens a selected quotation as an unsent new side draft", async () => {
+    await expect(addSelectionToSideChat("parent", "quoted text")).resolves.toBe(true);
+    expect(mocks.open).toHaveBeenCalledWith(
+      expect.objectContaining({ prompt: "quoted text", autoStart: false }),
+    );
+  });
+  it.each([undefined, "child"])(
+    "appends to the existing panel composer (%s)",
+    async (existingThreadId) => {
+      mocks.entry = {
+        id: "draft",
+        source: { id: "parent" },
+        prompt: "unsent",
+        ...(existingThreadId ? { existingThreadId } : {}),
+      };
+      await expect(addSelectionToSideChat("parent", "quote")).resolves.toBe(true);
+      expect(mocks.open).toHaveBeenCalledWith({
+        ...mocks.entry,
+        appendText: "quote",
+        autoStart: false,
+      });
+      expect(mocks.entry.prompt).toBe("unsent");
+      expect(mocks.bind.mock.calls).toEqual(
+        existingThreadId ? [] : [[{ id: "draft", prompt: "unsent" }]],
+      );
+    },
+  );
+  it("delivers detached input to its existing owner without replacing its draft", async () => {
+    mocks.entry = {
+      id: "detached",
+      source: { id: "parent" },
+      prompt: "stale main copy",
+      existingThreadId: "child",
+    };
+    mocks.detachedIds.add("detached");
+    await expect(addSelectionToSideChat("parent", "quote")).resolves.toBe(true);
+    expect(mocks.openWindow).toHaveBeenCalledWith({
+      ...mocks.entry,
+      appendText: "quote",
+      autoStart: false,
+    });
+    expect(mocks.open).not.toHaveBeenCalled();
+    expect(mocks.bind).not.toHaveBeenCalled();
+  });
   it("offers side chat only for GUI presentation outside an auxiliary child", () => {
     expect(sideChatAvailable("parent", "terminal")).toBe(false);
     expect(sideChatAvailable("parent", "gui")).toBe(true);

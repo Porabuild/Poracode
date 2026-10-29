@@ -117,7 +117,10 @@ vi.mock("./BackendRemoteBrowserProxy", () => ({
 }));
 
 vi.mock("./BackendImagePreview", () => ({
-  generateBackendImagePreview: vi.fn<() => null>(() => null),
+  generateBackendImageCardVariant: vi.fn<() => null>(() => null),
+}));
+vi.mock("@/host/remote/server/imagePreviewGenerator", () => ({
+  generateImagePreview: vi.fn<() => null>(() => null),
 }));
 
 import { affectsShellProjection, BackendDesktopServices } from "./BackendDesktopServices";

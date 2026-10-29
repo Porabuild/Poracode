@@ -238,7 +238,7 @@ Function ${PORACODE_CLI_PREFIX}PoraCliAccount
       System::Call '*$3(p .r4)'
       System::Call 'advapi32::ConvertSidToStringSidW(p r4, *p .r5) i.r1'
       ${If} $1 != 0
-        System::Call '*$5(&w${NSIS_MAX_STRLEN} .r6)'
+        System::Call 'kernel32::lstrcpynW(w .r6, p r5, i ${NSIS_MAX_STRLEN}) p'
         StrCpy $PoraCliSid $6
         System::Call 'kernel32::LocalFree(p r5)'
       ${EndIf}

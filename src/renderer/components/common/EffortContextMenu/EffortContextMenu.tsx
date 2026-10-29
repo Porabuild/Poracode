@@ -9,8 +9,9 @@ import { shouldConfirmContextSizeReload } from "@/renderer/state/contextSizeRelo
 import { ContextSizeReloadPopover } from "./ContextSizeReloadPopover";
 
 export interface EffortContextMenuProps {
-  /** Full-width field trigger for a menu embedded in a configuration panel. */
-  triggerAppearance?: "composer" | "field";
+  /** Full-width field trigger for a configuration panel; "label" is a bare text
+   * trigger for inline rows (crew member quick settings). */
+  triggerAppearance?: "composer" | "field" | "label";
   /** Localized accessible name when a panel supplies its own visible field label. */
   label?: string;
   efforts: readonly LabeledOption[];
@@ -163,29 +164,37 @@ export function EffortContextMenu(props: EffortContextMenuProps) {
       className={
         triggerAppearance === "field"
           ? "w-full min-w-0 justify-between px-2"
-          : "poracode-composer-menu poracode-composer-effort-control min-w-0 px-2.5"
+          : triggerAppearance === "label"
+            ? "h-4 min-w-0 max-w-full gap-0 rounded px-1 leading-4 text-muted hover:bg-foreground/5 hover:text-foreground"
+            : "poracode-composer-menu poracode-composer-effort-control min-w-0 px-2.5"
       }
       {...(mobile ? { onPress: () => handleOpenChange(true) } : {})}
     >
-      {icon}
-      <span
-        data-collapse-tier={collapseTier}
-        className={
-          hideLabelOnWrap
-            ? `poracode-composer-label-hideable truncate${forceHideLabel ? " is-hidden" : ""}`
-            : "truncate"
-        }
-      >
-        {triggerLabel}
-      </span>
-      <ChevronDown
-        data-collapse-tier={collapseTier}
-        className={
-          hideLabelOnWrap
-            ? `poracode-composer-label-hideable size-3.5 text-muted${forceHideLabel ? " is-hidden" : ""}`
-            : "size-3.5 text-muted"
-        }
-      />
+      {triggerAppearance === "label" ? (
+        <span className="truncate text-[11px]">{triggerLabel}</span>
+      ) : (
+        <>
+          {icon}
+          <span
+            data-collapse-tier={collapseTier}
+            className={
+              hideLabelOnWrap
+                ? `poracode-composer-label-hideable truncate${forceHideLabel ? " is-hidden" : ""}`
+                : "truncate"
+            }
+          >
+            {triggerLabel}
+          </span>
+          <ChevronDown
+            data-collapse-tier={collapseTier}
+            className={
+              hideLabelOnWrap
+                ? `poracode-composer-label-hideable size-3.5 text-muted${forceHideLabel ? " is-hidden" : ""}`
+                : "size-3.5 text-muted"
+            }
+          />
+        </>
+      )}
     </Button>
   );
 
@@ -290,7 +299,11 @@ export function EffortContextMenu(props: EffortContextMenuProps) {
       isOpen={isOpen}
       onOpenChange={handleOpenChange}
       label={label ?? t`Effort and context`}
-      {...(triggerAppearance === "field" ? { triggerClassName: "w-full min-w-0" } : {})}
+      {...(triggerAppearance === "field"
+        ? { triggerClassName: "w-full min-w-0" }
+        : triggerAppearance === "label"
+          ? { triggerClassName: "inline-flex min-w-0 max-w-full" }
+          : {})}
       trigger={
         mobile ? (
           trigger

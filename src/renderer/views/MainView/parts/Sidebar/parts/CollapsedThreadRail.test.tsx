@@ -98,6 +98,15 @@ describe("CollapsedThreadRail", () => {
     expect(screen.queryByRole("button", { name: "thread-2" })).not.toBeInTheDocument();
   });
 
+  it("keeps a chip title accessible by its plain-text name on the icon-only button", () => {
+    useAppStore.setState({
+      threads: [makeThread("thread-1", { title: "$finalize the release" })],
+    });
+    const { container } = render(<CollapsedThreadRail />);
+    expect(screen.getByRole("button", { name: "$finalize the release" })).toBeInTheDocument();
+    expect(container.querySelector(".poracode-slash-chip")).toBeNull();
+  });
+
   it("keeps all threads accessible when only the overflow button fits", async () => {
     height = 32;
     render(<CollapsedThreadRail />);

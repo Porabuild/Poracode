@@ -4,6 +4,8 @@ Var PoraCliRunning
 Var PoraCliRunningPid
 Var PoraCliRunningPrefix
 Var PoraCliRunningReason
+Var PoraCliExitWait
+Var PoraCliExitStarted
 
 ; A bundled headless owner uses the desktop executable too. Never hand it to
 ; electron-builder's default image/prefix kill path. Snapshot reads do not signal
@@ -115,6 +117,26 @@ FunctionEnd
 
 !macro customCheckAppRunning
   Call ${PORACODE_CLI_PREFIX}PoraCliCheckRunning
+  ${If} $PoraCliRunning != 0
+    ${StdUtils.TestParameter} $PoraCliExitWait "updated"
+    ${If} $PoraCliExitWait == "true"
+      ; quitAndInstall starts the installer before the desktop's shutdown join.
+      ; Exiting processes can be unqueryable. Wait for a qualified clear snapshot;
+      ; never terminate a bundled server or accept unknown ownership.
+      System::Call 'kernel32::GetTickCount() i .s'
+      Pop $PoraCliExitStarted
+      ${DoWhile} $PoraCliRunning != 0
+        System::Call 'kernel32::GetTickCount() i .s'
+        Pop $PoraCliExitWait
+        IntOp $PoraCliExitWait $PoraCliExitWait - $PoraCliExitStarted
+        ${If} $PoraCliExitWait >= 30000
+          ${ExitDo}
+        ${EndIf}
+        Sleep 250
+        Call ${PORACODE_CLI_PREFIX}PoraCliCheckRunning
+      ${Loop}
+    ${EndIf}
+  ${EndIf}
   ${If} $PoraCliRunning != 0
     DetailPrint "Desktop replacement refused: $PoraCliRunningReason"
     DetailPrint "Desktop replacement refused: the selected runtime is running or its ownership could not be qualified. Quit the desktop or run ${PORACODE_CLI_COMMAND} stop with the server's exact --base-dir, then retry. No process was stopped."

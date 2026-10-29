@@ -123,6 +123,9 @@ it("keeps the new commands closed in v14 and old/future owner envelopes refuse",
   ).toBe(true);
   expect(
     hostAdminResultSchema.safeParse({ adminVersion: 24, outcome: { ok: true, data: {} } }).success,
+  ).toBe(true);
+  expect(
+    hostAdminResultSchema.safeParse({ adminVersion: 25, outcome: { ok: true, data: {} } }).success,
   ).toBe(false);
   expect(
     hostAdminRequest({ action: "sessions-export-start", threadId: "saved" }).adminVersion,

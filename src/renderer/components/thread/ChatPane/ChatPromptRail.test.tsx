@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, renderHook, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppProvider } from "@/renderer/components/ui/provider";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -7,13 +7,18 @@ import type { PersistedPromptIndex } from "@/shared/ipc";
 import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
 import type { ChatTimelineEntry } from "./chatPaneSelectors";
 import { ChatPromptRail } from "./ChatPromptRail";
+import { useRailPane } from "./useRailPane";
 
 const { readThreadPromptIndex } = vi.hoisted(() => ({
   readThreadPromptIndex: vi.fn<
     (threadId: string, signal?: AbortSignal) => Promise<PersistedPromptIndex | null>
   >(async () => null),
 }));
-vi.mock("@/renderer/state/threadPromptIndex", () => ({ readThreadPromptIndex }));
+vi.mock("@/renderer/state/threadPromptIndex", () => ({
+  threadPromptIndexOwner: () => "host",
+  readCachedThreadPromptIndex: () => undefined,
+  readThreadPromptIndex,
+}));
 
 /** A media query list that answers `matches` and ignores subscriptions. */
 const mediaQueryList = (media: string, matches: boolean) => ({
@@ -114,7 +119,7 @@ function railElement(
   );
 }
 
-function renderRail(
+async function renderRail(
   scroller: HTMLDivElement,
   props: Partial<Parameters<typeof ChatPromptRail>[0]> = {},
 ) {
@@ -123,6 +128,7 @@ function renderRail(
   act(() => {
     vi.runAllTimers();
   });
+  await flushIndex();
   return { ...result, onJumpToPrompt };
 }
 
@@ -148,16 +154,26 @@ const tickLabels = () =>
 
 /** Reports once as soon as it observes, the way a real ResizeObserver does. */
 class ImmediateResizeObserver {
-  constructor(private readonly callback: () => void) {}
+  static callbacks = new Set<() => void>();
+  constructor(private readonly callback: () => void) {
+    ImmediateResizeObserver.callbacks.add(callback);
+  }
   observe() {
     this.callback();
   }
   unobserve() {}
-  disconnect() {}
+  disconnect() {
+    ImmediateResizeObserver.callbacks.delete(this.callback);
+  }
+
+  static notify() {
+    for (const callback of ImmediateResizeObserver.callbacks) callback();
+  }
 }
 
 describe("ChatPromptRail", () => {
   beforeEach(() => {
+    ImmediateResizeObserver.callbacks.clear();
     readThreadPromptIndex.mockReset();
     readThreadPromptIndex.mockResolvedValue(null);
     vi.stubGlobal("ResizeObserver", ImmediateResizeObserver);
@@ -185,9 +201,31 @@ describe("ChatPromptRail", () => {
     document.body.innerHTML = "";
   });
 
-  it("draws one tick per prompt and marks the one the visible content answers", () => {
+  it("first shows the complete prompt index without waiting for a new runtime item", async () => {
+    let complete!: (index: PersistedPromptIndex) => void;
+    readThreadPromptIndex.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          complete = resolve;
+        }),
+    );
+    const { scroller } = createScroller();
+    render(railElement(scroller));
+    expect(screen.queryByRole("button")).toBeNull();
+    await act(async () => {
+      complete(OLDER_INDEX);
+    });
+    expect(tickLabels()).toEqual([
+      "Scroll to prompt: Oldest question with a second line",
+      "Scroll to prompt: Older question",
+      "Scroll to prompt: First question",
+      "Scroll to prompt: Second question",
+    ]);
+  });
+
+  it("draws one tick per prompt and marks the one the last visible row answers", async () => {
     const { scroller, scrollTo } = createScroller();
-    renderRail(scroller);
+    await renderRail(scroller);
 
     expect(tickLabels()).toEqual([
       "Scroll to prompt: First question",
@@ -195,9 +233,25 @@ describe("ChatPromptRail", () => {
     ]);
     expect(screen.getAllByRole("button")[0]).toHaveAttribute("aria-current", "true");
 
+    // The next prompt only grazes the bottom edge, so it is not visible yet.
+    scrollTo(1);
+    expect(screen.getAllByRole("button")[0]).toHaveAttribute("aria-current", "true");
+
+    // Both prompts are visible; emphasize the lower one, even partially shown.
+    scrollTo(ROW_HEIGHT / 2);
+    const [first, second] = screen.getAllByRole("button");
+    expect(first).not.toHaveAttribute("aria-current");
+    expect(second).toHaveAttribute("aria-current", "true");
+    expect(first!.firstElementChild).toHaveStyle({ transform: "scaleX(0.5)" });
+    expect(second!.firstElementChild).toHaveStyle({ transform: "scaleX(0.667)" });
+
     scrollTo(3 * ROW_HEIGHT);
     expect(screen.getAllByRole("button")[1]).toHaveAttribute("aria-current", "true");
     expect(screen.getAllByRole("button")[0]).not.toHaveAttribute("aria-current");
+
+    scrollTo(0);
+    expect(screen.getAllByRole("button")[0]).toHaveAttribute("aria-current", "true");
+    expect(screen.getAllByRole("button")[1]).not.toHaveAttribute("aria-current");
   });
 
   it("moves the browsed window by wheel distance, not by event count", async () => {
@@ -214,7 +268,7 @@ describe("ChatPromptRail", () => {
       truncated: false,
     });
     const { scroller } = createScroller();
-    renderRail(scroller);
+    await renderRail(scroller);
     await flushIndex();
     const labels = () =>
       screen.getAllByRole("button").map((tick) => tick.getAttribute("aria-label"));
@@ -231,25 +285,25 @@ describe("ChatPromptRail", () => {
     expect(labels()).toEqual(before);
   });
 
-  it("keeps a single tab stop on the active tick", () => {
+  it("keeps a single tab stop on the active tick", async () => {
     const { scroller } = createScroller();
-    renderRail(scroller);
+    await renderRail(scroller);
     const [first, second] = screen.getAllByRole("button");
     expect(first).toHaveAttribute("tabindex", "0");
     expect(second).toHaveAttribute("tabindex", "-1");
   });
 
-  it("scrolls to the prompt of the pressed tick", () => {
+  it("scrolls to the prompt of the pressed tick", async () => {
     const { scroller } = createScroller();
-    const { onJumpToPrompt } = renderRail(scroller);
+    const { onJumpToPrompt } = await renderRail(scroller);
 
     fireEvent.click(screen.getByRole("button", { name: "Scroll to prompt: Second question" }));
     expect(onJumpToPrompt).toHaveBeenCalledWith("prompt-2");
   });
 
-  it("previews the prompt and its final reply as plain text while a tick is hovered", () => {
+  it("previews the prompt and its final reply as plain text while a tick is hovered", async () => {
     const { scroller } = createScroller();
-    renderRail(scroller);
+    await renderRail(scroller);
     const tick = screen.getByRole("button", { name: "Scroll to prompt: Second question" });
 
     expect(screen.queryByText(/Final second/)).not.toBeInTheDocument();
@@ -258,9 +312,9 @@ describe("ChatPromptRail", () => {
     expect(screen.queryByText("Working on it")).not.toBeInTheDocument();
   });
 
-  it("closes the preview only after a short grace period", () => {
+  it("closes the preview only after a short grace period", async () => {
     const { scroller } = createScroller();
-    renderRail(scroller);
+    await renderRail(scroller);
     fireEvent.pointerEnter(
       screen.getByRole("button", { name: "Scroll to prompt: Second question" }),
     );
@@ -286,9 +340,9 @@ describe("ChatPromptRail", () => {
     expect(screen.queryByText("First answer")).not.toBeInTheDocument();
   });
 
-  it("moves focus between ticks with the arrow keys and previews the focused one", () => {
+  it("moves focus between ticks with the arrow keys and previews the focused one", async () => {
     const { scroller } = createScroller();
-    renderRail(scroller);
+    await renderRail(scroller);
     const [first, second] = screen.getAllByRole("button");
 
     first!.focus();
@@ -314,7 +368,7 @@ describe("ChatPromptRail", () => {
       truncated: false,
     });
     const { scroller } = createScroller();
-    renderRail(scroller);
+    await renderRail(scroller);
     await flushIndex();
 
     // 62 prompts, the last one active: 24 ticks show, so 40 steps up leaves the window.
@@ -331,9 +385,9 @@ describe("ChatPromptRail", () => {
     expect(screen.getByText("Old question 21")).toBeInTheDocument();
   });
 
-  it("keeps the same prompt active when an older page is prepended", () => {
+  it("keeps the same prompt active when an older page is prepended", async () => {
     const { scroller, scrollTo, setEntries } = createScroller();
-    const { rerender } = renderRail(scroller);
+    const { rerender } = await renderRail(scroller);
     scrollTo(3 * ROW_HEIGHT);
     expect(screen.getByRole("button", { name: /Second question/ })).toHaveAttribute(
       "aria-current",
@@ -377,7 +431,7 @@ describe("ChatPromptRail", () => {
   it("lists prompts the host knows about that paging has not loaded", async () => {
     readThreadPromptIndex.mockResolvedValue(OLDER_INDEX);
     const { scroller } = createScroller();
-    const { onJumpToPrompt } = renderRail(scroller);
+    const { onJumpToPrompt } = await renderRail(scroller);
     await flushIndex();
 
     expect(tickLabels()).toEqual([
@@ -396,7 +450,7 @@ describe("ChatPromptRail", () => {
   it("previews an unloaded prompt from the host text, without a reply", async () => {
     readThreadPromptIndex.mockResolvedValue(OLDER_INDEX);
     const { scroller } = createScroller();
-    renderRail(scroller);
+    await renderRail(scroller);
     await flushIndex();
 
     fireEvent.pointerEnter(screen.getByRole("button", { name: /Older question/ }));
@@ -407,7 +461,7 @@ describe("ChatPromptRail", () => {
   it("shows progress on the tick of the prompt being paged in", async () => {
     readThreadPromptIndex.mockResolvedValue(OLDER_INDEX);
     const { scroller } = createScroller();
-    const { rerender } = renderRail(scroller);
+    const { rerender } = await renderRail(scroller);
     await flushIndex();
     const line = () =>
       screen.getByRole("button", { name: /Older question/ }).firstElementChild as HTMLElement;
@@ -427,7 +481,7 @@ describe("ChatPromptRail", () => {
       truncated: false,
     });
     const { scroller } = createScroller();
-    renderRail(scroller);
+    await renderRail(scroller);
     await flushIndex();
 
     expect(tickLabels()).toEqual([
@@ -439,14 +493,14 @@ describe("ChatPromptRail", () => {
   it("falls back to the loaded prompts when the host has no index", async () => {
     readThreadPromptIndex.mockResolvedValue(null);
     const { scroller } = createScroller();
-    renderRail(scroller);
+    await renderRail(scroller);
     await flushIndex();
     expect(tickLabels()).toHaveLength(2);
   });
 
   it("reads the host index once per thread, not on every transcript change", async () => {
     const { scroller } = createScroller();
-    const { rerender } = renderRail(scroller);
+    const { rerender } = await renderRail(scroller);
     await flushIndex();
     expect(readThreadPromptIndex).toHaveBeenCalledTimes(1);
     expect(readThreadPromptIndex).toHaveBeenCalledWith(THREAD_ID, expect.any(AbortSignal));
@@ -483,7 +537,7 @@ describe("ChatPromptRail", () => {
     const { scroller } = createScroller();
     const scrollBy = vi.fn<(options?: ScrollToOptions) => void>();
     scroller.scrollBy = scrollBy as HTMLElement["scrollBy"];
-    renderRail(scroller);
+    await renderRail(scroller);
     await flushIndex();
 
     const mountedLabels = () =>
@@ -515,7 +569,7 @@ describe("ChatPromptRail", () => {
     readThreadPromptIndex.mockResolvedValue(OLDER_INDEX);
     const { scroller } = createScroller();
     scroller.getBoundingClientRect = () => new DOMRect(0, 0, 920, 2 * ROW_HEIGHT);
-    renderRail(scroller);
+    await renderRail(scroller);
     await flushIndex();
 
     expect(screen.queryByRole("toolbar")).not.toBeInTheDocument();
@@ -525,37 +579,62 @@ describe("ChatPromptRail", () => {
   it("does nothing on a touch device", async () => {
     vi.stubGlobal("matchMedia", (query: string) => mediaQueryList(query, false));
     const { scroller } = createScroller();
-    renderRail(scroller);
+    await renderRail(scroller);
     await flushIndex();
 
     expect(screen.queryByRole("toolbar")).not.toBeInTheDocument();
     expect(readThreadPromptIndex).not.toHaveBeenCalled();
   });
 
-  it("is not drawn when the transcript is outside a thread pane", () => {
+  it("is not drawn when the transcript is outside a thread pane", async () => {
     const { scroller } = createScroller();
     document.body.append(scroller);
-    renderRail(scroller);
+    await renderRail(scroller);
     expect(screen.queryByRole("toolbar")).not.toBeInTheDocument();
   });
 
-  it("renders into the thread pane that hosts the transcript", () => {
+  it("renders into the thread pane that hosts the transcript", async () => {
     const { scroller } = createScroller();
-    renderRail(scroller);
+    await renderRail(scroller);
     expect(scroller.closest("[data-poracode-thread-pane]")).toContainElement(
       screen.getByRole("toolbar"),
     );
   });
 
-  it("is not drawn for a single prompt", () => {
+  it("keeps the rail anchor stable when the composer resizes the transcript", () => {
     const { scroller } = createScroller();
-    renderRail(scroller, { entries: ENTRIES.slice(0, 2) });
+    let transcriptHeight = 600;
+    scroller.getBoundingClientRect = () => new DOMRect(100, 32, 1000, transcriptHeight);
+    const { result } = renderHook(() => useRailPane(scroller));
+    const anchor = result.current;
+    expect(anchor?.pane).toBe(scroller.closest("[data-poracode-thread-pane]"));
+
+    for (const height of [400, 200, 600]) {
+      act(() => {
+        transcriptHeight = height;
+        ImmediateResizeObserver.notify();
+      });
+      expect(result.current).toBe(anchor);
+    }
+
+    // Horizontal changes still determine whether the rail has room to show.
+    act(() => {
+      scroller.getBoundingClientRect = () => new DOMRect(0, 32, 920, transcriptHeight);
+      ImmediateResizeObserver.notify();
+    });
+    expect(result.current?.gutter).toBe(0);
+    expect(result.current).not.toBe(anchor);
+  });
+
+  it("is not drawn for a single prompt", async () => {
+    const { scroller } = createScroller();
+    await renderRail(scroller, { entries: ENTRIES.slice(0, 2) });
     expect(screen.queryByRole("toolbar")).not.toBeInTheDocument();
   });
 
-  it("hides while Find in chat is open and before the initial scroll settles", () => {
+  it("hides while Find in chat is open and before the initial scroll settles", async () => {
     const { scroller } = createScroller();
-    const { rerender } = renderRail(scroller, { isEnabled: false });
+    const { rerender } = await renderRail(scroller, { isEnabled: false });
     expect(screen.queryByRole("toolbar")).not.toBeInTheDocument();
 
     rerender(railElement(scroller));
@@ -565,13 +644,13 @@ describe("ChatPromptRail", () => {
     expect(screen.queryByRole("toolbar")).not.toBeInTheDocument();
   });
 
-  it("forwards wheel gestures over the rail to the transcript", () => {
+  it("forwards wheel gestures over the rail to the transcript", async () => {
     const { scroller } = createScroller();
     const scrollBy = vi.fn<(options?: ScrollToOptions) => void>();
     scroller.scrollBy = scrollBy as HTMLElement["scrollBy"];
     const wheelSeen = vi.fn<(event: Event) => void>();
     scroller.addEventListener("wheel", wheelSeen);
-    renderRail(scroller);
+    await renderRail(scroller);
 
     const event = new WheelEvent("wheel", { deltaY: 40, bubbles: true, cancelable: true });
     screen.getByRole("toolbar").dispatchEvent(event);

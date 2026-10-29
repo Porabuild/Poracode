@@ -1,3 +1,5 @@
+export const DESKTOP_CLI_RESOURCE_DIRECTORIES: Readonly<Record<string, string>>;
+
 export interface DesktopCliBundle {
   readonly formatVersion: 1;
   readonly runtime: "electron-run-as-node";

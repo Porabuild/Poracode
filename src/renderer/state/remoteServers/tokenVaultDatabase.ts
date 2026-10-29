@@ -142,7 +142,14 @@ export class TokenVaultDatabase {
         const request = issue(transaction.objectStore(STORE_NAME));
         request.onsuccess = () => {
           if (settled) return;
-          result = request.result;
+          try {
+            result = request.result;
+          } catch (error) {
+            // WebKit can throw from this getter when a stored CryptoKey cannot be
+            // restored (bugs 229178, 264099); escaping would crash the whole app.
+            fail(error);
+            return;
+          }
           requestSucceeded = true;
         };
         request.onerror = () => fail(request.error ?? new Error(message));

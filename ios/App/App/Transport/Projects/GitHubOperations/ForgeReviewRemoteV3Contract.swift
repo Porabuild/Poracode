@@ -2,6 +2,7 @@ import Foundation
 
 enum ForgeReviewOperation: String, CaseIterable, Sendable {
   case forgeClosePr
+  case forgeConvertPrToDraft
   case forgeCreatePr
   case forgeEditPr
   case forgeEditPrComment
@@ -14,6 +15,8 @@ enum ForgeReviewOperation: String, CaseIterable, Sendable {
   case forgeGetPrReviewGuide
   case forgeGetPrViewedFiles
   case forgeGetRepository
+  case forgeListPrLabelCandidates
+  case forgeListPrReviewerCandidates
   case forgeListPrs
   case forgeListPullRequests
   case forgeMarkPrReady
@@ -21,21 +24,23 @@ enum ForgeReviewOperation: String, CaseIterable, Sendable {
   case forgeMergePrAtHead
   case forgePostPrComment
   case forgeReopenPr
+  case forgeRequestPrReviewers
   case forgeSetPrFileViewed
+  case forgeSetPrLabels
   case forgeSubmitPrReview
   case forgeUpdatePrBranch
   case forgeWritePrReviewGuide
 
   var scope: GitHubProcedureScope {
     switch self {
-    case .forgeClosePr, .forgeCreatePr, .forgeEditPr, .forgeEditPrComment, .forgeMarkPrReady, .forgeMergePr, .forgeMergePrAtHead, .forgePostPrComment, .forgeReopenPr, .forgeSetPrFileViewed, .forgeSubmitPrReview, .forgeUpdatePrBranch, .forgeWritePrReviewGuide: .operate
+    case .forgeClosePr, .forgeConvertPrToDraft, .forgeCreatePr, .forgeEditPr, .forgeEditPrComment, .forgeMarkPrReady, .forgeMergePr, .forgeMergePrAtHead, .forgePostPrComment, .forgeReopenPr, .forgeRequestPrReviewers, .forgeSetPrFileViewed, .forgeSetPrLabels, .forgeSubmitPrReview, .forgeUpdatePrBranch, .forgeWritePrReviewGuide: .operate
     default: .read
     }
   }
 
   var hasResult: Bool {
     switch self {
-    case .forgeClosePr, .forgeEditPr, .forgeEditPrComment, .forgeMarkPrReady, .forgeMergePr, .forgeMergePrAtHead, .forgeReopenPr, .forgeSubmitPrReview, .forgeUpdatePrBranch: false
+    case .forgeClosePr, .forgeConvertPrToDraft, .forgeEditPr, .forgeEditPrComment, .forgeMarkPrReady, .forgeMergePr, .forgeMergePrAtHead, .forgeReopenPr, .forgeRequestPrReviewers, .forgeSetPrLabels, .forgeSubmitPrReview, .forgeUpdatePrBranch: false
     default: true
     }
   }
@@ -56,6 +61,7 @@ enum ForgeReviewRemoteV3Contract {
     let canonical: Data
     switch operation {
     case .forgeClosePr: canonical = try checked(input, RemoteRootCodecs.procedureU2EForgeClosePrU2ERequest)
+    case .forgeConvertPrToDraft: canonical = try checked(input, RemoteRootCodecs.procedureU2EForgeConvertPrToDraftU2ERequest)
     case .forgeCreatePr: canonical = try checked(input, RemoteRootCodecs.procedureU2EForgeCreatePrU2ERequest)
     case .forgeEditPr: canonical = try checked(input, RemoteRootCodecs.procedureU2EForgeEditPrU2ERequest)
     case .forgeEditPrComment: canonical = try checked(input, RemoteRootCodecs.procedureU2EForgeEditPrCommentU2ERequest)
@@ -68,6 +74,8 @@ enum ForgeReviewRemoteV3Contract {
     case .forgeGetPrReviewGuide: canonical = try checked(input, RemoteRootCodecs.procedureU2EForgeGetPrReviewGuideU2ERequest)
     case .forgeGetPrViewedFiles: canonical = try checked(input, RemoteRootCodecs.procedureU2EForgeGetPrViewedFilesU2ERequest)
     case .forgeGetRepository: canonical = try checked(input, RemoteRootCodecs.procedureU2EForgeGetRepositoryU2ERequest)
+    case .forgeListPrLabelCandidates: canonical = try checked(input, RemoteRootCodecs.procedureU2EForgeListPrLabelCandidatesU2ERequest)
+    case .forgeListPrReviewerCandidates: canonical = try checked(input, RemoteRootCodecs.procedureU2EForgeListPrReviewerCandidatesU2ERequest)
     case .forgeListPrs: canonical = try checked(input, RemoteRootCodecs.procedureU2EForgeListPrsU2ERequest)
     case .forgeListPullRequests: canonical = try checked(input, RemoteRootCodecs.procedureU2EForgeListPullRequestsU2ERequest)
     case .forgeMarkPrReady: canonical = try checked(input, RemoteRootCodecs.procedureU2EForgeMarkPrReadyU2ERequest)
@@ -75,7 +83,9 @@ enum ForgeReviewRemoteV3Contract {
     case .forgeMergePrAtHead: canonical = try checked(input, RemoteRootCodecs.procedureU2EForgeMergePrAtHeadU2ERequest)
     case .forgePostPrComment: canonical = try checked(input, RemoteRootCodecs.procedureU2EForgePostPrCommentU2ERequest)
     case .forgeReopenPr: canonical = try checked(input, RemoteRootCodecs.procedureU2EForgeReopenPrU2ERequest)
+    case .forgeRequestPrReviewers: canonical = try checked(input, RemoteRootCodecs.procedureU2EForgeRequestPrReviewersU2ERequest)
     case .forgeSetPrFileViewed: canonical = try checked(input, RemoteRootCodecs.procedureU2EForgeSetPrFileViewedU2ERequest)
+    case .forgeSetPrLabels: canonical = try checked(input, RemoteRootCodecs.procedureU2EForgeSetPrLabelsU2ERequest)
     case .forgeSubmitPrReview: canonical = try checked(input, RemoteRootCodecs.procedureU2EForgeSubmitPrReviewU2ERequest)
     case .forgeUpdatePrBranch: canonical = try checked(input, RemoteRootCodecs.procedureU2EForgeUpdatePrBranchU2ERequest)
     case .forgeWritePrReviewGuide: canonical = try checked(input, RemoteRootCodecs.procedureU2EForgeWritePrReviewGuideU2ERequest)
@@ -105,6 +115,8 @@ enum ForgeReviewRemoteV3Contract {
     case .forgeGetPrReviewGuide: canonical = try checked(raw, RemoteRootCodecs.procedureU2EForgeGetPrReviewGuideU2EResult)
     case .forgeGetPrViewedFiles: canonical = try checked(raw, RemoteRootCodecs.procedureU2EForgeGetPrViewedFilesU2EResult)
     case .forgeGetRepository: canonical = try checked(raw, RemoteRootCodecs.procedureU2EForgeGetRepositoryU2EResult)
+    case .forgeListPrLabelCandidates: canonical = try checked(raw, RemoteRootCodecs.procedureU2EForgeListPrLabelCandidatesU2EResult)
+    case .forgeListPrReviewerCandidates: canonical = try checked(raw, RemoteRootCodecs.procedureU2EForgeListPrReviewerCandidatesU2EResult)
     case .forgeListPrs: canonical = try checked(raw, RemoteRootCodecs.procedureU2EForgeListPrsU2EResult)
     case .forgeListPullRequests: canonical = try checked(raw, RemoteRootCodecs.procedureU2EForgeListPullRequestsU2EResult)
     case .forgePostPrComment: canonical = try checked(raw, RemoteRootCodecs.procedureU2EForgePostPrCommentU2EResult)

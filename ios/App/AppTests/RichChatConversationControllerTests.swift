@@ -211,6 +211,42 @@ final class RichChatConversationControllerTests: XCTestCase {
     XCTAssertFalse(controller.state.requiresAuthoritativeRefresh)
   }
 
+  func testAttachmentOnlyMessagesSatisfyTheSendableRule() async {
+    let gateway = RichChatControllerGatewayFake()
+    let controller = RichChatConversationController(gateway: gateway)
+    controller.activate(access: RichChatControllerTestValues.access(), threadID: "thread-rich")
+    let attachment = RichPromptSegment.attachment(path: "/host/shot.png", mimeType: "image/png")
+
+    let didSend = await controller.send(
+      RichChatSendInput(prompt: "", config: [:], segments: [attachment])
+    )
+    let didSteer = await controller.setPendingSteer(
+      RichSetPendingSteerInput(prompt: "", segments: [attachment], config: [:])
+    )
+    let didQueue = await controller.queueFollowUp(
+      RichSetPendingSteerInput(prompt: "", segments: [attachment], config: [:])
+    )
+
+    XCTAssertTrue(didSend)
+    XCTAssertTrue(didSteer)
+    XCTAssertTrue(didQueue)
+    let calls = await gateway.calls
+    XCTAssertEqual(calls, ["send", "steer-set", "queue-set"])
+  }
+
+  func testBlankSendWithoutAnAttachmentFailsValidation() async {
+    let gateway = RichChatControllerGatewayFake()
+    let controller = RichChatConversationController(gateway: gateway)
+    controller.activate(access: RichChatControllerTestValues.access(), threadID: "thread-rich")
+
+    let didSend = await controller.send(RichChatSendInput(prompt: "  ", config: [:]))
+
+    XCTAssertFalse(didSend)
+    XCTAssertEqual(controller.state.failure, .invalidRequest)
+    let calls = await gateway.calls
+    XCTAssertTrue(calls.isEmpty)
+  }
+
   func testInvalidInputsNeverCrossGateway() async {
     let gateway = RichChatControllerGatewayFake()
     let controller = RichChatConversationController(gateway: gateway)

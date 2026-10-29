@@ -1,6 +1,6 @@
 import { Tooltip } from "@heroui/react";
 import { Check } from "lucide-react";
-import type { KeyboardEventHandler, ReactNode } from "react";
+import { useRef, useState, type KeyboardEventHandler, type ReactNode } from "react";
 import type { UserInputOption } from "@/shared/contracts";
 
 /** Row chrome shared by choice rows and the inline custom-answer row; mirrors sidebar rows. */
@@ -57,14 +57,10 @@ export function QuestionOptionRow(props: {
   isTabStop?: boolean;
 }) {
   const { index, option, isDisabled, onClick, selected, checked } = props;
+  const labelRef = useRef<HTMLSpanElement>(null);
+  const [isTooltipOpen, setIsTooltipOpen] = useState(false);
   const isMultiSelect = checked !== undefined;
   const active = isMultiSelect ? checked : selected === true;
-  const tooltipBody = option.description ? (
-    <div className="max-w-[28rem] space-y-1 whitespace-normal break-words">
-      <div className="text-xs font-medium text-foreground">{option.label}</div>
-      <div className="text-[11px] text-[color:var(--muted)]">{option.description}</div>
-    </div>
-  ) : null;
 
   const row = (
     <button
@@ -82,6 +78,7 @@ export function QuestionOptionRow(props: {
       <QuestionRowMarker active={active}>{index + 1}</QuestionRowMarker>
       <span className="min-w-0 flex-1">
         <span
+          ref={labelRef}
           className={`block text-xs font-medium text-foreground ${props.wrapLabel ? "whitespace-normal break-words" : "truncate"}`}
         >
           {option.label}
@@ -95,14 +92,32 @@ export function QuestionOptionRow(props: {
     </button>
   );
 
-  if (!tooltipBody) return row;
+  if (props.wrapLabel && !option.description) return row;
   return (
-    <Tooltip delay={400}>
+    <Tooltip
+      delay={400}
+      isOpen={isTooltipOpen}
+      onOpenChange={(open) => {
+        const label = labelRef.current;
+        setIsTooltipOpen(
+          open && (!!option.description || (!!label && label.scrollWidth > label.clientWidth)),
+        );
+      }}
+    >
       <Tooltip.Trigger className="flex w-full min-h-0 flex-col" tabIndex={-1} role="none">
         {row}
       </Tooltip.Trigger>
-      <Tooltip.Content placement="right" showArrow className="max-w-[28rem] break-words text-xs">
-        {tooltipBody}
+      <Tooltip.Content
+        placement="top"
+        showArrow
+        className="pointer-events-none max-w-[28rem] break-words text-xs"
+      >
+        <div className="max-w-[28rem] space-y-1 whitespace-normal break-words">
+          <div className="text-xs font-medium text-foreground">{option.label}</div>
+          {option.description ? (
+            <div className="text-[11px] text-[color:var(--muted)]">{option.description}</div>
+          ) : null}
+        </div>
       </Tooltip.Content>
     </Tooltip>
   );

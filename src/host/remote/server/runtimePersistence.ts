@@ -12,6 +12,8 @@ import {
   runThreadRuntimeMutation,
 } from "@/host/db/runtimePersistenceRuntime";
 import type { RuntimeAdmission } from "@/host/db/runtimePersistenceTypes";
+// The admission fence reads the row through the barrel, like the write it fences.
+import { dbGetThread } from "@/host/db";
 import type { SupervisorEvent } from "@/shared/ipc";
 import {
   stripRuntimePayloadOriginMetadata,
@@ -20,9 +22,11 @@ import {
 import type { RemoteBroadcastEvent } from "./context";
 import {
   notePendingInterruptedTurn,
+  notePendingThreadState,
+  isPendingThreadStateCurrent,
+  retirePendingThreadState,
   pendingInterruptedTurn,
   resetPendingInterruptedTurnsForTests,
-  settlePendingInterruptedTurn,
 } from "./pendingInterruptedTurns";
 import { persistThreadStateEvent } from "./threadStatePersistence";
 
@@ -207,6 +211,14 @@ function dispatchPersist(
       };
     }
     case "thread-state": {
+      // Fence before admission as well as at the eventual row write: a departed
+      // provider must not publish a marker or replace its successor's queued state.
+      // A thread whose row is not visible yet has no successor to protect: its
+      // state still publishes, and the write re-reads the row when it runs.
+      const thread = dbGetThread(event.threadId);
+      if (thread && event.agentKind !== undefined && event.agentKind !== thread.agentKind) {
+        return { kind: "withhold", reason: "refused", threadIds: [event.threadId] };
+      }
       // Control write: queued for bounded retry (idempotent upsert). Row lag is
       // replay-covered, so publication stays immediate — but only once the
       // write was actually queued. A refused control reserve means the row
@@ -214,22 +226,36 @@ function dispatchPersist(
       // transition that does not exist.
       // A newer state replaces a queued one, but the cut-off marker is only
       // reported when it changes, so carry it into the write that replaced it.
-      if (event.interruptedTurn !== undefined) {
-        notePendingInterruptedTurn(event.threadId, event.interruptedTurn);
-      }
+      const admission = {};
       const queued = enqueueRuntimeControlOperation({
         key: `thread-state:${event.threadId}`,
         describe: `thread-state ${event.threadId}`,
         run: () => {
-          const interruptedTurn = pendingInterruptedTurn(event.threadId);
-          persistThreadStateEvent(
-            interruptedTurn === undefined ? event : { ...event, interruptedTurn },
-          );
-          settlePendingInterruptedTurn(event.threadId);
+          // Rewind may retire this admitted state before its delayed write.
+          // The captured event itself can contain a marker, so clearing the
+          // projection map alone cannot prevent resurrection.
+          if (!isPendingThreadStateCurrent(event.threadId, admission)) return;
+          if (thread) {
+            const interruptedTurn = pendingInterruptedTurn(thread);
+            persistThreadStateEvent({
+              ...event,
+              // Legacy events without an owner are bound at admission, so a
+              // provider switch while queued cannot adopt them either.
+              agentKind: thread.agentKind,
+              ...(interruptedTurn === undefined ? {} : { interruptedTurn }),
+            });
+          } else {
+            persistThreadStateEvent(event);
+          }
+          retirePendingThreadState(event.threadId);
         },
       });
       if (queued === "refused") {
         return { kind: "withhold", reason: "refused", threadIds: [event.threadId] };
+      }
+      notePendingThreadState(event.threadId, admission);
+      if (thread && event.interruptedTurn !== undefined) {
+        notePendingInterruptedTurn(thread, event.interruptedTurn);
       }
       return { kind: "publish", event };
     }

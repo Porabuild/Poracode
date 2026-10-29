@@ -100,6 +100,26 @@ it("removes an old tail when the new initial response exceeds the entry or byte 
   expect(await readRecentHistory("host", "thread")).toBeNull();
 });
 
+it("reads a tail record written under the former 1 MiB cap", async () => {
+  const written = [{ ...items[0]!, streams: { assistant_text: "x".repeat(900_000) } }];
+  await cacheRecentHistory("host", "seed", items, () => true);
+  await rawRecords({
+    version: 1,
+    key: recentHistoryCacheKey("host", "old"),
+    threadId: "old",
+    updatedAt: 1,
+    bytes: bytes(written),
+    items: written,
+  });
+  expect(await readRecentHistory("host", "old")).toEqual(written);
+});
+
+it("keeps an initial tail above the former 1 MiB cap", async () => {
+  const large = [{ ...items[0]!, streams: { assistant_text: "x".repeat(1_500_000) } }];
+  await cacheRecentHistory("host", "thread", large, () => true);
+  expect(await readRecentHistory("host", "thread")).toEqual(large);
+});
+
 it("keeps twenty equal-time records without double-charging the current index entry", async () => {
   vi.spyOn(Date, "now").mockReturnValue(1);
   for (let i = 0; i < 20; i++) await cacheRecentHistory("host", String(i), items, () => true);
@@ -110,7 +130,9 @@ it("keeps twenty equal-time records without double-charging the current index en
 });
 
 it("prunes aggregate bytes while retaining the newly accepted tail", async () => {
-  const large = [{ ...items[0]!, streams: { assistant_text: "x".repeat(950_000) } }];
+  const large = [
+    { ...items[0]!, streams: { assistant_text: "x".repeat(RECENT_HISTORY_MAX_BYTES - 50_000) } },
+  ];
   for (let i = 0; i < 10; i++) await cacheRecentHistory("host", String(i), large, () => true);
   const rows = (await rawRecords()) as { bytes: number }[];
   expect(rows.length).toBeLessThan(10);

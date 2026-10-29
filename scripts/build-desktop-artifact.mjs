@@ -358,15 +358,12 @@ async function main() {
     }
     writeFileSync(join(stageRoot, "package.json"), `${JSON.stringify(stagePkg, null, 2)}\n`);
 
-    const desktopCli =
-      platform === "win" || platform === "mac"
-        ? prepareDesktopCli({
-            stageRoot,
-            mainBundleDir: join(repoRoot, "dist", "main"),
-            rendererDir: join(repoRoot, "dist", "renderer"),
-            appVersion: rootPkg.version,
-          })
-        : undefined;
+    const desktopCli = prepareDesktopCli({
+      stageRoot,
+      mainBundleDir: join(repoRoot, "dist", "main"),
+      rendererDir: join(repoRoot, "dist", "renderer"),
+      appVersion: rootPkg.version,
+    });
 
     // 5. Stage the initial electron-builder config.
     const initialMacArtifactKind = macArtifactKindFor(platform, target);
@@ -413,19 +410,22 @@ async function main() {
       selectedTarget,
       macArtifactKind = macArtifactKindFor(platform, selectedTarget),
     ) => {
-      if (desktopCli)
-        desktopCli.writeManifest({
-          platform: platform === "mac" ? "darwin" : "win32",
-          channel: channelTable.normalizeChannel(process.env.PORACODE_CHANNEL),
-          executableName:
-            platform === "mac"
-              ? channelTable.macExecutableNameFor(
+      desktopCli.writeManifest({
+        platform: platform === "mac" ? "darwin" : platform === "win" ? "win32" : "linux",
+        channel: channelTable.normalizeChannel(process.env.PORACODE_CHANNEL),
+        executableName:
+          platform === "mac"
+            ? channelTable.macExecutableNameFor(
+                channelTable.normalizeChannel(process.env.PORACODE_CHANNEL),
+                macArtifactKind,
+              )
+            : platform === "linux"
+              ? linuxDesktopExecutableName(
                   channelTable.normalizeChannel(process.env.PORACODE_CHANNEL),
-                  macArtifactKind,
                 )
               : `${channelTable.productNameFor(channelTable.normalizeChannel(process.env.PORACODE_CHANNEL))}.exe`,
-          electronVersion: rootPkg.devDependencies.electron,
-        });
+        electronVersion: rootPkg.devDependencies.electron,
+      });
       if (platform === "mac") {
         writeFileSync(
           join(stageRoot, "electron-builder.yml"),
@@ -508,7 +508,7 @@ export function buildElectronBuilderConfig(
   const runtimeIconSuffix = channel === "nightly" ? "-nightly-mac" : "-mac";
   const macExecutableName = channelTable.macExecutableNameFor(channel, macArtifactKind);
   const publishChannelLine = updaterChannel ? `\n  channel: ${updaterChannel}` : "";
-  const includeDesktopCli = platform === "win" || platform === "mac";
+  const includeDesktopCli = ["win", "mac", "linux"].includes(platform);
   const desktopCliFiles = includeDesktopCli
     ? '\n  - dist/cli-runtime/**/*\n  - "!dist/cli-runtime/**/*.map"'
     : "";
@@ -653,7 +653,12 @@ nsis:
   buildUniversalInstaller: false
   artifactName: ${prefix}-Setup-\${version}-\${arch}.\${ext}
 
+appImage:
+  # A stable outer filename keeps the installed CLI binding valid through updates.
+  artifactName: ${prefix}-Linux-\${arch}.\${ext}
+
 linux:
+  executableName: ${linuxDesktopExecutableName(channel)}
   target:
     - target: AppImage
       arch:
@@ -691,6 +696,11 @@ mac:
 
 npmRebuild: false
 `;
+}
+
+function linuxDesktopExecutableName(channel) {
+  // Keep the package manager's GUI symlink separate from the terminal command.
+  return channel === "nightly" ? "poracode-nightly-desktop" : "poracode-desktop";
 }
 
 if (

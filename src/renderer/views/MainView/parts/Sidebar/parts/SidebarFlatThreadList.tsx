@@ -244,7 +244,7 @@ export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
 
       {doneHeader ? (
         // Sized to its rows up to half the column; past that the rows scroll.
-        <div className="flex max-h-[50%] shrink-0 flex-col">
+        <div className="poracode-flat-done-section flex max-h-[50%] shrink-0 flex-col">
           {renderRow(doneHeader)}
           {doneRows.length > 0 ? (
             <div className={sidebarBodyScrollClass()}>{doneRows.map(renderRow)}</div>

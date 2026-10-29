@@ -6,6 +6,7 @@ import type { Thread } from "@/shared/contracts";
 import { isHomeProjectId } from "@/shared/homeScope";
 import { SidebarButton, sidebarIconButtonClass } from "@/renderer/components/common/SidebarButton";
 import { ThreadProviderIcon } from "@/renderer/components/providers/ThreadProviderIcon";
+import { threadTitleNode } from "@/renderer/components/promptChips/threadTitleNode";
 import { openThread } from "@/renderer/actions/threadActions";
 import { useCurrentThreadIds, useIsCurrentThread } from "@/renderer/hooks/uiSelectors";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -29,26 +30,30 @@ function CollapsedThreadRailButton(props: {
   const isActive = useIsCurrentThread(thread.id);
   const project = useAppStore((s) => s.projects.find((p) => p.id === thread.projectId));
   const title = thread.done ? (
-    <span className="opacity-50 line-through">{thread.title}</span>
+    <span className="opacity-50 line-through [&_.poracode-slash-chip__name]:line-through">
+      {threadTitleNode(thread.title)}
+    </span>
   ) : (
-    thread.title
+    threadTitleNode(thread.title)
   );
   const button = (
     <SidebarButton
       iconOnly={iconOnly}
       size="xs"
       icon={<ThreadIcon thread={thread} />}
-      label={title}
-      {...(projectName
-        ? {
-            tooltip: (
-              <span>
-                {title}
-                <span className="text-muted"> — {projectName}</span>
-              </span>
-            ),
-          }
-        : {})}
+      // An icon-only button takes its accessible name from a string label; the
+      // chip form of the title still shows in the tooltip.
+      label={iconOnly ? thread.title : title}
+      tooltip={
+        projectName ? (
+          <span>
+            {title}
+            <span className="text-muted"> — {projectName}</span>
+          </span>
+        ) : (
+          title
+        )
+      }
       isActive={isActive}
       isCurrentPage={isActive}
       suffix={

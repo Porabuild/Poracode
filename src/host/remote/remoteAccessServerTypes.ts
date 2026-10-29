@@ -532,6 +532,11 @@ export interface RemoteAccessServerOptions {
   /** Built-in browser bridge: tab commands plus screencast mirroring. */
   readonly browser?: RemoteBrowserGatewayLike;
   readonly deviceWorkspace?: import("../devices/DeviceWorkspaceService").DeviceWorkspaceService;
+  readonly readAgentVision?: (
+    threadId: string,
+    preview: boolean,
+    streaming?: boolean,
+  ) => Promise<import("@/shared/agentVision").AgentVision | null>;
   /** Local dev-server discovery + raw TCP port forwarding. Absent on hosts
    * that don't support it (returns 503). */
   readonly portForward?: RemotePortForwardGateway;
@@ -607,7 +612,7 @@ export interface RemoteAccessServerOptions {
   };
   /** Persists an attachment uploaded by an authenticated remote composer. */
   readonly attachments?: {
-    save(input: { threadId: string; fileName: string; data: Uint8Array }): string;
+    save(input: { threadId: string; fileName: string; data: Uint8Array }): Promise<string>;
   };
   readonly schedules?: {
     list(): ScheduledTask[];

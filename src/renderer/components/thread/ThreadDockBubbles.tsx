@@ -47,6 +47,7 @@ export function ThreadDockBubbles({
   const isActive = (_kind: ThreadDockKind) => panelShowing;
 
   const bubbles: Record<ThreadDockKind, ReactNode> = {
+    vision: null,
     goal: summary.goal ? (
       <GoalBubble key="goal" state={summary.goal} active={isActive("goal")} />
     ) : null,

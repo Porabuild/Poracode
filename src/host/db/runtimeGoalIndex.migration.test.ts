@@ -44,7 +44,7 @@ it("upgrades the historical schema57 without rewriting rows and indexes goal hit
     db.prepare("SELECT * FROM thread_runtime_items ORDER BY thread_id, position").all(),
   ).toEqual(before);
   expect(db.prepare("SELECT value FROM app_state WHERE key = 'schema_version'").get()).toEqual({
-    value: "66",
+    value: "69",
   });
   const query =
     "SELECT item_id, type, state, payload, streams, parent_item_id FROM thread_runtime_items WHERE thread_id = ? AND type = 'goal' ORDER BY position DESC LIMIT 1";

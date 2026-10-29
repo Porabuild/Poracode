@@ -2096,6 +2096,16 @@ html[data-compact-layout] .poracode-flat-thread-scroll {
   -webkit-overflow-scrolling: touch;
 }
 
+/* The pinned Done section sits below the scrolling rows, so it takes the
+   floating-dock clearance instead of the rows above it. */
+html[data-compact-layout] .poracode-flat-thread-scroll:has(+ .poracode-flat-done-section) {
+  padding-bottom: 0.5rem;
+}
+
+html[data-compact-layout] .poracode-flat-done-section {
+  padding-bottom: calc(var(--m-floating-control-height) + 1.5rem + env(safe-area-inset-bottom));
+}
+
 /* Compact PWA uses the desktop flat-row markup with a larger touch target and
    a faint resting surface. Only interaction controls differ. */
 html[data-compact-layout] .poracode-sidebar-thread-row,
@@ -2293,17 +2303,63 @@ html[data-compact-layout] .m-back--with-title {
 
 /* Dedicated compact Git/files page. Keep all density and chrome changes inside
    this shell so the desktop docked panels retain their existing layout. */
-html[data-compact-layout] .m-mobile-workspace__tabs {
+html[data-compact-layout] :is(.m-mobile-workspace__tabs, .m-pr-tabs) {
   height: var(--m-tap-min);
 }
 
-html[data-compact-layout] .m-mobile-workspace__tabs [role="tab"] {
+html[data-compact-layout] :is(.m-mobile-workspace__tabs, .m-pr-tabs) [role="tab"] {
   min-height: calc(var(--m-tap-min) - 0.25rem);
   font-size: 0.8125rem;
 }
 
 html[data-compact-layout] .m-mobile-workspace__tabbar {
   padding-bottom: calc(0.5rem + env(safe-area-inset-bottom));
+}
+
+/* Pull-request detail: the whole review is one scroll, and the bottom row (Ask,
+   tabs, primary action) floats over it like the Usage page's controls. */
+html[data-compact-layout] .m-pr-scroll {
+  padding-bottom: calc(var(--m-floating-control-height) + 3rem + env(safe-area-inset-bottom));
+  scroll-padding-bottom: calc(
+    var(--m-floating-control-height) + 3rem + env(safe-area-inset-bottom)
+  );
+  overscroll-behavior: contain;
+  /* Nothing on this page may widen it sideways. */
+  overflow-x: hidden;
+}
+
+html[data-compact-layout] .m-pr-tabbar {
+  position: absolute;
+  right: var(--m-page-inline);
+  bottom: calc(0.75rem + env(safe-area-inset-bottom));
+  left: var(--m-page-inline);
+  z-index: 20;
+  pointer-events: none;
+}
+
+html[data-compact-layout] .m-pr-tabs [role="tab"] {
+  min-width: 0;
+}
+
+/* Pressing a segment must not rescale the pill (it reads as the tabs changing size). */
+html[data-compact-layout] .m-pr-tabs:active,
+html[data-compact-layout] .m-pr-tabs[data-pressed="true"] {
+  transform: none;
+}
+
+/* The shared mobile Select trigger is only styled inside Settings; here it is a
+   full-width field (commit scope, guide writer and model). */
+html[data-compact-layout] .m-pr-scroll .m-field-picker {
+  display: flex;
+  width: 100%;
+  min-height: 2.5rem;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: var(--m-list-row-radius);
+  background: var(--m-list-row-surface);
+  padding-inline: 0.75rem;
+  font-size: 0.8125rem;
+  text-align: left;
 }
 
 html[data-compact-layout] .m-mobile-file-editor__actions {
@@ -2527,10 +2583,6 @@ html[data-compact-layout] .m-thread-content {
 
 html[data-compact-layout] .m-thread .m-thread-content [data-poracode-chat-scroller] {
   padding-bottom: 0;
-}
-
-html[data-compact-layout] .m-thread .m-thread-content [data-chat-virtual-size-box="true"] {
-  padding-bottom: calc(var(--m-floating-control-height) + 1.5rem + env(safe-area-inset-bottom));
 }
 
 html[data-compact-layout] .m-thread .m-thread-content button.bottom-4:has(svg.lucide-arrow-down) {
@@ -4323,13 +4375,18 @@ html[data-app-unfocused] .poracode-provider-icon--finished {
 }
 
 .poracode-terminal-shell {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) var(--poracode-terminal-scrollbar-width);
+  display: flex;
+  flex-direction: column;
   width: calc(100% + var(--poracode-terminal-scrollbar-width));
   background: var(--content-background);
 }
 
-.poracode-terminal-shell > .poracode-terminal-pane {
+.poracode-terminal-viewport {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--poracode-terminal-scrollbar-width);
+}
+
+.poracode-terminal-viewport > .poracode-terminal-pane {
   grid-column: 1;
   width: 100% !important;
 }
@@ -5056,6 +5113,13 @@ button.poracode-thread-mention-chip:active {
   background: color-mix(in oklab, var(--accent) 12%, var(--surface));
 }
 
+/* Display-only twin for rows that already sit inside a button. */
+.poracode-inline-path-chip--static,
+.poracode-inline-path-chip--static:hover {
+  cursor: inherit;
+  background: color-mix(in oklab, var(--accent) 12%, var(--surface));
+}
+
 .poracode-inline-path-chip__icon {
   width: 1em;
   height: 1em;
@@ -5195,6 +5259,19 @@ button.poracode-thread-mention-chip:active {
   overflow: hidden;
   cursor: var(--interactive-cursor);
   contain: layout paint;
+}
+
+.poracode-attachment-image-slot {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.poracode-attachment-image-preview .poracode-attachment-image-slot {
+  width: 100%;
+  height: 100%;
 }
 
 .poracode-attachment-image-preview img {
@@ -5585,12 +5662,18 @@ html[data-platform="darwin"][data-client-host="electron"] .poracode-sidebar-proj
 /* Adaptive diff line-number gutter.
    In unified mode @git-diff-view reserves TWO number columns (old + new) and
    sizes the gutter to (aside + 5px) * 2 ≈ 90px. That's fine on the full-width
-   Git review, but wastes a quarter of the width in a narrow panel — the chat
-   inline diff, a split editor, PR file cards, or a small window — half of it an
-   empty old-number column on added/new files. We collapse the gutter to the
-   single relevant number whenever the diff's OWN container is ≤768px wide.
+   Git review, but wastes a quarter of the width in a narrow panel — a split
+   editor, PR file cards, or a small window — half of it an empty old-number
+   column on added/new files. We collapse the gutter to the single relevant
+   number whenever the diff's OWN container is ≤768px wide.
 
-   This is a container query, not a viewport media query: a 420px chat pane
+   Surfaces that should always be compact add .poracode-compact-diff-gutter to
+   the diff or an ancestor. Chat edit diffs do: the transcript column is capped
+   at 920px, so a full-width chat diff lands just above 768px and would keep
+   the wide gutter. The compact-diff-gutter variant emits each rule below for
+   both conditions at build time.
+
+   This is a container query, not a viewport media query: a 420px panel
    inside an 1800px window still compacts, and a full-width review stays as-is.
    .diff-view-wrapper is the library's per-diff root (w-full block), so its
    inline-size tracks the panel width. The adaptive renderer uses this one
@@ -5606,47 +5689,52 @@ html[data-platform="darwin"][data-client-host="electron"] .poracode-sidebar-proj
 
    Gated on @supports selector(:has(*)) so engines without :has() keep the
    default gutter — no regression, just no improvement. */
+@custom-variant compact-diff-gutter {
+  @container (max-width: 768px) {
+    @slot;
+  }
+  &:where(.poracode-compact-diff-gutter, .poracode-compact-diff-gutter *) {
+    @slot;
+  }
+}
+
 .diff-view-wrapper {
   container-type: inline-size;
 }
 
 @supports selector(:has(*)) {
-  @container (max-width: 768px) {
-    .diff-view-wrapper .diff-line-num,
-    .diff-view-wrapper .diff-line-hunk-action {
-      width: 48px !important;
-      min-width: 48px !important;
-      max-width: none !important;
-      padding-left: 4px !important;
-      padding-right: 6px !important;
-    }
+  .diff-view-wrapper {
+    @variant compact-diff-gutter {
+      .diff-line-num,
+      .diff-line-hunk-action {
+        width: 48px !important;
+        min-width: 48px !important;
+        max-width: none !important;
+        padding-left: 4px !important;
+        padding-right: 6px !important;
+      }
 
-    /* Drop the 10px spacer between the old/new numbers. */
-    .diff-view-wrapper .diff-line-num > div > span:nth-child(2) {
-      display: none !important;
-    }
+      /* Drop the 10px spacer between the old/new numbers. */
+      .diff-line-num > div > span:nth-child(2) {
+        display: none !important;
+      }
 
-    /* Added / context lines: the new-line number (3rd span) is present — show it
-       alone, full width, and hide the old-line number. */
-    .diff-view-wrapper
-      .diff-line-num
-      > div:has(> span:nth-child(3):not(:empty))
-      > span:nth-child(1) {
-      display: none !important;
-    }
-    .diff-view-wrapper
-      .diff-line-num
-      > div:has(> span:nth-child(3):not(:empty))
-      > span:nth-child(3) {
-      width: 100% !important;
-    }
+      /* Added / context lines: the new-line number (3rd span) is present — show it
+         alone, full width, and hide the old-line number. */
+      .diff-line-num > div:has(> span:nth-child(3):not(:empty)) > span:nth-child(1) {
+        display: none !important;
+      }
+      .diff-line-num > div:has(> span:nth-child(3):not(:empty)) > span:nth-child(3) {
+        width: 100% !important;
+      }
 
-    /* Pure deletion lines: no new-line number (3rd span empty) — show the old. */
-    .diff-view-wrapper .diff-line-num > div:has(> span:nth-child(3):empty) > span:nth-child(3) {
-      display: none !important;
-    }
-    .diff-view-wrapper .diff-line-num > div:has(> span:nth-child(3):empty) > span:nth-child(1) {
-      width: 100% !important;
+      /* Pure deletion lines: no new-line number (3rd span empty) — show the old. */
+      .diff-line-num > div:has(> span:nth-child(3):empty) > span:nth-child(3) {
+        display: none !important;
+      }
+      .diff-line-num > div:has(> span:nth-child(3):empty) > span:nth-child(1) {
+        width: 100% !important;
+      }
     }
   }
 }
@@ -5901,6 +5989,17 @@ html[data-platform="darwin"][data-client-host="electron"] .poracode-sidebar-proj
 }
 .lc-chat-markdown li > p {
   margin: 0.05em 0;
+}
+/* GFM task lists: the checkbox replaces the bullet and sits on the text's centre line. */
+.lc-chat-markdown ul.contains-task-list {
+  list-style: none;
+  padding-left: 0.25em;
+}
+.lc-chat-markdown li.task-list-item > input[type="checkbox"] {
+  width: 0.9em;
+  height: 0.9em;
+  margin: 0 0.25em 0 0;
+  vertical-align: -0.12em;
 }
 .lc-chat-markdown li > ol,
 .lc-chat-markdown li > ul {

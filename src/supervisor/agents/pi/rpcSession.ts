@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { readMcpAppResource } from "@/shared/mcpAppResources";
+import { readToolVideoSources } from "@/shared/chatVideo";
 import type {
   AgentSlashCommand,
   PromptSegment,
@@ -580,9 +581,12 @@ export class PiRpcSession implements StructuredSessionHandle {
         name: toolName,
         title: toolName,
         kind: toolKind(toolName),
-        result: readMcpAppResource(mcpResult)
-          ? mcpResult
-          : (toolResultText(event.result) ?? event.result),
+        result:
+          readMcpAppResource(mcpResult) || readToolVideoSources(mcpResult).length > 0
+            ? mcpResult
+            : readToolVideoSources(event.result).length > 0
+              ? event.result
+              : (toolResultText(event.result) ?? event.result),
         status: event.isError === true ? "error" : "success",
         ...(images.length > 0 ? { images } : {}),
         ...(isSubAgentTool(toolName) ? { isSubAgent: true } : {}),

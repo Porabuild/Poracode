@@ -75,22 +75,29 @@ describe("remote v3 native binding generator", () => {
         // The additive prompt-rail history route adds one route, its response root and
         // their native mirrors; native adoption stays planned in native-parity.json.
         // Source-host reviews add one route, twenty-four procedures, and their native mirrors;
-        // device workspaces add fourteen routes; saved-message search and fork instructions add roots.
-        sourceHash: "sha256:d57cd2d7beb247474b5ca22638eb087da7ee102c68d0a7316c6bacfcb851d099",
-        manifestHash: "sha256:b5f09ec84c281e9691a8d776e583090efb443be7461e2a581e6714dea91bde28",
+        // device workspaces add fourteen routes; saved-message search and fork instructions add roots;
+        // review labels, reviewers, reactions, drafts and commit diffs add nine procedures;
+        // the optional review-thread diff side adds one field; optional async reply source IDs
+        // preserve wire versions; the optional `deferBodies` history query parameter adds one
+        // structural type (its literal).
+        // Optional sessionId on the token-exchange result moves the source hash only.
+        // Optional crew favorites/usage and model recency move only the source hash.
+        // The optional cut-off marker adds one structural union; older peers omit it.
+        sourceHash: "sha256:dc5241a635965cd7714a1b0e34c033c562211fcc77e4456530aba5257fb4fb2b",
+        manifestHash: "sha256:0af95549f6385c5f08e5dfeb224d10486c18d5b19acb6ba934351dbea0e0dea4",
         counts: {
-          routes: 118,
-          procedures: 154,
-          voidProcedureResults: 59,
-          jsonProcedureResults: 95,
-          webSocketClientVariants: 9,
-          // 10 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
-          webSocketServerVariants: 11,
-          schemaRoots: 525,
-          structuralTypes: 1171,
+          routes: 119,
+          procedures: 163,
+          voidProcedureResults: 64,
+          jsonProcedureResults: 99,
+          webSocketClientVariants: 11,
+          // 11 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
+          webSocketServerVariants: 12,
+          schemaRoots: 544,
+          structuralTypes: 1211,
           semanticValidators: 25,
-          swiftFiles: 73,
-          kotlinFiles: 63,
+          swiftFiles: 75,
+          kotlinFiles: 65,
           stateMachines: 5,
         },
       });
@@ -362,7 +369,7 @@ describe("remote v3 native binding generator", () => {
       const output = buildNativeBindingOutput(ir, manifest).files;
       for (const language of ["swift", "kotlin"] as const) {
         const adapters = rootAdapters(graph, language);
-        expect(adapters).toHaveLength(525);
+        expect(adapters).toHaveLength(544);
         expect(
           adapters
             .map((adapter) => adapter.id)

@@ -131,7 +131,10 @@ interface PanelState {
   gitReviewContext: GitReviewContext | null;
   gitReviewAsPanel: boolean;
   gitOverlayOpen: boolean;
+  /** The selected review inside the pull-request overlay; null shows the list only. */
   prReviewContext: PrReviewContext | null;
+  /** The pull-request overlay is open on its list even without a selected review. */
+  pullRequestsOverlayOpen: boolean;
   githubActionsContext: GitHubActionsContext | null;
   filesPanelContext: FilesPanelContext | null;
   subAgentPanelContext: SubAgentPanelContext | null;
@@ -197,6 +200,10 @@ interface PanelState {
   setGitReviewAsPanel: (v: boolean) => void;
   setGitOverlayOpen: (v: boolean) => void;
   setPrReviewContext: (ctx: PrReviewContext | null) => void;
+  /** Opens the pull-request overlay on its list, keeping any selected review. */
+  openPullRequestsOverlay: () => void;
+  /** Closes the overlay and clears its selection. */
+  closePullRequestsOverlay: () => void;
   setGitHubActionsContext: (ctx: GitHubActionsContext | null) => void;
   setFilesPanelContext: (ctx: FilesPanelContext | null) => void;
   setSubAgentPanelContext: (ctx: SubAgentPanelContext | null) => void;
@@ -341,6 +348,7 @@ export const usePanelStore = create<PanelState>()((set) => ({
   gitReviewAsPanel: false,
   gitOverlayOpen: false,
   prReviewContext: null,
+  pullRequestsOverlayOpen: false,
   githubActionsContext: null,
   filesPanelContext: null,
   subAgentPanelContext: null,
@@ -416,6 +424,14 @@ export const usePanelStore = create<PanelState>()((set) => ({
       }
       return { prReviewContext: ctx };
     }),
+  openPullRequestsOverlay: () =>
+    set((state) => (state.pullRequestsOverlayOpen ? {} : { pullRequestsOverlayOpen: true })),
+  closePullRequestsOverlay: () =>
+    set((state) =>
+      !state.pullRequestsOverlayOpen && state.prReviewContext === null
+        ? {}
+        : { pullRequestsOverlayOpen: false, prReviewContext: null },
+    ),
   setGitHubActionsContext: (ctx) =>
     set((state) => {
       const prev = state.githubActionsContext;
@@ -837,7 +853,7 @@ export function selectAnyObstructingOverlayOpen(): boolean {
     p.settingsOpen ||
     p.projectSettingsId !== null ||
     p.gitOverlayOpen ||
-    p.prReviewContext !== null ||
+    selectPullRequestsOverlayVisible(p) ||
     p.githubActionsContext !== null ||
     useCommandPaletteStore.getState().isOpen
   ) {
@@ -869,4 +885,11 @@ export function useFilesPanelWorktreePath(): string | undefined {
 }
 export function useRightPanelTab(): RightPanelTab {
   return usePanelStore((s) => s.rightPanelTab);
+}
+
+/** The pull-request overlay shows its list, a selected review, or both. */
+export function selectPullRequestsOverlayVisible(
+  state: Pick<PanelState, "pullRequestsOverlayOpen" | "prReviewContext">,
+): boolean {
+  return state.pullRequestsOverlayOpen || state.prReviewContext !== null;
 }

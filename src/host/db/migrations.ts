@@ -1009,11 +1009,69 @@ export const DATABASE_MIGRATIONS = [
   },
   {
     version: 66,
+    name: "index manual catalog ordering",
+    // Index-only: existing rows and all cursor formats remain valid. Avoid
+    // updated_at indexes, which amplify writes on frequent metadata updates.
+    rollback: "rollback-compatible",
+    migrate: (sqlite) => {
+      sqlite.exec(`
+        CREATE INDEX IF NOT EXISTS idx_threads_catalog_manual ON threads(sort_order, id);
+        CREATE INDEX IF NOT EXISTS idx_projects_catalog_manual ON projects(sort_order, id);
+      `);
+    },
+  },
+  {
+    version: 67,
+    name: "record per-thread token usage by crew member",
+    // Additive: a new aggregate the usage ledger fills going forward. Existing
+    // threads stay valid with no per-thread history (no backfill: usage_events
+    // carries no thread id), and older app versions ignore the table.
+    rollback: "rollback-compatible",
+    migrate: (sqlite) => {
+      sqlite.exec(`CREATE TABLE IF NOT EXISTS thread_token_usage (
+        thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
+        member TEXT NOT NULL,
+        provider TEXT NOT NULL,
+        model TEXT NOT NULL DEFAULT '',
+        input INTEGER NOT NULL DEFAULT 0,
+        output INTEGER NOT NULL DEFAULT 0,
+        cache_read INTEGER NOT NULL DEFAULT 0,
+        cache_write INTEGER NOT NULL DEFAULT 0,
+        total INTEGER NOT NULL DEFAULT 0,
+        cost_usd REAL NOT NULL DEFAULT 0,
+        priced_total INTEGER NOT NULL DEFAULT 0,
+        updated_at INTEGER NOT NULL,
+        PRIMARY KEY (thread_id, member, provider, model)
+      )`);
+    },
+  },
+  {
+    version: 68,
+    name: "count streamed per-call usage growth",
+    // Additive: NULL marks a sample counted before its basis was recorded; the
+    // ledger keeps those exact-once as before and counts growth only for rows
+    // that record what was counted. Older app versions ignore the columns.
+    rollback: "rollback-compatible",
+    migrate: (sqlite) => {
+      addColumnIfMissing(sqlite, "usage_token_samples", "counted", "INTEGER");
+      addColumnIfMissing(sqlite, "usage_token_samples", "counted_tokens", "TEXT");
+    },
+  },
+  {
+    version: 69,
     name: "remember turns cut off before they finished",
     rollback: "rollback-compatible",
-    // Additive: older rows have no cut-off turn to resume, and older code
-    // ignores the column. Never inferred from history.
-    migrate: (sqlite) => addColumnIfMissing(sqlite, "threads", "interrupted_turn", "TEXT"),
+    // Additive to released schema 68. Unreleased PR builds used 66; the
+    // idempotent column addition also preserves their interruption markers.
+    migrate: (sqlite) => {
+      addColumnIfMissing(sqlite, "threads", "interrupted_turn", "TEXT");
+      // PR-only schema66 profiles predate master's index migration with the
+      // same number. Ensure both intentions survive that upgrade too.
+      sqlite.exec(`
+        CREATE INDEX IF NOT EXISTS idx_threads_catalog_manual ON threads(sort_order, id);
+        CREATE INDEX IF NOT EXISTS idx_projects_catalog_manual ON projects(sort_order, id);
+      `);
+    },
   },
 ] as const satisfies readonly DatabaseMigration[];
 
@@ -1157,7 +1215,6 @@ const SAFE_COLUMN_REPAIRS = [
   ["threads", "active_turn_started_at", "TEXT"],
   ["threads", "last_turn_started_at", "TEXT"],
   ["threads", "last_turn_ended_at", "TEXT"],
-  ["threads", "interrupted_turn", "TEXT"],
   ["thread_runtime_items", "parent_item_id", "TEXT"],
   ["scheduled_tasks", "project_id", "TEXT"],
   ["pr_watches", "blocked_reason", "TEXT"],
@@ -1179,6 +1236,11 @@ export function repairSafeSchemaDrift(sqlite: SqliteDatabase): void {
       .prepare("SELECT value FROM app_state WHERE key = 'schema_version'")
       .get() as { value: string } | undefined;
     if (Number(schema?.value) >= 58) createRuntimeGoalIndex(sqlite);
+    // Migration56 calls this helper too. Do not inject a future column into
+    // historical schemas before its own ordered migration has run.
+    if (Number(schema?.value) >= 69) {
+      addColumnIfMissing(sqlite, "threads", "interrupted_turn", "TEXT");
+    }
     sqlite.exec(
       "UPDATE threads SET archived_at = updated_at WHERE archived = 1 AND archived_at IS NULL",
     );

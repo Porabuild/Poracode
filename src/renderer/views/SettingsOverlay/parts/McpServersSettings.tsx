@@ -7,13 +7,16 @@ import { useLocalizedPluginCatalog } from "@/renderer/components/plugins/pluginC
 import { resolveProjectIdForView } from "@/renderer/actions/currentProject";
 import { saveProjectMcpServers } from "@/renderer/actions/projectActions";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useReachableProjectFilter } from "@/renderer/state/remoteServers/reachability";
 import {
   ensureProjectMcpServersLoaded,
   isProjectMcpServersLoaded,
   loadAuthoritativeProjectMcpServers,
 } from "@/renderer/state/projectSettings/projectSettingsLoader";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { usePanelStore } from "@/renderer/state/panelStore";
 import { isHomeProject } from "@/shared/homeScope";
+import { Button } from "@/renderer/components/common/Button";
 import { SettingsPage } from "./SettingsForm";
 import { CrossagentRoutingSection } from "./CrossagentRoutingSection";
 
@@ -36,8 +39,9 @@ export function McpServersSettings() {
     if (!workspaceProject || isProjectMcpServersLoaded(workspaceProject)) return;
     void ensureProjectMcpServersLoaded(workspaceProject.id).catch(() => undefined);
   }, [workspaceProject]);
+  const isReachable = useReachableProjectFilter();
   const importProjects = projects
-    .filter((project) => !isHomeProject(project))
+    .filter((project) => !isHomeProject(project) && isReachable(project))
     .map((project) => ({
       id: project.id,
       name: project.name,
@@ -106,7 +110,18 @@ export function McpServersSettings() {
             crossagents: {
               title: t`Crossagents`,
               actionLabel: t`Crossagent routing and ranking`,
-              content: <CrossagentRoutingSection />,
+              content: (
+                <div className="space-y-3">
+                  <CrossagentRoutingSection />
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onPress={() => usePanelStore.getState().openSettingsSection("crews")}
+                  >
+                    {t`Crews`}
+                  </Button>
+                </div>
+              ),
               dialogClassName: "sm:max-w-2xl",
             },
           }}

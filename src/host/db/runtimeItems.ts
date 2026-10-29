@@ -1,5 +1,6 @@
 import Database from "better-sqlite3";
 import type { RuntimeEvent, ThreadContextUsage } from "@/shared/contracts";
+import type { ThreadTokenUsage } from "@/shared/contracts/threadTokenUsage";
 import { RUNTIME_REQUEST_ITEM_TYPE } from "@/shared/contracts";
 import {
   PROMPT_INDEX_MAX_PROMPTS,
@@ -43,6 +44,7 @@ import { clearThreadDurableGapRowsInTransaction } from "./runtimeDurableGap";
 import { notifyProjectThreadDataChanged } from "./projectThreadChanges";
 import {
   readThreadContextUsageInSqlite,
+  readThreadTokenUsageInSqlite,
   replaceThreadContextUsageInSqlite,
   threadExistsInSqlite,
   withRuntimeBusyTimeout,
@@ -995,6 +997,10 @@ export async function dbReplaceThreadRuntimeSnapshot(
 
 export function dbGetThreadContextUsage(threadId: string): ThreadContextUsage | null {
   return readThreadContextUsageInSqlite(getSqlite(), threadId);
+}
+
+export function dbGetThreadTokenUsage(threadId: string): ThreadTokenUsage | null {
+  return readThreadTokenUsageInSqlite(getSqlite(), threadId);
 }
 
 function replaceThreadCompletedTurnsInSqlite(

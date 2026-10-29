@@ -123,6 +123,7 @@ internal object HomeThreadListPresentation {
                     computerUse = draft.computerUse,
                     chromeMcp = draft.chromeMcp,
                     executionEnvironment = draft.executionEnvironment,
+                    crew = draft.crew,
                 ),
             )
         }

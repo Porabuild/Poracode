@@ -10,7 +10,11 @@ import {
   CURSOR_SDK_PACKAGE_NAME,
 } from "@/shared/agents/cursorSdkPackage";
 import { resolveUnrestrictedPermissionConfig } from "@/shared/agents/unrestrictedPermissions";
-import { cursorRuntimeInstallState, cursorSdkUpdateCommand } from "./runtimeInstall";
+import {
+  canUpdateCursorSdk,
+  cursorRuntimeInstallState,
+  cursorSdkUpdateCommand,
+} from "./runtimeInstall";
 import { fullAccessToggle, planWorkToggle } from "../composerControlBuilders";
 import { registerProviderIcon } from "../ProviderIcon";
 import { registerComposerControls, registerComposerRuntimeUpdate } from "../providerComposer";
@@ -38,14 +42,15 @@ registerComposerRuntimeUpdate(PROVIDER_KIND, ({ agentStatus, project }) => {
   const runtimeLabel = agentStatus.capabilities.runtimeLabel;
   if (runtimeLabel !== "SDK") return undefined;
   const sdk = cursorRuntimeInstallState(agentStatus);
-  const command = cursorSdkUpdateCommand(agentStatus, project);
+  const updatable = canUpdateCursorSdk(agentStatus);
   return {
     label: `${agentStatus.label} ${runtimeLabel}`,
     installed: sdk.sdkInstalled,
     ...(sdk.sdkVersion ? { installedVersion: sdk.sdkVersion } : {}),
-    ...(command
+    ...(updatable
       ? {
-          command,
+          commandForVersion: (version: string) =>
+            cursorSdkUpdateCommand(agentStatus, project, version),
           npmPackage: {
             name: CURSOR_SDK_PACKAGE_NAME,
             minVersion: CURSOR_SDK_MIN_SUPPORTED_VERSION,

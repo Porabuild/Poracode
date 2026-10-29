@@ -176,6 +176,12 @@ export interface StructuredSessionHandle {
   /** Whether a provider-native root or child session belongs to this thread. */
   ownsProviderSession?(providerSessionId: string): boolean;
   activate?(): Promise<void>;
+  /**
+   * Disposal can retire this handle while openThread is pending. A late open
+   * result must neither adopt session state nor acquire new process resources.
+   * Absent: startup joins openThread before disposal.
+   */
+  readonly supportsOpenCancellation?: boolean;
   openThread?(config: ThreadConfig, sessionRef?: SessionRef): Promise<string>;
   ensureResumeArtifacts?(): Promise<void>;
   waitForRolloutFile?(timeoutMs?: number): Promise<void>;
@@ -782,6 +788,14 @@ export interface AgentDetector {
     status?: AgentStatus;
     wslDistros: string[];
   }): Promise<AgentProviderMetadata | undefined>;
+  /**
+   * Read-only values the provider's own config file already sets on this
+   * machine, keyed by the agent-setting key each backs (plus any
+   * provider-defined hint keys), so Settings can show what applies when the
+   * user leaves a setting empty. Must never write, and resolves to an empty
+   * record when the file is missing or unreadable.
+   */
+  readConfigDefaults?(): Promise<Record<string, string>>;
 }
 
 /**
@@ -816,6 +830,11 @@ export interface AgentPromptFormatter {
   buildTerminalPreInputs?(config: ThreadConfig): string[][] | undefined;
   /** Translate a canonical goal control into the provider's native prompt command. */
   buildGoalControlPrompt?(control: ThreadGoalControl): string | undefined;
+  /**
+   * The provider has no goal pause verb; interrupting its running turn pauses
+   * the active goal, so route canonical `pause` control to thread interruption.
+   */
+  goalPauseInterruptsTurn?: boolean;
   buildDirectInput?(
     prompt: string,
     segments?: PromptSegment[],

@@ -1,5 +1,8 @@
 import type { IncomingMessage } from "node:http";
+import { performance } from "node:perf_hooks";
 import { WebSocket, WebSocketServer } from "ws";
+import { recordHandlerTiming } from "@/shared/diagnostics/handlerTimingObservations";
+import type { IpcProcedurePayload, SupervisorProcedureName } from "@/shared/ipc";
 import { AsyncWorkTracker } from "@/shared/asyncWorkTracker";
 import {
   type RemoteAccessScopePreset,
@@ -392,7 +395,23 @@ export class RemoteAccessServer {
   private buildContext(): RemoteServerContext {
     const server = this;
     const context: RemoteServerContext = {
-      options: this.options,
+      // All handler-side supervisor calls go through `ctx.options`, so one
+      // wrapper here times every relay; the caller's own options object (and
+      // `this.options` uses outside the context) keep the original function.
+      options: {
+        ...this.options,
+        callSupervisor: async <Name extends SupervisorProcedureName>(
+          name: Name,
+          payload: IpcProcedurePayload<Name>,
+        ) => {
+          const startedAt = performance.now();
+          try {
+            return await this.options.callSupervisor(name, payload);
+          } finally {
+            recordHandlerTiming(`supervisor:${name}`, performance.now() - startedAt);
+          }
+        },
+      },
       auth: this.auth,
       wss: this.wss,
       security: this.security,
@@ -553,7 +572,8 @@ export class RemoteAccessServer {
   listAccessSessions(): RemoteAccessSessionSummary[] {
     const connectedSessions = new Set<string>();
     for (const [socket, session] of this.clients) {
-      if (socket.readyState === WebSocket.OPEN && session.expiresAtMs > Date.now()) {
+      const expiresAtMs = this.auth.accessSessionExpiresAtMs(session.sessionId) ?? 0;
+      if (socket.readyState === WebSocket.OPEN && expiresAtMs > Date.now()) {
         connectedSessions.add(session.sessionId);
       }
     }

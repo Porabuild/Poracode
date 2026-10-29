@@ -144,6 +144,16 @@ export function handleClientMessage(
   }
   runtime.ledger.observeWebSocketClient(parsed.type, { frameType: parsed.type, source: "mock" });
   runtime.observationLedger.recordOperation(`ws-client:${parsed.type}`);
+  if (parsed.type === "agent-vision-watch") {
+    if (connection.session.scopes.includes("session:read"))
+      runtime.send(connection.ws, {
+        type: "agent-vision-frame",
+        watchId: parsed.watchId,
+        vision: null,
+      });
+    return;
+  }
+  if (parsed.type === "agent-vision-unwatch") return;
   if (parsed.type === "ping") {
     runtime.send(connection.ws, {
       type: "pong",

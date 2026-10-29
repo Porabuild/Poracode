@@ -492,6 +492,24 @@ describe("SessionRuntimeLifecycle", () => {
     expect(harness.mocks.failStructuredSession).not.toHaveBeenCalled();
   });
 
+  it.each([
+    { status: "idle" as const },
+    { status: "inactive" as const },
+    { ignoreExit: true },
+    { turnStopRequested: true },
+    { structuredTurnInterruptRequested: true },
+  ])("does not mark intentional or settled close interrupted: %j", (session) => {
+    vi.useFakeTimers();
+    try {
+      const h = createHarness({ session });
+      h.lifecycle.attach(h.session);
+      h.structuredListener!.onClose();
+      expect(h.mocks.noteTurnFailed).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("handles structured errors and delays PTY teardown after close", () => {
     vi.useFakeTimers();
     try {

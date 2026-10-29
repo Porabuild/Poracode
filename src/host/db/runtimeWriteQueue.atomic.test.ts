@@ -120,7 +120,7 @@ describe("atomic runtime queue prefixes", () => {
     expect(queue.pendingEvents("b")).toBe(1);
   });
 
-  it("keeps the 1 MiB prefix and 4 MiB ordinary group cap when callers request larger chunks", () => {
+  it("keeps one indivisible oversize event per group when callers request larger chunks", () => {
     const queue = new RuntimeWriteQueue(
       () => undefined,
       bounds,
@@ -138,9 +138,9 @@ describe("atomic runtime queue prefixes", () => {
       now: () => 0,
       chunk: { maxEvents: 1000, maxBytes: 8 * MIB },
     });
-    expect(result).toMatchObject({ flushedThreads: 4, committedEvents: 4 });
-    expect(result.committedBytes).toBeLessThanOrEqual(4 * MIB);
-    expect(queue.pendingEvents()).toBe(4);
+    expect(result).toMatchObject({ flushedThreads: 1, committedEvents: 1 });
+    expect(result.committedBytes).toBeLessThan(MIB);
+    expect(queue.pendingEvents()).toBe(7);
   });
 
   it("keeps a reserved oversize slot and its age unchanged on rollback", () => {

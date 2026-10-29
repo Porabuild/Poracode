@@ -2,6 +2,7 @@ import { isDeepStrictEqual } from "node:util";
 import {
   areAgentSlashCommandsEqual,
   isThreadConfigEqual,
+  isThreadTurnActive,
   type RuntimeEvent,
 } from "@/shared/contracts";
 import type { StructuredSessionUpdate } from "../../agents/base";
@@ -314,6 +315,17 @@ export class SessionRuntimeLifecycle {
   }
 
   private handleStructuredSessionClosed(session: SessionRuntime): void {
+    // An accepted turn can lose its transport without an error or failed-turn
+    // callback. Preserve that interruption before the inactive state is emitted.
+    // Retired/stale sessions are fenced by canHandleStructuredEvent; Stop and
+    // steer interruptions are intentional and must never offer resume.
+    if (
+      isThreadTurnActive(session.status) &&
+      !session.turnStopRequested &&
+      !session.structuredTurnInterruptRequested
+    ) {
+      this.context.outputPipeline.noteTurnFailed(session);
+    }
     // The transport is gone, so the handle can never accept another turn.
     // Detach it: the send path relaunches (and resumes via `sessionRef`) only
     // when no live structured session is attached. Leaving the dead handle in

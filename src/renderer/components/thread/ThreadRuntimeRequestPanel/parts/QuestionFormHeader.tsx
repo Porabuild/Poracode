@@ -1,7 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
-/** The active question is the form's heading; the answer zone sits below a hairline. */
+/** The source line sits above a hairline; the active question heads the answer zone below it. */
 export function QuestionFormHeader(props: {
   icon: LucideIcon;
   /** Who is asking and why, when that matters for trust (e.g. an MCP server's message). */
@@ -14,23 +14,48 @@ export function QuestionFormHeader(props: {
   steps?: ReactNode;
 }) {
   const { icon: Icon, eyebrow, title, description, hint, steps } = props;
+  const icon = (
+    <Icon
+      className={`${steps && !eyebrow ? "mt-[5px]" : "mt-0.5"} size-3.5 shrink-0 text-foreground-muted`}
+      aria-hidden
+    />
+  );
+  const required = props.required ? (
+    <span aria-hidden className="text-warning">
+      {" *"}
+    </span>
+  ) : null;
+  const question = steps ? (description ?? title) : description;
   return (
-    <div className="flex items-start gap-2 border-b border-[color:var(--border)] p-2 leading-snug">
-      <Icon className="mt-0.5 size-3.5 shrink-0 text-foreground-muted" aria-hidden />
-      <div className="min-w-0 flex-1 space-y-0.5 break-words">
-        {eyebrow ? <p className="text-[11px] text-[color:var(--muted)]">{eyebrow}</p> : null}
-        <p className="text-xs font-semibold text-foreground">
-          {title}
-          {props.required ? (
-            <span aria-hidden className="text-warning">
-              {" *"}
-            </span>
+    <>
+      {eyebrow ? (
+        <div className="flex items-start gap-2 border-b border-[color:var(--border)] p-2 leading-snug">
+          {icon}
+          <p className="min-w-0 flex-1 break-words text-[11px] text-[color:var(--muted)]">
+            {eyebrow}
+          </p>
+        </div>
+      ) : null}
+      <div className="flex items-start gap-2 px-2 pt-2 leading-snug">
+        {eyebrow ? <span aria-hidden className="size-3.5 shrink-0" /> : icon}
+        <div className="min-w-0 flex-1 space-y-0.5 break-words">
+          {steps ? (
+            <div className="pb-1">{steps}</div>
+          ) : (
+            <p className="text-xs font-semibold text-foreground">
+              {title}
+              {required}
+            </p>
+          )}
+          {question ? (
+            <p className="text-xs text-foreground/75">
+              {question}
+              {steps ? required : null}
+            </p>
           ) : null}
-        </p>
-        {description ? <p className="text-xs text-foreground/75">{description}</p> : null}
-        {hint ? <p className="text-[11px] text-[color:var(--muted)]">{hint}</p> : null}
+          {hint ? <p className="text-[11px] text-[color:var(--muted)]">{hint}</p> : null}
+        </div>
       </div>
-      {steps ? <div className="min-w-0 max-w-[50%] shrink-0">{steps}</div> : null}
-    </div>
+    </>
   );
 }

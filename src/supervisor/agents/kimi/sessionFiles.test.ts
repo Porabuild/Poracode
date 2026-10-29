@@ -1,7 +1,8 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import * as fsPromises from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ProjectLocation } from "@/shared/contracts";
 import {
   discoverKimiSessionRef,
@@ -10,6 +11,10 @@ import {
   resolveKimiSessionsWatchPaths,
   snapshotKimiPreSpawnSessions,
 } from "./sessionFiles";
+
+vi.mock("node:fs/promises", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("node:fs/promises")>()),
+}));
 
 describe("kimi session discovery (native)", () => {
   let kimiHome: string;
@@ -39,27 +44,55 @@ describe("kimi session discovery (native)", () => {
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
     if (previousKimiHome === undefined) delete process.env["KIMI_CODE_HOME"];
     else process.env["KIMI_CODE_HOME"] = previousKimiHome;
     rmSync(kimiHome, { recursive: true, force: true });
   });
 
   it("returns undefined when no sessions exist", async () => {
-    snapshotKimiPreSpawnSessions(location);
+    await snapshotKimiPreSpawnSessions(location);
     expect(await discoverKimiSessionRef(location)).toBeUndefined();
   });
 
   it("discovers the session dir created after the pre-spawn snapshot", async () => {
     makeSession("workA", "old-session");
-    snapshotKimiPreSpawnSessions(location);
+    await snapshotKimiPreSpawnSessions(location);
     makeSession("workA", "new-session");
 
     const ref = await discoverKimiSessionRef(location);
     expect(ref?.providerSessionId).toBe("new-session");
   });
 
+  it("retains the completed snapshot while another launch scans", async () => {
+    makeSession("workA", "old-session");
+    await snapshotKimiPreSpawnSessions(location);
+    const read = fsPromises.readdir;
+    let entered!: () => void;
+    let release!: () => void;
+    const started = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    const blocked = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    vi.spyOn(fsPromises, "readdir").mockImplementationOnce(async (...args) => {
+      entered();
+      await blocked;
+      return read(...args);
+    });
+    const pending = snapshotKimiPreSpawnSessions(location);
+    await started;
+    try {
+      expect(await discoverKimiSessionRef(location)).toBeUndefined();
+    } finally {
+      release();
+      await pending;
+    }
+  });
+
   it("scans across every workDirKey dir", async () => {
-    snapshotKimiPreSpawnSessions(location);
+    await snapshotKimiPreSpawnSessions(location);
     makeSession("workB", "fresh-session");
 
     const ref = await discoverKimiSessionRef(location);
@@ -76,7 +109,7 @@ describe("kimi session discovery (native)", () => {
     const projA = join(tmpdir(), "kimi-proj-a");
     const locationA = windowsLocation(projA);
 
-    snapshotKimiPreSpawnSessions(locationA);
+    await snapshotKimiPreSpawnSessions(locationA);
     // Two brand-new sessions appear post-snapshot; only one belongs to this cwd.
     makeSession("workA", "mine", projA);
     makeSession("workOther", "theirs", join(tmpdir(), "kimi-proj-other"));
@@ -96,8 +129,8 @@ describe("kimi session discovery (native)", () => {
     makeSession("workB", "pre-B", projB);
 
     // Two concurrent launches snapshot back to back — B must not wipe A's set.
-    snapshotKimiPreSpawnSessions(locationA);
-    snapshotKimiPreSpawnSessions(locationB);
+    await snapshotKimiPreSpawnSessions(locationA);
+    await snapshotKimiPreSpawnSessions(locationB);
 
     // Each launch mints its own new session.
     makeSession("workA", "new-A", projA);
@@ -110,7 +143,7 @@ describe("kimi session discovery (native)", () => {
   it("returns undefined and does not throw when the sessions root is missing", async () => {
     rmSync(kimiHome, { recursive: true, force: true });
 
-    snapshotKimiPreSpawnSessions(location);
+    await snapshotKimiPreSpawnSessions(location);
     expect(await discoverKimiSessionRef(location)).toBeUndefined();
 
     // The watcher must tolerate a fresh install with no `.kimi-code` dir yet.

@@ -20,7 +20,7 @@ Closes #
 
 # Before / After
 
-<!-- Required when the UI visibly changes. Same window size, theme, and state on both sides. Otherwise write "No visible UI change."
+<!-- Add screenshots only when they show reviewers what the diff cannot: a Before/After table (same window size, theme, and state on both sides) when existing UI looks different, or one After image for new UI. Otherwise write "No visible UI change." or one sentence describing the visible change.
 
 | Before | After |
 | --- | --- |

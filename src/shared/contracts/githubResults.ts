@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { gitSafeIntSchema, gitSafeNonNegIntSchema } from "./gitResults";
 import { forgeRepositorySchema } from "./forge";
+import { prLabelSchema, prReviewerSchema } from "./prMetadata";
 
 const safeInt = gitSafeIntSchema;
 const safeNonNegInt = gitSafeNonNegIntSchema;
@@ -82,12 +83,32 @@ export const prCommitSummarySchema = z.object({
   url: z.string().optional(),
 });
 
+export const prReactionSchema = z.object({
+  content: z.string().min(1).max(64),
+  count: safeNonNegInt,
+  viewerReacted: z.boolean(),
+});
+
+// `kind` stays an open string: native decoders reject unknown enum literals.
+export const prTimelineEventSchema = z.object({
+  id: z.string().min(1),
+  kind: z.string().min(1).max(64),
+  createdAt: z.string(),
+  actor: prAuthorSchema.optional(),
+  label: prLabelSchema.optional(),
+  reviewer: prReviewerSchema.optional(),
+  fromRef: z.string().optional(),
+  toRef: z.string().optional(),
+  text: z.string().optional(),
+});
+
 export const prCommentSchema = z.object({
   id: z.string(),
   author: prAuthorSchema,
   body: z.string(),
   createdAt: z.string(),
   url: z.string().optional(),
+  reactions: z.array(prReactionSchema).optional(),
 });
 
 export const prReviewThreadSchema = z.object({
@@ -96,6 +117,8 @@ export const prReviewThreadSchema = z.object({
   isOutdated: z.boolean(),
   path: z.string().optional(),
   line: safeInt.optional(),
+  // `side` stays an open string ("LEFT" | "RIGHT"): native decoders reject unknown enum literals.
+  side: z.string().min(1).max(64).optional(),
   comments: z.array(prCommentSchema),
 });
 
@@ -128,6 +151,10 @@ export const prDetailsSchema = z.object({
   reviews: z.array(prReviewSummarySchema),
   checks: z.array(prCheckSchema),
   reviewThreads: z.array(prReviewThreadSchema).optional(),
+  labels: z.array(prLabelSchema).optional(),
+  requestedReviewers: z.array(prReviewerSchema).optional(),
+  timeline: z.array(prTimelineEventSchema).optional(),
+  reactions: z.array(prReactionSchema).optional(),
 });
 
 export const ghCheckAvailableResultSchema = z.object({
@@ -146,6 +173,7 @@ export const pullRequestSummarySchema = z.object({
   deletions: safeInt,
   repository: z.string(),
   reviewRequested: z.boolean(),
+  labels: z.array(prLabelSchema).optional(),
 });
 
 export const ghListPullRequestsResultSchema = z.object({
