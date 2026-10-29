@@ -8,6 +8,7 @@ import {
   imageTicketResponseSchema,
   localImageQuerySchema,
   prWatchInputSchema,
+  forgePrWatchInputSchema,
   prWatchAgentSyncSchema,
   prWatchKeySchema,
   prWatchReadQuerySchema,
@@ -135,7 +136,7 @@ export const workspaceRoutes: readonly RemoteHttpRouteContract[] = [
     auth: "bearer-or-query",
     scopes: ["session:read"],
     audit: auditEvent("file_read"),
-    queryParameters: ["path", "ticket"],
+    queryParameters: ["path", "ticket", "variant"],
     request: { bodyKind: "empty", querySchema: localImageQuerySchema },
     response: {
       wireKind: "binary",
@@ -168,7 +169,7 @@ export const workspaceRoutes: readonly RemoteHttpRouteContract[] = [
     auth: "bearer-or-query",
     scopes: ["session:read"],
     audit: auditEvent("file_read"),
-    queryParameters: ["path", "ticket"],
+    queryParameters: ["path", "ticket", "variant"],
     request: { bodyKind: "empty", querySchema: runtimeImageQuerySchema },
     response: {
       wireKind: "binary",
@@ -351,6 +352,17 @@ export const workspaceRoutes: readonly RemoteHttpRouteContract[] = [
       status: 200,
       jsonSchema: remoteOkResponseSchema,
     },
+  }),
+  defineRoute({
+    id: "pr-watch-scoped-upsert",
+    requiresCurrentProtocol: true,
+    method: "POST",
+    path: "/api/pr-watches/scoped",
+    auth: "bearer",
+    scopes: ["session:operate"],
+    audit: auditEvent("mutate"),
+    request: { bodyKind: "json", jsonSchema: forgePrWatchInputSchema },
+    response: { wireKind: "json", status: 200, jsonSchema: prWatchUpsertResultSchema },
   }),
   defineRoute({
     id: "browser-state",

@@ -22,6 +22,7 @@ import {
   type EventSocketConnectionContext,
 } from "./eventSocketContext";
 import { bindEventSocketMessages } from "./eventSocketMessages";
+import { setAgentVisionSocketSender } from "@/renderer/browser/agentVisionStream";
 import {
   clearRemoteServerEventSocketConnectTimeout,
   clearRemoteServerEventSocketHealth,
@@ -193,6 +194,7 @@ export async function startRemoteServerEventStream(
     clearRemoteServerEventSocketHealth(entry);
     forgetRemoteServerCursorSyncV2(connectionKey);
     setRemoteTerminalSocketSender(connectionKey, null);
+    setAgentVisionSocketSender(connectionKey, null);
     syncDesktopBrowserBridgeClient(get());
     scheduleReconnect();
   };
@@ -328,6 +330,11 @@ export async function startRemoteServerEventStream(
         clearRemoteServerEventSocketConnectTimeout(entry);
         entry.reconnectPolicy.reset();
         activateRemoteTerminalFeed(connectionKey, socket);
+        setAgentVisionSocketSender(connectionKey, (message) => {
+          if (!isCurrent() || entry.socket !== socket || socket.readyState !== 1) return false;
+          socket.send?.(JSON.stringify(message));
+          return true;
+        });
         syncDesktopBrowserBridgeClient(get());
         const currentThreadItemInterests =
           getRemoteServerThreadItemInterests(connectionKey) ?? threadItemInterests;
@@ -358,6 +365,7 @@ export async function startRemoteServerEventStream(
           clearRemoteServerEventSocketHealth(entry);
           forgetRemoteServerCursorSyncV2(connectionKey);
           setRemoteTerminalSocketSender(connectionKey, null);
+          setAgentVisionSocketSender(connectionKey, null);
           setRemoteServerFailure(connectionKey, "error", sharedMsg("remote.session.expired"));
           scheduleReconnect(REMOTE_SOCKET_POLICY.unauthorizedReconnectMs);
           return;
@@ -378,6 +386,7 @@ export async function startRemoteServerEventStream(
         // Stop automatic attempts, but retain terminal listeners so a
         // later explicit reconnect can install a fresh supported stream.
         deleteRemoteServerEventSocketEntry(connectionKey);
+        setAgentVisionSocketSender(connectionKey, null);
         forgetRemoteServerCursorSyncV2(connectionKey);
         setRemoteTerminalSocketSender(connectionKey, null);
         return;

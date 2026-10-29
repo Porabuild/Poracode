@@ -8,12 +8,35 @@ import {
   type ListPluginsResult,
 } from "../../contracts";
 import { defineNoArgProcedure, definePayloadProcedure } from "../core";
+import {
+  pluginCatalogPayloadSchema,
+  pluginCatalogResultSchema,
+  pluginAccountsPayloadSchema,
+  pluginAccountsResultSchema,
+  type PluginCatalogPayload,
+  type PluginCatalogResult,
+  type PluginAccountsPayload,
+  type PluginAccountsResult,
+} from "../../contracts/pluginCatalog";
 
 /**
  * Agent Plugins packages are discovered on disk by the supervisor, so the
  * renderer reads them over IPC rather than importing a static catalog.
  */
 export const pluginProcedures = {
+  // Additive, local supervisor procedures: old peers reject unknown names before any effect.
+  pluginCatalog: definePayloadProcedure<PluginCatalogPayload, PluginCatalogResult, "supervisor">(
+    "pluginCatalog",
+    "supervisor",
+    pluginCatalogPayloadSchema,
+    pluginCatalogResultSchema,
+  ),
+  pluginAccounts: definePayloadProcedure<PluginAccountsPayload, PluginAccountsResult, "supervisor">(
+    "pluginAccounts",
+    "supervisor",
+    pluginAccountsPayloadSchema,
+    pluginAccountsResultSchema,
+  ),
   manageAgentPlugins: definePayloadProcedure<
     ManageAgentPluginsPayload,
     ManageAgentPluginsResult,

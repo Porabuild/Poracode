@@ -150,7 +150,7 @@ If a child needs a store value, the child reads it via a hook. Do not pass `sele
 
 ## Renderer Philosophy
 
-- Keep the renderer thin. Hot-path logic belongs in the supervisor or shared helpers.
+- Keep authoritative host behavior out of the renderer; choose its owner using the [architecture placement guide](architecture.md#choosing-where-a-change-belongs). Rendering, interaction, and client-state calculations belong in the client; a hot path alone is not a reason to move them to the supervisor.
 - Preserve terminal fidelity over convenience. Do not re-render CLI output as chat bubbles or semantic blocks.
 - The terminal viewport is the source of truth. Sidebar badges, loading states, and attention markers are advisory only.
 

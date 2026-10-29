@@ -451,7 +451,8 @@ actor RemoteAPIClient: PushRemoteAPI {
         queryItems: [URLQueryItem] = [],
         jsonBody: Data? = nil,
         authorized: Bool = true,
-        extraHeaders: [String: String] = [:]
+        extraHeaders: [String: String] = [:],
+        timeout: TimeInterval? = nil
     ) async throws -> Data {
         var url = try endpointURL(path: path)
         if !queryItems.isEmpty {
@@ -463,7 +464,7 @@ actor RemoteAPIClient: PushRemoteAPI {
             url = withQuery
         }
 
-        var request = URLRequest(url: url, timeoutInterval: requestTimeout)
+        var request = URLRequest(url: url, timeoutInterval: timeout ?? requestTimeout)
         request.httpMethod = method
         for (key, value) in extraHeaders {
             request.setValue(value, forHTTPHeaderField: key)
@@ -495,7 +496,7 @@ actor RemoteAPIClient: PushRemoteAPI {
         let data: Data
         let response: URLResponse
         do {
-            (data, response) = try await performBoundedRequest(request)
+            (data, response) = try await performBoundedRequest(request, resourceTimeout: timeout)
         } catch is CancellationError {
             try Self.rethrowTransportFailure(error: CancellationError(), endpoint: endpoint)
         } catch let error as RemoteClientError {
@@ -581,11 +582,14 @@ actor RemoteAPIClient: PushRemoteAPI {
 
     /// Fetch with Content-Length early rejection and incremental size enforcement
     /// for unknown/chunked bodies (64 MiB cap). Uses chunked streaming — not per-byte loops.
-    private func performBoundedRequest(_ request: URLRequest) async throws -> (Data, URLResponse) {
+    private func performBoundedRequest(
+        _ request: URLRequest, resourceTimeout: TimeInterval? = nil
+    ) async throws -> (Data, URLResponse) {
         try await StreamingHTTPBody.perform(
             session: session,
             request: request,
-            maxBytes: maxResponseBodyBytes
+            maxBytes: maxResponseBodyBytes,
+            resourceTimeout: resourceTimeout
         )
     }
 

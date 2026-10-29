@@ -27,6 +27,7 @@ import { useThreadBackgroundTasksDockStore } from "@/renderer/state/threadBackgr
 import { ThreadTodoDock } from "@/renderer/components/thread/ThreadTodoDock";
 import {
   resolveThreadAuthState,
+  isRuntimeAuthError,
   type ThreadErrorDockState,
 } from "@/renderer/components/thread/threadErrorState";
 import type { ThreadGoalDockState } from "@/renderer/components/thread/threadGoalState";
@@ -95,7 +96,7 @@ export function ComposerInfoChips(props: {
   const previousChipsRef = useRef<readonly ChipDescriptor[]>([]);
   const previousThreadIdRef = useRef(threadId);
   const agentCounts = useActiveAgentKindCounts(threadId);
-  const { authRequired } = resolveThreadAuthState({
+  const { authRequired, hasRuntimeAuthError } = resolveThreadAuthState({
     authState: props.agentStatus?.authState,
     errorDockStates: props.errorDockStates,
   });
@@ -132,7 +133,7 @@ export function ComposerInfoChips(props: {
       active: true,
     });
   }
-  if (authRequired && props.agentStatus) {
+  if ((authRequired || hasRuntimeAuthError) && props.agentStatus) {
     chips.push({
       key: "auth",
       icon: KeyRound,
@@ -361,9 +362,15 @@ export function ComposerInfoChips(props: {
           ) : null}
           {panelKey === "auth" && props.agentStatus ? (
             <ThreadAuthRequiredDock
+              threadId={threadId}
               agentStatus={props.agentStatus}
               multilineDescription
               {...(props.project ? { project: props.project } : {})}
+              onAuthenticated={() => {
+                props.errorDockStates
+                  .filter(isRuntimeAuthError)
+                  .forEach((state) => props.onDismissError(state.sourceItemId));
+              }}
             />
           ) : null}
           {panelKey === "context" && contextSummary ? (

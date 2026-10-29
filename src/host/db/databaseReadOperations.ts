@@ -4,6 +4,7 @@ import { readConversationSearchBatch, readConversationSearchPage } from "./conve
 import { readRuntimeSnapshot } from "./runtimeReadSnapshot";
 import {
   dbReadLatestThreadGoalItem,
+  dbReadThreadPromptIndex,
   dbReadThreadConversationItemsPage,
   dbReadThreadRuntimeItems,
   dbReadThreadRuntimeItemsPage,
@@ -11,6 +12,7 @@ import {
   dbReadThreadRuntimeItemsAfter,
   dbGetThreadCompletedTurns,
   dbGetThreadContextUsage,
+  dbGetThreadTokenUsage,
 } from "./runtimeItems";
 import { dbGetThreadRuntimeItemCommitted } from "./runtimeItemRead";
 import { dbGetProjects, dbGetState, dbGetThreads, dbGetThreadsPage } from "./projectsThreads";
@@ -74,8 +76,10 @@ export const databaseReadOperations = {
   conversationPage: dbReadThreadConversationItemsPage,
   runtimeItem: dbGetThreadRuntimeItemCommitted,
   latestGoal: dbReadLatestThreadGoalItem,
+  promptIndex: dbReadThreadPromptIndex,
   completedTurns: dbGetThreadCompletedTurns,
   contextUsage: dbGetThreadContextUsage,
+  tokenUsage: dbGetThreadTokenUsage,
   runtimeSnapshot: readCommittedRuntimeSnapshot,
 };
 

@@ -83,9 +83,10 @@ const DEFLATE_SYNC_FLUSH_OVERHEAD_BYTES = 5;
  *   5 bytes per 64 KiB block plus 5 bytes per frame. When deflate is not
  *   negotiated those extra bytes are conservative, never an undercount.
  */
-export function outboundFrameBytes(payloadBytes: number): number {
+export function outboundFrameBytes(payloadBytes: number, compress = true): number {
   if (!Number.isFinite(payloadBytes) || payloadBytes <= 0) return 0;
   const headerBytes = payloadBytes >= 65_536 ? 10 : payloadBytes > 125 ? 4 : 2;
+  if (!compress) return payloadBytes + headerBytes;
   const deflateBytes =
     DEFLATE_SYNC_FLUSH_OVERHEAD_BYTES +
     Math.ceil(payloadBytes / DEFLATE_STORED_BLOCK_PAYLOAD_BYTES) *

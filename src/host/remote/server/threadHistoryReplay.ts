@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { RuntimeEvent } from "@/shared/contracts";
 import type { RemoteBroadcastEvent } from "./context";
+import { threadReplayEventBytes } from "./threadHistoryReplayBytes";
 
 interface Batch {
   readonly seq: number;
@@ -130,9 +131,14 @@ export class ThreadHistoryReplay {
       // A live-control change requires the established snapshot request level.
       const events = batch.events;
       if (events.length === 0) continue;
-      // Publication already serialized the frame. Its full charge conservatively
-      // bounds each retained subset without serializing large streams again.
-      const bytes = frameBytes ?? Buffer.byteLength(JSON.stringify(events), "utf8");
+      // A single-thread frame already bounds its retained events. A multi-thread
+      // frame must be charged by retained subset: charging the whole frame to
+      // every thread multiplies quota use and prematurely forces full snapshots.
+      // The hr1 cursor and all sequence/revision/invalidation rules stay valid.
+      const bytes =
+        batches.length === 1 && frameBytes !== undefined
+          ? frameBytes
+          : threadReplayEventBytes(events);
       if (bytes > this.limits.threadBytes) {
         this.invalidate(batch.threadId);
         continue;

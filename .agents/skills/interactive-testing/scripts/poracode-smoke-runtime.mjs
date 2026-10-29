@@ -19,6 +19,8 @@ const SOURCE_PATHS = [
   "resources",
   "build",
   "native/computer-use-helper",
+  "native/pty-job-owner",
+  "native/server-service-launcher",
   "scripts",
   "package.json",
   "bun.lock",
@@ -45,47 +47,42 @@ export async function prepareSmokeRuntime({
   const mainBundleDir = join(appRoot, "dist", "main");
   await mkdir(root, { recursive: true });
   await mkdir(appRoot); // Reusing an old runtime would mix revisions or remove another owner's build.
-  try {
-    await writeFile(join(appRoot, ".smoke-owner"), ownerToken);
-    const source = await snapshotSource(repoRoot, appRoot);
-    const buildRuntime = build ?? (await import("./smoke-runtime-build.mjs")).buildSmokeRuntime;
-    const { dependencies } = await buildRuntime({ repoRoot, appRoot, rendererViteHMR });
-    await rm(join(appRoot, "node_modules"), { recursive: true, force: true });
-    const native = await copyRuntimeDependencies(repoRoot, appRoot, dependencies);
-    if (dependencies.includes("electron")) await validateSmokeNativeDependencies(appRoot);
-    const manifest = JSON.parse(await readFile(join(appRoot, "package.json"), "utf8"));
-    await writeFile(
-      join(appRoot, "package.json"),
-      `${JSON.stringify(
-        {
-          name: manifest.name,
-          version: manifest.version,
-          type: "module",
-          main: "dist/main/main.cjs",
-        },
-        null,
-        2,
-      )}\n`,
-    );
-    const artifact = await hashTree(appRoot);
-    const runtime = {
-      formatVersion: 1,
-      ownerToken,
-      appRoot,
-      mainBundleDir,
-      resourcesDir: join(appRoot, "resources"),
-      nodeModulesDir: native.nodeModulesDir,
-      source,
-      artifact,
-      packages: native.packages,
-      renderer: rendererViteHMR ? "vite-hmr-development" : "frozen-development-build",
-    };
-    await writeFile(join(root, "runtime-manifest.json"), `${JSON.stringify(runtime, null, 2)}\n`);
-    return runtime;
-  } catch (error) {
-    await rm(appRoot, { recursive: true, force: true });
-    throw error;
-  }
+  await writeFile(join(appRoot, ".smoke-owner"), ownerToken);
+  const source = await snapshotSource(repoRoot, appRoot);
+  const buildRuntime = build ?? (await import("./smoke-runtime-build.mjs")).buildSmokeRuntime;
+  const { dependencies } = await buildRuntime({ repoRoot, appRoot, rendererViteHMR });
+  await rm(join(appRoot, "node_modules"), { recursive: true, force: true });
+  const native = await copyRuntimeDependencies(repoRoot, appRoot, dependencies);
+  if (dependencies.includes("electron")) await validateSmokeNativeDependencies(appRoot);
+  const manifest = JSON.parse(await readFile(join(appRoot, "package.json"), "utf8"));
+  await writeFile(
+    join(appRoot, "package.json"),
+    `${JSON.stringify(
+      {
+        name: manifest.name,
+        version: manifest.version,
+        type: "module",
+        main: "dist/main/main.cjs",
+      },
+      null,
+      2,
+    )}\n`,
+  );
+  const artifact = await hashTree(appRoot);
+  const runtime = {
+    formatVersion: 1,
+    ownerToken,
+    appRoot,
+    mainBundleDir,
+    resourcesDir: join(appRoot, "resources"),
+    nodeModulesDir: native.nodeModulesDir,
+    source,
+    artifact,
+    packages: native.packages,
+    renderer: rendererViteHMR ? "vite-hmr-development" : "frozen-development-build",
+  };
+  await writeFile(join(root, "runtime-manifest.json"), `${JSON.stringify(runtime, null, 2)}\n`);
+  return runtime;
 }
 
 async function sourceFiles(repoRoot) {

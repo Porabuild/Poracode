@@ -1,0 +1,44 @@
+diff --git a/packages/schema/package.json b/packages/schema/package.json
+index c492c95..0e1e694 100644
+--- a/packages/schema/package.json
++++ b/packages/schema/package.json
+@@ -1,37 +1,14 @@
+ {
+-  "$schema": "https://json.schemastore.org/package.json",
+   "name": "@opencode/schema",
+-  "version": "2.1.0",
++  "version": "2.1.4",
++  "private": true,
+   "type": "module",
+-  "license": "MIT",
+-  "repository": {
+-    "type": "git",
+-    "url": "git+https://github.com/anomalyco/opencode.git",
+-    "directory": "packages/schema"
+-  },
+-  "publishConfig": {
+-    "access": "public"
+-  },
+-  "files": [
+-    "dist"
+-  ],
+   "exports": {
+     ".": "./src/index.ts",
+     "./*": "./src/*.ts"
+   },
+-  "scripts": {
+-    "build": "bun run script/build.ts",
+-    "test": "bun test --only-failures",
+-    "typecheck": "tsc --noEmit"
+-  },
+   "dependencies": {
+     "@standard-schema/spec": "catalog:",
+     "effect": "catalog:"
+-  },
+-  "devDependencies": {
+-    "@tsconfig/bun": "catalog:",
+-    "@types/bun": "catalog:",
+-    "@typescript/native": "catalog:",
+-    "typescript": "catalog:"
+   }
+ }

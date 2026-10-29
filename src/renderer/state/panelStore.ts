@@ -64,6 +64,7 @@ export type RightPanelTab =
   | "browser"
   | "usage"
   | "notes"
+  | "devices"
   | "ports"
   | "docks"
   | "subagent"
@@ -130,7 +131,10 @@ interface PanelState {
   gitReviewContext: GitReviewContext | null;
   gitReviewAsPanel: boolean;
   gitOverlayOpen: boolean;
+  /** The selected review inside the pull-request overlay; null shows the list only. */
   prReviewContext: PrReviewContext | null;
+  /** The pull-request overlay is open on its list even without a selected review. */
+  pullRequestsOverlayOpen: boolean;
   githubActionsContext: GitHubActionsContext | null;
   filesPanelContext: FilesPanelContext | null;
   subAgentPanelContext: SubAgentPanelContext | null;
@@ -156,6 +160,8 @@ interface PanelState {
   browserPanelOpen: boolean;
   usagePanelOpen: boolean;
   notesPanelOpen: boolean;
+  deviceWorkspaceThreadId: string | null;
+  deviceWorkspaceDetached: boolean;
   portsPanelOpen: boolean;
   sideChatPanelOpen: boolean;
   /**
@@ -194,6 +200,10 @@ interface PanelState {
   setGitReviewAsPanel: (v: boolean) => void;
   setGitOverlayOpen: (v: boolean) => void;
   setPrReviewContext: (ctx: PrReviewContext | null) => void;
+  /** Opens the pull-request overlay on its list, keeping any selected review. */
+  openPullRequestsOverlay: () => void;
+  /** Closes the overlay and clears its selection. */
+  closePullRequestsOverlay: () => void;
   setGitHubActionsContext: (ctx: GitHubActionsContext | null) => void;
   setFilesPanelContext: (ctx: FilesPanelContext | null) => void;
   setSubAgentPanelContext: (ctx: SubAgentPanelContext | null) => void;
@@ -214,6 +224,8 @@ interface PanelState {
   returnToThreadDocksPanel: (threadId: string) => void;
   setNotesPanelOpen: (v: boolean) => void;
   openNotesPanel: () => void;
+  setDeviceWorkspaceThreadId: (threadId: string | null) => void;
+  setDeviceWorkspaceDetached: (detached: boolean) => void;
   setPortsPanelOpen: (v: boolean) => void;
   openPortsPanel: () => void;
   setBrowserOverlayOpen: (v: boolean) => void;
@@ -336,6 +348,7 @@ export const usePanelStore = create<PanelState>()((set) => ({
   gitReviewAsPanel: false,
   gitOverlayOpen: false,
   prReviewContext: null,
+  pullRequestsOverlayOpen: false,
   githubActionsContext: null,
   filesPanelContext: null,
   subAgentPanelContext: null,
@@ -350,6 +363,8 @@ export const usePanelStore = create<PanelState>()((set) => ({
   browserPanelOpen: false,
   usagePanelOpen: false,
   notesPanelOpen: false,
+  deviceWorkspaceThreadId: null,
+  deviceWorkspaceDetached: false,
   portsPanelOpen: false,
   sideChatPanelOpen: false,
   threadDocksPanelOpen: false,
@@ -409,6 +424,14 @@ export const usePanelStore = create<PanelState>()((set) => ({
       }
       return { prReviewContext: ctx };
     }),
+  openPullRequestsOverlay: () =>
+    set((state) => (state.pullRequestsOverlayOpen ? {} : { pullRequestsOverlayOpen: true })),
+  closePullRequestsOverlay: () =>
+    set((state) =>
+      !state.pullRequestsOverlayOpen && state.prReviewContext === null
+        ? {}
+        : { pullRequestsOverlayOpen: false, prReviewContext: null },
+    ),
   setGitHubActionsContext: (ctx) =>
     set((state) => {
       const prev = state.githubActionsContext;
@@ -611,6 +634,29 @@ export const usePanelStore = create<PanelState>()((set) => ({
       threadDocksReturnThreadId: threadId,
       rightPanelTab: "docks",
     }),
+  setDeviceWorkspaceThreadId: (threadId) =>
+    set((state) =>
+      state.deviceWorkspaceThreadId === threadId &&
+      !state.deviceWorkspaceDetached &&
+      (threadId === null || state.rightPanelTab === "devices")
+        ? {}
+        : {
+            deviceWorkspaceThreadId: threadId,
+            deviceWorkspaceDetached: false,
+            ...(threadId !== null
+              ? { rightPanelTab: "devices" as const }
+              : releaseClosedTab(state, "devices")),
+          },
+    ),
+  setDeviceWorkspaceDetached: (detached) =>
+    set((state) =>
+      state.deviceWorkspaceThreadId === null
+        ? {}
+        : {
+            deviceWorkspaceDetached: detached,
+            ...(!detached ? { rightPanelTab: "devices" as const } : {}),
+          },
+    ),
   setNotesPanelOpen: (v) =>
     set((state) =>
       state.notesPanelOpen === v
@@ -746,6 +792,7 @@ export const usePanelStore = create<PanelState>()((set) => ({
         ...(isDocked("usage") ? {} : { usagePanelOpen: false }),
         ...(isDocked("notes") ? {} : { notesPanelOpen: false }),
         portsPanelOpen: false,
+        ...(state.deviceWorkspaceDetached ? {} : { deviceWorkspaceThreadId: null }),
         subAgentPanelOpen: false,
         sideChatPanelOpen: false,
         threadDocksPanelOpen: false,
@@ -763,6 +810,7 @@ export const usePanelStore = create<PanelState>()((set) => ({
         (next.usagePanelOpen === undefined || !state.usagePanelOpen) &&
         (next.notesPanelOpen === undefined || !state.notesPanelOpen) &&
         !state.portsPanelOpen &&
+        (state.deviceWorkspaceThreadId === null || state.deviceWorkspaceDetached) &&
         state.rightPanelSplit === null;
       return alreadyClosed ? {} : next;
     });
@@ -805,7 +853,7 @@ export function selectAnyObstructingOverlayOpen(): boolean {
     p.settingsOpen ||
     p.projectSettingsId !== null ||
     p.gitOverlayOpen ||
-    p.prReviewContext !== null ||
+    selectPullRequestsOverlayVisible(p) ||
     p.githubActionsContext !== null ||
     useCommandPaletteStore.getState().isOpen
   ) {
@@ -837,4 +885,11 @@ export function useFilesPanelWorktreePath(): string | undefined {
 }
 export function useRightPanelTab(): RightPanelTab {
   return usePanelStore((s) => s.rightPanelTab);
+}
+
+/** The pull-request overlay shows its list, a selected review, or both. */
+export function selectPullRequestsOverlayVisible(
+  state: Pick<PanelState, "pullRequestsOverlayOpen" | "prReviewContext">,
+): boolean {
+  return state.pullRequestsOverlayOpen || state.prReviewContext !== null;
 }

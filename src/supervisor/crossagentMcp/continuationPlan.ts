@@ -27,12 +27,19 @@ export function canContinueRun(run: ContinuableRun): boolean {
 }
 
 /** Validate current provider settings but retain the winning session's selection and scope. */
+/** Reasoning/Fast for the next turn of a continued worker; absent keeps the worker's own. */
+export interface ContinuationSelectionUpdate {
+  effort?: string | undefined;
+  fast?: boolean | undefined;
+}
+
 export function prepareContinuation(
   deps: Parameters<typeof prepareSubagentRun>[0],
   parent: Parameters<typeof prepareSubagentRun>[1],
   run: ContinuableRun,
   prompt: string,
   background: boolean,
+  selectionUpdate?: ContinuationSelectionUpdate,
 ): PreparedSubagentRun {
   if (run.continuedBy) {
     throw new SubagentSpawnError(
@@ -43,12 +50,15 @@ export function prepareContinuation(
     throw new SubagentSpawnError("This run has no completed, resumable worker session");
   }
   const attempt = run.plan.attempts[run.attemptIndex]!;
+  const effort = selectionUpdate ? selectionUpdate.effort : attempt.config.effort;
+  const fast = selectionUpdate ? selectionUpdate.fast === true : attempt.config.fast === true;
   const plan = prepareSubagentRun(deps, parent, {
     agent: attempt.provider,
     model: attempt.model,
-    ...(attempt.config.effort ? { effort: attempt.config.effort } : {}),
-    ...(attempt.config.fast === true ? { fast: true } : {}),
+    ...(effort ? { effort } : {}),
+    ...(fast ? { fast: true } : {}),
     ...(run.plan.resultMode ? { resultMode: run.plan.resultMode } : {}),
+    ...(run.plan.crewRole ? { crewRole: run.plan.crewRole } : {}),
     prompt,
     background,
     dispatchProvenance: {
@@ -61,8 +71,15 @@ export function prepareContinuation(
   if (!next.supportsResume)
     throw new SubagentSpawnError("This provider no longer supports session resume");
   // A follow-up belongs to the original worker, even if parent settings changed.
-  next.config = attempt.config;
-  next.label = attempt.label;
+  // Only an explicit selection update (a crew role's current reasoning/Fast)
+  // changes the next turn; the session and every other setting stay the worker's.
+  if (selectionUpdate) {
+    const { effort: _previousEffort, fast: _previousFast, ...rest } = attempt.config;
+    next.config = { ...rest, ...(effort ? { effort } : {}), ...(fast ? { fast: true } : {}) };
+  } else {
+    next.config = attempt.config;
+    next.label = attempt.label;
+  }
   plan.projectLocation = run.plan.projectLocation;
   return plan;
 }

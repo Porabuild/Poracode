@@ -17,6 +17,7 @@ import type {
 } from "@/shared/remote";
 import type { HostServiceCapabilities } from "@/shared/hostControlProtocol";
 import type { SshConnectionConfig } from "@/shared/ssh";
+import type { EnvironmentImageVariant } from "@/shared/remote/clientEnvironmentImages";
 import type { RemoteImageReadiness } from "./environmentSessions";
 
 /** Transport reachability is offline; reachable protocol or action failures are errors. */
@@ -174,8 +175,16 @@ export function isEnvironmentServer(server: RemoteServerRecord): boolean {
 
 /** A readiness request for an environment-held image. */
 export type RemoteEnvironmentImageTarget =
-  | { readonly kind: "ref"; readonly ref: RemoteImageRefValue }
-  | { readonly kind: "localPath"; readonly path: string };
+  | {
+      readonly kind: "ref";
+      readonly ref: RemoteImageRefValue;
+      readonly variant?: EnvironmentImageVariant;
+    }
+  | {
+      readonly kind: "localPath";
+      readonly path: string;
+      readonly variant?: EnvironmentImageVariant;
+    };
 
 export interface RemoteServerRuntime {
   readonly status: RemoteServerStatus;

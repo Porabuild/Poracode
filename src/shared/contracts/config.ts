@@ -2,6 +2,7 @@ import { z } from "zod";
 import { agentKindSchema, threadModeSchema } from "./common";
 import { selectionBindingSchema, type SelectionBinding } from "../selectionBinding.schemas.ts";
 import { threadImportedFromSchema } from "./sessionImport";
+import { isThreadConfigCrewEqual, threadConfigCrewSchema } from "../crew";
 
 const threadConfigShape = {
   model: z.string().min(1),
@@ -18,6 +19,11 @@ const threadConfigShape = {
    * provider-draft and project-draft config schemas.
    */
   selectionBinding: selectionBindingSchema.optional(),
+  /**
+   * Crew binding: null explicitly clears it; absence may come from an older
+   * writer and is retained when updating an existing thread.
+   */
+  crew: threadConfigCrewSchema.optional(),
   mode: threadModeSchema.optional(),
   approvalPolicy: z.string().optional(),
   approvalsReviewer: z.string().optional(),
@@ -26,6 +32,9 @@ const threadConfigShape = {
   crossagentMcp: z.boolean().optional(),
   computerUse: z.boolean().optional(),
   chromeMcp: z.boolean().optional(),
+  /** Optional so pre-upgrade rows retain host/project defaults without migration. */
+  mcpServerOverrides: z.record(z.string().min(1), z.boolean()).optional(),
+  pluginOverrides: z.record(z.string().min(1), z.boolean()).optional(),
   /** Runtime environment selected for a provider that cannot execute natively. */
   executionEnvironment: z.object({ kind: z.literal("wsl"), distro: z.string().min(1) }).optional(),
   /** Transcript this thread was imported from; drives the notice and re-import dedupe. */
@@ -36,6 +45,23 @@ export const threadConfigBaseSchema = z.object(threadConfigShape);
 
 export const threadConfigSchema = threadConfigBaseSchema;
 export type ThreadConfig = z.infer<typeof threadConfigSchema>;
+
+/** Older clients omit per-thread tool choices and crew; explicit empty maps and crew: null clear them. */
+export function retainThreadToolOverrides(
+  config: ThreadConfig,
+  previous: ThreadConfig,
+): ThreadConfig {
+  return {
+    ...config,
+    ...(config.mcpServerOverrides === undefined && previous.mcpServerOverrides !== undefined
+      ? { mcpServerOverrides: previous.mcpServerOverrides }
+      : {}),
+    ...(config.pluginOverrides === undefined && previous.pluginOverrides !== undefined
+      ? { pluginOverrides: previous.pluginOverrides }
+      : {}),
+    ...(config.crew === undefined && previous.crew !== undefined ? { crew: previous.crew } : {}),
+  };
+}
 
 export const providerDraftConfigSchema = threadConfigBaseSchema;
 export type ProviderDraftConfig = z.infer<typeof providerDraftConfigSchema>;
@@ -115,6 +141,7 @@ export function isThreadConfigEqual(
     left.fast === right.fast &&
     left.thinking === right.thinking &&
     areSelectionBindingsEqual(left.selectionBinding, right.selectionBinding) &&
+    isThreadConfigCrewEqual(left.crew, right.crew) &&
     left.mode === right.mode &&
     left.approvalPolicy === right.approvalPolicy &&
     left.approvalsReviewer === right.approvalsReviewer &&
@@ -123,7 +150,19 @@ export function isThreadConfigEqual(
     left.crossagentMcp === right.crossagentMcp &&
     left.computerUse === right.computerUse &&
     left.chromeMcp === right.chromeMcp &&
+    areToolOverridesEqual(left.mcpServerOverrides, right.mcpServerOverrides) &&
+    areToolOverridesEqual(left.pluginOverrides, right.pluginOverrides) &&
     left.executionEnvironment?.kind === right.executionEnvironment?.kind &&
     left.executionEnvironment?.distro === right.executionEnvironment?.distro
   );
+}
+
+function areToolOverridesEqual(
+  left: Record<string, boolean> | undefined,
+  right: Record<string, boolean> | undefined,
+): boolean {
+  if (left === right) return true;
+  if (!left || !right) return false;
+  const keys = Object.keys(left);
+  return keys.length === Object.keys(right).length && keys.every((key) => left[key] === right[key]);
 }

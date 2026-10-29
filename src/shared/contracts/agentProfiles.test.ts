@@ -22,7 +22,10 @@ describe("agent profile drivers", () => {
 
   it("registers codex as a profile driver without a credential env var", () => {
     expect(isAgentProfileDriver("codex")).toBe(true);
-    expect(agentProfileDriver("codex")).toEqual({ driver: "codex" });
+    expect(agentProfileDriver("codex")).toEqual({
+      driver: "codex",
+      validateConfig: expect.any(Function),
+    });
     expect(parseAgentProfileKind("codex:work")).toEqual({ driver: "codex", instanceId: "work" });
   });
 

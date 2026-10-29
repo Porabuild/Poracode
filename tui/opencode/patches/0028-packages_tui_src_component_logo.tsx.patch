@@ -1,0 +1,65 @@
+diff --git a/packages/tui/src/component/logo.tsx b/packages/tui/src/component/logo.tsx
+index 2c3abc3..8bc1cf4 100644
+--- a/packages/tui/src/component/logo.tsx
++++ b/packages/tui/src/component/logo.tsx
+@@ -3,12 +3,14 @@ import { For, type JSX } from "solid-js"
+ import { useTerminalDimensions } from "@opentui/solid"
+ import { useTheme } from "../context/theme"
+ import { tint } from "../theme/color"
+-import { go, logo } from "../logo"
++import { wordmarkRows } from "../logo"
+ 
+ export function Logo() {
+   const theme = useTheme()
+   const dimensions = useTerminalDimensions()
+ 
++  // poracode: shared marker legend in ../logo.ts; "." draws the Pora dot in the
++  // brand colour. Both words use one stroke colour with a tinted shadow.
+   const renderLine = (line: string, fg: RGBA, bold: boolean): JSX.Element[] => {
+     const shadow = tint(theme.background.base, fg, 0.25)
+     const attrs = bold ? TextAttributes.BOLD : undefined
+@@ -41,6 +43,13 @@ export function Logo() {
+           </text>
+         )
+       }
++      if (char === ".") {
++        return (
++          <text fg={theme.text.brand} attributes={attrs} selectable={false}>
++            ▀
++          </text>
++        )
++      }
+       return (
+         <text fg={fg} attributes={attrs} selectable={false}>
+           {char}
+@@ -51,28 +60,10 @@ export function Logo() {
+ 
+   return (
+     <box>
+-      {dimensions().height < 12 ? null : dimensions().width < 22 ? (
+-        <For each={go.right.slice(1)}>
++      {dimensions().height < 12 ? null : (
++        <For each={wordmarkRows(dimensions().width - (dimensions().width < 44 ? 2 : 4))}>
+           {(line) => <box flexDirection="row">{renderLine(line, theme.text.base, true)}</box>}
+         </For>
+-      ) : dimensions().width < 44 ? (
+-        <>
+-          <For each={logo.left.slice(1)}>
+-            {(line) => <box flexDirection="row">{renderLine(line, theme.text.muted, false)}</box>}
+-          </For>
+-          <For each={logo.right}>
+-            {(line) => <box flexDirection="row">{renderLine(line, theme.text.base, true)}</box>}
+-          </For>
+-        </>
+-      ) : (
+-        <For each={logo.left}>
+-          {(line, index) => (
+-            <box flexDirection="row" gap={1}>
+-              <box flexDirection="row">{renderLine(line, theme.text.muted, false)}</box>
+-              <box flexDirection="row">{renderLine(logo.right[index()], theme.text.base, true)}</box>
+-            </box>
+-          )}
+-        </For>
+       )}
+     </box>
+   )

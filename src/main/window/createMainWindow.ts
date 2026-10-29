@@ -196,6 +196,7 @@ export function createMainWindow(options: CreateMainWindowOptions): BrowserWindo
 
   installAppNavigationGuards(window, {
     isDev: options.isDev,
+    allowDevicePreviewWindow: (options.windowKind ?? "main") === "main",
     ...(options.devServerUrl ? { devServerUrl: options.devServerUrl } : {}),
   });
   // `webviewTag` is enabled for the in-app browser; the embedding renderer
@@ -209,7 +210,13 @@ export function createMainWindow(options: CreateMainWindowOptions): BrowserWindo
 
   window.once("ready-to-show", () => {
     if (saved?.isMaximized) {
-      window.maximize();
+      // Electron's maximize() also shows the window; defer it until the first
+      // real show so a hidden start stays hidden.
+      if (options.showOnReady !== false || window.isVisible()) {
+        window.maximize();
+      } else {
+        window.once("show", () => window.maximize());
+      }
     }
     if (options.showOnReady !== false) window.show();
   });

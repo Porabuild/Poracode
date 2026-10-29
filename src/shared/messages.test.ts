@@ -8,6 +8,22 @@ import {
 } from "./messages";
 
 describe("friendlyErrorWithDetail", () => {
+  it("localizes controlled execution refusal after string-only IPC delivery", () => {
+    setMessageResolver((key) =>
+      key === "thread.execution.owned" ? "Otro cliente está ejecutando este hilo." : undefined,
+    );
+    try {
+      expect(
+        friendlyError(
+          new Error(
+            "Error invoking remote method 'sendThreadInput': Error: Another client is running this thread. Stop that run before replacing the thread or sending more input.",
+          ),
+        ),
+      ).toBe("Otro cliente está ejecutando este hilo.");
+    } finally {
+      setMessageResolver(undefined);
+    }
+  });
   it("localizes unsupported model options after source-language IPC serialization", () => {
     setMessageResolver((key) =>
       key === "modelSelection.unsupportedOptions" ? "Elige otras opciones de modelo." : undefined,

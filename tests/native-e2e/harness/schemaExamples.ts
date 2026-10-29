@@ -115,6 +115,7 @@ function numericExample(schema: JsonSchema): number {
 
 function stringExample(schema: JsonSchema, propertyName?: string): string {
   if (schema.pattern === "^pc_media_[A-Za-z0-9_-]{43}$") return FIXTURE_MEDIA_TICKET;
+  if (schema.pattern === "^dwp1_[A-Za-z0-9_-]{43}$") return `dwp1_${"p".repeat(43)}`;
   if (schema.format === "date-time") return FIXTURE_TIME;
   if (schema.format === "uuid") return FIXTURE_UUID;
   if (schema.format === "uri") return "https://example.test/fixture";

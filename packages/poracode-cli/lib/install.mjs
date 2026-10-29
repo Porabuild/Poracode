@@ -17,6 +17,7 @@
  * agree on its verified bytes. Crashed staging directories are swept when
  * their recorded pid is gone.
  */
+import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, rmdirSync, rmSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -277,7 +278,13 @@ export async function ensureRuntime(input) {
       installModule.installServerRelease({
         tarball: tarballPath,
         releaseDir: installedDir,
-        ...(input.run ? { run: input.run } : {}),
+        run: (command, args, options = {}) =>
+          (input.run ?? execFileSync)(command, args, {
+            stdio: "pipe",
+            ...options,
+            // Installer diagnostics must not precede the command's JSON on stdout.
+            ...(options.stdio === "inherit" ? { stdio: ["inherit", 2, 2] } : {}),
+          }),
         ...(input.npm ? { npm: input.npm } : {}),
       });
       const entryFile = join(installedDir, "lib", "server.cjs");

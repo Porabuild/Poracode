@@ -4,12 +4,15 @@ import {
   devinProfileAcceptsDependents,
 } from "../agents/devin/profileDependencies";
 import {
+  parseClaudeProfileInstanceConfig,
+  parseCodexProfileInstanceConfig,
   agentInstanceEnvVarSchema,
   agentInstanceIdSchema,
   baseAgentKind,
   type AgentDriverKind,
   type AgentInstanceConfig,
 } from "./agentInstance";
+import { validateDevinProfileConfig } from "../agents/devin/profileConfig";
 
 /**
  * Multi-profile providers.
@@ -39,17 +42,20 @@ export interface AgentProfileDriver {
    * environments (Claude) omit it.
    */
   credentialEnvVar?: string;
+  /** Validate an explicitly authored config before a new profile is saved. */
+  validateConfig?(config: unknown): void;
   /** Provider-declared direct dependencies; shared code never parses their config. */
   dependencies?(instance: AgentInstanceConfig): readonly string[];
   acceptsDependents?(instance: AgentInstanceConfig): boolean;
 }
 
 export const AGENT_PROFILE_DRIVERS: readonly AgentProfileDriver[] = [
-  { driver: "claude" },
-  { driver: "codex" },
+  { driver: "claude", validateConfig: parseClaudeProfileInstanceConfig },
+  { driver: "codex", validateConfig: parseCodexProfileInstanceConfig },
   { driver: "cursor", credentialEnvVar: "CURSOR_API_KEY" },
   {
     driver: "devin",
+    validateConfig: validateDevinProfileConfig,
     dependencies: devinProfileDependencies,
     acceptsDependents: devinProfileAcceptsDependents,
   },

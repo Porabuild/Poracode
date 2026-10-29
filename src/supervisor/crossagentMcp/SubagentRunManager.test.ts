@@ -105,6 +105,27 @@ describe("SubagentRunManager", () => {
     });
   });
 
+  it.each([undefined, "Check login flow"])(
+    "publishes a crew task title independently of route metadata (%s)",
+    (name) => {
+      const h = makeHarness();
+      h.manager.spawn(PARENT, {
+        agent: "codex",
+        prompt: "Review\n  the login flow",
+        ...(name ? { name } : {}),
+        crewRole: { id: "builder", label: "Builder", parallel: 1 },
+      });
+      const started = h.appended.find((entry) => entry.event.type === "item.started");
+      expect(
+        (started?.event as Extract<RuntimeEvent, { type: "item.started" }> | undefined)?.payload,
+      ).toMatchObject({
+        title: name ?? "Review the login flow",
+        subAgentType: "Builder",
+        isCrossagent: true,
+      });
+    },
+  );
+
   it("includes the selected effort and enabled Fast mode in the sub-agent name", () => {
     const h = makeHarness();
     h.manager.spawn(PARENT, {
@@ -159,6 +180,32 @@ describe("SubagentRunManager", () => {
     expect(started).toBeDefined();
     expect(started!.threadId).toBe(PARENT);
     expect(started!.parentItemId).toBe(`sub:${runId}`);
+  });
+
+  it("forwards helper usage to the parent, billed to the helper's provider and role", async () => {
+    const h = makeHarness();
+    h.manager.spawn(PARENT, {
+      agent: "codex",
+      prompt: "go",
+      crewRole: { id: "builder", label: "Builder", parallel: 1 },
+    });
+    await flush();
+    const usage = {
+      counterKind: "cumulative" as const,
+      counter: 900,
+      scopeId: "codex-session",
+      epoch: 0,
+      fresh: true,
+      sampleId: "sample-1",
+    };
+    h.handles[0]!.emit({ type: "usage.spent", threadId: "child", usage });
+    expect(h.appended.map((a) => a.event).filter((e) => e.type === "usage.spent")).toEqual([
+      {
+        type: "usage.spent",
+        threadId: PARENT,
+        usage: { ...usage, helper: { agentKind: "codex", crewRoleId: "builder" } },
+      },
+    ]);
   });
 
   it("updates collapsed step progress while child events are buffered", async () => {
@@ -764,6 +811,162 @@ describe("SubagentRunManager", () => {
     handle.update("idle");
     expect(h.manager.getStatus(runId).status).toBe("completed");
     await flush();
+    expect(handle.disposed).toBe(true);
+  });
+
+  it.each(["idle-first", "event-first"] as const)(
+    "settles a steered full-turn promise with %s completion signals",
+    async (order) => {
+      const h = makeHarness();
+      const { runId } = h.manager.spawn(PARENT, {
+        agent: "codex",
+        prompt: "go",
+        resultMode: "compact",
+      });
+      await flush();
+      const handle = h.handles[0]!;
+      const turn = Promise.withResolvers<void>();
+      handle.interruptTurn = async () => {
+        handle.completeTurn("interrupted");
+        handle.update("idle");
+      };
+      handle.startTurn = () => {
+        handle.update("working");
+        return turn.promise;
+      };
+      const dispose = vi.spyOn(handle, "dispose");
+      const steering = h.manager.steer(runId, "finish the implementation", PARENT);
+      await flush();
+      const joined = h.manager.waitFor(runId, 1_000, PARENT, { includeTrace: true });
+      handle.emit({
+        type: "content.delta",
+        threadId: "child",
+        itemId: "final-report",
+        stream: "assistant_text",
+        delta: '```crossagents-result\n{"version":1,"status":"completed"}\n```',
+      });
+      if (order === "idle-first") handle.update("idle");
+      handle.completeTurn("completed");
+      if (order === "event-first") handle.update("idle");
+      turn.resolve();
+      await steering;
+      expect(await joined).toMatchObject({
+        status: "completed",
+        result_error: expect.any(String),
+        trace: { attempts: [{ index: 1, status: "completed" }] },
+      });
+      await flush();
+      expect(dispose).toHaveBeenCalledOnce();
+    },
+  );
+
+  it("preserves a replacement that completes inside startTurn", async () => {
+    const h = makeHarness();
+    const { runId } = h.manager.spawn(PARENT, { agent: "codex", prompt: "go" });
+    await flush();
+    const handle = h.handles[0]!;
+    handle.interruptTurn = async () => handle.completeTurn("interrupted");
+    handle.startTurn = async () => {
+      handle.update("working");
+      handle.completeTurn("completed");
+      handle.update("idle");
+    };
+    await h.manager.steer(runId, "finish", PARENT);
+    expect(h.manager.getStatus(runId).status).toBe("completed");
+  });
+
+  it.each([false, true])(
+    "observes replacement rejection with delivery already acknowledged: %s",
+    async (acknowledged) => {
+      const h = makeHarness();
+      const { runId } = h.manager.spawn(PARENT, { agent: "codex", prompt: "go" });
+      await flush();
+      const handle = h.handles[0]!;
+      const turn = Promise.withResolvers<void>();
+      handle.interruptTurn = async () => handle.completeTurn("interrupted");
+      handle.startTurn = () => {
+        if (acknowledged) handle.update("working");
+        return turn.promise;
+      };
+      const steering = h.manager.steer(runId, "finish", PARENT);
+      const delivery = steering.catch((error: unknown) => error);
+      await flush();
+      if (acknowledged) await steering;
+      turn.reject(new Error("replacement prompt failed"));
+      await delivery;
+      await flush();
+      expect(h.manager.getStatus(runId)).toMatchObject({
+        status: "failed",
+        error: { message: "replacement prompt failed", may_have_side_effects: true },
+      });
+      expect(handle.disposed).toBe(true);
+    },
+  );
+
+  it.each(["completed", "cancelled"] as const)(
+    "handles replacement %s before dispatch acknowledgement",
+    async (state) => {
+      const h = makeHarness();
+      const { runId } = h.manager.spawn(PARENT, { agent: "codex", prompt: "go" });
+      await flush();
+      const handle = h.handles[0]!;
+      const turn = Promise.withResolvers<void>();
+      handle.interruptTurn = async () => handle.completeTurn("interrupted");
+      handle.startTurn = () => turn.promise;
+      const delivery = h.manager.steer(runId, "finish", PARENT).catch((error: unknown) => error);
+      await flush();
+      handle.completeTurn(state);
+      const stopped = expect.any(Error);
+      expect(await delivery).toEqual(state === "completed" ? { runId } : stopped);
+      expect(h.manager.getStatus(runId).status).toBe(
+        state === "completed" ? "completed" : "failed",
+      );
+      turn.resolve();
+      await flush();
+      expect(handle.disposed).toBe(true);
+    },
+  );
+
+  it("releases pending steering on cancel without waiting for the prompt promise", async () => {
+    const h = makeHarness();
+    const { runId } = h.manager.spawn(PARENT, { agent: "codex", prompt: "go" });
+    await flush();
+    const handle = h.handles[0]!;
+    const turn = Promise.withResolvers<void>();
+    handle.interruptTurn = async () => handle.completeTurn("interrupted");
+    handle.startTurn = () => turn.promise;
+    const delivery = h.manager.steer(runId, "finish", PARENT).catch((error: unknown) => error);
+    await flush();
+    await h.manager.cancel(runId, PARENT);
+    expect(await delivery).toBeInstanceOf(Error);
+    turn.reject(new Error("cancelled prompt"));
+    await flush();
+    expect(h.manager.getStatus(runId).status).toBe("cancelled");
+    expect(handle.disposed).toBe(true);
+  });
+
+  it("ignores a late rejected prompt from an earlier accepted correction", async () => {
+    const h = makeHarness();
+    const { runId } = h.manager.spawn(PARENT, { agent: "codex", prompt: "go" });
+    await flush();
+    const handle = h.handles[0]!;
+    const first = Promise.withResolvers<void>();
+    const second = Promise.withResolvers<void>();
+    let starts = 0;
+    handle.interruptTurn = async () => handle.completeTurn("interrupted");
+    handle.startTurn = () => {
+      handle.update("working");
+      return starts++ === 0 ? first.promise : second.promise;
+    };
+    await h.manager.steer(runId, "first correction", PARENT);
+    await h.manager.steer(runId, "second correction", PARENT);
+    first.reject(new Error("previous prompt was interrupted"));
+    await flush();
+    expect(h.manager.getStatus(runId).status).toBe("running");
+    handle.completeTurn("completed");
+    second.resolve();
+    await flush();
+    expect(h.manager.getStatus(runId).status).toBe("completed");
     expect(handle.disposed).toBe(true);
   });
 
@@ -1571,11 +1774,90 @@ describe("SubagentRunManager", () => {
     await flush();
     h.handles[0]!.openRequest("perm-1");
 
-    const handled = h.manager.resolveChildServerRequest(`${runId}::perm-1`, { optionId: "allow" });
+    const handled = await h.manager.resolveChildServerRequest(
+      `${runId}::perm-1`,
+      { optionId: "allow" },
+      PARENT,
+    );
     expect(handled).toBe(true);
     expect(h.handles[0]!.resolvedRequests).toEqual([
       { requestId: "perm-1", response: { optionId: "allow" } },
     ]);
+  });
+
+  it("refuses a forwarded resolution from another parent before touching the child request", async () => {
+    const h = makeHarness();
+    const { runId } = h.manager.spawn(PARENT, { agent: "codex", prompt: "go" });
+    await flush();
+    h.handles[0]!.openRequest("perm-1");
+    await expect(
+      h.manager.resolveChildServerRequest(
+        `${runId}::perm-1`,
+        { optionId: "allow" },
+        "foreign-parent",
+      ),
+    ).rejects.toThrow("another parent thread");
+    expect(h.handles[0]!.resolvedRequests).toEqual([]);
+    expect(
+      await h.manager.resolveChildServerRequest(`${runId}::perm-1`, { optionId: "allow" }, PARENT),
+    ).toBe(true);
+    expect(h.handles[0]!.resolvedRequests).toHaveLength(1);
+  });
+
+  it("preserves a rejected forwarded request for retry and waits for successful resolution", async () => {
+    const h = makeHarness();
+    const { runId } = h.manager.spawn(PARENT, { agent: "codex", prompt: "go" });
+    await flush();
+    const handle = h.handles[0]!;
+    handle.openRequest("perm-1");
+    let complete!: () => void;
+    const completion = new Promise<void>((resolve) => {
+      complete = resolve;
+    });
+    const resolve = vi
+      .spyOn(handle, "resolveServerRequest")
+      .mockRejectedValueOnce(new Error("Persistent approval is unavailable"))
+      .mockImplementationOnce(() => completion);
+    await expect(
+      h.manager.resolveChildServerRequest(`${runId}::perm-1`, { optionId: "always" }, PARENT),
+    ).rejects.toThrow("Persistent approval is unavailable");
+    expect(h.manager.getStatus(runId, PARENT).pending_requests).toBe(1);
+    expect(h.appended.some(({ event }) => event.type === "request.resolved")).toBe(false);
+
+    const pending = h.manager.resolveChildServerRequest(
+      `${runId}::perm-1`,
+      { optionId: "once" },
+      PARENT,
+    );
+    expect(h.manager.getStatus(runId, PARENT).pending_requests).toBe(1);
+    complete();
+    await expect(pending).resolves.toBe(true);
+    expect(resolve).toHaveBeenLastCalledWith("perm-1", { optionId: "once" });
+    expect(h.manager.getStatus(runId, PARENT).pending_requests).toBeUndefined();
+  });
+
+  it("clears a rejected forwarded request when its run is cancelled", async () => {
+    const h = makeHarness();
+    const { runId } = h.manager.spawn(PARENT, { agent: "codex", prompt: "go" });
+    await flush();
+    const handle = h.handles[0]!;
+    handle.openRequest("perm-1");
+    vi.spyOn(handle, "resolveServerRequest").mockRejectedValueOnce(
+      new Error("Unavailable approval"),
+    );
+    await expect(
+      h.manager.resolveChildServerRequest(`${runId}::perm-1`, {}, PARENT),
+    ).rejects.toThrow("Unavailable approval");
+    await h.manager.cancel(runId);
+    expect(h.appended).toContainEqual({
+      threadId: PARENT,
+      event: {
+        type: "request.resolved",
+        threadId: PARENT,
+        requestId: `${runId}::perm-1`,
+        outcome: "cancelled",
+      },
+    });
   });
 
   it("round-trips a request id that itself contains the delimiter", async () => {
@@ -1584,16 +1866,20 @@ describe("SubagentRunManager", () => {
     await flush();
     h.handles[0]!.openRequest("weird::id");
 
-    const handled = h.manager.resolveChildServerRequest(`${runId}::weird::id`, { optionId: "ok" });
+    const handled = await h.manager.resolveChildServerRequest(
+      `${runId}::weird::id`,
+      { optionId: "ok" },
+      PARENT,
+    );
     expect(handled).toBe(true);
     expect(h.handles[0]!.resolvedRequests[0]!.requestId).toBe("weird::id");
   });
 
-  it("returns false for non-subagent request ids (unknown run / no delimiter / number)", () => {
+  it("returns false for non-subagent request ids (unknown run / no delimiter / number)", async () => {
     const h = makeHarness();
-    expect(h.manager.resolveChildServerRequest("plain-request-id", {})).toBe(false);
-    expect(h.manager.resolveChildServerRequest("deadbeef::perm", {})).toBe(false);
-    expect(h.manager.resolveChildServerRequest(42, {})).toBe(false);
+    expect(await h.manager.resolveChildServerRequest("plain-request-id", {}, PARENT)).toBe(false);
+    expect(await h.manager.resolveChildServerRequest("deadbeef::perm", {}, PARENT)).toBe(false);
+    expect(await h.manager.resolveChildServerRequest(42, {}, PARENT)).toBe(false);
   });
 
   it("emits a synthetic request.resolved for an unresolved forwarded request on settle", async () => {
@@ -1632,7 +1918,7 @@ describe("SubagentRunManager", () => {
     expect(resolved).toBeDefined();
     // The run record still exists, so the id is recognized, but its pending set
     // was cleared on settle — the resolve is a no-op on the (already torn-down) handle.
-    expect(h.manager.resolveChildServerRequest(`${runId}::perm-1`, {})).toBe(true);
+    expect(await h.manager.resolveChildServerRequest(`${runId}::perm-1`, {}, PARENT)).toBe(true);
     expect(h.handles[0]!.resolvedRequests).toEqual([]);
   });
 

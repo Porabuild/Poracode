@@ -1,7 +1,38 @@
-import type { McpServer, McpTransport } from "@/shared/contracts";
+import { mcpServerSchema, type McpServer, type McpTransport } from "@/shared/contracts/mcpServer";
 
 /** Placeholder substituted for every secret-bearing value returned by get_settings. */
 export const REDACTED_VALUE = "«redacted»";
+
+export function containsMcpRedaction(transport: McpTransport): boolean {
+  return JSON.stringify(transport).includes(REDACTED_VALUE);
+}
+
+export function sameMcpServerName(left: string, right: string): boolean {
+  return left.trim().toLowerCase() === right.trim().toLowerCase();
+}
+
+/** Shared list computation; each owner supplies its existing error boundary. */
+export function upsertMcpServerDefinition(
+  servers: readonly McpServer[],
+  incoming: McpServer,
+  invalid: (code: "mcp_redaction_without_existing_secret" | "mcp_duplicate_name") => Error,
+): McpServer[] {
+  const existing = servers.find((server) => server.id === incoming.id);
+  const transport = existing
+    ? restoreRedactedTransport(incoming.transport, existing.transport)
+    : incoming.transport;
+  if (containsMcpRedaction(transport)) throw invalid("mcp_redaction_without_existing_secret");
+  const server = mcpServerSchema.parse({ ...incoming, transport });
+  if (
+    servers.some(
+      (candidate) => candidate.id !== server.id && sameMcpServerName(candidate.name, server.name),
+    )
+  )
+    throw invalid("mcp_duplicate_name");
+  return existing
+    ? servers.map((candidate) => (candidate.id === server.id ? server : candidate))
+    : [...servers, server];
+}
 
 /** Mask the credential-bearing values of one MCP server's transport. */
 export function redactMcpServer(server: McpServer): McpServer {

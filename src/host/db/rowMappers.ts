@@ -56,6 +56,7 @@ export interface ThreadRow {
   group_id: string | null;
   group_name: string | null;
   parent_thread_id: string | null;
+  forked_from: string | null;
   archived: number;
   archived_at: string | null;
   done: number;
@@ -99,7 +100,16 @@ export function projectMutableRow(project: Project) {
   };
 }
 
-function rowToLocation(row: ProjectRow): ProjectLocation {
+export function rowToLocation(
+  row: Pick<
+    ProjectRow,
+    | "location_kind"
+    | "location_path"
+    | "location_distro"
+    | "location_linux_path"
+    | "location_unc_path"
+  >,
+): ProjectLocation {
   if (row.location_kind === "wsl") {
     return {
       kind: "wsl",
@@ -158,6 +168,7 @@ export function rowToThread(row: ThreadRow): Thread {
     ...(row.group_id ? { groupId: row.group_id } : {}),
     ...(row.group_name ? { groupName: row.group_name } : {}),
     ...(row.parent_thread_id ? { parentThreadId: row.parent_thread_id } : {}),
+    ...(row.forked_from ? { forkedFrom: JSON.parse(row.forked_from) } : {}),
     archived: row.archived === 1,
     ...(row.archived_at ? { archivedAt: row.archived_at } : {}),
     done: row.done === 1,

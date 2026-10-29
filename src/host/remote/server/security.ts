@@ -278,6 +278,10 @@ export class RemoteServerSecurity {
     return true;
   }
 
+  allowsUpgradeOrigin(req: IncomingMessage): boolean {
+    return this.trustedRequestOrigin(req) !== false;
+  }
+
   private trustedRequestOrigin(req: IncomingMessage): string | null | false {
     const rawOrigin = Array.isArray(req.headers.origin)
       ? req.headers.origin[0]

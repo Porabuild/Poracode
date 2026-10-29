@@ -165,6 +165,7 @@ export async function handleBoundedThreadHistoryItems(call: HttpRouteCall): Prom
       negotiation.caps,
       runtimeNotice,
       negotiation.compactDetails,
+      negotiation.deferFileChangeBodies,
     ),
   );
 }

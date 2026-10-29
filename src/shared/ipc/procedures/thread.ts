@@ -1,6 +1,19 @@
 import { z } from "zod";
 import {
+  controlThreadExecutionPayloadSchema,
+  controlThreadExecutionResultSchema,
+  threadExecutionReservationPayloadSchema,
+  type ThreadExecutionReservationPayload,
+  type ControlThreadExecutionPayload,
+  type ControlThreadExecutionResult,
+  controlledThreadRequestPayloadSchema,
+  controlledThreadRequestResultSchema,
+  type ControlledThreadRequestPayload,
+  type ControlledThreadRequestResult,
+} from "../../contracts/threadExecution";
+import {
   authenticateAcpAgentPayloadSchema,
+  controlAcpAuthenticationPayloadSchema,
   checkpointRevertPayloadSchema,
   checkpointRevertResultSchema,
   clearPendingSteerPayloadSchema,
@@ -14,6 +27,8 @@ import {
   agentHookPluginPayloadSchema,
   getAgentHookPluginStatusesPayloadSchema,
   getAgentStatusesPayloadSchema,
+  selectedAgentProbePayloadSchema,
+  selectedAgentProbeResultSchema,
   getThreadFollowUpQueuePayloadSchema,
   threadFollowUpQueueStateSchema,
   installAcpRegistryAgentPayloadSchema,
@@ -41,10 +56,13 @@ import {
   updateAcpRegistryAgentPayloadSchema,
   updateAgentBinaryPayloadSchema,
   getLatestAgentVersionPayloadSchema,
+  getAgentConfigDefaultsPayloadSchema,
   resolveAgentAccountPayloadSchema,
   writeTerminalPayloadSchema,
 } from "../../contracts";
 import type {
+  SelectedAgentProbePayload,
+  SelectedAgentProbeResult,
   EditQueuedThreadFollowUpPayload,
   ReorderQueuedThreadFollowUpPayload,
   AcpRegistryListResult,
@@ -54,6 +72,7 @@ import type {
   AgentHookPluginStatus,
   AgentStatusesResponse,
   AuthenticateAcpAgentPayload,
+  ControlAcpAuthenticationPayload,
   BackgroundTask,
   ClearPendingSteerPayload,
   ControlThreadGoalPayload,
@@ -96,6 +115,8 @@ import type {
   UpdateAgentBinaryResult,
   GetLatestAgentVersionPayload,
   GetLatestAgentVersionResult,
+  GetAgentConfigDefaultsPayload,
+  GetAgentConfigDefaultsResult,
   ResolveAgentAccountPayload,
   ResolveAgentAccountResult,
   WriteTerminalPayload,
@@ -113,6 +134,7 @@ import {
   omittedResultSchema,
 } from "../core";
 import {
+  cancelCrossagentRunPayloadSchema,
   readThreadPayloadSchema,
   subAgentSubscribePayloadSchema,
   subAgentSubscribeResultSchema,
@@ -129,6 +151,46 @@ import {
 } from "../schemas";
 
 export const threadProcedures = {
+  controlledThreadRequest: definePayloadProcedure<
+    ControlledThreadRequestPayload,
+    ControlledThreadRequestResult,
+    "supervisor"
+  >(
+    "controlledThreadRequest",
+    "supervisor",
+    controlledThreadRequestPayloadSchema,
+    controlledThreadRequestResultSchema,
+  ),
+  probeSelectedAgent: definePayloadProcedure<
+    SelectedAgentProbePayload,
+    SelectedAgentProbeResult,
+    "supervisor"
+  >(
+    "probeSelectedAgent",
+    "supervisor",
+    selectedAgentProbePayloadSchema,
+    selectedAgentProbeResultSchema,
+  ),
+  controlThreadExecution: definePayloadProcedure<
+    ControlThreadExecutionPayload,
+    ControlThreadExecutionResult,
+    "supervisor"
+  >(
+    "controlThreadExecution",
+    "supervisor",
+    controlThreadExecutionPayloadSchema,
+    controlThreadExecutionResultSchema,
+  ),
+  reserveThreadExecution: definePayloadProcedure<
+    ThreadExecutionReservationPayload,
+    ControlThreadExecutionResult,
+    "supervisor"
+  >(
+    "reserveThreadExecution",
+    "supervisor",
+    threadExecutionReservationPayloadSchema,
+    controlThreadExecutionResultSchema,
+  ),
   getCrossagentRouting: defineNoArgProcedure<CrossagentRoutingState, "supervisor">(
     "getCrossagentRouting",
     "supervisor",
@@ -200,6 +262,11 @@ export const threadProcedures = {
     ResolveAgentAccountResult,
     "supervisor"
   >("resolveAgentAccount", "supervisor", resolveAgentAccountPayloadSchema),
+  getAgentConfigDefaults: definePayloadProcedure<
+    GetAgentConfigDefaultsPayload,
+    GetAgentConfigDefaultsResult,
+    "supervisor"
+  >("getAgentConfigDefaults", "supervisor", getAgentConfigDefaultsPayloadSchema),
   removeAcpRegistryAgent: definePayloadProcedure<
     RemoveAcpRegistryAgentPayload,
     AcpRegistryMutationResult,
@@ -215,6 +282,11 @@ export const threadProcedures = {
     "supervisor",
     authenticateAcpAgentPayloadSchema,
   ),
+  controlAcpAuthentication: definePayloadProcedure<
+    ControlAcpAuthenticationPayload,
+    void,
+    "supervisor"
+  >("controlAcpAuthentication", "supervisor", controlAcpAuthenticationPayloadSchema),
   logoutAcpAgent: definePayloadProcedure<LogoutAcpAgentPayload, void, "supervisor">(
     "logoutAcpAgent",
     "supervisor",
@@ -449,6 +521,11 @@ export const threadProcedures = {
     readThreadPayloadSchema,
     omittedResultSchema,
   ),
+  cancelCrossagentRun: definePayloadProcedure<
+    { threadId: string; runId: string },
+    void,
+    "supervisor"
+  >("cancelCrossagentRun", "supervisor", cancelCrossagentRunPayloadSchema, omittedResultSchema),
   readTerminalScrollback: definePayloadProcedure<{ threadId: string }, string, "supervisor">(
     "readTerminalScrollback",
     "supervisor",

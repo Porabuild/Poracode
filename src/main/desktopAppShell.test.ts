@@ -13,7 +13,10 @@ const hoisted = vi.hoisted(() => {
       setActive: vi.fn<(active: boolean) => void>(),
       dispose: vi.fn<() => void>(),
     },
-    hostServices: null as { applyBrowserAllowFlags(settings: SharedSettings): void } | null,
+    hostServices: null as {
+      applyBrowserAllowFlags(settings: SharedSettings): void;
+      agentVision: { stop(threadId: string): void; stopAll(): void };
+    } | null,
   };
   return {
     state,
@@ -69,6 +72,12 @@ vi.mock("./windowsJobObject", () => ({
   WindowsJobObjectManager: class WindowsJobObjectManager {
     start = vi.fn<() => Promise<void>>(async () => {});
   },
+}));
+
+vi.mock("./windowsNativeJobObject", () => ({
+  createWindowsJobObjectOwner: vi.fn<() => { start(): Promise<void> }>(() => ({
+    start: vi.fn<() => Promise<void>>(async () => {}),
+  })),
 }));
 
 vi.mock("./attachments/localFiles", () => ({
@@ -131,6 +140,20 @@ describe("desktopAppShell committed settings cache", () => {
 
     expect(hoisted.readSharedSettingsFile).toHaveBeenCalledTimes(1);
     expect(hoisted.state.sleepInhibitor.setActive).toHaveBeenLastCalledWith(true);
+  });
+
+  it("revokes vision capture when a thread stops and when the supervisor resets", async () => {
+    const shell = await loadShell();
+    const stop = vi.fn<(threadId: string) => void>();
+    const stopAll = vi.fn<() => void>();
+    hoisted.state.hostServices = {
+      applyBrowserAllowFlags: vi.fn<(settings: SharedSettings) => void>(),
+      agentVision: { stop, stopAll },
+    };
+    shell.applyThreadActivity([activity("vision-thread", false)]);
+    expect(stop).toHaveBeenCalledWith("vision-thread");
+    shell.resetThreadActivity();
+    expect(stopAll).toHaveBeenCalledOnce();
   });
 
   it("applies settings commits and makes unchanged thread-state events no-ops", async () => {

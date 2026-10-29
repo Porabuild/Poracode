@@ -1,0 +1,21 @@
+diff --git a/packages/tui/src/ui/dialog-help.tsx b/packages/tui/src/ui/dialog-help.tsx
+index 1817e03..9690336 100644
+--- a/packages/tui/src/ui/dialog-help.tsx
++++ b/packages/tui/src/ui/dialog-help.tsx
+@@ -1,6 +1,7 @@
+ import { Keymap } from "../context/keymap"
+ import { useTheme } from "../context/theme"
+ import { DialogHeader, DialogLayout, useDialog } from "./dialog"
++import { BRAND } from "../brand"
+ 
+ export function DialogHelp() {
+   const dialog = useDialog()
+@@ -17,7 +18,7 @@ export function DialogHelp() {
+ 
+   return (
+     <DialogLayout
+-      header={<DialogHeader title="Help" closeLabel="esc/enter" />}
++      header={<DialogHeader title={`${BRAND.name} help`} closeLabel="esc/enter" />}
+       footer={{ actions: { primary: [{ title: "ok", key: "enter", onTrigger: () => dialog.clear() }] } }}
+       legacyFooter={
+         <box flexDirection="row" justifyContent="flex-end">

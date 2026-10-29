@@ -253,7 +253,7 @@ final class RichChatMessageActionsTests: XCTestCase {
       JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any]
     )
     let strings = try XCTUnwrap(root["strings"] as? [String: Any])
-    XCTAssertEqual(strings.count, 16)
+    XCTAssertEqual(strings.count, 24)
 
     for (key, raw) in strings {
       let entry = try XCTUnwrap(raw as? [String: Any], key)

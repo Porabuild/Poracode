@@ -3,11 +3,14 @@ import { Popover, toast } from "@heroui/react";
 import { msg } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { GitMerge, Workflow, Wrench } from "lucide-react";
-import type { PrAutomationMode, PrWatch, PrWatchInput } from "@/shared/contracts";
+import type { PrAutomationMode, PrWatch, PrWatchInput, ForgeRepository } from "@/shared/contracts";
+import { reviewScopeFromSource } from "@/shared/forgeRemote";
 import { friendlyError } from "@/shared/messages";
 import { readBridge } from "@/renderer/bridge";
 import { resolvePrAutomationAgent } from "@/renderer/actions/prAutomationActions";
 import { PrAutomationSlider } from "@/renderer/components/git/PrAutomationSlider";
+import { Button } from "@/renderer/components/common";
+import { ResponsiveMenuSurface } from "@/renderer/components/common/ResponsiveMenuSurface";
 import { i18n } from "@/renderer/i18n/i18n";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -43,10 +46,17 @@ export function PrWatchControls(props: {
   projectId: string;
   prNumber: number;
   headBranch: string;
+  autoMergeAvailable?: boolean;
+  autoFixAvailable?: boolean;
+  source?: ForgeRepository;
   worktreePath?: string | undefined;
   onRefreshPr?: (() => void | Promise<void>) | undefined;
   initialWatch?: PrWatch | null | undefined;
   onInitialWatchUsed?: (() => void) | undefined;
+  /** Replaces the trigger's default tight sizing (the compact header wants a touch target). */
+  triggerClassName?: string;
+  /** Controlled bottom-sheet presentation without a trigger (opened from a menu item). */
+  sheet?: { open: boolean; onOpenChange: (open: boolean) => void };
 }) {
   const { initialWatch, onInitialWatchUsed } = props;
   const { t } = useLingui();
@@ -61,7 +71,14 @@ export function PrWatchControls(props: {
   const refreshPrRef = useRef(props.onRefreshPr);
   const mode = automationMode(watch);
   const enabled = mode !== "off";
-  const blocked = watch?.blockedReason != null && !watch.lastError && !watch.activeThreadId;
+  const scopeWarning = watch?.reviewScopeUnsupported
+    ? t`This review watch uses an unsupported source-scope version. Update the app before changing it.`
+    : watch && !watch.reviewScope
+      ? t`This saved review watch has no source scope. Review the pull request and enable automation again.`
+      : null;
+  const blocked =
+    Boolean(scopeWarning) ||
+    (watch?.blockedReason != null && !watch.lastError && !watch.activeThreadId);
   const TriggerIcon = mode === "merge" ? GitMerge : mode === "fix" ? Wrench : Workflow;
   const triggerLabel = blocked
     ? mode === "merge"
@@ -114,6 +131,9 @@ export function PrWatchControls(props: {
 
   async function update(nextMode: PrAutomationMode): Promise<boolean> {
     if (busy || !project) return false;
+    if (watch?.reviewScopeUnsupported && nextMode !== "off") return false;
+    if (nextMode !== "off" && props.autoFixAvailable === false) return false;
+    if (nextMode === "merge" && props.autoMergeAvailable === false) return false;
     setBusy(true);
     try {
       if (nextMode === "off") {
@@ -150,7 +170,10 @@ export function PrWatchControls(props: {
         agentKind: automation.agentKind,
         config: automation.config,
       };
-      const updated = await readBridge().upsertPrWatch(input);
+      const reviewScope = reviewScopeFromSource(props.source);
+      const updated = reviewScope
+        ? await readBridge().upsertForgePrWatch({ ...input, reviewScope })
+        : await readBridge().upsertPrWatch(input);
       watchPresentRef.current = true;
       setWatch(updated);
       return true;
@@ -162,6 +185,76 @@ export function PrWatchControls(props: {
     }
   }
 
+  const body = (
+    <div className="space-y-2">
+      <PrAutomationSlider
+        ariaLabel={t`PR automation`}
+        className="mx-auto w-[200px] px-2"
+        isDisabled={
+          busy || watch === undefined || (props.autoFixAvailable === false && mode === "off")
+        }
+        value={mode}
+        {...(props.autoMergeAvailable !== undefined
+          ? { autoMergeAvailable: props.autoMergeAvailable }
+          : {})}
+        onChange={update}
+      />
+      <p className="text-[11px] leading-tight text-muted">
+        {props.autoFixAvailable === false ? (
+          <Trans>Automation requires a branch in this repository.</Trans>
+        ) : props.autoMergeAvailable === false ? (
+          <Trans>
+            Auto Fix repairs merge blockers. Auto Merge is unavailable on this source host.
+          </Trans>
+        ) : (
+          <Trans>
+            Auto Fix waits for checks and repairs merge blockers. Auto Merge uses your selected
+            merge method when ready.
+          </Trans>
+        )}
+      </p>
+      {scopeWarning ? (
+        <p role="status" className="text-[11px] text-warning">
+          {scopeWarning}
+        </p>
+      ) : watch?.activeThreadId ? (
+        <p className="text-[11px] text-accent">
+          <Trans>An agent is fixing this PR.</Trans>
+        </p>
+      ) : watch?.lastError ? (
+        <p className="text-[11px] text-danger">{friendlyError(watch.lastError)}</p>
+      ) : watch?.blockedReason ? (
+        <p role="status" className="text-[11px] text-warning">
+          {blockedMessage(watch.blockedReason)}
+        </p>
+      ) : null}
+      {scopeWarning && !watch?.reviewScopeUnsupported && enabled && props.source?.account && (
+        <Button
+          size="sm"
+          variant="secondary"
+          isDisabled={busy || props.autoFixAvailable === false}
+          onPress={() => void update(mode)}
+        >
+          <Trans>Enable automation again</Trans>
+        </Button>
+      )}
+    </div>
+  );
+
+  // The compact page opens this from its header menu as a bottom sheet; it has no trigger of its own.
+  if (props.sheet) {
+    return (
+      <ResponsiveMenuSurface
+        isOpen={props.sheet.open}
+        onOpenChange={props.sheet.onOpenChange}
+        label={t`PR automation`}
+        trigger={null}
+      >
+        <div className="px-3 pb-3">{body}</div>
+      </ResponsiveMenuSurface>
+    );
+  }
+
   return (
     <Popover>
       <Popover.Trigger className="flex shrink-0 items-center">
@@ -169,9 +262,9 @@ export function PrWatchControls(props: {
           type="button"
           aria-label={triggerLabel}
           title={triggerLabel}
-          className={`flex items-center justify-center rounded p-0.5 transition-colors hover:bg-[var(--row-hover)] hover:text-foreground ${
-            blocked ? "text-warning" : enabled ? "text-foreground" : "text-muted"
-          }`}
+          className={`flex items-center justify-center transition-colors hover:bg-[var(--row-hover)] hover:text-foreground ${
+            props.triggerClassName ?? "rounded p-0.5"
+          } ${blocked ? "text-warning" : enabled ? "text-foreground" : "text-muted"}`}
         >
           <TriggerIcon className="size-3.5" />
         </button>
@@ -181,32 +274,7 @@ export function PrWatchControls(props: {
           <Popover.Heading className="text-xs font-medium text-foreground">
             <Trans>PR automation</Trans>
           </Popover.Heading>
-          <div className="mt-3 space-y-2">
-            <PrAutomationSlider
-              ariaLabel={t`PR automation`}
-              className="mx-auto w-[200px] px-2"
-              isDisabled={busy || watch === undefined}
-              value={mode}
-              onChange={update}
-            />
-            <p className="text-[11px] leading-tight text-muted">
-              <Trans>
-                Auto Fix waits for checks and repairs merge blockers. Auto Merge uses your selected
-                merge method when ready.
-              </Trans>
-            </p>
-            {watch?.activeThreadId ? (
-              <p className="text-[11px] text-accent">
-                <Trans>An agent is fixing this PR.</Trans>
-              </p>
-            ) : watch?.lastError ? (
-              <p className="text-[11px] text-danger">{watch.lastError}</p>
-            ) : watch?.blockedReason ? (
-              <p role="status" className="text-[11px] text-warning">
-                {blockedMessage(watch.blockedReason)}
-              </p>
-            ) : null}
-          </div>
+          <div className="mt-3">{body}</div>
         </Popover.Dialog>
       </Popover.Content>
     </Popover>

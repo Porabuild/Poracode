@@ -1,4 +1,5 @@
 import type { RuntimeChatItem } from "./slices/runtimeEventSlice";
+import { forgetThreadPromptIndex } from "./threadPromptIndexCache";
 
 export interface RuntimeHistoryBoundary {
   /** Replaced whenever an authoritative installation changes the read proof. */
@@ -58,6 +59,7 @@ export function forgetRuntimeHistoryBoundary(threadId: string): void {
 
 /** A rollback may target a checkpoint outside this bounded projection. */
 export function invalidateRuntimeHistoryRead(threadId: string): void {
+  forgetThreadPromptIndex(threadId);
   const boundary = boundaries.get(threadId);
   if (!boundary) return;
   boundary.generation = {};

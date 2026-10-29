@@ -1,0 +1,13 @@
+diff --git a/packages/tui/src/feature-plugins/system/storybook/merman-layouts.tsx b/packages/tui/src/feature-plugins/system/storybook/merman-layouts.tsx
+index 19c6ed9..b41982b 100644
+--- a/packages/tui/src/feature-plugins/system/storybook/merman-layouts.tsx
++++ b/packages/tui/src/feature-plugins/system/storybook/merman-layouts.tsx
+@@ -14,7 +14,7 @@ const fixtures = [
+   Client[OpenCode client]
+ 
+   subgraph CF[Cloudflare]
+-    DNS[opencode.ai]
++    DNS[poracode.com]
+     Web[Console frontend Worker]
+     Proxy[Console API proxy Worker]
+     Infer[inference-next Worker]

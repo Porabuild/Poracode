@@ -75,6 +75,18 @@
   "httpRoutes": [
     {
       "auth": "bearer",
+      "id": "thread-agent-vision",
+      "method": "GET",
+      "path": "/api/threads/{threadId}/agent-vision",
+      "queryParameters": [
+        "preview"
+      ],
+      "scopes": [
+        "session:read"
+      ]
+    },
+    {
+      "auth": "bearer",
       "id": "conversation-search",
       "method": "GET",
       "path": "/api/search/conversations",
@@ -416,7 +428,8 @@
       "path": "/api/files/image",
       "queryParameters": [
         "path",
-        "ticket"
+        "ticket",
+        "variant"
       ],
       "scopes": [
         "session:read"
@@ -508,7 +521,8 @@
       "path": "/api/threads/{threadId}/items/{itemId}/image",
       "queryParameters": [
         "path",
-        "ticket"
+        "ticket",
+        "variant"
       ],
       "scopes": [
         "session:read"
@@ -719,6 +733,15 @@
     },
     {
       "auth": "bearer",
+      "id": "pr-watch-scoped-upsert",
+      "method": "POST",
+      "path": "/api/pr-watches/scoped",
+      "scopes": [
+        "session:operate"
+      ]
+    },
+    {
+      "auth": "bearer",
       "id": "pr-watch-delete",
       "method": "DELETE",
       "path": "/api/pr-watches",
@@ -869,6 +892,15 @@
     },
     {
       "auth": "bearer",
+      "id": "thread-history-prompts",
+      "method": "GET",
+      "path": "/api/threads/{threadId}/history/prompts",
+      "scopes": [
+        "session:read"
+      ]
+    },
+    {
+      "auth": "bearer",
       "id": "thread-history-changes",
       "method": "GET",
       "path": "/api/threads/{threadId}/history/changes",
@@ -892,6 +924,7 @@
       "path": "/api/threads/{threadId}/history/items",
       "queryParameters": [
         "projection",
+        "deferBodies",
         "reads",
         "notices",
         "beforePosition",
@@ -911,6 +944,7 @@
       "path": "/api/threads/{threadId}/history",
       "queryParameters": [
         "projection",
+        "deferBodies",
         "reads",
         "notices",
         "runtimePage",
@@ -1123,6 +1157,161 @@
       "path": "/api/experiments/{experimentId}/command",
       "scopes": [
         "session:operate"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "device-inventory",
+      "method": "GET",
+      "path": "/api/devices",
+      "scopes": [
+        "session:read"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "device-attach",
+      "method": "POST",
+      "path": "/api/threads/{threadId}/devices",
+      "scopes": [
+        "session:read"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "device-frame",
+      "method": "GET",
+      "path": "/api/threads/{threadId}/devices/{sessionId}/frame",
+      "scopes": [
+        "session:read"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "device-inspect",
+      "method": "GET",
+      "path": "/api/threads/{threadId}/devices/{sessionId}/accessibility",
+      "scopes": [
+        "session:read"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "device-action",
+      "method": "POST",
+      "path": "/api/threads/{threadId}/devices/{sessionId}/actions",
+      "scopes": [
+        "session:operate"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "device-detach",
+      "method": "POST",
+      "path": "/api/threads/{threadId}/devices/{sessionId}/detach",
+      "scopes": [
+        "session:read"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "device-preview-open",
+      "method": "POST",
+      "path": "/api/threads/{threadId}/devices/{sessionId}/preview/v1",
+      "scopes": [
+        "session:read"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "device-preview-renew",
+      "method": "POST",
+      "path": "/api/threads/{threadId}/devices/{sessionId}/preview/v1/renew",
+      "scopes": [
+        "session:read"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "device-preview-close",
+      "method": "POST",
+      "path": "/api/threads/{threadId}/devices/{sessionId}/preview/v1/close",
+      "scopes": [
+        "session:read"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "device-preview-websocket-ticket",
+      "method": "POST",
+      "path": "/api/threads/{threadId}/devices/{sessionId}/preview/v1/websocket-ticket",
+      "scopes": [
+        "session:read"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "device-preview-android-api",
+      "method": "GET",
+      "path": "/api/threads/{threadId}/devices/{sessionId}/preview/v1/vendor/serve-emu/api",
+      "queryParameters": [
+        "previewId",
+        "device"
+      ],
+      "scopes": [
+        "session:read"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "device-preview-android-devices",
+      "method": "GET",
+      "path": "/api/threads/{threadId}/devices/{sessionId}/preview/v1/vendor/serve-emu/api/devices",
+      "queryParameters": [
+        "previewId",
+        "device"
+      ],
+      "scopes": [
+        "session:read"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "device-preview-ios-api",
+      "method": "GET",
+      "path": "/api/threads/{threadId}/devices/{sessionId}/preview/v1/vendor/serve-sim/api",
+      "queryParameters": [
+        "previewId",
+        "device"
+      ],
+      "scopes": [
+        "session:read"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "device-preview-ios-config",
+      "method": "GET",
+      "path": "/api/threads/{threadId}/devices/{sessionId}/preview/v1/vendor/serve-sim/helper/{deviceId}/config",
+      "queryParameters": [
+        "previewId",
+        "device"
+      ],
+      "scopes": [
+        "session:read"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "device-preview-ios-video",
+      "method": "GET",
+      "path": "/api/threads/{threadId}/devices/{sessionId}/preview/v1/vendor/serve-sim/helper/{deviceId}/stream.avcc",
+      "queryParameters": [
+        "previewId",
+        "device"
+      ],
+      "scopes": [
+        "session:read"
       ]
     }
   ],
@@ -1434,6 +1623,96 @@
       "scope": "session:read"
     },
     {
+      "name": "forgeGetRepository",
+      "owner": "projectLocation",
+      "scope": "session:read"
+    },
+    {
+      "name": "forgeGetPrViewedFiles",
+      "owner": "projectLocation",
+      "scope": "session:read"
+    },
+    {
+      "name": "forgeGetPrReviewGuide",
+      "owner": "projectLocation",
+      "scope": "session:read"
+    },
+    {
+      "name": "forgeWritePrReviewGuide",
+      "owner": "projectLocation",
+      "scope": "session:operate"
+    },
+    {
+      "name": "forgeSetPrFileViewed",
+      "owner": "projectLocation",
+      "scope": "session:operate"
+    },
+    {
+      "name": "forgeEditPrComment",
+      "owner": "projectLocation",
+      "scope": "session:operate"
+    },
+    {
+      "name": "forgeGetPrForBranch",
+      "owner": "projectLocation",
+      "scope": "session:read"
+    },
+    {
+      "name": "forgeListPrs",
+      "owner": "projectLocation",
+      "scope": "session:read"
+    },
+    {
+      "name": "forgeListPullRequests",
+      "owner": "projectLocation",
+      "scope": "session:read"
+    },
+    {
+      "name": "forgeGetPrChecks",
+      "owner": "projectLocation",
+      "scope": "session:read"
+    },
+    {
+      "name": "forgeGetPrFiles",
+      "owner": "projectLocation",
+      "scope": "session:read"
+    },
+    {
+      "name": "forgeGetPrDiff",
+      "owner": "projectLocation",
+      "scope": "session:read"
+    },
+    {
+      "name": "forgeGetPrDetails",
+      "owner": "projectLocation",
+      "scope": "session:read"
+    },
+    {
+      "name": "forgeGetPrReviewComments",
+      "owner": "projectLocation",
+      "scope": "session:read"
+    },
+    {
+      "name": "forgeListPullRequestsInState",
+      "owner": "projectLocation",
+      "scope": "session:read"
+    },
+    {
+      "name": "forgeListPrLabelCandidates",
+      "owner": "projectLocation",
+      "scope": "session:read"
+    },
+    {
+      "name": "forgeListPrReviewerCandidates",
+      "owner": "projectLocation",
+      "scope": "session:read"
+    },
+    {
+      "name": "forgeGetPrCommitDiff",
+      "owner": "projectLocation",
+      "scope": "session:read"
+    },
+    {
       "name": "ghListPullRequests",
       "owner": "projectLocation",
       "scope": "session:read"
@@ -1648,6 +1927,87 @@
       "timeout": "long"
     },
     {
+      "name": "forgeCreatePr",
+      "owner": "projectLocation",
+      "scope": "session:operate",
+      "timeout": "long"
+    },
+    {
+      "name": "forgeMergePr",
+      "owner": "projectLocation",
+      "scope": "session:operate",
+      "timeout": "long"
+    },
+    {
+      "name": "forgeMergePrAtHead",
+      "owner": "projectLocation",
+      "scope": "session:operate",
+      "timeout": "long"
+    },
+    {
+      "name": "forgeClosePr",
+      "owner": "projectLocation",
+      "scope": "session:operate"
+    },
+    {
+      "name": "forgeReopenPr",
+      "owner": "projectLocation",
+      "scope": "session:operate"
+    },
+    {
+      "name": "forgeMarkPrReady",
+      "owner": "projectLocation",
+      "scope": "session:operate"
+    },
+    {
+      "name": "forgeSubmitPrReview",
+      "owner": "projectLocation",
+      "scope": "session:operate",
+      "timeout": "long"
+    },
+    {
+      "name": "forgeUpdatePrBranch",
+      "owner": "projectLocation",
+      "scope": "session:operate",
+      "timeout": "long"
+    },
+    {
+      "name": "forgePostPrComment",
+      "owner": "projectLocation",
+      "scope": "session:operate"
+    },
+    {
+      "name": "forgeEditPr",
+      "owner": "projectLocation",
+      "scope": "session:operate"
+    },
+    {
+      "name": "forgeSetPrLabels",
+      "owner": "projectLocation",
+      "scope": "session:operate"
+    },
+    {
+      "name": "forgeRequestPrReviewers",
+      "owner": "projectLocation",
+      "scope": "session:operate"
+    },
+    {
+      "name": "forgeConvertPrToDraft",
+      "owner": "projectLocation",
+      "scope": "session:operate"
+    },
+    {
+      "name": "forgeSetPrReaction",
+      "owner": "projectLocation",
+      "scope": "session:operate"
+    },
+    {
+      "name": "forgeSubmitPrReviewDraft",
+      "owner": "projectLocation",
+      "scope": "session:operate",
+      "timeout": "long"
+    },
+    {
       "name": "ghMergePr",
       "owner": "projectLocation",
       "scope": "session:operate",
@@ -1723,12 +2083,14 @@
     {
       "name": "startThread",
       "owner": "projectLocation",
-      "scope": "session:operate"
+      "scope": "session:operate",
+      "timeout": "long"
     },
     {
       "name": "ensureThreadRunning",
       "owner": "projectLocation",
-      "scope": "session:operate"
+      "scope": "session:operate",
+      "timeout": "long"
     },
     {
       "name": "createRevertAnchor",
@@ -1808,6 +2170,8 @@
   ],
   "webSocket": {
     "clientMessages": [
+      "agent-vision-unwatch",
+      "agent-vision-watch",
       "browser-input",
       "browser-unwatch",
       "browser-watch",
@@ -1819,6 +2183,7 @@
       "thread-item-interests"
     ],
     "outOfBandMessages": [
+      "agent-vision-frame",
       "browser-state",
       "browser-frame",
       "browser-mirror-status",
@@ -1863,6 +2228,7 @@
       "warning"
     ],
     "serverMessages": [
+      "agent-vision-frame",
       "browser-frame",
       "browser-mirror-status",
       "browser-state",

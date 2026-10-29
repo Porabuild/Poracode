@@ -1,4 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
+import { performance } from "node:perf_hooks";
+import { recordHandlerTiming } from "@/shared/diagnostics/handlerTimingObservations";
 import type { RemoteHttpRouteContract, RemoteHttpRouteId } from "@/shared/remote/contract";
 import { REMOTE_HTTP_ROUTES } from "@/shared/remote/contract";
 import { RemoteHttpError, type AuthenticatedRemoteSession } from "../auth";
@@ -264,9 +266,14 @@ export async function handleHttp(
       const lease = principalId
         ? ctx.principalAdmission.tryAdmitWork(principalId, workClass)
         : null;
+      const handlerStartedAt = performance.now();
       try {
         await handler(call);
       } finally {
+        // Opt-in evidence only (no-op unless perf diagnostics are recording):
+        // pairs with the process sampler's event-loop-delay window so a stall
+        // can be attributed to the handler(s) that ran during it.
+        recordHandlerTiming(`route:${route.id}`, performance.now() - handlerStartedAt);
         lease?.release();
       }
       return;

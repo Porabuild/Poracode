@@ -1,12 +1,14 @@
 import { Terminal } from "@xterm/xterm";
 import { describe, expect, it } from "vitest";
 import { TerminalReplayGate } from "./terminalReplayGate";
+import { ImageAddon } from "@xterm/addon-image";
+import { ProgramStatusAddon } from "@xterm/addon-program-status";
 
 /**
  * Session-lifecycle regressions against the real installed @xterm/xterm
  * (constructed without DOM.open — write queue, parser and onData all work
  * headless). The onData wiring mirrors XTermSurface: replies are dropped
- * exactly while `gate.isDroppingReplies` holds.
+ * exactly while `gate.shouldDropReply(data)` holds.
  *
  * Families marked here are the ones xterm answers in Node; families that need
  * a renderer/addon to answer are covered at scope level in
@@ -55,7 +57,7 @@ function setup() {
   const dropped: string[] = [];
   const gate = new TerminalReplayGate(terminal);
   terminal.onData((data) => {
-    if (gate.isDroppingReplies) {
+    if (gate.shouldDropReply(data)) {
       dropped.push(data);
     } else {
       pty.push(data);
@@ -89,6 +91,94 @@ function armParsePause(terminal: Terminal) {
 }
 
 describe("TerminalReplayGate", () => {
+  it("shows only live program status and answers live feature detection before DA1", async () => {
+    const terminal = new Terminal(TERM_OPTIONS);
+    const status = new ProgramStatusAddon();
+    terminal.loadAddon(status);
+    const gate = new TerminalReplayGate(terminal);
+    const replies: string[] = [];
+    terminal.onData((data) => {
+      if (!gate.shouldDropReply(data)) replies.push(data);
+    });
+    const query = "\x1b]7501;?\x1b\\";
+    const working = "\x1b]7501;state=working:id=build:app=compiler:progress=42\x07";
+    try {
+      await new Promise<void>((resolve) =>
+        gate.begin(working + query + "\x1b[c", { complete: resolve }),
+      );
+      expect(status.records).toEqual([]);
+      expect(replies).toEqual([]);
+      await new Promise<void>((resolve) => terminal.write(working + query + "\x1b[c", resolve));
+      expect(status.records).toMatchObject([
+        { id: "build", state: "working", effectiveApp: "compiler", progress: 42 },
+      ]);
+      expect(replies).toEqual([query, "\x1b[?1;2c"]);
+      replies.length = 0;
+      await new Promise<void>((resolve) =>
+        gate.begin("\x1b]7501;state=clear\x07" + query, { complete: resolve }),
+      );
+      expect(status.records).toHaveLength(1);
+      expect(replies).toEqual([]);
+      terminal.input(query, true);
+      expect(replies).toEqual([query]);
+    } finally {
+      gate.dispose();
+      terminal.dispose();
+    }
+  });
+  it("suppresses real image-addon Kitty query replies during history replay", async () => {
+    const terminal = new Terminal(TERM_OPTIONS);
+    terminal.loadAddon(new ImageAddon());
+    const gate = new TerminalReplayGate(terminal);
+    const replies: string[] = [];
+    terminal.onData((data) => {
+      if (!gate.shouldDropReply(data)) replies.push(data);
+    });
+    const query = "\x1b_Ga=q,i=42\x1b\\";
+    try {
+      await new Promise<void>((resolve) => terminal.write(query, resolve));
+      expect(replies).toEqual(["\x1b_Gi=42;OK\x1b\\"]);
+      replies.length = 0;
+      await new Promise<void>((resolve) => gate.begin(query, { complete: resolve }));
+      expect(replies).toEqual([]);
+    } finally {
+      gate.dispose();
+      terminal.dispose();
+    }
+  });
+
+  it("keeps async Kitty replies suppressed while allowing typing during decoding", async () => {
+    const { terminal, gate, parse, pty } = setup();
+    const replies: boolean[] = [];
+    let release: (() => void) | undefined;
+    const handler = terminal.parser.registerApcHandler({ final: "G" }, () => {
+      return new Promise<boolean>((resolve) => {
+        release = () => {
+          replies.push(gate.shouldDropReply("\x1b_Gi=42;OK\x1b\\"));
+          resolve(true);
+        };
+      });
+    });
+    try {
+      gate.begin("\x1b_Ga=T,i=42;AAAA\x1b\\", { complete: () => {} });
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+      expect(release).toBeDefined();
+      expect(gate.shouldDropReply("typed while decoding")).toBe(false);
+      terminal.input("\x1b_Ga=q,i=42\x1b\\", true);
+      terminal.input("\x1b_Gi=42;AAAA\x1b\\", true);
+      expect(pty).toEqual(["\x1b_Ga=q,i=42\x1b\\", "\x1b_Gi=42;AAAA\x1b\\"]);
+      release?.();
+      await parse("");
+      expect(replies).toEqual([true]);
+      expect(gate.shouldDropReply("\x1b_Gi=42;OK\x1b\\")).toBe(false);
+    } finally {
+      release?.();
+      handler.dispose();
+      gate.dispose();
+      terminal.dispose();
+    }
+  });
+
   it("lets a live query queued before the replay reply, and drops the replayed one", async () => {
     const { terminal, gate, pty, dropped, parse, topLine } = setup();
 
@@ -127,7 +217,7 @@ describe("TerminalReplayGate", () => {
       ).toBe(true);
       expect(pty, `${bytes} pty stays clean`).toHaveLength(0);
       expect(topLine()).toContain("frame");
-      expect(gate.isDroppingReplies).toBe(false);
+      expect(gate.shouldDropReply("\x1b[0n")).toBe(false);
     },
   );
 
@@ -193,7 +283,7 @@ describe("TerminalReplayGate", () => {
     expect(completed).toBe(false);
     expect(topLine()).toBe(""); // stale replay text wiped by the cleanup
     expect(dropped).toHaveLength(1); // its DSR never reached the PTY
-    expect(gate.isDroppingReplies).toBe(false);
+    expect(gate.shouldDropReply("\x1b[0n")).toBe(false);
 
     // Suppression is released: a live query replies normally after the reset.
     terminal.write("\x1b[5n");

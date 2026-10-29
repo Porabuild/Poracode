@@ -3,17 +3,20 @@ import { i18n } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import type { ImportableSession, ProjectLocation, Thread } from "@/shared/contracts";
 import { resolveModelSelection } from "@/shared/agentSelection";
-import { friendlyError } from "@/shared/messages";
+import { friendlyError, msg as message } from "@/shared/messages";
 import { isWindows, readBridge } from "@/renderer/bridge";
 import { resolveSavedProviderDraftConfig } from "@/renderer/components/thread/threadDraftViewHelpers";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useAppStore } from "@/renderer/state/appStore";
+import { sendManagedRootProjectCommand } from "@/renderer/state/managedRootCatalog/rootCatalogCommands";
+import { applyRootCatalogProjectRows } from "@/renderer/state/managedRootCatalog/rootCatalogRows";
+import { projectLocationKey } from "@/shared/projectIdentity";
+import { currentProjectIdentityOptions } from "@/renderer/state/projectReferences";
 import {
   dropPendingManagedRootLaunch,
   pinManagedRootThread,
 } from "@/renderer/state/managedRootCatalog/rootCatalogStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
-import { getActiveWorkspaceId } from "@/renderer/state/workspaceStore";
 
 const TITLE_MAX_CHARS = 60;
 
@@ -61,15 +64,19 @@ export function resolveImportModel(session: ImportableSession, projectId: string
 function resolveImportProject(
   session: ImportableSession,
   fallbackProjectId: string | undefined,
-): { projectId: string | undefined; created: boolean } {
-  if (!session.cwd || !session.cwdExists) return { projectId: fallbackProjectId, created: false };
+): string | undefined {
+  if (!session.cwd || !session.cwdExists) return fallbackProjectId;
   const location: ProjectLocation = isWindows()
     ? { kind: "windows", path: session.cwd }
     : { kind: "posix", path: session.cwd };
-  const { project, created } = useAppStore
+  const options = currentProjectIdentityOptions();
+  return useAppStore
     .getState()
-    .addProjectWithResult(location, undefined, getActiveWorkspaceId() ?? undefined);
-  return { projectId: project.id, created };
+    .projects.find(
+      (project) =>
+        !project.remoteServerId &&
+        projectLocationKey(project.location, options) === projectLocationKey(location, options),
+    )?.id;
 }
 
 /**
@@ -92,21 +99,44 @@ export async function importSessions(input: {
       threadIds.set(session.id, existing);
       continue;
     }
-    const { projectId, created } = resolveImportProject(session, input.fallbackProjectId);
-    const model = projectId ? resolveImportModel(session, projectId) : "";
+    let projectId = resolveImportProject(session, input.fallbackProjectId);
+    const hasFolder = !!session.cwd && session.cwdExists;
+    const model = resolveImportModel(session, projectId ?? "");
     const agent = session.agentKind;
-    if (!projectId || !model) {
+    if ((!projectId && !hasFolder) || !model) {
       failed += 1;
       toast.danger(
-        projectId
+        projectId || hasFolder
           ? i18n._(msg`No model is available for ${agent}. Check the agent in Settings.`)
           : i18n._(msg`Choose a project for sessions whose folder no longer exists.`),
       );
-      if (created && projectId) store.deleteProject(projectId);
+      continue;
+    }
+    if (hasFolder) {
+      try {
+        // Registration is owned by the host and reconciles by location. Omitting
+        // metadata makes retries safe after a lost reply or another client's edit.
+        const response = await sendManagedRootProjectCommand({
+          kind: "add-existing",
+          path: session.cwd!,
+        });
+        if (!response.project) throw new Error(message("remote.project.notFound"));
+        applyRootCatalogProjectRows([response.project]);
+        projectId = response.project.id;
+      } catch (error) {
+        failed += 1;
+        toast.danger(friendlyError(error));
+        continue;
+      }
+    }
+    // Registration may have yielded while another import claimed this session.
+    const claimed = findImportedThreadId(session, useAppStore.getState().threads);
+    if (claimed) {
+      threadIds.set(session.id, claimed);
       continue;
     }
     const thread = store.createThread({
-      projectId,
+      projectId: projectId!,
       agentKind: session.agentKind,
       config: { model, importedFrom: { path: session.path, importedAt: new Date().toISOString() } },
       prompt: "",
@@ -126,18 +156,14 @@ export async function importSessions(input: {
     });
     const release = pinManagedRootThread(thread.id);
     const bridge = readBridge();
-    let persisted = false;
+    let publicationAttempted = false;
     try {
-      if (created) {
-        const project = useAppStore.getState().projects.find((entry) => entry.id === projectId);
-        if (project) await bridge.dbUpsertProject(project);
-      }
       // App-store persistence owns UI preferences, not host catalog rows.
       // Save the resumable row before replay so success survives a reload and
       // runtime events always have a durable thread to belong to.
       const resumable = useAppStore.getState().threads.find((entry) => entry.id === thread.id)!;
+      publicationAttempted = true;
       await bridge.dbUpsertThread(resumable);
-      persisted = true;
       // Its next open must resume this session, not create and launch a new one.
       dropPendingManagedRootLaunch(thread.id);
       await bridge.importSessionTranscript({
@@ -149,14 +175,17 @@ export async function importSessions(input: {
       threadIds.set(session.id, thread.id);
       imported += 1;
     } catch (error) {
-      if (persisted) await bridge.dbDeleteThread(thread.id);
-      store.deleteThread(thread.id);
-      if (created) {
-        await bridge.dbDeleteProject(projectId);
-        store.deleteProject(projectId);
-      }
       failed += 1;
       toast.danger(friendlyError(error));
+      // Once publication has been attempted, another client may use the project.
+      // Deleting it would cascade that client's threads, so roll back only ours.
+      try {
+        if (publicationAttempted) await bridge.dbDeleteThread(thread.id);
+        store.deleteThread(thread.id);
+      } catch (rollbackError) {
+        // Keep the possibly durable row visible, and let the batch continue.
+        toast.danger(friendlyError(rollbackError));
+      }
     } finally {
       dropPendingManagedRootLaunch(thread.id);
       release();

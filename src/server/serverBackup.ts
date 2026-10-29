@@ -3,7 +3,7 @@ import { dirname, isAbsolute, join, relative } from "node:path";
 import Database from "better-sqlite3";
 import { writeFileAtomic } from "@/shared/atomicFile";
 import { restrictToOwner } from "@/shared/restrictToOwner";
-import { resolveBetterSqliteNativeBindingOptions } from "@/host/db/connection";
+import { resolveBetterSqliteNativeBindingOptions } from "@/host/db/nativeBinding";
 import { LATEST_SCHEMA_VERSION } from "@/host/db/migrations";
 import { resolvePoracodeBaseDir } from "@/shared/poracodePaths";
 import {

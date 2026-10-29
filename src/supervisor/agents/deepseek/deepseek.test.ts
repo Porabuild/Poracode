@@ -265,6 +265,7 @@ describe("DeepSeek Harness", () => {
       expect.objectContaining({
         mcpServers: [],
         behavior: { inlineImagePrompts: false },
+        textStreamExtension: expect.objectContaining({ id: "deepseek-goals" }),
       }),
     );
     await fake.openThread({ model, approvalPolicy: "never" }, sessionRef);

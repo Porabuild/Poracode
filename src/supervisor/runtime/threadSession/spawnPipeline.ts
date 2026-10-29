@@ -1,11 +1,13 @@
 import { CROSSAGENT_MCP_TIMEOUT_MS } from "@/supervisor/crossagentMcp/waitTiming";
 import { randomUUID } from "node:crypto";
 import { spawn } from "node-pty";
+import type { TerminalPtyFactory } from "../../pty/managedPty";
 import {
   MockAgentLaunchBlockedError,
   assertAgentLaunchAllowed,
 } from "@/supervisor/agentLaunchGuard";
 import { capabilitiesForPresentation } from "@/shared/agentSelection";
+import { canLeadCrew, threadCrewBinding } from "@/shared/crew";
 import {
   applyHomeScopePermissions,
   type UnrestrictedPermissionCapabilities,
@@ -22,6 +24,7 @@ import {
   type ThreadConfig,
   type ThreadPresentationMode,
   type ThreadStatus,
+  type AgentCapability,
   type BuiltInMcpServerId,
   type McpLaunchSnapshot,
   type ResolvedMcpServer,
@@ -59,6 +62,7 @@ import {
   type CommandSpec,
   type StructuredSessionHandle,
   type StructuredTurnResult,
+  type StartTurnOptions,
   isCompletedWithoutTurn,
   createKnownSessionRef,
   defaultFormatPromptSegments,
@@ -131,6 +135,7 @@ export interface SpawnThreadInput {
   config: ThreadConfig;
   initialSize: TerminalSize;
   launchPrompt: string;
+  initialInstructions?: string;
   command?: CommandSpec;
   /**
    * Extra env injected into the agent PTY (merged on top of agentEnv +
@@ -156,7 +161,14 @@ export interface SpawnThreadInput {
   mcpLaunchSnapshot: McpLaunchSnapshot;
   threadMentionToolsAvailable?: boolean;
   launchConfig?: ThreadConfig;
+  crewBriefDelivered?: string;
+  crossagentsMcpAttached?: boolean;
+  crossagentsMcpAvailable?: boolean;
   nativePlugins?: readonly AgentNativePlugin[];
+}
+
+function hasCrossagentsMcp(servers: readonly ResolvedMcpServer[]): boolean {
+  return servers.some((server) => server.id === "crossagents");
 }
 
 /**
@@ -175,15 +187,37 @@ export function effectiveLaunchConfig(
     return config;
   }
   const next = { ...config };
-  if (pluginBuiltInMcpServerIds.includes("browser")) next.browserMcp = true;
-  if (pluginBuiltInMcpServerIds.includes("crossagents")) next.crossagentMcp = true;
-  if (pluginBuiltInMcpServerIds.includes("computer-use")) next.computerUse = true;
-  if (pluginBuiltInMcpServerIds.includes("chrome")) next.chromeMcp = true;
+  if (config.browserMcp !== false && pluginBuiltInMcpServerIds.includes("browser"))
+    next.browserMcp = true;
+  if (config.crossagentMcp !== false && pluginBuiltInMcpServerIds.includes("crossagents"))
+    next.crossagentMcp = true;
+  if (config.computerUse !== false && pluginBuiltInMcpServerIds.includes("computer-use"))
+    next.computerUse = true;
+  if (config.chromeMcp !== false && pluginBuiltInMcpServerIds.includes("chrome"))
+    next.chromeMcp = true;
   if (disabledBuiltInMcpServerIds.includes("browser")) next.browserMcp = false;
   if (disabledBuiltInMcpServerIds.includes("crossagents")) next.crossagentMcp = false;
   if (disabledBuiltInMcpServerIds.includes("computer-use")) next.computerUse = false;
   if (disabledBuiltInMcpServerIds.includes("chrome")) next.chromeMcp = false;
   return next;
+}
+
+export function applyCrewCrossagentMcpFlag(
+  config: ThreadConfig,
+  capabilities: Pick<AgentCapability, "mcpConfigSource" | "crossagentMcpRouting" | "mcpScope">,
+  presentationMode: ThreadPresentationMode,
+  disabledBuiltInMcpServerIds: readonly BuiltInMcpServerId[],
+  crossagentRoutingAvailable: boolean,
+): ThreadConfig {
+  if (!threadCrewBinding(config)) return config;
+  if (disabledBuiltInMcpServerIds.includes("crossagents")) {
+    return config.crossagentMcp === false ? config : { ...config, crossagentMcp: false };
+  }
+  if (!canLeadCrew(capabilities, presentationMode)) return config;
+  if (capabilities.mcpConfigSource === "agentSettings" && !crossagentRoutingAvailable) {
+    return config;
+  }
+  return config.crossagentMcp === true ? config : { ...config, crossagentMcp: true };
 }
 
 /**
@@ -270,19 +304,21 @@ export function composeResolvedMcpServers(
       | undefined,
     timeoutMs = DEFAULT_MCP_SERVER_TIMEOUT_MS,
     approvalMode?: "approve",
-  ): ResolvedMcpServer | undefined =>
-    config
+  ): ResolvedMcpServer | undefined => {
+    const disabledTools = config?.disabledTools ?? snapshot.disabledBuiltInMcpTools?.[id];
+    return config
       ? {
           id,
           name: BUILT_IN_MCP_SERVER_NAMES[id],
           timeoutMs,
           transport: { type: "http", url: config.url, headers: config.headers },
-          ...(config.disabledTools && config.disabledTools.length > 0
-            ? { disabledTools: [...config.disabledTools] }
+          ...(disabledTools && disabledTools.length > 0
+            ? { disabledTools: [...disabledTools] }
             : {}),
           ...(approvalMode ? { approvalMode } : {}),
         }
       : undefined;
+  };
   return [
     ...snapshot.mcpServers,
     http("browser", browserMcp),
@@ -322,6 +358,7 @@ export interface SpawnPipelineContext {
   failStructuredSession(session: SessionRuntime, error: unknown): void;
   onStructuredTurnCompletedWithoutTurn(session: SessionRuntime): void;
   isCurrentSession(session: SessionRuntime): boolean;
+  isExecutionControlled(threadId: string): boolean;
   resolveAgentSettings(
     adapter: AgentAdapter,
     location?: ProjectLocation,
@@ -343,6 +380,8 @@ export async function resolveThreadExecution(
   return { location, config };
 }
 
+class PendingStartCancelledError extends Error {}
+
 /**
  * Spawn orchestration for agent threads: initial launches, restarts of
  * inactive-but-resumable threads, and the shared `spawnThread` runtime-session
@@ -350,7 +389,28 @@ export async function resolveThreadExecution(
  * Extracted from `ThreadSessionManager`.
  */
 export class SpawnPipeline {
+  private readonly pendingStartCancellations = new Map<string, () => void>();
+
   constructor(private readonly ctx: SpawnPipelineContext) {}
+
+  cancelPendingStart(threadId: string): void {
+    this.pendingStartCancellations.get(threadId)?.();
+  }
+
+  private async awaitPendingStart<T>(threadId: string, open: () => Promise<T>): Promise<T> {
+    let cancel!: () => void;
+    const cancelled = new Promise<never>((_resolve, reject) => {
+      cancel = () => reject(new PendingStartCancelledError("Thread startup was cancelled."));
+    });
+    this.pendingStartCancellations.set(threadId, cancel);
+    try {
+      return await Promise.race([open(), cancelled]);
+    } finally {
+      if (this.pendingStartCancellations.get(threadId) === cancel) {
+        this.pendingStartCancellations.delete(threadId);
+      }
+    }
+  }
 
   async startThreadInner(
     payload: StartThreadRuntimeInput & {
@@ -362,6 +422,7 @@ export class SpawnPipeline {
     },
   ): Promise<StartThreadResult> {
     const ctx = this.ctx;
+    let pendingCrewBriefDelivered: string | undefined;
     payload = { ...payload, ...snapshotWorkspaceStart(payload), threadId: payload.threadId };
     const adapter = this.requireAdapter(payload.agentKind);
     assertWorkspaceLaunchSupported(payload.workspaceScope, adapter, payload.presentationMode);
@@ -410,6 +471,9 @@ export class SpawnPipeline {
       payload.agentKind,
       {
         includeExternalServers: true,
+        ...(runtimeConfig.pluginOverrides
+          ? { pluginOverrides: runtimeConfig.pluginOverrides }
+          : {}),
         ...(payload.segments?.some((segment) => segment.kind === "skill" && segment.pluginId)
           ? { nativePluginAdapter: adapter }
           : {}),
@@ -437,6 +501,9 @@ export class SpawnPipeline {
           presentationMode: requestedPresentation,
           nativePlugins,
           segments: wslSegments,
+          ...(runtimeConfig.pluginOverrides
+            ? { pluginOverrides: runtimeConfig.pluginOverrides }
+            : {}),
         })) ?? wslSegments)
       : wslSegments;
     let effectiveSegments =
@@ -525,6 +592,7 @@ export class SpawnPipeline {
       adapter,
       payload.threadId,
       executionLocation,
+      requestedPresentation,
     );
     if (optimisticUserMessageItemId) {
       this.emitOptimisticWorkingState(payload.threadId, runtimeConfig, optimisticLaunchConfig);
@@ -589,6 +657,7 @@ export class SpawnPipeline {
       adapter,
       payload.threadId,
       executionLocation,
+      requestedPresentation,
     );
     const resolvedMcpServers = await this.resolveMcpServersForLaunch({
       location: executionLocation,
@@ -713,10 +782,11 @@ export class SpawnPipeline {
     let openedStructuredThreadId: string | undefined;
     if (structuredSession?.openThread) {
       try {
-        openedStructuredThreadId = await structuredSession.openThread(
-          launchConfig,
-          payload.sessionRef,
-        );
+        openedStructuredThreadId = structuredSession.supportsOpenCancellation
+          ? await this.awaitPendingStart(payload.threadId, () =>
+              structuredSession.openThread!(launchConfig, payload.sessionRef),
+            )
+          : await structuredSession.openThread(launchConfig, payload.sessionRef);
       } catch (error) {
         // Capture before dispose: some handles retire their getter with their
         // transport. Failed configuration must not lose an allocated identity.
@@ -752,6 +822,7 @@ export class SpawnPipeline {
             canResumeWithConfig,
           );
         }
+        if (error instanceof PendingStartCancelledError) return { threadId: payload.threadId };
         if (ctx.pendingStartInterrupts.delete(payload.threadId)) {
           publishUnpublishedStartInterruption(payload.threadId, failure, ctx.runtimeEventRouter);
           return { threadId: payload.threadId };
@@ -823,6 +894,9 @@ export class SpawnPipeline {
           config: runtimeConfig,
           initialSize: payload.initialSize,
           launchPrompt: "",
+          ...(payload.initialInstructions
+            ? { initialInstructions: payload.initialInstructions }
+            : {}),
           structuredSession,
           ...(payload.resourceLease ? { resourceLease: payload.resourceLease } : {}),
           ...(resolvedSessionRef ? { sessionRef: resolvedSessionRef } : {}),
@@ -834,6 +908,8 @@ export class SpawnPipeline {
           mcpLaunchSnapshot,
           threadMentionToolsAvailable,
           launchConfig,
+          crossagentsMcpAttached: hasCrossagentsMcp(resolvedMcpServers),
+          crossagentsMcpAvailable: ctx.options.crossagentMcp !== undefined,
           nativePlugins,
         });
       } catch (error) {
@@ -851,7 +927,7 @@ export class SpawnPipeline {
           ...(optimisticUserMessageItemId
             ? { userMessageItemId: optimisticUserMessageItemId }
             : {}),
-          ...structuredTurnTextOptions(session, initialTurnText),
+          ...structuredTurnTextOptions(session, { ...initialTurnText, config: launchConfig }),
         };
         void structuredSession
           .startTurn(
@@ -888,8 +964,20 @@ export class SpawnPipeline {
         {
           structuredSession,
           slashCommands: ctx.sessions.get(payload.threadId)?.slashCommands,
+          config: runtimeConfig,
+          launchConfig,
+          mcpLaunchSnapshot,
+          adapter,
+          presentationMode: requestedPresentation,
+          crossagentsMcpAttached: hasCrossagentsMcp(resolvedMcpServers),
+          crossagentsMcpAvailable: ctx.options.crossagentMcp !== undefined,
+          onCrewBriefDelivered: (fingerprint) => {
+            pendingCrewBriefDelivered = fingerprint;
+            const active = ctx.sessions.get(payload.threadId);
+            if (active) active.crewBriefDelivered = fingerprint;
+          },
         },
-        initialTurnText,
+        { ...initialTurnText, config: launchConfig },
       );
       void structuredSession
         .startTurn(
@@ -1016,6 +1104,11 @@ export class SpawnPipeline {
         mcpLaunchSnapshot,
         threadMentionToolsAvailable,
         launchConfig,
+        crossagentsMcpAttached: hasCrossagentsMcp(resolvedMcpServers),
+        crossagentsMcpAvailable: ctx.options.crossagentMcp !== undefined,
+        ...(pendingCrewBriefDelivered !== undefined
+          ? { crewBriefDelivered: pendingCrewBriefDelivered }
+          : {}),
         nativePlugins,
         ...(shouldQueueInitialPrompt ? { pendingLaunchPrompt: initialPrompt } : {}),
         presentationMode: requestedPresentation,
@@ -1042,6 +1135,7 @@ export class SpawnPipeline {
   async restartThread(
     session: SessionRuntime,
     turn: QueuedStructuredTurn,
+    options: Pick<StartTurnOptions, "onPromptSubmitted"> = {},
   ): Promise<void | StructuredTurnResult> {
     const ctx = this.ctx;
     const { prompt } = turn;
@@ -1139,6 +1233,7 @@ export class SpawnPipeline {
       session.adapter,
       session.threadId,
       executionLocation,
+      session.presentationMode ?? session.adapter.capabilities.presentationMode,
     );
     const resolvedMcpServers = await this.resolveMcpServersForLaunch({
       location: executionLocation,
@@ -1229,6 +1324,9 @@ export class SpawnPipeline {
           launchPrompt: "",
           structuredSession,
           initialStatus: hasPrompt ? "working" : "idle",
+          ...(session.pendingInitialInstructions
+            ? { initialInstructions: session.pendingInitialInstructions }
+            : {}),
           initialAttention: hasPrompt ? "working" : "none",
           suppressInitialStructuredIdle: hasPrompt,
           resourceLease,
@@ -1236,6 +1334,8 @@ export class SpawnPipeline {
           mcpLaunchSnapshot,
           threadMentionToolsAvailable: hasThreadMentionTools(resolvedMcpServers),
           launchConfig,
+          crossagentsMcpAttached: hasCrossagentsMcp(resolvedMcpServers),
+          crossagentsMcpAvailable: ctx.options.crossagentMcp !== undefined,
           ...(session.nativePlugins ? { nativePlugins: session.nativePlugins } : {}),
           presentationMode:
             session.presentationMode ?? session.adapter.capabilities.presentationMode,
@@ -1266,12 +1366,18 @@ export class SpawnPipeline {
                 }
               : undefined,
           );
+        const textOptions = structuredTurnTextOptions(replacement, turn);
+        const onPromptSubmitted =
+          textOptions.onPromptSubmitted || options.onPromptSubmitted
+            ? () => {
+                textOptions.onPromptSubmitted?.();
+                options.onPromptSubmitted?.();
+              }
+            : undefined;
         const startOptions = {
           userMessageItemId: optimisticItemId,
-          ...structuredTurnTextOptions(
-            { structuredSession, slashCommands: session.slashCommands },
-            turn,
-          ),
+          ...textOptions,
+          ...(onPromptSubmitted ? { onPromptSubmitted } : {}),
         };
         try {
           const result = await structuredSession.startTurn(
@@ -1393,6 +1499,8 @@ export class SpawnPipeline {
         mcpLaunchSnapshot,
         threadMentionToolsAvailable: hasThreadMentionTools(resolvedMcpServers),
         launchConfig,
+        crossagentsMcpAttached: hasCrossagentsMcp(resolvedMcpServers),
+        crossagentsMcpAvailable: this.ctx.options.crossagentMcp !== undefined,
         ...(session.nativePlugins ? { nativePlugins: session.nativePlugins } : {}),
         ...(session.presentationMode ? { presentationMode: session.presentationMode } : {}),
       });
@@ -1516,13 +1624,21 @@ export class SpawnPipeline {
         ...terminalEnv,
       };
       try {
-        pty = spawn(command.command, command.args, {
-          name: process.platform === "win32" ? "xterm-color" : terminalEnv.TERM,
-          cols: input.initialSize.cols,
-          rows: input.initialSize.rows,
-          cwd: command.cwd ?? process.cwd(),
-          env: ptyEnv,
-        });
+        const createPty: TerminalPtyFactory =
+          ctx.options.createPty ?? ((file, args, options) => spawn(file, args, options));
+        pty = createPty(
+          command.command,
+          command.args,
+          {
+            name: process.platform === "win32" ? "xterm-color" : terminalEnv.TERM,
+            cols: input.initialSize.cols,
+            rows: input.initialSize.rows,
+            cwd: command.cwd ?? process.cwd(),
+            env: ptyEnv,
+          },
+          input.projectLocation,
+          ctx.isExecutionControlled(input.threadId),
+        );
       } catch (error) {
         try {
           void Promise.resolve(command.cleanup?.()).catch(() => {
@@ -1561,6 +1677,15 @@ export class SpawnPipeline {
         : {}),
       ...(executionWorkspaceScope ? { executionWorkspaceScope } : {}),
       config: input.config,
+      ...(input.crewBriefDelivered !== undefined
+        ? { crewBriefDelivered: input.crewBriefDelivered }
+        : {}),
+      ...(input.crossagentsMcpAttached !== undefined
+        ? { crossagentsMcpAttached: input.crossagentsMcpAttached }
+        : {}),
+      ...(input.crossagentsMcpAvailable !== undefined
+        ? { crossagentsMcpAvailable: input.crossagentsMcpAvailable }
+        : {}),
       mcpLaunchSnapshot,
       ...(input.threadMentionToolsAvailable !== undefined
         ? { threadMentionToolsAvailable: input.threadMentionToolsAvailable }
@@ -1578,6 +1703,9 @@ export class SpawnPipeline {
         ),
       terminalSize: input.initialSize,
       launchPrompt: input.launchPrompt,
+      ...(input.initialInstructions
+        ? { pendingInitialInstructions: input.initialInstructions }
+        : {}),
       ...(input.sessionRef ? { sessionRef: input.sessionRef } : {}),
       status: input.initialStatus ?? "launching",
       attention: input.initialAttention ?? "none",
@@ -1596,6 +1724,11 @@ export class SpawnPipeline {
       ...(input.structuredSession ? { structuredSession: input.structuredSession } : {}),
     };
 
+    session.onInitialInstructionsApplied = () => {
+      if (!ctx.isCurrentSession(session)) return;
+      session.initialInstructionsApplied = true;
+      ctx.outputPipeline.emitState(session);
+    };
     ctx.sessionRuntimeLifecycle.attach(session);
     // The process effect exists once the runtime is published: a PTY spawn
     // succeeded and/or a structured handle is attached. Idempotent.
@@ -1653,6 +1786,7 @@ export class SpawnPipeline {
         adapter,
         crossagentThreadId,
         location,
+        presentationMode ?? adapter.capabilities.presentationMode,
       );
       identity = undefined;
       if (adapter.capabilities.crossagentMcpRouting !== "provider-session") {
@@ -1703,19 +1837,32 @@ export class SpawnPipeline {
     adapter: AgentAdapter,
     crossagentThreadId?: string,
     location?: ProjectLocation,
+    presentationMode: ThreadPresentationMode = adapter.capabilities.presentationMode,
   ): ThreadConfig {
-    if (adapter.capabilities.mcpConfigSource !== "agentSettings") return config;
-    const withProviderSettings = applyAgentSettingsMcpFlags(
-      config,
-      this.ctx.resolveAgentSettings(adapter, location),
-      mcpLaunchSnapshot.disabledBuiltInMcpServerIds,
+    const crossagentRoutingAvailable =
       adapter.capabilities.crossagentMcpRouting === "provider-session" &&
-        crossagentThreadId !== undefined,
-    );
-    return effectiveLaunchConfig(
+      presentationMode === "gui" &&
+      crossagentThreadId !== undefined;
+    const withProviderSettings =
+      adapter.capabilities.mcpConfigSource === "agentSettings"
+        ? applyAgentSettingsMcpFlags(
+            config,
+            this.ctx.resolveAgentSettings(adapter, location),
+            mcpLaunchSnapshot.disabledBuiltInMcpServerIds,
+            crossagentRoutingAvailable,
+          )
+        : config;
+    const effective = effectiveLaunchConfig(
       withProviderSettings,
       mcpLaunchSnapshot.disabledBuiltInMcpServerIds,
       mcpLaunchSnapshot.pluginBuiltInMcpServerIds,
+    );
+    return applyCrewCrossagentMcpFlag(
+      effective,
+      adapter.capabilities,
+      presentationMode,
+      mcpLaunchSnapshot.disabledBuiltInMcpServerIds,
+      crossagentRoutingAvailable,
     );
   }
 
@@ -1786,9 +1933,8 @@ export class SpawnPipeline {
     mcpLaunchSnapshot: McpLaunchSnapshot,
     identity?: McpThreadIdentity,
   ): Promise<AppControlsMcpHttpConfig | undefined> {
-    if (mcpLaunchSnapshot.disabledBuiltInMcpServerIds.includes("app-controls")) {
-      return Promise.resolve(undefined);
-    }
+    // Poracode is attached to every provider. Older clients can still send a
+    // saved server disable; only individual tool restrictions apply here.
     return resolveAppControlsMcpHttpConfigForLaunch(location, this.ctx.options.wslHostAccess, {
       ...identity,
       disabledTools: mcpLaunchSnapshot.disabledBuiltInMcpTools?.["app-controls"] ?? [],
@@ -1887,7 +2033,12 @@ export class SpawnPipeline {
           const contributions = await this.ctx.options.resolvePluginLaunchContributions?.(
             projectLocation,
             agentKind,
-            { includeExternalServers: false },
+            {
+              includeExternalServers: false,
+              ...(turnConfig.pluginOverrides
+                ? { pluginOverrides: turnConfig.pluginOverrides }
+                : {}),
+            },
           );
           if (!isCurrent()) return [];
           const snapshot = {
@@ -1897,12 +2048,15 @@ export class SpawnPipeline {
               mcpLaunchSnapshot.pluginBuiltInMcpServerIds ??
               [],
           };
-          return this.resolveMcpServersForLaunch({
+          const servers = await this.resolveMcpServersForLaunch({
             location: projectLocation,
-            config: effectiveLaunchConfig(
+            config: this.resolveMcpLaunchConfig(
               turnConfig,
-              snapshot.disabledBuiltInMcpServerIds,
-              snapshot.pluginBuiltInMcpServerIds,
+              snapshot,
+              adapter,
+              threadId,
+              projectLocation,
+              presentationMode ?? adapter.capabilities.presentationMode,
             ),
             mcpLaunchSnapshot: snapshot,
             ...(mcpIdentity ? { identity: mcpIdentity } : {}),
@@ -1911,6 +2065,11 @@ export class SpawnPipeline {
             isCurrent,
             ...(presentationMode ? { presentationMode } : {}),
           });
+          const session = this.ctx.sessions.get(threadId);
+          if (session && isCurrent()) {
+            session.crossagentsMcpAttached = hasCrossagentsMcp(servers);
+          }
+          return servers;
         },
         ...(sessionRef ? { sessionRef } : {}),
         ...(presentationMode ? { presentationMode } : {}),

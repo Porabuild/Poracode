@@ -382,6 +382,37 @@ describe("parseUpgradeCliOptions", () => {
 });
 
 describe("upgradeServerPrefix (D4)", () => {
+  it("never publishes completion or rollback after losing the prefix lock during admission", async () => {
+    const { prefix, paths } = sandbox();
+    const previous = join(prefix, "releases", "old");
+    writeRelease(previous, "1.0.0", "old");
+    writeCurrentSymlink(prefix, previous);
+    const world = newWorld();
+    const base = fakeIo(world, paths, prefix);
+    let journalBefore = "";
+    const io: UpgradeIo = {
+      ...base,
+      admitCandidate: async (expected) => {
+        const result = await base.admitCandidate(expected);
+        journalBefore = readFileSync(join(prefix, "upgrade-journal.json"), "utf8");
+        const lock = JSON.parse(readFileSync(serverUpgradeLockPath(prefix), "utf8"));
+        writeFileSync(
+          serverUpgradeLockPath(prefix),
+          JSON.stringify({ ...lock, token: "replacement-holder-token-000000000000" }),
+        );
+        return result;
+      },
+    };
+    await expect(
+      upgradeServerPrefix({ from: "1.1.0", prefix, json: true }, io),
+    ).rejects.toMatchObject({ code: "SERVER_UPGRADE_LOCK_LOST" });
+    expect(readFileSync(join(prefix, "upgrade-journal.json"), "utf8")).toBe(journalBefore);
+    expect(world.started).toEqual([{ staging: true }]);
+    expect(world.candidateAdmission).toBe("open");
+    expect(JSON.parse(readFileSync(serverUpgradeLockPath(prefix), "utf8")).token).toBe(
+      "replacement-holder-token-000000000000",
+    );
+  });
   it("upgrades a legacy owner and qualifies the distinct candidate", async () => {
     const { prefix, paths } = sandbox();
     const previous = join(prefix, "releases", "old");

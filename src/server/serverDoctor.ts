@@ -99,18 +99,22 @@ export async function collectServerDoctorReport(
       admission: null,
       build: null,
     };
-    // D4 additive identity probe: a pre-D4 owner answers 400 and stays
-    // `statusSupported: false`; any other failure leaves the identity unknown
-    // rather than guessing.
-    try {
-      const live = await callHostControl(paths, "status", {
-        timeoutMs: options.controlTimeoutMs ?? 2_000,
-      });
-      reachable.statusSupported = true;
-      reachable.admission = live.result.admission;
-      reachable.build = live.result.build;
-    } catch {
-      // Pre-D4 owner or unavailable status: describe already reported liveness.
+    // Desktop lifecycle remains with the app. Only the same headless owner
+    // may supply standalone admission/build identity through additive status.
+    if (reachable.mode === "headless") {
+      try {
+        const live = await callHostControl(paths, "status", {
+          expectedGeneration: status.ownerGeneration,
+          timeoutMs: options.controlTimeoutMs ?? 2_000,
+        });
+        if (live.result.mode !== reachable.mode)
+          throw new Error("Owner mode changed; server build identity was not verified.");
+        reachable.statusSupported = true;
+        reachable.admission = live.result.admission;
+        reachable.build = live.result.build;
+      } catch {
+        // Unsupported or unverifiable status is not proof of owner age.
+      }
     }
     liveStatus = reachable;
   } catch (error) {

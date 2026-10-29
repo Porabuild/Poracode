@@ -34,6 +34,7 @@ struct RichChatTimelineActions {
   var completedTurns: [RichCompletedTurn] = []
   var checkpoints = RichChatCheckpointCollection(checkpoints: [], turns: [])
   var isTurnActive = false
+  var inheritedItemIDs: Set<String> = []
   var requestRevert: ((RichChatMessageRevertPlan) -> Void)?
   let requestTruncate: ((String) -> Void)?
 
@@ -54,16 +55,19 @@ struct RichChatTimelineActions {
 
   func revertPlan(itemID: String) -> RichChatMessageRevertPlan? {
     guard requestRevert != nil, !isTurnActive else { return nil }
-    return RichChatMessageRevertPlanner.plan(
+    let plan = RichChatMessageRevertPlanner.plan(
       userItemID: itemID,
       items: rawItems,
       completedTurns: completedTurns,
       checkpoints: checkpoints
     )
+    guard let plan, !inheritedItemIDs.contains(plan.checkpointItemID) else { return nil }
+    return plan
   }
 
   func canTruncate(itemID: String) -> Bool {
     requestTruncate != nil
+      && !inheritedItemIDs.contains(itemID)
       && RichChatTruncateEligibility.isEligible(
         itemID: itemID,
         lastVisibleItemID: lastVisibleItemID

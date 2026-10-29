@@ -1,4 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import type {
   AgentStatusesResponse,
   CloseThreadPayload,
@@ -179,6 +182,23 @@ function deps(overrides: Partial<AppControlsMcpIngressDeps> = {}): AppControlsMc
       })),
       gitAbortMerge: vi.fn<SC["gitAbortMerge"]>(async () => ({})),
       gitFinishMerge: vi.fn<SC["gitFinishMerge"]>(async () => ({ success: true })),
+      forgeGetRepository: vi.fn<SC["forgeGetRepository"]>(),
+      forgeEditPr: vi.fn<SC["forgeEditPr"]>(),
+      forgeCreatePr: vi.fn<SC["forgeCreatePr"]>(),
+      forgeListPullRequests: vi.fn<SC["forgeListPullRequests"]>(),
+      forgeMergePr: vi.fn<SC["forgeMergePr"]>(),
+      forgeMergePrAtHead: vi.fn<SC["forgeMergePrAtHead"]>(),
+      forgeClosePr: vi.fn<SC["forgeClosePr"]>(),
+      forgeReopenPr: vi.fn<SC["forgeReopenPr"]>(),
+      forgeMarkPrReady: vi.fn<SC["forgeMarkPrReady"]>(),
+      forgeUpdatePrBranch: vi.fn<SC["forgeUpdatePrBranch"]>(),
+      forgeGetPrChecks: vi.fn<SC["forgeGetPrChecks"]>(),
+      forgeGetPrFiles: vi.fn<SC["forgeGetPrFiles"]>(),
+      forgeGetPrDiff: vi.fn<SC["forgeGetPrDiff"]>(),
+      forgeGetPrDetails: vi.fn<SC["forgeGetPrDetails"]>(),
+      forgeGetPrReviewComments: vi.fn<SC["forgeGetPrReviewComments"]>(),
+      forgePostPrComment: vi.fn<SC["forgePostPrComment"]>(),
+      forgeSubmitPrReview: vi.fn<SC["forgeSubmitPrReview"]>(),
       ghCheckAvailable: vi.fn<SC["ghCheckAvailable"]>(async () => ({ available: true })),
       ghListPullRequests: vi.fn<SC["ghListPullRequests"]>(async () => ({ pullRequests: [] })),
       ghGetPrDetails: vi.fn<SC["ghGetPrDetails"]>(async () => ({
@@ -284,6 +304,26 @@ async function callTool(url: string, token: string, name: string, args: Record<s
 }
 
 describe("AppControlsMcpIngress", () => {
+  it("advertises the complete tool catalog to a standard MCP client", async () => {
+    ingress = new AppControlsMcpIngress(deps());
+    const info = await ingress.start();
+    const client = new Client({ name: "catalog-regression", version: "1.0.0" });
+    try {
+      await client.connect(
+        new StreamableHTTPClientTransport(new URL(`${info.url}/mcp?thread=thread-1`), {
+          requestInit: { headers: { Authorization: `Bearer ${info.token}` } },
+        }) as Transport,
+      );
+      const { tools } = await client.listTools();
+      expect(tools.find((tool) => tool.name === "control_device")?.inputSchema).toMatchObject({
+        type: "object",
+        oneOf: expect.any(Array),
+      });
+    } finally {
+      await client.close();
+    }
+  });
+
   it("joins a concurrent listen and refuses to advertise or restart a closed ingress", async () => {
     ingress = new AppControlsMcpIngress(deps());
     const starting = ingress.start();

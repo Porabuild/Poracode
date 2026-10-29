@@ -2,6 +2,7 @@
 
 import { describe, expect, it, vi } from "vitest";
 import type { AgentCapability, AgentStatus, Thread, ThreadConfig } from "@/shared/contracts";
+import type { ThreadConfigCrew } from "@/shared/crew";
 import {
   appendProviderComposerControls,
   buildControls,
@@ -10,6 +11,7 @@ import {
   expandAgentToVisibilityProviders,
   patchConfigForModelChange,
   resolveModelSelectionEdit,
+  type ActiveComposerCrewHandlers,
 } from "./buildModelPickerControls";
 
 import { registerComposerControls } from "../providers/providerComposer";
@@ -80,7 +82,7 @@ describe("patchConfigForModelChange", () => {
     });
   });
 
-  it("defaults to the highest tier over the next model's declared default", () => {
+  it("resets effort to the next model's declared default, not its first tier", () => {
     const tiered = {
       ...capabilities,
       modelEfforts: { ...capabilities.modelEfforts, b: ["low", "high", "max"] },
@@ -88,7 +90,7 @@ describe("patchConfigForModelChange", () => {
     } as AgentCapability;
     expect(patchConfigForModelChange(tiered, "b", { effort: "on" })).toMatchObject({
       model: "b",
-      effort: "max",
+      effort: "high",
     });
   });
 
@@ -237,6 +239,84 @@ describe("buildControls model preferences", () => {
 
     expect(modelControl?.kind === "provider-model" ? modelControl.currentModel : undefined).toBe(
       "gpt-5.1-codex-max",
+    );
+  });
+
+  it("routes Crew lead model changes through the toolbar normalization with one preserved Crew write", () => {
+    const activeCapabilities = {
+      ...capabilities,
+      modelEfforts: { a: ["low", "high"], b: ["low", "high"] },
+      fastModels: ["a", "b"],
+      thinkingModels: ["b"],
+    } as AgentCapability;
+    const agent = {
+      kind: "codex",
+      label: "Codex",
+      installed: true,
+      authState: "authenticated",
+      capabilities: activeCapabilities,
+    } as AgentStatus;
+    const crew: ThreadConfigCrew = {
+      version: 1,
+      policy: "crew-only",
+      roles: [
+        {
+          id: "builder",
+          label: "Builder",
+          selection: { agentKind: "claude", model: "opus-5.5" },
+        },
+      ],
+    };
+    const thread = {
+      id: "thread-crew",
+      projectId: "project-1",
+      title: "Crew",
+      agentKind: "codex",
+      config: {
+        model: "a",
+        effort: "low",
+        contextSize: "256k",
+        fast: false,
+        thinking: false,
+        crew,
+      },
+      status: "idle",
+      attention: "none",
+      canResumeWithConfig: true,
+      archived: false,
+      done: false,
+      starred: false,
+      presentationMode: "gui",
+      createdAt: "2026-08-20T00:00:00.000Z",
+      updatedAt: "2026-08-20T00:00:00.000Z",
+    } as Thread;
+    let crewHandlers: ActiveComposerCrewHandlers | undefined;
+    const onConfigChange = vi.fn<(config: Thread["config"]) => void>();
+    buildControls(
+      thread,
+      agent,
+      undefined,
+      onConfigChange,
+      { b: { effort: "low", fast: false } },
+      undefined,
+      undefined,
+      (handlers) => {
+        crewHandlers = handlers;
+      },
+    );
+    crewHandlers?.changeLead(
+      { agentKind: "codex", model: "b", selectionIntent: "exact" },
+      { crew, effort: "high", fast: true },
+    );
+    expect(onConfigChange).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        model: "b",
+        effort: "high",
+        contextSize: "128k",
+        fast: true,
+        thinking: true,
+        crew,
+      }),
     );
   });
 });
@@ -1790,5 +1870,37 @@ describe("buildControls family model picks", () => {
     );
     // The pick's own posture is persisted as the preference for the member.
     expect(onPreferenceChange).toHaveBeenCalledWith("pair-alpha-x", { effort: "low" });
+  });
+
+  it("clears the active Crew in the same config write as an ordinary model pick", () => {
+    const agent = {
+      kind: "codex",
+      label: "Codex",
+      installed: true,
+      authState: "authenticated",
+      capabilities,
+    } as AgentStatus;
+    const crew = {
+      version: 1 as const,
+      policy: "crew-only" as const,
+      roles: [
+        {
+          id: "builder",
+          label: "Builder",
+          selection: { agentKind: "codex", model: "b" },
+        },
+      ],
+    };
+    const configChanges = vi.fn<(config: Thread["config"]) => void>();
+    const controls = buildControls(
+      threadFor("a", { effort: "low", crew }),
+      agent,
+      undefined,
+      configChanges,
+    );
+    const modelControl = controls.find((control) => control.kind === "provider-model");
+    if (modelControl?.kind !== "provider-model") throw new Error("Missing model control");
+    modelControl.onChange({ agentKind: "codex", model: "b" });
+    expect(configChanges).toHaveBeenCalledWith(expect.objectContaining({ model: "b", crew: null }));
   });
 });

@@ -5,7 +5,9 @@ export type ProjectPathRef =
 const PATH_EXTENSION_RE =
   /\.(tsx?|jsx?|mjs|cjs|json|mdx?|css|scss|rs|go|py|toml|yaml|yml|vue|svelte|html?|txt|pdf|pptx?|docx?|xlsx?|csv|tsv|png|jpe?g|gif|webp|svg)$/i;
 
-export const PROJECT_PATH_TOKEN_SOURCE = String.raw`(?<![A-Za-z0-9_:/@.\\-])(\/?(?:[A-Za-z0-9_@.][A-Za-z0-9_@.-]*(?:[\\/][A-Za-z0-9_@.-]+)+|[A-Za-z0-9_@-][A-Za-z0-9_@.-]*\.[A-Za-z][A-Za-z0-9-]*))(?::(\d+)(?:-\d+)?)?`;
+// Consume ellipsis segments as part of the candidate so rejecting an abbreviated
+// path cannot leave a suffix (e.g. `/report.ts` in `src/…/report.ts`) clickable.
+export const PROJECT_PATH_TOKEN_SOURCE = String.raw`(?<![A-Za-z0-9_:/@.…\\-])(\/?(?:(?:[A-Za-z0-9_@.][A-Za-z0-9_@.-]*|…+)(?:[\\/](?:[A-Za-z0-9_@.-]+|…+))+|[A-Za-z0-9_@-][A-Za-z0-9_@.-]*\.[A-Za-z][A-Za-z0-9-]*))(?::(\d+)(?:-\d+)?)?`;
 
 interface ParseOptions {
   /**
@@ -38,9 +40,12 @@ export function parseProjectPathRef(s: string, options: ParseOptions = {}): Proj
   const hasSeparator = candidate.includes("/") || candidate.includes("\\");
   const hasExtension = PATH_EXTENSION_RE.test(candidate);
   const segments = candidate.split(/[\\/]/).filter(Boolean);
+  // Model prose often abbreviates paths as `/var/...` or `src/…/file.ts`.
+  // These do not identify an entry that the editor or file tree can open.
+  if (segments.some((segment) => /^(?:\.{3,}|…+)$/.test(segment))) return null;
   const firstSegment = segments[0] ?? "";
   const lastSegment = segments[segments.length - 1] ?? "";
-  const isDotfile = lastSegment.startsWith(".") && !lastSegment.includes("/");
+  const isDotfile = lastSegment.startsWith(".") && !/^\.+$/.test(lastSegment);
   const trailingSeparator = /[\\/]$/.test(candidate);
 
   if (!hasSeparator && !hasExtension) return null;

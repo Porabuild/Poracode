@@ -174,7 +174,7 @@ export function SubAgentContent({
       ) : (
         <SubAgentMessageList
           key={target}
-          historyReady={historyReadyFor === target}
+          historyReady={childEntries.length > 0 || historyReadyFor === target}
           initialScrollRevealDelayMs={initialScrollRevealDelayMs}
           threadId={threadId}
           parentItemId={parentItemId}
@@ -256,7 +256,10 @@ function resolveSubAgentHeader(
   if (split.meta) return { title: split.title, description: split.meta };
 
   if (isCrossagent && payload?.name.includes(" · ")) {
-    return { title: crossagentLabel, description: payload.name };
+    return {
+      title: payload.title?.trim() ? fullTitle : crossagentLabel,
+      description: splitAgentTitleMeta(payload.name).meta ?? payload.name,
+    };
   }
 
   const description = buildSubAgentProgressParts({ progress: payload?.progress })

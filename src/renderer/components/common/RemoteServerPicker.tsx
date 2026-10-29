@@ -8,6 +8,7 @@ import {
   ResponsiveMenuSurface,
   useResponsiveMenu,
 } from "@/renderer/components/common/ResponsiveMenuSurface";
+import { isRemoteProjectStatusUnreachable } from "@/renderer/state/remoteServers/reachability";
 import { remoteConnectionKey } from "@/renderer/state/remoteServers/types";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { RemoteServerIcon } from "./RemoteServerIcon";
@@ -35,6 +36,16 @@ export function RemoteServerPicker(props: {
   const selected = effectiveValue
     ? servers.find((server) => remoteConnectionKey(server) === effectiveValue)
     : undefined;
+  // Offline machines can't be read or acted on, so they are not offered; the
+  // current selection stays listed so the trigger and checkmark still resolve.
+  const choices = servers.filter(
+    (server) =>
+      remoteConnectionKey(server) === effectiveValue ||
+      !isRemoteProjectStatusUnreachable(
+        { remoteServerId: remoteConnectionKey(server) },
+        runtime[remoteConnectionKey(server)]?.status,
+      ),
+  );
   const label = selected
     ? desktopTitle(selected.label)
     : props.includeLocal
@@ -104,7 +115,7 @@ export function RemoteServerPicker(props: {
               {effectiveValue === null ? <Check className="size-4 shrink-0 text-accent" /> : null}
             </button>
           ) : null}
-          {servers.map((server) => (
+          {choices.map((server) => (
             <button
               key={remoteConnectionKey(server)}
               type="button"
@@ -142,7 +153,7 @@ export function RemoteServerPicker(props: {
               <Label className="min-w-0 flex-1 truncate">{t`Local`}</Label>
             </ListBox.Item>
           ) : null}
-          {servers.map((server) => (
+          {choices.map((server) => (
             <ListBox.Item
               key={remoteConnectionKey(server)}
               id={remoteConnectionKey(server)}

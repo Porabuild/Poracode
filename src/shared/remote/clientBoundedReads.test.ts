@@ -791,6 +791,37 @@ describe("RemoteDesktopClient bounded reads", () => {
     );
   });
 
+  it("asks for deferred file-change bodies only together with the compact projection", async () => {
+    const fixture = await startFixture();
+    const client = clientFor(fixture);
+    const plain = boundedPage(await client.boundedThreadHistory("th-000"));
+    const compact = boundedPage(
+      await client.boundedThreadHistory("th-000", { compactDetails: true }),
+    );
+    await client.boundedThreadHistoryItems({
+      threadId: "th-000",
+      limit: 5,
+      beforePosition: compact.runtimeNextCursor ?? 0,
+      after: compact,
+      compactDetails: true,
+    });
+    await client.boundedThreadHistoryItems({
+      threadId: "th-000",
+      limit: 5,
+      beforePosition: plain.runtimeNextCursor ?? 0,
+      after: plain,
+    });
+    const reads = fixture.requests.filter((entry) => entry.pathname.includes("/history"));
+    expect(
+      reads.map((entry) => [entry.params.get("projection"), entry.params.get("deferBodies")]),
+    ).toEqual([
+      [null, null],
+      ["details-v1", "file_change"],
+      ["details-v1", "file_change"],
+      [null, null],
+    ]);
+  });
+
   it("walks older completed turns losslessly with ct1 continuation", async () => {
     const fixture = await startFixture();
     const client = clientFor(fixture);

@@ -144,9 +144,14 @@ export abstract class RemoteClientTransport extends RemoteClientPinCore {
   }
 
   /**
-   * Fetch image bytes for a browser-owned blob cache. The ticket is minted for
-   * this request alone: the host consumes it on the first GET, so sharing a
-   * ticketed URL between a thumbnail and a lightbox cannot work.
+   * Fetch image bytes for a browser-owned blob cache. Unlike an `<img>` tag,
+   * this fetch can carry the Authorization header, so with an access token it
+   * goes straight to the image endpoint (which accepts Bearer as primary) in
+   * one request — the same shape the environment client's image fetch uses.
+   * The per-request ticket mint it replaces cost a second sequential round
+   * trip per image, which under host load multiplied into seconds of blank
+   * image slots. Without a token (a transport whose fetch injects auth
+   * itself) the ticket flow remains as the fallback.
    */
   async fetchTicketedImageBytes(
     requestPath: string,
@@ -155,6 +160,7 @@ export abstract class RemoteClientTransport extends RemoteClientPinCore {
     const url = endpointUrl(this.endpoint, requestPath);
     const path = url.searchParams.get("path");
     if (!path) throw new RemoteClientError("An image path is required.", 400, "invalid_path");
+    if (this.accessToken) return this.fetchImageBytesWithBearer(url, signal, false);
     const result = parseResponse(
       remoteImageTicketResultSchema,
       await this.requestJson("/api/files/image-ticket", {
@@ -177,6 +183,64 @@ export abstract class RemoteClientTransport extends RemoteClientPinCore {
       signal,
       certFingerprint: this.pinnedCertFingerprint ?? null,
     });
+    if (!response.ok) {
+      await response.body?.cancel().catch(() => undefined);
+      throw new RemoteClientError("Image request failed.", response.status, "request_failed");
+    }
+    return {
+      bytes: await readBoundedResponseBody(response, this.maxResponseBodyBytes),
+      contentType: response.headers.get("content-type") ?? "application/octet-stream",
+    };
+  }
+
+  /** One authorized image GET; a 401 refreshes the access token once, like `requestJson`. */
+  private async fetchImageBytesWithBearer(
+    url: URL,
+    signal: AbortSignal,
+    retried: boolean,
+  ): Promise<{ bytes: Uint8Array; contentType: string }> {
+    // Same pre-credential pin refusal as `requestJson`: never send the Bearer
+    // token to a host whose certificate no longer matches the pin.
+    if (this.pinnedCertFingerprint && this.certFingerprintProbe) {
+      const actual = await this.probeCertFingerprint();
+      if (actual && actual.toLowerCase() !== this.pinnedCertFingerprint) {
+        throw remoteCertificateMismatchError();
+      }
+    }
+    if (signal.aborted) {
+      throw new RemoteClientError(
+        "Image request was cancelled.",
+        REMOTE_REQUEST_CANCELLED_STATUS,
+        "cancelled",
+      );
+    }
+    const usedToken = this.accessToken;
+    const response = await this.fetchImpl(url, {
+      method: "GET",
+      headers: {
+        authorization: `Bearer ${usedToken}`,
+        [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+      },
+      signal,
+      certFingerprint: this.pinnedCertFingerprint ?? null,
+    });
+    if (response.status === 401 && !retried && this.tokenLifecycle?.refreshToken()) {
+      await response.body?.cancel().catch(() => undefined);
+      try {
+        // Another request or a sibling client may have rotated the token while
+        // this one was in flight; renew only when the rejected bearer is current.
+        this.syncAccessToken();
+        if (
+          (this.accessToken !== undefined && this.accessToken !== usedToken) ||
+          (await this.refreshTokens())
+        ) {
+          return this.fetchImageBytesWithBearer(url, signal, true);
+        }
+      } catch {
+        // Surface the original 401 below, never a grant-endpoint failure.
+      }
+      throw new RemoteClientError("Image request failed.", 401, "request_failed");
+    }
     if (!response.ok) {
       await response.body?.cancel().catch(() => undefined);
       throw new RemoteClientError("Image request failed.", response.status, "request_failed");
@@ -258,6 +322,15 @@ export abstract class RemoteClientTransport extends RemoteClientPinCore {
     return "";
   }
 
+  /** Adopt another client's rotation without minting another token pair. */
+  protected syncAccessToken(): boolean {
+    if (!this.tokenLifecycle?.accessToken) return false;
+    const current = this.tokenLifecycle.accessToken();
+    if (current === this.accessToken) return false;
+    this.accessToken = current;
+    return true;
+  }
+
   protected async requestJson(
     path: string,
     init: RemoteJsonRequestInit = {},
@@ -274,6 +347,7 @@ export abstract class RemoteClientTransport extends RemoteClientPinCore {
       }
     }
 
+    this.syncAccessToken();
     const method = init.method ?? "GET";
     const headers: Record<string, string> = { ...init.headers };
     if (init.body !== undefined) {
@@ -400,8 +474,13 @@ export abstract class RemoteClientTransport extends RemoteClientPinCore {
           this.tokenLifecycle?.refreshToken()
         ) {
           try {
-            // Another request may have rotated while this old-token response was in flight.
-            const alreadyRotated = headers.authorization !== `Bearer ${this.accessToken}`;
+            // Another request or a sibling client may have rotated while this
+            // old-token response was in flight; renew only when the rejected
+            // bearer is still the current one.
+            this.syncAccessToken();
+            const alreadyRotated =
+              this.accessToken !== undefined &&
+              headers.authorization !== `Bearer ${this.accessToken}`;
             if (alreadyRotated || (await this.refreshTokens())) {
               return await this.requestJson(path, init, { isRefreshRetry: true });
             }

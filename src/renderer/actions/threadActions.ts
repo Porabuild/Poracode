@@ -13,6 +13,8 @@ import { isDraftPaneId, parseDraftProjectId } from "@/shared/paneId";
 import { shouldRelaunchThreadOnOpen } from "@/shared/threadRelaunch";
 import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
+import { readNativeVisualHostId } from "@/renderer/state/nativeVisualOwner";
+import { useNativeVisualUiStore } from "@/renderer/state/nativeVisualUiStore";
 import { hasHydratedThreadRuntimeItems } from "@/renderer/state/chatRuntimePersister";
 import { prepareRuntimeThreadReader } from "@/renderer/state/runtimeInterestHydration";
 import { findExperimentByThreadId, useExperimentStore } from "@/renderer/state/experimentStore";
@@ -827,6 +829,10 @@ function deleteThreadOnly(
   const thread = store.threads.find((candidate) => candidate.id === threadId) ?? record;
   const rootOwner = thread ? managedRootOwner(thread) : undefined;
   const pendingLaunch = peekPendingManagedRootLaunch(threadId);
+  const visualHostId = thread ? readNativeVisualHostId(thread) : undefined;
+  const visualThreadId = thread?.remoteId ?? threadId;
+  const forgetVisuals = () =>
+    useNativeVisualUiStore.getState().forgetThread(visualHostId, visualThreadId);
   const persistedProvisioning =
     store.provisioningWorktreeThreadIds[threadId] === true &&
     rootOwner !== undefined &&
@@ -839,6 +845,7 @@ function deleteThreadOnly(
   const removal = persistedProvisioning ? Promise.withResolvers<boolean>() : undefined;
   if (removal) trackPendingManagedRootThreadRemoval(threadId, removal.promise);
   const confirmRemoteDelete = () => {
+    forgetVisuals();
     // A successful explicit delete is authoritative resolution of any
     // retained uncertain launch episode. Keep the marker until command
     // success so a refused or ambiguous delete can still replay the exact
@@ -869,6 +876,7 @@ function deleteThreadOnly(
   // bypasses command echo. Retire any locally retained uncertain launch just
   // as the successful user-command path does.
   if (rootOwner) dropPendingManagedRootLaunch(rootOwner.threadId);
+  if (isApplyingHostOriginatedManagedRootMutation()) forgetVisuals();
   removal?.resolve(true);
   store.deleteThread(threadId);
   void readBridge()
@@ -878,7 +886,12 @@ function deleteThreadOnly(
     .closeThread({ threadId })
     .catch(() => undefined);
   if (completion)
-    void readBridge().dbDeleteThread(threadId).then(completion.resolve, completion.reject);
+    void readBridge()
+      .dbDeleteThread(threadId)
+      .then(() => {
+        forgetVisuals();
+        completion.resolve();
+      }, completion.reject);
 }
 
 /** Dispose a retained auxiliary row even when it is outside the loaded catalog page. */

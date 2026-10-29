@@ -157,4 +157,10 @@
     <string name="tls_pin_mismatch">TLS-сертификат сервера не совпадает с отпечатком из кода сопряжения. Повторите сопряжение из панели удалённого доступа на компьютере.</string>
     <string name="rich_chat_context_reload_body">Новый размер контекста применяется со следующего сообщения. Сессия агента перезагрузится перед его отправкой; беседа сохранится.</string>
     <string name="rich_chat_context_reload_stops_subagents">Все субагенты, которые ещё работают при перезагрузке сессии, будут остановлены.</string>
+    <string name="rich_chat_crew">Команда</string>
+    <string name="rich_chat_crew_helpers_count">+%1$d помощников</string>
+    <string name="rich_chat_crew_lead">Лидер</string>
+    <string name="rich_chat_crew_no_edits">Инструкция не редактировать файлы. Не применяется принудительно.</string>
+    <string name="rich_chat_crew_policy_only">Только команда</string>
+    <string name="rich_chat_crew_policy_first">Сначала команда</string>
 </resources>

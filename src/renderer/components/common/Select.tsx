@@ -159,7 +159,8 @@ export function Select(props: SelectProps) {
     >
       {label ? <Label>{label}</Label> : null}
       <HeroSelect.Trigger>
-        <HeroSelect.Value>
+        {/* min-w-0 lets a long selected label shrink and truncate instead of overflowing the trigger. */}
+        <HeroSelect.Value className="min-w-0">
           {({ defaultChildren, isPlaceholder }) => {
             if (isPlaceholder || !selectedOption) return defaultChildren;
             return (

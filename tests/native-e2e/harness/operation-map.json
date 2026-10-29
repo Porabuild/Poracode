@@ -3,13 +3,13 @@
   "contract": "poracode.remote",
   "protocolVersion": 14,
   "bindingFormatVersion": 2,
-  "manifestHash": "sha256:3aed8424a056236d70ec3851a8f09ee783b40ed30dad2ead910eb3e6816a70ba",
-  "keyCount": 283,
+  "manifestHash": "sha256:e9b0e81986a9b675787f88b2489887c7a665c490f69c79b4f04e31a719261bd6",
+  "keyCount": 337,
   "counts": {
-    "route": 101,
-    "procedure": 130,
-    "ws-client": 9,
-    "ws-server": 11,
+    "route": 119,
+    "procedure": 163,
+    "ws-client": 11,
+    "ws-server": 12,
     "replay": 16,
     "runtime": 16
   },
@@ -85,6 +85,138 @@
     "procedure:finalizeFileCheckpoint": {
       "kind": "procedure",
       "id": "finalizeFileCheckpoint"
+    },
+    "procedure:forgeClosePr": {
+      "kind": "procedure",
+      "id": "forgeClosePr"
+    },
+    "procedure:forgeConvertPrToDraft": {
+      "kind": "procedure",
+      "id": "forgeConvertPrToDraft"
+    },
+    "procedure:forgeCreatePr": {
+      "kind": "procedure",
+      "id": "forgeCreatePr"
+    },
+    "procedure:forgeEditPr": {
+      "kind": "procedure",
+      "id": "forgeEditPr"
+    },
+    "procedure:forgeEditPrComment": {
+      "kind": "procedure",
+      "id": "forgeEditPrComment"
+    },
+    "procedure:forgeGetPrChecks": {
+      "kind": "procedure",
+      "id": "forgeGetPrChecks"
+    },
+    "procedure:forgeGetPrCommitDiff": {
+      "kind": "procedure",
+      "id": "forgeGetPrCommitDiff"
+    },
+    "procedure:forgeGetPrDetails": {
+      "kind": "procedure",
+      "id": "forgeGetPrDetails"
+    },
+    "procedure:forgeGetPrDiff": {
+      "kind": "procedure",
+      "id": "forgeGetPrDiff"
+    },
+    "procedure:forgeGetPrFiles": {
+      "kind": "procedure",
+      "id": "forgeGetPrFiles"
+    },
+    "procedure:forgeGetPrForBranch": {
+      "kind": "procedure",
+      "id": "forgeGetPrForBranch"
+    },
+    "procedure:forgeGetPrReviewComments": {
+      "kind": "procedure",
+      "id": "forgeGetPrReviewComments"
+    },
+    "procedure:forgeGetPrReviewGuide": {
+      "kind": "procedure",
+      "id": "forgeGetPrReviewGuide"
+    },
+    "procedure:forgeGetPrViewedFiles": {
+      "kind": "procedure",
+      "id": "forgeGetPrViewedFiles"
+    },
+    "procedure:forgeGetRepository": {
+      "kind": "procedure",
+      "id": "forgeGetRepository"
+    },
+    "procedure:forgeListPrLabelCandidates": {
+      "kind": "procedure",
+      "id": "forgeListPrLabelCandidates"
+    },
+    "procedure:forgeListPrReviewerCandidates": {
+      "kind": "procedure",
+      "id": "forgeListPrReviewerCandidates"
+    },
+    "procedure:forgeListPrs": {
+      "kind": "procedure",
+      "id": "forgeListPrs"
+    },
+    "procedure:forgeListPullRequests": {
+      "kind": "procedure",
+      "id": "forgeListPullRequests"
+    },
+    "procedure:forgeListPullRequestsInState": {
+      "kind": "procedure",
+      "id": "forgeListPullRequestsInState"
+    },
+    "procedure:forgeMarkPrReady": {
+      "kind": "procedure",
+      "id": "forgeMarkPrReady"
+    },
+    "procedure:forgeMergePr": {
+      "kind": "procedure",
+      "id": "forgeMergePr"
+    },
+    "procedure:forgeMergePrAtHead": {
+      "kind": "procedure",
+      "id": "forgeMergePrAtHead"
+    },
+    "procedure:forgePostPrComment": {
+      "kind": "procedure",
+      "id": "forgePostPrComment"
+    },
+    "procedure:forgeReopenPr": {
+      "kind": "procedure",
+      "id": "forgeReopenPr"
+    },
+    "procedure:forgeRequestPrReviewers": {
+      "kind": "procedure",
+      "id": "forgeRequestPrReviewers"
+    },
+    "procedure:forgeSetPrFileViewed": {
+      "kind": "procedure",
+      "id": "forgeSetPrFileViewed"
+    },
+    "procedure:forgeSetPrLabels": {
+      "kind": "procedure",
+      "id": "forgeSetPrLabels"
+    },
+    "procedure:forgeSetPrReaction": {
+      "kind": "procedure",
+      "id": "forgeSetPrReaction"
+    },
+    "procedure:forgeSubmitPrReview": {
+      "kind": "procedure",
+      "id": "forgeSubmitPrReview"
+    },
+    "procedure:forgeSubmitPrReviewDraft": {
+      "kind": "procedure",
+      "id": "forgeSubmitPrReviewDraft"
+    },
+    "procedure:forgeUpdatePrBranch": {
+      "kind": "procedure",
+      "id": "forgeUpdatePrBranch"
+    },
+    "procedure:forgeWritePrReviewGuide": {
+      "kind": "procedure",
+      "id": "forgeWritePrReviewGuide"
     },
     "procedure:generateCommitMessage": {
       "kind": "procedure",
@@ -630,6 +762,66 @@
       "kind": "route",
       "id": "conversation-search"
     },
+    "route:device-action": {
+      "kind": "route",
+      "id": "device-action"
+    },
+    "route:device-attach": {
+      "kind": "route",
+      "id": "device-attach"
+    },
+    "route:device-detach": {
+      "kind": "route",
+      "id": "device-detach"
+    },
+    "route:device-frame": {
+      "kind": "route",
+      "id": "device-frame"
+    },
+    "route:device-inspect": {
+      "kind": "route",
+      "id": "device-inspect"
+    },
+    "route:device-inventory": {
+      "kind": "route",
+      "id": "device-inventory"
+    },
+    "route:device-preview-android-api": {
+      "kind": "route",
+      "id": "device-preview-android-api"
+    },
+    "route:device-preview-android-devices": {
+      "kind": "route",
+      "id": "device-preview-android-devices"
+    },
+    "route:device-preview-close": {
+      "kind": "route",
+      "id": "device-preview-close"
+    },
+    "route:device-preview-ios-api": {
+      "kind": "route",
+      "id": "device-preview-ios-api"
+    },
+    "route:device-preview-ios-config": {
+      "kind": "route",
+      "id": "device-preview-ios-config"
+    },
+    "route:device-preview-ios-video": {
+      "kind": "route",
+      "id": "device-preview-ios-video"
+    },
+    "route:device-preview-open": {
+      "kind": "route",
+      "id": "device-preview-open"
+    },
+    "route:device-preview-renew": {
+      "kind": "route",
+      "id": "device-preview-renew"
+    },
+    "route:device-preview-websocket-ticket": {
+      "kind": "route",
+      "id": "device-preview-websocket-ticket"
+    },
     "route:environment": {
       "kind": "route",
       "id": "environment"
@@ -806,6 +998,10 @@
       "kind": "route",
       "id": "pr-watch-read"
     },
+    "route:pr-watch-scoped-upsert": {
+      "kind": "route",
+      "id": "pr-watch-scoped-upsert"
+    },
     "route:pr-watch-upsert": {
       "kind": "route",
       "id": "pr-watch-upsert"
@@ -922,6 +1118,10 @@
       "kind": "route",
       "id": "terminal-write"
     },
+    "route:thread-agent-vision": {
+      "kind": "route",
+      "id": "thread-agent-vision"
+    },
     "route:thread-checkpoint-revert": {
       "kind": "route",
       "id": "thread-checkpoint-revert"
@@ -953,6 +1153,10 @@
     "route:thread-history-items": {
       "kind": "route",
       "id": "thread-history-items"
+    },
+    "route:thread-history-prompts": {
+      "kind": "route",
+      "id": "thread-history-prompts"
     },
     "route:thread-interrupt": {
       "kind": "route",
@@ -1066,6 +1270,14 @@
       "kind": "runtime",
       "id": "warning"
     },
+    "ws-client:agent-vision-unwatch": {
+      "kind": "ws-client",
+      "id": "agent-vision-unwatch"
+    },
+    "ws-client:agent-vision-watch": {
+      "kind": "ws-client",
+      "id": "agent-vision-watch"
+    },
     "ws-client:browser-input": {
       "kind": "ws-client",
       "id": "browser-input"
@@ -1101,6 +1313,10 @@
     "ws-client:thread-item-interests": {
       "kind": "ws-client",
       "id": "thread-item-interests"
+    },
+    "ws-server:agent-vision-frame": {
+      "kind": "ws-server",
+      "id": "agent-vision-frame"
     },
     "ws-server:browser-frame": {
       "kind": "ws-server",

@@ -4,6 +4,7 @@ const mocks = vi.hoisted(() => ({
   onProjectThreadDataChanged: vi.fn<() => () => void>(() => () => {}),
   durableOptions: [] as Array<Record<string, unknown>>,
   durableInstances: [] as Array<{
+    deviceWorkspace: { preparePreview: ReturnType<typeof vi.fn<() => Promise<void>>> };
     startIngress: ReturnType<typeof vi.fn<() => Promise<void>>>;
     startBackgroundServices: ReturnType<typeof vi.fn<() => void>>;
     handleSupervisorReset: ReturnType<typeof vi.fn<() => void>>;
@@ -76,6 +77,7 @@ vi.mock("@/host/legacyDataMigration", () => ({
 
 vi.mock("./BackendDurableServices", () => ({
   BackendDurableServices: class {
+    deviceWorkspace = { preparePreview: vi.fn<() => Promise<void>>(async () => {}) };
     scheduleService = {};
     prWatchService = {};
     gitStateService = {};
@@ -115,7 +117,10 @@ vi.mock("./BackendRemoteBrowserProxy", () => ({
 }));
 
 vi.mock("./BackendImagePreview", () => ({
-  generateBackendImagePreview: vi.fn<() => null>(() => null),
+  generateBackendImageCardVariant: vi.fn<() => null>(() => null),
+}));
+vi.mock("@/host/remote/server/imagePreviewGenerator", () => ({
+  generateImagePreview: vi.fn<() => null>(() => null),
 }));
 
 import { affectsShellProjection, BackendDesktopServices } from "./BackendDesktopServices";
@@ -470,6 +475,7 @@ describe("BackendDesktopServices background services", () => {
     // Housekeeping is launched inside the durable layer's start (fire and
     // forget, no readiness block) and is asserted end-to-end in
     // BackendDurableServices.test.ts.
+    expect(mocks.durableInstances[0]!.deviceWorkspace.preparePreview).toHaveBeenCalledOnce();
     expect(mocks.durableInstances[0]!.startBackgroundServices).toHaveBeenCalledTimes(1);
   });
 });

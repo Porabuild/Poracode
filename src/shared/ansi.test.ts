@@ -13,6 +13,12 @@ describe("stripAnsi", () => {
   it("removes OSC sequences", () => {
     expect(stripAnsi("title\r\n\u001b]0;powershell.exe\u0007")).toBe("title\r\n");
   });
+
+  it("preserves visible text between ST-terminated OSC sequences", () => {
+    expect(stripAnsi("\u001b]8;;file:///repo\u001b\\PS C:\\repo> \u001b]8;;\u001b\\")).toBe(
+      "PS C:\\repo> ",
+    );
+  });
 });
 
 describe("stripAnsiPreservingLayout", () => {

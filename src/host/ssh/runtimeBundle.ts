@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { SSH_RUNTIME_MANIFEST_VERSION } from "@/shared/sshRuntimeManifest";
 import { RUNTIME_BUILD_SOURCE_HASH } from "@/shared/runtimeBuildIdentity";
 import { verifyRuntimeResources } from "@/shared/runtimeResourceInventory";
@@ -41,12 +41,16 @@ let cachedBundle: {
 
 export function ensureSshRuntimeBundle(options: SshRuntimeBundleOptions): SshRuntimeBundle {
   const buildManifest = readRuntimeBuildManifests(options.mainBundleDir);
+  const ptyJobOwner = buildManifest.resources.some((resource) => resource.kind === "pty-job-owner")
+    ? join(dirname(options.wslHelpersDir), "pty-job-owner")
+    : undefined;
   if (buildManifest.resources.length > 0) {
     if (!options.bundledPluginsDir)
       throw new Error("Bundled runtime plugins are required by the build declaration.");
     verifyRuntimeResources(buildManifest.resources, {
       agentPlugins: { path: options.agentPluginsDir, layout: "staged" },
       bundledPlugins: options.bundledPluginsDir,
+      ...(ptyJobOwner ? { ptyJobOwner } : {}),
     });
   }
   const cacheKey = JSON.stringify([
@@ -75,6 +79,7 @@ export function ensureSshRuntimeBundle(options: SshRuntimeBundleOptions): SshRun
       ...buildManifest.files.map((file) => join(options.mainBundleDir, file.path)),
       options.agentPluginsDir,
       options.wslHelpersDir,
+      ...(ptyJobOwner ? [ptyJobOwner] : []),
       ...(options.bundledSkillsDir ? [options.bundledSkillsDir] : []),
       ...(options.bundledPluginsDir ? [options.bundledPluginsDir] : []),
     ],
@@ -114,6 +119,7 @@ export function ensureSshRuntimeBundle(options: SshRuntimeBundleOptions): SshRun
       );
     stageRuntimeDirectory(options.agentPluginsDir, join(stage, "agent-plugins"));
     stageRuntimeDirectory(options.wslHelpersDir, join(stage, "wsl-helpers"));
+    stageRuntimeDirectory(ptyJobOwner, join(stage, "pty-job-owner"));
     stageRuntimeDirectory(options.bundledSkillsDir, join(stage, "skills"));
     stageRuntimeDirectory(options.bundledPluginsDir, join(stage, "plugins"));
     writeFileAtomic(join(stage, "package.json"), runtimePackage, { encoding: "utf8" });
@@ -127,6 +133,7 @@ export function ensureSshRuntimeBundle(options: SshRuntimeBundleOptions): SshRun
     verifyRuntimeResources(buildManifest.resources, {
       agentPlugins: { path: join(stage, "agent-plugins"), layout: "staged" },
       bundledPlugins: join(stage, "plugins"),
+      ptyJobOwner: join(stage, "pty-job-owner"),
     });
 
     const hash = hashRuntimeDirectory(stage);

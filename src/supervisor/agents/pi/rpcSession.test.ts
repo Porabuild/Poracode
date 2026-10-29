@@ -9,6 +9,7 @@ import type { AppStoreState } from "@/renderer/state/slices/shared";
 import { createKnownSessionRef, type StructuredSessionUpdate } from "../base";
 import { PiRpcClient } from "./rpcClient";
 import { PiRpcSession } from "./rpcSession";
+import { readToolVideoSources } from "@/shared/chatVideo";
 
 // A minimal stand-in for `pi --mode rpc` so the session's protocol handling is
 // exercised deterministically without a live provider or the (removed) SDK.
@@ -47,6 +48,14 @@ rl.on("line", (line) => {
       send({ type: "entry_appended", entry: { type: "custom", customType: "pi-codex-goal", data: { version: 1, kind: "set", source: "tool", goal: { ...goal, status: "complete", usage: { tokensUsed: 12000, activeSeconds: 9 }, updatedAt: 1700000002000 }, at: 1700000002000 } } });
       send({ type: "entry_appended", entry: { type: "custom", customType: "pi-codex-goal", data: { version: 1, kind: "clear", source: "tool", clearedGoalId: "codex-goal-1", at: 1700000003000 } } });
       send({ type: "agent_start" });
+      send({ type: "agent_settled" });
+      return;
+    }
+    if (text.includes("MCP_VISUAL") || text.includes("MCP_VIDEO")) {
+      send({ type: "agent_start" });
+      send({ type: "tool_execution_start", toolCallId: "app-call", toolName: "mcp__fixture__chart", args: {} });
+      const details = text.includes("MCP_VIDEO") ? { content: [{type:"resource_link",uri:"file:///tmp/demo.mp4",mimeType:"video/mp4",name:"Demo"}] } : { content: [{ type: "resource", resource: { uri: "ui://fixture/chart", mimeType: "text/html;profile=mcp-app", text: "<h1>Chart</h1>" } }], structuredContent: { value: 42 } };
+      send({ type: "tool_execution_end", toolCallId: "app-call", toolName: "mcp__fixture__chart", result: { content: [{ type: "text", text: "Fallback" }], details } });
       send({ type: "agent_settled" });
       return;
     }
@@ -195,6 +204,57 @@ describe("PiRpcSession (mock pi --mode rpc)", () => {
       },
     };
   }
+
+  it("preserves bridge MCP resource details instead of flattening them to prose", async () => {
+    const { session, events } = await createSession();
+    try {
+      await session.startTurn("MCP_VISUAL", { model: "mock/model", effort: "off" });
+      expect(events).toContainEqual(
+        expect.objectContaining({
+          type: "item.completed",
+          payload: expect.objectContaining({
+            result: {
+              content: [
+                {
+                  type: "resource",
+                  resource: {
+                    uri: "ui://fixture/chart",
+                    mimeType: "text/html;profile=mcp-app",
+                    text: "<h1>Chart</h1>",
+                  },
+                },
+              ],
+              structuredContent: { value: 42 },
+            },
+          }),
+        }),
+      );
+    } finally {
+      await session.dispose();
+    }
+  });
+
+  it("preserves MCP video resources through the RPC subprocess", async () => {
+    const { session, events } = await createSession();
+    try {
+      await session.startTurn("MCP_VIDEO", { model: "mock/model", effort: "off" });
+      const completed = events.find(
+        (event) =>
+          event.type === "item.completed" &&
+          "payload" in event &&
+          (event.payload as { name?: unknown })?.name === "mcp__fixture__chart",
+      );
+      const result =
+        completed && "payload" in completed
+          ? (completed.payload as { result?: unknown }).result
+          : undefined;
+      expect(readToolVideoSources(result)).toEqual([
+        { src: "file:///tmp/demo.mp4", mimeType: "video/mp4", name: "Demo" },
+      ]);
+    } finally {
+      await session.dispose();
+    }
+  });
 
   it("keeps canonical item and turn identities distinct when resuming in a new RPC process", async () => {
     const first = await createSession();

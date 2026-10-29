@@ -74,6 +74,8 @@ import { CodexContextWindowReload } from "./contextWindowReload";
 import { forkCodexThread, resumeCodexThread } from "./threadResume";
 import { readCodexTurnSummaries } from "./threadTurnSummaries";
 import { isStaleCodexTurnCompletion, nextCodexInterruptTurnId } from "./turnInterrupt";
+import { readRecord } from "./canonicalMapping/readers";
+import { readCodexImageViewPreview } from "./canonicalMapping/toolExtraction";
 
 export { deriveCodexStructuredState, parseCodexSocketMessage } from "./acpProtocol";
 export type { CodexThreadStatus } from "./acpProtocol";
@@ -237,6 +239,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
   private rolloutSource: Record<string, unknown> | undefined;
   private rolloutModelProvider: string | undefined;
   private wslDistro: string | undefined;
+  private imageViewPaths: Map<string, string> | undefined;
   private currentThreadStatus: CodexThreadStatus = { type: "idle" };
   private currentConfig: ThreadConfig | undefined;
   private activeTurnId: string | undefined;
@@ -362,6 +365,30 @@ export class CodexStructuredSession implements StructuredSessionHandle {
         this.seenErrorMessages.add(event.message);
         // A concrete error preempts the deferred generic system-error fallback.
         this.clearPendingSystemErrorFallback();
+      }
+      if (event.type === "item.started" && event.itemType === "image_view") {
+        const path = readRecord(readRecord(event.payload)?.args)?.path;
+        if (typeof path === "string") {
+          (this.imageViewPaths ??= new Map()).set(event.itemId, path);
+        }
+      } else if (event.type === "item.completed") {
+        const path = this.imageViewPaths?.get(event.itemId);
+        this.imageViewPaths?.delete(event.itemId);
+        const payload = readRecord(event.payload);
+        if (path && payload?.status === "success" && !payload.images) {
+          // Keep completion with its preview so unopened child histories retain
+          // their routing until the image is admitted, too.
+          void readCodexImageViewPreview(path, this.wslDistro).then((image) => {
+            if (this.isDisposed) return;
+            this.emitRuntimeEvents([
+              {
+                ...event,
+                payload: { ...payload, ...(image ? { images: [image] } : {}) },
+              },
+            ]);
+          });
+          continue;
+        }
       }
       forwarded.push(event);
     }
@@ -898,6 +925,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
         ...buildCodexTurnSettingsOverrides(config),
       });
       this.activeTurnId = extractTurnField(result, "id");
+      options?.onPromptSubmitted?.();
       if (this.activeTurnId) {
         this.activeTurnIds.add(this.activeTurnId);
       }

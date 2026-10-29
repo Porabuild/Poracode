@@ -13,7 +13,6 @@ import { getAppName } from "@/shared/appName";
 import { saveWindowBounds } from "./window/createMainWindow";
 import { showAndFocusWindow } from "./window/showAndFocusWindow";
 import { safeStorageHealth } from "./safeStorageHealth";
-import { startDesktopHostControl } from "./backend/desktopHostControl";
 import type { BackendHostClient } from "./backend/BackendHostClient";
 import type { BackendStateStore } from "./backend/BackendStateStore";
 import { closeDesktopBackend } from "./backend/desktopBackendShutdown";
@@ -49,33 +48,12 @@ export async function createDesktopTray(feed: DesktopTrayFeed): Promise<void> {
 }
 
 /**
- * Desktop-owner publication (S1.1): discovery + authenticated describe for
- * the shared control surface, leased as kind "desktop", plus the staged-import
- * key-adoption service on the same lease. Both are disposed in before-quit:
- * HostControlServer.dispose removes discovery only after connections and
- * admitted work have joined, strictly before the will-quit lease release.
+ * The backend publishes and joins desktop control under its delegation.
+ * Main retains native key adoption on the same parent-owned lease.
  */
 export function publishDesktopOwnerServices(): void {
   if (!desktopApp.desktopOwnerLease) return;
-  desktopApp.desktopHostControlServer = startDesktopHostControl({
-    lease: desktopApp.desktopOwnerLease,
-    // Host-declared service capabilities from the composed host services
-    // (V5 plan 1.2): the describe publishes what this owner constructed.
-    capabilities: desktopApp.hostServices?.capabilities ?? {
-      ssh: false,
-      browserPanel: false,
-      chromeBridge: false,
-      computerUse: false,
-      nativeSecrets: false,
-      portForward: true,
-      autoUpdate: false,
-      osNotifications: false,
-    },
-    reportError: (error) =>
-      captureMainException(error, { "poracode.feature_area": "host-control" }),
-  });
-  // Same lease, same lifetime as the control surface above: the offer
-  // file lives in the owned profile root and is retired on dispose.
+  // The native offer lives in the owned profile root and retires on dispose.
   desktopApp.hostCredentialAdoption = new HostCredentialAdoptionService({
     lease: desktopApp.desktopOwnerLease,
     unseal: async (sealedKey) => {
@@ -180,12 +158,8 @@ function registerBeforeQuitJoin(deps: DesktopLifecycleDeps): void {
     desktopApp.sleepInhibitor.dispose();
     desktopApp.tray?.destroy();
     desktopApp.tray = null;
-    // Capture before the join list runs: dispose joins control connections
-    // and admitted work, removes discovery (join-before-remove), and must
-    // complete before will-quit releases the owner lease. The adoption
-    // service joins its loopback listener and removes its offer file.
-    const controlToDispose = desktopApp.desktopHostControlServer;
-    desktopApp.desktopHostControlServer = null;
+    // Backend disposal joins control, admitted administration and provider
+    // retirement before releasing data custody. Main joins the native offer.
     const adoptionToDispose = desktopApp.hostCredentialAdoption;
     desktopApp.hostCredentialAdoption = null;
     const finishQuit = async () => {
@@ -197,7 +171,6 @@ function registerBeforeQuitJoin(deps: DesktopLifecycleDeps): void {
     const cleanup = joinRuntimeShutdown(
       [
         () => ingressDispose ?? Promise.resolve(),
-        () => controlToDispose?.dispose(),
         () => adoptionToDispose?.dispose(),
         () =>
           deps.ssh.dispose().catch((error) => {

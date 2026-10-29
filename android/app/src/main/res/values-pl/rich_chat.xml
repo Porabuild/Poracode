@@ -226,4 +226,11 @@
     <string name="rich_chat_session_settings_search">Szukaj wartości</string>
     <string name="rich_chat_session_settings_back">Wstecz</string>
     <string name="rich_chat_session_settings_fallback_heading">Ustawienie</string>
+    <string name="rich_chat_fork_action">Rozgałęź od tego miejsca</string>
+    <string name="rich_chat_fork_title">Rozgałęź rozmowę</string>
+    <string name="rich_chat_fork_create">Utwórz odgałęzienie</string>
+    <string name="rich_chat_fork_explanation">Tworzy niezależną rozmowę do zakończonej tury. Pliki pozostają w tym samym katalogu roboczym.</string>
+    <string name="rich_chat_fork_name">Nazwa rozmowy</string>
+    <string name="rich_chat_fork_boundary">Tutaj kończy się przejęta historia</string>
+    <string name="rich_chat_fork_source">Odgałęzienie z %1$s</string>
 </resources>

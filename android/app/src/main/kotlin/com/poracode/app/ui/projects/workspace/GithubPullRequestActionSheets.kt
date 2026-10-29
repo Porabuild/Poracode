@@ -24,6 +24,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -32,9 +34,16 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.dp
 import com.poracode.app.R
+import com.poracode.app.model.GithubRequests
+import com.poracode.app.model.ProjectWorkspaceTarget
+import com.poracode.app.session.projects.GithubOperationsController
+import com.poracode.app.session.projects.ForgeReviewEntry
+import kotlinx.coroutines.launch
 import com.poracode.app.protocol.github.GithubProcedure
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonArray
 
 /** The three review mutations that need structured input, mirroring the iOS review action sheet. */
 internal enum class PullRequestActionSheet { Review, Comment, Merge }
@@ -57,18 +66,23 @@ internal fun PullRequestActionSheetHost(
     sheet: PullRequestActionSheet,
     enabled: Boolean,
     onDismiss: () -> Unit,
-    onSubmit: (GithubProcedure, Map<String, JsonElement>) -> Unit,
+    onSubmit: suspend (GithubProcedure, Map<String, JsonElement>) -> Boolean,
+    capabilities: JsonObject? = null,
 ) {
-    var decision by remember(sheet) { mutableStateOf(ReviewDecision.Comment) }
-    var method by remember(sheet) { mutableStateOf(MergeMethod.Merge) }
+    val scope = rememberCoroutineScope()
+    var submitting by remember { mutableStateOf(false) }
+    val decisions = ReviewDecision.entries.filter { capabilities == null || (capabilities["reviewDecisions"] as? JsonArray)?.contains(JsonPrimitive(it.wireName)) == true }
+    val methods = MergeMethod.entries.filter { capabilities == null || (capabilities["mergeMethods"] as? JsonArray)?.contains(JsonPrimitive(it.wireName)) == true }
+    var decision by remember(sheet, decisions) { mutableStateOf(decisions.firstOrNull { it == ReviewDecision.Comment } ?: decisions.firstOrNull() ?: ReviewDecision.Comment) }
+    var method by remember(sheet, methods) { mutableStateOf(methods.firstOrNull() ?: MergeMethod.Merge) }
     var admin by remember(sheet) { mutableStateOf(false) }
     var body by remember(sheet) { mutableStateOf("") }
     val trimmedBody = body.trim()
     val valid = when (sheet) {
         PullRequestActionSheet.Review ->
-            decision == ReviewDecision.Approve || trimmedBody.isNotEmpty()
+            decision in decisions && (decision == ReviewDecision.Approve || trimmedBody.isNotEmpty())
         PullRequestActionSheet.Comment -> trimmedBody.isNotEmpty()
-        PullRequestActionSheet.Merge -> true
+        PullRequestActionSheet.Merge -> method in methods
     }
 
     ModalBottomSheet(onDismissRequest = onDismiss) {
@@ -87,7 +101,7 @@ internal fun PullRequestActionSheetHost(
             when (sheet) {
                 PullRequestActionSheet.Review -> {
                     SegmentedChoice(
-                        options = ReviewDecision.entries,
+                        options = decisions,
                         selected = decision,
                         label = { stringResource(it.label) },
                         onSelect = { decision = it },
@@ -99,11 +113,12 @@ internal fun PullRequestActionSheetHost(
 
                 PullRequestActionSheet.Merge -> {
                     SegmentedChoice(
-                        options = MergeMethod.entries,
+                        options = methods,
                         selected = method,
                         label = { stringResource(it.label) },
                         onSelect = { method = it },
                     )
+                    if (capabilities == null || capabilities.boolean("adminMerge")) {
                     val adminLabel = stringResource(R.string.github_merge_admin)
                     Row(
                         Modifier
@@ -115,6 +130,7 @@ internal fun PullRequestActionSheetHost(
                         Text(adminLabel)
                         Switch(admin, null, Modifier.clearAndSetSemantics {})
                     }
+                    }
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -123,13 +139,17 @@ internal fun PullRequestActionSheetHost(
                 }
                 Button(
                     onClick = {
-                        onSubmit(
+                        submitting = true
+                        scope.launch {
+                        val accepted = onSubmit(
                             procedure(sheet),
                             fields(sheet, decision, method, admin, trimmedBody),
                         )
-                        onDismiss()
+                        submitting = false
+                        if (accepted) onDismiss()
+                        }
                     },
-                    enabled = enabled && valid,
+                    enabled = enabled && valid && !submitting,
                     modifier = Modifier.weight(1f),
                 ) { Text(stringResource(R.string.github_submit)) }
             }
@@ -195,4 +215,70 @@ private fun fields(
         "method" to JsonPrimitive(method.wireName),
         "admin" to JsonPrimitive(admin),
     )
+}
+
+@Composable
+internal fun GithubCreatePullRequest(
+    target: ProjectWorkspaceTarget,
+    controller: GithubOperationsController,
+    enabled: Boolean,
+) {
+    val scope = rememberCoroutineScope()
+    var title by rememberSaveable(target.identity) { mutableStateOf("") }
+    var branch by rememberSaveable(target.identity) { mutableStateOf("") }
+    var base by rememberSaveable(target.identity) { mutableStateOf("") }
+    Column(Modifier.padding(horizontal = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        OutlinedTextField(title, { title = it }, label = { Text(stringResource(R.string.github_pr_title)) })
+        OutlinedTextField(branch, { branch = it }, label = { Text(stringResource(R.string.github_head_branch)) })
+        OutlinedTextField(base, { base = it }, label = { Text(stringResource(R.string.github_base_branch)) })
+        Button(
+            onClick = {
+                scope.launch {
+                    controller.execute(
+                        target,
+                        GithubRequests.create(
+                            GithubProcedure.CreatePr,
+                            target.location,
+                            mapOf(
+                                "title" to JsonPrimitive(title.trim()),
+                                "branch" to JsonPrimitive(branch.trim()),
+                                "baseBranch" to JsonPrimitive(base.trim()),
+                            ),
+                        ),
+                    )
+                }
+            },
+            enabled = enabled && title.isNotBlank() && branch.isNotBlank() && base.isNotBlank(),
+            modifier = Modifier.fillMaxWidth(),
+        ) { Text(stringResource(R.string.github_create_pr)) }
+    }
+}
+
+@Composable
+internal fun ForgeCommentEditor(comment: PullRequestCommentRow, threadId: String?, forge: ForgeReviewEntry?,
+    canMutate: Boolean, save: suspend (Map<String, JsonElement>) -> Boolean) {
+    if (forge == null || !comment.author.equals(forge.viewerLogin, ignoreCase = true) ||
+        (forge.capabilities["commentEditing"] as? JsonArray)?.contains(JsonPrimitive(if (threadId == null) "conversation" else "inline")) != true) return
+    var editing by rememberSaveable(forge.source, forge.number, threadId, comment.id) { mutableStateOf(false) }
+    var draft by rememberSaveable(forge.source, forge.number, threadId, comment.id) { mutableStateOf("") }
+    var expectedBody by rememberSaveable(forge.source, forge.number, threadId, comment.id) { mutableStateOf("") }
+    var saving by remember(forge.source, forge.number, threadId, comment.id) { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    if (editing) {
+        OutlinedTextField(draft, { draft = it }, enabled = !forge.mutating && !saving, label = { Text(stringResource(R.string.github_body)) }, modifier = Modifier.fillMaxWidth())
+        Row {
+            TextButton(onClick = {
+                saving = true
+                scope.launch {
+                    try {
+                        if (save(buildMap {
+                            put("commentId", JsonPrimitive(comment.id)); put("body", JsonPrimitive(draft)); put("expectedBody", JsonPrimitive(expectedBody))
+                            if (threadId != null) put("threadId", JsonPrimitive(threadId))
+                        })) editing = false
+                    } finally { saving = false }
+                }
+            }, enabled = canMutate && !saving && draft.isNotBlank()) { Text(stringResource(R.string.remote_integrations_save)) }
+            TextButton({ editing = false; draft = comment.body }, enabled = !forge.mutating && !saving) { Text(stringResource(R.string.git_cancel)) }
+        }
+    } else TextButton({ draft = comment.body; expectedBody = comment.body; editing = true }, enabled = canMutate) { Text(stringResource(R.string.forge_review_edit_comment)) }
 }

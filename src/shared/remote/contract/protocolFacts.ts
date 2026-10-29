@@ -101,6 +101,7 @@ export const REMOTE_REPLAYABLE_EVENT_TYPES: readonly string[] = [
  * the generator asserts the subset invariant.
  */
 export const REMOTE_OUT_OF_BAND_WS_MESSAGES: readonly string[] = [
+  "agent-vision-frame",
   "browser-state",
   "browser-frame",
   "browser-mirror-status",

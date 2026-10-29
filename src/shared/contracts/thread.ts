@@ -28,6 +28,16 @@ import { turnClientContextSchema } from "./turnClientContext";
 export const threadStatusSourceSchema = z.enum(["cli_hook", "terminal_parse", "server"]);
 export type ThreadStatusSource = z.infer<typeof threadStatusSourceSchema>;
 
+export const threadForkSourceSchema = z.object({
+  version: z.literal(1),
+  threadId: z.string().min(1),
+  title: z.string().min(1),
+  throughItemId: z.string().min(1),
+  inheritedTurnCount: z.number().int().positive(),
+  contextStrategy: z.literal("transcript"),
+});
+export type ThreadForkSource = z.infer<typeof threadForkSourceSchema>;
+
 export const threadSchema = z.object({
   id: z.string().min(1),
   /** Server-owned identity for a transient thread mirrored into a desktop client. */
@@ -88,6 +98,8 @@ export const threadSchema = z.object({
    * grouped with their parent in the sidebar; absent for user-created threads.
    */
   parentThreadId: z.string().min(1).optional(),
+  /** Independent snapshot lineage; source deletion never removes inherited history. */
+  forkedFrom: threadForkSourceSchema.optional(),
 });
 export type Thread = z.infer<typeof threadSchema>;
 
@@ -280,6 +292,8 @@ export const startThreadPayloadSchema = z
      * the user typed themselves — still fail loudly.
      */
     mentionHandoff: z.literal(true).optional(),
+    /** Host-owned frozen history for a new conversation; never a visible user row. */
+    initialInstructions: z.string().min(1).optional(),
     /** Per-turn client context for the initial prompt. See {@link turnClientContextSchema}. */
     clientContext: turnClientContextSchema.optional(),
   })
@@ -312,11 +326,11 @@ export type StartThreadResult = z.infer<typeof startThreadResultSchema>;
  * arrives with an empty prompt and the attachment in `segments`. Applied as a
  * refinement so the payload's `prompt` stays a plain string for callers.
  */
-const sendableInput = {
+export const sendableInput = {
   message: "prompt or an attachment is required",
   path: ["prompt"],
 };
-function hasSendableInput(input: {
+export function hasSendableInput(input: {
   prompt: string;
   segments?: readonly z.infer<typeof promptSegmentSchema>[] | undefined;
 }): boolean {
@@ -568,6 +582,13 @@ export interface ThreadFollowUpQueueState {
  * through the regular thread actions instead of writing to the DB directly.
  */
 export const remoteThreadCommandSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("fork"),
+    threadId: z.string().min(1),
+    sourceThreadId: z.string().min(1),
+    throughItemId: z.string().min(1).optional(),
+    title: z.string().min(1),
+  }),
   /**
    * Host lifecycle preflight for a freshly-created worktree. The host primes
    * git watches and runs the project setup script before launching the thread.

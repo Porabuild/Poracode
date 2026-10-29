@@ -90,7 +90,7 @@ const standaloneMcpOptions = {
   format: "esm" as const,
   sourcemap,
   dts: false,
-  minify: false,
+  minify: isProd,
   define: buildDefines,
   deps: {
     ...deps,
@@ -149,6 +149,7 @@ export default defineConfig(
       entry: {
         supervisor: "src/supervisor/index.ts",
         wslStagingWorker: "src/supervisor/wsl/staging/worker.ts",
+        ptyBroker: "src/supervisor/pty/ptyBroker.ts",
       },
       clean: false,
       plugins: [runtimeDeclaration("src/supervisor/index.ts", "supervisor")],
@@ -163,6 +164,7 @@ export default defineConfig(
       entry: {
         server: "src/server/cli.ts",
         databaseReadWorker: "src/host/db/databaseReadWorker.ts",
+        sessionExportWorker: "src/server/sessionExportWorker.ts",
       },
       clean: false,
       plugins: [runtimeDeclaration("src/server/cli.ts", "server")],
@@ -216,7 +218,7 @@ export default defineConfig(
       target: "node22" as const,
       sourcemap,
       dts: false,
-      minify: false,
+      minify: isProd,
       define: buildDefines,
       deps,
     },

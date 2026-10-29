@@ -32,6 +32,21 @@ vi.hoisted(() => {
 });
 
 describe("ContextMenu", () => {
+  it("shows a trailing shortcut without adding it to the item name", async () => {
+    render(
+      <ContextMenuSurface
+        position={{ x: 0, y: 0 }}
+        items={[{ id: "copy", label: "Copy", shortcut: "Ctrl+C" }]}
+        onAction={vi.fn<(key: string) => void>()}
+        onClose={vi.fn<() => void>()}
+      />,
+    );
+
+    const item = await screen.findByRole("menuitem", { name: "Copy" });
+    expect(item).toHaveTextContent("Ctrl+C");
+    expect(item.querySelector("[aria-hidden]")).toHaveTextContent("Ctrl+C");
+  });
+
   it("does not wrap its child in an extra DOM element", () => {
     const { container } = render(
       <ContextMenu items={[]} onAction={vi.fn<(key: string) => void>()}>

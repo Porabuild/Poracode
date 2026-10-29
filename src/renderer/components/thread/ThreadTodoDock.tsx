@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { Tooltip } from "@heroui/react";
 import { Check, Hourglass, ListChecks, X } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import type { ThreadDocksPlacement } from "@/shared/settings";
@@ -74,6 +75,9 @@ export function ThreadTodoDock(props: ThreadTodoDockProps) {
       <ThreadDockHeader
         icon={ListChecks}
         title={t`Plan`}
+        {...(placement === "right"
+          ? { collapse: { collapsed, onToggle: () => onCollapsedChange(!collapsed) } }
+          : {})}
         countLabel={countLabel}
         actions={
           <>
@@ -103,14 +107,36 @@ export function ThreadTodoDock(props: ThreadTodoDockProps) {
               rowKey={`${state.sourceItemId}:${index}`}
               isActive={isActive}
               isDone={isDone}
-              title={step.text}
+              {...(placement === "composer" ? { title: step.text } : {})}
             >
-              <StatusIcon status={step.status} />
-              <span
-                className={`min-w-0 flex-1 truncate leading-5 ${isDone ? "text-foreground-muted" : "text-foreground"}`}
-              >
-                {step.text}
-              </span>
+              {placement === "right" ? (
+                <Tooltip delay={300}>
+                  <Tooltip.Trigger className="h-5 w-full min-w-0">
+                    <span className="flex h-5 w-full min-w-0 items-center gap-2">
+                      <span className="flex h-5 shrink-0 items-center">
+                        <StatusIcon status={step.status} />
+                      </span>
+                      <span
+                        className={`min-w-0 flex-1 truncate leading-5 ${isDone ? "text-foreground-muted" : "text-foreground"}`}
+                      >
+                        {step.text}
+                      </span>
+                    </span>
+                  </Tooltip.Trigger>
+                  <Tooltip.Content className="max-w-[min(28rem,90vw)] whitespace-normal break-words text-xs">
+                    {step.text}
+                  </Tooltip.Content>
+                </Tooltip>
+              ) : (
+                <>
+                  <StatusIcon status={step.status} />
+                  <span
+                    className={`min-w-0 flex-1 truncate leading-5 ${isDone ? "text-foreground-muted" : "text-foreground"}`}
+                  >
+                    {step.text}
+                  </span>
+                </>
+              )}
             </ThreadDockRow>
           );
         })}

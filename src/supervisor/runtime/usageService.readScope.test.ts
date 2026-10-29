@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { readFile, writeFile } from "node:fs/promises";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { HostPort, UsageSnapshot } from "@poracode/agents-usage";
 import type { SupervisorEvent } from "@/shared/ipc";
@@ -7,11 +7,10 @@ import { readSupervisorSharedSettings } from "./supervisorSharedSettings";
 import { UsageService, type UsageServiceOptions } from "./usageService";
 import type { UsageProfileCollector } from "./usageProfileTypes";
 
-vi.mock("node:fs", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("node:fs")>()),
-  existsSync: vi.fn<typeof existsSync>(),
-  readFileSync: vi.fn<typeof readFileSync>(),
-  writeFileSync: vi.fn<typeof writeFileSync>(),
+vi.mock("node:fs/promises", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("node:fs/promises")>()),
+  readFile: vi.fn<typeof readFile>(),
+  writeFile: vi.fn<typeof writeFile>(async () => {}),
 }));
 vi.mock("./supervisorSharedSettings", () => ({
   readSupervisorSharedSettings: vi.fn<typeof readSupervisorSharedSettings>(),
@@ -94,12 +93,11 @@ function fixture(
   };
   const emit = vi.fn<(event: SupervisorEvent) => void>();
   const cache = JSON.stringify({
-    version: 12,
+    version: 14,
     snapshots: ids.map((id) => snapshot(id)),
     profileIdentities: Object.fromEntries(ids.map((id) => [id, `source:${id}`])),
   });
-  vi.mocked(existsSync).mockImplementation((path) => path === CACHE_PATH);
-  vi.mocked(readFileSync).mockReturnValue(cache);
+  vi.mocked(readFile).mockResolvedValue(cache);
   vi.mocked(readSupervisorSharedSettings).mockImplementation(() => settings);
   const service = new UsageService({
     cachePath: CACHE_PATH,
@@ -141,7 +139,7 @@ function fixture(
         collections: collect.reduce((sum, spy) => sum + spy.mock.calls.length, 0),
         http: request.mock.calls.length,
         timers: vi.getTimerCount(),
-        cacheWrites: vi.mocked(writeFileSync).mock.calls.length,
+        cacheWrites: vi.mocked(writeFile).mock.calls.length,
       };
     },
   };
@@ -288,6 +286,24 @@ describe("usage synchronous read scopes", () => {
     expect(
       (await f.service.getProviderUsage({})).snapshots.map((value) => value.providerId),
     ).toEqual(f.ids.slice(1));
+  });
+
+  it("does not return a quota retired while its cache write awaits", async () => {
+    const f = fixture(1, { autoRefresh: false });
+    const entered = deferred<void>();
+    const release = deferred<void>();
+    vi.mocked(writeFile).mockImplementationOnce(async () => {
+      entered.resolve();
+      await release.promise;
+    });
+    const pending = f.service.refreshProviderUsage({ providerIds: [f.ids[0]!] });
+    await entered.promise;
+    f.identities[0]!.mockResolvedValue("replacement-account");
+    const reconcile = f.service.reconcileProfileSources();
+    expect((await f.service.getProviderUsage({ providerIds: [f.ids[0]!] })).snapshots).toEqual([]);
+    release.resolve();
+    expect((await pending).snapshots).toEqual([]);
+    await reconcile;
   });
 
   it("admits no work or cache writes when collection is disabled", async () => {

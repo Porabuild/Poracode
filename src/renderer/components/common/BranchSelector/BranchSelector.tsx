@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useId, useRef, useState } from "react";
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import { ChevronDown, GitBranch, GitFork, Search } from "lucide-react";
 import { toast, Tooltip } from "@heroui/react";
@@ -17,7 +17,12 @@ import { Button } from "../Button";
 import { ConfirmDialog } from "../ConfirmDialog";
 import { ResponsiveMenuSurface } from "../ResponsiveMenuSurface";
 import { useBranchList } from "./parts/useBranchList";
-import { BranchListBox, type OpenPrReviewArgs } from "./parts/BranchListBox";
+import {
+  BranchListBox,
+  branchOptionDomId,
+  type BranchListBoxHandle,
+  type OpenPrReviewArgs,
+} from "./parts/BranchListBox";
 import { BranchFooterActions } from "./parts/BranchFooterActions";
 import { generateWorktreeBranch } from "@/shared/worktreeBranch";
 import type { BranchSelection } from "./parts/types";
@@ -95,6 +100,7 @@ export function BranchSelector(props: BranchSelectorProps) {
 
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [activeBranchName, setActiveBranchName] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [newBranchName, setNewBranchName] = useState("");
   const [deletingBranch, setDeletingBranch] = useState<string | null>(null);
@@ -102,6 +108,9 @@ export function BranchSelector(props: BranchSelectorProps) {
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const createRef = useRef<HTMLInputElement>(null);
+  const branchListRef = useRef<BranchListBoxHandle>(null);
+  const imeConfirmEventTimeStampRef = useRef<number | null>(null);
+  const listboxId = useId();
 
   const {
     items,
@@ -112,6 +121,7 @@ export function BranchSelector(props: BranchSelectorProps) {
     threadsByBranch,
     projectLocation,
   } = useBranchList({ projectId, search });
+  const hasBranches = hasLocal || hasRemote;
 
   // Reset the menu chrome whenever it opens; the focus + PR-prefetch side
   // effects below stay in an effect gated on the closed → open transition.
@@ -364,10 +374,36 @@ export function BranchSelector(props: BranchSelectorProps) {
           ref={searchRef}
           className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted outline-none"
           placeholder={t`Search branches...`}
+          role="combobox"
+          aria-autocomplete="list"
+          aria-controls={hasBranches ? listboxId : undefined}
+          aria-expanded={isOpen}
+          aria-activedescendant={
+            activeBranchName ? branchOptionDomId(listboxId, activeBranchName) : undefined
+          }
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           onKeyDown={(e) => {
             e.stopPropagation();
+            if (e.nativeEvent.isComposing || e.keyCode === 229) {
+              if (e.key === "Enter") {
+                const timeStamp = e.nativeEvent.timeStamp;
+                imeConfirmEventTimeStampRef.current = timeStamp > 0 ? timeStamp : null;
+              }
+              return;
+            }
+            // An IME can replay its confirming Enter after composition ends
+            // (macOS Korean does this) with the original timestamp and the
+            // composition flags cleared. The next physical Enter has a
+            // distinct timestamp.
+            if (
+              e.key === "Enter" &&
+              e.nativeEvent.timeStamp === imeConfirmEventTimeStampRef.current
+            ) {
+              e.preventDefault();
+              return;
+            }
+            imeConfirmEventTimeStampRef.current = null;
             if (e.key === "Escape") {
               if (isCreating) {
                 setIsCreating(false);
@@ -375,6 +411,23 @@ export function BranchSelector(props: BranchSelectorProps) {
               } else {
                 setIsOpen(false);
               }
+              return;
+            }
+            if (e.key === "Enter") {
+              e.preventDefault();
+              branchListRef.current?.selectActive();
+              return;
+            }
+            if (
+              (e.key === "ArrowDown" || e.key === "ArrowUp") &&
+              !e.altKey &&
+              !e.ctrlKey &&
+              !e.metaKey &&
+              !e.shiftKey &&
+              hasBranches
+            ) {
+              e.preventDefault();
+              branchListRef.current?.moveActive(e.key === "ArrowDown" ? 1 : -1);
             }
           }}
         />
@@ -382,6 +435,8 @@ export function BranchSelector(props: BranchSelectorProps) {
 
       <div className="flex-1 overflow-hidden pb-1.5">
         <BranchListBox
+          ref={branchListRef}
+          listboxId={listboxId}
           projectId={projectId}
           items={items}
           hasLocal={hasLocal}
@@ -400,6 +455,7 @@ export function BranchSelector(props: BranchSelectorProps) {
           onSelect={handleSelectBranch}
           onDelete={(b) => handleRequestDelete(b as GitBranchInfo)}
           onOpenPrReview={handleOpenPrReview}
+          onActiveChange={setActiveBranchName}
         />
       </div>
 

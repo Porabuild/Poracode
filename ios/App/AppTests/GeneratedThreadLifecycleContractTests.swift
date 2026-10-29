@@ -3,6 +3,29 @@ import XCTest
 @testable import App
 
 final class GeneratedThreadLifecycleContractTests: XCTestCase {
+  func testThreadConfigPreservesOpaqueCrewBindingAndExplicitNull() throws {
+    let raw = Data(
+      #"{"model":"fixture","crew":{"version":9,"name":"future crew","roles":[{"label":"Builder","selection":{"agentKind":"future","model":"opaque"} }],"unknown":{"preserve":[1,true,"x"]}}}"#.utf8
+    )
+    let config = try JSONDecoding.decode(ThreadConfig.self, from: raw)
+    let reencoded = try JSONDecoding.encoder.encode(config)
+    XCTAssertEqual(
+      try JSONDecoding.decode(JSONValue.self, from: reencoded),
+      try JSONDecoding.decode(JSONValue.self, from: raw)
+    )
+    XCTAssertEqual(ThreadLaunchConfiguration(config).crew, config.crew)
+
+    let explicitNone = try JSONDecoding.decode(
+      ThreadConfig.self,
+      from: Data(#"{"model":"fixture","crew":null}"#.utf8)
+    )
+    let encodedNone = try JSONDecoding.encoder.encode(explicitNone)
+    XCTAssertEqual(
+      try JSONDecoding.decode(JSONValue.self, from: encodedNone),
+      try JSONDecoding.decode(JSONValue.self, from: Data(#"{"model":"fixture","crew":null}"#.utf8))
+    )
+  }
+
   func testGeneratedMetadataPinsBothLifecycleRoutes() throws {
     let start = try GeneratedRemoteV3Contract.threadLifecycleRouteContract(
       id: "thread-start-existing")
@@ -144,6 +167,19 @@ final class GeneratedThreadLifecycleContractTests: XCTestCase {
   }
 
   // MARK: - v9 pinned execution environment (shared fixture round-trip)
+
+  func testPerThreadToolChoicesSurviveNativeLifecycleRoundTrip() throws {
+    let source = Data(#"{"model":"fixture","mcpServerOverrides":{"custom":true},"pluginOverrides":{"github":false}}"#.utf8)
+    let config = try JSONDecoding.decode(ThreadConfig.self, from: source)
+    let lifecycle = config.lifecycleLaunchConfiguration
+    let restored = ThreadConfig(lifecycle)
+    XCTAssertEqual(restored.mcpServerOverrides, ["custom": true])
+    XCTAssertEqual(restored.pluginOverrides, ["github": false])
+    let encoded = try JSONEncoder().encode(ThreadLaunchConfiguration(restored))
+    let object = try XCTUnwrap(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+    XCTAssertEqual(object["mcpServerOverrides"] as? [String: Bool], ["custom": true])
+    XCTAssertEqual(object["pluginOverrides"] as? [String: Bool], ["github": false])
+  }
 
   /// The host replaces thread configs wholesale on every config-carrying
   /// mutation. These tests pin that the WSL distro selected on the desktop

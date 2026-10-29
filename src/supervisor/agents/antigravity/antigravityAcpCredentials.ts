@@ -133,6 +133,13 @@ export async function resolveAntigravityAcpCredentials(
       ...(before && before === after ? { keychainFingerprint: before } : {}),
     };
   }
+  return resolveAntigravityAcpFileCredentials(deps);
+}
+
+/** File fallbacks never request access to a missing or temporarily unavailable Keychain item. */
+export async function resolveAntigravityAcpFileCredentials(
+  deps: Pick<AntigravityAcpCredentialDeps, "readNative" | "readWsl"> = defaultDeps,
+): Promise<AntigravityAcpCredentials | undefined> {
   for (const read of [deps.readNative, deps.readWsl]) {
     const content = await read().catch(() => undefined);
     if (!content) continue;

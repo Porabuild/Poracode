@@ -200,7 +200,7 @@ describe("claudeCapabilities", () => {
       "max",
       "ultracode",
     ]);
-    expect(claudeCapabilities.modelContextSizes?.["claude-fable-5"]).toEqual(["1m", "400k"]);
+    expect(claudeCapabilities.modelContextSizes?.["claude-fable-5"]).toEqual(["400k", "1m"]);
     expect(claudeCapabilities.fastModels).not.toContain("claude-fable-5");
   });
 
@@ -217,7 +217,7 @@ describe("claudeCapabilities", () => {
       "max",
       "ultracode",
     ]);
-    expect(claudeCapabilities.modelContextSizes?.["claude-fable-5-1"]).toEqual(["1m", "400k"]);
+    expect(claudeCapabilities.modelContextSizes?.["claude-fable-5-1"]).toEqual(["400k", "1m"]);
     expect(claudeCapabilities.fastModels).not.toContain("claude-fable-5-1");
   });
 
@@ -242,7 +242,7 @@ describe("claudeCapabilities", () => {
       "max",
       "ultracode",
     ]);
-    expect(claudeCapabilities.modelContextSizes?.["claude-opus-5"]).toEqual(["1m", "400k"]);
+    expect(claudeCapabilities.modelContextSizes?.["claude-opus-5"]).toEqual(["400k", "1m"]);
     expect(claudeCapabilities.fastModels).toContain("claude-opus-5");
   });
 
@@ -259,8 +259,8 @@ describe("claudeCapabilities", () => {
       "max",
       "ultracode",
     ]);
-    expect(claudeCapabilities.modelContextSizes?.["claude-sonnet-5"]).toEqual(["1m", "400k"]);
-    expect(claudeCapabilities.modelContextSizes?.sonnet).toEqual(["1m", "400k"]);
+    expect(claudeCapabilities.modelContextSizes?.["claude-sonnet-5"]).toEqual(["400k", "1m"]);
+    expect(claudeCapabilities.modelContextSizes?.sonnet).toEqual(["400k", "1m"]);
   });
 });
 
@@ -645,6 +645,14 @@ describe("claude one-shot selection consumption", () => {
       { readOnlyWorkspace: true, selection: { model: "haiku" } },
     );
     expect(general?.args).toContain("--permission-mode");
+    expect(adapter.capabilities.supportsReadOnlyOneShotWorkspace).toBe(true);
+    expect(general?.args).toContain("--safe-mode");
+    expect(general?.args).toContain("--restricted");
+    expect(general?.args).toContain("--disable-slash-commands");
+    expect(general?.args).toContain("Read,Glob,Grep");
+    expect(general?.args).toContain(
+      "Bash,Edit,Write,NotebookEdit,WebFetch,WebSearch,Task,Skill,mcp__*",
+    );
 
     const textOnly = await adapter.buildTextOnlyOneShotCommand?.(
       "haiku",

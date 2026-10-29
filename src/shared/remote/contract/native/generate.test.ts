@@ -56,7 +56,7 @@ describe("remote v3 native binding generator", () => {
         formatVersion: 5,
         protocolVersion: 14,
         bindingFormatVersion: 2,
-        generatorVersion: 6,
+        generatorVersion: 7,
         // Optional readonly workspace-grant fields change generated bindings
         // without advertising mutation support or changing wire versions.
         // Selection-binding integration: protocol 13 adds the strict
@@ -71,22 +71,32 @@ describe("remote v3 native binding generator", () => {
         // Optional context-reload facts also add one generated Swift chunk.
         // Optional core PR state preserves the previous details-only result shape.
         // Background task timing, progress and Stop add two structural types.
-        // Combine optional question-answer metadata with saved-message search.
-        sourceHash: "sha256:74a8928b64b05839cebbc183a068b991fcc3ded0a84a8b8125f97dd4f393344f",
-        manifestHash: "sha256:b39f2d13ae38008996ebf29d325c5b5c703dea7bbd9d0c933eaec9e059ed7490",
+        // Optional question-answer metadata adds three structural types and two Swift chunks.
+        // The additive prompt-rail history route adds one route, its response root and
+        // their native mirrors; native adoption stays planned in native-parity.json.
+        // Source-host reviews add one route, twenty-four procedures, and their native mirrors;
+        // device workspaces add fourteen routes; saved-message search and fork instructions add roots;
+        // review labels, reviewers, reactions, drafts and commit diffs add nine procedures;
+        // the optional review-thread diff side adds one field; optional async reply source IDs
+        // preserve wire versions; the optional `deferBodies` history query parameter adds one
+        // structural type (its literal).
+        // Optional sessionId on the token-exchange result moves the source hash only.
+        // Optional crew favorites/usage and model recency move only the source hash.
+        sourceHash: "sha256:054cab70ec778aca12d0965811a3848768b86a18ec94486eba792aa39b9d58b2",
+        manifestHash: "sha256:0af95549f6385c5f08e5dfeb224d10486c18d5b19acb6ba934351dbea0e0dea4",
         counts: {
-          routes: 101,
-          procedures: 130,
-          voidProcedureResults: 50,
-          jsonProcedureResults: 80,
-          webSocketClientVariants: 9,
-          // 10 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
-          webSocketServerVariants: 11,
-          schemaRoots: 443,
-          structuralTypes: 1049,
-          semanticValidators: 22,
-          swiftFiles: 66,
-          kotlinFiles: 56,
+          routes: 119,
+          procedures: 163,
+          voidProcedureResults: 64,
+          jsonProcedureResults: 99,
+          webSocketClientVariants: 11,
+          // 11 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
+          webSocketServerVariants: 12,
+          schemaRoots: 544,
+          structuralTypes: 1210,
+          semanticValidators: 25,
+          swiftFiles: 75,
+          kotlinFiles: 65,
           stateMachines: 5,
         },
       });
@@ -155,7 +165,7 @@ describe("remote v3 native binding generator", () => {
       ["swift", swift],
       ["kotlin", kotlin],
     ] as const) {
-      // Control-character scan over UTF-16 units — a lone high/low surrogate
+      // Control-character scan over UTF-16 units вЂ” a lone high/low surrogate
       // still reports its unit code, which is all this check needs.
       const text = contents as string;
       const stray: string[] = [];
@@ -175,7 +185,7 @@ describe("remote v3 native binding generator", () => {
     expect(() => parseNativeBindingIr({ ...ir, bindingFormatVersion: 3 }, manifest)).toThrow(
       /unsupported binding format/,
     );
-    expect(() => parseNativeBindingIr({ ...ir, generatorVersion: 3 }, manifest)).toThrow(
+    expect(() => parseNativeBindingIr({ ...ir, generatorVersion: 6 }, manifest)).toThrow(
       /unsupported generator version/,
     );
     expect(() =>
@@ -358,7 +368,7 @@ describe("remote v3 native binding generator", () => {
       const output = buildNativeBindingOutput(ir, manifest).files;
       for (const language of ["swift", "kotlin"] as const) {
         const adapters = rootAdapters(graph, language);
-        expect(adapters).toHaveLength(443);
+        expect(adapters).toHaveLength(544);
         expect(
           adapters
             .map((adapter) => adapter.id)

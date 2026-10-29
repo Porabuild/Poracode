@@ -173,14 +173,20 @@ class ProcessStagingExecutor implements WslStagingExecutor {
   }
 
   private writeRequest(id: string, request: WslStagingRequest): void {
-    if (!this.child?.stdin?.writable) {
+    const child = this.child;
+    if (!child?.stdin?.writable) {
       this.failAll(new Error("WSL staging worker stdin is unavailable"));
       return;
     }
     const envelope = { protocolVersion: WSL_STAGING_PROTOCOL_VERSION, id, request };
-    this.child.stdin.write(`${JSON.stringify(envelope)}\n`, (error) => {
-      if (!error) return;
-      this.failAll(error);
+    child.stdin.write(`${JSON.stringify(envelope)}\n`, (error) => {
+      if (!error || this.child !== child) return;
+      child.stdin?.destroy();
+      const fallback = setTimeout(() => {
+        if (this.child === child) this.failAll(error);
+      }, CHILD_EXIT_FALLBACK_MS);
+      fallback.unref?.();
+      child.once("exit", () => clearTimeout(fallback));
     });
   }
 

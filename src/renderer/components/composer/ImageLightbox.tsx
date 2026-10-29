@@ -11,11 +11,16 @@ import { ChevronLeft, ChevronRight, X, ZoomIn, ZoomOut } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import { attachmentImageUrl, type Attachment } from "./useAttachments";
 import { ImageLightboxActions } from "./ImageLightboxActions";
+import { useThreadGalleryImages } from "../thread/useThreadGalleryImages";
 
 /** A pre-resolved image for the lightbox: a renderable URL plus an accessible label. */
 export interface LightboxImage {
   /** Renderable image URL — a `data:`, `poracode-local://`, or remote URL. */
   src: string;
+  /** Already-displayed thumbnail to retain until the original is decoded. */
+  previewSrc?: string;
+  width?: number;
+  height?: number;
   /** Accessible label / alt text. */
   alt?: string;
   /** Original download name and MIME type, retained when the display URL is opaque. */
@@ -23,6 +28,13 @@ export interface LightboxImage {
   mime?: string;
   /** Optional owner-supplied byte read (e.g. the pinned client that issued a media grant). */
   readBytes?: () => Promise<Uint8Array<ArrayBuffer>>;
+  /** Stable cache coordinate; only the currently displayed original is requested. */
+  resource?: {
+    key: string;
+    subscribe: (listener: () => void) => () => void;
+    getSnapshot: () => string;
+    request: () => void;
+  };
 }
 
 type LightboxState = {
@@ -46,6 +58,10 @@ const SCALE_STEP = 0.5;
 let lightboxState: LightboxState | null = null;
 let lightboxNonce = 0;
 const lightboxListeners = new Set<() => void>();
+
+export function imageLightboxRevision(): number {
+  return lightboxNonce;
+}
 
 function emitLightboxChange() {
   for (const listener of lightboxListeners) listener();
@@ -88,7 +104,25 @@ export function updateImageLightboxFromThread(
 ): void {
   if (!lightboxState || threadId === undefined || lightboxState.liveThreadId !== threadId) return;
   if (lightboxState.images === images) return;
-  lightboxState = { ...lightboxState, images };
+  const previousImages = new Map(lightboxState.images.map((image) => [imageKey(image), image]));
+  lightboxState = {
+    ...lightboxState,
+    images: images.map((image) => {
+      const previous = previousImages.get(imageKey(image));
+      const previewSrc = previous?.src === image.src ? previous.previewSrc : undefined;
+      return previewSrc ? { ...previous, ...image, previewSrc } : image;
+    }),
+  };
+  emitLightboxChange();
+}
+
+export function updateImageLightboxFromPreview(
+  previewSrc: string,
+  images: readonly LightboxImage[],
+  liveThreadId?: string,
+): void {
+  if (!lightboxState?.images.some((image) => image.src === previewSrc)) return;
+  lightboxState = { ...lightboxState, images, liveThreadId: liveThreadId ?? null };
   emitLightboxChange();
 }
 
@@ -119,6 +153,7 @@ export function openAttachmentLightbox(
 
 export function closeImageLightbox(): void {
   if (lightboxState === null) return;
+  lightboxNonce++;
   lightboxState = null;
   emitLightboxChange();
 }
@@ -126,6 +161,10 @@ export function closeImageLightbox(): void {
 export const ImageLightboxHost = memo(function ImageLightboxHost() {
   const state = useSyncExternalStore(subscribeLightbox, getLightboxSnapshot, getLightboxSnapshot);
   useEffect(() => closeImageLightbox, []);
+  useThreadGalleryImages(state?.liveThreadId ?? undefined, {
+    lightbox: true,
+    requestPending: false,
+  });
   if (!state) return null;
   return (
     <ImageLightboxView
@@ -159,10 +198,21 @@ export function ImageLightboxView(props: {
     pointerId: number;
     pointerStart: Point;
     panStart: Point;
-    /** Image index the drag started on; a stale drag never pans a new image. */
-    index: number;
+    /** Source the drag started on; a stale drag never pans a different image. */
+    src: string;
   } | null>(null);
-  const current = images[index];
+  const selected = images[index];
+  const resource = selected?.resource;
+  const resolvedSrc = useSyncExternalStore(
+    resource?.subscribe ?? subscribeEmptyImage,
+    resource?.getSnapshot ?? emptyImageSnapshot,
+  );
+  const current = selected
+    ? { ...selected, src: resource ? resolvedSrc : selected.src }
+    : undefined;
+  useEffect(() => {
+    if (resource && !resolvedSrc) resource.request();
+  });
 
   // Reset the index when a new lightbox opens, and reset zoom/pan whenever
   // the visible image changes (prop or keyboard/button nav) — tracked during
@@ -179,20 +229,38 @@ export function ImageLightboxView(props: {
   // A live gallery update (a pending host-held blob resolving) replaces the
   // image array while this lightbox stays open: keep the user on the same
   // source by relocating the index, falling back to a clamp when it vanished.
-  const previousImagesRef = useRef(images);
-  const currentSrcRef = useRef(images[index]?.src);
-  useEffect(() => {
-    if (previousImagesRef.current === images) {
-      currentSrcRef.current = images[index]?.src;
-      return;
-    }
-    previousImagesRef.current = images;
-    const previousSrc = currentSrcRef.current;
-    const located = previousSrc ? images.findIndex((image) => image.src === previousSrc) : -1;
+  const [previousImages, setPreviousImages] = useState(images);
+  if (previousImages !== images) {
+    const previousSrc = imageKey(previousImages[index]);
+    const located = previousSrc
+      ? images.findIndex(
+          (image) => imageKey(image) === previousSrc || image.previewSrc === previousSrc,
+        )
+      : -1;
     const nextIndex = located >= 0 ? located : Math.min(index, Math.max(0, images.length - 1));
-    currentSrcRef.current = images[nextIndex]?.src;
+    setPreviousImages(images);
+    if (located >= 0) setPrevImageKey({ initial: initialIndex, current: nextIndex });
     if (nextIndex !== index) setIndex(nextIndex);
-  }, [images, index]);
+  }
+
+  const [decodedSrc, setDecodedSrc] = useState<string>();
+  const fullSrc = current?.src;
+  const previewSrc = current?.src === selected?.src ? current?.previewSrc : undefined;
+  useEffect(() => {
+    if (!fullSrc || !previewSrc || fullSrc === previewSrc) return;
+    let active = true;
+    const image = new Image();
+    image.src = fullSrc;
+    void image.decode().then(
+      () => {
+        if (active) setDecodedSrc(fullSrc);
+      },
+      () => {},
+    );
+    return () => {
+      active = false;
+    };
+  }, [fullSrc, previewSrc]);
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -217,6 +285,7 @@ export function ImageLightboxView(props: {
   }, [scale]);
 
   if (!current) return null;
+  const currentImageKey = previewSrc ?? imageKey(current) ?? current.src;
 
   function zoomBy(delta: number) {
     const nextScale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, scale + delta));
@@ -232,13 +301,13 @@ export function ImageLightboxView(props: {
       pointerId: event.pointerId,
       pointerStart: { x: event.clientX, y: event.clientY },
       panStart: pan,
-      index,
+      src: currentImageKey,
     };
   }
 
   function handlePointerMove(event: ReactPointerEvent<HTMLImageElement>) {
     const drag = dragRef.current;
-    if (!drag || drag.pointerId !== event.pointerId || drag.index !== index) return;
+    if (!drag || drag.pointerId !== event.pointerId || drag.src !== currentImageKey) return;
     event.preventDefault();
     setPan(
       clampPan(
@@ -301,24 +370,37 @@ export function ImageLightboxView(props: {
         </button>
       ) : null}
 
-      <div ref={stageRef} className="poracode-image-lightbox__stage">
-        {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- the image supports pointer-drag panning; keyboard image navigation remains on the dialog */}
-        <img
-          ref={imageRef}
-          className={`poracode-image-lightbox__image${scale > MIN_SCALE ? " poracode-image-lightbox__image--zoomed" : ""}`}
-          src={current.src}
-          alt={current.alt ?? ""}
-          style={{
-            transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${scale})`,
-          }}
-          onClick={(event) => event.stopPropagation()}
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerEnd}
-          onPointerCancel={handlePointerEnd}
-          decoding="async"
-          draggable={false}
-        />
+      <div
+        ref={stageRef}
+        className="poracode-image-lightbox__stage"
+        style={{ containerType: "size" }}
+      >
+        {current.src ? (
+          <img // eslint-disable-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- the image supports pointer-drag panning; keyboard image navigation remains on the dialog
+            ref={imageRef}
+            className={`poracode-image-lightbox__image${scale > MIN_SCALE ? " poracode-image-lightbox__image--zoomed" : ""}`}
+            src={previewSrc && decodedSrc !== current.src ? previewSrc : current.src}
+            alt={current.alt ?? ""}
+            style={{
+              transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${scale})`,
+              ...(previewSrc && current.width && current.height
+                ? {
+                    width: `min(100%, calc(100cqh * ${current.width} / ${current.height}))`,
+                    aspectRatio: `${current.width} / ${current.height}`,
+                  }
+                : {}),
+            }}
+            onClick={(event) => event.stopPropagation()}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerEnd}
+            onPointerCancel={handlePointerEnd}
+            decoding="async"
+            draggable={false}
+          />
+        ) : (
+          <span role="status">{t`Loading…`}</span>
+        )}
       </div>
 
       {images.length > 1 ? (
@@ -364,7 +446,7 @@ export function ImageLightboxView(props: {
           >
             <ZoomIn className="size-4" />
           </button>
-          <ImageLightboxActions image={current} />
+          {current.src ? <ImageLightboxActions image={current} /> : null}
         </div>
         {images.length > 1 ? (
           <span className="poracode-image-lightbox__counter">
@@ -375,6 +457,13 @@ export function ImageLightboxView(props: {
     </div>,
     document.body,
   );
+}
+
+const subscribeEmptyImage = () => () => undefined;
+const emptyImageSnapshot = () => "";
+
+function imageKey(image: LightboxImage | undefined): string | undefined {
+  return image?.resource?.key ?? image?.src;
 }
 
 function clampPan(

@@ -200,7 +200,9 @@ async function fixture(root: string, kind: string) {
     "src/shared",
     "src/supervisor",
     "packages/agents-usage/src",
+    "packages/poracode-cli/lib",
     "resources/plugins",
+    "native/pty-job-owner",
     "scripts",
   ])
     await mkdir(join(root, path), { recursive: true });
@@ -211,6 +213,13 @@ async function fixture(root: string, kind: string) {
     "bun.lock",
     "bunfig.toml",
     "scripts/prepare-agent-plugins.mjs",
+    "scripts/prepare-pty-job-owner.mjs",
+    "native/pty-job-owner/main.rs",
+    "scripts/server-native-overlay.mjs",
+    "scripts/server-release-install.mjs",
+    "scripts/server-host-tools.mjs",
+    "packages/poracode-cli/lib/completion.mjs",
+    "packages/poracode-cli/lib/desktopBundle.mjs",
   ])
     await writeFile(join(root, path), "{}");
   await mkdir(join(sourceAgentsDir, "plugin/forward-runtime"), { recursive: true });

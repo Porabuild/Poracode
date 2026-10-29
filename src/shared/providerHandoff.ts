@@ -74,3 +74,34 @@ export function resolveProviderHandoffStrategy(
     ? "thread-transcript"
     : "context-file";
 }
+
+import type { ExtractContextResult } from "./contracts/git";
+import type { BuiltInMcpDisabledTools, BuiltInMcpServerDisabled } from "./contracts/mcpServer";
+
+/**
+ * Whether current settings leave the built-in `read_thread` tool callable —
+ * the `app-controls` server enabled and the tool itself not disabled.
+ */
+export function readThreadToolEnabled(settings: {
+  disabledBuiltInMcpServers: BuiltInMcpServerDisabled;
+  disabledBuiltInMcpTools: BuiltInMcpDisabledTools;
+}): boolean {
+  return (
+    settings.disabledBuiltInMcpServers["app-controls"] !== true &&
+    !(settings.disabledBuiltInMcpTools["app-controls"] ?? []).includes("read_thread")
+  );
+}
+
+/**
+ * The sentence that introduces the attached context file. A verbatim chat
+ * history is introduced as such, with an instruction to read it in full: it
+ * is the prior turns, not a summary, and the provider must not skim it or
+ * treat it as background notes. A provider-produced summary keeps the
+ * original wording.
+ */
+export function handoffContextInstruction(extractedContext: ExtractContextResult): string {
+  const source = extractedContext.sourceProvider;
+  return extractedContext.contentKind === "transcript"
+    ? `This task was handed off from a ${source} session. The attached file is the chat history of this conversation so far. Read it in full before answering, treat it as the prior turns of this conversation, and continue the user's task from where it left off.`
+    : `This task was handed off from a ${source} session. Use the attached context file as prior conversation context.`;
+}

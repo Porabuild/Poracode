@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { IPC_EVENT_CHANNELS } from "@/shared/ipc";
 import type {
   BrowserDownloadInfo,
   BrowserImportResult,
@@ -677,6 +678,99 @@ describe("BrowserPanelManager", () => {
 
     expect(manager.setAutomationSession("thread-2", false)).toBe(true);
     expect(activity).toEqual([true, false]);
+  });
+
+  it("creates a host window when automation starts without one", async () => {
+    const { BrowserPanelManager } = await import("./BrowserPanelManager");
+    const ensureHostWindow = vi.fn<() => void>();
+    const manager = new BrowserPanelManager(
+      { settingsPath: "settings.json" } as never,
+      "Mozilla/5.0 Chrome/141.0.0.0 Safari/537.36",
+      stateStore,
+      { ensureHostWindow },
+    );
+    try {
+      manager.setAutomationSession("thread-1", true);
+      expect(ensureHostWindow).toHaveBeenCalledTimes(1);
+
+      const { host } = createManagerWithTab();
+      manager.bindHost(host as never);
+      manager.markAutomationActivity();
+      expect(ensureHostWindow).toHaveBeenCalledTimes(1);
+    } finally {
+      manager.dispose();
+    }
+  });
+
+  it("replays live automation to a host renderer's initial sync", async () => {
+    const { BrowserPanelManager } = await import("./BrowserPanelManager");
+    const manager = new BrowserPanelManager(
+      { settingsPath: "settings.json" } as never,
+      "Mozilla/5.0 Chrome/141.0.0.0 Safari/537.36",
+      stateStore,
+    );
+    try {
+      const { host, hostWebContents } = createManagerWithTab();
+      manager.bindHost(host as never);
+      const activity: boolean[] = [];
+      manager.addEventListener((event) => {
+        if (event.type === "automation-active") activity.push(event.active);
+      });
+
+      expect(manager.snapshotForHost()).toEqual(manager.snapshot());
+      expect(activity).toEqual([]);
+      expect(hostWebContents.send).not.toHaveBeenCalledWith(IPC_EVENT_CHANNELS.browserEvent, {
+        type: "automation-active",
+        active: true,
+      });
+
+      manager.setAutomationSession("thread-1", true);
+      expect(activity).toEqual([true]);
+      hostWebContents.send.mockClear();
+
+      manager.snapshotForHost();
+      expect(activity).toEqual([true, true]);
+      expect(hostWebContents.send).toHaveBeenCalledWith(IPC_EVENT_CHANNELS.browserEvent, {
+        type: "automation-active",
+        active: true,
+      });
+    } finally {
+      manager.dispose();
+    }
+  });
+
+  it("keeps the automation tab active when its host window's first bind restores tabs", async () => {
+    const { BrowserPanelManager } = await import("./BrowserPanelManager");
+    const saved = {
+      tabs: [
+        { url: "https://a.test/", title: "A" },
+        { url: "https://b.test/", title: "B" },
+      ],
+      activeIndex: 1,
+    };
+    const store = {
+      get: (key: string) => (key === "browser-panel-tabs-v1" ? JSON.stringify(saved) : null),
+      set: vi.fn<(key: string, value: string) => void>(),
+    };
+    const { host } = createManagerWithTab();
+    let manager: InstanceType<typeof BrowserPanelManager>;
+    manager = new BrowserPanelManager(
+      { settingsPath: "settings.json" } as never,
+      "Mozilla/5.0",
+      store,
+      { ensureHostWindow: () => manager.bindHost(host as never) },
+    );
+    try {
+      const info = await manager.createTab({ activate: true }, { agent: true, awaitAttach: false });
+      await vi.waitFor(() => expect(manager.snapshot().tabs).toHaveLength(3));
+      const state = manager.snapshot();
+      expect(state.activeTabId).toBe(info.tabId);
+      expect(state.tabs.map((tab) => tab.url)).toEqual(
+        expect.arrayContaining(["https://a.test/", "https://b.test/"]),
+      );
+    } finally {
+      manager.dispose();
+    }
   });
 
   it("moves ungrouped tabs into the target tab's group", async () => {

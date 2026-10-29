@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { toast } from "@heroui/react";
 import { AppProvider } from "@/renderer/components/ui/provider";
@@ -105,6 +105,7 @@ describe("non-blocking message reply forms", () => {
         undefined,
         {
           questionAnswer: {
+            sourceItemId: "question",
             questions: [{ header: "", question: "Which scope?", selected: [{ label: "A" }] }],
           },
         },
@@ -146,7 +147,7 @@ describe("non-blocking message reply forms", () => {
         }),
     );
     show();
-    const input = screen.getByPlaceholderText("Or write a custom answer");
+    const input = screen.getByPlaceholderText("Something else…");
     fireEvent.change(input, { target: { value: "  another scope  " } });
     fireEvent.keyDown(input, { key: "Enter" });
     fireEvent.submit(input.closest("form")!);
@@ -278,7 +279,7 @@ describe("non-blocking message reply forms", () => {
     expect((screen.getByRole("option", { name: /A/ }) as HTMLButtonElement).disabled).toBe(false);
   });
 
-  it("disables replies across remount while delivery is pending, then allows retry after failure", async () => {
+  it("hides replies across remount while delivery is pending, then allows retry after failure", async () => {
     const item = message();
     const view = show(item);
     let rejectSend!: (error: Error) => void;
@@ -302,14 +303,237 @@ describe("non-blocking message reply forms", () => {
         <ThreadMessageReplyDocks threadId={thread.id} />
       </AppProvider>,
     );
-    expect((screen.getByRole("option", { name: /A/ }) as HTMLButtonElement).disabled).toBe(true);
-    fireEvent.submit(screen.getByRole("option", { name: /A/ }).closest("form")!);
+    expect(screen.queryByRole("listbox")).toBeNull();
     expect(submitThreadInput).not.toHaveBeenCalled();
     await act(async () => {
       rejectSend(new Error("Disconnected"));
       await delivery;
     });
     expect((screen.getByRole("option", { name: /A/ }) as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it.each(["accepted", "failed"])(
+    "shows the answer before a delayed send settles as %s and preserves retry choices",
+    async (outcome) => {
+      let resolveSend!: () => void;
+      let rejectSend!: (error: Error) => void;
+      let delivery!: Promise<void>;
+      const notify = vi.spyOn(toast, "danger").mockImplementation(() => "toast");
+      vi.mocked(submitThreadInput).mockImplementation((threadId, prompt, segments, options) => {
+        delivery = performThreadInputSubmit({
+          thread: { ...thread, id: threadId },
+          prompt,
+          ...(segments ? { segments } : {}),
+          ...(options?.questionAnswer ? { questionAnswer: options.questionAnswer } : {}),
+          transport: {
+            sendThreadInput: () =>
+              new Promise<void>((resolve, reject) => {
+                resolveSend = resolve;
+                rejectSend = reject;
+              }),
+          },
+        });
+        return delivery;
+      });
+      show();
+      fireEvent.click(screen.getByRole("option", { name: /B/ }));
+      await act(async () => fireEvent.click(screen.getByRole("button", { name: "Submit" })));
+      const answerId = useAppStore.getState().runtimeItemIdsByThread[thread.id]!.at(-1)!;
+      const answerView = render(
+        <AppProvider>
+          <ChatItemRow
+            threadId={thread.id}
+            entry={{ kind: "item", id: answerId }}
+            checkpointRevert={null}
+          />
+        </AppProvider>,
+      );
+      expect(answerView.container.querySelector("svg.lucide-check")).not.toBeNull();
+      expect(screen.queryByRole("listbox")).toBeNull();
+      expect(submitThreadInput).toHaveBeenCalledTimes(1);
+      await act(async () => {
+        if (outcome === "accepted") resolveSend();
+        else rejectSend(new Error("Disconnected"));
+        await delivery.catch(() => {});
+      });
+      expect(!!answerView.container.querySelector("svg.lucide-check")).toBe(outcome === "accepted");
+      expect(!!screen.queryByRole("listbox")).toBe(outcome === "failed");
+      expect(screen.queryByRole("option", { name: /B/ })?.getAttribute("aria-selected")).toBe(
+        outcome === "failed" ? "true" : undefined,
+      );
+      expect(screen.queryByRole("button", { name: "Submit" })?.hasAttribute("disabled")).toBe(
+        outcome === "failed" ? false : undefined,
+      );
+      notify.mockRestore();
+    },
+  );
+
+  it.each([
+    { first: 0, outcome: "accepted" },
+    { first: 1, outcome: "accepted" },
+    { first: 0, outcome: "failed" },
+    { first: 1, outcome: "failed" },
+  ])(
+    "keeps the other question available when form $first settles as $outcome",
+    async ({ first, outcome }) => {
+      let resolveSend!: () => void;
+      let rejectSend!: (error: Error) => void;
+      let delivery!: Promise<void>;
+      const notify = vi.spyOn(toast, "danger").mockImplementation(() => "toast");
+      vi.mocked(submitThreadInput).mockImplementation((threadId, prompt, segments, options) => {
+        delivery = performThreadInputSubmit({
+          thread: { ...thread, id: threadId },
+          prompt,
+          ...(segments ? { segments } : {}),
+          ...(options?.questionAnswer ? { questionAnswer: options.questionAnswer } : {}),
+          transport: {
+            sendThreadInput: () =>
+              new Promise<void>((resolve, reject) => {
+                resolveSend = resolve;
+                rejectSend = reject;
+              }),
+          },
+        });
+        return delivery;
+      });
+      const questions = [
+        { id: "question", title: "Which scope?", answer: "B" },
+        { id: "timing", title: "When should this run?", answer: "Later" },
+      ];
+      seed([
+        message(),
+        {
+          ...message({
+            questions: [
+              {
+                id: "timing",
+                question: questions[1]!.title,
+                options: [{ optionId: "Later", label: "Later" }],
+              },
+            ],
+          }),
+          id: questions[1]!.id,
+        },
+      ]);
+      const content = (
+        <AppProvider>
+          <ThreadMessageReplyDocks threadId={thread.id} />
+        </AppProvider>
+      );
+      const view = render(content);
+      for (const question of questions) {
+        fireEvent.click(
+          within(screen.getByRole("listbox", { name: question.title })).getByRole("option", {
+            name: question.answer,
+          }),
+        );
+      }
+      const submitted = questions[first]!;
+      const remaining = questions[1 - first]!;
+      await act(async () =>
+        fireEvent.submit(screen.getByRole("listbox", { name: submitted.title }).closest("form")!),
+      );
+      expect(screen.queryByRole("listbox", { name: submitted.title })).toBeNull();
+      expect(
+        within(screen.getByRole("listbox", { name: remaining.title }))
+          .getByRole("option", { name: remaining.answer })
+          .getAttribute("aria-selected"),
+      ).toBe("true");
+      expect(submitThreadInput).toHaveBeenLastCalledWith(
+        thread.id,
+        `${submitted.title}\n${submitted.answer}`,
+        undefined,
+        { questionAnswer: expect.objectContaining({ sourceItemId: submitted.id }) },
+      );
+      await act(async () => {
+        if (outcome === "accepted") resolveSend();
+        else rejectSend(new Error("Disconnected"));
+        await delivery.catch(() => {});
+      });
+      expect(
+        screen.queryByRole("option", { name: submitted.answer })?.getAttribute("aria-selected"),
+      ).toBe(outcome === "failed" ? "true" : undefined);
+      expect(
+        within(screen.getByRole("listbox", { name: remaining.title }))
+          .getByRole("option", { name: remaining.answer })
+          .getAttribute("aria-selected"),
+      ).toBe("true");
+      if (outcome === "failed") {
+        await act(async () =>
+          fireEvent.submit(screen.getByRole("listbox", { name: submitted.title }).closest("form")!),
+        );
+        await act(async () => {
+          resolveSend();
+          await delivery;
+        });
+      }
+      const current = useAppStore.getState();
+      const persisted = current.runtimeItemIdsByThread[thread.id]!.map(
+        (id) => current.runtimeItemsByIdByThread[thread.id]![id]!,
+      );
+      view.unmount();
+      seed(JSON.parse(JSON.stringify(persisted)) as RuntimeChatItem[]);
+      render(content);
+      expect(screen.queryByRole("listbox", { name: submitted.title })).toBeNull();
+      fireEvent.click(
+        within(screen.getByRole("listbox", { name: remaining.title })).getByRole("option", {
+          name: remaining.answer,
+        }),
+      );
+      await act(async () =>
+        fireEvent.submit(screen.getByRole("listbox", { name: remaining.title }).closest("form")!),
+      );
+      expect(submitThreadInput).toHaveBeenLastCalledWith(
+        thread.id,
+        `${remaining.title}\n${remaining.answer}`,
+        undefined,
+        { questionAnswer: expect.objectContaining({ sourceItemId: remaining.id }) },
+      );
+      await act(async () => {
+        resolveSend();
+        await delivery;
+      });
+      expect(screen.queryByRole("listbox")).toBeNull();
+      notify.mockRestore();
+    },
+  );
+
+  it("keeps another form with identical question text open", async () => {
+    vi.mocked(submitThreadInput).mockImplementation((threadId, prompt, segments, options) =>
+      performThreadInputSubmit({
+        thread: { ...thread, id: threadId },
+        prompt,
+        ...(segments ? { segments } : {}),
+        ...(options?.questionAnswer ? { questionAnswer: options.questionAnswer } : {}),
+        transport: { sendThreadInput: async () => {} },
+      }),
+    );
+    seed([
+      message(),
+      {
+        ...message({
+          questions: [
+            {
+              id: "scope",
+              question: "Which scope?",
+              options: [{ optionId: "C", label: "C" }],
+            },
+          ],
+        }),
+        id: "other-question",
+      },
+    ]);
+    render(
+      <AppProvider>
+        <ThreadMessageReplyDocks threadId={thread.id} />
+      </AppProvider>,
+    );
+    const choice = screen.getByRole("option", { name: "B" });
+    fireEvent.click(choice);
+    await act(async () => fireEvent.submit(choice.closest("form")!));
+    expect(screen.getAllByRole("listbox")).toHaveLength(1);
+    expect(screen.getByRole("option", { name: "C" })).toBeTruthy();
+    expect(screen.queryByRole("option", { name: "B" })).toBeNull();
   });
 
   it("retires the form after a typed reply, including after remounting from persisted items", () => {

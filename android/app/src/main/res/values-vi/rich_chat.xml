@@ -226,4 +226,11 @@
     <string name="rich_chat_session_settings_search">Tìm kiếm giá trị</string>
     <string name="rich_chat_session_settings_back">Quay lại</string>
     <string name="rich_chat_session_settings_fallback_heading">Cài đặt</string>
+    <string name="rich_chat_fork_action">Tạo nhánh từ đây</string>
+    <string name="rich_chat_fork_title">Tạo nhánh trò chuyện</string>
+    <string name="rich_chat_fork_create">Tạo nhánh</string>
+    <string name="rich_chat_fork_explanation">Tạo cuộc trò chuyện độc lập đến hết một lượt đã hoàn tất. Các tệp vẫn ở cùng bản làm việc.</string>
+    <string name="rich_chat_fork_name">Tên cuộc trò chuyện</string>
+    <string name="rich_chat_fork_boundary">Lịch sử kế thừa kết thúc tại đây</string>
+    <string name="rich_chat_fork_source">Tạo nhánh từ %1$s</string>
 </resources>

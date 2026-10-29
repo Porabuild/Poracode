@@ -67,6 +67,26 @@ export const ENVIRONMENT_IMAGE_MAX_CONCURRENT_FETCHES = 4;
 /** Instance-local scheduling; persisted references and wire formats stay valid. */
 export type EnvironmentImagePriority = "foreground" | "background";
 
+/**
+ * Downscaled display variant served by the host's image routes
+ * (`?variant=card`). A variant coordinate is a distinct cache entry from
+ * the full-resolution one: transcript cards display the variant, while the
+ * lightbox/copy/download paths keep resolving full resolution. Hosts that
+ * do not know the parameter ignore it and serve full bytes, which this
+ * cache then simply holds under the variant key.
+ */
+export type EnvironmentImageVariant = "card";
+
+/**
+ * Encoded-size floor for bothering with a separate variant coordinate. The
+ * host serves full bytes for sources at or below its own decoded-size
+ * floor, so requesting a variant for a small image would only split the
+ * cache entry (and duplicate the fetch against the gallery's full-res
+ * coordinate) for no transfer saving. `RemoteImageRefValue.bytes` is the
+ * encoded (base64) size, hence the slightly larger floor here.
+ */
+export const CARD_VARIANT_MIN_SOURCE_BYTES = 128 * 1024;
+
 /** Missing-key snapshots are cached to keep `getSnapshot` identity stable. */
 const MISSING_SNAPSHOT_LIMIT = 256;
 
@@ -97,13 +117,19 @@ export interface RemoteEnvironmentImageCacheOptions {
 }
 
 /** Stable key for one host-held image reference; matches the resolution cache. */
-export function environmentImageRefKey(ref: RemoteImageRefValue): string {
-  return `ref:${ref.threadId}/${ref.itemId}/${JSON.stringify(ref.path)}`;
+export function environmentImageRefKey(
+  ref: RemoteImageRefValue,
+  variant?: EnvironmentImageVariant,
+): string {
+  return `ref:${ref.threadId}/${ref.itemId}/${JSON.stringify(ref.path)}${variant ? `#${variant}` : ""}`;
 }
 
 /** Stable key for one absolute host path; matches the resolution cache. */
-export function environmentLocalImageKey(absolutePath: string): string {
-  return `path:${absolutePath}`;
+export function environmentLocalImageKey(
+  absolutePath: string,
+  variant?: EnvironmentImageVariant,
+): string {
+  return variant ? `path-variant:${variant}:${absolutePath}` : `path:${absolutePath}`;
 }
 
 type ImageEntryStatus = "queued" | "pending" | "ready" | "failed" | "oversized";
@@ -157,12 +183,12 @@ export class RemoteEnvironmentImageCache {
       options.maxConcurrentFetches ?? ENVIRONMENT_IMAGE_MAX_CONCURRENT_FETCHES;
   }
 
-  imageRefUrl(ref: RemoteImageRefValue): string {
-    return this.imageRefResolution(ref).url;
+  imageRefUrl(ref: RemoteImageRefValue, variant?: EnvironmentImageVariant): string {
+    return this.imageRefResolution(ref, "foreground", variant).url;
   }
 
-  localImageUrl(absolutePath: string): string {
-    return this.localImageResolution(absolutePath).url;
+  localImageUrl(absolutePath: string, variant?: EnvironmentImageVariant): string {
+    return this.localImageResolution(absolutePath, "foreground", variant).url;
   }
 
   /**
@@ -172,18 +198,24 @@ export class RemoteEnvironmentImageCache {
   imageRefResolution(
     ref: RemoteImageRefValue,
     priority: EnvironmentImagePriority = "foreground",
+    variant?: EnvironmentImageVariant,
   ): RemoteEnvironmentImageResolution {
-    return this.requestResolution(environmentImageRefKey(ref), remoteImageRefPath(ref), priority);
+    return this.requestResolution(
+      environmentImageRefKey(ref, variant),
+      variant ? `${remoteImageRefPath(ref)}&variant=${variant}` : remoteImageRefPath(ref),
+      priority,
+    );
   }
 
   /** Side-effecting request entry point for an absolute host path. */
   localImageResolution(
     absolutePath: string,
     priority: EnvironmentImagePriority = "foreground",
+    variant?: EnvironmentImageVariant,
   ): RemoteEnvironmentImageResolution {
     return this.requestResolution(
-      environmentLocalImageKey(absolutePath),
-      localImageRequestPath(absolutePath),
+      environmentLocalImageKey(absolutePath, variant),
+      localImageRequestPath(absolutePath, variant),
       priority,
     );
   }
@@ -605,7 +637,8 @@ function snapshotFor(key: string, url: string, pending: boolean): RemoteEnvironm
   return Object.freeze({ key, url, pending });
 }
 
-function localImageRequestPath(absolutePath: string): string {
+function localImageRequestPath(absolutePath: string, variant?: EnvironmentImageVariant): string {
   const search = new URLSearchParams({ path: absolutePath });
+  if (variant) search.set("variant", variant);
   return `/api/files/image?${search.toString()}`;
 }

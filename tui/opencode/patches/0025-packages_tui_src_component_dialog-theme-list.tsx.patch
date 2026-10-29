@@ -1,0 +1,20 @@
+diff --git a/packages/tui/src/component/dialog-theme-list.tsx b/packages/tui/src/component/dialog-theme-list.tsx
+index 382373f..0abcb8e 100644
+--- a/packages/tui/src/component/dialog-theme-list.tsx
++++ b/packages/tui/src/component/dialog-theme-list.tsx
+@@ -2,13 +2,14 @@ import { DialogSelect, type DialogSelectRef } from "../ui/dialog-select"
+ import { useThemes } from "../context/theme"
+ import { useDialog } from "../ui/dialog"
+ import { onCleanup } from "solid-js"
++import { displayThemeName } from "../brand"
+ 
+ export function DialogThemeList() {
+   const themes = useThemes()
+   const options = Object.keys(themes.all())
+     .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }))
+     .map((value) => ({
+-      title: value,
++      title: displayThemeName(value),
+       value: value,
+     }))
+   const dialog = useDialog()

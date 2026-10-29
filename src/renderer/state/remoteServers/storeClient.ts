@@ -88,6 +88,23 @@ export function createRemoteServerClientBindings(
     );
   };
 
+  const persistAccessToken = (connectionKey: string, accessToken: string): void => {
+    if (
+      !get().servers.some(
+        (entry) =>
+          remoteConnectionKey(entry) === connectionKey && entry.accessToken !== accessToken,
+      )
+    )
+      return;
+    // Use the store's existing secure persistence path so future clients and
+    // reloads use the rotated bearer without storing credentials in plaintext.
+    set((state) => ({
+      servers: state.servers.map((entry) =>
+        remoteConnectionKey(entry) === connectionKey ? { ...entry, accessToken } : entry,
+      ),
+    }));
+  };
+
   /**
    * Builds a client for a server record with the Gate 6 lifecycle attached:
    * the refresh-token lifecycle (4.6) reads the in-memory token and
@@ -106,7 +123,6 @@ export function createRemoteServerClientBindings(
       }
       return session.client;
     }
-    const client = get().clientFactory(server.endpoint, server.accessToken);
     // The refresh grant is per connection, like every other session map. For
     // direct/ssh records the connection key equals the host identity, so v1
     // `refresh.<desktopId>` slots keep their exact key.
@@ -115,16 +131,36 @@ export function createRemoteServerClientBindings(
     // client of this connection (including the long-lived parent session), so
     // clients never revoke each other's valid rotation. A record removed during
     // this client's life has no incarnation: its callback stays inert.
-    const present = get().servers.some((entry) => remoteConnectionKey(entry) === connectionKey);
-    const incarnation = present ? ensureConnectionIncarnation(connectionKey) : undefined;
+    const current = get().servers.find((entry) => remoteConnectionKey(entry) === connectionKey);
+    // Reconnect callbacks can retain a record from before a rotation. Read the
+    // current bearer only for the same endpoint; never send it to a stale one.
+    const accessToken =
+      current?.endpoint === server.endpoint ? current.accessToken : server.accessToken;
+    const client = get().clientFactory(server.endpoint, accessToken);
+    const incarnation = current ? ensureConnectionIncarnation(connectionKey) : undefined;
+    const isCurrent = () =>
+      incarnation !== undefined &&
+      ownsConnectionIncarnation(connectionKey, incarnation) &&
+      get().servers.some(
+        (entry) =>
+          remoteConnectionKey(entry) === connectionKey && entry.endpoint === server.endpoint,
+      );
     client.setTokenLifecycle({
-      refreshToken: () => refreshTokenForDesktop(connectionKey),
+      accessToken: () =>
+        isCurrent()
+          ? get().servers.find(
+              (entry) =>
+                remoteConnectionKey(entry) === connectionKey && entry.endpoint === server.endpoint,
+            )?.accessToken
+          : undefined,
+      refreshToken: () => (isCurrent() ? refreshTokenForDesktop(connectionKey) : undefined),
       onTokensRefreshed: (tokens) => {
         // A delayed rotation from a removed or re-paired connection can neither
         // resurrect a deleted grant nor overwrite a freshly paired one.
-        if (incarnation === undefined || !ownsConnectionIncarnation(connectionKey, incarnation)) {
+        if (!isCurrent()) {
           return;
         }
+        persistAccessToken(connectionKey, tokens.accessToken);
         if (tokens.refreshToken) {
           rememberRefreshToken(connectionKey, tokens.refreshToken);
           void writeRefreshTokenToVault(
@@ -221,6 +257,7 @@ export function createRemoteServerClientBindings(
   return {
     setRemoteServerFailure,
     reportRemoteServerError,
+    persistAccessToken,
     clientForServer,
     requireClient,
     directImagesFor,

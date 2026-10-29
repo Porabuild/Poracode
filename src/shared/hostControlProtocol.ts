@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { hostAdminRequestSchema, hostAdminResultSchema } from "./hostAdminProtocol";
 
 // Version 2 is the host-declared service-capabilities boundary (V5 plan 1.2 /
 // finding H6): the describe result renames its operation list to
@@ -190,6 +191,11 @@ const requestBase = {
 export const hostControlRequestSchema = z.discriminatedUnion("operation", [
   z.strictObject({
     ...requestBase,
+    operation: z.literal("admin"),
+    payload: hostAdminRequestSchema,
+  }),
+  z.strictObject({
+    ...requestBase,
     operation: z.literal("describe"),
     payload: z.strictObject({}),
   }),
@@ -251,6 +257,7 @@ export const hostControlReplySchema = z.discriminatedUnion("ok", [
     ...replyBase,
     ok: z.literal(true),
     result: z.union([
+      hostAdminResultSchema,
       hostDescriptionSchema,
       hostControlPairingResultSchema,
       hostControlStatusResultSchema,

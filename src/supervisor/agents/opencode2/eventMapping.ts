@@ -20,6 +20,7 @@ import { OpenCode2Operations } from "./operations";
  */
 
 import { OpenCode2Compaction } from "./compaction";
+import { OpenCode2Goals } from "./goals";
 import type { PromptSegment, RuntimeEvent } from "@/shared/contracts";
 import { buildPromptContentBlocks } from "@/shared/promptContent";
 import {
@@ -82,6 +83,7 @@ export interface OpenCode2MapperState {
   threadId: string;
   compaction: OpenCode2Compaction;
   operations: OpenCode2Operations;
+  goals: OpenCode2Goals;
   /** Provider session this mapper filters events for. Set once by the session. */
   sessionID: string | null;
   /** AssistantMessageID → live message state. */
@@ -116,6 +118,7 @@ export function createOpenCode2MapperState(threadId: string): OpenCode2MapperSta
     threadId,
     compaction: new OpenCode2Compaction(threadId),
     operations: new OpenCode2Operations(threadId),
+    goals: new OpenCode2Goals(threadId),
     sessionID: null,
     messages: new Map(),
     completedMessages: new Set(),
@@ -421,7 +424,11 @@ export function mapOpenCode2Event(event: V2Event, state: OpenCode2MapperState): 
       tool.status = "success";
       applyOpenCode2ToolContent(tool, event.data.content);
       applyOpenCode2ToolMetadata(tool, event.data.metadata);
-      return [openCode2ToolItemUpdate(state, tool), openCode2ToolItemCompleted(state, tool)];
+      return [
+        openCode2ToolItemUpdate(state, tool),
+        openCode2ToolItemCompleted(state, tool),
+        ...state.goals.toolResult(tool.name, tool.result, event.data.sessionID),
+      ];
     }
     case "session.tool.failed": {
       const message = ensureOpenCode2MessageState(state, event.data.assistantMessageID);

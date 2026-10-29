@@ -389,6 +389,7 @@ function ModelVisibilityRow(props: {
     );
   }
 
+  if (item.type !== "model") return null;
   const labelParts = item.label.split(" · ");
   const name = labelParts[0] ?? item.label;
   const hint = labelParts.length > 1 ? labelParts.slice(1).join(" · ") : undefined;

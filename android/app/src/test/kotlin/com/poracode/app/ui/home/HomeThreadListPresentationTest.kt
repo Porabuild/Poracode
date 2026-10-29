@@ -4,6 +4,7 @@ import com.poracode.app.model.ClientConnectionId
 import com.poracode.app.model.PosixProjectLocation
 import com.poracode.app.model.ProjectDraftConfig
 import com.poracode.app.model.RemoteProject
+import com.poracode.app.model.RemoteJson
 import com.poracode.app.model.RemoteThread
 import com.poracode.app.model.ThreadConfig
 import com.poracode.app.session.HostPresentation
@@ -77,14 +78,18 @@ class HomeThreadListPresentationTest {
 
     @Test
     fun `launch defaults prefer project draft then latest project thread`() {
+        val crew = RemoteJson.parseToJsonElement(
+            """{"version":1,"crewId":"crew-1","name":"Night shift","policy":"crew-only","roles":[]}""",
+        )
         val draftProject = project(
             "draft",
             "Draft",
-            ProjectDraftConfig(agentKind = "claude", model = "opus"),
+            ProjectDraftConfig(agentKind = "claude", model = "opus", crew = crew),
         )
         val draftDefaults = HomeThreadListPresentation.launchDefaults(draftProject, emptyList())
         assertEquals("claude", draftDefaults?.agentKind)
         assertEquals("opus", draftDefaults?.config?.model)
+        assertEquals(crew, draftDefaults?.config?.crew)
 
         val project = project("project", "Poracode")
         val older = item(

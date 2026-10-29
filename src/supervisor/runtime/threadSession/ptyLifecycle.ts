@@ -1,5 +1,6 @@
 import { setTimeout as sleep } from "node:timers/promises";
 import { terminateProcessTree } from "@/shared/processTree";
+import { managedPtyCustody } from "../../pty/managedPty";
 import type { SessionRuntime, ShellSessionRuntime } from "../sessionTypes";
 
 /**
@@ -49,6 +50,7 @@ export class PtyLifecycle {
       pty.resize(cols, rows);
     } catch (error) {
       if (isPtyResizeAfterExitError(error)) {
+        if (managedPtyCustody(pty)) return;
         session.ptyExited = true;
         this.resolveExit(session);
         return;
@@ -58,6 +60,21 @@ export class PtyLifecycle {
   }
 
   async waitForExit(session: SessionRuntime | ShellSessionRuntime): Promise<boolean> {
+    const managed = session.pty ? managedPtyCustody(session.pty) : undefined;
+    if (managed) {
+      if (managed.exitConfirmed) return true;
+      const deadline = new AbortController();
+      try {
+        return await Promise.race([
+          managed.closed.then(() => managed.exitConfirmed),
+          sleep(PtyLifecycle.CLOSE_TIMEOUT_MS, undefined, { signal: deadline.signal }).then(
+            () => false,
+          ),
+        ]);
+      } finally {
+        deadline.abort();
+      }
+    }
     if (session.ptyExited) {
       return true;
     }
@@ -83,6 +100,13 @@ export class PtyLifecycle {
     if (!session.pty) {
       return;
     }
+    const managed = managedPtyCustody(session.pty);
+    if (managed) {
+      void managed
+        .close()
+        .catch(() => console.warn("[supervisor] Managed terminal retirement remains unconfirmed."));
+      return;
+    }
     if (session.ptyExited) {
       return;
     }
@@ -99,6 +123,13 @@ export class PtyLifecycle {
   }
 
   killShell(session: ShellSessionRuntime): void {
+    const managed = managedPtyCustody(session.pty);
+    if (managed) {
+      void managed
+        .close()
+        .catch(() => console.warn("[supervisor] Managed terminal retirement remains unconfirmed."));
+      return;
+    }
     if (session.ptyExited) {
       return;
     }

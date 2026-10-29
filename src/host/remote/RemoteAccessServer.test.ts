@@ -26,6 +26,7 @@ import type {
   PrWatch,
   PrWatchAgentSync,
   PrWatchInput,
+  ForgePrWatchInput,
   Project,
   ProjectNotes,
   ScheduledTask,
@@ -78,7 +79,8 @@ import {
   dbHasPendingThreadRuntimeWrites as hasPendingRealRuntimeWrites,
 } from "@/host/db/runtimeItems";
 import { resetRuntimePersistenceForTests } from "@/host/db/runtimePersistenceRuntime";
-import { RemoteAuthStore } from "./auth";
+import * as runtimePersistence from "@/host/db/runtimePersistenceRuntime";
+import { RemoteAuthStore, type PersistedRemoteAuthFile } from "./auth";
 import * as remoteConfig from "./config";
 import { deriveForwardOwner, ForwardOriginPolicy } from "./portForward/forwardOrigin";
 import { createForwardOriginIdentity } from "./portForward/forwardOriginIdentity";
@@ -1170,7 +1172,15 @@ describe("RemoteAccessServer", () => {
     });
   });
 
-  it("persists runtime event batches immediately before a settling thread-state", async () => {
+  it("persists runtime event batches immediately before a settling thread-state", async ({
+    onTestFinished,
+  }) => {
+    // This HTTP fixture has no SQLite owner. The database regression tests
+    // prove the drain; here verify admission and the requested commit order.
+    const commitPrefix = vi
+      .spyOn(runtimePersistence, "commitRuntimeThreadPrefixSync")
+      .mockReturnValue(0);
+    onTestFinished(() => commitPrefix.mockRestore());
     mockThreadDb([
       createTestThread({
         id: "thread-runtime",
@@ -1227,10 +1237,113 @@ describe("RemoteAccessServer", () => {
     });
     await flushQueuedControlWrites();
 
+    expect(commitPrefix).toHaveBeenCalledWith("thread-runtime");
+    expect(commitPrefix.mock.invocationCallOrder[0]).toBeLessThan(
+      vi.mocked(dbUpsertThread).mock.invocationCallOrder[0]!,
+    );
     expect(pendingWhenStateWritten).toBe(true);
     expect(hasPendingRealRuntimeWrites("thread-runtime")).toBe(true);
     discardRealRuntimeWrites("thread-runtime");
     resetRuntimePersistenceForTests();
+  });
+
+  it.each(["independent", "managed-loopback"] as const)(
+    "preserves the displayed QR when an %s grant is issued and redeemed",
+    async (kind) => {
+      const onPairingChanged = vi.fn<() => void>();
+      const server = createTestServer({
+        truncateThreadRuntime() {},
+        appVersion: "1.0.0",
+        identity: { desktopId: "desktop-test", label: "Test Desktop" },
+        host: "127.0.0.1",
+        port: 0,
+        callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
+        onPairingChanged,
+      });
+      servers.push(server);
+      const info = await server.start();
+      const displayed = { pairingUrl: info.pairingUrl, pairingExpiresAt: info.pairingExpiresAt };
+      onPairingChanged.mockClear();
+      const url =
+        kind === "independent"
+          ? server.issueIndependentPairingUrl("CLI grant", { preset: "viewer" })
+          : server.mintLoopbackRendererCredential()!.pairingUrl;
+      const credential = new URLSearchParams(new URL(url).hash.slice(1)).get("token");
+      expect(server.getInfo()).toMatchObject(displayed);
+      const exchange = () =>
+        fetch(new URL("/oauth/token", info.httpBaseUrl), {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+          },
+          body: JSON.stringify({
+            grantType: "pairing-token",
+            credential,
+            scopes: ["session:read"],
+          }),
+        });
+      const response = await exchange();
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({ scopes: ["session:read"] });
+      expect(server.getInfo()).toMatchObject(displayed);
+      expect(onPairingChanged).not.toHaveBeenCalled();
+      expect((await exchange()).status).toBe(401);
+      expect(server.getInfo()).toMatchObject(displayed);
+    },
+  );
+
+  it("keeps managed-renderer loopback sessions memory-only and persists browser-extension ones", async () => {
+    const writes: PersistedRemoteAuthFile[] = [];
+    const authStore = new RemoteAuthStore({
+      onPersistedStateChanged: (state) => {
+        writes.push(state);
+      },
+    });
+    const server = createTestServer({
+      truncateThreadRuntime: () => {},
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      authStore,
+      callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
+    });
+    servers.push(server);
+    const info = await server.start();
+    const exchange = async (pairingUrl: string) => {
+      const credential = new URLSearchParams(new URL(pairingUrl).hash.slice(1)).get("token");
+      const response = await fetch(new URL("/oauth/token", info.httpBaseUrl), {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+        },
+        body: JSON.stringify({
+          grantType: "pairing-token",
+          credential,
+          scopes: ["session:read"],
+        }),
+      });
+      expect(response.status).toBe(200);
+      return (await response.json()) as { accessToken: string; sessionId?: string };
+    };
+
+    const managed = await exchange(server.mintLoopbackRendererCredential()!.pairingUrl);
+    // A memory-only exchange writes nothing at all — not even a rewrite without
+    // its row — so the file never learns the session existed.
+    expect(writes).toEqual([]);
+    // It still authenticates for this process's lifetime.
+    expect(authStore.authenticateBearerToken(managed.accessToken).sessionId).toBe(
+      managed.sessionId,
+    );
+
+    const extension = await exchange(
+      server.mintLoopbackRendererCredential({ browserExtension: true })!.pairingUrl,
+    );
+    expect(
+      writes.at(-1)?.accessSessions.some((session) => session.id === extension.sessionId),
+    ).toBe(true);
   });
 
   it("rotates the desktop pairing code after exchange and rejects replay", async () => {
@@ -2136,9 +2249,9 @@ describe("RemoteAccessServer", () => {
   });
 
   it("accepts authenticated remote attachment uploads", async () => {
-    const save = vi.fn<(input: { threadId: string; fileName: string; data: Uint8Array }) => string>(
-      () => "C:\\attachments\\notes.md",
-    );
+    const save = vi.fn<
+      (input: { threadId: string; fileName: string; data: Uint8Array }) => Promise<string>
+    >(async () => "C:\\attachments\\notes.md");
     const server = createTestServer({
       truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
@@ -2724,6 +2837,67 @@ describe("RemoteAccessServer", () => {
     });
 
     await expect(readyPromise).resolves.toMatchObject({ type: "ready", seq: 0 });
+    await expect(closePromise).resolves.toEqual({
+      code: 1008,
+      reason: "Remote access session expired",
+    });
+  });
+
+  it("keeps a websocket open when its session is refreshed before the deadline", async () => {
+    const authStore = new RemoteAuthStore();
+    const server = createTestServer({
+      truncateThreadRuntime: () => {},
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      authStore,
+      callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
+    });
+    servers.push(server);
+    const info = await server.start();
+    const pairing = authStore.issuePairingCredential({ scopes: ["session:read"] });
+    const token = authStore.exchangePairingCredential({
+      credential: pairing.credential,
+      ttlMs: 750,
+    });
+    const ticket = authStore.issueWebSocketTicket({
+      accessToken: token.accessToken,
+      ttlMs: 5_000,
+    });
+
+    const wsUrl = new URL("/ws", info.wsBaseUrl);
+    wsUrl.searchParams.set("ticket", ticket.ticket);
+    const ws = new WebSocket(wsUrl);
+    const readyPromise = readWsMessage(ws);
+    const closePromise = waitWsClose(ws);
+    await new Promise<void>((resolve, reject) => {
+      ws.once("open", resolve);
+      ws.once("error", reject);
+    });
+    await expect(readyPromise).resolves.toMatchObject({ type: "ready", seq: 0 });
+
+    // The session outlives the expiry captured when the ticket was consumed:
+    // the renewal of the SAME session moves its access deadline out.
+    const refreshed = authStore.refreshAccessToken({
+      refreshToken: token.refreshToken!,
+      accessTtlMs: 1_500,
+    });
+    expect(refreshed.sessionId).toBe(token.sessionId);
+    // Wait until the ORIGINAL deadline (captured at ticket consumption) is
+    // already behind us, so the pong proves the socket follows the renewal.
+    await new Promise((resolve) =>
+      setTimeout(resolve, Math.max(0, Date.parse(token.expiresAt) + 150 - Date.now())),
+    );
+
+    const pongPromise = readWsMessage(ws);
+    ws.send(JSON.stringify({ type: "ping", id: "after-refresh" }));
+    await expect(pongPromise).resolves.toMatchObject({ type: "pong", id: "after-refresh" });
+    expect(
+      server.listAccessSessions().find((session) => session.id === token.sessionId)?.connected,
+    ).toBe(true);
+
+    // The socket still closes at the RENEWED deadline, not forever.
     await expect(closePromise).resolves.toEqual({
       code: 1008,
       reason: "Remote access session expired",
@@ -4545,12 +4719,16 @@ describe("RemoteAccessServer", () => {
   });
 
   it("only restarts existing remote threads through the legacy start endpoint", async () => {
+    const toolChoices = {
+      mcpServerOverrides: { custom: true },
+      pluginOverrides: { github: false },
+    };
     const project = createTestProject({ location: { kind: "posix", path: "/repo" } });
     vi.mocked(dbGetProjects).mockReturnValue([project]);
     mockThreadDb([
       createTestThread({
         projectId: project.id,
-        config: { model: "gpt-5" },
+        config: { model: "gpt-5", ...toolChoices },
         presentationMode: "terminal",
       }),
     ]);
@@ -4624,6 +4802,7 @@ describe("RemoteAccessServer", () => {
     expect(callSupervisor).toHaveBeenCalledTimes(1);
     expect(callSupervisor).toHaveBeenCalledWith("startThread", {
       ...payload,
+      config: { ...payload.config, ...toolChoices },
       disabledBuiltInMcpServerIds: [],
       disabledBuiltInMcpTools: {},
       mcpServers: [],
@@ -7177,6 +7356,17 @@ describe("RemoteAccessServer", () => {
     });
     const requestCheck = vi.fn<(projectId: string, prNumber: number) => void>();
     const syncAgent = vi.fn<(agent: PrWatchAgentSync) => void>();
+    const upsertScoped = vi.fn<(input: ForgePrWatchInput) => Promise<PrWatch>>(async (input) =>
+      upsert(input),
+    );
+    const prWatches: NonNullable<RemoteAccessServerOptions["prWatches"]> = {
+      get: () => stored,
+      requestCheck,
+      upsert,
+      upsertScoped,
+      delete: remove,
+      syncAgent,
+    };
     const server = createTestServer({
       truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
@@ -7184,13 +7374,7 @@ describe("RemoteAccessServer", () => {
       host: "127.0.0.1",
       port: 0,
       callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
-      prWatches: {
-        get: () => stored,
-        requestCheck,
-        upsert,
-        delete: remove,
-        syncAgent,
-      },
+      prWatches,
     });
     servers.push(server);
     const info = await server.start();
@@ -7247,6 +7431,54 @@ describe("RemoteAccessServer", () => {
       },
     });
     expect(upsert).toHaveBeenCalledWith(input);
+
+    const scopedInput: ForgePrWatchInput = {
+      ...input,
+      reviewScope: {
+        version: 1,
+        forge: "gitlab",
+        host: "https://git.example/gitlab",
+        repository: "group/app",
+        account: { forge: "gitlab", host: "https://git.example/gitlab", login: "alice" },
+      },
+    };
+    const deniedScoped = await fetch(new URL("/api/pr-watches/scoped", info.httpBaseUrl), {
+      method: "POST",
+      headers: readHeaders,
+      body: JSON.stringify(scopedInput),
+    });
+    expect(deniedScoped.status).toBe(403);
+    expect(upsertScoped).not.toHaveBeenCalled();
+    const scopedResponse = await fetch(new URL("/api/pr-watches/scoped", info.httpBaseUrl), {
+      method: "POST",
+      headers: operateHeaders,
+      body: JSON.stringify(scopedInput),
+    });
+    expect(scopedResponse.status).toBe(200);
+    await expect(scopedResponse.json()).resolves.toMatchObject({
+      watch: { reviewScope: scopedInput.reviewScope },
+    });
+    expect(upsertScoped).toHaveBeenCalledExactlyOnceWith(scopedInput);
+    const futureScope = await fetch(new URL("/api/pr-watches/scoped", info.httpBaseUrl), {
+      method: "POST",
+      headers: operateHeaders,
+      body: JSON.stringify({ ...scopedInput, reviewScope: { version: 999, opaque: "preserve" } }),
+    });
+    expect(futureScope.status).toBe(400);
+    expect(upsertScoped).toHaveBeenCalledTimes(1);
+
+    delete prWatches.upsertScoped;
+    const unsupportedScope = await fetch(new URL("/api/pr-watches/scoped", info.httpBaseUrl), {
+      method: "POST",
+      headers: operateHeaders,
+      body: JSON.stringify(scopedInput),
+    });
+    expect(unsupportedScope.status).toBe(501);
+    await expect(unsupportedScope.json()).resolves.toMatchObject({
+      error: { code: "forge_watch_scope_unavailable" },
+    });
+    expect(upsertScoped).toHaveBeenCalledTimes(1);
+    expect(upsert).toHaveBeenCalledTimes(2);
 
     const checkResponse = await fetch(new URL("/api/pr-watches/check", info.httpBaseUrl), {
       method: "POST",

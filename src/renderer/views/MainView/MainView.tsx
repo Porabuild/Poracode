@@ -6,7 +6,10 @@ import { readBridge } from "@/renderer/bridge";
 import { isBrowserClientRuntime } from "@/renderer/clientRuntime";
 import { ensureHomeScopeProject } from "@/renderer/actions/projectActions";
 
-import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
+import {
+  applyPartialAgentStatuses,
+  useAgentStatusesStore,
+} from "@/renderer/state/agentStatusesStore";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useExperimentStore } from "@/renderer/state/experimentStore";
 import { useWelcomeGateStore } from "@/renderer/state/welcomeGateStore";
@@ -98,6 +101,7 @@ export function MainView(props: { storeHydrated: boolean; runtimeSnapshotsReady:
     // (windows-agent-statuses, wsl-agent-statuses).
     const wslDistros = parseWslProjectDistrosKey(wslProjectDistrosKey);
     const discoveryStartedAt = performance.now();
+    const statusesBeforeRequest = useAgentStatusesStore.getState();
     void readBridge()
       .getAgentStatuses(wslDistros)
       .then((response) => {
@@ -109,24 +113,27 @@ export function MainView(props: { storeHydrated: boolean; runtimeSnapshotsReady:
             },
           );
         }
-        const missingWslDistro = findMissingWslDistro(wslDistros, response.wsl);
         if (response.fromCache) {
           useAgentStatusesStore.getState().hydrateFromCache({
             windows: response.windows,
             wsl: response.wsl,
           });
-          if (!missingWslDistro) {
-            return;
+          const missingWslDistro = findMissingWslDistro(wslDistros, response.wsl);
+          if (missingWslDistro) {
+            useAgentStatusesStore
+              .getState()
+              .beginStartupDiscovery({ kind: "wsl", distro: missingWslDistro });
           }
-          useAgentStatusesStore
-            .getState()
-            .beginFirstLaunchDiscovery({ kind: "wsl", distro: missingWslDistro });
           return;
         }
 
+        // A cache upgrade or an in-flight sweep can return usable rows without
+        // a complete inventory. Keep them available while discovery finishes.
+        applyPartialAgentStatuses(response, statusesBeforeRequest);
+        const missingWslDistro = findMissingWslDistro(wslDistros, response.wsl);
         useAgentStatusesStore
           .getState()
-          .beginFirstLaunchDiscovery(
+          .beginStartupDiscovery(
             missingWslDistro ? { kind: "wsl", distro: missingWslDistro } : undefined,
           );
       })

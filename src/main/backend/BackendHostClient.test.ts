@@ -1,4 +1,5 @@
 import { EventEmitter } from "node:events";
+import type { DesktopHostControlGrant } from "@/shared/desktopHostControl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   BACKEND_HOST_PROTOCOL_VERSION,
@@ -96,7 +97,11 @@ function replyFailure(child: FakeChild, request: BackendHostRequest, error: stri
 
 function createClient(
   assignPid = vi.fn<(pid: number) => Promise<void>>(async () => undefined),
-  options: { initWaitTimeoutMs?: number; queueDiagnostics?: IpcQueueCapture } = {},
+  options: {
+    initWaitTimeoutMs?: number;
+    queueDiagnostics?: IpcQueueCapture;
+    localControl?: DesktopHostControlGrant;
+  } = {},
 ) {
   const onThreadActivity = vi.fn<(changes: readonly NativeThreadActivityChange[]) => void>();
   const onReset = vi.fn<() => void>();
@@ -110,6 +115,15 @@ function createClient(
     initialize: {
       baseDir: "/data",
       dbPath: "/data/state.sqlite",
+      ...(options.localControl
+        ? {
+            desktop: {
+              channel: "stable" as const,
+              settingsPath: "/data/settings.json",
+              localControl: options.localControl,
+            },
+          }
+        : {}),
       supervisor: {
         appVersion: "test",
         isDev: true,
@@ -168,6 +182,62 @@ describe("BackendHostClient", () => {
   afterEach(() => {
     vi.clearAllTimers();
     vi.useRealTimers();
+  });
+
+  it.each([
+    null,
+    { localControl: { version: 2, ownerGeneration: "11111111-1111-4111-8111-111111111111" } },
+    { localControl: { version: 1, ownerGeneration: "22222222-2222-4222-8222-222222222222" } },
+  ])(
+    "refuses an unsupported or foreign local-control acknowledgement before supervisor startup: %j",
+    async (ack) => {
+      const child = makeFakeChild();
+      forkMock.mockReturnValue(child);
+      const grant = {
+        version: 1 as const,
+        profileNamespace: "/profile",
+        ownerGeneration: "11111111-1111-4111-8111-111111111111",
+      };
+      const { client, reportError } = createClient(undefined, { localControl: grant });
+      const start = client.startSupervisor().then(
+        () => "unexpected",
+        () => "refused",
+      );
+      await vi.waitFor(() => expect(requests(child)).toHaveLength(1));
+      reply(child, requestFor(child, "initialize"), ack);
+      await vi.waitFor(() => expect(reportError).toHaveBeenCalled());
+      expect(String(reportError.mock.calls[0]![0])).toContain("does not acknowledge");
+      expect(requests(child).some((request) => request.operation === "start-supervisor")).toBe(
+        false,
+      );
+      child.emit("exit", 1);
+      await client.disposeAsync();
+      expect(await start).toBe("refused");
+    },
+  );
+
+  it("starts only after the backend echoes the exact delegation version and owner generation", async () => {
+    const child = makeFakeChild();
+    forkMock.mockReturnValue(child);
+    const grant = {
+      version: 1 as const,
+      profileNamespace: "/profile",
+      ownerGeneration: "11111111-1111-4111-8111-111111111111",
+    };
+    const { client } = createClient(undefined, { localControl: grant });
+    await startClient(client, child, {
+      localControl: { version: 1, ownerGeneration: grant.ownerGeneration },
+    });
+    expect(requestFor(child, "initialize")).toMatchObject({
+      payload: { desktop: { localControl: grant } },
+    });
+    const disposal = client.disposeAsync();
+    await vi.waitFor(() =>
+      expect(requests(child).some((request) => request.operation === "dispose")).toBe(true),
+    );
+    reply(child, requestFor(child, "dispose"));
+    child.emit("exit", 0);
+    await disposal;
   });
 
   it("distinguishes a missing queue from a fresh replacement sender generation", async () => {

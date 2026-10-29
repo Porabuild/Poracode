@@ -388,6 +388,19 @@ final class RichChatPresentationTests: XCTestCase {
       streams: [:],
       parentItemID: "agent"
     )
+    let roleCrossagent = RichRuntimeItem(
+      id: "crossagent",
+      type: "tool_call",
+      state: .updated,
+      payload: .object([
+        "name": .string("Crossagent"),
+        "isCrossagent": .bool(true),
+        "subAgentType": .string("Builder"),
+        "args": .object(["description": .string("Inspect the patch")]),
+      ]),
+      streams: [:],
+      parentItemID: nil
+    )
     let completed = RichRuntimeItem(
       id: "completed",
       type: "tool_call",
@@ -398,13 +411,19 @@ final class RichChatPresentationTests: XCTestCase {
     )
 
     XCTAssertEqual(
-      RichChatPresentation.activeDelegatedAgents(in: [running, child, completed]),
+      RichChatPresentation.activeDelegatedAgents(in: [running, child, completed, roleCrossagent]),
       [
         RichDelegatedAgentPresentation(
           id: "agent",
           kind: .subagent,
           title: "Inspect mobile parity",
           stepCount: 1
+        ),
+        RichDelegatedAgentPresentation(
+          id: "crossagent",
+          kind: .crossagent,
+          title: "Builder: Inspect the patch",
+          stepCount: 0
         )
       ]
     )

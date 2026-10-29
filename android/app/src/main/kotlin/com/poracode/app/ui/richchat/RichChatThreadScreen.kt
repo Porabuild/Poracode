@@ -63,6 +63,8 @@ import com.poracode.app.ui.terminal.RichTerminalPane
 import com.poracode.app.ui.thread.ThreadLifecycleActions
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.contentOrNull
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -82,6 +84,8 @@ fun RichChatThreadScreen(
     workspaceController: ProjectWorkspaceController? = null,
     workspaceTarget: ProjectWorkspaceTarget? = null,
     terminalTextSizeSp: Int = 13,
+    forksSupported: Boolean = false,
+    onOpenThread: (String) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     if (showBack) BackHandler(onBack = onBack)
@@ -128,6 +132,12 @@ fun RichChatThreadScreen(
     var pendingRevertItemId by rememberSaveable(threadId) { mutableStateOf<String?>(null) }
     var showCloseDialog by rememberSaveable(threadId) { mutableStateOf(false) }
     val canMutate = canOperate && state.selection != null && !mutating && !refreshing
+    var forkIntent by rememberSaveable(threadId, state.selection?.host?.connectionId, state.selection?.host?.bindingGeneration, stateSaver = RichChatForkIntent.Saver) { mutableStateOf<RichChatForkIntent?>(null) }
+    val canFork = canMutate && forksSupported && thread?.status in listOf("idle", "inactive", "error")
+    val forkBoundaryItemId = thread?.forkedFrom?.get("throughItemId")?.jsonPrimitive?.contentOrNull
+    val requestFork: ((String) -> Unit)? = if (canFork) { anchor ->
+        forkIntent = RichChatForkIntent(threadId, anchor, title)
+    } else null
     val closeThreadLabel = stringResource(R.string.rich_chat_close_thread)
     val canConfigure = canOperate && agentStatus != null &&
         (thread?.canResumeWithConfig == true || thread?.status == "launching")
@@ -230,6 +240,15 @@ fun RichChatThreadScreen(
         }
     }
 
+    forkIntent?.let { intent ->
+        RichChatForkDialog(
+            runtime = runtime,
+            intent = intent,
+            canFork = canFork,
+            onDismiss = { forkIntent = null },
+            onOpenThread = onOpenThread,
+        )
+    }
     Scaffold(
         modifier = modifier,
         topBar = {
@@ -346,6 +365,7 @@ fun RichChatThreadScreen(
                 .fillMaxSize()
                 .padding(padding),
         ) {
+            RichChatForkOrigin(thread, onOpenThread)
             // Mirrors iOS's merged status view: a checkpoint restore/rollback/load failure is
             // otherwise only visible if the checkpoints sheet happens to be open.
             RichChatStatusBanners(
@@ -426,6 +446,8 @@ fun RichChatThreadScreen(
                                     onTruncateItem = { pendingTruncateItemId = it },
                                     revertableItemIds = revertableItemIds,
                                     onRevertItem = { pendingRevertItemId = it },
+                                    onForkItem = requestFork,
+                                    forkBoundaryItemId = forkBoundaryItemId,
                                     modifier = Modifier.weight(1f),
                                 )
                                 VerticalDivider()
@@ -449,6 +471,8 @@ fun RichChatThreadScreen(
                                     onTruncateItem = { pendingTruncateItemId = it },
                                     revertableItemIds = revertableItemIds,
                                     onRevertItem = { pendingRevertItemId = it },
+                                    onForkItem = requestFork,
+                                    forkBoundaryItemId = forkBoundaryItemId,
                                     modifier = Modifier.weight(1f),
                                 )
                                 RichChatCompactControlDock(

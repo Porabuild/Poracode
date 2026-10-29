@@ -174,7 +174,7 @@ describe.skipIf(!sqliteAvailable)("AttachmentReclaimService (real sqlite + files
   it("reclaims a deleted thread's directory through the committed-delete seam", async () => {
     dbUpsertProject(testProject("p1"), 0);
     dbUpsertThread({ ...testThread(), projectId: "p1" }, 0);
-    const saved = saveUploadedAttachmentFile(paths, {
+    const saved = await saveUploadedAttachmentFile(paths, {
       threadId: "thread-1",
       data: new Uint8Array([1, 2, 3]),
       fileName: "photo.png",
@@ -194,17 +194,17 @@ describe.skipIf(!sqliteAvailable)("AttachmentReclaimService (real sqlite + files
     dbUpsertThread({ ...{ ...testThread(), projectId: "p1" }, id: "gone-1" }, 0);
     dbUpsertThread({ ...{ ...testThread(), projectId: "p1" }, id: "gone-2" }, 1);
     dbUpsertThread({ ...testThread(), id: "kept-1", projectId: "p2" }, 0);
-    saveUploadedAttachmentFile(paths, {
+    await saveUploadedAttachmentFile(paths, {
       threadId: "gone-1",
       data: new Uint8Array([1]),
       fileName: "a.png",
     });
-    saveUploadedAttachmentFile(paths, {
+    await saveUploadedAttachmentFile(paths, {
       threadId: "gone-2",
       data: new Uint8Array([2]),
       fileName: "b.png",
     });
-    const kept = saveUploadedAttachmentFile(paths, {
+    const kept = await saveUploadedAttachmentFile(paths, {
       threadId: "kept-1",
       data: new Uint8Array([3]),
       fileName: "c.png",
@@ -231,12 +231,12 @@ describe.skipIf(!sqliteAvailable)("AttachmentReclaimService (real sqlite + files
     const created = dbApplyExperimentIntent(createCommand(record));
     expect(created).toMatchObject({ status: "applied" });
     if (created.status !== "applied") return;
-    saveUploadedAttachmentFile(paths, {
+    await saveUploadedAttachmentFile(paths, {
       threadId: "c1",
       data: new Uint8Array([1]),
       fileName: "a.png",
     });
-    saveUploadedAttachmentFile(paths, {
+    await saveUploadedAttachmentFile(paths, {
       threadId: "c2",
       data: new Uint8Array([2]),
       fileName: "b.png",
@@ -259,7 +259,7 @@ describe.skipIf(!sqliteAvailable)("AttachmentReclaimService (real sqlite + files
     getSqlite()
       .prepare("UPDATE threads SET archived = 1, archived_at = ?, done = 1 WHERE id = ?")
       .run(archivedAt, "purge-1");
-    saveUploadedAttachmentFile(paths, {
+    await saveUploadedAttachmentFile(paths, {
       threadId: "purge-1",
       data: new Uint8Array([1]),
       fileName: "a.png",
@@ -286,7 +286,7 @@ describe.skipIf(!sqliteAvailable)("AttachmentReclaimService (real sqlite + files
   it("keeps the directory when an outer transaction rolled the delete back", async () => {
     dbUpsertProject(testProject("p1"), 0);
     dbUpsertThread({ ...testThread(), projectId: "p1" }, 0);
-    saveUploadedAttachmentFile(paths, {
+    await saveUploadedAttachmentFile(paths, {
       threadId: "thread-1",
       data: new Uint8Array([1]),
       fileName: "a.png",
@@ -310,7 +310,7 @@ describe.skipIf(!sqliteAvailable)("AttachmentReclaimService (real sqlite + files
   it("keeps the directory when the id is re-upserted before the drain runs", async () => {
     dbUpsertProject(testProject("p1"), 0);
     dbUpsertThread({ ...testThread(), projectId: "p1" }, 0);
-    const file = saveUploadedAttachmentFile(paths, {
+    const file = await saveUploadedAttachmentFile(paths, {
       threadId: "thread-1",
       data: new Uint8Array([1]),
       fileName: "a.png",
@@ -337,12 +337,12 @@ describe.skipIf(!sqliteAvailable)("AttachmentReclaimService (real sqlite + files
     dbUpsertThread({ ...testThread(), id: caseReclaimed, projectId: "p1" }, 3);
     const sharedDir = getThreadAttachmentDirName(survivor);
     expect(sharedDir).toBe(getThreadAttachmentDirName(reclaimed));
-    const sharedFile = saveUploadedAttachmentFile(paths, {
+    const sharedFile = await saveUploadedAttachmentFile(paths, {
       threadId: survivor,
       data: new Uint8Array([1]),
       fileName: "shared.png",
     });
-    const caseFile = saveUploadedAttachmentFile(paths, {
+    const caseFile = await saveUploadedAttachmentFile(paths, {
       threadId: caseSurvivor,
       data: new Uint8Array([2]),
       fileName: "case.png",
@@ -362,7 +362,7 @@ describe.skipIf(!sqliteAvailable)("AttachmentReclaimService (real sqlite + files
   it("keeps staging directories for a deleted staging-id row and the backlog scan", async () => {
     dbUpsertProject(testProject("p1"), 0);
     dbUpsertThread({ ...testThread(), projectId: "p1", id: "draft-abc123" }, 0);
-    const draftFile = saveUploadedAttachmentFile(paths, {
+    const draftFile = await saveUploadedAttachmentFile(paths, {
       threadId: "draft-abc123",
       data: new Uint8Array([1]),
       fileName: "a.png",
@@ -393,7 +393,7 @@ describe.skipIf(!sqliteAvailable)("AttachmentReclaimService (real sqlite + files
   ])("retains Unicode case aliases of live %s when %s is deleted", async (live, alias) => {
     const readLive = vi.fn<() => string[]>(() => [live]);
     const service = wire({ listLiveThreadIds: readLive });
-    const file = saveUploadedAttachmentFile(paths, {
+    const file = await saveUploadedAttachmentFile(paths, {
       threadId: alias,
       data: new Uint8Array([1]),
       fileName: "keep.txt",
@@ -406,7 +406,7 @@ describe.skipIf(!sqliteAvailable)("AttachmentReclaimService (real sqlite + files
 
   it("retains a live directory when truncation split a Unicode surrogate pair", async () => {
     const threadId = "abcdefghijk😀";
-    const file = saveUploadedAttachmentFile(paths, {
+    const file = await saveUploadedAttachmentFile(paths, {
       threadId,
       data: new Uint8Array([1]),
       fileName: "keep.txt",
@@ -443,7 +443,7 @@ describe.skipIf(!sqliteAvailable)("AttachmentReclaimService (real sqlite + files
   it("never destroys a write that recreates the namespace after detachment", async () => {
     dbUpsertProject(testProject("p1"), 0);
     dbUpsertThread({ ...testThread(), projectId: "p1" }, 0);
-    saveUploadedAttachmentFile(paths, {
+    await saveUploadedAttachmentFile(paths, {
       threadId: "thread-1",
       data: new Uint8Array([1]),
       fileName: "old.png",
@@ -454,7 +454,7 @@ describe.skipIf(!sqliteAvailable)("AttachmentReclaimService (real sqlite + files
     await vi.waitFor(() => expect(existsSync(join(paths.attachmentsDir, "thread-1"))).toBe(false));
 
     // An upload for the just-deleted id recreates the original directory.
-    const recreated = saveUploadedAttachmentFile(paths, {
+    const recreated = await saveUploadedAttachmentFile(paths, {
       threadId: "thread-1",
       data: new Uint8Array([2]),
       fileName: "new.png",
@@ -469,7 +469,7 @@ describe.skipIf(!sqliteAvailable)("AttachmentReclaimService (real sqlite + files
   it("isolates reclamation failures from the committed mutation and retries from the backlog", async () => {
     dbUpsertProject(testProject("p1"), 0);
     dbUpsertThread({ ...testThread(), projectId: "p1" }, 0);
-    const file = saveUploadedAttachmentFile(paths, {
+    const file = await saveUploadedAttachmentFile(paths, {
       threadId: "thread-1",
       data: new Uint8Array([1]),
       fileName: "a.png",
@@ -500,7 +500,7 @@ describe.skipIf(!sqliteAvailable)("AttachmentReclaimService (real sqlite + files
     dbUpsertProject(testProject("p1"), 0);
     for (const id of ["gone-1", "gone-2", "gone-3"]) {
       dbUpsertThread({ ...testThread(), projectId: "p1", id }, 0);
-      saveUploadedAttachmentFile(paths, {
+      await saveUploadedAttachmentFile(paths, {
         threadId: id,
         data: new Uint8Array([1]),
         fileName: "a.png",
@@ -550,7 +550,7 @@ describe.skipIf(!sqliteAvailable)("AttachmentReclaimService (real sqlite + files
   it("reclaims startup backlog orphans and sweeps stale trash", async () => {
     dbUpsertProject(testProject("p1"), 0);
     dbUpsertThread({ ...testThread(), projectId: "p1", id: "purged-before-restart" }, 0);
-    const orphan = saveUploadedAttachmentFile(paths, {
+    const orphan = await saveUploadedAttachmentFile(paths, {
       threadId: "purged-before-restart",
       data: new Uint8Array([1]),
       fileName: "old.png",
@@ -710,7 +710,7 @@ describe.skipIf(!sqliteAvailable)("AttachmentReclaimService (real sqlite + files
   it("resolves every dispose caller through one shared disposal that joins in-flight removals", async () => {
     dbUpsertProject(testProject("p1"), 0);
     dbUpsertThread({ ...testThread(), projectId: "p1" }, 0);
-    saveUploadedAttachmentFile(paths, {
+    await saveUploadedAttachmentFile(paths, {
       threadId: "thread-1",
       data: new Uint8Array([1]),
       fileName: "a.png",

@@ -35,6 +35,11 @@ describe("Home file actions", () => {
   it.each([
     [
       { kind: "windows", path: "C:/Users/test" },
+      "/D:/My Files/report.pdf",
+      "D:/My Files/report.pdf",
+    ],
+    [
+      { kind: "windows", path: "C:/Users/test" },
       "D:\\OneDrive\\CV for phd\\cv.pdf",
       "D:/OneDrive/CV for phd/cv.pdf",
     ],

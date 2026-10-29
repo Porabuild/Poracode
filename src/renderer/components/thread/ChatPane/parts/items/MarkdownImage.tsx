@@ -1,7 +1,11 @@
 import type { ComponentProps } from "react";
 import type { ExtraProps } from "streamdown";
 import { resolveLocalImageDisplayUrl } from "@/shared/localImageDisplay";
-import { useRemoteImagePathUrl } from "@/renderer/state/remoteServers/useRemoteImageReadiness";
+import {
+  fetchRemoteImagePathUrl,
+  useRemoteImagePathSnapshot,
+  useRemoteImagePathUrl,
+} from "@/renderer/state/remoteServers/useRemoteImageReadiness";
 import { useChatPaneActions } from "../../chatPaneActionsContext";
 import { ImageCard } from "./ImageCard";
 import { imageViewSourceFromMarkdownImage } from "./imageViewSource";
@@ -31,11 +35,17 @@ export function MarkdownImage({ alt, className, src, width, height }: MarkdownIm
   const { viewportRef, priority } = useImageViewportPriority(
     path !== undefined && authority?.readiness !== undefined,
   );
-  const displaySrc = useRemoteImagePathUrl(path, authority?.readiness, fallback, priority);
+  const readiness = authority?.readiness;
+  const variantSrc = useRemoteImagePathUrl(path, readiness, fallback, priority, "card");
+  const fullSnapshot = useRemoteImagePathSnapshot(path, readiness);
+  const displaySrc = variantSrc || fullSnapshot || (authority ? "" : fallback);
+  const resolveFullSrc =
+    path && readiness ? () => fetchRemoteImagePathUrl(path, readiness) : undefined;
   if (!canonicalSrc) return null;
   return (
     <ImageCard
       viewportRef={viewportRef}
+      {...(resolveFullSrc ? { resolveFullSrc } : {})}
       source={imageViewSourceFromMarkdownImage({
         src: displaySrc,
         alt: typeof alt === "string" ? alt : "",

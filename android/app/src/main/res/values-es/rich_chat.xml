@@ -221,4 +221,11 @@
     <string name="rich_chat_session_settings_search">Buscar valores</string>
     <string name="rich_chat_session_settings_back">Atrás</string>
     <string name="rich_chat_session_settings_fallback_heading">Ajuste</string>
+    <string name="rich_chat_fork_action">Bifurcar desde aquí</string>
+    <string name="rich_chat_fork_title">Bifurcar conversación</string>
+    <string name="rich_chat_fork_create">Crear bifurcación</string>
+    <string name="rich_chat_fork_explanation">Crea una conversación independiente hasta un turno completado. Los archivos permanecen en el mismo árbol de trabajo.</string>
+    <string name="rich_chat_fork_name">Nombre de la conversación</string>
+    <string name="rich_chat_fork_boundary">El historial heredado termina aquí</string>
+    <string name="rich_chat_fork_source">Bifurcada de %1$s</string>
 </resources>

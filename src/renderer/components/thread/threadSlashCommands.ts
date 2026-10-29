@@ -186,12 +186,16 @@ export function rebindSkillSegments(
   return segments.map((segment) => {
     if (segment.kind !== "skill") return segment;
     const command = skills.get(segment.name.toLowerCase());
-    return (
-      skillSegmentFromSlashCommand(command) ?? {
-        kind: "text",
-        content: fallback(segment.name),
-      }
-    );
+    const rebound = skillSegmentFromSlashCommand(command);
+    if (rebound) {
+      return {
+        ...rebound,
+        ...(segment.pluginName && segment.pluginId === rebound.pluginId
+          ? { pluginName: segment.pluginName }
+          : {}),
+      };
+    }
+    return { kind: "text", content: fallback(segment.name) };
   });
 }
 
@@ -350,7 +354,7 @@ export function handleSlashCommandPanelKeyDown(
     }
   }
   if (e.key === " " && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
-    const typed = (ctx.slashQuery ?? "").toLowerCase();
+    const typed = (ctx.slashQuery ?? "").replace(/^\$/u, "").toLowerCase();
     const exact = filteredCommands.find(
       (command) =>
         slashCommandDisplayId(command).toLowerCase() === typed ||

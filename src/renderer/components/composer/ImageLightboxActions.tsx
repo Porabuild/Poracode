@@ -9,7 +9,7 @@ import { runRendererAction, useRendererActionStore } from "@/renderer/state/rend
 
 export function ImageLightboxActions({ image }: { image: LightboxImage }) {
   const { t } = useLingui();
-  const actionKey = `image:action:${image.src}`;
+  const actionKey = `image:action:${image.previewSrc ?? image.src}`;
   const pending = useRendererActionStore((state) => !!state.pending[actionKey]);
 
   async function runAction(action: "copy" | "save") {

@@ -10,6 +10,7 @@ import type {
   PrWatch,
   PrWatchAgentSync,
   PrWatchInput,
+  ForgePrWatchInput,
   RemoteThreadCommand,
   ScheduledTask,
   ScheduledTaskInput,
@@ -117,6 +118,7 @@ export const BACKEND_DATABASE_PROCEDURE_NAMES = [
   "dbSyncChanges",
   "dbGetThreadRuntimeItems",
   "dbGetThreadRuntimeItemsPage",
+  "dbGetThreadPromptIndex",
   "dbGetThreadsPage",
   "dbGetLatestThreadGoalItem",
   "dbTruncateThreadRuntimeAfter",
@@ -125,6 +127,7 @@ export const BACKEND_DATABASE_PROCEDURE_NAMES = [
   "dbReplaceThreadCompletedTurns",
   "dbReplaceThreadRuntimeSnapshot",
   "dbGetThreadContextUsage",
+  "dbGetThreadTokenUsage",
   "dbGetProjectNotes",
   "dbSetProjectNotes",
   "getScheduleRuns",
@@ -172,6 +175,8 @@ export interface BackendHostInitializePayload {
   desktop?: {
     channel: "stable" | "nightly";
     settingsPath: string;
+    /** Closed optional delegation v1; acknowledged before main admits the backend. */
+    localControl?: import("./desktopHostControl").DesktopHostControlGrant;
     devServerUrl?: string;
     /**
      * Data-custody fence path (`<ns>.host-data.sqlite`, `hostDataFence.ts`).
@@ -260,6 +265,7 @@ export interface BackendServiceProcedureMap extends BackendSettingsProcedureMap 
   getPrWatch: { payload: { projectId: string; prNumber: number }; result: PrWatch | null };
   checkPrWatch: { payload: { projectId: string; prNumber: number }; result: void };
   upsertPrWatch: { payload: PrWatchInput; result: PrWatch };
+  upsertForgePrWatch: { payload: ForgePrWatchInput; result: PrWatch };
   deletePrWatch: { payload: { projectId: string; prNumber: number }; result: void };
   syncPrWatchAgent: { payload: PrWatchAgentSync; result: void };
   getProfileCoreStats: { payload: ProfileStatsRequest; result: ProfileCoreStats };
@@ -306,6 +312,7 @@ export const BACKEND_SERVICE_PROCEDURE_NAMES = [
   "getPrWatch",
   "checkPrWatch",
   "upsertPrWatch",
+  "upsertForgePrWatch",
   "deletePrWatch",
   "syncPrWatchAgent",
   "getProfileCoreStats",
@@ -340,6 +347,10 @@ export type BackendServiceCall = {
 }[BackendServiceProcedureName];
 
 export type BackendNativeRequest =
+  | {
+      operation: "agent-vision";
+      payload: { threadId: string; preview: boolean; streaming?: boolean };
+    }
   | { operation: "dispatch-thread-command"; payload: RemoteThreadCommand }
   | { operation: "open-thread"; payload: { threadId: string } }
   | { operation: "notify-user"; payload: { title: string; body: string; threadId: string } }
@@ -646,6 +657,7 @@ export function isBackendHostOutboundMessage(
           "check-for-update",
           "install-update",
           "browser-state",
+          "agent-vision",
           "browser-command",
           "browser-input",
           "browser-watch-start",

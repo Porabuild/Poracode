@@ -38,6 +38,9 @@ import {
 } from "./githubMappers";
 import { parseGitHubActionsWorkflowYaml } from "./githubWorkflowDefinition";
 import { parsePrReviewThreads, PR_REVIEW_THREADS_QUERY } from "./githubReviewThreads";
+import { withPrMetadata } from "./githubPrMetadata";
+import { GitHubPrMetadataCommands } from "./githubPrMetadataCommands";
+import { getGitHubViewedFiles, setGitHubFileViewed } from "./githubViewedFiles";
 import { msg as sharedMsg } from "@/shared/messages";
 
 // Re-export the pure mappers previously defined inline here so the module's
@@ -59,18 +62,25 @@ const GH_ACCOUNT_PROBE_TIMEOUT = 15_000;
 const GH_REPO_PAGE_SIZE = 100;
 const GH_REPO_MAX_PAGES = 5;
 const PULL_REQUEST_LIST_LIMIT = 1_000;
+// Closed and merged history grows without bound; the newest page is enough. History rows
+// leave out the computed fields (check rollup, mergeability), which a finished review never
+// needs and which make GitHub answer a 100-row page with HTTP 502/504 (cli/cli, Porabuild/Poracode).
+const PULL_REQUEST_HISTORY_LIMIT = 100;
 const WORKFLOW_LIST_LIMIT = 100;
 const WORKFLOW_RUN_LIST_LIMIT = 50;
 const PR_DIFF_MAX_BUFFER_BYTES = 50 * 1024 * 1024;
 const CREATE_PR_STATUS_WAIT_MS = 15_000;
 const CREATE_PR_STATUS_POLL_MS = 5_000;
 const PR_VIEW_FIELDS =
-  "number,url,state,title,baseRefName,headRefOid,isDraft,reviewDecision,statusCheckRollup,updatedAt,mergeable,mergeStateStatus,author";
+  "number,url,state,title,baseRefName,headRefOid,isDraft,reviewDecision,statusCheckRollup,updatedAt,mergeable,mergeStateStatus,author,isCrossRepository";
 // Bulk list: adds `headRefName` (to key per branch) and drops `author` (the icon
 // doesn't need viewerDidAuthor, so we skip the extra `gh api user` lookup).
 const PR_LIST_FIELDS =
-  "number,headRefName,headRefOid,url,state,title,baseRefName,isDraft,reviewDecision,statusCheckRollup,updatedAt,mergeable,mergeStateStatus";
-const PULL_REQUEST_LIST_FIELDS = `${PR_LIST_FIELDS},author,additions,deletions,reviewRequests`;
+  "number,headRefName,headRefOid,url,state,title,baseRefName,isDraft,reviewDecision,statusCheckRollup,updatedAt,mergeable,mergeStateStatus,isCrossRepository";
+const PULL_REQUEST_LIST_FIELDS = `${PR_LIST_FIELDS},author,additions,deletions,reviewRequests,labels`;
+const PULL_REQUEST_HISTORY_FIELDS = PULL_REQUEST_LIST_FIELDS.split(",")
+  .filter((field) => !["statusCheckRollup", "mergeable", "mergeStateStatus"].includes(field))
+  .join(",");
 const PR_CHECK_FIELDS = "name,state,bucket,link,startedAt,completedAt,workflow";
 const PR_CHECK_PENDING_STATES = new Set([
   "EXPECTED",
@@ -227,7 +237,8 @@ function classifyError(error: unknown, operation: string): Error {
 
   if (
     lower.includes("command not found") ||
-    lower.includes("gh: not found") ||
+    // A shell's "gh: not found", not gh api's own "gh: Not Found (HTTP 404)".
+    (lower.includes("gh: not found") && !lower.includes("(http 404)")) ||
     lower.includes("is not recognized") ||
     lower.includes("enoent")
   ) {
@@ -410,6 +421,7 @@ async function runGhBatch(
   location: ProjectLocation & { kind: "wsl" },
   commands: string[][],
   wslClient: WslBridgeClient | undefined,
+  env?: Record<string, string>,
 ): Promise<WslProcessExecResult[]> {
   if (!wslClient) {
     throw new Error(`WSL bridge unavailable for GitHub CLI in distro "${location.distro}"`);
@@ -422,7 +434,7 @@ async function runGhBatch(
       args,
       loginEnv: true,
       // Keep batched read calls scoped to the project just like processExec.
-      env: { GH_REPO: "" },
+      env: { GH_REPO: "", ...env },
     })),
   });
   return result.results;
@@ -500,6 +512,7 @@ function locationKey(location: ProjectLocation): string {
 }
 
 export class GitHubService {
+  private reviewEnvironment: Record<string, string> | undefined;
   /** `gh api user` is the same answer per (kind, path) — cache to avoid one call per PR fetch. */
   private viewerLoginCache = new Map<string, string | null>();
   /** Detected account per location that can see the project's repository; null = detection found none. */
@@ -512,12 +525,109 @@ export class GitHubService {
     this.wslClient = client;
   }
 
+  /** Freeze gh's actual repository choice, including a configured default or SSH alias. */
+  async forReviewRepository(location: ProjectLocation, account?: GitHubAccountRef) {
+    const service = new GitHubService();
+    service.wslClient = this.wslClient;
+    let selectedToken: string | undefined;
+    if (account) {
+      const [remotes, defaultRepository] = await Promise.all([
+        service.listGitRemotes(location),
+        service.actionsDefaultRepository(location),
+      ]);
+      const scope = repositoryScopeForAccount(remotes, defaultRepository, account);
+      if (scope.matchesHost && scope.repository) {
+        service.reviewEnvironment = {
+          GH_TOKEN: "",
+          GITHUB_TOKEN: "",
+          GH_ENTERPRISE_TOKEN: "",
+          GITHUB_ENTERPRISE_TOKEN: "",
+        };
+        try {
+          selectedToken = await service.getAccountToken(location, account);
+        } catch {
+          service.reviewEnvironment = undefined;
+          selectedToken = await service.getAccountToken(location, account);
+        }
+        service.reviewEnvironment = accountGhEnvironment(account, selectedToken, scope.repository);
+      }
+    }
+    const raw = JSON.parse(
+      await service.runGh(location, ["repo", "view", "--json", "nameWithOwner,url"]),
+    ) as { nameWithOwner?: unknown; url?: unknown };
+    if (typeof raw.nameWithOwner !== "string" || typeof raw.url !== "string")
+      throw new Error(sharedMsg("forge.responseInvalid"));
+    const url = new URL(raw.url);
+    if (
+      url.protocol !== "https:" ||
+      url.username ||
+      url.password ||
+      raw.nameWithOwner.split("/").length !== 2 ||
+      (account && url.host.toLowerCase() !== account.host.toLowerCase())
+    )
+      throw new Error(sharedMsg("forge.hostMismatch"));
+    service.reviewEnvironment = {
+      ...service.reviewEnvironment,
+      GH_HOST: url.host,
+      GH_REPO: `${url.host}/${raw.nameWithOwner}`,
+    };
+    const repositoryEnvironment = service.reviewEnvironment;
+    let token: string;
+    if (selectedToken) {
+      token = selectedToken;
+    } else if (account) {
+      service.reviewEnvironment = {
+        GH_TOKEN: "",
+        GITHUB_TOKEN: "",
+        GH_ENTERPRISE_TOKEN: "",
+        GITHUB_ENTERPRISE_TOKEN: "",
+      };
+      try {
+        token = await service.getAccountToken(location, account);
+      } catch {
+        service.reviewEnvironment = undefined;
+        token = await service.getAccountToken(location, account);
+      }
+    } else {
+      try {
+        token = (await service.runGh(location, ["auth", "token", "--hostname", url.host])).trim();
+      } catch {
+        throw new Error(sharedMsg("forge.credentials"));
+      }
+    }
+    if (!token) throw new Error(sharedMsg("forge.credentials"));
+    service.reviewEnvironment = {
+      ...repositoryEnvironment,
+      ...accountGhEnvironment(
+        { host: url.host, login: account?.login ?? "" },
+        token,
+        repositoryEnvironment.GH_REPO,
+      ),
+    };
+    const login = await service.getViewerLogin(location, true);
+    if (account && login !== account.login) throw new Error(sharedMsg("forge.accountMismatch"));
+    if (!login) throw new Error(sharedMsg("forge.credentials"));
+    return {
+      service,
+      host: url.origin,
+      repository: raw.nameWithOwner,
+      ...(login ? { account: { host: url.host, login } } : {}),
+    };
+  }
+
   private runGh(
     location: ProjectLocation,
     args: string[],
     options?: RunGhOptions,
   ): Promise<string> {
-    return runGh(location, args, this.wslClient, options);
+    return runGh(
+      location,
+      args,
+      this.wslClient,
+      this.reviewEnvironment
+        ? { ...options, env: { ...this.reviewEnvironment, ...options?.env } }
+        : options,
+    );
   }
 
   private async listGitRemotes(location: ProjectLocation): Promise<string> {
@@ -559,7 +669,7 @@ export class GitHubService {
     location: ProjectLocation & { kind: "wsl" },
     commands: string[][],
   ): Promise<WslProcessExecResult[]> {
-    return runGhBatch(location, commands, this.wslClient);
+    return runGhBatch(location, commands, this.wslClient, this.reviewEnvironment);
   }
 
   /**
@@ -1010,17 +1120,24 @@ export class GitHubService {
     }
   }
 
-  /** List open PRs with viewer-specific metadata for the global Pull Requests page. */
-  async listPullRequests(location: ProjectLocation): Promise<GhListPullRequestsResult> {
+  /**
+   * List PRs with viewer-specific metadata for the global Pull Requests page.
+   * gh's `closed` state includes merged PRs, so closed-only adds `is:unmerged`.
+   */
+  async listPullRequests(
+    location: ProjectLocation,
+    state: "open" | "closed" | "merged" | "all" = "open",
+  ): Promise<GhListPullRequestsResult> {
     const args = [
       "pr",
       "list",
       "--state",
-      "open",
+      state,
+      ...(state === "closed" ? ["--search", "is:unmerged"] : []),
       "--limit",
-      String(PULL_REQUEST_LIST_LIMIT),
+      String(state === "open" ? PULL_REQUEST_LIST_LIMIT : PULL_REQUEST_HISTORY_LIMIT),
       "--json",
-      PULL_REQUEST_LIST_FIELDS,
+      state === "open" ? PULL_REQUEST_LIST_FIELDS : PULL_REQUEST_HISTORY_FIELDS,
     ];
 
     try {
@@ -1036,9 +1153,10 @@ export class GitHubService {
         viewerLogin = results[1]?.ok ? results[1].stdout.trim() || undefined : undefined;
         this.viewerLoginCache.set(key, viewerLogin ?? null);
       } else {
+        // The open list is the identity refresh point; history reuses its answer.
         [stdout, viewerLogin] = await Promise.all([
           this.runGh(location, args),
-          this.getViewerLogin(location, true),
+          this.getViewerLogin(location, state === "open"),
         ]);
       }
 
@@ -1085,6 +1203,31 @@ export class GitHubService {
     }
   }
 
+  async editPr(
+    location: ProjectLocation,
+    prNumber: number,
+    input: { title?: string; body?: string; baseBranch?: string },
+  ): Promise<void> {
+    const file =
+      input.body === undefined
+        ? undefined
+        : await createGhBodyFile(location, "poracode-pr-edit", input.body, this.wslClient);
+    try {
+      await this.runGh(location, [
+        "pr",
+        "edit",
+        String(prNumber),
+        ...(input.title !== undefined ? ["--title", input.title] : []),
+        ...(input.baseBranch !== undefined ? ["--base", input.baseBranch] : []),
+        ...(file ? ["--body-file", file.cliPath] : []),
+      ]);
+    } catch (error) {
+      throw classifyError(error, "pr edit");
+    } finally {
+      await file?.cleanup().catch(() => {});
+    }
+  }
+
   async reopenPr(location: ProjectLocation, prNumber: number): Promise<void> {
     try {
       await this.runGh(location, ["pr", "reopen", String(prNumber)]);
@@ -1099,6 +1242,42 @@ export class GitHubService {
     } catch (err) {
       throw classifyError(err, "pr ready");
     }
+  }
+
+  async markPrDraft(location: ProjectLocation, prNumber: number): Promise<void> {
+    try {
+      await this.runGh(location, ["pr", "ready", String(prNumber), "--undo"]);
+    } catch (err) {
+      throw classifyError(err, "pr ready --undo");
+    }
+  }
+
+  /** Label, reviewer, reaction, review-draft and commit-diff commands on this service's scope. */
+  prMetadata(location: ProjectLocation): GitHubPrMetadataCommands {
+    return new GitHubPrMetadataCommands({
+      run: async (args, operation, options) => {
+        try {
+          return await this.runGh(location, args, options);
+        } catch (err) {
+          throw classifyError(err, operation);
+        }
+      },
+      runWithInput: async (args, body, operation) => {
+        const file = await createGhBodyFile(
+          location,
+          "poracode-gh-input",
+          JSON.stringify(body),
+          this.wslClient,
+        );
+        try {
+          return await this.runGh(location, [...args, "--input", file.cliPath]);
+        } catch (err) {
+          throw classifyError(err, operation);
+        } finally {
+          await file.cleanup().catch(() => {});
+        }
+      },
+    });
   }
 
   /** `gh pr update-branch <n>` — merge (or rebase) the base branch into the PR branch. */
@@ -1165,9 +1344,17 @@ export class GitHubService {
     }
   }
 
-  async getPrDetails(location: ProjectLocation, prNumber: number): Promise<GhGetPrDetailsResult> {
+  /**
+   * `metadata: false` skips the optional reactions/timeline read for callers
+   * that only need core state or checks.
+   */
+  async getPrDetails(
+    location: ProjectLocation,
+    prNumber: number,
+    options?: { metadata?: boolean },
+  ): Promise<GhGetPrDetailsResult> {
     try {
-      const [stdout, viewerLogin] = await Promise.all([
+      const [stdout, viewerLogin, metadata] = await Promise.all([
         this.runGh(location, [
           "pr",
           "view",
@@ -1187,12 +1374,22 @@ export class GitHubService {
             "commits",
             "comments",
             "reviews",
+            "labels",
+            "reviewRequests",
           ].join(","),
         ]),
         this.getViewerLogin(location),
+        options?.metadata === false
+          ? undefined
+          : this.prMetadata(location)
+              .readMetadata(prNumber)
+              .catch(() => undefined),
       ]);
       const raw = JSON.parse(stdout) as Record<string, unknown>;
-      return { details: mapPrDetails(raw), pr: mapPrData(raw, viewerLogin) };
+      return {
+        details: withPrMetadata(mapPrDetails(raw), metadata),
+        pr: mapPrData(raw, viewerLogin),
+      };
     } catch (err) {
       throw classifyError(err, "pr view --json (details)");
     }
@@ -1225,6 +1422,28 @@ export class GitHubService {
     }
   }
 
+  getPrViewedFiles(location: ProjectLocation, prNumber: number) {
+    return getGitHubViewedFiles((args) => this.runGh(location, args), prNumber);
+  }
+  async editPrComment(location: ProjectLocation, commentId: string, body: string, inline: boolean) {
+    const operation = inline ? "updatePullRequestReviewComment" : "updateIssueComment";
+    const idField = inline ? "pullRequestReviewCommentId" : "id";
+    await this.runGh(location, [
+      "api",
+      "graphql",
+      "-f",
+      `query=mutation($id: ID!, $body: String!) { ${operation}(input: {${idField}: $id, body: $body}) { clientMutationId } }`,
+      "-f",
+      `id=${commentId}`,
+      "-f",
+      `body=${body}`,
+    ]);
+  }
+
+  setPrFileViewed(location: ProjectLocation, prNumber: number, path: string, viewed: boolean) {
+    return setGitHubFileViewed((args) => this.runGh(location, args), prNumber, path, viewed);
+  }
+
   async postPrComment(
     location: ProjectLocation,
     prNumber: number,
@@ -1232,7 +1451,7 @@ export class GitHubService {
   ): Promise<PrComment> {
     const trimmed = body.trim();
     if (trimmed.length === 0) {
-      throw new Error("Comment body is required.");
+      throw new Error(sharedMsg("forge.bodyRequired"));
     }
     const tempFile = await createGhBodyFile(
       location,

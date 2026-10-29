@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import {
   copyFileSync,
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -10,7 +11,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   sshRuntimeManifestFileName,
@@ -18,6 +19,7 @@ import {
   type SshRuntimeEntryName,
 } from "@/shared/sshRuntimeManifest";
 import { RUNTIME_BUILD_SOURCE_HASH } from "@/shared/runtimeBuildIdentity";
+import { ptyJobOwnerResource, runtimeResourceIdentity } from "@/shared/runtimeResourceInventory";
 import { ensureSshRuntimeBundle } from "./runtimeBundle";
 import { ensureSshRuntimeBundleAsync, resetSshRuntimeBundleAsyncCache } from "./runtimeBundleAsync";
 import {
@@ -112,13 +114,95 @@ function stageDirectories(cacheDir: string): string[] {
 
 function tarEntries(archivePath: string): string[] {
   const tar = process.platform === "win32" ? "tar.exe" : "tar";
-  return execFileSync(tar, ["-tzf", archivePath], { encoding: "utf8" })
+  // Relative name from the archive's directory, as the builder does: GNU tar on
+  // Windows reads an absolute `C:\…` path as an rsh `host:file` spec.
+  return execFileSync(tar, ["-tzf", basename(archivePath)], {
+    cwd: dirname(archivePath),
+    encoding: "utf8",
+  })
     .split(/\r?\n/g)
     .filter(Boolean)
     .sort();
 }
 
 describe("asynchronous SSH runtime bundle", () => {
+  it("stages the verified native owner identically and refuses changed assets before either cache hit", async () => {
+    const fixture = createRuntimeFixture();
+    const root = join(fixture.root, "pty-job-owner");
+    mkdirSync(join(root, "win32-x64"), { recursive: true });
+    const bytes = Buffer.alloc(512);
+    bytes.writeUInt16LE(0x5a4d, 0);
+    bytes.writeUInt32LE(64, 0x3c);
+    bytes.writeUInt32LE(0x00004550, 64);
+    bytes.writeUInt16LE(0x8664, 68);
+    bytes.writeUInt16LE(240, 84);
+    bytes.writeUInt16LE(0x20b, 88);
+    bytes.writeUInt16LE(2, 156);
+    const executable = join(root, "win32-x64/pty-job-owner-v1.exe");
+    writeFileSync(executable, bytes);
+    writeFileSync(
+      join(root, "manifest.json"),
+      JSON.stringify({
+        formatVersion: 1,
+        protocolVersion: 1,
+        helperVersion: "1.0.0",
+        sourceSha256: "a".repeat(64),
+        targets: {
+          "win32-x64": {
+            relativePath: "win32-x64/pty-job-owner-v1.exe",
+            bytes: bytes.length,
+            sha256: createHash("sha256").update(bytes).digest("hex"),
+          },
+        },
+      }),
+    );
+    const identity = runtimeResourceIdentity("pty-job-owner", ptyJobOwnerResource(root).files);
+    for (const name of readdirSync(fixture.mainBundleDir).filter((file) =>
+      file.endsWith(".ssh-runtime-manifest.json"),
+    )) {
+      const path = join(fixture.mainBundleDir, name),
+        manifest = JSON.parse(readFileSync(path, "utf8"));
+      writeFileSync(path, JSON.stringify({ ...manifest, resources: [identity] }));
+    }
+    const bundledPluginsDir = join(fixture.root, "plugins");
+    mkdirSync(bundledPluginsDir);
+    const options = { ...fixture, bundledPluginsDir };
+    const sync = ensureSshRuntimeBundle(options);
+    const async = await ensureSshRuntimeBundleAsync({
+      ...options,
+      cacheDir: join(fixture.root, "async-native-cache"),
+    });
+    expect(async.hash).toBe(sync.hash);
+    expect(tarEntries(sync.archivePath)).toContain(
+      "./pty-job-owner/win32-x64/pty-job-owner-v1.exe",
+    );
+    writeFileSync(executable, "changed unqualified bytes");
+    expect(() => ensureSshRuntimeBundle(options)).toThrow("differs");
+    await expect(
+      ensureSshRuntimeBundleAsync({
+        ...options,
+        cacheDir: join(fixture.root, "async-native-cache"),
+      }),
+    ).rejects.toThrow("differs");
+  });
+
+  it("refuses future resource discriminators before cache or staging effects", async () => {
+    const fixture = createRuntimeFixture();
+    const path = join(fixture.mainBundleDir, "supervisor.ssh-runtime-manifest.json");
+    const manifest = JSON.parse(readFileSync(path, "utf8"));
+    writeFileSync(
+      path,
+      JSON.stringify({
+        ...manifest,
+        resources: [{ kind: "future-native-owner", sha256: "a".repeat(64) }],
+      }),
+    );
+    expect(() => ensureSshRuntimeBundle(fixture)).toThrow("manifest is missing or invalid");
+    await expect(ensureSshRuntimeBundleAsync(fixture)).rejects.toThrow(
+      "manifest is missing or invalid",
+    );
+    expect(existsSync(fixture.cacheDir)).toBe(false);
+  });
   it("stages the same content-addressed archive as the synchronous builder", async () => {
     const fixture = createRuntimeFixture();
     const syncBundle = ensureSshRuntimeBundle(fixture);

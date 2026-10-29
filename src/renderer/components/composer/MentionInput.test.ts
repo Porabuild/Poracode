@@ -1,6 +1,6 @@
 import { keyDownAt } from "@/renderer/testUtils/keyboard";
 import { createElement, createRef } from "react";
-import { act, createEvent, fireEvent, render, screen } from "@testing-library/react";
+import { act, createEvent, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { Globe, Monitor, Users } from "lucide-react";
 import type { PromptSegment } from "@/shared/contracts";
@@ -383,6 +383,44 @@ describe("buildMentionResults", () => {
     expect(results[0]?.path).toBe("aaaaaaaa-1111-4222-8333-666666666666");
   });
 
+  it("lists crew roles only when the crew is active and filters them by query", () => {
+    const crew = [
+      { label: "Builder", detail: "Opus 5.5" },
+      { label: "Scout", detail: "Gemini 3" },
+    ];
+    expect(
+      buildMentionResults(fileResults, "", [], [], [], crew).map((entry) => entry.type),
+    ).toEqual(["crew", "crew", "file"]);
+    expect(buildMentionResults(fileResults, "", [], [], [], [])).toEqual(fileResults);
+    expect(buildMentionResults(fileResults, "sco", [], [], [], crew)).toEqual([
+      { type: "crew", path: "Scout", name: "Scout", detail: "Gemini 3" },
+      ...fileResults,
+    ]);
+  });
+
+  it("inserts a crew role mention as plain text", () => {
+    const ref = createRef<MentionInputHandle>();
+    render(
+      createElement(MentionInput, {
+        ...{
+          placeholder: "Send a message...",
+          projectLocation: undefined,
+          onTextChange: vi.fn<(hasText: boolean) => void>(),
+          onSubmit: vi.fn<(segments: PromptSegment[]) => void>(),
+        },
+        ref,
+        crewMentions: [{ label: "Builder", detail: "Opus 5.5" }],
+      }),
+    );
+
+    const editor = typeMention("build");
+    fireEvent.keyDown(editor, { key: "Enter" });
+
+    expect(editor.textContent).toBe("@Builder ");
+    expect(editor.querySelector("[data-thread-mention-id]")).toBeNull();
+    expect(ref.current?.serializeSegments()).toEqual([{ kind: "text", content: "@Builder " }]);
+  });
+
   it("inserts a thread mention chip that round-trips its title and id", () => {
     const ref = createRef<MentionInputHandle>();
     render(
@@ -561,6 +599,54 @@ describe("MCP mention selection", () => {
 });
 
 describe("plugin mention selection", () => {
+  it("keeps a plugin's icon through undo and redo without relabeling its finalize skill", async () => {
+    const ref = createRef<MentionInputHandle>();
+    const { unmount } = render(
+      createElement(MentionInput, {
+        ref,
+        placeholder: "Send a message...",
+        projectLocation: undefined,
+        onTextChange: vi.fn<(hasText: boolean) => void>(),
+        onSubmit: vi.fn<(segments: PromptSegment[]) => void>(),
+      }),
+    );
+    const skill: PromptSegment = {
+      kind: "skill",
+      name: "finalize",
+      invocation: "/finalize",
+      provider: "Poracode",
+      scope: "global",
+      pluginId: "app-controls",
+    };
+    act(() => ref.current?.restoreFromSegments([skill]));
+    const editor = screen.getByRole("textbox");
+    const finalize = editor.querySelector('[data-skill-name="finalize"]');
+    expect(finalize).toHaveTextContent("finalize");
+    expect(finalize).toHaveAttribute("aria-label", "Skill: finalize");
+    expect(finalize?.querySelector("svg")).not.toBeNull();
+    expect(finalize?.querySelector("img")).toBeNull();
+
+    const segments: PromptSegment[] = [
+      { ...skill, name: "poracode", invocation: "/poracode", pluginName: "Poracode" },
+    ];
+    act(() => ref.current?.restoreFromSegments(segments, { undoable: true }));
+    await waitFor(() => expect(editor.querySelector("[data-plugin-icon] img")).not.toBeNull());
+    expect(editor.querySelector("[data-plugin-icon] svg")).toBeNull();
+    expect(editor.querySelector('[data-plugin-name="Poracode"]')).toHaveTextContent("Poracode");
+    expect(ref.current?.serializeSegments()).toEqual(segments);
+
+    fireEvent.keyDown(editor, { key: "z", ctrlKey: true });
+    await waitFor(() => expect(editor.querySelector("[data-plugin-icon]")).toBeNull());
+    expect(ref.current?.serializeSegments()).toEqual([skill]);
+    fireEvent.keyDown(editor, { key: "z", ctrlKey: true, shiftKey: true });
+    await waitFor(() => expect(editor.querySelectorAll("[data-plugin-icon] img")).toHaveLength(1));
+    expect(ref.current?.serializeSegments()).toEqual(segments);
+
+    act(() => ref.current?.clear());
+    await waitFor(() => expect(editor).toBeEmptyDOMElement());
+    unmount();
+  });
+
   it("inserts one plugin badge that preserves the core skill and plugin identity", () => {
     const ref = createRef<MentionInputHandle>();
     render(
@@ -876,6 +962,68 @@ describe("structured segment insertion", () => {
     expect(editor.querySelector("[data-diff-comment-path]")).toBeNull();
     expect(ref.current?.serializeSegments()).toEqual([]);
   });
+
+  it.each(["", "Please ", "Please\n", "Please\n\n"])(
+    "preserves surrounding text and line breaks when selecting a dollar skill after %j",
+    (prefix) => {
+      const ref = createRef<MentionInputHandle>();
+      const onSlashCommandChange = vi.fn<(query: string | null) => void>();
+      render(
+        createElement(MentionInput, {
+          ref,
+          placeholder: "Send a message...",
+          projectLocation: undefined,
+          onTextChange: vi.fn<(hasText: boolean) => void>(),
+          onSubmit: vi.fn<(segments: PromptSegment[]) => void>(),
+          onSlashCommandChange,
+        }),
+      );
+      act(() => {
+        ref.current?.restoreFromSegments([{ kind: "text", content: `${prefix}$rev suffix` }]);
+      });
+      const editor = screen.getByRole("textbox");
+      const text = editor.lastChild!;
+      const range = document.createRange();
+      range.setStart(text, (text.textContent ?? "").indexOf("$rev") + 4);
+      range.collapse(true);
+      const selection = window.getSelection()!;
+      selection.removeAllRanges();
+      selection.addRange(range);
+      fireEvent.input(editor);
+      expect(onSlashCommandChange).toHaveBeenLastCalledWith("$rev");
+
+      act(() => {
+        ref.current?.insertSlashCommand({
+          id: "review-code",
+          label: "review-code",
+          section: "skills",
+          skillName: "review-code",
+          skillPath: "/skills/review-code/SKILL.md",
+          skillInvocation: "$review-code",
+          skillProvider: "Shared",
+          skillScope: "global",
+        });
+      });
+      const segments: PromptSegment[] = [
+        ...(prefix ? [{ kind: "text" as const, content: prefix }] : []),
+        {
+          kind: "skill",
+          name: "review-code",
+          path: "/skills/review-code/SKILL.md",
+          invocation: "$review-code",
+          provider: "Shared",
+          scope: "global",
+        },
+        { kind: "text", content: "  suffix" },
+      ];
+      expect(ref.current?.serializeSegments()).toEqual(segments);
+      expect(onSlashCommandChange).toHaveBeenLastCalledWith(null);
+      fireEvent.keyDown(editor, { key: "z", ctrlKey: true });
+      expect(ref.current?.serialize()).toBe(`${prefix}$rev suffix`);
+      fireEvent.keyDown(editor, { key: "z", ctrlKey: true, shiftKey: true });
+      expect(ref.current?.serializeSegments()).toEqual(segments);
+    },
+  );
 
   it("inserts a seeded skill directly without requiring a caret trigger", () => {
     const ref = createRef<MentionInputHandle>();

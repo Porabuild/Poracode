@@ -14,6 +14,7 @@ import {
 } from "./ItemMarkdown";
 import { rewriteMarkdownLocalImageUrls } from "@/shared/markdownLocalImages";
 import { isOrdinaryPlainProse, MAX_ORDINARY_PLAIN_PROSE_LENGTH } from "./ordinaryPlainProse";
+import { pathRefUrl } from "./markdownPathRefs";
 
 const { codeBlockSpy, streamdownSpy, parseBlocksSpy } = vi.hoisted(() => ({
   codeBlockSpy:
@@ -873,6 +874,24 @@ describe("ItemMarkdownInner", () => {
 
     await waitFor(() => expect(chip).toBeDisabled());
     expect(chip).toHaveClass("poracode-inline-path-chip--inert");
+  });
+
+  it("normalizes a stored Windows path chip without project context", () => {
+    const openProjectRelativePath = vi
+      .fn<NonNullable<ChatPaneActions["openProjectRelativePath"]>>()
+      .mockResolvedValue(undefined);
+    const href = pathRefUrl({ kind: "file", path: "/E:/work/report.md", line: 20 });
+    render(
+      <AppProvider>
+        <ChatPaneActionsContext.Provider value={{ openProjectRelativePath }}>
+          <ItemMarkdownInner text={`[Report](${href})`} />
+        </ChatPaneActionsContext.Provider>
+      </AppProvider>,
+    );
+    const chip = screen.getByRole("button", { name: /report\.md.*20/ });
+    expect(chip).toHaveAttribute("title", "E:/work/report.md:20");
+    fireEvent.click(chip);
+    expect(openProjectRelativePath).toHaveBeenCalledWith("E:/work/report.md", 20);
   });
 
   it("keeps out-of-project absolute markdown link hrefs absolute", () => {

@@ -20,7 +20,12 @@ import { prepareSubagentRun, type PreparedSubagentRun } from "./spawnPlan";
 import type { parseCompactResult } from "./compactResult";
 import { parseCompactRunReport } from "./compactRunResult";
 import { readRunResult } from "./runResult";
-import { canContinueRun, prepareContinuation, type ContinuableRun } from "./continuationPlan";
+import {
+  canContinueRun,
+  prepareContinuation,
+  type ContinuableRun,
+  type ContinuationSelectionUpdate,
+} from "./continuationPlan";
 export { MAX_RUNNING_OUTPUT_TAIL_CHARS } from "./runResult";
 import { RunLifecycle, type RunLifecycleEvent } from "./RunLifecycle";
 import { waitForRuns } from "./waitForRuns";
@@ -75,6 +80,7 @@ interface RunRecord extends AttemptExecutionState, ContinuableRun {
   attemptIndex: number;
   attemptSettled: boolean;
   steering: SteerState | undefined;
+  steerGeneration: number;
   attemptResults: SubagentAttemptResult[];
   status: SubagentRunStatus;
   /** Assistant text accumulated for the current attempt. */
@@ -119,6 +125,7 @@ export { SubagentSpawnError } from "./errors";
 interface SteerState {
   completion: "none" | "pending" | "resumed";
   onDrained?: () => void;
+  onStarted?: () => void;
 }
 
 /** Upper bound for a child to acknowledge a steer interrupt before the steer fails. */
@@ -230,6 +237,20 @@ export class SubagentRunManager {
     return this.lifecycle.subscribe(parentThreadId, listener);
   }
 
+  roleRunningCount(parentThreadId: string, roleId: string): number {
+    let count = 0;
+    for (const record of this.runs.values()) {
+      if (
+        record.parentThreadId === parentThreadId &&
+        record.status === "running" &&
+        record.plan.crewRole?.id === roleId
+      ) {
+        count += 1;
+      }
+    }
+    return count;
+  }
+
   /** Host-only join without MCP transport deadlines or parent model polling. */
   async waitForSettlement(parentThreadId: string, runId: string): Promise<SubagentWaitResult> {
     const record = this.ownedRun(runId, parentThreadId);
@@ -263,7 +284,37 @@ export class SubagentRunManager {
       );
     }
     const plans = requests.map((request) => prepareSubagentRun(this.deps, parent, request));
+    this.assertCrewRoleParallelLimits(parentThreadId, plans);
     return plans.map((plan) => this.startRun(parentThreadId, plan));
+  }
+
+  private assertCrewRoleParallelLimits(
+    parentThreadId: string,
+    plans: readonly PreparedSubagentRun[],
+  ): void {
+    const requestedByRole = new Map<
+      string,
+      { count: number; role: NonNullable<PreparedSubagentRun["crewRole"]> }
+    >();
+    for (const plan of plans) {
+      const role = plan.crewRole;
+      if (!role) continue;
+      const request = requestedByRole.get(role.id);
+      requestedByRole.set(role.id, { role, count: (request?.count ?? 0) + 1 });
+    }
+    for (const { role, count } of requestedByRole.values()) {
+      const running = this.roleRunningCount(parentThreadId, role.id);
+      if (count > role.parallel) {
+        throw new SubagentSpawnError(
+          `Role ${role.label} allows ${role.parallel} run(s) at once; this call asked for ${count}.`,
+        );
+      }
+      if (running + count > role.parallel) {
+        throw new SubagentSpawnError(
+          `Role ${role.label} allows ${role.parallel} run(s) at once and ${running} are running. Wait for one to finish.`,
+        );
+      }
+    }
   }
 
   private startRun(
@@ -292,6 +343,7 @@ export class SubagentRunManager {
       attemptIndex: 0,
       attemptSettled: false,
       steering: undefined,
+      steerGeneration: 0,
       attemptResults: [],
       status: "running",
       transcript,
@@ -329,9 +381,11 @@ export class SubagentRunManager {
     // Emit the synthetic parent tile so the delegated-agent renderer picks it up.
     const startPayload: ToolCallPayload = {
       name: firstAttempt.label,
+      ...(plan.title ? { title: plan.title } : {}),
       status: "running",
       isCrossagent: true,
       crossagentStatus: "running",
+      ...(plan.crewRole ? { subAgentType: plan.crewRole.label } : {}),
     };
     this.deps.host.appendRuntimeEvent(parentThreadId, {
       type: "item.started",
@@ -400,6 +454,7 @@ export class SubagentRunManager {
         background: record.background,
         attempt: record.attemptIndex + 1,
         attempt_count: record.plan.attempts.length,
+        ...(record.plan.crewRole ? { role: record.plan.crewRole.id } : {}),
         can_steer:
           canContinueRun(record) ||
           (record.status === "running" &&
@@ -457,6 +512,7 @@ export class SubagentRunManager {
         "The previous message to this subagent is still being delivered",
       );
     const steering: SteerState = { completion: "none" };
+    record.steerGeneration += 1;
     record.steering = steering;
     const attemptIndex = record.attemptIndex;
     const config = record.plan.attempts[attemptIndex]!.config;
@@ -490,10 +546,55 @@ export class SubagentRunManager {
     return { runId };
   }
 
+  /**
+   * A crew role keeps one helper conversation: a new task for a role whose
+   * latest run completed on the same provider and model continues that
+   * provider session, so the helper keeps its context instead of rediscovering
+   * the repo. The role's current reasoning and Fast apply to the continued
+   * turn. Returns undefined - the caller spawns fresh - when the role still
+   * has an active run (parallel work), its provider, model or context length
+   * changed, or the session cannot resume.
+   */
+  async continueRole(
+    parentThreadId: string,
+    request: SpawnAgentRequest,
+    background: boolean,
+  ): Promise<{ runId: string; continuedFrom: string } | undefined> {
+    const roleId = request.crewRole?.id;
+    if (!roleId) return undefined;
+    let latest: RunRecord | undefined;
+    for (const record of this.runs.values()) {
+      if (record.parentThreadId !== parentThreadId || record.plan.crewRole?.id !== roleId) continue;
+      if (!record.settled) return undefined;
+      if (!latest || record.createdAt > latest.createdAt) latest = record;
+    }
+    if (!latest || latest.status !== "completed" || latest.continuedBy || latest.resuming)
+      return undefined;
+    const attempt = latest.plan.attempts[latest.attemptIndex];
+    if (
+      !attempt ||
+      attempt.provider !== request.agent ||
+      (request.model !== undefined && attempt.model !== request.model) ||
+      // A different context length needs a session started with it.
+      (attempt.config.contextSize || undefined) !== (request.contextSize || undefined)
+    )
+      return undefined;
+    try {
+      return await this.continueCompletedRun(latest, request.prompt, background, {
+        effort: request.effort,
+        fast: request.fast,
+      });
+    } catch (error) {
+      if (error instanceof SubagentSpawnError) return undefined;
+      throw error;
+    }
+  }
+
   private async continueCompletedRun(
     record: RunRecord,
     prompt: string,
     background: boolean,
+    selectionUpdate?: ContinuationSelectionUpdate,
   ): Promise<{ runId: string; continuedFrom: string }> {
     const parentThreadId = record.parentThreadId;
     if (record.resuming)
@@ -511,6 +612,7 @@ export class SubagentRunManager {
         record,
         prompt,
         background,
+        selectionUpdate,
       );
       // Completion releases readers before process disposal. Join it before
       // reopening the same provider session; concurrent use can corrupt history.
@@ -526,6 +628,7 @@ export class SubagentRunManager {
       if (this.activeCountForParent(parentThreadId) >= MAX_CONCURRENT_CHILDREN_PER_PARENT) {
         throw new SubagentSpawnError("Too many concurrent subagents to start a follow-up");
       }
+      this.assertCrewRoleParallelLimits(parentThreadId, [plan]);
       // Keep completed reports, workflow joins and transcript cursors immutable.
       // Only the run receipt is new: the provider conversation keeps its identity.
       const next = this.startRun(parentThreadId, plan, {
@@ -555,6 +658,7 @@ export class SubagentRunManager {
     prompt: string,
     config: ThreadConfig,
   ): Promise<void> {
+    const generation = record.steerGeneration;
     const drained = new Promise<void>((resolve) => {
       steering.onDrained = resolve;
     });
@@ -576,10 +680,28 @@ export class SubagentRunManager {
       }
     }
     if (!this.isCurrentAttempt(record, attemptIndex)) return;
-    await handle.startTurn!(prompt, config);
-    // The replacement turn is open on the same session: the interrupted
-    // completion parked above must not settle the run.
+    // Consume only the interrupted turn's completion, before the replacement
+    // can complete synchronously or hold startTurn open for its entire reply.
     if (steering.completion === "pending") steering.completion = "resumed";
+    delete steering.onDrained;
+    const started = new Promise<void>((resolve) => {
+      steering.onStarted = resolve;
+    });
+    const turn = handle.startTurn!(prompt, config).catch((error: unknown) => {
+      // A later correction can interrupt this prompt after delivery returns.
+      if (record.steerGeneration === generation) {
+        this.finishAttempt(
+          record,
+          attemptIndex,
+          "failed",
+          error instanceof Error ? error.message : String(error),
+        );
+      }
+      throw error;
+    });
+    // Handles may resolve at dispatch or at turn completion. A working/started
+    // signal acknowledges delivery without leaving the full-turn promise unobserved.
+    await Promise.race([started, turn, record.settledPromise]);
   }
 
   /** Interrupt + dispose a single run. */
@@ -596,18 +718,25 @@ export class SubagentRunManager {
    * `namespacedRequestId` is the `${runId}::${requestId}` id the parent stream
    * carried. Returns `false` when it isn't a subagent request (no delimiter, or
    * an unknown run) so the caller can fall through to the normal session path;
-   * `true` once the owning run is found (best-effort resolve on its handle).
+   * `true` once the owning run is found. Resolution errors propagate so clients
+   * keep the request available for retry.
    */
-  resolveChildServerRequest(requestId: ThreadServerRequestId, response: unknown): boolean {
+  async resolveChildServerRequest(
+    requestId: ThreadServerRequestId,
+    response: unknown,
+    parentThreadId: string,
+  ): Promise<boolean> {
     const parsed = parseNamespacedRequestId(requestId);
     if (!parsed) return false;
     const record = this.runs.get(parsed.runId);
     if (!record) return false;
+    if (record.parentThreadId !== parentThreadId)
+      throw new SubagentSpawnError("This request belongs to another parent thread.");
+    if (record.handle?.resolveServerRequest) {
+      await record.handle.resolveServerRequest(parsed.requestId, response);
+    }
     record.pendingRequestIds.delete(parsed.requestId);
     this.lifecycle.emit(record.parentThreadId, "changed");
-    if (record.handle?.resolveServerRequest) {
-      void record.handle.resolveServerRequest(parsed.requestId, response).catch(() => {});
-    }
     return true;
   }
 
@@ -713,8 +842,10 @@ export class SubagentRunManager {
         itemId: syntheticItemId(record.runId),
         payload: {
           name: attempt.label,
+          ...(record.plan.title ? { title: record.plan.title } : {}),
           status: "running",
           isCrossagent: true,
+          ...(record.plan.crewRole ? { subAgentType: record.plan.crewRole.label } : {}),
           progress: { stepCount: record.stepCount },
         },
       });
@@ -724,6 +855,7 @@ export class SubagentRunManager {
       isActive: () => this.isCurrentAttempt(record, attemptIndex),
       onWorking: () => {
         if (record.steering?.completion === "pending") record.steering.completion = "resumed";
+        record.steering?.onStarted?.();
       },
       onRuntimeEvent: (event) => this.onChildEvent(record, attemptIndex, event),
       onSettle: (status, errorMessage) =>
@@ -767,6 +899,7 @@ export class SubagentRunManager {
         // A native steer can start a follow-up turn if the original finished
         // during its round-trip. Keep that new turn alive until it completes.
         if (record.steering?.completion === "pending") record.steering.completion = "resumed";
+        record.steering?.onStarted?.();
         break;
       case "content.delta":
         if (event.stream === "assistant_text") {
@@ -796,7 +929,10 @@ export class SubagentRunManager {
             type: "item.updated",
             threadId: record.parentThreadId,
             itemId: syntheticItemId(record.runId),
-            payload: { progress: { stepCount: record.stepCount } },
+            payload: {
+              progress: { stepCount: record.stepCount },
+              ...(record.plan.crewRole ? { subAgentType: record.plan.crewRole.label } : {}),
+            },
           });
         }
         {
@@ -858,6 +994,26 @@ export class SubagentRunManager {
         );
         return;
       }
+      case "usage.spent": {
+        // Helper consumption is recorded on the parent thread, attributed to
+        // the helper's provider (and crew role) so ledgers never bill it to the
+        // lead. scopeId stays the helper's provider session, keeping its
+        // counter scope separate from the lead's.
+        const provider = record.plan.attempts[attemptIndex]?.provider;
+        if (!provider) return;
+        this.deps.host.appendRuntimeEvent(record.parentThreadId, {
+          type: "usage.spent",
+          threadId: record.parentThreadId,
+          usage: {
+            ...event.usage,
+            helper: {
+              agentKind: provider,
+              ...(record.plan.crewRole ? { crewRoleId: record.plan.crewRole.id } : {}),
+            },
+          },
+        });
+        return;
+      }
       default:
         return;
     }
@@ -912,6 +1068,7 @@ export class SubagentRunManager {
     if (record.steering && status === "completed") {
       record.steering.completion = "pending";
       record.steering.onDrained?.();
+      record.steering.onStarted?.();
       return;
     }
     // A failed/cancelled attempt can never resume; release a waiting steer so
@@ -1024,9 +1181,11 @@ export class SubagentRunManager {
     record.transcript.releaseSegments(text);
     const payload: ToolCallPayload = {
       name: record.label,
+      ...(record.plan.title ? { title: record.plan.title } : {}),
       status: record.status === "completed" ? "success" : "error",
       isCrossagent: true,
       crossagentStatus: record.status,
+      ...(record.plan.crewRole ? { subAgentType: record.plan.crewRole.label } : {}),
       ...(record.stepCount > 0 ? { progress: { stepCount: record.stepCount } } : {}),
       ...(text ? { result: text } : {}),
     };

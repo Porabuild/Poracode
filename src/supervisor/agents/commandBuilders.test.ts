@@ -60,6 +60,7 @@ import {
 import { createClaudeAdapter } from "./claude";
 import { createCopilotAdapter } from "./copilot";
 import { buildCodexAppServerCommand, createCodexAdapter } from "./codex";
+import { primeCodexAgentsConfigSupport } from "./codex/agentsConfigSupport";
 import { buildCodexArgvFor, primeCodexGoalsSupport } from "./codex/argv";
 import { createCursorAdapter } from "./cursor";
 import { createGrokAdapter } from "./grok";
@@ -195,6 +196,64 @@ describe("agent command builders", () => {
     expect(cmdArgs).not.toContain("--listen");
     expect(cmdArgs).not.toContain("--remote");
     expect(cmdArgs).not.toContain("--session-source");
+  });
+
+  it("passes configured Codex sub-agent defaults to the app-server and terminal sessions", async () => {
+    const agentSettings = {
+      subagentModel: "gpt-6-luna",
+      subagentReasoningEffort: "max",
+      maxSubagents: "10",
+    };
+    const expected = [
+      'agents.default_subagent_model="gpt-6-luna"',
+      'agents.default_subagent_reasoning_effort="max"',
+      "agents.max_concurrent_threads_per_session=10",
+    ];
+
+    const appServer = parseWindowsSpec(
+      await buildCodexAppServerCommand(windowsProject, { agentSettings }),
+    );
+    const terminal = await buildCodexArgvFor(windowsProject, config, "hello", undefined, {
+      agentSettings,
+    });
+
+    for (const override of expected) {
+      expect(appServer.cmdArgs).toContain(override);
+      expect(terminal.args).toContain(override);
+    }
+    expect(appServer.cmdArgs.at(-1)).toBe("app-server");
+  });
+
+  it("omits the agents.* overrides for a Codex CLI older than 0.145", async () => {
+    const agentSettings = {
+      subagentModel: "gpt-6-luna",
+      maxSubagents: "10",
+      planModeReasoningEffort: "high",
+    };
+    primeCodexAgentsConfigSupport(windowsProject, "codex-cli 0.144.0");
+    try {
+      const appServer = parseWindowsSpec(
+        await buildCodexAppServerCommand(windowsProject, { agentSettings }),
+      );
+      const terminal = await buildCodexArgvFor(windowsProject, config, "hello", undefined, {
+        agentSettings,
+      });
+
+      for (const args of [appServer.cmdArgs, terminal.args]) {
+        expect(args.join(" ")).not.toContain("agents.");
+        expect(args).toContain('plan_mode_reasoning_effort="high"');
+      }
+    } finally {
+      primeCodexAgentsConfigSupport(windowsProject, "codex-cli 999.0.0");
+    }
+  });
+
+  it("adds no sub-agent overrides when the settings are unset", async () => {
+    const spec = await buildCodexArgvFor(windowsProject, config, "hello", undefined, {
+      agentSettings: { subagentModel: "" },
+    });
+
+    expect(spec.args.join(" ")).not.toContain("agents.");
   });
 
   it("passes the Codex approvals reviewer override to terminal sessions", async () => {
@@ -594,12 +653,17 @@ describe("agent command builders", () => {
         "--fallback-model",
         "haiku",
         "--no-session-persistence",
+        "--safe-mode",
+        "--restricted",
+        "--disable-slash-commands",
+        "--tools",
+        "Read,Glob,Grep",
         "--permission-mode",
         "plan",
         "--allowedTools",
         "Read,Glob,Grep",
         "--disallowedTools",
-        "Bash,Edit,Write,NotebookEdit,WebFetch,WebSearch,Task,Skill",
+        "Bash,Edit,Write,NotebookEdit,WebFetch,WebSearch,Task,Skill,mcp__*",
         "--mcp-config",
         '{"mcpServers":{}}',
         "--strict-mcp-config",
@@ -885,13 +949,23 @@ describe("agent command builders", () => {
   });
 
   it("uses Cursor print mode with --trust for one-shot commands", async () => {
+    const platformArgs = process.platform === "win32" ? ["--disable-auto-update"] : [];
     expect(await createCursorAdapter().buildOneShotCommand?.("auto")).toEqual({
       command: "cursor-agent",
-      args: ["--print", "--force", "--trust", "--output-format", "json"],
+      args: [...platformArgs, "--print", "--force", "--trust", "--output-format", "json"],
     });
     expect(await createCursorAdapter().buildOneShotCommand?.("composer-2.5")).toEqual({
       command: "cursor-agent",
-      args: ["--print", "--force", "--trust", "--output-format", "json", "--model", "composer-2.5"],
+      args: [
+        ...platformArgs,
+        "--print",
+        "--force",
+        "--trust",
+        "--output-format",
+        "json",
+        "--model",
+        "composer-2.5",
+      ],
     });
   });
 });

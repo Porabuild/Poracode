@@ -81,6 +81,9 @@ public enum RemotePortableTransform {
 }
 public enum RemoteSemanticValidator {
   public static let supportedIds: Set<String> = [
+    "forge.edit.fields",
+    "forge.host.https",
+    "forge.watch.scope-identity",
     "git.add-worktree.frozen-source",
     "git.delete-branch.remote-cannot-have-owner",
     "git.remove-worktree.owner-requires-branch",
@@ -144,6 +147,9 @@ public enum RemoteSemanticValidator {
     case "schedule.cron": guard let expression = string(value), validScheduleCron(expression) else { try fail(id, path) }
 
     case "string.trim": break
+    case "forge.host.https": guard let text = string(value), RemoteSchemaValidatorValidURL(text, schemes: ["https"]), text.lowercased().hasPrefix("https://"), !text.unicodeScalars.contains(where: { $0.value <= 32 || [127, 92, 63, 35].contains($0.value) }), !text.dropFirst(8).prefix(while: { $0 != "/" }).contains("@") else { try fail(id, path) }
+    case "forge.watch.scope-identity": guard let account = object(item?["account"] ?? .null), string(item?["forge"]) == string(account["forge"]), string(item?["host"]) == string(account["host"]) else { try fail(id, path) }
+    case "forge.edit.fields": if item?["title"] == nil && item?["body"] == nil && item?["baseBranch"] == nil { try fail(id, path) }
     case "git.add-worktree.frozen-source": let owner = string(item?["ownerToken"]); let source = string(item?["sourceBranch"]); if owner != nil && source == nil { try fail(id, path) }; if source != nil && (bool(item?["createBranch"]) != true || string(item?["branch"]).map { RemoteECMAScriptTrim.trim($0).isEmpty } != false || string(item?["startPoint"])?.range(of: #"^(?:[0-9A-Fa-f]{40}|[0-9A-Fa-f]{64})$"#, options: .regularExpression) == nil) { try fail(id, path) }
     case "git.delete-branch.remote-cannot-have-owner": if string(item?["remote"]) != nil && string(item?["expectedOwnerToken"]) != nil { try fail(id, path) }
     case "git.remove-worktree.owner-requires-branch": if string(item?["expectedOwnerToken"]) != nil && string(item?["expectedBranch"]) == nil { try fail(id, path) }

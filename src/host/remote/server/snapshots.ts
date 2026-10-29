@@ -1,4 +1,6 @@
 import { getSqlite } from "@/host/db/connection";
+import { DEVICE_WORKSPACE_VERSION } from "@/shared/deviceWorkspace";
+import { DEVICE_PREVIEW_VERSION } from "@/shared/devicePreview";
 import { readRuntimeSnapshot } from "@/host/db/runtimeReadSnapshot";
 import { assertLegacySnapshotWithinReservation } from "./legacyReadPrecheck";
 import type { ThreadRuntimeSummary } from "@/host/db/runtimeItems";
@@ -128,6 +130,16 @@ export function descriptor(ctx: RemoteServerContext): RemoteEnvironmentDescripto
       wsBaseUrl: info.wsBaseUrl,
     },
     capabilities: {
+      ...(ctx.options.deviceWorkspace
+        ? {
+            deviceWorkspace: {
+              versions: [DEVICE_WORKSPACE_VERSION],
+              ...(ctx.options.deviceWorkspace.hasLivePreview()
+                ? { livePreview: { versions: [DEVICE_PREVIEW_VERSION], modes: ["h264"] } }
+                : {}),
+            },
+          }
+        : {}),
       conversationSearch: { versions: [CONVERSATION_SEARCH_VERSION] },
       historyDetails: { versions: [HISTORY_DETAILS_VERSION] },
       threadHistoryResume: { versions: [THREAD_HISTORY_RESUME_VERSION] },
@@ -173,6 +185,7 @@ export function descriptor(ctx: RemoteServerContext): RemoteEnvironmentDescripto
         versions: [REMOTE_THREAD_LAUNCH_METADATA_VERSION],
       },
       conversationSnapshots: { versions: [REMOTE_CONVERSATION_SNAPSHOTS_VERSION] },
+      threadForks: { versions: [1] },
       // Managed-root bounded project-command results: the existing project
       // command route honors the exact per-request bounded declaration.
       projectCommandResults: {

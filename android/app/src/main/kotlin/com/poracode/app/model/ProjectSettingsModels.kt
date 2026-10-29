@@ -9,6 +9,7 @@ import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.JsonClassDiscriminator
+import kotlinx.serialization.json.JsonElement
 
 @Serializable
 data class ProjectDraftConfig(
@@ -28,6 +29,8 @@ data class ProjectDraftConfig(
     val chromeMcp: Boolean? = null,
     val executionEnvironment: RemoteExecutionEnvironment? = null,
     val worktreeMode: Boolean? = null,
+    @Serializable(with = OpaqueJsonElementSerializer::class)
+    val crew: JsonElement? = null,
 )
 
 @Serializable

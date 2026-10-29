@@ -13,12 +13,34 @@ import lintStaged from "../lint-staged.config.js";
 import { classifyChanges, fullScope } from "./ci-change-scope.mjs";
 
 void test("documentation-only changes skip expensive CI lanes", () => {
-  assert.deepEqual(classifyChanges(["README.md", "docs/STANDALONE_SERVER.md"]), {
-    core: false,
-    nativeAndroid: false,
-    nativeIos: false,
-    nativeShared: false,
-  });
+  assert.deepEqual(
+    classifyChanges([
+      "README.md",
+      "docs/STANDALONE_SERVER.md",
+      ".github/PULL_REQUEST_TEMPLATE.md",
+      ".agents/docs/architecture.md",
+      ".agents/skills/verify/SKILL.md",
+    ]),
+    {
+      core: false,
+      nativeAndroid: false,
+      nativeIos: false,
+      nativeShared: false,
+    },
+  );
+});
+
+void test("markdown that ships or feeds tests runs the core lanes", () => {
+  for (const path of [
+    "resources/plugins/subagent-delegation/skills/subagent-delegation/SKILL.md",
+    "resources/skills/skill-creator-poracode/SKILL.md",
+    "src/supervisor/agents/codex/protocol/README.md",
+    "packages/poracode-cli/README.md",
+    "protocol/remote/v3/NATIVE_PROTOCOL_POLICY.md",
+    "tui/opencode/UPSTREAM.md",
+  ]) {
+    assert.equal(classifyChanges([path]).core, true, path);
+  }
 });
 
 void test("platform-only changes run only the affected native clients", () => {

@@ -1,10 +1,6 @@
 import type { ProjectLocation } from "@/shared/contracts";
-import {
-  buildAgentCommand,
-  prepareAgentLocationEnvironment,
-  readCommandOutputAsync,
-} from "../base";
-import { resolveAgentBinaryPath } from "../binaryResolver";
+import { prepareAgentLocationEnvironment, readCommandOutputAsync } from "../base";
+import { buildCursorAgentCommand } from "./windowsExecutable";
 
 /**
  * Ask `cursor-agent create-chat` for a pre-assigned chat id. Async and bounded
@@ -14,15 +10,11 @@ import { resolveAgentBinaryPath } from "../binaryResolver";
  */
 export async function createCursorChat(location: ProjectLocation): Promise<string | undefined> {
   await prepareAgentLocationEnvironment(location);
-  const spec = buildAgentCommand(
-    location,
-    "cursor-agent",
-    ["create-chat"],
-    resolveAgentBinaryPath(location, "cursor-agent"),
-  );
+  const spec = buildCursorAgentCommand(location, ["create-chat"]);
   try {
     const result = await readCommandOutputAsync(spec.command, spec.args, {
       ...(spec.cwd ? { cwd: spec.cwd } : {}),
+      ...(spec.env ? { env: spec.env } : {}),
       timeout: 15_000,
     });
     if (result.ok && result.stdout.length > 0) {

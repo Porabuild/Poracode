@@ -23,6 +23,7 @@ import { shouldSpawnAcpSession } from "./sessionFactory";
 import { ACP_INLINE_CONTENT_MAX_BYTES } from "./sessionContentBlocks";
 import { resolveAcpPromptFailureMessage, shouldEmitAcpPromptRpcErrorItem } from "./sessionErrors";
 import * as textFileRead from "./sessionTextFileRead";
+import { withAcpCommandStatus } from "./canonicalMapping/commandStatus";
 
 function makeInput(
   overrides: Partial<CreateStructuredSessionInput> = {},
@@ -128,6 +129,47 @@ describe("ACP async extension updates", () => {
 });
 
 describe("ACP external session update sources", () => {
+  it("acknowledges inherited context on live output before a cancelled prompt settles", async () => {
+    const { connection, session } = makeConfigSyncSession();
+    const internal = session as unknown as Record<string, unknown>;
+    internal["replayHistoryUntil"] = 0;
+    let rejectPrompt!: (error: Error) => void;
+    connection.prompt.mockReturnValueOnce(
+      new Promise((_resolve, reject) => {
+        rejectPrompt = reject;
+      }),
+    );
+    const admitted = vi.fn<() => void>();
+    const turn = session.startTurn("continue fork", { model: "model-a" }, undefined, {
+      onPromptSubmitted: admitted,
+    });
+    await vi.waitFor(() => expect(connection.prompt).toHaveBeenCalledOnce());
+    expect(admitted).not.toHaveBeenCalled();
+    const notification = {
+      update: { sessionUpdate: "agent_message_chunk", content: { type: "text", text: "Reply" } },
+    };
+    internal["isReplayingHistory"] = true;
+    session.handleSessionUpdate(notification);
+    expect(admitted).not.toHaveBeenCalled();
+    internal["isReplayingHistory"] = false;
+    session.handleSessionUpdate(notification);
+    expect(admitted).toHaveBeenCalledOnce();
+    await session.interruptTurn();
+    rejectPrompt(new Error("cancelled"));
+    await turn;
+    expect(admitted).toHaveBeenCalledOnce();
+  });
+
+  it("retains inherited context when the provider rejects the prompt before output", async () => {
+    const { connection, session } = makeConfigSyncSession();
+    connection.prompt.mockRejectedValueOnce(new Error("connection refused"));
+    const admitted = vi.fn<() => void>();
+    await session.startTurn("continue fork", { model: "model-a" }, undefined, {
+      onPromptSubmitted: admitted,
+    });
+    expect(admitted).not.toHaveBeenCalled();
+  });
+
   it("allows a source to defer a provider update and re-ingest it without recursion", () => {
     const { listener, session } = makeConfigSyncSession();
     const notification = {
@@ -252,20 +294,21 @@ describe("host service capability enforcement", () => {
         content: "must not be written",
       }),
     ).rejects.toMatchObject({ code: -32601 });
+    const terminalParams = {
+      sessionId: "session-1",
+      command: "must not execute",
+      terminalId: "terminal-1",
+    };
+    await expect(internal.handleCreateTerminal!(terminalParams)).rejects.toMatchObject({
+      code: -32601,
+    });
     for (const method of [
-      "handleCreateTerminal",
       "handleTerminalOutput",
       "handleReleaseTerminal",
       "handleWaitForTerminalExit",
       "handleKillTerminal",
     ]) {
-      expect(() =>
-        internal[method]!({
-          sessionId: "session-1",
-          command: "must not execute",
-          terminalId: "terminal-1",
-        }),
-      ).toThrow(RequestError);
+      expect(() => internal[method]!(terminalParams)).toThrow(RequestError);
     }
   });
 });
@@ -1637,6 +1680,388 @@ describe("ACP client protocol helpers", () => {
     });
     release({ sessionId: "session-1", terminalId: created.terminalId });
   });
+
+  it("attributes a newly created terminal to an open command when configured", async () => {
+    const projectRoot = makePosixProject();
+    const { listener, session } = makeConfigSyncSession({
+      behavior: { unreferencedTerminalCorrelation: "attribute-on-create" },
+    });
+    (session as unknown as Record<string, unknown>)["projectLocation"] = {
+      kind: HOST_KIND,
+      path: projectRoot,
+    };
+    const outputText = "attributed command output";
+    const args = ["-e", `process.stdout.write(${JSON.stringify(outputText)})`];
+    const commandLine = [process.execPath, ...args].join(" ");
+
+    session.handleSessionUpdate({
+      update: {
+        sessionUpdate: "tool_call",
+        toolCallId: "call",
+        title: "Running command",
+        kind: "execute",
+        rawInput: { command: commandLine },
+        status: "in_progress",
+      },
+    });
+    const mapperState = (
+      session as unknown as {
+        mapperState: { resolveTerminalOutputByCommand?: unknown };
+      }
+    ).mapperState;
+    expect(mapperState.resolveTerminalOutputByCommand).toBeUndefined();
+
+    const create = (
+      session as unknown as { handleCreateTerminal: Function }
+    ).handleCreateTerminal.bind(session);
+    const wait = (
+      session as unknown as { handleWaitForTerminalExit: Function }
+    ).handleWaitForTerminalExit.bind(session);
+    const release = (
+      session as unknown as { handleReleaseTerminal: Function }
+    ).handleReleaseTerminal.bind(session);
+    const created = await create({
+      sessionId: "session-1",
+      command: process.execPath,
+      args,
+      cwd: projectRoot,
+      outputByteLimit: 65536,
+    });
+
+    await expect(
+      wait({ sessionId: "session-1", terminalId: created.terminalId }),
+    ).resolves.toMatchObject({ exitCode: 0 });
+    release({ sessionId: "session-1", terminalId: created.terminalId });
+
+    const completed = withAcpCommandStatus(
+      {
+        sessionId: "session-1",
+        update: {
+          sessionUpdate: "tool_call_update",
+          toolCallId: "call",
+          status: "completed",
+          content: [{ type: "content", content: { type: "text", text: "Exited with code 0" } }],
+        },
+      } as SessionNotification,
+      { exitCode: 0 },
+    );
+    session.handleSessionUpdate({ update: completed.update });
+
+    const runtimeEvents = listener.onRuntimeEvent.mock.calls.map(
+      ([event]) => event as { type?: string; itemId?: string; payload?: Record<string, unknown> },
+    );
+    const started = runtimeEvents.find(
+      (event) => event.type === "item.started" && event.payload?.command === commandLine,
+    );
+    expect(started).toBeDefined();
+    const completion = runtimeEvents.find(
+      (event) => event.type === "item.completed" && event.itemId === started?.itemId,
+    );
+    const result = completion?.payload?.result;
+    expect(result).toEqual(expect.any(String));
+    expect((result as string).startsWith(outputText)).toBe(true);
+    expect((result as string).endsWith("Exited with code 0")).toBe(true);
+
+    const { session: defaultSession } = makeConfigSyncSession();
+    defaultSession.handleSessionUpdate({
+      update: {
+        sessionUpdate: "tool_call",
+        toolCallId: "default-call",
+        title: "Run command",
+        kind: "execute",
+        rawInput: { command: "git --version" },
+        status: "in_progress",
+      },
+    });
+    const defaultMapperState = (
+      defaultSession as unknown as {
+        mapperState: { resolveTerminalOutputByCommand?: unknown };
+      }
+    ).mapperState;
+    expect(defaultMapperState.resolveTerminalOutputByCommand).toEqual(expect.any(Function));
+  });
+
+  it("attributes a terminal created and exited before its tool call", async () => {
+    const projectRoot = makePosixProject();
+    const { listener, session } = makeConfigSyncSession({
+      behavior: { unreferencedTerminalCorrelation: "attribute-on-create" },
+    });
+    (session as unknown as Record<string, unknown>)["projectLocation"] = {
+      kind: HOST_KIND,
+      path: projectRoot,
+    };
+    const outputText = "pre-call terminal output";
+    const args = ["-e", `process.stdout.write(${JSON.stringify(outputText)})`];
+    const commandLine = [process.execPath, ...args].join(" ");
+    const create = (
+      session as unknown as { handleCreateTerminal: Function }
+    ).handleCreateTerminal.bind(session);
+    const wait = (
+      session as unknown as { handleWaitForTerminalExit: Function }
+    ).handleWaitForTerminalExit.bind(session);
+    const release = (
+      session as unknown as { handleReleaseTerminal: Function }
+    ).handleReleaseTerminal.bind(session);
+
+    const created = await create({
+      sessionId: "session-1",
+      command: process.execPath,
+      args,
+      cwd: projectRoot,
+      outputByteLimit: 65536,
+    });
+    await expect(
+      wait({ sessionId: "session-1", terminalId: created.terminalId }),
+    ).resolves.toMatchObject({ exitCode: 0 });
+
+    session.handleSessionUpdate({
+      update: {
+        sessionUpdate: "tool_call",
+        toolCallId: "call",
+        title: "Running command",
+        kind: "execute",
+        rawInput: { command: commandLine },
+        status: "in_progress",
+      },
+    });
+    release({ sessionId: "session-1", terminalId: created.terminalId });
+    const completed = withAcpCommandStatus(
+      {
+        sessionId: "session-1",
+        update: {
+          sessionUpdate: "tool_call_update",
+          toolCallId: "call",
+          status: "completed",
+          content: [{ type: "content", content: { type: "text", text: "Exited with code 0" } }],
+        },
+      } as SessionNotification,
+      { exitCode: 0 },
+    );
+    session.handleSessionUpdate({ update: completed.update });
+
+    const events = listener.onRuntimeEvent.mock.calls.map(
+      ([event]) => event as { type?: string; itemId?: string; payload?: Record<string, unknown> },
+    );
+    const started = events.find(
+      (event) => event.type === "item.started" && event.payload?.command === commandLine,
+    );
+    const result = events.find(
+      (event) => event.type === "item.completed" && event.itemId === started?.itemId,
+    )?.payload?.result;
+    expect(result).toEqual(expect.any(String));
+    expect((result as string).startsWith(outputText)).toBe(true);
+    expect((result as string).endsWith("Exited with code 0")).toBe(true);
+  });
+
+  it("attributes queued same-command terminals to matching calls in FIFO order", async () => {
+    const projectRoot = makePosixProject();
+    const firstCwd = join(projectRoot, "first");
+    const secondCwd = join(projectRoot, "second");
+    mkdirSync(firstCwd, { recursive: true });
+    mkdirSync(secondCwd, { recursive: true });
+    writeFileSync(join(firstCwd, "terminal-output.txt"), "first-run");
+    writeFileSync(join(secondCwd, "terminal-output.txt"), "second-run");
+    const { listener, session } = makeConfigSyncSession({
+      behavior: { unreferencedTerminalCorrelation: "attribute-on-create" },
+    });
+    (session as unknown as Record<string, unknown>)["projectLocation"] = {
+      kind: HOST_KIND,
+      path: projectRoot,
+    };
+    const args = [
+      "-e",
+      `process.stdout.write(require('node:fs').readFileSync('terminal-output.txt', 'utf8'))`,
+    ];
+    const commandLine = [process.execPath, ...args].join(" ");
+    const create = (
+      session as unknown as { handleCreateTerminal: Function }
+    ).handleCreateTerminal.bind(session);
+    const wait = (
+      session as unknown as { handleWaitForTerminalExit: Function }
+    ).handleWaitForTerminalExit.bind(session);
+    const release = (
+      session as unknown as { handleReleaseTerminal: Function }
+    ).handleReleaseTerminal.bind(session);
+    const first = await create({
+      sessionId: "session-1",
+      command: process.execPath,
+      args,
+      cwd: firstCwd,
+      outputByteLimit: 65536,
+    });
+    const second = await create({
+      sessionId: "session-1",
+      command: process.execPath,
+      args,
+      cwd: secondCwd,
+      outputByteLimit: 65536,
+    });
+    await expect(
+      wait({ sessionId: "session-1", terminalId: first.terminalId }),
+    ).resolves.toMatchObject({ exitCode: 0 });
+    await expect(
+      wait({ sessionId: "session-1", terminalId: second.terminalId }),
+    ).resolves.toMatchObject({ exitCode: 0 });
+
+    for (const toolCallId of ["first-call", "second-call"]) {
+      session.handleSessionUpdate({
+        update: {
+          sessionUpdate: "tool_call",
+          toolCallId,
+          title: "Running command",
+          kind: "execute",
+          rawInput: { command: commandLine },
+          status: "in_progress",
+        },
+      });
+    }
+    for (const [toolCallId, terminalId] of [
+      ["first-call", first.terminalId],
+      ["second-call", second.terminalId],
+    ]) {
+      const completed = withAcpCommandStatus(
+        {
+          sessionId: "session-1",
+          update: {
+            sessionUpdate: "tool_call_update",
+            toolCallId,
+            status: "completed",
+            content: [{ type: "content", content: { type: "text", text: "Exited with code 0" } }],
+          },
+        } as SessionNotification,
+        { exitCode: 0 },
+      );
+      session.handleSessionUpdate({ update: completed.update });
+      release({ sessionId: "session-1", terminalId });
+    }
+
+    const events = listener.onRuntimeEvent.mock.calls.map(
+      ([event]) => event as { type?: string; itemId?: string; payload?: Record<string, unknown> },
+    );
+    const startedItems = events.filter(
+      (event) => event.type === "item.started" && event.payload?.command === commandLine,
+    );
+    const results = startedItems.map(
+      (started) =>
+        events.find((event) => event.type === "item.completed" && event.itemId === started.itemId)
+          ?.payload?.result as string,
+    );
+    expect(results[0]).toContain("first-run");
+    expect(results[0]).not.toContain("second-run");
+    expect(results[1]).toContain("second-run");
+    expect(results[1]).not.toContain("first-run");
+  });
+
+  it("does not attribute a terminal released before its matching call opens", async () => {
+    const projectRoot = makePosixProject();
+    const { listener, session } = makeConfigSyncSession({
+      behavior: { unreferencedTerminalCorrelation: "attribute-on-create" },
+    });
+    (session as unknown as Record<string, unknown>)["projectLocation"] = {
+      kind: HOST_KIND,
+      path: projectRoot,
+    };
+    const outputText = "released terminal output";
+    const args = ["-e", `process.stdout.write(${JSON.stringify(outputText)})`];
+    const commandLine = [process.execPath, ...args].join(" ");
+    const create = (
+      session as unknown as { handleCreateTerminal: Function }
+    ).handleCreateTerminal.bind(session);
+    const wait = (
+      session as unknown as { handleWaitForTerminalExit: Function }
+    ).handleWaitForTerminalExit.bind(session);
+    const release = (
+      session as unknown as { handleReleaseTerminal: Function }
+    ).handleReleaseTerminal.bind(session);
+    const created = await create({
+      sessionId: "session-1",
+      command: process.execPath,
+      args,
+      cwd: projectRoot,
+      outputByteLimit: 65536,
+    });
+    await expect(
+      wait({ sessionId: "session-1", terminalId: created.terminalId }),
+    ).resolves.toMatchObject({ exitCode: 0 });
+    release({ sessionId: "session-1", terminalId: created.terminalId });
+
+    session.handleSessionUpdate({
+      update: {
+        sessionUpdate: "tool_call",
+        toolCallId: "later-call",
+        title: "Running command",
+        kind: "execute",
+        rawInput: { command: commandLine },
+        status: "in_progress",
+      },
+    });
+    const completed = withAcpCommandStatus(
+      {
+        sessionId: "session-1",
+        update: {
+          sessionUpdate: "tool_call_update",
+          toolCallId: "later-call",
+          status: "completed",
+          content: [{ type: "content", content: { type: "text", text: "Exited with code 0" } }],
+        },
+      } as SessionNotification,
+      { exitCode: 0 },
+    );
+    session.handleSessionUpdate({ update: completed.update });
+
+    const events = listener.onRuntimeEvent.mock.calls.map(
+      ([event]) => event as { type?: string; itemId?: string; payload?: Record<string, unknown> },
+    );
+    const started = events.find((event) => event.type === "item.started");
+    const result = events.find(
+      (event) => event.type === "item.completed" && event.itemId === started?.itemId,
+    )?.payload?.result as string;
+    expect(result).toEqual(expect.any(String));
+    expect(result).not.toContain(outputText);
+    expect(result.endsWith("Exited with code 0")).toBe(true);
+  });
+
+  it.skipIf(process.platform !== "win32")(
+    "preserves native exit codes from Windows ACP terminal shell lines",
+    async () => {
+      const projectRoot = makePosixProject();
+      const { session } = makeConfigSyncSession();
+      (session as unknown as Record<string, unknown>)["projectLocation"] = {
+        kind: "windows",
+        path: projectRoot,
+      };
+      const create = (
+        session as unknown as { handleCreateTerminal: Function }
+      ).handleCreateTerminal.bind(session);
+      const wait = (
+        session as unknown as { handleWaitForTerminalExit: Function }
+      ).handleWaitForTerminalExit.bind(session);
+      const release = (
+        session as unknown as { handleReleaseTerminal: Function }
+      ).handleReleaseTerminal.bind(session);
+      const commands = [
+        { command: 'node -e "process.exit(3)"', exitCode: 3 },
+        { command: 'node -e "process.exit(3)"; Write-Output ok', exitCode: 0 },
+        { command: "Get-Item does-not-exist", exitCode: 1 },
+      ];
+
+      for (const { command, exitCode } of commands) {
+        const created = await create({
+          sessionId: "session-1",
+          command,
+          cwd: projectRoot,
+          outputByteLimit: 65536,
+        });
+        try {
+          await expect(
+            wait({ sessionId: "session-1", terminalId: created.terminalId }),
+          ).resolves.toMatchObject({ exitCode });
+        } finally {
+          release({ sessionId: "session-1", terminalId: created.terminalId });
+        }
+      }
+    },
+  );
 
   it.skipIf(process.platform !== "win32")(
     "runs Windows ACP terminal command lines through PowerShell",

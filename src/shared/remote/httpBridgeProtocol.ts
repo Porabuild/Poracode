@@ -34,8 +34,13 @@ export const REMOTE_HTTP_BRIDGE_VERSION = 3 as const;
 
 /** Bounded response body, matching the pre-F8 main-buffered transport limit. */
 export const REMOTE_HTTP_MAX_RESPONSE_BODY_BYTES = 64 * 1024 * 1024;
-/** Whole-request deadline (dispatch through terminal frame), matching pre-F8. */
-export const REMOTE_HTTP_REQUEST_TIMEOUT_MS = 60_000;
+/**
+ * Transport ceiling (dispatch through terminal frame). Match the client's longest
+ * ordinary operation budget so the bridge cannot cut off thread restoration or
+ * repository operations at 60s. Callers still own their shorter abort deadlines.
+ * This local timing policy does not change version-3 frames or their meaning.
+ */
+export const REMOTE_HTTP_REQUEST_TIMEOUT_MS = 10 * 60_000;
 /** Per-request upload body cap. The server's 20 MiB attachment cap is lower. */
 export const REMOTE_HTTP_MAX_REQUEST_BODY_BYTES = 64 * 1024 * 1024;
 /**

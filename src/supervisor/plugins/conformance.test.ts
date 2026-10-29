@@ -14,6 +14,11 @@ import {
 import { loadPluginFromDirectory } from "./PluginLoader";
 import { PluginRegistry, PROJECT_PLUGINS_DIR } from "./PluginRegistry";
 import { resolvePluginMcpServers } from "./pluginMcpRuntime";
+import {
+  canDisablePlugin,
+  resolveInstalledPluginState,
+  setInstalledPluginEnabled,
+} from "@/shared/plugins/catalog";
 
 /**
  * Client conformance for Agent Plugins Specification 1.0.0.
@@ -195,6 +200,29 @@ describe("component discovery", () => {
     expect(result.plugin?.skills.map((skill) => skill.folder)).toEqual(["alpha", "beta"]);
   });
 
+  it("preserves same-named skills from separate declared locations", async () => {
+    const dir = join(root, "multi-skills");
+    await mkdir(join(dir, ".claude-plugin"), { recursive: true });
+    await writeFile(
+      join(dir, ".claude-plugin", "plugin.json"),
+      JSON.stringify({
+        name: "multi-skills",
+        version: "1.0.0",
+        skills: ["./team-a", "./team-b"],
+      }),
+      "utf8",
+    );
+    for (const location of ["team-a", "team-b"]) {
+      await mkdir(join(dir, location, "review"), { recursive: true });
+      await writeFile(join(dir, location, "review", "SKILL.md"), skillBody("review"), "utf8");
+    }
+
+    const result = loadPluginFromDirectory(dir, "bundled");
+    expect(result.plugin).toBeDefined();
+    expect(result.plugin?.skills.map((skill) => skill.folder)).toEqual(["review", "review"]);
+    expect(new Set(result.plugin?.skills.map((skill) => skill.path)).size).toBe(2);
+  });
+
   it("skips a directory that has no SKILL.md without reporting an error", async () => {
     const dir = await writePackage("partial", {
       manifest: manifest("partial"),
@@ -347,6 +375,36 @@ describe("mcp runtime", () => {
       resolvePluginMcpServers([plugin], installed("live-policy"), { pluginDataRoot }).servers,
     ).toHaveLength(1);
     expect(existsSync(join(pluginDataRoot, plugin.name))).toBe(true);
+  });
+
+  it("applies installed-plugin overrides only to the selected launch", async () => {
+    const plugin = await loadWithServers("thread-choice", {
+      main: { type: "streamable-http", url: "https://example.test/mcp" },
+    });
+    const state = installed(plugin.name);
+    state[plugin.name]!.enabled = false;
+    const context = { pluginDataRoot: join(root, "plugin-data") };
+    expect(resolvePluginMcpServers([plugin], state, context).servers).toEqual([]);
+    expect(
+      resolvePluginMcpServers([plugin], state, {
+        ...context,
+        pluginOverrides: { [plugin.name]: true },
+      }).servers,
+    ).toHaveLength(1);
+    expect(
+      resolvePluginMcpServers([plugin], installed(plugin.name), {
+        ...context,
+        pluginOverrides: { [plugin.name]: false },
+      }).servers,
+    ).toEqual([]);
+    expect(state[plugin.name]!.enabled).toBe(false);
+    expect(
+      resolvePluginMcpServers(
+        [plugin],
+        {},
+        { ...context, pluginOverrides: { [plugin.name]: true } },
+      ).servers,
+    ).toEqual([]);
   });
 
   it("expands placeholders only in args, env values, and cwd", async () => {
@@ -738,6 +796,30 @@ describe("registry", () => {
 });
 
 describe("shipped packages", () => {
+  it("keeps Poracode enabled over stored disables and per-thread overrides", () => {
+    const plugin = loadPluginFromDirectory(
+      join(process.cwd(), "resources", "plugins", "app-controls"),
+      "bundled",
+    ).plugin!;
+    const installed = {
+      "app-controls": {
+        version: "1.7.0",
+        enabled: false,
+        disabledSkillIds: ["app-controls"],
+        disabledMcpServerNames: ["poracode"],
+      },
+    };
+    expect(canDisablePlugin(plugin)).toBe(false);
+    expect(resolveInstalledPluginState(plugin, installed, { "app-controls": false })).toMatchObject(
+      {
+        enabled: true,
+        disabledSkillIds: [],
+        disabledMcpServerNames: [],
+      },
+    );
+    expect(setInstalledPluginEnabled(installed, plugin, false)).toBe(installed);
+  });
+
   it("loads every package in resources/plugins", () => {
     const shippedDir = join(process.cwd(), "resources", "plugins");
     const shipped = readdirSync(shippedDir, { withFileTypes: true })
@@ -749,6 +831,7 @@ describe("shipped packages", () => {
       "browser-tools",
       "chrome-tools",
       "computer-use",
+      "devices",
       "github",
       "outlook",
       "subagent-delegation",
@@ -876,6 +959,7 @@ describe("shipped packages", () => {
         "live schema on older hosts",
       ],
       terminal: ["## Find the pane", "## Read it", "## Report", "list_terminals", "read_terminal"],
+      devices: ["list_devices", "screenshot_device", "inspect_device", "control_device", "frameId"],
     };
 
     for (const [name, markers] of Object.entries(expectations)) {

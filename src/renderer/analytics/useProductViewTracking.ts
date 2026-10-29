@@ -1,6 +1,6 @@
 import { useEffect, useEffectEvent, useState } from "react";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
-import { usePanelStore } from "@/renderer/state/panelStore";
+import { selectPullRequestsOverlayVisible, usePanelStore } from "@/renderer/state/panelStore";
 import {
   captureProductEvent,
   configureProductAnalytics,
@@ -29,7 +29,7 @@ function isBlockedByOverlay(): boolean {
   const panels = usePanelStore.getState();
   return (
     panels.gitOverlayOpen ||
-    panels.prReviewContext !== null ||
+    selectPullRequestsOverlayVisible(panels) ||
     (panels.browserOverlayOpen && panels.browserOverlayMaximized) ||
     useFileEditorStore.getState().overlayMode === "fullscreen"
   );
@@ -60,6 +60,7 @@ export function subscribeProductSurfaceVisibility(
       state.projectSettingsId !== previous.projectSettingsId ||
       state.gitOverlayOpen !== previous.gitOverlayOpen ||
       state.prReviewContext !== previous.prReviewContext ||
+      state.pullRequestsOverlayOpen !== previous.pullRequestsOverlayOpen ||
       state.browserOverlayOpen !== previous.browserOverlayOpen ||
       state.browserOverlayMaximized !== previous.browserOverlayMaximized
     ) {

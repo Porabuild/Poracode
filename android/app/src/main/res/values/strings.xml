@@ -208,4 +208,10 @@
     <string name="tls_pin_mismatch">The server’s TLS certificate does not match the fingerprint from the pairing code. Re-pair from the desktop Remote Access panel.</string>
     <string name="rich_chat_context_reload_body">The new context size applies from your next message. The agent session reloads before that message is sent; the conversation is kept.</string>
     <string name="rich_chat_context_reload_stops_subagents">Any subagents still running when the session reloads will be stopped.</string>
+    <string name="rich_chat_crew">Crew</string>
+    <string name="rich_chat_crew_helpers_count">+%1$d helpers</string>
+    <string name="rich_chat_crew_lead">Lead</string>
+    <string name="rich_chat_crew_no_edits">Told not to edit files. Not enforced.</string>
+    <string name="rich_chat_crew_policy_only">Crew only</string>
+    <string name="rich_chat_crew_policy_first">Crew first</string>
 </resources>

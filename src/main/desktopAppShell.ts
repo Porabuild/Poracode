@@ -12,7 +12,7 @@ import { BROWSER_SESSION_PARTITION } from "@/shared/browserPartition";
 import type { PoracodePaths } from "@/shared/poracodePaths";
 import { defaultSharedSettings, type SharedSettings } from "@/shared/settings";
 import { configureSecretStorageKey } from "@/shared/secretStorage";
-import { WindowsJobObjectManager } from "./windowsJobObject";
+import { createWindowsJobObjectOwner } from "./windowsNativeJobObject";
 import { captureMainException } from "./diagnostics/sentry";
 import { installLocalFileProtocolHandler } from "./attachments/localFiles";
 import { installPickerProtocolHandler } from "./browser";
@@ -81,6 +81,7 @@ export function updatePowerSaveBlocker(): void {
 export function applyThreadActivity(changes: readonly NativeThreadActivityChange[]): void {
   let changed = false;
   for (const change of changes) {
+    if (!change.active) desktopApp.hostServices?.agentVision.stop(change.threadId);
     if (change.active) {
       if (desktopApp.workingThreads.has(change.threadId)) continue;
       desktopApp.workingThreads.add(change.threadId);
@@ -98,6 +99,7 @@ export function applyThreadActivity(changes: readonly NativeThreadActivityChange
  * thread here. Without this a restart could keep a stale sleep blocker.
  */
 export function resetThreadActivity(): void {
+  desktopApp.hostServices?.agentVision.stopAll();
   desktopApp.workingThreads.clear();
   updatePowerSaveBlocker();
 }
@@ -186,7 +188,7 @@ export function prepareDesktopNativeShell(): DesktopNativeShellBootstrap {
   );
   let jobObjectReady: Promise<void> = Promise.resolve();
   if (process.platform === "win32") {
-    const manager = new WindowsJobObjectManager();
+    const manager = createWindowsJobObjectOwner(bundledOrResourcesDir("pty-job-owner"));
     desktopApp.windowsJobObjectManager = manager;
     jobObjectReady = manager.start().catch((error) => {
       console.error(
