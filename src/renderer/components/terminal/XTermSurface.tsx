@@ -1,7 +1,7 @@
 import { ClipboardAddon } from "@xterm/addon-clipboard";
 import { FitAddon } from "@xterm/addon-fit";
 import { ImageAddon } from "@xterm/addon-image";
-import { ProgramStatusAddon, type IProgramStatusRecord } from "@xterm/addon-program-status";
+import { ProgramStatusAddon } from "@xterm/addon-program-status";
 import { SearchAddon } from "@xterm/addon-search";
 import { Unicode11Addon } from "@xterm/addon-unicode11";
 import { WebglAddon } from "@xterm/addon-webgl";
@@ -10,7 +10,6 @@ import { resolveTerminalColor } from "./terminalColors";
 import { TerminalReplayGate } from "./terminalReplayGate";
 import { TerminalWriteQueue } from "./terminalWriteQueue";
 import { TerminalFeedStatus } from "./TerminalFeedStatus";
-import { TerminalProgramStatus } from "./TerminalProgramStatus";
 import { applyTerminalFont, loadTerminalFonts, resolveTerminalFontFamily } from "./terminalFonts";
 import { Terminal } from "@xterm/xterm";
 import { Button } from "@heroui/react";
@@ -195,8 +194,6 @@ export const XTermSurface = forwardRef<
   const terminalRef = useRef<Terminal | null>(null);
   const fitRef = useRef<FitAddon | null>(null);
   const searchRef = useRef<SearchAddon | null>(null);
-  const programStatusRef = useRef<ProgramStatusAddon | null>(null);
-  const [programRecords, setProgramRecords] = useState<ReadonlyArray<IProgramStatusRecord>>([]);
   const onResetRef: RefObject<typeof onReset> = useRef(onReset);
   onResetRef.current = onReset;
   const onExitedRef: RefObject<typeof onExited> = useRef(onExited);
@@ -584,7 +581,6 @@ export const XTermSurface = forwardRef<
 
     terminalRef.current = terminal;
     fitRef.current = fit;
-    programStatusRef.current = programStatus;
 
     const flushPtyResize = () => {
       ptyResizeTimer = 0;
@@ -713,8 +709,6 @@ export const XTermSurface = forwardRef<
     mount.addEventListener("focusin", onTerminalFocusIn);
 
     const sessionDisposables: Array<{ dispose(): void }> = [];
-    setProgramRecords([...programStatus.records]);
-    sessionDisposables.push(programStatus.onChange((records) => setProgramRecords([...records])));
     // Attach the screen node before opening the terminal: xterm measures cell
     // dimensions from the live DOM at open() (Emdash), and a detached
     // container yields falsy measurements — WidthCache throws in jsdom and
@@ -1172,7 +1166,6 @@ export const XTermSurface = forwardRef<
       terminalRef.current = null;
       fitRef.current = null;
       searchRef.current = null;
-      programStatusRef.current = null;
       requestRefitRef.current = null;
       revealRef.current = null;
       setRendererVisibleRef.current = null;
@@ -1400,10 +1393,6 @@ export const XTermSurface = forwardRef<
             <ArrowDown className="size-3.5" strokeWidth={2.5} />
           </Button>
         </div>
-        <TerminalProgramStatus
-          records={programRecords}
-          onDismiss={(id) => programStatusRef.current?.clear(id)}
-        />
       </div>
     </ContextMenu>
   );
