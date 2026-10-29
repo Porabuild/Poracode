@@ -43,6 +43,7 @@ export function useSmoothStreamedText(
   text: string,
   isStreaming: boolean,
   minEmitIntervalMs = 0,
+  initialText = text,
 ): string {
   const reduceMotion = useSyncExternalStore(
     isStreaming ? subscribeToReducedMotion : subscribeToNothing,
@@ -50,10 +51,10 @@ export function useSmoothStreamedText(
     getFalseSnapshot,
   );
   const animate = isStreaming && !reduceMotion;
-  const [revealed, setRevealed] = useState(text);
+  const [revealed, setRevealed] = useState(initialText);
   const targetRef = useRef(text);
-  const shownRef = useRef(text.length);
-  const emittedRef = useRef(text.length);
+  const shownRef = useRef(initialText.length);
+  const emittedRef = useRef(initialText.length);
   const velocityRef = useRef(0);
   const arrivalRateRef = useRef(INITIAL_CHARS_PER_SECOND);
   const lastChunkTimeRef = useRef(0);
