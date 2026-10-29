@@ -16,6 +16,7 @@ import { PoracodeGlyph } from "@/renderer/components/common/PoracodeGlyph";
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
 import type { ThreadPresentationMode } from "@/shared/contracts";
 import type { ModelRef } from "./buildItems";
+import { ModelShortcutActions } from "./ModelShortcutActions";
 import { ModelMenuRow, SortableFavoriteModelRow } from "./ModelMenuRow";
 import { MODEL_MENU_ROW_HEIGHT } from "./modelMenuRowMetrics";
 import { useFavoriteModelDragAccessibility } from "./useFavoriteModelDragAccessibility";
@@ -240,6 +241,8 @@ interface WindowedProviderModelListProps {
   onSelect: (itemId: string) => void;
   onReorderFavorites: (ordered: readonly ModelRef[]) => void;
   onRemoveRecent: (ref: ModelRef) => void;
+  onToggleCrewFavorite: (crewId: string) => void;
+  onRemoveRecentCrew: (crewId: string) => void;
 }
 
 export const WindowedProviderModelList = forwardRef<
@@ -259,6 +262,8 @@ export const WindowedProviderModelList = forwardRef<
     onSelect,
     onReorderFavorites,
     onRemoveRecent,
+    onToggleCrewFavorite,
+    onRemoveRecentCrew,
   } = props;
   const { t } = useLingui();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -627,6 +632,8 @@ export const WindowedProviderModelList = forwardRef<
               <CrewPickerRow
                 key={item.id}
                 item={item}
+                toggleFavorite={() => onToggleCrewFavorite(item.crewId)}
+                {...(item.isRecent ? { removeRecent: () => onRemoveRecentCrew(item.crewId) } : {})}
                 domId={`${domIdPrefix}-${item.id}`}
                 rowHeight={modelRowHeight}
                 isSelected={selectedKeys.has(item.id)}
@@ -763,6 +770,8 @@ function HeaderCrews(props: { className?: string }) {
 }
 
 function CrewPickerRow(props: {
+  toggleFavorite: () => void;
+  removeRecent?: () => void;
   item: Extract<ProviderModelItem, { type: "crew" }>;
   domId: string;
   rowHeight: number;
@@ -771,7 +780,17 @@ function CrewPickerRow(props: {
   onPointerMove: PointerEventHandler<HTMLDivElement>;
   onSelect: () => void;
 }) {
-  const { item, domId, rowHeight, isSelected, isActive, onPointerMove, onSelect } = props;
+  const {
+    item,
+    domId,
+    rowHeight,
+    isSelected,
+    isActive,
+    onPointerMove,
+    onSelect,
+    toggleFavorite,
+    removeRecent,
+  } = props;
   return (
     <div
       id={domId}
@@ -817,6 +836,11 @@ function CrewPickerRow(props: {
           {item.details}
         </Tooltip.Content>
       </Tooltip>
+      <ModelShortcutActions
+        isFavorite={item.isFavorite}
+        toggleFavorite={toggleFavorite}
+        {...(removeRecent ? { removeRecent } : {})}
+      />
     </div>
   );
 }

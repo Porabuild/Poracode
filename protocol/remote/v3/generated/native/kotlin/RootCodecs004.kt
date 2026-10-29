@@ -5,8 +5,8 @@ import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
-val RemoteRootCodecs.routeU2ESettingsU2DWriteU2EResponse: RemoteRootCodec<RoutesettingsU2DReadResponse_ca522639ff>
-    get() = RemoteRootCodec("route.settings-write.response", serializer<RoutesettingsU2DReadResponse_ca522639ff>(), schema_ca522639fff7de5f)
+val RemoteRootCodecs.routeU2ESettingsU2DWriteU2EResponse: RemoteRootCodec<RoutesettingsU2DReadResponse_f87159e788>
+    get() = RemoteRootCodec("route.settings-write.response", serializer<RoutesettingsU2DReadResponse_f87159e788>(), schema_f87159e7882b195f)
 
 val RemoteRootCodecs.routeU2EShellU2DSnapshotU2EQuery: RemoteRootCodec<RouteshellU2DSnapshotQuery_b2ca36e3fa>
     get() = RemoteRootCodec("route.shell-snapshot.query", serializer<RouteshellU2DSnapshotQuery_b2ca36e3fa>(), schema_b2ca36e3fa7743ad)

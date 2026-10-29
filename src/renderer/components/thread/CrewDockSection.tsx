@@ -1,6 +1,8 @@
 import { Lock, LockOpen, Pencil, PencilOff, Square, UsersRound, Zap } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import { useShallow } from "zustand/shallow";
+import { capabilitiesForPresentation } from "@/shared/agentSelection";
+import { distinctSubProviderLabel } from "@/renderer/components/common/ProviderModelMenu/parts/deriveSubProvider";
 import type { Thread, ToolCallPayload } from "@/shared/contracts";
 import type { CrewMemberSelection, ThreadCrewBinding } from "@/shared/crew";
 import {
@@ -36,7 +38,7 @@ export function CrewDockSection(props: {
   thread: Thread;
   binding: ThreadCrewBinding;
   runIds: readonly string[];
-  renderRun: (id: string) => ReactNode;
+  renderRun: (id: string, taskOnly: boolean) => ReactNode;
   showPlacementToggle: boolean;
 }) {
   const { t } = useLingui();
@@ -168,7 +170,7 @@ export function CrewDockSection(props: {
             />
             {ids.length > 0 ? (
               <div data-crew-role-runs={role.id} className="ml-[22px] min-w-0">
-                {ids.map(props.renderRun)}
+                {ids.map((id) => props.renderRun(id, true))}
               </div>
             ) : null}
           </div>
@@ -179,7 +181,7 @@ export function CrewDockSection(props: {
               {t`Other agents`}
             </div>
             <div data-crew-role-runs="other" className="ml-[22px] min-w-0">
-              {otherIds.map(props.renderRun)}
+              {otherIds.map((id) => props.renderRun(id, false))}
             </div>
           </div>
         ) : null}
@@ -203,13 +205,20 @@ function CrewMemberInfo(props: {
   const status = props.statuses.find((item) => item.kind === props.selection.agentKind);
   const model = crewModelLabelOf(props.statuses, props.selection);
   const provider = status?.label ?? props.selection.agentKind;
+  const subProvider = status
+    ? distinctSubProviderLabel(
+        props.selection.model,
+        capabilitiesForPresentation(status.capabilities, "gui"),
+        provider,
+      )
+    : undefined;
   const effort = props.selection.effort;
   const reasoning = effort ? formatEffortLabel(effort) : undefined;
 
   return (
     <div
       data-crew-member-row={props.label}
-      className="group grid min-h-9 grid-cols-[8px_14px_minmax(0,1fr)_auto] items-center gap-x-1 px-2 py-0.5"
+      className="group grid min-h-9 grid-cols-[8px_14px_minmax(0,1fr)_auto] items-center gap-x-2 px-2 py-0.5"
     >
       <span className="col-start-1 row-span-2 row-start-1 flex size-2 items-center justify-center">
         {props.changed ? (
@@ -261,6 +270,7 @@ function CrewMemberInfo(props: {
         className="col-start-3 row-start-2 truncate text-[11px] leading-tight text-muted"
       >
         {provider}
+        {subProvider ? <span> · {subProvider}</span> : null}
         {reasoning ? <span> · {reasoning}</span> : null}
       </span>
     </div>

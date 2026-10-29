@@ -60,6 +60,8 @@ export const threadConfigCrewSchema = z
   .nullable();
 
 export const savedCrewRoleSchema = z.object(crewRoleShape);
+// Unversioned settings keep old rosters valid: picker metadata is optional and
+// older readers can ignore it. It never enters the versioned runtime binding.
 export const savedCrewSchema = z.object({
   id: z.string().min(1).max(64),
   name: z.string().min(1).max(CREW_NAME_MAX_LENGTH),
@@ -67,6 +69,8 @@ export const savedCrewSchema = z.object({
   roles: z.array(savedCrewRoleSchema).min(1).max(MAX_CREW_ROLES),
   policy: crewPolicySchema,
   updatedAt: z.number().int().nonnegative().optional(),
+  favorite: z.boolean().optional(),
+  lastUsedAt: z.number().int().nonnegative().optional(),
 });
 
 export type CrewPolicy = z.infer<typeof crewPolicySchema>;

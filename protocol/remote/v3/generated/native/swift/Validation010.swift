@@ -1,6 +1,10 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
 public extension RemoteSchemas {
+  static let schema_ac157d37d82304b4 = RemoteSchema(type: "string", minLength: 1, maxLength: 240, unknownPolicy: .strip, semanticIds: ["string.trim"], transformIds: ["string.trim"])
+}
+
+public extension RemoteSchemas {
   static let schema_ac3d09b5c7f361d2 = RemoteSchema(type: "array", items: RemoteSchemas.schema_cb95bf43ec62db01, unknownPolicy: .strip)
 }
 
@@ -18,10 +22,6 @@ public extension RemoteSchemas {
 
 public extension RemoteSchemas {
   static let schema_aca97eda78815baa = RemoteSchema(type: "object", additionalSchema: RemoteSchemas.schema_b2a9cad3f0f3b617, propertyNames: RemoteSchemas.schema_bf0b727f7b1c6d07, unknownPolicy: .strip)
-}
-
-public extension RemoteSchemas {
-  static let schema_acb766a446925d42 = RemoteSchema(type: "object", required: Set(["id", "lead", "name", "policy", "roles"]), properties: ["id": RemoteSchemas.schema_7d62681c6488867d, "lead": RemoteSchemas.schema_77f2cf560a042976, "name": RemoteSchemas.schema_eef7e0a1ed6691c0, "policy": RemoteSchemas.schema_5e585becfdaebc00, "roles": RemoteSchemas.schema_d2613d4b01184321, "updatedAt": RemoteSchemas.schema_56aa0e45cbdce0d0], additionalAllowed: true, unknownPolicy: .strip)
 }
 
 public extension RemoteSchemas {

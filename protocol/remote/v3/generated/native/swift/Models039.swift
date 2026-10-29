@@ -212,8 +212,10 @@ public struct RoutesettingsU2DReadResponseU2DSettingsU2DCrewsU2DItemU2DRolesU2DI
   }
 }
 
-public struct RoutesettingsU2DReadResponseU2DSettingsU2DCrewsU2DItem_acb766a446: Codable, Sendable, RemoteModelMetadata {
+public struct RoutesettingsU2DReadResponseU2DSettingsU2DCrewsU2DItem_261c257787: Codable, Sendable, RemoteModelMetadata {
+  public var favorite: RemoteField<Bool> = .missing
   public var id: String
+  public var lastUsedAt: RemoteField<Int64> = .missing
   public var lead: RoutesettingsU2DReadResponseU2DSettingsU2DCrewsU2DItemU2DLead_77f2cf560a
   public var name: String
   public var policy: ProcedureconnectThreadVoiceRequestU2DConfigU2DCrewU2DOptionU2D1U2DOptionU2D1U2DPolicy_5e585becfd
@@ -221,7 +223,9 @@ public struct RoutesettingsU2DReadResponseU2DSettingsU2DCrewsU2DItem_acb766a446:
   public var updatedAt: RemoteField<Int64> = .missing
   public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
   public static let fields: [RemoteFieldDescriptor] = [
+    .init(wireName: "favorite", typeName: "Bool", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "id", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: 64, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "lastUsedAt", typeName: "Int64", required: false, nullable: false, minimum: 0, maximum: 9007199254740991, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "lead", typeName: "RoutesettingsU2DReadResponseU2DSettingsU2DCrewsU2DItemU2DLead_77f2cf560a", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "name", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: 40, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "policy", typeName: "ProcedureconnectThreadVoiceRequestU2DConfigU2DCrewU2DOptionU2D1U2DOptionU2D1U2DPolicy_5e585becfd", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
@@ -230,7 +234,9 @@ public struct RoutesettingsU2DReadResponseU2DSettingsU2DCrewsU2DItem_acb766a446:
   ]
   public static let semanticValidatorIds: [String] = []
   private enum CodingKeys: String, CodingKey {
+    case favorite = "favorite"
     case id = "id"
+    case lastUsedAt = "lastUsedAt"
     case lead = "lead"
     case name = "name"
     case policy = "policy"

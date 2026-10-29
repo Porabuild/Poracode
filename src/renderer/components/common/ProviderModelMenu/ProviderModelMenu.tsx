@@ -1,4 +1,6 @@
 import { startTransition, useDeferredValue, useId, useRef, useState, type ReactNode } from "react";
+import type { SavedCrew } from "@/shared/crew";
+import { withCrewPickerItems } from "./parts/crewPickerItems";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { ChevronDown } from "lucide-react";
 import { Tooltip } from "@heroui/react";
@@ -44,6 +46,8 @@ export type { ProviderModelSelection, ProviderModelSelectionIntent } from "./par
 export type { ProviderModelMenuProvider };
 
 export interface ProviderModelCrewSection {
+  /** Existing crew threads offer compatible presets without a lead-model picker. */
+  onlyCrews?: boolean;
   entries: Array<{
     crewId: string;
     name: string;
@@ -156,11 +160,13 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
     undefined,
   );
   const [sessionRecents, setSessionRecents] = useState<readonly ModelRef[] | undefined>(undefined);
+  const [sessionCrews, setSessionCrews] = useState<readonly SavedCrew[] | undefined>(undefined);
   const deferredSearch = useDeferredValue(search);
   const searchRef = useRef<HTMLInputElement>(null);
   const windowedListRef = useRef<WindowedProviderModelListHandle>(null);
   const listboxDomIdPrefix = useId();
 
+  const crews = useSharedSettings((s) => s.crews);
   const favorites = useSharedSettings((s) => s.favoriteModels);
   const recents = useSharedSettings((s) => s.recentModels);
   const providerOrder = useSharedSettings((s) =>
@@ -224,9 +230,11 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
       setSearch("");
       setSessionFavorites(favorites);
       setSessionRecents(recents);
+      setSessionCrews(crews);
     } else {
       setSessionFavorites(undefined);
       setSessionRecents(undefined);
+      setSessionCrews(undefined);
     }
   }
 
@@ -267,18 +275,20 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
     if (optionScope) {
       return buildScopedModelItems(optionScope.options, searchValue, currentAgentKind, menuLabel);
     }
-    const modelItems = buildProviderModelItems({
-      providers,
-      search: searchValue,
-      ...(lockedAgentKind ? { lockedAgentKind } : {}),
-      currentAgentKind: deferredAgentKind,
-      currentModel: deferredModel,
-      favorites: sectionFavorites,
-      favoriteStateRefs: activeFavorites,
-      recents: sectionRecents,
-      hiddenModels,
-      providerOrder,
-    });
+    const modelItems = crewSection?.onlyCrews
+      ? []
+      : buildProviderModelItems({
+          providers,
+          search: searchValue,
+          ...(lockedAgentKind ? { lockedAgentKind } : {}),
+          currentAgentKind: deferredAgentKind,
+          currentModel: deferredModel,
+          favorites: sectionFavorites,
+          favoriteStateRefs: activeFavorites,
+          recents: sectionRecents,
+          hiddenModels,
+          providerOrder,
+        });
     if (!crewSection) return modelItems;
     const query = searchValue.trim().toLocaleLowerCase();
     const crewRows = crewSection.entries
@@ -293,6 +303,7 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
         helperKinds: entry.helperKinds,
         details: entry.details,
         isCurrent: entry.crewId === crewSection.currentCrewId,
+        isFavorite: crews.some((crew) => crew.id === entry.crewId && crew.favorite),
       }));
     const newCrewLabel = t`New crew`;
     const newCrewRow =
@@ -306,13 +317,7 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
             },
           ]
         : [];
-    if (crewRows.length === 0 && newCrewRow.length === 0) return modelItems;
-    return [
-      { type: "header-crews" as const, id: "header-crews" },
-      ...crewRows,
-      ...newCrewRow,
-      ...modelItems,
-    ];
+    return withCrewPickerItems(modelItems, crewRows, newCrewRow, sessionCrews ?? crews);
   }
 
   const items = isOpen ? buildItemsForSearch(deferredSearch) : [];
@@ -322,7 +327,11 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
   const selectedKeys = new Set<string>(
     crewSection?.current || crewSection?.currentCrewId
       ? crewSection.currentCrewId
-        ? [`crew:${crewSection.currentCrewId}`]
+        ? [
+            `fav:crew:${crewSection.currentCrewId}`,
+            `recent:crew:${crewSection.currentCrewId}`,
+            `crew:${crewSection.currentCrewId}`,
+          ]
         : []
       : [
           `fav:${currentAgentKind}:${effectiveCurrentModel}`,
@@ -557,6 +566,22 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
           onReorderFavorites={(ordered) => {
             useSharedSettings.getState().reorderFavoriteModels(ordered);
             setSessionFavorites((current) => reorderModelPickerRefs(current ?? favorites, ordered));
+          }}
+          onToggleCrewFavorite={(crewId) => {
+            const settings = useSharedSettings.getState();
+            const crew = settings.crews.find((entry) => entry.id === crewId);
+            if (crew) settings.setCrewFavorite(crewId, !crew.favorite);
+          }}
+          onRemoveRecentCrew={(crewId) => {
+            useSharedSettings.getState().setCrewLastUsedAt(crewId, null);
+            setSessionCrews((current) =>
+              (current ?? crews).map((crew) => {
+                if (crew.id !== crewId) return crew;
+                const { lastUsedAt: _lastUsedAt, ...rest } = crew;
+                return rest;
+              }),
+            );
+            if (!mobile) searchRef.current?.focus();
           }}
           onSelect={handleSelect}
         />

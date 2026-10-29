@@ -443,8 +443,8 @@ val RemoteRootCodecs.routeU2ESchedulesU2DCommandU2EResponse: RemoteRootCodec<Rou
 val RemoteRootCodecs.routeU2ESchedulesU2DReadU2EResponse: RemoteRootCodec<RouteschedulesU2DCommandResponse_bc1920595e>
     get() = RemoteRootCodec("route.schedules-read.response", serializer<RouteschedulesU2DCommandResponse_bc1920595e>(), schema_bc1920595e8cfd89)
 
-val RemoteRootCodecs.routeU2ESettingsU2DReadU2EResponse: RemoteRootCodec<RoutesettingsU2DReadResponse_ca522639ff>
-    get() = RemoteRootCodec("route.settings-read.response", serializer<RoutesettingsU2DReadResponse_ca522639ff>(), schema_ca522639fff7de5f)
+val RemoteRootCodecs.routeU2ESettingsU2DReadU2EResponse: RemoteRootCodec<RoutesettingsU2DReadResponse_f87159e788>
+    get() = RemoteRootCodec("route.settings-read.response", serializer<RoutesettingsU2DReadResponse_f87159e788>(), schema_f87159e7882b195f)
 
-val RemoteRootCodecs.routeU2ESettingsU2DWriteU2ERequest: RemoteRootCodec<RoutesettingsU2DWriteRequest_59ae9ae483>
-    get() = RemoteRootCodec("route.settings-write.request", serializer<RoutesettingsU2DWriteRequest_59ae9ae483>(), schema_59ae9ae4837b3ecd)
+val RemoteRootCodecs.routeU2ESettingsU2DWriteU2ERequest: RemoteRootCodec<RoutesettingsU2DWriteRequest_c641a53243>
+    get() = RemoteRootCodec("route.settings-write.request", serializer<RoutesettingsU2DWriteRequest_c641a53243>(), schema_c641a5324383dc1b)

@@ -1522,7 +1522,7 @@ msgstr "Dodaj do czatu"
 msgid "Add to composer"
 msgstr "Dodaj do kompozytora"
 
-#: src/renderer/components/common/ProviderModelMenu/parts/ModelMenuRow.tsx
+#: src/renderer/components/common/ProviderModelMenu/parts/ModelShortcutActions.tsx
 msgid "Add to favorites"
 msgstr "Dodaj do ulubionych"
 
@@ -5384,6 +5384,10 @@ msgstr "Kredyty"
 msgid "Crew"
 msgstr "Crew"
 
+#: src/renderer/commands/registry.ts
+msgid "Crew added to favorites"
+msgstr "Dodano ekipę do ulubionych"
+
 #: src/renderer/components/thread/CrewDockSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
 msgid "Crew first"
@@ -5416,6 +5420,10 @@ msgstr "Tylko Crew: zadania trafiają tylko do tej Crew"
 msgid "Crew policy"
 msgstr "Polityka ekipy"
 
+#: src/renderer/commands/registry.ts
+msgid "Crew removed from favorites"
+msgstr "Usunięto ekipę z ulubionych"
+
 #: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
@@ -5442,6 +5450,7 @@ msgstr "Wyrażenie Cron"
 msgid "Cross-repository pull requests cannot be checked out here"
 msgstr "Nie można tutaj przełączyć się na pull request z innego repozytorium"
 
+#: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Crossagent"
@@ -7661,6 +7670,7 @@ msgid "Favorite"
 msgstr "Ulubione"
 
 #: src/renderer/components/common/ProviderModelMenu/parts/buildItems.ts
+#: src/renderer/components/common/ProviderModelMenu/parts/crewPickerItems.ts
 msgid "Favorites"
 msgstr "Ulubione"
 
@@ -14695,6 +14705,7 @@ msgid "Receiving visual source…"
 msgstr "Odbieranie źródła wizualizacji…"
 
 #: src/renderer/components/common/ProviderModelMenu/parts/buildItems.ts
+#: src/renderer/components/common/ProviderModelMenu/parts/crewPickerItems.ts
 msgid "Recent"
 msgstr "Najnowsze"
 
@@ -15087,7 +15098,7 @@ msgstr "Usuń rezerwę"
 msgid "Remove from download history"
 msgstr "Usuń z historii pobierania"
 
-#: src/renderer/components/common/ProviderModelMenu/parts/ModelMenuRow.tsx
+#: src/renderer/components/common/ProviderModelMenu/parts/ModelShortcutActions.tsx
 msgid "Remove from favorites"
 msgstr "Usuń z ulubionych"
 
@@ -15099,7 +15110,7 @@ msgstr "Usuń z grupy"
 msgid "Remove from panel"
 msgstr "Usuń z panelu"
 
-#: src/renderer/components/common/ProviderModelMenu/parts/ModelMenuRow.tsx
+#: src/renderer/components/common/ProviderModelMenu/parts/ModelShortcutActions.tsx
 msgid "Remove from recent"
 msgstr "Usuń z ostatnich"
 

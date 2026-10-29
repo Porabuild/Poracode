@@ -1522,7 +1522,7 @@ msgstr "添加到聊天"
 msgid "Add to composer"
 msgstr "添加到编写器"
 
-#: src/renderer/components/common/ProviderModelMenu/parts/ModelMenuRow.tsx
+#: src/renderer/components/common/ProviderModelMenu/parts/ModelShortcutActions.tsx
 msgid "Add to favorites"
 msgstr "添加到收藏夹"
 
@@ -5384,6 +5384,10 @@ msgstr "鸣谢"
 msgid "Crew"
 msgstr "Crew"
 
+#: src/renderer/commands/registry.ts
+msgid "Crew added to favorites"
+msgstr "团队已添加到收藏"
+
 #: src/renderer/components/thread/CrewDockSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
 msgid "Crew first"
@@ -5416,6 +5420,10 @@ msgstr "仅限 Crew：任务只交给此 Crew"
 msgid "Crew policy"
 msgstr "团队策略"
 
+#: src/renderer/commands/registry.ts
+msgid "Crew removed from favorites"
+msgstr "团队已从收藏中移除"
+
 #: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
@@ -5442,6 +5450,7 @@ msgstr "Cron 表达式"
 msgid "Cross-repository pull requests cannot be checked out here"
 msgstr "无法在此处检出跨仓库的拉取请求"
 
+#: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Crossagent"
@@ -7661,6 +7670,7 @@ msgid "Favorite"
 msgstr "收藏"
 
 #: src/renderer/components/common/ProviderModelMenu/parts/buildItems.ts
+#: src/renderer/components/common/ProviderModelMenu/parts/crewPickerItems.ts
 msgid "Favorites"
 msgstr "收藏夹"
 
@@ -14694,6 +14704,7 @@ msgid "Receiving visual source…"
 msgstr "正在接收可视化源代码…"
 
 #: src/renderer/components/common/ProviderModelMenu/parts/buildItems.ts
+#: src/renderer/components/common/ProviderModelMenu/parts/crewPickerItems.ts
 msgid "Recent"
 msgstr "最近"
 
@@ -15086,7 +15097,7 @@ msgstr "移除备用项"
 msgid "Remove from download history"
 msgstr "从下载记录中移除"
 
-#: src/renderer/components/common/ProviderModelMenu/parts/ModelMenuRow.tsx
+#: src/renderer/components/common/ProviderModelMenu/parts/ModelShortcutActions.tsx
 msgid "Remove from favorites"
 msgstr "从收藏夹中删除"
 
@@ -15098,7 +15109,7 @@ msgstr "从组中删除"
 msgid "Remove from panel"
 msgstr "从面板上移除"
 
-#: src/renderer/components/common/ProviderModelMenu/parts/ModelMenuRow.tsx
+#: src/renderer/components/common/ProviderModelMenu/parts/ModelShortcutActions.tsx
 msgid "Remove from recent"
 msgstr "从最近使用中移除"
 
