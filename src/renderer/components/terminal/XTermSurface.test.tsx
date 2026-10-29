@@ -1,4 +1,4 @@
-import { act, fireEvent, screen, within } from "@testing-library/react";
+import { act, screen } from "@testing-library/react";
 import { THEME_SPECS } from "@/renderer/theme/themePresets";
 import * as terminalColors from "./terminalColors";
 import { createRef } from "react";
@@ -360,55 +360,27 @@ describe("XTermSurface", () => {
     state.eventListeners = [];
   });
 
-  it("displays program records as sanitized text and dismisses the original record id", async () => {
-    render(<XTermSurface terminalId="test-1" initialScrollback="" />);
-    await flushFrame();
-    expect(screen.queryByRole("region", { name: "Terminal program status" })).toBeNull();
-    const status = programStatus();
-    act(() => {
-      vi.mocked(status.onChange).mock.calls[0]?.[0]([
-        {
-          id: "build/\u202Estep",
-          state: "blocked",
-          kind: "permission",
-          progress: 42,
-          effectiveApp: "tool\u2066name 👩‍💻",
-          title: "<img src=x onerror=alert(1)>\u202E",
-          message: "Allow\u200B deployment?",
-        },
-      ]);
-    });
-    const region = screen.getByRole("region", { name: "Terminal program status" });
-    expect(region.textContent).toContain("Waiting for approval");
-    expect(region.textContent).toContain("toolname");
-    expect(region.textContent).toContain("👩‍💻");
-    expect(region.textContent).toContain("build/step");
-    expect(region.textContent).toContain("Allow deployment?");
-    expect(region.querySelector("img")).toBeNull();
-    expect(region.textContent).toContain("<img src=x onerror=alert(1)>");
-    expect(within(region).getByRole("progressbar").getAttribute("aria-valuenow")).toBe("42");
-    fireEvent.click(within(region).getByRole("button", { name: "Dismiss" }));
-    expect(status.clear).toHaveBeenCalledExactlyOnceWith("build/\u202Estep");
-  });
-
-  it("preserves the status addon and its records across a cached surface handoff", async () => {
-    const threadId = createTerminalThread();
-    const first = render(<XTermSurface terminalId={threadId} initialScrollback="" />);
-    await flushFrame();
-    const instance = terminal();
-    const status = programStatus();
-    Object.defineProperty(status, "records", {
-      value: [{ id: "build", state: "working", app: "compiler" }],
-    });
-    first.unmount();
-    render(<XTermSurface terminalId={threadId} initialScrollback="" />);
-    await flushFrame();
-    expect(terminal()).toBe(instance);
-    expect(programStatus()).toBe(status);
-    expect(screen.getByRole("region", { name: "Terminal program status" }).textContent).toContain(
-      "compiler",
-    );
-  });
+  it.each(["idle", "working", "blocked", "done", "error"] as const)(
+    "preserves %s program records across a cached handoff without rendering a status panel",
+    async (programState) => {
+      const threadId = createTerminalThread();
+      const first = render(<XTermSurface terminalId={threadId} initialScrollback="" />);
+      await flushFrame();
+      const instance = terminal();
+      const status = programStatus();
+      Object.defineProperty(status, "records", {
+        value: [{ id: "build", state: programState, app: "terminal-app" }],
+      });
+      first.unmount();
+      render(<XTermSurface terminalId={threadId} initialScrollback="" />);
+      await flushFrame();
+      expect(terminal()).toBe(instance);
+      expect(programStatus()).toBe(status);
+      expect(status.records).toEqual([{ id: "build", state: programState, app: "terminal-app" }]);
+      expect(screen.queryByRole("region", { name: "Terminal program status" })).toBeNull();
+      expect(screen.queryByText("terminal-app")).not.toBeInTheDocument();
+    },
+  );
 
   it("clears active program status when exit parsing completes during a cached handoff", async () => {
     const threadId = createTerminalThread();
