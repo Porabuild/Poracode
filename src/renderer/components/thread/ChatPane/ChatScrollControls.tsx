@@ -51,6 +51,11 @@ const TOUCH_FIRST_POINTER_QUERY = "(hover: none) and (pointer: coarse)";
  */
 const PIN_HOLDOFF_MS = 150;
 
+/** Blank reply space LegendList reserves below an anchored prompt. */
+function reservedReplySpace(el: HTMLElement | null) {
+  return Number(el?.dataset.chatEndSpaceSize ?? 0);
+}
+
 export type ChatScrollControlsHandle = {
   beginVirtualizerLayoutChange(): void;
   beginLiveVirtualizerLayoutChange(): void;
@@ -58,6 +63,8 @@ export type ChatScrollControlsHandle = {
   anchorToPrompt(): void;
   isStickToBottom(): boolean;
   markUserScrollIntent(): void;
+  /** A downward wheel: reaching the end resumes following even mid-stream. */
+  markUserScrollTowardEnd(): void;
   hasRecentUserScrollIntent(): boolean;
   /** Mark the next scroll event matching this scrollTop as our own write. */
   noteProgrammaticScroll(scrollTop: number): void;
@@ -112,6 +119,9 @@ export function ChatScrollControls(props: {
   const lastScrollTopRef = useRef(0);
   const stickToBottomRef = useRef(true);
   const promptAnchoredRef = useRef(false);
+  // LegendList reserved reply space below the anchored prompt and the reader
+  // has not taken over since; filling that space hands the view back to the tail.
+  const promptReplySpaceShownRef = useRef(false);
   const pinRafRef = useRef<number | null>(null);
   const layoutSyncRafRef = useRef<number | null>(null);
   const layoutSyncSecondRafRef = useRef<number | null>(null);
@@ -124,6 +134,7 @@ export function ChatScrollControls(props: {
   const virtualizerLayoutChangeUntilRef = useRef(0);
   const initialRevealLayoutChangeUntilRef = useRef(0);
   const userScrollIntentUntilRef = useRef(0);
+  const userScrollTowardEndUntilRef = useRef(0);
   const programmaticScrollTopRef = useRef<number | null>(null);
   const programmaticScrollUntilRef = useRef(0);
   const threadOpenCoalesceUntilRef = useRef(0);
@@ -187,6 +198,7 @@ export function ChatScrollControls(props: {
     if (!el) return;
     const isAtBottom = isElementAtBottom(el);
     const readerPaused = readerFollow?.isFollowing() === false;
+    if (promptAnchoredRef.current && !readerPaused && followReplyPastPromptSpace(el)) return;
     if (isAtBottom && !readerPaused && !promptAnchoredRef.current) stickToBottomRef.current = true;
     setShowScrollDown(
       readerPaused ||
@@ -197,16 +209,33 @@ export function ChatScrollControls(props: {
     );
   }
 
+  /**
+   * A sent prompt stays parked at the top only while its reply fits the space
+   * reserved below it. Once the reply fills that space, follow the tail again,
+   * unless the reader took over in the meantime.
+   */
+  function followReplyPastPromptSpace(el: HTMLElement): boolean {
+    if (!promptReplySpaceShownRef.current || reservedReplySpace(el) > 0) return false;
+    promptReplySpaceShownRef.current = false;
+    // Keyboard navigation arms intent without a takeover; keep that reader's place.
+    if (hasRecentUserScrollIntent()) return false;
+    resumeReaderFollowing();
+    writeBottomPin(el);
+    return true;
+  }
+
   function isContentAtBottom(el: HTMLElement) {
     // Reserved reply space permits top-aligned prompts without hiding messages.
     return isElementAtBottom({
-      scrollHeight: el.scrollHeight - Number(el.dataset.chatEndSpaceSize ?? 0),
+      scrollHeight: el.scrollHeight - reservedReplySpace(el),
       scrollTop: el.scrollTop,
       clientHeight: el.clientHeight,
     });
   }
 
   function disableStickToBottom() {
+    // Wheel, pointer and jump takeovers keep a parked prompt parked.
+    promptReplySpaceShownRef.current = false;
     if (!stickToBottomRef.current) return;
     cancelVirtualizerLayoutChange();
     cancelScheduledInitialSettle();
@@ -230,6 +259,10 @@ export function ChatScrollControls(props: {
 
   function hasRecentUserScrollIntent() {
     return performance.now() <= userScrollIntentUntilRef.current;
+  }
+
+  function markUserScrollTowardEnd() {
+    userScrollTowardEndUntilRef.current = performance.now() + USER_SCROLL_INTENT_MS;
   }
 
   function noteProgrammaticScroll(scrollTop: number) {
@@ -600,9 +633,12 @@ export function ChatScrollControls(props: {
     anchorToPrompt: () => {
       disableStickToBottom();
       promptAnchoredRef.current = true;
+      // The ready callback re-anchors after LegendList reports the reply space.
+      promptReplySpaceShownRef.current = reservedReplySpace(scrollRef.current) > 0;
     },
     isStickToBottom: () => stickToBottomRef.current,
     markUserScrollIntent,
+    markUserScrollTowardEnd,
     hasRecentUserScrollIntent,
     noteProgrammaticScroll,
     isThreadOpenSettling: () => performance.now() < threadOpenCoalesceUntilRef.current,
@@ -769,10 +805,13 @@ export function ChatScrollControls(props: {
         // is still within `BOTTOM_EPSILON_PX` of the bottom — otherwise a tiny
         // wheel-up gets snapped back by the next streaming delta.
         if (readerFollow?.isFollowing() === false || promptAnchoredRef.current) {
+          // Streaming keeps a layout window open almost continuously, so a
+          // downward wheel is what identifies the reader during it.
           const userReturnedToEnd =
             !isProgrammaticScroll &&
             nextScrollTop > prevScrollTop &&
             (hasRecentUserIntent ||
+              performance.now() <= userScrollTowardEndUntilRef.current ||
               (!scrollHeightShrunk &&
                 !scrollHeightGrew &&
                 !viewportHeightChanged &&
@@ -905,7 +944,7 @@ export function ChatScrollControls(props: {
     promptAnchoredRef.current = false;
     // Keep reply space the prompt still has; clearing it would shrink the
     // transcript under the reader and pull the prompt down.
-    if (Number(scrollRef.current?.dataset.chatEndSpaceSize ?? 0) <= 0) {
+    if (reservedReplySpace(scrollRef.current) <= 0) {
       clearChatPromptAnchor(threadId);
     }
     // The button is an explicit request to resume following the tail. Do not

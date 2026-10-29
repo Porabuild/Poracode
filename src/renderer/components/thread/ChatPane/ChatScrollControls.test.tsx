@@ -297,6 +297,277 @@ describe("ChatScrollControls", () => {
     },
   );
 
+  it.each(["with growth", "before growth"])(
+    "follows the tail once the reply fills the space reserved under its prompt: %s",
+    (sequence) => {
+      vi.useFakeTimers();
+      // Start off t=0: `performance.now() <= userScrollIntentUntil(0)` would
+      // otherwise read as a recent scroll intent.
+      vi.advanceTimersByTime(1_000);
+      let scrollTop = 800;
+      let scrollHeight = 1000;
+      const scrollEl = document.createElement("div");
+      Object.defineProperties(scrollEl, {
+        scrollHeight: { configurable: true, get: () => scrollHeight },
+        clientHeight: { configurable: true, get: () => 200 },
+        scrollTop: {
+          configurable: true,
+          get: () => scrollTop,
+          set: (value: number) => {
+            scrollTop = Math.min(value, scrollHeight - 200);
+          },
+        },
+      });
+      const controlsRef = createRef<ChatScrollControlsHandle>();
+      const { getByRole } = renderWithI18n(
+        <Harness
+          scrollEl={scrollEl}
+          controlsRef={controlsRef}
+          virtualScrollToBottom={() => undefined}
+        />,
+      );
+      const button = getByRole("button", { hidden: true });
+      act(() => {
+        scrollEl.dataset.chatEndSpaceSize = "100";
+        controlsRef.current?.anchorToPrompt();
+        controlsRef.current?.noteProgrammaticScroll(800);
+        fireEvent.scroll(scrollEl);
+        controlsRef.current?.onContentHeightChange();
+      });
+      act(() => {
+        vi.advanceTimersByTime(50);
+      });
+      expect(controlsRef.current?.isStickToBottom()).toBe(false);
+      expect(scrollTop).toBe(800);
+      expect(clearChatPromptAnchor).not.toHaveBeenCalled();
+      expect(button).toBeDisabled();
+
+      if (sequence === "before growth") {
+        act(() => {
+          // The reserved space empties one layout before the transcript grows.
+          scrollEl.dataset.chatEndSpaceSize = "0";
+          controlsRef.current?.onContentHeightChange();
+        });
+        act(() => {
+          vi.advanceTimersByTime(50);
+        });
+      }
+      // Only "before growth" hands the view back while the height is unchanged.
+      const handedOffBeforeGrowth = sequence === "before growth";
+      expect(controlsRef.current?.isStickToBottom()).toBe(handedOffBeforeGrowth);
+      expect(scrollTop).toBe(800);
+      expect(clearChatPromptAnchor.mock.calls).toEqual(handedOffBeforeGrowth ? [["thread-1"]] : []);
+
+      act(() => {
+        // The reply now fills the reserved space, so the prompt is no longer
+        // the reader's page: hand the view back to the tail.
+        scrollEl.dataset.chatEndSpaceSize = "0";
+        scrollHeight = 1400;
+        controlsRef.current?.onContentHeightChange();
+      });
+      act(() => {
+        vi.advanceTimersByTime(50);
+      });
+      expect(scrollTop).toBe(1200);
+      expect(controlsRef.current?.isStickToBottom()).toBe(true);
+      expect(clearChatPromptAnchor).toHaveBeenCalledWith("thread-1");
+      expect(button).toBeDisabled();
+
+      act(() => {
+        scrollHeight = 1600;
+        controlsRef.current?.onContentHeightChange();
+      });
+      act(() => {
+        vi.advanceTimersByTime(50);
+      });
+      expect(scrollTop).toBe(1400);
+    },
+  );
+
+  it("keeps a prompt parked when no reply space was reserved", () => {
+    vi.useFakeTimers();
+    // Start off t=0: `performance.now() <= userScrollIntentUntil(0)` would
+    // otherwise read as a recent scroll intent.
+    vi.advanceTimersByTime(1_000);
+    let scrollTop = 800;
+    let scrollHeight = 1000;
+    const scrollEl = document.createElement("div");
+    Object.defineProperties(scrollEl, {
+      scrollHeight: { configurable: true, get: () => scrollHeight },
+      clientHeight: { configurable: true, get: () => 200 },
+      scrollTop: {
+        configurable: true,
+        get: () => scrollTop,
+        set: (value: number) => {
+          scrollTop = Math.min(value, scrollHeight - 200);
+        },
+      },
+    });
+    const controlsRef = createRef<ChatScrollControlsHandle>();
+    renderWithI18n(
+      <Harness
+        scrollEl={scrollEl}
+        controlsRef={controlsRef}
+        virtualScrollToBottom={() => undefined}
+      />,
+    );
+    act(() => {
+      controlsRef.current?.anchorToPrompt();
+      controlsRef.current?.noteProgrammaticScroll(800);
+      fireEvent.scroll(scrollEl);
+      controlsRef.current?.onContentHeightChange();
+    });
+    act(() => {
+      vi.advanceTimersByTime(50);
+    });
+    act(() => {
+      scrollHeight = 1400;
+      controlsRef.current?.onContentHeightChange();
+    });
+    act(() => {
+      vi.advanceTimersByTime(50);
+    });
+    expect(scrollTop).toBe(800);
+    expect(controlsRef.current?.isStickToBottom()).toBe(false);
+    expect(clearChatPromptAnchor).not.toHaveBeenCalled();
+  });
+
+  it("keeps a keyboard reader's place when the reply fills its space", () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    let now = 1_000;
+    vi.spyOn(performance, "now").mockImplementation(() => now);
+    const animationFrames = new Map<number, FrameRequestCallback>();
+    let nextAnimationFrameHandle = 0;
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      nextAnimationFrameHandle += 1;
+      animationFrames.set(nextAnimationFrameHandle, callback);
+      return nextAnimationFrameHandle;
+    });
+    vi.stubGlobal("cancelAnimationFrame", (handle: number) => {
+      animationFrames.delete(handle);
+    });
+    let scrollTop = 800;
+    let scrollHeight = 1000;
+    const scrollEl = document.createElement("div");
+    Object.defineProperties(scrollEl, {
+      scrollHeight: { configurable: true, get: () => scrollHeight },
+      clientHeight: { configurable: true, get: () => 200 },
+      scrollTop: {
+        configurable: true,
+        get: () => scrollTop,
+        set: (value: number) => {
+          scrollTop = Math.min(value, scrollHeight - 200);
+        },
+      },
+    });
+    const controlsRef = createRef<ChatScrollControlsHandle>();
+    renderWithI18n(
+      <Harness
+        scrollEl={scrollEl}
+        controlsRef={controlsRef}
+        virtualScrollToBottom={() => undefined}
+      />,
+    );
+    const flushPaint = () => {
+      let steps = 0;
+      while (animationFrames.size > 0 && steps < 10) {
+        const callbacks = [...animationFrames.values()];
+        animationFrames.clear();
+        steps += 1;
+        act(() => callbacks.forEach((callback) => callback(0)));
+      }
+    };
+    act(() => {
+      scrollEl.dataset.chatEndSpaceSize = "100";
+      controlsRef.current?.anchorToPrompt();
+      controlsRef.current?.noteProgrammaticScroll(800);
+      fireEvent.scroll(scrollEl);
+      controlsRef.current?.onContentHeightChange();
+    });
+    flushPaint();
+    expect(scrollTop).toBe(800);
+    expect(controlsRef.current?.isStickToBottom()).toBe(false);
+
+    act(() => {
+      // Keyboard navigation arms intent without a wheel/pointer takeover.
+      controlsRef.current?.markUserScrollIntent();
+    });
+    act(() => {
+      scrollEl.dataset.chatEndSpaceSize = "0";
+      scrollHeight = 1400;
+      controlsRef.current?.onContentHeightChange();
+    });
+    flushPaint();
+    expect(scrollTop).toBe(800);
+    expect(controlsRef.current?.isStickToBottom()).toBe(false);
+    expect(clearChatPromptAnchor).not.toHaveBeenCalled();
+
+    // Once intent expires the consumed hand-off must not yank the page later.
+    now += 1_000;
+    act(() => {
+      scrollHeight = 1600;
+      controlsRef.current?.onContentHeightChange();
+    });
+    flushPaint();
+    expect(scrollTop).toBe(800);
+    expect(controlsRef.current?.isStickToBottom()).toBe(false);
+  });
+
+  it.each([
+    { name: "toward end", markTowardEnd: true, expireTowardEnd: false, expected: true },
+    { name: "layout only", markTowardEnd: false, expireTowardEnd: false, expected: false },
+    { name: "expired", markTowardEnd: true, expireTowardEnd: true, expected: false },
+  ])(
+    "resumes following on a downward wheel to the end during live layout changes: $name",
+    ({ markTowardEnd, expireTowardEnd, expected }) => {
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+      let now = 1_000;
+      vi.spyOn(performance, "now").mockImplementation(() => now);
+      let scrollTop = 800;
+      const scrollEl = document.createElement("div");
+      Object.defineProperties(scrollEl, {
+        scrollHeight: { configurable: true, get: () => 1000 },
+        clientHeight: { configurable: true, get: () => 200 },
+        scrollTop: {
+          configurable: true,
+          get: () => scrollTop,
+          set: (value: number) => {
+            scrollTop = Math.min(value, 800);
+          },
+        },
+      });
+      const readerFollow = createChatReaderFollowSignal();
+      const controlsRef = createRef<ChatScrollControlsHandle>();
+      renderWithI18n(
+        <Harness
+          scrollEl={scrollEl}
+          controlsRef={controlsRef}
+          virtualScrollToBottom={() => undefined}
+          readerFollow={readerFollow}
+        />,
+      );
+      act(() => {
+        controlsRef.current?.markUserScrollIntent();
+        scrollTop = 300;
+        fireEvent.scroll(scrollEl);
+      });
+      expect(readerFollow.isFollowing()).toBe(false);
+
+      // Intent has expired and streaming holds a live layout window open, so
+      // only a tagged downward wheel identifies the reader returning.
+      now += 1_000;
+      act(() => {
+        if (markTowardEnd) controlsRef.current?.markUserScrollTowardEnd();
+        if (expireTowardEnd) now += 1_000;
+        controlsRef.current?.beginLiveVirtualizerLayoutChange();
+        scrollTop = 800;
+        fireEvent.scroll(scrollEl);
+      });
+      expect(readerFollow.isFollowing()).toBe(expected);
+      expect(controlsRef.current?.isStickToBottom()).toBe(expected);
+    },
+  );
+
   it.each(["button", "user end"])("keeps reserved reply space on %s", (returnAction) => {
     vi.useFakeTimers();
     let scrollTop = 800;
