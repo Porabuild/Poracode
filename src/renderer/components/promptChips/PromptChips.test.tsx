@@ -5,6 +5,27 @@ import { InlinePromptPieces } from "./PromptChips";
 import type { PromptInlinePiece } from "./promptInlinePieces";
 
 describe("InlinePromptPieces", () => {
+  it("uses a target for goal commands and preserves slash and skill icons", () => {
+    const pieces: PromptInlinePiece[] = [
+      { kind: "chip", key: "goal", chip: { kind: "command", command: "goal" } },
+      { kind: "chip", key: "help", chip: { kind: "command", command: "help" } },
+      {
+        kind: "chip",
+        key: "skill",
+        chip: { kind: "command", command: "goal", skillName: "goal" },
+      },
+    ];
+    const { container } = render(
+      <AppProvider>
+        <InlinePromptPieces pieces={pieces} />
+      </AppProvider>,
+    );
+    const icons = container.querySelectorAll(".poracode-slash-chip__slash");
+    expect(icons[0]?.querySelector(".lucide-target")).toHaveAttribute("aria-hidden", "true");
+    expect(icons[1]).toHaveTextContent("/");
+    expect(icons[2]?.querySelector(".lucide-sparkles")).not.toBeNull();
+  });
+
   it("renders every chip kind display-only, with no nested button", () => {
     const pieces: PromptInlinePiece[] = [
       { kind: "chip", key: "file", chip: { kind: "file", path: "src/app/main.ts" } },

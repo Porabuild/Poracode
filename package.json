@@ -307,6 +307,7 @@
     "@agentclientprotocol/sdk@1.4.0": "patches/@agentclientprotocol__sdk@1.4.0.patch",
     "@legendapp/list@3.3.3": "patches/@legendapp__list@3.3.3.patch",
     "bun@1.4.3-canary.20261021.1": "patches/bun@1.4.3-canary.20261021.1.patch",
+    "micromark-extension-math-extended@3.2.2": "patches/micromark-extension-math-extended@3.2.2.patch",
     "monaco-editor@0.56.0": "patches/monaco-editor@0.56.0.patch",
     "@expo/hub-client@1.5.0": "patches/@expo__hub-client@1.5.0.patch"
   },

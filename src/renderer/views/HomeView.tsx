@@ -22,7 +22,7 @@ import { TuxIcon } from "@/renderer/components/common/TuxIcon";
 export function HomeView() {
   const { t } = useLingui();
   const homeScopeEnabled = useSharedSettings((state) => state.homeScopeEnabled);
-  const homeProject = useAppStore((state) => state.projects.find(isHomeProject));
+  const homeProjects = useAppStore(useShallow((state) => state.projects.filter(isHomeProject)));
   const configuredWorkspaces = useSharedSettings((state) => state.workspaces);
   const projects = useAppStore(
     useShallow((state) =>
@@ -33,7 +33,7 @@ export function HomeView() {
   const remoteServerFor = useProjectRemoteServerLookup();
   const openDraft = useAppStore((state) => state.openDraft);
 
-  const projectOptions = homeScopeEnabled && homeProject ? [homeProject, ...projects] : projects;
+  const projectOptions = homeScopeEnabled ? [...homeProjects, ...projects] : projects;
   const activeFilter =
     filterProjectId !== null && projectOptions.some((project) => project.id === filterProjectId)
       ? filterProjectId
@@ -91,20 +91,7 @@ export function HomeView() {
                 <Trans>Projects</Trans>
               </h2>
               <div className="flex flex-col">
-                {homeScopeEnabled && homeProject ? (
-                  <ProjectRow
-                    project={homeProject}
-                    remote={remoteServerFor(homeProject)}
-                    selected={activeFilter === homeProject.id}
-                    onSelect={() =>
-                      setFilterProjectId((current) =>
-                        current === homeProject.id ? null : homeProject.id,
-                      )
-                    }
-                    onNewThread={() => openDraft(homeProject.id)}
-                    newThreadLabel={t`New thread in ${homeProject.name}`}
-                  />
-                ) : null}
+                {homeScopeEnabled ? projectRows(homeProjects) : null}
                 {configuredWorkspaces.length > 0
                   ? projectGroups.map((group) => (
                       <ProjectGroup
@@ -133,9 +120,9 @@ export function HomeView() {
               {recentThreads.length > 0 ? (
                 <div className="flex flex-col gap-1">
                   {recentThreads.map((thread) => {
-                    const project = isHomeProjectId(thread.projectId)
-                      ? homeProject
-                      : projects.find((p) => p.id === thread.projectId);
+                    const project = (
+                      isHomeProjectId(thread.projectId) ? homeProjects : projects
+                    ).find((p) => p.id === thread.projectId);
                     return (
                       <button
                         key={thread.id}

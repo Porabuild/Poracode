@@ -121,6 +121,7 @@ export const AssistantMessage = memo(function AssistantMessage({
         threadId={threadId}
         itemId={item.id}
         isTurnActive={isTurnActive}
+        initialRevealKey={item.observedLive && isTurnActive ? `${threadId}\0${item.id}` : undefined}
         {...(retention ? { retention } : {})}
       />
     ) : null;
@@ -192,6 +193,7 @@ function AssistantTextBody({
   threadId,
   itemId,
   isTurnActive,
+  initialRevealKey,
 }: {
   text: string;
   isStreaming: boolean;
@@ -199,6 +201,7 @@ function AssistantTextBody({
   threadId: string;
   itemId: string;
   isTurnActive: boolean;
+  initialRevealKey: string | undefined;
 }) {
   // Retained head/tail text cannot prove a fenced source block is intact.
   // Hydrated history has no local offsets, so also recognize its prefix notice.
@@ -234,7 +237,12 @@ function AssistantTextBody({
           limited={nativeCount++ >= MAX_NATIVE_VISUALS_PER_MESSAGE}
         />
       ) : (
-        <AssistantProseTextBody key={index} text={part.text} isStreaming={isStreaming} />
+        <AssistantProseTextBody
+          key={index}
+          text={part.text}
+          isStreaming={isStreaming}
+          initialRevealKey={initialRevealKey}
+        />
       ),
     );
   }
@@ -242,6 +250,7 @@ function AssistantTextBody({
     <AssistantProseTextBody
       text={text}
       isStreaming={isStreaming}
+      initialRevealKey={initialRevealKey}
       {...(retention ? { retention } : {})}
     />
   );
@@ -251,10 +260,12 @@ function AssistantProseTextBody({
   text,
   isStreaming,
   retention,
+  initialRevealKey,
 }: {
   text: string;
   isStreaming: boolean;
   retention?: RuntimeStreamRetention;
+  initialRevealKey: string | undefined;
 }) {
   const readerFollow = useContext(ChatReaderFollowContext);
   const body = useWindowedAssistantText(text, isStreaming, retention, readerFollow);
@@ -267,6 +278,10 @@ function AssistantProseTextBody({
       onLatest={body.showLatest}
     />
   ) : (
-    <SmoothItemMarkdown text={text} isStreaming={isStreaming} />
+    <SmoothItemMarkdown
+      text={text}
+      isStreaming={isStreaming}
+      {...(initialRevealKey ? { initialRevealKey } : {})}
+    />
   );
 }

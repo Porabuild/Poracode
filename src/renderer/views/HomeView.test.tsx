@@ -7,6 +7,7 @@ import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useWorkspaceStore } from "@/renderer/state/workspaceStore";
+import { projectRemoteProject, remoteProjectId } from "@/renderer/state/remoteProjection";
 import { HOME_PROJECT_ID, HOME_PROJECT_NAME } from "@/shared/homeScope";
 import { HomeView } from "./HomeView";
 
@@ -234,6 +235,47 @@ describe("HomeView", () => {
     expect(wslThread).toHaveTextContent("WSL");
     const remoteThread = screen.getByText("Remote thread").closest("button");
     expect(remoteThread).toHaveTextContent("MacBook 16");
+  });
+
+  it("lists each paired machine's Home and tags Home threads with their own machine", () => {
+    useRemoteServersStore.setState({
+      servers: [
+        { desktopId: "desktop-1", label: "Poracode on MacBook 16" },
+        { desktopId: "desktop-2", label: "Poracode on Studio PC" },
+      ],
+      runtime: {},
+    } as never);
+    const mirroredHome = (desktopId: string) =>
+      projectRemoteProject(desktopId, {
+        ...makeProject({ id: HOME_PROJECT_ID, name: HOME_PROJECT_NAME }),
+        disabled: true,
+      });
+    useAppStore.setState({
+      projects: [mirroredHome("desktop-1"), mirroredHome("desktop-2")],
+      threads: [
+        makeThread({
+          id: "h1",
+          title: "Mac chat",
+          projectId: remoteProjectId("desktop-1", HOME_PROJECT_ID),
+        }),
+        makeThread({
+          id: "h2",
+          title: "Studio chat",
+          projectId: remoteProjectId("desktop-2", HOME_PROJECT_ID),
+        }),
+      ],
+    });
+
+    render(<HomeView />);
+
+    const homeRows = screen
+      .getAllByRole("button", { pressed: false })
+      .filter((row) => row.textContent?.startsWith(HOME_PROJECT_NAME));
+    expect(homeRows).toHaveLength(2);
+    expect(homeRows[0]).toHaveTextContent("MacBook 16");
+    expect(homeRows[1]).toHaveTextContent("Studio PC");
+    expect(screen.getByText("Mac chat").closest("button")).toHaveTextContent("MacBook 16");
+    expect(screen.getByText("Studio chat").closest("button")).toHaveTextContent("Studio PC");
   });
 });
 

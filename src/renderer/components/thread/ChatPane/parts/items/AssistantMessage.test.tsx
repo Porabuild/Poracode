@@ -1,5 +1,5 @@
-import { render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it } from "vitest";
+import { act, render, screen } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AppProvider } from "@/renderer/components/ui/provider";
 import { useAppStore } from "@/renderer/state/appStore";
 import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
@@ -9,6 +9,80 @@ const PNG_BASE64 =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
 
 describe("AssistantMessage", () => {
+  it.each([false, true])(
+    "reveals the first live burst progressively with a separate start event=%s, without replaying it on remount",
+    (separateStart) => {
+      const frames = new Map<number, FrameRequestCallback>();
+      let nextFrame = 0;
+      vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+        frames.set(++nextFrame, callback);
+        return nextFrame;
+      });
+      vi.stubGlobal("cancelAnimationFrame", (id: number) => frames.delete(id));
+      const text = "First buffered paragraph. ".repeat(80);
+      const item: RuntimeChatItem = {
+        id: `first-burst-${separateStart}`,
+        type: "assistant_message",
+        state: "updated",
+        streams: { assistant_text: text },
+        observedLive: true,
+      };
+      const body = (value: RuntimeChatItem) => (
+        <AppProvider>
+          <AssistantMessage threadId="burst-thread" item={value} isTurnActive />
+        </AppProvider>
+      );
+      let view = render(body(separateStart ? { ...item, state: "started", streams: {} } : item));
+      try {
+        if (separateStart) view.rerender(body(item));
+        expect(view.container.textContent).toBe("");
+        view.unmount();
+        view = render(body(item));
+        expect(view.container.textContent).toBe("");
+        const pending = [...frames.values()];
+        frames.clear();
+        act(() => {
+          for (const callback of pending) callback(1_000);
+        });
+        expect(view.container.textContent!.length).toBeGreaterThan(0);
+        expect(view.container.textContent!.length).toBeLessThan(text.length);
+        view.unmount();
+        const reopened = render(body(item));
+        try {
+          expect(reopened.container.textContent).toBe(text);
+        } finally {
+          reopened.unmount();
+        }
+      } finally {
+        view.unmount();
+        vi.unstubAllGlobals();
+      }
+    },
+  );
+
+  it.each([
+    { state: "completed", observedLive: true, isTurnActive: true },
+    { state: "updated", observedLive: true, isTurnActive: false },
+    { state: "updated", observedLive: false, isTurnActive: true },
+  ] as const)("shows existing or settled text immediately: %j", ({ isTurnActive, ...item }) => {
+    const text = "Existing paragraph. ".repeat(80);
+    const view = render(
+      <AppProvider>
+        <AssistantMessage
+          threadId="existing-thread"
+          item={{
+            ...item,
+            id: JSON.stringify(item),
+            type: "assistant_message",
+            streams: { assistant_text: text },
+          }}
+          isTurnActive={isTurnActive}
+        />
+      </AppProvider>,
+    );
+    expect(view.container.textContent).toBe(text);
+  });
+
   it.each([1, 2])(
     "keeps an interrupted native v%s reply unavailable even when its fence closed before completion",
     (version) => {
