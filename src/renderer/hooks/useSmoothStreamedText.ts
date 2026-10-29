@@ -8,6 +8,7 @@ const VELOCITY_LERP = 0.15;
 const MAX_FRAME_SECONDS = 0.05;
 const ARRIVAL_RATE_ALPHA = 0.35;
 const IDLE_GRACE_MS = 200;
+const FRAME_TIME_TOLERANCE_MS = 0.5;
 
 const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
 let reducedMotionMedia: MediaQueryList | null = null;
@@ -59,12 +60,13 @@ export function useSmoothStreamedText(
   const idleSinceRef = useRef<number | null>(null);
   const frameRef = useRef<number | null>(null);
   const lastFrameRef = useRef(0);
-  const lastEmitAtRef = useRef(0);
+  const nextEmitAtRef = useRef<number | null>(null);
   const minEmitIntervalRef = useRef(minEmitIntervalMs);
   const tickRef = useRef<(now: number) => void>(() => undefined);
 
   useEffect(() => {
     minEmitIntervalRef.current = minEmitIntervalMs;
+    nextEmitAtRef.current = null;
   }, [minEmitIntervalMs]);
 
   // Latest-tick holder: assigned in an effect (never during render). The tick
@@ -106,14 +108,23 @@ export function useSmoothStreamedText(
       }
 
       const nextCount = Math.floor(shownRef.current);
+      const interval = minEmitIntervalRef.current;
+      const nextEmitAt = nextEmitAtRef.current;
       if (
         nextCount !== emittedRef.current &&
-        (minEmitIntervalRef.current === 0 ||
-          lastEmitAtRef.current === 0 ||
-          now - lastEmitAtRef.current >= minEmitIntervalRef.current)
+        (interval === 0 || nextEmitAt === null || now + FRAME_TIME_TOLERANCE_MS >= nextEmitAt)
       ) {
         emittedRef.current = nextCount;
-        lastEmitAtRef.current = now;
+        if (interval > 0 && nextEmitAt !== null) {
+          // Carry frame overshoot forward, skipping missed slots instead of replaying them.
+          const elapsedIntervals = Math.max(
+            1,
+            Math.floor((now - nextEmitAt + FRAME_TIME_TOLERANCE_MS) / interval) + 1,
+          );
+          nextEmitAtRef.current = nextEmitAt + elapsedIntervals * interval;
+        } else {
+          nextEmitAtRef.current = interval > 0 ? now + interval : null;
+        }
         setRevealed(nextCount >= target.length ? target : target.slice(0, nextCount));
       }
 
@@ -171,7 +182,7 @@ export function useSmoothStreamedText(
       lastChunkTimeRef.current = 0;
       idleSinceRef.current = null;
       lastFrameRef.current = 0;
-      lastEmitAtRef.current = 0;
+      nextEmitAtRef.current = null;
       setRevealed(text);
       return;
     }

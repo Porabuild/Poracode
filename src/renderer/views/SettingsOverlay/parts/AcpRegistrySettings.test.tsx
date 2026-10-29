@@ -1207,6 +1207,9 @@ describe("AcpRegistrySettings", () => {
       "curl -fsSL https://gh.io/copilot-install | bash",
     );
     expect(entries.get("copilot")?.installCommand(wslProject)).not.toContain("brew install");
+    expect(entries.get("fx")?.installCommand(wslProject)).toContain(
+      "curl -fsSL https://fx.sh/setup.sh | bash",
+    );
 
     withHostPlatform("darwin", () => {
       expect(entries.get("codex")?.installCommand(macProject)).toContain(
@@ -1222,6 +1225,9 @@ describe("AcpRegistrySettings", () => {
       expect(entries.get("qwen")?.installCommand(macProject)).toContain("brew install qwen-code");
       expect(entries.get("copilot")?.installCommand(macProject)).toContain(
         "brew install --cask copilot-cli",
+      );
+      expect(entries.get("fx")?.installCommand(macProject)).toContain(
+        "curl -fsSL https://fx.sh/setup.sh | bash",
       );
     });
 
