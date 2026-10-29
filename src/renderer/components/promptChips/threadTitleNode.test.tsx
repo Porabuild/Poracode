@@ -25,7 +25,7 @@ describe("threadTitleNode", () => {
   it("renders a leading slash command as a command chip", () => {
     const { container } = renderTitle("/goal ship it");
     const chip = container.querySelector(".poracode-slash-chip");
-    expect(chip?.querySelector(".poracode-slash-chip__slash")).toHaveTextContent("/");
+    expect(chip?.querySelector(".lucide-target")).toHaveAttribute("aria-hidden", "true");
     expect(chip?.querySelector(".poracode-slash-chip__name")).toHaveTextContent("goal");
   });
 
