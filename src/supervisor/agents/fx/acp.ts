@@ -1,4 +1,4 @@
-import type { SessionNotification } from "@agentclientprotocol/sdk";
+import type { RequestPermissionRequest, SessionNotification } from "@agentclientprotocol/sdk";
 import type { ThreadConfig } from "@/shared/contracts";
 import type { AcpSelectBooleanConfigBinding } from "../acp/modelConfigOptions";
 import type { AcpPromptSteering } from "../acp/promptSteering";
@@ -286,4 +286,21 @@ export function createFxAcpSessionUpdateTransform(): AcpSessionUpdateTransform {
     if (nextUpdate === update) return notification;
     return { ...notification, update: nextUpdate } as SessionNotification;
   };
+}
+
+/**
+ * fx titles every file approval `file_mutation`, which became the approval
+ * heading. Name it the way fx names shell approvals (`shell.run <command>`):
+ * fx's tool and the path, for example `edit_file src/app.ts`.
+ */
+export function normalizeFxPermissionRequest(
+  request: RequestPermissionRequest,
+): RequestPermissionRequest {
+  const toolCall = request.toolCall;
+  if (toolCall.title !== "file_mutation") return request;
+  const path = nonEmptyString(asRecord(toolCall.rawInput)?.["path"]);
+  if (!path) return request;
+  // fx sends the tool `name` outside the ACP ToolCallUpdate type.
+  const tool = nonEmptyString(asRecord(toolCall)?.["name"])?.trim() ?? "file_mutation";
+  return { ...request, toolCall: { ...toolCall, title: `${tool} ${path}` } };
 }

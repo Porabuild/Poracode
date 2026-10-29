@@ -206,6 +206,9 @@ fx's own tool errors `{error: {type, tool_name, message}}`, MCP
 `{server, tool, result}`), which the fx transform unwraps to the text the tool
 produced. It also starts a new assistant item whenever an `agent_message_chunk`
 carries a new `messageId`, so separate fx messages in one turn do not merge.
+fx titles every file approval `file_mutation`; `normalizeFxPermissionRequest`
+retitles it with fx's tool and the path (`edit_file src/app.ts`), the way fx
+titles shell approvals (`shell.run <command>`).
 
 Chat steering is native and does not interrupt. fx advertises
 `agentCapabilities._meta.fx.steering`, and the adapter declares

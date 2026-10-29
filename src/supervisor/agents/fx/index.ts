@@ -20,6 +20,7 @@ import {
   FX_ACP_FAST_CONFIG_BINDING,
   FX_ACP_PROMPT_STEERING,
   normalizeFxAcpConfigOptions,
+  normalizeFxPermissionRequest,
   resolveFxAcpMode,
 } from "./acp";
 import { buildFxArgs, buildFxLaunchEnv } from "./argv";
@@ -114,6 +115,7 @@ export function createFxAdapter(): AgentAdapter {
         },
         {
           resolveMode: resolveFxAcpMode,
+          permissionRequestTransform: normalizeFxPermissionRequest,
           promptSteering: FX_ACP_PROMPT_STEERING,
           behavior: { fastConfigBinding: FX_ACP_FAST_CONFIG_BINDING },
         },

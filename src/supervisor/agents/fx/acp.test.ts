@@ -1,5 +1,6 @@
-import type { SessionNotification } from "@agentclientprotocol/sdk";
+import type { RequestPermissionRequest, SessionNotification } from "@agentclientprotocol/sdk";
 import { describe, expect, it } from "vitest";
+import { createAcpMapperState, mapAcpPermissionRequest } from "../acp/canonicalMapping";
 import { PORACODE_ACP_NEW_ASSISTANT_ITEM_META_KEY } from "../acp/canonicalMapping/subagents";
 import { findFastConfigOption } from "../acp/modelConfigOptions";
 import {
@@ -7,6 +8,7 @@ import {
   FX_ACP_FAST_CONFIG_BINDING,
   FX_ACP_PROMPT_STEERING,
   normalizeFxAcpConfigOptions,
+  normalizeFxPermissionRequest,
   resolveFxAcpMode,
 } from "./acp";
 
@@ -624,6 +626,76 @@ describe("createFxAcpSessionUpdateTransform", () => {
     const messageSnapshot = structuredClone(nextMessage);
     transform(nextMessage);
     expect(nextMessage).toEqual(messageSnapshot);
+  });
+});
+
+describe("normalizeFxPermissionRequest", () => {
+  // Shapes recorded from fx 0.0.15 `session/request_permission`.
+  function fileRequest(
+    name: string | undefined,
+    rawInput: Record<string, unknown>,
+  ): RequestPermissionRequest {
+    return {
+      sessionId: "s1",
+      toolCall: {
+        toolCallId: "call-1",
+        ...(name ? { name } : {}),
+        title: "file_mutation",
+        kind: "edit",
+        status: "pending",
+        rawInput,
+      },
+      options: [
+        { optionId: "allow_once", name: "Allow once", kind: "allow_once" },
+        { optionId: "reject_once", name: "Reject", kind: "reject_once" },
+      ],
+    } as RequestPermissionRequest;
+  }
+
+  it("titles file approvals with fx's tool and path", () => {
+    const edit = normalizeFxPermissionRequest(
+      fileRequest("edit_file", {
+        path: "src/strings.ts",
+        old_string: "Hello",
+        new_string: "Hi",
+      }),
+    );
+    expect(edit.toolCall.title).toBe("edit_file src/strings.ts");
+    const write = normalizeFxPermissionRequest(
+      fileRequest("write_file", { path: "notes/todo.md", content: "- smoke\n" }),
+    );
+    expect(write.toolCall.title).toBe("write_file notes/todo.md");
+    expect(
+      normalizeFxPermissionRequest(fileRequest(undefined, { path: "a.ts" })).toolCall.title,
+    ).toBe("file_mutation a.ts");
+  });
+
+  it("keeps a path that starts like a command classified as a file change", () => {
+    const event = mapAcpPermissionRequest(
+      normalizeFxPermissionRequest(fileRequest("write_file", { path: "run/build.ts" })),
+      createAcpMapperState("fx-thread"),
+      "perm-1",
+    );
+    expect(event).toMatchObject({
+      type: "request.opened",
+      requestType: "apply_patch_approval",
+      payload: { summary: "write_file run/build.ts" },
+    });
+  });
+
+  it("leaves other approvals and path-less file approvals untouched", () => {
+    const shell = {
+      ...fileRequest("shell", { action: "run", command: "pwd" }),
+      toolCall: {
+        toolCallId: "call-2",
+        title: "shell.run pwd",
+        kind: "execute",
+        rawInput: { action: "run", command: "pwd" },
+      },
+    } as RequestPermissionRequest;
+    expect(normalizeFxPermissionRequest(shell)).toBe(shell);
+    const noPath = fileRequest("edit_file", { old_string: "a", new_string: "b" });
+    expect(normalizeFxPermissionRequest(noPath)).toBe(noPath);
   });
 });
 
