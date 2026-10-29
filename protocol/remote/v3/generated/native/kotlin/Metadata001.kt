@@ -13,8 +13,8 @@ object RemoteContractMetadata {
     const val protocolVersion = 14
     const val bindingFormatVersion = 2
     const val generatorVersion = 7
-    const val sourceHash = "sha256:054cab70ec778aca12d0965811a3848768b86a18ec94486eba792aa39b9d58b2"
-    const val manifestHash = "sha256:0af95549f6385c5f08e5dfeb224d10486c18d5b19acb6ba934351dbea0e0dea4"
+    const val sourceHash = "sha256:62a9316f62caf5b3dadad0d6a013200840746269a43b0f6d9cc2421d5dcffe7f"
+    const val manifestHash = "sha256:48db6a3e43d98007056cc988d5d0021c4df34de60e0dae41f965d9639361ae25"
     val validationBoundary = RemoteValidationBoundary.ROOT_CODEC_ONLY
     val generatedModelSerializationSemantics = RemoteGeneratedSerializerSemantics.NON_VALIDATING_REPRESENTATION_ONLY
     val portableTransformIds = listOf("agent-settings.strip-sensitive", "push.routing.client-connection-id.lowercase", "string.trim")
@@ -111,7 +111,7 @@ object RemoteContractMetadata {
         RemoteRouteDescriptor("schedules-read", "GET", "/api/schedules", "bearer", listOf("session:read"), "empty", "json", 200, "RemoteUnit", "RouteschedulesU2DCommandResponse_bc1920595e", listOf()),
         RemoteRouteDescriptor("settings-read", "GET", "/api/settings", "bearer", listOf("session:read"), "empty", "json", 200, "RemoteUnit", "RoutesettingsU2DReadResponse_f87159e788", listOf()),
         RemoteRouteDescriptor("settings-write", "POST", "/api/settings", "bearer", listOf("session:operate"), "json", "json", 200, "RoutesettingsU2DWriteRequest_c641a53243", "RoutesettingsU2DReadResponse_f87159e788", listOf()),
-        RemoteRouteDescriptor("shell-snapshot", "GET", "/api/snapshot", "bearer", listOf("session:read"), "empty", "json", 200, "RemoteUnit", "RouteshellU2DSnapshotResponse_f6c56a3e39", listOf(RemoteQueryParameterDescriptor("reads", "string", true, false), RemoteQueryParameterDescriptor("threadLimit", "int", true, false), RemoteQueryParameterDescriptor("order", "string", true, false), RemoteQueryParameterDescriptor("projectLimit", "int", true, false), RemoteQueryParameterDescriptor("summaries", "0-or-1", true, false), RemoteQueryParameterDescriptor("maxBytes", "int", true, false), RemoteQueryParameterDescriptor("maxDecodeBytes", "int", true, false))),
+        RemoteRouteDescriptor("shell-snapshot", "GET", "/api/snapshot", "bearer", listOf("session:read"), "empty", "json", 200, "RemoteUnit", "RouteshellU2DSnapshotResponse_62e77d10c8", listOf(RemoteQueryParameterDescriptor("reads", "string", true, false), RemoteQueryParameterDescriptor("threadLimit", "int", true, false), RemoteQueryParameterDescriptor("order", "string", true, false), RemoteQueryParameterDescriptor("projectLimit", "int", true, false), RemoteQueryParameterDescriptor("summaries", "0-or-1", true, false), RemoteQueryParameterDescriptor("maxBytes", "int", true, false), RemoteQueryParameterDescriptor("maxDecodeBytes", "int", true, false))),
         RemoteRouteDescriptor("terminal-close", "POST", "/api/threads/{threadId}/terminal/close", "bearer", listOf("terminal:operate"), "json", "json", 200, "RoutehostU2DUpdateU2DInstallResponse_81055c9199", "RoutedeviceU2DDetachResponse_badd682f35", listOf()),
         RemoteRouteDescriptor("terminal-resize", "POST", "/api/threads/{threadId}/terminal/resize", "bearer", listOf("terminal:operate"), "json", "json", 200, "ProcedureensureThreadRunningRequestU2DInitialSize_55ee222c09", "RoutedeviceU2DDetachResponse_badd682f35", listOf()),
         RemoteRouteDescriptor("terminal-start", "POST", "/api/terminal/start", "bearer", listOf("terminal:operate"), "json", "json", 200, "RouteterminalU2DStartRequest_b03238f553", "RoutedeviceU2DDetachResponse_badd682f35", listOf()),
@@ -323,7 +323,7 @@ object RemoteContractMetadata {
         RemoteWebSocketVariantDescriptor("server", "desktop-event", "WebSocketServerMessageU2DOptionU2D12_f1c1581e17"),
         RemoteWebSocketVariantDescriptor("server", "event", "WebSocketServerMessageU2DOptionU2D3_3897f50212"),
         RemoteWebSocketVariantDescriptor("server", "pong", "WebSocketServerMessageU2DOptionU2D5_17b50a5a25"),
-        RemoteWebSocketVariantDescriptor("server", "ready", "WebSocketServerMessageU2DOptionU2D2_13762c62f0"),
+        RemoteWebSocketVariantDescriptor("server", "ready", "WebSocketServerMessageU2DOptionU2D2_dade9637ae"),
         RemoteWebSocketVariantDescriptor("server", "resync-required", "WebSocketServerMessageU2DOptionU2D4_a633f9a256"),
         RemoteWebSocketVariantDescriptor("server", "terminal-output", "WebSocketServerMessageU2DOptionU2D9_95d0adeb5b"),
         RemoteWebSocketVariantDescriptor("server", "terminal-watch-baseline-chunk", "WebSocketServerMessageU2DOptionU2D11_e65689e97e"),

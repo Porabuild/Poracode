@@ -16,6 +16,7 @@ import {
   remoteTerminalWatchBaselineChunkSchema,
   remoteAccessSessionSchema,
 } from "./core";
+import { remoteEventEpochSchema } from "./eventEpoch";
 import { remoteRuntimeHistoryNoticeSchema } from "./runtimeHistoryNotice";
 
 export const remoteTimelineEntryCountSchema = z.number().int().min(1).max(100);
@@ -382,6 +383,13 @@ export const remoteWebSocketServerMessageSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("ready"),
     seq: z.number().int().nonnegative(),
+    /**
+     * This server instance's event-stream epoch (`eventEpoch=v1`). Sent ONLY
+     * to connections that declared the epoch, so an undeclared reader keeps
+     * the exact `{ type, seq }` frame. `seq` and every later frame on this
+     * socket are in this epoch's sequence space.
+     */
+    epoch: remoteEventEpochSchema.optional(),
   }),
   z.object({
     type: z.literal("event"),

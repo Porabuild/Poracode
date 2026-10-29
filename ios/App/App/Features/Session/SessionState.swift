@@ -154,6 +154,9 @@ struct SessionRuntimeState {
     var webSocket: (any SessionLiveSocket)?
     /// Always a baseline once a live session is attempted; `0` after snapshot failure.
     var lastSeenSeq: Int = 0
+    /// Event-stream epoch the selected socket's cursor is bound to (`eventEpoch=v1`),
+    /// so a replacement socket resumes with it; nil while unbound.
+    var lastSeenEpoch: String?
     /// Sequence advertised by the latest socket `ready` frame. Events at or
     /// below this boundary are replay, so transient user alerts are not shown.
     var socketReplayCeiling: Int = 0
@@ -271,6 +274,7 @@ struct SessionRuntimeState {
         hostSnapshots = [:]
         catalog.resetForHostChange()
         lastSeenSeq = 0
+        lastSeenEpoch = nil
         socketReplayCeiling = 0
         isResyncing = false
         needsAuthoritativeRefresh = false

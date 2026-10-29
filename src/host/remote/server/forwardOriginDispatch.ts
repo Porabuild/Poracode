@@ -318,6 +318,7 @@ async function dispatchEnvironmentProxyUpgrade(
   socket: Duplex,
   head: Buffer,
   match: NonNullable<ReturnType<typeof matchEnvironmentProxyPath>>,
+  releaseIngress: (() => void) | undefined,
 ): Promise<void> {
   if (match.kind === "invalid") {
     rejectUpgrade(socket, 400, "Bad Request");
@@ -336,6 +337,7 @@ async function dispatchEnvironmentProxyUpgrade(
     environmentId: match.environmentId,
     rawChildPath: match.rawChildPath,
     rawQuery: match.rawQuery,
+    ...(releaseIngress ? { onUpgraded: releaseIngress } : {}),
   });
 }
 
@@ -497,12 +499,18 @@ export async function handleRemoteAccessHttpRequest(
  * always send one; its absence is not a browser) plus the origin-bound cookie
  * session and a live forward — then the upgrade, established or still
  * dialing, rides the forward's lifetime.
+ *
+ * A proxied upgrade (environment or child origin) stays in flight until both
+ * legs close. `releaseIngress`, the caller's internal ingress-slot return,
+ * runs once the 101 is relayed, so an established socket never holds
+ * transport admission; its principal leases stay held until close.
  */
 export async function handleRemoteAccessUpgrade(
   ctx: RemoteServerContext,
   req: IncomingMessage,
   socket: Duplex,
   head: Buffer,
+  releaseIngress?: () => void,
 ): Promise<void> {
   stripUnauthenticatedRelayHopMarker(req.headers);
   const environmentProxyPath = matchEnvironmentProxyPath(req.url ?? "/");
@@ -514,7 +522,14 @@ export async function handleRemoteAccessUpgrade(
   }
   if (child.kind === "ordinary") {
     if (environmentProxyPath !== null) {
-      await dispatchEnvironmentProxyUpgrade(ctx, req, socket, head, environmentProxyPath);
+      await dispatchEnvironmentProxyUpgrade(
+        ctx,
+        req,
+        socket,
+        head,
+        environmentProxyPath,
+        releaseIngress,
+      );
       return;
     }
     if (reservedEnvironmentHeader) {
@@ -540,7 +555,7 @@ export async function handleRemoteAccessUpgrade(
       );
     }
     const lifetime = resolveChildLifetime(ctx, target, req);
-    await proxyForwardedWebSocketUpgrade(req, socket, head, lifetime);
+    await proxyForwardedWebSocketUpgrade(req, socket, head, lifetime, releaseIngress);
   } catch (error) {
     if (error instanceof RemoteHttpError) {
       rejectUpgrade(socket, error.status, error.status === 401 ? "Unauthorized" : "Forbidden");

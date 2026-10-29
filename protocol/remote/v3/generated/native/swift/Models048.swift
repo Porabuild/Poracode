@@ -375,16 +375,19 @@ public struct WebSocketServerMessageU2DOptionU2D1_48916cddaa: Codable, Sendable,
   }
 }
 
-public struct WebSocketServerMessageU2DOptionU2D2_13762c62f0: Codable, Sendable, RemoteModelMetadata {
+public struct WebSocketServerMessageU2DOptionU2D2_dade9637ae: Codable, Sendable, RemoteModelMetadata {
+  public var epoch: RemoteField<String> = .missing
   public var seq: Int64
   public var typeValue: WebSocketServerMessageU2DOptionU2D10U2DCursorSyncU2DResultU2DOptionU2D1U2DStatus_0200f968d2
   public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
   public static let fields: [RemoteFieldDescriptor] = [
+    .init(wireName: "epoch", typeName: "String", required: false, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: 128, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "seq", typeName: "Int64", required: true, nullable: false, minimum: 0, maximum: 9007199254740991, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "type", typeName: "WebSocketServerMessageU2DOptionU2D10U2DCursorSyncU2DResultU2DOptionU2D1U2DStatus_0200f968d2", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
   ]
   public static let semanticValidatorIds: [String] = []
   private enum CodingKeys: String, CodingKey {
+    case epoch = "epoch"
     case seq = "seq"
     case typeValue = "type"
   }
@@ -441,8 +444,4 @@ public struct WebSocketServerMessageU2DOptionU2D4_a633f9a256: Codable, Sendable,
     case space = "space"
     case typeValue = "type"
   }
-}
-
-public enum WebSocketServerMessageU2DOptionU2D5U2DType_d8768c073f: String, Codable, Sendable {
-  case `pong` = "pong"
 }

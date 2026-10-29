@@ -1,6 +1,7 @@
 import { getSqlite } from "@/host/db/connection";
 import { DEVICE_WORKSPACE_VERSION } from "@/shared/deviceWorkspace";
 import { DEVICE_PREVIEW_VERSION } from "@/shared/devicePreview";
+import { eventStreamEpochOf } from "./eventStreamEpoch";
 import { readRuntimeSnapshot } from "@/host/db/runtimeReadSnapshot";
 import { assertLegacySnapshotWithinReservation } from "./legacyReadPrecheck";
 import type { ThreadRuntimeSummary } from "@/host/db/runtimeItems";
@@ -259,6 +260,7 @@ function projectShellSnapshot(
   return remoteShellSnapshotSchema.parse(
     withStableUpdatedAt("shell", {
       snapshotSeq,
+      snapshotEpoch: eventStreamEpochOf(ctx),
       projects,
       threads,
       ...(threadsNextCursor ? { threadsNextCursor } : {}),

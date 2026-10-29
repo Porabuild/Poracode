@@ -251,6 +251,9 @@ async function initialize(
         await Promise.all([desktopServicesReady.promise, supervisorEnvironmentReady.promise]);
         await desktopServices?.prepareSupervisor();
       },
+      // Every (re)spawn, crash respawns included: restore the project watches
+      // that clients registered once and never re-send.
+      onStarted: () => desktopServices?.handleSupervisorStarted(),
       reportError,
     },
     onEvent: (event) => {

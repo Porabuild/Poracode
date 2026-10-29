@@ -189,4 +189,20 @@ class RemoteSocketDecisionsTest {
             ),
         )
     }
+
+    @Test
+    fun eventEpochDeclarationCarriesOnlyABoundEpoch() {
+        assertEquals(
+            "wss://h/ws?ticket=t&lastSeenSeq=5&eventEpoch=v1&lastSeenEpoch=e1",
+            RemoteSocketDecisions.withEventEpochDeclaration("wss://h/ws?ticket=t&lastSeenSeq=5", "e1"),
+        )
+        assertEquals(
+            "wss://h/ws?ticket=t&eventEpoch=v1",
+            RemoteSocketDecisions.withEventEpochDeclaration("wss://h/ws?ticket=t", null),
+        )
+        assertEquals(
+            "wss://h/ws?eventEpoch=v1",
+            RemoteSocketDecisions.withEventEpochDeclaration("wss://h/ws", null),
+        )
+    }
 }

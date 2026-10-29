@@ -19169,6 +19169,10 @@ msgstr "Çalıştırma iptal edilemedi."
 msgid "The run was interrupted."
 msgstr "Çalıştırma kesintiye uğradı."
 
+#: src/renderer/state/remoteServers/sharedCredentials.ts
+msgid "The saved remote credentials could not be confirmed."
+msgstr "Kaydedilmiş uzak bağlantı kimlik bilgileri doğrulanamadı."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The scheduled automation failed."
 msgstr "Planlanan otomasyon başarısız oldu."
@@ -20156,6 +20160,10 @@ msgstr "{0} kaynağından token"
 #: src/renderer/components/thread/CrewDockSection.tsx
 msgid "Told not to edit files. Not enforced."
 msgstr "Dosyaları düzenlememesi söylendi. Zorunlu değildir."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Too many remote requests are in progress. Try again in a moment."
+msgstr "Devam eden çok fazla uzak istek var. Birazdan yeniden deneyin."
 
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Too many visuals in this message. Showing source only."

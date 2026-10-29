@@ -16,7 +16,7 @@ import type { UserNotification } from "@/shared/threadNotification";
 import type { Project } from "@/shared/contracts";
 import type { ScheduleService } from "@/host/schedules/ScheduleService";
 import type { PrWatchService } from "@/host/prWatch";
-import type { GitStateService } from "@/host/gitState";
+import type { GitStateService, ProjectWatchLeases } from "@/host/gitState";
 import type { ImagePreviewGenerator } from "@/host/remote/server/imagePreview";
 import type { ImageCardVariantGenerator } from "@/host/remote/server/imageCardVariant";
 import type {
@@ -98,6 +98,8 @@ export interface DesktopRemoteAccessControllerOptions {
   readonly scheduleService: ScheduleService;
   readonly prWatchService: PrWatchService;
   readonly gitStateService: GitStateService;
+  /** Durable per-owner watch leases; every rebuilt server receives the same registry. */
+  readonly projectWatchLeases?: ProjectWatchLeases;
   readonly updates: NonNullable<RemoteAccessServerOptions["updates"]>;
   readonly imagePreviewGenerator?: ImagePreviewGenerator;
   readonly imageCardVariantGenerator?: ImageCardVariantGenerator;

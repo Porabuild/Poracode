@@ -33,6 +33,7 @@ import {
   type CatalogSizes,
 } from "./catalogPageBudget";
 import type { RemoteServerContext } from "./context";
+import { eventStreamEpochOf } from "./eventStreamEpoch";
 import { RemoteHttpError } from "../auth";
 import { projectGitStateSnapshotForRemote } from "./gitStateProjection";
 import {
@@ -45,6 +46,7 @@ import {
 
 /** Host projections captured before dispatch; workers never access live host state. */
 type CatalogReadContext = Pick<RemoteServerContext, "seq"> & {
+  readonly snapshotEpoch?: string;
   readonly options: {
     readonly gitSummaries?: RemoteServerContext["options"]["gitSummaries"];
     readonly gitState?: Pick<
@@ -57,6 +59,7 @@ type CatalogReadContext = Pick<RemoteServerContext, "seq"> & {
 export function captureCatalogReadProjection(ctx: CatalogReadContext, includeGitState = false) {
   return {
     seq: ctx.seq,
+    ...(includeGitState ? { snapshotEpoch: ctx.snapshotEpoch ?? eventStreamEpochOf(ctx) } : {}),
     gitSummaries: ctx.options.gitSummaries?.() ?? {},
     ...(includeGitState && ctx.options.gitState
       ? { gitState: projectGitStateSnapshotForRemote(ctx.options.gitState.getSnapshot()) }
@@ -69,6 +72,7 @@ export type CatalogReadProjection = ReturnType<typeof captureCatalogReadProjecti
 export function restoreCatalogReadProjection(input: CatalogReadProjection): CatalogReadContext {
   return {
     seq: input.seq,
+    ...(input.snapshotEpoch ? { snapshotEpoch: input.snapshotEpoch } : {}),
     options: {
       gitSummaries: () => input.gitSummaries,
     },
@@ -378,6 +382,7 @@ export function readCatalogShellSnapshotPage(
   ): RemoteShellSnapshot =>
     boundedShellSnapshotSchema.parse({
       snapshotSeq,
+      ...(projection.snapshotEpoch ? { snapshotEpoch: projection.snapshotEpoch } : {}),
       reads: CATALOG_READS_CAPABILITY,
       projects: projectSlice,
       threads: threadSlice,

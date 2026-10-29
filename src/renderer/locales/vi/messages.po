@@ -19169,6 +19169,10 @@ msgstr "Không thể hủy lượt chạy."
 msgid "The run was interrupted."
 msgstr "Lượt chạy đã bị gián đoạn."
 
+#: src/renderer/state/remoteServers/sharedCredentials.ts
+msgid "The saved remote credentials could not be confirmed."
+msgstr "Không thể xác nhận thông tin xác thực từ xa đã lưu."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The scheduled automation failed."
 msgstr "Tự động hóa theo lịch đã thất bại."
@@ -20156,6 +20160,10 @@ msgstr "Tokens từ {0}"
 #: src/renderer/components/thread/CrewDockSection.tsx
 msgid "Told not to edit files. Not enforced."
 msgstr "Được dặn không chỉnh sửa tệp. Không được thực thi."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Too many remote requests are in progress. Try again in a moment."
+msgstr "Có quá nhiều yêu cầu từ xa đang được xử lý. Hãy thử lại sau giây lát."
 
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Too many visuals in this message. Showing source only."

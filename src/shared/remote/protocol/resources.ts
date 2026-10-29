@@ -31,6 +31,7 @@ import {
   remoteGitSummariesSchema,
 } from "./core";
 import { remoteRuntimeHistoryNoticeSchema } from "./runtimeHistoryNotice";
+import { remoteEventEpochSchema } from "./eventEpoch";
 
 /**
  * Remote project management. Lets a paired client add/clone/remove projects on
@@ -550,6 +551,8 @@ export type RemoteLiveActivityContentState = z.infer<typeof remoteLiveActivityCo
 
 export const remoteShellSnapshotSchema = z.object({
   snapshotSeq: z.number().int().nonnegative(),
+  /** Event-stream instance that issued this cursor. Absent on older hosts. */
+  snapshotEpoch: remoteEventEpochSchema.optional(),
   projects: z.array(remoteProjectSchema),
   threads: z.array(threadSchema),
   /**

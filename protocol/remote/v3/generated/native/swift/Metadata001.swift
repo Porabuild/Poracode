@@ -8,8 +8,8 @@ public enum RemoteContractMetadata {
   public static let protocolVersion = 14
   public static let bindingFormatVersion = 2
   public static let generatorVersion = 7
-  public static let sourceHash = "sha256:054cab70ec778aca12d0965811a3848768b86a18ec94486eba792aa39b9d58b2"
-  public static let manifestHash = "sha256:0af95549f6385c5f08e5dfeb224d10486c18d5b19acb6ba934351dbea0e0dea4"
+  public static let sourceHash = "sha256:62a9316f62caf5b3dadad0d6a013200840746269a43b0f6d9cc2421d5dcffe7f"
+  public static let manifestHash = "sha256:48db6a3e43d98007056cc988d5d0021c4df34de60e0dae41f965d9639361ae25"
   public static let validationBoundary: RemoteValidationBoundary = .rootCodecOnly
   public static let generatedModelCodableSemantics: RemoteGeneratedSerializerSemantics = .nonValidatingRepresentationOnly
   public static let portableTransformIds = ["agent-settings.strip-sensitive", "push.routing.client-connection-id.lowercase", "string.trim"]
@@ -106,7 +106,7 @@ public enum RemoteContractMetadata {
     .init(id: "schedules-read", method: "GET", path: "/api/schedules", auth: "bearer", scopes: ["session:read"], bodyKind: "empty", responseKind: "json", status: 200, requestType: "RemoteUnit", responseType: "RouteschedulesU2DCommandResponse_bc1920595e", queryCodecs: []),
     .init(id: "settings-read", method: "GET", path: "/api/settings", auth: "bearer", scopes: ["session:read"], bodyKind: "empty", responseKind: "json", status: 200, requestType: "RemoteUnit", responseType: "RoutesettingsU2DReadResponse_f87159e788", queryCodecs: []),
     .init(id: "settings-write", method: "POST", path: "/api/settings", auth: "bearer", scopes: ["session:operate"], bodyKind: "json", responseKind: "json", status: 200, requestType: "RoutesettingsU2DWriteRequest_c641a53243", responseType: "RoutesettingsU2DReadResponse_f87159e788", queryCodecs: []),
-    .init(id: "shell-snapshot", method: "GET", path: "/api/snapshot", auth: "bearer", scopes: ["session:read"], bodyKind: "empty", responseKind: "json", status: 200, requestType: "RemoteUnit", responseType: "RouteshellU2DSnapshotResponse_f6c56a3e39", queryCodecs: [.init(name: "reads", kind: "string", optional: true, repeated: false), .init(name: "threadLimit", kind: "int", optional: true, repeated: false), .init(name: "order", kind: "string", optional: true, repeated: false), .init(name: "projectLimit", kind: "int", optional: true, repeated: false), .init(name: "summaries", kind: "0-or-1", optional: true, repeated: false), .init(name: "maxBytes", kind: "int", optional: true, repeated: false), .init(name: "maxDecodeBytes", kind: "int", optional: true, repeated: false)]),
+    .init(id: "shell-snapshot", method: "GET", path: "/api/snapshot", auth: "bearer", scopes: ["session:read"], bodyKind: "empty", responseKind: "json", status: 200, requestType: "RemoteUnit", responseType: "RouteshellU2DSnapshotResponse_62e77d10c8", queryCodecs: [.init(name: "reads", kind: "string", optional: true, repeated: false), .init(name: "threadLimit", kind: "int", optional: true, repeated: false), .init(name: "order", kind: "string", optional: true, repeated: false), .init(name: "projectLimit", kind: "int", optional: true, repeated: false), .init(name: "summaries", kind: "0-or-1", optional: true, repeated: false), .init(name: "maxBytes", kind: "int", optional: true, repeated: false), .init(name: "maxDecodeBytes", kind: "int", optional: true, repeated: false)]),
     .init(id: "terminal-close", method: "POST", path: "/api/threads/{threadId}/terminal/close", auth: "bearer", scopes: ["terminal:operate"], bodyKind: "json", responseKind: "json", status: 200, requestType: "RoutehostU2DUpdateU2DInstallResponse_81055c9199", responseType: "RoutedeviceU2DDetachResponse_badd682f35", queryCodecs: []),
     .init(id: "terminal-resize", method: "POST", path: "/api/threads/{threadId}/terminal/resize", auth: "bearer", scopes: ["terminal:operate"], bodyKind: "json", responseKind: "json", status: 200, requestType: "ProcedureensureThreadRunningRequestU2DInitialSize_55ee222c09", responseType: "RoutedeviceU2DDetachResponse_badd682f35", queryCodecs: []),
     .init(id: "terminal-start", method: "POST", path: "/api/terminal/start", auth: "bearer", scopes: ["terminal:operate"], bodyKind: "json", responseKind: "json", status: 200, requestType: "RouteterminalU2DStartRequest_b03238f553", responseType: "RoutedeviceU2DDetachResponse_badd682f35", queryCodecs: []),
@@ -318,7 +318,7 @@ public enum RemoteContractMetadata {
     .init(direction: "server", type: "desktop-event", modelType: "WebSocketServerMessageU2DOptionU2D12_f1c1581e17"),
     .init(direction: "server", type: "event", modelType: "WebSocketServerMessageU2DOptionU2D3_3897f50212"),
     .init(direction: "server", type: "pong", modelType: "WebSocketServerMessageU2DOptionU2D5_17b50a5a25"),
-    .init(direction: "server", type: "ready", modelType: "WebSocketServerMessageU2DOptionU2D2_13762c62f0"),
+    .init(direction: "server", type: "ready", modelType: "WebSocketServerMessageU2DOptionU2D2_dade9637ae"),
     .init(direction: "server", type: "resync-required", modelType: "WebSocketServerMessageU2DOptionU2D4_a633f9a256"),
     .init(direction: "server", type: "terminal-output", modelType: "WebSocketServerMessageU2DOptionU2D9_95d0adeb5b"),
     .init(direction: "server", type: "terminal-watch-baseline-chunk", modelType: "WebSocketServerMessageU2DOptionU2D11_e65689e97e"),

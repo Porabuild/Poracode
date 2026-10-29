@@ -471,6 +471,11 @@ class FakeSocket : RemoteEventSocket {
     var recoverFailureCount: Int = 0
     @Volatile
     var lastStartSeq: Int? = null
+    /** Event-stream epoch the fake cursor is bound to (`eventEpoch=v1`). */
+    @Volatile
+    var epoch: String? = null
+    @Volatile
+    var lastStartEpoch: String? = null
     val interestsHistory = CopyOnWriteArrayList<List<String>>()
     val gitInterestsHistory = CopyOnWriteArrayList<List<com.poracode.app.protocol.git.GitInterest>>()
     val stateHistory = CopyOnWriteArrayList<RemoteWebSocketClient.ConnectionState>()
@@ -480,6 +485,8 @@ class FakeSocket : RemoteEventSocket {
     }
 
     override fun appliedSeq(): Int? = applied.get()
+
+    override fun appliedEpoch(): String? = epoch
 
     override val resyncPending: Boolean
         get() = resyncPendingFlag
@@ -530,6 +537,12 @@ class FakeSocket : RemoteEventSocket {
         listenerRef.get()?.onSessionExpired(reason)
     }
 
+    override fun start(lastSeenSeq: Int?, lastSeenEpoch: String?) {
+        lastStartEpoch = lastSeenEpoch
+        epoch = lastSeenEpoch
+        start(lastSeenSeq)
+    }
+
     override fun start(lastSeenSeq: Int?) {
         started = true
         suspended = false
@@ -542,6 +555,12 @@ class FakeSocket : RemoteEventSocket {
         listenerRef.get()?.onMessage(
             RemoteWebSocketServerMessage.Ready(seq = lastSeenSeq ?: 0),
         )
+    }
+
+    override fun armSuspended(lastSeenSeq: Int?, lastSeenEpoch: String?) {
+        lastStartEpoch = lastSeenEpoch
+        epoch = lastSeenEpoch
+        armSuspended(lastSeenSeq)
     }
 
     override fun armSuspended(lastSeenSeq: Int?) {

@@ -593,6 +593,9 @@ export const SHARED_MESSAGE_DESCRIPTORS: Record<MessageKey, MessageDescriptor> =
   "remote.server.unreachable": msg({
     message: "Can't reach the remote server. Check that it is online, then reconnect it.",
   }),
+  "remote.server.busy": msg({
+    message: "Too many remote requests are in progress. Try again in a moment.",
+  }),
   "thread.compact.noop": msg({
     message: "Nothing to compact yet — the conversation is still small.",
   }),

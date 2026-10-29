@@ -2006,6 +2006,33 @@ describe("RemoteDesktopClient image ticket flow", () => {
     ]);
   });
 
+  it.each(["rotated", "removed"] as const)(
+    "uses current credentials on the first image request after they were %s",
+    async (state) => {
+      const authorizations: Array<string | undefined> = [];
+      const fetch = vi.fn<RemoteFetch>((_url, init) => {
+        authorizations.push((init?.headers as Record<string, string> | undefined)?.authorization);
+        return Promise.resolve(
+          state === "removed" ? jsonResponse(401, {}) : new Response(new Uint8Array([1])),
+        );
+      });
+      const client = new RemoteDesktopClient(endpoint, "old-bearer", fetch, {
+        tokenLifecycle: {
+          accessToken: () => (state === "rotated" ? "current-bearer" : undefined),
+          refreshToken: () => undefined,
+          onTokensRefreshed: () => {},
+        },
+      });
+      const result = client.fetchTicketedImageBytes(
+        `/api/files/image?path=${encodeURIComponent(PATH)}`,
+        new AbortController().signal,
+      );
+      const [outcome] = await Promise.allSettled([result]);
+      expect(outcome?.status).toBe(state === "removed" ? "rejected" : "fulfilled");
+      expect(authorizations).toEqual([state === "rotated" ? "Bearer current-bearer" : undefined]);
+    },
+  );
+
   it("refreshes once and retries a blob fetch whose access token expired", async () => {
     let rotated = false;
     const imageAuthorizations: Array<string | undefined> = [];
@@ -2247,7 +2274,9 @@ describe("RemoteDesktopClient token lifecycle (Gate 6 item 4.6)", () => {
           order.push(`read:${currentRefresh}`);
           return currentRefresh;
         },
-        onTokensRefreshed: () => order.push("persist"),
+        onTokensRefreshed: () => {
+          order.push("persist");
+        },
         runExclusive: async <T>(run: () => Promise<T>) => {
           order.push("lock");
           const result = await run();

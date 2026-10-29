@@ -5,6 +5,7 @@ import type { EventSocketConnectionContext } from "./eventSocketContext";
 import { createEventSocketRecoveryState } from "./eventSocketContext";
 import {
   __resetEventSocketRegistryForTest,
+  setRemoteServerSnapshotSeq,
   setRemoteServerThreadItemInterests,
 } from "./eventSocketRegistry";
 import { recoverInterestedThreads, resyncOpenThread } from "./eventSocketResync";
@@ -43,7 +44,7 @@ function environmentRecord(): RemoteServerRecord {
 
 interface ResyncHarness {
   readonly ctx: EventSocketConnectionContext;
-  readonly threadHistory: ReturnType<typeof vi.fn>;
+  readonly threadHistory: ReturnType<typeof vi.fn<(threadId: string) => Promise<unknown>>>;
   readonly openThreads: { desktopId: string; threadId: string }[];
   readonly setRemoteServerFailure: ReturnType<typeof vi.fn>;
   readonly forceReconnect: ReturnType<typeof vi.fn>;
@@ -103,7 +104,7 @@ function harness(
     }),
     isCurrent: () => true,
     recovery: createEventSocketRecoveryState(),
-    resyncSlots: { promise: null, socket: null },
+    resyncSlots: { promise: null, socket: null, resumeFence: null },
     dispatchForwardEvent: () => undefined,
     setRemoteServerFailure,
     forceReconnect,
@@ -134,6 +135,30 @@ describe("eventSocketResync connection-key scope (C1 F1)", () => {
     const { ctx, threadHistory } = harness({ openThread: null });
     await expect(resyncOpenThread(ctx)).resolves.toBe(true);
     expect(threadHistory).not.toHaveBeenCalled();
+  });
+
+  it("replaces a pending recovery after the server epoch changes without reconnecting", async () => {
+    setRemoteServerSnapshotSeq(ENV_KEY, 5, "old-instance");
+    const { ctx, threadHistory, openThreads, forceReconnect } = harness();
+    const delayed = Promise.withResolvers<unknown>();
+    threadHistory.mockImplementationOnce(() => delayed.promise);
+    const oldRecovery = recoverInterestedThreads(ctx);
+    expect(threadHistory).toHaveBeenCalledTimes(1);
+
+    setRemoteServerSnapshotSeq(ENV_KEY, 3, "new-instance");
+    const recovery = recoverInterestedThreads(ctx);
+    delayed.resolve({
+      snapshotSeq: 500,
+      thread: { ...remoteThread, id: "old-thread" },
+      runtimeItems: [],
+      completedTurns: [],
+    });
+
+    await expect(recovery).resolves.toBe(true);
+    await expect(oldRecovery).resolves.toBe(true);
+    expect(threadHistory).toHaveBeenCalledTimes(2);
+    expect(openThreads.map((thread) => thread.threadId)).toEqual(["thread-1"]);
+    expect(forceReconnect).not.toHaveBeenCalled();
   });
 
   it("reports an unreachable environment under its connection key, not the child identity", async () => {

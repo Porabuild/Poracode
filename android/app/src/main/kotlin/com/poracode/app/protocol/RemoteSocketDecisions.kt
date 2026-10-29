@@ -1,6 +1,17 @@
 package com.poracode.app.protocol
 
 /**
+ * Event-stream epoch upgrade declaration (`eventEpoch=v1`), mirrored from
+ * `src/shared/remote/protocol/eventEpoch.ts`. Older hosts ignore both
+ * parameters and send `ready` without an epoch.
+ */
+object RemoteEventEpochCodes {
+    const val WS_PARAM = "eventEpoch"
+    const val DECLARATION = "v1"
+    const val LAST_SEEN_PARAM = "lastSeenEpoch"
+}
+
+/**
  * Pure state decisions extracted from [com.poracode.app.transport.RemoteWebSocketClient]
  * for deterministic unit tests without spinning real sockets.
  */
@@ -91,6 +102,22 @@ object RemoteSocketDecisions {
         // rather than treating omission as "no snapshot yet / skip replay".
         if (!snapshotSucceeded) return 0
         return null
+    }
+
+    /**
+     * Adds the `eventEpoch=v1` declaration and the cursor's bound epoch (when it
+     * has one) to a built upgrade URL. An unbound positive cursor sends no
+     * `lastSeenEpoch`, which the server answers with one authoritative resync.
+     */
+    fun withEventEpochDeclaration(url: String, lastSeenEpoch: String?): String {
+        val separator = if (url.contains('?')) "&" else "?"
+        val declaration =
+            "${RemoteEventEpochCodes.WS_PARAM}=${RemoteEventEpochCodes.DECLARATION}"
+        val epoch = lastSeenEpoch?.let {
+            "&${RemoteEventEpochCodes.LAST_SEEN_PARAM}=" +
+                java.net.URLEncoder.encode(it, "UTF-8")
+        }.orEmpty()
+        return "$url$separator$declaration$epoch"
     }
 
     /**

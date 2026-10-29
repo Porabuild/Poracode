@@ -316,6 +316,7 @@ struct RemoteShellSnapshot: Codable, Sendable, Equatable {
     var reads: String? = nil
     var threadsNextCursor: String? = nil
     var projectsNextCursor: String? = nil
+    var snapshotEpoch: String? = nil
 }
 
 extension RemoteShellSnapshot {
@@ -509,7 +510,8 @@ struct RemoteRuntimeItemsPage: Codable, Sendable, Equatable {
 // MARK: - WebSocket envelopes
 
 enum RemoteWebSocketServerMessage: Sendable, Equatable {
-    case ready(seq: Int)
+    /// `epoch` is present only on an `eventEpoch=v1` connection to a host that reports one.
+    case ready(seq: Int, epoch: String?)
     case event(seq: Int, event: JSONValue)
     case resyncRequired(seq: Int, reason: String)
     case pong(id: String?, sentAt: Double?, receivedAt: Double)
@@ -530,7 +532,8 @@ enum RemoteWebSocketServerMessage: Sendable, Equatable {
             guard let seq = object["seq"]?.numberInt else {
                 throw RemoteClientError.invalidResponse("ready missing seq")
             }
-            return .ready(seq: seq)
+            let epoch = object["epoch"]?.stringValue
+            return .ready(seq: seq, epoch: epoch?.isEmpty == false ? epoch : nil)
         case "event":
             guard let seq = object["seq"]?.numberInt,
                 let event = object["event"]

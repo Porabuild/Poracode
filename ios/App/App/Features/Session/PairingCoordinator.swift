@@ -327,6 +327,7 @@ struct PairingCoordinator {
         // until the Online descriptor reconciles).
         await host.noteEnvironmentCapabilities(environment)
         host.state.lastSeenSeq = 0
+        host.state.lastSeenEpoch = nil
         host.state.bootstrapCompleted = true
         let snapshot = try await host.deps.hostCatalog.snapshot()
         guard isCurrent(ownerEpoch: ownerEpoch, generation: gen),

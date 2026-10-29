@@ -180,11 +180,15 @@ export function exchangePairingCredential(
       return refreshed;
     } catch (error) {
       if (error instanceof RefreshTokenReuseError) {
-        host.revokeAccessSession(error.sessionId);
         recordAudit(host, "refresh_reuse", {
           sessionId: error.sessionId,
           detail: { grant: "refresh_token" },
         });
+        try {
+          host.revokeAccessSession(error.sessionId);
+        } catch (revocationError) {
+          console.warn("[remote] failed to revoke reused refresh session:", revocationError);
+        }
       }
       throw error;
     }

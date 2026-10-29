@@ -225,6 +225,12 @@ interface RemoteEventSocket {
 
     fun appliedSeq(): Int?
 
+    /** Event-stream epoch [appliedSeq] is bound to (`eventEpoch=v1`), or null while unbound. */
+    fun appliedEpoch(): String? = null
+
+    /** Both cursor fields from the same event-stream state. */
+    fun appliedCursor(): Pair<Int?, String?> = appliedSeq() to appliedEpoch()
+
     /**
      * B1: whether the most recent upgrade attempt on this socket actually
      * declared `notices=v1` (`null` before any attempt, or for test sockets
@@ -267,11 +273,16 @@ interface RemoteEventSocket {
 
     fun start(lastSeenSeq: Int?)
 
+    /** [start] resuming a pooled cursor still bound to [lastSeenEpoch]. */
+    fun start(lastSeenSeq: Int?, lastSeenEpoch: String?) = start(lastSeenSeq)
+
     /**
      * Arm cursor + lifecycle flags without opening a network connection.
      * Used when the app is backgrounded: foreground later calls [start] or [resumeFromForeground].
      */
     fun armSuspended(lastSeenSeq: Int?)
+
+    fun armSuspended(lastSeenSeq: Int?, lastSeenEpoch: String?) = armSuspended(lastSeenSeq)
 
     fun stop()
 

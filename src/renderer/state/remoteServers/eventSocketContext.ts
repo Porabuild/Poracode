@@ -84,6 +84,7 @@ export interface EventSocketConnectionContext {
   readonly resyncSlots: {
     promise: Promise<boolean> | null;
     socket: RemoteSocketLike | null;
+    resumeFence: number | null;
   };
   dispatchForwardEvent: (
     forward: unknown,

@@ -11,8 +11,8 @@ val RemoteRootCodecs.routeU2ESettingsU2DWriteU2EResponse: RemoteRootCodec<Routes
 val RemoteRootCodecs.routeU2EShellU2DSnapshotU2EQuery: RemoteRootCodec<RouteshellU2DSnapshotQuery_b2ca36e3fa>
     get() = RemoteRootCodec("route.shell-snapshot.query", serializer<RouteshellU2DSnapshotQuery_b2ca36e3fa>(), schema_b2ca36e3fa7743ad)
 
-val RemoteRootCodecs.routeU2EShellU2DSnapshotU2EResponse: RemoteRootCodec<RouteshellU2DSnapshotResponse_f6c56a3e39>
-    get() = RemoteRootCodec("route.shell-snapshot.response", serializer<RouteshellU2DSnapshotResponse_f6c56a3e39>(), schema_f6c56a3e399dfc0a)
+val RemoteRootCodecs.routeU2EShellU2DSnapshotU2EResponse: RemoteRootCodec<RouteshellU2DSnapshotResponse_62e77d10c8>
+    get() = RemoteRootCodec("route.shell-snapshot.response", serializer<RouteshellU2DSnapshotResponse_62e77d10c8>(), schema_62e77d10c808519a)
 
 val RemoteRootCodecs.routeU2ETerminalU2DCloseU2EPath: RemoteRootCodec<ProcedurecancelExtractContextRequest_09b78d9c1d>
     get() = RemoteRootCodec("route.terminal-close.path", serializer<ProcedurecancelExtractContextRequest_09b78d9c1d>(), schema_09b78d9c1d4c3a6b)
@@ -266,8 +266,8 @@ val RemoteRootCodecs.websocketU2EClientU2ETerminalU2DWatchU2DBaselineU2DAck: Rem
 val RemoteRootCodecs.websocketU2EClientU2EThreadU2DItemU2DInterests: RemoteRootCodec<WebSocketClientMessageU2DOptionU2D11_93bef3a552>
     get() = RemoteRootCodec("websocket.client.thread-item-interests", serializer<WebSocketClientMessageU2DOptionU2D11_93bef3a552>(), schema_93bef3a552bf787e)
 
-val RemoteRootCodecs.websocketU2EServer: RemoteRootCodec<WebSocketServerMessage_252e94a758>
-    get() = RemoteRootCodec("websocket.server", serializer<WebSocketServerMessage_252e94a758>(), schema_252e94a758743ab1)
+val RemoteRootCodecs.websocketU2EServer: RemoteRootCodec<WebSocketServerMessage_b176186fb3>
+    get() = RemoteRootCodec("websocket.server", serializer<WebSocketServerMessage_b176186fb3>(), schema_b176186fb3da3d3b)
 
 val RemoteRootCodecs.websocketU2EServerU2EAgentU2DVisionU2DFrame: RemoteRootCodec<WebSocketServerMessageU2DOptionU2D1_48916cddaa>
     get() = RemoteRootCodec("websocket.server.agent-vision-frame", serializer<WebSocketServerMessageU2DOptionU2D1_48916cddaa>(), schema_48916cddaaeb3b09)
@@ -290,8 +290,8 @@ val RemoteRootCodecs.websocketU2EServerU2EEvent: RemoteRootCodec<WebSocketServer
 val RemoteRootCodecs.websocketU2EServerU2EPong: RemoteRootCodec<WebSocketServerMessageU2DOptionU2D5_17b50a5a25>
     get() = RemoteRootCodec("websocket.server.pong", serializer<WebSocketServerMessageU2DOptionU2D5_17b50a5a25>(), schema_17b50a5a251b31ce)
 
-val RemoteRootCodecs.websocketU2EServerU2EReady: RemoteRootCodec<WebSocketServerMessageU2DOptionU2D2_13762c62f0>
-    get() = RemoteRootCodec("websocket.server.ready", serializer<WebSocketServerMessageU2DOptionU2D2_13762c62f0>(), schema_13762c62f0c23527)
+val RemoteRootCodecs.websocketU2EServerU2EReady: RemoteRootCodec<WebSocketServerMessageU2DOptionU2D2_dade9637ae>
+    get() = RemoteRootCodec("websocket.server.ready", serializer<WebSocketServerMessageU2DOptionU2D2_dade9637ae>(), schema_dade9637aede6170)
 
 val RemoteRootCodecs.websocketU2EServerU2EResyncU2DRequired: RemoteRootCodec<WebSocketServerMessageU2DOptionU2D4_a633f9a256>
     get() = RemoteRootCodec("websocket.server.resync-required", serializer<WebSocketServerMessageU2DOptionU2D4_a633f9a256>(), schema_a633f9a256d1d0c9)

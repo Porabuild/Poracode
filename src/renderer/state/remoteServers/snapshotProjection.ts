@@ -53,6 +53,7 @@ import {
   currentRemoteServerGeneration,
   getRemoteServerEventSocketEntry,
   hasRemoteServerCursorSyncV2,
+  remoteServerResumeFence,
   remoteServerSnapshotSeq,
   remoteThreadAppliedSeq,
   removeRemoteServerThreadItemInterest,
@@ -308,7 +309,7 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
         }
         return {
           generation: currentRemoteServerGeneration(connectionKey),
-          identity: `${server.desktopId}\u0000${server.endpoint}\u0000${server.accessToken}`,
+          identity: `${server.desktopId}\u0000${server.endpoint}`,
           client: cached.client,
         };
       },
@@ -383,6 +384,7 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
     connectionKey: string,
     page: RemoteBoundedShellSnapshotPage,
   ): void => {
+    bumpRemoteServerSnapshotSeq(connectionKey, page.snapshotSeq, undefined, page.snapshotEpoch);
     installBoundedCatalogShellPage(connectionKey, page);
     if (page.gitSummariesByThread) {
       syncRemoteGitSummaries(connectionKey, page.gitSummariesByThread);
@@ -492,15 +494,18 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
         );
         return false;
       }
-      const serverIdentityAtStart = `${server.endpoint}\0${server.accessToken}`;
+      const serverIdentityAtStart = server.endpoint;
       const serverGenerationAtStart = currentRemoteServerGeneration(desktopId);
+      // The history may come from a server instance the event stream has
+      // since replaced: it must not raise that new epoch's resume cursor.
+      const resumeFenceAtStart = remoteServerResumeFence(desktopId);
       const isHistoryConnectionCurrent = (): boolean => {
         const currentServer = get().servers.find(
           (entry) => remoteConnectionKey(entry) === desktopId,
         );
         return (
           currentServer !== undefined &&
-          `${currentServer.endpoint}\0${currentServer.accessToken}` === serverIdentityAtStart &&
+          currentServer.endpoint === serverIdentityAtStart &&
           currentRemoteServerGeneration(desktopId) === serverGenerationAtStart
         );
       };
@@ -548,13 +553,6 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
         );
         snapshot = result.page;
         if (result.negotiation === "bounded") boundedHistoryPage = result.page;
-        // Durable notice from the authoritative snapshot: retained across
-        // later reads that omit the field, fenced by connection identity.
-        recordThreadHistoryNoticeRead(
-          remoteThreadId(desktopId, threadId),
-          remoteConnectionKey(server),
-          result.page.runtimeNotice,
-        );
       } catch (error) {
         resumeRead.cancel();
         // Drop this thread's hydration interest even when superseded: a
@@ -600,6 +598,17 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
         resumeRead.cancel();
         return false;
       }
+      if (remoteServerResumeFence(desktopId) !== resumeFenceAtStart) {
+        resumeRead.cancel();
+        if (requestSeq !== openRemoteThreadRequestSeq || options?.signal?.aborted) return false;
+        return get().openRemoteThread(desktopId, threadId, options);
+      }
+      // Only a snapshot from the current connection and epoch can update its notice.
+      recordThreadHistoryNoticeRead(
+        viewThreadId,
+        remoteConnectionKey(server),
+        snapshot.runtimeNotice,
+      );
       const projectedSnapshot = projectRemoteThreadSnapshot(desktopId, snapshot);
       // Retain the bounded tail cursor + page proof so older completed-turn
       // pages and older runtime-item pages can continue on this connection.
@@ -618,7 +627,9 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
               committedPrefix: {
                 threadId: viewThreadId,
                 snapshotSeq: boundedHistoryPage.snapshotSeq,
-                isCurrent: isHistoryConnectionCurrent,
+                isCurrent: () =>
+                  isHistoryConnectionCurrent() &&
+                  remoteServerResumeFence(desktopId) === resumeFenceAtStart,
                 lastSeenEventSeq: () => remoteThreadAppliedSeq(desktopId, threadId),
               },
             }
@@ -629,7 +640,7 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
         recordAuthoritativeHistoryInstall(desktopId, threadId, snapshot.snapshotSeq);
       } else resumeRead.cancel();
       addRemoteServerThreadItemInterest(desktopId, threadId);
-      bumpRemoteServerSnapshotSeq(desktopId, snapshot.snapshotSeq);
+      bumpRemoteServerSnapshotSeq(desktopId, snapshot.snapshotSeq, resumeFenceAtStart);
       // WS3-A: the agent-statuses fetch omitted slash-command catalogs, so
       // the opened thread's agent catalog is fetched once, on first use.
       const openedThread = snapshot.thread;
@@ -710,6 +721,15 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
       // overwrites a newer one (e.g. shows "running" after "finished").
       const requestSeq = nextRemoteServerRefreshRequestSeq(desktopId);
       const isLatest = () => isRemoteServerRefreshCurrent(desktopId, requestSeq);
+      // A refresh whose snapshot crossed an event-stream epoch change may
+      // describe the previous server instance; it repaints from a new read
+      // instead of raising the new epoch's resume cursor.
+      const resumeFenceAtStart = remoteServerResumeFence(desktopId);
+      const crossedEpochChange = (): boolean => {
+        if (remoteServerResumeFence(desktopId) === resumeFenceAtStart) return false;
+        get().scheduleServerRefresh(desktopId);
+        return true;
+      };
       // Replace the whole runtime entry; snapshots are kept across a
       // connecting/error transition so the UI doesn't flash empty. Skip the
       // write if the server was removed while a refresh was in flight, so a
@@ -756,7 +776,7 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
             maxBytes: REMOTE_BOUNDED_READ_DEFAULT_MAX_WIRE_BYTES,
             maxDecodeBytes: REMOTE_BOUNDED_READ_DEFAULT_MAX_DECODE_BYTES,
           });
-          if (!isLatest()) return;
+          if (!isLatest() || crossedEpochChange()) return;
           if (bounded.negotiation === "bounded") {
             if (takeRemoteServerRowResyncPending(desktopId)) {
               beginBoundedCatalogAttempt(desktopId);
@@ -777,10 +797,15 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
           : [await snapshotPromise, cached()?.agentStatuses];
         // Drop a stale (superseded) result so out-of-order resolutions don't
         // regress the UI or the seq cursor.
-        if (!isLatest()) return;
+        if (!isLatest() || crossedEpochChange()) return;
         // Clamp the stored seq with Math.max so a stale response can't
         // regress the cursor a live socket already advanced past.
-        bumpRemoteServerSnapshotSeq(desktopId, snapshot.snapshotSeq);
+        bumpRemoteServerSnapshotSeq(
+          desktopId,
+          snapshot.snapshotSeq,
+          resumeFenceAtStart,
+          snapshot.snapshotEpoch,
+        );
         const current = cached();
         const projects = reuseRemoteRows(current?.projects ?? [], snapshot.projects);
         const { rows: reconciledThreads, staleThreadIds } = reconcileThreadRowsWithAppliedEvents(
@@ -865,13 +890,18 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
         // connection's read contract, not the host being offline, and its SDK
         // prose is English-only: surface the localized catalog message instead.
         const protocolViolation = isRemoteBoundedReadProtocolError(error);
+        const current = cached();
         setRuntime({
           status: protocolViolation || !isRemoteTransportFailure(error) ? "error" : "offline",
           message: protocolViolation
             ? i18n._(msg`The remote catalog read failed.`)
             : friendlyError(error) || i18n._(msg`Connection failed.`),
-          projects: cached()?.projects ?? [],
-          threads: cached()?.threads ?? [],
+          projects: current?.projects ?? [],
+          threads: current?.threads ?? [],
+          // A failed read says nothing about installed agents; later
+          // event-driven refreshes skip them, so dropping the list here
+          // would leave the host's composer without agents.
+          ...(current?.agentStatuses ? { agentStatuses: current.agentStatuses } : {}),
         });
         syncDesktopBrowserBridgeClient(get());
       }

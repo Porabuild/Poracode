@@ -4,7 +4,10 @@ import { createStore } from "zustand/vanilla";
 import { persist, type StorageValue } from "zustand/middleware";
 import type { RemoteServerRecord } from "./types";
 
-import { createSecureRemoteServersStorage } from "./secureStorage";
+import {
+  createSecureRemoteServersStorage,
+  type RemoteServersDurableChanges,
+} from "./secureStorage";
 import * as tokenVault from "./tokenVault";
 import {
   __resetTokenVaultForTest,
@@ -341,6 +344,131 @@ describe("secure remote-server persistence", () => {
     expect(localStorage.getItem("servers")).not.toContain("legacy-secret");
     await storage.setItem("servers", stateValue([]));
     expect(JSON.parse(localStorage.getItem("servers")!).state.servers).toEqual([]);
+  });
+
+  it("writes only each realm's own changes onto the shared document", async () => {
+    const main = createSecureRemoteServersStorage<PersistedState>();
+    const sideChat = createSecureRemoteServersStorage<PersistedState>();
+    await main.setItem("servers", stateValue([server("web-1", "token-1")]));
+    await main.getItem("servers");
+    await sideChat.getItem("servers");
+
+    // The main window renames, rotates and pairs another host.
+    await main.setItem(
+      "servers",
+      stateValue([
+        { ...server("web-1", "token-2"), label: "Renamed" },
+        server("legacy-1", "second-host"),
+      ]),
+    );
+    // The side chat persists an unrelated change from its older view.
+    await sideChat.setItem("servers", {
+      ...stateValue([server("web-1", "token-1")]),
+      state: { servers: [server("web-1", "token-1")], marker: "changed" },
+    });
+    __resetTokenVaultForTest();
+
+    const restored = await createSecureRemoteServersStorage<PersistedState>().getItem("servers");
+    expect(restored?.state.marker).toBe("changed");
+    expect(restored?.state.servers).toEqual([
+      { ...server("web-1", "token-2"), label: "Renamed" },
+      server("legacy-1", "second-host"),
+    ]);
+
+    // A removal in one realm is not revived by another realm's later write.
+    await main.setItem(
+      "servers",
+      stateValue([{ ...server("web-1", "token-2"), label: "Renamed" }]),
+    );
+    await sideChat.setItem("servers", {
+      ...stateValue([server("web-1", "token-1")]),
+      state: { servers: [server("web-1", "token-1")], marker: "again" },
+    });
+    __resetTokenVaultForTest();
+    expect(
+      (await createSecureRemoteServersStorage<PersistedState>().getItem("servers"))?.state.servers,
+    ).toEqual([{ ...server("web-1", "token-2"), label: "Renamed" }]);
+    expect(await getDesktopToken("legacy-1")).toBeNull();
+  });
+
+  it("keeps both windows' changes when encryption pauses one save", async () => {
+    const contended = Promise.withResolvers<void>();
+    let tail = Promise.resolve();
+    let queued = 0;
+    vi.stubGlobal("navigator", {
+      locks: {
+        request: <T>(_name: string, run: () => Promise<T>): Promise<T> => {
+          if (queued > 0) contended.resolve();
+          queued += 1;
+          const result = tail.then(run);
+          tail = result.then(
+            () => {
+              queued -= 1;
+            },
+            () => {
+              queued -= 1;
+            },
+          );
+          return result;
+        },
+      },
+    });
+    const main = createSecureRemoteServersStorage<PersistedState>();
+    const other = createSecureRemoteServersStorage<PersistedState>();
+    await main.setItem("servers", stateValue([server("web-1", "token-1")]));
+    await other.getItem("servers");
+    const gate = Promise.withResolvers<void>();
+    const encrypting = Promise.withResolvers<void>();
+    const writeToken = tokenVault.setDesktopToken;
+    vi.spyOn(tokenVault, "setDesktopToken").mockImplementation(async (key, token) => {
+      if (token === "token-2") {
+        encrypting.resolve();
+        await gate.promise;
+      }
+      return writeToken(key, token);
+    });
+    const renamed = { ...server("web-1", "token-2"), label: "Renamed" };
+    const first = main.setItem("servers", stateValue([renamed]));
+    await encrypting.promise;
+    const second = other.setItem(
+      "servers",
+      stateValue([server("web-1", "token-1"), server("legacy-1", "new-pairing")]),
+    );
+    try {
+      await Promise.race([second, contended.promise]);
+    } finally {
+      gate.resolve();
+    }
+    await Promise.all([first, second]);
+    __resetTokenVaultForTest();
+    expect((await main.getItem("servers"))?.state.servers).toEqual([
+      renamed,
+      server("legacy-1", "new-pairing"),
+    ]);
+  });
+
+  it("reconciles other realms' changes but leaves keys with pending local writes", async () => {
+    const main = createSecureRemoteServersStorage<PersistedState>();
+    const sideChat = createSecureRemoteServersStorage<PersistedState>();
+    await main.setItem("servers", stateValue([server("web-1", "token-1")]));
+    await sideChat.getItem("servers");
+    await main.setItem(
+      "servers",
+      stateValue([{ ...server("web-1", "token-1"), label: "Renamed" }, server("legacy-1", "b")]),
+    );
+
+    const apply = vi.fn<(changes: RemoteServersDurableChanges) => void>();
+    await sideChat.reconcile("servers", apply);
+    expect(apply).toHaveBeenCalledExactlyOnceWith({
+      added: [server("legacy-1", "b")],
+      changed: [{ key: "web-1", fields: { label: "Renamed" } }],
+      removed: [],
+      fields: [],
+    });
+    // Reconciled state is this realm's view now; re-reading finds nothing new.
+    apply.mockClear();
+    await sideChat.reconcile("servers", apply);
+    expect(apply).not.toHaveBeenCalled();
   });
 
   it("keeps a failed legacy migration alongside a successfully encrypted pairing", async () => {

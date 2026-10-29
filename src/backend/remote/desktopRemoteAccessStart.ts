@@ -319,6 +319,7 @@ export async function performDesktopRemoteAccessStart(
         : {}),
       gitSummaries: () => refs.remoteGitSummaries,
       gitState: options.gitStateService,
+      ...(options.projectWatchLeases ? { projectWatches: options.projectWatchLeases } : {}),
       settings: {
         read: () => pickRemoteSettings(readSharedSettingsFile(options.paths.settingsPath)),
         // Remote `POST /api/settings` as scoped CAS edits; a surviving

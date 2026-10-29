@@ -19169,6 +19169,10 @@ msgstr "Nie udało się anulować uruchomienia."
 msgid "The run was interrupted."
 msgstr "Uruchomienie zostało przerwane."
 
+#: src/renderer/state/remoteServers/sharedCredentials.ts
+msgid "The saved remote credentials could not be confirmed."
+msgstr "Nie udało się potwierdzić zapisanych danych uwierzytelniających połączenia zdalnego."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The scheduled automation failed."
 msgstr "Zaplanowana automatyzacja nie powiodła się."
@@ -20156,6 +20160,10 @@ msgstr "Tokeny z {0}"
 #: src/renderer/components/thread/CrewDockSection.tsx
 msgid "Told not to edit files. Not enforced."
 msgstr "Instrukcja, aby nie edytować plików. Nie jest wymuszona."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Too many remote requests are in progress. Try again in a moment."
+msgstr "Trwa zbyt wiele żądań zdalnych. Spróbuj ponownie za chwilę."
 
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Too many visuals in this message. Showing source only."

@@ -31,6 +31,7 @@ import {
   getRemoteServerEventSocketEntry,
   getRemoteServerThreadItemInterests,
   rememberRemoteServerThreadItemInterests,
+  remoteServerSnapshotEpoch,
   remoteServerSnapshotSeq,
   sameRemoteServerThreadItemInterests,
   setRemoteServerEventSocketEntry,
@@ -38,6 +39,7 @@ import {
   type RemoteServerEventSocketEntry,
 } from "./eventSocketRegistry";
 import { bindEventSocketResync } from "./eventSocketResync";
+import { withEventEpochDeclaration } from "@/shared/remote/protocol/eventEpoch";
 import { withRuntimeHistoryNoticesDeclaration } from "@/renderer/state/remote/historyNoticeCapability";
 import {
   declaresBoundedCatalogChangesForConnection,
@@ -110,7 +112,7 @@ export async function startRemoteServerEventStream(
   } = deps;
 
   const connectionKey = remoteConnectionKey(server);
-  const serverKey = `${server.endpoint}\0${server.accessToken}`;
+  const serverKey = server.endpoint;
   // This session's consumer-scoped decode engine (V5 2.2) and its per-host lane
   // (A3): independent of the desktop renderer-stream and persist engines, and
   // isolated from every other paired host's flood, so their resets/overflows
@@ -122,10 +124,7 @@ export async function startRemoteServerEventStream(
   // its pending callbacks reject typed and its late results are fenced.
   const decodeLane = engine.createLane({ key: `event-socket:${connectionKey}` });
 
-  closeRemoteServerEventSocket(
-    connectionKey,
-    options.resyncInterestedThreads ? { preserveReplayState: true } : undefined,
-  );
+  closeRemoteServerEventSocket(connectionKey, { preserveReplayState: true });
   const entry: RemoteServerEventSocketEntry = {
     serverKey,
     socket: null,
@@ -143,6 +142,7 @@ export async function startRemoteServerEventStream(
   const resyncSlots: EventSocketConnectionContext["resyncSlots"] = {
     promise: null,
     socket: null,
+    resumeFence: null,
   };
   const recovery = createEventSocketRecoveryState();
   /** Set when a frame was provably dropped client-side (engine overflow/reset
@@ -269,6 +269,7 @@ export async function startRemoteServerEventStream(
         capabilities.boundedCatalogChanges === true,
       );
       const lastSeenSeq = remoteServerSnapshotSeq(connectionKey);
+      const lastSeenEpoch = remoteServerSnapshotEpoch(connectionKey);
       const openThread = get().openThread;
       const threadItemInterests =
         getRemoteServerThreadItemInterests(connectionKey) ??
@@ -278,12 +279,17 @@ export async function startRemoteServerEventStream(
         // renders and can acknowledge the durable notice. boundedCatalogChanges
         // rides the same upgrade only when this descriptor advertised it AND
         // the bounded controller (which refreshes through bounded reads on the
-        // payload-less signal) is installed for this connection.
-        withBoundedCatalogChangesDeclaration(
-          withRuntimeHistoryNoticesDeclaration(
-            client.websocketUrl(ticket, lastSeenSeq, { threadItemInterests }),
+        // payload-less signal) is installed for this connection. The epoch
+        // declaration binds the resume cursor to the instance that issued it
+        // (older hosts ignore it and keep the seq-only resume).
+        withEventEpochDeclaration(
+          withBoundedCatalogChangesDeclaration(
+            withRuntimeHistoryNoticesDeclaration(
+              client.websocketUrl(ticket, lastSeenSeq, { threadItemInterests }),
+            ),
+            declaresBoundedCatalogChangesForConnection(connectionKey),
           ),
-          declaresBoundedCatalogChangesForConnection(connectionKey),
+          lastSeenEpoch,
         ),
       );
       if (!isCurrent()) {

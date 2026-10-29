@@ -428,7 +428,7 @@ describe("managed parent rotation and teardown", () => {
     void session;
   });
 
-  it("does not apply a delayed rotation from a replaced persisted parent session", () => {
+  it("does not apply a delayed rotation from a replaced persisted parent session", async () => {
     const parent = {
       connectionId: "parent-connection",
       desktopId: "parent-desktop",
@@ -482,32 +482,52 @@ describe("managed parent rotation and teardown", () => {
 
     // The replacement's fresh rotation lands; the retired client's delayed
     // response must not become the replacement's live token.
-    lifecycles[1]!.onTokensRefreshed({ accessToken: "fresh", refreshToken: "r" });
+    await lifecycles[1]!.onTokensRefreshed({ accessToken: "fresh", refreshToken: "r" });
     expect(rebuilt.parentAuthority.accessToken()).toBe("fresh");
-    lifecycles[0]!.onTokensRefreshed({ accessToken: "stale", refreshToken: "old" });
+    await lifecycles[0]!.onTokensRefreshed({ accessToken: "stale", refreshToken: "old" });
     expect(rebuilt.parentAuthority.accessToken()).toBe("fresh");
   });
 });
 
 describe("child grant ownership across removal and re-pair", () => {
-  it("drops a delayed rotation from a removed child session", () => {
+  it("serializes child refreshes and keeps the rotated bearer with its client", async () => {
+    const h = harness([managedChild()]);
+    const session = environmentSessionForServer(managedChild())!;
+    const lifecycle = h.envClients[0]!.lifecycle!;
+    expect(lifecycle.runExclusive).toBeTypeOf("function");
+    expect(lifecycle.accessToken?.()).toBe("child-access");
+
+    await lifecycle.onTokensRefreshed({
+      accessToken: "child-rotated",
+      refreshToken: "child-grant",
+    });
+    expect(lifecycle.accessToken?.()).toBe("child-rotated");
+    expect(h.remembered.get(`managedEnvironment.${HOST}.${ENVIRONMENT_ID}`)).toBe("child-grant");
+    // The record keeps its bearer, so the mounted session is not rebuilt.
+    expect(environmentSessionForServer(managedChild())).toBe(session);
+
+    session.dispose();
+    expect(lifecycle.accessToken?.()).toBeUndefined();
+  });
+
+  it("drops a delayed rotation from a removed child session", async () => {
     const h = harness([managedChild()]);
     const session = environmentSessionForServer(managedChild())!;
     const oldLifecycle = h.envClients[0]!.lifecycle!;
-    oldLifecycle.onTokensRefreshed({ accessToken: "a", refreshToken: "old-grant" });
+    await oldLifecycle.onTokensRefreshed({ accessToken: "a", refreshToken: "old-grant" });
     expect(h.remembered.get(`managedEnvironment.${HOST}.${ENVIRONMENT_ID}`)).toBe("old-grant");
 
     session.dispose();
-    oldLifecycle.onTokensRefreshed({ accessToken: "a", refreshToken: "resurrected" });
+    await oldLifecycle.onTokensRefreshed({ accessToken: "a", refreshToken: "resurrected" });
     expect(h.remembered.get(`managedEnvironment.${HOST}.${ENVIRONMENT_ID}`)).toBe("old-grant");
     expect(h.written).not.toContain(`managedEnvironment.${HOST}.${ENVIRONMENT_ID}=resurrected`);
   });
 
-  it("never overwrites a newly paired grant with a delayed old writer", () => {
+  it("never overwrites a newly paired grant with a delayed old writer", async () => {
     const h = harness([managedChild()]);
     const first = environmentSessionForServer(managedChild())!;
     const oldLifecycle = h.envClients[0]!.lifecycle!;
-    oldLifecycle.onTokensRefreshed({ accessToken: "a", refreshToken: "first-grant" });
+    await oldLifecycle.onTokensRefreshed({ accessToken: "a", refreshToken: "first-grant" });
 
     // Re-pair at the SAME endpoint: the record bearer changes, replacing the
     // session and acquiring a fresh fence.
@@ -515,13 +535,13 @@ describe("child grant ownership across removal and re-pair", () => {
     const second = environmentSessionForServer(managedChild({ accessToken: "child-repaired" }))!;
     expect(second).not.toBe(first);
     const newLifecycle = h.envClients[1]!.lifecycle!;
-    newLifecycle.onTokensRefreshed({ accessToken: "b", refreshToken: "new-grant" });
-    oldLifecycle.onTokensRefreshed({ accessToken: "c", refreshToken: "late-old-grant" });
+    await newLifecycle.onTokensRefreshed({ accessToken: "b", refreshToken: "new-grant" });
+    await oldLifecycle.onTokensRefreshed({ accessToken: "c", refreshToken: "late-old-grant" });
     expect(h.remembered.get(`managedEnvironment.${HOST}.${ENVIRONMENT_ID}`)).toBe("new-grant");
     expect(h.written).not.toContain(`managedEnvironment.${HOST}.${ENVIRONMENT_ID}=late-old-grant`);
   });
 
-  it("fences the temporary pairing client against a later session writer", () => {
+  it("fences the temporary pairing client against a later session writer", async () => {
     const h = harness([managedChild()]);
     const created = createEnvironmentClientForPairing({
       parent: { kind: "managed", hostDesktopId: HOST },
@@ -531,17 +551,17 @@ describe("child grant ownership across removal and re-pair", () => {
     });
     expect(created).toBeDefined();
     const pairingLifecycle = h.envClients[0]!.lifecycle!;
-    pairingLifecycle.onTokensRefreshed({ accessToken: "a", refreshToken: "pair-grant" });
+    await pairingLifecycle.onTokensRefreshed({ accessToken: "a", refreshToken: "pair-grant" });
     // The pairing client hands the fence over when it is done.
     created!.client.dispose();
     releaseEnvironmentChildGrant(created!.childGrantSubject, created!.grantOwner);
 
     const session = environmentSessionForServer(managedChild())!;
-    h.envClients[1]!.lifecycle!.onTokensRefreshed({
+    await h.envClients[1]!.lifecycle!.onTokensRefreshed({
       accessToken: "b",
       refreshToken: "session-grant",
     });
-    pairingLifecycle.onTokensRefreshed({ accessToken: "c", refreshToken: "late-pair-grant" });
+    await pairingLifecycle.onTokensRefreshed({ accessToken: "c", refreshToken: "late-pair-grant" });
     expect(h.remembered.get(`managedEnvironment.${HOST}.${ENVIRONMENT_ID}`)).toBe("session-grant");
     expect(session.childGrantKey).toBe(`managedEnvironment.${HOST}.${ENVIRONMENT_ID}`);
   });

@@ -202,6 +202,55 @@ describe("RemoteAuthStore", () => {
     expect(store.revokeAccessSession(session!.id)).toBe(false);
   });
 
+  it.each(["revoke retry", "another session write"])(
+    "keeps failed revocations retryable until persisted by %s",
+    (flush) => {
+      const baseDir = mkdtempSync(join(tmpdir(), "poracode-revoke-retry-"));
+      try {
+        let failWrites = false;
+        const store = new RemoteAuthStore({
+          onPersistedStateChanged: (state) => {
+            if (failWrites) throw new Error("EBUSY: auth write failed");
+            writeRemoteAccessAuthFile(baseDir, state);
+          },
+        });
+        const token = store.exchangePairingCredential({
+          credential: store.issuePairingCredential().credential,
+        });
+        const other = store.exchangePairingCredential({
+          credential: store.issuePairingCredential().credential,
+        });
+        failWrites = true;
+        expect(() => store.revokeAccessSession(token.sessionId!)).toThrow("EBUSY");
+        expect(store.listAccessSessions().map((session) => session.id)).toContain(token.sessionId);
+        expect(() => store.authenticateBearerToken(token.accessToken)).toThrow(RemoteHttpError);
+        expect(() => store.refreshAccessToken({ refreshToken: token.refreshToken! })).toThrow(
+          RemoteHttpError,
+        );
+
+        failWrites = false;
+        let persisted = true;
+        if (flush === "revoke retry") persisted = store.revokeAccessSession(token.sessionId!);
+        else store.markSessionConnected(other.sessionId!);
+        expect(persisted).toBe(true);
+        expect(store.listAccessSessions().map((session) => session.id)).not.toContain(
+          token.sessionId,
+        );
+        const restarted = createPersistentRemoteAuthStore(baseDir);
+        expect(() => restarted.authenticateBearerToken(token.accessToken)).toThrow(RemoteHttpError);
+        expect(() => restarted.refreshAccessToken({ refreshToken: token.refreshToken! })).toThrow(
+          RemoteHttpError,
+        );
+        expect(restarted.authenticateBearerToken(other.accessToken).sessionId).toBe(
+          other.sessionId,
+        );
+        expect(store.revokeAccessSession(token.sessionId!)).toBe(false);
+      } finally {
+        rmSync(baseDir, { recursive: true, force: true });
+      }
+    },
+  );
+
   // POSIX-only: Windows does not honor the 0o600 mode bits (stat reports 0o666).
   it.skipIf(process.platform === "win32")(
     "writes persisted access sessions with owner-only permissions",
@@ -299,6 +348,47 @@ describe("RemoteAuthStore", () => {
     );
     expect(() => store.refreshAccessToken({ refreshToken: refreshed.refreshToken! })).toThrow(
       RemoteHttpError,
+    );
+  });
+
+  it("keeps the presented pair and records no predecessor when the rotation cannot be persisted", () => {
+    let failWrites = false;
+    const writes = vi.fn<(state: PersistedRemoteAuthFile) => void>(() => {
+      if (failWrites) throw new Error("EBUSY: simulated auth file write failure");
+    });
+    const store = new RemoteAuthStore({ onPersistedStateChanged: writes });
+    const token = store.exchangePairingCredential({
+      credential: store.issuePairingCredential({ scopes: ["session:read"] }).credential,
+    });
+    const [pairedRow] = writes.mock.lastCall![0].accessSessions;
+
+    failWrites = true;
+    expect(() => store.refreshAccessToken({ refreshToken: token.refreshToken! })).toThrow(
+      "simulated auth file write failure",
+    );
+    failWrites = false;
+
+    // The client never received a successor, so the pair it holds still works…
+    expect(store.authenticateBearerToken(token.accessToken).sessionId).toBe(token.sessionId);
+    // …and the next durable write carries the original row with no predecessor
+    // recorded, so a restart cannot turn the retry into reuse either.
+    store.markSessionConnected(token.sessionId!);
+    const persisted = writes.mock.lastCall![0];
+    expect(persisted.accessSessions).toHaveLength(1);
+    expect(persisted.accessSessions[0]).toMatchObject({
+      tokenHash: pairedRow!.tokenHash,
+      refreshTokenHash: pairedRow!.refreshTokenHash,
+    });
+    expect(persisted.rotatedRefreshHashes).toEqual([]);
+
+    // Retrying with the same refresh token is an ordinary rotation…
+    const retried = store.refreshAccessToken({ refreshToken: token.refreshToken! });
+    expect(retried.sessionId).toBe(token.sessionId);
+    expect(store.authenticateBearerToken(retried.accessToken).sessionId).toBe(token.sessionId);
+    expect(writes.mock.lastCall![0].rotatedRefreshHashes).toHaveLength(1);
+    // …after which presenting the rotated-out token is still reuse.
+    expect(() => store.refreshAccessToken({ refreshToken: token.refreshToken! })).toThrow(
+      RefreshTokenReuseError,
     );
   });
 

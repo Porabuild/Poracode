@@ -28,6 +28,7 @@ import {
   bumpRemoteServerSnapshotSeq,
   currentRemoteServerThreadItemInterests,
   hasRemoteServerCursorSyncV2,
+  remoteServerResumeFence,
   remoteThreadAppliedSeq,
   supervisorEventThreadIds,
 } from "./eventSocketRegistry";
@@ -49,13 +50,21 @@ function yieldToEventLoop(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 0));
 }
 
-async function replayRecoveryQueue(ctx: EventSocketConnectionContext): Promise<void> {
+async function replayRecoveryQueue(
+  ctx: EventSocketConnectionContext,
+  resumeFence: number,
+): Promise<void> {
   const { server, recovery } = ctx;
   const connectionKey = remoteConnectionKey(server);
   const queuedEvents = [...recovery.queuedEvents].sort((left, right) => left.seq - right.seq);
   let budgetStartedAt = performance.now();
   for (const queued of queuedEvents) {
-    if (!ctx.isCurrent() || ctx.entry.socket !== ctx.socket) return;
+    if (
+      !ctx.isCurrent() ||
+      ctx.entry.socket !== ctx.socket ||
+      remoteServerResumeFence(connectionKey) !== resumeFence
+    )
+      return;
     const batches = collectRuntimeEventsFromSupervisoryMessage(queued.event);
     const keptBatches = batches.filter(
       (batch) => queued.seq > (recovery.baselineSeqByThread.get(batch.threadId) ?? -Infinity),
@@ -91,9 +100,13 @@ export function resyncOpenThread(
   // The socket/registry/projection key is the record's connection key, never
   // the host identity: an environment record's `desktopId` is the child host.
   const connectionKey = remoteConnectionKey(server);
+  const resumeFence = remoteServerResumeFence(connectionKey);
   // Dedupe only within the SAME connection: a stale recovery from a
   // dead socket must not be handed to the replacement connection.
-  if (ctx.resyncSlots.promise && ctx.resyncSlots.socket === socket) return ctx.resyncSlots.promise;
+  if (ctx.resyncSlots.promise && ctx.resyncSlots.socket === socket) {
+    if (ctx.resyncSlots.resumeFence === resumeFence) return ctx.resyncSlots.promise;
+    return ctx.resyncSlots.promise.then(() => resyncOpenThread(ctx, beforeReplay));
+  }
   const open = get().openThread;
   const interests = currentRemoteServerThreadItemInterests(connectionKey);
   const threadIds = new Set<string>();
@@ -105,6 +118,9 @@ export function resyncOpenThread(
   recovery.queuedBytes = 0;
   recovery.overflowed = false;
   recovery.baselineSeqByThread = new Map<string, number>();
+  // A recovery that started under an earlier epoch binding (for example a
+  // reconnect recovery issued before this socket's `ready`) must not raise the
+  // new epoch's resume cursor with what may be the previous instance's reads.
   const promise = (async (): Promise<boolean> => {
     let restored = true;
     const snapshotReads: ReturnType<typeof beginHistorySnapshotRead>[] = [];
@@ -167,7 +183,11 @@ export function resyncOpenThread(
           continue;
         }
         const { threadId, followUpQueueSnapshotGuard } = result;
-        if (!isCurrent() || entry.socket !== socket) {
+        if (
+          !isCurrent() ||
+          entry.socket !== socket ||
+          remoteServerResumeFence(connectionKey) !== resumeFence
+        ) {
           result.resumeRead.cancel();
           restored = false;
           break;
@@ -206,7 +226,7 @@ export function resyncOpenThread(
           }
           recovery.baselineSeqByThread.set(threadId, response.snapshotSeq);
           recordAuthoritativeHistoryInstall(connectionKey, threadId, response.snapshotSeq);
-          bumpRemoteServerSnapshotSeq(connectionKey, response.snapshotSeq);
+          bumpRemoteServerSnapshotSeq(connectionKey, response.snapshotSeq, resumeFence);
           continue;
         }
         const history = result.history!;
@@ -222,7 +242,10 @@ export function resyncOpenThread(
                   committedPrefix: {
                     threadId: remoteThreadId(connectionKey, threadId),
                     snapshotSeq: nextSnapshot.snapshotSeq,
-                    isCurrent: () => isCurrent() && entry.socket === socket,
+                    isCurrent: () =>
+                      isCurrent() &&
+                      entry.socket === socket &&
+                      remoteServerResumeFence(connectionKey) === resumeFence,
                     lastSeenEventSeq: () => remoteThreadAppliedSeq(connectionKey, threadId),
                   },
                 }
@@ -243,7 +266,7 @@ export function resyncOpenThread(
           result.resumeRead.cancel();
           restored = false;
         }
-        bumpRemoteServerSnapshotSeq(connectionKey, nextSnapshot.snapshotSeq);
+        bumpRemoteServerSnapshotSeq(connectionKey, nextSnapshot.snapshotSeq, resumeFence);
         const currentOpen = get().openThread;
         if (currentOpen?.desktopId === connectionKey && currentOpen.threadId === threadId) {
           set({
@@ -258,7 +281,7 @@ export function resyncOpenThread(
         // replaying the transport recovery buffer so those
         // sequenced events cannot be discarded by the UI gate.
         beforeReplay?.();
-        await replayRecoveryQueue(ctx);
+        await replayRecoveryQueue(ctx, resumeFence);
       }
     } catch {
       restored = false;
@@ -268,6 +291,7 @@ export function resyncOpenThread(
     return restored;
   })();
   ctx.resyncSlots.socket = socket;
+  ctx.resyncSlots.resumeFence = resumeFence;
   ctx.resyncSlots.promise = promise.finally(() => {
     // A newer connection's recovery may already own the buffers; the
     // stale finally must not wipe them.
@@ -279,6 +303,7 @@ export function resyncOpenThread(
     recovery.baselineSeqByThread = new Map<string, number>();
     ctx.resyncSlots.promise = null;
     ctx.resyncSlots.socket = null;
+    ctx.resyncSlots.resumeFence = null;
   });
   return ctx.resyncSlots.promise;
 }
@@ -287,7 +312,14 @@ export async function recoverInterestedThreads(
   ctx: EventSocketConnectionContext,
   beforeReplay?: () => void,
 ): Promise<boolean> {
-  if (await resyncOpenThread(ctx, beforeReplay)) return true;
+  const connectionKey = remoteConnectionKey(ctx.server);
+  const resumeFence = remoteServerResumeFence(connectionKey);
+  const restored = await resyncOpenThread(ctx, beforeReplay);
+  if (remoteServerResumeFence(connectionKey) !== resumeFence) {
+    if (!ctx.isCurrent() || ctx.entry.socket !== ctx.socket) return false;
+    return recoverInterestedThreads(ctx, beforeReplay);
+  }
+  if (restored) return true;
   if (!ctx.isCurrent() || ctx.entry.socket !== ctx.socket) return false;
   ctx.forceReconnect(ctx.socket);
   ctx.setRemoteServerFailure(

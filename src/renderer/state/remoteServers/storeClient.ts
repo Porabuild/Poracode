@@ -19,13 +19,18 @@ import {
 } from "./connectionRefresh";
 import {
   connectionRefreshSubject,
-  deleteRefreshTokenFromVault,
   ensureConnectionIncarnation,
+  forgetRefreshTokenForSubject,
   ownsConnectionIncarnation,
   refreshTokenForDesktop,
   rememberRefreshToken,
-  writeRefreshTokenToVault,
 } from "./refreshTokens";
+import {
+  commitSharedRefresh,
+  runSharedRefresh,
+  type SharedCredentialCustody,
+} from "./sharedCredentials";
+import { noteDesktopTokenCommitted } from "./tokenVault";
 import type { RemoteServerRecord, RemoteServersState } from "./types";
 import type { TerminalConnectionCapabilities } from "./terminalCapabilities";
 
@@ -43,9 +48,18 @@ export interface RemoteServersStoreApi {
   readonly get: RemoteServersStoreGet;
 }
 
+/** The shared persisted copy every renderer realm of this origin writes. */
+export interface SharedServerRecords {
+  /** The record now in shared storage; undefined once another realm removed it. */
+  durableServer(connectionKey: string): RemoteServerRecord | undefined;
+  /** A bearer custody already committed, so persisting the store skips it. */
+  acknowledgeBearer(connectionKey: string, accessToken: string): void;
+}
+
 export function createRemoteServerClientBindings(
   api: RemoteServersStoreApi,
   certPinForDesktop: (desktopId: string) => string | undefined,
+  shared?: SharedServerRecords,
 ) {
   const { set, get } = api;
 
@@ -145,33 +159,40 @@ export function createRemoteServerClientBindings(
         (entry) =>
           remoteConnectionKey(entry) === connectionKey && entry.endpoint === server.endpoint,
       );
-    client.setTokenLifecycle({
-      accessToken: () =>
-        isCurrent()
-          ? get().servers.find(
-              (entry) =>
-                remoteConnectionKey(entry) === connectionKey && entry.endpoint === server.endpoint,
-            )?.accessToken
-          : undefined,
-      refreshToken: () => (isCurrent() ? refreshTokenForDesktop(connectionKey) : undefined),
-      onTokensRefreshed: (tokens) => {
-        // A delayed rotation from a removed or re-paired connection can neither
-        // resurrect a deleted grant nor overwrite a freshly paired one.
-        if (!isCurrent()) {
-          return;
-        }
-        persistAccessToken(connectionKey, tokens.accessToken);
-        if (tokens.refreshToken) {
-          rememberRefreshToken(connectionKey, tokens.refreshToken);
-          void writeRefreshTokenToVault(
-            connectionRefreshSubject(connectionKey),
-            tokens.refreshToken,
-            incarnation,
-          );
-        } else {
-          void deleteRefreshTokenFromVault(connectionRefreshSubject(connectionKey));
-        }
+    const currentAccessToken = () =>
+      isCurrent()
+        ? get().servers.find(
+            (entry) =>
+              remoteConnectionKey(entry) === connectionKey && entry.endpoint === server.endpoint,
+          )?.accessToken
+        : undefined;
+    const subject = connectionRefreshSubject(connectionKey);
+    // A delayed rotation from a removed or re-paired connection can neither
+    // resurrect a deleted grant nor overwrite a freshly paired one (`isCurrent`
+    // fences memory; the vault commit is a compare-and-set).
+    const custody: SharedCredentialCustody = {
+      subject,
+      bearerConnectionKey: connectionKey,
+      isCurrent,
+      canAdopt: () => !shared || shared.durableServer(connectionKey)?.endpoint === server.endpoint,
+      current: () => ({
+        accessToken: currentAccessToken(),
+        refreshToken: refreshTokenForDesktop(connectionKey),
+      }),
+      apply: (pair, durable) => {
+        if (pair.refreshToken !== undefined) rememberRefreshToken(connectionKey, pair.refreshToken);
+        else forgetRefreshTokenForSubject(subject);
+        if (pair.accessToken === undefined) return;
+        if (durable) noteDesktopTokenCommitted(connectionKey, pair.accessToken);
+        shared?.acknowledgeBearer(connectionKey, pair.accessToken);
+        persistAccessToken(connectionKey, pair.accessToken);
       },
+    };
+    client.setTokenLifecycle({
+      accessToken: currentAccessToken,
+      refreshToken: () => (isCurrent() ? refreshTokenForDesktop(connectionKey) : undefined),
+      onTokensRefreshed: (tokens) => commitSharedRefresh(custody, tokens),
+      runExclusive: (run) => runSharedRefresh(custody, run),
     });
     const pin = certPinForDesktop(remoteConnectionKey(server));
     if (pin) client.setCertFingerprintPin(pin);

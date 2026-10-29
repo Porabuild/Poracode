@@ -239,6 +239,8 @@ protocol SessionLiveSocket: AnyObject {
     /// clears the host's per-connection interest map.
     func setGitStateInterests(_ interests: [GitStateInterest]) async
     func start(lastSeenSeq: Int?) async
+    /// `start` resuming a cached cursor still bound to its event-stream epoch.
+    func start(lastSeenSeq: Int?, lastSeenEpoch: String?) async
     func stop() async
     func suspendForBackground() async
     func resumeFromForeground() async
@@ -263,6 +265,11 @@ protocol SessionLiveSocket: AnyObject {
 /// Defaults for sockets that do not carry browser traffic: no sink, no sends, generation zero.
 extension SessionLiveSocket {
     func upgradeDeclarations() async -> RemoteSocketUpgradeDeclarations? { nil }
+
+    /// Sockets without an event-stream cursor ignore the epoch.
+    func start(lastSeenSeq: Int?, lastSeenEpoch _: String?) async {
+        await start(lastSeenSeq: lastSeenSeq)
+    }
 
     /// Sockets that do not carry Git-state interests ignore them.
     func setGitStateInterests(_: [GitStateInterest]) async {}
@@ -299,6 +306,10 @@ final class RemoteWebSocketClientBox: SessionLiveSocket {
 
     func start(lastSeenSeq: Int?) async {
         await client.start(lastSeenSeq: lastSeenSeq)
+    }
+
+    func start(lastSeenSeq: Int?, lastSeenEpoch: String?) async {
+        await client.start(lastSeenSeq: lastSeenSeq, lastSeenEpoch: lastSeenEpoch)
     }
 
     func stop() async {
