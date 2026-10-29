@@ -52,6 +52,10 @@ const args = [
   "neutral",
   "--model",
   "model",
+  "--approval-policy",
+  "never",
+  "--sandbox",
+  "workspace-write",
   "Explain",
 ];
 const priorExitCode = process.exitCode;
@@ -76,8 +80,22 @@ beforeEach(() => {
   exit = vi.spyOn(process, "exit").mockImplementation(() => undefined as never);
   const completed = Promise.withResolvers<unknown>();
   h.connect.mockResolvedValue(async (command: HostAdminCommand) => {
-    if (command.action === "run-prepare" || command.action === "run-resume-prepare")
+    if (
+      command.action === "run-prepare" ||
+      command.action === "run-resume-prepare" ||
+      command.action === "run-tool-events-prepare"
+    )
       return metadata;
+    if (command.action === "run-options" || command.action === "run-directory-options")
+      return {
+        formatVersion: 1,
+        scope: "controlled-run-options",
+        projectId: command.action === "run-options" ? command.projectId : "project",
+        agentKind: command.agentKind,
+        models: [{ id: "model", label: "Model", efforts: ["high"] }],
+        approvalPolicies: [{ id: "never", label: "Never" }],
+        sandboxModes: [{ id: "workspace-write", label: "Workspace write" }],
+      };
     if (command.action === "run-start") return completed.promise;
     if (command.action === "run-read") {
       completed.resolve({ ...metadata, result: final });

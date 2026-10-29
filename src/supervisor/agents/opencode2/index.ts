@@ -1,15 +1,8 @@
-import { openCode2SessionDatabaseEnv } from "./database";
 import { manageOpenCode2Credentials } from "./credentials";
 import { manageOpenCode2Plugins } from "./plugins";
-import type {
-  AgentCapability,
-  ResolvedMcpServer,
-  PromptSegment,
-  ProjectLocation,
-} from "@/shared/contracts";
+import type { AgentCapability, PromptSegment } from "@/shared/contracts";
 import { inlinePromptSegmentText } from "@/shared/promptContent";
 import {
-  createKnownSessionRef,
   detectAgentInstall,
   detectProbeLocation,
   notInstalledAgentStatus,
@@ -18,32 +11,13 @@ import {
   type AgentAdapter,
   type CreateStructuredSessionInput,
 } from "../base";
-import { buildOpenCode2Args } from "./argv";
 import { openCode2DetectionSpec, opencode2DefaultCapabilities } from "./detection";
-import { buildOpenCodeMcpLaunchConfig } from "../userMcp";
-import { cachedOpenCode2Binary, resolveOpenCode2Binary } from "./binary";
+import { resolveOpenCode2Binary } from "./binary";
 import { shutdownSpawnedOpenCode2Servers } from "./client";
 import { runOpenCode2OneShot } from "./oneShot";
 import { OpenCode2Session } from "./session";
 import { detectOpenCode2TerminalStatus, opencode2OscHint, opencode2OscTitleHint } from "./terminal";
-
-// MCP env for terminal launches. OpenCode 2 shares OpenCode 1's config file
-// conventions (`~/.config/opencode`, `OPENCODE_CONFIG_CONTENT` overlay — both
-// verified against the beta binary), so the shared builder is reused as-is.
-function buildOpenCode2TerminalEnv(
-  location: ProjectLocation,
-  sessionID: string | undefined,
-  mcpServers: readonly ResolvedMcpServer[] = [],
-): Record<string, string> | undefined {
-  const databaseEnv = openCode2SessionDatabaseEnv(location, sessionID);
-  if (mcpServers.length === 0) return databaseEnv;
-  const launch = buildOpenCodeMcpLaunchConfig(mcpServers);
-  return {
-    ...launch.env,
-    OPENCODE_CONFIG_CONTENT: launch.configContent,
-    ...databaseEnv,
-  };
-}
+import { buildOpenCode2TerminalLaunch } from "./terminalLaunch";
 
 export function createOpenCode2Adapter(): AgentAdapter {
   let capabilities: AgentCapability = opencode2DefaultCapabilities;
@@ -121,32 +95,22 @@ export function createOpenCode2Adapter(): AgentAdapter {
     // (because `liveInputMode === "terminal"`). The TUI process below picks
     // the pre-allocated id up via `--session <id>`.
     buildLaunchArgv(location, config, prompt, _sessionRef, launchOptions) {
-      const sessionId = launchOptions?.resumeThreadId;
-      const env = buildOpenCode2TerminalEnv(
+      return buildOpenCode2TerminalLaunch(
         location,
+        config,
+        prompt,
         launchOptions?.resumeThreadId ?? _sessionRef?.providerSessionId,
         launchOptions?.mcpServers,
       );
-      return {
-        binary: cachedOpenCode2Binary(location) ?? "opencode2",
-        args: buildOpenCode2Args(config, prompt, sessionId),
-        ...(env ? { env } : {}),
-        preferShell: true,
-        ...(sessionId ? { sessionRef: createKnownSessionRef(sessionId) } : {}),
-      };
     },
     buildResumeArgv(location, config, prompt, sessionRef, launchOptions) {
-      const env = buildOpenCode2TerminalEnv(
+      return buildOpenCode2TerminalLaunch(
         location,
+        config,
+        prompt,
         sessionRef.providerSessionId,
         launchOptions?.mcpServers,
       );
-      return {
-        binary: cachedOpenCode2Binary(location) ?? "opencode2",
-        args: buildOpenCode2Args(config, prompt, sessionRef.providerSessionId),
-        ...(env ? { env } : {}),
-        preferShell: true,
-      };
     },
     createInitialSessionRef() {
       return undefined;
@@ -156,10 +120,9 @@ export function createOpenCode2Adapter(): AgentAdapter {
     //
     // Terminal mode (default): runtime calls `activate()` + `openThread()`,
     // captures the returned session id into `launchOptions.resumeThreadId`,
-    // then releases its acquisition (`liveInputMode === "terminal"`). The TUI
-    // launches with `--session <id>` and resumes from the shared on-disk
-    // session store, so the supervisor knows the providerSessionId
-    // synchronously instead of polling after spawn.
+    // then releases its preparation acquisition. Terminal argv acquires its
+    // own lease before that release and passes `--server` + `--session`, so the
+    // TUI keeps the same configured backend until its PTY cleanup runs.
     //
     // GUI mode: same handle stays alive for the thread's lifetime; the shared
     // SSE stream routes V2 events through `eventMapping` into chat items.

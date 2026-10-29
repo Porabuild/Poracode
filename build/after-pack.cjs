@@ -293,6 +293,12 @@ module.exports = async function afterPack(context) {
       `[afterPack] FATAL: could not locate resources dir for platform ${context.electronPlatformName}`,
     );
   }
+  if (
+    context.electronPlatformName === "linux" &&
+    existsSync(join(resourcesDir, "desktop-cli", "manifest.json"))
+  ) {
+    require("./linux-cli.cjs").writeLinuxAppRun(resourcesDir, context.appOutDir);
+  }
   const archName = ARCH_NAME[context.arch];
   const removed = pruneForeignNativePrebuilds(resourcesDir, context.electronPlatformName, archName);
   for (const path of removed) {

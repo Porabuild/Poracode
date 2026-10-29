@@ -46,10 +46,14 @@ vi.mock("node:fs/promises", async (importOriginal) => {
 let tempDir: string | undefined;
 let handlers: ReturnType<typeof createLocalIpcHandlers>;
 
-function createHandlers(): ReturnType<typeof createLocalIpcHandlers> {
+function createHandlers(
+  getBrowserPanelManager: Parameters<
+    typeof createLocalIpcHandlers
+  >[0]["getBrowserPanelManager"] = () => null,
+): ReturnType<typeof createLocalIpcHandlers> {
   return createLocalIpcHandlers({
     getMainWindow: () => ({}) as never,
-    getBrowserPanelManager: () => null,
+    getBrowserPanelManager,
     sshConnectionManager: {
       discoverHosts: vi.fn<() => never[]>(() => []),
       connect: vi.fn<() => Promise<never>>(),
@@ -177,5 +181,22 @@ describe("attachment IPC handlers stay off the event loop", () => {
     await expect(
       handlers.saveImageFile({ data: new Uint8Array([1]), suggestedName: "saved.png" }),
     ).rejects.toThrow("ENOSPC: no space left");
+  });
+});
+
+describe("browser IPC", () => {
+  it("feeds a host renderer the automation-replayed snapshot", () => {
+    const state = { tabs: [], activeTabId: null };
+    const manager = {
+      snapshotForHost: vi.fn<() => typeof state>(() => state),
+      snapshot: vi.fn<() => void>(),
+    };
+    const local = createHandlers(() => manager as never);
+
+    const result = Reflect.apply(local.browserGetState, local, []);
+
+    expect(result).toBe(state);
+    expect(manager.snapshotForHost).toHaveBeenCalledTimes(1);
+    expect(manager.snapshot).not.toHaveBeenCalled();
   });
 });

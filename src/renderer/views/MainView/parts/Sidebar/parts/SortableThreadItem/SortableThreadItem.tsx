@@ -3,6 +3,7 @@ import { useExperimentStore } from "@/renderer/state/experimentStore";
 import { useSortable } from "@dnd-kit/react/sortable";
 import { useIsDraggingThread, type DragSourceData } from "@/renderer/dnd";
 import { SidebarButton } from "@/renderer/components/common/SidebarButton";
+import { threadTitleNode } from "@/renderer/components/promptChips/threadTitleNode";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { getStatusTone } from "@/renderer/components/providers/statusTone";
 import { ThreadProviderIcon } from "@/renderer/components/providers/ThreadProviderIcon";
@@ -61,9 +62,13 @@ export function SortableThreadItem(props: {
   // cannot drag (the experiment owns their order) and the compact provider
   // ships no sensors, so those rows register without elements: no activator,
   // no branding, and the button keeps sole ownership of the row's semantics.
-  // The registration itself stays so the sidebar's reorder handling still
-  // sees every row's id/index/group.
-  const rowCanDrag = !compactLayout && !isExperimentCandidate;
+  // A row being renamed registers the same way: its title is a text input
+  // inside the row-wide handle, where dnd-kit skips its interactive-element
+  // guard, so a drag from the input would move the row instead of selecting
+  // text. The registration itself stays so the sidebar's reorder handling
+  // still sees every row's id/index/group.
+  const isEditing = editingThreadId === thread.id;
+  const rowCanDrag = !compactLayout && !isExperimentCandidate && !isEditing;
 
   const { ref, handleRef } = useSortable({
     id: `thread:${thread.id}`,
@@ -98,11 +103,12 @@ export function SortableThreadItem(props: {
   const statusTone = getStatusTone(thread, { hasBackgroundActivity });
 
   const stacked = projectTag != null;
-  const isEditing = editingThreadId === thread.id;
   const titleNode = thread.done ? (
-    <span className="opacity-50 line-through">{thread.title}</span>
+    <span className="opacity-50 line-through [&_.poracode-slash-chip__name]:line-through">
+      {threadTitleNode(thread.title)}
+    </span>
   ) : (
-    thread.title
+    threadTitleNode(thread.title)
   );
   const suffixProps = {
     thread,
@@ -193,7 +199,9 @@ export function SortableThreadItem(props: {
             isEditing ? undefined : stacked ? `${thread.title} — ${project.name}` : thread.title
           }
           isActive={isCurrentThread}
-          onPress={() => openThread(thread.id)}
+          // A text-selection drag that ends over the row would otherwise open
+          // the thread and blur (commit) the rename input.
+          {...(isEditing ? {} : { onPress: () => openThread(thread.id) })}
           onDoubleClick={() => props.setEditingThreadId(thread.id)}
           isDragging={isDragging}
           {...(stacked || compactLayout ? {} : { suffix: <ThreadItemSuffix {...suffixProps} /> })}

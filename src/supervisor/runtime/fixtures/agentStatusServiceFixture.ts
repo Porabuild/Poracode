@@ -48,6 +48,14 @@ vi.mock("node:fs/promises", async (importActual) => {
   };
 });
 vi.mock("node:child_process", () => ({ execFile: memory.cli }));
+// Atomic filesystem replacement is covered with real files in atomicFileAsync
+// and agentStatusService tests; publication races use the owned memory writer.
+vi.mock("@/shared/atomicFileAsync", () => ({
+  writeFileAtomicAsync: async (path: string, data: string) => {
+    const { writeFile } = await import("node:fs/promises");
+    await writeFile(path, data, "utf8");
+  },
+}));
 vi.mock("@/supervisor/agents/base", () => ({
   primeExecutablePathCache: vi.fn<() => Promise<void>>(async () => undefined),
   invalidateExecutablePathCache: vi.fn<() => void>(),

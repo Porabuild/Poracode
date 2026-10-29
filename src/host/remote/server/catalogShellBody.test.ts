@@ -1,4 +1,4 @@
-import { beforeEach, expect, it } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { testThread } from "@/host/db/runtimeItems.testFixtures";
 import { boundedShellSnapshotSchema } from "./catalogPageBuilders";
 import { measureCatalogBody } from "./catalogPageBudget";
@@ -12,6 +12,25 @@ import {
 } from "./catalogShellBody";
 
 beforeEach(resetStableUpdatedAt);
+afterEach(() => vi.useRealTimers());
+
+it("keeps the previous wire shape and ETag when other catalog views are read", () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date("2026-10-23T00:00:00Z"));
+  const first = stampCatalogShellPageBody(createCatalogShellPageBody(snapshot()));
+  vi.advanceTimersByTime(1000);
+  const otherView = snapshot();
+  otherView.threads = [];
+  stampCatalogShellPageBody(createCatalogShellPageBody(otherView));
+  vi.advanceTimersByTime(1000);
+  expect(stampCatalogShellPageBody(createCatalogShellPageBody(snapshot()))).toBe(first);
+  // A changed sequence must never reuse a stale client's recovery cursor.
+  const fresh = snapshot();
+  fresh.snapshotSeq++;
+  expect(computeEtag(stampCatalogShellPageBody(createCatalogShellPageBody(fresh)))).not.toBe(
+    computeEtag(first),
+  );
+});
 
 function snapshot() {
   return boundedShellSnapshotSchema.parse({

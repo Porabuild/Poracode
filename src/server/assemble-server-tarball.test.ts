@@ -13,7 +13,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { delimiter, dirname, join } from "node:path";
+import { basename, delimiter, dirname, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   assembleServerTarball,
@@ -197,8 +197,17 @@ function hostTarget(): string {
   }-${process.arch}`;
 }
 
+// Run tar beside the archive with a relative name: GNU tar (first on PATH in Git
+// Bash) reads an absolute `C:\...` operand as a remote `host:path`.
+function readTarball(tarballPath: string, mode: string, ...members: string[]): Buffer {
+  return execFileSync("tar", [mode, basename(tarballPath), ...members], {
+    cwd: dirname(tarballPath),
+  });
+}
+
 function tarballEntries(tarballPath: string): string[] {
-  return execFileSync("tar", ["-tzf", tarballPath], { encoding: "utf8" })
+  return readTarball(tarballPath, "-tzf")
+    .toString("utf8")
     .split(/\r?\n/u)
     .map((line) => line.replace(/^\.\//u, ""))
     .filter((line) => line.length > 0 && line !== ".");
@@ -586,7 +595,7 @@ describe("assembleServerTarball (V6 D.2, plan D2/D3)", () => {
     ]) {
       writeFileSync(
         join(bootstrap, "scripts", script),
-        execFileSync("tar", ["-xOzf", result.tarballPath, `./scripts/${script}`]),
+        readTarball(result.tarballPath, "-xOzf", `./scripts/${script}`),
       );
     }
     const stubBin = tempDir("poracode-tarball-stub-bin-");

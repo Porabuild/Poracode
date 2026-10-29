@@ -200,7 +200,7 @@ describe("claudeCapabilities", () => {
       "max",
       "ultracode",
     ]);
-    expect(claudeCapabilities.modelContextSizes?.["claude-fable-5"]).toEqual(["1m", "400k"]);
+    expect(claudeCapabilities.modelContextSizes?.["claude-fable-5"]).toEqual(["400k", "1m"]);
     expect(claudeCapabilities.fastModels).not.toContain("claude-fable-5");
   });
 
@@ -217,7 +217,7 @@ describe("claudeCapabilities", () => {
       "max",
       "ultracode",
     ]);
-    expect(claudeCapabilities.modelContextSizes?.["claude-fable-5-1"]).toEqual(["1m", "400k"]);
+    expect(claudeCapabilities.modelContextSizes?.["claude-fable-5-1"]).toEqual(["400k", "1m"]);
     expect(claudeCapabilities.fastModels).not.toContain("claude-fable-5-1");
   });
 
@@ -242,7 +242,7 @@ describe("claudeCapabilities", () => {
       "max",
       "ultracode",
     ]);
-    expect(claudeCapabilities.modelContextSizes?.["claude-opus-5"]).toEqual(["1m", "400k"]);
+    expect(claudeCapabilities.modelContextSizes?.["claude-opus-5"]).toEqual(["400k", "1m"]);
     expect(claudeCapabilities.fastModels).toContain("claude-opus-5");
   });
 
@@ -259,8 +259,8 @@ describe("claudeCapabilities", () => {
       "max",
       "ultracode",
     ]);
-    expect(claudeCapabilities.modelContextSizes?.["claude-sonnet-5"]).toEqual(["1m", "400k"]);
-    expect(claudeCapabilities.modelContextSizes?.sonnet).toEqual(["1m", "400k"]);
+    expect(claudeCapabilities.modelContextSizes?.["claude-sonnet-5"]).toEqual(["400k", "1m"]);
+    expect(claudeCapabilities.modelContextSizes?.sonnet).toEqual(["400k", "1m"]);
   });
 });
 

@@ -264,7 +264,7 @@ describe("claudeCapabilitiesFromSdkModels", () => {
       models.map((value) => ({ value, displayName: value, description: "" })),
     );
     for (const model of models) {
-      expect(capabilities?.modelContextSizes?.[model]).toEqual(["1m", "400k"]);
+      expect(capabilities?.modelContextSizes?.[model]).toEqual(["400k", "1m"]);
     }
   });
 
@@ -340,7 +340,7 @@ describe("Claude SDK probe process handling", () => {
       agentSettings: { contextWindows: '["400k","512k","1m"]' },
     });
     expect(result?.contextSizes).toContainEqual({ id: "512k", label: "512k" });
-    expect(result?.modelContextSizes?.["claude-fable-5-1"]).toEqual(["1m", "400k", "512k"]);
+    expect(result?.modelContextSizes?.["claude-fable-5-1"]).toEqual(["400k", "512k", "1m"]);
   });
 
   it("contains probe-owned stdin EPIPE from the Claude SDK child", async () => {

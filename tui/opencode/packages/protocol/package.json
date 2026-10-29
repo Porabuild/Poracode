@@ -1,0 +1,14 @@
+{
+  "name": "@opencode/protocol",
+  "version": "2.1.4",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./simulation": "./src/simulation.ts",
+    "./*": "./src/*.ts"
+  },
+  "dependencies": {
+    "@opencode/schema": "workspace:*",
+    "effect": "catalog:"
+  }
+}

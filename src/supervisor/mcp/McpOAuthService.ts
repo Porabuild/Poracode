@@ -2,7 +2,11 @@ import { randomBytes, randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { join } from "node:path";
-import { auth } from "@modelcontextprotocol/client";
+import {
+  auth,
+  IssuerMismatchError,
+  validateAuthorizationResponseIssuer,
+} from "@modelcontextprotocol/client";
 import type {
   OAuthClientProvider,
   OAuthClientMetadata,
@@ -30,6 +34,7 @@ const TOKEN_EXPIRY_SLACK_MS = 60 * 1000;
 const STORE_FILE_NAME = "mcp-oauth.json";
 const CALLBACK_PATH = "/callback";
 // Version 1 preserves the legacy URL slots and adds independent opaque account keys.
+// Callback issuer validation is flow-local; existing sealed credentials remain valid.
 export const MCP_OAUTH_STORE_VERSION = 1;
 
 const CALLBACK_SUCCESS_HTML = `<!doctype html><html><head><meta charset="utf-8"><title>Poracode</title></head>
@@ -75,6 +80,8 @@ interface ActiveFlow {
 }
 
 function sanitizeMessage(value: unknown, fallback: string): string {
+  if (value instanceof IssuerMismatchError && value.kind === "authorization_response")
+    return "The sign-in response did not match the expected authorization server.";
   const raw =
     typeof value === "string" ? value : value instanceof Error ? value.message : undefined;
   if (!raw) return fallback;
@@ -426,6 +433,7 @@ export class McpOAuthService {
    * loopback client: `addClientAuthentication` (default `none` handling),
    * `validateResourceURL` (default RFC 9728 check), `prepareTokenRequest`
    * (default authorization-code grant), `clientMetadataUrl` (DCR is used),
+   * `dpop` (plain Bearer tokens), `scopeForRefresh` (retain granted scopes),
    * `saveResourceUrl`/`resourceUrl`
    * (Cross-App Access only), and the deprecated
    * `saveAuthorizationServerUrl`/`authorizationServerUrl` pair (written by the
@@ -575,6 +583,26 @@ export class McpOAuthService {
       return;
     }
 
+    const iss = url.searchParams.get("iss") ?? undefined;
+    const metadata = flow.discoveryState?.authorizationServerMetadata;
+    try {
+      // Error callbacks need the same issuer validation as successful callbacks
+      // before any server-supplied error description can reach the user.
+      validateAuthorizationResponseIssuer({
+        iss,
+        expectedIssuer: metadata?.issuer,
+        issParameterSupported: metadata?.authorization_response_iss_parameter_supported === true,
+      });
+    } catch (error) {
+      res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+      res.end(CALLBACK_FAILURE_HTML);
+      this.settleFlow(flow, {
+        status: "error",
+        message: sanitizeMessage(error, "Sign-in was denied."),
+      });
+      return;
+    }
+
     const oauthError = url.searchParams.get("error");
     const code = url.searchParams.get("code");
     if (oauthError !== null || !code) {
@@ -593,10 +621,14 @@ export class McpOAuthService {
     res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
     res.end(CALLBACK_SUCCESS_HTML);
     flow.exchanging = true;
-    void this.trackFlow(flow, this.exchangeAuthorizationCode(flow, code));
+    void this.trackFlow(flow, this.exchangeAuthorizationCode(flow, code, iss));
   }
 
-  private async exchangeAuthorizationCode(flow: ActiveFlow, code: string): Promise<void> {
+  private async exchangeAuthorizationCode(
+    flow: ActiveFlow,
+    code: string,
+    iss?: string,
+  ): Promise<void> {
     try {
       const provider = this.createProvider(
         flow.serverUrl,
@@ -607,6 +639,9 @@ export class McpOAuthService {
       const result = await auth(provider, {
         serverUrl: flow.serverUrl,
         authorizationCode: code,
+        // Forward the decoded callback issuer for SDK validation (RFC 9207).
+        // Keep absence distinct from an empty value; never infer it from discovery.
+        ...(iss !== undefined ? { iss } : {}),
         fetchFn: fetchWithSignal(flow.controller.signal),
       });
       this.settleFlow(

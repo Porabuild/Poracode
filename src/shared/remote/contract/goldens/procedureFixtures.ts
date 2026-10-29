@@ -189,6 +189,21 @@ export const REMOTE_PROCEDURE_RESULT_FIXTURES = {
   forgeMarkPrReady: undefined,
   forgeUpdatePrBranch: undefined,
   forgeSubmitPrReview: undefined,
+  forgeListPullRequestsInState: { pullRequests: [] },
+  forgeListPrLabelCandidates: {
+    labels: [{ name: "bug", color: "d73a4a", description: "Something is broken" }],
+    truncated: false,
+  },
+  forgeListPrReviewerCandidates: {
+    reviewers: [{ id: "octocat", login: "octocat", name: "Octo Cat" }],
+    truncated: false,
+  },
+  forgeSetPrLabels: undefined,
+  forgeRequestPrReviewers: undefined,
+  forgeConvertPrToDraft: undefined,
+  forgeGetPrCommitDiff: { diff: "" },
+  forgeSetPrReaction: undefined,
+  forgeSubmitPrReviewDraft: undefined,
   forgeGetPrDetails: {
     details: {
       number: 12,
@@ -203,6 +218,17 @@ export const REMOTE_PROCEDURE_RESULT_FIXTURES = {
       comments: [],
       reviews: [],
       checks: [],
+      labels: [{ name: "bug", color: "d73a4a" }],
+      requestedReviewers: [{ id: "acme/core", login: "core", team: true }],
+      timeline: [
+        {
+          id: "opened",
+          kind: "opened",
+          createdAt: "2026-08-12T00:00:00.000Z",
+          actor: { login: "dev" },
+        },
+      ],
+      reactions: [{ content: "+1", count: 2, viewerReacted: true }],
     },
   },
   forgeGetPrReviewComments: { comments: [], threads: [] },

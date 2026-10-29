@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { execFileSync } from "node:child_process";
 import {
   cpSync,
   existsSync,
@@ -16,8 +17,10 @@ import { dirname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { after, test } from "node:test";
 import { prepareDesktopCli } from "./prepare-desktop-cli.mjs";
+import { transformRuntimeClosure } from "./runtime-closure.mjs";
 import { buildElectronBuilderConfig, verifyDesktopPtyTargets } from "./build-desktop-artifact.mjs";
 import { parse as parseYaml } from "yaml";
+import { PLATFORM_PATTERNS } from "../website/src/lib/releases.ts";
 import {
   DESKTOP_CLI_BOOTSTRAP_VERSION,
   DESKTOP_CLI_PREFIX,
@@ -144,9 +147,13 @@ function fixture(platform = "win32", channel = "stable") {
       ? channel === "nightly"
         ? "Poracode Nightly"
         : "Poracode"
-      : channel === "nightly"
-        ? "Poracode Nightly.exe"
-        : "Poracode.exe";
+      : platform === "linux"
+        ? channel === "nightly"
+          ? "poracode-nightly-desktop"
+          : "poracode-desktop"
+        : channel === "nightly"
+          ? "Poracode Nightly.exe"
+          : "Poracode.exe";
   const manifest = prepared.writeManifest({
     platform,
     channel,
@@ -179,6 +186,87 @@ function fixture(platform = "win32", channel = "stable") {
     entry: join(resources, ...DESKTOP_CLI_PREFIX.split("/"), "lib", "server.cjs"),
   };
 }
+
+void test("Linux packages include both the verified CLI and a separate GUI executable", () => {
+  const config = parseYaml(buildElectronBuilderConfig("branded", "linux", false));
+  assert.equal(config.linux.executableName, "poracode-desktop");
+  assert.equal(config.appImage.artifactName, "Poracode-Linux-${arch}.${ext}");
+  assert.match(
+    config.appImage.artifactName.replace("${arch}", "x86_64").replace("${ext}", "AppImage"),
+    PLATFORM_PATTERNS["linux-x64"],
+  );
+  assert(config.files.includes("dist/cli-runtime/**/*"));
+  assert(config.extraResources.some((entry) => entry.from === "resources/desktop-cli"));
+  for (const channel of ["stable", "nightly"]) {
+    const input = fixture("linux", channel);
+    const bundle = readDesktopBundle(input.resources);
+    assert.equal(bundle.platform, "linux");
+    assert.equal(bundle.commandName, channel === "nightly" ? "poracode-next" : "poracode");
+    const launcher = readFileSync(join(input.prepared.helperDir, bundle.commandName), "utf8");
+    assert.match(launcher, /app="\$dir\/\.\.\/\.\.\/"/u);
+    assert.doesNotMatch(launcher, /MacOS/u);
+  }
+});
+
+void test("AppImage Node entry bypasses GUI sandbox flags while the GUI keeps them", () => {
+  if (process.platform === "win32") return;
+  const require = createRequire(import.meta.url);
+  const { createLinuxAppRun } = require("../build/linux-cli.cjs");
+  const { root } = fixture("linux");
+  const appDir = join(root, "mount");
+  mkdirSync(appDir);
+  writeFileSync(join(appDir, "unshare"), "#!/bin/sh\nexit 1\n", { mode: 0o755 });
+  writeFileSync(join(appDir, "poracode-desktop"), '#!/bin/sh\nprintf "%s\\n" "$@"\n', {
+    mode: 0o755,
+  });
+  const appRun = join(appDir, "AppRun");
+  writeFileSync(appRun, createLinuxAppRun("poracode-desktop"), { mode: 0o755 });
+  const env = { PATH: "/usr/bin:/bin", APPDIR: appDir };
+  assert.equal(
+    execFileSync(appRun, ["-e", "bootstrap", "--", "poracode", "two words"], {
+      encoding: "utf8",
+      env: { ...env, ELECTRON_RUN_AS_NODE: "1" },
+    }),
+    "-e\nbootstrap\n--\nporacode\ntwo words\n",
+  );
+  assert.equal(
+    execFileSync(appRun, ["gui-arg"], { encoding: "utf8", env }),
+    "--no-sandbox\ngui-arg\n",
+  );
+});
+
+void test("the actual AppImage updater preserves the CLI's stable image path", () => {
+  if (process.platform === "win32") return;
+  const require = createRequire(import.meta.url);
+  const { AppImageUpdater } = require("electron-updater/out/AppImageUpdater");
+  const { root } = fixture("linux");
+  const config = parseYaml(buildElectronBuilderConfig("branded", "linux", false));
+  const filename = config.appImage.artifactName
+    .replace("${arch}", "x64")
+    .replace("${ext}", "AppImage");
+  const installed = join(root, filename);
+  const downloaded = join(root, "download", filename);
+  mkdirSync(dirname(downloaded));
+  writeFileSync(installed, "old image");
+  writeFileSync(downloaded, "#!/bin/sh\nexit 0\n", { mode: 0o755 });
+  const previous = process.env.APPIMAGE;
+  try {
+    process.env.APPIMAGE = installed;
+    const renamed = [];
+    assert.equal(
+      AppImageUpdater.prototype.doInstall.call(
+        { installerPath: downloaded, emit: (...args) => renamed.push(args) },
+        { isForceRunAfter: false },
+      ),
+      true,
+    );
+    assert.equal(readFileSync(installed, "utf8"), "#!/bin/sh\nexit 0\n");
+    assert.deepEqual(renamed, []);
+  } finally {
+    if (previous === undefined) delete process.env.APPIMAGE;
+    else process.env.APPIMAGE = previous;
+  }
+});
 
 await test("stages one supported prefix from the declared code closure and the exact shared renderer", () => {
   const input = fixture();
@@ -475,6 +563,77 @@ await test("fails packaging on a missing or changed declared runtime rather than
   assert.ok(
     !existsSync(join(input.root, "other-stage", "resources", "desktop-cli", "manifest.json")),
   );
+});
+
+await test("packages real Sentry-injected bytes from the existing runtime manifest format", () => {
+  const input = fixture("linux", "nightly");
+  const manifestPath = join(input.main, "server.ssh-runtime-manifest.json");
+  const before = JSON.parse(readFileSync(manifestPath, "utf8"));
+  const moduleCode = "export const value = 'captured';\n";
+  writeFileSync(join(input.main, "worker.mjs"), moduleCode);
+  before.files.push({
+    path: "worker.mjs",
+    format: "module",
+    bytes: Buffer.byteLength(moduleCode),
+    sha256: createHash("sha256").update(moduleCode).digest("hex"),
+  });
+  writeFileSync(manifestPath, JSON.stringify(before));
+  const options = {
+    stageRoot: join(input.root, "injected-stage"),
+    mainBundleDir: input.main,
+    rendererDir: join(input.root, "renderer"),
+    appVersion: "2.0.0",
+  };
+  const inject = () =>
+    execFileSync(
+      process.execPath,
+      [
+        join(repoRoot, "node_modules/@sentry/cli/bin/sentry-cli"),
+        "sourcemaps",
+        "inject",
+        input.main,
+      ],
+      { stdio: "pipe" },
+    );
+  transformRuntimeClosure(input.main, () => {
+    inject();
+    // Reproduce the previous release failure before the hashes are recaptured.
+    assert.throws(() => prepareDesktopCli(options), /input hash differs/u);
+  });
+  const injectedManifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+  assert.notDeepEqual(injectedManifest.files, before.files);
+  assert.deepEqual({ ...injectedManifest, files: before.files }, before);
+  prepareDesktopCli(options);
+  for (const file of injectedManifest.files) {
+    const bytes = readFileSync(join(input.main, file.path));
+    assert.match(bytes.toString(), /debugId=/u);
+    assert.equal(file.bytes, bytes.length);
+    assert.equal(file.sha256, createHash("sha256").update(bytes).digest("hex"));
+    assert.deepEqual(
+      readFileSync(join(options.stageRoot, "dist/cli-runtime/lib", file.path)),
+      bytes,
+    );
+  }
+  // Upload retries run injection again; already-injected code remains valid.
+  transformRuntimeClosure(input.main, inject);
+  assert.deepEqual(JSON.parse(readFileSync(manifestPath, "utf8")), injectedManifest);
+});
+
+await test("refuses drift and future runtime manifests before source-map injection", () => {
+  const input = fixture();
+  const manifestPath = join(input.main, "server.ssh-runtime-manifest.json");
+  const original = readFileSync(manifestPath, "utf8");
+  const codePath = join(input.main, "lazy.cjs");
+  const code = readFileSync(codePath);
+  writeFileSync(codePath, "// changed before injection\n");
+  const refuse = () => assert.fail("Must refuse before transforming code.");
+  assert.throws(() => transformRuntimeClosure(input.main, refuse), /input hash differs/u);
+  assert.equal(readFileSync(manifestPath, "utf8"), original);
+  writeFileSync(codePath, code);
+  const future = { ...JSON.parse(original), version: 999 };
+  writeFileSync(manifestPath, JSON.stringify(future));
+  assert.throws(() => transformRuntimeClosure(input.main, refuse));
+  assert.deepEqual(JSON.parse(readFileSync(manifestPath, "utf8")), future);
 });
 
 await test("refuses legacy or future server entry versions before command delegation", () => {

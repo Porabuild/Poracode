@@ -1,13 +1,21 @@
+import { readFile } from "node:fs/promises";
 import { parseArgs } from "node:util";
-import { resolve as resolvePath } from "node:path";
+import { join, resolve as resolvePath } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import type { Readable, Writable } from "node:stream";
-import type { HostAdminCommand } from "@/shared/hostAdminProtocol";
+import { HostControlUnsupportedOperationError } from "@/backend/ownership/hostControlClient";
+import { hostRunToolEventsCommandSchema, type HostAdminCommand } from "@/shared/hostAdminProtocol";
 import { terminalText } from "./cliPrompts";
 import { CliRunInteraction } from "./cliRunInteraction";
 import { deriveLocationFromPath } from "@/shared/createProject";
 import { projectIdentityKey } from "@/shared/projectIdentity";
 import type { HostProjectSummary } from "@/shared/contracts/hostProjects";
+import {
+  TUI_HOME_DIRECTORY,
+  TUI_LAST_MODEL_FILE_NAME,
+  tuiLastModelSchema,
+  type TuiLastModel,
+} from "@/shared/tuiBootstrap";
 import {
   HOST_RUN_BUFFER_BYTES,
   hostRunPreparationCommandSchema,
@@ -26,32 +34,257 @@ import {
   hostRunFilesResumeCommandSchema,
   hostRunFilesDirectoryCommandSchema,
   type HostRunFinished,
+  type HostRunCommand,
 } from "@/shared/contracts/hostRun";
 
 type AdminRequest = (command: HostAdminCommand, signal?: AbortSignal) => Promise<unknown>;
-export function parseRunCli(args: readonly string[]) {
+const RUN_CLI_OPTIONS = {
+  project: { type: "string" },
+  directory: { type: "string" },
+  session: { type: "string" },
+  provider: { type: "string" },
+  model: { type: "string" },
+  effort: { type: "string" },
+  "approval-policy": { type: "string" },
+  sandbox: { type: "string" },
+  wsl: { type: "string" },
+  "prompt-stdin": { type: "boolean" },
+  format: { type: "string" },
+  options: { type: "boolean" },
+  standalone: { type: "boolean" },
+  file: { type: "string", multiple: true },
+  interactive: { type: "boolean" },
+} as const;
+
+export interface RunCliDefaultSelection {
+  readonly target:
+    | { readonly kind: "directory"; readonly directory: string }
+    | { readonly kind: "project"; readonly projectId: string; readonly wslDistro?: string };
+  readonly provider: string;
+  readonly explicitModel?: string;
+  readonly explicitEffort?: string;
+  readonly approvalPolicy?: string;
+  readonly sandboxMode?: string;
+  readonly files?: string[];
+  readonly lastModel?: TuiLastModel;
+}
+
+export function runCliNeedsDefaults(args: readonly string[], oneShot = false) {
+  if (args[0] !== "run") return false;
+  const parsed = parseArgs({
+    args: args.slice(1),
+    strict: true,
+    allowPositionals: true,
+    options: RUN_CLI_OPTIONS,
+  });
+  return (
+    !parsed.values.options &&
+    parsed.values.session === undefined &&
+    (parsed.values.provider === undefined ||
+      parsed.values.model === undefined ||
+      (oneShot && parsed.values.effort === undefined))
+  );
+}
+
+export async function readTuiLastModel(profileNamespace: string) {
+  const path = join(profileNamespace, TUI_HOME_DIRECTORY, TUI_LAST_MODEL_FILE_NAME);
+  let text: string;
+  try {
+    text = await readFile(path, "utf8");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
+    throw new Error(`Could not read the TUI model selection at ${path}.`, { cause: error });
+  }
+  let value: unknown;
+  try {
+    value = JSON.parse(text);
+  } catch {
+    return undefined;
+  }
+  const parsed = tuiLastModelSchema.safeParse(value);
+  return parsed.success ? parsed.data : undefined;
+}
+
+export async function prepareRunCli(
+  args: readonly string[],
+  profileNamespace: string,
+  options: { readonly oneShot?: boolean; readonly defaultDirectory?: string } = {},
+) {
+  const lastModel = runCliNeedsDefaults(args, options.oneShot)
+    ? await readTuiLastModel(profileNamespace)
+    : undefined;
+  return parseRunCli(args, {
+    ...(options.oneShot ? { oneShot: true } : {}),
+    ...(options.defaultDirectory !== undefined
+      ? { defaultDirectory: options.defaultDirectory }
+      : {}),
+    ...(lastModel ? { lastModel } : {}),
+  });
+}
+
+type RunOptionsCommand =
+  | Extract<HostRunCommand, { action: "run-options" }>
+  | ReturnType<typeof hostRunDirectoryOptionsCommandSchema.parse>;
+
+export function resolveRunCliDefaults(
+  selection: RunCliDefaultSelection,
+  options: ReturnType<typeof hostRunOptionsSchema.parse>,
+) {
+  if (options.agentKind !== selection.provider)
+    throw new Error("The owner returned options for a different provider.");
+  const saved = selection.lastModel;
+  const savedModel = saved?.provider === selection.provider ? saved.model : undefined;
+  const model = selection.explicitModel ?? savedModel ?? options.models[0]?.id;
+  if (!model)
+    throw new Error(
+      `No models are available for provider ${selection.provider}. Run poracode providers list.`,
+    );
+  const effort =
+    selection.explicitEffort ??
+    (saved?.provider === selection.provider && saved.model === model ? saved.effort : undefined);
+  const savedMatches = saved?.provider === selection.provider && saved.model === model;
+  const approvalPolicy =
+    selection.approvalPolicy ?? (savedMatches ? saved?.approvalPolicy : undefined);
+  const sandboxMode = selection.sandboxMode ?? (savedMatches ? saved?.sandboxMode : undefined);
+  const approvalUnavailable =
+    options.approvalPolicies.length > 0 &&
+    (approvalPolicy === undefined ||
+      !options.approvalPolicies.some((choice) => choice.id === approvalPolicy));
+  const sandboxUnavailable =
+    options.sandboxModes.length > 0 &&
+    (sandboxMode === undefined ||
+      !options.sandboxModes.some((choice) => choice.id === sandboxMode));
+  if (approvalUnavailable || sandboxUnavailable) {
+    const describe = (choices: { readonly id: string; readonly label: string }[]) =>
+      choices.length
+        ? choices
+            .map((choice) => `${terminalText(choice.id)} (${terminalText(choice.label)})`)
+            .join(", ")
+        : "(none advertised)";
+    const issues = [
+      approvalUnavailable
+        ? approvalPolicy === undefined
+          ? "No saved --approval-policy is available."
+          : `--approval-policy ${terminalText(approvalPolicy)} is not advertised.`
+        : undefined,
+      sandboxUnavailable
+        ? sandboxMode === undefined
+          ? "No saved --sandbox value is available."
+          : `--sandbox ${terminalText(sandboxMode)} is not advertised.`
+        : undefined,
+    ].filter((value) => value !== undefined);
+    throw new Error(
+      `${issues.join(" ")} Specify an advertised value before running.\n` +
+        `Advertised --approval-policy choices: ${describe(options.approvalPolicies)}\n` +
+        `Advertised --sandbox choices: ${describe(options.sandboxModes)}`,
+    );
+  }
+  return {
+    model,
+    ...(effort !== undefined ? { effort } : {}),
+    ...(approvalPolicy !== undefined ? { approvalPolicy } : {}),
+    ...(sandboxMode !== undefined ? { sandboxMode } : {}),
+  };
+}
+
+function parseRunOptions(command: RunOptionsCommand, response: unknown) {
+  if (command.action === "run-directory-options") {
+    const directory = hostRunDirectoryOptionsSchema.parse(response);
+    assertDirectorySelection(command.directory, directory.project);
+    if (directory.options.projectId !== directory.project.id)
+      throw new Error("The owner returned options for a different execution target.");
+    if (directory.options.agentKind !== command.agentKind)
+      throw new Error("The owner returned options for a different provider.");
+    return directory.options;
+  }
+  const options = hostRunOptionsSchema.parse(response);
+  if (options.projectId !== command.projectId)
+    throw new Error("The owner returned options for a different execution target.");
+  if (options.agentKind !== command.agentKind)
+    throw new Error("The owner returned options for a different provider.");
+  return options;
+}
+
+async function requestRunPreparation(
+  request: AdminRequest,
+  command: HostAdminCommand,
+  includeToolEvents: boolean,
+  signal: AbortSignal,
+) {
+  if (!includeToolEvents) return request(command, signal);
+  try {
+    return await request(
+      hostRunToolEventsCommandSchema.parse({
+        action: "run-tool-events-prepare",
+        command,
+      }),
+      signal,
+    );
+  } catch (error) {
+    const cause = error instanceof Error ? error.cause : undefined;
+    if (
+      !(error instanceof HostControlUnsupportedOperationError) &&
+      !(cause instanceof HostControlUnsupportedOperationError)
+    )
+      throw error;
+    return request(command, signal);
+  }
+}
+
+function commandForDefaultRun(
+  selection: RunCliDefaultSelection,
+  defaults: ReturnType<typeof resolveRunCliDefaults>,
+) {
+  if (selection.target.kind === "directory") {
+    const command = {
+      directory: selection.target.directory,
+      agentKind: selection.provider,
+      model: defaults.model,
+      ...(defaults.effort !== undefined ? { effort: defaults.effort } : {}),
+      ...(defaults.approvalPolicy !== undefined ? { approvalPolicy: defaults.approvalPolicy } : {}),
+      ...(defaults.sandboxMode !== undefined ? { sandboxMode: defaults.sandboxMode } : {}),
+    };
+    return selection.files
+      ? hostRunFilesDirectoryCommandSchema
+          .omit({ prompt: true })
+          .parse({ ...command, action: "run-directory-files-prepare", files: selection.files })
+      : hostRunDirectoryPreparationCommandSchema
+          .omit({ prompt: true })
+          .parse({ ...command, action: "run-directory-prepare" });
+  }
+  const command = {
+    projectId: selection.target.projectId,
+    agentKind: selection.provider,
+    model: defaults.model,
+    ...(defaults.effort !== undefined ? { effort: defaults.effort } : {}),
+    ...(defaults.approvalPolicy !== undefined ? { approvalPolicy: defaults.approvalPolicy } : {}),
+    ...(defaults.sandboxMode !== undefined ? { sandboxMode: defaults.sandboxMode } : {}),
+    ...(selection.target.wslDistro !== undefined ? { wslDistro: selection.target.wslDistro } : {}),
+  };
+  return selection.files
+    ? hostRunFilesPreparationCommandSchema
+        .omit({ prompt: true })
+        .parse({ ...command, action: "run-files-prepare", files: selection.files })
+    : hostRunPreparationCommandSchema.omit({ prompt: true }).parse({
+        ...command,
+        action: "run-prepare",
+      });
+}
+
+export function parseRunCli(
+  args: readonly string[],
+  defaults: {
+    readonly oneShot?: boolean;
+    readonly lastModel?: TuiLastModel;
+    readonly defaultDirectory?: string;
+  } = {},
+) {
   if (args[0] !== "run") return null;
   const parsed = parseArgs({
     args: args.slice(1),
     strict: true,
     allowPositionals: true,
-    options: {
-      project: { type: "string" },
-      directory: { type: "string" },
-      session: { type: "string" },
-      provider: { type: "string" },
-      model: { type: "string" },
-      effort: { type: "string" },
-      "approval-policy": { type: "string" },
-      sandbox: { type: "string" },
-      wsl: { type: "string" },
-      "prompt-stdin": { type: "boolean" },
-      format: { type: "string" },
-      options: { type: "boolean" },
-      standalone: { type: "boolean" },
-      file: { type: "string", multiple: true },
-      interactive: { type: "boolean" },
-    },
+    options: RUN_CLI_OPTIONS,
   });
   if (
     parsed.positionals.length !== (parsed.values["prompt-stdin"] || parsed.values.options ? 0 : 1)
@@ -79,6 +312,12 @@ export function parseRunCli(args: readonly string[]) {
     );
   if (format !== "text" && format !== "json")
     throw new Error("Run format must be text or json (NDJSON).");
+  if (defaults.oneShot && parsed.values.options)
+    throw new Error("--print cannot be combined with --options.");
+  if (defaults.oneShot && parsed.values.session !== undefined)
+    throw new Error(
+      "--print cannot be combined with --session. Use poracode run --session instead.",
+    );
   if (parsed.values.session !== undefined) {
     if (
       (
@@ -126,6 +365,77 @@ export function parseRunCli(args: readonly string[]) {
     throw new Error(
       "run --options accepts the project/directory, provider, selected environment and output format only.",
     );
+  if (
+    !parsed.values.options &&
+    (defaults.oneShot || parsed.values.provider === undefined || parsed.values.model === undefined)
+  ) {
+    if (defaults.oneShot && parsed.values["prompt-stdin"])
+      throw new Error("--print requires a quoted PROMPT.");
+    const provider = parsed.values.provider ?? defaults.lastModel?.provider;
+    if (!provider)
+      throw new Error(
+        'No provider is selected. Open poracode tui or start poracode serve, then run "poracode providers list"; or specify --provider and --model explicitly.',
+      );
+    if (parsed.values.project !== undefined && parsed.values.directory !== undefined)
+      throw new Error("Choose --directory or --project, not both.");
+    if (parsed.values.directory !== undefined && !parsed.values.directory.length)
+      throw new Error("Specify a directory path; use . for the current directory.");
+    const directory =
+      parsed.values.directory !== undefined
+        ? resolvePath(parsed.values.directory)
+        : parsed.values.project === undefined
+          ? resolvePath(defaults.defaultDirectory ?? process.cwd())
+          : undefined;
+    if (directory !== undefined) {
+      if (
+        parsed.values.wsl !== undefined ||
+        deriveLocationFromPath(directory, process.platform).kind === "wsl"
+      )
+        throw new Error(
+          "Controlled directory runs require a native directory. Use the selected WSL distro's supported terminal workflow; no project was registered or native fallback attempted.",
+        );
+    }
+    const command =
+      directory !== undefined
+        ? hostRunDirectoryOptionsCommandSchema.parse({
+            action: "run-directory-options",
+            directory,
+            agentKind: provider,
+          })
+        : hostRunCommandSchema.parse({
+            action: "run-options",
+            projectId: parsed.values.project,
+            agentKind: provider,
+            ...(parsed.values.wsl !== undefined ? { wslDistro: parsed.values.wsl } : {}),
+          });
+    return {
+      options: false as const,
+      command,
+      prompt: parsed.positionals[0],
+      format,
+      standalone,
+      interactive,
+      defaultSelection: {
+        target:
+          directory !== undefined
+            ? { kind: "directory" as const, directory }
+            : {
+                kind: "project" as const,
+                projectId: parsed.values.project!,
+                ...(parsed.values.wsl !== undefined ? { wslDistro: parsed.values.wsl } : {}),
+              },
+        provider,
+        ...(parsed.values.model !== undefined ? { explicitModel: parsed.values.model } : {}),
+        ...(parsed.values.effort !== undefined ? { explicitEffort: parsed.values.effort } : {}),
+        ...(parsed.values["approval-policy"] !== undefined
+          ? { approvalPolicy: parsed.values["approval-policy"] }
+          : {}),
+        ...(parsed.values.sandbox !== undefined ? { sandboxMode: parsed.values.sandbox } : {}),
+        ...(files ? { files } : {}),
+        ...(defaults.lastModel ? { lastModel: defaults.lastModel } : {}),
+      } satisfies RunCliDefaultSelection,
+    };
+  }
   if (parsed.values.directory !== undefined) {
     if (parsed.values.project !== undefined)
       throw new Error("Choose --directory or --project, not both.");
@@ -348,21 +658,13 @@ export async function runRunCli(
     controller.signal.throwIfAborted();
     if (input.options) {
       request = await connect(controller.signal);
+      if (
+        input.command.action !== "run-options" &&
+        input.command.action !== "run-directory-options"
+      )
+        throw new Error("An options run is missing its options command.");
       const response = await request(input.command, controller.signal);
-      let options: ReturnType<typeof hostRunOptionsSchema.parse>;
-      if (input.command.action === "run-directory-options") {
-        const directory = hostRunDirectoryOptionsSchema.parse(response);
-        assertDirectorySelection(input.command.directory, directory.project);
-        options = directory.options;
-        if (options.projectId !== directory.project.id)
-          throw new Error("The owner returned options for a different execution target.");
-      } else {
-        options = hostRunOptionsSchema.parse(response);
-        if (options.projectId !== input.command.projectId)
-          throw new Error("The owner returned options for a different execution target.");
-      }
-      if (options.agentKind !== input.command.agentKind)
-        throw new Error("The owner returned options for a different execution target.");
+      const options = parseRunOptions(input.command, response);
       await write(
         input.format === "json"
           ? JSON.stringify(options) + "\n"
@@ -384,21 +686,47 @@ export async function runRunCli(
       );
     } else {
       const prompt = input.prompt ?? (await readPrompt(streams.stdin, controller.signal));
+      hostRunPreparationCommandSchema.shape.prompt.parse(prompt);
+      let preparation = input.command;
+      const defaultSelection = "defaultSelection" in input ? input.defaultSelection : undefined;
+      if (defaultSelection) {
+        request = await connect(controller.signal);
+        if (
+          input.command.action !== "run-options" &&
+          input.command.action !== "run-directory-options"
+        )
+          throw new Error("Default run selection is missing its options request.");
+        const options = parseRunOptions(
+          input.command,
+          await request(input.command, controller.signal),
+        );
+        preparation = commandForDefaultRun(
+          defaultSelection,
+          resolveRunCliDefaults(defaultSelection, options),
+        );
+      }
+      if (preparation.action === "run-options" || preparation.action === "run-directory-options")
+        throw new Error("A task run cannot use an options-only command.");
       const command =
-        input.command.action === "run-files-prepare"
-          ? hostRunFilesPreparationCommandSchema.parse({ ...input.command, prompt })
-          : input.command.action === "run-resume-files-prepare"
-            ? hostRunFilesResumeCommandSchema.parse({ ...input.command, prompt })
-            : input.command.action === "run-directory-files-prepare"
-              ? hostRunFilesDirectoryCommandSchema.parse({ ...input.command, prompt })
-              : input.command.action === "run-resume-prepare"
-                ? hostRunResumePreparationCommandSchema.parse({ ...input.command, prompt })
-                : input.command.action === "run-directory-prepare"
-                  ? hostRunDirectoryPreparationCommandSchema.parse({ ...input.command, prompt })
-                  : hostRunPreparationCommandSchema.parse({ ...input.command, prompt });
-      request = await connect(controller.signal);
-      const response = await request(
-        input.interactive ? { action: "run-interactive-prepare", command } : command,
+        preparation.action === "run-files-prepare"
+          ? hostRunFilesPreparationCommandSchema.parse({ ...preparation, prompt })
+          : preparation.action === "run-resume-files-prepare"
+            ? hostRunFilesResumeCommandSchema.parse({ ...preparation, prompt })
+            : preparation.action === "run-directory-files-prepare"
+              ? hostRunFilesDirectoryCommandSchema.parse({ ...preparation, prompt })
+              : preparation.action === "run-resume-prepare"
+                ? hostRunResumePreparationCommandSchema.parse({ ...preparation, prompt })
+                : preparation.action === "run-directory-prepare"
+                  ? hostRunDirectoryPreparationCommandSchema.parse({ ...preparation, prompt })
+                  : hostRunPreparationCommandSchema.parse({ ...preparation, prompt });
+      request ??= await connect(controller.signal);
+      const preparationCommand = input.interactive
+        ? { action: "run-interactive-prepare" as const, command }
+        : command;
+      const response = await requestRunPreparation(
+        request,
+        preparationCommand,
+        input.format === "json",
         controller.signal,
       );
       let prepared: ReturnType<typeof hostRunMetadataSchema.parse>;

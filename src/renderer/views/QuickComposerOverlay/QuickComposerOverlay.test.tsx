@@ -1,3 +1,4 @@
+import "fake-indexeddb/auto";
 import { act, fireEvent, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { toast } from "@heroui/react";
@@ -5,7 +6,7 @@ import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useAppStore } from "@/renderer/state/appStore";
 
-const { bridge, installedStatus, installedStatuses, settingsState } = vi.hoisted(() => {
+const { bridge, installedStatus, settingsState } = vi.hoisted(() => {
   const status = {
     kind: "codex",
     label: "Codex",
@@ -19,8 +20,7 @@ const { bridge, installedStatus, installedStatuses, settingsState } = vi.hoisted
   };
   return {
     installedStatus: status,
-    installedStatuses: [status],
-    settingsState: { homeScopeEnabled: false, disabledAgents: [] as string[] },
+    settingsState: { homeScopeEnabled: false, disabledAgents: [] as string[], workspaces: [] },
     bridge: {
       windowKind: "quickComposer",
       getAgentStatuses: vi
@@ -52,10 +52,7 @@ const { bridge, installedStatus, installedStatuses, settingsState } = vi.hoisted
   };
 });
 
-vi.mock("@/renderer/bridge", () => ({ readBridge: () => bridge }));
-vi.mock("@/shared/agentStatus", () => ({
-  getProjectAgentStatuses: () => installedStatuses,
-}));
+vi.mock("@/renderer/bridge", () => ({ readBridge: () => bridge, isRemoteSession: () => false }));
 vi.mock("@/renderer/state/sharedSettingsStore", () => ({
   useSharedSettings: (selector: (state: Record<string, unknown>) => unknown) =>
     selector(settingsState),
@@ -111,6 +108,7 @@ describe("QuickComposerOverlay", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.clearAllMocks();
+    settingsState.disabledAgents = [];
     Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" });
     useAppStore.setState((state) => ({
       ...state,
@@ -124,6 +122,34 @@ describe("QuickComposerOverlay", () => {
       windowsLoaded: true,
       wslLoaded: true,
     });
+  });
+
+  it("opens the composer as soon as an enabled provider finishes while discovery remains pending", async () => {
+    useAgentStatusesStore.setState({ agentStatuses: [], windowsLoaded: false });
+    bridge.getAgentStatuses.mockResolvedValueOnce({ windows: [], wsl: [], fromCache: false });
+    render(<QuickComposerOverlay />);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(screen.getByText("Detecting agents…")).toBeInTheDocument();
+    act(() => {
+      bridge.onSupervisorEvent.mock.calls[0]?.[0]({
+        type: "agent-detected",
+        status: installedStatus,
+      });
+    });
+    expect(screen.getByRole("textbox", { name: "Composer input" })).toBeInTheDocument();
+    expect(screen.queryByText("Detecting agents…")).not.toBeInTheDocument();
+    expect(useAgentStatusesStore.getState().windowsLoaded).toBe(false);
+  });
+
+  it("keeps loading when a partial inventory contains only disabled providers", () => {
+    settingsState.disabledAgents = [installedStatus.kind];
+    useAgentStatusesStore.setState({ windowsLoaded: false });
+    bridge.getAgentStatuses.mockResolvedValueOnce({ windows: [], wsl: [], fromCache: false });
+    render(<QuickComposerOverlay />);
+    expect(screen.getByText("Detecting agents…")).toBeInTheDocument();
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
   });
 
   it("focuses the composer input whenever the native overlay appears", () => {

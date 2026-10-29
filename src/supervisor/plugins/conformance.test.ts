@@ -14,6 +14,11 @@ import {
 import { loadPluginFromDirectory } from "./PluginLoader";
 import { PluginRegistry, PROJECT_PLUGINS_DIR } from "./PluginRegistry";
 import { resolvePluginMcpServers } from "./pluginMcpRuntime";
+import {
+  canDisablePlugin,
+  resolveInstalledPluginState,
+  setInstalledPluginEnabled,
+} from "@/shared/plugins/catalog";
 
 /**
  * Client conformance for Agent Plugins Specification 1.0.0.
@@ -791,6 +796,30 @@ describe("registry", () => {
 });
 
 describe("shipped packages", () => {
+  it("keeps Poracode enabled over stored disables and per-thread overrides", () => {
+    const plugin = loadPluginFromDirectory(
+      join(process.cwd(), "resources", "plugins", "app-controls"),
+      "bundled",
+    ).plugin!;
+    const installed = {
+      "app-controls": {
+        version: "1.7.0",
+        enabled: false,
+        disabledSkillIds: ["app-controls"],
+        disabledMcpServerNames: ["poracode"],
+      },
+    };
+    expect(canDisablePlugin(plugin)).toBe(false);
+    expect(resolveInstalledPluginState(plugin, installed, { "app-controls": false })).toMatchObject(
+      {
+        enabled: true,
+        disabledSkillIds: [],
+        disabledMcpServerNames: [],
+      },
+    );
+    expect(setInstalledPluginEnabled(installed, plugin, false)).toBe(installed);
+  });
+
   it("loads every package in resources/plugins", () => {
     const shippedDir = join(process.cwd(), "resources", "plugins");
     const shipped = readdirSync(shippedDir, { withFileTypes: true })

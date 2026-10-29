@@ -20,6 +20,7 @@ export type SettingsSection =
   | "skills"
   | "mcpServers"
   | "plugins"
+  | "crews"
   | "browser"
   | "usage"
   | "import"

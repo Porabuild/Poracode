@@ -7,9 +7,127 @@ import {
   reorderVisibleThreadDocks,
   sharedSettingsSchema,
 } from "./settings";
+import { QWEN_RETIRED_PREVIEW_MODEL_ID } from "./agents/qwenModels";
+
+const validCrew = {
+  id: "ship",
+  name: "Ship crew",
+  lead: { agentKind: "claude", model: "opus-5.5" },
+  policy: "crew-only",
+  roles: [
+    {
+      id: "builder",
+      label: "Builder",
+      selection: { agentKind: "codex", model: "gpt-5.5" },
+    },
+  ],
+};
+
+describe("shared settings crews", () => {
+  it("reads pre-shortcut crews and model history and round-trips optional picker metadata", () => {
+    const legacy = {
+      crews: [validCrew],
+      recentModels: [{ agentKind: "example", modelId: "lead", presentationMode: "gui" }],
+      favoriteModels: [],
+    };
+    const normalized = normalizeSharedSettings(legacy);
+    expect(normalized.crews).toEqual(legacy.crews);
+    expect(normalized.recentModels).toEqual(legacy.recentModels);
+    const current = {
+      ...normalized,
+      crews: [{ ...normalized.crews[0]!, favorite: true, lastUsedAt: 123 }],
+      recentModels: [{ ...normalized.recentModels[0]!, lastUsedAt: 124 }],
+    };
+    expect(normalizeSharedSettings(JSON.parse(JSON.stringify(current)))).toEqual(current);
+  });
+
+  it("adds an empty crew list to pre-crews settings without changing other values", () => {
+    const normalized = normalizeSharedSettings({ themeMode: "light", providerOrder: ["codex"] });
+    expect(normalized.crews).toEqual([]);
+    expect(normalized.themeMode).toBe("light");
+    expect(normalized.providerOrder).toEqual(["codex"]);
+  });
+
+  it("drops only malformed or duplicate crews and normalizes each valid roster", () => {
+    const normalized = normalizeSharedSettings({
+      crews: [
+        validCrew,
+        { ...validCrew, id: "broken", roles: [{ id: "bad id" }] },
+        { ...validCrew, name: "Duplicate id" },
+        {
+          ...validCrew,
+          id: "normalized",
+          roles: [
+            validCrew.roles[0],
+            { ...validCrew.roles[0], id: "builder-two", label: " builder " },
+          ],
+        },
+      ],
+    });
+    expect(normalized.crews).toHaveLength(2);
+    expect(normalized.crews.map((crew) => crew.id)).toEqual(["ship", "normalized"]);
+    expect(normalized.crews[1]?.roles).toHaveLength(1);
+  });
+
+  it("runs provider alias, retired-model and selection normalization on crew members", () => {
+    const normalized = normalizeSharedSettings({
+      crews: [
+        {
+          ...validCrew,
+          lead: {
+            agentKind: "acp-generic:antigravity-acp",
+            model: "gemini-3.5-flash-low",
+          },
+          roles: [
+            {
+              ...validCrew.roles[0],
+              selection: { agentKind: "qwen", model: QWEN_RETIRED_PREVIEW_MODEL_ID },
+              fallbacks: [
+                {
+                  agentKind: "acp-generic:antigravity-acp",
+                  model: "gemini-3.5-flash-low",
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+    expect(normalized.crews[0]?.lead).toMatchObject({
+      agentKind: "antigravity",
+      model: "gemini-3.5-flash",
+      effort: "Medium",
+    });
+    expect(normalized.crews[0]?.roles[0]?.selection).toMatchObject({
+      agentKind: "qwen",
+      model: "qwen3.8-max",
+    });
+    expect(normalized.crews[0]?.roles[0]?.fallbacks?.[0]).toMatchObject({
+      agentKind: "antigravity",
+      model: "gemini-3.5-flash",
+      effort: "Medium",
+    });
+  });
+});
 
 describe("shared settings defaults", () => {
-  it("keeps pre-LAN settings loopback-only without changing remote enablement", () => {
+  it("loads pre-upgrade Poracode disables without disabling its always-on MCP server", () => {
+    expect(
+      normalizeSharedSettings({
+        disabledBuiltInMcpServers: { "app-controls": true, browser: true },
+        disabledBuiltInMcpTools: { "app-controls": ["create_thread"] },
+      }),
+    ).toMatchObject({
+      disabledBuiltInMcpServers: { browser: true },
+      disabledBuiltInMcpTools: { "app-controls": ["create_thread"] },
+    });
+    expect(
+      normalizeSharedSettings({ disabledBuiltInMcpServers: { "app-controls": true } })
+        .disabledBuiltInMcpServers,
+    ).toEqual({});
+  });
+
+  it("retains the retired LAN preference without changing remote enablement", () => {
     const prior = { remoteAccessEnabled: true, remoteAccessTailscaleHttps: true };
     expect(normalizeSharedSettings(prior)).toMatchObject({
       ...prior,
@@ -98,6 +216,7 @@ describe("shared settings defaults", () => {
   it("normalizes and reorders thread docks without moving hidden dock slots", () => {
     expect(normalizeThreadDocksOrder(["plan", "plan"])).toEqual([
       "plan",
+      "vision",
       "goal",
       "agents",
       "backgroundTasks",
@@ -118,7 +237,7 @@ describe("shared settings defaults", () => {
   it("preserves existing saved dock order and appends context and usage on upgrade", () => {
     const priorOrder = ["images", "plan", "agents", "goal", "backgroundTasks"];
     const upgraded = normalizeSharedSettings({ threadDocksOrder: priorOrder });
-    expect(upgraded.threadDocksOrder).toEqual([...priorOrder, "context", "usage"]);
+    expect(upgraded.threadDocksOrder).toEqual([...priorOrder, "vision", "context", "usage"]);
     expect(
       reorderVisibleThreadDocks(
         upgraded.threadDocksOrder,
@@ -126,7 +245,16 @@ describe("shared settings defaults", () => {
         3,
         0,
       ),
-    ).toEqual(["usage", "images", "agents", "goal", "backgroundTasks", "plan", "context"]);
+    ).toEqual([
+      "usage",
+      "images",
+      "agents",
+      "goal",
+      "backgroundTasks",
+      "vision",
+      "plan",
+      "context",
+    ]);
   });
 
   it("enables notifications and displays them for visible threads by default", () => {

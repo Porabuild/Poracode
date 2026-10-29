@@ -104,6 +104,7 @@ export const APP_CONTROLS_MCP_INSTRUCTIONS =
   "not fall back to agent TUI or chat scrollback. If read_terminal reports zero output, say the pane " +
   "is running but has not emitted output yet. " +
   "For app-native charts, comparison tables, calculators, checklists, tabs, text and relationship diagrams in desktop/web conversations, use a poracode-visual-v2 code fence with a plain title and strict JSON. " +
+  "To show a recorded or generated video with playback in desktop/web chat, save the file and include [Watch video](<absolute-file-path.mp4>) or ![Video](<absolute-file-path.webm>) in your response. HTTPS video URLs and standard MCP/ACP video resource links are also supported. Use the actual saved path; prose saying a clip exists does not attach it. Playback depends on the client's supported codecs. " +
   "Read Native visuals v2 in the app-controls core skill for the bounded schema and example, fixed app-theme layout/accent choices and shared numeric inputs. Native v1 chart/table/outputs documents remain supported; formulas in both versions are arithmetic trees, never strings or JavaScript. " +
   "Native visuals have no URLs, custom markup, tools, host actions or author code; native mobile clients keep fenced source. Use ordinary Markdown for unsupported content. " +
   "A poracode-html-v1 code fence with a plain title preserves HTML as a source preview in the conversation (maximum 256 KiB per block). " +

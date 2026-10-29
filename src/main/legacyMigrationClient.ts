@@ -1,14 +1,17 @@
 import { spawnSync } from "node:child_process";
 import { join } from "node:path";
-import type {
-  LegacyDataMigrationOptions,
-  LegacyDataMigrationResult,
+import {
+  settledLegacyDataMigration,
+  type LegacyDataMigrationOptions,
+  type LegacyDataMigrationResult,
 } from "@/host/legacyDataMigration";
 
 /** Runs SQLite-touching legacy import outside Electron's latency-sensitive main process. */
 export function migrateLegacyDataOutOfProcess(
   options: LegacyDataMigrationOptions,
 ): LegacyDataMigrationResult {
+  const settled = settledLegacyDataMigration(options);
+  if (settled) return settled;
   const workerPath = join(__dirname, "legacyMigrationWorker.cjs");
   const encoded = Buffer.from(JSON.stringify(options), "utf8").toString("base64url");
   const result = spawnSync(process.execPath, [workerPath, encoded], {

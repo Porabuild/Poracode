@@ -36,12 +36,16 @@ changes.
 2. Check the desktop precondition (below), then choose the validation shape.
 3. For a quick or full smoke, run the one-command runner; it creates the
    isolated fixture, boots the app, derives the scope plan, runs the checks, and
-   tears the app down.
+   tears the app down. It removes `runtime/` when teardown succeeds and leaves
+   the session directory; you still delete that directory after copying evidence.
 4. For live work, generate the plan
    (`scripts/poracode-integration-smoke.mjs plan --scope changed`), then start or
-   reuse one managed session with `--launch-only`.
-5. Reset driven state, stop only the process launched for this run, check for
-   unexpected git changes, and report.
+   reuse one managed session with `--launch-only`. Do not start a second cold
+   runtime for this validation while the first root is still on disk; that
+   copy is another ~2.6 GB.
+5. Reset driven state, stop only the process launched for this run, copy cited
+   evidence into `tmp/`, delete that session directory, check for unexpected
+   git changes, and report.
 
 Never claim "all functionality passed." Report automated, manual, skipped, and
 not-applicable coverage separately.
@@ -76,7 +80,8 @@ node .agents/skills/interactive-testing/scripts/poracode-cdp.mjs launch --new --
 It prints `READY` with the exact `sessionFile`, ports, and URL. Keep that
 terminal alive. When several sessions exist, pass `--session <session.json>` to
 every helper; they refuse to guess. Stop with
-`node .agents/skills/interactive-testing/scripts/poracode-cdp.mjs stop`.
+`node .agents/skills/interactive-testing/scripts/poracode-cdp.mjs stop`, then
+delete that session directory as described in Safety and teardown.
 
 Never symlink a whole `node_modules` directory between worktrees or run `bun install`
 through such a link: the package manager can reconcile links relative to the other worktree and
@@ -229,8 +234,30 @@ assertion or omit a gate to make the run green.
 - Never send destructive prompts or approve destructive permission requests.
 - Run `poracode-cdp.mjs reset` and close transient panels, then
   `poracode-cdp.mjs stop`.
-- Leave the smoke directory for inspection unless asked to clean up, and never
-  commit smoke artifacts or source changes made only to reach a UI state.
+- Delete the session directory this run created once its processes are gone,
+  including when the run failed or you abandoned it. A frozen runtime is about
+  2.6 GB; leaving those roots filled `~/.poracode-smoke` into the hundreds of
+  gigabytes. Copy `smoke-report.json` and any screenshot you will cite into
+  `tmp/` first (those files are small). Then remove only that root — the
+  directory passed as `--root`, or the parent of the `session.json` the
+  launcher printed (`Automated smoke root:` is the same path):
+
+  ```sh
+  rm -rf -- "<session-root>"
+  ```
+
+  On PowerShell: `Remove-Item -LiteralPath "<session-root>" -Recurse -Force`.
+
+  The path must sit inside `~/.poracode-smoke` (or `PORACODE_SMOKE_ROOT`).
+  Never remove the smoke parent itself, `~/.poracode`, or another agent's root.
+  A session whose `session.json` is `starting` or `ready` and whose owner PID
+  is still running is live; leave it. If `stop` times out or files stay locked,
+  wait until that owner PID is gone, then delete the root you created even if
+  `session.json` still says `starting` or `ready`. A leftover `runtime/` is the
+  bulk of the disk use. Keep the tree only when the user asked to inspect that
+  session.
+
+- Never commit smoke artifacts or source changes made only to reach a UI state.
 
 ## Report
 
@@ -239,7 +266,7 @@ Give one verdict per functional area with:
 - automated scenarios with PASS/FAIL;
 - mock gates with PASS/FAIL, and real gates with PASS/FAIL/SKIPPED and reasons;
 - console/runtime error count and the first three errors;
-- screenshot and `smoke-report.json` paths;
+- screenshot and `smoke-report.json` paths under `tmp/` (the session directory is already deleted);
 - untested functionality and why;
 - the suspected source file and line for each regression.
 

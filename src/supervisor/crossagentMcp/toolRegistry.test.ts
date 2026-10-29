@@ -430,6 +430,108 @@ describe("provider discovery", () => {
     expect(JSON.parse(resultText(detail))).toEqual(provider);
   });
 
+  it("adds the current crew description to list_agents without changing no-crew output", async () => {
+    const { ctx } = makeToolContext();
+    ctx.listSpawnableAgents = async () => [provider];
+    ctx.getCrew = () => ({
+      version: 1,
+      name: "Ship crew",
+      policy: "crew-only",
+      roles: [
+        {
+          id: "builder",
+          label: "Builder",
+          selection: { agentKind: "codex", model: "gpt-5.5", effort: "high" },
+        },
+      ],
+    });
+    ctx.runManager = {
+      listRuns: () => [{ role: "builder", status: "running" }],
+    } as unknown as SubagentRunManager;
+    const listed = JSON.parse(resultText(await dispatchTool("list_agents", {}, ctx)));
+    expect(listed).toEqual({
+      crew: {
+        name: "Ship crew",
+        policy: "crew-only",
+        instructions:
+          "Spawn work with role=<id>; the role sets provider, model, reasoning and Fast. Crew only: spawns without a role are refused.",
+        roles: [
+          {
+            role: "builder",
+            label: "Builder",
+            provider: "codex",
+            model: "gpt-5.5",
+            reasoning: "high",
+            fast: false,
+            parallel: 1,
+            running: 1,
+            available: true,
+          },
+        ],
+      },
+    });
+  });
+
+  it("includes the unchanged ranked agents array only when policy is crew-first", async () => {
+    const { ctx } = makeToolContext();
+    ctx.listSpawnableAgents = async () => [provider];
+    const ordinary = JSON.parse(resultText(await dispatchTool("list_agents", {}, ctx)));
+    ctx.getCrew = () => ({
+      version: 1,
+      policy: "crew-first",
+      roles: [
+        {
+          id: "builder",
+          label: "Builder",
+          selection: { agentKind: "codex", model: "gpt-5.5" },
+        },
+      ],
+    });
+    ctx.runManager = { listRuns: () => [] } as unknown as SubagentRunManager;
+    const withCrew = JSON.parse(resultText(await dispatchTool("list_agents", {}, ctx)));
+    expect(withCrew.agents).toEqual(ordinary);
+    expect(withCrew.crew.policy).toBe("crew-first");
+    expect(withCrew.crew.instructions).toBe(
+      "Spawn work with role=<id>; the role sets provider, model, reasoning and Fast. Crew first: if no role fits or a role is unavailable, you may spawn one of agents without a role.",
+    );
+  });
+
+  it("returns each specified crew role error through spawn_agent", async () => {
+    const { ctx } = makeToolContext();
+    ctx.listSpawnableAgents = async () => [provider];
+    const baseCrew = {
+      version: 1 as const,
+      policy: "crew-only" as const,
+      roles: [
+        {
+          id: "builder",
+          label: "Builder",
+          selection: { agentKind: "codex", model: "gpt-5.5", effort: "high" },
+        },
+      ],
+    };
+    const failure = async (args: Record<string, unknown>, crew?: typeof baseCrew) => {
+      delete ctx.getCrew;
+      if (crew) ctx.getCrew = () => crew;
+      return resultText(await dispatchTool("spawn_agent", args, ctx));
+    };
+    expect(await failure({ role: "builder", prompt: "work" })).toBe(
+      "This thread has no crew; omit role.",
+    );
+    expect(await failure({ role: "missing", prompt: "work" }, baseCrew)).toBe(
+      "Unknown crew role: missing. Roles: builder.",
+    );
+    expect(await failure({ role: "builder", provider: "claude", prompt: "work" }, baseCrew)).toBe(
+      "role=builder sets provider, model, reasoning and Fast; omit them.",
+    );
+    expect(await failure({ role: "builder", fallbacks: [], prompt: "work" }, baseCrew)).toBe(
+      "role=builder uses the role's own fallbacks; omit fallbacks.",
+    );
+    expect(await failure({ prompt: "work" }, baseCrew)).toBe(
+      "This thread's crew is Crew only: spawn with role=<id> (builder).",
+    );
+  });
+
   it("returns one requested model without mutating the cached provider catalog", async () => {
     const { ctx } = makeToolContext();
     const full: SpawnableAgent = {
@@ -586,8 +688,19 @@ describe("subagent tool registration", () => {
       type: "object",
       properties: expect.objectContaining({
         prompt: expect.anything(),
+        role: {
+          type: "string",
+          description:
+            "Crew role id from list_agents (for example `builder`) when this thread has a crew. The role sets provider, model, reasoning and Fast; omit those.",
+        },
         tasks: expect.anything(),
       }),
+    });
+    expect(byName.get("run_workflow")!.inputSchema).toMatchObject({
+      properties: {
+        role: expect.anything(),
+        tasks: { items: { properties: { role: expect.anything() } } },
+      },
     });
     expect(byName.get("get_agent")!.inputSchema).toMatchObject({ required: ["id"] });
     expect(byName.get("set_routing_preference")!.inputSchema).toMatchObject({

@@ -7,6 +7,7 @@ describe("groupMentionResults", () => {
     { type: "plugin", path: "browser-tools", name: "Browser", command: {} as never },
     { type: "mcp", path: "browser", name: "Browser", icon: Globe, enabled: true },
     { type: "mcp", path: "app-controls", name: "Terminal", icon: Globe, enabled: true },
+    { type: "crew", path: "Builder", name: "Builder", detail: "Opus 5.5" },
     { type: "thread", path: "t1", name: "Fix launch", detail: "603efb25" },
     { type: "directory", path: "src", name: "src" },
     { type: "file", path: "src/index.ts", name: "index.ts" },
@@ -16,6 +17,7 @@ describe("groupMentionResults", () => {
     expect(groupMentionResults(entries).map((section) => section.key)).toEqual([
       "plugin",
       "mcp",
+      "crew",
       "thread",
       "file",
     ]);
@@ -25,7 +27,7 @@ describe("groupMentionResults", () => {
     const flatIndexes = groupMentionResults(entries).flatMap((section) =>
       section.items.map((item) => item.index),
     );
-    expect(flatIndexes).toEqual([0, 1, 2, 3, 4, 5]);
+    expect(flatIndexes).toEqual([0, 1, 2, 3, 4, 5, 6]);
   });
 
   it("groups directories together with files", () => {

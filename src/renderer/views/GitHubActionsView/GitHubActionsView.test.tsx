@@ -311,7 +311,7 @@ describe("GitHubActionsView", () => {
     expect(document.querySelector('[class~="min-w-[--trigger-width]"]')).toBeInTheDocument();
   });
 
-  it("disables menu rows for projects on unreachable servers", async () => {
+  it("leaves projects on unreachable servers out of the project menu", async () => {
     const mirrored: Project = {
       ...project,
       id: "remote:desktop-1:project:project-1",
@@ -328,12 +328,8 @@ describe("GitHubActionsView", () => {
     render(<GitHubActionsView projectId={project.id} onClose={() => {}} />);
 
     fireEvent.click(await screen.findByRole("button", { name: "Project" }));
-    const remoteRow = await screen.findByRole("menuitemradio", { name: /MacBook 16/ });
-    expect(remoteRow).toHaveAttribute("aria-disabled", "true");
-    expect(screen.getByRole("menuitemradio", { name: "Poracode" })).not.toHaveAttribute(
-      "aria-disabled",
-      "true",
-    );
+    expect(await screen.findByRole("menuitemradio", { name: "Poracode" })).toBeInTheDocument();
+    expect(screen.queryByRole("menuitemradio", { name: /MacBook 16/ })).not.toBeInTheDocument();
   });
 
   it("selects the first pinned workflow by default", async () => {

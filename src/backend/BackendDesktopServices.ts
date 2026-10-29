@@ -333,6 +333,11 @@ export class BackendDesktopServices {
           ...(experimentAuthority ? { experimentAuthority } : {}),
           dispatchThreadCommand,
           browser: this.browser,
+          readAgentVision: (threadId, preview, streaming) =>
+            options.requestNative({
+              operation: "agent-vision",
+              payload: { threadId, preview, ...(streaming ? { streaming } : {}) },
+            }) as Promise<import("@/shared/agentVision").AgentVision | null>,
           // The controller's settings patches commit through the same authority
           // as every other writer; the committed broadcast happens in the
           // authority's onCommitted hook.
@@ -624,9 +629,10 @@ export class BackendDesktopServices {
       case "getRemoteAccessTailscaleStatus":
         return this.requireRemote().getTailscaleStatus() as Promise<BackendServiceResult<Name>>;
       case "setRemoteAccessLanEnabled":
-        return this.requireRemote().setLanEnabled(
-          (payload as { enabled: boolean }).enabled,
-        ) as Promise<BackendServiceResult<Name>>;
+        // Retired: the Remote Access switch is the only exposure gate. The
+        // procedure stays so a published peer still resolves it (removing it
+        // would move the client/host hop); it changes nothing.
+        return this.requireRemote().getPairingInfo() as BackendServiceResult<Name>;
       case "setRemoteAccessTailscaleHttps":
         return this.requireRemote().setTailscaleHttps(
           (payload as { enabled: boolean }).enabled,

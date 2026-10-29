@@ -1,3 +1,4 @@
+import { parseArgs } from "node:util";
 import { parseServeCliOptions } from "./serverConfig";
 import { parseUpgradeCliOptions } from "./serverUpgrade";
 import { parseServiceCliOptions } from "./serverService";
@@ -9,6 +10,8 @@ export type ServerCliCommand =
   | "admin"
   | "configure"
   | "completion"
+  | "print"
+  | "tui"
   | "setup"
   | "service"
   | "serve"
@@ -98,8 +101,50 @@ export function parsePairCliOptions(args: readonly string[]): PairCliOptions {
   return { json, ...(scope ? { scope } : {}) };
 }
 
-export function parseServerCliCommand(args: readonly string[]): ServerCliCommand {
-  if (args.length === 0) return "serve";
+export interface TuiCliOptions {
+  readonly continue?: boolean;
+  readonly sessionId?: string;
+  readonly prompt?: string;
+  readonly auto?: boolean;
+  readonly directory?: string;
+}
+
+const TUI_USAGE =
+  "Usage: poracode tui [--continue|-c] [--session ID] [--prompt TEXT] [--auto] [DIRECTORY]";
+
+export function assertTuiTerminal(stdinIsTTY: boolean, stdoutIsTTY: boolean) {
+  if (!stdinIsTTY || !stdoutIsTTY)
+    throw new Error("poracode tui requires an interactive terminal.");
+}
+
+export function parseTuiCliOptions(args: readonly string[]): TuiCliOptions {
+  const parsed = parseArgs({
+    args: [...args],
+    strict: true,
+    allowPositionals: true,
+    options: {
+      continue: { type: "boolean", short: "c" },
+      session: { type: "string" },
+      prompt: { type: "string" },
+      auto: { type: "boolean" },
+    },
+  });
+  if (parsed.positionals.length > 1 || parsed.values.session === "" || parsed.positionals[0] === "")
+    throw new Error(TUI_USAGE);
+  return {
+    ...(parsed.values.continue !== undefined ? { continue: parsed.values.continue } : {}),
+    ...(parsed.values.session !== undefined ? { sessionId: parsed.values.session } : {}),
+    ...(parsed.values.prompt !== undefined ? { prompt: parsed.values.prompt } : {}),
+    ...(parsed.values.auto !== undefined ? { auto: parsed.values.auto } : {}),
+    ...(parsed.positionals[0] !== undefined ? { directory: parsed.positionals[0] } : {}),
+  };
+}
+
+export function parseServerCliCommand(
+  args: readonly string[],
+  isInteractive = process.stdin.isTTY === true && process.stdout.isTTY === true,
+): ServerCliCommand {
+  if (args.length === 0) return isInteractive ? "tui" : "serve";
   if (args[0] === "completion") return "completion";
   if (
     [
@@ -119,6 +164,9 @@ export function parseServerCliCommand(args: readonly string[]): ServerCliCommand
       "status",
       "service",
       "serve",
+      "tui",
+      "-p",
+      "--print",
       "stop",
       "doctor",
       "logs",
@@ -134,6 +182,8 @@ export function parseServerCliCommand(args: readonly string[]): ServerCliCommand
   // Truthful artifact version (plan D1/D3); must be checked before the serve
   // branch, which claims every leading `--` flag.
   if (args.length === 1 && ["--version", "-v", "version"].includes(args[0]!)) return "version";
+  if (args[0] === "tui") return "tui";
+  if (args[0] === "-p" || args[0] === "--print") return "print";
   // `serve` is the default command; its flags (and the bare `serve` keyword)
   // are validated here and re-parsed at dispatch (the established pattern).
   if (args[0] === "serve" || args[0]!.startsWith("--")) {
@@ -200,11 +250,10 @@ export function parseServerCliCommand(args: readonly string[]): ServerCliCommand
     return "upgrade";
   }
   throw new Error(
-    `Usage: poracode-server [serve [--config <path>] [--host <host>] [--port <port>] [--trusted-proxies <list>] | ` +
-      "activate [--json] [--sign-in-again] | doctor [--json] [--log-file <path>] | logs [--follow] [--lines N] [--json] | " +
-      "backup --to <directory> [--json] | init-tls [--json] [--cert <path>] [--key <path>] | " +
-      "upgrade (--from <tarball> | --resume [--from <tarball>] | --abandon-journal --confirm) [--prefix <path>] [--json] | " +
-      "setup [--start|--no-start] [--open|--no-open] [--skip-auth] | pair --json [--scope viewer|operator] | status [--details] [--json] | stop [--if-pid PID] | --version | --help]",
+    "Usage: poracode [tui [--continue|-c] [--session ID] [--prompt TEXT] [--auto] [DIRECTORY] | " +
+      "-p|--print PROMPT [--provider PROVIDER] [--model MODEL] [--effort EFFORT] [--format text|json] [--directory PATH] | " +
+      "serve [--open|--no-open] [--config PATH] [--host HOST] [--port PORT] | " +
+      "setup | activate | doctor | logs | backup | init-tls | upgrade | pair | status | stop | --version | --help]",
   );
 }
 

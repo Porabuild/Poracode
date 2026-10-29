@@ -1,6 +1,7 @@
-import { useEffect, type RefObject } from "react";
+import { useEffect, useState, type RefObject } from "react";
 import { Trans } from "@lingui/react/macro";
 import type { AgentStatus, ProjectLocation, PromptSegment, Thread } from "@/shared/contracts";
+import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useThread } from "@/renderer/state/useThread";
 import { ChatPane } from "./ChatPane/ChatPane";
@@ -65,6 +66,10 @@ export function GuiThreadContent(
   }, []);
   const ownDockState = useThreadDockState(thread.id);
   const dockState = props.dockState ?? ownDockState;
+  const [composerInset, setComposerInset] = useState(0);
+  // A narrow window that widens keeps its last measurement; only the compact
+  // floating dock covers the transcript.
+  const compactLayout = useCompactLayout();
 
   return (
     <>
@@ -76,6 +81,9 @@ export function GuiThreadContent(
           <div className="min-h-0 min-w-0 flex-1">
             <ChatPane
               thread={thread}
+              {...(compactLayout && composerInset > 0 && !props.hideComposer
+                ? { bottomInset: composerInset }
+                : {})}
               hasSupplementaryContent={dockState.showTodoDock || dockState.showGoalDock}
               hiddenRuntimeItemId={dockState.hiddenRuntimeItemId}
               layoutChangeToken={dockState.dockLayoutToken}
@@ -117,6 +125,7 @@ export function GuiThreadContent(
       {props.hideComposer ? null : (
         <ThreadComposerSection
           {...props}
+          onComposerInsetChange={setComposerInset}
           todoDockCollapsed={dockState.todoDockCollapsed}
           docksPlacement={dockState.docksPlacement}
           todoDockState={dockState.todoDockState}

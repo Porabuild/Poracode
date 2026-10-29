@@ -136,6 +136,7 @@ export class InvalidSessionRecoveryCoordinator {
       session.adapter,
       session.threadId,
       session.projectLocation,
+      session.presentationMode ?? session.adapter.capabilities.presentationMode,
     );
     const resolvedMcpServers = await context.spawnPipeline.resolveMcpServersForLaunch({
       location: session.projectLocation,

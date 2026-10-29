@@ -66,6 +66,7 @@ export interface DesktopRemoteAccessControllerOptions {
   readonly getBrowserPanelManager?: () => BrowserPanelManager | null;
   readonly browser?: RemoteBrowserGatewayLike;
   readonly deviceWorkspace?: RemoteAccessServerOptions["deviceWorkspace"];
+  readonly readAgentVision?: RemoteAccessServerOptions["readAgentVision"];
   /**
    * The composition's settings authority writes. Every patch the controller
    * persists commits through it as scoped compare-and-swap edits; a conflict
@@ -136,7 +137,6 @@ export interface DesktopRemoteAccessController {
     readonly browserExtension?: boolean;
   }): Promise<ManagedLoopbackBootstrap | null>;
   getTailscaleStatus(): Promise<RemoteAccessTailscaleStatus>;
-  setLanEnabled(enabled: boolean): Promise<RemoteAccessPairingInfo>;
   setTailscaleHttps(enabled: boolean): Promise<RemoteAccessPairingInfo>;
   startTailscale(): Promise<StartTailscaleResult>;
   setAdvertisedUrl(url: string): Promise<RemoteAccessPairingInfo>;

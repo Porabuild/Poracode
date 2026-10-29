@@ -138,6 +138,12 @@ export const questionAnswerEntrySchema = z.object({
 export type QuestionAnswerEntry = z.infer<typeof questionAnswerEntrySchema>;
 
 export const questionAnswerItemPayloadSchema = z.object({
+  /**
+   * Canonical assistant-message id for an async reply. Optional and additive:
+   * existing answers remain valid; older readers retain the ordinary prompt.
+   * No storage or wire version bump is needed.
+   */
+  sourceItemId: z.string().min(1).optional(),
   questions: z.array(questionAnswerEntrySchema),
 });
 export type QuestionAnswerItemPayload = z.infer<typeof questionAnswerItemPayloadSchema>;
@@ -476,6 +482,17 @@ export const usageSpentSchema = z.object({
   tokens: usageTokenCategoriesSchema.optional(),
   /** Provider-reported cost, not proof of an invoice or subscription charge. */
   cost: usageMoneySchema.optional(),
+  /**
+   * Set only on usage forwarded from a crossagents helper run into its parent
+   * thread; absent = the thread's own (lead) usage. `agentKind` is the helper's
+   * provider, so ledgers price and attribute the tokens to it, not the parent.
+   */
+  helper: z
+    .object({
+      agentKind: z.string().min(1).max(64),
+      crewRoleId: z.string().min(1).max(64).optional(),
+    })
+    .optional(),
 });
 export type UsageSpent = z.infer<typeof usageSpentSchema>;
 

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { ProjectLocation, ThreadConfig } from "@/shared/contracts";
+import type { McpLaunchSnapshot, ProjectLocation, ThreadConfig } from "@/shared/contracts";
 
 const resolveAgentProjectLocation = vi.hoisted(() =>
   vi.fn<
@@ -15,10 +15,12 @@ vi.mock("../../agents/base", async (importOriginal) => ({
   resolveAgentProjectLocation,
 }));
 import {
+  applyCrewCrossagentMcpFlag,
   applyAgentSettingsMcpFlags,
   composeResolvedMcpServers,
   effectiveLaunchConfig,
   resolveThreadExecution,
+  SpawnPipeline,
   usesProviderSessionCrossagentRouting,
   workspaceLaunchConfig,
 } from "./spawnPipeline";
@@ -81,7 +83,7 @@ describe("resolveThreadExecution", () => {
   });
 });
 
-describe("effectiveLaunchConfig — single gate for built-in MCP disables", () => {
+describe("effectiveLaunchConfig - single gate for built-in MCP disables", () => {
   it("returns the config unchanged when nothing is disabled", () => {
     expect(effectiveLaunchConfig(baseConfig, [])).toBe(baseConfig);
   });
@@ -146,6 +148,193 @@ describe("effectiveLaunchConfig — single gate for built-in MCP disables", () =
     expect(
       effectiveLaunchConfig(config, [], ["browser", "crossagents", "computer-use", "chrome"]),
     ).toEqual(config);
+  });
+});
+
+describe("crew Crossagents launch policy", () => {
+  const crewConfig: ThreadConfig = {
+    model: "test-model",
+    crossagentMcp: false,
+    crew: {
+      version: 1,
+      policy: "crew-only",
+      roles: [
+        {
+          id: "builder",
+          label: "Builder",
+          selection: { agentKind: "codex", model: "gpt-5.5" },
+        },
+      ],
+    },
+  };
+  const threadCapabilities = { mcpScope: { gui: "launch" as const } };
+
+  const snapshot: McpLaunchSnapshot = {
+    mcpServers: [],
+    disabledBuiltInMcpServerIds: [],
+    disabledBuiltInMcpTools: {},
+    pluginBuiltInMcpServerIds: [],
+  };
+
+  it("applies the crew rule in resolveMcpLaunchConfig after the early-return path", () => {
+    const pipeline = new SpawnPipeline({ resolveAgentSettings: () => ({}) } as never);
+    const adapter = {
+      capabilities: {
+        presentationMode: "gui",
+        mcpScope: { gui: "launch" },
+      },
+    } as unknown as import("../../agents/base").AgentAdapter;
+    expect(
+      pipeline.resolveMcpLaunchConfig(crewConfig, snapshot, adapter, "thread", undefined, "gui")
+        .crossagentMcp,
+    ).toBe(true);
+    expect(
+      pipeline.resolveMcpLaunchConfig(
+        crewConfig,
+        { ...snapshot, disabledBuiltInMcpServerIds: ["crossagents"] },
+        adapter,
+        "thread",
+        undefined,
+        "gui",
+      ).crossagentMcp,
+    ).toBe(false);
+  });
+
+  it("keeps ordinary providers at effectiveLaunchConfig semantics", () => {
+    const pipeline = new SpawnPipeline({ resolveAgentSettings: () => ({}) } as never);
+    const adapter = {
+      capabilities: {
+        presentationMode: "gui",
+        mcpScope: { gui: "launch" },
+      },
+    } as unknown as import("../../agents/base").AgentAdapter;
+    const config = {
+      model: "test-model",
+      browserMcp: true,
+      crossagentMcp: false,
+      computerUse: true,
+      chromeMcp: true,
+    };
+    const mcpLaunchSnapshot: McpLaunchSnapshot = {
+      ...snapshot,
+      disabledBuiltInMcpServerIds: ["browser"],
+      pluginBuiltInMcpServerIds: ["crossagents", "computer-use"],
+    };
+    const expected = effectiveLaunchConfig(
+      config,
+      mcpLaunchSnapshot.disabledBuiltInMcpServerIds,
+      mcpLaunchSnapshot.pluginBuiltInMcpServerIds,
+    );
+    expect(
+      pipeline.resolveMcpLaunchConfig(
+        config,
+        mcpLaunchSnapshot,
+        adapter,
+        "thread",
+        undefined,
+        "gui",
+      ),
+    ).toEqual(expected);
+  });
+
+  it("uses provider-session routing availability for agentSettings providers", () => {
+    const pipeline = new SpawnPipeline({
+      resolveAgentSettings: () => ({ crossagentMcp: false }),
+    } as never);
+    const adapter = {
+      capabilities: {
+        presentationMode: "gui",
+        mcpConfigSource: "agentSettings",
+        crossagentMcpRouting: "provider-session",
+      },
+    } as unknown as import("../../agents/base").AgentAdapter;
+    expect(
+      pipeline.resolveMcpLaunchConfig(crewConfig, snapshot, adapter, undefined, undefined, "gui")
+        .crossagentMcp,
+    ).toBe(false);
+    expect(
+      pipeline.resolveMcpLaunchConfig(crewConfig, snapshot, adapter, "thread", undefined, "gui")
+        .crossagentMcp,
+    ).toBe(true);
+  });
+
+  it("forces Crossagents even when the effectiveLaunchConfig early-return path has no ids", () => {
+    const effective = effectiveLaunchConfig(crewConfig, []);
+    expect(effective.crossagentMcp).toBe(false);
+    expect(
+      applyCrewCrossagentMcpFlag(effective, threadCapabilities, "gui", [], false).crossagentMcp,
+    ).toBe(true);
+    expect(
+      applyCrewCrossagentMcpFlag(
+        { model: crewConfig.model, crew: crewConfig.crew },
+        threadCapabilities,
+        "gui",
+        [],
+        false,
+      ).crossagentMcp,
+    ).toBe(true);
+  });
+
+  it("lets the global built-in disable win", () => {
+    expect(
+      applyCrewCrossagentMcpFlag(crewConfig, threadCapabilities, "gui", ["crossagents"], false)
+        .crossagentMcp,
+    ).toBe(false);
+  });
+
+  it("forces provider-settings Crossagents only when routing is available", () => {
+    const capabilities = {
+      mcpConfigSource: "agentSettings" as const,
+      crossagentMcpRouting: "provider-session" as const,
+    };
+    const withSettingsOff = applyAgentSettingsMcpFlags(crewConfig, {}, [], false);
+    expect(
+      applyCrewCrossagentMcpFlag(withSettingsOff, capabilities, "gui", [], false).crossagentMcp,
+    ).toBe(false);
+    const withRouting = applyAgentSettingsMcpFlags(crewConfig, {}, [], true);
+    expect(
+      applyCrewCrossagentMcpFlag(withRouting, capabilities, "gui", [], true).crossagentMcp,
+    ).toBe(true);
+  });
+
+  it("turns on a crew for terminal launches whose provider has a terminal Crossagents path", () => {
+    const terminalCapabilities = {
+      mcpScope: { gui: "launch" as const, terminal: "launch" as const },
+    };
+    expect(
+      applyCrewCrossagentMcpFlag(crewConfig, terminalCapabilities, "terminal", [], false)
+        .crossagentMcp,
+    ).toBe(true);
+    const pipeline = new SpawnPipeline({ resolveAgentSettings: () => ({}) } as never);
+    const adapter = {
+      capabilities: { presentationMode: "terminal", mcpScope: terminalCapabilities.mcpScope },
+    } as unknown as import("../../agents/base").AgentAdapter;
+    expect(
+      pipeline.resolveMcpLaunchConfig(
+        crewConfig,
+        snapshot,
+        adapter,
+        "thread",
+        undefined,
+        "terminal",
+      ).crossagentMcp,
+    ).toBe(true);
+  });
+
+  it("does not turn on a crew without a Crossagents path or without a supported binding", () => {
+    expect(
+      applyCrewCrossagentMcpFlag(crewConfig, threadCapabilities, "terminal", [], false)
+        .crossagentMcp,
+    ).toBe(false);
+    expect(
+      applyCrewCrossagentMcpFlag(
+        { model: "test-model", crossagentMcp: false },
+        threadCapabilities,
+        "gui",
+        [],
+        false,
+      ).crossagentMcp,
+    ).toBe(false);
   });
 });
 

@@ -12,8 +12,12 @@ export const CLAUDE_CONTEXT_SIZES: LabeledOption[] = [
   { id: "200k", label: "200k" },
 ];
 
-/** Keep the model's full window as the default; smaller choices compact earlier. */
-export const CLAUDE_LONG_CONTEXT_SIZES = ["1m", "400k"];
+/**
+ * 400k is the default: every call re-reads the whole context, so a 1M
+ * auto-compact window multiplies usage on long threads. 1M stays selectable.
+ */
+export const CLAUDE_DEFAULT_CONTEXT_SIZE = "400k";
+export const CLAUDE_LONG_CONTEXT_SIZES = [CLAUDE_DEFAULT_CONTEXT_SIZE, "1m"];
 
 export const CLAUDE_CONTEXT_WINDOWS_SETTING_KEY = "contextWindows";
 
@@ -31,7 +35,7 @@ export function claudeContextSizeCapabilities(
         ? undefined
         : parseContextWindowInput(raw),
   );
-  const orderedWindows = orderContextWindows(windows, "1m");
+  const orderedWindows = orderContextWindows(windows, CLAUDE_DEFAULT_CONTEXT_SIZE);
   const ids = orderedWindows.map((window) => window.id);
   const labels = new Map(
     orderedWindows.map((window) => [window.id, { id: window.id, label: window.label }]),

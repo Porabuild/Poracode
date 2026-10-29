@@ -7,7 +7,8 @@ extension RemoteAPIClient: ThreadLifecycleRawHTTPExecuting {
         path: request.path,
         method: request.method,
         jsonBody: request.body,
-        extraHeaders: request.headers
+        extraHeaders: request.headers,
+        timeout: request.timeout
       )
     } catch is CancellationError {
       throw CancellationError()

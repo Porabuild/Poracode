@@ -113,6 +113,8 @@ fun RichChatComposer(
     modifier: Modifier = Modifier,
 ) {
     var showControls by rememberSaveable(contextKey) { mutableStateOf(false) }
+    var showCrewRoster by rememberSaveable(contextKey) { mutableStateOf(false) }
+    val crewPresentation = remember(configuration.crew) { decodeReadOnlyCrew(configuration.crew) }
     var editorValue by remember(contextKey) { mutableStateOf(TextFieldValue(draft, TextRange(draft.length))) }
     val inputValue = if (editorValue.text == draft) editorValue else TextFieldValue(draft, TextRange(draft.length))
     val controlsEnabled = canConfigure && !sending
@@ -169,7 +171,8 @@ fun RichChatComposer(
             mentionThreads = mentionThreads,
         )
     }
-    val hasPrompt = draft.isNotBlank() || queuedSegments.isNotEmpty()
+    val hasSendableContent =
+        draft.isNotBlank() || queuedSegments.isNotEmpty() || attachments.isNotEmpty()
     Surface(modifier = modifier.fillMaxWidth(), tonalElevation = 3.dp) {
         Column(
             Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
@@ -201,6 +204,18 @@ fun RichChatComposer(
                             modifier = Modifier
                                 .testTag("rich_chat_composer_controls")
                                 .semantics { contentDescription = controlsDescription },
+                        )
+                    }
+                    crewPresentation?.let { crew ->
+                        RichChatCrewChip(crew = crew, enabled = true) {
+                            showCrewRoster = true
+                        }
+                    }
+                    crewPresentation?.let { crew ->
+                        RichChatCrewChip(
+                            crew = crew,
+                            enabled = controlsEnabled,
+                            onClick = { showCrewRoster = true },
                         )
                     }
 
@@ -321,7 +336,7 @@ fun RichChatComposer(
                     maxLines = 6,
                     enabled = enabled,
                 )
-                if (sending || (isTurnActive && !hasPrompt)) {
+                if (sending || (isTurnActive && !hasSendableContent)) {
                     IconButton(
                         onClick = onInterrupt,
                         enabled = enabled,
@@ -343,21 +358,21 @@ fun RichChatComposer(
                             .size(48.dp)
                             .clip(CircleShape)
                             .background(
-                                if (enabled && hasPrompt && !uploading) {
+                                if (enabled && hasSendableContent && !uploading) {
                                     MaterialTheme.colorScheme.primary
                                 } else {
                                     MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
                                 },
                             )
                             .combinedClickable(
-                                enabled = enabled && hasPrompt && !uploading,
+                                enabled = enabled && hasSendableContent && !uploading,
                                 onClick = onSend,
                                 onLongClick = if (isTurnActive) onQueueSend else null,
                             ),
                     ) {
                         Icon(
                             Icons.AutoMirrored.Filled.Send,
-                            tint = if (enabled && hasPrompt && !uploading) {
+                            tint = if (enabled && hasSendableContent && !uploading) {
                                 MaterialTheme.colorScheme.onPrimary
                             } else {
                                 MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
@@ -385,6 +400,30 @@ fun RichChatComposer(
             },
         )
     }
+    if (showCrewRoster) {
+        crewPresentation?.let { crew ->
+            ReadOnlyCrewRosterSheet(
+                crew = crew,
+                leadAgentKind = currentThread?.agentKind.orEmpty(),
+                leadModel = configuration.model,
+                leadEffort = configuration.effort,
+                leadFast = configuration.fast == true,
+                onDismiss = { showCrewRoster = false },
+        )
+    }
+    if (showCrewRoster) {
+        crewPresentation?.let { crew ->
+            ReadOnlyCrewRosterSheet(
+                crew = crew,
+                leadAgentKind = currentThread?.agentKind.orEmpty(),
+                leadModel = configuration.model,
+                leadEffort = configuration.effort,
+                leadFast = configuration.fast == true,
+                onDismiss = { showCrewRoster = false },
+            )
+        }
+    }
+}
 }
 
 private const val MAX_SUGGESTIONS = 6

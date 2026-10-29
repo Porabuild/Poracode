@@ -8,6 +8,7 @@ import {
   isAuthErrorMessage,
   selectThreadErrorDockStates,
   resolveThreadAuthState,
+  withThreadStatusErrorDock,
 } from "./threadErrorState";
 
 function errorItem(id: string, message: string): RuntimeChatItem {
@@ -21,6 +22,28 @@ function errorItem(id: string, message: string): RuntimeChatItem {
 }
 
 describe("threadErrorState", () => {
+  it("adds a status error after no items or warning-only items", () => {
+    const statusError = { sourceItemId: "thread-status-error:ended", message: "Agent stopped." };
+    const warnings = [
+      { sourceItemId: "warning", message: "Advisory.", severity: "warning" as const },
+    ];
+
+    expect(withThreadStatusErrorDock([], statusError)).toEqual([statusError]);
+    expect(withThreadStatusErrorDock(warnings, statusError)).toEqual([...warnings, statusError]);
+  });
+
+  it("preserves item states when an error item exists or there is no status error", () => {
+    const errorItems = [{ sourceItemId: "error", message: "Item error." }];
+    const warnings = [
+      { sourceItemId: "warning", message: "Advisory.", severity: "warning" as const },
+    ];
+
+    expect(
+      withThreadStatusErrorDock(errorItems, { sourceItemId: "fallback", message: "Fallback." }),
+    ).toBe(errorItems);
+    expect(withThreadStatusErrorDock(warnings, null)).toBe(warnings);
+  });
+
   it("suppresses abort-only composer errors", () => {
     expect(getThreadErrorDockStateForItem(errorItem("err-1", "Aborted"))).toBeNull();
     expect(getThreadErrorDockStateForItem(errorItem("err-2", "AbortError: aborted"))).toBeNull();

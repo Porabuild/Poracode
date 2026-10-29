@@ -1,11 +1,8 @@
 import type { MessageItemPayload, QuestionAnswerItemPayload } from "@/shared/contracts";
+import { isMessageReplyFormFallback } from "@/shared/runtimeItemVisibility";
 import type { AppStoreState } from "@/renderer/state/slices/shared";
-import {
-  getRuntimeItemPayload,
-  type RuntimeChatItem,
-} from "@/renderer/state/slices/runtimeEventSlice";
+import { getRuntimeItemPayload } from "@/renderer/state/slices/runtimeEventSlice";
 import { readThreadInputDelivery } from "@/renderer/state/threadInputDelivery";
-import { isMessageReplyFormFallbackText } from "@/shared/messageReplyForm";
 import { readMessageReplyAnswer } from "./ChatPane/parts/items/messageReplyAnswerPayload";
 
 const EMPTY_IDS: readonly string[] = Object.freeze([]);
@@ -44,33 +41,54 @@ function messageReplyForms(state: ReplyFormState, threadId: string) {
     } else if (item.type === "user_message") {
       const delivery = readThreadInputDelivery(item.payload);
       if (delivery === "failed") continue;
-      const sourceIds = pendingIds;
-      if (delivery === "pending") {
-        for (const sourceId of pendingIds) replyStates.set(sourceId, "pending");
-      } else {
-        // A normal composer reply also supersedes outstanding async questions.
-        pendingIds = [];
-        for (const sourceId of sourceIds) replyStates.set(sourceId, "answered");
-      }
       const payload = getRuntimeItemPayload<MessageItemPayload>(item, "user_message");
-      if (!payload || (!payload.questionAnswer && sourceIds.length === 0)) continue;
-      if (!payload.content.every((block) => block.kind === "text")) continue;
-      if (payload.questionAnswer) {
-        answers.set(id, payload.questionAnswer);
-        continue;
-      }
-      const prompt = payload.content.map((block) => block.text).join("");
-      for (const sourceId of sourceIds.toReversed()) {
-        const form = getRuntimeItemPayload<MessageItemPayload>(
-          items![sourceId]!,
-          "assistant_message",
-        )?.replyForm;
-        const answer = form && prompt ? readMessageReplyAnswer(form, prompt) : undefined;
-        if (answer) {
-          answers.set(id, answer);
+      const textContent =
+        payload && payload.content.every((block) => block.kind === "text")
+          ? payload.content
+          : undefined;
+      const prompt = textContent?.map((block) => block.text).join("") ?? "";
+      const questionAnswer = payload?.questionAnswer;
+      let answer = questionAnswer;
+      let sourceIds = pendingIds;
+      const sourceItemId = questionAnswer?.sourceItemId;
+      if (sourceItemId) {
+        sourceIds = pendingIds.filter((sourceId) => sourceId === sourceItemId);
+      } else {
+        // Older replies have no source ID; correlate their questions before retiring a form.
+        for (const sourceId of pendingIds.toReversed()) {
+          if (replyStates.get(sourceId) === "pending") continue;
+          const form = getRuntimeItemPayload<MessageItemPayload>(
+            items![sourceId]!,
+            "assistant_message",
+          )?.replyForm;
+          if (!form) continue;
+          if (questionAnswer) {
+            if (
+              form.questions.length !== questionAnswer.questions.length ||
+              !form.questions.every(
+                (question, index) =>
+                  question.question === questionAnswer.questions[index]?.question,
+              )
+            )
+              continue;
+          } else {
+            answer = prompt ? readMessageReplyAnswer(form, prompt) : undefined;
+            if (!answer) continue;
+          }
+          sourceIds = [sourceId];
           break;
         }
+        // A structured answer whose source was paged out cannot supersede other questions.
+        if (answer && sourceIds === pendingIds) sourceIds = [];
       }
+      if (delivery === "pending") {
+        for (const sourceId of sourceIds) replyStates.set(sourceId, "pending");
+      } else {
+        // A normal composer reply also supersedes outstanding async questions.
+        pendingIds = pendingIds.filter((sourceId) => !sourceIds.includes(sourceId));
+        for (const sourceId of sourceIds) replyStates.set(sourceId, "answered");
+      }
+      if (textContent && answer) answers.set(id, answer);
     }
   }
   const result = { ids, version, pendingIds, answers, replyStates };
@@ -103,7 +121,4 @@ export function selectMessageReplyState(
 }
 
 /** Generated question text belongs to the composer; independent assistant context stays in chat. */
-export function isMessageReplyFormFallback(item: RuntimeChatItem, text: string): boolean {
-  const form = getRuntimeItemPayload<MessageItemPayload>(item, "assistant_message")?.replyForm;
-  return !item.parentItemId && isMessageReplyFormFallbackText(form, text);
-}
+export { isMessageReplyFormFallback };

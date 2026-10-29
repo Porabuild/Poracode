@@ -159,6 +159,20 @@ describe("appStore runtime config sync", () => {
     expect(useAppStore.getState().connectingThreadIds["thread-1"]).toBeUndefined();
   });
 
+  it("keeps prompt anchors transient and across thread reopen until cleared", () => {
+    useAppStore.setState({ chatPromptAnchorIds: { first: "prompt-1", second: "prompt-2" } });
+    const partialize = useAppStore.persist.getOptions().partialize!;
+    expect(partialize(useAppStore.getState())).not.toHaveProperty("chatPromptAnchorIds");
+
+    useAppStore.getState().requestChatScrollToBottom("first");
+    expect(useAppStore.getState().chatPromptAnchorIds).toEqual({
+      first: "prompt-1",
+      second: "prompt-2",
+    });
+    useAppStore.getState().clearChatPromptAnchor("first");
+    expect(useAppStore.getState().chatPromptAnchorIds).toEqual({ second: "prompt-2" });
+  });
+
   it("reuses an existing project when the same location is added again", () => {
     const first = useAppStore.getState().addProject({ kind: "windows", path: "C:\\repo\\" });
     const second = useAppStore
@@ -1549,6 +1563,94 @@ describe("appStore runtime config sync", () => {
 
     expect(useAppStore.getState().threads[0]?.status).toBe("working");
     expect(useAppStore.getState().threads[0]?.activeTurnStartedAt).toBe("2026-05-02T08:57:00.000Z");
+  });
+
+  it("clears a runtime error reason when a thread recovers", () => {
+    const project = useAppStore.getState().addProject({ kind: "posix", path: "/error-recovery" });
+    const thread = useAppStore.getState().createThread({
+      projectId: project.id,
+      agentKind: "codex",
+      config: { model: "m" },
+      prompt: "a",
+    });
+    const update = useAppStore.getState().updateThreadRuntime;
+
+    update(thread.id, {
+      status: "error",
+      attention: "error",
+      canResumeWithConfig: false,
+      errorMessage: "boom",
+    });
+    update(thread.id, { status: "working", attention: "working", canResumeWithConfig: false });
+    update(thread.id, { status: "error", attention: "error", canResumeWithConfig: false });
+
+    expect(
+      useAppStore.getState().threads.find((current) => current.id === thread.id),
+    ).not.toHaveProperty("errorMessage");
+  });
+
+  it("keeps the current runtime error reason on an error update without a message", () => {
+    const project = useAppStore.getState().addProject({ kind: "posix", path: "/error-repeat" });
+    const thread = useAppStore.getState().createThread({
+      projectId: project.id,
+      agentKind: "codex",
+      config: { model: "m" },
+      prompt: "a",
+    });
+
+    useAppStore.getState().updateThreadRuntime(thread.id, {
+      status: "error",
+      attention: "error",
+      canResumeWithConfig: false,
+      errorMessage: "boom",
+    });
+    useAppStore.getState().updateThreadRuntime(thread.id, {
+      status: "error",
+      attention: "error",
+      canResumeWithConfig: false,
+    });
+
+    expect(
+      useAppStore.getState().threads.find((current) => current.id === thread.id)?.errorMessage,
+    ).toBe("boom");
+  });
+
+  it("reconciles runtime error reasons without retaining stale messages or recreating equal threads", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-02T09:00:00.000Z"));
+    const project = useAppStore.getState().addProject({ kind: "posix", path: "/error-snapshot" });
+    const thread = useAppStore.getState().createThread({
+      projectId: project.id,
+      agentKind: "codex",
+      config: { model: "m" },
+      prompt: "a",
+    });
+    const reconcile = (status: "error" | "idle", errorMessage?: string) =>
+      useAppStore.getState().reconcileRuntimeSnapshots([
+        {
+          threadId: thread.id,
+          status,
+          attention: status === "error" ? "error" : "none",
+          canResumeWithConfig: false,
+          ...(errorMessage !== undefined ? { errorMessage } : {}),
+        },
+      ]);
+    const currentThread = () =>
+      useAppStore.getState().threads.find((current) => current.id === thread.id)!;
+
+    reconcile("error", "boom");
+    expect(currentThread().errorMessage).toBe("boom");
+
+    reconcile("idle");
+    expect(currentThread()).not.toHaveProperty("errorMessage");
+
+    reconcile("error", "boom");
+    reconcile("error");
+    expect(currentThread().errorMessage).toBe("boom");
+    const unchangedThread = currentThread();
+
+    reconcile("error");
+    expect(currentThread()).toBe(unchangedThread);
   });
 
   it("does not reconcile a thread created after the snapshot request began", () => {

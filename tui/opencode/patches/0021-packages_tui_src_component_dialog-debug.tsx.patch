@@ -1,0 +1,30 @@
+diff --git a/packages/tui/src/component/dialog-debug.tsx b/packages/tui/src/component/dialog-debug.tsx
+index 546f47c..9caad7c 100644
+--- a/packages/tui/src/component/dialog-debug.tsx
++++ b/packages/tui/src/component/dialog-debug.tsx
+@@ -9,6 +9,7 @@ import { useToast } from "../ui/toast"
+ import { describeOS, describeTerminal } from "../util/system"
+ import { useTuiApp } from "../context/runtime"
+ import { useNewDesigns } from "../config"
++import { BRAND } from "../brand"
+ 
+ export function DialogDebug() {
+   const theme = useTheme()
+@@ -26,7 +27,7 @@ export function DialogDebug() {
+   const entries = createMemo(() => {
+     const model = local.model.current()
+     return [
+-      { label: "Version", value: `${app.version} (${app.channel})` },
++      { label: "Version", value: `${BRAND.name} ${app.version} (${app.channel})` },
+       { label: "Date", value: new Date().toISOString() },
+       { label: "OS", value: describeOS() },
+       { label: "Terminal", value: describeTerminal() },
+@@ -62,7 +63,7 @@ export function DialogDebug() {
+ 
+   return (
+     <DialogLayout
+-      header={<DialogHeader title="Debug" description="Share this when reporting an issue" />}
++      header={<DialogHeader title={`${BRAND.name} diagnostics`} description="Share this when reporting an issue" />}
+       footer={{
+         actions: { primary: [copyAction()] },
+         get children() {

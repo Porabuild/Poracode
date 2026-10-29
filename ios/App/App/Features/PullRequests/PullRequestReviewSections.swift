@@ -29,6 +29,13 @@ struct PullRequestOverviewView: View {
         }
       }
 
+      if let labels = details?.labels, !labels.isEmpty {
+        Section(PullRequestsStrings.labels) {
+          PullRequestLabelFlow(labels: labels)
+            .padding(.vertical, 2)
+        }
+      }
+
       if let body = details?.body, !body.isEmpty {
         Section(PullRequestsStrings.description) {
           Text(body)
@@ -192,10 +199,14 @@ struct PullRequestConversationView: View {
   let reviews: [PullRequestReviewSummary]
   let threads: [PullRequestReviewThread]
   var forge: ForgeReviewController? = nil
+  var requestedReviewers: [GitHubReviewerSummary] = []
+  var timeline: [PullRequestTimelineEvent] = []
 
   var body: some View {
     List {
-      if comments.isEmpty && reviews.isEmpty && threads.isEmpty {
+      if comments.isEmpty && reviews.isEmpty && threads.isEmpty && requestedReviewers.isEmpty
+        && timeline.isEmpty
+      {
         ContentUnavailableView(
           PullRequestsStrings.conversation,
           systemImage: "bubble.left.and.bubble.right"
@@ -208,6 +219,9 @@ struct PullRequestConversationView: View {
             editableComment(comment, threadID: nil)
           }
         }
+      }
+      if !requestedReviewers.isEmpty {
+        PullRequestRequestedReviewersSection(reviewers: requestedReviewers)
       }
       if !reviews.isEmpty {
         Section {
@@ -246,6 +260,9 @@ struct PullRequestConversationView: View {
             }
           }
         }
+      }
+      if !timeline.isEmpty {
+        PullRequestTimelineSection(events: timeline)
       }
     }
     .listStyle(.insetGrouped)

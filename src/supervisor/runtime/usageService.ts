@@ -45,9 +45,14 @@ import { withMacKeychainAuthorizationRetry } from "./macKeychain";
 // so stale Claude-only v11 snapshots are discarded on upgrade.
 // v13 reads OpenCode 2's active native credential instead of obsolete JSON keys.
 // Async cache I/O preserves the v13 shape and account-source identities.
-const USAGE_CACHE_VERSION = 13;
+// Optional rate-limit attempt counts preserve valid v13 snapshots and deadlines;
+// older readers safely ignore them, and caches without them start at the first cooldown.
+// v14 resolves Kimi's configured OAuth identity and region, so discard v13
+// snapshots that may report a missing login or quota from the legacy account.
+const USAGE_CACHE_VERSION = 14;
 /** The full default provider set, from the package catalog (single source of truth). */
 const DEFAULT_PROVIDER_IDS: readonly string[] = allUsageProviderDescriptors().map((d) => d.id);
+const REFRESH_POLICIES = new Map(allUsageProviderDescriptors().map((d) => [d.id, d.refreshPolicy]));
 const MIN_REFRESH_INTERVAL_MS = 2 * 60_000;
 /**
  * Fallback backoff for a provider reporting `rate-limited` without an explicit
@@ -80,6 +85,7 @@ interface UsageCacheFile {
   version?: number;
   snapshots?: UsageSnapshot[];
   profileIdentities?: Record<string, string>;
+  rateLimitAttempts?: Record<string, number>;
 }
 
 /** Settings and discovery shared only within synchronous selection work. */
@@ -108,6 +114,7 @@ export class UsageService {
   private readonly localCollectors: Map<string, LocalUsageCollector>;
   private readonly host: HostPort;
   private readonly snapshots = new Map<string, UsageSnapshot>();
+  private readonly rateLimitAttempts = new Map<string, number>();
   private readonly profileCacheIdentities: UsageProfileCacheIdentities;
   private loadedFromCache = false;
   /** In-flight refreshes keyed by their sorted id-set, so identical concurrent refreshes coalesce. */
@@ -120,10 +127,10 @@ export class UsageService {
 
   constructor(private readonly options: UsageServiceOptions) {
     this.host = options.host ?? createNodeUsageHost(options.cacheDir, options.settingsPath);
-    this.profileCacheIdentities = new UsageProfileCacheIdentities(
-      (id) => this.snapshots.delete(id),
-      this.host,
-    );
+    this.profileCacheIdentities = new UsageProfileCacheIdentities((id) => {
+      this.snapshots.delete(id);
+      this.rateLimitAttempts.delete(id);
+    }, this.host);
     this.localCollectors = new Map(
       (options.localCollectors ?? createLocalUsageCollectors()).map((c) => [c.id, c]),
     );
@@ -315,6 +322,15 @@ export class UsageService {
     const sources = this.usageProfileSources();
     const profileCollectors = this.profileCollectors(sources);
     await this.profileCacheIdentities.synchronize(profileCollectors, ids);
+    // Account changes retire the old cooldown before this check. Repeated manual
+    // refreshes of the same source must not keep a throttled API under pressure.
+    const cooling = ids.flatMap((id) => {
+      const snapshot = this.snapshots.get(id);
+      return snapshot && REFRESH_POLICIES.get(id) && this.isRateLimited(snapshot, this.host.now())
+        ? [snapshot]
+        : [];
+    });
+    ids = ids.filter((id) => !cooling.some((snapshot) => snapshot.providerId === id));
     const expectedIdentities = new Map(ids.map((id) => [id, this.profileCacheIdentities.get(id)]));
     const showEstimatedCost = this.readUsageSettings().showEstimatedCost;
     const registryIds = ids.filter((id) => this.registry.has(id) && !profileCollectors.has(id));
@@ -367,6 +383,20 @@ export class UsageService {
         )
           continue;
       }
+      const backoff = REFRESH_POLICIES.get(snapshot.providerId)?.rateLimitBackoffMs;
+      if (snapshot.status === "rate-limited" && backoff?.length) {
+        const attempt = Math.min(
+          (this.rateLimitAttempts.get(snapshot.providerId) ?? 0) + 1,
+          backoff.length,
+        );
+        this.rateLimitAttempts.set(snapshot.providerId, attempt);
+        snapshot.rateLimitedUntil = Math.max(
+          snapshot.rateLimitedUntil ?? 0,
+          this.host.now() + backoff[attempt - 1]!,
+        );
+      } else if (snapshot.status === "ok" || snapshot.status === "auth-missing") {
+        this.rateLimitAttempts.delete(snapshot.providerId);
+      }
       this.snapshots.set(snapshot.providerId, snapshot);
       committed.push(snapshot);
       this.options.emit({
@@ -382,7 +412,7 @@ export class UsageService {
       snapshots: showEstimatedCost ? all : all.map(withoutEstimatedCost),
     });
     await this.writeCache();
-    snapshots = committed.filter(
+    snapshots = [...committed, ...cooling].filter(
       (snapshot) => this.snapshots.get(snapshot.providerId) === snapshot,
     );
     return {
@@ -494,13 +524,18 @@ export class UsageService {
 
   /**
    * A single provider's effective cadence: its own `providerRefreshIntervals`
-   * override when present, otherwise the global default. Floored at the 2-minute
+   * override when present, otherwise the slower global/provider default. Floored at the 2-minute
    * rate-limit minimum either way.
    */
   private effectiveIntervalMs(settings: UsageSettings, providerId: string): number | undefined {
     const override = settings.providerRefreshIntervals[providerId];
     if (!settings.autoRefresh) return undefined;
-    const minutes = override ?? settings.refreshIntervalMinutes;
+    const minutes =
+      override ??
+      Math.max(
+        settings.refreshIntervalMinutes,
+        REFRESH_POLICIES.get(providerId)?.defaultIntervalMinutes ?? 0,
+      );
     return Math.max(MIN_REFRESH_INTERVAL_MS, minutes * 60_000);
   }
 
@@ -585,6 +620,10 @@ export class UsageService {
       const parsed = JSON.parse(await readFile(this.options.cachePath, "utf8")) as UsageCacheFile;
       if (parsed.version !== USAGE_CACHE_VERSION || !Array.isArray(parsed.snapshots)) return;
       this.profileCacheIdentities.load(parsed.profileIdentities);
+      for (const [id, attempts] of Object.entries(parsed.rateLimitAttempts ?? {})) {
+        if (Number.isSafeInteger(attempts) && attempts > 0)
+          this.rateLimitAttempts.set(id, attempts);
+      }
       for (const snapshot of parsed.snapshots) {
         if (snapshot && typeof snapshot.providerId === "string") {
           this.snapshots.set(snapshot.providerId, snapshot);
@@ -601,6 +640,7 @@ export class UsageService {
       version: USAGE_CACHE_VERSION,
       snapshots: [...this.snapshots.values()],
       profileIdentities: this.profileCacheIdentities.serialize(),
+      rateLimitAttempts: Object.fromEntries(this.rateLimitAttempts),
       savedAt: new Date().toISOString(),
     });
     // Best-effort cache: write off the event loop, serialized against itself.

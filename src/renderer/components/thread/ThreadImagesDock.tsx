@@ -128,7 +128,7 @@ export function ThreadImagesDock({
                 aria-label={t`Thread images`}
               >
                 {gallery.map((img, index) => (
-                  <div key={img.src} role="listitem" className="shrink-0">
+                  <div key={img.resource?.key ?? img.src} role="listitem" className="shrink-0">
                     <button
                       type="button"
                       aria-label={t`Open image ${index + 1} of ${gallery.length}`}
@@ -136,11 +136,14 @@ export function ThreadImagesDock({
                       className="group relative block h-16 w-24 overflow-hidden rounded-3xl border border-[color:var(--border)] bg-[var(--composer-surface)] focus-visible:outline-2 focus-visible:outline-accent"
                       onClick={() => openThreadGallery(gallery, undefined, index, threadId)}
                     >
-                      <DownsampledThumb
-                        src={img.src}
-                        alt={img.alt || ""}
-                        className="size-full rounded-[inherit] object-cover [image-rendering:high-quality]"
-                      />
+                      {img.src ? (
+                        <DownsampledThumb
+                          src={img.src}
+                          alt={img.alt || ""}
+                          cssPx={96}
+                          className="size-full rounded-[inherit] object-cover [image-rendering:high-quality]"
+                        />
+                      ) : null}
                       <span
                         aria-hidden="true"
                         className="pointer-events-none absolute inset-0 rounded-[inherit] bg-foreground/0 transition-colors duration-150 group-hover:bg-foreground/10"

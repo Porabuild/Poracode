@@ -1,11 +1,18 @@
 import { z } from "zod";
 import { hostProjectSummarySchema } from "./hostProjects";
-import { canonicalRequestTypeSchema, requestPayloadSchema } from "./runtimeEvent";
+import {
+  canonicalItemTypeSchema,
+  canonicalRequestTypeSchema,
+  requestPayloadSchema,
+} from "./runtimeEvent";
 
 // Local owner administration only; neither these jobs nor their IDs are remote grants.
+// Format 1 stays unchanged for legacy runs; the v24 opt-in tool stream uses format 2.
 export const HOST_RUN_FORMAT_VERSION = 1;
+export const HOST_RUN_TOOL_EVENT_FORMAT_VERSION = 2;
 export const HOST_RUN_CHUNK_BYTES = 32_768;
 export const HOST_RUN_BUFFER_BYTES = 1_048_576;
+export const HOST_RUN_TOOL_SUMMARY_BYTES = 2_048;
 export const hostRunPreparationCommandSchema = z.strictObject({
   action: z.literal("run-prepare"),
   projectId: z.string().min(1).max(200),
@@ -125,7 +132,10 @@ export const hostRunOptionsSchema = z.strictObject({
   sandboxModes: z.array(choice),
 });
 export const hostRunMetadataSchema = z.strictObject({
-  formatVersion: z.literal(HOST_RUN_FORMAT_VERSION),
+  formatVersion: z.union([
+    z.literal(HOST_RUN_FORMAT_VERSION),
+    z.literal(HOST_RUN_TOOL_EVENT_FORMAT_VERSION),
+  ]),
   scope: z.literal("controlled-run"),
   runId: z.uuid(),
   threadId: z.string().min(1).max(200),
@@ -151,6 +161,14 @@ export const hostRunFinishedSchema = z.strictObject({
   retirementConfirmed: z.boolean(),
   error: z.string().min(1).max(2_000).optional(),
 });
+export const hostRunToolEventSchema = z.strictObject({
+  type: z.enum(["tool.started", "tool.updated", "tool.completed"]),
+  itemId: z.string().min(1).max(200),
+  itemType: canonicalItemTypeSchema,
+  toolName: z.string().min(1).max(128),
+  inputSummary: z.string().max(HOST_RUN_TOOL_SUMMARY_BYTES),
+  outputSummary: z.string().max(HOST_RUN_TOOL_SUMMARY_BYTES).optional(),
+});
 export const hostRunEventSchema = z.discriminatedUnion("type", [
   z.strictObject({
     type: z.literal("text.delta"),
@@ -163,6 +181,7 @@ export const hostRunEventSchema = z.discriminatedUnion("type", [
     requestType: z.string().min(1).max(200),
     summary: z.string().max(2_000),
   }),
+  hostRunToolEventSchema,
   hostRunFinishedSchema,
 ]);
 export type HostRunEvent = z.infer<typeof hostRunEventSchema>;

@@ -18,9 +18,9 @@ describe("joinModelRowHints", () => {
 });
 
 describe("formatShortcutModelLabel", () => {
-  it("expands Codex short labels to GPT-prefixed titles", () => {
-    expect(formatShortcutModelLabel("codex", "gpt-5.5", "5.5")).toBe("GPT-5.5");
-    expect(formatShortcutModelLabel("codex", "gpt-5.4-mini", "5.4 Mini")).toBe("GPT-5.4 Mini");
+  it("preserves Codex short labels", () => {
+    expect(formatShortcutModelLabel("codex", "gpt-5.5", "5.5")).toBe("5.5");
+    expect(formatShortcutModelLabel("codex", "gpt-5.4-mini", "5.4 Mini")).toBe("5.4 Mini");
   });
 
   it("keeps curated Codex labels unchanged", () => {
@@ -185,7 +185,10 @@ describe("buildProviderModelItems shortcut labels", () => {
     kind: "codex",
     label: "Codex",
     capabilities: {
-      models: [{ id: "gpt-5.5", label: "5.5" }],
+      models: [
+        { id: "gpt-5.5", label: "5.5" },
+        { id: "gpt-5.4-mini", label: "5.4 Mini" },
+      ],
       efforts: [],
       modelEfforts: {},
       modes: ["agent"] as const,
@@ -220,15 +223,23 @@ describe("buildProviderModelItems shortcut labels", () => {
     },
   } satisfies ProviderModelMenuProvider;
 
-  it("shows GPT titles in aggregated favorites for Codex models", () => {
+  it.each(["", "GPT"])("keeps Codex shortcut labels consistent while searching %j", (search) => {
     const items = buildProviderModelItems({
       providers: [codexProvider, cursorProvider],
-      search: "",
+      search,
       favorites: [{ agentKind: "codex", modelId: "gpt-5.5" }],
+      recents: [{ agentKind: "codex", modelId: "gpt-5.4-mini" }],
     });
 
-    const favorite = items.find((item) => item.type === "model" && item.modelId === "gpt-5.5");
-    expect(favorite?.type === "model" ? favorite.label : undefined).toBe("GPT-5.5");
+    const rows = items
+      .filter((item) => item.type === "model")
+      .filter((row) => row.providerKind === "codex");
+    expect(rows.map((row) => [row.id, row.label])).toEqual([
+      ["fav:codex:gpt-5.5", "5.5"],
+      ["recent:codex:gpt-5.4-mini", "5.4 Mini"],
+      ["model:codex:gpt-5.5", "5.5"],
+      ["model:codex:gpt-5.4-mini", "5.4 Mini"],
+    ]);
   });
 
   it("resolves Cursor ACP favorites against grouped base model rows", () => {

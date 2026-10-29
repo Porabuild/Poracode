@@ -226,7 +226,7 @@ describe("threadActions", () => {
     });
   });
 
-  it("starts an untargeted new thread in the Home of a machine that is online", async () => {
+  function configureRemoteHomes() {
     useSharedSettings.setState({ homeScopeEnabled: true });
     const mirroredHome = (desktopId: string): Project => ({
       id: `remote:${desktopId}:project:${HOME_PROJECT_ID}`,
@@ -243,11 +243,78 @@ describe("threadActions", () => {
     useRemoteServersStore.setState({
       runtime: { d1: { status: "offline" }, d2: { status: "online" } },
     } as never);
+    return { offline, online };
+  }
+
+  it("starts an untargeted new thread in the Home of a machine that is online", async () => {
+    const { online } = configureRemoteHomes();
 
     openNewThread();
 
     await waitFor(() => {
       expect(useAppStore.getState().view).toEqual({ kind: "draft", projectId: online.id });
+    });
+  });
+
+  it.each(["current", "remembered"] as const)(
+    "skips the %s offline Home when another machine's Home is online",
+    async (selection) => {
+      const { offline, online } = configureRemoteHomes();
+      if (selection === "current") {
+        useAppStore.setState({ view: { kind: "draft", projectId: offline.id } });
+      } else {
+        useWorkspaceStore.setState({ lastProjectIdByWorkspace: { "": offline.id } });
+      }
+
+      openNewThread();
+
+      await waitFor(() => {
+        expect(useAppStore.getState().view).toEqual({ kind: "draft", projectId: online.id });
+      });
+    },
+  );
+
+  it("preserves an explicitly targeted offline Home", async () => {
+    const { offline } = configureRemoteHomes();
+
+    openNewThread(offline.id);
+
+    await waitFor(() => {
+      expect(useAppStore.getState().view).toEqual({ kind: "draft", projectId: offline.id });
+    });
+  });
+
+  it("returns to Home when all implicit Home candidates are offline", async () => {
+    const { offline } = configureRemoteHomes();
+    useRemoteServersStore.setState({
+      runtime: { d1: { status: "offline" }, d2: { status: "offline" } },
+    } as never);
+    useWorkspaceStore.setState({ lastProjectIdByWorkspace: { "": offline.id } });
+    useAppStore.setState({ view: { kind: "draft", projectId: offline.id } });
+
+    openNewThread();
+
+    await waitFor(() => {
+      expect(useAppStore.getState().view).toEqual({ kind: "home" });
+    });
+  });
+
+  it("preserves a remembered ordinary remote project even when its host is offline", async () => {
+    const { offline } = configureRemoteHomes();
+    const project: Project = {
+      ...offline,
+      id: "remote:d1:project:repo",
+      remoteId: "repo",
+      name: "Repo",
+      disabled: false,
+    };
+    useAppStore.setState((state) => ({ projects: [...state.projects, project] }));
+    useWorkspaceStore.setState({ lastProjectIdByWorkspace: { "": project.id } });
+
+    openNewThread();
+
+    await waitFor(() => {
+      expect(useAppStore.getState().view).toEqual({ kind: "draft", projectId: project.id });
     });
   });
 

@@ -54,6 +54,8 @@ function readAcpCanonicalGoalUpdate(update: unknown): AcpCanonicalGoalUpdate | u
   const objective = readString(raw.objective);
   const availableActionsResult = goalControlActionSchema.array().safeParse(raw.availableActions);
   const availableActions = availableActionsResult.success ? availableActionsResult.data : undefined;
+  // Empty is meaningful here: goal payloads merge shallowly, so it clears a stale reason.
+  const lastReason = typeof raw.lastReason === "string" ? raw.lastReason.trim() : undefined;
   if (!action && !status && !objective) return undefined;
 
   return {
@@ -72,7 +74,7 @@ function readAcpCanonicalGoalUpdate(update: unknown): AcpCanonicalGoalUpdate | u
     ...(readNonNegativeInteger(raw.iterations) !== undefined
       ? { iterations: readNonNegativeInteger(raw.iterations)! }
       : {}),
-    ...(readString(raw.lastReason) ? { lastReason: readString(raw.lastReason)! } : {}),
+    ...(lastReason !== undefined ? { lastReason } : {}),
     ...(readString(raw.providerThreadId)
       ? { providerThreadId: readString(raw.providerThreadId)! }
       : {}),

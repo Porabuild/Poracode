@@ -57,6 +57,7 @@ import {
   type MentionInputHandle,
 } from "@/renderer/components/composer/MentionInput";
 import { useThreadMentionItems } from "@/renderer/components/composer/useThreadMentionItems";
+import { useCrewMentionItems } from "@/renderer/components/crew/useCrewMentionItems";
 import {
   storableAttachment,
   storableAttachments,
@@ -460,7 +461,7 @@ export function ThreadDraftComposerArea(props: {
   const commandListId = useId();
   const [slashActiveIndex, setSlashActiveIndex] = useState(0);
   const [controlOpenRequest, setControlOpenRequest] = useState<{
-    target: "model" | "effort";
+    target: "model" | "effort" | "crew";
     nonce: number;
   } | null>(null);
   const saveDraftContent = useAppStore((s) => s.saveDraftContent);
@@ -518,6 +519,7 @@ export function ThreadDraftComposerArea(props: {
           currentWorktreePath: branchSelection?.worktreePath,
         },
   );
+  const crewMentions = useCrewMentionItems(props.config);
   // Registry-driven MCP toggles. The "+" add menu now flips the *persistent*
   // enablement (a standing default applied to every new thread), keyed by MCP
   // id — not the per-thread config flag. A new MCP server means adding one
@@ -809,6 +811,9 @@ export function ThreadDraftComposerArea(props: {
           return { ...control, openSignal: controlOpenRequest.nonce };
         }
         if (controlOpenRequest.target === "effort" && control.kind === "effort-context") {
+          return { ...control, openSignal: controlOpenRequest.nonce };
+        }
+        if (controlOpenRequest.target === "crew" && control.kind === "crew") {
           return { ...control, openSignal: controlOpenRequest.nonce };
         }
         return control;
@@ -1394,6 +1399,7 @@ export function ThreadDraftComposerArea(props: {
             mcpMentions={composerMcpMentions}
             pluginMentions={composerPluginMentions}
             threadMentions={threadMentions}
+            crewMentions={crewMentions}
             onMcpMentionSelect={onMcpMentionSelect}
             onPasteImage={(file: File) => {
               cancelDraftVoice();

@@ -9,12 +9,14 @@ import type {
   ForgeReviewCapabilities,
   ProjectLocation,
 } from "@/shared/contracts";
+import { PR_REACTION_CONTENTS } from "@/shared/contracts";
 import { ForgeApi } from "./api";
 import { ForgeRuntime, runtimeConfigPath } from "./runtime";
 import { object, rows, str } from "./types";
 
 const ALL_MERGES = ["merge", "squash", "rebase"] as const;
 const ALL_REVIEWS = ["approve", "request-changes", "comment"] as const;
+const ALL_REACTIONS = PR_REACTION_CONTENTS;
 export const FORGE_CAPABILITIES: Record<ForgeKind, ForgeReviewCapabilities> = {
   github: {
     viewedFiles: "forge",
@@ -32,6 +34,12 @@ export const FORGE_CAPABILITIES: Record<ForgeKind, ForgeReviewCapabilities> = {
     autoMerge: true,
     autoFix: true,
     adminMerge: true,
+    labels: true,
+    reviewRequests: true,
+    convertToDraft: true,
+    commitDiffs: true,
+    reactions: [...ALL_REACTIONS],
+    reviewDrafts: true,
   },
   gitlab: {
     commentEditing: ["conversation", "inline"],
@@ -49,6 +57,12 @@ export const FORGE_CAPABILITIES: Record<ForgeKind, ForgeReviewCapabilities> = {
     autoMerge: true,
     autoFix: true,
     adminMerge: false,
+    labels: true,
+    reviewRequests: true,
+    convertToDraft: true,
+    commitDiffs: true,
+    reactions: [...ALL_REACTIONS],
+    reviewDrafts: true,
   },
   forgejo: {
     commentEditing: ["conversation"],
@@ -66,6 +80,12 @@ export const FORGE_CAPABILITIES: Record<ForgeKind, ForgeReviewCapabilities> = {
     autoMerge: false,
     autoFix: true,
     adminMerge: false,
+    labels: true,
+    reviewRequests: true,
+    convertToDraft: true,
+    commitDiffs: true,
+    reactions: [...ALL_REACTIONS],
+    reviewDrafts: true,
   },
   gitea: {
     commentEditing: ["conversation"],
@@ -83,6 +103,12 @@ export const FORGE_CAPABILITIES: Record<ForgeKind, ForgeReviewCapabilities> = {
     autoMerge: false,
     autoFix: true,
     adminMerge: false,
+    labels: true,
+    reviewRequests: true,
+    convertToDraft: true,
+    commitDiffs: true,
+    reactions: [...ALL_REACTIONS],
+    reviewDrafts: true,
   },
   bitbucket: {
     commentEditing: ["conversation", "inline"],
@@ -100,6 +126,10 @@ export const FORGE_CAPABILITIES: Record<ForgeKind, ForgeReviewCapabilities> = {
     autoMerge: false,
     autoFix: true,
     adminMerge: false,
+    reviewRequests: true,
+    convertToDraft: true,
+    commitDiffs: true,
+    reviewDrafts: true,
   },
   "azure-devops": {
     viewedFiles: "host",
@@ -116,6 +146,11 @@ export const FORGE_CAPABILITIES: Record<ForgeKind, ForgeReviewCapabilities> = {
     autoMerge: true,
     autoFix: true,
     adminMerge: false,
+    labels: true,
+    reviewRequests: true,
+    convertToDraft: true,
+    commitDiffs: true,
+    reviewDrafts: true,
   },
   gitcafe: {
     commentEditing: ["conversation"],
@@ -133,6 +168,12 @@ export const FORGE_CAPABILITIES: Record<ForgeKind, ForgeReviewCapabilities> = {
     autoMerge: true,
     autoFix: true,
     adminMerge: false,
+    labels: true,
+    reviewRequests: true,
+    convertToDraft: true,
+    commitDiffs: true,
+    reactions: [...ALL_REACTIONS],
+    reviewDrafts: true,
   },
 };
 

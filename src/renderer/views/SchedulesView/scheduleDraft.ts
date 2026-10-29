@@ -1,5 +1,5 @@
 import { normalizeProviderModelConfig } from "@/renderer/components/providers/modelConfig";
-import { resolvePreferredEffort } from "@/renderer/utils/effortSelection";
+import { resolveReasoningSelection } from "@/shared/agentSelection";
 import {
   resolveScheduleAutomation,
   scheduleAutomationSchema,
@@ -135,7 +135,7 @@ export function newScheduleDraft(agent: AgentStatus | undefined): ScheduleDraft 
     prompt: "",
     agentKind: agent?.kind ?? "",
     model,
-    effort: agent ? resolvePreferredEffort(agent.capabilities, model) : "",
+    effort: agent ? resolveReasoningSelection(agent.capabilities, model) : "",
     fast: false,
     enabled: true,
     projectId: null,

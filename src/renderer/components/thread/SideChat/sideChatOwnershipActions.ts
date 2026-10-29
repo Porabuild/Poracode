@@ -2,6 +2,7 @@ import { deleteThread, deleteThreadRecord } from "@/renderer/actions/threadActio
 import { readBridge } from "@/renderer/bridge";
 import { captureRendererException } from "@/renderer/diagnostics/sentry";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useComposerInputInbox } from "@/renderer/state/composerInputInbox";
 import { setAuxiliaryThreadIds } from "@/renderer/state/auxiliaryThreadWindows";
 import { managedRootHistoryActivation } from "@/renderer/state/managedRootCatalog/rootHistory";
 import { subscribeManagedRootCatalogStatus } from "@/renderer/state/managedRootCatalog/rootCatalogStore";
@@ -65,6 +66,11 @@ function reconcileParents() {
 }
 
 export function applyNativeSideChatOwnership(event: SideChatWindowsChanged, mainWindow: boolean) {
+  if (event.composerInput) {
+    const { composerId, text } = event.composerInput;
+    useComposerInputInbox.getState().enqueue(composerId, [{ kind: "text", content: text }]);
+    useAppStore.getState().requestComposerFocus(composerId);
+  }
   setAuxiliaryThreadIds(event.threadIds, event.hiddenThreadIds);
   if (!mainWindow) return;
   if (event.panel !== undefined) applySideChatPanel(event.panel, event.panels, event.detachedIds);

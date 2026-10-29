@@ -15,6 +15,7 @@ export function parseSpawnRequest(
   inheritedFallbacks?: SpawnAgentSelection[],
   inheritedRetryMode?: "startup" | "any-failure",
   selectionProvenance?: DispatchSelectionProvenance,
+  crewRole?: SpawnAgentRequest["crewRole"],
 ): SpawnAgentRequest {
   parseResultMode(args);
   const agent = typeof args.provider === "string" ? args.provider : "";
@@ -59,6 +60,9 @@ export function parseSpawnRequest(
         ...(typeof fallback.model === "string" ? { model: fallback.model } : {}),
         ...(typeof fallback.reasoning === "string" ? { effort: fallback.reasoning } : {}),
         ...(typeof fallback.fast === "boolean" ? { fast: fallback.fast } : {}),
+        ...(typeof fallback.context_size === "string"
+          ? { contextSize: fallback.context_size }
+          : {}),
       };
     });
   } else if (inheritedFallbacks !== undefined) {
@@ -94,12 +98,14 @@ export function parseSpawnRequest(
           },
         }
       : {}),
+    ...(crewRole ? { crewRole } : {}),
     agent,
     prompt,
     ...(args.result_mode === "compact" ? { resultMode: "compact" as const } : {}),
     ...(typeof args.model === "string" ? { model: args.model } : {}),
     ...(typeof args.reasoning === "string" ? { effort: args.reasoning } : {}),
     ...(typeof args.fast === "boolean" ? { fast: args.fast } : {}),
+    ...(typeof args.context_size === "string" ? { contextSize: args.context_size } : {}),
     ...(typeof args.name === "string" ? { name: args.name } : {}),
     ...(args.background === true ? { background: true } : {}),
     ...(fallbacks !== undefined ? { fallbacks } : {}),
@@ -111,6 +117,7 @@ interface InheritedFallback {
   fallbacks: SpawnAgentSelection[] | undefined;
   retryMode: "startup" | "any-failure" | undefined;
   selectionProvenance?: DispatchSelectionProvenance;
+  crewRole?: SpawnAgentRequest["crewRole"];
 }
 
 export function parseSpawnRequests(
@@ -135,6 +142,7 @@ export function parseSpawnRequests(
       inheritedForTask?.fallbacks,
       inheritedForTask?.retryMode,
       inheritedForTask?.selectionProvenance,
+      inheritedForTask?.crewRole,
     );
   });
 }

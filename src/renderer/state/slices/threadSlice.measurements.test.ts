@@ -23,6 +23,9 @@ function createThread(id: string, projectId = "project") {
 
 function cache(id: string) {
   writeTimelineMeasurements(id, signature, [measurement]);
+  useAppStore.setState((state) => ({
+    chatPromptAnchorIds: { ...state.chatPromptAnchorIds, [id]: "prompt" },
+  }));
 }
 
 beforeEach(() => {
@@ -34,6 +37,7 @@ beforeEach(() => {
     keepAlivePaneIds: [],
     runtimeItemIdsByThread: {},
     runtimeItemsByIdByThread: {},
+    chatPromptAnchorIds: {},
   });
 });
 
@@ -48,6 +52,7 @@ describe("thread measurement snapshot retirement", () => {
 
     expect(useAppStore.getState().threads.map((thread) => thread.id)).toEqual(["survivor"]);
     expect(readTimelineMeasurements("removed", signature)).toEqual([]);
+    expect(useAppStore.getState().chatPromptAnchorIds).toEqual({ survivor: "prompt" });
     expect(readTimelineMeasurements("survivor", signature)).toEqual([measurement]);
   });
 
@@ -59,6 +64,7 @@ describe("thread measurement snapshot retirement", () => {
     useAppStore.getState().deleteThread("already-removed");
 
     expect(readTimelineMeasurements("already-removed", signature)).toEqual([]);
+    expect(useAppStore.getState().chatPromptAnchorIds).toEqual({ survivor: "prompt" });
     expect(readTimelineMeasurements("survivor", signature)).toEqual([measurement]);
   });
 
@@ -76,6 +82,10 @@ describe("thread measurement snapshot retirement", () => {
       true,
     );
     expect(readTimelineMeasurements("closed", signature)).toEqual([measurement]);
+    expect(useAppStore.getState().chatPromptAnchorIds).toEqual({
+      closed: "prompt",
+      visible: "prompt",
+    });
     expect(readTimelineMeasurements("visible", signature)).toEqual([measurement]);
   });
 
@@ -97,6 +107,10 @@ describe("thread measurement snapshot retirement", () => {
     useAppStore.getState().purgeStaleArchivedThreads(7);
 
     expect(readTimelineMeasurements("expired", signature)).toEqual([]);
+    expect(useAppStore.getState().chatPromptAnchorIds).toEqual({
+      recent: "prompt",
+      active: "prompt",
+    });
     expect(readTimelineMeasurements("recent", signature)).toEqual([measurement]);
     expect(readTimelineMeasurements("active", signature)).toEqual([measurement]);
   });
@@ -125,6 +139,7 @@ describe("thread measurement snapshot retirement", () => {
     expect(useAppStore.getState().threads.map((thread) => thread.id)).toEqual(["survivor"]);
     expect(useAppStore.getState().runtimeItemsByIdByThread["removed-a"]?.row).toBeDefined();
     expect(readTimelineMeasurements("removed-a", signature)).toEqual([]);
+    expect(useAppStore.getState().chatPromptAnchorIds).toEqual({ survivor: "prompt" });
     expect(readTimelineMeasurements("removed-b", signature)).toEqual([]);
     expect(readTimelineMeasurements("survivor", signature)).toEqual([measurement]);
   });

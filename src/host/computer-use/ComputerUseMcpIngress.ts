@@ -1,8 +1,9 @@
 import type { McpThreadIdentity } from "@/shared/browserMcpThread";
+import type { AgentVisionService } from "@/host/AgentVisionService";
 import { AsyncWorkTracker } from "@/shared/asyncWorkTracker";
 import { joinRuntimeShutdown } from "@/shared/joinRuntimeShutdown";
 import { createComputerUseDriver, type CreateComputerUseDriverOptions } from "./drivers";
-import type { ComputerUseDriver } from "./mcp/types";
+import type { ComputerUseDriver, ComputerUseWindow } from "./mcp/types";
 import {
   StreamableHttpMcpIngress,
   type StreamableHttpMcpIngressInfo,
@@ -41,6 +42,7 @@ export type ComputerUseActivityEvent =
     };
 
 export interface ComputerUseMcpIngressOptions {
+  vision?: AgentVisionService;
   driver?: ComputerUseDriver;
   driverOptions?: CreateComputerUseDriverOptions;
   onActivity?: (event: ComputerUseActivityEvent) => void;
@@ -124,6 +126,7 @@ export class ComputerUseMcpIngress {
     if (this.stopping) return;
     this.generation += 1;
     for (const threadId of threadIds) this.exitedThreads.add(threadId);
+    for (const threadId of threadIds) this.options.vision?.stop(threadId);
     this.driver.dispose();
   }
 
@@ -184,6 +187,57 @@ export class ComputerUseMcpIngress {
   }
 
   private async dispatch(
+    name: string,
+    args: Record<string, unknown>,
+    ctx: ToolContext,
+  ): Promise<unknown> {
+    if (!this.options.vision || !ctx.threadId || ["api", "status", "list_apps"].includes(name))
+      return this.dispatchAction(name, args, ctx);
+    if (name === "disable") {
+      this.options.vision?.stop(ctx.threadId);
+      return this.dispatchAction(name, args, ctx);
+    }
+    let window = args.window as ComputerUseWindow | undefined;
+    const capture = async () => {
+      const observedWindow = window;
+      if (!observedWindow?.app || typeof observedWindow.id !== "number" || ctx.interrupted?.())
+        return null;
+      const state = await this.driver.getWindowState({
+        window: observedWindow,
+        include_screenshot: true,
+        include_text: false,
+        format: "jpeg",
+        max_dimension: 960,
+      });
+      const shot = state.screenshots[0];
+      return shot ? { image: `data:${shot.mimeType};base64,${shot.data}` } : null;
+    };
+    const activity = this.options.vision.begin(ctx.threadId, "computer", normalizeToolName(name), {
+      ...(window?.app && typeof window.id === "number"
+        ? { target: window.title || window.app, capture }
+        : {}),
+    });
+    try {
+      const result = await this.dispatchAction(name, args, ctx);
+      window =
+        result && typeof result === "object" && "window" in result
+          ? (result as { window: ComputerUseWindow }).window
+          : window;
+      activity?.finish({
+        failed: Boolean(
+          result && typeof result === "object" && "ok" in result && result.ok === false,
+        ),
+        ...(window?.app ? { target: window.title || window.app } : {}),
+        capture,
+      });
+      return result;
+    } catch (error) {
+      activity?.finish({ failed: true });
+      throw error;
+    }
+  }
+
+  private async dispatchAction(
     name: string,
     args: Record<string, unknown>,
     ctx: ToolContext,

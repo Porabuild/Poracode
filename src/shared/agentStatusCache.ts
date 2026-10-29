@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isAgentStatusCacheEntryCompatible } from "./agentStatusCacheRegistry";
 import {
   agentCapabilitySchema,
   agentProviderMetadataSchema,
@@ -8,10 +9,14 @@ import {
   type AgentStatusesResponse,
 } from "./contracts/agent";
 
-// The supervisor and passive owner inventories share this codec. Moving it
-// preserves the supervisor's v68 decision: re-probe cached statuses that lack
-// the read-only one-shot workspace capability. Passive reads share that version.
-export const STATUS_CACHE_VERSION = 68;
+// The supervisor, passive owner inventory, and renderer migration share this
+// codec. v67-v70 have compatible shapes; provider-owned policies invalidate only
+// changed derivations. Older/future generations still refuse in full. Keep v70:
+// current inventories and their semantics are unchanged by selective reuse.
+// Provider-only changes advance the producer and provider policy together;
+// incompatible shared changes also advance the minimum compatible generation.
+export const STATUS_CACHE_VERSION = 70;
+const MINIMUM_COMPATIBLE_STATUS_CACHE_VERSION = 67;
 
 export interface AgentStatusCacheSnapshot {
   state: "available" | "missing" | "invalid" | "incompatible" | "unavailable";
@@ -71,7 +76,11 @@ export function decodeAgentStatusCache(cache: unknown): AgentStatusCacheSnapshot
   const version = z.object({ version: z.number().int().positive() }).safeParse(cache);
   const empty = { windows: [], wsl: [], fromCache: false };
   if (!version.success) return { state: "invalid", version: null, statuses: empty };
-  if (version.data.version !== STATUS_CACHE_VERSION)
+  const sourceVersion = version.data.version;
+  if (
+    sourceVersion < MINIMUM_COMPATIBLE_STATUS_CACHE_VERSION ||
+    sourceVersion > STATUS_CACHE_VERSION
+  )
     return { state: "incompatible", version: version.data.version, statuses: empty };
   const parsed = z
     .object({
@@ -79,20 +88,28 @@ export function decodeAgentStatusCache(cache: unknown): AgentStatusCacheSnapshot
       wsl: z.array(z.unknown()).optional(),
     })
     .safeParse(cache);
-  if (!parsed.success) return { state: "invalid", version: STATUS_CACHE_VERSION, statuses: empty };
+  if (!parsed.success) return { state: "invalid", version: sourceVersion, statuses: empty };
+  const windows = parseCachedStatuses(parsed.data.windows).filter(
+    (status) => status.envKind !== "wsl",
+  );
+  const wsl = parseCachedStatuses(parsed.data.wsl)
+    .filter((status) => status.envKind === undefined || status.envKind === "wsl")
+    .map((status) =>
+      status.envKind === undefined ? { ...status, envKind: "wsl" as const } : status,
+    );
+  const compatible = (status: AgentStatus) =>
+    isAgentStatusCacheEntryCompatible(status.kind, sourceVersion);
+  const acceptedWindows = windows.filter(compatible);
+  const acceptedWsl = wsl.filter(compatible);
   return {
     state: "available",
-    version: STATUS_CACHE_VERSION,
+    version: sourceVersion,
     statuses: {
-      windows: parseCachedStatuses(parsed.data.windows).filter(
-        (status) => status.envKind !== "wsl",
-      ),
-      wsl: parseCachedStatuses(parsed.data.wsl)
-        .filter((status) => status.envKind === undefined || status.envKind === "wsl")
-        .map((status) =>
-          status.envKind === undefined ? { ...status, envKind: "wsl" as const } : status,
-        ),
-      fromCache: true,
+      windows: acceptedWindows,
+      wsl: acceptedWsl,
+      // Retained rows are usable, but a partial inventory cannot complete
+      // startup or authorize persisting a scoped subset as a complete sweep.
+      fromCache: acceptedWindows.length === windows.length && acceptedWsl.length === wsl.length,
     },
   };
 }

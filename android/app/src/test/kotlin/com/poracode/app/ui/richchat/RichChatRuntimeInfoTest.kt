@@ -137,6 +137,7 @@ class RichChatRuntimeInfoTest {
                 put("name", "Delegate")
                 put("title", "Review the change")
                 put("isCrossagent", true)
+                put("subAgentType", "Reviewer")
                 put("progress", buildJsonObject { put("stepCount", 3) })
             },
         )
@@ -158,7 +159,7 @@ class RichChatRuntimeInfoTest {
                 RichDelegatedAgentPresentation(
                     id = "crossagent",
                     kind = RichDelegatedAgentKind.Crossagent,
-                    title = "Review the change",
+                    title = "Reviewer: Review the change",
                     activityCount = 3,
                 ),
                 RichDelegatedAgentPresentation(

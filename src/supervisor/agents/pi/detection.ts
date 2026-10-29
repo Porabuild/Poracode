@@ -57,6 +57,8 @@ const piAuthFileProbe: AuthProbe = async (ctx) => {
 export const piDefaultCapabilities: AgentCapability = {
   models: [],
   efforts: [],
+  // Reasoning ladders list "off" first; start them thinking at a moderate tier.
+  defaultEffort: "medium",
   modelEfforts: {},
   modes: [],
   approvalPolicies: [],

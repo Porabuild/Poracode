@@ -12,7 +12,7 @@ import {
   DESKTOP_CLI_INTEGRATION_VERSION,
 } from "./cli";
 import type { HostBuildIdentity } from "@/shared/hostControlProtocol";
-import { parseStopCliOptions } from "./cliParse";
+import { assertTuiTerminal, parseStopCliOptions, parseTuiCliOptions } from "./cliParse";
 import { queryCompletion, renderCompletion } from "../../packages/poracode-cli/lib/completion.mjs";
 import { parseAdminCli, buildAdminCommand } from "./cliAdmin";
 import { serverConfigFileSchema, SERVER_LOG_LEVELS } from "./serverConfig";
@@ -159,9 +159,39 @@ describe("parseServerCliCommand", () => {
     ).toThrow("service");
   });
   it("serves by default", () => {
-    expect(parseServerCliCommand([])).toBe("serve");
+    expect(parseServerCliCommand([], false)).toBe("serve");
     expect(parseServerCliCommand(["--no-open"])).toBe("serve");
     expect(parseServerCliCommand(["serve", "--open"])).toBe("serve");
+  });
+
+  it("opens the TUI only for a bare interactive invocation", () => {
+    expect(parseServerCliCommand([], true)).toBe("tui");
+    expect(parseServerCliCommand([], false)).toBe("serve");
+    expect(parseServerCliCommand(["--open"], true)).toBe("serve");
+  });
+
+  it("requires both terminal input and output for explicit TUI launches", () => {
+    expect(() => assertTuiTerminal(true, true)).not.toThrow();
+    expect(() => assertTuiTerminal(false, true)).toThrow("requires an interactive terminal");
+    expect(() => assertTuiTerminal(true, false)).toThrow("requires an interactive terminal");
+  });
+
+  it("parses explicit TUI flags and one-shot print aliases", () => {
+    expect(parseServerCliCommand(["tui"])).toBe("tui");
+    expect(
+      parseTuiCliOptions(["-c", "--session", "saved", "--prompt", "Continue", "--auto", "C:/repo"]),
+    ).toEqual({
+      continue: true,
+      sessionId: "saved",
+      prompt: "Continue",
+      auto: true,
+      directory: "C:/repo",
+    });
+    expect(() => parseTuiCliOptions(["one", "two"])).toThrow("Usage: poracode tui");
+    expect(() => parseTuiCliOptions(["--unknown"])).toThrow("Unknown option");
+    expect(parseServerCliCommand(["-p", "Reply with exactly: OK"])).toBe("print");
+    expect(parseServerCliCommand(["--print", "Reply with exactly: OK"])).toBe("print");
+    expect(parseServerCliCommand(["tui", "--help"])).toBe("help");
   });
 
   it("recognizes the TLS material generation command", () => {

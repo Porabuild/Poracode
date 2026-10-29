@@ -2,6 +2,7 @@ import { useShallow } from "zustand/shallow";
 import type { Project } from "@/shared/contracts";
 import { isHomeProject } from "@/shared/homeScope";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useReachableProjectFilter } from "@/renderer/state/remoteServers/reachability";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useWorkspaceProjectFilter } from "@/renderer/state/workspaceSelectors";
 
@@ -28,6 +29,7 @@ function compareSelectorOrder(a: Project, b: Project): number {
  */
 export function useProjectSwitchProjects(): readonly Project[] {
   const isInWorkspace = useWorkspaceProjectFilter();
+  const isReachable = useReachableProjectFilter();
   const homeScopeEnabled = useSharedSettings((state) => state.homeScopeEnabled);
   // Home is persisted with `disabled: true` as an internal marker (it is not a
   // user-disabled project), so it has to survive the disabled filter — but it
@@ -37,6 +39,7 @@ export function useProjectSwitchProjects(): readonly Project[] {
       state.projects
         .filter((project) => (isHomeProject(project) ? homeScopeEnabled : !project.disabled))
         .filter(isInWorkspace)
+        .filter(isReachable)
         .sort(compareSelectorOrder),
     ),
   );

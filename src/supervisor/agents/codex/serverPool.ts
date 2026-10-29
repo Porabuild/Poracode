@@ -1,10 +1,12 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import { createHash } from "node:crypto";
 import type { ProjectLocation, ResolvedMcpServer } from "@/shared/contracts";
+import { codexAgentSettingOverrideArgs } from "@/shared/agents/codexAgentSettings";
 import { terminateChildProcessTree } from "@/shared/processTree";
 import { resolveNodeForDistro } from "../../wsl/runtime";
 import type { CreateStructuredSessionInput } from "../base";
 import { buildCodexMcp } from "./mcpConfig";
+import { isCodexAgentsConfigSupported } from "./agentsConfigSupport";
 import { buildCodexAppServerCommand } from "./argv";
 import { CodexAppServerConnection } from "./appServerRpc";
 import { buildCodexMcpSkillConflictArgs } from "./mcpSkillConflicts";
@@ -101,6 +103,7 @@ export async function codexAppServerPoolKey(
   wslExecPath?: string,
   wslNodePath?: string,
   env?: Record<string, string>,
+  agentSettings?: Record<string, boolean | string>,
 ): Promise<string> {
   // A profile's `CODEX_HOME` selects the account the app-server runs as, so
   // profiles must never share a pooled server with each other or the base.
@@ -115,6 +118,8 @@ export async function codexAppServerPoolKey(
     wslNodePath ?? "",
     await poolFingerprint(location, mcpServers),
     envFingerprint,
+    // Sub-agent defaults are fixed at spawn, so a changed setting needs a fresh server.
+    codexAgentSettingOverrideArgs(agentSettings, isCodexAgentsConfigSupported(location)).join(" "),
   ].join("|");
 }
 
@@ -146,6 +151,7 @@ async function spawnAndWire(
       ...(wslNodePath !== undefined ? { wslNodePath } : {}),
       ...(input.mcpServers !== undefined ? { mcpServers: input.mcpServers } : {}),
       ...(input.env ? { env: input.env } : {}),
+      ...(input.agentSettings ? { agentSettings: input.agentSettings } : {}),
       includeMcpConfig: false,
     }),
   );
@@ -213,6 +219,7 @@ export async function acquireCodexAppServer(
       wslExecPath,
       wslNodePath,
       input.env,
+      input.agentSettings,
     );
     let entry = pool.get(key);
     if (!entry) {

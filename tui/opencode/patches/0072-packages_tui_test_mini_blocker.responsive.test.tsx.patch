@@ -1,0 +1,13 @@
+diff --git a/packages/tui/test/mini/blocker.responsive.test.tsx b/packages/tui/test/mini/blocker.responsive.test.tsx
+index b851f1b..a556490 100644
+--- a/packages/tui/test/mini/blocker.responsive.test.tsx
++++ b/packages/tui/test/mini/blocker.responsive.test.tsx
+@@ -257,7 +257,7 @@ test("roomy rejection keeps the editor and confirmation hints inline", async ()
+     expect(confirm.y).toBe(editor.y)
+     expect(confirm.x).toBeGreaterThanOrEqual(editor.x + editor.width)
+     expect(app.captureCharFrame()).toContain("esc cancel")
+-    expect(app.captureCharFrame()).toContain("Tell OpenCode what to do differently")
++    expect(app.captureCharFrame()).toContain("Tell the agent what to do differently")
+   } finally {
+     app.renderer.destroy()
+   }

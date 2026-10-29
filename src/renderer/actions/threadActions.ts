@@ -212,7 +212,14 @@ function resolveNewThreadProjectId(): string | undefined {
     (isHomeProject(project) || !project.disabled) &&
     isProjectInWorkspace(project, activeWorkspaceId, knownWorkspaceIds);
   const visibleId = (projectId: string | undefined) =>
-    store.projects.find((project) => project.id === projectId && isVisible(project))?.id;
+    store.projects.find(
+      (project) =>
+        project.id === projectId &&
+        isVisible(project) &&
+        // A remembered or on-screen Home must obey the same online preference
+        // as the fallback below. Explicit project targets bypass this resolver.
+        (!isHomeProject(project) || !isRemoteProjectUnreachable(project)),
+    )?.id;
 
   return (
     visibleId(getCurrentProjectId()) ??

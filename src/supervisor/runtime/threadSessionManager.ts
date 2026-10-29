@@ -68,6 +68,7 @@ import {
   isCompletedWithoutTurn,
   primeProjectShellEnv,
   resolveLaunchSpec,
+  type StartTurnOptions,
   type StructuredTurnResult,
 } from "../agents/base";
 import { ensureNodePtySpawnHelperExecutable } from "../nodePty";
@@ -461,6 +462,9 @@ export class ThreadSessionManager {
       status: session.status,
       attention: session.attention,
       config: session.config,
+      ...(session.status === "error" && session.errorMessage
+        ? { errorMessage: session.errorMessage }
+        : {}),
       ...(session.launchConfig ? { launchConfig: session.launchConfig } : {}),
       threadMentionToolsAvailable: session.threadMentionToolsAvailable === true,
       ...(session.sessionRef ? { sessionRef: session.sessionRef } : {}),
@@ -490,10 +494,8 @@ export class ThreadSessionManager {
   /**
    * Surface a structured-session failure on both axes: status (so the icon
    * goes red) and a runtime `error` event (so `ThreadErrorDock` and the chat
-   * stream actually render the message). The supervisor stores `errorMessage`
-   * on the thread state, but no renderer surface reads `thread.errorMessage`
-   * — only the runtime error item drives `ThreadErrorDock` — so without the
-   * event the user sees a red icon and nothing else.
+   * stream actually render the message while that transient item lives. The
+   * status `errorMessage` still explains the red status once the item is gone.
    */
   private failStructuredSession(session: SessionRuntime, error: unknown): void {
     this.structuredFailureReporter.capture(session, error);
@@ -655,6 +657,10 @@ export class ThreadSessionManager {
     this.stopSessionForCanonicalOverflow(info.threadId, detail);
   }
 
+  getThreadConfig(threadId: string): ThreadConfig | undefined {
+    return this.sessions.get(threadId)?.config;
+  }
+
   /**
    * Subagent host hook: resolve a live parent thread's project location + config
    * so a spawned child can inherit them. Returns undefined once the thread is
@@ -755,6 +761,7 @@ export class ThreadSessionManager {
               session.adapter,
               session.threadId,
               session.projectLocation,
+              session.presentationMode ?? session.adapter.capabilities.presentationMode,
             );
             const mcpServers = await this.spawnPipeline.resolveMcpServersForLaunch({
               location: session.projectLocation,
@@ -766,6 +773,11 @@ export class ThreadSessionManager {
             });
             if (!this.isCurrentSession(session)) return;
             await update(mcpServers);
+            if (this.isCurrentSession(session)) {
+              session.crossagentsMcpAttached = mcpServers.some(
+                (server) => server.id === "crossagents",
+              );
+            }
             if (!this.isCurrentSession(session)) return;
             session.launchConfig = launchConfig;
             this.outputPipeline.emitState(session);
@@ -1072,6 +1084,16 @@ export class ThreadSessionManager {
     const pending = this.startLocks.get(threadId);
     if (pending) {
       if (payload.providerSwitch) {
+        const pendingStart = this.workspaceStarts.get(threadId);
+        if (pendingStart) {
+          if (pendingStart.agentKind !== payload.providerSwitch.fromAgentKind) {
+            throw new Error(
+              `Provider switch is stale: thread ${threadId} now belongs to ${pendingStart.agentKind}.`,
+            );
+          }
+          this.pendingStartAborts.add(threadId);
+          this.spawnPipeline.cancelPendingStart(threadId);
+        }
         await pending;
         return this.startThread(payload);
       }
@@ -1300,7 +1322,7 @@ export class ThreadSessionManager {
         // Guaranteed to have a sessionRef here — the no-ref case threw above.
         directInput.markStarted(session);
         this.followUpQueue.noteDirectTurnSubmitted(session);
-        await this.restartThreadSettlingFailure(session, turn);
+        await this.restartUntilPromptSubmitted(session, turn);
         return;
       }
       if (
@@ -1311,7 +1333,7 @@ export class ThreadSessionManager {
       ) {
         directInput.markStarted(session);
         this.followUpQueue.noteDirectTurnSubmitted(session);
-        await this.restartThreadSettlingFailure(session, turn);
+        await this.restartUntilPromptSubmitted(session, turn);
         return;
       }
       // Route through the structured session when either the adapter is
@@ -1438,6 +1460,10 @@ export class ThreadSessionManager {
     const session = this.requireSession(threadId);
     if (session.structuredSession?.controlGoal) {
       await session.structuredSession.controlGoal(control);
+      return;
+    }
+    if (control.action === "pause" && session.adapter.goalPauseInterruptsTurn) {
+      await this.interruptThread({ threadId });
       return;
     }
     const prompt = session.adapter.buildGoalControlPrompt?.(control);
@@ -2341,9 +2367,10 @@ export class ThreadSessionManager {
   private async restartThreadSettlingFailure(
     session: SessionRuntime,
     turn: QueuedStructuredTurn,
+    options: Pick<StartTurnOptions, "onPromptSubmitted"> = {},
   ): Promise<void | StructuredTurnResult> {
     try {
-      return await this.spawnPipeline.restartThread(session, turn);
+      return await this.spawnPipeline.restartThread(session, turn, options);
     } catch (error) {
       if (this.isCurrentSession(session)) {
         const message = error instanceof Error ? error.message : String(error);
@@ -2359,6 +2386,20 @@ export class ThreadSessionManager {
       }
       throw error;
     }
+  }
+
+  private restartUntilPromptSubmitted(
+    session: SessionRuntime,
+    turn: QueuedStructuredTurn,
+  ): Promise<void> {
+    const admission = Promise.withResolvers<void>();
+    void this.restartThreadSettlingFailure(session, turn, {
+      onPromptSubmitted: () => admission.resolve(),
+    }).then(
+      () => admission.resolve(),
+      (error: unknown) => admission.reject(error),
+    );
+    return admission.promise;
   }
 
   private rememberRemovedThread(threadId: string): void {

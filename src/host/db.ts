@@ -90,6 +90,7 @@ export {
   dbReplaceThreadCompletedTurns,
   dbReplaceThreadRuntimeSnapshot,
   dbGetThreadContextUsage,
+  dbGetThreadTokenUsage,
   dbFlushThreadRuntimeWrites,
   dbDiscardThreadRuntimeWrites,
   dbHasPendingThreadRuntimeWrites,

@@ -1,5 +1,5 @@
 import { captureSideChatTurnContext } from "./sideChatTurnContext";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { useLingui } from "@lingui/react/macro";
 import { DEFAULT_TERMINAL_SIZE, type PromptSegment } from "@/shared/contracts";
 import { resolveProjectLocation } from "@/shared/worktree";
@@ -21,6 +21,7 @@ import {
   retainAuxiliaryThreadId,
 } from "@/renderer/state/auxiliaryThreadWindows";
 import { updateSideChatPanelDraft } from "./sideChatPanelStore";
+import { useComposerInputInbox } from "@/renderer/state/composerInputInbox";
 import {
   claimSideChatLaunch,
   isSideChatLaunching,
@@ -64,6 +65,21 @@ export function useSideChatSession(entry: SideChatBootstrap, surface: "panel" | 
     setPromptState(value);
     if (surface === "panel") updateSideChatPanelDraft(entry.id, value, latestSelection.current);
   }
+  const composerId = `side-chat:${entry.id}`;
+  const pendingInputs = useComposerInputInbox((state) => state.itemsByComposer[composerId]);
+  const adoptExternalDraft = useEffectEvent(() => {
+    const additions = useComposerInputInbox
+      .getState()
+      .drain(composerId)
+      .flatMap((segments) =>
+        segments.flatMap((segment) => (segment.kind === "text" ? [segment.content] : [])),
+      );
+    if (additions.length === 0) return;
+    setPrompt([latestPrompt.current, ...additions].filter(Boolean).join("\n\n"));
+  });
+  useEffect(() => {
+    if (pendingInputs) adoptExternalDraft();
+  }, [pendingInputs]);
   const [threadId, setThreadId] = useState<string | undefined>(entry.existingThreadId);
   const ownedThreadId = useRef(entry.existingThreadId);
   const [observedThreadId, setObservedThreadId] = useState(entry.existingThreadId);

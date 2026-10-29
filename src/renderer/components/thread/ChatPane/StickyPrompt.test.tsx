@@ -43,6 +43,12 @@ function createScroller() {
     row.dataset.itemId = entry.id;
     row.getBoundingClientRect = () =>
       new DOMRect(0, index * ROW_HEIGHT - scrollTop, 400, ROW_HEIGHT);
+    if (entry.id.startsWith("prompt-")) {
+      const prompt = document.createElement("div");
+      prompt.dataset.userMessage = "true";
+      prompt.getBoundingClientRect = row.getBoundingClientRect;
+      row.append(prompt);
+    }
     scroller.append(row);
   });
   document.body.append(scroller);
@@ -98,6 +104,7 @@ describe("StickyPrompt", () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.unstubAllGlobals();
     document.body.innerHTML = "";
   });
 
@@ -105,6 +112,8 @@ describe("StickyPrompt", () => {
     const { scroller, scrollTo } = createScroller();
     renderStickyPrompt(scroller);
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
+    scrollTo(2 * ROW_HEIGHT - 12);
+    expect(screen.getByRole("button", { name: "Scroll to prompt: First question" })).toBeVisible();
     scrollTo(2 * ROW_HEIGHT);
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
@@ -122,6 +131,98 @@ describe("StickyPrompt", () => {
 
     fireEvent.click(button);
     expect(onScrollToEntry).toHaveBeenCalledWith(2);
+  });
+
+  it("shows a skill in the prompt as the chip the message uses, keeping the readable name", () => {
+    useAppStore.setState({
+      runtimeItemsByIdByThread: {
+        [THREAD_ID]: {
+          ...useAppStore.getState().runtimeItemsByIdByThread[THREAD_ID]!,
+          "prompt-1": {
+            ...message("prompt-1", "user_message", ""),
+            payload: {
+              content: [
+                {
+                  kind: "skill",
+                  name: "finalize",
+                  invocation: "$finalize",
+                  provider: "fixture",
+                  scope: "project",
+                },
+                { kind: "text", text: "  the\n release" },
+              ],
+            },
+          },
+        },
+      },
+    });
+    const { scroller, scrollTo } = createScroller();
+    renderStickyPrompt(scroller);
+    scrollTo(ROW_HEIGHT);
+
+    const button = screen.getByRole("button", { name: "Scroll to prompt: $finalize the release" });
+    const chip = button.querySelector(".poracode-slash-chip");
+    expect(chip).toHaveAttribute("data-skill-name", "finalize");
+    expect(chip?.querySelector(".poracode-slash-chip__name")).toHaveTextContent("finalize");
+    expect(button).toHaveTextContent("finalize the release");
+  });
+
+  it("keeps an 8px gap as the next prompt pushes the previous sticky prompt out", () => {
+    const { scroller, scrollTo } = createScroller();
+    renderStickyPrompt(scroller);
+    scrollTo(ROW_HEIGHT);
+    const button = screen.getByRole("button", { name: "Scroll to prompt: First question" });
+    const bar = button.parentElement!;
+    const wrapper = bar.parentElement!;
+    wrapper.style.paddingTop = "8px";
+    Object.defineProperty(bar, "offsetHeight", { configurable: true, value: 28 });
+
+    scrollTo(2 * ROW_HEIGHT - 50);
+    expect(bar.style.transform).toBe("translateY(0px)");
+    scrollTo(2 * ROW_HEIGHT - 40);
+    expect(bar.style.transform).toBe("translateY(-4px)");
+    scrollTo(2 * ROW_HEIGHT - 20);
+    expect(bar.style.transform).toBe("translateY(-24px)");
+    scrollTo(2 * ROW_HEIGHT);
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+    scrollTo(3 * ROW_HEIGHT);
+    expect(screen.getByRole("button", { name: "Scroll to prompt: Second question" })).toBeVisible();
+  });
+
+  it("updates the handoff when row layout changes without scrolling", () => {
+    let notifyResize: () => void = () => undefined;
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        constructor(callback: ResizeObserverCallback) {
+          notifyResize = () => callback([], this);
+        }
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      },
+    );
+    const { scroller, scrollTo } = createScroller();
+    renderStickyPrompt(scroller);
+    scrollTo(ROW_HEIGHT);
+    const bar = screen.getByRole("button", {
+      name: "Scroll to prompt: First question",
+    }).parentElement!;
+    bar.parentElement!.style.paddingTop = "8px";
+    Object.defineProperty(bar, "offsetHeight", { configurable: true, value: 28 });
+    const nextPrompt = scroller.querySelector<HTMLElement>(
+      '[data-item-id="prompt-2"] [data-user-message]',
+    )!;
+    let nextTop = 20;
+    nextPrompt.getBoundingClientRect = () => new DOMRect(0, nextTop, 400, ROW_HEIGHT);
+    scrollTo(2 * ROW_HEIGHT - 20);
+    expect(bar.style.transform).toBe("translateY(-24px)");
+    nextTop = 60;
+    act(() => {
+      notifyResize();
+      vi.runAllTimers();
+    });
+    expect(bar.style.transform).toBe("translateY(0px)");
   });
 
   it("hides while Find in chat is open for the thread", () => {

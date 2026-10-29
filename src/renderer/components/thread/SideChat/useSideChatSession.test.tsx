@@ -5,6 +5,7 @@ import { act, renderHook } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 import type { SideChatBootstrap } from "@/shared/ipc/sideChat";
 import { setAuxiliaryThreadIds } from "@/renderer/state/auxiliaryThreadWindows";
+import { useComposerInputInbox } from "@/renderer/state/composerInputInbox";
 const mocks = vi.hoisted(() => ({
   launch: vi.fn<(...args: unknown[]) => Promise<void>>(),
   create: vi.fn<() => unknown>(),
@@ -72,6 +73,7 @@ const entry = {
 } as SideChatBootstrap;
 beforeEach(() => {
   vi.clearAllMocks();
+  useComposerInputInbox.setState({ itemsByComposer: {} });
   setAuxiliaryThreadIds([]);
   useSideChatLaunchState.setState({ threadIds: new Set() });
   mocks.threads = [];
@@ -174,6 +176,25 @@ it("never submits typed draft updates or restored unsent text automatically", ()
   expect(mocks.launch).not.toHaveBeenCalled();
   restored.unmount();
 });
+
+it.each(["panel", "window"] as const)(
+  "appends selected text to a live %s draft without submitting",
+  (surface) => {
+    const hook = renderHook(() => useSideChatSession({ ...entry, autoStart: false }, surface), {
+      wrapper,
+    });
+    act(() => hook.result.current.setPrompt("unsent draft"));
+    act(() =>
+      useComposerInputInbox
+        .getState()
+        .enqueue("side-chat:entry", [{ kind: "text", content: "quote" }]),
+    );
+    expect(hook.result.current.prompt).toBe("unsent draft\n\nquote");
+    expect(useComposerInputInbox.getState().itemsByComposer["side-chat:entry"]).toBeUndefined();
+    expect(mocks.launch).not.toHaveBeenCalled();
+    hook.unmount();
+  },
+);
 
 it("never creates a new thread over a retained child that is outside the resident catalog", async () => {
   const hook = renderHook(

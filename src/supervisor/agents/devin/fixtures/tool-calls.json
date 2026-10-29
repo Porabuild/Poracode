@@ -1,0 +1,1691 @@
+{
+  "//": "Live devin acp 3000.11.205 tool notifications (local, client fs+terminal), paths rewritten to C:\\fixture\\project.",
+  "readText": [
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call",
+        "toolCallId": "toolu_01Br1h2pLYfKJniiWJYXg8Hy",
+        "title": "Reading …",
+        "kind": "read",
+        "rawInput": "",
+        "_meta": {
+          "cognition.ai/inferenceToolName": "read",
+          "cognition.ai/timestamp": "2026-10-24T23:39:48.507559200+00:00"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01Br1h2pLYfKJniiWJYXg8Hy",
+        "title": "Reading .\\notes.txt",
+        "locations": [
+          {
+            "path": "notes.txt"
+          }
+        ],
+        "rawInput": {
+          "file_path": "notes.txt"
+        },
+        "_meta": {
+          "cognition.ai/inferenceToolName": "read"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01Br1h2pLYfKJniiWJYXg8Hy",
+        "title": "Reading .\\notes.txt",
+        "locations": [
+          {
+            "path": "notes.txt"
+          }
+        ],
+        "rawInput": {
+          "file_path": "notes.txt"
+        },
+        "_meta": {
+          "cognition.ai/inferenceToolName": "read"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call",
+        "toolCallId": "toolu_01Br1h2pLYfKJniiWJYXg8Hy",
+        "title": "Read file",
+        "kind": "read",
+        "locations": [
+          {
+            "path": "notes.txt"
+          }
+        ],
+        "rawInput": {
+          "file_path": "notes.txt"
+        },
+        "_meta": {
+          "cognition.ai/inferenceToolName": "read",
+          "cognition.ai/timestamp": "2026-10-24T23:39:48.737485200+00:00"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01Br1h2pLYfKJniiWJYXg8Hy",
+        "status": "in_progress",
+        "_meta": {
+          "cognition.ai/inferenceToolName": "read"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01Br1h2pLYfKJniiWJYXg8Hy",
+        "status": "completed",
+        "content": [
+          {
+            "type": "content",
+            "content": {
+              "type": "text",
+              "text": "5 lines"
+            }
+          }
+        ],
+        "_meta": {
+          "cognition.ai/inferenceToolName": "read"
+        }
+      }
+    }
+  ],
+  "readRange": [
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call",
+        "toolCallId": "toolu_01BWehrEWdeoA7ZyqjnGMTMe",
+        "title": "Reading …",
+        "kind": "read",
+        "rawInput": "",
+        "_meta": {
+          "cognition.ai/inferenceToolName": "read",
+          "cognition.ai/timestamp": "2026-10-24T23:39:50.845085400+00:00"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01BWehrEWdeoA7ZyqjnGMTMe",
+        "title": "Reading .\\notes.txt",
+        "locations": [
+          {
+            "path": "notes.txt"
+          }
+        ],
+        "rawInput": {
+          "file_path": "notes.txt"
+        },
+        "_meta": {
+          "cognition.ai/inferenceToolName": "read"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01BWehrEWdeoA7ZyqjnGMTMe",
+        "title": "Reading .\\notes.txt",
+        "locations": [
+          {
+            "path": "notes.txt",
+            "line": 2
+          }
+        ],
+        "rawInput": {
+          "file_path": "notes.txt",
+          "offset": 2
+        },
+        "_meta": {
+          "cognition.ai/inferenceToolName": "read"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01BWehrEWdeoA7ZyqjnGMTMe",
+        "title": "Reading lines 2-3 in .\\notes.txt",
+        "locations": [
+          {
+            "path": "notes.txt",
+            "line": 2,
+            "_meta": {
+              "cognition.ai/endLine": 3
+            }
+          }
+        ],
+        "rawInput": {
+          "file_path": "notes.txt",
+          "offset": 2,
+          "limit": 2
+        },
+        "_meta": {
+          "cognition.ai/inferenceToolName": "read"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01BWehrEWdeoA7ZyqjnGMTMe",
+        "title": "Reading lines 2-3 in .\\notes.txt",
+        "locations": [
+          {
+            "path": "notes.txt",
+            "line": 2,
+            "_meta": {
+              "cognition.ai/endLine": 3
+            }
+          }
+        ],
+        "rawInput": {
+          "file_path": "notes.txt",
+          "offset": 2,
+          "limit": 2
+        },
+        "_meta": {
+          "cognition.ai/inferenceToolName": "read"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call",
+        "toolCallId": "toolu_01BWehrEWdeoA7ZyqjnGMTMe",
+        "title": "Read file",
+        "kind": "read",
+        "locations": [
+          {
+            "path": "notes.txt",
+            "line": 2,
+            "_meta": {
+              "cognition.ai/endLine": 3
+            }
+          }
+        ],
+        "rawInput": {
+          "file_path": "notes.txt",
+          "offset": 2,
+          "limit": 2
+        },
+        "_meta": {
+          "cognition.ai/inferenceToolName": "read",
+          "cognition.ai/timestamp": "2026-10-24T23:39:51.074713900+00:00"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01BWehrEWdeoA7ZyqjnGMTMe",
+        "status": "in_progress",
+        "_meta": {
+          "cognition.ai/inferenceToolName": "read"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01BWehrEWdeoA7ZyqjnGMTMe",
+        "status": "completed",
+        "content": [
+          {
+            "type": "content",
+            "content": {
+              "type": "text",
+              "text": "2 lines (truncated)"
+            }
+          }
+        ],
+        "_meta": {
+          "cognition.ai/inferenceToolName": "read"
+        }
+      }
+    }
+  ],
+  "readImage": [
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call",
+        "toolCallId": "toolu_01XVEvdNRT59WxP9epktW8ha",
+        "title": "Reading …",
+        "kind": "read",
+        "rawInput": "",
+        "_meta": {
+          "cognition.ai/inferenceToolName": "read",
+          "cognition.ai/timestamp": "2026-10-24T23:52:41.733436800+00:00"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01XVEvdNRT59WxP9epktW8ha",
+        "title": "Reading .\\pixel",
+        "locations": [
+          {
+            "path": "C:\\fixture\\project\\pixel"
+          }
+        ],
+        "rawInput": {
+          "file_path": "C:\\fixture\\project\\pixel"
+        },
+        "_meta": {
+          "cognition.ai/inferenceToolName": "read"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01XVEvdNRT59WxP9epktW8ha",
+        "title": "Viewing image .\\pixel.png",
+        "locations": [
+          {
+            "path": "C:\\fixture\\project\\pixel.png"
+          }
+        ],
+        "rawInput": {
+          "file_path": "C:\\fixture\\project\\pixel.png"
+        },
+        "_meta": {
+          "cognition.ai/inferenceToolName": "read"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01XVEvdNRT59WxP9epktW8ha",
+        "title": "Viewing image .\\pixel.png",
+        "locations": [
+          {
+            "path": "C:\\fixture\\project\\pixel.png"
+          }
+        ],
+        "rawInput": {
+          "file_path": "C:\\fixture\\project\\pixel.png"
+        },
+        "_meta": {
+          "cognition.ai/inferenceToolName": "read"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call",
+        "toolCallId": "toolu_01XVEvdNRT59WxP9epktW8ha",
+        "title": "Read file",
+        "kind": "read",
+        "locations": [
+          {
+            "path": "C:\\fixture\\project\\pixel.png"
+          }
+        ],
+        "rawInput": {
+          "file_path": "C:\\fixture\\project\\pixel.png"
+        },
+        "_meta": {
+          "cognition.ai/inferenceToolName": "read",
+          "cognition.ai/timestamp": "2026-10-24T23:52:42.235113700+00:00"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01XVEvdNRT59WxP9epktW8ha",
+        "status": "in_progress",
+        "_meta": {
+          "cognition.ai/inferenceToolName": "read"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01XVEvdNRT59WxP9epktW8ha",
+        "status": "in_progress",
+        "_meta": {
+          "cognition.ai/inferenceToolName": "read"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01XVEvdNRT59WxP9epktW8ha",
+        "status": "completed",
+        "content": [
+          {
+            "type": "content",
+            "content": {
+              "type": "text",
+              "text": "View image .\\pixel.png (1x1)"
+            }
+          }
+        ],
+        "_meta": {
+          "cognition.ai/inferenceToolName": "read"
+        }
+      }
+    }
+  ],
+  "grepMany": [
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call",
+        "toolCallId": "toolu_01WRLdV8Tgt4peoqZg57F8Te",
+        "title": "Searching for … in .\\",
+        "kind": "search",
+        "rawInput": "",
+        "_meta": {
+          "cognition.ai/inferenceToolName": "grep",
+          "cognition.ai/timestamp": "2026-10-24T23:52:39.219005600+00:00"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01WRLdV8Tgt4peoqZg57F8Te",
+        "title": "Searching for marker in .\\",
+        "rawInput": {
+          "pattern": "marker"
+        },
+        "_meta": {
+          "cognition.ai/inferenceToolName": "grep"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01WRLdV8Tgt4peoqZg57F8Te",
+        "title": "Searching for marker in .\\",
+        "locations": [
+          {
+            "path": "."
+          }
+        ],
+        "rawInput": {
+          "pattern": "marker",
+          "path": "."
+        },
+        "_meta": {
+          "cognition.ai/inferenceToolName": "grep"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01WRLdV8Tgt4peoqZg57F8Te",
+        "title": "Searching for marker in .\\",
+        "locations": [
+          {
+            "path": "."
+          }
+        ],
+        "rawInput": {
+          "pattern": "marker",
+          "path": ".",
+          "output_mode": "files_with"
+        },
+        "_meta": {
+          "cognition.ai/inferenceToolName": "grep"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01WRLdV8Tgt4peoqZg57F8Te",
+        "title": "Searching for marker in .\\",
+        "locations": [
+          {
+            "path": "."
+          }
+        ],
+        "rawInput": {
+          "pattern": "marker",
+          "path": ".",
+          "output_mode": "files_with_mat"
+        },
+        "_meta": {
+          "cognition.ai/inferenceToolName": "grep"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01WRLdV8Tgt4peoqZg57F8Te",
+        "title": "Searching for marker in .\\",
+        "locations": [
+          {
+            "path": "."
+          }
+        ],
+        "rawInput": {
+          "pattern": "marker",
+          "path": ".",
+          "output_mode": "files_with_matches"
+        },
+        "_meta": {
+          "cognition.ai/inferenceToolName": "grep"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01WRLdV8Tgt4peoqZg57F8Te",
+        "title": "Searching for marker in .\\",
+        "locations": [
+          {
+            "path": "."
+          }
+        ],
+        "rawInput": {
+          "pattern": "marker",
+          "path": ".",
+          "output_mode": "files_with_matches"
+        },
+        "_meta": {
+          "cognition.ai/inferenceToolName": "grep"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call",
+        "toolCallId": "toolu_01WRLdV8Tgt4peoqZg57F8Te",
+        "title": "Search for 'marker'",
+        "kind": "search",
+        "locations": [
+          {
+            "path": "."
+          }
+        ],
+        "rawInput": {
+          "query": "marker",
+          "path": "."
+        },
+        "_meta": {
+          "cognition.ai/inferenceToolName": "grep",
+          "cognition.ai/timestamp": "2026-10-24T23:52:39.249151100+00:00"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01WRLdV8Tgt4peoqZg57F8Te",
+        "status": "in_progress",
+        "_meta": {
+          "cognition.ai/inferenceToolName": "grep"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01WRLdV8Tgt4peoqZg57F8Te",
+        "status": "in_progress",
+        "content": [
+          {
+            "type": "content",
+            "content": {
+              "type": "resource_link",
+              "name": "three.md",
+              "uri": "file:///C:/fixture/project/three.md"
+            }
+          },
+          {
+            "type": "content",
+            "content": {
+              "type": "resource_link",
+              "name": "one.txt",
+              "uri": "file:///C:/fixture/project/a/one.txt"
+            }
+          },
+          {
+            "type": "content",
+            "content": {
+              "type": "resource_link",
+              "name": "two.txt",
+              "uri": "file:///C:/fixture/project/b/two.txt"
+            }
+          },
+          {
+            "type": "content",
+            "content": {
+              "type": "resource_link",
+              "name": "notes.txt",
+              "uri": "file:///C:/fixture/project/notes.txt"
+            }
+          }
+        ],
+        "_meta": {
+          "cognition.ai/inferenceToolName": "grep"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01WRLdV8Tgt4peoqZg57F8Te",
+        "status": "completed",
+        "_meta": {
+          "cognition.ai/inferenceToolName": "grep"
+        }
+      }
+    }
+  ],
+  "findMany": [
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call",
+        "toolCallId": "toolu_01SdH6eT7Z5nuzSrMA4G6rS1",
+        "title": "Finding files matching … in .\\",
+        "kind": "search",
+        "rawInput": "",
+        "_meta": {
+          "cognition.ai/inferenceToolName": "find_file_by_name",
+          "cognition.ai/timestamp": "2026-10-24T23:52:40.219480700+00:00"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01SdH6eT7Z5nuzSrMA4G6rS1",
+        "title": "Finding files matching **/*.tx in .\\",
+        "rawInput": {
+          "pattern": "**/*.tx"
+        },
+        "_meta": {
+          "cognition.ai/inferenceToolName": "find_file_by_name"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01SdH6eT7Z5nuzSrMA4G6rS1",
+        "title": "Finding files matching **/*.txt in .\\",
+        "rawInput": {
+          "pattern": "**/*.txt"
+        },
+        "_meta": {
+          "cognition.ai/inferenceToolName": "find_file_by_name"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01SdH6eT7Z5nuzSrMA4G6rS1",
+        "title": "Finding files matching **/*.txt in .\\",
+        "rawInput": {
+          "pattern": "**/*.txt"
+        },
+        "_meta": {
+          "cognition.ai/inferenceToolName": "find_file_by_name"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call",
+        "toolCallId": "toolu_01SdH6eT7Z5nuzSrMA4G6rS1",
+        "title": "Find files matching `**/*.txt`",
+        "kind": "search",
+        "rawInput": {
+          "query": "**/*.txt"
+        },
+        "_meta": {
+          "cognition.ai/inferenceToolName": "find_file_by_name",
+          "cognition.ai/timestamp": "2026-10-24T23:52:40.517666800+00:00"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01SdH6eT7Z5nuzSrMA4G6rS1",
+        "status": "in_progress",
+        "_meta": {
+          "cognition.ai/inferenceToolName": "find_file_by_name"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01SdH6eT7Z5nuzSrMA4G6rS1",
+        "status": "in_progress",
+        "content": [
+          {
+            "type": "content",
+            "content": {
+              "type": "resource_link",
+              "name": "one.txt",
+              "uri": "file:///C:/fixture/project/a/one.txt"
+            }
+          },
+          {
+            "type": "content",
+            "content": {
+              "type": "resource_link",
+              "name": "two.txt",
+              "uri": "file:///C:/fixture/project/b/two.txt"
+            }
+          },
+          {
+            "type": "content",
+            "content": {
+              "type": "resource_link",
+              "name": "notes.txt",
+              "uri": "file:///C:/fixture/project/notes.txt"
+            }
+          }
+        ],
+        "_meta": {
+          "cognition.ai/inferenceToolName": "find_file_by_name"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01SdH6eT7Z5nuzSrMA4G6rS1",
+        "status": "completed",
+        "_meta": {
+          "cognition.ai/inferenceToolName": "find_file_by_name"
+        }
+      }
+    }
+  ],
+  "webSearch": [
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call",
+        "toolCallId": "toolu_012X1wtVNf9UAhvUUricMhRT",
+        "title": "Searching web for …",
+        "kind": "fetch",
+        "rawInput": "",
+        "_meta": {
+          "cognition.ai/inferenceToolName": "web_search",
+          "cognition.ai/timestamp": "2026-10-24T23:39:55.729057700+00:00"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_012X1wtVNf9UAhvUUricMhRT",
+        "title": "Searching web for agent client protoc",
+        "rawInput": {
+          "query": "agent client protoc"
+        },
+        "_meta": {
+          "cognition.ai/inferenceToolName": "web_search"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_012X1wtVNf9UAhvUUricMhRT",
+        "title": "Searching web for agent client protocol specification",
+        "rawInput": {
+          "query": "agent client protocol specification"
+        },
+        "_meta": {
+          "cognition.ai/inferenceToolName": "web_search"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_012X1wtVNf9UAhvUUricMhRT",
+        "title": "Searching web for agent client protocol specification",
+        "rawInput": {
+          "query": "agent client protocol specification"
+        },
+        "_meta": {
+          "cognition.ai/inferenceToolName": "web_search"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call",
+        "toolCallId": "toolu_012X1wtVNf9UAhvUUricMhRT",
+        "title": "Searched web for agent client protocol specification",
+        "kind": "fetch",
+        "rawInput": {
+          "query": "agent client protocol specification"
+        },
+        "_meta": {
+          "cognition.ai/inferenceToolName": "web_search",
+          "cognition.ai/timestamp": "2026-10-24T23:39:55.875198900+00:00"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_012X1wtVNf9UAhvUUricMhRT",
+        "status": "in_progress",
+        "_meta": {
+          "cognition.ai/inferenceToolName": "web_search"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_012X1wtVNf9UAhvUUricMhRT",
+        "status": "in_progress",
+        "_meta": {
+          "cognition.ai/inferenceToolName": "web_search"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_012X1wtVNf9UAhvUUricMhRT",
+        "status": "completed",
+        "content": [
+          {
+            "type": "content",
+            "content": {
+              "type": "text",
+              "text": "Found 5 result(s) for \"agent client protocol specification\""
+            }
+          }
+        ],
+        "_meta": {
+          "cognition.ai/inferenceToolName": "web_search",
+          "cognition.ai/numResults": 5,
+          "cognition.ai/resultUrls": [
+            "https://agentclientprotocol.com/protocol/v2/overview",
+            "https://agentclientprotocol.com/protocol/v1/schema",
+            "https://agentclientprotocol.com/protocol/v2/initialization",
+            "https://github.com/agentclientprotocol/agent-client-protocol/",
+            "https://agentclientprotocol.com/protocol/v2/transports"
+          ]
+        }
+      }
+    }
+  ],
+  "webFetch": [
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call",
+        "toolCallId": "toolu_01MYRUsqkkoa4fFgXZZiW5x5",
+        "title": "Fetching …",
+        "kind": "fetch",
+        "rawInput": "",
+        "_meta": {
+          "cognition.ai/inferenceToolName": "webfetch",
+          "cognition.ai/timestamp": "2026-10-24T23:39:57.396746100+00:00"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01MYRUsqkkoa4fFgXZZiW5x5",
+        "title": "Fetching https://example.",
+        "rawInput": {
+          "url": "https://example."
+        },
+        "_meta": {
+          "cognition.ai/inferenceToolName": "webfetch"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01MYRUsqkkoa4fFgXZZiW5x5",
+        "title": "Fetching https://example.com",
+        "rawInput": {
+          "url": "https://example.com"
+        },
+        "_meta": {
+          "cognition.ai/inferenceToolName": "webfetch"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01MYRUsqkkoa4fFgXZZiW5x5",
+        "title": "Fetching https://example.com",
+        "rawInput": {
+          "url": "https://example.com"
+        },
+        "_meta": {
+          "cognition.ai/inferenceToolName": "webfetch"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call",
+        "toolCallId": "toolu_01MYRUsqkkoa4fFgXZZiW5x5",
+        "title": "Fetched https://example.com",
+        "kind": "fetch",
+        "rawInput": {
+          "url": "https://example.com"
+        },
+        "_meta": {
+          "cognition.ai/inferenceToolName": "webfetch",
+          "cognition.ai/timestamp": "2026-10-24T23:39:57.499091400+00:00"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01MYRUsqkkoa4fFgXZZiW5x5",
+        "status": "in_progress",
+        "_meta": {
+          "cognition.ai/inferenceToolName": "webfetch"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01MYRUsqkkoa4fFgXZZiW5x5",
+        "status": "in_progress",
+        "_meta": {
+          "cognition.ai/inferenceToolName": "webfetch"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01MYRUsqkkoa4fFgXZZiW5x5",
+        "status": "completed",
+        "content": [
+          {
+            "type": "content",
+            "content": {
+              "type": "text",
+              "text": "Fetched 157 characters from https://example.com"
+            }
+          }
+        ],
+        "_meta": {
+          "cognition.ai/inferenceToolName": "webfetch"
+        }
+      }
+    }
+  ],
+  "askUserQuestion": [
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call",
+        "toolCallId": "toolu_01DYHrja6kB4kd9Ya1EXF7KD",
+        "title": "Asking user a question",
+        "rawInput": "",
+        "_meta": {
+          "cognition.ai/inferenceToolName": "ask_user_question",
+          "cognition.ai/timestamp": "2026-10-24T23:40:02.252217200+00:00"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01DYHrja6kB4kd9Ya1EXF7KD",
+        "title": "Asking user 0 questions",
+        "rawInput": {
+          "questions": []
+        },
+        "_meta": {
+          "cognition.ai/inferenceToolName": "ask_user_question"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01DYHrja6kB4kd9Ya1EXF7KD",
+        "title": "Asking user Pick",
+        "rawInput": {
+          "questions": [
+            {
+              "question": "Pick"
+            }
+          ]
+        },
+        "_meta": {
+          "cognition.ai/inferenceToolName": "ask_user_question"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01DYHrja6kB4kd9Ya1EXF7KD",
+        "title": "Asking user Pick a color",
+        "rawInput": {
+          "questions": [
+            {
+              "question": "Pick a color",
+              "header": ""
+            }
+          ]
+        },
+        "_meta": {
+          "cognition.ai/inferenceToolName": "ask_user_question"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01DYHrja6kB4kd9Ya1EXF7KD",
+        "title": "Asking user Pick a color",
+        "rawInput": {
+          "questions": [
+            {
+              "question": "Pick a color",
+              "header": "Color",
+              "options": [
+                {
+                  "label": "Red",
+                  "description": "Cho"
+                }
+              ]
+            }
+          ]
+        },
+        "_meta": {
+          "cognition.ai/inferenceToolName": "ask_user_question"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01DYHrja6kB4kd9Ya1EXF7KD",
+        "title": "Asking user Pick a color",
+        "rawInput": {
+          "questions": [
+            {
+              "question": "Pick a color",
+              "header": "Color",
+              "options": [
+                {
+                  "label": "Red",
+                  "description": "Choose red"
+                },
+                {
+                  "label": "Blue",
+                  "description": "Choose blue"
+                }
+              ]
+            }
+          ]
+        },
+        "_meta": {
+          "cognition.ai/inferenceToolName": "ask_user_question"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01DYHrja6kB4kd9Ya1EXF7KD",
+        "title": "Asking user Pick a color",
+        "rawInput": {
+          "questions": [
+            {
+              "question": "Pick a color",
+              "header": "Color",
+              "options": [
+                {
+                  "label": "Red",
+                  "description": "Choose red"
+                },
+                {
+                  "label": "Blue",
+                  "description": "Choose blue"
+                }
+              ]
+            }
+          ]
+        },
+        "_meta": {
+          "cognition.ai/inferenceToolName": "ask_user_question"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01DYHrja6kB4kd9Ya1EXF7KD",
+        "title": "Asking user Pick a color",
+        "rawInput": {
+          "questions": [
+            {
+              "question": "Pick a color",
+              "header": "Color",
+              "options": [
+                {
+                  "label": "Red",
+                  "description": "Choose red"
+                },
+                {
+                  "label": "Blue",
+                  "description": "Choose blue"
+                }
+              ]
+            }
+          ]
+        },
+        "_meta": {
+          "cognition.ai/inferenceToolName": "ask_user_question"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call",
+        "toolCallId": "toolu_01DYHrja6kB4kd9Ya1EXF7KD",
+        "title": "Asked user Pick a color",
+        "rawInput": {
+          "questions": [
+            {
+              "question": "Pick a color",
+              "header": "Color",
+              "options": [
+                {
+                  "label": "Red",
+                  "description": "Choose red"
+                },
+                {
+                  "label": "Blue",
+                  "description": "Choose blue"
+                }
+              ]
+            }
+          ]
+        },
+        "_meta": {
+          "cognition.ai/inferenceToolName": "ask_user_question",
+          "cognition.ai/eventType": "ask_user_question",
+          "cognition.ai/questions": [
+            {
+              "question": "Pick a color",
+              "header": "Color",
+              "options": ["Red", "Blue"]
+            }
+          ],
+          "cognition.ai/timestamp": "2026-10-24T23:40:02.523766200+00:00"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01DYHrja6kB4kd9Ya1EXF7KD",
+        "_meta": {
+          "cognition.ai/eventType": "ask_user_question",
+          "cognition.ai/originalQuestions": [
+            {
+              "question": "Pick a color",
+              "header": "Color",
+              "options": ["Red", "Blue"]
+            }
+          ],
+          "cognition.ai/answers": [
+            {
+              "question_index": 0,
+              "selected_options": ["Red"]
+            }
+          ],
+          "cognition.ai/inferenceToolName": "ask_user_question"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01DYHrja6kB4kd9Ya1EXF7KD",
+        "status": "in_progress",
+        "_meta": {
+          "cognition.ai/inferenceToolName": "ask_user_question"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01DYHrja6kB4kd9Ya1EXF7KD",
+        "status": "completed",
+        "content": [
+          {
+            "type": "content",
+            "content": {
+              "type": "text",
+              "text": "Red"
+            }
+          }
+        ],
+        "_meta": {
+          "cognition.ai/inferenceToolName": "ask_user_question"
+        }
+      }
+    }
+  ],
+  "edit": [
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call",
+        "toolCallId": "toolu_01B12EfoDk8yTBzeeP98LArb",
+        "title": "Editing …",
+        "kind": "edit",
+        "rawInput": "",
+        "_meta": {
+          "cognition.ai/inferenceToolName": "edit",
+          "cognition.ai/timestamp": "2026-10-24T23:40:03.668441800+00:00"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01B12EfoDk8yTBzeeP98LArb",
+        "title": "Editing .\\notes",
+        "locations": [
+          {
+            "path": "C:\\fixture\\project\\notes"
+          }
+        ],
+        "rawInput": {
+          "file_path": "C:\\fixture\\project\\notes"
+        },
+        "_meta": {
+          "cognition.ai/inferenceToolName": "edit"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01B12EfoDk8yTBzeeP98LArb",
+        "title": "Editing .\\notes.txt",
+        "locations": [
+          {
+            "path": "C:\\fixture\\project\\notes.txt"
+          }
+        ],
+        "rawInput": {
+          "file_path": "C:\\fixture\\project\\notes.txt"
+        },
+        "_meta": {
+          "cognition.ai/inferenceToolName": "edit"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01B12EfoDk8yTBzeeP98LArb",
+        "title": "Editing .\\notes.txt",
+        "content": [
+          {
+            "type": "diff",
+            "path": "C:\\fixture\\project\\notes.txt",
+            "oldText": "alpha",
+            "newText": "",
+            "_meta": {
+              "cognition.ai/linesAdded": 0,
+              "cognition.ai/linesRemoved": 1
+            }
+          }
+        ],
+        "locations": [
+          {
+            "path": "C:\\fixture\\project\\notes.txt"
+          }
+        ],
+        "rawInput": {
+          "file_path": "C:\\fixture\\project\\notes.txt",
+          "old_string": "alpha"
+        },
+        "_meta": {
+          "cognition.ai/inferenceToolName": "edit"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01B12EfoDk8yTBzeeP98LArb",
+        "title": "Editing .\\notes.txt",
+        "content": [
+          {
+            "type": "diff",
+            "path": "C:\\fixture\\project\\notes.txt",
+            "oldText": "alpha",
+            "newText": "omega",
+            "_meta": {
+              "cognition.ai/linesAdded": 1,
+              "cognition.ai/linesRemoved": 1
+            }
+          }
+        ],
+        "locations": [
+          {
+            "path": "C:\\fixture\\project\\notes.txt"
+          }
+        ],
+        "rawInput": {
+          "file_path": "C:\\fixture\\project\\notes.txt",
+          "old_string": "alpha",
+          "new_string": "omega"
+        },
+        "_meta": {
+          "cognition.ai/inferenceToolName": "edit"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01B12EfoDk8yTBzeeP98LArb",
+        "title": "Editing .\\notes.txt",
+        "content": [
+          {
+            "type": "diff",
+            "path": "C:\\fixture\\project\\notes.txt",
+            "oldText": "alpha",
+            "newText": "omega",
+            "_meta": {
+              "cognition.ai/linesAdded": 1,
+              "cognition.ai/linesRemoved": 1
+            }
+          }
+        ],
+        "locations": [
+          {
+            "path": "C:\\fixture\\project\\notes.txt"
+          }
+        ],
+        "rawInput": {
+          "file_path": "C:\\fixture\\project\\notes.txt",
+          "old_string": "alpha",
+          "new_string": "omega"
+        },
+        "_meta": {
+          "cognition.ai/inferenceToolName": "edit"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call",
+        "toolCallId": "toolu_01B12EfoDk8yTBzeeP98LArb",
+        "title": "Edited C:\\fixture\\project\\notes.txt",
+        "kind": "edit",
+        "content": [
+          {
+            "type": "diff",
+            "path": "C:\\fixture\\project\\notes.txt",
+            "oldText": "alpha line one\nbeta line two marker\ngamma line three\ndelta line four marker\nepsilon line five\n",
+            "newText": "omega line one\nbeta line two marker\ngamma line three\ndelta line four marker\nepsilon line five\n",
+            "_meta": {
+              "cognition.ai/linesAdded": 1,
+              "cognition.ai/linesRemoved": 1
+            }
+          }
+        ],
+        "rawInput": {
+          "file_path": "C:\\fixture\\project\\notes.txt",
+          "old_string": "alpha",
+          "new_string": "omega"
+        },
+        "_meta": {
+          "cognition.ai/suppressApproval": true,
+          "cognition.ai/inferenceToolName": "edit",
+          "cognition.ai/timestamp": "2026-10-24T23:40:04.204998900+00:00"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01B12EfoDk8yTBzeeP98LArb",
+        "status": "in_progress",
+        "_meta": {
+          "cognition.ai/inferenceToolName": "edit"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01B12EfoDk8yTBzeeP98LArb",
+        "status": "in_progress",
+        "content": [
+          {
+            "type": "diff",
+            "path": "C:\\fixture\\project\\notes.txt",
+            "oldText": "alpha line one\nbeta line two marker\ngamma line three\ndelta line four marker\nepsilon line five\n",
+            "newText": "omega line one\nbeta line two marker\ngamma line three\ndelta line four marker\nepsilon line five\n",
+            "_meta": {
+              "cognition.ai/linesAdded": 1,
+              "cognition.ai/linesRemoved": 1
+            }
+          }
+        ],
+        "_meta": {
+          "cognition.ai/inferenceToolName": "edit"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01B12EfoDk8yTBzeeP98LArb",
+        "status": "completed",
+        "_meta": {
+          "cognition.ai/inferenceToolName": "edit"
+        }
+      }
+    }
+  ],
+  "write": [
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call",
+        "toolCallId": "toolu_01FbMwSPn8hUmepHdKHfbxoX",
+        "title": "Writing …",
+        "kind": "edit",
+        "rawInput": "",
+        "_meta": {
+          "cognition.ai/inferenceToolName": "write",
+          "cognition.ai/timestamp": "2026-10-24T23:40:06.360580300+00:00"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01FbMwSPn8hUmepHdKHfbxoX",
+        "title": "Writing .\\new.tx",
+        "locations": [
+          {
+            "path": "C:\\fixture\\project\\new.tx"
+          }
+        ],
+        "rawInput": {
+          "file_path": "C:\\fixture\\project\\new.tx"
+        },
+        "_meta": {
+          "cognition.ai/inferenceToolName": "write"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01FbMwSPn8hUmepHdKHfbxoX",
+        "title": "Writing .\\new.txt",
+        "locations": [
+          {
+            "path": "C:\\fixture\\project\\new.txt"
+          }
+        ],
+        "rawInput": {
+          "file_path": "C:\\fixture\\project\\new.txt"
+        },
+        "_meta": {
+          "cognition.ai/inferenceToolName": "write"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01FbMwSPn8hUmepHdKHfbxoX",
+        "title": "Writing .\\new.txt",
+        "content": [
+          {
+            "type": "diff",
+            "path": "C:\\fixture\\project\\new.txt",
+            "newText": "hello",
+            "_meta": {
+              "cognition.ai/linesAdded": 1,
+              "cognition.ai/linesRemoved": 0
+            }
+          }
+        ],
+        "locations": [
+          {
+            "path": "C:\\fixture\\project\\new.txt"
+          }
+        ],
+        "rawInput": {
+          "file_path": "C:\\fixture\\project\\new.txt",
+          "content": "hello"
+        },
+        "_meta": {
+          "cognition.ai/inferenceToolName": "write"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01FbMwSPn8hUmepHdKHfbxoX",
+        "title": "Writing .\\new.txt",
+        "content": [
+          {
+            "type": "diff",
+            "path": "C:\\fixture\\project\\new.txt",
+            "newText": "hello\n",
+            "_meta": {
+              "cognition.ai/linesAdded": 1,
+              "cognition.ai/linesRemoved": 0
+            }
+          }
+        ],
+        "locations": [
+          {
+            "path": "C:\\fixture\\project\\new.txt"
+          }
+        ],
+        "rawInput": {
+          "file_path": "C:\\fixture\\project\\new.txt",
+          "content": "hello\n"
+        },
+        "_meta": {
+          "cognition.ai/inferenceToolName": "write"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01FbMwSPn8hUmepHdKHfbxoX",
+        "title": "Writing .\\new.txt",
+        "content": [
+          {
+            "type": "diff",
+            "path": "C:\\fixture\\project\\new.txt",
+            "newText": "hello\n",
+            "_meta": {
+              "cognition.ai/linesAdded": 1,
+              "cognition.ai/linesRemoved": 0
+            }
+          }
+        ],
+        "locations": [
+          {
+            "path": "C:\\fixture\\project\\new.txt"
+          }
+        ],
+        "rawInput": {
+          "file_path": "C:\\fixture\\project\\new.txt",
+          "content": "hello\n"
+        },
+        "_meta": {
+          "cognition.ai/inferenceToolName": "write"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call",
+        "toolCallId": "toolu_01FbMwSPn8hUmepHdKHfbxoX",
+        "title": "Wrote C:\\fixture\\project\\new.txt",
+        "kind": "edit",
+        "content": [
+          {
+            "type": "diff",
+            "path": "C:\\fixture\\project\\new.txt",
+            "newText": "hello\n",
+            "_meta": {
+              "cognition.ai/linesAdded": 1,
+              "cognition.ai/linesRemoved": 0
+            }
+          }
+        ],
+        "rawInput": {
+          "file_path": "C:\\fixture\\project\\new.txt",
+          "content": "hello\n"
+        },
+        "_meta": {
+          "cognition.ai/suppressApproval": true,
+          "cognition.ai/inferenceToolName": "write",
+          "cognition.ai/timestamp": "2026-10-24T23:40:06.760937700+00:00"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01FbMwSPn8hUmepHdKHfbxoX",
+        "status": "in_progress",
+        "_meta": {
+          "cognition.ai/inferenceToolName": "write"
+        }
+      }
+    }
+  ]
+}

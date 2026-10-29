@@ -427,6 +427,74 @@ describe("AgentRegistryService.getLatestAgentVersion", () => {
   });
 });
 
+describe("AgentRegistryService.getAgentConfigDefaults", () => {
+  const baseAdapter = {
+    kind: "codex",
+    label: "Codex",
+    capabilities,
+    detectInstall: vi.fn<AgentAdapter["detectInstall"]>(),
+    buildLaunchArgv: vi.fn<AgentAdapter["buildLaunchArgv"]>(),
+    buildResumeArgv: vi.fn<AgentAdapter["buildResumeArgv"]>(),
+    createInitialSessionRef: vi.fn<AgentAdapter["createInitialSessionRef"]>(() => undefined),
+  } as unknown as AgentAdapter;
+
+  function makeService(adapter: AgentAdapter): AgentRegistryService {
+    return new AgentRegistryService({
+      adapters: new Map([[adapter.kind, adapter]]),
+      settingsPath: "/data/settings.json",
+      settingsWriter: fileSettingsWriter("/data/settings.json"),
+      baseDir: "/data",
+      acpIconsDir: "/data/icons",
+      sharedSettingsCache: {
+        invalidate: vi.fn<SupervisorSharedSettingsCache["invalidate"]>(),
+      } as unknown as SupervisorSharedSettingsCache,
+      getAgentStatusService: () =>
+        ({
+          reconcileAgentRegistry: vi.fn<(kinds: readonly string[]) => void>(),
+        }) as unknown as AgentStatusService,
+      getActiveWslProjectDistros: () => [],
+      closeThreadsForAgentKind: vi.fn<(agentKind: AgentKind) => Promise<void>>(async () => {}),
+    });
+  }
+
+  it("returns what the adapter hook reports", async () => {
+    const adapter = {
+      ...baseAdapter,
+      readConfigDefaults: vi.fn<() => Promise<Record<string, string>>>(async () => ({
+        subagentModel: "gpt-6-luna",
+      })),
+    } as unknown as AgentAdapter;
+
+    expect(await makeService(adapter).getAgentConfigDefaults({ agentKind: "codex" })).toEqual({
+      defaults: { subagentModel: "gpt-6-luna" },
+    });
+  });
+
+  it("returns no defaults for an adapter without the hook or an unknown agent", async () => {
+    const service = makeService(baseAdapter);
+
+    expect(await service.getAgentConfigDefaults({ agentKind: "codex" })).toEqual({ defaults: {} });
+    expect(await service.getAgentConfigDefaults({ agentKind: "missing" })).toEqual({
+      defaults: {},
+    });
+  });
+
+  it("swallows a failing hook so Settings only loses the hints", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const adapter = {
+      ...baseAdapter,
+      readConfigDefaults: vi.fn<() => Promise<Record<string, string>>>(async () => {
+        throw new Error("boom");
+      }),
+    } as unknown as AgentAdapter;
+
+    expect(await makeService(adapter).getAgentConfigDefaults({ agentKind: "codex" })).toEqual({
+      defaults: {},
+    });
+    warn.mockRestore();
+  });
+});
+
 describe("AgentRegistryService project-scoped ACP refreshes", () => {
   const settings = {
     ...defaultSharedSettings,

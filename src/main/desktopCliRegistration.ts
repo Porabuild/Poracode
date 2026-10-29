@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import {
   accessSync,
   closeSync,
@@ -20,9 +20,14 @@ import { z } from "zod";
 import { writeFileAtomic } from "@/shared/atomicFile";
 import type { PoracodeChannel } from "@/shared/channel";
 import { readSelectedDesktopBundle } from "../../packages/poracode-cli/lib/desktopBundle.mjs";
+import { appImageCliLauncher } from "@/shared/desktopAppImage";
 
 // OS-local shell bookkeeping, independent of host roots and service prefixes.
 // Unknown versions preserve their bytes and refuse all binding effects.
+// Shell PATH discovery and the user-bin fallback keep the same binding shape;
+// existing format-1 registrations remain valid and retain their custody.
+// Linux is a new OS-local writer of that same format; AppImage records bind
+// the durable image/shim rather than the changing mount. Windows stays separate.
 export const DESKTOP_CLI_REGISTRATION_VERSION = 1;
 const absolutePath = z
   .string()
@@ -46,10 +51,11 @@ export interface DesktopCliRegistrationResult {
   readonly state: "registered" | "collision" | "unavailable";
   readonly commandName: string;
   readonly launcherPath: string;
+  readonly linkPath?: string;
   readonly detail: string;
 }
 
-export function shouldRegisterMacDesktopCli(input: {
+export function shouldRegisterPosixDesktopCli(input: {
   readonly platform: NodeJS.Platform;
   readonly isPackaged: boolean;
   readonly isDev: boolean;
@@ -58,7 +64,7 @@ export function shouldRegisterMacDesktopCli(input: {
   readonly env: NodeJS.ProcessEnv;
 }): boolean {
   return (
-    input.platform === "darwin" &&
+    (input.platform === "darwin" || input.platform === "linux") &&
     input.isPackaged &&
     !input.isDev &&
     !input.baseDirOverride &&
@@ -78,8 +84,8 @@ function fileInfo(path: string) {
   }
 }
 
-/** Publish only the exact selected bundle's command into an existing macOS PATH. */
-export function registerMacDesktopCli(input: {
+/** Publish only the exact selected bundle's command, preserving existing commands. */
+export function registerPosixDesktopCli(input: {
   readonly resourcesDir: string;
   readonly executablePath: string;
   readonly appVersion: string;
@@ -87,22 +93,41 @@ export function registerMacDesktopCli(input: {
   readonly channel: PoracodeChannel;
   readonly appDataDir: string;
   readonly path: string;
+  /** Used only if PATH has no writable directory; the caller wires it into the shell. */
+  readonly fallbackDirectory?: string;
+  /** Stable user/system bins; other PATH entries still participate in collision checks. */
+  readonly installationDirectories?: readonly string[];
+  /** The durable outer image; mounted AppImage resources disappear after exit. */
+  readonly appImagePath?: string;
   readonly platform?: NodeJS.Platform;
 }): DesktopCliRegistrationResult {
-  if ((input.platform ?? process.platform) !== "darwin" || !process.getuid)
-    throw new Error("Automatic desktop CLI registration currently requires macOS.");
+  const platform = input.platform ?? process.platform;
+  if (!["darwin", "linux"].includes(platform) || !process.getuid)
+    throw new Error("POSIX desktop CLI registration requires macOS or Linux.");
   const bundle = readSelectedDesktopBundle({
     resourcesDir: input.resourcesDir,
     execPath: input.executablePath,
     electronVersion: input.electronVersion,
+    platform,
   });
   if (bundle.channel !== input.channel || bundle.appVersion !== input.appVersion)
     throw new Error("Desktop CLI registration refused a different channel or app version.");
   const account = { kind: "uid" as const, id: process.getuid() };
-  const appExecutable = realpathSync.native(input.executablePath);
-  const launcherPath = join(bundle.resourcesDir, "desktop-cli", bundle.commandName);
+  const stateDir = join(
+    realpathSync.native(input.appDataDir),
+    `poracode-desktop-cli-${input.channel}`,
+  );
+  const imagePath = platform === "linux" ? input.appImagePath : undefined;
+  const appExecutable = realpathSync.native(imagePath ?? input.executablePath);
+  const imageLauncher = imagePath ? appImageCliLauncher(appExecutable) : undefined;
+  const launcherPath = imageLauncher
+    ? join(stateDir, `${bundle.commandName}.sh`)
+    : join(bundle.resourcesDir, "desktop-cli", bundle.commandName);
   const launcher = bundle.files.find((file) => file.path === `desktop-cli/${bundle.commandName}`);
   if (!launcher) throw new Error("The selected desktop bundle has no validated command launcher.");
+  const launcherSha256 = imageLauncher
+    ? createHash("sha256").update(imageLauncher).digest("hex")
+    : launcher.sha256;
   const unavailable = (
     state: "collision" | "unavailable",
     detail: string,
@@ -114,26 +139,7 @@ export function registerMacDesktopCli(input: {
   });
   // Canonicalize existing directories, but never expand shell syntax or use
   // relative/empty entries: they can turn an arbitrary cwd into command custody.
-  const directories = [
-    ...new Set(
-      input.path
-        .split(":")
-        .filter(isAbsolute)
-        .flatMap((directory) => {
-          try {
-            return [realpathSync.native(directory)];
-          } catch (error) {
-            if (["ENOENT", "ENOTDIR"].includes((error as NodeJS.ErrnoException).code ?? ""))
-              return [];
-            throw error;
-          }
-        }),
-    ),
-  ];
-  const stateDir = join(
-    realpathSync.native(input.appDataDir),
-    `poracode-desktop-cli-${input.channel}`,
-  );
+  const directories = existingPathDirectories(input.path.split(":"));
   try {
     mkdirSync(stateDir, { mode: 0o700 });
   } catch (error) {
@@ -192,6 +198,19 @@ export function registerMacDesktopCli(input: {
       throw new Error(
         "This command registration belongs to a different desktop installation or account; it was not adopted.",
       );
+    // The AppImage shim is stable across remounts and in-place app updates.
+    // Its format-1 record binds the outer image and exact shim bytes, never /tmp/.mount_*.
+    const imageLauncherInfo = imageLauncher ? fileInfo(launcherPath) : undefined;
+    if (
+      imageLauncher &&
+      imageLauncherInfo &&
+      (!previous ||
+        !imageLauncherInfo.isFile() ||
+        imageLauncherInfo.uid !== account.id ||
+        imageLauncherInfo.size !== Buffer.byteLength(imageLauncher) ||
+        createHash("sha256").update(readFileSync(launcherPath)).digest("hex") !== launcherSha256)
+    )
+      throw new Error("The AppImage CLI launcher changed; its bytes were preserved.");
     const isOwnedLink = (path: string) => {
       const info = fileInfo(path);
       return (
@@ -212,7 +231,7 @@ export function registerMacDesktopCli(input: {
       !directories.some((directory) => join(directory, bundle.commandName) === previous.linkPath)
     )
       return unavailable("unavailable", "The recorded command directory is no longer on PATH.");
-    const writable = directories.find((directory) => {
+    const canWrite = (directory: string) => {
       if (previous && join(directory, bundle.commandName) !== previous.linkPath) return false;
       const info = lstatSync(directory);
       if (
@@ -229,7 +248,22 @@ export function registerMacDesktopCli(input: {
           return false;
         throw error;
       }
-    });
+    };
+    const installationDirectories = input.installationDirectories
+      ? existingPathDirectories(input.installationDirectories)
+      : undefined;
+    let writable = directories.find(
+      (directory) =>
+        (previous || !installationDirectories || installationDirectories.includes(directory)) &&
+        canWrite(directory),
+    );
+    if (!writable && input.fallbackDirectory && !previous) {
+      if (!isAbsolute(input.fallbackDirectory))
+        throw new Error("The desktop CLI fallback directory must be absolute.");
+      mkdirSync(input.fallbackDirectory, { recursive: true, mode: 0o755 });
+      const fallback = realpathSync.native(input.fallbackDirectory);
+      if (canWrite(fallback)) writable = fallback;
+    }
     if (!writable)
       return unavailable(
         "unavailable",
@@ -251,19 +285,21 @@ export function registerMacDesktopCli(input: {
       account,
       appExecutable,
       launcherPath,
-      launcherSha256: launcher.sha256,
+      launcherSha256,
       linkPath,
     });
     if (
       previous?.state === "installed" &&
-      previous.launcherSha256 === launcher.sha256 &&
-      existingLink
+      previous.launcherSha256 === launcherSha256 &&
+      existingLink &&
+      (!imageLauncher || imageLauncherInfo)
     ) {
       assertClaim();
       return {
         state: "registered",
         commandName: bundle.commandName,
         launcherPath,
+        linkPath,
         detail: `Desktop command ${bundle.commandName} remains registered at ${linkPath}.`,
       };
     }
@@ -291,6 +327,15 @@ export function registerMacDesktopCli(input: {
     // prepared records are retried only for this same account/app/link target.
     saveRecord("prepared");
     assertClaim();
+    if (imageLauncher && !imageLauncherInfo) {
+      const fd = openSync(launcherPath, "wx", 0o755);
+      try {
+        writeFileSync(fd, imageLauncher);
+        fsyncSync(fd);
+      } finally {
+        closeSync(fd);
+      }
+    }
     if (!existingLink) symlinkSync(launcherPath, linkPath, "file");
     const link = lstatSync(linkPath);
     if (
@@ -305,10 +350,27 @@ export function registerMacDesktopCli(input: {
       state: "registered",
       commandName: bundle.commandName,
       launcherPath,
+      linkPath,
       detail: `Desktop command ${bundle.commandName} is registered at ${linkPath}. Open a new terminal if command lookup was cached.`,
     };
   } finally {
     closeSync(descriptor);
     if (ownsClaim()) unlinkSync(lockPath);
   }
+}
+
+function existingPathDirectories(paths: readonly string[]): string[] {
+  return [
+    ...new Set(
+      paths.filter(isAbsolute).flatMap((directory) => {
+        try {
+          return [realpathSync.native(directory)];
+        } catch (error) {
+          if (["ENOENT", "ENOTDIR"].includes((error as NodeJS.ErrnoException).code ?? ""))
+            return [];
+          throw error;
+        }
+      }),
+    ),
+  ];
 }

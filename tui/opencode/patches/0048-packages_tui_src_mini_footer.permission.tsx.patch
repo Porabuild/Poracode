@@ -1,0 +1,22 @@
+diff --git a/packages/tui/src/mini/footer.permission.tsx b/packages/tui/src/mini/footer.permission.tsx
+index 235aa5a..bd5e1b1 100644
+--- a/packages/tui/src/mini/footer.permission.tsx
++++ b/packages/tui/src/mini/footer.permission.tsx
+@@ -111,7 +111,7 @@ export function RejectField(props: {
+       minHeight={1}
+       maxHeight={3}
+       wrapMode="word"
+-      placeholder="Tell OpenCode what to do differently"
++      placeholder="Tell the agent what to do differently"
+       placeholderColor={props.theme.muted}
+       textColor={props.theme.formfieldText}
+       focusedTextColor={props.theme.formfieldFocusedText}
+@@ -323,7 +323,7 @@ export function RunPermissionBody(props: {
+           {title()}
+         </text>
+         <Show when={!compact() && stage() === "reject"}>
+-          <text fg={props.theme.muted}>Tell OpenCode what to do differently</text>
++          <text fg={props.theme.muted}>Tell the agent what to do differently</text>
+         </Show>
+       </box>
+ 

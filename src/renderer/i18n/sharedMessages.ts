@@ -58,6 +58,25 @@ export const SHARED_MESSAGE_DESCRIPTORS: Record<MessageKey, MessageDescriptor> =
     message:
       "The pull request head changed or is unavailable. Refresh and review it before merging.",
   }),
+  "forge.reviewHeadChanged": msg({
+    message:
+      "The pull request changed after these line comments were drafted. Refresh and check them before submitting.",
+  }),
+  "forge.reviewDraftPartial": msg({
+    message:
+      "Some line comments were posted, but the review did not finish. Refresh before submitting again.",
+  }),
+  "forge.labelUnknown": msg({
+    message: "That label does not exist in this repository. Refresh the label list and try again.",
+  }),
+  "forge.reviewDraftExists": msg({
+    message:
+      "You have an unfinished review on the source host. Submit or discard it there before submitting this one.",
+  }),
+  "forge.commitNotInReview": msg({
+    message:
+      "That commit is not part of this pull request. Refresh and choose a commit from its history.",
+  }),
   "forge.outsideApi": msg({ message: "The source host returned a link outside the selected API." }),
   "forge.http": msg({ message: "Source host {host} returned HTTP {status}." }),
   "forge.pagination": msg({

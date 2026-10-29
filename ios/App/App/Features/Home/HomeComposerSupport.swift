@@ -133,7 +133,8 @@ extension HomeQuickComposeView {
           crossagentMcp: object["crossagentMcp"]?.boolValue,
           computerUse: object["computerUse"]?.boolValue,
           chromeMcp: object["chromeMcp"]?.boolValue,
-          executionEnvironment: Self.draftExecutionEnvironment(object)
+          executionEnvironment: Self.draftExecutionEnvironment(object),
+          crew: object["crew"]
         )
       )
     }
@@ -347,7 +348,8 @@ extension ThreadConfig {
       chromeMcp: configuration.chromeMcp,
       mcpServerOverrides: configuration.mcpServerOverrides,
       pluginOverrides: configuration.pluginOverrides,
-      executionEnvironment: configuration.executionEnvironment
+      executionEnvironment: configuration.executionEnvironment,
+      crew: configuration.crew
     )
   }
 }
@@ -370,7 +372,8 @@ extension ThreadLaunchConfiguration {
       chromeMcp: configuration.chromeMcp,
       executionEnvironment: configuration.executionEnvironment,
       mcpServerOverrides: configuration.mcpServerOverrides,
-      pluginOverrides: configuration.pluginOverrides
+      pluginOverrides: configuration.pluginOverrides,
+      crew: configuration.crew
     )
   }
 }

@@ -3,11 +3,13 @@ import { CLI_LOGS_HELP } from "./cliLogs";
 const RUN_HELP =
   "  run --options (--project PROJECT_ID | --directory PATH) --provider PROVIDER [--format text|json]\n" +
   "    Inspect the exact structured runtime's model, effort, approval and sandbox choices before running.\n" +
-  "  run (--project PROJECT_ID | --directory PATH) --provider PROVIDER --model MODEL [flags] PROMPT\n" +
+  "  run [--project PROJECT_ID | --directory PATH] [--provider PROVIDER] [--model MODEL] [flags] PROMPT\n" +
+  "    When provider or model is omitted, use a matching last TUI selection; if no saved model applies, use the first model from run --options.\n" +
   "    --directory registers an existing native directory, including for --options (local-admin v20). Relative paths resolve from this CLI's cwd.\n" +
   "    Existing project IDs/settings remain; a new registration can remain if the subsequent run refuses. Inspect projects list before retrying.\n" +
   "    Do not combine --directory with --project, --session or --wsl. The same owner/generation handles registration and preparation.\n" +
   "    [--effort EFFORT] [--approval-policy POLICY] [--sandbox MODE] [--format text|json]\n" +
+  "    Defaulted runs use saved approval/sandbox values only for the same TUI provider/model; otherwise specify advertised values explicitly.\n" +
   "    Use --prompt-stdin instead of PROMPT for scripts (UTF-8, maximum 16,384 characters/64 KiB).\n" +
   "    Add --file PATH repeatedly to a new or saved-session task (local-admin v21): at most 16 native regular files, 20 MiB combined.\n" +
   "    File paths resolve from this CLI's cwd; symlinks, directories, WSL files and --options with files refuse. A prompt is still required.\n" +
@@ -18,7 +20,8 @@ const RUN_HELP =
   "    Continue an exact saved structured session using its provider/profile, worktree and configuration. Requires local-admin v19.\n" +
   "    No project/provider/model/environment overrides or --options are accepted with --session. Reopen/unarchive explicitly first.\n" +
   "    An already running session refuses; use sessions stop explicitly before retrying. No latest-session or account fallback is selected.\n" +
-  "    By default, requires a running owner with local-admin v15 and an installed structured provider runtime.\n" +
+  "    Explicit provider/model runs require a running owner; defaulted runs and -p start a background owner if none is running.\n" +
+  "    Runs require local-admin v15 and an installed structured provider runtime.\n" +
   "    Add --standalone to own this profile for the task, then join host shutdown. An existing desktop/server owner refuses; none is stopped or upgraded.\n" +
   "    Standalone uses the same saved projects/providers/credentials/history, without a paired listener, relay, environment reconnects or saved background jobs.\n" +
   "    It ignores deployment listener/TLS/relay config, does not open a browser or register its native host, and keeps diagnostics on stderr.\n" +
@@ -29,10 +32,24 @@ const RUN_HELP =
   "    Choose j for an advanced, hidden JSON response (24 KiB maximum). Complex forms need the adapter's response shape; use a client for guided forms.\n" +
   "    Requests/details appear on stderr; text/NDJSON stdout formats stay unchanged. --options and --prompt-stdin cannot be interactive.\n" +
   "    Resolved/replaced requests close their prompt; stale answers refuse. Provider authentication remains a separate auth command.\n" +
-  "    text prints the final assistant output (maximum 1 MiB/4,096 items); json streams version-1 NDJSON with explicit replacement and completion records.\n" +
+  "    text prints the final assistant output (maximum 1 MiB/4,096 items); task JSON uses format 2 with admin24 tool records, or legacy format 1 with older owners. Options JSON remains format 1.\n" +
   "    Success requires a completed turn, settled provider background work, committed history and confirmed runtime retirement.\n" +
   "    Ctrl+C, caller/pipe loss, the existing 10-minute local-control deadline or a 1 MiB unread-output overflow cancels this exact run.\n" +
   "    History remains under sessions list/inspect/export. Up to four runs may be reserved; unused preparations/results expire after 2 minutes idle.\n";
+const TUI_HELP =
+  "  tui [--continue|-c] [--session SESSION_ID] [--prompt TEXT] [--auto] [DIRECTORY]\n" +
+  "    Open the local terminal UI. It uses the current directory by default and starts a background server if no owner is running.\n" +
+  "    A checkout requires bun run tui:install; packaged builds use their staged binary or PORACODE_TUI_BIN.\n" +
+  "    The server remains running after the TUI exits; stop it with poracode stop and the same --base-dir.\n" +
+  "    Each launch pairs a Poracode TUI client. Use clients list/revoke to inspect or remove client entries.\n";
+const PRINT_HELP =
+  "  -p|--print PROMPT [--provider PROVIDER] [--model MODEL] [--effort EFFORT] [--format text|json]\n" +
+  "    Run one prompt through the controlled run engine. Defaults use the last TUI provider/model/effort; when no saved model applies, use the first advertised model.\n" +
+  "    Without a saved provider, start Poracode and run providers list, or specify --provider and --model.\n" +
+  "    Approval and sandbox use saved values only for the same TUI provider/model; otherwise the command lists advertised choices and requires explicit flags.\n" +
+  "    Add --directory PATH (defaults to the current directory) or --project PROJECT_ID, and repeat --file PATH for attachments.\n" +
+  "    Starts a background server if no owner is running. Noninteractive permission/questions stop with a nonzero status; no permission is auto-approved.\n" +
+  "    --interactive requires terminal stdin/stderr and reviews pending requests there. Output and exit semantics match run.\n";
 const CONFIGURE_HELP =
   "  configure [--config PATH] [--host H] [--port P] [--bind-mode loopback|tailnet|lan]\n" +
   "    [--tls-cert PATH --tls-key PATH] [--relay-url URL] [--trusted-proxies ADDRESS,CIDR,...]\n" +
@@ -364,6 +381,9 @@ const ADMIN_COMMAND_HELP: Record<string, Record<string, string>> = {
 
 const COMMAND_HELP: Record<string, string> = {
   run: RUN_HELP,
+  tui: TUI_HELP,
+  "-p": PRINT_HELP,
+  "--print": PRINT_HELP,
   projects: PROJECTS_HELP,
   configure: CONFIGURE_HELP,
   providers: PROVIDERS_HELP,
@@ -378,7 +398,7 @@ const COMMAND_HELP: Record<string, string> = {
   serve:
     "  serve [--open|--no-open] [--config PATH] [--host HOST] [--port PORT] [--trusted-proxies ADDRESS,CIDR,...]\n" +
     "    Start the foreground server for this profile; keep the terminal open. Ctrl+C/SIGTERM request normal drain.\n" +
-    "    serve starts without a browser; bare invocation opens the web app in a local interactive terminal.\n" +
+    "    serve starts without a browser; use serve --open or --open to open the web app.\n" +
     "    --open explicitly requests a browser; --no-open suppresses it. Automatic opening skips SSH/headless sessions.\n" +
     "    The web client is served in both modes. Browser handoff uses an independent one-minute operator grant; its token is not logged.\n" +
     "    An existing owner is not adopted or stopped. CLI flags override environment, then saved config.\n" +
@@ -409,6 +429,8 @@ const COMMAND_HELP: Record<string, string> = {
 export const CLI_PROFILE_HELP = "  --base-dir PATH selects the same profile for every command.\n";
 export const CLI_ADMIN_HELP =
   RUN_HELP +
+  TUI_HELP +
+  PRINT_HELP +
   CONFIGURE_HELP +
   PROJECTS_HELP +
   PROVIDERS_HELP +

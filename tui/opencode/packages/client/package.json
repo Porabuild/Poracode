@@ -1,0 +1,22 @@
+{
+  "name": "@opencode/client",
+  "version": "2.1.4",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/promise/index.ts",
+    "./promise": "./src/promise/index.ts",
+    "./promise/api": "./src/promise/api.ts",
+    "./service": "./src/promise/service.ts",
+    "./solid": "./src/solid/index.ts",
+    "./effect": "./src/effect/index.ts",
+    "./effect/api": "./src/effect/api.ts",
+    "./effect/service": "./src/effect/service.ts",
+    "./mcp": "./src/mcp.ts"
+  },
+  "dependencies": {
+    "@opencode/schema": "workspace:*",
+    "@opencode/protocol": "workspace:*",
+    "effect": "catalog:"
+  }
+}

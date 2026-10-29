@@ -286,11 +286,19 @@ enum RichChatPresentation {
         arguments?["description"]?.stringValue?.trimmingCharacters(in: .whitespacesAndNewlines)
         ?? payload["title"]?.stringValue?.trimmingCharacters(in: .whitespacesAndNewlines)
         ?? name
+      let role = payload["subAgentType"]?.stringValue?.trimmingCharacters(in: .whitespacesAndNewlines)
+      let baseTitle = title.isEmpty ? name : title
+      let visibleTitle: String
+      if kind == .crossagent, let role, !role.isEmpty {
+        visibleTitle = "\(role): \(baseTitle)"
+      } else {
+        visibleTitle = baseTitle
+      }
       let reportedSteps = payload["progress"]?.objectValue?["stepCount"]?.exactInt64Value
       return RichDelegatedAgentPresentation(
         id: item.id,
         kind: kind,
-        title: title.isEmpty ? name : title,
+        title: visibleTitle,
         stepCount: reportedSteps.map { max(0, Int(clamping: $0)) }
           ?? childCounts[item.id, default: 0]
       )

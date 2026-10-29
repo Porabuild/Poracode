@@ -56,6 +56,7 @@ import {
   updateAcpRegistryAgentPayloadSchema,
   updateAgentBinaryPayloadSchema,
   getLatestAgentVersionPayloadSchema,
+  getAgentConfigDefaultsPayloadSchema,
   resolveAgentAccountPayloadSchema,
   writeTerminalPayloadSchema,
 } from "../../contracts";
@@ -114,6 +115,8 @@ import type {
   UpdateAgentBinaryResult,
   GetLatestAgentVersionPayload,
   GetLatestAgentVersionResult,
+  GetAgentConfigDefaultsPayload,
+  GetAgentConfigDefaultsResult,
   ResolveAgentAccountPayload,
   ResolveAgentAccountResult,
   WriteTerminalPayload,
@@ -131,6 +134,7 @@ import {
   omittedResultSchema,
 } from "../core";
 import {
+  cancelCrossagentRunPayloadSchema,
   readThreadPayloadSchema,
   subAgentSubscribePayloadSchema,
   subAgentSubscribeResultSchema,
@@ -258,6 +262,11 @@ export const threadProcedures = {
     ResolveAgentAccountResult,
     "supervisor"
   >("resolveAgentAccount", "supervisor", resolveAgentAccountPayloadSchema),
+  getAgentConfigDefaults: definePayloadProcedure<
+    GetAgentConfigDefaultsPayload,
+    GetAgentConfigDefaultsResult,
+    "supervisor"
+  >("getAgentConfigDefaults", "supervisor", getAgentConfigDefaultsPayloadSchema),
   removeAcpRegistryAgent: definePayloadProcedure<
     RemoveAcpRegistryAgentPayload,
     AcpRegistryMutationResult,
@@ -512,6 +521,11 @@ export const threadProcedures = {
     readThreadPayloadSchema,
     omittedResultSchema,
   ),
+  cancelCrossagentRun: definePayloadProcedure<
+    { threadId: string; runId: string },
+    void,
+    "supervisor"
+  >("cancelCrossagentRun", "supervisor", cancelCrossagentRunPayloadSchema, omittedResultSchema),
   readTerminalScrollback: definePayloadProcedure<{ threadId: string }, string, "supervisor">(
     "readTerminalScrollback",
     "supervisor",

@@ -6,6 +6,8 @@
     <string name="github_refresh">Обновить GitHub</string><string name="github_no_pull_requests">Запросы на слияние не найдены.</string>
     <string name="github_pr_title">Заголовок запроса</string><string name="github_head_branch">Исходная ветка</string><string name="github_base_branch">Базовая ветка</string><string name="github_create_pr">Создать запрос на слияние</string>
     <string name="github_pr_summary">#%1$d · %2$s · %3$s</string><string name="github_select_pr">Выберите запрос на слияние для просмотра.</string><string name="github_pr_number">Запрос на слияние #%1$d</string>
+    <string name="github_pr_row_summary">%1$s · #%2$d · %3$s · %4$s</string>
+    <string name="github_review_requested">Запрошено ваше ревью</string>
     <string name="github_ready">Отметить готовым</string><string name="github_update_branch">Обновить ветку</string><string name="github_reopen">Открыть снова</string><string name="github_close">Закрыть</string><string name="github_merge">Слить</string><string name="github_approve">Одобрить</string><string name="github_post_comment">Опубликовать комментарий</string><string name="github_details">Сведения</string><string name="github_checks">Проверки</string><string name="github_files">Файлы</string><string name="github_reviews">Рецензии</string>    <string name="github_dispatch">Запустить процесс</string><string name="github_rerun">Запустить повторно</string><string name="github_cancel_run">Отменить запуск</string><string name="github_delete_run">Удалить запуск</string>    <string name="github_discover_accounts">Найти учётные записи GitHub</string><string name="github_account">%1$s на %2$s</string>
     <string name="github_change_reconciled">Результат был неопределённым. Poracode не повторял действие и один раз запросил последнее состояние GitHub.</string>
     <string name="github_request_changes">Запросить изменения</string>
@@ -32,6 +34,7 @@
     <string name="github_back_to_list">Назад к списку</string>
     <string name="github_open_externally">Открыть в браузере</string>
     <string name="github_thread_resolved">Решено</string>
+    <string name="github_thread_old_side">Старая сторона</string>
     <string name="github_thread_unresolved">Не решено</string>
     <string name="github_ref">Ссылка</string>
     <string name="github_rerun_failed">Перезапустить упавшие задачи</string>

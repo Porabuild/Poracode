@@ -1,9 +1,10 @@
-import { act, screen } from "@testing-library/react";
+import { act, fireEvent, screen, within } from "@testing-library/react";
 import { THEME_SPECS } from "@/renderer/theme/themePresets";
 import * as terminalColors from "./terminalColors";
 import { createRef } from "react";
 import { WebglAddon } from "@xterm/addon-webgl";
 import { ImageAddon } from "@xterm/addon-image";
+import { ProgramStatusAddon, type IProgramStatusRecord } from "@xterm/addon-program-status";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { resizeTerminalPayloadSchema } from "@/shared/contracts";
@@ -12,6 +13,7 @@ import type { TerminalFeedListener } from "@/shared/remote/terminalFeed";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { resolveTerminalFontFamily } from "./terminalFonts";
 import type { RemoteTerminalWatchResultReady } from "@/shared/remote/protocol";
+import { MAX_TERMINAL_WRITE_BUFFER_UNITS } from "./terminalWriteQueue";
 // ── Hoisted state shared between mock factories and test code ────
 const { state } = vi.hoisted(() => ({
   state: {
@@ -77,6 +79,9 @@ vi.mock("@xterm/xterm", () => ({
         state.parserHandlers.push({ kind: "dcs", id, callback });
         return { dispose: vi.fn<() => void>() };
       }),
+      registerApcHandler: vi.fn<
+        (id: unknown, callback: (...args: never[]) => boolean) => { dispose: () => void }
+      >(() => ({ dispose: vi.fn<() => void>() })),
     };
     onData = vi.fn<(handler: (data: string) => void) => { dispose: () => void }>(() => ({
       dispose: vi.fn<() => void>(),
@@ -138,6 +143,17 @@ vi.mock("@xterm/addon-image", () => ({
 
 vi.mock("@xterm/addon-clipboard", () => ({
   ClipboardAddon: class MockClipboardAddon {},
+}));
+
+vi.mock("@xterm/addon-program-status", () => ({
+  ProgramStatusAddon: class MockProgramStatusAddon {
+    records: ReadonlyArray<IProgramStatusRecord> = [];
+    onChange = vi.fn<
+      (listener: (records: ReadonlyArray<IProgramStatusRecord>) => void) => { dispose(): void }
+    >(() => ({ dispose: vi.fn<() => void>() }));
+    clear = vi.fn<() => void>();
+    processExited = vi.fn<() => void>();
+  },
 }));
 
 vi.mock("@xterm/addon-search", () => ({
@@ -295,6 +311,14 @@ function terminal(): MockTerminalShape {
   return state.terminal as unknown as MockTerminalShape;
 }
 
+function programStatus(): ProgramStatusAddon {
+  const addon = terminal()
+    .loadAddon.mock.calls.map(([value]) => value)
+    .find((value): value is ProgramStatusAddon => value instanceof ProgramStatusAddon);
+  if (!addon) throw new Error("Program status addon was not loaded");
+  return addon;
+}
+
 describe("XTermSurface", () => {
   beforeEach(() => {
     useSharedSettings.setState({ terminalFontFamily: "" });
@@ -334,6 +358,69 @@ describe("XTermSurface", () => {
     resetXtermInstanceCacheForTests();
     vi.restoreAllMocks();
     state.eventListeners = [];
+  });
+
+  it("displays program records as sanitized text and dismisses the original record id", async () => {
+    render(<XTermSurface terminalId="test-1" initialScrollback="" />);
+    await flushFrame();
+    expect(screen.queryByRole("region", { name: "Terminal program status" })).toBeNull();
+    const status = programStatus();
+    act(() => {
+      vi.mocked(status.onChange).mock.calls[0]?.[0]([
+        {
+          id: "build/\u202Estep",
+          state: "blocked",
+          kind: "permission",
+          progress: 42,
+          effectiveApp: "tool\u2066name 👩‍💻",
+          title: "<img src=x onerror=alert(1)>\u202E",
+          message: "Allow\u200B deployment?",
+        },
+      ]);
+    });
+    const region = screen.getByRole("region", { name: "Terminal program status" });
+    expect(region.textContent).toContain("Waiting for approval");
+    expect(region.textContent).toContain("toolname");
+    expect(region.textContent).toContain("👩‍💻");
+    expect(region.textContent).toContain("build/step");
+    expect(region.textContent).toContain("Allow deployment?");
+    expect(region.querySelector("img")).toBeNull();
+    expect(region.textContent).toContain("<img src=x onerror=alert(1)>");
+    expect(within(region).getByRole("progressbar").getAttribute("aria-valuenow")).toBe("42");
+    fireEvent.click(within(region).getByRole("button", { name: "Dismiss" }));
+    expect(status.clear).toHaveBeenCalledExactlyOnceWith("build/\u202Estep");
+  });
+
+  it("preserves the status addon and its records across a cached surface handoff", async () => {
+    const threadId = createTerminalThread();
+    const first = render(<XTermSurface terminalId={threadId} initialScrollback="" />);
+    await flushFrame();
+    const instance = terminal();
+    const status = programStatus();
+    Object.defineProperty(status, "records", {
+      value: [{ id: "build", state: "working", app: "compiler" }],
+    });
+    first.unmount();
+    render(<XTermSurface terminalId={threadId} initialScrollback="" />);
+    await flushFrame();
+    expect(terminal()).toBe(instance);
+    expect(programStatus()).toBe(status);
+    expect(screen.getByRole("region", { name: "Terminal program status" }).textContent).toContain(
+      "compiler",
+    );
+  });
+
+  it("clears active program status when exit parsing completes during a cached handoff", async () => {
+    const threadId = createTerminalThread();
+    const first = render(<XTermSurface terminalId={threadId} initialScrollback="" />);
+    await flushFrame();
+    const status = programStatus();
+    act(() => emitEvent({ type: "thread-exited", threadId, exitCode: 0 }));
+    first.unmount();
+    render(<XTermSurface terminalId={threadId} initialScrollback="" />);
+    await flushFrame();
+    expect(programStatus()).toBe(status);
+    expect(status.processExited).toHaveBeenCalledOnce();
   });
 
   it("refreshes terminal colors when the active custom palette is edited in place", async () => {
@@ -639,7 +726,7 @@ describe("XTermSurface", () => {
         terminalInstanceId: "test-generation",
       }),
     );
-    expect(instance.write).toHaveBeenCalledWith("hidden output");
+    expect(instance.write).toHaveBeenCalledWith("hidden output", expect.any(Function));
 
     rerender(<XTermSurface terminalId="test-1" visible />);
     const renderers = instance.loadAddon.mock.calls
@@ -718,13 +805,27 @@ describe("XTermSurface", () => {
         terminalInstanceId: "test-generation",
       }),
     );
-    expect(first.write).toHaveBeenCalledExactlyOnceWith("hidden output");
+    expect(first.write).toHaveBeenCalledExactlyOnceWith("hidden output", expect.any(Function));
+    act(() =>
+      emitEvent({
+        type: "thread-output",
+        threadId,
+        data: "queued hidden output",
+        outputLength: 33,
+        terminalInstanceId: "test-generation",
+      }),
+    );
+    expect(first.write).toHaveBeenCalledTimes(1);
 
     await act(async () => {
       useAppStore.getState().openThread(threadId);
     });
     await flushFrame();
     expect(terminal()).toBe(first);
+    expect(first.write.mock.calls.map(([data]) => data)).toEqual([
+      "hidden output",
+      "queued hidden output",
+    ]);
     expect(first.open).not.toHaveBeenCalled();
     expect(
       first.loadAddon.mock.calls.filter(([addon]) => addon instanceof WebglAddon),
@@ -897,7 +998,7 @@ describe("XTermSurface", () => {
     });
     await flushFrame();
 
-    expect(terminal().write).toHaveBeenCalledWith("first and only prompt");
+    expect(terminal().write).toHaveBeenCalledWith("first and only prompt", expect.any(Function));
     expect(state.bridge.resizeTerminal.mock.calls.length).toBeGreaterThan(callsBeforeOutput);
     expect(state.bridge.resizeTerminal).toHaveBeenLastCalledWith({
       threadId: "test-1",
@@ -920,7 +1021,7 @@ describe("XTermSurface", () => {
     });
     await flushFrame();
 
-    expect(terminal().write).toHaveBeenCalledWith("hello world");
+    expect(terminal().write).toHaveBeenCalledWith("hello world", expect.any(Function));
   });
 
   it("ignores thread-output for a different terminal", async () => {
@@ -950,6 +1051,7 @@ describe("XTermSurface", () => {
 
     expect(terminal().reset).toHaveBeenCalled();
     expect(onReset).toHaveBeenCalled();
+    expect(programStatus().clear).toHaveBeenCalled();
   });
 
   it("rehydrates authoritative scrollback after a live-stream replay gap", async () => {
@@ -1027,7 +1129,153 @@ describe("XTermSurface", () => {
       emitEvent({ type: "thread-exited", threadId: "test-1", exitCode: 0 });
     });
 
+    expect(onExited).not.toHaveBeenCalled();
+    expect(programStatus().processExited).not.toHaveBeenCalled();
+    await flushFrame();
     expect(onExited).toHaveBeenCalledWith(0);
+    expect(programStatus().processExited).toHaveBeenCalledOnce();
+  });
+
+  it("waits for buffered live output before clearing status after an exit during hydration", async () => {
+    let resolveScrollback: (data: string) => void = () => {};
+    state.bridge.readTerminalScrollback.mockReturnValueOnce(
+      new Promise<string>((resolve) => {
+        resolveScrollback = resolve;
+      }),
+    );
+    const onExited = vi.fn<(exitCode: number | null) => void>();
+    render(<XTermSurface terminalId="test-1" onExited={onExited} />);
+    await flushFrame();
+    act(() => {
+      emitEvent({
+        type: "thread-output",
+        threadId: "test-1",
+        data: "\x1b]7501;state=working:app=compiler\x07",
+        outputLength: 39,
+        terminalInstanceId: "test-generation",
+      });
+      emitEvent({ type: "thread-exited", threadId: "test-1", exitCode: 0 });
+    });
+    await flushFrame();
+    expect(onExited).not.toHaveBeenCalled();
+    expect(programStatus().processExited).not.toHaveBeenCalled();
+    resolveScrollback("old history");
+    await flushFrame();
+    expect(state.writeLog.map(({ data }) => data)).toEqual([
+      "",
+      "old history",
+      "\x1b]7501;state=working:app=compiler\x07",
+      "",
+    ]);
+    expect(programStatus().processExited).toHaveBeenCalledOnce();
+    expect(onExited).toHaveBeenCalledExactlyOnceWith(0);
+  });
+
+  it("batches live bursts and drains every accepted chunk before reporting exit", async () => {
+    const onExited = vi.fn<(exitCode: number | null) => void>();
+    let listener: TerminalFeedListener | undefined;
+    render(
+      <XTermSurface
+        terminalId="test-1"
+        initialScrollback=""
+        outputSource={(next) => {
+          listener = next;
+          return () => {};
+        }}
+        onExited={onExited}
+      />,
+    );
+    act(() => {
+      listener?.onOutput("first");
+      listener?.onOutput("second");
+      listener?.onOutput("third");
+    });
+    expect(state.writeLog.map(({ data }) => data)).toEqual(["first"]);
+    act(() => listener?.onExited(0));
+    expect(state.writeLog.map(({ data }) => data)).toEqual(["first", "secondthird", ""]);
+    expect(onExited).not.toHaveBeenCalled();
+    await flushFrame();
+    expect(onExited).toHaveBeenCalledExactlyOnceWith(0);
+  });
+
+  it("does not deliver a delayed exit from a restarted PTY", async () => {
+    const onExited = vi.fn<(exitCode: number | null) => void>();
+    render(<XTermSurface terminalId="test-1" initialScrollback="" onExited={onExited} />);
+    await flushFrame();
+    act(() => {
+      emitEvent({ type: "thread-exited", threadId: "test-1", exitCode: 1 });
+      emitEvent({ type: "thread-reset", threadId: "test-1" });
+    });
+    await flushFrame();
+    expect(onExited).not.toHaveBeenCalled();
+    expect(programStatus().processExited).not.toHaveBeenCalled();
+  });
+
+  it("drops queued old-generation output before parsing fresh output after reset", async () => {
+    let listener: TerminalFeedListener | undefined;
+    render(
+      <XTermSurface
+        terminalId="test-1"
+        initialScrollback=""
+        outputSource={(next) => {
+          listener = next;
+          return () => {};
+        }}
+      />,
+    );
+    act(() => {
+      listener?.onOutput("old frame");
+      listener?.onOutput("stale suffix");
+      listener?.onReset();
+      listener?.onOutput("fresh frame");
+    });
+    await flushFrame();
+    expect(state.writeLog.map(({ data }) => data)).toEqual(["old frame", "", "fresh frame"]);
+    expect(terminal().reset).toHaveBeenCalledTimes(2);
+  });
+
+  it("recovers live parser backlog from an authoritative remote snapshot", async () => {
+    const listeners: TerminalFeedListener[] = [];
+    const outputSource = vi.fn<(listener: TerminalFeedListener) => () => void>((listener) => {
+      listeners.push(listener);
+      return () => {};
+    });
+    render(<XTermSurface terminalId="test-1" initialScrollback="" outputSource={outputSource} />);
+    act(() => {
+      listeners[0]?.onOutput("in flight");
+      listeners[0]?.onOutput("stale suffix");
+      listeners[0]?.onOutput("x".repeat(MAX_TERMINAL_WRITE_BUFFER_UNITS));
+      listeners[1]?.onOutput("before baseline");
+    });
+    expect(outputSource).toHaveBeenCalledTimes(2);
+    expect(screen.getByRole("status")).toHaveTextContent("Reconnecting to terminal");
+    act(() => {
+      listeners[1]?.onSnapshot?.({
+        status: "ready",
+        generation: "gen-test",
+        fromCursor: 0,
+        toCursor: 13,
+        data: "current frame",
+        processState: "running",
+        terminalSize: { cols: 80, rows: 24 },
+      });
+      listeners[1]?.onOutput(" live tail");
+    });
+    await flushFrame();
+    expect(state.writeLog.map(({ data }) => data)).toEqual([
+      "in flight",
+      "",
+      "current frame",
+      " live tail",
+    ]);
+    expect(screen.queryByRole("status")).toBeNull();
+  });
+
+  it("keeps image support when the DOM renderer is preferred", () => {
+    render(<XTermSurface terminalId="test-1" preferDomRenderer />);
+    const addons = terminal().loadAddon.mock.calls.map(([addon]) => addon);
+    expect(addons.some((addon) => addon instanceof WebglAddon)).toBe(false);
+    expect(addons.filter((addon) => addon instanceof ImageAddon)).toHaveLength(1);
   });
 
   // ── Critical: output after reset ─────────────────────────────
@@ -1050,7 +1298,7 @@ describe("XTermSurface", () => {
     });
     await flushFrame();
 
-    expect(terminal().write).toHaveBeenCalledWith("after reset");
+    expect(terminal().write).toHaveBeenCalledWith("after reset", expect.any(Function));
   });
 
   // ── Replay query-reply gate ──────────────────────────────────
@@ -1223,6 +1471,58 @@ describe("XTermSurface", () => {
     expect(state.writeLog.map((entry) => entry.data)).toEqual(["", "initial history"]);
   });
 
+  it("delivers a pending exit after hydration overflows on a live-only remote feed", async () => {
+    const listeners: TerminalFeedListener[] = [];
+    const onExited = vi.fn<(exitCode: number | null) => void>();
+    render(
+      <XTermSurface
+        terminalId="test-1"
+        initialScrollback="initial history"
+        outputSource={(listener) => {
+          listeners.push(listener);
+          return () => {};
+        }}
+        onExited={onExited}
+      />,
+    );
+    await act(async () => {});
+    act(() => {
+      listeners[0]?.onOutput("x".repeat(1_000_001));
+      listeners[0]?.onExited(1);
+    });
+    await flushFrame();
+    expect(listeners).toHaveLength(2);
+    expect(programStatus().processExited).toHaveBeenCalledOnce();
+    expect(onExited).toHaveBeenCalledExactlyOnceWith(1);
+  });
+
+  it("delivers a pending exit when required scrollback recovery fails", async () => {
+    let rejectScrollback: (error: Error) => void = () => {};
+    state.bridge.readTerminalScrollback.mockReturnValueOnce(
+      new Promise<string>((_resolve, reject) => {
+        rejectScrollback = reject;
+      }),
+    );
+    const onExited = vi.fn<(exitCode: number | null) => void>();
+    render(<XTermSurface terminalId="test-1" initialScrollback="" onExited={onExited} />);
+    await flushFrame();
+    act(() => {
+      emitEvent({
+        type: "thread-output",
+        threadId: "test-1",
+        data: "x".repeat(1_000_001),
+        outputLength: 1_000_001,
+        terminalInstanceId: "test-generation",
+      });
+      emitEvent({ type: "thread-exited", threadId: "test-1", exitCode: 1 });
+    });
+    expect(onExited).not.toHaveBeenCalled();
+    rejectScrollback(new Error("disconnected"));
+    await flushFrame();
+    expect(programStatus().processExited).toHaveBeenCalledOnce();
+    expect(onExited).toHaveBeenCalledExactlyOnceWith(1);
+  });
+
   it("clears stale history when authoritative overflow recovery is empty", async () => {
     state.bridge.readTerminalScrollback.mockResolvedValueOnce("");
     render(<XTermSurface terminalId="test-1" initialScrollback="initial history" />);
@@ -1299,7 +1599,7 @@ describe("XTermSurface", () => {
     expect(state.writeLog).toEqual([]);
   });
 
-  it("writes the first live chunks immediately while awaiting shell startup", () => {
+  it("writes the first live chunk immediately while awaiting shell startup", async () => {
     let listener: TerminalFeedListener | undefined;
     render(
       <XTermSurface
@@ -1319,6 +1619,8 @@ describe("XTermSurface", () => {
     expect(screen.queryByRole("status")).toBeNull();
 
     act(() => listener?.onOutput("second chunk"));
+    expect(state.writeLog.map((entry) => entry.data)).toEqual(["first chunk"]);
+    await flushFrame();
     expect(state.writeLog.map((entry) => entry.data)).toEqual(["first chunk", "second chunk"]);
     expect(state.bridge.readTerminalScrollback).not.toHaveBeenCalled();
   });

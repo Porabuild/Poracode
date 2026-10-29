@@ -19,8 +19,10 @@ import {
   probeCodexCliSemver,
 } from "./plugin/install";
 import { resolveCodexWindowsLaunchBinary } from "./windowsExecutable";
+import { codexAgentSettingOverrideArgs } from "@/shared/agents/codexAgentSettings";
 import { codexContextWindowOverrides } from "@/shared/agents/codexContextWindows";
 import { buildCodexMcp } from "./mcpConfig";
+import { isCodexAgentsConfigSupported } from "./agentsConfigSupport";
 import { buildCodexMcpSkillConflictArgs } from "./mcpSkillConflicts";
 
 const CODEX_GOALS_FEATURE_FLAG = "goals";
@@ -30,12 +32,13 @@ interface BuildCodexArgsOptions {
   config: ThreadConfig;
   prompt: string;
   enableGoals: boolean;
+  supportsAgentsConfig: boolean;
   launchOptions?: AgentLaunchOptions;
   mcpArgs?: string[];
 }
 
 function buildCodexArgs(opts: BuildCodexArgsOptions): string[] {
-  const { config, prompt, enableGoals, launchOptions, mcpArgs } = opts;
+  const { config, prompt, enableGoals, supportsAgentsConfig, launchOptions, mcpArgs } = opts;
   const args: string[] = [];
 
   if (enableGoals) {
@@ -54,6 +57,7 @@ function buildCodexArgs(opts: BuildCodexArgsOptions): string[] {
   );
 
   args.push(...(mcpArgs ?? []));
+  args.push(...codexAgentSettingOverrideArgs(launchOptions?.agentSettings, supportsAgentsConfig));
 
   if (!launchOptions?.suppressResumeConfigOverrides) {
     if (config.model) {
@@ -128,6 +132,7 @@ export async function buildCodexArgvFor(
     config,
     prompt: "",
     enableGoals,
+    supportsAgentsConfig: isCodexAgentsConfigSupported(location),
     ...(launchOptions ? { launchOptions } : {}),
     mcpArgs,
   };
@@ -174,6 +179,8 @@ export async function buildCodexAppServerCommand(
     wslNodePath?: string;
     mcpServers?: readonly ResolvedMcpServer[];
     includeMcpConfig?: boolean;
+    /** Stored Codex agent settings; sub-agent defaults apply to the whole shared app-server. */
+    agentSettings?: Record<string, boolean | string>;
     /**
      * Extra spawn env for the app-server (a profile's `CODEX_HOME`). Applied
      * after the MCP env so a profile's identity always wins.
@@ -193,6 +200,10 @@ export async function buildCodexAppServerCommand(
     ...(isCodexGoalsSupported(location, wslExecPath) ? ["--enable", CODEX_GOALS_FEATURE_FLAG] : []),
     ...mcpSkillConflictArgs,
     ...(includeMcpConfig ? mcp.args : []),
+    ...codexAgentSettingOverrideArgs(
+      options?.agentSettings,
+      isCodexAgentsConfigSupported(location),
+    ),
     // Older CLIs tolerate config overrides; no global config mutation.
     "-c",
     "features.realtime_conversation=true",

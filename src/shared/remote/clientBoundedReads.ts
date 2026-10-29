@@ -203,7 +203,11 @@ export interface RemoteBoundedProjectPageOptions extends RemoteBoundedReadByteBu
 }
 
 export interface RemoteBoundedThreadHistoryOptions extends RemoteBoundedReadByteBudget {
-  /** Requires the host's advertised historyDetails v1 capability. */
+  /**
+   * Requires the host's advertised historyDetails v1 capability. Also asks the
+   * host to defer completed file-change bodies (`deferBodies`), so a reader that
+   * sets it must load a `detailsDeferred` row through the item-detail route.
+   */
   readonly compactDetails?: boolean;
   readonly completedTurnsLimit?: number;
   readonly targetTimelineEntryCount?: number;

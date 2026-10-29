@@ -26,6 +26,33 @@ export interface ProviderModelHeaderPlain {
   label: MessageDescriptor;
 }
 
+export interface ProviderModelHeaderCrews {
+  type: "header-crews";
+  id: string;
+}
+
+export interface ProviderModelCrewRow {
+  type: "crew";
+  id: string;
+  crewId: string;
+  name: string;
+  leadLabel: string;
+  leadKind: string;
+  helperKinds: readonly string[];
+  details: string;
+  isCurrent: boolean;
+  isFavorite: boolean;
+  isRecent?: boolean;
+  lastUsedAt?: number;
+}
+
+export interface ProviderModelNewCrewRow {
+  type: "new-crew";
+  id: string;
+  label: string;
+  meta: string;
+}
+
 export interface ProviderModelHeaderProvider {
   type: "header-provider";
   id: string;
@@ -94,6 +121,9 @@ export interface ProviderModelRow {
 
 export type ProviderModelItem =
   | ProviderModelHeaderPlain
+  | ProviderModelHeaderCrews
   | ProviderModelHeaderProvider
   | ProviderModelHeaderSubProvider
+  | ProviderModelCrewRow
+  | ProviderModelNewCrewRow
   | ProviderModelRow;

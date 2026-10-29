@@ -11,6 +11,7 @@ import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { dynamicActivate } from "@/renderer/i18n/i18n";
 import { AppLocaleProvider } from "@/renderer/i18n/AppLocaleProvider";
 import { detectOSLocale, resolveLocale } from "@/renderer/i18n/locales";
+import { EditContextMenuHost } from "@/renderer/components/common/EditContextMenuHost";
 import { getToastActionLabel, normalizeToastContent } from "./toastContent";
 import { SwipeDismissToast } from "./SwipeDismissToast";
 
@@ -295,6 +296,7 @@ export function AppProvider(props: {
           }}
         </Toast.Provider>
         {children}
+        <EditContextMenuHost />
       </AppearanceContext.Provider>
     </AppLocaleProvider>
   );

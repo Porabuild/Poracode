@@ -1,0 +1,206 @@
+diff --git a/packages/tui/src/app.tsx b/packages/tui/src/app.tsx
+index 3386b8e..07abb56 100644
+--- a/packages/tui/src/app.tsx
++++ b/packages/tui/src/app.tsx
+@@ -6,6 +6,7 @@ import { Effect, Latch } from "effect"
+ import { Service, type Endpoint } from "@opencode/client/effect/service"
+ import { OpenCode, type SessionInfo } from "@opencode/client"
+ import { Global } from "@opencode/util/global"
++import { BRAND } from "./brand"
+ import { noTimeoutFetch } from "@opencode/util/no-timeout-fetch"
+ import { ClipboardProvider, useClipboard } from "./context/clipboard"
+ import { LogProvider, type LogSink } from "./context/log"
+@@ -46,7 +47,6 @@ import {
+   type TuiApp,
+ } from "./context/runtime"
+ import { DialogProvider, useDialog } from "./ui/dialog"
+-import { DialogIntegration } from "./component/dialog-integration"
+ import { ErrorComponent } from "./component/error-component"
+ import { PluginRouteMissing } from "./component/plugin-route-missing"
+ import { EditorContextProvider } from "./context/editor"
+@@ -62,7 +62,6 @@ import { LocationProvider, useLocation } from "./context/location"
+ import { LocalProvider, useLocal } from "./context/local"
+ import { PermissionProvider } from "./context/permission"
+ import { DialogModel } from "./component/dialog-model"
+-import { useConnected } from "./component/use-connected"
+ import { DialogMcp } from "./component/dialog-mcp"
+ import { DialogStatus } from "./component/dialog-status"
+ import { DialogConfig } from "./component/dialog-config"
+@@ -95,6 +94,7 @@ import { PromptRefProvider, usePromptRef } from "./context/prompt"
+ import { Config, ConfigProvider, useConfig } from "./config"
+ import { newSessionLocation } from "./config/new-session-location"
+ import { UpdateNotificationProvider, useUpdateNotification, type UpdateSource } from "./context/update-notification"
++import type { Plugin } from "@opencode/plugin/tui"
+ import { PluginProvider, usePlugin, type PackageSource } from "./plugin/context"
+ import { localPluginDirectories } from "./plugin/discovery"
+ import { PluginRoute, Slot } from "./plugin/render"
+@@ -185,11 +185,16 @@ export type TuiInput = {
+   app: TuiApp
+   server: {
+     endpoint: Endpoint
++    // poracode: The host adapter can route API requests through its own transport.
++    fetch?: typeof globalThis.fetch
+     service?: {
+       reconnect: (signal: AbortSignal) => Promise<Endpoint>
+       restart: () => Promise<void>
+     }
+   }
++  // poracode: Embedded clients can isolate project and server-reported TUI plugins
++  // and inject bundled internal plugins (e.g. Poracode's feature set).
++  plugins?: { local?: false; server?: false; internal?: readonly Plugin.Definition[] }
+   args: Args
+   config: Config.Interface
+   updater?: UpdateSource
+@@ -212,10 +217,12 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
+   const config = Config.resolve(yield* Effect.tryPromise(() => input.config.get()), {
+     terminalSuspend: process.platform !== "win32",
+   })
++  // poracode: Initial and reconnect clients must use the same host adapter.
++  const fetch = input.server.fetch ?? noTimeoutFetch
+   const options = {
+     baseUrl: input.server.endpoint.url,
+     headers: Service.headers(input.server.endpoint),
+-    fetch: noTimeoutFetch,
++    fetch,
+   }
+   const api = OpenCode.make(options)
+   const location = yield* Effect.tryPromise(() => api.file.list({ location: { directory: process.cwd() } })).pipe(
+@@ -223,14 +230,17 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
+     Effect.catch(() => Effect.tryPromise(() => api.location.get())),
+   )
+   const directory = location.directory
+-  const pluginDirectories = yield* Effect.promise(() => localPluginDirectories(process.cwd(), global.config))
++  const pluginDirectories =
++    input.plugins?.local === false
++      ? []
++      : yield* Effect.promise(() => localPluginDirectories(process.cwd(), global.config))
+   const handoff = input.terminalHandoff ? yield* Effect.promise(input.terminalHandoff) : undefined
+   const managed = input.server.service
+   const service = managed
+     ? {
+         reconnect: async (signal: AbortSignal) => {
+           const endpoint = await managed.reconnect(signal)
+-          const next = { baseUrl: endpoint.url, headers: Service.headers(endpoint), fetch: noTimeoutFetch }
++          const next = { baseUrl: endpoint.url, headers: Service.headers(endpoint), fetch }
+           return { api: OpenCode.make(next), url: endpoint.url }
+         },
+         restart: managed.restart,
+@@ -406,13 +416,14 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
+                                                                     <PromptRefProvider>
+                                                                       <EditorContextProvider>
+                                                                         <AttentionProvider>
+-                                                                          <UpdateNotificationProvider
+-                                                                            updater={input.updater}
+-                                                                          >
++                                                                          {/* poracode: the embedded client does not own updates. */}
++                                                                          <UpdateNotificationProvider>
+                                                                             <PanelProvider>
+                                                                               <PluginProvider
+                                                                                 packages={input.packages}
+                                                                                 directories={pluginDirectories}
++                                                                                server={input.plugins?.server !== false}
++                                                                                internal={input.plugins?.internal}
+                                                                               >
+                                                                                 <App />
+                                                                               </PluginProvider>
+@@ -611,30 +622,30 @@ function App() {
+   })
+ 
+   let active: { id: string; title?: string } | undefined
+-  // Update terminal window title based on current route and session
++  // poracode: terminal titles belong to the embedded app identity.
+   createEffect(() => {
+     const session = route.data.type === "session" ? data.session.get(route.data.sessionID) : undefined
+     if (session) active = { id: session.id, title: session.title }
+     if (!terminalTitleEnabled()) return
+ 
+     if (route.data.type === "home") {
+-      setTerminalTitle(renderer, "OpenCode")
++      setTerminalTitle(renderer, BRAND.name)
+       return
+     }
+ 
+     if (route.data.type === "session") {
+       const title = session?.title
+       if (!title || isFallbackTitle(title)) {
+-        setTerminalTitle(renderer, "OpenCode")
++        setTerminalTitle(renderer, BRAND.name)
+         return
+       }
+ 
+-      setTerminalTitle(renderer, `OC | ${title.length > 40 ? title.slice(0, 37) + "…" : title}`)
++      setTerminalTitle(renderer, `${BRAND.name} | ${title.length > 40 ? title.slice(0, 37) + "…" : title}`)
+       return
+     }
+ 
+     if (route.data.type === "plugin") {
+-      setTerminalTitle(renderer, `OC | ${route.data.name}`)
++      setTerminalTitle(renderer, `${BRAND.name} | ${route.data.name}`)
+     }
+   })
+ 
+@@ -712,7 +723,8 @@ function App() {
+     if (config.data.highlights === false) return
+     if (route.data.type !== "home" || dialog.stack.length > 0 || promptRef.current?.current.text) return
+     if (args.prompt || args.continue || args.sessionID || args.newSessionID) return
+-    if (process.env.OPENCODE_DRIVE || process.env.OPENCODE_STORY || process.env.OPENCODE_ROUTE) return
++    if (!BRAND.updatesEnabled || process.env.OPENCODE_DRIVE || process.env.OPENCODE_STORY || process.env.OPENCODE_ROUTE)
++      return
+     void claim(storage, {
+       version: app.version,
+       count: items.length,
+@@ -725,7 +737,6 @@ function App() {
+       .catch(toast.error)
+   })
+ 
+-  const connected = useConnected()
+   const appCommands = createMemo(() =>
+     [
+       {
+@@ -986,18 +997,13 @@ function App() {
+       {
+         name: "provider.connect",
+         title: "Connect an integration",
+-        suggested: !connected(),
+-        slash: { name: "connect" },
+-        run: () => {
+-          dialog.replace(() => (
+-            <DialogIntegration
+-              onConnected={(providerID) => dialog.replace(() => <DialogModel providerID={providerID} />)}
+-            />
+-          ))
+-        },
++        enabled: () => false,
++        palette: undefined,
++        run: () => {},
+         category: "Integration",
+       },
+-      ...(app.highlights?.length
++      // poracode: provider authentication is managed by the host.
++      ...(BRAND.updatesEnabled && app.highlights?.length
+         ? [
+             {
+               name: "opencode.highlights",
+@@ -1027,11 +1033,11 @@ function App() {
+         },
+         category: "System",
+       },
+-      ...(updater.open
++      ...(BRAND.updatesEnabled && updater.open
+         ? [
+             {
+               name: "opencode.update",
+-              title: "Update OpenCode",
++              title: `Update ${BRAND.name}`,
+               slash: { name: "update" },
+               run: () => updater.open?.("manual"),
+               category: "System",
+@@ -1137,7 +1143,7 @@ function App() {
+         name: "docs.open",
+         title: "Open docs",
+         run: () => {
+-          openUrl("https://opencode.ai/docs").catch(() => {})
++          openUrl(BRAND.website).catch(() => {})
+           dialog.clear()
+         },
+         category: "System",
