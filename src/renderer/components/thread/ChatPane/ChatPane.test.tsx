@@ -1885,7 +1885,9 @@ describe("ChatPane", () => {
     await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
 
     expect(screen.getByText("goal").parentElement).toHaveClass("poracode-slash-chip");
-    expect(screen.getByText("goal").previousElementSibling).toHaveTextContent("/");
+    expect(
+      screen.getByText("goal").previousElementSibling?.querySelector(".lucide-target"),
+    ).toHaveAttribute("aria-hidden", "true");
     const skill = container.querySelector('[data-skill-name="code-review"]');
     expect(skill).toHaveTextContent("code-review");
     expect(skill?.querySelector("svg")).toBeInTheDocument();
