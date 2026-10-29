@@ -2359,6 +2359,7 @@ msgstr "Созданные мной"
 msgid "Authorization: Bearer token"
 msgstr "Authorization: Bearer token"
 
+#: src/renderer/components/common/effortLabel.ts
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Auto"
 msgstr "Авто"
@@ -7953,6 +7954,10 @@ msgstr "Первоклассная интеграция Qoder CLI с испол�
 msgid "First-class Qwen Code integration using Poracode's native terminal and ACP runtimes."
 msgstr "Первоклассная интеграция Qwen Code с использованием встроенных сред терминала и ACP в Poracode."
 
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Vercel fx integration using Poracode's native terminal and ACP runtimes."
+msgstr "Первоклассная интеграция Vercel fx с использованием встроенных сред терминала и ACP в Poracode."
+
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Fit"
 msgstr "По ширине"
@@ -8215,6 +8220,10 @@ msgstr "Полная конфигурация"
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "Fullscreen overlay"
 msgstr "Полноэкранное наложение"
+
+#: src/renderer/components/providers/fx/manifest.ts
+msgid "fx"
+msgstr "fx"
 
 #: src/renderer/utils/projectIcons.ts
 msgid "Games & fun"

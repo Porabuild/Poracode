@@ -91,6 +91,7 @@ const RENDERER_META: Record<string, Omit<UsageProvider, "id" | "label">> = {
     supportsBrowserLogin: true,
     rings: { outer: ["session-5h"], inner: ["weekly", "monthly"] },
   },
+  fx: { rings: { outer: ["session-5h"], inner: ["weekly", "monthly", "daily"] } },
   grok: { supportsBrowserLogin: true },
   opencode: { supportsBrowserLogin: true },
   // z.ai authenticates with a pasted API key, not a browser session.

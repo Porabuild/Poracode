@@ -2359,6 +2359,7 @@ msgstr "我创建的"
 msgid "Authorization: Bearer token"
 msgstr "Authorization: Bearer token"
 
+#: src/renderer/components/common/effortLabel.ts
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Auto"
 msgstr "自动"
@@ -7953,6 +7954,10 @@ msgstr "使用 Poracode 原生终端和 ACP 运行时的一流 Qoder CLI 集成�
 msgid "First-class Qwen Code integration using Poracode's native terminal and ACP runtimes."
 msgstr "使用 Poracode 原生终端和 ACP 运行时的一流 Qwen Code 集成。"
 
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Vercel fx integration using Poracode's native terminal and ACP runtimes."
+msgstr "使用 Poracode 原生终端和 ACP 运行时的一流 Vercel fx 集成。"
+
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Fit"
 msgstr "适应"
@@ -8215,6 +8220,10 @@ msgstr "完整配置"
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "Fullscreen overlay"
 msgstr "全屏覆盖"
+
+#: src/renderer/components/providers/fx/manifest.ts
+msgid "fx"
+msgstr "fx"
 
 #: src/renderer/utils/projectIcons.ts
 msgid "Games & fun"

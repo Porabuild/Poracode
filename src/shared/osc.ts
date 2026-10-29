@@ -12,6 +12,7 @@
  * - OSC 99  — Kitty notify:         \x1b]99;...;p=<key>:<value>\x1b\\
  * - OSC 133 — FinalTerm/iTerm2 shell integration: \x1b]133;<marker>[;<args>]\x07
  * - OSC 633 — VS Code shell integration: \x1b]633;<marker>[;<args>]\x07
+ * - OSC 7501 — Program Status Protocol: \x1b]7501;<key>=<value>[:...]\x1b\\
  */
 
 export interface OscNotification {
@@ -62,14 +63,33 @@ export interface OscExtractionResult {
   titles: OscTitle[];
   /** Extracted OSC 633 shell-integration events (empty array if none found). */
   shell: OscShellEvent[];
+  /** Extracted OSC 7501 program-status updates (empty array if none found). */
+  programStatus: OscProgramStatus[];
+}
+
+/** Program state reported by an OSC 7501 status update. */
+export type OscProgramState = "idle" | "working" | "blocked" | "done" | "error" | "clear";
+
+export interface OscProgramStatus {
+  /** OSC code; always 7501. */
+  code: 7501;
+  /** Declared program state. */
+  state: OscProgramState;
+  /** Blocked reason (`permission` / `question`); only meaningful for `blocked`. */
+  kind: string | undefined;
+  /** Emitting application identifier, if provided. */
+  app: string | undefined;
+  /** Human-readable message decoded from base64 `msg`, if provided. */
+  message: string | undefined;
 }
 
 // Combined regex to extract notifications (9 / 777 / 99), titles (0 / 1 / 2),
-// and shell-integration events (133 / 633) in a single pass. Leftmost
-// alternative wins; `9;` vs `99;` / `777;` don't conflict (they diverge after
-// the first digit) and neither does `(0|1|2);` with anything else (single digit
-// followed by `;`, so `133`/`1337`/`11` all skip it). `133;` and `633;` don't
-// share a leading digit with any other handled code.
+// shell-integration events (133 / 633), and program status (7501) in a single
+// pass. Leftmost alternative wins; `9;` vs `99;` / `777;` don't conflict (they
+// diverge after the first digit) and neither does `(0|1|2);` with anything else
+// (single digit followed by `;`, so `133`/`1337`/`11` all skip it). `133;` and
+// `633;` don't share a leading digit with any other handled code, and `7501;`
+// is appended last so it cannot shadow their group numbers.
 const OSC_EVENT_RE = new RegExp(
   // eslint-disable-next-line no-control-regex
   `\\x1b\\](?:` +
@@ -84,6 +104,8 @@ const OSC_EVENT_RE = new RegExp(
     `633;([^\\x07\\x1b]*)(?:\\x07|\\x1b\\\\)` + // OSC 633: group 7 = body
     `|` +
     `133;([^\\x07\\x1b]*)(?:\\x07|\\x1b\\\\)` + // OSC 133: group 8 = body
+    `|` +
+    `7501;([^\\x07\\x1b]*)(?:\\x07|\\x1b\\\\)` + // OSC 7501: group 9 = body
     `)`,
   "g",
 );
@@ -260,6 +282,59 @@ function parseOsc633Body(body: string): OscShellEvent | null {
 }
 
 /**
+ * Decode an OSC 7501 `msg` field: standard base64 of UTF-8 text. Shared code
+ * also runs in the browser, so use `atob` + `TextDecoder` rather than Buffer.
+ */
+function decodeOsc7501Message(encoded: string): string | undefined {
+  try {
+    const text = new TextDecoder("utf-8", { fatal: true }).decode(
+      Uint8Array.from(atob(encoded), (char) => char.charCodeAt(0)),
+    );
+    return text.length === 0 ? undefined : text;
+  } catch {
+    return undefined;
+  }
+}
+
+const OSC_7501_STATES: ReadonlySet<string> = new Set<OscProgramState>([
+  "idle",
+  "working",
+  "blocked",
+  "done",
+  "error",
+  "clear",
+]);
+
+/**
+ * Parse the body of an OSC 7501 Program Status sequence (everything after
+ * `7501;`) into a structured event. The body is `:`-separated `key=value`
+ * fields, each split at its first `=`; unknown keys are ignored. Returns null
+ * when `state` is missing or unrecognized. Spec:
+ * https://www.superlogical.com/rex/docs/build/program-status
+ */
+export function parseOsc7501Body(body: string): OscProgramStatus | null {
+  const fields = new Map<string, string>();
+  for (const field of body.split(":")) {
+    const eq = field.indexOf("=");
+    if (eq <= 0) continue;
+    fields.set(field.slice(0, eq), field.slice(eq + 1));
+  }
+
+  const state = fields.get("state");
+  if (state === undefined || !OSC_7501_STATES.has(state)) return null;
+  const kind = fields.get("kind");
+  const app = fields.get("app");
+  const msg = fields.get("msg");
+  return {
+    code: 7501,
+    state: state as OscProgramState,
+    kind: kind === "" ? undefined : kind,
+    app: app === "" ? undefined : app,
+    message: msg === undefined || msg === "" ? undefined : decodeOsc7501Message(msg),
+  };
+}
+
+/**
  * Extract OSC notification and title sequences from raw PTY data.
  *
  * Returns the cleaned data (with extracted sequences removed) and
@@ -270,11 +345,12 @@ export function extractOscEvents(data: string): OscExtractionResult {
   const notifications: OscNotification[] = [];
   const titles: OscTitle[] = [];
   const shell: OscShellEvent[] = [];
+  const programStatus: OscProgramStatus[] = [];
 
   // Reset lastIndex for global regex reuse across calls
   OSC_EVENT_RE.lastIndex = 0;
 
-  const cleaned = data.replace(OSC_EVENT_RE, (_match, g1, g2, g3, g4, g5, g6, g7, g8) => {
+  const cleaned = data.replace(OSC_EVENT_RE, (_match, g1, g2, g3, g4, g5, g6, g7, g8, g9) => {
     if (g1 !== undefined) {
       // OSC 9 — simple notification
       const body = g1 as string;
@@ -318,20 +394,24 @@ export function extractOscEvents(data: string): OscExtractionResult {
       // OSC 133 — FinalTerm/iTerm2 shell integration (Copilot CLI uses this)
       const event = parseOsc133Body(g8 as string);
       if (event) shell.push(event);
+    } else if (g9 !== undefined) {
+      // OSC 7501 — Program Status Protocol
+      const status = parseOsc7501Body(g9 as string);
+      if (status) programStatus.push(status);
     }
     // Remove the sequence from the output
     return "";
   });
 
-  return { cleaned, notifications, titles, shell };
+  return { cleaned, notifications, titles, shell, programStatus };
 }
 
 /** Defensive cap so a pathological PTY line cannot grow memory without bound. */
 const MAX_PTY_OSC_CARRY = 64 * 1024;
 
 /**
- * If `cleaned` ends with a handled OSC (0 / 1 / 2 / 9 / 777 / 99 / 133 / 633)
- * that has no ST/BEL terminator yet, split it off for the next PTY read —
+ * If `cleaned` ends with a handled OSC (0 / 1 / 2 / 9 / 777 / 99 / 133 / 633 /
+ * 7501) that has no ST/BEL terminator yet, split it off for the next PTY read —
  * sequences are often split across `node-pty` chunks (notably on Windows /
  * ConPTY).
  */
@@ -340,7 +420,7 @@ function takeTrailingIncompleteOsc(s: string): { head: string; carry: string } {
   if (last < 0) return { head: s, carry: "" };
   const tail = s.slice(last);
   const afterIntroducer = tail.slice(2); // drop the leading ESC + ']'
-  if (!/^(?:0;|1;|2;|9;|777;notify;|99;|133;|633;)/.test(afterIntroducer)) {
+  if (!/^(?:0;|1;|2;|9;|777;notify;|99;|133;|633;|7501;)/.test(afterIntroducer)) {
     return { head: s, carry: "" };
   }
   if (tail.includes("\x07") || tail.includes("\x1b\\")) return { head: s, carry: "" };
@@ -360,6 +440,7 @@ export function extractOscEventsFromPtyStream(
   notifications: OscNotification[];
   titles: OscTitle[];
   shell: OscShellEvent[];
+  programStatus: OscProgramStatus[];
   cleaned: string;
 } {
   let carry = carryIn ?? "";
@@ -367,7 +448,7 @@ export function extractOscEventsFromPtyStream(
     carry = "";
   }
   const combined = carry + chunk;
-  const { cleaned, notifications, titles, shell } = extractOscEvents(combined);
+  const { cleaned, notifications, titles, shell, programStatus } = extractOscEvents(combined);
   const { head, carry: tailCarry } = takeTrailingIncompleteOsc(cleaned);
-  return { carryOut: tailCarry, notifications, titles, shell, cleaned: head };
+  return { carryOut: tailCarry, notifications, titles, shell, programStatus, cleaned: head };
 }

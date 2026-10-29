@@ -109,6 +109,7 @@ export function createReplaySession(method: "load" | "resume") {
     isReplayingHistory: false,
     replayHistoryUntil: 0,
     promptInFlight: false,
+    pendingSteers: [],
     foregroundTurnOpen: false,
     foregroundTurnAwaitingSubagents: false,
     pendingPromptInterrupt: false,

@@ -2359,6 +2359,7 @@ msgstr "Von mir erstellt"
 msgid "Authorization: Bearer token"
 msgstr "Authorization: Bearer token"
 
+#: src/renderer/components/common/effortLabel.ts
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Auto"
 msgstr "Automatisch"
@@ -7953,6 +7954,10 @@ msgstr "Erstklassige Qoder CLI-Integration mit Poracodes nativen Terminal- und A
 msgid "First-class Qwen Code integration using Poracode's native terminal and ACP runtimes."
 msgstr "Erstklassige Qwen Code-Integration mit Poracodes nativen Terminal- und ACP-Laufzeiten."
 
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Vercel fx integration using Poracode's native terminal and ACP runtimes."
+msgstr "Erstklassige Vercel fx-Integration mit Poracodes nativen Terminal- und ACP-Laufzeiten."
+
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Fit"
 msgstr "Angepasst"
@@ -8215,6 +8220,10 @@ msgstr "Vollständige Konfiguration"
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "Fullscreen overlay"
 msgstr "Vollbild-Overlay"
+
+#: src/renderer/components/providers/fx/manifest.ts
+msgid "fx"
+msgstr "fx"
 
 #: src/renderer/utils/projectIcons.ts
 msgid "Games & fun"

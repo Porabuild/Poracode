@@ -35,6 +35,12 @@ must not turn provider session discovery into a second thread index.
   `working` interrupts the active turn, queues the follow-up as structured
   `{ prompt, segments, config }`, and drains queued turns FIFO once the session
   returns to `idle` / `needs_reply`.
+- An adapter can declare `promptSteering` (`acp/promptSteering.ts`) for an
+  agent that accepts a marked second `session/prompt` during a turn. The
+  session then exposes `steerTurn` once `initialize` advertises support: a
+  text steer joins the running turn without a cancel, and the turn closes only
+  after the agent answers every steer. A rejected steer, or one with non-text
+  content, is sent as an ordinary prompt within the same turn.
 - Terminal presentation stays PTY-owned. Do not add queueing or fake
   stop/steering UI to terminal-native threads.
 

@@ -2358,6 +2358,7 @@ msgstr "自分が作成"
 msgid "Authorization: Bearer token"
 msgstr "Authorization: Bearer token"
 
+#: src/renderer/components/common/effortLabel.ts
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Auto"
 msgstr "自動"
@@ -7952,6 +7953,10 @@ msgstr "Poracode のネイティブなターミナルおよび ACP ランタイ�
 msgid "First-class Qwen Code integration using Poracode's native terminal and ACP runtimes."
 msgstr "Poracode のネイティブなターミナルおよび ACP ランタイムを使用する、Qwen Code のファーストクラス統合です。"
 
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Vercel fx integration using Poracode's native terminal and ACP runtimes."
+msgstr "Poracode のネイティブなターミナルおよび ACP ランタイムを使用する、Vercel fx のファーストクラス統合です。"
+
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Fit"
 msgstr "フィット"
@@ -8214,6 +8219,10 @@ msgstr "完全な設定"
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "Fullscreen overlay"
 msgstr "全画面オーバーレイ"
+
+#: src/renderer/components/providers/fx/manifest.ts
+msgid "fx"
+msgstr "fx"
 
 #: src/renderer/utils/projectIcons.ts
 msgid "Games & fun"

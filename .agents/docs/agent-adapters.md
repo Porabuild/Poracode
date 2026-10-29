@@ -84,6 +84,10 @@ Existing extension points built on the same pattern:
 - `allowUnlistedSelectValue` admits qualified compound select values: only a
   detached current select and a string rejected by ordinary membership reach
   it. Writer locks, owner checks, and echo confirmation still apply.
+- `promptSteering` (`acp/promptSteering.ts`) declares non-interrupting steering
+  for an agent that accepts a marked `session/prompt` during a turn: how the
+  agent advertises it in `initialize`, and the `_meta` that marks the request.
+  The shared session exposes `steerTurn` only when the agent advertises it.
 - `registerModelDescriptionFormatter` (renderer) lets a provider parse its own
   catalog text into a numeric hint plus a localized explanation; the shared
   picker never parses vendor pricing formats.
@@ -367,7 +371,9 @@ test that fails when a `detection.ts` has no registered factory. Items marked
   staged asset shape. Hook Node resolution:
   [Provider Runtime](provider-runtime.md#hook-runtime-resolution).
 - OSC status (title spinner / iTerm2 progress) → `handleOscTitle` /
-  `handleOscNotification` (see Grok). Only when the CLI actually emits OSC.
+  `handleOscNotification` (see Grok); OSC 7501 Program Status →
+  `handleOscProgramStatus: programStatusOscHint`. Only when the CLI actually
+  emits OSC.
 - Skills → `skillSupport` with `roots` and a default `invocation`. When some
   skills cannot take that form, supply `skillSupport.invocationForSkill`; the
   skill scan passes it each SKILL.md's scalar frontmatter and records the

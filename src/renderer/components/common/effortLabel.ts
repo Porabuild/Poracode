@@ -4,6 +4,7 @@ import { i18n } from "@/renderer/i18n/i18n";
 import { canonicalizeEffortId } from "@/shared/effortOrder";
 
 const effortLabels: Record<string, MessageDescriptor> = {
+  auto: msg`Auto`,
   none: msg`None`,
   minimal: msg`Minimal`,
   low: msg`Low`,
