@@ -369,7 +369,6 @@ function CrewEditorModal(props: {
                 isLead
                 isEdited={isLeadEdited(crew.lead, crew)}
                 isEditing={false}
-                compact={false}
                 onEditToggle={() => {}}
                 onSelectionChange={(lead) => onUpsert({ ...crew, lead })}
                 onRoleChange={() => {}}
@@ -385,7 +384,6 @@ function CrewEditorModal(props: {
                   isLead={false}
                   isEdited={isRoleEdited(role, crew)}
                   isEditing={editingRoleId === role.id}
-                  compact={false}
                   onEditToggle={() =>
                     setEditingRoleId((current) => (current === role.id ? undefined : role.id))
                   }

@@ -233,7 +233,7 @@ function CrewMemberInfo(props: {
         kind={props.selection.agentKind}
         {...(status?.icon ? { icon: status.icon } : {})}
         fallbackLabel={provider}
-        className="col-start-2 row-start-1 size-3.5"
+        className="col-start-2 row-span-2 row-start-1 size-3.5"
       />
       <span
         data-crew-member-line="text"

@@ -1,4 +1,5 @@
 import type { KeybindingEntry } from "@/shared/keybindings";
+import { modelSelectionFor } from "@/shared/agentSelection";
 import {
   type ComposerActionId,
   resolveComposerActionId,
@@ -122,11 +123,28 @@ function runComposerAction(
       return control ? cycleEffortControl(control) : false;
     }
     case "toggle-fast": {
-      // Fast is always the ordinary composer toggle, paired relations included.
+      // Prefer the ordinary composer toggle, paired relations included.
       const control = input.controls.find(
         (candidate) => candidate.kind === "toggle" && candidate.label === "Fast",
       );
-      return control ? toggleControl(control) : false;
+      if (control) return toggleControl(control);
+      // An active crew has no toolbar Fast toggle: each member carries its own.
+      const crew = input.controls.find((candidate) => candidate.kind === "crew");
+      if (!crew || crew.isDisabled || crew.model.isDisabled) return false;
+      // The producer's descriptor is authoritative: it already carries encoded
+      // family Fast and emits the canonical family-resolved edit.
+      if (crew.model.leadFastControl) return toggleControl(crew.model.leadFastControl);
+      const leadProvider = crew.model.leadProviders.find(
+        (provider) => provider.kind === crew.model.lead.agentKind,
+      );
+      if (!leadProvider) return false;
+      if (
+        modelSelectionFor(leadProvider.capabilities, crew.model.lead.model).fast.available !== true
+      ) {
+        return false;
+      }
+      crew.model.onLeadChange({ ...crew.model.lead, fast: !crew.model.lead.fast });
+      return true;
     }
     case "cycle-permission": {
       const control = input.controls.find((candidate) => {

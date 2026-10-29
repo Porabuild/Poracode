@@ -37,7 +37,7 @@ import {
   type ModelRef,
   type ProviderModelMenuProvider,
 } from "./parts/buildItems";
-import { deriveSubProvider } from "./parts/deriveSubProvider";
+import { distinctSubProviderLabel } from "./parts/deriveSubProvider";
 import { modelFamilyMemberDisplay } from "./parts/modelFamilyDisplay";
 import { providerMenuKey } from "./parts/providerIdentity";
 import type { ProviderModelItem, ProviderModelSelection } from "./parts/types";
@@ -199,15 +199,14 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
     currentProvider?.capabilities.models.find((m) => m.id === effectiveCurrentModel)?.label ??
     effectiveCurrentModel;
   const currentLabelParts = splitModelLabel(currentLabel);
-  const selectedSubProvider = currentProvider
-    ? deriveSubProvider(effectiveCurrentModel, currentProvider.capabilities)
-    : undefined;
-  const currentSubProvider = currentFamilyDisplay
-    ? undefined
-    : selectedSubProvider?.label.trim().toLocaleLowerCase() ===
-        currentLabelParts.name.trim().toLocaleLowerCase()
-      ? undefined
-      : selectedSubProvider;
+  const currentSubProviderLabel =
+    currentProvider && !currentFamilyDisplay
+      ? distinctSubProviderLabel(
+          effectiveCurrentModel,
+          currentProvider.capabilities,
+          currentLabelParts.name,
+        )
+      : undefined;
   // The pairing control already shows the tuple. Keep the model trigger on
   // the family name so it does not repeat those controls or consume their width.
   const currentSubLabel =
@@ -216,7 +215,7 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
       ? showFamilySelectionSummary
         ? currentFamilyDisplay.selectorSummary
         : undefined
-      : currentSubProvider?.label);
+      : currentSubProviderLabel);
   const currentName =
     crewSection?.current?.name ?? (optionScope ? currentLabel : currentLabelParts.name);
   const currentDisplayLabel =
@@ -457,7 +456,7 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
         triggerAppearance === "field"
           ? "w-full min-w-0 justify-between px-2"
           : triggerAppearance === "label"
-            ? "h-5 min-w-0 max-w-full gap-0 rounded px-1 text-xs leading-5 hover:bg-foreground/5"
+            ? "h-4 min-w-0 max-w-full gap-0 rounded px-1 text-xs leading-4 hover:bg-foreground/5"
             : "poracode-composer-menu poracode-composer-model-control min-w-0 px-2.5"
       }
       {...(mobile ? { onPress: () => handleOpenChange(true) } : {})}
@@ -594,7 +593,11 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
       isOpen={isOpen}
       onOpenChange={handleOpenChange}
       label={menuLabel}
-      {...(triggerAppearance === "field" ? { triggerClassName: "w-full min-w-0" } : {})}
+      {...(triggerAppearance === "field"
+        ? { triggerClassName: "w-full min-w-0" }
+        : triggerAppearance === "label"
+          ? { triggerClassName: "inline-flex min-w-0 max-w-full" }
+          : {})}
       trigger={
         !mobile && hideLabelOnWrap ? (
           <Tooltip>
