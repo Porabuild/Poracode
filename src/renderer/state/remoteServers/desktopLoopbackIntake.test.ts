@@ -1459,6 +1459,192 @@ describe("desktop loopback socket policy (A4)", () => {
     expect(calls.at(-1)!.authorization).toBe("Bearer access-1");
   });
 
+  it("renews the retained session instead of re-pairing when its bearer is refused", async () => {
+    let ticketCalls = 0;
+    const { fetchImpl, calls } = createFakeFetch({
+      ticket: () => {
+        ticketCalls += 1;
+        return ticketCalls === 1
+          ? jsonResponse(401, {})
+          : jsonResponse(200, { ticket: "renewed-ticket" });
+      },
+    });
+    const exhausted = vi.fn<() => void>();
+    const urls: string[] = [];
+    const fake = makeFakeSocket();
+    const renewSession = vi.fn<() => Promise<boolean>>(async () => {
+      intake.applyTokens({ accessToken: "renewed" });
+      return true;
+    });
+    const intake: DesktopLoopbackIntake = new DesktopLoopbackIntake(
+      baseIntakeDeps({
+        fetchImpl,
+        onCredentialExhausted: exhausted,
+        renewSession,
+        socketFactory: (url) => {
+          urls.push(url);
+          return fake.socket;
+        },
+      }),
+    );
+    intakes.push(intake);
+    intake.applyTokens({ accessToken: "retained" });
+    const activation = intake.activate();
+    await vi.waitFor(() => expect(urls).toHaveLength(1));
+    fake.emitOpen();
+    await expect(activation).resolves.toBe(true);
+
+    expect(renewSession).toHaveBeenCalledTimes(1);
+    expect(
+      calls.map((call) => (call.url.endsWith("/oauth/token") ? "exchange" : "ticket")),
+    ).toEqual(["ticket", "ticket"]);
+    expect(calls.at(-1)!.authorization).toBe("Bearer renewed");
+    expect(exhausted).not.toHaveBeenCalled();
+  });
+
+  it("falls back to a fresh pairing exchange when renewal is refused", async () => {
+    let ticketCalls = 0;
+    const { fetchImpl, calls } = createFakeFetch({
+      ticket: () => {
+        ticketCalls += 1;
+        return ticketCalls === 1 ? jsonResponse(401, {}) : jsonResponse(200, { ticket: "fresh" });
+      },
+    });
+    const renewSession = vi.fn<() => Promise<boolean>>(async () => false);
+    const urls: string[] = [];
+    const fake = makeFakeSocket();
+    const intake = new DesktopLoopbackIntake(
+      baseIntakeDeps({
+        fetchImpl,
+        renewSession,
+        socketFactory: (url) => {
+          urls.push(url);
+          return fake.socket;
+        },
+      }),
+    );
+    intakes.push(intake);
+    intake.applyTokens({ accessToken: "retained" });
+    const activation = intake.activate();
+    await vi.waitFor(() => expect(urls).toHaveLength(1));
+    fake.emitOpen();
+    await expect(activation).resolves.toBe(true);
+
+    expect(renewSession).toHaveBeenCalledTimes(1);
+    expect(
+      calls.map((call) => (call.url.endsWith("/oauth/token") ? "exchange" : "ticket")),
+    ).toEqual(["ticket", "exchange", "ticket"]);
+  });
+
+  it("retries locally without re-pairing when renewal fails transport-class", async () => {
+    const { fetchImpl, calls } = createFakeFetch({ ticket: () => jsonResponse(401, {}) });
+    const exhausted = vi.fn<() => void>();
+    const sockets: FakeSocketHarness[] = [];
+    const renewSession = vi.fn<() => Promise<boolean>>(async () => {
+      throw new Error("loopback transport failed");
+    });
+    const intake = new DesktopLoopbackIntake(
+      baseIntakeDeps({
+        fetchImpl,
+        renewSession,
+        onCredentialExhausted: exhausted,
+        retryDelayMs: 100,
+        socketFactory: () => {
+          const harness = makeFakeSocket();
+          sockets.push(harness);
+          return harness.socket;
+        },
+      }),
+    );
+    intakes.push(intake);
+    intake.applyTokens({ accessToken: "retained" });
+    const activation = intake.activate();
+    await vi.advanceTimersByTimeAsync(1);
+    await expect(activation).resolves.toBe(false);
+    expect(renewSession).toHaveBeenCalledTimes(1);
+    expect(calls).toHaveLength(1);
+    expect(calls.some((call) => call.url.endsWith("/oauth/token"))).toBe(false);
+    expect(exhausted).not.toHaveBeenCalled();
+    expect(sockets).toHaveLength(0);
+
+    // The transport-class rejection is a retryable failure, not an answer.
+    await vi.advanceTimersByTimeAsync(100);
+    expect(renewSession).toHaveBeenCalledTimes(2);
+    expect(calls).toHaveLength(2);
+    expect(exhausted).not.toHaveBeenCalled();
+  });
+
+  it("reconnects an expiry close through renewal instead of reporting exhaustion", async () => {
+    let ticketCalls = 0;
+    const { fetchImpl } = createFakeFetch({
+      ticket: () => {
+        ticketCalls += 1;
+        if (ticketCalls === 2) return jsonResponse(401, {});
+        return jsonResponse(200, { ticket: `ticket-${ticketCalls}` });
+      },
+    });
+    const exhausted = vi.fn<() => void>();
+    const sockets: FakeSocketHarness[] = [];
+    const intake: DesktopLoopbackIntake = new DesktopLoopbackIntake(
+      baseIntakeDeps({
+        fetchImpl,
+        onCredentialExhausted: exhausted,
+        retryDelayMs: 100,
+        socketFactory: () => {
+          const harness = makeFakeSocket();
+          sockets.push(harness);
+          return harness.socket;
+        },
+        renewSession: async () => {
+          intake.applyTokens({ accessToken: "renewed" });
+          return true;
+        },
+      }),
+    );
+    intakes.push(intake);
+    const activation = intake.activate();
+    await vi.advanceTimersByTimeAsync(1);
+    sockets[0]!.emitOpen();
+    await expect(activation).resolves.toBe(true);
+    expect(intake.isActive()).toBe(true);
+
+    sockets[0]!.emitClose({ code: 1008, reason: "Remote access session expired" });
+    // An expiry close renews the same session; it is not credential loss.
+    expect(exhausted).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(100);
+    expect(sockets).toHaveLength(2);
+    sockets[1]!.emitOpen();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(intake.isActive()).toBe(true);
+    expect(exhausted).not.toHaveBeenCalled();
+  });
+
+  it("renews ahead of the access deadline and stops renewing after dispose", async () => {
+    const { fetchImpl } = createFakeFetch();
+    const renewSession = vi.fn<() => Promise<boolean>>(async () => true);
+    const intake = new DesktopLoopbackIntake(
+      baseIntakeDeps({
+        fetchImpl,
+        renewSession,
+        socketFactory: () => makeFakeSocket().socket,
+      }),
+    );
+    intakes.push(intake);
+    intake.applyTokens({
+      accessToken: "token",
+      accessTokenExpiresAt: new Date(Date.now() + 10 * 60_000).toISOString(),
+    });
+
+    await vi.advanceTimersByTimeAsync(5 * 60_000 - 1);
+    expect(renewSession).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(renewSession).toHaveBeenCalledTimes(1);
+
+    intake.dispose();
+    await vi.advanceTimersByTimeAsync(60 * 60_000);
+    expect(renewSession).toHaveBeenCalledTimes(1);
+  });
+
   it("reports a refused pairing credential once and stops retrying it", async () => {
     const exhausted = vi.fn<() => void>();
     const { fetchImpl, calls } = createFakeFetch({ exchange: () => jsonResponse(401, {}) });

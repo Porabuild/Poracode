@@ -142,6 +142,7 @@ export abstract class RemoteClientAuth extends RemoteClientTransport {
     );
     const tokens: RemoteTokenSnapshot = {
       accessToken: result.accessToken,
+      accessTokenExpiresAt: result.expiresAt,
       ...(result.refreshToken
         ? {
             refreshToken: result.refreshToken,

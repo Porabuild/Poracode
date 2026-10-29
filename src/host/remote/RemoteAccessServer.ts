@@ -572,7 +572,8 @@ export class RemoteAccessServer {
   listAccessSessions(): RemoteAccessSessionSummary[] {
     const connectedSessions = new Set<string>();
     for (const [socket, session] of this.clients) {
-      if (socket.readyState === WebSocket.OPEN && session.expiresAtMs > Date.now()) {
+      const expiresAtMs = this.auth.accessSessionExpiresAtMs(session.sessionId) ?? 0;
+      if (socket.readyState === WebSocket.OPEN && expiresAtMs > Date.now()) {
         connectedSessions.add(session.sessionId);
       }
     }

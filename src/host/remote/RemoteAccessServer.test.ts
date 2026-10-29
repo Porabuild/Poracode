@@ -80,7 +80,7 @@ import {
 } from "@/host/db/runtimeItems";
 import { resetRuntimePersistenceForTests } from "@/host/db/runtimePersistenceRuntime";
 import * as runtimePersistence from "@/host/db/runtimePersistenceRuntime";
-import { RemoteAuthStore } from "./auth";
+import { RemoteAuthStore, type PersistedRemoteAuthFile } from "./auth";
 import * as remoteConfig from "./config";
 import { deriveForwardOwner, ForwardOriginPolicy } from "./portForward/forwardOrigin";
 import { createForwardOriginIdentity } from "./portForward/forwardOriginIdentity";
@@ -1292,6 +1292,59 @@ describe("RemoteAccessServer", () => {
       expect(server.getInfo()).toMatchObject(displayed);
     },
   );
+
+  it("keeps managed-renderer loopback sessions memory-only and persists browser-extension ones", async () => {
+    const writes: PersistedRemoteAuthFile[] = [];
+    const authStore = new RemoteAuthStore({
+      onPersistedStateChanged: (state) => {
+        writes.push(state);
+      },
+    });
+    const server = createTestServer({
+      truncateThreadRuntime: () => {},
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      authStore,
+      callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
+    });
+    servers.push(server);
+    const info = await server.start();
+    const exchange = async (pairingUrl: string) => {
+      const credential = new URLSearchParams(new URL(pairingUrl).hash.slice(1)).get("token");
+      const response = await fetch(new URL("/oauth/token", info.httpBaseUrl), {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+        },
+        body: JSON.stringify({
+          grantType: "pairing-token",
+          credential,
+          scopes: ["session:read"],
+        }),
+      });
+      expect(response.status).toBe(200);
+      return (await response.json()) as { accessToken: string; sessionId?: string };
+    };
+
+    const managed = await exchange(server.mintLoopbackRendererCredential()!.pairingUrl);
+    expect(writes.at(-1)?.accessSessions.some((session) => session.id === managed.sessionId)).toBe(
+      false,
+    );
+    // It still authenticates for this process's lifetime.
+    expect(authStore.authenticateBearerToken(managed.accessToken).sessionId).toBe(
+      managed.sessionId,
+    );
+
+    const extension = await exchange(
+      server.mintLoopbackRendererCredential({ browserExtension: true })!.pairingUrl,
+    );
+    expect(
+      writes.at(-1)?.accessSessions.some((session) => session.id === extension.sessionId),
+    ).toBe(true);
+  });
 
   it("rotates the desktop pairing code after exchange and rejects replay", async () => {
     const onPairingChanged = vi.fn<() => void>();
@@ -2784,6 +2837,60 @@ describe("RemoteAccessServer", () => {
     });
 
     await expect(readyPromise).resolves.toMatchObject({ type: "ready", seq: 0 });
+    await expect(closePromise).resolves.toEqual({
+      code: 1008,
+      reason: "Remote access session expired",
+    });
+  });
+
+  it("keeps a websocket open when its session is refreshed before the deadline", async () => {
+    const authStore = new RemoteAuthStore();
+    const server = createTestServer({
+      truncateThreadRuntime: () => {},
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      authStore,
+      callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
+    });
+    servers.push(server);
+    const info = await server.start();
+    const pairing = authStore.issuePairingCredential({ scopes: ["session:read"] });
+    const token = authStore.exchangePairingCredential({
+      credential: pairing.credential,
+      ttlMs: 250,
+    });
+    const ticket = authStore.issueWebSocketTicket({
+      accessToken: token.accessToken,
+      ttlMs: 5_000,
+    });
+
+    const wsUrl = new URL("/ws", info.wsBaseUrl);
+    wsUrl.searchParams.set("ticket", ticket.ticket);
+    const ws = new WebSocket(wsUrl);
+    const readyPromise = readWsMessage(ws);
+    const closePromise = waitWsClose(ws);
+    await new Promise<void>((resolve, reject) => {
+      ws.once("open", resolve);
+      ws.once("error", reject);
+    });
+    await expect(readyPromise).resolves.toMatchObject({ type: "ready", seq: 0 });
+
+    // The session outlives the expiry captured when the ticket was consumed:
+    // the renewal of the SAME session moves its access deadline out.
+    const refreshed = authStore.refreshAccessToken({
+      refreshToken: token.refreshToken!,
+      accessTtlMs: 1_000,
+    });
+    expect(refreshed.sessionId).toBe(token.sessionId);
+    await new Promise((resolve) => setTimeout(resolve, 400));
+
+    const pongPromise = readWsMessage(ws);
+    ws.send(JSON.stringify({ type: "ping", id: "after-refresh" }));
+    await expect(pongPromise).resolves.toMatchObject({ type: "pong", id: "after-refresh" });
+
+    // The socket still closes at the RENEWED deadline, not forever.
     await expect(closePromise).resolves.toEqual({
       code: 1008,
       reason: "Remote access session expired",

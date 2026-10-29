@@ -165,6 +165,8 @@ export interface RemoteDesktopClientOptions {
 /** Tokens of one session after a (re)issue; persisted by the caller. */
 export interface RemoteTokenSnapshot {
   readonly accessToken: string;
+  /** Absolute expiry of the new access token, when the host reported it. */
+  readonly accessTokenExpiresAt?: string | undefined;
   readonly refreshToken?: string | undefined;
   readonly refreshTokenExpiresAt?: string | undefined;
 }

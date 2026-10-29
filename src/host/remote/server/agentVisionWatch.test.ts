@@ -26,6 +26,7 @@ function fixture() {
   const ctx = {
     stopping: false,
     clients: new Map([[socket, session]]),
+    auth: { accessSessionExpiresAtMs: () => session.expiresAtMs },
     options: { readAgentVision: read },
     runIngressWork: (operation: () => unknown) => Promise.resolve(operation()),
     sendRaw: send,

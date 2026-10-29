@@ -364,8 +364,12 @@ function handleConnection(
   let browserWatch: (() => void) | null = null;
   const visionWatches = new Map<string, () => void>();
   let expiryTimer: ReturnType<typeof setTimeout> | null = null;
+  /** The session's live access deadline: a refresh renews it, and the socket
+   * must follow the renewed deadline instead of the expiry captured when its
+   * ticket was consumed. */
+  const liveExpiresAtMs = () => ctx.auth.accessSessionExpiresAtMs(session.sessionId) ?? 0;
   const scheduleSessionExpiry = () => {
-    const delayMs = session.expiresAtMs - Date.now();
+    const delayMs = liveExpiresAtMs() - Date.now();
     if (delayMs <= 0) {
       if (ws.readyState === WebSocket.OPEN) {
         ws.close(1008, "Remote access session expired");
@@ -435,7 +439,7 @@ function handleConnection(
       ctx.stopping ||
       ws.readyState !== WebSocket.OPEN ||
       ctx.clients.get(ws) !== session ||
-      session.expiresAtMs <= Date.now()
+      liveExpiresAtMs() <= Date.now()
     )
       return;
     try {

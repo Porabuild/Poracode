@@ -20,7 +20,7 @@ export function watchAgentVision(
     !ctx.stopping &&
     ws.readyState === WebSocket.OPEN &&
     ctx.clients.get(ws) === session &&
-    session.expiresAtMs > Date.now();
+    (ctx.auth.accessSessionExpiresAtMs(session.sessionId) ?? 0) > Date.now();
   async function next() {
     if (!live()) return;
     const started = Date.now();

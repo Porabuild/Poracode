@@ -69,6 +69,10 @@ interface StoredPairingCredential {
   readonly scopes: readonly RemoteAccessScope[];
   readonly label: string | undefined;
   readonly expiresAtMs: number;
+  /** Sessions from this credential are never written to disk: each belongs to
+   * one desktop window, which never reuses it after a reload, so it ends with
+   * the host process. */
+  readonly ephemeral?: true;
 }
 
 interface StoredAccessSession {
@@ -79,6 +83,9 @@ interface StoredAccessSession {
   readonly issuedAtMs: number;
   readonly expiresAtMs: number;
   readonly lastConnectedAtMs?: number | undefined;
+  /** Memory-only (see {@link StoredPairingCredential.ephemeral}); never
+   * persisted, and survives refreshes. */
+  readonly ephemeral?: true;
   /** Hash of the session's refresh token (Gate 6 item 4.6). Absent on sessions
    * persisted by a host that predates the refresh lifecycle — those keep their
    * long-lived access token and simply never refresh. */
@@ -257,6 +264,7 @@ export class RemoteAuthStore {
     readonly scopes?: readonly RemoteAccessScope[];
     readonly label?: string;
     readonly ttlMs?: number;
+    readonly ephemeral?: boolean;
   }): IssuedPairingCredential {
     this.pruneExpired();
     const credential = randomCredential("lc_pair");
@@ -273,6 +281,7 @@ export class RemoteAuthStore {
       scopes: input?.scopes ?? REMOTE_OPERATOR_SCOPES,
       label: input?.label,
       expiresAtMs,
+      ...(input?.ephemeral ? { ephemeral: true as const } : {}),
     };
     this.pairingCredentials.set(stored.tokenHash, stored);
     return {
@@ -345,6 +354,7 @@ export class RemoteAuthStore {
       expiresAtMs,
       refreshTokenHash: hashCredential(refreshToken),
       refreshExpiresAtMs,
+      ...(grant.ephemeral ? { ephemeral: true as const } : {}),
     };
     this.accessSessions.set(session.tokenHash, session);
     this.persistAccessSessions();
@@ -471,10 +481,23 @@ export class RemoteAuthStore {
       }));
   }
 
+  /** The session's current access deadline (a refresh renews it), or null once
+   * the session is gone (revoked or pruned). Read-only: no pruning, no
+   * persistence. */
+  accessSessionExpiresAtMs(sessionId: string): number | null {
+    for (const session of this.accessSessions.values()) {
+      if (session.id === sessionId) return session.expiresAtMs;
+    }
+    return null;
+  }
+
   markSessionConnected(sessionId: string): void {
     for (const [hash, session] of this.accessSessions) {
       if (session.id !== sessionId) continue;
       this.accessSessions.set(hash, { ...session, lastConnectedAtMs: Date.now() });
+      // A memory-only session has nothing to persist; never let its presence
+      // pull a write (and the other sessions' rows) through the file path.
+      if (session.ephemeral) return;
       this.persistAccessSessions();
       return;
     }
@@ -667,9 +690,11 @@ export class RemoteAuthStore {
   }
 
   private persistAccessSessions(): void {
-    const sessions = [...this.accessSessions.values()].map((session) =>
-      persistedAccessSessionSchema.parse(session),
-    );
+    const sessions = [...this.accessSessions.values()]
+      // Memory-only sessions (one desktop window) never reach the file: their
+      // rows would outlive the window as orphans on every restart.
+      .filter((session) => !session.ephemeral)
+      .map((session) => persistedAccessSessionSchema.parse(session));
     // Legacy seam first (an injected callback on tests/compositions predating
     // the revocation list), then the full file shape.
     this.options.onAccessSessionsChanged?.(sessions);

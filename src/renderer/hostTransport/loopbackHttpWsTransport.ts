@@ -12,7 +12,7 @@ import {
   type RemoteWebSocketClientMessage,
   type RemoteWebSocketServerMessage,
 } from "@/shared/remote";
-import { RemoteDesktopClient } from "@/shared/remote/client";
+import { RemoteClientError, RemoteDesktopClient } from "@/shared/remote/client";
 import type { ManagedLoopbackBootstrap } from "@/shared/managedLoopback";
 import {
   DesktopLoopbackIntake,
@@ -203,18 +203,30 @@ export function createManagedLoopbackProcedureHost(
  * activation identity: a delayed rotation from a retired intake never
  * reinstall the owner row.
  */
-function createManagedLoopbackClient(
+export function createManagedLoopbackClient(
   endpoint: string,
   accessToken: string,
-  intake: DesktopLoopbackIntake,
+  intake: Pick<
+    DesktopLoopbackIntake,
+    "getAccessToken" | "getRefreshToken" | "applyTokens" | "isActive"
+  >,
 ): RemoteDesktopClient {
   return new RemoteDesktopClient(endpoint, accessToken, undefined, {
     tokenLifecycle: {
+      // Each activation builds a client, and a retired one can still send. They
+      // all read the intake's current bearer: otherwise a stale client's 401
+      // spends the refresh token again, which deletes the bearer its sibling
+      // holds, and the two rotate in turns until the host's token rate limit
+      // refuses the refresh and requests fail with "Invalid access token".
+      accessToken: () => intake.getAccessToken() ?? undefined,
       refreshToken: () => intake.getRefreshToken() ?? undefined,
       onTokensRefreshed: (tokens) => {
         intake.applyTokens({
           accessToken: tokens.accessToken,
           ...(tokens.refreshToken !== undefined ? { refreshToken: tokens.refreshToken } : {}),
+          ...(tokens.accessTokenExpiresAt !== undefined
+            ? { accessTokenExpiresAt: tokens.accessTokenExpiresAt }
+            : {}),
         });
         if (managedLoopback.intake !== intake || !intake.isActive()) return;
         setManagedLoopbackOwnerRow({
@@ -627,6 +639,27 @@ async function startOwnedDesktopLoopbackIntake(isCurrentStartup: () => boolean):
     },
     onCredentialExhausted: recoverIntake,
     onRecoveryExhausted: recoverIntake,
+    // Renewal rides the shared client refresh, which coalesces with in-flight
+    // request refreshes on the same refresh token: spending it twice would
+    // revoke the session family. A refused grant means re-pair; a 429 is a
+    // transport failure and must retry, never re-pair.
+    renewSession: async () => {
+      const owner = intake;
+      if (!owner || !isCurrentIntake()) return false;
+      try {
+        const renewed = await createManagedLoopbackClient(
+          endpoint,
+          owner.getAccessToken() ?? "",
+          owner,
+        ).refreshTokens();
+        return renewed !== null;
+      } catch (error) {
+        if (error instanceof RemoteClientError && (error.status === 401 || error.status === 403)) {
+          return false;
+        }
+        throw error;
+      }
+    },
     dispatch: (event, seq, space) => {
       if (!isCurrentIntake()) return;
       // Catalog membership rides the same dispatch as the desktop reducer:
