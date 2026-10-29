@@ -24,10 +24,7 @@ import {
   releaseThreadRuntimeItems,
   retainThreadRuntimeItems,
 } from "@/renderer/state/chatRuntimePersister";
-import {
-  adoptRuntimeThreadReader,
-  retryThreadRuntimeItems,
-} from "@/renderer/state/runtimeInterestHydration";
+import { adoptRuntimeThreadReader } from "@/renderer/state/runtimeInterestHydration";
 import { useInitialTimelineLayout } from "./parts/useInitialTimelineLayout";
 import {
   finalizeFileCheckpoint,
@@ -485,31 +482,6 @@ export function ChatPane(props: ChatPaneProps) {
     ) : null;
   const showEmptyHint = isEmpty && !isLive && !isConnecting && hydrationStatus === undefined;
   const isHydrating = isEmpty && hydrationStatus === "pending";
-  const hydrationFailed = hydrationStatus === "failed";
-  const historyLoadFailure = hydrationFailed ? (
-    <div
-      className={`flex items-center gap-3 text-foreground-muted ${
-        isEmpty
-          ? "h-full flex-col justify-center"
-          : "justify-between border-b border-border bg-surface-container/60 px-3 py-1.5 text-xs"
-      }`}
-      role="status"
-    >
-      <span>
-        <Trans>Messages could not be loaded.</Trans>
-      </span>
-      <Button
-        size={isEmpty ? "md" : "sm"}
-        variant={isEmpty ? "tertiary" : "ghost"}
-        onPress={() => {
-          if (isRemoteThread) void hydrateThreadRuntimeItems(threadId);
-          else void retryThreadRuntimeItems(threadId);
-        }}
-      >
-        <Trans>Retry</Trans>
-      </Button>
-    </div>
-  ) : null;
   // The tail loader displays the most recent completed turn's frozen elapsed
   // time when the thread is idle and no newer timeline row exists. Once an
   // optimistic next prompt is appended, keep the completed indicator inline at
@@ -575,7 +547,6 @@ export function ChatPane(props: ChatPaneProps) {
                 <Trans>Server offline — this conversation may be out of date.</Trans>
               </div>
             ) : null}
-            {!isEmpty ? historyLoadFailure : null}
             <ThreadForkOrigin threadId={threadId} />
             <ConversationSearchJump
               threadId={threadId}
@@ -624,9 +595,7 @@ export function ChatPane(props: ChatPaneProps) {
               scrollStyle={scrollFadeStyle}
               contentClassName={`min-h-full ${isInitialScrollSettled ? "" : "pointer-events-none opacity-0"}`}
               emptyContent={
-                isEmpty && hydrationFailed ? (
-                  historyLoadFailure
-                ) : isEmpty && !showTailLoader && showEmptyHint ? (
+                isEmpty && !showTailLoader && showEmptyHint ? (
                   <div className="flex h-full flex-col items-center justify-center gap-2 text-foreground-muted">
                     <span>
                       <Trans>No messages yet</Trans>

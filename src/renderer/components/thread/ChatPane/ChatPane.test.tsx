@@ -313,7 +313,7 @@ describe("ChatPane", () => {
     expect(screen.queryByText("Creating worktree…")).not.toBeInTheDocument();
   });
 
-  it("shows loading and retry states instead of a false empty hint while hydrating", async () => {
+  it("shows loading without a transcript error or false empty hint while hydrating", async () => {
     const thread = { ...makeThread(), status: "idle" as const };
     useAppStore.setState({ threads: [thread] });
 
@@ -326,13 +326,11 @@ describe("ChatPane", () => {
     await waitFor(() => expect(screen.queryByText("No messages yet")).not.toBeInTheDocument());
     expect(screen.getByText("Loading messages…")).toBeInTheDocument();
 
-    // Failed read: error with retry; retrying re-runs the hydration.
+    // Failed reads are reported by the composer, never inside the transcript.
     useAppStore.setState({ runtimeHydrationStatus: { [thread.id]: "failed" } });
-    await waitFor(() =>
-      expect(screen.getByText("Messages could not be loaded.")).toBeInTheDocument(),
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
-    await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(screen.queryByText("Loading messages…")).not.toBeInTheDocument());
+    expect(screen.queryByText("Messages could not be loaded.")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Retry" })).not.toBeInTheDocument();
 
     // Success clears the status back to the honest empty state.
     useAppStore.setState({ runtimeHydrationStatus: {} });
@@ -375,7 +373,7 @@ describe("ChatPane", () => {
     expect(screen.queryByText("No messages yet")).not.toBeInTheDocument();
   });
 
-  it("offers one history retry when supplementary content is visible without message rows", async () => {
+  it("keeps history warnings out of supplementary transcript content", async () => {
     const thread = { ...makeThread(), status: "idle" as const };
     useAppStore.setState({
       threads: [thread],
@@ -384,11 +382,11 @@ describe("ChatPane", () => {
 
     renderChatPane(thread, { hasSupplementaryContent: true });
 
-    expect(await screen.findAllByRole("button", { name: "Retry" })).toHaveLength(1);
-    expect(screen.getByText("Messages could not be loaded.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Retry" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Messages could not be loaded.")).not.toBeInTheDocument();
   });
 
-  it("keeps a loaded reply and its completed timer while offering recovery retry", async () => {
+  it("keeps a loaded reply and its completed timer during recovery", async () => {
     const thread = {
       ...makeThread(),
       status: "idle" as const,
@@ -406,11 +404,8 @@ describe("ChatPane", () => {
       renderChatPane(thread);
       expect(await screen.findByText("Previously loaded reply")).toBeInTheDocument();
       expect(screen.getByText(/^Worked for/)).toBeInTheDocument();
-      expect(screen.getByText("Messages could not be loaded.")).toBeInTheDocument();
+      expect(screen.queryByText("Messages could not be loaded.")).not.toBeInTheDocument();
       await waitFor(() => expect(recover).toHaveBeenCalledExactlyOnceWith(thread.id));
-      recover.mockClear();
-      fireEvent.click(screen.getByRole("button", { name: "Retry" }));
-      expect(recover).toHaveBeenCalledExactlyOnceWith(thread.id);
       expect(screen.getByText("Previously loaded reply")).toBeInTheDocument();
     } finally {
       uninstall();
@@ -418,7 +413,7 @@ describe("ChatPane", () => {
   });
 
   it.each(["idle", "inactive", "working"] as const)(
-    "offers retry when a %s thread's history fails after a completed turn",
+    "keeps a %s thread's failed history warning outside the transcript",
     async (status) => {
       const thread = {
         ...makeThread(),
@@ -436,12 +431,10 @@ describe("ChatPane", () => {
 
       renderChatPane(thread);
 
-      expect(await screen.findByText("Messages could not be loaded.")).toBeInTheDocument();
+      expect(screen.queryByText("Messages could not be loaded.")).not.toBeInTheDocument();
       expect(screen.queryByText(/^Worked for/)).not.toBeInTheDocument();
       expect(screen.queryAllByText(/^Working for/)).toHaveLength(status === "working" ? 1 : 0);
       await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledOnce());
-      fireEvent.click(screen.getByRole("button", { name: "Retry" }));
-      await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledTimes(2));
 
       act(() => {
         seedAssistantMessage(thread.id, "Recovered saved reply");

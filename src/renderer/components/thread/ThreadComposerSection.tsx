@@ -131,6 +131,7 @@ import { ThreadComposerDocks } from "./ThreadComposerDocks";
 import { selectPendingMessageReplyIds } from "./messageReplyForms";
 import { ThreadResumeUnavailableDock } from "./ThreadResumeUnavailableDock";
 import { ThreadHistoryNoticeDock, useVisibleThreadHistoryNotice } from "./ThreadHistoryNoticeDock";
+import { ThreadHistoryLoadFailureDock } from "./ThreadHistoryLoadFailureDock";
 import {
   usePluginMentionItems,
   useSkillSlashCommandState,
@@ -854,14 +855,18 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     />
   ) : null;
   const historyNotice = useVisibleThreadHistoryNotice(thread.id);
+  const historyLoadFailed = useAppStore(
+    (state) => !usesTerminalPresentation && state.runtimeHydrationStatus[thread.id] === "failed",
+  );
   const historyNoticeDock =
     historyNotice && !usesTerminalPresentation ? (
       <ThreadHistoryNoticeDock threadId={thread.id} entry={historyNotice} />
     ) : null;
   const composerNotices =
-    historyNoticeDock || resumeUnavailableNotice ? (
+    historyNoticeDock || historyLoadFailed || resumeUnavailableNotice ? (
       <>
         {historyNoticeDock}
+        {historyLoadFailed ? <ThreadHistoryLoadFailureDock threadId={thread.id} /> : null}
         {resumeUnavailableNotice}
       </>
     ) : null;
