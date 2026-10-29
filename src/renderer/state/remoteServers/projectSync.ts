@@ -6,9 +6,10 @@ import { isHomeProjectId } from "@/shared/homeScope";
  * A paired server offers every project in its own database, but the desktop
  * client only imports the ones the user wants in their sidebar:
  *
- * - The remote's built-in **Home scope** row is never mirrored. It is not a real
- *   project (it is re-created on every launch and exists so browser clients
- *   can run home-scoped threads); this client already has its own Home scope.
+ * - The remote's built-in **Home scope** row is only mirrored into browser
+ *   clients. It is not a real project (it is re-created on every launch and
+ *   exists so browser clients can run home-scoped threads); the desktop app
+ *   already has its own Home scope.
  * - Anything the user excluded is skipped. Exclusion is purely local state, so
  *   it applies — and can be changed — while the server is offline.
  *
@@ -24,8 +25,8 @@ export function isRemoteProjectSynced(
   excluded: readonly string[] | undefined,
   options: { readonly includeHomeScope?: boolean } = {},
 ): boolean {
-  // Projectless chat clients need the host's built-in scope and its chats.
-  // Desktop mirrors keep using their own local Home scope.
+  // Browser clients have no Home of their own, so they need the host's
+  // built-in scope and its chats. Desktop mirrors keep their local Home scope.
   if (isHomeProjectId(remoteProjectId)) return options.includeHomeScope === true;
   return !excluded?.includes(remoteProjectId);
 }

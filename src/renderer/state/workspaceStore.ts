@@ -8,7 +8,7 @@ import {
 import { useAppStore } from "./appStore";
 import { useSharedSettings, whenSharedSettingsHydrated } from "./sharedSettingsStore";
 import { isBrowserClientRuntime } from "@/renderer/clientRuntime";
-import { HOME_PROJECT_ID } from "@/shared/homeScope";
+import { isHomeProjectId } from "@/shared/homeScope";
 import { useRemoteServersStore } from "./remoteServersStore";
 
 const PERSIST_KEY = "poracode-active-workspace";
@@ -162,7 +162,7 @@ export async function bootstrapWorkspaces(): Promise<void> {
     const pins = useRemoteServersStore.getState().projectWorkspaceIds;
     useAppStore.setState((state) => {
       const projects = state.projects.map((project) => {
-        if (project.workspaceId !== undefined || project.id === HOME_PROJECT_ID) return project;
+        if (project.workspaceId !== undefined || isHomeProjectId(project.id)) return project;
         if (
           project.remoteServerId &&
           project.remoteId &&

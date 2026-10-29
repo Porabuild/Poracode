@@ -5568,49 +5568,64 @@ describe("useRemoteServersStore", () => {
   });
 
   // ── Selective project sync ──────────────────────────────────────────
-  it("mirrors Home chats for a projectless chat client and retains them on refresh without navigating another view", async () => {
-    vi.stubEnv("VITE_PORACODE_BUILD_TARGET", "extension");
-    try {
-      const home: Project = { ...proj, id: HOME_PROJECT_ID, name: "Home", disabled: true };
-      const chat: Thread = { ...remoteThread, projectId: HOME_PROJECT_ID, presentationMode: "gui" };
-      const view = useAppStore.getState().view;
-      useRemoteServersStore.getState().setClientFactory(
-        factoryFor(
-          makeClient({
-            snapshot: async () => ({
-              snapshotSeq: 0,
-              projects: [home],
-              threads: [chat],
-              runtimeSummariesByThread: {},
-              updatedAt: "now",
-            }),
+  it("mirrors Home chats for a browser client and retains them on refresh without navigating another view", async () => {
+    // The web app, PWA, and chat sidebar all run the browser runtime.
+    installBrowserClientRuntime({} as PoracodeBridge);
+    window.poracode = {} as PoracodeBridge;
+    const home: Project = { ...proj, id: HOME_PROJECT_ID, name: "Home", disabled: true };
+    const chat: Thread = { ...remoteThread, projectId: HOME_PROJECT_ID, presentationMode: "gui" };
+    const view = useAppStore.getState().view;
+    useRemoteServersStore.getState().setClientFactory(
+      factoryFor(
+        makeClient({
+          snapshot: async () => ({
+            snapshotSeq: 0,
+            projects: [home, proj],
+            threads: [chat],
+            runtimeSummariesByThread: {},
+            updatedAt: "now",
           }),
-        ),
-      );
-      await useRemoteServersStore
+        }),
+      ),
+    );
+    await useRemoteServersStore
+      .getState()
+      .pairServer({ endpoint: "192.168.1.9:38987", token: "a" });
+    expect(
+      useAppStore
         .getState()
-        .pairServer({ endpoint: "192.168.1.9:38987", token: "a" });
-      expect(
-        useAppStore
-          .getState()
-          .projects.filter((project) => project.remoteServerId === "d1")
-          .map((project) => project.remoteId),
-      ).toEqual([HOME_PROJECT_ID]);
-      expect(
-        useAppStore.getState().threads.find((thread) => thread.remoteId === chat.id)
-          ?.presentationMode,
-      ).toBe("gui");
-      await useRemoteServersStore.getState().refreshServer("d1");
-      expect(
-        useAppStore.getState().threads.find((thread) => thread.remoteId === chat.id)?.projectId,
-      ).toBe(remoteProjectId("d1", HOME_PROJECT_ID));
-      expect(useAppStore.getState().view).toBe(view);
-    } finally {
-      vi.unstubAllEnvs();
-    }
+        .projects.filter((project) => project.remoteServerId === "d1")
+        .map((project) => project.remoteId),
+    ).toEqual([HOME_PROJECT_ID, "p1"]);
+    expect(
+      useAppStore.getState().threads.find((thread) => thread.remoteId === chat.id)
+        ?.presentationMode,
+    ).toBe("gui");
+    await useRemoteServersStore.getState().refreshServer("d1");
+    expect(
+      useAppStore.getState().threads.find((thread) => thread.remoteId === chat.id)?.projectId,
+    ).toBe(remoteProjectId("d1", HOME_PROJECT_ID));
+    expect(useAppStore.getState().view).toBe(view);
   });
 
-  it("never mirrors the remote's built-in Home scope project", async () => {
+  it("keeps the desktop app on its own Home instead of the remote's built-in Home scope", async () => {
+    installClientRuntime({
+      version: PORACODE_CLIENT_RUNTIME_VERSION,
+      host: "electron",
+      surface: "adaptive",
+      transport: "electron-backend-host",
+      capabilities: {
+        localBackend: true,
+        manageRemoteEnvironments: true,
+        nativeAppUpdates: true,
+        nativeBrowserWebContents: true,
+        nativeShell: true,
+        nativeSsh: true,
+        osNotifications: true,
+      },
+      procedures: bridge as never,
+      native: bridge as never,
+    });
     const home: Project = { ...proj, id: HOME_PROJECT_ID, name: "Home" };
     useRemoteServersStore
       .getState()
