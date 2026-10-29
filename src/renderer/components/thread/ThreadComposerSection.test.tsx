@@ -46,6 +46,7 @@ import {
   type TurnClientContextCapture,
 } from "../composer/turnClientContext";
 import type { ComposerMcpMenuItem } from "../composer/ComposerAddMenu";
+import { installRuntimeHistoryRecovery } from "@/renderer/state/runtimeInterestHydration";
 import { useRevertedPromptStore } from "./revertedPrompt";
 import type { ThreadErrorDockState } from "./threadErrorState";
 
@@ -320,6 +321,7 @@ describe("ThreadComposerSection", () => {
       runtimeItemIdsByThread: {},
       runtimeItemsByIdByThread: {},
       runtimeRequestsByThread: {},
+      runtimeHydrationStatus: {},
       pendingSteerByThreadId: {},
       connectingThreadIds: {},
       pendingComposerFocusThreadId: null,
@@ -1095,6 +1097,50 @@ describe("ThreadComposerSection", () => {
   });
 
   it.each([false, true])(
+    "shows genuine history failures in the composer (compact: %s)",
+    async (compact) => {
+      if (compact)
+        vi.stubGlobal(
+          "matchMedia",
+          vi.fn((query: string) => ({
+            media: query,
+            matches: query === "(max-width: 767px)",
+            onchange: null,
+            addEventListener: () => undefined,
+            removeEventListener: () => undefined,
+            addListener: () => undefined,
+            removeListener: () => undefined,
+            dispatchEvent: () => true,
+          })),
+        );
+      const recover = vi.fn<(threadId: string) => void>();
+      const uninstall = installRuntimeHistoryRecovery(recover);
+      try {
+        useAppStore.setState({ runtimeHydrationStatus: { [guiThread.id]: "failed" } });
+        const { rerender, unmount } = renderComposer();
+        const message = screen.getByText("Messages could not be loaded.");
+        const dock = message.closest("section")!;
+        expect(dock).toHaveAttribute("data-placement", "composer");
+        expect(within(dock).getByText("Warning")).toBeInTheDocument();
+        fireEvent.click(within(dock).getByRole("button", { name: "Retry" }));
+        expect(recover).toHaveBeenCalledExactlyOnceWith(guiThread.id);
+        await act(async () => {
+          useAppStore.getState().setRuntimeHydrationStatus(guiThread.id, null);
+        });
+        expect(screen.queryByText("Messages could not be loaded.")).not.toBeInTheDocument();
+        await act(async () => {
+          useAppStore.setState({ runtimeHydrationStatus: { [terminalThread.id]: "failed" } });
+        });
+        rerender(composerElement({ thread: terminalThread, agentStatus: claudeTerminalStatus }));
+        expect(screen.queryByText("Messages could not be loaded.")).not.toBeInTheDocument();
+        unmount();
+      } finally {
+        uninstall();
+      }
+    },
+  );
+
+  it.each([false, true])(
     "shows the history notice in the composer docks for chat threads only (compact: %s)",
     (compact) => {
       if (compact)
@@ -1124,8 +1170,10 @@ describe("ThreadComposerSection", () => {
       try {
         recordThreadHistoryNoticeRead(guiThread.id, "local", notice);
         recordThreadHistoryNoticeRead(terminalThread.id, "local", notice);
+        useAppStore.setState({ runtimeHydrationStatus: { [guiThread.id]: "failed" } });
         const { unmount } = renderComposer();
         expect(screen.getByRole("button", { name: "Dismiss warning" })).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
         unmount();
 
         renderComposer({ thread: terminalThread, agentStatus: claudeTerminalStatus });

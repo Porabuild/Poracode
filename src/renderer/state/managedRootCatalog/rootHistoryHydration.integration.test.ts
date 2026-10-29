@@ -46,6 +46,88 @@ import {
 beforeEach(setupManagedRootFixture);
 afterEach(teardownManagedRootFixture);
 
+it("recovers an active transcript using the snapshot prefix without waiting for silence", async () => {
+  const threadId = "t-streaming-history-recovery";
+  seedThread(threadId);
+  seedRuntimeItems(threadId, 2);
+  await activate();
+  const client = readManagedLoopbackActivation()!.client;
+  let reducer: SupervisorEventReducer;
+  const recovery = createLocalSnapshotRecovery({ getArbitration: () => reducer.arbitration });
+  reducer = createSupervisorEventReducer({
+    recovery: recovery.strategy,
+    onSequencedEvent: recovery.noteSequencedSupervisorEvent,
+  });
+  const originalRead = client.boundedThreadHistory.bind(client);
+  const read = vi.spyOn(client, "boundedThreadHistory").mockImplementation(async (...args) => {
+    const result = await originalRead(...args);
+    if (result.negotiation !== "bounded") throw new Error("Expected bounded history");
+    reducer.dispatch(
+      {
+        type: "thread-runtime-events",
+        threadId,
+        events: [
+          { type: "item.started", threadId, itemId: "live-reply", itemType: "assistant_message" },
+          {
+            type: "content.delta",
+            threadId,
+            itemId: "live-reply",
+            stream: "assistant_text",
+            delta: "new output",
+          },
+        ],
+      },
+      result.page.snapshotSeq + 1,
+      { sequenceSpace: "loopback" },
+    );
+    return result;
+  });
+  try {
+    reducer.recoverRuntimeHistory(threadId);
+    await vi.waitFor(() => {
+      reducer.flushSync(threadId);
+      expect(
+        useAppStore.getState().runtimeItemsByIdByThread[threadId]?.["live-reply"]?.streams,
+      ).toEqual({ assistant_text: "new output" });
+    });
+    expect(read).toHaveBeenCalledOnce();
+    expect(useAppStore.getState().runtimeItemIdsByThread[threadId]).toEqual([
+      "item-0",
+      "item-1",
+      "live-reply",
+    ]);
+    expect(useAppStore.getState().runtimeHydrationStatus[threadId]).toBeUndefined();
+  } finally {
+    read.mockRestore();
+    reducer.clear();
+  }
+}, 60_000);
+
+it("clears a previous load failure after successful incremental history recovery", async () => {
+  const threadId = "t-resume-clears-load-failure";
+  seedThread(threadId);
+  seedRuntimeItems(threadId, 2);
+  await activate();
+  await hydrateThreadRuntimeItems(threadId);
+  const client = readManagedLoopbackActivation()!.client;
+  const resume = vi.spyOn(client, "resumeThreadHistory");
+  let reducer: SupervisorEventReducer;
+  const recovery = createLocalSnapshotRecovery({ getArbitration: () => reducer.arbitration });
+  reducer = createSupervisorEventReducer({ recovery: recovery.strategy });
+  try {
+    useAppStore.getState().setRuntimeHydrationStatus(threadId, "failed");
+    reducer.recoverRuntimeHistory(threadId);
+    await vi.waitFor(() => expect(resume).toHaveBeenCalledOnce());
+    await vi.waitFor(() =>
+      expect(useAppStore.getState().runtimeHydrationStatus[threadId]).toBeUndefined(),
+    );
+    expect(useAppStore.getState().runtimeItemIdsByThread[threadId]).toEqual(["item-0", "item-1"]);
+  } finally {
+    resume.mockRestore();
+    reducer.clear();
+  }
+}, 60_000);
+
 it("loads saved history on the first read when the local connection becomes active", async () => {
   const threadId = "t-history-first-activation";
   seedThread(threadId);

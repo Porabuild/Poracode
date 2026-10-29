@@ -354,6 +354,7 @@ export function createSupervisorEventReducer(
     for (const threadId of threadIds) {
       runtimeRecoveryInFlight.delete(threadId);
       runtimeRecoveryInvalidated.delete(threadId);
+      useAppStore.getState().setRuntimeHydrationStatus(threadId, null);
       recoverOmittedContent(threadId);
     }
     schedulePendingRuntimeEvents();
