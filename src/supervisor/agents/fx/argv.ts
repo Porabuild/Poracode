@@ -17,12 +17,22 @@ export function buildFxLaunchEnv(config: ThreadConfig): { FX_PERMISSION_MODE: Fx
   return { FX_PERMISSION_MODE: fxPermissionModeFor(config.approvalPolicy) };
 }
 
-export function buildFxArgs(config: ThreadConfig, resumeSessionId?: string): string[] {
+/** Model, effort, and Fast flags, shared by Terminal launches and one-shots. */
+export function fxModelArgs(selection: {
+  model?: string | undefined;
+  effort?: string | undefined;
+  fast?: boolean | undefined;
+}): string[] {
   const args: string[] = [];
-  if (config.model) args.push("--model", config.model);
-  if (config.effort) args.push("--effort", config.effort);
-  if (config.fast === true) args.push("--fast");
-  else if (config.fast === false) args.push("--no-fast");
+  if (selection.model) args.push("--model", selection.model);
+  if (selection.effort) args.push("--effort", selection.effort);
+  if (selection.fast === true) args.push("--fast");
+  else if (selection.fast === false) args.push("--no-fast");
+  return args;
+}
+
+export function buildFxArgs(config: ThreadConfig, resumeSessionId?: string): string[] {
+  const args = fxModelArgs(config);
   // fx 0.0.15 rejects any flag after `--resume <id>` with its resume usage text.
   if (resumeSessionId) args.push("--resume", resumeSessionId);
   return args;

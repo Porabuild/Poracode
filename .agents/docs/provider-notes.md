@@ -202,9 +202,9 @@ Gateway models that support it. fx's default effort `auto` is offered as the
 last level. Known gap: after a mid-thread model switch, and before a thread's
 first turn, the effort and Fast controls are not shown until the next turn.
 
-`subagent` tool calls with `action: "run"` map to `_toolName: "task"` with the
-title minus its `Subagent · ` prefix; `action: "message"` stays a plain tool
-call. fx returns tool output as JSON envelopes (sub-agent
+`subagent` tool calls with `action: "run"` map to `_toolName: "task"`, and both
+the title and the description drop fx's `Subagent · ` prefix (the agent row
+labels with the title); `action: "message"` stays a plain tool call. fx returns tool output as JSON envelopes (sub-agent
 `{ok, result, error_code}`, fx's own tool errors
 `{error: {type, tool_name, message}}`, MCP `{server, tool, result}`), which the
 fx transform unwraps to the text the tool produced. It also starts a new

@@ -153,10 +153,11 @@ describe("createFxAcpSessionUpdateTransform", () => {
       prompt: "Inspect the repo layout",
       description: "Inspect the repo",
     });
+    expect(readUpdate(result)["title"]).toBe("Inspect the repo");
     expect(isAcpSubAgentToolCall({ rawInput })).toBe(true);
   });
 
-  it("drops the fx Subagent · prefix from the description", () => {
+  it("drops the fx Subagent · prefix from the title and description", () => {
     const transform = createFxAcpSessionUpdateTransform();
     const result = transform(
       notification({
@@ -171,6 +172,7 @@ describe("createFxAcpSessionUpdateTransform", () => {
       _toolName: "task",
       description: "Inspect README",
     });
+    expect(readUpdate(result)["title"]).toBe("Inspect README");
   });
 
   it("falls back to the first task line truncated to 80 chars", () => {
@@ -188,6 +190,7 @@ describe("createFxAcpSessionUpdateTransform", () => {
     expect(readUpdate(result)["rawInput"]).toMatchObject({
       description: "x".repeat(80),
     });
+    expect(readUpdate(result)["title"]).toBe("x".repeat(80));
   });
 
   it("remembers a subagent tool call for its tool_call_update", () => {

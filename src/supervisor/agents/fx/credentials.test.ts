@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { FX_BACKENDS } from "@/shared/agents/fxBackends";
 import {
-  FX_BACKENDS,
   FX_CONNECTIONS_PROBE_ENV,
   manageFxCredentials,
   parseFxConnectedProviders,

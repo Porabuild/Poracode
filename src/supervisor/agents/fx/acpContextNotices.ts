@@ -2,6 +2,7 @@ import {
   getExtensionStore,
   type AcpTextStreamExtension,
 } from "../acp/canonicalMapping/textStreamExtension";
+import { asRecord } from "../base/sessionImport";
 
 /** `_meta` key the fx transform sets on every chunk of a "[context]" notice. */
 export const FX_CONTEXT_NOTICE_META_KEY = "poracodeFxContextNotice";
@@ -12,12 +13,6 @@ export function isFxContextNoticeText(text: string): boolean {
 
 interface FxContextNoticeState {
   pending: boolean;
-}
-
-function asRecord(value: unknown): Record<string, unknown> | undefined {
-  return typeof value === "object" && value !== null && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : undefined;
 }
 
 /**

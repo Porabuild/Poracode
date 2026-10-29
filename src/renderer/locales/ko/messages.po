@@ -1337,8 +1337,7 @@ msgstr "로그인하기 전에 프로젝트를 추가하세요."
 msgid "Add a project before updating an agent."
 msgstr "에이전트를 업데이트하기 전에 프로젝트를 추가하세요."
 
-#: src/renderer/components/providers/fx/FxProviderSettings.tsx
-#: src/renderer/components/providers/settings/OpenCode2ProviderSettings.tsx
+#: src/renderer/components/providers/settings/ProviderCredentialAccounts.tsx
 msgid "Add a project in this environment before signing in."
 msgstr "로그인하기 전에 이 환경에 프로젝트를 추가하세요."
 
@@ -10284,9 +10283,8 @@ msgstr "로그인 소스"
 msgid "Login source, config file, organization, and runtime for this configuration. Thread knobs like model and approvals stay on the composer."
 msgstr "이 구성의 로그인 소스, 설정 파일, 조직, 런타임입니다. 모델과 승인 같은 스레드 설정은 컴포저에 남아 있습니다."
 
-#: src/renderer/components/providers/fx/FxProviderSettings.tsx
-#: src/renderer/components/providers/settings/OpenCode2ProviderSettings.tsx
 #: src/renderer/components/providers/settings/ProviderAccountsSection.tsx
+#: src/renderer/components/providers/settings/ProviderCredentialAccounts.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Logout"
@@ -15182,8 +15180,7 @@ msgstr "연결된 스킬 “{0}”을(를) 제거할까요? 원본 폴더는 삭
 msgid "Remove the project's experiments before removing the project."
 msgstr "프로젝트를 제거하기 전에 프로젝트의 실험을 제거하세요."
 
-#: src/renderer/components/providers/fx/FxProviderSettings.tsx
-#: src/renderer/components/providers/settings/OpenCode2ProviderSettings.tsx
+#: src/renderer/components/providers/settings/ProviderCredentialAccounts.tsx
 msgid "Remove the saved credential for this provider? You can connect it again from Add provider."
 msgstr "이 공급자의 저장된 자격 증명을 제거할까요? ‘공급자 추가’에서 다시 연결할 수 있습니다."
 
@@ -17458,9 +17455,8 @@ msgstr "{label} 로그아웃"
 
 #. placeholder {0}: provider.label
 #. placeholder {0}: signingOut?.provider.label ?? ""
-#: src/renderer/components/providers/fx/FxProviderSettings.tsx
-#: src/renderer/components/providers/settings/OpenCode2ProviderSettings.tsx
 #: src/renderer/components/providers/settings/ProviderAccountsSection.tsx
+#: src/renderer/components/providers/settings/ProviderCredentialAccounts.tsx
 msgid "Sign out of {0}"
 msgstr "{0}에서 로그아웃"
 

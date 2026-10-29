@@ -1337,8 +1337,7 @@ msgstr "Ajoutez un projet avant de vous connecter."
 msgid "Add a project before updating an agent."
 msgstr "Ajoutez un projet avant de mettre à jour un agent."
 
-#: src/renderer/components/providers/fx/FxProviderSettings.tsx
-#: src/renderer/components/providers/settings/OpenCode2ProviderSettings.tsx
+#: src/renderer/components/providers/settings/ProviderCredentialAccounts.tsx
 msgid "Add a project in this environment before signing in."
 msgstr "Ajoutez un projet dans cet environnement avant de vous connecter."
 
@@ -10284,9 +10283,8 @@ msgstr "Source de connexion"
 msgid "Login source, config file, organization, and runtime for this configuration. Thread knobs like model and approvals stay on the composer."
 msgstr "Source de connexion, fichier de configuration, organisation et environnement d'exécution pour cette configuration. Les réglages du fil comme le modèle et les approbations restent dans le composeur."
 
-#: src/renderer/components/providers/fx/FxProviderSettings.tsx
-#: src/renderer/components/providers/settings/OpenCode2ProviderSettings.tsx
 #: src/renderer/components/providers/settings/ProviderAccountsSection.tsx
+#: src/renderer/components/providers/settings/ProviderCredentialAccounts.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Logout"
@@ -15181,8 +15179,7 @@ msgstr "Supprimer la compétence liée « {0} » ? Son dossier source ne sera
 msgid "Remove the project's experiments before removing the project."
 msgstr "Supprimez les expériences du projet avant de supprimer le projet."
 
-#: src/renderer/components/providers/fx/FxProviderSettings.tsx
-#: src/renderer/components/providers/settings/OpenCode2ProviderSettings.tsx
+#: src/renderer/components/providers/settings/ProviderCredentialAccounts.tsx
 msgid "Remove the saved credential for this provider? You can connect it again from Add provider."
 msgstr "Supprimer les identifiants enregistrés de ce fournisseur ? Vous pourrez le reconnecter depuis « Ajouter un fournisseur »."
 
@@ -17457,9 +17454,8 @@ msgstr "Déconnexion {label}"
 
 #. placeholder {0}: provider.label
 #. placeholder {0}: signingOut?.provider.label ?? ""
-#: src/renderer/components/providers/fx/FxProviderSettings.tsx
-#: src/renderer/components/providers/settings/OpenCode2ProviderSettings.tsx
 #: src/renderer/components/providers/settings/ProviderAccountsSection.tsx
+#: src/renderer/components/providers/settings/ProviderCredentialAccounts.tsx
 msgid "Sign out of {0}"
 msgstr "Se déconnecter de {0}"
 

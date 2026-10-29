@@ -1696,6 +1696,52 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     }
   }
 
+  /**
+   * The optimistic user row painted for an accepted prompt. The prompt itself
+   * generates no `session/update`, so the client paints it from its own text
+   * and segments.
+   */
+  private userMessageItemEvents(
+    itemId: string,
+    prompt: string,
+    segments: PromptSegment[] | undefined,
+  ): RuntimeEvent[] {
+    return [
+      {
+        type: "item.started",
+        threadId: this.threadId,
+        itemId,
+        itemType: "user_message",
+        payload: {
+          content: buildPromptContentBlocks(prompt, segments),
+        },
+      },
+      { type: "item.completed", threadId: this.threadId, itemId },
+    ];
+  }
+
+  /**
+   * Portable-skills fallback: inline instructions are appended to the outbound
+   * prompt only — the painted user_message stays clean of inlined skill bodies.
+   */
+  private outboundPromptBlocks(
+    prompt: string,
+    segments: PromptSegment[] | undefined,
+    options: StartTurnOptions | undefined,
+  ): Promise<ContentBlock[]> {
+    const outboundPrompt = options?.inlineInstructions
+      ? `${prompt}\n\n${options.inlineInstructions}`
+      : prompt;
+    return segmentsToContentBlocks(
+      outboundPrompt,
+      this.projectLocation,
+      segments,
+      this.behavior.inlineImagePrompts === false
+        ? { ...this.agentPromptCapabilities, image: false }
+        : this.agentPromptCapabilities,
+    );
+  }
+
   private async runStartTurn(
     prompt: string,
     config: ThreadConfig,
@@ -1745,16 +1791,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     const userItemId = options?.userMessageItemId ?? `user-${this.currentTurnId}`;
     this.emitRuntimeEvents([
       { type: "turn.started", threadId: this.threadId, turnId: this.currentTurnId },
-      {
-        type: "item.started",
-        threadId: this.threadId,
-        itemId: userItemId,
-        itemType: "user_message",
-        payload: {
-          content: buildPromptContentBlocks(prompt, segments),
-        },
-      },
-      { type: "item.completed", threadId: this.threadId, itemId: userItemId },
+      ...this.userMessageItemEvents(userItemId, prompt, segments),
     ]);
     if (this.goalCommands) {
       const goalEvents = mapAcpGoalSlashCommand(prompt, this.ensureMapperState());
@@ -1764,19 +1801,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     // Signal working state immediately
     this.emitListenerUpdate({ status: "working", attention: "working" });
 
-    // Portable-skills fallback: append to the outbound prompt only — the
-    // user_message paint above must stay clean of inlined skill bodies.
-    const outboundPrompt = options?.inlineInstructions
-      ? `${prompt}\n\n${options.inlineInstructions}`
-      : prompt;
-    const contentBlocks = await segmentsToContentBlocks(
-      outboundPrompt,
-      this.projectLocation,
-      segments,
-      this.behavior.inlineImagePrompts === false
-        ? { ...this.agentPromptCapabilities, image: false }
-        : this.agentPromptCapabilities,
-    );
+    const contentBlocks = await this.outboundPromptBlocks(prompt, segments, options);
 
     try {
       // Stop may arrive while configuration setters are awaited. The provider
@@ -1957,27 +1982,10 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     const userItemId = options?.userMessageItemId ?? `user-${randomUUID()}`;
     this.emitRuntimeEvents([
       ...(closesOpenContent ? closeOpenContentItems(this.ensureMapperState()) : []),
-      {
-        type: "item.started",
-        threadId: this.threadId,
-        itemId: userItemId,
-        itemType: "user_message",
-        payload: { content: buildPromptContentBlocks(prompt, segments) },
-      },
-      { type: "item.completed", threadId: this.threadId, itemId: userItemId },
+      ...this.userMessageItemEvents(userItemId, prompt, segments),
     ]);
 
-    const outboundPrompt = options?.inlineInstructions
-      ? `${prompt}\n\n${options.inlineInstructions}`
-      : prompt;
-    const blocks = await segmentsToContentBlocks(
-      outboundPrompt,
-      this.projectLocation,
-      segments,
-      this.behavior.inlineImagePrompts === false
-        ? { ...this.agentPromptCapabilities, image: false }
-        : this.agentPromptCapabilities,
-    );
+    const blocks = await this.outboundPromptBlocks(prompt, segments, options);
     if (this.isDisposed) return;
     // The turn may have ended while the content blocks were prepared; a steer
     // then belongs to the next turn, keeping the same painted user row.

@@ -35,7 +35,6 @@ describe("parseFxStatusJson", () => {
     expect(parseFxStatusJson(stdout)).toEqual({
       model: "spacexai/grok-4.7",
       auth: "AI_GATEWAY_API_KEY",
-      modes: ["auto", "ask", "full-access"],
     });
   });
 
@@ -45,12 +44,8 @@ describe("parseFxStatusJson", () => {
     expect(parseFxStatusJson(JSON.stringify(["status"]))).toBeUndefined();
   });
 
-  it("omits missing model/auth and tolerates malformed modes", () => {
-    expect(parseFxStatusJson(JSON.stringify({ kind: "status", modes: [null, { id: 1 }] }))).toEqual(
-      {
-        modes: [],
-      },
-    );
+  it("omits missing model/auth", () => {
+    expect(parseFxStatusJson(JSON.stringify({ kind: "status" }))).toEqual({});
   });
 });
 
@@ -111,7 +106,7 @@ describe("buildFxCapabilities", () => {
   ];
 
   it("moves the status default model first and keeps fx's order otherwise", () => {
-    const capabilities = buildFxCapabilities({ model: "spacexai/grok-4.7", modes: [] }, models);
+    const capabilities = buildFxCapabilities({ model: "spacexai/grok-4.7" }, models);
     expect(capabilities.models).toEqual([
       { id: "spacexai/grok-4.7", label: "Grok 4.7" },
       { id: "anthropic/claude-opus-5.5", label: "Claude Opus 5.5" },
@@ -120,7 +115,7 @@ describe("buildFxCapabilities", () => {
   });
 
   it("sorts efforts canonically with auto last and keeps empty ladders empty", () => {
-    const capabilities = buildFxCapabilities({ model: "spacexai/grok-4.7", modes: [] }, models);
+    const capabilities = buildFxCapabilities({ model: "spacexai/grok-4.7" }, models);
     expect(capabilities.modelEfforts?.["spacexai/grok-4.7"]).toEqual([
       "low",
       "medium",
@@ -163,18 +158,13 @@ describe("buildFxCapabilities", () => {
 
   it("maps auth to missing/authenticated and omits unknown", () => {
     expect(
-      buildFxCapabilities({ model: "spacexai/grok-4.7", auth: "missing", modes: [] }, models)
-        .authState,
+      buildFxCapabilities({ model: "spacexai/grok-4.7", auth: "missing" }, models).authState,
     ).toBe("missing");
     expect(
-      buildFxCapabilities(
-        { model: "spacexai/grok-4.7", auth: "AI_GATEWAY_API_KEY", modes: [] },
-        models,
-      ).authState,
+      buildFxCapabilities({ model: "spacexai/grok-4.7", auth: "AI_GATEWAY_API_KEY" }, models)
+        .authState,
     ).toBe("authenticated");
-    expect(buildFxCapabilities({ model: "spacexai/grok-4.7", modes: [] }, models).authState).toBe(
-      undefined,
-    );
+    expect(buildFxCapabilities({ model: "spacexai/grok-4.7" }, models).authState).toBe(undefined);
   });
 
   it("offers the terminal login method and leaves logout to the per-backend panel", () => {
@@ -185,7 +175,7 @@ describe("buildFxCapabilities", () => {
   });
 
   it("falls back to the status default model when the catalog is unavailable", () => {
-    const capabilities = buildFxCapabilities({ model: "spacexai/grok-4.7", modes: [] }, undefined);
+    const capabilities = buildFxCapabilities({ model: "spacexai/grok-4.7" }, undefined);
     expect(capabilities.models).toEqual([{ id: "spacexai/grok-4.7", label: "spacexai/grok-4.7" }]);
     expect(capabilities.efforts).toEqual([]);
     expect(capabilities.modelEfforts).toEqual({ "spacexai/grok-4.7": [] });

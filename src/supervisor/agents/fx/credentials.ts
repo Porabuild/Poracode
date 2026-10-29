@@ -4,19 +4,12 @@ import type {
   ManageAgentCredentialsResult,
   ProjectLocation,
 } from "@/shared/contracts";
+import { FX_BACKENDS } from "@/shared/agents/fxBackends";
+import { firstNonEmptyLine } from "../acp/canonicalMapping/contentExtraction";
 import { detectProbeLocation, readAgentCommandOutput } from "../base";
+import { parseJsonRecord } from "../base/sessionImport";
 import { resolveAgentBinaryPath } from "../binaryResolver";
 import { FX_BASE_SPAWN_ENV } from "./detection";
-
-/**
- * The fx sign-in backends, in the order Provider Settings lists them. The
- * renderer's FxProviderSettings mirrors these slugs and labels.
- */
-export const FX_BACKENDS = [
-  { slug: "vercel", statusId: "vercel-ai-gateway", label: "Vercel AI Gateway" },
-  { slug: "codex", statusId: "codex", label: "Codex" },
-  { slug: "grok", statusId: "grok", label: "Grok" },
-] as const;
 
 /**
  * fx lists `connected_providers` only while a non-Gateway backend is selected,
@@ -29,15 +22,8 @@ export const FX_CONNECTIONS_PROBE_ENV = {
 };
 
 export function parseFxConnectedProviders(stdout: string): AgentConnectedProvider[] | undefined {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(stdout);
-  } catch {
-    return undefined;
-  }
-  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return undefined;
-  const record = parsed as Record<string, unknown>;
-  if (record["kind"] !== "status") return undefined;
+  const record = parseJsonRecord(stdout);
+  if (!record || record["kind"] !== "status") return undefined;
   const connected = record["connected_providers"];
   if (!Array.isArray(connected)) return undefined;
   const statusIds = new Set(connected.filter((id): id is string => typeof id === "string"));
@@ -58,13 +44,6 @@ export async function readFxConnectedProviders(
     ...(options.signal ? { signal: options.signal } : {}),
   });
   return result.ok ? parseFxConnectedProviders(result.stdout) : undefined;
-}
-
-function firstNonEmptyLine(text: string): string | undefined {
-  return text
-    .split("\n")
-    .map((line) => line.trim())
-    .find((line) => line.length > 0);
 }
 
 /**

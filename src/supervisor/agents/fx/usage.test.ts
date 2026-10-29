@@ -101,6 +101,28 @@ describe("parseFxUsageJson chatgpt", () => {
     ]);
     expect(snapshot.credits).toEqual({ balance: 12.5 });
   });
+
+  it("suffixes repeated nameless limits until every window id is unique", () => {
+    const snapshot = parseFxUsageJson(
+      usageJson({
+        source: "chatgpt",
+        codex: {
+          limits: [
+            { name: "", primary: { used_percent: 10, window_seconds: 18_000 }, secondary: null },
+            { name: "", primary: { used_percent: 20, window_seconds: 18_000 }, secondary: null },
+            { name: "", primary: { used_percent: 30, window_seconds: 18_000 }, secondary: null },
+          ],
+        },
+      }),
+      NOW,
+    );
+
+    expect(snapshot.windows.map((window) => window.id)).toEqual([
+      "session-5h",
+      "codex:-18000",
+      "codex:-18000-2",
+    ]);
+  });
 });
 
 describe("parseFxUsageJson ai_gateway", () => {

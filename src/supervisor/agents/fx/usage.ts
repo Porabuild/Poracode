@@ -8,6 +8,7 @@ import {
 } from "@poracode/agents-usage";
 import { readAgentCommandOutput } from "../base";
 import { resolveExecutablePathAsync } from "../base/processRuntime";
+import { asRecord, parseJsonRecord } from "../base/sessionImport";
 import { FX_BASE_SPAWN_ENV } from "./detection";
 
 /**
@@ -17,12 +18,6 @@ import { FX_BASE_SPAWN_ENV } from "./detection";
 export const FX_USAGE_PROVIDER_ID = "fx";
 
 const AUTH_MISSING_REASONS = new Set(["no_gateway_sign_in", "no_team", "refresh_needed"]);
-
-function asRecord(value: unknown): Record<string, unknown> | undefined {
-  return typeof value === "object" && value !== null && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : undefined;
-}
 
 function finiteNonNegative(value: unknown): number | undefined {
   return typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : undefined;
@@ -163,6 +158,10 @@ function chatGptSnapshot(record: Record<string, unknown>, fetchedAt: number): Us
         label = `${name} (${Math.round(windowSeconds / 3600)}h)`;
       }
       if (usedIds.has(id)) id = `codex:${name}-${windowSeconds}`;
+      // Nameless or repeated limits can still collide; suffix until unique.
+      for (let occurrence = 2; usedIds.has(id); occurrence += 1) {
+        id = `codex:${name}-${windowSeconds}-${occurrence}`;
+      }
       usedIds.add(id);
 
       const resetsAt = positiveInteger(window?.["resets_at_ms"]);
@@ -243,13 +242,7 @@ function grokSnapshot(record: Record<string, unknown>, fetchedAt: number): Usage
 }
 
 export function parseFxUsageJson(stdout: string, nowMs: number): UsageSnapshot {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(stdout);
-  } catch {
-    return errorSnapshot(nowMs, "fx usage returned unreadable output");
-  }
-  const record = asRecord(parsed);
+  const record = parseJsonRecord(stdout);
   if (!record || record["kind"] !== "usage") {
     return errorSnapshot(nowMs, "fx usage returned unreadable output");
   }
@@ -322,13 +315,11 @@ export async function scanFxUsage(
       };
     }
     const result = await deps.runUsage(binary);
-    if (result.ok) return parseFxUsageJson(result.stdout, nowMs);
-    try {
-      JSON.parse(result.stdout);
-      return parseFxUsageJson(result.stdout, nowMs);
-    } catch {
+    // A failed exit still carries fx's usage JSON when the refresh itself failed.
+    if (!result.ok && !parseJsonRecord(result.stdout)) {
       return errorSnapshot(nowMs, "fx usage failed");
     }
+    return parseFxUsageJson(result.stdout, nowMs);
   } catch {
     return errorSnapshot(nowMs, "fx usage failed");
   }

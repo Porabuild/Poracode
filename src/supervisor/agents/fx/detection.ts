@@ -13,6 +13,7 @@ import {
   type DetectProbeCtx,
   type DetectionSpec,
 } from "../base";
+import { asRecord, parseJsonRecord } from "../base/sessionImport";
 import { readFxConnectedProviders } from "./credentials";
 
 // Verified against fx 0.0.15. `models --json` lists the catalog of fx's active
@@ -65,8 +66,6 @@ export interface FxStatusSummary {
   model?: string;
   /** Auth source label; "missing" means signed out. */
   auth?: string;
-  /** Advertised permission/mode ids in fx order. */
-  modes: string[];
 }
 
 export interface FxModelSummary {
@@ -76,33 +75,12 @@ export interface FxModelSummary {
   fast: boolean;
 }
 
-function asRecord(value: unknown): Record<string, unknown> | undefined {
-  return typeof value === "object" && value !== null && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : undefined;
-}
-
-function parseJsonRecord(stdout: string): Record<string, unknown> | undefined {
-  try {
-    return asRecord(JSON.parse(stdout));
-  } catch {
-    return undefined;
-  }
-}
-
 export function parseFxStatusJson(stdout: string): FxStatusSummary | undefined {
   const parsed = parseJsonRecord(stdout);
   if (!parsed || parsed.kind !== "status") return undefined;
-  const modes = Array.isArray(parsed.modes)
-    ? parsed.modes.flatMap((entry) => {
-        const record = asRecord(entry);
-        return typeof record?.id === "string" && record.id.length > 0 ? [record.id] : [];
-      })
-    : [];
   return {
     ...(typeof parsed.model === "string" && parsed.model.length > 0 ? { model: parsed.model } : {}),
     ...(typeof parsed.auth === "string" && parsed.auth.length > 0 ? { auth: parsed.auth } : {}),
-    modes,
   };
 }
 
@@ -167,12 +145,8 @@ export function buildFxCapabilities(
   const ids = catalog.map((model) => model.id);
   let subProviders: AgentCapability["subProviders"];
   if (ids.length > 0 && ids.every((id) => id.includes("/"))) {
-    const prefixes = new Map<string, string>();
-    for (const id of ids) {
-      const prefix = id.slice(0, id.indexOf("/"));
-      if (!prefixes.has(prefix)) prefixes.set(prefix, prefix);
-    }
-    subProviders = [...prefixes.keys()].map((prefix) => ({ id: prefix, label: prefix }));
+    const vendors = new Set(ids.map((id) => id.slice(0, id.indexOf("/"))));
+    subProviders = [...vendors].map((vendor) => ({ id: vendor, label: vendor }));
   }
 
   const fastModels = catalog.filter((model) => model.fast).map((model) => model.id);

@@ -1337,8 +1337,7 @@ msgstr "Dodaj projekt przed zalogowaniem."
 msgid "Add a project before updating an agent."
 msgstr "Dodaj projekt przed aktualizacją agenta."
 
-#: src/renderer/components/providers/fx/FxProviderSettings.tsx
-#: src/renderer/components/providers/settings/OpenCode2ProviderSettings.tsx
+#: src/renderer/components/providers/settings/ProviderCredentialAccounts.tsx
 msgid "Add a project in this environment before signing in."
 msgstr "Przed zalogowaniem dodaj projekt w tym środowisku."
 
@@ -10284,9 +10283,8 @@ msgstr "Źródło logowania"
 msgid "Login source, config file, organization, and runtime for this configuration. Thread knobs like model and approvals stay on the composer."
 msgstr "Źródło logowania, plik konfiguracji, organizacja i środowisko uruchomieniowe dla tej konfiguracji. Ustawienia wątku, takie jak model i zatwierdzenia, pozostają w kompozytorze."
 
-#: src/renderer/components/providers/fx/FxProviderSettings.tsx
-#: src/renderer/components/providers/settings/OpenCode2ProviderSettings.tsx
 #: src/renderer/components/providers/settings/ProviderAccountsSection.tsx
+#: src/renderer/components/providers/settings/ProviderCredentialAccounts.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Logout"
@@ -15182,8 +15180,7 @@ msgstr "Usunąć połączoną umiejętność „{0}”? Jej folder źródłowy n
 msgid "Remove the project's experiments before removing the project."
 msgstr "Usuń eksperymenty projektu przed usunięciem projektu."
 
-#: src/renderer/components/providers/fx/FxProviderSettings.tsx
-#: src/renderer/components/providers/settings/OpenCode2ProviderSettings.tsx
+#: src/renderer/components/providers/settings/ProviderCredentialAccounts.tsx
 msgid "Remove the saved credential for this provider? You can connect it again from Add provider."
 msgstr "Usunąć zapisane dane logowania tego dostawcy? Możesz połączyć go ponownie przez „Dodaj dostawcę”."
 
@@ -17458,9 +17455,8 @@ msgstr "Wyloguj się z {label}"
 
 #. placeholder {0}: provider.label
 #. placeholder {0}: signingOut?.provider.label ?? ""
-#: src/renderer/components/providers/fx/FxProviderSettings.tsx
-#: src/renderer/components/providers/settings/OpenCode2ProviderSettings.tsx
 #: src/renderer/components/providers/settings/ProviderAccountsSection.tsx
+#: src/renderer/components/providers/settings/ProviderCredentialAccounts.tsx
 msgid "Sign out of {0}"
 msgstr "Wyloguj się z {0}"
 

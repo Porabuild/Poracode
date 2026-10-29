@@ -4,6 +4,7 @@ import type { AcpSelectBooleanConfigBinding } from "../acp/modelConfigOptions";
 import type { AcpPromptSteering } from "../acp/promptSteering";
 import type { AcpConfigOptionsNormalizer } from "../base/types";
 import type { AcpSessionUpdateTransform } from "../base";
+import { asRecord, parseJsonRecord } from "../base/sessionImport";
 import { PORACODE_ACP_NEW_ASSISTANT_ITEM_META_KEY } from "../acp/canonicalMapping/subagents";
 import { FX_CONTEXT_NOTICE_META_KEY, isFxContextNoticeText } from "./acpContextNotices";
 import { fxPermissionModeFor } from "./argv";
@@ -20,12 +21,6 @@ export function resolveFxAcpMode(
   if (availableModeIds.includes(wanted)) return wanted;
   if (wanted === "full-access" && availableModeIds.includes("code")) return "code";
   return undefined;
-}
-
-function asRecord(value: unknown): Record<string, unknown> | undefined {
-  return typeof value === "object" && value !== null && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : undefined;
 }
 
 /**
@@ -130,11 +125,7 @@ function truncatedMcpEnvelopeText(text: string): string | undefined {
 }
 
 function parsedTextEnvelope(text: string): Record<string, unknown> | undefined {
-  try {
-    return asRecord(JSON.parse(text.trim()));
-  } catch {
-    return undefined;
-  }
+  return parseJsonRecord(text.trim());
 }
 
 function nonEmptyString(value: unknown): string | undefined {
@@ -314,8 +305,11 @@ export function createFxAcpSessionUpdateTransform(): AcpSessionUpdateTransform {
           const title = typeof update["title"] === "string" ? update["title"].trim() : "";
           const description =
             title.replace(/^Subagent\s*·\s*/u, "").trim() || firstLineOf(task).slice(0, 80);
+          // Agent rows label with the ACP title ahead of `description`, so the
+          // title drops fx's "Subagent · " prefix too.
           nextUpdate = {
             ...nextUpdate,
+            title: description,
             rawInput: {
               ...rawInput,
               _toolName: "task",

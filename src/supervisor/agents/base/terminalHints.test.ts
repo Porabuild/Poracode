@@ -6,7 +6,7 @@ function status(
   state: OscProgramStatus["state"],
   kind: string | undefined = undefined,
 ): OscProgramStatus {
-  return { code: 7501, state, kind, app: "demo", message: undefined };
+  return { code: 7501, state, kind, app: "demo" };
 }
 
 describe("programStatusOscHint", () => {

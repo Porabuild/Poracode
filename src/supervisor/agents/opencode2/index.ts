@@ -3,6 +3,7 @@ import { manageOpenCode2Plugins } from "./plugins";
 import type { AgentCapability, PromptSegment } from "@/shared/contracts";
 import { inlinePromptSegmentText } from "@/shared/promptContent";
 import {
+  bracketedPasteDirectInput,
   detectAgentInstall,
   detectProbeLocation,
   notInstalledAgentStatus,
@@ -135,11 +136,7 @@ export function createOpenCode2Adapter(): AgentAdapter {
     runTextOnlyOneShot: runOpenCode2OneShot,
 
     // ── Input ────────────────────────────────────────────────────────────
-    buildDirectInput(prompt) {
-      const hasInnerNewline = prompt.includes("\n");
-      const payload = hasInnerNewline ? `\x1b[200~${prompt}\x1b[201~` : prompt;
-      return [payload, "@wait:60", "\r"];
-    },
+    buildDirectInput: bracketedPasteDirectInput,
     formatPromptSegments(segments: PromptSegment[]) {
       const attachments = segments.filter((segment) => segment.kind === "attachment");
       const rest = segments.filter((segment) => segment.kind !== "attachment");

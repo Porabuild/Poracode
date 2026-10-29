@@ -3,6 +3,7 @@ import { inlinePromptSegmentText } from "@/shared/promptContent";
 import { EXTRACTION_PROMPT } from "@/supervisor/contextExtractor";
 import {
   assertOneShotControlsMapped,
+  bracketedPasteDirectInput,
   resolveCheckedOneShotBuilderSelection,
   resolveCheckedOneShotResumeSelection,
   createKnownSessionRef,
@@ -233,11 +234,7 @@ export function createOpenCodeAdapter(): AgentAdapter {
     shutdown: shutdownSpawnedOpenCodeServers,
 
     // ── Input ────────────────────────────────────────────────────────────
-    buildDirectInput(prompt) {
-      const hasInnerNewline = prompt.includes("\n");
-      const payload = hasInnerNewline ? `\x1b[200~${prompt}\x1b[201~` : prompt;
-      return [payload, "@wait:60", "\r"];
-    },
+    buildDirectInput: bracketedPasteDirectInput,
     formatPromptSegments(segments: PromptSegment[]) {
       const attachments = segments.filter((segment) => segment.kind === "attachment");
       const rest = segments.filter((segment) => segment.kind !== "attachment");

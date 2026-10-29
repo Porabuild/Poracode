@@ -41,7 +41,7 @@ export function ProviderAccountsSection(props: {
   const { agentKind, providers, pendingKey, addDisabled = false } = props;
   const isBusy = pendingKey !== undefined;
   const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
-  const addMenuDisabled = isBusy || addDisabled || (props.addOptions?.length ?? 1) === 0;
+  const addMenuDisabled = isBusy || addDisabled || props.addOptions?.length === 0;
 
   const addButton = (
     <Button

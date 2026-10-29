@@ -426,15 +426,12 @@ describe("extractOscEvents", () => {
       const states = ["idle", "working", "blocked", "done", "error", "clear"] as const;
       for (const state of states) {
         const result = extractOscEvents(`\x1b]7501;state=${state}:app=demo\x1b\\`);
-        expect(result.programStatus).toEqual([
-          { code: 7501, state, kind: undefined, app: "demo", message: undefined },
-        ]);
+        expect(result.programStatus).toEqual([{ code: 7501, state, kind: undefined, app: "demo" }]);
         expect(result.cleaned).toBe("");
       }
     });
 
-    it("extracts blocked with permission kind and decodes a base64 message", () => {
-      // msg = base64("Run npm test?")
+    it("extracts blocked with permission kind and ignores the message field", () => {
       const data =
         "\x1b]7501;state=blocked:kind=permission:app=demo:msg=UnVuIG5wbSB0ZXN0Pw==\x1b\\";
       const result = extractOscEvents(data);
@@ -444,7 +441,6 @@ describe("extractOscEvents", () => {
           state: "blocked",
           kind: "permission",
           app: "demo",
-          message: "Run npm test?",
         },
       ]);
       expect(result.cleaned).toBe("");
@@ -459,7 +455,6 @@ describe("extractOscEvents", () => {
           state: "blocked",
           kind: "question",
           app: "demo",
-          message: undefined,
         },
       ]);
       expect(result.cleaned).toBe("");
@@ -484,7 +479,7 @@ describe("extractOscEvents", () => {
       const data = "\x1b]7501;state=done:app=demo:extra=ignored:another=1\x1b\\";
       const result = extractOscEvents(data);
       expect(result.programStatus).toEqual([
-        { code: 7501, state: "done", kind: undefined, app: "demo", message: undefined },
+        { code: 7501, state: "done", kind: undefined, app: "demo" },
       ]);
     });
 
@@ -496,7 +491,7 @@ describe("extractOscEvents", () => {
       expect(r1.carryOut.startsWith("\x1b]7501;")).toBe(true);
       const r2 = extractOscEventsFromPtyStream(r1.carryOut, b);
       expect(r2.programStatus).toEqual([
-        { code: 7501, state: "working", kind: undefined, app: "demo", message: undefined },
+        { code: 7501, state: "working", kind: undefined, app: "demo" },
       ]);
       expect(r1.cleaned + r2.cleaned).toBe("beforeafter");
     });

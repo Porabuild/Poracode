@@ -1336,8 +1336,7 @@ msgstr "サインインする前にプロジェクトを追加してください
 msgid "Add a project before updating an agent."
 msgstr "エージェントを更新する前にプロジェクトを追加してください。"
 
-#: src/renderer/components/providers/fx/FxProviderSettings.tsx
-#: src/renderer/components/providers/settings/OpenCode2ProviderSettings.tsx
+#: src/renderer/components/providers/settings/ProviderCredentialAccounts.tsx
 msgid "Add a project in this environment before signing in."
 msgstr "サインインする前に、この環境にプロジェクトを追加してください。"
 
@@ -10283,9 +10282,8 @@ msgstr "ログインソース"
 msgid "Login source, config file, organization, and runtime for this configuration. Thread knobs like model and approvals stay on the composer."
 msgstr "この設定のログインソース、設定ファイル、組織、ランタイムです。モデルや承認などのスレッド設定はコンポーザーにあります。"
 
-#: src/renderer/components/providers/fx/FxProviderSettings.tsx
-#: src/renderer/components/providers/settings/OpenCode2ProviderSettings.tsx
 #: src/renderer/components/providers/settings/ProviderAccountsSection.tsx
+#: src/renderer/components/providers/settings/ProviderCredentialAccounts.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Logout"
@@ -15180,8 +15178,7 @@ msgstr "リンクされたスキル「{0}」を削除しますか？ソースフ
 msgid "Remove the project's experiments before removing the project."
 msgstr "プロジェクトを削除する前に、そのプロジェクトの実験を削除してください。"
 
-#: src/renderer/components/providers/fx/FxProviderSettings.tsx
-#: src/renderer/components/providers/settings/OpenCode2ProviderSettings.tsx
+#: src/renderer/components/providers/settings/ProviderCredentialAccounts.tsx
 msgid "Remove the saved credential for this provider? You can connect it again from Add provider."
 msgstr "このプロバイダーの保存された認証情報を削除しますか？「プロバイダーを追加」からいつでも再接続できます。"
 
@@ -17456,9 +17453,8 @@ msgstr "サインアウト{label}"
 
 #. placeholder {0}: provider.label
 #. placeholder {0}: signingOut?.provider.label ?? ""
-#: src/renderer/components/providers/fx/FxProviderSettings.tsx
-#: src/renderer/components/providers/settings/OpenCode2ProviderSettings.tsx
 #: src/renderer/components/providers/settings/ProviderAccountsSection.tsx
+#: src/renderer/components/providers/settings/ProviderCredentialAccounts.tsx
 msgid "Sign out of {0}"
 msgstr "{0} からサインアウト"
 

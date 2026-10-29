@@ -79,8 +79,6 @@ export interface OscProgramStatus {
   kind: string | undefined;
   /** Emitting application identifier, if provided. */
   app: string | undefined;
-  /** Human-readable message decoded from base64 `msg`, if provided. */
-  message: string | undefined;
 }
 
 // Combined regex to extract notifications (9 / 777 / 99), titles (0 / 1 / 2),
@@ -281,21 +279,6 @@ function parseOsc633Body(body: string): OscShellEvent | null {
   }
 }
 
-/**
- * Decode an OSC 7501 `msg` field: standard base64 of UTF-8 text. Shared code
- * also runs in the browser, so use `atob` + `TextDecoder` rather than Buffer.
- */
-function decodeOsc7501Message(encoded: string): string | undefined {
-  try {
-    const text = new TextDecoder("utf-8", { fatal: true }).decode(
-      Uint8Array.from(atob(encoded), (char) => char.charCodeAt(0)),
-    );
-    return text.length === 0 ? undefined : text;
-  } catch {
-    return undefined;
-  }
-}
-
 const OSC_7501_STATES: ReadonlySet<string> = new Set<OscProgramState>([
   "idle",
   "working",
@@ -324,13 +307,11 @@ export function parseOsc7501Body(body: string): OscProgramStatus | null {
   if (state === undefined || !OSC_7501_STATES.has(state)) return null;
   const kind = fields.get("kind");
   const app = fields.get("app");
-  const msg = fields.get("msg");
   return {
     code: 7501,
     state: state as OscProgramState,
     kind: kind === "" ? undefined : kind,
     app: app === "" ? undefined : app,
-    message: msg === undefined || msg === "" ? undefined : decodeOsc7501Message(msg),
   };
 }
 

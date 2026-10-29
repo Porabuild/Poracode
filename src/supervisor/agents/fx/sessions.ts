@@ -9,6 +9,7 @@ import {
   watchSessionPaths,
 } from "../base";
 import { resolveAgentBinaryPath } from "../binaryResolver";
+import { asRecord, parseJsonRecord } from "../base/sessionImport";
 import { FX_BASE_SPAWN_ENV } from "./detection";
 
 export interface FxSessionSummary {
@@ -28,22 +29,15 @@ function fxCwdKey(location: ProjectLocation): string {
 }
 
 export function parseFxSessionsJson(stdout: string): FxSessionSummary[] | undefined {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(stdout);
-  } catch {
-    return undefined;
-  }
-  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return undefined;
-  const record = parsed as Record<string, unknown>;
-  if (record["kind"] !== "sessions") return undefined;
+  const record = parseJsonRecord(stdout);
+  if (record?.["kind"] !== "sessions") return undefined;
   const sessions = record["sessions"];
   if (!Array.isArray(sessions)) return undefined;
 
   const summaries: FxSessionSummary[] = [];
   for (const entry of sessions) {
-    if (typeof entry !== "object" || entry === null || Array.isArray(entry)) continue;
-    const entryRecord = entry as Record<string, unknown>;
+    const entryRecord = asRecord(entry);
+    if (!entryRecord) continue;
     const id = entryRecord["id"];
     if (typeof id !== "string" || id.length === 0) continue;
     const createdAt = entryRecord["created_at_ms"];
@@ -93,7 +87,9 @@ export async function listFxSessions(
 /**
  * Record the sessions that already exist for this workspace immediately before
  * a fresh launch. Discovery is only allowed against a snapshot — without one we
- * would guess an older session id.
+ * would guess an older session id. When `fx sessions` fails (a cold WSL probe
+ * can time out), the snapshot is empty and only the creation-time window
+ * bounds discovery, as with Codex and Muse on WSL.
  */
 export async function snapshotFxPreSpawnSessions(location: ProjectLocation): Promise<void> {
   const takenAtMs = Date.now();

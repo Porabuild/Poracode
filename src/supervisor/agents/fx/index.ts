@@ -1,15 +1,13 @@
-import type { PromptSegment } from "@/shared/contracts";
-import { inlinePromptSegmentText } from "@/shared/promptContent";
 import { createAcpStructuredSession } from "../acp";
 import {
   assertOneShotControlsMapped,
+  bracketedPasteDirectInput,
   detectAgentInstall,
   detectProbeLocation,
   inheritBaseSpawnEnv,
   prepareAgentLocationEnvironment,
   programStatusOscHint,
   resolveCheckedOneShotBuilderSelection,
-  shortenHomePath,
   type AgentAdapter,
   type AgentEnvContext,
   type CreateStructuredSessionInput,
@@ -24,7 +22,7 @@ import {
   resolveFxAcpMode,
 } from "./acp";
 import { fxContextNoticeExtension } from "./acpContextNotices";
-import { buildFxArgs, buildFxLaunchEnv } from "./argv";
+import { buildFxArgs, buildFxLaunchEnv, fxModelArgs } from "./argv";
 import { manageFxCredentials } from "./credentials";
 import { buildFxCommand, fxDefaultCapabilities, fxDetectionSpec } from "./detection";
 import { fxNativeMcpConfig } from "./nativeMcp";
@@ -145,20 +143,7 @@ export function createFxAdapter(): AgentAdapter {
     isReadyForInitialPrompt(text) {
       return /Run \/help for commands|session resumed:|\b(?:ask|auto|full access) · \S/i.test(text);
     },
-    buildDirectInput(prompt) {
-      const hasInnerNewline = prompt.includes("\n");
-      const payload = hasInnerNewline ? `\x1b[200~${prompt}\x1b[201~` : prompt;
-      return [payload, "@wait:60", "\r"];
-    },
-    formatPromptSegments(segments: PromptSegment[]) {
-      const attachments = segments.filter((segment) => segment.kind === "attachment");
-      const rest = segments.filter((segment) => segment.kind !== "attachment");
-      const attachmentLines = attachments
-        .map((segment) => `@${shortenHomePath(segment.path)}`)
-        .join(" ");
-      const restStr = rest.map(inlinePromptSegmentText).join("");
-      return attachmentLines ? `${restStr}\n\n${attachmentLines} ` : restStr;
-    },
+    buildDirectInput: bracketedPasteDirectInput,
 
     detectInvalidSessionRef(text) {
       return /saved session not found/i.test(text);
@@ -179,13 +164,7 @@ export function createFxAdapter(): AgentAdapter {
       if (!prompt) return undefined;
       return {
         command: "fx",
-        args: [
-          "ask",
-          "--no-save",
-          ...(model ? ["--model", model] : []),
-          ...(effort ? ["--effort", effort] : []),
-          ...(fast === true ? ["--fast"] : fast === false ? ["--no-fast"] : []),
-        ],
+        args: ["ask", "--no-save", ...fxModelArgs({ model, effort, fast })],
         stdin: prompt,
         // Utility one-shots must never run with full access.
         env: { FX_PERMISSION_MODE: "ask" },

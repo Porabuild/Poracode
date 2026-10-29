@@ -180,6 +180,60 @@ describe("ACP prompt steering turn", () => {
     expect(turnEvents(listener, "turn.completed")).toHaveLength(1);
   });
 
+  it("joins a steer accepted while the drain awaits an earlier steer", async () => {
+    const fixture = makeConfigSyncSession({
+      promptSteering: steering,
+      behavior: { promptUsageCounterKind: "per-call", promptUsageReportsContext: false },
+    });
+    fixture.connection.initialize.mockResolvedValueOnce({
+      protocolVersion: 1,
+      agentCapabilities: { _meta: { steer: true } },
+    });
+    await fixture.session.activate();
+    const { connection, listener, session } = fixture;
+    (session as unknown as Record<string, unknown>)["usageScopeId"] = "scope-1";
+
+    const main = deferred<{ stopReason: string; usage: { totalTokens: number } }>();
+    const steerOne = deferred<{ stopReason: string; usage: { totalTokens: number } }>();
+    const steerTwo = deferred<{ stopReason: string; usage: { totalTokens: number } }>();
+    connection.prompt
+      .mockReturnValueOnce(main.promise as never)
+      .mockReturnValueOnce(steerOne.promise as never)
+      .mockReturnValueOnce(steerTwo.promise as never);
+
+    const turn = session.startTurn("first prompt", config);
+    await vi.waitFor(() => expect(connection.prompt).toHaveBeenCalledTimes(1));
+    await session.steerTurn?.("steer one", config);
+    expect(connection.prompt).toHaveBeenCalledTimes(2);
+
+    main.resolve({ stopReason: "end_turn", usage: { totalTokens: 10 } });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    // promptInFlight stays true during the drain, so this joins the same turn.
+    await session.steerTurn?.("steer two", config);
+    expect(connection.prompt).toHaveBeenCalledTimes(3);
+    expect(connection.prompt.mock.calls[1]?.[0]).toMatchObject({ _meta: steering.requestMeta });
+    expect(connection.prompt.mock.calls[2]?.[0]).toMatchObject({ _meta: steering.requestMeta });
+
+    steerOne.resolve({ stopReason: "end_turn", usage: { totalTokens: 20 } });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(turnEvents(listener, "turn.completed")).toHaveLength(0);
+
+    steerTwo.resolve({ stopReason: "end_turn", usage: { totalTokens: 30 } });
+    await turn;
+
+    expect(turnEvents(listener, "turn.completed")).toHaveLength(1);
+    const turnId = turnEvents(listener, "turn.started")[0]?.["turnId"];
+    const sampleIds = runtimeEvents(listener)
+      .filter((event) => event.type === "usage.spent")
+      .map((event) => (event["usage"] as { sampleId: string }).sampleId);
+    expect(sampleIds).toEqual([
+      `acp-prompt-v1:scope-1:0:${String(turnId)}`,
+      `acp-prompt-v1:scope-1:0:${String(turnId)}:steer-1`,
+      `acp-prompt-v1:scope-1:0:${String(turnId)}:steer-2`,
+    ]);
+  });
+
   it("paints the user row after closing open assistant content", async () => {
     const { connection, listener, session } = await advertisedSession();
     const main = deferred<{ stopReason: string }>();
