@@ -1,6 +1,6 @@
 {
   "name": "poracode",
-  "version": "2.0.0",
+  "version": "2.0.0-nightly.202610291246",
   "private": true,
   "description": "The universal desktop orchestrator for AI agents. Run terminal-native and structured chat agents side-by-side.",
   "homepage": "https://poracode.com/",
