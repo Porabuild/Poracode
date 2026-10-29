@@ -1,5 +1,6 @@
 import type { SessionNotification } from "@agentclientprotocol/sdk";
 import { describe, expect, it } from "vitest";
+import { PORACODE_ACP_NEW_ASSISTANT_ITEM_META_KEY } from "../acp/canonicalMapping/subagents";
 import { findFastConfigOption } from "../acp/modelConfigOptions";
 import {
   createFxAcpSessionUpdateTransform,
@@ -206,6 +207,423 @@ describe("createFxAcpSessionUpdateTransform", () => {
       rawInput: { path: "a.ts" },
     });
     expect(transform(other)).toBe(other);
+  });
+
+  it("marks a new assistant message id without breaking the previous one", () => {
+    const transform = createFxAcpSessionUpdateTransform();
+    const chunk = (messageId: string | undefined, text: string) =>
+      notification({
+        sessionUpdate: "agent_message_chunk",
+        ...(messageId === undefined ? {} : { messageId }),
+        content: { type: "text", text },
+      });
+
+    const first = chunk("m1", "first");
+    expect(transform(first)).toBe(first);
+    const sameId = chunk("m1", "still first");
+    expect(transform(sameId)).toBe(sameId);
+    const withoutId = chunk(undefined, "no id");
+    expect(transform(withoutId)).toBe(withoutId);
+    const stillFirst = chunk("m1", "after the id-less chunk");
+    expect(transform(stillFirst)).toBe(stillFirst);
+
+    const next = notification({
+      sessionUpdate: "agent_message_chunk",
+      messageId: "m2",
+      _meta: { keep: "yes" },
+      content: { type: "text", text: "second message" },
+    });
+    const marked = transform(next);
+    expect(marked).not.toBe(next);
+    expect(readUpdate(marked)["_meta"]).toEqual({
+      keep: "yes",
+      [PORACODE_ACP_NEW_ASSISTANT_ITEM_META_KEY]: "owner",
+    });
+  });
+
+  it("leaves agent_thought_chunk untouched", () => {
+    const transform = createFxAcpSessionUpdateTransform();
+    const thought = notification({
+      sessionUpdate: "agent_thought_chunk",
+      messageId: "t1",
+      content: { type: "text", text: "thinking" },
+    });
+    expect(transform(thought)).toBe(thought);
+  });
+
+  it("unwraps sub-agent result envelopes into the produced text", () => {
+    const transform = createFxAcpSessionUpdateTransform();
+    transform(
+      notification({
+        sessionUpdate: "tool_call",
+        toolCallId: "sub-1",
+        name: "subagent",
+        rawInput: { action: "run", task: "check strings" },
+      }),
+    );
+
+    const update = notification({
+      sessionUpdate: "tool_call_update",
+      toolCallId: "sub-1",
+      content: [
+        {
+          type: "content",
+          content: {
+            type: "text",
+            text: JSON.stringify({
+              ok: true,
+              result: "`src/strings.ts` contains 3 lines.",
+              error_code: null,
+            }),
+          },
+        },
+      ],
+    });
+    expect(readUpdate(transform(update))["content"]).toEqual([
+      { type: "content", content: { type: "text", text: "`src/strings.ts` contains 3 lines." } },
+    ]);
+
+    const failed = notification({
+      sessionUpdate: "tool_call_update",
+      toolCallId: "sub-1",
+      content: [
+        {
+          type: "content",
+          content: {
+            type: "text",
+            text: JSON.stringify({ ok: false, result: null, error_code: "timeout" }),
+          },
+        },
+      ],
+    });
+    expect(readUpdate(transform(failed))["content"]).toEqual([
+      { type: "content", content: { type: "text", text: "timeout" } },
+    ]);
+
+    const plain = notification({
+      sessionUpdate: "tool_call_update",
+      toolCallId: "sub-1",
+      content: [{ type: "content", content: { type: "text", text: "not json" } }],
+    });
+    expect(transform(plain)).toBe(plain);
+  });
+
+  it("unwraps fx tool-error envelopes only while the frame is failed", () => {
+    const transform = createFxAcpSessionUpdateTransform();
+    const envelope = JSON.stringify({
+      error: {
+        type: "tool_permission_denied",
+        tool_name: "shell",
+        message: "Permission denied by user",
+        reason: "user_denied",
+        denied: true,
+      },
+    });
+    const content = [{ type: "content", content: { type: "text", text: envelope } }];
+
+    const failed = notification({
+      sessionUpdate: "tool_call_update",
+      toolCallId: "shell-1",
+      status: "failed",
+      content,
+    });
+    expect(readUpdate(transform(failed))["content"]).toEqual([
+      { type: "content", content: { type: "text", text: "Permission denied by user" } },
+    ]);
+
+    const completed = notification({
+      sessionUpdate: "tool_call_update",
+      toolCallId: "shell-1",
+      status: "completed",
+      content,
+    });
+    expect(transform(completed)).toBe(completed);
+  });
+
+  it("leaves a failed command's own JSON stdout untouched", () => {
+    const transform = createFxAcpSessionUpdateTransform();
+    const update = notification({
+      sessionUpdate: "tool_call_update",
+      toolCallId: "shell-2",
+      status: "failed",
+      content: [
+        {
+          type: "content",
+          content: { type: "text", text: JSON.stringify({ error: { message: "Not Found" } }) },
+        },
+      ],
+    });
+    expect(transform(update)).toBe(update);
+  });
+
+  it("adds the error detail when Stop cancels a sub-agent", () => {
+    const transform = createFxAcpSessionUpdateTransform();
+    transform(
+      notification({
+        sessionUpdate: "tool_call",
+        toolCallId: "sub-cancel",
+        name: "subagent",
+        rawInput: { action: "run", task: "Run wc -l" },
+      }),
+    );
+    const cancelled = notification({
+      sessionUpdate: "tool_call_update",
+      toolCallId: "sub-cancel",
+      status: "failed",
+      content: [
+        {
+          type: "content",
+          content: {
+            type: "text",
+            text: JSON.stringify({
+              error: {
+                type: "tool_execution_failed",
+                tool_name: "subagent",
+                message: "Tool execution failed",
+                details: { error: "Cancelled" },
+              },
+            }),
+          },
+        },
+      ],
+    });
+    expect(readUpdate(transform(cancelled))["content"]).toEqual([
+      { type: "content", content: { type: "text", text: "Tool execution failed: Cancelled" } },
+    ]);
+  });
+
+  it("leaves an error envelope without fx's tool_name untouched", () => {
+    const transform = createFxAcpSessionUpdateTransform();
+    const update = notification({
+      sessionUpdate: "tool_call_update",
+      toolCallId: "shell-3",
+      status: "failed",
+      content: [
+        {
+          type: "content",
+          content: {
+            type: "text",
+            text: JSON.stringify({ error: { type: "invalid_request_error", message: "Bad" } }),
+          },
+        },
+      ],
+    });
+    expect(transform(update)).toBe(update);
+  });
+
+  it("expands multi-item MCP results in order", () => {
+    const transform = createFxAcpSessionUpdateTransform();
+    transform(
+      notification({
+        sessionUpdate: "tool_call",
+        toolCallId: "mcp-multi",
+        name: "mcp_fx-smoke_echo",
+        _meta: { fx: { toolCall: { mcp: { server: "fx-smoke", tool: "echo" } } } },
+      }),
+    );
+
+    const update = notification({
+      sessionUpdate: "tool_call_update",
+      toolCallId: "mcp-multi",
+      status: "completed",
+      content: [
+        {
+          type: "content",
+          content: {
+            type: "text",
+            text: JSON.stringify({
+              server: "fx-smoke",
+              tool: "echo",
+              result: {
+                content: [
+                  { type: "text", text: "a" },
+                  { type: "image", data: "AAAA", mimeType: "image/png" },
+                ],
+              },
+            }),
+          },
+        },
+      ],
+    });
+    expect(readUpdate(transform(update))["content"]).toEqual([
+      { type: "content", content: { type: "text", text: "a" } },
+      { type: "content", content: { type: "image", data: "AAAA", mimeType: "image/png" } },
+    ]);
+  });
+
+  it("prefers the sub-agent envelope over the permission-denial rule", () => {
+    const transform = createFxAcpSessionUpdateTransform();
+    transform(
+      notification({
+        sessionUpdate: "tool_call",
+        toolCallId: "sub-failed",
+        name: "subagent",
+        rawInput: { action: "run", task: "fail" },
+      }),
+    );
+    const update = notification({
+      sessionUpdate: "tool_call_update",
+      toolCallId: "sub-failed",
+      status: "failed",
+      content: [
+        {
+          type: "content",
+          content: {
+            type: "text",
+            text: JSON.stringify({
+              ok: false,
+              error: { message: "boom" },
+              error_code: "x",
+            }),
+          },
+        },
+      ],
+    });
+    expect(readUpdate(transform(update))["content"]).toEqual([
+      { type: "content", content: { type: "text", text: "boom" } },
+    ]);
+  });
+
+  it("unwraps envelopes on a tool_call frame, not only a tool_call_update", () => {
+    const transform = createFxAcpSessionUpdateTransform();
+    const update = notification({
+      sessionUpdate: "tool_call",
+      toolCallId: "sub-frame",
+      name: "subagent",
+      content: [
+        {
+          type: "content",
+          content: { type: "text", text: JSON.stringify({ ok: true, result: "done" }) },
+        },
+      ],
+    });
+    expect(readUpdate(transform(update))["content"]).toEqual([
+      { type: "content", content: { type: "text", text: "done" } },
+    ]);
+  });
+
+  it("expands MCP result wrappers into their content entries", () => {
+    const transform = createFxAcpSessionUpdateTransform();
+    transform(
+      notification({
+        sessionUpdate: "tool_call",
+        toolCallId: "mcp-1",
+        name: "mcp_fx-smoke_echo",
+        title: "echo",
+        _meta: { fx: { toolCall: { internal: false, mcp: { server: "fx-smoke", tool: "echo" } } } },
+      }),
+    );
+
+    const update = notification({
+      sessionUpdate: "tool_call_update",
+      toolCallId: "mcp-1",
+      status: "completed",
+      content: [
+        {
+          type: "content",
+          content: {
+            type: "text",
+            text: JSON.stringify({
+              server: "fx-smoke",
+              tool: "mcp_fx-smoke_echo",
+              result: { content: [{ type: "text", text: "echo: RAW3" }], isError: false },
+            }),
+          },
+        },
+      ],
+    });
+    expect(readUpdate(transform(update))["content"]).toEqual([
+      { type: "content", content: { type: "text", text: "echo: RAW3" } },
+    ]);
+
+    const weird = notification({
+      sessionUpdate: "tool_call_update",
+      toolCallId: "mcp-1",
+      status: "completed",
+      content: [
+        {
+          type: "content",
+          content: {
+            type: "text",
+            text: JSON.stringify({
+              server: "fx-smoke",
+              tool: "echo",
+              result: { content: [{ type: "weird" }] },
+            }),
+          },
+        },
+      ],
+    });
+    expect(transform(weird)).toBe(weird);
+
+    const nonMcp = notification({
+      sessionUpdate: "tool_call_update",
+      toolCallId: "read-1",
+      status: "completed",
+      content: [
+        {
+          type: "content",
+          content: {
+            type: "text",
+            text: JSON.stringify({
+              server: "fx-smoke",
+              tool: "echo",
+              result: { content: [{ type: "text", text: "echo: RAW3" }] },
+            }),
+          },
+        },
+      ],
+    });
+    expect(transform(nonMcp)).toBe(nonMcp);
+  });
+
+  it("never mutates the input while rewriting", () => {
+    const transform = createFxAcpSessionUpdateTransform();
+    transform(
+      notification({
+        sessionUpdate: "tool_call",
+        toolCallId: "mcp-mutate",
+        name: "mcp_fx-smoke_echo",
+        _meta: { fx: { toolCall: { mcp: { server: "fx-smoke", tool: "echo" } } } },
+      }),
+    );
+    const update = notification({
+      sessionUpdate: "tool_call_update",
+      toolCallId: "mcp-mutate",
+      status: "completed",
+      content: [
+        {
+          type: "content",
+          content: {
+            type: "text",
+            text: JSON.stringify({
+              server: "fx-smoke",
+              tool: "echo",
+              result: { content: [{ type: "text", text: "echo: RAW3" }] },
+            }),
+          },
+        },
+      ],
+    });
+    const snapshot = structuredClone(update);
+    transform(update);
+    expect(update).toEqual(snapshot);
+
+    const message = notification({
+      sessionUpdate: "agent_message_chunk",
+      messageId: "first",
+      content: { type: "text", text: "one" },
+    });
+    transform(message);
+    const nextMessage = notification({
+      sessionUpdate: "agent_message_chunk",
+      messageId: "second",
+      _meta: { keep: true },
+      content: { type: "text", text: "two" },
+    });
+    const messageSnapshot = structuredClone(nextMessage);
+    transform(nextMessage);
+    expect(nextMessage).toEqual(messageSnapshot);
   });
 });
 

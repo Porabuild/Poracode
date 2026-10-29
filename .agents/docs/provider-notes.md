@@ -177,7 +177,9 @@ fx has no permission flag, so every lane sets `FX_PERMISSION_MODE`
 because fx persists `set_mode` into `~/.fx/settings.json`. A mode change in a
 running Chat session still updates that saved default, as it does in fx's own
 TUI. One-shots always run with `ask`. Every spawn carries `FX_AUTO_UPGRADE=0`;
-updates go through `fx upgrade`.
+updates go through `fx upgrade`. fx 0.0.15 does not forward a sub-agent's
+approval requests over ACP, so in `ask` a sub-agent that needs one (a shell
+command, for example) waits until the user presses Stop, which settles the turn.
 
 Terminal status comes from OSC 7501 Program Status reports, not screen text;
 `error` maps to idle because the TUI waits for the next prompt. There is no
@@ -198,7 +200,12 @@ bound to the exact `fast` select (`FX_ACP_FAST_CONFIG_BINDING`), so it can
 never claim the higher-priced `ultrafast` select, which fx lists only for AI
 Gateway models that support it. fx's default effort `auto` is offered as the
 last level. `subagent` tool calls with `action: "run"` are mapped to the
-canonical subagent input; `action: "message"` stays a plain tool call.
+canonical subagent input; `action: "message"` stays a plain tool call. fx
+returns tool output as JSON envelopes (sub-agent `{ok, result, error_code}`,
+fx's own tool errors `{error: {type, tool_name, message}}`, MCP
+`{server, tool, result}`), which the fx transform unwraps to the text the tool
+produced. It also starts a new assistant item whenever an `agent_message_chunk`
+carries a new `messageId`, so separate fx messages in one turn do not merge.
 
 Chat steering is native and does not interrupt. fx advertises
 `agentCapabilities._meta.fx.steering`, and the adapter declares

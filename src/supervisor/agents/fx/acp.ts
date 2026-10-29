@@ -4,6 +4,7 @@ import type { AcpSelectBooleanConfigBinding } from "../acp/modelConfigOptions";
 import type { AcpPromptSteering } from "../acp/promptSteering";
 import type { AcpConfigOptionsNormalizer } from "../base/types";
 import type { AcpSessionUpdateTransform } from "../base";
+import { PORACODE_ACP_NEW_ASSISTANT_ITEM_META_KEY } from "../acp/canonicalMapping/subagents";
 import { fxPermissionModeFor } from "./argv";
 
 /**
@@ -98,44 +99,191 @@ function firstLineOf(text: string): string {
   return text.split("\n", 1)[0]?.trim() ?? "";
 }
 
+const MCP_CONTENT_TYPES = new Set(["text", "image", "audio", "resource_link", "resource"]);
+
+function parsedTextEnvelope(text: string): Record<string, unknown> | undefined {
+  try {
+    return asRecord(JSON.parse(text.trim()));
+  } catch {
+    return undefined;
+  }
+}
+
+function nonEmptyString(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim().length > 0 ? value : undefined;
+}
+
+function replaceContentText(
+  entry: Record<string, unknown>,
+  content: Record<string, unknown>,
+  text: string,
+): unknown[] {
+  return [{ ...entry, content: { ...content, text } }];
+}
+
+/** Sub-agent results: `{ ok, result, error_code }` -> the text the tool produced. */
+function subagentEnvelopeText(envelope: Record<string, unknown>): string | undefined {
+  if (typeof envelope["ok"] !== "boolean") return undefined;
+  if (envelope["ok"] === true) return nonEmptyString(envelope["result"]);
+  const error = asRecord(envelope["error"]);
+  return (
+    nonEmptyString(envelope["error"]) ??
+    nonEmptyString(error?.["message"]) ??
+    nonEmptyString(envelope["result"]) ??
+    nonEmptyString(envelope["error_code"])
+  );
+}
+
+/** MCP results: `{ server, tool, result: { content: [...] } }` -> one entry per item. */
+function mcpEnvelopeEntries(envelope: Record<string, unknown>): unknown[] | undefined {
+  const content = asRecord(envelope["result"])?.["content"];
+  if (!Array.isArray(content) || content.length === 0) return undefined;
+  const entries: unknown[] = [];
+  for (const item of content) {
+    const record = asRecord(item);
+    const type = record?.["type"];
+    if (!record || typeof type !== "string" || !MCP_CONTENT_TYPES.has(type)) return undefined;
+    entries.push({ type: "content", content: item });
+  }
+  return entries;
+}
+
 /**
- * fx reports subagent work as a `subagent` tool call whose rawInput carries
- * `{ action: "run", task }` or `{ action: "message", agent, message }`. The
- * shared runtime recognizes the canonical `{ subagent_type, prompt,
- * description }` shape, so map only the `run` action; messages pass through.
+ * fx's own tool errors: `{ error: { type, tool_name, message, details? } }` ->
+ * the message, plus `details.error` when it adds something ("Tool execution
+ * failed: Cancelled"). A failed command's stdout arrives unwrapped, so the
+ * `type` + `tool_name` signature keeps its own JSON from being rewritten.
+ */
+function fxToolErrorMessage(envelope: Record<string, unknown>): string | undefined {
+  const error = asRecord(envelope["error"]);
+  if (!error || !nonEmptyString(error["type"]) || !nonEmptyString(error["tool_name"])) {
+    return undefined;
+  }
+  const message = nonEmptyString(error["message"]);
+  if (!message) return undefined;
+  const detail = nonEmptyString(asRecord(error["details"])?.["error"]);
+  return detail && detail !== message ? `${message}: ${detail}` : message;
+}
+
+function rewriteToolContentEntry(
+  entry: unknown,
+  context: { subagent: boolean; mcp: boolean; failed: boolean },
+): unknown[] | undefined {
+  const record = asRecord(entry);
+  if (!record || record["type"] !== "content") return undefined;
+  const content = asRecord(record["content"]);
+  if (!content || content["type"] !== "text" || typeof content["text"] !== "string") {
+    return undefined;
+  }
+  const envelope = parsedTextEnvelope(content["text"]);
+  if (!envelope) return undefined;
+
+  // Precedence: sub-agent envelope, then MCP wrapper, then fx tool error.
+  if (context.subagent) {
+    const text = subagentEnvelopeText(envelope);
+    if (text !== undefined) return replaceContentText(record, content, text);
+  }
+  if (context.mcp) {
+    const entries = mcpEnvelopeEntries(envelope);
+    if (entries) return entries;
+  }
+  if (context.failed) {
+    const text = fxToolErrorMessage(envelope);
+    if (text !== undefined) return replaceContentText(record, content, text);
+  }
+  return undefined;
+}
+
+/**
+ * fx provider-boundary normalization for ACP updates. It unwraps the JSON
+ * envelopes fx returns as tool output (sub-agent `{ok, result, error_code}`,
+ * fx tool errors `{error: {type, tool_name, message}}`, MCP
+ * `{server, tool, result}`) into the text the tool produced, and starts a new
+ * assistant item whenever an `agent_message_chunk` carries a new `messageId` so
+ * separate fx messages in one turn do not merge. It also maps `subagent`
+ * `action: "run"` calls to the canonical subagent input; `action: "message"`
+ * stays a plain tool call.
  */
 export function createFxAcpSessionUpdateTransform(): AcpSessionUpdateTransform {
   const subagentToolCallIds = new Set<string>();
+  const mcpToolCallIds = new Set<string>();
+  let previousMessageId: string | undefined;
 
   return (notification) => {
     const update = asRecord(notification.update);
     if (!update) return notification;
     const sessionUpdate = update["sessionUpdate"];
+
+    if (sessionUpdate === "agent_message_chunk") {
+      const messageId = update["messageId"];
+      if (typeof messageId !== "string" || messageId.length === 0) return notification;
+      const startsNewMessage = previousMessageId !== undefined && previousMessageId !== messageId;
+      previousMessageId = messageId;
+      if (!startsNewMessage) return notification;
+      const markedUpdate: Record<string, unknown> = {
+        ...update,
+        _meta: {
+          ...(asRecord(update["_meta"]) ?? {}),
+          [PORACODE_ACP_NEW_ASSISTANT_ITEM_META_KEY]: "owner",
+        },
+      };
+      return { ...notification, update: markedUpdate } as SessionNotification;
+    }
+
     if (sessionUpdate !== "tool_call" && sessionUpdate !== "tool_call_update") {
       return notification;
     }
-    const toolCallId = update["toolCallId"];
-    if (typeof toolCallId !== "string" || toolCallId.length === 0) return notification;
-    if (update["name"] === "subagent") subagentToolCallIds.add(toolCallId);
-    if (!subagentToolCallIds.has(toolCallId)) return notification;
-    const rawInput = asRecord(update["rawInput"]);
-    if (!rawInput || rawInput["action"] !== "run") return notification;
-    const task = rawInput["task"];
-    if (typeof task !== "string") return notification;
 
-    const title = typeof update["title"] === "string" ? update["title"].trim() : "";
-    const description = title.length > 0 ? title : firstLineOf(task).slice(0, 80);
-    return {
-      ...notification,
-      update: {
-        ...update,
-        rawInput: {
-          ...rawInput,
-          subagent_type: "agent",
-          prompt: task,
-          description,
-        },
-      },
-    } as SessionNotification;
+    const toolCallId = update["toolCallId"];
+    const id = typeof toolCallId === "string" && toolCallId.length > 0 ? toolCallId : undefined;
+    if (id) {
+      if (update["name"] === "subagent") subagentToolCallIds.add(id);
+      const mcp = asRecord(asRecord(asRecord(update["_meta"])?.["fx"])?.["toolCall"])?.["mcp"];
+      if (asRecord(mcp)) mcpToolCallIds.add(id);
+    }
+
+    let nextUpdate = update;
+    if (id && subagentToolCallIds.has(id)) {
+      const rawInput = asRecord(update["rawInput"]);
+      if (rawInput?.["action"] === "run") {
+        const task = rawInput["task"];
+        if (typeof task === "string") {
+          const title = typeof update["title"] === "string" ? update["title"].trim() : "";
+          const description = title.length > 0 ? title : firstLineOf(task).slice(0, 80);
+          nextUpdate = {
+            ...nextUpdate,
+            rawInput: {
+              ...rawInput,
+              subagent_type: "agent",
+              prompt: task,
+              description,
+            },
+          };
+        }
+      }
+    }
+
+    const content = update["content"];
+    if (Array.isArray(content)) {
+      const rewritten: unknown[] = [];
+      let changed = false;
+      for (const entry of content) {
+        const replacement = rewriteToolContentEntry(entry, {
+          subagent: id !== undefined && subagentToolCallIds.has(id),
+          mcp: id !== undefined && mcpToolCallIds.has(id),
+          failed: update["status"] === "failed",
+        });
+        if (replacement) {
+          rewritten.push(...replacement);
+          changed = true;
+        } else {
+          rewritten.push(entry);
+        }
+      }
+      if (changed) nextUpdate = { ...nextUpdate, content: rewritten };
+    }
+
+    if (nextUpdate === update) return notification;
+    return { ...notification, update: nextUpdate } as SessionNotification;
   };
 }
