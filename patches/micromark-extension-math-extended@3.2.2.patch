@@ -1,0 +1,146 @@
+diff --git a/dev/lib/math-text.js b/dev/lib/math-text.js
+index 57254ca0a2e259e7eb4060a5c84992e50f3a7109..0b636f4fe6fd96b8b8eca4b47e9792134eca36eb 100644
+--- a/dev/lib/math-text.js
++++ b/dev/lib/math-text.js
+@@ -7,7 +7,12 @@
+ // This has to be coordinated together with `mdast-util-math`.
+ 
+ import {ok as assert} from 'devlop'
+-import {markdownLineEnding} from 'micromark-util-character'
++import {
++  asciiDigit,
++  markdownLineEnding,
++  markdownLineEndingOrSpace,
++  unicodeWhitespace
++} from 'micromark-util-character'
+ import {codes, types} from 'micromark-util-symbol'
+ 
+ /**
+@@ -56,6 +61,7 @@ function createDollarMathText(allowSingle) {
+     let size
+     /** @type {Token} */
+     let token
++    let closeAfterWhitespace = false
+ 
+     return start
+ 
+@@ -103,6 +109,11 @@ function createDollarMathText(allowSingle) {
+         return nok(code)
+       }
+ 
++      // Pandoc: a single `$` opener needs a non-space after it.
++      if (sizeOpen === 1 && whitespace(code)) {
++        return nok(code)
++      }
++
+       effects.exit('mathTextSequence')
+       return between(code)
+     }
+@@ -125,6 +136,7 @@ function createDollarMathText(allowSingle) {
+       if (code === codes.dollarSign) {
+         token = effects.enter('mathTextSequence')
+         size = 0
++        closeAfterWhitespace = whitespace(self.previous)
+         return sequenceClose(code)
+       }
+ 
+@@ -189,6 +201,14 @@ function createDollarMathText(allowSingle) {
+       }
+ 
+       if (size === sizeOpen) {
++        // Pandoc: a single `$` closer needs a non-space before it and no digit
++        // after it, so `$20 and $30` stays text. Like Pandoc, a `$` that cannot
++        // close ends the attempt instead of being skipped, so it can open the
++        // next span.
++        if (sizeOpen === 1 && (closeAfterWhitespace || asciiDigit(code))) {
++          return nok(code)
++        }
++
+         effects.exit('mathTextSequence')
+         effects.exit('mathText')
+         return ok(code)
+@@ -429,6 +449,14 @@ function previousDollar(code) {
+   )
+ }
+ 
++/**
++ * @param {number | null} code
++ * @returns {boolean}
++ */
++function whitespace(code) {
++  return markdownLineEndingOrSpace(code) || unicodeWhitespace(code)
++}
++
+ /**
+  * @this {TokenizeContext}
+  * @type {Previous}
+diff --git a/lib/math-text.js b/lib/math-text.js
+index 802e3d6f227d1c34b5192a9473685dd8cc563970..d55711d86970e6986e3b221a9ac5f689854c8cf4 100644
+--- a/lib/math-text.js
++++ b/lib/math-text.js
+@@ -6,7 +6,7 @@
+ // To do: next major: clean spaces in HTML compiler.
+ // This has to be coordinated together with `mdast-util-math`.
+ 
+-import { markdownLineEnding } from 'micromark-util-character';
++import { asciiDigit, markdownLineEnding, markdownLineEndingOrSpace, unicodeWhitespace } from 'micromark-util-character';
+ /**
+  * @param {Options | null | undefined} [options={}]
+  *   Configuration (default: `{}`).
+@@ -48,6 +48,7 @@ function createDollarMathText(allowSingle) {
+     let size;
+     /** @type {Token} */
+     let token;
++    let closeAfterWhitespace = false;
+     return start;
+ 
+     /**
+@@ -87,6 +88,11 @@ function createDollarMathText(allowSingle) {
+       if (sizeOpen < 2 && !allowSingle) {
+         return nok(code);
+       }
++
++      // Pandoc: a single `$` opener needs a non-space after it.
++      if (sizeOpen === 1 && whitespace(code)) {
++        return nok(code);
++      }
+       effects.exit('mathTextSequence');
+       return between(code);
+     }
+@@ -108,6 +114,7 @@ function createDollarMathText(allowSingle) {
+       if (code === 36) {
+         token = effects.enter('mathTextSequence');
+         size = 0;
++        closeAfterWhitespace = whitespace(self.previous);
+         return sequenceClose(code);
+       }
+       if (code === 32) {
+@@ -162,6 +169,13 @@ function createDollarMathText(allowSingle) {
+         return sequenceClose;
+       }
+       if (size === sizeOpen) {
++        // Pandoc: a single `$` closer needs a non-space before it and no digit
++        // after it, so `$20 and $30` stays text. Like Pandoc, a `$` that cannot
++        // close ends the attempt instead of being skipped, so it can open the
++        // next span.
++        if (sizeOpen === 1 && (closeAfterWhitespace || asciiDigit(code))) {
++          return nok(code);
++        }
+         effects.exit('mathTextSequence');
+         effects.exit('mathText');
+         return ok(code);
+@@ -359,6 +373,14 @@ function previousDollar(code) {
+   return code !== 36 || this.events[this.events.length - 1][1].type === "characterEscape";
+ }
+ 
++/**
++ * @param {number | null} code
++ * @returns {boolean}
++ */
++function whitespace(code) {
++  return markdownLineEndingOrSpace(code) || unicodeWhitespace(code);
++}
++
+ /**
+  * @this {TokenizeContext}
+  * @type {Previous}

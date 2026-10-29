@@ -94,6 +94,35 @@ describe.each(surfaces)("$name math rendering", ({ content }) => {
     expect(container.querySelectorAll(".katex")).toHaveLength(1);
   });
 
+  it.each([
+    ["The ticket is $45, but you'll want **$20 extra for snacks**.", "$20 extra for snacks"],
+    ["Save **$500**, about 10% of the $5,000 budget.", "$500"],
+  ])("keeps dollar amounts and bold around them as text: %s", (text, bold) => {
+    const { container } = renderMarkdown(text);
+    expect(container.querySelector(".katex")).toBeNull();
+    expect(container.querySelector('[data-streamdown="strong"]')?.textContent).toBe(bold);
+    expect(container.textContent).toContain(text.replaceAll("**", ""));
+  });
+
+  // Pandoc's rule: the opener needs a non-space after it, and the closer a
+  // non-space before it and no digit after it.
+  it.each([
+    "$1,200 for rent and $300 for food",
+    "Not math: $ x$",
+    "Not math: $x $",
+    "Not math: $x$5",
+  ])("leaves %s as text", (text) => {
+    const { container } = renderMarkdown(text);
+    expect(container.querySelector(".katex")).toBeNull();
+    expect(container.textContent).toContain(text);
+  });
+
+  it("typesets a formula that follows a dollar amount", () => {
+    const { container } = renderMarkdown("It costs $5, so $x^2$ is the area.");
+    expect(container.querySelectorAll(".katex")).toHaveLength(1);
+    expect(container.textContent).toContain("It costs $5, so ");
+  });
+
   it("keeps raw HTML sanitized and untrusted math commands disabled", () => {
     const { container } = renderMarkdown(
       '<img src="x" onerror="alert(1)"><script>alert(1)</script>\n\n$\\href{javascript:alert(1)}{click}$ and $x^2$.',
