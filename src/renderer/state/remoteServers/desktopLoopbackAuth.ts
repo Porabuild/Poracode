@@ -21,6 +21,8 @@ export interface LoopbackRequestContext {
 export interface LoopbackTokens {
   readonly accessToken: string;
   readonly refreshToken: string | null;
+  /** Absolute access-token deadline from the exchange, when the host sent one. */
+  readonly accessTokenExpiresAt?: string;
 }
 
 /** The pairing credential no longer authorizes a session (spent, expired, or
@@ -120,6 +122,7 @@ export async function exchangePairingCredential(
   const payload = (await response.json()) as {
     accessToken?: unknown;
     refreshToken?: unknown;
+    expiresAt?: unknown;
   };
   if (typeof payload.accessToken !== "string" || payload.accessToken === "") {
     throw new Error("Pairing exchange returned no access token.");
@@ -127,6 +130,9 @@ export async function exchangePairingCredential(
   return {
     accessToken: payload.accessToken,
     refreshToken: typeof payload.refreshToken === "string" ? payload.refreshToken : null,
+    ...(typeof payload.expiresAt === "string" && payload.expiresAt !== ""
+      ? { accessTokenExpiresAt: payload.expiresAt }
+      : {}),
   };
 }
 

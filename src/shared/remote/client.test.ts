@@ -2175,6 +2175,7 @@ describe("RemoteDesktopClient token lifecycle (Gate 6 item 4.6)", () => {
     expect(calls[2]?.authorization).toBe("Bearer lc_access_new");
     expect(onTokensRefreshed).toHaveBeenCalledExactlyOnceWith({
       accessToken: "lc_access_new",
+      accessTokenExpiresAt: "2099-01-02T00:00:00.000Z",
       refreshToken: "lc_refresh_new",
       refreshTokenExpiresAt: "2099-02-01T00:00:00.000Z",
     });
@@ -2205,8 +2206,16 @@ describe("RemoteDesktopClient token lifecycle (Gate 6 item 4.6)", () => {
     expect(tokenCalls).toBe(1);
     release();
     expect(await Promise.all(pending)).toEqual([
-      { accessToken: "new-access", refreshToken: "new-refresh" },
-      { accessToken: "new-access", refreshToken: "new-refresh" },
+      {
+        accessToken: "new-access",
+        accessTokenExpiresAt: "2099-01-02T00:00:00.000Z",
+        refreshToken: "new-refresh",
+      },
+      {
+        accessToken: "new-access",
+        accessTokenExpiresAt: "2099-01-02T00:00:00.000Z",
+        refreshToken: "new-refresh",
+      },
     ]);
   });
 
