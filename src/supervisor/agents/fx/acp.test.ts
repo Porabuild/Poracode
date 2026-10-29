@@ -1,8 +1,12 @@
 import type { RequestPermissionRequest, SessionNotification } from "@agentclientprotocol/sdk";
 import { describe, expect, it } from "vitest";
 import { createAcpMapperState, mapAcpPermissionRequest } from "../acp/canonicalMapping";
-import { PORACODE_ACP_NEW_ASSISTANT_ITEM_META_KEY } from "../acp/canonicalMapping/subagents";
+import {
+  isAcpSubAgentToolCall,
+  PORACODE_ACP_NEW_ASSISTANT_ITEM_META_KEY,
+} from "../acp/canonicalMapping/subagents";
 import { findFastConfigOption } from "../acp/modelConfigOptions";
+import { FX_CONTEXT_NOTICE_META_KEY } from "./acpContextNotices";
 import {
   createFxAcpSessionUpdateTransform,
   FX_ACP_FAST_CONFIG_BINDING,
@@ -130,7 +134,7 @@ describe("normalizeFxAcpConfigOptions", () => {
 });
 
 describe("createFxAcpSessionUpdateTransform", () => {
-  it("maps a run subagent call and uses the trimmed title", () => {
+  it("maps a run subagent call with the canonical task marker", () => {
     const transform = createFxAcpSessionUpdateTransform();
     const result = transform(
       notification({
@@ -141,12 +145,31 @@ describe("createFxAcpSessionUpdateTransform", () => {
         rawInput: { action: "run", task: "Inspect the repo layout" },
       }),
     );
-    expect(readUpdate(result)["rawInput"]).toEqual({
+    const rawInput = readUpdate(result)["rawInput"];
+    expect(rawInput).toEqual({
       action: "run",
       task: "Inspect the repo layout",
-      subagent_type: "agent",
+      _toolName: "task",
       prompt: "Inspect the repo layout",
       description: "Inspect the repo",
+    });
+    expect(isAcpSubAgentToolCall({ rawInput })).toBe(true);
+  });
+
+  it("drops the fx Subagent · prefix from the description", () => {
+    const transform = createFxAcpSessionUpdateTransform();
+    const result = transform(
+      notification({
+        sessionUpdate: "tool_call",
+        toolCallId: "call-1b",
+        name: "subagent",
+        title: "Subagent · Inspect README",
+        rawInput: { action: "run", task: "Inspect README closely" },
+      }),
+    );
+    expect(readUpdate(result)["rawInput"]).toMatchObject({
+      _toolName: "task",
+      description: "Inspect README",
     });
   });
 
@@ -186,7 +209,7 @@ describe("createFxAcpSessionUpdateTransform", () => {
       }),
     );
     expect(readUpdate(result)["rawInput"]).toMatchObject({
-      subagent_type: "agent",
+      _toolName: "task",
       prompt: "Run tests",
       description: "Run tests",
     });
@@ -627,6 +650,150 @@ describe("createFxAcpSessionUpdateTransform", () => {
     transform(nextMessage);
     expect(nextMessage).toEqual(messageSnapshot);
   });
+
+  it("marks [context] notices without cutting the surrounding message", () => {
+    const transform = createFxAcpSessionUpdateTransform();
+    const first = notification({
+      sessionUpdate: "agent_message_chunk",
+      messageId: "A",
+      content: { type: "text", text: "first" },
+    });
+    expect(transform(first)).toBe(first);
+
+    const notice = notification({
+      sessionUpdate: "agent_message_chunk",
+      messageId: "notice-1",
+      content: { type: "text", text: "[context] budget exceeded" },
+    });
+    expect(readUpdate(transform(notice))["_meta"]).toEqual({
+      [FX_CONTEXT_NOTICE_META_KEY]: true,
+    });
+
+    const continued = notification({
+      sessionUpdate: "agent_message_chunk",
+      messageId: "A",
+      content: { type: "text", text: "continued" },
+    });
+    expect(transform(continued)).toBe(continued);
+
+    const second = notification({
+      sessionUpdate: "agent_message_chunk",
+      messageId: "B",
+      _meta: { keep: "yes" },
+      content: { type: "text", text: "second" },
+    });
+    expect(readUpdate(transform(second))["_meta"]).toEqual({
+      keep: "yes",
+      [PORACODE_ACP_NEW_ASSISTANT_ITEM_META_KEY]: "owner",
+    });
+  });
+
+  it("does not treat a leading notice as the first real message", () => {
+    const transform = createFxAcpSessionUpdateTransform();
+    const notice = notification({
+      sessionUpdate: "agent_message_chunk",
+      messageId: "notice-first",
+      content: { type: "text", text: "[context] first notice" },
+    });
+    expect(readUpdate(transform(notice))["_meta"]).toEqual({
+      [FX_CONTEXT_NOTICE_META_KEY]: true,
+    });
+    const firstMessage = notification({
+      sessionUpdate: "agent_message_chunk",
+      messageId: "m1",
+      content: { type: "text", text: "real message" },
+    });
+    expect(transform(firstMessage)).toBe(firstMessage);
+  });
+
+  it("ignores [context] text in a later chunk of an ordinary message", () => {
+    const transform = createFxAcpSessionUpdateTransform();
+    const first = notification({
+      sessionUpdate: "agent_message_chunk",
+      messageId: "same",
+      content: { type: "text", text: "ordinary" },
+    });
+    expect(transform(first)).toBe(first);
+    const later = notification({
+      sessionUpdate: "agent_message_chunk",
+      messageId: "same",
+      content: { type: "text", text: "[context] not a notice" },
+    });
+    expect(transform(later)).toBe(later);
+  });
+
+  it("recovers the visible prefix of a truncated MCP wrapper", () => {
+    const transform = createFxAcpSessionUpdateTransform();
+    const register = (toolCallId: string) =>
+      transform(
+        notification({
+          sessionUpdate: "tool_call",
+          toolCallId,
+          name: "mcp_fx-smoke_echo",
+          _meta: { fx: { toolCall: { mcp: { server: "fx-smoke", tool: "echo" } } } },
+        }),
+      );
+    const updateFor = (toolCallId: string, text: string) =>
+      notification({
+        sessionUpdate: "tool_call_update",
+        toolCallId,
+        status: "completed",
+        content: [{ type: "content", content: { type: "text", text } }],
+      });
+    const wrapperFor = (inner: string) =>
+      JSON.stringify({
+        server: "fx-smoke",
+        tool: "echo",
+        result: { content: [{ type: "text", text: inner }], isError: false },
+      });
+    const escapedFor = (inner: string) => JSON.stringify(inner).slice(1, -1);
+    const textOf = (result: SessionNotification) => {
+      const content = readUpdate(result)["content"] as Array<{
+        content: { text: string };
+      }>;
+      return content[0]?.content.text;
+    };
+
+    // (a) cut mid inner text containing a newline and a quote.
+    register("mcp-cut-text");
+    const inner = 'line one\nline "two" tail';
+    const wrapper = wrapperFor(inner);
+    const escaped = escapedFor(inner);
+    const cutMid = wrapper.indexOf(escaped) + escaped.indexOf("two") + 3;
+    expect(textOf(transform(updateFor("mcp-cut-text", wrapper.slice(0, cutMid))))).toBe(
+      'line one\nline "two…',
+    );
+
+    // (b) cut after a lone backslash and after an incomplete \u escape.
+    register("mcp-cut-escape");
+    const escapeInner = "before\u0001after";
+    const escapeWrapper = wrapperFor(escapeInner);
+    const escapeStart = escapeWrapper.indexOf(escapedFor(escapeInner));
+    expect(
+      textOf(transform(updateFor("mcp-cut-escape", escapeWrapper.slice(0, escapeStart + 7)))),
+    ).toBe("before…");
+    expect(
+      textOf(transform(updateFor("mcp-cut-escape", escapeWrapper.slice(0, escapeStart + 10)))),
+    ).toBe("before…");
+
+    // (c) cut after the inner text's closing quote: the full text survives.
+    register("mcp-complete-text");
+    const completeWrapper = wrapperFor("complete");
+    const completeCut =
+      completeWrapper.indexOf(escapedFor("complete")) + escapedFor("complete").length + 1;
+    expect(
+      textOf(transform(updateFor("mcp-complete-text", completeWrapper.slice(0, completeCut)))),
+    ).toBe("complete");
+
+    // (d) the same cut arrives on a non-MCP tool: untouched.
+    const nonMcp = updateFor("plain-cut", wrapper.slice(0, cutMid));
+    expect(transform(nonMcp)).toBe(nonMcp);
+
+    // (e) an MCP tool whose text does not match the wrapper prefix: untouched.
+    register("mcp-other-prefix");
+    const otherPrefix = updateFor("mcp-other-prefix", wrapper.slice(0, wrapper.indexOf('"tool"')));
+    expect(transform(otherPrefix)).toBe(otherPrefix);
+  });
 });
 
 describe("normalizeFxPermissionRequest", () => {
@@ -716,6 +883,7 @@ describe("FX_ACP_PROMPT_STEERING", () => {
 
   it("marks steer prompts with the fx namespace", () => {
     expect(FX_ACP_PROMPT_STEERING.requestMeta).toEqual({ fx: { steer: true } });
+    expect(FX_ACP_PROMPT_STEERING.repliesInNewAssistantItem).toBe(true);
   });
 });
 

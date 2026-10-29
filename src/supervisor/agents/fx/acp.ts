@@ -5,6 +5,7 @@ import type { AcpPromptSteering } from "../acp/promptSteering";
 import type { AcpConfigOptionsNormalizer } from "../base/types";
 import type { AcpSessionUpdateTransform } from "../base";
 import { PORACODE_ACP_NEW_ASSISTANT_ITEM_META_KEY } from "../acp/canonicalMapping/subagents";
+import { FX_CONTEXT_NOTICE_META_KEY, isFxContextNoticeText } from "./acpContextNotices";
 import { fxPermissionModeFor } from "./argv";
 
 /**
@@ -36,6 +37,7 @@ export const FX_ACP_PROMPT_STEERING: AcpPromptSteering = {
   isSupported: (initialize) =>
     asRecord(asRecord(initialize.agentCapabilities?._meta)?.["fx"])?.["steering"] === true,
   requestMeta: { fx: { steer: true } },
+  repliesInNewAssistantItem: true,
 };
 
 /** Binds Poracode's Fast toggle to fx's exact `fast` select ("false"/"true") so it can never claim the higher-priced `ultrafast` select. */
@@ -100,6 +102,32 @@ function firstLineOf(text: string): string {
 }
 
 const MCP_CONTENT_TYPES = new Set(["text", "image", "audio", "resource_link", "resource"]);
+
+const TRUNCATED_MCP_PREFIX_RE =
+  /^\{"server":"(?:[^"\\]|\\.)*","tool":"(?:[^"\\]|\\.)*","result":\{"content":\[\{"type":"text","text":"/u;
+// Only complete escapes are consumed, so a `\` or `\u00` cut mid-way is dropped.
+const JSON_STRING_BODY_RE = /^(?:[^"\\]|\\u[\da-fA-F]{4}|\\[^u])*/u;
+
+/**
+ * fx caps tool-output text in ACP updates at about 200 characters with no
+ * rawOutput, so a long MCP wrapper arrives cut mid-string and JSON.parse fails.
+ * Decode the visible prefix of its first text item instead.
+ */
+function truncatedMcpEnvelopeText(text: string): string | undefined {
+  const source = text.trimStart();
+  const prefix = TRUNCATED_MCP_PREFIX_RE.exec(source);
+  if (!prefix) return undefined;
+  const rest = source.slice(prefix[0].length);
+  const body = JSON_STRING_BODY_RE.exec(rest)?.[0] ?? "";
+  const closed = rest.charAt(body.length) === '"';
+  try {
+    const decoded: unknown = JSON.parse(`"${body}"`);
+    if (typeof decoded !== "string") return undefined;
+    return closed ? decoded : `${decoded}…`;
+  } catch {
+    return undefined;
+  }
+}
 
 function parsedTextEnvelope(text: string): Record<string, unknown> | undefined {
   try {
@@ -176,7 +204,13 @@ function rewriteToolContentEntry(
     return undefined;
   }
   const envelope = parsedTextEnvelope(content["text"]);
-  if (!envelope) return undefined;
+  if (!envelope) {
+    if (context.mcp) {
+      const truncated = truncatedMcpEnvelopeText(content["text"]);
+      if (truncated !== undefined) return replaceContentText(record, content, truncated);
+    }
+    return undefined;
+  }
 
   // Precedence: sub-agent envelope, then MCP wrapper, then fx tool error.
   if (context.subagent) {
@@ -194,19 +228,33 @@ function rewriteToolContentEntry(
   return undefined;
 }
 
+function markContextNotice(
+  notification: SessionNotification,
+  update: Record<string, unknown>,
+): SessionNotification {
+  const markedUpdate: Record<string, unknown> = {
+    ...update,
+    _meta: { ...(asRecord(update["_meta"]) ?? {}), [FX_CONTEXT_NOTICE_META_KEY]: true },
+  };
+  return { ...notification, update: markedUpdate } as SessionNotification;
+}
+
 /**
  * fx provider-boundary normalization for ACP updates. It unwraps the JSON
  * envelopes fx returns as tool output (sub-agent `{ok, result, error_code}`,
  * fx tool errors `{error: {type, tool_name, message}}`, MCP
- * `{server, tool, result}`) into the text the tool produced, and starts a new
- * assistant item whenever an `agent_message_chunk` carries a new `messageId` so
- * separate fx messages in one turn do not merge. It also maps `subagent`
- * `action: "run"` calls to the canonical subagent input; `action: "message"`
- * stays a plain tool call.
+ * `{server, tool, result}`) into the text the tool produced, recovers the
+ * visible prefix of a cut MCP wrapper, and starts a new assistant item whenever
+ * an `agent_message_chunk` carries a new `messageId` so separate fx messages in
+ * one turn do not merge. "[context]" diagnostic chunks are marked for the
+ * context-notice extension instead of counting as message boundaries, and
+ * `subagent` `action: "run"` calls are mapped to the canonical subagent input;
+ * `action: "message"` stays a plain tool call.
  */
 export function createFxAcpSessionUpdateTransform(): AcpSessionUpdateTransform {
   const subagentToolCallIds = new Set<string>();
   const mcpToolCallIds = new Set<string>();
+  const contextNoticeMessageIds = new Set<string>();
   let previousMessageId: string | undefined;
 
   return (notification) => {
@@ -217,6 +265,21 @@ export function createFxAcpSessionUpdateTransform(): AcpSessionUpdateTransform {
     if (sessionUpdate === "agent_message_chunk") {
       const messageId = update["messageId"];
       if (typeof messageId !== "string" || messageId.length === 0) return notification;
+      const knownNotice = contextNoticeMessageIds.has(messageId);
+      if (!knownNotice && previousMessageId !== messageId) {
+        const content = asRecord(update["content"]);
+        if (
+          content?.["type"] === "text" &&
+          typeof content["text"] === "string" &&
+          isFxContextNoticeText(content["text"])
+        ) {
+          contextNoticeMessageIds.add(messageId);
+          return markContextNotice(notification, update);
+        }
+      }
+      // A notice is not a message boundary: the previous message keeps
+      // streaming into its item when fx resumes it under the same id.
+      if (knownNotice) return markContextNotice(notification, update);
       const startsNewMessage = previousMessageId !== undefined && previousMessageId !== messageId;
       previousMessageId = messageId;
       if (!startsNewMessage) return notification;
@@ -249,12 +312,13 @@ export function createFxAcpSessionUpdateTransform(): AcpSessionUpdateTransform {
         const task = rawInput["task"];
         if (typeof task === "string") {
           const title = typeof update["title"] === "string" ? update["title"].trim() : "";
-          const description = title.length > 0 ? title : firstLineOf(task).slice(0, 80);
+          const description =
+            title.replace(/^Subagent\s*·\s*/u, "").trim() || firstLineOf(task).slice(0, 80);
           nextUpdate = {
             ...nextUpdate,
             rawInput: {
               ...rawInput,
-              subagent_type: "agent",
+              _toolName: "task",
               prompt: task,
               description,
             },

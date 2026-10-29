@@ -1950,11 +1950,13 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       return this.startTurn(prompt, config, segments, options);
     }
 
-    // Paint the user message before the round-trip; closing open assistant
-    // content makes the reply after the steer start below it.
+    // Paint the user message before the round-trip. Closing open assistant
+    // content makes the reply after the steer start below it; an agent whose
+    // reply always opens a new item keeps the in-flight message above the row.
+    const closesOpenContent = this.promptSteering.repliesInNewAssistantItem !== true;
     const userItemId = options?.userMessageItemId ?? `user-${randomUUID()}`;
     this.emitRuntimeEvents([
-      ...closeOpenContentItems(this.ensureMapperState()),
+      ...(closesOpenContent ? closeOpenContentItems(this.ensureMapperState()) : []),
       {
         type: "item.started",
         threadId: this.threadId,

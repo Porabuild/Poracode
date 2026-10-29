@@ -12,6 +12,12 @@ export interface AcpPromptSteering {
   isSupported(initialize: InitializeResponse): boolean;
   /** `_meta` that marks a `session/prompt` as steering for the running turn. */
   requestMeta: Record<string, unknown>;
+  /**
+   * The agent's reply to a folded steer always starts a new assistant item, so
+   * the steer row is painted without closing open assistant content; the
+   * in-flight message keeps streaming into its item above the row.
+   */
+  repliesInNewAssistantItem?: boolean;
 }
 
 /** Steering prompts carry text only; other content waits for the next prompt. */

@@ -212,4 +212,49 @@ describe("ACP prompt steering turn", () => {
     main.resolve({ stopReason: "end_turn" });
     await turn;
   });
+
+  it("paints the user row without closing open assistant content when the reply opens a new item", async () => {
+    const fixture = makeConfigSyncSession({
+      promptSteering: { ...steering, repliesInNewAssistantItem: true },
+    });
+    fixture.connection.initialize.mockResolvedValueOnce({
+      protocolVersion: 1,
+      agentCapabilities: { _meta: { steer: true } },
+    });
+    await fixture.session.activate();
+    const { connection, listener, session } = fixture;
+    const main = deferred<{ stopReason: string }>();
+    connection.prompt.mockReturnValueOnce(main.promise);
+
+    const turn = session.startTurn("first prompt", config);
+    await vi.waitFor(() => expect(connection.prompt).toHaveBeenCalledTimes(1));
+    session.handleSessionUpdate({
+      sessionId: "session-1",
+      update: { sessionUpdate: "agent_message_chunk", content: { type: "text", text: "partial" } },
+    } as never);
+
+    const assistantStart = runtimeEvents(listener).find(
+      (event) => event.type === "item.started" && event["itemType"] === "assistant_message",
+    );
+    expect(assistantStart).toBeDefined();
+
+    await session.steerTurn?.("steer text", config, undefined, { userMessageItemId: "user-steer" });
+
+    const events = runtimeEvents(listener);
+    expect(
+      events.some(
+        (event) =>
+          event.type === "item.completed" && event["itemId"] === assistantStart?.["itemId"],
+      ),
+    ).toBe(false);
+    expect(
+      events.some((event) => event.type === "item.started" && event["itemId"] === "user-steer"),
+    ).toBe(true);
+    expect(
+      events.some((event) => event.type === "item.completed" && event["itemId"] === "user-steer"),
+    ).toBe(true);
+
+    main.resolve({ stopReason: "end_turn" });
+    await turn;
+  });
 });

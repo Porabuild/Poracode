@@ -199,13 +199,25 @@ by vendor to match the detected `subProviders`. The composer's Fast toggle is
 bound to the exact `fast` select (`FX_ACP_FAST_CONFIG_BINDING`), so it can
 never claim the higher-priced `ultrafast` select, which fx lists only for AI
 Gateway models that support it. fx's default effort `auto` is offered as the
-last level. `subagent` tool calls with `action: "run"` are mapped to the
-canonical subagent input; `action: "message"` stays a plain tool call. fx
-returns tool output as JSON envelopes (sub-agent `{ok, result, error_code}`,
-fx's own tool errors `{error: {type, tool_name, message}}`, MCP
-`{server, tool, result}`), which the fx transform unwraps to the text the tool
-produced. It also starts a new assistant item whenever an `agent_message_chunk`
-carries a new `messageId`, so separate fx messages in one turn do not merge.
+last level. Known gap: after a mid-thread model switch, and before a thread's
+first turn, the effort and Fast controls are not shown until the next turn.
+
+`subagent` tool calls with `action: "run"` map to `_toolName: "task"` with the
+title minus its `Subagent · ` prefix; `action: "message"` stays a plain tool
+call. fx returns tool output as JSON envelopes (sub-agent
+`{ok, result, error_code}`, fx's own tool errors
+`{error: {type, tool_name, message}}`, MCP `{server, tool, result}`), which the
+fx transform unwraps to the text the tool produced. It also starts a new
+assistant item whenever an `agent_message_chunk` carries a new `messageId`, so
+separate fx messages in one turn do not merge. "[context]" diagnostics arrive
+as agent_message_chunks under their own messageId (at every session start or
+resume when Poracode's injected MCP tools exceed fx's
+`mcp_selected_schema_bytes` budget, and after capability_search truncates a
+schema); the transform marks them and `fxContextNoticeExtension` emits each as
+a hidden `warning` event instead of transcript text. fx caps tool output text
+in ACP updates at about 200 characters with no rawOutput; a cut MCP wrapper is
+decoded to its first text item's visible prefix plus "…", other tools show the
+cut text.
 fx titles every file approval `file_mutation`; `normalizeFxPermissionRequest`
 retitles it with fx's tool and the path (`edit_file src/app.ts`), the way fx
 titles shell approvals (`shell.run <command>`).
@@ -216,7 +228,8 @@ Chat steering is native and does not interrupt. fx advertises
 marked `_meta.fx.steer`, fx folds it into the running turn at its next safe
 boundary, and answers it when that turn ends. Attachments, or a steer fx
 rejects because the turn closed first, go out as the next prompt of the same
-turn.
+turn. `repliesInNewAssistantItem` keeps the in-flight message streaming above
+the steer row: the reply starts a new assistant item.
 
 Ultrafast is fx's own saved setting (`ultrafast_mode`), toggled with
 `/ultrafast` in a Terminal thread and applied by fx in both lanes on supported

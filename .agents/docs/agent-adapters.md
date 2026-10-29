@@ -87,7 +87,9 @@ Existing extension points built on the same pattern:
 - `promptSteering` (`acp/promptSteering.ts`) declares non-interrupting steering
   for an agent that accepts a marked `session/prompt` during a turn: how the
   agent advertises it in `initialize`, and the `_meta` that marks the request.
-  The shared session exposes `steerTurn` only when the agent advertises it.
+  The shared session exposes `steerTurn` only when the agent advertises it;
+  `repliesInNewAssistantItem` covers agents whose reply always starts a new
+  assistant item, leaving the in-flight message above the steer row.
 - `registerModelDescriptionFormatter` (renderer) lets a provider parse its own
   catalog text into a numeric hint plus a localized explanation; the shared
   picker never parses vendor pricing formats.

@@ -23,6 +23,7 @@ import {
   normalizeFxPermissionRequest,
   resolveFxAcpMode,
 } from "./acp";
+import { fxContextNoticeExtension } from "./acpContextNotices";
 import { buildFxArgs, buildFxLaunchEnv } from "./argv";
 import { manageFxCredentials } from "./credentials";
 import { buildFxCommand, fxDefaultCapabilities, fxDetectionSpec } from "./detection";
@@ -118,6 +119,7 @@ export function createFxAdapter(): AgentAdapter {
           permissionRequestTransform: normalizeFxPermissionRequest,
           promptSteering: FX_ACP_PROMPT_STEERING,
           behavior: { fastConfigBinding: FX_ACP_FAST_CONFIG_BINDING },
+          textStreamExtension: fxContextNoticeExtension,
         },
       );
     },

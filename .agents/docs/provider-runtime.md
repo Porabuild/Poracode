@@ -40,7 +40,9 @@ must not turn provider session discovery into a second thread index.
   session then exposes `steerTurn` once `initialize` advertises support: a
   text steer joins the running turn without a cancel, and the turn closes only
   after the agent answers every steer. A rejected steer, or one with non-text
-  content, is sent as an ordinary prompt within the same turn.
+  content, is sent as an ordinary prompt within the same turn. An agent whose
+  reply always starts a new assistant item sets `repliesInNewAssistantItem` so
+  the steer row is painted without closing the in-flight message.
 - Terminal presentation stays PTY-owned. Do not add queueing or fake
   stop/steering UI to terminal-native threads.
 
