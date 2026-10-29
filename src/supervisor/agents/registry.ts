@@ -25,6 +25,7 @@ import { createCodexAdapter, createCodexProfileAdapter } from "./codex";
 import { createCursorAdapter, createCursorProfileAdapter } from "./cursor";
 import { createDeepSeekAdapter } from "./deepseek";
 import { createFactoryAdapter, createFactoryAcpRegistryAdapter } from "./factory";
+import { createFxAdapter } from "./fx";
 import { createGeminiAdapter } from "./gemini";
 import { createGrokAdapter } from "./grok";
 import { createKimiAdapter } from "./kimi";
@@ -104,6 +105,7 @@ export function buildAgentRegistryEntries(
     builtIn(createFactoryAdapter()),
     builtIn(createDevinAdapter()),
     builtIn(createDeepSeekAdapter()),
+    builtIn(createFxAdapter()),
   ];
   const firstClassRegistryIds = new Set(
     builtIns.flatMap(({ adapter }) =>

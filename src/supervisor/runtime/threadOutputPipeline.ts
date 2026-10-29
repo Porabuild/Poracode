@@ -339,6 +339,7 @@ export class ThreadOutputPipeline {
       notifications,
       titles,
       shell,
+      programStatus,
       cleaned: dataAfterOsc,
     } = extractOscEventsFromPtyStream(ptyCarryIn, data);
     session.ptyOscCarry = carryOut;
@@ -428,6 +429,23 @@ export class ThreadOutputPipeline {
       }
       if (shellHint) {
         applyOscHint(shellHint);
+      }
+    }
+
+    for (const status of programStatus) {
+      const statusHint = session.adapter.handleOscProgramStatus?.(status);
+      if (isPoracodeOscDebugEnabled()) {
+        const hintText = statusHint
+          ? `hint=${statusHint.status}/${statusHint.attention}`
+          : "hint=(null — program status not mapped)";
+        console.log(
+          `[poracode-osc] PTY thread=${session.threadId} kind=${session.agentKind} ` +
+            `osc=7501 state=${status.state} kind=${status.kind ?? "-"} app=${status.app ?? "-"} ` +
+            hintText,
+        );
+      }
+      if (statusHint) {
+        applyOscHint(statusHint);
       }
     }
 

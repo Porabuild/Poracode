@@ -1337,7 +1337,7 @@ msgstr "Thêm một dự án trước khi đăng nhập."
 msgid "Add a project before updating an agent."
 msgstr "Thêm dự án trước khi cập nhật tác nhân."
 
-#: src/renderer/components/providers/settings/OpenCode2ProviderSettings.tsx
+#: src/renderer/components/providers/settings/ProviderCredentialAccounts.tsx
 msgid "Add a project in this environment before signing in."
 msgstr "Thêm dự án trong môi trường này trước khi đăng nhập."
 
@@ -2359,6 +2359,7 @@ msgstr "Do tôi tạo"
 msgid "Authorization: Bearer token"
 msgstr "Authorization: Bearer token"
 
+#: src/renderer/components/common/effortLabel.ts
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Auto"
 msgstr "Tự động"
@@ -7963,6 +7964,10 @@ msgstr "Tích hợp Qoder CLI hạng nhất bằng các môi trường chạy te
 msgid "First-class Qwen Code integration using Poracode's native terminal and ACP runtimes."
 msgstr "Tích hợp Qwen Code hạng nhất bằng các môi trường chạy terminal và ACP gốc của Poracode."
 
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Vercel fx integration using Poracode's native terminal and ACP runtimes."
+msgstr "Tích hợp Vercel fx hạng nhất bằng các môi trường chạy terminal và ACP gốc của Poracode."
+
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Fit"
 msgstr "Vừa khung"
@@ -8225,6 +8230,10 @@ msgstr "Cấu hình đầy đủ"
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "Fullscreen overlay"
 msgstr "Lớp phủ toàn màn hình"
+
+#: src/renderer/components/providers/fx/manifest.ts
+msgid "fx"
+msgstr "fx"
 
 #: src/renderer/utils/projectIcons.ts
 msgid "Games & fun"
@@ -10284,8 +10293,8 @@ msgstr "Nguồn đăng nhập"
 msgid "Login source, config file, organization, and runtime for this configuration. Thread knobs like model and approvals stay on the composer."
 msgstr "Nguồn đăng nhập, tệp cấu hình, tổ chức và môi trường chạy cho cấu hình này. Các tùy chọn của luồng như mô hình và phê duyệt vẫn ở bộ soạn."
 
-#: src/renderer/components/providers/settings/OpenCode2ProviderSettings.tsx
 #: src/renderer/components/providers/settings/ProviderAccountsSection.tsx
+#: src/renderer/components/providers/settings/ProviderCredentialAccounts.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Logout"
@@ -15181,7 +15190,7 @@ msgstr "Gỡ skill đã liên kết “{0}”? Thư mục nguồn sẽ không b�
 msgid "Remove the project's experiments before removing the project."
 msgstr "Hãy xóa các thử nghiệm của dự án trước khi xóa dự án."
 
-#: src/renderer/components/providers/settings/OpenCode2ProviderSettings.tsx
+#: src/renderer/components/providers/settings/ProviderCredentialAccounts.tsx
 msgid "Remove the saved credential for this provider? You can connect it again from Add provider."
 msgstr "Xóa thông tin đăng nhập đã lưu của nhà cung cấp này? Bạn có thể kết nối lại từ “Thêm nhà cung cấp”."
 
@@ -17435,6 +17444,10 @@ msgstr "Yêu cầu đăng nhập"
 msgid "Sign in to {0}"
 msgstr "Đăng nhập vào {0}"
 
+#: src/renderer/components/providers/fx/FxProviderSettings.tsx
+msgid "Sign in to the AI backends fx can use, and sign out of them here."
+msgstr "Đăng nhập vào các backend AI mà fx có thể dùng và đăng xuất khỏi chúng tại đây."
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Sign in with the agent CLI."
 msgstr "Đăng nhập bằng CLI tác nhân."
@@ -17452,8 +17465,8 @@ msgstr "Đăng xuất {label}"
 
 #. placeholder {0}: provider.label
 #. placeholder {0}: signingOut?.provider.label ?? ""
-#: src/renderer/components/providers/settings/OpenCode2ProviderSettings.tsx
 #: src/renderer/components/providers/settings/ProviderAccountsSection.tsx
+#: src/renderer/components/providers/settings/ProviderCredentialAccounts.tsx
 msgid "Sign out of {0}"
 msgstr "Đăng xuất khỏi {0}"
 

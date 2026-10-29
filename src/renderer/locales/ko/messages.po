@@ -1337,7 +1337,7 @@ msgstr "로그인하기 전에 프로젝트를 추가하세요."
 msgid "Add a project before updating an agent."
 msgstr "에이전트를 업데이트하기 전에 프로젝트를 추가하세요."
 
-#: src/renderer/components/providers/settings/OpenCode2ProviderSettings.tsx
+#: src/renderer/components/providers/settings/ProviderCredentialAccounts.tsx
 msgid "Add a project in this environment before signing in."
 msgstr "로그인하기 전에 이 환경에 프로젝트를 추가하세요."
 
@@ -2359,6 +2359,7 @@ msgstr "내가 작성함"
 msgid "Authorization: Bearer token"
 msgstr "Authorization: Bearer token"
 
+#: src/renderer/components/common/effortLabel.ts
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Auto"
 msgstr "자동"
@@ -7963,6 +7964,10 @@ msgstr "Poracode의 네이티브 터미널 및 ACP 런타임을 사용하는 Qod
 msgid "First-class Qwen Code integration using Poracode's native terminal and ACP runtimes."
 msgstr "Poracode의 네이티브 터미널 및 ACP 런타임을 사용하는 Qwen Code의 일급 통합입니다."
 
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Vercel fx integration using Poracode's native terminal and ACP runtimes."
+msgstr "Poracode의 네이티브 터미널 및 ACP 런타임을 사용하는 Vercel fx의 일급 통합입니다."
+
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Fit"
 msgstr "맞춤"
@@ -8225,6 +8230,10 @@ msgstr "전체 구성"
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "Fullscreen overlay"
 msgstr "전체화면 오버레이"
+
+#: src/renderer/components/providers/fx/manifest.ts
+msgid "fx"
+msgstr "fx"
 
 #: src/renderer/utils/projectIcons.ts
 msgid "Games & fun"
@@ -10284,8 +10293,8 @@ msgstr "로그인 소스"
 msgid "Login source, config file, organization, and runtime for this configuration. Thread knobs like model and approvals stay on the composer."
 msgstr "이 구성의 로그인 소스, 설정 파일, 조직, 런타임입니다. 모델과 승인 같은 스레드 설정은 컴포저에 남아 있습니다."
 
-#: src/renderer/components/providers/settings/OpenCode2ProviderSettings.tsx
 #: src/renderer/components/providers/settings/ProviderAccountsSection.tsx
+#: src/renderer/components/providers/settings/ProviderCredentialAccounts.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Logout"
@@ -15181,7 +15190,7 @@ msgstr "연결된 스킬 “{0}”을(를) 제거할까요? 원본 폴더는 삭
 msgid "Remove the project's experiments before removing the project."
 msgstr "프로젝트를 제거하기 전에 프로젝트의 실험을 제거하세요."
 
-#: src/renderer/components/providers/settings/OpenCode2ProviderSettings.tsx
+#: src/renderer/components/providers/settings/ProviderCredentialAccounts.tsx
 msgid "Remove the saved credential for this provider? You can connect it again from Add provider."
 msgstr "이 공급자의 저장된 자격 증명을 제거할까요? ‘공급자 추가’에서 다시 연결할 수 있습니다."
 
@@ -17435,6 +17444,10 @@ msgstr "로그인이 필요합니다"
 msgid "Sign in to {0}"
 msgstr "{0}에 로그인"
 
+#: src/renderer/components/providers/fx/FxProviderSettings.tsx
+msgid "Sign in to the AI backends fx can use, and sign out of them here."
+msgstr "fx가 사용할 수 있는 AI 백엔드에 로그인하고 여기에서 로그아웃할 수 있습니다."
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Sign in with the agent CLI."
 msgstr "에이전트 CLI로 로그인합니다."
@@ -17452,8 +17465,8 @@ msgstr "{label} 로그아웃"
 
 #. placeholder {0}: provider.label
 #. placeholder {0}: signingOut?.provider.label ?? ""
-#: src/renderer/components/providers/settings/OpenCode2ProviderSettings.tsx
 #: src/renderer/components/providers/settings/ProviderAccountsSection.tsx
+#: src/renderer/components/providers/settings/ProviderCredentialAccounts.tsx
 msgid "Sign out of {0}"
 msgstr "{0}에서 로그아웃"
 

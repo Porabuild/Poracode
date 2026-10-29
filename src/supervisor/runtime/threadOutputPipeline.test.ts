@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { programStatusOscHint } from "../agents/base";
 import { ThreadOutputPipeline, resolveThreadStatusSource } from "./threadOutputPipeline";
 import type { SessionRuntime } from "./sessionTypes";
 
@@ -423,6 +424,54 @@ describe("ThreadOutputPipeline / CLI hook disables L2", () => {
 
     expect(session.status).toBe("working");
     expect(session.attention).toBe("working");
+  });
+
+  it("uses OSC 7501 program status to move a terminal thread to working", () => {
+    const p = pipeline();
+    const session = {
+      threadId: "t1",
+      status: "idle",
+      attention: "none",
+      config: {},
+      launchPrompt: "",
+      prevChunk: "",
+      outputLength: 0,
+      ptyOscCarry: "",
+      adapter: {
+        capabilities: { presentationMode: "terminal" },
+        handleOscProgramStatus: programStatusOscHint,
+      },
+      pty: { write: vi.fn<(data: string) => void>() },
+    } as unknown as SessionRuntime;
+
+    p.handlePtyData(session, "\x1b]7501;state=working:app=demo\x1b\\");
+
+    expect(session.status).toBe("working");
+    expect(session.attention).toBe("working");
+  });
+
+  it("uses OSC 7501 blocked/permission to move a terminal thread to needs_approval", () => {
+    const p = pipeline();
+    const session = {
+      threadId: "t1",
+      status: "working",
+      attention: "working",
+      config: {},
+      launchPrompt: "",
+      prevChunk: "",
+      outputLength: 0,
+      ptyOscCarry: "",
+      adapter: {
+        capabilities: { presentationMode: "terminal" },
+        handleOscProgramStatus: programStatusOscHint,
+      },
+      pty: { write: vi.fn<(data: string) => void>() },
+    } as unknown as SessionRuntime;
+
+    p.handlePtyData(session, "\x1b]7501;state=blocked:kind=permission:app=demo\x1b\\");
+
+    expect(session.status).toBe("needs_approval");
+    expect(session.attention).toBe("needs_approval");
   });
 
   it("uses Codex spinner titles as L2 fallback when hook env is present but hooks stay silent", async () => {

@@ -1337,7 +1337,7 @@ msgstr "Adicione um projeto antes de fazer login."
 msgid "Add a project before updating an agent."
 msgstr "Adicione um projeto antes de atualizar um agente."
 
-#: src/renderer/components/providers/settings/OpenCode2ProviderSettings.tsx
+#: src/renderer/components/providers/settings/ProviderCredentialAccounts.tsx
 msgid "Add a project in this environment before signing in."
 msgstr "Adicione um projeto neste ambiente antes de entrar."
 
@@ -2359,6 +2359,7 @@ msgstr "Criados por mim"
 msgid "Authorization: Bearer token"
 msgstr "Authorization: Bearer token"
 
+#: src/renderer/components/common/effortLabel.ts
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Auto"
 msgstr "Automático"
@@ -7963,6 +7964,10 @@ msgstr "Integração nativa com o Qoder CLI usando os runtimes de terminal e ACP
 msgid "First-class Qwen Code integration using Poracode's native terminal and ACP runtimes."
 msgstr "Integração nativa com o Qwen Code usando os runtimes de terminal e ACP do Poracode."
 
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Vercel fx integration using Poracode's native terminal and ACP runtimes."
+msgstr "Integração nativa com o Vercel fx usando os runtimes de terminal e ACP do Poracode."
+
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Fit"
 msgstr "Ajustado"
@@ -8225,6 +8230,10 @@ msgstr "Configuração completa"
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "Fullscreen overlay"
 msgstr "Sobreposição de tela cheia"
+
+#: src/renderer/components/providers/fx/manifest.ts
+msgid "fx"
+msgstr "fx"
 
 #: src/renderer/utils/projectIcons.ts
 msgid "Games & fun"
@@ -10284,8 +10293,8 @@ msgstr "Origem do login"
 msgid "Login source, config file, organization, and runtime for this configuration. Thread knobs like model and approvals stay on the composer."
 msgstr "Origem do login, arquivo de configuração, organização e runtime para esta configuração. Opções do tópico como modelo e aprovações ficam no composer."
 
-#: src/renderer/components/providers/settings/OpenCode2ProviderSettings.tsx
 #: src/renderer/components/providers/settings/ProviderAccountsSection.tsx
+#: src/renderer/components/providers/settings/ProviderCredentialAccounts.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Logout"
@@ -15181,7 +15190,7 @@ msgstr "Remover a skill vinculada “{0}”? A pasta de origem não será exclu�
 msgid "Remove the project's experiments before removing the project."
 msgstr "Remova os experimentos do projeto antes de removê-lo."
 
-#: src/renderer/components/providers/settings/OpenCode2ProviderSettings.tsx
+#: src/renderer/components/providers/settings/ProviderCredentialAccounts.tsx
 msgid "Remove the saved credential for this provider? You can connect it again from Add provider."
 msgstr "Remover as credenciais salvas deste provedor? Você pode conectá-lo novamente em “Adicionar provedor”."
 
@@ -17435,6 +17444,10 @@ msgstr "É necessário fazer login"
 msgid "Sign in to {0}"
 msgstr "Iniciar sessão na Devin {0}"
 
+#: src/renderer/components/providers/fx/FxProviderSettings.tsx
+msgid "Sign in to the AI backends fx can use, and sign out of them here."
+msgstr "Faça login nos backends de IA que o fx pode usar e saia deles aqui."
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Sign in with the agent CLI."
 msgstr "Faça login com a CLI do agente."
@@ -17452,8 +17465,8 @@ msgstr "Sair de {label}"
 
 #. placeholder {0}: provider.label
 #. placeholder {0}: signingOut?.provider.label ?? ""
-#: src/renderer/components/providers/settings/OpenCode2ProviderSettings.tsx
 #: src/renderer/components/providers/settings/ProviderAccountsSection.tsx
+#: src/renderer/components/providers/settings/ProviderCredentialAccounts.tsx
 msgid "Sign out of {0}"
 msgstr "Sair de {0}"
 

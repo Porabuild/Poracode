@@ -1336,7 +1336,7 @@ msgstr "サインインする前にプロジェクトを追加してください
 msgid "Add a project before updating an agent."
 msgstr "エージェントを更新する前にプロジェクトを追加してください。"
 
-#: src/renderer/components/providers/settings/OpenCode2ProviderSettings.tsx
+#: src/renderer/components/providers/settings/ProviderCredentialAccounts.tsx
 msgid "Add a project in this environment before signing in."
 msgstr "サインインする前に、この環境にプロジェクトを追加してください。"
 
@@ -2358,6 +2358,7 @@ msgstr "自分が作成"
 msgid "Authorization: Bearer token"
 msgstr "Authorization: Bearer token"
 
+#: src/renderer/components/common/effortLabel.ts
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Auto"
 msgstr "自動"
@@ -7962,6 +7963,10 @@ msgstr "Poracode のネイティブなターミナルおよび ACP ランタイ�
 msgid "First-class Qwen Code integration using Poracode's native terminal and ACP runtimes."
 msgstr "Poracode のネイティブなターミナルおよび ACP ランタイムを使用する、Qwen Code のファーストクラス統合です。"
 
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Vercel fx integration using Poracode's native terminal and ACP runtimes."
+msgstr "Poracode のネイティブなターミナルおよび ACP ランタイムを使用する、Vercel fx のファーストクラス統合です。"
+
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Fit"
 msgstr "フィット"
@@ -8224,6 +8229,10 @@ msgstr "完全な設定"
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "Fullscreen overlay"
 msgstr "全画面オーバーレイ"
+
+#: src/renderer/components/providers/fx/manifest.ts
+msgid "fx"
+msgstr "fx"
 
 #: src/renderer/utils/projectIcons.ts
 msgid "Games & fun"
@@ -10283,8 +10292,8 @@ msgstr "ログインソース"
 msgid "Login source, config file, organization, and runtime for this configuration. Thread knobs like model and approvals stay on the composer."
 msgstr "この設定のログインソース、設定ファイル、組織、ランタイムです。モデルや承認などのスレッド設定はコンポーザーにあります。"
 
-#: src/renderer/components/providers/settings/OpenCode2ProviderSettings.tsx
 #: src/renderer/components/providers/settings/ProviderAccountsSection.tsx
+#: src/renderer/components/providers/settings/ProviderCredentialAccounts.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Logout"
@@ -15179,7 +15188,7 @@ msgstr "リンクされたスキル「{0}」を削除しますか？ソースフ
 msgid "Remove the project's experiments before removing the project."
 msgstr "プロジェクトを削除する前に、そのプロジェクトの実験を削除してください。"
 
-#: src/renderer/components/providers/settings/OpenCode2ProviderSettings.tsx
+#: src/renderer/components/providers/settings/ProviderCredentialAccounts.tsx
 msgid "Remove the saved credential for this provider? You can connect it again from Add provider."
 msgstr "このプロバイダーの保存された認証情報を削除しますか？「プロバイダーを追加」からいつでも再接続できます。"
 
@@ -17433,6 +17442,10 @@ msgstr "サインインが必要です"
 msgid "Sign in to {0}"
 msgstr "{0} にサインイン"
 
+#: src/renderer/components/providers/fx/FxProviderSettings.tsx
+msgid "Sign in to the AI backends fx can use, and sign out of them here."
+msgstr "fx が利用できる AI バックエンドにサインインし、ここからサインアウトできます。"
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Sign in with the agent CLI."
 msgstr "エージェント CLI を使用してサインインします。"
@@ -17450,8 +17463,8 @@ msgstr "サインアウト{label}"
 
 #. placeholder {0}: provider.label
 #. placeholder {0}: signingOut?.provider.label ?? ""
-#: src/renderer/components/providers/settings/OpenCode2ProviderSettings.tsx
 #: src/renderer/components/providers/settings/ProviderAccountsSection.tsx
+#: src/renderer/components/providers/settings/ProviderCredentialAccounts.tsx
 msgid "Sign out of {0}"
 msgstr "{0} からサインアウト"
 

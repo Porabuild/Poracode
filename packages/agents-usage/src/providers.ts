@@ -130,7 +130,7 @@ export function builtInUsageProviderDescriptors(): UsageProviderDescriptor[] {
  * the CLI's local `auth.json` Go key (direct `/zen/go/v1/usage` endpoint) plus
  * the opencode.ai cookie session for the Zen balance. Go quota meters come from
  * the API key first, the web session as fallback — never from local
- * `opencode.db` spend.
+ * `opencode.db` spend. `fx` runs `fx usage --json` supervisor-side.
  */
 export const LOCAL_USAGE_PROVIDER_DESCRIPTORS: readonly UsageProviderDescriptor[] = [
   {
@@ -148,6 +148,13 @@ export const LOCAL_USAGE_PROVIDER_DESCRIPTORS: readonly UsageProviderDescriptor[
     mechanism: "cookie",
     needsLogin: true,
     windowIds: ["session-5h", "weekly", "monthly"],
+  },
+  {
+    id: "fx",
+    label: "fx",
+    mechanism: "cli-jsonrpc",
+    needsLogin: false,
+    windowIds: ["session-5h", "weekly", "monthly", "daily", "extra-usage"],
   },
 ];
 

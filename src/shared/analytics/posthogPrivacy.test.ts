@@ -173,8 +173,11 @@ describe("posthog product analytics privacy", () => {
     expect(classifyAnalyticsModel("claude-acme-private-finetune")).toBe("other");
     expect(classifyAnalyticsModel("local-model")).toBe("other");
     expect(normalizeAnalyticsProvider("claude:private-profile")).toBe("claude");
+    expect(normalizeAnalyticsProvider("fx")).toBe("fx");
+    expect(normalizeAnalyticsProvider("fx:work")).toBe("fx");
     expect(normalizeAnalyticsProvider("customer-agent")).toBe("other");
     expect(normalizeComposerEffort("xHigh")).toBe("xhigh");
+    expect(normalizeComposerEffort("Auto")).toBe("auto");
     expect(normalizeComposerEffort("provider-internal-level")).toBe("other");
     expect(normalizeComposerFastMode(true)).toBe("on");
     expect(normalizeComposerWorkMode("autopilot")).toBe("work");

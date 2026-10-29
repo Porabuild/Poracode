@@ -1337,7 +1337,7 @@ msgstr "Agrega un proyecto antes de iniciar sesión."
 msgid "Add a project before updating an agent."
 msgstr "Añade un proyecto antes de actualizar un agente."
 
-#: src/renderer/components/providers/settings/OpenCode2ProviderSettings.tsx
+#: src/renderer/components/providers/settings/ProviderCredentialAccounts.tsx
 msgid "Add a project in this environment before signing in."
 msgstr "Añade un proyecto en este entorno antes de iniciar sesión."
 
@@ -2359,6 +2359,7 @@ msgstr "Creadas por mí"
 msgid "Authorization: Bearer token"
 msgstr "Authorization: Bearer token"
 
+#: src/renderer/components/common/effortLabel.ts
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Auto"
 msgstr "Automático"
@@ -7963,6 +7964,10 @@ msgstr "Integración de primera clase con Qoder CLI mediante los entornos de eje
 msgid "First-class Qwen Code integration using Poracode's native terminal and ACP runtimes."
 msgstr "Integración de primera clase con Qwen Code mediante los entornos de ejecución nativos de terminal y ACP de Poracode."
 
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Vercel fx integration using Poracode's native terminal and ACP runtimes."
+msgstr "Integración de primera clase con Vercel fx mediante los entornos de ejecución nativos de terminal y ACP de Poracode."
+
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Fit"
 msgstr "Ajustado"
@@ -8225,6 +8230,10 @@ msgstr "Configuración completa"
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "Fullscreen overlay"
 msgstr "Superposición a pantalla completa"
+
+#: src/renderer/components/providers/fx/manifest.ts
+msgid "fx"
+msgstr "fx"
 
 #: src/renderer/utils/projectIcons.ts
 msgid "Games & fun"
@@ -10284,8 +10293,8 @@ msgstr "Origen de inicio de sesión"
 msgid "Login source, config file, organization, and runtime for this configuration. Thread knobs like model and approvals stay on the composer."
 msgstr "Origen de inicio de sesión, archivo de configuración, organización y runtime para esta configuración. Los ajustes del hilo como modelo y aprobaciones quedan en el compositor."
 
-#: src/renderer/components/providers/settings/OpenCode2ProviderSettings.tsx
 #: src/renderer/components/providers/settings/ProviderAccountsSection.tsx
+#: src/renderer/components/providers/settings/ProviderCredentialAccounts.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Logout"
@@ -15181,7 +15190,7 @@ msgstr "¿Quitar el skill vinculado “{0}”? Su carpeta de origen no se elimin
 msgid "Remove the project's experiments before removing the project."
 msgstr "Elimina los experimentos del proyecto antes de eliminarlo."
 
-#: src/renderer/components/providers/settings/OpenCode2ProviderSettings.tsx
+#: src/renderer/components/providers/settings/ProviderCredentialAccounts.tsx
 msgid "Remove the saved credential for this provider? You can connect it again from Add provider."
 msgstr "¿Eliminar las credenciales guardadas de este proveedor? Puedes volver a conectarlo desde «Añadir proveedor»."
 
@@ -17435,6 +17444,10 @@ msgstr "Se requiere iniciar sesión"
 msgid "Sign in to {0}"
 msgstr "Iniciar sesión en {0}"
 
+#: src/renderer/components/providers/fx/FxProviderSettings.tsx
+msgid "Sign in to the AI backends fx can use, and sign out of them here."
+msgstr "Inicia sesión en los backends de IA que fx puede usar y cierra sesión en ellos aquí."
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Sign in with the agent CLI."
 msgstr "Inicia sesión con la CLI del agente."
@@ -17452,8 +17465,8 @@ msgstr "Cerrar sesión {label}"
 
 #. placeholder {0}: provider.label
 #. placeholder {0}: signingOut?.provider.label ?? ""
-#: src/renderer/components/providers/settings/OpenCode2ProviderSettings.tsx
 #: src/renderer/components/providers/settings/ProviderAccountsSection.tsx
+#: src/renderer/components/providers/settings/ProviderCredentialAccounts.tsx
 msgid "Sign out of {0}"
 msgstr "Cerrar sesión en {0}"
 

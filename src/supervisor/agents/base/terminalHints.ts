@@ -1,5 +1,5 @@
 import type { ThreadConfig } from "@/shared/contracts";
-import type { OscNotification, OscShellEvent, OscTitle } from "@/shared/osc";
+import type { OscNotification, OscProgramStatus, OscShellEvent, OscTitle } from "@/shared/osc";
 import type {
   FindBestHintOptions,
   HintEntry,
@@ -67,6 +67,26 @@ export function shellExecOscHint(event: OscShellEvent): TerminalStatusHint | nul
     return { status: "idle", attention: "none", corroborated: true };
   }
   return null;
+}
+
+export function programStatusOscHint(status: OscProgramStatus): TerminalStatusHint | null {
+  switch (status.state) {
+    case "working":
+      return { status: "working", attention: "working", corroborated: true };
+    case "blocked":
+      return status.kind === "permission"
+        ? { status: "needs_approval", attention: "needs_approval", corroborated: true }
+        : { status: "needs_reply", attention: "needs_reply", corroborated: true };
+    case "idle":
+    case "done":
+    case "error":
+      // A failed turn leaves the TUI waiting for input; terminal hints never
+      // report error.
+      return { status: "idle", attention: "none", corroborated: true };
+    case "clear":
+      // Emitted on exit/suspend; process lifecycle owns that transition.
+      return null;
+  }
 }
 
 /**
