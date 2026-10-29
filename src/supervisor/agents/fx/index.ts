@@ -23,6 +23,7 @@ import {
   resolveFxAcpMode,
 } from "./acp";
 import { buildFxArgs, buildFxLaunchEnv } from "./argv";
+import { manageFxCredentials } from "./credentials";
 import { buildFxCommand, fxDefaultCapabilities, fxDetectionSpec } from "./detection";
 import { fxNativeMcpConfig } from "./nativeMcp";
 import { discoverFxSessionRef, snapshotFxPreSpawnSessions, watchFxSessionRef } from "./sessions";
@@ -34,6 +35,7 @@ export function createFxAdapter(): AgentAdapter {
     kind: fxDetectionSpec.kind,
     label: fxDetectionSpec.label,
     binary: fxDetectionSpec.binary,
+    manageCredentials: manageFxCredentials,
     nativeMcpConfig: (ctx) => (ctx.envKind === "wsl" ? undefined : fxNativeMcpConfig()),
     skillSupport: {
       roots: [

@@ -26,6 +26,7 @@ import { OPENCODE2_INSTALL_COMMANDS } from "@/renderer/components/providers/open
 import { OpenCode2ProviderSettings } from "../../../components/providers/settings/OpenCode2ProviderSettings";
 import { OpenCodeProviderSettings } from "../../../components/providers/settings/OpenCodeProviderSettings";
 import { DeepSeekProviderSettings } from "@/renderer/components/providers/deepseek/DeepSeekProviderSettings";
+import { FxProviderSettings } from "@/renderer/components/providers/fx/FxProviderSettings";
 import { cursorAgentInstallCommand, cursorRuntimeSlots } from "./cursorRuntimeInstall";
 import type { NativeAgentRuntimeSlots } from "./nativeAgentRuntimes";
 import { antigravityCliInstallCommand, antigravityRuntimeSlots } from "./antigravityRuntimeInstall";
@@ -506,6 +507,8 @@ export const NATIVE_AGENT_REGISTRY_ENTRIES: NativeAgentRegistryEntry[] = [
     id: "fx",
     description: msg`First-class Vercel fx integration using Poracode's native terminal and ACP runtimes.`,
     docsUrl: "https://fx.sh/docs/getting-started/installation",
+    settingsPanel: FxProviderSettings,
+    ownsAuthUi: true,
     installCommand: (project) =>
       posixOrWindows(
         project,

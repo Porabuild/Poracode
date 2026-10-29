@@ -1,7 +1,7 @@
-import type { ReactNode } from "react";
-import { Button, Disclosure } from "@heroui/react";
+import { useState, type ReactNode } from "react";
+import { Button, Disclosure, Popover } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { LogOut, Plus } from "lucide-react";
+import { ChevronDown, LogOut, Plus } from "lucide-react";
 import type { AgentConnectedProvider } from "@/shared/contracts";
 import { PixelLoader } from "@/renderer/components/common";
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
@@ -28,12 +28,35 @@ export function ProviderAccountsSection(props: {
   pendingKey: string | undefined;
   /** When true, Add is shown but cannot start a login (no login command). */
   addDisabled?: boolean;
-  onAdd: () => void;
+  /**
+   * Accounts the agent signs in to one at a time. When set, Add opens a menu of
+   * these and passes the chosen id to onAdd; otherwise Add starts the agent's
+   * single login.
+   */
+  addOptions?: readonly { id: string; label: string }[];
+  onAdd: (optionId?: string) => void;
   onSignOut: (provider: AgentConnectedProvider, index: number) => void;
 }) {
   const { t } = useLingui();
   const { agentKind, providers, pendingKey, addDisabled = false } = props;
   const isBusy = pendingKey !== undefined;
+  const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
+  const addMenuDisabled = isBusy || addDisabled || (props.addOptions?.length ?? 1) === 0;
+
+  const addButton = (
+    <Button
+      size="sm"
+      variant="secondary"
+      className="h-7 min-h-7 shrink-0 gap-1 px-2 text-[11px] text-foreground"
+      isDisabled={addMenuDisabled}
+      isPending={pendingKey === ADD_PROVIDER_KEY}
+      {...(props.addOptions ? {} : { onPress: () => props.onAdd() })}
+    >
+      <Plus className="size-3" />
+      <Trans>Add provider</Trans>
+      {props.addOptions ? <ChevronDown className="size-3 shrink-0 text-muted" /> : null}
+    </Button>
+  );
 
   return (
     <div className="border-t border-border/10 pt-3">
@@ -109,17 +132,36 @@ export function ProviderAccountsSection(props: {
           </Disclosure.Content>
         </Disclosure>
 
-        <Button
-          size="sm"
-          variant="secondary"
-          className="h-7 min-h-7 shrink-0 gap-1 px-2 text-[11px] text-foreground"
-          isDisabled={isBusy || addDisabled}
-          isPending={pendingKey === ADD_PROVIDER_KEY}
-          onPress={props.onAdd}
-        >
-          <Plus className="size-3" />
-          <Trans>Add provider</Trans>
-        </Button>
+        {props.addOptions ? (
+          <Popover
+            isOpen={isAddMenuOpen && !addMenuDisabled}
+            onOpenChange={(open) => setIsAddMenuOpen(open && !addMenuDisabled)}
+          >
+            <Popover.Trigger>{addButton}</Popover.Trigger>
+            <Popover.Content placement="bottom end" className="w-48 p-0">
+              <Popover.Dialog className="!p-0">
+                <div role="menu" aria-label={t`Add provider`} className="poracode-menu py-1">
+                  {props.addOptions.map((option) => (
+                    <button
+                      key={option.id}
+                      type="button"
+                      role="menuitem"
+                      className="flex w-full items-center px-3 py-1.5 text-sm text-foreground hover:bg-surface-secondary/50"
+                      onClick={() => {
+                        props.onAdd(option.id);
+                        setIsAddMenuOpen(false);
+                      }}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </Popover.Dialog>
+            </Popover.Content>
+          </Popover>
+        ) : (
+          addButton
+        )}
       </div>
     </div>
   );

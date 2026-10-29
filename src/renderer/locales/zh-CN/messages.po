@@ -1337,6 +1337,7 @@ msgstr "登录前添加项目。"
 msgid "Add a project before updating an agent."
 msgstr "请先添加项目，再更新智能体。"
 
+#: src/renderer/components/providers/fx/FxProviderSettings.tsx
 #: src/renderer/components/providers/settings/OpenCode2ProviderSettings.tsx
 msgid "Add a project in this environment before signing in."
 msgstr "请先在此环境中添加项目，再登录。"
@@ -10283,6 +10284,7 @@ msgstr "登录来源"
 msgid "Login source, config file, organization, and runtime for this configuration. Thread knobs like model and approvals stay on the composer."
 msgstr "此配置的登录来源、配置文件、组织和运行时。模型和审批等线程选项保留在输入框中。"
 
+#: src/renderer/components/providers/fx/FxProviderSettings.tsx
 #: src/renderer/components/providers/settings/OpenCode2ProviderSettings.tsx
 #: src/renderer/components/providers/settings/ProviderAccountsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
@@ -15179,6 +15181,7 @@ msgstr "移除已链接的技能“{0}”？其源文件夹不会被删除。"
 msgid "Remove the project's experiments before removing the project."
 msgstr "删除项目前，请先删除该项目的实验。"
 
+#: src/renderer/components/providers/fx/FxProviderSettings.tsx
 #: src/renderer/components/providers/settings/OpenCode2ProviderSettings.tsx
 msgid "Remove the saved credential for this provider? You can connect it again from Add provider."
 msgstr "要删除此提供商已保存的凭据吗？你可以在“添加提供商”中重新连接。"
@@ -17433,6 +17436,10 @@ msgstr "需要登录"
 msgid "Sign in to {0}"
 msgstr "登录 {0}"
 
+#: src/renderer/components/providers/fx/FxProviderSettings.tsx
+msgid "Sign in to the AI backends fx can use, and sign out of them here."
+msgstr "登录 fx 可以使用的 AI 后端，并在此退出登录。"
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Sign in with the agent CLI."
 msgstr "使用代理 CLI 登录。"
@@ -17450,6 +17457,7 @@ msgstr "退出{label}"
 
 #. placeholder {0}: provider.label
 #. placeholder {0}: signingOut?.provider.label ?? ""
+#: src/renderer/components/providers/fx/FxProviderSettings.tsx
 #: src/renderer/components/providers/settings/OpenCode2ProviderSettings.tsx
 #: src/renderer/components/providers/settings/ProviderAccountsSection.tsx
 msgid "Sign out of {0}"

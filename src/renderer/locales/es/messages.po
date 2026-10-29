@@ -1337,6 +1337,7 @@ msgstr "Agrega un proyecto antes de iniciar sesión."
 msgid "Add a project before updating an agent."
 msgstr "Añade un proyecto antes de actualizar un agente."
 
+#: src/renderer/components/providers/fx/FxProviderSettings.tsx
 #: src/renderer/components/providers/settings/OpenCode2ProviderSettings.tsx
 msgid "Add a project in this environment before signing in."
 msgstr "Añade un proyecto en este entorno antes de iniciar sesión."
@@ -10283,6 +10284,7 @@ msgstr "Origen de inicio de sesión"
 msgid "Login source, config file, organization, and runtime for this configuration. Thread knobs like model and approvals stay on the composer."
 msgstr "Origen de inicio de sesión, archivo de configuración, organización y runtime para esta configuración. Los ajustes del hilo como modelo y aprobaciones quedan en el compositor."
 
+#: src/renderer/components/providers/fx/FxProviderSettings.tsx
 #: src/renderer/components/providers/settings/OpenCode2ProviderSettings.tsx
 #: src/renderer/components/providers/settings/ProviderAccountsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
@@ -15180,6 +15182,7 @@ msgstr "¿Quitar el skill vinculado “{0}”? Su carpeta de origen no se elimin
 msgid "Remove the project's experiments before removing the project."
 msgstr "Elimina los experimentos del proyecto antes de eliminarlo."
 
+#: src/renderer/components/providers/fx/FxProviderSettings.tsx
 #: src/renderer/components/providers/settings/OpenCode2ProviderSettings.tsx
 msgid "Remove the saved credential for this provider? You can connect it again from Add provider."
 msgstr "¿Eliminar las credenciales guardadas de este proveedor? Puedes volver a conectarlo desde «Añadir proveedor»."
@@ -17434,6 +17437,10 @@ msgstr "Se requiere iniciar sesión"
 msgid "Sign in to {0}"
 msgstr "Iniciar sesión en {0}"
 
+#: src/renderer/components/providers/fx/FxProviderSettings.tsx
+msgid "Sign in to the AI backends fx can use, and sign out of them here."
+msgstr "Inicia sesión en los backends de IA que fx puede usar y cierra sesión en ellos aquí."
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Sign in with the agent CLI."
 msgstr "Inicia sesión con la CLI del agente."
@@ -17451,6 +17458,7 @@ msgstr "Cerrar sesión {label}"
 
 #. placeholder {0}: provider.label
 #. placeholder {0}: signingOut?.provider.label ?? ""
+#: src/renderer/components/providers/fx/FxProviderSettings.tsx
 #: src/renderer/components/providers/settings/OpenCode2ProviderSettings.tsx
 #: src/renderer/components/providers/settings/ProviderAccountsSection.tsx
 msgid "Sign out of {0}"

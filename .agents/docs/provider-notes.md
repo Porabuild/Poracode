@@ -223,6 +223,13 @@ restrictions, literal `Authorization` or reserved headers, plain-HTTP
 non-loopback URLs) are shown as ineligible rather than written. WSL has no
 native setup.
 
+Provider Settings lists the fx backends signed in on this machine — AI Gateway,
+Codex, and Grok — from `fx status --json`. Add provider runs
+`fx login <backend>` in the terminal overlay and Logout runs
+`fx logout <backend>` (`fx/credentials.ts`). fx reports `connected_providers`
+only while a non-Gateway backend is selected, so that read-only status call
+pins `FX_PROVIDER=codex` with a placeholder `FX_MODEL`.
+
 Provider Usage runs `fx usage --json` (schema 2) supervisor-side
 (`fx/usage.ts`). The report follows the backend fx is signed in to: an AI
 Gateway budget and spend, ChatGPT plan limits and credits, or a Grok allowance.

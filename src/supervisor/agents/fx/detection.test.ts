@@ -1,11 +1,22 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { DetectProbeCtx } from "../base";
 import {
   buildFxCapabilities,
   FX_TERMINAL_AUTH_METHOD,
   fxDefaultCapabilities,
   parseFxModelsJson,
   parseFxStatusJson,
+  probeFxCapabilities,
 } from "./detection";
+
+const base = vi.hoisted(() => ({
+  readAgentCommandOutput: vi.fn<typeof import("../base").readAgentCommandOutput>(),
+}));
+
+vi.mock("../base", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../base")>()),
+  ...base,
+}));
 
 describe("parseFxStatusJson", () => {
   it("parses the status payload", () => {
@@ -166,10 +177,10 @@ describe("buildFxCapabilities", () => {
     );
   });
 
-  it("always offers the terminal login method and logout", () => {
+  it("offers the terminal login method and leaves logout to the per-backend panel", () => {
     const capabilities = buildFxCapabilities(undefined, models);
     expect(capabilities.authMethods).toEqual([FX_TERMINAL_AUTH_METHOD]);
-    expect(capabilities.authLogoutSupported).toBe(true);
+    expect(capabilities.authLogoutSupported).toBeUndefined();
     expect(capabilities.approvalPolicies).toEqual(fxDefaultCapabilities.approvalPolicies);
   });
 
@@ -178,5 +189,61 @@ describe("buildFxCapabilities", () => {
     expect(capabilities.models).toEqual([{ id: "spacexai/grok-4.7", label: "spacexai/grok-4.7" }]);
     expect(capabilities.efforts).toEqual([]);
     expect(capabilities.modelEfforts).toEqual({ "spacexai/grok-4.7": [] });
+  });
+
+  it("reports connected backends as provider metadata when given", () => {
+    const connectedProviders = [
+      { id: "codex", label: "Codex" },
+      { id: "grok", label: "Grok" },
+    ];
+    expect(buildFxCapabilities(undefined, models, connectedProviders).providerMetadata).toEqual({
+      connectedProviders,
+    });
+    expect(buildFxCapabilities(undefined, models).providerMetadata).toBeUndefined();
+  });
+});
+
+describe("probeFxCapabilities", () => {
+  beforeEach(() => {
+    base.readAgentCommandOutput.mockReset();
+  });
+
+  it("adds the backends from the pinned status call to provider metadata", async () => {
+    base.readAgentCommandOutput.mockImplementation(async (_location, _binary, _args, options) =>
+      options?.env?.["FX_PROVIDER"] === "codex"
+        ? {
+            ok: true,
+            stdout: JSON.stringify({
+              kind: "status",
+              connected_providers: ["grok", "vercel-ai-gateway"],
+            }),
+            stderr: "",
+          }
+        : { ok: false, stdout: "", stderr: "" },
+    );
+    const ctx: DetectProbeCtx = {
+      location: { kind: "posix", path: "/tmp/demo" },
+      executablePath: "/usr/local/bin/fx",
+      probeEnv: { FX_AUTO_UPGRADE: "0" },
+    };
+
+    const capabilities = await probeFxCapabilities(ctx);
+
+    expect(capabilities.providerMetadata).toEqual({
+      connectedProviders: [
+        { id: "vercel", label: "Vercel AI Gateway" },
+        { id: "grok", label: "Grok" },
+      ],
+    });
+    const pinned = base.readAgentCommandOutput.mock.calls.filter(
+      ([, , , options]) => options?.env?.["FX_PROVIDER"] === "codex",
+    );
+    expect(pinned).toHaveLength(1);
+    expect(pinned[0]?.[2]).toEqual(["status", "--json"]);
+    expect(pinned[0]?.[3]?.env).toEqual({
+      FX_AUTO_UPGRADE: "0",
+      FX_PROVIDER: "codex",
+      FX_MODEL: "poracode-status-probe",
+    });
   });
 });

@@ -1337,6 +1337,7 @@ msgstr "Oturum açmadan önce bir proje ekleyin."
 msgid "Add a project before updating an agent."
 msgstr "Bir aracıyı güncellemeden önce proje ekleyin."
 
+#: src/renderer/components/providers/fx/FxProviderSettings.tsx
 #: src/renderer/components/providers/settings/OpenCode2ProviderSettings.tsx
 msgid "Add a project in this environment before signing in."
 msgstr "Oturum açmadan önce bu ortamda bir proje ekleyin."
@@ -10283,6 +10284,7 @@ msgstr "Giriş kaynağı"
 msgid "Login source, config file, organization, and runtime for this configuration. Thread knobs like model and approvals stay on the composer."
 msgstr "Bu yapılandırma için giriş kaynağı, yapılandırma dosyası, kuruluş ve çalışma zamanı. Model ve onaylar gibi konu ayarları bestecide kalır."
 
+#: src/renderer/components/providers/fx/FxProviderSettings.tsx
 #: src/renderer/components/providers/settings/OpenCode2ProviderSettings.tsx
 #: src/renderer/components/providers/settings/ProviderAccountsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
@@ -15180,6 +15182,7 @@ msgstr "Bağlı “{0}” becerisi kaldırılsın mı? Kaynak klasörü silinmez
 msgid "Remove the project's experiments before removing the project."
 msgstr "Projeyi kaldırmadan önce projenin deneylerini kaldırın."
 
+#: src/renderer/components/providers/fx/FxProviderSettings.tsx
 #: src/renderer/components/providers/settings/OpenCode2ProviderSettings.tsx
 msgid "Remove the saved credential for this provider? You can connect it again from Add provider."
 msgstr "Bu sağlayıcının kayıtlı kimlik bilgileri kaldırılsın mı? “Sağlayıcı ekle” ile yeniden bağlayabilirsiniz."
@@ -17434,6 +17437,10 @@ msgstr "Oturum açmanız gerekiyor"
 msgid "Sign in to {0}"
 msgstr "{0} için oturum aç"
 
+#: src/renderer/components/providers/fx/FxProviderSettings.tsx
+msgid "Sign in to the AI backends fx can use, and sign out of them here."
+msgstr "fx'in kullanabileceği yapay zekâ arka uçlarında oturum açın ve buradan oturumlarını kapatın."
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Sign in with the agent CLI."
 msgstr "Aracı CLI ile oturum açın."
@@ -17451,6 +17458,7 @@ msgstr "{label} oturumunu kapat"
 
 #. placeholder {0}: provider.label
 #. placeholder {0}: signingOut?.provider.label ?? ""
+#: src/renderer/components/providers/fx/FxProviderSettings.tsx
 #: src/renderer/components/providers/settings/OpenCode2ProviderSettings.tsx
 #: src/renderer/components/providers/settings/ProviderAccountsSection.tsx
 msgid "Sign out of {0}"

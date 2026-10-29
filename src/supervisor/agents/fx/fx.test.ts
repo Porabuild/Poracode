@@ -30,6 +30,7 @@ describe("createFxAdapter", () => {
       workingSilenceTimeoutMs: null,
     });
     expect(adapter.createInitialSessionRef?.()).toBeUndefined();
+    expect(adapter.manageCredentials).toBeTypeOf("function");
     expect(adapter.skillSupport?.invocation).toBe("dollar");
     expect(adapter.skillSupport?.precedence).toEqual({
       global: ["fx", "claude", "agents"],

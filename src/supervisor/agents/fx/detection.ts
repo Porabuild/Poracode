@@ -1,4 +1,9 @@
-import type { AgentCapability, AgentTerminalAuthMethod, ProjectLocation } from "@/shared/contracts";
+import type {
+  AgentCapability,
+  AgentConnectedProvider,
+  AgentTerminalAuthMethod,
+  ProjectLocation,
+} from "@/shared/contracts";
 import { sortEffortsByCanonicalOrder } from "@/shared/effortOrder";
 import {
   buildAgentCommand,
@@ -8,6 +13,7 @@ import {
   type DetectProbeCtx,
   type DetectionSpec,
 } from "../base";
+import { readFxConnectedProviders } from "./credentials";
 
 // Verified against fx 0.0.15. `models --json` lists the catalog of fx's active
 // provider (gateway / codex / grok), so it is authoritative for models and
@@ -127,6 +133,7 @@ export function parseFxModelsJson(stdout: string): FxModelSummary[] | undefined 
 export function buildFxCapabilities(
   status: FxStatusSummary | undefined,
   models: readonly FxModelSummary[] | undefined,
+  connectedProviders?: AgentConnectedProvider[],
 ): CapabilitiesProbeResult {
   const catalog: FxModelSummary[] =
     models && models.length > 0
@@ -187,7 +194,9 @@ export function buildFxCapabilities(
     ...(fastModels.length > 0 ? { fastModels } : {}),
     ...(authState ? { authState } : {}),
     authMethods: [FX_TERMINAL_AUTH_METHOD],
-    authLogoutSupported: true,
+    // No generic logout: fx signs out per backend (`fx logout <backend>`)
+    // through the provider panel's manageCredentials.
+    ...(connectedProviders ? { providerMetadata: { connectedProviders } } : {}),
   };
 }
 
@@ -199,13 +208,15 @@ export async function probeFxCapabilities(ctx: DetectProbeCtx): Promise<Capabili
     ...(ctx.probeEnv ? { env: ctx.probeEnv } : {}),
     ...(ctx.signal ? { signal: ctx.signal } : {}),
   };
-  const [statusResult, modelsResult] = await Promise.all([
+  const [statusResult, modelsResult, connectedProviders] = await Promise.all([
     readAgentCommandOutput(ctx.location, executablePath, ["status", "--json"], options),
     readAgentCommandOutput(ctx.location, executablePath, ["models", "--json"], options),
+    readFxConnectedProviders(ctx.location, executablePath, options),
   ]);
   return buildFxCapabilities(
     statusResult.ok ? parseFxStatusJson(statusResult.stdout) : undefined,
     modelsResult.ok ? parseFxModelsJson(modelsResult.stdout) : undefined,
+    connectedProviders,
   );
 }
 
