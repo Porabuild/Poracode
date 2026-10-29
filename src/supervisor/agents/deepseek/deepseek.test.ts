@@ -150,7 +150,7 @@ describe("DeepSeek Harness", () => {
   });
 
   it.each(["posix", "windows", "wsl"] as const)(
-    "keeps %s updates on the current release-candidate channel",
+    "uses the latest published release for %s updates",
     (envKind) => {
       const adapter = createDeepSeekAdapter();
       expect(
@@ -161,12 +161,10 @@ describe("DeepSeek Harness", () => {
         }),
       ).toEqual({
         binary: "npm",
-        args: ["install", "-g", "@deepseek-ai/dsh@next"],
-        strategy: "installer",
+        args: ["install", "-g", "@deepseek-ai/dsh@latest"],
+        strategy: "npm-global",
       });
-      expect(adapter.update?.latestVersionUrls).toEqual([
-        "https://registry.npmjs.org/%40deepseek-ai%2Fdsh/next",
-      ]);
+      expect(adapter.update).toEqual({ npm: "@deepseek-ai/dsh" });
     },
   );
 
