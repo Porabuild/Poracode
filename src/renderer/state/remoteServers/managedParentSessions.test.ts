@@ -22,6 +22,7 @@ import {
 import { refreshSubjectVaultKey, type RefreshSubject } from "./refreshTokens";
 import {
   environmentParentRef,
+  remoteConnectionKey,
   type RemoteEnvironmentTransport,
   type RemoteServerRecord,
   type RemoteServersState,
@@ -157,6 +158,11 @@ function harness(records: readonly RemoteServerRecord[]): Harness {
   const pinLookups: string[] = [];
   configureEnvironmentSessions({
     getState: () => state,
+    persistAccessToken: (connectionKey, accessToken) => {
+      state.servers = state.servers.map((server) =>
+        remoteConnectionKey(server) === connectionKey ? { ...server, accessToken } : server,
+      );
+    },
     clientFactory: () => (endpoint) => {
       parentClientFactoryCalls.push(endpoint);
       throw new Error("a managed parent must never create a persisted parent client");
@@ -353,6 +359,7 @@ describe("managed parent session resolution", () => {
     } as Partial<RemoteServerRecord>);
     configureEnvironmentSessions({
       getState: () => ({ servers: [parent, child] }) as unknown as RemoteServersState,
+      persistAccessToken: () => undefined,
       clientFactory: () => () => fakeManagedClient("parent-access").client,
       certPinForConnection: () => undefined,
       refreshTokenForSubject: () => undefined,
@@ -444,6 +451,11 @@ describe("managed parent rotation and teardown", () => {
     const configure = () =>
       configureEnvironmentSessions({
         getState: () => state,
+        persistAccessToken: (connectionKey, accessToken) => {
+          state.servers = state.servers.map((server) =>
+            remoteConnectionKey(server) === connectionKey ? { ...server, accessToken } : server,
+          );
+        },
         clientFactory: () => () =>
           ({
             setTokenLifecycle: (lifecycle: RemoteTokenLifecycle) => lifecycles.push(lifecycle),

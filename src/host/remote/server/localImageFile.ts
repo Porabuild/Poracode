@@ -3,6 +3,7 @@ import type { ServerResponse } from "node:http";
 import { extname, resolve } from "node:path";
 import { RemoteHttpError } from "../auth";
 import { writeHardenedImageResponse } from "./httpResponses";
+import { resolveCardVariant } from "./imageCardVariant";
 
 /** Served image payloads are capped so a paired device can't pull huge files. */
 const MAX_LOCAL_IMAGE_BYTES = 20 * 1024 * 1024;
@@ -34,6 +35,7 @@ const LOCAL_IMAGE_CONTENT_TYPES: Readonly<Record<string, string>> = {
 export async function writeLocalImageFile(
   res: ServerResponse,
   rawPath: string | null,
+  variant?: string | null,
 ): Promise<void> {
   if (!rawPath || rawPath.trim().length === 0 || rawPath.includes("\0")) {
     throw new RemoteHttpError("invalid_path", "An absolute image path is required.", 400);
@@ -62,13 +64,17 @@ export async function writeLocalImageFile(
     throw new RemoteHttpError("image_too_large", "The image file is too large.", 413);
   }
   const data = await readFile(filePath);
+  // `?variant=card` serves the downscaled display variant when this host
+  // has a variant generator; unknown variants (and hosts without one)
+  // serve the full bytes, so older clients/hosts are unaffected.
+  const served = variant === "card" ? await resolveCardVariant({ mime: contentType, data }) : null;
   // Gate 6 item 4.4 (S4): the requested path is client-origin content served
   // from the client's own origin — the response carries the hardened image
   // header set (CSP sandbox, nosniff, fixed-filename disposition; SVG as
   // attachment) instead of bare image bytes.
   writeHardenedImageResponse(res, {
-    contentType,
-    data,
+    contentType: served?.mime ?? contentType,
+    data: served?.data ?? data,
     cacheControl: "private, max-age=300",
   });
 }

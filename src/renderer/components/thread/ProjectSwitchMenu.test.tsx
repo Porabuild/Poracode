@@ -1,10 +1,11 @@
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import type { Project, ProjectDraftConfig } from "@/shared/contracts";
 import { HOME_PROJECT_ID, HOME_PROJECT_NAME } from "@/shared/homeScope";
 import { makeDraftPaneId, parseDraftProjectId } from "@/shared/paneId";
 import { useAppStore } from "@/renderer/state/appStore";
+import { composerDraftStorage } from "@/renderer/state/composerDraftStorage";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useWorkspaceStore } from "@/renderer/state/workspaceStore";
@@ -55,6 +56,10 @@ describe("ProjectSwitchMenu", () => {
       draftContents: {},
       draftContentDiscardRequests: {},
     });
+  });
+
+  afterEach(() => {
+    composerDraftStorage()?.flush();
   });
 
   it("offers only the active workspace's projects, like the sidebar", async () => {

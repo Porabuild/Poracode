@@ -150,6 +150,8 @@ export function createBackendSettingsAccess(
     call,
     editSettingsField: (field, compute) =>
       ensureRuntime().then((opened) => opened.writes.editSettingsField(field, compute)),
+    editSettingsFields: (fields, compute) =>
+      ensureRuntime().then((opened) => opened.writes.editSettingsFields(fields, compute)),
     commitCompatPatch: (patch) =>
       ensureRuntime().then((opened) => opened.writes.commitCompatPatch(patch)),
     commitOwnerEdits: (edits) =>
@@ -174,6 +176,10 @@ export interface BackendSettingsAccess {
   editSettingsField<F extends keyof SharedSettings>(
     field: F,
     compute: (current: SharedSettings) => SharedSettings[F] | undefined,
+  ): Promise<SettingsMutationResult>;
+  editSettingsFields<F extends keyof SharedSettings>(
+    fields: readonly F[],
+    compute: (current: SharedSettings) => Pick<SharedSettings, F>,
   ): Promise<SettingsMutationResult>;
   /** Compat partial patch through the authority's compare-and-swap; rejects
    * loudly when a conflict survives the bounded rebase. */

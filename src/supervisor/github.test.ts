@@ -67,6 +67,20 @@ const wslLocation = {
 };
 
 describe("GitHubService", () => {
+  it.each([false, true])(
+    "edits the right GitHub comment kind without shell interpolation (%s)",
+    async (inline) => {
+      execFileAsyncMock.mockResolvedValue({ stdout: "{}" });
+      const body = "Updated $text with quotes' and\nnewlines";
+      await new GitHubService().editPrComment(location, "comment-node", body, inline);
+      const args = execFileAsyncMock.mock.calls[0]![1] as string[];
+      expect(args).toContain(`body=${body}`);
+      expect(args).toContain("id=comment-node");
+      expect(args.find((value) => value.startsWith("query="))).toContain(
+        inline ? "updatePullRequestReviewComment(input:" : "updateIssueComment(input:",
+      );
+    },
+  );
   beforeEach(() => {
     vi.clearAllMocks();
     buildAgentCommandMock.mockImplementation((_loc, command, args) => ({
@@ -119,6 +133,150 @@ describe("GitHubService", () => {
       expect(options.env?.GH_REPO).toBeUndefined();
       if (prior === undefined) delete process.env.GH_REPO;
       else process.env.GH_REPO = prior;
+    });
+  });
+
+  describe("review repository identity", () => {
+    function responses(login = "alice") {
+      execFileAsyncMock.mockImplementation(async (command, rawArgs, rawOptions) => {
+        const args = rawArgs as string[];
+        if (command === "git")
+          return { stdout: "origin\tgit@work-alias:team/default-repo.git (fetch)\n" };
+        if (args[0] === "repo" && args[1] === "set-default")
+          return { stdout: "github.example/team/default-repo\n" };
+        if (args[0] === "repo") {
+          const options = rawOptions as { env?: Record<string, string> };
+          if (options.env?.GH_REPO && options.env.GH_ENTERPRISE_TOKEN !== "selected-token")
+            throw new Error("active account cannot access this private repository");
+          return {
+            stdout: JSON.stringify({
+              nameWithOwner: "team/default-repo",
+              url: "https://github.example/team/default-repo",
+            }),
+          };
+        }
+        if (args[0] === "auth") return { stdout: "selected-token\n" };
+        if (args[0] === "api") return { stdout: `${login}\n` };
+        if (args[0] === "pr") return { stdout: "[]" };
+        throw new Error("unexpected review command");
+      });
+    }
+
+    it("uses the selected account for a private repository behind an SSH alias", async () => {
+      responses();
+      const selected = await new GitHubService().forReviewRepository(location, {
+        host: "github.example",
+        login: "alice",
+      });
+      expect(selected).toMatchObject({
+        host: "https://github.example",
+        repository: "team/default-repo",
+        account: { host: "github.example", login: "alice" },
+      });
+      const credential = execFileAsyncMock.mock.calls.find(
+        (call) => (call[1] as string[])[0] === "auth",
+      );
+      expect(credential?.[1]).toEqual([
+        "auth",
+        "token",
+        "--hostname",
+        "github.example",
+        "--user",
+        "alice",
+      ]);
+      expect(credential?.[2]).toMatchObject({
+        env: {
+          GH_TOKEN: "",
+          GITHUB_TOKEN: "",
+          GH_ENTERPRISE_TOKEN: "",
+          GITHUB_ENTERPRISE_TOKEN: "",
+        },
+      });
+      await selected.service.getPrForBranch(location, "feature");
+      expect(execFileAsyncMock.mock.calls.at(-1)?.[2]).toMatchObject({
+        env: {
+          GH_HOST: "github.example",
+          GH_REPO: "github.example/team/default-repo",
+          GH_ENTERPRISE_TOKEN: "selected-token",
+        },
+      });
+    });
+
+    it.each(["multiple remotes", "SSH alias"])(
+      "preserves gh repository resolution for %s without a configured default",
+      async (kind) => {
+        responses();
+        const run = execFileAsyncMock.getMockImplementation()!;
+        execFileAsyncMock.mockImplementation(async (command, rawArgs, options) => {
+          const args = rawArgs as string[];
+          if (command === "git")
+            return {
+              stdout:
+                kind === "SSH alias"
+                  ? "origin\tgit@work-alias:team/default-repo.git (fetch)\n"
+                  : "origin\tgit@github.example:me/fork.git (fetch)\nupstream\tgit@github.example:team/default-repo.git (fetch)\n",
+            };
+          if (args[0] === "repo" && args[1] === "set-default")
+            throw new Error("no default repository");
+          return run(command, rawArgs, options);
+        });
+        const selected = await new GitHubService().forReviewRepository(location, {
+          host: "github.example",
+          login: "alice",
+        });
+        expect(selected.repository).toBe("team/default-repo");
+        const calls = execFileAsyncMock.mock.calls.map((call) => call[1] as string[]);
+        expect(calls.findIndex((args) => args[0] === "repo" && args[1] === "view")).toBeLessThan(
+          calls.findIndex((args) => args[0] === "auth"),
+        );
+      },
+    );
+
+    it("freezes the current credential before principal lookup and subsequent PR reads", async () => {
+      responses();
+      const selected = await new GitHubService().forReviewRepository(location);
+      expect(execFileAsyncMock.mock.calls[1]?.[1]).toEqual([
+        "auth",
+        "token",
+        "--hostname",
+        "github.example",
+      ]);
+      expect(execFileAsyncMock.mock.calls[2]?.[2]).toMatchObject({
+        env: { GH_ENTERPRISE_TOKEN: "selected-token" },
+      });
+      await selected.service.getPrForBranch(location, "feature");
+      expect(
+        execFileAsyncMock.mock.calls.filter((call) => (call[1] as string[])[0] === "auth"),
+      ).toHaveLength(1);
+      expect(execFileAsyncMock.mock.calls.at(-1)?.[2]).toMatchObject({
+        env: { GH_ENTERPRISE_TOKEN: "selected-token" },
+      });
+    });
+
+    it("refuses a different principal without issuing a PR operation", async () => {
+      responses("bob");
+      await expect(
+        new GitHubService().forReviewRepository(location, {
+          host: "github.example",
+          login: "alice",
+        }),
+      ).rejects.toThrow(/different account/);
+      expect(execFileAsyncMock.mock.calls.some((call) => (call[1] as string[])[0] === "pr")).toBe(
+        false,
+      );
+    });
+
+    it("refuses the canonical host before looking up an account credential", async () => {
+      responses();
+      await expect(
+        new GitHubService().forReviewRepository(location, {
+          host: "other.example",
+          login: "alice",
+        }),
+      ).rejects.toThrow(/does not match/);
+      expect(execFileAsyncMock.mock.calls.some((call) => (call[1] as string[])[0] === "auth")).toBe(
+        false,
+      );
     });
   });
 
@@ -218,6 +376,27 @@ describe("GitHubService", () => {
       const result = await new GitHubService().getPrForBranch(location, "feature/wip");
 
       expect(result?.state).toBe("draft");
+      expect(result?.isDraft).toBe(true);
+    });
+
+    it("maps a closed PR that kept its draft flag to closed", async () => {
+      // Real gh output: closing a draft leaves isDraft true on the closed review.
+      const prJson = JSON.stringify([
+        {
+          number: 45,
+          url: "https://github.com/owner/repo/pull/45",
+          state: "CLOSED",
+          title: "Abandoned",
+          baseRefName: "main",
+          isDraft: true,
+          updatedAt: "2026-04-03T10:00:00Z",
+        },
+      ]);
+      execFileAsyncMock.mockResolvedValue({ stdout: prJson });
+
+      const result = await new GitHubService().getPrForBranch(location, "feature/abandoned");
+
+      expect(result?.state).toBe("closed");
       expect(result?.isDraft).toBe(true);
     });
 
@@ -1988,6 +2167,41 @@ on:
       expect(args).toContain("name={repo}");
       expect(args).toContain("number=1");
       expect(args.find((arg) => arg.startsWith("query="))).toContain("reviewThreads");
+    });
+
+    it("reports the diff side of each thread and none once the line is outdated", async () => {
+      const thread = (id: string, extra: Record<string, unknown>) =>
+        JSON.stringify({
+          id,
+          isResolved: false,
+          isOutdated: false,
+          path: "src/app.ts",
+          comments: { nodes: [] },
+          ...extra,
+        });
+      execFileAsyncMock.mockResolvedValue({
+        stdout: [
+          thread("removed", { line: 40, diffSide: "LEFT" }),
+          thread("added", { line: 41, diffSide: "RIGHT" }),
+          // GitHub clears `line` when a later commit moves the anchor out of the diff.
+          thread("outdated", { isOutdated: true, line: null, diffSide: "LEFT" }),
+          // An unknown side is never forwarded: clients treat it as the new side anyway.
+          thread("future", { line: 7, diffSide: "BOTH" }),
+          thread("legacy", { line: 9 }),
+        ].join("\n"),
+      });
+
+      const { threads } = await new GitHubService().getPrReviewThreads(location, 1);
+
+      expect(threads.map((t) => [t.id, t.line, t.side])).toEqual([
+        ["removed", 40, "LEFT"],
+        ["added", 41, "RIGHT"],
+        ["outdated", undefined, undefined],
+        ["future", 7, undefined],
+        ["legacy", 9, undefined],
+      ]);
+      const args = buildAgentCommandMock.mock.calls.at(-1)?.[2] as string[];
+      expect(args.find((arg) => arg.startsWith("query="))).toContain("diffSide");
     });
   });
 

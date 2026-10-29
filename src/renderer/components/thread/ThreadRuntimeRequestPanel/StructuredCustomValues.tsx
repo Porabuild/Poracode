@@ -1,7 +1,15 @@
 import { useState } from "react";
 import { Button, Input } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
+import { Plus, X } from "lucide-react";
+import {
+  QuestionRowMarker,
+  questionInputRowClassName,
+  questionRowClassName,
+  questionRowInputClassName,
+} from "./parts/QuestionOptionRow";
 
+/** Custom entries of a multi-select field, rendered as extra checked rows of its list. */
 export function StructuredCustomValues(props: {
   values: string[];
   isDisabled: boolean;
@@ -19,22 +27,30 @@ export function StructuredCustomValues(props: {
     setDraft("");
   }
   return (
-    <div className="space-y-1">
+    <div className="flex flex-col gap-px">
       {values.map((value) => (
-        <div key={value} className="flex min-w-0 items-center justify-between gap-2 text-xs">
-          <span className="min-w-0 flex-1 break-all">{value}</span>
+        <div key={value} className={questionRowClassName(true)}>
+          <QuestionRowMarker active>{null}</QuestionRowMarker>
+          <span className="min-w-0 flex-1 text-xs font-medium break-all text-foreground">
+            {value}
+          </span>
           <Button
+            isIconOnly
             size="sm"
             variant="ghost"
+            className="-my-1 size-6 min-w-6"
             isDisabled={isDisabled}
             aria-label={t`Remove ${value}`}
             onPress={() => onChange(values.filter((entry) => entry !== value))}
           >
-            <Trans>Remove</Trans>
+            <X className="size-3.5" />
           </Button>
         </div>
       ))}
-      <div className="flex items-center gap-1">
+      <label className={questionInputRowClassName(false, isDisabled || atLimit)}>
+        <QuestionRowMarker active={false}>
+          <Plus className="size-2.5" strokeWidth={3} />
+        </QuestionRowMarker>
         <Input
           data-question-enter-local
           aria-label={t`Other`}
@@ -49,16 +65,20 @@ export function StructuredCustomValues(props: {
               add();
             }
           }}
+          className={questionRowInputClassName}
         />
-        <Button
-          size="sm"
-          variant="secondary"
-          isDisabled={isDisabled || atLimit || !draft.trim()}
-          onPress={add}
-        >
-          <Trans>Add</Trans>
-        </Button>
-      </div>
+        {draft.trim() ? (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="-my-1 h-6"
+            isDisabled={isDisabled || atLimit}
+            onPress={add}
+          >
+            <Trans>Add</Trans>
+          </Button>
+        ) : null}
+      </label>
     </div>
   );
 }

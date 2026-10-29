@@ -3,6 +3,7 @@ import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice"
 import {
   isMessageReplyFormFallback,
   selectMessageReplyAnswer,
+  selectMessageReplyState,
   selectPendingMessageReplyIds,
 } from "./messageReplyForms";
 import { isVisibleRuntimeItem } from "./ChatPane/chatPaneSelectors";
@@ -71,6 +72,115 @@ describe("message reply projections", () => {
     expect(reply.payload).not.toHaveProperty("questionAnswer");
   });
 
+  it.each([question.id, "other-question"])(
+    "resolves only the submitted source %s even when question text is identical",
+    (sourceItemId) => {
+      const other = { ...question, id: "other-question" };
+      const questionAnswer = {
+        sourceItemId,
+        questions: [{ header: "", question: "Which scope?", selected: [{ label: "A" }] }],
+      };
+      const current = state([
+        question,
+        other,
+        { ...reply, payload: { ...(reply.payload as object), questionAnswer } },
+      ]);
+      const remainingId = sourceItemId === question.id ? other.id : question.id;
+      expect(selectPendingMessageReplyIds(current, "thread")).toEqual([remainingId]);
+      expect(selectMessageReplyState(current, "thread", sourceItemId)).toBe("answered");
+      expect(selectMessageReplyState(current, "thread", remainingId)).toBe("none");
+      expect(selectMessageReplyAnswer(current, "thread", reply.id)).toBe(questionAnswer);
+    },
+  );
+
+  it.each([false, true])(
+    "correlates older replies to one form without source metadata (structured: %s)",
+    (structured) => {
+      const other = {
+        ...question,
+        id: "other-question",
+        payload: {
+          content: [],
+          replyForm: { questions: [{ id: "detail", question: "Details?", options: null }] },
+        },
+      };
+      const current = state([
+        question,
+        other,
+        {
+          ...reply,
+          payload: {
+            ...(reply.payload as object),
+            ...(structured
+              ? {
+                  questionAnswer: {
+                    questions: [
+                      { header: "", question: "Which scope?", selected: [{ label: "A" }] },
+                    ],
+                  },
+                }
+              : {}),
+          },
+        },
+      ]);
+      expect(selectPendingMessageReplyIds(current, "thread")).toEqual([other.id]);
+      expect(selectMessageReplyState(current, "thread", question.id)).toBe("answered");
+      expect(selectMessageReplyState(current, "thread", other.id)).toBe("none");
+      expect(selectMessageReplyAnswer(current, "thread", reply.id)).toBeDefined();
+    },
+  );
+
+  it.each([false, true])(
+    "keeps unrelated forms open when an answer's source is outside the history window (source ID: %s)",
+    (identified) => {
+      const questionAnswer = {
+        ...(identified ? { sourceItemId: "paged-out-question" } : {}),
+        questions: [{ header: "", question: "Details?", selected: [], customAnswer: "None" }],
+      };
+      const current = state([
+        question,
+        { ...reply, payload: { ...(reply.payload as object), questionAnswer } },
+      ]);
+      expect(selectPendingMessageReplyIds(current, "thread")).toEqual([question.id]);
+      expect(selectMessageReplyState(current, "thread", question.id)).toBe("none");
+      expect(selectMessageReplyAnswer(current, "thread", reply.id)).toBe(questionAnswer);
+    },
+  );
+
+  it("tracks independent in-flight answers through acceptance and failure", () => {
+    const secondQuestion = { ...question, id: "second-question" };
+    const response = (id: string, sourceItemId: string): RuntimeChatItem => ({
+      ...reply,
+      id,
+      payload: {
+        ...(reply.payload as object),
+        clientInputDelivery: "pending",
+        questionAnswer: {
+          sourceItemId,
+          questions: [{ header: "", question: "Which scope?", selected: [{ label: "A" }] }],
+        },
+      },
+    });
+    const firstReply = response("first-reply", question.id);
+    const secondReply = response("second-reply", secondQuestion.id);
+    const current = state([question, secondQuestion, firstReply, secondReply]);
+    expect(selectMessageReplyState(current, "thread", question.id)).toBe("pending");
+    expect(selectMessageReplyState(current, "thread", secondQuestion.id)).toBe("pending");
+    current.runtimeItemsByIdByThread.thread![firstReply.id] = {
+      ...firstReply,
+      payload: { ...(firstReply.payload as object), clientInputDelivery: "accepted" },
+    };
+    current.runtimeItemsByIdByThread.thread![secondReply.id] = {
+      ...secondReply,
+      payload: { ...(secondReply.payload as object), clientInputDelivery: "failed" },
+    };
+    current.runtimeStructuralVersionByThread.thread = 2;
+    expect(selectPendingMessageReplyIds(current, "thread")).toEqual([secondQuestion.id]);
+    expect(selectMessageReplyState(current, "thread", question.id)).toBe("answered");
+    expect(selectMessageReplyState(current, "thread", secondQuestion.id)).toBe("none");
+    expect(selectMessageReplyAnswer(current, "thread", secondReply.id)).toBeUndefined();
+  });
+
   it.each([
     { name: "text", content: [{ kind: "text", text: "Keep working while I decide." }] },
     {
@@ -125,7 +235,10 @@ describe("message reply projections", () => {
       { ...reply, payload: { ...(reply.payload as object), clientInputDelivery: "pending" } },
     ]);
     expect(selectPendingMessageReplyIds(current, "thread")).toEqual([question.id]);
-    expect(selectMessageReplyAnswer(current, "thread", reply.id)).toBeUndefined();
+    expect(selectMessageReplyAnswer(current, "thread", reply.id)?.questions[0]?.selected).toEqual([
+      { label: "A" },
+    ]);
+    expect(selectMessageReplyState(current, "thread", question.id)).toBe("pending");
     for (const [version, delivery] of [
       [2, "failed"],
       [3, "accepted"],
@@ -137,6 +250,12 @@ describe("message reply projections", () => {
       current.runtimeStructuralVersionByThread.thread = version;
       expect(selectPendingMessageReplyIds(current, "thread")).toEqual(
         delivery === "failed" ? [question.id] : [],
+      );
+      expect(selectMessageReplyState(current, "thread", question.id)).toBe(
+        delivery === "failed" ? "none" : "answered",
+      );
+      expect(selectMessageReplyAnswer(current, "thread", reply.id)?.questions[0]?.selected).toEqual(
+        delivery === "failed" ? undefined : [{ label: "A" }],
       );
     }
     expect(selectMessageReplyAnswer(current, "thread", reply.id)?.questions[0]?.selected).toEqual([

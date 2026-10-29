@@ -123,7 +123,7 @@ struct HomeThreadSearchView: View {
         item.thread.title,
         item.project.name,
         HomeDeviceName.display(item.hostName),
-        ThreadLifecycleStrings.status(item.thread.status),
+        ThreadLifecycleStrings.status(item.thread.status, hasSessionRef: item.thread.sessionRef != nil),
       ] + (hasDraft(item) ? [HomeStrings.unsentDraft] : [])).joined(separator: ", ")
     )
     .accessibilityIdentifier("native-e2e.search-thread.\(item.thread.id)")

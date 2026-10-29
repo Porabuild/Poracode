@@ -1,4 +1,6 @@
 import { randomUUID } from "node:crypto";
+import { readMcpAppResource } from "@/shared/mcpAppResources";
+import { readToolVideoSources } from "@/shared/chatVideo";
 import type {
   AgentSlashCommand,
   PromptSegment,
@@ -254,6 +256,7 @@ export class PiRpcSession implements StructuredSessionHandle {
         this.failTurn(response.error ?? "Pi rejected the prompt.");
         return;
       }
+      options?.onPromptSubmitted?.();
       // Extension commands and prompt handlers can complete without starting an
       // agent run, so no agent_settled event follows them. If no agent run
       // begins shortly after acceptance, settle the turn locally.
@@ -569,6 +572,7 @@ export class PiRpcSession implements StructuredSessionHandle {
     this.openToolItems.delete(toolCallId);
     const toolName = String(event.toolName ?? "tool");
     const images = toolResultImages(event.result);
+    const mcpResult = recordOf(event.result)?.details;
     this.emit({
       type: "item.completed",
       threadId: this.input.threadId,
@@ -577,7 +581,12 @@ export class PiRpcSession implements StructuredSessionHandle {
         name: toolName,
         title: toolName,
         kind: toolKind(toolName),
-        result: toolResultText(event.result) ?? event.result,
+        result:
+          readMcpAppResource(mcpResult) || readToolVideoSources(mcpResult).length > 0
+            ? mcpResult
+            : readToolVideoSources(event.result).length > 0
+              ? event.result
+              : (toolResultText(event.result) ?? event.result),
         status: event.isError === true ? "error" : "success",
         ...(images.length > 0 ? { images } : {}),
         ...(isSubAgentTool(toolName) ? { isSubAgent: true } : {}),

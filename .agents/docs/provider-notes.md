@@ -49,6 +49,21 @@ reports genuinely land after `end_turn`, so the wait is bounded, not zero.
 
 ## Devin
 
+- Exec input streams after the call opens, and commands run in Poracode-hosted
+  terminals without content references; the adapter declares
+  `attribute-on-create` correlation and annotates its `Exited with code N`
+  completion status.
+- Tool-call normalization turns read line summaries into lazy file reads,
+  supplies image paths, suppresses the question-call duplicate, and appends
+  web-search URLs from metadata.
+- Fusion sidekick activity arrives without a handoff tool call: its tool calls
+  carry `cognition.ai/sidekick: true`, and its unmarked todo `plan` update renders
+  inline in the lead transcript and replaces the lead's plan.
+- Devin's native goals map snapshot metadata to the shared goal item and split
+  continuation messages. Resume and clear use prompts; pause interrupts the
+  active turn via `goalPauseInterruptsTurn`. Goal state is process-local;
+  no-goal replies clear a stale dock. The 50-turn auto-pause was not captured
+  live; a paused snapshot would display as Paused.
 - Terminal uses Smart permissions; structured Chat uses Bypass (Plan still
   selects the ACP plan mode). Signed-in ACP also advertises Smart; Bypass
   remains the requested GUI policy. The adapter declares a `resolveMode` hook
@@ -113,8 +128,15 @@ validating the version. The minimum CLI is `OPENCODE2_MIN_VERSION`
   rollback, and resume all use the V2 API. Permission policy is applied per
   session before a turn, without separate server processes per policy.
 - **Terminal:** model, variant, agent, and permissions are persisted through the
-  API before attaching the real PTY with `--session`; the default TUI command
-  has no model/agent flags. Status uses terminal heuristics (no V2 hook plugin).
+  API before attaching the real PTY with `--session` and `--server`. The PTY
+  retains a lease on the configured supervisor server and receives its password
+  through `OPENCODE_PASSWORD`, so the native background service cannot replace
+  its MCP set. Terminal pools are isolated by directory and resolved MCP config
+  because their credentials can identify one thread. Existing native and legacy
+  databases remain valid; only in-memory process ownership changes. Resume waits
+  for the preceding terminal's interruption and disposal, keeping late cleanup
+  from interrupting its successor. The default TUI command has no model/agent
+  flags. Status uses terminal heuristics (no V2 hook plugin).
   GUI cross-agent MCP calls use trusted provider-session routing.
 - **MCP and generation:** provider settings manage the directory-scoped MCP set.
   Utility generation uses `session.generate` without a tool loop, then removes

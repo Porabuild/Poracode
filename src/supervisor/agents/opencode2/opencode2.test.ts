@@ -3,7 +3,8 @@ import { OpenCode2Session } from "./session";
 import { resolveSharedUpdateCommand } from "@/shared/agents/updateResolver";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { acquireOpenCode2Server } from "./client";
 import { createOpenCode2Adapter } from ".";
 import { buildOpenCode2Args, buildOpenCode2ServerCommand } from "./argv";
 import {
@@ -19,6 +20,26 @@ vi.mock("./binary", async (importOriginal) => ({
   cachedOpenCode2Binary: () => undefined,
   resolveOpenCode2Binary: async () => undefined,
 }));
+
+vi.mock("./client", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./client")>()),
+  acquireOpenCode2Server: vi.fn<typeof acquireOpenCode2Server>(),
+}));
+
+const disposeTerminalServer = vi.fn<() => Promise<void>>();
+const interruptTerminalSession = vi.fn<() => Promise<void>>();
+beforeEach(() => {
+  disposeTerminalServer.mockReset().mockResolvedValue(undefined);
+  interruptTerminalSession.mockReset().mockResolvedValue(undefined);
+  vi.mocked(acquireOpenCode2Server)
+    .mockReset()
+    .mockResolvedValue({
+      baseUrl: "http://127.0.0.1:4300",
+      handle: { password: Promise.resolve("fixture-password") },
+      client: { session: { interrupt: interruptTerminalSession } },
+      dispose: disposeTerminalServer,
+    } as unknown as Awaited<ReturnType<typeof acquireOpenCode2Server>>);
+});
 
 afterEach(clearOpenCode2SessionDatabases);
 
@@ -450,7 +471,7 @@ describe("createOpenCode2Adapter", () => {
         }),
       ).rejects.toThrow("prepared");
       expect(create).toHaveBeenCalledTimes(1);
-      expect(() =>
+      await expect(
         adapter.buildResumeArgv(
           { kind: "posix", path: "/repo" },
           { model: "" },
@@ -458,15 +479,15 @@ describe("createOpenCode2Adapter", () => {
           createKnownSessionRef("ses_resume"),
           undefined,
         ),
-      ).toThrow("database was not resolved");
+      ).rejects.toThrow("database was not resolved");
     } finally {
       create.mockRestore();
     }
   });
 
-  it("launches through opencode2 with the deferred prompt path", () => {
+  it("launches through the managed server with the deferred prompt path", async () => {
     const adapter = createOpenCode2Adapter();
-    const launch = adapter.buildLaunchArgv(
+    const launch = await adapter.buildLaunchArgv(
       { kind: "posix", path: "/repo" },
       { model: "", approvalPolicy: "yolo" },
       "first prompt",
@@ -475,13 +496,53 @@ describe("createOpenCode2Adapter", () => {
     );
     expect(launch).toEqual({
       binary: "opencode2",
-      args: ["--prompt", "first prompt"],
+      args: ["--server", "http://127.0.0.1:4300", "--prompt", "first prompt"],
+      env: { OPENCODE_PASSWORD: "fixture-password" },
+      cleanup: expect.any(Function),
       preferShell: true,
     });
     expect(adapter.shouldDeferPromptToTerminal?.({ model: "" })).toBe(true);
+    expect(disposeTerminalServer).not.toHaveBeenCalled();
+    await launch.cleanup?.();
+    expect(disposeTerminalServer).toHaveBeenCalledExactlyOnceWith({ closeServerIfIdle: true });
   });
 
-  it("resumes through --session and forwards MCP config via the config overlay env", async () => {
+  it("interrupts the prepared terminal session before releasing its server", async () => {
+    const adapter = createOpenCode2Adapter();
+    const location = { kind: "posix" as const, path: "/repo" };
+    rememberOpenCode2SessionDatabase(location, "ses_terminal", "native");
+    const launch = await adapter.buildLaunchArgv(location, { model: "" }, "", undefined, {
+      resumeThreadId: "ses_terminal",
+    });
+    await launch.cleanup?.();
+    await launch.cleanup?.();
+    expect(interruptTerminalSession).toHaveBeenCalledExactlyOnceWith(
+      { sessionID: "ses_terminal" },
+      { signal: expect.any(AbortSignal) },
+    );
+    expect(interruptTerminalSession.mock.invocationCallOrder[0]).toBeLessThan(
+      disposeTerminalServer.mock.invocationCallOrder[0]!,
+    );
+    expect(disposeTerminalServer).toHaveBeenCalledExactlyOnceWith({ closeServerIfIdle: true });
+  });
+
+  it("releases the terminal server even if interruption fails", async () => {
+    interruptTerminalSession.mockRejectedValue(new Error("server exited"));
+    const adapter = createOpenCode2Adapter();
+    const location = { kind: "posix" as const, path: "/repo" };
+    rememberOpenCode2SessionDatabase(location, "ses_terminal", "native");
+    const launch = await adapter.buildResumeArgv(
+      location,
+      { model: "" },
+      "",
+      createKnownSessionRef("ses_terminal"),
+      undefined,
+    );
+    await expect(launch.cleanup?.()).rejects.toThrow("server exited");
+    expect(disposeTerminalServer).toHaveBeenCalledWith({ closeServerIfIdle: true });
+  });
+
+  it("resumes on the managed MCP server instead of the native background service", async () => {
     const adapter = createOpenCode2Adapter();
     rememberOpenCode2SessionDatabase({ kind: "posix", path: "/repo" }, "ses_launch", "native");
     rememberOpenCode2SessionDatabase({ kind: "posix", path: "/repo" }, "ses_resume", "native");
@@ -492,7 +553,7 @@ describe("createOpenCode2Adapter", () => {
       undefined,
       { resumeThreadId: "ses_launch" },
     );
-    expect(launch.args).toEqual(["--session", "ses_launch"]);
+    expect(launch.args).toEqual(["--server", "http://127.0.0.1:4300", "--session", "ses_launch"]);
     expect(launch.sessionRef).toMatchObject({ providerSessionId: "ses_launch" });
 
     const resume = await adapter.buildResumeArgv(
@@ -511,11 +572,26 @@ describe("createOpenCode2Adapter", () => {
         ],
       },
     );
-    expect(resume.args).toEqual(["--session", "ses_resume", "--prompt", "next"]);
-    expect(resume.env?.OPENCODE_CONFIG_CONTENT).toContain('"browser"');
+    expect(resume.args).toEqual([
+      "--server",
+      "http://127.0.0.1:4300",
+      "--session",
+      "ses_resume",
+      "--prompt",
+      "next",
+    ]);
+    expect(acquireOpenCode2Server).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        resumeSessionId: "ses_resume",
+        isolateMcpServers: true,
+        mcpServers: [expect.objectContaining({ name: "browser" })],
+      }),
+    );
+    expect(resume.env?.OPENCODE_CONFIG_CONTENT).toBeUndefined();
+    expect(resume.args.join(" ")).not.toContain("fixture-password");
   });
 
-  it("keeps the legacy database alongside MCP config for launch and resume", async () => {
+  it("keeps the legacy database when attaching both launch and resume terminals", async () => {
     const adapter = createOpenCode2Adapter();
     const location = { kind: "posix", path: "/repo" } as const;
     rememberOpenCode2SessionDatabase(location, "ses_old", "legacy-isolated");
@@ -540,10 +616,10 @@ describe("createOpenCode2Adapter", () => {
     );
     expect(launch.env).toEqual(resume.env);
     expect(launch.env?.OPENCODE_DB).toBe("opencode-v2.db");
-    expect(launch.env?.OPENCODE_CONFIG_CONTENT).toContain('"browser"');
+    expect(launch.env?.OPENCODE_PASSWORD).toBe("fixture-password");
   });
 
-  it("omits the MCP env when a launch carries no servers", async () => {
+  it("attaches to the managed server even with an explicitly empty MCP set", async () => {
     const adapter = createOpenCode2Adapter();
     rememberOpenCode2SessionDatabase({ kind: "posix", path: "/repo" }, "ses_resume", "native");
     const resume = await adapter.buildResumeArgv(
@@ -553,6 +629,31 @@ describe("createOpenCode2Adapter", () => {
       createKnownSessionRef("ses_resume"),
       { mcpServers: [] },
     );
-    expect(resume.env).toBeUndefined();
+    expect(resume.env).toEqual({ OPENCODE_PASSWORD: "fixture-password" });
+    expect(acquireOpenCode2Server).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mcpServers: [],
+        isolateMcpServers: true,
+      }),
+    );
+  });
+
+  it("releases the terminal lease if constructing authenticated argv fails", async () => {
+    const password = Promise.reject(new Error("password unavailable"));
+    void password.catch(() => undefined);
+    vi.mocked(acquireOpenCode2Server).mockResolvedValueOnce({
+      baseUrl: "http://127.0.0.1:4300",
+      handle: { password },
+      dispose: disposeTerminalServer,
+    } as unknown as Awaited<ReturnType<typeof acquireOpenCode2Server>>);
+    await expect(
+      createOpenCode2Adapter().buildLaunchArgv(
+        { kind: "posix", path: "/repo" },
+        { model: "" },
+        "",
+        undefined,
+      ),
+    ).rejects.toThrow("password unavailable");
+    expect(disposeTerminalServer).toHaveBeenCalledOnce();
   });
 });

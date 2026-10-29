@@ -1,4 +1,4 @@
-import { act, fireEvent, screen } from "@testing-library/react";
+import { act, fireEvent, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { usePanelStore } from "@/renderer/state/panelStore";
@@ -105,12 +105,12 @@ describe("PluginDetail", () => {
     usePanelStore.setState({ settingsOpen: false });
   });
 
-  it("offers publishing skills while preserving settings from the previous plugin version", () => {
+  it("keeps Poracode and its skills available despite disables from the previous plugin version", () => {
     useSharedSettings.setState({
       installedPlugins: {
         "app-controls": {
           version: "1.3.0",
-          enabled: true,
+          enabled: false,
           disabledSkillIds: ["app-controls"],
           disabledMcpServerNames: [],
         },
@@ -123,10 +123,11 @@ describe("PluginDetail", () => {
       return <PluginDetail plugin={plugin} hostPlatform="win32" onBack={() => undefined} />;
     }
     render(<AppControlsDetail />);
-    for (const name of ["Commit", "Create PR", "Finalize"]) {
-      expect(screen.getByRole("switch", { name: `${name} Skill` })).toBeChecked();
+    for (const name of ["Commit", "Create PR", "Finalize", "Poracode"]) {
+      expect(screen.getByText(name, { selector: "span[id*='-skill-']" })).toBeInTheDocument();
     }
-    expect(screen.getByRole("switch", { name: "Poracode Skill" })).not.toBeChecked();
+    expect(screen.queryByRole("switch")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Try now" })).toBeEnabled();
   });
 
   it("updates plugin and skill toggles for a built-in tool plugin", () => {
@@ -166,6 +167,20 @@ describe("PluginDetail", () => {
     expect(useSharedSettings.getState().installedPlugins.terminal).toBeUndefined();
   });
 
+  it("offers Devices enabled by default with a switch to disable its tools", () => {
+    function DevicesDetail() {
+      const plugin = useLocalizedPluginCatalog().find((entry) => entry.plugin.name === "devices")!;
+      return <PluginDetail plugin={plugin} hostPlatform="win32" onBack={() => undefined} />;
+    }
+    render(<DevicesDetail />);
+    expect(screen.getByRole("heading", { name: "Devices" })).toBeInTheDocument();
+    expect(screen.getByRole("switch", { name: "Devices Enable plugin" })).toBeChecked();
+    fireEvent.click(screen.getByRole("switch", { name: "Devices Enable plugin" }));
+    expect(useSharedSettings.getState().installedPlugins.devices?.enabled).toBe(false);
+    expect(screen.getByRole("switch", { name: "Devices Skill" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Uninstall" })).not.toBeInTheDocument();
+  });
+
   it("starts installed plugins with their own server through Try now", async () => {
     render(<GithubPluginDetail />);
 
@@ -190,6 +205,52 @@ describe("PluginDetail", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Back to plugins" }));
     expect(onBack).toHaveBeenCalledOnce();
+  });
+
+  it("removes a receipt-owned package through the catalog action while preserving contribution controls", () => {
+    const onRemove = vi.fn<() => Promise<void>>().mockResolvedValue();
+    const onReview = vi.fn<() => void>();
+    useSharedSettings.getState().installPlugin(pluginFixture("github"));
+    function CatalogDetail() {
+      const base = useLocalizedPluginCatalog().find((item) => item.plugin.name === "github")!;
+      return (
+        <PluginDetail
+          plugin={{ ...base, plugin: { ...base.plugin, source: "user" } }}
+          hostPlatform="win32"
+          onBack={() => undefined}
+          catalogPackage={{
+            busy: false,
+            error: false,
+            onRemove,
+            onReview,
+            receipt: {
+              formatVersion: 1,
+              pluginName: "github",
+              entryName: "github",
+              catalogId: "8b71e462-020e-416a-b194-c9339156b8ef",
+              catalogName: "Team source",
+              catalogSource: { type: "local", path: "/team" },
+              packageSource: { type: "path", path: "./github" },
+              revision: "installed-revision",
+              digest: "installed-digest",
+              installedAt: 1,
+            },
+          }}
+        />
+      );
+    }
+    render(<CatalogDetail />);
+    expect(screen.queryByRole("button", { name: "Uninstall" })).not.toBeInTheDocument();
+    expect(screen.getByRole("switch", { name: "GitHub Enable plugin" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Review update" }));
+    expect(onReview).toHaveBeenCalledOnce();
+    fireEvent.click(screen.getByRole("button", { name: "Remove plugin" }));
+    expect(onRemove).not.toHaveBeenCalled();
+    fireEvent.click(
+      within(screen.getByRole("alertdialog")).getByRole("button", { name: "Remove plugin" }),
+    );
+    expect(onRemove).toHaveBeenCalledOnce();
+    expect(useSharedSettings.getState().installedPlugins.github).toBeDefined();
   });
 
   it("offers Try now while the plugin is enabled", async () => {

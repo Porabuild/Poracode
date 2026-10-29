@@ -44,7 +44,7 @@ describe("Claude window settings", () => {
       resolveClaudeWindows(useSharedSettings.getState().agentSettings.claude).map(
         (window) => window.id,
       ),
-    ).toEqual(["1m", "400k", "512k"]);
+    ).toEqual(["400k", "512k", "1m"]);
     expect(screen.getByText("512k")).toBeInTheDocument();
     expect(flush).toHaveBeenCalledWith({ requireSuccess: true });
     expect(refresh).toHaveBeenCalledWith(["Ubuntu"], { agentKinds: ["claude"] });
@@ -59,7 +59,7 @@ describe("Claude window settings", () => {
       resolveClaudeWindows(useSharedSettings.getState().agentSettings.claude).map(
         (window) => window.id,
       ),
-    ).toEqual(["1m", "400k"]);
+    ).toEqual(["400k", "1m"]);
   });
 
   it("rejects unsupported native sizes and duplicates", async () => {

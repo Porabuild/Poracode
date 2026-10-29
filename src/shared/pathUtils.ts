@@ -3,6 +3,11 @@ export function getBasename(path: string): string {
   return path.split(/[\\/]/).pop() ?? path;
 }
 
+/** Remove the URL-style leading slash from an absolute Windows drive path. */
+export function normalizeWindowsDrivePath(path: string): string {
+  return path.replace(/^\/(?=[A-Za-z]:[\\/])/, "");
+}
+
 /** True when `path` points at a Markdown file the editor can preview. */
 export function isMarkdownFile(filePath: string): boolean {
   const ext = filePath.split(".").pop()?.toLowerCase() ?? "";

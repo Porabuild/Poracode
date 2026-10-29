@@ -127,6 +127,8 @@ internal fun HomeScreen(
                     RichChatThreadScreen(
                         userHiddenModels = userHiddenModels,
                         runtime = richChat,
+                        forksSupported = 1 in state.liveThreadForkVersions,
+                        onOpenThread = onOpenThread,
                         threadLifecycleController = threadRuntime.controller,
                         thread = openThread(state),
                         agentStatus = openAgentStatus(state),
@@ -157,6 +159,8 @@ internal fun HomeScreen(
                 RichChatThreadScreen(
                     userHiddenModels = userHiddenModels,
                     runtime = richChat,
+                    forksSupported = 1 in state.liveThreadForkVersions,
+                    onOpenThread = onOpenThread,
                     threadLifecycleController = threadRuntime.controller,
                     thread = openThread(state),
                     agentStatus = openAgentStatus(state),

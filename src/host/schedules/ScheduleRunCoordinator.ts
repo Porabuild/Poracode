@@ -1,7 +1,7 @@
 import { resolveProjectLocation } from "@/shared/worktree";
 import { isDeepStrictEqual } from "node:util";
 import { isThreadSessionAbsenceRefusal } from "@/shared/threadSessionRefusal";
-import { resolveUnrestrictedThreadPermissions } from "../threads/threadLaunchConfig";
+import { resolveHostThreadLaunchConfig } from "../threads/threadLaunchConfig";
 import { randomUUID } from "node:crypto";
 import type {
   AgentStatusesResponse,
@@ -869,7 +869,11 @@ export class ScheduleRunCoordinator {
       prompt: task.prompt,
       initialSize: DEFAULT_TERMINAL_SIZE,
       presentationMode: "gui",
-      ...resolveMcpLaunchSnapshot(this.deps.getSharedSettings(), project.mcpServers ?? []),
+      ...resolveMcpLaunchSnapshot(
+        this.deps.getSharedSettings(),
+        project.mcpServers ?? [],
+        config.mcpServerOverrides,
+      ),
     };
   }
 
@@ -886,7 +890,7 @@ export class ScheduleRunCoordinator {
   ): Promise<ThreadConfig> {
     return {
       ...task.config,
-      ...(await resolveUnrestrictedThreadPermissions(
+      ...(await resolveHostThreadLaunchConfig(
         this.deps.getAgentStatuses,
         task.agentKind,
         location,

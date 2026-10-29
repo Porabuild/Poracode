@@ -30,6 +30,7 @@ import {
   type RemoteServerRecord,
 } from "@/renderer/state/remoteServers/types";
 import { EnvironmentSettingsSection } from "./EnvironmentSettingsSection";
+import { RemoteConnectionDetails } from "./RemoteConnectionDetails";
 import { desktopTitle } from "@/shared/remote/desktopLabel";
 import { normalizePairingEndpoint, parsePairingUrlParts } from "@/shared/remote/pairingUrl";
 import {
@@ -56,7 +57,7 @@ function endpointHost(endpoint: string): string {
   try {
     return new URL(endpoint).host;
   } catch {
-    return endpoint;
+    return "";
   }
 }
 
@@ -335,6 +336,7 @@ function RemoteServerRow({ server }: { readonly server: RemoteServerRecord }) {
 
   const requestRemove = () => {
     if (!environmentRecord && dependents.length > 0) {
+      setDetailsOpen(false);
       setConfirmRemoveOpen(true);
       return;
     }
@@ -410,7 +412,7 @@ function RemoteServerRow({ server }: { readonly server: RemoteServerRecord }) {
             <Dropdown.Popover placement="bottom end">
               <Dropdown.Menu
                 aria-label={t`Actions`}
-                disabledKeys={busy ? ["refresh"] : []}
+                disabledKeys={busy || status === "connecting" ? ["refresh"] : []}
                 onAction={(key) => {
                   if (key === "rename") setNameDraft(title);
                   else if (key === "refresh") void run(() => reconnectServer(connectionKey));
@@ -545,11 +547,7 @@ function RemoteServerRow({ server }: { readonly server: RemoteServerRecord }) {
               </div>
             </Modal.Header>
             <Modal.Body className="!m-0 space-y-5 !px-6 !py-5">
-              {runtime?.status === "error" && runtime.message ? (
-                <p className="rounded-xl bg-danger-soft px-3 py-2 text-xs text-danger">
-                  {runtime.message}
-                </p>
-              ) : null}
+              <RemoteConnectionDetails server={server} />
               {!environmentRecord && server.hostCapabilities?.autoUpdate === true && canManage ? (
                 <RemoteHostUpdateControl server={server} isOnline={status === "online"} />
               ) : null}
@@ -575,9 +573,21 @@ function RemoteServerRow({ server }: { readonly server: RemoteServerRecord }) {
                 <ManageProjects desktopId={connectionKey} isOnline={status === "online"} />
               ) : (
                 <p className="pt-0.5 text-xs text-muted/70">
-                  <Trans>View-only — this connection can't manage projects.</Trans>
+                  <Trans>This connection can't manage projects.</Trans>
                 </p>
               )}
+              <section className="space-y-2 border-t border-[var(--hairline)] pt-4">
+                <Button variant="danger-soft" size="sm" onPress={requestRemove}>
+                  <Trash2 className="size-3.5" />
+                  <Trans>Remove connection</Trans>
+                </Button>
+                <p className="text-xs text-muted">
+                  <Trans>
+                    Removes this device's saved connection and credentials. It does not stop the
+                    host or revoke access on other devices.
+                  </Trans>
+                </p>
+              </section>
             </Modal.Body>
           </Modal.Dialog>
         </Modal.Container>

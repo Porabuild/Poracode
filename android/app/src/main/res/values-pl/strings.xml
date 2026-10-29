@@ -157,4 +157,10 @@
     <string name="tls_pin_mismatch">Certyfikat TLS serwera nie zgadza się z odciskiem z kodu parowania. Sparuj ponownie z panelu zdalnego dostępu na pulpicie.</string>
     <string name="rich_chat_context_reload_body">Nowy rozmiar kontekstu obowiązuje od następnej wiadomości. Sesja agenta zostanie ponownie załadowana przed jej wysłaniem; rozmowa zostanie zachowana.</string>
     <string name="rich_chat_context_reload_stops_subagents">Wszystkie podagenty działające podczas ponownego ładowania sesji zostaną zatrzymane.</string>
+    <string name="rich_chat_crew">Ekipa</string>
+    <string name="rich_chat_crew_helpers_count">+%1$d pomocników</string>
+    <string name="rich_chat_crew_lead">Lider</string>
+    <string name="rich_chat_crew_no_edits">Instrukcja, aby nie edytować plików. Nie jest wymuszana.</string>
+    <string name="rich_chat_crew_policy_only">Tylko ekipa</string>
+    <string name="rich_chat_crew_policy_first">Najpierw ekipa</string>
 </resources>

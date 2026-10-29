@@ -12,15 +12,23 @@ import {
   type CatalogReadMode,
 } from "@/shared/remote/catalogReadContract";
 import { getSqlite } from "./connection";
-import { rowToProject, rowToThread, type ProjectRow, type ThreadRow } from "./rowMappers";
+import { prepareCachedRead } from "./readStatementCache";
+import {
+  rowToLocation,
+  rowToProject,
+  rowToThread,
+  type ProjectRow,
+  type ThreadRow,
+} from "./rowMappers";
+import type { HostProjectSummary } from "@/shared/contracts/hostProjects";
 
 /**
  * B4 catalog reads: metadata-only phase 1 (SQL length accounting, no payload
  * text crosses into JS) and included-row phase 2 (fetch exactly the ids the
  * caller packed, in the caller's key order).
  *
- * All statements are plain committed reads on the existing primary keys; no
- * transaction spans requests, no new index or migration is introduced, and no
+ * All statements are plain committed reads; manual paint order uses composite
+ * indexes and inventory uses primary keys. No transaction spans requests, and no
  * candidate window is larger than `limit + 1`.
  *
  * The phase-1 `bound_wire` expression is a sound upper bound of the serialized
@@ -109,6 +117,7 @@ const THREAD_PHASE1_RAW_COLUMNS = [
 const THREAD_PHASE1_JSON_COLUMNS = [
   "t.config",
   "t.session_ref",
+  "t.forked_from",
   "t.additional_directories",
 ] as const;
 
@@ -157,6 +166,7 @@ const THREAD_PHASE2_COLUMNS = [
   "group_id",
   "group_name",
   "parent_thread_id",
+  "forked_from",
   "archived",
   "archived_at",
   "done",
@@ -317,9 +327,10 @@ export function dbReadCatalogThreadPhase1(query: DbCatalogPhase1Query): DbCatalo
       params.push(decoded.id, decoded.frontier);
       frontier = decoded.frontier;
     } else {
-      const maxRow = getSqlite().prepare("SELECT MAX(id) AS max_id FROM threads").get() as
-        | { max_id: string | null }
-        | undefined;
+      const maxRow = prepareCachedRead(
+        getSqlite(),
+        "SELECT MAX(id) AS max_id FROM threads",
+      ).get() as { max_id: string | null } | undefined;
       const maxId = maxRow?.max_id ?? null;
       if (maxId === null) return { rows: [], moreBeyondWindow: false };
       frontier = maxId;
@@ -333,18 +344,18 @@ export function dbReadCatalogThreadPhase1(query: DbCatalogPhase1Query): DbCatalo
       if (order === "manual") {
         const decoded = decodeThreadPaintCursorForOrder(query.cursor, order);
         if (decoded.order !== "manual") throw new CatalogCursorError("thread");
-        conditions.push("(t.sort_order > ? OR (t.sort_order = ? AND t.id > ?))");
-        params.push(decoded.sortOrder, decoded.sortOrder, decoded.id);
+        conditions.push("(t.sort_order, t.id) > (?, ?)");
+        params.push(decoded.sortOrder, decoded.id);
       } else if (order === "updated") {
         const decoded = decodeThreadPaintCursorForOrder(query.cursor, order);
         if (decoded.order !== "updated") throw new CatalogCursorError("thread");
-        conditions.push("(t.updated_at < ? OR (t.updated_at = ? AND t.id < ?))");
-        params.push(decoded.updatedAt, decoded.updatedAt, decoded.id);
+        conditions.push("(t.updated_at, t.id) < (?, ?)");
+        params.push(decoded.updatedAt, decoded.id);
       } else {
         const decoded = decodeThreadPaintCursorForOrder(query.cursor, order);
         if (decoded.order !== "created") throw new CatalogCursorError("thread");
-        conditions.push("(t.created_at < ? OR (t.created_at = ? AND t.id < ?))");
-        params.push(decoded.createdAt, decoded.createdAt, decoded.id);
+        conditions.push("(t.created_at, t.id) < (?, ?)");
+        params.push(decoded.createdAt, decoded.id);
       }
     }
     orderBy =
@@ -366,9 +377,10 @@ export function dbReadCatalogThreadPhase1(query: DbCatalogPhase1Query): DbCatalo
     ORDER BY ${orderBy}
     LIMIT ?
   `;
-  const window = getSqlite()
-    .prepare(sql)
-    .all(...params, query.limit + 1) as ThreadPhase1SqlRow[];
+  const window = prepareCachedRead(getSqlite(), sql).all(
+    ...params,
+    query.limit + 1,
+  ) as ThreadPhase1SqlRow[];
   return {
     rows: window.slice(0, query.limit).map(toRowMeta),
     moreBeyondWindow: window.length > query.limit,
@@ -391,9 +403,10 @@ export function dbReadCatalogProjectPhase1(query: DbCatalogPhase1Query): DbCatal
       params.push(decoded.id, decoded.frontier);
       frontier = decoded.frontier;
     } else {
-      const maxRow = getSqlite().prepare("SELECT MAX(id) AS max_id FROM projects").get() as
-        | { max_id: string | null }
-        | undefined;
+      const maxRow = prepareCachedRead(
+        getSqlite(),
+        "SELECT MAX(id) AS max_id FROM projects",
+      ).get() as { max_id: string | null } | undefined;
       const maxId = maxRow?.max_id ?? null;
       if (maxId === null) return { rows: [], moreBeyondWindow: false };
       frontier = maxId;
@@ -404,8 +417,8 @@ export function dbReadCatalogProjectPhase1(query: DbCatalogPhase1Query): DbCatal
   } else {
     if (query.cursor !== undefined) {
       const decoded = decodeCatalogProjectPaintCursor(query.cursor);
-      conditions.push("(p.sort_order > ? OR (p.sort_order = ? AND p.id > ?))");
-      params.push(decoded.sortOrder, decoded.sortOrder, decoded.id);
+      conditions.push("(p.sort_order, p.id) > (?, ?)");
+      params.push(decoded.sortOrder, decoded.id);
     }
     orderBy = "p.sort_order ASC, p.id ASC";
   }
@@ -422,9 +435,10 @@ export function dbReadCatalogProjectPhase1(query: DbCatalogPhase1Query): DbCatal
     ORDER BY ${orderBy}
     LIMIT ?
   `;
-  const window = getSqlite()
-    .prepare(sql)
-    .all(...params, query.limit + 1) as ThreadPhase1SqlRow[];
+  const window = prepareCachedRead(getSqlite(), sql).all(
+    ...params,
+    query.limit + 1,
+  ) as ThreadPhase1SqlRow[];
   return {
     rows: window.slice(0, query.limit).map(toRowMeta),
     moreBeyondWindow: window.length > query.limit,
@@ -436,9 +450,10 @@ export function dbReadCatalogProjectPhase1(query: DbCatalogPhase1Query): DbCatal
 export function dbReadCatalogThreadPhase2(ids: readonly string[]): Thread[] {
   if (ids.length === 0) return [];
   const placeholders = ids.map(() => "?").join(", ");
-  const rows = getSqlite()
-    .prepare(`SELECT ${THREAD_PHASE2_COLUMNS} FROM threads WHERE id IN (${placeholders})`)
-    .all(...ids) as ThreadRow[];
+  const rows = prepareCachedRead(
+    getSqlite(),
+    `SELECT ${THREAD_PHASE2_COLUMNS} FROM threads WHERE id IN (${placeholders})`,
+  ).all(...ids) as ThreadRow[];
   const byId = new Map(rows.map((row) => [row.id, rowToThread(row)]));
   return ids.flatMap((id) => {
     const thread = byId.get(id);
@@ -450,12 +465,51 @@ export function dbReadCatalogThreadPhase2(ids: readonly string[]): Thread[] {
 export function dbReadCatalogProjectPhase2(ids: readonly string[]): Project[] {
   if (ids.length === 0) return [];
   const placeholders = ids.map(() => "?").join(", ");
-  const rows = getSqlite()
-    .prepare(`SELECT ${PROJECT_PHASE2_COLUMNS} FROM projects WHERE id IN (${placeholders})`)
-    .all(...ids) as ProjectRow[];
+  const rows = prepareCachedRead(
+    getSqlite(),
+    `SELECT ${PROJECT_PHASE2_COLUMNS} FROM projects WHERE id IN (${placeholders})`,
+  ).all(...ids) as ProjectRow[];
   const byId = new Map(rows.map((row) => [row.id, rowToProject(row)]));
   return ids.flatMap((id) => {
     const project = byId.get(id);
     return project ? [project] : [];
+  });
+}
+
+/** Local administration never materializes project scripts, settings or credentials. */
+export function dbReadCatalogProjectSummaries(ids: readonly string[]): HostProjectSummary[] {
+  if (ids.length === 0) return [];
+  const rows = prepareCachedRead(
+    getSqlite(),
+    `SELECT id, name, location_kind, location_path,
+    location_distro, location_linux_path, location_unc_path, disabled, created_at
+    FROM projects WHERE id IN (${ids.map(() => "?").join(", ")})`,
+  ).all(...ids) as Pick<
+    ProjectRow,
+    | "id"
+    | "name"
+    | "location_kind"
+    | "location_path"
+    | "location_distro"
+    | "location_linux_path"
+    | "location_unc_path"
+    | "disabled"
+    | "created_at"
+  >[];
+  const byId = new Map(
+    rows.map((row) => [
+      row.id,
+      {
+        id: row.id,
+        name: row.name,
+        location: rowToLocation(row),
+        disabled: Boolean(row.disabled),
+        createdAt: row.created_at,
+      },
+    ]),
+  );
+  return ids.flatMap((id) => {
+    const row = byId.get(id);
+    return row ? [row] : [];
   });
 }

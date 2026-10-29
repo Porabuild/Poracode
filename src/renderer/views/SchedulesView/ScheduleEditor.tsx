@@ -14,9 +14,8 @@ import { useProjectIconNode } from "@/renderer/components/common/ProjectIcon";
 import { ProjectLocationIcon } from "@/renderer/components/common/ProjectRemoteServer";
 import { useAppStore } from "@/renderer/state/appStore";
 import { HOME_PROJECT_ID, isHomeProject } from "@/shared/homeScope";
-import { capabilitiesForPresentation } from "@/shared/agentSelection";
+import { capabilitiesForPresentation, resolveReasoningSelection } from "@/shared/agentSelection";
 import { resolveFastValue } from "@/renderer/components/thread/threadDraftViewHelpers";
-import { resolvePreferredEffort } from "@/renderer/utils/effortSelection";
 import {
   buildModelPickerControls,
   buildProviderModelMenuProviders,
@@ -233,7 +232,7 @@ export function ScheduleEditor(props: ScheduleEditorProps) {
             set({
               agentKind: nextSelection.agentKind,
               model,
-              effort: resolvePreferredEffort(caps, model, draft.effort),
+              effort: resolveReasoningSelection(caps, model, draft.effort),
               fast: resolveFastValue(presented, model, draft.fast),
               ...(nextSelection.agentKind !== draft.agentKind
                 ? { heartbeatTargetThreadId: "" }

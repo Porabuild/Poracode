@@ -36,6 +36,10 @@ function testThread(): Thread {
   };
 }
 
+function removeReviewScopeFixtureSchema(sqlite: Database.Database): void {
+  sqlite.exec("ALTER TABLE pr_watches DROP COLUMN review_scope");
+}
+
 function removeCostSchemaForDowngrade(sqlite: Database.Database): void {
   sqlite.exec("DROP INDEX idx_usage_token_ledger_scope");
   sqlite.exec("ALTER TABLE usage_events DROP COLUMN cost_details");
@@ -59,6 +63,7 @@ export {
   nativeBindingEnv,
   sqliteAvailable,
   testThread,
+  removeReviewScopeFixtureSchema,
   removeCostSchemaForDowngrade,
   removeConversationSearchFixtureSchema,
 };

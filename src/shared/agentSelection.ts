@@ -190,7 +190,7 @@ export function agentStatusForPresentation(
     : stripProviderLogin(runtimeStatus);
 }
 
-function runtimeVariantForSession(
+export function runtimeVariantForSession(
   status: AgentStatus,
   presentationMode: ThreadPresentationMode,
   sessionRef: SessionRef | undefined,
@@ -330,6 +330,11 @@ export function resolveModelSelection(capabilities: AgentCapability, preferred?:
     : (capabilities.models[0]?.id ?? "");
 }
 
+/**
+ * A valid saved choice wins; otherwise the model's or provider's declared
+ * default. Never auto-pick the strongest tier: top tiers and presets such as
+ * Claude's ultracode multiply usage and must stay an explicit choice.
+ */
 export function resolveReasoningSelection(
   capabilities: AgentCapability,
   model: string,

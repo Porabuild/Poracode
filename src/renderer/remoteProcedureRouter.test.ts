@@ -148,9 +148,14 @@ describe("remote procedure routing registry", () => {
   const latestThreadGoalItem = vi.fn<(threadId: string) => Promise<unknown>>(async () => null);
   const threadCompletedTurns = vi.fn<(threadId: string) => Promise<unknown>>(async () => []);
   const threadContextUsage = vi.fn<(threadId: string) => Promise<unknown>>(async () => null);
+  const threadPromptIndex = vi.fn<(threadId: string) => Promise<unknown>>(async () => ({
+    prompts: [],
+    truncated: false,
+  }));
   const client = {
     callRemoteProcedure,
     latestThreadGoalItem,
+    threadPromptIndex,
     threadCompletedTurns,
     threadContextUsage,
     projectNotes,
@@ -215,6 +220,12 @@ describe("remote procedure routing registry", () => {
     expect(threadCompletedTurns).toHaveBeenCalledWith("remote-thread");
     await remoteResult(decide("dbGetThreadContextUsage", { threadId: "projected-thread" }));
     expect(threadContextUsage).toHaveBeenCalledWith("remote-thread");
+    expect(callRemoteProcedure).not.toHaveBeenCalled();
+  });
+
+  it("reads a remote thread's prompt index from its owning host, never the local database", async () => {
+    await remoteResult(decide("dbGetThreadPromptIndex", { threadId: "projected-thread" }));
+    expect(threadPromptIndex).toHaveBeenCalledWith("remote-thread");
     expect(callRemoteProcedure).not.toHaveBeenCalled();
   });
 
@@ -600,6 +611,37 @@ describe("remote procedure routing registry", () => {
       sshConnect: expect.stringMatching(/^local-shell: /),
       dbGetProjects: expect.stringMatching(/^local-shell: /),
     });
+  });
+
+  it.each(["start", "cancel"])(
+    "keeps controlled authentication %s on the local supervisor",
+    (action) => {
+      expect(NON_ROUTER_PROJECT_PROCEDURES.controlAcpAuthentication).toMatch(/^local-shell: /u);
+      expect(isRemoteProcedure("controlAcpAuthentication")).toBe(false);
+      expect(isRemoteIpcAdapterProcedure("controlAcpAuthentication")).toBe(false);
+      expect(
+        decide("controlAcpAuthentication", {
+          version: 1,
+          action,
+          operationId: "00000000-0000-4000-8000-000000000001",
+        }),
+      ).toEqual({ kind: "local" });
+      expect(callRemoteProcedure).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([
+    "controlMcpAuthentication",
+    "probeSelectedAgent",
+    "controlThreadExecution",
+    "reserveThreadExecution",
+    "controlledThreadRequest",
+  ] as const)("keeps %s on the local supervisor", (procedure) => {
+    expect(NON_ROUTER_PROJECT_PROCEDURES[procedure]).toMatch(/^local-shell: /u);
+    expect(isRemoteProcedure(procedure)).toBe(false);
+    expect(isRemoteIpcAdapterProcedure(procedure)).toBe(false);
+    expect(decide(procedure, {})).toEqual({ kind: "local" });
+    expect(callRemoteProcedure).not.toHaveBeenCalled();
   });
 
   it("rejects payloads that mix owners from different remote servers", async () => {

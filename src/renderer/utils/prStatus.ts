@@ -160,6 +160,51 @@ export function combineChecksStatus(
   return undefined;
 }
 
+export type PrStatusPhrase =
+  | "draft"
+  | "merged"
+  | "closed"
+  | "checks-pending"
+  | "awaiting-review"
+  | "behind"
+  | "blocked"
+  | "checks-failed"
+  | "checks-passed"
+  | "open";
+
+/** Words for the same decision as the status color, so the color is not the only signal. */
+export function describePrStatus(
+  state: PrState | null | undefined,
+  checksStatus: string | undefined,
+  mergeStatus?: PrMergeStatus | null,
+): PrStatusPhrase {
+  if (state === "draft") return "draft";
+  if (state === "merged") return "merged";
+  if (state === "closed") return "closed";
+  if (isPrBlockedOnlyByPendingChecks(checksStatus, mergeStatus)) return "checks-pending";
+  if (isPrBlockedOnlyByPendingReview(checksStatus, mergeStatus)) return "awaiting-review";
+  if (isPrMergeBlocked(mergeStatus)) return "blocked";
+  if (mergeStatus?.mergeStateStatus === "BEHIND") return "behind";
+  const tone = getPrStatusTone(state ?? undefined, checksStatus, mergeStatus);
+  if (tone === "danger") return "checks-failed";
+  if (mergeStatus?.mergeStateStatus === "UNSTABLE" || tone === "warning") return "checks-pending";
+  if (checksStatus) return "checks-passed";
+  return "open";
+}
+
+export const PR_STATUS_LABEL: Record<PrStatusPhrase, MessageDescriptor> = {
+  draft: msg`Draft`,
+  merged: msg`Merged`,
+  closed: msg`Closed`,
+  "checks-pending": msg`Checks pending`,
+  "awaiting-review": msg`Awaiting review`,
+  behind: msg`Behind base`,
+  blocked: msg`Merging is blocked`,
+  "checks-failed": msg`Checks failed`,
+  "checks-passed": msg`Checks passed`,
+  open: msg`Open`,
+};
+
 export function getPrStatusTone(
   state: PrState | undefined,
   checksStatus: string | undefined,

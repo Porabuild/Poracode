@@ -18,6 +18,7 @@ import {
 import {
   prWatchAgentSyncSchema,
   prWatchInputSchema,
+  forgePrWatchInputSchema,
   prWatchKeySchema,
   scheduledTaskIdPayloadSchema,
   scheduleRunInboxQuerySchema,
@@ -41,6 +42,7 @@ import {
   imageTickets,
 } from "./imageTickets";
 import { parseImageRefPath, resolveImageRefAfterFence } from "./imageRefProjection";
+import { resolveCardVariant } from "./imageCardVariant";
 import { mapPersistenceRefusal } from "./persistenceRefusals";
 import { writeLocalImageFile } from "./localImageFile";
 import { readAttachmentBody, readJsonBody } from "./requestBody";
@@ -79,6 +81,7 @@ type WorkspaceRouteId =
   | "pr-watch-check"
   | "pr-watch-agent-sync"
   | "pr-watch-upsert"
+  | "pr-watch-scoped-upsert"
   | "pr-watch-delete"
   | "browser-state"
   | "browser-command"
@@ -222,7 +225,7 @@ export const WORKSPACE_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, WorkspaceRout
     } else {
       throw new RemoteHttpError("missing_access_token", "Missing access token.", 401);
     }
-    await writeLocalImageFile(res, imagePath);
+    await writeLocalImageFile(res, imagePath, url.searchParams.get("variant"));
   },
 
   "local-image-ticket": async ({ req, res, session }) => {
@@ -270,11 +273,15 @@ export const WORKSPACE_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, WorkspaceRout
     if (!resolved) {
       throw new RemoteHttpError("image_not_found", "No inline image at that reference.", 404);
     }
+    // `?variant=card` serves the downscaled display variant when this host
+    // has a variant generator; otherwise (and on older hosts) full bytes.
+    const served =
+      url.searchParams.get("variant") === "card" ? await resolveCardVariant(resolved) : resolved;
     // Gate 6 item 4.4 (S4): client-origin image bytes get the hardened header
     // set; SVG is forced to attachment.
     writeHardenedImageResponse(res, {
-      contentType: resolved.mime,
-      data: resolved.data,
+      contentType: served.mime,
+      data: served.data,
       // Immutable: a runtime item's image bytes never change under the same
       // id, so the client can reuse it for the life of the transcript.
       cacheControl: "private, max-age=31536000, immutable",
@@ -304,7 +311,7 @@ export const WORKSPACE_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, WorkspaceRout
       throw new RemoteHttpError("empty_attachment", "The attachment is empty.", 400);
     }
     writeJson(res, 200, {
-      path: attachments.save({ threadId, fileName, data }),
+      path: await attachments.save({ threadId, fileName, data }),
     });
   },
 
@@ -401,6 +408,17 @@ export const WORKSPACE_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, WorkspaceRout
   "pr-watch-upsert": async ({ ctx, req, res }) => {
     const input = prWatchInputSchema.parse(await readJsonBody(req));
     writeJson(res, 200, { watch: ctx.requirePrWatchesGateway().upsert(input) });
+  },
+  "pr-watch-scoped-upsert": async ({ ctx, req, res }) => {
+    const input = forgePrWatchInputSchema.parse(await readJsonBody(req));
+    const gateway = ctx.requirePrWatchesGateway();
+    if (!gateway.upsertScoped)
+      throw new RemoteHttpError(
+        "forge_watch_scope_unavailable",
+        msg("forge.watchScopeUnavailable"),
+        501,
+      );
+    writeJson(res, 200, { watch: await gateway.upsertScoped(input) });
   },
 
   "pr-watch-delete": async ({ ctx, req, res }) => {

@@ -5,6 +5,7 @@ import {
   controlThreadGoalPayloadSchema,
   interruptThreadPayloadSchema,
   emptyMcpLaunchSnapshot,
+  retainThreadToolOverrides,
   remoteThreadCommandSchema,
   resizeTerminalPayloadSchema,
   resolveThreadServerRequestPayloadSchema,
@@ -61,6 +62,7 @@ import { handleCatalogThreadList } from "./catalogPages";
 import { handleBoundedThreadHistoryItems, handleBoundedThreadTurns } from "./historyRead";
 import { handleLegacyAdmittedThreadHistory } from "./legacyAdmittedReads";
 import { handleHistoryItemDetails } from "./historyItemDetails";
+import { handleHistoryPromptIndex } from "./historyPromptIndex";
 import { handleThreadHistoryResume } from "./historyResumeReads";
 import {
   applyRemoteThreadCommand,
@@ -92,8 +94,10 @@ async function forwardThreadBodyPost(
 }
 
 type ThreadRouteId =
+  | "thread-agent-vision"
   | "thread-history-changes"
   | "thread-history-item"
+  | "thread-history-prompts"
   | "thread-list"
   | "thread-history-items"
   | "thread-history"
@@ -118,7 +122,16 @@ type ThreadRouteId =
 
 /** Thread-group HTTP route handlers (contract `threadRoutes`). */
 export const THREAD_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, ThreadRouteId> = {
+  "thread-agent-vision": async ({ ctx, res, params, url }) => {
+    const threadId = requirePathParam(params, "threadId");
+    const thread = dbGetThread(threadId);
+    if (!thread) throw new RemoteHttpError("not_found", "Thread not found.", 404);
+    res.setHeader("Cache-Control", "no-store");
+    const preview = url.searchParams.get("preview") !== "0";
+    writeJson(res, 200, (await ctx.options.readAgentVision?.(threadId, preview)) ?? null);
+  },
   "thread-history-item": handleHistoryItemDetails,
+  "thread-history-prompts": handleHistoryPromptIndex,
   "thread-history-changes": handleThreadHistoryResume,
   // B4: legacy `limit` + `tp1.` cursor path is preserved byte-for-byte inside
   // the handler; declared clients get paint/inventory pages with caps.
@@ -170,8 +183,10 @@ export const THREAD_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, ThreadRouteId> =
       writeJson(res, 200, result);
       return;
     }
+    const config = retainThreadToolOverrides(payload.config, thread.config);
     const mcpSnapshot =
-      ctx.options.resolveMcpLaunchSnapshot?.(thread.projectId) ?? emptyMcpLaunchSnapshot();
+      ctx.options.resolveMcpLaunchSnapshot?.(thread.projectId, config.mcpServerOverrides) ??
+      emptyMcpLaunchSnapshot();
     const result = await runRemoteCommand({
       commandId: remoteCommandId(req),
       route: url.pathname,
@@ -191,12 +206,12 @@ export const THREAD_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, ThreadRouteId> =
         if (payload.providerSwitch) {
           return applyRemoteThreadSwitch(
             ctx,
-            { ...payload, threadId, ...mcpSnapshot },
+            { ...payload, config, threadId, ...mcpSnapshot },
             markDispatched,
           );
         }
         markDispatched();
-        return ctx.options.callSupervisor("startThread", { ...payload, ...mcpSnapshot });
+        return ctx.options.callSupervisor("startThread", { ...payload, config, ...mcpSnapshot });
       },
     });
     writeJson(res, 200, result);

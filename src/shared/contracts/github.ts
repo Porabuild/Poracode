@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { projectLocationSchema } from "./common";
+import type { ForgeRepository } from "./forge";
 
 /** Identifies a signed-in account so the supervisor can scope `gh` to it. */
 export const gitHubAccountRefSchema = z.object({
@@ -13,10 +14,13 @@ export const prMergeMethodSchema = z.enum(["merge", "squash", "rebase"]);
 export type PrMergeMethod = z.infer<typeof prMergeMethodSchema>;
 
 export interface PrData {
+  /** Absent on pre-forge hosts; those results retain the GitHub semantics. */
+  source?: ForgeRepository;
   number: number;
   state: PrState;
   /** Last commit that belonged to this pull request's head branch. */
   headSha?: string;
+  isCrossRepository?: boolean;
   title: string;
   url: string;
   baseBranch: string;
@@ -79,12 +83,89 @@ export interface PrCommitSummary {
   url?: string;
 }
 
+/** Host-defined label; `color` is a six-digit hex value without `#`. */
+export interface PrLabel {
+  name: string;
+  color?: string;
+  description?: string;
+}
+
+/** A requested reviewer. `id` is the host's own request identity, opaque to clients. */
+export interface PrReviewer {
+  id: string;
+  login: string;
+  name?: string;
+  avatarUrl?: string;
+  /** A group request (GitHub team, GitLab group). */
+  team?: boolean;
+}
+
+/** `content` is the host's reaction name; clients skip names they cannot render. */
+export interface PrReaction {
+  content: string;
+  count: number;
+  viewerReacted: boolean;
+}
+
+/**
+ * One lifecycle or metadata change. `kind` is an open string so a new kind
+ * never invalidates an older client's whole response; clients skip unknown kinds.
+ * Known kinds are listed in `PR_TIMELINE_EVENT_KINDS`.
+ */
+export interface PrTimelineEvent {
+  id: string;
+  kind: string;
+  createdAt: string;
+  actor?: PrAuthor;
+  label?: PrLabel;
+  reviewer?: PrReviewer;
+  fromRef?: string;
+  toRef?: string;
+  /** Host-authored text for `system` events the host does not structure. */
+  text?: string;
+}
+
+/**
+ * Reaction names on the wire. Adapters translate host vocabularies (GitLab award
+ * emoji, for example) to these names; clients skip names they do not know.
+ */
+export const PR_REACTION_CONTENTS = [
+  "+1",
+  "-1",
+  "laugh",
+  "hooray",
+  "confused",
+  "heart",
+  "rocket",
+  "eyes",
+] as const;
+export type PrReactionContent = (typeof PR_REACTION_CONTENTS)[number];
+
+export const PR_TIMELINE_EVENT_KINDS = [
+  "opened",
+  "closed",
+  "reopened",
+  "merged",
+  "ready",
+  "draft",
+  "labeled",
+  "unlabeled",
+  "review-requested",
+  "review-request-removed",
+  "force-pushed",
+  "base-changed",
+  "renamed",
+  "system",
+] as const;
+export type PrTimelineEventKind = (typeof PR_TIMELINE_EVENT_KINDS)[number];
+
 export interface PrComment {
   id: string;
   author: PrAuthor;
   body: string;
   createdAt: string;
   url?: string;
+  reactions?: PrReaction[];
 }
 
 export interface PrReviewThread {
@@ -92,7 +173,16 @@ export interface PrReviewThread {
   isResolved: boolean;
   isOutdated: boolean;
   path?: string;
+  /** Line number on the diff side given by `side`; absent when the host has no current anchor. */
   line?: number;
+  /**
+   * Diff side that `line` belongs to: "LEFT" is the old file (a removed or
+   * context line), "RIGHT" is the new file. Open string, like `PrTimelineEvent.kind`:
+   * native decoders reject unknown enum literals, and clients treat any value other
+   * than "LEFT" as "RIGHT". Absent on hosts that predate it and when the host does
+   * not say; clients then draw the thread on the new side.
+   */
+  side?: string;
   comments: PrComment[];
 }
 
@@ -113,6 +203,7 @@ export interface PrReviewSummary {
 }
 
 export interface PrDetails {
+  source?: ForgeRepository;
   number: number;
   title: string;
   body: string;
@@ -130,6 +221,15 @@ export interface PrDetails {
   comments: PrComment[];
   reviews: PrReviewSummary[];
   checks: PrCheck[];
+  reviewThreads?: PrReviewThread[];
+  /** Absent on hosts that predate labels; clients then show no label row. */
+  labels?: PrLabel[];
+  /** Outstanding review requests; absent on hosts that predate them. */
+  requestedReviewers?: PrReviewer[];
+  /** Lifecycle and metadata events; commits, comments, and reviews stay in their own arrays. */
+  timeline?: PrTimelineEvent[];
+  /** Reactions on the description itself. */
+  reactions?: PrReaction[];
 }
 
 export interface GhCheckAvailableResult {
@@ -173,6 +273,8 @@ export interface PullRequestSummary {
   repository: string;
   /** True when the authenticated viewer is currently requested to review. */
   reviewRequested: boolean;
+  /** Absent on hosts that predate labels. */
+  labels?: PrLabel[];
 }
 
 export const ghListPullRequestsPayloadSchema = z.object({

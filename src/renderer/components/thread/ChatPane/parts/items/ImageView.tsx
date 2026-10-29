@@ -7,6 +7,8 @@ import { chatMessageSurfaceClass } from "./chatMessageSurface";
 import { RemoteImageCard } from "./RemoteImageCard";
 import { resolveImageViewSource } from "./imageViewSource";
 import { ToolCall } from "./ToolCall";
+import { readMcpAppResource } from "@/shared/mcpAppResources";
+import { InlineVisual } from "./InlineVisual";
 
 interface ImageViewProps {
   item: RuntimeChatItem;
@@ -37,12 +39,24 @@ export const ImageView = memo(function ImageView({ item }: ImageViewProps) {
     [actions?.remoteImageRefUrl, readiness, payload],
   );
 
-  if (!source || payload?.status === "error") {
-    return <ToolCall item={item} />;
+  const appResource =
+    item.state === "completed" && payload?.status === "success"
+      ? readMcpAppResource(payload.result)
+      : undefined;
+  const image =
+    source && payload?.status !== "error" ? (
+      <Surface variant="transparent" className={chatMessageSurfaceClass}>
+        <RemoteImageCard source={source} />
+      </Surface>
+    ) : null;
+  if (appResource) {
+    const title = payload?.title ?? payload?.name;
+    return (
+      <>
+        <InlineVisual html={appResource.text} {...(title ? { title } : {})} />
+        {image}
+      </>
+    );
   }
-  return (
-    <Surface variant="transparent" className={chatMessageSurfaceClass}>
-      <RemoteImageCard source={source} />
-    </Surface>
-  );
+  return image ?? <ToolCall item={item} />;
 });

@@ -19,7 +19,9 @@ import {
   getRuntimePersistenceSample,
   resetRuntimePersistenceForTests,
   enqueueRuntimeControlOperation,
+  runtimePersistenceController,
 } from "./runtimePersistenceRuntime";
+import { DEFAULT_RUNTIME_QUEUE_BOUNDS } from "./runtimeWriteQueue";
 import { RuntimePersistenceContaminatedError } from "./runtimePersistenceTypes";
 import {
   hasDeferredThreadReset,
@@ -97,11 +99,15 @@ describe.skipIf(!sqliteAvailable)("B1 authoritative rebase recovery (real SQLite
     await dbFlushThreadRuntimeWrites(THREAD_A);
     expect(dbReadThreadRuntimeItems(THREAD_A).map((item) => item.id)).toEqual(["old"]);
 
-    // Fill the per-thread cap: the accepted prefix is resident and the refused
-    // suffix contaminates the thread.
+    // Fill the per-thread cap with relief off (storage that cannot keep up):
+    // the accepted prefix is resident and the refused suffix contaminates the
+    // thread.
+    runtimePersistenceController.setCapacityReliefForTests(false);
     const batch = [
       started(THREAD_A, "a"),
-      ...Array.from({ length: 5_000 }, () => delta(THREAD_A, "a", "x")),
+      ...Array.from({ length: DEFAULT_RUNTIME_QUEUE_BOUNDS.maxPendingEventsPerThread }, () =>
+        delta(THREAD_A, "a", "x"),
+      ),
     ];
     expect(dbApplyThreadRuntimeEvents(THREAD_A, batch)).toMatchObject({
       kind: "accepted",
@@ -127,7 +133,7 @@ describe.skipIf(!sqliteAvailable)("B1 authoritative rebase recovery (real SQLite
     expect(dbHasPendingThreadRuntimeWrites(THREAD_A)).toBe(false);
     expect(dbReadThreadRuntimeItems(THREAD_A)).toEqual([]);
     expect((getRuntimePersistenceSample()?.supersededAcceptedEvents ?? 0) - supersededBefore).toBe(
-      5_000,
+      DEFAULT_RUNTIME_QUEUE_BOUNDS.maxPendingEventsPerThread,
     );
   });
 

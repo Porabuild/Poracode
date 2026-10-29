@@ -120,6 +120,8 @@ internal class FakeRichChatSessionGateway : RichChatSessionGateway {
         return acknowledgeGapHandler(threadId, episodeToken, commandId)
     }
 
+    val sentPrompts = mutableListOf<Pair<String, JsonArray?>>()
+
     override suspend fun send(
         lease: RichChatHostLease,
         threadId: String,
@@ -127,7 +129,10 @@ internal class FakeRichChatSessionGateway : RichChatSessionGateway {
         config: ThreadConfig,
         segments: JsonArray?,
         userMessageItemId: String?,
-    ) = call("send")
+    ) {
+        sentPrompts += prompt to segments
+        call("send")
+    }
 
     override suspend fun interrupt(lease: RichChatHostLease, threadId: String) = call("interrupt")
     override suspend fun truncate(lease: RichChatHostLease, threadId: String, itemId: String) =

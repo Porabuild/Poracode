@@ -11,6 +11,8 @@ import type {
   PrDetails,
   PrFile,
   PrReviewSummary,
+  PrReviewThread,
+  ForgeRepository,
 } from "@/shared/contracts";
 
 export interface WorktreeSourceInfo {
@@ -290,6 +292,8 @@ export function arePrDataEqual(a: PrData | null | undefined, b: PrData | null) {
     a.number === b.number &&
     a.state === b.state &&
     a.headSha === b.headSha &&
+    a.isCrossRepository === b.isCrossRepository &&
+    areForgeSourcesEqual(a.source, b.source) &&
     a.title === b.title &&
     a.url === b.url &&
     a.baseBranch === b.baseBranch &&
@@ -301,6 +305,13 @@ export function arePrDataEqual(a: PrData | null | undefined, b: PrData | null) {
     a.viewerDidAuthor === b.viewerDidAuthor &&
     a.updatedAt === b.updatedAt
   );
+}
+
+function areForgeSourcesEqual(
+  a: ForgeRepository | undefined,
+  b: ForgeRepository | undefined,
+): boolean {
+  return a === b || JSON.stringify(a) === JSON.stringify(b);
 }
 
 export function isMergedPrRegression(
@@ -315,6 +326,11 @@ export function isMergedPrRegression(
     current.url === incoming.url &&
     incoming.state !== "merged"
   );
+}
+
+/** Structural equality for small host-supplied lists (labels, reviewers, reactions, events). */
+function areJsonEqual(a: unknown, b: unknown): boolean {
+  return a === b || JSON.stringify(a) === JSON.stringify(b);
 }
 
 function areAuthorsEqual(a: PrAuthor | null | undefined, b: PrAuthor | null | undefined): boolean {
@@ -354,7 +370,8 @@ function arePrCommentsEqual(a: PrComment, b: PrComment): boolean {
     a.body === b.body &&
     a.createdAt === b.createdAt &&
     a.url === b.url &&
-    areAuthorsEqual(a.author, b.author)
+    areAuthorsEqual(a.author, b.author) &&
+    areJsonEqual(a.reactions ?? [], b.reactions ?? [])
   );
 }
 
@@ -381,12 +398,25 @@ function arePrChecksEqual(a: PrCheck, b: PrCheck): boolean {
   );
 }
 
+function areReviewThreadsEqual(a: PrReviewThread, b: PrReviewThread): boolean {
+  return (
+    a.id === b.id &&
+    a.isResolved === b.isResolved &&
+    a.isOutdated === b.isOutdated &&
+    a.path === b.path &&
+    a.line === b.line &&
+    a.side === b.side &&
+    areArraysEqual(a.comments, b.comments, arePrCommentsEqual)
+  );
+}
+
 export function arePrDetailsEqual(a: PrDetails | undefined, b: PrDetails): boolean {
   if (a === b) return true;
   if (!a) return false;
   return (
     a.number === b.number &&
     a.title === b.title &&
+    areForgeSourcesEqual(a.source, b.source) &&
     a.body === b.body &&
     a.baseBranch === b.baseBranch &&
     a.headBranch === b.headBranch &&
@@ -401,7 +431,12 @@ export function arePrDetailsEqual(a: PrDetails | undefined, b: PrDetails): boole
     areArraysEqual(a.commits, b.commits, arePrCommitsEqual) &&
     areArraysEqual(a.comments, b.comments, arePrCommentsEqual) &&
     areArraysEqual(a.reviews, b.reviews, arePrReviewsEqual) &&
-    areArraysEqual(a.checks, b.checks, arePrChecksEqual)
+    areArraysEqual(a.reviewThreads ?? [], b.reviewThreads ?? [], areReviewThreadsEqual) &&
+    areArraysEqual(a.checks, b.checks, arePrChecksEqual) &&
+    areJsonEqual(a.labels ?? [], b.labels ?? []) &&
+    areJsonEqual(a.requestedReviewers ?? [], b.requestedReviewers ?? []) &&
+    areJsonEqual(a.reactions ?? [], b.reactions ?? []) &&
+    areJsonEqual(a.timeline ?? [], b.timeline ?? [])
   );
 }
 
@@ -412,11 +447,12 @@ export function arePrDetailsEqual(a: PrDetails | undefined, b: PrDetails): boole
  * to serialize and useful at first paint are persisted — the in-flight `prFiles`
  * / `prDiffs` caches are kept session-local since they're tied to overlay state.
  */
-const PERSIST_KEY = "poracode-git-cache-v1";
+// v2 recomputes GitHub-only availability and truncated repository namespaces.
+const PERSIST_KEY = "poracode-git-cache-v2";
 const PERSIST_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 interface PersistedSnapshot {
-  v: 1;
+  v: 2;
   ts: number;
   statuses: Record<string, GitStatusResult>;
   worktreeStatuses: Record<string, GitStatusResult>;
@@ -433,7 +469,7 @@ function loadPersistedSnapshot(): Partial<PersistedSnapshot> {
     const raw = localStorage.getItem(PERSIST_KEY);
     if (!raw) return {};
     const parsed = JSON.parse(raw) as PersistedSnapshot;
-    if (parsed.v !== 1) return {};
+    if (parsed.v !== 2) return {};
     if (Date.now() - parsed.ts > PERSIST_TTL_MS) return {};
     return parsed;
   } catch {
@@ -451,7 +487,7 @@ function schedulePersist(state: GitState) {
     persistTimer = null;
     try {
       const snapshot: PersistedSnapshot = {
-        v: 1,
+        v: 2,
         ts: Date.now(),
         statuses: state.statuses,
         worktreeStatuses: state.worktreeStatuses,

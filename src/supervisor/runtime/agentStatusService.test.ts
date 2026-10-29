@@ -1,3 +1,4 @@
+import { STATUS_CACHE_VERSION } from "@/shared/agentStatusCache";
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -21,7 +22,6 @@ import {
   AgentStatusService,
   detectWslAgentStatuses,
   parseWslRegistryDistributionNames,
-  STATUS_CACHE_VERSION,
 } from "./agentStatusService";
 
 const tempDirs: string[] = [];
@@ -224,10 +224,8 @@ HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss\\{333}
         ...(mode !== "full" ? { scope: { agentKinds: ["codex"], envs } } : {}),
       });
 
-      expect(prepareWslEnvironment.mock.calls).toEqual(
-        mode === "scoped-native" ? [] : [["Ubuntu"]],
-      );
-      expect(preparedAtProbe).toEqual(mode === "scoped-native" ? [] : [true]);
+      expect(prepareWslEnvironment.mock.calls).toEqual(mode.endsWith("native") ? [] : [["Ubuntu"]]);
+      expect(preparedAtProbe).toEqual(mode.endsWith("native") ? [] : [true]);
     },
   );
 
@@ -287,34 +285,21 @@ HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss\\{333}
           wsl: [],
         }),
       );
-      expect(STATUS_CACHE_VERSION).toBe(67);
+      expect(STATUS_CACHE_VERSION).toBe(70);
       expect(service.getCachedCapabilities("codex")).toBeUndefined();
     },
   );
 
   it("drops the on-disk status cache before an explicit full refresh", async () => {
-    const detectInstall = vi.fn<AgentAdapter["detectInstall"]>().mockResolvedValue(makeStatus());
+    const detectInstall = vi.fn<AgentAdapter["detectInstall"]>().mockResolvedValue({
+      ...makeStatus(),
+      capabilities: { ...capabilities, models: [{ id: "stale", label: "Stale" }] },
+    });
     const { service, statusCachePath } = makeService(detectInstall);
 
     await service.refreshAgentStatuses({ wslDistros: [] });
     expect(existsSync(statusCachePath)).toBe(true);
 
-    writeFileSync(
-      statusCachePath,
-      JSON.stringify({
-        version: STATUS_CACHE_VERSION,
-        windows: [
-          {
-            ...makeStatus(),
-            capabilities: {
-              ...capabilities,
-              models: [{ id: "stale", label: "Stale" }],
-            },
-          },
-        ],
-        wsl: [],
-      }),
-    );
     expect(service.getCachedCapabilities("codex")?.models.map((model) => model.id)).toEqual([
       "stale",
     ]);

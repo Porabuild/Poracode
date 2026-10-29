@@ -3,6 +3,7 @@ import { PixelLoader } from "../common/PixelLoader";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useThread } from "@/renderer/state/useThread";
 import { TerminalPane } from "./TerminalPane";
+import { threadRuntimeStatusLabel } from "./ThreadHeaderStatus";
 import { ThreadComposerSection } from "./ThreadComposerSection";
 import type { ThreadContentCommonProps } from "./ThreadContent";
 
@@ -55,7 +56,13 @@ export function TerminalThreadContent({
             aria-live="polite"
           >
             <PixelLoader size="md" />
-            {awaitingWorktree ? <span>{t`Creating worktree…`}</span> : null}
+            <span>
+              {awaitingWorktree
+                ? t`Creating worktree…`
+                : thread.remoteServerId && !props.remoteTerminalTransport
+                  ? t`Connecting to host…`
+                  : threadRuntimeStatusLabel(thread, t)}
+            </span>
           </div>
         ) : null}
       </div>

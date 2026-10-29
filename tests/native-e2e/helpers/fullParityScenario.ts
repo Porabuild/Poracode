@@ -42,7 +42,13 @@ export async function exerciseRemainingRoutes(
     const contract = generatedRoute(route.id);
     const response = await requestGeneratedRoute(harness, accessToken, route.id);
     assert.equal(response.status, contract.response.status, route.id);
-    if (contract.response.wireKind === "binary") {
+    if (route.id === "device-preview-ios-video") {
+      assert.equal(response.headers.get("content-type"), "application/octet-stream");
+      assert.deepEqual(
+        Buffer.from(await response.arrayBuffer()),
+        Buffer.from([0, 0, 0, 2, 0x09, 0xf0]),
+      );
+    } else if (contract.response.wireKind === "binary") {
       assert.equal(response.headers.get("content-type"), "image/png");
       assert.deepEqual(
         Buffer.from(await response.arrayBuffer()).subarray(0, 8),
@@ -77,7 +83,7 @@ export async function exerciseAllProcedures(
   accessToken: string,
 ): Promise<void> {
   const fixtures = allConfiguredProcedureFixtures();
-  assert.equal(fixtures.length, 130);
+  assert.equal(fixtures.length, 163);
   for (const fixture of fixtures) {
     const body = await callProcedure(
       harness,

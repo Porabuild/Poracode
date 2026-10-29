@@ -7,6 +7,8 @@ interface InlineFilePathChipProps {
   line?: number | undefined;
   endLine?: number | undefined;
   onOpen?: ((path: string, lineNumber?: number) => Promise<void> | void) | undefined;
+  /** Display-only span, for rows that already sit inside a button. */
+  isStatic?: boolean;
 }
 
 /**
@@ -20,7 +22,13 @@ interface InlineFilePathChipProps {
  * no hover effect and no click handler — so the user sees the reference
  * without a broken interaction.
  */
-export function InlineFilePathChip({ path, line, endLine, onOpen }: InlineFilePathChipProps) {
+export function InlineFilePathChip({
+  path,
+  line,
+  endLine,
+  onOpen,
+  isStatic = false,
+}: InlineFilePathChipProps) {
   const [inert, setInert] = useState(false);
   const basename = getBasename(path);
   const iconUrl = getEntryIconUrl(basename, false);
@@ -38,6 +46,24 @@ export function InlineFilePathChip({ path, line, endLine, onOpen }: InlineFilePa
     }
   };
 
+  const content = (
+    <>
+      <img className="poracode-inline-path-chip__icon" src={iconUrl} alt="" draggable={false} />
+      <span className="poracode-inline-path-chip__name">{basename}</span>
+      {line !== undefined ? (
+        <span className="poracode-inline-path-chip__line">{`· L${lineLabel}`}</span>
+      ) : null}
+    </>
+  );
+
+  if (isStatic) {
+    return (
+      <span className="poracode-inline-path-chip poracode-inline-path-chip--static" title={title}>
+        {content}
+      </span>
+    );
+  }
+
   return (
     <button
       type="button"
@@ -46,11 +72,7 @@ export function InlineFilePathChip({ path, line, endLine, onOpen }: InlineFilePa
       disabled={inert}
       onClick={handleClick}
     >
-      <img className="poracode-inline-path-chip__icon" src={iconUrl} alt="" draggable={false} />
-      <span className="poracode-inline-path-chip__name">{basename}</span>
-      {line !== undefined ? (
-        <span className="poracode-inline-path-chip__line">{`· L${lineLabel}`}</span>
-      ) : null}
+      {content}
     </button>
   );
 }

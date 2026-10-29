@@ -38,7 +38,11 @@ import { createCursorChat } from "./session";
 import { CURSOR_IDLE_RE, CURSOR_WORKING_RE, detectCursorTerminalStatus } from "./terminal";
 import { applyCursorSdkProbe, probeCursorSdkRuntime } from "./sdkDetection";
 import { CursorSdkSession } from "./sdkSession";
-import { buildCursorAgentCommand, buildCursorArgvSpec } from "./windowsExecutable";
+import {
+  buildCursorAgentCommand,
+  buildCursorArgvSpec,
+  cursorWindowsArgs,
+} from "./windowsExecutable";
 import {
   configuredCursorStructuredRuntime,
   CURSOR_SDK_SESSION_PREFIX,
@@ -331,7 +335,7 @@ export function createCursorAdapter(options: CursorAdapterOptions = {}): AgentAd
         const spec = buildCursorArgvSpec(location, args);
         return { command: spec.binary, args: spec.args, ...(spec.env ? { env: spec.env } : {}) };
       }
-      return { command: "cursor-agent", args };
+      return { command: "cursor-agent", args: cursorWindowsArgs(undefined, args) };
     },
     buildContextExtractionCommand(sessionRef, location, model, oneShotOptions) {
       // `sdk:` identifies Cursor's SDK-local Agent store, not a cursor-agent

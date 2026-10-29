@@ -17,6 +17,7 @@ export interface SubagentWorkflowHost {
   waitForSettlement(parentId: string, runId: string): Promise<SubagentWaitResult>;
   getStatus(parentId: string, runId: string): SubagentWaitResult;
   getCapacity(parentId: string): number;
+  roleRunningCount?(parentId: string, roleId: string): number;
   subscribe(parentId: string, listener: (event: "changed" | "closed") => void): () => void;
   cancel(parentId: string, runId: string): Promise<void>;
 }
@@ -354,6 +355,12 @@ export class SubagentWorkflowManager {
       const dependencies = task.definition.dependsOn.map((id) => byId.get(id)!);
       if (!dependencies.every((dependency) => dependency.status === "completed")) continue;
       if (this.host.getCapacity(workflow.parentId) <= 0) break;
+      const role = task.definition.request.crewRole;
+      const roleRunning =
+        role && this.host.roleRunningCount
+          ? this.host.roleRunningCount(workflow.parentId, role.id)
+          : undefined;
+      if (role && roleRunning !== undefined && roleRunning >= role.parallel) continue;
       try {
         const { runId } = this.host.spawn(
           workflow.parentId,

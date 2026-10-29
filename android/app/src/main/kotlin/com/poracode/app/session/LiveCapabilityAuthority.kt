@@ -30,6 +30,7 @@ internal class LiveCapabilityAuthority(
                     liveBrowserForwardVersions = emptySet(),
                     liveRuntimeHistoryNoticeVersions = emptySet(),
                     liveProjectCommandResultVersions = emptySet(),
+                    liveThreadForkVersions = emptySet(),
                 )
             }
         }

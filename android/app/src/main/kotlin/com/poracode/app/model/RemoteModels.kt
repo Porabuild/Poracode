@@ -39,6 +39,7 @@ data class RemoteEnvironmentDescriptor(
 
     @Serializable
     data class Capabilities(
+        val threadForks: VersionedCapability? = null,
         /**
          * Origin-bound browser entry (`versions` contains
          * [BROWSER_FORWARD_ENTRY_VERSION]). Declares protocol support only — a
@@ -160,7 +161,11 @@ data class ThreadConfig(
     val crossagentMcp: Boolean? = null,
     val computerUse: Boolean? = null,
     val chromeMcp: Boolean? = null,
+    val mcpServerOverrides: Map<String, Boolean>? = null,
+    val pluginOverrides: Map<String, Boolean>? = null,
     val executionEnvironment: RemoteExecutionEnvironment? = null,
+    @Serializable(with = OpaqueJsonElementSerializer::class)
+    val crew: JsonElement? = null,
 ) {
     fun toJsonObject(): JsonObject = buildJsonObject {
         put("model", model)
@@ -176,6 +181,18 @@ data class ThreadConfig(
         crossagentMcp?.let { put("crossagentMcp", it) }
         computerUse?.let { put("computerUse", it) }
         chromeMcp?.let { put("chromeMcp", it) }
+        mcpServerOverrides?.let { overrides ->
+            put(
+                "mcpServerOverrides",
+                buildJsonObject { overrides.forEach { (key, enabled) -> put(key, enabled) } },
+            )
+        }
+        pluginOverrides?.let { overrides ->
+            put(
+                "pluginOverrides",
+                buildJsonObject { overrides.forEach { (key, enabled) -> put(key, enabled) } },
+            )
+        }
         executionEnvironment?.let { environment ->
             put(
                 "executionEnvironment",
@@ -185,6 +202,7 @@ data class ThreadConfig(
                 },
             )
         }
+        crew?.let { put("crew", it) }
     }
 }
 
@@ -220,48 +238,6 @@ data class RemoteSlashCommand(
     val pluginId: String? = null,
     val pluginName: String? = null,
 )
-
-@Serializable
-data class RemoteThread(
-    val id: String,
-    val remoteServerId: String? = null,
-    val remoteId: String? = null,
-    val projectId: String,
-    val title: String,
-    val agentKind: String,
-    val agentInstanceId: String? = null,
-    val config: ThreadConfig = ThreadConfig(),
-    val status: String,
-    val attention: String,
-    val canResumeWithConfig: Boolean? = null,
-    val worktreePath: String? = null,
-    val worktreeBranch: String? = null,
-    val archived: Boolean? = null,
-    val done: Boolean? = null,
-    val starred: Boolean? = null,
-    val presentationMode: String? = null,
-    val createdAt: String,
-    val updatedAt: String,
-    val activeTurnStartedAt: String? = null,
-    val lastTurnStartedAt: String? = null,
-    val lastTurnEndedAt: String? = null,
-    val errorMessage: String? = null,
-    val slashCommands: List<RemoteSlashCommand>? = null,
-    /** Live negotiated session controls (`RemoteSessionConfigOption`); null/absent keeps static fallback. */
-    val sessionConfigOptions: List<RemoteSessionConfigOption>? = null,
-    val parentThreadId: String? = null,
-    /** Live structured-session identity; absent on older hosts. */
-    val sessionRef: RemoteSessionRef? = null,
-    /** Readonly host projection; absence is unknown, never launch or mutation authority. */
-    @Serializable(with = WorkspaceDirectoryProjectionSerializer::class)
-    val additionalDirectories: List<ProjectLocation>? = null,
-    @Serializable(with = WorkspaceGrantRevisionProjectionSerializer::class)
-    val workspaceGrantRevision: Long? = null,
-) {
-    val isArchived: Boolean get() = archived == true
-    val isDone: Boolean get() = done == true
-    val isStarred: Boolean get() = starred == true
-}
 
 @Serializable
 data class RemoteRuntimeSummary(

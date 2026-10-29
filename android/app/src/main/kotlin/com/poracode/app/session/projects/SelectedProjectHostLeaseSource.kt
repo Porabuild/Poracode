@@ -12,6 +12,7 @@ class SelectedProjectHostLeaseSource(initial: AppSession.UiState) {
     private data class HostBinding(
         val connectionId: ClientConnectionId,
         val endpoint: String,
+        val desktopId: String,
         val pairedAtEpochMs: Long,
         val protocolVersion: Int,
         val tokenExpiresAt: String?,
@@ -39,6 +40,7 @@ class SelectedProjectHostLeaseSource(initial: AppSession.UiState) {
         val nextBinding = HostBinding(
             connectionId = connectionId,
             endpoint = profile.httpBaseUrl,
+            desktopId = profile.desktopId,
             pairedAtEpochMs = profile.pairedAtEpochMs,
             protocolVersion = profile.protocolVersion,
             tokenExpiresAt = profile.tokenExpiresAt,
@@ -60,6 +62,8 @@ class SelectedProjectHostLeaseSource(initial: AppSession.UiState) {
             scopes = profile.scopes.toSet(),
             online = online,
             ready = ready,
+            cacheEndpoint = profile.httpBaseUrl,
+            desktopId = profile.desktopId,
             browserForwardVersions = appState.liveBrowserForwardVersions,
             projectCommandResultVersions = appState.liveProjectCommandResultVersions,
         )

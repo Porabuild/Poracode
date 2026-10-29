@@ -227,6 +227,13 @@ export function findPosixExecutableInWellKnownDirs(binary: string): string | und
 }
 
 export function resolveExecutablePath(command: string): string | undefined {
+  const cached = execPathCache.get(command);
+  if (
+    cached &&
+    Date.now() - cached.ts < EXEC_CACHE_TTL_MS &&
+    (cached.path === undefined || existsSync(cached.path))
+  )
+    return cached.path;
   if (process.platform === "win32") {
     const resolved = resolveWindowsExecutablePath(command);
     if (resolved) return resolved;

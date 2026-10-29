@@ -1,7 +1,13 @@
 import Database from "better-sqlite3";
 import type { RuntimeEvent, ThreadContextUsage } from "@/shared/contracts";
+import type { ThreadTokenUsage } from "@/shared/contracts/threadTokenUsage";
 import { RUNTIME_REQUEST_ITEM_TYPE } from "@/shared/contracts";
-import type { PersistedRuntimePage } from "@/shared/ipc/schemas";
+import {
+  PROMPT_INDEX_MAX_PROMPTS,
+  PROMPT_INDEX_TEXT_LENGTH,
+  type PersistedPromptIndex,
+  type PersistedRuntimePage,
+} from "@/shared/ipc/schemas";
 import { getSqlite } from "./connection";
 import { readDatabaseAsync } from "./asyncReads";
 import { safeParse } from "./rowMappers";
@@ -37,6 +43,7 @@ import {
 import { clearThreadDurableGapRowsInTransaction } from "./runtimeDurableGap";
 import {
   readThreadContextUsageInSqlite,
+  readThreadTokenUsageInSqlite,
   replaceThreadContextUsageInSqlite,
   threadExistsInSqlite,
   withRuntimeBusyTimeout,
@@ -311,6 +318,63 @@ export function dbGetLatestThreadGoalItem(threadId: string): Promise<PersistedRu
   return readThreadWithFence(threadId, () =>
     readDatabaseAsync("latestGoal", [threadId], () => dbReadLatestThreadGoalItem(threadId)),
   );
+}
+
+/**
+ * Fenced read of the newest top-level user prompts in transcript order. Only
+ * the first text block is read, by path and truncated in SQL, so the result is
+ * bounded by prompt count and a block's body (an inline image) is never copied.
+ */
+export function dbGetThreadPromptIndex(threadId: string): Promise<PersistedPromptIndex> {
+  return readThreadWithFence(threadId, () =>
+    readDatabaseAsync("promptIndex", [threadId], () => dbReadThreadPromptIndex(threadId)),
+  );
+}
+
+/** Synchronous committed-prefix read. Only call behind a held fence. */
+export function dbReadThreadPromptIndex(
+  threadId: string,
+  maxPrompts: number = PROMPT_INDEX_MAX_PROMPTS,
+): PersistedPromptIndex {
+  const sqlite = getSqlite();
+  return readRuntimeSnapshot(sqlite, () => {
+    // One extra row tells whether older prompts were left out.
+    const rows = sqlite
+      .prepare(
+        `SELECT item_id, position,
+           COALESCE((
+             SELECT substr(
+               json_extract(thread_runtime_items.payload, '$.content[' || block.key || '].text'),
+               1, ?)
+             FROM json_each(thread_runtime_items.payload, '$.content') AS block
+             -- A payload whose content is not an array (a string, an object) must
+             -- yield no preview rather than make the whole read fail; CASE keeps
+             -- the path lookup from being evaluated for it.
+             WHERE CASE WHEN json_type(thread_runtime_items.payload, '$.content') = 'array'
+               THEN json_extract(thread_runtime_items.payload, '$.content[' || block.key || '].kind')
+             END = 'text'
+             LIMIT 1
+           ), '') AS text
+         FROM thread_runtime_items
+         WHERE thread_id = ? AND type = 'user_message' AND parent_item_id IS NULL
+           AND json_valid(payload)
+         ORDER BY position DESC
+         LIMIT ?`,
+      )
+      .all(PROMPT_INDEX_TEXT_LENGTH, threadId, maxPrompts + 1) as Array<{
+      item_id: string;
+      position: number;
+      text: string;
+    }>;
+    const truncated = rows.length > maxPrompts;
+    return {
+      prompts: rows
+        .slice(0, maxPrompts)
+        .reverse()
+        .map((row) => ({ itemId: row.item_id, position: row.position, text: row.text })),
+      truncated,
+    };
+  });
 }
 
 /** Synchronous committed-prefix read. Only call behind a held fence. */
@@ -922,6 +986,10 @@ export async function dbReplaceThreadRuntimeSnapshot(
 
 export function dbGetThreadContextUsage(threadId: string): ThreadContextUsage | null {
   return readThreadContextUsageInSqlite(getSqlite(), threadId);
+}
+
+export function dbGetThreadTokenUsage(threadId: string): ThreadTokenUsage | null {
+  return readThreadTokenUsageInSqlite(getSqlite(), threadId);
 }
 
 function replaceThreadCompletedTurnsInSqlite(

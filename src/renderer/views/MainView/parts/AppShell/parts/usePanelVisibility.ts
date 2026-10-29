@@ -5,7 +5,7 @@ import { usePanelStore, type RightPanelTab } from "@/renderer/state/panelStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useThreadDocksPanelAvailable } from "@/renderer/components/thread/useThreadDocksSummary";
-import { useThreadGalleryImages } from "@/renderer/components/thread/useThreadGalleryImages";
+import { useThreadGalleryCollection } from "@/renderer/components/thread/useThreadGalleryImages";
 import { useFocusedThreadId } from "@/renderer/hooks/uiSelectors";
 
 /**
@@ -57,6 +57,9 @@ export function usePanelVisibility() {
   const browserPanelOpen = usePanelStore((s) => s.browserPanelOpen);
   const usagePanelOpen = usePanelStore((s) => s.usagePanelOpen);
   const notesPanelOpen = usePanelStore((s) => s.notesPanelOpen);
+  const devicesPanelOpen = usePanelStore(
+    (s) => s.deviceWorkspaceThreadId !== null && !s.deviceWorkspaceDetached,
+  );
   const portsPanelOpen = usePanelStore((s) => s.portsPanelOpen);
   const sideChatOpen = usePanelStore((s) => s.sideChatPanelOpen);
   const bottomDocks = useBottomDockedTabs();
@@ -69,11 +72,16 @@ export function usePanelVisibility() {
   const bottomTerminalOpen = useBottomTerminalVisible();
   const informationalDocksPanelOpen = useThreadDocksPanelAvailable();
   const threadDocksPanelOpen = usePanelStore((s) => s.threadDocksPanelOpen);
-  const gallery = useThreadGalleryImages(currentThreadId ?? undefined);
+  const gallery = useThreadGalleryCollection(currentThreadId ?? undefined, {
+    requestPending: false,
+  });
+  const hasImages =
+    gallery.images.length + gallery.pendingRemoteRefs.length + gallery.pendingRemotePaths.length >
+    0;
   const docksPanelOpen =
     informationalDocksPanelOpen ||
     (threadDocksPanelOpen &&
-      gallery.length > 0 &&
+      hasImages &&
       (threadDocksPlacement === "right" || threadDocksFocus === "images"));
 
   const isTerminalRight = terminalPosition === "right";
@@ -106,6 +114,7 @@ export function usePanelVisibility() {
       browserPanelOpen ||
       usagePanelOpen ||
       notesPanelOpen ||
+      devicesPanelOpen ||
       portsPanelOpen
     : bottomTerminalOpen || hasBottomDocks;
   // A bottom-docked tab must not keep the right aside open on its own — it is
@@ -121,6 +130,7 @@ export function usePanelVisibility() {
       (browserPanelOpen && !isDocked("browser")) ||
       (usagePanelOpen && !isDocked("usage")) ||
       (notesPanelOpen && !isDocked("notes")) ||
+      devicesPanelOpen ||
       portsPanelOpen);
   const sidePanelOpen = isTerminalRight ? rightPanelOpen : sideGitPanelOpen;
 

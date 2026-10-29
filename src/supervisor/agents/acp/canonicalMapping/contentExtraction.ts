@@ -7,6 +7,8 @@
  */
 
 import type { CanonicalItemType } from "@/shared/contracts";
+import { readMcpAppResource } from "@/shared/mcpAppResources";
+import { readToolVideoSources } from "@/shared/chatVideo";
 import { readFileChangePath } from "../../fileChangeSummary";
 
 export function normalizeToolText(value: string | null | undefined): string | undefined {
@@ -20,6 +22,43 @@ export function firstNonEmptyLine(text: string): string | undefined {
     .split(/\r?\n/)
     .map((line) => line.trim())
     .find((line) => line.length > 0);
+}
+
+/** Preserve standard renderable resource blocks instead of flattening them to text. */
+export function extractToolCallResourceResult(
+  content: unknown,
+  rawOutput?: unknown,
+  resolveTerminalOutput?: (terminalId: string) => string | undefined,
+  terminalIdHint?: string,
+): (Record<string, unknown> & { content: unknown[] }) | undefined {
+  if (readMcpAppResource(rawOutput))
+    return rawOutput as Record<string, unknown> & { content: unknown[] };
+  if (!Array.isArray(content) && readToolVideoSources(rawOutput).length === 0) return;
+  const rawResult =
+    rawOutput && typeof rawOutput === "object" && !Array.isArray(rawOutput)
+      ? (rawOutput as Record<string, unknown>)
+      : {};
+  const result = {
+    ...rawResult,
+    content: [
+      ...(Array.isArray(rawResult.content) ? rawResult.content : []),
+      ...(Array.isArray(rawOutput) ? rawOutput : []),
+      ...(typeof rawOutput === "string" && rawOutput ? [{ type: "text", text: rawOutput }] : []),
+      ...(Array.isArray(content) ? content : []).flatMap((entry) =>
+        entry && typeof entry === "object" && entry.type === "content" && entry.content
+          ? [entry.content]
+          : [],
+      ),
+    ],
+  };
+  if (!readMcpAppResource(result) && readToolVideoSources(result).length === 0) return;
+  const terminalText = extractToolCallContentText(
+    Array.isArray(content) ? content.filter((entry) => entry?.type === "terminal") : undefined,
+    resolveTerminalOutput,
+    terminalIdHint,
+  );
+  if (terminalText) result.content.push({ type: "text", text: terminalText });
+  return result;
 }
 
 export function extractToolLocations(
@@ -144,6 +183,40 @@ export function extractToolCallContentText(
     if (out && out.length > 0) parts.push(out);
   }
   return parts.length > 0 ? parts.join("\n") : undefined;
+}
+
+/** ACP search tools may report matches as resource links instead of text. */
+export function extractToolCallResourceLinkResult(content: unknown): string | undefined {
+  if (!Array.isArray(content)) return undefined;
+  const targets: string[] = [];
+  for (const entry of content) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) continue;
+    const contentEntry = entry as Record<string, unknown>;
+    if (contentEntry.type !== "content") continue;
+    const block = contentEntry.content;
+    if (!block || typeof block !== "object" || Array.isArray(block)) continue;
+    const resourceLink = block as Record<string, unknown>;
+    if (resourceLink.type !== "resource_link") continue;
+    const uri =
+      typeof resourceLink.uri === "string" && resourceLink.uri.trim().length > 0
+        ? resourceLink.uri
+        : undefined;
+    let target: string | undefined;
+    if (uri && /^file:/i.test(uri)) {
+      try {
+        const url = new URL(uri);
+        const path = decodeURIComponent(url.pathname);
+        target = url.host && url.host.toLowerCase() !== "localhost" ? `//${url.host}${path}` : path;
+        target = target.replace(/^\/([A-Za-z]:\/)/, "$1");
+      } catch {
+        target = uri;
+      }
+    } else {
+      target = uri ?? (typeof resourceLink.name === "string" ? resourceLink.name : undefined);
+    }
+    if (target?.trim()) targets.push(target);
+  }
+  return targets.length > 0 ? targets.join("\n") : undefined;
 }
 
 /**

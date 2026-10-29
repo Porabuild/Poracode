@@ -7,9 +7,8 @@ import { promptSegmentSchema } from "./thread";
 import { modelSelectionSchema } from "../selectionBinding.schemas.ts";
 
 export const EXPERIMENT_STORE_KEY = "poracode-experiments-v1";
-// Stays 1: `segments` accepts thread mention segments additively. Older apps
-// parsing an experiment that carries one drop that record fail-soft
-// (experimentStore filters `result.success`), so no migration is required.
+// Stays 1: candidate configs, including Crew bindings, are carried by each
+// candidate thread and intentionally are not copied into experiment records.
 export const EXPERIMENT_STORE_VERSION = 1;
 export const MAX_EXPERIMENT_CANDIDATES = 8;
 export const MAX_EXPERIMENT_DIFF_LENGTH = 2_000_000;

@@ -1,7 +1,7 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { existsSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { SSH_RUNTIME_MANIFEST_VERSION } from "@/shared/sshRuntimeManifest";
 import { RUNTIME_BUILD_SOURCE_HASH } from "@/shared/runtimeBuildIdentity";
 import { verifyRuntimeResources } from "@/shared/runtimeResourceInventory";
@@ -73,12 +73,16 @@ export async function ensureSshRuntimeBundleAsync(
   if (preassembled.bundle) return { ...preassembled.bundle, source: "preassembled" };
 
   const buildManifest = readRuntimeBuildManifests(options.mainBundleDir);
+  const ptyJobOwner = buildManifest.resources.some((resource) => resource.kind === "pty-job-owner")
+    ? join(dirname(options.wslHelpersDir), "pty-job-owner")
+    : undefined;
   if (buildManifest.resources.length > 0) {
     if (!options.bundledPluginsDir)
       throw new Error("Bundled runtime plugins are required by the build declaration.");
     verifyRuntimeResources(buildManifest.resources, {
       agentPlugins: { path: options.agentPluginsDir, layout: "staged" },
       bundledPlugins: options.bundledPluginsDir,
+      ...(ptyJobOwner ? { ptyJobOwner } : {}),
     });
   }
   const cacheKey = JSON.stringify([
@@ -113,6 +117,7 @@ export async function ensureSshRuntimeBundleAsync(
       ...buildManifest.files.map((file) => join(options.mainBundleDir, file.path)),
       options.agentPluginsDir,
       options.wslHelpersDir,
+      ...(ptyJobOwner ? [ptyJobOwner] : []),
       ...(options.bundledSkillsDir ? [options.bundledSkillsDir] : []),
       ...(options.bundledPluginsDir ? [options.bundledPluginsDir] : []),
     ],
@@ -166,6 +171,9 @@ async function stageBundle(
 ): Promise<void> {
   await mkdir(options.cacheDir, { recursive: true });
   const stage = await mkdtemp(join(options.cacheDir, "stage-"));
+  const ptyJobOwner = buildManifest.resources.some((resource) => resource.kind === "pty-job-owner")
+    ? join(dirname(options.wslHelpersDir), "pty-job-owner")
+    : undefined;
   try {
     for (const file of buildManifest.files) {
       signal?.throwIfAborted();
@@ -187,6 +195,7 @@ async function stageBundle(
     }
     await stageRuntimeDirectoryAsync(options.agentPluginsDir, join(stage, "agent-plugins"), signal);
     await stageRuntimeDirectoryAsync(options.wslHelpersDir, join(stage, "wsl-helpers"), signal);
+    await stageRuntimeDirectoryAsync(ptyJobOwner, join(stage, "pty-job-owner"), signal);
     await stageRuntimeDirectoryAsync(options.bundledSkillsDir, join(stage, "skills"), signal);
     await stageRuntimeDirectoryAsync(options.bundledPluginsDir, join(stage, "plugins"), signal);
     await writeFileAtomicAsync(join(stage, "package.json"), runtimePackage, { encoding: "utf8" });
@@ -200,6 +209,7 @@ async function stageBundle(
     verifyRuntimeResources(buildManifest.resources, {
       agentPlugins: { path: join(stage, "agent-plugins"), layout: "staged" },
       bundledPlugins: join(stage, "plugins"),
+      ptyJobOwner: join(stage, "pty-job-owner"),
     });
 
     signal?.throwIfAborted();

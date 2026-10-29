@@ -23,6 +23,7 @@ export function buildProjectDraftConfig(input: {
       ? { approvalsReviewer: config.approvalsReviewer }
       : {}),
     ...(config.sandboxMode !== undefined ? { sandboxMode: config.sandboxMode } : {}),
+    ...(config.crew !== undefined ? { crew: config.crew } : {}),
     worktreeMode,
   };
 }

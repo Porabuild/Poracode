@@ -226,4 +226,11 @@
     <string name="rich_chat_session_settings_search">Değer ara</string>
     <string name="rich_chat_session_settings_back">Geri</string>
     <string name="rich_chat_session_settings_fallback_heading">Ayar</string>
+    <string name="rich_chat_fork_action">Buradan dallandır</string>
+    <string name="rich_chat_fork_title">Konuşmayı dallandır</string>
+    <string name="rich_chat_fork_create">Dal oluştur</string>
+    <string name="rich_chat_fork_explanation">Tamamlanmış bir tura kadar bağımsız bir konuşma oluşturur. Dosyalar aynı çalışma kopyasında kalır.</string>
+    <string name="rich_chat_fork_name">Konuşma adı</string>
+    <string name="rich_chat_fork_boundary">Devralınan geçmiş burada sona eriyor</string>
+    <string name="rich_chat_fork_source">%1$s konuşmasından dallandırıldı</string>
 </resources>

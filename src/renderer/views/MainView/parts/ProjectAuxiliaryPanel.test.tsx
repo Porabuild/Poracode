@@ -1,4 +1,4 @@
-import { act, render, renderHook, waitFor } from "@testing-library/react";
+import { act, render, renderHook, screen, waitFor } from "@testing-library/react";
 import type { ReactElement, ReactNode } from "react";
 import { I18nProvider } from "@lingui/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -6,6 +6,8 @@ import type { Project, Thread } from "@/shared/contracts";
 import { deleteProject } from "@/renderer/actions/projectActions";
 import { closeExitedShell } from "@/renderer/actions/terminalTabActions";
 import type { PoracodeBridge } from "@/shared/ipc";
+import type { RemoteDesktopClient } from "@/shared/remote/client";
+import * as deviceHost from "@/renderer/hostTransport/loopbackHttpWsTransport";
 import { i18n } from "@/renderer/i18n/i18n";
 import { installBrowserClientRuntime, resetClientRuntimeForTest } from "@/renderer/clientRuntime";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -38,6 +40,9 @@ interface CapturedRightPanelProps {
   docksContent?: ReactElement;
   docksHeaderActions?: ReactElement;
   notesContent?: ReactElement<{ projectId: string }>;
+  devicesContent?: ReactNode;
+  showDevicesTab?: boolean;
+  onOpenDevices?: () => void;
   terminalContent?: ReactElement<{ visible?: boolean }>;
   onClose: () => void;
   onBackSubagent?: () => void;
@@ -47,11 +52,39 @@ interface CapturedRightPanelProps {
 const unifiedRightPanelProps = vi.hoisted(() => ({
   current: null as CapturedRightPanelProps | null,
 }));
+const deviceFixture = vi.hoisted(() => ({ mounted: 0, retired: [] as string[] }));
+
+vi.mock("@/renderer/deferredFeatures", async () => {
+  const actual = await vi.importActual<typeof import("@/renderer/deferredFeatures")>(
+    "@/renderer/deferredFeatures",
+  );
+  const { useEffect, useState } = await import("react");
+  return {
+    ...actual,
+    DeferredDeviceWorkspace: ({ threadId, visible }: { threadId: string; visible: boolean }) => {
+      const [instance] = useState(() => ++deviceFixture.mounted);
+      useEffect(
+        () => () => {
+          deviceFixture.retired.push(threadId);
+        },
+        [threadId],
+      );
+      return (
+        <div
+          data-testid="fixture-device-workspace"
+          data-thread={threadId}
+          data-visible={String(visible)}
+          data-instance={instance}
+        />
+      );
+    },
+  };
+});
 
 vi.mock("@/renderer/components/layout/UnifiedRightPanel", () => ({
   UnifiedRightPanel: (props: CapturedRightPanelProps) => {
     unifiedRightPanelProps.current = props;
-    return null;
+    return <>{props.devicesContent}</>;
   },
 }));
 
@@ -124,6 +157,47 @@ function seedImageOnlyThread(): void {
 }
 
 describe("ProjectAuxiliaryPanel", () => {
+  it("keeps device title and actions inside the shared panel header", async () => {
+    const { UnifiedRightPanel } = await vi.importActual<
+      typeof import("@/renderer/components/layout/UnifiedRightPanel")
+    >("@/renderer/components/layout/UnifiedRightPanel");
+    const title = vi.fn<(element: HTMLDivElement | null) => void>();
+    const actions = vi.fn<(element: HTMLDivElement | null) => void>();
+    const panel = (activeTab: "devices" | "notes") => (
+      <I18nProvider i18n={i18n}>
+        <UnifiedRightPanel
+          activeTab={activeTab}
+          onTabChange={() => {}}
+          gitContent={null}
+          filesContent={null}
+          browserContent={null}
+          devicesContent={<div>Device body</div>}
+          devicesThreadId="thread-a"
+          devicesTitleRef={title}
+          devicesActionsRef={actions}
+          showTerminalTab={false}
+          showFilesTab={false}
+          showGitTab={false}
+          showUsageTab={false}
+          showNotesTab={false}
+          showDevicesTab
+          showBrowserTab={false}
+          projectName="Project"
+          onClose={() => {}}
+        />
+      </I18nProvider>
+    );
+    const view = render(panel("devices"));
+    const rows = view.container.querySelectorAll(".poracode-overlay-header");
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.contains(document.getElementById("panel-devices-thread-a"))).toBe(true);
+    expect(rows[0]?.contains(title.mock.calls.at(-1)?.[0] ?? null)).toBe(true);
+    expect(rows[0]?.contains(actions.mock.calls.at(-1)?.[0] ?? null)).toBe(true);
+    view.rerender(panel("notes"));
+    expect(view.container.querySelectorAll(".poracode-overlay-header")).toHaveLength(1);
+    expect(view.container.querySelector("[data-device-header]")).toBeNull();
+  });
+
   it("only puts side-chat metadata in the toolbar while its tab is active", () => {
     applySideChatPanel({
       id: "side",
@@ -172,18 +246,255 @@ describe("ProjectAuxiliaryPanel", () => {
       browserPanelOpen: false,
       usagePanelOpen: false,
       notesPanelOpen: false,
+      deviceWorkspaceThreadId: null,
+      deviceWorkspaceDetached: false,
       threadDocksPanelOpen: false,
       threadDocksReturnThreadId: null,
       subAgentPanelOpen: false,
       subAgentPanelContext: null,
       bottomPanelDocks: { left: null, right: null },
     });
+    deviceFixture.mounted = 0;
+    deviceFixture.retired = [];
   });
 
   afterEach(() => {
     applySideChatPanel(null);
     resetClientRuntimeForTest();
     useRemoteServersStore.setState({ servers: [], runtime: {} });
+  });
+
+  it.each([true, false])(
+    "floats without keeping the side panel open or retiring its controller (%s)",
+    (includeTerminal) => {
+      usePanelStore.setState({ gitReviewContext: null, rightPanelFollowsThread: false });
+      usePanelStore.getState().setDeviceWorkspaceThreadId(threadA.id);
+      const panel = render(
+        <I18nProvider i18n={i18n}>
+          <ProjectAuxiliaryPanel includeTerminal={includeTerminal} visible />
+        </I18nProvider>,
+      );
+      const workspace = screen.getByTestId("fixture-device-workspace");
+      const instance = workspace.getAttribute("data-instance");
+      const visibility = renderHook(() => usePanelVisibility());
+      expect(visibility.result.current.sidePanelOpen).toBe(true);
+      act(() => usePanelStore.getState().setDeviceWorkspaceDetached(true));
+      expect(visibility.result.current.sidePanelOpen).toBe(false);
+      panel.rerender(
+        <I18nProvider i18n={i18n}>
+          <ProjectAuxiliaryPanel includeTerminal={includeTerminal} visible={false} />
+        </I18nProvider>,
+      );
+      expect(workspace.getAttribute("data-visible")).toBe("true");
+      expect(workspace.getAttribute("data-instance")).toBe(instance);
+      expect(deviceFixture.retired).toEqual([]);
+      act(() => usePanelStore.getState().setDeviceWorkspaceDetached(false));
+      expect(visibility.result.current.sidePanelOpen).toBe(true);
+      expect(workspace.getAttribute("data-visible")).toBe("false");
+      expect(deviceFixture.retired).toEqual([]);
+      visibility.unmount();
+    },
+  );
+
+  it.each([true, false])(
+    "keeps one device instance across Notes switches (terminal included: %s)",
+    (includeTerminal) => {
+      usePanelStore.setState({ rightPanelFollowsThread: false, notesPanelOpen: true });
+      usePanelStore.getState().setDeviceWorkspaceThreadId(threadA.id);
+      const panel = render(
+        <I18nProvider i18n={i18n}>
+          <ProjectAuxiliaryPanel includeTerminal={includeTerminal} visible />
+        </I18nProvider>,
+      );
+      const workspace = screen.getByTestId("fixture-device-workspace");
+      const instance = workspace.getAttribute("data-instance");
+      expect(unifiedRightPanelProps.current?.activeTab).toBe("devices");
+      expect(workspace.getAttribute("data-visible")).toBe("true");
+      act(() => usePanelStore.getState().setRightPanelTab("notes"));
+      expect(unifiedRightPanelProps.current?.activeTab).toBe("notes");
+      expect(screen.getAllByTestId("fixture-device-workspace")).toHaveLength(1);
+      expect(workspace.getAttribute("data-visible")).toBe("false");
+      act(() => unifiedRightPanelProps.current?.onOpenDevices?.());
+      expect(workspace.getAttribute("data-visible")).toBe("true");
+      expect(workspace.getAttribute("data-instance")).toBe(instance);
+      expect(deviceFixture.retired).toEqual([]);
+      panel.rerender(
+        <I18nProvider i18n={i18n}>
+          <ProjectAuxiliaryPanel includeTerminal={includeTerminal} visible={false} />
+        </I18nProvider>,
+      );
+      expect(workspace.getAttribute("data-visible")).toBe("false");
+      act(() => unifiedRightPanelProps.current?.onClose?.());
+      expect(usePanelStore.getState().deviceWorkspaceThreadId).toBeNull();
+      expect(screen.queryByTestId("fixture-device-workspace")).toBeNull();
+      expect(deviceFixture.retired).toEqual([threadA.id]);
+    },
+  );
+
+  it("opens an exact clicked thread before follow-lock resumes and respects explicit unlocking", async () => {
+    usePanelStore.getState().setDeviceWorkspaceThreadId(threadB.id);
+    render(
+      <I18nProvider i18n={i18n}>
+        <ProjectAuxiliaryPanel includeTerminal visible />
+      </I18nProvider>,
+    );
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(screen.getByTestId("fixture-device-workspace").getAttribute("data-thread")).toBe(
+      threadB.id,
+    );
+    act(() => focusThread(threadC.id));
+    await waitFor(() =>
+      expect(screen.getByTestId("fixture-device-workspace").getAttribute("data-thread")).toBe(
+        threadC.id,
+      ),
+    );
+    expect(deviceFixture.retired).toContain(threadB.id);
+    act(() => {
+      usePanelStore.setState({ rightPanelFollowsThread: false });
+      focusThread(threadA.id);
+    });
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(screen.getByTestId("fixture-device-workspace").getAttribute("data-thread")).toBe(
+      threadC.id,
+    );
+  });
+
+  it("replaces the instance on host endpoint/owner change and removes it with its unloaded thread", () => {
+    usePanelStore.setState({ rightPanelFollowsThread: false });
+    useAppStore.setState({
+      threads: [{ ...threadA, remoteServerId: "host-a", remoteId: "host-thread" }],
+    });
+    useRemoteServersStore.setState({
+      servers: [
+        {
+          desktopId: "host-a",
+          label: "Host A",
+          endpoint: "https://host-a.example",
+          accessToken: "fixture",
+          scopes: [],
+        },
+      ],
+    });
+    usePanelStore.getState().setDeviceWorkspaceThreadId(threadA.id);
+    render(
+      <I18nProvider i18n={i18n}>
+        <ProjectAuxiliaryPanel includeTerminal visible />
+      </I18nProvider>,
+    );
+    const first = screen.getByTestId("fixture-device-workspace").getAttribute("data-instance");
+    act(() => {
+      void useRemoteServersStore.setState((state) => ({
+        servers: state.servers.map((server) => ({
+          ...server,
+          endpoint: "https://replacement.example",
+        })),
+      }));
+    });
+    expect(screen.getByTestId("fixture-device-workspace").getAttribute("data-instance")).not.toBe(
+      first,
+    );
+    expect(deviceFixture.retired).toEqual([threadA.id]);
+    const second = screen.getByTestId("fixture-device-workspace").getAttribute("data-instance");
+    act(() => {
+      void useAppStore.setState({
+        threads: [{ ...threadA, remoteServerId: "host-b", remoteId: "other-host-thread" }],
+      });
+    });
+    expect(screen.getByTestId("fixture-device-workspace").getAttribute("data-instance")).not.toBe(
+      second,
+    );
+    expect(screen.getAllByTestId("fixture-device-workspace")).toHaveLength(1);
+    act(() => {
+      void useAppStore.setState({ threads: [] });
+    });
+    expect(screen.queryByTestId("fixture-device-workspace")).toBeNull();
+    expect(deviceFixture.retired).toEqual([threadA.id, threadA.id, threadA.id]);
+  });
+
+  it("retires the old device instance when its managed host activation changes", () => {
+    usePanelStore.setState({ rightPanelFollowsThread: false });
+    usePanelStore.getState().setDeviceWorkspaceThreadId(threadA.id);
+    const activation = {
+      seq: 1,
+      endpoint: "http://127.0.0.1:12345",
+      client: {} as RemoteDesktopClient,
+      authority: "fixture-activation-1",
+    };
+    const snapshot = vi
+      .spyOn(deviceHost, "readManagedLoopbackActivation")
+      .mockReturnValue(activation);
+    try {
+      const panel = render(
+        <I18nProvider i18n={i18n}>
+          <ProjectAuxiliaryPanel includeTerminal visible />
+        </I18nProvider>,
+      );
+      const first = screen.getByTestId("fixture-device-workspace").getAttribute("data-instance");
+      snapshot.mockReturnValue({ ...activation, seq: 2, authority: "fixture-activation-2" });
+      panel.rerender(
+        <I18nProvider i18n={i18n}>
+          <ProjectAuxiliaryPanel includeTerminal visible />
+        </I18nProvider>,
+      );
+      expect(screen.getByTestId("fixture-device-workspace").getAttribute("data-instance")).not.toBe(
+        first,
+      );
+      expect(deviceFixture.retired).toEqual([threadA.id]);
+    } finally {
+      snapshot.mockRestore();
+    }
+  });
+
+  it("replaces a verified desktop behind the same connection and endpoint without keying consent to credentials", () => {
+    usePanelStore.setState({ rightPanelFollowsThread: false });
+    useAppStore.setState({
+      threads: [{ ...threadA, remoteServerId: "stable-connection", remoteId: "host-thread" }],
+    });
+    useRemoteServersStore.setState({
+      servers: [
+        {
+          connectionId: "stable-connection",
+          desktopId: "verified-host-a",
+          label: "Device host",
+          endpoint: "https://same-route.example",
+          accessToken: "fixture-a",
+          scopes: [],
+        },
+      ],
+    });
+    usePanelStore.getState().setDeviceWorkspaceThreadId(threadA.id);
+    render(
+      <I18nProvider i18n={i18n}>
+        <ProjectAuxiliaryPanel includeTerminal visible />
+      </I18nProvider>,
+    );
+    const first = screen.getByTestId("fixture-device-workspace").getAttribute("data-instance");
+    act(() => {
+      void useRemoteServersStore.setState((state) => ({
+        servers: state.servers.map((server) => ({ ...server, accessToken: "fixture-b" })),
+      }));
+    });
+    expect(screen.getByTestId("fixture-device-workspace").getAttribute("data-instance")).toBe(
+      first,
+    );
+    expect(deviceFixture.retired).toEqual([]);
+    act(() => {
+      void useRemoteServersStore.setState((state) => ({
+        servers: state.servers.map((server) => ({ ...server, desktopId: "verified-host-b" })),
+      }));
+    });
+    expect(screen.getByTestId("fixture-device-workspace").getAttribute("data-instance")).not.toBe(
+      first,
+    );
+    expect(screen.getAllByTestId("fixture-device-workspace")).toHaveLength(1);
+    expect(deviceFixture.retired).toEqual([threadA.id]);
+    expect(useRemoteServersStore.getState().servers[0]).toMatchObject({
+      connectionId: "stable-connection",
+      endpoint: "https://same-route.example",
+    });
+    expect(screen.getByTestId("fixture-device-workspace").getAttribute("data-thread")).toBe(
+      threadA.id,
+    );
   });
 
   it("uses the normal right terminal slot for a global shell without a project", () => {

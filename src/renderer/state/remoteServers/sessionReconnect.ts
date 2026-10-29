@@ -1,4 +1,5 @@
 import { UNKNOWN_HOST_SERVICE_CAPABILITIES } from "@/shared/hostControlProtocol";
+import { setAgentVisionSocketSender } from "@/renderer/browser/agentVisionStream";
 import { msg } from "@lingui/core/macro";
 import { toast } from "@heroui/react";
 import { friendlyError, msg as sharedMsg } from "@/shared/messages";
@@ -109,6 +110,7 @@ export function closeRemoteServerEventSocket(
   desktopId: string,
   options: { readonly preserveReplayState?: boolean } = {},
 ): void {
+  setAgentVisionSocketSender(desktopId, null);
   // A pending debounced snapshot refresh for this server is now moot; cancel it
   // so a closed/removed server never fires a late GET (finding #5).
   clearRemoteServerRefreshTimer(desktopId);

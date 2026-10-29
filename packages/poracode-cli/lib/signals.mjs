@@ -15,12 +15,11 @@
  * - the launcher exits with a code instead of killing itself.
  *
  * The graceful `stop` addresses the profile's running owner, so it is only
- * requested when the child is itself a `serve` invocation. Every other
- * subcommand (doctor, status, backup, upgrade, ...) is a short-lived client:
+ * requested when the child is itself a `serve` or interactive `setup` invocation,
+ * and only if the authenticated owner PID matches that exact live child. Other
+ * subcommands (doctor, status, backup, upgrade, ...) are short-lived clients:
  * a console signal must end that child alone and never drain an unrelated
- * running daemon. The launcher cannot cheaply tell whether a `serve` child won
- * ownership or lost it to an existing daemon, so that case still asks the
- * owner to stop (a documented limitation, bounded by the server's own auth).
+ * running daemon. A child that has not won ownership cannot drain another owner.
  */
 import { spawn } from "node:child_process";
 import { constants as osConstants } from "node:os";
@@ -36,6 +35,7 @@ export const WIN32_STOP_MARGIN_MS = 5_000;
 /**
  * Mirrors the server's command parsing: no arguments, `serve`, or a leading
  * `--flag` runs the long-lived server (bare `--help`/`--version` do not).
+ * Interactive setup may also become a foreground server after confirmation.
  */
 export function isServeInvocation(args) {
   if (args.length === 0) return true;
@@ -44,6 +44,12 @@ export function isServeInvocation(args) {
     ["--help", "-h", "help", "--version", "-v", "version"].includes(args[0])
   ) {
     return false;
+  }
+  if (args[0] === "setup")
+    return !args.includes("--no-start") && !args.includes("--help") && !args.includes("-h");
+  if (args[0] === "run") {
+    const flags = args.slice(1, args.indexOf("--") === -1 ? args.length : args.indexOf("--"));
+    return flags.includes("--standalone") && !flags.includes("--help") && !flags.includes("-h");
   }
   return args[0] === "serve" || args[0].startsWith("--");
 }
@@ -65,15 +71,20 @@ export function windowsHardKillDeadlineMs(env = process.env) {
  * the stop command's exit code (null when it could not be run). Never rejects:
  * a failed stop simply leaves the hard-kill deadline to do its job.
  */
-export function runServerStop({ entry, env, timeoutMs, spawnImpl = spawn, execPath }) {
+export function runServerStop({ entry, env, timeoutMs, expectedPid, spawnImpl = spawn, execPath }) {
+  if (!Number.isSafeInteger(expectedPid) || expectedPid <= 0) return Promise.resolve(null);
   return new Promise((done) => {
     let child;
     try {
-      child = spawnImpl(execPath ?? process.execPath, [entry, "stop"], {
-        stdio: "ignore",
-        env,
-        windowsHide: true,
-      });
+      child = spawnImpl(
+        execPath ?? process.execPath,
+        [entry, "stop", "--if-pid", String(expectedPid)],
+        {
+          stdio: "ignore",
+          env,
+          windowsHide: true,
+        },
+      );
     } catch {
       done(null);
       return;

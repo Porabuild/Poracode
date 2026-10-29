@@ -18,6 +18,67 @@ import {
 } from "./chatPaneSelectors";
 
 describe("chatPaneSelectors", () => {
+  it("promotes a completed MCP App out of a tool group without changing its item ID", () => {
+    const threadId = "visual-group";
+    let state = {
+      threads: [],
+      runtimeRequestsByThread: {},
+      runtimeContextByThread: {},
+      runtimeCompletedTurnsByThread: {},
+      runtimeOpenTurnByThread: {},
+      runtimeStructuralVersionByThread: { [threadId]: 0 },
+      runtimeItemIdsByThread: { [threadId]: ["read", "chart"] },
+      runtimeItemsByIdByThread: {
+        [threadId]: {
+          read: {
+            id: "read",
+            type: "tool_call",
+            state: "completed",
+            payload: { name: "read", status: "success" },
+            streams: {},
+          },
+          chart: {
+            id: "chart",
+            type: "mcp_tool_call",
+            state: "started",
+            payload: { name: "chart", status: "running" },
+            streams: {},
+          },
+        },
+      },
+    } as unknown as AppStoreState;
+    expect(selectVisibleThreadTimelineEntries(state, threadId)[0]?.kind).toBe("tool_call_group");
+    state = {
+      ...state,
+      ...applyRuntimeEventsToState(state, threadId, [
+        {
+          type: "item.completed",
+          threadId,
+          itemId: "chart",
+          payload: {
+            status: "success",
+            result: {
+              content: [
+                {
+                  type: "resource",
+                  resource: {
+                    uri: "ui://fixture/chart",
+                    mimeType: "text/html;profile=mcp-app",
+                    text: "<h1>Chart</h1>",
+                  },
+                },
+              ],
+            },
+          },
+        },
+      ]),
+    };
+    expect(selectVisibleThreadTimelineEntries(state, threadId)).toEqual([
+      { kind: "item", id: "read" },
+      { kind: "item", id: "chart" },
+    ]);
+  });
+
   it("parses subagent children with the same visibility and grouping rules as the main thread", () => {
     const state = {
       runtimeItemIdsByThread: {
@@ -1471,13 +1532,17 @@ describe("chatPaneSelectors", () => {
       });
     });
 
-    it("lets a real turn keep a row a sub-second turn was recorded against", () => {
+    it("preserves a sub-second turn's fork anchor without showing an elapsed label", () => {
       const state = stateWithGoalTail([
         { startedAt: 1_000, endedAt: 1_400, anchorItemId: "assistant-1" },
         { startedAt: 2_000, endedAt: 62_000, anchorItemId: "goal-1" },
       ]);
 
       expect(selectCompletedTurnsByAnchorItem(state, "t1").get("assistant-1")).toMatchObject({
+        endedAt: 1_400,
+      });
+      expect(selectMostRecentDisplayableCompletedTurn(state, "t1")).toMatchObject({
+        anchorItemId: null,
         endedAt: 62_000,
       });
     });

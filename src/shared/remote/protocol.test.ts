@@ -8,6 +8,7 @@ import {
   remotePushRegistrationSchema,
   remoteAccessPairingInfoSchema,
   remoteSettingsPatchSchema,
+  remoteSettingsSchema,
   remoteShellSnapshotSchema,
   remoteTerminalCursorSchema,
   remoteTerminalOutputCursorSyncV1Schema,
@@ -18,6 +19,34 @@ import {
 } from "./protocol";
 
 describe("device-local terminal settings", () => {
+  it("round-trips crew picker preferences without adding them to runtime bindings", () => {
+    const crew = {
+      id: "ship",
+      name: "Ship crew",
+      policy: "crew-only" as const,
+      lead: { agentKind: "example", model: "lead" },
+      roles: [
+        { id: "builder", label: "Builder", selection: { agentKind: "example", model: "helper" } },
+      ],
+      favorite: true,
+      lastUsedAt: 123,
+    };
+    expect(
+      remoteSettingsSchema.parse(pickRemoteSettings({ ...defaultSharedSettings, crews: [crew] }))
+        .crews,
+    ).toEqual([crew]);
+    expect(remoteSettingsPatchSchema.parse({ crews: [crew] }).crews).toEqual([crew]);
+  });
+
+  it("accepts remote settings from a host that predates the crews field", () => {
+    const legacy = pickRemoteSettings(defaultSharedSettings);
+    delete legacy.crews;
+    expect(remoteSettingsSchema.parse(legacy)).not.toHaveProperty("crews");
+    expect(remoteSettingsPatchSchema.parse({ titleGenProvider: "claude" })).not.toHaveProperty(
+      "crews",
+    );
+  });
+
   it("keeps sidebar preferences outside the remote-editable projection", () => {
     const settings = pickRemoteSettings({
       ...defaultSharedSettings,

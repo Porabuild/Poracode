@@ -21,6 +21,7 @@ import type { ManagedLoopbackBootstrap } from "@/shared/managedLoopback";
 // availability instead of inferring it from the host mode.
 
 import { join } from "node:path";
+import { AgentVisionService } from "../AgentVisionService";
 import type { HostServiceCapabilities } from "@/shared/hostControlProtocol";
 import type { SharedSettings } from "@/shared/settings";
 import { joinRuntimeShutdown } from "@/backend/joinRuntimeShutdown";
@@ -110,6 +111,7 @@ export interface NativeShellHostServices {
 }
 
 export interface ComposedHostServices {
+  readonly agentVision: AgentVisionService;
   /** Null when the host declared no SSH inputs (capability `ssh: false`). */
   readonly sshConnectionManager: SshConnectionManager | null;
   readonly chromeBridgeServer: ChromeBridgeServer;
@@ -147,6 +149,7 @@ export function composeHostServices(
   core: HostServicesCore,
   nativeShell?: NativeShellHostServices,
 ): ComposedHostServices {
+  const agentVision = new AgentVisionService();
   const sshConnectionManager = core.ssh
     ? new SshConnectionManager({
         mainBundleDir: core.ssh.mainBundleDir,
@@ -167,9 +170,11 @@ export function composeHostServices(
     ...(nativeHostDir ? { nativeHostDir } : {}),
   });
   const chromeMcpIngress = new ChromeMcpIngress();
+  chromeMcpIngress.setAgentVision(agentVision);
   chromeMcpIngress.setConnectionAccessor(() => chromeBridgeServer.getConnection());
 
   const browserMcpIngress = nativeShell?.browserMcpIngress ?? null;
+  browserMcpIngress?.setAgentVision?.(agentVision);
   if (nativeShell) {
     browserMcpIngress?.setManagerAccessor(() => nativeShell.browserPanelManager);
   }
@@ -186,6 +191,7 @@ export function composeHostServices(
   const computerUseMcpIngress =
     computerUseSupported && core.computerUse
       ? new ComputerUseMcpIngress({
+          vision: agentVision,
           driverOptions: {
             helperRootDir: core.computerUse.helperRootDir,
             stateDir: core.computerUse.stateDir,
@@ -279,6 +285,7 @@ export function composeHostServices(
   let disposal: Promise<void> | null = null;
 
   return {
+    agentVision,
     sshConnectionManager,
     chromeBridgeServer,
     chromeMcpIngress,
@@ -307,6 +314,7 @@ export function composeHostServices(
     applyBrowserAllowFlags,
     start: () => startSettled.then(() => undefined),
     dispose: () => {
+      agentVision.dispose();
       disposal ??= joinRuntimeShutdown(
         [
           () => browserMcpIngress?.dispose(),

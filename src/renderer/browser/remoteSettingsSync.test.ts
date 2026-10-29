@@ -128,6 +128,57 @@ describe("pushDesktopSettingsDiff push ordering", () => {
     expect(client.updateSettings).not.toHaveBeenCalled();
   });
 
+  it("does not push crews to a host that omitted the additive field", () => {
+    applyDesktopSettings(settings("v0"));
+    const client = {
+      updateSettings: vi.fn<RemoteDesktopClient["updateSettings"]>(),
+    } as unknown as RemoteDesktopClient;
+    const crew = {
+      id: "ship",
+      name: "Ship crew",
+      lead: { agentKind: "claude", model: "opus-5.5" },
+      roles: [
+        {
+          id: "builder",
+          label: "Builder",
+          selection: { agentKind: "codex", model: "gpt-5.5" },
+        },
+      ],
+      policy: "crew-only" as const,
+    };
+
+    pushDesktopSettingsDiff(client, { ...input("v0"), crews: [crew] } as SharedSettingsInput);
+
+    expect(client.updateSettings).not.toHaveBeenCalled();
+  });
+
+  it("forwards saved crew changes when the host advertises the crews field", async () => {
+    const crew = {
+      id: "ship",
+      name: "Ship crew",
+      lead: { agentKind: "claude", model: "opus-5.5" },
+      roles: [
+        {
+          id: "builder",
+          label: "Builder",
+          selection: { agentKind: "codex", model: "gpt-5.5" },
+        },
+      ],
+      policy: "crew-only" as const,
+    };
+    applyDesktopSettings({ ...settings("v0"), crews: [] } as RemoteSettings);
+    const committed = { ...settings("v0"), crews: [crew] } as RemoteSettings;
+    const updateSettings = vi.fn<(patch: RemoteSettingsPatch) => Promise<RemoteSettings>>(
+      async () => committed,
+    );
+    const client = { updateSettings } as unknown as RemoteDesktopClient;
+
+    pushDesktopSettingsDiff(client, { ...input("v0"), crews: [crew] } as SharedSettingsInput);
+    await flush();
+
+    expect(updateSettings).toHaveBeenCalledWith({ crews: [crew] });
+  });
+
   it("forwards follow-up behavior changes to the desktop", async () => {
     applyDesktopSettings({ ...settings("v0"), followUpBehavior: "steer" } as RemoteSettings);
     const updateSettings = vi.fn<(patch: RemoteSettingsPatch) => Promise<RemoteSettings>>(

@@ -1,5 +1,6 @@
 import Foundation
 import XCTest
+import UIKit
 
 @testable import App
 
@@ -90,6 +91,15 @@ final class RichChatComposerParityTests: XCTestCase {
     XCTAssertEqual(catalog.slashSuggestions(for: "/re").map(\.displayID), ["review"])
     XCTAssertTrue(catalog.slashSuggestions(for: "/review later").isEmpty)
     XCTAssertEqual(catalog.slashSuggestions(for: "/audit").first?.skill?.name, "audit")
+    XCTAssertEqual(catalog.slashSuggestions(for: "Please $au").map(\.displayID), ["audit"])
+    XCTAssertEqual(catalog.slashSuggestions(for: "Please $").map(\.displayID), ["audit"])
+    XCTAssertEqual(
+      catalog.slashSuggestions(for: "Please $au after", selection: NSRange(location: 10, length: 0)).map(\.displayID),
+      ["audit"]
+    )
+    XCTAssertTrue(catalog.slashSuggestions(for: "Please $au after").isEmpty)
+    XCTAssertTrue(catalog.slashSuggestions(for: "price$au").isEmpty)
+    XCTAssertTrue(catalog.slashSuggestions(for: "Please $au", selection: NSRange(location: 7, length: 3)).isEmpty)
 
     let liveCatalog = RichChatComposerControlCatalog(
       agentStatus: try agentStatus(),
@@ -98,6 +108,35 @@ final class RichChatComposerParityTests: XCTestCase {
       threadSlashCommands: [RemoteSlashCommand(id: "live", label: "Live command")]
     )
     XCTAssertEqual(liveCatalog.slashSuggestions(for: "/").map(\.displayID), ["live"])
+  }
+
+  func testDollarSkillsReplaceOnlyTheTokenAtTheCaret() throws {
+    for prefix in ["", "Please ", "Please\n", "😀 "] {
+      let draft = "\(prefix)$rev suffix"
+      let reference = try XCTUnwrap(RichChatSkillReference.atCaret(
+        in: draft, selection: NSRange(location: prefix.utf16.count + 4, length: 0)
+      ))
+      XCTAssertEqual(reference.query, "rev")
+      XCTAssertEqual(reference.removingToken(from: draft), "\(prefix) suffix")
+      XCTAssertEqual(reference.range.location, prefix.utf16.count)
+    }
+    XCTAssertNil(RichChatSkillReference.atCaret(in: "cost$rev"))
+    XCTAssertNil(RichChatSkillReference.atCaret(in: "$rev "))
+    XCTAssertNil(RichChatSkillReference.atCaret(in: "$rev", selection: NSRange(location: 0, length: 4)))
+    XCTAssertEqual(RichChatSkillReference.atCaret(in: "$")?.removingToken(from: "$"), "")
+  }
+
+  @MainActor
+  func testComposerHardwareSubmitKeepsMultilineInputAvailable() throws {
+    let editor = RichChatComposerTextView()
+    var submitted = false
+    editor.submit = { submitted = true }
+    let command = try XCTUnwrap(editor.keyCommands?.first { $0.input == "\r" && $0.modifierFlags.isEmpty })
+    XCTAssertTrue(command.wantsPriorityOverSystemBehavior)
+    editor.perform(command.action)
+    XCTAssertTrue(submitted)
+    editor.insertText("first\nsecond")
+    XCTAssertEqual(editor.text, "first\nsecond")
   }
 
   func testRemoteThreadRetainsOptionalSessionScopedSlashCommands() throws {
@@ -307,6 +346,30 @@ final class RichChatComposerParityTests: XCTestCase {
     XCTAssertFalse(thread.contains("\"needs_reply\"].contains(status)"))
   }
 
+  func testAttachmentOnlyComposerSubmitsWithAnEmptyPrompt() throws {
+    let composer = try Self.source("App/Features/RichChat/UI/RichChatComposerView.swift")
+    let home = try Self.source("App/Features/Home/Pages/HomeQuickComposeView.swift")
+    let actions = try Self.source("App/Features/Home/HomeComposerActions.swift")
+    let pendingSteer = try Self.source("App/Features/RichChat/RichPendingSteer.swift")
+
+    // Attachments alone arm the send affordance and let the submission
+    // through as prompt "" plus attachment segments (host sendable-input rule).
+    XCTAssertTrue(composer.contains("let canSend = hasPrompt || !attachments.isEmpty"))
+    XCTAssertTrue(
+      composer.contains("hasTrailingAction: canSend || isTurnActive || controller.state.isSending")
+    )
+    XCTAssertTrue(composer.contains("hasPrompt: canSend,"))
+    XCTAssertTrue(composer.contains("guard !text.isEmpty || !attachmentSegments.isEmpty"))
+    XCTAssertTrue(home.contains("|| !attachments.isEmpty"))
+    XCTAssertTrue(home.contains("attachments.map(\\.name).joined(separator: \" \")"))
+    XCTAssertTrue(actions.contains("guard !text.isEmpty || !attachments.isEmpty"))
+    XCTAssertTrue(
+      pendingSteer.contains(
+        "static func isSendable(prompt: String, segments: [RichPromptSegment]?) -> Bool"
+      )
+    )
+  }
+
   func testNewComposerStringsAreTranslatedInEveryLocale() throws {
     let locales: Set<String> = [
       "en", "de", "es", "fr", "ja", "ko", "pl", "pt-BR", "ru", "tr", "uk", "vi", "zh-Hans",
@@ -510,7 +573,7 @@ final class RichChatComposerParityTests: XCTestCase {
     XCTAssertTrue(thread.contains("ToolbarItem(placement: .principal)"))
     XCTAssertTrue(thread.contains("ThreadDetailTitleView("))
     XCTAssertTrue(title.contains("HomeProviderIcon(kind: thread.agentKind)"))
-    XCTAssertTrue(title.contains("ThreadLifecycleStrings.status(resolvedStatus)"))
+    XCTAssertTrue(title.contains("ThreadLifecycleStrings.status(resolvedStatus, hasSessionRef: thread.sessionRef != nil)"))
     XCTAssertTrue(title.contains("ThreadLifecycleStrings.supportSource(thread.threadStatusSource)"))
     XCTAssertTrue(
       title.contains("ThreadLifecycleStrings.supportDescription(thread.threadStatusSource)")
@@ -718,7 +781,7 @@ final class RichChatComposerParityTests: XCTestCase {
         provider: "Review Plugin",
         scope: "project",
         pluginID: "review-plugin",
-        pluginName: "Review Plugin"
+        pluginName: nil
       )
     )
   }
@@ -733,9 +796,10 @@ final class RichChatComposerParityTests: XCTestCase {
     XCTAssertTrue(composer.contains("RichChatComposerSkillPicker("))
     XCTAssertTrue(
       composer.contains(
-        "skills.map(\\.segment) + mcps.map(\\.segment) + attachmentSegments"
+        "queuedSegments + skills.map(\\.segment) + mcps.map(\\.segment)"
       )
     )
+    XCTAssertTrue(composer.contains("let segments = contextSegments + textSegments + attachmentSegments"))
     XCTAssertTrue(composer.contains("mcps.map(\\.segment)"))
     XCTAssertTrue(composer.contains("mentionSuggestionsPanel"))
     XCTAssertTrue(mentions.contains("RichPromptSegment { .mcp(id: id, name: name) }"))

@@ -198,12 +198,33 @@ it("counts hundreds of collapsed tool calls as one row and continues back to the
     JSON.stringify({ content: [] }),
     JSON.stringify({ assistant_text: "The project has been read." }),
   );
+  insert.run(
+    threadId,
+    "followup",
+    toolCount + 3,
+    "user_message",
+    JSON.stringify({ content: [{ kind: "text", text: "Summarize it" }] }),
+    "{}",
+  );
+  insert.run(
+    threadId,
+    "summary",
+    toolCount + 4,
+    "assistant_message",
+    JSON.stringify({ content: [] }),
+    JSON.stringify({ assistant_text: "It is a chat app." }),
+  );
   await activate({ preloadProcedures: { dbSetState: () => null } });
   await vi.waitFor(() => expect(threadRow(threadId)).toBeDefined(), { timeout: 15000 });
   await hydrateThreadRuntimeItems(threadId);
-  // The first bounded response paints the answer; its byte budget leaves the
-  // large collapsed group and the earlier messages for continuation pages.
-  expect(useAppStore.getState().runtimeItemIdsByThread[threadId]).toEqual(["answer"]);
+  // The first bounded response paints the whole latest turn and the previous
+  // answer; its byte budget leaves the large collapsed group of the earlier
+  // turn and its prompt for continuation pages.
+  expect(useAppStore.getState().runtimeItemIdsByThread[threadId]).toEqual([
+    "answer",
+    "followup",
+    "summary",
+  ]);
   const observedRows: number[] = [];
   const onStartReached = vi.fn<() => Promise<boolean>>(async () => {
     const loaded = await loadOlderThreadRuntimeItems(threadId);
@@ -214,12 +235,12 @@ it("counts hundreds of collapsed tool calls as one row and continues back to the
   await vi.waitFor(() =>
     expect(useAppStore.getState().runtimeItemIdsByThread[threadId]?.[0]).toBe("prompt"),
   );
-  await vi.waitFor(() => expect(observedRows).toContain(2));
-  expect(selectVisibleThreadTimelineEntries(useAppStore.getState(), threadId)).toHaveLength(4);
+  await vi.waitFor(() => expect(observedRows).toContain(4));
+  expect(selectVisibleThreadTimelineEntries(useAppStore.getState(), threadId)).toHaveLength(6);
   expect(onStartReached.mock.calls.length).toBeLessThanOrEqual(3);
   expect(
     getSqlite()
       .prepare("SELECT count(*) AS n FROM thread_runtime_items WHERE thread_id=?")
       .get(threadId),
-  ).toEqual({ n: toolCount + 3 });
+  ).toEqual({ n: toolCount + 5 });
 }, 60000);

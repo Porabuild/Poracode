@@ -1,4 +1,3 @@
-import { capabilitiesForSessionConfig } from "@/shared/sessionConfigCapabilities";
 import {
   useEffect,
   useEffectEvent,
@@ -17,7 +16,10 @@ import { friendlyError } from "@/shared/messages";
 import type { FollowUpBehavior } from "@/shared/settings";
 import { useThreadFollowUpQueue } from "@/renderer/state/threadFollowUpQueueStore";
 import { agentStatusForPresentation, hasSelectableReasoning } from "@/shared/agentSelection";
-import { canonicalProviderModelId } from "@/renderer/components/providers/modelConfig";
+import {
+  canonicalProviderModelId,
+  composerCapabilitiesForSession,
+} from "@/renderer/components/providers/modelConfig";
 import {
   changeThreadConfig,
   clearThreadPendingSteer,
@@ -50,6 +52,7 @@ import {
   type MentionInputHandle,
 } from "../composer/MentionInput";
 import { useThreadMentionItems } from "../composer/useThreadMentionItems";
+import { useCrewMentionItems } from "../crew/useCrewMentionItems";
 import {
   attachmentsFromPaths,
   storableAttachment,
@@ -64,6 +67,7 @@ import { useRemoteBridgeImageReadiness } from "@/renderer/browser/useRemoteBridg
 import { threadProductProperties } from "@/renderer/analytics/posthog";
 import { captureProductEvent } from "@/renderer/analytics/productAnalytics";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useThreadComposerControlStore } from "@/renderer/state/threadComposerControlStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { environmentImageReadinessFor } from "@/renderer/state/remoteServers/environmentSessions";
 import { useBrowserAttachInbox } from "@/renderer/state/browserAttachInbox";
@@ -87,10 +91,29 @@ import { isPlanModeControl } from "../providers/composerControlBuilders";
 import { ProviderSessionControls } from "../providers/providerSessionControls";
 import { useThreadInterrupt } from "./useThreadInterrupt";
 import { supportsUsableFastMode } from "./threadDraftViewHelpers";
+import { applyCrewComposerControls } from "@/renderer/components/crew/applyCrewComposerControls";
+import { CREW_ROLE_TEMPLATE_DESCRIPTORS } from "@/renderer/components/crew/crewRoleTemplates";
+import {
+  crewPickerEntry,
+  crewSummary,
+  leadSelectionOf,
+  savedCrewFor,
+} from "@/renderer/components/crew/crewComposerModel";
+import { useCrewHelperOptions } from "@/renderer/components/crew/crewHelperOptions";
+import { useCrewSessionRelaunch } from "@/renderer/components/crew/useCrewSessionRelaunch";
+import {
+  canLeadCrew,
+  crewBindingFromSavedCrew,
+  threadCrewBinding,
+  type CrewMemberSelection,
+  type SavedCrew,
+  type ThreadCrewBinding,
+} from "@/shared/crew";
+import { useContinueInProviderStore } from "@/renderer/state/continueInProviderStore";
 import { ThreadContextIndicator } from "./ThreadContextIndicator";
 import { getApprovalDenyOption } from "./ThreadRuntimeRequestPanel/helpers";
 import { hasReportedContextUsage, resolveThreadContextUsageSummary } from "./threadContextUsage";
-import { buildControls } from "./buildModelPickerControls";
+import { buildControls, type ActiveComposerCrewHandlers } from "./buildModelPickerControls";
 import { machineKeyForLocation } from "@/shared/machines";
 import { submitComposerPrompt } from "./threadComposerSubmit";
 import {
@@ -107,6 +130,7 @@ import type { TerminalPaneHandle } from "./TerminalPane";
 import { ThreadComposerDocks } from "./ThreadComposerDocks";
 import { selectPendingMessageReplyIds } from "./messageReplyForms";
 import { ThreadResumeUnavailableDock } from "./ThreadResumeUnavailableDock";
+import { ThreadHistoryNoticeDock, useVisibleThreadHistoryNotice } from "./ThreadHistoryNoticeDock";
 import {
   usePluginMentionItems,
   useSkillSlashCommandState,
@@ -142,6 +166,8 @@ type ThreadComposerSectionProps = {
   saveClipboardImage?: SaveClipboardImage | undefined;
   /** Optional surface-specific placeholder for the active-thread input. */
   composerPlaceholder?: string | undefined;
+  /** Compact only: space the floating dock covers above the pane bottom. */
+  onComposerInsetChange?: ((inset: number) => void) | undefined;
   /**
    * Override whether unmodified Enter submits instead of inserting a newline.
    * Defaults to submit on desktop (Electron and desktop PWA) and newline on
@@ -187,7 +213,7 @@ function AdaptiveThreadComposerDock(props: {
   summary?: ReactNode;
   inputHasContent?: boolean;
   expansionLocked?: boolean;
-  onDockHeightChange?: (height: number) => void;
+  onDockHeightChange?: (height: number, dock: HTMLElement) => void;
   onExpandedChange: (expanded: boolean) => void;
 }) {
   if (!props.compact) return props.children;
@@ -374,10 +400,22 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   const [slashQuery, setSlashQuery] = useState<string | null>(null);
   const commandListId = useId();
   const [slashActiveIndex, setSlashActiveIndex] = useState(0);
-  const [controlOpenRequest, setControlOpenRequest] = useState<{
-    target: "model" | "effort";
-    nonce: number;
-  } | null>(null);
+  const externalControlOpenRequest = useThreadComposerControlStore(
+    (state) => state.requestsByThreadId[thread.id],
+  );
+  const requestOpenControl = useThreadComposerControlStore((state) => state.requestOpenControl);
+  const consumeControlOpenRequest = useThreadComposerControlStore(
+    (state) => state.consumeOpenControlRequest,
+  );
+  const controlOpenRequest = externalControlOpenRequest ?? null;
+  useEffect(() => {
+    if (!externalControlOpenRequest) return;
+    const request = externalControlOpenRequest;
+    const frame = requestAnimationFrame(() => {
+      consumeControlOpenRequest(thread.id, request.nonce);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [consumeControlOpenRequest, externalControlOpenRequest, thread.id]);
   const [contextDockOpen, setContextDockOpen] = useState(false);
   const presentationMode =
     thread.presentationMode ?? agentStatus?.capabilities.presentationMode ?? "terminal";
@@ -388,7 +426,8 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     presentationAgentStatus && presentationMode === "gui"
       ? {
           ...presentationAgentStatus,
-          capabilities: capabilitiesForSessionConfig(
+          capabilities: composerCapabilitiesForSession(
+            thread.agentKind,
             presentationAgentStatus.capabilities,
             thread.sessionConfigOptions,
           ),
@@ -497,6 +536,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     thread.id,
     threadMentionToolsAvailable,
   );
+  const crewMentions = useCrewMentionItems(thread.config);
   const composerModelId = canonicalProviderModelId(
     thread.agentKind,
     thread.config?.model ?? "",
@@ -572,6 +612,18 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     !hideInfoDocks && canShowRuntimeChrome && docksInComposer && goalDockState !== null;
   const showDockBubbles = !hideInfoDocks && canShowRuntimeChrome && !docksInComposer;
   const docksSummary = useThreadDocksSummary(thread.id, goalDockState, todoDockState);
+  const pendingSteer = useAppStore((s) => s.pendingSteerByThreadId[thread.id]);
+  const runtimeRequests = useAppStore((s) => s.runtimeRequestsByThread[thread.id]);
+  const followUpQueue = useThreadFollowUpQueue(thread.id, !usesTerminalPresentation);
+  const crewHelperNote = useCrewSessionRelaunch({
+    thread,
+    capabilities: effectiveAgentStatus?.capabilities,
+    runtimeLaunchConfig,
+    pendingSteer,
+    queuedFollowUp: followUpQueue,
+    openRuntimeRequest: (runtimeRequests?.length ?? 0) > 0,
+    activeSubAgent: docksSummary.agentCount > 0,
+  });
   const showErrorInComposer =
     !hideInfoDocks &&
     (!usesTerminalPresentation || usesRemoteTransport) &&
@@ -613,7 +665,22 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   );
   const modelPreferences = useSharedSettings((s) => s.providerModelPreferences[thread.agentKind]);
   const setProviderModelPreference = useSharedSettings((s) => s.setProviderModelPreference);
-  const controls = buildControls(
+  const savedCrews = useSharedSettings((state) => state.crews);
+  const upsertCrew = useSharedSettings((state) => state.upsertCrew);
+  const helperOptions = useCrewHelperOptions();
+  const binding = threadCrewBinding(thread.config);
+  const lead = leadSelectionOf(thread.agentKind, thread.config);
+  const canLeadCurrentCrew = Boolean(
+    effectiveAgentStatus && canLeadCrew(effectiveAgentStatus.capabilities, "gui"),
+  );
+  const roleTemplates = CREW_ROLE_TEMPLATE_DESCRIPTORS.map(({ brief, label, ...template }) => ({
+    ...template,
+    label: t(label),
+    ...(brief ? { brief: t(brief) } : {}),
+  }));
+  const defaultHelper = helperOptions.defaultSelectionFor(thread.agentKind);
+  let crewHandlers: ActiveComposerCrewHandlers | undefined;
+  const rawControls = buildControls(
     thread,
     effectiveAgentStatus,
     hiddenModelIds,
@@ -621,12 +688,137 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     modelPreferences,
     (model, preference) => setProviderModelPreference(thread.agentKind, model, preference),
     machineKeyForLocation(projectLocation),
+    (handlers) => {
+      crewHandlers = handlers;
+    },
   );
+  function selectActiveCrew(choice: { crewId: string } | { newCrew: true }) {
+    if (!binding || "newCrew" in choice) return;
+    if (!canLeadCurrentCrew) {
+      const label =
+        effectiveAgentStatus?.capabilities.models.find(
+          (candidate) => candidate.id === thread.config.model,
+        )?.label ?? thread.config.model;
+      toast.danger(t`${label} can't lead a crew. Pick another model first.`);
+      return;
+    }
+    const saved = savedCrews.find((candidate) => candidate.id === choice.crewId);
+    if (!saved || saved.lead.agentKind !== lead.agentKind) return;
+    const savedBinding = crewBindingFromSavedCrew(saved);
+    crewHandlers?.changeLead(
+      {
+        agentKind: saved.lead.agentKind,
+        model: saved.lead.model,
+        selectionIntent: "exact",
+      },
+      {
+        crew: savedBinding,
+        effort: saved.lead.effort ?? "",
+        fast: saved.lead.fast ?? false,
+        ...(saved.lead.contextSize ? { contextSize: saved.lead.contextSize } : {}),
+      },
+    );
+  }
+  const crewSection =
+    presentationMode === "gui" && binding
+      ? {
+          onlyCrews: true,
+          entries: savedCrews
+            .filter((crew) => crew.lead.agentKind === lead.agentKind)
+            .map((crew) =>
+              crewPickerEntry(crew, helperOptions.modelLabelOf, {
+                lead: t`Lead`,
+                readOnly: t`Read-only`,
+              }),
+            ),
+          ...(binding?.crewId ? { currentCrewId: binding.crewId } : {}),
+          ...(binding ? { current: { name: binding.name ?? t`Crew` } } : {}),
+          canCreate: false,
+          onSelect: selectActiveCrew,
+        }
+      : undefined;
+  const activeSavedCrew = savedCrewFor(binding, savedCrews);
+  const activeCrewModel =
+    binding && presentationMode === "gui" && effectiveAgentStatus
+      ? {
+          binding,
+          lead,
+          ...(activeSavedCrew ? { savedCrew: activeSavedCrew } : {}),
+          helperOptions,
+          roleTemplates,
+          leadProviders: [
+            {
+              kind: thread.agentKind,
+              label: effectiveAgentStatus.label,
+              ...(effectiveAgentStatus.icon ? { icon: effectiveAgentStatus.icon } : {}),
+              capabilities: effectiveAgentStatus.capabilities,
+              presentationMode: "gui" as const,
+            },
+          ],
+          ...(defaultHelper ? { defaultHelper } : {}),
+          summary: crewSummary(
+            helperOptions.modelLabelOf(lead),
+            binding.roles,
+            helperOptions.modelLabelOf,
+          ),
+          isDraft: false,
+          isDisabled:
+            rawControls.find((control) => control.kind === "provider-model")?.isDisabled ?? false,
+          ...(crewHelperNote ? { helperNote: crewHelperNote } : {}),
+          onBindingChange: (next: ThreadCrewBinding) =>
+            changeThreadConfig(thread.id, { ...thread.config, crew: next }),
+          onLeadChange: (next: CrewMemberSelection) => {
+            if (next.agentKind !== lead.agentKind) {
+              useContinueInProviderStore.getState().request(thread.id);
+              return;
+            }
+            if (next.model !== lead.model) {
+              crewHandlers?.changeLead(
+                { agentKind: next.agentKind, model: next.model, selectionIntent: "exact" },
+                {
+                  crew: binding,
+                  effort: next.effort ?? "",
+                  fast: next.fast ?? false,
+                  ...(next.contextSize ? { contextSize: next.contextSize } : {}),
+                },
+              );
+              return;
+            }
+            crewHandlers?.patch(
+              {
+                effort: next.effort ?? "",
+                fast: next.fast ?? false,
+                ...(next.contextSize ? { contextSize: next.contextSize } : {}),
+              },
+              binding,
+            );
+          },
+          onSaveToCrew: (saved: SavedCrew, next: ThreadCrewBinding) => {
+            upsertCrew(saved);
+            changeThreadConfig(thread.id, { ...thread.config, crew: next });
+          },
+          onSaveAsNewCrew: (saved: SavedCrew, next: ThreadCrewBinding) => {
+            upsertCrew(saved);
+            changeThreadConfig(thread.id, { ...thread.config, crew: next });
+          },
+          onHandOff: () => useContinueInProviderStore.getState().request(thread.id),
+        }
+      : undefined;
+  const controls =
+    crewSection && presentationMode === "gui"
+      ? applyCrewComposerControls(rawControls, {
+          crewSection,
+          ...(activeCrewModel ? { roster: activeCrewModel } : {}),
+        })
+      : rawControls;
   const controlsWithOpenSignal = controls.map((control): ComposerControl => {
     if (controlOpenRequest?.target === "model" && control.kind === "provider-model") {
       return { ...control, openSignal: controlOpenRequest.nonce };
     }
     if (controlOpenRequest?.target === "effort" && control.kind === "effort-context") {
+      return { ...control, openSignal: controlOpenRequest.nonce };
+    }
+    if (controlOpenRequest?.target === "crew" && control.kind === "crew") {
       return { ...control, openSignal: controlOpenRequest.nonce };
     }
     return control;
@@ -638,13 +830,10 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     !authRequired &&
     !attachments.isUploading;
   const canInterruptStructuredTurn = canShowRuntimeChrome && thread.status === "working";
-  const pendingSteer = useAppStore((s) => s.pendingSteerByThreadId[thread.id]);
   const followUpBehavior = useSharedSettings((state) => state.followUpBehavior);
-  const followUpQueue = useThreadFollowUpQueue(thread.id, !usesTerminalPresentation);
   const visiblePendingSteer = useDelayedPendingSteer(pendingSteer);
   const usesPendingSteerPath =
     !isConnecting && !usesTerminalPresentation && thread.status === "working";
-  const runtimeRequests = useAppStore((s) => s.runtimeRequestsByThread[thread.id]);
   const activeRuntimeRequest = canShowRuntimeChrome ? runtimeRequests?.[0] : undefined;
   const approvalDenyOption = activeRuntimeRequest
     ? getApprovalDenyOption(activeRuntimeRequest)
@@ -664,7 +853,19 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
       message={resumeUnavailableMessage}
     />
   ) : null;
-  const composerResumeNotice = compactLayout ? null : resumeUnavailableNotice;
+  const historyNotice = useVisibleThreadHistoryNotice(thread.id);
+  const historyNoticeDock =
+    historyNotice && !usesTerminalPresentation ? (
+      <ThreadHistoryNoticeDock threadId={thread.id} entry={historyNotice} />
+    ) : null;
+  const composerNotices =
+    historyNoticeDock || resumeUnavailableNotice ? (
+      <>
+        {historyNoticeDock}
+        {resumeUnavailableNotice}
+      </>
+    ) : null;
+  const composerDockNotice = compactLayout ? null : composerNotices;
   // Gate the inline docks only. `activeRuntimeRequest` still drives the
   // composer's deny-with-feedback submit path, and `authRequired` still disables
   // submit/voice, when a host renders these docks itself.
@@ -679,7 +880,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   const composerRuntimeRequest = hideActionDocks ? undefined : activeRuntimeRequest;
   const composerPendingSteer = hideActionDocks ? undefined : visiblePendingSteer;
   const composerFollowUpQueue = hideActionDocks ? undefined : followUpQueue;
-  const showAuthInComposer = authRequired && !hideActionDocks;
+  const showAuthInComposer = (authRequired || hasRuntimeAuthError) && !hideActionDocks;
   const reportedContextUsage = useAppStore((s) =>
     canShowRuntimeChrome ? s.runtimeContextByThread[thread.id] : undefined,
   );
@@ -753,8 +954,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
       setPrompt,
       setHasContent,
       setIsSubmitting,
-      requestOpenControl: (target) =>
-        setControlOpenRequest((prev) => ({ target, nonce: (prev?.nonce ?? 0) + 1 })),
+      requestOpenControl: (target) => requestOpenControl(thread.id, target),
       onSubmitInput: props.onSubmitInput,
       captureClientContext,
       onSubmitSuccess: () => {
@@ -842,7 +1042,6 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
       setIsSubmitting(false);
       setSlashQuery(null);
       setSlashActiveIndex(0);
-      setControlOpenRequest(null);
       setContextDockOpen(false);
       setComposerCollapsed(compactLayout || collapseTerminalComposerSetting);
     }
@@ -1010,11 +1209,21 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
             collapsedTapLabel={resumeUnavailableMessage ?? t`Send a message...`}
             inputHasContent={hasContent}
             expansionLocked={activeRuntimeRequest !== undefined}
-            onDockHeightChange={(height) => {
+            onDockHeightChange={(height, dock) => {
               const pane = composerSectionRef.current?.closest("[data-poracode-thread-pane]");
-              if (pane instanceof HTMLElement) {
-                pane.style.setProperty("--m-thread-bubble-height", `${height}px`);
-              }
+              if (!(pane instanceof HTMLElement)) return;
+              pane.style.setProperty("--m-thread-bubble-height", `${height}px`);
+              // Measure rendered geometry: the safe-area offset sits on an
+              // ancestor and the keyboard lift is a transform.
+              const viewport = pane.querySelector("[data-poracode-chat-scroller]") ?? pane;
+              props.onComposerInsetChange?.(
+                Math.max(
+                  0,
+                  Math.ceil(
+                    viewport.getBoundingClientRect().bottom - dock.getBoundingClientRect().top,
+                  ),
+                ),
+              );
             }}
             aboveBubble={
               compactLayout ? (
@@ -1022,7 +1231,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                   <ComposerActionDocks
                     thread={thread}
                     agentStatus={agentStatus}
-                    notice={resumeUnavailableNotice}
+                    notice={composerNotices}
                     onRestoreComposerFocus={restoreComposerFocus}
                     {...(props.onOpenProjectRelativePath
                       ? {
@@ -1100,7 +1309,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                       authRequired ? "auth-required" : "auth-ready",
                     ].join("|")}
                     fixedContent={
-                      composerResumeNotice !== null ||
+                      composerDockNotice !== null ||
                       hasActiveSubAgent ||
                       hasBackgroundTasks ||
                       showContextInComposer ||
@@ -1114,7 +1323,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                       composerFollowUpQueue ||
                       showCommandPanel ? (
                         <ThreadComposerDocks
-                          notice={composerResumeNotice}
+                          notice={composerDockNotice}
                           hasActiveSubAgent={hasActiveSubAgent}
                           hasBackgroundTasks={hasBackgroundTasks}
                           showContextInComposer={showContextInComposer}
@@ -1218,6 +1427,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                         mcpMentions={composerMcpMentions}
                         pluginMentions={composerPluginMentions}
                         threadMentions={threadMentions}
+                        crewMentions={crewMentions}
                         onTextChange={(hasText) => {
                           setHasContent(hasText);
                           latestSegmentsRef.current = mentionRef.current?.serializeSegments() ?? [];
@@ -1249,10 +1459,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                               keybindings: useKeybindingStore.getState().keybindings,
                               platform: readBridge().platform,
                               onOpenModelPicker: () => {
-                                setControlOpenRequest((prev) => ({
-                                  target: "model",
-                                  nonce: (prev?.nonce ?? 0) + 1,
-                                }));
+                                requestOpenControl(thread.id, "model");
                               },
                               onStartDictation: () => voiceInputRef.current?.toggle() ?? false,
                             })

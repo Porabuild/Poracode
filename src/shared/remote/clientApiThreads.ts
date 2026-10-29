@@ -1,4 +1,7 @@
-import { HISTORY_DETAILS_PROJECTION } from "./historyPresentation";
+import {
+  HISTORY_DEFER_FILE_CHANGE_BODIES,
+  HISTORY_DETAILS_PROJECTION,
+} from "./historyPresentation";
 import { z } from "zod";
 import {
   REMOTE_COMMAND_ID_HEADER,
@@ -79,6 +82,7 @@ import { RemoteClientError } from "./clientErrors";
 import { parseResponse } from "./clientParse";
 import {
   LONG_REMOTE_REQUEST_TIMEOUT_MS,
+  THREAD_START_REMOTE_REQUEST_TIMEOUT_MS,
   type StartRemoteNewThreadInput,
   type StartRemoteNewThreadOptions,
   type StartRemoteThreadInput,
@@ -265,7 +269,10 @@ export abstract class RemoteClientThreadsApi extends RemoteClientHostApi {
     options: RemoteBoundedThreadHistoryOptions = {},
   ): Promise<RemoteBoundedThreadHistoryResult> {
     const search = new URLSearchParams();
-    if (options.compactDetails) search.set("projection", HISTORY_DETAILS_PROJECTION);
+    if (options.compactDetails) {
+      search.set("projection", HISTORY_DETAILS_PROJECTION);
+      search.set("deferBodies", HISTORY_DEFER_FILE_CHANGE_BODIES);
+    }
     search.set("reads", REMOTE_BOUNDED_READS_CAPABILITY);
     search.set("runtimePage", "1");
     search.set(
@@ -314,7 +321,10 @@ export abstract class RemoteClientThreadsApi extends RemoteClientHostApi {
       );
     }
     const search = new URLSearchParams();
-    if (input.compactDetails) search.set("projection", HISTORY_DETAILS_PROJECTION);
+    if (input.compactDetails) {
+      search.set("projection", HISTORY_DETAILS_PROJECTION);
+      search.set("deferBodies", HISTORY_DEFER_FILE_CHANGE_BODIES);
+    }
     search.set("reads", REMOTE_BOUNDED_READS_CAPABILITY);
     search.set(
       "limit",
@@ -458,6 +468,7 @@ export abstract class RemoteClientThreadsApi extends RemoteClientHostApi {
     const result = await this.requestJson("/api/threads/start", {
       method: "POST",
       mutation: true,
+      timeoutMs: THREAD_START_REMOTE_REQUEST_TIMEOUT_MS,
       headers: {
         // Never reuse a send-path userMessageItemId: receipts reject the same
         // command id across routes, and a failed /send must still be able to
@@ -674,6 +685,7 @@ export abstract class RemoteClientThreadsApi extends RemoteClientHostApi {
       options.commandId ?? (command.kind === "start" ? `thread-start:${threadId}` : undefined);
     await this.requestJson(`/api/threads/${encodeURIComponent(threadId)}/command`, {
       method: "POST",
+      ...(command.kind === "start" ? { timeoutMs: THREAD_START_REMOTE_REQUEST_TIMEOUT_MS } : {}),
       ...(commandId !== undefined
         ? {
             mutation: true,
@@ -757,9 +769,11 @@ export abstract class RemoteClientThreadsApi extends RemoteClientHostApi {
         ...(receiptGuardedStart || ("mutation" in spec && spec.mutation) ? { mutation: true } : {}),
         ...(commandId !== undefined ? { headers: { [REMOTE_COMMAND_ID_HEADER]: commandId } } : {}),
         body: { procedure, payload },
-        ...("timeout" in spec && spec.timeout === "long"
-          ? { timeoutMs: LONG_REMOTE_REQUEST_TIMEOUT_MS }
-          : {}),
+        ...(receiptGuardedStart || procedure === "ensureThreadRunning"
+          ? { timeoutMs: THREAD_START_REMOTE_REQUEST_TIMEOUT_MS }
+          : "timeout" in spec && spec.timeout === "long"
+            ? { timeoutMs: LONG_REMOTE_REQUEST_TIMEOUT_MS }
+            : {}),
       });
       const resultSchema = ipcProcedureMap[procedure].resultSchema;
       if (!resultSchema) {

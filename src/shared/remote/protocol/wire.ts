@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { agentVisionStreamFrameSchema, AGENT_VISION_STREAM_VERSION } from "../../agentVision";
 import { sensitiveAgentSettingKeys } from "../../agentSecrets";
 import { CATALOG_READS_CAPABILITY } from "../catalogReadContract";
 import { HISTORY_DETAILS_PROJECTION, historyRuntimeItemSchema } from "../historyPresentation";
@@ -127,6 +128,8 @@ export const remoteSettingsSchema = sharedSettingsSchema
   })
   .extend({
     agentSettings: remoteAgentSettingsSchema,
+    // Optional for older hosts; remote edits must keep the field sparse.
+    crews: sharedSettingsSchema.shape.crews.removeDefault().optional(),
     // Optional for backward-compatible reads from remote-v3 hosts released
     // before native clients could edit usage card ordering and collapse state.
     usage: sharedSettingsSchema.shape.usage.optional(),
@@ -155,6 +158,7 @@ export const remoteSettingsPatchSchema = remoteSettingsSchema
     // Unlike the full response schema, patches must remain sparse; in
     // particular, an unrelated edit must not inject the legacy default.
     followUpBehavior: sharedSettingsSchema.shape.followUpBehavior.optional(),
+    crews: sharedSettingsSchema.shape.crews.removeDefault().optional(),
   });
 export type RemoteSettingsPatch = z.infer<typeof remoteSettingsPatchSchema>;
 
@@ -302,6 +306,14 @@ export type RemoteBrowserMirrorStatus = z.infer<typeof remoteBrowserMirrorStatus
 export const remoteThreadItemInterestsSchema = z.array(z.string().min(1)).max(200);
 
 export const remoteWebSocketClientMessageSchema = z.discriminatedUnion("type", [
+  // Opt-in v1 media stream; older clients never receive these frames.
+  z.object({
+    type: z.literal("agent-vision-watch"),
+    version: z.literal(AGENT_VISION_STREAM_VERSION),
+    threadId: z.string().min(1).max(256),
+    watchId: z.string().min(1).max(128),
+  }),
+  z.object({ type: z.literal("agent-vision-unwatch"), watchId: z.string().min(1).max(128) }),
   z.object({
     type: z.literal("ping"),
     id: z.string().min(1).optional(),
@@ -366,6 +378,7 @@ export const remoteWebSocketClientMessageSchema = z.discriminatedUnion("type", [
 export type RemoteWebSocketClientMessage = z.infer<typeof remoteWebSocketClientMessageSchema>;
 
 export const remoteWebSocketServerMessageSchema = z.discriminatedUnion("type", [
+  agentVisionStreamFrameSchema,
   z.object({
     type: z.literal("ready"),
     seq: z.number().int().nonnegative(),

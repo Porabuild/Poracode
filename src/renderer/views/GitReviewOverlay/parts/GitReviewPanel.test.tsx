@@ -11,7 +11,6 @@ const bridgeMock = vi.hoisted(() => ({
 vi.mock("@/renderer/bridge", () => ({ readBridge: () => bridgeMock }));
 
 vi.mock("@/renderer/state/gitRefresh", () => ({
-  mightBeGitHubRemote: () => false,
   refreshGitProject: vi.fn<() => void>(),
   refreshSinglePr: vi.fn<() => void>(),
 }));

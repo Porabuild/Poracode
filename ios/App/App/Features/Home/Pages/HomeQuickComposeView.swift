@@ -14,6 +14,7 @@ struct HomeQuickComposeView: View {
   @State var projectID: String
   @State var threadID = UUID().uuidString.lowercased()
   @State var prompt = ""
+  @State var promptSelection: NSRange?
   @State var selectedAgentKind: String?
   @State var selectedModel: String?
   @State var selectedEffort: String?
@@ -55,7 +56,7 @@ struct HomeQuickComposeView: View {
   @State var importing = false
   @State var preparingWorktree = false
   @State var failureMessage: String?
-  @FocusState var promptFocused: Bool
+  @State var promptFocused = false
 
   init(
     session: AppSession,
@@ -266,12 +267,16 @@ struct HomeQuickComposeView: View {
       || launchSeed?.defaultPrompt != nil
       || !fileMentions.isEmpty
       || !mentionedMCPs.isEmpty
+      || !skills.isEmpty
+      || !attachments.isEmpty
   }
 
   var compactPrompt: String {
     let text = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
-    let mentions = fileMentions.map { "@\($0)" } + mentionedMCPs.map { "@\($0.name)" }
-    return text.isEmpty ? mentions.joined(separator: " ") : text
+    let mentions = fileMentions.map { "@\($0)" } + mentionedMCPs.map { "@\($0.name)" } + skills.map(\.invocation)
+    if !text.isEmpty { return text }
+    if !mentions.isEmpty { return mentions.joined(separator: " ") }
+    return attachments.map(\.name).joined(separator: " ")
   }
 
   var canStart: Bool {

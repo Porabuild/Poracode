@@ -1,5 +1,52 @@
 import SwiftUI
 
+struct RichChatSkillReference: Equatable {
+  let query: String
+  let range: NSRange
+
+  static func atCaret(in draft: String, selection: NSRange? = nil) -> Self? {
+    let text = draft as NSString
+    let caret = selection ?? NSRange(location: text.length, length: 0)
+    guard caret.length == 0, caret.location <= text.length else { return nil }
+    let prefix = text.substring(to: caret.location)
+    let token = prefix.split(whereSeparator: \.isWhitespace).last.map(String.init) ?? ""
+    guard prefix.hasSuffix(token), token.hasPrefix("$") else { return nil }
+    let query = String(token.dropFirst())
+    guard !query.contains("$") else { return nil }
+    return Self(query: query, range: NSRange(location: caret.location - token.utf16.count, length: token.utf16.count))
+  }
+
+  func removingToken(from draft: String) -> String {
+    (draft as NSString).replacingCharacters(in: range, with: "")
+  }
+}
+
+struct RichChatSlashCommandRow: View {
+  let command: RichChatSlashCommandOption
+
+  var body: some View {
+    HStack(alignment: .firstTextBaseline, spacing: 10) {
+      Text(command.skill == nil ? "/\(command.displayID)" : command.displayID)
+        .font(.callout.monospaced().weight(.semibold))
+        .foregroundStyle(.primary)
+      VStack(alignment: .leading, spacing: 2) {
+        Text(command.label)
+          .font(.callout)
+          .foregroundStyle(.primary)
+        if let detail = command.description ?? command.argumentHint {
+          Text(detail)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .lineLimit(2)
+        }
+      }
+      Spacer(minLength: 0)
+    }
+    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+    .padding(.horizontal, 10)
+  }
+}
+
 struct RichChatSelectedSkill: Identifiable, Equatable, Sendable {
   let name: String
   let path: String?
@@ -68,7 +115,9 @@ enum RichChatSkillSelectionFactory {
       provider: skill.pluginName ?? skill.providerLabel,
       scope: scope,
       pluginID: skill.pluginID,
-      pluginName: skill.pluginName
+      // `pluginName` marks an @-mention of the whole plugin; a picked plugin
+      // skill keeps its own name in the chip.
+      pluginName: nil
     )
   }
 }

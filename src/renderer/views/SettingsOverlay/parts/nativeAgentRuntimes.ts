@@ -1,6 +1,11 @@
 import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
-import type { AcpRegistryAgent, AgentStatus, Project } from "@/shared/contracts";
+import type {
+  AcpRegistryAgent,
+  AgentStatus,
+  NpmPackageVersionQuery,
+  Project,
+} from "@/shared/contracts";
 
 /**
  * Declarative description of the independently installable runtimes behind one
@@ -43,7 +48,13 @@ export interface NativeAgentRuntimeUpdateSlot {
   upToDateToast: MessageDescriptor;
   /** False when this installation is not app-managed (no update action shown). */
   canUpdate: (status: AgentStatus, registryAgent: AcpRegistryAgent | undefined) => boolean;
-  command?: (status: AgentStatus, project: Project) => string | undefined;
+  /**
+   * `targetVersion` is the probed release to install. Callers that update an
+   * npm package pass it so the command can name that exact version.
+   */
+  command?: (status: AgentStatus, project: Project, targetVersion?: string) => string | undefined;
+  /** When set, the update installs this package's newest supported release. */
+  npmPackage?: NpmPackageVersionQuery;
   registryAgentId?: string;
 }
 

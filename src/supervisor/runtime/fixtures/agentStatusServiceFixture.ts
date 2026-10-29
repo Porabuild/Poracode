@@ -1,3 +1,4 @@
+import { STATUS_CACHE_VERSION } from "@/shared/agentStatusCache";
 import { beforeEach, vi } from "vitest";
 import type { AgentStatus } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
@@ -16,27 +17,29 @@ const memory = vi.hoisted(() => ({
   }),
 }));
 
-vi.mock("node:fs", async (importActual) => {
-  const actual = await importActual<typeof import("node:fs")>();
+vi.mock("node:fs/promises", async (importActual) => {
+  const actual = await importActual<typeof import("node:fs/promises")>();
   const requireOwned = (path: unknown) => {
     if (path !== memory.path) throw new Error("Unexpected filesystem access");
   };
   return {
     ...actual,
-    readFileSync: vi.fn<(path: unknown) => string>((path: unknown) => {
+    readFile: vi.fn<(path: unknown) => Promise<string>>(async (path: unknown) => {
       requireOwned(path);
       if (memory.cache === undefined)
         throw Object.assign(new Error("Cache absent"), { code: "ENOENT" });
       return memory.cache;
     }),
-    writeFileSync: vi.fn<(path: unknown, data: unknown) => void>((path: unknown, data: unknown) => {
-      requireOwned(path);
-      if (memory.failWrite) throw new Error("Owned cache write failed");
-      if (typeof data !== "string") throw new Error("Expected UTF-8 cache text");
-      memory.cache = data;
-      memory.writes.push(data);
-    }),
-    unlinkSync: vi.fn<(path: unknown) => void>((path: unknown) => {
+    writeFile: vi.fn<(path: unknown, data: unknown) => Promise<void>>(
+      async (path: unknown, data: unknown) => {
+        requireOwned(path);
+        if (memory.failWrite) throw new Error("Owned cache write failed");
+        if (typeof data !== "string") throw new Error("Expected UTF-8 cache text");
+        memory.cache = data;
+        memory.writes.push(data);
+      },
+    ),
+    unlink: vi.fn<(path: unknown) => Promise<void>>(async (path: unknown) => {
       requireOwned(path);
       memory.unlinks++;
       if (memory.failUnlink) throw new Error("Owned cache unlink failed");
@@ -45,6 +48,14 @@ vi.mock("node:fs", async (importActual) => {
   };
 });
 vi.mock("node:child_process", () => ({ execFile: memory.cli }));
+// Atomic filesystem replacement is covered with real files in atomicFileAsync
+// and agentStatusService tests; publication races use the owned memory writer.
+vi.mock("@/shared/atomicFileAsync", () => ({
+  writeFileAtomicAsync: async (path: string, data: string) => {
+    const { writeFile } = await import("node:fs/promises");
+    await writeFile(path, data, "utf8");
+  },
+}));
 vi.mock("@/supervisor/agents/base", () => ({
   primeExecutablePathCache: vi.fn<() => Promise<void>>(async () => undefined),
   invalidateExecutablePathCache: vi.fn<() => void>(),
@@ -62,7 +73,7 @@ vi.mock("@/supervisor/runtime/supervisorSharedSettings", async () => {
   };
 });
 
-import { AgentStatusService, STATUS_CACHE_VERSION } from "@/supervisor/runtime/agentStatusService";
+import { AgentStatusService } from "@/supervisor/runtime/agentStatusService";
 
 const FAST = "acp-generic:ready-fixture";
 const SLOW = "acp-generic:deferred-fixture";

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  describePrStatus,
   getPrStatusTone,
   isPrBlockedOnlyByPendingChecks,
   isPrBlockedOnlyByPendingReview,
@@ -56,5 +57,14 @@ describe("PR merge status tone", () => {
       }),
     ).toBe("danger");
     expect(getPrStatusTone("open", "FAILURE", pendingReview)).toBe("danger");
+  });
+
+  it("names a behind branch instead of calling it pending checks", () => {
+    expect(describePrStatus("open", "SUCCESS", { mergeStateStatus: "BEHIND" })).toBe("behind");
+    expect(describePrStatus("open", "SUCCESS", pendingReview)).toBe("awaiting-review");
+    expect(describePrStatus("open", "FAILURE", { mergeStateStatus: "UNSTABLE" })).toBe(
+      "checks-failed",
+    );
+    expect(describePrStatus("open", "SUCCESS")).toBe("checks-passed");
   });
 });

@@ -93,7 +93,7 @@ function createFakeQuery(initCommands: Array<Record<string, string>> = []) {
     .fn<(mode: PermissionMode) => Promise<void>>()
     .mockResolvedValue(undefined);
   const getContextUsage = vi
-    .fn<() => Promise<SDKControlGetContextUsageResponse>>()
+    .fn<(opts?: { detail?: "summary" | "full" }) => Promise<SDKControlGetContextUsageResponse>>()
     .mockResolvedValue({
       categories: [{ name: "Messages", tokens: 42_000, color: "#3366ff", kind: "used" }],
       totalTokens: 42_000,
@@ -348,6 +348,30 @@ describe("ClaudeSdkSession", () => {
     expect(fake.setModel).not.toHaveBeenCalled();
     expect(fake.setPermissionMode).not.toHaveBeenCalled();
 
+    await session.dispose();
+  });
+
+  it("acknowledges inherited context only after the SDK consumes the prompt", async () => {
+    const fake = createFakeQuery();
+    mockSdk.query.mockReturnValue(fake.runtime);
+    const session = await ClaudeSdkSession.create({
+      threadId: "thread-fork-admission",
+      projectLocation,
+      config,
+      presentationMode: "gui",
+    });
+    const admitted = vi.fn<() => void>();
+    await session.openThread(config);
+    await session.startTurn("continue fork", config, undefined, { onPromptSubmitted: admitted });
+    expect(admitted).not.toHaveBeenCalled();
+    fake.emitMessage(
+      sdkAssistantMessage("session-fork", "reply-1", "The inherited context is present."),
+    );
+    await flushAsyncWork();
+    expect(admitted).toHaveBeenCalledOnce();
+    fake.emitMessage(sdkAssistantMessage("session-fork", "reply-2", "Still working."));
+    await flushAsyncWork();
+    expect(admitted).toHaveBeenCalledOnce();
     await session.dispose();
   });
 
@@ -1376,6 +1400,7 @@ describe("ClaudeSdkSession", () => {
     await flushAsyncWork();
 
     expect(fake.getContextUsage).toHaveBeenCalledTimes(1);
+    expect(fake.getContextUsage).toHaveBeenCalledWith({ detail: "summary" });
     expect(runtimeEvents).toContainEqual({
       type: "context.updated",
       threadId: "thread-claude-context",

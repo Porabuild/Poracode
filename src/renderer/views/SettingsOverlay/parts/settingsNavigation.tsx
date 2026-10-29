@@ -26,6 +26,7 @@ import {
   Sparkles,
   TerminalSquare,
   UserRound,
+  UsersRound,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useLingui } from "@lingui/react/macro";
@@ -118,6 +119,7 @@ export function useSettingsNavigation() {
         { id: "skills", icon: <Box className="size-4" />, label: t`Skills` },
         { id: "mcpServers", icon: <Cable className="size-4" />, label: t`MCP Servers` },
         { id: "plugins", icon: <Puzzle className="size-4" />, label: t`Plugins` },
+        { id: "crews", icon: <UsersRound className="size-4" />, label: t`Crews` },
         {
           id: "usage",
           icon: <Gauge className="size-4" />,

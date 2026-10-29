@@ -146,9 +146,9 @@ function CurrentHostUsageSettings(props: { selector: ReactNode }) {
         title={t`Default auto-refresh (minutes)`}
         description={
           <Trans>
-            The default background refresh cadence, used for any provider without its own interval
-            set below. Set to 0 to turn off (manual only). The 2-minute floor respects provider rate
-            limits.
+            The default background refresh cadence. Providers may use a slower default unless an
+            interval is set below. Set to 0 to turn off (manual only). The minimum interval is 2
+            minutes.
           </Trans>
         }
       >

@@ -1,5 +1,7 @@
 import type { RemoteHttpRouteContract } from "../types";
 import { environmentManagementRoutes } from "./environments";
+import { deviceRoutes } from "./devices";
+import { devicePreviewRoutes } from "./devicePreview";
 import { experimentsRoutes } from "./experiments";
 import { opsRoutes } from "./ops";
 import { sessionRoutes } from "./session";
@@ -8,6 +10,7 @@ import { workspaceRoutes } from "./workspace";
 
 /** Manifest `httpRoutes` order is the stable inventory order. */
 const MANIFEST_ROUTE_IDS = [
+  "thread-agent-vision",
   "conversation-search",
   "environment",
   "environment-legacy",
@@ -71,6 +74,7 @@ const MANIFEST_ROUTE_IDS = [
   "pr-watch-check",
   "pr-watch-agent-sync",
   "pr-watch-upsert",
+  "pr-watch-scoped-upsert",
   "pr-watch-delete",
   "browser-state",
   "browser-command",
@@ -86,6 +90,7 @@ const MANIFEST_ROUTE_IDS = [
   "push-unregister",
   "thread-list",
   "thread-history-item",
+  "thread-history-prompts",
   "thread-history-changes",
   "thread-history-items",
   "thread-history",
@@ -109,6 +114,21 @@ const MANIFEST_ROUTE_IDS = [
   "thread-runtime-gap-acknowledge",
   "experiment-state",
   "experiment-command",
+  "device-inventory",
+  "device-attach",
+  "device-frame",
+  "device-inspect",
+  "device-action",
+  "device-detach",
+  "device-preview-open",
+  "device-preview-renew",
+  "device-preview-close",
+  "device-preview-websocket-ticket",
+  "device-preview-android-api",
+  "device-preview-android-devices",
+  "device-preview-ios-api",
+  "device-preview-ios-config",
+  "device-preview-ios-video",
 ] as const;
 
 const unorderedRoutes = [
@@ -118,6 +138,8 @@ const unorderedRoutes = [
   ...threadRoutes,
   ...experimentsRoutes,
   ...opsRoutes,
+  ...deviceRoutes,
+  ...devicePreviewRoutes,
 ];
 
 /**

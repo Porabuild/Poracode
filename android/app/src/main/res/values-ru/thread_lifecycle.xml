@@ -24,4 +24,6 @@
     <string name="archived_threads_title">Архивные треды</string>
     <string name="archived_threads_description">Восстановите или удалите архивные треды навсегда.</string>
     <string name="archived_threads_empty">Архивных тредов нет</string>
+    <string name="thread_status_starting_agent">Запуск агента…</string>
+    <string name="thread_status_resuming">Возобновление сеанса…</string>
 </resources>

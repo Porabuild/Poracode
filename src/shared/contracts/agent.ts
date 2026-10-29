@@ -411,6 +411,8 @@ export const agentCapabilitySchema = z.object({
    * Optional: absent = false.
    */
   supportsOneShot: z.boolean().optional(),
+  /** Enforces filesystem read/search/list only, with external tools disabled, in one-shot workspaces. */
+  supportsReadOnlyOneShotWorkspace: z.boolean().optional(),
   /**
    * Whether the adapter exposes a provider-enforced text-only one-shot path
    * with tools, MCPs, plugins, and hooks disabled. Optional: absent = false.
@@ -632,6 +634,20 @@ export const agentStatusesResponseSchema = z.object({
 });
 export type AgentStatusesResponse = z.infer<typeof agentStatusesResponseSchema>;
 
+// Supervisor-local native probe. Cold selection never implies a full discovery
+// sweep or a complete cache; unknown peers/versions refuse this distinct name.
+export const SELECTED_AGENT_PROBE_VERSION = 1;
+export const selectedAgentProbePayloadSchema = z.strictObject({
+  version: z.literal(SELECTED_AGENT_PROBE_VERSION),
+  agentKind: z.string().min(1).max(128),
+});
+export type SelectedAgentProbePayload = z.infer<typeof selectedAgentProbePayloadSchema>;
+export const selectedAgentProbeResultSchema = selectedAgentProbePayloadSchema.extend({
+  environment: z.literal("native"),
+  status: agentStatusSchema.nullable(),
+});
+export type SelectedAgentProbeResult = z.infer<typeof selectedAgentProbeResultSchema>;
+
 const acpRegistryPackageDistributionSchema = z.object({
   package: z.string().min(1),
   args: z.array(z.string()).optional(),
@@ -735,6 +751,24 @@ export const authenticateAcpAgentPayloadSchema = z.object({
   wslDistro: z.string().min(1).optional(),
 });
 export type AuthenticateAcpAgentPayload = z.infer<typeof authenticateAcpAgentPayloadSchema>;
+
+// Distinct supervisor-only name: legacy peers reject before starting auth.
+// No persisted state or existing authentication payload changes in version 1.
+export const ACP_AUTHENTICATION_CONTROL_VERSION = 1;
+export const controlAcpAuthenticationPayloadSchema = z.discriminatedUnion("action", [
+  z.strictObject({
+    version: z.literal(ACP_AUTHENTICATION_CONTROL_VERSION),
+    action: z.literal("start"),
+    operationId: z.uuid(),
+    ...authenticateAcpAgentPayloadSchema.shape,
+  }),
+  z.strictObject({
+    version: z.literal(ACP_AUTHENTICATION_CONTROL_VERSION),
+    action: z.literal("cancel"),
+    operationId: z.uuid(),
+  }),
+]);
+export type ControlAcpAuthenticationPayload = z.infer<typeof controlAcpAuthenticationPayloadSchema>;
 
 export const logoutAcpAgentPayloadSchema = z.object({
   agentKind: z.string().min(1),
@@ -855,6 +889,23 @@ export const resolveAgentAccountResultSchema = z.object({
   account: agentProviderMetadataSchema.optional(),
 });
 export type ResolveAgentAccountResult = z.infer<typeof resolveAgentAccountResultSchema>;
+
+export const getAgentConfigDefaultsPayloadSchema = z.object({
+  agentKind: agentKindSchema,
+});
+export type GetAgentConfigDefaultsPayload = z.infer<typeof getAgentConfigDefaultsPayloadSchema>;
+
+export const getAgentConfigDefaultsResultSchema = z.object({
+  /**
+   * Read-only values the provider's own config file already sets on this
+   * machine, keyed by the agent-setting key each one backs plus any
+   * provider-defined hint keys. Only keys the adapter's `readConfigDefaults`
+   * hook reports appear; empty when the file is missing, unreadable, or the
+   * adapter has no hook.
+   */
+  defaults: z.record(z.string(), z.string()),
+});
+export type GetAgentConfigDefaultsResult = z.infer<typeof getAgentConfigDefaultsResultSchema>;
 
 export function areAgentSlashCommandsEqual(
   left: readonly AgentSlashCommand[] | undefined,

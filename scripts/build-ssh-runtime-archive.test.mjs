@@ -10,6 +10,10 @@ import {
   hashRuntimeDirectory,
   runtimeDirectoryFiles,
 } from "./build-ssh-runtime-archive.mjs";
+import {
+  ptyJobOwnerResource,
+  runtimeResourceIdentity,
+} from "../src/shared/runtimeResourceInventory.ts";
 
 const tempDirs = [];
 after(() => {
@@ -113,6 +117,83 @@ function writeFixture() {
   };
 }
 
+void test("the release SSH archive preserves the declared native resource", () => {
+  const fixture = writeFixture();
+  const root = join(fixture.root, "pty-job-owner");
+  mkdirSync(join(root, "win32-x64"), { recursive: true });
+  const bytes = Buffer.alloc(512);
+  bytes.writeUInt16LE(0x5a4d, 0);
+  bytes.writeUInt32LE(64, 0x3c);
+  bytes.writeUInt32LE(0x00004550, 64);
+  bytes.writeUInt16LE(0x8664, 68);
+  bytes.writeUInt16LE(240, 84);
+  bytes.writeUInt16LE(0x20b, 88);
+  bytes.writeUInt16LE(2, 156);
+  writeFileSync(join(root, "win32-x64/pty-job-owner-v1.exe"), bytes);
+  writeFileSync(
+    join(root, "manifest.json"),
+    JSON.stringify({
+      formatVersion: 1,
+      protocolVersion: 1,
+      helperVersion: "1.0.0",
+      sourceSha256: "a".repeat(64),
+      targets: {
+        "win32-x64": {
+          relativePath: "win32-x64/pty-job-owner-v1.exe",
+          bytes: bytes.length,
+          sha256: sha256(bytes),
+        },
+      },
+    }),
+  );
+  const manifestPath = join(fixture.mainBundleDir, "server.ssh-runtime-manifest.json");
+  const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+  writeFileSync(
+    manifestPath,
+    JSON.stringify({
+      ...manifest,
+      resources: [runtimeResourceIdentity("pty-job-owner", ptyJobOwnerResource(root).files)],
+    }),
+  );
+  const result = buildSshRuntimeArchive({
+    ...fixture,
+    shrinkwrap: false,
+    rootPackage: {
+      version: "2.0.0-fixture",
+      dependencies: { "node-pty": "1.1.0", "better-sqlite3": "13.0.3" },
+    },
+  });
+  const extract = join(fixture.root, "native-extract");
+  mkdirSync(extract);
+  execFileSync("tar", ["-xzf", result.archivePath, "-C", extract]);
+  assert.equal(
+    runtimeResourceIdentity(
+      "pty-job-owner",
+      ptyJobOwnerResource(join(extract, "pty-job-owner")).files,
+    ).sha256,
+    runtimeResourceIdentity("pty-job-owner", ptyJobOwnerResource(root).files).sha256,
+  );
+});
+
+void test("unknown native resource kinds refuse before replacing an existing archive directory", () => {
+  const fixture = writeFixture();
+  const path = join(fixture.mainBundleDir, "server.ssh-runtime-manifest.json");
+  const manifest = JSON.parse(readFileSync(path, "utf8"));
+  writeFileSync(
+    path,
+    JSON.stringify({
+      ...manifest,
+      resources: [{ kind: "future-native-owner", sha256: "a".repeat(64) }],
+    }),
+  );
+  mkdirSync(fixture.outDir);
+  const sentinel = join(fixture.outDir, "preserve.txt");
+  writeFileSync(sentinel, "existing owned archive");
+  assert.throws(() => buildSshRuntimeArchive(fixture));
+  assert.equal(readFileSync(sentinel, "utf8"), "existing owned archive");
+  assert.equal(fixture.npmCalls.length, 0);
+});
+
 void test("buildSshRuntimeArchive emits the loader manifest from the frozen closure", () => {
   const fixture = writeFixture();
   const result = buildSshRuntimeArchive({
@@ -179,11 +260,10 @@ void test("buildSshRuntimeArchive emits the loader manifest from the frozen clos
   // No second installer: the only npm call is the shrinkwrap generation, and
   // the output directory holds exactly one archive plus the manifest.
   assert.equal(fixture.npmCalls.length, 1);
-  assert.deepEqual(fixture.npmCalls[0].args.slice(0, 3), [
-    "install",
-    "--package-lock-only",
-    "--omit=dev",
-  ]);
+  const call = fixture.npmCalls[0];
+  if (call.command === process.execPath) assert.match(call.args[0], /(?:^|[/\\])npm-cli\.js$/u);
+  const npmArgs = call.command === process.execPath ? call.args.slice(1) : call.args;
+  assert.deepEqual(npmArgs.slice(0, 3), ["install", "--package-lock-only", "--omit=dev"]);
   assert.deepEqual(readFileSync(join(fixture.outDir, "manifest.json"), "utf8").length > 0, true);
 });
 

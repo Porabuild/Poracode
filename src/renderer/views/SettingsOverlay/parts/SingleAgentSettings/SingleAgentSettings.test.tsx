@@ -314,6 +314,12 @@ const runAgentInstallCommandMock = vi.hoisted(() =>
   >(),
 );
 
+// The Codex advanced section has its own test file and needs real HeroUI parts
+// this module-wide mock does not provide.
+vi.mock("@/renderer/components/providers/settings/CodexAdvancedSettings", () => ({
+  CodexAdvancedSettings: () => null,
+}));
+
 vi.mock("@/renderer/actions/agentLoginActions", () => ({
   runAgentInstallCommand: runAgentInstallCommandMock,
   runAgentLoginCommand: runAgentLoginCommandMock,
@@ -509,6 +515,47 @@ describe("SingleAgentSettings", () => {
   const selectMachine = (machineId: string) => {
     act(() => useMachineSelectionStore.getState().setSelectedMachine(machineId));
   };
+
+  it("shows configured provider metadata without inventing an installation verdict or starting a probe", () => {
+    sharedSettingsState.agentInstances.fixture = {
+      id: "fixture",
+      driver: "acp-generic",
+      displayName: "Configured fixture",
+      enabled: true,
+    };
+    render(<SingleAgentSettings agentKind="acp-generic:fixture" />);
+    expect(screen.getByText("Configured fixture")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "This provider configuration has no detected runtime on the selected machine.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("This agent is not installed.")).not.toBeInTheDocument();
+    expect(screen.queryByText("Agent is active and ready")).not.toBeInTheDocument();
+    expect(refreshAgentStatusesMock).not.toHaveBeenCalled();
+  });
+
+  it("shows disabled configuration while old detection retires and removes its identity after configuration removal", () => {
+    sharedSettingsState.agentInstances.fixture = {
+      id: "fixture",
+      driver: "acp-generic",
+      displayName: "Renamed fixture",
+      enabled: false,
+    };
+    statusesState.agentStatuses = [makeStatus("acp-generic:fixture", { label: "Old fixture" })];
+    const { rerender } = render(<SingleAgentSettings agentKind="acp-generic:fixture" />);
+    expect(screen.getByText("Agent is currently disabled")).toBeInTheDocument();
+    expect(screen.queryByText("Agent is active and ready")).not.toBeInTheDocument();
+    statusesState.agentStatuses = [];
+    rerender(<SingleAgentSettings agentKind="acp-generic:fixture" />);
+    expect(screen.getByText("Renamed fixture")).toBeInTheDocument();
+    expect(screen.getByText("Agent is currently disabled")).toBeInTheDocument();
+    sharedSettingsState.agentInstances = {};
+    rerender(<SingleAgentSettings agentKind="acp-generic:fixture" />);
+    expect(screen.getByText("Agent not found")).toBeInTheDocument();
+    expect(screen.queryByText("Renamed fixture")).not.toBeInTheDocument();
+    expect(refreshAgentStatusesMock).not.toHaveBeenCalled();
+  });
 
   it("renders identity metadata as a single compact summary line", () => {
     statusesState.agentStatuses = [

@@ -28,9 +28,10 @@ import {
 
 // ── Public query functions (called from IPC handlers) ───────────────
 
+// Full legacy lists retain insertion order for tied slots, even with catalog indexes.
 export function dbGetProjects(): Project[] {
   const rows = getSqlite()
-    .prepare("SELECT * FROM projects ORDER BY sort_order ASC")
+    .prepare("SELECT * FROM projects ORDER BY sort_order ASC, rowid ASC")
     .all() as ProjectRow[];
   return rows.map(rowToProject);
 }
@@ -92,7 +93,7 @@ export function dbFindProjectByLocation(
 
 export function dbGetThreads(): Thread[] {
   const rows = getSqlite()
-    .prepare("SELECT * FROM threads ORDER BY sort_order ASC")
+    .prepare("SELECT * FROM threads ORDER BY sort_order ASC, rowid ASC")
     .all() as ThreadRow[];
   return rows.map(rowToThread);
 }
@@ -315,6 +316,37 @@ export function dbSetThreadsDone(threadIds: readonly string[], doneAt: string): 
     )
     .run(doneAt, doneAt, ...threadIds);
   notifyProjectThreadDataChanged();
+}
+
+/** Compute against the current row; never replace runtime/configuration or catalog order. */
+export function dbUpdateThreadMetadata(
+  threadId: string,
+  update: (thread: Thread) => Thread,
+): Thread | null {
+  const sqlite = getSqlite();
+  const result = sqlite
+    .transaction(() => {
+      const current = dbGetThread(threadId);
+      if (!current) return null;
+      const next = update(current);
+      sqlite
+        .prepare(`UPDATE threads SET title = ?, done = ?, done_at = ?, starred = ?,
+      archived = ?, archived_at = ?, updated_at = ? WHERE id = ?`)
+        .run(
+          next.title,
+          next.done ? 1 : 0,
+          next.doneAt ?? null,
+          next.starred ? 1 : 0,
+          next.archived ? 1 : 0,
+          next.archivedAt ?? null,
+          next.updatedAt,
+          threadId,
+        );
+      return next;
+    })
+    .immediate();
+  if (result) notifyProjectThreadDataChanged();
+  return result;
 }
 
 /**

@@ -34,7 +34,8 @@ describe("direct remote image session", () => {
     }
     vi.stubGlobal("URL", ImageURL);
     let issued = 0;
-    const fetch = vi.fn<RemoteFetch>((url) => {
+    const imageGets: Array<string | undefined> = [];
+    const fetch = vi.fn<RemoteFetch>((url, init) => {
       const request = new URL(String(url));
       if (request.pathname === "/api/files/image-ticket") {
         issued += 1;
@@ -44,6 +45,7 @@ describe("direct remote image session", () => {
           }),
         );
       }
+      imageGets.push((init?.headers as Record<string, string> | undefined)?.authorization);
       return Promise.resolve(
         new Response(new Uint8Array([137, 80, 78, 71]), {
           headers: { "content-type": "image/png" },
@@ -62,7 +64,9 @@ describe("direct remote image session", () => {
     await vi.waitFor(() => expect(readiness?.resolvePath(path)).toBe("blob:direct-attachment"));
     expect(store.localImageUrl(connectionKey, path)).toBe("blob:direct-attachment");
     expect(clientFactory).toHaveBeenCalledTimes(1);
-    expect(issued).toBe(1);
+    // One authorized GET for both reads; the ticket mint round trip is gone.
+    expect(issued).toBe(0);
+    expect(imageGets).toEqual([`Bearer ${server.accessToken}`]);
     useRemoteServersStore.setState({
       servers: [{ ...server, accessToken: "repaired-access-test" }],
     });

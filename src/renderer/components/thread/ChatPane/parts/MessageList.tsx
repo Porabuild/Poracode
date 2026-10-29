@@ -40,11 +40,14 @@ import {
   type ChatTimelineEntry,
 } from "../chatPaneSelectors";
 import { useRevertedPromptStore } from "../../revertedPrompt";
+import { ThreadForkBoundary, ThreadForkTurnAction } from "../../ThreadForkControls";
 import { ChatItemRow } from "./items/ChatItemRow";
 import { chatMessageSurfaceClass } from "./items/chatMessageSurface";
 import { imageViewRendersInline, resolveImageViewSource } from "./items/imageViewSource";
 import { isToolLikeItem } from "./items/toolCallCategorization";
 import { useTimelineMeasurements } from "./useTimelineMeasurements";
+import { useNewPromptScroll } from "./useNewPromptScroll";
+import { PROMPT_FLOOR_CSS_VAR, usePromptReserveFloor } from "./usePromptReserveFloor";
 import { type HistoryStartReached } from "./underfilledHistory";
 import { useUnderfilledHistory } from "./useUnderfilledHistory";
 import {
@@ -79,6 +82,8 @@ interface MessageListProps {
   onLiveVirtualizerLayoutChange?: () => void;
   /** Fires after the virtualizer has measured and completed its initial scroll. */
   onInitialLayoutReady?: () => void;
+  onNewPrompt?: () => void;
+  onPromptScrollWrite?: (top: number) => void;
   registerVirtualScrollToBottom?: (handler: (() => void) | null) => void;
   scrollClassName?: string;
   scrollStyle?: CSSProperties;
@@ -91,6 +96,8 @@ interface MessageListProps {
   onKeyDownCapture?: KeyboardEventHandler<HTMLDivElement>;
   onStartReached?: HistoryStartReached;
   drawDistance?: number;
+  /** End inset for an overlaying composer, kept in LegendList's scroll math. */
+  bottomInset?: number;
   /**
    * Reverting is transcript-local today. Disable it while a turn is live so
    * late provider events cannot append onto a truncated timeline.
@@ -141,6 +148,8 @@ export function MessageList({
   onVirtualizerLayoutChange,
   onLiveVirtualizerLayoutChange,
   onInitialLayoutReady,
+  onNewPrompt,
+  onPromptScrollWrite,
   registerVirtualScrollToBottom,
   scrollClassName,
   scrollStyle,
@@ -153,6 +162,7 @@ export function MessageList({
   onKeyDownCapture,
   onStartReached,
   drawDistance,
+  bottomInset,
   canRevertCheckpoints = true,
   checkpointGuard,
   checkpointActions,
@@ -166,19 +176,29 @@ export function MessageList({
   const onContentHeightNotification = onContentHeightChange ?? parentActions?.onContentHeightChange;
   const listRef = useRef<LegendListRef | null>(null);
   const scrollElementRef = useRef<HTMLDivElement | null>(null);
+  const { anchoredEndSpace, anchorKey, newPromptReady, cancelAnimation } = useNewPromptScroll({
+    threadId,
+    entries,
+    listRef,
+    onNewPrompt,
+    onScrollWrite: onPromptScrollWrite,
+  });
   const { notifyContentHeight, retryUnderfilledHistory, resetUnderfilledHistory } =
     useUnderfilledHistory({
       threadId,
       oldestVisibleEntryId: entries[0]?.id,
       scrollElementRef,
       onStartReached,
-      onContentHeightChange: onContentHeightNotification,
+      onContentHeightChange: () => {
+        if (!newPromptReady) onContentHeightNotification?.();
+      },
     });
   const entriesRef = useRef(entries);
   useLayoutEffect(() => {
     entriesRef.current = entries;
   });
   const virtualSizeBoxRef = useRef<HTMLDivElement | null>(null);
+  usePromptReserveFloor({ anchorKey, listRef, contentElementRef: virtualSizeBoxRef });
   const [pendingRevert, setPendingRevert] = useState<{
     itemId: string;
     userItemId: string;
@@ -458,10 +478,16 @@ export function MessageList({
         }
         initialScrollAtEnd
         keyExtractor={(entry) => entry.id}
-        maintainScrollAtEnd={{
-          animated: false,
-          on: { dataChange: true, footerLayout: true, itemLayout: true, layout: true },
-        }}
+        {...(anchoredEndSpace ? { anchoredEndSpace } : {})}
+        {...(bottomInset ? { contentInsetEndAdjustment: bottomInset } : {})}
+        maintainScrollAtEnd={
+          anchoredEndSpace || newPromptReady
+            ? false
+            : {
+                animated: false,
+                on: { dataChange: true, footerLayout: true, itemLayout: true, layout: true },
+              }
+        }
         maintainScrollAtEndThreshold={0}
         maintainVisibleContentPosition={{ data: true, size: true }}
         {...(onContentHeightNotification || onStartReached
@@ -504,6 +530,9 @@ export function MessageList({
           // and content-size model must match the DOM or the scroller lands
           // short of the bottom and the scroll-down control never hides.
           paddingBottom: CONTENT_TAIL_PADDING_PX,
+          // Prompt floor keeps the scroll range tall enough for a flush anchor;
+          // an unset var falls back to 100%, same as min-h-full.
+          minHeight: `calc(var(${PROMPT_FLOOR_CSS_VAR}, 0px) + 100%)`,
           WebkitMaskImage:
             "linear-gradient(to bottom, black calc(100% - 14px), rgb(0 0 0 / var(--lc-chat-bottom-mask-end-alpha, 0)))",
           maskImage:
@@ -514,6 +543,7 @@ export function MessageList({
         {...(onKeyDownCapture || onStartReached
           ? {
               onKeyDownCapture: (event) => {
+                cancelAnimation();
                 onKeyDownCapture?.(event);
                 if (event.key === "ArrowUp" || event.key === "PageUp" || event.key === "Home") {
                   retryUnderfilledHistory(event);
@@ -525,16 +555,20 @@ export function MessageList({
           notifyContentHeight();
           onInitialLayoutReady?.();
         }}
-        {...(onPointerDownCapture ? { onPointerDownCapture } : {})}
+        onPointerDownCapture={(event) => {
+          cancelAnimation();
+          onPointerDownCapture?.(event);
+        }}
         {...(onWheelCapture || onStartReached
           ? {
               onWheelCapture: (event) => {
+                cancelAnimation();
                 onWheelCapture?.(event);
                 if (event.deltaY < 0) retryUnderfilledHistory(event);
               },
             }
           : {})}
-        {...(scrollStyle ? { style: scrollStyle } : {})}
+        style={{ width: "100%", ...scrollStyle }}
       />
       <RevertCheckpointDialog
         isOpen={pendingRevert !== null}
@@ -598,7 +632,17 @@ const VirtualChatListRow = memo(function VirtualChatListRow({
     const itemsById = state.runtimeItemsByIdByThread[threadId];
     if (!itemIds || !itemsById) return null;
     if (itemsById[entry.id]?.type !== "user_message") return null;
-    return findCheckpointBeforeUserMessage(itemIds, itemsById, entry.id);
+    const checkpoint = findCheckpointBeforeUserMessage(itemIds, itemsById, entry.id);
+    const inheritedBoundary = state.threads.find((thread) => thread.id === threadId)?.forkedFrom
+      ?.throughItemId;
+    if (
+      checkpoint &&
+      inheritedBoundary &&
+      (itemIds.indexOf(inheritedBoundary) < 0 ||
+        itemIds.indexOf(checkpoint) <= itemIds.indexOf(inheritedBoundary))
+    )
+      return null;
+    return checkpoint;
   });
   const showTurnGap = isUserMessage && index > 0;
   const completedTurn = useAppStore((state) => selectCompletedTurnForEntry(state, threadId, entry));
@@ -645,22 +689,43 @@ const VirtualChatListRow = memo(function VirtualChatListRow({
         {showInlineTurn ? (
           <CompletedTurnIndicator threadId={threadId} record={completedTurn} />
         ) : null}
+        <ThreadForkBoundary
+          threadId={threadId}
+          itemIds={entry.kind === "item" ? [entry.id] : entry.itemIds}
+        />
       </div>
     </div>
   );
 });
 
-function CompletedTurnIndicator({ record }: { threadId: string; record: CompletedTurnRecord }) {
+function CompletedTurnIndicator({
+  threadId,
+  record,
+}: {
+  threadId: string;
+  record: CompletedTurnRecord;
+}) {
+  const hasAssistantActions = useAppStore(
+    (state) =>
+      record.anchorItemId !== null &&
+      state.runtimeItemsByIdByThread[threadId]?.[record.anchorItemId]?.type === "assistant_message",
+  );
   const elapsedSeconds = Math.max(0, Math.floor((record.endedAt - record.startedAt) / 1000));
-  if (elapsedSeconds < 1) return null;
   const elapsed = formatElapsed(elapsedSeconds);
   return (
     <Surface variant="transparent" className={chatMessageSurfaceClass}>
-      <div className="flex flex-col gap-0.5 text-[length:var(--lc-chat-font-size-meta)] text-foreground-muted">
+      <div className="flex items-center gap-2 text-[length:var(--lc-chat-font-size-meta)] text-foreground-muted">
         {elapsedSeconds >= 1 ? (
           <span className="text-muted">
             <Trans>Worked for {elapsed}</Trans>
           </span>
+        ) : null}
+        {record.anchorItemId && !hasAssistantActions ? (
+          <ThreadForkTurnAction
+            threadId={threadId}
+            itemId={record.anchorItemId}
+            startedAt={record.startedAt}
+          />
         ) : null}
       </div>
     </Surface>

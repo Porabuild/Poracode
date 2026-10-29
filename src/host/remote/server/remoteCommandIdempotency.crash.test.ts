@@ -6,7 +6,7 @@ import { join, resolve } from "node:path";
 import Database from "better-sqlite3";
 import { pathToFileURL } from "node:url";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { resolveBetterSqliteNativeBindingOptions } from "@/host/db/connection";
+import { resolveBetterSqliteNativeBindingOptions } from "@/host/db/nativeBinding";
 import { nativeBindingEnv, sqliteAvailable } from "@/host/db/runtimeItems.testFixtures";
 
 const FIXTURE = resolve("src/host/remote/server/remoteCommandIdempotency.crashFixture.ts");

@@ -24,6 +24,7 @@ function fixture(options: { cookie?: string; previousVersion?: number } = {}) {
   const directory = mkdtempSync(join(tmpdir(), "muse-usage-"));
   directories.push(directory);
   const cachePath = join(directory, "usage.json");
+  const settingsPath = join(directory, "settings.json");
   if (options.previousVersion !== undefined) {
     writeFileSync(
       cachePath,
@@ -47,6 +48,8 @@ function fixture(options: { cookie?: string; previousVersion?: number } = {}) {
   };
   let portalStatus = 200;
   let cliStatus = 200;
+  let now = NOW;
+  let retryAfter: string | undefined = "300";
   const getOAuthToken = vi.fn<HostPort["credentials"]["getOAuthToken"]>(async () => ({
     accessToken: "dca:cli",
   }));
@@ -55,7 +58,7 @@ function fixture(options: { cookie?: string; previousVersion?: number } = {}) {
     const status = isCli ? cliStatus : portalStatus;
     return {
       status,
-      headers: status === 429 ? { "retry-after": "300" } : {},
+      headers: status === 429 && retryAfter ? { "retry-after": retryAfter } : {},
       body: JSON.stringify(
         status !== 200
           ? {}
@@ -77,27 +80,53 @@ function fixture(options: { cookie?: string; previousVersion?: number } = {}) {
     };
   });
   const host: HostPort = {
-    now: () => NOW,
+    now: () => now,
     credentials: {
       getOAuthToken,
       getSecret: async (id, key) => (id === "muse" ? secrets[key] : undefined),
     },
     http: { request },
   };
-  const service = new UsageService({
+  const serviceOptions = {
     cachePath,
+    settingsPath,
     emit: () => {},
     host,
     providerIds: ["muse"],
     localCollectors: [],
-  });
+  };
+  let service = new UsageService(serviceOptions);
   services.push(service);
   return {
-    service,
+    get service() {
+      return service;
+    },
     cachePath,
     secrets,
     getOAuthToken,
     request,
+    advance(minutes: number) {
+      now += minutes * 60_000;
+    },
+    setRetryAfter(value: string | undefined) {
+      retryAfter = value;
+    },
+    setIntervals(global: number, override?: number) {
+      writeFileSync(
+        settingsPath,
+        JSON.stringify({
+          usage: {
+            refreshIntervalMinutes: global,
+            providerRefreshIntervals: override === undefined ? {} : { muse: override },
+          },
+        }),
+      );
+    },
+    restart() {
+      service.stop();
+      service = new UsageService(serviceOptions);
+      services.push(service);
+    },
     setPortalStatus(status: number) {
       portalStatus = status;
     },
@@ -110,6 +139,87 @@ function fixture(options: { cookie?: string; previousVersion?: number } = {}) {
 }
 
 describe("Muse usage source custody", () => {
+  it.each([
+    [5, undefined, 15],
+    [30, undefined, 30],
+    [5, 2, 2],
+  ])(
+    "uses a conservative cadence with global %i and override %s",
+    async (global, override, expected) => {
+      const f = fixture({ cookie: "llm_sess=test" });
+      f.setIntervals(global!, override);
+      await f.refresh();
+      f.advance(expected! - 1);
+      expect(await f.service.refreshDueProviders()).toEqual([]);
+      expect(f.request).toHaveBeenCalledTimes(2);
+      f.advance(1);
+      expect(await f.service.refreshDueProviders()).toEqual(["muse"]);
+      expect(f.request).toHaveBeenCalledTimes(4);
+    },
+  );
+
+  it("backs off bare 429s across restarts, guards manual refreshes, and resets after success", async () => {
+    const f = fixture({ cookie: "llm_sess=test" });
+    const good = (await f.refresh()).snapshots[0];
+    f.setRetryAfter(undefined);
+    f.setPortalStatus(429);
+    for (const [index, minutes] of [15, 30, 60, 60].entries()) {
+      const now = NOW + [0, 15, 45, 105][index]! * 60_000;
+      const result = (await f.refresh()).snapshots[0];
+      expect(result).toEqual({
+        ...good,
+        status: "rate-limited",
+        rateLimitedUntil: now + minutes * 60_000,
+      });
+      const calls = f.request.mock.calls.length;
+      f.restart();
+      expect((await f.refresh()).snapshots[0]).toEqual(result);
+      expect((await f.read()).snapshots[0]).toEqual(result);
+      expect(await f.service.refreshDueProviders()).toEqual([]);
+      expect(f.request).toHaveBeenCalledTimes(calls);
+      f.advance(minutes);
+    }
+    f.setPortalStatus(200);
+    expect((await f.refresh()).snapshots[0]?.status).toBe("ok");
+    f.setPortalStatus(429);
+    expect((await f.refresh()).snapshots[0]?.rateLimitedUntil).toBe(NOW + 180 * 60_000);
+  });
+
+  it("keeps a longer server Retry-After", async () => {
+    const f = fixture({ cookie: "llm_sess=test" });
+    f.setPortalStatus(429);
+    f.setRetryAfter("7200");
+    expect((await f.refresh()).snapshots[0]?.rateLimitedUntil).toBe(NOW + 120 * 60_000);
+  });
+
+  it.each(["cookie", "teamId"])(
+    "clears the previous source's cooldown when %s changes",
+    async (key) => {
+      const f = fixture({ cookie: "llm_sess=test" });
+      f.setPortalStatus(429);
+      await f.refresh();
+      f.advance(15);
+      await f.refresh();
+      f.secrets[key] = "replacement";
+      expect((await f.refresh()).snapshots[0]?.rateLimitedUntil).toBe(NOW + 30 * 60_000);
+      expect(f.request).toHaveBeenCalledTimes(6);
+    },
+  );
+
+  it("keeps a v13 cooldown when the cache has no attempt counts", async () => {
+    const f = fixture({ cookie: "llm_sess=test" });
+    f.setPortalStatus(429);
+    const snapshot = (await f.refresh()).snapshots[0];
+    const cache = JSON.parse(readFileSync(f.cachePath, "utf8"));
+    delete cache.rateLimitAttempts;
+    writeFileSync(f.cachePath, JSON.stringify(cache));
+    f.restart();
+    expect((await f.refresh()).snapshots[0]).toEqual(snapshot);
+    expect(f.request).toHaveBeenCalledTimes(2);
+    f.advance(15);
+    expect((await f.refresh()).snapshots[0]?.rateLimitedUntil).toBe(NOW + 30 * 60_000);
+  });
+
   it("replaces previous CLI-account usage with browser usage without requesting CLI credentials", async () => {
     const f = fixture({ cookie: "llm_sess=test", previousVersion: 10 });
     expect(await f.read()).toEqual({ snapshots: [], fromCache: false });
@@ -127,7 +237,7 @@ describe("Muse usage source custody", () => {
     expect(f.getOAuthToken).not.toHaveBeenCalled();
     expect(f.request).toHaveBeenCalledTimes(2);
     expect(JSON.parse(readFileSync(f.cachePath, "utf8"))).toMatchObject({
-      version: 12,
+      version: 14,
       snapshots: refreshed.snapshots,
     });
     expect(readFileSync(f.cachePath, "utf8")).not.toContain("llm_sess=test");

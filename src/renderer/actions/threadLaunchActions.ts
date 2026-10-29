@@ -55,6 +55,7 @@ import type { PendingLaunchProviderSwitch } from "@/renderer/state/slices/launch
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import type { RemoteThreadLaunchResult } from "@/renderer/state/remoteServers/types";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { threadCrewBinding } from "@/shared/crew";
 import { buildProjectDraftConfig } from "@/renderer/views/MainView/parts/AppContent/draftConfig";
 import {
   isRemoteCommandOutcomeAuthoritativelyResolved,
@@ -110,6 +111,7 @@ async function performInitialThreadLaunchPending(
   // previous provider's ref must not reach either the optimistic state or launch.
   const resumableSessionRef = providerSwitch ? undefined : thread.sessionRef;
   const presentation = thread.presentationMode ?? "terminal";
+  const crewId = threadCrewBinding(thread.config)?.crewId;
   if (thread.config.model) {
     useSharedSettings
       .getState()
@@ -119,6 +121,7 @@ async function performInitialThreadLaunchPending(
         presentation,
         thread.config.effort,
         thread.config.fast,
+        crewId,
       );
   }
 
@@ -157,7 +160,11 @@ async function performInitialThreadLaunchPending(
   const projectMcpServers =
     useAppStore.getState().projects.find((project) => project.id === thread.projectId)
       ?.mcpServers ?? [];
-  const mcpLaunchSnapshot = resolveMcpLaunchSnapshot(sharedSettings, projectMcpServers);
+  const mcpLaunchSnapshot = resolveMcpLaunchSnapshot(
+    sharedSettings,
+    projectMcpServers,
+    thread.config.mcpServerOverrides,
+  );
   useAppStore.getState().setThreadMcpLaunchCustomServerNames(
     thread.id,
     mcpLaunchSnapshot.mcpServers.map((server) => server.name),
@@ -773,6 +780,7 @@ export function appendOptimisticInitialUserMessage(
   const itemId = allocateInitialUserMessageItemId(thread, prompt, segments);
   if (!itemId) return undefined;
 
+  useAppStore.getState().requestChatScrollToPrompt(thread.id);
   useAppStore.getState().applyRuntimeEvent(thread.id, {
     type: "item.started",
     threadId: thread.id,

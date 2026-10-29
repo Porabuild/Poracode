@@ -1,12 +1,8 @@
-import type {
-  GitStatusDetail,
-  GitStatusResult,
-  PrData,
-  ProjectLocation,
-  RemoteHostPlatform,
-} from "@/shared/contracts";
+import type { GitStatusDetail, GitStatusResult, PrData, ProjectLocation } from "@/shared/contracts";
 import { isHomeProjectId } from "@/shared/homeScope";
+import { friendlyError, msg } from "@/shared/messages";
 import { readBridge } from "@/renderer/bridge";
+import { reviewClient, reviewSourceIdentity } from "@/renderer/utils/forgeReviews";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useExperimentStore } from "@/renderer/state/experimentStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
@@ -40,24 +36,13 @@ const refreshingProjects = new Set<string>();
 const pendingWatcherRefreshProjects = new Set<string>();
 const watchedWorktreePaths = new Map<string, string>();
 const activeRefreshTokens = new Map<string, symbol>();
+const singlePrRefreshTokens = new Map<string, symbol>();
 const GIT_REFRESH_TIMEOUT_MS = 30_000;
 export const PR_PENDING_REFRESH_INTERVAL_MS = 30_000;
 export const PR_POST_PUSH_STATUS_WAIT_MS = 15_000;
 export const PR_POST_PUSH_STATUS_POLL_MS = 5_000;
 
 const alwaysActive = () => true;
-
-/**
- * A remote worth trying `gh` against: an explicit GitHub remote, an as-yet
- * unclassified one ("unknown" — covers SSH host aliases that resolve to
- * github.com), or one we haven't inspected yet (undefined). This is the gate
- * every PR-fetch path checks (alongside `ghAvailable`) before paying a
- * `gh pr list` spawn — see {@link prefetchBranchPrData} and the worktree git
- * panel's manual refresh.
- */
-export function mightBeGitHubRemote(platform: RemoteHostPlatform | undefined): boolean {
-  return platform === undefined || platform === "github" || platform === "unknown";
-}
 
 const BRANCH_PR_PREFETCH_THROTTLE_MS = 10_000;
 const branchPrPrefetchLastRun = new Map<string, number>();
@@ -143,12 +128,12 @@ function applyPrefetchedPrData(
 }
 
 /**
- * Bulk-fetch PR status for every branch of a project in one `gh pr list` call and
+ * Bulk-fetch PR status for every branch of a project in one source-host query and
  * cache it under branch-name keys (see {@link buildBranchNamePrKey}) so the branch
  * selector can show PR-status icons for remote/local branches that aren't checked
  * out as a worktree. Dedupes in-flight calls, throttles (so dropdown opens + the
- * refresh cycle don't spam `gh`), and self-gates on gh availability + a GitHub
- * remote. Results persist for free via the gitStore prData snapshot, so cached
+ * refresh cycle don't spam the host), and self-gates on review availability.
+ * Results persist for free via the gitStore prData snapshot, so cached
  * icons show instantly and refresh in place.
  */
 export async function prefetchBranchPrData(project: {
@@ -163,7 +148,6 @@ export async function prefetchBranchPrData(project: {
   if (Date.now() - last < BRANCH_PR_PREFETCH_THROTTLE_MS) return;
   const state = useGitStore.getState();
   if (!state.ghAvailable[project.id]) return;
-  if (!mightBeGitHubRemote(state.statuses[project.id]?.remoteInfo?.platform)) return;
 
   branchPrPrefetchInFlight.add(project.id);
   branchPrPrefetchLastRun.set(project.id, Date.now());
@@ -543,39 +527,81 @@ export async function refreshSinglePr(params: {
   detailsCacheKey?: string;
   prNumber?: number;
 }): Promise<PrData | null | undefined> {
-  const bridge = readBridge();
   const previousPr = useGitStore.getState().prData[params.prKey];
-  const prPromise = bridge
-    .ghGetPrForBranch({ projectLocation: params.projectLocation, branch: params.branch })
-    .catch(() => undefined);
-  const detailsPromise =
-    params.detailsCacheKey && params.prNumber
-      ? bridge
-          .ghGetPrDetails({ projectLocation: params.projectLocation, prNumber: params.prNumber })
-          .catch(() => undefined)
-      : Promise.resolve(undefined);
-  const [pr, details] = await Promise.all([prPromise, detailsPromise]);
-  const currentPr = useGitStore.getState().prData[params.prKey];
-  if (isMergedPrRegression(currentPr, pr, previousPr)) {
-    return currentPr;
-  }
-  if (pr !== undefined) {
-    useGitStore.getState().setPrData(params.prKey, pr);
-  }
-  if (params.detailsCacheKey && details) {
-    useGitStore.getState().setPrDetails(params.detailsCacheKey, details.details);
-  }
-  if (!params.detailsCacheKey && params.projectId && pr && pr.number !== params.prNumber) {
-    const discoveredDetails = await bridge
-      .ghGetPrDetails({ projectLocation: params.projectLocation, prNumber: pr.number })
-      .catch(() => undefined);
-    if (discoveredDetails) {
-      useGitStore
-        .getState()
-        .setPrDetails(`${params.projectId}#${pr.number}`, discoveredDetails.details);
+  const token = Symbol();
+  singlePrRefreshTokens.set(params.prKey, token);
+  let expectedPr = previousPr;
+  const isCurrent = () =>
+    singlePrRefreshTokens.get(params.prKey) === token &&
+    useGitStore.getState().prData[params.prKey] === expectedPr;
+  const clearCache = () => {
+    if (params.detailsCacheKey) useGitStore.getState().clearPrCache(params.detailsCacheKey);
+    if (params.projectId && expectedPr)
+      useGitStore.getState().clearPrCache(`${params.projectId}#${expectedPr.number}`);
+  };
+  const refuseIdentity = (error: unknown) => {
+    if (
+      isCurrent() &&
+      [
+        msg("forge.repositoryChanged"),
+        msg("forge.hostMismatch"),
+        msg("forge.accountMismatch"),
+      ].includes(friendlyError(error))
+    ) {
+      clearCache();
+      useGitStore.getState().setPrData(params.prKey, null);
+      expectedPr = useGitStore.getState().prData[params.prKey];
     }
+  };
+  try {
+    let pr: PrData | null;
+    try {
+      // Discovery follows the current remote/default account. Only the subsequent
+      // detail read is pinned to that result; cached identity is not authority.
+      pr = await readBridge().ghGetPrForBranch({
+        projectLocation: params.projectLocation,
+        branch: params.branch,
+      });
+    } catch (error) {
+      refuseIdentity(error);
+      return undefined;
+    }
+    if (!isCurrent()) return useGitStore.getState().prData[params.prKey];
+    if (isMergedPrRegression(expectedPr, pr, previousPr)) return expectedPr;
+    if (!pr || reviewSourceIdentity(previousPr?.source) !== reviewSourceIdentity(pr.source))
+      clearCache();
+    useGitStore.getState().setPrData(params.prKey, pr);
+    expectedPr = useGitStore.getState().prData[params.prKey];
+    if (!pr) return null;
+    const detailsKey =
+      params.detailsCacheKey && pr.number === params.prNumber
+        ? params.detailsCacheKey
+        : params.projectId && pr.number !== params.prNumber
+          ? `${params.projectId}#${pr.number}`
+          : undefined;
+    if (!detailsKey) return pr;
+    try {
+      const result = await reviewClient(pr.source).details({
+        projectLocation: params.projectLocation,
+        prNumber: pr.number,
+      });
+      if (!isCurrent()) return useGitStore.getState().prData[params.prKey];
+      if (
+        result.details.source &&
+        reviewSourceIdentity(result.details.source) !== reviewSourceIdentity(pr.source)
+      ) {
+        refuseIdentity(new Error(msg("forge.repositoryChanged")));
+        return null;
+      }
+      useGitStore.getState().setPrDetails(detailsKey, result.details);
+    } catch (error) {
+      refuseIdentity(error);
+    }
+    return useGitStore.getState().prData[params.prKey];
+  } finally {
+    if (singlePrRefreshTokens.get(params.prKey) === token)
+      singlePrRefreshTokens.delete(params.prKey);
   }
-  return pr;
 }
 
 async function refreshPendingPr(key: string): Promise<void> {
@@ -854,12 +880,7 @@ export async function refreshGitProject(
 
         const ghAvailablePromise: Promise<boolean> = cachedGhAvailable
           ? Promise.resolve(true)
-          : snapshotPromise.then((snap) => {
-              const platform = snap?.status?.remoteInfo?.platform;
-              const mightBeGitHub = platform === "github" || platform === "unknown";
-              if (!mightBeGitHub) return false;
-              return snap?.ghAvailable === true;
-            });
+          : snapshotPromise.then((snap) => snap?.ghAvailable === true);
 
         // Worktree-derived work (per-worktree status + source branch) starts as
         // soon as `gitListWorktrees` returns — doesn't wait for status/branches.
@@ -953,8 +974,6 @@ export async function refreshGitProject(
           const [status, ghAvailable] = await Promise.all([statusPromise, ghAvailablePromise]);
           if (!isRefreshCurrent(project.id, refreshToken, isActive)) return;
           if (!ghAvailable || !status?.branch) return;
-          const platform = status.remoteInfo?.platform;
-          if (platform !== "github" && platform !== "unknown") return;
           try {
             const prKey = buildBranchPrKey(project.id);
             previousPrs[prKey] = useGitStore.getState().prData[prKey];

@@ -96,6 +96,12 @@ export const NON_ROUTER_PROJECT_PROCEDURES = {
   // Host-owned destructive-retirement check (housekeeping purge)
   closeThreadConfirmed:
     "local-shell: host-owned confirmed-retirement close for destructive housekeeping; the renderer never issues it and no remote route exists",
+  controlThreadExecution:
+    "local-shell: local administration owns provider execution and confirmed retirement on this supervisor",
+  reserveThreadExecution:
+    "local-shell: local administration reserves execution custody on this supervisor before launching",
+  controlledThreadRequest:
+    "local-shell: local administration binds answers to this supervisor's exact pending request incarnation",
   ghMergePrAtHead:
     "local-shell: app-controls invokes this host's guarded merge directly; older supervisors reject its distinct name and no remote route exists",
 
@@ -127,6 +133,10 @@ export const NON_ROUTER_PROJECT_PROCEDURES = {
   // the remote data plane (the experiment judge walks them).
   dbGetThreadRuntimeItems:
     "local-shell: unbounded full-transcript read; remote clients page the bounded history-items route instead of one raw DB read",
+  // Per-thread crew spend is read from this desktop's own usage ledger; the
+  // remote protocol does not carry it yet, so remote clients show no breakdown.
+  dbGetThreadTokenUsage:
+    "local-shell: per-thread crew spend reads this desktop's usage ledger; the remote protocol does not carry it yet",
 
   // Remote-access server control — the host's own trust surface
   getRemoteAccessPairing:
@@ -136,7 +146,7 @@ export const NON_ROUTER_PROJECT_PROCEDURES = {
   setRemoteAccessEnabled:
     "local-shell: toggles this host's remote-access server; trust-surface control stays with the physical host",
   setRemoteAccessLanEnabled:
-    "local-shell: changes this host's network exposure; trust-surface control stays with the physical host",
+    "local-shell: retired no-op kept for client/host hop compatibility; trust-surface control stays with the physical host",
   revokeRemoteAccessSession:
     "local-shell: revokes sessions on this host's server; trust-surface control stays with the physical host",
   getRemoteAccessTailscaleStatus:
@@ -214,6 +224,7 @@ export const NON_ROUTER_PROJECT_PROCEDURES = {
     "local-shell: this machine's CLI agent inventory; remote clients read via the agent-statuses registry route",
   cancelAgentDiscovery: "local-shell: cancels this machine's full agent discovery sweep",
   refreshAgentStatuses: "local-shell: re-probes this machine's CLI agent installs",
+  probeSelectedAgent: "local-shell: local administration probes an exact provider on this machine",
   getAgentHookPluginStatuses: "local-shell: this machine's agent hook plugin inventory",
   installAgentHookPlugin: "local-shell: installs into this machine's CLI hook plugins",
   uninstallAgentHookPlugin: "local-shell: uninstalls from this machine's CLI hook plugins",
@@ -224,8 +235,13 @@ export const NON_ROUTER_PROJECT_PROCEDURES = {
   setAcpRegistryAgentAuth: "local-shell: stores agent auth on this machine",
   confirmSupervisorSettingsEdits: "local-shell: this device's settings owner acknowledgement",
   authenticateAcpAgent: "local-shell: runs this machine's agent OAuth window and secret store",
+  controlAcpAuthentication:
+    "local-shell: supervisor-owned authentication operation IDs and cancellation stay on this host",
+  controlMcpAuthentication:
+    "local-shell: supervisor-owned integration OAuth operations and cancellation stay on this host",
   logoutAcpAgent: "local-shell: clears agent auth on this machine",
   resolveAgentAccount: "local-shell: resolves accounts against this machine's agent auth",
+  getAgentConfigDefaults: "local-shell: reads this machine's agent config file, read-only",
   updateAgentBinary: "local-shell: downloads and swaps this machine's agent binaries",
   getLatestAgentVersion: "local-shell: version probe for this machine's agent installs",
   manageAgentPlugins: "local-shell: manages this machine's agent plugin packages",
@@ -238,6 +254,7 @@ export const NON_ROUTER_PROJECT_PROCEDURES = {
 
   // Cross-agent routing and memory — this device's config
   getCrossagentRouting: "local-shell: this device's cross-agent routing config",
+  cancelCrossagentRun: "local-shell: cancels this host's crossagent child runs",
   confirmCrossagentRoutingOverride: "local-shell: this device's routing override decision",
   removeCrossagentRoutingOverride: "local-shell: this device's routing override decision",
   updateCrossagentMemoryEntryTags: "local-shell: this device's memory catalog",
@@ -325,6 +342,8 @@ export const NON_ROUTER_PROJECT_PROCEDURES = {
   lspStop: "local-shell: language-client lifetime is bound to this renderer window",
   lspSendMessage: "local-shell: LSP JSON-RPC is a per-window language client",
   listPlugins: "local-shell: plugin package scan is this window's disk catalog",
+  pluginCatalog: "local-shell: catalog installation changes this host's plugin packages",
+  pluginAccounts: "local-shell: plugin service accounts and OAuth are owned by this host",
   refreshPlugins: "local-shell: plugin package rescan is this window's disk catalog",
 
   // New-project local prep

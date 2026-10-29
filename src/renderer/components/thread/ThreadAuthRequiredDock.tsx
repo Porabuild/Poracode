@@ -3,31 +3,41 @@ import { toast } from "@heroui/react";
 import { KeyRound, LogIn, RefreshCw, Settings } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { AgentStatus, Project } from "@/shared/contracts";
+import { agentStatusForPresentation } from "@/shared/agentSelection";
 import { friendlyError } from "@/shared/messages";
 import { isRemoteSession, readBridge } from "@/renderer/bridge";
 import { runAgentLoginCommand } from "@/renderer/actions/agentLoginActions";
 import { openSettings } from "@/renderer/actions/panelActions";
 import { Button } from "@/renderer/components/common/Button";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import { useAppStore } from "@/renderer/state/appStore";
 import {
   agentAuthTarget,
   currentWslDistros,
   findAgentAuthMethodForStatus,
   findTerminalAuthMethodForStatus,
+  findStatusForTarget,
   scopeEnvForStatus,
   shouldPreferTerminalLogin,
 } from "@/renderer/utils/acpRegistryAuth";
 import { ThreadDockHeader, ThreadDockIconButton, ThreadDockSection } from "./ThreadDockUI";
 
-async function refreshAgentStatus(status: AgentStatus, project?: Project): Promise<void> {
+async function refreshAgentStatus(
+  status: AgentStatus,
+  project?: Project,
+): Promise<AgentStatus | undefined> {
+  const target = scopeEnvForStatus(status);
   if (project?.remoteServerId) {
     await useRemoteServersStore.getState().refreshServer(project.remoteServerId);
-    return;
+    // Paired-host inventory can still contain cached authenticated status;
+    // refreshing that projection does not prove an expired login recovered.
+    return undefined;
   }
-  await readBridge().refreshAgentStatuses(currentWslDistros(), {
+  const response = await readBridge().refreshAgentStatuses(currentWslDistros(), {
     agentKinds: [status.kind],
-    envs: [scopeEnvForStatus(status)],
+    envs: [target],
   });
+  return findStatusForTarget(response, status.kind, target);
 }
 
 /**
@@ -42,9 +52,11 @@ function preventFocusSteal(event: React.MouseEvent<HTMLElement>): void {
 }
 
 export function ThreadAuthRequiredDock(props: {
+  threadId?: string;
   agentStatus: AgentStatus;
   project?: Project;
   multilineDescription?: boolean;
+  onAuthenticated?: () => void;
 }) {
   const { agentStatus, project } = props;
   const { t } = useLingui();
@@ -81,6 +93,7 @@ export function ThreadAuthRequiredDock(props: {
           // Unlock the button as soon as the command exits so the user can
           // retry without waiting for the (post-exit) status refresh.
           setPendingAction(undefined);
+          if (exitCode === 0) props.onAuthenticated?.();
           void refreshAgentStatus(agentStatus, project)
             .then(() => {
               if (exitCode === 0) toast.success(t`${agentStatus.label} authenticated.`);
@@ -106,6 +119,7 @@ export function ThreadAuthRequiredDock(props: {
           methodId: agentAuthMethod.id,
           ...agentAuthTarget(agentStatus),
         });
+        props.onAuthenticated?.();
         void readBridge().focusWindow();
         await refreshAgentStatus(agentStatus, project);
         toast.success(t`${agentStatus.label} authenticated.`);
@@ -126,7 +140,16 @@ export function ThreadAuthRequiredDock(props: {
     if (pendingAction) return;
     setPendingAction("refresh");
     try {
-      await refreshAgentStatus(agentStatus, project);
+      const thread = useAppStore.getState().threads.find((entry) => entry.id === props.threadId);
+      const refreshed = await refreshAgentStatus(agentStatus, project);
+      const refreshedForThread = refreshed
+        ? agentStatusForPresentation(
+            refreshed,
+            thread?.presentationMode ?? agentStatus.capabilities.presentationMode,
+            thread?.sessionRef,
+          )
+        : undefined;
+      if (refreshedForThread?.authState === "authenticated") props.onAuthenticated?.();
     } catch (error) {
       toast.danger(
         error instanceof Error ? error.message : t`Unable to refresh ${agentStatus.label}.`,

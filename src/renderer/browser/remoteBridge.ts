@@ -50,6 +50,8 @@ import { useBrowserPanelStore } from "@/renderer/state/browserPanelStore";
 import { readCachedBrowserThreadSnapshot } from "./offlineThreadCache";
 import type { RemoteDesktopClient } from "@/shared/remote/client";
 import { pushDesktopSettingsDiff } from "./remoteSettingsSync";
+import { callBrowserReviewProcedure } from "./offlineReviewCache";
+import { RemoteClientError } from "@/shared/remote/clientErrors";
 
 /**
  * Remote-session implementation of `window.poracode`. The desktop renderer
@@ -61,6 +63,7 @@ import { pushDesktopSettingsDiff } from "./remoteSettingsSync";
  */
 
 let activeClient: RemoteDesktopClient | null = null;
+let activeReviewOwnerKey: string | undefined;
 let hostSettingsWriteThrough = true;
 let browserImages: RemoteEnvironmentImageCache | null = null;
 let browserImageReadiness: RemoteImageReadiness | undefined;
@@ -102,6 +105,7 @@ function setBrowserKeybindings(file: KeybindingsFile): KeybindingsConfig {
 export function setRemoteBridgeClient(
   client: RemoteDesktopClient | null,
   platform?: NodeJS.Platform | null,
+  reviewOwnerKey?: string,
 ): void {
   if (activeClient !== client) {
     useBrowserPanelStore.getState().resetOwner();
@@ -119,6 +123,7 @@ export function setRemoteBridgeClient(
     for (const listener of browserImageListeners) listener();
   }
   activeClient = client;
+  activeReviewOwnerKey = client ? reviewOwnerKey : undefined;
   if (client) {
     for (const resolve of pendingClientResolvers) resolve(client);
     pendingClientResolvers.clear();
@@ -407,6 +412,8 @@ const remoteBridgeOverrides = {
     return Promise.resolve(null);
   },
   getAgentHookPluginStatuses: () => Promise.resolve([]),
+  // The config file lives on the paired host, which this client cannot read.
+  getAgentConfigDefaults: () => Promise.resolve({ defaults: {} }),
 
   // Runtime history hydration pages the paired host's bounded routes instead
   // of the local DB. The selected thread's tail arrives with its snapshot;
@@ -527,7 +534,13 @@ const remoteBridge = Object.defineProperties(
     }
     if (isRemoteProcedure(procedure)) {
       const client = await waitForClient();
-      return client.callRemoteProcedure(procedure, args[0]);
+      if (
+        (procedure.startsWith("forge") || procedure.startsWith("gh")) &&
+        client !== activeClient
+      ) {
+        throw new RemoteClientError("Review owner changed.", 499, "cancelled");
+      }
+      return callBrowserReviewProcedure(client, procedure, args[0], activeReviewOwnerKey);
     }
     return Promise.reject(new Error(`"${procedure}" is not available in a remote session.`));
   }),

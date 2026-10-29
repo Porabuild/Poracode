@@ -8,7 +8,6 @@ import type { PoracodePaths } from "@/shared/poracodePaths";
 import type { RemoteThreadCommand } from "@/shared/contracts";
 import type { StandaloneAttachInfo } from "@/shared/standaloneAttach";
 import type { NodePerformanceDiagnostics } from "@/shared/diagnostics/nodePerformanceDiagnostics";
-import type { HostControlServer } from "@/backend/ownership/HostControlServer";
 import type { HostOwnerLease } from "@/backend/ownership/hostOwnerLease";
 import type { HostCredentialAdoptionService } from "@/backend/ownership/nativeSecretKey";
 import type { BackendHostClient } from "./backend/BackendHostClient";
@@ -24,7 +23,7 @@ import type { ComputerUseDesktopOverlay, ComputerUseMcpIngress } from "./compute
 import type { QuickComposerShortcutManager } from "./quickComposerShortcut";
 import { createSleepInhibitor } from "./sleepInhibitor";
 import type { TrayHandle } from "./tray";
-import type { WindowsJobObjectManager } from "./windowsJobObject";
+import type { WindowsJobObjectOwner } from "./windowsJobObject";
 import type { QuickComposerLifecycle } from "./window/quickComposerLifecycle";
 
 export const isDev = Boolean(process.env.VITE_DEV_SERVER_URL);
@@ -70,9 +69,6 @@ export interface DesktopAppState {
   // capture time so the readiness rethrow keeps its identity under the
   // only-throw-error rule.
   desktopOwnerAcquisitionError: Error | null;
-  // Desktop-owner publication of the shared authenticated control surface
-  // (discovery + describe). Null in attach mode and before readiness.
-  desktopHostControlServer: HostControlServer | null;
   // Desktop half of staged-import activation (Gate 2.5 S5.1): while this
   // desktop owns the profile it publishes the one-time key-adoption offer and
   // answers a single authenticated unseal for a `poracode-server activate` run
@@ -92,7 +88,7 @@ export interface DesktopAppState {
   // (attach binds the ephemeral shell state for main recreation).
   quickComposerLifecycle: QuickComposerLifecycle | null;
   pendingTrayThreadId: string | null;
-  windowsJobObjectManager: WindowsJobObjectManager | null;
+  windowsJobObjectManager: WindowsJobObjectOwner | null;
   browserPanelManager: BrowserPanelManager | null;
   browserMcpIngress: BrowserMcpIngress | null;
   computerUseMcpIngress: ComputerUseMcpIngress | null;
@@ -124,7 +120,6 @@ export const desktopApp: DesktopAppState = {
   standaloneAttachInfo: null,
   standaloneAttachShellState: null,
   desktopOwnerAcquisitionError: null,
-  desktopHostControlServer: null,
   hostCredentialAdoption: null,
   standaloneAttachSession: null,
   pendingThreadCommands: [],

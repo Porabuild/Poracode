@@ -4,6 +4,35 @@ import { describe, expect, it } from "vitest";
 import { buildProjectDraftConfig } from "./draftConfig";
 
 describe("buildProjectDraftConfig", () => {
+  it("retains a launched crew and explicit removal for the next thread", () => {
+    const crew = {
+      version: 1 as const,
+      crewId: "ship",
+      name: "Ship crew",
+      policy: "crew-only" as const,
+      roles: [
+        { id: "builder", label: "Builder", selection: { agentKind: "example", model: "helper" } },
+      ],
+    };
+    for (const binding of [crew, null]) {
+      expect(
+        buildProjectDraftConfig({
+          agentKind: "example",
+          config: { model: "lead", crew: binding },
+          worktreeMode: false,
+        }).crew,
+      ).toEqual(binding);
+    }
+    // Pre-crew project drafts remain valid and do not gain a synthetic crew.
+    expect(
+      buildProjectDraftConfig({
+        agentKind: "example",
+        config: { model: "lead" },
+        worktreeMode: false,
+      }),
+    ).not.toHaveProperty("crew");
+  });
+
   it("keeps Plan on the launched thread and remembers normal mode for the next draft", () => {
     const config = { model: "test", mode: "plan" as const, effort: "high" };
     expect(

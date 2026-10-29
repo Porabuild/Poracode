@@ -18,9 +18,20 @@
  */
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync, readdirSync, renameSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  lstatSync,
+  readFileSync,
+  readdirSync,
+  renameSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 import { npmInvocation } from "./server-host-tools.mjs";
+import {
+  runtimeResourceIdentitySchema,
+  sshRuntimeBuildManifestSchema,
+} from "../src/shared/sshRuntimeManifest.ts";
 
 /** Version of the packaging-side closure contract this module writes. */
 export const RUNTIME_CLOSURE_FORMAT_VERSION = 1;
@@ -34,6 +45,7 @@ export function readRuntimeClosure(mainBundleDir) {
   const files = new Map();
   const dependencies = new Set();
   const manifestFiles = [];
+  const resources = new Map();
   for (const name of readdirSync(mainBundleDir)) {
     if (!name.endsWith(".ssh-runtime-manifest.json")) continue;
     const path = join(mainBundleDir, name);
@@ -41,6 +53,13 @@ export function readRuntimeClosure(mainBundleDir) {
     manifestFiles.push(name);
     for (const file of manifest.files ?? []) files.set(file.path, file);
     for (const dependency of manifest.dependencies ?? []) dependencies.add(dependency);
+    for (const candidate of manifest.resources ?? []) {
+      const resource = runtimeResourceIdentitySchema.parse(candidate);
+      const previous = resources.get(resource.kind);
+      if (previous && previous.sha256 !== resource.sha256)
+        throw new Error(`Runtime manifests disagree about resource ${resource.kind}.`);
+      resources.set(resource.kind, resource);
+    }
   }
   if (manifestFiles.length === 0) {
     throw new Error(`No ssh-runtime manifests in ${mainBundleDir}. Build first (bun run build).`);
@@ -50,7 +69,50 @@ export function readRuntimeClosure(mainBundleDir) {
     files: [...files.values()],
     dependencies: [...dependencies].sort(),
     manifestFiles,
+    resources: [...resources.values()],
   };
+}
+
+/**
+ * Apply an explicit build-time code transform, such as Sentry debug-ID injection,
+ * only to a verified closure, then capture its final bytes. The manifest format
+ * stays unchanged: source, protocol and resource identities remain valid, and
+ * every packaging/runtime consumer still verifies the captured file hashes.
+ */
+export function transformRuntimeClosure(mainBundleDir, transform) {
+  const manifests = readRuntimeClosure(mainBundleDir).manifestFiles.map((name) => ({
+    name,
+    manifest: sshRuntimeBuildManifestSchema.parse(
+      JSON.parse(readFileSync(join(mainBundleDir, name), "utf8")),
+    ),
+  }));
+  const capture = (file) => {
+    const path = join(mainBundleDir, file.path);
+    if (!lstatSync(path).isFile()) throw new Error(`Runtime code is not a file: ${file.path}`);
+    const bytes = readFileSync(path);
+    return {
+      ...file,
+      bytes: bytes.length,
+      sha256: createHash("sha256").update(bytes).digest("hex"),
+    };
+  };
+  // Do not turn pre-existing drift or corrupt declarations into trusted code.
+  for (const { manifest } of manifests)
+    for (const file of manifest.files) {
+      const actual = capture(file);
+      if (actual.bytes !== file.bytes || actual.sha256 !== file.sha256)
+        throw new Error(`Runtime input hash differs before code transform: ${file.path}`);
+    }
+  transform();
+  const updated = manifests.map(({ name, manifest }) => ({
+    name,
+    manifest: sshRuntimeBuildManifestSchema.parse({
+      ...manifest,
+      files: manifest.files.map(capture),
+    }),
+  }));
+  for (const { name, manifest } of updated)
+    writeFileSync(join(mainBundleDir, name), `${JSON.stringify(manifest)}\n`);
 }
 
 /**

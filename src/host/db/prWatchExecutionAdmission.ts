@@ -1,5 +1,6 @@
-import type { ScheduledTaskConfig } from "@/shared/contracts";
-import { areSelectionBindingsEqual } from "@/shared/contracts";
+import type { ScheduledTaskConfig, ForgeReviewScope } from "@/shared/contracts";
+import { areSelectionBindingsEqual, forgeReviewScopeSchema } from "@/shared/contracts";
+import { sameReviewScope } from "@/shared/forgeRemote";
 import type { SelectionBinding } from "@/shared/selectionBinding.schemas";
 import { msg } from "@/shared/messages";
 import { hasUnsupportedSelectionBinding } from "@/shared/persistedSelectionBinding";
@@ -44,6 +45,7 @@ export interface PrWatchExecutionSnapshot {
   projectId: string;
   prNumber: number;
   headBranch: string;
+  reviewScope?: ForgeReviewScope;
   worktreePath?: string;
   watchEnabled: boolean;
   autoMerge: boolean;
@@ -64,10 +66,11 @@ interface PrWatchExecutionRow {
   auto_merge: number;
   agent_kind: string | null;
   config: string | null;
+  review_scope: string | null;
 }
 
 const EXECUTION_SELECT =
-  "SELECT head_branch, worktree_path, watch_enabled, auto_merge, agent_kind, config " +
+  "SELECT head_branch, worktree_path, watch_enabled, auto_merge, agent_kind, config, review_scope " +
   "FROM pr_watches WHERE project_id = ? AND pr_number = ?";
 
 /**
@@ -84,7 +87,13 @@ export function dbReadPrWatchExecutionSnapshot(
     | PrWatchExecutionRow
     | undefined;
   if (!row) return null;
-  return snapshotOf(projectId, prNumber, row, probeRawConfig(row.config));
+  return snapshotOf(
+    projectId,
+    prNumber,
+    row,
+    probeRawConfig(row.config),
+    probeRawScope(row.review_scope),
+  );
 }
 
 /**
@@ -108,6 +117,10 @@ export function dbAdmitPrWatchExecution(
     );
   }
   const rawConfig = probeRawConfig(row.config);
+  const rawScope = probeRawScope(row.review_scope);
+  if (!sameReviewScope(captured.reviewScope, rawScope)) {
+    throw new PrWatchExecutionAdmissionError("stale", msg("forge.watchChanged"));
+  }
   if (executionFieldsChanged(captured, row, rawConfig)) {
     throw new PrWatchExecutionAdmissionError(
       "stale",
@@ -133,16 +146,33 @@ function probeRawConfig(json: string | null): unknown {
   return raw;
 }
 
+function probeRawScope(json: string | null): ForgeReviewScope {
+  if (json === null)
+    throw new PrWatchExecutionAdmissionError("unsupported", msg("forge.watchScopeMissing"));
+  let raw: unknown;
+  try {
+    raw = JSON.parse(json);
+  } catch {
+    /* Refuse malformed and future records identically. */
+  }
+  const result = forgeReviewScopeSchema.safeParse(raw);
+  if (!result.success)
+    throw new PrWatchExecutionAdmissionError("unsupported", msg("forge.watchScopeUnsupported"));
+  return result.data;
+}
+
 function snapshotOf(
   projectId: string,
   prNumber: number,
   row: PrWatchExecutionRow,
   rawConfig: unknown,
+  reviewScope: ForgeReviewScope,
 ): PrWatchExecutionSnapshot {
   return {
     projectId,
     prNumber,
     headBranch: row.head_branch,
+    reviewScope,
     ...(row.worktree_path ? { worktreePath: row.worktree_path } : {}),
     watchEnabled: row.watch_enabled === 1,
     autoMerge: row.auto_merge === 1,

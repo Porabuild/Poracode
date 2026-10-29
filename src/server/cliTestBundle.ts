@@ -1,4 +1,6 @@
 import { build } from "esbuild";
+import { readFileSync } from "node:fs";
+import { dirname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import {
   createRuntimePayloadProjectionSource,
@@ -7,14 +9,17 @@ import {
 
 /**
  * Bundle the real CLI entry for the spawned-child suites with only the
- * headless composition, pairing control and performance-diagnostics imports
+ * headless composition, persistence sampler, pairing control and diagnostics imports
  * replaced by the fixture bridge `globalThis.__cliFixture` (implemented by
  * `fixtures/cliStartupSignal.mjs` and `fixtures/cliStartupDeadline.mjs`).
  *
  * Runtime packages stay external, so a fixture that forks the bundle must
  * declare NODE_PATH for its CommonJS requires and the required asset dirs.
  */
-export async function buildSyntheticCliEntry(outfile: string): Promise<void> {
+export async function buildSyntheticCliEntry(
+  outfile: string,
+  compositionImportProbe?: string,
+): Promise<void> {
   const root = fileURLToPath(new URL("../../", import.meta.url));
   await build({
     entryPoints: [fileURLToPath(new URL("./cli.ts", import.meta.url))],
@@ -45,22 +50,38 @@ export async function buildSyntheticCliEntry(outfile: string): Promise<void> {
       {
         name: "synthetic-headless-services",
         setup(builder) {
+          if (compositionImportProbe) {
+            builder.onLoad({ filter: /[\\/]db[\\/]connection\.ts$/ }, (args) => ({
+              contents:
+                `import {writeFileSync as recordCliDatabaseImport} from 'node:fs'; recordCliDatabaseImport(${JSON.stringify(compositionImportProbe + ".database")}, 'loaded');\n` +
+                readFileSync(args.path, "utf8"),
+              loader: "ts",
+              resolveDir: dirname(args.path),
+            }));
+          }
           builder.onResolve(
             {
               filter: new RegExp(
-                "(createHeadlessRemoteHost|headlessRemoteComposition|pairingControl|nodePerformanceDiagnostics)$",
+                "(createHeadlessRemoteHost|headlessRemoteComposition|pairingControl|nodePerformanceDiagnostics|runtimePersistenceRuntime)$",
               ),
             },
             (args) => ({ path: args.path, namespace: "synthetic" }),
           );
           builder.onLoad({ filter: new RegExp(".*"), namespace: "synthetic" }, (args) => {
             const contents = args.path.endsWith("createHeadlessRemoteHost")
-              ? "export const createHeadlessRemoteHost = (options) => globalThis.__cliFixture.create(options);"
-              : args.path.endsWith("nodePerformanceDiagnostics")
-                ? "export const startNodePerformanceDiagnostics = () => ({stop: () => globalThis.__cliFixture.stopDiagnostics()});"
-                : args.path.endsWith("headlessRemoteComposition")
-                  ? "export class HeadlessCompositionShutdownError extends AggregateError {}"
-                  : "export const requestPairingFromRunningServer = () => { throw new Error('Pairing is outside this fixture.'); }; export const requestHostStatusFromRunningServer = () => { throw new Error('Status is outside this fixture.'); };";
+              ? (compositionImportProbe
+                  ? `import {writeFileSync} from 'node:fs'; writeFileSync(${JSON.stringify(compositionImportProbe)}, 'loaded'); globalThis.__cliFixture.onImport?.();\n`
+                  : "") +
+                "export const createHeadlessRemoteHost = (options) => globalThis.__cliFixture.create(options);"
+              : args.path.endsWith("runtimePersistenceRuntime")
+                ? (compositionImportProbe
+                    ? `import {writeFileSync} from 'node:fs'; writeFileSync(${JSON.stringify(compositionImportProbe + ".persistence")}, 'loaded'); globalThis.__cliFixture.onPersistenceImport?.();\n`
+                    : "") + "export const getRuntimePersistenceSample = () => null;"
+                : args.path.endsWith("nodePerformanceDiagnostics")
+                  ? "export const startNodePerformanceDiagnostics = () => ({stop: () => globalThis.__cliFixture.stopDiagnostics()});"
+                  : args.path.endsWith("headlessRemoteComposition")
+                    ? "export class HeadlessCompositionShutdownError extends AggregateError {}"
+                    : "export const requestPairingFromRunningServer = () => { throw new Error('Pairing is outside this fixture.'); }; export const requestHostStatusFromRunningServer = () => { throw new Error('Status is outside this fixture.'); }; export const requestHostStatusDetailsFromRunningServer = () => { throw new Error('Detailed status is outside this fixture.'); };";
             return { contents, loader: "js" };
           });
         },

@@ -9,7 +9,7 @@ import {
 } from "@/shared/legacyProductPaths";
 import { resolvePoracodeBaseDir } from "@/shared/poracodePaths";
 import Database from "better-sqlite3";
-import { resolveBetterSqliteNativeBindingOptions } from "./db/connection";
+import { resolveBetterSqliteNativeBindingOptions } from "./db/nativeBinding";
 
 const MIGRATION_VERSION = 1;
 const MIGRATION_MARKER_FILENAME = ".lightcode-migration-v1.json";
@@ -252,18 +252,27 @@ function removeMigrationRequest(baseDir: string): void {
   rmSync(requestPath(baseDir), { force: true });
 }
 
-export function migrateLegacyDataOnLaunch(
+/** The settled outcomes a launch can decide without the out-of-process worker. */
+export function settledLegacyDataMigration(
   options: LegacyDataMigrationOptions,
-): LegacyDataMigrationResult {
+): LegacyDataMigrationResult | null {
   const channel = options.channel ?? resolvePoracodeChannel();
   if (!options.allowCustomDataRoot && !isDefaultDataRoot(options.baseDir, channel)) {
     return { status: "unavailable" };
   }
-
-  const requested = existsSync(requestPath(options.baseDir));
-  if (!requested && existsSync(markerPath(options.baseDir))) {
+  if (!existsSync(requestPath(options.baseDir)) && existsSync(markerPath(options.baseDir))) {
     return { status: "already-complete" };
   }
+  return null;
+}
+
+export function migrateLegacyDataOnLaunch(
+  options: LegacyDataMigrationOptions,
+): LegacyDataMigrationResult {
+  const settled = settledLegacyDataMigration(options);
+  if (settled) return settled;
+  const channel = options.channel ?? resolvePoracodeChannel();
+  const requested = existsSync(requestPath(options.baseDir));
 
   const sourceDataDir = legacyDataDir(channel, options.legacyBaseDir);
   const importDataRoot =

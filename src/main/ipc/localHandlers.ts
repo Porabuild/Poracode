@@ -354,6 +354,7 @@ export function createLocalIpcHandlers(
     dbGetThreadRuntimeItems: (payload) => callDatabase("dbGetThreadRuntimeItems", payload),
     dbGetThreadRuntimeItemsPage: (payload) => callDatabase("dbGetThreadRuntimeItemsPage", payload),
     dbGetLatestThreadGoalItem: (payload) => callDatabase("dbGetLatestThreadGoalItem", payload),
+    dbGetThreadPromptIndex: (payload) => callDatabase("dbGetThreadPromptIndex", payload),
     dbTruncateThreadRuntimeAfter: (payload) =>
       callDatabase("dbTruncateThreadRuntimeAfter", payload),
     revertCheckpoint: (payload) => options.revertCheckpoint(payload),
@@ -364,6 +365,7 @@ export function createLocalIpcHandlers(
     dbReplaceThreadRuntimeSnapshot: (payload) =>
       callDatabase("dbReplaceThreadRuntimeSnapshot", payload),
     dbGetThreadContextUsage: (payload) => callDatabase("dbGetThreadContextUsage", payload),
+    dbGetThreadTokenUsage: (payload) => callDatabase("dbGetThreadTokenUsage", payload),
     dbGetProjectNotes: (payload) => callDatabase("dbGetProjectNotes", payload),
     dbSetProjectNotes: (payload) => callDatabase("dbSetProjectNotes", payload),
     getAutomationsSnapshot: (payload) => callService("getAutomationsSnapshot", payload),
@@ -379,6 +381,7 @@ export function createLocalIpcHandlers(
     getPrWatch: (payload) => callService("getPrWatch", payload),
     checkPrWatch: (payload) => callService("checkPrWatch", payload),
     upsertPrWatch: (watch) => callService("upsertPrWatch", watch),
+    upsertForgePrWatch: (watch) => callService("upsertForgePrWatch", watch),
     deletePrWatch: (payload) => callService("deletePrWatch", payload),
     syncPrWatchAgent: (agent) => callService("syncPrWatchAgent", agent),
     getUpdateStatus: () =>
@@ -395,7 +398,7 @@ export function createLocalIpcHandlers(
       if (options.hostOffersAutoUpdate?.() === false) return;
       options.autoUpdater.installUpdate();
     },
-    browserGetState: () => requireBrowserPanel(options.getBrowserPanelManager).snapshot(),
+    browserGetState: () => requireBrowserPanel(options.getBrowserPanelManager).snapshotForHost(),
     browserCreateTab: (payload) =>
       requireBrowserPanel(options.getBrowserPanelManager).createTab({
         ...(payload.url !== undefined ? { url: payload.url } : {}),

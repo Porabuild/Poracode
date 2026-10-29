@@ -2,6 +2,7 @@ import type { SupervisorEvent } from "@/shared/ipc";
 import type { EventSequenceSpace } from "@/shared/eventSequenceSpace";
 import {
   isUnauthorizedRemoteSocketClose,
+  REMOTE_ACCESS_SESSION_EXPIRED_REASON,
   REMOTE_LOCAL_SOCKET_POLICY,
 } from "@/shared/remote/socketPolicy";
 import {
@@ -121,6 +122,14 @@ export interface DesktopLoopbackIntakeDeps {
    */
   readonly onRecoveryExhausted?: () => void;
   /**
+   * Renews the session with the retained refresh token through the shared
+   * client refresh, which reports the rotation back through `applyTokens`.
+   * Resolves false when the host refused the grant; rejects on transport-class
+   * failures, which the proactive timer retries briefly and the local ladder
+   * retries otherwise (never re-pairing on the first attempt).
+   */
+  readonly renewSession?: () => Promise<boolean>;
+  /**
    * boundedCatalogChanges v1 declaration input for the upgrade: true only when
    * the bounded catalog consumer for this endpoint is installed and the live
    * host was verified (by its own descriptor) to advertise the capability. The
@@ -196,6 +205,15 @@ const LOCAL_RECOVERY_MAX_ATTEMPTS = 5;
 const DECODE_RETRY_BASE_MS = 5_000;
 const DECODE_RETRY_MAX_MS = 30_000;
 
+/** Proactive renewal fires this long before the access deadline (capped at
+ * half of a shorter window), so a live socket never meets the deadline. */
+const RENEWAL_LEAD_MS = 5 * 60_000;
+/** A transport-class renewal failure retries this long before the deadline; a
+ * refused grant does not retry (the close path re-pairs). */
+const RENEWAL_RETRY_MS = 60_000;
+/** setTimeout's maximum representable delay; longer waits are re-armed. */
+const MAX_TIMEOUT_DELAY_MS = 2_147_483_647;
+
 /** Lane keys are unique per intake: one managed leg per window in the real app,
  * but tests (and any future multi-leg composition) may run two intakes against
  * the same engine in one process. A fixed key would let the second intake
@@ -266,6 +284,12 @@ export class DesktopLoopbackIntake {
    * exchange so managed `call-*` requests can ride the same leg. */
   private accessToken: string | null = null;
   private refreshToken: string | null = null;
+  /** When the proactive renewal for the retained bearer is due (null = none). */
+  private renewalDueAtMs: number | null = null;
+  /** The retained bearer's access deadline; bounds retries after a failed
+   * proactive renewal (null = no armed window). */
+  private renewalExpiresAtMs: number | null = null;
+  private renewalTimer: ReturnType<typeof setTimeout> | null = null;
   /** Whether the CURRENT socket's upgrade carried the bounded-catalog-changes
    * declaration (read by the wiring to re-open on a capability change). */
   private declaredBoundedCatalogChanges = false;
@@ -356,14 +380,94 @@ export class DesktopLoopbackIntake {
   }
 
   /** Installs a token refresh rotation result (the loopback HTTP client's
-   * lifecycle reports rotations back into this intake). */
+   * lifecycle reports rotations back into this intake). A reported access
+   * deadline also (re)arms the proactive renewal. */
   applyTokens(tokens: {
     readonly accessToken: string;
     readonly refreshToken?: string | null;
+    readonly accessTokenExpiresAt?: string;
   }): void {
     this.accessToken = tokens.accessToken;
-    if (tokens.refreshToken === undefined) return;
-    this.refreshToken = tokens.refreshToken;
+    if (tokens.refreshToken !== undefined) this.refreshToken = tokens.refreshToken;
+    this.scheduleRenewal(tokens.accessTokenExpiresAt);
+  }
+
+  /** Arm the proactive renewal one lead before the deadline, never more than
+   * half of a short remaining window. An already-expired bearer arms nothing:
+   * the request-401 refresh and the expiry-close reconnect renew it instead. */
+  private scheduleRenewal(expiresAt: string | undefined): void {
+    this.clearRenewalTimer();
+    const expiresAtMs = expiresAt ? Date.parse(expiresAt) : Number.NaN;
+    if (
+      !Number.isFinite(expiresAtMs) ||
+      expiresAtMs <= Date.now() ||
+      this.disposed ||
+      !this.deps.renewSession
+    ) {
+      this.renewalDueAtMs = null;
+      this.renewalExpiresAtMs = null;
+      return;
+    }
+    const remaining = expiresAtMs - Date.now();
+    this.renewalExpiresAtMs = expiresAtMs;
+    this.renewalDueAtMs = expiresAtMs - Math.min(RENEWAL_LEAD_MS, remaining / 2);
+    this.armRenewal();
+  }
+
+  /** Chunked like the host's session-expiry timer: a delay above the setTimeout
+   * cap re-arms instead of firing early. */
+  private armRenewal(): void {
+    this.clearRenewalTimer();
+    const dueAtMs = this.renewalDueAtMs;
+    if (dueAtMs === null || this.disposed || !this.deps.renewSession) return;
+    this.renewalTimer = setTimeout(
+      () => {
+        this.renewalTimer = null;
+        if (this.disposed) return;
+        if ((this.renewalDueAtMs ?? 0) > Date.now()) {
+          this.armRenewal();
+          return;
+        }
+        this.renewalDueAtMs = null;
+        void this.renewNow();
+      },
+      Math.min(Math.max(0, dueAtMs - Date.now()), MAX_TIMEOUT_DELAY_MS),
+    );
+    this.renewalTimer.unref?.();
+  }
+
+  private async renewNow(): Promise<void> {
+    try {
+      // A successful rotation re-arms through `applyTokens`; a refused grant
+      // returns false and is the expiry-close/re-pair path's to handle.
+      await this.deps.renewSession?.();
+    } catch {
+      // Transport-class (429, network): retry shortly while the retained
+      // bearer is still live. The request-401 refresh and the expiry-close
+      // reconnect remain the fallback at the deadline itself.
+      this.scheduleRenewalRetry();
+    }
+  }
+
+  /** One bounded retry a minute after a transport-class renewal failure, and
+   * only while nothing else has re-armed the timer and the deadline is still
+   * ahead. A refusal is not retried. */
+  private scheduleRenewalRetry(): void {
+    const expiresAtMs = this.renewalExpiresAtMs;
+    if (this.disposed || !this.deps.renewSession) return;
+    if (this.renewalDueAtMs !== null || expiresAtMs === null) return;
+    const retryAtMs = Date.now() + RENEWAL_RETRY_MS;
+    // Past the deadline the 401/expiry-close path renews; a proactive retry
+    // could only race the close.
+    if (retryAtMs >= expiresAtMs) return;
+    this.renewalDueAtMs = retryAtMs;
+    this.armRenewal();
+  }
+
+  private clearRenewalTimer(): void {
+    if (!this.renewalTimer) return;
+    clearTimeout(this.renewalTimer);
+    this.renewalTimer = null;
   }
 
   /** Tears down the leg: aborts in-flight credential work, stops every timer,
@@ -376,6 +480,9 @@ export class DesktopLoopbackIntake {
     this.requestAbort = null;
     this.unsubscribeItemInterests?.();
     this.unsubscribeItemInterests = null;
+    this.clearRenewalTimer();
+    this.renewalDueAtMs = null;
+    this.renewalExpiresAtMs = null;
     this.clearDecodeRetry();
     this.drain.dispose();
     this.liveness.dispose();
@@ -437,8 +544,18 @@ export class DesktopLoopbackIntake {
         } catch (error) {
           if (isLoopbackCredentialExhaustedError(error)) throw error;
           if (!isLoopbackTicketUnauthorizedError(error)) throw error;
-          // The retained bearer was refused (expired/rotated): fall through to
-          // a fresh pairing exchange, exactly as the pre-A4 path did.
+          // The retained bearer was refused (expired/rotated). Renew this same
+          // session with its refresh token before re-pairing: the bootstrap
+          // credential is single-use, and every exchange registers another
+          // host session.
+          if (this.deps.renewSession && (await this.deps.renewSession())) {
+            if (!this.canContinue()) return false;
+            if (this.accessToken) {
+              return await this.openWithTicket(base, this.accessToken, controller);
+            }
+          }
+          // No renewal port, or the host refused the grant: fall through to a
+          // fresh pairing exchange, exactly as the pre-A4 path did.
         }
       }
       const tokens = await exchangePairingCredential(
@@ -598,6 +715,13 @@ export class DesktopLoopbackIntake {
   ): void {
     if (this.socket !== socket) return;
     this.teardownSocket(socket);
+    // The host closes at the session's access deadline. This window renews the
+    // SAME session with its refresh token, so this is a transport event, not
+    // credential exhaustion (re-pairing would register another host session).
+    if (event?.reason === REMOTE_ACCESS_SESSION_EXPIRED_REASON) {
+      this.liveness.noteTransportFailure();
+      return;
+    }
     if (isUnauthorizedRemoteSocketClose(event?.code ?? 0, event?.reason ?? "")) {
       this.noteCredentialExhausted();
       return;

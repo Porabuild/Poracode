@@ -122,3 +122,8 @@ export const sidebarFooterNavClass =
  * @see {sidebarColumnLayoutClass}
  */
 export const sidebarIconRailFooterClass = "space-y-1 border-t border-[var(--hairline)] pt-2 pr-2";
+
+/** Shared collapsible group heading used by the main sidebar and review lists. */
+export const sidebarGroupHeaderRowClass = "group flex w-full items-center gap-1 rounded px-2";
+export const sidebarGroupHeaderButtonClass =
+  "flex min-w-0 flex-1 items-center gap-1.5 text-left text-xs font-medium text-muted";

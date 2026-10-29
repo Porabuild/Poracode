@@ -310,6 +310,87 @@ describe("ThreadSlashCommands", () => {
     expect(editor.textContent).toBe("/review ");
   });
 
+  it.each([
+    { surface: "thread", mode: "gui", accept: "Enter", invocation: "$review-code" },
+    { surface: "thread", mode: "terminal", accept: "Tab", invocation: "/review-code" },
+    { surface: "draft", mode: "gui", accept: " ", invocation: "/skill review-code" },
+    {
+      surface: "draft",
+      mode: "terminal",
+      accept: "mouse",
+      invocation: "Use the review-code skill.",
+    },
+  ] as const)(
+    "selects an inline dollar skill in the $surface $mode composer with $accept",
+    async ({ surface, mode, accept, invocation }) => {
+      const commands = [
+        { id: "review-command", label: "review-command" },
+        {
+          id: "skill:review-code",
+          label: "review-code",
+          section: "skills" as const,
+          skillName: "review-code",
+          skillPath: "/skills/review-code/SKILL.md",
+          skillInvocation: invocation,
+          skillProvider: "Shared",
+          skillScope: "global" as const,
+        },
+      ];
+      const agent = makeAgentStatus();
+      agent.capabilities.slashCommands = commands;
+      if (surface === "draft") await renderDraftComposer(agent, undefined, mode);
+      else
+        await renderThread(makeThread({ presentationMode: mode, slashCommands: commands }), agent);
+
+      const editor = screen.getByRole("textbox");
+      typeSlashQuery(editor, "Please $rev after checking this");
+      const text = editor.firstChild!;
+      mockSelection(text, "Please $rev".length);
+      fireEvent.click(editor);
+
+      const option = screen.getByRole("option", { name: "Skill: review-code" });
+      expect(screen.queryByText("Commands")).not.toBeInTheDocument();
+      expect(option.querySelector("mark")).toHaveTextContent("rev");
+      if (accept === " ") {
+        mockSelection(text, "Please $review-code".length);
+        text.textContent = "Please $review-code after checking this";
+        fireEvent.input(editor);
+      }
+      if (accept === "mouse") {
+        fireEvent.mouseDown(option);
+        fireEvent.click(option);
+      } else fireEvent.keyDown(editor, { key: accept });
+
+      expect(editor.querySelector("[data-skill-name]")).toHaveAttribute(
+        "data-skill-name",
+        "review-code",
+      );
+      expect(editor.querySelector("[data-skill-name]")).toHaveAttribute(
+        "data-skill-invocation",
+        invocation,
+      );
+      expect(editor.textContent).toBe("Please review-code  after checking this");
+      expect(screen.queryByRole("option", { name: "Skill: review-code" })).not.toBeInTheDocument();
+    },
+  );
+
+  it.each(["Please /rev", "price$rev", "Please $rev "])(
+    "does not open suggestions for %s",
+    async (input) => {
+      await renderThread(
+        makeThread({
+          slashCommands: [
+            { id: "review", label: "review" },
+            { id: "review-code", label: "review-code", section: "skills" },
+          ],
+        }),
+        makeAgentStatus(),
+      );
+      typeSlashQuery(screen.getByRole("textbox"), input);
+      expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    },
+  );
+
   it("renders thread-scoped slash commands in the terminal composer", async () => {
     const baseCapabilities = makeAgentStatus().capabilities;
     await renderThread(
@@ -531,6 +612,56 @@ describe("ThreadSlashCommands", () => {
       },
     ]);
   });
+
+  it.each([
+    { pluginId: "review-tools", pluginName: "Review", expectedPluginName: "Review" },
+    { pluginId: "review-tools", pluginName: undefined, expectedPluginName: undefined },
+    { pluginId: "other-plugin", pluginName: "Review", expectedPluginName: undefined },
+    { pluginId: undefined, pluginName: "Review", expectedPluginName: undefined },
+  ])(
+    "rebinds $pluginId with plugin label $pluginName to $expectedPluginName",
+    ({ pluginId, pluginName, expectedPluginName }) => {
+      const [rebound] = rebindSkillSegments(
+        [
+          {
+            kind: "skill",
+            name: "review-code",
+            path: "/old/SKILL.md",
+            invocation: "$review-code",
+            provider: "Codex",
+            scope: "global",
+            pluginId: "review-tools",
+            ...(pluginName ? { pluginName } : {}),
+          },
+        ],
+        [
+          {
+            id: "review-code",
+            label: "review-code",
+            section: "skills",
+            skillName: "review-code",
+            skillPath: "/project/.gemini/skills/review-code/SKILL.md",
+            skillInvocation: "/review-code",
+            skillProvider: "Gemini",
+            skillScope: "project",
+            ...(pluginId ? { pluginId } : {}),
+          },
+        ],
+        (name) => `Use the ${name} skill.`,
+      );
+
+      expect(rebound).toEqual({
+        kind: "skill",
+        name: "review-code",
+        path: "/project/.gemini/skills/review-code/SKILL.md",
+        invocation: "/review-code",
+        provider: "Gemini",
+        scope: "project",
+        ...(pluginId ? { pluginId } : {}),
+        ...(expectedPluginName ? { pluginName: expectedPluginName } : {}),
+      });
+    },
+  );
 
   it("binds typed leading skill text to a skill segment with the provider invocation", () => {
     expect(
@@ -1066,6 +1197,7 @@ describe("ThreadSlashCommands", () => {
   });
 
   it("binds a seeded plugin and enables its built-in MCP servers", async () => {
+    const onStart = vi.fn<(input: unknown) => void>();
     const onConfigChange = vi.fn<(patch: Partial<Thread["config"]>) => void>((patch) => {
       if (patch.computerUse !== true) return;
       expect(screen.getByLabelText("Computer Use")).toBeInTheDocument();
@@ -1134,7 +1266,7 @@ describe("ThreadSlashCommands", () => {
       enableMcpServerIds: ["computer-use"],
     });
 
-    await renderDraftComposer(makeAgentStatus(), vi.fn(), "gui", onConfigChange);
+    await renderDraftComposer(makeAgentStatus(), onStart, "gui", onConfigChange);
 
     await waitFor(() => expect(onConfigChange).toHaveBeenCalledWith({ computerUse: true }));
     const pluginChip = screen.getByLabelText("Computer Use");
@@ -1142,6 +1274,22 @@ describe("ThreadSlashCommands", () => {
     expect(pluginChip.querySelector("svg")).not.toBeNull();
     expect(screen.getByRole("textbox")).toHaveTextContent("Computer Use Inspect the desktop");
     expect(useAppStore.getState().pendingComposerSeeds[draftProject.id]).toBeUndefined();
+
+    fireEvent.keyDown(screen.getByRole("textbox"), { key: "Enter" });
+
+    expect(onStart).toHaveBeenCalledWith(
+      expect.objectContaining({
+        segments: expect.arrayContaining([
+          expect.objectContaining({
+            kind: "skill",
+            name: "operate-desktop",
+            invocation: "$operate-desktop",
+            pluginId: "computer-use",
+            pluginName: "Computer Use",
+          }),
+        ]),
+      }),
+    );
   });
 
   it("saves draft composer content on ordinary unmount", () => {
@@ -1234,7 +1382,7 @@ describe("ThreadSlashCommands", () => {
       const restoredThumb = await screen.findByAltText("Image 1.png");
       expect(restoredThumb).toHaveAttribute(
         "src",
-        "poracode-local://local/C:/attachments/draft-project-1/image-1.png",
+        "poracode-local://local/C:/attachments/draft-project-1/image-1.png?thumb=32",
       );
       // Drafts persist as the composer's crash-recovery mirror (cleared on
       // submit, not on mount-restore); the mirror carries the durable path.

@@ -17,10 +17,10 @@ describe("provider slash-command registry", () => {
     expect(registration).toBeDefined();
     expect(
       registration?.buildCommands({ hasEffort: false, supportsFast: false }).map(({ id }) => id),
-    ).toEqual(["model", "plan", "agent", "goal"]);
+    ).toEqual(["model", "crew", "plan", "agent", "goal"]);
     expect(
       registration?.buildCommands({ hasEffort: true, supportsFast: true }).map(({ id }) => id),
-    ).toEqual(["model", "plan", "agent", "goal", "effort", "fast"]);
+    ).toEqual(["model", "crew", "plan", "agent", "goal", "effort", "fast"]);
   });
 
   it("builds Cursor commands from the active control capabilities", () => {
@@ -29,10 +29,10 @@ describe("provider slash-command registry", () => {
     expect(registration).toBeDefined();
     expect(
       registration?.buildCommands({ hasEffort: false, supportsFast: false }).map(({ id }) => id),
-    ).toEqual(["model", "plan", "agent"]);
+    ).toEqual(["model", "crew", "plan", "agent"]);
     expect(
       registration?.buildCommands({ hasEffort: true, supportsFast: true }).map(({ id }) => id),
-    ).toEqual(["model", "plan", "agent", "effort", "fast"]);
+    ).toEqual(["model", "crew", "plan", "agent", "effort", "fast"]);
   });
 
   it("builds Muse commands without unsupported plan modes", () => {
@@ -43,10 +43,10 @@ describe("provider slash-command registry", () => {
     // exposes; both submit to the provider.
     expect(
       registration?.buildCommands({ hasEffort: false, supportsFast: false }).map(({ id }) => id),
-    ).toEqual(["model", "compact", "goal"]);
+    ).toEqual(["model", "crew", "compact", "goal"]);
     expect(
       registration?.buildCommands({ hasEffort: true, supportsFast: false }).map(({ id }) => id),
-    ).toEqual(["model", "compact", "goal", "effort"]);
+    ).toEqual(["model", "crew", "compact", "goal", "effort"]);
   });
 
   it("offers Cursor local commands only under the SDK runtime", () => {
@@ -55,7 +55,7 @@ describe("provider slash-command registry", () => {
       presentationMode: "gui",
       runtimeLabel: "SDK",
     });
-    expect(sdk.map(({ id }) => id)).toEqual(["model", "plan", "agent"]);
+    expect(sdk.map(({ id }) => id)).toEqual(["model", "crew", "plan", "agent"]);
 
     // ACP sessions keep the commands cursor-agent reports itself.
     const acp = resolveAvailableSlashCommands(

@@ -35,6 +35,7 @@ describe("bundled plugin core skills", () => {
     expect(uniqueCoreSkillForBuiltInMcp("crossagents")).toBe("subagent-delegation");
     expect(coreSkillsForBuiltInMcp("app-controls")).toEqual([
       "app-controls",
+      "device-control",
       "terminal-inspection",
     ]);
   });

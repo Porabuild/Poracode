@@ -31,6 +31,12 @@ import {
 } from "../../contracts";
 import { z } from "zod";
 import { definePayloadProcedure, omittedResultSchema } from "../core";
+import {
+  controlMcpAuthenticationPayloadSchema,
+  controlMcpAuthenticationResultSchema,
+  type ControlMcpAuthenticationPayload,
+  type ControlMcpAuthenticationResult,
+} from "../../contracts/mcpAuthentication";
 
 export const confirmCrossagentRoutingOverridePayloadSchema = z.object({
   requestId: z.string().uuid(),
@@ -42,6 +48,16 @@ export type ConfirmCrossagentRoutingOverridePayload = z.infer<
 >;
 
 export const mcpProcedures = {
+  controlMcpAuthentication: definePayloadProcedure<
+    ControlMcpAuthenticationPayload,
+    ControlMcpAuthenticationResult,
+    "supervisor"
+  >(
+    "controlMcpAuthentication",
+    "supervisor",
+    controlMcpAuthenticationPayloadSchema,
+    controlMcpAuthenticationResultSchema,
+  ),
   getNativeMcpSetup: definePayloadProcedure<
     NativeMcpSetupPayload,
     NativeMcpSetupStatus,

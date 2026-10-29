@@ -226,6 +226,12 @@ class RichChatComposerConfigurationTest {
         assertEquals(listOf("docs"), catalog.slashSuggestions("/doc").map { it.displayId })
         assertEquals("\$docs", catalog.slashCommands.last().skill?.invocation)
         assertTrue(catalog.slashSuggestions("plain").isEmpty())
+        assertEquals(listOf("docs"), catalog.slashSuggestions("Please \$do").map { it.displayId })
+        assertEquals(listOf("docs"), catalog.slashSuggestions("Please \$").map { it.displayId })
+        assertEquals(listOf("docs"), catalog.slashSuggestions("Please \$do after", 10).map { it.displayId })
+        assertTrue(catalog.slashSuggestions("Please \$do after").isEmpty())
+        assertTrue(catalog.slashSuggestions("price\$do").isEmpty())
+        assertTrue(catalog.slashSuggestions("Please \$do", 7, 10).isEmpty())
     }
 
     @Test

@@ -24,4 +24,6 @@
     <string name="archived_threads_title">Luồng đã lưu trữ</string>
     <string name="archived_threads_description">Khôi phục hoặc xoá vĩnh viễn các luồng đã lưu trữ.</string>
     <string name="archived_threads_empty">Không có luồng đã lưu trữ</string>
+    <string name="thread_status_starting_agent">Đang khởi chạy tác nhân…</string>
+    <string name="thread_status_resuming">Đang tiếp tục phiên…</string>
 </resources>

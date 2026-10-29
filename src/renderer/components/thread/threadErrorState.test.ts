@@ -7,6 +7,8 @@ import {
   getThreadErrorDockStateForItem,
   isAuthErrorMessage,
   selectThreadErrorDockStates,
+  resolveThreadAuthState,
+  withThreadStatusErrorDock,
 } from "./threadErrorState";
 
 function errorItem(id: string, message: string): RuntimeChatItem {
@@ -20,6 +22,28 @@ function errorItem(id: string, message: string): RuntimeChatItem {
 }
 
 describe("threadErrorState", () => {
+  it("adds a status error after no items or warning-only items", () => {
+    const statusError = { sourceItemId: "thread-status-error:ended", message: "Agent stopped." };
+    const warnings = [
+      { sourceItemId: "warning", message: "Advisory.", severity: "warning" as const },
+    ];
+
+    expect(withThreadStatusErrorDock([], statusError)).toEqual([statusError]);
+    expect(withThreadStatusErrorDock(warnings, statusError)).toEqual([...warnings, statusError]);
+  });
+
+  it("preserves item states when an error item exists or there is no status error", () => {
+    const errorItems = [{ sourceItemId: "error", message: "Item error." }];
+    const warnings = [
+      { sourceItemId: "warning", message: "Advisory.", severity: "warning" as const },
+    ];
+
+    expect(
+      withThreadStatusErrorDock(errorItems, { sourceItemId: "fallback", message: "Fallback." }),
+    ).toBe(errorItems);
+    expect(withThreadStatusErrorDock(warnings, null)).toBe(warnings);
+  });
+
   it("suppresses abort-only composer errors", () => {
     expect(getThreadErrorDockStateForItem(errorItem("err-1", "Aborted"))).toBeNull();
     expect(getThreadErrorDockStateForItem(errorItem("err-2", "AbortError: aborted"))).toBeNull();
@@ -77,6 +101,29 @@ describe("threadErrorState", () => {
       { sourceItemId: "err-a", message: "Usage limit reached." },
       { sourceItemId: "err-b", message: "Internal error" },
     ]);
+  });
+});
+
+describe("resolveThreadAuthState", () => {
+  it.each(["authenticated", "missing", "unknown", undefined] as const)(
+    "offers sign-in after a runtime auth failure despite detection reporting %s",
+    (authState) => {
+      expect(
+        resolveThreadAuthState({
+          authState,
+          errorDockStates: [{ sourceItemId: "auth-error", message: "Failed to authenticate" }],
+        }),
+      ).toEqual({ authRequired: authState !== "authenticated", hasRuntimeAuthError: true });
+    },
+  );
+
+  it("allows input after the recovered auth error is dismissed", () => {
+    expect(
+      resolveThreadAuthState({
+        authState: "authenticated",
+        errorDockStates: [{ sourceItemId: "network-error", message: "Request failed" }],
+      }),
+    ).toEqual({ authRequired: false, hasRuntimeAuthError: false });
   });
 });
 

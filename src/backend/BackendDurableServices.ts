@@ -1,4 +1,7 @@
+import { msg } from "@/shared/messages";
 import { joinRuntimeShutdown } from "./joinRuntimeShutdown";
+import { DeviceWorkspaceService } from "@/host/devices/DeviceWorkspaceService";
+import { DeviceHubRuntime } from "@/host/devices/DeviceHubRuntime";
 import {
   dbAdmitScheduleExecution,
   dbDeleteThread,
@@ -89,6 +92,7 @@ export interface BackendDurableServicesOptions {
    * behavior.
    */
   attachmentsDir?: string;
+  deviceHubRoot?: string;
   hasRendererWindow: boolean;
   openThreadInUi(threadId: string): boolean;
   notifyUser: AppControlsMcpIngressDeps["notifyUser"];
@@ -111,6 +115,7 @@ export class BackendDurableServices {
   readonly prWatchService: PrWatchService;
   readonly gitStateService: GitStateService;
   readonly appControls: AppControlsMcpIngress;
+  readonly deviceWorkspace: DeviceWorkspaceService;
   /** Settled or in-flight shared ingress start; cleared on failure so it can retry. */
   private ingressStart: Promise<void> | null = null;
   private backgroundStarted = false;
@@ -126,6 +131,15 @@ export class BackendDurableServices {
   private housekeepingRun: Promise<void> | null = null;
 
   constructor(private readonly options: BackendDurableServicesOptions) {
+    this.deviceWorkspace = new DeviceWorkspaceService(
+      (id) => {
+        const thread = dbGetThread(id);
+        return thread !== null && !thread.archived;
+      },
+      undefined,
+      Date.now,
+      options.deviceHubRoot ? new DeviceHubRuntime(options.deviceHubRoot) : null,
+    );
     const { supervisor } = options;
     this.scheduleCoordinator = new ScheduleRunCoordinator({
       admitScheduleExecution: dbAdmitScheduleExecution,
@@ -210,24 +224,82 @@ export class BackendDurableServices {
     });
     this.prWatchService = createDevicePrWatchService({
       getProject: dbGetProject,
-      getPrForBranch: (project, branch) =>
-        supervisor.call("ghGetPrForBranch", { projectLocation: project.location, branch }),
-      getPrDetails: (project, prNumber) =>
-        supervisor
-          .call("ghGetPrDetails", { projectLocation: project.location, prNumber })
-          .then((result) => result.details),
-      getPrReviewThreads: (project, prNumber) =>
-        supervisor
-          .call("ghGetPrReviewComments", { projectLocation: project.location, prNumber })
-          .then((result) => result.threads),
+      getPrForBranch: (project, branch, scope) =>
+        scope
+          ? supervisor.call("forgeGetPrForBranch", {
+              projectLocation: project.location,
+              branch,
+              forgeAccount: scope.account,
+              forgeRepository: scope.repository,
+            })
+          : supervisor.call("ghGetPrForBranch", { projectLocation: project.location, branch }),
+      getPrDetails: (project, prNumber, account, repository) =>
+        account
+          ? supervisor.call("forgeGetPrDetails", {
+              projectLocation: project.location,
+              prNumber,
+              forgeAccount: account,
+              ...(repository ? { forgeRepository: repository } : {}),
+            })
+          : supervisor.call("ghGetPrDetails", { projectLocation: project.location, prNumber }),
+      getPrReviewThreads: (project, prNumber, account, repository) =>
+        (account
+          ? supervisor.call("forgeGetPrReviewComments", {
+              projectLocation: project.location,
+              prNumber,
+              forgeAccount: account,
+              ...(repository ? { forgeRepository: repository } : {}),
+            })
+          : supervisor.call("ghGetPrReviewComments", {
+              projectLocation: project.location,
+              prNumber,
+            })
+        ).then((result) => result.threads),
       getMergeMethod: () => options.getSharedSettings().prMergeMethod,
-      mergePr: (project, prNumber, method) =>
-        supervisor.call("ghMergePr", {
-          projectLocation: project.location,
-          prNumber,
-          method,
-          admin: false,
-        }),
+      mergePr: async (project, prNumber, method, reviewedPr) => {
+        const payload = { projectLocation: project.location, prNumber, method, admin: false };
+        const source = reviewedPr.source;
+        const account = source
+          ? {
+              forgeRepository: source.repository,
+              ...(source.account ? { forgeAccount: source.account } : {}),
+            }
+          : {};
+        if (source) {
+          if (
+            !reviewedPr.headSha ||
+            !source.capabilities.expectedHeadMerge ||
+            !source.capabilities.autoMerge
+          )
+            throw new Error(msg("forge.autoMergeUnavailable"));
+          await supervisor.call("forgeMergePrAtHead", {
+            ...payload,
+            ...account,
+            expectedHeadSha: reviewedPr.headSha,
+          });
+        } else if (reviewedPr.headSha)
+          await supervisor.call("ghMergePrAtHead", {
+            ...payload,
+            expectedHeadSha: reviewedPr.headSha,
+          });
+        else await supervisor.call("ghMergePr", payload);
+        try {
+          const result = source
+            ? await supervisor.call("forgeGetPrDetails", {
+                projectLocation: project.location,
+                prNumber,
+                ...account,
+              })
+            : await supervisor.call("ghGetPrDetails", {
+                projectLocation: project.location,
+                prNumber,
+              });
+          return result.pr;
+        } catch (error) {
+          options.reportError?.(error);
+          return undefined;
+        }
+      },
       ...(options.onPrMerged ? { onPrMerged: options.onPrMerged } : {}),
       onPrObserved: (watch, pr, details) => {
         options.onPrObserved?.(watch, pr, details);
@@ -271,6 +343,7 @@ export class BackendDurableServices {
       openThreadInUi: options.openThreadInUi,
       notifyUser: options.notifyUser,
       checkForUpdate: options.checkForUpdate,
+      deviceWorkspace: this.deviceWorkspace,
     });
     if (options.attachmentsDir) {
       this.attachmentReclaim = new AttachmentReclaimService({
@@ -294,6 +367,7 @@ export class BackendDurableServices {
       ? {
           PORACODE_APP_CONTROLS_MCP_URL: info.url,
           PORACODE_APP_CONTROLS_MCP_TOKEN: info.token,
+          ...this.deviceWorkspace.supervisorExtraEnv(),
         }
       : {};
   }
@@ -309,7 +383,10 @@ export class BackendDurableServices {
   startIngress(): Promise<void> {
     if (this.disposed)
       return Promise.reject(new Error("Backend durable services are shutting down."));
-    this.ingressStart ??= this.appControls.start().then(
+    this.ingressStart ??= Promise.all([
+      this.appControls.start(),
+      this.deviceWorkspace.preparePreview(),
+    ]).then(
       () => undefined,
       (error: unknown) => {
         this.ingressStart = null;
@@ -429,6 +506,7 @@ export class BackendDurableServices {
         () => this.prWatchService.dispose(),
         () => this.gitStateService.dispose(),
         () => this.appControls.dispose(),
+        () => this.deviceWorkspace.dispose(),
       ],
       "Backend durable services did not shut down cleanly.",
     ).then(barrier.resolve, (error: unknown) => {

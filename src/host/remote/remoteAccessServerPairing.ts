@@ -1,6 +1,7 @@
 import {
   remoteAccessScopesForPreset,
   type RemoteAccessScopePreset,
+  type RemoteAccessScope,
   type RemoteAccessTokenResult,
   type RemoteTokenExchangePayload,
 } from "@/shared/remote";
@@ -60,10 +61,28 @@ export function issueIndependentPairingUrl(
   label?: string,
   options?: { readonly preset?: RemoteAccessScopePreset },
 ): string {
+  return issueIndependentPairingGrant(host, { ...options, ...(label ? { label } : {}) }).pairingUrl;
+}
+
+export function issueIndependentPairingGrant(
+  host: RemoteAccessServerHost,
+  input: {
+    readonly preset?: RemoteAccessScopePreset;
+    readonly scopes?: readonly RemoteAccessScope[];
+    readonly label?: string;
+    readonly ttlMs?: number;
+  },
+) {
   if (host.stopping) throw new Error("Remote access server is stopping.");
   const info = requireRemoteAccessInfo(host);
-  const issued = issuePresetPairingCredential(host, label, options?.preset);
-  return mintPairingUrl(host, info.httpBaseUrl, issued.credential);
+  const issued = issuePresetPairingCredential(host, input.label, input.preset, input);
+  return {
+    id: issued.id,
+    pairingUrl: mintPairingUrl(host, info.httpBaseUrl, issued.credential),
+    expiresAt: issued.expiresAt,
+    scopes: [...issued.scopes],
+    ...(issued.label ? { label: issued.label } : {}),
+  };
 }
 
 /**
@@ -95,7 +114,9 @@ export function mintLoopbackRendererCredential(
     ? issuePresetPairingCredential(host, "Browser extension", undefined, {
         ttlMs: BROWSER_EXTENSION_PAIRING_TTL_MS,
       })
-    : issuePresetPairingCredential(host, "Managed renderer");
+    : // One credential per desktop window: its session is memory-only, so an
+      // app restart cannot write another orphan into remote-access-auth.json.
+      issuePresetPairingCredential(host, "Managed renderer", undefined, { ephemeral: true });
   const fingerprint = host.tls?.fingerprint;
   return {
     endpoint,
@@ -115,12 +136,18 @@ export function issuePresetPairingCredential(
   host: RemoteAccessServerHost,
   label: string | undefined,
   preset?: RemoteAccessScopePreset,
-  options?: { readonly ttlMs?: number },
+  options?: {
+    readonly ttlMs?: number;
+    readonly scopes?: readonly RemoteAccessScope[];
+    readonly ephemeral?: boolean;
+  },
 ) {
+  const scopes = options?.scopes ?? (preset ? remoteAccessScopesForPreset(preset) : undefined);
   const issued = host.auth.issuePairingCredential({
     ...(label ? { label } : {}),
-    ...(preset ? { scopes: remoteAccessScopesForPreset(preset) } : {}),
+    ...(scopes ? { scopes } : {}),
     ...(options?.ttlMs ? { ttlMs: options.ttlMs } : {}),
+    ...(options?.ephemeral ? { ephemeral: true } : {}),
   });
   // Gate 6 item 4.7 (S7): every issued (or rotated) pairing credential is an
   // audited event. Revoked superseded credentials ride the same line.
@@ -178,7 +205,8 @@ export function exchangePairingCredential(
       ...(input.client?.deviceType ? { deviceType: input.client.deviceType } : {}),
     },
   });
-  issuePairingUrl(host, "Automatic pairing");
+  // Independent/managed grants do not consume the displayed Settings QR.
+  if (input.credential === host.activePairingCredential) issuePairingUrl(host, "Automatic pairing");
   return result;
 }
 

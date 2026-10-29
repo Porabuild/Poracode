@@ -1,0 +1,50 @@
+{
+  "name": "@poracode/tui",
+  "version": "0.0.0",
+  "private": true,
+  "workspaces": [
+    "opencode/packages/*"
+  ],
+  "type": "module",
+  "scripts": {
+    "typecheck": "bun check --no-script -p tsconfig.json",
+    "test": "bun test ./src/",
+    "dev": "bun run src/dev/poracode.ts",
+    "dev:opencode-server": "bun run src/dev/opencode-server.ts",
+    "build:smoke": "bun run src/dev/build-smoke.ts",
+    "build:poracode": "bun run src/dev/build-smoke.ts poracode"
+  },
+  "dependencies": {
+    "@opencode/client": "workspace:*",
+    "@opencode/plugin": "workspace:*",
+    "@opencode/tui": "workspace:*",
+    "@opencode/util": "workspace:*",
+    "@opentui/solid": "catalog:",
+    "effect": "4.0.1",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@tsconfig/bun": "1.0.9",
+    "@types/bun": "1.4.3"
+  },
+  "packageManager": "bun@1.4.3-canary.20261021.1",
+  "catalog": {
+    "@opentui/core": "0.6.6",
+    "@opentui/keymap": "0.6.6",
+    "@opentui/solid": "0.6.6",
+    "@solid-primitives/event-bus": "1.1.2",
+    "@standard-schema/spec": "1.1.0",
+    "@tsconfig/bun": "1.0.9",
+    "@types/bun": "1.4.3",
+    "@typescript/native": "npm:typescript@7.0.2",
+    "effect": "4.0.1",
+    "entities": "7.0.1",
+    "fuzzysort": "3.1.0",
+    "get-east-asian-width": "1.6.0",
+    "open": "11.0.4",
+    "remeda": "2.26.0",
+    "solid-js": "1.9.15",
+    "string-width": "7.2.0",
+    "zod": "4.5.4"
+  }
+}

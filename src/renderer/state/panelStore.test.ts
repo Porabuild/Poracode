@@ -1,8 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { initializeAdaptiveLayout, resetAdaptiveLayoutForTest } from "@/renderer/adaptiveLayout";
-import { selectAnyObstructingOverlayOpen, usePanelStore } from "./panelStore";
+import {
+  DOCKABLE_PANEL_TABS,
+  selectAnyObstructingOverlayOpen,
+  selectPullRequestsOverlayVisible,
+  usePanelStore,
+} from "./panelStore";
 import { useFileEditorStore } from "./fileEditorStore";
 import { useCommandPaletteStore } from "@/renderer/commands/commandPaletteStore";
+import {
+  PANEL_PERSIST_KEY,
+  PANEL_PERSIST_VERSION,
+  resolveRightPanelFollowsThread,
+  type PersistedPanelSlice,
+} from "./panelPersist";
 
 const initialPanelState = usePanelStore.getState();
 const initialFileEditorState = useFileEditorStore.getState();
@@ -14,6 +25,7 @@ function resetPanelStore() {
     gitReviewAsPanel: false,
     gitOverlayOpen: false,
     prReviewContext: null,
+    pullRequestsOverlayOpen: false,
     githubActionsContext: null,
     filesPanelContext: null,
     subAgentPanelContext: null,
@@ -40,6 +52,87 @@ it("defaults the thread list to the flat layout", () => {
 
 it("defaults the right panel to follow the focused thread", () => {
   expect(initialPanelState.rightPanelFollowsThread).toBe(true);
+});
+
+describe("device tab session context", () => {
+  beforeEach(resetPanelStore);
+  afterEach(resetPanelStore);
+
+  it("keeps a detached preview independent of panel closing and docks the same exact context", () => {
+    const panel = usePanelStore.getState();
+    panel.setDeviceWorkspaceThreadId("first");
+    panel.setDeviceWorkspaceDetached(true);
+    panel.closeAllPanels();
+    expect(usePanelStore.getState()).toMatchObject({
+      deviceWorkspaceThreadId: "first",
+      deviceWorkspaceDetached: true,
+    });
+    panel.setDeviceWorkspaceDetached(false);
+    expect(usePanelStore.getState()).toMatchObject({
+      deviceWorkspaceThreadId: "first",
+      deviceWorkspaceDetached: false,
+      rightPanelTab: "devices",
+    });
+    panel.setDeviceWorkspaceDetached(true);
+    panel.setDeviceWorkspaceThreadId("second");
+    expect(usePanelStore.getState()).toMatchObject({
+      deviceWorkspaceThreadId: "second",
+      deviceWorkspaceDetached: false,
+    });
+    panel.setDeviceWorkspaceThreadId(null);
+    panel.setDeviceWorkspaceDetached(true);
+    expect(usePanelStore.getState().deviceWorkspaceDetached).toBe(false);
+  });
+
+  it("retains one context across tab switches and clears it when the panel closes", () => {
+    usePanelStore.getState().setDeviceWorkspaceThreadId("first");
+    expect(usePanelStore.getState().rightPanelTab).toBe("devices");
+    const opened = usePanelStore.getState();
+    opened.setDeviceWorkspaceThreadId("first");
+    expect(usePanelStore.getState()).toMatchObject({
+      deviceWorkspaceThreadId: "first",
+      rightPanelTab: "devices",
+    });
+    opened.setRightPanelTab("notes");
+    expect(usePanelStore.getState().deviceWorkspaceThreadId).toBe("first");
+    opened.setDeviceWorkspaceThreadId("second");
+    expect(usePanelStore.getState()).toMatchObject({
+      deviceWorkspaceThreadId: "second",
+      rightPanelTab: "devices",
+    });
+    expect(DOCKABLE_PANEL_TABS.has("devices")).toBe(false);
+    opened.closeAllPanels();
+    expect(usePanelStore.getState().deviceWorkspaceThreadId).toBeNull();
+  });
+
+  it("keeps the exact pre-upgrade v1 persisted whitelist and never writes device context or tab", () => {
+    usePanelStore.getState().setThreadSortMode("created");
+    usePanelStore.getState().setThreadSortMode("updated");
+    const before = localStorage.getItem(PANEL_PERSIST_KEY);
+    expect(before).not.toBeNull();
+    const legacy = JSON.parse(before!) as PersistedPanelSlice;
+    expect(Object.keys(legacy).sort()).toEqual(
+      [
+        "version",
+        "gitReviewContext",
+        "browserOverlayDrawerWidth",
+        "rightPanelFollowsThread",
+        "threadToolRailOffset",
+        "threadSortMode",
+        "threadListLayout",
+      ].sort(),
+    );
+    expect(legacy.version).toBe(1);
+    expect(PANEL_PERSIST_VERSION).toBe(1);
+    usePanelStore.getState().setDeviceWorkspaceThreadId("thread-with-no-credentials");
+    usePanelStore.getState().setDeviceWorkspaceDetached(true);
+    usePanelStore.getState().setRightPanelTab("notes");
+    usePanelStore.getState().closeAllPanels();
+    expect(localStorage.getItem(PANEL_PERSIST_KEY)).toBe(before);
+    expect(resolveRightPanelFollowsThread(JSON.parse(before!))).toBe(
+      legacy.rightPanelFollowsThread,
+    );
+  });
 });
 
 it("hides a side chat when it is the only open right panel and reopens its tab", () => {
@@ -198,6 +291,47 @@ describe("setPrReviewContext", () => {
     usePanelStore.getState().setPrReviewContext(context);
 
     expect(usePanelStore.getState().prReviewContext).toEqual(context);
+  });
+});
+
+describe("pull-request overlay", () => {
+  beforeEach(() => {
+    resetPanelStore();
+  });
+
+  afterEach(() => {
+    resetPanelStore();
+  });
+
+  it("is visible for the list alone, a selected review alone, or both", () => {
+    expect(selectPullRequestsOverlayVisible(usePanelStore.getState())).toBe(false);
+
+    usePanelStore.getState().openPullRequestsOverlay();
+    expect(selectPullRequestsOverlayVisible(usePanelStore.getState())).toBe(true);
+    expect(selectAnyObstructingOverlayOpen()).toBe(true);
+
+    usePanelStore.getState().closePullRequestsOverlay();
+    usePanelStore.getState().setPrReviewContext({ projectId: "p", prNumber: 7 });
+    expect(selectPullRequestsOverlayVisible(usePanelStore.getState())).toBe(true);
+  });
+
+  it("closing clears the list and the selected review together", () => {
+    usePanelStore.getState().openPullRequestsOverlay();
+    usePanelStore.getState().setPrReviewContext({ projectId: "p", prNumber: 7 });
+
+    usePanelStore.getState().closePullRequestsOverlay();
+
+    expect(usePanelStore.getState().pullRequestsOverlayOpen).toBe(false);
+    expect(usePanelStore.getState().prReviewContext).toBeNull();
+    expect(selectAnyObstructingOverlayOpen()).toBe(false);
+  });
+
+  it("selecting a review keeps the list open", () => {
+    usePanelStore.getState().openPullRequestsOverlay();
+    usePanelStore.getState().openPullRequestsOverlay();
+
+    usePanelStore.getState().setPrReviewContext({ projectId: "p", prNumber: 7 });
+    expect(usePanelStore.getState().pullRequestsOverlayOpen).toBe(true);
   });
 });
 

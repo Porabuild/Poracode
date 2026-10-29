@@ -159,6 +159,7 @@ export class ThreadOutputPipeline {
     this.options.emit({
       type: "thread-state",
       threadId: session.threadId,
+      ...(session.initialInstructionsApplied ? { initialInstructionsApplied: true } : {}),
       status: session.status,
       attention: session.attention,
       agentKind: session.agentKind,
@@ -225,6 +226,8 @@ export class ThreadOutputPipeline {
     }
 
     session.status = status;
+    if (status !== "error") delete session.errorMessage;
+    else if (errorMessage !== undefined) session.errorMessage = errorMessage;
     session.attention = attention;
     session.lastStatusChangeAt = Date.now();
     this.emitState(session, errorMessage, options);

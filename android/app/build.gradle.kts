@@ -56,7 +56,8 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
@@ -217,7 +218,7 @@ val verifyRemoteV3NativeBindings = tasks.register("verifyRemoteV3NativeBindings"
         // 5 adds background-task reduce and follow-up queue.
         version("protocolVersion", 14)
         version("bindingFormatVersion", 2)
-        version("generatorVersion", 6)
+        version("generatorVersion", 7)
         version("formatVersion", 5)
 
         val languages = manifest["languages"] as? Map<*, *>

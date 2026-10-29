@@ -420,6 +420,7 @@ class RemoteApiClient(
         authorized: Boolean = true,
         extraHeaders: Map<String, String> = emptyMap(),
         expectedStatus: Int? = null,
+        timeoutMs: Long? = null,
     ): String = http.requestText(
         path = path,
         method = method,
@@ -428,6 +429,7 @@ class RemoteApiClient(
         authorized = authorized,
         extraHeaders = extraHeaders,
         expectedStatus = expectedStatus,
+        timeoutMs = timeoutMs,
     )
 
     /** Executes a bounded raw-body request without converting the upload or response to JSON. */

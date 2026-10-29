@@ -26,6 +26,7 @@ import { runWelcomeDismissalScenario } from "./smoke-welcome.mjs";
 import { verifyProjectMcpImport } from "./smoke-mcp-import.mjs";
 import { mockEditorMediaGate } from "./smoke-editor-media.mjs";
 import { hasAccessibleControlLabel } from "./smoke-control-label.mjs";
+import { mockThreadForkGate } from "./smoke-thread-forks.mjs";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(scriptDir, "../../../../");
@@ -1297,6 +1298,8 @@ async function runMockIntegrations(report, client, gates) {
 
 async function runMockGate(client, gate, fixture) {
   switch (gate) {
+    case "thread-forks":
+      return mockThreadForkGate({ client, evaluate, waitForValue, screenshot, outDir, fixture });
     case "live-voice":
       return mockLiveVoiceGate({ client, evaluate, waitForValue, screenshot, outDir, fixture });
     case "editor-media":
@@ -1311,6 +1314,42 @@ async function runMockGate(client, gate, fixture) {
       });
     case "changed-surface":
       return "covered by baseline and diff-selected automated scenarios";
+    case "device-workspace": {
+      const result = await evaluate(
+        client,
+        `(async () => {
+        const { loopback } = await window.__poracodeDev.loadHostDiagnostics();
+        const host = loopback.readManagedLoopbackActivation()?.client;
+        if (!host) return { supported: false, denied: [] };
+        const descriptor = await host.environment();
+        const supported = descriptor.capabilities?.deviceWorkspace?.versions.includes(1) === true;
+        if (!supported) return { supported, denied: [] };
+        // These non-UUID identifiers cannot name a service-created lease. Do
+        // not discover, start, attach or invoke tooling on the user's devices.
+        const thread = "smoke-unattached-thread", lease = "smoke-unattached-session";
+        const denied = [];
+        for (const invoke of [
+          () => host.deviceFrame(thread, lease),
+          () => host.inspectDevice(thread, lease),
+          () => host.deviceAction(thread, lease, { kind: "key", key: "home" }),
+        ]) {
+          try { await invoke(); denied.push({ status: 200 }); }
+          catch (error) { denied.push({ status: error.status, code: error.code }); }
+        }
+        return { supported, denied };
+      })()`,
+        true,
+      );
+      assert(result?.supported, "device workspace v1 was not negotiated");
+      assert(
+        result.denied.length === 3 &&
+          result.denied.every(
+            (denial) => denial.status === 410 && denial.code === "device_session_expired",
+          ),
+        "unattached device leases must reject capture, inspection and input",
+      );
+      return "workspace v1 and unattached capture/inspection/input leases checked; native device qualification is separate";
+    }
     case "file-editor": {
       const result = await bridgeInvoke(client, "listProjectTree", {
         projectLocation: fixture.project.location,

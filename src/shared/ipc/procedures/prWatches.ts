@@ -1,6 +1,8 @@
 import {
   prWatchAgentSyncSchema,
   prWatchInputSchema,
+  forgePrWatchInputSchema,
+  type ForgePrWatchInput,
   prWatchKeySchema,
   type PrWatch,
   type PrWatchAgentSync,
@@ -10,6 +12,11 @@ import {
 import { definePayloadProcedure } from "../core";
 
 export const prWatchProcedures = {
+  upsertForgePrWatch: definePayloadProcedure<ForgePrWatchInput, PrWatch, "main-local">(
+    "upsertForgePrWatch",
+    "main-local",
+    forgePrWatchInputSchema,
+  ),
   getPrWatch: definePayloadProcedure<PrWatchKey, PrWatch | null, "main-local">(
     "getPrWatch",
     "main-local",

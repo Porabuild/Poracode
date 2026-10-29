@@ -1,4 +1,5 @@
 import type { ResolvedMcpServer } from "@/shared/contracts";
+import { readMcpAppResourceContent } from "@/shared/mcpAppResources";
 import {
   mcpBridgeToolName,
   registerMcpBridgeTools,
@@ -27,11 +28,13 @@ export function piMcpToolResult(result: BridgeToolResult) {
         .join("\n") || "MCP tool failed",
     );
   }
-  const content = result.content.map((entry) =>
-    entry.type === "text" || entry.type === "image"
-      ? entry
-      : { type: "text" as const, text: JSON.stringify(entry) },
-  );
+  const content = result.content
+    .filter((entry) => entry.type !== "resource" || !readMcpAppResourceContent(entry.resource))
+    .map((entry) =>
+      entry.type === "text" || entry.type === "image"
+        ? entry
+        : { type: "text" as const, text: JSON.stringify(entry) },
+    );
   if (result.structuredContent)
     content.push({ type: "text", text: JSON.stringify(result.structuredContent) });
   return { content, details: result };
@@ -40,6 +43,7 @@ export function piMcpToolResult(result: BridgeToolResult) {
 export function registerPiMcpTools(pi: PiMcpExtensionApi, servers: readonly ResolvedMcpServer[]) {
   return registerMcpBridgeTools(servers, {
     clientName: "poracode-pi",
+    appResources: true,
     register(server, tool, call) {
       pi.registerTool({
         name: mcpBridgeToolName(server.name, tool.name),

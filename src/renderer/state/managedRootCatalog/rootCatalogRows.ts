@@ -2,6 +2,8 @@ import type { Project, Thread } from "@/shared/contracts";
 import type { AppView } from "@/shared/contracts/appView";
 import { isHomeProjectId } from "@/shared/homeScope";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useNativeVisualUiStore } from "@/renderer/state/nativeVisualUiStore";
+import { getManagedParentAuthorityState } from "@/renderer/state/remoteServers/managedLoopbackOwner";
 import {
   visibleCatalogProjects,
   confirmProjectRemoval,
@@ -232,10 +234,13 @@ export function applyRootCatalogProjectRows(rows: readonly Project[]): void {
  */
 export function removeRootCatalogThreads(threadIds: readonly string[]): void {
   if (threadIds.length === 0) return;
+  const parent = getManagedParentAuthorityState();
+  const visualHostId = parent.status === "ready" ? parent.authority.ref.hostDesktopId : undefined;
   const removed = new Set<string>();
   for (const threadId of threadIds) {
     const row = useAppStore.getState().threads.find((thread) => thread.id === threadId);
     if (row && !isManagedRootRow(row)) continue;
+    useNativeVisualUiStore.getState().forgetThread(visualHostId, threadId);
     removed.add(threadId);
     forgetPendingCatalogEdit("thread", threadId);
     useAppStore.getState().deleteThread(threadId);

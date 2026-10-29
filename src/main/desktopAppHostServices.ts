@@ -26,7 +26,7 @@ import { safeStorageHealth } from "./safeStorageHealth";
 import { desktopApp, requirePoracodePaths } from "./desktopAppState";
 import { readSharedSettingsFile } from "@/host/sharedSettingsFile";
 import { chromeNativeHostEnabled } from "@/host/browser/external/chromeNativeHost";
-import { focusBrowserExtractWindow } from "./desktopAppWindows";
+import { ensureMainWindow, focusBrowserExtractWindow } from "./desktopAppWindows";
 import { SshEnvironmentSupervisor } from "./ssh/sshEnvironmentSupervisor";
 import type { SshEnvironmentController } from "@/host/ssh/sshEnvironmentController";
 
@@ -87,6 +87,9 @@ export function createDesktopHostServices(deps: DesktopHostServicesDeps): Deskto
         desktopApp.browserExtractWindow !== null && !desktopApp.browserExtractWindow.isDestroyed(),
       focusExtractedWindow: focusBrowserExtractWindow,
       browserSession: electronSession.fromPartition(BROWSER_SESSION_PARTITION),
+      ensureHostWindow: () => {
+        if (!desktopApp.isQuitting) ensureMainWindow(false);
+      },
     },
   );
   desktopApp.browserPanelManager = panelManager;

@@ -10,7 +10,9 @@ import type { HeadlessRemoteHost, HeadlessRemoteHostOptions } from "./createHead
 const fixture = vi.hoisted(() => ({
   createHost:
     vi.fn<
-      (options: HeadlessRemoteHostOptions) => Promise<Pick<HeadlessRemoteHost, "start" | "dispose">>
+      (
+        options: HeadlessRemoteHostOptions,
+      ) => Promise<Pick<HeadlessRemoteHost, "start" | "dispose" | "dataRoot">>
     >(),
   stopDiagnostics: vi.fn<() => Promise<void>>(async () => undefined),
 }));
@@ -88,6 +90,7 @@ describe("headless CLI startup lifetime", () => {
       });
       try {
         runCli();
+        await vi.waitFor(() => expect(fixture.createHost).toHaveBeenCalledOnce());
         await vi.waitFor(() => expect(start).toHaveBeenCalledTimes(stage === "listener" ? 1 : 0));
         expect(signals.has("SIGINT")).toBe(true);
         expect(signals.has("SIGTERM")).toBe(true);
@@ -131,6 +134,7 @@ describe("headless CLI startup lifetime", () => {
       throw new Error("synthetic unconfirmed supervisor drain");
     });
     fixture.createHost.mockResolvedValue({
+      dataRoot: dataRoot!,
       start: async () => {
         throw new Error("synthetic listener startup failure");
       },
@@ -150,6 +154,7 @@ describe("headless CLI startup lifetime", () => {
     const held = Promise.withResolvers<void>();
     const dispose = vi.fn<() => Promise<void>>(() => held.promise);
     fixture.createHost.mockResolvedValue({
+      dataRoot: dataRoot!,
       start: async () => {
         throw new Error("synthetic listener startup failure");
       },

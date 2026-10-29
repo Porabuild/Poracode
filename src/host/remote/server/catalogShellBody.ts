@@ -28,8 +28,14 @@ export function serializeCatalogShellPageBody(
   return `${body.jsonPrefix},"updatedAt":${JSON.stringify(updatedAt)}}\n`;
 }
 
-/** Preserve ETags across concurrent readers and reader retirement. */
+/**
+ * Preserve ETags across readers, retirement and alternating catalog views.
+ * The bounded timestamp LRU keys the complete content (including snapshotSeq),
+ * so reuse never stamps a stale cursor or changes the existing wire shape.
+ */
 export function stampCatalogShellPageBody(body: CatalogShellPageBody): string {
-  const { updatedAt } = withStableUpdatedAt("shell:bounded", { contentHash: body.contentHash });
+  const { updatedAt } = withStableUpdatedAt(`shell:bounded:${body.contentHash}`, {
+    contentHash: body.contentHash,
+  });
   return serializeCatalogShellPageBody(body, updatedAt);
 }

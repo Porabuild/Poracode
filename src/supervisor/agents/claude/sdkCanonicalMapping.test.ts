@@ -20,10 +20,96 @@ import {
   startClaudeTurn,
 } from "./sdkCanonicalMapping";
 import { hasAwaitedBackgroundWork } from "./canonicalMapping/backgroundTasks";
+import { readToolVideoSources } from "@/shared/chatVideo";
 
 function streamEvent(event: Record<string, unknown>): SDKMessage {
   return { type: "stream_event", session_id: "claude-session", event } as unknown as SDKMessage;
 }
+
+it.each(["sdk_result", "content_block"])("retains video resources from %s", (carrier) => {
+  const state = createClaudeMapperState("video-thread");
+  mapClaudeSdkMessage(
+    streamEvent({
+      type: "content_block_start",
+      index: 0,
+      content_block: {
+        type: "tool_use",
+        id: "video-tool",
+        name: "mcp__fixture__record",
+        input: {},
+      },
+    }),
+    state,
+  );
+  const content = [
+    { type: "resource_link", uri: "file:///tmp/demo.mp4", mimeType: "video/mp4", name: "Demo" },
+  ];
+  const events = mapClaudeSdkMessage(
+    {
+      type: "user",
+      ...(carrier === "sdk_result" ? { tool_use_result: { content } } : {}),
+      message: {
+        role: "user",
+        content: [
+          {
+            type: "tool_result",
+            tool_use_id: "video-tool",
+            content: carrier === "sdk_result" ? "Demo ready" : content,
+          },
+        ],
+      },
+    } as unknown as SDKMessage,
+    state,
+  );
+  const updated = events.find(
+    (event) => event.type === "item.updated" && event.itemId === "video-tool",
+  );
+  expect(
+    updated && "payload" in updated
+      ? readToolVideoSources((updated.payload as { result?: unknown }).result)
+      : [],
+  ).toEqual([{ src: "file:///tmp/demo.mp4", name: "Demo", mimeType: "video/mp4" }]);
+});
+
+it("preserves embedded MCP App resources on their original tool item", () => {
+  const state = createClaudeMapperState("app-thread");
+  mapClaudeSdkMessage(
+    streamEvent({
+      type: "content_block_start",
+      index: 0,
+      content_block: { type: "tool_use", id: "app-tool", name: "mcp__fixture__chart", input: {} },
+    }),
+    state,
+  );
+  const content = [
+    {
+      type: "resource",
+      resource: {
+        uri: "ui://fixture/chart",
+        mimeType: "text/html;profile=mcp-app",
+        text: "<h1>Chart</h1>",
+      },
+    },
+  ];
+  const events = mapClaudeSdkMessage(
+    {
+      type: "user",
+      tool_use_result: { content },
+      message: {
+        role: "user",
+        content: [{ type: "tool_result", tool_use_id: "app-tool", content: "Chart ready" }],
+      },
+    } as unknown as SDKMessage,
+    state,
+  );
+  expect(events).toContainEqual(
+    expect.objectContaining({
+      type: "item.updated",
+      itemId: "app-tool",
+      payload: expect.objectContaining({ status: "success", result: { content } }),
+    }),
+  );
+});
 
 /** Whole assistant message carrying per-call API usage (main lane or sidechain). */
 function assistantUsageMessage(
@@ -4130,6 +4216,19 @@ describe("sdkCanonicalMapping — requests", () => {
       'mcp__github__search: {"query":"deploy"}',
     ],
     ["ViewImage", { path: "screen.png" }, "file_read_approval", "ViewImage: screen.png"],
+    [
+      "mcp__permission-fixture__guide",
+      {},
+      "tool_call_approval",
+      "mcp__permission-fixture__guide: {}",
+    ],
+    [
+      "WebFetch",
+      { url: "https://example.com" },
+      "tool_call_approval",
+      'WebFetch: {"url":"https://example.com"}',
+    ],
+    ["CustomTool", {}, "tool_call_approval", "CustomTool: {}"],
   ] as const)("maps Claude %s permissions to %s", (toolName, toolInput, requestType, summary) => {
     expect(
       mapClaudePermissionRequest({
@@ -4161,6 +4260,7 @@ describe("sdkCanonicalMapping — requests", () => {
     expect(event).toMatchObject({
       type: "request.opened",
       requestId: "perm-plan",
+      requestType: "tool_call_approval",
       payload: {
         summary: "Proposed plan",
         details: {
@@ -4244,7 +4344,7 @@ describe("sdkCanonicalMapping — requests", () => {
     });
   });
 
-  it("falls back to a single Always-allow option when no suggestions are present", () => {
+  it("offers only one-time approval when the SDK provides no persistent permission update", () => {
     const event = mapClaudePermissionRequest({
       threadId: "thread-1",
       requestId: "perm-4",
@@ -4255,7 +4355,6 @@ describe("sdkCanonicalMapping — requests", () => {
       payload: {
         options: [
           { optionId: "accept", label: "Allow once" },
-          { optionId: "acceptForSession", label: "Always allow" },
           { optionId: "decline", label: "Deny" },
         ],
       },

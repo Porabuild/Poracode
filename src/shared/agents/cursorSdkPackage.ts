@@ -25,8 +25,27 @@ export const CURSOR_SDK_MAX_EXCLUSIVE_MAJOR = 2;
 /** Human-readable range, surfaced in loader diagnostics (">=1.0.38 <2.0.0"). */
 export const CURSOR_SDK_SUPPORTED_RANGE = `>=${CURSOR_SDK_MIN_SUPPORTED_VERSION} <${CURSOR_SDK_MAX_EXCLUSIVE_MAJOR}.0.0`;
 
-/** npm spec used by the in-app install and update commands. */
+/**
+ * npm spec used by a fresh install. A range is correct here: nothing is
+ * installed yet, so the package manager resolves the newest match.
+ */
 export const CURSOR_SDK_INSTALL_SPEC = `${CURSOR_SDK_PACKAGE_NAME}@^${CURSOR_SDK_MIN_SUPPORTED_VERSION}`;
+
+/**
+ * npm/pnpm spec that replaces an existing install with this exact release
+ * (`@cursor/sdk@1.0.40`). A range such as `^1.0.38` does not: once 1.0.38 is
+ * installed it already satisfies the range, and the package manager exits
+ * successfully without moving to a newer 1.x release.
+ *
+ * Returns undefined for anything outside the supported window, including
+ * pre-releases and shell metacharacters, so the spec can be quoted into a
+ * command.
+ */
+export function cursorSdkExactPackageSpec(version: string): string | undefined {
+  const normalized = version.trim().replace(/^v/, "");
+  if (!isSupportedCursorSdkPackageVersion(normalized)) return undefined;
+  return `${CURSOR_SDK_PACKAGE_NAME}@${normalized}`;
+}
 
 /**
  * The recoverable diagnostic shown wherever an installed release falls

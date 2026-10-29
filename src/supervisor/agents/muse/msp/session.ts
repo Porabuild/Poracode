@@ -386,6 +386,7 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
         ...(config.effort ? { reasoningEffort: config.effort } : {}),
       });
       const turnId = stringValue(result["turnId"]) ?? commandId;
+      options?.onPromptSubmitted?.();
       if (result["disposition"] === "started" && !this.completedTurnIds.has(turnId)) {
         this.activeTurnId = turnId;
         this.emitTurnStarted(turnId);

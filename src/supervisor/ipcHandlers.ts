@@ -23,6 +23,7 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
   const git = runtime.gitService;
   const checkpoints = runtime.gitCheckpointService;
   const github = runtime.githubService;
+  const reviews = runtime.forgeReviewService;
   const generation = runtime.generationService;
   const fileIndex = runtime.fileIndexService;
   const projectTree = runtime.projectTreeService;
@@ -59,6 +60,7 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
     manageModelProviders: (payload) => registry.manageModelProviders(payload),
     listWslDistros: () => registry.listWslDistros(),
     getAgentStatuses: (payload) => registry.getAgentStatuses(payload),
+    probeSelectedAgent: (payload) => registry.probeSelectedAgent(payload),
     cancelAgentDiscovery: () => registry.cancelAgentDiscovery(),
     refreshAgentStatuses: (payload) =>
       withUsageReconciliation(registry.refreshAgentStatuses(payload)),
@@ -75,10 +77,13 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
     updateAgentBinary: (payload) => registry.updateAgentBinary(payload),
     getLatestAgentVersion: (payload) => registry.getLatestAgentVersion(payload),
     resolveAgentAccount: (payload) => registry.resolveAgentAccount(payload),
+    getAgentConfigDefaults: (payload) => registry.getAgentConfigDefaults(payload),
     removeAcpRegistryAgent: (payload) => registry.removeAcpRegistryAgent(payload),
     setAcpRegistryAgentAuth: (payload) => registry.setAcpRegistryAgentAuth(payload),
     authenticateAcpAgent: (payload) =>
       withUsageReconciliation(registry.authenticateAcpAgent(payload)),
+    controlAcpAuthentication: (payload) =>
+      withUsageReconciliation(registry.controlAcpAuthentication(payload)),
     logoutAcpAgent: (payload) => withUsageReconciliation(registry.logoutAcpAgent(payload)),
     listImportableSessions: (payload) => runtime.sessionImportService.list(payload),
     importSessionTranscript: (payload) => runtime.sessionImportService.importTranscript(payload),
@@ -87,6 +92,9 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
     getTerminalShellSnapshots: () => threads.getTerminalShellSnapshots(),
     getAvailableWindowsShells: () => runtime.getAvailableWindowsShells(),
     startThread: (payload) => threads.startThread(payload),
+    controlThreadExecution: (payload) => threads.controlThreadExecution(payload),
+    reserveThreadExecution: (payload) => threads.reserveThreadExecution(payload),
+    controlledThreadRequest: (payload) => threads.controlledThreadRequest(payload),
     ensureThreadRunning: (payload) => threads.ensureThreadRunning(payload),
     sendThreadInput: (payload) =>
       threads.sendThreadInput(sendThreadInputPayloadSchema.parse(payload)),
@@ -123,6 +131,7 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
     startShell: (payload) => threads.startShell(payload),
     extractContext: (payload) => generation.extractContext(payload),
     cancelExtractContext: ({ threadId }) => generation.cancelExtractContext(threadId),
+    cancelCrossagentRun: ({ threadId, runId }) => runtime.cancelCrossagentRun(runId, threadId),
     readTerminalScrollback: ({ threadId }) => threads.readTerminalScrollback(threadId),
     readTerminalSize: ({ threadId }) => threads.readTerminalSize(threadId),
     readTerminalSnapshot: ({ threadId }) => threads.readTerminalSnapshot(threadId),
@@ -305,19 +314,11 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
     moveProjectEntry: (payload) => projectTree.moveProjectEntry(payload),
     deleteProjectEntry: (payload) => projectTree.deleteProjectEntry(payload),
     detectSetupScript: (payload) => runtime.detectSetupScript(payload),
-    ghCheckAvailable: (payload) => github.checkGhAvailable(payload.projectLocation),
-    ghCreatePr: (payload) =>
-      github.createPr(
-        payload.projectLocation,
-        payload.branch,
-        payload.baseBranch,
-        payload.title,
-        payload.body,
-        payload.isDraft,
-      ),
-    ghGetPrForBranch: (payload) => github.getPrForBranch(payload.projectLocation, payload.branch),
-    ghListPrs: async (payload) => ({ prs: await github.listPrs(payload.projectLocation) }),
-    ghListPullRequests: (payload) => github.listPullRequests(payload.projectLocation),
+    ghCheckAvailable: (payload) => reviews.checkAvailable(payload.projectLocation),
+    ghCreatePr: (payload) => reviews.createPr(payload),
+    ghGetPrForBranch: (payload) => reviews.getPrForBranch(payload),
+    ghListPrs: (payload) => reviews.listPrs(payload),
+    ghListPullRequests: (payload) => reviews.listPullRequests(payload),
     ghListWorkflows: (payload) => github.listWorkflows(payload.projectLocation, payload.ghAccount),
     ghListWorkflowRuns: (payload) =>
       github.listWorkflowRuns(payload.projectLocation, payload.workflowId, payload.ghAccount),
@@ -349,36 +350,55 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
       github.cancelWorkflowRun(payload.projectLocation, payload.runId, payload.ghAccount),
     ghDeleteWorkflowRun: (payload) =>
       github.deleteWorkflowRun(payload.projectLocation, payload.runId, payload.ghAccount),
-    ghMergePr: (payload) =>
-      github.mergePr(payload.projectLocation, payload.prNumber, payload.method, payload.admin),
-    ghMergePrAtHead: (payload) =>
-      github.mergePr(
-        payload.projectLocation,
-        payload.prNumber,
-        payload.method,
-        payload.admin,
-        payload.expectedHeadSha,
+    ghMergePr: (payload) => reviews.mergePr(payload),
+    ghMergePrAtHead: (payload) => reviews.mergePr(payload),
+    ghClosePr: (payload) => reviews.closePr(payload),
+    ghReopenPr: (payload) => reviews.reopenPr(payload),
+    ghMarkPrReady: (payload) => reviews.markPrReady(payload),
+    ghUpdatePrBranch: (payload) => reviews.updatePrBranch(payload),
+    ghGetPrChecks: (payload) => reviews.getPrChecks(payload),
+    ghGetPrFiles: (payload) => reviews.getPrFiles(payload),
+    ghGetPrDiff: (payload) => reviews.getPrDiff(payload),
+    ghGetPrDetails: (payload) => reviews.getPrDetails(payload),
+    ghGetPrReviewComments: (payload) => reviews.getPrReviewThreads(payload),
+    ghPostPrComment: (payload) => reviews.postPrComment(payload),
+    ghSubmitPrReview: (payload) => reviews.submitPrReview(payload),
+    forgeGetRepository: (payload) => reviews.getRepository(payload),
+    forgeGetPrViewedFiles: (payload) => reviews.getPrViewedFiles(payload),
+    forgeGetPrReviewGuide: (payload) => reviews.getPrReviewGuide(payload),
+    forgeWritePrReviewGuide: (payload) =>
+      reviews.writePrReviewGuide(payload, (snapshot, source) =>
+        generation.generateReviewGuide(payload, snapshot, source),
       ),
-    ghClosePr: (payload) => github.closePr(payload.projectLocation, payload.prNumber),
-    ghReopenPr: (payload) => github.reopenPr(payload.projectLocation, payload.prNumber),
-    ghMarkPrReady: (payload) => github.markPrReady(payload.projectLocation, payload.prNumber),
-    ghGetPrChecks: (payload) => github.getPrChecks(payload.projectLocation, payload.branch),
-    ghGetPrFiles: (payload) => github.getPrFiles(payload.projectLocation, payload.prNumber),
-    ghGetPrDiff: (payload) => github.getPrDiff(payload.projectLocation, payload.prNumber),
-    ghSubmitPrReview: (payload) =>
-      github.submitPrReview(
-        payload.projectLocation,
-        payload.prNumber,
-        payload.decision,
-        payload.body,
-      ),
-    ghUpdatePrBranch: (payload) =>
-      github.updatePrBranch(payload.projectLocation, payload.prNumber, payload.rebase),
-    ghGetPrDetails: (payload) => github.getPrDetails(payload.projectLocation, payload.prNumber),
-    ghGetPrReviewComments: (payload) =>
-      github.getPrReviewThreads(payload.projectLocation, payload.prNumber),
-    ghPostPrComment: (payload) =>
-      github.postPrComment(payload.projectLocation, payload.prNumber, payload.body),
+    forgeSetPrFileViewed: (payload) => reviews.setPrFileViewed(payload),
+    forgeEditPr: (payload) => reviews.editPr(payload),
+    forgeEditPrComment: (payload) => reviews.editPrComment(payload),
+    forgeCreatePr: (payload) => reviews.createPr(payload),
+    forgeGetPrForBranch: (payload) => reviews.getPrForBranch(payload),
+    forgeListPrs: (payload) => reviews.listPrs(payload),
+    forgeListPullRequests: (payload) => reviews.listPullRequests(payload),
+    forgeMergePr: (payload) => reviews.mergePr(payload),
+    forgeMergePrAtHead: (payload) => reviews.mergePr(payload),
+    forgeClosePr: (payload) => reviews.closePr(payload),
+    forgeReopenPr: (payload) => reviews.reopenPr(payload),
+    forgeMarkPrReady: (payload) => reviews.markPrReady(payload),
+    forgeUpdatePrBranch: (payload) => reviews.updatePrBranch(payload),
+    forgeGetPrChecks: (payload) => reviews.getPrChecks(payload),
+    forgeGetPrFiles: (payload) => reviews.getPrFiles(payload),
+    forgeGetPrDiff: (payload) => reviews.getPrDiff(payload),
+    forgeGetPrDetails: (payload) => reviews.getPrDetails(payload),
+    forgeGetPrReviewComments: (payload) => reviews.getPrReviewThreads(payload),
+    forgePostPrComment: (payload) => reviews.postPrComment(payload),
+    forgeSubmitPrReview: (payload) => reviews.submitPrReview(payload),
+    forgeListPullRequestsInState: (payload) => reviews.listPullRequestsInState(payload),
+    forgeListPrLabelCandidates: (payload) => reviews.listPrLabelCandidates(payload),
+    forgeListPrReviewerCandidates: (payload) => reviews.listPrReviewerCandidates(payload),
+    forgeSetPrLabels: (payload) => reviews.setPrLabels(payload),
+    forgeRequestPrReviewers: (payload) => reviews.requestPrReviewers(payload),
+    forgeConvertPrToDraft: (payload) => reviews.convertPrToDraft(payload),
+    forgeGetPrCommitDiff: (payload) => reviews.getPrCommitDiff(payload),
+    forgeSetPrReaction: (payload) => reviews.setPrReaction(payload),
+    forgeSubmitPrReviewDraft: (payload) => reviews.submitPrReviewDraft(payload),
     ghListAccounts: (payload) => github.listAccounts(payload.runtime),
     ghListRepos: (payload) => github.listRepos(payload.runtime, payload.account),
     cloneRepo: (payload) => runtime.cloneRepo(payload),
@@ -392,6 +412,7 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
     discoverExternalMcpServers: (payload) => externalMcpDiscovery.discover(payload),
     probeMcpServer: (payload) => mcpProbe.probe(payload),
     beginMcpServerOauth: (payload) => mcpOAuth.begin(payload),
+    controlMcpAuthentication: (payload) => runtime.mcpAuthenticationService.control(payload),
     waitMcpServerOauth: (payload) => mcpOAuth.wait(payload),
     clearMcpServerOauth: (payload) => mcpOAuth.clear(payload),
     getMcpOauthStatus: () => mcpOAuth.status(),
@@ -402,6 +423,8 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
     listSkillMarketplace: (payload) => skills.listMarketplace(payload),
     installMarketplaceSkill: (payload) => skills.installMarketplace(payload),
     listPlugins: (payload) => listPlugins(payload),
+    pluginCatalog: (payload) => runtime.pluginCatalogService.manage(payload),
+    pluginAccounts: (payload) => runtime.pluginAccountService.manage(payload),
     refreshPlugins: (payload) => {
       pluginRegistry.refresh();
       return listPlugins(payload);

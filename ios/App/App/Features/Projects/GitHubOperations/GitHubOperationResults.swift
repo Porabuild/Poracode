@@ -119,8 +119,50 @@ struct GitHubPullRequestSummary: Identifiable, Equatable, Sendable {
   var additions: Int64?
   var deletions: Int64?
   var reviewRequested: Bool?
+  var forgeSourceData: Data?
+  var labels: [GitHubReviewLabel] = []
 
   var id: Int64 { number }
+}
+
+/// A host-defined review label. `color` is six hex digits without `#`; a missing or
+/// malformed value renders neutral.
+struct GitHubReviewLabel: Identifiable, Equatable, Sendable {
+  let name: String
+  let color: String?
+  let detail: String?
+
+  var id: String { name }
+
+  var rgb: (red: Double, green: Double, blue: Double)? {
+    guard let color, color.count == 6, color.allSatisfy(\.isHexDigit),
+      let value = UInt32(color, radix: 16)
+    else { return nil }
+    return (
+      red: Double((value >> 16) & 0xFF) / 255,
+      green: Double((value >> 8) & 0xFF) / 255,
+      blue: Double(value & 0xFF) / 255
+    )
+  }
+}
+
+/// A requested or candidate reviewer. `id` is the host's own request identity, opaque here.
+struct GitHubReviewerSummary: Identifiable, Equatable, Sendable {
+  let id: String
+  let login: String
+  let name: String?
+  let avatarURL: String?
+  let isTeam: Bool
+
+  var displayName: String {
+    guard let name, !name.isEmpty else { return login }
+    return name
+  }
+
+  /// The `{id, team?}` reference a review-request change sends back to the host.
+  var reference: GitHubJSONValue {
+    .object(isTeam ? ["id": .string(id), "team": .bool(true)] : ["id": .string(id)])
+  }
 }
 
 enum GitHubResultProjection {
@@ -192,8 +234,42 @@ enum GitHubResultProjection {
       repository: object["repository"]?.stringValue,
       additions: object["additions"]?.integerValue,
       deletions: object["deletions"]?.integerValue,
-      reviewRequested: object["reviewRequested"]?.boolValue
+      reviewRequested: object["reviewRequested"]?.boolValue,
+      forgeSourceData: source["source"].flatMap { try? JSONEncoder().encode($0) },
+      labels: labels(object["labels"])
     )
+  }
+
+  /// Hosts that predate labels omit the field; entries without a name are skipped.
+  static func labels(_ value: GitHubJSONValue?) -> [GitHubReviewLabel] {
+    var seen = Set<String>()
+    return (value?.arrayValue ?? []).compactMap { raw in
+      guard let object = raw.objectValue, let name = object["name"]?.stringValue, !name.isEmpty,
+        seen.insert(name).inserted
+      else { return nil }
+      return GitHubReviewLabel(
+        name: name,
+        color: object["color"]?.stringValue,
+        detail: object["description"]?.stringValue
+      )
+    }
+  }
+
+  /// Hosts that predate review requests omit the field; entries without an id are skipped.
+  static func reviewers(_ value: GitHubJSONValue?) -> [GitHubReviewerSummary] {
+    var seen = Set<String>()
+    return (value?.arrayValue ?? []).compactMap { raw in
+      guard let object = raw.objectValue, let id = object["id"]?.stringValue, !id.isEmpty,
+        let login = object["login"]?.stringValue, !login.isEmpty, seen.insert(id).inserted
+      else { return nil }
+      return GitHubReviewerSummary(
+        id: id,
+        login: login,
+        name: object["name"]?.stringValue,
+        avatarURL: object["avatarUrl"]?.stringValue,
+        isTeam: object["team"]?.boolValue == true
+      )
+    }
   }
 
   static func viewerLogin(_ result: GitHubOperationResult) -> String? {

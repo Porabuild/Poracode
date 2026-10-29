@@ -1,10 +1,15 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { DragDropProvider, type DragEndEvent } from "@dnd-kit/react";
 import { isSortable, useSortable } from "@dnd-kit/react/sortable";
 import { GripVertical } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { ProjectLocation } from "@/shared/contracts";
-import { reorderVisibleThreadDocks, type ThreadDockKind } from "@/shared/settings";
+import { threadCrewBinding } from "@/shared/crew";
+import {
+  normalizeThreadDocksOrder,
+  reorderVisibleThreadDocks,
+  type ThreadDockKind,
+} from "@/shared/settings";
 import { useAppStore } from "@/renderer/state/appStore";
 import { usePanelStore, type ThreadDockFocus } from "@/renderer/state/panelStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
@@ -14,6 +19,13 @@ import { ActiveSubAgentTile } from "./ChatPane/parts/items/ActiveSubAgentTile";
 import { ThreadBackgroundTasksDock } from "./ThreadBackgroundTasksDock";
 import { ThreadGoalDock } from "./ThreadGoalDock";
 import { ThreadImagesDock } from "./ThreadImagesDock";
+import { ThreadAgentVisionDock, useThreadAgentVision } from "./ThreadAgentVisionDock";
+import {
+  ThreadAgentUsageDock,
+  ThreadWorkspaceDock,
+  useThreadAgentUsage,
+} from "./ThreadDetailsDocks";
+import { useThreadArtifacts } from "./threadArtifacts";
 import { ThreadTodoDock } from "./ThreadTodoDock";
 import { useThreadGalleryImages } from "./useThreadGalleryImages";
 import { selectThreadGoalDockItem } from "./threadGoalState";
@@ -32,9 +44,11 @@ import {
 export function ThreadDocksPanel({
   threadId,
   projectLocation,
+  visible = true,
 }: {
   threadId: string;
   projectLocation?: ProjectLocation;
+  visible?: boolean;
 }) {
   const { t } = useLingui();
   const goalDockState = useVisibleThreadGoalDockState(threadId);
@@ -43,13 +57,24 @@ export function ThreadDocksPanel({
   const todoDockCollapsed = useThreadTodoDockStore(
     (s) => s.byThreadId[threadId]?.collapsed ?? s.defaultCollapsed,
   );
-  const order = useSharedSettings((s) => s.threadDocksOrder);
+  const savedOrder = useSharedSettings((s) => s.threadDocksOrder);
+  const order = normalizeThreadDocksOrder(savedOrder);
   const setOrder = useSharedSettings((s) => s.setThreadDocksOrder);
   const docksPlacement = useSharedSettings((s) => s.threadDocksPlacement);
   const summary = useThreadDocksSummary(threadId, goalDockState, todoDockState);
-  const gallery = useThreadGalleryImages(threadId);
-  const focus = usePanelStore((s) => s.threadDocksFocus);
   const docksShowing = usePanelStore((s) => s.threadDocksPanelOpen && s.rightPanelTab === "docks");
+  const [visionCollapse, setVisionCollapse] = useState({ threadId, collapsed: false });
+  const visionCollapsed = visionCollapse.threadId === threadId && visionCollapse.collapsed;
+  const vision = useThreadAgentVision(threadId, visible, !visionCollapsed);
+  const gallery = useThreadGalleryImages(threadId, { lightbox: true, requestPending: visible });
+  const artifacts = useThreadArtifacts(threadId);
+  const thread = useAppStore((state) =>
+    state.threads.find((candidate) => candidate.id === threadId),
+  );
+  const crewBinding = threadCrewBinding(thread?.config);
+  const threadExists = thread !== undefined;
+  const usage = useThreadAgentUsage(threadId);
+  const focus = usePanelStore((s) => s.threadDocksFocus);
   const containerRef = useRef<HTMLDivElement>(null);
   const lastScrolledFocusRef = useRef<ThreadDockFocus | null>(null);
 
@@ -67,9 +92,11 @@ export function ThreadDocksPanel({
   const focusedDockMounted =
     (focus === "goal" && goalDockState !== null) ||
     (focus === "plan" && todoDockState !== null) ||
-    (focus === "agents" && summary.agentCount > 0) ||
+    (focus === "agents" && (summary.agentCount > 0 || crewBinding !== undefined)) ||
     (focus === "backgroundTasks" && summary.backgroundTaskCount > 0) ||
-    (focus === "images" && gallery.length > 0);
+    (focus === "images" && (gallery.length > 0 || artifacts.length > 0)) ||
+    (focus === "context" && threadExists) ||
+    (focus === "usage" && usage !== null);
 
   // A bubble click names the active section. Scroll only when that selection
   // changes so later content updates do not fight the user's own scrolling.
@@ -83,6 +110,14 @@ export function ThreadDocksPanel({
   }, [focus, focusedDockMounted]);
 
   const content: Record<ThreadDockKind, ReactNode> = {
+    vision: vision ? (
+      <ThreadAgentVisionDock
+        threadId={threadId}
+        vision={vision}
+        collapsed={visionCollapsed}
+        onCollapsedChange={(collapsed) => setVisionCollapse({ threadId, collapsed })}
+      />
+    ) : null,
     goal: goalDockState ? (
       <ThreadGoalDock
         threadId={threadId}
@@ -107,10 +142,12 @@ export function ThreadDocksPanel({
       />
     ) : null,
     agents:
-      summary.agentCount > 0 ? (
+      summary.agentCount > 0 || crewBinding ? (
         <ActiveSubAgentTile
           threadId={threadId}
           placement="right"
+          {...(crewBinding ? { crewBinding } : {})}
+          {...(thread ? { thread } : {})}
           {...(projectLocation ? { projectLocation } : {})}
         />
       ) : null,
@@ -118,14 +155,27 @@ export function ThreadDocksPanel({
       summary.backgroundTaskCount > 0 ? (
         <ThreadBackgroundTasksDock threadId={threadId} placement="right" />
       ) : null,
-    images: gallery.length > 0 ? <ThreadImagesDock gallery={gallery} threadId={threadId} /> : null,
+    images:
+      gallery.length > 0 || artifacts.length > 0 ? (
+        <ThreadImagesDock
+          key={threadId}
+          gallery={gallery}
+          threadId={threadId}
+          artifacts={artifacts}
+        />
+      ) : null,
+    context: threadExists ? <ThreadWorkspaceDock key={threadId} threadId={threadId} /> : null,
+    usage: usage ? <ThreadAgentUsageDock key={threadId} usage={usage} /> : null,
   };
   const labels: Record<ThreadDockKind, string> = {
+    vision: t`Agent vision`,
     goal: t`Goal`,
     plan: t`Plan`,
     agents: t`Agents`,
     backgroundTasks: t`Background tasks`,
-    images: t`Images`,
+    images: artifacts.length > 0 ? t`Files & artifacts` : t`Images`,
+    context: t`Thread context`,
+    usage: t`Usage`,
   };
   const imageOnly = docksPlacement === "composer" && focus === "images";
   const visibleOrder = imageOnly
@@ -144,7 +194,7 @@ export function ThreadDocksPanel({
     <div role="region" aria-label={t`Thread docks`} className="flex h-full min-h-0 flex-col">
       {/* The title and placement toggle live in the shared right-panel header. */}
       <div ref={containerRef} className="min-h-0 flex-1 overflow-y-auto [scrollbar-gutter:stable]">
-        {visibleOrder.length === 0 ? (
+        {visibleOrder.length === 0 && !threadExists ? (
           <p className="px-3 py-3 text-xs text-foreground-muted">
             <Trans>No active tasks.</Trans>
           </p>

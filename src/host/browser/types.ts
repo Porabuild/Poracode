@@ -50,6 +50,7 @@ export interface BrowserMcpIngressInfo {
 }
 
 export interface BrowserMcpIngress {
+  setAgentVision?(vision: import("../AgentVisionService").AgentVisionService): void;
   setManagerAccessor(getter: () => BrowserPanelManager | null): void;
   setAllowEval(allow: boolean): void;
   setAllowDataAccess(allow: boolean): void;

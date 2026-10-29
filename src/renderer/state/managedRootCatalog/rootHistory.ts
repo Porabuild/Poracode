@@ -17,6 +17,7 @@ import {
 import { useAppStore } from "@/renderer/state/appStore";
 import { hostSupportsRuntimeHistoryNoticesForConnection } from "@/renderer/state/remote/historyNoticeCapability";
 import {
+  isThreadHistoryRecoveryError,
   noteThreadHistoryRecoveryNeeded,
   recordThreadHistoryNoticeRead,
 } from "@/renderer/state/remote/historyNoticeStore";
@@ -214,6 +215,17 @@ export async function readManagedRootRuntimeHistoryGap(
   return result;
 }
 
+/** The newest prompts of a root thread, read over the managed loopback leg. */
+export async function readManagedRootPromptIndex(
+  threadId: string,
+  signal?: AbortSignal,
+): Promise<Awaited<ReturnType<RemoteDesktopClient["threadPromptIndex"]>>> {
+  const activation = requireActivation();
+  const result = await activation.client.threadPromptIndex(threadId, signal ? { signal } : {});
+  assertSameActivation(activation);
+  return result;
+}
+
 /** True when a root read's error is the host's authoritative "no such row". */
 export function isManagedRootThreadAbsentError(error: unknown): boolean {
   return error instanceof RemoteClientError && error.status === 404;
@@ -227,17 +239,15 @@ export function managedRootSupportsRuntimeHistoryNotices(): boolean {
 }
 
 /**
- * A definite (non-transport) failure of a root transcript read on a
- * notice-capable host is the open-gap recovery signal: surface the explicit
- * review path instead of only a generic load failure. A transport failure or
- * an incapable host is never turned into a notice.
+ * A typed gap refusal on a notice-capable host offers the explicit review
+ * path. Other history read failures do not establish missing history.
  */
 export function noteManagedRootHistoryFailure(threadId: string, error: unknown): void {
   const activation = managedRootHistoryActivation();
   if (!activation) return;
   const authority = activation.authority;
   if (!hostSupportsRuntimeHistoryNoticesForConnection(authority)) return;
-  if (isRemoteTransportFailure(error)) return;
+  if (!isThreadHistoryRecoveryError(error)) return;
   noteThreadHistoryRecoveryNeeded(threadId, authority);
 }
 

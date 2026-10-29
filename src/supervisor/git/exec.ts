@@ -4,6 +4,7 @@ import { homedir } from "node:os";
 import { dirname, join, normalize, posix, win32 } from "node:path";
 import { promisify } from "node:util";
 import type { GitRemoteInfo, ProjectLocation, RemoteHostPlatform } from "@/shared/contracts";
+import { parseForgeRemote } from "@/shared/forgeRemote";
 import { resolvePoracodePaths } from "@/shared/poracodePaths";
 import { attachErrorDetails, errorDetail, msg } from "@/shared/messages";
 import { getProjectName } from "@/shared/wsl";
@@ -471,17 +472,14 @@ export function resolveClonedProjectPath(parent: ProjectLocation, name: string):
 }
 
 export function parseRemoteUrl(url: string): GitRemoteInfo | null {
-  const httpsMatch = url.match(/^https?:\/\/([^/]+)\/([^/]+)\/([^/]+?)(?:\.git)?$/);
-  if (httpsMatch) {
-    const [, hostname, owner, repo] = httpsMatch;
-    return { url, platform: detectPlatform(hostname!), owner: owner!, repo: repo! };
-  }
-
-  const sshMatch = url.match(/^[^@]+@([^:]+):([^/]+)\/([^/]+?)(?:\.git)?$/);
-  if (sshMatch) {
-    const [, hostname, owner, repo] = sshMatch;
-    return { url, platform: detectPlatform(hostname!), owner: owner!, repo: repo! };
-  }
-
-  return null;
+  const parsed = parseForgeRemote(url, "origin");
+  if (!parsed) return null;
+  const segments = parsed.path.split("/");
+  const repo = segments.pop()!;
+  return {
+    url,
+    platform: detectPlatform(new URL(parsed.host).hostname),
+    owner: segments.join("/"),
+    repo,
+  };
 }

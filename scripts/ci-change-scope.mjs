@@ -2,7 +2,7 @@ import { appendFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
 
-const DOCUMENTATION_PATH = /^(?:docs\/|.*\.md$)/u;
+const DOCUMENTATION_PATH = /^(?:docs\/|[^/]+\.md$|\.github\/.+\.md$|\.agents\/.+\.md$)/u;
 const ANDROID_PATH = /^android\//u;
 const IOS_PATH = /^ios\//u;
 const NATIVE_IRRELEVANT_PATH = /^(?:branding\/|chrome-extension\/|src\/renderer\/|website\/)/u;

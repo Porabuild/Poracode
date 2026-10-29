@@ -1,0 +1,12 @@
+{
+  "name": "poracode-device-hub-runtime",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "expo-device-hub": "0.15.3"
+  },
+  "engines": {
+    "node": ">=24.10.0"
+  }
+}

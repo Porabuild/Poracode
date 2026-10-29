@@ -199,14 +199,17 @@ const OWNER_STOP_POLL_MS = 100;
  */
 export async function probeRunningOwner(
   paths: HostRootPaths,
-  options: { readonly timeoutMs?: number } = {},
+  options: { readonly timeoutMs?: number; readonly pinGeneration?: boolean } = {},
 ): Promise<RunningOwnerProbe | null> {
   const record = readHostOwnerRecord(paths);
   if (!record || record.phase === "stopped") return null;
   const timeoutMs = options.timeoutMs ?? 3_000;
   let described: Awaited<ReturnType<typeof callHostControl<"describe">>>;
   try {
-    described = await callHostControl(paths, "describe", { timeoutMs });
+    described = await callHostControl(paths, "describe", {
+      timeoutMs,
+      ...(options.pinGeneration ? { expectedGeneration: record.generation } : {}),
+    });
   } catch (error) {
     // A crash leftover (dead PID, free kernel lease) is not a live owner. Any
     // other failure stays closed: the upgrader must not guess.
@@ -236,7 +239,12 @@ export async function probeRunningOwner(
     );
   let status: HostControlStatusResult | null = null;
   try {
-    status = (await callHostControl(paths, "status", { timeoutMs })).result;
+    status = (
+      await callHostControl(paths, "status", {
+        timeoutMs,
+        ...(options.pinGeneration ? { expectedGeneration: record.generation } : {}),
+      })
+    ).result;
   } catch (error) {
     // Only a verified describe plus an authenticated HTTP 400 for the additive
     // operation classifies as a pre-D4 owner. Anything else is a real failure.

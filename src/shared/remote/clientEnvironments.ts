@@ -17,6 +17,7 @@ import {
   type RemoteTokenSnapshot,
 } from "./clientTypes";
 import type { RemoteImageRefValue } from "./imageRef";
+import type { DevicePreview, DevicePreviewChannel } from "../devicePreview";
 import type { MediaFileRequest, MediaSource, EnvironmentMediaTicketResult } from "./media";
 import type { RemoteWebSocketTicketResult } from "./protocol/core";
 import {
@@ -27,6 +28,7 @@ import {
   type RemoteEnvironmentImageBytes,
   type RemoteEnvironmentImageResolution,
   type EnvironmentImagePriority,
+  type EnvironmentImageVariant,
 } from "./clientEnvironmentImages";
 
 /** Typed repair outcomes; renderers localize by code, never by message. */
@@ -163,6 +165,39 @@ interface ParentTicketEntry {
  * answers its own 403. There is no blanket authority throw.
  */
 export class RemoteEnvironmentClient extends RemoteDesktopClient {
+  override async devicePreviewSocketUrl(
+    threadId: string,
+    preview: DevicePreview,
+    channel: DevicePreviewChannel,
+    signal: AbortSignal,
+  ): Promise<string> {
+    if (this.disposed || signal.aborted)
+      throw new RemoteClientError("Device preview was cancelled.", 499, "cancelled");
+    // Each invocation/reconnect owns a fresh pair. The child ticket remains
+    // child-specific; only the parent gateway consumes and strips parentTicket.
+    const childUrl = await super.devicePreviewSocketUrl(threadId, preview, channel, signal);
+    let parent: RemoteWebSocketTicketResult;
+    try {
+      parent = await this.parentAuthority.mintWebSocketTicket();
+    } catch (error) {
+      this.rethrowParentAuthorityFailure(error);
+    }
+    if (this.disposed || signal.aborted)
+      throw new RemoteClientError("Device preview was cancelled.", 499, "cancelled");
+    if (
+      !Number.isFinite(Date.parse(parent.expiresAt)) ||
+      Date.parse(parent.expiresAt) <= Date.now()
+    )
+      throw new RemoteClientError(
+        "The parent preview connection ticket expired.",
+        401,
+        "invalid_device_preview_ticket",
+      );
+    const url = new URL(childUrl);
+    url.searchParams.set(ENVIRONMENT_PARENT_TICKET_PARAM, parent.ticket);
+    return url.toString();
+  }
+
   private readonly mediaTickets = new Map<string, string>();
 
   override async releaseMediaSource(ticket: string): Promise<void> {
@@ -301,27 +336,29 @@ export class RemoteEnvironmentClient extends RemoteDesktopClient {
   imageRefResolution(
     ref: RemoteImageRefValue,
     priority?: EnvironmentImagePriority,
+    variant?: EnvironmentImageVariant,
   ): RemoteEnvironmentImageResolution {
-    return this.images.imageRefResolution(ref, priority);
+    return this.images.imageRefResolution(ref, priority, variant);
   }
 
   localImageResolution(
     absolutePath: string,
     priority?: EnvironmentImagePriority,
+    variant?: EnvironmentImageVariant,
   ): RemoteEnvironmentImageResolution {
-    return this.images.localImageResolution(absolutePath, priority);
+    return this.images.localImageResolution(absolutePath, priority, variant);
   }
 
   imageResolutionFor(key: string): RemoteEnvironmentImageResolution {
     return this.images.resolutionForImageKey(key);
   }
 
-  imageKeyForRef(ref: RemoteImageRefValue): string {
-    return environmentImageRefKey(ref);
+  imageKeyForRef(ref: RemoteImageRefValue, variant?: EnvironmentImageVariant): string {
+    return environmentImageRefKey(ref, variant);
   }
 
-  imageKeyForLocalPath(absolutePath: string): string {
-    return environmentLocalImageKey(absolutePath);
+  imageKeyForLocalPath(absolutePath: string, variant?: EnvironmentImageVariant): string {
+    return environmentLocalImageKey(absolutePath, variant);
   }
 
   /** Explicit keyed subscription for `useSyncExternalStore` consumers. */

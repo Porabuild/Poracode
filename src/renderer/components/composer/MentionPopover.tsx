@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Trans } from "@lingui/react/macro";
-import { MessagesSquare, type LucideIcon } from "lucide-react";
+import { MessagesSquare, UsersRound, type LucideIcon } from "lucide-react";
 import type { AgentSlashCommand, FileEntry } from "@/shared/contracts";
 import { getEntryIconUrl } from "@/renderer/components/common/fileIcons";
 import { PluginIcon } from "@/renderer/components/plugins/PluginIcon";
@@ -39,10 +39,23 @@ export type ThreadMentionEntry = {
   detail?: string;
 };
 
-export type MentionEntry = FileEntry | McpMentionEntry | PluginMentionEntry | ThreadMentionEntry;
+/** A crew role offered as an `@`-mention; inserts plain `@<Label>` text. */
+export type CrewMentionEntry = {
+  type: "crew";
+  path: string;
+  name: string;
+  detail?: string;
+};
+
+export type MentionEntry =
+  | FileEntry
+  | McpMentionEntry
+  | PluginMentionEntry
+  | ThreadMentionEntry
+  | CrewMentionEntry;
 
 /** Section a mention entry belongs to; files and directories share one section. */
-type MentionSectionKey = "plugin" | "mcp" | "thread" | "file";
+type MentionSectionKey = "plugin" | "mcp" | "crew" | "thread" | "file";
 
 interface MentionSection {
   key: MentionSectionKey;
@@ -51,7 +64,10 @@ interface MentionSection {
 }
 
 function getSectionKey(entry: MentionEntry): MentionSectionKey {
-  return entry.type === "plugin" || entry.type === "mcp" || entry.type === "thread"
+  return entry.type === "plugin" ||
+    entry.type === "mcp" ||
+    entry.type === "crew" ||
+    entry.type === "thread"
     ? entry.type
     : "file";
 }
@@ -80,6 +96,8 @@ function SectionLabel(props: { sectionKey: MentionSectionKey }) {
       return <Trans>Plugins</Trans>;
     case "mcp":
       return <Trans>MCP servers</Trans>;
+    case "crew":
+      return <Trans>Crew</Trans>;
     case "thread":
       return <Trans>Threads</Trans>;
     default:
@@ -188,9 +206,10 @@ export function MentionPopover(props: {
                 const isMcp = entry.type === "mcp";
                 const isPlugin = entry.type === "plugin";
                 const isThread = entry.type === "thread";
+                const isCrew = entry.type === "crew";
                 const McpIcon = isMcp ? entry.icon : null;
                 const detail =
-                  isMcp || isPlugin || isThread ? entry.detail : getParentDir(entry.path);
+                  isMcp || isPlugin || isThread || isCrew ? entry.detail : getParentDir(entry.path);
                 return (
                   <div
                     key={`${entry.type}:${entry.path}`}
@@ -215,6 +234,11 @@ export function MentionPopover(props: {
                       />
                     ) : isThread ? (
                       <MessagesSquare
+                        className="poracode-mention-popover__icon text-muted"
+                        aria-hidden="true"
+                      />
+                    ) : isCrew ? (
+                      <UsersRound
                         className="poracode-mention-popover__icon text-muted"
                         aria-hidden="true"
                       />

@@ -46,6 +46,8 @@ export function AsideSlot(props: {
   } = props;
 
   const isHorizontal = orientation === "horizontal";
+  const [lastOpenOverlay, setLastOpenOverlay] = useState(overlay);
+  if (isOpen && lastOpenOverlay !== overlay) setLastOpenOverlay(overlay);
   const showHandle = isOpen && !overlay;
   // The overlay panel is `position: fixed` and clips its children, so its handle
   // lives *inside* the aside on the left edge instead of as a flex sibling —
@@ -60,7 +62,7 @@ export function AsideSlot(props: {
   // During an active drag, useResizablePanels writes transitionDuration: 0ms directly
   // to the panel element so per-frame width/height updates aren't smoothed.
   const dockedFadeDuration = isOpen ? "300ms" : "200ms";
-  const dockedSizeDuration = "150ms";
+  const dockedSizeDuration = !isOpen && lastOpenOverlay ? "0ms" : "150ms";
 
   let asideClassName: string;
   let asideStyle: CSSProperties;
@@ -77,6 +79,7 @@ export function AsideSlot(props: {
       paddingTop: overlayTop,
       width: targetWidth,
       minWidth: targetWidth,
+      transitionDuration: isOpen && !overlayReady ? "0ms" : "300ms",
     };
   } else {
     // The background layer (this <aside>) stays fully opaque while the panel
@@ -154,7 +157,6 @@ export function AsideSlot(props: {
         }),
     willChange: "opacity",
   };
-  const asideKey = overlay ? "overlay-aside" : "docked-aside";
 
   return (
     <>
@@ -171,7 +173,7 @@ export function AsideSlot(props: {
         />
       )}
       <aside
-        key={asideKey}
+        key="aside"
         ref={panelRef}
         className={asideClassName}
         style={asideStyle}

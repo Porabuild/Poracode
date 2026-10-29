@@ -7,10 +7,13 @@ import type {
   StreamableHttpMcpToolSpec,
 } from "../../mcp/StreamableHttpMcpIngress";
 import { agentTools } from "./tools/agents";
+import { deviceTools } from "./tools/devices";
+import { deviceFrameSchema } from "@/shared/deviceWorkspace";
 import { appTools } from "./tools/app";
 import { fileTools } from "./tools/files";
 import { gitTools } from "./tools/git";
 import { githubTools } from "./tools/github";
+import { reviewTools } from "./tools/reviews";
 import { mcpServerTools } from "./tools/mcpServers";
 import { projectTools } from "./tools/projects";
 import { scheduleTools } from "./tools/schedules";
@@ -32,7 +35,7 @@ export type {
   AppControlsUpdateCheck,
 } from "./tools/types";
 
-// Selected by plugin name, not position: the binding is two plugins sharing
+// Selected by plugin name, not position: the binding is multiple plugins sharing
 // one server, and a rename reordering an alphabetized list must not silently
 // swap which instruction claims which skill.
 const APP_CONTROLS_BINDING = (pluginName: string) =>
@@ -42,14 +45,18 @@ const APP_CONTROLS_BINDING = (pluginName: string) =>
   );
 const APP_CONTROLS_CORE_SKILL = APP_CONTROLS_BINDING("app-controls")?.coreSkill;
 const TERMINAL_CORE_SKILL = APP_CONTROLS_BINDING("terminal")?.coreSkill;
-if (!APP_CONTROLS_CORE_SKILL || !TERMINAL_CORE_SKILL) {
-  throw new Error("app-controls MCP must bind the app-controls and terminal plugin core skills");
+const DEVICES_CORE_SKILL = APP_CONTROLS_BINDING("devices")?.coreSkill;
+if (!APP_CONTROLS_CORE_SKILL || !TERMINAL_CORE_SKILL || !DEVICES_CORE_SKILL) {
+  throw new Error(
+    "app-controls MCP must bind the app-controls, terminal and devices plugin core skills",
+  );
 }
 
 export const APP_CONTROLS_MCP_INSTRUCTIONS =
   "Poracode app controls. " +
   `For threads, git, pull requests, and schedules, ${loadPluginCoreSkillPhrase(APP_CONTROLS_CORE_SKILL)}. ` +
   `When reading the Terminal panel, ${loadPluginCoreSkillPhrase(TERMINAL_CORE_SKILL)}. ` +
+  `For simulator and emulator work, ${loadPluginCoreSkillPhrase(DEVICES_CORE_SKILL)}. ` +
   "Read and control the running app: device schedules " +
   "(list/create/update/run/delete), app threads (current/list/get/read/create/send/interrupt/stop/wait/" +
   "update/open, including sidebar ungroup and Home-thread workspace filing), projects " +
@@ -95,9 +102,19 @@ export const APP_CONTROLS_MCP_INSTRUCTIONS =
   "observed output from inference, and do not echo secrets or dump the entire raw scrollback. If " +
   "list_terminals returns no panes, say no running Terminal panel is attached to this worktree; do " +
   "not fall back to agent TUI or chat scrollback. If read_terminal reports zero output, say the pane " +
-  "is running but has not emitted output yet.";
+  "is running but has not emitted output yet. " +
+  "For app-native charts, comparison tables, calculators, checklists, tabs, text and relationship diagrams in desktop/web conversations, use a poracode-visual-v2 code fence with a plain title and strict JSON. " +
+  "To show a recorded or generated video with playback in desktop/web chat, save the file and include [Watch video](<absolute-file-path.mp4>) or ![Video](<absolute-file-path.webm>) in your response. HTTPS video URLs and standard MCP/ACP video resource links are also supported. Use the actual saved path; prose saying a clip exists does not attach it. Playback depends on the client's supported codecs. " +
+  "Read Native visuals v2 in the app-controls core skill for the bounded schema and example, fixed app-theme layout/accent choices and shared numeric inputs. Native v1 chart/table/outputs documents remain supported; formulas in both versions are arithmetic trees, never strings or JavaScript. " +
+  "Native visuals have no URLs, custom markup, tools, host actions or author code; native mobile clients keep fenced source. Use ordinary Markdown for unsupported content. " +
+  "A poracode-html-v1 code fence with a plain title preserves HTML as a source preview in the conversation (maximum 256 KiB per block). " +
+  "Interactive HTML rendering and MCP Apps sessions are unavailable: author markup and scripts are not executed. " +
+  "Do not promise interactive HTML, MCP Apps sessions or host actions. Keep ordinary HTML examples in html fences." +
+  " For source-host PR/MR workflows, discover review_repository, then pass its public forgeAccount and full forgeRepository to review_* tools. " +
+  "Honor the reported capabilities and host policies. A successful merge request can remain queued; read the observed state and retry refresh without repeating a successful mutation.";
 
 const DOMAINS: readonly ToolDomain[] = [
+  deviceTools,
   scheduleTools,
   threadTools,
   projectTools,
@@ -110,6 +127,7 @@ const DOMAINS: readonly ToolDomain[] = [
   agentTools,
   gitTools,
   githubTools,
+  reviewTools,
   mcpServerTools,
   skillTools,
 ];
@@ -169,6 +187,15 @@ export async function dispatchTool(
   return result;
 }
 
-export function formatToolResult(_name: string, result: unknown): StreamableHttpMcpToolResult {
+export function formatToolResult(name: string, result: unknown): StreamableHttpMcpToolResult {
+  if (name === "screenshot_device") {
+    const { base64, mimeType, ...metadata } = deviceFrameSchema.parse(result);
+    return {
+      content: [
+        { type: "text", text: JSON.stringify(metadata) },
+        { type: "image", data: base64, mimeType },
+      ],
+    };
+  }
   return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
 }
