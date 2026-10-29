@@ -1330,9 +1330,9 @@ describe("RemoteAccessServer", () => {
     };
 
     const managed = await exchange(server.mintLoopbackRendererCredential()!.pairingUrl);
-    expect(writes.at(-1)?.accessSessions.some((session) => session.id === managed.sessionId)).toBe(
-      false,
-    );
+    // A memory-only exchange writes nothing at all — not even a rewrite without
+    // its row — so the file never learns the session existed.
+    expect(writes).toEqual([]);
     // It still authenticates for this process's lifetime.
     expect(authStore.authenticateBearerToken(managed.accessToken).sessionId).toBe(
       managed.sessionId,
@@ -2859,7 +2859,7 @@ describe("RemoteAccessServer", () => {
     const pairing = authStore.issuePairingCredential({ scopes: ["session:read"] });
     const token = authStore.exchangePairingCredential({
       credential: pairing.credential,
-      ttlMs: 250,
+      ttlMs: 750,
     });
     const ticket = authStore.issueWebSocketTicket({
       accessToken: token.accessToken,
@@ -2881,14 +2881,21 @@ describe("RemoteAccessServer", () => {
     // the renewal of the SAME session moves its access deadline out.
     const refreshed = authStore.refreshAccessToken({
       refreshToken: token.refreshToken!,
-      accessTtlMs: 1_000,
+      accessTtlMs: 1_500,
     });
     expect(refreshed.sessionId).toBe(token.sessionId);
-    await new Promise((resolve) => setTimeout(resolve, 400));
+    // Wait until the ORIGINAL deadline (captured at ticket consumption) is
+    // already behind us, so the pong proves the socket follows the renewal.
+    await new Promise((resolve) =>
+      setTimeout(resolve, Math.max(0, Date.parse(token.expiresAt) + 150 - Date.now())),
+    );
 
     const pongPromise = readWsMessage(ws);
     ws.send(JSON.stringify({ type: "ping", id: "after-refresh" }));
     await expect(pongPromise).resolves.toMatchObject({ type: "pong", id: "after-refresh" });
+    expect(
+      server.listAccessSessions().find((session) => session.id === token.sessionId)?.connected,
+    ).toBe(true);
 
     // The socket still closes at the RENEWED deadline, not forever.
     await expect(closePromise).resolves.toEqual({

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { mkdtempSync, readFileSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -19,6 +19,7 @@ import {
   readRemoteAccessAuthFile,
   remoteAuthFilePath,
   writeRemoteAccessAuthFile,
+  type PersistedRemoteAuthFile,
 } from "./auth";
 
 describe("RemoteAuthStore", () => {
@@ -396,16 +397,10 @@ describe("RemoteAuthStore", () => {
     expect(store.accessSessionExpiresAtMs(sessionId)).toBeNull();
   });
 
-  it("keeps an ephemeral session out of the persisted state through authentication and refresh", () => {
-    let persisted: ReturnType<typeof readRemoteAccessAuthFile> = {
-      accessSessions: [],
-      revokedTokenHashes: [],
-    };
-    const store = new RemoteAuthStore({
-      onPersistedStateChanged: (state) => {
-        persisted = state;
-      },
-    });
+  it("keeps an ephemeral session out of the persisted state through exchange, refresh and revoke", () => {
+    const writes = vi.fn<(state: PersistedRemoteAuthFile) => void>();
+    const store = new RemoteAuthStore({ onPersistedStateChanged: writes });
+
     const ephemeral = store.exchangePairingCredential({
       credential: store.issuePairingCredential({
         scopes: ["session:read"],
@@ -413,12 +408,17 @@ describe("RemoteAuthStore", () => {
       }).credential,
       client: { label: "Poracode desktop", deviceType: "desktop" },
     });
-    expect(persisted.accessSessions).toEqual([]);
+    // A memory-only exchange changes nothing the file carries: not even an
+    // empty session list is written.
+    expect(writes).not.toHaveBeenCalled();
 
     const durable = store.exchangePairingCredential({
       credential: store.issuePairingCredential({ scopes: ["session:read"] }).credential,
     });
-    expect(persisted.accessSessions.map((session) => session.id)).toEqual([durable.sessionId]);
+    expect(writes).toHaveBeenCalledTimes(1);
+    expect(writes.mock.lastCall![0].accessSessions.map((session) => session.id)).toEqual([
+      durable.sessionId,
+    ]);
 
     expect(store.authenticateBearerToken(ephemeral.accessToken).sessionId).toBe(
       ephemeral.sessionId,
@@ -428,7 +428,60 @@ describe("RemoteAuthStore", () => {
       ephemeral.sessionId,
     );
     // A rotated ephemeral session still never reaches the file.
+    expect(writes).toHaveBeenCalledTimes(1);
+
+    expect(store.revokeAccessSession(ephemeral.sessionId!)).toBe(true);
+    expect(writes).toHaveBeenCalledTimes(1);
+    const persisted = writes.mock.lastCall![0];
     expect(persisted.accessSessions.map((session) => session.id)).toEqual([durable.sessionId]);
+    // Neither the retired refresh hash nor the revocation reached the file.
+    expect(persisted.rotatedRefreshHashes).toEqual([]);
+    expect(persisted.revokedTokenHashes).toEqual([]);
+    expect(() => store.authenticateBearerToken(refreshed.accessToken)).toThrow(RemoteHttpError);
+    expect(() => store.refreshAccessToken({ refreshToken: refreshed.refreshToken! })).toThrow(
+      RemoteHttpError,
+    );
+  });
+
+  it("keeps an ephemeral rotation for in-process reuse detection but persists only durable ones", () => {
+    const writes = vi.fn<(state: PersistedRemoteAuthFile) => void>();
+    const store = new RemoteAuthStore({ onPersistedStateChanged: writes });
+
+    const ephemeral = store.exchangePairingCredential({
+      credential: store.issuePairingCredential({
+        scopes: ["session:read"],
+        ephemeral: true,
+      }).credential,
+    });
+    const retiredEphemeralRefresh = ephemeral.refreshToken!;
+    expect(store.refreshAccessToken({ refreshToken: retiredEphemeralRefresh }).sessionId).toBe(
+      ephemeral.sessionId,
+    );
+
+    // Reuse inside this process still carries the session family id, exactly
+    // like a durable rotation, so the caller can revoke it.
+    let caught: unknown;
+    try {
+      store.refreshAccessToken({ refreshToken: retiredEphemeralRefresh });
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBeInstanceOf(RefreshTokenReuseError);
+    expect((caught as RefreshTokenReuseError).sessionId).toBe(ephemeral.sessionId);
+    expect(writes).not.toHaveBeenCalled();
+
+    // A durable rotation is still recorded for the next host process, and the
+    // ephemeral one never rides along in that write.
+    const durable = store.exchangePairingCredential({
+      credential: store.issuePairingCredential({ scopes: ["session:read"] }).credential,
+    });
+    store.refreshAccessToken({ refreshToken: durable.refreshToken! });
+    const persisted = writes.mock.lastCall![0];
+    expect(persisted.rotatedRefreshHashes).toHaveLength(1);
+    expect(persisted.rotatedRefreshHashes![0]!.sessionId).toBe(durable.sessionId);
+    expect(
+      persisted.rotatedRefreshHashes!.some((entry) => entry.sessionId === ephemeral.sessionId),
+    ).toBe(false);
   });
 
   it("rejects an ephemeral session after a restart of the store", () => {

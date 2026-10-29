@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { RemoteFetch } from "@/shared/remote/client";
-import { createManagedLoopbackClient } from "./loopbackHttpWsTransport";
+import { RemoteClientError, type RemoteFetch } from "@/shared/remote/client";
+import {
+  createManagedLoopbackClient,
+  renewManagedLoopbackSession,
+} from "./loopbackHttpWsTransport";
 
 /**
  * Regression coverage for the managed loopback bearer: every activation builds
@@ -23,7 +26,7 @@ function json(status: number, body: unknown): Response {
 
 /** Fake host: rotating bearer/refresh pair, where every rotation invalidates
  * the previously issued bearer exactly like the real host. */
-function managedHost() {
+function managedHost(options?: { readonly refreshStatus?: number }) {
   let validAccessToken = "access-0";
   let validRefreshToken = "refresh-0";
   let refreshes = 0;
@@ -32,6 +35,11 @@ function managedHost() {
   let authorizationsAtFirstRotation: number | null = null;
   const fetch = vi.fn<RemoteFetch>(async (url, init) => {
     if (new URL(String(url)).pathname === "/oauth/token") {
+      // The host's token bucket refuses before it looks at the grant.
+      if (options?.refreshStatus !== undefined)
+        return json(options.refreshStatus, {
+          error: { code: "rate_limited", message: "Too many remote access attempts." },
+        });
       const body = JSON.parse(String(init?.body)) as { refreshToken: string };
       if (body.refreshToken !== validRefreshToken)
         return json(401, {
@@ -76,8 +84,8 @@ function managedHost() {
  * One fake intake (`DesktopLoopbackIntake` custody) shared by every client of
  * this session, plus the client factory under test.
  */
-function session() {
-  const host = managedHost();
+function session(options?: { readonly refreshStatus?: number }) {
+  const host = managedHost(options);
   vi.stubGlobal("fetch", host.fetch);
   const custody: {
     accessToken: string | null;
@@ -103,6 +111,7 @@ function session() {
   return {
     host,
     custody,
+    intake,
     client: (accessToken: string) => createManagedLoopbackClient(endpoint, accessToken, intake),
   };
 }
@@ -165,5 +174,54 @@ describe("managed loopback bearer sharing", () => {
     // intake's rotated bearer: `access-0` never returns to the wire.
     expect(host.firstPostRotationAuthorization()).toBe(1);
     expect(host.authorizations.slice(1)).toEqual(["Bearer access-1", "Bearer access-1"]);
+  });
+});
+
+describe("managed loopback session renewal", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("renews the retained session and reports the rotation through custody", async () => {
+    const { host, custody, intake } = session();
+
+    await expect(renewManagedLoopbackSession(endpoint, intake)).resolves.toBe(true);
+
+    expect(host.refreshes()).toBe(1);
+    expect(custody).toEqual({
+      accessToken: "access-1",
+      refreshToken: "refresh-1",
+      accessTokenExpiresAt: "2099-01-01T00:00:00.000Z",
+    });
+  });
+
+  it("reports a refused grant as false without touching custody", async () => {
+    const { host, custody, intake } = session();
+    custody.refreshToken = "refresh-retired";
+
+    await expect(renewManagedLoopbackSession(endpoint, intake)).resolves.toBe(false);
+
+    expect(host.refreshes()).toBe(0);
+    expect(custody).toEqual({
+      accessToken: "access-0",
+      refreshToken: "refresh-retired",
+      accessTokenExpiresAt: null,
+    });
+  });
+
+  it("rejects a rate-limited renewal as transport-class and leaves custody alone", async () => {
+    const { custody, intake } = session({ refreshStatus: 429 });
+
+    const error = await renewManagedLoopbackSession(endpoint, intake).catch(
+      (caught: unknown) => caught,
+    );
+
+    expect(error).toBeInstanceOf(RemoteClientError);
+    expect((error as RemoteClientError).status).toBe(429);
+    expect(custody).toEqual({
+      accessToken: "access-0",
+      refreshToken: "refresh-0",
+      accessTokenExpiresAt: null,
+    });
   });
 });

@@ -125,7 +125,8 @@ export interface DesktopLoopbackIntakeDeps {
    * Renews the session with the retained refresh token through the shared
    * client refresh, which reports the rotation back through `applyTokens`.
    * Resolves false when the host refused the grant; rejects on transport-class
-   * failures (those retry instead of re-pairing).
+   * failures, which the proactive timer retries briefly and the local ladder
+   * retries otherwise (never re-pairing on the first attempt).
    */
   readonly renewSession?: () => Promise<boolean>;
   /**
@@ -207,6 +208,9 @@ const DECODE_RETRY_MAX_MS = 30_000;
 /** Proactive renewal fires this long before the access deadline (capped at
  * half of a shorter window), so a live socket never meets the deadline. */
 const RENEWAL_LEAD_MS = 5 * 60_000;
+/** A transport-class renewal failure retries this long before the deadline; a
+ * refused grant does not retry (the close path re-pairs). */
+const RENEWAL_RETRY_MS = 60_000;
 /** setTimeout's maximum representable delay; longer waits are re-armed. */
 const MAX_TIMEOUT_DELAY_MS = 2_147_483_647;
 
@@ -282,6 +286,9 @@ export class DesktopLoopbackIntake {
   private refreshToken: string | null = null;
   /** When the proactive renewal for the retained bearer is due (null = none). */
   private renewalDueAtMs: number | null = null;
+  /** The retained bearer's access deadline; bounds retries after a failed
+   * proactive renewal (null = no armed window). */
+  private renewalExpiresAtMs: number | null = null;
   private renewalTimer: ReturnType<typeof setTimeout> | null = null;
   /** Whether the CURRENT socket's upgrade carried the bounded-catalog-changes
    * declaration (read by the wiring to re-open on a capability change). */
@@ -386,16 +393,24 @@ export class DesktopLoopbackIntake {
   }
 
   /** Arm the proactive renewal one lead before the deadline, never more than
-   * half of a short remaining window; `<= 0` fires on the next tick. */
+   * half of a short remaining window. An already-expired bearer arms nothing:
+   * the request-401 refresh and the expiry-close reconnect renew it instead. */
   private scheduleRenewal(expiresAt: string | undefined): void {
     this.clearRenewalTimer();
     const expiresAtMs = expiresAt ? Date.parse(expiresAt) : Number.NaN;
-    if (!Number.isFinite(expiresAtMs) || this.disposed || !this.deps.renewSession) {
+    if (
+      !Number.isFinite(expiresAtMs) ||
+      expiresAtMs <= Date.now() ||
+      this.disposed ||
+      !this.deps.renewSession
+    ) {
       this.renewalDueAtMs = null;
+      this.renewalExpiresAtMs = null;
       return;
     }
     const remaining = expiresAtMs - Date.now();
-    this.renewalDueAtMs = expiresAtMs - Math.min(RENEWAL_LEAD_MS, Math.max(0, remaining) / 2);
+    this.renewalExpiresAtMs = expiresAtMs;
+    this.renewalDueAtMs = expiresAtMs - Math.min(RENEWAL_LEAD_MS, remaining / 2);
     this.armRenewal();
   }
 
@@ -423,11 +438,30 @@ export class DesktopLoopbackIntake {
 
   private async renewNow(): Promise<void> {
     try {
+      // A successful rotation re-arms through `applyTokens`; a refused grant
+      // returns false and is the expiry-close/re-pair path's to handle.
       await this.deps.renewSession?.();
     } catch {
-      // Best effort: the request-401 refresh and the expiry-close reconnect
-      // still renew the session, so a failed proactive pass is not fatal.
+      // Transport-class (429, network): retry shortly while the retained
+      // bearer is still live. The request-401 refresh and the expiry-close
+      // reconnect remain the fallback at the deadline itself.
+      this.scheduleRenewalRetry();
     }
+  }
+
+  /** One bounded retry a minute after a transport-class renewal failure, and
+   * only while nothing else has re-armed the timer and the deadline is still
+   * ahead. A refusal is not retried. */
+  private scheduleRenewalRetry(): void {
+    const expiresAtMs = this.renewalExpiresAtMs;
+    if (this.disposed || !this.deps.renewSession) return;
+    if (this.renewalDueAtMs !== null || expiresAtMs === null) return;
+    const retryAtMs = Date.now() + RENEWAL_RETRY_MS;
+    // Past the deadline the 401/expiry-close path renews; a proactive retry
+    // could only race the close.
+    if (retryAtMs >= expiresAtMs) return;
+    this.renewalDueAtMs = retryAtMs;
+    this.armRenewal();
   }
 
   private clearRenewalTimer(): void {
@@ -448,6 +482,7 @@ export class DesktopLoopbackIntake {
     this.unsubscribeItemInterests = null;
     this.clearRenewalTimer();
     this.renewalDueAtMs = null;
+    this.renewalExpiresAtMs = null;
     this.clearDecodeRetry();
     this.drain.dispose();
     this.liveness.dispose();

@@ -233,10 +233,12 @@ export class RemoteAuthStore {
   >();
   /** Revoked token hashes (access AND refresh) until their natural expiry. */
   private readonly revokedTokenHashes = new Map<string, number>();
-  /** Rotated-out refresh hashes → owning session (V6 A.7 reuse detection). */
+  /** Rotated-out refresh hashes → owning session (V6 A.7 reuse detection).
+   * Entries owned by a memory-only session stay in this map for in-process
+   * detection but are filtered out of the persisted shape. */
   private readonly rotatedRefreshHashes = new Map<
     string,
-    { readonly sessionId: string; readonly expiresAtMs: number }
+    { readonly sessionId: string; readonly expiresAtMs: number; readonly ephemeral?: true }
   >();
 
   constructor(private readonly options: RemoteAuthStoreOptions = {}) {
@@ -357,7 +359,9 @@ export class RemoteAuthStore {
       ...(grant.ephemeral ? { ephemeral: true as const } : {}),
     };
     this.accessSessions.set(session.tokenHash, session);
-    this.persistAccessSessions();
+    // A memory-only session changes nothing the file carries; never write the
+    // other rows just to prove its exchange happened.
+    if (!session.ephemeral) this.persistAccessSessions();
 
     return {
       accessToken,
@@ -414,9 +418,12 @@ export class RemoteAuthStore {
       this.rotatedRefreshHashes.set(session.refreshTokenHash, {
         sessionId: session.id,
         expiresAtMs: session.refreshExpiresAtMs ?? rotated.expiresAtMs,
+        ...(session.ephemeral ? { ephemeral: true as const } : {}),
       });
     }
-    this.persistAccessSessions();
+    // A memory-only rotation changes nothing the file carries; the reuse entry
+    // above stays in memory only.
+    if (!rotated.ephemeral) this.persistAccessSessions();
 
     return {
       accessToken,
@@ -485,10 +492,15 @@ export class RemoteAuthStore {
    * the session is gone (revoked or pruned). Read-only: no pruning, no
    * persistence. */
   accessSessionExpiresAtMs(sessionId: string): number | null {
+    return this.findAccessSession(sessionId)?.expiresAtMs ?? null;
+  }
+
+  /** Session-id lookup without allocating the value array on every call. */
+  private findAccessSession(sessionId: string): StoredAccessSession | undefined {
     for (const session of this.accessSessions.values()) {
-      if (session.id === sessionId) return session.expiresAtMs;
+      if (session.id === sessionId) return session;
     }
-    return null;
+    return undefined;
   }
 
   markSessionConnected(sessionId: string): void {
@@ -509,7 +521,7 @@ export class RemoteAuthStore {
     requiredScopes: readonly RemoteAccessScope[] = [],
   ): AuthenticatedRemoteSession {
     this.pruneExpired();
-    const session = [...this.accessSessions.values()].find((entry) => entry.id === sessionId);
+    const session = this.findAccessSession(sessionId);
     if (!session || session.expiresAtMs <= Date.now()) {
       throw new RemoteHttpError("invalid_access_token", "Invalid access session.", 401);
     }
@@ -530,13 +542,18 @@ export class RemoteAuthStore {
       this.accessSessions.delete(hash);
       // Gate 6 item 4.6: revocation is remembered for the lifetime of what it
       // kills — the access token AND its refresh token — so a replayed bearer
-      // or a saved refresh token stays dead across restarts.
-      this.revokedTokenHashes.set(hash, session.expiresAtMs);
-      if (session.refreshTokenHash) {
-        this.revokedTokenHashes.set(
-          session.refreshTokenHash,
-          session.refreshExpiresAtMs ?? session.expiresAtMs,
-        );
+      // or a saved refresh token stays dead across restarts. A memory-only
+      // session is never written, so no restart can restore its row: the
+      // hashes would only grow the file, and deleting the row already fails
+      // both tokens for this process.
+      if (!session.ephemeral) {
+        this.revokedTokenHashes.set(hash, session.expiresAtMs);
+        if (session.refreshTokenHash) {
+          this.revokedTokenHashes.set(
+            session.refreshTokenHash,
+            session.refreshExpiresAtMs ?? session.expiresAtMs,
+          );
+        }
       }
       for (const [rotatedHash, rotated] of this.rotatedRefreshHashes) {
         if (rotated.sessionId === sessionId) this.rotatedRefreshHashes.delete(rotatedHash);
@@ -551,7 +568,9 @@ export class RemoteAuthStore {
           this.environmentWebSocketTickets.delete(ticketHash);
         }
       }
-      this.persistAccessSessions();
+      // A memory-only revocation touched no row the file carries (its ticket
+      // maps are memory-only too).
+      if (!session.ephemeral) this.persistAccessSessions();
       return true;
     }
     return false;
@@ -704,11 +723,15 @@ export class RemoteAuthStore {
         tokenHash,
         expiresAtMs,
       })),
-      rotatedRefreshHashes: [...this.rotatedRefreshHashes].map(([tokenHash, rotated]) => ({
-        tokenHash,
-        sessionId: rotated.sessionId,
-        expiresAtMs: rotated.expiresAtMs,
-      })),
+      rotatedRefreshHashes: [...this.rotatedRefreshHashes]
+        // The same rule for reuse detection: an ephemeral rotation is only
+        // meaningful in this process, so its hash must not outlive the session.
+        .filter(([, rotated]) => !rotated.ephemeral)
+        .map(([tokenHash, rotated]) => ({
+          tokenHash,
+          sessionId: rotated.sessionId,
+          expiresAtMs: rotated.expiresAtMs,
+        })),
     });
   }
 }

@@ -240,6 +240,34 @@ export function createManagedLoopbackClient(
 }
 
 /**
+ * Renews a managed loopback session through the shared, coalesced client
+ * refresh, which reports the rotation back through the intake's `applyTokens`.
+ * Resolves false when the host refused the grant (401/403); rejects on
+ * transport-class failures, including 429.
+ */
+export async function renewManagedLoopbackSession(
+  endpoint: string,
+  intake: Pick<
+    DesktopLoopbackIntake,
+    "getAccessToken" | "getRefreshToken" | "applyTokens" | "isActive"
+  >,
+): Promise<boolean> {
+  try {
+    const renewed = await createManagedLoopbackClient(
+      endpoint,
+      intake.getAccessToken() ?? "",
+      intake,
+    ).refreshTokens();
+    return renewed !== null;
+  } catch (error) {
+    if (error instanceof RemoteClientError && (error.status === 401 || error.status === 403)) {
+      return false;
+    }
+    throw error;
+  }
+}
+
+/**
  * Monotonic activation fence: incremented on every deactivation/dispose. A
  * descriptor response (or its retry) is applied only while the activation that
  * started it is still the live intake — a delayed response from a retired
@@ -641,24 +669,14 @@ async function startOwnedDesktopLoopbackIntake(isCurrentStartup: () => boolean):
     onRecoveryExhausted: recoverIntake,
     // Renewal rides the shared client refresh, which coalesces with in-flight
     // request refreshes on the same refresh token: spending it twice would
-    // revoke the session family. A refused grant means re-pair; a 429 is a
-    // transport failure and must retry, never re-pair.
-    renewSession: async () => {
+    // revoke the session family. A refused grant (401/403) means re-pair;
+    // anything else (429, network) is transport-class, and the intake retries
+    // it on its local ladder instead of re-pairing at once.
+    renewSession: () => {
       const owner = intake;
-      if (!owner || !isCurrentIntake()) return false;
-      try {
-        const renewed = await createManagedLoopbackClient(
-          endpoint,
-          owner.getAccessToken() ?? "",
-          owner,
-        ).refreshTokens();
-        return renewed !== null;
-      } catch (error) {
-        if (error instanceof RemoteClientError && (error.status === 401 || error.status === 403)) {
-          return false;
-        }
-        throw error;
-      }
+      return owner && isCurrentIntake()
+        ? renewManagedLoopbackSession(endpoint, owner)
+        : Promise.resolve(false);
     },
     dispatch: (event, seq, space) => {
       if (!isCurrentIntake()) return;

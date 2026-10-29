@@ -1619,12 +1619,10 @@ describe("desktop loopback socket policy (A4)", () => {
     expect(exhausted).not.toHaveBeenCalled();
   });
 
-  it("renews ahead of the access deadline and stops renewing after dispose", async () => {
-    const { fetchImpl } = createFakeFetch();
+  it("renews five minutes before a ten-minute access deadline, not before", async () => {
     const renewSession = vi.fn<() => Promise<boolean>>(async () => true);
     const intake = new DesktopLoopbackIntake(
       baseIntakeDeps({
-        fetchImpl,
         renewSession,
         socketFactory: () => makeFakeSocket().socket,
       }),
@@ -1639,10 +1637,104 @@ describe("desktop loopback socket policy (A4)", () => {
     expect(renewSession).not.toHaveBeenCalled();
     await vi.advanceTimersByTimeAsync(1);
     expect(renewSession).toHaveBeenCalledTimes(1);
+  });
+
+  it("re-arms a lead before the deadline a successful rotation reports", async () => {
+    const renewSession = vi.fn<() => Promise<boolean>>(async () => {
+      intake.applyTokens({
+        accessToken: `token-${renewSession.mock.calls.length}`,
+        accessTokenExpiresAt: new Date(Date.now() + 10 * 60_000).toISOString(),
+      });
+      return true;
+    });
+    const intake: DesktopLoopbackIntake = new DesktopLoopbackIntake(
+      baseIntakeDeps({ renewSession, socketFactory: () => makeFakeSocket().socket }),
+    );
+    intakes.push(intake);
+    intake.applyTokens({
+      accessToken: "token-0",
+      accessTokenExpiresAt: new Date(Date.now() + 10 * 60_000).toISOString(),
+    });
+
+    await vi.advanceTimersByTimeAsync(5 * 60_000);
+    expect(renewSession).toHaveBeenCalledTimes(1);
+    // The rotation's own deadline sets the next lead, not the original one.
+    await vi.advanceTimersByTimeAsync(5 * 60_000 - 1);
+    expect(renewSession).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(renewSession).toHaveBeenCalledTimes(2);
+  });
+
+  it("stops renewing once the intake is disposed", async () => {
+    const renewSession = vi.fn<() => Promise<boolean>>(async () => true);
+    const intake = new DesktopLoopbackIntake(
+      baseIntakeDeps({ renewSession, socketFactory: () => makeFakeSocket().socket }),
+    );
+    intakes.push(intake);
+    intake.applyTokens({
+      accessToken: "token",
+      accessTokenExpiresAt: new Date(Date.now() + 10 * 60_000).toISOString(),
+    });
 
     intake.dispose();
     await vi.advanceTimersByTimeAsync(60 * 60_000);
+    expect(renewSession).not.toHaveBeenCalled();
+  });
+
+  it("chunks a far-future deadline instead of firing early", async () => {
+    const renewSession = vi.fn<() => Promise<boolean>>(async () => true);
+    const intake = new DesktopLoopbackIntake(
+      baseIntakeDeps({ renewSession, socketFactory: () => makeFakeSocket().socket }),
+    );
+    intakes.push(intake);
+    intake.applyTokens({
+      accessToken: "token",
+      accessTokenExpiresAt: "2099-01-01T00:00:00.000Z",
+    });
+
+    await vi.advanceTimersByTimeAsync(30 * 24 * 60 * 60_000);
+    expect(renewSession).not.toHaveBeenCalled();
+  });
+
+  it("arms nothing for an already-expired access deadline", async () => {
+    const renewSession = vi.fn<() => Promise<boolean>>(async () => true);
+    const intake = new DesktopLoopbackIntake(
+      baseIntakeDeps({ renewSession, socketFactory: () => makeFakeSocket().socket }),
+    );
+    intakes.push(intake);
+    intake.applyTokens({
+      accessToken: "token",
+      accessTokenExpiresAt: new Date(Date.now() - 1_000).toISOString(),
+    });
+
+    await vi.advanceTimersByTimeAsync(60 * 60_000);
+    expect(renewSession).not.toHaveBeenCalled();
+  });
+
+  it("retries a transport-class renewal once a minute but not a refused grant", async () => {
+    const renewSession = vi
+      .fn<() => Promise<boolean>>()
+      .mockRejectedValueOnce(new Error("loopback transport failed"))
+      .mockResolvedValue(false);
+    const intake = new DesktopLoopbackIntake(
+      baseIntakeDeps({ renewSession, socketFactory: () => makeFakeSocket().socket }),
+    );
+    intakes.push(intake);
+    intake.applyTokens({
+      accessToken: "token",
+      accessTokenExpiresAt: new Date(Date.now() + 10 * 60_000).toISOString(),
+    });
+
+    await vi.advanceTimersByTimeAsync(5 * 60_000);
     expect(renewSession).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(60_000 - 1);
+    expect(renewSession).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(renewSession).toHaveBeenCalledTimes(2);
+
+    // A refused grant (false) is the close/re-pair path's, never retried.
+    await vi.advanceTimersByTimeAsync(5 * 60_000);
+    expect(renewSession).toHaveBeenCalledTimes(2);
   });
 
   it("reports a refused pairing credential once and stops retrying it", async () => {
