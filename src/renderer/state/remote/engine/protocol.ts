@@ -8,6 +8,8 @@ import type { DesktopLoopbackFrame } from "@/renderer/state/remoteServers/deskto
  * in one bundle, so the bump only fence-sits a stale cached chunk pair into the
  * loud protocol-mismatch path instead of half-serving a request type it does
  * not know.
+ * Replacement-worker recovery reuses the existing reset message; version 3
+ * worker bundles remain compatible without a wire-shape change.
  */
 export const CLIENT_ENGINE_PROTOCOL_VERSION = 3 as const;
 /** Global outstanding-work backstop across every lane of one engine: queued +
