@@ -299,6 +299,7 @@ const COMPOSER_EFFORT_VALUES = new Set([
   "none",
   "ultra",
   "ultracode",
+  "auto",
 ]);
 
 export function normalizeComposerEffort(effort: string | undefined): string {
@@ -324,6 +325,7 @@ const ANALYTICS_PROVIDER_IDS = new Set([
   "copilot",
   "cursor",
   "factory",
+  "fx",
   "gemini",
   "grok",
   "kimi",

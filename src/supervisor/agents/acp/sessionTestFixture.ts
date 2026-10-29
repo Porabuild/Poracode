@@ -13,6 +13,7 @@ import {
   type AcpSessionBehavior,
 } from "./session";
 import type { AcpTextStreamExtension } from "./canonicalMapping/textStreamExtension";
+import type { AcpPromptSteering } from "./promptSteering";
 import { createAcpLocalImageResolver } from "./sessionLocalImages";
 
 export type TestableAcpSession = {
@@ -26,6 +27,13 @@ export type TestableAcpSession = {
     segments?: import("@/shared/contracts").PromptSegment[],
     options?: import("../base").StartTurnOptions,
   ): Promise<void>;
+  steerTurn?: (
+    prompt: string,
+    config: ThreadConfig,
+    segments?: import("@/shared/contracts").PromptSegment[],
+    options?: import("../base").StartTurnOptions,
+  ) => Promise<void>;
+  activate(): Promise<void>;
   interruptTurn(): Promise<void>;
   forceCompleteTurn(): void;
   dispose(): Promise<void>;
@@ -67,11 +75,17 @@ export function makeConfigSyncSession(
     behavior?: AcpSessionBehavior;
     textStreamExtension?: AcpTextStreamExtension;
     stderrTurnSignalParser?: (line: string) => "background-wait" | undefined;
+    promptSteering?: AcpPromptSteering;
   } = {},
 ) {
   const connection = {
     initialize: vi
-      .fn<(args: { clientCapabilities: unknown }) => Promise<{ protocolVersion: number }>>()
+      .fn<
+        (args: { clientCapabilities: unknown }) => Promise<{
+          protocolVersion: number;
+          agentCapabilities?: { _meta?: Record<string, unknown> };
+        }>
+      >()
       .mockResolvedValue({ protocolVersion: 1 }),
     setSessionMode: vi
       .fn<(args: { sessionId: string; modeId: string }) => Promise<void>>()
@@ -91,7 +105,13 @@ export function makeConfigSyncSession(
       >()
       .mockResolvedValue(undefined),
     prompt: vi
-      .fn<(args: { sessionId: string; prompt: unknown[] }) => Promise<{ stopReason: string }>>()
+      .fn<
+        (args: {
+          sessionId: string;
+          prompt: unknown[];
+          _meta?: Record<string, unknown>;
+        }) => Promise<{ stopReason: string }>
+      >()
       .mockResolvedValue({ stopReason: "end_turn" }),
     cancel: vi.fn<(args: { sessionId: string }) => Promise<void>>().mockResolvedValue(undefined),
     extMethod: vi
@@ -165,6 +185,8 @@ export function makeConfigSyncSession(
   session["isReplayingHistory"] = false;
   session["isDisposed"] = false;
   session["promptInFlight"] = false;
+  session["pendingSteers"] = [];
+  session["promptSteering"] = overrides.promptSteering;
   session["pendingPromptInterrupt"] = false;
   session["currentTurnInterruptRequested"] = false;
   session["suppressAgentOutputUntilNextTurn"] = false;

@@ -1337,7 +1337,7 @@ msgstr "Dodaj projekt przed zalogowaniem."
 msgid "Add a project before updating an agent."
 msgstr "Dodaj projekt przed aktualizacją agenta."
 
-#: src/renderer/components/providers/settings/OpenCode2ProviderSettings.tsx
+#: src/renderer/components/providers/settings/ProviderCredentialAccounts.tsx
 msgid "Add a project in this environment before signing in."
 msgstr "Przed zalogowaniem dodaj projekt w tym środowisku."
 
@@ -2359,6 +2359,7 @@ msgstr "Utworzone przeze mnie"
 msgid "Authorization: Bearer token"
 msgstr "Authorization: Bearer token"
 
+#: src/renderer/components/common/effortLabel.ts
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Auto"
 msgstr "Auto"
@@ -7963,6 +7964,10 @@ msgstr "Pierwszorzędna integracja z Qoder CLI korzystająca z natywnych środow
 msgid "First-class Qwen Code integration using Poracode's native terminal and ACP runtimes."
 msgstr "Pierwszorzędna integracja z Qwen Code korzystająca z natywnych środowisk uruchomieniowych terminala i ACP w Poracode."
 
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Vercel fx integration using Poracode's native terminal and ACP runtimes."
+msgstr "Pierwszorzędna integracja z Vercel fx korzystająca z natywnych środowisk uruchomieniowych terminala i ACP w Poracode."
+
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Fit"
 msgstr "Dopasowano"
@@ -8225,6 +8230,10 @@ msgstr "Pełna konfiguracja"
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "Fullscreen overlay"
 msgstr "Nakładka pełnoekranowa"
+
+#: src/renderer/components/providers/fx/manifest.ts
+msgid "fx"
+msgstr "fx"
 
 #: src/renderer/utils/projectIcons.ts
 msgid "Games & fun"
@@ -10284,8 +10293,8 @@ msgstr "Źródło logowania"
 msgid "Login source, config file, organization, and runtime for this configuration. Thread knobs like model and approvals stay on the composer."
 msgstr "Źródło logowania, plik konfiguracji, organizacja i środowisko uruchomieniowe dla tej konfiguracji. Ustawienia wątku, takie jak model i zatwierdzenia, pozostają w kompozytorze."
 
-#: src/renderer/components/providers/settings/OpenCode2ProviderSettings.tsx
 #: src/renderer/components/providers/settings/ProviderAccountsSection.tsx
+#: src/renderer/components/providers/settings/ProviderCredentialAccounts.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Logout"
@@ -15182,7 +15191,7 @@ msgstr "Usunąć połączoną umiejętność „{0}”? Jej folder źródłowy n
 msgid "Remove the project's experiments before removing the project."
 msgstr "Usuń eksperymenty projektu przed usunięciem projektu."
 
-#: src/renderer/components/providers/settings/OpenCode2ProviderSettings.tsx
+#: src/renderer/components/providers/settings/ProviderCredentialAccounts.tsx
 msgid "Remove the saved credential for this provider? You can connect it again from Add provider."
 msgstr "Usunąć zapisane dane logowania tego dostawcy? Możesz połączyć go ponownie przez „Dodaj dostawcę”."
 
@@ -17436,6 +17445,10 @@ msgstr "Wymagane zalogowanie się"
 msgid "Sign in to {0}"
 msgstr "Zaloguj się do {0}"
 
+#: src/renderer/components/providers/fx/FxProviderSettings.tsx
+msgid "Sign in to the AI backends fx can use, and sign out of them here."
+msgstr "Zaloguj się do backendów AI, których może używać fx, i wyloguj się z nich tutaj."
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Sign in with the agent CLI."
 msgstr "Zaloguj się za pomocą interfejsu CLI agenta."
@@ -17453,8 +17466,8 @@ msgstr "Wyloguj się z {label}"
 
 #. placeholder {0}: provider.label
 #. placeholder {0}: signingOut?.provider.label ?? ""
-#: src/renderer/components/providers/settings/OpenCode2ProviderSettings.tsx
 #: src/renderer/components/providers/settings/ProviderAccountsSection.tsx
+#: src/renderer/components/providers/settings/ProviderCredentialAccounts.tsx
 msgid "Sign out of {0}"
 msgstr "Wyloguj się z {0}"
 

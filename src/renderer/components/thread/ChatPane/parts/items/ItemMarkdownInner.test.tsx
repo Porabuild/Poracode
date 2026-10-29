@@ -360,6 +360,57 @@ describe("ItemMarkdownInner", () => {
     );
   });
 
+  it.each([
+    { refreshRate: 60, initial: "Hello" },
+    { refreshRate: 120, initial: "Hello" },
+    { refreshRate: 60, initial: "**Hello**" },
+    { refreshRate: 120, initial: "**Hello**" },
+  ])(
+    "reveals text at 60 updates per second on a $refreshRate Hz display: $initial",
+    async ({ refreshRate, initial }) => {
+      const frames = new Map<number, FrameRequestCallback>();
+      let nextFrame = 0;
+      const requestFrame = vi.spyOn(window, "requestAnimationFrame").mockImplementation((frame) => {
+        frames.set(++nextFrame, frame);
+        return nextFrame;
+      });
+      const cancelFrame = vi.spyOn(window, "cancelAnimationFrame").mockImplementation((id) => {
+        frames.delete(id);
+      });
+      const { container, rerender, unmount } = render(
+        <SmoothItemMarkdown text={initial} isStreaming />,
+      );
+      try {
+        await waitFor(() => expect(container.querySelector("p")?.textContent).toBe("Hello"));
+        const target = `${initial}${" streamed words".repeat(60)}`;
+        const visibleTarget = target.replaceAll("**", "");
+        rerender(<SmoothItemMarkdown text={target} isStreaming />);
+        let previousLength = 5;
+        for (let frame = 0; frame < 8; frame += 1) {
+          act(() => {
+            const pending = [...frames.values()];
+            frames.clear();
+            for (const callback of pending) callback(1_000 + (frame * 1_000) / refreshRate);
+          });
+          const displayed = container.querySelector("p")?.textContent ?? "";
+          const shouldAdvance = frame % (refreshRate / 60) === 0;
+          expect(displayed.length > previousLength).toBe(shouldAdvance);
+          expect(displayed.length).toBeGreaterThanOrEqual(previousLength);
+          expect(displayed.length).toBeLessThan(visibleTarget.length);
+          expect(visibleTarget.startsWith(displayed)).toBe(true);
+          previousLength = displayed.length;
+        }
+        rerender(<SmoothItemMarkdown text={target} isStreaming={false} />);
+        expect(container.querySelector("p")?.textContent).toBe(visibleTarget);
+        expect(frames.size).toBe(0);
+      } finally {
+        unmount();
+        requestFrame.mockRestore();
+        cancelFrame.mockRestore();
+      }
+    },
+  );
+
   it.each(["", " **done**"])(
     "preserves smoothing and flushes completed display text %j",
     async (tail) => {

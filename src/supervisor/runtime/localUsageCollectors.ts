@@ -1,12 +1,13 @@
 import type { HostPort, UsageSnapshot } from "@poracode/agents-usage";
 import { scanAntigravityUsage } from "../agents/antigravity/antigravityUsageScanner";
+import { scanFxUsage } from "../agents/fx/usage";
 import { scanOpenCodeUsage } from "../agents/opencode/openCodeUsageScanner";
 
 /**
  * Providers collected supervisor-side rather than via the package's pure HTTP
  * registry, because they need process / SQLite access it can't do: `opencode`
  * reads a local SQLite store plus the opencode.ai web session, `antigravity`
- * probes its local language server.
+ * probes its local language server, and `fx` runs the CLI's `fx usage --json`.
  *
  * Modeled on the package's `UsageCollector` registry so the service stays
  * provider-agnostic — adding a local provider is a new entry here, not another
@@ -31,5 +32,6 @@ export function createLocalUsageCollectors(
       collect: (nowMs, host) =>
         scanAntigravityUsage(nowMs, options.getActiveAntigravityWslDistros?.() ?? [], host),
     },
+    { id: "fx", collect: (nowMs) => scanFxUsage(nowMs) },
   ];
 }
