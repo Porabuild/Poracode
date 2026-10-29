@@ -19169,6 +19169,10 @@ msgstr "无法取消运行。"
 msgid "The run was interrupted."
 msgstr "运行已中断。"
 
+#: src/renderer/state/remoteServers/sharedCredentials.ts
+msgid "The saved remote credentials could not be confirmed."
+msgstr "无法确认已保存的远程连接凭据。"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The scheduled automation failed."
 msgstr "计划的自动化运行失败。"
@@ -20156,6 +20160,10 @@ msgstr "来自{0}的token"
 #: src/renderer/components/thread/CrewDockSection.tsx
 msgid "Told not to edit files. Not enforced."
 msgstr "指示不要编辑文件。不会强制执行。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Too many remote requests are in progress. Try again in a moment."
+msgstr "正在进行的远程请求过多。请稍后重试。"
 
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Too many visuals in this message. Showing source only."

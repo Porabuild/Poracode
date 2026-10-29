@@ -178,11 +178,14 @@ export interface RemoteTokenLifecycle {
   accessToken?(): string | undefined;
   /** The persisted refresh token for this server record, if any. */
   refreshToken(): string | undefined;
-  /** Called after every successful refresh with the NEW token pair. */
-  onTokensRefreshed(tokens: RemoteTokenSnapshot): void;
+  /** Called after every successful refresh with the NEW token pair. A returned
+   * promise is awaited inside the exclusive section, so durable persistence
+   * finishes before another caller reads the store. */
+  onTokensRefreshed(tokens: RemoteTokenSnapshot): void | Promise<void>;
   /** Serializes the read-refresh-persist sequence across processes sharing one
    * token store (a rotated refresh token consumed twice revokes the session
-   * family server-side). Absent = today's behavior: in-process dedupe only. */
+   * family server-side). The section may adopt a rotation committed elsewhere
+   * before `run` starts. Absent = today's behavior: in-process dedupe only. */
   runExclusive?<T>(run: () => Promise<T>): Promise<T>;
 }
 

@@ -6,6 +6,7 @@ import {
   isPullDirtyWorktreeError,
   setMessageResolver,
 } from "./messages";
+import { RemoteClientError } from "./remote/clientErrors";
 
 describe("friendlyErrorWithDetail", () => {
   it("localizes controlled execution refusal after string-only IPC delivery", () => {
@@ -151,6 +152,29 @@ describe("friendlyErrorWithDetail", () => {
       summary: "Enter a valid absolute project path.",
       details: "A project path may not contain traversal segments.",
     });
+  });
+
+  it.each([
+    ["overloaded", "Too many active remote requests for this window."],
+    ["principal_busy", "This paired client has too much work in flight; retry shortly."],
+    [
+      "settings_overloaded",
+      "Settings update was refused by the settings authority (queue full); retry later.",
+    ],
+  ])("maps %s admission refusals to the localized busy message", (code, message) => {
+    const error = new RemoteClientError(message, 429, code);
+    expect(friendlyErrorWithDetail(error)).toEqual({
+      summary: "Too many remote requests are in progress. Try again in a moment.",
+      details: message,
+    });
+    setMessageResolver((key) =>
+      key === "remote.server.busy" ? "Hay demasiadas solicitudes remotas en curso." : undefined,
+    );
+    try {
+      expect(friendlyError(error)).toBe("Hay demasiadas solicitudes remotas en curso.");
+    } finally {
+      setMessageResolver(undefined);
+    }
   });
 
   it("maps worktree concurrency conflicts to a shared message", () => {

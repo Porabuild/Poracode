@@ -1,5 +1,9 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
+public enum WebSocketServerMessageU2DOptionU2D5U2DType_d8768c073f: String, Codable, Sendable {
+  case `pong` = "pong"
+}
+
 public struct WebSocketServerMessageU2DOptionU2D5_17b50a5a25: Codable, Sendable, RemoteModelMetadata {
   public var id: RemoteField<String> = .missing
   public var receivedAt: Double
@@ -184,9 +188,9 @@ public struct WebSocketServerMessageU2DOptionU2D9_95d0adeb5b: Codable, Sendable,
   }
 }
 
-public enum WebSocketServerMessage_252e94a758: Codable, Sendable {
+public enum WebSocketServerMessage_b176186fb3: Codable, Sendable {
   case option1(WebSocketServerMessageU2DOptionU2D1_48916cddaa)
-  case option2(WebSocketServerMessageU2DOptionU2D2_13762c62f0)
+  case option2(WebSocketServerMessageU2DOptionU2D2_dade9637ae)
   case option3(WebSocketServerMessageU2DOptionU2D3_3897f50212)
   case option4(WebSocketServerMessageU2DOptionU2D4_a633f9a256)
   case option5(WebSocketServerMessageU2DOptionU2D5_17b50a5a25)
@@ -199,11 +203,11 @@ public enum WebSocketServerMessage_252e94a758: Codable, Sendable {
   case option12(WebSocketServerMessageU2DOptionU2D12_f1c1581e17)
   public init(from decoder: Decoder) throws {
     let container = try decoder.singleValueContainer()
-    var matches: [(Int, WebSocketServerMessage_252e94a758)] = []
+    var matches: [(Int, WebSocketServerMessage_b176186fb3)] = []
     if RemoteUnionProbe.matchesProperty(decoder, property: "type", literals: [.string("agent-vision-frame")]), let value = try? container.decode(WebSocketServerMessageU2DOptionU2D1_48916cddaa.self) {
       matches.append((1, .option1(value)))
     }
-    if RemoteUnionProbe.matchesProperty(decoder, property: "type", literals: [.string("ready")]), let value = try? container.decode(WebSocketServerMessageU2DOptionU2D2_13762c62f0.self) {
+    if RemoteUnionProbe.matchesProperty(decoder, property: "type", literals: [.string("ready")]), let value = try? container.decode(WebSocketServerMessageU2DOptionU2D2_dade9637ae.self) {
       matches.append((2, .option2(value)))
     }
     if RemoteUnionProbe.matchesProperty(decoder, property: "type", literals: [.string("event")]), let value = try? container.decode(WebSocketServerMessageU2DOptionU2D3_3897f50212.self) {
@@ -237,8 +241,8 @@ public enum WebSocketServerMessage_252e94a758: Codable, Sendable {
       matches.append((12, .option12(value)))
     }
     guard matches.count == 1 else {
-      let detail = matches.isEmpty ? "No union option matched WebSocketServerMessage_252e94a758" : "Ambiguous union WebSocketServerMessage_252e94a758 matched options " + matches.map { String($0.0) }.joined(separator: ", ")
-      throw DecodingError.typeMismatch(WebSocketServerMessage_252e94a758.self, .init(codingPath: decoder.codingPath, debugDescription: detail))
+      let detail = matches.isEmpty ? "No union option matched WebSocketServerMessage_b176186fb3" : "Ambiguous union WebSocketServerMessage_b176186fb3 matched options " + matches.map { String($0.0) }.joined(separator: ", ")
+      throw DecodingError.typeMismatch(WebSocketServerMessage_b176186fb3.self, .init(codingPath: decoder.codingPath, debugDescription: detail))
     }
     self = matches[0].1
   }

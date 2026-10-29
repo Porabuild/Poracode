@@ -52,6 +52,27 @@ afterEach(() => {
 });
 
 describe("bounded token-vault database", () => {
+  it("inserts a record only while none usable is stored", async () => {
+    const usable = (stored: unknown) =>
+      (stored as { value?: string } | undefined)?.value !== undefined;
+    expect(await vault.insertUnlessPresent({ key: "value", value: "first" }, usable)).toEqual({
+      key: "value",
+      value: "first",
+    });
+    expect(await vault.insertUnlessPresent({ key: "value", value: "second" }, usable)).toEqual({
+      key: "value",
+      value: "first",
+    });
+    expect(await readValue()).toEqual({ key: "value", value: "first" });
+
+    await vault.request("readwrite", "write", (store) => store.put({ key: "value" }));
+    expect(await vault.insertUnlessPresent({ key: "value", value: "repaired" }, usable)).toEqual({
+      key: "value",
+      value: "repaired",
+    });
+    expect(await readValue()).toEqual({ key: "value", value: "repaired" });
+  });
+
   it("times out a stalled open, releases late success, and keeps a newer retry cached", async () => {
     const oldDatabase = await openNative();
     const newDatabase = await openNative();

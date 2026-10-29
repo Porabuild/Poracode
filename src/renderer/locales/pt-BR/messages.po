@@ -19170,6 +19170,10 @@ msgstr "Não foi possível cancelar a execução."
 msgid "The run was interrupted."
 msgstr "A execução foi interrompida."
 
+#: src/renderer/state/remoteServers/sharedCredentials.ts
+msgid "The saved remote credentials could not be confirmed."
+msgstr "Não foi possível confirmar as credenciais remotas salvas."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The scheduled automation failed."
 msgstr "A automação agendada falhou."
@@ -20157,6 +20161,10 @@ msgstr "Tokens de {0}"
 #: src/renderer/components/thread/CrewDockSection.tsx
 msgid "Told not to edit files. Not enforced."
 msgstr "Instrução para não editar arquivos. Não é aplicada."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Too many remote requests are in progress. Try again in a moment."
+msgstr "Há solicitações remotas demais em andamento. Tente novamente em instantes."
 
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Too many visuals in this message. Showing source only."

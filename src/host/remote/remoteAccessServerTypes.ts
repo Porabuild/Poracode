@@ -656,6 +656,19 @@ export interface RemoteAccessServerOptions {
     refreshProjectPullRequests(projectId: string): Promise<void>;
   };
   /**
+   * Per-owner leases in front of the supervisor's shared project watcher. The
+   * durable host owns them, so they outlive this server instance. Without
+   * them the watch procedures reach the supervisor directly.
+   */
+  readonly projectWatches?: {
+    watchProject(owner: string, projectId: string): Promise<void>;
+    setWorktrees(owner: string, projectId: string, worktreePaths: readonly string[]): Promise<void>;
+    unwatchProject(owner: string, projectId: string, releaseWslDistro?: string): Promise<void>;
+    pinWorktree(projectId: string, worktreePath: string): Promise<void>;
+    unpinWorktree(projectId: string, worktreePath: string): Promise<void>;
+    releaseOwner(owner: string): Promise<void>;
+  };
+  /**
    * Push-notification registration sink. The server stays pure — the store and
    * `PushCoordinator` live in the wiring layer (`main.ts` / headless host) and
    * are injected here. Absent on hosts that don't support push (returns 503).

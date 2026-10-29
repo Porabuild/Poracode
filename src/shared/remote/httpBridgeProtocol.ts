@@ -30,6 +30,8 @@
  * must not be paired with a version-2 peer.
  */
 /** Version 3 binds the optional certificate leaf pin to each request TLS connection. */
+// Admission overloads reuse the existing error frame before the utility starts;
+// version 3 frame shapes and envelopes remain compatible.
 export const REMOTE_HTTP_BRIDGE_VERSION = 3 as const;
 
 /** Bounded response body, matching the pre-F8 main-buffered transport limit. */

@@ -153,6 +153,7 @@ import {
   createDesktopRemoteAccessController,
   type DesktopRemoteAccessController,
 } from "./DesktopRemoteAccessController";
+import { ProjectWatchLeases } from "@/host/gitState";
 
 const fixtures: Array<{ root: string; controller: DesktopRemoteAccessController }> = [];
 
@@ -177,9 +178,12 @@ afterEach(async () => {
   vi.unstubAllEnvs();
 });
 
-async function fixture(): Promise<DesktopRemoteAccessController> {
+async function fixture(
+  overrides: { readonly projectWatchLeases?: ProjectWatchLeases } = {},
+): Promise<DesktopRemoteAccessController> {
   const root = mkdtempSync(join(tmpdir(), "poracode-desktop-loopback-"));
   const controller = createDesktopRemoteAccessController({
+    ...overrides,
     appVersion: "fixture",
     channel: "stable",
     paths: { baseDir: root, settingsPath: join(root, "settings.json") },
@@ -232,6 +236,23 @@ describe("managed always-on loopback server", () => {
       host: "0.0.0.0",
       plaintextLanAcknowledged: true,
     });
+  });
+
+  it("hands every rebuilt server the same durable project watch registry", async () => {
+    const projectWatchLeases = new ProjectWatchLeases({
+      call: async () => undefined,
+      getProject: () => undefined,
+    });
+    const controller = await fixture({ projectWatchLeases });
+    await controller.startIfEnabled();
+    await controller.setEnabled(true);
+    await controller.setEnabled(false);
+    await vi.waitFor(() => {
+      expect(h.servers.length).toBeGreaterThanOrEqual(3);
+    });
+    for (const server of h.servers) {
+      expect(server.options.projectWatches).toBe(projectWatchLeases);
+    }
   });
 
   it("returns to loopback when remote access is disabled", async () => {

@@ -176,6 +176,9 @@ export interface AuthenticatedRemoteSession {
   readonly scopes: readonly RemoteAccessScope[];
   readonly client: RemoteClientMetadata | undefined;
   readonly expiresAtMs: number;
+  /** Host-internal: minted from a memory-only managed-renderer credential
+   * (see {@link StoredPairingCredential.ephemeral}). Never serialized. */
+  readonly ephemeral?: true;
 }
 
 interface RemoteAuthStoreOptions {
@@ -219,12 +222,15 @@ function toAuthenticatedSession(session: StoredAccessSession): AuthenticatedRemo
     scopes: session.scopes,
     client: session.client,
     expiresAtMs: session.expiresAtMs,
+    ...(session.ephemeral ? { ephemeral: true as const } : {}),
   };
 }
 
 export class RemoteAuthStore {
   private readonly pairingCredentials = new Map<string, StoredPairingCredential>();
   private readonly accessSessions = new Map<string, StoredAccessSession>();
+  /** Keep failed durable revocations visible to management so they can be retried. */
+  private readonly pendingRevocations = new Map<string, StoredAccessSession>();
   private readonly websocketTickets = new Map<string, StoredWebSocketTicket>();
   /** Parent environment upgrade tickets (session + environment bound). */
   private readonly environmentWebSocketTickets = new Map<
@@ -423,7 +429,20 @@ export class RemoteAuthStore {
     }
     // A memory-only rotation changes nothing the file carries; the reuse entry
     // above stays in memory only.
-    if (!rotated.ephemeral) this.persistAccessSessions();
+    if (!rotated.ephemeral) {
+      try {
+        this.persistAccessSessions();
+      } catch (error) {
+        // The caller never receives the successor, so a rotation the file does
+        // not hold must not stand: restore the presented pair and forget the
+        // predecessor, or the client's retry with it would revoke the family as
+        // reuse. A failed atomic write never published, so disk agrees.
+        this.accessSessions.delete(rotated.tokenHash);
+        this.accessSessions.set(session.tokenHash, session);
+        if (session.refreshTokenHash) this.rotatedRefreshHashes.delete(session.refreshTokenHash);
+        throw error;
+      }
+    }
 
     return {
       accessToken,
@@ -474,7 +493,7 @@ export class RemoteAuthStore {
 
   listAccessSessions(): RemoteAccessSessionSummary[] {
     this.pruneExpired();
-    return [...this.accessSessions.values()]
+    return [...this.accessSessions.values(), ...this.pendingRevocations.values()]
       .sort((a, b) => b.issuedAtMs - a.issuedAtMs)
       .map((session) => ({
         id: session.id,
@@ -537,6 +556,10 @@ export class RemoteAuthStore {
 
   revokeAccessSession(sessionId: string): boolean {
     this.pruneExpired();
+    if (this.pendingRevocations.has(sessionId)) {
+      this.persistAccessSessions();
+      return true;
+    }
     for (const [hash, session] of this.accessSessions) {
       if (session.id !== sessionId) continue;
       this.accessSessions.delete(hash);
@@ -547,6 +570,7 @@ export class RemoteAuthStore {
       // hashes would only grow the file, and deleting the row already fails
       // both tokens for this process.
       if (!session.ephemeral) {
+        this.pendingRevocations.set(sessionId, session);
         this.revokedTokenHashes.set(hash, session.expiresAtMs);
         if (session.refreshTokenHash) {
           this.revokedTokenHashes.set(
@@ -733,6 +757,7 @@ export class RemoteAuthStore {
           expiresAtMs: rotated.expiresAtMs,
         })),
     });
+    this.pendingRevocations.clear();
   }
 }
 

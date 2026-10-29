@@ -41,6 +41,7 @@ const h = vi.hoisted(() => ({
   tmpRoot: "",
   capturedOnEvent: undefined as ((event: unknown) => void) | undefined,
   capturedOnReset: undefined as (() => void) | undefined,
+  capturedOnStarted: undefined as (() => void) | undefined,
   supervisorStart: vi.fn<() => void>(),
   supervisorDispose: vi.fn<() => Promise<void>>(),
   supervisorCall: vi.fn<() => Promise<unknown>>(async () => ({})),
@@ -158,9 +159,14 @@ vi.mock("@/host/supervisor/SupervisorClient", () => ({
     dispose = h.supervisorDispose;
     call = h.supervisorCall;
     isSupervisorProvenAbsent = h.supervisorProvenAbsent;
-    constructor(options: { onEvent: (event: unknown) => void; onReset: () => void }) {
+    constructor(options: {
+      onEvent: (event: unknown) => void;
+      onReset: () => void;
+      onStarted?: () => void;
+    }) {
       h.capturedOnEvent = options.onEvent;
       h.capturedOnReset = options.onReset;
+      h.capturedOnStarted = options.onStarted;
     }
   },
 }));
@@ -199,6 +205,7 @@ describe("createHeadlessRemoteHost", () => {
     h.tmpBase = join(h.tmpRoot, "profile");
     h.capturedOnEvent = undefined;
     h.capturedOnReset = undefined;
+    h.capturedOnStarted = undefined;
     h.supervisorStart.mockReset();
     h.supervisorDispose.mockReset();
     h.supervisorDispose.mockResolvedValue();
@@ -701,7 +708,11 @@ describe("createHeadlessRemoteHost", () => {
             scopes: ["ports:forward"],
           }),
         });
-        expect(tokenResponse.status).toBe(200);
+        const tokenReply =
+          tokenResponse.status === 200
+            ? { status: 200 }
+            : { status: tokenResponse.status, error: await tokenResponse.text() };
+        expect(tokenReply).toEqual({ status: 200 });
         const { accessToken } = (await tokenResponse.json()) as { accessToken: string };
         const created = await fetch(new URL("api/ports/forward", publicUrl), {
           method: "POST",
@@ -900,6 +911,77 @@ describe("createHeadlessRemoteHost", () => {
       queue: null,
     });
     await host.dispose();
+  });
+
+  it("routes paired watch procedures through the durable leases and restores them on supervisor start", async () => {
+    const root = { kind: "posix", path: "/repo" };
+    h.projects = [{ id: "project-1", name: "Repo", location: root, createdAt: "2026-01-01" }];
+    const host = await makeHost();
+    await host.start();
+    try {
+      const info = host.server.getInfo()!;
+      const exchange = async (pairingUrl: string) => {
+        const url = new URL(pairingUrl);
+        const response = await fetch(new URL("/oauth/token", info.httpBaseUrl), {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            grantType: "pairing-token",
+            credential: new URLSearchParams(url.hash.slice(1)).get("token"),
+            scopes: ["session:read", "session:operate"],
+          }),
+        });
+        expect(response.status).toBe(200);
+        return ((await response.json()) as { accessToken: string }).accessToken;
+      };
+      const call = (token: string, procedure: string, payload: Record<string, unknown>) =>
+        fetch(new URL("/api/git/call", info.httpBaseUrl), {
+          method: "POST",
+          headers: {
+            authorization: `Bearer ${token}`,
+            "content-type": "application/json",
+            [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+          },
+          body: JSON.stringify({ procedure, payload }),
+        });
+      const supervisorNames = () =>
+        (h.supervisorCall.mock.calls as unknown as Array<[string, unknown]>).map(([name]) => name);
+      const first = await exchange(info.pairingUrl);
+      const second = await exchange(host.server.issueIndependentPairingUrl("Second client"));
+
+      const watched = await call(first, "gitWatchProject", {
+        projectId: "project-1",
+        projectLocation: root,
+      });
+      expect(watched.status).toBe(200);
+      expect((await call(second, "gitUnwatchProject", { projectId: "project-1" })).status).toBe(
+        200,
+      );
+      expect(supervisorNames()).toContain("gitWatchProject");
+      expect(supervisorNames()).not.toContain("gitUnwatchProject");
+
+      // A restarted supervisor gets the watches back from its start callback,
+      // with no lease change and without starting a supervisor itself.
+      h.supervisorCall.mockClear();
+      h.capturedOnReset?.();
+      expect(h.capturedOnStarted).toBeTypeOf("function");
+      h.capturedOnStarted?.();
+      await vi.waitFor(() => expect(h.supervisorCall).toHaveBeenCalled());
+      expect(h.supervisorCall.mock.calls as unknown[]).toEqual([
+        [
+          "gitWatchProject",
+          { projectId: "project-1", projectLocation: root },
+          { startIfNeeded: false },
+        ],
+      ]);
+    } finally {
+      await host.dispose();
+    }
+    h.supervisorCall.mockClear();
+    h.capturedOnReset?.();
+    h.capturedOnStarted?.();
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    expect(h.supervisorCall).not.toHaveBeenCalled();
   });
 
   it("resolves MCP launch settings from the headless settings file and project row", async () => {

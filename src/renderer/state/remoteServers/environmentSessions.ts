@@ -19,6 +19,7 @@ import { mainProcessFetch } from "./mainProcessFetch";
 import {
   acquireRefreshSubjectOwnership,
   ensureConnectionIncarnation,
+  forgetRefreshTokenForSubject,
   managedEnvironmentRefreshSubject,
   ownsConnectionIncarnation,
   ownsRefreshSubject,
@@ -28,6 +29,9 @@ import {
   revokeConnectionIncarnation,
   type RefreshSubject,
 } from "./refreshTokens";
+import { commitSharedRefresh, runSharedRefresh } from "./sharedCredentials";
+import type { SharedServerRecords } from "./storeClient";
+import { noteDesktopTokenCommitted } from "./tokenVault";
 import { getManagedParentAuthority, type ManagedParentAuthority } from "./managedLoopbackOwner";
 import {
   environmentParentCacheKey,
@@ -88,6 +92,10 @@ export interface EnvironmentSessionDependencies {
     owner?: symbol,
   ) => Promise<boolean>;
   readonly deleteRefreshTokenFromVault: (subject: RefreshSubject) => Promise<void>;
+  /** Drops an in-memory grant; defaults to the refresh-token map. */
+  readonly forgetRefreshToken?: (subject: RefreshSubject) => void;
+  /** The shared persisted records; absent = no cross-realm endpoint check. */
+  readonly shared?: SharedServerRecords;
   /** Test seam; defaults to the production Electron/browser fetch + pin probe. */
   readonly createEnvironmentClient?: (
     endpoint: string,
@@ -252,35 +260,38 @@ function parentSessionFor(server: RemoteServerRecord): PersistedParentSession {
     parentSessions.get(refKey) === session &&
     ownsConnectionIncarnation(connectionKey, incarnation) &&
     findServer(connectionKey)?.endpoint === server.endpoint;
+  const subject: RefreshSubject = { kind: "connection", connectionId: connectionKey };
+  // Origin fence: a delayed rotation from a replaced session or a retired
+  // connection incarnation never updates the live token or the grant. The
+  // connection's per-request clients share this grant, subject and lock.
+  const custody = {
+    subject,
+    bearerConnectionKey: connectionKey,
+    isCurrent,
+    canAdopt: () =>
+      !api.shared || api.shared.durableServer(connectionKey)?.endpoint === server.endpoint,
+    current: () => ({
+      accessToken: findServer(connectionKey)?.accessToken,
+      refreshToken: api.refreshTokenForSubject(subject),
+    }),
+    apply: (
+      pair: { accessToken: string | undefined; refreshToken: string | undefined },
+      durable: boolean,
+    ) => {
+      if (pair.refreshToken !== undefined) api.rememberRefreshToken(subject, pair.refreshToken);
+      else (api.forgetRefreshToken ?? forgetRefreshTokenForSubject)(subject);
+      if (pair.accessToken === undefined) return;
+      session.accessToken = pair.accessToken;
+      if (durable) noteDesktopTokenCommitted(connectionKey, pair.accessToken);
+      api.shared?.acknowledgeBearer(connectionKey, pair.accessToken);
+      api.persistAccessToken(connectionKey, pair.accessToken);
+    },
+  };
   client.setTokenLifecycle({
     accessToken: () => (isCurrent() ? findServer(connectionKey)?.accessToken : undefined),
-    refreshToken: () =>
-      isCurrent()
-        ? api.refreshTokenForSubject({ kind: "connection", connectionId: connectionKey })
-        : undefined,
-    onTokensRefreshed: (tokens) => {
-      // Origin fence: a delayed rotation from a replaced session or a retired
-      // connection incarnation never updates the live token or the grant.
-      if (!isCurrent()) return;
-      session.accessToken = tokens.accessToken;
-      api.persistAccessToken(connectionKey, tokens.accessToken);
-      if (tokens.refreshToken !== undefined) {
-        api.rememberRefreshToken(
-          { kind: "connection", connectionId: connectionKey },
-          tokens.refreshToken,
-        );
-        void api.writeRefreshTokenToVault(
-          { kind: "connection", connectionId: connectionKey },
-          tokens.refreshToken,
-          incarnation,
-        );
-      } else {
-        void api.deleteRefreshTokenFromVault({
-          kind: "connection",
-          connectionId: connectionKey,
-        });
-      }
-    },
+    refreshToken: () => (isCurrent() ? api.refreshTokenForSubject(subject) : undefined),
+    onTokensRefreshed: (tokens) => commitSharedRefresh(custody, tokens),
+    runExclusive: (run) => runSharedRefresh(custody, run),
   });
   const pin = api.certPinForConnection(connectionKey);
   if (pin) client.setCertFingerprintPin(pin);
@@ -504,6 +515,9 @@ interface EnvironmentClientInput {
   readonly childDesktopId?: string;
   readonly endpoint: string;
   readonly accessToken?: string;
+  /** The environment record's connection key, whose vault slot holds the
+   * child bearer; absent while pairing, before any record exists. */
+  readonly connectionKey?: string;
   /** Existing grant owner (a session rebuild keeps its own fence). */
   readonly grantOwner?: symbol;
 }
@@ -555,20 +569,67 @@ export function createEnvironmentClientForPairing(input: EnvironmentClientInput)
     ? api.createEnvironmentClient(input.endpoint, input.accessToken, options)
     : createDefaultEnvironmentClient(input.endpoint, input.accessToken, options);
   const childGrantKey = refreshSubjectVaultKey(grantSubject);
-  client.setTokenLifecycle({
-    refreshToken: () => api.refreshTokenForSubject(grantSubject),
-    onTokensRefreshed: (tokens) => {
-      // Origin fence: only the client that still owns this grant may write,
-      // and a disposal between response and write leaves the successor's
-      // grant untouched (including an explicit re-pair at the same endpoint).
-      if (!ownsRefreshSubject(grantSubject, grantOwner)) return;
-      if (tokens.refreshToken !== undefined) {
-        api.rememberRefreshToken(grantSubject, tokens.refreshToken);
-        void api.writeRefreshTokenToVault(grantSubject, tokens.refreshToken, grantOwner);
-      } else {
-        void api.deleteRefreshTokenFromVault(grantSubject);
+  // Origin fence: only the client that still owns this grant may write, and a
+  // disposal between response and write leaves the successor's grant untouched
+  // (including an explicit re-pair at the same endpoint).
+  const isCurrent = () => ownsRefreshSubject(grantSubject, grantOwner);
+  const parentDesktopId = ref.kind === "connection" ? directParentFor(ref)?.desktopId : undefined;
+  const childDesktopId =
+    input.childDesktopId ??
+    (input.connectionKey !== undefined ? findServer(input.connectionKey)?.desktopId : undefined);
+  // The child bearer lives with this client: committing a rotation to the
+  // record would rebuild the session and drop its mounted images.
+  let childAccessToken = input.accessToken;
+  const custody = {
+    subject: grantSubject,
+    bearerConnectionKey: input.connectionKey,
+    isCurrent,
+    canAdopt: () => {
+      if (!api.shared) return true;
+      let durableParentEndpoint = parentEndpoint;
+      if (ref.kind === "connection") {
+        const parent = api.shared.durableServer(ref.connectionId);
+        if (!parent || isEnvironmentServer(parent) || parent.desktopId !== parentDesktopId)
+          return false;
+        durableParentEndpoint = parent.endpoint;
+      } else if (managedParentFor(ref)?.endpoint !== parentEndpoint) return false;
+      if (environmentProxyEndpoint(durableParentEndpoint, input.environmentId) !== input.endpoint)
+        return false;
+      if (input.connectionKey === undefined || childDesktopId === undefined) return false;
+      const child = api.shared.durableServer(input.connectionKey);
+      if (!child || child.transport?.kind !== "environment") return false;
+      const childParent = environmentParentRef(child.transport);
+      return (
+        childParent !== undefined &&
+        environmentParentCacheKey(childParent) === environmentParentCacheKey(ref) &&
+        child.transport.environmentId === input.environmentId &&
+        child.desktopId === childDesktopId &&
+        (child.transport.childDesktopId ?? child.desktopId) === childDesktopId
+      );
+    },
+    current: () => ({
+      accessToken: childAccessToken,
+      refreshToken: api.refreshTokenForSubject(grantSubject),
+    }),
+    apply: (
+      pair: { accessToken: string | undefined; refreshToken: string | undefined },
+      durable: boolean,
+    ) => {
+      if (pair.refreshToken !== undefined)
+        api.rememberRefreshToken(grantSubject, pair.refreshToken);
+      else (api.forgetRefreshToken ?? forgetRefreshTokenForSubject)(grantSubject);
+      if (pair.accessToken === undefined) return;
+      childAccessToken = pair.accessToken;
+      if (durable && input.connectionKey !== undefined) {
+        noteDesktopTokenCommitted(input.connectionKey, pair.accessToken);
       }
     },
+  };
+  client.setTokenLifecycle({
+    accessToken: () => (isCurrent() ? childAccessToken : undefined),
+    refreshToken: () => api.refreshTokenForSubject(grantSubject),
+    onTokensRefreshed: (tokens) => commitSharedRefresh(custody, tokens),
+    runExclusive: (run) => runSharedRefresh(custody, run),
   });
   return { client, parentAuthority, childGrantSubject: grantSubject, childGrantKey, grantOwner };
 }
@@ -715,6 +776,7 @@ export function environmentSessionForServer(
     ...(transport.childDesktopId !== undefined ? { childDesktopId: transport.childDesktopId } : {}),
     endpoint,
     ...(server.accessToken !== undefined ? { accessToken: server.accessToken } : {}),
+    connectionKey,
   });
   if (!created) return undefined;
   const session: EnvironmentClientSession = {

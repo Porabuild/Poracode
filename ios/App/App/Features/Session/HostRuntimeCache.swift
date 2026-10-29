@@ -3,6 +3,8 @@ import Foundation
 /// Per-host live surface that must not leak across `ClientConnectionID`s.
 struct HostRuntimeCache: Sendable, Equatable {
     var lastSeenSeq: Int = 0
+    /// Event-stream epoch `lastSeenSeq` is bound to (`eventEpoch=v1`); nil while unbound.
+    var lastSeenEpoch: String?
     var interests: [String] = []
     var snapshot: RemoteShellSnapshot?
     var projectsLoadState: SessionLoadState = .idle

@@ -161,10 +161,17 @@ function splitPairingCredential(value: string): {
 export interface PairingActionDeps extends RemoteServersStoreApi {
   readonly checkHostUpdateInBackground: RemoteServerClientBindings["checkHostUpdateInBackground"];
   readonly startRemoteServerEventStream: StartRemoteServerEventStream;
+  readonly closeRemoteServerEventSocket: (desktopId: string) => void;
 }
 
 export function createPairingActions(deps: PairingActionDeps) {
-  const { set, get, checkHostUpdateInBackground, startRemoteServerEventStream } = deps;
+  const {
+    set,
+    get,
+    checkHostUpdateInBackground,
+    startRemoteServerEventStream,
+    closeRemoteServerEventSocket,
+  } = deps;
 
   const pairAtEndpoint = async (input: {
     endpoint: string;
@@ -272,6 +279,7 @@ export function createPairingActions(deps: PairingActionDeps) {
     // record. Re-pairing with a fresh QR replaces the pin.
     if (input.certFingerprint) rememberCertPin(connectionId, input.certFingerprint);
     setRemoteHostUpdateReconnectSeq(connectionId, nextRemoteHostUpdateSequence());
+    closeRemoteServerEventSocket(connectionId);
     bumpRemoteServerGeneration(connectionId);
     set((state) => ({
       servers: [...state.servers.filter((s) => s.connectionId !== connectionId), record],
@@ -295,7 +303,7 @@ export function createPairingActions(deps: PairingActionDeps) {
       syncRemoteGitSummaries(connectionId, snapshot.gitSummariesByThread);
     }
     if (snapshot.gitState) syncRemoteGitStateSnapshot(connectionId, snapshot.gitState);
-    setRemoteServerSnapshotSeq(connectionId, snapshot.snapshotSeq);
+    setRemoteServerSnapshotSeq(connectionId, snapshot.snapshotSeq, snapshot.snapshotEpoch);
     // Pairing overwrites the seq baseline; stale per-thread marks from a
     // previous pairing of the same host must not refuse this snapshot.
     clearRemoteThreadAppliedSeqs(connectionId);

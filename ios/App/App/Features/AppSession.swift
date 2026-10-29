@@ -619,6 +619,22 @@ extension AppSession: RemoteWebSocketClientDelegate {
         }
     }
 
+    /// The selected socket's cursor changed event-stream epoch: keep the session
+    /// and pool cursor copies bound the same way, so a replacement socket
+    /// resumes with the right epoch instead of an unverifiable cursor.
+    nonisolated func webSocket(
+        _ client: RemoteWebSocketClient,
+        didBindEventEpoch epoch: String?,
+        appliedSeq: Int
+    ) async {
+        await MainActor.run {
+            guard self.socketWraps(client) else { return }
+            self.state.lastSeenSeq = appliedSeq
+            self.state.lastSeenEpoch = epoch
+            self.sessionPool.noteSelectedHostCursorRebound(seq: appliedSeq, epoch: epoch)
+        }
+    }
+
     nonisolated func webSocketNeedsResync(_ client: RemoteWebSocketClient, reason: String) async {
         await MainActor.run {
             guard self.socketWraps(client) else { return }

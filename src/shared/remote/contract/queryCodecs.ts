@@ -4,6 +4,10 @@ import {
   HISTORY_DEFER_FILE_CHANGE_BODIES,
   HISTORY_DETAILS_PROJECTION,
 } from "../historyPresentation";
+import {
+  REMOTE_EVENT_EPOCH_WS_PARAM,
+  REMOTE_LAST_SEEN_EPOCH_WS_PARAM,
+} from "../protocol/eventEpoch";
 import { REMOTE_RUNTIME_HISTORY_NOTICES_DECLARATION } from "../protocol/runtimeHistoryNotice";
 
 /**
@@ -275,6 +279,10 @@ export const WEBSOCKET_QUERY_CODECS: readonly QueryParameterCodec[] = [
   // Resume cursor of the desktop-internal replayable stream. Ignored unless
   // the connection was admitted as desktop-internal.
   param(REMOTE_DESKTOP_INTERNAL_SEQ_PARAM, "int", true),
+  // Event-stream epoch opt-in (`eventEpoch=v1`) and the epoch the resume
+  // cursor is bound to; older hosts ignore both.
+  param(REMOTE_EVENT_EPOCH_WS_PARAM, "string", true),
+  param(REMOTE_LAST_SEEN_EPOCH_WS_PARAM, "string", true),
 ];
 
 export const LOSSY_QUERY_METADATA_KINDS = [

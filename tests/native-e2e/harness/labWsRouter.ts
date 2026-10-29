@@ -7,6 +7,12 @@ import { LabHttpError } from "./labAuth.ts";
 import { stripBasePath } from "./httpIo.ts";
 import type { LabConnection, LabRuntime } from "./labRuntime.ts";
 import { BROWSER_SERVER_FIXTURES, parseClientMessage } from "./wsFixtures.ts";
+import {
+  REMOTE_EVENT_EPOCH_DECLARATION,
+  REMOTE_EVENT_EPOCH_WS_PARAM,
+  REMOTE_LAST_SEEN_EPOCH_WS_PARAM,
+  remoteEventEpochSchema,
+} from "../../../src/shared/remote/protocol/eventEpoch.ts";
 
 export async function handleLabUpgrade(
   runtime: LabRuntime,
@@ -27,12 +33,21 @@ export async function handleLabUpgrade(
     const lastSeenSeq = parseLastSeenSeq(url.searchParams);
     const initialInterests = parseThreadItemInterests(url.searchParams);
     const desktopInternal = parseDesktopInternal(url.searchParams);
+    const lastSeenEpoch = parseLastSeenEpoch(url.searchParams);
     wss.handleUpgrade(req, socket, head, (ws) => {
       runtime.observationLedger.recordOperation("ws:connect", {
         path: pathname,
         lastSeenSeq,
       });
-      handleLabConnection(runtime, ws, session, lastSeenSeq, initialInterests, desktopInternal);
+      handleLabConnection(
+        runtime,
+        ws,
+        session,
+        lastSeenSeq,
+        initialInterests,
+        desktopInternal,
+        lastSeenEpoch,
+      );
     });
   } catch (error) {
     if (error instanceof LabHttpError) {
@@ -56,6 +71,7 @@ export function handleLabConnection(
   lastSeenSeq: number | null,
   initialInterests: ReadonlySet<string> | null,
   desktopInternal = false,
+  lastSeenEpoch: string | null | undefined = undefined,
 ): void {
   const identity = runtime.allocateConnectionIdentity(session.sessionId);
   const connection: LabConnection = {
@@ -87,7 +103,14 @@ export function handleLabConnection(
   }
 
   const sendReadyAndReplay = () => {
-    runtime.send(ws, { type: "ready", seq: runtime.ring.seq });
+    // Like the host, only a connection that declared `eventEpoch=v1` sees
+    // the epoch; everyone else keeps the exact `{ type, seq }` frame.
+    runtime.send(
+      ws,
+      lastSeenEpoch === undefined
+        ? { type: "ready", seq: runtime.ring.seq }
+        : { type: "ready", seq: runtime.ring.seq, epoch: runtime.ring.epoch },
+    );
     if (runtime.faults.has("malformed-envelope")) {
       ws.send("{not-json");
       runtime.ledger.observeWebSocketServer("malformed");
@@ -96,7 +119,19 @@ export function handleLabConnection(
       ws.send(JSON.stringify({ type: "lab-unknown-envelope", payload: {} }));
       runtime.ledger.observeWebSocketServer("lab-unknown-envelope");
     }
-    const decision = runtime.ring.decide(lastSeenSeq);
+    // A seq-rule resync (reset, expired window) keeps its reason, as on the
+    // host; otherwise an unverified cursor is refused before replay.
+    const verified = runtime.ring.verifyResume(session.sessionId, lastSeenSeq, lastSeenEpoch);
+    const seqDecision = runtime.ring.decide(lastSeenSeq);
+    const decision =
+      verified || seqDecision.kind === "resync"
+        ? seqDecision
+        : ({
+            kind: "resync",
+            seq: runtime.ring.seq,
+            reason:
+              "Resume cursor is not verified for this server instance; request a fresh snapshot.",
+          } as const);
     if (decision.kind === "resync") {
       runtime.send(ws, {
         type: "resync-required",
@@ -321,6 +356,18 @@ export function parseLastSeenSeq(searchParams: URLSearchParams): number | null {
   if (raw === null) return null;
   const seq = Number(raw);
   return Number.isSafeInteger(seq) && seq >= 0 ? seq : null;
+}
+
+/**
+ * `undefined` when the connection did not declare `eventEpoch=v1`; `null` when
+ * it declared without a usable bound epoch (mirrors the host parser).
+ */
+export function parseLastSeenEpoch(searchParams: URLSearchParams): string | null | undefined {
+  if (searchParams.get(REMOTE_EVENT_EPOCH_WS_PARAM) !== REMOTE_EVENT_EPOCH_DECLARATION) {
+    return undefined;
+  }
+  const raw = searchParams.get(REMOTE_LAST_SEEN_EPOCH_WS_PARAM);
+  return remoteEventEpochSchema.safeParse(raw).success ? raw : null;
 }
 
 export function parseThreadItemInterests(

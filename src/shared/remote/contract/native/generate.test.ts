@@ -82,8 +82,11 @@ describe("remote v3 native binding generator", () => {
         // structural type (its literal).
         // Optional sessionId on the token-exchange result moves the source hash only.
         // Optional crew favorites/usage and model recency move only the source hash.
-        sourceHash: "sha256:054cab70ec778aca12d0965811a3848768b86a18ec94486eba792aa39b9d58b2",
-        manifestHash: "sha256:0af95549f6385c5f08e5dfeb224d10486c18d5b19acb6ba934351dbea0e0dea4",
+        // The optional `ready.epoch` and the eventEpoch/lastSeenEpoch handshake
+        // parameters move both hashes without changing counts or wire versions.
+        // The optional shell snapshotEpoch moves the source hash only.
+        sourceHash: "sha256:62a9316f62caf5b3dadad0d6a013200840746269a43b0f6d9cc2421d5dcffe7f",
+        manifestHash: "sha256:48db6a3e43d98007056cc988d5d0021c4df34de60e0dae41f965d9639361ae25",
         counts: {
           routes: 119,
           procedures: 163,

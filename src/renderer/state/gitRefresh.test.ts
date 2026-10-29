@@ -1142,6 +1142,52 @@ describe("watcher git status refresh", () => {
     expect(useGitStore.getState().worktreeStatuses["/repo-wt"]).toEqual(fullWorktreeStatus);
   });
 
+  it("shares branch reads when 800 threads use the same worktree", async () => {
+    const getPr = vi.fn<PoracodeBridge["ghGetPrForBranch"]>().mockResolvedValue(basePr);
+    const gitProjectSnapshot = vi.fn<PoracodeBridge["gitProjectSnapshot"]>().mockResolvedValue({
+      status,
+      branches: { current: status.branch, branches: [] },
+      worktrees: [{ path: "/repo-wt", branch: "feature/wt", commit: "abc", isMain: false }],
+      ghAvailable: true,
+    });
+    const gitWorktreeStatusBatch = vi
+      .fn<PoracodeBridge["gitWorktreeStatusBatch"]>()
+      .mockResolvedValue({ statuses: {} });
+    const gitGetWorktreeSourceBranch = vi
+      .fn<PoracodeBridge["gitGetWorktreeSourceBranch"]>()
+      .mockResolvedValue({ sourceBranch: "main", commitsAhead: 1, sourceAhead: 0 });
+    Object.defineProperty(window, "poracode", {
+      configurable: true,
+      value: {
+        ...window.poracode,
+        gitProjectSnapshot,
+        gitWorktreeStatusBatch,
+        gitGetWorktreeSourceBranch,
+        ghGetPrForBranch: getPr,
+        ghListPrs: vi.fn<PoracodeBridge["ghListPrs"]>().mockResolvedValue({ prs: {} }),
+        gitWatchWorktrees: vi
+          .fn<PoracodeBridge["gitWatchWorktrees"]>()
+          .mockResolvedValue(undefined),
+      },
+    });
+    useAppStore.setState({
+      threads: Array.from({ length: 800 }, (_, index) => ({
+        ...worktreeThread,
+        id: `thread-${index}`,
+      })),
+    });
+
+    await refreshGitProject(project, "initial", "full");
+
+    expect(getPr).toHaveBeenCalledTimes(2);
+    expect(gitProjectSnapshot).toHaveBeenCalledTimes(1);
+    expect(gitWorktreeStatusBatch).toHaveBeenCalledTimes(1);
+    expect(gitGetWorktreeSourceBranch).toHaveBeenCalledTimes(1);
+    expect(
+      useAppStore.getState().threads.every((thread) => thread.prNumber === basePr.number),
+    ).toBe(true);
+  });
+
   it("keeps a merged PR and thread association when a buffered full refresh finishes", async () => {
     const readStarted = Promise.withResolvers<void>();
     const response = Promise.withResolvers<PrData | null>();

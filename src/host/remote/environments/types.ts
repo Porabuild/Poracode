@@ -125,6 +125,8 @@ export interface EnvironmentProxyGatewayLike {
     readonly environmentId: string;
     readonly rawChildPath: string;
     readonly rawQuery: string;
+    /** Runs once the child's 101 is relayed; the operation continues until close. */
+    readonly onUpgraded?: () => void;
   }): Promise<void>;
   /** Narrow internal mint for the future management ticket route. */
   mintWebSocketTicket(input: {

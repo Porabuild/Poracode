@@ -53,6 +53,8 @@ struct ShellInstallCoordinator {
     if let agentBase {
       AgentStatusHydration.install(agentBase, into: &prepared.replay)
     }
+    let bindBootstrapEpoch = advanceCursor && host.state.webSocket == nil
+      && host.state.lastSeenSeq == 0 && host.state.lastSeenEpoch == nil
     guard
       let commit = host.commitReplayInstall(
         prepared,
@@ -63,6 +65,7 @@ struct ShellInstallCoordinator {
         isCancelled: Task.isCancelled
       )
     else { return nil }
+    if bindBootstrapEpoch { host.state.lastSeenEpoch = shell.snapshotEpoch }
     if let connectionID = host.state.selectedConnectionId {
       host.state.hostSnapshots[connectionID] = shell
     }

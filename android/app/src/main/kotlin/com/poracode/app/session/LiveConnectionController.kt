@@ -52,6 +52,7 @@ class LiveConnectionController(
         private set
     var accessToken: String? = null
     @Volatile var lastSeenSeq: Int? = null // reader-thread writes, Main reads
+    var lastSeenEpoch: String? = null
     private var pendingLiveClient: RemoteApiGateway? = null
 
     /** Claim/recovery ids and failure publication; see [ConnectionEventSequencer]. */
@@ -110,6 +111,7 @@ class LiveConnectionController(
         owner.invalidateThread()
         interestEpoch.next()
         lastSeenSeq = null
+        lastSeenEpoch = null
         webSocket?.setListener(null)
         webSocket?.stop()
         webSocket?.destroy()
@@ -135,6 +137,7 @@ class LiveConnectionController(
         api = null
         accessToken = null
         lastSeenSeq = null
+        lastSeenEpoch = null
     }
 
     suspend fun connectWithStoredSession(profile: ConnectionProfile, token: String) {
@@ -237,6 +240,7 @@ class LiveConnectionController(
             if (e.isUnauthorized) {
                 failures.surfaceSessionExpired(e.message)
                 lastSeenSeq = 0
+                lastSeenEpoch = null
                 startWebSocket(client)
             } else {
                 markBootstrapSnapshotFailed(e.message)
@@ -251,6 +255,7 @@ class LiveConnectionController(
     /** Bootstrap snapshot failed (no protocol mismatch/expiry); claims connection scope. */
     private fun markBootstrapSnapshotFailed(message: String?) {
         lastSeenSeq = 0
+        lastSeenEpoch = null
         webSocket?.markSnapshotFailed()
         updateState {
             LiveSessionStateTransitions.bootstrapSnapshotFailed(
@@ -271,6 +276,8 @@ class LiveConnectionController(
         pendingLiveClient = client
         val bindSessionGen = owner.sessionGeneration
         val prev = webSocket
+        val resumeCursor = prev?.appliedCursor()?.takeIf { it.first != null }
+            ?: (lastSeenSeq to lastSeenEpoch)
         prev?.setListener(null)
         prev?.stop()
         prev?.destroy()
@@ -404,11 +411,6 @@ class LiveConnectionController(
             val epoch = interestEpoch.current()
             applyThreadInterests(listOf(openId), epoch)
         }
-        val startSeq = when {
-            lastSeenSeq != null -> lastSeenSeq
-            else -> 0
-        }
-
         when (lifecycleGate.actionForLiveStart()) {
             AppLifecycleGate.StartAction.DoNotStart -> {
                 // No start now and no bound on when (or from which host state)
@@ -420,11 +422,11 @@ class LiveConnectionController(
                 // Deferred start carries no freshness guarantee for a cache
                 // captured before suspension (see closeLifecycleGate).
                 capability.invalidateInitial()
-                socket.armSuspended(startSeq)
+                socket.armSuspended(resumeCursor.first ?: 0, resumeCursor.second)
             }
             AppLifecycleGate.StartAction.StartNow -> {
                 pendingLiveClient = null
-                socket.start(startSeq)
+                socket.start(resumeCursor.first ?: 0, resumeCursor.second)
             }
         }
         onLiveSocketInstalled()
@@ -460,6 +462,9 @@ class LiveConnectionController(
         advanceGlobalCursor: Boolean,
         recoveryAttemptSeq: Long? = null,
     ) {
+        if (advanceGlobalCursor && webSocket == null && (lastSeenSeq ?: 0) == 0 && lastSeenEpoch == null) {
+            lastSeenEpoch = snap.snapshotEpoch
+        }
         lastSeenSeq = ShellSnapshotMerger.nextGlobalCursor(lastSeenSeq, snap.snapshotSeq, advanceGlobalCursor)
         if (advanceGlobalCursor) webSocket?.noteAuthoritativeSnapshot(snap.snapshotSeq)
         updateState { ShellSnapshotMerger.replace(it, snap, recoveryAttemptSeq) }
@@ -476,6 +481,9 @@ class LiveConnectionController(
         recoveryAttemptSeq: Long? = null,
         pageStartedSeq: Long = 0L,
     ) {
+        if (advanceGlobalCursor && webSocket == null && (lastSeenSeq ?: 0) == 0 && lastSeenEpoch == null) {
+            lastSeenEpoch = snap.snapshotEpoch
+        }
         lastSeenSeq = ShellSnapshotMerger.nextGlobalCursor(lastSeenSeq, snap.snapshotSeq, advanceGlobalCursor)
         if (advanceGlobalCursor) webSocket?.noteAuthoritativeSnapshot(snap.snapshotSeq)
         updateState { ShellSnapshotMerger.merge(it, snap, pageStartedSeq, recoveryAttemptSeq) }

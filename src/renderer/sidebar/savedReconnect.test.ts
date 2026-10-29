@@ -171,7 +171,11 @@ it("mount, resume, explicit retry, autonomous refresh and event reconnect never 
   });
   expect(useRemoteServersStore.getState().servers[0]?.accessToken).toBe("saved-access-saved-0");
   expect(refreshTokenForDesktop("saved-0")).toBe("saved-refresh-saved-0");
-  vi.useFakeTimers();
+  // A refresh awaits the shared vault inside its lock; fake IndexedDB runs on
+  // setImmediate, so only the reconnect and auto-connect clocks are faked.
+  vi.useFakeTimers({
+    toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval", "Date"],
+  });
   const mounted = renderHook(() => useRemoteServerConnection({ autoConnect: false }));
   unmount = mounted.unmount;
   const status = vi.fn<() => void>();

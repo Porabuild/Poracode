@@ -29,7 +29,7 @@ import {
 } from "@/host/app-controls";
 import type { AppControlsMcpIngressDeps } from "@/host/app-controls/AppControlsMcpIngress";
 import { ensureHomeProjectWithPublish } from "@/host/app-controls/ingressDeps";
-import { createGitStateExecutor, GitStateService } from "@/host/gitState";
+import { createGitStateExecutor, GitStateService, ProjectWatchLeases } from "@/host/gitState";
 import {
   buildPrWatchExecutionDeps,
   createDevicePrWatchService,
@@ -114,6 +114,10 @@ export class BackendDurableServices {
   readonly scheduleService: ScheduleService;
   readonly prWatchService: PrWatchService;
   readonly gitStateService: GitStateService;
+  /** Per-owner leases on the supervisor's shared project watcher. Lives with
+   * the durable host so remote-server replacement and supervisor resets keep
+   * every client's watch interest. */
+  readonly projectWatchLeases: ProjectWatchLeases;
   readonly appControls: AppControlsMcpIngress;
   readonly deviceWorkspace: DeviceWorkspaceService;
   /** Settled or in-flight shared ingress start; cleared on failure so it can retry. */
@@ -221,6 +225,10 @@ export class BackendDurableServices {
       executor: createGitStateExecutor((name, payload) => supervisor.call(name, payload)),
       getProject: dbGetProject,
       onPatch: options.onGitPatch,
+    });
+    this.projectWatchLeases = new ProjectWatchLeases({
+      call: (name, payload, callOptions) => supervisor.call(name, payload, callOptions),
+      getProject: dbGetProject,
     });
     this.prWatchService = createDevicePrWatchService({
       getProject: dbGetProject,
@@ -447,6 +455,23 @@ export class BackendDurableServices {
 
   handleSupervisorReset(): void {
     this.scheduleCoordinator.handleSupervisorReset();
+    this.projectWatchLeases.handleSupervisorReset();
+  }
+
+  /**
+   * `SupervisorClientOptions.onStarted`: clients never re-send the watches they
+   * registered, so the replacement supervisor gets them from the leases. The
+   * callback runs inside the launch; an explicit restart is still settling
+   * then, and the re-apply refuses to dispatch (or fork) during a transition.
+   */
+  handleSupervisorStarted(): void {
+    if (this.disposed) return;
+    setImmediate(() => {
+      if (this.disposed) return;
+      this.projectWatchLeases.reapplyAfterSupervisorStart().catch((error: unknown) => {
+        this.options.reportError?.(error);
+      });
+    });
   }
 
   observeSupervisorEvent(event: SupervisorEvent): boolean {
@@ -505,6 +530,7 @@ export class BackendDurableServices {
         () => this.scheduleCoordinator.dispose(),
         () => this.prWatchService.dispose(),
         () => this.gitStateService.dispose(),
+        () => this.projectWatchLeases.dispose(),
         () => this.appControls.dispose(),
         () => this.deviceWorkspace.dispose(),
       ],

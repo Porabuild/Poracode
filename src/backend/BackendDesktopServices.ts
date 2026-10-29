@@ -366,6 +366,7 @@ export class BackendDesktopServices {
           deviceWorkspace: this.durable.deviceWorkspace,
           prWatchService: this.durable.prWatchService,
           gitStateService: this.durable.gitStateService,
+          projectWatchLeases: this.durable.projectWatchLeases,
           updates: {
             currentVersion: () => initialize.supervisor.appVersion,
             status: () => this.updateStatus,
@@ -486,6 +487,10 @@ export class BackendDesktopServices {
     this.administration?.reset();
     this.durable.handleSupervisorReset();
     this.remote?.handleSupervisorReset();
+  }
+
+  handleSupervisorStarted(): void {
+    this.durable.handleSupervisorStarted();
   }
 
   /**

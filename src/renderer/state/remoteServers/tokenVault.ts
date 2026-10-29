@@ -67,12 +67,19 @@ async function deleteRecord(key: string, isCurrent: () => boolean): Promise<void
 async function loadOrCreateCryptoKey(isCurrent: () => boolean): Promise<CryptoKey> {
   const existing = await readRecord(VAULT_KEY_RECORD_KEY);
   if (existing?.cryptoKey) return existing.cryptoKey;
-  const cryptoKey = await crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, false, [
+  const candidate = await crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, false, [
     "encrypt",
     "decrypt",
   ]);
-  await writeRecord({ key: VAULT_KEY_RECORD_KEY, cryptoKey }, isCurrent);
-  return cryptoKey;
+  // Another realm (window or tab) may have created the shared key since the
+  // read above. Adopt the stored one; replacing it would orphan its ciphertext.
+  const stored = (await database.insertUnlessPresent(
+    { key: VAULT_KEY_RECORD_KEY, cryptoKey: candidate },
+    (record) => Boolean((record as VaultRecord | undefined)?.cryptoKey),
+    isCurrent,
+  )) as VaultRecord;
+  if (!stored.cryptoKey) throw new Error("Unable to read the token vault.");
+  return stored.cryptoKey;
 }
 
 function getOrCreateCryptoKey(): Promise<CryptoKey> {
@@ -167,6 +174,27 @@ export async function setDesktopToken(desktopId: string, token: string): Promise
   } finally {
     operation.finish();
   }
+}
+
+/** Vault slot of one connection's bearer. */
+export function desktopTokenVaultKey(desktopId: string): string {
+  return vaultKey(desktopId);
+}
+
+/** The origin's shared vault key, created on first use without replacing a stored one. */
+export function vaultCryptoKey(): Promise<CryptoKey> {
+  return getOrCreateCryptoKey();
+}
+
+/**
+ * Aligns this realm's cache with a bearer that credential custody committed or
+ * read directly, and fences reads and writes that started before it.
+ */
+export function noteDesktopTokenCommitted(desktopId: string, token: string | null): void {
+  const operation = beginTokenOperation(desktopId, true);
+  if (token === null) tokenCache.delete(desktopId);
+  else tokenCache.set(desktopId, token);
+  operation.finish();
 }
 
 export async function deleteDesktopToken(desktopId: string): Promise<void> {

@@ -343,6 +343,9 @@ export async function composeHeadlessRemoteHost(
           await hostServicesRef?.start();
           await durableServices?.startIngress();
         },
+        // Every (re)spawn, crash respawns included: restore the project watches
+        // that clients registered once and never re-send.
+        onStarted: () => durableServices?.handleSupervisorStarted(),
         ...(options.reportError ? { reportError: (error) => options.reportError?.(error) } : {}),
       },
       onEvent: (event) => {
@@ -549,6 +552,7 @@ export async function composeHeadlessRemoteHost(
     const scheduleService = durableServices.scheduleService;
     const prWatchService = durableServices.prWatchService;
     const gitStateService = durableServices.gitStateService;
+    const projectWatchLeases = durableServices.projectWatchLeases;
 
     // In dev, advertise loopback by default so the iOS simulator's WebView can
     // reach the server (iOS ATS `NSAllowsLocalNetworking` permits loopback but not
@@ -656,6 +660,7 @@ export async function composeHeadlessRemoteHost(
       schedules: scheduleService,
       prWatches: prWatchService,
       gitState: gitStateService,
+      projectWatches: projectWatchLeases,
       pushRegistrations: {
         webPublicKey,
         dispose: () => webPublicKey.dispose?.(),

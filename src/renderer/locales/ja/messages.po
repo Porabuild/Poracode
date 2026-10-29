@@ -19168,6 +19168,10 @@ msgstr "実行をキャンセルできませんでした。"
 msgid "The run was interrupted."
 msgstr "実行が中断されました。"
 
+#: src/renderer/state/remoteServers/sharedCredentials.ts
+msgid "The saved remote credentials could not be confirmed."
+msgstr "保存されたリモート接続の認証情報を確認できませんでした。"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The scheduled automation failed."
 msgstr "スケジュールされた自動化に失敗しました。"
@@ -20155,6 +20159,10 @@ msgstr "{0}からのトークン"
 #: src/renderer/components/thread/CrewDockSection.tsx
 msgid "Told not to edit files. Not enforced."
 msgstr "ファイルを編集しないよう指示。強制ではありません。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Too many remote requests are in progress. Try again in a moment."
+msgstr "実行中のリモートリクエストが多すぎます。しばらくしてからもう一度お試しください。"
 
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Too many visuals in this message. Showing source only."

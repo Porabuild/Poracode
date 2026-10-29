@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { connect, type AddressInfo } from "node:net";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { WebSocket } from "ws";
 import {
   ENVIRONMENT_AUTH_AUTHORITY_HEADER,
   ENVIRONMENT_AUTHORIZATION_HEADER,
@@ -10,6 +11,7 @@ import {
   rawRequestWithAuthority,
   rawStreamRequestWithAuthority,
   type CleanupRegistry,
+  type RawStreamResponse,
 } from "../portForward/testFixtures";
 import {
   exchangeToken,
@@ -18,6 +20,7 @@ import {
   startUpstream,
   type ParentHostHandle,
 } from "./environmentProxyTestFixtures";
+import { resolveEnvironmentProxyBudget } from "./environmentProxyLegs";
 
 /**
  * Consolidated C1 proxy corrections (independent review F1–F6). These are
@@ -118,6 +121,144 @@ describe("F1: proxied control keeps the reserved control class", () => {
 
     await stalled.cancel();
     await vi.waitFor(() => expect(host.admission.usage(sessionId).work.bulk).toBe(0));
+  });
+});
+
+describe("D2: nested proxy budgets per parent principal and per environment", () => {
+  /** A frozen child: every request stalls except a Stop, which answers. */
+  function stall(req: IncomingMessage, res: ServerResponse): void {
+    if ((req.url ?? "").endsWith("/interrupt")) {
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end("{}");
+      return;
+    }
+    res.writeHead(200, { "content-type": "text/plain" });
+    res.write("held");
+  }
+
+  async function streamText(response: RawStreamResponse): Promise<string> {
+    const decoder = new TextDecoder();
+    let text = "";
+    for (let chunk = await response.read(); chunk; chunk = await response.read()) {
+      text += decoder.decode(chunk, { stream: true });
+    }
+    return text + decoder.decode();
+  }
+
+  async function expectBusy(response: RawStreamResponse, message: string): Promise<void> {
+    expect(response.status).toBe(429);
+    expect(response.headers["retry-after"]).toBe("1");
+    const { error } = JSON.parse(await streamText(response)) as {
+      error: { code: string; message: string };
+    };
+    expect(error.code).toBe("principal_busy");
+    expect(error.message).toContain(message);
+  }
+
+  function proxySnapshot(host: ParentHostHandle, environmentId: string, token: string) {
+    return rawProxyRequest(host, `/api/environments/${environmentId}/proxy/api/snapshot`, {
+      headers: parentHeader(token),
+    });
+  }
+
+  /** Stalled legs on one child until the parent refuses one. */
+  async function fillWithStalledLegs(host: ParentHostHandle, token: string, environmentId: string) {
+    const stalled: RawStreamResponse[] = [];
+    for (;;) {
+      const leg = await rawStreamRequestWithAuthority({
+        port: host.port,
+        path: `/api/environments/${environmentId}/proxy/api/stall`,
+        authority: `127.0.0.1:${host.port}`,
+        headers: parentHeader(token),
+      });
+      if (leg.status !== 200) return { stalled, refusal: leg };
+      expect(new TextDecoder().decode(await leg.read())).toBe("held");
+      stalled.push(leg);
+      cleanup.push(() => leg.cancel());
+      // Bounded: the principal's own socket cap refuses legs past this.
+      expect(stalled.length).toBeLessThanOrEqual(host.admission.limits.maxSocketsPerPrincipal);
+    }
+  }
+
+  async function openEventSocket(host: ParentHostHandle, token: string) {
+    const ticket = await fetch(new URL("/api/auth/websocket-ticket", host.info.httpBaseUrl), {
+      method: "POST",
+      headers: { authorization: `Bearer ${token}` },
+    });
+    // The ticket mint is itself one of the parent's direct bulk routes.
+    expect(ticket.status).toBe(200);
+    const url = new URL("/ws", host.info.wsBaseUrl);
+    url.searchParams.set("ticket", ((await ticket.json()) as { ticket: string }).ticket);
+    const socket = new WebSocket(url);
+    socket.on("error", () => {});
+    cleanup.push(async () => socket.terminate());
+    return await new Promise<{ socket: WebSocket; status: number }>((resolve) => {
+      socket.once("open", () => resolve({ socket, status: 101 }));
+      socket.once("unexpected-response", (_req, res) => {
+        res.resume();
+        resolve({ socket, status: res.statusCode ?? 0 });
+      });
+    });
+  }
+
+  it("holds a stalled child to its share and all children to the parent's budget, leaving siblings and the parent usable", async () => {
+    const host = await startParentHost(cleanup);
+    host.targets.connect("env-1", (await startUpstream(cleanup, stall)).port);
+    host.targets.connect("env-2", (await startUpstream(cleanup, stall)).port);
+    host.targets.connect("env-3", (await startUpstream(cleanup)).port);
+    const sessionId = sessionIdOf(host.authStore, host.parentAccessToken);
+    const budget = resolveEnvironmentProxyBudget(host.admission.limits);
+
+    // One stalled child is held to its own share with the typed overload…
+    const first = await fillWithStalledLegs(host, host.parentAccessToken, "env-1");
+    expect(first.stalled).toHaveLength(budget.environment.bulkLegs);
+    await expectBusy(first.refusal, "This environment has too many requests in flight");
+    // …and keeps its control slice, so a Stop still reaches it.
+    const stop = await rawProxyRequest(
+      host,
+      "/api/environments/env-1/proxy/api/threads/t1/interrupt",
+      { method: "POST", headers: parentHeader(host.parentAccessToken) },
+    );
+    expect(stop.status).toBe(200);
+    // A healthy sibling of the same parent still answers, and the parent still
+    // admits a direct bulk route (the ticket mint) and its event socket.
+    expect((await proxySnapshot(host, "env-3", host.parentAccessToken)).status).toBe(200);
+    const events = await openEventSocket(host, host.parentAccessToken);
+    expect(events.status).toBe(101);
+
+    // Every child together is held to the parent's aggregate budget…
+    const second = await fillWithStalledLegs(host, host.parentAccessToken, "env-2");
+    const stalled = [...first.stalled, ...second.stalled];
+    expect(stalled).toHaveLength(budget.parent.bulkLegs);
+    await expectBusy(second.refusal, "too many environment requests in flight");
+    expect((await proxySnapshot(host, "env-3", host.parentAccessToken)).status).toBe(429);
+    // …while another principal's legs are untouched by this parent's budgets.
+    const otherToken = await exchangeToken(host.server);
+    expect((await proxySnapshot(host, "env-3", otherToken)).status).toBe(200);
+
+    // Refused admissions left nothing behind: only the stalled legs and the
+    // event socket hold this parent's leases.
+    await vi.waitFor(() => expect(host.gateway.activeLegCount()).toBe(stalled.length));
+    expect(host.admission.usage(sessionId)).toMatchObject({
+      work: { bulk: stalled.length, control: 0 },
+      sockets: stalled.length + 1,
+    });
+
+    // Revocation aborts every leg; the leases come back exactly once the
+    // transports settle, and the next parent gets the same budget back.
+    host.server.revokeAccessSession(sessionId);
+    await Promise.all(stalled.map((leg) => leg.closed));
+    await vi.waitFor(() => {
+      expect(host.gateway.activeLegCount()).toBe(0);
+      expect(host.admission.usage(sessionId)).toMatchObject({
+        work: { bulk: 0, control: 0 },
+        sockets: 0,
+      });
+    });
+    const repaired = await exchangeToken(host.server);
+    const refilled = await fillWithStalledLegs(host, repaired, "env-1");
+    expect(refilled.stalled).toHaveLength(budget.environment.bulkLegs);
+    await expectBusy(refilled.refusal, "This environment has too many requests in flight");
   });
 });
 

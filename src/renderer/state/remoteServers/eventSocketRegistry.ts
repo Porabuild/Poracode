@@ -40,6 +40,20 @@ export interface RemoteServerEventSocketEntry {
 const remoteServerEventSockets = new Map<string, RemoteServerEventSocketEntry>();
 const remoteServerSnapshotSeqByDesktopId = new Map<string, number>();
 /**
+ * Server event-stream epoch (`eventEpoch=v1`) the resume watermark is bound
+ * to. Seeded by the first snapshot or socket handshake. Absent for a host
+ * that reports no epoch; the reconnect then sends no `lastSeenEpoch`.
+ */
+const remoteServerSnapshotEpochByDesktopId = new Map<string, string>();
+/**
+ * Fence for asynchronous HTTP watermark updates: renewed whenever the epoch
+ * binding changes, so a reply requested under an earlier binding (possibly
+ * served by the previous server instance) can never raise the new epoch's
+ * cursor. Values come from one counter and are never reused.
+ */
+const remoteServerResumeFenceByDesktopId = new Map<string, number>();
+let remoteServerResumeFenceCounter = 0;
+/**
  * Highest event seq applied per thread from each server's live stream. The
  * resume watermark above is per server, so it cannot arbitrate one thread's
  * snapshot writes: an unrelated thread's newer event would wrongly freeze it.
@@ -98,21 +112,62 @@ export function remoteServerSnapshotSeq(desktopId: string): number {
   return remoteServerSnapshotSeqByDesktopId.get(desktopId) ?? 0;
 }
 
-/** Monotone: never lowers the watermark even when a stale response arrives. */
-export function bumpRemoteServerSnapshotSeq(desktopId: string, seq: number): void {
+/** Epoch the watermark is bound to; undefined while unbound. */
+export function remoteServerSnapshotEpoch(desktopId: string): string | undefined {
+  return remoteServerSnapshotEpochByDesktopId.get(desktopId);
+}
+
+/** Capture before an HTTP read whose `snapshotSeq` may bump the watermark. */
+export function remoteServerResumeFence(desktopId: string): number {
+  return remoteServerResumeFenceByDesktopId.get(desktopId) ?? 0;
+}
+
+/**
+ * Monotone: never lowers the watermark even when a stale response arrives. An
+ * HTTP caller passes the {@link remoteServerResumeFence} it captured before the
+ * read; a reply that crossed an epoch-binding change is dropped.
+ */
+export function bumpRemoteServerSnapshotSeq(
+  desktopId: string,
+  seq: number,
+  fence?: number,
+  epoch?: string,
+): void {
+  if (fence !== undefined && fence !== remoteServerResumeFence(desktopId)) return;
+  if (
+    epoch !== undefined &&
+    remoteServerSnapshotSeq(desktopId) === 0 &&
+    !remoteServerSnapshotEpochByDesktopId.has(desktopId) &&
+    !remoteServerEventSockets.has(desktopId)
+  ) {
+    setRemoteServerSnapshotSeq(desktopId, seq, epoch);
+    return;
+  }
   remoteServerSnapshotSeqByDesktopId.set(
     desktopId,
     Math.max(remoteServerSnapshotSeq(desktopId), seq),
   );
 }
 
-/** Direct overwrite — bootstrap installs where the snapshot IS authoritative. */
-export function setRemoteServerSnapshotSeq(desktopId: string, seq: number): void {
+/**
+ * Direct overwrite — bootstrap installs where the snapshot IS authoritative,
+ * and resyncs. `epoch` is the epoch `seq` belongs to; omitted, the watermark
+ * is unbound (a legacy HTTP snapshot cannot name the instance that served it).
+ */
+export function setRemoteServerSnapshotSeq(desktopId: string, seq: number, epoch?: string): void {
   remoteServerSnapshotSeqByDesktopId.set(desktopId, seq);
+  if (remoteServerSnapshotEpochByDesktopId.get(desktopId) === epoch) return;
+  if (epoch === undefined) remoteServerSnapshotEpochByDesktopId.delete(desktopId);
+  else remoteServerSnapshotEpochByDesktopId.set(desktopId, epoch);
+  remoteServerResumeFenceCounter += 1;
+  remoteServerResumeFenceByDesktopId.set(desktopId, remoteServerResumeFenceCounter);
 }
 
 export function deleteRemoteServerSnapshotSeq(desktopId: string): void {
   remoteServerSnapshotSeqByDesktopId.delete(desktopId);
+  remoteServerSnapshotEpochByDesktopId.delete(desktopId);
+  remoteServerResumeFenceCounter += 1;
+  remoteServerResumeFenceByDesktopId.set(desktopId, remoteServerResumeFenceCounter);
 }
 
 // ── Per-thread applied-seq watermarks ────────────────────────────────
@@ -282,6 +337,8 @@ export function bumpRemoteServerGeneration(desktopId: string): void {
  * store's closeAll path, which also deletes per-desktop watermarks. */
 export function __resetEventSocketRegistryForTest(): void {
   remoteServerSnapshotSeqByDesktopId.clear();
+  remoteServerSnapshotEpochByDesktopId.clear();
+  remoteServerResumeFenceByDesktopId.clear();
   remoteThreadAppliedSeqByDesktopId.clear();
   remoteServerThreadItemInterests.clear();
   remoteServerIdentityGenerationByDesktopId.clear();

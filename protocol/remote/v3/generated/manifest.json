@@ -2252,7 +2252,9 @@
       "lastSeenSeq",
       "threadItemInterests",
       "desktopInternal",
-      "lastDesktopSeq"
+      "lastDesktopSeq",
+      "eventEpoch",
+      "lastSeenEpoch"
     ]
   }
 }

@@ -23,6 +23,7 @@ import { __resetBoundedHistoryForTest } from "./catalog/boundedHistory";
 import {
   __resetEventSocketRegistryForTest,
   recordRemoteThreadAppliedSeq,
+  setRemoteServerSnapshotSeq,
 } from "./eventSocketRegistry";
 import {
   createSnapshotProjectionActions,
@@ -109,6 +110,7 @@ function harness() {
     startRemoteServerEventStream: async () => {},
     activateRemoteTerminalFeed: () => {},
   });
+  state = { ...state, ...actions };
   return { actions, boundedThreadHistory };
 }
 
@@ -143,6 +145,26 @@ it("installs the projected ordinary overlap and cursor together through the real
   ]);
   expect(useAppStore.getState().runtimeItemsByIdByThread[viewThread]!["row-80"]).toBe(readerRow);
   expect(runtimeHistoryBoundary(viewThread).cursor).toBe(80);
+});
+
+it("retries an open whose history reply crossed a server epoch change", async () => {
+  const { actions, boundedThreadHistory } = harness();
+  setRemoteServerSnapshotSeq(connection, 5, "old-instance");
+  const delayed =
+    Promise.withResolvers<Awaited<ReturnType<RemoteDesktopClient["boundedThreadHistory"]>>>();
+  boundedThreadHistory
+    .mockReturnValueOnce(delayed.promise)
+    .mockResolvedValueOnce(page(120, 125, 3));
+  const opened = actions.openRemoteThread(connection, "thread", { focus: false });
+  setRemoteServerSnapshotSeq(connection, 3, "new-instance");
+  delayed.resolve(page(80, 150, 500));
+
+  await expect(opened).resolves.toBe(true);
+  expect(boundedThreadHistory).toHaveBeenCalledTimes(2);
+  expect(useAppStore.getState().runtimeItemIdsByThread[viewThread]).toEqual([
+    "goal",
+    ...Array.from({ length: 6 }, (_, i) => `row-${120 + i}`),
+  ]);
 });
 
 it.each([

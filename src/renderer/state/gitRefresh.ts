@@ -951,7 +951,12 @@ export async function refreshGitProject(
         const previousPrs: Record<string, PrData | null | undefined> = {};
         const wtThreads = getActiveWorktreeBranchThreads(project.id);
 
-        const wtPrPromises = wtThreads.map(async (t) => {
+        const wtPrThreads = [
+          ...new Map(
+            wtThreads.map((thread) => [`${thread.worktreePath}\0${thread.worktreeBranch}`, thread]),
+          ).values(),
+        ];
+        const wtPrPromises = wtPrThreads.map(async (t) => {
           const ghAvailable = await ghAvailablePromise;
           if (!isRefreshCurrent(project.id, refreshToken, isActive)) return;
           if (!ghAvailable || !t.worktreeBranch || !t.worktreePath) return;

@@ -160,6 +160,7 @@ export abstract class RemoteClientTransport extends RemoteClientPinCore {
     const url = endpointUrl(this.endpoint, requestPath);
     const path = url.searchParams.get("path");
     if (!path) throw new RemoteClientError("An image path is required.", 400, "invalid_path");
+    this.syncAccessToken();
     if (this.accessToken) return this.fetchImageBytesWithBearer(url, signal, false);
     const result = parseResponse(
       remoteImageTicketResultSchema,
@@ -214,11 +215,12 @@ export abstract class RemoteClientTransport extends RemoteClientPinCore {
         "cancelled",
       );
     }
+    this.syncAccessToken();
     const usedToken = this.accessToken;
     const response = await this.fetchImpl(url, {
       method: "GET",
       headers: {
-        authorization: `Bearer ${usedToken}`,
+        ...(usedToken ? { authorization: `Bearer ${usedToken}` } : {}),
         [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
       },
       signal,

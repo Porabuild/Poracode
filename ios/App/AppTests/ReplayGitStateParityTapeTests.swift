@@ -266,7 +266,7 @@ final class ReplayGitStateParityTapeTests: XCTestCase {
       let label = step["id"]?.stringValue ?? "?"
       var disposition: String
       switch decoded {
-      case .ready(let seq):
+      case .ready(let seq, _):
         cursor.noteReady(seq: seq)
         disposition = "ready"
       case .event(let seq, let event):

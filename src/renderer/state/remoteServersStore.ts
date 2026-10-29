@@ -29,7 +29,10 @@ import {
   __resetEventSocketRegistryForTest,
 } from "@/renderer/state/remoteServers/eventSocketRegistry";
 import type { RemoteServerRecord, RemoteServersState } from "@/renderer/state/remoteServers/types";
-import { createSecureRemoteServersStorage } from "@/renderer/state/remoteServers/secureStorage";
+import {
+  createSecureRemoteServersStorage,
+  patchRemoteServersFields,
+} from "@/renderer/state/remoteServers/secureStorage";
 import { __resetBrowserBridgeForTest } from "@/renderer/state/remoteServers/browserBridge";
 import { __resetBoundedCatalogForTest } from "@/renderer/state/remoteServers/catalog/boundedCatalogController";
 import { __resetCatalogOrderFencesForTest } from "@/renderer/state/remoteServers/catalog/catalogOrderFence";
@@ -47,11 +50,13 @@ import {
 import { startRemoteServerEventStream as startRemoteServerEventStreamSession } from "@/renderer/state/remoteServers/eventSocketSession";
 import {
   deleteRefreshTokenFromVault,
+  forgetRefreshTokenForSubject,
   hydrateRefreshTokens,
   refreshTokenForSubject,
   rememberRefreshTokenForSubject,
   writeRefreshTokenToVault,
   __peekRefreshTokenForTest,
+  type RefreshHydrationPlan,
   type RefreshSubject,
   type RemoteEnvironmentGrantSubject,
 } from "@/renderer/state/remoteServers/refreshTokens";
@@ -126,6 +131,49 @@ export function migrateRemoteServersPersistedState(
 
 export { hydrateRefreshTokens, __peekRefreshTokenForTest };
 
+const REMOTE_SERVERS_STORE_NAME = "poracode-remote-servers";
+
+/** Shared by every renderer realm of this origin; see secureStorage. */
+const remoteServersStorage = createSecureRemoteServersStorage<
+  ReturnType<typeof persistedRemoteServersState>
+>((servers) => ({
+  servers,
+  excludedProjectIds: {},
+  projectWorkspaceIds: {},
+  projectNameOverrides: {},
+  lastKnownProjects: {},
+}));
+
+/**
+ * Refresh grants to load for persisted records. Environment records hydrate
+ * their parent-scoped child grant in addition to the record key; a persisted
+ * remote-environment grant still at the pre-correction
+ * `refresh.environment.<parent>.<envId>` slot migrates only when that slot is
+ * unambiguously the environment's (never a direct record's own grant), and
+ * only after a strict vault write succeeded.
+ */
+function refreshHydrationPlan(servers: readonly RemoteServerRecord[]): RefreshHydrationPlan {
+  const subjects: RefreshSubject[] = [];
+  const legacyRemoteEnvironmentSubjects: RemoteEnvironmentGrantSubject[] = [];
+  const directConnectionIds = new Set<string>();
+  for (const server of servers) {
+    const connectionKey = remoteConnectionKey(server);
+    subjects.push({ kind: "connection", connectionId: connectionKey });
+    if (server.transport?.kind === "environment") {
+      const grant = environmentChildGrantSubject(server.transport);
+      if (grant) {
+        subjects.push(grant);
+        if (grant.kind === "remoteEnvironmentGrant") {
+          legacyRemoteEnvironmentSubjects.push(grant);
+        }
+      }
+    } else {
+      directConnectionIds.add(connectionKey);
+    }
+  }
+  return { subjects, legacyRemoteEnvironmentSubjects, directConnectionIds };
+}
+
 /**
  * Desktop-as-client. Lets the Electron desktop connect to *other* Poracode
  * servers (another desktop's remote access, or a headless `pnpm run server`)
@@ -148,7 +196,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
         directImagesFor,
         withClient,
         checkHostUpdateInBackground,
-      } = createRemoteServerClientBindings({ set, get }, certPinForDesktop);
+      } = createRemoteServerClientBindings({ set, get }, certPinForDesktop, remoteServersStorage);
       configureEnvironmentSessions({
         getState: get,
         clientFactory: () => get().clientFactory,
@@ -158,6 +206,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
         rememberRefreshToken: rememberRefreshTokenForSubject,
         writeRefreshTokenToVault,
         deleteRefreshTokenFromVault,
+        shared: remoteServersStorage,
       });
 
       const terminalConnections = createTerminalFeedConnections(
@@ -197,6 +246,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
         get,
         checkHostUpdateInBackground,
         startRemoteServerEventStream,
+        closeRemoteServerEventSocket,
       });
       const session = createSessionReconnectActions({
         set,
@@ -395,14 +445,8 @@ export const useRemoteServersStore = create<RemoteServersState>()(
       };
     },
     {
-      name: "poracode-remote-servers",
-      storage: createSecureRemoteServersStorage((servers) => ({
-        servers,
-        excludedProjectIds: {},
-        projectWorkspaceIds: {},
-        projectNameOverrides: {},
-        lastKnownProjects: {},
-      })),
+      name: REMOTE_SERVERS_STORE_NAME,
+      storage: remoteServersStorage,
       // Persist durable connection identity and
       // last-known projects so offline servers keep their sidebar rows. Live
       // runtime state and threads are re-fetched on connect; socket/client
@@ -431,37 +475,10 @@ export const useRemoteServersStore = create<RemoteServersState>()(
       // synchronous refresh-token map from the encrypted vault, so the first
       // 401 of any session can already refresh transparently. Runs out of the
       // connectAll path on purpose — connectAll keeps its synchronous
-      // "connecting" state contract. Environment records hydrate their
-      // parent-scoped child grant in addition to the record key; a persisted
-      // remote-environment grant still at the pre-correction
-      // `refresh.environment.<parent>.<envId>` slot migrates only when that
-      // slot is unambiguously the environment's (never a direct record's own
-      // grant), and only after a strict vault write succeeded.
+      // "connecting" state contract.
       onRehydrateStorage: () => (state) => {
         if (!state?.servers?.length) return;
-        const subjects: RefreshSubject[] = [];
-        const legacyRemoteEnvironmentSubjects: RemoteEnvironmentGrantSubject[] = [];
-        const directConnectionIds = new Set<string>();
-        for (const server of state.servers) {
-          const connectionKey = remoteConnectionKey(server);
-          subjects.push({ kind: "connection", connectionId: connectionKey });
-          if (server.transport?.kind === "environment") {
-            const grant = environmentChildGrantSubject(server.transport);
-            if (grant) {
-              subjects.push(grant);
-              if (grant.kind === "remoteEnvironmentGrant") {
-                legacyRemoteEnvironmentSubjects.push(grant);
-              }
-            }
-          } else {
-            directConnectionIds.add(connectionKey);
-          }
-        }
-        void hydrateRefreshTokens({
-          subjects,
-          legacyRemoteEnvironmentSubjects,
-          directConnectionIds,
-        });
+        void hydrateRefreshTokens(refreshHydrationPlan(state.servers));
       },
     },
   ),
@@ -486,6 +503,65 @@ registerRemoteProcedureHost({
   },
   withClient: (desktopId, invoke) => useRemoteServersStore.getState().withClient(desktopId, invoke),
 });
+
+/**
+ * Applies what another window or tab committed to the shared records: a
+ * removal tears this realm's connection down (its callbacks go inert), an
+ * addition or endpoint move loads the vault credentials and connects, and
+ * field edits are merged. Keys with pending local writes are left to them.
+ */
+export function reconcileRemoteServersFromSharedStorage(): Promise<void> {
+  return remoteServersStorage.reconcile(REMOTE_SERVERS_STORE_NAME, (changes) => {
+    for (const connectionKey of changes.removed) {
+      try {
+        useRemoteServersStore.getState().removeServer(connectionKey, { cascadeEnvironments: true });
+      } catch (error) {
+        console.warn("[remoteServers] unable to apply a removal from another window", error);
+      }
+    }
+    useRemoteServersStore.setState((state) => {
+      const known = new Set(state.servers.map(remoteConnectionKey));
+      const servers = [
+        ...state.servers.map((server) => {
+          const change = changes.changed.find(
+            (candidate) => candidate.key === remoteConnectionKey(server),
+          );
+          if (!change) return server;
+          return {
+            ...server,
+            ...change.fields,
+            ...(change.accessToken !== undefined ? { accessToken: change.accessToken } : {}),
+          };
+        }),
+        ...changes.added.filter((server) => !known.has(remoteConnectionKey(server))),
+      ];
+      return { servers, ...patchRemoteServersFields(state, changes.fields) };
+    });
+    const reconnected = useRemoteServersStore
+      .getState()
+      .servers.filter((server) =>
+        [
+          ...changes.added.map(remoteConnectionKey),
+          ...changes.changed.filter((change) => change.fields.endpoint).map((change) => change.key),
+        ].includes(remoteConnectionKey(server)),
+      );
+    if (reconnected.length === 0) return;
+    const plan = refreshHydrationPlan(reconnected);
+    for (const subject of plan.subjects) forgetRefreshTokenForSubject(subject);
+    void hydrateRefreshTokens(plan).then(() => {
+      for (const server of reconnected) {
+        void useRemoteServersStore.getState().reconnectServer(remoteConnectionKey(server));
+      }
+    });
+  });
+}
+
+if (typeof window !== "undefined") {
+  window.addEventListener("storage", (event) => {
+    if (event.key !== null && event.key !== REMOTE_SERVERS_STORE_NAME) return;
+    void reconcileRemoteServersFromSharedStorage().catch(() => undefined);
+  });
+}
 
 /**
  * Test-only: tear down all process-local connection state (event sockets,

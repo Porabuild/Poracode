@@ -58,6 +58,9 @@ actor RemoteWebSocketClient {
     /// Last successfully applied / authoritative sequence (for reconnect `lastSeenSeq`).
     var appliedSeq: Int { cursor.appliedSeq }
 
+    /// Event-stream epoch `appliedSeq` is bound to (`eventEpoch=v1`), or nil while unbound.
+    var appliedEpoch: String? { cursor.epoch }
+
     var resyncPending: Bool { cursor.resyncPending }
 
     var currentGeneration: Int { generationGate.generation }
@@ -70,9 +73,13 @@ actor RemoteWebSocketClient {
     /// Declarations of the actual upgrade attempt, or nil before one exists.
     var upgradeDeclarations: RemoteSocketUpgradeDeclarations? { lastUpgradeDeclarations }
 
-    func start(lastSeenSeq: Int?) {
+    func start(lastSeenSeq: Int?, lastSeenEpoch: String? = nil) {
         // Always establish a baseline. `nil` → 0 (replay-from-start), never omit on wire.
-        cursor = EventStreamCursor(appliedSeq: lastSeenSeq ?? 0)
+        // A cached cursor keeps the event-stream epoch it is bound to.
+        cursor = EventStreamCursor(
+            appliedSeq: lastSeenSeq ?? 0,
+            epoch: lastSeenSeq == nil ? nil : lastSeenEpoch
+        )
         stopped = false
         suspended = false
         sessionExpired = false
@@ -207,11 +214,17 @@ actor RemoteWebSocketClient {
             // Always send a baseline seq (≥ 0). Never omit after we have a cursor.
             // Interests are also in the connect URL so open-during-Connecting is covered
             // when the ticket is minted after interests were set; ready still re-flushes.
-            let url = try await api.websocketURL(
+            // The epoch declaration binds the cursor to the server instance that
+            // issued it; older hosts ignore it.
+            let resumeSeq = cursor.appliedSeq
+            let resumeEpoch = cursor.epoch
+            let baseURL = try await api.websocketURL(
                 ticket: ticket,
-                lastSeenSeq: cursor.appliedSeq,
+                lastSeenSeq: resumeSeq,
                 threadItemInterests: interests.threadItemInterests
             )
+            let url = RemoteEventEpochDeclaration.decorate(baseURL, lastSeenEpoch: resumeEpoch)
+            cursor.beginConnection()
             // Record what THIS upgrade declares, from the exact URL the task
             // will send. A later reconciliation compares this against the
             // authoritative descriptor instead of re-reading the client flag.
@@ -335,10 +348,24 @@ actor RemoteWebSocketClient {
         do {
             let message = try RemoteWebSocketServerMessage.decode(from: data)
             switch message {
-            case .ready(let seq):
-                cursor.noteReady(seq: seq)
+            case .ready(let seq, let epoch):
+                // A host that stops reporting an epoch under a bound cursor was
+                // replaced by an older build that cannot verify it: re-baseline
+                // once from its head (the binding is cleared with it).
+                let epochWithdrawn = cursor.noteReady(seq: seq, epoch: epoch)
+                let alreadyPending = cursor.resyncPending
+                if epochWithdrawn {
+                    cursor.replaceFromResyncRequired(seq)
+                    await delegate?.webSocket(
+                        self, didBindEventEpoch: cursor.epoch, appliedSeq: cursor.appliedSeq
+                    )
+                }
                 await markReadyAndGoOnline()
                 await delegate?.webSocket(self, didReceive: message)
+                if epochWithdrawn, !alreadyPending {
+                    suspendForResync()
+                    await delegate?.webSocketNeedsResync(self, reason: "event stream epoch withdrawn")
+                }
 
             case .event(let seq, let payload):
                 switch cursor.disposition(forEventSeq: seq) {
@@ -365,7 +392,13 @@ actor RemoteWebSocketClient {
             case .resyncRequired(let seq, let reason):
                 // Exact replace — do not max (server restart may lower seq).
                 let alreadyPending = cursor.resyncPending
+                let epochBefore = cursor.epoch
                 cursor.replaceFromResyncRequired(seq)
+                if cursor.epoch != epochBefore {
+                    await delegate?.webSocket(
+                        self, didBindEventEpoch: cursor.epoch, appliedSeq: cursor.appliedSeq
+                    )
+                }
                 await delegate?.webSocket(self, didReceive: message)
                 // Dedup: only notify once while a resync is already in flight.
                 if !alreadyPending {

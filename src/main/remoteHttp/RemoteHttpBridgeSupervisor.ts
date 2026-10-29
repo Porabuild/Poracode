@@ -14,6 +14,7 @@ import {
   type RemoteHttpBridgeOpenDescriptor,
   type RemoteHttpBridgeOpenRequest,
   type RemoteHttpBridgeOpenResult,
+  type RemoteHttpBridgePortDownstreamMessage,
   type RemoteHttpBridgePortEnvelope,
   type RemoteHttpBridgeStats,
 } from "@/shared/remote/httpBridgeProtocol";
@@ -100,12 +101,14 @@ export class RemoteHttpBridgeSupervisor {
       throw new Error("A remote request with this id is already active.");
     }
     if (this.records.size >= REMOTE_HTTP_MAX_ACTIVE_REQUESTS) {
-      this.rejectedRequests += 1;
-      throw new Error("Too many active remote requests.");
+      return this.rejectOverload(target, request, "Too many active remote requests.");
     }
     if ((this.senderCounts.get(target.id) ?? 0) >= REMOTE_HTTP_MAX_ACTIVE_REQUESTS_PER_WINDOW) {
-      this.rejectedRequests += 1;
-      throw new Error("Too many active remote requests for this window.");
+      return this.rejectOverload(
+        target,
+        request,
+        "Too many active remote requests for this window.",
+      );
     }
 
     const record: ActiveRecord = {
@@ -212,6 +215,44 @@ export class RemoteHttpBridgeSupervisor {
       throw error;
     }
     this.openedRequests += 1;
+    return { generation };
+  }
+
+  private rejectOverload(
+    target: RemoteHttpBridgeRendererTarget,
+    request: RemoteHttpBridgeOpenRequest,
+    message: string,
+  ): RemoteHttpBridgeOpenResult {
+    this.rejectedRequests += 1;
+    // Reuse the existing port error contract: an IPC rejection loses the
+    // overload code and makes the renderer report a healthy host as offline.
+    const generation = this.currentGeneration || this.lastIssuedGeneration;
+    const { port1, port2 } = this.createChannel();
+    try {
+      port1.postMessage({
+        v: REMOTE_HTTP_BRIDGE_VERSION,
+        kind: "error",
+        requestId: request.requestId,
+        generation,
+        code: "overloaded",
+        message,
+      } satisfies RemoteHttpBridgePortDownstreamMessage);
+      target.postMessage(
+        IPC_WINDOW_CHANNELS.remoteHttpBridgePort,
+        {
+          channel: REMOTE_HTTP_BRIDGE_PORT_CHANNEL,
+          v: REMOTE_HTTP_BRIDGE_VERSION,
+          requestId: request.requestId,
+          generation,
+        } satisfies RemoteHttpBridgePortEnvelope,
+        [port2],
+      );
+    } catch (error) {
+      port1.close();
+      port2.close();
+      throw error;
+    }
+    unrefTimer(setTimeout(() => port1.close(), 1_000));
     return { generation };
   }
 
