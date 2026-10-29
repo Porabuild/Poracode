@@ -47,6 +47,9 @@ import {
  */
 export interface ComposerSubmitContext {
   thread: Thread;
+  /** Sent by the resume button, not typed: a failure leaves the composer empty
+   * so the button stays for another try. */
+  resumesInterruptedTurn?: boolean;
   agentStatus: AgentStatus | undefined;
   presentationMode: ThreadPresentationMode;
   usesTerminalPresentation: boolean;
@@ -339,6 +342,10 @@ export function submitComposerPrompt(segments: PromptSegment[], ctx: ComposerSub
       if (ctx.isCurrentSession()) ctx.onSubmitSuccess?.();
     })
     .catch((error: unknown) => {
+      if (ctx.resumesInterruptedTurn) {
+        if (!isRemoteCommandOutcomeUncertainError(error)) toast.danger(friendlyError(error));
+        return;
+      }
       // Leave the prompt intact so the user can retry.
       useAppStore.getState().saveThreadDraftContent(thread.id, {
         segments: submittedInputSegments,

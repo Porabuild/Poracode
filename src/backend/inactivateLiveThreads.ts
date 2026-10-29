@@ -25,6 +25,8 @@ export function inactivateLiveThreads(): {
         status: "inactive",
         attention: "none",
         canResumeWithConfig: thread.canResumeWithConfig,
+        // Matches the row `dbMarkLiveThreadsInactive` just wrote.
+        interruptedTurn: "restart",
       })),
   };
 }

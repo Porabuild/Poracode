@@ -37,11 +37,16 @@ export function retainUnpublishedStartSessionRef(
   return error;
 }
 
-/** A rejected startup has no live runtime to settle the client's optimistic turn. */
+/**
+ * A rejected startup has no live runtime to settle the client's optimistic turn.
+ * A start that carried the user's message was a turn of its own: it stays
+ * resumable, like any other turn that failed.
+ */
 export function publishUnpublishedStartFailure(
   threadId: string,
   error: unknown,
   router: Pick<RuntimeEventRouter, "append" | "queueStopMarker">,
+  options: { carriedPrompt?: boolean } = {},
 ): void {
   // One error object may be reused by concurrent provider attempts. Consume
   // only this thread's capture; another owner must never acquire its ref.
@@ -62,6 +67,7 @@ export function publishUnpublishedStartFailure(
     canResumeWithConfig: allocated?.canResumeWithConfig ?? false,
     sessionConfigOptions: null,
     ...(allocated ? { agentKind: allocated.agentKind, sessionRef: allocated.sessionRef } : {}),
+    ...(options.carriedPrompt ? { interruptedTurn: "error" as const } : {}),
     forceCloseActiveTurn: true,
     threadStatusSource: "server",
   });

@@ -92,6 +92,8 @@ function createHarness(
   const kill = vi.fn<SessionRuntimeLifecycleContext["ptyLifecycle"]["kill"]>();
   const emitState = vi.fn<SessionRuntimeLifecycleContext["outputPipeline"]["emitState"]>();
   const updateState = vi.fn<SessionRuntimeLifecycleContext["outputPipeline"]["updateState"]>();
+  const noteTurnFailed =
+    vi.fn<SessionRuntimeLifecycleContext["outputPipeline"]["noteTurnFailed"]>();
   const handlePtyData = vi.fn<SessionRuntimeLifecycleContext["outputPipeline"]["handlePtyData"]>();
   const clearSessionTimers =
     vi.fn<SessionRuntimeLifecycleContext["outputPipeline"]["clearSessionTimers"]>();
@@ -119,7 +121,7 @@ function createHarness(
     isCurrentSession: (candidate) =>
       sessions.get(candidate.threadId)?.instanceId === candidate.instanceId,
     ptyLifecycle: { track, resolveExit, kill },
-    outputPipeline: { emitState, updateState, handlePtyData, clearSessionTimers },
+    outputPipeline: { emitState, updateState, noteTurnFailed, handlePtyData, clearSessionTimers },
     runtimeEventRouter: { flush, append },
     steerCoordinator: { maybeDrainPendingSteer, noteSteerTurnStarted },
     ...(options.followUpQueue ? { followUpQueue: options.followUpQueue } : {}),
@@ -155,6 +157,7 @@ function createHarness(
       kill,
       emitState,
       updateState,
+      noteTurnFailed,
       handlePtyData,
       clearSessionTimers,
       flush,
@@ -257,6 +260,29 @@ describe("SessionRuntimeLifecycle", () => {
 
     expect(h.mocks.noteSteerTurnStarted).toHaveBeenCalledTimes(1);
     expect(h.mocks.noteSteerTurnStarted).toHaveBeenCalledWith(h.session);
+  });
+
+  it("reports only failed turns as cut off", () => {
+    const h = createHarness({ withPty: false });
+    h.lifecycle.attach(h.session);
+
+    for (const state of ["completed", "interrupted", "cancelled"] as const) {
+      h.structuredListener?.onRuntimeEvent?.({
+        type: "turn.completed",
+        threadId: h.session.threadId,
+        turnId: state,
+        state,
+      });
+    }
+    expect(h.mocks.noteTurnFailed).not.toHaveBeenCalled();
+
+    h.structuredListener?.onRuntimeEvent?.({
+      type: "turn.completed",
+      threadId: h.session.threadId,
+      turnId: "failed",
+      state: "failed",
+    });
+    expect(h.mocks.noteTurnFailed).toHaveBeenCalledExactlyOnceWith(h.session);
   });
 
   it("registers and emits before binding handles, then starts ref discovery", () => {
@@ -464,6 +490,24 @@ describe("SessionRuntimeLifecycle", () => {
     harness.session.ignoreExit = true;
     harness.structuredListener?.onError("ignored error");
     expect(harness.mocks.failStructuredSession).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { status: "idle" as const },
+    { status: "inactive" as const },
+    { ignoreExit: true },
+    { turnStopRequested: true },
+    { structuredTurnInterruptRequested: true },
+  ])("does not mark intentional or settled close interrupted: %j", (session) => {
+    vi.useFakeTimers();
+    try {
+      const h = createHarness({ session });
+      h.lifecycle.attach(h.session);
+      h.structuredListener!.onClose();
+      expect(h.mocks.noteTurnFailed).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("handles structured errors and delays PTY teardown after close", () => {

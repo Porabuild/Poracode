@@ -82,7 +82,8 @@ describe("remote v3 native binding generator", () => {
         // structural type (its literal).
         // Optional sessionId on the token-exchange result moves the source hash only.
         // Optional crew favorites/usage and model recency move only the source hash.
-        sourceHash: "sha256:054cab70ec778aca12d0965811a3848768b86a18ec94486eba792aa39b9d58b2",
+        // The optional cut-off marker adds one structural union; older peers omit it.
+        sourceHash: "sha256:dc5241a635965cd7714a1b0e34c033c562211fcc77e4456530aba5257fb4fb2b",
         manifestHash: "sha256:0af95549f6385c5f08e5dfeb224d10486c18d5b19acb6ba934351dbea0e0dea4",
         counts: {
           routes: 119,
@@ -93,7 +94,7 @@ describe("remote v3 native binding generator", () => {
           // 11 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
           webSocketServerVariants: 12,
           schemaRoots: 544,
-          structuralTypes: 1210,
+          structuralTypes: 1211,
           semanticValidators: 25,
           swiftFiles: 75,
           kotlinFiles: 65,

@@ -804,7 +804,7 @@ describe.skipIf(!sqliteAvailable)("saved conversation search", () => {
       previous.close();
       const refusal =
         schemaVersion === 64
-          ? "Database schema is incomplete; missing: pr_watches.review_scope."
+          ? "Database schema is incomplete; missing: threads.interrupted_turn, pr_watches.review_scope."
           : "owning startup upgrade";
       expect(() => initReadOnlyDatabase(path)).toThrow(refusal);
       expect(() => initDatabase(path, { schemaMode: "validate" })).toThrow(refusal);
@@ -831,7 +831,16 @@ describe.skipIf(!sqliteAvailable)("saved conversation search", () => {
                     ...(row as object),
                   })),
                 }
-              : table,
+              : table.name === "threads"
+                ? // Schema 69 adds the cut-off marker; older threads have none.
+                  {
+                    ...table,
+                    rows: table.rows.map((row) => ({
+                      interrupted_turn: null,
+                      ...(row as object),
+                    })),
+                  }
+                : table,
         ),
         // Schema 67 adds the per-thread token aggregate, empty on upgrade.
         ...(before.some((table) => table.name === "thread_token_usage")

@@ -4778,6 +4778,10 @@ msgstr "Bağlam pencereleri"
 msgid "Continue"
 msgstr "Devam et"
 
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Continue from where you left off."
+msgstr "Kaldığın yerden devam et."
+
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Continue in another provider"
@@ -15417,6 +15421,10 @@ msgstr "Durdurmadan önce gereken güven düzeyi."
 msgid "Required reviews, conversations, or status checks not met."
 msgstr "Gerekli incelemeler, görüşmeler veya durum kontrolleri karşılanmadı."
 
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Resend last message"
+msgstr "Son mesajı yeniden gönder"
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
 msgid "reset"
 msgstr "sıfırlama"
@@ -15610,6 +15618,10 @@ msgstr "Hedefi sürdür"
 #: src/renderer/components/thread/ThreadFollowUpQueue.tsx
 msgid "Resume queued follow-ups"
 msgstr "Kuyruktaki takip mesajlarını sürdür"
+
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Resume response"
+msgstr "Yanıtı sürdür"
 
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Resuming session…"

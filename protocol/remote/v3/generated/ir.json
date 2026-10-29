@@ -66215,6 +66215,13 @@
                     "minLength": 1,
                     "type": "string"
                   },
+                  "interruptedTurn": {
+                    "enum": [
+                      "error",
+                      "restart"
+                    ],
+                    "type": "string"
+                  },
                   "lastTurnEndedAt": {
                     "minLength": 1,
                     "type": "string"
@@ -70027,6 +70034,13 @@
                   "minLength": 1,
                   "type": "string"
                 },
+                "interruptedTurn": {
+                  "enum": [
+                    "error",
+                    "restart"
+                  ],
+                  "type": "string"
+                },
                 "lastTurnEndedAt": {
                   "minLength": 1,
                   "type": "string"
@@ -70952,6 +70966,13 @@
                 },
                 "id": {
                   "minLength": 1,
+                  "type": "string"
+                },
+                "interruptedTurn": {
+                  "enum": [
+                    "error",
+                    "restart"
+                  ],
                   "type": "string"
                 },
                 "lastTurnEndedAt": {
@@ -74373,6 +74394,13 @@
                   },
                   "id": {
                     "minLength": 1,
+                    "type": "string"
+                  },
+                  "interruptedTurn": {
+                    "enum": [
+                      "error",
+                      "restart"
+                    ],
                     "type": "string"
                   },
                   "lastTurnEndedAt": {
@@ -78449,7 +78477,7 @@
     "void-envelope.omit-result",
     "void-result.omit-field"
   ],
-  "sourceHash": "sha256:054cab70ec778aca12d0965811a3848768b86a18ec94486eba792aa39b9d58b2",
+  "sourceHash": "sha256:dc5241a635965cd7714a1b0e34c033c562211fcc77e4456530aba5257fb4fb2b",
   "unknownObjectFields": "ignore",
   "webSocket": {
     "clientMessages": [

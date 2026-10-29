@@ -6,6 +6,59 @@ import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
 @Serializable
+enum class WebSocketServerMessageU2DOptionU2D11U2DType_114549e732 {
+    @SerialName("terminal-watch-baseline-chunk") TERMINALU2DWATCHU2DBASELINEU2DCHUNK,
+}
+
+@Serializable
+data class WebSocketServerMessageU2DOptionU2D11_e65689e97e(
+    @SerialName("cursorSync") val cursorSync: WebSocketServerMessageU2DOptionU2D11U2DCursorSync_9dd9855628,
+    @SerialName("id") val id: String,
+    @SerialName("type") val type: WebSocketServerMessageU2DOptionU2D11U2DType_114549e732,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("cursorSync", "WebSocketServerMessageU2DOptionU2D11U2DCursorSync_9dd9855628", true, false, null, null, null, null, null, null, null, null, listOf("terminal.cursor.baseline-chunk-utf16")),
+            RemoteFieldDescriptor("id", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("type", "WebSocketServerMessageU2DOptionU2D11U2DType_114549e732", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+enum class WebSocketServerMessageU2DOptionU2D12U2DSpace_22c1b4b934 {
+    @SerialName("ipc") IPC,
+    @SerialName("loopback") LOOPBACK,
+}
+
+@Serializable
+enum class WebSocketServerMessageU2DOptionU2D12U2DType_829c74ec0a {
+    @SerialName("desktop-event") DESKTOPU2DEVENT,
+}
+
+@Serializable
+data class WebSocketServerMessageU2DOptionU2D12_f1c1581e17(
+    @SerialName("event") val event: JsonElement,
+    @SerialName("seq") val seq: Long,
+    @SerialName("space") val space: RemoteField<WebSocketServerMessageU2DOptionU2D12U2DSpace_22c1b4b934> = RemoteField.Missing,
+    @SerialName("type") val type: WebSocketServerMessageU2DOptionU2D12U2DType_829c74ec0a,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("event", "JsonElement", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("seq", "Long", true, false, null, 9007199254740991.0, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("space", "WebSocketServerMessageU2DOptionU2D12U2DSpace_22c1b4b934", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("type", "WebSocketServerMessageU2DOptionU2D12U2DType_829c74ec0a", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+enum class WebSocketServerMessageU2DOptionU2D1U2DType_83c210ec93 {
+    @SerialName("agent-vision-frame") AGENTU2DVISIONU2DFRAME,
+}
+
+@Serializable
 data class WebSocketServerMessageU2DOptionU2D1_48916cddaa(
     @SerialName("type") val type: WebSocketServerMessageU2DOptionU2D1U2DType_83c210ec93,
     @SerialName("vision") val vision: RemoteField<RoutethreadU2DAgentU2DVisionResponseU2DOptionU2D1_1e25c599a6>,

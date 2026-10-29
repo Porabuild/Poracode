@@ -12,6 +12,7 @@ import type {
   ThreadConfig,
   ThreadPresentationMode,
   ThreadStatus,
+  ThreadTurnInterruption,
   McpLaunchSnapshot,
 } from "@/shared/contracts";
 import type { TranscriptBuffer } from "@/shared/transcriptBuffer";
@@ -156,6 +157,21 @@ export interface SessionRuntime {
    */
   pendingSteer?: PendingSteerSlot | undefined;
   structuredTurnInterruptRequested?: boolean | undefined;
+  /**
+   * The last turn ended unfinished without the user pressing Stop. `null` once
+   * a turn starts; absent until this session has said either, so a fresh
+   * session never retires a marker the host kept across a restart.
+   */
+  interruptedTurn?: ThreadTurnInterruption | null | undefined;
+  /** The marker value this session last told the host. */
+  reportedInterruptedTurn?: ThreadTurnInterruption | null | undefined;
+  /**
+   * The user pressed Stop on this turn. Unlike
+   * `structuredTurnInterruptRequested` it outlives the settling status, so a
+   * failure the provider reports while winding down still reads as a Stop.
+   * The next turn clears it.
+   */
+  turnStopRequested?: boolean | undefined;
   /**
    * Force-stop watchdog for a structured (GUI) turn. Armed when the user
    * requests a stop and reset on any inbound sign of life (status update or

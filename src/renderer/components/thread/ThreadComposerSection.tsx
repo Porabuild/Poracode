@@ -12,6 +12,7 @@ import { toast } from "@heroui/react";
 import { ChevronDown, Monitor, Settings2, Webhook } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import type { AgentStatus, ProjectLocation, PromptSegment, Thread } from "@/shared/contracts";
+import { isThreadTurnActive } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
 import type { FollowUpBehavior } from "@/shared/settings";
 import { useThreadFollowUpQueue } from "@/renderer/state/threadFollowUpQueueStore";
@@ -116,6 +117,7 @@ import { hasReportedContextUsage, resolveThreadContextUsageSummary } from "./thr
 import { buildControls, type ActiveComposerCrewHandlers } from "./buildModelPickerControls";
 import { machineKeyForLocation } from "@/shared/machines";
 import { submitComposerPrompt } from "./threadComposerSubmit";
+import { selectThreadResumePlan } from "./threadResumeState";
 import {
   filterSlashCommands,
   handleSlashCommandPanelKeyDown,
@@ -830,6 +832,20 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     !authRequired &&
     !attachments.isUploading;
   const canInterruptStructuredTurn = canShowRuntimeChrome && thread.status === "working";
+  // A turn cut off by an error or a restart is picked back up from an empty
+  // composer, so nobody has to type "continue".
+  const resumePlan = useAppStore((s) =>
+    thread.interruptedTurn && !usesTerminalPresentation
+      ? selectThreadResumePlan(s, thread.id)
+      : null,
+  );
+  const canResume =
+    resumePlan !== null &&
+    canSubmit &&
+    !isThreadTurnActive(thread.status) &&
+    !hasContent &&
+    attachments.attachments.length === 0 &&
+    !threadVoiceActive;
   const followUpBehavior = useSharedSettings((state) => state.followUpBehavior);
   const visiblePendingSteer = useDelayedPendingSteer(pendingSteer);
   const usesPendingSteerPath =
@@ -928,11 +944,16 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     useAppStore.getState().requestComposerFocus(thread.id);
   }
 
-  function submitPrompt(segments: PromptSegment[], behavior: FollowUpBehavior = followUpBehavior) {
+  function submitPrompt(
+    segments: PromptSegment[],
+    behavior: FollowUpBehavior = followUpBehavior,
+    resumesInterruptedTurn = false,
+  ) {
     if (attachments.hasPendingUploads()) return;
     const composerSession = composerSessionRef.current;
     submitComposerPrompt(segments, {
       thread,
+      resumesInterruptedTurn,
       agentStatus: effectiveAgentStatus,
       presentationMode,
       usesTerminalPresentation,
@@ -967,6 +988,13 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
         }
       },
     });
+  }
+
+  function resumeInterruptedTurn() {
+    if (!resumePlan) return;
+    const content =
+      resumePlan.kind === "resend" ? resumePlan.prompt : t`Continue from where you left off.`;
+    submitPrompt([{ kind: "text", content }], followUpBehavior, true);
   }
 
   const handlePromptRecallKey = usePromptRecall({
@@ -1207,7 +1235,9 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
             keyboardKey={thread.id}
             scrimLabel={t`Collapse composer`}
             collapsedTapLabel={resumeUnavailableMessage ?? t`Send a message...`}
-            inputHasContent={hasContent}
+            // The collapsed pill pins its send slot only for typed prompts; the
+            // resume button needs the same pinned slot on an empty one.
+            inputHasContent={hasContent || canResume}
             expansionLocked={activeRuntimeRequest !== undefined}
             onDockHeightChange={(height, dock) => {
               const pane = composerSectionRef.current?.closest("[data-poracode-thread-pane]");
@@ -1552,6 +1582,17 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                           ),
                         }
                       : {})}
+                    resume={
+                      canResume
+                        ? {
+                            label:
+                              resumePlan.kind === "resend"
+                                ? t`Resend last message`
+                                : t`Resume response`,
+                            onPress: resumeInterruptedTurn,
+                          }
+                        : undefined
+                    }
                     onStop={canInterruptStructuredTurn ? handleInterrupt : undefined}
                     {...(() => {
                       const contextIndicator = showContextIndicator ? (

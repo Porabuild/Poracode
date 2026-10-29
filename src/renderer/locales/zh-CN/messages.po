@@ -4778,6 +4778,10 @@ msgstr "上下文窗口"
 msgid "Continue"
 msgstr "继续"
 
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Continue from where you left off."
+msgstr "从上次中断的地方继续。"
+
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Continue in another provider"
@@ -15416,6 +15420,10 @@ msgstr "停止前所需的置信度。"
 msgid "Required reviews, conversations, or status checks not met."
 msgstr "未满足所需的审查、对话或状态检查。"
 
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Resend last message"
+msgstr "重新发送上一条消息"
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
 msgid "reset"
 msgstr "重置"
@@ -15609,6 +15617,10 @@ msgstr "继续目标"
 #: src/renderer/components/thread/ThreadFollowUpQueue.tsx
 msgid "Resume queued follow-ups"
 msgstr "恢复排队的后续消息"
+
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Resume response"
+msgstr "继续响应"
 
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Resuming session…"
