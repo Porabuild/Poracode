@@ -8,6 +8,56 @@ import org.junit.Test
 
 class RemoteSocketDecisionsTest {
     @Test
+    fun aStalledHealthDeadlineWaitsForTheQueuedPong() {
+        // The deadline fired 6.5s late: the process stalled, not the peer.
+        assertTrue(
+            RemoteSocketDecisions.shouldExtendHealthDeadline(
+                nowMs = 11_500,
+                deadlineAtMs = 5_000,
+                windowStartedAtMs = 0,
+                lastInboundAtMs = Long.MIN_VALUE,
+                extensions = 0,
+            ),
+        )
+    }
+
+    @Test
+    fun framesDuringTheWindowExtendItThenSilenceIsDead() {
+        assertTrue(
+            RemoteSocketDecisions.shouldExtendHealthDeadline(
+                nowMs = 5_001,
+                deadlineAtMs = 5_000,
+                windowStartedAtMs = 0,
+                lastInboundAtMs = 4_000,
+                extensions = 0,
+            ),
+        )
+        // Next window: on time and no frames since it started.
+        assertFalse(
+            RemoteSocketDecisions.shouldExtendHealthDeadline(
+                nowMs = 10_002,
+                deadlineAtMs = 10_001,
+                windowStartedAtMs = 5_001,
+                lastInboundAtMs = 4_000,
+                extensions = 1,
+            ),
+        )
+    }
+
+    @Test
+    fun healthDeadlineExtensionsAreBounded() {
+        assertFalse(
+            RemoteSocketDecisions.shouldExtendHealthDeadline(
+                nowMs = 11_500,
+                deadlineAtMs = 5_000,
+                windowStartedAtMs = 0,
+                lastInboundAtMs = 4_000,
+                extensions = RemoteSocketPolicy.HEALTH_DEADLINE_MAX_EXTENSIONS,
+            ),
+        )
+    }
+
+    @Test
     fun onOpenIsNeverOnline() {
         assertEquals(
             RemoteSocketDecisions.OpenAction.StayConnecting,
