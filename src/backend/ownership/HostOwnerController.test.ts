@@ -74,7 +74,6 @@ async function externalContender(namespace: string) {
     [namespace, "desktop"],
     {
       execArgv: [
-        "--experimental-transform-types",
         "--disable-warning=ExperimentalWarning",
         "--import",
         new URL("../../../scripts/remote-v3-ts-register.mjs", import.meta.url).href,

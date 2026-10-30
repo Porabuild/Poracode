@@ -92,7 +92,7 @@ manifest plus the generated inventory `sourceHash`. Regenerating
 committed map in the same change:
 
 ```
-node --experimental-transform-types --disable-warning=ExperimentalWarning \
+node --disable-warning=ExperimentalWarning \
   tests/native-e2e/harness/refreshOperationMap.ts
 ```
 

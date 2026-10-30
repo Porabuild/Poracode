@@ -98,30 +98,33 @@ function pairingParts(pairingUrl: string): { credential: string; fingerprint: st
 }
 
 describe("RemoteAccessServer TLS (Gate 6 item 4.2)", () => {
-  it("listens HTTPS, carries the certificate fingerprint in the pairing QR, and answers over https", async () => {
-    const material = generateSelfSignedTlsMaterial({ commonName: "tls-test-host" });
-    const server = createServer({ tls: material });
-    const info = await server.start();
+  it.each(["127.0.0.1", "localhost"])(
+    "probes HTTPS certificates over %s and carries the fingerprint in the pairing QR",
+    async (hostname) => {
+      const material = generateSelfSignedTlsMaterial({ commonName: "tls-test-host" });
+      const server = createServer({ tls: material });
+      const info = await server.start();
 
-    expect(info.httpBaseUrl.startsWith("https://")).toBe(true);
-    expect(server.tlsFingerprint()).toBe(material.fingerprint);
+      expect(info.httpBaseUrl.startsWith("https://")).toBe(true);
+      expect(server.tlsFingerprint()).toBe(material.fingerprint);
 
-    const pairingUrl = server.issuePairingUrl("TLS acceptance");
-    const parts = pairingParts(pairingUrl);
-    // The QR carries the exact sha256 hex the server serves.
-    expect(parts.fingerprint).toBe(material.fingerprint);
+      const pairingUrl = server.issuePairingUrl("TLS acceptance");
+      const parts = pairingParts(pairingUrl);
+      // The QR carries the exact sha256 hex the server serves.
+      expect(parts.fingerprint).toBe(material.fingerprint);
 
-    // A plaintext-speaking client gets nothing on the TLS port and vice versa:
-    // real TLS is live (the handshake below succeeds against the cert).
-    await expect(probeTlsCertificateFingerprint(info.httpBaseUrl)).resolves.toBe(
-      material.fingerprint,
-    );
+      // A plaintext-speaking client gets nothing on the TLS port and vice versa:
+      // real TLS is live (the handshake below succeeds against the cert).
+      await expect(
+        probeTlsCertificateFingerprint(info.httpBaseUrl.replace("127.0.0.1", hostname)),
+      ).resolves.toBe(material.fingerprint);
 
-    // The unauthenticated operability probe rides the same TLS surface.
-    const health = await insecureTlsFetch(new URL("/healthz", info.httpBaseUrl));
-    expect(health.status).toBe(200);
-    expect(await health.json()).toEqual({ ok: true });
-  });
+      // The unauthenticated operability probe rides the same TLS surface.
+      const health = await insecureTlsFetch(new URL("/healthz", info.httpBaseUrl));
+      expect(health.status).toBe(200);
+      expect(await health.json()).toEqual({ ok: true });
+    },
+  );
 
   it("pairs a probe-capable client over https and pins the observed certificate", async () => {
     const material = generateSelfSignedTlsMaterial();

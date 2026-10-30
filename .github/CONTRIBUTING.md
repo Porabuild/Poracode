@@ -11,7 +11,7 @@ By contributing, you agree your work is licensed under the [Apache License 2.0](
 
 ## Local setup
 
-You'll need Node `>= 24.10.0` (see `.nvmrc`) and the Bun preview pinned in `package.json#packageManager`.
+You'll need Node `>= 26.13.0` (see `.nvmrc`) and the Bun preview pinned in `package.json#packageManager`.
 Run `node scripts/setup-bun.mjs --run install --frozen-lockfile` to bootstrap the pinned Bun and install dependencies. The pinned preview provides the built-in checker, linter, and formatter.
 
 ```bash

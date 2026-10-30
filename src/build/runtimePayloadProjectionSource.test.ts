@@ -26,7 +26,6 @@ describe("payload projection tooling source", () => {
     const output = execFileSync(
       process.execPath,
       [
-        "--experimental-transform-types",
         "--disable-warning=ExperimentalWarning",
         "--input-type=module",
         "-e",

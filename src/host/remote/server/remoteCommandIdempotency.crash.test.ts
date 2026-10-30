@@ -106,7 +106,6 @@ describe.skipIf(!sqliteAvailable)("remote command receipts across real process k
   function launch(): Fixture {
     const child = fork(FIXTURE, [dbPath, effectPath], {
       execArgv: [
-        "--experimental-transform-types",
         "--disable-warning=ExperimentalWarning",
         "--import",
         pathToFileURL(resolve("scripts/remote-v3-ts-register.mjs")).href,

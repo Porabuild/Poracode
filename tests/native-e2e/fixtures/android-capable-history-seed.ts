@@ -3,7 +3,7 @@
  * Test-only fixture for the B1 CAPABLE-HOST Android device journey.
  *
  * Modes (forked exactly like `src/host/db/runtimeDurableGap.crashFixture.ts`,
- * under `--experimental-transform-types` + the remote-v3 TypeScript register):
+ * under the remote-v3 TypeScript register):
  *
  *   seed   <dbPath> <paramsJson>
  *     Opens the disposable host DB through the production connection, creates
