@@ -1792,6 +1792,53 @@ describe("useRemoteServersStore", () => {
   });
 
   it.each([
+    [401, "Pairing expired — pair again to reconnect."],
+    [403, "This client lacks the required scope."],
+  ])(
+    "shows a refresh that ends %i as the matching session state, never the raw 401",
+    async (status, expected) => {
+      let refuse = false;
+      useRemoteServersStore.getState().setClientFactory(
+        factoryFor(
+          makeClient({
+            snapshot: async () => {
+              if (refuse) {
+                throw new RemoteClientError(
+                  status === 401
+                    ? "Invalid access token."
+                    : "This client lacks the required scope.",
+                  status,
+                  status === 401 ? "invalid_access_token" : "forbidden",
+                );
+              }
+              return {
+                snapshotSeq: 0,
+                projects: [proj],
+                threads: [],
+                runtimeSummariesByThread: {},
+                updatedAt: "now",
+              };
+            },
+          }),
+        ),
+      );
+      await useRemoteServersStore
+        .getState()
+        .pairServer({ endpoint: "192.168.1.9:38987", token: "a" });
+
+      // A revoked session: the client's own refresh is already exhausted, so
+      // the failure is the "pair again" state, not the host's wording.
+      refuse = true;
+      await useRemoteServersStore.getState().refreshServer("d1");
+
+      expect(useRemoteServersStore.getState().runtime.d1).toMatchObject({
+        status: "error",
+        message: expected,
+      });
+    },
+  );
+
+  it.each([
     ["overloaded", "Too many active remote requests for this window."],
     ["principal_busy", "This paired client has too much work in flight; retry shortly."],
   ])("localizes a %s refusal on the server status", async (code, message) => {
@@ -4488,6 +4535,93 @@ describe("useRemoteServersStore", () => {
       clientContext: { browserFocus: {} },
     });
     expect(useRemoteServersStore.getState().openThread?.threadId).toBe("rt-new");
+  });
+
+  it("keeps the loader up while an open's read is in flight, then ends a superseded pending", async () => {
+    let resolveHistory: (
+      snapshot: Awaited<ReturnType<RemoteDesktopClient["threadHistory"]>>,
+    ) => void = () => undefined;
+    const threadHistory = vi.fn<RemoteDesktopClient["threadHistory"]>(
+      () =>
+        new Promise((resolve) => {
+          resolveHistory = resolve;
+        }),
+    );
+    useRemoteServersStore.getState().setClientFactory(factoryFor(makeClient({ threadHistory })));
+    await pairIsolated(() => makeSocket());
+    const viewThreadId = remoteThreadId("d1", "rt-1");
+    // The pane's first read set "pending" and the open's projection reset
+    // superseded it: no live pane read owns the status any more.
+    useAppStore.getState().setRuntimeHydrationStatus(viewThreadId, "pending");
+
+    const open = useRemoteServersStore.getState().openRemoteThread("d1", "rt-1");
+    await vi.waitFor(() => expect(threadHistory).toHaveBeenCalled());
+    // Still reading: the loader stays (a cleared status here is a blank pane).
+    expect(useAppStore.getState().runtimeHydrationStatus[viewThreadId]).toBe("pending");
+
+    resolveHistory(remoteThreadSnapshot("rt-1"));
+    await open;
+    // Installed: the leftover pending is gone, so history paging resumes.
+    expect(useAppStore.getState().runtimeHydrationStatus[viewThreadId]).toBeUndefined();
+  });
+
+  it("keeps the launching client's optimistic message while opening the started thread", async () => {
+    const startedThread = {
+      ...remoteThread,
+      id: "rt-optimistic",
+      title: "New remote thread",
+      presentationMode: "gui",
+    } as Thread;
+    const client = makeClient({
+      startNewThread: vi.fn<RemoteDesktopClient["startNewThread"]>(async () => ({
+        threadId: "rt-optimistic",
+      })),
+      snapshot: async () => ({
+        snapshotSeq: 2,
+        projects: [proj],
+        threads: [startedThread],
+        runtimeSummariesByThread: {},
+        updatedAt: "now",
+      }),
+      threadHistory: async () => ({
+        ...remoteThreadSnapshot("rt-optimistic"),
+        thread: startedThread,
+      }),
+    });
+    useRemoteServersStore.getState().setClientFactory(factoryFor(client));
+    await pairIsolated(() => makeSocket());
+    const appThreadId = remoteThreadId("d1", "rt-optimistic");
+    useAppStore.setState({
+      runtimeItemIdsByThread: { [appThreadId]: ["user-optimistic"] },
+      runtimeItemsByIdByThread: {
+        [appThreadId]: {
+          "user-optimistic": { id: "user-optimistic", type: "user_message", text: "work remotely" },
+        },
+      },
+    } as never);
+    const counts: number[] = [];
+    const unsubscribe = useAppStore.subscribe((state) => {
+      counts.push(state.runtimeItemIdsByThread[appThreadId]?.length ?? 0);
+    });
+
+    try {
+      await useRemoteServersStore.getState().launchRemoteThread({
+        threadId: "rt-optimistic",
+        desktopId: "d1",
+        projectId: "p1",
+        agentKind: "claude",
+        config: { model: "claude-sonnet" },
+        prompt: "work remotely",
+        presentationMode: "gui",
+        userMessageItemId: "user-optimistic",
+      });
+    } finally {
+      unsubscribe();
+    }
+
+    // The open never wipes the on-screen launch (it used to blink to empty).
+    expect(counts).not.toContain(0);
+    expect(useRemoteServersStore.getState().openThread?.threadId).toBe("rt-optimistic");
   });
 
   it("starts a GUI instance in the background without moving the main view", async () => {
