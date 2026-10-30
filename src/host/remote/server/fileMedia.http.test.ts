@@ -301,6 +301,10 @@ describe("authorized editor media HTTP", () => {
     const range = await fetch(source.url, { headers: { range: "bytes=2-4" } });
     expect(range.status).toBe(206);
     expect(await range.text()).toBe("234");
+    // The parent proxy must relay the child's download file name, not drop it.
+    expect(range.headers.get("content-disposition")).toBe(
+      `inline; filename="clip.mp4"; filename*=UTF-8''clip.mp4`,
+    );
     expect((await fetch(source.url.replace("env-one/proxy", "env-two/proxy"))).status).toBe(401);
     const wrongFile = new URL(source.url);
     wrongFile.searchParams.set("ticket", `pc_media_${"a".repeat(43)}`);
