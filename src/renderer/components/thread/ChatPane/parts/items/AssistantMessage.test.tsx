@@ -1,5 +1,6 @@
 import { act, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { Thread } from "@/shared/contracts";
 import { AppProvider } from "@/renderer/components/ui/provider";
 import { useAppStore } from "@/renderer/state/appStore";
 import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
@@ -424,7 +425,12 @@ describe("AssistantMessage", () => {
     }
 
     beforeEach(() => {
-      useAppStore.setState({ runtimeItemIdsByThread: {}, runtimeItemsByIdByThread: {} });
+      useAppStore.setState({
+        threads: [],
+        runtimeItemIdsByThread: {},
+        runtimeItemsByIdByThread: {},
+        runtimeCompletedTurnsByThread: {},
+      });
     });
 
     it("shows the copy action when the message is the turn's last item", () => {
@@ -439,6 +445,9 @@ describe("AssistantMessage", () => {
 
     it("shows the recorded completion timestamp beside the answer actions", () => {
       seed([answer]);
+      useAppStore.setState({
+        threads: [{ id: "thread-1", status: "idle", presentationMode: "gui" } as Thread],
+      });
       const endedAt = new Date(2026, 9, 23, 9, 5).getTime();
       useAppStore
         .getState()
@@ -456,7 +465,89 @@ describe("AssistantMessage", () => {
         screen.getByLabelText("Copy message"),
       );
       expect(timestamp).toHaveAttribute("title");
+      expect(timestamp?.closest(".poracode-message-action-strip")).not.toHaveClass(
+        "[@media(hover:hover)]:opacity-0",
+      );
+      expect(screen.getByLabelText("Fork from here").parentElement).not.toHaveClass(
+        "[@media(hover:hover)]:opacity-0",
+      );
     });
+
+    it("keeps the latest finished answer visible until the next answer finishes, including short turns", () => {
+      const nextAnswer: RuntimeChatItem = { ...answer, id: "asst_next", state: "updated" };
+      const prompt: RuntimeChatItem = {
+        id: "user_2",
+        type: "user_message",
+        state: "completed",
+        payload: {},
+        streams: {},
+      };
+      seed([answer, prompt, nextAnswer]);
+      const firstTurn = { startedAt: 1000, endedAt: 2000, anchorItemId: answer.id };
+      useAppStore.getState().hydrateThreadCompletedTurns("thread-1", [firstTurn]);
+      const { container, rerender } = render(
+        <AppProvider>
+          <AssistantMessage threadId="thread-1" item={answer} isTurnActive />
+          <AssistantMessage threadId="thread-1" item={nextAnswer} isTurnActive />
+        </AppProvider>,
+      );
+      const strips = container.querySelectorAll(".poracode-message-action-strip");
+      expect(strips[0]).not.toHaveClass("[@media(hover:hover)]:opacity-0");
+      expect(strips[1]).toHaveClass("[@media(hover:hover)]:opacity-0");
+      expect(strips[1]?.querySelector("time")).toBeNull();
+
+      const finishedAnswer = { ...nextAnswer, state: "completed" as const };
+      act(() => {
+        seed([answer, prompt, finishedAnswer]);
+        useAppStore
+          .getState()
+          .hydrateThreadCompletedTurns("thread-1", [
+            firstTurn,
+            { startedAt: 3000, endedAt: 3500, anchorItemId: nextAnswer.id },
+          ]);
+      });
+      rerender(
+        <AppProvider>
+          <AssistantMessage threadId="thread-1" item={answer} isTurnActive={false} />
+          <AssistantMessage threadId="thread-1" item={finishedAnswer} isTurnActive={false} />
+        </AppProvider>,
+      );
+      expect(strips[0]).toHaveClass("[@media(hover:hover)]:opacity-0");
+      expect(strips[1]).not.toHaveClass("[@media(hover:hover)]:opacity-0");
+      expect(strips[1]?.querySelector("time")).toHaveAttribute(
+        "datetime",
+        new Date(3500).toISOString(),
+      );
+    });
+
+    it.each([null, "tool_tail"])(
+      "keeps the latest finished answer visible after a turn without an answer (anchor=%s)",
+      (anchorItemId) => {
+        seed([
+          answer,
+          { id: "user_2", type: "user_message", state: "completed", payload: {}, streams: {} },
+          {
+            id: "tool_tail",
+            type: "tool_call",
+            state: "completed",
+            payload: { name: "test" },
+            streams: {},
+          },
+        ]);
+        useAppStore.getState().hydrateThreadCompletedTurns("thread-1", [
+          { startedAt: 1000, endedAt: 2000, anchorItemId: answer.id },
+          { startedAt: 3000, endedAt: 4000, anchorItemId },
+        ]);
+        const { container } = render(
+          <AppProvider>
+            <AssistantMessage threadId="thread-1" item={answer} isTurnActive={false} />
+          </AppProvider>,
+        );
+        expect(container.querySelector(".poracode-message-action-strip")).not.toHaveClass(
+          "[@media(hover:hover)]:opacity-0",
+        );
+      },
+    );
 
     it("shows the copy action when the next top-level item is the next user message", () => {
       seed([
