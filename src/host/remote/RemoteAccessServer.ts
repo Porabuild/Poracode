@@ -1,4 +1,5 @@
 import type { IncomingMessage } from "node:http";
+import type { Server as NetServer } from "node:net";
 import { performance } from "node:perf_hooks";
 import { WebSocket, WebSocketServer } from "ws";
 import { recordHandlerTiming } from "@/shared/diagnostics/handlerTimingObservations";
@@ -256,6 +257,7 @@ export class RemoteAccessServer {
   private seq = 0;
   private info: RemoteAccessServerInfo | null = null;
   private activePairingCredential: string | null = null;
+  private loopbackGuard: NetServer | null = null;
   private stopping = false;
   private readonly listenCancellation = new AbortController();
   private starting: Promise<RemoteAccessServerInfo> | undefined;
