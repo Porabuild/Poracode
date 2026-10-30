@@ -8,6 +8,8 @@ import type { MediaFileRequest, MediaTicketResult } from "@/shared/remote/media"
 import { RemoteHttpError, type AuthenticatedRemoteSession, type RemoteAuthStore } from "../auth";
 import { authorizeProjectProcedurePayload } from "./projectProcedureAuthorization";
 import { parseByteRange, pipeOwnedFileResponse } from "../fileResponseStream";
+import { getBasename } from "@/shared/pathUtils";
+import { inlineContentDisposition } from "./httpResponses";
 import type { RemoteServerContext } from "./context";
 import { PlaybackGrants } from "./playbackGrants";
 
@@ -275,7 +277,9 @@ export async function writeFileMedia(
       "x-content-type-options": "nosniff",
       "content-security-policy": "sandbox; default-src 'none'",
       "referrer-policy": "no-referrer",
-      "content-disposition": 'inline; filename="preview"',
+      // The name the requester opened (chat link / editor tab) is the name a
+      // download should save under; `inline` keeps in-page playback as-is.
+      "content-disposition": inlineContentDisposition(getBasename(value.request.path)),
     };
     if (range === "unsatisfiable") {
       res.writeHead(416, {
