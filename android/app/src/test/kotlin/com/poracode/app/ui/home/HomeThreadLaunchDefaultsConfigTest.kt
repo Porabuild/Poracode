@@ -68,4 +68,27 @@ class HomeThreadLaunchDefaultsConfigTest {
         val defaults = HomeThreadListPresentation.launchDefaults(project(null), listOf(item))
         assertEquals(pinned, defaults?.config)
     }
+
+    @Test
+    fun workflowModeIsNeverInheritedFromAPriorThread() {
+        val thread = RemoteThread(
+            id = "thread-fixture-001",
+            projectId = "project-fixture-001",
+            title = "Fixture thread",
+            agentKind = "fixture-model",
+            status = "idle",
+            attention = "none",
+            config = ThreadConfig(model = "fixture-model", workflows = true),
+            createdAt = "2026-01-01T00:00:00.000Z",
+            updatedAt = "2026-01-02T00:00:00.000Z",
+        )
+        val item = HostPresentation.UnifiedThreadItem(
+            connectionId = ClientConnectionId("10000000-0000-4000-8000-000000000001"),
+            hostName = "Fixture Mac",
+            project = project(null),
+            thread = thread,
+        )
+        val defaults = HomeThreadListPresentation.launchDefaults(project(null), listOf(item))
+        assertEquals(ThreadConfig(model = "fixture-model"), defaults?.config)
+    }
 }

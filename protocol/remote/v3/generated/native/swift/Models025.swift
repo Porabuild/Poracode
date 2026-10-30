@@ -1,5 +1,37 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
+public struct RouteconversationU2DSearchQuery_07b9b9802d: Codable, Sendable, RemoteModelMetadata {
+  public var cursor: RemoteField<String> = .missing
+  public var includeArchived: RemoteField<RouteconversationU2DSearchQueryU2DIncludeArchived_003a95dd16> = .missing
+  public var limit: RemoteField<Int64> = .missing
+  public var projectId: RemoteField<String> = .missing
+  public var query: String
+  public var version: RouteconversationU2DSearchQueryU2DVersion_8795ea0289
+  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
+  public static let fields: [RemoteFieldDescriptor] = [
+    .init(wireName: "cursor", typeName: "String", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: 1024, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "includeArchived", typeName: "RouteconversationU2DSearchQueryU2DIncludeArchived_003a95dd16", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "limit", typeName: "Int64", required: false, nullable: false, minimum: 1, maximum: 50, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "projectId", typeName: "String", required: false, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: 200, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "query", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: 500, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: ["string.trim"]),
+    .init(wireName: "version", typeName: "RouteconversationU2DSearchQueryU2DVersion_8795ea0289", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+  ]
+  public static let semanticValidatorIds: [String] = []
+  private enum CodingKeys: String, CodingKey {
+    case cursor = "cursor"
+    case includeArchived = "includeArchived"
+    case limit = "limit"
+    case projectId = "projectId"
+    case query = "query"
+    case version = "version"
+  }
+}
+
+public enum RouteconversationU2DSearchResponseU2DEntriesU2DItemU2DRole_ff05783d57: String, Codable, Sendable {
+  case `user` = "user"
+  case `assistant` = "assistant"
+}
+
 public struct RouteconversationU2DSearchResponseU2DEntriesU2DItem_c52c624815: Codable, Sendable, RemoteModelMetadata {
   public var archived: Bool
   public var excerpt: String
@@ -396,43 +428,4 @@ public enum RoutedeviceU2DActionRequestU2DOptionU2D6U2DControlU2DOptionU2D3U2DVa
   case `standard` = "standard"
   case `large` = "large"
   case `extraLarge` = "extraLarge"
-}
-
-public struct RoutedeviceU2DActionRequestU2DOptionU2D6U2DControlU2DOptionU2D3_72a4809a8d: Codable, Sendable, RemoteModelMetadata {
-  public var typeValue: RoutedeviceU2DActionRequestU2DOptionU2D6U2DControlU2DOptionU2D3U2DType_c8c48a1118
-  public var value: RoutedeviceU2DActionRequestU2DOptionU2D6U2DControlU2DOptionU2D3U2DValue_f0f815c9ec
-  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .reject
-  public static let fields: [RemoteFieldDescriptor] = [
-    .init(wireName: "type", typeName: "RoutedeviceU2DActionRequestU2DOptionU2D6U2DControlU2DOptionU2D3U2DType_c8c48a1118", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "value", typeName: "RoutedeviceU2DActionRequestU2DOptionU2D6U2DControlU2DOptionU2D3U2DValue_f0f815c9ec", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-  ]
-  public static let semanticValidatorIds: [String] = []
-  private enum CodingKeys: String, CodingKey {
-    case typeValue = "type"
-    case value = "value"
-  }
-  public init(from decoder: Decoder) throws {
-    let all = try decoder.container(keyedBy: RemoteCodingKey.self).allKeys.map(\.stringValue)
-    let known = Set(Self.fields.map(\.wireName))
-    guard all.allSatisfy(known.contains) else { throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Unknown field in strict object")) }
-    let container = try decoder.container(keyedBy: CodingKeys.self)
-    self.typeValue = try container.decode(RoutedeviceU2DActionRequestU2DOptionU2D6U2DControlU2DOptionU2D3U2DType_c8c48a1118.self, forKey: .typeValue)
-    self.value = try container.decode(RoutedeviceU2DActionRequestU2DOptionU2D6U2DControlU2DOptionU2D3U2DValue_f0f815c9ec.self, forKey: .value)
-  }
-  public func encode(to encoder: Encoder) throws {
-    var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encode(typeValue, forKey: .typeValue)
-    try container.encode(value, forKey: .value)
-  }
-}
-
-public enum RoutedeviceU2DActionRequestU2DOptionU2D6U2DControlU2DOptionU2D4U2DType_4311a74add: String, Codable, Sendable {
-  case `orientation` = "orientation"
-}
-
-public enum RoutedeviceU2DActionRequestU2DOptionU2D6U2DControlU2DOptionU2D4U2DValue_d61b01c8cb: String, Codable, Sendable {
-  case `portrait` = "portrait"
-  case `landscapeLeft` = "landscapeLeft"
-  case `upsideDown` = "upsideDown"
-  case `landscapeRight` = "landscapeRight"
 }

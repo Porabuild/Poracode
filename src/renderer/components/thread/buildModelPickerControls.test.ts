@@ -12,6 +12,7 @@ import {
   patchConfigForModelChange,
   resolveModelSelectionEdit,
   type ActiveComposerCrewHandlers,
+  type ModelPickerConfigPatch,
 } from "./buildModelPickerControls";
 
 import { registerComposerControls } from "../providers/providerComposer";
@@ -317,6 +318,96 @@ describe("buildControls model preferences", () => {
         thinking: true,
         crew,
       }),
+    );
+  });
+});
+
+describe("workflow mode toggle", () => {
+  const workflowCapabilities = {
+    ...capabilities,
+    workflowModels: ["a"],
+  } as AgentCapability;
+  const agent = {
+    kind: "codex",
+    label: "Codex",
+    installed: true,
+    authState: "authenticated",
+    capabilities: workflowCapabilities,
+  } as AgentStatus;
+  const thread = {
+    id: "thread-workflows",
+    projectId: "project-1",
+    title: "Workflows",
+    agentKind: "codex",
+    config: { model: "a", effort: "low", workflows: true },
+    status: "idle",
+    attention: "none",
+    canResumeWithConfig: true,
+    archived: false,
+    done: false,
+    starred: false,
+    presentationMode: "gui",
+    createdAt: "2026-10-30T00:00:00.000Z",
+    updatedAt: "2026-10-30T00:00:00.000Z",
+  } as Thread;
+
+  function effortControl(controls: ComposerControl[]) {
+    const control = controls.find((entry) => entry.kind === "effort-context");
+    return control?.kind === "effort-context" ? control : undefined;
+  }
+
+  it("offers the toggle only for supporting models, with a generic fallback label", () => {
+    const onConfigPatch = vi.fn<(patch: ModelPickerConfigPatch) => void>();
+    const input = {
+      providers: [],
+      selectedAgentKind: "codex",
+      effort: "low",
+      includeWorkflowsToggle: true,
+      onProviderModelChange: () => undefined,
+      onConfigPatch,
+    };
+    const supported = effortControl(
+      buildModelPickerControls({ ...input, model: "a", capabilities: workflowCapabilities }),
+    );
+    expect(supported?.workflows).toMatchObject({ label: "Workflows", value: false });
+    supported?.workflows?.onChange(true);
+    expect(onConfigPatch).toHaveBeenCalledWith({ workflows: true });
+
+    const labelled = effortControl(
+      buildModelPickerControls({
+        ...input,
+        model: "a",
+        workflows: true,
+        capabilities: { ...workflowCapabilities, workflowLabel: "Ultracode" } as AgentCapability,
+      }),
+    );
+    expect(labelled?.workflows).toMatchObject({ label: "Ultracode", value: true });
+
+    const unsupported = effortControl(
+      buildModelPickerControls({ ...input, model: "b", capabilities: workflowCapabilities }),
+    );
+    expect(unsupported?.workflows).toBeUndefined();
+
+    // Pickers that cannot carry the mode (schedules, settings) leave it out.
+    const optedOut = effortControl(
+      buildModelPickerControls({
+        ...input,
+        includeWorkflowsToggle: false,
+        model: "a",
+        capabilities: workflowCapabilities,
+      }),
+    );
+    expect(optedOut?.workflows).toBeUndefined();
+  });
+
+  it("turns the mode off when the thread switches to a model without it", () => {
+    const onConfigChange = vi.fn<(config: Thread["config"]) => void>();
+    const controls = buildControls(thread, agent, undefined, onConfigChange);
+    const picker = controls.find((control) => control.kind === "provider-model");
+    if (picker?.kind !== "provider-model") throw new Error("missing model picker");
+    picker.onChange({ agentKind: "codex", model: "b", selectionIntent: "exact" });
+    expect(onConfigChange).toHaveBeenCalledWith(
+      expect.objectContaining({ model: "b", workflows: false }),
     );
   });
 });

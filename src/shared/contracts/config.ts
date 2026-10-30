@@ -10,6 +10,8 @@ const threadConfigShape = {
   contextSize: z.string().optional(),
   fast: z.boolean().optional(),
   thinking: z.boolean().optional(),
+  /** Standing multi-agent workflow mode; only meaningful for `workflowModels`. */
+  workflows: z.boolean().optional(),
   /**
    * Optional recognized-v1 selection binding (`selectionBinding` contract):
    * inert recorded evidence of one deliberate family-member edit, owned by one
@@ -140,6 +142,7 @@ export function isThreadConfigEqual(
     left.contextSize === right.contextSize &&
     left.fast === right.fast &&
     left.thinking === right.thinking &&
+    left.workflows === right.workflows &&
     areSelectionBindingsEqual(left.selectionBinding, right.selectionBinding) &&
     isThreadConfigCrewEqual(left.crew, right.crew) &&
     left.mode === right.mode &&

@@ -142,6 +142,9 @@ struct ThreadConfig: Codable, Sendable, Hashable {
     var contextSize: String?
     var fast: Bool?
     var thinking: Bool?
+    /// Per-thread workflow mode (`threadConfigSchema.workflows`); only offered
+    /// for models the provider lists in `workflowModels`.
+    var workflows: Bool?
     var mode: String?
     var approvalPolicy: String?
     var approvalsReviewer: String?
@@ -160,7 +163,7 @@ struct ThreadConfig: Codable, Sendable, Hashable {
 
 extension ThreadConfig {
     private enum CodingKeys: String, CodingKey {
-        case model, effort, contextSize, fast, thinking, mode, approvalPolicy
+        case model, effort, contextSize, fast, thinking, workflows, mode, approvalPolicy
         case approvalsReviewer, sandboxMode, browserMcp, crossagentMcp, computerUse, chromeMcp
         case mcpServerOverrides, pluginOverrides, executionEnvironment, crew
     }
@@ -172,6 +175,7 @@ extension ThreadConfig {
         contextSize = try values.decodeIfPresent(String.self, forKey: .contextSize)
         fast = try values.decodeIfPresent(Bool.self, forKey: .fast)
         thinking = try values.decodeIfPresent(Bool.self, forKey: .thinking)
+        workflows = try values.decodeIfPresent(Bool.self, forKey: .workflows)
         mode = try values.decodeIfPresent(String.self, forKey: .mode)
         approvalPolicy = try values.decodeIfPresent(String.self, forKey: .approvalPolicy)
         approvalsReviewer = try values.decodeIfPresent(String.self, forKey: .approvalsReviewer)
@@ -198,6 +202,7 @@ extension ThreadConfig {
         try values.encodeIfPresent(contextSize, forKey: .contextSize)
         try values.encodeIfPresent(fast, forKey: .fast)
         try values.encodeIfPresent(thinking, forKey: .thinking)
+        try values.encodeIfPresent(workflows, forKey: .workflows)
         try values.encodeIfPresent(mode, forKey: .mode)
         try values.encodeIfPresent(approvalPolicy, forKey: .approvalPolicy)
         try values.encodeIfPresent(approvalsReviewer, forKey: .approvalsReviewer)

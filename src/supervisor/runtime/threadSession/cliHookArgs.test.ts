@@ -145,6 +145,17 @@ describe("applyLaunchArgsConfigRewrite", () => {
     });
   });
 
+  it("merges the ultracode flag for the workflow toggle at any effort", async () => {
+    vi.mocked(prepareClaudeMergedSettingsFile).mockResolvedValue("/merged/settings.json");
+    const args = ["claude", "--settings", "/orig/path"];
+    const config = { effort: "low", workflows: true } as ThreadConfig;
+    const out = await applyLaunchArgsConfigRewrite(claudeAdapter, args, config, NATIVE);
+    expect(out).toEqual(["claude", "--settings", "/merged/settings.json"]);
+    expect(prepareClaudeMergedSettingsFile).toHaveBeenCalledWith("/orig/path", NATIVE, {
+      ultracode: true,
+    });
+  });
+
   it("passes through when the merged-file write fails", async () => {
     vi.mocked(prepareClaudeMergedSettingsFile).mockResolvedValue(undefined);
     const args = ["claude", "--settings", "/orig/path"];

@@ -219,6 +219,7 @@ export async function handleSessionRoutes({
         sandboxMode: typeof body.sandboxMode === "string" ? body.sandboxMode : undefined,
         ...(typeof body.fast === "boolean" ? { fast: body.fast } : {}),
         ...(typeof body.thinking === "boolean" ? { thinking: body.thinking } : {}),
+        ...(typeof body.workflows === "boolean" ? { workflows: body.workflows } : {}),
         contextSize: typeof body.contextSize === "string" ? body.contextSize : undefined,
       });
       if ("error" in result) return json({ error: result.error }, result.status);

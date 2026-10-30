@@ -2321,7 +2321,6 @@ msgstr "Увійти"
 msgid "Authenticated"
 msgstr "Автентифіковано"
 
-#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Authentication"
 msgstr "Автентифікація"
@@ -6511,7 +6510,6 @@ msgstr "Пошук агентів для кодування…"
 msgid "Discovery complete"
 msgstr "Пошук завершено"
 
-#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 #: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
@@ -6589,7 +6587,6 @@ msgstr "готово"
 #. Notification status: thread is done
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 #: src/renderer/components/providers/settings/ModelProvidersSettings.tsx
-#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/components/thread/AgentDiscoveryDoneButton.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/LabelPicker.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/ReviewerPicker.tsx
@@ -7185,7 +7182,6 @@ msgstr "помилка"
 #. Notification status: agent error
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/providers/usageFormat.ts
-#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ErrorItem.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
@@ -8904,7 +8900,6 @@ msgid "Identity file path"
 msgstr "Шлях до файлу ідентифікації"
 
 #. Microphone input level when not testing
-#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Idle"
@@ -15625,11 +15620,11 @@ msgstr "Лише використання, збережене на цьому х
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
-#: src/renderer/components/thread/ThreadHistoryLoadFailureDock.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/MarkdownVideo.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/useHistoryItemDetails.tsx
 #: src/renderer/components/thread/SideChat/SideChatBody.tsx
 #: src/renderer/components/thread/SideChat/SideChatThreadView.tsx
+#: src/renderer/components/thread/ThreadHistoryLoadFailureDock.tsx
 #: src/renderer/i18n/sharedMessages.ts
 #: src/renderer/state/managedRootCatalog/ManagedRootCatalogStatusNotice.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/useSourceBranchData.ts
@@ -18592,7 +18587,6 @@ msgstr "Укажіть цільовому провайдеру, що робит�
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/plugins/pluginCopy.ts
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
-#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/GlobalTerminalPanel/GlobalTerminalPanel.tsx
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
@@ -18659,8 +18653,8 @@ msgid "Terminal position"
 msgstr "Розташування термінала"
 
 #: src/renderer/components/terminal/TerminalProgramStatus.tsx
-msgid "Terminal program status"
-msgstr "Стан програми в терміналі"
+#~ msgid "Terminal program status"
+#~ msgstr "Стан програми в терміналі"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
@@ -21643,7 +21637,6 @@ msgstr "Дочекайтеся завершення запуску треда, �
 msgid "Wait for the thread to finish starting."
 msgstr "Зачекайте, поки тред завершить запуск."
 
-#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Waiting"
 msgstr "Очікування"
@@ -21672,7 +21665,6 @@ msgstr "Очікування попереднього перегляду"
 msgid "waiting for agent to stop"
 msgstr "очікування зупинки агента"
 
-#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/views/SchedulesView/parts/scheduleRunStatus.ts
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
@@ -21985,6 +21977,7 @@ msgid "Workflow: {description}"
 msgstr "Робочий процес: {description}"
 
 #: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
+#: src/renderer/components/thread/buildModelPickerControls.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsMobileWorkflowList.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
@@ -21995,7 +21988,6 @@ msgstr "Робочі процеси"
 msgid "Workflows added under .github/workflows will appear here."
 msgstr "Workflow, додані у .github/workflows, з'являться тут."
 
-#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Working"
 msgstr "Працює"

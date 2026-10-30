@@ -6,7 +6,7 @@ import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
 @Serializable
-data class RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DCapabilities_66496e59a3(
+data class RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DCapabilities_e0845a6e4a(
     @SerialName("agentSettingsDefaults") val agentSettingsDefaults: RemoteField<RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DCapabilitiesU2DAgentSettingsDefaults_cff1242509> = RemoteField.Missing,
     @SerialName("approvalPolicies") val approvalPolicies: List<RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DCapabilitiesU2DApprovalPoliciesU2DItem_a59d7f7afd>,
     @SerialName("bypassPermissions") val bypassPermissions: RemoteField<RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DCapabilitiesU2DBypassPermissions_97dee2d496> = RemoteField.Missing,
@@ -35,7 +35,7 @@ data class RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DCapabilities_66496e5
     @SerialName("modelSubProvider") val modelSubProvider: RemoteField<ProceduregetGitDiffBatchResultU2DStaged_e51d77fd67> = RemoteField.Missing,
     @SerialName("models") val models: List<RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DCapabilitiesU2DApprovalPoliciesU2DItem_a59d7f7afd>,
     @SerialName("modes") val modes: List<ProcedureconnectThreadVoiceRequestU2DConfigU2DMode_01e21946e9>,
-    @SerialName("presentationCapabilities") val presentationCapabilities: RemoteField<RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DCapabilitiesU2DPresentationCapabilities_0a065ea862> = RemoteField.Missing,
+    @SerialName("presentationCapabilities") val presentationCapabilities: RemoteField<RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DCapabilitiesU2DPresentationCapabilities_04b1fc8698> = RemoteField.Missing,
     @SerialName("presentationMode") val presentationMode: RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DCapabilitiesU2DPresentationMode_c9a954a3af,
     @SerialName("presentationModes") val presentationModes: RemoteField<List<ProcedureconnectThreadVoiceRequestU2DConfigU2DSelectionBindingU2DOwnerU2DPresentationMode_6508684ba6>> = RemoteField.Missing,
     @SerialName("readsImageAttachmentsFromHost") val readsImageAttachmentsFromHost: RemoteField<Boolean> = RemoteField.Missing,
@@ -56,6 +56,8 @@ data class RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DCapabilities_66496e5
     @SerialName("supportsTextOnlyOneShot") val supportsTextOnlyOneShot: RemoteField<Boolean> = RemoteField.Missing,
     @SerialName("thinkingModels") val thinkingModels: RemoteField<List<String>> = RemoteField.Missing,
     @SerialName("threadTitleCommands") val threadTitleCommands: RemoteField<List<RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DCapabilitiesU2DThreadTitleCommandsU2DItem_8b1889f351>> = RemoteField.Missing,
+    @SerialName("workflowLabel") val workflowLabel: RemoteField<String> = RemoteField.Missing,
+    @SerialName("workflowModels") val workflowModels: RemoteField<List<String>> = RemoteField.Missing,
 ) {
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
@@ -87,7 +89,7 @@ data class RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DCapabilities_66496e5
             RemoteFieldDescriptor("modelSubProvider", "ProceduregetGitDiffBatchResultU2DStaged_e51d77fd67", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("models", "List<RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DCapabilitiesU2DApprovalPoliciesU2DItem_a59d7f7afd>", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("modes", "List<ProcedureconnectThreadVoiceRequestU2DConfigU2DMode_01e21946e9>", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("presentationCapabilities", "RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DCapabilitiesU2DPresentationCapabilities_0a065ea862", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("presentationCapabilities", "RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DCapabilitiesU2DPresentationCapabilities_04b1fc8698", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("presentationMode", "RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DCapabilitiesU2DPresentationMode_c9a954a3af", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("presentationModes", "List<ProcedureconnectThreadVoiceRequestU2DConfigU2DSelectionBindingU2DOwnerU2DPresentationMode_6508684ba6>", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("readsImageAttachmentsFromHost", "Boolean", false, false, null, null, null, null, null, null, null, null, listOf()),
@@ -108,6 +110,8 @@ data class RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DCapabilities_66496e5
             RemoteFieldDescriptor("supportsTextOnlyOneShot", "Boolean", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("thinkingModels", "List<String>", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("threadTitleCommands", "List<RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DCapabilitiesU2DThreadTitleCommandsU2DItem_8b1889f351>", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("workflowLabel", "String", false, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("workflowModels", "List<String>", false, false, null, null, null, null, null, null, null, null, listOf()),
         ), listOf())
     }
 }
@@ -180,12 +184,12 @@ data class RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DProviderMetadata_197
 }
 
 @Serializable
-data class RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DRuntimeVariantsU2DValue_5d04b357c4(
+data class RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DRuntimeVariantsU2DValue_209f7faf00(
     @SerialName("authLogoutSupported") val authLogoutSupported: RemoteField<Boolean> = RemoteField.Missing,
     @SerialName("authMethods") val authMethods: RemoteField<List<RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DAuthMethodsU2DItem_9dee5b4966>> = RemoteField.Missing,
     @SerialName("authState") val authState: RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DAuthState_2363c4dd0a,
     @SerialName("authUsesProviderLogin") val authUsesProviderLogin: Boolean,
-    @SerialName("capabilities") val capabilities: RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DCapabilities_66496e59a3,
+    @SerialName("capabilities") val capabilities: RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DCapabilities_e0845a6e4a,
     @SerialName("installationSource") val installationSource: RemoteField<String> = RemoteField.Missing,
     @SerialName("installed") val installed: Boolean,
     @SerialName("loginCommand") val loginCommand: RemoteField<String> = RemoteField.Missing,
@@ -201,7 +205,7 @@ data class RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DRuntimeVariantsU2DVa
             RemoteFieldDescriptor("authMethods", "List<RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DAuthMethodsU2DItem_9dee5b4966>", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("authState", "RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DAuthState_2363c4dd0a", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("authUsesProviderLogin", "Boolean", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("capabilities", "RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DCapabilities_66496e59a3", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("capabilities", "RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DCapabilities_e0845a6e4a", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("installationSource", "String", false, false, null, null, 1, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("installed", "Boolean", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("loginCommand", "String", false, false, null, null, 1, null, null, null, null, null, listOf()),
@@ -214,7 +218,7 @@ data class RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DRuntimeVariantsU2DVa
     }
 }
 
-typealias RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DRuntimeVariants_42cef41d59 = Map<String, RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DRuntimeVariantsU2DValue_5d04b357c4>
+typealias RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DRuntimeVariants_9ced215a75 = Map<String, RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DRuntimeVariantsU2DValue_209f7faf00>
 
 typealias RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DSessionRuntimeRoutingU2DPrefixes_b84e449d1a = Map<String, String>
 
@@ -294,12 +298,12 @@ data class RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DUpdate_892eceb2ac(
 }
 
 @Serializable
-data class RouteagentU2DStatusesResponseU2DWindowsU2DItem_de21ef9b8d(
+data class RouteagentU2DStatusesResponseU2DWindowsU2DItem_fff3547caa(
     @SerialName("acpSessionEstablished") val acpSessionEstablished: RemoteField<Boolean> = RemoteField.Missing,
     @SerialName("authLogoutSupported") val authLogoutSupported: RemoteField<Boolean> = RemoteField.Missing,
     @SerialName("authMethods") val authMethods: RemoteField<List<RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DAuthMethodsU2DItem_9dee5b4966>> = RemoteField.Missing,
     @SerialName("authState") val authState: RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DAuthState_2363c4dd0a,
-    @SerialName("capabilities") val capabilities: RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DCapabilities_66496e59a3,
+    @SerialName("capabilities") val capabilities: RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DCapabilities_e0845a6e4a,
     @SerialName("envDistro") val envDistro: RemoteField<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b> = RemoteField.Missing,
     @SerialName("envKind") val envKind: RemoteField<RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DEnvKind_9eed5c4959> = RemoteField.Missing,
     @SerialName("executablePath") val executablePath: RemoteField<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b> = RemoteField.Missing,
@@ -313,7 +317,7 @@ data class RouteagentU2DStatusesResponseU2DWindowsU2DItem_de21ef9b8d(
     @SerialName("presentationAuthStates") val presentationAuthStates: RemoteField<RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DPresentationAuthStates_678d084ee2> = RemoteField.Missing,
     @SerialName("presentationAuthUsesProviderLogin") val presentationAuthUsesProviderLogin: RemoteField<RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DPresentationAuthUsesProviderLogin_473e9b7f47> = RemoteField.Missing,
     @SerialName("providerMetadata") val providerMetadata: RemoteField<RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DProviderMetadata_197c2b8c01> = RemoteField.Missing,
-    @SerialName("runtimeVariants") val runtimeVariants: RemoteField<RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DRuntimeVariants_42cef41d59> = RemoteField.Missing,
+    @SerialName("runtimeVariants") val runtimeVariants: RemoteField<RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DRuntimeVariants_9ced215a75> = RemoteField.Missing,
     @SerialName("sessionRuntimeRouting") val sessionRuntimeRouting: RemoteField<RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DSessionRuntimeRouting_d221b1853e> = RemoteField.Missing,
     @SerialName("update") val update: RemoteField<RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DUpdate_892eceb2ac> = RemoteField.Missing,
     @SerialName("version") val version: RemoteField<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b> = RemoteField.Missing,
@@ -324,7 +328,7 @@ data class RouteagentU2DStatusesResponseU2DWindowsU2DItem_de21ef9b8d(
             RemoteFieldDescriptor("authLogoutSupported", "Boolean", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("authMethods", "List<RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DAuthMethodsU2DItem_9dee5b4966>", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("authState", "RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DAuthState_2363c4dd0a", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("capabilities", "RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DCapabilities_66496e59a3", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("capabilities", "RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DCapabilities_e0845a6e4a", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("envDistro", "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("envKind", "RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DEnvKind_9eed5c4959", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("executablePath", "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", false, false, null, null, null, null, null, null, null, null, listOf()),
@@ -338,7 +342,7 @@ data class RouteagentU2DStatusesResponseU2DWindowsU2DItem_de21ef9b8d(
             RemoteFieldDescriptor("presentationAuthStates", "RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DPresentationAuthStates_678d084ee2", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("presentationAuthUsesProviderLogin", "RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DPresentationAuthUsesProviderLogin_473e9b7f47", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("providerMetadata", "RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DProviderMetadata_197c2b8c01", false, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("runtimeVariants", "RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DRuntimeVariants_42cef41d59", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("runtimeVariants", "RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DRuntimeVariants_9ced215a75", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("sessionRuntimeRouting", "RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DSessionRuntimeRouting_d221b1853e", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("update", "RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DUpdate_892eceb2ac", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("version", "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", false, false, null, null, null, null, null, null, null, null, listOf()),
@@ -347,16 +351,16 @@ data class RouteagentU2DStatusesResponseU2DWindowsU2DItem_de21ef9b8d(
 }
 
 @Serializable
-data class RouteagentU2DStatusesResponse_663efde552(
+data class RouteagentU2DStatusesResponse_bed6045a82(
     @SerialName("updatedAt") val updatedAt: String,
-    @SerialName("windows") val windows: List<RouteagentU2DStatusesResponseU2DWindowsU2DItem_de21ef9b8d>,
-    @SerialName("wsl") val wsl: List<RouteagentU2DStatusesResponseU2DWindowsU2DItem_de21ef9b8d>,
+    @SerialName("windows") val windows: List<RouteagentU2DStatusesResponseU2DWindowsU2DItem_fff3547caa>,
+    @SerialName("wsl") val wsl: List<RouteagentU2DStatusesResponseU2DWindowsU2DItem_fff3547caa>,
 ) {
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
             RemoteFieldDescriptor("updatedAt", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("windows", "List<RouteagentU2DStatusesResponseU2DWindowsU2DItem_de21ef9b8d>", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("wsl", "List<RouteagentU2DStatusesResponseU2DWindowsU2DItem_de21ef9b8d>", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("windows", "List<RouteagentU2DStatusesResponseU2DWindowsU2DItem_fff3547caa>", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("wsl", "List<RouteagentU2DStatusesResponseU2DWindowsU2DItem_fff3547caa>", true, false, null, null, null, null, null, null, null, null, listOf()),
         ), listOf())
     }
 }

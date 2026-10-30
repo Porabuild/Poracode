@@ -314,7 +314,7 @@ sealed interface RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DCapabilitiesU2
 }
 
 @Serializable
-data class RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DCapabilitiesU2DPresentationCapabilitiesU2DGui_e26989c54e(
+data class RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DCapabilitiesU2DPresentationCapabilitiesU2DGui_8ce7154e45(
     @SerialName("approvalPolicies") val approvalPolicies: RemoteField<List<RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DCapabilitiesU2DApprovalPoliciesU2DItem_a59d7f7afd>> = RemoteField.Missing,
     @SerialName("bypassPermissions") val bypassPermissions: RemoteField<RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DCapabilitiesU2DBypassPermissions_97dee2d496> = RemoteField.Missing,
     @SerialName("contextSizeChangeReloadsSession") val contextSizeChangeReloadsSession: RemoteField<Boolean> = RemoteField.Missing,
@@ -350,6 +350,8 @@ data class RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DCapabilitiesU2DPrese
     @SerialName("supportsDirectInput") val supportsDirectInput: RemoteField<Boolean> = RemoteField.Missing,
     @SerialName("supportsResume") val supportsResume: RemoteField<Boolean> = RemoteField.Missing,
     @SerialName("thinkingModels") val thinkingModels: RemoteField<List<String>> = RemoteField.Missing,
+    @SerialName("workflowLabel") val workflowLabel: RemoteField<String> = RemoteField.Missing,
+    @SerialName("workflowModels") val workflowModels: RemoteField<List<String>> = RemoteField.Missing,
 ) {
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
@@ -388,19 +390,21 @@ data class RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DCapabilitiesU2DPrese
             RemoteFieldDescriptor("supportsDirectInput", "Boolean", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("supportsResume", "Boolean", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("thinkingModels", "List<String>", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("workflowLabel", "String", false, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("workflowModels", "List<String>", false, false, null, null, null, null, null, null, null, null, listOf()),
         ), listOf())
     }
 }
 
 @Serializable
-data class RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DCapabilitiesU2DPresentationCapabilities_0a065ea862(
-    @SerialName("gui") val gui: RemoteField<RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DCapabilitiesU2DPresentationCapabilitiesU2DGui_e26989c54e> = RemoteField.Missing,
-    @SerialName("terminal") val terminal: RemoteField<RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DCapabilitiesU2DPresentationCapabilitiesU2DGui_e26989c54e> = RemoteField.Missing,
+data class RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DCapabilitiesU2DPresentationCapabilities_04b1fc8698(
+    @SerialName("gui") val gui: RemoteField<RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DCapabilitiesU2DPresentationCapabilitiesU2DGui_8ce7154e45> = RemoteField.Missing,
+    @SerialName("terminal") val terminal: RemoteField<RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DCapabilitiesU2DPresentationCapabilitiesU2DGui_8ce7154e45> = RemoteField.Missing,
 ) {
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("gui", "RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DCapabilitiesU2DPresentationCapabilitiesU2DGui_e26989c54e", false, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("terminal", "RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DCapabilitiesU2DPresentationCapabilitiesU2DGui_e26989c54e", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("gui", "RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DCapabilitiesU2DPresentationCapabilitiesU2DGui_8ce7154e45", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("terminal", "RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DCapabilitiesU2DPresentationCapabilitiesU2DGui_8ce7154e45", false, false, null, null, null, null, null, null, null, null, listOf()),
         ), listOf())
     }
 }
