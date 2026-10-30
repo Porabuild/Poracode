@@ -65,7 +65,7 @@ function createLineRedactor(write, onLine) {
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 const cliPath = join(repoRoot, "tests/native-e2e/harness/cli.ts");
-const tsRegisterPath = join(repoRoot, "scripts/remote-v3-ts-register.mjs");
+const tsRegisterPath = new URL("./remote-v3-ts-register.mjs", import.meta.url).href;
 
 function main() {
   const requestedMode = process.argv[2];
@@ -94,7 +94,6 @@ function main() {
   const child = spawn(
     process.execPath,
     [
-      "--experimental-transform-types",
       "--import",
       tsRegisterPath,
       "--no-warnings=ExperimentalWarning",
@@ -488,7 +487,6 @@ async function runIosUIJourney({ registerShutdown }) {
   const harness = spawn(
     process.execPath,
     [
-      "--experimental-transform-types",
       "--import",
       tsRegisterPath,
       "--no-warnings=ExperimentalWarning",
@@ -814,7 +812,6 @@ async function runAndroidRealJourney({ registerShutdown }) {
   const harness = spawn(
     process.execPath,
     [
-      "--experimental-transform-types",
       "--import",
       tsRegisterPath,
       "--no-warnings=ExperimentalWarning",

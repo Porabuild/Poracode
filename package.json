@@ -70,8 +70,8 @@
     "tui:typecheck": "bun run --cwd tui typecheck",
     "tui:test": "bun run --cwd tui test",
     "tui:dev": "bun run --cwd tui dev",
-    "protocol:remote:v3:generate": "node --experimental-transform-types --disable-warning=ExperimentalWarning --import ./scripts/remote-v3-ts-register.mjs src/shared/remote/contract/cli.ts",
-    "protocol:remote:v3:check": "node --experimental-transform-types --disable-warning=ExperimentalWarning --import ./scripts/remote-v3-ts-register.mjs src/shared/remote/contract/cli.ts --check",
+    "protocol:remote:v3:generate": "node --disable-warning=ExperimentalWarning --import ./scripts/remote-v3-ts-register.mjs src/shared/remote/contract/cli.ts",
+    "protocol:remote:v3:check": "node --disable-warning=ExperimentalWarning --import ./scripts/remote-v3-ts-register.mjs src/shared/remote/contract/cli.ts --check",
     "dist": "node scripts/build-desktop-artifact.mjs",
     "dist:win": "node scripts/build-desktop-artifact.mjs --platform win --target nsis --arch x64",
     "dist:win:all": "node scripts/build-desktop-artifact.mjs --platform win",
@@ -278,7 +278,7 @@
     "vite@>=8.0.0 <8.0.16": "^8.0.16"
   },
   "engines": {
-    "node": ">=24.10.0"
+    "node": ">=26.13.0"
   },
   "packageManager": "bun@1.4.3-canary.20261021.1",
   "packageExtensions": {

@@ -119,7 +119,6 @@ describe("cold SSH runtime archive work stays off the invoking loop", () => {
     });
     const child = fork(resolve("src/host/ssh/runtimeBundleColdWork.processFixture.ts"), [config], {
       execArgv: [
-        "--experimental-transform-types",
         "--disable-warning=ExperimentalWarning",
         "--import",
         pathToFileURL(resolve("scripts/remote-v3-ts-register.mjs")).href,

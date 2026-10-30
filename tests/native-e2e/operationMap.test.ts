@@ -26,7 +26,7 @@ describe("operation-map inventory lock", () => {
         "tests/native-e2e/harness/operation-map.json manifestHash is stale: the protocol manifest " +
           "or protocol/remote/v3/generated/inventory.json changed without regenerating the " +
           "committed operation map. Refresh it in the same change with: " +
-          "node --experimental-transform-types --disable-warning=ExperimentalWarning " +
+          "node --disable-warning=ExperimentalWarning " +
           "tests/native-e2e/harness/refreshOperationMap.ts",
       );
     }

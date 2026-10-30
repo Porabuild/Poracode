@@ -93,7 +93,7 @@ export NATIVE_E2E_CONTROL_CAPABILITY="$capability"
 export PORACODE_NATIVE_E2E_SLOT=1
 export NATIVE_E2E_TEST_TIMEOUT_MS=1800000
 cd ..
-node --experimental-transform-types \
+node \
   --import ./scripts/remote-v3-ts-register.mjs \
   --no-warnings=ExperimentalWarning \
   ./tests/native-e2e/harness/cli.ts --mode mock --slot 1 \

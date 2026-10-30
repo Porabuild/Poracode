@@ -34,7 +34,7 @@ server advertises the PWA at port `3101` by default.
 
 ## Required toolchains
 
-- Node.js 24.10 or newer and the repository-pinned Bun preview for the remote
+- Node.js 26.13 or newer and the repository-pinned Bun preview for the remote
   host, contract generator, and foundation harness.
 - Xcode 26.6. It contains the iOS 26.5 SDK; there is no iOS 26.6 SDK. The app's
   deployment target remains iOS 17.
