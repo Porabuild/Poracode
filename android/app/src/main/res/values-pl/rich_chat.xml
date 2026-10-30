@@ -112,6 +112,7 @@
     <string name="rich_chat_context">Kontekst</string>
     <string name="rich_chat_fast_mode">Tryb szybki</string>
     <string name="rich_chat_thinking">Myślenie</string>
+    <string name="rich_chat_workflows">Przepływy pracy</string>
     <string name="rich_chat_mode">Tryb</string>
     <string name="rich_chat_permissions">Uprawnienia</string>
     <string name="rich_chat_mcp_servers">Serwery MCP</string>

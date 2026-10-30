@@ -107,6 +107,7 @@
     <string name="rich_chat_context">컨텍스트</string>
     <string name="rich_chat_fast_mode">빠른 모드</string>
     <string name="rich_chat_thinking">사고</string>
+    <string name="rich_chat_workflows">워크플로</string>
     <string name="rich_chat_mode">모드</string>
     <string name="rich_chat_permissions">권한</string>
     <string name="rich_chat_mcp_servers">MCP 서버</string>

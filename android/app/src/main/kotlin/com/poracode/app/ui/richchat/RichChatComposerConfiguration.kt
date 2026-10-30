@@ -193,6 +193,13 @@ internal class RichChatComposerControlCatalog(
         (modelId == live?.nativeModelId && live?.thinkingSupported == true) ||
             modelId in stringArray("thinkingModels")
 
+    /** Models that offer the provider's per-thread workflow-mode toggle. */
+    fun supportsWorkflows(modelId: String): Boolean = modelId in stringArray("workflowModels")
+
+    /** The provider's own name for the toggle; null falls back to the localized generic label. */
+    val workflowLabel: String?
+        get() = capabilities["workflowLabel"].stringValue()?.takeIf(String::isNotBlank)
+
     fun slashSuggestions(
         draft: String,
         selectionStart: Int = draft.length,
@@ -251,6 +258,9 @@ internal class RichChatComposerControlCatalog(
                     if (supportsThinking(configuration.model)) it else false
                 }
             },
+            workflows = configuration.workflows?.let {
+                if (supportsWorkflows(configuration.model)) it else false
+            },
             mode = normalizeOptional(configuration.mode, modes),
             approvalPolicy = normalizeOptional(
                 configuration.approvalPolicy,
@@ -267,13 +277,20 @@ internal class RichChatComposerControlCatalog(
      * keep the established generic model-change defaulting.
      */
     fun applyModel(configuration: ThreadConfig, modelId: String): ThreadConfig {
-        if (families.isFamilyRow(modelId)) {
-            return families.applyFamilyRowEdit(configuration, modelId) ?: configuration
+        val next = when {
+            families.isFamilyRow(modelId) ->
+                families.applyFamilyRowEdit(configuration, modelId) ?: configuration
+            families.containsModel(modelId) ->
+                families.applyModelEdit(configuration, modelId) ?: configuration
+            else -> applyRawModel(configuration, modelId)
         }
-        if (families.containsModel(modelId)) {
-            return families.applyModelEdit(configuration, modelId) ?: configuration
+        // Workflow mode is an opt-in per-thread choice: it survives a switch only
+        // to a model that offers it and is otherwise cleared, never auto-enabled.
+        return if (next.workflows == true && !supportsWorkflows(next.model)) {
+            next.copy(workflows = false)
+        } else {
+            next
         }
-        return applyRawModel(configuration, modelId)
     }
 
     /** Selector edit: config-bound families patch only the model, carriers retained. */
@@ -382,6 +399,8 @@ internal class RichChatComposerControlCatalog(
             "defaultContextSize",
             "fastModels",
             "thinkingModels",
+            "workflowModels",
+            "workflowLabel",
             "subProviders",
             "modelSubProvider",
             // Surface-scoped family relations: the GUI override re-declares

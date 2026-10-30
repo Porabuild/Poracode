@@ -11,6 +11,7 @@ import type {
 } from "@/shared/contracts";
 import { claudeProfileKind, parseClaudeProfileInstanceConfig } from "@/shared/contracts";
 import { inlinePromptSegmentText } from "@/shared/promptContent";
+import { CLAUDE_ULTRACODE_ID } from "@/shared/agents/claudeEfforts";
 import {
   assertOneShotControlsMapped,
   brailleSpinnerOscTitleHint,
@@ -28,7 +29,12 @@ import {
   type CreateStructuredSessionInput,
   type DetectProbeCtx,
 } from "../base";
-import { buildClaudeArgs, claudeExtraArgsPosition, rewriteClaudeLaunchArgsForConfig } from "./argv";
+import {
+  buildClaudeArgs,
+  claudeEffortAndUltracode,
+  claudeExtraArgsPosition,
+  rewriteClaudeLaunchArgsForConfig,
+} from "./argv";
 import { claudeContextWindowEnv } from "./contextWindow";
 import { claudeCapabilities, claudeDetectionSpec, probeClaudeStatus } from "./detection";
 import { probeClaudeCapabilities } from "./probe";
@@ -111,6 +117,10 @@ function resolveInstanceEnv(
  * default adapter is unaffected). Custom models are *appended* to the built-in
  * list (the user can still pick the Claude models). Profiles may also provide
  * per-model effort choices for their external model ids.
+ *
+ * Profile effort lists keep `ultracode` as a permission rather than a tier: an
+ * allow-list without it hides the ultracode toggle, and a per-model list with
+ * it offers the toggle for that external model.
  */
 export function overrideProfileCapabilities(
   base: AgentCapability,
@@ -163,6 +173,11 @@ export function overrideProfileCapabilities(
 
   if (modelEfforts) {
     const allowed = new Set(caps.efforts);
+    const workflowModels = new Set(caps.workflowModels);
+    for (const [modelId, list] of Object.entries(modelEfforts)) {
+      if (list.includes(CLAUDE_ULTRACODE_ID)) workflowModels.add(modelId);
+      else workflowModels.delete(modelId);
+    }
     caps = {
       ...caps,
       modelEfforts: {
@@ -171,7 +186,12 @@ export function overrideProfileCapabilities(
           Object.entries(modelEfforts).map(([modelId, list]) => [modelId, keep(list, allowed)]),
         ),
       },
+      workflowModels: [...workflowModels],
     };
+  }
+
+  if (efforts && efforts.length > 0 && !efforts.includes(CLAUDE_ULTRACODE_ID)) {
+    caps = { ...caps, workflowModels: [] };
   }
 
   return caps;
@@ -213,7 +233,10 @@ export function createClaudeAdapter(options: ClaudeAdapterOptions = {}): AgentAd
    */
   function claudeControlArgs(effort: string | undefined, fast: boolean | undefined): string[] {
     const args: string[] = [];
-    if (effort) args.push("--effort", effort);
+    // A legacy ultracode selection runs at its effort only: one-shots never
+    // start dynamic workflows.
+    const nativeEffort = claudeEffortAndUltracode({ effort }).effort;
+    if (nativeEffort) args.push("--effort", nativeEffort);
     if (fast) {
       // Fast mode is a session flag, not a model/effort value. On the CLI it
       // rides on --settings JSON (the SDK path uses applyFlagSettings). One-shot

@@ -7,6 +7,7 @@ import {
   CLAUDE_BUILTIN_MODEL_CONTEXT_SIZES,
   CLAUDE_BUILTIN_MODEL_EFFORTS,
   CLAUDE_BUILTIN_MODELS,
+  CLAUDE_BUILTIN_WORKFLOW_MODELS,
   CLAUDE_PREMIUM_EFFORT_TIERS,
 } from "./models";
 import { probeClaudeCapabilities } from "./probe";
@@ -42,6 +43,9 @@ export const claudeCapabilities: AgentCapability = {
   modelContextSizes: CLAUDE_BUILTIN_MODEL_CONTEXT_SIZES,
   defaultContextSize: "200k",
   fastModels: CLAUDE_BUILTIN_FAST_MODELS,
+  workflowModels: CLAUDE_BUILTIN_WORKFLOW_MODELS,
+  // Claude Code's own name for its standing dynamic-workflow mode.
+  workflowLabel: "Ultracode",
   modes: ["agent", "plan"],
   approvalPolicies: [
     { id: "default", label: "Default" },

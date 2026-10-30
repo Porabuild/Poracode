@@ -4,6 +4,7 @@ import com.poracode.app.model.GitStateJsonAdapter
 import com.poracode.app.model.RemoteJson
 import com.poracode.app.model.ThreadConfig
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -715,6 +716,76 @@ class RichChatComposerConfigurationTest {
         // the representative's cost as the family's price.
         assertNull(catalog.models[1].modelDescription)
         assertEquals("Duo Family", catalog.modelLabel("duo-alpha-beta"))
+    }
+
+    @Test
+    fun workflowModeFollowsModelSupportAndDefaultsOff() {
+        val status = status(
+            """
+            {
+              "kind":"provider","label":"Provider","installed":true,
+              "authState":"authenticated","envKind":"posix",
+              "capabilities":{
+                "models":[{"id":"terminal-model","label":"Terminal"}],
+                "presentationCapabilities":{"gui":{
+                  "models":[{"id":"flow-a","label":"A"},{"id":"plain-b","label":"B"}],
+                  "workflowModels":["flow-a"],
+                  "workflowLabel":"Provider Flow"
+                }}
+              }
+            }
+            """,
+        )
+        val catalog = RichChatComposerControlCatalog(status, ThreadConfig(model = "flow-a"))
+        assertTrue(catalog.supportsWorkflows("flow-a"))
+        assertFalse(catalog.supportsWorkflows("plain-b"))
+        assertEquals("Provider Flow", catalog.workflowLabel)
+
+        // Never auto-enabled by a model change; an unset value stays unset.
+        assertNull(catalog.applyModel(ThreadConfig(model = "plain-b"), "flow-a").workflows)
+        assertEquals(
+            true,
+            catalog.applyModel(ThreadConfig(model = "flow-a", workflows = true), "flow-a").workflows,
+        )
+        // Moving to a model without support clears it.
+        assertEquals(
+            false,
+            catalog.applyModel(ThreadConfig(model = "flow-a", workflows = true), "plain-b").workflows,
+        )
+        assertEquals(true, catalog.normalize(ThreadConfig(model = "flow-a", workflows = true)).workflows)
+        assertEquals(false, catalog.normalize(ThreadConfig(model = "plain-b", workflows = true)).workflows)
+        assertNull(catalog.normalize(ThreadConfig(model = "flow-a")).workflows)
+
+        // Serialized wherever thinking is, so the host never loses it on a config replace.
+        assertEquals(
+            "true",
+            ThreadConfig(model = "flow-a", workflows = true).toJsonObject()["workflows"]
+                ?.jsonPrimitive?.content,
+        )
+        assertFalse(ThreadConfig(model = "flow-a").toJsonObject().containsKey("workflows"))
+        assertEquals(
+            ThreadConfig(model = "flow-a", workflows = true),
+            RemoteJson.decodeFromString(
+                ThreadConfig.serializer(),
+                """{"model":"flow-a","workflows":true}""",
+            ),
+        )
+    }
+
+    @Test
+    fun workflowCapabilityIsAbsentWithoutDeclaredModels() {
+        val status = status(
+            """
+            {
+              "kind":"provider","label":"Provider","installed":true,
+              "authState":"authenticated","envKind":"posix",
+              "capabilities":{"models":[{"id":"m","label":"M"}]}
+            }
+            """,
+        )
+        val catalog = RichChatComposerControlCatalog(status, ThreadConfig(model = "m"))
+        assertFalse(catalog.supportsWorkflows("m"))
+        assertNull(catalog.workflowLabel)
     }
 
     private fun status(raw: String) = GitStateJsonAdapter.decodeAgentStatus(

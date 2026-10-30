@@ -48,6 +48,7 @@ import {
   filterHiddenModels,
   modelSelectionFor,
   resolveReasoningSelection,
+  supportsWorkflowMode,
   withModelVisible,
 } from "@/shared/agentSelection";
 import type { ComposerControl } from "./ThreadComposer";
@@ -61,6 +62,7 @@ export type ModelPickerConfigPatch = {
   contextSize?: string;
   fast?: boolean;
   thinking?: boolean;
+  workflows?: boolean;
 };
 
 export type BuildModelPickerControlsInput = {
@@ -71,6 +73,7 @@ export type BuildModelPickerControlsInput = {
   contextSize?: string;
   fast?: boolean;
   thinking?: boolean;
+  workflows?: boolean;
   capabilities: AgentCapability;
   presentationMode?: ThreadPresentationMode;
   lockedAgentKind?: string;
@@ -79,6 +82,8 @@ export type BuildModelPickerControlsInput = {
   isDisabled?: boolean;
   hideLabelOnWrap?: boolean;
   includeFastToggle?: boolean;
+  /** Offer the workflow-mode toggle; only thread launches and live threads carry it. */
+  includeWorkflowsToggle?: boolean;
   /** Ask before applying a context-size change (see `AgentCapability`). */
   confirmContextChange?: boolean;
   /** Include the declared subagent interruption consequence in the confirmation. */
@@ -333,6 +338,7 @@ export function buildModelPickerControls(input: BuildModelPickerControlsInput): 
     contextSize,
     fast,
     thinking,
+    workflows,
     capabilities: filteredCaps,
     presentationMode,
     lockedAgentKind,
@@ -340,6 +346,7 @@ export function buildModelPickerControls(input: BuildModelPickerControlsInput): 
     isDisabled,
     hideLabelOnWrap = true,
     includeFastToggle = true,
+    includeWorkflowsToggle = false,
     confirmContextChange,
     onProviderModelChange,
     onConfigPatch,
@@ -384,6 +391,14 @@ export function buildModelPickerControls(input: BuildModelPickerControlsInput): 
     : modelSelection.fast.available;
   const supportsFast = includeFastToggle && (fastBound || modelSelection.fast.supported);
   const supportsThinking = filteredCaps.thinkingModels?.includes(model) ?? false;
+  const workflowsToggle =
+    includeWorkflowsToggle && supportsWorkflowMode(filteredCaps, model)
+      ? {
+          label: filteredCaps.workflowLabel ?? i18n._(msg`Workflows`),
+          value: workflows === true,
+          onChange: (value: boolean) => onConfigPatch({ workflows: value }),
+        }
+      : undefined;
 
   // Explicit Effort/Fast edits resolve through the shared relation helper; a
   // model-bound axis produces the atomic member patch, and `null` (a raced
@@ -419,7 +434,12 @@ export function buildModelPickerControls(input: BuildModelPickerControlsInput): 
     },
   ];
 
-  if (selectableEfforts.length > 0 || selectableContextSizes.length > 0 || supportsThinking) {
+  if (
+    selectableEfforts.length > 0 ||
+    selectableContextSizes.length > 0 ||
+    supportsThinking ||
+    workflowsToggle
+  ) {
     controls.push({
       kind: "effort-context",
       efforts: selectableEfforts,
@@ -433,6 +453,7 @@ export function buildModelPickerControls(input: BuildModelPickerControlsInput): 
       thinkingSupported: supportsThinking,
       thinkingValue: thinking === true,
       onThinkingChange: (value) => onConfigPatch({ thinking: value }),
+      ...(workflowsToggle ? { workflows: workflowsToggle } : {}),
       ...(isDisabled !== undefined ? { isDisabled } : {}),
       hideLabelOnWrap,
       tier: 4,
@@ -528,6 +549,7 @@ export function appendProviderComposerControls(
           ...(commonEffort.onThinkingChange
             ? { onThinkingChange: commonEffort.onThinkingChange }
             : {}),
+          ...(commonEffort.workflows ? { workflows: commonEffort.workflows } : {}),
         }
       : {}),
   };
@@ -731,25 +753,31 @@ export function buildControls(
           ? current.fast
           : undefined);
     onPatch(
-      patchConfigForModelChange(
-        filteredCaps,
-        model,
-        {
-          ...(overrides?.effort !== undefined
-            ? { effort: overrides.effort }
-            : preference?.effort !== undefined
-              ? { effort: preference.effort }
-              : {}),
-          ...(overrides?.contextSize
-            ? { contextSize: overrides.contextSize }
-            : effectiveConfig.contextSize
-              ? { contextSize: effectiveConfig.contextSize }
-              : {}),
-          ...(fast !== undefined ? { fast } : {}),
-          ...(effectiveConfig.thinking ? { thinking: effectiveConfig.thinking } : {}),
-        },
-        thread.agentKind,
-      ),
+      {
+        ...patchConfigForModelChange(
+          filteredCaps,
+          model,
+          {
+            ...(overrides?.effort !== undefined
+              ? { effort: overrides.effort }
+              : preference?.effort !== undefined
+                ? { effort: preference.effort }
+                : {}),
+            ...(overrides?.contextSize
+              ? { contextSize: overrides.contextSize }
+              : effectiveConfig.contextSize
+                ? { contextSize: effectiveConfig.contextSize }
+                : {}),
+            ...(fast !== undefined ? { fast } : {}),
+            ...(effectiveConfig.thinking ? { thinking: effectiveConfig.thinking } : {}),
+          },
+          thread.agentKind,
+        ),
+        // A model without the workflow mode must not inherit a stale request.
+        ...(effectiveConfig.workflows && !supportsWorkflowMode(filteredCaps, model)
+          ? { workflows: false }
+          : {}),
+      },
       { kind: "raw-pick" },
       crewOverride,
     );
@@ -773,7 +801,9 @@ export function buildControls(
         : {}),
       ...(effectiveConfig.fast !== undefined ? { fast: effectiveConfig.fast } : {}),
       ...(effectiveConfig.thinking !== undefined ? { thinking: effectiveConfig.thinking } : {}),
+      ...(effectiveConfig.workflows !== undefined ? { workflows: effectiveConfig.workflows } : {}),
       capabilities: filteredCaps,
+      includeWorkflowsToggle: true,
       lockedAgentKind: thread.agentKind,
       ...(machineKey ? { machineKey } : {}),
       presentationMode,

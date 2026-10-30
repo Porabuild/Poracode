@@ -198,7 +198,6 @@ describe("claudeCapabilities", () => {
       "high",
       "xHigh",
       "max",
-      "ultracode",
     ]);
     expect(claudeCapabilities.modelContextSizes?.["claude-fable-5"]).toEqual(["400k", "1m"]);
     expect(claudeCapabilities.fastModels).not.toContain("claude-fable-5");
@@ -215,7 +214,6 @@ describe("claudeCapabilities", () => {
       "high",
       "xHigh",
       "max",
-      "ultracode",
     ]);
     expect(claudeCapabilities.modelContextSizes?.["claude-fable-5-1"]).toEqual(["400k", "1m"]);
     expect(claudeCapabilities.fastModels).not.toContain("claude-fable-5-1");
@@ -240,7 +238,6 @@ describe("claudeCapabilities", () => {
       "high",
       "xHigh",
       "max",
-      "ultracode",
     ]);
     expect(claudeCapabilities.modelContextSizes?.["claude-opus-5"]).toEqual(["400k", "1m"]);
     expect(claudeCapabilities.fastModels).toContain("claude-opus-5");
@@ -257,10 +254,22 @@ describe("claudeCapabilities", () => {
       "high",
       "xHigh",
       "max",
-      "ultracode",
     ]);
     expect(claudeCapabilities.modelContextSizes?.["claude-sonnet-5"]).toEqual(["400k", "1m"]);
     expect(claudeCapabilities.modelContextSizes?.sonnet).toEqual(["400k", "1m"]);
+  });
+
+  it("offers ultracode as a workflow toggle on every xhigh model", () => {
+    expect(claudeCapabilities.efforts).not.toContain("ultracode");
+    expect(claudeCapabilities.workflowLabel).toBe("Ultracode");
+    expect(claudeCapabilities.workflowModels).toEqual([
+      "claude-fable-5-1",
+      "claude-fable-5",
+      "claude-opus-5",
+      "claude-opus-4-8",
+      "claude-opus-4-7",
+      "claude-sonnet-5",
+    ]);
   });
 });
 
@@ -447,6 +456,8 @@ describe("createClaudeProfileAdapter", () => {
 
     expect(adapter.capabilities.efforts).toEqual(["high", "max"]);
     expect(adapter.capabilities.defaultEffort).toBe("high");
+    // An allow-list without the ultracode permission hides the workflow toggle.
+    expect(adapter.capabilities.workflowModels).toEqual([]);
   });
 
   it("applies an external provider's default and per-model effort choices", () => {
@@ -464,12 +475,24 @@ describe("createClaudeProfileAdapter", () => {
     });
 
     expect(adapter.capabilities.defaultEffort).toBe("max");
-    expect(adapter.capabilities.modelEfforts["k3[1m]"]).toEqual([
-      "low",
-      "high",
-      "max",
-      "ultracode",
-    ]);
+    expect(adapter.capabilities.modelEfforts["k3[1m]"]).toEqual(["low", "high", "max"]);
+    // A per-model ultracode entry offers the workflow toggle for that model.
+    expect(adapter.capabilities.workflowModels).toContain("k3[1m]");
+    expect(adapter.capabilities.workflowModels).toContain("claude-opus-5");
+  });
+
+  it("drops the workflow toggle for a model whose profile list omits ultracode", () => {
+    const capabilities = overrideProfileCapabilities(
+      claudeCapabilities,
+      undefined,
+      undefined,
+      undefined,
+      {
+        "claude-opus-5": ["low", "high"],
+      },
+    );
+    expect(capabilities.workflowModels).not.toContain("claude-opus-5");
+    expect(capabilities.workflowModels).toContain("claude-fable-5-1");
   });
 
   it("re-homes the default effort to the first allowed tier when disabled", () => {
@@ -480,8 +503,9 @@ describe("createClaudeProfileAdapter", () => {
       config: { configDir: "~/.poracode/claude-profiles/glm", efforts: ["max", "ultracode"] },
     });
 
-    expect(adapter.capabilities.efforts).toEqual(["max", "ultracode"]);
+    expect(adapter.capabilities.efforts).toEqual(["max"]);
     expect(adapter.capabilities.defaultEffort).toBe("max");
+    expect(adapter.capabilities.workflowModels).toEqual(claudeCapabilities.workflowModels);
   });
 
   it("leaves the built-in adapter capabilities untouched", () => {

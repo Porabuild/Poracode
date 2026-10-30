@@ -24,7 +24,11 @@ import { useAppStore } from "@/renderer/state/appStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { remoteConnectionKey } from "@/renderer/state/remoteServers/types";
 import { dispatchManagedRootProjectDraftConfig } from "@/renderer/state/managedRootCatalog/rootCatalogIntents";
-import { capabilitiesForPresentation, filterHiddenModels } from "@/shared/agentSelection";
+import {
+  capabilitiesForPresentation,
+  filterHiddenModels,
+  supportsWorkflowMode,
+} from "@/shared/agentSelection";
 import { normalizeProviderModelConfig } from "@/renderer/components/providers/modelConfig";
 import type { ProviderModelPreference } from "@/shared/settings";
 import {
@@ -344,6 +348,9 @@ export function ThreadDraftView(props: {
   const [crossagentMcpMention, setCrossagentMcpMention] = useState(false);
   const [chromeMcpMention, setChromeMcpMention] = useState(false);
   const [computerUseMention, setComputerUseMention] = useState(false);
+  // The provider's workflow mode is a per-draft choice: it multiplies usage,
+  // so it is never written to the persisted draft or model preferences.
+  const [workflows, setWorkflows] = useState(false);
   const [worktreeMode, setWorktreeMode] = useState(
     isHomeScope ? false : (lastDraftConfig?.worktreeMode ?? false),
   );
@@ -1116,6 +1123,11 @@ export function ThreadDraftView(props: {
       setComputerUseMention(patch.computerUse === true);
       return;
     }
+    if ("workflows" in patch) {
+      // Per-draft workflow mode — same bypass as the mention flags above.
+      setWorkflows(patch.workflows === true);
+      return;
+    }
     if (!selectedAgentForConfig) return;
     hasLocalConfigEditRef.current = true;
     if ("contextSize" in patch) {
@@ -1170,6 +1182,8 @@ export function ThreadDraftView(props: {
   ) => {
     if (!selectedAgent || !selectedAgentForConfig) return;
     hasLocalConfigEditRef.current = true;
+    // Workflow mode is chosen per model, like the native composers.
+    setWorkflows(false);
     const targetPresentationMode = props.chatOnly
       ? "gui"
       : (nextPresentationMode ?? presentationMode);
@@ -1502,6 +1516,8 @@ export function ThreadDraftView(props: {
       ...(contextSize ? { contextSize } : {}),
       fast,
       thinking,
+      workflows,
+      includeWorkflowsToggle: true,
       capabilities: filteredCaps,
       presentationMode,
       machineKey: machineKeyForLocation(project.location),
@@ -1519,6 +1535,7 @@ export function ThreadDraftView(props: {
     contextSize,
     fast,
     thinking,
+    workflows,
     presentationMode,
     project.location,
     draftCrew,
@@ -1778,6 +1795,11 @@ export function ThreadDraftView(props: {
             controls={draftControls}
             config={{
               ...launchSelectionFields(draftConfig, selectedAgentForConfig?.capabilities),
+              ...(workflows &&
+              selectedAgentForConfig &&
+              supportsWorkflowMode(selectedAgentForConfig.capabilities, model)
+                ? { workflows: true }
+                : {}),
               ...(mode ? { mode } : {}),
               ...(approvalPolicy ? { approvalPolicy } : {}),
               ...(approvalsReviewer ? { approvalsReviewer } : {}),

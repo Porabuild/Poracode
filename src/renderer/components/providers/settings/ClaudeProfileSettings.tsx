@@ -9,7 +9,7 @@ import {
   type AgentInstanceConfig,
   type ClaudeProfileInstanceConfig,
 } from "@/shared/contracts";
-import { CLAUDE_EFFORT_TIERS } from "@/shared/agents/claudeEfforts";
+import { CLAUDE_PROFILE_EFFORT_CHOICES } from "@/shared/agents/claudeEfforts";
 import { readBridge } from "@/renderer/bridge";
 import { i18n } from "@/renderer/i18n/i18n";
 import { Input } from "@/renderer/components/common";
@@ -77,7 +77,7 @@ function EffortMultiSelect(props: {
 }) {
   const { t } = useLingui();
   const [isOpen, setIsOpen] = useState(false);
-  const tiers = props.tiers ?? CLAUDE_EFFORT_TIERS;
+  const tiers = props.tiers ?? CLAUDE_PROFILE_EFFORT_CHOICES;
   const selectedTiers = tiers.filter((tier) => props.selected.has(tier));
   const summary = props.inherited
     ? t`Inherit global`
@@ -257,7 +257,7 @@ function ClaudeProfileEditor(props: {
   const canSave = trimmedName.length > 0 && trimmedConfigDir.length > 0 && !saving;
   // Per-model effort pickers only offer tiers enabled at the profile level. This
   // is invariant across rows, so compute it once instead of inside the row map.
-  const allowedTiers = CLAUDE_EFFORT_TIERS.filter((tier) => selectedEfforts.has(tier));
+  const allowedTiers = CLAUDE_PROFILE_EFFORT_CHOICES.filter((tier) => selectedEfforts.has(tier));
 
   const updateEnvRow = (rowId: string, patch: Partial<EnvRow>) =>
     setEnvRows((rows) => rows.map((row) => (row.rowId === rowId ? { ...row, ...patch } : row)));

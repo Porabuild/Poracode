@@ -6,7 +6,10 @@ import type { MessageDescriptor } from "@lingui/core";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Button } from "@/renderer/components/common/Button";
 import type { ButtonProps } from "@/renderer/components/common/Button";
-import { EffortContextMenu } from "@/renderer/components/common/EffortContextMenu/EffortContextMenu";
+import {
+  EffortContextMenu,
+  type EffortWorkflowsToggle,
+} from "@/renderer/components/common/EffortContextMenu/EffortContextMenu";
 import { ModelFamilyMenu } from "@/renderer/components/common/ProviderModelMenu/ModelFamilyMenu";
 import {
   modelFamilyMenuSummary,
@@ -119,6 +122,7 @@ export type ComposerControl =
       thinkingSupported?: boolean;
       thinkingValue?: boolean;
       onThinkingChange?: (value: boolean) => void;
+      workflows?: EffortWorkflowsToggle;
       familySelection?: ModelFamilyMenuSelection;
       icon?: ReactNode;
       isDisabled?: boolean;
@@ -574,6 +578,7 @@ export function ThreadComposer(props: {
             : {})}
           {...(control.thinkingValue !== undefined ? { thinkingValue: control.thinkingValue } : {})}
           {...(control.onThinkingChange ? { onThinkingChange: control.onThinkingChange } : {})}
+          {...(control.workflows ? { workflows: control.workflows } : {})}
           {...(control.icon ? { icon: control.icon } : {})}
           {...(control.isDisabled !== undefined ? { isDisabled: control.isDisabled } : {})}
           {...(control.openSignal !== undefined ? { openSignal: control.openSignal } : {})}

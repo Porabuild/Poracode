@@ -153,6 +153,7 @@ data class ThreadConfig(
     val contextSize: String? = null,
     val fast: Boolean? = null,
     val thinking: Boolean? = null,
+    val workflows: Boolean? = null,
     val mode: String? = null,
     val approvalPolicy: String? = null,
     val approvalsReviewer: String? = null,
@@ -173,6 +174,7 @@ data class ThreadConfig(
         contextSize?.let { put("contextSize", it) }
         fast?.let { put("fast", it) }
         thinking?.let { put("thinking", it) }
+        workflows?.let { put("workflows", it) }
         mode?.let { put("mode", it) }
         approvalPolicy?.let { put("approvalPolicy", it) }
         approvalsReviewer?.let { put("approvalsReviewer", it) }

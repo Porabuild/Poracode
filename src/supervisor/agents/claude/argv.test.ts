@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyClaudeContextSuffix, buildClaudeArgs } from "./argv";
+import { applyClaudeContextSuffix, buildClaudeArgs, claudeEffortAndUltracode } from "./argv";
 import { createClaudeAdapter } from "./index";
 
 describe("applyClaudeContextSuffix", () => {
@@ -78,6 +78,26 @@ describe("applyClaudeContextSuffix", () => {
     expect(applyClaudeContextSuffix("glm-5.2[1m]")).toBe("glm-5.2[1m]");
     expect(applyClaudeContextSuffix("glm-4.5-air", "200k")).toBe("glm-4.5-air");
     expect(applyClaudeContextSuffix("glm-5.2[1m]", "400k")).toBe("glm-5.2[1m]");
+  });
+
+  it("sends only real effort levels, running a pre-toggle ultracode config at xHigh", () => {
+    expect(buildClaudeArgs({ model: "opus", effort: "ultracode" }, "")).toEqual(
+      expect.arrayContaining(["--effort", "xHigh"]),
+    );
+    const workflows = buildClaudeArgs({ model: "opus", effort: "low", workflows: true }, "");
+    expect(workflows).toEqual(expect.arrayContaining(["--effort", "low"]));
+    expect(workflows).not.toContain("ultracode");
+  });
+
+  it("keeps an explicit workflows off on a pre-toggle ultracode config", () => {
+    expect(claudeEffortAndUltracode({ effort: "ultracode", workflows: false })).toEqual({
+      effort: "xHigh",
+      ultracode: false,
+    });
+    expect(claudeEffortAndUltracode({ effort: "ultracode" })).toEqual({
+      effort: "xHigh",
+      ultracode: true,
+    });
   });
 
   it("keeps the extended model variant for a 400k working window", () => {

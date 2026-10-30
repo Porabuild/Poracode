@@ -19,6 +19,8 @@ struct HomeQuickComposeView: View {
   @State var selectedModel: String?
   @State var selectedEffort: String?
   @State var fast = false
+  /// Per-draft workflow mode: never restored from a saved draft or earlier thread.
+  @State var workflows = false
   @State var browserMcp: Bool?
   @State var crossagentMcp: Bool?
   @State var computerUse: Bool?
@@ -166,6 +168,7 @@ struct HomeQuickComposeView: View {
         selectedModel = nil
         selectedEffort = nil
         fast = false
+        workflows = false
         browserMcp = nil
         crossagentMcp = nil
         computerUse = nil
@@ -197,6 +200,7 @@ struct HomeQuickComposeView: View {
           selectedModel.flatMap { defaultEffort(for: candidate, modelID: $0) }
         }
         fast = false
+        workflows = false
         configuredConfiguration = nil
       }
       .onChange(of: selector) { _, destination in

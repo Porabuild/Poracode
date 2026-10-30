@@ -2071,6 +2071,98 @@ describe("ThreadDraftView", () => {
     );
   });
 
+  it("launches with a per-draft workflow mode without saving it as a default", async () => {
+    const onStart = vi.fn<(input: unknown) => void>();
+    const workflowStatus: AgentStatus = {
+      ...cursorStatus,
+      capabilities: { ...cursorStatus.capabilities, workflowModels: ["composer-2"] },
+    };
+
+    render(
+      <ThreadDraftView
+        project={project}
+        agentStatuses={[workflowStatus]}
+        lastDraftConfig={{
+          agentKind: "cursor",
+          model: "composer-2",
+          effort: "",
+          fast: false,
+          mode: "agent",
+          approvalPolicy: "default",
+          sandboxMode: "",
+          worktreeMode: false,
+        }}
+        onStart={onStart}
+      />,
+    );
+
+    type WorkflowControl = {
+      kind?: string;
+      workflows?: { label: string; value: boolean; onChange: (value: boolean) => void };
+    };
+    const workflowsControl = () =>
+      (
+        composerSpy.mock.lastCall?.[0] as { controls: WorkflowControl[] } | undefined
+      )?.controls.find((control) => control.kind === "effort-context")?.workflows;
+    await waitFor(() => expect(workflowsControl()).toMatchObject({ value: false }));
+    act(() => workflowsControl()?.onChange(true));
+    await waitFor(() => expect(workflowsControl()?.value).toBe(true));
+    expect(useSharedSettings.getState().providerConfigs.cursor).not.toHaveProperty("workflows");
+
+    fireEvent.click(screen.getByText("set-prompt"));
+    fireEvent.click(screen.getByText("submit"));
+
+    expect(onStart).toHaveBeenCalledWith(
+      expect.objectContaining({
+        config: expect.objectContaining({ model: "composer-2", workflows: true }),
+      }),
+    );
+  });
+
+  it("turns the draft workflow mode off when the model changes", async () => {
+    const workflowStatus: AgentStatus = {
+      ...cursorStatus,
+      capabilities: { ...cursorStatus.capabilities, workflowModels: ["composer-2", "gpt-5.5"] },
+    };
+    render(
+      <ThreadDraftView
+        project={project}
+        agentStatuses={[workflowStatus]}
+        lastDraftConfig={{
+          agentKind: "cursor",
+          model: "composer-2",
+          effort: "",
+          fast: false,
+          mode: "agent",
+          approvalPolicy: "default",
+          sandboxMode: "",
+          worktreeMode: false,
+        }}
+        onStart={vi.fn<(input: unknown) => void>()}
+      />,
+    );
+
+    type DraftControl = {
+      kind?: string;
+      onChange?: (next: { agentKind: string; model: string }) => void;
+      workflows?: { value: boolean; onChange: (value: boolean) => void };
+    };
+    const controls = () =>
+      (composerSpy.mock.lastCall?.[0] as { controls: DraftControl[] } | undefined)?.controls ?? [];
+    const workflowsControl = () =>
+      controls().find((control) => control.kind === "effort-context")?.workflows;
+    await waitFor(() => expect(workflowsControl()).toMatchObject({ value: false }));
+    act(() => workflowsControl()?.onChange(true));
+    await waitFor(() => expect(workflowsControl()?.value).toBe(true));
+
+    act(() => {
+      controls()
+        .find((control) => control.kind === "provider-model")
+        ?.onChange?.({ agentKind: "cursor", model: "gpt-5.5" });
+    });
+    await waitFor(() => expect(workflowsControl()).toMatchObject({ value: false }));
+  });
+
   it("submits an explicit Fast-off selection in the launch config", async () => {
     const onStart = vi.fn<(input: unknown) => void>();
     useSharedSettings.setState({

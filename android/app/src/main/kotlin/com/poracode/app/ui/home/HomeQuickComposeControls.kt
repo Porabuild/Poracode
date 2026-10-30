@@ -128,6 +128,12 @@ internal fun HomeQuickComposeControlsSheet(
                     checked = draft.thinking == true,
                 ) { draft = draft.copy(thinking = it) }
             }
+            if (catalog.supportsWorkflows(draft.model)) {
+                HomeQuickComposeToggleRow(
+                    label = catalog.workflowLabel ?: stringResource(R.string.rich_chat_workflows),
+                    checked = draft.workflows == true,
+                ) { draft = draft.copy(workflows = it) }
+            }
             if (catalog.modes.size > 1) {
                 HomeQuickComposeDropdown(
                     label = stringResource(R.string.rich_chat_mode),

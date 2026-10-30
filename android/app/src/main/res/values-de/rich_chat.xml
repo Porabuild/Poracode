@@ -107,6 +107,7 @@
     <string name="rich_chat_context">Kontext</string>
     <string name="rich_chat_fast_mode">Schnellmodus</string>
     <string name="rich_chat_thinking">Denken</string>
+    <string name="rich_chat_workflows">Workflows</string>
     <string name="rich_chat_mode">Modus</string>
     <string name="rich_chat_permissions">Berechtigungen</string>
     <string name="rich_chat_mcp_servers">MCP-Server</string>

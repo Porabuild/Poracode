@@ -3,6 +3,7 @@ import { claudeContextWindowEnv, resolveClaudeContextWindowTokens } from "./cont
 import { spawn as spawnChild, type ChildProcess } from "node:child_process";
 import type {
   CanUseTool,
+  EffortLevel,
   ElicitationResult,
   OnElicitation,
   Options as ClaudeQueryOptions,
@@ -55,7 +56,7 @@ import {
   isExitPlanModeToolName,
   isSubAgentParentTool,
 } from "./canonicalMapping/toolClassification";
-import { applyClaudeContextSuffix } from "./argv";
+import { applyClaudeContextSuffix, claudeEffortAndUltracode } from "./argv";
 import {
   buildClaudeQuestionAnswerEvents,
   ClaudeUsageScopeTracker,
@@ -166,6 +167,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
   private bypassPlanPermissions = false;
   private appliedSandboxDisabled = false;
   private readonly mcpServers: ClaudeSdkMcpServers;
+  private appliedEffort: string | undefined;
   private appliedUltracode = false;
   private appliedFast = false;
   private currentStatus: ThreadStatus = "idle";
@@ -419,7 +421,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     this.bypassPlanPermissions = bypassPlan;
     await this.syncSandbox(query, config);
     if (!isCurrent()) return;
-    await this.syncUltracodeFlag(query);
+    await this.syncEffortFlags(query);
     await this.syncFastMode(query);
 
     const message = await buildSdkUserMessage(
@@ -672,21 +674,26 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
   }
 
   /**
-   * `ultracode` is not a model-level effort: it's a Claude Code session flag
-   * that sends `xhigh` to the model and enables dynamic-workflow orchestration.
-   * It lives in the flag-settings layer (CLI: `--settings '{"ultracode":true}'`;
-   * SDK: applyFlagSettings).
+   * Effort and `ultracode` live in the flag-settings layer once the query runs
+   * (CLI: `--effort` and `--settings '{"ultracode":true}'` at launch). Ultracode
+   * runs at any effort, but an `effortLevel` change sent without the
+   * `ultracode` key turns it off, so an effort change always carries both.
    */
-  private async syncUltracodeFlag(runtime: Query): Promise<void> {
-    const wantUltracode = this.currentConfig.effort === "ultracode";
-    if (wantUltracode === this.appliedUltracode) return;
+  private async syncEffortFlags(runtime: Query): Promise<void> {
+    const { effort, ultracode } = claudeEffortAndUltracode(this.currentConfig);
+    const effortChanged = effort !== this.appliedEffort;
+    if (!effortChanged && ultracode === this.appliedUltracode) return;
     try {
       await runtime.applyFlagSettings({
-        ultracode: wantUltracode ? true : null,
+        ...(effortChanged
+          ? { effortLevel: effort ? (effort.toLowerCase() as EffortLevel) : null }
+          : {}),
+        ultracode: ultracode ? true : null,
       });
-      this.appliedUltracode = wantUltracode;
+      this.appliedEffort = effort;
+      this.appliedUltracode = ultracode;
     } catch {
-      // Older CLIs ignore the unknown flag; effort still degrades to xhigh.
+      // Older CLIs reject unknown flags; the launch effort still applies.
     }
   }
 
@@ -1378,6 +1385,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
           break;
         }
       }
+      const launchEffort = claudeEffortAndUltracode(this.currentConfig).effort;
       const options: ClaudeQueryOptions = {
         cwd: projectCwd(this.input.projectLocation),
         model,
@@ -1399,16 +1407,8 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
         canUseTool: this.canUseTool,
         onElicitation: this.onElicitation,
         env: { ...env, ...claudeContextWindowEnv(contextSize) },
-        ...(this.currentConfig.effort
-          ? {
-              // `ultracode` is not a model-level effort value — the CLI rejects
-              // it on `--effort`. It maps to `xhigh` reasoning + dynamic
-              // workflows, where the workflows toggle is sent below via
-              // applyFlagSettings after the query starts.
-              effort: (this.currentConfig.effort === "ultracode"
-                ? "xhigh"
-                : this.currentConfig.effort) as NonNullable<ClaudeQueryOptions["effort"]>,
-            }
+        ...(launchEffort
+          ? { effort: launchEffort as NonNullable<ClaudeQueryOptions["effort"]> }
           : {}),
         ...(claudeExecutablePath ? { pathToClaudeCodeExecutable: claudeExecutablePath } : {}),
         ...(!deferMcp && Object.keys(mcpServers).length > 0
@@ -1430,7 +1430,9 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
         permissionMode === "bypassPermissions" ? undefined : permissionMode;
       this.appliedSandboxDisabled = false;
       void this.refreshSlashCommands(this.queryRuntime);
-      void this.syncUltracodeFlag(this.queryRuntime);
+      // The ultracode flag is sent below via applyFlagSettings.
+      this.appliedEffort = launchEffort;
+      void this.syncEffortFlags(this.queryRuntime);
       void this.syncFastMode(this.queryRuntime);
       return this.queryRuntime;
     })();

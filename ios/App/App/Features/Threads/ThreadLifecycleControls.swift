@@ -203,6 +203,7 @@ extension ThreadConfig {
       contextSize: contextSize,
       fast: fast,
       thinking: thinking,
+      workflows: workflows,
       mode: mode,
       approvalPolicy: approvalPolicy,
       approvalsReviewer: approvalsReviewer,
