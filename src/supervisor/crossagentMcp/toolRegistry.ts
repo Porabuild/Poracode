@@ -11,6 +11,7 @@ import {
   rankCrossagentCandidates,
 } from "@/shared/crossagentRanking";
 import { formatReasoningLabel } from "@/shared/modelLabels";
+import { classifyModelTier } from "@/shared/modelTier";
 import {
   crossagentRoutingOverrideSchema,
   type CrossagentRoutingOverride,
@@ -49,10 +50,6 @@ import type {
 } from "./types";
 
 export type { ToolSpec } from "./types";
-
-import { classifyModelTier } from "./modelTier";
-
-export { classifyModelTier };
 
 const CROSSAGENTS_CORE_SKILL = uniqueCoreSkillForBuiltInMcp("crossagents");
 
@@ -161,7 +158,7 @@ const SUBAGENT_TASK_PROPERTIES = {
   role: {
     type: "string",
     description:
-      "Crew role id from list_agents (for example `builder`) when this thread has a crew. The role sets provider, model, reasoning and Fast; omit those.",
+      "Crew role id from list_agents (for example `sidekick`) when this thread has a crew. The role sets provider, model, reasoning and Fast; omit those.",
   },
   fresh_session: {
     type: "boolean",

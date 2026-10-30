@@ -219,6 +219,17 @@ export interface StructuredSessionHandle {
    * prompt, and fresh `startTurn` accounting.
    */
   prepareSteerInterrupt?(): Promise<void>;
+  /**
+   * Delivers hidden client guidance (`text`) into the turn in flight, such as
+   * the crew lead's delegation reminder. It never interrupts that turn, never
+   * starts one, and never shows or echoes the text as a user message: not
+   * live, and not on reload, resume, import or terminal replay. Resolves once
+   * the provider took the text into the running turn; rejects when no turn is
+   * running or the provider refuses it, and the runtime then keeps the
+   * guidance for the next prompt. Absent: guidance always waits for the next
+   * prompt.
+   */
+  steerContext?(text: string): Promise<void>;
   /** Authoritative provider-reported background work still live in this session. */
   getBackgroundTasks?(): readonly BackgroundTask[];
   interruptTurn?(): Promise<void>;
@@ -324,6 +335,16 @@ export interface CreateStructuredSessionInput {
    * The caller's signal fences requests retired by the session lifecycle.
    */
   readHostDiagnostics?: (signal: AbortSignal) => Promise<HostDiagnosticsSnapshot | undefined>;
+  /**
+   * The runtime may call `StructuredSessionHandle.steerContext` on this
+   * session. The shared launch pipeline sets it for a GUI crew lead whose crew
+   * has a role that may edit and whose launch attached Crossagents. A provider
+   * whose `steerContext` costs something on every turn (a hook the provider
+   * calls after each tool batch, say) installs it, and exposes `steerContext`,
+   * only when this is set; providers whose delivery costs nothing until used
+   * may ignore it.
+   */
+  mayReceiveContextSteers?: boolean;
   loadSessionErrorRewriter?: (error: unknown, sessionId: string) => Error;
   /**
    * Provider-boundary guard for ACP agents that can incorrectly return a

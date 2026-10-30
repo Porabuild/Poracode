@@ -94,24 +94,26 @@ export function CrewsSettings() {
     };
   }
 
+  // Computed once per render so the New crew button's enabled state matches
+  // what createFromTemplate can build.
+  const newCrewLead = defaultLeadSelection();
+  const newCrewHelper = newCrewLead ? helperOptions.defaultSelectionFor(newCrewLead) : undefined;
+
   function createFromTemplate(templateId: string) {
     const template = CREW_TEMPLATE_DESCRIPTORS.find((entry) => entry.id === templateId);
-    const defaultLead = defaultLeadSelection();
-    if (!template || !defaultLead) return;
-    const firstHelper = helperOptions.defaultSelectionFor(defaultLead.agentKind);
-    if (!firstHelper) return;
+    if (!template || !newCrewLead || !newCrewHelper) return;
     // Read-only roles default to another provider when one is available, so a
     // review or exploration gets a second model's view. The editor opens next
     // so the user assigns the models they want.
     const otherHelper = helperOptions.providers
-      .filter((provider) => provider.kind !== firstHelper.agentKind)
+      .filter((provider) => provider.kind !== newCrewHelper.agentKind)
       .flatMap((provider) => {
         const model = provider.capabilities.models[0];
         const selection = model ? helperOptions.selectionFor(provider.kind, model.id) : undefined;
         return selection ? [selection] : [];
       })[0];
     const roles = crewRolesFromTemplate(template, roleTemplates, (role) =>
-      role.noEdits && otherHelper ? otherHelper : firstHelper,
+      role.noEdits && otherHelper ? otherHelper : newCrewHelper,
     );
     if (roles.length === 0) return;
     const binding: ThreadCrewBinding = {
@@ -119,7 +121,7 @@ export function CrewsSettings() {
       policy: template.policy,
       roles,
     };
-    const saved = saveAsNewCrew(t(template.name), binding, defaultLead);
+    const saved = saveAsNewCrew(t(template.name), binding, newCrewLead);
     upsertCrew(saved);
     setEditorCrewId(saved.id);
   }
@@ -149,10 +151,7 @@ export function CrewsSettings() {
           icon={<Plus className="size-4" />}
           options={templateOptions}
           buttonVariant="tertiary"
-          isDisabled={
-            !defaultLeadSelection() ||
-            !helperOptions.defaultSelectionFor(leadProviders[0]?.kind ?? "")
-          }
+          isDisabled={!newCrewHelper}
           onChange={(template) => createFromTemplate(template)}
         />
       }
@@ -304,7 +303,7 @@ function CrewEditorModal(props: {
   const { crew, helperOptions, onUpsert } = props;
   const [editingRoleId, setEditingRoleId] = useState<string | undefined>();
   const binding = crewBindingFromSavedCrew(crew);
-  const defaultHelper = helperOptions.defaultSelectionFor(crew.lead.agentKind);
+  const defaultHelper = helperOptions.defaultSelectionFor(crew.lead);
   const model: CrewRosterModel = {
     binding,
     lead: crew.lead,

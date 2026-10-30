@@ -8,6 +8,7 @@ import {
   type ThreadCrewBinding,
 } from "@/shared/crew";
 import type { AgentStatus } from "@/shared/contracts";
+import { pickCheaperHelperModel } from "@/shared/modelTier";
 import { guiModelEfforts, guiModels } from "./helpers";
 
 export const CREW_PROVIDER_ID = "poracode";
@@ -86,26 +87,27 @@ export function crewModelLabel(
   );
 }
 
+/** The cheapest available model that is not the lead's own, preferring the lead's provider. */
 export function defaultHelperSelection(
   choices: readonly CrewModelChoice[],
-  leadKind: string,
+  lead: Pick<CrewMemberSelection, "agentKind" | "model">,
 ): CrewMemberSelection | undefined {
-  const choice = choices.find((value) => value.agentKind !== leadKind) ?? choices[0];
+  const choice = pickCheaperHelperModel(choices, lead);
   return choice ? { agentKind: choice.agentKind, model: choice.model } : undefined;
 }
+
+export const SIDEKICK_ROLE = {
+  id: "sidekick",
+  label: "Sidekick",
+  brief:
+    "Explores the codebase, implements the lead's task end to end, runs the narrowest checks, and reports what changed with evidence.",
+} as const;
 
 export function newCrewBinding(helper: CrewMemberSelection): ThreadCrewBinding {
   return {
     version: CREW_BINDING_VERSION,
     policy: "crew-only",
-    roles: [
-      {
-        id: "builder",
-        label: "Builder",
-        brief: "Implements changes and runs tests",
-        selection: helper,
-      },
-    ],
+    roles: [{ ...SIDEKICK_ROLE, selection: helper }],
   };
 }
 
@@ -132,7 +134,7 @@ export function resolveCrewPick(input: {
       )
     )
       return { error: "Pick a model that can lead a crew first, then choose New crew." };
-    const helper = defaultHelperSelection(input.helperChoices, sessionLead.agentKind);
+    const helper = defaultHelperSelection(input.helperChoices, sessionLead);
     if (!helper) return { error: "No helper models are available for a crew." };
     return { binding: newCrewBinding(helper), lead: sessionLead };
   }

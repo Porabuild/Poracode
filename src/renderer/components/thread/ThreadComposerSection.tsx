@@ -679,7 +679,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     label: t(label),
     ...(brief ? { brief: t(brief) } : {}),
   }));
-  const defaultHelper = helperOptions.defaultSelectionFor(thread.agentKind);
+  const defaultHelper = helperOptions.defaultSelectionFor(lead);
   let crewHandlers: ActiveComposerCrewHandlers | undefined;
   const rawControls = buildControls(
     thread,

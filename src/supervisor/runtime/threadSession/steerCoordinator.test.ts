@@ -7,6 +7,7 @@ import type {
   StructuredTurnResult,
 } from "../../agents/base";
 import type { SupervisorEvent } from "@/shared/ipc";
+import { crewFingerprint, threadCrewBinding, type ThreadCrewBinding } from "@/shared/crew";
 import type { QueuedStructuredTurn, SessionRuntime } from "../sessionTypes";
 import { SteerCoordinator } from "./steerCoordinator";
 
@@ -255,6 +256,36 @@ describe("SteerCoordinator interrupt-backed steering", () => {
       undefined,
       { userMessageItemId: "user-optimistic" },
     );
+  });
+
+  it("leaves the crew lead's edit reminder for the next prompt on a native steer", async () => {
+    const harness = createHarness();
+    const steerTurn = vi.fn<NonNullable<StructuredSessionHandle["steerTurn"]>>(async () => {});
+    harness.session.structuredSession!.steerTurn = steerTurn;
+    const crew: ThreadCrewBinding = {
+      version: 1,
+      policy: "crew-only",
+      roles: [{ id: "sidekick", label: "Sidekick", selection: { agentKind: "x", model: "m" } }],
+    };
+    Object.assign(harness.session.adapter.capabilities, { mcpScope: { gui: "launch" } });
+    Object.assign(harness.session, {
+      config: { model: "model-1", crew },
+      crossagentsMcpAttached: true,
+      crewBriefDelivered: crewFingerprint(threadCrewBinding({ crew })),
+      crewLeadEditedFiles: true,
+    });
+    const config = { model: "model-2", crew };
+
+    await harness.coordinator.steerStructuredTurn(harness.session, {
+      prompt: "also cover b.ts",
+      config,
+    });
+
+    // Exact options: no "Last turn…" reminder rides on the steer.
+    expect(steerTurn).toHaveBeenCalledWith("also cover b.ts", config, undefined, {
+      userMessageItemId: "user-optimistic",
+    });
+    expect(harness.session.crewLeadEditedFiles).toBe(true);
   });
 
   it("releases the direct barrier when native steer completes without a turn", async () => {

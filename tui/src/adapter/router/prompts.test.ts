@@ -1260,7 +1260,7 @@ test("a new-crew prompt carries the session binding and the current lead", async
       crew: {
         version: 1,
         policy: "crew-only",
-        roles: [{ id: "builder", label: "Builder" }],
+        roles: [{ id: "sidekick", label: "Sidekick" }],
       },
     },
   });

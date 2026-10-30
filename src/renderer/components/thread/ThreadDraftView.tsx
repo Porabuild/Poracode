@@ -76,7 +76,10 @@ import { ProjectSwitchMenu } from "./ProjectSwitchMenu";
 import { ThreadDraftComposerArea, type DraftStartInput } from "./ThreadDraftComposerArea";
 import type { SaveClipboardImage } from "../composer/useAttachments";
 import { applyCrewComposerControls } from "@/renderer/components/crew/applyCrewComposerControls";
-import { CREW_ROLE_TEMPLATE_DESCRIPTORS } from "@/renderer/components/crew/crewRoleTemplates";
+import {
+  CREW_ROLE_TEMPLATE_DESCRIPTORS,
+  DEFAULT_CREW_ROLE_ID,
+} from "@/renderer/components/crew/crewRoleTemplates";
 import {
   crewPickerEntry,
   crewSummary,
@@ -1393,9 +1396,7 @@ export function ThreadDraftView(props: {
     selectedAgentForConfig && canLeadCrew(selectedAgentForConfig.capabilities, presentationMode),
   );
   const crewsOffered = presentationMode === "gui" || draftLeadCanLead;
-  const defaultHelper = draftLead
-    ? helperOptions.defaultSelectionFor(draftLead.agentKind)
-    : undefined;
+  const defaultHelper = draftLead ? helperOptions.defaultSelectionFor(draftLead) : undefined;
   const modelLabelOf = (selection: CrewMemberSelection) =>
     crewModelLabelOf(installedAgents, selection);
   function handleDraftCrewChoice(choice: { crewId: string } | { newCrew: true }) {
@@ -1408,9 +1409,9 @@ export function ThreadDraftView(props: {
       return;
     }
     if ("newCrew" in choice) {
-      const builder = roleTemplates.find((template) => template.id === "builder");
-      if (!defaultHelper || !builder) return;
-      commitDraftCrew(newCrewBinding(defaultHelper, builder));
+      const sidekick = roleTemplates.find((template) => template.id === DEFAULT_CREW_ROLE_ID);
+      if (!defaultHelper || !sidekick) return;
+      commitDraftCrew(newCrewBinding(defaultHelper, sidekick));
       setCrewOpenPending(true);
       return;
     }
