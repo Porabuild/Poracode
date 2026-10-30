@@ -58,6 +58,14 @@ object RemoteSocketPolicy {
     const val UNAUTHORIZED_RECONNECT_MS = 60_000L
     const val HEALTH_PING_INTERVAL_MS = 25_000L
     const val HEALTH_PING_TIMEOUT_MS = 5_000L
+
+    /** A pong deadline that fires later than this was delayed (a stalled or
+     * suspended process), so the reply may already be queued behind it. */
+    const val HEALTH_DEADLINE_STALL_SLACK_MS = 1_000L
+
+    /** Extra pong windows granted to a stalled or still-active socket before it
+     * is declared dead (`socketPolicy.ts`). */
+    const val HEALTH_DEADLINE_MAX_EXTENSIONS = 3
     const val CONNECT_TIMEOUT_MS = 15_000L
     const val REQUEST_TIMEOUT_MS = 60_000L
 
