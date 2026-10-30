@@ -23,12 +23,30 @@ import {
 const DEFAULT_PAIRING_TTL_MS = 10 * 60 * 1000;
 /**
  * Gate 6 item 4.6 (S6): the long-lived 30-day non-rotating bearer is gone.
- * Access tokens now live 24 hours; the 30-day lifetime moved to the refresh
- * token, so a captured bearer is worthless after a day instead of a month.
+ * Access tokens live 24 hours, so a captured bearer is worthless after a day
+ * instead of a month; the long-lived half is the single-use rotating refresh
+ * token behind a sliding inactivity window.
  */
 const DEFAULT_ACCESS_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
-const DEFAULT_REFRESH_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+/**
+ * Refresh-grant INACTIVITY window (sliding). A refresh token still rotates on
+ * every use (single-use, reuse-revoked), but each successful rotation re-arms
+ * this window: a device in regular use never re-pairs, and only a pairing
+ * unused for this long lapses. The fixed-at-pairing 30-day deadline is gone —
+ * it forced a monthly re-pair on every healthy device.
+ */
+const REFRESH_INACTIVITY_WINDOW_MS = 90 * 24 * 60 * 60 * 1000;
 const DEFAULT_WEBSOCKET_TICKET_TTL_MS = 30 * 1000;
+/**
+ * The managed renderer's session is memory-only (dies with this host process)
+ * and bound to the loopback gate, so its access TTL simply covers the host
+ * process's whole uptime: the exchange yields a session with this TTL and no
+ * renewal ladder ever engages on that leg.
+ */
+export const MANAGED_RENDERER_ACCESS_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+/** Minimum spacing between credential-refusal warns (see
+ * {@link RemoteAuthStore.warnCredentialRefused}). */
+const REFUSAL_WARN_INTERVAL_MS = 2_000;
 
 /** Error surfaced to remote clients as an HTTP status plus a JSON error body. */
 export class RemoteHttpError extends Error {
@@ -73,6 +91,10 @@ interface StoredPairingCredential {
    * one desktop window, which never reuses it after a reload, so it ends with
    * the host process. */
   readonly ephemeral?: true;
+  /** The access TTL its exchange yields, overriding the 24-hour default
+   * (see {@link MANAGED_RENDERER_ACCESS_TTL_MS}). In-memory only: pairing
+   * credentials never reach the auth file. */
+  readonly sessionTtlMs?: number;
 }
 
 interface StoredAccessSession {
@@ -86,6 +108,11 @@ interface StoredAccessSession {
   /** Memory-only (see {@link StoredPairingCredential.ephemeral}); never
    * persisted, and survives refreshes. */
   readonly ephemeral?: true;
+  /** The access TTL its grant issued (memory-only, like `ephemeral`): a
+   * rotation re-arms THIS deadline instead of the 24-hour default, so a
+   * long-lived managed session cannot be silently shortened by its backstop
+   * refresh path (see {@link MANAGED_RENDERER_ACCESS_TTL_MS}). */
+  readonly sessionTtlMs?: number;
   /** Hash of the session's refresh token (Gate 6 item 4.6). Absent on sessions
    * persisted by a host that predates the refresh lifecycle — those keep their
    * long-lived access token and simply never refresh. */
@@ -246,6 +273,8 @@ export class RemoteAuthStore {
     string,
     { readonly sessionId: string; readonly expiresAtMs: number; readonly ephemeral?: true }
   >();
+  /** Last credential-refusal warn time (see {@link warnCredentialRefused}). */
+  private lastRefusalWarnAtMs = 0;
 
   constructor(private readonly options: RemoteAuthStoreOptions = {}) {
     for (const session of options.accessSessions ?? []) {
@@ -273,6 +302,8 @@ export class RemoteAuthStore {
     readonly label?: string;
     readonly ttlMs?: number;
     readonly ephemeral?: boolean;
+    /** The access TTL the credential's exchange yields (in-memory only). */
+    readonly sessionTtlMs?: number;
   }): IssuedPairingCredential {
     this.pruneExpired();
     const credential = randomCredential("lc_pair");
@@ -290,6 +321,7 @@ export class RemoteAuthStore {
       label: input?.label,
       expiresAtMs,
       ...(input?.ephemeral ? { ephemeral: true as const } : {}),
+      ...(input?.sessionTtlMs !== undefined ? { sessionTtlMs: input.sessionTtlMs } : {}),
     };
     this.pairingCredentials.set(stored.tokenHash, stored);
     return {
@@ -351,8 +383,13 @@ export class RemoteAuthStore {
     const accessToken = randomCredential("lc_access");
     const refreshToken = randomCredential("lc_refresh");
     const now = Date.now();
-    const expiresAtMs = now + (input.ttlMs ?? DEFAULT_ACCESS_TOKEN_TTL_MS);
-    const refreshExpiresAtMs = now + DEFAULT_REFRESH_TOKEN_TTL_MS;
+    // A request-level TTL stays available (tests, seeded stores); a grant may
+    // extend the default for its own leg (the managed renderer's session
+    // lives as long as its host process — see
+    // {@link MANAGED_RENDERER_ACCESS_TTL_MS}).
+    const sessionTtlMs = input.ttlMs ?? grant.sessionTtlMs ?? DEFAULT_ACCESS_TOKEN_TTL_MS;
+    const expiresAtMs = now + sessionTtlMs;
+    const refreshExpiresAtMs = now + REFRESH_INACTIVITY_WINDOW_MS;
     const session: StoredAccessSession = {
       id: randomUUID(),
       tokenHash: hashCredential(accessToken),
@@ -363,6 +400,7 @@ export class RemoteAuthStore {
       refreshTokenHash: hashCredential(refreshToken),
       refreshExpiresAtMs,
       ...(grant.ephemeral ? { ephemeral: true as const } : {}),
+      ...(grant.sessionTtlMs !== undefined ? { sessionTtlMs: grant.sessionTtlMs } : {}),
     };
     this.accessSessions.set(session.tokenHash, session);
     // A memory-only session changes nothing the file carries; never write the
@@ -382,11 +420,12 @@ export class RemoteAuthStore {
 
   /**
    * Gate 6 item 4.6 (S6): exchanges a live refresh token for a fresh
-   * 24-hour access token. The refresh token VALUE rotates on every use
-   * (old value stops working) while its absolute 30-day deadline is fixed at
-   * pairing, so a client that keeps refreshing re-pairs monthly and a captured
-   * refresh token window is one use. Revoked refresh tokens are rejected even
-   * before their row would have been found.
+   * 24-hour access token. The refresh token VALUE rotates on every use (old
+   * value stops working, so a captured refresh token window is one use), and
+   * its deadline is a SLIDING inactivity window: every successful rotation
+   * re-arms it, so a device in regular use never re-pairs and only an unused
+   * pairing lapses. Revoked refresh tokens are rejected even before their
+   * row would have been found.
    */
   refreshAccessToken(input: {
     readonly refreshToken: string;
@@ -413,17 +452,27 @@ export class RemoteAuthStore {
     this.accessSessions.delete(session.tokenHash);
     const accessToken = randomCredential("lc_access");
     const refreshToken = randomCredential("lc_refresh");
+    // Sliding inactivity window: every successful rotation re-arms it, so a
+    // device in regular use never re-pairs. Legacy rows written by a host
+    // with the old fixed-at-pairing deadline slide forward on their first
+    // refresh after the upgrade.
+    const refreshExpiresAtMs = Date.now() + REFRESH_INACTIVITY_WINDOW_MS;
     const rotated: StoredAccessSession = {
       ...session,
       tokenHash: hashCredential(accessToken),
-      expiresAtMs: Date.now() + (input.accessTtlMs ?? DEFAULT_ACCESS_TOKEN_TTL_MS),
+      // The session's own grant TTL wins over the default, so a rotation of a
+      // long-lived managed session re-arms its full window instead of silently
+      // collapsing it onto the 24-hour ladder.
+      expiresAtMs:
+        Date.now() + (input.accessTtlMs ?? session.sessionTtlMs ?? DEFAULT_ACCESS_TOKEN_TTL_MS),
       refreshTokenHash: hashCredential(refreshToken),
+      refreshExpiresAtMs,
     };
     this.accessSessions.set(rotated.tokenHash, rotated);
     if (session.refreshTokenHash) {
       this.rotatedRefreshHashes.set(session.refreshTokenHash, {
         sessionId: session.id,
-        expiresAtMs: session.refreshExpiresAtMs ?? rotated.expiresAtMs,
+        expiresAtMs: refreshExpiresAtMs,
         ...(session.ephemeral ? { ephemeral: true as const } : {}),
       });
     }
@@ -450,7 +499,7 @@ export class RemoteAuthStore {
       expiresAt: toIso(rotated.expiresAtMs),
       scopes: [...session.scopes],
       refreshToken,
-      refreshTokenExpiresAt: toIso(session.refreshExpiresAtMs ?? rotated.expiresAtMs),
+      refreshTokenExpiresAt: toIso(refreshExpiresAtMs),
       sessionId: rotated.id,
     };
   }
@@ -466,6 +515,23 @@ export class RemoteAuthStore {
     return true;
   }
 
+  /**
+   * One throttled diagnostic for a refused credential. Only the hash PREFIX is
+   * recorded — never the token value — so logs can be shared freely while a
+   * renderer-side suffix log still lets one incident be traced end to end.
+   */
+  private warnCredentialRefused(
+    reason: "revoked" | "unknown_token" | "expired" | "expired_session" | "unknown_session",
+    credentialHashOrSessionId: string,
+  ): void {
+    const now = Date.now();
+    if (now - this.lastRefusalWarnAtMs < REFUSAL_WARN_INTERVAL_MS) return;
+    this.lastRefusalWarnAtMs = now;
+    console.warn(
+      `[remote-auth] credential refused (${reason}) id=${credentialHashOrSessionId.slice(0, 12)}`,
+    );
+  }
+
   authenticateBearerToken(
     accessToken: string,
     requiredScopes: readonly RemoteAccessScope[] = [],
@@ -475,10 +541,17 @@ export class RemoteAuthStore {
     // An explicitly revoked token is rejected outright — even if its session
     // row were ever restored (restart races, restores from backup).
     if (this.isRevoked(tokenHash)) {
+      this.warnCredentialRefused("revoked", tokenHash);
       throw new RemoteHttpError("invalid_access_token", "Invalid access token.", 401);
     }
     const session = this.accessSessions.get(tokenHash);
     if (!session || session.expiresAtMs <= Date.now()) {
+      // "unknown" vs "expired" is the incident triage: a token the store has
+      // never heard of usually means the server-side session state was
+      // rebuilt (a server restart dropped a memory-only session) while the
+      // client kept presenting its bearer; an expired one means renewal
+      // failed to land before the deadline.
+      this.warnCredentialRefused(session ? "expired" : "unknown_token", tokenHash);
       throw new RemoteHttpError("invalid_access_token", "Invalid access token.", 401);
     }
     if (!hasScopes(session.scopes, requiredScopes)) {
@@ -542,6 +615,7 @@ export class RemoteAuthStore {
     this.pruneExpired();
     const session = this.findAccessSession(sessionId);
     if (!session || session.expiresAtMs <= Date.now()) {
+      this.warnCredentialRefused(session ? "expired_session" : "unknown_session", sessionId);
       throw new RemoteHttpError("invalid_access_token", "Invalid access session.", 401);
     }
     if (!hasScopes(session.scopes, requiredScopes)) {
@@ -631,6 +705,7 @@ export class RemoteAuthStore {
       (entry) => entry.id === stored.sessionId,
     );
     if (!session || session.expiresAtMs <= Date.now()) {
+      this.warnCredentialRefused(session ? "expired_session" : "unknown_session", stored.sessionId);
       throw new RemoteHttpError("invalid_access_token", "Invalid access token.", 401);
     }
     return toAuthenticatedSession(session);
@@ -692,6 +767,7 @@ export class RemoteAuthStore {
       (entry) => entry.id === stored.sessionId,
     );
     if (!session || session.expiresAtMs <= Date.now()) {
+      this.warnCredentialRefused(session ? "expired_session" : "unknown_session", stored.sessionId);
       throw new RemoteHttpError("invalid_access_token", "Invalid access token.", 401);
     }
     return toAuthenticatedSession(session);

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Thread } from "@/shared/contracts";
-import type { RemoteDesktopClient } from "@/shared/remote/client";
+import { RemoteClientError, type RemoteDesktopClient } from "@/shared/remote/client";
 import type { RemoteClientFactory, RemoteServersState } from "./types";
 import {
   CLIENT_ENGINE_PROTOCOL_VERSION,
@@ -21,11 +21,17 @@ import {
   __resetEventSocketRegistryForTest,
   bumpRemoteServerSnapshotSeq,
   deleteRemoteServerEventSocketEntry,
+  getRemoteServerEventSocketEntry,
   remoteServerResumeFence,
   remoteServerSnapshotEpoch,
   remoteServerSnapshotSeq,
   setRemoteServerSnapshotSeq,
 } from "./eventSocketRegistry";
+import {
+  connectionRefreshSubject,
+  forgetRefreshTokenForSubject,
+  rememberRefreshToken,
+} from "./refreshTokens";
 import {
   startRemoteServerEventStream,
   type StartRemoteServerEventStreamDeps,
@@ -469,6 +475,58 @@ afterEach(async () => {
 // ── Tests ────────────────────────────────────────────────────────────
 
 describe("remote event socket session (V5 2.1)", () => {
+  it("retires the session instead of looping when a refused connect has no grant", async () => {
+    const { deps, store } = makeHarness();
+    const refused = new Proxy(
+      {},
+      {
+        get: () => {
+          throw new RemoteClientError("Expired bearer.", 401, "unauthorized");
+        },
+      },
+    );
+    store.clientFactory = () => refused as unknown as RemoteDesktopClient;
+
+    await startRemoteServerEventStream(deps);
+    await flushAsync(60);
+
+    // The stable re-pair state, and the ladder is retired — a dead grant
+    // never recovers by retrying, so the entry must not re-arm (the visible
+    // "keeps reconnecting" loop). Exactly one failure line: a re-arm loop
+    // would re-fire it on each cycle.
+    expect(deps.setRemoteServerFailure).toHaveBeenCalledTimes(1);
+    expect(deps.setRemoteServerFailure).toHaveBeenCalledWith(
+      DESKTOP_ID,
+      "error",
+      expect.anything(),
+    );
+    expect(getRemoteServerEventSocketEntry(DESKTOP_ID)).toBeUndefined();
+    expect(FakeSocket.instances).toHaveLength(0);
+  });
+
+  it("keeps the session when a refused connect still holds a grant", async () => {
+    const { deps, store } = makeHarness();
+    rememberRefreshToken(DESKTOP_ID, "grant-1");
+    const refused = new Proxy(
+      {},
+      {
+        get: () => {
+          throw new RemoteClientError("Expired bearer.", 401, "unauthorized");
+        },
+      },
+    );
+    store.clientFactory = () => refused as unknown as RemoteDesktopClient;
+
+    await startRemoteServerEventStream(deps);
+    await flushAsync(30);
+
+    // A held grant means the next attempt can recover (its refresh may win):
+    // no terminal state, the session stays installed for the slow retry.
+    expect(deps.setRemoteServerFailure).not.toHaveBeenCalled();
+    expect(getRemoteServerEventSocketEntry(DESKTOP_ID)).not.toBeUndefined();
+    forgetRefreshTokenForSubject(connectionRefreshSubject(DESKTOP_ID));
+  });
+
   it("advances the resume cursor only after frames are applied", async () => {
     const { deps, dispatch } = makeHarness();
     await startRemoteServerEventStream(deps);

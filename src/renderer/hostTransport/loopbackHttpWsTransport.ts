@@ -154,6 +154,15 @@ export function isDesktopLoopbackIntakeActive(): boolean {
   return managedLoopback.intake?.isActive() ?? false;
 }
 
+/** Test seam: install the wiring's current intake, which the managed client's
+ * `onUnauthorized` escalation fence reads. Tests pass the same stub they
+ * built their client with; `resetDesktopLoopbackIntakeForTest` clears it. */
+export function __setManagedLoopbackIntakeForTest(
+  intake: Pick<DesktopLoopbackIntake, "isActive"> | null,
+): void {
+  managedLoopback.intake = intake as DesktopLoopbackIntake | null;
+}
+
 /** Re-discovery cadence while the loopback server is starting or its
  * credential was consumed by a server restart (cheap one-procedure check per
  * tick; the always-on guarantee makes the first ask succeed in practice). */
@@ -208,7 +217,7 @@ export function createManagedLoopbackClient(
   accessToken: string,
   intake: Pick<
     DesktopLoopbackIntake,
-    "getAccessToken" | "getRefreshToken" | "applyTokens" | "isActive"
+    "getAccessToken" | "getRefreshToken" | "applyTokens" | "isActive" | "noteBearerRefused"
   >,
 ): RemoteDesktopClient {
   return new RemoteDesktopClient(endpoint, accessToken, undefined, {
@@ -235,6 +244,15 @@ export function createManagedLoopbackClient(
           scopes: [...REMOTE_OPERATOR_SCOPES],
         });
       },
+      // A request 401 the refresh path could not repair means the leg's
+      // session is dead server-side while the socket can still look healthy
+      // (the host only reaps it at the session's deadline). Escalate to the
+      // intake: its rate-limited re-proof renews, re-pairs, or re-bootstraps
+      // instead of every UI surface showing "Invalid access token".
+      onUnauthorized: () => {
+        if (managedLoopback.intake !== intake || !intake.isActive()) return;
+        intake.noteBearerRefused();
+      },
     },
   });
 }
@@ -249,7 +267,7 @@ export async function renewManagedLoopbackSession(
   endpoint: string,
   intake: Pick<
     DesktopLoopbackIntake,
-    "getAccessToken" | "getRefreshToken" | "applyTokens" | "isActive"
+    "getAccessToken" | "getRefreshToken" | "applyTokens" | "isActive" | "noteBearerRefused"
   >,
 ): Promise<boolean> {
   try {
@@ -620,6 +638,9 @@ async function startOwnedDesktopLoopbackIntake(isCurrentStartup: () => boolean):
   if (!isCurrentBootstrap()) return;
   const pairingToken = bootstrap ? parsePairingCredential(bootstrap.pairingUrl) : null;
   if (!bootstrap || !pairingToken || !isLoopbackEndpoint(bootstrap.endpoint)) {
+    console.warn(
+      "[loopback] managed loopback bootstrap unavailable; retrying discovery in the background",
+    );
     scheduleLoopbackDiscoveryRetry();
     return;
   }
@@ -632,6 +653,9 @@ async function startOwnedDesktopLoopbackIntake(isCurrentStartup: () => boolean):
     managedLoopback.intake === intake;
   const recoverIntake = (): void => {
     if (managedLoopback.intake !== intake || intake === null) return;
+    console.warn(
+      "[loopback] disposing the leg for a fresh bootstrap (new pairing credential + session)",
+    );
     intake.dispose();
     managedLoopback.intake = null;
     intake = null;
