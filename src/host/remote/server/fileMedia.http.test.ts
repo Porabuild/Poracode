@@ -74,8 +74,29 @@ describe("authorized editor media HTTP", () => {
     const pastEnd = await fetch(source.url, { headers: { range: "bytes=10-" } });
     expect(pastEnd.status).toBe(416);
     expect(pastEnd.headers.get("content-range")).toBe("bytes */10");
+    // The browser's video Download/Save action takes its default file name
+    // from this header, so it must carry the real name and extension.
+    const full = await fetch(source.url);
+    expect(full.headers.get("content-disposition")).toBe(
+      `inline; filename="clip.mp4"; filename*=UTF-8''clip.mp4`,
+    );
+    await full.body?.cancel();
     await client(host).releaseMediaSource(source.ticket);
     expect((await fetch(source.url)).status).toBe(401);
+  });
+
+  it("encodes non-ASCII and quote-bearing file names in the download disposition without header smuggling", async () => {
+    const host = await startChildHost(cleanup);
+    const projectPath = location.kind === "posix" ? location.path : "";
+    const name = `my "clïp" ünïcode.webm`;
+    writeFileSync(join(projectPath, name), Buffer.from("0123456789"));
+    const source = await client(host).createMediaSource(file(name));
+    const response = await fetch(source.url);
+    expect(response.status).toBe(200);
+    expect(await response.text()).toBe("0123456789");
+    expect(response.headers.get("content-disposition")).toBe(
+      `inline; filename="my _cl_p_ _n_code.webm"; filename*=UTF-8''my%20%22cl%C3%AFp%22%20%C3%BCn%C3%AFcode.webm`,
+    );
   });
 
   it("renews real-socket direct ranges past the original expiry using the same ticket and URL, rejects other sessions/expired/released tickets", async () => {
