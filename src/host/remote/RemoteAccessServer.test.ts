@@ -80,7 +80,11 @@ import {
 } from "@/host/db/runtimeItems";
 import { resetRuntimePersistenceForTests } from "@/host/db/runtimePersistenceRuntime";
 import * as runtimePersistence from "@/host/db/runtimePersistenceRuntime";
-import { RemoteAuthStore, type PersistedRemoteAuthFile } from "./auth";
+import {
+  RemoteAuthStore,
+  MANAGED_RENDERER_ACCESS_TTL_MS,
+  type PersistedRemoteAuthFile,
+} from "./auth";
 import * as remoteConfig from "./config";
 import { deriveForwardOwner, ForwardOriginPolicy } from "./portForward/forwardOrigin";
 import { createForwardOriginIdentity } from "./portForward/forwardOriginIdentity";
@@ -1326,7 +1330,11 @@ describe("RemoteAccessServer", () => {
         }),
       });
       expect(response.status).toBe(200);
-      return (await response.json()) as { accessToken: string; sessionId?: string };
+      return (await response.json()) as {
+        accessToken: string;
+        sessionId?: string;
+        expiresAt?: string;
+      };
     };
 
     const managed = await exchange(server.mintLoopbackRendererCredential()!.pairingUrl);
@@ -1337,10 +1345,19 @@ describe("RemoteAccessServer", () => {
     expect(authStore.authenticateBearerToken(managed.accessToken).sessionId).toBe(
       managed.sessionId,
     );
+    // The access deadline covers the host process's whole uptime: the
+    // desktop's own leg never meets an expiry mid-session, so the 24-hour
+    // rotation and its renewal ladder stay out of the loopback path.
+    expect(Date.parse(managed.expiresAt!)).toBeGreaterThan(
+      Date.now() + MANAGED_RENDERER_ACCESS_TTL_MS - 60_000,
+    );
 
     const extension = await exchange(
       server.mintLoopbackRendererCredential({ browserExtension: true })!.pairingUrl,
     );
+    // The browser extension keeps the 24-hour TTL: it re-mints its credential
+    // per activation and recovers through the bridge.
+    expect(Date.parse(extension.expiresAt!)).toBeLessThanOrEqual(Date.now() + 24 * 60 * 60 * 1000);
     expect(
       writes.at(-1)?.accessSessions.some((session) => session.id === extension.sessionId),
     ).toBe(true);

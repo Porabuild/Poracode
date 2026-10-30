@@ -26,7 +26,9 @@ import {
 import { EnvironmentCascadeConfirmationRequiredError } from "./remoteServers/sessionReconnect";
 import { environmentChildGrantSubject } from "./remoteServers/environmentSessions";
 import {
+  __forgetRefreshTokenForTest,
   __peekRefreshTokenForTest,
+  connectionRefreshSubject,
   rememberRefreshToken,
   rememberRefreshTokenForSubject,
 } from "./remoteServers/refreshTokens";
@@ -3175,17 +3177,16 @@ describe("useRemoteServersStore", () => {
     await vi.advanceTimersByTimeAsync(0);
 
     sockets[0]?.onclose?.({ code: 1008, reason: "Remote access session expired" });
-    expect(useRemoteServersStore.getState().runtime.d1).toMatchObject({
-      status: "error",
-      message: "Pairing expired — pair again to reconnect.",
-    });
+    // The deadline close is routine: the reconnect refreshes the same session,
+    // so it reads as reconnecting rather than a terminal "pair again".
+    expect(useRemoteServersStore.getState().runtime.d1).toMatchObject({ status: "connecting" });
     await vi.advanceTimersByTimeAsync(59_999);
     expect(socketFactory).toHaveBeenCalledTimes(1);
     await vi.advanceTimersByTimeAsync(1);
     expect(socketFactory).toHaveBeenCalledTimes(2);
   });
 
-  it("retries an unauthorized websocket ticket at the slower authorization interval", async () => {
+  it("retries an unauthorized websocket ticket at the slower authorization interval while a grant is held", async () => {
     vi.useFakeTimers();
     const sockets: RemoteSocketLike[] = [];
     const websocketTicket = vi
@@ -3193,6 +3194,43 @@ describe("useRemoteServersStore", () => {
       .mockResolvedValueOnce("ticket-1")
       .mockRejectedValueOnce(new RemoteClientError("Missing access token.", 401, "unauthorized"))
       .mockResolvedValueOnce("ticket-3");
+    const socketFactory = vi.fn<RemoteSocketFactory>(() => {
+      const socket = makeSocket();
+      sockets.push(socket);
+      return socket;
+    });
+    useRemoteServersStore.getState().setClientFactory(factoryFor(makeClient({ websocketTicket })));
+    useRemoteServersStore.getState().setSocketFactory(socketFactory);
+    await useRemoteServersStore
+      .getState()
+      .pairServer({ endpoint: "192.168.1.9:38987", token: "a" });
+    await vi.advanceTimersByTimeAsync(0);
+    rememberRefreshToken("d1", "grant-1");
+
+    try {
+      sockets[0]?.onclose?.();
+      await vi.advanceTimersByTimeAsync(1_000);
+      // A held grant can still recover on the next attempt: no terminal state.
+      expect(useRemoteServersStore.getState().runtime.d1).toMatchObject({ status: "connecting" });
+
+      await vi.advanceTimersByTimeAsync(59_499);
+      expect(websocketTicket).toHaveBeenCalledTimes(2);
+      expect(socketFactory).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(501);
+      expect(websocketTicket).toHaveBeenCalledTimes(3);
+      expect(socketFactory).toHaveBeenCalledTimes(2);
+    } finally {
+      __forgetRefreshTokenForTest(connectionRefreshSubject("d1"));
+    }
+  });
+
+  it("retires the connection when an unauthorized websocket ticket has no grant left", async () => {
+    vi.useFakeTimers();
+    const sockets: RemoteSocketLike[] = [];
+    const websocketTicket = vi
+      .fn<RemoteDesktopClient["websocketTicket"]>()
+      .mockResolvedValueOnce("ticket-1")
+      .mockRejectedValue(new RemoteClientError("Missing access token.", 401, "unauthorized"));
     const socketFactory = vi.fn<RemoteSocketFactory>(() => {
       const socket = makeSocket();
       sockets.push(socket);
@@ -3212,12 +3250,10 @@ describe("useRemoteServersStore", () => {
       message: "Pairing expired — pair again to reconnect.",
     });
 
-    await vi.advanceTimersByTimeAsync(59_499);
+    // Retired: a refused bearer with no grant never recovers by retrying.
+    await vi.advanceTimersByTimeAsync(120_000);
     expect(websocketTicket).toHaveBeenCalledTimes(2);
     expect(socketFactory).toHaveBeenCalledTimes(1);
-    await vi.advanceTimersByTimeAsync(501);
-    expect(websocketTicket).toHaveBeenCalledTimes(3);
-    expect(socketFactory).toHaveBeenCalledTimes(2);
   });
 
   it("marks a server offline when its event stream reconnect cannot reach it", async () => {
@@ -5444,7 +5480,7 @@ describe("useRemoteServersStore", () => {
     useAppStore.setState({ runtimeItemIdsByThread: {}, runtimeItemsByIdByThread: {} });
   });
 
-  it("preserves pending truncate recovery across an expired close without fetching while error", async () => {
+  it("preserves pending truncate recovery across an expired close without fetching while reconnecting", async () => {
     vi.useFakeTimers();
     const sockets: RemoteSocketLike[] = [];
     const socketFactory = vi.fn<RemoteSocketFactory>(() => {
@@ -5491,9 +5527,9 @@ describe("useRemoteServersStore", () => {
     expect(threadHistory).toHaveBeenCalledTimes(1);
     expect(getTruncateNeededSeq("d1", "rt-1")).toBe(30);
     sockets[0]?.onclose?.({ code: 1008, reason: "Remote access session expired" });
-    expect(useRemoteServersStore.getState().runtime.d1).toMatchObject({ status: "error" });
+    expect(useRemoteServersStore.getState().runtime.d1).toMatchObject({ status: "connecting" });
     await vi.advanceTimersByTimeAsync(0);
-    // Expired (error, not online) never restarts the owned reload.
+    // Expired (connecting, not online) never restarts the owned reload.
     expect(threadHistory).toHaveBeenCalledTimes(1);
     expect(getTruncateNeededSeq("d1", "rt-1")).toBe(30);
     useAppStore.setState({ runtimeItemIdsByThread: {}, runtimeItemsByIdByThread: {} });

@@ -4,6 +4,7 @@ import { friendlyError, msg as sharedMsg } from "@/shared/messages";
 import {
   isRemoteBoundedReadProtocolError,
   isRemoteTransportFailure,
+  isUnauthorizedRemoteError,
   type RemoteDesktopClient,
 } from "@/shared/remote/client";
 import { i18n } from "@/renderer/i18n/i18n";
@@ -19,6 +20,7 @@ import {
 } from "./connectionRefresh";
 import {
   connectionRefreshSubject,
+  deleteRefreshTokenFromVault,
   ensureConnectionIncarnation,
   forgetRefreshTokenForSubject,
   ownsConnectionIncarnation,
@@ -193,6 +195,21 @@ export function createRemoteServerClientBindings(
       refreshToken: () => (isCurrent() ? refreshTokenForDesktop(connectionKey) : undefined),
       onTokensRefreshed: (tokens) => commitSharedRefresh(custody, tokens),
       runExclusive: (run) => runSharedRefresh(custody, run),
+      // A 401 the refresh path could not repair: only a REFUSED grant (401/403
+      // from the grant endpoint) is dead — transport-class refresh failures
+      // (429, network) are retryable and must keep the grant. A dead grant
+      // never recovers by retrying (the host revoked the family or rebuilt its
+      // auth state), so drop it from memory and the vault and stop reporting
+      // it as a usable connection: the reconnect ladder would otherwise loop
+      // "Pairing expired" forever, which reads as the app endlessly
+      // reconnecting.
+      onUnauthorized: (refreshFailure) => {
+        if (!isCurrent()) return;
+        if (!isUnauthorizedRemoteError(refreshFailure)) return;
+        forgetRefreshTokenForSubject(subject);
+        void deleteRefreshTokenFromVault(subject).catch(() => undefined);
+        setRemoteServerFailure(server.desktopId, "error", sharedMsg("remote.session.expired"));
+      },
     });
     const pin = certPinForDesktop(remoteConnectionKey(server));
     if (pin) client.setCertFingerprintPin(pin);

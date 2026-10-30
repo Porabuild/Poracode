@@ -179,6 +179,31 @@ describe("eventSocketResync connection-key scope (C1 F1)", () => {
     expect(forceReconnect).toHaveBeenCalledWith(ctx.socket);
     expect(setRemoteServerFailure).toHaveBeenCalledWith(ENV_KEY, "offline", expect.anything());
   });
+
+  it("recovers the healthy threads when one interested thread's read fails", async () => {
+    // One deleted or persistently erroring thread is quarantined: the
+    // connection stays up (no force-reconnect loop) and every healthy
+    // thread's baseline still installs.
+    setRemoteServerThreadItemInterests(ENV_KEY, ["thread-1", "thread-2"], true);
+    const { ctx, threadHistory, openThreads, forceReconnect, setRemoteServerFailure } = harness();
+    threadHistory.mockImplementation(async (threadId: string) => {
+      if (threadId === "thread-2") throw new Error("history-unavailable");
+      return {
+        snapshotSeq: 4,
+        thread: { ...remoteThread, id: threadId },
+        runtimeItems: [],
+        completedTurns: [],
+        contextUsage: null,
+        updatedAt: "now",
+      } as unknown as Awaited<ReturnType<RemoteDesktopClient["threadHistory"]>>;
+    });
+    await expect(recoverInterestedThreads(ctx)).resolves.toBe(true);
+    expect(forceReconnect).not.toHaveBeenCalled();
+    expect(setRemoteServerFailure).not.toHaveBeenCalled();
+    expect(openThreads.map(({ desktopId, threadId }) => ({ desktopId, threadId }))).toEqual([
+      { desktopId: ENV_KEY, threadId: "thread-1" },
+    ]);
+  });
 });
 
 describe("eventSocketResync clears remote history load failures", () => {

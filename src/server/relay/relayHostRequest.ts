@@ -157,9 +157,10 @@ async function bindTokenExchangeResponse(
   }
   const result = parsed as Record<string, unknown>;
   result.accessToken = rt.channelBinding.bind(result.accessToken as string);
-  // Deep-review fix: the rotating refresh token is a 30-day credential —
-  // binding only the access half left a relay-log capture replayable
-  // OFF-relay via the refresh grant. Bind it symmetrically when present.
+  // Deep-review fix: the rotating refresh token is a long-lived credential
+  // (sliding inactivity window) — binding only the access half left a
+  // relay-log capture replayable OFF-relay via the refresh grant. Bind it
+  // symmetrically when present.
   if (
     typeof result.refreshToken === "string" &&
     result.refreshToken.length > 0 &&

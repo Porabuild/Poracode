@@ -47,6 +47,7 @@ import {
   withBoundedCatalogChangesDeclaration,
 } from "@/renderer/state/remote/boundedCatalogChangesCapability";
 import { remoteConnectionKey } from "./types";
+import { refreshTokenForDesktop } from "./refreshTokens";
 import {
   prepareTerminalConnection,
   type TerminalConnectionCapabilities,
@@ -372,7 +373,11 @@ export async function startRemoteServerEventStream(
           forgetRemoteServerCursorSyncV2(connectionKey);
           setRemoteTerminalSocketSender(connectionKey, null);
           setAgentVisionSocketSender(connectionKey, null);
-          setRemoteServerFailure(connectionKey, "error", sharedMsg("remote.session.expired"));
+          // The deadline close is routine (the 24-hour bearer reached its
+          // end) and the reconnect's ticket mint refreshes the same session;
+          // the terminal "pairing expired" state belongs to a refused refresh
+          // grant, which the next connect actually proves.
+          setSocketStatus("connecting");
           scheduleReconnect(REMOTE_SOCKET_POLICY.unauthorizedReconnectMs);
           return;
         }
@@ -387,18 +392,31 @@ export async function startRemoteServerEventStream(
       }
     } catch (error) {
       if (!isCurrent()) return;
-      if (error instanceof RemoteClientError && error.code === "protocol_version_mismatch") {
-        setRemoteServerFailure(connectionKey, "error", friendlyError(error));
-        // Stop automatic attempts, but retain terminal listeners so a
-        // later explicit reconnect can install a fresh supported stream.
+      // Terminal retire: stop the automatic ladder (the finally must not
+      // re-arm it) and leave a stable state a later explicit reconnect or
+      // re-pair can build on.
+      const retireSession = (message: string) => {
+        setRemoteServerFailure(connectionKey, "error", message);
         deleteRemoteServerEventSocketEntry(connectionKey);
         setAgentVisionSocketSender(connectionKey, null);
         forgetRemoteServerCursorSyncV2(connectionKey);
         setRemoteTerminalSocketSender(connectionKey, null);
+      };
+      if (error instanceof RemoteClientError && error.code === "protocol_version_mismatch") {
+        retireSession(friendlyError(error));
         return;
       }
       if (isUnauthorizedRemoteError(error)) {
-        setRemoteServerFailure(connectionKey, "error", sharedMsg("remote.session.expired"));
+        // A refused or absent grant never recovers by retrying: retire the
+        // session and show the stable "pair again" state instead of a
+        // reconnect loop. With a grant still held, this attempt's refresh
+        // simply lost the race or hit a transient failure — keep the slow
+        // retry, the next attempt can recover.
+        if (refreshTokenForDesktop(connectionKey) === undefined) {
+          retireSession(sharedMsg("remote.session.expired"));
+          return;
+        }
+        setSocketStatus("connecting");
         scheduleReconnect(REMOTE_SOCKET_POLICY.unauthorizedReconnectMs);
         return;
       }

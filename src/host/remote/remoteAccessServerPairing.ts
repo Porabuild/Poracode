@@ -7,7 +7,7 @@ import {
 } from "@/shared/remote";
 import { isBrowserExtensionReachableEndpoint } from "@/shared/chromeSidebarProtocol";
 import { buildPairingUrl, formatCertFingerprint } from "@/shared/remote/pairingUrl";
-import { RemoteHttpError, RefreshTokenReuseError } from "./auth";
+import { RemoteHttpError, RefreshTokenReuseError, MANAGED_RENDERER_ACCESS_TTL_MS } from "./auth";
 import { REMOTE_AUDIT_LOG_VERSION, type RemoteAuditEvent } from "./server/auditLog";
 import { requireRemoteAccessInfo, type RemoteAccessServerHost } from "./remoteAccessServerTypes";
 
@@ -116,7 +116,14 @@ export function mintLoopbackRendererCredential(
       })
     : // One credential per desktop window: its session is memory-only, so an
       // app restart cannot write another orphan into remote-access-auth.json.
-      issuePresetPairingCredential(host, "Managed renderer", undefined, { ephemeral: true });
+      // The session's access TTL covers the host process's whole uptime (see
+      // MANAGED_RENDERER_ACCESS_TTL_MS): a co-located window on the loopback
+      // gate never meets an expiry mid-session, so the 24-hour rotation and
+      // its renewal ladder stay out of the desktop's own leg entirely.
+      issuePresetPairingCredential(host, "Managed renderer", undefined, {
+        ephemeral: true,
+        sessionTtlMs: MANAGED_RENDERER_ACCESS_TTL_MS,
+      });
   const fingerprint = host.tls?.fingerprint;
   return {
     endpoint,
@@ -140,6 +147,7 @@ export function issuePresetPairingCredential(
     readonly ttlMs?: number;
     readonly scopes?: readonly RemoteAccessScope[];
     readonly ephemeral?: boolean;
+    readonly sessionTtlMs?: number;
   },
 ) {
   const scopes = options?.scopes ?? (preset ? remoteAccessScopesForPreset(preset) : undefined);
@@ -148,6 +156,7 @@ export function issuePresetPairingCredential(
     ...(scopes ? { scopes } : {}),
     ...(options?.ttlMs ? { ttlMs: options.ttlMs } : {}),
     ...(options?.ephemeral ? { ephemeral: true } : {}),
+    ...(options?.sessionTtlMs !== undefined ? { sessionTtlMs: options.sessionTtlMs } : {}),
   });
   // Gate 6 item 4.7 (S7): every issued (or rotated) pairing credential is an
   // audited event. Revoked superseded credentials ride the same line.
