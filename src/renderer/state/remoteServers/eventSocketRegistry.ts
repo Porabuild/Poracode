@@ -35,6 +35,8 @@ export interface RemoteServerEventSocketEntry {
   connectTimeout: ReturnType<typeof setTimeout> | null;
   healthPingInterval: ReturnType<typeof setInterval> | null;
   health: RemoteSocketHealthMonitor<RemoteSocketLike> | null;
+  /** Re-baselines the current connection's interested threads. */
+  recoverInterestedThreads?: (beforeReplay?: () => void) => Promise<boolean>;
 }
 
 const remoteServerEventSockets = new Map<string, RemoteServerEventSocketEntry>();

@@ -204,9 +204,12 @@ describe("supervisorEventReducer — reset/resume ordering (V5 2.3 divergence)",
     reducer.clear();
   });
 
-  it("local-snapshot flavor: a failed re-read surfaces the retryable hydration failure", async () => {
+  it("local-snapshot flavor: a failed re-read surfaces the retryable hydration failure once retries run out", async () => {
     vi.mocked(rehydrateThreadRuntimeItemsAfterReset).mockResolvedValue(false);
-    const reducer = createSupervisorEventReducer({ recovery: localStrategy() });
+    const reducer = createSupervisorEventReducer({
+      recovery: localStrategy(),
+      recoveryRetryDelaysMs: [],
+    });
 
     reducer.dispatch({ type: "thread-reset", threadId: "thread-1" });
     await vi.waitFor(() =>
@@ -244,8 +247,15 @@ describe("supervisorEventReducer — queue overflow recovery", () => {
     vi.clearAllMocks();
   });
 
-  const overflowReducer = (recovery: RuntimeEventRecoveryStrategy): SupervisorEventReducer =>
-    createSupervisorEventReducer({ recovery, queueLimits: { maxEvents: 4 } });
+  const overflowReducer = (
+    recovery: RuntimeEventRecoveryStrategy,
+    recoveryRetryDelaysMs: readonly number[] = [],
+  ): SupervisorEventReducer =>
+    createSupervisorEventReducer({
+      recovery,
+      queueLimits: { maxEvents: 4 },
+      recoveryRetryDelaysMs,
+    });
 
   const overflow = (reducer: SupervisorEventReducer, prefix: string): void => {
     for (let index = 0; index < 5; index += 1) {
@@ -282,29 +292,156 @@ describe("supervisorEventReducer — queue overflow recovery", () => {
   });
 
   it("second overflow while recovery is in flight invalidates it without wiping the installed snapshot", async () => {
-    let settleRecovery: ((recovered: boolean) => void) | null = null;
-    const reducer = overflowReducer({
-      recoverFromQueueOverflow: () =>
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const settlers: Array<(recovered: boolean) => void> = [];
+    const reducer = overflowReducer(
+      {
+        recoverFromQueueOverflow: () =>
+          new Promise<boolean>((resolve) => {
+            settlers.push(resolve);
+          }),
+        recoverFromThreadReset: () => undefined,
+      },
+      [500],
+    );
+    try {
+      overflow(reducer, "item");
+      const clearsAfterFirstOverflow = vi.mocked(clearSelectorCache).mock.calls.length;
+
+      // The bounded post-baseline tail overflows too: the recovery is invalid,
+      // but it retries instead of surfacing a load failure.
+      overflow(reducer, "tail");
+      expect(useAppStore.getState().runtimeHydrationStatus["thread-1"]).toBeUndefined();
+      // The in-flight branch must not re-clear the projection (desktop semantics).
+      expect(vi.mocked(clearSelectorCache).mock.calls.length).toBe(clearsAfterFirstOverflow);
+
+      // Settling the stale recovery must not resume an invalidated thread.
+      settlers[0]!(true);
+      await vi.advanceTimersByTimeAsync(0);
+      reducer.dispatch(runtimeEvent("thread-1", "item-live"));
+      reducer.flushSync("thread-1");
+      expect(itemIds()).toBeUndefined();
+
+      // The retry re-reads authoritative history and releases the queue.
+      await vi.advanceTimersByTimeAsync(500);
+      expect(settlers).toHaveLength(2);
+      settlers[1]!(true);
+      await vi.advanceTimersByTimeAsync(0);
+      reducer.flushSync("thread-1");
+      expect(itemIds()).toEqual(["item-live"]);
+      expect(useAppStore.getState().runtimeHydrationStatus["thread-1"]).toBeUndefined();
+    } finally {
+      reducer.clear();
+      vi.useRealTimers();
+    }
+  });
+
+  it("retries a failed recovery automatically and surfaces a failure only after the last attempt", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const recoverFromQueueOverflow = vi.fn<
+      RuntimeEventRecoveryStrategy["recoverFromQueueOverflow"]
+    >(async () => false);
+    const reducer = overflowReducer(
+      { recoverFromQueueOverflow, recoverFromThreadReset: () => undefined },
+      [500, 2_000],
+    );
+    try {
+      overflow(reducer, "item");
+      await vi.advanceTimersByTimeAsync(0);
+      expect(useAppStore.getState().runtimeHydrationStatus["thread-1"]).toBeUndefined();
+
+      await vi.advanceTimersByTimeAsync(500);
+      expect(recoverFromQueueOverflow).toHaveBeenCalledTimes(2);
+      expect(useAppStore.getState().runtimeHydrationStatus["thread-1"]).toBeUndefined();
+
+      await vi.advanceTimersByTimeAsync(2_000);
+      expect(recoverFromQueueOverflow).toHaveBeenCalledTimes(3);
+      expect(useAppStore.getState().runtimeHydrationStatus["thread-1"]).toBe("failed");
+
+      // A manual retry hides the failure while it runs, with a fresh budget.
+      let settleRetry: ((recovered: boolean) => void) | null = null;
+      recoverFromQueueOverflow.mockImplementationOnce(
+        () =>
+          new Promise<boolean>((resolve) => {
+            settleRetry = resolve;
+          }),
+      );
+      reducer.recoverRuntimeHistory("thread-1");
+      expect(useAppStore.getState().runtimeHydrationStatus["thread-1"]).toBeUndefined();
+      settleRetry!(true);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(useAppStore.getState().runtimeHydrationStatus["thread-1"]).toBeUndefined();
+      expect(recoverFromQueueOverflow).toHaveBeenCalledTimes(4);
+    } finally {
+      reducer.clear();
+      vi.useRealTimers();
+    }
+  });
+
+  it("a recovery that settles after clear() schedules no retry", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    let failRecovery: ((recovered: boolean) => void) | null = null;
+    const recoverFromQueueOverflow = vi.fn<
+      RuntimeEventRecoveryStrategy["recoverFromQueueOverflow"]
+    >(
+      () =>
         new Promise<boolean>((resolve) => {
-          settleRecovery = resolve;
+          failRecovery = resolve;
         }),
-      recoverFromThreadReset: () => undefined,
-    });
+    );
+    const reducer = overflowReducer(
+      { recoverFromQueueOverflow, recoverFromThreadReset: () => undefined },
+      [500],
+    );
+    try {
+      overflow(reducer, "item");
+      reducer.clear();
+      failRecovery!(false);
+      await vi.advanceTimersByTimeAsync(1_000);
+      expect(recoverFromQueueOverflow).toHaveBeenCalledOnce();
+      expect(useAppStore.getState().runtimeHydrationStatus["thread-1"]).toBeUndefined();
+    } finally {
+      reducer.clear();
+      vi.useRealTimers();
+    }
+  });
 
-    overflow(reducer, "item");
-    const clearsAfterFirstOverflow = vi.mocked(clearSelectorCache).mock.calls.length;
+  it("an authoritative baseline installed elsewhere resumes the queue and drops a stale failure", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const recoverFromQueueOverflow = vi.fn<
+      RuntimeEventRecoveryStrategy["recoverFromQueueOverflow"]
+    >(async () => false);
+    const reducer = overflowReducer(
+      { recoverFromQueueOverflow, recoverFromThreadReset: () => undefined },
+      [500],
+    );
+    try {
+      overflow(reducer, "item");
+      await vi.advanceTimersByTimeAsync(0);
+      reducer.dispatch(runtimeEvent("thread-1", "item-live"));
 
-    // The bounded post-baseline tail overflows too: the recovery is invalid.
-    overflow(reducer, "tail");
-    expect(useAppStore.getState().runtimeHydrationStatus["thread-1"]).toBe("failed");
-    // The in-flight branch must not re-clear the projection (desktop semantics).
-    expect(vi.mocked(clearSelectorCache).mock.calls.length).toBe(clearsAfterFirstOverflow);
+      // A reconnect resync re-baselines the thread before the retry fires.
+      reducer.noteAuthoritativeBaselines(["thread-1"]);
+      reducer.flushSync("thread-1");
+      expect(itemIds()).toEqual(["item-live"]);
+      await vi.advanceTimersByTimeAsync(500);
+      expect(recoverFromQueueOverflow).toHaveBeenCalledTimes(1);
 
-    // Settling the stale recovery must not resume an invalidated thread.
-    settleRecovery!(true);
-    reducer.flushSync("thread-1");
-    expect(itemIds()).toBeUndefined();
-    reducer.clear();
+      useAppStore.getState().setRuntimeHydrationStatus("thread-1", "failed");
+      reducer.noteAuthoritativeBaselines(["thread-1"]);
+      expect(useAppStore.getState().runtimeHydrationStatus["thread-1"]).toBeUndefined();
+
+      // A recovery in flight keeps ownership of its blocked queue.
+      recoverFromQueueOverflow.mockImplementationOnce(() => new Promise<boolean>(() => {}));
+      reducer.recoverRuntimeHistory("thread-1");
+      reducer.noteAuthoritativeBaselines(["thread-1"]);
+      reducer.dispatch(runtimeEvent("thread-1", "item-held"));
+      reducer.flushSync("thread-1");
+      expect(itemIds()).toEqual(["item-live"]);
+    } finally {
+      reducer.clear();
+      vi.useRealTimers();
+    }
   });
 
   it("http-snapshot flavor: the caller's snapshot re-fetch resumes the queue; rejection fails hydration", async () => {
@@ -370,18 +507,39 @@ describe("supervisorEventReducer — queue overflow recovery", () => {
 });
 
 describe("supervisorEventReducer — invalidateInFlightRecoveries", () => {
-  it("marks every in-flight recovery failed when the transport generation changes", () => {
+  it("re-runs every in-flight recovery when the transport generation changes", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const settlers: Array<(recovered: boolean) => void> = [];
     const reducer = createSupervisorEventReducer({
-      recovery: localStrategy(),
+      recovery: {
+        recoverFromQueueOverflow: () =>
+          new Promise<boolean>((resolve) => {
+            settlers.push(resolve);
+          }),
+        recoverFromThreadReset: () => undefined,
+      },
       queueLimits: { maxEvents: 4 },
+      recoveryRetryDelaysMs: [500],
     });
+    try {
+      for (let index = 0; index < 5; index += 1) {
+        reducer.dispatch(runtimeEvent("thread-1", `item-${index}`));
+      }
+      reducer.invalidateInFlightRecoveries();
+      expect(useAppStore.getState().runtimeHydrationStatus["thread-1"]).toBeUndefined();
 
-    for (let index = 0; index < 5; index += 1) {
-      reducer.dispatch(runtimeEvent("thread-1", `item-${index}`));
+      // The stale read cannot resume the queue; a fresh read replaces it.
+      settlers[0]!(true);
+      await vi.advanceTimersByTimeAsync(500);
+      expect(settlers).toHaveLength(2);
+      settlers[1]!(true);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(useAppStore.getState().runtimeHydrationStatus["thread-1"]).toBeUndefined();
+    } finally {
+      reducer.clear();
+      vi.useRealTimers();
+      resetStore();
     }
-    reducer.invalidateInFlightRecoveries();
-    expect(useAppStore.getState().runtimeHydrationStatus["thread-1"]).toBe("failed");
-    reducer.clear();
   });
 });
 

@@ -24,6 +24,7 @@ import { clearRuntimeItemStoreSelectorCacheForThread } from "@/renderer/componen
 import { useThreadFollowUpQueueStore } from "@/renderer/state/threadFollowUpQueueStore";
 import { RuntimeEventQueue, type RuntimeEventQueueBatch } from "@/renderer/state/runtimeEventQueue";
 import { drainRuntimeEventQueue } from "@/renderer/state/runtimeEventDrain";
+import { createRecoveryRetries } from "./recoveryRetries";
 import {
   isAgentStatusSupervisorEvent,
   type AgentStatusSupervisorEvent,
@@ -76,9 +77,10 @@ export type ProviderUsageAllSupervisorEvent = Extract<
  * How a flavor recovers authoritative state. `resume()` unblocks the runtime
  * queue (and reschedules the flush); it is a no-op while the recovery is
  * invalidated. A strategy returns a promise when it performs async recovery —
- * the core then resumes on `true`/`void` and fails the hydration status on
- * `false` or rejection. A synchronous return means the strategy applied its
- * own ordering inline (the remote reset path resumes immediately).
+ * the core then resumes on `true`/`void` and, on `false` or rejection, retries
+ * on its own before it fails the hydration status. A synchronous return means
+ * the strategy applied its own ordering inline (the remote reset path resumes
+ * immediately).
  */
 export interface RuntimeEventRecoveryStrategy {
   /** Transcript-only snapshots do not replace the live pending-request map. */
@@ -150,6 +152,12 @@ export interface SupervisorEventReducerConfig {
     readonly maxBytes?: number;
     readonly maxThreadBytes?: number;
   };
+  /**
+   * Delays before each automatic re-run of a failed recovery. A busy stream or
+   * a reconnect usually settles within them; only after the last attempt fails
+   * does the thread show its retryable load failure. Tests shorten or disable it.
+   */
+  readonly recoveryRetryDelaysMs?: readonly number[];
   /** Electron: tracks the latest sequenced event per thread for recovery arbitration. */
   readonly onSequencedEvent?: (
     event: SupervisorEvent,
@@ -206,6 +214,12 @@ export interface SupervisorEventReducer {
   flushSync(threadId: string): void;
   /** Reacquired live content needs a baseline before queued deltas resume. */
   recoverRuntimeHistory(threadId: string): void;
+  /**
+   * A transport resync installed these threads' authoritative baselines
+   * outside this reducer. Threads without a recovery in flight resume their
+   * queues and drop a pending retry or a stale load failure.
+   */
+  noteAuthoritativeBaselines(threadIds: readonly string[]): void;
   /** Idempotent; returns the teardown for the scheduling listeners. */
   installScheduling(): () => void;
   /** Drops every queued delta, cancels pending flushes, and tears down listeners. */
@@ -213,6 +227,8 @@ export interface SupervisorEventReducer {
   /** Invalidates every in-flight recovery (transport generation changed). */
   invalidateInFlightRecoveries(): void;
 }
+
+const RECOVERY_RETRY_DELAYS_MS: readonly number[] = [500, 2_000, 5_000];
 
 const RUNTIME_ENVELOPE_TYPES: ReadonlySet<string> = new Set([
   "thread-runtime-event",
@@ -245,6 +261,12 @@ export function createSupervisorEventReducer(
   const queue = new RuntimeEventQueue(config.queueLimits ?? {});
   const runtimeRecoveryInFlight = new Set<string>();
   const runtimeRecoveryInvalidated = new Set<string>();
+  const recoveryRetries = createRecoveryRetries(
+    config.recoveryRetryDelaysMs ?? RECOVERY_RETRY_DELAYS_MS,
+    (threadId) => recoverRuntimeHistory(threadId),
+  );
+  /** Bumped by clear(): recoveries started before it settle without effect. */
+  let recoveryGeneration = 0;
   const pendingContentOmissions = new Map<string, number>();
   let runtimeFlushHandle: number | null = null;
   let backgroundRuntimeFlushHandle: ReturnType<typeof setTimeout> | null = null;
@@ -354,18 +376,33 @@ export function createSupervisorEventReducer(
     for (const threadId of threadIds) {
       runtimeRecoveryInFlight.delete(threadId);
       runtimeRecoveryInvalidated.delete(threadId);
+      recoveryRetries.reset(threadId);
       useAppStore.getState().setRuntimeHydrationStatus(threadId, null);
       recoverOmittedContent(threadId);
     }
     schedulePendingRuntimeEvents();
   };
 
+  /** The queue stays blocked between attempts; only an exhausted retry
+   * budget surfaces the failure the pane offers to retry by hand. */
   const failRecovery = (threadIds: readonly string[]): void => {
     const store = useAppStore.getState();
     for (const threadId of threadIds) {
       runtimeRecoveryInFlight.delete(threadId);
       runtimeRecoveryInvalidated.delete(threadId);
-      store.setRuntimeHydrationStatus(threadId, "failed");
+      if (!recoveryRetries.schedule(threadId)) store.setRuntimeHydrationStatus(threadId, "failed");
+    }
+    schedulePendingRuntimeEvents();
+  };
+
+  const noteAuthoritativeBaselines = (threadIds: readonly string[]): void => {
+    const store = useAppStore.getState();
+    for (const threadId of threadIds) {
+      if (runtimeRecoveryInFlight.has(threadId)) continue;
+      recoveryRetries.reset(threadId);
+      queue.resume(threadId);
+      if (store.runtimeHydrationStatus[threadId] === "failed")
+        store.setRuntimeHydrationStatus(threadId, null);
     }
     schedulePendingRuntimeEvents();
   };
@@ -385,6 +422,7 @@ export function createSupervisorEventReducer(
     resume: () => void,
     phase: "overflow" | "reset",
   ): void => {
+    const generation = recoveryGeneration;
     if (!isThenable(recovery)) {
       if (phase === "overflow") {
         // No async recovery was started (the injected strategy declined):
@@ -398,6 +436,7 @@ export function createSupervisorEventReducer(
     }
     void recovery.then(
       (recovered) => {
+        if (generation !== recoveryGeneration) return;
         if (
           recovered !== false &&
           !threadIds.some((threadId) => runtimeRecoveryInvalidated.has(threadId))
@@ -408,7 +447,9 @@ export function createSupervisorEventReducer(
           failRecovery(threadIds);
         }
       },
-      () => failRecovery(threadIds),
+      () => {
+        if (generation === recoveryGeneration) failRecovery(threadIds);
+      },
     );
   };
 
@@ -471,10 +512,9 @@ export function createSupervisorEventReducer(
       if (runtimeRecoveryInFlight.has(batch.threadId)) {
         // The bounded post-baseline tail also overflowed while a recovery
         // already owns this thread. The current snapshot can no longer prove
-        // convergence: block and surface the retryable hydration failure. The
-        // projection is intentionally left as the recovery installed it.
+        // convergence: keep the queue blocked so the settled recovery retries.
+        // The projection is intentionally left as the recovery installed it.
         runtimeRecoveryInvalidated.add(batch.threadId);
-        useAppStore.getState().setRuntimeHydrationStatus(batch.threadId, "failed");
       } else {
         // The backend persists runtime events before broadcasting them. Once
         // the final-consumer queue overflows, re-read authoritative history
@@ -506,6 +546,10 @@ export function createSupervisorEventReducer(
 
   const recoverRuntimeHistory = (threadId: string): void => {
     if (runtimeRecoveryInFlight.has(threadId)) return;
+    recoveryRetries.cancel(threadId);
+    // A visible failure gives way to the attempt; it returns if retries run out.
+    if (useAppStore.getState().runtimeHydrationStatus[threadId] === "failed")
+      useAppStore.getState().setRuntimeHydrationStatus(threadId, null);
     queue.block(threadId);
     runtimeRecoveryInFlight.add(threadId);
     const resume = createGroupResume([threadId]);
@@ -670,15 +714,14 @@ export function createSupervisorEventReducer(
     queue.clear();
     runtimeRecoveryInFlight.clear();
     runtimeRecoveryInvalidated.clear();
+    recoveryRetries.clear();
+    recoveryGeneration += 1;
     pendingContentOmissions.clear();
   };
 
+  /** Each invalidated recovery fails when it settles and retries from there. */
   const invalidateInFlightRecoveries = (): void => {
-    const store = useAppStore.getState();
-    for (const threadId of runtimeRecoveryInFlight) {
-      runtimeRecoveryInvalidated.add(threadId);
-      store.setRuntimeHydrationStatus(threadId, "failed");
-    }
+    for (const threadId of runtimeRecoveryInFlight) runtimeRecoveryInvalidated.add(threadId);
   };
 
   const installReadBarrierListener = (): void => {
@@ -712,6 +755,7 @@ export function createSupervisorEventReducer(
     enqueueRuntimeBatches,
     flushSync,
     recoverRuntimeHistory,
+    noteAuthoritativeBaselines,
     installScheduling,
     clear,
     invalidateInFlightRecoveries,

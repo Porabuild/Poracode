@@ -5,11 +5,19 @@ import type { EventSocketConnectionContext } from "./eventSocketContext";
 import { createEventSocketRecoveryState } from "./eventSocketContext";
 import {
   __resetEventSocketRegistryForTest,
+  setRemoteServerEventSocketEntry,
   setRemoteServerSnapshotSeq,
   setRemoteServerThreadItemInterests,
+  type RemoteServerEventSocketEntry,
 } from "./eventSocketRegistry";
-import { recoverInterestedThreads, resyncOpenThread } from "./eventSocketResync";
+import {
+  bindEventSocketResync,
+  recoverInterestedThreads,
+  resyncOpenThread,
+} from "./eventSocketResync";
 import { remoteThreadId } from "@/renderer/state/remoteProjection";
+import { useAppStore } from "@/renderer/state/appStore";
+import { recoverRemoteRuntimeHistory } from "@/renderer/state/remote/sync";
 import type { RemoteServerRecord, RemoteServersState } from "./types";
 
 const PARENT_KEY = "conn-parent";
@@ -114,6 +122,7 @@ function harness(
 
 afterEach(() => {
   __resetEventSocketRegistryForTest();
+  useAppStore.setState({ threads: [], runtimeHydrationStatus: {} });
 });
 
 describe("eventSocketResync connection-key scope (C1 F1)", () => {
@@ -169,5 +178,37 @@ describe("eventSocketResync connection-key scope (C1 F1)", () => {
     await expect(recoverInterestedThreads(ctx)).resolves.toBe(false);
     expect(forceReconnect).toHaveBeenCalledWith(ctx.socket);
     expect(setRemoteServerFailure).toHaveBeenCalledWith(ENV_KEY, "offline", expect.anything());
+  });
+});
+
+describe("eventSocketResync clears remote history load failures", () => {
+  const viewId = remoteThreadId(ENV_KEY, "thread-1");
+
+  it("drops a stale failure once a reconnect resync installs the thread baseline", async () => {
+    setRemoteServerThreadItemInterests(ENV_KEY, ["thread-1"], true);
+    useAppStore.setState({ runtimeHydrationStatus: { [viewId]: "failed" } });
+    const { ctx } = harness();
+
+    await expect(resyncOpenThread(ctx)).resolves.toBe(true);
+
+    expect(useAppStore.getState().runtimeHydrationStatus[viewId]).toBeUndefined();
+  });
+
+  it("routes a remote thread's Retry to its current connection's resync", async () => {
+    setRemoteServerThreadItemInterests(ENV_KEY, ["thread-1"], true);
+    useAppStore.setState({
+      threads: [{ ...remoteThread, id: viewId, remoteServerId: ENV_KEY, remoteId: "thread-1" }],
+      runtimeHydrationStatus: { [viewId]: "failed" },
+    });
+    const { ctx, threadHistory } = harness();
+    setRemoteServerEventSocketEntry(ENV_KEY, ctx.entry as RemoteServerEventSocketEntry);
+    bindEventSocketResync(ctx);
+
+    recoverRemoteRuntimeHistory(viewId);
+
+    await vi.waitFor(() =>
+      expect(useAppStore.getState().runtimeHydrationStatus[viewId]).toBeUndefined(),
+    );
+    expect(threadHistory).toHaveBeenCalledWith("thread-1");
   });
 });

@@ -59,6 +59,8 @@ const remoteState = vi.hoisted(() => ({
     installedAuthoritativeHistory: true,
   })),
   dispatchRemoteSupervisorEvent: vi.fn<(...args: unknown[]) => void>(),
+  noteRemoteRuntimeHistoryBaselines: vi.fn<(threadIds: readonly string[]) => void>(),
+  setRemoteRuntimeHistoryRecovery: vi.fn<() => void>(),
   collectRuntimeEventsFromSupervisoryMessage: (
     value: unknown,
   ): Array<{

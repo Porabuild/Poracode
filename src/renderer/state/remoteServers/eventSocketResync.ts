@@ -20,6 +20,8 @@ import { installHistoryResume } from "@/renderer/state/historyResumeInstall";
 import {
   canResumeQueuedRuntimeHistory,
   discardPendingRuntimeEventsThroughSequence,
+  noteRemoteRuntimeHistoryBaselines,
+  setRemoteRuntimeHistoryRecovery,
 } from "@/renderer/state/remote/sync";
 import { useAppStore } from "@/renderer/state/appStore";
 import type { RuntimeEvent } from "@/shared/contracts";
@@ -27,6 +29,7 @@ import { recordAuthoritativeHistoryInstall } from "@/renderer/state/remote/trunc
 import {
   bumpRemoteServerSnapshotSeq,
   currentRemoteServerThreadItemInterests,
+  getRemoteServerEventSocketEntry,
   hasRemoteServerCursorSyncV2,
   remoteServerResumeFence,
   remoteThreadAppliedSeq,
@@ -279,7 +282,13 @@ export function resyncOpenThread(
         // The runtime queue may be holding a bounded tail that
         // arrived after the snapshots were read. Resume it before
         // replaying the transport recovery buffer so those
-        // sequenced events cannot be discarded by the UI gate.
+        // sequenced events cannot be discarded by the UI gate. A
+        // reconnect resync also supersedes an earlier failed recovery.
+        noteRemoteRuntimeHistoryBaselines(
+          [...recovery.baselineSeqByThread.keys()].map((threadId) =>
+            remoteThreadId(connectionKey, threadId),
+          ),
+        );
         beforeReplay?.();
         await replayRecoveryQueue(ctx, resumeFence);
       }
@@ -330,6 +339,30 @@ export async function recoverInterestedThreads(
   return false;
 }
 
+/** Routes reducer-owned recoveries (automatic retries, the pane's Retry) to
+ * each thread's current connection. */
+function recoverThreadsOnLiveConnections(
+  threadIds: readonly string[],
+  resume: () => void,
+): Promise<boolean> {
+  const threads = useAppStore.getState().threads;
+  const connectionKeys = new Set<string>();
+  for (const threadId of threadIds) {
+    const connectionKey = threads.find((thread) => thread.id === threadId)?.remoteServerId;
+    if (!connectionKey) return Promise.resolve(false);
+    connectionKeys.add(connectionKey);
+  }
+  return Promise.all(
+    [...connectionKeys].map(
+      (connectionKey) =>
+        getRemoteServerEventSocketEntry(connectionKey)?.recoverInterestedThreads?.(resume) ??
+        Promise.resolve(false),
+    ),
+  ).then((results) => results.every(Boolean));
+}
+
 export function bindEventSocketResync(ctx: EventSocketConnectionContext): void {
   ctx.recoverInterestedThreads = (beforeReplay) => recoverInterestedThreads(ctx, beforeReplay);
+  ctx.entry.recoverInterestedThreads = ctx.recoverInterestedThreads;
+  setRemoteRuntimeHistoryRecovery(recoverThreadsOnLiveConnections);
 }
