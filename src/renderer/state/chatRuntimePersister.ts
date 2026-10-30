@@ -14,6 +14,7 @@ import {
   recordThreadHistoryNoticeRead,
 } from "./remote/historyNoticeStore";
 import { useAppStore } from "./appStore";
+import { isHistoryReadBeforeHostCreation } from "./remoteLaunchHistory";
 import { beginManagedRootHistoryPreview } from "./managedRootCatalog/rootHistoryPreview";
 import { beginHistorySnapshotRead, forgetHistoryResume } from "./historyResumeRegistry";
 import {
@@ -424,15 +425,25 @@ async function ensureThreadRuntimeItemsHydrated(
     ...options,
   };
   const hydration = hydrateThreadRuntimeItemsFromDb(threadId, request);
-  request.promise = hydration;
+  request.promise = hydration.then((outcome) => outcome === true);
+  // Waiters observe a rejection through their own await; this chain must not
+  // surface it a second time as unhandled.
+  request.promise.catch(() => undefined);
   pendingThreadRuntimeHydrations.set(threadId, request);
   try {
-    const completed = await hydration;
+    const outcome = await hydration;
     // A reset superseded this read mid-flight: it owns neither the hydration
-    // marker nor the visible status — the replacement read owns both.
+    // marker nor the visible status — the replacement read owns both. A remote
+    // open that superseded it clears the status once its own history installs
+    // (see `hasPendingThreadRuntimeHydration`), so the loader stays up until then.
     if (request.controller.signal.aborted) return false;
-    if (completed) {
+    if (outcome === true) {
       hydratedThreadRuntimeIds.add(threadId);
+      useAppStore.getState().setRuntimeHydrationStatus(threadId, null);
+    } else if (outcome === AWAITING_HOST_CREATION) {
+      // Nothing exists to load until the host starts the thread: the live
+      // stream fills the pane, and the thread stays unhydrated so a later open
+      // reads its real history.
       useAppStore.getState().setRuntimeHydrationStatus(threadId, null);
     } else {
       useAppStore.getState().setRuntimeHydrationStatus(threadId, "failed");
@@ -440,7 +451,7 @@ async function ensureThreadRuntimeItemsHydrated(
     // A successful item read can install rows even when another hydration read
     // fails. They still need admission if the last reader left during I/O.
     evictOversizedInactiveThreadRuntimeItems([threadId]);
-    return completed;
+    return outcome === true;
   } finally {
     if (pendingThreadRuntimeHydrations.get(threadId) === request) {
       pendingThreadRuntimeHydrations.delete(threadId);
@@ -448,10 +459,14 @@ async function ensureThreadRuntimeItemsHydrated(
   }
 }
 
+/** The first read reached the host before it created this remote thread (see
+ * {@link isHistoryReadBeforeHostCreation}). */
+const AWAITING_HOST_CREATION = "awaiting-host-creation";
+
 async function hydrateThreadRuntimeItemsFromDb(
   threadId: string,
   request: RuntimeHydrationRequest,
-): Promise<boolean> {
+): Promise<boolean | typeof AWAITING_HOST_CREATION> {
   // The managed desktop's own threads read their transcript through the SAME
   // bounded HTTP contract remote threads use (items + completed turns +
   // `ct1.` cursor + durable notice) over the ONE loopback client. The ordinary
@@ -517,6 +532,18 @@ async function hydrateThreadRuntimeItemsFromDb(
       !request.beforeInstall()
     )
       return false;
+  }
+
+  // Before the per-read warnings: these refusals are expected, not reportable.
+  if (
+    isHistoryReadBeforeHostCreation(threadId, [
+      itemsResult,
+      turnsResult,
+      contextResult,
+      latestGoalResult,
+    ])
+  ) {
+    return AWAITING_HOST_CREATION;
   }
 
   if (itemsResult.status === "fulfilled") {
@@ -764,6 +791,14 @@ function evictThreadRuntimeItems(threadId: string): void {
   forgetThreadRuntimeWindow(threadId);
   clearRuntimeItemStoreSelectorCacheForThread(threadId);
   useAppStore.getState().evictThreadRuntimeItems(threadId);
+}
+
+/** Whether a live (not superseded) pane read still owns this thread's
+ * hydration status. A remote open that installed its own history clears a
+ * leftover "pending" only when none does. */
+export function hasPendingThreadRuntimeHydration(threadId: string): boolean {
+  const pending = pendingThreadRuntimeHydrations.get(threadId);
+  return pending !== undefined && !pending.controller.signal.aborted;
 }
 
 /**

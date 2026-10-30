@@ -35,6 +35,7 @@ import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { applyCachedSlashCommandCatalogs, fetchSlashCommandCatalog } from "./slashCommandCatalogs";
 import { captureThreadFollowUpQueueSnapshot } from "@/renderer/state/threadFollowUpQueueStore";
 import {
+  hasPendingThreadRuntimeHydration,
   setOlderThreadHistoryContinuation,
   setOlderThreadHistoryInvalidation,
 } from "@/renderer/state/chatRuntimePersister";
@@ -93,6 +94,7 @@ import {
 } from "./catalog/boundedHistory";
 import { REMOTE_SHELL_THREAD_PAGE_LIMIT } from "./pairing";
 import { remoteConnectionKey } from "./types";
+import { remoteServerFailureMessage } from "./failureMessage";
 import type {
   OpenRemoteThread,
   RemoteServerRecord,
@@ -462,8 +464,13 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
       if (!appeared) throw new Error(i18n._(msg`Unable to start the remote thread.`));
       cancellation = await compensateIfAbandoned();
       if (cancellation) return cancellation;
+      // This client's own launch is already on screen (the optimistic user
+      // message): opening it must not reset that projection, or the message
+      // blinks out until the host history lands. Authoritative history then
+      // arbitrates the overlap as for any restored reader.
       await get().openRemoteThread(input.desktopId, result.threadId, {
         focus: options?.focus ?? true,
+        preserveLoadedHistory: true,
       });
       cancellation = await compensateIfAbandoned();
       if (cancellation) return cancellation;
@@ -639,6 +646,15 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
         resumeRead.finish(snapshot.runtimeResumeCursor, snapshot.snapshotSeq);
         recordAuthoritativeHistoryInstall(desktopId, threadId, snapshot.snapshotSeq);
       } else resumeRead.cancel();
+      // This open superseded the pane's first read (its projection reset
+      // cancelled it), so the "pending" that read set is this open's to end:
+      // left behind, it would keep underfilled-history paging off for good.
+      if (
+        useAppStore.getState().runtimeHydrationStatus[viewThreadId] === "pending" &&
+        !hasPendingThreadRuntimeHydration(viewThreadId)
+      ) {
+        useAppStore.getState().setRuntimeHydrationStatus(viewThreadId, null);
+      }
       addRemoteServerThreadItemInterest(desktopId, threadId);
       bumpRemoteServerSnapshotSeq(desktopId, snapshot.snapshotSeq, resumeFenceAtStart);
       // WS3-A: the agent-statuses fetch omitted slash-command catalogs, so
@@ -895,7 +911,7 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
           status: protocolViolation || !isRemoteTransportFailure(error) ? "error" : "offline",
           message: protocolViolation
             ? i18n._(msg`The remote catalog read failed.`)
-            : friendlyError(error) || i18n._(msg`Connection failed.`),
+            : remoteServerFailureMessage(error, i18n._(msg`Connection failed.`)),
           projects: current?.projects ?? [],
           threads: current?.threads ?? [],
           // A failed read says nothing about installed agents; later
