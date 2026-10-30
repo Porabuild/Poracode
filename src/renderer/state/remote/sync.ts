@@ -553,6 +553,16 @@ export interface RemoteDispatchHooks {
  */
 let currentDispatchHooks: RemoteDispatchHooks | null = null;
 
+type RemoteRuntimeHistoryRecovery = NonNullable<RemoteDispatchHooks["onRuntimeQueueOverflow"]>;
+
+/** Re-fetches snapshots for recoveries that start outside a hooked dispatch
+ * (automatic retries and the pane's Retry). Without one, recovery declines. */
+let remoteRuntimeHistoryRecovery: RemoteRuntimeHistoryRecovery | null = null;
+
+export function setRemoteRuntimeHistoryRecovery(recover: RemoteRuntimeHistoryRecovery): void {
+  remoteRuntimeHistoryRecovery = recover;
+}
+
 const supervisorReducer = createSupervisorEventReducer({
   // INJECTED recovery strategy: HTTP snapshot. Overflow delegates to the
   // caller's snapshot re-fetch (event socket resync / desktop-as-client
@@ -560,7 +570,10 @@ const supervisorReducer = createSupervisorEventReducer({
   // resumes immediately and fresh deltas keep flowing.
   recovery: {
     recoverFromQueueOverflow: (threadIds, resume) =>
-      currentDispatchHooks?.onRuntimeQueueOverflow?.(threadIds, resume),
+      (currentDispatchHooks?.onRuntimeQueueOverflow ?? remoteRuntimeHistoryRecovery)?.(
+        threadIds,
+        resume,
+      ),
     recoverFromThreadReset: (_threadId, resume) => {
       // A reset is the authoritative generation boundary when this caller
       // has no separate snapshot-recovery promise to await.
@@ -584,6 +597,15 @@ const supervisorReducer = createSupervisorEventReducer({
  * session boundary. */
 export function clearPendingRuntimeEvents(): void {
   supervisorReducer.clear();
+}
+
+/** Re-reads a remote thread's history through the reducer that owns its queue. */
+export function recoverRemoteRuntimeHistory(threadId: string): void {
+  supervisorReducer.recoverRuntimeHistory(threadId);
+}
+
+export function noteRemoteRuntimeHistoryBaselines(threadIds: readonly string[]): void {
+  supervisorReducer.noteAuthoritativeBaselines(threadIds);
 }
 
 export function canResumeQueuedRuntimeHistory(threadId: string): boolean {
