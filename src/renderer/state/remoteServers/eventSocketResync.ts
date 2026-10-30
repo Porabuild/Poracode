@@ -268,7 +268,12 @@ export function resyncOpenThread(
           else forgetBoundedHistoryThread(connectionKey, threadId);
         } else {
           result.resumeRead.cancel();
-          restored = false;
+          // A streaming thread's live tail usually runs past the host's
+          // debounced snapshot, so the installer rightly declines it. That is
+          // not a failed recovery: reconnecting cannot produce a fresher
+          // snapshot, and treating it as one force-closed the socket about
+          // once a second for as long as the open thread kept working.
+          if (!applied.declinedForNewerLiveTail) restored = false;
         }
         bumpRemoteServerSnapshotSeq(connectionKey, nextSnapshot.snapshotSeq, resumeFence);
         const currentOpen = get().openThread;

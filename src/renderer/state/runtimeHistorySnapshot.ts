@@ -210,6 +210,33 @@ export function snapshotMonotonicallyCoversExistingTail(
   });
 }
 
+/**
+ * The reverse of {@link snapshotMonotonicallyCoversExistingTail}: the resident
+ * transcript already holds every snapshot item at its aligned position, each
+ * as the same or a later version (state, payload, append-only streams), and
+ * may run past the snapshot's tail. A streaming thread's live tail is usually
+ * ahead of the host's debounced snapshot this way; nothing in the snapshot is
+ * missing locally, so declining it loses nothing. A truncated (capped) local
+ * copy does not cover the snapshot's fuller text.
+ */
+export function existingTailMonotonicallyCoversSnapshot(
+  existingIds: readonly string[],
+  existingItems: Record<string, RuntimeChatItem> | undefined,
+  snapshotItems: readonly RuntimeChatItem[],
+): boolean {
+  const snapshotStart = snapshotItems.findIndex(isRuntimeHistoryAnchor);
+  const ordinarySnapshot = snapshotStart < 0 ? snapshotItems : snapshotItems.slice(snapshotStart);
+  const firstSnapshotId = ordinarySnapshot[0]?.id;
+  if (!firstSnapshotId || !existingItems) return false;
+  const overlapIndex = existingIds.indexOf(firstSnapshotId);
+  if (overlapIndex < 0 || existingIds.length - overlapIndex < ordinarySnapshot.length) return false;
+  return ordinarySnapshot.every((incoming, index) => {
+    if (existingIds[overlapIndex + index] !== incoming.id) return false;
+    const existing = existingItems[incoming.id];
+    return existing !== undefined && snapshotItemMonotonicallyCovers(incoming, existing, {});
+  });
+}
+
 function snapshotItemMonotonicallyCovers(
   existing: RuntimeChatItem,
   incoming: RuntimeChatItem,
