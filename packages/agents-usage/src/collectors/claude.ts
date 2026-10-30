@@ -60,10 +60,22 @@ function titleCase(value: string): string {
     .join(" ");
 }
 
-/** Render a subscription type like "claude_pro" as "Claude Pro Subscription". */
-export function formatClaudePlan(value: string | undefined): string | undefined {
+/**
+ * Render a subscription type like "claude_pro" as "Claude Pro Subscription".
+ * Max plans use Claude's plan names: Max 20x was renamed "Ultra" and Max 5x is
+ * now just "Max". The creds file still reports both as `subscriptionType:
+ * "max"`; only `rateLimitTier` (e.g. "default_claude_max_20x") tells them apart.
+ */
+export function formatClaudePlan(
+  value: string | undefined,
+  rateLimitTier?: string,
+): string | undefined {
   const trimmed = value?.trim();
   if (!trimmed) return undefined;
+  if (/^ultra( subscription)?$/i.test(trimmed)) return "Ultra";
+  if (/^max( subscription)?$/i.test(trimmed)) {
+    return /_20x$/i.test(rateLimitTier?.trim() ?? "") ? "Ultra" : "Max";
+  }
   return /subscription$/i.test(trimmed) ? titleCase(trimmed) : `${titleCase(trimmed)} Subscription`;
 }
 
@@ -272,7 +284,11 @@ function parseClaudeUsageResponse(
     return claudeInvalidJsonSnapshot(now);
   }
 
-  const plan = formatClaudePlan(token.subscriptionType);
+  const rateLimitTier = token.raw?.["rateLimitTier"];
+  const plan = formatClaudePlan(
+    token.subscriptionType,
+    typeof rateLimitTier === "string" ? rateLimitTier : undefined,
+  );
   return parseClaudeUsage(parsed, now, plan ? { plan } : {});
 }
 
