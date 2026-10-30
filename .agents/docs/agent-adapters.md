@@ -39,7 +39,15 @@ rule is about control flow and data shape.
    front of `inlineInstructions`, except on a prompt whose leading `/token`
    exactly matches a non-skill command the session advertised in
    `slashCommands` — the provider dispatches that command itself, so the runtime
-   withholds the context rather than corrupting the command's arguments.
+   withholds the context rather than corrupting the command's arguments. A
+   handle that implements `steerContext(text)` delivers hidden client guidance
+   (the crew lead's delegation reminder) into the turn in flight: it never
+   interrupts or starts a turn, never shows the text as a user message, live
+   or on reload, resume, import or replay, and rejects when no turn is running
+   or the provider refuses, leaving the guidance for the next prompt. The
+   launch input `mayReceiveContextSteers` marks the sessions the runtime may
+   steer, so a provider whose delivery costs something on every turn installs
+   it only there.
 2. **Behavior profile.** Lifecycle differences the transport must honor go in a
    named options object — for ACP, `AcpSessionBehavior`
    (`suppressOutputAfterInterrupt`, `suppressStderrLogging`). Each field is

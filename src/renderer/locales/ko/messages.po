@@ -1093,6 +1093,10 @@ msgstr "리뷰 하나에는 줄 댓글을 최대 100개까지 포함할 수 있�
 msgid "A review or comment body is required."
 msgstr "리뷰 또는 댓글 본문이 필요합니다."
 
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "A scout maps the code, a builder implements and verifies, and a reviewer checks the diff; the lead plans and decides."
+msgstr "스카우트가 코드를 파악하고, 빌더가 구현과 검증을 하며, 리뷰어가 diff를 확인합니다. 주 모델은 계획하고 결정합니다."
+
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "A server could not be started and was skipped."
 msgstr "서버를 시작할 수 없어 건너뛰었습니다."
@@ -1110,8 +1114,12 @@ msgid "a supported coding agent"
 msgstr "지원되는 코딩 에이전트"
 
 #: src/renderer/components/crew/crewTemplates.ts
-msgid "A tester writes failing tests; a builder makes them pass."
-msgstr "테스터가 실패하는 테스트를 작성하고 빌더가 통과시킵니다."
+msgid "A tester writes and runs failing tests, and a builder makes them pass; the lead sets the cases."
+msgstr "테스터가 실패하는 테스트를 작성해 실행하고, 빌더가 통과시킵니다. 케이스는 주 모델이 정합니다."
+
+#: src/renderer/components/crew/crewTemplates.ts
+#~ msgid "A tester writes failing tests; a builder makes them pass."
+#~ msgstr "테스터가 실패하는 테스트를 작성하고 빌더가 통과시킵니다."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "A voice conversation is already active."
@@ -1941,6 +1949,10 @@ msgstr "에이전트가 이 PR을 수정하고 있습니다."
 #: src/renderer/i18n/sharedMessages.ts
 msgid "An expected worktree owner requires a branch"
 msgstr "예상 작업 트리 소유자에는 브랜치가 필요합니다"
+
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "An investigator finds the root cause, and a fixer lands the fix with a regression test."
+msgstr "조사 담당이 근본 원인을 찾고, 수정 담당이 회귀 테스트와 함께 수정을 반영합니다."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 #~ msgid "An MCP server with the name {serverName} already exists."
@@ -6566,6 +6578,10 @@ msgstr "도크"
 msgid "Docs"
 msgstr "문서"
 
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Does the broad searching: finds the files, callers, tests and conventions a task touches, and reports paths and facts, not a review."
+msgstr "넓은 범위의 검색을 맡습니다. 작업과 관련된 파일, 호출자, 테스트, 규칙을 찾아 리뷰가 아닌 경로와 사실을 보고합니다."
+
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteThreadPopover.tsx
 msgid "Don't ask again"
@@ -7488,12 +7504,16 @@ msgid "Explore and plan"
 msgstr "탐색 및 계획"
 
 #: src/renderer/components/crew/crewTemplates.ts
-msgid "Explore, build and review a feature."
-msgstr "기능을 탐색하고 구현하고 리뷰합니다."
+#~ msgid "Explore, build and review a feature."
+#~ msgstr "기능을 탐색하고 구현하고 리뷰합니다."
 
 #: src/renderer/components/crew/crewRoleTemplates.ts
 #~ msgid "Explores code and docs"
 #~ msgstr "코드와 문서 탐색"
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Explores the codebase, implements the lead's task end to end, runs the narrowest checks, and reports what changed with evidence."
+msgstr "코드베이스를 탐색하고 주 모델의 작업을 끝까지 구현하며, 필요한 최소한의 검사를 실행하고 변경 사항을 근거와 함께 보고합니다."
 
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Exponential backoff"
@@ -7861,16 +7881,16 @@ msgid "Find in terminal"
 msgstr "터미널에서 찾기"
 
 #: src/renderer/components/crew/crewTemplates.ts
-msgid "Find the root cause first, then fix it with a regression test."
-msgstr "먼저 근본 원인을 찾고 회귀 테스트와 함께 수정합니다."
+#~ msgid "Find the root cause first, then fix it with a regression test."
+#~ msgstr "먼저 근본 원인을 찾고 회귀 테스트와 함께 수정합니다."
 
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Finding status"
 msgstr "발견 항목 상태"
 
 #: src/renderer/components/crew/crewRoleTemplates.ts
-msgid "Finds the files, callers and tests a task touches, and reports their paths with a short summary."
-msgstr "작업과 관련된 파일, 호출자, 테스트를 찾아 경로와 짧은 요약을 보고합니다."
+#~ msgid "Finds the files, callers and tests a task touches, and reports their paths with a short summary."
+#~ msgstr "작업과 관련된 파일, 호출자, 테스트를 찾아 경로와 짧은 요약을 보고합니다."
 
 #: src/renderer/views/PullRequestsOverlay/guide/PrGuidePanel.tsx
 msgid "Finish review"
@@ -8942,12 +8962,20 @@ msgstr "이미지"
 #~ msgstr "변경 사항을 구현하고 테스트 실행"
 
 #: src/renderer/components/crew/crewRoleTemplates.ts
-msgid "Implements the fix with a regression test and confirms the reproduction now passes."
-msgstr "회귀 테스트와 함께 수정을 구현하고 재현 절차가 통과하는지 확인합니다."
+msgid "Implements the fix the lead settles, adds a regression test, and confirms the reproduction now passes with the narrowest check."
+msgstr "주 모델이 정한 수정을 구현하고 회귀 테스트를 추가한 뒤, 최소한의 검사로 재현이 이제 통과하는지 확인합니다."
 
 #: src/renderer/components/crew/crewRoleTemplates.ts
-msgid "Implements the lead's task end to end: edits files, runs the build and tests, and reports what changed."
-msgstr "주 모델의 작업을 끝까지 구현합니다. 파일을 편집하고 빌드와 테스트를 실행하며 변경 사항을 보고합니다."
+#~ msgid "Implements the fix with a regression test and confirms the reproduction now passes."
+#~ msgstr "회귀 테스트와 함께 수정을 구현하고 재현 절차가 통과하는지 확인합니다."
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Implements the lead's task end to end and verifies it with the narrowest build and tests; reports changed files, check results and deviations."
+msgstr "주 모델의 작업을 끝까지 구현하고 최소한의 빌드와 테스트로 검증합니다. 변경된 파일, 검사 결과, 작업과 달라진 점을 보고합니다."
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+#~ msgid "Implements the lead's task end to end: edits files, runs the build and tests, and reports what changed."
+#~ msgstr "주 모델의 작업을 끝까지 구현합니다. 파일을 편집하고 빌드와 테스트를 실행하며 변경 사항을 보고합니다."
 
 #. Settings section: import existing CLI sessions as threads
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
@@ -9858,8 +9886,12 @@ msgid "Lead + 1 helper"
 msgstr "리드 + 도우미 1명"
 
 #: src/renderer/components/crew/crewTemplates.ts
-msgid "Lead + Builder"
-msgstr "주 모델 + 빌더"
+#~ msgid "Lead + Builder"
+#~ msgstr "주 모델 + 빌더"
+
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "Lead + Sidekick"
+msgstr "주 모델 + 보조 모델"
 
 #: src/renderer/components/providers/devin/modelPricing.ts
 #~ msgid "Lead and Sidekick prices are per 1M tokens for each model. Ranges cover model variants."
@@ -14665,6 +14697,10 @@ msgstr "각 후보의 변경 사항을 읽는 중…"
 msgid "Reading each candidate's chat response…"
 msgstr "각 후보의 채팅 응답을 읽는 중…"
 
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Reads the full diff and the code it touches, runs targeted checks, and reports bugs, regressions and missing tests by file and line."
+msgstr "전체 diff와 관련 코드를 읽고 필요한 검사를 실행해 버그, 회귀, 누락된 테스트를 파일과 줄 단위로 보고합니다."
+
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Ready"
@@ -15380,8 +15416,12 @@ msgid "Repository URL"
 msgstr "저장소 URL"
 
 #: src/renderer/components/crew/crewRoleTemplates.ts
-msgid "Reproduces the bug and traces it to the root cause, then reports the evidence and the failing code path."
-msgstr "버그를 재현하고 근본 원인까지 추적한 뒤 증거와 실패하는 코드 경로를 보고합니다."
+#~ msgid "Reproduces the bug and traces it to the root cause, then reports the evidence and the failing code path."
+#~ msgstr "버그를 재현하고 근본 원인까지 추적한 뒤 증거와 실패하는 코드 경로를 보고합니다."
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Reproduces the bug and traces it to the root cause, then reports the evidence, the failing code path and a suggested fix."
+msgstr "버그를 재현하고 근본 원인까지 추적한 뒤, 근거와 실패하는 코드 경로, 수정 제안을 보고합니다."
 
 #: src/renderer/views/PullRequestsOverlay/summary/ReviewerPicker.tsx
 msgid "Request a reviewer"
@@ -15925,8 +15965,8 @@ msgstr "리뷰 및 댓글"
 #~ msgstr "차이를 검토하고 버그 찾기"
 
 #: src/renderer/components/crew/crewRoleTemplates.ts
-msgid "Reviews the finished diff for bugs, regressions and missing tests, and reports findings by file and line."
-msgstr "완성된 diff에서 버그, 회귀, 누락된 테스트를 찾아 파일과 줄 단위로 보고합니다."
+#~ msgid "Reviews the finished diff for bugs, regressions and missing tests, and reports findings by file and line."
+#~ msgstr "완성된 diff에서 버그, 회귀, 누락된 테스트를 찾아 파일과 줄 단위로 보고합니다."
 
 #: src/renderer/components/providers/devin/liveSessionControls.tsx
 #: src/renderer/components/providers/devin/sessionActionDialog.tsx
@@ -16473,8 +16513,12 @@ msgid "Scout"
 msgstr "스카우트"
 
 #: src/renderer/components/crew/crewTemplates.ts
-msgid "Scouts map an unfamiliar codebase before anything changes."
-msgstr "스카우트가 변경 전에 낯선 코드베이스를 파악합니다."
+#~ msgid "Scouts map an unfamiliar codebase before anything changes."
+#~ msgstr "스카우트가 변경 전에 낯선 코드베이스를 파악합니다."
+
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "Scouts map an unfamiliar codebase so the lead can plan without reading it all."
+msgstr "스카우트가 낯선 코드베이스를 파악해 주 모델이 전부 읽지 않고도 계획할 수 있게 합니다."
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/components/thread/ThreadAgentVisionDock.tsx
@@ -17403,6 +17447,7 @@ msgstr "사이드바 프로스트"
 msgid "Sidebar shortcuts"
 msgstr "사이드바 바로가기"
 
+#: src/renderer/components/crew/crewRoleTemplates.ts
 #: src/renderer/components/providers/devin/modelPricing.ts
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Sidekick"
@@ -18516,6 +18561,10 @@ msgstr "Tailscale URL"
 msgid "Take Screenshot"
 msgstr "스크린샷 찍기"
 
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Takes any hands-on task the lead hands off: exploring, editing and running checks, then reports back with evidence."
+msgstr "주 모델이 넘기는 실무 작업을 무엇이든 맡습니다. 탐색, 편집, 검사 실행을 하고 근거와 함께 보고합니다."
+
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 #~ msgid "Takes over the desktop while the agent clicks or types"
 #~ msgstr "에이전트가 클릭하거나 입력하는 동안 데스크톱을 제어합니다"
@@ -19021,8 +19070,16 @@ msgid "The launch was cancelled."
 msgstr "실행이 취소되었습니다."
 
 #: src/renderer/components/crew/crewTemplates.ts
-msgid "The lead plans and reviews; a cheaper builder does the hands-on work."
-msgstr "주 모델이 계획하고 리뷰하며, 더 저렴한 빌더가 실제 작업을 합니다."
+#~ msgid "The lead plans and reviews; a cheaper builder does the hands-on work."
+#~ msgstr "주 모델이 계획하고 리뷰하며, 더 저렴한 빌더가 실제 작업을 합니다."
+
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "The lead plans and reviews; a cheaper sidekick explores, builds and verifies."
+msgstr "주 모델이 계획하고 리뷰하며, 더 저렴한 보조 모델이 탐색, 구현, 검증을 합니다."
+
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "The lead splits the work; up to three builders implement and verify independent tasks at once."
+msgstr "주 모델이 작업을 나누고, 최대 3개의 빌더가 독립적인 작업을 동시에 구현하고 검증합니다."
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the Linux user"
@@ -20276,8 +20333,12 @@ msgid "Turn tracking on or off per provider. Disabled providers are skipped by t
 msgstr "공급자별로 추적을 켜거나 끕니다. 비활성화된 공급자는 자동 새로 고침으로 건너뜁니다."
 
 #: src/renderer/components/crew/crewTemplates.ts
-msgid "Two independent read-only reviews of a change."
-msgstr "변경에 대한 독립적인 읽기 전용 리뷰 2개."
+msgid "Two independent read-only reviews of a change, and a sidekick applies the fixes."
+msgstr "변경에 대한 독립적인 읽기 전용 리뷰 2개와, 수정을 적용하는 보조 모델."
+
+#: src/renderer/components/crew/crewTemplates.ts
+#~ msgid "Two independent read-only reviews of a change."
+#~ msgstr "변경에 대한 독립적인 읽기 전용 리뷰 2개."
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Type"
@@ -20939,8 +21000,8 @@ msgid "Up one level"
 msgstr "한 단계 위로"
 
 #: src/renderer/components/crew/crewTemplates.ts
-msgid "Up to three builders work on independent tasks at once."
-msgstr "최대 3명의 빌더가 독립적인 작업을 동시에 진행합니다."
+#~ msgid "Up to three builders work on independent tasks at once."
+#~ msgstr "최대 3명의 빌더가 독립적인 작업을 동시에 진행합니다."
 
 #: src/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay.tsx
 msgid "update"
@@ -22126,8 +22187,12 @@ msgid "Write notes for this project…"
 msgstr "이 프로젝트에 대한 메모를 작성하세요…"
 
 #: src/renderer/components/crew/crewRoleTemplates.ts
-msgid "Writes and runs tests for the change, reproduces reported bugs, and reports failures with the exact command."
-msgstr "변경 사항의 테스트를 작성·실행하고, 보고된 버그를 재현하며, 실패를 정확한 명령과 함께 보고합니다."
+#~ msgid "Writes and runs tests for the change, reproduces reported bugs, and reports failures with the exact command."
+#~ msgstr "변경 사항의 테스트를 작성·실행하고, 보고된 버그를 재현하며, 실패를 정확한 명령과 함께 보고합니다."
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Writes and runs the tests for the change, reproduces reported bugs, and reports each failure with the exact command and failing assertion."
+msgstr "변경에 대한 테스트를 작성해 실행하고, 보고된 버그를 재현하며, 실패마다 정확한 명령과 실패한 어서션을 보고합니다."
 
 #: src/renderer/views/PullRequestsOverlay/guide/PrReviewGuideTab.tsx
 msgid "Writing guide. You can leave this review and return when it is ready."

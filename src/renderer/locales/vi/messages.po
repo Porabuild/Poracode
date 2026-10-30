@@ -1093,6 +1093,10 @@ msgstr "Một đánh giá có thể chứa tối đa 100 bình luận theo dòng
 msgid "A review or comment body is required."
 msgstr "Cần có nội dung đánh giá hoặc bình luận."
 
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "A scout maps the code, a builder implements and verifies, and a reviewer checks the diff; the lead plans and decides."
+msgstr "Người trinh sát nắm bắt mã, người xây dựng triển khai và xác minh, người đánh giá kiểm tra diff; mô hình chính lập kế hoạch và quyết định."
+
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "A server could not be started and was skipped."
 msgstr "Không thể khởi động một máy chủ nên đã bỏ qua."
@@ -1110,8 +1114,12 @@ msgid "a supported coding agent"
 msgstr "một tác nhân mã hóa được hỗ trợ"
 
 #: src/renderer/components/crew/crewTemplates.ts
-msgid "A tester writes failing tests; a builder makes them pass."
-msgstr "Người kiểm thử viết bài kiểm thử lỗi; người xây dựng làm chúng vượt qua."
+msgid "A tester writes and runs failing tests, and a builder makes them pass; the lead sets the cases."
+msgstr "Người kiểm thử viết và chạy bài kiểm thử lỗi, người xây dựng làm chúng vượt qua; mô hình chính đặt các ca kiểm thử."
+
+#: src/renderer/components/crew/crewTemplates.ts
+#~ msgid "A tester writes failing tests; a builder makes them pass."
+#~ msgstr "Người kiểm thử viết bài kiểm thử lỗi; người xây dựng làm chúng vượt qua."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "A voice conversation is already active."
@@ -1941,6 +1949,10 @@ msgstr "Một tác nhân đang sửa PR này."
 #: src/renderer/i18n/sharedMessages.ts
 msgid "An expected worktree owner requires a branch"
 msgstr "Chủ sở hữu cây làm việc dự kiến yêu cầu một nhánh"
+
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "An investigator finds the root cause, and a fixer lands the fix with a regression test."
+msgstr "Người điều tra tìm nguyên nhân gốc, người sửa lỗi đưa vào bản sửa kèm bài kiểm thử hồi quy."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 #~ msgid "An MCP server with the name {serverName} already exists."
@@ -6566,6 +6578,10 @@ msgstr "Dock"
 msgid "Docs"
 msgstr "Tài liệu"
 
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Does the broad searching: finds the files, callers, tests and conventions a task touches, and reports paths and facts, not a review."
+msgstr "Lo phần tìm kiếm rộng: tìm tệp, nơi gọi, bài kiểm thử và quy ước mà tác vụ chạm tới, rồi báo đường dẫn và dữ kiện, không phải đánh giá."
+
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteThreadPopover.tsx
 msgid "Don't ask again"
@@ -7488,12 +7504,16 @@ msgid "Explore and plan"
 msgstr "Khám phá và lập kế hoạch"
 
 #: src/renderer/components/crew/crewTemplates.ts
-msgid "Explore, build and review a feature."
-msgstr "Khám phá, xây dựng và đánh giá một tính năng."
+#~ msgid "Explore, build and review a feature."
+#~ msgstr "Khám phá, xây dựng và đánh giá một tính năng."
 
 #: src/renderer/components/crew/crewRoleTemplates.ts
 #~ msgid "Explores code and docs"
 #~ msgstr "Khám phá mã và tài liệu"
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Explores the codebase, implements the lead's task end to end, runs the narrowest checks, and reports what changed with evidence."
+msgstr "Khám phá mã nguồn, làm trọn tác vụ của mô hình chính, chạy các kiểm tra hẹp nhất cần thiết, rồi báo những gì đã đổi kèm bằng chứng."
 
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Exponential backoff"
@@ -7861,16 +7881,16 @@ msgid "Find in terminal"
 msgstr "Tìm trong terminal"
 
 #: src/renderer/components/crew/crewTemplates.ts
-msgid "Find the root cause first, then fix it with a regression test."
-msgstr "Tìm nguyên nhân gốc trước, rồi sửa kèm kiểm thử hồi quy."
+#~ msgid "Find the root cause first, then fix it with a regression test."
+#~ msgstr "Tìm nguyên nhân gốc trước, rồi sửa kèm kiểm thử hồi quy."
 
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Finding status"
 msgstr "Trạng thái kết quả"
 
 #: src/renderer/components/crew/crewRoleTemplates.ts
-msgid "Finds the files, callers and tests a task touches, and reports their paths with a short summary."
-msgstr "Tìm tệp, nơi gọi và bài kiểm thử của tác vụ, rồi báo đường dẫn kèm tóm tắt ngắn."
+#~ msgid "Finds the files, callers and tests a task touches, and reports their paths with a short summary."
+#~ msgstr "Tìm tệp, nơi gọi và bài kiểm thử của tác vụ, rồi báo đường dẫn kèm tóm tắt ngắn."
 
 #: src/renderer/views/PullRequestsOverlay/guide/PrGuidePanel.tsx
 msgid "Finish review"
@@ -8942,12 +8962,20 @@ msgstr "Ảnh"
 #~ msgstr "Triển khai thay đổi và chạy kiểm thử"
 
 #: src/renderer/components/crew/crewRoleTemplates.ts
-msgid "Implements the fix with a regression test and confirms the reproduction now passes."
-msgstr "Sửa lỗi kèm kiểm thử hồi quy và xác nhận bước tái hiện giờ đã vượt qua."
+msgid "Implements the fix the lead settles, adds a regression test, and confirms the reproduction now passes with the narrowest check."
+msgstr "Triển khai bản sửa mà mô hình chính đã chốt, thêm bài kiểm thử hồi quy và xác nhận bằng kiểm tra hẹp nhất rằng lỗi tái hiện đã qua."
 
 #: src/renderer/components/crew/crewRoleTemplates.ts
-msgid "Implements the lead's task end to end: edits files, runs the build and tests, and reports what changed."
-msgstr "Làm trọn tác vụ của mô hình chính: sửa tệp, chạy build và kiểm thử, rồi báo những gì đã đổi."
+#~ msgid "Implements the fix with a regression test and confirms the reproduction now passes."
+#~ msgstr "Sửa lỗi kèm kiểm thử hồi quy và xác nhận bước tái hiện giờ đã vượt qua."
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Implements the lead's task end to end and verifies it with the narrowest build and tests; reports changed files, check results and deviations."
+msgstr "Làm trọn tác vụ của mô hình chính và xác minh bằng bản dựng và kiểm thử hẹp nhất; báo tệp đã đổi, kết quả kiểm tra và điểm sai lệch."
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+#~ msgid "Implements the lead's task end to end: edits files, runs the build and tests, and reports what changed."
+#~ msgstr "Làm trọn tác vụ của mô hình chính: sửa tệp, chạy build và kiểm thử, rồi báo những gì đã đổi."
 
 #. Settings section: import existing CLI sessions as threads
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
@@ -9858,8 +9886,12 @@ msgid "Lead + 1 helper"
 msgstr "Trưởng nhóm + 1 trợ lý"
 
 #: src/renderer/components/crew/crewTemplates.ts
-msgid "Lead + Builder"
-msgstr "Mô hình chính + Người xây dựng"
+#~ msgid "Lead + Builder"
+#~ msgstr "Mô hình chính + Người xây dựng"
+
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "Lead + Sidekick"
+msgstr "Mô hình chính + Mô hình phụ"
 
 #: src/renderer/components/providers/devin/modelPricing.ts
 #~ msgid "Lead and Sidekick prices are per 1M tokens for each model. Ranges cover model variants."
@@ -14665,6 +14697,10 @@ msgstr "Đang đọc các thay đổi của từng ứng viên…"
 msgid "Reading each candidate's chat response…"
 msgstr "Đang đọc câu trả lời trò chuyện của từng ứng viên…"
 
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Reads the full diff and the code it touches, runs targeted checks, and reports bugs, regressions and missing tests by file and line."
+msgstr "Đọc toàn bộ diff và mã liên quan, chạy kiểm tra có mục tiêu, rồi báo lỗi, hồi quy và kiểm thử còn thiếu theo tệp và dòng."
+
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Ready"
@@ -15380,8 +15416,12 @@ msgid "Repository URL"
 msgstr "URL kho lưu trữ"
 
 #: src/renderer/components/crew/crewRoleTemplates.ts
-msgid "Reproduces the bug and traces it to the root cause, then reports the evidence and the failing code path."
-msgstr "Tái hiện lỗi, truy đến nguyên nhân gốc, rồi báo bằng chứng và đường dẫn mã bị lỗi."
+#~ msgid "Reproduces the bug and traces it to the root cause, then reports the evidence and the failing code path."
+#~ msgstr "Tái hiện lỗi, truy đến nguyên nhân gốc, rồi báo bằng chứng và đường dẫn mã bị lỗi."
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Reproduces the bug and traces it to the root cause, then reports the evidence, the failing code path and a suggested fix."
+msgstr "Tái hiện lỗi và lần tới nguyên nhân gốc, rồi báo bằng chứng, đường mã gây lỗi và bản sửa đề xuất."
 
 #: src/renderer/views/PullRequestsOverlay/summary/ReviewerPicker.tsx
 msgid "Request a reviewer"
@@ -15925,8 +15965,8 @@ msgstr "Đánh giá và bình luận"
 #~ msgstr "Đánh giá diff và tìm lỗi"
 
 #: src/renderer/components/crew/crewRoleTemplates.ts
-msgid "Reviews the finished diff for bugs, regressions and missing tests, and reports findings by file and line."
-msgstr "Xem xét diff hoàn chỉnh để tìm lỗi, hồi quy và kiểm thử còn thiếu, báo theo tệp và dòng."
+#~ msgid "Reviews the finished diff for bugs, regressions and missing tests, and reports findings by file and line."
+#~ msgstr "Xem xét diff hoàn chỉnh để tìm lỗi, hồi quy và kiểm thử còn thiếu, báo theo tệp và dòng."
 
 #: src/renderer/components/providers/devin/liveSessionControls.tsx
 #: src/renderer/components/providers/devin/sessionActionDialog.tsx
@@ -16473,8 +16513,12 @@ msgid "Scout"
 msgstr "Người trinh sát"
 
 #: src/renderer/components/crew/crewTemplates.ts
-msgid "Scouts map an unfamiliar codebase before anything changes."
-msgstr "Người trinh sát nắm bắt mã nguồn lạ trước khi thay đổi."
+#~ msgid "Scouts map an unfamiliar codebase before anything changes."
+#~ msgstr "Người trinh sát nắm bắt mã nguồn lạ trước khi thay đổi."
+
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "Scouts map an unfamiliar codebase so the lead can plan without reading it all."
+msgstr "Người trinh sát nắm bắt mã nguồn lạ để mô hình chính lập kế hoạch mà không phải đọc hết."
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/components/thread/ThreadAgentVisionDock.tsx
@@ -17403,6 +17447,7 @@ msgstr "Độ mờ thanh bên"
 msgid "Sidebar shortcuts"
 msgstr "Lối tắt thanh bên"
 
+#: src/renderer/components/crew/crewRoleTemplates.ts
 #: src/renderer/components/providers/devin/modelPricing.ts
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Sidekick"
@@ -18516,6 +18561,10 @@ msgstr "URL Tailscale"
 msgid "Take Screenshot"
 msgstr "Chụp ảnh màn hình"
 
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Takes any hands-on task the lead hands off: exploring, editing and running checks, then reports back with evidence."
+msgstr "Nhận mọi việc thực hành mô hình chính giao: khám phá, chỉnh sửa và chạy kiểm tra, rồi báo lại kèm bằng chứng."
+
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 #~ msgid "Takes over the desktop while the agent clicks or types"
 #~ msgstr "Chiếm quyền điều khiển máy tính khi agent nhấp hoặc gõ"
@@ -19021,8 +19070,16 @@ msgid "The launch was cancelled."
 msgstr "Quá trình khởi chạy đã bị hủy."
 
 #: src/renderer/components/crew/crewTemplates.ts
-msgid "The lead plans and reviews; a cheaper builder does the hands-on work."
-msgstr "Mô hình chính lập kế hoạch và đánh giá; người xây dựng rẻ hơn làm phần việc thực tế."
+#~ msgid "The lead plans and reviews; a cheaper builder does the hands-on work."
+#~ msgstr "Mô hình chính lập kế hoạch và đánh giá; người xây dựng rẻ hơn làm phần việc thực tế."
+
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "The lead plans and reviews; a cheaper sidekick explores, builds and verifies."
+msgstr "Mô hình chính lập kế hoạch và đánh giá; mô hình phụ rẻ hơn khám phá, xây dựng và xác minh."
+
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "The lead splits the work; up to three builders implement and verify independent tasks at once."
+msgstr "Mô hình chính chia việc; tối đa ba người xây dựng cùng lúc triển khai và xác minh các tác vụ độc lập."
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the Linux user"
@@ -20276,8 +20333,12 @@ msgid "Turn tracking on or off per provider. Disabled providers are skipped by t
 msgstr "Bật hoặc tắt theo dõi cho mỗi nhà cung cấp. Tính năng tự động làm mới sẽ bỏ qua các nhà cung cấp bị vô hiệu hóa."
 
 #: src/renderer/components/crew/crewTemplates.ts
-msgid "Two independent read-only reviews of a change."
-msgstr "Hai lượt đánh giá độc lập, chỉ đọc, cho một thay đổi."
+msgid "Two independent read-only reviews of a change, and a sidekick applies the fixes."
+msgstr "Hai lượt đánh giá độc lập, chỉ đọc, cho một thay đổi, và một mô hình phụ áp dụng các bản sửa."
+
+#: src/renderer/components/crew/crewTemplates.ts
+#~ msgid "Two independent read-only reviews of a change."
+#~ msgstr "Hai lượt đánh giá độc lập, chỉ đọc, cho một thay đổi."
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Type"
@@ -20939,8 +21000,8 @@ msgid "Up one level"
 msgstr "Lên một cấp"
 
 #: src/renderer/components/crew/crewTemplates.ts
-msgid "Up to three builders work on independent tasks at once."
-msgstr "Tối đa ba người xây dựng làm đồng thời các tác vụ độc lập."
+#~ msgid "Up to three builders work on independent tasks at once."
+#~ msgstr "Tối đa ba người xây dựng làm đồng thời các tác vụ độc lập."
 
 #: src/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay.tsx
 msgid "update"
@@ -22126,8 +22187,12 @@ msgid "Write notes for this project…"
 msgstr "Viết ghi chú cho dự án này…"
 
 #: src/renderer/components/crew/crewRoleTemplates.ts
-msgid "Writes and runs tests for the change, reproduces reported bugs, and reports failures with the exact command."
-msgstr "Viết và chạy kiểm thử cho thay đổi, tái hiện lỗi được báo và báo lỗi kèm lệnh chính xác."
+#~ msgid "Writes and runs tests for the change, reproduces reported bugs, and reports failures with the exact command."
+#~ msgstr "Viết và chạy kiểm thử cho thay đổi, tái hiện lỗi được báo và báo lỗi kèm lệnh chính xác."
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Writes and runs the tests for the change, reproduces reported bugs, and reports each failure with the exact command and failing assertion."
+msgstr "Viết và chạy kiểm thử cho thay đổi, tái hiện lỗi được báo, rồi báo từng lần thất bại kèm lệnh chính xác và assertion không đạt."
 
 #: src/renderer/views/PullRequestsOverlay/guide/PrReviewGuideTab.tsx
 msgid "Writing guide. You can leave this review and return when it is ready."

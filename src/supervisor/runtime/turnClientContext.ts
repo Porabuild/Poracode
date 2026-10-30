@@ -8,10 +8,16 @@ import {
   type ThreadPresentationMode,
   type TurnClientContext,
 } from "@/shared/contracts";
-import { canLeadCrew, crewFingerprint, threadCrewBinding } from "@/shared/crew";
+import {
+  canLeadCrew,
+  crewFingerprint,
+  threadCrewBinding,
+  type ThreadCrewBinding,
+} from "@/shared/crew";
 import {
   CREW_REMOVED_BRIEF_TEXT,
   crewChangedBriefText,
+  crewLeadEditNudgeText,
   crewSetBriefText,
 } from "@/supervisor/crossagentMcp/crewBrief";
 import type { StartTurnOptions, StructuredSessionHandle } from "../agents/base";
@@ -117,6 +123,8 @@ export interface TurnContextTarget {
   presentationMode?: ThreadPresentationMode | undefined;
   crewBriefDelivered?: string | undefined;
   onCrewBriefDelivered?: ((fingerprint: string) => void) | undefined;
+  /** Set when the lead edited files itself; consumed by the next submitted prompt. */
+  crewLeadEditedFiles?: boolean | undefined;
   crossagentsMcpAvailable?: boolean | undefined;
   /** When supplied, reflects the resolved MCP set for this exact turn. */
   crossagentsMcpAttached?: boolean | undefined;
@@ -127,29 +135,39 @@ export interface TurnContextTarget {
   readonly slashCommands?: readonly AgentSlashCommand[] | undefined;
 }
 
+/** What decides a turn's crew text: its config and, when known, its resolved MCP set. */
+export interface TurnCrewScope {
+  readonly config?: ThreadConfig | undefined;
+  /** When supplied, reflects the resolved MCP set for this exact turn. */
+  readonly crossagentsMcpAttached?: boolean | undefined;
+}
+
 /**
  * Provider-facing text options for one structured turn. A handle that
  * declares `placesTurnContext` receives the context separately. Every other
  * handle gets it ahead of the inline instructions it already appends, except
  * when the prompt invokes an advertised provider command: that turn keeps
  * only its own inline instructions so the command reaches the provider intact.
+ * A text that `steersRunningTurn` leaves the lead's edit reminder ("Last turn
+ * you edited files…") for the next submitted prompt.
  */
 export function structuredTurnTextOptions(
   target: TurnContextTarget | undefined,
-  turn: {
+  turn: TurnCrewScope & {
     readonly prompt: string;
-    readonly config?: ThreadConfig | undefined;
-    readonly crossagentsMcpAttached?: boolean | undefined;
     readonly inlineInstructions?: string;
     readonly turnContext?: string;
   },
+  delivery: { readonly steersRunningTurn?: boolean } = {},
 ): Pick<StartTurnOptions, "inlineInstructions" | "turnContext" | "onPromptSubmitted"> {
   const invokesCommand = invokesAdvertisedCommand(turn.prompt, target?.slashCommands);
   const inheritedInstructions = invokesCommand ? undefined : target?.pendingInitialInstructions;
   const crewBrief = invokesCommand ? undefined : crewBriefForTurn(target, turn);
+  const editNudge =
+    invokesCommand || delivery.steersRunningTurn ? undefined : crewEditNudgeForTurn(target, turn);
   const turnInstructions = joinInstructions(inheritedInstructions, turn.inlineInstructions);
   const onPromptSubmitted =
-    target && (inheritedInstructions || crewBrief)
+    target && (inheritedInstructions || crewBrief || editNudge)
       ? () => {
           if (
             inheritedInstructions &&
@@ -162,10 +180,11 @@ export function structuredTurnTextOptions(
             target.crewBriefDelivered = crewBrief.fingerprint;
             target.onCrewBriefDelivered?.(crewBrief.fingerprint);
           }
+          if (editNudge) target.crewLeadEditedFiles = undefined;
         }
       : undefined;
   const admission = onPromptSubmitted ? { onPromptSubmitted } : {};
-  const turnContextWithCrew = joinInstructions(turn.turnContext, crewBrief?.text);
+  const turnContextWithCrew = joinInstructions(turn.turnContext, crewBrief?.text, editNudge?.text);
   if (target?.structuredSession?.placesTurnContext) {
     return {
       ...admission,
@@ -180,10 +199,7 @@ export function structuredTurnTextOptions(
 
 function crewBriefForTurn(
   target: TurnContextTarget | undefined,
-  turn: {
-    readonly config?: ThreadConfig | undefined;
-    readonly crossagentsMcpAttached?: boolean | undefined;
-  },
+  turn: TurnCrewScope,
 ): { fingerprint: string; text: string } | undefined {
   if (!target) return undefined;
   const config = turn.config ?? target.config;
@@ -204,6 +220,37 @@ function crewBriefForTurn(
         ? crewSetBriefText(binding)
         : crewChangedBriefText(binding),
   };
+}
+
+/**
+ * The reminder for the next submitted prompt after the lead edited files.
+ * The edit is consumed even when the crew is no longer reachable, so a later
+ * crew never inherits a stale reminder; the text goes out only while it is.
+ */
+function crewEditNudgeForTurn(
+  target: TurnContextTarget | undefined,
+  turn: TurnCrewScope,
+): { text?: string } | undefined {
+  if (!target?.crewLeadEditedFiles) return undefined;
+  const crew = reachableCrewBinding(target, turn);
+  const text = crew ? crewLeadEditNudgeText(crew) : undefined;
+  return text ? { text } : {};
+}
+
+/**
+ * The thread's crew when the lead can reach it through Crossagents: for the
+ * given turn, or without one for the turn the live session is running.
+ */
+export function reachableCrewBinding(
+  target: TurnContextTarget,
+  turn: TurnCrewScope = {},
+): ThreadCrewBinding | undefined {
+  const config = turn.config ?? target.config;
+  const binding = threadCrewBinding(config);
+  if (!binding) return undefined;
+  return isCrossagentsAttachedForTurn(target, config, binding, turn.crossagentsMcpAttached)
+    ? binding
+    : undefined;
 }
 
 function isCrossagentsAttachedForTurn(

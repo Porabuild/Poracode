@@ -107,7 +107,11 @@ export const promptFixture = {
     capabilities: {
       presentationMode: "gui",
       presentationModes: ["gui"],
-      models: [{ id: "m1", label: "M1" }],
+      // A second, cheaper model gives a new crew's helper somewhere to go.
+      models: [
+        { id: "m1", label: "M1" },
+        { id: "m1-mini", label: "M1 Mini" },
+      ],
       modes: ["agent"],
       defaultApprovalPolicy: "ask",
       defaultSandboxMode: "read",

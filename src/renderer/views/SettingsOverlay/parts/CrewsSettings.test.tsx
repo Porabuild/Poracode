@@ -1,6 +1,7 @@
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AgentStatus } from "@/shared/contracts";
+import type { CrewHelperOptions } from "@/renderer/components/crew/crewHelperOptions";
 import { renderWithI18n } from "@/renderer/testUtils/i18n";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
@@ -46,11 +47,11 @@ const helperOptions = vi.hoisted(() => {
       model,
       effort: "low",
     }),
-    defaultSelectionFor: () => ({
+    defaultSelectionFor: vi.fn<CrewHelperOptions["defaultSelectionFor"]>(() => ({
       agentKind: "claude",
       model: "claude-model",
       effort: "low",
-    }),
+    })),
   };
 });
 
@@ -95,6 +96,16 @@ describe("CrewsSettings", () => {
       crossagentHiddenModels: {},
     });
     useAgentStatusesStore.setState({ agentStatuses: [leadStatus], wslAgentStatuses: [] });
+    helperOptions.defaultSelectionFor.mockReset();
+  });
+
+  it("disables New crew when the new crew's lead has no helper model", () => {
+    helperOptions.defaultSelectionFor.mockReturnValue(undefined);
+    renderWithI18n(<CrewsSettings />);
+    expect(document.querySelector('button[aria-label="New crew"]')).toBeDisabled();
+    expect(helperOptions.defaultSelectionFor).toHaveBeenCalledWith(
+      expect.objectContaining({ agentKind: "codex", model: "codex-model" }),
+    );
   });
 
   it("creates valid template crews, duplicates with a new id, and deletes after confirmation", async () => {
@@ -106,7 +117,10 @@ describe("CrewsSettings", () => {
     expect(original).toMatchObject({
       name: "Review board",
       lead: { agentKind: "codex", model: "codex-model" },
-      roles: [{ id: "reviewer", label: "Reviewer", parallel: 2 }],
+      roles: [
+        { id: "reviewer", label: "Reviewer", noEdits: true, parallel: 2 },
+        { id: "sidekick", label: "Sidekick" },
+      ],
     });
     fireEvent.change(screen.getByRole("textbox", { name: "Crew name" }), {
       target: { value: "Board v2" },
@@ -133,6 +147,26 @@ describe("CrewsSettings", () => {
         false,
       ),
     );
+  });
+
+  it("creates Lead + Sidekick with one Sidekick on the default helper model", async () => {
+    renderWithI18n(<CrewsSettings />);
+    fireEvent.click(document.querySelector('button[aria-label="New crew"]')!);
+    fireEvent.click(await screen.findByRole("option", { name: /^Lead \+ Sidekick/u }));
+    await waitFor(() => expect(useSharedSettings.getState().crews).toHaveLength(1));
+    expect(useSharedSettings.getState().crews[0]).toMatchObject({
+      name: "Lead + Sidekick",
+      policy: "crew-only",
+      roles: [
+        {
+          id: "sidekick",
+          label: "Sidekick",
+          brief:
+            "Explores the codebase, implements the lead's task end to end, runs the narrowest checks, and reports what changed with evidence.",
+          selection: { agentKind: "claude", model: "claude-model" },
+        },
+      ],
+    });
   });
 
   it("creates Ship crew with a Scout, Builder and read-only Reviewer", async () => {

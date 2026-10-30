@@ -47,6 +47,17 @@ untouched, and cards settle on turn end: immediately on cancel/failure, or
 after `turnEndSettleMs` of transcript quiet once the turn completed — late
 reports genuinely land after `end_turn`, so the wait is bounded, not zero.
 
+## Claude
+
+`steerContext` (mid-turn crew reminders) rides on a programmatic `PostToolBatch`
+hook, registered only on sessions launched with `mayReceiveContextSteers`: each
+registered hook costs a control round-trip per tool batch. The text goes out as
+the hook's `additionalContext` at the main agent's next batch (sub-agent batches
+carry `agent_id` and are skipped). The steer resolves with the main-thread reply
+from a later response, and rejects at turn end, Stop, restart or close, because
+Claude Code drops hook context when a tool result ends the turn. The attachment
+stays off the SDK stream and out of the session import.
+
 ## Devin
 
 - Exec input streams after the call opens, and commands run in Poracode-hosted

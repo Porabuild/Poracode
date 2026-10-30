@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { turnClientContextSchema, type AgentSlashCommand } from "@/shared/contracts";
 import { crewFingerprint, threadCrewBinding } from "@/shared/crew";
-import { crewPlaybookText } from "@/supervisor/crossagentMcp/crewBrief";
+import { crewLeadEditNudgeText, crewPlaybookText } from "@/supervisor/crossagentMcp/crewBrief";
 import {
   formatTurnClientContext,
   invokesAdvertisedCommand,
@@ -392,5 +392,94 @@ describe("invokesAdvertisedCommand", () => {
     expect(invokesAdvertisedCommand("/agent/build now", commands)).toBe(true);
     expect(invokesAdvertisedCommand("/agent", commands)).toBe(false);
     expect(invokesAdvertisedCommand("/agent/build", undefined)).toBe(false);
+  });
+});
+
+describe("structured turn crew edit nudge", () => {
+  const crew = {
+    version: 1 as const,
+    policy: "crew-only" as const,
+    roles: [
+      { id: "sidekick", label: "Sidekick", selection: { agentKind: "example", model: "small" } },
+    ],
+  };
+  const nudge = crewLeadEditNudgeText(crew)!;
+  function leadTarget(overrides: Partial<TurnContextTarget> = {}): TurnContextTarget {
+    return {
+      structuredSession: { placesTurnContext: true },
+      config: { model: "m", crew },
+      launchConfig: { model: "m", crossagentMcp: true },
+      adapter: { capabilities: { presentationMode: "gui", mcpScope: { gui: "launch" } } },
+      presentationMode: "gui",
+      crewBriefDelivered: crewFingerprint(threadCrewBinding({ crew })),
+      ...overrides,
+    };
+  }
+
+  it("reminds the lead once on the next submitted prompt after it edited files", () => {
+    const target = leadTarget({ crewLeadEditedFiles: true });
+    const options = structuredTurnTextOptions(target, {
+      prompt: "next",
+      config: { model: "m", crew },
+      turnContext: "client context",
+    });
+    expect(options).toEqual({
+      turnContext: `client context\n\n${nudge}`,
+      onPromptSubmitted: expect.any(Function),
+    });
+    expect(target.crewLeadEditedFiles).toBe(true);
+    options.onPromptSubmitted?.();
+    expect(target.crewLeadEditedFiles).toBeUndefined();
+    expect(
+      structuredTurnTextOptions(target, { prompt: "again", config: { model: "m", crew } }),
+    ).toEqual({});
+  });
+
+  it("adds nothing when the lead did not edit files", () => {
+    expect(
+      structuredTurnTextOptions(leadTarget(), { prompt: "next", config: { model: "m", crew } }),
+    ).toEqual({});
+  });
+
+  it("drops the reminder without sending it once the crew is removed", () => {
+    const target = leadTarget({ crewLeadEditedFiles: true });
+    const options = structuredTurnTextOptions(target, {
+      prompt: "next",
+      config: { model: "m", crew: null },
+    });
+    expect(options.turnContext).toBe(
+      "[crew] The user removed this thread's crew. Delegate to other agents only if the user asks.",
+    );
+    options.onPromptSubmitted?.();
+    expect(target.crewLeadEditedFiles).toBeUndefined();
+  });
+
+  it("leaves the reminder for the next prompt when the text steers the running turn", () => {
+    const target = leadTarget({ crewLeadEditedFiles: true });
+    const options = structuredTurnTextOptions(
+      target,
+      { prompt: "also handle b.ts", config: { model: "m", crew }, turnContext: "client context" },
+      { steersRunningTurn: true },
+    );
+    expect(options).toEqual({ turnContext: "client context" });
+    expect(target.crewLeadEditedFiles).toBe(true);
+    expect(
+      structuredTurnTextOptions(target, { prompt: "next", config: { model: "m", crew } }),
+    ).toMatchObject({ turnContext: nudge });
+  });
+
+  it("keeps the reminder for the next model turn when the prompt is a provider command", () => {
+    const target = leadTarget({
+      crewLeadEditedFiles: true,
+      slashCommands: [{ id: "review", label: "review" }],
+    });
+    expect(
+      structuredTurnTextOptions(target, { prompt: "/review", config: { model: "m", crew } }),
+    ).toEqual({});
+    expect(target.crewLeadEditedFiles).toBe(true);
+    const inline = leadTarget({ crewLeadEditedFiles: true, structuredSession: undefined });
+    expect(
+      structuredTurnTextOptions(inline, { prompt: "go", config: { model: "m", crew } }),
+    ).toMatchObject({ inlineInstructions: nudge });
   });
 });

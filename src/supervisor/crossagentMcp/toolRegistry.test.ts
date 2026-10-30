@@ -5,41 +5,12 @@ import { MAX_CONCURRENT_CHILDREN_PER_PARENT, type SubagentRunManager } from "./S
 import { listCrossagentEligibleProviders } from "./routingSnapshot";
 import {
   buildSpawnableAgents,
-  classifyModelTier,
   CROSSAGENT_MCP_INSTRUCTIONS_BASE,
   dispatchTool,
   TOOLS,
 } from "./toolRegistry";
 import type { SubagentToolContext } from "./toolRegistry";
 import type { SpawnableAgent } from "./types";
-
-describe("classifyModelTier", () => {
-  it.each([
-    ["claude-haiku-4", "Haiku 4", "fast-cheap"],
-    ["gpt-5-mini", "GPT-5 Mini", "fast-cheap"],
-    ["gemini-flash", "Gemini Flash", "fast-cheap"],
-    ["gpt-5-nano", "GPT-5 Nano", "fast-cheap"],
-    ["codex-lite", "Codex Lite", "fast-cheap"],
-    ["some-small-model", "Small Model", "fast-cheap"],
-    ["codex-spark-5.3", "Spark 5.3", "fast-cheap"],
-    ["model-fast", "Fast Mode", "fast-cheap"],
-    ["claude-opus-4", "Opus 4.8", "max-capability"],
-    ["fable-5", "Fable 5", "max-capability"],
-    ["gemini-pro", "Gemini Pro", "max-capability"],
-    ["gpt-5-max", "GPT-5 Max", "max-capability"],
-    ["model-ultra", "Ultra", "max-capability"],
-    ["big-model", "Big Model", "max-capability"],
-    ["claude-sonnet-4.5", "Sonnet 4.5", "balanced"],
-    ["gpt-5.5", "GPT-5.5", "balanced"],
-  ])("classifies %s / %s as %s", (id, label, expected) => {
-    expect(classifyModelTier(id, label)).toBe(expected);
-  });
-
-  it("matches keywords case-insensitively", () => {
-    expect(classifyModelTier("HAIKU-4", "MODEL")).toBe("fast-cheap");
-    expect(classifyModelTier("model", "OPUS 4.8")).toBe("max-capability");
-  });
-});
 
 function makeStatus(overrides: Partial<AgentStatus> = {}): AgentStatus {
   return {
@@ -691,7 +662,7 @@ describe("subagent tool registration", () => {
         role: {
           type: "string",
           description:
-            "Crew role id from list_agents (for example `builder`) when this thread has a crew. The role sets provider, model, reasoning and Fast; omit those.",
+            "Crew role id from list_agents (for example `sidekick`) when this thread has a crew. The role sets provider, model, reasoning and Fast; omit those.",
         },
         tasks: expect.anything(),
       }),

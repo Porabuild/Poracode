@@ -6,6 +6,7 @@ import {
 } from "@/shared/crossagentVisibility";
 import type { AgentStatus } from "@/shared/contracts";
 import { modelSelectionFor } from "@/shared/agentSelection";
+import { pickCheaperHelperModel, type HelperModelLead } from "@/shared/modelTier";
 import type {
   CrossagentExecution,
   CrossagentRoutingSnapshotEntry,
@@ -34,10 +35,11 @@ export interface CrewHelperOptions {
   ranked: readonly CrossagentRoutingSnapshotEntry[];
   modelLabelOf: (selection: CrewMemberSelection) => string;
   selectionFor: (agentKind: string, model: string) => CrewMemberSelection | undefined;
-  defaultSelectionFor: (
-    leadAgentKind: string,
-    preferRanked?: boolean,
-  ) => CrewMemberSelection | undefined;
+  /**
+   * A new helper's model: the cheapest tier available, never the lead's exact
+   * model, preferring the lead's own provider within a tier.
+   */
+  defaultSelectionFor: (lead: HelperModelLead) => CrewMemberSelection | undefined;
 }
 
 export function buildCrewHelperOptions(input: {
@@ -131,19 +133,24 @@ export function buildCrewHelperOptions(input: {
   };
   const modelLabelOf = (selection: CrewMemberSelection) =>
     crewModelLabelOf(input.labelStatuses ?? input.statuses, selection);
-  const defaultSelectionFor = (
-    leadAgentKind: string,
-    preferRanked = localRouting !== undefined,
-  ): CrewMemberSelection | undefined => {
-    if (preferRanked && ranked.length > 0) {
-      const entry = ranked.find((candidate) => candidate.provider !== leadAgentKind) ?? ranked[0]!;
-      const selection = selectionFor(entry.provider, entry.model.id);
-      if (selection) return selection;
-    }
-    const provider =
-      providers.find((candidate) => candidate.kind !== leadAgentKind) ?? providers[0];
-    const model = provider?.capabilities.models[0];
-    return model ? selectionFor(provider.kind, model.id) : undefined;
+  const defaultSelectionFor = (lead: HelperModelLead): CrewMemberSelection | undefined => {
+    const preferRanked = localRouting !== undefined;
+    const candidates =
+      preferRanked && ranked.length > 0
+        ? ranked.map((entry) => ({
+            agentKind: entry.provider,
+            model: entry.model.id,
+            label: entry.model.label,
+          }))
+        : providers.flatMap((provider) =>
+            provider.capabilities.models.map((model) => ({
+              agentKind: provider.kind,
+              model: model.id,
+              label: model.label,
+            })),
+          );
+    const pick = pickCheaperHelperModel(candidates, lead);
+    return pick ? selectionFor(pick.agentKind, pick.model) : undefined;
   };
 
   return { providers, ranked, modelLabelOf, selectionFor, defaultSelectionFor };

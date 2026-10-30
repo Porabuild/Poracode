@@ -1093,6 +1093,10 @@ msgstr "Ревью может содержать не более 100 комме�
 msgid "A review or comment body is required."
 msgstr "Требуется текст проверки или комментария."
 
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "A scout maps the code, a builder implements and verifies, and a reviewer checks the diff; the lead plans and decides."
+msgstr "Исследователь изучает код, разработчик реализует и проверяет, ревьюер просматривает diff; основная модель планирует и принимает решения."
+
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "A server could not be started and was skipped."
 msgstr "Не удалось запустить сервер, он пропущен."
@@ -1110,8 +1114,12 @@ msgid "a supported coding agent"
 msgstr "поддерживаемый агент кодирования"
 
 #: src/renderer/components/crew/crewTemplates.ts
-msgid "A tester writes failing tests; a builder makes them pass."
-msgstr "Тестировщик пишет падающие тесты, разработчик добивается их прохождения."
+msgid "A tester writes and runs failing tests, and a builder makes them pass; the lead sets the cases."
+msgstr "Тестировщик пишет и запускает падающие тесты, разработчик добивается их прохождения; основная модель задаёт сценарии."
+
+#: src/renderer/components/crew/crewTemplates.ts
+#~ msgid "A tester writes failing tests; a builder makes them pass."
+#~ msgstr "Тестировщик пишет падающие тесты, разработчик добивается их прохождения."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "A voice conversation is already active."
@@ -1941,6 +1949,10 @@ msgstr "Агент исправляет этот PR."
 #: src/renderer/i18n/sharedMessages.ts
 msgid "An expected worktree owner requires a branch"
 msgstr "Для ожидаемого владельца worktree требуется ветка"
+
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "An investigator finds the root cause, and a fixer lands the fix with a regression test."
+msgstr "Следователь находит первопричину, а исправитель вносит исправление с регрессионным тестом."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 #~ msgid "An MCP server with the name {serverName} already exists."
@@ -6566,6 +6578,10 @@ msgstr "Доки"
 msgid "Docs"
 msgstr "Документация"
 
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Does the broad searching: finds the files, callers, tests and conventions a task touches, and reports paths and facts, not a review."
+msgstr "Ведёт широкий поиск: находит файлы, вызовы, тесты и соглашения задачи и сообщает пути и факты, а не ревью."
+
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteThreadPopover.tsx
 msgid "Don't ask again"
@@ -7488,12 +7504,16 @@ msgid "Explore and plan"
 msgstr "Изучить и спланировать"
 
 #: src/renderer/components/crew/crewTemplates.ts
-msgid "Explore, build and review a feature."
-msgstr "Изучить, реализовать и проверить функцию."
+#~ msgid "Explore, build and review a feature."
+#~ msgstr "Изучить, реализовать и проверить функцию."
 
 #: src/renderer/components/crew/crewRoleTemplates.ts
 #~ msgid "Explores code and docs"
 #~ msgstr "Изучает код и документацию"
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Explores the codebase, implements the lead's task end to end, runs the narrowest checks, and reports what changed with evidence."
+msgstr "Изучает код, выполняет задачу основной модели целиком, запускает минимально нужные проверки и сообщает об изменениях с доказательствами."
 
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Exponential backoff"
@@ -7861,16 +7881,16 @@ msgid "Find in terminal"
 msgstr "Найти в терминале"
 
 #: src/renderer/components/crew/crewTemplates.ts
-msgid "Find the root cause first, then fix it with a regression test."
-msgstr "Сначала найти первопричину, затем исправить с регрессионным тестом."
+#~ msgid "Find the root cause first, then fix it with a regression test."
+#~ msgstr "Сначала найти первопричину, затем исправить с регрессионным тестом."
 
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Finding status"
 msgstr "Состояние результата"
 
 #: src/renderer/components/crew/crewRoleTemplates.ts
-msgid "Finds the files, callers and tests a task touches, and reports their paths with a short summary."
-msgstr "Находит файлы, вызовы и тесты задачи и сообщает их пути с кратким описанием."
+#~ msgid "Finds the files, callers and tests a task touches, and reports their paths with a short summary."
+#~ msgstr "Находит файлы, вызовы и тесты задачи и сообщает их пути с кратким описанием."
 
 #: src/renderer/views/PullRequestsOverlay/guide/PrGuidePanel.tsx
 msgid "Finish review"
@@ -8942,12 +8962,20 @@ msgstr "Изображения"
 #~ msgstr "Вносит изменения и запускает тесты"
 
 #: src/renderer/components/crew/crewRoleTemplates.ts
-msgid "Implements the fix with a regression test and confirms the reproduction now passes."
-msgstr "Вносит исправление с регрессионным тестом и подтверждает, что воспроизведение теперь проходит."
+msgid "Implements the fix the lead settles, adds a regression test, and confirms the reproduction now passes with the narrowest check."
+msgstr "Вносит исправление, выбранное основной моделью, добавляет регрессионный тест и минимальной проверкой подтверждает, что воспроизведение проходит."
 
 #: src/renderer/components/crew/crewRoleTemplates.ts
-msgid "Implements the lead's task end to end: edits files, runs the build and tests, and reports what changed."
-msgstr "Выполняет задачу основной модели целиком: правит файлы, запускает сборку и тесты, сообщает об изменениях."
+#~ msgid "Implements the fix with a regression test and confirms the reproduction now passes."
+#~ msgstr "Вносит исправление с регрессионным тестом и подтверждает, что воспроизведение теперь проходит."
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Implements the lead's task end to end and verifies it with the narrowest build and tests; reports changed files, check results and deviations."
+msgstr "Выполняет задачу основной модели целиком и проверяет её минимальной сборкой и тестами; сообщает изменённые файлы, итоги проверок и отклонения."
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+#~ msgid "Implements the lead's task end to end: edits files, runs the build and tests, and reports what changed."
+#~ msgstr "Выполняет задачу основной модели целиком: правит файлы, запускает сборку и тесты, сообщает об изменениях."
 
 #. Settings section: import existing CLI sessions as threads
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
@@ -9858,8 +9886,12 @@ msgid "Lead + 1 helper"
 msgstr "Лидер + 1 помощник"
 
 #: src/renderer/components/crew/crewTemplates.ts
-msgid "Lead + Builder"
-msgstr "Основная модель + Разработчик"
+#~ msgid "Lead + Builder"
+#~ msgstr "Основная модель + Разработчик"
+
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "Lead + Sidekick"
+msgstr "Основная модель + Вспомогательная модель"
 
 #: src/renderer/components/providers/devin/modelPricing.ts
 #~ msgid "Lead and Sidekick prices are per 1M tokens for each model. Ranges cover model variants."
@@ -14665,6 +14697,10 @@ msgstr "Чтение изменений каждого кандидата…"
 msgid "Reading each candidate's chat response…"
 msgstr "Чтение ответа каждого кандидата в чате…"
 
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Reads the full diff and the code it touches, runs targeted checks, and reports bugs, regressions and missing tests by file and line."
+msgstr "Читает весь diff и затронутый код, запускает точечные проверки и сообщает об ошибках, регрессиях и недостающих тестах с файлом и строкой."
+
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Ready"
@@ -15380,8 +15416,12 @@ msgid "Repository URL"
 msgstr "URL репозитория"
 
 #: src/renderer/components/crew/crewRoleTemplates.ts
-msgid "Reproduces the bug and traces it to the root cause, then reports the evidence and the failing code path."
-msgstr "Воспроизводит ошибку, находит первопричину и сообщает доказательства и сбойный путь в коде."
+#~ msgid "Reproduces the bug and traces it to the root cause, then reports the evidence and the failing code path."
+#~ msgstr "Воспроизводит ошибку, находит первопричину и сообщает доказательства и сбойный путь в коде."
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Reproduces the bug and traces it to the root cause, then reports the evidence, the failing code path and a suggested fix."
+msgstr "Воспроизводит ошибку и прослеживает её до первопричины, затем сообщает доказательства, сбойный путь в коде и предлагаемое исправление."
 
 #: src/renderer/views/PullRequestsOverlay/summary/ReviewerPicker.tsx
 msgid "Request a reviewer"
@@ -15925,8 +15965,8 @@ msgstr "Ревью и комментарии"
 #~ msgstr "Проверяет diff и ищет ошибки"
 
 #: src/renderer/components/crew/crewRoleTemplates.ts
-msgid "Reviews the finished diff for bugs, regressions and missing tests, and reports findings by file and line."
-msgstr "Проверяет готовый diff на ошибки, регрессии и пропущенные тесты, указывая файл и строку."
+#~ msgid "Reviews the finished diff for bugs, regressions and missing tests, and reports findings by file and line."
+#~ msgstr "Проверяет готовый diff на ошибки, регрессии и пропущенные тесты, указывая файл и строку."
 
 #: src/renderer/components/providers/devin/liveSessionControls.tsx
 #: src/renderer/components/providers/devin/sessionActionDialog.tsx
@@ -16473,8 +16513,12 @@ msgid "Scout"
 msgstr "Исследователь"
 
 #: src/renderer/components/crew/crewTemplates.ts
-msgid "Scouts map an unfamiliar codebase before anything changes."
-msgstr "Исследователи изучают незнакомый код до любых изменений."
+#~ msgid "Scouts map an unfamiliar codebase before anything changes."
+#~ msgstr "Исследователи изучают незнакомый код до любых изменений."
+
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "Scouts map an unfamiliar codebase so the lead can plan without reading it all."
+msgstr "Исследователи изучают незнакомый код, чтобы основная модель могла планировать, не читая всё сама."
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/components/thread/ThreadAgentVisionDock.tsx
@@ -17403,6 +17447,7 @@ msgstr "Матовость боковой панели"
 msgid "Sidebar shortcuts"
 msgstr "Ярлыки боковой панели"
 
+#: src/renderer/components/crew/crewRoleTemplates.ts
 #: src/renderer/components/providers/devin/modelPricing.ts
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Sidekick"
@@ -18516,6 +18561,10 @@ msgstr "URL Tailscale"
 msgid "Take Screenshot"
 msgstr "Сделать снимок экрана"
 
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Takes any hands-on task the lead hands off: exploring, editing and running checks, then reports back with evidence."
+msgstr "Берёт любую практическую задачу от основной модели: изучает код, вносит правки и запускает проверки, затем отчитывается с доказательствами."
+
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 #~ msgid "Takes over the desktop while the agent clicks or types"
 #~ msgstr "Захватывает рабочий стол, пока агент кликает или печатает"
@@ -19021,8 +19070,16 @@ msgid "The launch was cancelled."
 msgstr "Запуск отменён."
 
 #: src/renderer/components/crew/crewTemplates.ts
-msgid "The lead plans and reviews; a cheaper builder does the hands-on work."
-msgstr "Основная модель планирует и проверяет, более дешёвый разработчик выполняет работу."
+#~ msgid "The lead plans and reviews; a cheaper builder does the hands-on work."
+#~ msgstr "Основная модель планирует и проверяет, более дешёвый разработчик выполняет работу."
+
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "The lead plans and reviews; a cheaper sidekick explores, builds and verifies."
+msgstr "Основная модель планирует и проверяет результат, более дешёвая вспомогательная модель изучает код, реализует и тестирует изменения."
+
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "The lead splits the work; up to three builders implement and verify independent tasks at once."
+msgstr "Основная модель делит работу; до трёх разработчиков одновременно реализуют и проверяют независимые задачи."
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the Linux user"
@@ -20276,8 +20333,12 @@ msgid "Turn tracking on or off per provider. Disabled providers are skipped by t
 msgstr "Включайте или выключайте отслеживание для каждого провайдера. Отключённые провайдеры пропускаются при автообновлении."
 
 #: src/renderer/components/crew/crewTemplates.ts
-msgid "Two independent read-only reviews of a change."
-msgstr "Две независимые проверки изменения только для чтения."
+msgid "Two independent read-only reviews of a change, and a sidekick applies the fixes."
+msgstr "Две независимые проверки изменения только для чтения, а вспомогательная модель вносит исправления."
+
+#: src/renderer/components/crew/crewTemplates.ts
+#~ msgid "Two independent read-only reviews of a change."
+#~ msgstr "Две независимые проверки изменения только для чтения."
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Type"
@@ -20939,8 +21000,8 @@ msgid "Up one level"
 msgstr "На уровень вверх"
 
 #: src/renderer/components/crew/crewTemplates.ts
-msgid "Up to three builders work on independent tasks at once."
-msgstr "До трёх разработчиков одновременно работают над независимыми задачами."
+#~ msgid "Up to three builders work on independent tasks at once."
+#~ msgstr "До трёх разработчиков одновременно работают над независимыми задачами."
 
 #: src/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay.tsx
 msgid "update"
@@ -22126,8 +22187,12 @@ msgid "Write notes for this project…"
 msgstr "Напишите заметки для этого проекта…"
 
 #: src/renderer/components/crew/crewRoleTemplates.ts
-msgid "Writes and runs tests for the change, reproduces reported bugs, and reports failures with the exact command."
-msgstr "Пишет и запускает тесты изменения, воспроизводит ошибки и сообщает о сбоях с точной командой."
+#~ msgid "Writes and runs tests for the change, reproduces reported bugs, and reports failures with the exact command."
+#~ msgstr "Пишет и запускает тесты изменения, воспроизводит ошибки и сообщает о сбоях с точной командой."
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Writes and runs the tests for the change, reproduces reported bugs, and reports each failure with the exact command and failing assertion."
+msgstr "Пишет и запускает тесты для изменения, воспроизводит ошибки из отчётов и сообщает о каждом сбое с точной командой и упавшей проверкой."
 
 #: src/renderer/views/PullRequestsOverlay/guide/PrReviewGuideTab.tsx
 msgid "Writing guide. You can leave this review and return when it is ready."

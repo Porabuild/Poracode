@@ -6,6 +6,7 @@ import {
 } from "@/shared/contracts";
 import type { StructuredSessionUpdate } from "../../agents/base";
 import { captureSupervisorException } from "../../diagnostics/sentry";
+import type { CrewLeadEditMonitor } from "../crewLeadEditMonitor";
 import type { SessionRuntime } from "../sessionTypes";
 import type { ThreadOutputPipeline } from "../threadOutputPipeline";
 import { shouldReleaseInitialStructuredIdleSuppression } from "./helpers";
@@ -33,6 +34,8 @@ export interface SessionRuntimeLifecycleContext {
     FollowUpQueueCoordinator,
     "onSessionAttached" | "onSessionClosing" | "onStructuredRuntimeEvent" | "onStructuredUpdate"
   >;
+  /** Crew lead edit reminders; optional for focused lifecycle harnesses. */
+  crewLeadEdits?: Pick<CrewLeadEditMonitor, "onRuntimeEvent">;
   structuredInterruptWatchdog: Pick<
     StructuredInterruptWatchdog,
     "clearStructuredInterruptWatchdog"
@@ -243,6 +246,7 @@ export class SessionRuntimeLifecycle {
       session.suppressInitialStructuredIdle = undefined;
     }
     this.context.runtimeEventRouter.append(session.threadId, event);
+    this.context.crewLeadEdits?.onRuntimeEvent(session, event);
     if (event.type === "turn.started") {
       this.context.steerCoordinator.noteSteerTurnStarted?.(session);
     }

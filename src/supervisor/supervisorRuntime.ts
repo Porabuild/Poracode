@@ -48,6 +48,7 @@ import { FileIndexService } from "./fileIndex";
 import { GitService, resolveBuiltInWorktreeRoot, type CapturedExperimentSnapshot } from "./git";
 import { normalizeWorktreePathForComparison, resolveWorktreePlacement } from "@/shared/worktree";
 import { GitCheckpointService } from "./git/checkpointService";
+import { readDirtySetSnapshot } from "./git/dirtySetSnapshot";
 import { GitHubService } from "./github";
 import { ForgeReviewService } from "./forges/service";
 import { ProjectWatcher } from "./projectWatcher";
@@ -561,7 +562,9 @@ export class SupervisorRuntime {
         cancelAll: (threadId) => this.subagentRunManager.cancelAllForThread(threadId),
         resolveChildRequest: (requestId, response, parentThreadId) =>
           this.subagentRunManager.resolveChildServerRequest(requestId, response, parentThreadId),
+        memberRunActivity: (threadId) => this.subagentRunManager.memberRunActivity(threadId),
       },
+      readDirtySetSnapshot: (location) => readDirtySetSnapshot(location, this.wslBridgeClient),
       wslHostAccess: {
         resolveHostAccess: (distro) => resolveWslHostAccess(distro),
       },

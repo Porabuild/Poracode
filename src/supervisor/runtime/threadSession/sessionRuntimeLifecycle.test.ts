@@ -7,6 +7,8 @@ import type {
   StructuredSessionListener,
   StructuredSessionUpdate,
 } from "../../agents/base";
+import { crewLeadMidTurnNudgeText } from "@/supervisor/crossagentMcp/crewBrief";
+import { CrewLeadEditMonitor } from "../crewLeadEditMonitor";
 import type { SessionRuntime } from "../sessionTypes";
 import {
   SessionRuntimeLifecycle,
@@ -20,6 +22,7 @@ function createHarness(
     withStructuredSession?: boolean;
     session?: Partial<SessionRuntime>;
     followUpQueue?: SessionRuntimeLifecycleContext["followUpQueue"];
+    crewLeadEdits?: SessionRuntimeLifecycleContext["crewLeadEdits"];
   } = {},
 ) {
   let structuredListener: StructuredSessionListener | undefined;
@@ -123,6 +126,7 @@ function createHarness(
     runtimeEventRouter: { flush, append },
     steerCoordinator: { maybeDrainPendingSteer, noteSteerTurnStarted },
     ...(options.followUpQueue ? { followUpQueue: options.followUpQueue } : {}),
+    ...(options.crewLeadEdits ? { crewLeadEdits: options.crewLeadEdits } : {}),
     structuredInterruptWatchdog: {
       clearStructuredInterruptWatchdog,
     },
@@ -257,6 +261,76 @@ describe("SessionRuntimeLifecycle", () => {
 
     expect(h.mocks.noteSteerTurnStarted).toHaveBeenCalledTimes(1);
     expect(h.mocks.noteSteerTurnStarted).toHaveBeenCalledWith(h.session);
+  });
+
+  describe("crew lead edits", () => {
+    const crew = {
+      version: 1 as const,
+      policy: "crew-only" as const,
+      roles: [{ id: "sidekick", label: "Sidekick", selection: { agentKind: "x", model: "m" } }],
+    };
+    const crewSession: Partial<SessionRuntime> = {
+      config: { model: "model-1", crew },
+      crossagentsMcpAttached: true,
+    };
+    const edit = (itemId: string, parentItemId?: string) =>
+      ({
+        type: "item.started",
+        threadId: "thread-1",
+        itemId,
+        itemType: "file_change",
+        payload: { path: "src/a.ts", changeKind: "edit" },
+        ...(parentItemId ? { parentItemId } : {}),
+      }) as const;
+    function monitored() {
+      const h = createHarness({
+        withPty: false,
+        session: crewSession,
+        crewLeadEdits: new CrewLeadEditMonitor({
+          isCurrentSession: () => true,
+          hasPendingUserInput: () => false,
+        }),
+      });
+      h.session.adapter.capabilities.mcpScope = { gui: "launch" };
+      return h;
+    }
+
+    it("notes the lead's own file edits for the next prompt, not a member's", () => {
+      const h = monitored();
+      h.lifecycle.attach(h.session);
+
+      h.structuredListener?.onRuntimeEvent?.(edit("child", "tile"));
+      expect(h.session.crewLeadEditedFiles).toBeUndefined();
+      h.structuredListener?.onRuntimeEvent?.(edit("lead"));
+      expect(h.session.crewLeadEditedFiles).toBe(true);
+    });
+
+    it("steers a hidden reminder into the running turn without painting a user row", async () => {
+      const h = monitored();
+      const steerContext = vi.fn<NonNullable<StructuredSessionHandle["steerContext"]>>(
+        async () => undefined,
+      );
+      const steerTurn = vi.fn<NonNullable<StructuredSessionHandle["steerTurn"]>>();
+      Object.assign(h.structuredSession, { steerContext, steerTurn });
+      h.lifecycle.attach(h.session);
+      const turnStarted = { type: "turn.started", threadId: "thread-1", turnId: "turn-1" } as const;
+
+      h.structuredListener?.onRuntimeEvent?.(turnStarted);
+      h.structuredListener?.onRuntimeEvent?.(edit("lead"));
+      await vi.waitFor(() => expect(steerContext).toHaveBeenCalledTimes(1));
+
+      expect(steerContext).toHaveBeenCalledWith(crewLeadMidTurnNudgeText(crew));
+      expect(steerTurn).not.toHaveBeenCalled();
+      expect(h.session.crewLeadEditedFiles).toBeUndefined();
+      // Only the provider's own events reach the transcript and the queue.
+      expect(h.mocks.append.mock.calls.map(([, event]) => event)).toEqual([
+        turnStarted,
+        edit("lead"),
+      ]);
+      expect(h.mocks.emit).not.toHaveBeenCalledWith(
+        expect.objectContaining({ type: "thread-pending-steer" }),
+      );
+    });
   });
 
   it("registers and emits before binding handles, then starts ref discovery", () => {
