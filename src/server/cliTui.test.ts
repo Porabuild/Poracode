@@ -1,4 +1,5 @@
 import { EventEmitter } from "node:events";
+import { mkdtempSync, realpathSync, rmSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -24,6 +25,11 @@ import type {
 } from "./pairingControl";
 import { ensureCliOwner } from "./cliOwner";
 import type { TuiCliOptions } from "./cliParse";
+import { expectOwned } from "./cliTestHelpers";
+import { HostControlServer } from "@/backend/ownership/HostControlServer";
+import { HostOwnerLease } from "@/backend/ownership/hostOwnerLease";
+import { resolveHostRootPaths } from "@/backend/ownership/hostRootPaths";
+import { prepareOwnedHostRoot } from "@/backend/ownership/hostRootManifest";
 
 const directory = resolve("tmp/cli-tui-project");
 const bootstrapInput = {
@@ -306,4 +312,126 @@ it("falls back to the checkout entry and fails a prefix without a binary", async
       fileExists: (path) => path === bun || path === source,
     }),
   ).toEqual({ command: bun, args: [source], cwd: join(root, "tui") });
+});
+
+it.each([
+  {
+    owner: "a current desktop owner",
+    // LAN access on: the advertised link is cleartext LAN, which the TUI refuses.
+    grant: {
+      pairingUrl: "http://192.168.1.20:49391/#token=desktop",
+      localPairingUrl: "http://127.0.0.1:49391/#token=desktop",
+    },
+    redeemed: "http://127.0.0.1:49391/#token=desktop",
+  },
+  {
+    owner: "a desktop owner that predates localPairingUrl",
+    grant: { pairingUrl: "http://127.0.0.1:49391/#token=desktop" },
+    redeemed: "http://127.0.0.1:49391/#token=desktop",
+  },
+])("attaches to $owner instead of starting another one", async ({ grant, redeemed }) => {
+  const root = realpathSync.native(mkdtempSync(join(tmpdir(), "poracode-cli-tui-owner-")));
+  const profile = join(root, "profile");
+  const lease = HostOwnerLease.acquire(resolveHostRootPaths(profile), "desktop");
+  prepareOwnedHostRoot(lease);
+  const commands: string[] = [];
+  // Mirrors the desktop composition: attach pairings are refused, while local
+  // administration (projects, independent pairings) is served.
+  const control = new HostControlServer({
+    lease,
+    describe: () => ({
+      state: "ready",
+      remoteProtocolVersion: 12,
+      endpoint: null,
+      capabilities: {
+        ssh: true,
+        browserPanel: true,
+        chromeBridge: true,
+        computerUse: true,
+        nativeSecrets: true,
+        portForward: true,
+        autoUpdate: true,
+        osNotifications: true,
+      },
+    }),
+    issuePairing: () =>
+      Promise.reject(new Error("The desktop owner does not mint attach pairings.")),
+    administer: async (input) => {
+      commands.push(input.command.action);
+      const data =
+        input.command.action === "projects-add"
+          ? {
+              formatVersion: 1,
+              scope: "persisted-profile",
+              project: {
+                id: "project-1",
+                name: "Fixture",
+                location: { kind: "windows", path: directory },
+                disabled: false,
+                createdAt: "2026-10-31T00:00:00.000Z",
+              },
+              created: true,
+            }
+          : input.command.action === "pairings-create"
+            ? {
+                id: "pairing-1",
+                ...grant,
+                expiresAt: "2026-10-31T00:10:00.000Z",
+                scopes: ["operator"],
+              }
+            : null;
+      return data === null
+        ? { adminVersion: input.adminVersion, outcome: { ok: false, error: "unexpected" } }
+        : { adminVersion: input.adminVersion, outcome: { ok: true, data } };
+    },
+  });
+  await control.start();
+  const ownerSpawn = vi.fn<() => never>(() => {
+    throw new Error("A second owner must never start.");
+  });
+  const child = new EventEmitter() as unknown as ChildProcess;
+  const spawn = vi.fn<
+    (
+      command: string,
+      args: string[],
+      options: { env: NodeJS.ProcessEnv; stdio: unknown },
+    ) => ChildProcess
+  >(() => {
+    process.nextTick(() => child.emit("exit", 0, null));
+    return child;
+  });
+  try {
+    const exitCode = await runCliTui(
+      {} satisfies TuiCliOptions,
+      { profileNamespace: profile, directory },
+      {
+        appVersion: "1.2.3",
+        env: { PORACODE_TUI_BIN: "compiled-tui", PATH: "" },
+        ensureOwner: (namespace, options) =>
+          ensureCliOwner(namespace, { ...options, spawn: ownerSpawn as never }),
+        fileExists: (path) => path === resolve("compiled-tui"),
+        layout: layout("prefix", resolve("tui-prefix-fixture")),
+        spawn: spawn as never,
+        stdin: 7,
+      },
+    );
+    expect(exitCode).toBe(0);
+    expect(ownerSpawn).not.toHaveBeenCalled();
+    expectOwned(profile);
+    expect(commands).toEqual(["projects-add", "pairings-create"]);
+    const [, , spawnOptions] = spawn.mock.calls[0]!;
+    // The reopened console input reaches the TUI; output stays inherited.
+    expect(spawnOptions.stdio).toEqual([7, "inherit", "inherit"]);
+    expect(
+      tuiBootstrapSchema.parse(JSON.parse(String(spawnOptions.env.PORACODE_TUI_BOOTSTRAP))),
+    ).toMatchObject({
+      auth: "pairing",
+      pairingUrl: redeemed,
+      projectId: "project-1",
+    });
+  } finally {
+    await control.dispose();
+    lease.release();
+    rmSync(root, { recursive: true, force: true });
+  }
 });

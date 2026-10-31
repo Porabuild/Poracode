@@ -79,6 +79,14 @@ export function issueIndependentPairingGrant(
   return {
     id: issued.id,
     pairingUrl: mintPairingUrl(host, info.httpBaseUrl, issued.credential),
+    // The same credential on the owner's own listener, for a client on this
+    // machine (the TUI): an advertised LAN, relay or hosted-app link can be
+    // unusable locally, for example cleartext LAN that only browsers accept.
+    localPairingUrl: mintDirectPairingUrl(
+      host,
+      info.loopbackHttpBaseUrl ?? info.localHttpBaseUrl,
+      issued.credential,
+    ),
     expiresAt: issued.expiresAt,
     scopes: [...issued.scopes],
     ...(issued.label ? { label: issued.label } : {}),
@@ -124,16 +132,25 @@ export function mintLoopbackRendererCredential(
         ephemeral: true,
         sessionTtlMs: MANAGED_RENDERER_ACCESS_TTL_MS,
       });
-  const fingerprint = host.tls?.fingerprint;
   return {
     endpoint,
-    pairingUrl: buildPairingUrl({
-      httpBaseUrl: endpoint,
-      credential: issued.credential,
-      ...(fingerprint ? { certFingerprint: formatCertFingerprint(fingerprint) } : {}),
-    }),
+    pairingUrl: mintDirectPairingUrl(host, endpoint, issued.credential),
     expiresAt: issued.expiresAt,
   };
+}
+
+/** A pairing URL on `httpBaseUrl` itself, never redirected through a hosted app. */
+function mintDirectPairingUrl(
+  host: RemoteAccessServerHost,
+  httpBaseUrl: string,
+  credential: string,
+) {
+  const fingerprint = host.tls?.fingerprint;
+  return buildPairingUrl({
+    httpBaseUrl,
+    credential,
+    ...(fingerprint ? { certFingerprint: formatCertFingerprint(fingerprint) } : {}),
+  });
 }
 
 /** The sidebar redeems its credential within seconds of the bridge reply. */
