@@ -4673,6 +4673,7 @@ msgid "Connecting to the device…"
 msgstr "Підключення до пристрою…"
 
 #: src/renderer/components/composer/LiveVoiceControls.tsx
+#: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "Connecting voice…"
 msgstr "Підключення голосового чату…"
 
@@ -10019,6 +10020,10 @@ msgstr "Список пакетів"
 msgid "List tasks"
 msgstr "Список завдань"
 
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Listening — speak or type a message"
+msgstr "Слухаю — говоріть або введіть повідомлення"
+
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Live"
 msgstr "Онлайн"
@@ -10972,6 +10977,10 @@ msgstr "Рівень вхідного сигналу мікрофона"
 msgid "Microphone muted"
 msgstr "Мікрофон вимкнено"
 
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Microphone muted — type a message"
+msgstr "Мікрофон вимкнено — введіть повідомлення"
+
 #: src/renderer/components/composer/voiceError.ts
 msgid "Microphone permission was denied."
 msgstr "Доступ до мікрофона відхилено."
@@ -11352,6 +11361,10 @@ msgstr "Muse Code"
 #: src/renderer/components/composer/LiveVoiceControls.tsx
 msgid "Mute microphone"
 msgstr "Вимкнути мікрофон"
+
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Mute voice replies"
+msgstr "Вимкнути звук відповідей"
 
 #: src/renderer/components/crew/CrewRosterPanel.tsx
 msgid "My crew"
@@ -20926,6 +20939,10 @@ msgstr "Зняти позначку «готово»"
 #: src/renderer/components/composer/LiveVoiceControls.tsx
 msgid "Unmute microphone"
 msgstr "Увімкнути мікрофон"
+
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Unmute voice replies"
+msgstr "Увімкнути звук відповідей"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unnamed device"

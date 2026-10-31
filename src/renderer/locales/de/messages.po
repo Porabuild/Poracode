@@ -4673,6 +4673,7 @@ msgid "Connecting to the device…"
 msgstr "Verbindung zum Gerät wird hergestellt…"
 
 #: src/renderer/components/composer/LiveVoiceControls.tsx
+#: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "Connecting voice…"
 msgstr "Sprachverbindung wird hergestellt…"
 
@@ -10019,6 +10020,10 @@ msgstr "Pakete auflisten"
 msgid "List tasks"
 msgstr "Aufgaben auflisten"
 
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Listening — speak or type a message"
+msgstr "Hört zu – sprechen oder Nachricht eingeben"
+
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Live"
 msgstr "Live"
@@ -10972,6 +10977,10 @@ msgstr "Mikrofoneingangspegel"
 msgid "Microphone muted"
 msgstr "Mikrofon stummgeschaltet"
 
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Microphone muted — type a message"
+msgstr "Mikrofon stummgeschaltet – Nachricht eingeben"
+
 #: src/renderer/components/composer/voiceError.ts
 msgid "Microphone permission was denied."
 msgstr "Der Mikrofonzugriff wurde verweigert."
@@ -11352,6 +11361,10 @@ msgstr "Muse Code"
 #: src/renderer/components/composer/LiveVoiceControls.tsx
 msgid "Mute microphone"
 msgstr "Mikrofon stummschalten"
+
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Mute voice replies"
+msgstr "Sprachantworten stummschalten"
 
 #: src/renderer/components/crew/CrewRosterPanel.tsx
 msgid "My crew"
@@ -20926,6 +20939,10 @@ msgstr "Markierung „Fertig“ aufheben"
 #: src/renderer/components/composer/LiveVoiceControls.tsx
 msgid "Unmute microphone"
 msgstr "Mikrofon aktivieren"
+
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Unmute voice replies"
+msgstr "Sprachantworten wieder einschalten"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unnamed device"

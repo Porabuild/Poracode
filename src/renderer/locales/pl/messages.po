@@ -4673,6 +4673,7 @@ msgid "Connecting to the device…"
 msgstr "Łączenie z urządzeniem…"
 
 #: src/renderer/components/composer/LiveVoiceControls.tsx
+#: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "Connecting voice…"
 msgstr "Łączenie rozmowy głosowej…"
 
@@ -10019,6 +10020,10 @@ msgstr "Lista pakietów"
 msgid "List tasks"
 msgstr "Lista zadań"
 
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Listening — speak or type a message"
+msgstr "Słucham — mów lub wpisz wiadomość"
+
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Live"
 msgstr "Na żywo"
@@ -10972,6 +10977,10 @@ msgstr "Poziom wejściowy mikrofonu"
 msgid "Microphone muted"
 msgstr "Mikrofon wyciszony"
 
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Microphone muted — type a message"
+msgstr "Mikrofon wyciszony — wpisz wiadomość"
+
 #: src/renderer/components/composer/voiceError.ts
 msgid "Microphone permission was denied."
 msgstr "Odmówiono pozwolenia na korzystanie z mikrofonu."
@@ -11352,6 +11361,10 @@ msgstr "Muse Code"
 #: src/renderer/components/composer/LiveVoiceControls.tsx
 msgid "Mute microphone"
 msgstr "Wycisz mikrofon"
+
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Mute voice replies"
+msgstr "Wycisz odpowiedzi głosowe"
 
 #: src/renderer/components/crew/CrewRosterPanel.tsx
 msgid "My crew"
@@ -20926,6 +20939,10 @@ msgstr "Odznacz jako gotowe"
 #: src/renderer/components/composer/LiveVoiceControls.tsx
 msgid "Unmute microphone"
 msgstr "Włącz mikrofon"
+
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Unmute voice replies"
+msgstr "Wyłącz wyciszenie odpowiedzi głosowych"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unnamed device"

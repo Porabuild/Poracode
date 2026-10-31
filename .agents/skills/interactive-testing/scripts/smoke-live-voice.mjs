@@ -3,6 +3,10 @@ import { join } from "node:path";
 import { writeFile } from "node:fs/promises";
 import { mockDraftVoicePermissionGate } from "./smoke-live-voice-draft.mjs";
 
+/** The composer measures toolbar width with aria-hidden copies of its controls. */
+const shown = (selector) =>
+  `[...document.querySelectorAll(${JSON.stringify(selector)})].filter(el => !el.closest('[aria-hidden="true"]'))`;
+
 /** Deterministic composer/media cleanup coverage without microphone or provider access. */
 export async function mockLiveVoiceGate({
   client,
@@ -53,6 +57,7 @@ export async function mockLiveVoiceGate({
           liveVoice: capability,
         },
       };
+      saved.candidate = candidate;
       stores.agentStatuses.getState().hydrateFromCache({ windows: [candidate], wsl: [] });
       const { loopback } = await window.__poracodeDev.loadHostDiagnostics();
       const activation = loopback.readManagedLoopbackActivation();
@@ -83,15 +88,12 @@ export async function mockLiveVoiceGate({
     await waitForValue(visible, Boolean, "empty composer voice button");
     await run(`document.querySelector('button[aria-label="Start live voice"]').click()`);
     await waitForValue(
-      () => run(`Boolean(document.querySelector('button[aria-label="Cancel voice connection"]'))`),
+      () => run(`${shown('button[aria-label="Cancel voice connection"]')}.length > 0`),
       Boolean,
       "voice cancellation control",
     );
-    assert.equal(
-      await run(`document.querySelectorAll('button[aria-label="Cancel voice connection"]').length`),
-      1,
-    );
-    await run(`document.querySelector('button[aria-label="Cancel voice connection"]').click()`);
+    assert.equal(await run(`${shown('button[aria-label="Cancel voice connection"]')}.length`), 1);
+    await run(`${shown('button[aria-label="Cancel voice connection"]')}[0].click()`);
     await run(`(() => {
       const s = window.__liveVoiceSmoke;
       const track = { stop: () => s.stopped++ };
@@ -130,7 +132,7 @@ export async function mockLiveVoiceGate({
         ]));
     })()`);
     await waitForValue(
-      () => run(`document.querySelectorAll('button[aria-label="End voice chat"]').length`),
+      () => run(`${shown('button[aria-label="End voice chat"]')}.length`),
       (count) => count === 1,
       "one hang-up control for the active voice session",
     );
@@ -139,10 +141,10 @@ export async function mockLiveVoiceGate({
       (count) => count === 1,
       "voice transcript appears once in the chat timeline",
     );
-    assert.equal(
-      await run(`document.querySelector('[data-live-voice]').innerText.trim()`),
-      "Live voice",
-    );
+    assert.equal(await run(`${shown("[data-live-voice]")}[0].innerText.trim()`), "Live voice");
+    const editorPlaceholder = `[...document.querySelectorAll('[data-composer-input-anchor] [contenteditable="true"]')].find(el => el.getClientRects().length && getComputedStyle(el).visibility !== 'hidden').dataset.placeholder`;
+    assert.equal(await run(editorPlaceholder), "Listening — speak or type a message");
+    await screenshot(client, join(outDir, "live-voice-listening.png"));
     const editor = `[...document.querySelectorAll('[data-composer-input-anchor] [contenteditable="true"]')].find(el => el.getClientRects().length && getComputedStyle(el).visibility !== 'hidden')`;
     await run(`${editor}.focus()`);
     await client.send("Input.insertText", { text: "Typed follow-up during voice" });
@@ -152,10 +154,7 @@ export async function mockLiveVoiceGate({
       Boolean,
       "typed input restores Send while voice remains active",
     );
-    assert.equal(
-      await run(`document.querySelectorAll('button[aria-label="End voice chat"]').length`),
-      1,
-    );
+    assert.equal(await run(`${shown('button[aria-label="End voice chat"]')}.length`), 1);
     await screenshot(client, join(outDir, "live-voice-compact.png"));
     await run(
       `(() => { const el = ${editor}; el.textContent = ''; el.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'deleteContentBackward' })); })()`,
@@ -165,18 +164,29 @@ export async function mockLiveVoiceGate({
       (count) => count === 0,
       "empty voice composer keeps only the dedicated voice controls",
     );
-    await run(`document.querySelector('button[aria-label="Mute microphone"]').click()`);
+    await run(`${shown('button[aria-label="Mute microphone"]')}[0].click()`);
     await waitForValue(
       () => run(`window.__liveVoiceSmoke.track.enabled`),
       (enabled) => enabled === false,
       "mute disables microphone",
     );
+    assert.equal(await run(editorPlaceholder), "Microphone muted — type a message");
     await screenshot(client, join(outDir, "live-voice-muted.png"));
-    await run(`document.querySelector('button[aria-label="Unmute microphone"]').click()`);
+    await run(`${shown('button[aria-label="Unmute microphone"]')}[0].click()`);
     assert.equal(await run(`window.__liveVoiceSmoke.track.enabled`), true);
-    await run(
-      `document.querySelector('[data-live-voice] button[aria-label="End voice chat"]').click()`,
+    await run(`${shown('button[aria-label="Mute voice replies"]')}[0].click()`);
+    await waitForValue(
+      () => run(`Boolean(${shown('button[aria-label="Unmute voice replies"]')}.length)`),
+      Boolean,
+      "speaker toggle reflects muted voice replies",
     );
+    assert.equal(
+      await run(`window.__liveVoiceSmoke.voice.useLiveVoice.getState().speakerMuted`),
+      true,
+    );
+    assert.equal(await run(`window.__liveVoiceSmoke.track.enabled`), true);
+    await run(`${shown('button[aria-label="Unmute voice replies"]')}[0].click()`);
+    await run(`${shown('[data-live-voice] button[aria-label="End voice chat"]')}[0].click()`);
     await run(
       `(async () => { const s = window.__liveVoiceSmoke; s.prepared(); await s.starting; })()`,
     );
@@ -191,7 +201,7 @@ export async function mockLiveVoiceGate({
       outDir,
       fixture,
     });
-    return "single compact voice controls, typed Send during voice, start/cancel, late capture cleanup, mute/unmute, hangup, and preservation/reopening of text and attachment drafts edited during pending microphone permission passed with synthetic media; no real microphone or provider used";
+    return "single in-composer voice controls (speaker, microphone, hang-up), listening/muted placeholder status, typed Send during voice, start/cancel, late capture cleanup, mute/unmute, hangup, and preservation/reopening of text and attachment drafts edited during pending microphone permission passed with synthetic media; no real microphone or provider used";
   } catch (error) {
     const state = await run(`(() => ({
       view: window.__poracodeDev.stores.app.getState().view,
