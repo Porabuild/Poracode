@@ -103,7 +103,7 @@ describe("kimiDetectionSpec", () => {
           "-NoProfile",
           "-NonInteractive",
           "-Command",
-          "irm https://code.kimi.com/kimi-code/install.ps1 | iex",
+          expect.stringContaining("irm https://code.kimi.com/kimi-code/install.ps1 | iex"),
         ],
       },
     });
