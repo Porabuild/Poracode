@@ -1,7 +1,8 @@
-import sharp from "sharp";
+import { loadSharp } from "../../attachments/loadSharp";
 import type { ImagePreviewGenerator } from "./imagePreview";
 
 export const generateImagePreview: ImagePreviewGenerator = async ({ data }) => {
+  const sharp = await loadSharp();
   const preview = await sharp(data)
     .resize({ width: 24, withoutEnlargement: true })
     .jpeg({ quality: 40 })

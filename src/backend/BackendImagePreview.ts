@@ -1,4 +1,4 @@
-import sharp from "sharp";
+import { loadSharp } from "@/host/attachments/loadSharp";
 import { isAnimatedPng } from "@/shared/imageDimensions";
 
 /**
@@ -13,6 +13,7 @@ export async function generateBackendImageCardVariant({
   readonly data: Buffer;
   readonly mime: string;
 }): Promise<{ readonly data: Buffer; readonly mime: string } | null> {
+  const sharp = await loadSharp();
   const image = sharp(data);
   const metadata = await image.metadata();
   if ((metadata.pages ?? 1) > 1) return null;

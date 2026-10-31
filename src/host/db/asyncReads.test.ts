@@ -1,4 +1,12 @@
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { randomBytes } from "node:crypto";
 import sharp from "sharp";
 import { fork } from "node:child_process";
@@ -17,7 +25,8 @@ import {
   readDatabaseAsync,
 } from "./asyncReads";
 import { closeDatabase, getSqlite, initDatabase } from "./connection";
-import { dbUpsertProject, dbUpsertThread } from "./projectsThreads";
+import { callDatabaseRpc } from "./databaseRpc";
+import { dbSetState, dbUpsertProject, dbUpsertThread } from "./projectsThreads";
 import {
   dbGetThreadRuntimeItems,
   dbReadThreadRuntimeItems,
@@ -586,6 +595,42 @@ describe("worker-backed SQLite reads", () => {
     expect(
       getSqlite().prepare("SELECT value FROM app_state WHERE key = 'schema_version'").get(),
     ).toEqual({ value: "999" });
+  });
+
+  it("starts its workers before the first read when warmed", async () => {
+    // Each forked worker records its pid before loading the worker module.
+    const spawns = join(directory, "spawns.txt");
+    const recorder = join(directory, "record-spawn.cjs");
+    writeFileSync(
+      recorder,
+      `if(require('node:worker_threads').isMainThread)require('node:fs').appendFileSync(${JSON.stringify(spawns)}, process.pid + '\\n');`,
+    );
+    const countSpawns = () =>
+      existsSync(spawns) ? readFileSync(spawns, "utf8").trim().split("\n").length : 0;
+    const previous = process.env.NODE_OPTIONS;
+    process.env.NODE_OPTIONS = `${previous ?? ""} --require=${JSON.stringify(recorder)}`;
+    try {
+      const reads = pool();
+      reads.warm();
+      await vi.waitFor(() => expect(countSpawns()).toBe(2), { timeout: 10_000 });
+      expect(await reads.read("runtimeItems", ["thread-1"])).toEqual(
+        dbReadThreadRuntimeItems("thread-1"),
+      );
+      expect(countSpawns()).toBe(2);
+    } finally {
+      if (previous === undefined) delete process.env.NODE_OPTIONS;
+      else process.env.NODE_OPTIONS = previous;
+    }
+  });
+
+  it("serves app state on the owner connection while read workers are enabled", async () => {
+    // A worker that cannot start would reject any read routed to it.
+    enableAsyncDatabaseReads(dbPath, join(directory, "missing-worker.cjs"));
+    dbSetState("window-bounds", '{"width":1200}');
+
+    expect(await callDatabaseRpc({ name: "dbGetState", payload: "window-bounds" })).toBe(
+      '{"width":1200}',
+    );
   });
 
   it("uses the direct reader only for explicit offline database compositions", async () => {
