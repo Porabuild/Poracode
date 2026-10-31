@@ -8,6 +8,8 @@ import type {
   RemoteAccessServerOptions,
 } from "@/host/remote/RemoteAccessServer";
 import type { SendPush } from "@/host/remote/push/pushGateway";
+import { DEFAULT_REMOTE_ACCESS_PORT } from "@/host/remote/config";
+import { preferredRemoteAccessPort } from "@/host/remote/remoteAccessPortMemory";
 import {
   PushRegistrationStore,
   pushRegistrationsFilePath,
@@ -18,6 +20,7 @@ const h = vi.hoisted(() => ({
   sendPush: vi.fn<SendPush>(),
   servers: [] as Array<{ options: RemoteAccessServerOptions }>,
   serverDispose: vi.fn<() => Promise<void>>(),
+  resolvePort: vi.fn<(input?: { readonly preferredPort?: number }) => Promise<number>>(),
 }));
 
 vi.mock("@/host/db", () => ({
@@ -34,12 +37,13 @@ vi.mock("@/host/sharedSettingsFile", () => ({
     return h.settings;
   },
 }));
-vi.mock("@/host/remote/config", () => ({
+vi.mock("@/host/remote/config", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/host/remote/config")>()),
   remoteAccessAdvertisedHost: () => "127.0.0.1",
   remoteAccessHost: () => "127.0.0.1",
   remoteAccessPairingAppUrl: () => undefined,
   remoteForwardBaseUrl: () => undefined,
-  resolveRemoteAccessPort: async () => 43123,
+  resolveRemoteAccessPort: h.resolvePort,
 }));
 vi.mock("@/host/remote/identity", () => ({
   readOrCreateRemoteAccessIdentity: () => ({ desktopId: "fixture-host", label: "Fixture" }),
@@ -105,6 +109,7 @@ beforeEach(() => {
   h.servers.length = 0;
   h.sendPush.mockReset();
   h.serverDispose.mockReset().mockResolvedValue();
+  h.resolvePort.mockReset().mockResolvedValue(43123);
   vi.spyOn(console, "log").mockImplementation(() => {});
   vi.spyOn(console, "warn").mockImplementation(() => {});
 });
@@ -177,6 +182,21 @@ async function fixture() {
   await vi.waitFor(() => expect(h.sendPush).toHaveBeenCalledOnce());
   return { root, controller, delivery, path: pushRegistrationsFilePath(root) };
 }
+
+it("restarts the enabled listener on the port its paired clients know", async () => {
+  const value = await fixture();
+  // A host root from before the memory existed prefers the default port.
+  expect(h.resolvePort).toHaveBeenLastCalledWith(
+    expect.objectContaining({ preferredPort: DEFAULT_REMOTE_ACCESS_PORT }),
+  );
+  value.delivery.resolve({ ok: true, status: 200, unregistered: false });
+
+  await value.controller.setEnabled(false);
+  await value.controller.setEnabled(true);
+
+  expect(h.resolvePort).toHaveBeenLastCalledWith(expect.objectContaining({ preferredPort: 43123 }));
+  expect(preferredRemoteAccessPort(value.root, "127.0.0.1")).toBe(43123);
+});
 
 it.each(["final-stop", "disabled-before-stop"])(
   "joins an actual held push and prevents late file writes after %s",

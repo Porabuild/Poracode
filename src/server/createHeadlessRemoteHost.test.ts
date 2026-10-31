@@ -184,19 +184,27 @@ vi.mock("@/host/sharedSettingsFile", async (importOriginal) => {
   };
 });
 
-function makeHost(overrides: Partial<Parameters<typeof createHeadlessRemoteHost>[0]> = {}) {
-  return createHeadlessRemoteHost({
+type HeadlessHostOptions = Parameters<typeof createHeadlessRemoteHost>[0];
+
+/** Loopback without an explicit port: the host chooses its own. */
+function automaticPortHostOptions(
+  overrides: Partial<HeadlessHostOptions> = {},
+): HeadlessHostOptions {
+  return {
     appVersion: "9.9.9-test",
     baseDir: h.tmpBase,
     supervisorPath: "/dev/null/supervisor.cjs",
     wslHelpersDir: "/dev/null/wsl",
     environmentKey: Buffer.alloc(32, 7).toString("base64"),
-    // Loopback + ephemeral port: no LAN probing, no port conflicts.
     host: "127.0.0.1",
     advertisedHost: "127.0.0.1",
-    port: 0,
     ...overrides,
-  });
+  };
+}
+
+function makeHost(overrides: Partial<HeadlessHostOptions> = {}) {
+  // Loopback + ephemeral port: no LAN probing, no port conflicts.
+  return createHeadlessRemoteHost(automaticPortHostOptions({ port: 0, ...overrides }));
 }
 
 describe("createHeadlessRemoteHost", () => {
@@ -455,6 +463,35 @@ describe("createHeadlessRemoteHost", () => {
       expect(existsSync(h.tmpBase)).toBe(false);
     } finally {
       vi.unstubAllEnvs();
+    }
+  });
+
+  it("restarts an automatically chosen listener on the port its paired clients know", async () => {
+    // The resolver's preference is the unit under test elsewhere; here it
+    // resolves to an ephemeral port so the restart proves the round trip.
+    const resolvePort = vi.spyOn(remoteConfig, "resolveRemoteAccessPort").mockResolvedValue(0);
+    const automatic = automaticPortHostOptions();
+    let servedPort = 0;
+    try {
+      const first = await createHeadlessRemoteHost(automatic);
+      try {
+        await first.start();
+        servedPort = Number(new URL(first.server.getInfo()!.localHttpBaseUrl).port);
+      } finally {
+        await first.dispose();
+      }
+      expect(resolvePort).toHaveBeenLastCalledWith(
+        expect.objectContaining({ preferredPort: remoteConfig.DEFAULT_REMOTE_ACCESS_PORT }),
+      );
+
+      const second = await createHeadlessRemoteHost(automatic);
+      await second.dispose();
+      expect(servedPort).toBeGreaterThan(0);
+      expect(resolvePort).toHaveBeenLastCalledWith(
+        expect.objectContaining({ preferredPort: servedPort }),
+      );
+    } finally {
+      resolvePort.mockRestore();
     }
   });
 
