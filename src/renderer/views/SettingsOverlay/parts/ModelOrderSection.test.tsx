@@ -78,6 +78,7 @@ vi.mock("@/renderer/state/appStore", () => ({
 }));
 
 vi.mock("@/renderer/bridge", () => ({
+  isRemoteSession: () => false,
   readBridge: () => bridge,
 }));
 

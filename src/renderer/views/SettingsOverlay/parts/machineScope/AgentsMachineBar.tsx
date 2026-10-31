@@ -1,7 +1,13 @@
 import { useEffect } from "react";
 import { useMachineSelectionStore } from "@/renderer/state/machineSelectionStore";
-import { useMachines, useWslDistroListStore } from "@/renderer/state/machines";
+import {
+  chooseMachine,
+  useLocalDistroOwner,
+  useMachines,
+  useWslDistroListStore,
+} from "@/renderer/state/machines";
 import { LOCAL_NATIVE_MACHINE_KEY } from "@/shared/machines";
+import { FloatingScopeBar } from "./FloatingScopeBar";
 import { MachineSelect } from "./MachineSelect";
 
 /**
@@ -14,14 +20,16 @@ export function AgentsMachineBar() {
   const machines = useMachines();
   const selectedMachineId = useMachineSelectionStore((state) => state.selectedMachineId);
   const setSelectedMachine = useMachineSelectionStore((state) => state.setSelectedMachine);
-  const distrosLoaded = useWslDistroListStore((state) => state.loaded);
+  const distroOwner = useLocalDistroOwner();
+  const distrosLoadedFor = useWslDistroListStore((state) => state.loadedFor);
   const refreshDistros = useWslDistroListStore((state) => state.refresh);
 
-  // Enumerate local WSL distros once per settings visit (registry probe on the
-  // supervisor). Project-derived distros keep the list useful if this fails.
+  // Enumerate local WSL distros once per settings visit and again after a
+  // remote client moves to another host (registry probe on the supervisor).
+  // Project-derived distros keep the list useful if this fails.
   useEffect(() => {
-    if (!distrosLoaded) void refreshDistros();
-  }, [distrosLoaded, refreshDistros]);
+    if (distroOwner !== null && distrosLoadedFor !== distroOwner) void refreshDistros(distroOwner);
+  }, [distroOwner, distrosLoadedFor, refreshDistros]);
 
   // Snap back to the local machine when the selection disappears (distro
   // removed, server unpaired).
@@ -34,10 +42,8 @@ export function AgentsMachineBar() {
   if (machines.length <= 1) return null;
 
   return (
-    <div className="pointer-events-none absolute inset-x-0 bottom-4 z-20 flex justify-center px-6">
-      <div className="pointer-events-auto">
-        <MachineSelect machines={machines} />
-      </div>
-    </div>
+    <FloatingScopeBar>
+      <MachineSelect machines={machines} value={selectedMachineId} onChange={chooseMachine} />
+    </FloatingScopeBar>
   );
 }

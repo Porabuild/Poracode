@@ -2,11 +2,13 @@ import { useLingui } from "@lingui/react/macro";
 import { Monitor, Server } from "lucide-react";
 import { Select, TuxIcon, type SelectOption } from "@/renderer/components/common";
 import { RemoteServerStatusDot } from "@/renderer/components/common/RemoteServerStatusDot";
-import { useMachineSelectionStore } from "@/renderer/state/machineSelectionStore";
 import type { MachineDescriptor } from "@/renderer/state/machines";
 
 function machineIcon(machine: MachineDescriptor) {
-  if (machine.kind === "local") return <Monitor className="size-3.5 shrink-0 text-muted" />;
+  // A remote client's local entry is a paired host, so it keeps the server icon.
+  if (machine.kind === "local" && machine.desktopId === undefined) {
+    return <Monitor className="size-3.5 shrink-0 text-muted" />;
+  }
   if (machine.kind === "local-wsl") return <TuxIcon className="size-3.5 shrink-0 text-muted" />;
   return (
     <span className="relative inline-flex shrink-0 items-center">
@@ -34,10 +36,12 @@ function machineOptionLabel(machine: MachineDescriptor): string {
   return machine.kind === "local-wsl" && machine.wslDistro ? machine.wslDistro : machine.label;
 }
 
-export function MachineSelect(props: { machines: readonly MachineDescriptor[] }) {
+export function MachineSelect(props: {
+  machines: readonly MachineDescriptor[];
+  value: string;
+  onChange: (machine: MachineDescriptor) => void;
+}) {
   const { t } = useLingui();
-  const selectedMachineId = useMachineSelectionStore((state) => state.selectedMachineId);
-  const setSelectedMachine = useMachineSelectionStore((state) => state.setSelectedMachine);
 
   const machineDetail = (machine: MachineDescriptor): string | undefined =>
     machine.status === "connecting" ? t`Connecting…` : undefined;
@@ -60,8 +64,11 @@ export function MachineSelect(props: { machines: readonly MachineDescriptor[] })
       aria-label={t`Select machine`}
       className="w-[220px] shrink-0"
       options={options}
-      value={selectedMachineId}
-      onChange={setSelectedMachine}
+      value={props.value}
+      onChange={(id) => {
+        const machine = props.machines.find((candidate) => candidate.id === id);
+        if (machine) props.onChange(machine);
+      }}
     />
   );
 }
