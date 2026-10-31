@@ -4673,6 +4673,7 @@ msgid "Connecting to the device…"
 msgstr "Connexion à l’appareil…"
 
 #: src/renderer/components/composer/LiveVoiceControls.tsx
+#: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "Connecting voice…"
 msgstr "Connexion vocale en cours…"
 
@@ -10015,6 +10016,10 @@ msgstr "Liste des packages"
 msgid "List tasks"
 msgstr "Liste des tâches"
 
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Listening — speak or type a message"
+msgstr "À l’écoute — parlez ou saisissez un message"
+
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Live"
 msgstr "En direct"
@@ -10967,6 +10972,10 @@ msgstr "Niveau d'entrée du microphone"
 msgid "Microphone muted"
 msgstr "Microphone coupé"
 
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Microphone muted — type a message"
+msgstr "Micro coupé — saisissez un message"
+
 #: src/renderer/components/composer/voiceError.ts
 msgid "Microphone permission was denied."
 msgstr "L'autorisation du microphone a été refusée."
@@ -11347,6 +11356,10 @@ msgstr "Muse Code"
 #: src/renderer/components/composer/LiveVoiceControls.tsx
 msgid "Mute microphone"
 msgstr "Couper le microphone"
+
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Mute voice replies"
+msgstr "Couper les réponses vocales"
 
 #: src/renderer/components/crew/CrewRosterPanel.tsx
 msgid "My crew"
@@ -20913,6 +20926,10 @@ msgstr "Décocher Terminé"
 #: src/renderer/components/composer/LiveVoiceControls.tsx
 msgid "Unmute microphone"
 msgstr "Activer le microphone"
+
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Unmute voice replies"
+msgstr "Réactiver les réponses vocales"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unnamed device"

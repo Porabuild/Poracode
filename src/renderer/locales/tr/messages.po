@@ -4673,6 +4673,7 @@ msgid "Connecting to the device…"
 msgstr "Cihaza bağlanılıyor…"
 
 #: src/renderer/components/composer/LiveVoiceControls.tsx
+#: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "Connecting voice…"
 msgstr "Sesli bağlantı kuruluyor…"
 
@@ -10015,6 +10016,10 @@ msgstr "Paketleri listele"
 msgid "List tasks"
 msgstr "Görevleri listele"
 
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Listening — speak or type a message"
+msgstr "Dinleniyor — konuşun veya mesaj yazın"
+
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Live"
 msgstr "Canlı"
@@ -10968,6 +10973,10 @@ msgstr "Mikrofon giriş seviyesi"
 msgid "Microphone muted"
 msgstr "Mikrofon kapalı"
 
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Microphone muted — type a message"
+msgstr "Mikrofon kapalı — mesaj yazın"
+
 #: src/renderer/components/composer/voiceError.ts
 msgid "Microphone permission was denied."
 msgstr "Mikrofon izni reddedildi."
@@ -11348,6 +11357,10 @@ msgstr "Muse Code"
 #: src/renderer/components/composer/LiveVoiceControls.tsx
 msgid "Mute microphone"
 msgstr "Mikrofonu kapat"
+
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Mute voice replies"
+msgstr "Sesli yanıtları sessize al"
 
 #: src/renderer/components/crew/CrewRosterPanel.tsx
 msgid "My crew"
@@ -20914,6 +20927,10 @@ msgstr "Bitti işaretini kaldır"
 #: src/renderer/components/composer/LiveVoiceControls.tsx
 msgid "Unmute microphone"
 msgstr "Mikrofonu aç"
+
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Unmute voice replies"
+msgstr "Sesli yanıtların sesini aç"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unnamed device"

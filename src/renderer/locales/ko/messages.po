@@ -4673,6 +4673,7 @@ msgid "Connecting to the device…"
 msgstr "기기에 연결하는 중…"
 
 #: src/renderer/components/composer/LiveVoiceControls.tsx
+#: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "Connecting voice…"
 msgstr "음성 연결 중…"
 
@@ -10015,6 +10016,10 @@ msgstr "패키지 나열"
 msgid "List tasks"
 msgstr "작업 나열"
 
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Listening — speak or type a message"
+msgstr "듣는 중 — 말하거나 메시지를 입력하세요"
+
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Live"
 msgstr "실시간"
@@ -10968,6 +10973,10 @@ msgstr "마이크 입력 레벨"
 msgid "Microphone muted"
 msgstr "마이크 음소거됨"
 
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Microphone muted — type a message"
+msgstr "마이크 음소거됨 — 메시지를 입력하세요"
+
 #: src/renderer/components/composer/voiceError.ts
 msgid "Microphone permission was denied."
 msgstr "마이크 권한이 거부되었습니다."
@@ -11348,6 +11357,10 @@ msgstr "Muse Code"
 #: src/renderer/components/composer/LiveVoiceControls.tsx
 msgid "Mute microphone"
 msgstr "마이크 음소거"
+
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Mute voice replies"
+msgstr "음성 응답 음소거"
 
 #: src/renderer/components/crew/CrewRosterPanel.tsx
 msgid "My crew"
@@ -20914,6 +20927,10 @@ msgstr "완료 표시 해제"
 #: src/renderer/components/composer/LiveVoiceControls.tsx
 msgid "Unmute microphone"
 msgstr "마이크 음소거 해제"
+
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Unmute voice replies"
+msgstr "음성 응답 음소거 해제"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unnamed device"

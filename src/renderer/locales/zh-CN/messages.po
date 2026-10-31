@@ -4673,6 +4673,7 @@ msgid "Connecting to the device…"
 msgstr "正在连接设备…"
 
 #: src/renderer/components/composer/LiveVoiceControls.tsx
+#: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "Connecting voice…"
 msgstr "正在连接语音…"
 
@@ -10015,6 +10016,10 @@ msgstr "列出包"
 msgid "List tasks"
 msgstr "列出任务"
 
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Listening — speak or type a message"
+msgstr "正在聆听 — 说话或输入消息"
+
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Live"
 msgstr "在线"
@@ -10967,6 +10972,10 @@ msgstr "麦克风输入电平"
 msgid "Microphone muted"
 msgstr "麦克风已静音"
 
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Microphone muted — type a message"
+msgstr "麦克风已静音 — 输入消息"
+
 #: src/renderer/components/composer/voiceError.ts
 msgid "Microphone permission was denied."
 msgstr "麦克风权限被拒绝。"
@@ -11347,6 +11356,10 @@ msgstr "Muse Code"
 #: src/renderer/components/composer/LiveVoiceControls.tsx
 msgid "Mute microphone"
 msgstr "将麦克风静音"
+
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Mute voice replies"
+msgstr "静音语音回复"
 
 #: src/renderer/components/crew/CrewRosterPanel.tsx
 msgid "My crew"
@@ -20913,6 +20926,10 @@ msgstr "取消标记完成"
 #: src/renderer/components/composer/LiveVoiceControls.tsx
 msgid "Unmute microphone"
 msgstr "取消麦克风静音"
+
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Unmute voice replies"
+msgstr "取消静音语音回复"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unnamed device"

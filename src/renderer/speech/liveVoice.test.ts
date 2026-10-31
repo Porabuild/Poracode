@@ -83,15 +83,21 @@ class Peer {
   }
 }
 class Playback {
+  static instances: Playback[] = [];
   autoplay = false;
+  muted = false;
   srcObject: MediaStream | null = null;
   play = vi.fn<() => Promise<void>>(async () => {});
   pause = vi.fn<() => void>();
+  constructor() {
+    Playback.instances.push(this);
+  }
 }
 
 beforeEach(() => {
   controller = new LiveVoiceController();
   Peer.instances = [];
+  Playback.instances = [];
   track = { enabled: true, stop: vi.fn<() => void>(), onended: null };
   stream = { getTracks: () => [track], getAudioTracks: () => [track] } as unknown as MediaStream;
   capture = vi.fn<() => Promise<MediaStream>>(async () => stream);
@@ -152,6 +158,25 @@ describe("live voice media ownership", () => {
       connectionId: mocks.connect.mock.calls[0]![0].connectionId,
     });
     expect(useLiveVoice.getState().phase).toBe("idle");
+  });
+
+  it("silences spoken replies, including a speaker mute chosen before playback exists", async () => {
+    const permission = deferred<MediaStream>();
+    capture.mockReturnValueOnce(permission.promise);
+    const starting = controller.start(options);
+    controller.toggleSpeakerMuted("thread");
+    permission.resolve(stream);
+    await starting;
+    const playback = Playback.instances[0]!;
+    expect(playback.muted).toBe(true);
+    expect(track.enabled).toBe(true);
+    controller.toggleSpeakerMuted("other-owner");
+    expect(playback.muted).toBe(true);
+    controller.toggleSpeakerMuted("thread");
+    expect(playback.muted).toBe(false);
+    expect(useLiveVoice.getState().speakerMuted).toBe(false);
+    await controller.stop();
+    expect(useLiveVoice.getState().speakerMuted).toBe(false);
   });
 
   it("honors mute chosen before microphone permission resolves", async () => {

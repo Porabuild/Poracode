@@ -4673,6 +4673,7 @@ msgid "Connecting to the device…"
 msgstr "Đang kết nối với thiết bị…"
 
 #: src/renderer/components/composer/LiveVoiceControls.tsx
+#: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "Connecting voice…"
 msgstr "Đang kết nối thoại…"
 
@@ -10015,6 +10016,10 @@ msgstr "Liệt kê các gói"
 msgid "List tasks"
 msgstr "Liệt kê nhiệm vụ"
 
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Listening — speak or type a message"
+msgstr "Đang nghe — hãy nói hoặc nhập tin nhắn"
+
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Live"
 msgstr "Trực tuyến"
@@ -10968,6 +10973,10 @@ msgstr "Mức đầu vào micrô"
 msgid "Microphone muted"
 msgstr "Đã tắt micrô"
 
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Microphone muted — type a message"
+msgstr "Micrô đã tắt — hãy nhập tin nhắn"
+
 #: src/renderer/components/composer/voiceError.ts
 msgid "Microphone permission was denied."
 msgstr "Quyền sử dụng micrô đã bị từ chối."
@@ -11348,6 +11357,10 @@ msgstr "Muse Code"
 #: src/renderer/components/composer/LiveVoiceControls.tsx
 msgid "Mute microphone"
 msgstr "Tắt micrô"
+
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Mute voice replies"
+msgstr "Tắt tiếng phản hồi giọng nói"
 
 #: src/renderer/components/crew/CrewRosterPanel.tsx
 msgid "My crew"
@@ -20914,6 +20927,10 @@ msgstr "Bỏ đánh dấu xong"
 #: src/renderer/components/composer/LiveVoiceControls.tsx
 msgid "Unmute microphone"
 msgstr "Bật micrô"
+
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Unmute voice replies"
+msgstr "Bật tiếng phản hồi giọng nói"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unnamed device"
