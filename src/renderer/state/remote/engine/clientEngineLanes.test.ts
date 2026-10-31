@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  CLIENT_ENGINE_LANE_MAX_PENDING,
   CLIENT_ENGINE_PROTOCOL_VERSION,
   type ClientEngineRequest,
   type ClientEngineResponse,
@@ -171,6 +172,61 @@ describe("client engine lanes (A3 admission and fairness)", () => {
       message: { hijacked: true },
     });
     expect(host.retainedBytes()).toBe(0);
+  });
+
+  it("absorbs a main-thread stall's frame burst without failing the lane", async () => {
+    // A stalled UI thread still receives every socket frame, and the whole burst
+    // is admitted before the first worker reply can be handled. ~3 s of a
+    // 60 frames/s streaming turn must drain in order, not overflow the lane.
+    const host = getRemoteSocketEngine();
+    const lane = host.createLane({ key: "stalled-stream" });
+    const overflow = vi.fn<() => void>();
+    lane.addOverflowListener(overflow);
+    expect(host.isWorkerActive()).toBe(true);
+    const worker = FakeWorker.instances[0]!;
+
+    const burst = Array.from({ length: 180 }, (_, index) => lane.decodeRemote(frame(`s-${index}`)));
+    expect(lane.pendingCount()).toBe(180);
+    expect(overflow).not.toHaveBeenCalled();
+
+    // The reply path resumes: each reply admits the next queued frame.
+    worker.autoRespond = true;
+    respondAll(worker);
+    const results = await Promise.all(burst);
+    expect(results.every((result) => result.ok)).toBe(true);
+    expect(overflow).not.toHaveBeenCalled();
+    expect(
+      decodeRequests(worker).map((request) => JSON.parse(request.raw).event.threadId as string),
+    ).toEqual(Array.from({ length: 180 }, (_, index) => `s-${index}`));
+    // The lane never latched: the next frame still decodes.
+    await expect(lane.decodeRemote(frame("after"))).resolves.toMatchObject({ ok: true });
+  });
+
+  it("still fails the lane past its count budget so a lost frame forces a resync", async () => {
+    const host = getRemoteSocketEngine();
+    const lane = host.createLane({ key: "runaway" });
+    const overflow = vi.fn<() => void>();
+    lane.addOverflowListener(overflow);
+    expect(host.isWorkerActive()).toBe(true);
+
+    const held = Array.from({ length: CLIENT_ENGINE_LANE_MAX_PENDING }, (_, index) => {
+      const pending = lane.decodeRemote(frame(`r-${index}`));
+      pending.catch(() => undefined);
+      return pending;
+    });
+    const rejection = await lane
+      .decodeRemote(frame("one-too-many"))
+      .catch((error: unknown) => error);
+    expect(rejection).toBeInstanceOf(ClientEngineLaneOverflowError);
+    expect((rejection as Error).message).toBe("lane count");
+    expect(overflow).toHaveBeenCalledOnce();
+    // Every admitted frame rejects typed with the loss, and later frames are
+    // refused until the consumer renews the lane for a new connection.
+    for (const pending of held)
+      await expect(pending).rejects.toBeInstanceOf(ClientEngineLaneOverflowError);
+    await expect(lane.decodeRemote(frame("later"))).rejects.toBeInstanceOf(
+      ClientEngineWorkerUnavailableError,
+    );
   });
 
   it("expires aged queued work with a typed timeout without touching other lanes", async () => {

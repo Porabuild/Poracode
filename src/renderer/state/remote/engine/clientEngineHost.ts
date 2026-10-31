@@ -391,12 +391,14 @@ export class ClientEngineHost implements ClientEngineLaneHost {
       return Promise.reject(new ClientEngineWorkerUnavailableError("lane failed; resync required"));
     }
     if (state.queue.length + state.inFlight >= state.maxPending) {
-      this.laneOverflow(state);
-      return Promise.reject(new ClientEngineLaneOverflowError());
+      const error = new ClientEngineLaneOverflowError("lane count");
+      this.laneOverflow(state, error);
+      return Promise.reject(error);
     }
     if (state.queuedBytes + state.inFlightBytes + bytes > state.maxBytes) {
-      this.laneOverflow(state);
-      return Promise.reject(new ClientEngineLaneOverflowError());
+      const error = new ClientEngineLaneOverflowError("lane bytes");
+      this.laneOverflow(state, error);
+      return Promise.reject(error);
     }
     const liveCount = this.totalQueued + this.totalInFlight;
     const transportCount = this.transport.count;

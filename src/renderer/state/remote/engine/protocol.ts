@@ -16,8 +16,11 @@ export const CLIENT_ENGINE_PROTOCOL_VERSION = 3 as const;
  * in flight + canceled posted messages whose worker clone has not been
  * consumed yet. Counting the transport reservations keeps the ledger itself
  * bounded, not just the live callbacks. Per-lane budgets are the primary
- * bound; this only refuses work when the sum is already pathological. */
-export const CLIENT_ENGINE_MAX_PENDING = 256;
+ * bound; this only refuses work when the sum is already pathological. It must
+ * stay above one lane's count budget, or a single busy lane would trip the
+ * engine backstop before its own budget. The worker applies the same value to
+ * its unanswered set, which the in-flight windows keep far below it. */
+export const CLIENT_ENGINE_MAX_PENDING = 4096;
 export const CLIENT_ENGINE_TIMEOUT_MS = 2_000;
 /** Global in-flight window: posted-but-unanswered work per engine. Keeps the
  * worker's own unanswered set bounded well below its protocol limit. */
@@ -42,8 +45,18 @@ export const CLIENT_ENGINE_MAX_BYTES = 64 * 1024 * 1024;
  * accumulates this much.
  */
 export const CLIENT_ENGINE_TRANSPORT_WATCHDOG_MS = 10_000;
-/** Per-lane count budget (queued + in flight). */
-export const CLIENT_ENGINE_LANE_MAX_PENDING = 64;
+/**
+ * Per-lane count budget (queued + in flight). The byte budget and the age
+ * budget are the real bounds; this only caps per-entry bookkeeping (object,
+ * timer) for tiny frames. It has to absorb a main-thread stall: a stalled UI
+ * thread still receives every socket frame, and the whole burst is admitted
+ * before the first worker reply can be handled, so the backlog is
+ * `frame rate × stall length` (about 60 frames per second of a streaming turn,
+ * and a reconnect replay or snapshot install is itself such a stall). 64 was
+ * only ~1 s of that stream and turned a short stall into a lane failure,
+ * a reconnect, a replay burst and the next stall.
+ */
+export const CLIENT_ENGINE_LANE_MAX_PENDING = 1024;
 /** Per-lane byte budget over queued AND posted live work: the payload stays
  * charged to the lane until its response or cancellation. A canceled posted
  * message moves to the engine-level transport ledger (globally bounded and
