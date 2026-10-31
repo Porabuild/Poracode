@@ -110,12 +110,8 @@ export function Select(props: SelectProps) {
       </ResponsiveMenuSurface>
     );
   }
-  const disabledKeys = options.filter((option) => option.isDisabled).map((option) => option.id);
   const listBox = (
-    <ListBox
-      {...(disabledKeys.length > 0 ? { disabledKeys } : {})}
-      {...(isVirtualized ? { className: "max-h-60 overflow-y-auto" } : {})}
-    >
+    <ListBox {...(isVirtualized ? { className: "max-h-60 overflow-y-auto" } : {})}>
       {options.map((option) => (
         // HeroUI's select popover sets `px-2.5` on items with the same
         // specificity as the base `:has(.list-box-item__indicator) { pe-7 }`
@@ -126,6 +122,9 @@ export function Select(props: SelectProps) {
           key={option.id}
           id={option.id}
           textValue={option.label}
+          // Inside a Select the collection ignores the ListBox's disabledKeys,
+          // so each item carries its own disabled state.
+          {...(option.isDisabled ? { isDisabled: true } : {})}
           className="relative pe-7"
         >
           {option.icon || option.detail ? (

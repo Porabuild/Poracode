@@ -1,10 +1,11 @@
-import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AgentStatus, Project } from "@/shared/contracts";
 import type { PoracodeBridge } from "@/shared/ipc";
 import { installBrowserClientRuntime, resetClientRuntimeForTest } from "@/renderer/clientRuntime";
+import { resetAdaptiveLayoutForTest } from "@/renderer/adaptiveLayout";
 
 const statusesState = {
   agentStatuses: [] as AgentStatus[],
@@ -105,9 +106,18 @@ vi.mock("./parts/GeneralSettings", () => ({
   GeneralSettings: () => <div data-settings-anchor="general.language">General</div>,
 }));
 
-vi.mock("./parts/ProfileSettings", () => ({
-  ProfileSettings: () => <div>Profile content</div>,
-}));
+const profileMounts = vi.hoisted(() => ({ count: 0 }));
+vi.mock("./parts/ProfileSettings", async () => {
+  const { useEffect } = await import("react");
+  return {
+    ProfileSettings: () => {
+      useEffect(() => {
+        profileMounts.count += 1;
+      }, []);
+      return <div>Profile content</div>;
+    },
+  };
+});
 
 vi.mock("./parts/AppearanceSettings", () => ({
   AppearanceSettings: () => <div data-settings-anchor="appearance.mode">Appearance</div>,
@@ -173,6 +183,8 @@ vi.mock("./parts/SingleAgentSettings", () => ({
 import { SettingsOverlay, settingsSectionProductProperties } from "./SettingsOverlay";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import { useSettingsHostStore } from "@/renderer/state/settingsHostStore";
+import { __resetBrowserBridgeForTest } from "@/renderer/state/remoteServers/browserBridge";
 
 const baseCapabilities = {
   models: [],
@@ -201,8 +213,10 @@ function makeStatus(kind: AgentStatus["kind"], input: Partial<AgentStatus> = {})
 
 describe("SettingsOverlay", () => {
   afterEach(() => {
+    cleanup();
     resetClientRuntimeForTest();
     vi.unstubAllGlobals();
+    resetAdaptiveLayoutForTest();
     Reflect.deleteProperty(HTMLElement.prototype, "scrollIntoView");
   });
 
@@ -234,6 +248,8 @@ describe("SettingsOverlay", () => {
     appState.openSchedules.mockReset();
     bridgeState.remote = false;
     useRemoteServersStore.setState({ servers: [], runtime: {} });
+    useSettingsHostStore.setState({ desktopId: null });
+    __resetBrowserBridgeForTest();
     refreshAgentDiscoveryMock.mockReset();
     usePanelStore.setState({ settingsSection: null, settingsAnchor: null });
   });
@@ -450,6 +466,37 @@ describe("SettingsOverlay", () => {
     fireEvent.click(desktopSettings);
 
     expect(within(main).getByRole("button", { name: "Connections" })).toHaveTextContent("Studio");
+  });
+
+  it("scopes a PWA's host-backed pages with the host bar and remounts them per host", () => {
+    installBrowserClientRuntime({} as PoracodeBridge);
+    bridgeState.remote = true;
+    profileMounts.count = 0;
+    const host = (desktopId: string, label: string) => ({
+      desktopId,
+      label,
+      endpoint: `https://${desktopId}.example.test`,
+      accessToken: "token",
+      scopes: [],
+    });
+    useRemoteServersStore.setState({
+      servers: [host("pc", "PC"), host("mac", "Mac")],
+      runtime: {
+        pc: { status: "online", projects: [], threads: [] },
+        mac: { status: "online", projects: [], threads: [] },
+      },
+    });
+    usePanelStore.getState().openSettingsSection("profile");
+    render(<SettingsOverlay onClose={() => undefined} />);
+    expect(screen.getByText("Profile content")).toBeInTheDocument();
+    expect(screen.getByTestId("machine-select")).toBeInTheDocument();
+    expect(profileMounts.count).toBe(1);
+
+    act(() => useSettingsHostStore.getState().choose("mac"));
+    expect(profileMounts.count).toBe(2);
+
+    fireEvent.click(screen.getByRole("button", { name: /^Appearance/ }));
+    expect(screen.queryByTestId("machine-select")).toBeNull();
   });
 
   it("opens Schedules from the compact Desktop Settings index", () => {

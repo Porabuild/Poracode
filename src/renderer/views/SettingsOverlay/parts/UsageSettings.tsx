@@ -1,4 +1,5 @@
 import { startTransition, useEffect, useState, type ReactNode } from "react";
+import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { NumberField, Tooltip } from "@heroui/react";
 import { RefreshCw } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
@@ -8,48 +9,44 @@ import { usageProvidersForAgentInstances } from "@/renderer/components/providers
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useProviderUsageStore } from "@/renderer/state/providerUsageStore";
 import {
-  useRemoteServersStore,
   getStandaloneOwnerDesktopId,
-  selectBrowserBridgeServer,
+  useRemoteServersStore,
 } from "@/renderer/state/remoteServersStore";
 import { remoteConnectionKey } from "@/renderer/state/remoteServers/types";
+import { useSettingsHostServer, useSettingsHostStore } from "@/renderer/state/settingsHostStore";
+import { useUsageScopeStore } from "@/renderer/state/usageScopeStore";
 import { UsageDisplaySettings } from "./UsageDisplaySettings";
 import { HostUsageSettings } from "./HostUsageSettings";
 import { SettingRow, SettingsPage } from "./SettingsForm";
 import { UsageProviderRow } from "../../../components/providers/settings/UsageProviderRow";
 import { clampRefreshMinutes, MAX_REFRESH_MINUTES } from "./usageRefreshBounds";
 
+const CURRENT_HOST = "current";
+
 export function UsageSettings() {
   const { t } = useLingui();
   const remote = isRemoteSession();
+  const compactLayout = useCompactLayout();
   const servers = useRemoteServersStore((state) => state.servers);
-  const browserServer = useRemoteServersStore(selectBrowserBridgeServer);
-  const [selection, setSelection] = useState(() => {
-    const state = useRemoteServersStore.getState();
-    const owner = getStandaloneOwnerDesktopId();
-    const server =
-      state.servers.find((candidate) => remoteConnectionKey(candidate) === owner) ??
-      selectBrowserBridgeServer(state) ??
-      state.servers[0];
-    return remote && server
-      ? JSON.stringify(["connection", remoteConnectionKey(server)])
-      : "current";
-  });
-  const owner = getStandaloneOwnerDesktopId();
-  const defaultServer =
-    servers.find((candidate) => remoteConnectionKey(candidate) === owner) ??
-    browserServer ??
-    servers[0];
-  const effectiveSelection =
-    remote && selection === "current" && defaultServer
-      ? JSON.stringify(["connection", remoteConnectionKey(defaultServer)])
-      : selection;
-  const connectionId =
-    effectiveSelection === "current"
-      ? undefined
-      : (JSON.parse(effectiveSelection) as [string, string])[1];
+  const settingsHost = useSettingsHostServer();
+  const hostChosen = useSettingsHostStore((state) => state.desktopId !== null);
+  const requestedId = useUsageScopeStore((state) => state.desktopId);
+  const setRequestedId = useUsageScopeStore((state) => state.setDesktopId);
+  // A remote client shows the host its settings are scoped to; the overlay's
+  // host bar switches it. Until the user picks one, attached Electron starts
+  // on the standalone host it attached to.
+  if (remote) {
+    const owner = hostChosen ? null : getStandaloneOwnerDesktopId();
+    const ownerServer = servers.find((server) => remoteConnectionKey(server) === owner);
+    const server = ownerServer ?? settingsHost;
+    return (
+      <HostUsageSettings connectionId={server ? remoteConnectionKey(server) : ""} selector={null} />
+    );
+  }
+  // The wide layout docks the shared host bar over the page; the compact layout
+  // has no room for it, so it keeps an inline row.
   const selector =
-    servers.length > 0 || (!remote && selection !== "current") ? (
+    compactLayout && (servers.length > 0 || requestedId !== null) ? (
       <SettingRow
         title={t`Usage host`}
         description={t`Choose the host or environment whose accounts you want to view.`}
@@ -57,10 +54,14 @@ export function UsageSettings() {
         <Select
           aria-label={t`Usage host`}
           className="w-[220px] shrink-0"
-          value={effectiveSelection}
-          onChange={setSelection}
+          // Connection ids are tuple-encoded so one named "current" stays
+          // distinct from the current-host option.
+          value={requestedId === null ? CURRENT_HOST : JSON.stringify(["connection", requestedId])}
+          onChange={(id) =>
+            setRequestedId(id === CURRENT_HOST ? null : (JSON.parse(id) as [string, string])[1])
+          }
           options={[
-            ...(!remote ? [{ id: "current", label: t`This host` }] : []),
+            { id: CURRENT_HOST, label: t`This host` },
             ...servers.map((server) => ({
               id: JSON.stringify(["connection", remoteConnectionKey(server)]),
               label: server.label,
@@ -69,8 +70,8 @@ export function UsageSettings() {
         />
       </SettingRow>
     ) : null;
-  if (connectionId !== undefined || remote) {
-    return <HostUsageSettings connectionId={connectionId ?? ""} selector={selector} />;
+  if (requestedId !== null) {
+    return <HostUsageSettings connectionId={requestedId} selector={selector} />;
   }
   return <CurrentHostUsageSettings selector={selector} />;
 }

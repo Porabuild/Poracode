@@ -52,6 +52,24 @@ describe("Select rich options", () => {
     expect(onChange).toHaveBeenCalledWith("beta");
   });
 
+  it("keeps a disabled option listed but unselectable in the desktop list", async () => {
+    const onChange = vi.fn<(value: string) => void>();
+    render(
+      <Select
+        aria-label="Project"
+        options={[options[0]!, { ...options[1]!, isDisabled: true }]}
+        value="alpha"
+        onChange={onChange}
+      />,
+    );
+
+    fireEvent.click(screen.getByLabelText("Project"));
+    const beta = await screen.findByRole("option", { name: /Beta/u });
+    expect(beta).toHaveAttribute("aria-disabled", "true");
+    fireEvent.click(beta);
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
   it("lets a long selected label shrink inside the trigger so it truncates", () => {
     render(
       <Select
