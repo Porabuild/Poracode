@@ -1,6 +1,8 @@
 import { createReadStream, existsSync, readdirSync, readFileSync } from "node:fs";
+import { availableParallelism } from "node:os";
 import { basename, extname, isAbsolute, join, relative, resolve, sep } from "node:path";
-import { defineConfig, loadEnv, type Plugin } from "vite";
+import { Worker } from "node:worker_threads";
+import { defineConfig, loadEnv, type Plugin, type Rollup } from "vite";
 import babel from "@rolldown/plugin-babel";
 import react from "@vitejs/plugin-react";
 import { lingui, linguiTransformerBabelPreset } from "@lingui/vite-plugin";
@@ -176,6 +178,85 @@ function reactDevtoolsStandalone(): Plugin {
           injectTo: "head-prepend",
         },
       ];
+    },
+  };
+}
+
+// Dev-only stand-in for `linguiBabel`: the same Babel transform, run in worker
+// threads. Babel is single-threaded and costs about a third of the dev server's
+// main-thread time while it transforms the startup graph, and that thread also
+// answers the window's module requests.
+function linguiMacroWorkers(): Plugin {
+  type Reply = {
+    id: number;
+    code: string | null;
+    map: Rollup.SourceMapInput;
+    error?: BabelWorkerError;
+  };
+  type BabelWorkerError = { message: string; loc?: unknown; pos?: number; code?: string };
+  type Pending = { resolve: (reply: Reply) => void; reject: (error: Error) => void };
+  // The preset's own filter: only files that import a Lingui macro.
+  const macroImport = linguiPreset.rolldown.filter?.code;
+  const workerUrl = resolve(import.meta.dirname, "scripts/vite-lingui-macro-worker.mjs");
+  // Two workers measured faster than four: more threads slowed the Electron
+  // runtime build and main-process boot that start alongside the dev server.
+  const size = Math.max(1, Math.min(2, availableParallelism() - 1));
+  const workers: { worker: Worker; pending: Map<number, Pending> }[] = [];
+  let nextId = 0;
+  let closed = false;
+
+  const spawn = (index: number) => {
+    const pending = new Map<number, Pending>();
+    const worker = new Worker(workerUrl);
+    worker.unref();
+    worker.on("message", (reply: Reply) => {
+      pending.get(reply.id)?.resolve(reply);
+      pending.delete(reply.id);
+    });
+    let failure: Error | undefined;
+    worker.on("error", (error: Error) => {
+      failure = error;
+    });
+    worker.on("exit", () => {
+      const error = failure ?? new Error("Lingui macro worker exited.");
+      for (const task of pending.values()) task.reject(error);
+      if (!closed) spawn(index);
+    });
+    workers[index] = { worker, pending };
+  };
+  const run = (code: string, filename: string) => {
+    if (workers.length === 0) for (let index = 0; index < size; index++) spawn(index);
+    const slot = workers.reduce((least, next) =>
+      next.pending.size < least.pending.size ? next : least,
+    );
+    const id = nextId++;
+    return new Promise<Reply>((resolveReply, reject) => {
+      slot.pending.set(id, { resolve: resolveReply, reject });
+      slot.worker.postMessage({ id, code, filename });
+    });
+  };
+
+  return {
+    name: "poracode:lingui-macro-workers",
+    apply: "serve",
+    enforce: "pre",
+    transform: {
+      filter: { id: CLIENT_SOURCE_RE, ...(macroImport ? { code: macroImport } : {}) },
+      async handler(code, id) {
+        const reply = await run(code, id);
+        if (reply.error) {
+          this.error({
+            message: `[BabelError] ${reply.error.message}`,
+            ...(reply.error.pos === undefined ? {} : { pos: reply.error.pos }),
+            ...(reply.error.code ? { pluginCode: reply.error.code } : {}),
+          });
+        }
+        return reply.code === null ? null : { code: reply.code, map: reply.map };
+      },
+    },
+    closeBundle() {
+      closed = true;
+      for (const { worker } of workers.splice(0)) void worker.terminate();
     },
   };
 }
@@ -358,7 +439,7 @@ function materialIconAssets(): Plugin[] {
   ];
 }
 
-export default defineConfig(({ mode }) => ({
+export default defineConfig(({ command, mode }) => ({
   plugins: [
     tailwindcss(),
     resizeObserverLoopErrorFilter(),
@@ -371,7 +452,7 @@ export default defineConfig(({ mode }) => ({
     // native Oxc React Compiler transform inside react().
     // We use the Babel macro (not the SWC plugin) because this project transforms
     // with Babel, sidestepping the SWC-plugin/runtime version-matching pitfalls.
-    linguiBabel,
+    command === "serve" ? linguiMacroWorkers() : linguiBabel,
     react({
       compiler: true,
       include: CLIENT_SOURCE_RE,
