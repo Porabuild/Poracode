@@ -1,12 +1,13 @@
 import { msg } from "@lingui/core/macro";
 import { toast } from "@heroui/react";
-import { friendlyError, msg as sharedMsg } from "@/shared/messages";
+import { msg as sharedMsg } from "@/shared/messages";
 import {
   isRemoteBoundedReadProtocolError,
   isRemoteTransportFailure,
   isUnauthorizedRemoteError,
   type RemoteDesktopClient,
 } from "@/shared/remote/client";
+import { remoteServerFailureMessage } from "./failureMessage";
 import { i18n } from "@/renderer/i18n/i18n";
 import { resetTruncateReloadBackoff } from "@/renderer/state/remote/truncateRecovery";
 import { syncDesktopBrowserBridgeClient } from "./browserBridge";
@@ -95,7 +96,7 @@ export function createRemoteServerClientBindings(
     // prose is English-only: the caller's localized fallback is the message,
     // and the host stays reachable (error, never offline).
     const protocolViolation = isRemoteBoundedReadProtocolError(error);
-    const message = protocolViolation ? fallback : friendlyError(error) || fallback;
+    const message = protocolViolation ? fallback : remoteServerFailureMessage(error, fallback);
     toast.danger(message);
     setRemoteServerFailure(
       desktopId,

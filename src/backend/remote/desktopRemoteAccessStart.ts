@@ -19,10 +19,16 @@ import {
   remoteAccessAdvertisedHost,
   remoteAccessHost,
   remoteAccessPairingAppUrl,
+  remoteAccessPort,
   remoteForwardBaseUrl,
   resolveRemoteAccessPort,
 } from "@/host/remote/config";
 import { readOrCreateRemoteAccessIdentity } from "@/host/remote/identity";
+import {
+  listeningPortOf,
+  preferredRemoteAccessPort,
+  rememberRemoteAccessPort,
+} from "@/host/remote/remoteAccessPortMemory";
 import { createForwardOriginIdentity } from "@/host/remote/portForward/forwardOriginIdentity";
 import { readOrCreateForwardOriginSecret } from "@/host/remote/portForward/forwardOriginSecret";
 import {
@@ -130,7 +136,17 @@ export async function performDesktopRemoteAccessStart(
     const remoteHost = attempt.loopbackOnly
       ? DEFAULT_REMOTE_ACCESS_HOST
       : remoteAccessHost({ defaultMode: "lan", plaintextLanAcknowledged: true });
-    const port = await resolveRemoteAccessPort({ host: remoteHost });
+    // Paired clients store the LAN listener's full endpoint, so an
+    // automatically chosen port returns to the previous one. The loopback-only
+    // instance is rediscovered by the co-located renderer and keeps the plain
+    // scan, with no wait.
+    const remembersPort = !attempt.loopbackOnly && remoteAccessPort() === undefined;
+    const port = await resolveRemoteAccessPort({
+      host: remoteHost,
+      ...(remembersPort
+        ? { preferredPort: preferredRemoteAccessPort(options.paths.baseDir, remoteHost) }
+        : {}),
+    });
     // Dedicated persistent origin secret + configured HTTPS base → the
     // browser-forward child-origin identity. A malformed explicit
     // PORACODE_REMOTE_FORWARD_BASE_URL fails startup loudly; absence only
@@ -371,6 +387,10 @@ export async function performDesktopRemoteAccessStart(
       await stopMdnsAdvertiser();
       console.log("[poracode] loopback remote server ready at %s", info.localHttpBaseUrl);
       return info;
+    }
+    const listeningPort = remembersPort ? listeningPortOf(info.localHttpBaseUrl) : null;
+    if (listeningPort !== null) {
+      rememberRemoteAccessPort(options.paths.baseDir, remoteHost, listeningPort);
     }
     maybeAdvertiseMdns(info);
     console.log("[poracode] remote access enabled at %s", info.httpBaseUrl);

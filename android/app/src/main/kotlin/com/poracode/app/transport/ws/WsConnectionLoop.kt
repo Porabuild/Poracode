@@ -168,11 +168,13 @@ class WsConnectionLoop(
 
                 override fun onMessage(webSocket: WebSocket, text: String) {
                     if (!state.generationGate.isCurrent(gen)) return
+                    state.lastInboundAtMs.set(System.currentTimeMillis())
                     frameRouter.handleText(text, gen)
                 }
 
                 override fun onMessage(webSocket: WebSocket, bytes: ByteString) {
                     if (!state.generationGate.isCurrent(gen)) return
+                    state.lastInboundAtMs.set(System.currentTimeMillis())
                     frameRouter.handleText(bytes.utf8(), gen)
                 }
 

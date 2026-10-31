@@ -1,4 +1,5 @@
 import type { Server } from "node:http";
+import type { Server as NetServer } from "node:net";
 import type { WebSocket, WebSocketServer } from "ws";
 import { matchEnvironmentProxyPath } from "@/shared/environments";
 import type { AsyncWorkTracker } from "@/shared/asyncWorkTracker";
@@ -751,6 +752,8 @@ export interface RemoteAccessServerHost {
   seq: number;
   info: RemoteAccessServerInfo | null;
   activePairingCredential: string | null;
+  /** Loopback guard of a wildcard bind (see `reserveLoopbackPort`). */
+  loopbackGuard: NetServer | null;
   readonly stopping: boolean;
   readonly listenCancellation: AbortController;
   starting: Promise<RemoteAccessServerInfo> | undefined;

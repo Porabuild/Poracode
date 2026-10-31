@@ -5,6 +5,7 @@ import {
   DEFAULT_REMOTE_ACCESS_PORT,
   LAN_BIND_HOST,
   PLAINTEXT_LAN_ACK_ENV,
+  PREFERRED_REMOTE_ACCESS_PORT_WAIT_MS,
   classifyBindHostExposure,
   detectLanIpv4Address,
   detectTailnetIpv4Address,
@@ -84,6 +85,65 @@ describe("remote access config", () => {
     ]);
   });
 
+  it("returns to the preferred port before a free lower port", async () => {
+    const preferredPort = DEFAULT_REMOTE_ACCESS_PORT + 1;
+    const checked: number[] = [];
+    await expect(
+      resolveRemoteAccessPort({
+        host: "127.0.0.1",
+        preferredPort,
+        isAvailable: async (candidate) => {
+          checked.push(candidate);
+          return true;
+        },
+      }),
+    ).resolves.toBe(preferredPort);
+    expect(checked).toEqual([preferredPort]);
+  });
+
+  it("waits for a busy preferred port to be released", async () => {
+    let clock = 0;
+    const sleeps: number[] = [];
+    const preferredPort = DEFAULT_REMOTE_ACCESS_PORT + 5;
+    await expect(
+      resolveRemoteAccessPort({
+        host: "127.0.0.1",
+        preferredPort,
+        now: () => clock,
+        sleep: async (ms) => {
+          sleeps.push(ms);
+          clock += ms;
+        },
+        // The restarting host's previous process lets go after 1.2 s.
+        isAvailable: async (candidate) => candidate !== preferredPort || clock >= 1_200,
+      }),
+    ).resolves.toBe(preferredPort);
+    expect(sleeps).toEqual([250, 250, 250, 250, 250]);
+  });
+
+  it("moves on after the wait and never rescans the preferred port", async () => {
+    let clock = 0;
+    const preferredPort = DEFAULT_REMOTE_ACCESS_PORT;
+    const scanned: number[] = [];
+    await expect(
+      resolveRemoteAccessPort({
+        host: "127.0.0.1",
+        preferredPort,
+        rangeEnd: DEFAULT_REMOTE_ACCESS_PORT + 2,
+        now: () => clock,
+        sleep: async (ms) => {
+          clock += ms;
+        },
+        isAvailable: async (candidate) => {
+          if (candidate !== preferredPort) scanned.push(candidate);
+          return candidate !== preferredPort;
+        },
+      }),
+    ).resolves.toBe(DEFAULT_REMOTE_ACCESS_PORT + 1);
+    expect(clock).toBe(PREFERRED_REMOTE_ACCESS_PORT_WAIT_MS);
+    expect(scanned).toEqual([DEFAULT_REMOTE_ACCESS_PORT + 1]);
+  });
+
   it("keeps an explicit port authoritative without probing", async () => {
     const isAvailable = vi.fn<(port: number, host: string) => Promise<boolean>>();
 
@@ -114,6 +174,23 @@ describe("remote access config", () => {
     try {
       await expect(
         resolveRemoteAccessPort({ host: "0.0.0.0", rangeStart: port, rangeEnd: port }),
+      ).rejects.toMatchObject({ code: "EADDRINUSE" });
+    } finally {
+      await new Promise<void>((resolve, reject) => {
+        server.close((error) => (error ? reject(error) : resolve()));
+      });
+    }
+  });
+
+  it("does not select a loopback port another host already serves on all interfaces", async () => {
+    // Windows admits 127.0.0.1:P beside another process's 0.0.0.0:P and would
+    // then route that host's loopback clients here.
+    const server = createServer();
+    await new Promise<void>((resolve) => server.listen(0, "0.0.0.0", resolve));
+    const { port } = server.address() as AddressInfo;
+    try {
+      await expect(
+        resolveRemoteAccessPort({ host: "127.0.0.1", rangeStart: port, rangeEnd: port }),
       ).rejects.toMatchObject({ code: "EADDRINUSE" });
     } finally {
       await new Promise<void>((resolve, reject) => {

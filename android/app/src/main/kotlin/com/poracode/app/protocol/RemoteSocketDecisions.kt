@@ -72,6 +72,26 @@ object RemoteSocketDecisions {
     }
 
     /**
+     * Whether an expired pong deadline gets one more window instead of a forced
+     * reconnect (mirrors `RemoteSocketHealthMonitor` in `socketPolicy.ts`). A
+     * deadline that fired late means the process stalled, so the pong may be
+     * queued right behind it; frames during the window prove the peer is alive.
+     * Bounded so a socket that truly went silent is still declared dead.
+     */
+    fun shouldExtendHealthDeadline(
+        nowMs: Long,
+        deadlineAtMs: Long,
+        windowStartedAtMs: Long,
+        lastInboundAtMs: Long,
+        extensions: Int,
+    ): Boolean {
+        if (extensions >= RemoteSocketPolicy.HEALTH_DEADLINE_MAX_EXTENSIONS) return false
+        val stalled = nowMs - deadlineAtMs > RemoteSocketPolicy.HEALTH_DEADLINE_STALL_SLACK_MS
+        val active = lastInboundAtMs >= windowStartedAtMs
+        return stalled || active
+    }
+
+    /**
      * When to start the health loop: only after ready (not onOpen).
      */
     fun shouldStartHealth(readyReceived: Boolean, generationMatches: Boolean): Boolean =

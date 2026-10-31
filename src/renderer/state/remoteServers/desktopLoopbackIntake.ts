@@ -747,6 +747,7 @@ export class DesktopLoopbackIntake {
     };
     socket.onmessage = (event) => {
       if (!isCurrent()) return;
+      this.liveness.noteActivity();
       this.drain.push(String(event.data));
     };
     socket.onclose = (event) => {
