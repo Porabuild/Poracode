@@ -1,7 +1,8 @@
 import { Tooltip } from "@heroui/react";
 import { Check } from "lucide-react";
-import { useRef, useState, type KeyboardEventHandler, type ReactNode } from "react";
+import type { KeyboardEventHandler, ReactNode } from "react";
 import type { UserInputOption } from "@/shared/contracts";
+import { useOverflowTooltip } from "./useOverflowTooltip";
 
 /** Row chrome shared by choice rows and the inline custom-answer row; mirrors sidebar rows. */
 export function questionRowClassName(active: boolean): string {
@@ -57,8 +58,7 @@ export function QuestionOptionRow(props: {
   isTabStop?: boolean;
 }) {
   const { index, option, isDisabled, onClick, selected, checked } = props;
-  const labelRef = useRef<HTMLSpanElement>(null);
-  const [isTooltipOpen, setIsTooltipOpen] = useState(false);
+  const { labelRef, tooltipProps } = useOverflowTooltip(!!option.description);
   const isMultiSelect = checked !== undefined;
   const active = isMultiSelect ? checked : selected === true;
 
@@ -94,16 +94,7 @@ export function QuestionOptionRow(props: {
 
   if (props.wrapLabel && !option.description) return row;
   return (
-    <Tooltip
-      delay={400}
-      isOpen={isTooltipOpen}
-      onOpenChange={(open) => {
-        const label = labelRef.current;
-        setIsTooltipOpen(
-          open && (!!option.description || (!!label && label.scrollWidth > label.clientWidth)),
-        );
-      }}
-    >
+    <Tooltip delay={400} {...tooltipProps}>
       <Tooltip.Trigger className="flex w-full min-h-0 flex-col" tabIndex={-1} role="none">
         {row}
       </Tooltip.Trigger>

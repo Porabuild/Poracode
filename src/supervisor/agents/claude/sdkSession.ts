@@ -1597,6 +1597,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
             : {}),
           ...(callbackOptions.toolUseID ? { toolUseID: callbackOptions.toolUseID } : {}),
           ...(suggestions ? { suggestions } : {}),
+          cwd: projectCwd(this.input.projectLocation),
         }),
       ]);
       this.updatePendingRequestStatus();
