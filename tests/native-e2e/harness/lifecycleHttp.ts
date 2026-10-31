@@ -46,7 +46,15 @@ export async function handleLifecycleHttp(
   }
   switch (routeId) {
     case "shell-snapshot":
-      writeValidatedRoute(runtime, res, routeId, runtime.lifecycle.shellSnapshot(runtime.ring.seq));
+      // Like the host, the snapshot names the epoch its seq belongs to, so a
+      // declaring client's first connect resumes verified instead of earning a
+      // resync (and a second socket) whenever the ring is already past 0.
+      writeValidatedRoute(
+        runtime,
+        res,
+        routeId,
+        runtime.lifecycle.shellSnapshot(runtime.ring.seq, runtime.ring.epoch),
+      );
       recordRouteFollowUps(runtime, routeId);
       return true;
     case "project-command": {

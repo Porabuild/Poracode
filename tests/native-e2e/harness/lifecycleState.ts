@@ -46,9 +46,10 @@ export class LabLifecycleState {
     for (const project of this.projects) this.projectMcpServers.set(String(project.id), []);
   }
 
-  shellSnapshot(snapshotSeq: number): Record<string, unknown> {
+  shellSnapshot(snapshotSeq: number, snapshotEpoch: string): Record<string, unknown> {
     return {
       snapshotSeq,
+      snapshotEpoch,
       projects: structuredClone(this.projects),
       threads: [structuredClone(this.thread)],
       runtimeSummariesByThread: structuredClone(this.runtimeSummariesByThread),
