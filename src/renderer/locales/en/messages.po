@@ -3471,6 +3471,7 @@ msgid "Choose a photo"
 msgstr "Choose a photo"
 
 #: src/renderer/components/sessionImport/importSessionsActions.ts
+#: src/renderer/components/sessionImport/remoteSessionImport.ts
 msgid "Choose a project for sessions whose folder no longer exists."
 msgstr "Choose a project for sessions whose folder no longer exists."
 
@@ -12083,6 +12084,7 @@ msgid "No microphone found."
 msgstr "No microphone found."
 
 #: src/renderer/components/sessionImport/importSessionsActions.ts
+#: src/renderer/components/sessionImport/remoteSessionImport.ts
 msgid "No model is available for {agent}. Check the agent in Settings."
 msgstr "No model is available for {agent}. Check the agent in Settings."
 
@@ -21041,6 +21043,10 @@ msgstr "Update {0} ({env})"
 msgid "Update {0} to {updateLabel}"
 msgstr "Update {0} to {updateLabel}"
 
+#: src/renderer/components/sessionImport/remoteSessionImport.ts
+msgid "Update {host} to import its sessions."
+msgstr "Update {host} to import its sessions."
+
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #~ msgid "Update all"
 #~ msgstr "Update all"
@@ -21126,6 +21132,10 @@ msgstr "Update the host to fork conversations."
 #: src/renderer/components/thread/SideChat/sideChatActions.ts
 msgid "Update the remote host to use side chat with hidden context."
 msgstr "Update the remote host to use side chat with hidden context."
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Update this host to import its sessions."
+msgstr "Update this host to import its sessions."
 
 #: src/renderer/components/providers/HostUsageView.tsx
 msgid "Update this host to refresh usage remotely. Cached usage can still be read."

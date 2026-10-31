@@ -392,6 +392,8 @@ export const remoteEnvironmentCapabilitiesSchema = z.object({
   conversationSnapshots: z.object({ versions: remoteCapabilityVersionsSchema }).optional(),
   /** Independent completed-turn snapshots with durable first-prompt context. */
   threadForks: z.object({ versions: remoteCapabilityVersionsSchema }).optional(),
+  /** Host transcript listing and the `import-session` thread command. */
+  sessionImport: z.object({ versions: remoteCapabilityVersionsSchema }).optional(),
   terminalCursorSync: remoteTerminalCursorSyncCapabilitySchema.optional(),
   pushRouting: remotePushRoutingCapabilitySchema.optional(),
   browserForward: remoteBrowserForwardCapabilitySchema.optional(),

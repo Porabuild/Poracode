@@ -107,6 +107,7 @@ const MACHINE_BACKED_SECTIONS = new Set<SettingsSection>([
   "skills",
   "mcpServers",
   "usage",
+  "import",
 ]);
 
 /** Pages that edit one host's settings; a remote client scopes them with the host bar. */
@@ -119,6 +120,7 @@ const HOST_SCOPED_SECTIONS = new Set<SettingsSection>([
   "mcpServers",
   "usage",
   "crews",
+  "import",
 ]);
 
 function renderSection(

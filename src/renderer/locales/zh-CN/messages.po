@@ -3462,6 +3462,7 @@ msgid "Choose a photo"
 msgstr "选择照片"
 
 #: src/renderer/components/sessionImport/importSessionsActions.ts
+#: src/renderer/components/sessionImport/remoteSessionImport.ts
 msgid "Choose a project for sessions whose folder no longer exists."
 msgstr "为文件夹已不存在的会话选择一个项目。"
 
@@ -12073,6 +12074,7 @@ msgid "No microphone found."
 msgstr "找不到麦克风。"
 
 #: src/renderer/components/sessionImport/importSessionsActions.ts
+#: src/renderer/components/sessionImport/remoteSessionImport.ts
 msgid "No model is available for {agent}. Check the agent in Settings."
 msgstr "{agent} 没有可用的模型。请在设置中检查该代理。"
 
@@ -21031,6 +21033,10 @@ msgstr "更新 {0}（{env}）"
 msgid "Update {0} to {updateLabel}"
 msgstr "将{0}更新为{updateLabel}"
 
+#: src/renderer/components/sessionImport/remoteSessionImport.ts
+msgid "Update {host} to import its sessions."
+msgstr "请更新 {host} 以导入其会话。"
+
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #~ msgid "Update all"
 #~ msgstr "全部更新"
@@ -21116,6 +21122,10 @@ msgstr "请更新主机以创建对话分支。"
 #: src/renderer/components/thread/SideChat/sideChatActions.ts
 msgid "Update the remote host to use side chat with hidden context."
 msgstr "请更新远程主机，以使用带有隐藏上下文的旁聊。"
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Update this host to import its sessions."
+msgstr "请更新此主机以导入其会话。"
 
 #: src/renderer/components/providers/HostUsageView.tsx
 msgid "Update this host to refresh usage remotely. Cached usage can still be read."

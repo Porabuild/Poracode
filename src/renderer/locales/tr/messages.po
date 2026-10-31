@@ -3462,6 +3462,7 @@ msgid "Choose a photo"
 msgstr "Bir fotoğraf seç"
 
 #: src/renderer/components/sessionImport/importSessionsActions.ts
+#: src/renderer/components/sessionImport/remoteSessionImport.ts
 msgid "Choose a project for sessions whose folder no longer exists."
 msgstr "Klasörü artık bulunmayan oturumlar için bir proje seçin."
 
@@ -12074,6 +12075,7 @@ msgid "No microphone found."
 msgstr "Mikrofon bulunamadı."
 
 #: src/renderer/components/sessionImport/importSessionsActions.ts
+#: src/renderer/components/sessionImport/remoteSessionImport.ts
 msgid "No model is available for {agent}. Check the agent in Settings."
 msgstr "{agent} için kullanılabilir model yok. Ayarlar'da ajanı kontrol edin."
 
@@ -21032,6 +21034,10 @@ msgstr "{0} güncelle ({env})"
 msgid "Update {0} to {updateLabel}"
 msgstr "{0} öğesini {updateLabel} olarak güncelleyin"
 
+#: src/renderer/components/sessionImport/remoteSessionImport.ts
+msgid "Update {host} to import its sessions."
+msgstr "Oturumlarını içe aktarmak için {host} ana bilgisayarını güncelleyin."
+
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #~ msgid "Update all"
 #~ msgstr "Tümünü güncelle"
@@ -21117,6 +21123,10 @@ msgstr "Konuşmaları dallandırmak için ana bilgisayarı güncelleyin."
 #: src/renderer/components/thread/SideChat/sideChatActions.ts
 msgid "Update the remote host to use side chat with hidden context."
 msgstr "Gizli bağlamla yan sohbet kullanmak için uzak ana bilgisayarı güncelleyin."
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Update this host to import its sessions."
+msgstr "Oturumlarını içe aktarmak için bu ana bilgisayarı güncelleyin."
 
 #: src/renderer/components/providers/HostUsageView.tsx
 msgid "Update this host to refresh usage remotely. Cached usage can still be read."

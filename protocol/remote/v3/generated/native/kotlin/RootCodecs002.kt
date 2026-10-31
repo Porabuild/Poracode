@@ -164,6 +164,12 @@ val RemoteRootCodecs.procedureU2EListFileCheckpointsU2ERequest: RemoteRootCodec<
 val RemoteRootCodecs.procedureU2EListFileCheckpointsU2EResult: RemoteRootCodec<ProcedurelistFileCheckpointsResult_df7fa3d1be>
     get() = RemoteRootCodec("procedure.listFileCheckpoints.result", serializer<ProcedurelistFileCheckpointsResult_df7fa3d1be>(), schema_df7fa3d1be8ffbea)
 
+val RemoteRootCodecs.procedureU2EListImportableSessionsU2ERequest: RemoteRootCodec<ProcedurelistImportableSessionsRequest_b5ff559bbe>
+    get() = RemoteRootCodec("procedure.listImportableSessions.request", serializer<ProcedurelistImportableSessionsRequest_b5ff559bbe>(), schema_b5ff559bbe30e3ad)
+
+val RemoteRootCodecs.procedureU2EListImportableSessionsU2EResult: RemoteRootCodec<ProcedurelistImportableSessionsResult_078fcc8515>
+    get() = RemoteRootCodec("procedure.listImportableSessions.result", serializer<ProcedurelistImportableSessionsResult_078fcc8515>(), schema_078fcc85154eb644)
+
 val RemoteRootCodecs.procedureU2EListProjectTreeU2ERequest: RemoteRootCodec<ProcedurelistProjectTreeRequest_26cfea8cde>
     get() = RemoteRootCodec("procedure.listProjectTree.request", serializer<ProcedurelistProjectTreeRequest_26cfea8cde>(), schema_26cfea8cde59ada2)
 
@@ -442,9 +448,3 @@ val RemoteRootCodecs.routeU2EDeviceU2DPreviewU2DAndroidU2DApiU2EResponse: Remote
 
 val RemoteRootCodecs.routeU2EDeviceU2DPreviewU2DAndroidU2DDevicesU2EPath: RemoteRootCodec<RoutedeviceU2DActionPath_eef64882a7>
     get() = RemoteRootCodec("route.device-preview-android-devices.path", serializer<RoutedeviceU2DActionPath_eef64882a7>(), schema_eef64882a7b017fb)
-
-val RemoteRootCodecs.routeU2EDeviceU2DPreviewU2DAndroidU2DDevicesU2EQuery: RemoteRootCodec<RoutedeviceU2DPreviewU2DAndroidU2DApiQuery_bb755d8d8c>
-    get() = RemoteRootCodec("route.device-preview-android-devices.query", serializer<RoutedeviceU2DPreviewU2DAndroidU2DApiQuery_bb755d8d8c>(), schema_bb755d8d8c6227a7)
-
-val RemoteRootCodecs.routeU2EDeviceU2DPreviewU2DAndroidU2DDevicesU2EResponse: RemoteRootCodec<RoutedeviceU2DPreviewU2DAndroidU2DDevicesResponse_cd0f418250>
-    get() = RemoteRootCodec("route.device-preview-android-devices.response", serializer<RoutedeviceU2DPreviewU2DAndroidU2DDevicesResponse_cd0f418250>(), schema_cd0f41825028e154)
