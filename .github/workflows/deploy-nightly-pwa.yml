@@ -1,10 +1,11 @@
 name: Deploy Nightly PWA
 
-# Vercel Git deployments are disabled in vercel.json. Either CI completion
-# wakes qualification; both exact-SHA workflows must pass before publication.
+# Vercel Git deployments are disabled in vercel.json. CI completion wakes
+# qualification; its exact-SHA gate must pass before publication. Native
+# clients is deliberately not required: this publishes only the web build.
 on:
   workflow_run:
-    workflows: [CI, Native clients]
+    workflows: [CI]
     types: [completed]
     branches: [master]
   workflow_dispatch:
@@ -42,7 +43,7 @@ jobs:
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: "26"
-      - name: Require successful core and native checks
+      - name: Require successful core checks
         id: check
         env:
           GITHUB_TOKEN: ${{ github.token }}

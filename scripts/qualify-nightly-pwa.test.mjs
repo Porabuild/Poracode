@@ -67,12 +67,12 @@ function fixture() {
   return state;
 }
 
-void test("qualifies both required gates on the tested SHA, never workflow_run's default-branch SHA", async () => {
+void test("qualifies the required core gate on the tested SHA, never workflow_run's default-branch SHA", async () => {
   const state = fixture();
   const result = await qualifyNightlyPwa(state.context, state.request);
   assert.equal(result.qualified, true);
   assert.equal(result.sha, sha);
-  assert.equal(result.checks.length, 2);
+  assert.equal(result.checks.length, NIGHTLY_CHECKS.length);
   assert.equal(
     state.requests.filter(({ path }) => path.endsWith("/git/ref/heads/master")).length,
     2,
@@ -85,7 +85,7 @@ void test("manual dispatch passes the same checks and cannot override the qualif
   state.context.sha = sha;
   assert.equal((await qualifyNightlyPwa(state.context, state.request, sha)).qualified, true);
   assert.equal((await qualifyNightlyPwa(state.context, state.request, otherSha)).qualified, false);
-  state.runs[1] = [];
+  state.runs[0] = [];
   assert.equal((await qualifyNightlyPwa(state.context, state.request, sha)).qualified, false);
 });
 
@@ -166,7 +166,7 @@ void test("rejects missing, failed, cancelled, pending, skipped, and wrong-SHA q
     },
   ];
   for (const mutate of mutations) {
-    for (const index of [0, 1]) {
+    for (const index of NIGHTLY_CHECKS.keys()) {
       const state = fixture();
       mutate(state, index);
       assert.equal((await qualifyNightlyPwa(state.context, state.request)).qualified, false);
@@ -212,7 +212,7 @@ void test("workflow success requires its actual aggregate job to pass on the sam
     },
   ];
   for (const mutate of mutations) {
-    for (const index of [0, 1]) {
+    for (const index of NIGHTLY_CHECKS.keys()) {
       const state = fixture();
       mutate(state, index);
       assert.equal((await qualifyNightlyPwa(state.context, state.request)).qualified, false);
@@ -281,4 +281,12 @@ void test("the publication CLI exits nonzero for an unqualified pinned candidate
   } finally {
     await rm(temporary, { recursive: true, force: true });
   }
+});
+
+void test("the web-only nightly is gated on core CI, not the native clients", () => {
+  assert.deepEqual(
+    NIGHTLY_CHECKS.map((check) => check.name),
+    ["CI"],
+    "A native-only failure must not freeze the hosted web client",
+  );
 });

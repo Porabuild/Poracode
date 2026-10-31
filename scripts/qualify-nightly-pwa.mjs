@@ -4,10 +4,10 @@ import { fileURLToPath } from "node:url";
 
 const REPOSITORY = "Porabuild/Poracode";
 const BRANCH = "master";
-export const NIGHTLY_CHECKS = [
-  { file: "ci.yml", name: "CI", gate: "Test" },
-  { file: "native-ci.yml", name: "Native clients", gate: "Native required gate" },
-];
+// The nightly PWA is a web build: it ships no Swift or Kotlin and never reads the
+// native bindings, so a red native job must not freeze the hosted web client.
+// Store releases keep their own native gates.
+export const NIGHTLY_CHECKS = [{ file: "ci.yml", name: "CI", gate: "Test" }];
 const SHA = /^[a-f0-9]{40}$/;
 const sameRepository = (name) => name?.toLowerCase() === REPOSITORY.toLowerCase();
 const deny = (reason) => ({ qualified: false, reason });
