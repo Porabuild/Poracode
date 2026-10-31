@@ -1,5 +1,5 @@
 import { isAbsolute, join, resolve } from "node:path";
-import { writeSync, existsSync } from "node:fs";
+import { closeSync, writeSync, existsSync } from "node:fs";
 import { z } from "zod";
 import { hostBuildIdentitySchema, type HostBuildIdentity } from "@/shared/hostControlProtocol";
 import {
@@ -67,6 +67,7 @@ import { ServerUpgradeServiceTargetError } from "./serverUpgradeRestart";
 import { requestPairingFromRunningServer } from "./pairingControl";
 import { ensureCliOwner } from "./cliOwner";
 import { runCliTui, TuiLaunchUnavailableError } from "./cliTui";
+import { isInteractiveInvocation, resolveInteractiveStdin } from "./cliConsole";
 import {
   parseActivateCliOptions,
   assertTuiTerminal,
@@ -689,10 +690,7 @@ function dispatchCli(capturedBuild?: HostBuildIdentity): void {
     args = parsed.args;
     baseDirArgument = parsed.baseDir;
     if (baseDirArgument) process.env.PORACODE_BASE_DIR = baseDirArgument;
-    command = parseServerCliCommand(
-      args,
-      process.stdin.isTTY === true && process.stdout.isTTY === true,
-    );
+    command = parseServerCliCommand(args, args.length === 0 && isInteractiveInvocation());
   } catch (error) {
     reportAdminError(error, process.argv.includes("--json"));
     return;
@@ -867,14 +865,23 @@ async function runTuiCommand(
   capturedBuild: HostBuildIdentity | undefined,
   baseDir: string | undefined,
 ) {
-  assertTuiTerminal(process.stdin.isTTY === true, process.stdout.isTTY === true);
-  const options = parseTuiCliOptions(args);
-  const code = await runCliTui(options, {
-    profileNamespace: profileNamespace(),
-    ...(baseDir !== undefined ? { baseDir } : {}),
-    ...(capturedBuild !== undefined ? { capturedBuild } : {}),
-  });
-  if (code !== 0) process.exitCode = code;
+  const stdin = resolveInteractiveStdin();
+  try {
+    assertTuiTerminal(stdin !== undefined, process.stdout.isTTY === true);
+    const options = parseTuiCliOptions(args);
+    const code = await runCliTui(
+      options,
+      {
+        profileNamespace: profileNamespace(),
+        ...(baseDir !== undefined ? { baseDir } : {}),
+        ...(capturedBuild !== undefined ? { capturedBuild } : {}),
+      },
+      stdin !== undefined ? { stdin } : {},
+    );
+    if (code !== 0) process.exitCode = code;
+  } finally {
+    if (typeof stdin === "number") closeSync(stdin);
+  }
 }
 
 async function runAdministration(

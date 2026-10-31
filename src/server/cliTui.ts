@@ -2,7 +2,8 @@ import { chmod, mkdir } from "node:fs/promises";
 import { readFileSync, statSync } from "node:fs";
 import { spawn as spawnProcess, type ChildProcess } from "node:child_process";
 import { join, resolve } from "node:path";
-import { hostAdminRequest } from "@/shared/hostAdminProtocol";
+import { z } from "zod";
+import { HOST_ADMIN_PAIRING_DEFAULT_TTL_MS, hostAdminRequest } from "@/shared/hostAdminProtocol";
 import { resolveHostRootPaths } from "@/backend/ownership/hostRootPaths";
 import { callHostControl } from "@/backend/ownership/hostControlClient";
 import { hostProjectAdditionSchema } from "@/shared/contracts/hostProjects";
@@ -13,11 +14,7 @@ import {
   type TuiBootstrap,
 } from "@/shared/tuiBootstrap";
 import type { HostBuildIdentity } from "@/shared/hostControlProtocol";
-import {
-  requestPairingFromRunningServer,
-  type PairingControlResponse,
-  type RequestPairingOptions,
-} from "./pairingControl";
+import type { PairingControlResponse, RequestPairingOptions } from "./pairingControl";
 import { resolveServerInstallLayout, type ServerInstallLayout } from "./serverInstallLayout";
 import { resolveServerVersion } from "./serverVersion";
 import { ensureCliOwner } from "./cliOwner";
@@ -203,6 +200,8 @@ export async function runCliTui(
     readonly fetchImpl?: typeof fetch;
     readonly resolveLaunch?: typeof resolveTuiLaunchForRun;
     readonly cwd?: string;
+    /** A reopened console-input descriptor when stdin itself is not the terminal. */
+    readonly stdin?: "inherit" | number;
     readonly requestPairing?: (
       profileNamespace: string,
       options: RequestPairingOptions,
@@ -254,7 +253,7 @@ export async function runCliTui(
       directory,
     ),
   );
-  const requestPairing = dependencies.requestPairing ?? requestPairingFromRunningServer;
+  const requestPairing = dependencies.requestPairing ?? requestTuiPairing;
   // A saved session skips pairing entirely — one dedicated client entry per
   // profile. The TUI exits 77 when the host rejects it; pair once and relaunch.
   const savedSession = readSavedTuiSession(home);
@@ -280,7 +279,10 @@ export async function runCliTui(
         PORACODE_TUI_BOOTSTRAP: JSON.stringify(bootstrap),
         PORACODE_TUI_HOME: home,
       },
-      stdio: "inherit",
+      stdio:
+        typeof dependencies.stdin === "number"
+          ? [dependencies.stdin, "inherit", "inherit"]
+          : "inherit",
       windowsHide: true,
     });
     return waitForTui(child);
@@ -302,6 +304,34 @@ export async function runCliTui(
       savedSession.sessionId,
     ).catch(() => undefined);
   return run({ pairingUrl: pairing.pairingUrl });
+}
+
+const tuiPairingGrantSchema = z.object({ pairingUrl: z.url() });
+
+/**
+ * Mints the TUI's one-time pairing through the owner's local administration.
+ * Desktop and headless owners both serve `pairings-create`; the desktop owner
+ * refuses the attach-only `issue-pairing` operation.
+ */
+async function requestTuiPairing(
+  profileNamespace: string,
+  options: RequestPairingOptions,
+): Promise<PairingControlResponse> {
+  const { preset, ...callOptions } = options;
+  const response = await callHostControl(resolveHostRootPaths(profileNamespace), "admin", {
+    ...callOptions,
+    payload: hostAdminRequest({
+      action: "pairings-create",
+      label: "Terminal UI",
+      ttlMs: HOST_ADMIN_PAIRING_DEFAULT_TTL_MS,
+      ...(preset !== undefined ? { preset } : {}),
+    }),
+  });
+  if (!response.result.outcome.ok) throw new Error(response.result.outcome.error);
+  return {
+    requestId: response.requestId,
+    pairingUrl: tuiPairingGrantSchema.parse(response.result.outcome.data).pairingUrl,
+  };
 }
 
 async function revokeClientSession(
