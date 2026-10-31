@@ -2816,6 +2816,76 @@ describe("useRemoteServersStore", () => {
     expect(useRemoteServersStore.getState().runtime.d1?.status).toBe("online");
   });
 
+  it("leaves a live connection alone on a plain pass and only health-probes it on verify", async () => {
+    const sent: string[] = [];
+    const socketFactory = vi.fn<RemoteSocketFactory>(() =>
+      makeSocket({ readyState: 1, send: vi.fn<(data: string) => void>((data) => sent.push(data)) }),
+    );
+    const snapshot = vi.fn<RemoteDesktopClient["snapshot"]>(async () => ({
+      snapshotSeq: 1,
+      projects: [proj],
+      threads: [],
+      runtimeSummariesByThread: {},
+      updatedAt: "pair",
+    }));
+    useRemoteServersStore.getState().setClientFactory(factoryFor(makeClient({ snapshot })));
+    useRemoteServersStore.getState().setSocketFactory(socketFactory);
+    await useRemoteServersStore
+      .getState()
+      .pairServer({ endpoint: "192.168.1.9:38987", token: "a" });
+    await vi.waitFor(() => expect(socketFactory).toHaveBeenCalledOnce());
+    await vi.waitFor(() =>
+      expect(useRemoteServersStore.getState().runtime.d1?.status).toBe("online"),
+    );
+    snapshot.mockClear();
+    const statuses: (string | undefined)[] = [];
+    const unsubscribe = useRemoteServersStore.subscribe((state) =>
+      statuses.push(state.runtime.d1?.status),
+    );
+
+    // Opening Remote Environments or finishing another pairing runs a plain
+    // pass: the healthy host must not blink to "connecting" or re-snapshot.
+    await useRemoteServersStore.getState().connectAll();
+    expect(statuses).not.toContain("connecting");
+    expect(snapshot).not.toHaveBeenCalled();
+
+    // A tab switch probes the live socket instead of replacing it.
+    await useRemoteServersStore.getState().verifyConnections();
+    expect(sent.map((frame) => (JSON.parse(frame) as { type: string }).type)).toContain("ping");
+    expect(socketFactory).toHaveBeenCalledOnce();
+    expect(statuses).not.toContain("connecting");
+    expect(snapshot).not.toHaveBeenCalled();
+    unsubscribe();
+  });
+
+  it("verify reconnects a server whose connection is no longer live", async () => {
+    const snapshot = vi.fn<RemoteDesktopClient["snapshot"]>(async () => ({
+      snapshotSeq: 1,
+      projects: [proj],
+      threads: [],
+      runtimeSummariesByThread: {},
+      updatedAt: "pair",
+    }));
+    useRemoteServersStore.getState().setClientFactory(factoryFor(makeClient({ snapshot })));
+    useRemoteServersStore
+      .getState()
+      .setSocketFactory(() => makeSocket({ readyState: 1, send: vi.fn<(data: string) => void>() }));
+    await useRemoteServersStore
+      .getState()
+      .pairServer({ endpoint: "192.168.1.9:38987", token: "a" });
+    await vi.waitFor(() =>
+      expect(useRemoteServersStore.getState().runtime.d1?.status).toBe("online"),
+    );
+    useRemoteServersStore.setState((state) => ({
+      runtime: { ...state.runtime, d1: { ...state.runtime.d1!, status: "offline" } },
+    }));
+    snapshot.mockClear();
+
+    await useRemoteServersStore.getState().verifyConnections();
+    expect(snapshot).toHaveBeenCalled();
+    expect(useRemoteServersStore.getState().runtime.d1?.status).toBe("online");
+  });
+
   it("coalesces resume reconnect signals while a pass is in flight", async () => {
     const sockets: RemoteSocketLike[] = [];
     const heldSnapshot = deferred<RemoteShellSnapshot>();
