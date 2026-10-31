@@ -60,7 +60,10 @@ rule is about control flow and data shape.
    normalization), `acpExtensionNotificationHandler` (vendor JSON-RPC
    notifications), `permissionRequestTransform` (normalizes vendor
    permission/question requests before shared classification; reply option IDs
-   remain transport IDs), `normalizeProbeResult` (discovered capabilities),
+   remain transport IDs), `promptErrorReason` (names the shared cause of a
+   rejected `session/prompt`, such as `"auth_required"` for a provider sign-in
+   failure, from the structured JSON-RPC error; the ACP-standard
+   `auth_required` error needs no hook), `normalizeProbeResult` (discovered capabilities),
    `modelLabel` (fallback labels when the agent supplies no display name), and
    `skillSupport.invocationForSkill` (skill frontmatter rules). Probes whose
    per-model config snapshots are authoritative declare

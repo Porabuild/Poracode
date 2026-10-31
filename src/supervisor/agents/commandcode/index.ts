@@ -13,7 +13,11 @@ import {
 import { resolveAgentBinaryPath } from "../binaryResolver";
 import { resolveInstallNodePath, warnIfPluginManifestMissing } from "../plugin/installerBase";
 import { buildCommandCodeArgs } from "./argv";
-import { buildCommandCodeAcpCommand, resolveCommandCodeAcpMode } from "./acp";
+import {
+  buildCommandCodeAcpCommand,
+  resolveCommandCodeAcpMode,
+  resolveCommandCodePromptErrorReason,
+} from "./acp";
 import { normalizeCommandCodePermissionRequest } from "./acpRequests";
 import { normalizeCommandCodeSessionUpdate } from "./acpUpdates";
 import { commandCodeMcpLaunch } from "./mcp";
@@ -182,6 +186,7 @@ export function createCommandCodeAdapter(): AgentAdapter {
         {
           resolveMode: resolveCommandCodeAcpMode,
           permissionRequestTransform: normalizeCommandCodePermissionRequest,
+          promptErrorReason: resolveCommandCodePromptErrorReason,
           // promptResult usage is cumulative consumption; native usage_update
           // carries authoritative context occupancy (including compaction).
           behavior: { promptUsageReportsContext: false, strictConfigSelection: true },

@@ -15,7 +15,6 @@ import {
   ClientSideConnection,
   ndJsonStream,
   PROTOCOL_VERSION,
-  RequestError,
   type Client,
   type AuthMethod,
   type AuthMethodAgent,
@@ -44,6 +43,7 @@ import {
   isThinkingToggleConfig,
   resolveThoughtLevelToggleValues,
 } from "./thoughtLevel";
+import { isAcpAuthRequiredError } from "./sessionErrors";
 import { filterAcpStdoutNonJsonLines } from "./sessionStreamFilter";
 import {
   readUnstableInitializeModels,
@@ -51,8 +51,6 @@ import {
   type UnstableModelInfo,
   type UnstableSessionModelState,
 } from "./unstableModelCompat";
-
-const ACP_AUTH_REQUIRED_ERROR = RequestError.authRequired();
 
 const authenticationOwnership = new AsyncLocalStorage<{
   signal: AbortSignal;
@@ -74,24 +72,6 @@ export function withAcpAuthenticationOwnership<T>(
       scope.active = false;
     }
   });
-}
-
-function isAcpAuthRequiredError(error: unknown): boolean {
-  if (error instanceof RequestError) {
-    return (
-      error.code === ACP_AUTH_REQUIRED_ERROR.code &&
-      error.message.startsWith(ACP_AUTH_REQUIRED_ERROR.message)
-    );
-  }
-  if (typeof error === "object" && error !== null && "code" in error) {
-    const candidate = error as { code: unknown; message?: unknown };
-    return (
-      candidate.code === ACP_AUTH_REQUIRED_ERROR.code &&
-      typeof candidate.message === "string" &&
-      candidate.message.startsWith(ACP_AUTH_REQUIRED_ERROR.message)
-    );
-  }
-  return false;
 }
 
 // ── Types ────────────────────────────────────────────────────────

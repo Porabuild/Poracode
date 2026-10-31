@@ -54,6 +54,7 @@ export function createAcpStructuredSession(
     | "stderrTurnSignalParser"
     | "resolveMode"
     | "permissionRequestTransform"
+    | "promptErrorReason"
     | "resolveModelConfig"
     | "configureOpenedSession"
     | "allowUnlistedSelectValue"
@@ -146,5 +147,6 @@ export function createAcpStructuredSession(
       ? { allowUnlistedSelectValue: overrides.allowUnlistedSelectValue }
       : {}),
     ...(overrides?.promptSteering ? { promptSteering: overrides.promptSteering } : {}),
+    ...(overrides?.promptErrorReason ? { promptErrorReason: overrides.promptErrorReason } : {}),
   });
 }
