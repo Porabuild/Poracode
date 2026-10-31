@@ -7,6 +7,7 @@ import { toErrorMessage } from "@/shared/errorMessage";
 import { resolvePoracodePaths } from "@/shared/poracodePaths";
 import {
   pickRemoteSettings,
+  remoteHostWorkspaces,
   type RemoteAccessPairingInfo,
   type RemoteGitSummaries,
 } from "@/shared/remote";
@@ -338,6 +339,8 @@ export async function performDesktopRemoteAccessStart(
       ...(options.projectWatchLeases ? { projectWatches: options.projectWatchLeases } : {}),
       settings: {
         read: () => pickRemoteSettings(readSharedSettingsFile(options.paths.settingsPath)),
+        readWorkspaces: () =>
+          remoteHostWorkspaces(readSharedSettingsFile(options.paths.settingsPath)),
         // Remote `POST /api/settings` as scoped CAS edits; a surviving
         // conflict rejects the route instead of last-writer-wins (mirrors
         // the headless composition).

@@ -255,7 +255,22 @@ public struct RouteshellU2DSnapshotResponseU2DThreadsU2DItem_83e62a05a7: Codable
   }
 }
 
-public struct RouteshellU2DSnapshotResponse_ed4e6c122d: Codable, Sendable, RemoteModelMetadata {
+public struct RouteshellU2DSnapshotResponseU2DWorkspacesU2DItem_33250cfe65: Codable, Sendable, RemoteModelMetadata {
+  public var id: String
+  public var name: String
+  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
+  public static let fields: [RemoteFieldDescriptor] = [
+    .init(wireName: "id", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "name", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+  ]
+  public static let semanticValidatorIds: [String] = []
+  private enum CodingKeys: String, CodingKey {
+    case id = "id"
+    case name = "name"
+  }
+}
+
+public struct RouteshellU2DSnapshotResponse_cc9f9333ba: Codable, Sendable, RemoteModelMetadata {
   public var gitState: RemoteField<RouteshellU2DSnapshotResponseU2DGitState_edbeeba28e> = .missing
   public var gitSummariesByThread: RemoteField<RouteshellU2DSnapshotResponseU2DGitSummariesByThread_aca97eda78> = .missing
   public var projects: [RouteprojectU2DCommandResponseU2DOptionU2D1U2DProject_0f8ade0d27]
@@ -267,6 +282,7 @@ public struct RouteshellU2DSnapshotResponse_ed4e6c122d: Codable, Sendable, Remot
   public var threads: [RouteshellU2DSnapshotResponseU2DThreadsU2DItem_83e62a05a7]
   public var threadsNextCursor: RemoteField<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b> = .missing
   public var updatedAt: String
+  public var workspaces: RemoteField<[RouteshellU2DSnapshotResponseU2DWorkspacesU2DItem_33250cfe65]> = .missing
   public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
   public static let fields: [RemoteFieldDescriptor] = [
     .init(wireName: "gitState", typeName: "RouteshellU2DSnapshotResponseU2DGitState_edbeeba28e", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
@@ -280,6 +296,7 @@ public struct RouteshellU2DSnapshotResponse_ed4e6c122d: Codable, Sendable, Remot
     .init(wireName: "threads", typeName: "[RouteshellU2DSnapshotResponseU2DThreadsU2DItem_83e62a05a7]", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "threadsNextCursor", typeName: "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", required: false, nullable: true, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "updatedAt", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "workspaces", typeName: "[RouteshellU2DSnapshotResponseU2DWorkspacesU2DItem_33250cfe65]", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
   ]
   public static let semanticValidatorIds: [String] = []
   private enum CodingKeys: String, CodingKey {
@@ -294,6 +311,7 @@ public struct RouteshellU2DSnapshotResponse_ed4e6c122d: Codable, Sendable, Remot
     case threads = "threads"
     case threadsNextCursor = "threadsNextCursor"
     case updatedAt = "updatedAt"
+    case workspaces = "workspaces"
   }
 }
 
@@ -428,22 +446,5 @@ public enum RoutethreadU2DCheckpointU2DRevertResponseU2DFilesPhase_efc124973b: S
   case `completed` = "completed"
   case `failed` = "failed"
   case `skippedU5FNoU5FLocation` = "skipped_no_location"
-  case `skippedU5FMissingU5FCheckpoint` = "skipped_missing_checkpoint"
-}
-
-public enum RoutethreadU2DCheckpointU2DRevertResponseU2DOutcome_08ce03e607: String, Codable, Sendable {
-  case `completed` = "completed"
-  case `completedU5FLocalU5FOnly` = "completed_local_only"
-  case `ambiguous` = "ambiguous"
-  case `failed` = "failed"
-  case `noop` = "noop"
-}
-
-public enum RoutethreadU2DCheckpointU2DRevertResponseU2DProviderPhase_11ada4e73a: String, Codable, Sendable {
-  case `pending` = "pending"
-  case `completed` = "completed"
-  case `failed` = "failed"
-  case `ambiguous` = "ambiguous"
-  case `skippedU5FNoU5FTurns` = "skipped_no_turns"
   case `skippedU5FMissingU5FCheckpoint` = "skipped_missing_checkpoint"
 }

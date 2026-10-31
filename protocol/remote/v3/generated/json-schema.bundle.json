@@ -63378,6 +63378,28 @@
         "updatedAt": {
           "minLength": 1,
           "type": "string"
+        },
+        "workspaces": {
+          "items": {
+            "additionalProperties": true,
+            "properties": {
+              "id": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "name": {
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name"
+            ],
+            "type": "object",
+            "x-poracode-unknownFields": "strip"
+          },
+          "type": "array"
         }
       },
       "required": [
@@ -74420,5 +74442,5 @@
   },
   "manifestHash": "sha256:48db6a3e43d98007056cc988d5d0021c4df34de60e0dae41f965d9639361ae25",
   "protocolVersion": 14,
-  "sourceHash": "sha256:b599fb85f49fefa626240ff95f5ede65c03c9adebb376b1fb31750cc1e4b3bca"
+  "sourceHash": "sha256:ca93f2be56d5c11b9d8969f9cf281436170957f8fd390691d4286649e5c9900b"
 }

@@ -86,7 +86,7 @@ describe("remote v3 native binding generator", () => {
         // parameters move both hashes without changing counts or wire versions.
         // The optional shell snapshotEpoch moves the source hash only.
         // The optional open-string runtime error `reason` moves the source hash only.
-        sourceHash: "sha256:b599fb85f49fefa626240ff95f5ede65c03c9adebb376b1fb31750cc1e4b3bca",
+        sourceHash: "sha256:ca93f2be56d5c11b9d8969f9cf281436170957f8fd390691d4286649e5c9900b",
         manifestHash: "sha256:48db6a3e43d98007056cc988d5d0021c4df34de60e0dae41f965d9639361ae25",
         counts: {
           routes: 119,
@@ -97,7 +97,7 @@ describe("remote v3 native binding generator", () => {
           // 11 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
           webSocketServerVariants: 12,
           schemaRoots: 544,
-          structuralTypes: 1210,
+          structuralTypes: 1211,
           semanticValidators: 25,
           swiftFiles: 75,
           kotlinFiles: 65,

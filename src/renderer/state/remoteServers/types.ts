@@ -11,6 +11,7 @@ import type {
   RemoteAgentStatuses,
   RemoteHostUpdateState,
   RemoteHostMode,
+  RemoteHostWorkspace,
   RemoteImageRefValue,
   RemoteProjectCommand,
   RemoteShellSnapshot,
@@ -232,6 +233,14 @@ export interface RemoteServersState {
   excludedProjectIds: Record<string, readonly string[]>;
   /** Local workspace overrides for mirrored projects; null explicitly means unfiled. */
   projectWorkspaceIds: Record<string, Readonly<Record<string, string | null>>>;
+  /**
+   * Which `projectWorkspaceIds` entries the user set by moving the project.
+   * Browser clients also pin defaults there; a browser ranks the host's own
+   * workspace above those, but never above a filing listed here.
+   */
+  explicitProjectWorkspaceIds: Record<string, Readonly<Record<string, true>>>;
+  /** Each connection's workspace names from its latest shell snapshot (session only). */
+  hostWorkspaces: Record<string, readonly RemoteHostWorkspace[]>;
   /** Local display-name overrides for mirrored projects, keyed by desktop and remote project id. */
   projectNameOverrides: Record<string, Readonly<Record<string, string>>>;
   /** Last discovered host projects, retained so offline servers keep their sidebar rows. */

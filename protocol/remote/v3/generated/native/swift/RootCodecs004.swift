@@ -441,7 +441,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2EShellU2DSnapshotU2EResponse: RemoteRootCodec<RouteshellU2DSnapshotResponse_ed4e6c122d> = .init(id: "route.shell-snapshot.response", schema: RemoteSchemas.schema_ed4e6c122d4325d1)
+  static let routeU2EShellU2DSnapshotU2EResponse: RemoteRootCodec<RouteshellU2DSnapshotResponse_cc9f9333ba> = .init(id: "route.shell-snapshot.response", schema: RemoteSchemas.schema_cc9f9333ba81f5d3)
 }
 
 public extension RemoteRootCodecs {
