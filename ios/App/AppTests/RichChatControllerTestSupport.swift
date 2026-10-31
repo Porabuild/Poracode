@@ -48,6 +48,7 @@ enum RichChatControllerTestResponse<Value: Sendable>: Sendable {
 
 actor RichChatControllerGatewayFake: RichChatSessionGateway {
   private(set) var calls: [String] = []
+  private(set) var sentInputs: [RichChatSendInput] = []
   var historyResponse: RichChatControllerTestResponse<RemoteThreadSnapshot>?
   var pageResponse: RichChatControllerTestResponse<RemoteRuntimeItemsPage>?
   var binaryResponse: RichChatControllerTestResponse<RichChatBinaryPayload>?
@@ -212,7 +213,8 @@ actor RichChatControllerGatewayFake: RichChatSessionGateway {
     return try sessionActionInvokeResponse.get()
   }
 
-  func sendRichInput(target _: RichChatThreadTarget, input _: RichChatSendInput) async throws {
+  func sendRichInput(target _: RichChatThreadTarget, input: RichChatSendInput) async throws {
+    sentInputs.append(input)
     try await mutation("send")
   }
 

@@ -278,6 +278,9 @@ struct RemoteThread: Codable, Sendable, Identifiable, Hashable {
     /// retires a retired session's inventory, `[]` is an active-but-empty
     /// session. Strict projection happens in the rich-chat composer catalog.
     var sessionConfigOptions: JSONValue? = nil
+    /// Host-owned cut-off marker (`error` | `restart`) for a turn that ended
+    /// unfinished without Stop; absent on older hosts and once a turn starts.
+    var interruptedTurn: String? = nil
     var parentThreadId: String?
     var groupId: String?
     var groupName: String?

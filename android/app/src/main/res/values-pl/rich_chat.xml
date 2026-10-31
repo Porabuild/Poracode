@@ -135,6 +135,9 @@
     <string name="rich_chat_app_controls">Sterowanie aplikacją</string>
     <string name="rich_chat_remove_context">Usuń %1$s</string>
     <string name="rich_chat_send_steer">Wyślij instrukcję uzupełniającą</string>
+    <string name="rich_chat_resend_last_message">Wyślij ponownie ostatnią wiadomość</string>
+    <string name="rich_chat_resume_response">Wznów odpowiedź</string>
+    <string name="rich_chat_resume_continue_prompt">Kontynuuj od miejsca, w którym przerwano.</string>
     <string name="rich_chat_queue_title">Zadania w kolejce (%1$d)</string>
     <string name="rich_chat_queue_steer_now">Skieruj teraz</string>
     <string name="rich_chat_queue_edit">Edytuj wiadomość w kolejce</string>

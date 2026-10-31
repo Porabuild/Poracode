@@ -185,6 +185,23 @@ class RichChatController(
         }
     }
 
+    /**
+     * Swaps the failure a refused send published for the outcome of the
+     * recovery that replaced it (the resume relaunch): null once the host
+     * accepted it, an uncertain failure (one authoritative read, never a
+     * resend) when its outcome is unknown. A failure published since is kept.
+     */
+    fun replaceFailure(refusal: RichChatOperationFailure, replacement: RichChatOperationFailure?) {
+        mutableState.update {
+            if (it.failure != refusal) return@update it
+            it.copy(
+                failure = replacement,
+                needsAuthoritativeRefresh = it.needsAuthoritativeRefresh ||
+                    (replacement as? RichChatOperationFailure.Remote)?.requestMayHaveCommitted == true,
+            )
+        }
+    }
+
     suspend fun interrupt(): RichChatOperationResult<Unit> =
         mutate(OP_INTERRUPT, RichChatCapability.Operate) { gateway.interrupt(it.host, it.threadId) }
 

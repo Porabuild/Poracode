@@ -130,6 +130,9 @@
     <string name="rich_chat_app_controls">应用控制</string>
     <string name="rich_chat_remove_context">移除 %1$s</string>
     <string name="rich_chat_send_steer">发送后续指示</string>
+    <string name="rich_chat_resend_last_message">重新发送上一条消息</string>
+    <string name="rich_chat_resume_response">继续响应</string>
+    <string name="rich_chat_resume_continue_prompt">从上次中断的地方继续。</string>
     <string name="rich_chat_queue_title">排队的后续消息（%1$d）</string>
     <string name="rich_chat_queue_steer_now">立即转向</string>
     <string name="rich_chat_queue_edit">编辑排队消息</string>

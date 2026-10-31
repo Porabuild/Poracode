@@ -130,6 +130,9 @@
     <string name="rich_chat_app_controls">앱 제어</string>
     <string name="rich_chat_remove_context">%1$s 삭제</string>
     <string name="rich_chat_send_steer">후속 지시 보내기</string>
+    <string name="rich_chat_resend_last_message">마지막 메시지 다시 보내기</string>
+    <string name="rich_chat_resume_response">응답 재개</string>
+    <string name="rich_chat_resume_continue_prompt">중단된 지점부터 계속 진행해 주세요.</string>
     <string name="rich_chat_queue_title">대기 중인 후속 작업 (%1$d)</string>
     <string name="rich_chat_queue_steer_now">지금 조정</string>
     <string name="rich_chat_queue_edit">대기 중인 메시지 편집</string>

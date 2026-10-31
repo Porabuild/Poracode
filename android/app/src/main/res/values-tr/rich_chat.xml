@@ -135,6 +135,9 @@
     <string name="rich_chat_app_controls">Uygulama denetimleri</string>
     <string name="rich_chat_remove_context">%1$s öğesini kaldır</string>
     <string name="rich_chat_send_steer">Takip talimatını gönder</string>
+    <string name="rich_chat_resend_last_message">Son mesajı yeniden gönder</string>
+    <string name="rich_chat_resume_response">Yanıtı sürdür</string>
+    <string name="rich_chat_resume_continue_prompt">Kaldığın yerden devam et.</string>
     <string name="rich_chat_queue_title">Sıradaki takipler (%1$d)</string>
     <string name="rich_chat_queue_steer_now">Şimdi yönlendir</string>
     <string name="rich_chat_queue_edit">Sıradaki iletiyi düzenle</string>

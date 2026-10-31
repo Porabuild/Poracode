@@ -135,6 +135,9 @@
     <string name="rich_chat_app_controls">Điều khiển ứng dụng</string>
     <string name="rich_chat_remove_context">Xóa %1$s</string>
     <string name="rich_chat_send_steer">Gửi chỉ dẫn tiếp theo</string>
+    <string name="rich_chat_resend_last_message">Gửi lại tin nhắn cuối</string>
+    <string name="rich_chat_resume_response">Tiếp tục phản hồi</string>
+    <string name="rich_chat_resume_continue_prompt">Hãy tiếp tục từ chỗ bạn đã dừng lại.</string>
     <string name="rich_chat_queue_title">Việc theo dõi đang chờ (%1$d)</string>
     <string name="rich_chat_queue_steer_now">Điều hướng ngay</string>
     <string name="rich_chat_queue_edit">Chỉnh sửa tin nhắn đang chờ</string>
