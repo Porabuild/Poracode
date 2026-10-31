@@ -71,6 +71,28 @@ describe("AttachmentBar", () => {
     expect(img).toHaveAttribute("src", "blob:full-2");
   });
 
+  it("requests the host's card variant for a host-held thumbnail, never the original", () => {
+    const resolvePath = vi.fn<(path: string, variant?: string) => string>(() => "");
+    const requestPath = vi.fn<(path: string, priority?: string, variant?: string) => void>();
+    const readiness = {
+      resolvePath,
+      subscribePath: () => () => {},
+      requestPath,
+      resolveRef: () => "",
+      subscribeRef: () => () => {},
+      requestRef: () => {},
+    };
+    render(
+      <AttachmentBar
+        attachments={[{ id: "image", path: "/tmp/shot.png", name: "shot.png", isImage: true }]}
+        imagesAsPreview
+        remoteImageReadiness={readiness}
+      />,
+    );
+    expect(resolvePath).toHaveBeenCalledWith("/tmp/shot.png", "card");
+    expect(requestPath).toHaveBeenCalledWith("/tmp/shot.png", expect.anything(), "card");
+  });
+
   it("keeps a pending host thumbnail out of the broken-image state and updates on readiness", () => {
     let url = "";
     let notify = () => {};

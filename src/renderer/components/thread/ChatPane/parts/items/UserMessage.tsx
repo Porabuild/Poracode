@@ -33,6 +33,7 @@ import { openThread } from "@/renderer/actions/threadActions";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { remoteBridgeLocalImageUrl } from "@/renderer/browser/remoteBridge";
+import { usesBridgeThreadImages } from "@/renderer/components/thread/threadImageReadiness";
 import { isRemoteSession } from "@/renderer/bridge";
 import { useChatPaneActions } from "../../chatPaneActionsContext";
 import { normalizeChatProjectPath } from "../../chatPathUtils";
@@ -91,7 +92,7 @@ export const UserMessage = memo(function UserMessage({
   );
   const imageUrlForPath = remoteServerId
     ? (path: string) =>
-        isRemoteSession()
+        usesBridgeThreadImages(remoteServerId)
           ? remoteBridgeLocalImageUrl(path)
           : useRemoteServersStore.getState().localImageUrl(remoteServerId, path)
     : undefined;

@@ -26,6 +26,7 @@ import {
   seedOlderThreadRuntimeItemsCursor,
   setOlderThreadHistoryInvalidation,
 } from "./chatRuntimePersister";
+import { trackPendingRemoteThreadOpen } from "./remoteServers/pendingRemoteThreadOpens";
 
 const { bridge } = vi.hoisted(() => ({
   bridge: {
@@ -391,6 +392,45 @@ describe("paged runtime hydration", () => {
     });
     expect(useAppStore.getState().runtimeItemIdsByThread["remote-paged-thread"]).toEqual([
       "remote-older",
+    ]);
+  });
+
+  it("waits for an in-flight remote open instead of issuing its own four reads", async () => {
+    let finishOpen!: (opened: boolean) => void;
+    const open = new Promise<boolean>((resolve) => {
+      finishOpen = resolve;
+    });
+    expect(trackPendingRemoteThreadOpen("remote-opening-thread", open)).toBe(open);
+
+    const hydration = hydrateThreadRuntimeItems("remote-opening-thread");
+    await Promise.resolve();
+    expect(bridge.dbGetThreadRuntimeItemsPage).not.toHaveBeenCalled();
+
+    // The open installs the authoritative tail (which marks the thread hydrated).
+    seedOlderThreadRuntimeItemsCursor("remote-opening-thread", 12);
+    finishOpen(true);
+    await hydration;
+
+    expect(bridge.dbGetThreadRuntimeItemsPage).not.toHaveBeenCalled();
+    expect(bridge.dbGetThreadCompletedTurns).not.toHaveBeenCalled();
+    expect(bridge.dbGetThreadContextUsage).not.toHaveBeenCalled();
+    expect(bridge.dbGetLatestThreadGoalItem).not.toHaveBeenCalled();
+    expect(hasHydratedThreadRuntimeItems("remote-opening-thread")).toBe(true);
+  });
+
+  it("reads history itself when the in-flight remote open fails", async () => {
+    bridge.dbGetThreadRuntimeItemsPage.mockResolvedValueOnce({
+      items: [makeItem({ id: "fallback-tail", type: "assistant_message" })],
+      nextCursor: null,
+    });
+    const failedOpen = Promise.resolve(false);
+    expect(trackPendingRemoteThreadOpen("remote-failed-open", failedOpen)).toBe(failedOpen);
+
+    await hydrateThreadRuntimeItems("remote-failed-open");
+
+    expect(bridge.dbGetThreadRuntimeItemsPage).toHaveBeenCalledTimes(1);
+    expect(useAppStore.getState().runtimeItemIdsByThread["remote-failed-open"]).toEqual([
+      "fallback-tail",
     ]);
   });
 

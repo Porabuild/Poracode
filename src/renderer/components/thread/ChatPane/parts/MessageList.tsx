@@ -804,6 +804,8 @@ function getTimelineEntryType(
   return `${item.type}:${sizeBucket}${leadingGapSuffix}${rowSuffix}`;
 }
 
+const unresolvedImageRefUrl = (): string => "";
+
 function getFixedTimelineEntrySize(
   entry: ChatTimelineEntry,
   threadId: string,
@@ -815,7 +817,15 @@ function getFixedTimelineEntrySize(
   // Legend's single fallback estimate is intentionally message-sized. Inline
   // images are the large outlier during prepend, so reserve their intrinsic
   // responsive height before the row mounts and MVCP never anchors to 59px.
-  const source = resolveImageViewSource(item.payload as ToolCallPayload | undefined);
+  // Geometry only: a host-held reference carries its own dimensions, so read
+  // them without a resolver. Falling through to the global bridge resolver
+  // would mint an image ticket, and on a client paired to several hosts it
+  // would mint it on the bound host rather than the thread's owner.
+  const source = resolveImageViewSource(
+    item.payload as ToolCallPayload | undefined,
+    unresolvedImageRefUrl,
+    { pendingAsPlaceholder: true },
+  );
   if (!source?.width || !source.height) return undefined;
   // Ordinary message/tool rows need no geometry read at all.
   const listWidth = readListWidth();
