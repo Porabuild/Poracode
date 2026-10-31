@@ -1147,8 +1147,8 @@ msgid "About usage"
 msgstr "Sobre o uso"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
-msgid "Above the composer"
-msgstr "Acima do compositor"
+#~ msgid "Above the composer"
+#~ msgstr "Acima do compositor"
 
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Accent"
@@ -15994,7 +15994,6 @@ msgid "Right"
 msgstr "Direita"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Right panel"
 msgstr "Painel direito"
 
@@ -20001,14 +20000,12 @@ msgid "Thread dock"
 msgstr "Doca do tópico"
 
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
-#: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Thread docks"
 msgstr "Docks da thread"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
-msgid "Thread docks placement"
-msgstr "Posição dos docks da thread"
+#~ msgid "Thread docks placement"
+#~ msgstr "Posição dos docks da thread"
 
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Thread failed to start."
@@ -21912,8 +21909,8 @@ msgstr "Para onde vai uma seleção do seletor de elementos do navegador em tóp
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Where a thread's goal, plan, agents, and background tasks appear. In the right panel, compact bubbles above the composer open them."
-msgstr "Onde o objetivo, o plano, os agentes e as tarefas em segundo plano de uma thread aparecem. No painel direito, bolhas compactas acima do compositor os abrem."
+#~ msgid "Where a thread's goal, plan, agents, and background tasks appear. In the right panel, compact bubbles above the composer open them."
+#~ msgstr "Onde o objetivo, o plano, os agentes e as tarefas em segundo plano de uma thread aparecem. No painel direito, bolhas compactas acima do compositor os abrem."
 
 #: src/renderer/views/WelcomeOverlay.tsx
 msgid "Where do you want to begin?"

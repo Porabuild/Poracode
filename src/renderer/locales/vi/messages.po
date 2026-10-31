@@ -1147,8 +1147,8 @@ msgid "About usage"
 msgstr "Thông tin sử dụng"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
-msgid "Above the composer"
-msgstr "Phía trên trình soạn"
+#~ msgid "Above the composer"
+#~ msgstr "Phía trên trình soạn"
 
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Accent"
@@ -15994,7 +15994,6 @@ msgid "Right"
 msgstr "Phải"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Right panel"
 msgstr "Bảng bên phải"
 
@@ -20001,14 +20000,12 @@ msgid "Thread dock"
 msgstr "Dock luồng"
 
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
-#: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Thread docks"
 msgstr "Dock của luồng"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
-msgid "Thread docks placement"
-msgstr "Vị trí dock của luồng"
+#~ msgid "Thread docks placement"
+#~ msgstr "Vị trí dock của luồng"
 
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Thread failed to start."
@@ -21912,8 +21909,8 @@ msgstr "Nơi lựa chọn từ bộ chọn phần tử trình duyệt được �
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Where a thread's goal, plan, agents, and background tasks appear. In the right panel, compact bubbles above the composer open them."
-msgstr "Nơi hiển thị mục tiêu, kế hoạch, agent và tác vụ nền của luồng. Ở bảng bên phải, các bong bóng nhỏ phía trên trình soạn sẽ mở chúng."
+#~ msgid "Where a thread's goal, plan, agents, and background tasks appear. In the right panel, compact bubbles above the composer open them."
+#~ msgstr "Nơi hiển thị mục tiêu, kế hoạch, agent và tác vụ nền của luồng. Ở bảng bên phải, các bong bóng nhỏ phía trên trình soạn sẽ mở chúng."
 
 #: src/renderer/views/WelcomeOverlay.tsx
 msgid "Where do you want to begin?"

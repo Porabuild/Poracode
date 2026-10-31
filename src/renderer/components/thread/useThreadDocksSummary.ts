@@ -1,6 +1,5 @@
 import { useAppStore } from "@/renderer/state/appStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
-import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { selectActiveSubAgentParentItemIds } from "@/renderer/state/subAgentSelectors";
 import { useThreadSubAgentDockStore } from "@/renderer/state/threadSubAgentDockStore";
 import {
@@ -130,7 +129,6 @@ export function useVisibleThreadTodoDockState(threadId: string): ThreadTodoDockS
  */
 export function useThreadDocksPanelAvailable(): boolean {
   const currentThreadId = useFocusedThreadId();
-  const docksPlacement = useSharedSettings((s) => s.threadDocksPlacement);
   const threadDocksPanelOpen = usePanelStore((s) => s.threadDocksPanelOpen);
   const isReturnTarget = usePanelStore(
     (s) => currentThreadId !== null && s.threadDocksReturnThreadId === currentThreadId,
@@ -152,15 +150,14 @@ export function useThreadDocksPanelAvailable(): boolean {
     currentThreadId !== null && threadDocksPanelOpen
       ? isReturnTarget ||
         (!hasReturnTarget && state.threads.some((thread) => thread.id === currentThreadId)) ||
-        (docksPlacement === "right" &&
-          selectThreadHasDockContent(
-            state,
-            currentThreadId,
-            retiredTodoSourceItemId,
-            dismissedAgentIds,
-            dismissedGoal,
-            dismissedBackgroundTasksKey,
-          ))
+        selectThreadHasDockContent(
+          state,
+          currentThreadId,
+          retiredTodoSourceItemId,
+          dismissedAgentIds,
+          dismissedGoal,
+          dismissedBackgroundTasksKey,
+        )
       : false,
   );
 }

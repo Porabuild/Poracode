@@ -480,7 +480,7 @@ describe("ThreadDocksPanel", () => {
     expect(screen.getByRole("button", { name: "Reorder Thread context" })).toBeInTheDocument();
   });
 
-  it("keeps composer-placed informational docks out of image-focused Thread info", () => {
+  it("keeps all Thread info sections with an image focus and a saved composer placement", () => {
     usePanelStore.setState({ threadDocksPanelOpen: true, threadDocksFocus: "images" });
     useSharedSettings.setState({ threadDocksPlacement: "composer" });
 
@@ -490,7 +490,7 @@ describe("ThreadDocksPanel", () => {
       </AppProvider>,
     );
 
-    expect(screen.queryByRole("button", { name: "Reorder Background tasks" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Reorder Plan" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Reorder Background tasks" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Reorder Plan" })).toBeInTheDocument();
   });
 });

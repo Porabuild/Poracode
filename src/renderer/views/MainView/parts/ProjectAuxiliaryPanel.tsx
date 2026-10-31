@@ -39,8 +39,6 @@ import { SideChatModelText } from "@/renderer/components/thread/SideChat/SideCha
 import { SideChatBody } from "@/renderer/components/thread/SideChat/SideChatBody";
 import { useSideChatPanelStore } from "@/renderer/components/thread/SideChat/sideChatPanelStore";
 import { useThreadGalleryCollection } from "@/renderer/components/thread/useThreadGalleryImages";
-import { ThreadDocksPlacementToggle } from "@/renderer/components/thread/ThreadDocksPlacementToggle";
-import { panelHeaderIconButtonClass } from "@/renderer/components/layout/sidebarChrome";
 import { useThreadDocksPanelAvailable } from "@/renderer/components/thread/useThreadDocksSummary";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useBrowserPanelStore } from "@/renderer/state/browserPanelStore";
@@ -52,7 +50,6 @@ import {
   selectBrowserPanelAvailable,
   useRemoteServersStore,
 } from "@/renderer/state/remoteServersStore";
-import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { watchRemoteTerminal } from "@/renderer/state/remoteTerminalFeed";
 import { prefetchVisibleGitPanelPrData } from "@/renderer/state/gitRefresh";
 import {
@@ -188,14 +185,9 @@ export function ProjectAuxiliaryPanel(props: {
   const docksInCurrentThread = useThreadDocksPanelAvailable();
   // Image-only threads offer the Docks tab without making image presence itself
   // an open flag. The explicit threadDocksPanelOpen state still owns dismissal.
-  const docksPlacement = useSharedSettings((s) => s.threadDocksPlacement);
-  const threadDocksFocus = usePanelStore((s) => s.threadDocksFocus);
-  const gallery = useThreadGalleryCollection(
-    currentThreadId !== null && (docksPlacement === "right" || threadDocksFocus === "images")
-      ? currentThreadId
-      : undefined,
-    { requestPending: false },
-  );
+  const gallery = useThreadGalleryCollection(currentThreadId ?? undefined, {
+    requestPending: false,
+  });
   const imagesInCurrentThread =
     gallery.images.length + gallery.pendingRemoteRefs.length + gallery.pendingRemotePaths.length >
     0;
@@ -585,12 +577,6 @@ export function ProjectAuxiliaryPanel(props: {
       }
       portsHeaderActions={
         <PortsPanelHeaderActions dragControlClass="poracode-overlay-header__controls" />
-      }
-      docksHeaderActions={
-        <ThreadDocksPlacementToggle
-          placement={docksPlacement}
-          buttonClassName={`poracode-overlay-header__controls ${panelHeaderIconButtonClass}`}
-        />
       }
       showTerminalTab={props.includeTerminal}
       showFilesTab={!isHomeScope}
