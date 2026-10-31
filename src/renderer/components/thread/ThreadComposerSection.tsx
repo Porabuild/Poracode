@@ -63,13 +63,13 @@ import {
 import type { VoiceInputHandle } from "../composer/VoiceInputButton";
 import { isCompactClientSurface, isRemoteSession, readBridge } from "@/renderer/bridge";
 import { remoteBridgeLocalImageUrl } from "@/renderer/browser/remoteBridge";
+import { usesBridgeThreadImages } from "@/renderer/components/thread/threadImageReadiness";
 import { useRemoteBridgeImageReadiness } from "@/renderer/browser/useRemoteBridgeImages";
 import { threadProductProperties } from "@/renderer/analytics/posthog";
 import { captureProductEvent } from "@/renderer/analytics/productAnalytics";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useThreadComposerControlStore } from "@/renderer/state/threadComposerControlStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
-import { environmentImageReadinessFor } from "@/renderer/state/remoteServers/environmentSessions";
 import { useBrowserAttachInbox } from "@/renderer/state/browserAttachInbox";
 import {
   useComposerInputInbox,
@@ -325,7 +325,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   );
   const attachmentImageUrlForPath = remoteDesktopId
     ? (path: string) =>
-        isRemoteSurface
+        usesBridgeThreadImages(remoteDesktopId)
           ? remoteBridgeLocalImageUrl(path)
           : useRemoteServersStore.getState().localImageUrl(remoteDesktopId, path)
     : undefined;
@@ -333,9 +333,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   // subscription; direct/ssh keep their synchronous endpoint URL.
   const remoteImageReadiness =
     remoteDesktopId && remoteImageServer
-      ? isRemoteSurface
-        ? (environmentImageReadinessFor(remoteDesktopId) ?? browserImageReadiness)
-        : useRemoteServersStore.getState().imageReadinessFor(remoteDesktopId)
+      ? useRemoteServersStore.getState().imageReadinessFor(remoteDesktopId)
       : isRemoteSurface
         ? browserImageReadiness
         : undefined;

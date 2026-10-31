@@ -39,6 +39,7 @@ import {
   setOlderThreadHistoryContinuation,
   setOlderThreadHistoryInvalidation,
 } from "@/renderer/state/chatRuntimePersister";
+import { trackPendingRemoteThreadOpen } from "./pendingRemoteThreadOpens";
 import {
   projectRemoteThread,
   projectRemoteThreadSnapshot,
@@ -477,7 +478,7 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
       return "started";
     },
 
-    openRemoteThread: async (
+    openRemoteThread: (
       desktopId: string,
       threadId: string,
       options?: {
@@ -487,231 +488,240 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
         readonly quiet?: boolean;
         readonly signal?: AbortSignal;
       },
-    ): Promise<boolean> => {
-      const focus = options?.focus ?? true;
-      const requestSeq = openRemoteThreadRequestSeq + 1;
-      openRemoteThreadRequestSeq = requestSeq;
-      const previousOpenThread = get().openThread;
-      const server = get().servers.find((entry) => remoteConnectionKey(entry) === desktopId);
-      if (!server) {
-        reportRemoteServerError(
-          desktopId,
-          new Error(i18n._(msg`Remote server not found.`)),
-          i18n._(msg`Remote server not found.`),
-        );
-        return false;
-      }
-      const serverIdentityAtStart = server.endpoint;
-      const serverGenerationAtStart = currentRemoteServerGeneration(desktopId);
-      // The history may come from a server instance the event stream has
-      // since replaced: it must not raise that new epoch's resume cursor.
-      const resumeFenceAtStart = remoteServerResumeFence(desktopId);
-      const isHistoryConnectionCurrent = (): boolean => {
-        const currentServer = get().servers.find(
-          (entry) => remoteConnectionKey(entry) === desktopId,
-        );
-        return (
-          currentServer !== undefined &&
-          currentServer.endpoint === serverIdentityAtStart &&
-          currentRemoteServerGeneration(desktopId) === serverGenerationAtStart
-        );
-      };
-      const viewThreadId = remoteThreadId(desktopId, threadId);
-      if (
-        options?.preserveLoadedHistory !== true &&
-        (previousOpenThread?.desktopId !== desktopId || previousOpenThread.threadId !== threadId) &&
-        !currentRemoteServerThreadItemInterests(desktopId).includes(threadId) &&
-        selectActiveSubAgentParentItemIds(useAppStore.getState(), viewThreadId).length === 0
-      ) {
-        resetRemoteThreadProjection(viewThreadId);
-      }
-      setHydratingRemoteServerThreadItemInterest(desktopId, threadId, previousOpenThread);
-      // Hydrate the thread's history into the shared, threadId-keyed runtime
-      // store so the desktop ChatPane renders it (coexists with local threads).
-      // A failed history fetch (server asleep/unreachable) must not reject.
-      let snapshot: Awaited<ReturnType<RemoteDesktopClient["threadHistory"]>>;
-      const resumeRead = beginHistorySnapshotRead(
-        viewThreadId,
-        remoteHistoryResumeAuthority(desktopId),
-      );
-      let boundedHistoryPage: RemoteBoundedThreadHistoryPage | undefined;
-      const followUpQueueSnapshotGuard = captureThreadFollowUpQueueSnapshot(
+    ): Promise<boolean> =>
+      // Registered so the restored-pane lifecycle and the pane's first
+      // hydration wait for this read instead of starting their own.
+      trackPendingRemoteThreadOpen(
         remoteThreadId(desktopId, threadId),
-      );
-      try {
-        // WS3 #2: cursor-sync v2 connections get the authoritative tail
-        // from the chunked watch baseline — never send it twice.
-        const omitScrollback = hasRemoteServerCursorSyncV2(desktopId);
-        // B1: declare only when this host advertises the durable notice and the
-        // renderer can display it (the ChatPane banner + explicit ack are
-        // installed). An incapable reader would be refused 409 on a notice
-        // thread, so the gate is the capability, not optimism.
-        const noticesCapable = hostSupportsRuntimeHistoryNotices(server);
-        const historyOptions = {
-          compactDetails: true,
-          ...(omitScrollback ? { omitScrollback: true as const } : {}),
-          ...(options?.signal ? { signal: options.signal } : {}),
-          ...(noticesCapable ? { noticesCapable: true as const } : {}),
-          maxBytes: REMOTE_BOUNDED_READ_DEFAULT_MAX_WIRE_BYTES,
-          maxDecodeBytes: REMOTE_BOUNDED_READ_DEFAULT_MAX_DECODE_BYTES,
-        };
-        const result = await withClient(desktopId, (client) =>
-          client.boundedThreadHistory(threadId, historyOptions),
-        );
-        snapshot = result.page;
-        if (result.negotiation === "bounded") boundedHistoryPage = result.page;
-      } catch (error) {
-        resumeRead.cancel();
-        // Drop this thread's hydration interest even when superseded: a
-        // refresh that cleared the open slice invalidates the request seq,
-        // and leaving the hydrating thread registered would leak a dead
-        // interest (e.g. a replacement for a deleted thread). Every other
-        // interest stays untouched, so a failed open never strips a live
-        // pane; a same-thread retry re-registers on success.
-        removeRemoteServerThreadItemInterest(desktopId, threadId);
-        if (requestSeq !== openRemoteThreadRequestSeq) return false;
-        // Only a typed gap refusal establishes a history recovery signal.
-        if (hostSupportsRuntimeHistoryNotices(server) && isThreadHistoryRecoveryError(error)) {
-          noteThreadHistoryRecoveryNeeded(
+        (async (): Promise<boolean> => {
+          const focus = options?.focus ?? true;
+          const requestSeq = openRemoteThreadRequestSeq + 1;
+          openRemoteThreadRequestSeq = requestSeq;
+          const previousOpenThread = get().openThread;
+          const server = get().servers.find((entry) => remoteConnectionKey(entry) === desktopId);
+          if (!server) {
+            reportRemoteServerError(
+              desktopId,
+              new Error(i18n._(msg`Remote server not found.`)),
+              i18n._(msg`Remote server not found.`),
+            );
+            return false;
+          }
+          const serverIdentityAtStart = server.endpoint;
+          const serverGenerationAtStart = currentRemoteServerGeneration(desktopId);
+          // The history may come from a server instance the event stream has
+          // since replaced: it must not raise that new epoch's resume cursor.
+          const resumeFenceAtStart = remoteServerResumeFence(desktopId);
+          const isHistoryConnectionCurrent = (): boolean => {
+            const currentServer = get().servers.find(
+              (entry) => remoteConnectionKey(entry) === desktopId,
+            );
+            return (
+              currentServer !== undefined &&
+              currentServer.endpoint === serverIdentityAtStart &&
+              currentRemoteServerGeneration(desktopId) === serverGenerationAtStart
+            );
+          };
+          const viewThreadId = remoteThreadId(desktopId, threadId);
+          if (
+            options?.preserveLoadedHistory !== true &&
+            (previousOpenThread?.desktopId !== desktopId ||
+              previousOpenThread.threadId !== threadId) &&
+            !currentRemoteServerThreadItemInterests(desktopId).includes(threadId) &&
+            selectActiveSubAgentParentItemIds(useAppStore.getState(), viewThreadId).length === 0
+          ) {
+            resetRemoteThreadProjection(viewThreadId);
+          }
+          setHydratingRemoteServerThreadItemInterest(desktopId, threadId, previousOpenThread);
+          // Hydrate the thread's history into the shared, threadId-keyed runtime
+          // store so the desktop ChatPane renders it (coexists with local threads).
+          // A failed history fetch (server asleep/unreachable) must not reject.
+          let snapshot: Awaited<ReturnType<RemoteDesktopClient["threadHistory"]>>;
+          const resumeRead = beginHistorySnapshotRead(
+            viewThreadId,
+            remoteHistoryResumeAuthority(desktopId),
+          );
+          let boundedHistoryPage: RemoteBoundedThreadHistoryPage | undefined;
+          const followUpQueueSnapshotGuard = captureThreadFollowUpQueueSnapshot(
             remoteThreadId(desktopId, threadId),
-            remoteConnectionKey(server),
           );
-        }
-        // Re-assert the previous open thread only while it is still the
-        // open slice: a superseding open owns its own registration, and a
-        // thread the server deleted (refreshServer cleared the slice) must
-        // not be resurrected as an interest.
-        const currentOpen = get().openThread;
-        if (
-          previousOpenThread &&
-          currentOpen?.desktopId === previousOpenThread.desktopId &&
-          currentOpen.threadId === previousOpenThread.threadId
-        ) {
-          addRemoteServerThreadItemInterest(
-            previousOpenThread.desktopId,
-            previousOpenThread.threadId,
-          );
-        }
-        // Background reattaches (focus:false) retry quietly; the sidebar's
-        // server status already shows an unreachable host, and one toast
-        // per retry attempt would be spam.
-        if (!options?.quiet) {
-          toast.danger(friendlyError(error) || i18n._(msg`Failed to open remote thread.`));
-        }
-        return false;
-      }
-      const currentServer = get().servers.find((entry) => remoteConnectionKey(entry) === desktopId);
-      if (!currentServer || !isHistoryConnectionCurrent()) {
-        resumeRead.cancel();
-        return false;
-      }
-      if (remoteServerResumeFence(desktopId) !== resumeFenceAtStart) {
-        resumeRead.cancel();
-        if (requestSeq !== openRemoteThreadRequestSeq || options?.signal?.aborted) return false;
-        return get().openRemoteThread(desktopId, threadId, options);
-      }
-      // Only a snapshot from the current connection and epoch can update its notice.
-      recordThreadHistoryNoticeRead(
-        viewThreadId,
-        remoteConnectionKey(server),
-        snapshot.runtimeNotice,
-      );
-      const projectedSnapshot = projectRemoteThreadSnapshot(desktopId, snapshot);
-      // Retain the bounded tail cursor + page proof so older completed-turn
-      // pages and older runtime-item pages can continue on this connection.
-      if (boundedHistoryPage) {
-        recordBoundedHistoryTail({ desktopId, threadId, page: boundedHistoryPage });
-      }
-      const installSnapshot = mergeBoundedTailTurns(projectedSnapshot, viewThreadId);
-      // The shared installer seeds the item cursor from the prefix it actually
-      // preserved, after freshness arbitration; a pinned goal is not overlap.
-      const applied: ApplyThreadSnapshotResult = applyThreadSnapshot(installSnapshot, {
-        fromServer: true,
-        lastSeenEventSeq: remoteThreadAppliedSeq(desktopId, threadId),
-        followUpQueueSnapshotGuard,
-        ...(boundedHistoryPage
-          ? {
-              committedPrefix: {
-                threadId: viewThreadId,
-                snapshotSeq: boundedHistoryPage.snapshotSeq,
-                isCurrent: () =>
-                  isHistoryConnectionCurrent() &&
-                  remoteServerResumeFence(desktopId) === resumeFenceAtStart,
-                lastSeenEventSeq: () => remoteThreadAppliedSeq(desktopId, threadId),
-              },
+          try {
+            // WS3 #2: cursor-sync v2 connections get the authoritative tail
+            // from the chunked watch baseline — never send it twice.
+            const omitScrollback = hasRemoteServerCursorSyncV2(desktopId);
+            // B1: declare only when this host advertises the durable notice and the
+            // renderer can display it (the ChatPane banner + explicit ack are
+            // installed). An incapable reader would be refused 409 on a notice
+            // thread, so the gate is the capability, not optimism.
+            const noticesCapable = hostSupportsRuntimeHistoryNotices(server);
+            const historyOptions = {
+              compactDetails: true,
+              ...(omitScrollback ? { omitScrollback: true as const } : {}),
+              ...(options?.signal ? { signal: options.signal } : {}),
+              ...(noticesCapable ? { noticesCapable: true as const } : {}),
+              maxBytes: REMOTE_BOUNDED_READ_DEFAULT_MAX_WIRE_BYTES,
+              maxDecodeBytes: REMOTE_BOUNDED_READ_DEFAULT_MAX_DECODE_BYTES,
+            };
+            const result = await withClient(desktopId, (client) =>
+              client.boundedThreadHistory(threadId, historyOptions),
+            );
+            snapshot = result.page;
+            if (result.negotiation === "bounded") boundedHistoryPage = result.page;
+          } catch (error) {
+            resumeRead.cancel();
+            // Drop this thread's hydration interest even when superseded: a
+            // refresh that cleared the open slice invalidates the request seq,
+            // and leaving the hydrating thread registered would leak a dead
+            // interest (e.g. a replacement for a deleted thread). Every other
+            // interest stays untouched, so a failed open never strips a live
+            // pane; a same-thread retry re-registers on success.
+            removeRemoteServerThreadItemInterest(desktopId, threadId);
+            if (requestSeq !== openRemoteThreadRequestSeq) return false;
+            // Only a typed gap refusal establishes a history recovery signal.
+            if (hostSupportsRuntimeHistoryNotices(server) && isThreadHistoryRecoveryError(error)) {
+              noteThreadHistoryRecoveryNeeded(
+                remoteThreadId(desktopId, threadId),
+                remoteConnectionKey(server),
+              );
             }
-          : {}),
-      });
-      if (applied.installedAuthoritativeHistory) {
-        resumeRead.finish(snapshot.runtimeResumeCursor, snapshot.snapshotSeq);
-        recordAuthoritativeHistoryInstall(desktopId, threadId, snapshot.snapshotSeq);
-      } else resumeRead.cancel();
-      // This open superseded the pane's first read (its projection reset
-      // cancelled it), so the "pending" that read set is this open's to end:
-      // left behind, it would keep underfilled-history paging off for good.
-      if (
-        useAppStore.getState().runtimeHydrationStatus[viewThreadId] === "pending" &&
-        !hasPendingThreadRuntimeHydration(viewThreadId)
-      ) {
-        useAppStore.getState().setRuntimeHydrationStatus(viewThreadId, null);
-      }
-      addRemoteServerThreadItemInterest(desktopId, threadId);
-      bumpRemoteServerSnapshotSeq(desktopId, snapshot.snapshotSeq, resumeFenceAtStart);
-      // WS3-A: the agent-statuses fetch omitted slash-command catalogs, so
-      // the opened thread's agent catalog is fetched once, on first use.
-      const openedThread = snapshot.thread;
-      if (openedThread.agentKind) {
-        const catalogScope = currentServer.endpoint;
-        void fetchSlashCommandCatalog(catalogScope, openedThread.agentKind, () =>
-          withClient(desktopId, (client) => client.agentSlashCommands(openedThread.agentKind)).then(
-            (result) => result.commands,
-          ),
-        )
-          .then(() => {
-            const statuses = get().runtime[desktopId]?.agentStatuses;
-            if (!statuses) return;
-            const patched = applyCachedSlashCommandCatalogs(catalogScope, statuses);
-            set((state) => {
-              const latest = state.runtime[desktopId];
-              if (!latest || latest.agentStatuses !== statuses) return state;
-              return {
-                runtime: {
-                  ...state.runtime,
-                  [desktopId]: { ...latest, agentStatuses: patched },
-                },
-              };
-            });
-            useAgentStatusesStore.getState().setAgentStatuses(patched.windows);
-          })
-          .catch(() => {
-            // Slash commands stay absent until the next open/refresh; the
-            // menu must not crash or toast for a lazy enhancement.
+            // Re-assert the previous open thread only while it is still the
+            // open slice: a superseding open owns its own registration, and a
+            // thread the server deleted (refreshServer cleared the slice) must
+            // not be resurrected as an interest.
+            const currentOpen = get().openThread;
+            if (
+              previousOpenThread &&
+              currentOpen?.desktopId === previousOpenThread.desktopId &&
+              currentOpen.threadId === previousOpenThread.threadId
+            ) {
+              addRemoteServerThreadItemInterest(
+                previousOpenThread.desktopId,
+                previousOpenThread.threadId,
+              );
+            }
+            // Background reattaches (focus:false) retry quietly; the sidebar's
+            // server status already shows an unreachable host, and one toast
+            // per retry attempt would be spam.
+            if (!options?.quiet) {
+              toast.danger(friendlyError(error) || i18n._(msg`Failed to open remote thread.`));
+            }
+            return false;
+          }
+          const currentServer = get().servers.find(
+            (entry) => remoteConnectionKey(entry) === desktopId,
+          );
+          if (!currentServer || !isHistoryConnectionCurrent()) {
+            resumeRead.cancel();
+            return false;
+          }
+          if (remoteServerResumeFence(desktopId) !== resumeFenceAtStart) {
+            resumeRead.cancel();
+            if (requestSeq !== openRemoteThreadRequestSeq || options?.signal?.aborted) return false;
+            return get().openRemoteThread(desktopId, threadId, options);
+          }
+          // Only a snapshot from the current connection and epoch can update its notice.
+          recordThreadHistoryNoticeRead(
+            viewThreadId,
+            remoteConnectionKey(server),
+            snapshot.runtimeNotice,
+          );
+          const projectedSnapshot = projectRemoteThreadSnapshot(desktopId, snapshot);
+          // Retain the bounded tail cursor + page proof so older completed-turn
+          // pages and older runtime-item pages can continue on this connection.
+          if (boundedHistoryPage) {
+            recordBoundedHistoryTail({ desktopId, threadId, page: boundedHistoryPage });
+          }
+          const installSnapshot = mergeBoundedTailTurns(projectedSnapshot, viewThreadId);
+          // The shared installer seeds the item cursor from the prefix it actually
+          // preserved, after freshness arbitration; a pinned goal is not overlap.
+          const applied: ApplyThreadSnapshotResult = applyThreadSnapshot(installSnapshot, {
+            fromServer: true,
+            lastSeenEventSeq: remoteThreadAppliedSeq(desktopId, threadId),
+            followUpQueueSnapshotGuard,
+            ...(boundedHistoryPage
+              ? {
+                  committedPrefix: {
+                    threadId: viewThreadId,
+                    snapshotSeq: boundedHistoryPage.snapshotSeq,
+                    isCurrent: () =>
+                      isHistoryConnectionCurrent() &&
+                      remoteServerResumeFence(desktopId) === resumeFenceAtStart,
+                    lastSeenEventSeq: () => remoteThreadAppliedSeq(desktopId, threadId),
+                  },
+                }
+              : {}),
           });
-      }
-      await startRemoteServerEventStream(currentServer);
-      const eventSocket = getRemoteServerEventSocketEntry(desktopId)?.socket;
-      if (eventSocket) activateRemoteTerminalFeed(desktopId, eventSocket);
-      if (!focus) {
-        // Background reattach never steals focus and never depends on the
-        // single global open slice: history + interests are the attach.
-        // Still track the slice when latest so single-pane restores keep
-        // the existing `openThread` expectation, but always report success
-        // once history installed.
-        if (requestSeq === openRemoteThreadRequestSeq) {
-          set({ openThread: buildOpenThread(desktopId, snapshot) });
-        }
-        return true;
-      }
-      if (requestSeq !== openRemoteThreadRequestSeq) return false;
-      const openThread = buildOpenThread(desktopId, snapshot);
-      set({ openThread });
-      // Focus is caller-owned: the startup restore reattaches the live
-      // subscription for an already-visible thread and must not yank the
-      // view back if the user navigated away while the history fetch was
-      // in flight.
-      useAppStore.getState().openThread(openThread.thread.id);
-      return true;
-    },
+          if (applied.installedAuthoritativeHistory) {
+            resumeRead.finish(snapshot.runtimeResumeCursor, snapshot.snapshotSeq);
+            recordAuthoritativeHistoryInstall(desktopId, threadId, snapshot.snapshotSeq);
+          } else resumeRead.cancel();
+          // This open superseded the pane's first read (its projection reset
+          // cancelled it), so the "pending" that read set is this open's to end:
+          // left behind, it would keep underfilled-history paging off for good.
+          if (
+            useAppStore.getState().runtimeHydrationStatus[viewThreadId] === "pending" &&
+            !hasPendingThreadRuntimeHydration(viewThreadId)
+          ) {
+            useAppStore.getState().setRuntimeHydrationStatus(viewThreadId, null);
+          }
+          addRemoteServerThreadItemInterest(desktopId, threadId);
+          bumpRemoteServerSnapshotSeq(desktopId, snapshot.snapshotSeq, resumeFenceAtStart);
+          // WS3-A: the agent-statuses fetch omitted slash-command catalogs, so
+          // the opened thread's agent catalog is fetched once, on first use.
+          const openedThread = snapshot.thread;
+          if (openedThread.agentKind) {
+            const catalogScope = currentServer.endpoint;
+            void fetchSlashCommandCatalog(catalogScope, openedThread.agentKind, () =>
+              withClient(desktopId, (client) =>
+                client.agentSlashCommands(openedThread.agentKind),
+              ).then((result) => result.commands),
+            )
+              .then(() => {
+                const statuses = get().runtime[desktopId]?.agentStatuses;
+                if (!statuses) return;
+                const patched = applyCachedSlashCommandCatalogs(catalogScope, statuses);
+                set((state) => {
+                  const latest = state.runtime[desktopId];
+                  if (!latest || latest.agentStatuses !== statuses) return state;
+                  return {
+                    runtime: {
+                      ...state.runtime,
+                      [desktopId]: { ...latest, agentStatuses: patched },
+                    },
+                  };
+                });
+                useAgentStatusesStore.getState().setAgentStatuses(patched.windows);
+              })
+              .catch(() => {
+                // Slash commands stay absent until the next open/refresh; the
+                // menu must not crash or toast for a lazy enhancement.
+              });
+          }
+          await startRemoteServerEventStream(currentServer);
+          const eventSocket = getRemoteServerEventSocketEntry(desktopId)?.socket;
+          if (eventSocket) activateRemoteTerminalFeed(desktopId, eventSocket);
+          if (!focus) {
+            // Background reattach never steals focus and never depends on the
+            // single global open slice: history + interests are the attach.
+            // Still track the slice when latest so single-pane restores keep
+            // the existing `openThread` expectation, but always report success
+            // once history installed.
+            if (requestSeq === openRemoteThreadRequestSeq) {
+              set({ openThread: buildOpenThread(desktopId, snapshot) });
+            }
+            return true;
+          }
+          if (requestSeq !== openRemoteThreadRequestSeq) return false;
+          const openThread = buildOpenThread(desktopId, snapshot);
+          set({ openThread });
+          // Focus is caller-owned: the startup restore reattaches the live
+          // subscription for an already-visible thread and must not yank the
+          // view back if the user navigated away while the history fetch was
+          // in flight.
+          useAppStore.getState().openThread(openThread.thread.id);
+          return true;
+        })(),
+      ),
 
     closeRemoteThread: () => {
       openRemoteThreadRequestSeq += 1;

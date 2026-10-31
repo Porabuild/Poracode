@@ -34,7 +34,7 @@ import { useProjectRootNames } from "@/renderer/state/projectRootNamesStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useManagedLoopbackImageSession } from "@/renderer/state/managedLoopbackImages";
 import { managedRootOwner } from "@/renderer/state/managedRootCatalog/rootCatalogCommands";
-import { threadImageReadinessFor } from "../threadImageReadiness";
+import { threadImageReadinessFor, usesBridgeThreadImages } from "../threadImageReadiness";
 import { buildFileEditorContext, resolveWorktreeBranch } from "@/renderer/utils/gitHelpers";
 import { showSubAgentPanel } from "@/renderer/actions/panelActions";
 import { ChatFindBar, type ScrollToIndex } from "@/renderer/components/find/ChatFindBar";
@@ -232,6 +232,9 @@ export function ChatPane(props: ChatPaneProps) {
   }, [onOpenThread]);
   const paneActions: ChatPaneActions | null = useMemo(() => {
     const openThread = (mentionedThreadId: string) => onOpenThreadRef.current?.(mentionedThreadId);
+    // Images follow the thread's own connection; only owner-less rows use the
+    // bound bridge host (see usesBridgeThreadImages).
+    const bridgeImages = usesBridgeThreadImages(thread.remoteServerId);
     const contentImageReadiness = threadImageReadinessFor(
       {
         id: threadId,
@@ -245,7 +248,7 @@ export function ChatPane(props: ChatPaneProps) {
       ...(targetContext ? { mediaLocation: targetContext.projectLocation } : {}),
       // Image custody is independent of project/file actions, including Home.
       // An explicit empty owner resolver must never fall through globally.
-      remoteImageRefUrl: isRemoteSession()
+      remoteImageRefUrl: bridgeImages
         ? !isRemoteThread || hasValidRemoteServerId
           ? remoteBridgeImageRefUrl
           : unavailableImageRefUrl
@@ -263,14 +266,14 @@ export function ChatPane(props: ChatPaneProps) {
         ...(isRemoteSession() || isRemoteThread
           ? {
               remote: {
-                available: isRemoteSession()
+                available: bridgeImages
                   ? !isRemoteThread || hasValidRemoteServerId
                   : remoteImageServer !== undefined,
                 readiness: contentImageReadiness,
                 ...(!isRemoteThread && isRemoteSession()
                   ? { pathForUrl: resolveRemoteBridgeLocalImagePath }
                   : {}),
-                resolvePath: isRemoteSession()
+                resolvePath: bridgeImages
                   ? remoteBridgeLocalImageUrl
                   : (path) =>
                       useRemoteServersStore.getState().localImageUrl(thread.remoteServerId!, path),

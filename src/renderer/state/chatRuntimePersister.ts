@@ -26,6 +26,7 @@ import {
   readManagedRootHistoryPage,
 } from "./managedRootCatalog/rootHistory";
 import { toCompletedTurnRecords } from "./remoteServers/catalog/boundedHistory";
+import { pendingRemoteThreadOpen } from "./remoteServers/pendingRemoteThreadOpens";
 import { toRuntimeChatItem, type CompletedTurnRecord } from "./slices/runtimeEventSlice";
 
 import {
@@ -503,6 +504,16 @@ async function hydrateThreadRuntimeItemsFromDb(
       cachedSnapshot.thread.remoteServerId,
       cachedSnapshot.runtimeNotice,
     );
+  }
+  // A remote open (sidebar click, search hit, restore) is already reading this
+  // thread's authoritative tail. Its single bounded read carries the items,
+  // turns, usage and goal these four derived reads would each fetch again, so
+  // wait for it; read only when it failed or was superseded.
+  const inFlightOpen = cachedSnapshot ? undefined : pendingRemoteThreadOpen(threadId);
+  if (inFlightOpen) {
+    await inFlightOpen.catch(() => false);
+    if (request.controller.signal.aborted) return false;
+    if (hydratedThreadRuntimeIds.has(threadId)) return true;
   }
   const bridge = readBridge();
   const [itemsResult, turnsResult, contextResult, latestGoalResult] = cachedSnapshot
