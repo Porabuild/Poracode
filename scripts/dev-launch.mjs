@@ -78,7 +78,7 @@ for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"])
 try {
   sweepStaleSupervisors();
   await run("scripts/ensure-native-deps.mjs", ["--electron-native"]);
-  await run("scripts/prepare-pty-job-owner.mjs", ["--if-supported"]);
+  await run("scripts/prepare-pty-job-owner.mjs", ["--if-supported", "--host-only"]);
   await run("scripts/prepare-computer-use-helper.mjs", ["--host-only", "--dev"]);
   if (!closed) {
     runtime = await watchRuntime({
