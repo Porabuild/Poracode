@@ -13,6 +13,7 @@ import {
   installRendererReloadGuard,
   noteRendererWindowClose,
 } from "./windowHardening";
+import { openDevToolsAfterStartup } from "./deferredDevTools";
 import { rectOverlapsWorkArea } from "./windowGeometry";
 
 interface WindowBounds {
@@ -232,7 +233,9 @@ export function createMainWindow(options: CreateMainWindowOptions): BrowserWindo
 
   loadRenderer();
   if (options.isDev && options.openDevTools !== false) {
-    window.webContents.openDevTools({ mode: "detach" });
+    // Only the main app reports startup ready (the quick-composer ready ping).
+    if ((options.windowKind ?? "main") === "main") openDevToolsAfterStartup(window.webContents);
+    else window.webContents.openDevTools({ mode: "detach" });
   }
 
   installRendererReloadGuard(window, {

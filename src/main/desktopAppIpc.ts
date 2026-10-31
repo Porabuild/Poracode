@@ -8,6 +8,7 @@ import { IPC_WINDOW_CHANNELS, quickComposerSubmissionSchema } from "@/shared/ipc
 import { createLocalIpcHandlers } from "./ipc/localHandlers";
 import { registerIpcHandlers } from "./ipc/registerHandlers";
 import { registerSmokeNativeControls } from "./testing/smokeNativeControls";
+import { notifyRendererStartupReady } from "./window/deferredDevTools";
 import { requestTrackedRendererReload } from "./window/windowHardening";
 import { registerSideChatWindowIpc } from "./window/sideChatWindows";
 import { QuickComposerShortcutManager } from "./quickComposerShortcut";
@@ -99,6 +100,7 @@ export function registerDesktopIpc(deps: DesktopIpcDeps): void {
   ipcMain.handle(IPC_WINDOW_CHANNELS.quickComposerMainReady, (event) => {
     const window = BrowserWindow.fromWebContents(event.sender);
     if (!window || window !== desktopApp.mainWindow || window.isDestroyed()) return;
+    notifyRendererStartupReady(window.webContents);
     desktopApp.quickComposerLifecycle?.handleMainReady();
     flushTrayThreadOpen();
     flushPendingThreadCommands();
