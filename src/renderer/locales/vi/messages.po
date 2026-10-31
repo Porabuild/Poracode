@@ -1065,7 +1065,7 @@ msgstr "Nguồn cây làm việc đã đóng băng yêu cầu hàm băm đầy �
 #~ msgid "A locked screen stops all desktop control, so the display is kept on while a Computer Use session is running. You can still lock the screen yourself."
 #~ msgstr "Màn hình bị khóa sẽ chặn mọi thao tác điều khiển máy tính, vì vậy màn hình được giữ sáng trong khi phiên sử dụng máy tính đang chạy. Bạn vẫn có thể tự khóa màn hình."
 
-#: src/renderer/components/thread/ChatPane/ChatPane.tsx
+#: src/renderer/components/thread/ThreadRemoteSyncDock.tsx
 msgid "A message deletion could not be confirmed. Refresh to resync this conversation."
 msgstr "Không thể xác nhận việc xóa tin nhắn. Hãy làm mới để đồng bộ hóa lại cuộc trò chuyện này."
 
@@ -14831,7 +14831,7 @@ msgstr "Tham chiếu"
 
 #. Button: re-fetch provider usage now
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
-#: src/renderer/components/thread/ChatPane/ChatPane.tsx
+#: src/renderer/components/thread/ThreadRemoteSyncDock.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
@@ -16996,7 +16996,7 @@ msgstr "Máy chủ {target} chạy trên máy này và không khả dụng cho d
 msgid "Server base URL"
 msgstr "URL cơ sở của máy chủ"
 
-#: src/renderer/components/thread/ChatPane/ChatPane.tsx
+#: src/renderer/components/thread/ThreadRemoteSyncDock.tsx
 msgid "Server offline — this conversation may be out of date."
 msgstr "Máy chủ ngoại tuyến — cuộc trò chuyện này có thể đã cũ."
 
@@ -21778,6 +21778,7 @@ msgstr "Đang khởi động môi trường shell WSL…"
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 #: src/renderer/components/thread/ThreadHistoryLoadFailureDock.tsx
 #: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
+#: src/renderer/components/thread/ThreadRemoteSyncDock.tsx
 #: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Warning"
