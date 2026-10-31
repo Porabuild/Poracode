@@ -1146,8 +1146,8 @@ msgid "About usage"
 msgstr "使用量について"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
-msgid "Above the composer"
-msgstr "コンポーザーの上"
+#~ msgid "Above the composer"
+#~ msgstr "コンポーザーの上"
 
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Accent"
@@ -15992,7 +15992,6 @@ msgid "Right"
 msgstr "右"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Right panel"
 msgstr "右パネル"
 
@@ -19999,14 +19998,12 @@ msgid "Thread dock"
 msgstr "スレッドドック"
 
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
-#: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Thread docks"
 msgstr "スレッドのドック"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
-msgid "Thread docks placement"
-msgstr "スレッドのドックの配置"
+#~ msgid "Thread docks placement"
+#~ msgstr "スレッドのドックの配置"
 
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Thread failed to start."
@@ -21910,8 +21907,8 @@ msgstr "ターミナルネイティブのスレッドで、ブラウザーの要
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Where a thread's goal, plan, agents, and background tasks appear. In the right panel, compact bubbles above the composer open them."
-msgstr "スレッドのゴール、プラン、エージェント、バックグラウンドタスクの表示場所。右パネルの場合はコンポーザー上のコンパクトなバブルから開きます。"
+#~ msgid "Where a thread's goal, plan, agents, and background tasks appear. In the right panel, compact bubbles above the composer open them."
+#~ msgstr "スレッドのゴール、プラン、エージェント、バックグラウンドタスクの表示場所。右パネルの場合はコンポーザー上のコンパクトなバブルから開きます。"
 
 #: src/renderer/views/WelcomeOverlay.tsx
 msgid "Where do you want to begin?"

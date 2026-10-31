@@ -1147,8 +1147,8 @@ msgid "About usage"
 msgstr "О статистике использования"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
-msgid "Above the composer"
-msgstr "Над полем ввода"
+#~ msgid "Above the composer"
+#~ msgstr "Над полем ввода"
 
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Accent"
@@ -15994,7 +15994,6 @@ msgid "Right"
 msgstr "Справа"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Right panel"
 msgstr "Панель справа"
 
@@ -20001,14 +20000,12 @@ msgid "Thread dock"
 msgstr "Панель треда"
 
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
-#: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Thread docks"
 msgstr "Доки треда"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
-msgid "Thread docks placement"
-msgstr "Расположение доков треда"
+#~ msgid "Thread docks placement"
+#~ msgstr "Расположение доков треда"
 
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Thread failed to start."
@@ -21912,8 +21909,8 @@ msgstr "Куда направляется выбор элемента брауз
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Where a thread's goal, plan, agents, and background tasks appear. In the right panel, compact bubbles above the composer open them."
-msgstr "Где отображаются цель, план, агенты и фоновые задачи треда. В правой панели их открывают компактные пузырьки над полем ввода."
+#~ msgid "Where a thread's goal, plan, agents, and background tasks appear. In the right panel, compact bubbles above the composer open them."
+#~ msgstr "Где отображаются цель, план, агенты и фоновые задачи треда. В правой панели их открывают компактные пузырьки над полем ввода."
 
 #: src/renderer/views/WelcomeOverlay.tsx
 msgid "Where do you want to begin?"

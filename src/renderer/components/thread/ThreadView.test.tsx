@@ -2,7 +2,8 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import "@/renderer/components/providers/bootstrap";
 import type { Thread } from "@/shared/contracts";
-import { closeAllPanels, setThreadDocksPlacement } from "@/renderer/actions/panelActions";
+import { closeAllPanels } from "@/renderer/actions/panelActions";
+import { ThreadDocksPanel } from "./ThreadDocksPanel";
 import { AppProvider } from "@/renderer/components/ui/provider";
 import { useAppStore } from "@/renderer/state/appStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
@@ -1340,7 +1341,7 @@ describe("ThreadView", () => {
     );
   });
 
-  it("shows the pinned todo dock without duplicating the latest plan row or hiding the live timer", async () => {
+  it("shows the plan chip without duplicating the latest plan row or hiding the live timer", async () => {
     const now = Date.now();
     const activeTurnStartedAt = new Date(now - 70_000).toISOString();
     const createdAt = new Date(now - 80_000).toISOString();
@@ -1426,14 +1427,15 @@ describe("ThreadView", () => {
       },
     });
 
-    expect(screen.getByLabelText("Thread todo dock")).toHaveAttribute("data-placement", "composer");
-    expect(screen.getAllByText("Build ACP todo dock")).toHaveLength(1);
+    expect(screen.queryByLabelText("Thread todo dock")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Show Plan" })).toHaveTextContent("0/2");
+    expect(screen.queryByText("Build ACP todo dock")).not.toBeInTheDocument();
     expect(screen.queryByText("Old inline todo")).not.toBeInTheDocument();
     expect(screen.queryByText("No messages yet")).not.toBeInTheDocument();
     await waitFor(() => expect(screen.getByText(/^Working for 1m/)).toBeInTheDocument());
   });
 
-  it("shows the active GUI goal in the composer dock instead of the chat transcript", () => {
+  it("shows the active GUI goal chip outside the chat transcript", () => {
     useAppStore.setState({
       runtimeItemIdsByThread: {
         "thread-gui-goal": ["goal-1"],
@@ -1506,13 +1508,14 @@ describe("ThreadView", () => {
       },
     });
 
-    expect(screen.getByLabelText("Thread goal dock")).toHaveAttribute("data-placement", "composer");
-    expect(screen.getAllByText("Ship GUI goal dock")).toHaveLength(1);
+    expect(screen.queryByLabelText("Thread goal dock")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Show Goal" })).toBeInTheDocument();
+    expect(screen.queryByText("Ship GUI goal dock")).not.toBeInTheDocument();
     expect(screen.queryByText("Goal set")).not.toBeInTheDocument();
     expect(screen.queryByText("No messages yet")).not.toBeInTheDocument();
   });
 
-  it("keeps a completed GUI goal in the composer dock", () => {
+  it("keeps a completed GUI goal chip", () => {
     useAppStore.setState({
       runtimeItemIdsByThread: {
         "thread-gui-goal-complete": ["goal-1"],
@@ -1585,12 +1588,11 @@ describe("ThreadView", () => {
       },
     });
 
-    expect(screen.getByLabelText("Thread goal dock")).toHaveAttribute("data-placement", "composer");
-    expect(screen.getByText("Ship completed GUI goal dock")).toBeInTheDocument();
-    expect(screen.getByText("Complete · 120 tokens")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Thread goal dock")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Show Goal" })).toBeInTheDocument();
   });
 
-  it("moves the pinned todo dock into the unified right panel", () => {
+  it("opens Thread Info from chips despite a saved composer placement", () => {
     useAppStore.setState({
       view: { kind: "thread", panes: ["thread-gui-plan"] },
       runtimeItemIdsByThread: {
@@ -1682,20 +1684,12 @@ describe("ThreadView", () => {
       },
     });
 
-    const placementButtons = screen.getAllByRole("button", {
-      name: "Show docks in the right panel",
-    });
-    expect(placementButtons).toHaveLength(1);
-    expect(screen.getByLabelText("Background tasks")).toContainElement(placementButtons[0]!);
-    const backgroundDock = screen.getByLabelText("Background tasks");
-    expect(backgroundDock.querySelector("svg.lucide-activity")).not.toBeNull();
-    expect(backgroundDock.querySelectorAll(".poracode-pixel-loader")).toHaveLength(1);
-    expect(backgroundDock.querySelector("svg.lucide-terminal")).toBeNull();
-
-    fireEvent.click(placementButtons[0]!);
     expect(screen.queryByLabelText("Thread todo dock")).not.toBeInTheDocument();
-    // One global mode: the setting flips and the Docks tab opens right away.
-    expect(useSharedSettings.getState().threadDocksPlacement).toBe("right");
+    expect(screen.queryByLabelText("Background tasks")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Show docks in the right panel" }),
+    ).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Show Plan" }));
     expect(usePanelStore.getState().rightPanelTab).toBe("docks");
     expect(usePanelStore.getState().threadDocksPanelOpen).toBe(true);
     // Compact bubbles stand in for the docks above the composer. They are one
@@ -1710,11 +1704,11 @@ describe("ThreadView", () => {
     );
     expect(backgroundBubble.querySelector("svg.lucide-loader-circle")).toBeNull();
 
-    // Closing the right panel hides the tab but does not change the mode.
+    // Closing the right panel leaves the chips available.
     act(() => closeAllPanels());
     expect(usePanelStore.getState().threadDocksPanelOpen).toBe(false);
     expect(screen.queryByLabelText("Thread todo dock")).not.toBeInTheDocument();
-    expect(useSharedSettings.getState().threadDocksPlacement).toBe("right");
+    expect(useSharedSettings.getState().threadDocksPlacement).toBe("composer");
     expect(screen.getByRole("button", { name: "Show Plan" })).toHaveAttribute(
       "aria-pressed",
       "false",
@@ -1740,8 +1734,7 @@ describe("ThreadView", () => {
     fireEvent.click(screen.getByRole("button", { name: "Hide Background tasks" }));
     expect(usePanelStore.getState().threadDocksPanelOpen).toBe(false);
 
-    act(() => setThreadDocksPlacement("composer"));
-    expect(screen.getByLabelText("Thread todo dock")).toHaveAttribute("data-placement", "composer");
+    expect(screen.queryByLabelText("Thread todo dock")).not.toBeInTheDocument();
   });
 
   it("keeps todo dock collapse scoped to each thread", () => {
@@ -1830,6 +1823,11 @@ describe("ThreadView", () => {
       },
     });
 
+    const dock = render(
+      <AppProvider>
+        <ThreadDocksPanel threadId="thread-gui-plan-a" />
+      </AppProvider>,
+    );
     fireEvent.click(screen.getByRole("button", { name: "Collapse todo dock" }));
 
     expect(useThreadTodoDockStore.getState().byThreadId["thread-gui-plan-a"]).toMatchObject({
@@ -1837,6 +1835,7 @@ describe("ThreadView", () => {
     });
     expect(screen.getByLabelText("Thread todo dock")).toHaveAttribute("data-collapsed", "true");
 
+    dock.unmount();
     rerender(
       <AppProvider>
         <ThreadView
@@ -1889,7 +1888,12 @@ describe("ThreadView", () => {
       </AppProvider>,
     );
 
-    expect(screen.getByLabelText("Thread todo dock")).toHaveAttribute("data-placement", "composer");
+    render(
+      <AppProvider>
+        <ThreadDocksPanel threadId="thread-gui-plan-b" />
+      </AppProvider>,
+    );
+    expect(screen.getByLabelText("Thread todo dock")).toHaveAttribute("data-placement", "right");
     expect(screen.getByLabelText("Thread todo dock")).toHaveAttribute("data-collapsed", "false");
     expect(screen.getByText("Plan B pending step")).toBeInTheDocument();
   });

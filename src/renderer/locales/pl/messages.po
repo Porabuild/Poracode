@@ -1147,8 +1147,8 @@ msgid "About usage"
 msgstr "O użyciu"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
-msgid "Above the composer"
-msgstr "Nad polem tworzenia"
+#~ msgid "Above the composer"
+#~ msgstr "Nad polem tworzenia"
 
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Accent"
@@ -15994,7 +15994,6 @@ msgid "Right"
 msgstr "Prawo"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Right panel"
 msgstr "Prawy panel"
 
@@ -20001,14 +20000,12 @@ msgid "Thread dock"
 msgstr "Dok wątku"
 
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
-#: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Thread docks"
 msgstr "Doki wątku"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
-msgid "Thread docks placement"
-msgstr "Położenie doków wątku"
+#~ msgid "Thread docks placement"
+#~ msgstr "Położenie doków wątku"
 
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Thread failed to start."
@@ -21912,8 +21909,8 @@ msgstr "Gdzie trafia wybór z selektora elementów przeglądarki w wątkach naty
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Where a thread's goal, plan, agents, and background tasks appear. In the right panel, compact bubbles above the composer open them."
-msgstr "Gdzie pojawiają się cel, plan, agenci i zadania w tle wątku. W prawym panelu otwierają je kompaktowe bąbelki nad polem tworzenia."
+#~ msgid "Where a thread's goal, plan, agents, and background tasks appear. In the right panel, compact bubbles above the composer open them."
+#~ msgstr "Gdzie pojawiają się cel, plan, agenci i zadania w tle wątku. W prawym panelu otwierają je kompaktowe bąbelki nad polem tworzenia."
 
 #: src/renderer/views/WelcomeOverlay.tsx
 msgid "Where do you want to begin?"

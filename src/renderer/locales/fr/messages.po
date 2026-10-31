@@ -1147,8 +1147,8 @@ msgid "About usage"
 msgstr "À propos de l’utilisation"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
-msgid "Above the composer"
-msgstr "Au-dessus du composeur"
+#~ msgid "Above the composer"
+#~ msgstr "Au-dessus du composeur"
 
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Accent"
@@ -15993,7 +15993,6 @@ msgid "Right"
 msgstr "À droite"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Right panel"
 msgstr "Panneau droit"
 
@@ -20000,14 +19999,12 @@ msgid "Thread dock"
 msgstr "Dock de discussion"
 
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
-#: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Thread docks"
 msgstr "Docks du fil"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
-msgid "Thread docks placement"
-msgstr "Emplacement des docks du fil"
+#~ msgid "Thread docks placement"
+#~ msgstr "Emplacement des docks du fil"
 
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Thread failed to start."
@@ -21911,8 +21908,8 @@ msgstr "Où aboutit une sélection du sélecteur d'éléments du navigateur dans
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Where a thread's goal, plan, agents, and background tasks appear. In the right panel, compact bubbles above the composer open them."
-msgstr "Où apparaissent l'objectif, le plan, les agents et les tâches en arrière-plan d'un fil. Dans le panneau droit, des bulles compactes au-dessus du composeur les ouvrent."
+#~ msgid "Where a thread's goal, plan, agents, and background tasks appear. In the right panel, compact bubbles above the composer open them."
+#~ msgstr "Où apparaissent l'objectif, le plan, les agents et les tâches en arrière-plan d'un fil. Dans le panneau droit, des bulles compactes au-dessus du composeur les ouvrent."
 
 #: src/renderer/views/WelcomeOverlay.tsx
 msgid "Where do you want to begin?"

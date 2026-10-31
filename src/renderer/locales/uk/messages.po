@@ -1147,8 +1147,8 @@ msgid "About usage"
 msgstr "Про статистику використання"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
-msgid "Above the composer"
-msgstr "Над полем введення"
+#~ msgid "Above the composer"
+#~ msgstr "Над полем введення"
 
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Accent"
@@ -15994,7 +15994,6 @@ msgid "Right"
 msgstr "Праворуч"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Right panel"
 msgstr "Права панель"
 
@@ -20001,14 +20000,12 @@ msgid "Thread dock"
 msgstr "Панель треда"
 
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
-#: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Thread docks"
 msgstr "Доки треду"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
-msgid "Thread docks placement"
-msgstr "Розташування доків треду"
+#~ msgid "Thread docks placement"
+#~ msgstr "Розташування доків треду"
 
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Thread failed to start."
@@ -21912,8 +21909,8 @@ msgstr "Куди потрапляє вибір засобу вибору еле�
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Where a thread's goal, plan, agents, and background tasks appear. In the right panel, compact bubbles above the composer open them."
-msgstr "Де відображаються ціль, план, агенти та фонові завдання треду. На правій панелі їх відкривають компактні бульбашки над полем введення."
+#~ msgid "Where a thread's goal, plan, agents, and background tasks appear. In the right panel, compact bubbles above the composer open them."
+#~ msgstr "Де відображаються ціль, план, агенти та фонові завдання треду. На правій панелі їх відкривають компактні бульбашки над полем введення."
 
 #: src/renderer/views/WelcomeOverlay.tsx
 msgid "Where do you want to begin?"

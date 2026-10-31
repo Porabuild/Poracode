@@ -15,7 +15,6 @@ import { resetDevTerminalStore, useDevTerminalStore } from "@/renderer/state/dev
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
-import { ThreadDocksPlacementToggle } from "@/renderer/components/thread/ThreadDocksPlacementToggle";
 import { applySideChatPanel } from "@/renderer/components/thread/SideChat/sideChatPanelStore";
 import { ProjectAuxiliaryPanel } from "./ProjectAuxiliaryPanel";
 import { GlobalTerminalPanel } from "@/renderer/views/GlobalTerminalPanel/GlobalTerminalPanel";
@@ -636,10 +635,7 @@ describe("ProjectAuxiliaryPanel", () => {
     );
 
     await waitFor(() => expect(unifiedRightPanelProps.current?.docksContent).toBeDefined());
-    expect(unifiedRightPanelProps.current?.docksHeaderActions).toMatchObject({
-      type: ThreadDocksPlacementToggle,
-      props: { placement: "right" },
-    });
+    expect(unifiedRightPanelProps.current?.docksHeaderActions).toBeUndefined();
     expect(
       unifiedRightPanelProps.current?.docksContent?.props as {
         projectLocation?: { kind: string; path: string };
@@ -667,7 +663,7 @@ describe("ProjectAuxiliaryPanel", () => {
     expect(result.current.rightPanelOpen).toBe(false);
   });
 
-  it("opens image-focused Thread info while informational docks stay above the composer", async () => {
+  it("opens image-focused Thread info with a saved composer placement", async () => {
     seedImageOnlyThread();
     usePanelStore.setState({
       threadDocksPanelOpen: true,
@@ -692,10 +688,7 @@ describe("ProjectAuxiliaryPanel", () => {
       expect(unifiedRightPanelProps.current?.conversationModel).toBeUndefined();
     });
     expect(unifiedRightPanelProps.current?.docksContent).toBeDefined();
-    expect(unifiedRightPanelProps.current?.docksHeaderActions).toMatchObject({
-      type: ThreadDocksPlacementToggle,
-      props: { placement: "composer" },
-    });
+    expect(unifiedRightPanelProps.current?.docksHeaderActions).toBeUndefined();
   });
 
   it("leaves the browser tab when the browser panel was dismissed with it selected", async () => {

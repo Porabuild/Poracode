@@ -1147,8 +1147,8 @@ msgid "About usage"
 msgstr "关于用量"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
-msgid "Above the composer"
-msgstr "输入框上方"
+#~ msgid "Above the composer"
+#~ msgstr "输入框上方"
 
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Accent"
@@ -15993,7 +15993,6 @@ msgid "Right"
 msgstr "右"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Right panel"
 msgstr "右面板"
 
@@ -20000,14 +19999,12 @@ msgid "Thread dock"
 msgstr "线程停靠栏"
 
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
-#: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Thread docks"
 msgstr "会话停靠面板"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
-msgid "Thread docks placement"
-msgstr "会话停靠面板位置"
+#~ msgid "Thread docks placement"
+#~ msgstr "会话停靠面板位置"
 
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Thread failed to start."
@@ -21911,8 +21908,8 @@ msgstr "在终端原生线程中，浏览器元素选择器的选择内容流向
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Where a thread's goal, plan, agents, and background tasks appear. In the right panel, compact bubbles above the composer open them."
-msgstr "会话的目标、计划、智能体和后台任务的显示位置。在右侧面板模式下，输入框上方的紧凑气泡可打开它们。"
+#~ msgid "Where a thread's goal, plan, agents, and background tasks appear. In the right panel, compact bubbles above the composer open them."
+#~ msgstr "会话的目标、计划、智能体和后台任务的显示位置。在右侧面板模式下，输入框上方的紧凑气泡可打开它们。"
 
 #: src/renderer/views/WelcomeOverlay.tsx
 msgid "Where do you want to begin?"

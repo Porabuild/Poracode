@@ -286,8 +286,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   const compactLayout = useCompactLayout();
   const isRemoteSurface = isRemoteSession();
   const browserImageReadiness = useRemoteBridgeImageReadiness();
-  // The remote/mobile surface has no right panel to host the docks.
-  const docksPlacement = isRemoteSurface ? "composer" : requestedDocksPlacement;
+  const docksPlacement = compactLayout ? requestedDocksPlacement : "right";
   const docksInComposer = docksPlacement === "composer";
   const usesRemoteTransport = isRemoteSurface || thread.remoteServerId !== undefined;
   const voiceInputEnabled = useSharedSettings((s) => s.audio.showVoiceInputButton);
