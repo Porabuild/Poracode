@@ -202,6 +202,46 @@ describe("client engine lanes (A3 admission and fairness)", () => {
     await expect(lane.decodeRemote(frame("after"))).resolves.toMatchObject({ ok: true });
   });
 
+  it("holds a full host replay window and does not time queued frames out on a stall", async () => {
+    // A reconnect replays the host's whole window (4,000 frames) in one burst
+    // while the UI thread is slow to answer: queue wait is the age budget's
+    // concern (5 s), not the worker-health timeout (2 s from post).
+    vi.useFakeTimers();
+    const host = getRemoteSocketEngine();
+    const lane = host.createLane({ key: "replay" });
+    const overflow = vi.fn<() => void>();
+    lane.addOverflowListener(overflow);
+    expect(host.isWorkerActive()).toBe(true);
+    const worker = FakeWorker.instances[0]!;
+
+    const padding = "p".repeat(1000);
+    const replayFrame = (index: number) =>
+      JSON.stringify({ type: "event", seq: index, event: { type: "thread-state", pad: padding } });
+    const results = Array.from({ length: 4000 }, (_, index) =>
+      lane.decodeRemote(replayFrame(index)).then((result) => result),
+    );
+    const settled = Promise.all(results);
+    expect(overflow).not.toHaveBeenCalled();
+
+    // Each posted window is answered just inside the worker-health budget, so
+    // the queued tail waits ~3.8 s in total: past the 2 s timeout, inside the
+    // 5 s age budget.
+    await vi.advanceTimersByTimeAsync(1_900);
+    respondAll(worker);
+    await vi.advanceTimersByTimeAsync(1_900);
+    respondAll(worker);
+    expect(overflow).not.toHaveBeenCalled();
+    // Drain the remaining window the way an asynchronous worker does: one
+    // posted window per round trip, never re-entrantly from the post.
+    while (decodeRequests(worker).length < 4000 || worker.responded.size < 4000) {
+      respondAll(worker);
+      await vi.advanceTimersByTimeAsync(1);
+    }
+    const all = await settled;
+    expect(all.every((result) => result.ok)).toBe(true);
+    expect(overflow).not.toHaveBeenCalled();
+  });
+
   it("still fails the lane past its count budget so a lost frame forces a resync", async () => {
     const host = getRemoteSocketEngine();
     const lane = host.createLane({ key: "runaway" });

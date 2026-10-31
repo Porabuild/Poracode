@@ -445,7 +445,6 @@ export class ClientEngineHost implements ClientEngineLaneHost {
       timeout: null,
       posted: false,
     };
-    entry.timeout = setTimeout(() => this.expireEntry(entry), CLIENT_ENGINE_TIMEOUT_MS);
     this.pendingById.set(id, entry);
     state.queue.push(entry);
     state.queuedBytes += bytes;
@@ -527,6 +526,10 @@ export class ClientEngineHost implements ClientEngineLaneHost {
       state.inFlight += 1;
       this.totalInFlight += 1;
       entry.posted = true;
+      // The worker-health budget starts at the post: queue wait is the age
+      // budget's concern, and a UI-thread stall must not read as a worker that
+      // failed to answer.
+      entry.timeout = setTimeout(() => this.expireEntry(entry), CLIENT_ENGINE_TIMEOUT_MS);
       if (state.queue.length === 0) this.clearAgeTimer(state);
       this.postWork(entry);
     }
@@ -684,6 +687,9 @@ export class ClientEngineHost implements ClientEngineLaneHost {
       // bulk frames and unmeasurable aux work have a null fallback and fail
       // typed below instead of running on the UI thread.
       entry.resolve(entry.fallback());
+      // The freed in-flight slot admits the next queued entry (queued entries
+      // carry no timer of their own).
+      this.pump();
       return;
     }
     entry.reject(new ClientEngineTimeoutError());

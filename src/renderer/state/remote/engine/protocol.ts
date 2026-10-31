@@ -20,7 +20,7 @@ export const CLIENT_ENGINE_PROTOCOL_VERSION = 3 as const;
  * stay above one lane's count budget, or a single busy lane would trip the
  * engine backstop before its own budget. The worker applies the same value to
  * its unanswered set, which the in-flight windows keep far below it. */
-export const CLIENT_ENGINE_MAX_PENDING = 4096;
+export const CLIENT_ENGINE_MAX_PENDING = 8192;
 export const CLIENT_ENGINE_TIMEOUT_MS = 2_000;
 /** Global in-flight window: posted-but-unanswered work per engine. Keeps the
  * worker's own unanswered set bounded well below its protocol limit. */
@@ -54,14 +54,19 @@ export const CLIENT_ENGINE_TRANSPORT_WATCHDOG_MS = 10_000;
  * `frame rate × stall length` (about 60 frames per second of a streaming turn,
  * and a reconnect replay or snapshot install is itself such a stall). 64 was
  * only ~1 s of that stream and turned a short stall into a lane failure,
- * a reconnect, a replay burst and the next stall.
+ * a reconnect, a replay burst and the next stall. 4096 matches the host's
+ * replay window (`EVENT_BUFFER_LIMIT`), so a full replay burst fits.
  */
-export const CLIENT_ENGINE_LANE_MAX_PENDING = 1024;
+export const CLIENT_ENGINE_LANE_MAX_PENDING = 4096;
 /** Per-lane byte budget over queued AND posted live work: the payload stays
  * charged to the lane until its response or cancellation. A canceled posted
  * message moves to the engine-level transport ledger (globally bounded and
- * watchdog-retired), never silently back to zero. */
-export const CLIENT_ENGINE_LANE_MAX_BYTES = 4 * 1024 * 1024;
+ * watchdog-retired), never silently back to zero. Sized with the count budget
+ * to hold one full host replay window (4,000 frames / 8 MiB of UTF-8, which is
+ * up to 16 MiB as the UTF-16 upper bound charged here): a reconnect replays
+ * that window in a tight burst, and a lane that cannot hold it fails again
+ * mid-replay. */
+export const CLIENT_ENGINE_LANE_MAX_BYTES = 16 * 1024 * 1024;
 /**
  * Aux persist-JSON lane (Zustand persist hydration/serialization). Real
  * callers are the non-app `createDbStorage` named stores; the app store does
