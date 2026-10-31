@@ -34169,6 +34169,10 @@
                       "message": {
                         "type": "string"
                       },
+                      "reason": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
                       "threadId": {
                         "type": "string"
                       },
@@ -35193,6 +35197,10 @@
                     "additionalProperties": true,
                     "properties": {
                       "message": {
+                        "type": "string"
+                      },
+                      "reason": {
+                        "minLength": 1,
                         "type": "string"
                       },
                       "threadId": {
@@ -72815,6 +72823,10 @@
                                 "message": {
                                   "type": "string"
                                 },
+                                "reason": {
+                                  "minLength": 1,
+                                  "type": "string"
+                                },
                                 "threadId": {
                                   "type": "string"
                                 },
@@ -78539,7 +78551,7 @@
     "void-envelope.omit-result",
     "void-result.omit-field"
   ],
-  "sourceHash": "sha256:9bd81d0d47a13c68a1b8c6cfd944c1f112d56c1d36fc48a11d0c0a13c50015b2",
+  "sourceHash": "sha256:b599fb85f49fefa626240ff95f5ede65c03c9adebb376b1fb31750cc1e4b3bca",
   "unknownObjectFields": "ignore",
   "webSocket": {
     "clientMessages": [

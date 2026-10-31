@@ -382,6 +382,18 @@ export const webSearchPayloadSchema = z.object({
 });
 export type WebSearchPayload = z.infer<typeof webSearchPayloadSchema>;
 
+/**
+ * Why a runtime error happened, when the provider can tell from its structured
+ * payload. `"auth_required"`: the provider's own sign-in is missing or expired
+ * (for example an expired refresh token), so the composer offers sign-in
+ * instead of only the raw error. Optional and additive: older readers ignore
+ * it and fall back to recognizing the message text. The wire value is an open
+ * string so a reader skips a reason it does not know instead of rejecting the
+ * event.
+ */
+export const runtimeErrorReasonSchema = z.string().min(1);
+export type RuntimeErrorReason = "auth_required";
+
 export const errorItemPayloadSchema = z.object({
   message: z.string(),
   /**
@@ -390,6 +402,7 @@ export const errorItemPayloadSchema = z.object({
    * predate the field show such an item as an error.
    */
   severity: z.enum(["error", "warning"]).optional(),
+  reason: runtimeErrorReasonSchema.optional(),
 });
 export type ErrorItemPayload = z.infer<typeof errorItemPayloadSchema>;
 
@@ -738,6 +751,7 @@ export const runtimeEventSchema = z.discriminatedUnion("type", [
     type: z.literal("error"),
     threadId: z.string(),
     message: z.string(),
+    reason: runtimeErrorReasonSchema.optional(),
   }),
 ]);
 export type RuntimeEvent = z.infer<typeof runtimeEventSchema>;

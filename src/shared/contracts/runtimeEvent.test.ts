@@ -267,6 +267,22 @@ describe("runtimeEventSchema discriminated union", () => {
     });
   });
 
+  it("round-trips an error reason and keeps pre-field errors valid", () => {
+    const authError = { type: "error", threadId: "t", message: "expired", reason: "auth_required" };
+    expect(runtimeEventSchema.parse(roundTrip(authError))).toEqual(authError);
+    expect(
+      errorItemPayloadSchema.parse(roundTrip({ message: "expired", reason: "auth_required" })),
+    ).toEqual({ message: "expired", reason: "auth_required" });
+    // Errors written before `reason` existed still parse, without one.
+    expect(
+      runtimeEventSchema.parse(roundTrip({ type: "error", threadId: "t", message: "old" })),
+    ).not.toHaveProperty("reason");
+    // A reason this build does not know is kept, not rejected, so a newer
+    // host cannot make an older reader drop the error.
+    expect(runtimeEventSchema.safeParse({ ...authError, reason: "quota" }).success).toBe(true);
+    expect(runtimeEventSchema.safeParse({ ...authError, reason: "" }).success).toBe(false);
+  });
+
   it("rejects an event without a discriminator", () => {
     expect(runtimeEventSchema.safeParse({ threadId: "t" }).success).toBe(false);
   });

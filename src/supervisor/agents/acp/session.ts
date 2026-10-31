@@ -150,10 +150,12 @@ import {
   createAcpPromptUsageSpentEvent,
   isAcpPromptCancellationError,
   normalizeAcpStopReason,
+  resolveAcpPromptErrorReason,
   resolveAcpPromptFailureMessage,
   resolveAcpPromptRpcErrorMessage,
   rewriteLoadSessionError,
   shouldEmitAcpPromptRpcErrorItem,
+  type AcpPromptErrorReasonResolver,
 } from "./sessionErrors";
 import { isFatalAcpQuotaError } from "./acpUserVisibleErrors";
 import { AcpSessionRequests } from "./sessionRequests";
@@ -311,6 +313,13 @@ export interface AcpSessionBehavior {
 export interface AcpStructuredSessionOptions {
   /** Normalize vendor request payloads before shared permission/question handling. */
   permissionRequestTransform?: (request: RequestPermissionRequest) => RequestPermissionRequest;
+  /**
+   * Names the shared cause of a rejected `session/prompt` from the provider's
+   * structured JSON-RPC error, so the turn's error item carries a `reason`
+   * (for example `"auth_required"` to offer sign-in). The ACP-standard
+   * `auth_required` error is recognized for every agent without it.
+   */
+  promptErrorReason?: AcpPromptErrorReasonResolver;
   /** User-approved roots, snapshotted before spawn; no live scope mutation. */
   additionalDirectories?: readonly ProjectLocation[];
   /** Resolve the provider's session mode when its permission modes differ from the terminal client. */
@@ -512,6 +521,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   private readonly resolveModelConfig: AcpStructuredSessionOptions["resolveModelConfig"];
   private readonly resolveMode: AcpStructuredSessionOptions["resolveMode"];
   private readonly permissionRequestTransform: AcpStructuredSessionOptions["permissionRequestTransform"];
+  private readonly promptErrorReason: AcpStructuredSessionOptions["promptErrorReason"];
 
   private emptyResponseErrorResolver?: AcpEmptyResponseErrorResolver;
 
@@ -932,6 +942,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   ) {
     this.resolveMode = options?.resolveMode;
     this.permissionRequestTransform = options?.permissionRequestTransform;
+    this.promptErrorReason = options?.promptErrorReason;
     this.resolveModelConfig = options?.resolveModelConfig;
     this.child = child;
     this.connection = connection;
@@ -3094,7 +3105,13 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     const mapperState = this.ensureMapperState();
     const events: RuntimeEvent[] = [...closeOpenTurnItems(mapperState)];
     if (shouldEmitAcpPromptRpcErrorItem(error, this.agentSurfacedErrorMessage)) {
-      events.push({ type: "error", threadId: this.threadId, message: rpcMessage });
+      const reason = resolveAcpPromptErrorReason(error, this.promptErrorReason);
+      events.push({
+        type: "error",
+        threadId: this.threadId,
+        message: rpcMessage,
+        ...(reason ? { reason } : {}),
+      });
     }
     if (this.currentTurnId) {
       const turnId = this.currentTurnId;

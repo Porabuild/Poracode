@@ -25,12 +25,12 @@ data class ProcedureworkflowAgentChatRequest_014d2dfae8(
 }
 
 @Serializable
-data class ProcedureworkflowAgentChatResult_3d6b714b8d(
-    @SerialName("events") val events: List<ProceduresubagentSubscribeResultU2DHistoryU2DItem_878159c48a>,
+data class ProcedureworkflowAgentChatResult_0383e88b84(
+    @SerialName("events") val events: List<ProceduresubagentSubscribeResultU2DHistoryU2DItem_1d3e5368ba>,
 ) {
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("events", "List<ProceduresubagentSubscribeResultU2DHistoryU2DItem_878159c48a>", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("events", "List<ProceduresubagentSubscribeResultU2DHistoryU2DItem_1d3e5368ba>", true, false, null, null, null, null, null, null, null, null, listOf()),
         ), listOf())
     }
 }
