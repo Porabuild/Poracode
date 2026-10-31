@@ -351,6 +351,41 @@ it("continues a crew role's previous helper session for its next task", async ()
   await flush();
 });
 
+it("continues the newest helper run when runs share a creation timestamp", async () => {
+  const now = vi.spyOn(Date, "now").mockReturnValue(1_700_000_000_000);
+  try {
+    const h = makeHarness({ resume: { sessionId: "role-session" } });
+    const crewRole = { id: "builder", label: "Builder", parallel: 1 };
+    const { runId } = h.manager.spawn(PARENT, { agent: "codex", prompt: "First task", crewRole });
+    await flush();
+    answer(h.handles[0]!, "First result");
+    await h.manager.waitForSettlement(PARENT, runId);
+
+    const next = await h.manager.continueRole(
+      PARENT,
+      { agent: "codex", prompt: "Second task", crewRole },
+      true,
+    );
+    await flush();
+    expect(next).toEqual({ runId: expect.any(String), continuedFrom: runId });
+
+    // The predecessor is already continued, so only the newer run may be picked.
+    answer(h.handles[1]!, "Second result");
+    await h.manager.waitForSettlement(PARENT, next!.runId);
+    const third = await h.manager.continueRole(
+      PARENT,
+      { agent: "codex", prompt: "Third task", crewRole },
+      true,
+    );
+    await flush();
+    expect(third).toEqual({ runId: expect.any(String), continuedFrom: next!.runId });
+    h.manager.cancelAllForThread(PARENT);
+    await flush();
+  } finally {
+    now.mockRestore();
+  }
+});
+
 it("starts a fresh helper while the role is still busy", async () => {
   const h = makeHarness({ resume: { sessionId: "busy-session" } });
   const crewRole = { id: "builder", label: "Builder", parallel: 2 };
