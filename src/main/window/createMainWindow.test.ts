@@ -4,6 +4,7 @@ const installSessionPermissions = vi.hoisted(() => vi.fn<() => void>());
 const dbGetState = vi.hoisted(() => vi.fn<() => string | null>(() => null));
 const dbSetState = vi.hoisted(() => vi.fn<() => void>());
 const setUserAgent = vi.hoisted(() => vi.fn<(userAgent: string) => void>());
+const openDevToolsAfterStartup = vi.hoisted(() => vi.fn<() => void>());
 
 let browserWindowOptions: Record<string, unknown> | null = null;
 let webContentsHandlers: Record<string, (...args: never[]) => void> = {};
@@ -59,6 +60,10 @@ vi.mock("electron", () => ({
 vi.mock("@/host/db", () => ({
   dbGetState,
   dbSetState,
+}));
+
+vi.mock("./deferredDevTools", () => ({
+  openDevToolsAfterStartup,
 }));
 
 vi.mock("../browser/permissions", () => ({
@@ -278,6 +283,42 @@ describe("createMainWindow", () => {
       onClosed: vi.fn<() => void>(),
     });
   }
+
+  it.each([
+    ["main", true],
+    ["sideChat", false],
+  ] as const)(
+    "in dev, a %s window defers DevTools until startup: %s",
+    async (windowKind, deferred) => {
+      const { createMainWindow } = await import("./createMainWindow");
+      // DevTools attached during the first load roughly doubled the dev time
+      // to first render; only the main app reports when its startup is done.
+      const window = createMainWindow({
+        state: { get: dbGetState, set: dbSetState },
+        title: "Poracode",
+        isDev: true,
+        devServerUrl: "http://127.0.0.1:3100/",
+        windowKind,
+        channel: "stable",
+        preloadPath: "/tmp/preload.cjs",
+        rendererHtmlPath: "/tmp/index.html",
+        appVersion: "1.2.1",
+        posthogEnableDev: false,
+        posthogEnabled: false,
+        posthogHost: "",
+        posthogKey: "",
+        sentryEnabled: false,
+        windowChromeHeight: 32,
+        browserUserAgent: "Poracode",
+        appearance: "dark",
+        sidebarTranslucency: false,
+        onClosed: vi.fn<() => void>(),
+      });
+
+      expect(openDevToolsAfterStartup).toHaveBeenCalledTimes(deferred ? 1 : 0);
+      expect(window.webContents.openDevTools).toHaveBeenCalledTimes(deferred ? 0 : 1);
+    },
+  );
 
   it("defers the saved-bounds maximize until the first show on a hidden start", async () => {
     const window = await createWindowWithSavedMaximizedBounds(false);
