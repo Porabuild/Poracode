@@ -5083,6 +5083,26 @@
         }
       },
       {
+        "id": "listImportableSessions",
+        "batch": "projects",
+        "ios": {
+          "wire": { "disposition": "planned", "evidence": [] },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Remote import is served to the shared browser renderer (PWA) through the procedure passthrough and the import-session thread command; native clients have no import surface yet."
+          }
+        },
+        "android": {
+          "wire": { "disposition": "planned", "evidence": [] },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Remote import is served to the shared browser renderer (PWA) through the procedure passthrough and the import-session thread command; native clients have no import surface yet."
+          }
+        }
+      },
+      {
         "id": "rollbackThreadConversation",
         "batch": "rich-chat-requests",
         "ios": {

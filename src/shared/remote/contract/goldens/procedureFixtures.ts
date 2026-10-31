@@ -346,6 +346,22 @@ export const REMOTE_PROCEDURE_RESULT_FIXTURES = {
   readThreadBackgroundTasks: [],
   getProviderUsage: { snapshots: [], fromCache: true },
   refreshProviderUsage: { snapshots: [], fromCache: false },
+  listImportableSessions: {
+    sessions: [
+      {
+        id: "claude:session-1",
+        agentKind: "claude",
+        providerSessionId: "session-1",
+        path: "/home/user/.claude/projects/repo/session-1.jsonl",
+        cwd: "/home/user/repo",
+        updatedAt: "2026-08-12T00:00:00.000Z",
+        preview: "Fix the login form",
+        cwdExists: true,
+      },
+    ],
+    facets: { agentKinds: ["claude"], folders: ["/home/user/repo"] },
+    truncated: false,
+  },
 } as const satisfies Record<RemoteProcedureName, unknown>;
 
 export function omittedProcedureNames(): RemoteProcedureName[] {

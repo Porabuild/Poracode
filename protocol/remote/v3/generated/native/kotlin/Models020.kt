@@ -6,6 +6,11 @@ import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
 @Serializable
+enum class RouteautomationsU2DSnapshotResponseU2DSchedulesU2DItemU2DRecurrenceU2DOptionU2D5U2DKind_a050e4e432 {
+    @SerialName("cron") CRON,
+}
+
+@Serializable
 data class RouteautomationsU2DSnapshotResponseU2DSchedulesU2DItemU2DRecurrenceU2DOptionU2D5_0a49efe270(
     @SerialName("expression") val expression: String,
     @SerialName("kind") val kind: RouteautomationsU2DSnapshotResponseU2DSchedulesU2DItemU2DRecurrenceU2DOptionU2D5U2DKind_a050e4e432,
@@ -422,29 +427,4 @@ data class RouteconversationU2DSearchQuery_07b9b9802d(
 enum class RouteconversationU2DSearchResponseU2DEntriesU2DItemU2DRole_ff05783d57 {
     @SerialName("user") USER,
     @SerialName("assistant") ASSISTANT,
-}
-
-@Serializable
-data class RouteconversationU2DSearchResponseU2DEntriesU2DItem_c52c624815(
-    @SerialName("archived") val archived: Boolean,
-    @SerialName("excerpt") val excerpt: String,
-    @SerialName("itemId") val itemId: String,
-    @SerialName("projectId") val projectId: String,
-    @SerialName("projectName") val projectName: String,
-    @SerialName("role") val role: RouteconversationU2DSearchResponseU2DEntriesU2DItemU2DRole_ff05783d57,
-    @SerialName("threadId") val threadId: String,
-    @SerialName("title") val title: String,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("archived", "Boolean", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("excerpt", "String", true, false, null, null, null, 320, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("itemId", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("projectId", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("projectName", "String", true, false, null, null, null, 200, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("role", "RouteconversationU2DSearchResponseU2DEntriesU2DItemU2DRole_ff05783d57", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("threadId", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("title", "String", true, false, null, null, null, 300, null, null, null, null, listOf()),
-        ), listOf())
-    }
 }

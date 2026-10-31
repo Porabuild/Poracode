@@ -3462,6 +3462,7 @@ msgid "Choose a photo"
 msgstr "Chọn ảnh"
 
 #: src/renderer/components/sessionImport/importSessionsActions.ts
+#: src/renderer/components/sessionImport/remoteSessionImport.ts
 msgid "Choose a project for sessions whose folder no longer exists."
 msgstr "Chọn một dự án cho các phiên có thư mục không còn tồn tại."
 
@@ -12074,6 +12075,7 @@ msgid "No microphone found."
 msgstr "Không tìm thấy micrô."
 
 #: src/renderer/components/sessionImport/importSessionsActions.ts
+#: src/renderer/components/sessionImport/remoteSessionImport.ts
 msgid "No model is available for {agent}. Check the agent in Settings."
 msgstr "Không có mô hình nào khả dụng cho {agent}. Hãy kiểm tra tác tử trong Cài đặt."
 
@@ -21032,6 +21034,10 @@ msgstr "Cập nhật {0} ({env})"
 msgid "Update {0} to {updateLabel}"
 msgstr "Cập nhật {0} lên {updateLabel}"
 
+#: src/renderer/components/sessionImport/remoteSessionImport.ts
+msgid "Update {host} to import its sessions."
+msgstr "Cập nhật {host} để nhập các phiên của máy chủ đó."
+
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #~ msgid "Update all"
 #~ msgstr "Cập nhật tất cả"
@@ -21117,6 +21123,10 @@ msgstr "Cập nhật máy chủ để tạo nhánh trò chuyện."
 #: src/renderer/components/thread/SideChat/sideChatActions.ts
 msgid "Update the remote host to use side chat with hidden context."
 msgstr "Cập nhật máy chủ từ xa để sử dụng cuộc trò chuyện phụ với ngữ cảnh ẩn."
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Update this host to import its sessions."
+msgstr "Cập nhật máy chủ này để nhập các phiên của nó."
 
 #: src/renderer/components/providers/HostUsageView.tsx
 msgid "Update this host to refresh usage remotely. Cached usage can still be read."

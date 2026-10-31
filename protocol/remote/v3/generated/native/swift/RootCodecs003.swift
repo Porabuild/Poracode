@@ -1,6 +1,14 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
 public extension RemoteRootCodecs {
+  static let procedureU2EReadTerminalSizeU2EResult: RemoteRootCodec<ProcedurereadTerminalSizeResult_2d2a48957e> = .init(id: "procedure.readTerminalSize.result", schema: RemoteSchemas.schema_2d2a48957e54670a)
+}
+
+public extension RemoteRootCodecs {
+  static let procedureU2EReadTerminalSnapshotU2ERequest: RemoteRootCodec<ProcedurecancelExtractContextRequest_09b78d9c1d> = .init(id: "procedure.readTerminalSnapshot.request", schema: RemoteSchemas.schema_09b78d9c1d4c3a6b)
+}
+
+public extension RemoteRootCodecs {
   static let procedureU2EReadTerminalSnapshotU2EResult: RemoteRootCodec<ProcedurereadTerminalSnapshotResult_b67f4828f0> = .init(id: "procedure.readTerminalSnapshot.result", schema: RemoteSchemas.schema_b67f4828f001c119)
 }
 
@@ -425,7 +433,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2EEnvironmentU2DLegacyU2EResponse: RemoteRootCodec<RouteenvironmentU2DLegacyResponse_5a931a4108> = .init(id: "route.environment-legacy.response", schema: RemoteSchemas.schema_5a931a4108dce660)
+  static let routeU2EEnvironmentU2DLegacyU2EResponse: RemoteRootCodec<RouteenvironmentU2DLegacyResponse_d205867a89> = .init(id: "route.environment-legacy.response", schema: RemoteSchemas.schema_d205867a8963e342)
 }
 
 public extension RemoteRootCodecs {
@@ -438,12 +446,4 @@ public extension RemoteRootCodecs {
 
 public extension RemoteRootCodecs {
   static let routeU2EEnvironmentU2DMediaU2DReleaseU2ERequest: RemoteRootCodec<RouteenvironmentU2DMediaU2DReleaseRequest_0e0641a133> = .init(id: "route.environment-media-release.request", schema: RemoteSchemas.schema_0e0641a1330fd7db)
-}
-
-public extension RemoteRootCodecs {
-  static let routeU2EEnvironmentU2DMediaU2DReleaseU2EResponse: RemoteRootCodec<RoutedeviceU2DDetachResponse_badd682f35> = .init(id: "route.environment-media-release.response", schema: RemoteSchemas.schema_badd682f3501e022)
-}
-
-public extension RemoteRootCodecs {
-  static let routeU2EEnvironmentU2DMediaU2DRenewU2EPath: RemoteRootCodec<RouteenvironmentU2DAdoptU2DLegacyPath_149c9d9dd2> = .init(id: "route.environment-media-renew.path", schema: RemoteSchemas.schema_149c9d9dd2191aa3)
 }

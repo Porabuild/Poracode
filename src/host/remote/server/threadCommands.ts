@@ -50,6 +50,7 @@ import { prepareHostWorktree, removeHostWorktree } from "./hostWorktreeLifecycle
 import { sortOrderForThread } from "./snapshots";
 import { applyThreadMetadataCommand, threadMetadataClosesSession } from "./threadMetadataCommands";
 import { createRemoteThread } from "./threadCreation";
+import { importRemoteSession } from "./sessionImportCommand";
 import { dbForkThread } from "@/host/db/threadForks";
 
 export { runRemoteProcedure } from "./threadProcedure";
@@ -161,6 +162,9 @@ export async function applyRemoteThreadCommand(
       return false;
     case "create":
       createRemoteThread(command, onCatalogCommitted);
+      return false;
+    case "import-session":
+      await importRemoteSession(ctx, command, onCatalogCommitted);
       return false;
     case "prepare-worktree":
       await prepareHostWorktree(ctx, {
