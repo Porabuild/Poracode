@@ -582,7 +582,9 @@ export class SubagentRunManager {
     for (const record of this.runs.values()) {
       if (record.parentThreadId !== parentThreadId || record.plan.crewRole?.id !== roleId) continue;
       if (!record.settled) return undefined;
-      if (!latest || record.createdAt > latest.createdAt) latest = record;
+      // `runs` iterates in creation order. `createdAt` is a millisecond clock, so
+      // a continuation can tie with its predecessor and must still win.
+      latest = record;
     }
     if (!latest || latest.status !== "completed" || latest.continuedBy || latest.resuming)
       return undefined;
