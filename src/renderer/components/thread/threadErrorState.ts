@@ -10,6 +10,8 @@ export interface ThreadErrorDockState {
   message: string;
   /** Set for an advisory notice; absent for an error. */
   severity?: "warning";
+  /** Structured cause the provider reported, when it knows one. */
+  reason?: string;
 }
 
 const EMPTY_ERROR_DOCK_STATES: ThreadErrorDockState[] = [];
@@ -70,12 +72,21 @@ export function getThreadErrorDockStateForItem(item: RuntimeChatItem): ThreadErr
   if (!message) return null;
   if (isAbortOnlyErrorMessage(message)) return null;
   const severity = payload?.severity === "warning" ? ("warning" as const) : undefined;
+  const reason = payload?.reason;
   const cached = errorDockStateByItem.get(item);
-  if (cached && cached.message === message && cached.severity === severity) return cached;
+  if (
+    cached &&
+    cached.message === message &&
+    cached.severity === severity &&
+    cached.reason === reason
+  ) {
+    return cached;
+  }
   const dock: ThreadErrorDockState = {
     sourceItemId: item.id,
     message,
     ...(severity ? { severity } : {}),
+    ...(reason ? { reason } : {}),
   };
   errorDockStateByItem.set(item, dock);
   return dock;
@@ -128,6 +139,12 @@ export function resolveThreadAuthState(input: {
   };
 }
 
+/**
+ * A provider that recognizes its own sign-in failure from a structured payload
+ * reports `reason: "auth_required"`; the message heuristic covers providers
+ * (and older hosts) that only surface text.
+ */
 export function isRuntimeAuthError(state: ThreadErrorDockState): boolean {
-  return state.severity !== "warning" && isAuthErrorMessage(state.message);
+  if (state.severity === "warning") return false;
+  return state.reason === "auth_required" || isAuthErrorMessage(state.message);
 }
