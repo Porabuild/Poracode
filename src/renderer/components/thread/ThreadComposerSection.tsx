@@ -32,7 +32,7 @@ import { sideChatAvailable, showSideChat } from "./SideChat/sideChatActions";
 import { useImplicitMcpServers } from "../composer/implicitMcpServers";
 import { useTurnClientContextCapture } from "../composer/turnClientContext";
 import { ComposerVoiceInput } from "../composer/ComposerVoiceInput";
-import { LiveVoiceButton, LiveVoicePanel } from "../composer/LiveVoiceControls";
+import { LiveVoiceButton, LiveVoiceSessionControls } from "../composer/LiveVoiceControls";
 import { liveVoice, useLiveVoice } from "@/renderer/speech/liveVoice";
 import {
   composerMcpServers,
@@ -302,9 +302,16 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   const mentionRef = useRef<MentionInputHandle>(null);
   const voiceInputRef = useRef<VoiceInputHandle>(null);
   const liveVoiceActive = useLiveVoice((state) => state.phase !== "idle");
-  const threadVoiceActive = useLiveVoice(
-    (state) => state.threadId === thread.id && state.phase !== "idle",
+  const threadVoiceStatus = useLiveVoice((state) =>
+    state.threadId !== thread.id || state.phase === "idle"
+      ? null
+      : state.phase === "connecting"
+        ? "connecting"
+        : state.muted
+          ? "muted"
+          : "listening",
   );
+  const threadVoiceActive = threadVoiceStatus !== null;
   useEffect(() => () => liveVoice.stopThread(thread.id), [thread.id]);
   useEffect(() => {
     if (thread.status === "inactive") liveVoice.stopThread(thread.id);
@@ -1184,7 +1191,6 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
           className="poracode-thread-composer-section relative"
           data-compact-collapsed={(compactLayout && isComposerCollapsed) || undefined}
         >
-          <LiveVoicePanel threadId={thread.id} />
           {!compactLayout ? (
             /* Position an out-of-flow wrapper, not the tooltip triggers. HeroUI then
                measures the real buttons without adding a line box above the composer. */
@@ -1315,6 +1321,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                       isCliThread ? "cli" : "chat",
                       showContextIndicator ? "ctx" : "no-ctx",
                       authRequired ? "auth-required" : "auth-ready",
+                      threadVoiceActive ? "voice" : "no-voice",
                     ].join("|")}
                     fixedContent={
                       composerDockNotice !== null ||
@@ -1418,10 +1425,16 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                               ? ""
                               : thread.status === "inactive" && canRecoverGuiInput && !isConnecting
                                 ? t`Disconnected — send a message to reconnect`
-                                : isServerControlled
-                                  ? (props.composerPlaceholder ??
-                                    t`Ask ${effectiveAgentStatus?.label ?? agentFallbackLabel} anything about this workspace`)
-                                  : t`Send a message...`
+                                : threadVoiceStatus === "connecting"
+                                  ? t`Connecting voice…`
+                                  : threadVoiceStatus === "muted"
+                                    ? t`Microphone muted — type a message`
+                                    : threadVoiceStatus === "listening"
+                                      ? t`Listening — speak or type a message`
+                                      : isServerControlled
+                                        ? (props.composerPlaceholder ??
+                                          t`Ask ${effectiveAgentStatus?.label ?? agentFallbackLabel} anything about this workspace`)
+                                        : t`Send a message...`
                         }
                         projectLocation={projectLocation}
                         submitOnEnter={props.submitOnEnter ?? !compactLayout}
@@ -1623,22 +1636,28 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                           {compactLayout ? contextIndicator : addMenu}
                         </>
                       );
-                      const renderVoiceInput = () => (
-                        <ComposerVoiceInput
-                          key={thread.id}
-                          show={showVoiceInputButton && !liveVoiceActive}
-                          isDisabled={
-                            authRequired ||
-                            isSubmitting ||
-                            !(showServerComposer || showTerminalComposer)
-                          }
-                          {...(voiceInputUnavailableHint !== undefined
-                            ? { unavailableHint: voiceInputUnavailableHint }
-                            : {})}
-                          mentionRef={mentionRef}
-                          voiceInputRef={voiceInputRef}
-                        />
-                      );
+                      const renderVoiceInput = () =>
+                        threadVoiceActive ? (
+                          <LiveVoiceSessionControls
+                            threadId={thread.id}
+                            hasDraft={hasContent || attachments.attachments.length > 0}
+                          />
+                        ) : (
+                          <ComposerVoiceInput
+                            key={thread.id}
+                            show={showVoiceInputButton && !liveVoiceActive}
+                            isDisabled={
+                              authRequired ||
+                              isSubmitting ||
+                              !(showServerComposer || showTerminalComposer)
+                            }
+                            {...(voiceInputUnavailableHint !== undefined
+                              ? { unavailableHint: voiceInputUnavailableHint }
+                              : {})}
+                            mentionRef={mentionRef}
+                            voiceInputRef={voiceInputRef}
+                          />
+                        );
                       return isCliThread || compactLayout
                         ? { leadingControls: renderExtras, afterControls: renderVoiceInput }
                         : {

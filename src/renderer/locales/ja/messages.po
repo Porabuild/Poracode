@@ -4672,6 +4672,7 @@ msgid "Connecting to the device…"
 msgstr "デバイスに接続しています…"
 
 #: src/renderer/components/composer/LiveVoiceControls.tsx
+#: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "Connecting voice…"
 msgstr "音声に接続中…"
 
@@ -10014,6 +10015,10 @@ msgstr "パッケージを一覧表示"
 msgid "List tasks"
 msgstr "タスクを一覧表示"
 
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Listening — speak or type a message"
+msgstr "聞き取り中 — 話すかメッセージを入力"
+
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Live"
 msgstr "ライブ"
@@ -10966,6 +10971,10 @@ msgstr "マイク入力レベル"
 msgid "Microphone muted"
 msgstr "マイクはミュート中"
 
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Microphone muted — type a message"
+msgstr "マイクはミュート中 — メッセージを入力"
+
 #: src/renderer/components/composer/voiceError.ts
 msgid "Microphone permission was denied."
 msgstr "マイクの許可が拒否されました。"
@@ -11346,6 +11355,10 @@ msgstr "Muse Code"
 #: src/renderer/components/composer/LiveVoiceControls.tsx
 msgid "Mute microphone"
 msgstr "マイクをミュート"
+
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Mute voice replies"
+msgstr "音声の返答をミュート"
 
 #: src/renderer/components/crew/CrewRosterPanel.tsx
 msgid "My crew"
@@ -20912,6 +20925,10 @@ msgstr "完了のマークを外す"
 #: src/renderer/components/composer/LiveVoiceControls.tsx
 msgid "Unmute microphone"
 msgstr "マイクのミュートを解除"
+
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Unmute voice replies"
+msgstr "音声の返答のミュートを解除"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unnamed device"

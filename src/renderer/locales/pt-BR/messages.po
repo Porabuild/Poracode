@@ -4673,6 +4673,7 @@ msgid "Connecting to the device…"
 msgstr "Conectando ao dispositivo…"
 
 #: src/renderer/components/composer/LiveVoiceControls.tsx
+#: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "Connecting voice…"
 msgstr "Conectando voz…"
 
@@ -10015,6 +10016,10 @@ msgstr "Listar pacotes"
 msgid "List tasks"
 msgstr "Listar tarefas"
 
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Listening — speak or type a message"
+msgstr "Ouvindo — fale ou digite uma mensagem"
+
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Live"
 msgstr "Ao vivo"
@@ -10968,6 +10973,10 @@ msgstr "Nível de entrada do microfone"
 msgid "Microphone muted"
 msgstr "Microfone silenciado"
 
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Microphone muted — type a message"
+msgstr "Microfone silenciado — digite uma mensagem"
+
 #: src/renderer/components/composer/voiceError.ts
 msgid "Microphone permission was denied."
 msgstr "A permissão do microfone foi negada."
@@ -11348,6 +11357,10 @@ msgstr "Muse Code"
 #: src/renderer/components/composer/LiveVoiceControls.tsx
 msgid "Mute microphone"
 msgstr "Silenciar microfone"
+
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Mute voice replies"
+msgstr "Silenciar respostas de voz"
 
 #: src/renderer/components/crew/CrewRosterPanel.tsx
 msgid "My crew"
@@ -20914,6 +20927,10 @@ msgstr "Desmarcar como concluído"
 #: src/renderer/components/composer/LiveVoiceControls.tsx
 msgid "Unmute microphone"
 msgstr "Ativar microfone"
+
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Unmute voice replies"
+msgstr "Ativar som das respostas de voz"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unnamed device"

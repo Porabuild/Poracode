@@ -12,6 +12,8 @@ interface VoiceState {
   scopeId: string | null;
   phase: "idle" | "connecting" | "connected";
   muted: boolean;
+  /** Silences the agent's spoken replies without ending the session. */
+  speakerMuted: boolean;
 }
 
 const idle: VoiceState = {
@@ -19,6 +21,7 @@ const idle: VoiceState = {
   scopeId: null,
   phase: "idle",
   muted: false,
+  speakerMuted: false,
 };
 /** Media and connection state are intentionally never persisted. */
 export const useLiveVoice = create<VoiceState>(() => idle);
@@ -117,6 +120,7 @@ export class LiveVoiceController {
       const peer = new RTCPeerConnection();
       const playback = new Audio();
       playback.autoplay = true;
+      playback.muted = useLiveVoice.getState().speakerMuted;
       session.peer = peer;
       session.playback = playback;
       stream.getTracks().forEach((track) => peer.addTrack(track, stream));
@@ -227,6 +231,13 @@ export class LiveVoiceController {
       track.enabled = !muted;
     });
     useLiveVoice.setState({ muted });
+  }
+
+  toggleSpeakerMuted(scopeId?: string): void {
+    if (!this.session || (scopeId !== undefined && !this.ownsScope(scopeId))) return;
+    const speakerMuted = !useLiveVoice.getState().speakerMuted;
+    if (this.session.playback) this.session.playback.muted = speakerMuted;
+    useLiveVoice.setState({ speakerMuted });
   }
 
   private ownsScope(scopeId: string): boolean {
