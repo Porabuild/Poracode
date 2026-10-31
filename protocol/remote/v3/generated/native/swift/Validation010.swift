@@ -1,6 +1,14 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
 public extension RemoteSchemas {
+  static let schema_ab5271048956dc05 = RemoteSchema(type: "string", literals: [.string("item.completed")], unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
+  static let schema_ab6b873225f5c96a = RemoteSchema(type: "string", literals: [.string("browser-mirror-status")], unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_ab9af0b233ebeb7d = RemoteSchema(type: "object", required: Set(["device", "inputAdmission", "proxyHelpers", "streamSettings", "url"]), properties: ["device": RemoteSchemas.schema_97d85a5eaee82b97, "inputAdmission": RemoteSchemas.schema_d2dd3595e1b5e5dc, "proxyHelpers": RemoteSchemas.schema_d2dd3595e1b5e5dc, "streamSettings": RemoteSchemas.schema_e0e12d4798687ab0, "url": RemoteSchemas.schema_833ba85e740a223b], additionalAllowed: true, unknownPolicy: .strip)
 }
 
@@ -438,12 +446,4 @@ public extension RemoteSchemas {
 
 public extension RemoteSchemas {
   static let schema_c1417bffe520aa1c = RemoteSchema(type: "object", properties: ["mcpServers": RemoteSchemas.schema_86b938ce61c1942e], additionalAllowed: true, unknownPolicy: .strip)
-}
-
-public extension RemoteSchemas {
-  static let schema_c1504401bd291fd1 = RemoteSchema(type: "string", minLength: 1, maxLength: 4096, pattern: "^(?!(?:javascript|data|file|content|intent|about):)[A-Za-z][A-Za-z0-9+.-]*:\\/\\/[^\\s]+$", unknownPolicy: .strip)
-}
-
-public extension RemoteSchemas {
-  static let schema_c1862c8cf975e3dc = RemoteSchema(type: "string", maxLength: 3145728, pattern: "^data:image\\/(?:png|jpeg);base64,[A-Za-z0-9+/=]+$", unknownPolicy: .strip)
 }

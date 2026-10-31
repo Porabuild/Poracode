@@ -6,6 +6,19 @@ import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
 @Serializable
+data class RoutethreadU2DCheckpointU2DRevertRequest_40f9a6009b(
+    @SerialName("checkpointItemId") val checkpointItemId: String,
+    @SerialName("operationKey") val operationKey: String,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("checkpointItemId", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("operationKey", "String", true, false, null, null, 8, 110, null, null, "^[A-Za-z0-9._:-]+$", null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
 enum class RoutethreadU2DCheckpointU2DRevertResponseU2DFilesPhase_efc124973b {
     @SerialName("pending") PENDING,
     @SerialName("completed") COMPLETED,
@@ -423,22 +436,4 @@ data class RoutethreadU2DCommandRequestU2DOptionU2D6_1ae7de2180(
 @Serializable
 enum class RoutethreadU2DCommandRequestU2DOptionU2D7U2DKind_356ae1fc45 {
     @SerialName("rename") RENAME,
-}
-
-@Serializable
-data class RoutethreadU2DCommandRequestU2DOptionU2D7_2e4d2aaed0(
-    @SerialName("kind") val kind: RoutethreadU2DCommandRequestU2DOptionU2D7U2DKind_356ae1fc45,
-    @SerialName("title") val title: String,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("kind", "RoutethreadU2DCommandRequestU2DOptionU2D7U2DKind_356ae1fc45", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("title", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable
-enum class RoutethreadU2DCommandRequestU2DOptionU2D8U2DKind_4ec1299a98 {
-    @SerialName("acknowledge") ACKNOWLEDGE,
 }

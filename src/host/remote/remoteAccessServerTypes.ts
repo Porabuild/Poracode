@@ -7,6 +7,7 @@ import type { HttpServerConnections } from "@/shared/httpServerConnections";
 import type {
   RemoteGitSummaries,
   RemoteHostMode,
+  RemoteHostWorkspace,
   RemoteHostUpdateStatus,
   RemotePushRegistration,
   RemotePushRegistrationRouting,
@@ -587,6 +588,8 @@ export interface RemoteAccessServerOptions {
    */
   readonly settings?: {
     read(): RemoteSettings;
+    /** The host's workspaces for shell snapshots; hosts without it omit the field. */
+    readWorkspaces?(): RemoteHostWorkspace[];
     /** Update implementations may commit asynchronously (the settings
      * authority persists on its own queue); the route awaits the result. */
     update(patch: RemoteSettingsPatch): RemoteSettings | Promise<RemoteSettings>;

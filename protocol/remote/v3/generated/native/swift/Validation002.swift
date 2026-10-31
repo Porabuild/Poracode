@@ -97,6 +97,10 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_15fcce03de60030d = RemoteSchema(type: "array", items: RemoteSchemas.schema_33250cfe650a4571, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_160c1ab9b7f11a56 = RemoteSchema(type: "object", required: Set(["createdAt", "fingerprint", "model", "stops", "summary", "version"]), properties: ["createdAt": RemoteSchemas.schema_bf0b727f7b1c6d07, "fingerprint": RemoteSchemas.schema_36fea325bf1aca70, "model": RemoteSchemas.schema_bf0b727f7b1c6d07, "stops": RemoteSchemas.schema_b8f3bd9de101caa0, "summary": RemoteSchemas.schema_5c07f5964567e9f0, "version": RemoteSchemas.schema_7f9f5a0d72de0d9a], additionalAllowed: true, unknownPolicy: .strip)
 }
 
@@ -442,8 +446,4 @@ public extension RemoteSchemas {
 
 public extension RemoteSchemas {
   static let schema_24cb35c8f91ba9a7 = RemoteSchema(type: "object", required: Set(["files"]), properties: ["files": RemoteSchemas.schema_0abd6180b71e8684], additionalAllowed: true, unknownPolicy: .strip)
-}
-
-public extension RemoteSchemas {
-  static let schema_2556bf4896893601 = RemoteSchema(type: "string", literals: [.string("authentication"), .string("tool-restrictions"), .string("sensitive-values")], unknownPolicy: .strip)
 }

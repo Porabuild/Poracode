@@ -6,6 +6,24 @@ import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
 @Serializable
+data class RoutethreadU2DCommandRequestU2DOptionU2D7_2e4d2aaed0(
+    @SerialName("kind") val kind: RoutethreadU2DCommandRequestU2DOptionU2D7U2DKind_356ae1fc45,
+    @SerialName("title") val title: String,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("kind", "RoutethreadU2DCommandRequestU2DOptionU2D7U2DKind_356ae1fc45", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("title", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+enum class RoutethreadU2DCommandRequestU2DOptionU2D8U2DKind_4ec1299a98 {
+    @SerialName("acknowledge") ACKNOWLEDGE,
+}
+
+@Serializable
 data class RoutethreadU2DCommandRequestU2DOptionU2D8_c3363423bb(
     @SerialName("kind") val kind: RoutethreadU2DCommandRequestU2DOptionU2D8U2DKind_4ec1299a98,
 ) {
@@ -423,22 +441,4 @@ data class RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1_b796d8a879(
             RemoteFieldDescriptor("snapshot", "RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1U2DSnapshot_a680751044", true, false, null, null, null, null, null, null, null, null, listOf()),
         ), listOf())
     }
-}
-
-@Serializable
-data class RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D2U2DBatchesU2DItem_4181643f21(
-    @SerialName("events") val events: List<ProceduresubagentSubscribeResultU2DHistoryU2DItem_1d3e5368ba>,
-    @SerialName("seq") val seq: Long,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("events", "List<ProceduresubagentSubscribeResultU2DHistoryU2DItem_1d3e5368ba>", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("seq", "Long", true, false, 0.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable
-enum class RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D2U2DKind_e1a91348d8 {
-    @SerialName("events") EVENTS,
 }

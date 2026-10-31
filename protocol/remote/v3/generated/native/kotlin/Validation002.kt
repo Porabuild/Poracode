@@ -105,6 +105,10 @@ internal val schema_15cae388d0cdd5b6: RemoteSchema by lazy {
     RemoteSchema(type = "string", literals = listOf(JsonPrimitive("summary"), JsonPrimitive("full")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
+internal val schema_15fcce03de60030d: RemoteSchema by lazy {
+    RemoteSchema(type = "array", items = schema_33250cfe650a4571, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
 internal val schema_160c1ab9b7f11a56: RemoteSchema by lazy {
     RemoteSchema(type = "object", required = setOf("createdAt", "fingerprint", "model", "stops", "summary", "version"), properties = mapOf("createdAt" to schema_bf0b727f7b1c6d07, "fingerprint" to schema_36fea325bf1aca70, "model" to schema_bf0b727f7b1c6d07, "stops" to schema_b8f3bd9de101caa0, "summary" to schema_5c07f5964567e9f0, "version" to schema_7f9f5a0d72de0d9a), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
@@ -443,8 +447,4 @@ internal val schema_2472eab79ad4b307: RemoteSchema by lazy {
 
 internal val schema_247ec4acb49e6522: RemoteSchema by lazy {
     RemoteSchema(type = "object", required = setOf("createdAt", "id", "listenPort", "targetPort"), properties = mapOf("createdAt" to schema_56aa0e45cbdce0d0, "id" to schema_36fea325bf1aca70, "listenPort" to schema_279eee1efa9da6c8, "targetPort" to schema_279eee1efa9da6c8), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
-}
-
-internal val schema_24a221c9609f967e: RemoteSchema by lazy {
-    RemoteSchema(type = "string", minLength = 1, pattern = "^[A-Za-z0-9][A-Za-z0-9_.-]*$", unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }

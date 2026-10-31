@@ -20,6 +20,7 @@ import { filterSyncedRemoteProjects } from "./projectSync";
 import { isBrowserClientRuntime } from "@/renderer/clientRuntime";
 import { getActiveWorkspaceId } from "@/renderer/state/workspaceStore";
 import { pinRemoteProjectWorkspaces, projectBrowserThreadWorkspace } from "./workspaceFilings";
+import { clientWorkspaceForHostWorkspace } from "./hostWorkspacePlacement";
 
 let remoteProjectRowsSyncDepth = 0;
 
@@ -253,6 +254,7 @@ export function syncRemoteAppRows(
       )
     : null;
   const counterpartWorkspace = localWorkspaceByName(useAppStore.getState().projects);
+  const browserClient = isBrowserClientRuntime();
   const clientWorkspaceFilings: {
     desktopId: string;
     remoteId: string;
@@ -265,8 +267,18 @@ export function syncRemoteAppRows(
           const current = currentProjects?.get(project.id);
           const { workspaceId: remoteWorkspaceId, ...projectWithoutWorkspace } = projected;
           const name = remoteState.projectNameOverrides[desktopId]?.[project.id] ?? projected.name;
-          const workspaceOverride = remoteState.projectWorkspaceIds[desktopId]?.[project.id];
+          const pinnedWorkspaceId = remoteState.projectWorkspaceIds[desktopId]?.[project.id];
           const inheritedWorkspaceId = counterpartWorkspace.get(name);
+          // A browser client follows the host's own workspace (matched by name)
+          // over its default filings, but never over a move the user made.
+          const userFiled =
+            pinnedWorkspaceId !== undefined &&
+            remoteState.explicitProjectWorkspaceIds[desktopId]?.[project.id] === true;
+          const hostWorkspaceId =
+            browserClient && !userFiled && inheritedWorkspaceId === undefined
+              ? clientWorkspaceForHostWorkspace(desktopId, remoteWorkspaceId)
+              : undefined;
+          const workspaceOverride = hostWorkspaceId ?? pinnedWorkspaceId;
           // Home belongs to every workspace, so it stays unfiled like local Home.
           const workspaceId = isHomeProject(projected)
             ? undefined
@@ -280,8 +292,8 @@ export function syncRemoteAppRows(
           // move the mirror. A browser default (or a filing already on the row)
           // is pinned, or the next local edit treats it as unfiled.
           if (
-            isBrowserClientRuntime() &&
-            workspaceOverride === undefined &&
+            browserClient &&
+            (pinnedWorkspaceId === undefined || hostWorkspaceId !== undefined) &&
             inheritedWorkspaceId === undefined &&
             workspaceId
           ) {
@@ -557,6 +569,6 @@ export function installRemoteProjectWorkspaceSync(): () => void {
     }
     if (changes.length === 0) return;
 
-    pinRemoteProjectWorkspaces(changes);
+    pinRemoteProjectWorkspaces(changes, { explicit: true });
   });
 }

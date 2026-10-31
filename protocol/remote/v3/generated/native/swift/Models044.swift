@@ -1,5 +1,22 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
+public enum RoutethreadU2DCheckpointU2DRevertResponseU2DOutcome_08ce03e607: String, Codable, Sendable {
+  case `completed` = "completed"
+  case `completedU5FLocalU5FOnly` = "completed_local_only"
+  case `ambiguous` = "ambiguous"
+  case `failed` = "failed"
+  case `noop` = "noop"
+}
+
+public enum RoutethreadU2DCheckpointU2DRevertResponseU2DProviderPhase_11ada4e73a: String, Codable, Sendable {
+  case `pending` = "pending"
+  case `completed` = "completed"
+  case `failed` = "failed"
+  case `ambiguous` = "ambiguous"
+  case `skippedU5FNoU5FTurns` = "skipped_no_turns"
+  case `skippedU5FMissingU5FCheckpoint` = "skipped_missing_checkpoint"
+}
+
 public enum RoutethreadU2DCheckpointU2DRevertResponseU2DTruncatePhase_35962a43ae: String, Codable, Sendable {
   case `pending` = "pending"
   case `completed` = "completed"
@@ -425,26 +442,4 @@ public struct RoutethreadU2DCommandRequestU2DOptionU2D4_5aa949613e: Codable, Sen
 
 public enum RoutethreadU2DCommandRequestU2DOptionU2D5U2DKind_f399af5f8d: String, Codable, Sendable {
   case `setU2DGroup` = "set-group"
-}
-
-public struct RoutethreadU2DCommandRequestU2DOptionU2D5_21cd039cb3: Codable, Sendable, RemoteModelMetadata {
-  public var groupId: RemoteField<String> = .missing
-  public var groupName: RemoteField<String> = .missing
-  public var kind: RoutethreadU2DCommandRequestU2DOptionU2D5U2DKind_f399af5f8d
-  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
-  public static let fields: [RemoteFieldDescriptor] = [
-    .init(wireName: "groupId", typeName: "String", required: false, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "groupName", typeName: "String", required: false, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "kind", typeName: "RoutethreadU2DCommandRequestU2DOptionU2D5U2DKind_f399af5f8d", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-  ]
-  public static let semanticValidatorIds: [String] = []
-  private enum CodingKeys: String, CodingKey {
-    case groupId = "groupId"
-    case groupName = "groupName"
-    case kind = "kind"
-  }
-}
-
-public enum RoutethreadU2DCommandRequestU2DOptionU2D6U2DKind_03fdf2ff7a: String, Codable, Sendable {
-  case `clearU2DGroup` = "clear-group"
 }

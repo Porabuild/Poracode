@@ -17,8 +17,8 @@ val RemoteRootCodecs.routeU2ESettingsU2DWriteU2EResponse: RemoteRootCodec<Routes
 val RemoteRootCodecs.routeU2EShellU2DSnapshotU2EQuery: RemoteRootCodec<RouteshellU2DSnapshotQuery_b2ca36e3fa>
     get() = RemoteRootCodec("route.shell-snapshot.query", serializer<RouteshellU2DSnapshotQuery_b2ca36e3fa>(), schema_b2ca36e3fa7743ad)
 
-val RemoteRootCodecs.routeU2EShellU2DSnapshotU2EResponse: RemoteRootCodec<RouteshellU2DSnapshotResponse_ed4e6c122d>
-    get() = RemoteRootCodec("route.shell-snapshot.response", serializer<RouteshellU2DSnapshotResponse_ed4e6c122d>(), schema_ed4e6c122d4325d1)
+val RemoteRootCodecs.routeU2EShellU2DSnapshotU2EResponse: RemoteRootCodec<RouteshellU2DSnapshotResponse_cc9f9333ba>
+    get() = RemoteRootCodec("route.shell-snapshot.response", serializer<RouteshellU2DSnapshotResponse_cc9f9333ba>(), schema_cc9f9333ba81f5d3)
 
 val RemoteRootCodecs.routeU2ETerminalU2DCloseU2EPath: RemoteRootCodec<ProcedurecancelExtractContextRequest_09b78d9c1d>
     get() = RemoteRootCodec("route.terminal-close.path", serializer<ProcedurecancelExtractContextRequest_09b78d9c1d>(), schema_09b78d9c1d4c3a6b)

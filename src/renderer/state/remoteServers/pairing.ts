@@ -30,6 +30,7 @@ import { syncRemoteGitSummaries } from "./gitSummaries";
 import { replaceCachedProjects } from "./projectCache";
 import { syncRemoteGitStateSnapshot } from "./gitState";
 import { syncRemoteAppRows } from "./appRows";
+import { recordHostWorkspaces } from "./hostWorkspacePlacement";
 import {
   bumpRemoteServerGeneration,
   clearRemoteThreadAppliedSeqs,
@@ -206,6 +207,7 @@ export function createPairingActions(deps: PairingActionDeps) {
     // v2 connection key: direct/ssh records keep `connectionId === desktopId`,
     // so persisted vault keys, pins, and projections stay byte-identical.
     const connectionId = environment.desktopId;
+    recordHostWorkspaces(connectionId, snapshot.workspaces);
     // B1: negotiate the durable-notice capability from the same descriptor the
     // record is built from (process-local; re-proven on every reconnect).
     noteRuntimeHistoryNoticesCapability(

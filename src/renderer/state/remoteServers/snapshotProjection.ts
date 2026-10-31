@@ -72,6 +72,7 @@ import { syncRemoteGitSummaries } from "./gitSummaries";
 import { syncRemoteGitStateSnapshot } from "./gitState";
 import { replaceCachedProjects } from "./projectCache";
 import { applyRemoteCatalogOrder, syncRemoteAppRows } from "./appRows";
+import { recordHostWorkspaces } from "./hostWorkspacePlacement";
 import { reconcileThreadRowsWithAppliedEvents, reuseRemoteRows } from "./rowReuse";
 import {
   beginBoundedCatalogAttempt,
@@ -807,6 +808,7 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
             if (takeRemoteServerRowResyncPending(desktopId)) {
               beginBoundedCatalogAttempt(desktopId);
             }
+            recordHostWorkspaces(desktopId, bounded.page.workspaces);
             installBoundedShellPage(desktopId, bounded.page);
             await patchBoundedAgentStatuses(desktopId, agentStatusesPromise, isLatest);
             if (!isLatest()) return;
@@ -834,6 +836,9 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
         );
         const current = cached();
         const projects = reuseRemoteRows(current?.projects ?? [], snapshot.projects);
+        // Renamed or new host workspaces re-place projects even when the rows
+        // themselves are unchanged.
+        const hostWorkspacesChanged = recordHostWorkspaces(desktopId, snapshot.workspaces);
         const { rows: reconciledThreads, staleThreadIds } = reconcileThreadRowsWithAppliedEvents(
           desktopId,
           snapshot.snapshotSeq,
@@ -885,10 +890,10 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
         // One-shot: a resync-required refresh re-mirrors authoritative
         // rows even when the HTTP cache already matches them.
         const forceRowSync = takeRemoteServerRowResyncPending(desktopId);
-        if (projectsChanged || threadsChanged || forceRowSync) {
+        if (projectsChanged || threadsChanged || forceRowSync || hostWorkspacesChanged) {
           syncRemoteAppRows(
             desktopId,
-            projectsChanged || forceRowSync ? projects : undefined,
+            projectsChanged || forceRowSync || hostWorkspacesChanged ? projects : undefined,
             threadsChanged || forceRowSync ? threads : undefined,
             { preserveThreadIds: staleThreadIds },
           );

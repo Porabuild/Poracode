@@ -66800,6 +66800,28 @@
             "updatedAt": {
               "minLength": 1,
               "type": "string"
+            },
+            "workspaces": {
+              "items": {
+                "additionalProperties": true,
+                "properties": {
+                  "id": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "name": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              },
+              "type": "array"
             }
           },
           "required": [
@@ -78751,7 +78773,7 @@
     "void-envelope.omit-result",
     "void-result.omit-field"
   ],
-  "sourceHash": "sha256:8dfc2df6f39b5ef6478577e997fc93b168c0a1a1842d6764d4904ab1e6beacd7",
+  "sourceHash": "sha256:cb30c9797a3b5e420aa282c3b3f083bda5d15673a9b103016c43c68496184f52",
   "unknownObjectFields": "ignore",
   "webSocket": {
     "clientMessages": [

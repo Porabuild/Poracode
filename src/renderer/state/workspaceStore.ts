@@ -10,6 +10,7 @@ import { useSharedSettings, whenSharedSettingsHydrated } from "./sharedSettingsS
 import { isBrowserClientRuntime } from "@/renderer/clientRuntime";
 import { isHomeProjectId } from "@/shared/homeScope";
 import { useRemoteServersStore } from "./remoteServersStore";
+import { pinRemoteProjectWorkspaces } from "./remoteServers/workspaceFilings";
 
 const PERSIST_KEY = "poracode-active-workspace";
 
@@ -160,6 +161,26 @@ export async function bootstrapWorkspaces(): Promise<void> {
   const primary = seeded[0]!;
   if (browserClient) {
     const pins = useRemoteServersStore.getState().projectWorkspaceIds;
+    // Pin unfiled mirrors first: the workspace-sync subscriber records any
+    // other filing change as a move the user made, which would then outrank
+    // the host's own workspace for good.
+    pinRemoteProjectWorkspaces(
+      useAppStore.getState().projects.flatMap((project) =>
+        project.workspaceId === undefined &&
+        project.remoteServerId &&
+        project.remoteId &&
+        pins[project.remoteServerId]?.[project.remoteId] === undefined &&
+        !isHomeProjectId(project.id)
+          ? [
+              {
+                desktopId: project.remoteServerId,
+                remoteId: project.remoteId,
+                workspaceId: primary.id,
+              },
+            ]
+          : [],
+      ),
+    );
     useAppStore.setState((state) => {
       const projects = state.projects.map((project) => {
         if (project.workspaceId !== undefined || isHomeProjectId(project.id)) return project;
