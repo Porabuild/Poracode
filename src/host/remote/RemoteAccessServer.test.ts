@@ -38,6 +38,11 @@ import type { SupervisorEvent } from "@/shared/ipc";
 import { REMOTE_PROCEDURE_RESULT_FIXTURES } from "@/shared/remote/contract/goldens/procedureFixtures";
 import { defaultSharedSettings } from "@/shared/settings";
 import { emptyGitStateSnapshot } from "@/shared/gitState";
+import {
+  isCleartextLanUrl,
+  normalizePairingEndpoint,
+  parsePairingUrlParts,
+} from "@/shared/remote/pairingUrl";
 import type { BrowserPanelManager } from "@/host/browser/types";
 import { SettingsWriteRefusedError } from "@/backend/settings/settingsCompatWrites";
 import {
@@ -782,6 +787,15 @@ describe("RemoteAccessServer", () => {
       expect(server.mintLoopbackRendererCredential()?.endpoint).toBe(info.loopbackHttpBaseUrl);
       expect(server.mintLoopbackRendererCredential({ browserExtension: true })?.endpoint).toBe(
         info.loopbackHttpBaseUrl,
+      );
+      // An independent grant keeps its advertised link and adds one on this
+      // listener that a same-machine client (the TUI) can redeem.
+      const grant = server.issueIndependentPairingGrant({ preset: "operator" });
+      expect(normalizePairingEndpoint(grant.pairingUrl)).toBe("https://desktop.tailnet.ts.net");
+      expect(normalizePairingEndpoint(grant.localPairingUrl)).toBe(info.loopbackHttpBaseUrl);
+      expect(isCleartextLanUrl(normalizePairingEndpoint(grant.localPairingUrl))).toBe(false);
+      expect(parsePairingUrlParts(grant.localPairingUrl)?.token).toBe(
+        parsePairingUrlParts(grant.pairingUrl)?.token,
       );
       for (const origin of [
         info.loopbackHttpBaseUrl!,

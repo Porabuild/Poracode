@@ -3,9 +3,16 @@ import { readFileSync, statSync } from "node:fs";
 import { spawn as spawnProcess, type ChildProcess } from "node:child_process";
 import { join, resolve } from "node:path";
 import { z } from "zod";
-import { HOST_ADMIN_PAIRING_DEFAULT_TTL_MS, hostAdminRequest } from "@/shared/hostAdminProtocol";
+import {
+  HOST_ADMIN_PAIRING_DEFAULT_TTL_MS,
+  hostAdminRequest,
+  type HostAdminCommand,
+} from "@/shared/hostAdminProtocol";
 import { resolveHostRootPaths } from "@/backend/ownership/hostRootPaths";
-import { callHostControl } from "@/backend/ownership/hostControlClient";
+import {
+  callHostControl,
+  type HostControlCallOptions,
+} from "@/backend/ownership/hostControlClient";
 import { hostProjectAdditionSchema } from "@/shared/contracts/hostProjects";
 import {
   TUI_BOOTSTRAP_VERSION,
@@ -201,7 +208,7 @@ export async function runCliTui(
     readonly resolveLaunch?: typeof resolveTuiLaunchForRun;
     readonly cwd?: string;
     /** A reopened console-input descriptor when stdin itself is not the terminal. */
-    readonly stdin?: "inherit" | number;
+    readonly stdin?: number;
     readonly requestPairing?: (
       profileNamespace: string,
       options: RequestPairingOptions,
@@ -280,9 +287,7 @@ export async function runCliTui(
         PORACODE_TUI_HOME: home,
       },
       stdio:
-        typeof dependencies.stdin === "number"
-          ? [dependencies.stdin, "inherit", "inherit"]
-          : "inherit",
+        dependencies.stdin === undefined ? "inherit" : [dependencies.stdin, "inherit", "inherit"],
       windowsHide: true,
     });
     return waitForTui(child);
@@ -306,32 +311,36 @@ export async function runCliTui(
   return run({ pairingUrl: pairing.pairingUrl });
 }
 
-const tuiPairingGrantSchema = z.object({ pairingUrl: z.url() });
+const tuiPairingGrantSchema = z.object({
+  pairingUrl: z.url(),
+  localPairingUrl: z.url().optional(),
+});
 
 /**
  * Mints the TUI's one-time pairing through the owner's local administration.
  * Desktop and headless owners both serve `pairings-create`; the desktop owner
- * refuses the attach-only `issue-pairing` operation.
+ * refuses the attach-only `issue-pairing` operation. The TUI runs beside the
+ * owner, so it redeems the grant on the owner's own listener; an owner that
+ * predates `localPairingUrl` still returns its advertised link.
  */
 async function requestTuiPairing(
   profileNamespace: string,
   options: RequestPairingOptions,
 ): Promise<PairingControlResponse> {
   const { preset, ...callOptions } = options;
-  const response = await callHostControl(resolveHostRootPaths(profileNamespace), "admin", {
-    ...callOptions,
-    payload: hostAdminRequest({
+  const { requestId, data } = await administer(
+    profileNamespace,
+    {
       action: "pairings-create",
       label: "Terminal UI",
       ttlMs: HOST_ADMIN_PAIRING_DEFAULT_TTL_MS,
       ...(preset !== undefined ? { preset } : {}),
-    }),
-  });
-  if (!response.result.outcome.ok) throw new Error(response.result.outcome.error);
-  return {
-    requestId: response.requestId,
-    pairingUrl: tuiPairingGrantSchema.parse(response.result.outcome.data).pairingUrl,
-  };
+    },
+    // Minting is immediate; keep the bound the attach-only issue-pairing had.
+    { timeoutMs: 5_000, ...callOptions },
+  );
+  const grant = tuiPairingGrantSchema.parse(data);
+  return { requestId, pairingUrl: grant.localPairingUrl ?? grant.pairingUrl };
 }
 
 async function revokeClientSession(
@@ -339,20 +348,33 @@ async function revokeClientSession(
   ownerGeneration: string,
   sessionId: string,
 ) {
-  const response = await callHostControl(resolveHostRootPaths(profileNamespace), "admin", {
-    expectedGeneration: ownerGeneration,
-    payload: hostAdminRequest({ action: "clients-revoke", sessionId }),
-  });
-  if (!response.result.outcome.ok) throw new Error(response.result.outcome.error);
+  await administer(
+    profileNamespace,
+    { action: "clients-revoke", sessionId },
+    { expectedGeneration: ownerGeneration },
+  );
 }
 
 async function addProject(profileNamespace: string, ownerGeneration: string, directory: string) {
+  const { data } = await administer(
+    profileNamespace,
+    { action: "projects-add", path: directory },
+    { expectedGeneration: ownerGeneration },
+  );
+  return data;
+}
+
+async function administer(
+  profileNamespace: string,
+  command: HostAdminCommand,
+  options: HostControlCallOptions,
+) {
   const response = await callHostControl(resolveHostRootPaths(profileNamespace), "admin", {
-    expectedGeneration: ownerGeneration,
-    payload: hostAdminRequest({ action: "projects-add", path: directory }),
+    ...options,
+    payload: hostAdminRequest(command),
   });
   if (!response.result.outcome.ok) throw new Error(response.result.outcome.error);
-  return response.result.outcome.data;
+  return { requestId: response.requestId, data: response.result.outcome.data };
 }
 
 function waitForTui(child: ChildProcess) {

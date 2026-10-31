@@ -876,7 +876,7 @@ async function runTuiCommand(
         ...(baseDir !== undefined ? { baseDir } : {}),
         ...(capturedBuild !== undefined ? { capturedBuild } : {}),
       },
-      stdin !== undefined ? { stdin } : {},
+      typeof stdin === "number" ? { stdin } : {},
     );
     if (code !== 0) process.exitCode = code;
   } finally {

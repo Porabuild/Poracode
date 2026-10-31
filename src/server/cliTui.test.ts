@@ -314,7 +314,22 @@ it("falls back to the checkout entry and fails a prefix without a binary", async
   ).toEqual({ command: bun, args: [source], cwd: join(root, "tui") });
 });
 
-it("attaches to a running desktop owner instead of starting another one", async () => {
+it.each([
+  {
+    owner: "a current desktop owner",
+    // LAN access on: the advertised link is cleartext LAN, which the TUI refuses.
+    grant: {
+      pairingUrl: "http://192.168.1.20:49391/#token=desktop",
+      localPairingUrl: "http://127.0.0.1:49391/#token=desktop",
+    },
+    redeemed: "http://127.0.0.1:49391/#token=desktop",
+  },
+  {
+    owner: "a desktop owner that predates localPairingUrl",
+    grant: { pairingUrl: "http://127.0.0.1:49391/#token=desktop" },
+    redeemed: "http://127.0.0.1:49391/#token=desktop",
+  },
+])("attaches to $owner instead of starting another one", async ({ grant, redeemed }) => {
   const root = realpathSync.native(mkdtempSync(join(tmpdir(), "poracode-cli-tui-owner-")));
   const profile = join(root, "profile");
   const lease = HostOwnerLease.acquire(resolveHostRootPaths(profile), "desktop");
@@ -360,7 +375,7 @@ it("attaches to a running desktop owner instead of starting another one", async 
           : input.command.action === "pairings-create"
             ? {
                 id: "pairing-1",
-                pairingUrl: "http://127.0.0.1:49391/#token=desktop",
+                ...grant,
                 expiresAt: "2026-10-31T00:10:00.000Z",
                 scopes: ["operator"],
               }
@@ -411,7 +426,7 @@ it("attaches to a running desktop owner instead of starting another one", async 
       tuiBootstrapSchema.parse(JSON.parse(String(spawnOptions.env.PORACODE_TUI_BOOTSTRAP))),
     ).toMatchObject({
       auth: "pairing",
-      pairingUrl: "http://127.0.0.1:49391/#token=desktop",
+      pairingUrl: redeemed,
       projectId: "project-1",
     });
   } finally {

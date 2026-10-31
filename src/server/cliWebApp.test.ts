@@ -18,6 +18,7 @@ function fixture() {
         () => {
           id: string;
           pairingUrl: string;
+          localPairingUrl: string;
           expiresAt: string;
           scopes: ["session:read"];
           label: string;
@@ -26,6 +27,7 @@ function fixture() {
         id: "owned-grant",
         pairingUrl:
           "https://hosted.example/?host=https%3A%2F%2Fremote.example%2F#token=private-fixture-token&fp=fixture",
+        localPairingUrl: "https://127.0.0.1:49200/#token=private-fixture-token&fp=fixture",
         expiresAt: "2099-01-01T00:00:00.000Z",
         scopes: ["session:read" as const],
         label: "Local web app",
