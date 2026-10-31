@@ -1,6 +1,6 @@
 import { createReadStream, existsSync, readdirSync, readFileSync } from "node:fs";
-import { basename, extname, join, resolve } from "node:path";
-import { defineConfig, loadEnv, normalizePath, type Plugin } from "vite";
+import { basename, extname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { defineConfig, loadEnv, type Plugin } from "vite";
 import babel from "@rolldown/plugin-babel";
 import react from "@vitejs/plugin-react";
 import { lingui, linguiTransformerBabelPreset } from "@lingui/vite-plugin";
@@ -16,12 +16,28 @@ const linguiBabel = babel({
 const DEFAULT_POSTHOG_HOST = "https://us.i.posthog.com";
 const MATERIAL_ICON_DIR = resolve(import.meta.dirname, "node_modules/material-icon-theme/icons");
 const MATERIAL_ICON_ASSET_PREFIX = "/assets/material-icons/";
-const MANAGED_WORKTREES_GLOB = `${normalizePath(resolve(import.meta.dirname, ".poracode/worktrees"))}/**`;
-const LEGACY_MANAGED_WORKTREES_GLOB = `${normalizePath(resolve(import.meta.dirname, ".lightcode/worktrees"))}/**`;
-const ELECTRON_OUTPUT_GLOB = `${normalizePath(resolve(import.meta.dirname, "dist/main"))}/**`;
-const TEMP_OUTPUT_GLOBS = ["tmp", ".tmp"].map(
-  (directory) => `${normalizePath(resolve(import.meta.dirname, directory))}/**`,
-);
+// Vite's chokidar watcher opens one native fs.watch per file and directory, and
+// its initial scan runs on the dev server's main thread while the first page
+// loads. Watching the whole checkout (agent worktrees, Android/iOS build output,
+// dist, docs, tooling caches) took tens of seconds on Windows. Watch only the
+// top-level directories the client graph imports from, plus root files such as
+// index.html, configs and .env files, and skip tests, which no client imports.
+// Paths outside the root (linked packages) are still added on demand by Vite.
+const CLIENT_WATCH_ROOTS = new Set(["src", "packages", "build", "resources", "public"]);
+const TEST_FILE_RE = /\.test\.[cm]?[jt]sx?$/;
+
+function isUnwatchedClientPath(path: string): boolean {
+  const relativePath = relative(import.meta.dirname, path);
+  if (
+    !relativePath ||
+    relativePath === ".." ||
+    relativePath.startsWith(`..${sep}`) ||
+    isAbsolute(relativePath)
+  )
+    return false;
+  const [topLevel, ...rest] = relativePath.split(sep);
+  return rest.length > 0 && (!CLIENT_WATCH_ROOTS.has(topLevel!) || TEST_FILE_RE.test(relativePath));
+}
 const CLIENT_OPTIMIZED_DEPS = [
   "@chenglou/pretext",
   "@dnd-kit/dom",
@@ -47,6 +63,7 @@ const CLIENT_OPTIMIZED_DEPS = [
   "@xterm/addon-clipboard",
   "@xterm/addon-fit",
   "@xterm/addon-image",
+  "@xterm/addon-program-status",
   "@xterm/addon-search",
   "@xterm/addon-unicode11",
   "@xterm/addon-webgl",
@@ -65,8 +82,10 @@ const CLIENT_OPTIMIZED_DEPS = [
   "react/compiler-runtime",
   "react/jsx-dev-runtime",
   "react/jsx-runtime",
+  "rehype-katex",
   "rehype-raw",
   "remark-gfm",
+  "remark-math-extended",
   "remark-parse",
   "streamdown",
   "style-to-js",
@@ -504,12 +523,18 @@ export default defineConfig(({ mode }) => ({
   server: {
     forwardConsole: true,
     watch: {
-      ignored: [
-        MANAGED_WORKTREES_GLOB,
-        LEGACY_MANAGED_WORKTREES_GLOB,
-        ELECTRON_OUTPUT_GLOB,
-        ...TEMP_OUTPUT_GLOBS,
-        "**/ios/DerivedData/**",
+      ignored: [isUnwatchedClientPath],
+    },
+    // Transform the startup graph as soon as the server listens, so it is ready
+    // when the Electron window (which waits for the runtime build) or a browser
+    // first loads. main.tsx and its startup modules are dynamic imports, which
+    // warmup does not follow from bootstrap.ts.
+    warmup: {
+      clientFiles: [
+        "./src/renderer/bootstrap.ts",
+        "./src/renderer/main.tsx",
+        "./src/renderer/app.tsx",
+        "./src/renderer/components/providers/bootstrap.ts",
       ],
     },
     // Bind all interfaces so phones on the LAN can load the canonical app

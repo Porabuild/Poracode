@@ -46,6 +46,7 @@ export function preparePtyJobOwner({
   outDir = join(repoRoot, "resources", "pty-job-owner"),
   run = execFileSync,
   ifSupported = false,
+  hostOnly = false,
 } = {}) {
   if (ifSupported && process.platform !== "win32") return null;
   if (process.platform !== "win32" || !["x64", "arm64"].includes(process.arch))
@@ -56,6 +57,9 @@ export function preparePtyJobOwner({
   const source = join(repoRoot, "native", "pty-job-owner", "main.rs");
   const sourceSha256 = hash(readFileSync(source));
   const hostTarget = `win32-${process.arch}`;
+  // Development runs only need the owner this host can execute. Retrying a
+  // cross target the host cannot compile would cost every launch a rustc run.
+  const wanted = (target) => !hostOnly || target === hostTarget;
   const manifestPath = join(resourceRoot, "manifest.json");
   const pendingManifest = `${manifestPath}.pending`;
   let previous;
@@ -76,13 +80,13 @@ export function preparePtyJobOwner({
   // cross-compiled target cannot run on this host, so readPtyJobOwnerArtifact
   // (custody, byte hash, native GUI shape) is the whole cached check.
   const preserved = {};
-  const rebuild = PTY_JOB_OWNER_BUILD_TARGETS.map(({ target }) => target);
+  const rebuild = PTY_JOB_OWNER_BUILD_TARGETS.map(({ target }) => target).filter(wanted);
   if (previous?.sourceSha256 === sourceSha256) {
     ptyJobOwnerResource(resourceRoot);
     rebuild.length = 0;
     for (const { target } of PTY_JOB_OWNER_BUILD_TARGETS) {
       if (!previous.targets[target]) {
-        rebuild.push(target);
+        if (wanted(target)) rebuild.push(target);
         continue;
       }
       const cached = readPtyJobOwnerArtifact(resourceRoot, target);
@@ -191,9 +195,13 @@ if (
   const args = process.argv.slice(2);
   const ifSupported = args[0] === "--if-supported";
   if (ifSupported) args.shift();
+  const hostOnly = args[0] === "--host-only";
+  if (hostOnly) args.shift();
   if (args.length !== 0 && (args.length !== 2 || args[0] !== "--out-dir" || !args[1]))
-    throw new Error("Usage: prepare-pty-job-owner.mjs [--if-supported] [--out-dir PATH]");
+    throw new Error(
+      "Usage: prepare-pty-job-owner.mjs [--if-supported] [--host-only] [--out-dir PATH]",
+    );
   process.stdout.write(
-    `${JSON.stringify(preparePtyJobOwner({ ifSupported, ...(args.length ? { outDir: resolve(args[1]) } : {}) }))}\n`,
+    `${JSON.stringify(preparePtyJobOwner({ ifSupported, hostOnly, ...(args.length ? { outDir: resolve(args[1]) } : {}) }))}\n`,
   );
 }
