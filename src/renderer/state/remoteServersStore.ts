@@ -98,6 +98,7 @@ import {
 } from "@/renderer/state/remoteServers/snapshotProjection";
 
 export {
+  selectBrowserBridgeClientServer,
   selectBrowserBridgeDesktop,
   selectBrowserBridgeServer,
   selectBrowserPanelAvailable,
@@ -326,6 +327,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           scheduleRemoteServerRefresh(get, desktopId, options);
         },
         connectAll: session.connectAll,
+        verifyConnections: session.verifyConnections,
         reconnectServer: session.reconnectServer,
         getHostUpdateState: session.getHostUpdateState,
         checkHostUpdate: session.checkHostUpdate,

@@ -1,9 +1,14 @@
 import { act, fireEvent, screen } from "@testing-library/react";
+import { useEffect } from "react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { PoracodeBridge } from "@/shared/ipc";
 import { installBrowserClientRuntime, resetClientRuntimeForTest } from "@/renderer/clientRuntime";
 import { usePanelStore } from "@/renderer/state/panelStore";
-import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import {
+  selectBrowserBridgeDesktop,
+  useRemoteServersStore,
+} from "@/renderer/state/remoteServersStore";
+import { __resetBrowserBridgeForTest } from "@/renderer/state/remoteServers/browserBridge";
 import type { RemoteServerRecord } from "@/renderer/state/remoteServers/types";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { BrowserRemoteConnectionGate } from "./BrowserRemoteConnectionGate";
@@ -25,6 +30,7 @@ describe("BrowserRemoteConnectionGate", () => {
   });
 
   afterEach(() => {
+    __resetBrowserBridgeForTest();
     resetClientRuntimeForTest();
     Reflect.deleteProperty(window, "poracode");
   });
@@ -182,6 +188,47 @@ describe("BrowserRemoteConnectionGate", () => {
     expect(screen.getByText("Remote feature")).toBeInTheDocument();
     expect(screen.queryByRole("img", { name: "Loading" })).not.toBeInTheDocument();
     expect(screen.queryByText("Full connection page")).not.toBeInTheDocument();
+  });
+
+  it("does not remount onto another host while the bound host reconnects", () => {
+    const browserBridge = {} as PoracodeBridge;
+    window.poracode = browserBridge;
+    installBrowserClientRuntime(browserBridge);
+    const second = { ...desktop, desktopId: "second", label: "Second", endpoint: "http://b.test/" };
+    const online = { status: "online" as const, projects: [], threads: [] };
+    useRemoteServersStore.setState({
+      servers: [desktop, second],
+      runtime: { desktop: online, second: online },
+    });
+    selectBrowserBridgeDesktop("desktop");
+    let mounts = 0;
+    function MountCounter() {
+      useEffect(() => {
+        mounts += 1;
+      }, []);
+      return <div>Remote feature</div>;
+    }
+
+    render(
+      <BrowserRemoteConnectionGate>
+        <MountCounter />
+      </BrowserRemoteConnectionGate>,
+    );
+    expect(mounts).toBe(1);
+
+    act(() => {
+      useRemoteServersStore.setState((state) => ({
+        runtime: { ...state.runtime, desktop: { ...online, status: "connecting" } },
+      }));
+    });
+    act(() => {
+      useRemoteServersStore.setState((state) => ({
+        runtime: { ...state.runtime, desktop: online },
+      }));
+    });
+
+    expect(screen.getByText("Remote feature")).toBeInTheDocument();
+    expect(mounts).toBe(1);
   });
 
   it("mounts the browser app without waiting for a saved server to connect", () => {

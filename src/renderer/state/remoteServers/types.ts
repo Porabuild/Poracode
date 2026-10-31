@@ -319,7 +319,18 @@ export interface RemoteServersState {
     desktopId: string,
     options?: { readonly includeAgentStatuses?: boolean },
   ): void;
+  /**
+   * Connects every saved server that is not live. A server that is online with
+   * an open event socket is left alone unless `forceTransportReconnect` asks
+   * for every transport to be replaced.
+   */
   connectAll(options?: { readonly forceTransportReconnect?: boolean }): Promise<void>;
+  /**
+   * Resume check for an ordinary tab or app switch: health-probes each live
+   * event socket (a dead one reconnects through its own monitor) and connects
+   * only the servers that are not live, without downgrading healthy ones.
+   */
+  verifyConnections(): Promise<void>;
   reconnectServer(desktopId: string): Promise<void>;
   getHostUpdateState(desktopId: string): ReturnType<RemoteDesktopClient["hostUpdateState"]>;
   checkHostUpdate(desktopId: string): ReturnType<RemoteDesktopClient["checkHostUpdate"]>;
