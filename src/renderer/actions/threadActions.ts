@@ -937,7 +937,9 @@ export function deleteThread(threadId: string, worktreePath?: string, projectId?
     useAppStore.getState().deleteThread(threadId);
     return;
   }
-  deleteWorktreeGroup(project.id, worktreePath, [threadId]);
+  // A bounded catalog can omit siblings. The host's pre-effect refusal lets
+  // this thread deletion keep their worktree without deleting unseen threads.
+  deleteWorktreeGroup(project.id, worktreePath, [threadId], () => deleteThreadOnly(threadId));
 }
 
 export function deleteThreadsAndOwnedWorktrees(threads: readonly Thread[]): void {
@@ -964,6 +966,9 @@ export function deleteThreadsAndOwnedWorktrees(threads: readonly Thread[]): void
         thread.projectId,
         thread.worktreePath,
         siblings.map((candidate) => candidate.id),
+        () => {
+          for (const sibling of siblings) deleteThreadOnly(sibling.id);
+        },
       );
     } else {
       deleteThread(thread.id);
