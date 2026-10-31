@@ -57,13 +57,15 @@ jobs:
             exit 1
           fi
       - name: Install Vercel CLI
-        run: npm install --global vercel@59.10.0
+        run: npm install --global vercel@64.5.0
       - name: Pull Vercel environment
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
       - name: Build
         env:
+          # The pinned CLI gates Node 26 (package.json engines) behind this flag.
+          VERCEL_ALLOW_NODEJS_26: "1"
           # Corepack cannot install Bun; setup-bun already supplies the pinned binary.
           ENABLE_EXPERIMENTAL_COREPACK: "0"
           PORACODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS: ${{ secrets.PORACODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS }}
