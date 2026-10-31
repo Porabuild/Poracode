@@ -1065,7 +1065,7 @@ msgstr "Une source d'arbre de travail figée nécessite un hash de commit comple
 #~ msgid "A locked screen stops all desktop control, so the display is kept on while a Computer Use session is running. You can still lock the screen yourself."
 #~ msgstr "Un écran verrouillé interrompt tout contrôle du bureau ; l'écran reste donc allumé pendant une session d'utilisation de l'ordinateur. Vous pouvez toujours verrouiller l'écran vous-même."
 
-#: src/renderer/components/thread/ChatPane/ChatPane.tsx
+#: src/renderer/components/thread/ThreadRemoteSyncDock.tsx
 msgid "A message deletion could not be confirmed. Refresh to resync this conversation."
 msgstr "Une suppression de messages n’a pas pu être confirmée. Actualisez pour resynchroniser cette conversation."
 
@@ -14830,7 +14830,7 @@ msgstr "Référence"
 
 #. Button: re-fetch provider usage now
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
-#: src/renderer/components/thread/ChatPane/ChatPane.tsx
+#: src/renderer/components/thread/ThreadRemoteSyncDock.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
@@ -16995,7 +16995,7 @@ msgstr "Le serveur {target} s'exécute sur cet ordinateur et n'est pas disponibl
 msgid "Server base URL"
 msgstr "URL de base du serveur"
 
-#: src/renderer/components/thread/ChatPane/ChatPane.tsx
+#: src/renderer/components/thread/ThreadRemoteSyncDock.tsx
 msgid "Server offline — this conversation may be out of date."
 msgstr "Serveur hors ligne – cette conversation est peut-être obsolète."
 
@@ -21777,6 +21777,7 @@ msgstr "Préparation de l'environnement shell WSL…"
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 #: src/renderer/components/thread/ThreadHistoryLoadFailureDock.tsx
 #: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
+#: src/renderer/components/thread/ThreadRemoteSyncDock.tsx
 #: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Warning"

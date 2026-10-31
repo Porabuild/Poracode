@@ -131,6 +131,7 @@ import { ThreadComposerDocks } from "./ThreadComposerDocks";
 import { selectPendingMessageReplyIds } from "./messageReplyForms";
 import { ThreadResumeUnavailableDock } from "./ThreadResumeUnavailableDock";
 import { ThreadHistoryNoticeDock, useVisibleThreadHistoryNotice } from "./ThreadHistoryNoticeDock";
+import { ThreadRemoteSyncDock, useThreadRemoteSyncWarning } from "./ThreadRemoteSyncDock";
 import { ThreadHistoryLoadFailureDock } from "./ThreadHistoryLoadFailureDock";
 import {
   usePluginMentionItems,
@@ -859,11 +860,16 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     historyNotice && !usesTerminalPresentation ? (
       <ThreadHistoryNoticeDock threadId={thread.id} entry={historyNotice} />
     ) : null;
+  // Remote sync warnings used to sit above the transcript; every chat warning
+  // now lives in the composer's notice stack.
+  const remoteSyncWarning = useThreadRemoteSyncWarning(thread);
+  const showRemoteSyncWarning = remoteSyncWarning !== null && !usesTerminalPresentation;
   const composerNotices =
-    historyNoticeDock || historyLoadFailed || resumeUnavailableNotice ? (
+    historyNoticeDock || historyLoadFailed || showRemoteSyncWarning || resumeUnavailableNotice ? (
       <>
         {historyNoticeDock}
         {historyLoadFailed ? <ThreadHistoryLoadFailureDock threadId={thread.id} /> : null}
+        {showRemoteSyncWarning ? <ThreadRemoteSyncDock thread={thread} /> : null}
         {resumeUnavailableNotice}
       </>
     ) : null;

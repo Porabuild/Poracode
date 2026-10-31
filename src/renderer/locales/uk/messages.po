@@ -1065,7 +1065,7 @@ msgstr "Для замороженого джерела worktree потрібен
 #~ msgid "A locked screen stops all desktop control, so the display is kept on while a Computer Use session is running. You can still lock the screen yourself."
 #~ msgstr "Заблокований екран повністю зупиняє керування робочим столом, тому під час сеансу керування комп'ютером дисплей залишається увімкненим. Ви й далі можете заблокувати екран вручну."
 
-#: src/renderer/components/thread/ChatPane/ChatPane.tsx
+#: src/renderer/components/thread/ThreadRemoteSyncDock.tsx
 msgid "A message deletion could not be confirmed. Refresh to resync this conversation."
 msgstr "Не вдалося підтвердити видалення повідомлень. Оновіть, щоб ресинхронізувати цю розмову."
 
@@ -14831,7 +14831,7 @@ msgstr "Посилання на версію"
 
 #. Button: re-fetch provider usage now
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
-#: src/renderer/components/thread/ChatPane/ChatPane.tsx
+#: src/renderer/components/thread/ThreadRemoteSyncDock.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
@@ -16996,7 +16996,7 @@ msgstr "Сервер {target} працює на цьому комп'ютері �
 msgid "Server base URL"
 msgstr "Базова URL-адреса сервера"
 
-#: src/renderer/components/thread/ChatPane/ChatPane.tsx
+#: src/renderer/components/thread/ThreadRemoteSyncDock.tsx
 msgid "Server offline — this conversation may be out of date."
 msgstr "Сервер офлайн — ця розмова може бути застарілою."
 
@@ -21778,6 +21778,7 @@ msgstr "Підготовка середовища оболонки WSL…"
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 #: src/renderer/components/thread/ThreadHistoryLoadFailureDock.tsx
 #: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
+#: src/renderer/components/thread/ThreadRemoteSyncDock.tsx
 #: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Warning"

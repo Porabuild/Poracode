@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ConversationSearchJump } from "./ConversationSearchJump";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { Button, toast } from "@heroui/react";
+import { toast } from "@heroui/react";
 import { useShallow } from "zustand/react/shallow";
 import { isThreadTurnActive, type ProjectLocation, type Thread } from "@/shared/contracts";
 import { isHomeProjectId } from "@/shared/homeScope";
@@ -401,17 +401,6 @@ export function ChatPane(props: ChatPaneProps) {
   );
   const isConnecting = useAppStore((s) => s.connectingThreadIds[threadId] !== undefined);
   const hydrationStatus = useAppStore((s) => s.runtimeHydrationStatus[threadId]);
-  // Remote only: the server deleted transcript this pane could not confirm
-  // (bounded authoritative reloads exhausted), so the view may lag the host.
-  const truncateReloadBlocked = useAppStore((s) => {
-    if (!thread.remoteServerId || !thread.remoteId) return false;
-    return s.truncateReloadExhausted[`${thread.remoteServerId}\u0000${thread.remoteId}`] === true;
-  });
-  const remoteServerOffline = useRemoteServersStore((s) => {
-    if (!thread.remoteServerId) return false;
-    const runtimeStatus = s.runtime[thread.remoteServerId]?.status;
-    return runtimeStatus === "offline" || runtimeStatus === "error";
-  });
   // Detached background work keeps the thread doing real work after the
   // foreground turn settles. Treat that as "still working" for the tail-loader
   // timer (so it keeps ticking "Working for ...") without touching `status` -
@@ -521,35 +510,6 @@ export function ChatPane(props: ChatPaneProps) {
             <ImportedThreadNotice importedFrom={thread.config.importedFrom} />
           ) : null}
           <div className="relative flex min-h-0 flex-1 flex-col">
-            {truncateReloadBlocked ? (
-              <div className="flex items-center justify-between gap-2 border-b border-warning-soft-foreground/20 bg-warning-soft/60 px-3 py-1.5 text-xs text-warning-soft-foreground">
-                <span>
-                  <Trans>
-                    A message deletion could not be confirmed. Refresh to resync this conversation.
-                  </Trans>
-                </span>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onPress={() => {
-                    if (thread.remoteServerId) {
-                      void useRemoteServersStore
-                        .getState()
-                        .refreshServer(thread.remoteServerId, { includeAgentStatuses: false });
-                    }
-                  }}
-                >
-                  <Trans>Refresh</Trans>
-                </Button>
-              </div>
-            ) : remoteServerOffline ? (
-              <div
-                className="border-b border-border bg-surface-container/60 px-3 py-1.5 text-xs text-muted"
-                role="status"
-              >
-                <Trans>Server offline — this conversation may be out of date.</Trans>
-              </div>
-            ) : null}
             <ThreadForkOrigin threadId={threadId} />
             <ConversationSearchJump
               threadId={threadId}
