@@ -84,7 +84,7 @@ jobs:
         run: node --test scripts/build-desktop-artifact.test.mjs scripts/mac-notarization-dependency.test.mjs
 
       - name: Electron development regression tests
-        run: node --test scripts/dev-runtime-watch.test.mjs scripts/dev-launch.test.mjs
+        run: node --test scripts/dev-runtime-watch.test.mjs scripts/dev-launch.test.mjs scripts/vite-lingui-macro-worker.test.mjs
 
       - name: Architecture boundary audit and analyzer tests
         run: bun run architecture:check
