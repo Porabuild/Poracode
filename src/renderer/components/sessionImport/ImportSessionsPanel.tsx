@@ -4,10 +4,13 @@ import { plural } from "@lingui/core/macro";
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import type { ImportSessionFacets, ImportableSession } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
-import { readBridge } from "@/renderer/bridge";
+import { isRemoteSession, readBridge } from "@/renderer/bridge";
 import { Button, Input, PixelLoader, Select } from "@/renderer/components/common";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useAppStore } from "@/renderer/state/appStore";
+import { remoteConnectionKey } from "@/renderer/state/remoteServers/types";
+import { useSettingsHostServer } from "@/renderer/state/settingsHostStore";
+import { isHomeProject } from "@/shared/homeScope";
 import {
   ALL,
   applyImportFilters,
@@ -16,9 +19,19 @@ import {
   type ImportFilters,
 } from "./importFilters";
 import { findImportedThreadId, importSessions } from "./importSessionsActions";
+import { hostThreads } from "./remoteSessionImport";
 
 const SEARCH_DEBOUNCE_MS = 400;
 const EMPTY_FACETS: ImportSessionFacets = { agentKinds: [], folders: [] };
+
+/** An older host refuses the listing before any effect; it simply cannot import yet. */
+function isUnsupportedOnHost(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    (error as { code?: unknown }).code === "git_procedure_not_allowed"
+  );
+}
 
 function folderName(path: string): string {
   return path.split(/[\\/]/u).filter(Boolean).at(-1) ?? path;
@@ -27,8 +40,19 @@ function folderName(path: string): string {
 /** Lists CLI conversations found on disk and turns the chosen ones into threads. */
 export function ImportSessionsPanel() {
   const { t } = useLingui();
-  const projects = useAppStore((state) => state.projects);
-  const threads = useAppStore((state) => state.threads);
+  // A remote client lists and imports the bound host's sessions, so only that
+  // host's projects and threads apply.
+  const settingsHost = useSettingsHostServer();
+  const hostKey = isRemoteSession() && settingsHost ? remoteConnectionKey(settingsHost) : undefined;
+  const allProjects = useAppStore((state) => state.projects);
+  const allThreads = useAppStore((state) => state.threads);
+  const projects =
+    hostKey === undefined
+      ? allProjects
+      : allProjects.filter(
+          (project) => project.remoteServerId === hostKey && !isHomeProject(project),
+        );
+  const threads = hostKey === undefined ? allThreads : hostThreads(allThreads, hostKey);
   const agentStatuses = useAgentStatusesStore((state) => state.agentStatuses);
   const [sessions, setSessions] = useState<ImportableSession[]>([]);
   const [facets, setFacets] = useState(EMPTY_FACETS);
@@ -38,6 +62,7 @@ export function ImportSessionsPanel() {
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [scannedFor, setScannedFor] = useState<string | undefined>(undefined);
   const [busy, setBusy] = useState(false);
+  const [hostUnsupported, setHostUnsupported] = useState(false);
   const [projectId, setProjectId] = useState(projects[0]?.id ?? "");
 
   useEffect(() => {
@@ -70,7 +95,8 @@ export function ImportSessionsPanel() {
       })
       .catch((error: unknown) => {
         if (cancelled) return;
-        toast.danger(friendlyError(error));
+        if (isUnsupportedOnHost(error)) setHostUnsupported(true);
+        else toast.danger(friendlyError(error));
         setScannedFor(scanKey);
       });
     return () => {
@@ -83,6 +109,14 @@ export function ImportSessionsPanel() {
       <div className="flex items-center justify-center py-8">
         <PixelLoader />
       </div>
+    );
+  }
+
+  if (hostUnsupported) {
+    return (
+      <p className="text-xs text-muted">
+        <Trans>Update this host to import its sessions.</Trans>
+      </p>
     );
   }
 
@@ -109,6 +143,7 @@ export function ImportSessionsPanel() {
       const { imported, failed } = await importSessions({
         sessions: chosen,
         ...(projectId ? { fallbackProjectId: projectId } : {}),
+        ...(hostKey !== undefined ? { hostKey } : {}),
       });
       if (imported > 0) {
         toast.success(

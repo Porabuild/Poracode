@@ -6,6 +6,73 @@ import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
 @Serializable
+data class ProcedureprobeMcpServerResultU2DOptionU2D2U2DError_f145218b6d(
+    @SerialName("authScheme") val authScheme: RemoteField<ProcedureprobeMcpServerResultU2DOptionU2D2U2DErrorU2DAuthScheme_2d52ff1140> = RemoteField.Missing,
+    @SerialName("code") val code: ProcedureprobeMcpServerResultU2DOptionU2D2U2DErrorU2DCode_e527c3ee29,
+    @SerialName("message") val message: String,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("authScheme", "ProcedureprobeMcpServerResultU2DOptionU2D2U2DErrorU2DAuthScheme_2d52ff1140", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("code", "ProcedureprobeMcpServerResultU2DOptionU2D2U2DErrorU2DCode_e527c3ee29", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("message", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+typealias ProcedureprobeMcpServerResultU2DOptionU2D2U2DToolCount_499c88c1c5 = Double
+
+@Serializable
+data class ProcedureprobeMcpServerResultU2DOptionU2D2_8ace86d01d(
+    @SerialName("environment") val environment: ProcedureprobeMcpServerResultU2DOptionU2D1U2DEnvironment_6b3ef80f7d,
+    @SerialName("error") val error: ProcedureprobeMcpServerResultU2DOptionU2D2U2DError_f145218b6d,
+    @SerialName("latencyMs") val latencyMs: Long,
+    @SerialName("status") val status: ProcedureprobeMcpServerResultU2DOptionU2D2U2DErrorU2DCode_e527c3ee29,
+    @SerialName("toolCount") val toolCount: ProcedureprobeMcpServerResultU2DOptionU2D2U2DToolCount_499c88c1c5,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("environment", "ProcedureprobeMcpServerResultU2DOptionU2D1U2DEnvironment_6b3ef80f7d", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("error", "ProcedureprobeMcpServerResultU2DOptionU2D2U2DError_f145218b6d", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("latencyMs", "Long", true, false, 0.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("status", "ProcedureprobeMcpServerResultU2DOptionU2D2U2DErrorU2DCode_e527c3ee29", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("toolCount", "ProcedureprobeMcpServerResultU2DOptionU2D2U2DToolCount_499c88c1c5", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+enum class ProcedureprobeMcpServerResultU2DOptionU2D3U2DErrorU2DCode_2fb9be13c5 {
+    @SerialName("auth-required") AUTHU2DREQUIRED,
+    @SerialName("timeout") TIMEOUT,
+    @SerialName("command-not-found") COMMANDU2DNOTU2DFOUND,
+    @SerialName("connection-failed") CONNECTIONU2DFAILED,
+    @SerialName("protocol-error") PROTOCOLU2DERROR,
+    @SerialName("invalid-config") INVALIDU2DCONFIG,
+    @SerialName("probe-unavailable") PROBEU2DUNAVAILABLE,
+}
+
+@Serializable
+data class ProcedureprobeMcpServerResultU2DOptionU2D3U2DError_5cb704413f(
+    @SerialName("authScheme") val authScheme: RemoteField<ProcedureprobeMcpServerResultU2DOptionU2D2U2DErrorU2DAuthScheme_2d52ff1140> = RemoteField.Missing,
+    @SerialName("code") val code: ProcedureprobeMcpServerResultU2DOptionU2D3U2DErrorU2DCode_2fb9be13c5,
+    @SerialName("message") val message: String,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("authScheme", "ProcedureprobeMcpServerResultU2DOptionU2D2U2DErrorU2DAuthScheme_2d52ff1140", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("code", "ProcedureprobeMcpServerResultU2DOptionU2D3U2DErrorU2DCode_2fb9be13c5", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("message", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+enum class ProcedureprobeMcpServerResultU2DOptionU2D3U2DStatus_fd6258ac65 {
+    @SerialName("unavailable") UNAVAILABLE,
+}
+
+@Serializable
 data class ProcedureprobeMcpServerResultU2DOptionU2D3_2a43ea36a6(
     @SerialName("environment") val environment: ProcedureprobeMcpServerResultU2DOptionU2D1U2DEnvironment_6b3ef80f7d,
     @SerialName("error") val error: ProcedureprobeMcpServerResultU2DOptionU2D3U2DError_5cb704413f,
@@ -380,25 +447,4 @@ enum class ProcedurescanSkillsResultU2DSkillsU2DItemU2DImportState_5cfe15b2e7 {
     @SerialName("available") AVAILABLE,
     @SerialName("already-imported") ALREADYU2DIMPORTED,
     @SerialName("conflict") CONFLICT,
-}
-
-@Serializable
-enum class ProcedurescanSkillsResultU2DSkillsU2DItemU2DInvalidReason_883b3b8a61 {
-    @SerialName("read-error") READU2DERROR,
-    @SerialName("missing-file") MISSINGU2DFILE,
-    @SerialName("too-large") TOOU2DLARGE,
-    @SerialName("missing-frontmatter") MISSINGU2DFRONTMATTER,
-    @SerialName("missing-name") MISSINGU2DNAME,
-    @SerialName("invalid-name") INVALIDU2DNAME,
-    @SerialName("name-mismatch") NAMEU2DMISMATCH,
-    @SerialName("missing-description") MISSINGU2DDESCRIPTION,
-    @SerialName("description-too-long") DESCRIPTIONU2DTOOU2DLONG,
-}
-
-@Serializable
-enum class ProcedurescanSkillsResultU2DSkillsU2DItemU2DOrigin_91766049df {
-    @SerialName("managed") MANAGED,
-    @SerialName("external") EXTERNAL,
-    @SerialName("built-in") BUILTU2DIN,
-    @SerialName("plugin") PLUGIN,
 }

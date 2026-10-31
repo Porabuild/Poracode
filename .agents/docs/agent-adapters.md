@@ -217,9 +217,11 @@ Every agent implements `AgentAdapter` (`src/supervisor/agents/base.ts`).
   bounds, the mtime/size summary cache, and request supersession; it reads only
   inside declared roots, writes nothing to provider homes, and replays text
   through `thread-runtime-events`. Imported threads are created `inactive` with
-  a `sessionRef`, so opening one resumes through the normal reopen path. The
-  import procedures are desktop-local (not remote-routable) and the scan cache is
-  in-memory.
+  a `sessionRef`, so opening one resumes through the normal reopen path. Remote
+  clients list a host's sessions through the `listImportableSessions`
+  passthrough and import with the host's `import-session` thread command
+  (capability `sessionImport` v1); `importSessionTranscript` stays desktop-local.
+  The scan cache is in-memory.
 
 ### Provider folder layout
 

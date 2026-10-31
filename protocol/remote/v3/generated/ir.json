@@ -11,8 +11,8 @@
   "generatorVersion": 7,
   "inventory": {
     "blockedProcedureResults": [],
-    "jsonProcedureResults": 99,
-    "procedures": 163,
+    "jsonProcedureResults": 100,
+    "procedures": 164,
     "replayableEventTypes": 16,
     "routes": 119,
     "runtimeEventTypes": 16,
@@ -21,7 +21,7 @@
     "webSocketServerMessages": 12
   },
   "manifestFormatVersion": 1,
-  "manifestHash": "sha256:48db6a3e43d98007056cc988d5d0021c4df34de60e0dae41f965d9639361ae25",
+  "manifestHash": "sha256:0cc3d41e33fa8b3fb6138c2027ed9da3c42ab15c24b3e1a3723e73c8e9a15d8f",
   "portableTransformIds": [
     "agent-settings.strip-sensitive",
     "push.routing.client-connection-id.lowercase",
@@ -26929,6 +26929,135 @@
       "scope": "session:read"
     },
     {
+      "name": "listImportableSessions",
+      "owner": "desktop",
+      "request": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": true,
+        "properties": {
+          "agentKind": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "cwd": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "query": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "type": "object",
+        "x-poracode-unknownFields": "strip"
+      },
+      "result": {
+        "kind": "json",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": true,
+          "properties": {
+            "facets": {
+              "additionalProperties": true,
+              "properties": {
+                "agentKinds": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "folders": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "agentKinds",
+                "folders"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            "sessions": {
+              "items": {
+                "additionalProperties": true,
+                "properties": {
+                  "agentKind": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "cwd": {
+                    "type": "string"
+                  },
+                  "cwdExists": {
+                    "type": "boolean"
+                  },
+                  "id": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "model": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "path": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "preview": {
+                    "type": "string"
+                  },
+                  "providerSessionId": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "startedAt": {
+                    "type": "string"
+                  },
+                  "title": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "updatedAt": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "agentKind",
+                  "providerSessionId",
+                  "path",
+                  "updatedAt",
+                  "preview",
+                  "cwdExists"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              },
+              "type": "array"
+            },
+            "superseded": {
+              "const": true,
+              "type": "boolean"
+            },
+            "truncated": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "sessions",
+            "facets",
+            "truncated"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        }
+      },
+      "scope": "projects:manage"
+    },
+    {
       "name": "listProjectTree",
       "owner": "projectLocation",
       "request": {
@@ -35975,6 +36104,7 @@
     "installMarketplaceSkill",
     "invokeThreadSessionAction",
     "listFileCheckpoints",
+    "listImportableSessions",
     "listProjectTree",
     "listSkillMarketplace",
     "listThreadSessionActions",
@@ -41813,6 +41943,19 @@
                   "type": "object",
                   "x-poracode-unknownFields": "strip"
                 },
+                "sessionImport": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "versions": {
+                      "$ref": "#/$defs/__schema0"
+                    }
+                  },
+                  "required": [
+                    "versions"
+                  ],
+                  "type": "object",
+                  "x-poracode-unknownFields": "strip"
+                },
                 "sshEnvironments": {
                   "additionalProperties": true,
                   "properties": {
@@ -43918,6 +44061,19 @@
                   "x-poracode-unknownFields": "strip"
                 },
                 "runtimeHistoryNotices": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "versions": {
+                      "$ref": "#/$defs/__schema0"
+                    }
+                  },
+                  "required": [
+                    "versions"
+                  ],
+                  "type": "object",
+                  "x-poracode-unknownFields": "strip"
+                },
+                "sessionImport": {
                   "additionalProperties": true,
                   "properties": {
                     "versions": {
@@ -67843,6 +67999,50 @@
             {
               "additionalProperties": true,
               "properties": {
+                "agentKind": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "import-session",
+                  "type": "string"
+                },
+                "model": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "path": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "projectId": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "providerSessionId": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "title": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "projectId",
+                "agentKind",
+                "model",
+                "title",
+                "path",
+                "providerSessionId"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            {
+              "additionalProperties": true,
+              "properties": {
                 "kind": {
                   "const": "prepare-worktree",
                   "type": "string"
@@ -78573,7 +78773,7 @@
     "void-envelope.omit-result",
     "void-result.omit-field"
   ],
-  "sourceHash": "sha256:ca93f2be56d5c11b9d8969f9cf281436170957f8fd390691d4286649e5c9900b",
+  "sourceHash": "sha256:cb30c9797a3b5e420aa282c3b3f083bda5d15673a9b103016c43c68496184f52",
   "unknownObjectFields": "ignore",
   "webSocket": {
     "clientMessages": [

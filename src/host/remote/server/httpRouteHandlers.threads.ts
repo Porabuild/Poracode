@@ -317,6 +317,10 @@ export const THREAD_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, ThreadRouteId> =
       );
     }
     assertRemoteThreadCommandExperimentSafe(command);
+    if (command.kind === "import-session") {
+      // Imports read host transcript files, like listing them.
+      ctx.security.requireBearer(req, ["projects:manage"]);
+    }
     const dispatch = async (markDispatched?: () => void) => {
       if (command.kind === "delete-worktree-group") {
         const linkedThreadIds = dbGetThreads()

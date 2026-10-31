@@ -6,6 +6,27 @@ import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
 @Serializable
+enum class ProcedurescanSkillsResultU2DSkillsU2DItemU2DInvalidReason_883b3b8a61 {
+    @SerialName("read-error") READU2DERROR,
+    @SerialName("missing-file") MISSINGU2DFILE,
+    @SerialName("too-large") TOOU2DLARGE,
+    @SerialName("missing-frontmatter") MISSINGU2DFRONTMATTER,
+    @SerialName("missing-name") MISSINGU2DNAME,
+    @SerialName("invalid-name") INVALIDU2DNAME,
+    @SerialName("name-mismatch") NAMEU2DMISMATCH,
+    @SerialName("missing-description") MISSINGU2DDESCRIPTION,
+    @SerialName("description-too-long") DESCRIPTIONU2DTOOU2DLONG,
+}
+
+@Serializable
+enum class ProcedurescanSkillsResultU2DSkillsU2DItemU2DOrigin_91766049df {
+    @SerialName("managed") MANAGED,
+    @SerialName("external") EXTERNAL,
+    @SerialName("built-in") BUILTU2DIN,
+    @SerialName("plugin") PLUGIN,
+}
+
+@Serializable
 data class ProcedurescanSkillsResultU2DSkillsU2DItem_56a9bf5bf3(
     @SerialName("absolutePath") val absolutePath: String,
     @SerialName("availability") val availability: RemoteField<ProcedureimportSkillsRequestU2DSkillsU2DItemU2DAvailability_9c8337f42f> = RemoteField.Missing,
@@ -422,26 +443,4 @@ enum class ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D13U2DOut
 @Serializable
 enum class ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D13U2DType_d92fe09fa7 {
     @SerialName("request.resolved") REQUESTU2ERESOLVED,
-}
-
-@Serializable
-data class ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D13_e011332682(
-    @SerialName("outcome") val outcome: ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D13U2DOutcome_506f036707,
-    @SerialName("requestId") val requestId: ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b,
-    @SerialName("threadId") val threadId: ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b,
-    @SerialName("type") val type: ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D13U2DType_d92fe09fa7,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("outcome", "ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D13U2DOutcome_506f036707", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("requestId", "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("threadId", "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("type", "ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D13U2DType_d92fe09fa7", true, false, null, null, null, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable
-enum class ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D14U2DType_9d72555063 {
-    @SerialName("runtime.truncated") RUNTIMEU2ETRUNCATED,
 }

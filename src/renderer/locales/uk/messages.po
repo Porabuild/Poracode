@@ -3462,6 +3462,7 @@ msgid "Choose a photo"
 msgstr "Вибрати фото"
 
 #: src/renderer/components/sessionImport/importSessionsActions.ts
+#: src/renderer/components/sessionImport/remoteSessionImport.ts
 msgid "Choose a project for sessions whose folder no longer exists."
 msgstr "Виберіть проєкт для сесій, папка яких більше не існує."
 
@@ -12074,6 +12075,7 @@ msgid "No microphone found."
 msgstr "Мікрофон не знайдено."
 
 #: src/renderer/components/sessionImport/importSessionsActions.ts
+#: src/renderer/components/sessionImport/remoteSessionImport.ts
 msgid "No model is available for {agent}. Check the agent in Settings."
 msgstr "Для {agent} немає доступної моделі. Перевірте агента в налаштуваннях."
 
@@ -21032,6 +21034,10 @@ msgstr "Оновити {0} ({env})"
 msgid "Update {0} to {updateLabel}"
 msgstr "Оновити {0} до {updateLabel}"
 
+#: src/renderer/components/sessionImport/remoteSessionImport.ts
+msgid "Update {host} to import its sessions."
+msgstr "Оновіть {host}, щоб імпортувати його сесії."
+
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #~ msgid "Update all"
 #~ msgstr "Оновити все"
@@ -21117,6 +21123,10 @@ msgstr "Оновіть хост, щоб створювати відгалуже�
 #: src/renderer/components/thread/SideChat/sideChatActions.ts
 msgid "Update the remote host to use side chat with hidden context."
 msgstr "Оновіть віддалений хост, щоб використовувати додатковий чат із прихованим контекстом."
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Update this host to import its sessions."
+msgstr "Оновіть цей хост, щоб імпортувати його сесії."
 
 #: src/renderer/components/providers/HostUsageView.tsx
 msgid "Update this host to refresh usage remotely. Cached usage can still be read."

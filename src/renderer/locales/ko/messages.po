@@ -3462,6 +3462,7 @@ msgid "Choose a photo"
 msgstr "사진 선택"
 
 #: src/renderer/components/sessionImport/importSessionsActions.ts
+#: src/renderer/components/sessionImport/remoteSessionImport.ts
 msgid "Choose a project for sessions whose folder no longer exists."
 msgstr "폴더가 더 이상 존재하지 않는 세션을 가져올 프로젝트를 선택하세요."
 
@@ -12074,6 +12075,7 @@ msgid "No microphone found."
 msgstr "마이크를 찾을 수 없습니다."
 
 #: src/renderer/components/sessionImport/importSessionsActions.ts
+#: src/renderer/components/sessionImport/remoteSessionImport.ts
 msgid "No model is available for {agent}. Check the agent in Settings."
 msgstr "{agent}에 사용할 수 있는 모델이 없습니다. 설정에서 에이전트를 확인하세요."
 
@@ -21032,6 +21034,10 @@ msgstr "{0} 업데이트({env})"
 msgid "Update {0} to {updateLabel}"
 msgstr "{0}을(를) {updateLabel}(으)로 업데이트"
 
+#: src/renderer/components/sessionImport/remoteSessionImport.ts
+msgid "Update {host} to import its sessions."
+msgstr "세션을 가져오려면 {host}을(를) 업데이트하세요."
+
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #~ msgid "Update all"
 #~ msgstr "모두 업데이트"
@@ -21117,6 +21123,10 @@ msgstr "대화를 분기하려면 호스트를 업데이트하세요."
 #: src/renderer/components/thread/SideChat/sideChatActions.ts
 msgid "Update the remote host to use side chat with hidden context."
 msgstr "숨겨진 컨텍스트로 보조 채팅을 사용하려면 원격 호스트를 업데이트하세요."
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Update this host to import its sessions."
+msgstr "세션을 가져오려면 이 호스트를 업데이트하세요."
 
 #: src/renderer/components/providers/HostUsageView.tsx
 msgid "Update this host to refresh usage remotely. Cached usage can still be read."

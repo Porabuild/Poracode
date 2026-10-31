@@ -17,6 +17,7 @@ import {
   pinManagedRootThread,
 } from "@/renderer/state/managedRootCatalog/rootCatalogStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { importSessionsOnHost } from "./remoteSessionImport";
 
 const TITLE_MAX_CHARS = 60;
 
@@ -88,7 +89,19 @@ function resolveImportProject(
 export async function importSessions(input: {
   sessions: readonly ImportableSession[];
   fallbackProjectId?: string;
+  /** A remote client's bound host: the host imports, nothing is written here. */
+  hostKey?: string;
 }): Promise<{ imported: number; failed: number; threadIds: Map<string, string> }> {
+  if (input.hostKey !== undefined) {
+    return importSessionsOnHost({
+      hostKey: input.hostKey,
+      sessions: input.sessions,
+      ...(input.fallbackProjectId ? { fallbackProjectId: input.fallbackProjectId } : {}),
+      findImportedThreadId,
+      resolveModel: resolveImportModel,
+      titleFor,
+    });
+  }
   const store = useAppStore.getState();
   const threadIds = new Map<string, string>();
   let imported = 0;
