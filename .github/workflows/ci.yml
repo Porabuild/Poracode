@@ -347,6 +347,11 @@ jobs:
       - name: Project tree perf suite
         run: bun run test:perf:project-tree
 
+      - name: Dev server startup guards
+        # Watcher scope, warmup, pre-bundled deps and main-thread Babel: the
+        # causes behind the former ~80 s dev start, plus a warmup time budget.
+        run: bun run test:perf:dev-server
+
   ci_gate:
     name: Test
     if: ${{ always() }}
