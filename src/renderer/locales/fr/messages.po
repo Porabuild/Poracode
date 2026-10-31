@@ -4791,6 +4791,10 @@ msgstr "Fenêtres de contexte"
 msgid "Continue"
 msgstr "Continuer"
 
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Continue from where you left off."
+msgstr "Reprends là où tu t'es arrêté."
+
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Continue in another provider"
@@ -15465,6 +15469,10 @@ msgstr "Niveau de confiance requis avant l’arrêt."
 msgid "Required reviews, conversations, or status checks not met."
 msgstr "Les avis, conversations ou vérifications de statut requis ne sont pas satisfaits."
 
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Resend last message"
+msgstr "Renvoyer le dernier message"
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
 msgid "reset"
 msgstr "réinitialiser"
@@ -15658,6 +15666,10 @@ msgstr "Reprendre l'objectif"
 #: src/renderer/components/thread/ThreadFollowUpQueue.tsx
 msgid "Resume queued follow-ups"
 msgstr "Reprendre les suivis en file d’attente"
+
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Resume response"
+msgstr "Reprendre la réponse"
 
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Resuming session…"

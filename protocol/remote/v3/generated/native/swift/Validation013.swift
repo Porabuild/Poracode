@@ -1,10 +1,6 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
 public extension RemoteSchemas {
-  static let schema_e847e321fbb6435b = RemoteSchema(type: "string", maxLength: 120, unknownPolicy: .strip)
-}
-
-public extension RemoteSchemas {
   static let schema_e8ae3938f73bbe3d = RemoteSchema(type: "string", maxLength: 16000, unknownPolicy: .strip)
 }
 
@@ -162,6 +158,10 @@ public extension RemoteSchemas {
 
 public extension RemoteSchemas {
   static let schema_ee6af1c3c62ad32f = RemoteSchema(type: "string", literals: [.string("slash"), .string("dollar"), .string("prompt"), .string("skill")], unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
+  static let schema_ee73ccabe697663c = RemoteSchema(type: "object", required: Set(["nextCursor", "runtimeSummariesByThread", "threads"]), properties: ["gitSummariesByThread": RemoteSchemas.schema_aca97eda78815baa, "inventoryFrontier": RemoteSchemas.schema_36fea325bf1aca70, "nextCursor": RemoteSchemas.schema_2d0b6ec9f2b2decf, "reads": RemoteSchemas.schema_4659e6d395f41e16, "runtimeSummariesByThread": RemoteSchemas.schema_fc9d6f4c2617a24d, "threads": RemoteSchemas.schema_d98248ab3a8be49f], additionalAllowed: true, unknownPolicy: .strip)
 }
 
 public extension RemoteSchemas {

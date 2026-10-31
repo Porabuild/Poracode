@@ -185,6 +185,16 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
   private slashCommandsRefresh: object | undefined;
   /** True between `startTurn`'s promptAsync and the next SSE idle signal. */
   private turnActive = false;
+  /**
+   * The turn's reply failed (auth, output length, API errors). OpenCode puts
+   * these on the assistant message and still settles idle, so the turn must
+   * not read as completed.
+   */
+  private turnFailed = false;
+  /** `promptAsync` has not returned yet, so the turn is not active. */
+  private promptInFlight = false;
+  /** SSE settled a failed reply before `promptAsync` returned. */
+  private turnFailedBeforeAck = false;
   /** Live MCP set; starts from the launch input, replaced by settings saves. */
   private mcpServers: readonly ResolvedMcpServer[] | undefined;
 
@@ -380,14 +390,21 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
       // Permission synchronization or fallback preparation can outlive disposal.
       const acquired = this.requireAcquired();
       this.turnRequiresShutdownConfirmation = true;
-      await acquired.client.session.promptAsync({
-        directory: this.sdkDirectory,
-        sessionID,
-        ...(model ? { model } : {}),
-        ...(agent ? { agent } : {}),
-        ...(variant ? { variant } : {}),
-        ...(promptParts.length > 0 ? { parts: promptParts } : {}),
-      });
+      this.turnFailed = false;
+      this.turnFailedBeforeAck = false;
+      this.promptInFlight = true;
+      try {
+        await acquired.client.session.promptAsync({
+          directory: this.sdkDirectory,
+          sessionID,
+          ...(model ? { model } : {}),
+          ...(agent ? { agent } : {}),
+          ...(variant ? { variant } : {}),
+          ...(promptParts.length > 0 ? { parts: promptParts } : {}),
+        });
+      } finally {
+        this.promptInFlight = false;
+      }
     };
 
     try {
@@ -400,6 +417,8 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
       }
       this.turnActive = true;
       options?.onPromptSubmitted?.();
+      // No idle is left to close a reply that already failed.
+      if (this.turnFailedBeforeAck) this.emitTurnCompletedIfActive();
     } catch (cause) {
       this.currentStatus = "error";
       this.currentAttention = "error";
@@ -1057,6 +1076,19 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
 
     this.handleRequestLifecycleEvent(event);
 
+    if (event.type === "message.updated") {
+      const info = event.properties.info;
+      if (
+        info.sessionID === this.sessionId &&
+        info.role === "assistant" &&
+        "error" in info &&
+        info.error !== undefined &&
+        !isOpenCodeAbortError(info.error)
+      ) {
+        this.turnFailed = true;
+      }
+    }
+
     if (event.type === "session.error") {
       const err = event.properties.error;
       if (isOpenCodeAbortError(err)) return;
@@ -1154,14 +1186,20 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
    */
   private emitTurnCompletedIfActive(): void {
     this.turnRequiresShutdownConfirmation = false;
-    if (!this.turnActive) return;
+    if (!this.turnActive) {
+      // A reply can fail and settle before `promptAsync` returns.
+      if (this.promptInFlight && this.turnFailed) this.turnFailedBeforeAck = true;
+      return;
+    }
     this.turnActive = false;
+    const failed = this.turnFailed;
+    this.turnFailed = false;
     this.emitRuntimeEvents([
       {
         type: "turn.completed",
         threadId: this.threadId,
         turnId: `opencode-${this.sessionId ?? "unknown"}`,
-        state: "completed",
+        state: failed ? "failed" : "completed",
       },
     ]);
   }

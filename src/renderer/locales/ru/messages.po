@@ -4791,6 +4791,10 @@ msgstr "Контекстные окна"
 msgid "Continue"
 msgstr "Продолжить"
 
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Continue from where you left off."
+msgstr "Продолжи с места остановки."
+
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Continue in another provider"
@@ -15466,6 +15470,10 @@ msgstr "Необходимая уверенность для остановки.
 msgid "Required reviews, conversations, or status checks not met."
 msgstr "Не выполнены обязательные проверки, обсуждения или статусные проверки."
 
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Resend last message"
+msgstr "Отправить последнее сообщение повторно"
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
 msgid "reset"
 msgstr "сброс"
@@ -15659,6 +15667,10 @@ msgstr "Возобновить цель"
 #: src/renderer/components/thread/ThreadFollowUpQueue.tsx
 msgid "Resume queued follow-ups"
 msgstr "Возобновить сообщения из очереди"
+
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Resume response"
+msgstr "Возобновить ответ"
 
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Resuming session…"

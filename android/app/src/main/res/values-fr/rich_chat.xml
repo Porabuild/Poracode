@@ -131,6 +131,9 @@
     <string name="rich_chat_app_controls">Contrôles de l’application</string>
     <string name="rich_chat_remove_context">Supprimer %1$s</string>
     <string name="rich_chat_send_steer">Envoyer l’instruction de suivi</string>
+    <string name="rich_chat_resend_last_message">Renvoyer le dernier message</string>
+    <string name="rich_chat_resume_response">Reprendre la réponse</string>
+    <string name="rich_chat_resume_continue_prompt">Reprends là où tu t\'es arrêté.</string>
     <string name="rich_chat_queue_title">Relances en file d\'attente (%1$d)</string>
     <string name="rich_chat_queue_steer_now">Réorienter maintenant</string>
     <string name="rich_chat_queue_edit">Modifier le message en attente</string>

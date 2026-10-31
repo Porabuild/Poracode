@@ -4791,6 +4791,10 @@ msgstr "Janelas de contexto"
 msgid "Continue"
 msgstr "Continuar"
 
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Continue from where you left off."
+msgstr "Continue de onde você parou."
+
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Continue in another provider"
@@ -15466,6 +15470,10 @@ msgstr "Confiança necessária antes de parar."
 msgid "Required reviews, conversations, or status checks not met."
 msgstr "Avaliações, conversas ou verificações de status necessárias não atendidas."
 
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Resend last message"
+msgstr "Reenviar a última mensagem"
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
 msgid "reset"
 msgstr "redefinir"
@@ -15659,6 +15667,10 @@ msgstr "Retomar objetivo"
 #: src/renderer/components/thread/ThreadFollowUpQueue.tsx
 msgid "Resume queued follow-ups"
 msgstr "Retomar acompanhamentos enfileirados"
+
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Resume response"
+msgstr "Retomar resposta"
 
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Resuming session…"

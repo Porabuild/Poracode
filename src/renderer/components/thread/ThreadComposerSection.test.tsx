@@ -151,6 +151,7 @@ vi.mock("./ThreadComposer", () => ({
     onStop?: () => void;
     onSubmit: () => void;
     submitDisabled?: boolean;
+    resume?: { label: string; onPress: () => void };
   }) => {
     composerControlsSpy(props.controls ?? []);
     return (
@@ -175,6 +176,11 @@ vi.mock("./ThreadComposer", () => ({
             .join(",") ?? ""}
         </output>
         <output data-testid="attach-files-enabled">{props.onAttachFiles ? "yes" : "no"}</output>
+        {props.resume ? (
+          <button type="button" onClick={props.resume.onPress}>
+            {props.resume.label}
+          </button>
+        ) : null}
         {props.onStop && props.submitDisabled ? (
           <button type="button" aria-label="Stop response" onClick={props.onStop}>
             stop
@@ -713,6 +719,34 @@ describe("ThreadComposerSection", () => {
     const result = render(composerElement({ ...opts, onSubmitInput }));
     return { ...result, onSubmitInput };
   }
+
+  it("resends the unanswered message after an unexpected close and hides resume after Stop", async () => {
+    const thread = { ...guiThread, status: "inactive" as const, interruptedTurn: "error" as const };
+    useAppStore.setState({
+      threads: [thread],
+      runtimeItemIdsByThread: { [thread.id]: ["last-user"] },
+      runtimeItemsByIdByThread: {
+        [thread.id]: {
+          "last-user": {
+            id: "last-user",
+            type: "user_message",
+            state: "completed",
+            streams: {},
+            payload: { content: [{ kind: "text", text: "Explain the code" }] },
+          },
+        },
+      },
+    });
+    const { onSubmitInput } = renderComposer({ thread });
+    fireEvent.click(screen.getByRole("button", { name: "Resend last message" }));
+    await waitFor(() =>
+      expect(onSubmitInput).toHaveBeenCalledWith("Explain the code", [
+        { kind: "text", content: "Explain the code" },
+      ]),
+    );
+    await act(() => useAppStore.setState({ threads: [{ ...guiThread, status: "inactive" }] }));
+    expect(screen.queryByRole("button", { name: "Resend last message" })).toBeNull();
+  });
 
   it.each([false, true])(
     "keeps async questions actionable alongside ordinary messages (compact: %s)",

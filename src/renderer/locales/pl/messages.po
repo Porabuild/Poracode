@@ -4791,6 +4791,10 @@ msgstr "Okna kontekstu"
 msgid "Continue"
 msgstr "Kontynuuj"
 
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Continue from where you left off."
+msgstr "Kontynuuj od miejsca, w którym przerwano."
+
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Continue in another provider"
@@ -15466,6 +15470,10 @@ msgstr "Wymagany poziom pewności przed zatrzymaniem."
 msgid "Required reviews, conversations, or status checks not met."
 msgstr "Nie spełniono wymaganych recenzji, rozmów lub kontroli stanu."
 
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Resend last message"
+msgstr "Wyślij ponownie ostatnią wiadomość"
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
 msgid "reset"
 msgstr "reset"
@@ -15659,6 +15667,10 @@ msgstr "Wznów cel"
 #: src/renderer/components/thread/ThreadFollowUpQueue.tsx
 msgid "Resume queued follow-ups"
 msgstr "Wznów wiadomości z kolejki"
+
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Resume response"
+msgstr "Wznów odpowiedź"
 
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Resuming session…"

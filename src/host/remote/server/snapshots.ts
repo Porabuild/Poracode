@@ -56,6 +56,7 @@ import {
 import { RemoteHttpError } from "../auth";
 import { mapFenceRefusal, mapPersistenceRefusal } from "./persistenceRefusals";
 import type { RemoteServerContext } from "./context";
+import { withPendingInterruptedTurn } from "./pendingInterruptedTurns";
 import { readRuntimeHistoryNoticeForRead } from "./runtimeHistoryNoticeGate";
 import { CONVERSATION_SEARCH_VERSION } from "@/shared/conversationSearch";
 import { withStableUpdatedAt } from "./stableUpdatedAt";
@@ -248,7 +249,9 @@ function projectShellSnapshot(
     ctx.sessionConfigInventory.retainThreads(knownThreadIds);
     ctx.threadLiveReadState.retainThreads(knownThreadIds);
   }
-  const threads = data.threads.map((thread) => ctx.sessionConfigInventory.enrichThreadRow(thread));
+  const threads = data.threads.map((thread) =>
+    withPendingInterruptedTurn(ctx.sessionConfigInventory.enrichThreadRow(thread)),
+  );
   const summariesByThread = runtimeSummariesFor(threads, summaries);
   const gitSummariesByThread =
     options.threadListLimit === undefined

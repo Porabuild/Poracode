@@ -138,6 +138,21 @@ final class RichChatConversationController {
       && state.lastCompletedOperation == .send
   }
 
+  /// Swaps the failure a refused send published for the outcome of the
+  /// recovery that replaced it (the resume relaunch): nil once the host
+  /// accepted it, `.ambiguousOutcome` (one authoritative read, never a resend)
+  /// when its outcome is unknown. A failure published since is kept.
+  func replaceFailure(
+    _ refusal: RichChatControllerFailure,
+    with replacement: RichChatControllerFailure?
+  ) async {
+    guard state.failure == refusal, let target = state.target else { return }
+    state.failure = replacement
+    guard replacement == .ambiguousOutcome else { return }
+    state.requiresAuthoritativeRefresh = true
+    await refreshRequester.requestRichChatRefresh(target: target, reason: .ambiguousMutation)
+  }
+
   func interrupt() async {
     guard let context = operationContext(capability: .sessionOperate) else { return }
     interruptTask.launch { [weak self] in

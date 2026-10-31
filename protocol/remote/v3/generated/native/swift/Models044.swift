@@ -1,5 +1,13 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
+public enum RoutethreadU2DCheckpointU2DRevertResponseU2DFilesPhase_efc124973b: String, Codable, Sendable {
+  case `pending` = "pending"
+  case `completed` = "completed"
+  case `failed` = "failed"
+  case `skippedU5FNoU5FLocation` = "skipped_no_location"
+  case `skippedU5FMissingU5FCheckpoint` = "skipped_missing_checkpoint"
+}
+
 public enum RoutethreadU2DCheckpointU2DRevertResponseU2DOutcome_08ce03e607: String, Codable, Sendable {
   case `completed` = "completed"
   case `completedU5FLocalU5FOnly` = "completed_local_only"
@@ -438,8 +446,4 @@ public struct RoutethreadU2DCommandRequestU2DOptionU2D4_5aa949613e: Codable, Sen
     case worktreeBranch = "worktreeBranch"
     case worktreePath = "worktreePath"
   }
-}
-
-public enum RoutethreadU2DCommandRequestU2DOptionU2D5U2DKind_f399af5f8d: String, Codable, Sendable {
-  case `setU2DGroup` = "set-group"
 }

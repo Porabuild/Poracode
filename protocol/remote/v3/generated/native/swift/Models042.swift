@@ -400,6 +400,11 @@ public struct RouteshellU2DSnapshotResponseU2DThreadsU2DItemU2DForkedFrom_8edde8
   }
 }
 
+public enum RouteshellU2DSnapshotResponseU2DThreadsU2DItemU2DInterruptedTurn_2127b6212a: String, Codable, Sendable {
+  case `error` = "error"
+  case `restart` = "restart"
+}
+
 public struct RouteshellU2DSnapshotResponseU2DThreadsU2DItemU2DSessionConfigOptionsU2DOptionU2D1U2DItemU2DOptionU2D1U2DGroupsU2DItem_2e2f445a74: Codable, Sendable, RemoteModelMetadata {
   public var id: ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b
   public var name: RemoteField<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b> = .missing

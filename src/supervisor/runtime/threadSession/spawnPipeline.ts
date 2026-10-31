@@ -1713,6 +1713,7 @@ export class SpawnPipeline {
         : {}),
       ...(input.sessionRef ? { sessionRef: input.sessionRef } : {}),
       status: input.initialStatus ?? "launching",
+      ...(input.initialStatus === "working" ? { interruptedTurn: null } : {}),
       attention: input.initialAttention ?? "none",
       canResumeWithConfig: input.sessionRef !== undefined,
       outputLength: 0,
@@ -2138,6 +2139,8 @@ export class SpawnPipeline {
       launchConfig,
       canResumeWithConfig: false,
       threadStatusSource: "server",
+      // A prompt is starting a turn: any earlier cut-off turn is now handled.
+      interruptedTurn: null,
     });
   }
 }

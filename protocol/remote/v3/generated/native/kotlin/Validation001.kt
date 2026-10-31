@@ -417,6 +417,10 @@ internal val schema_109baa93f8b988b2: RemoteSchema by lazy {
     RemoteSchema(type = "string", maxLength = 1024, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
+internal val schema_10f7824b2f1fe15d: RemoteSchema by lazy {
+    RemoteSchema(type = "object", required = setOf("projects", "runtimeSummariesByThread", "snapshotSeq", "threads", "updatedAt"), properties = mapOf("gitState" to schema_edbeeba28e8d2dd8, "gitSummariesByThread" to schema_aca97eda78815baa, "projects" to schema_77c06377e1bf6e10, "projectsNextCursor" to schema_2d0b6ec9f2b2decf, "reads" to schema_4659e6d395f41e16, "runtimeSummariesByThread" to schema_fc9d6f4c2617a24d, "snapshotEpoch" to schema_8e43cad70cd70de7, "snapshotSeq" to schema_56aa0e45cbdce0d0, "threads" to schema_d98248ab3a8be49f, "threadsNextCursor" to schema_2d0b6ec9f2b2decf, "updatedAt" to schema_36fea325bf1aca70, "workspaces" to schema_15fcce03de60030d), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
 internal val schema_1124eb24dd0748ff: RemoteSchema by lazy {
     RemoteSchema(type = "string", literals = listOf(JsonPrimitive("changes"), JsonPrimitive("responses")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
@@ -443,8 +447,4 @@ internal val schema_118f67a0fa6bb27d: RemoteSchema by lazy {
 
 internal val schema_11ada4e73a793b0d: RemoteSchema by lazy {
     RemoteSchema(type = "string", literals = listOf(JsonPrimitive("pending"), JsonPrimitive("completed"), JsonPrimitive("failed"), JsonPrimitive("ambiguous"), JsonPrimitive("skipped_no_turns"), JsonPrimitive("skipped_missing_checkpoint")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
-}
-
-internal val schema_11e04e93bdeaf95b: RemoteSchema by lazy {
-    RemoteSchema(type = "object", required = setOf("access", "agentAccess", "device", "expiresAt", "generation", "id", "threadId", "version"), properties = mapOf("access" to schema_9ca4aec6d46ade2e, "agentAccess" to schema_e6bc2fd97be6dec8, "device" to schema_4b43828b172de36c, "expiresAt" to schema_80c415b6e27c6ebd, "generation" to schema_d855999aed5e6438, "id" to schema_d855999aed5e6438, "threadId" to schema_36fea325bf1aca70, "version" to schema_7f9f5a0d72de0d9a), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }

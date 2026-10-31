@@ -811,7 +811,8 @@ export class PiRpcSession implements StructuredSessionHandle {
 
   private handleExit(): void {
     if (this.disposed) return;
-    if (this.currentTurnId) this.finishTurn("cancelled");
+    // Without a Stop, a process that died mid-turn cut that turn off.
+    if (this.currentTurnId) this.finishTurn(this.interruptRequested ? "cancelled" : "failed");
     const stderr = this.client.stderr;
     this.emit({
       type: "session.exited",

@@ -4,8 +4,10 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.provider.OpenableColumns
+import androidx.annotation.StringRes
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.listSaver
+import com.poracode.app.R
 import com.poracode.app.chat.RichAttachmentPolicy
 import com.poracode.app.chat.RichPendingSteerDecoder
 import com.poracode.app.chat.RichPromptSegment
@@ -25,6 +27,14 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 
 internal enum class AttachmentUiError { Invalid, UploadFailed, CameraUnavailable }
+
+/** The thread composer's message for this attachment failure. */
+@StringRes
+internal fun AttachmentUiError.messageRes(): Int = when (this) {
+    AttachmentUiError.Invalid -> R.string.rich_chat_attachment_invalid
+    AttachmentUiError.UploadFailed -> R.string.rich_chat_attachment_upload_failed
+    AttachmentUiError.CameraUnavailable -> R.string.rich_chat_camera_unavailable
+}
 
 internal fun uploadAttachment(
     uri: Uri,

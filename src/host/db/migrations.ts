@@ -1057,6 +1057,22 @@ export const DATABASE_MIGRATIONS = [
       addColumnIfMissing(sqlite, "usage_token_samples", "counted_tokens", "TEXT");
     },
   },
+  {
+    version: 69,
+    name: "remember turns cut off before they finished",
+    rollback: "rollback-compatible",
+    // Additive to released schema 68. Unreleased PR builds used 66; the
+    // idempotent column addition also preserves their interruption markers.
+    migrate: (sqlite) => {
+      addColumnIfMissing(sqlite, "threads", "interrupted_turn", "TEXT");
+      // PR-only schema66 profiles predate master's index migration with the
+      // same number. Ensure both intentions survive that upgrade too.
+      sqlite.exec(`
+        CREATE INDEX IF NOT EXISTS idx_threads_catalog_manual ON threads(sort_order, id);
+        CREATE INDEX IF NOT EXISTS idx_projects_catalog_manual ON projects(sort_order, id);
+      `);
+    },
+  },
 ] as const satisfies readonly DatabaseMigration[];
 
 export const LATEST_SCHEMA_VERSION = DATABASE_MIGRATIONS[DATABASE_MIGRATIONS.length - 1]!.version;
@@ -1220,6 +1236,11 @@ export function repairSafeSchemaDrift(sqlite: SqliteDatabase): void {
       .prepare("SELECT value FROM app_state WHERE key = 'schema_version'")
       .get() as { value: string } | undefined;
     if (Number(schema?.value) >= 58) createRuntimeGoalIndex(sqlite);
+    // Migration56 calls this helper too. Do not inject a future column into
+    // historical schemas before its own ordered migration has run.
+    if (Number(schema?.value) >= 69) {
+      addColumnIfMissing(sqlite, "threads", "interrupted_turn", "TEXT");
+    }
     sqlite.exec(
       "UPDATE threads SET archived_at = updated_at WHERE archived = 1 AND archived_at IS NULL",
     );
@@ -1300,6 +1321,7 @@ const REQUIRED_COLUMNS = {
     "active_turn_started_at",
     "last_turn_started_at",
     "last_turn_ended_at",
+    "interrupted_turn",
   ],
   thread_runtime_items: [
     "thread_id",

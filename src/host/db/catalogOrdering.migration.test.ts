@@ -24,13 +24,16 @@ it("upgrades schema65 without rewriting rows and seeks both manual catalog order
     ).toEqual([]);
     runDatabaseMigrations(db, 65);
     expect(db.prepare("SELECT value FROM app_state WHERE key='schema_version'").get()).toEqual({
-      value: "68",
+      value: "69",
     });
     expect(
       ["threads", "projects", "thread_runtime_items"].map((table) =>
         db!.prepare(`SELECT * FROM ${table} ORDER BY rowid`).all(),
       ),
-    ).toEqual(before);
+    ).toEqual([
+      before[0]!.map((row) => ({ ...(row as object), interrupted_turn: null })),
+      ...before.slice(1),
+    ]);
     for (const table of ["threads", "projects"]) {
       const plan = db
         .prepare(

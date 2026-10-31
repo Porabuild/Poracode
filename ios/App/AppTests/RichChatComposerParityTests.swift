@@ -448,6 +448,7 @@ final class RichChatComposerParityTests: XCTestCase {
       "App/Features/RichChat/UI/RichChatComposerInlineControls.swift"
     )
     let thread = try Self.source("App/Features/RichChat/UI/Pages/RichChatThreadView.swift")
+    let resume = try Self.source("App/Features/RichChat/UI/RichChatComposerResume.swift")
 
     XCTAssertTrue(
       inlineControls.contains("(isTurnActive || isSending) && !hasPrompt")
@@ -459,8 +460,10 @@ final class RichChatComposerParityTests: XCTestCase {
     XCTAssertTrue(composer.contains("controller.queueFollowUp("))
     XCTAssertTrue(composer.contains("controller.setPendingSteer("))
     XCTAssertTrue(composer.contains("RichSetPendingSteerInput("))
-    XCTAssertTrue(composer.contains("RichChatPresentation.composerDenyResolution"))
-    XCTAssertTrue(composer.contains("requestController.resolve(denial"))
+    // Typed and resume sends decline a pending approval through one helper.
+    XCTAssertTrue(composer.contains("guard await declinePendingApproval()"))
+    XCTAssertTrue(resume.contains("RichChatPresentation.composerDenyResolution"))
+    XCTAssertTrue(resume.contains("requestController.resolve(denial"))
     XCTAssertTrue(thread.contains("thread?.status == \"working\""))
     XCTAssertFalse(thread.contains("\"needs_reply\"].contains(status)"))
   }

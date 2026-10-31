@@ -1,5 +1,9 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
+public enum RoutethreadU2DCommandRequestU2DOptionU2D5U2DKind_f399af5f8d: String, Codable, Sendable {
+  case `setU2DGroup` = "set-group"
+}
+
 public struct RoutethreadU2DCommandRequestU2DOptionU2D5_21cd039cb3: Codable, Sendable, RemoteModelMetadata {
   public var groupId: RemoteField<String> = .missing
   public var groupName: RemoteField<String> = .missing
@@ -303,7 +307,7 @@ public struct RoutethreadU2DHistoryQuery_677d43553d: Codable, Sendable, RemoteMo
   }
 }
 
-public struct RoutethreadU2DHistoryResponse_4cbd1d296d: Codable, Sendable, RemoteModelMetadata {
+public struct RoutethreadU2DHistoryResponse_32b9dd2896: Codable, Sendable, RemoteModelMetadata {
   public var backgroundTasks: RemoteField<ProcedurereadThreadBackgroundTasksResult_00675d64d4> = .missing
   public var completedTurns: [RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1U2DSnapshotU2DCompletedTurnsU2DItem_df96bd315b]
   public var completedTurnsNextCursor: RemoteField<String> = .missing
@@ -319,7 +323,7 @@ public struct RoutethreadU2DHistoryResponse_4cbd1d296d: Codable, Sendable, Remot
   public var snapshotSeq: Int64
   public var terminalScrollback: RemoteField<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b> = .missing
   public var terminalSize: RemoteField<ProcedureensureThreadRunningRequestU2DInitialSize_55ee222c09> = .missing
-  public var thread: RouteshellU2DSnapshotResponseU2DThreadsU2DItem_83e62a05a7
+  public var thread: RouteshellU2DSnapshotResponseU2DThreadsU2DItem_aae5723e41
   public var updatedAt: String
   public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
   public static let fields: [RemoteFieldDescriptor] = [
@@ -338,7 +342,7 @@ public struct RoutethreadU2DHistoryResponse_4cbd1d296d: Codable, Sendable, Remot
     .init(wireName: "snapshotSeq", typeName: "Int64", required: true, nullable: false, minimum: 0, maximum: 9007199254740991, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "terminalScrollback", typeName: "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "terminalSize", typeName: "ProcedureensureThreadRunningRequestU2DInitialSize_55ee222c09", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "thread", typeName: "RouteshellU2DSnapshotResponseU2DThreadsU2DItem_83e62a05a7", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "thread", typeName: "RouteshellU2DSnapshotResponseU2DThreadsU2DItem_aae5723e41", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "updatedAt", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
   ]
   public static let semanticValidatorIds: [String] = []

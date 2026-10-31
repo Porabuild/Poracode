@@ -5,6 +5,14 @@ import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
+internal val schema_59152790354c604a: RemoteSchema by lazy {
+    RemoteSchema(type = "object", required = setOf("guide", "stale", "status"), properties = mapOf("diffHash" to schema_ec221fdc1494d0b1, "guide" to schema_c591e31c389e744f, "stale" to schema_feeb8bb50144d96d, "status" to schema_e25509dad8a191fe), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
+internal val schema_591e7e71be40d4d4: RemoteSchema by lazy {
+    RemoteSchema(type = "object", required = setOf("kind", "projectId"), properties = mapOf("kind" to schema_6b98eaede59b512a, "projectId" to schema_36fea325bf1aca70), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
 internal val schema_592634b8956b6cd0: RemoteSchema by lazy {
     RemoteSchema(type = "string", literals = listOf(JsonPrimitive("permission")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
@@ -439,12 +447,4 @@ internal val schema_6d5eecaeceee62b9: RemoteSchema by lazy {
 
 internal val schema_6d6f1fde7308a250: RemoteSchema by lazy {
     RemoteSchema(type = "string", literals = listOf(JsonPrimitive("lf"), JsonPrimitive("crlf")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
-}
-
-internal val schema_6da82c72b226f41d: RemoteSchema by lazy {
-    RemoteSchema(type = "object", required = setOf("gap", "notice"), properties = mapOf("gap" to schema_f550638b8241897c, "notice" to schema_214ae58e6e08f2d4), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
-}
-
-internal val schema_6db96506f253ef73: RemoteSchema by lazy {
-    RemoteSchema(type = "object", additionalSchema = schema_feeb8bb50144d96d, propertyNames = schema_36fea325bf1aca70, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }

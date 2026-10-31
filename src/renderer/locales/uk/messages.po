@@ -4791,6 +4791,10 @@ msgstr "Контекстні вікна"
 msgid "Continue"
 msgstr "Продовжити"
 
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Continue from where you left off."
+msgstr "Продовж з місця зупинки."
+
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Continue in another provider"
@@ -15466,6 +15470,10 @@ msgstr "Необхідна впевненість для зупинки."
 msgid "Required reviews, conversations, or status checks not met."
 msgstr "Не виконано обов'язкові рецензії, обговорення або перевірки стану."
 
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Resend last message"
+msgstr "Надіслати останнє повідомлення повторно"
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
 msgid "reset"
 msgstr "скидання"
@@ -15659,6 +15667,10 @@ msgstr "Відновити мету"
 #: src/renderer/components/thread/ThreadFollowUpQueue.tsx
 msgid "Resume queued follow-ups"
 msgstr "Відновити повідомлення з черги"
+
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Resume response"
+msgstr "Відновити відповідь"
 
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Resuming session…"

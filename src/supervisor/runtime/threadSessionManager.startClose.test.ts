@@ -199,6 +199,61 @@ afterEach(async () => {
   vi.unstubAllEnvs();
 });
 
+describe("accepted structured turn interruption", () => {
+  it("does not offer resume when the owner deliberately retires an accepted turn", async () => {
+    const structured = createStructuredSession(Promise.resolve());
+    const adapter = createAdapter("fixture", structured);
+    const events: SupervisorEvent[] = [];
+    const manager = createManager("fixture", adapter, (event) => events.push(event));
+    await manager.startThread({
+      threadId: "retired-close",
+      agentKind: "fixture",
+      projectLocation: { kind: "posix", path: process.cwd() },
+      config: { model: "fixture/model" },
+      prompt: "Explain the code",
+      initialSize: { cols: 80, rows: 24 },
+      presentationMode: "gui",
+    });
+    const session = manager.sessions.get("retired-close")!;
+    const listener = vi.mocked(structured.setListener).mock.calls.at(-1)![0];
+    vi.mocked(structured.dispose).mockImplementation(async () => listener.onClose());
+    await manager.closeThread({ threadId: session.threadId });
+    expect(session.interruptedTurn).toBeNull();
+    expect(
+      events.some((event) => event.type === "thread-state" && event.interruptedTurn === "error"),
+    ).toBe(false);
+  });
+
+  it.each([false, true])(
+    "marks unexpected close after accepted start (stop=%s)",
+    async (stopped) => {
+      const structured = createStructuredSession(Promise.resolve());
+      const adapter = createAdapter("fixture", structured);
+      const events: SupervisorEvent[] = [];
+      const manager = createManager("fixture", adapter, (event) => events.push(event));
+      await manager.startThread({
+        threadId: "accepted-close",
+        agentKind: "fixture",
+        projectLocation: { kind: "posix", path: process.cwd() },
+        config: { model: "fixture/model" },
+        prompt: "Explain the code",
+        initialSize: { cols: 80, rows: 24 },
+        presentationMode: "gui",
+      });
+      const session = manager.sessions.get("accepted-close")!;
+      expect(session.status).toBe("working");
+      session.turnStopRequested = stopped;
+      const listener = vi.mocked(structured.setListener).mock.calls.at(-1)![0];
+      listener.onClose();
+      expect(session.status).toBe("inactive");
+      expect(session.interruptedTurn).toBe(stopped ? null : "error");
+      expect(
+        events.some((event) => event.type === "thread-state" && event.interruptedTurn === "error"),
+      ).toBe(!stopped);
+    },
+  );
+});
+
 describe("ThreadSessionManager provider-session routing", () => {
   it("resolves both root and provider-owned child sessions to the live thread", () => {
     const structuredSession = createStructuredSession(Promise.resolve());
@@ -529,6 +584,8 @@ describe("ThreadSessionManager start guards", () => {
         status: "error",
         errorMessage: "The selected configuration was rejected",
         forceCloseActiveTurn: true,
+        // The submitted message never ran: offer to resume it.
+        interruptedTurn: "error",
       }),
     );
     const runtimeEvents = events.flatMap((event) =>
@@ -1100,7 +1157,31 @@ describe("ThreadSessionManager start guards", () => {
       attention: "none",
       canResumeWithConfig: false,
       forceCloseActiveTurn: true,
+      interruptedTurn: null,
     });
+  });
+
+  it("retires a cut-off turn when Stop reaches a live session after the failure", async () => {
+    const structuredSession = createStructuredSession(Promise.resolve());
+    const adapter = createAdapter("codex", structuredSession);
+    const emit = vi.fn<(event: SupervisorEvent) => void>();
+    const manager = createManager("codex", adapter, emit);
+    const runtime = createInactiveRuntime("codex", adapter, structuredSession);
+    runtime.status = "error";
+    runtime.interruptedTurn = "error";
+    manager.sessions.set(runtime.threadId, runtime);
+
+    await manager.interruptThread({ threadId: runtime.threadId });
+
+    expect(runtime.interruptedTurn).toBeNull();
+    expect(runtime.turnStopRequested).toBe(true);
+    expect(emit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "thread-state",
+        threadId: runtime.threadId,
+        interruptedTurn: null,
+      }),
+    );
   });
 
   it("preserves bookkeeping errors for never-known session ids", async () => {

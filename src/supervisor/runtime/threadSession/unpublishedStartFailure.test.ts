@@ -37,6 +37,24 @@ describe("unpublished startup failure delivery", () => {
     ]);
     expect(router.hasPending()).toBe(false);
   });
+
+  it("keeps a failed start with the user's message resumable, but not a plain reopen", () => {
+    const delivered: SupervisorEvent[] = [];
+    const router = new RuntimeEventRouter((event) => {
+      delivered.push(event);
+    });
+
+    publishUnpublishedStartFailure("resumed", new Error("Agent missing"), router, {
+      carriedPrompt: true,
+    });
+    publishUnpublishedStartFailure("reopened", new Error("Agent missing"), router);
+    router.flush();
+
+    const states = delivered.filter((event) => event.type === "thread-state");
+    expect(states[0]).toMatchObject({ threadId: "resumed", interruptedTurn: "error" });
+    expect(states[1]).toMatchObject({ threadId: "reopened" });
+    expect(states[1]).not.toHaveProperty("interruptedTurn");
+  });
 });
 
 it("keeps reused error captures scoped to the exact failed thread and consumes them once", () => {

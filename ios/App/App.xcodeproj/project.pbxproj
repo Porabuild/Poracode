@@ -453,6 +453,9 @@
 		CI1200000000000000000001 /* RichChatCompactControlSheets.swift in Sources */ = {isa = PBXBuildFile; fileRef = CI2200000000000000000001 /* RichChatCompactControlSheets.swift */; };
 		RU1000000000000000000001 /* RichChatProviderUsage.swift in Sources */ = {isa = PBXBuildFile; fileRef = RU2000000000000000000001 /* RichChatProviderUsage.swift */; };
 		RM1000000000000000000001 /* RichChatComposerMentions.swift in Sources */ = {isa = PBXBuildFile; fileRef = RM2000000000000000000001 /* RichChatComposerMentions.swift */; };
+		RS1000000000000000000001 /* RichChatResumePlan.swift in Sources */ = {isa = PBXBuildFile; fileRef = RS2000000000000000000001 /* RichChatResumePlan.swift */; };
+		RS1000000000000000000002 /* RichChatComposerResume.swift in Sources */ = {isa = PBXBuildFile; fileRef = RS2000000000000000000002 /* RichChatComposerResume.swift */; };
+		RS1000000000000000000004 /* RichChatThreadResume.swift in Sources */ = {isa = PBXBuildFile; fileRef = RS2000000000000000000004 /* RichChatThreadResume.swift */; };
 		QA1000000000000000000001 /* RichChatQuestionAnswerPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = QA2000000000000000000001 /* RichChatQuestionAnswerPresentation.swift */; };
 		QA1000000000000000000002 /* RichChatQuestionAnswerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = QA2000000000000000000002 /* RichChatQuestionAnswerView.swift */; };
 		D71000000000000000000006 /* RichChatComposerDraftStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D72000000000000000000006 /* RichChatComposerDraftStore.swift */; };
@@ -542,6 +545,8 @@
 		HM1000000000000000000001 /* ThreadProviderHandoff.swift in Sources */ = {isa = PBXBuildFile; fileRef = HM2000000000000000000001 /* ThreadProviderHandoff.swift */; };
 		DE1000000000000000000001 /* ThreadWorktreeMoveController.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF1000000000000000000001 /* ThreadWorktreeMoveController.swift */; };
 		DE1000000000000000000002 /* ThreadWorktreeMoveTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF1000000000000000000002 /* ThreadWorktreeMoveTests.swift */; };
+		RS1000000000000000000003 /* RichChatResumePlanTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = RS2000000000000000000003 /* RichChatResumePlanTests.swift */; };
+		RS1000000000000000000005 /* RichChatResumeRecoveryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = RS2000000000000000000005 /* RichChatResumeRecoveryTests.swift */; };
 		DG1000000000000000000001 /* ThreadDetailTitleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DH1000000000000000000001 /* ThreadDetailTitleView.swift */; };
 		DK1000000000000000000001 /* ThreadWorkspaceBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = DL1000000000000000000001 /* ThreadWorkspaceBar.swift */; };
 		A100000000000000000000F1 /* ThreadLifecycle.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = B100000000000000000000F1 /* ThreadLifecycle.xcstrings */; };
@@ -1304,6 +1309,9 @@
 		CI2200000000000000000001 /* RichChatCompactControlSheets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatCompactControlSheets.swift; sourceTree = "<group>"; };
 		RU2000000000000000000001 /* RichChatProviderUsage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatProviderUsage.swift; sourceTree = "<group>"; };
 		RM2000000000000000000001 /* RichChatComposerMentions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatComposerMentions.swift; sourceTree = "<group>"; };
+		RS2000000000000000000001 /* RichChatResumePlan.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatResumePlan.swift; sourceTree = "<group>"; };
+		RS2000000000000000000002 /* RichChatComposerResume.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatComposerResume.swift; sourceTree = "<group>"; };
+		RS2000000000000000000004 /* RichChatThreadResume.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Pages/RichChatThreadResume.swift; sourceTree = "<group>"; };
 		QA2000000000000000000001 /* RichChatQuestionAnswerPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ../RichChatQuestionAnswerPresentation.swift; sourceTree = "<group>"; };
 		QA2000000000000000000002 /* RichChatQuestionAnswerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatQuestionAnswerView.swift; sourceTree = "<group>"; };
 		D72000000000000000000006 /* RichChatComposerDraftStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatComposerDraftStore.swift; sourceTree = "<group>"; };
@@ -1389,6 +1397,8 @@
 		HM2000000000000000000001 /* ThreadProviderHandoff.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThreadProviderHandoff.swift; sourceTree = "<group>"; };
 		DF1000000000000000000001 /* ThreadWorktreeMoveController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThreadWorktreeMoveController.swift; sourceTree = "<group>"; };
 		DF1000000000000000000002 /* ThreadWorktreeMoveTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThreadWorktreeMoveTests.swift; sourceTree = "<group>"; };
+		RS2000000000000000000003 /* RichChatResumePlanTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatResumePlanTests.swift; sourceTree = "<group>"; };
+		RS2000000000000000000005 /* RichChatResumeRecoveryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatResumeRecoveryTests.swift; sourceTree = "<group>"; };
 		DH1000000000000000000001 /* ThreadDetailTitleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThreadDetailTitleView.swift; sourceTree = "<group>"; };
 		DL1000000000000000000001 /* ThreadWorkspaceBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThreadWorkspaceBar.swift; sourceTree = "<group>"; };
 		B100000000000000000000F1 /* ThreadLifecycle.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = ThreadLifecycle.xcstrings; sourceTree = "<group>"; };
@@ -2290,6 +2300,7 @@
 				DD1000000000000000000001 /* RichChatMessageRevert.swift */,
 				B1000000000000000000009A /* RichChatGatewayContracts.swift */,
 				B100000000000000000000B3 /* RichChatSessionComposition.swift */,
+				RS2000000000000000000001 /* RichChatResumePlan.swift */,
 			);
 			path = RichChat;
 			sourceTree = "<group>";
@@ -2352,6 +2363,7 @@
 				CI2200000000000000000001 /* RichChatCompactControlSheets.swift */,
 				RU2000000000000000000001 /* RichChatProviderUsage.swift */,
 				RM2000000000000000000001 /* RichChatComposerMentions.swift */,
+				RS2000000000000000000002 /* RichChatComposerResume.swift */,
 				QA2000000000000000000001 /* RichChatQuestionAnswerPresentation.swift */,
 				QA2000000000000000000002 /* RichChatQuestionAnswerView.swift */,
 				B100000000000000000000BC /* RichChatControlPanel.swift */,
@@ -2362,6 +2374,7 @@
 				PA2100000000000000000001 /* RichChatThreadDraftState.swift */,
 				PF2100000000000000000001 /* RichChatThreadFork.swift */,
 				PA2200000000000000000001 /* RichChatThreadPageState.swift */,
+				RS2000000000000000000004 /* RichChatThreadResume.swift */,
 			);
 			path = UI;
 			sourceTree = "<group>";
@@ -2795,6 +2808,8 @@
 				DB1000000000000000000004 /* ArchivedThreadsParityTests.swift */,
 				DD1000000000000000000004 /* RichChatMessageActionsTests.swift */,
 				DF1000000000000000000002 /* ThreadWorktreeMoveTests.swift */,
+				RS2000000000000000000003 /* RichChatResumePlanTests.swift */,
+				RS2000000000000000000005 /* RichChatResumeRecoveryTests.swift */,
 			);
 			path = AppTests;
 			sourceTree = "<group>";
@@ -3746,6 +3761,8 @@
 				CI1200000000000000000001 /* RichChatCompactControlSheets.swift in Sources */,
 				RU1000000000000000000001 /* RichChatProviderUsage.swift in Sources */,
 				RM1000000000000000000001 /* RichChatComposerMentions.swift in Sources */,
+				RS1000000000000000000001 /* RichChatResumePlan.swift in Sources */,
+				RS1000000000000000000002 /* RichChatComposerResume.swift in Sources */,
 				QA1000000000000000000001 /* RichChatQuestionAnswerPresentation.swift in Sources */,
 				QA1000000000000000000002 /* RichChatQuestionAnswerView.swift in Sources */,
 				D71000000000000000000006 /* RichChatComposerDraftStore.swift in Sources */,
@@ -3758,6 +3775,7 @@
 				PA1100000000000000000001 /* RichChatThreadDraftState.swift in Sources */,
 				PF1100000000000000000001 /* RichChatThreadFork.swift in Sources */,
 				PA1200000000000000000001 /* RichChatThreadPageState.swift in Sources */,
+				RS1000000000000000000004 /* RichChatThreadResume.swift in Sources */,
 				A100000000000000000000BE /* ProjectWorkspaceModels.swift in Sources */,
 				A100000000000000000000BF /* ProjectWorkspaceGateway.swift in Sources */,
 				A100000000000000000000C0 /* ProjectWorkspaceControllerState.swift in Sources */,
@@ -3989,6 +4007,8 @@
 				DA1000000000000000000004 /* ArchivedThreadsParityTests.swift in Sources */,
 				DC1000000000000000000004 /* RichChatMessageActionsTests.swift in Sources */,
 				DE1000000000000000000002 /* ThreadWorktreeMoveTests.swift in Sources */,
+				RS1000000000000000000003 /* RichChatResumePlanTests.swift in Sources */,
+				RS1000000000000000000005 /* RichChatResumeRecoveryTests.swift in Sources */,
 				7D77E6248CF346589B5B6BB3 /* RemoteIntegrationsContractTests.swift in Sources */,
 				73A5C647171A44118C1AB358 /* RemoteIntegrationsControllerTests.swift in Sources */,
 				379009BE498848CDBD279EFA /* RemoteIntegrationsGatewayTests.swift in Sources */,

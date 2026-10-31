@@ -6,6 +6,35 @@ import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
 @Serializable
+data class RoutethreadU2DAgentU2DVisionResponseU2DOptionU2D1_1e25c599a6(
+    @SerialName("capturedAt") val capturedAt: RemoteField<Double> = RemoteField.Missing,
+    @SerialName("image") val image: RemoteField<String> = RemoteField.Missing,
+    @SerialName("source") val source: RoutethreadU2DAgentU2DVisionResponseU2DOptionU2D1U2DSource_9addfc34d2,
+    @SerialName("status") val status: RoutethreadU2DAgentU2DVisionResponseU2DOptionU2D1U2DStatus_cf7eae9345,
+    @SerialName("streamVersion") val streamVersion: RemoteField<ProcedureconnectThreadVoiceRequestU2DConfigU2DCrewU2DOptionU2D1U2DOptionU2D1U2DVersion_7f9f5a0d72> = RemoteField.Missing,
+    @SerialName("target") val target: RemoteField<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b> = RemoteField.Missing,
+    @SerialName("toolName") val toolName: ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b,
+    @SerialName("updatedAt") val updatedAt: Double,
+    @SerialName("version") val version: ProcedureconnectThreadVoiceRequestU2DConfigU2DCrewU2DOptionU2D1U2DOptionU2D1U2DVersion_7f9f5a0d72,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("capturedAt", "Double", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("image", "String", false, false, null, null, null, 3145728, null, null, "^data:image\\/(?:png|jpeg);base64,[A-Za-z0-9+/=]+$", null, listOf()),
+            RemoteFieldDescriptor("source", "RoutethreadU2DAgentU2DVisionResponseU2DOptionU2D1U2DSource_9addfc34d2", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("status", "RoutethreadU2DAgentU2DVisionResponseU2DOptionU2D1U2DStatus_cf7eae9345", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("streamVersion", "ProcedureconnectThreadVoiceRequestU2DConfigU2DCrewU2DOptionU2D1U2DOptionU2D1U2DVersion_7f9f5a0d72", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("target", "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("toolName", "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("updatedAt", "Double", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("version", "ProcedureconnectThreadVoiceRequestU2DConfigU2DCrewU2DOptionU2D1U2DOptionU2D1U2DVersion_7f9f5a0d72", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+typealias RoutethreadU2DAgentU2DVisionResponse_af80d04059 = RoutethreadU2DAgentU2DVisionResponseU2DOptionU2D1_1e25c599a6?
+
+@Serializable
 data class RoutethreadU2DCheckpointU2DRevertRequest_40f9a6009b(
     @SerialName("checkpointItemId") val checkpointItemId: String,
     @SerialName("operationKey") val operationKey: String,
@@ -415,25 +444,4 @@ data class RoutethreadU2DCommandRequestU2DOptionU2D5_21cd039cb3(
             RemoteFieldDescriptor("kind", "RoutethreadU2DCommandRequestU2DOptionU2D5U2DKind_f399af5f8d", true, false, null, null, null, null, null, null, null, null, listOf()),
         ), listOf())
     }
-}
-
-@Serializable
-enum class RoutethreadU2DCommandRequestU2DOptionU2D6U2DKind_03fdf2ff7a {
-    @SerialName("clear-group") CLEARU2DGROUP,
-}
-
-@Serializable
-data class RoutethreadU2DCommandRequestU2DOptionU2D6_1ae7de2180(
-    @SerialName("kind") val kind: RoutethreadU2DCommandRequestU2DOptionU2D6U2DKind_03fdf2ff7a,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("kind", "RoutethreadU2DCommandRequestU2DOptionU2D6U2DKind_03fdf2ff7a", true, false, null, null, null, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable
-enum class RoutethreadU2DCommandRequestU2DOptionU2D7U2DKind_356ae1fc45 {
-    @SerialName("rename") RENAME,
 }

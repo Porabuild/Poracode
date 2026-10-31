@@ -40,6 +40,11 @@ data class RemoteThread(
     @Serializable(with = WorkspaceGrantRevisionProjectionSerializer::class)
     val workspaceGrantRevision: Long? = null,
     val forkedFrom: JsonObject? = null,
+    /**
+     * Host-owned cut-off marker (`error` | `restart`) for a turn that ended
+     * unfinished without Stop; absent on older hosts and once a turn starts.
+     */
+    val interruptedTurn: String? = null,
 ) {
     val isArchived: Boolean get() = archived == true
     val isDone: Boolean get() = done == true

@@ -10556,9 +10556,13 @@
             "evidence": [
               "ios/App/App/Features/RichChat/UI/RichChatTimelineView.swift",
               "ios/App/App/Features/RichChat/RichChatSessionConfigOptions.swift",
-              "ios/App/AppTests/RichChatSessionConfigControlsTests.swift"
+              "ios/App/AppTests/RichChatSessionConfigControlsTests.swift",
+              "ios/App/App/Features/RichChat/RichChatResumePlan.swift",
+              "ios/App/AppTests/RichChatResumePlanTests.swift",
+              "ios/App/App/Features/RichChat/UI/Pages/RichChatThreadResume.swift",
+              "ios/App/AppTests/RichChatResumeRecoveryTests.swift"
             ],
-            "note": "Live session model/effort/context choices feed existing composer controls; absent inventories preserve legacy detection, null retires, and foreign-provider events are rejected. Unit evidence is cited; no checked-in device journey qualifies this UI yet."
+            "note": "Live session model/effort/context choices feed existing composer controls; absent inventories preserve legacy detection, null retires, and foreign-provider events are rejected. The cut-off turn marker drives the empty composer's resume button with the same absent/null/foreign-provider rules; a settled marked row outranks a stale open turn, and a send the host refuses for want of a session relaunches the thread with the same prompt. Unit evidence is cited; no checked-in device journey qualifies this UI yet."
           }
         },
         "android": {
@@ -10575,9 +10579,13 @@
             "evidence": [
               "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichChatThreadScreen.kt",
               "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichChatLiveSessionControls.kt",
-              "android/app/src/test/kotlin/com/poracode/app/ui/richchat/RichChatLiveSessionControlsTest.kt"
+              "android/app/src/test/kotlin/com/poracode/app/ui/richchat/RichChatLiveSessionControlsTest.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichChatResumePlan.kt",
+              "android/app/src/test/kotlin/com/poracode/app/ui/richchat/RichChatResumePlanTest.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichChatThreadResume.kt",
+              "android/app/src/test/kotlin/com/poracode/app/ui/richchat/RichChatResumeRecoveryTest.kt"
             ],
-            "note": "Live session model/effort/context choices feed existing composer controls; absent inventories preserve legacy detection, null retires, and foreign-provider events are rejected. Unit evidence is cited; no checked-in device journey qualifies this UI yet."
+            "note": "Live session model/effort/context choices feed existing composer controls; absent inventories preserve legacy detection, null retires, and foreign-provider events are rejected. The cut-off turn marker drives the empty composer's resume button with the same absent/null/foreign-provider rules; a settled marked row outranks a stale open turn, and a send the host refuses for want of a session relaunches the thread with the same prompt. Unit evidence is cited; no checked-in device journey qualifies this UI yet."
           }
         }
       },

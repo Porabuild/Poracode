@@ -32,6 +32,13 @@ internal fun RemoteClientException.sanitized(mutation: Boolean): RichChatGateway
  */
 internal const val RICH_CHAT_PROCEDURE_NOT_ALLOWED = "git_procedure_not_allowed"
 
+/**
+ * The host's typed refusal of a send for a thread it holds no session for
+ * (`src/shared/threadSessionRefusal.ts`): a definite HTTP 422, proven
+ * pre-effect. The empty composer's resume relaunches the thread on it.
+ */
+internal const val THREAD_SESSION_ABSENCE_REFUSAL_CODE = "unknown_thread_session"
+
 internal fun Exception.sanitized(mutation: Boolean): RichChatGatewayException = when (this) {
     is RichChatAuthorizationException -> RichChatGatewayException(status, "forbidden", false, this)
     is RichChatRemoteRejectedException -> RichChatGatewayException(status, "remote_error", false, this)
@@ -66,4 +73,7 @@ internal val SAFE_RICH_CHAT_ERROR_CODES = setOf(
     // code must survive sanitization so the session-action inventory can tell
     // "host predates the seam" apart from a real denial.
     RICH_CHAT_PROCEDURE_NOT_ALLOWED,
+    // Declared host vocabulary: the send's missing-session refusal must
+    // survive so the resume can tell it apart from any other rejection.
+    THREAD_SESSION_ABSENCE_REFUSAL_CODE,
 )
