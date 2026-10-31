@@ -6,6 +6,7 @@ import type { CanonicalRequestType, UserInputOption } from "@/shared/contracts";
 import { isNegativeOption } from "../helpers";
 import { handleOptionKey } from "../optionKeyboard";
 import { QuestionRowMarker } from "./QuestionOptionRow";
+import { useOverflowTooltip } from "./useOverflowTooltip";
 
 export function ApprovalActions(props: {
   options: readonly UserInputOption[];
@@ -23,10 +24,17 @@ export function ApprovalActions(props: {
   const primary = positives[0];
   const positiveAlternates = positives.slice(1);
   const rootClassName = stackOnNarrow
-    ? "flex items-center gap-1 @max-[44rem]:flex-col @max-[44rem]:items-stretch"
-    : "flex items-center gap-1";
-  const negativeButtonClassName = stackOnNarrow ? "text-muted @max-[44rem]:w-full" : "text-muted";
-  const buttonClassName = stackOnNarrow ? "@max-[44rem]:w-full" : "";
+    ? "flex flex-wrap items-center gap-1 @max-[44rem]:flex-col @max-[44rem]:items-stretch"
+    : "flex flex-wrap items-center gap-1";
+  // Scope labels can carry long paths; cap each button and truncate its label
+  // so one option cannot push the row past the panel. The tooltip shows the rest.
+  const capClassName = stackOnNarrow
+    ? "max-w-[min(100%,28rem)] @max-[44rem]:max-w-full"
+    : "max-w-[min(100%,28rem)]";
+  const negativeButtonClassName = stackOnNarrow
+    ? `${capClassName} text-muted @max-[44rem]:w-full`
+    : `${capClassName} text-muted`;
+  const buttonClassName = stackOnNarrow ? `${capClassName} @max-[44rem]:w-full` : capClassName;
 
   if (!primary && negatives.length === 0) return null;
 
@@ -110,40 +118,45 @@ function ApprovalOptionButton(props: {
 }) {
   const { option, index, variant, isDisabled, className, onSelect } = props;
   const descriptionId = useId();
-  const button = (
-    <Button
-      size="sm"
-      variant={variant}
-      isDisabled={isDisabled}
-      className={className}
-      {...(index !== undefined ? { "data-approval-option": true } : {})}
-      ref={(element) => {
-        // React Aria filters aria-keyshortcuts out of Button props.
-        if (index !== undefined && index < 9)
-          element?.setAttribute("aria-keyshortcuts", String(index + 1));
-        else element?.removeAttribute("aria-keyshortcuts");
-      }}
-      {...(option.description ? { "aria-describedby": descriptionId } : {})}
-      onPress={() => onSelect(option.optionId)}
-    >
-      {index !== undefined ? (
-        <QuestionRowMarker active={false}>{index + 1}</QuestionRowMarker>
-      ) : null}
-      {option.label}
-    </Button>
-  );
-  if (!option.description) return button;
+  const { labelRef, labelOverflows, tooltipProps } = useOverflowTooltip(!!option.description);
   return (
-    <Tooltip delay={400}>
-      {button}
-      <span id={descriptionId} hidden>
-        {option.description}
-      </span>
-      <Tooltip.Content
-        placement="top"
-        className="max-w-[28rem] whitespace-pre-wrap break-words text-xs"
+    <Tooltip delay={400} {...tooltipProps}>
+      <Button
+        size="sm"
+        variant={variant}
+        isDisabled={isDisabled}
+        className={className}
+        {...(index !== undefined ? { "data-approval-option": true } : {})}
+        ref={(element) => {
+          // React Aria filters aria-keyshortcuts out of Button props.
+          if (index !== undefined && index < 9)
+            element?.setAttribute("aria-keyshortcuts", String(index + 1));
+          else element?.removeAttribute("aria-keyshortcuts");
+        }}
+        {...(option.description ? { "aria-describedby": descriptionId } : {})}
+        onPress={() => onSelect(option.optionId)}
       >
-        {option.description}
+        {index !== undefined ? (
+          <QuestionRowMarker active={false}>{index + 1}</QuestionRowMarker>
+        ) : null}
+        <span ref={labelRef} className="min-w-0 truncate">
+          {option.label}
+        </span>
+      </Button>
+      {option.description ? (
+        <span id={descriptionId} hidden>
+          {option.description}
+        </span>
+      ) : null}
+      <Tooltip.Content placement="top" className="pointer-events-none max-w-[28rem] text-xs">
+        <div className="space-y-1 whitespace-pre-wrap [overflow-wrap:anywhere]">
+          {labelOverflows ? (
+            <div className="font-medium text-foreground">{option.label}</div>
+          ) : null}
+          {option.description ? (
+            <div className="text-[11px] text-[color:var(--muted)]">{option.description}</div>
+          ) : null}
+        </div>
       </Tooltip.Content>
     </Tooltip>
   );

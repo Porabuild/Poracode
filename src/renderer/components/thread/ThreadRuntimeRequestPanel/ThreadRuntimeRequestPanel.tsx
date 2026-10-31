@@ -241,7 +241,7 @@ export function ThreadRuntimeRequestPanel(props: ThreadRuntimeRequestPanelProps)
               className={
                 isPlanApproval
                   ? "ml-auto max-w-full shrink-0 self-end @max-[44rem]:ml-0 @max-[44rem]:basis-full @max-[44rem]:self-stretch"
-                  : "ml-auto shrink-0 self-end"
+                  : "ml-auto max-w-full shrink-0 self-end"
               }
             >
               {approvalActions}
