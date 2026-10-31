@@ -1,4 +1,5 @@
 import type { ProjectLocation, ThreadConfig } from "@/shared/contracts";
+import { migrateClaudeUltracodeEffort } from "@/shared/agents/claudeEfforts";
 import { CLAUDE_DEFAULT_APPROVAL_POLICY } from "./detection";
 import { prepareClaudeMergedSettingsFile } from "./mergedSettings";
 import { claudeContextManagedModelId, resolveClaudeContextWindowTokens } from "./contextWindow";
@@ -24,6 +25,19 @@ export function applyClaudeContextSuffix(model: string, contextSize?: string): s
   return `${base}[1m]`;
 }
 
+/**
+ * Claude Code's native effort level and `ultracode` session flag for a thread.
+ * Ultracode runs dynamic workflows at any effort; a config saved while it was
+ * an effort tier runs at xhigh with the flag on.
+ */
+export function claudeEffortAndUltracode(config: Pick<ThreadConfig, "effort" | "workflows">): {
+  effort: string | undefined;
+  ultracode: boolean;
+} {
+  const migrated = migrateClaudeUltracodeEffort(config);
+  return { effort: migrated.effort || undefined, ultracode: migrated.workflows === true };
+}
+
 export function buildClaudeArgs(
   config: ThreadConfig,
   prompt: string,
@@ -41,13 +55,11 @@ export function buildClaudeArgs(
   if (config.model) {
     args.push("--model", applyClaudeContextSuffix(config.model, config.contextSize));
   }
-  if (config.effort) {
-    // `ultracode` is a Claude Code setting (xhigh reasoning + dynamic
-    // workflows), not an `--effort` value. Send `xhigh` to the model; the
-    // dynamic-workflow toggle rides on the `--settings` file — wired via
-    // applyFlagSettings on the SDK path and via the ultracode-merged
-    // settings.json rewrite on the PTY path.
-    args.push("--effort", config.effort === "ultracode" ? "xhigh" : config.effort);
+  // The ultracode flag rides on the `--settings` file (see
+  // rewriteClaudeLaunchArgsForConfig); `--effort` carries only the level.
+  const { effort } = claudeEffortAndUltracode(config);
+  if (effort) {
+    args.push("--effort", effort);
   }
 
   args.push("--allow-dangerously-skip-permissions");
@@ -85,7 +97,7 @@ export async function rewriteClaudeLaunchArgsForConfig(
   projectLocation: ProjectLocation,
 ): Promise<string[]> {
   const flags: Record<string, unknown> = {};
-  if (config.effort === "ultracode") flags.ultracode = true;
+  if (claudeEffortAndUltracode(config).ultracode) flags.ultracode = true;
   if (config.fast === true) flags.fastMode = true;
   if (Object.keys(flags).length === 0) return args;
   const idx = args.findIndex((arg, i) => arg === "--settings" && i + 1 < args.length);

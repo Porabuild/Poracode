@@ -14,12 +14,12 @@ it.each(["claude", "claude:upgrade-profile"])(
     };
     const unaffected = { ...cached, kind: "unaffected", label: "Unaffected" };
     const upgraded = decodeAgentStatusCache({
-      version: 69,
+      version: 70,
       windows: [cached, unaffected],
       wsl: [],
     });
     expect(upgraded.statuses).toEqual({ windows: [unaffected], wsl: [], fromCache: false });
-    const fresh = decodeAgentStatusCache({ version: 70, windows: [cached, unaffected], wsl: [] });
+    const fresh = decodeAgentStatusCache({ version: 71, windows: [cached, unaffected], wsl: [] });
     expect(fresh.statuses).toEqual({ windows: [cached, unaffected], wsl: [], fromCache: true });
   },
 );

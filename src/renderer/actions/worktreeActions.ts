@@ -3,6 +3,7 @@ import { msg } from "@lingui/core/macro";
 import { buildWorktreeLocation } from "@/shared/worktree";
 import { errorDetail } from "@/shared/messages";
 import type { Project } from "@/shared/contracts";
+import { RemoteClientError } from "@/shared/remote/client";
 import { readBridge } from "@/renderer/bridge";
 import { i18n } from "@/renderer/i18n/i18n";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -186,6 +187,7 @@ export function deleteWorktreeGroup(
   projectId: string,
   worktreePath: string,
   threadIds: string[],
+  onThreadsChanged?: () => void,
 ): void {
   if (threadIds.some((threadId) => findExperimentByThreadId(threadId))) return;
   const app = useAppStore.getState();
@@ -195,6 +197,18 @@ export function deleteWorktreeGroup(
   const threadIdSet = new Set(threadIds);
   const groupThreads = app.threads.filter((thread) => threadIdSet.has(thread.id));
   const sampleThread = groupThreads.find((thread) => thread.worktreeBranch);
+  const onRejected = (error: unknown) => {
+    if (
+      onThreadsChanged &&
+      error instanceof RemoteClientError &&
+      error.status === 409 &&
+      error.code === "worktree_threads_changed"
+    ) {
+      onThreadsChanged();
+      return;
+    }
+    toast.danger(errorDetail(error) || i18n._(msg`Unable to remove worktree.`));
+  };
 
   const owner = remoteOwner(project);
   if (owner) {
@@ -215,9 +229,7 @@ export function deleteWorktreeGroup(
       .then(() => {
         forgetRemovedWorktreeGroup(projectId, worktreePath, threadIds);
       })
-      .catch((error) => {
-        toast.danger(errorDetail(error) || i18n._(msg`Unable to remove worktree.`));
-      });
+      .catch(onRejected);
     return;
   }
   // A root worktree group is removed by the SAME host command the remote path
@@ -242,7 +254,7 @@ export function deleteWorktreeGroup(
         refreshManagedRootCatalogSoon();
       })
       .catch((error) => {
-        toast.danger(errorDetail(error) || i18n._(msg`Unable to remove worktree.`));
+        onRejected(error);
         refreshManagedRootCatalogSoon();
       })
       .finally(() => {

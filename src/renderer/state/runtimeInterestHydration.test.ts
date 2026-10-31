@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   hydrate: vi.fn<(threadId: string) => Promise<void>>(async () => {}),
   retain: vi.fn<(threadId: string) => void>(),
   release: vi.fn<(threadId: string) => void>(),
+  recoverRemote: vi.fn<(threadId: string) => void>(),
   retainInterest:
     vi.fn<
       (
@@ -28,6 +29,7 @@ vi.mock("./chatRuntimePersister", () => ({
   releaseThreadRuntimeItems: mocks.release,
 }));
 vi.mock("./rendererEventInterests", () => ({ retainRendererEventInterest: mocks.retainInterest }));
+vi.mock("./remote/sync", () => ({ recoverRemoteRuntimeHistory: mocks.recoverRemote }));
 vi.mock("./appStore", () => ({
   useAppStore: { getState: () => ({ runtimeHydrationStatus: mocks.hydrationStatus }) },
 }));
@@ -66,6 +68,20 @@ it("retries failed history through the reducer that owns queued deltas", () => {
   try {
     void retryThreadRuntimeItems("thread-1");
     expect(recover).toHaveBeenCalledExactlyOnceWith("thread-1");
+    expect(mocks.hydrate).not.toHaveBeenCalled();
+  } finally {
+    uninstall();
+  }
+});
+
+it("retries a paired host's thread through the remote reducer that owns its queue", () => {
+  const recover = vi.fn<(threadId: string) => void>();
+  const uninstall = installRuntimeHistoryRecovery(recover);
+  try {
+    mocks.hydrated.mockReturnValue(true);
+    void retryThreadRuntimeItems("remote:host-1:thread:thread-1");
+    expect(mocks.recoverRemote).toHaveBeenCalledExactlyOnceWith("remote:host-1:thread:thread-1");
+    expect(recover).not.toHaveBeenCalled();
     expect(mocks.hydrate).not.toHaveBeenCalled();
   } finally {
     uninstall();

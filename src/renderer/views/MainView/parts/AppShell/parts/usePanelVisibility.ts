@@ -64,8 +64,6 @@ export function usePanelVisibility() {
   const sideChatOpen = usePanelStore((s) => s.sideChatPanelOpen);
   const bottomDocks = useBottomDockedTabs();
   const terminalPosition = useSharedSettings((s) => s.terminalPosition);
-  const threadDocksPlacement = useSharedSettings((s) => s.threadDocksPlacement);
-  const threadDocksFocus = usePanelStore((s) => s.threadDocksFocus);
   const currentThreadId = useFocusedThreadId();
   const sideChatScoped = useSideChatPanelStore((s) => s.entry?.source.id === currentThreadId);
   const sideChatPanelOpen = sideChatOpen && sideChatScoped;
@@ -78,11 +76,7 @@ export function usePanelVisibility() {
   const hasImages =
     gallery.images.length + gallery.pendingRemoteRefs.length + gallery.pendingRemotePaths.length >
     0;
-  const docksPanelOpen =
-    informationalDocksPanelOpen ||
-    (threadDocksPanelOpen &&
-      hasImages &&
-      (threadDocksPlacement === "right" || threadDocksFocus === "images"));
+  const docksPanelOpen = informationalDocksPanelOpen || (threadDocksPanelOpen && hasImages);
 
   const isTerminalRight = terminalPosition === "right";
   const gitPanelOpen = !!gitReviewContext && gitReviewAsPanel;

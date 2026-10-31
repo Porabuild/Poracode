@@ -1,5 +1,6 @@
 import { useThreadFollowUpQueueStore } from "../threadFollowUpQueueStore";
 import type { Project, Thread } from "@/shared/contracts";
+import { isHomeProject } from "@/shared/homeScope";
 import { useAppStore } from "../appStore";
 import { visibleCatalogProjects, confirmAbsentProjectRemovals } from "../projectRemovalIntents";
 import { finalizeProjectRemoval } from "../projectRemovalPresentation";
@@ -16,10 +17,10 @@ import { projectRemoteProject, projectRemoteThread, remoteThreadId } from "../re
 import { refreshGitProject } from "../gitRefresh";
 import { useGitStore } from "../gitStore";
 import { filterSyncedRemoteProjects } from "./projectSync";
-import { isChatSidebarSurface } from "@/renderer/clientSurface";
 import { isBrowserClientRuntime } from "@/renderer/clientRuntime";
 import { getActiveWorkspaceId } from "@/renderer/state/workspaceStore";
 import { pinRemoteProjectWorkspaces, projectBrowserThreadWorkspace } from "./workspaceFilings";
+import { clientWorkspaceForHostWorkspace } from "./hostWorkspacePlacement";
 
 let remoteProjectRowsSyncDepth = 0;
 
@@ -228,7 +229,8 @@ export function syncRemoteAppRows(
   }
   const remoteState = useRemoteServersStore.getState();
   const excluded = remoteState.excludedProjectIds[desktopId];
-  const syncOptions = { includeHomeScope: isChatSidebarSurface() };
+  // Browser clients (web app, PWA, chat sidebar) have no Home of their own.
+  const syncOptions = { includeHomeScope: isBrowserClientRuntime() };
   const projects = allProjects
     ? filterSyncedRemoteProjects(allProjects, excluded, syncOptions)
     : undefined;
@@ -252,6 +254,7 @@ export function syncRemoteAppRows(
       )
     : null;
   const counterpartWorkspace = localWorkspaceByName(useAppStore.getState().projects);
+  const browserClient = isBrowserClientRuntime();
   const clientWorkspaceFilings: {
     desktopId: string;
     remoteId: string;
@@ -264,20 +267,33 @@ export function syncRemoteAppRows(
           const current = currentProjects?.get(project.id);
           const { workspaceId: remoteWorkspaceId, ...projectWithoutWorkspace } = projected;
           const name = remoteState.projectNameOverrides[desktopId]?.[project.id] ?? projected.name;
-          const workspaceOverride = remoteState.projectWorkspaceIds[desktopId]?.[project.id];
+          const pinnedWorkspaceId = remoteState.projectWorkspaceIds[desktopId]?.[project.id];
           const inheritedWorkspaceId = counterpartWorkspace.get(name);
-          const workspaceId = mirroredProjectWorkspaceId({
-            workspaceOverride,
-            inheritedWorkspaceId,
-            currentWorkspaceId: current?.workspaceId,
-            remoteWorkspaceId,
-          });
+          // A browser client follows the host's own workspace (matched by name)
+          // over its default filings, but never over a move the user made.
+          const userFiled =
+            pinnedWorkspaceId !== undefined &&
+            remoteState.explicitProjectWorkspaceIds[desktopId]?.[project.id] === true;
+          const hostWorkspaceId =
+            browserClient && !userFiled && inheritedWorkspaceId === undefined
+              ? clientWorkspaceForHostWorkspace(desktopId, remoteWorkspaceId)
+              : undefined;
+          const workspaceOverride = hostWorkspaceId ?? pinnedWorkspaceId;
+          // Home belongs to every workspace, so it stays unfiled like local Home.
+          const workspaceId = isHomeProject(projected)
+            ? undefined
+            : mirroredProjectWorkspaceId({
+                workspaceOverride,
+                inheritedWorkspaceId,
+                currentWorkspaceId: current?.workspaceId,
+                remoteWorkspaceId,
+              });
           // Inheritance stays unpinned so a same-named local project can still
           // move the mirror. A browser default (or a filing already on the row)
           // is pinned, or the next local edit treats it as unfiled.
           if (
-            isBrowserClientRuntime() &&
-            workspaceOverride === undefined &&
+            browserClient &&
+            (pinnedWorkspaceId === undefined || hostWorkspaceId !== undefined) &&
             inheritedWorkspaceId === undefined &&
             workspaceId
           ) {
@@ -393,7 +409,8 @@ export function syncRemoteAppRows(
   if (useRemoteServersStore.getState().runtime[desktopId]?.status !== "online") return;
   const gitStatuses = useGitStore.getState().statuses;
   for (const project of projectedProjects) {
-    if (gitStatuses[project.id]) continue;
+    // Home is the host's home folder, not a repository; local Home skips Git too.
+    if (gitStatuses[project.id] || isHomeProject(project)) continue;
     void refreshGitProject(project, "manual", "full").catch(() => undefined);
   }
 }
@@ -552,6 +569,6 @@ export function installRemoteProjectWorkspaceSync(): () => void {
     }
     if (changes.length === 0) return;
 
-    pinRemoteProjectWorkspaces(changes);
+    pinRemoteProjectWorkspaces(changes, { explicit: true });
   });
 }

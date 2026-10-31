@@ -38,6 +38,11 @@ import type { SupervisorEvent } from "@/shared/ipc";
 import { REMOTE_PROCEDURE_RESULT_FIXTURES } from "@/shared/remote/contract/goldens/procedureFixtures";
 import { defaultSharedSettings } from "@/shared/settings";
 import { emptyGitStateSnapshot } from "@/shared/gitState";
+import {
+  isCleartextLanUrl,
+  normalizePairingEndpoint,
+  parsePairingUrlParts,
+} from "@/shared/remote/pairingUrl";
 import type { BrowserPanelManager } from "@/host/browser/types";
 import { SettingsWriteRefusedError } from "@/backend/settings/settingsCompatWrites";
 import {
@@ -80,7 +85,11 @@ import {
 } from "@/host/db/runtimeItems";
 import { resetRuntimePersistenceForTests } from "@/host/db/runtimePersistenceRuntime";
 import * as runtimePersistence from "@/host/db/runtimePersistenceRuntime";
-import { RemoteAuthStore, type PersistedRemoteAuthFile } from "./auth";
+import {
+  RemoteAuthStore,
+  MANAGED_RENDERER_ACCESS_TTL_MS,
+  type PersistedRemoteAuthFile,
+} from "./auth";
 import * as remoteConfig from "./config";
 import { deriveForwardOwner, ForwardOriginPolicy } from "./portForward/forwardOrigin";
 import { createForwardOriginIdentity } from "./portForward/forwardOriginIdentity";
@@ -779,6 +788,15 @@ describe("RemoteAccessServer", () => {
       expect(server.mintLoopbackRendererCredential({ browserExtension: true })?.endpoint).toBe(
         info.loopbackHttpBaseUrl,
       );
+      // An independent grant keeps its advertised link and adds one on this
+      // listener that a same-machine client (the TUI) can redeem.
+      const grant = server.issueIndependentPairingGrant({ preset: "operator" });
+      expect(normalizePairingEndpoint(grant.pairingUrl)).toBe("https://desktop.tailnet.ts.net");
+      expect(normalizePairingEndpoint(grant.localPairingUrl)).toBe(info.loopbackHttpBaseUrl);
+      expect(isCleartextLanUrl(normalizePairingEndpoint(grant.localPairingUrl))).toBe(false);
+      expect(parsePairingUrlParts(grant.localPairingUrl)?.token).toBe(
+        parsePairingUrlParts(grant.pairingUrl)?.token,
+      );
       for (const origin of [
         info.loopbackHttpBaseUrl!,
         info.lanHttpBaseUrl!,
@@ -800,6 +818,42 @@ describe("RemoteAccessServer", () => {
     } finally {
       tailnet.mockRestore();
     }
+  });
+
+  it("holds its loopback port so a second local host cannot take its loopback traffic", async () => {
+    const listenOn = (port: number) =>
+      new Promise<ReturnType<typeof createNetServer>>((resolve, reject) => {
+        const probe = createNetServer();
+        probe.once("error", reject);
+        probe.listen(port, "127.0.0.1", () => resolve(probe));
+      });
+    const server = createTestServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "loopback-guard-test", label: "Loopback guard test" },
+      host: "0.0.0.0",
+      plaintextLanAcknowledged: true,
+      port: 0,
+      truncateThreadRuntime: () => {},
+      callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
+    });
+    servers.push(server);
+    const info = await server.start();
+    const port = Number(new URL(info.loopbackHttpBaseUrl!).port);
+
+    // A later loopback-only host on the same port is refused instead of
+    // silently receiving this server's own renderer connections.
+    await expect(listenOn(port)).rejects.toMatchObject({ code: "EADDRINUSE" });
+    // Loopback requests still reach this server.
+    const refused = await fetch(`${info.loopbackHttpBaseUrl}/api/snapshot`, {
+      headers: { authorization: "Bearer lc_access_unknown" },
+    });
+    expect(refused.status).toBe(401);
+    expect(await refused.json()).toMatchObject({ error: { code: "invalid_access_token" } });
+
+    // Disposal releases the reservation along with the listener.
+    await server.dispose();
+    const reused = await listenOn(port);
+    await new Promise<void>((resolve) => reused.close(() => resolve()));
   });
 
   it("reports a device connected until its final socket closes and retains its last connection time", async () => {
@@ -1326,7 +1380,11 @@ describe("RemoteAccessServer", () => {
         }),
       });
       expect(response.status).toBe(200);
-      return (await response.json()) as { accessToken: string; sessionId?: string };
+      return (await response.json()) as {
+        accessToken: string;
+        sessionId?: string;
+        expiresAt?: string;
+      };
     };
 
     const managed = await exchange(server.mintLoopbackRendererCredential()!.pairingUrl);
@@ -1337,10 +1395,19 @@ describe("RemoteAccessServer", () => {
     expect(authStore.authenticateBearerToken(managed.accessToken).sessionId).toBe(
       managed.sessionId,
     );
+    // The access deadline covers the host process's whole uptime: the
+    // desktop's own leg never meets an expiry mid-session, so the 24-hour
+    // rotation and its renewal ladder stay out of the loopback path.
+    expect(Date.parse(managed.expiresAt!)).toBeGreaterThan(
+      Date.now() + MANAGED_RENDERER_ACCESS_TTL_MS - 60_000,
+    );
 
     const extension = await exchange(
       server.mintLoopbackRendererCredential({ browserExtension: true })!.pairingUrl,
     );
+    // The browser extension keeps the 24-hour TTL: it re-mints its credential
+    // per activation and recovers through the bridge.
+    expect(Date.parse(extension.expiresAt!)).toBeLessThanOrEqual(Date.now() + 24 * 60 * 60 * 1000);
     expect(
       writes.at(-1)?.accessSessions.some((session) => session.id === extension.sessionId),
     ).toBe(true);

@@ -193,14 +193,6 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
   },
   {
     section: "appearance",
-    anchor: "appearance.threadDocksPlacement",
-    title: msg`Thread docks`,
-    description: msg`Where a thread's goal, plan, agents, and background tasks appear. In the right panel, compact bubbles above the composer open them.`,
-    keywords:
-      "docks plan goal agents subagents background tasks right panel composer bubbles layout",
-  },
-  {
-    section: "appearance",
     anchor: "appearance.guiChatFontSize",
     title: msg`GUI chat font size`,
     keywords: "text size typography zoom larger smaller readability chat markdown",
@@ -574,7 +566,8 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     anchor: "crews.list",
     title: msg`Crews`,
     description: msg`Saved crews: a lead and the helpers it hands work to. Pick one under Poracode in any model picker.`,
-    keywords: "crews crew lead roles builder reviewer scout helpers crossagents fusion team",
+    keywords:
+      "crews crew lead roles sidekick builder reviewer scout helpers crossagents fusion team",
   },
 
   // Browser

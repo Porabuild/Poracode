@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import type { ProjectLocation } from "@/shared/contracts";
+import type { Project, ProjectLocation } from "@/shared/contracts";
 import { parseDraftProjectId } from "@/shared/paneId";
 import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -57,20 +57,6 @@ export function useGitRefresh(storeHydrated: boolean) {
   // Subscribe only to the active-project identity/location key so draft config
   // writes do not invalidate the whole shell.
   const activeProjectsKey = useAppStore((state) => buildActiveProjectsKey(state.projects));
-  const reachableRemoteServersKey = useRemoteServersStore((state) =>
-    state.servers
-      .filter(
-        (server) =>
-          !isRemoteProjectStatusUnreachable(
-            { remoteServerId: remoteConnectionKey(server) },
-            state.runtime[remoteConnectionKey(server)]?.status,
-          ),
-      )
-      .map((server) => remoteConnectionKey(server))
-      .sort()
-      .join("\u0000"),
-  );
-
   useEffect(() => {
     // `activeProjectsKey` is this run's request identity: the project set
     // below must derive from the same store snapshot, otherwise the key raced
@@ -81,34 +67,53 @@ export function useGitRefresh(storeHydrated: boolean) {
     const allActiveProjects = projectsSnapshot.filter((project) => !project.disabled);
     if (!storeHydrated) return;
     cleanupGitRefreshProjects(new Set(allActiveProjects.map((project) => project.id)));
-    const reachableRemoteServerIds = new Set(
-      reachableRemoteServersKey.split("\u0000").filter(Boolean),
-    );
-    const activeProjects = allActiveProjects.filter(
-      (project) => !project.remoteServerId || reachableRemoteServerIds.has(project.remoteServerId),
-    );
-    if (activeProjects.length === 0) return;
+    const reachableProjects = () => {
+      const state = useRemoteServersStore.getState();
+      const reachableServerIds = new Set(
+        state.servers
+          .filter(
+            (server) =>
+              !isRemoteProjectStatusUnreachable(
+                { remoteServerId: remoteConnectionKey(server) },
+                state.runtime[remoteConnectionKey(server)]?.status,
+              ),
+          )
+          .map(remoteConnectionKey),
+      );
+      return allActiveProjects.filter(
+        (project) => !project.remoteServerId || reachableServerIds.has(project.remoteServerId),
+      );
+    };
+    let activeProjects = reachableProjects();
+    const projectRuns = new Map(activeProjects.map((project) => [project.id, Symbol()]));
+    // Projects whose watch settled in this run. A project watch replaces every
+    // watcher of that project's worktrees, so worktree sets register after it.
+    const watchedProjectIds = new Set<string>();
 
     let isActive = true;
     const lastFetchTimes = new Map<string, number>();
     const pendingFetchProjectIds = new Set<string>();
     let previousPriorityProjectIds = new Set<string>();
-    const isActiveCheck = () => isActive;
+    const projectActiveCheck = (projectId: string) => {
+      const run = projectRuns.get(projectId);
+      return () => isActive && run !== undefined && projectRuns.get(projectId) === run;
+    };
 
     const watcherDebounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
     const WATCHER_DEBOUNCE_MS = 250;
 
     function scheduleWatcherRefresh(project: { id: string; location: ProjectLocation }) {
       if (!isActive) return;
+      const isProjectActive = projectActiveCheck(project.id);
       const existing = watcherDebounceTimers.get(project.id);
       if (existing) clearTimeout(existing);
       watcherDebounceTimers.set(
         project.id,
         setTimeout(() => {
           watcherDebounceTimers.delete(project.id);
-          if (!isActive) return;
+          if (!isProjectActive()) return;
           void refreshGitProject(project, "watcher", getWatcherRefreshMode(project.id), {
-            isActive: isActiveCheck,
+            isActive: isProjectActive,
           });
         }, WATCHER_DEBOUNCE_MS),
       );
@@ -147,16 +152,62 @@ export function useGitRefresh(storeHydrated: boolean) {
       return priorityProjectIds;
     }
 
-    for (const project of activeProjects) {
-      readBridge()
-        .gitWatchProject({ projectId: project.id, projectLocation: project.location })
-        .catch(() => undefined);
+    function startProject(project: Project) {
+      const isProjectActive = projectActiveCheck(project.id);
+      // Reuse the per-host queue across reconnects so initial snapshots and
+      // watcher registration leave capacity for chat and connection probes.
+      void runRendererAction(
+        `git:initial:${project.remoteServerId ?? "local"}`,
+        async () => {
+          if (!isProjectActive()) return;
+          await readBridge()
+            .gitWatchProject({ projectId: project.id, projectLocation: project.location })
+            .catch(() => undefined);
+          if (!isProjectActive()) return;
+          watchedProjectIds.add(project.id);
+          // The watch dropped this project's worktree watchers, so anything this
+          // renderer registered or cached for it before now is stale: reset the
+          // project's cache, then register its current worktree set.
+          cleanupGitRefreshProjects(
+            new Set(
+              activeProjects
+                .map((candidate) => candidate.id)
+                .filter((projectId) => projectId !== project.id),
+            ),
+          );
+          syncWatchedWorktreeProjects([project]);
+          prefetchVisibleBranchPrData(new Set([project.id]));
+          await refreshGitProject(project, "initial", "full", { isActive: isProjectActive });
+        },
+        { queue: true },
+      ).catch(() => undefined);
     }
 
     function syncActiveWorktrees() {
       if (!isActive) return;
-      syncWatchedWorktreeProjects(activeProjects);
+      // Until its watch settles, a project's worktree set would be wiped by it.
+      syncWatchedWorktreeProjects(
+        activeProjects.filter((project) => watchedProjectIds.has(project.id)),
+      );
       syncPendingPrRefreshProjects(activeProjects);
+    }
+
+    // An unreachable paired host cannot be told to stop watching: the call would
+    // wait out its deadline once per project on the shared desktop bridge. Its
+    // watch is replaced when the host returns.
+    function releaseProjectWatch(project: Project) {
+      if (
+        project.remoteServerId &&
+        isRemoteProjectStatusUnreachable(
+          project,
+          useRemoteServersStore.getState().runtime[project.remoteServerId]?.status,
+        )
+      ) {
+        return;
+      }
+      readBridge()
+        .gitUnwatchProject({ projectId: project.id })
+        .catch(() => undefined);
     }
 
     function prefetchVisibleBranchPrData(onlyProjectIds?: ReadonlySet<string>) {
@@ -200,10 +251,34 @@ export function useGitRefresh(storeHydrated: boolean) {
     });
 
     syncActiveWorktrees();
-    prefetchVisibleBranchPrData();
     for (const project of activeProjects) {
-      void refreshGitProject(project, "initial", "full", { isActive: isActiveCheck });
+      startProject(project);
     }
+    // A paired host's status must not tear down local watchers and restart
+    // every project's initial HTTP batch. Reconcile only the changed host.
+    const unsubRemoteReachability = useRemoteServersStore.subscribe(() => {
+      const nextProjects = reachableProjects();
+      const nextIds = new Set(nextProjects.map((project) => project.id));
+      const added = nextProjects.filter((project) => !projectRuns.has(project.id));
+      const removed = activeProjects.filter((project) => !nextIds.has(project.id));
+      if (added.length === 0 && removed.length === 0) return;
+      activeProjects = nextProjects;
+      for (const project of removed) {
+        projectRuns.delete(project.id);
+        watchedProjectIds.delete(project.id);
+        const timer = watcherDebounceTimers.get(project.id);
+        if (timer) clearTimeout(timer);
+        watcherDebounceTimers.delete(project.id);
+        lastFetchTimes.delete(project.id);
+        releaseProjectWatch(project);
+      }
+      cleanupGitRefreshProjects(nextIds);
+      for (const project of added) {
+        projectRuns.set(project.id, Symbol());
+        startProject(project);
+      }
+      syncActiveWorktrees();
+    });
     const unsubPendingPrRefresh = useGitStore.subscribe((state, prev) => {
       if (
         state.statuses !== prev.statuses ||
@@ -292,14 +367,16 @@ export function useGitRefresh(storeHydrated: boolean) {
 
       await Promise.all(
         projectsToFetch.map(async (project) => {
+          const isProjectActive = projectActiveCheck(project.id);
           pendingFetchProjectIds.add(project.id);
           try {
             // Network fetches can wait for minutes. Keep background work from
-            // filling the HTTP pool, including across effect replacements.
+            // filling the HTTP pool, including across effect replacements; one
+            // queue per host so a slow host never delays another host's fetch.
             await runRendererAction(
-              "git:background-fetch",
+              `git:background-fetch:${project.remoteServerId ?? "local"}`,
               async () => {
-                if (!isActive) return;
+                if (!isProjectActive()) return;
                 const isPriority = priorityProjectIds.has(project.id);
                 const promoted = promotedProjectIds.has(project.id);
                 console.log(
@@ -315,8 +392,10 @@ export function useGitRefresh(storeHydrated: boolean) {
                 } catch {
                   // ignore — remote may be unreachable
                 }
-                if (isActive) {
-                  void refreshGitProject(project, "fetch", "full", { isActive: isActiveCheck });
+                if (isProjectActive()) {
+                  void refreshGitProject(project, "fetch", "full", {
+                    isActive: isProjectActive,
+                  });
                 }
               },
               { queue: true },
@@ -336,7 +415,9 @@ export function useGitRefresh(storeHydrated: boolean) {
         if (project.location.kind !== "wsl") continue;
         if (!shouldPollProject(project)) continue;
         if (!priorityProjectIds.has(project.id)) continue;
-        void refreshGitProject(project, "poll", "status", { isActive: isActiveCheck });
+        void refreshGitProject(project, "poll", "status", {
+          isActive: projectActiveCheck(project.id),
+        });
       }
     }
 
@@ -359,6 +440,7 @@ export function useGitRefresh(storeHydrated: boolean) {
       clearInterval(wslStatusPollIntervalId);
       for (const timer of watcherDebounceTimers.values()) clearTimeout(timer);
       watcherDebounceTimers.clear();
+      unsubRemoteReachability();
       unsubPendingPrRefresh();
       unsubActiveWorktreeApp();
       unsubBranchPrPrefetchApp();
@@ -368,12 +450,8 @@ export function useGitRefresh(storeHydrated: boolean) {
       unsubActiveWorktreeTerminal();
       stopPendingPrRefresh();
       unsubWatcher();
-      for (const project of activeProjects) {
-        readBridge()
-          .gitUnwatchProject({ projectId: project.id })
-          .catch(() => undefined);
-      }
+      for (const project of activeProjects) releaseProjectWatch(project);
       cleanupGitRefreshProjects(new Set());
     };
-  }, [storeHydrated, activeProjectsKey, reachableRemoteServersKey]);
+  }, [storeHydrated, activeProjectsKey]);
 }

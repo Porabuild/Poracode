@@ -33,3 +33,10 @@ export function createGitStateExecutor(call: GitStateSupervisorCaller): GitState
 }
 
 export { GitStateService, type GitStateExecutor, type GitStateServiceOptions };
+export {
+  HOST_WORKTREE_WATCH_OWNER,
+  ProjectWatchLeases,
+  type ProjectWatchCallOptions,
+  type ProjectWatchLeasesOptions,
+  type ProjectWatchSupervisorCaller,
+} from "./ProjectWatchLeases";

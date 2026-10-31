@@ -4,6 +4,8 @@ import { useAppStore } from "@/renderer/state/appStore";
 import { rehydrateThreadRuntimeItemsAfterReset } from "@/renderer/state/chatRuntimePersister";
 import { clearRuntimeItemStoreSelectorCacheForThread } from "@/renderer/components/thread/ChatPane/chatPaneSelectors";
 import { resumeManagedRootHistory } from "@/renderer/state/managedRootCatalog/rootHistoryResume";
+import { managedRootHistoryActivation } from "@/renderer/state/managedRootCatalog/rootHistory";
+import { readHistoryResume } from "@/renderer/state/historyResumeRegistry";
 import type {
   RuntimeEventRecoveryStrategy,
   RuntimeQueueArbitration,
@@ -77,6 +79,16 @@ export function createLocalSnapshotRecovery(deps: {
       });
       if (!recovered) return false;
       if (rendererTransportGeneration !== generation) return false;
+      const activation = managedRootHistoryActivation();
+      const snapshot = activation && readHistoryResume(threadId, activation.authority);
+      if (snapshot) {
+        const arbitration = deps.getArbitration();
+        if (arbitration.hasUnsequenced(threadId)) return false;
+        // The host's snapshot cursor covers a fixed prefix even while newer
+        // deltas arrive. Keep that tail queued instead of waiting for silence.
+        arbitration.discardThroughSequence(threadId, snapshot.appliedSeq, "loopback");
+        return true;
+      }
       const after = latestRendererSequenceByThread.get(threadId) ?? before;
       if (after.ipc !== before.ipc || after.loopback !== before.loopback) continue;
       const arbitration = deps.getArbitration();

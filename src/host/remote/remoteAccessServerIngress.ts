@@ -75,9 +75,18 @@ export function resolveIngressAdmissionLimits(options: RemoteAccessServerOptions
   };
 }
 
+/**
+ * One admitted ingress operation. `releaseIngress` returns the transport slot
+ * early, once, for work whose remainder is no longer request handling — a
+ * proxied WebSocket after its relayed 101. The operation still runs inside
+ * `host.work` (shutdown joins it) and keeps every lease it holds; without the
+ * early return the slot is released when the operation settles.
+ */
+export type IngressOperation<T> = (releaseIngress: () => void) => T | PromiseLike<T>;
+
 export function runIngressWork<T>(
   host: RemoteAccessServerHost,
-  operation: () => T | PromiseLike<T>,
+  operation: IngressOperation<T>,
   source: object | undefined = undefined,
   workClass: IngressWorkClass = "bulk",
   clientAddress: string | undefined = undefined,
@@ -140,7 +149,10 @@ export function runIngressWork<T>(
   host.ingressWorkCount += 1;
   if (source !== undefined) host.ingressWorkBySource.set(source, sourceCount + 1);
   if (clientAddress !== undefined) host.ingressWorkByAddress.set(clientAddress, addressCount + 1);
-  return host.work.run(operation).finally(() => {
+  let released = false;
+  const releaseIngress = (): void => {
+    if (released) return;
+    released = true;
     host.ingressWorkCount -= 1;
     if (source !== undefined) {
       const next = (host.ingressWorkBySource.get(source) ?? 1) - 1;
@@ -152,7 +164,8 @@ export function runIngressWork<T>(
       if (next > 0) host.ingressWorkByAddress.set(clientAddress, next);
       else host.ingressWorkByAddress.delete(clientAddress);
     }
-  });
+  };
+  return host.work.run(() => operation(releaseIngress)).finally(releaseIngress);
 }
 
 /** The ingress capacity bulk work may consume: everything except the

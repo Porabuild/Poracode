@@ -37,9 +37,7 @@ import {
 
 /**
  * Right-panel "Docks" tab: the thread's informational docks and image gallery
- * stacked as sortable sections in one panel. When the informational docks stay
- * above the composer, an image bubble can open the panel with just the thread
- * gallery.
+ * stacked as sortable sections in one panel.
  */
 export function ThreadDocksPanel({
   threadId,
@@ -60,7 +58,6 @@ export function ThreadDocksPanel({
   const savedOrder = useSharedSettings((s) => s.threadDocksOrder);
   const order = normalizeThreadDocksOrder(savedOrder);
   const setOrder = useSharedSettings((s) => s.setThreadDocksOrder);
-  const docksPlacement = useSharedSettings((s) => s.threadDocksPlacement);
   const summary = useThreadDocksSummary(threadId, goalDockState, todoDockState);
   const docksShowing = usePanelStore((s) => s.threadDocksPanelOpen && s.rightPanelTab === "docks");
   const [visionCollapse, setVisionCollapse] = useState({ threadId, collapsed: false });
@@ -177,10 +174,7 @@ export function ThreadDocksPanel({
     context: t`Thread context`,
     usage: t`Usage`,
   };
-  const imageOnly = docksPlacement === "composer" && focus === "images";
-  const visibleOrder = imageOnly
-    ? order.filter((kind) => kind === "images" && content[kind] !== null)
-    : order.filter((kind) => content[kind] !== null);
+  const visibleOrder = order.filter((kind) => content[kind] !== null);
 
   function handleDragEnd(event: DragEndEvent) {
     if (event.canceled) return;
@@ -192,7 +186,6 @@ export function ThreadDocksPanel({
 
   return (
     <div role="region" aria-label={t`Thread docks`} className="flex h-full min-h-0 flex-col">
-      {/* The title and placement toggle live in the shared right-panel header. */}
       <div ref={containerRef} className="min-h-0 flex-1 overflow-y-auto [scrollbar-gutter:stable]">
         {visibleOrder.length === 0 && !threadExists ? (
           <p className="px-3 py-3 text-xs text-foreground-muted">

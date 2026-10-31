@@ -142,6 +142,9 @@ struct ThreadConfig: Codable, Sendable, Hashable {
     var contextSize: String?
     var fast: Bool?
     var thinking: Bool?
+    /// Per-thread workflow mode (`threadConfigSchema.workflows`); only offered
+    /// for models the provider lists in `workflowModels`.
+    var workflows: Bool?
     var mode: String?
     var approvalPolicy: String?
     var approvalsReviewer: String?
@@ -160,7 +163,7 @@ struct ThreadConfig: Codable, Sendable, Hashable {
 
 extension ThreadConfig {
     private enum CodingKeys: String, CodingKey {
-        case model, effort, contextSize, fast, thinking, mode, approvalPolicy
+        case model, effort, contextSize, fast, thinking, workflows, mode, approvalPolicy
         case approvalsReviewer, sandboxMode, browserMcp, crossagentMcp, computerUse, chromeMcp
         case mcpServerOverrides, pluginOverrides, executionEnvironment, crew
     }
@@ -172,6 +175,7 @@ extension ThreadConfig {
         contextSize = try values.decodeIfPresent(String.self, forKey: .contextSize)
         fast = try values.decodeIfPresent(Bool.self, forKey: .fast)
         thinking = try values.decodeIfPresent(Bool.self, forKey: .thinking)
+        workflows = try values.decodeIfPresent(Bool.self, forKey: .workflows)
         mode = try values.decodeIfPresent(String.self, forKey: .mode)
         approvalPolicy = try values.decodeIfPresent(String.self, forKey: .approvalPolicy)
         approvalsReviewer = try values.decodeIfPresent(String.self, forKey: .approvalsReviewer)
@@ -198,6 +202,7 @@ extension ThreadConfig {
         try values.encodeIfPresent(contextSize, forKey: .contextSize)
         try values.encodeIfPresent(fast, forKey: .fast)
         try values.encodeIfPresent(thinking, forKey: .thinking)
+        try values.encodeIfPresent(workflows, forKey: .workflows)
         try values.encodeIfPresent(mode, forKey: .mode)
         try values.encodeIfPresent(approvalPolicy, forKey: .approvalPolicy)
         try values.encodeIfPresent(approvalsReviewer, forKey: .approvalsReviewer)
@@ -319,6 +324,7 @@ struct RemoteShellSnapshot: Codable, Sendable, Equatable {
     var reads: String? = nil
     var threadsNextCursor: String? = nil
     var projectsNextCursor: String? = nil
+    var snapshotEpoch: String? = nil
 }
 
 extension RemoteShellSnapshot {
@@ -512,7 +518,8 @@ struct RemoteRuntimeItemsPage: Codable, Sendable, Equatable {
 // MARK: - WebSocket envelopes
 
 enum RemoteWebSocketServerMessage: Sendable, Equatable {
-    case ready(seq: Int)
+    /// `epoch` is present only on an `eventEpoch=v1` connection to a host that reports one.
+    case ready(seq: Int, epoch: String?)
     case event(seq: Int, event: JSONValue)
     case resyncRequired(seq: Int, reason: String)
     case pong(id: String?, sentAt: Double?, receivedAt: Double)
@@ -533,7 +540,8 @@ enum RemoteWebSocketServerMessage: Sendable, Equatable {
             guard let seq = object["seq"]?.numberInt else {
                 throw RemoteClientError.invalidResponse("ready missing seq")
             }
-            return .ready(seq: seq)
+            let epoch = object["epoch"]?.stringValue
+            return .ready(seq: seq, epoch: epoch?.isEmpty == false ? epoch : nil)
         case "event":
             guard let seq = object["seq"]?.numberInt,
                 let event = object["event"]

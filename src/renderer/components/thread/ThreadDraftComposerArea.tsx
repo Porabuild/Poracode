@@ -22,6 +22,7 @@ import { friendlyError } from "@/shared/messages";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { isQuickComposerWindow, isRemoteSession, readBridge } from "@/renderer/bridge";
 import { remoteBridgeLocalImageUrl } from "@/renderer/browser/remoteBridge";
+import { usesBridgeThreadImages } from "@/renderer/components/thread/threadImageReadiness";
 import { useRemoteBridgeImageReadiness } from "@/renderer/browser/useRemoteBridgeImages";
 import { hasAnyClientBridge } from "@/renderer/clientRuntime";
 import {
@@ -88,7 +89,6 @@ import { useAppStore } from "@/renderer/state/appStore";
 import { registerMountedProjectDraft } from "@/renderer/state/mountedProjectDrafts";
 import { composerSeedQueue } from "@/renderer/state/projectReferences";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
-import { environmentImageReadinessFor } from "@/renderer/state/remoteServers/environmentSessions";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { isDraftContentNonEmpty } from "@/renderer/state/slices/types";
@@ -393,7 +393,7 @@ export function ThreadDraftComposerArea(props: {
   );
   const attachmentImageUrlForPath = remoteDesktopId
     ? (path: string) =>
-        isRemoteSurface
+        usesBridgeThreadImages(remoteDesktopId)
           ? remoteBridgeLocalImageUrl(path)
           : useRemoteServersStore.getState().localImageUrl(remoteDesktopId, path)
     : undefined;
@@ -401,9 +401,7 @@ export function ThreadDraftComposerArea(props: {
   // subscription; direct/ssh keep their synchronous endpoint URL.
   const remoteImageReadiness =
     remoteDesktopId && remoteImageServer
-      ? isRemoteSurface
-        ? (environmentImageReadinessFor(remoteDesktopId) ?? browserImageReadiness)
-        : useRemoteServersStore.getState().imageReadinessFor(remoteDesktopId)
+      ? useRemoteServersStore.getState().imageReadinessFor(remoteDesktopId)
       : isRemoteSurface
         ? browserImageReadiness
         : undefined;

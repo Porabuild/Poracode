@@ -39,9 +39,15 @@ import {
   remoteAccessAdvertisedHost,
   remoteAccessHost,
   remoteAccessPairingAppUrl,
+  remoteAccessPort,
   remoteForwardBaseUrl,
   resolveRemoteAccessPort,
 } from "@/host/remote/config";
+import {
+  listeningPortOf,
+  preferredRemoteAccessPort,
+  rememberRemoteAccessPort,
+} from "@/host/remote/remoteAccessPortMemory";
 import {
   createMdnsAdvertiser,
   shouldAdvertiseMdns,
@@ -93,11 +99,17 @@ export async function composeHeadlessRemoteHost(
   const isDev = options.isDev ?? false;
   const localOnly = options.localAdministrationOnly === true;
   const host = localOnly ? "127.0.0.1" : (options.host ?? remoteAccessHost());
+  const explicitPort = options.port ?? remoteAccessPort();
+  // Paired clients store the full endpoint, so an automatically chosen port
+  // returns to the previous one across restarts.
+  const remembersPort = !localOnly && explicitPort === undefined;
   const port = localOnly
     ? 0
     : await resolveRemoteAccessPort({
         host,
-        ...(options.port !== undefined ? { port: options.port } : {}),
+        ...(explicitPort !== undefined
+          ? { port: explicitPort }
+          : { preferredPort: preferredRemoteAccessPort(runtime.paths.baseDir, host) }),
       });
   const paths = runtime.paths;
   options.signal?.throwIfAborted();
@@ -343,6 +355,9 @@ export async function composeHeadlessRemoteHost(
           await hostServicesRef?.start();
           await durableServices?.startIngress();
         },
+        // Every (re)spawn, crash respawns included: restore the project watches
+        // that clients registered once and never re-send.
+        onStarted: () => durableServices?.handleSupervisorStarted(),
         ...(options.reportError ? { reportError: (error) => options.reportError?.(error) } : {}),
       },
       onEvent: (event) => {
@@ -549,6 +564,7 @@ export async function composeHeadlessRemoteHost(
     const scheduleService = durableServices.scheduleService;
     const prWatchService = durableServices.prWatchService;
     const gitStateService = durableServices.gitStateService;
+    const projectWatchLeases = durableServices.projectWatchLeases;
 
     // In dev, advertise loopback by default so the iOS simulator's WebView can
     // reach the server (iOS ATS `NSAllowsLocalNetworking` permits loopback but not
@@ -656,6 +672,7 @@ export async function composeHeadlessRemoteHost(
       schedules: scheduleService,
       prWatches: prWatchService,
       gitState: gitStateService,
+      projectWatches: projectWatchLeases,
       pushRegistrations: {
         webPublicKey,
         dispose: () => webPublicKey.dispose?.(),
@@ -793,6 +810,8 @@ export async function composeHeadlessRemoteHost(
       }
       const info = await server.start();
       assertRunning();
+      const listeningPort = remembersPort ? listeningPortOf(info.localHttpBaseUrl) : null;
+      if (listeningPort !== null) rememberRemoteAccessPort(paths.baseDir, host, listeningPort);
       maybeAdvertiseMdns(info);
       if (!holdAdmission) await control?.start();
       assertRunning();

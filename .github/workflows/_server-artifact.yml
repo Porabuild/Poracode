@@ -155,7 +155,7 @@ jobs:
           ADDON_API_DIR="$(node -p "require('node:path').dirname(require.resolve('node-addon-api/package.json', { paths: [require('node:path').dirname(require.resolve('node-pty/package.json'))] }))")"
           cp -RL "$ADDON_API_DIR" dist/server-native-cross/node-pty/node_modules/node-addon-api
           docker run --rm --platform linux/arm64 \
-            -v "$PWD":/work -w /armbuild node:24-bookworm \
+            -v "$PWD":/work -w /armbuild node:26-bookworm \
             sh -c "cp -R /work/dist/server-native-cross/node-pty /armbuild/np && cd /armbuild/np && node -p 'require(\"node-addon-api\").include_dir' >/dev/null && rm -rf build && npm rebuild --offline && cp build/Release/pty.node /work/dist/server-native-cross/linux-arm64/pty.node"
         shell: bash
 
@@ -322,7 +322,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
-          node-version: "24"
+          node-version: "26"
 
       - name: Set the release version
         if: ${{ inputs.version != '' }}
@@ -373,7 +373,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
-          node-version: "24"
+          node-version: "26"
 
       - name: Download every build leg
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8

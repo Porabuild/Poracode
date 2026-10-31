@@ -8,6 +8,11 @@ on:
         required: false
         type: boolean
         default: false
+      force:
+        description: "Release even if the latest nightly already ships this master commit"
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -25,6 +30,7 @@ jobs:
       version: ${{ steps.resolve.outputs.version }}
       base_version: ${{ steps.resolve.outputs.base_version }}
       source_ref: ${{ steps.resolve.outputs.source_ref }}
+      skip: ${{ steps.resolve.outputs.skip }}
 
     steps:
       - name: Checkout master
@@ -39,7 +45,19 @@ jobs:
 
       - name: Resolve nightly version
         id: resolve
+        env:
+          FORCE: ${{ inputs.force }}
         run: |
+          # A nightly tag points at its release commit, whose parent is the
+          # master commit it shipped. Runs queue behind each other, so a second
+          # dispatch for the same commit sees the first one's tag here.
+          LATEST=$(git for-each-ref --sort=-creatordate --count=1 --format='%(refname:short)' 'refs/tags/v*-nightly.*')
+          if [ -n "$LATEST" ] && [ "$FORCE" != "true" ] &&
+            [ "$(git rev-parse "$LATEST^{commit}^")" = "$(git rev-parse HEAD)" ]; then
+            echo "::notice::$LATEST already ships master $(git rev-parse --short HEAD); skipping. Dispatch with force to rebuild it."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           BASE=$(node scripts/resolve-release-version.mjs)
           TIMESTAMP=$(date -u +%Y%m%d%H%M)
           VERSION="${BASE}-nightly.${TIMESTAMP}"
@@ -58,14 +76,14 @@ jobs:
   # ── Step 2c: Compile the per-target TUI binaries and manifest ────
   tui_binaries:
     needs: prepare
-    if: ${{ !inputs.dry_run }}
+    if: ${{ !inputs.dry_run && needs.prepare.outputs.skip != 'true' }}
     uses: ./.github/workflows/_tui-binaries.yml
     with:
       ref: ${{ needs.prepare.outputs.source_ref }}
 
   build:
     needs: [prepare, tui_binaries]
-    if: ${{ !inputs.dry_run }}
+    if: ${{ !inputs.dry_run && needs.prepare.outputs.skip != 'true' }}
     uses: ./.github/workflows/_build.yml
     with:
       ref: ${{ needs.prepare.outputs.source_ref }}
@@ -84,7 +102,7 @@ jobs:
   # ── Step 2b: Build and qualify the standalone server artifact ────
   server_artifact:
     needs: [prepare, tui_binaries]
-    if: ${{ !inputs.dry_run }}
+    if: ${{ !inputs.dry_run && needs.prepare.outputs.skip != 'true' }}
     uses: ./.github/workflows/_server-artifact.yml
     with:
       ref: ${{ needs.prepare.outputs.source_ref }}
@@ -95,7 +113,7 @@ jobs:
   # ── Step 3: Create GitHub prerelease ─────────────────────────────
   release:
     needs: [prepare, build, server_artifact, tui_binaries]
-    if: ${{ !inputs.dry_run }}
+    if: ${{ !inputs.dry_run && needs.prepare.outputs.skip != 'true' }}
     runs-on: ubuntu-latest
 
     steps:

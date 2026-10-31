@@ -71,6 +71,8 @@ export type SessionRecord = {
   effort?: string;
   fast?: boolean;
   thinking?: boolean;
+  /** Per-thread workflow mode; never written to the saved last-model choice. */
+  workflows?: boolean;
   contextSize?: string;
   approvalPolicy?: string;
   sandboxMode?: string;
@@ -267,6 +269,7 @@ export interface RouterContext {
     sandboxModes: readonly { id: string; label: string }[];
     fast: { offered: boolean; disabledReason: string | undefined };
     thinking: { offered: boolean };
+    workflows: { offered: boolean; label: string };
     contextSizes: readonly { id: string; label: string }[];
     defaults: { approvalPolicy: string | undefined; sandboxMode: string | undefined };
   }>;
@@ -277,6 +280,7 @@ export interface RouterContext {
       sandboxMode?: string;
       fast?: boolean;
       thinking?: boolean;
+      workflows?: boolean;
       contextSize?: string;
     },
   ) => Promise<{ error: string; status: number } | { ok: true }>;

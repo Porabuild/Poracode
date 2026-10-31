@@ -317,6 +317,7 @@ const messages = {
   "remote.session.expired": "Pairing expired — pair again to reconnect.",
   "remote.server.unreachable":
     "Can't reach the remote server. Check that it is online, then reconnect it.",
+  "remote.server.busy": "Too many remote requests are in progress. Try again in a moment.",
 
   // ── Model family selectors ────────────────────────────────
   "modelSelection.lead": "Lead",
@@ -605,6 +606,11 @@ const remoteErrorMessageKeys: Readonly<Record<string, MessageKey>> = {
   experiment_owned: "remote.project.experimentsOwned",
   worktree_threads_changed: "remote.worktree.threadsChanged",
   follow_up_queue_unsupported: "supervisor.followUpQueue.unsupported",
+  // Admission refusals from the desktop bridge, the host's per-client budget,
+  // and the host settings authority.
+  overloaded: "remote.server.busy",
+  principal_busy: "remote.server.busy",
+  settings_overloaded: "remote.server.busy",
 };
 
 function remoteErrorMessageKey(error: unknown): MessageKey | undefined {

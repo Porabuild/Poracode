@@ -181,13 +181,32 @@ it.each([
   const delivered = await h.inputs.next();
   expect(h.setPermissionMode).toHaveBeenLastCalledWith(permission);
   expect(h.setModel).toHaveBeenLastCalledWith("opus");
-  expect(h.applyFlagSettings).toHaveBeenCalledWith({ ultracode: true });
+  // A pre-toggle `effort: "ultracode"` runs at xhigh with the flag on.
+  expect(h.applyFlagSettings).toHaveBeenCalledWith({ effortLevel: "xhigh", ultracode: true });
   expect(h.applyFlagSettings).toHaveBeenCalledWith({ fastMode: true });
   expect(delivered.value?.message.content).toEqual([
     { type: "text", text: "second" },
     { type: "text", text: "private instructions" },
   ]);
   expect(JSON.stringify(h.events)).not.toContain("private instructions");
+});
+
+it("keeps ultracode on across effort changes and toggles it without touching effort", async () => {
+  const h = await createSession({ ...config, effort: "high" });
+  await h.session.startTurn("first", { ...config, effort: "high", workflows: true });
+  await h.inputs.next();
+  expect(h.applyFlagSettings).toHaveBeenLastCalledWith({ ultracode: true });
+
+  h.output.write(resultMessage(h.id));
+  await h.session.startTurn("second", { ...config, effort: "low", workflows: true });
+  await h.inputs.next();
+  // The CLI turns ultracode off on an effort change that omits the key.
+  expect(h.applyFlagSettings).toHaveBeenLastCalledWith({ effortLevel: "low", ultracode: true });
+
+  h.output.write(resultMessage(h.id));
+  await h.session.startTurn("third", { ...config, effort: "low", workflows: false });
+  await h.inputs.next();
+  expect(h.applyFlagSettings).toHaveBeenLastCalledWith({ ultracode: null });
 });
 
 it("delivers multiple accepted steers in order without an idle gap", async () => {

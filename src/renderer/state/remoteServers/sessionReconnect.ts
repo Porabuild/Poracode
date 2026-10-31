@@ -1,4 +1,7 @@
-import { UNKNOWN_HOST_SERVICE_CAPABILITIES } from "@/shared/hostControlProtocol";
+import {
+  UNKNOWN_HOST_SERVICE_CAPABILITIES,
+  type HostServiceCapabilities,
+} from "@/shared/hostControlProtocol";
 import { setAgentVisionSocketSender } from "@/renderer/browser/agentVisionStream";
 import { msg } from "@lingui/core/macro";
 import { toast } from "@heroui/react";
@@ -179,6 +182,23 @@ export function createSessionReconnectActions(deps: SessionReconnectActionDeps) 
     persistRehydrate,
   } = deps;
 
+  /** Online with an open event socket on the record's current endpoint: the
+   * live stream already keeps this server current, so a reconnect pass that is
+   * not forced must not downgrade it to "connecting" or re-snapshot it. */
+  const isLiveConnection = (server: RemoteServerRecord): boolean => {
+    const connectionKey = remoteConnectionKey(server);
+    if (get().runtime[connectionKey]?.status !== "online") return false;
+    const entry = getRemoteServerEventSocketEntry(connectionKey);
+    const socket = entry?.socket;
+    return (
+      entry?.serverKey === server.endpoint &&
+      socket !== null &&
+      socket !== undefined &&
+      typeof socket.send === "function" &&
+      (socket.readyState === undefined || socket.readyState === 1)
+    );
+  };
+
   const setServersConnecting = (servers: readonly RemoteServerRecord[]) => {
     if (servers.length === 0) return;
     set((state) => {
@@ -254,13 +274,21 @@ export function createSessionReconnectActions(deps: SessionReconnectActionDeps) 
           connection: server.transport.connection,
         });
         if (!canContinue()) return;
-        server = { ...server, endpoint: normalizeEndpoint(launched.endpoint) };
-        const updated = server;
+        const endpoint = normalizeEndpoint(launched.endpoint);
+        // The tunnel owns only the endpoint: a bearer rotated or a label
+        // renamed while it started stays on the current record.
         set((state) => ({
           servers: state.servers.map((candidate) =>
-            remoteConnectionKey(candidate) === connectionKey ? updated : candidate,
+            remoteConnectionKey(candidate) === connectionKey
+              ? { ...candidate, endpoint }
+              : candidate,
           ),
         }));
+        const current = get().servers.find(
+          (candidate) => remoteConnectionKey(candidate) === connectionKey,
+        );
+        if (!current) return;
+        server = current;
       } catch (error) {
         if (!canContinue()) return;
         const message = friendlyError(error) || i18n._(msg`SSH connection failed.`);
@@ -304,11 +332,7 @@ export function createSessionReconnectActions(deps: SessionReconnectActionDeps) 
         connectionKey,
         environmentAdvertisesCatalogMutations(environment),
       );
-      const keepsLocalAlias =
-        server.remoteLabel !== undefined && server.label !== server.remoteLabel;
-      server = {
-        ...server,
-        label: keepsLocalAlias ? server.label : environment.label,
+      const negotiated = {
         remoteLabel: environment.label,
         appVersion: environment.appVersion,
         // Assigned unconditionally so an authoritative descriptor that
@@ -320,15 +344,33 @@ export function createSessionReconnectActions(deps: SessionReconnectActionDeps) 
         ...(environment.platform ? { platform: environment.platform } : {}),
         ...(environment.hostMode ? { hostMode: environment.hostMode } : {}),
       };
+      let hostCapabilities: HostServiceCapabilities;
       try {
-        const hostCapabilities = await clientForServer(server).describeHost();
-        if (!canContinue()) return;
-        server = { ...server, hostCapabilities };
+        hostCapabilities = await clientForServer(server).describeHost();
       } catch {
         // A failed negotiation must not retain previously advertised services.
-        server = { ...server, hostCapabilities: UNKNOWN_HOST_SERVICE_CAPABILITIES };
+        hostCapabilities = UNKNOWN_HOST_SERVICE_CAPABILITIES;
       }
-      const updated = server;
+      // Either outcome commits only for this attempt: a re-pair or removal
+      // while describe was pending owns the record now.
+      if (!canContinue()) return;
+      const current = get().servers.find(
+        (candidate) =>
+          remoteConnectionKey(candidate) === connectionKey &&
+          candidate.endpoint === server.endpoint,
+      );
+      if (!current) return;
+      // Negotiation owns only descriptor metadata. Everything else (a bearer
+      // rotated meanwhile, scopes, transport, a local rename) stays current.
+      const keepsLocalAlias =
+        current.remoteLabel !== undefined && current.label !== current.remoteLabel;
+      const updated: RemoteServerRecord = {
+        ...current,
+        ...negotiated,
+        label: keepsLocalAlias ? current.label : environment.label,
+        hostCapabilities,
+      };
+      server = updated;
       set((state) => ({
         servers: state.servers.map((candidate) =>
           remoteConnectionKey(candidate) === connectionKey ? updated : candidate,
@@ -344,6 +386,11 @@ export function createSessionReconnectActions(deps: SessionReconnectActionDeps) 
     }
     await refreshPromise;
     if (!canContinue()) return;
+    const current = get().servers.find(
+      (candidate) => remoteConnectionKey(candidate) === connectionKey,
+    );
+    if (!current) return;
+    server = current;
     await startRemoteServerEventStream(server, initialTerminalCapabilities, options);
     checkHostUpdateInBackground(server);
   };
@@ -432,7 +479,9 @@ export function createSessionReconnectActions(deps: SessionReconnectActionDeps) 
         const connectPass = async (forceTransportReconnect: boolean): Promise<void> => {
           connectAllInFlightForce = forceTransportReconnect;
           const servers = get().servers.filter(
-            (server) => get().hostUpdateRestarts[remoteConnectionKey(server)] === undefined,
+            (server) =>
+              get().hostUpdateRestarts[remoteConnectionKey(server)] === undefined &&
+              (forceTransportReconnect || !isLiveConnection(server)),
           );
           if (forceTransportReconnect) {
             for (const server of servers) {
@@ -465,12 +514,23 @@ export function createSessionReconnectActions(deps: SessionReconnectActionDeps) 
       return connectAllInFlight;
     },
 
+    verifyConnections: async () => {
+      for (const server of get().servers) {
+        if (!isLiveConnection(server)) continue;
+        const entry = getRemoteServerEventSocketEntry(remoteConnectionKey(server));
+        if (entry?.socket) entry.health?.probe(entry.socket);
+      }
+      // The pass skips every live server, so only the dropped ones reconnect.
+      await get().connectAll();
+    },
+
     reconnectServer: async (connectionKey: string) => {
       if (get().hostUpdateRestarts[connectionKey] !== undefined) return;
       const server = get().servers.find((entry) => remoteConnectionKey(entry) === connectionKey);
       if (!server) return;
+      closeRemoteServerEventSocket(connectionKey, { preserveReplayState: true });
       setServersConnecting([server]);
-      await connectServer(server);
+      await connectServer(server, undefined, { resyncInterestedThreads: true });
     },
 
     removeServer: (

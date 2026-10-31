@@ -160,6 +160,7 @@ export abstract class RemoteClientTransport extends RemoteClientPinCore {
     const url = endpointUrl(this.endpoint, requestPath);
     const path = url.searchParams.get("path");
     if (!path) throw new RemoteClientError("An image path is required.", 400, "invalid_path");
+    this.syncAccessToken();
     if (this.accessToken) return this.fetchImageBytesWithBearer(url, signal, false);
     const result = parseResponse(
       remoteImageTicketResultSchema,
@@ -214,31 +215,43 @@ export abstract class RemoteClientTransport extends RemoteClientPinCore {
         "cancelled",
       );
     }
+    this.syncAccessToken();
     const usedToken = this.accessToken;
     const response = await this.fetchImpl(url, {
       method: "GET",
       headers: {
-        authorization: `Bearer ${usedToken}`,
+        ...(usedToken ? { authorization: `Bearer ${usedToken}` } : {}),
         [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
       },
       signal,
       certFingerprint: this.pinnedCertFingerprint ?? null,
     });
-    if (response.status === 401 && !retried && this.tokenLifecycle?.refreshToken()) {
+    if (response.status === 401) {
       await response.body?.cancel().catch(() => undefined);
-      try {
-        // Another request or a sibling client may have rotated the token while
-        // this one was in flight; renew only when the rejected bearer is current.
-        this.syncAccessToken();
-        if (
-          (this.accessToken !== undefined && this.accessToken !== usedToken) ||
-          (await this.refreshTokens())
-        ) {
+      let imageRefreshFailure: unknown = null;
+      if (!retried && this.tokenLifecycle?.refreshToken()) {
+        // The retry recursion must stay OUTSIDE the catch: its own 401 is the
+        // request's final 401 (that frame fires the hook with null), never a
+        // refresh failure to classify.
+        let repaired = false;
+        try {
+          // Another request or a sibling client may have rotated the token while
+          // this one was in flight; renew only when the rejected bearer is current.
+          this.syncAccessToken();
+          repaired =
+            (this.accessToken !== undefined && this.accessToken !== usedToken) ||
+            Boolean(await this.refreshTokens());
+        } catch (refreshError) {
+          // Surface the original 401 below, never a grant-endpoint failure.
+          imageRefreshFailure = refreshError;
+        }
+        if (repaired) {
           return this.fetchImageBytesWithBearer(url, signal, true);
         }
-      } catch {
-        // Surface the original 401 below, never a grant-endpoint failure.
       }
+      // Same contract as `requestJson`: every final 401 notifies the custody —
+      // with the refresh failure when one was attempted, null otherwise.
+      this.tokenLifecycle?.onUnauthorized?.(imageRefreshFailure);
       throw new RemoteClientError("Image request failed.", 401, "request_failed");
     }
     if (!response.ok) {
@@ -467,12 +480,17 @@ export abstract class RemoteClientTransport extends RemoteClientPinCore {
         // transparently refreshes once and retries the request. Any refresh
         // failure surfaces the ORIGINAL authorization error, so callers keep
         // seeing a clean 401 instead of a grant-endpoint failure.
+        let refreshFailure: unknown = null;
         if (
           response.status === 401 &&
           !refreshState.isTokenRefresh &&
           !refreshState.isRefreshRetry &&
           this.tokenLifecycle?.refreshToken()
         ) {
+          // The retry recursion must stay OUTSIDE the catch: a 401 from the
+          // retried request is the request's own final 401 (its frame fires
+          // the hook with null), never a refresh failure to classify.
+          let repaired = false;
           try {
             // Another request or a sibling client may have rotated while this
             // old-token response was in flight; renew only when the rejected
@@ -481,12 +499,20 @@ export abstract class RemoteClientTransport extends RemoteClientPinCore {
             const alreadyRotated =
               this.accessToken !== undefined &&
               headers.authorization !== `Bearer ${this.accessToken}`;
-            if (alreadyRotated || (await this.refreshTokens())) {
-              return await this.requestJson(path, init, { isRefreshRetry: true });
-            }
-          } catch {
-            // fall through to the original error below
+            repaired = alreadyRotated || Boolean(await this.refreshTokens());
+          } catch (refreshError) {
+            // Surface the original 401 below, never a grant-endpoint failure.
+            refreshFailure = refreshError;
           }
+          if (repaired) {
+            return await this.requestJson(path, init, { isRefreshRetry: true });
+          }
+        }
+        if (response.status === 401 && !refreshState.isTokenRefresh) {
+          // The refresh path is exhausted: the caller-owned custody learns the
+          // 401 is final (with the refresh failure, when one threw) so it can
+          // re-prove the credential.
+          this.tokenLifecycle?.onUnauthorized?.(refreshFailure);
         }
         const error = remoteHttpErrorSchema.safeParse(parsed);
         throw new RemoteClientError(

@@ -104,14 +104,23 @@ class WsConnectionLoop(
                 return
             }
 
-            val lastSeen = RemoteSocketDecisions.lastSeenSeqForConnect(
-                appliedSeq = state.cursor.appliedSeq,
-                snapshotSucceeded = state.snapshotSucceeded.get(),
-            )
-            val url = api.websocketUrl(
-                ticket = ticket,
-                lastSeenSeq = lastSeen,
-                threadItemInterests = state.threadItemInterests.get(),
+            val lastSeen: Int?
+            val lastSeenEpoch: String?
+            synchronized(state.cursorLock) {
+                lastSeen = RemoteSocketDecisions.lastSeenSeqForConnect(
+                    appliedSeq = state.cursor.appliedSeq,
+                    snapshotSucceeded = state.snapshotSucceeded.get(),
+                )
+                lastSeenEpoch = state.cursor.epoch
+                state.cursor.beginConnection()
+            }
+            val url = RemoteSocketDecisions.withEventEpochDeclaration(
+                api.websocketUrl(
+                    ticket = ticket,
+                    lastSeenSeq = lastSeen,
+                    threadItemInterests = state.threadItemInterests.get(),
+                ),
+                lastSeenEpoch,
             )
             val request = Request.Builder().url(url).build()
             // Record what THIS upgrade actually declares, read from the exact
@@ -159,11 +168,13 @@ class WsConnectionLoop(
 
                 override fun onMessage(webSocket: WebSocket, text: String) {
                     if (!state.generationGate.isCurrent(gen)) return
+                    state.lastInboundAtMs.set(System.currentTimeMillis())
                     frameRouter.handleText(text, gen)
                 }
 
                 override fun onMessage(webSocket: WebSocket, bytes: ByteString) {
                     if (!state.generationGate.isCurrent(gen)) return
+                    state.lastInboundAtMs.set(System.currentTimeMillis())
                     frameRouter.handleText(bytes.utf8(), gen)
                 }
 

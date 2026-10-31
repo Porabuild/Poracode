@@ -46,6 +46,7 @@ import {
   type TurnClientContextCapture,
 } from "../composer/turnClientContext";
 import type { ComposerMcpMenuItem } from "../composer/ComposerAddMenu";
+import { installRuntimeHistoryRecovery } from "@/renderer/state/runtimeInterestHydration";
 import { useRevertedPromptStore } from "./revertedPrompt";
 import type { ThreadErrorDockState } from "./threadErrorState";
 
@@ -326,6 +327,7 @@ describe("ThreadComposerSection", () => {
       runtimeItemIdsByThread: {},
       runtimeItemsByIdByThread: {},
       runtimeRequestsByThread: {},
+      runtimeHydrationStatus: {},
       pendingSteerByThreadId: {},
       connectingThreadIds: {},
       pendingComposerFocusThreadId: null,
@@ -596,66 +598,62 @@ describe("ThreadComposerSection", () => {
     expect(wrapper).toContainElement(row as HTMLElement);
   });
 
-  it("keeps the goal placement control and a compact recovery bubble after hiding composer tasks", () => {
-    useThreadBackgroundTasksDockStore.setState({ dismissedTasksKeyByThread: {} });
-    useAppStore.setState({
-      runtimeBackgroundTasksByThread: {
-        [guiThread.id]: [{ taskId: "server", kind: "command", description: "pnpm dev" }],
-      },
-    });
-    render(
-      <ThreadComposerSection
-        threadId={guiThread.id}
-        fallbackThread={guiThread}
-        agentStatus={codexGuiStatus}
-        projectLocation={{ kind: "windows", path: "C:\\repo" }}
-        paneCount={1}
-        terminalPaneRef={{ current: null }}
-        todoDockCollapsed={false}
-        docksPlacement="composer"
-        todoDockState={null}
-        goalDockState={{
-          sourceItemId: "goal-1",
-          itemState: "completed",
-          objective: "Ship the dock",
-          status: "active",
-          action: "set",
-        }}
-        errorDockStates={[]}
-        onGoalDockDismiss={() => undefined}
-        onDismissError={() => undefined}
-        onTodoDockCollapsedChange={() => undefined}
-      />,
-    );
-    const placementToggle = "Show docks in the right panel";
-    expect(document.querySelector('[data-dock-bubble="backgroundTasks"]')).toBeNull();
-    expect(
-      within(screen.getByLabelText("Background tasks")).getByRole("button", {
-        name: placementToggle,
-      }),
-    ).toBeInTheDocument();
+  it.each([false, true])(
+    "uses desktop chips with a saved composer placement (remote: %s)",
+    (remote) => {
+      bridgeMock.isRemoteSession.mockReturnValue(remote);
+      usePanelStore.setState({ threadDocksPanelOpen: false, rightPanelTab: "git" });
+      useThreadBackgroundTasksDockStore.setState({ dismissedTasksKeyByThread: {} });
+      useAppStore.setState({
+        runtimeBackgroundTasksByThread: {
+          [guiThread.id]: [{ taskId: "server", kind: "command", description: "pnpm dev" }],
+        },
+      });
+      render(
+        <ThreadComposerSection
+          threadId={guiThread.id}
+          fallbackThread={guiThread}
+          agentStatus={codexGuiStatus}
+          projectLocation={{ kind: "windows", path: "C:\\repo" }}
+          paneCount={1}
+          terminalPaneRef={{ current: null }}
+          todoDockCollapsed={false}
+          docksPlacement="composer"
+          todoDockState={null}
+          goalDockState={{
+            sourceItemId: "goal-1",
+            itemState: "completed",
+            objective: "Ship the dock",
+            status: "active",
+            action: "set",
+          }}
+          errorDockStates={[]}
+          onGoalDockDismiss={() => undefined}
+          onDismissError={() => undefined}
+          onTodoDockCollapsedChange={() => undefined}
+        />,
+      );
+      expect(screen.queryByLabelText("Background tasks")).not.toBeInTheDocument();
+      expect(screen.queryByLabelText("Thread goal dock")).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "Show docks in the right panel" }),
+      ).not.toBeInTheDocument();
+      expect(screen.queryByText("pnpm dev")).not.toBeInTheDocument();
+      const bubbles = document.querySelectorAll("[data-dock-bubble]");
+      expect([...bubbles].map((bubble) => bubble.getAttribute("data-dock-bubble"))).toEqual([
+        "goal",
+        "backgroundTasks",
+      ]);
+      expect(bubbles[1]).toHaveTextContent("1");
+      expect(bubbles[1]).toHaveAttribute("aria-pressed", "false");
 
-    fireEvent.click(screen.getByRole("button", { name: "Close background tasks" }));
+      fireEvent.click(bubbles[1]!);
 
-    expect(screen.queryByText("pnpm dev")).not.toBeInTheDocument();
-    expect(
-      within(screen.getByLabelText("Thread goal dock")).getByRole("button", {
-        name: placementToggle,
-      }),
-    ).toBeInTheDocument();
-    const bubbles = document.querySelectorAll("[data-dock-bubble]");
-    expect([...bubbles].map((bubble) => bubble.getAttribute("data-dock-bubble"))).toEqual([
-      "backgroundTasks",
-    ]);
-    expect(bubbles[0]).toHaveTextContent("1");
-    expect(bubbles[0]).toHaveAttribute("aria-pressed", "false");
-
-    fireEvent.click(bubbles[0]!);
-
-    expect(screen.getByText("pnpm dev")).toBeInTheDocument();
-    expect(document.querySelector('[data-dock-bubble="backgroundTasks"]')).toBeNull();
-    expect(usePanelStore.getState().threadDocksPanelOpen).toBe(false);
-  });
+      expect(screen.queryByText("pnpm dev")).not.toBeInTheDocument();
+      expect(usePanelStore.getState().threadDocksPanelOpen).toBe(true);
+      expect(usePanelStore.getState().threadDocksFocus).toBe("backgroundTasks");
+    },
+  );
 
   function composerElement(opts?: {
     thread?: Thread;
@@ -1129,6 +1127,50 @@ describe("ThreadComposerSection", () => {
   });
 
   it.each([false, true])(
+    "shows genuine history failures in the composer (compact: %s)",
+    async (compact) => {
+      if (compact)
+        vi.stubGlobal(
+          "matchMedia",
+          vi.fn((query: string) => ({
+            media: query,
+            matches: query === "(max-width: 767px)",
+            onchange: null,
+            addEventListener: () => undefined,
+            removeEventListener: () => undefined,
+            addListener: () => undefined,
+            removeListener: () => undefined,
+            dispatchEvent: () => true,
+          })),
+        );
+      const recover = vi.fn<(threadId: string) => void>();
+      const uninstall = installRuntimeHistoryRecovery(recover);
+      try {
+        useAppStore.setState({ runtimeHydrationStatus: { [guiThread.id]: "failed" } });
+        const { rerender, unmount } = renderComposer();
+        const message = screen.getByText("Messages could not be loaded.");
+        const dock = message.closest("section")!;
+        expect(dock).toHaveAttribute("data-placement", "composer");
+        expect(within(dock).getByText("Warning")).toBeInTheDocument();
+        fireEvent.click(within(dock).getByRole("button", { name: "Retry" }));
+        expect(recover).toHaveBeenCalledExactlyOnceWith(guiThread.id);
+        await act(async () => {
+          useAppStore.getState().setRuntimeHydrationStatus(guiThread.id, null);
+        });
+        expect(screen.queryByText("Messages could not be loaded.")).not.toBeInTheDocument();
+        await act(async () => {
+          useAppStore.setState({ runtimeHydrationStatus: { [terminalThread.id]: "failed" } });
+        });
+        rerender(composerElement({ thread: terminalThread, agentStatus: claudeTerminalStatus }));
+        expect(screen.queryByText("Messages could not be loaded.")).not.toBeInTheDocument();
+        unmount();
+      } finally {
+        uninstall();
+      }
+    },
+  );
+
+  it.each([false, true])(
     "shows the history notice in the composer docks for chat threads only (compact: %s)",
     (compact) => {
       if (compact)
@@ -1158,8 +1200,10 @@ describe("ThreadComposerSection", () => {
       try {
         recordThreadHistoryNoticeRead(guiThread.id, "local", notice);
         recordThreadHistoryNoticeRead(terminalThread.id, "local", notice);
+        useAppStore.setState({ runtimeHydrationStatus: { [guiThread.id]: "failed" } });
         const { unmount } = renderComposer();
         expect(screen.getByRole("button", { name: "Dismiss warning" })).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
         unmount();
 
         renderComposer({ thread: terminalThread, agentStatus: claudeTerminalStatus });
@@ -3831,7 +3875,7 @@ describe("ThreadComposerSection", () => {
     consoleError.mockRestore();
   });
 
-  it("shows todo and goal docks in remote terminal sessions only", () => {
+  it("shows todo and goal chips in remote desktop terminal sessions only", () => {
     const terminalTodoDockState = {
       sourceItemId: "plan-1",
       itemState: "completed" as const,
@@ -3875,10 +3919,10 @@ describe("ThreadComposerSection", () => {
     bridgeMock.isRemoteSession.mockReturnValue(true);
     renderTerminalDocks();
 
-    expect(screen.getByLabelText("Thread todo dock")).toHaveTextContent(
-      "Patch mobile runtime chrome",
-    );
-    expect(screen.getByLabelText("Thread goal dock")).toHaveTextContent("No mobile dead ends");
+    expect(screen.queryByLabelText("Thread todo dock")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Thread goal dock")).not.toBeInTheDocument();
+    expect(document.querySelector('[data-dock-bubble="plan"]')).toHaveTextContent("0/1");
+    expect(document.querySelector('[data-dock-bubble="goal"]')).toBeInTheDocument();
   });
 
   it.each(["different thread", "return to the same thread", "next turn"] as const)(

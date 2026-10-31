@@ -82,21 +82,25 @@ describe("remote v3 native binding generator", () => {
         // structural type (its literal).
         // Optional sessionId on the token-exchange result moves the source hash only.
         // Optional crew favorites/usage and model recency move only the source hash.
+        // The optional `ready.epoch` and the eventEpoch/lastSeenEpoch handshake
+        // parameters move both hashes without changing counts or wire versions.
+        // The optional shell snapshotEpoch moves the source hash only.
+        // The optional open-string runtime error `reason` moves the source hash only.
         // The optional cut-off marker adds one structural union; older peers omit it.
-        sourceHash: "sha256:dc5241a635965cd7714a1b0e34c033c562211fcc77e4456530aba5257fb4fb2b",
-        manifestHash: "sha256:0af95549f6385c5f08e5dfeb224d10486c18d5b19acb6ba934351dbea0e0dea4",
+        sourceHash: "sha256:1eb046fb99e9990b700bb7e00db512ca1f3a1126bc30e90e99f5983c7dc86a9f",
+        manifestHash: "sha256:0cc3d41e33fa8b3fb6138c2027ed9da3c42ab15c24b3e1a3723e73c8e9a15d8f",
         counts: {
           routes: 119,
-          procedures: 163,
+          procedures: 164,
           voidProcedureResults: 64,
-          jsonProcedureResults: 99,
+          jsonProcedureResults: 100,
           webSocketClientVariants: 11,
           // 11 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
           webSocketServerVariants: 12,
-          schemaRoots: 544,
-          structuralTypes: 1211,
+          schemaRoots: 546,
+          structuralTypes: 1218,
           semanticValidators: 25,
-          swiftFiles: 75,
+          swiftFiles: 76,
           kotlinFiles: 65,
           stateMachines: 5,
         },
@@ -369,7 +373,7 @@ describe("remote v3 native binding generator", () => {
       const output = buildNativeBindingOutput(ir, manifest).files;
       for (const language of ["swift", "kotlin"] as const) {
         const adapters = rootAdapters(graph, language);
-        expect(adapters).toHaveLength(544);
+        expect(adapters).toHaveLength(546);
         expect(
           adapters
             .map((adapter) => adapter.id)

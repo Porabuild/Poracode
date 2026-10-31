@@ -149,7 +149,12 @@ it.each([
         expect(useAppStore.getState().runtimeItemIdsByThread[threadId]).toEqual(["item-0"]);
       });
       reducer.flushSync(threadId);
-      expect(useAppStore.getState().runtimeItemIdsByThread[threadId]).toEqual(["item-0"]);
+      // This delta was delivered after the host's snapshot prefix and has not
+      // been persisted by the fixture, so recovery must retain it.
+      expect(useAppStore.getState().runtimeItemIdsByThread[threadId]).toEqual([
+        "item-0",
+        "queued-during-recovery",
+      ]);
       expect(useAppStore.getState().runtimeRequestsByThread[threadId]?.at(-1)?.requestId).toBe(
         "new-approval",
       );
@@ -170,6 +175,7 @@ it.each([
       reducer.flushSync(threadId);
       expect(useAppStore.getState().runtimeItemIdsByThread[threadId]).toEqual([
         "item-0",
+        "queued-during-recovery",
         "live-after-retry",
       ]);
     } finally {
@@ -504,7 +510,8 @@ it.each([false, true])(
       await vi.waitFor(() => {
         expect(hasHydratedThreadRuntimeItems(threadId)).toBe(true);
         expect(useAppStore.getState().runtimeItemIdsByThread[threadId]).toEqual(["item-0"]);
-        expect(discard).toHaveBeenCalledWith(threadId, 7, "loopback");
+        // Eviction drops the cursor; only that path still needs legacy arbitration.
+        expect(discard).toHaveBeenCalledExactlyOnceWith(threadId, oversized ? 7 : 0, "loopback");
       });
       expect(useAppStore.getState().runtimeHydrationStatus[threadId]).toBeUndefined();
     } finally {

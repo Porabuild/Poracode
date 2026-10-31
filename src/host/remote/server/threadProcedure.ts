@@ -16,6 +16,7 @@ import { remoteCommandId } from "./httpRouteHandlers.shared";
 import { readJsonBody } from "./requestBody";
 import { runRemoteCommand } from "./remoteCommandIdempotency";
 import { authorizeProjectProcedurePayload } from "./projectProcedureAuthorization";
+import { isProjectWatchProcedure, runProjectWatchProcedure } from "./projectWatchProcedure";
 import { requireCurrentRemoteProtocolVersion } from "./writerProtocolAdmission";
 import { applyRemoteThreadSwitch } from "./threadSwitch";
 
@@ -142,6 +143,11 @@ export async function runRemoteProcedure(
           return ctx.options.callSupervisor("startThread", startPayload);
         },
       });
+    } else if (isProjectWatchProcedure(procedure)) {
+      // The supervisor's project watcher is shared by every client; these
+      // procedures go through the host's per-owner leases instead. The guard
+      // narrows `procedure`, keeping `name` paired with its payload below.
+      raw = await runProjectWatchProcedure(ctx, req, procedure, parsedPayload);
     } else {
       raw = await ctx.options.callSupervisor(name, parsedPayload);
     }

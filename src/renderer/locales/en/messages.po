@@ -1070,7 +1070,7 @@ msgstr "A frozen worktree source requires a full commit hash"
 #~ msgid "A locked screen stops all desktop control, so the display is kept on while a Computer Use session is running. You can still lock the screen yourself."
 #~ msgstr "A locked screen stops all desktop control, so the display is kept on while a Computer Use session is running. You can still lock the screen yourself."
 
-#: src/renderer/components/thread/ChatPane/ChatPane.tsx
+#: src/renderer/components/thread/ThreadRemoteSyncDock.tsx
 msgid "A message deletion could not be confirmed. Refresh to resync this conversation."
 msgstr "A message deletion could not be confirmed. Refresh to resync this conversation."
 
@@ -1098,6 +1098,10 @@ msgstr "A review can carry at most 100 line comments."
 msgid "A review or comment body is required."
 msgstr "A review or comment body is required."
 
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "A scout maps the code, a builder implements and verifies, and a reviewer checks the diff; the lead plans and decides."
+msgstr "A scout maps the code, a builder implements and verifies, and a reviewer checks the diff; the lead plans and decides."
+
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "A server could not be started and was skipped."
 msgstr "A server could not be started and was skipped."
@@ -1115,8 +1119,12 @@ msgid "a supported coding agent"
 msgstr "a supported coding agent"
 
 #: src/renderer/components/crew/crewTemplates.ts
-msgid "A tester writes failing tests; a builder makes them pass."
-msgstr "A tester writes failing tests; a builder makes them pass."
+msgid "A tester writes and runs failing tests, and a builder makes them pass; the lead sets the cases."
+msgstr "A tester writes and runs failing tests, and a builder makes them pass; the lead sets the cases."
+
+#: src/renderer/components/crew/crewTemplates.ts
+#~ msgid "A tester writes failing tests; a builder makes them pass."
+#~ msgstr "A tester writes failing tests; a builder makes them pass."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "A voice conversation is already active."
@@ -1144,8 +1152,8 @@ msgid "About usage"
 msgstr "About usage"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
-msgid "Above the composer"
-msgstr "Above the composer"
+#~ msgid "Above the composer"
+#~ msgstr "Above the composer"
 
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Accent"
@@ -1947,6 +1955,10 @@ msgstr "An agent is fixing this PR."
 msgid "An expected worktree owner requires a branch"
 msgstr "An expected worktree owner requires a branch"
 
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "An investigator finds the root cause, and a fixer lands the fix with a regression test."
+msgstr "An investigator finds the root cause, and a fixer lands the fix with a regression test."
+
 #: src/renderer/components/mcp/McpServersManager.tsx
 #~ msgid "An MCP server with the name {serverName} already exists."
 #~ msgstr "An MCP server with the name {serverName} already exists."
@@ -2326,7 +2338,6 @@ msgstr "Authenticate"
 msgid "Authenticated"
 msgstr "Authenticated"
 
-#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Authentication"
 msgstr "Authentication"
@@ -3460,6 +3471,7 @@ msgid "Choose a photo"
 msgstr "Choose a photo"
 
 #: src/renderer/components/sessionImport/importSessionsActions.ts
+#: src/renderer/components/sessionImport/remoteSessionImport.ts
 msgid "Choose a project for sessions whose folder no longer exists."
 msgstr "Choose a project for sessions whose folder no longer exists."
 
@@ -6524,7 +6536,6 @@ msgstr "Discovering coding agents…"
 msgid "Discovery complete"
 msgstr "Discovery complete"
 
-#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 #: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
@@ -6581,6 +6592,10 @@ msgstr "Docks"
 msgid "Docs"
 msgstr "Docs"
 
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Does the broad searching: finds the files, callers, tests and conventions a task touches, and reports paths and facts, not a review."
+msgstr "Does the broad searching: finds the files, callers, tests and conventions a task touches, and reports paths and facts, not a review."
+
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteThreadPopover.tsx
 msgid "Don't ask again"
@@ -6602,7 +6617,6 @@ msgstr "done"
 #. Notification status: thread is done
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 #: src/renderer/components/providers/settings/ModelProvidersSettings.tsx
-#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/components/thread/AgentDiscoveryDoneButton.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/LabelPicker.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/ReviewerPicker.tsx
@@ -7198,7 +7212,6 @@ msgstr "error"
 #. Notification status: agent error
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/providers/usageFormat.ts
-#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ErrorItem.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
@@ -7505,12 +7518,16 @@ msgid "Explore and plan"
 msgstr "Explore and plan"
 
 #: src/renderer/components/crew/crewTemplates.ts
-msgid "Explore, build and review a feature."
-msgstr "Explore, build and review a feature."
+#~ msgid "Explore, build and review a feature."
+#~ msgstr "Explore, build and review a feature."
 
 #: src/renderer/components/crew/crewRoleTemplates.ts
 #~ msgid "Explores code and docs"
 #~ msgstr "Explores code and docs"
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Explores the codebase, implements the lead's task end to end, runs the narrowest checks, and reports what changed with evidence."
+msgstr "Explores the codebase, implements the lead's task end to end, runs the narrowest checks, and reports what changed with evidence."
 
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Exponential backoff"
@@ -7878,16 +7895,16 @@ msgid "Find in terminal"
 msgstr "Find in terminal"
 
 #: src/renderer/components/crew/crewTemplates.ts
-msgid "Find the root cause first, then fix it with a regression test."
-msgstr "Find the root cause first, then fix it with a regression test."
+#~ msgid "Find the root cause first, then fix it with a regression test."
+#~ msgstr "Find the root cause first, then fix it with a regression test."
 
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Finding status"
 msgstr "Finding status"
 
 #: src/renderer/components/crew/crewRoleTemplates.ts
-msgid "Finds the files, callers and tests a task touches, and reports their paths with a short summary."
-msgstr "Finds the files, callers and tests a task touches, and reports their paths with a short summary."
+#~ msgid "Finds the files, callers and tests a task touches, and reports their paths with a short summary."
+#~ msgstr "Finds the files, callers and tests a task touches, and reports their paths with a short summary."
 
 #: src/renderer/views/PullRequestsOverlay/guide/PrGuidePanel.tsx
 msgid "Finish review"
@@ -8748,7 +8765,7 @@ msgstr "History"
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/views/HomeView.tsx
-#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarHomeSection.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 #: src/renderer/views/WelcomeOverlay.tsx
 msgid "Home"
@@ -8917,7 +8934,6 @@ msgid "Identity file path"
 msgstr "Identity file path"
 
 #. Microphone input level when not testing
-#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Idle"
@@ -8960,12 +8976,20 @@ msgstr "Images"
 #~ msgstr "Implements changes and runs tests"
 
 #: src/renderer/components/crew/crewRoleTemplates.ts
-msgid "Implements the fix with a regression test and confirms the reproduction now passes."
-msgstr "Implements the fix with a regression test and confirms the reproduction now passes."
+msgid "Implements the fix the lead settles, adds a regression test, and confirms the reproduction now passes with the narrowest check."
+msgstr "Implements the fix the lead settles, adds a regression test, and confirms the reproduction now passes with the narrowest check."
 
 #: src/renderer/components/crew/crewRoleTemplates.ts
-msgid "Implements the lead's task end to end: edits files, runs the build and tests, and reports what changed."
-msgstr "Implements the lead's task end to end: edits files, runs the build and tests, and reports what changed."
+#~ msgid "Implements the fix with a regression test and confirms the reproduction now passes."
+#~ msgstr "Implements the fix with a regression test and confirms the reproduction now passes."
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Implements the lead's task end to end and verifies it with the narrowest build and tests; reports changed files, check results and deviations."
+msgstr "Implements the lead's task end to end and verifies it with the narrowest build and tests; reports changed files, check results and deviations."
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+#~ msgid "Implements the lead's task end to end: edits files, runs the build and tests, and reports what changed."
+#~ msgstr "Implements the lead's task end to end: edits files, runs the build and tests, and reports what changed."
 
 #. Settings section: import existing CLI sessions as threads
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
@@ -9876,8 +9900,12 @@ msgid "Lead + 1 helper"
 msgstr "Lead + 1 helper"
 
 #: src/renderer/components/crew/crewTemplates.ts
-msgid "Lead + Builder"
-msgstr "Lead + Builder"
+#~ msgid "Lead + Builder"
+#~ msgstr "Lead + Builder"
+
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "Lead + Sidekick"
+msgstr "Lead + Sidekick"
 
 #: src/renderer/components/providers/devin/modelPricing.ts
 #~ msgid "Lead and Sidekick prices are per 1M tokens for each model. Ranges cover model variants."
@@ -10922,7 +10950,7 @@ msgstr "Message search unavailable"
 msgid "Messages"
 msgstr "Messages"
 
-#: src/renderer/components/thread/ChatPane/ChatPane.tsx
+#: src/renderer/components/thread/ThreadHistoryLoadFailureDock.tsx
 msgid "Messages could not be loaded."
 msgstr "Messages could not be loaded."
 
@@ -11631,7 +11659,6 @@ msgstr "New thread — {projectName}"
 msgid "New thread from this to-do"
 msgstr "New thread from this to-do"
 
-#. placeholder {0}: homeProject.name
 #. placeholder {0}: project.name
 #: src/renderer/views/HomeView.tsx
 msgid "New thread in {0}"
@@ -12061,6 +12088,7 @@ msgid "No microphone found."
 msgstr "No microphone found."
 
 #: src/renderer/components/sessionImport/importSessionsActions.ts
+#: src/renderer/components/sessionImport/remoteSessionImport.ts
 msgid "No model is available for {agent}. Check the agent in Settings."
 msgstr "No model is available for {agent}. Check the agent in Settings."
 
@@ -14684,6 +14712,10 @@ msgstr "Reading each candidate's changes…"
 msgid "Reading each candidate's chat response…"
 msgstr "Reading each candidate's chat response…"
 
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Reads the full diff and the code it touches, runs targeted checks, and reports bugs, regressions and missing tests by file and line."
+msgstr "Reads the full diff and the code it touches, runs targeted checks, and reports bugs, regressions and missing tests by file and line."
+
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Ready"
@@ -14814,7 +14846,7 @@ msgstr "Reference"
 
 #. Button: re-fetch provider usage now
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
-#: src/renderer/components/thread/ChatPane/ChatPane.tsx
+#: src/renderer/components/thread/ThreadRemoteSyncDock.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
@@ -15399,8 +15431,12 @@ msgid "Repository URL"
 msgstr "Repository URL"
 
 #: src/renderer/components/crew/crewRoleTemplates.ts
-msgid "Reproduces the bug and traces it to the root cause, then reports the evidence and the failing code path."
-msgstr "Reproduces the bug and traces it to the root cause, then reports the evidence and the failing code path."
+#~ msgid "Reproduces the bug and traces it to the root cause, then reports the evidence and the failing code path."
+#~ msgstr "Reproduces the bug and traces it to the root cause, then reports the evidence and the failing code path."
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Reproduces the bug and traces it to the root cause, then reports the evidence, the failing code path and a suggested fix."
+msgstr "Reproduces the bug and traces it to the root cause, then reports the evidence, the failing code path and a suggested fix."
 
 #: src/renderer/views/PullRequestsOverlay/summary/ReviewerPicker.tsx
 msgid "Request a reviewer"
@@ -15647,11 +15683,11 @@ msgstr "Retained usage on this host only."
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
-#: src/renderer/components/thread/ChatPane/ChatPane.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/MarkdownVideo.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/useHistoryItemDetails.tsx
 #: src/renderer/components/thread/SideChat/SideChatBody.tsx
 #: src/renderer/components/thread/SideChat/SideChatThreadView.tsx
+#: src/renderer/components/thread/ThreadHistoryLoadFailureDock.tsx
 #: src/renderer/i18n/sharedMessages.ts
 #: src/renderer/state/managedRootCatalog/ManagedRootCatalogStatusNotice.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/useSourceBranchData.ts
@@ -15952,8 +15988,8 @@ msgstr "Reviews & comments"
 #~ msgstr "Reviews diffs and finds bugs"
 
 #: src/renderer/components/crew/crewRoleTemplates.ts
-msgid "Reviews the finished diff for bugs, regressions and missing tests, and reports findings by file and line."
-msgstr "Reviews the finished diff for bugs, regressions and missing tests, and reports findings by file and line."
+#~ msgid "Reviews the finished diff for bugs, regressions and missing tests, and reports findings by file and line."
+#~ msgstr "Reviews the finished diff for bugs, regressions and missing tests, and reports findings by file and line."
 
 #: src/renderer/components/providers/devin/liveSessionControls.tsx
 #: src/renderer/components/providers/devin/sessionActionDialog.tsx
@@ -15981,7 +16017,6 @@ msgid "Right"
 msgstr "Right"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Right panel"
 msgstr "Right panel"
 
@@ -16500,8 +16535,12 @@ msgid "Scout"
 msgstr "Scout"
 
 #: src/renderer/components/crew/crewTemplates.ts
-msgid "Scouts map an unfamiliar codebase before anything changes."
-msgstr "Scouts map an unfamiliar codebase before anything changes."
+#~ msgid "Scouts map an unfamiliar codebase before anything changes."
+#~ msgstr "Scouts map an unfamiliar codebase before anything changes."
+
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "Scouts map an unfamiliar codebase so the lead can plan without reading it all."
+msgstr "Scouts map an unfamiliar codebase so the lead can plan without reading it all."
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/components/thread/ThreadAgentVisionDock.tsx
@@ -16980,7 +17019,7 @@ msgstr "Server {target} runs on this computer and is unavailable for WSL project
 msgid "Server base URL"
 msgstr "Server base URL"
 
-#: src/renderer/components/thread/ChatPane/ChatPane.tsx
+#: src/renderer/components/thread/ThreadRemoteSyncDock.tsx
 msgid "Server offline — this conversation may be out of date."
 msgstr "Server offline — this conversation may be out of date."
 
@@ -17430,6 +17469,7 @@ msgstr "Sidebar frosting"
 msgid "Sidebar shortcuts"
 msgstr "Sidebar shortcuts"
 
+#: src/renderer/components/crew/crewRoleTemplates.ts
 #: src/renderer/components/providers/devin/modelPricing.ts
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Sidekick"
@@ -18543,6 +18583,10 @@ msgstr "Tailscale URL"
 msgid "Take Screenshot"
 msgstr "Take Screenshot"
 
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Takes any hands-on task the lead hands off: exploring, editing and running checks, then reports back with evidence."
+msgstr "Takes any hands-on task the lead hands off: exploring, editing and running checks, then reports back with evidence."
+
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 #~ msgid "Takes over the desktop while the agent clicks or types"
 #~ msgstr "Takes over the desktop while the agent clicks or types"
@@ -18614,7 +18658,6 @@ msgstr "Tell the target provider what to do next..."
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/plugins/pluginCopy.ts
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
-#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/GlobalTerminalPanel/GlobalTerminalPanel.tsx
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
@@ -18642,10 +18685,10 @@ msgstr "Terminal font face"
 #. placeholder {0}: project.name
 #. placeholder {0}: props.projectName
 #. placeholder {0}: props.worktreeBranch
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarHomeSection.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/WorktreeGroupHeader.tsx
-#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 msgid "Terminal for {0}"
 msgstr "Terminal for {0}"
 
@@ -18681,8 +18724,8 @@ msgid "Terminal position"
 msgstr "Terminal position"
 
 #: src/renderer/components/terminal/TerminalProgramStatus.tsx
-msgid "Terminal program status"
-msgstr "Terminal program status"
+#~ msgid "Terminal program status"
+#~ msgstr "Terminal program status"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
@@ -19049,8 +19092,16 @@ msgid "The launch was cancelled."
 msgstr "The launch was cancelled."
 
 #: src/renderer/components/crew/crewTemplates.ts
-msgid "The lead plans and reviews; a cheaper builder does the hands-on work."
-msgstr "The lead plans and reviews; a cheaper builder does the hands-on work."
+#~ msgid "The lead plans and reviews; a cheaper builder does the hands-on work."
+#~ msgstr "The lead plans and reviews; a cheaper builder does the hands-on work."
+
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "The lead plans and reviews; a cheaper sidekick explores, builds and verifies."
+msgstr "The lead plans and reviews; a cheaper sidekick explores, builds and verifies."
+
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "The lead splits the work; up to three builders implement and verify independent tasks at once."
+msgstr "The lead splits the work; up to three builders implement and verify independent tasks at once."
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the Linux user"
@@ -19190,6 +19241,10 @@ msgstr "The run could not be cancelled."
 #: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
 msgid "The run was interrupted."
 msgstr "The run was interrupted."
+
+#: src/renderer/state/remoteServers/sharedCredentials.ts
+msgid "The saved remote credentials could not be confirmed."
+msgstr "The saved remote credentials could not be confirmed."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The scheduled automation failed."
@@ -19968,14 +20023,12 @@ msgid "Thread dock"
 msgstr "Thread dock"
 
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
-#: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Thread docks"
 msgstr "Thread docks"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
-msgid "Thread docks placement"
-msgstr "Thread docks placement"
+#~ msgid "Thread docks placement"
+#~ msgstr "Thread docks placement"
 
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Thread failed to start."
@@ -20179,6 +20232,10 @@ msgstr "Tokens from {0}"
 msgid "Told not to edit files. Not enforced."
 msgstr "Told not to edit files. Not enforced."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Too many remote requests are in progress. Try again in a moment."
+msgstr "Too many remote requests are in progress. Try again in a moment."
+
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Too many visuals in this message. Showing source only."
 msgstr "Too many visuals in this message. Showing source only."
@@ -20296,8 +20353,12 @@ msgid "Turn tracking on or off per provider. Disabled providers are skipped by t
 msgstr "Turn tracking on or off per provider. Disabled providers are skipped by the auto-refresh."
 
 #: src/renderer/components/crew/crewTemplates.ts
-msgid "Two independent read-only reviews of a change."
-msgstr "Two independent read-only reviews of a change."
+msgid "Two independent read-only reviews of a change, and a sidekick applies the fixes."
+msgstr "Two independent read-only reviews of a change, and a sidekick applies the fixes."
+
+#: src/renderer/components/crew/crewTemplates.ts
+#~ msgid "Two independent read-only reviews of a change."
+#~ msgstr "Two independent read-only reviews of a change."
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Type"
@@ -20959,8 +21020,8 @@ msgid "Up one level"
 msgstr "Up one level"
 
 #: src/renderer/components/crew/crewTemplates.ts
-msgid "Up to three builders work on independent tasks at once."
-msgstr "Up to three builders work on independent tasks at once."
+#~ msgid "Up to three builders work on independent tasks at once."
+#~ msgstr "Up to three builders work on independent tasks at once."
 
 #: src/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay.tsx
 msgid "update"
@@ -20993,6 +21054,10 @@ msgstr "Update {0} ({env})"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Update {0} to {updateLabel}"
 msgstr "Update {0} to {updateLabel}"
+
+#: src/renderer/components/sessionImport/remoteSessionImport.ts
+msgid "Update {host} to import its sessions."
+msgstr "Update {host} to import its sessions."
 
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #~ msgid "Update all"
@@ -21079,6 +21144,10 @@ msgstr "Update the host to fork conversations."
 #: src/renderer/components/thread/SideChat/sideChatActions.ts
 msgid "Update the remote host to use side chat with hidden context."
 msgstr "Update the remote host to use side chat with hidden context."
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Update this host to import its sessions."
+msgstr "Update this host to import its sessions."
 
 #: src/renderer/components/providers/HostUsageView.tsx
 msgid "Update this host to refresh usage remotely. Cached usage can still be read."
@@ -21657,7 +21726,6 @@ msgstr "Wait for the thread to finish starting before moving it to a worktree."
 msgid "Wait for the thread to finish starting."
 msgstr "Wait for the thread to finish starting."
 
-#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Waiting"
 msgstr "Waiting"
@@ -21686,7 +21754,6 @@ msgstr "Waiting for a preview"
 msgid "waiting for agent to stop"
 msgstr "waiting for agent to stop"
 
-#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/views/SchedulesView/parts/scheduleRunStatus.ts
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
@@ -21740,7 +21807,9 @@ msgid "Warming up WSL shell environment…"
 msgstr "Warming up WSL shell environment…"
 
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadHistoryLoadFailureDock.tsx
 #: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
+#: src/renderer/components/thread/ThreadRemoteSyncDock.tsx
 #: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Warning"
@@ -21872,8 +21941,8 @@ msgstr "Where a browser element-picker selection goes in terminal-native threads
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Where a thread's goal, plan, agents, and background tasks appear. In the right panel, compact bubbles above the composer open them."
-msgstr "Where a thread's goal, plan, agents, and background tasks appear. In the right panel, compact bubbles above the composer open them."
+#~ msgid "Where a thread's goal, plan, agents, and background tasks appear. In the right panel, compact bubbles above the composer open them."
+#~ msgstr "Where a thread's goal, plan, agents, and background tasks appear. In the right panel, compact bubbles above the composer open them."
 
 #: src/renderer/views/WelcomeOverlay.tsx
 msgid "Where do you want to begin?"
@@ -21998,6 +22067,7 @@ msgid "Workflow: {description}"
 msgstr "Workflow: {description}"
 
 #: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
+#: src/renderer/components/thread/buildModelPickerControls.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsMobileWorkflowList.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
@@ -22008,7 +22078,6 @@ msgstr "Workflows"
 msgid "Workflows added under .github/workflows will appear here."
 msgstr "Workflows added under .github/workflows will appear here."
 
-#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Working"
 msgstr "Working"
@@ -22147,8 +22216,12 @@ msgid "Write notes for this project…"
 msgstr "Write notes for this project…"
 
 #: src/renderer/components/crew/crewRoleTemplates.ts
-msgid "Writes and runs tests for the change, reproduces reported bugs, and reports failures with the exact command."
-msgstr "Writes and runs tests for the change, reproduces reported bugs, and reports failures with the exact command."
+#~ msgid "Writes and runs tests for the change, reproduces reported bugs, and reports failures with the exact command."
+#~ msgstr "Writes and runs tests for the change, reproduces reported bugs, and reports failures with the exact command."
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Writes and runs the tests for the change, reproduces reported bugs, and reports each failure with the exact command and failing assertion."
+msgstr "Writes and runs the tests for the change, reproduces reported bugs, and reports each failure with the exact command and failing assertion."
 
 #: src/renderer/views/PullRequestsOverlay/guide/PrReviewGuideTab.tsx
 msgid "Writing guide. You can leave this review and return when it is ready."

@@ -1,10 +1,12 @@
 import { create } from "zustand";
-import { readBridge } from "@/renderer/bridge";
+import { isRemoteSession, readBridge } from "@/renderer/bridge";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useMachineSelectionStore } from "@/renderer/state/machineSelectionStore";
 import { buildWslProjectDistrosKey, parseWslProjectDistrosKey } from "@/renderer/state/projectKeys";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import { remoteConnectionKey } from "@/renderer/state/remoteServers/types";
+import { useSettingsHostServer, useSettingsHostStore } from "@/renderer/state/settingsHostStore";
 import { localEnvLabel, machineLabel } from "@/renderer/utils/machineLabels";
 import type { AgentStatus } from "@/shared/contracts";
 import {
@@ -30,26 +32,35 @@ export interface MachineDescriptor {
  * Locally enumerated WSL distros (registry-backed supervisor probe), fetched
  * when the Agents settings area mounts. Unioned with project-derived distros
  * so a distro appears even when only one of the two sources knows about it.
+ * `loadedFor` names the host that answered, because a remote client's bridge
+ * can move to another host.
  */
 interface WslDistroListState {
   distros: string[];
-  loaded: boolean;
-  refresh(): Promise<void>;
+  loadedFor: string | null;
+  refresh(owner: string): Promise<void>;
 }
 
 export const useWslDistroListStore = create<WslDistroListState>((set) => ({
   distros: [],
-  loaded: false,
-  refresh: async () => {
+  loadedFor: null,
+  refresh: async (owner) => {
     try {
       const distros = await readBridge().listWslDistros();
-      set({ distros, loaded: true });
+      set({ distros, loadedFor: owner });
     } catch {
       // Enumeration is best-effort; project-derived distros remain available.
-      set({ loaded: true });
+      set({ distros: [], loadedFor: owner });
     }
   },
 }));
+
+/** The host whose WSL distros are "local": this device, or a remote client's bridge host. */
+export function useLocalDistroOwner(): string | null {
+  const settingsHost = useSettingsHostServer();
+  if (!isRemoteSession()) return LOCAL_NATIVE_MACHINE_KEY;
+  return settingsHost ? remoteConnectionKey(settingsHost) : null;
+}
 
 function remoteStatusOf(status: string | undefined): MachineDescriptor["status"] {
   if (status === "online") return "online";
@@ -61,6 +72,10 @@ function remoteStatusOf(status: string | undefined): MachineDescriptor["status"]
  * Derive the machine list: local host, local WSL distros (enumerated ∪
  * project-derived), and each paired remote server plus the WSL distros its
  * agent statuses report. Pure given its inputs; exported for tests.
+ *
+ * In a remote client, "local" is the host the bridge client talks to, not the
+ * device: `localHost` names those entries after that host and drops its
+ * duplicate remote entry, so it keeps the bridge's install and sign-in actions.
  */
 export function deriveMachines(inputs: {
   enumeratedDistros: readonly string[];
@@ -74,14 +89,24 @@ export function deriveMachines(inputs: {
       { status: string; agentStatuses?: { wsl: readonly { envDistro?: string | undefined }[] } }
     >
   >;
+  localHost?: { connectionKey: string; label: string };
 }): MachineDescriptor[] {
+  const localHost = inputs.localHost;
+  const localLabel = (env: MachineRef["env"]): string =>
+    localHost
+      ? machineLabel(
+          { host: "remote", desktopId: localHost.connectionKey, env },
+          { remoteName: () => localHost.label },
+        )
+      : localEnvLabel(env);
   const machines: MachineDescriptor[] = [
     {
       id: LOCAL_NATIVE_MACHINE_KEY,
       ref: { host: "local", env: { kind: "native" } },
       kind: "local",
-      label: localEnvLabel({ kind: "native" }),
+      label: localLabel({ kind: "native" }),
       status: "online",
+      ...(localHost ? { desktopId: localHost.connectionKey } : {}),
     },
   ];
   const localDistros = [
@@ -97,9 +122,10 @@ export function deriveMachines(inputs: {
       id: machineKey(ref),
       ref,
       kind: "local-wsl",
-      label: localEnvLabel(ref.env),
+      label: localLabel(ref.env),
       status: "online",
       wslDistro: distro,
+      ...(localHost ? { desktopId: localHost.connectionKey } : {}),
     });
   }
   const remoteName = (connectionKey: string) =>
@@ -108,6 +134,7 @@ export function deriveMachines(inputs: {
     )?.label ?? connectionKey;
   for (const server of inputs.remoteServers) {
     const connectionKey = server.connectionId ?? server.desktopId;
+    if (connectionKey === localHost?.connectionKey) continue;
     const runtime = inputs.remoteRuntime[connectionKey];
     const status = remoteStatusOf(runtime?.status);
     const nativeRef: MachineRef = {
@@ -150,22 +177,54 @@ export function deriveMachines(inputs: {
   return machines;
 }
 
+const NO_DISTROS: string[] = [];
+
 /** Machines currently selectable in the Agents settings area. */
 export function useMachines(): MachineDescriptor[] {
-  const enumeratedDistros = useWslDistroListStore((state) => state.distros);
+  const distroOwner = useLocalDistroOwner();
+  const enumeratedDistros = useWslDistroListStore((state) =>
+    state.loadedFor === distroOwner ? state.distros : NO_DISTROS,
+  );
   const projectDistrosKey = useAppStore((state) => buildWslProjectDistrosKey(state.projects));
   const wslAgentStatuses = useAgentStatusesStore((state) => state.wslAgentStatuses);
   const remoteServers = useRemoteServersStore((state) => state.servers);
   const remoteRuntime = useRemoteServersStore((state) => state.runtime);
+  const remoteSession = isRemoteSession();
+  const settingsHost = useSettingsHostServer();
   return deriveMachines({
     enumeratedDistros,
-    projectDistros: parseWslProjectDistrosKey(projectDistrosKey),
+    // A remote client's projects span every paired host; the bridge host's own
+    // distros come from its enumeration and its agent statuses instead.
+    projectDistros: remoteSession ? [] : parseWslProjectDistrosKey(projectDistrosKey),
     statusDistros: wslAgentStatuses
       .map((status) => status.envDistro)
       .filter((distro): distro is string => Boolean(distro)),
     remoteServers,
     remoteRuntime,
+    ...(remoteSession && settingsHost
+      ? {
+          localHost: {
+            connectionKey: remoteConnectionKey(settingsHost),
+            label: settingsHost.label,
+          },
+        }
+      : {}),
   });
+}
+
+/**
+ * Scope the settings area to `machine`. In a remote client, another host's
+ * entry rebinds the bridge to that host, whose entries then become the local
+ * ones, so install and sign-in keep working wherever the user points it.
+ */
+export function chooseMachine(machine: MachineDescriptor): void {
+  const { setSelectedMachine } = useMachineSelectionStore.getState();
+  if (machine.ref.host === "remote" && isRemoteSession()) {
+    useSettingsHostStore.getState().choose(machine.ref.desktopId);
+    setSelectedMachine(machineKey({ host: "local", env: machine.ref.env }));
+    return;
+  }
+  setSelectedMachine(machine.id);
 }
 
 /** The selected machine, falling back to the local host when it disappears. */

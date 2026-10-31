@@ -73,6 +73,7 @@ import {
 } from "../agents/base";
 import { ensureNodePtySpawnHelperExecutable } from "../nodePty";
 import { BufferedLogWriter } from "./bufferedLogWriter";
+import { countOtherWorkingSessions, CrewLeadEditMonitor } from "./crewLeadEditMonitor";
 import {
   acquireOrHandoff,
   HostResourceAdmissionOwner,
@@ -350,6 +351,17 @@ export class ThreadSessionManager {
       outputPipeline: this.outputPipeline,
       indexSessionRef: (session, prevId) => this.indexSessionRef(session, prevId),
     });
+    const memberRunActivity = options.crossagentMcp?.memberRunActivity?.bind(options.crossagentMcp);
+    const readDirtySetSnapshot = options.readDirtySetSnapshot?.bind(options);
+    const crewLeadEdits = new CrewLeadEditMonitor({
+      isCurrentSession: (session) => this.isCurrentSession(session),
+      hasPendingUserInput: (threadId) =>
+        this.followUpQueue.hasPendingInput(threadId) ||
+        this.steerCoordinator.hasPendingSteerAdmission(threadId),
+      otherWorkingSessions: (session) => countOtherWorkingSessions(this.sessions.values(), session),
+      ...(memberRunActivity ? { memberRunActivity } : {}),
+      ...(readDirtySetSnapshot ? { readDirtySetSnapshot } : {}),
+    });
     const sessionRuntimeLifecycle = new SessionRuntimeLifecycle({
       sessions: this.sessions,
       sessionsBySessionId: this.sessionsBySessionId,
@@ -358,6 +370,7 @@ export class ThreadSessionManager {
       runtimeEventRouter: this.runtimeEventRouter,
       steerCoordinator: this.steerCoordinator,
       followUpQueue: this.followUpQueue,
+      crewLeadEdits,
       structuredInterruptWatchdog: this.structuredInterruptWatchdog,
       emit: this.options.emit,
       isCurrentSession: (session) => this.isCurrentSession(session),

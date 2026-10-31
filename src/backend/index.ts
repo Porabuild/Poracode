@@ -21,6 +21,7 @@ import { shutdownBackendHost } from "./shutdown";
 import { joinRuntimeShutdown } from "./joinRuntimeShutdown";
 import { callDatabaseRpc } from "@/host/db/databaseRpc";
 import { getRuntimePersistenceSample } from "@/host/db/runtimePersistenceRuntime";
+import { serverLogFilePath, startServerLogFile } from "@/server/serverLogFile";
 import { SupervisorIpcSender } from "@/supervisor/supervisorIpcSender";
 import type { SupervisorEvent } from "@/shared/ipc";
 
@@ -51,6 +52,11 @@ let shuttingDown = false;
 let acceptingRequests = true;
 let runtimeStop: Promise<void> | null = null;
 let runtimeWorkJoined = false;
+/** Desktop parity with `poracode serve`: everything the backend logs at or
+ * above the configured level mirrors into `<host root>/logs/server.log`
+ * (leveled, size-rotated). Started only after the delegated ownership grant
+ * validated and the owned root is known; `null` for flavors without one. */
+let logFileSink: ReturnType<typeof startServerLogFile> | null = null;
 
 function stopRuntimeWork(): Promise<void> {
   if (runtimeStop) return runtimeStop;
@@ -219,6 +225,21 @@ async function initialize(
       ownerPid: process.ppid,
     });
   configureSecretStorageKey(supervisor.secretStorageKey);
+  // Desktop-managed flavors mirror the process's console output into the
+  // leveled, rotated server log under the owned root — the main process pipes
+  // this child's stdout nowhere, so without this sink a production incident
+  // leaves no host-side evidence at all. Started only for compositions that
+  // carry the desktop ownership grant (the standalone CLI `serve` installs its
+  // own sink), and only after that grant validated: nothing writes to the
+  // root before ownership. Level comes from PORACODE_LOG_LEVEL (default info).
+  if (request.payload.desktop !== undefined && logFileSink === null) {
+    logFileSink = startServerLogFile({ path: serverLogFilePath(baseDir), env: process.env });
+    console.log(
+      "[backend-host] log file: %s (level %s)",
+      serverLogFilePath(baseDir),
+      logFileSink.level,
+    );
+  }
   // Desktop services can only be built on the constructed host, so a
   // supervisor launch that races initialization (for example the first
   // managed-loopback command) waits for this barrier instead of forking
@@ -251,6 +272,9 @@ async function initialize(
         await Promise.all([desktopServicesReady.promise, supervisorEnvironmentReady.promise]);
         await desktopServices?.prepareSupervisor();
       },
+      // Every (re)spawn, crash respawns included: restore the project watches
+      // that clients registered once and never re-send.
+      onStarted: () => desktopServices?.handleSupervisorStarted(),
       reportError,
     },
     onEvent: (event) => {
@@ -340,6 +364,10 @@ async function disposeRuntime(): Promise<null> {
   environments = null;
   backendHost?.closeDatabase();
   backendHost = null;
+  // A later initialize on this child starts a fresh sink (the guard in
+  // `initialize` only installs when the handle is null).
+  logFileSink?.stop();
+  logFileSink = null;
   return null;
 }
 
@@ -482,6 +510,9 @@ async function shutdown(exitCode: number, flush: boolean): Promise<void> {
         backendHost?.closeDatabase();
         backendHost = null;
       },
+      // The sink restores the original console hooks; later fatal reports go
+      // to stderr only, which is fine at process exit.
+      () => logFileSink?.stop(),
       () => performanceDiagnostics?.stop(),
     ],
     exitCode,

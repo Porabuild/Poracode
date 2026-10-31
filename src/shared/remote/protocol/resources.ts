@@ -31,6 +31,7 @@ import {
   remoteGitSummariesSchema,
 } from "./core";
 import { remoteRuntimeHistoryNoticeSchema } from "./runtimeHistoryNotice";
+import { remoteEventEpochSchema } from "./eventEpoch";
 
 /**
  * Remote project management. Lets a paired client add/clone/remove projects on
@@ -548,8 +549,27 @@ export const remoteLiveActivityContentStateSchema = z.object({
 });
 export type RemoteLiveActivityContentState = z.infer<typeof remoteLiveActivityContentStateSchema>;
 
+/**
+ * One of the host's workspaces, by id and name only. Clients keep their own
+ * workspace list and use this to place a host project by name.
+ */
+export const remoteHostWorkspaceSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+});
+export type RemoteHostWorkspace = z.infer<typeof remoteHostWorkspaceSchema>;
+
+/** Projects a host's settings to the workspace names its snapshots carry. */
+export function remoteHostWorkspaces(settings: {
+  readonly workspaces?: readonly { readonly id: string; readonly name: string }[];
+}): RemoteHostWorkspace[] {
+  return (settings.workspaces ?? []).map(({ id, name }) => ({ id, name }));
+}
+
 export const remoteShellSnapshotSchema = z.object({
   snapshotSeq: z.number().int().nonnegative(),
+  /** Event-stream instance that issued this cursor. Absent on older hosts. */
+  snapshotEpoch: remoteEventEpochSchema.optional(),
   projects: z.array(remoteProjectSchema),
   threads: z.array(threadSchema),
   /**
@@ -577,6 +597,11 @@ export const remoteShellSnapshotSchema = z.object({
   gitSummariesByThread: remoteGitSummariesSchema.optional(),
   /** Normalized host-owned Git/PR state. Absent on legacy hosts. */
   gitState: gitStateSnapshotSchema.optional(),
+  /**
+   * The host's workspaces, which `projects[].workspaceId` refers to. Absent on
+   * older hosts, which leaves clients filing host projects on their own.
+   */
+  workspaces: z.array(remoteHostWorkspaceSchema).optional(),
   updatedAt: z.string().min(1),
 });
 export type RemoteShellSnapshot = z.infer<typeof remoteShellSnapshotSchema>;

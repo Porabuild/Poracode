@@ -20,7 +20,21 @@ import {
   setPolicy,
   updateRole,
 } from "./crewComposerModel";
-import type { CrewRoleTemplate } from "./crewRoleTemplates";
+import {
+  CREW_ROLE_TEMPLATE_DESCRIPTORS,
+  crewRoleFromTemplate,
+  type CrewRoleTemplate,
+} from "./crewRoleTemplates";
+import { CREW_TEMPLATE_DESCRIPTORS, crewRolesFromTemplate } from "./crewTemplates";
+
+/** The ready role templates in English, as the renderer resolves them. */
+const readyTemplates: CrewRoleTemplate[] = CREW_ROLE_TEMPLATE_DESCRIPTORS.map(
+  ({ label, brief, ...template }) => ({
+    ...template,
+    label: label.message ?? template.id,
+    ...(brief?.message ? { brief: brief.message } : {}),
+  }),
+);
 
 const templates: CrewRoleTemplate[] = [
   { id: "builder", label: "Builder", brief: "Build", tone: "builder" },
@@ -98,6 +112,72 @@ describe("crewComposerModel", () => {
     expect(updated.roles.find((role) => role.id === "reviewer")?.parallel).toBe(2);
     expect(removeRole(fresh, "builder")).toBe(fresh);
     expect(removeRole(updated, "builder").roles).toHaveLength(2);
+  });
+
+  it("starts a new crew with the given role template", () => {
+    expect(
+      newCrewBinding(helper, { id: "sidekick", label: "Sidekick", brief: "Explore and build" }),
+    ).toEqual({
+      version: 1,
+      policy: "crew-only",
+      roles: [{ id: "sidekick", label: "Sidekick", brief: "Explore and build", selection: helper }],
+    });
+  });
+
+  it("builds a role from a template with its brief, read-only flag and concurrency", () => {
+    expect(
+      crewRoleFromTemplate(
+        { id: "scout", label: "Scout", brief: "Explore", noEdits: true },
+        helper,
+        2,
+      ),
+    ).toEqual({
+      id: "scout",
+      label: "Scout",
+      brief: "Explore",
+      noEdits: true,
+      selection: helper,
+      parallel: 2,
+    });
+    const single = crewRoleFromTemplate({ id: "builder", label: "Builder" }, helper, 1);
+    expect(single).toEqual({ id: "builder", label: "Builder", selection: helper });
+    expect(single.selection).not.toBe(helper);
+  });
+
+  it("treats implementing roles as one slot when suggesting the next role", () => {
+    const fromTemplate = (templateId: string): ThreadCrewBinding => ({
+      version: 1,
+      policy: "crew-only",
+      roles: crewRolesFromTemplate(
+        CREW_TEMPLATE_DESCRIPTORS.find((template) => template.id === templateId)!,
+        readyTemplates,
+        () => helper,
+      ),
+    });
+    const sidekick = readyTemplates.find((template) => template.id === "sidekick")!;
+    expect(addRole(newCrewBinding(helper, sidekick), readyTemplates, helper).roleId).toBe(
+      "reviewer",
+    );
+
+    const reviewBoard = fromTemplate("review");
+    expect(reviewBoard.roles.map((role) => role.id)).toEqual(["reviewer", "sidekick"]);
+    expect(addRole(reviewBoard, readyTemplates, helper).roleId).toBe("scout");
+
+    const testFix = fromTemplate("test-fix");
+    expect(testFix.roles.map((role) => role.id)).toEqual(["tester", "builder"]);
+    const reviewer = addRole(testFix, readyTemplates, helper);
+    const scout = addRole(reviewer.binding, readyTemplates, helper);
+    const investigator = addRole(scout.binding, readyTemplates, helper);
+    const last = addRole(investigator.binding, readyTemplates, helper);
+    expect([reviewer, scout, investigator, last].map((result) => result.roleId)).toEqual([
+      "reviewer",
+      "scout",
+      "investigator",
+      "helper",
+    ]);
+
+    // Without an implementing role, Builder is still offered first.
+    expect(addRole(fromTemplate("explore"), readyTemplates, helper).roleId).toBe("builder");
   });
 
   it("resets and saves existing or new crews with trimmed names", () => {

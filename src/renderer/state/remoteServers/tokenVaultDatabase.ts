@@ -92,6 +92,70 @@ export class TokenVaultDatabase {
     isCurrent: () => boolean = () => true,
   ): Promise<T> {
     const message = `Unable to ${operation} the token vault.`;
+    return this.transact<T>(mode, message, isCurrent, (store, succeed, fail) => {
+      const request = issue(store);
+      request.onsuccess = () => {
+        let result: T;
+        try {
+          result = request.result;
+        } catch (error) {
+          // WebKit can throw from this getter when a stored CryptoKey cannot be
+          // restored (bugs 229178, 264099); escaping would crash the whole app.
+          fail(error);
+          return;
+        }
+        succeed(result);
+      };
+      request.onerror = () => fail(request.error ?? new Error(message));
+    });
+  }
+
+  /**
+   * Stores `record` unless `isPresent` accepts the record already under its
+   * key, reading and writing in ONE readwrite transaction, and resolves the
+   * record stored afterwards. Readwrite transactions on a store run one at a
+   * time across every connection of the origin, so renderer realms that start
+   * at once converge on the first committed record instead of replacing it.
+   */
+  async insertUnlessPresent<R extends { readonly key: IDBValidKey }>(
+    record: R,
+    isPresent: (stored: unknown) => boolean,
+    isCurrent: () => boolean = () => true,
+  ): Promise<unknown> {
+    const message = "Unable to write the token vault.";
+    return this.transact<unknown>("readwrite", message, isCurrent, (store, succeed, fail) => {
+      const read = store.get(record.key);
+      read.onsuccess = () => {
+        let stored: unknown;
+        try {
+          stored = read.result;
+        } catch (error) {
+          // Same WebKit restore failure: a failed read is never a missing record.
+          fail(error);
+          return;
+        }
+        if (isPresent(stored)) {
+          succeed(stored);
+          return;
+        }
+        const write = store.put(record);
+        write.onsuccess = () => succeed(record);
+        write.onerror = () => fail(write.error ?? new Error(message));
+      };
+      read.onerror = () => fail(read.error ?? new Error(message));
+    });
+  }
+
+  private async transact<T>(
+    mode: IDBTransactionMode,
+    message: string,
+    isCurrent: () => boolean,
+    issue: (
+      store: IDBObjectStore,
+      succeed: (value: T) => void,
+      fail: (error: unknown) => void,
+    ) => void,
+  ): Promise<T> {
     if (!isCurrent()) throw new Error(message);
     const opening = this.open();
     const database = await opening;
@@ -139,20 +203,15 @@ export class TokenVaultDatabase {
       transaction.onerror = () => fail(transaction.error ?? new Error(message));
       transaction.onabort = () => fail(transaction.error ?? new Error(message));
       try {
-        const request = issue(transaction.objectStore(STORE_NAME));
-        request.onsuccess = () => {
-          if (settled) return;
-          try {
-            result = request.result;
-          } catch (error) {
-            // WebKit can throw from this getter when a stored CryptoKey cannot be
-            // restored (bugs 229178, 264099); escaping would crash the whole app.
-            fail(error);
-            return;
-          }
-          requestSucceeded = true;
-        };
-        request.onerror = () => fail(request.error ?? new Error(message));
+        issue(
+          transaction.objectStore(STORE_NAME),
+          (value) => {
+            if (settled) return;
+            result = value;
+            requestSucceeded = true;
+          },
+          fail,
+        );
       } catch (error) {
         fail(error);
       }

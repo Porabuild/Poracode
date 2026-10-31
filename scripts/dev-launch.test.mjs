@@ -59,7 +59,7 @@ async function fixture(t, holdAcquisition = false) {
     await writeFile(join(root, "scripts", script), "export {};");
   await writeFile(
     join(root, "scripts/prepare-pty-job-owner.mjs"),
-    "import {writeFileSync} from 'node:fs'; if(!process.argv.includes('--if-supported'))throw Error('Expected host-only preparation'); writeFileSync('.tmp/pty-owner-ready','');",
+    "import {writeFileSync} from 'node:fs'; if(!process.argv.includes('--if-supported')||!process.argv.includes('--host-only'))throw Error('Expected host-only preparation'); writeFileSync('.tmp/pty-owner-ready','');",
   );
   await writeFile(
     join(root, "scripts/sweepStaleSupervisors.mjs"),

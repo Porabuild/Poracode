@@ -32,7 +32,7 @@
     "dev:web": "cross-env PORACODE_DEV_SERVER_PORT=3101 bun run dev:web:client",
     "dev:web:client": "node scripts/free-port.mjs && cross-env PORACODE_BUILD_TARGET=web vite",
     "preview:web": "cross-env PORACODE_BUILD_TARGET=web vite preview",
-    "dev:electron": "node scripts/prepare-pty-job-owner.mjs --if-supported && node scripts/dev-runtime-watch.mjs",
+    "dev:electron": "node scripts/prepare-pty-job-owner.mjs --if-supported --host-only && node scripts/dev-runtime-watch.mjs",
     "dev:app": "node scripts/dev-launch.mjs",
     "build": "bun run build:renderer && bun run build:electron",
     "build:renderer": "vite build",
@@ -70,8 +70,8 @@
     "tui:typecheck": "bun run --cwd tui typecheck",
     "tui:test": "bun run --cwd tui test",
     "tui:dev": "bun run --cwd tui dev",
-    "protocol:remote:v3:generate": "node --experimental-transform-types --disable-warning=ExperimentalWarning --import ./scripts/remote-v3-ts-register.mjs src/shared/remote/contract/cli.ts",
-    "protocol:remote:v3:check": "node --experimental-transform-types --disable-warning=ExperimentalWarning --import ./scripts/remote-v3-ts-register.mjs src/shared/remote/contract/cli.ts --check",
+    "protocol:remote:v3:generate": "node --disable-warning=ExperimentalWarning --import ./scripts/remote-v3-ts-register.mjs src/shared/remote/contract/cli.ts",
+    "protocol:remote:v3:check": "node --disable-warning=ExperimentalWarning --import ./scripts/remote-v3-ts-register.mjs src/shared/remote/contract/cli.ts --check",
     "dist": "node scripts/build-desktop-artifact.mjs",
     "dist:win": "node scripts/build-desktop-artifact.mjs --platform win --target nsis --arch x64",
     "dist:win:all": "node scripts/build-desktop-artifact.mjs --platform win",
@@ -278,7 +278,7 @@
     "vite@>=8.0.0 <8.0.16": "^8.0.16"
   },
   "engines": {
-    "node": ">=24.10.0"
+    "node": ">=26.13.0"
   },
   "packageManager": "bun@1.4.3-canary.20261021.1",
   "packageExtensions": {
@@ -307,6 +307,7 @@
     "@agentclientprotocol/sdk@1.4.0": "patches/@agentclientprotocol__sdk@1.4.0.patch",
     "@legendapp/list@3.3.3": "patches/@legendapp__list@3.3.3.patch",
     "bun@1.4.3-canary.20261021.1": "patches/bun@1.4.3-canary.20261021.1.patch",
+    "micromark-extension-math-extended@3.2.2": "patches/micromark-extension-math-extended@3.2.2.patch",
     "monaco-editor@0.56.0": "patches/monaco-editor@0.56.0.patch",
     "@expo/hub-client@1.5.0": "patches/@expo__hub-client@1.5.0.patch"
   },

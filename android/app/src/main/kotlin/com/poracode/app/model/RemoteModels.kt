@@ -153,6 +153,7 @@ data class ThreadConfig(
     val contextSize: String? = null,
     val fast: Boolean? = null,
     val thinking: Boolean? = null,
+    val workflows: Boolean? = null,
     val mode: String? = null,
     val approvalPolicy: String? = null,
     val approvalsReviewer: String? = null,
@@ -173,6 +174,7 @@ data class ThreadConfig(
         contextSize?.let { put("contextSize", it) }
         fast?.let { put("fast", it) }
         thinking?.let { put("thinking", it) }
+        workflows?.let { put("workflows", it) }
         mode?.let { put("mode", it) }
         approvalPolicy?.let { put("approvalPolicy", it) }
         approvalsReviewer?.let { put("approvalsReviewer", it) }
@@ -271,6 +273,7 @@ data class RemoteShellSnapshot(
     /** Bounded shell page 1 project paint continuation cursor; null at the end. */
     val projectsNextCursor: String? = null,
     val updatedAt: String,
+    val snapshotEpoch: String? = null,
 )
 
 // MARK: - Thread history
@@ -325,7 +328,8 @@ data class RemoteRuntimeItemsPage(
 // MARK: - WebSocket envelopes
 
 sealed class RemoteWebSocketServerMessage {
-    data class Ready(val seq: Int) : RemoteWebSocketServerMessage()
+    /** [epoch] is present only on an `eventEpoch=v1` connection to a host that reports one. */
+    data class Ready(val seq: Int, val epoch: String? = null) : RemoteWebSocketServerMessage()
     data class Event(val seq: Int, val event: JsonElement) : RemoteWebSocketServerMessage()
     data class ResyncRequired(val seq: Int, val reason: String) : RemoteWebSocketServerMessage()
     data class Pong(
@@ -350,7 +354,7 @@ sealed class RemoteWebSocketServerMessage {
                 "ready" -> {
                     val seq = with(WebsocketEnvelope) { obj.strictSeq("seq") }
                         ?: throw RemoteClientException.invalidResponse("ready missing seq")
-                    Ready(seq)
+                    Ready(seq, with(WebsocketEnvelope) { obj.strictId("epoch") }?.takeIf { it.isNotEmpty() })
                 }
                 "event" -> {
                     val seq = with(WebsocketEnvelope) { obj.strictSeq("seq") }

@@ -64,13 +64,13 @@ import {
 import type { VoiceInputHandle } from "../composer/VoiceInputButton";
 import { isCompactClientSurface, isRemoteSession, readBridge } from "@/renderer/bridge";
 import { remoteBridgeLocalImageUrl } from "@/renderer/browser/remoteBridge";
+import { usesBridgeThreadImages } from "@/renderer/components/thread/threadImageReadiness";
 import { useRemoteBridgeImageReadiness } from "@/renderer/browser/useRemoteBridgeImages";
 import { threadProductProperties } from "@/renderer/analytics/posthog";
 import { captureProductEvent } from "@/renderer/analytics/productAnalytics";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useThreadComposerControlStore } from "@/renderer/state/threadComposerControlStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
-import { environmentImageReadinessFor } from "@/renderer/state/remoteServers/environmentSessions";
 import { useBrowserAttachInbox } from "@/renderer/state/browserAttachInbox";
 import {
   useComposerInputInbox,
@@ -133,6 +133,8 @@ import { ThreadComposerDocks } from "./ThreadComposerDocks";
 import { selectPendingMessageReplyIds } from "./messageReplyForms";
 import { ThreadResumeUnavailableDock } from "./ThreadResumeUnavailableDock";
 import { ThreadHistoryNoticeDock, useVisibleThreadHistoryNotice } from "./ThreadHistoryNoticeDock";
+import { ThreadRemoteSyncDock, useThreadRemoteSyncWarning } from "./ThreadRemoteSyncDock";
+import { ThreadHistoryLoadFailureDock } from "./ThreadHistoryLoadFailureDock";
 import {
   usePluginMentionItems,
   useSkillSlashCommandState,
@@ -287,8 +289,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   const compactLayout = useCompactLayout();
   const isRemoteSurface = isRemoteSession();
   const browserImageReadiness = useRemoteBridgeImageReadiness();
-  // The remote/mobile surface has no right panel to host the docks.
-  const docksPlacement = isRemoteSurface ? "composer" : requestedDocksPlacement;
+  const docksPlacement = compactLayout ? requestedDocksPlacement : "right";
   const docksInComposer = docksPlacement === "composer";
   const usesRemoteTransport = isRemoteSurface || thread.remoteServerId !== undefined;
   const voiceInputEnabled = useSharedSettings((s) => s.audio.showVoiceInputButton);
@@ -326,7 +327,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   );
   const attachmentImageUrlForPath = remoteDesktopId
     ? (path: string) =>
-        isRemoteSurface
+        usesBridgeThreadImages(remoteDesktopId)
           ? remoteBridgeLocalImageUrl(path)
           : useRemoteServersStore.getState().localImageUrl(remoteDesktopId, path)
     : undefined;
@@ -334,9 +335,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   // subscription; direct/ssh keep their synchronous endpoint URL.
   const remoteImageReadiness =
     remoteDesktopId && remoteImageServer
-      ? isRemoteSurface
-        ? (environmentImageReadinessFor(remoteDesktopId) ?? browserImageReadiness)
-        : useRemoteServersStore.getState().imageReadinessFor(remoteDesktopId)
+      ? useRemoteServersStore.getState().imageReadinessFor(remoteDesktopId)
       : isRemoteSurface
         ? browserImageReadiness
         : undefined;
@@ -680,7 +679,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     label: t(label),
     ...(brief ? { brief: t(brief) } : {}),
   }));
-  const defaultHelper = helperOptions.defaultSelectionFor(thread.agentKind);
+  const defaultHelper = helperOptions.defaultSelectionFor(lead);
   let crewHandlers: ActiveComposerCrewHandlers | undefined;
   const rawControls = buildControls(
     thread,
@@ -870,14 +869,23 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     />
   ) : null;
   const historyNotice = useVisibleThreadHistoryNotice(thread.id);
+  const historyLoadFailed = useAppStore(
+    (state) => !usesTerminalPresentation && state.runtimeHydrationStatus[thread.id] === "failed",
+  );
   const historyNoticeDock =
     historyNotice && !usesTerminalPresentation ? (
       <ThreadHistoryNoticeDock threadId={thread.id} entry={historyNotice} />
     ) : null;
+  // Remote sync warnings used to sit above the transcript; every chat warning
+  // now lives in the composer's notice stack.
+  const remoteSyncWarning = useThreadRemoteSyncWarning(thread);
+  const showRemoteSyncWarning = remoteSyncWarning !== null && !usesTerminalPresentation;
   const composerNotices =
-    historyNoticeDock || resumeUnavailableNotice ? (
+    historyNoticeDock || historyLoadFailed || showRemoteSyncWarning || resumeUnavailableNotice ? (
       <>
         {historyNoticeDock}
+        {historyLoadFailed ? <ThreadHistoryLoadFailureDock threadId={thread.id} /> : null}
+        {showRemoteSyncWarning ? <ThreadRemoteSyncDock thread={thread} /> : null}
         {resumeUnavailableNotice}
       </>
     ) : null;

@@ -179,20 +179,27 @@ export async function prepareHostWorktree(
   input: { readonly projectId: string; readonly worktreePath: string },
 ): Promise<void> {
   const project = requireProject(input.projectId);
-  const worktreePaths = [
-    ...new Set([
-      ...dbGetThreads()
-        .filter((thread) => thread.projectId === input.projectId && thread.worktreePath)
-        .map((thread) => thread.worktreePath!),
-      input.worktreePath,
-    ]),
-  ].sort();
-  await ctx.options
-    .callSupervisor("gitWatchWorktrees", {
-      projectId: input.projectId,
-      worktreePaths,
-    })
-    .catch(() => undefined);
+  const watches = ctx.options.projectWatches;
+  if (watches) {
+    // A host-owned pin joins the union of every client's worktree set, so it
+    // no longer restates all thread worktrees to avoid clobbering them.
+    await watches.pinWorktree(input.projectId, input.worktreePath).catch(() => undefined);
+  } else {
+    const worktreePaths = [
+      ...new Set([
+        ...dbGetThreads()
+          .filter((thread) => thread.projectId === input.projectId && thread.worktreePath)
+          .map((thread) => thread.worktreePath!),
+        input.worktreePath,
+      ]),
+    ].sort();
+    await ctx.options
+      .callSupervisor("gitWatchWorktrees", {
+        projectId: input.projectId,
+        worktreePaths,
+      })
+      .catch(() => undefined);
+  }
   const setupScript = project.scripts?.setupScript;
   if (!setupScript) return;
   await runHostWorktreeScript(ctx, project.location, input.worktreePath, setupScript, {
@@ -243,6 +250,9 @@ export async function removeHostWorktree(
       );
     }
   }
+  await ctx.options.projectWatches
+    ?.unpinWorktree(input.projectId, input.worktreePath)
+    .catch(() => undefined);
   if (!input.worktreeBranch) return;
   const force = !worktreeHasUnmergedPullRequest(
     ctx.options.gitState?.getSnapshot(),

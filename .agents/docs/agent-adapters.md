@@ -39,7 +39,15 @@ rule is about control flow and data shape.
    front of `inlineInstructions`, except on a prompt whose leading `/token`
    exactly matches a non-skill command the session advertised in
    `slashCommands` — the provider dispatches that command itself, so the runtime
-   withholds the context rather than corrupting the command's arguments.
+   withholds the context rather than corrupting the command's arguments. A
+   handle that implements `steerContext(text)` delivers hidden client guidance
+   (the crew lead's delegation reminder) into the turn in flight: it never
+   interrupts or starts a turn, never shows the text as a user message, live
+   or on reload, resume, import or replay, and rejects when no turn is running
+   or the provider refuses, leaving the guidance for the next prompt. The
+   launch input `mayReceiveContextSteers` marks the sessions the runtime may
+   steer, so a provider whose delivery costs something on every turn installs
+   it only there.
 2. **Behavior profile.** Lifecycle differences the transport must honor go in a
    named options object — for ACP, `AcpSessionBehavior`
    (`suppressOutputAfterInterrupt`, `suppressStderrLogging`). Each field is
@@ -52,7 +60,10 @@ rule is about control flow and data shape.
    normalization), `acpExtensionNotificationHandler` (vendor JSON-RPC
    notifications), `permissionRequestTransform` (normalizes vendor
    permission/question requests before shared classification; reply option IDs
-   remain transport IDs), `normalizeProbeResult` (discovered capabilities),
+   remain transport IDs), `promptErrorReason` (names the shared cause of a
+   rejected `session/prompt`, such as `"auth_required"` for a provider sign-in
+   failure, from the structured JSON-RPC error; the ACP-standard
+   `auth_required` error needs no hook), `normalizeProbeResult` (discovered capabilities),
    `modelLabel` (fallback labels when the agent supplies no display name), and
    `skillSupport.invocationForSkill` (skill frontmatter rules). Probes whose
    per-model config snapshots are authoritative declare
@@ -206,9 +217,11 @@ Every agent implements `AgentAdapter` (`src/supervisor/agents/base.ts`).
   bounds, the mtime/size summary cache, and request supersession; it reads only
   inside declared roots, writes nothing to provider homes, and replays text
   through `thread-runtime-events`. Imported threads are created `inactive` with
-  a `sessionRef`, so opening one resumes through the normal reopen path. The
-  import procedures are desktop-local (not remote-routable) and the scan cache is
-  in-memory.
+  a `sessionRef`, so opening one resumes through the normal reopen path. Remote
+  clients list a host's sessions through the `listImportableSessions`
+  passthrough and import with the host's `import-session` thread command
+  (capability `sessionImport` v1); `importSessionTranscript` stays desktop-local.
+  The scan cache is in-memory.
 
 ### Provider folder layout
 

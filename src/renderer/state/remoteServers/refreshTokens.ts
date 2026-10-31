@@ -22,6 +22,8 @@
  * updating a newer client at the same key or resurrecting a removed grant.
  */
 
+import { desktopTokenVaultKey, vaultCryptoKey } from "./tokenVault";
+
 export interface ConnectionRefreshSubject {
   readonly kind: "connection";
   readonly connectionId: string;
@@ -143,6 +145,12 @@ async function refreshVaultCryptoKey(): Promise<CryptoKey | null> {
   return record?.cryptoKey ?? null;
 }
 
+/**
+ * The grant ciphertext this realm last read or wrote per slot (null = absent).
+ * A shared copy that still matches it was not written by another realm since.
+ */
+const observedRefreshSlots = new Map<string, VaultSlotCiphertext | null>();
+
 async function readRefreshVaultRecord(vaultKey: string): Promise<string | null> {
   try {
     if (typeof indexedDB === "undefined") return null;
@@ -153,6 +161,7 @@ async function readRefreshVaultRecord(vaultKey: string): Promise<string | null> 
       database,
       vaultKey,
     );
+    observedRefreshSlots.set(vaultKey, slotCiphertext(record));
     if (!record?.iv || !record.data) return null;
     const plaintext = await crypto.subtle.decrypt(
       { name: "AES-GCM", iv: record.iv },
@@ -172,6 +181,10 @@ async function encryptRefreshToken(
   if (typeof crypto === "undefined" || typeof crypto.subtle === "undefined") return null;
   const cryptoKey = await refreshVaultCryptoKey();
   if (!cryptoKey) return null;
+  return encryptWithKey(cryptoKey, token);
+}
+
+async function encryptWithKey(cryptoKey: CryptoKey, token: string): Promise<VaultSlotCiphertext> {
   const iv = crypto.getRandomValues(new Uint8Array(12)) as Uint8Array<ArrayBuffer>;
   const data = await crypto.subtle.encrypt(
     { name: "AES-GCM", iv },
@@ -194,6 +207,7 @@ async function putRefreshVaultRecord(
     transaction.oncomplete = () => resolve();
     transaction.onerror = () => reject(transaction.error ?? new Error("Vault write failed."));
   });
+  observedRefreshSlots.set(vaultKey, encrypted);
 }
 
 async function deleteRefreshVaultRecord(vaultKey: string): Promise<void> {
@@ -204,6 +218,7 @@ async function deleteRefreshVaultRecord(vaultKey: string): Promise<void> {
     transaction.oncomplete = () => resolve();
     transaction.onerror = () => reject(transaction.error ?? new Error("Vault delete failed."));
   });
+  observedRefreshSlots.set(vaultKey, null);
 }
 
 /** In-memory refresh tokens, the synchronous source for client lifecycles.
@@ -227,6 +242,11 @@ export function rememberRefreshToken(connectionId: string, token: string): void 
   rememberRefreshTokenForSubject(connectionRefreshSubject(connectionId), token);
 }
 
+/** Drops the in-memory grant only; the vault slot and its ownership stay. */
+export function forgetRefreshTokenForSubject(subject: RefreshSubject): void {
+  refreshTokensBySubject.delete(refreshSubjectVaultKey(subject));
+}
+
 export function __peekRefreshTokenForTest(subject: RefreshSubject | string): string | undefined {
   return refreshTokensBySubject.get(
     typeof subject === "string"
@@ -244,6 +264,7 @@ export function __resetRefreshTokensForTest(): void {
   refreshTokensBySubject.clear();
   refreshSubjectOwners.clear();
   refreshWriteQueues.clear();
+  observedRefreshSlots.clear();
   void refreshVaultDatabase?.then((database) => database.close()).catch(() => undefined);
   refreshVaultDatabase = null;
 }
@@ -320,6 +341,33 @@ export function revokeConnectionIncarnation(connectionId: string): void {
  */
 const refreshWriteQueues = new Map<string, Promise<unknown>>();
 
+/** Resolves once every slot write this realm queued for the subject settled. */
+export function refreshSlotWritesSettled(subject: RefreshSubject): Promise<void> {
+  const pending = refreshWriteQueues.get(refreshSubjectVaultKey(subject));
+  return pending ? pending.then(() => undefined) : Promise.resolve();
+}
+
+/**
+ * Whether `slot` (a fresh read) is still the grant this realm last read or
+ * wrote, so no other realm wrote it since. A slot this realm never observed is
+ * untouched only while it is still empty.
+ */
+export function sharedGrantUntouched(
+  subject: RefreshSubject,
+  slot: VaultSlotCiphertext | null,
+): boolean {
+  const key = refreshSubjectVaultKey(subject);
+  if (!observedRefreshSlots.has(key)) return slot === null;
+  return sameCiphertext(observedRefreshSlots.get(key) ?? null, slot);
+}
+
+export function observeSharedGrant(
+  subject: RefreshSubject,
+  slot: VaultSlotCiphertext | null,
+): void {
+  observedRefreshSlots.set(refreshSubjectVaultKey(subject), slot);
+}
+
 function enqueueRefreshSlotWrite<Result>(
   subject: RefreshSubject,
   write: () => Promise<Result>,
@@ -385,6 +433,187 @@ export async function deleteRefreshTokenFromVault(subject: RefreshSubject): Prom
 /** Connection-subject convenience for direct/ssh records. */
 export function deleteRefreshTokenForDesktop(connectionId: string): Promise<void> {
   return deleteRefreshTokenFromVault(connectionRefreshSubject(connectionId));
+}
+
+/** Raw ciphertext of one vault slot; a commit compares it byte for byte. */
+export interface VaultSlotCiphertext {
+  readonly iv: Uint8Array<ArrayBuffer>;
+  readonly data: ArrayBuffer;
+}
+
+export type SharedCredentialRead =
+  /** No IndexedDB/WebCrypto, or no vault key yet: nothing was ever shared. */
+  | { readonly status: "unavailable" }
+  /** The vault exists but could not be read; never mistaken for absence. */
+  | { readonly status: "failed" }
+  | {
+      readonly status: "ok";
+      readonly refreshToken: string | undefined;
+      readonly accessToken: string | undefined;
+      readonly refreshSlot: VaultSlotCiphertext | null;
+    };
+
+export type SharedCredentialCommit = "committed" | "conflict" | "unavailable" | "failed";
+
+function vaultAvailable(): boolean {
+  return (
+    typeof indexedDB !== "undefined" &&
+    typeof crypto !== "undefined" &&
+    typeof crypto.subtle !== "undefined"
+  );
+}
+
+function slotCiphertext(record: unknown): VaultSlotCiphertext | null {
+  const slot = record as Partial<VaultSlotCiphertext> | undefined;
+  return slot?.iv && slot.data ? { iv: slot.iv, data: slot.data } : null;
+}
+
+function sameCiphertext(left: VaultSlotCiphertext | null, right: VaultSlotCiphertext | null) {
+  if (!left || !right) return left === right;
+  const bytes = (value: ArrayBufferLike | ArrayBufferView) =>
+    ArrayBuffer.isView(value)
+      ? new Uint8Array(value.buffer, value.byteOffset, value.byteLength)
+      : new Uint8Array(value);
+  const equal = (a: Uint8Array, b: Uint8Array) =>
+    a.length === b.length && a.every((byte, index) => byte === b[index]);
+  return equal(bytes(left.iv), bytes(right.iv)) && equal(bytes(left.data), bytes(right.data));
+}
+
+async function decryptSlot(cryptoKey: CryptoKey, slot: VaultSlotCiphertext): Promise<string> {
+  const plaintext = await crypto.subtle.decrypt(
+    { name: "AES-GCM", iv: slot.iv },
+    cryptoKey,
+    slot.data,
+  );
+  return new TextDecoder().decode(plaintext);
+}
+
+/** Reads several slots in one transaction, so they come from one committed state. */
+function readVaultRecords(database: IDBDatabase, keys: readonly string[]): Promise<unknown[]> {
+  return new Promise<unknown[]>((resolve, reject) => {
+    const transaction = database.transaction("entries", "readonly");
+    const store = transaction.objectStore("entries");
+    const results: unknown[] = [];
+    keys.forEach((key, index) => {
+      const request = store.get(key);
+      request.onsuccess = () => {
+        try {
+          results[index] = request.result;
+        } catch (error) {
+          // A throwing WebKit result getter is a failed read, never a miss.
+          reject(error);
+          transaction.abort();
+        }
+      };
+    });
+    transaction.oncomplete = () => resolve(results);
+    transaction.onerror = () =>
+      reject(transaction.error ?? new Error("Unable to read the token vault."));
+    transaction.onabort = () =>
+      reject(transaction.error ?? new Error("Unable to read the token vault."));
+  });
+}
+
+/**
+ * Reads a subject's refresh grant, and the bearer committed with it, straight
+ * from the shared vault, bypassing this realm's caches: another window or tab
+ * may have rotated either since this realm loaded them.
+ */
+export async function readSharedCredential(
+  subject: RefreshSubject,
+  bearerConnectionKey?: string,
+): Promise<SharedCredentialRead> {
+  if (!vaultAvailable()) return { status: "unavailable" };
+  try {
+    const database = await openRefreshVaultDatabase();
+    const [keyRecord, grantRecord, bearerRecord] = await readVaultRecords(database, [
+      "cryptoKey",
+      refreshSubjectVaultKey(subject),
+      ...(bearerConnectionKey !== undefined ? [desktopTokenVaultKey(bearerConnectionKey)] : []),
+    ]);
+    const cryptoKey = (keyRecord as { cryptoKey?: CryptoKey } | undefined)?.cryptoKey;
+    if (!cryptoKey) return { status: "unavailable" };
+    const refreshSlot = slotCiphertext(grantRecord);
+    const bearerSlot = slotCiphertext(bearerRecord);
+    return {
+      status: "ok",
+      refreshToken: refreshSlot ? await decryptSlot(cryptoKey, refreshSlot) : undefined,
+      accessToken: bearerSlot ? await decryptSlot(cryptoKey, bearerSlot) : undefined,
+      refreshSlot,
+    };
+  } catch (error) {
+    console.warn("[remoteServers] unable to read the shared credential", error);
+    return { status: "failed" };
+  }
+}
+
+/**
+ * Compare-and-set for one subject: writes the rotated grant (or removes it)
+ * and the bearer issued with it in ONE transaction, and only while the grant
+ * slot still holds the exact ciphertext the caller read. A re-pair, a removal
+ * or another realm's commit in between is a conflict that writes nothing.
+ */
+export function commitSharedCredential(input: {
+  readonly subject: RefreshSubject;
+  readonly expected: VaultSlotCiphertext | null;
+  readonly refreshToken: string | undefined;
+  readonly bearer?: { readonly connectionKey: string; readonly accessToken: string };
+  readonly isCurrent: () => boolean;
+}): Promise<SharedCredentialCommit> {
+  return enqueueRefreshSlotWrite(input.subject, async (): Promise<SharedCredentialCommit> => {
+    if (!input.isCurrent()) return "conflict";
+    if (!vaultAvailable()) return "unavailable";
+    try {
+      const cryptoKey = await vaultCryptoKey();
+      const grant =
+        input.refreshToken === undefined
+          ? null
+          : await encryptWithKey(cryptoKey, input.refreshToken);
+      const bearer = input.bearer
+        ? await encryptWithKey(cryptoKey, input.bearer.accessToken)
+        : null;
+      const database = await openRefreshVaultDatabase();
+      const grantKey = refreshSubjectVaultKey(input.subject);
+      if (!input.isCurrent()) return "conflict";
+      return await new Promise<SharedCredentialCommit>((resolve) => {
+        const transaction = database.transaction("entries", "readwrite");
+        const store = transaction.objectStore("entries");
+        let conflict = false;
+        const read = store.get(grantKey);
+        read.onsuccess = () => {
+          let stored: VaultSlotCiphertext | null;
+          try {
+            stored = slotCiphertext(read.result);
+          } catch {
+            transaction.abort();
+            return;
+          }
+          if (!input.isCurrent() || !sameCiphertext(stored, input.expected)) {
+            conflict = true;
+            transaction.abort();
+            return;
+          }
+          if (grant) store.put({ key: grantKey, iv: grant.iv, data: grant.data });
+          else store.delete(grantKey);
+          if (input.bearer && bearer) {
+            store.put({
+              key: desktopTokenVaultKey(input.bearer.connectionKey),
+              iv: bearer.iv,
+              data: bearer.data,
+            });
+          }
+        };
+        transaction.oncomplete = () => {
+          observedRefreshSlots.set(grantKey, grant);
+          resolve("committed");
+        };
+        transaction.onabort = () => resolve(conflict ? "conflict" : "failed");
+      });
+    } catch (error) {
+      console.warn("[remoteServers] unable to commit the shared credential", error);
+      return "failed";
+    }
+  });
 }
 
 /** Retire a legacy remote-environment slot after a strict successful write. */

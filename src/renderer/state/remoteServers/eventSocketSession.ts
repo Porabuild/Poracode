@@ -31,6 +31,7 @@ import {
   getRemoteServerEventSocketEntry,
   getRemoteServerThreadItemInterests,
   rememberRemoteServerThreadItemInterests,
+  remoteServerSnapshotEpoch,
   remoteServerSnapshotSeq,
   sameRemoteServerThreadItemInterests,
   setRemoteServerEventSocketEntry,
@@ -38,6 +39,7 @@ import {
   type RemoteServerEventSocketEntry,
 } from "./eventSocketRegistry";
 import { bindEventSocketResync } from "./eventSocketResync";
+import { withEventEpochDeclaration } from "@/shared/remote/protocol/eventEpoch";
 import { withRuntimeHistoryNoticesDeclaration } from "@/renderer/state/remote/historyNoticeCapability";
 import {
   declaresBoundedCatalogChangesForConnection,
@@ -45,6 +47,7 @@ import {
   withBoundedCatalogChangesDeclaration,
 } from "@/renderer/state/remote/boundedCatalogChangesCapability";
 import { remoteConnectionKey } from "./types";
+import { refreshTokenForDesktop } from "./refreshTokens";
 import {
   prepareTerminalConnection,
   type TerminalConnectionCapabilities,
@@ -110,7 +113,7 @@ export async function startRemoteServerEventStream(
   } = deps;
 
   const connectionKey = remoteConnectionKey(server);
-  const serverKey = `${server.endpoint}\0${server.accessToken}`;
+  const serverKey = server.endpoint;
   // This session's consumer-scoped decode engine (V5 2.2) and its per-host lane
   // (A3): independent of the desktop renderer-stream and persist engines, and
   // isolated from every other paired host's flood, so their resets/overflows
@@ -122,10 +125,7 @@ export async function startRemoteServerEventStream(
   // its pending callbacks reject typed and its late results are fenced.
   const decodeLane = engine.createLane({ key: `event-socket:${connectionKey}` });
 
-  closeRemoteServerEventSocket(
-    connectionKey,
-    options.resyncInterestedThreads ? { preserveReplayState: true } : undefined,
-  );
+  closeRemoteServerEventSocket(connectionKey, { preserveReplayState: true });
   const entry: RemoteServerEventSocketEntry = {
     serverKey,
     socket: null,
@@ -143,6 +143,7 @@ export async function startRemoteServerEventStream(
   const resyncSlots: EventSocketConnectionContext["resyncSlots"] = {
     promise: null,
     socket: null,
+    resumeFence: null,
   };
   const recovery = createEventSocketRecoveryState();
   /** Set when a frame was provably dropped client-side (engine overflow/reset
@@ -269,6 +270,7 @@ export async function startRemoteServerEventStream(
         capabilities.boundedCatalogChanges === true,
       );
       const lastSeenSeq = remoteServerSnapshotSeq(connectionKey);
+      const lastSeenEpoch = remoteServerSnapshotEpoch(connectionKey);
       const openThread = get().openThread;
       const threadItemInterests =
         getRemoteServerThreadItemInterests(connectionKey) ??
@@ -278,12 +280,17 @@ export async function startRemoteServerEventStream(
         // renders and can acknowledge the durable notice. boundedCatalogChanges
         // rides the same upgrade only when this descriptor advertised it AND
         // the bounded controller (which refreshes through bounded reads on the
-        // payload-less signal) is installed for this connection.
-        withBoundedCatalogChangesDeclaration(
-          withRuntimeHistoryNoticesDeclaration(
-            client.websocketUrl(ticket, lastSeenSeq, { threadItemInterests }),
+        // payload-less signal) is installed for this connection. The epoch
+        // declaration binds the resume cursor to the instance that issued it
+        // (older hosts ignore it and keep the seq-only resume).
+        withEventEpochDeclaration(
+          withBoundedCatalogChangesDeclaration(
+            withRuntimeHistoryNoticesDeclaration(
+              client.websocketUrl(ticket, lastSeenSeq, { threadItemInterests }),
+            ),
+            declaresBoundedCatalogChangesForConnection(connectionKey),
           ),
-          declaresBoundedCatalogChangesForConnection(connectionKey),
+          lastSeenEpoch,
         ),
       );
       if (!isCurrent()) {
@@ -366,7 +373,11 @@ export async function startRemoteServerEventStream(
           forgetRemoteServerCursorSyncV2(connectionKey);
           setRemoteTerminalSocketSender(connectionKey, null);
           setAgentVisionSocketSender(connectionKey, null);
-          setRemoteServerFailure(connectionKey, "error", sharedMsg("remote.session.expired"));
+          // The deadline close is routine (the 24-hour bearer reached its
+          // end) and the reconnect's ticket mint refreshes the same session;
+          // the terminal "pairing expired" state belongs to a refused refresh
+          // grant, which the next connect actually proves.
+          setSocketStatus("connecting");
           scheduleReconnect(REMOTE_SOCKET_POLICY.unauthorizedReconnectMs);
           return;
         }
@@ -381,18 +392,31 @@ export async function startRemoteServerEventStream(
       }
     } catch (error) {
       if (!isCurrent()) return;
-      if (error instanceof RemoteClientError && error.code === "protocol_version_mismatch") {
-        setRemoteServerFailure(connectionKey, "error", friendlyError(error));
-        // Stop automatic attempts, but retain terminal listeners so a
-        // later explicit reconnect can install a fresh supported stream.
+      // Terminal retire: stop the automatic ladder (the finally must not
+      // re-arm it) and leave a stable state a later explicit reconnect or
+      // re-pair can build on.
+      const retireSession = (message: string) => {
+        setRemoteServerFailure(connectionKey, "error", message);
         deleteRemoteServerEventSocketEntry(connectionKey);
         setAgentVisionSocketSender(connectionKey, null);
         forgetRemoteServerCursorSyncV2(connectionKey);
         setRemoteTerminalSocketSender(connectionKey, null);
+      };
+      if (error instanceof RemoteClientError && error.code === "protocol_version_mismatch") {
+        retireSession(friendlyError(error));
         return;
       }
       if (isUnauthorizedRemoteError(error)) {
-        setRemoteServerFailure(connectionKey, "error", sharedMsg("remote.session.expired"));
+        // A refused or absent grant never recovers by retrying: retire the
+        // session and show the stable "pair again" state instead of a
+        // reconnect loop. With a grant still held, this attempt's refresh
+        // simply lost the race or hit a transient failure — keep the slow
+        // retry, the next attempt can recover.
+        if (refreshTokenForDesktop(connectionKey) === undefined) {
+          retireSession(sharedMsg("remote.session.expired"));
+          return;
+        }
+        setSocketStatus("connecting");
         scheduleReconnect(REMOTE_SOCKET_POLICY.unauthorizedReconnectMs);
         return;
       }

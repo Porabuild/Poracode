@@ -660,9 +660,9 @@ export const sharedSettingsSchema = z.object({
    * Which one is *active* is not stored here but per-window (see the renderer's
    * `workspaceStore`), so switching in one window leaves the others alone.
    *
-   * Not part of `remoteSettingsSchema`, so paired browser clients receive no
-   * workspace list and therefore show every project — add it to that allowlist if
-   * workspaces should scope remote sessions too.
+   * Not part of `remoteSettingsSchema`: browser clients keep their own list.
+   * Shell snapshots carry each workspace's id and name instead, so a browser
+   * client can place a host project in its same-named workspace.
    */
   workspaces: workspaceListSchema,
   /** Additive field: older settings files omit it and normalize to an empty list. */

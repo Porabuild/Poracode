@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ConversationSearchJump } from "./ConversationSearchJump";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { Button, toast } from "@heroui/react";
+import { toast } from "@heroui/react";
 import { useShallow } from "zustand/react/shallow";
 import { isThreadTurnActive, type ProjectLocation, type Thread } from "@/shared/contracts";
 import { isHomeProjectId } from "@/shared/homeScope";
@@ -24,10 +24,7 @@ import {
   releaseThreadRuntimeItems,
   retainThreadRuntimeItems,
 } from "@/renderer/state/chatRuntimePersister";
-import {
-  adoptRuntimeThreadReader,
-  retryThreadRuntimeItems,
-} from "@/renderer/state/runtimeInterestHydration";
+import { adoptRuntimeThreadReader } from "@/renderer/state/runtimeInterestHydration";
 import { useInitialTimelineLayout } from "./parts/useInitialTimelineLayout";
 import {
   finalizeFileCheckpoint,
@@ -37,7 +34,7 @@ import { useProjectRootNames } from "@/renderer/state/projectRootNamesStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useManagedLoopbackImageSession } from "@/renderer/state/managedLoopbackImages";
 import { managedRootOwner } from "@/renderer/state/managedRootCatalog/rootCatalogCommands";
-import { threadImageReadinessFor } from "../threadImageReadiness";
+import { threadImageReadinessFor, usesBridgeThreadImages } from "../threadImageReadiness";
 import { buildFileEditorContext, resolveWorktreeBranch } from "@/renderer/utils/gitHelpers";
 import { showSubAgentPanel } from "@/renderer/actions/panelActions";
 import { ChatFindBar, type ScrollToIndex } from "@/renderer/components/find/ChatFindBar";
@@ -235,6 +232,9 @@ export function ChatPane(props: ChatPaneProps) {
   }, [onOpenThread]);
   const paneActions: ChatPaneActions | null = useMemo(() => {
     const openThread = (mentionedThreadId: string) => onOpenThreadRef.current?.(mentionedThreadId);
+    // Images follow the thread's own connection; only owner-less rows use the
+    // bound bridge host (see usesBridgeThreadImages).
+    const bridgeImages = usesBridgeThreadImages(thread.remoteServerId);
     const contentImageReadiness = threadImageReadinessFor(
       {
         id: threadId,
@@ -248,7 +248,7 @@ export function ChatPane(props: ChatPaneProps) {
       ...(targetContext ? { mediaLocation: targetContext.projectLocation } : {}),
       // Image custody is independent of project/file actions, including Home.
       // An explicit empty owner resolver must never fall through globally.
-      remoteImageRefUrl: isRemoteSession()
+      remoteImageRefUrl: bridgeImages
         ? !isRemoteThread || hasValidRemoteServerId
           ? remoteBridgeImageRefUrl
           : unavailableImageRefUrl
@@ -266,14 +266,14 @@ export function ChatPane(props: ChatPaneProps) {
         ...(isRemoteSession() || isRemoteThread
           ? {
               remote: {
-                available: isRemoteSession()
+                available: bridgeImages
                   ? !isRemoteThread || hasValidRemoteServerId
                   : remoteImageServer !== undefined,
                 readiness: contentImageReadiness,
                 ...(!isRemoteThread && isRemoteSession()
                   ? { pathForUrl: resolveRemoteBridgeLocalImagePath }
                   : {}),
-                resolvePath: isRemoteSession()
+                resolvePath: bridgeImages
                   ? remoteBridgeLocalImageUrl
                   : (path) =>
                       useRemoteServersStore.getState().localImageUrl(thread.remoteServerId!, path),
@@ -401,17 +401,6 @@ export function ChatPane(props: ChatPaneProps) {
   );
   const isConnecting = useAppStore((s) => s.connectingThreadIds[threadId] !== undefined);
   const hydrationStatus = useAppStore((s) => s.runtimeHydrationStatus[threadId]);
-  // Remote only: the server deleted transcript this pane could not confirm
-  // (bounded authoritative reloads exhausted), so the view may lag the host.
-  const truncateReloadBlocked = useAppStore((s) => {
-    if (!thread.remoteServerId || !thread.remoteId) return false;
-    return s.truncateReloadExhausted[`${thread.remoteServerId}\u0000${thread.remoteId}`] === true;
-  });
-  const remoteServerOffline = useRemoteServersStore((s) => {
-    if (!thread.remoteServerId) return false;
-    const runtimeStatus = s.runtime[thread.remoteServerId]?.status;
-    return runtimeStatus === "offline" || runtimeStatus === "error";
-  });
   // Detached background work keeps the thread doing real work after the
   // foreground turn settles. Treat that as "still working" for the tail-loader
   // timer (so it keeps ticking "Working for ...") without touching `status` -
@@ -485,31 +474,6 @@ export function ChatPane(props: ChatPaneProps) {
     ) : null;
   const showEmptyHint = isEmpty && !isLive && !isConnecting && hydrationStatus === undefined;
   const isHydrating = isEmpty && hydrationStatus === "pending";
-  const hydrationFailed = hydrationStatus === "failed";
-  const historyLoadFailure = hydrationFailed ? (
-    <div
-      className={`flex items-center gap-3 text-foreground-muted ${
-        isEmpty
-          ? "h-full flex-col justify-center"
-          : "justify-between border-b border-border bg-surface-container/60 px-3 py-1.5 text-xs"
-      }`}
-      role="status"
-    >
-      <span>
-        <Trans>Messages could not be loaded.</Trans>
-      </span>
-      <Button
-        size={isEmpty ? "md" : "sm"}
-        variant={isEmpty ? "tertiary" : "ghost"}
-        onPress={() => {
-          if (isRemoteThread) void hydrateThreadRuntimeItems(threadId);
-          else void retryThreadRuntimeItems(threadId);
-        }}
-      >
-        <Trans>Retry</Trans>
-      </Button>
-    </div>
-  ) : null;
   // The tail loader displays the most recent completed turn's frozen elapsed
   // time when the thread is idle and no newer timeline row exists. Once an
   // optimistic next prompt is appended, keep the completed indicator inline at
@@ -546,36 +510,6 @@ export function ChatPane(props: ChatPaneProps) {
             <ImportedThreadNotice importedFrom={thread.config.importedFrom} />
           ) : null}
           <div className="relative flex min-h-0 flex-1 flex-col">
-            {truncateReloadBlocked ? (
-              <div className="flex items-center justify-between gap-2 border-b border-warning-soft-foreground/20 bg-warning-soft/60 px-3 py-1.5 text-xs text-warning-soft-foreground">
-                <span>
-                  <Trans>
-                    A message deletion could not be confirmed. Refresh to resync this conversation.
-                  </Trans>
-                </span>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onPress={() => {
-                    if (thread.remoteServerId) {
-                      void useRemoteServersStore
-                        .getState()
-                        .refreshServer(thread.remoteServerId, { includeAgentStatuses: false });
-                    }
-                  }}
-                >
-                  <Trans>Refresh</Trans>
-                </Button>
-              </div>
-            ) : remoteServerOffline ? (
-              <div
-                className="border-b border-border bg-surface-container/60 px-3 py-1.5 text-xs text-muted"
-                role="status"
-              >
-                <Trans>Server offline — this conversation may be out of date.</Trans>
-              </div>
-            ) : null}
-            {!isEmpty ? historyLoadFailure : null}
             <ThreadForkOrigin threadId={threadId} />
             <ConversationSearchJump
               threadId={threadId}
@@ -624,9 +558,7 @@ export function ChatPane(props: ChatPaneProps) {
               scrollStyle={scrollFadeStyle}
               contentClassName={`min-h-full ${isInitialScrollSettled ? "" : "pointer-events-none opacity-0"}`}
               emptyContent={
-                isEmpty && hydrationFailed ? (
-                  historyLoadFailure
-                ) : isEmpty && !showTailLoader && showEmptyHint ? (
+                isEmpty && !showTailLoader && showEmptyHint ? (
                   <div className="flex h-full flex-col items-center justify-center gap-2 text-foreground-muted">
                     <span>
                       <Trans>No messages yet</Trans>

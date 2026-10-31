@@ -2006,6 +2006,33 @@ describe("RemoteDesktopClient image ticket flow", () => {
     ]);
   });
 
+  it.each(["rotated", "removed"] as const)(
+    "uses current credentials on the first image request after they were %s",
+    async (state) => {
+      const authorizations: Array<string | undefined> = [];
+      const fetch = vi.fn<RemoteFetch>((_url, init) => {
+        authorizations.push((init?.headers as Record<string, string> | undefined)?.authorization);
+        return Promise.resolve(
+          state === "removed" ? jsonResponse(401, {}) : new Response(new Uint8Array([1])),
+        );
+      });
+      const client = new RemoteDesktopClient(endpoint, "old-bearer", fetch, {
+        tokenLifecycle: {
+          accessToken: () => (state === "rotated" ? "current-bearer" : undefined),
+          refreshToken: () => undefined,
+          onTokensRefreshed: () => {},
+        },
+      });
+      const result = client.fetchTicketedImageBytes(
+        `/api/files/image?path=${encodeURIComponent(PATH)}`,
+        new AbortController().signal,
+      );
+      const [outcome] = await Promise.allSettled([result]);
+      expect(outcome?.status).toBe(state === "removed" ? "rejected" : "fulfilled");
+      expect(authorizations).toEqual([state === "rotated" ? "Bearer current-bearer" : undefined]);
+    },
+  );
+
   it("refreshes once and retries a blob fetch whose access token expired", async () => {
     let rotated = false;
     const imageAuthorizations: Array<string | undefined> = [];
@@ -2247,7 +2274,9 @@ describe("RemoteDesktopClient token lifecycle (Gate 6 item 4.6)", () => {
           order.push(`read:${currentRefresh}`);
           return currentRefresh;
         },
-        onTokensRefreshed: () => order.push("persist"),
+        onTokensRefreshed: () => {
+          order.push("persist");
+        },
         runExclusive: async <T>(run: () => Promise<T>) => {
           order.push("lock");
           const result = await run();
@@ -2480,5 +2509,118 @@ describe("RemoteDesktopClient certificate fingerprint pinning (Gate 6 item 4.2)"
     // pin rides along as data for the record.
     await expect(requestJsonVia(client, "/api/snapshot")).resolves.toEqual({ ok: true });
     expect(fetch).toHaveBeenCalledOnce();
+  });
+
+  it("notifies the lifecycle when a 401 survives the refresh path", async () => {
+    const onUnauthorized = vi.fn<(error: unknown) => void>();
+    // Every request 401s, and the refresh grant is refused like a session the
+    // host no longer knows (rebuilt server state, revoked family).
+    const fetch = vi.fn<RemoteFetch>(async (url) =>
+      new URL(String(url)).pathname === "/oauth/token"
+        ? jsonResponse(401, { error: { code: "invalid_refresh_token", message: "No." } })
+        : jsonResponse(401, { error: { code: "invalid_access_token", message: "No." } }),
+    );
+    const client = new RemoteDesktopClient(endpoint, "lc_access_test", fetch, {
+      tokenLifecycle: {
+        refreshToken: () => "lc_refresh_retired",
+        onTokensRefreshed: () => {},
+        onUnauthorized,
+      },
+    });
+
+    await expect(client.websocketTicket()).rejects.toMatchObject({ status: 401 });
+
+    // Exactly once for the request — never for the refused refresh call.
+    expect(onUnauthorized).toHaveBeenCalledTimes(1);
+    expect(onUnauthorized.mock.lastCall![0]).toBeInstanceOf(RemoteClientError);
+    expect((onUnauthorized.mock.lastCall![0] as RemoteClientError).status).toBe(401);
+  });
+
+  it("does not notify the lifecycle when the refresh repairs the request", async () => {
+    const onUnauthorized = vi.fn<(error: unknown) => void>();
+    let validAccessToken = "lc_access_test";
+    const fetch = vi.fn<RemoteFetch>(async (url, init) => {
+      if (new URL(String(url)).pathname === "/oauth/token") {
+        validAccessToken = "lc_access_rotated";
+        return jsonResponse(200, {
+          accessToken: validAccessToken,
+          refreshToken: "lc_refresh_rotated",
+          tokenType: "Bearer",
+          expiresAt: "2099-01-01T00:00:00.000Z",
+          scopes: ["session:read"],
+        });
+      }
+      const authorization = new Headers(init?.headers).get("authorization");
+      if (authorization !== `Bearer ${validAccessToken}`) {
+        return jsonResponse(401, { error: { code: "invalid_access_token", message: "No." } });
+      }
+      return jsonResponse(200, { ticket: "ticket", expiresAt: "2099-01-01T00:00:00.000Z" });
+    });
+    const client = new RemoteDesktopClient(endpoint, "lc_access_test", fetch, {
+      tokenLifecycle: {
+        refreshToken: () => "lc_refresh_test",
+        onTokensRefreshed: () => {},
+        onUnauthorized,
+      },
+    });
+
+    await expect(client.websocketTicket()).resolves.toBe("ticket");
+
+    expect(onUnauthorized).not.toHaveBeenCalled();
+  });
+
+  it("notifies the lifecycle even when no refresh grant exists", async () => {
+    const onUnauthorized = vi.fn<(error: unknown) => void>();
+    const fetch = vi.fn<RemoteFetch>(async () =>
+      jsonResponse(401, { error: { code: "invalid_access_token", message: "No." } }),
+    );
+    const client = new RemoteDesktopClient(endpoint, "lc_access_test", fetch, {
+      tokenLifecycle: {
+        refreshToken: () => undefined,
+        onTokensRefreshed: () => {},
+        onUnauthorized,
+      },
+    });
+
+    await expect(client.websocketTicket()).rejects.toMatchObject({ status: 401 });
+
+    // A bearer with no grant is maximally dead: nothing can repair it
+    // client-side, so the custody still learns the 401 (with null).
+    expect(onUnauthorized).toHaveBeenCalledTimes(1);
+    expect(onUnauthorized.mock.lastCall![0]).toBeNull();
+  });
+
+  it("notifies the lifecycle from the image path when a rotation heals nothing", async () => {
+    const onUnauthorized = vi.fn<(error: unknown) => void>();
+    const fetch = vi.fn<RemoteFetch>(async (url, init) => {
+      if (new URL(String(url)).pathname === "/oauth/token") {
+        return jsonResponse(200, {
+          accessToken: "lc_access_rotated",
+          refreshToken: "lc_refresh_rotated",
+          tokenType: "Bearer",
+          expiresAt: "2099-01-01T00:00:00.000Z",
+          scopes: ["session:read"],
+        });
+      }
+      // Every image GET is refused — the rotation committed but healed nothing.
+      void init;
+      return jsonResponse(401, { error: { code: "invalid_access_token", message: "No." } });
+    });
+    const client = new RemoteDesktopClient(endpoint, "lc_access_test", fetch, {
+      tokenLifecycle: {
+        refreshToken: () => "lc_refresh_test",
+        onTokensRefreshed: () => {},
+        onUnauthorized,
+      },
+    });
+
+    // The rotation commits but the retried image GET is still refused: the
+    // image path must notify with null exactly like `requestJson`.
+    await expect(
+      client.fetchTicketedImageBytes("/api/files/image?path=/x.png", new AbortController().signal),
+    ).rejects.toMatchObject({ status: 401 });
+
+    expect(onUnauthorized).toHaveBeenCalledTimes(1);
+    expect(onUnauthorized.mock.lastCall![0]).toBeNull();
   });
 });

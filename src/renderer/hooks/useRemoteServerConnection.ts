@@ -11,14 +11,16 @@ export type RemoteServerConnectionState = {
 };
 
 /**
- * Hydrates saved remote servers, connects them once, and force-reconnects
- * them when the page resumes. Desktop starts `checked` because it never shows
+ * Hydrates saved remote servers, connects them once, and re-verifies them
+ * when the page resumes: a tab switch probes live sockets, while a network
+ * change or a long suspension replaces every transport. Desktop starts `checked` because it never shows
  * the browser connection gate.
  */
 export function useRemoteServerConnection({
   autoConnect = true,
 }: { autoConnect?: boolean } = {}): RemoteServerConnectionState {
   const connectAll = useRemoteServersStore((state) => state.connectAll);
+  const verifyConnections = useRemoteServersStore((state) => state.verifyConnections);
   const [checked, setChecked] = useState(() => !isBrowserClientRuntime());
   const [initialConnectSettled, setInitialConnectSettled] = useState(false);
 
@@ -50,9 +52,13 @@ export function useRemoteServerConnection({
   useEffect(
     () =>
       autoConnect
-        ? installRemoteServerLifecycle(() => connectAll({ forceTransportReconnect: true }))
+        ? installRemoteServerLifecycle(({ forceTransportReconnect }) =>
+            forceTransportReconnect
+              ? connectAll({ forceTransportReconnect: true })
+              : verifyConnections(),
+          )
         : undefined,
-    [connectAll, autoConnect],
+    [connectAll, verifyConnections, autoConnect],
   );
 
   return { checked, initialConnectSettled };

@@ -32,6 +32,8 @@ export function useFlatListProjectFilterModel() {
   // Match the grouped sidebar's workspace/Home visibility. Compact clients
   // keep cached remote projects browseable while their machine is offline;
   // desktop has a machine header that carries that unavailable state instead.
+  // A reconnecting machine keeps its cached rows on both: hiding them would
+  // blank the host's whole list on every brief event-socket reconnect.
   const includedIds = new Set(workspaceProjectIds);
   const workspaceProjects = projects.filter((project) => {
     if (isHomeProject(project)) return homeScopeEnabled;
@@ -41,7 +43,8 @@ export function useFlatListProjectFilterModel() {
     if (isHomeProject(project)) return true;
     if (project.disabled) return false;
     if (!project.remoteServerId) return true;
-    return compactLayout || remoteServerFor(project).status === "online";
+    const status = remoteServerFor(project).status;
+    return compactLayout || status === "online" || status === "connecting";
   });
   const actionableProjects = visibleProjects.filter(
     (project) => !project.remoteServerId || remoteServerFor(project).status === "online",

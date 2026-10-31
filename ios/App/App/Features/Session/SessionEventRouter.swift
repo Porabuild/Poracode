@@ -13,7 +13,7 @@ struct SessionEventRouter {
             return
         }
         switch message {
-        case .ready(let seq):
+        case .ready(let seq, _):
             // The server emits ready before replaying buffered events. Preserve
             // that boundary so historical notifications advance without alerting.
             host.state.socketReplayCeiling = seq

@@ -21,7 +21,11 @@ import {
 } from "./session";
 import { shouldSpawnAcpSession } from "./sessionFactory";
 import { ACP_INLINE_CONTENT_MAX_BYTES } from "./sessionContentBlocks";
-import { resolveAcpPromptFailureMessage, shouldEmitAcpPromptRpcErrorItem } from "./sessionErrors";
+import {
+  resolveAcpPromptFailureMessage,
+  shouldEmitAcpPromptRpcErrorItem,
+  type AcpPromptErrorReasonResolver,
+} from "./sessionErrors";
 import * as textFileRead from "./sessionTextFileRead";
 import { withAcpCommandStatus } from "./canonicalMapping/commandStatus";
 
@@ -223,6 +227,52 @@ describe("ACP external session update sources", () => {
     await session.startTurn("hello", { model: "model-a" });
 
     expect(onTurnEnd).toHaveBeenCalledWith("failed");
+  });
+
+  it("tags a rejected prompt's error with the reason the provider resolver names", async () => {
+    const { connection, listener, session } = makeConfigSyncSession();
+    const error = new RequestError(-32603, "POST /generate → 401 error: Invalid token.", {
+      status: 401,
+    });
+    const resolver = vi.fn<AcpPromptErrorReasonResolver>((candidate) =>
+      candidate === error ? "auth_required" : undefined,
+    );
+    (session as unknown as Record<string, unknown>)["promptErrorReason"] = resolver;
+    connection.prompt.mockRejectedValueOnce(error);
+
+    await session.startTurn("hello", { model: "model-a" });
+
+    expect(resolver).toHaveBeenCalledWith(error);
+    expect(listener.onRuntimeEvent).toHaveBeenCalledWith({
+      type: "error",
+      threadId: "thread-1",
+      message: "POST /generate → 401 error: Invalid token.",
+      reason: "auth_required",
+    });
+  });
+
+  it("tags the ACP-standard auth_required prompt error without a provider resolver", async () => {
+    const { connection, listener, session } = makeConfigSyncSession();
+    connection.prompt.mockRejectedValueOnce(RequestError.authRequired());
+
+    await session.startTurn("hello", { model: "model-a" });
+
+    expect(listener.onRuntimeEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "error", reason: "auth_required" }),
+    );
+  });
+
+  it("leaves other rejected prompts without a reason", async () => {
+    const { connection, listener, session } = makeConfigSyncSession();
+    connection.prompt.mockRejectedValueOnce(new Error("transport exploded"));
+
+    await session.startTurn("hello", { model: "model-a" });
+
+    expect(listener.onRuntimeEvent).toHaveBeenCalledWith({
+      type: "error",
+      threadId: "thread-1",
+      message: "transport exploded",
+    });
   });
 
   it("signals turn end while the turn stays open awaiting detached subagent reports", async () => {

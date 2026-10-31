@@ -1,4 +1,5 @@
 import type { Server } from "node:http";
+import type { Server as NetServer } from "node:net";
 import type { WebSocket, WebSocketServer } from "ws";
 import { matchEnvironmentProxyPath } from "@/shared/environments";
 import type { AsyncWorkTracker } from "@/shared/asyncWorkTracker";
@@ -6,6 +7,7 @@ import type { HttpServerConnections } from "@/shared/httpServerConnections";
 import type {
   RemoteGitSummaries,
   RemoteHostMode,
+  RemoteHostWorkspace,
   RemoteHostUpdateStatus,
   RemotePushRegistration,
   RemotePushRegistrationRouting,
@@ -586,6 +588,8 @@ export interface RemoteAccessServerOptions {
    */
   readonly settings?: {
     read(): RemoteSettings;
+    /** The host's workspaces for shell snapshots; hosts without it omit the field. */
+    readWorkspaces?(): RemoteHostWorkspace[];
     /** Update implementations may commit asynchronously (the settings
      * authority persists on its own queue); the route awaits the result. */
     update(patch: RemoteSettingsPatch): RemoteSettings | Promise<RemoteSettings>;
@@ -654,6 +658,19 @@ export interface RemoteAccessServerOptions {
       branch?: string | undefined;
     }): Promise<void>;
     refreshProjectPullRequests(projectId: string): Promise<void>;
+  };
+  /**
+   * Per-owner leases in front of the supervisor's shared project watcher. The
+   * durable host owns them, so they outlive this server instance. Without
+   * them the watch procedures reach the supervisor directly.
+   */
+  readonly projectWatches?: {
+    watchProject(owner: string, projectId: string): Promise<void>;
+    setWorktrees(owner: string, projectId: string, worktreePaths: readonly string[]): Promise<void>;
+    unwatchProject(owner: string, projectId: string, releaseWslDistro?: string): Promise<void>;
+    pinWorktree(projectId: string, worktreePath: string): Promise<void>;
+    unpinWorktree(projectId: string, worktreePath: string): Promise<void>;
+    releaseOwner(owner: string): Promise<void>;
   };
   /**
    * Push-notification registration sink. The server stays pure — the store and
@@ -738,6 +755,8 @@ export interface RemoteAccessServerHost {
   seq: number;
   info: RemoteAccessServerInfo | null;
   activePairingCredential: string | null;
+  /** Loopback guard of a wildcard bind (see `reserveLoopbackPort`). */
+  loopbackGuard: NetServer | null;
   readonly stopping: boolean;
   readonly listenCancellation: AbortController;
   starting: Promise<RemoteAccessServerInfo> | undefined;

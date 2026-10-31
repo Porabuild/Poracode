@@ -81,6 +81,7 @@ vi.mock("./BackendDurableServices", () => ({
     scheduleService = {};
     prWatchService = {};
     gitStateService = {};
+    projectWatchLeases = { durable: "project-watch-leases" };
     startIngress = vi.fn<() => Promise<void>>(() => Promise.resolve());
     constructor(durableOptions: Record<string, unknown>) {
       mocks.durableOptions.push(durableOptions);
@@ -90,6 +91,7 @@ vi.mock("./BackendDurableServices", () => ({
     startBackgroundServices = vi.fn<() => void>(() => {});
     observeSupervisorEvent = () => {};
     handleSupervisorReset = vi.fn<() => void>();
+    handleSupervisorStarted = vi.fn<() => void>();
     dispose = () => {};
   },
 }));
@@ -314,6 +316,33 @@ describe("BackendDesktopServices supervisor reset", () => {
     expect(() => services.handleSupervisorReset()).not.toThrow();
     expect(mocks.durableInstances.at(-1)?.handleSupervisorReset).toHaveBeenCalledOnce();
     expect(mocks.createDesktopRemoteAccessController).not.toHaveBeenCalled();
+  });
+});
+
+describe("BackendDesktopServices project watch leases", () => {
+  it("hands the durable lease registry to the desktop remote controller", () => {
+    mocks.createDesktopRemoteAccessController.mockClear();
+    const services = new BackendDesktopServices(options(true));
+    expect(services).toBeDefined();
+    const controllerOptions = mocks.createDesktopRemoteAccessController.mock.calls.at(-1)?.[0] as {
+      projectWatchLeases?: unknown;
+    };
+
+    expect(controllerOptions.projectWatchLeases).toBe(
+      (mocks.durableInstances.at(-1) as unknown as { projectWatchLeases: unknown })
+        .projectWatchLeases,
+    );
+  });
+
+  it("forwards a supervisor start to the durable lease re-apply", () => {
+    const services = new BackendDesktopServices(options(false));
+
+    services.handleSupervisorStarted();
+
+    const durable = mocks.durableInstances.at(-1) as unknown as {
+      handleSupervisorStarted: ReturnType<typeof vi.fn<() => void>>;
+    };
+    expect(durable.handleSupervisorStarted).toHaveBeenCalledOnce();
   });
 });
 

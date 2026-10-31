@@ -96,6 +96,17 @@ export const CLAUDE_BUILTIN_FAST_MODELS: NonNullable<AgentCapability["fastModels
   CLAUDE_OPUS_46_MODEL_ID,
 ];
 
+/** Claude Code's ultracode workflow mode needs a model with xhigh effort. */
+export function claudeWorkflowModels(
+  modelEfforts: AgentCapability["modelEfforts"],
+): NonNullable<AgentCapability["workflowModels"]> {
+  return Object.entries(modelEfforts)
+    .filter(([, efforts]) => efforts.includes("xHigh"))
+    .map(([modelId]) => modelId);
+}
+
+export const CLAUDE_BUILTIN_WORKFLOW_MODELS = claudeWorkflowModels(CLAUDE_BUILTIN_MODEL_EFFORTS);
+
 function parseSemverTriplet(version: string): [number, number, number] | null {
   const match = CLAUDE_SEMVER_RE.exec(version.trim());
   if (!match) return null;
@@ -149,7 +160,14 @@ export function claudeCapabilitiesFromCliVersion(
     delete modelContextSizes[modelId];
   }
   const fastModels = CLAUDE_BUILTIN_FAST_MODELS.filter((modelId) => !hiddenModelIds.has(modelId));
-  return { models, defaultHiddenModels, modelEfforts, modelContextSizes, fastModels };
+  return {
+    models,
+    defaultHiddenModels,
+    modelEfforts,
+    modelContextSizes,
+    fastModels,
+    workflowModels: claudeWorkflowModels(modelEfforts),
+  };
 }
 
 function poracodeEffortId(effort: string): string {
@@ -168,7 +186,12 @@ export function claudeCapabilitiesFromSdkModels(
 ):
   | Pick<
       AgentCapability,
-      "models" | "defaultHiddenModels" | "modelEfforts" | "modelContextSizes" | "fastModels"
+      | "models"
+      | "defaultHiddenModels"
+      | "modelEfforts"
+      | "modelContextSizes"
+      | "fastModels"
+      | "workflowModels"
     >
   | undefined {
   if (!sdkModels?.length) return undefined;
@@ -215,12 +238,7 @@ export function claudeCapabilitiesFromSdkModels(
     if (sdkModel.supportsEffort === false) {
       modelEfforts[modelId] = [];
     } else if (sdkModel.supportedEffortLevels?.length) {
-      const efforts = sdkModel.supportedEffortLevels.map(poracodeEffortId);
-      // Ultracode is Claude Code's xhigh + dynamic-workflow session preset.
-      if (efforts.includes("xHigh") && !efforts.includes("ultracode")) {
-        efforts.push("ultracode");
-      }
-      modelEfforts[modelId] = efforts;
+      modelEfforts[modelId] = sdkModel.supportedEffortLevels.map(poracodeEffortId);
     } else if (!modelEfforts[modelId]) {
       modelEfforts[modelId] = [...CLAUDE_PREMIUM_EFFORT_TIERS];
     }
@@ -262,5 +280,6 @@ export function claudeCapabilitiesFromSdkModels(
     modelEfforts,
     modelContextSizes,
     fastModels: [...fastModels],
+    workflowModels: claudeWorkflowModels(modelEfforts),
   };
 }

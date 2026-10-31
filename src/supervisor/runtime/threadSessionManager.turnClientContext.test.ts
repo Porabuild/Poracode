@@ -3,8 +3,15 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { TurnClientContext } from "@/shared/contracts";
+import type { ThreadCrewBinding } from "@/shared/crew";
 import type { SupervisorEvent } from "@/shared/ipc";
-import type { AgentAdapter, StartTurnOptions, StructuredSessionHandle } from "../agents/base";
+import { crewLeadEditNudgeText } from "@/supervisor/crossagentMcp/crewBrief";
+import type {
+  AgentAdapter,
+  CreateStructuredSessionInput,
+  StartTurnOptions,
+  StructuredSessionHandle,
+} from "../agents/base";
 import type { SessionRuntime } from "./sessionTypes";
 import { createFollowUpQueueHarness as createHarness } from "./threadSessionManager.followUpQueueTestHarness";
 import { ThreadSessionManager } from "./threadSessionManager";
@@ -455,6 +462,110 @@ describe("per-turn client context across a session restart", () => {
       expect(
         manager.sessions.get("thread-resume-context")?.pendingInitialInstructions,
       ).toBeUndefined();
+    } finally {
+      await manager.dispose();
+    }
+  });
+
+  it("keeps a crew lead's pending edit reminder and relaunches it steerable", async () => {
+    const tempDir = mkdtempSync(join(tmpdir(), "poracode-turn-context-"));
+    tempDirs.push(tempDir);
+    const crew: ThreadCrewBinding = {
+      version: 1,
+      policy: "crew-only",
+      roles: [{ id: "sidekick", label: "Sidekick", selection: { agentKind: "x", model: "m" } }],
+    };
+    const startTurn = vi.fn<NonNullable<StructuredSessionHandle["startTurn"]>>(async () => {});
+    const launches: CreateStructuredSessionInput[] = [];
+    const adapter = {
+      kind: "fixture-agent",
+      label: "fixture-agent",
+      binary: "fixture-agent",
+      capabilities: {
+        models: [],
+        efforts: [],
+        modelEfforts: {},
+        modes: [],
+        approvalPolicies: [],
+        sandboxModes: [],
+        supportsResume: true,
+        supportsDirectInput: true,
+        liveInputMode: "server",
+        presentationMode: "gui",
+        presentationModes: ["gui"],
+        mcpScope: { gui: "launch" },
+        settingDefs: [],
+      },
+      createStructuredSession: async (input: CreateStructuredSessionInput) => {
+        launches.push(input);
+        return {
+          launchOptions: {},
+          activate: async () => undefined,
+          openThread: async () => "provider-thread",
+          startTurn,
+          setListener: () => undefined,
+          dispose: async () => undefined,
+        } satisfies StructuredSessionHandle;
+      },
+    } as unknown as AgentAdapter;
+    const crossagents = {
+      url: "http://127.0.0.1:9/mcp",
+      token: "token",
+      headers: { Authorization: "Bearer token" },
+    };
+    const manager = new ThreadSessionManager({
+      emit: () => undefined,
+      isDev: false,
+      logsDir: join(tempDir, "logs"),
+      settingsPath: join(tempDir, "settings.json"),
+      readDisableCliHookPlugin: () => false,
+      adapters: new Map([[adapter.kind, adapter]]),
+      resolveWindowsShell: () => ({ shell: "powershell.exe", kind: "powershell", args: [] }),
+      crossagentMcp: {
+        register: () => crossagents,
+        registerProviderSession: () => crossagents,
+        unregister: () => undefined,
+        cancelForeground: () => undefined,
+        cancelAll: () => undefined,
+        resolveChildRequest: async () => false,
+      },
+    });
+    const threadId = "thread-crew-lead";
+    manager.sessions.set(threadId, {
+      instanceId: "instance-crew-lead",
+      threadId,
+      agentKind: adapter.kind,
+      adapter,
+      projectLocation: { kind: "windows", path: "C:\\fixture" },
+      config: { model: "fixture-model", crew },
+      crewLeadEditedFiles: true,
+      terminalSize: { cols: 80, rows: 24 },
+      launchPrompt: "",
+      status: "idle",
+      attention: "none",
+      canResumeWithConfig: true,
+      sessionRef: { providerSessionId: "provider-session-1" },
+      mcpLaunchSnapshot: { mcpServers: [], disabledBuiltInMcpServerIds: [] },
+      outputLength: 0,
+      prevChunk: "",
+      lastStrippedPtyChunk: "",
+      ptyOscCarry: "",
+      presentationMode: "gui",
+    } as unknown as SessionRuntime);
+    try {
+      await manager.sendThreadInput({
+        threadId,
+        prompt: "next step",
+        config: { model: "fixture-model", crew },
+      });
+      await vi.waitFor(() => expect(startTurn).toHaveBeenCalledTimes(1));
+      expect(launches).toHaveLength(1);
+      expect(launches[0]?.mayReceiveContextSteers).toBe(true);
+      // The replacement's first turn carries the reminder the old session owed.
+      expect(optionsOf(startTurn, 0)?.inlineInstructions).toContain(crewLeadEditNudgeText(crew));
+      expect(manager.sessions.get(threadId)?.crewLeadEditedFiles).toBe(true);
+      optionsOf(startTurn, 0)?.onPromptSubmitted?.();
+      expect(manager.sessions.get(threadId)?.crewLeadEditedFiles).toBeUndefined();
     } finally {
       await manager.dispose();
     }

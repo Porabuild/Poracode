@@ -6,7 +6,7 @@ Universal AI agent orchestrator with Electron, web/PWA, and independent native i
 
 ## Commands
 
-- Package manager: `Bun` (version pinned in `package.json#packageManager`); Node >= 24.10.0.
+- Package manager: `Bun` (version pinned in `package.json#packageManager`); Node >= 26.13.0.
 - Installed CLI: bare interactive `poracode` opens the TUI; use `poracode -p "PROMPT" --directory PATH` for one-shot runs and `poracode serve --open` for the web app.
 - `bun run dev` — run the app. `bun run build` then `bun run dist` — package it.
 - Local renderer builds skip hidden source maps; set `PORACODE_SOURCEMAPS=1` to generate them. Release CI generates them on the Sentry upload job.

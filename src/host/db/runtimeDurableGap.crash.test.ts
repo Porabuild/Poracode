@@ -70,7 +70,6 @@ describe.skipIf(!sqliteAvailable || process.platform === "win32")(
     function launch(mode: string): ChildProcess {
       const child = fork(FIXTURE, [mode, dbPath], {
         execArgv: [
-          "--experimental-transform-types",
           "--disable-warning=ExperimentalWarning",
           "--import",
           resolve("scripts/remote-v3-ts-register.mjs"),

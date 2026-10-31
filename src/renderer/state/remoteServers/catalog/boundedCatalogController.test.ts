@@ -2,7 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Project, Thread } from "@/shared/contracts";
 import { RemoteBoundedReadProtocolError, type RemoteDesktopClient } from "@/shared/remote/client";
 import { __resetRemoteServersStoreForTest, useRemoteServersStore } from "../../remoteServersStore";
-import { noteBoundedCatalogMembershipEvent } from "./boundedCatalogController";
+import {
+  noteBoundedCatalogMembershipEvent,
+  resetBoundedCatalogForResync,
+} from "./boundedCatalogController";
 import { readBoundedHistoryTail } from "./boundedHistoryRegistry";
 import { remoteThreadId } from "@/renderer/state/remoteProjection";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -351,6 +354,34 @@ describe("boundedCatalogController", () => {
     vi.useRealTimers();
   });
 
+  it("finishes paging and resyncs after a bearer rotates during a continuation read", async () => {
+    const rows = Array.from({ length: 8 }, (_, index) => threadRow(`rotation-${index}`));
+    const host = makeBoundedHost({
+      rows,
+      pageSize: 2,
+      onListPage: ({ mode, pageIndex }) => {
+        if (mode === "page" && pageIndex === 0) {
+          useRemoteServersStore.setState((state) => ({
+            servers: state.servers.map((server) => ({
+              ...server,
+              accessToken: "rotated-during-page",
+            })),
+          }));
+        }
+        return undefined;
+      },
+    });
+    installServer(host.client);
+    await useRemoteServersStore.getState().refreshServer("d1");
+    await flushAsyncWork();
+    expect(useRemoteServersStore.getState().runtime.d1?.threads).toHaveLength(8);
+    expect(host.listPages).toBe(3);
+    resetBoundedCatalogForResync("d1");
+    await flushAsyncWork();
+    await vi.waitFor(() => expect(host.listPages).toBeGreaterThan(3));
+    expect(useRemoteServersStore.getState().runtime.d1?.threads).toHaveLength(8);
+  });
+
   it("paints the first bounded page without assembling the catalog", async () => {
     const rows = Array.from({ length: 10_000 }, (_, index) =>
       threadRow(`t-${String(index).padStart(5, "0")}`),
@@ -372,6 +403,9 @@ describe("boundedCatalogController", () => {
     );
     // Continuation pages never advance the shell cursor.
     expect(remoteServerSnapshotSeq("d1")).toBe(1);
+    expect(host.shellPages).toBe(1);
+    expect(host.listPages).toBe(99);
+    expect(host.maxListInFlight).toBe(1);
   });
 
   it("renders nothing when rows arrive as an empty bounded shell", async () => {

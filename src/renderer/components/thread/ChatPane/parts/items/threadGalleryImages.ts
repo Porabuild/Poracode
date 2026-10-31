@@ -13,7 +13,7 @@ import {
 import { getProjectFsPath } from "@/shared/wsl";
 import { resolveProjectLocation } from "@/shared/worktree";
 import type { RemoteImageRefValue } from "@/shared/remote";
-import { isRemoteSession, readBridge } from "@/renderer/bridge";
+import { readBridge } from "@/renderer/bridge";
 import {
   getRuntimeItemPayload,
   type RuntimeChatItem,
@@ -42,7 +42,10 @@ import { remoteConnectionKey } from "@/renderer/state/remoteServers/types";
 import { attachmentImageUrl } from "@/renderer/components/composer/useAttachments";
 import type { LightboxImage } from "@/renderer/components/composer/ImageLightbox";
 import { resolveThreadMarkdownImageRoots } from "@/renderer/components/thread/threadMarkdownImageRoots";
-import { threadImageReadinessFor } from "@/renderer/components/thread/threadImageReadiness";
+import {
+  threadImageReadinessFor,
+  usesBridgeThreadImages,
+} from "@/renderer/components/thread/threadImageReadiness";
 import { imageViewSourceFromImageBlock, resolveImageViewSources } from "./imageViewSource";
 
 /** Renderable thread image for galleries, mosaics, and the fullscreen lightbox. */
@@ -284,7 +287,7 @@ export function threadGalleryImageAuthority(
   browserReadiness: RemoteImageReadiness | undefined = getRemoteBridgeImageReadiness(),
 ): object | null | undefined {
   if (!thread) return undefined;
-  if (isRemoteSession()) {
+  if (usesBridgeThreadImages(thread.remoteServerId)) {
     if (
       thread.remoteServerId !== undefined &&
       (typeof thread.remoteServerId !== "string" || thread.remoteServerId.length === 0)
@@ -312,7 +315,7 @@ export function buildGalleryResolversFromState(
   const thread = state.threads?.find((t) => t.id === threadId);
   const resolvers: ThreadGalleryResolvers = { remoteImageRefUrl: unavailableImageUrl };
   const remoteServerId = thread?.remoteServerId;
-  const browserSession = isRemoteSession();
+  const browserSession = usesBridgeThreadImages(remoteServerId);
   const validRemoteServerId =
     remoteServerId === undefined ||
     (typeof remoteServerId === "string" && remoteServerId.length > 0);

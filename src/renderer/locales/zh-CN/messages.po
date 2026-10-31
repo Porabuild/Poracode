@@ -1065,7 +1065,7 @@ msgstr "冻结的工作树源需要完整的提交哈希"
 #~ msgid "A locked screen stops all desktop control, so the display is kept on while a Computer Use session is running. You can still lock the screen yourself."
 #~ msgstr "屏幕锁定后将无法进行任何桌面操作，因此在计算机操作会话运行期间会保持显示器常亮。你仍然可以自行锁定屏幕。"
 
-#: src/renderer/components/thread/ChatPane/ChatPane.tsx
+#: src/renderer/components/thread/ThreadRemoteSyncDock.tsx
 msgid "A message deletion could not be confirmed. Refresh to resync this conversation."
 msgstr "无法确认一条消息删除。请刷新以重新同步此对话。"
 
@@ -1093,6 +1093,10 @@ msgstr "一次审查最多可包含 100 条行评论。"
 msgid "A review or comment body is required."
 msgstr "必须提供评审或评论正文。"
 
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "A scout maps the code, a builder implements and verifies, and a reviewer checks the diff; the lead plans and decides."
+msgstr "侦察员梳理代码，构建者实现并验证，审查者检查 diff；主模型负责规划和决策。"
+
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "A server could not be started and was skipped."
 msgstr "无法启动某个服务器，已跳过。"
@@ -1110,8 +1114,12 @@ msgid "a supported coding agent"
 msgstr "支持的编码代理"
 
 #: src/renderer/components/crew/crewTemplates.ts
-msgid "A tester writes failing tests; a builder makes them pass."
-msgstr "测试者编写失败的测试，构建者让它们通过。"
+msgid "A tester writes and runs failing tests, and a builder makes them pass; the lead sets the cases."
+msgstr "测试者编写并运行失败的测试，构建者让它们通过；测试用例由主模型确定。"
+
+#: src/renderer/components/crew/crewTemplates.ts
+#~ msgid "A tester writes failing tests; a builder makes them pass."
+#~ msgstr "测试者编写失败的测试，构建者让它们通过。"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "A voice conversation is already active."
@@ -1139,8 +1147,8 @@ msgid "About usage"
 msgstr "关于用量"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
-msgid "Above the composer"
-msgstr "输入框上方"
+#~ msgid "Above the composer"
+#~ msgstr "输入框上方"
 
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Accent"
@@ -1942,6 +1950,10 @@ msgstr "代理正在修复此 PR。"
 msgid "An expected worktree owner requires a branch"
 msgstr "预期的工作树所有者需要指定分支"
 
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "An investigator finds the root cause, and a fixer lands the fix with a regression test."
+msgstr "调查者找出根本原因，修复者落地修复并附回归测试。"
+
 #: src/renderer/components/mcp/McpServersManager.tsx
 #~ msgid "An MCP server with the name {serverName} already exists."
 #~ msgstr "名为 {serverName} 的 MCP 服务器已存在。"
@@ -2321,7 +2333,6 @@ msgstr "身份验证"
 msgid "Authenticated"
 msgstr "已通过身份验证"
 
-#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Authentication"
 msgstr "认证"
@@ -3451,6 +3462,7 @@ msgid "Choose a photo"
 msgstr "选择照片"
 
 #: src/renderer/components/sessionImport/importSessionsActions.ts
+#: src/renderer/components/sessionImport/remoteSessionImport.ts
 msgid "Choose a project for sessions whose folder no longer exists."
 msgstr "为文件夹已不存在的会话选择一个项目。"
 
@@ -6515,7 +6527,6 @@ msgstr "正在发现编码代理……"
 msgid "Discovery complete"
 msgstr "发现完成"
 
-#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 #: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
@@ -6572,6 +6583,10 @@ msgstr "停靠面板"
 msgid "Docs"
 msgstr "文档"
 
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Does the broad searching: finds the files, callers, tests and conventions a task touches, and reports paths and facts, not a review."
+msgstr "负责大范围搜索：找出任务涉及的文件、调用方、测试和约定，报告路径和事实，而不是审查意见。"
+
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteThreadPopover.tsx
 msgid "Don't ask again"
@@ -6593,7 +6608,6 @@ msgstr "完成"
 #. Notification status: thread is done
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 #: src/renderer/components/providers/settings/ModelProvidersSettings.tsx
-#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/components/thread/AgentDiscoveryDoneButton.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/LabelPicker.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/ReviewerPicker.tsx
@@ -7189,7 +7203,6 @@ msgstr "错误"
 #. Notification status: agent error
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/providers/usageFormat.ts
-#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ErrorItem.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
@@ -7496,12 +7509,16 @@ msgid "Explore and plan"
 msgstr "探索与规划"
 
 #: src/renderer/components/crew/crewTemplates.ts
-msgid "Explore, build and review a feature."
-msgstr "探索、构建并审查一个功能。"
+#~ msgid "Explore, build and review a feature."
+#~ msgstr "探索、构建并审查一个功能。"
 
 #: src/renderer/components/crew/crewRoleTemplates.ts
 #~ msgid "Explores code and docs"
 #~ msgstr "探索代码和文档"
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Explores the codebase, implements the lead's task end to end, runs the narrowest checks, and reports what changed with evidence."
+msgstr "探索代码库，端到端完成主模型的任务，运行范围最小的检查，并附证据报告改动。"
 
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Exponential backoff"
@@ -7869,16 +7886,16 @@ msgid "Find in terminal"
 msgstr "在终端中查找"
 
 #: src/renderer/components/crew/crewTemplates.ts
-msgid "Find the root cause first, then fix it with a regression test."
-msgstr "先找到根本原因，再附带回归测试进行修复。"
+#~ msgid "Find the root cause first, then fix it with a regression test."
+#~ msgstr "先找到根本原因，再附带回归测试进行修复。"
 
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Finding status"
 msgstr "发现项状态"
 
 #: src/renderer/components/crew/crewRoleTemplates.ts
-msgid "Finds the files, callers and tests a task touches, and reports their paths with a short summary."
-msgstr "找出任务涉及的文件、调用方和测试，并附简短摘要报告路径。"
+#~ msgid "Finds the files, callers and tests a task touches, and reports their paths with a short summary."
+#~ msgstr "找出任务涉及的文件、调用方和测试，并附简短摘要报告路径。"
 
 #: src/renderer/views/PullRequestsOverlay/guide/PrGuidePanel.tsx
 msgid "Finish review"
@@ -8739,7 +8756,7 @@ msgstr "历史记录"
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/views/HomeView.tsx
-#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarHomeSection.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 #: src/renderer/views/WelcomeOverlay.tsx
 msgid "Home"
@@ -8908,7 +8925,6 @@ msgid "Identity file path"
 msgstr "身份文件路径"
 
 #. Microphone input level when not testing
-#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Idle"
@@ -8951,12 +8967,20 @@ msgstr "图片"
 #~ msgstr "实现更改并运行测试"
 
 #: src/renderer/components/crew/crewRoleTemplates.ts
-msgid "Implements the fix with a regression test and confirms the reproduction now passes."
-msgstr "附带回归测试实现修复，并确认复现步骤现已通过。"
+msgid "Implements the fix the lead settles, adds a regression test, and confirms the reproduction now passes with the narrowest check."
+msgstr "实现主模型确定的修复，添加回归测试，并用范围最小的检查确认复现现已通过。"
 
 #: src/renderer/components/crew/crewRoleTemplates.ts
-msgid "Implements the lead's task end to end: edits files, runs the build and tests, and reports what changed."
-msgstr "端到端完成主模型的任务：编辑文件、运行构建和测试，并报告改动。"
+#~ msgid "Implements the fix with a regression test and confirms the reproduction now passes."
+#~ msgstr "附带回归测试实现修复，并确认复现步骤现已通过。"
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Implements the lead's task end to end and verifies it with the narrowest build and tests; reports changed files, check results and deviations."
+msgstr "端到端完成主模型的任务，并用范围最小的构建和测试验证；报告改动的文件、检查结果和偏差。"
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+#~ msgid "Implements the lead's task end to end: edits files, runs the build and tests, and reports what changed."
+#~ msgstr "端到端完成主模型的任务：编辑文件、运行构建和测试，并报告改动。"
 
 #. Settings section: import existing CLI sessions as threads
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
@@ -9867,8 +9891,12 @@ msgid "Lead + 1 helper"
 msgstr "负责人 + 1 位助手"
 
 #: src/renderer/components/crew/crewTemplates.ts
-msgid "Lead + Builder"
-msgstr "主模型 + 构建者"
+#~ msgid "Lead + Builder"
+#~ msgstr "主模型 + 构建者"
+
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "Lead + Sidekick"
+msgstr "主模型 + 辅助模型"
 
 #: src/renderer/components/providers/devin/modelPricing.ts
 #~ msgid "Lead and Sidekick prices are per 1M tokens for each model. Ranges cover model variants."
@@ -10912,7 +10940,7 @@ msgstr "消息搜索不可用"
 msgid "Messages"
 msgstr "消息"
 
-#: src/renderer/components/thread/ChatPane/ChatPane.tsx
+#: src/renderer/components/thread/ThreadHistoryLoadFailureDock.tsx
 msgid "Messages could not be loaded."
 msgstr "无法加载消息。"
 
@@ -11621,7 +11649,6 @@ msgstr "新线程 —{projectName}"
 msgid "New thread from this to-do"
 msgstr "基于此待办事项的新线程"
 
-#. placeholder {0}: homeProject.name
 #. placeholder {0}: project.name
 #: src/renderer/views/HomeView.tsx
 msgid "New thread in {0}"
@@ -12051,6 +12078,7 @@ msgid "No microphone found."
 msgstr "找不到麦克风。"
 
 #: src/renderer/components/sessionImport/importSessionsActions.ts
+#: src/renderer/components/sessionImport/remoteSessionImport.ts
 msgid "No model is available for {agent}. Check the agent in Settings."
 msgstr "{agent} 没有可用的模型。请在设置中检查该代理。"
 
@@ -14674,6 +14702,10 @@ msgstr "正在读取每个候选的更改…"
 msgid "Reading each candidate's chat response…"
 msgstr "正在读取每个候选项的聊天回复…"
 
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Reads the full diff and the code it touches, runs targeted checks, and reports bugs, regressions and missing tests by file and line."
+msgstr "阅读完整 diff 及其涉及的代码，运行有针对性的检查，按文件和行报告缺陷、回归和缺失的测试。"
+
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Ready"
@@ -14804,7 +14836,7 @@ msgstr "引用"
 
 #. Button: re-fetch provider usage now
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
-#: src/renderer/components/thread/ChatPane/ChatPane.tsx
+#: src/renderer/components/thread/ThreadRemoteSyncDock.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
@@ -15389,8 +15421,12 @@ msgid "Repository URL"
 msgstr "存储库网址"
 
 #: src/renderer/components/crew/crewRoleTemplates.ts
-msgid "Reproduces the bug and traces it to the root cause, then reports the evidence and the failing code path."
-msgstr "复现缺陷并追溯到根本原因，然后报告证据和出错的代码路径。"
+#~ msgid "Reproduces the bug and traces it to the root cause, then reports the evidence and the failing code path."
+#~ msgstr "复现缺陷并追溯到根本原因，然后报告证据和出错的代码路径。"
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Reproduces the bug and traces it to the root cause, then reports the evidence, the failing code path and a suggested fix."
+msgstr "复现缺陷并追踪到根本原因，然后报告证据、出错的代码路径和建议的修复。"
 
 #: src/renderer/views/PullRequestsOverlay/summary/ReviewerPicker.tsx
 msgid "Request a reviewer"
@@ -15637,11 +15673,11 @@ msgstr "仅显示此主机保留的用量。"
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
-#: src/renderer/components/thread/ChatPane/ChatPane.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/MarkdownVideo.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/useHistoryItemDetails.tsx
 #: src/renderer/components/thread/SideChat/SideChatBody.tsx
 #: src/renderer/components/thread/SideChat/SideChatThreadView.tsx
+#: src/renderer/components/thread/ThreadHistoryLoadFailureDock.tsx
 #: src/renderer/i18n/sharedMessages.ts
 #: src/renderer/state/managedRootCatalog/ManagedRootCatalogStatusNotice.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/useSourceBranchData.ts
@@ -15942,8 +15978,8 @@ msgstr "审查和评论"
 #~ msgstr "审查差异并查找错误"
 
 #: src/renderer/components/crew/crewRoleTemplates.ts
-msgid "Reviews the finished diff for bugs, regressions and missing tests, and reports findings by file and line."
-msgstr "审查最终 diff 中的缺陷、回归和缺失的测试，并按文件和行报告。"
+#~ msgid "Reviews the finished diff for bugs, regressions and missing tests, and reports findings by file and line."
+#~ msgstr "审查最终 diff 中的缺陷、回归和缺失的测试，并按文件和行报告。"
 
 #: src/renderer/components/providers/devin/liveSessionControls.tsx
 #: src/renderer/components/providers/devin/sessionActionDialog.tsx
@@ -15971,7 +16007,6 @@ msgid "Right"
 msgstr "右"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Right panel"
 msgstr "右面板"
 
@@ -16490,8 +16525,12 @@ msgid "Scout"
 msgstr "侦察员"
 
 #: src/renderer/components/crew/crewTemplates.ts
-msgid "Scouts map an unfamiliar codebase before anything changes."
-msgstr "侦察员在任何改动前摸清陌生代码库。"
+#~ msgid "Scouts map an unfamiliar codebase before anything changes."
+#~ msgstr "侦察员在任何改动前摸清陌生代码库。"
+
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "Scouts map an unfamiliar codebase so the lead can plan without reading it all."
+msgstr "侦察员梳理陌生的代码库，让主模型无需通读即可规划。"
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/components/thread/ThreadAgentVisionDock.tsx
@@ -16970,7 +17009,7 @@ msgstr "服务器 {target} 在本机运行，WSL 项目无法使用。"
 msgid "Server base URL"
 msgstr "服务器基础 URL"
 
-#: src/renderer/components/thread/ChatPane/ChatPane.tsx
+#: src/renderer/components/thread/ThreadRemoteSyncDock.tsx
 msgid "Server offline — this conversation may be out of date."
 msgstr "服务器离线——此对话可能不是最新。"
 
@@ -17420,6 +17459,7 @@ msgstr "侧边栏磨砂效果"
 msgid "Sidebar shortcuts"
 msgstr "侧边栏快捷方式"
 
+#: src/renderer/components/crew/crewRoleTemplates.ts
 #: src/renderer/components/providers/devin/modelPricing.ts
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Sidekick"
@@ -18533,6 +18573,10 @@ msgstr "Tailscale URL"
 msgid "Take Screenshot"
 msgstr "截图"
 
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Takes any hands-on task the lead hands off: exploring, editing and running checks, then reports back with evidence."
+msgstr "承接主模型交出的任何实际任务：探索、编辑和运行检查，然后附证据汇报。"
+
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 #~ msgid "Takes over the desktop while the agent clicks or types"
 #~ msgstr "代理点击或输入时会接管桌面"
@@ -18604,7 +18648,6 @@ msgstr "告诉目标提供商下一步该做什么..."
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/plugins/pluginCopy.ts
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
-#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/GlobalTerminalPanel/GlobalTerminalPanel.tsx
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
@@ -18632,10 +18675,10 @@ msgstr "终端字体"
 #. placeholder {0}: project.name
 #. placeholder {0}: props.projectName
 #. placeholder {0}: props.worktreeBranch
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarHomeSection.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/WorktreeGroupHeader.tsx
-#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 msgid "Terminal for {0}"
 msgstr "{0}的终端"
 
@@ -18671,8 +18714,8 @@ msgid "Terminal position"
 msgstr "终端位置"
 
 #: src/renderer/components/terminal/TerminalProgramStatus.tsx
-msgid "Terminal program status"
-msgstr "终端程序状态"
+#~ msgid "Terminal program status"
+#~ msgstr "终端程序状态"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
@@ -19039,8 +19082,16 @@ msgid "The launch was cancelled."
 msgstr "启动已取消。"
 
 #: src/renderer/components/crew/crewTemplates.ts
-msgid "The lead plans and reviews; a cheaper builder does the hands-on work."
-msgstr "主模型负责规划和审查，更便宜的构建者负责动手工作。"
+#~ msgid "The lead plans and reviews; a cheaper builder does the hands-on work."
+#~ msgstr "主模型负责规划和审查，更便宜的构建者负责动手工作。"
+
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "The lead plans and reviews; a cheaper sidekick explores, builds and verifies."
+msgstr "主模型负责规划和审查，更便宜的辅助模型负责探索、构建和验证。"
+
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "The lead splits the work; up to three builders implement and verify independent tasks at once."
+msgstr "主模型拆分工作；最多三个构建者同时实现并验证相互独立的任务。"
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the Linux user"
@@ -19180,6 +19231,10 @@ msgstr "无法取消运行。"
 #: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
 msgid "The run was interrupted."
 msgstr "运行已中断。"
+
+#: src/renderer/state/remoteServers/sharedCredentials.ts
+msgid "The saved remote credentials could not be confirmed."
+msgstr "无法确认已保存的远程连接凭据。"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The scheduled automation failed."
@@ -19958,14 +20013,12 @@ msgid "Thread dock"
 msgstr "线程停靠栏"
 
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
-#: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Thread docks"
 msgstr "会话停靠面板"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
-msgid "Thread docks placement"
-msgstr "会话停靠面板位置"
+#~ msgid "Thread docks placement"
+#~ msgstr "会话停靠面板位置"
 
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Thread failed to start."
@@ -20169,6 +20222,10 @@ msgstr "来自{0}的token"
 msgid "Told not to edit files. Not enforced."
 msgstr "指示不要编辑文件。不会强制执行。"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Too many remote requests are in progress. Try again in a moment."
+msgstr "正在进行的远程请求过多。请稍后重试。"
+
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Too many visuals in this message. Showing source only."
 msgstr "此消息中的可视化内容过多。仅显示源代码。"
@@ -20286,8 +20343,12 @@ msgid "Turn tracking on or off per provider. Disabled providers are skipped by t
 msgstr "打开或关闭每个提供商的跟踪。自动刷新会跳过已禁用的提供商。"
 
 #: src/renderer/components/crew/crewTemplates.ts
-msgid "Two independent read-only reviews of a change."
-msgstr "对一个改动的两次独立只读审查。"
+msgid "Two independent read-only reviews of a change, and a sidekick applies the fixes."
+msgstr "对一个改动的两次独立只读审查，并由辅助模型应用修复。"
+
+#: src/renderer/components/crew/crewTemplates.ts
+#~ msgid "Two independent read-only reviews of a change."
+#~ msgstr "对一个改动的两次独立只读审查。"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Type"
@@ -20949,8 +21010,8 @@ msgid "Up one level"
 msgstr "上一级"
 
 #: src/renderer/components/crew/crewTemplates.ts
-msgid "Up to three builders work on independent tasks at once."
-msgstr "最多三名构建者同时处理彼此独立的任务。"
+#~ msgid "Up to three builders work on independent tasks at once."
+#~ msgstr "最多三名构建者同时处理彼此独立的任务。"
 
 #: src/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay.tsx
 msgid "update"
@@ -20983,6 +21044,10 @@ msgstr "更新 {0}（{env}）"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Update {0} to {updateLabel}"
 msgstr "将{0}更新为{updateLabel}"
+
+#: src/renderer/components/sessionImport/remoteSessionImport.ts
+msgid "Update {host} to import its sessions."
+msgstr "请更新 {host} 以导入其会话。"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #~ msgid "Update all"
@@ -21069,6 +21134,10 @@ msgstr "请更新主机以创建对话分支。"
 #: src/renderer/components/thread/SideChat/sideChatActions.ts
 msgid "Update the remote host to use side chat with hidden context."
 msgstr "请更新远程主机，以使用带有隐藏上下文的旁聊。"
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Update this host to import its sessions."
+msgstr "请更新此主机以导入其会话。"
 
 #: src/renderer/components/providers/HostUsageView.tsx
 msgid "Update this host to refresh usage remotely. Cached usage can still be read."
@@ -21647,7 +21716,6 @@ msgstr "请等待线程启动完成，然后再将其移至工作树。"
 msgid "Wait for the thread to finish starting."
 msgstr "等待线程完成启动。"
 
-#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Waiting"
 msgstr "等待中"
@@ -21676,7 +21744,6 @@ msgstr "正在等待预览"
 msgid "waiting for agent to stop"
 msgstr "等待代理停止"
 
-#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/views/SchedulesView/parts/scheduleRunStatus.ts
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
@@ -21730,7 +21797,9 @@ msgid "Warming up WSL shell environment…"
 msgstr "正在预热 WSL shell 环境..."
 
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadHistoryLoadFailureDock.tsx
 #: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
+#: src/renderer/components/thread/ThreadRemoteSyncDock.tsx
 #: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Warning"
@@ -21862,8 +21931,8 @@ msgstr "在终端原生线程中，浏览器元素选择器的选择内容流向
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Where a thread's goal, plan, agents, and background tasks appear. In the right panel, compact bubbles above the composer open them."
-msgstr "会话的目标、计划、智能体和后台任务的显示位置。在右侧面板模式下，输入框上方的紧凑气泡可打开它们。"
+#~ msgid "Where a thread's goal, plan, agents, and background tasks appear. In the right panel, compact bubbles above the composer open them."
+#~ msgstr "会话的目标、计划、智能体和后台任务的显示位置。在右侧面板模式下，输入框上方的紧凑气泡可打开它们。"
 
 #: src/renderer/views/WelcomeOverlay.tsx
 msgid "Where do you want to begin?"
@@ -21988,6 +22057,7 @@ msgid "Workflow: {description}"
 msgstr "工作流程：{description}"
 
 #: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
+#: src/renderer/components/thread/buildModelPickerControls.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsMobileWorkflowList.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
@@ -21998,7 +22068,6 @@ msgstr "工作流程"
 msgid "Workflows added under .github/workflows will appear here."
 msgstr "添加到 .github/workflows 的工作流将显示在此处。"
 
-#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Working"
 msgstr "工作中"
@@ -22137,8 +22206,12 @@ msgid "Write notes for this project…"
 msgstr "为这个项目写笔记..."
 
 #: src/renderer/components/crew/crewRoleTemplates.ts
-msgid "Writes and runs tests for the change, reproduces reported bugs, and reports failures with the exact command."
-msgstr "为改动编写并运行测试，复现报告的缺陷，并附带确切命令报告失败。"
+#~ msgid "Writes and runs tests for the change, reproduces reported bugs, and reports failures with the exact command."
+#~ msgstr "为改动编写并运行测试，复现报告的缺陷，并附带确切命令报告失败。"
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Writes and runs the tests for the change, reproduces reported bugs, and reports each failure with the exact command and failing assertion."
+msgstr "为改动编写并运行测试，复现已报告的缺陷，并为每个失败附上确切命令和失败的断言。"
 
 #: src/renderer/views/PullRequestsOverlay/guide/PrReviewGuideTab.tsx
 msgid "Writing guide. You can leave this review and return when it is ready."

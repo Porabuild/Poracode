@@ -1,8 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Thread } from "@/shared/contracts";
-import type { RemoteDesktopClient } from "@/shared/remote/client";
+import { RemoteClientError, type RemoteDesktopClient } from "@/shared/remote/client";
 import type { RemoteClientFactory, RemoteServersState } from "./types";
 import {
+  CLIENT_ENGINE_LANE_MAX_PENDING,
   CLIENT_ENGINE_PROTOCOL_VERSION,
   type ClientEngineRequest,
   type ClientEngineResponse,
@@ -21,8 +22,17 @@ import {
   __resetEventSocketRegistryForTest,
   bumpRemoteServerSnapshotSeq,
   deleteRemoteServerEventSocketEntry,
+  getRemoteServerEventSocketEntry,
+  remoteServerResumeFence,
+  remoteServerSnapshotEpoch,
   remoteServerSnapshotSeq,
+  setRemoteServerSnapshotSeq,
 } from "./eventSocketRegistry";
+import {
+  connectionRefreshSubject,
+  forgetRefreshTokenForSubject,
+  rememberRefreshToken,
+} from "./refreshTokens";
 import {
   startRemoteServerEventStream,
   type StartRemoteServerEventStreamDeps,
@@ -56,6 +66,8 @@ const remoteState = vi.hoisted(() => ({
     installedAuthoritativeHistory: true,
   })),
   dispatchRemoteSupervisorEvent: vi.fn<(...args: unknown[]) => void>(),
+  noteRemoteRuntimeHistoryBaselines: vi.fn<(threadIds: readonly string[]) => void>(),
+  setRemoteRuntimeHistoryRecovery: vi.fn<() => void>(),
   collectRuntimeEventsFromSupervisoryMessage: (
     value: unknown,
   ): Array<{
@@ -464,6 +476,58 @@ afterEach(async () => {
 // ── Tests ────────────────────────────────────────────────────────────
 
 describe("remote event socket session (V5 2.1)", () => {
+  it("retires the session instead of looping when a refused connect has no grant", async () => {
+    const { deps, store } = makeHarness();
+    const refused = new Proxy(
+      {},
+      {
+        get: () => {
+          throw new RemoteClientError("Expired bearer.", 401, "unauthorized");
+        },
+      },
+    );
+    store.clientFactory = () => refused as unknown as RemoteDesktopClient;
+
+    await startRemoteServerEventStream(deps);
+    await flushAsync(60);
+
+    // The stable re-pair state, and the ladder is retired — a dead grant
+    // never recovers by retrying, so the entry must not re-arm (the visible
+    // "keeps reconnecting" loop). Exactly one failure line: a re-arm loop
+    // would re-fire it on each cycle.
+    expect(deps.setRemoteServerFailure).toHaveBeenCalledTimes(1);
+    expect(deps.setRemoteServerFailure).toHaveBeenCalledWith(
+      DESKTOP_ID,
+      "error",
+      expect.anything(),
+    );
+    expect(getRemoteServerEventSocketEntry(DESKTOP_ID)).toBeUndefined();
+    expect(FakeSocket.instances).toHaveLength(0);
+  });
+
+  it("keeps the session when a refused connect still holds a grant", async () => {
+    const { deps, store } = makeHarness();
+    rememberRefreshToken(DESKTOP_ID, "grant-1");
+    const refused = new Proxy(
+      {},
+      {
+        get: () => {
+          throw new RemoteClientError("Expired bearer.", 401, "unauthorized");
+        },
+      },
+    );
+    store.clientFactory = () => refused as unknown as RemoteDesktopClient;
+
+    await startRemoteServerEventStream(deps);
+    await flushAsync(30);
+
+    // A held grant means the next attempt can recover (its refresh may win):
+    // no terminal state, the session stays installed for the slow retry.
+    expect(deps.setRemoteServerFailure).not.toHaveBeenCalled();
+    expect(getRemoteServerEventSocketEntry(DESKTOP_ID)).not.toBeUndefined();
+    forgetRefreshTokenForSubject(connectionRefreshSubject(DESKTOP_ID));
+  });
+
   it("advances the resume cursor only after frames are applied", async () => {
     const { deps, dispatch } = makeHarness();
     await startRemoteServerEventStream(deps);
@@ -741,6 +805,40 @@ describe("remote event socket session (V5 2.1)", () => {
     expect(remoteServerSnapshotSeq(DESKTOP_ID)).toBe(2);
   });
 
+  it("keeps the socket and applies in order when a UI-thread stall delays the decode replies", async () => {
+    // A stalled main thread still receives every frame; ~3 s of a 60 frames/s
+    // stream is admitted before the first worker reply is handled. That must
+    // not be reported as frame loss (a reconnect replays into the next stall).
+    const { deps } = makeHarness();
+    const engine = getRemoteSocketEngine();
+    expect(engine.isWorkerActive()).toBe(true);
+    const worker = FakeEngineWorker.instances[0]!;
+    worker.autoRespond = false;
+
+    await startRemoteServerEventStream(deps);
+    const socket = FakeSocket.instances[0]!;
+    const burst = 180;
+    // One synchronous burst, as a stalled UI thread receives it.
+    for (let seq = 1; seq <= burst; seq += 1) {
+      socket.deliver(runtimeEventFrame(seq));
+    }
+    await flushAsync(0);
+    expect(socket.closed).toBe(false);
+    expect(remoteState.dispatchRemoteSupervisorEvent).not.toHaveBeenCalled();
+
+    respondToDecodeRequests(worker);
+    await flushAsync();
+    expect(socket.closed).toBe(false);
+    expect(remoteState.dispatchRemoteSupervisorEvent).toHaveBeenCalledTimes(burst);
+    expect(
+      remoteState.dispatchRemoteSupervisorEvent.mock.calls.map((call) => {
+        const forward = call[0] as { batches: { events: { seq: number }[] }[] };
+        return forward.batches[0]!.events[0]!.seq;
+      }),
+    ).toEqual(Array.from({ length: burst }, (_, index) => index + 1));
+    expect(remoteServerSnapshotSeq(DESKTOP_ID)).toBe(burst);
+  });
+
   it("keeps host B online and ordered while host A floods its lane budget", async () => {
     const { deps } = makeHarness();
     const hostB = makeHarness("d2");
@@ -758,9 +856,11 @@ describe("remote event socket session (V5 2.1)", () => {
 
     await deliver(socketA, runtimeEventFrame(1));
     await deliver(socketB, runtimeEventFrame(1));
-    for (let seq = 2; seq <= 70; seq += 1) {
-      await deliver(socketA, runtimeEventFrame(seq));
+    // One synchronous burst, as a stalled UI thread receives it.
+    for (let seq = 2; seq <= CLIENT_ENGINE_LANE_MAX_PENDING + 6; seq += 1) {
+      socketA.deliver(runtimeEventFrame(seq));
     }
+    await flushAsync(0);
 
     // Host A exceeded its lane budget: only A's socket is torn down and
     // force-reconnected; B is untouched.
@@ -1036,5 +1136,162 @@ describe("boundedCatalogChanges upgrade declaration", () => {
     // The connect's own descriptor said unsupported (empty seed), so it
     // overwrites the stale record and the upgrade stays undeclared.
     expect(new URL(socket.url).searchParams.has("catalogChanges")).toBe(false);
+  });
+});
+
+describe("event-stream epoch (eventEpoch=v1)", () => {
+  const params = (socket: FakeSocket) => new URL(socket.url).searchParams;
+  const ready = (seq: number, epoch?: string) =>
+    JSON.stringify({ type: "ready", seq, ...(epoch === undefined ? {} : { epoch }) });
+  const resync = (seq: number) =>
+    JSON.stringify({ type: "resync-required", seq, reason: "Resume cursor is not verified." });
+  const reconnect = async (socket: FakeSocket): Promise<FakeSocket> => {
+    const count = FakeSocket.instances.length;
+    socket.onclose?.();
+    await vi.waitFor(() => expect(FakeSocket.instances.length).toBeGreaterThan(count));
+    return FakeSocket.instances[count]!;
+  };
+
+  it("declares the epoch and binds it on a zero-cursor join", async () => {
+    const { deps } = makeHarness();
+    await startRemoteServerEventStream(deps);
+    const socket1 = FakeSocket.instances[0]!;
+    expect(params(socket1).get("eventEpoch")).toBe("v1");
+    expect(params(socket1).has("lastSeenEpoch")).toBe(false);
+
+    await deliver(socket1, ready(0, "e1"));
+    expect(remoteServerSnapshotEpoch(DESKTOP_ID)).toBe("e1");
+    await deliver(socket1, runtimeEventFrame(1));
+
+    const socket2 = await reconnect(socket1);
+    expect(lastSeenSeqOf(socket2)).toBe(1);
+    expect(params(socket2).get("lastSeenEpoch")).toBe("e1");
+  });
+
+  it("replays within one instance without restart recovery", async () => {
+    setRemoteServerSnapshotSeq(DESKTOP_ID, 5, "e1");
+    const { deps, store, dispatch } = makeHarness();
+    await startRemoteServerEventStream(deps);
+    const socket = FakeSocket.instances[0]!;
+    expect(lastSeenSeqOf(socket)).toBe(5);
+    expect(params(socket).get("lastSeenEpoch")).toBe("e1");
+
+    await deliver(socket, ready(7, "e1"));
+    await deliver(socket, runtimeEventFrame(6));
+    await deliver(socket, runtimeEventFrame(7));
+    expect(dispatch).toHaveBeenCalledTimes(2);
+    expect(remoteServerSnapshotSeq(DESKTOP_ID)).toBe(7);
+    expect(remoteState.resetRemoteThreadProjection).not.toHaveBeenCalled();
+    expect(store.scheduleServerRefresh).not.toHaveBeenCalled();
+  });
+
+  it.each([8, 5])(
+    "runs restart recovery when a new epoch refuses the cursor (new head %i, cursor 5)",
+    async (head) => {
+      setRemoteServerSnapshotSeq(DESKTOP_ID, 5, "e1");
+      const { deps } = makeHarness();
+      await startRemoteServerEventStream(deps);
+      const socket = FakeSocket.instances[0]!;
+
+      await deliver(socket, ready(head, "e2"));
+      // The new epoch is bound only by the server's resync, never by `ready`.
+      expect(remoteServerSnapshotEpoch(DESKTOP_ID)).toBe("e1");
+      await deliver(socket, resync(head));
+      expect(remoteServerSnapshotEpoch(DESKTOP_ID)).toBe("e2");
+      expect(remoteServerSnapshotSeq(DESKTOP_ID)).toBe(head);
+      // A head at or above the old cursor still takes the restart path.
+      expect(remoteState.resetRemoteThreadProjection).toHaveBeenCalledWith(`${DESKTOP_ID}:t1`);
+    },
+  );
+
+  it("keeps the old binding when the resync frame is lost, so the reconnect is refused again", async () => {
+    setRemoteServerSnapshotSeq(DESKTOP_ID, 5, "e1");
+    const { deps } = makeHarness();
+    await startRemoteServerEventStream(deps);
+    const socket1 = FakeSocket.instances[0]!;
+    await deliver(socket1, ready(8, "e2"));
+
+    const socket2 = await reconnect(socket1);
+    expect(lastSeenSeqOf(socket2)).toBe(5);
+    expect(params(socket2).get("lastSeenEpoch")).toBe("e1");
+    await deliver(socket2, ready(8, "e2"));
+    await deliver(socket2, resync(8));
+    expect(remoteServerSnapshotEpoch(DESKTOP_ID)).toBe("e2");
+    expect(remoteState.resetRemoteThreadProjection).toHaveBeenCalledWith(`${DESKTOP_ID}:t1`);
+  });
+
+  it("never lets an HTTP read that crossed the epoch change raise the new cursor", async () => {
+    setRemoteServerSnapshotSeq(DESKTOP_ID, 5, "e1");
+    const harness = makeHarness();
+    const client = (harness.store.clientFactory as () => RemoteDesktopClient)();
+    let releaseHistory!: (
+      value: Awaited<ReturnType<RemoteDesktopClient["boundedThreadHistory"]>>,
+    ) => void;
+    vi.mocked(client.boundedThreadHistory).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          releaseHistory = resolve;
+        }),
+    );
+    // The reconnect recovery's read starts before this socket's `ready`.
+    const started = startRemoteServerEventStream({
+      ...harness.deps,
+      options: { resyncInterestedThreads: true },
+    });
+    await vi.waitFor(() => expect(client.boundedThreadHistory).toHaveBeenCalledTimes(1));
+    const socket = FakeSocket.instances[0]!;
+    await deliver(socket, ready(3, "e2"));
+    await deliver(socket, resync(3));
+    expect(remoteServerSnapshotSeq(DESKTOP_ID)).toBe(3);
+
+    // The late reply may describe the previous instance (seq 500 there).
+    releaseHistory({
+      negotiation: "legacy",
+      page: { snapshotSeq: 500, projects: [], threads: [], runtimeSummariesByThread: {} },
+    } as unknown as Awaited<ReturnType<RemoteDesktopClient["boundedThreadHistory"]>>);
+    await started;
+    await flushAsync();
+    expect(remoteServerSnapshotSeq(DESKTOP_ID)).toBe(3);
+    expect(remoteServerSnapshotEpoch(DESKTOP_ID)).toBe("e2");
+
+    // A read issued under the current binding still advances it.
+    bumpRemoteServerSnapshotSeq(DESKTOP_ID, 10, remoteServerResumeFence(DESKTOP_ID));
+    expect(remoteServerSnapshotSeq(DESKTOP_ID)).toBe(10);
+  });
+
+  it("degrades to seq-only resume against a host that reports no epoch", async () => {
+    const { deps, store } = makeHarness();
+    await startRemoteServerEventStream(deps);
+    const socket1 = FakeSocket.instances[0]!;
+    await deliver(socket1, ready(4));
+    await deliver(socket1, runtimeEventFrame(1));
+    expect(remoteServerSnapshotEpoch(DESKTOP_ID)).toBeUndefined();
+
+    const socket2 = await reconnect(socket1);
+    expect(params(socket2).get("eventEpoch")).toBe("v1");
+    expect(params(socket2).has("lastSeenEpoch")).toBe(false);
+    await deliver(socket2, ready(4));
+    await flushAsync();
+    expect(store.scheduleServerRefresh).not.toHaveBeenCalled();
+    expect(remoteState.resetRemoteThreadProjection).not.toHaveBeenCalled();
+    expect(FakeSocket.instances).toHaveLength(2);
+  });
+
+  it("re-baselines once when an epoch-reporting host is replaced by one without epochs", async () => {
+    setRemoteServerSnapshotSeq(DESKTOP_ID, 5, "e1");
+    const { deps, store } = makeHarness();
+    await startRemoteServerEventStream(deps);
+    const socket1 = FakeSocket.instances[0]!;
+    await deliver(socket1, ready(9));
+    expect(remoteServerSnapshotEpoch(DESKTOP_ID)).toBeUndefined();
+    expect(remoteServerSnapshotSeq(DESKTOP_ID)).toBe(9);
+    expect(remoteState.resetRemoteThreadProjection).toHaveBeenCalledWith(`${DESKTOP_ID}:t1`);
+    expect(store.scheduleServerRefresh).toHaveBeenCalledTimes(1);
+
+    const socket2 = await reconnect(socket1);
+    expect(params(socket2).has("lastSeenEpoch")).toBe(false);
+    await deliver(socket2, ready(9));
+    await flushAsync();
+    expect(store.scheduleServerRefresh).toHaveBeenCalledTimes(1);
   });
 });

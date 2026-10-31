@@ -3,6 +3,7 @@ import { claudeContextWindowEnv, resolveClaudeContextWindowTokens } from "./cont
 import { spawn as spawnChild, type ChildProcess } from "node:child_process";
 import type {
   CanUseTool,
+  EffortLevel,
   ElicitationResult,
   OnElicitation,
   Options as ClaudeQueryOptions,
@@ -55,7 +56,7 @@ import {
   isExitPlanModeToolName,
   isSubAgentParentTool,
 } from "./canonicalMapping/toolClassification";
-import { applyClaudeContextSuffix } from "./argv";
+import { applyClaudeContextSuffix, claudeEffortAndUltracode } from "./argv";
 import {
   buildClaudeQuestionAnswerEvents,
   ClaudeUsageScopeTracker,
@@ -78,6 +79,7 @@ import {
   type ClaudeMapperState,
 } from "./sdkCanonicalMapping";
 import { mapClaudeSlashCommands } from "./probe";
+import { ClaudeContextSteer } from "./contextSteer";
 import { AsyncPromptQueue } from "./promptQueue";
 import {
   ClaudeSteerDelivery,
@@ -139,6 +141,8 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
   launchOptions: AgentLaunchOptions = { suppressResumeConfigOverrides: true };
   /** Inline instructions mean "skill not native" here, and a slash command must stay last. */
   readonly placesTurnContext = true;
+  /** Set only with `mayReceiveContextSteers`: see `ClaudeContextSteer`. */
+  readonly steerContext?: (text: string) => Promise<void>;
 
   private readonly input: CreateStructuredSessionInput;
   private listener: StructuredSessionListener | undefined;
@@ -166,6 +170,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
   private bypassPlanPermissions = false;
   private appliedSandboxDisabled = false;
   private readonly mcpServers: ClaudeSdkMcpServers;
+  private appliedEffort: string | undefined;
   private appliedUltracode = false;
   private appliedFast = false;
   private currentStatus: ThreadStatus = "idle";
@@ -185,6 +190,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
   private submissionGeneration = 0;
   private steerError: string | undefined;
   private readonly steerDelivery = new ClaudeSteerDelivery();
+  private readonly contextSteer: ClaudeContextSteer | undefined;
   // A turn's `result` settles its status immediately, but flipping the thread
   // to idle while a background subagent task is still live would mark a GUI
   // thread finished mid-work. Hold the completion status here until the
@@ -226,6 +232,15 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     this.backgroundTaskControls = new ClaudeBackgroundTaskControls(this.mapperState, () =>
       this.disposed ? undefined : this.queryRuntime,
     );
+    // Its hook costs a control round-trip per tool batch, so only a session
+    // the runtime may steer pays for it.
+    if (input.mayReceiveContextSteers) {
+      const contextSteer = new ClaudeContextSteer({
+        canTakeContext: () => !this.disposed && this.currentTurnInFlight && !this.interruptInFlight,
+      });
+      this.contextSteer = contextSteer;
+      this.steerContext = (text) => contextSteer.steer(text);
+    }
   }
 
   static create(input: CreateStructuredSessionInput): Promise<ClaudeSdkSession> {
@@ -419,7 +434,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     this.bypassPlanPermissions = bypassPlan;
     await this.syncSandbox(query, config);
     if (!isCurrent()) return;
-    await this.syncUltracodeFlag(query);
+    await this.syncEffortFlags(query);
     await this.syncFastMode(query);
 
     const message = await buildSdkUserMessage(
@@ -672,21 +687,26 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
   }
 
   /**
-   * `ultracode` is not a model-level effort: it's a Claude Code session flag
-   * that sends `xhigh` to the model and enables dynamic-workflow orchestration.
-   * It lives in the flag-settings layer (CLI: `--settings '{"ultracode":true}'`;
-   * SDK: applyFlagSettings).
+   * Effort and `ultracode` live in the flag-settings layer once the query runs
+   * (CLI: `--effort` and `--settings '{"ultracode":true}'` at launch). Ultracode
+   * runs at any effort, but an `effortLevel` change sent without the
+   * `ultracode` key turns it off, so an effort change always carries both.
    */
-  private async syncUltracodeFlag(runtime: Query): Promise<void> {
-    const wantUltracode = this.currentConfig.effort === "ultracode";
-    if (wantUltracode === this.appliedUltracode) return;
+  private async syncEffortFlags(runtime: Query): Promise<void> {
+    const { effort, ultracode } = claudeEffortAndUltracode(this.currentConfig);
+    const effortChanged = effort !== this.appliedEffort;
+    if (!effortChanged && ultracode === this.appliedUltracode) return;
     try {
       await runtime.applyFlagSettings({
-        ultracode: wantUltracode ? true : null,
+        ...(effortChanged
+          ? { effortLevel: effort ? (effort.toLowerCase() as EffortLevel) : null }
+          : {}),
+        ultracode: ultracode ? true : null,
       });
-      this.appliedUltracode = wantUltracode;
+      this.appliedEffort = effort;
+      this.appliedUltracode = ultracode;
     } catch {
-      // Older CLIs ignore the unknown flag; effort still degrades to xhigh.
+      // Older CLIs reject unknown flags; the launch effort still applies.
     }
   }
 
@@ -810,6 +830,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     this.mapperState.activeSubAgentToolToTask?.clear();
     this.submissionGeneration++;
     this.steerDelivery.reset();
+    this.contextSteer?.cancel("The Claude query restarted before the context reached it.");
     this.currentTurnAssistantUuid = undefined;
     this.currentTurnInFlight = false;
     this.openedResumeSessionId = resumeSessionId;
@@ -848,6 +869,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     this.goalSteerInterruptInFlight = false;
     this.pendingSteers = this.steersSurvivingInterrupt(false);
     this.steerDelivery.reset();
+    this.contextSteer?.cancel("The Claude turn was stopped before the context reached it.");
     this.promptQueue.clear();
     this.submissionGeneration++;
     this.interruptInFlight = true;
@@ -869,6 +891,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     }
     this.pendingSteers = [];
     this.steerDelivery.reset();
+    this.contextSteer?.cancel("The Claude turn ended before the context reached it.");
     this.promptQueue.clear();
     this.submissionGeneration++;
     this.deferredCompletion.clear();
@@ -1152,6 +1175,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
   private closeSessionResources(): void {
     this.pendingSteers = [];
     this.steerDelivery.reset();
+    this.contextSteer?.cancel("The Claude session closed before the context reached it.");
     this.promptQueue.clear();
     this.submissionGeneration++;
     this.stopGoalTracking();
@@ -1378,6 +1402,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
           break;
         }
       }
+      const launchEffort = claudeEffortAndUltracode(this.currentConfig).effort;
       const options: ClaudeQueryOptions = {
         cwd: projectCwd(this.input.projectLocation),
         model,
@@ -1398,17 +1423,10 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
         forwardSubagentText: true,
         canUseTool: this.canUseTool,
         onElicitation: this.onElicitation,
+        ...(this.contextSteer ? { hooks: this.contextSteer.hooks } : {}),
         env: { ...env, ...claudeContextWindowEnv(contextSize) },
-        ...(this.currentConfig.effort
-          ? {
-              // `ultracode` is not a model-level effort value — the CLI rejects
-              // it on `--effort`. It maps to `xhigh` reasoning + dynamic
-              // workflows, where the workflows toggle is sent below via
-              // applyFlagSettings after the query starts.
-              effort: (this.currentConfig.effort === "ultracode"
-                ? "xhigh"
-                : this.currentConfig.effort) as NonNullable<ClaudeQueryOptions["effort"]>,
-            }
+        ...(launchEffort
+          ? { effort: launchEffort as NonNullable<ClaudeQueryOptions["effort"]> }
           : {}),
         ...(claudeExecutablePath ? { pathToClaudeCodeExecutable: claudeExecutablePath } : {}),
         ...(!deferMcp && Object.keys(mcpServers).length > 0
@@ -1430,7 +1448,9 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
         permissionMode === "bypassPermissions" ? undefined : permissionMode;
       this.appliedSandboxDisabled = false;
       void this.refreshSlashCommands(this.queryRuntime);
-      void this.syncUltracodeFlag(this.queryRuntime);
+      // The ultracode flag is sent below via applyFlagSettings.
+      this.appliedEffort = launchEffort;
+      void this.syncEffortFlags(this.queryRuntime);
       void this.syncFastMode(this.queryRuntime);
       return this.queryRuntime;
     })();
@@ -1460,6 +1480,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
           this.submissionGeneration++;
           this.pendingSteers = [];
           this.steerDelivery.reset();
+          this.contextSteer?.cancel("The Claude query failed before the context reached it.");
           this.promptQueue.clear();
           if (!this.disposed) {
             captureSupervisorException(error, {
@@ -1576,6 +1597,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
             : {}),
           ...(callbackOptions.toolUseID ? { toolUseID: callbackOptions.toolUseID } : {}),
           ...(suggestions ? { suggestions } : {}),
+          cwd: projectCwd(this.input.projectLocation),
         }),
       ]);
       this.updatePendingRequestStatus();
@@ -1702,6 +1724,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
       // Only main-thread assistant uuids are valid resume anchors; a sub-agent
       // uuid (parent_tool_use_id set) must never become a rollback resume point.
       this.currentTurnAssistantUuid = message.uuid;
+      this.contextSteer?.observeAssistantMessage(message);
     }
 
     let wasInterrupted = false;
@@ -1770,6 +1793,8 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
       }
       this.currentTurnAssistantUuid = undefined;
       this.currentTurnInFlight = false;
+      // A later batch belongs to another turn: the caller falls back instead.
+      this.contextSteer?.cancel("The Claude turn ended before the context reached it.");
       const goalSteerInterrupt = this.goalSteerInterruptInFlight;
       this.goalSteerInterruptInFlight = false;
       // Stop the 15s goal-tracking poller on every turn end — including

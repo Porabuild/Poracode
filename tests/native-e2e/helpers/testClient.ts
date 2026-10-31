@@ -165,6 +165,8 @@ export function openSocket(
     lastSeenSeq?: number;
     threadItemInterests?: readonly string[];
     desktopInternal?: boolean;
+    /** Declares `eventEpoch=v1`; a string is also sent as `lastSeenEpoch`. */
+    eventEpoch?: string | true;
   },
 ): WebSocket {
   return openBufferedSocket(wsBaseUrl, ticket, query).ws;
@@ -177,6 +179,8 @@ export function openBufferedSocket(
     lastSeenSeq?: number;
     threadItemInterests?: readonly string[];
     desktopInternal?: boolean;
+    /** Declares `eventEpoch=v1`; a string is also sent as `lastSeenEpoch`. */
+    eventEpoch?: string | true;
   },
 ): BufferedSocket {
   const url = new URL("ws", wsBaseUrl);
@@ -189,6 +193,11 @@ export function openBufferedSocket(
   }
   if (query?.desktopInternal === true) {
     url.searchParams.set("desktopInternal", "1");
+  }
+  if (query?.eventEpoch !== undefined) {
+    url.searchParams.set("eventEpoch", "v1");
+    if (typeof query.eventEpoch === "string")
+      url.searchParams.set("lastSeenEpoch", query.eventEpoch);
   }
   const ws = new WebSocket(url);
   const queued: unknown[] = [];
@@ -252,6 +261,8 @@ export async function openReadySocket(
     lastSeenSeq?: number;
     threadItemInterests?: readonly string[];
     desktopInternal?: boolean;
+    /** Declares `eventEpoch=v1`; a string is also sent as `lastSeenEpoch`. */
+    eventEpoch?: string | true;
   },
 ): Promise<{ ws: WebSocket; ready: unknown; next: () => Promise<unknown> }> {
   const ticket = await issueTicket(harness.httpBaseUrl, accessToken);

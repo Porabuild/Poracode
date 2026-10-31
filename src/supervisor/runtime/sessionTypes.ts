@@ -95,6 +95,12 @@ export interface SessionRuntime {
   config: ThreadConfig;
   /** Fingerprint last delivered with an admitted structured prompt. */
   crewBriefDelivered?: string | undefined;
+  /**
+   * The crew lead edited files itself since its last submitted prompt; the
+   * next prompt carries a one-time reminder to delegate. In memory only; a
+   * restart's replacement session keeps it.
+   */
+  crewLeadEditedFiles?: boolean | undefined;
   crossagentsMcpAttached?: boolean | undefined;
   crossagentsMcpAvailable?: boolean | undefined;
   /** Effective provider launch config with globally disabled MCP cleared. */

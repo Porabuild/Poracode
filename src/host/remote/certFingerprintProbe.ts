@@ -1,4 +1,5 @@
 import { connect as tlsConnect, type PeerCertificate } from "node:tls";
+import { isIP } from "node:net";
 
 /**
  * V6 A.1: observes the leaf certificate a TLS server actually presents.
@@ -22,7 +23,7 @@ export async function probeTlsCertificateFingerprint(url: string | URL): Promise
         {
           host: hostname,
           port,
-          servername: hostname,
+          ...(isIP(hostname) === 0 ? { servername: hostname } : {}),
           rejectUnauthorized: false,
         },
         () => {

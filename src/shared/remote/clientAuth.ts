@@ -106,13 +106,26 @@ export abstract class RemoteClientAuth extends RemoteClientTransport {
    * new tokens or null when this client has no lifecycle to refresh with.
    */
   override async refreshTokens(): Promise<RemoteTokenSnapshot | null> {
+    // The shared bearer as of this call is the one being renewed (an idle
+    // client's own copy may be older); a rotation committed after this point
+    // is adopted inside the exclusive section instead of spending the grant.
+    this.syncAccessToken();
+    const rejected = this.accessToken;
     // Method call — an extracted reference would drop the lifecycle's `this`.
     if (this.tokenLifecycle?.runExclusive)
-      return this.tokenLifecycle.runExclusive(() => this.refreshTokensExclusive());
-    return this.refreshTokensExclusive();
+      return this.tokenLifecycle.runExclusive(() => this.refreshTokensExclusive(rejected));
+    return this.refreshTokensExclusive(rejected);
   }
 
-  private async refreshTokensExclusive(): Promise<RemoteTokenSnapshot | null> {
+  private async refreshTokensExclusive(
+    rejected: string | undefined,
+  ): Promise<RemoteTokenSnapshot | null> {
+    // A sibling client or another process may have rotated while we waited:
+    // a second exchange would rotate away the bearer it just committed.
+    this.syncAccessToken();
+    if (this.accessToken !== undefined && this.accessToken !== rejected) {
+      return { accessToken: this.accessToken };
+    }
     // Re-read inside the exclusive section so a concurrent process's rotation
     // (persisted while we waited) is what we present, not a stale snapshot.
     const refreshToken = this.tokenLifecycle?.refreshToken();
@@ -125,7 +138,7 @@ export abstract class RemoteClientAuth extends RemoteClientTransport {
     }
     const tokens = await pending;
     this.accessToken = tokens.accessToken;
-    this.tokenLifecycle?.onTokensRefreshed(tokens);
+    await this.tokenLifecycle?.onTokensRefreshed(tokens);
     return tokens;
   }
 

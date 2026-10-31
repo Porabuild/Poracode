@@ -137,7 +137,7 @@ function fakeParentClient(): RemoteDesktopClient {
     setCertFingerprintPin: () => undefined,
     refreshTokens: async () => {
       const snapshot: RemoteTokenSnapshot = { accessToken: "parent-rotated", refreshToken: "r2" };
-      lifecycle?.onTokensRefreshed(snapshot);
+      await lifecycle?.onTokensRefreshed(snapshot);
       return snapshot;
     },
     environmentWebSocketTicket: async () => ({ ticket: "t", expiresAt: "" }),

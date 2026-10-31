@@ -17,6 +17,7 @@ import {
   releaseEnvironmentChildGrant,
 } from "./environmentSessions";
 import { rememberRefreshTokenForSubject, writeRefreshTokenToVault } from "./refreshTokens";
+import { bumpRemoteServerGeneration } from "./eventSocketRegistry";
 import {
   environmentParentCacheKey,
   environmentParentRef,
@@ -436,6 +437,7 @@ export const useEnvironmentManagementStore = create<EnvironmentManagementState>(
             created.client.dispose();
             releaseEnvironmentChildGrant(created.childGrantSubject, created.grantOwner);
           }
+          bumpRemoteServerGeneration(record.connectionId!);
           useRemoteServersStore.setState((previous) => ({
             servers: [
               ...previous.servers.filter(

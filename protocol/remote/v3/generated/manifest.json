@@ -1327,6 +1327,11 @@
       "scope": "session:operate"
     },
     {
+      "name": "listImportableSessions",
+      "owner": "desktop",
+      "scope": "projects:manage"
+    },
+    {
       "name": "listThreadSessionActions",
       "owner": "thread",
       "scope": "session:read"
@@ -2252,7 +2257,9 @@
       "lastSeenSeq",
       "threadItemInterests",
       "desktopInternal",
-      "lastDesktopSeq"
+      "lastDesktopSeq",
+      "eventEpoch",
+      "lastSeenEpoch"
     ]
   }
 }

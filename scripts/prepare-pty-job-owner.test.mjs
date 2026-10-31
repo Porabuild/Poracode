@@ -114,6 +114,44 @@ if (process.platform !== "win32" || !["x64", "arm64"].includes(process.arch)) {
     readPtyJobOwnerArtifact(outDir, "win32-arm64");
   });
 
+  void test("host-only preparation stages just the host target", () => {
+    const outDir = join(root, "host-only");
+    const commands = [];
+    const manifest = preparePtyJobOwner({
+      outDir,
+      hostOnly: true,
+      run: (command, args, options) => {
+        if (command === "rustc") commands.push(args[args.indexOf("--target") + 1]);
+        return fakeCompiler(command, args, options);
+      },
+    });
+    assert.deepEqual(commands, [
+      process.arch === "x64" ? "x86_64-pc-windows-msvc" : "aarch64-pc-windows-msvc",
+    ]);
+    assert.deepEqual(Object.keys(manifest.targets), [`win32-${process.arch}`]);
+  });
+
+  void test("host-only preparation reuses a cached host without retrying a skipped cross target", () => {
+    const outDir = join(root, "host-only-cross-skip");
+    const skipped = preparePtyJobOwner({
+      outDir,
+      run: (command, args, options) => {
+        if (command === "rustc" && args.includes("aarch64-pc-windows-msvc"))
+          throw new Error("aarch64-pc-windows-msvc: linker not found");
+        return fakeCompiler(command, args, options);
+      },
+    });
+    const manifest = preparePtyJobOwner({
+      outDir,
+      hostOnly: true,
+      run: (command, args, options) => {
+        assert.notEqual(command, "rustc");
+        return fakeCompiler(command, args, options);
+      },
+    });
+    assert.deepEqual(manifest, skipped);
+  });
+
   void test("refuses a compiled helper version mismatch before publishing a manifest", () => {
     const outDir = join(root, "wrong-helper-version");
     assert.throws(

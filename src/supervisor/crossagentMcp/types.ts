@@ -18,16 +18,10 @@ import type { CompactResult } from "./compactResult";
 import type { CrossagentRoutingOverride } from "@/shared/settings";
 import type { HostDiagnosticsSnapshot } from "@/shared/lsp";
 import type { DispatchProvenance, SubagentDispatchTrace } from "./dispatchTrace";
+import type { ModelTier } from "@/shared/modelTier";
 
 /** Terminal states a subagent run can settle into. */
 export type SubagentRunStatus = "running" | "completed" | "failed" | "cancelled";
-
-/**
- * Coarse capability/cost hint for a model, so calling agents can route without
- * guessing from labels alone: fast-cheap for light tasks, max-capability for
- * the hardest ones, balanced as the default.
- */
-export type ModelTier = "fast-cheap" | "balanced" | "max-capability";
 
 /** A model choice offered to the calling agent for a spawnable agent. */
 export interface SpawnableAgentModel {

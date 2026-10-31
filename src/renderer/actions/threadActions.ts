@@ -34,6 +34,7 @@ import {
 } from "@/renderer/state/managedRootCatalog/rootCatalogStore";
 import { refreshManagedRootCatalogSoon } from "@/renderer/state/managedRootCatalog/rootCatalogAdapter";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import { isRemoteProjectUnreachable } from "@/renderer/state/remoteServers/reachability";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useSidebarUiStore } from "@/renderer/state/sidebarUiStore";
 import { shouldConfirmThreadDelete } from "@/renderer/state/threadDeletePreference";
@@ -211,13 +212,23 @@ function resolveNewThreadProjectId(): string | undefined {
     (isHomeProject(project) || !project.disabled) &&
     isProjectInWorkspace(project, activeWorkspaceId, knownWorkspaceIds);
   const visibleId = (projectId: string | undefined) =>
-    store.projects.find((project) => project.id === projectId && isVisible(project))?.id;
+    store.projects.find(
+      (project) =>
+        project.id === projectId &&
+        isVisible(project) &&
+        // A remembered or on-screen Home must obey the same online preference
+        // as the fallback below. Explicit project targets bypass this resolver.
+        (!isHomeProject(project) || !isRemoteProjectUnreachable(project)),
+    )?.id;
 
   return (
     visibleId(getCurrentProjectId()) ??
     visibleId(getLastWorkspaceProjectId()) ??
+    // A browser client mirrors one Home per paired machine; skip offline ones.
     (useSharedSettings.getState().homeScopeEnabled
-      ? store.projects.find(isHomeProject)?.id
+      ? store.projects.find(
+          (project) => isHomeProject(project) && !isRemoteProjectUnreachable(project),
+        )?.id
       : undefined) ??
     store.projects.find((project) => !isHomeProject(project) && isVisible(project))?.id ??
     // Nothing in this workspace: better a draft in another workspace's project
@@ -926,7 +937,9 @@ export function deleteThread(threadId: string, worktreePath?: string, projectId?
     useAppStore.getState().deleteThread(threadId);
     return;
   }
-  deleteWorktreeGroup(project.id, worktreePath, [threadId]);
+  // A bounded catalog can omit siblings. The host's pre-effect refusal lets
+  // this thread deletion keep their worktree without deleting unseen threads.
+  deleteWorktreeGroup(project.id, worktreePath, [threadId], () => deleteThreadOnly(threadId));
 }
 
 export function deleteThreadsAndOwnedWorktrees(threads: readonly Thread[]): void {
@@ -953,6 +966,9 @@ export function deleteThreadsAndOwnedWorktrees(threads: readonly Thread[]): void
         thread.projectId,
         thread.worktreePath,
         siblings.map((candidate) => candidate.id),
+        () => {
+          for (const sibling of siblings) deleteThreadOnly(sibling.id);
+        },
       );
     } else {
       deleteThread(thread.id);

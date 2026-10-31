@@ -102,6 +102,40 @@ class RemoteWebSocketClientIntegrationTest {
     }
 
     @Test
+    fun suspendedBootstrapResumesWithItsSnapshotEpoch() {
+        server.enqueue(
+            MockResponse().withWebSocketUpgrade(
+                object : okhttp3.WebSocketListener() {
+                    override fun onOpen(webSocket: okhttp3.WebSocket, response: okhttp3.Response) {
+                        webSocket.send("""{"type":"ready","seq":12,"epoch":"snapshot-epoch"}""")
+                    }
+                },
+            ),
+        )
+        val client = RemoteWebSocketClient(
+            api = api(),
+            scope = scopes,
+            endpoint = null,
+            httpClient = OkHttpClient.Builder()
+                .connectTimeout(2, TimeUnit.SECONDS)
+                .readTimeout(0, TimeUnit.MILLISECONDS)
+                .build(),
+            networkGate = gate,
+        )
+        try {
+            client.armSuspended(12, "snapshot-epoch")
+            assertEquals(12 to "snapshot-epoch", client.appliedCursor())
+            assertEquals(0, server.requestCount)
+            client.resumeFromForeground()
+            val upgrade = server.takeRequest(5, TimeUnit.SECONDS)
+            assertEquals("12", upgrade?.requestUrl?.queryParameter("lastSeenSeq"))
+            assertEquals("snapshot-epoch", upgrade?.requestUrl?.queryParameter("lastSeenEpoch"))
+        } finally {
+            client.destroy()
+        }
+    }
+
+    @Test
     fun ticketToReadyMarksOnlineExactlyOnce() {
         // MockWebServer WebSocket: accept and send ready.
         server.enqueue(

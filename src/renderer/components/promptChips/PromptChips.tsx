@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { useLingui } from "@lingui/react/macro";
-import { MessageSquareText, MessagesSquare, Plug, Sparkles } from "lucide-react";
+import { MessageSquareText, MessagesSquare, Plug, Sparkles, Target } from "lucide-react";
 import { PluginIcon } from "@/renderer/components/plugins/PluginIcon";
 import { diffCommentTarget, threadMentionLabel } from "@/shared/promptContent";
 import { InlineFilePathChip } from "@/renderer/components/thread/ChatPane/parts/items/InlineFilePathChip";
@@ -22,7 +22,13 @@ export function promptChipVisual(
   switch (chip.kind) {
     case "command":
       return {
-        icon: chip.skillName ? <Sparkles aria-hidden="true" /> : "/",
+        icon: chip.skillName ? (
+          <Sparkles aria-hidden="true" />
+        ) : chip.command === "goal" ? (
+          <Target aria-hidden="true" />
+        ) : (
+          "/"
+        ),
         label: chip.command,
         ...(chip.skillName ? { skillName: chip.skillName } : {}),
       };

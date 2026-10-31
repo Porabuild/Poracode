@@ -175,7 +175,7 @@ holds one immutable release directory per version plus a `current` symlink:
 ```
 <prefix>/                          install prefix (e.g. /opt/poracode)
 ├── releases/<id>/                 one immutable installed release
-│   ├── package.json               "poracode-server", private, engines node>=24.10,
+│   ├── package.json               "poracode-server", private, engines node>=26.13,
 │   │                              dependencies pinned to the exact runtime closure
 │   ├── npm-shrinkwrap.json        frozen transitive dependency closure
 │   ├── lib/                       built CommonJS bundles for the release (immutable)
@@ -281,12 +281,14 @@ rather than the web client, and the default artifact serves the bundled client.
 
 ### 3.3 Install on the target host
 
-Requirements: Node.js >= 24.10 on PATH (or a known absolute path), `npm`, and
+Requirements: Node.js >= 26.13 on PATH (or a known absolute path), `npm`, and
 `tar`. No C/C++ toolchain, Python, or `node-gyp` is needed — the artifact ships
 verified prebuilt bindings — and no repository checkout is needed: the artifact
 ships the installer and its imports under `scripts/`, and the unit under
 `packaging/systemd/`. The host needs access to the npm registry (or a mirror)
 for the frozen dependency closure.
+
+Linux hosts also need `libatomic` for the official Node.js 26 binaries.
 
 ```sh
 set -eu
@@ -342,7 +344,7 @@ fails loudly).
 
 #### Windows (win32-x64)
 
-Requirements: Node.js >= 24.10 (with the `npm` it ships), and `tar.exe` from
+Requirements: Node.js >= 26.13 (with the `npm` it ships), and `tar.exe` from
 `%SystemRoot%\System32` (bsdtar, present on Windows 10 1803+ and Windows 11).
 Git for Windows' GNU tar is not used: it reads `C:\x.tar.gz` as `host:file`.
 No compiler, Python or Visual Studio is needed; the artifact ships the
@@ -510,7 +512,7 @@ No service file is shipped for macOS; this example binds loopback and uses the
   <key>Label</key><string>dev.poracode.server</string>
   <key>ProgramArguments</key>
   <array>
-    <!-- absolute node path on this host, >= 24.10 -->
+    <!-- absolute node path on this host, >= 26.13 -->
     <string>/opt/homebrew/bin/node</string>
     <string>/opt/poracode/current/lib/server.cjs</string>
   </array>
@@ -1594,7 +1596,7 @@ The standalone server is built for **macOS (darwin-arm64, darwin-x64)**,
 target keys (`linuxmusl-*`) resolved at runtime by glibc detection; a target is
 published only when its release-matrix leg produced and qualified it. Windows
 x64 is built and qualified natively on a Windows runner (win32-arm64 is not
-advertised). Node.js >= 24.10 is the floor. The Windows install path and
+advertised). Node.js >= 26.13 is the floor. The Windows install path and
 service recipe are in §3.3; WSL projects are reached through the Windows host
 (`wsl.exe`), not by running this server inside a distro. Unsupported targets
 fail closed.

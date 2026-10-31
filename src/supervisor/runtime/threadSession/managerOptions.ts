@@ -11,7 +11,9 @@ import type {
 } from "@/shared/contracts";
 import type { CrossagentMcpHttpConfig } from "@/supervisor/agents/crossagentMcp";
 import type { WslHostAccessResolver } from "@/supervisor/wsl/hostAccess";
+import type { DirtySetSnapshot } from "../../git/dirtySetSnapshot";
 import type { HostResourceAdmission } from "../hostResourceAdmission";
+import type { MemberRunActivity } from "../shellEditTracker";
 import type { AgentAdapter, AgentNativePlugin } from "../../agents/base";
 import type { WindowsShellPreference } from "../../shellPreference";
 import type { HostDiagnosticsSnapshot } from "@/shared/lsp";
@@ -102,7 +104,19 @@ export interface ThreadSessionManagerOptions {
       response: unknown,
       parentThreadId: string,
     ): Promise<boolean>;
+    /**
+     * Member runs of a lead thread: how many hold work now and how many ever
+     * started. Lets crew lead edit tracking rule out worktree changes a member
+     * could have made; absent, shell edits are not tracked.
+     */
+    memberRunActivity?(threadId: string): MemberRunActivity;
   };
+  /**
+   * Optional: fingerprints a worktree's dirty set (see `readDirtySetSnapshot`)
+   * so a crew lead's shell-command edits can be noticed; absent, only
+   * provider-reported file edits count.
+   */
+  readDirtySetSnapshot?(location: ProjectLocation): Promise<DirtySetSnapshot | undefined>;
   /**
    * Optional: resolves how a WSL distro reaches host-bound services (NAT
    * gateway IP vs. mirrored-mode loopback) so built-in MCP URLs can be

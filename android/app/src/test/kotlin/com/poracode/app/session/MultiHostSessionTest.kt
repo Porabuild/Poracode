@@ -23,6 +23,7 @@ import com.poracode.app.storage.LegacySourceBytes
 import com.poracode.app.storage.MultiHostCredentialRepository
 import com.poracode.app.storage.SessionCredentials
 import com.poracode.app.transport.ForegroundNetworkGate
+import com.poracode.app.transport.RemoteEventSocket
 import java.io.File
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -63,6 +64,54 @@ class MultiHostSessionTest {
         // instead of seeding the cursor at 0 (full-history replay).
         pool.forget(SessionPoolKey.Host(second))
         assertEquals(137, pool.cachedLastSeenSeq(SessionPoolKey.Host(second)))
+    }
+
+    @Test
+    fun cachedCursorKeepsItsEventEpochSoARestartedHostRefusesIt() {
+        val pool = SessionPool()
+        val first = id(1)
+        val second = id(2)
+        pool.updatePolicy(first, listOf(first, second))
+        val secondarySocket = FakeSocket()
+        pool.install(SessionPoolKey.Host(first), FakeSocket())
+        pool.install(SessionPoolKey.Host(second), secondarySocket)
+        secondarySocket.noteAuthoritativeSnapshot(137)
+        secondarySocket.epoch = "e1"
+
+        pool.forget(SessionPoolKey.Host(second))
+        assertEquals(137, pool.cachedLastSeenSeq(SessionPoolKey.Host(second)))
+        assertEquals("e1", pool.cachedLastSeenEpoch(SessionPoolKey.Host(second)))
+
+        // An unbound cursor clears the cached epoch instead of keeping a stale one.
+        val rewarmed = FakeSocket()
+        pool.install(SessionPoolKey.Host(second), rewarmed)
+        rewarmed.noteAuthoritativeSnapshot(140)
+        pool.forget(SessionPoolKey.Host(second))
+        assertEquals(140, pool.cachedLastSeenSeq(SessionPoolKey.Host(second)))
+        assertEquals(null, pool.cachedLastSeenEpoch(SessionPoolKey.Host(second)))
+    }
+
+    @Test
+    fun neverCombinesASequenceWithAnEpochReadAfterAConcurrentReset() {
+        val pool = SessionPool()
+        val first = id(1)
+        val second = id(2)
+        pool.updatePolicy(first, listOf(first, second))
+        var epoch = "old-instance"
+        val socket = object : RemoteEventSocket by FakeSocket() {
+            override fun appliedSeq(): Int? {
+                epoch = "new-instance"
+                return 500
+            }
+            override fun appliedEpoch(): String = epoch
+            override fun appliedCursor(): Pair<Int?, String?> = 500 to "old-instance"
+        }
+        pool.install(SessionPoolKey.Host(second), socket)
+
+        pool.forget(SessionPoolKey.Host(second))
+
+        assertEquals(500, pool.cachedLastSeenSeq(SessionPoolKey.Host(second)))
+        assertEquals("old-instance", pool.cachedLastSeenEpoch(SessionPoolKey.Host(second)))
     }
 
     @Test

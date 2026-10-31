@@ -88,6 +88,9 @@ enum RichChatStrings {
     return String(format: format, locale: .current, Int64(count))
   }
   static let thinking = value("rich_chat_thinking", "Thinking")
+  /// Generic name of the per-thread workflow-mode toggle; a provider that names
+  /// the mode itself advertises `workflowLabel`, which wins over this.
+  static let workflows = value("rich_chat_workflows", "Workflows")
   static let invalidAttachment = value(
     "rich_chat_attachment_invalid", "Choose a non-empty file no larger than 20 MiB."
   )

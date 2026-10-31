@@ -92,7 +92,7 @@ jobs:
     # The clearly labeled self-hosted macOS ARM64 qualification runner: enroll
     # it with exactly these labels. It must stay idle for the whole window —
     # the cell's contamination gate refuses a noisy host, and the concurrency
-    # group above only serializes per mode. Node 24 + Bun must be reachable
+    # group above only serializes per mode. Node 26 + Bun must be reachable
     # through the actions below (they provision both on the runner).
     runs-on: [self-hosted, macOS, ARM64, v2-perf-qualification]
     timeout-minutes: 1560 # 26h: 24h cell + install + managed-launcher build + teardown headroom

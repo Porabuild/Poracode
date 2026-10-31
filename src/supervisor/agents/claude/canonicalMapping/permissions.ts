@@ -1,3 +1,4 @@
+import { posix, win32 } from "node:path";
 import type { PermissionUpdate } from "@anthropic-ai/claude-agent-sdk";
 import type {
   PermissionRequestDetails,
@@ -27,6 +28,8 @@ export function mapClaudePermissionRequest(input: {
   decisionReason?: string;
   toolUseID?: string;
   suggestions?: readonly PermissionUpdate[];
+  /** Session cwd; directory scopes inside it are labelled relative to it. */
+  cwd?: string;
 }): RuntimeEvent {
   const isExitPlanMode = isExitPlanModeToolName(input.toolName);
   const summary = isExitPlanMode
@@ -51,21 +54,25 @@ export function mapClaudePermissionRequest(input: {
     payload: {
       summary,
       details,
-      options: isExitPlanMode ? EXIT_PLAN_MODE_OPTIONS : buildPermissionOptions(suggestions),
+      options: isExitPlanMode
+        ? EXIT_PLAN_MODE_OPTIONS
+        : buildPermissionOptions(suggestions, input.cwd),
     },
   };
 }
 
-function buildPermissionOptions(suggestions: readonly PermissionSuggestion[]): UserInputOption[] {
+function buildPermissionOptions(
+  suggestions: readonly PermissionSuggestion[],
+  cwd: string | undefined,
+): UserInputOption[] {
   const options: UserInputOption[] = [{ optionId: "accept", label: "Allow once" }];
   if (suggestions.length > 0) {
     suggestions.forEach((suggestion, index) => {
+      const description = formatSuggestionDescription(suggestion, cwd);
       options.push({
         optionId: `${ACCEPT_SUGGESTION_OPTION_PREFIX}${index}`,
-        label: formatSuggestionLabel(suggestion),
-        ...(formatSuggestionDescription(suggestion)
-          ? { description: formatSuggestionDescription(suggestion) as string }
-          : {}),
+        label: formatSuggestionLabel(suggestion, cwd),
+        ...(description ? { description } : {}),
       });
     });
   }
@@ -73,7 +80,7 @@ function buildPermissionOptions(suggestions: readonly PermissionSuggestion[]): U
   return options;
 }
 
-function formatSuggestionLabel(s: PermissionSuggestion): string {
+function formatSuggestionLabel(s: PermissionSuggestion, cwd: string | undefined): string {
   switch (s.type) {
     case "addRules":
     case "replaceRules":
@@ -86,20 +93,41 @@ function formatSuggestionLabel(s: PermissionSuggestion): string {
     case "setMode":
       return `Switch to ${s.mode} mode${destSuffix(s.destination)}`;
     case "addDirectories":
-      return `Allow directories ${formatList(s.directories)}${destSuffix(s.destination)}`;
+      return `Allow directories ${formatList(s.directories.map((d) => shortDirectory(d, cwd)))}${destSuffix(s.destination)}`;
     case "removeDirectories":
-      return `Block directories ${formatList(s.directories)}${destSuffix(s.destination)}`;
+      return `Block directories ${formatList(s.directories.map((d) => shortDirectory(d, cwd)))}${destSuffix(s.destination)}`;
   }
 }
 
-function formatSuggestionDescription(s: PermissionSuggestion): string | undefined {
+function formatSuggestionDescription(
+  s: PermissionSuggestion,
+  cwd: string | undefined,
+): string | undefined {
   if (s.type === "addRules" || s.type === "replaceRules" || s.type === "removeRules") {
     const patterns = s.rules
       .map((r) => r.ruleContent)
       .filter((v): v is string => typeof v === "string" && v.length > 0);
     return patterns.length > 0 ? patterns.join(" · ") : undefined;
   }
+  if (s.type === "addDirectories" || s.type === "removeDirectories") {
+    // The label shows short paths; keep every full path inspectable.
+    const shortened =
+      s.directories.length > 3 || s.directories.some((d) => shortDirectory(d, cwd) !== d);
+    return shortened ? s.directories.join("\n") : undefined;
+  }
   return undefined;
+}
+
+/** Project-relative when inside `cwd`; other paths stay absolute because some
+ *  clients show only the label, not the description. */
+function shortDirectory(directory: string, cwd: string | undefined): string {
+  if (!cwd) return directory;
+  const path = /^[A-Za-z]:[\\/]|^\\\\/.test(directory) ? win32 : posix;
+  const relative = path.relative(cwd, directory);
+  if (relative === "") return `.${path.sep}`;
+  if (relative === ".." || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative))
+    return directory;
+  return `${relative}${path.sep}`;
 }
 
 function formatList(values: readonly string[]): string {

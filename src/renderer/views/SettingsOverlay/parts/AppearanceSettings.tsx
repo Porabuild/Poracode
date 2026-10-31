@@ -13,13 +13,7 @@ import { Select, ToggleSwitch } from "@/renderer/components/common";
 import { SettingRow, SettingsPage } from "./SettingsForm";
 import { ThemeGallery } from "./ThemeGallery";
 import { ThemeSwatch } from "./ThemeSwatch";
-import {
-  fontSizeOptions,
-  themeOptions,
-  threadDocksPlacementOptions,
-  useLocalizedOptions,
-} from "./settingsOptions";
-import type { ThreadDocksPlacement } from "@/shared/settings";
+import { fontSizeOptions, themeOptions, useLocalizedOptions } from "./settingsOptions";
 
 export function AppearanceSettings() {
   const { t } = useLingui();
@@ -86,9 +80,6 @@ export function AppearanceSettings() {
   };
 
   const themeOpts = useLocalizedOptions(themeOptions);
-  const threadDocksPlacement = useSharedSettings((state) => state.threadDocksPlacement);
-  const setThreadDocksPlacement = useSharedSettings((state) => state.setThreadDocksPlacement);
-  const threadDocksPlacementOpts = useLocalizedOptions(threadDocksPlacementOptions);
 
   return (
     <SettingsPage title={t`Appearance`}>
@@ -147,29 +138,6 @@ export function AppearanceSettings() {
         </button>
         {themeOpen ? <ThemeGallery /> : null}
       </div>
-
-      <SettingRow
-        anchorId="appearance.threadDocksPlacement"
-        title={t`Thread docks`}
-        description={
-          <Trans>
-            Where a thread's goal, plan, agents, and background tasks appear. In the right panel,
-            compact bubbles above the composer open them.
-          </Trans>
-        }
-      >
-        <Select
-          aria-label={t`Thread docks placement`}
-          className="w-[200px] shrink-0"
-          options={threadDocksPlacementOpts}
-          value={threadDocksPlacement}
-          onChange={(value) => {
-            startTransition(() => {
-              setThreadDocksPlacement(value as ThreadDocksPlacement);
-            });
-          }}
-        />
-      </SettingRow>
 
       <SettingRow
         anchorId="appearance.guiChatFontSize"

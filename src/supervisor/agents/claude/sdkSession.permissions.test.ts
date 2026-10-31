@@ -451,3 +451,27 @@ it.each(["acceptForSession", "accept-suggestion-9"])(
     await expect(reply).resolves.toEqual({ behavior: "allow", updatedInput: { command: "pwd" } });
   },
 );
+
+it("labels a directory grant relative to the session project", async () => {
+  const h = await createSession({ ...plan, approvalPolicy: "default" });
+  const reply = h.options.canUseTool!(
+    "Bash",
+    { command: "touch notes/a.txt" },
+    callbackOptions({
+      suggestions: [
+        { type: "addDirectories", directories: ["/fixture/notes"], destination: "session" },
+      ],
+    }),
+  );
+  const request = h.events.find((event) => event.type === "request.opened");
+  if (!request || request.type !== "request.opened") throw new Error("Missing approval");
+  expect(request.payload.options).toContainEqual({
+    optionId: "accept-suggestion-0",
+    label: "Allow directories notes/",
+    description: "/fixture/notes",
+  });
+  await h.session.resolveServerRequest(request.requestId as ThreadServerRequestId, {
+    optionId: "decline",
+  });
+  await expect(reply).resolves.toMatchObject({ behavior: "deny" });
+});

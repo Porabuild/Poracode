@@ -55,6 +55,14 @@ export const AssistantMessage = memo(function AssistantMessage({
       ? undefined
       : selectCompletedTurnsByAnchorItem(state, threadId).get(item.id)?.endedAt,
   );
+  const latestCompletedAnswerId = useAppStore((state) => {
+    let latestId: string | undefined;
+    for (const anchorId of selectCompletedTurnsByAnchorItem(state, threadId).keys()) {
+      const anchor = state.runtimeItemsByIdByThread[threadId]?.[anchorId];
+      if (anchor?.type === "assistant_message" && anchor.state === "completed") latestId = anchorId;
+    }
+    return latestId;
+  });
   // The copy action only appears under a turn's *final* answer: the message
   // must be the last top-level item of its turn — any trailing item (another
   // message, a tool call, an error from a failed turn) means the text was an
@@ -104,6 +112,7 @@ export const AssistantMessage = memo(function AssistantMessage({
     [actions?.remoteImageRefUrl, actions?.remoteImageReadiness, payload?.content],
   );
   const showCopyButton = finalAnswerStatus === "confirmed" && !isStreaming && rawText.length > 0;
+  const keepActionsVisible = showCopyButton && item.id === latestCompletedAnswerId;
   const videos = (payload?.content ?? []).filter(
     (block) => block.kind === "file" && isChatVideoSource(block.path, block.mimeType),
   );
@@ -156,7 +165,9 @@ export const AssistantMessage = memo(function AssistantMessage({
         ) : null}
       </div>
       {reserveCopyButtonSpace || completedTurnStartedAt !== undefined ? (
-        <div className="poracode-message-action-strip mt-1 flex min-h-6 items-center gap-0.5 opacity-100 transition-opacity [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover/checkpoint:opacity-100 focus-within:opacity-100">
+        <div
+          className={`poracode-message-action-strip mt-1 flex min-h-6 items-center gap-0.5 opacity-100 transition-opacity ${keepActionsVisible ? "" : "[@media(hover:hover)]:opacity-0"} [@media(hover:hover)]:group-hover/checkpoint:opacity-100 focus-within:opacity-100`}
+        >
           {showCopyButton ? (
             <CopyTextButton text={rawText} label={t`Copy message`} />
           ) : reserveCopyButtonSpace ? (
@@ -167,6 +178,7 @@ export const AssistantMessage = memo(function AssistantMessage({
               threadId={threadId}
               itemId={item.id}
               startedAt={completedTurnStartedAt}
+              alwaysVisible={keepActionsVisible}
             />
           ) : null}
           {showCopyButton && completedTurnEndedAt !== undefined ? (

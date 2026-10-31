@@ -112,6 +112,7 @@
     <string name="rich_chat_context">Ngữ cảnh</string>
     <string name="rich_chat_fast_mode">Chế độ nhanh</string>
     <string name="rich_chat_thinking">Suy nghĩ</string>
+    <string name="rich_chat_workflows">Quy trình làm việc</string>
     <string name="rich_chat_mode">Chế độ</string>
     <string name="rich_chat_permissions">Quyền</string>
     <string name="rich_chat_mcp_servers">Máy chủ MCP</string>

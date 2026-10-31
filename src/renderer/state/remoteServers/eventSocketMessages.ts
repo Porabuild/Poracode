@@ -52,6 +52,8 @@ import {
   clearRemoteThreadAppliedSeqs,
   currentRemoteServerThreadItemInterests,
   recordRemoteThreadAppliedSeq,
+  remoteServerResumeFence,
+  remoteServerSnapshotEpoch,
   remoteServerSnapshotSeq,
   remoteThreadAppliedSeq,
   setRemoteServerSnapshotSeq,
@@ -75,6 +77,10 @@ export function bindEventSocketMessages(ctx: EventSocketConnectionContext): () =
   const { server, entry, socket, client, get, isCurrent, noteClientDetectedLoss, recovery } = ctx;
   const connectionKey = remoteConnectionKey(server);
   let socketSequenceFloor = ctx.resumeCursor;
+  /** Epoch this socket's `ready` reported; undefined from hosts without one. */
+  let socketEpoch: string | undefined;
+  /** This socket's `ready` proved a restart under a bound cursor. */
+  let socketEpochChanged = false;
 
   const requestTruncateAuthoritativeReload = (
     targetRemoteThreadId: string,
@@ -90,6 +96,7 @@ export function bindEventSocketMessages(ctx: EventSocketConnectionContext): () =
     // The authoritative replacement renumbers completed turns: the recorded
     // `ct1.` continuation proof is stale whether the fetch succeeds or not.
     forgetBoundedHistoryThread(connectionKey, targetRemoteThreadId);
+    const resumeFence = remoteServerResumeFence(connectionKey);
     void (async () => {
       let history: Awaited<ReturnType<RemoteDesktopClient["boundedThreadHistory"]>>;
       try {
@@ -130,7 +137,7 @@ export function bindEventSocketMessages(ctx: EventSocketConnectionContext): () =
           snapshot.snapshotSeq,
         );
       }
-      bumpRemoteServerSnapshotSeq(connectionKey, snapshot.snapshotSeq);
+      bumpRemoteServerSnapshotSeq(connectionKey, snapshot.snapshotSeq, resumeFence);
       const outcome = finishTruncateReload(lease, {
         installed: applied.installedAuthoritativeHistory,
         snapshotSeq: snapshot.snapshotSeq,
@@ -199,13 +206,80 @@ export function bindEventSocketMessages(ctx: EventSocketConnectionContext): () =
     }
   };
 
+  /**
+   * Re-baselines the stream at the server's head. The server's in-memory
+   * event sequence restarts with the process: accept its cursor (bound to the
+   * epoch this socket reported) before the authoritative snapshots advance it
+   * again, or every reconnect will ask for an impossible pre-restart sequence
+   * forever. `restart` also retires the old instance's live projections.
+   */
+  const applyResync = (seq: number, restart: boolean): void => {
+    if (restart) {
+      const prefix = remoteThreadId(connectionKey, "");
+      pruneLiveObservedCrossagentItems((threadId) => threadId.startsWith(prefix));
+      const threadIds = new Set(currentRemoteServerThreadItemInterests(connectionKey));
+      const open = get().openThread;
+      if (open?.desktopId === connectionKey) threadIds.add(open.threadId);
+      for (const threadId of threadIds) {
+        resetRemoteThreadProjection(remoteThreadId(connectionKey, threadId));
+      }
+    }
+    socketEpochChanged = false;
+    socketSequenceFloor = seq;
+    setRemoteServerSnapshotSeq(connectionKey, seq, socketEpoch);
+    // Pre-restart per-thread marks would refuse every fresh
+    // (lower-seq) snapshot forever; re-baseline them too.
+    clearRemoteThreadAppliedSeqs(connectionKey);
+    // Old-epoch authoritative baselines and bounded reload
+    // budgets are meaningless after a restart.
+    resetTruncateRecoveryEpoch(connectionKey);
+    markRemoteServerRowResyncPending(connectionKey);
+    // A new event epoch invalidates every in-memory walk cursor.
+    resetBoundedCatalogForResync(connectionKey);
+    // ...and every bounded history proof from the old epoch.
+    forgetBoundedHistoryForServer(connectionKey);
+    get().scheduleServerRefresh(connectionKey);
+    void ctx.recoverInterestedThreads();
+  };
+
+  /**
+   * `ready` names the epoch of every later frame on this socket (absent from
+   * hosts that predate `eventEpoch=v1`). A positive cursor from another or no
+   * epoch is refused by the server with `resync-required`, which binds the new
+   * epoch: binding here instead would let a lost resync frame leave an old
+   * cursor looking current on the next reconnect.
+   */
+  const noteReady = (seq: number, epoch: string | undefined): void => {
+    socketEpoch = epoch;
+    const bound = remoteServerSnapshotEpoch(connectionKey);
+    if (epoch === bound) return;
+    if (bound !== undefined && epoch === undefined) {
+      // An epoch-reporting host was replaced by an older build, which cannot
+      // verify the cursor: re-baseline once from its head (the binding is
+      // cleared, so this never repeats against that host).
+      applyResync(seq, true);
+      return;
+    }
+    socketEpochChanged = bound !== undefined;
+    if (ctx.resumeCursor > 0) return;
+    // A zero cursor verifies nothing: replay starts at this epoch's first
+    // event, so bind now. A changed epoch still retires old projections.
+    if (socketEpochChanged) applyResync(seq, true);
+    else setRemoteServerSnapshotSeq(connectionKey, 0, epoch);
+  };
+
   socket.onmessage = (event) => {
     if (!isCurrent() || entry.socket !== socket) return;
+    entry.health?.noteActivity();
     const raw = String(event.data);
     const dispatchParsed = (message: ReturnType<RemoteDesktopClient["parseSocketMessage"]>) => {
       try {
         if (message.type === "pong") {
           entry.health?.acceptPong(message.id);
+          return;
+        }
+        if (message.type === "ready") {
+          noteReady(message.seq, message.epoch);
           return;
         }
         if (handleAgentVisionServerMessage(connectionKey, message)) return;
@@ -447,37 +521,10 @@ export function bindEventSocketMessages(ctx: EventSocketConnectionContext): () =
           socketSequenceFloor = Math.max(socketSequenceFloor, message.seq);
         }
         if (message.type === "resync-required") {
-          // The server's in-memory event sequence restarts with the
-          // process. Accept its lower cursor before the authoritative
-          // snapshots advance it again, or every reconnect will ask
-          // for an impossible pre-restart sequence forever.
           // HTTP snapshots may already describe a later point on a live
-          // host. Only this socket's cursor/frame history proves a restart.
-          if (message.seq < socketSequenceFloor) {
-            const prefix = remoteThreadId(connectionKey, "");
-            pruneLiveObservedCrossagentItems((threadId) => threadId.startsWith(prefix));
-            const threadIds = new Set(currentRemoteServerThreadItemInterests(connectionKey));
-            const open = get().openThread;
-            if (open?.desktopId === connectionKey) threadIds.add(open.threadId);
-            for (const threadId of threadIds) {
-              resetRemoteThreadProjection(remoteThreadId(connectionKey, threadId));
-            }
-          }
-          socketSequenceFloor = message.seq;
-          setRemoteServerSnapshotSeq(connectionKey, message.seq);
-          // Pre-restart per-thread marks would refuse every fresh
-          // (lower-seq) snapshot forever; re-baseline them too.
-          clearRemoteThreadAppliedSeqs(connectionKey);
-          // Old-epoch authoritative baselines and bounded reload
-          // budgets are meaningless after a restart.
-          resetTruncateRecoveryEpoch(connectionKey);
-          markRemoteServerRowResyncPending(connectionKey);
-          // A new event epoch invalidates every in-memory walk cursor.
-          resetBoundedCatalogForResync(connectionKey);
-          // ...and every bounded history proof from the old epoch.
-          forgetBoundedHistoryForServer(connectionKey);
-          get().scheduleServerRefresh(connectionKey);
-          void ctx.recoverInterestedThreads();
+          // host. Only this socket's cursor/frame history, or the epoch its
+          // `ready` reported, proves a restart.
+          applyResync(message.seq, socketEpochChanged || message.seq < socketSequenceFloor);
         }
       } catch {
         // HTTP snapshots remain authoritative; ignore malformed frames.

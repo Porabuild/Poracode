@@ -54,7 +54,8 @@ final class SessionPool {
         key: SessionPoolKey,
         api: any SessionRemoteAPI,
         workGeneration: Int,
-        lastSeenSeq: Int
+        lastSeenSeq: Int,
+        lastSeenEpoch: String? = nil
     ) async -> SessionLease? {
         guard workGeneration == host.state.workGeneration else { return nil }
         guard !isBackgroundGated else { return nil }
@@ -78,7 +79,8 @@ final class SessionPool {
             key: key,
             generation: generation,
             socket: nil,
-            cache: existing?.cache ?? HostRuntimeCache(lastSeenSeq: lastSeenSeq)
+            cache: existing?.cache
+                ?? HostRuntimeCache(lastSeenSeq: lastSeenSeq, lastSeenEpoch: lastSeenEpoch)
         )
         if key == currentKey() { host.state.webSocket = nil }
         await previous?.stop()
@@ -92,6 +94,7 @@ final class SessionPool {
         let socket = host.deps.makeSocket(api)
         slots[key]?.socket = socket
         slots[key]?.cache.lastSeenSeq = lastSeenSeq
+        slots[key]?.cache.lastSeenEpoch = lastSeenEpoch
 
         if key == currentKey() {
             host.state.webSocket = socket
@@ -116,7 +119,7 @@ final class SessionPool {
             await socket.stop()
             return nil
         }
-        await socket.start(lastSeenSeq: lastSeenSeq)
+        await socket.start(lastSeenSeq: lastSeenSeq, lastSeenEpoch: lastSeenEpoch)
         guard isCurrent(socket, for: lease) else {
             await socket.stop()
             return nil
@@ -128,8 +131,10 @@ final class SessionPool {
         guard workGeneration == host.state.workGeneration, !isBackgroundGated else { return }
         let key = currentKey()
         let seq = host.state.lastSeenSeq
+        let epoch = host.state.lastSeenEpoch
         var cache = cache(for: key)
         cache.lastSeenSeq = seq
+        cache.lastSeenEpoch = epoch
         cache.interests = host.state.interestCoordinator.latestDesired
         cache.gitStateInterests = host.state.gitInterestCoordinator.desired
         if var slot = slots[key] {
@@ -156,7 +161,8 @@ final class SessionPool {
             key: key,
             api: api,
             workGeneration: workGeneration,
-            lastSeenSeq: seq
+            lastSeenSeq: seq,
+            lastSeenEpoch: epoch
         )
         await evictToPolicy()
         await startSecondaryIfPossible(workGeneration: workGeneration)
@@ -242,10 +248,22 @@ final class SessionPool {
         }
     }
 
+    /// The selected socket replaced its cursor under another event-stream epoch:
+    /// replace (never max) the cached cursor so it cannot pair a previous
+    /// instance's seq with the new epoch.
+    func noteSelectedHostCursorRebound(seq: Int, epoch: String?) {
+        let key = currentKey()
+        guard var slot = slots[key] else { return }
+        slot.cache.lastSeenSeq = seq
+        slot.cache.lastSeenEpoch = epoch
+        slots[key] = slot
+    }
+
     func captureSelectedCache() {
         let key = currentKey()
         var cache = cache(for: key)
         cache.lastSeenSeq = host.state.lastSeenSeq
+        cache.lastSeenEpoch = host.state.lastSeenEpoch
         cache.snapshot = host.state.snapshot
         cache.projectsLoadState = host.state.projectsLoadState
         cache.replay = host.state.replay
@@ -266,6 +284,7 @@ final class SessionPool {
     func installCache(_ key: SessionPoolKey) {
         let cache = cache(for: key)
         host.state.lastSeenSeq = cache.lastSeenSeq
+        host.state.lastSeenEpoch = cache.lastSeenEpoch
         host.state.snapshot = cache.snapshot
         host.state.projectsLoadState = cache.snapshot == nil ? .idle : cache.projectsLoadState
         // Replace, never merge: the incoming host owns every replayed value, so a
@@ -412,12 +431,13 @@ final class SessionPool {
             return
         }
         let api = host.deps.makeAPI(record.httpBaseURL, token)
-        let seq = cache(for: secondary).lastSeenSeq
+        let cached = cache(for: secondary)
         _ = await startSocket(
             key: secondary,
             api: api,
             workGeneration: workGeneration,
-            lastSeenSeq: seq
+            lastSeenSeq: cached.lastSeenSeq,
+            lastSeenEpoch: cached.lastSeenEpoch
         )
     }
 }

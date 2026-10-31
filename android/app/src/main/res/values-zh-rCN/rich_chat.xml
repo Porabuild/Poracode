@@ -107,6 +107,7 @@
     <string name="rich_chat_context">上下文</string>
     <string name="rich_chat_fast_mode">快速模式</string>
     <string name="rich_chat_thinking">思考</string>
+    <string name="rich_chat_workflows">工作流程</string>
     <string name="rich_chat_mode">模式</string>
     <string name="rich_chat_permissions">权限</string>
     <string name="rich_chat_mcp_servers">MCP 服务器</string>

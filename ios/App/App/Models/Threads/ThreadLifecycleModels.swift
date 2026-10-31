@@ -18,6 +18,7 @@ struct ThreadLaunchConfiguration: Codable, Hashable, Sendable {
   var contextSize: String?
   var fast: Bool?
   var thinking: Bool?
+  var workflows: Bool?
   var mode: String?
   var approvalPolicy: String?
   var approvalsReviewer: String?
@@ -37,6 +38,7 @@ struct ThreadLaunchConfiguration: Codable, Hashable, Sendable {
     contextSize: String? = nil,
     fast: Bool? = nil,
     thinking: Bool? = nil,
+    workflows: Bool? = nil,
     mode: String? = nil,
     approvalPolicy: String? = nil,
     approvalsReviewer: String? = nil,
@@ -55,6 +57,7 @@ struct ThreadLaunchConfiguration: Codable, Hashable, Sendable {
     self.contextSize = contextSize
     self.fast = fast
     self.thinking = thinking
+    self.workflows = workflows
     self.mode = mode
     self.approvalPolicy = approvalPolicy
     self.approvalsReviewer = approvalsReviewer

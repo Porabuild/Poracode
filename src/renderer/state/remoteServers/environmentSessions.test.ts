@@ -100,7 +100,7 @@ function fakeParentClient(endpoint: string): FakeParentClient {
     setCertFingerprintPin: vi.fn<() => void>(),
     async refreshTokens() {
       state.refreshCalls += 1;
-      if (nextSnapshot) lifecycle?.onTokensRefreshed(nextSnapshot);
+      if (nextSnapshot) await lifecycle?.onTokensRefreshed(nextSnapshot);
       return nextSnapshot;
     },
     environmentWebSocketTicket: vi.fn<() => Promise<{ ticket: string; expiresAt: string }>>(
@@ -572,19 +572,22 @@ describe("environmentSessions", () => {
 });
 
 describe("persisted parent session lifecycle", () => {
-  it("disposes on removal and keeps the retired client's delayed rotation inert", () => {
+  it("disposes on removal and keeps the retired client's delayed rotation inert", async () => {
     const { parentClients, refreshTokens, written } = setup([parentRecord(), environmentRecord()]);
     expect(parentClientForConnection(PARENT_KEY)).toBeDefined();
     const retired = [...parentClients.values()][0]!;
     expect(retired.lifecycle).not.toBeNull();
 
-    retired.lifecycle!.onTokensRefreshed({ accessToken: "live", refreshToken: "grant-1" });
+    await retired.lifecycle!.onTokensRefreshed({ accessToken: "live", refreshToken: "grant-1" });
     expect(refreshTokens.get(`refresh.${PARENT_KEY}`)).toBe("grant-1");
 
     // Production removal disposes the parent session with the deleted grant.
     disposeEnvironmentParentSession(PARENT_KEY);
     refreshTokens.delete(`refresh.${PARENT_KEY}`);
-    retired.lifecycle!.onTokensRefreshed({ accessToken: "stale", refreshToken: "resurrected" });
+    await retired.lifecycle!.onTokensRefreshed({
+      accessToken: "stale",
+      refreshToken: "resurrected",
+    });
     expect(refreshTokens.get(`refresh.${PARENT_KEY}`)).toBeUndefined();
     expect(written).not.toContain(`refresh.${PARENT_KEY}=resurrected`);
 
@@ -786,23 +789,32 @@ describe("child session parent pin identity", () => {
     expect(h.created[1]!.listeners.get(key)?.size ?? 0).toBe(0);
   });
 
-  it("keeps the retired child's delayed rotation inert and its grant slot owned after a pin rebuild", () => {
+  it("keeps the retired child's delayed rotation inert and its grant slot owned after a pin rebuild", async () => {
     const h = pinHarness("old-pin");
     const first = environmentSessionForServer(environmentRecord())!;
     const grantKey = first.childGrantKey;
-    h.created[0]!.lifecycle!.onTokensRefreshed({ accessToken: "a", refreshToken: "old-grant" });
+    await h.created[0]!.lifecycle!.onTokensRefreshed({
+      accessToken: "a",
+      refreshToken: "old-grant",
+    });
     expect(h.refreshTokens.get(grantKey)).toBe("old-grant");
 
     disposeEnvironmentParentSession(PARENT_KEY);
     h.setPin("new-pin");
     const second = environmentSessionForServer(environmentRecord())!;
     expect(second.childGrantKey).toBe(grantKey);
-    h.created[1]!.lifecycle!.onTokensRefreshed({ accessToken: "b", refreshToken: "new-grant" });
+    await h.created[1]!.lifecycle!.onTokensRefreshed({
+      accessToken: "b",
+      refreshToken: "new-grant",
+    });
     expect(h.refreshTokens.get(grantKey)).toBe("new-grant");
 
     // The retired client's late rotation can neither re-own the slot nor
     // overwrite the replacement's grant.
-    h.created[0]!.lifecycle!.onTokensRefreshed({ accessToken: "c", refreshToken: "late-grant" });
+    await h.created[0]!.lifecycle!.onTokensRefreshed({
+      accessToken: "c",
+      refreshToken: "late-grant",
+    });
     expect(h.refreshTokens.get(grantKey)).toBe("new-grant");
     expect(h.written).not.toContain(`${grantKey}=late-grant`);
   });

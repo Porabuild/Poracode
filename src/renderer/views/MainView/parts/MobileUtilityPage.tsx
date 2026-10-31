@@ -3,11 +3,8 @@ import { Suspense, useState } from "react";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useBrowserPanelStore } from "@/renderer/state/browserPanelStore";
 import { selectPullRequestsOverlayVisible, usePanelStore } from "@/renderer/state/panelStore";
-import {
-  selectBrowserBridgeServer,
-  selectBrowserBridgeDesktop,
-  useRemoteServersStore,
-} from "@/renderer/state/remoteServersStore";
+import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import { useSettingsHostServer, useSettingsHostStore } from "@/renderer/state/settingsHostStore";
 import { getCurrentProjectId } from "@/renderer/actions/currentProject";
 import { BrowserDockSlot } from "./RightPanel/parts/BrowserPanel/BrowserDockSlot";
 import { BrowserPanel } from "./RightPanel/parts/BrowserPanel/BrowserPanel";
@@ -53,14 +50,10 @@ function MobileUtilityPageContent() {
   const projects = useAppStore((state) => state.projects);
   const currentProjectId = useAppStore(() => getCurrentProjectId());
   const browserExtracted = useBrowserPanelStore((state) => state.extracted);
-  const projectServer = useRemoteServersStore(
-    (state) => selectBrowserBridgeServer(state) ?? state.servers[0],
-  );
-  const servers = useRemoteServersStore((state) => state.servers);
-  const [selectedDesktopId, setSelectedDesktopId] = useState<string | null>(null);
+  const firstServer = useRemoteServersStore((state) => state.servers[0]);
+  const chooseSettingsHost = useSettingsHostStore((state) => state.choose);
   const [selectedNotesProjectId, setSelectedNotesProjectId] = useState<string | null>(null);
-  const selectedServer =
-    servers.find((server) => remoteConnectionKey(server) === selectedDesktopId) ?? projectServer;
+  const selectedServer = useSettingsHostServer() ?? firstServer;
   const projectRuntime = useRemoteServersStore((state) =>
     selectedServer ? state.runtime[remoteConnectionKey(selectedServer)] : undefined,
   );
@@ -68,19 +61,8 @@ function MobileUtilityPageContent() {
     selectedServer ? state.lastKnownProjects[remoteConnectionKey(selectedServer)] : undefined,
   );
 
-  // Drop a disconnected desktop selection during render so the page never
-  // paints a frame for a desktop that is no longer paired.
-  if (
-    selectedDesktopId &&
-    !servers.some((server) => remoteConnectionKey(server) === selectedDesktopId)
-  ) {
-    setSelectedDesktopId(null);
-  }
-
   const changeDesktop = (desktopId: string | null) => {
-    if (!desktopId) return;
-    setSelectedDesktopId(desktopId);
-    selectBrowserBridgeDesktop(desktopId);
+    if (desktopId) chooseSettingsHost(desktopId);
   };
 
   if (page === "usage") return <UsagePanel />;
@@ -150,7 +132,7 @@ function MobileUtilityPageContent() {
       notesProjects.find(
         (candidate) =>
           candidate.remoteServerId ===
-          (projectServer ? remoteConnectionKey(projectServer) : undefined),
+          (selectedServer ? remoteConnectionKey(selectedServer) : undefined),
       ) ??
       notesProjects[0];
     return project ? (

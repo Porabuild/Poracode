@@ -242,6 +242,47 @@ final class ReplayInstallTransactionTests: XCTestCase {
 
   // MARK: - Session-level commit
 
+  func testBootstrapEpochSurvivesLegacyAndBoundedShellInstalls() throws {
+    for bounded in [false, true] {
+      for epoch in [nil, "snapshot-epoch"] as [String?] {
+        let session = makeSession()
+        var initial = shell(seq: 12)
+        initial.snapshotEpoch = epoch
+        let wire = try JSONEncoder().encode(initial)
+        let decoded: RemoteShellSnapshot
+        if bounded {
+          decoded = try RemoteBoundedPageDecoder.shellPage(wire).asShellSnapshot()
+        } else {
+          decoded = try JSONDecoder().decode(RemoteShellSnapshot.self, from: wire)
+        }
+        let installer = ShellInstallCoordinator(host: session)
+        let captured = session.beginReplayInstall(apiEndpoint: "https://a.test")
+        let prepared = try installer.prepare(shell: decoded, policy: .replace)
+        XCTAssertNotNil(
+          installer.commit(
+            prepared, shell: decoded, captured: captured,
+            currentAPIEndpoint: "https://a.test", advanceCursor: true, agentBase: nil
+          )
+        )
+        XCTAssertEqual(session.state.lastSeenSeq, 12)
+        XCTAssertEqual(session.state.lastSeenEpoch, epoch)
+
+        // An HTTP refresh cannot rebind an already positive cursor to a new instance.
+        var newer = shell(seq: 13)
+        newer.snapshotEpoch = "different-epoch"
+        let next = session.beginReplayInstall(apiEndpoint: "https://a.test")
+        let nextPrepared = try installer.prepare(shell: newer, policy: .replace)
+        XCTAssertNotNil(
+          installer.commit(
+            nextPrepared, shell: newer, captured: next,
+            currentAPIEndpoint: "https://a.test", advanceCursor: true, agentBase: nil
+          )
+        )
+        XCTAssertEqual(session.state.lastSeenEpoch, epoch)
+      }
+    }
+  }
+
   private func makeSession() -> AppSession {
     let keychain = InMemoryKeychainIO()
     let repo = SessionCredentialRepository(

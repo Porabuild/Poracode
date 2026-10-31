@@ -600,6 +600,21 @@ export const remoteThreadCommandSchema = z.discriminatedUnion("kind", [
     title: z.string().min(1),
   }),
   /**
+   * Import one of the host's CLI transcripts into a new thread: the host saves
+   * a resumable row and replays the transcript into it, or saves nothing.
+   * Gate on capabilities.sessionImport v1; older hosts reject the kind.
+   */
+  z.object({
+    kind: z.literal("import-session"),
+    threadId: z.string().min(1),
+    projectId: z.string().min(1),
+    agentKind: z.string().min(1),
+    model: z.string().min(1),
+    title: z.string().min(1),
+    path: z.string().min(1),
+    providerSessionId: z.string().min(1),
+  }),
+  /**
    * Host lifecycle preflight for a freshly-created worktree. The host primes
    * git watches and runs the project setup script before launching the thread.
    * The desktop renderer only mirrors UI state; it must not run setup again.

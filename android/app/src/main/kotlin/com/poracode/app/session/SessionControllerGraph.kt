@@ -182,6 +182,9 @@ internal fun buildSessionControllerGraph(
             )
         },
         onCommit = { commit ->
+            if (live.webSocket == null && (live.lastSeenSeq ?: 0) == 0 && live.lastSeenEpoch == null) {
+                live.lastSeenEpoch = commit.shell.snapshotEpoch
+            }
             live.lastSeenSeq = commit.reconnectSeq
             updateState { s ->
                 LiveSessionStateTransitions.authoritativeCommit(s, commit)

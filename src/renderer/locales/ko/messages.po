@@ -1065,7 +1065,7 @@ msgstr "고정된 작업 트리 소스에는 전체 커밋 해시가 필요합�
 #~ msgid "A locked screen stops all desktop control, so the display is kept on while a Computer Use session is running. You can still lock the screen yourself."
 #~ msgstr "화면이 잠기면 데스크톱 제어가 모두 중단되므로 컴퓨터 사용 세션이 실행되는 동안 디스플레이를 켜 둡니다. 직접 화면을 잠그는 것은 여전히 가능합니다."
 
-#: src/renderer/components/thread/ChatPane/ChatPane.tsx
+#: src/renderer/components/thread/ThreadRemoteSyncDock.tsx
 msgid "A message deletion could not be confirmed. Refresh to resync this conversation."
 msgstr "메시지 삭제를 확인하지 못했습니다. 새로고침하여 이 대화를 다시 동기화하세요."
 
@@ -1093,6 +1093,10 @@ msgstr "리뷰 하나에는 줄 댓글을 최대 100개까지 포함할 수 있�
 msgid "A review or comment body is required."
 msgstr "리뷰 또는 댓글 본문이 필요합니다."
 
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "A scout maps the code, a builder implements and verifies, and a reviewer checks the diff; the lead plans and decides."
+msgstr "스카우트가 코드를 파악하고, 빌더가 구현과 검증을 하며, 리뷰어가 diff를 확인합니다. 주 모델은 계획하고 결정합니다."
+
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "A server could not be started and was skipped."
 msgstr "서버를 시작할 수 없어 건너뛰었습니다."
@@ -1110,8 +1114,12 @@ msgid "a supported coding agent"
 msgstr "지원되는 코딩 에이전트"
 
 #: src/renderer/components/crew/crewTemplates.ts
-msgid "A tester writes failing tests; a builder makes them pass."
-msgstr "테스터가 실패하는 테스트를 작성하고 빌더가 통과시킵니다."
+msgid "A tester writes and runs failing tests, and a builder makes them pass; the lead sets the cases."
+msgstr "테스터가 실패하는 테스트를 작성해 실행하고, 빌더가 통과시킵니다. 케이스는 주 모델이 정합니다."
+
+#: src/renderer/components/crew/crewTemplates.ts
+#~ msgid "A tester writes failing tests; a builder makes them pass."
+#~ msgstr "테스터가 실패하는 테스트를 작성하고 빌더가 통과시킵니다."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "A voice conversation is already active."
@@ -1139,8 +1147,8 @@ msgid "About usage"
 msgstr "사용량 안내"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
-msgid "Above the composer"
-msgstr "작성기 위"
+#~ msgid "Above the composer"
+#~ msgstr "작성기 위"
 
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Accent"
@@ -1942,6 +1950,10 @@ msgstr "에이전트가 이 PR을 수정하고 있습니다."
 msgid "An expected worktree owner requires a branch"
 msgstr "예상 작업 트리 소유자에는 브랜치가 필요합니다"
 
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "An investigator finds the root cause, and a fixer lands the fix with a regression test."
+msgstr "조사 담당이 근본 원인을 찾고, 수정 담당이 회귀 테스트와 함께 수정을 반영합니다."
+
 #: src/renderer/components/mcp/McpServersManager.tsx
 #~ msgid "An MCP server with the name {serverName} already exists."
 #~ msgstr "이름이 {serverName}인 MCP 서버가 이미 있습니다."
@@ -2321,7 +2333,6 @@ msgstr "인증"
 msgid "Authenticated"
 msgstr "인증됨"
 
-#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Authentication"
 msgstr "인증"
@@ -3451,6 +3462,7 @@ msgid "Choose a photo"
 msgstr "사진 선택"
 
 #: src/renderer/components/sessionImport/importSessionsActions.ts
+#: src/renderer/components/sessionImport/remoteSessionImport.ts
 msgid "Choose a project for sessions whose folder no longer exists."
 msgstr "폴더가 더 이상 존재하지 않는 세션을 가져올 프로젝트를 선택하세요."
 
@@ -6515,7 +6527,6 @@ msgstr "코딩 에이전트 검색 중…"
 msgid "Discovery complete"
 msgstr "검색 완료"
 
-#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 #: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
@@ -6572,6 +6583,10 @@ msgstr "도크"
 msgid "Docs"
 msgstr "문서"
 
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Does the broad searching: finds the files, callers, tests and conventions a task touches, and reports paths and facts, not a review."
+msgstr "넓은 범위의 검색을 맡습니다. 작업과 관련된 파일, 호출자, 테스트, 규칙을 찾아 리뷰가 아닌 경로와 사실을 보고합니다."
+
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteThreadPopover.tsx
 msgid "Don't ask again"
@@ -6593,7 +6608,6 @@ msgstr "완료"
 #. Notification status: thread is done
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 #: src/renderer/components/providers/settings/ModelProvidersSettings.tsx
-#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/components/thread/AgentDiscoveryDoneButton.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/LabelPicker.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/ReviewerPicker.tsx
@@ -7189,7 +7203,6 @@ msgstr "오류"
 #. Notification status: agent error
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/providers/usageFormat.ts
-#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ErrorItem.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
@@ -7496,12 +7509,16 @@ msgid "Explore and plan"
 msgstr "탐색 및 계획"
 
 #: src/renderer/components/crew/crewTemplates.ts
-msgid "Explore, build and review a feature."
-msgstr "기능을 탐색하고 구현하고 리뷰합니다."
+#~ msgid "Explore, build and review a feature."
+#~ msgstr "기능을 탐색하고 구현하고 리뷰합니다."
 
 #: src/renderer/components/crew/crewRoleTemplates.ts
 #~ msgid "Explores code and docs"
 #~ msgstr "코드와 문서 탐색"
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Explores the codebase, implements the lead's task end to end, runs the narrowest checks, and reports what changed with evidence."
+msgstr "코드베이스를 탐색하고 주 모델의 작업을 끝까지 구현하며, 필요한 최소한의 검사를 실행하고 변경 사항을 근거와 함께 보고합니다."
 
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Exponential backoff"
@@ -7869,16 +7886,16 @@ msgid "Find in terminal"
 msgstr "터미널에서 찾기"
 
 #: src/renderer/components/crew/crewTemplates.ts
-msgid "Find the root cause first, then fix it with a regression test."
-msgstr "먼저 근본 원인을 찾고 회귀 테스트와 함께 수정합니다."
+#~ msgid "Find the root cause first, then fix it with a regression test."
+#~ msgstr "먼저 근본 원인을 찾고 회귀 테스트와 함께 수정합니다."
 
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Finding status"
 msgstr "발견 항목 상태"
 
 #: src/renderer/components/crew/crewRoleTemplates.ts
-msgid "Finds the files, callers and tests a task touches, and reports their paths with a short summary."
-msgstr "작업과 관련된 파일, 호출자, 테스트를 찾아 경로와 짧은 요약을 보고합니다."
+#~ msgid "Finds the files, callers and tests a task touches, and reports their paths with a short summary."
+#~ msgstr "작업과 관련된 파일, 호출자, 테스트를 찾아 경로와 짧은 요약을 보고합니다."
 
 #: src/renderer/views/PullRequestsOverlay/guide/PrGuidePanel.tsx
 msgid "Finish review"
@@ -8739,7 +8756,7 @@ msgstr "기록"
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/views/HomeView.tsx
-#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarHomeSection.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 #: src/renderer/views/WelcomeOverlay.tsx
 msgid "Home"
@@ -8908,7 +8925,6 @@ msgid "Identity file path"
 msgstr "ID 파일 경로"
 
 #. Microphone input level when not testing
-#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Idle"
@@ -8951,12 +8967,20 @@ msgstr "이미지"
 #~ msgstr "변경 사항을 구현하고 테스트 실행"
 
 #: src/renderer/components/crew/crewRoleTemplates.ts
-msgid "Implements the fix with a regression test and confirms the reproduction now passes."
-msgstr "회귀 테스트와 함께 수정을 구현하고 재현 절차가 통과하는지 확인합니다."
+msgid "Implements the fix the lead settles, adds a regression test, and confirms the reproduction now passes with the narrowest check."
+msgstr "주 모델이 정한 수정을 구현하고 회귀 테스트를 추가한 뒤, 최소한의 검사로 재현이 이제 통과하는지 확인합니다."
 
 #: src/renderer/components/crew/crewRoleTemplates.ts
-msgid "Implements the lead's task end to end: edits files, runs the build and tests, and reports what changed."
-msgstr "주 모델의 작업을 끝까지 구현합니다. 파일을 편집하고 빌드와 테스트를 실행하며 변경 사항을 보고합니다."
+#~ msgid "Implements the fix with a regression test and confirms the reproduction now passes."
+#~ msgstr "회귀 테스트와 함께 수정을 구현하고 재현 절차가 통과하는지 확인합니다."
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Implements the lead's task end to end and verifies it with the narrowest build and tests; reports changed files, check results and deviations."
+msgstr "주 모델의 작업을 끝까지 구현하고 최소한의 빌드와 테스트로 검증합니다. 변경된 파일, 검사 결과, 작업과 달라진 점을 보고합니다."
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+#~ msgid "Implements the lead's task end to end: edits files, runs the build and tests, and reports what changed."
+#~ msgstr "주 모델의 작업을 끝까지 구현합니다. 파일을 편집하고 빌드와 테스트를 실행하며 변경 사항을 보고합니다."
 
 #. Settings section: import existing CLI sessions as threads
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
@@ -9867,8 +9891,12 @@ msgid "Lead + 1 helper"
 msgstr "리드 + 도우미 1명"
 
 #: src/renderer/components/crew/crewTemplates.ts
-msgid "Lead + Builder"
-msgstr "주 모델 + 빌더"
+#~ msgid "Lead + Builder"
+#~ msgstr "주 모델 + 빌더"
+
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "Lead + Sidekick"
+msgstr "주 모델 + 보조 모델"
 
 #: src/renderer/components/providers/devin/modelPricing.ts
 #~ msgid "Lead and Sidekick prices are per 1M tokens for each model. Ranges cover model variants."
@@ -10913,7 +10941,7 @@ msgstr "메시지 검색을 사용할 수 없음"
 msgid "Messages"
 msgstr "메시지"
 
-#: src/renderer/components/thread/ChatPane/ChatPane.tsx
+#: src/renderer/components/thread/ThreadHistoryLoadFailureDock.tsx
 msgid "Messages could not be loaded."
 msgstr "메시지를 불러올 수 없습니다."
 
@@ -11622,7 +11650,6 @@ msgstr "새 스레드 — {projectName}"
 msgid "New thread from this to-do"
 msgstr "이 할 일의 새 스레드"
 
-#. placeholder {0}: homeProject.name
 #. placeholder {0}: project.name
 #: src/renderer/views/HomeView.tsx
 msgid "New thread in {0}"
@@ -12052,6 +12079,7 @@ msgid "No microphone found."
 msgstr "마이크를 찾을 수 없습니다."
 
 #: src/renderer/components/sessionImport/importSessionsActions.ts
+#: src/renderer/components/sessionImport/remoteSessionImport.ts
 msgid "No model is available for {agent}. Check the agent in Settings."
 msgstr "{agent}에 사용할 수 있는 모델이 없습니다. 설정에서 에이전트를 확인하세요."
 
@@ -14675,6 +14703,10 @@ msgstr "각 후보의 변경 사항을 읽는 중…"
 msgid "Reading each candidate's chat response…"
 msgstr "각 후보의 채팅 응답을 읽는 중…"
 
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Reads the full diff and the code it touches, runs targeted checks, and reports bugs, regressions and missing tests by file and line."
+msgstr "전체 diff와 관련 코드를 읽고 필요한 검사를 실행해 버그, 회귀, 누락된 테스트를 파일과 줄 단위로 보고합니다."
+
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Ready"
@@ -14805,7 +14837,7 @@ msgstr "참조"
 
 #. Button: re-fetch provider usage now
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
-#: src/renderer/components/thread/ChatPane/ChatPane.tsx
+#: src/renderer/components/thread/ThreadRemoteSyncDock.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
@@ -15390,8 +15422,12 @@ msgid "Repository URL"
 msgstr "저장소 URL"
 
 #: src/renderer/components/crew/crewRoleTemplates.ts
-msgid "Reproduces the bug and traces it to the root cause, then reports the evidence and the failing code path."
-msgstr "버그를 재현하고 근본 원인까지 추적한 뒤 증거와 실패하는 코드 경로를 보고합니다."
+#~ msgid "Reproduces the bug and traces it to the root cause, then reports the evidence and the failing code path."
+#~ msgstr "버그를 재현하고 근본 원인까지 추적한 뒤 증거와 실패하는 코드 경로를 보고합니다."
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Reproduces the bug and traces it to the root cause, then reports the evidence, the failing code path and a suggested fix."
+msgstr "버그를 재현하고 근본 원인까지 추적한 뒤, 근거와 실패하는 코드 경로, 수정 제안을 보고합니다."
 
 #: src/renderer/views/PullRequestsOverlay/summary/ReviewerPicker.tsx
 msgid "Request a reviewer"
@@ -15638,11 +15674,11 @@ msgstr "이 호스트에 보관된 사용량만 포함합니다."
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
-#: src/renderer/components/thread/ChatPane/ChatPane.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/MarkdownVideo.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/useHistoryItemDetails.tsx
 #: src/renderer/components/thread/SideChat/SideChatBody.tsx
 #: src/renderer/components/thread/SideChat/SideChatThreadView.tsx
+#: src/renderer/components/thread/ThreadHistoryLoadFailureDock.tsx
 #: src/renderer/i18n/sharedMessages.ts
 #: src/renderer/state/managedRootCatalog/ManagedRootCatalogStatusNotice.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/useSourceBranchData.ts
@@ -15943,8 +15979,8 @@ msgstr "리뷰 및 댓글"
 #~ msgstr "차이를 검토하고 버그 찾기"
 
 #: src/renderer/components/crew/crewRoleTemplates.ts
-msgid "Reviews the finished diff for bugs, regressions and missing tests, and reports findings by file and line."
-msgstr "완성된 diff에서 버그, 회귀, 누락된 테스트를 찾아 파일과 줄 단위로 보고합니다."
+#~ msgid "Reviews the finished diff for bugs, regressions and missing tests, and reports findings by file and line."
+#~ msgstr "완성된 diff에서 버그, 회귀, 누락된 테스트를 찾아 파일과 줄 단위로 보고합니다."
 
 #: src/renderer/components/providers/devin/liveSessionControls.tsx
 #: src/renderer/components/providers/devin/sessionActionDialog.tsx
@@ -15972,7 +16008,6 @@ msgid "Right"
 msgstr "오른쪽"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Right panel"
 msgstr "오른쪽 패널"
 
@@ -16491,8 +16526,12 @@ msgid "Scout"
 msgstr "스카우트"
 
 #: src/renderer/components/crew/crewTemplates.ts
-msgid "Scouts map an unfamiliar codebase before anything changes."
-msgstr "스카우트가 변경 전에 낯선 코드베이스를 파악합니다."
+#~ msgid "Scouts map an unfamiliar codebase before anything changes."
+#~ msgstr "스카우트가 변경 전에 낯선 코드베이스를 파악합니다."
+
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "Scouts map an unfamiliar codebase so the lead can plan without reading it all."
+msgstr "스카우트가 낯선 코드베이스를 파악해 주 모델이 전부 읽지 않고도 계획할 수 있게 합니다."
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/components/thread/ThreadAgentVisionDock.tsx
@@ -16971,7 +17010,7 @@ msgstr "서버 {target}은(는) 이 컴퓨터에서 실행되며 WSL 프로젝�
 msgid "Server base URL"
 msgstr "서버 기본 URL"
 
-#: src/renderer/components/thread/ChatPane/ChatPane.tsx
+#: src/renderer/components/thread/ThreadRemoteSyncDock.tsx
 msgid "Server offline — this conversation may be out of date."
 msgstr "서버가 오프라인입니다. 이 대화는 최신 상태가 아닐 수 있습니다."
 
@@ -17421,6 +17460,7 @@ msgstr "사이드바 프로스트"
 msgid "Sidebar shortcuts"
 msgstr "사이드바 바로가기"
 
+#: src/renderer/components/crew/crewRoleTemplates.ts
 #: src/renderer/components/providers/devin/modelPricing.ts
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Sidekick"
@@ -18534,6 +18574,10 @@ msgstr "Tailscale URL"
 msgid "Take Screenshot"
 msgstr "스크린샷 찍기"
 
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Takes any hands-on task the lead hands off: exploring, editing and running checks, then reports back with evidence."
+msgstr "주 모델이 넘기는 실무 작업을 무엇이든 맡습니다. 탐색, 편집, 검사 실행을 하고 근거와 함께 보고합니다."
+
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 #~ msgid "Takes over the desktop while the agent clicks or types"
 #~ msgstr "에이전트가 클릭하거나 입력하는 동안 데스크톱을 제어합니다"
@@ -18605,7 +18649,6 @@ msgstr "대상 공급자에게 다음에 무엇을 해야 할지 알려주세요
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/plugins/pluginCopy.ts
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
-#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/GlobalTerminalPanel/GlobalTerminalPanel.tsx
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
@@ -18633,10 +18676,10 @@ msgstr "터미널 글꼴"
 #. placeholder {0}: project.name
 #. placeholder {0}: props.projectName
 #. placeholder {0}: props.worktreeBranch
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarHomeSection.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/WorktreeGroupHeader.tsx
-#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 msgid "Terminal for {0}"
 msgstr "{0}용 터미널"
 
@@ -18672,8 +18715,8 @@ msgid "Terminal position"
 msgstr "터미널 위치"
 
 #: src/renderer/components/terminal/TerminalProgramStatus.tsx
-msgid "Terminal program status"
-msgstr "터미널 프로그램 상태"
+#~ msgid "Terminal program status"
+#~ msgstr "터미널 프로그램 상태"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
@@ -19040,8 +19083,16 @@ msgid "The launch was cancelled."
 msgstr "실행이 취소되었습니다."
 
 #: src/renderer/components/crew/crewTemplates.ts
-msgid "The lead plans and reviews; a cheaper builder does the hands-on work."
-msgstr "주 모델이 계획하고 리뷰하며, 더 저렴한 빌더가 실제 작업을 합니다."
+#~ msgid "The lead plans and reviews; a cheaper builder does the hands-on work."
+#~ msgstr "주 모델이 계획하고 리뷰하며, 더 저렴한 빌더가 실제 작업을 합니다."
+
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "The lead plans and reviews; a cheaper sidekick explores, builds and verifies."
+msgstr "주 모델이 계획하고 리뷰하며, 더 저렴한 보조 모델이 탐색, 구현, 검증을 합니다."
+
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "The lead splits the work; up to three builders implement and verify independent tasks at once."
+msgstr "주 모델이 작업을 나누고, 최대 3개의 빌더가 독립적인 작업을 동시에 구현하고 검증합니다."
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the Linux user"
@@ -19181,6 +19232,10 @@ msgstr "실행을 취소할 수 없습니다."
 #: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
 msgid "The run was interrupted."
 msgstr "실행이 중단되었습니다."
+
+#: src/renderer/state/remoteServers/sharedCredentials.ts
+msgid "The saved remote credentials could not be confirmed."
+msgstr "저장된 원격 연결 인증 정보를 확인할 수 없습니다."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The scheduled automation failed."
@@ -19959,14 +20014,12 @@ msgid "Thread dock"
 msgstr "스레드 도크"
 
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
-#: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Thread docks"
 msgstr "스레드 도크"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
-msgid "Thread docks placement"
-msgstr "스레드 도크 위치"
+#~ msgid "Thread docks placement"
+#~ msgstr "스레드 도크 위치"
 
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Thread failed to start."
@@ -20170,6 +20223,10 @@ msgstr "{0}의 토큰"
 msgid "Told not to edit files. Not enforced."
 msgstr "파일을 편집하지 않도록 지시. 강제되지 않습니다."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Too many remote requests are in progress. Try again in a moment."
+msgstr "진행 중인 원격 요청이 너무 많습니다. 잠시 후 다시 시도하세요."
+
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Too many visuals in this message. Showing source only."
 msgstr "이 메시지에 시각화가 너무 많습니다. 소스만 표시합니다."
@@ -20287,8 +20344,12 @@ msgid "Turn tracking on or off per provider. Disabled providers are skipped by t
 msgstr "공급자별로 추적을 켜거나 끕니다. 비활성화된 공급자는 자동 새로 고침으로 건너뜁니다."
 
 #: src/renderer/components/crew/crewTemplates.ts
-msgid "Two independent read-only reviews of a change."
-msgstr "변경에 대한 독립적인 읽기 전용 리뷰 2개."
+msgid "Two independent read-only reviews of a change, and a sidekick applies the fixes."
+msgstr "변경에 대한 독립적인 읽기 전용 리뷰 2개와, 수정을 적용하는 보조 모델."
+
+#: src/renderer/components/crew/crewTemplates.ts
+#~ msgid "Two independent read-only reviews of a change."
+#~ msgstr "변경에 대한 독립적인 읽기 전용 리뷰 2개."
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Type"
@@ -20950,8 +21011,8 @@ msgid "Up one level"
 msgstr "한 단계 위로"
 
 #: src/renderer/components/crew/crewTemplates.ts
-msgid "Up to three builders work on independent tasks at once."
-msgstr "최대 3명의 빌더가 독립적인 작업을 동시에 진행합니다."
+#~ msgid "Up to three builders work on independent tasks at once."
+#~ msgstr "최대 3명의 빌더가 독립적인 작업을 동시에 진행합니다."
 
 #: src/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay.tsx
 msgid "update"
@@ -20984,6 +21045,10 @@ msgstr "{0} 업데이트({env})"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Update {0} to {updateLabel}"
 msgstr "{0}을(를) {updateLabel}(으)로 업데이트"
+
+#: src/renderer/components/sessionImport/remoteSessionImport.ts
+msgid "Update {host} to import its sessions."
+msgstr "세션을 가져오려면 {host}을(를) 업데이트하세요."
 
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #~ msgid "Update all"
@@ -21070,6 +21135,10 @@ msgstr "대화를 분기하려면 호스트를 업데이트하세요."
 #: src/renderer/components/thread/SideChat/sideChatActions.ts
 msgid "Update the remote host to use side chat with hidden context."
 msgstr "숨겨진 컨텍스트로 보조 채팅을 사용하려면 원격 호스트를 업데이트하세요."
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Update this host to import its sessions."
+msgstr "세션을 가져오려면 이 호스트를 업데이트하세요."
 
 #: src/renderer/components/providers/HostUsageView.tsx
 msgid "Update this host to refresh usage remotely. Cached usage can still be read."
@@ -21648,7 +21717,6 @@ msgstr "작업 트리로 이동하기 전에 스레드 시작이 완료될 때�
 msgid "Wait for the thread to finish starting."
 msgstr "스레드 시작이 완료될 때까지 기다리세요."
 
-#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Waiting"
 msgstr "대기 중"
@@ -21677,7 +21745,6 @@ msgstr "미리보기 대기 중"
 msgid "waiting for agent to stop"
 msgstr "에이전트가 중지되기를 기다리는 중"
 
-#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/views/SchedulesView/parts/scheduleRunStatus.ts
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
@@ -21731,7 +21798,9 @@ msgid "Warming up WSL shell environment…"
 msgstr "WSL 셸 환경 준비 중…"
 
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadHistoryLoadFailureDock.tsx
 #: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
+#: src/renderer/components/thread/ThreadRemoteSyncDock.tsx
 #: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Warning"
@@ -21863,8 +21932,8 @@ msgstr "브라우저 요소 선택기 선택이 터미널 기본 스레드에서
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Where a thread's goal, plan, agents, and background tasks appear. In the right panel, compact bubbles above the composer open them."
-msgstr "스레드의 목표, 계획, 에이전트, 백그라운드 작업이 표시되는 위치입니다. 오른쪽 패널에서는 작성기 위의 작은 버블로 열 수 있습니다."
+#~ msgid "Where a thread's goal, plan, agents, and background tasks appear. In the right panel, compact bubbles above the composer open them."
+#~ msgstr "스레드의 목표, 계획, 에이전트, 백그라운드 작업이 표시되는 위치입니다. 오른쪽 패널에서는 작성기 위의 작은 버블로 열 수 있습니다."
 
 #: src/renderer/views/WelcomeOverlay.tsx
 msgid "Where do you want to begin?"
@@ -21989,6 +22058,7 @@ msgid "Workflow: {description}"
 msgstr "워크플로: {description}"
 
 #: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
+#: src/renderer/components/thread/buildModelPickerControls.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsMobileWorkflowList.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
@@ -21999,7 +22069,6 @@ msgstr "워크플로"
 msgid "Workflows added under .github/workflows will appear here."
 msgstr ".github/workflows에 추가된 워크플로가 여기에 표시됩니다."
 
-#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Working"
 msgstr "작업 중"
@@ -22138,8 +22207,12 @@ msgid "Write notes for this project…"
 msgstr "이 프로젝트에 대한 메모를 작성하세요…"
 
 #: src/renderer/components/crew/crewRoleTemplates.ts
-msgid "Writes and runs tests for the change, reproduces reported bugs, and reports failures with the exact command."
-msgstr "변경 사항의 테스트를 작성·실행하고, 보고된 버그를 재현하며, 실패를 정확한 명령과 함께 보고합니다."
+#~ msgid "Writes and runs tests for the change, reproduces reported bugs, and reports failures with the exact command."
+#~ msgstr "변경 사항의 테스트를 작성·실행하고, 보고된 버그를 재현하며, 실패를 정확한 명령과 함께 보고합니다."
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Writes and runs the tests for the change, reproduces reported bugs, and reports each failure with the exact command and failing assertion."
+msgstr "변경에 대한 테스트를 작성해 실행하고, 보고된 버그를 재현하며, 실패마다 정확한 명령과 실패한 어서션을 보고합니다."
 
 #: src/renderer/views/PullRequestsOverlay/guide/PrReviewGuideTab.tsx
 msgid "Writing guide. You can leave this review and return when it is ready."

@@ -6,6 +6,8 @@ import {
 } from "./chatRuntimePersister";
 import { retainRendererEventInterest } from "./rendererEventInterests";
 import { useAppStore } from "./appStore";
+import { isProjectedRemoteEntityId } from "./remoteProjection";
+import { recoverRemoteRuntimeHistory } from "./remote/sync";
 
 interface RuntimeThreadReader {
   readonly ready: Promise<void>;
@@ -82,6 +84,9 @@ export function installRuntimeHistoryRecovery(recover: RuntimeHistoryRecovery): 
 
 /** A failed recovery still owns its blocked deltas; retry through that owner. */
 export function retryThreadRuntimeItems(threadId: string): Promise<void> | void {
+  // A remote thread's queue belongs to the remote reducer, whose snapshot
+  // re-read also covers a first read that failed.
+  if (isProjectedRemoteEntityId(threadId, "thread")) return recoverRemoteRuntimeHistory(threadId);
   if (recoverRuntimeHistory) return recoverRuntimeHistory(threadId);
   return hydrateThreadRuntimeItems(threadId);
 }

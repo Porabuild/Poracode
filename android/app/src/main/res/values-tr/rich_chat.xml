@@ -112,6 +112,7 @@
     <string name="rich_chat_context">Bağlam</string>
     <string name="rich_chat_fast_mode">Hızlı mod</string>
     <string name="rich_chat_thinking">Düşünme</string>
+    <string name="rich_chat_workflows">İş akışları</string>
     <string name="rich_chat_mode">Mod</string>
     <string name="rich_chat_permissions">İzinler</string>
     <string name="rich_chat_mcp_servers">MCP sunucuları</string>

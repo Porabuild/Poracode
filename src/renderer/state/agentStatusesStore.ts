@@ -136,6 +136,12 @@ function capabilitiesEqual(
   if (JSON.stringify(a.thinkingModels ?? []) !== JSON.stringify(b.thinkingModels ?? [])) {
     return false;
   }
+  if (
+    JSON.stringify(a.workflowModels ?? []) !== JSON.stringify(b.workflowModels ?? []) ||
+    a.workflowLabel !== b.workflowLabel
+  ) {
+    return false;
+  }
   if (!areAgentSlashCommandsEqual(a.slashCommands, b.slashCommands)) return false;
   // Compared so a status persisted before `supportsOneShot` existed (flag
   // absent) is treated as different from a freshly-detected one (flag set) and
@@ -367,18 +373,17 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
     }),
     {
       name: "poracode-agent-statuses-v1",
-      version: 66,
-      // hasCompletedDiscovery is additive: old readers ignore it. Keep v66
+      version: 67,
+      // hasCompletedDiscovery is additive: old readers ignore it. Keep v67
       // inventories valid; infer the flag from older snapshots before clearing
       // outdated capabilities, independently of supervisor STATUS_CACHE_VERSION.
       // Discovery interaction flags are excluded by partialize and do not
       // change the persisted format.
-      // v63-v66 mirror host generations v67-v70. Reuse their unchanged rows
+      // v63-v67 mirror host generations v67-v71. Reuse their unchanged rows
       // through the host codec; only affected providers need new observations.
-      // Keep v66: current snapshots and persisted fields remain valid.
       migrate: (persisted, version) => {
         const prev = (persisted ?? {}) as Partial<AgentStatusesStore>;
-        const hostVersions: Record<number, number> = { 63: 67, 64: 68, 65: 69, 66: 70 };
+        const hostVersions: Record<number, number> = { 63: 67, 64: 68, 65: 69, 66: 70, 67: 71 };
         const cached = decodeAgentStatusCache({
           version: hostVersions[version] ?? 1,
           windows: prev.agentStatuses ?? [],

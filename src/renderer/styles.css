@@ -5004,6 +5004,8 @@ button.poracode-thread-mention-chip:active {
 
 .poracode-slash-chip[data-skill-name],
 .poracode-slash-chip[data-mcp-name],
+.poracode-slash-chip[data-slash-command="goal"],
+.poracode-slash-chip:has(> .poracode-slash-chip__slash > .lucide-target),
 .poracode-thread-mention-chip {
   gap: 0.25em;
 }

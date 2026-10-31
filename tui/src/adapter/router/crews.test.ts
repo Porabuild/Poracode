@@ -63,7 +63,7 @@ test("the same crew pick keeps the session's edited crew and lead", () => {
   ).toEqual({ binding: edited, lead });
 });
 
-test("a new crew needs a lead-capable model and adds a Builder on another provider", () => {
+test("a new crew needs a lead-capable model and adds a Sidekick on a cheaper model", () => {
   expect(
     resolveCrewPick({
       pickedModel: NEW_CREW_MODEL_ID,
@@ -87,7 +87,9 @@ test("a new crew needs a lead-capable model and adds a Builder on another provid
     lead: { agentKind: "claude", model: "opus" },
     binding: {
       policy: "crew-only",
-      roles: [{ id: "builder", label: "Builder", selection: { agentKind: "codex", model: "gpt" } }],
+      roles: [
+        { id: "sidekick", label: "Sidekick", selection: { agentKind: "codex", model: "gpt" } },
+      ],
     },
   });
 });
@@ -126,12 +128,16 @@ test("new-crew keeps a session crew that has a crewId", () => {
   ).toEqual({ binding: sessionCrew, lead });
 });
 
-test("the default helper prefers another provider than the lead", () => {
-  expect(defaultHelperSelection(helperChoices, "claude")).toEqual({
-    agentKind: "codex",
-    model: "gpt",
-  });
-  expect(defaultHelperSelection([choice("claude", "opus")], "claude")).toEqual({
+test("the default helper is the cheapest model, avoiding the lead's own when possible", () => {
+  const lead = { agentKind: "claude", model: "opus" };
+  expect(defaultHelperSelection(helperChoices, lead)).toEqual({ agentKind: "codex", model: "gpt" });
+  expect(
+    defaultHelperSelection(
+      [choice("claude", "opus"), choice("codex", "gpt-mini"), choice("claude", "haiku")],
+      lead,
+    ),
+  ).toEqual({ agentKind: "claude", model: "haiku" });
+  expect(defaultHelperSelection([choice("claude", "opus")], lead)).toEqual({
     agentKind: "claude",
     model: "opus",
   });

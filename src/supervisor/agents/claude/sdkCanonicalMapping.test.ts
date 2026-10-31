@@ -4344,6 +4344,51 @@ describe("sdkCanonicalMapping — requests", () => {
     });
   });
 
+  it.each([
+    ["/proj/notes", "/proj", "notes/", "/proj/notes"],
+    ["/proj", "/proj", "./", "/proj"],
+    ["/proj/..cache", "/proj", "..cache/", "/proj/..cache"],
+    ["/proj2/notes", "/proj", "/proj2/notes", undefined],
+    ["/Users/me/other/deep/cache", "/proj", "/Users/me/other/deep/cache", undefined],
+    ["/tmp", undefined, "/tmp", undefined],
+    ["C:\\proj\\src", "C:\\proj", "src\\", "C:\\proj\\src"],
+    ["D:\\proj\\src", "C:\\proj", "D:\\proj\\src", undefined],
+  ])("labels directory %s relative to cwd %s as %s", (directory, cwd, label, description) => {
+    for (const type of ["addDirectories", "removeDirectories"] as const) {
+      const event = mapClaudePermissionRequest({
+        threadId: "thread-1",
+        requestId: "perm-dirs",
+        toolName: "Bash",
+        toolInput: { command: "ls" },
+        suggestions: [{ type, directories: [directory], destination: "session" }],
+        ...(cwd ? { cwd } : {}),
+      });
+      if (event.type !== "request.opened") throw new Error("Missing approval");
+      expect(event.payload.options?.[1]).toEqual({
+        optionId: "accept-suggestion-0",
+        label: `${type === "addDirectories" ? "Allow" : "Block"} directories ${label}`,
+        ...(description ? { description } : {}),
+      });
+    }
+  });
+
+  it("keeps every directory inspectable when the label lists only three", () => {
+    const event = mapClaudePermissionRequest({
+      threadId: "thread-1",
+      requestId: "perm-dirs",
+      toolName: "Bash",
+      toolInput: { command: "ls" },
+      suggestions: [
+        { type: "addDirectories", directories: ["/a", "/b", "/c", "/d"], destination: "session" },
+      ],
+    });
+    if (event.type !== "request.opened") throw new Error("Missing approval");
+    expect(event.payload.options?.[1]).toMatchObject({
+      label: "Allow directories /a, /b, /c (+1 more)",
+      description: "/a\n/b\n/c\n/d",
+    });
+  });
+
   it("offers only one-time approval when the SDK provides no persistent permission update", () => {
     const event = mapClaudePermissionRequest({
       threadId: "thread-1",

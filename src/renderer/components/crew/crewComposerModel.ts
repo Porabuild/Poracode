@@ -15,7 +15,7 @@ import type { ProviderModelMenuProvider } from "@/renderer/components/common/Pro
 import type { ComposerControl } from "@/renderer/components/thread/ThreadComposer";
 import { formatEffortLabel } from "@/renderer/components/common/effortLabel";
 import type { CrewHelperOptions } from "./crewHelperOptions";
-import type { CrewRoleTemplate } from "./crewRoleTemplates";
+import { crewRoleFromTemplate, type CrewRoleTemplate } from "./crewRoleTemplates";
 
 export interface CrewRosterModel {
   binding: ThreadCrewBinding;
@@ -124,24 +124,23 @@ export function isCrewEdited(
   return binding.roles.some((role) => isRoleEdited(role, savedCrew));
 }
 
+/** A "New crew": one helper in the given role. */
 export function newCrewBinding(
   helperSelection: CrewMemberSelection,
-  builder: Pick<CrewRoleTemplate, "label" | "brief">,
+  role: Pick<CrewRoleTemplate, "id" | "label" | "brief" | "noEdits">,
 ): ThreadCrewBinding {
   return {
     version: CREW_BINDING_VERSION,
     policy: "crew-only",
-    roles: [
-      {
-        id: "builder",
-        label: builder.label,
-        ...(builder.brief ? { brief: builder.brief } : {}),
-        selection: { ...helperSelection },
-      },
-    ],
+    roles: [crewRoleFromTemplate(role, helperSelection)],
   };
 }
 
+/**
+ * Adds the first ready role the crew lacks, or a numbered Helper once none is
+ * left. Implementing templates (builder tone) share one slot: a crew that
+ * already has one is offered review and search roles instead of another.
+ */
 export function addRole(
   binding: ThreadCrewBinding,
   templates: readonly CrewRoleTemplate[],
@@ -150,8 +149,12 @@ export function addRole(
   if (binding.roles.length >= MAX_CREW_ROLES) return { binding };
   const ids = new Set(binding.roles.map((role) => role.id));
   const labels = new Set(binding.roles.map((role) => role.label.trim().toLowerCase()));
+  const hasImplementer = templates.some(
+    (candidate) => candidate.tone === "builder" && ids.has(candidate.id),
+  );
   const template = templates
     .filter((candidate) => candidate.id !== "helper")
+    .filter((candidate) => !(hasImplementer && candidate.tone === "builder"))
     .find(
       (candidate) => !ids.has(candidate.id) && !labels.has(candidate.label.trim().toLowerCase()),
     );
@@ -176,19 +179,7 @@ export function addRole(
     };
   }
   return {
-    binding: {
-      ...binding,
-      roles: [
-        ...binding.roles,
-        {
-          id: role.id,
-          label: role.label,
-          ...(role.brief ? { brief: role.brief } : {}),
-          ...(role.noEdits ? { noEdits: true as const } : {}),
-          selection: { ...defaultHelper },
-        },
-      ],
-    },
+    binding: { ...binding, roles: [...binding.roles, crewRoleFromTemplate(role, defaultHelper)] },
     roleId: role.id,
   };
 }

@@ -1,3 +1,4 @@
+import { EventEmitter } from "node:events";
 import { describe, expect, it, vi } from "vitest";
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -16,7 +17,7 @@ import {
   dbSelectPurgeCandidateThreadIds,
   dbUpsertThread,
 } from "@/host/db";
-import { SupervisorUnavailableError } from "@/host/supervisor/SupervisorClient";
+import { SupervisorClient, SupervisorUnavailableError } from "@/host/supervisor/SupervisorClient";
 import {
   agentStatusesResponseSchema,
   type PrWatch,
@@ -35,6 +36,19 @@ const mocks = vi.hoisted(() => ({
   liveThreadIds: [] as string[],
   retireWatchThread: null as ((watch: PrWatch, threadId: string) => Promise<boolean>) | null,
 }));
+
+// Real SupervisorClient restarts run against fake children (see the project
+// watch re-apply tests); nothing else in this file forks.
+const forkMock = vi.hoisted(() => vi.fn<(...args: unknown[]) => unknown>());
+vi.mock("node:child_process", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("node:child_process")>()),
+  fork: forkMock,
+}));
+vi.mock("node:os", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("node:os")>()),
+  setPriority: vi.fn<(pid: number, priority: number) => void>(),
+}));
+vi.mock("@/shared/processTree", () => ({ terminateChildProcessTree: vi.fn<() => void>() }));
 
 vi.mock("@/host/db", () => ({
   dbAdmitScheduleExecution: vi.fn<(task: ScheduledTask) => void>(),
@@ -101,7 +115,9 @@ vi.mock("@/host/app-controls", () => ({
   createAppControlsSupervisorCaller: (call: unknown) => call,
 }));
 
-vi.mock("@/host/gitState", () => ({
+vi.mock("@/host/gitState", async (importOriginal) => ({
+  // The real lease registry, so its supervisor wiring is asserted end to end.
+  ProjectWatchLeases: (await importOriginal<typeof import("@/host/gitState")>()).ProjectWatchLeases,
   createGitStateExecutor: () => ({}),
   GitStateService: class {
     start = () => {};
@@ -815,5 +831,170 @@ describe("BackendDurableServices attachment reclamation", () => {
     } finally {
       await durable.dispose();
     }
+  });
+});
+
+describe("BackendDurableServices project watch leases", () => {
+  const root = {
+    projectId: "fixture-home",
+    projectLocation: { kind: "posix", path: "/synthetic" },
+  };
+  const noStart = { startIfNeeded: false };
+  type WatchCall = (name: string, payload: unknown, options?: unknown) => Promise<null>;
+  const supervisorWith = (call: WatchCall) =>
+    ({ call }) as unknown as BackendDurableServicesOptions["supervisor"];
+  const nextImmediate = () => new Promise<void>((resolve) => setImmediate(resolve));
+
+  it("restores leases on the next supervisor start without a lease change or forced start", async () => {
+    const call = vi.fn<WatchCall>(async () => null);
+    const durable = createDurable({ supervisor: supervisorWith(call) });
+    try {
+      await durable.projectWatchLeases.watchProject("managed-renderer", "fixture-home");
+      await durable.projectWatchLeases.setWorktrees("managed-renderer", "fixture-home", ["/wt"]);
+      call.mockClear();
+
+      durable.handleSupervisorReset();
+      durable.handleSupervisorStarted();
+      // Deferred past the launch, so an explicit restart's transition settles first.
+      expect(call).not.toHaveBeenCalled();
+      await vi.waitFor(() => expect(call).toHaveBeenCalledTimes(2));
+
+      expect(call.mock.calls).toEqual([
+        ["gitWatchProject", root, noStart],
+        ["gitWatchWorktrees", { projectId: "fixture-home", worktreePaths: ["/wt"] }, noStart],
+      ]);
+    } finally {
+      await durable.dispose();
+    }
+  });
+
+  it("reports a failed re-apply through reportError", async () => {
+    const unavailable = new SupervisorUnavailableError();
+    const reportError = vi.fn<(error: unknown) => void>();
+    const call = vi.fn<WatchCall>(async (_name, _payload, options) => {
+      if (options) throw unavailable;
+      return null;
+    });
+    const durable = createDurable({ supervisor: supervisorWith(call), reportError });
+    try {
+      await durable.projectWatchLeases.watchProject("managed-renderer", "fixture-home");
+      durable.handleSupervisorReset();
+      durable.handleSupervisorStarted();
+
+      await vi.waitFor(() => expect(reportError).toHaveBeenCalledExactlyOnceWith(unavailable));
+    } finally {
+      await durable.dispose();
+    }
+  });
+
+  it("never re-applies once disposal has begun", async () => {
+    const call = vi.fn<WatchCall>(async () => null);
+    const durable = createDurable({ supervisor: supervisorWith(call) });
+    await durable.projectWatchLeases.watchProject("managed-renderer", "fixture-home");
+    call.mockClear();
+    durable.handleSupervisorReset();
+    durable.handleSupervisorStarted();
+
+    const disposing = durable.dispose();
+    durable.handleSupervisorStarted();
+    await disposing;
+    await nextImmediate();
+    await durable.projectWatchLeases.unwatchProject("managed-renderer", "fixture-home");
+
+    expect(call).not.toHaveBeenCalled();
+  });
+});
+
+describe("BackendDurableServices project watch re-apply on real supervisor restarts", () => {
+  type Sent = { readonly child: number; readonly type: string; readonly payload: unknown };
+
+  function forkFakeChildren(sent: Sent[]) {
+    const children: Array<EventEmitter & { connected: boolean }> = [];
+    forkMock.mockReset();
+    forkMock.mockImplementation(() => {
+      const index = children.length;
+      const child = Object.assign(new EventEmitter(), {
+        connected: true,
+        stdout: null,
+        stderr: null,
+        kill: vi.fn<() => boolean>(() => true),
+        send: vi.fn<(message: unknown, callback?: (error?: Error | null) => void) => boolean>(
+          (message, callback) => {
+            callback?.();
+            const request = message as { id?: string; type?: string; payload?: unknown };
+            if (request.id && request.type) {
+              sent.push({ child: index, type: request.type, payload: request.payload });
+              queueMicrotask(() =>
+                child.emit("message", { replyTo: request.id, ok: true, data: null }),
+              );
+            }
+            return true;
+          },
+        ),
+      });
+      children.push(child);
+      return child;
+    });
+    return children;
+  }
+
+  it("restores root then union on each replacement child, never forking ahead of the backoff", async () => {
+    const sent: Sent[] = [];
+    const children = forkFakeChildren(sent);
+    let durable: BackendDurableServices | undefined;
+    const client = new SupervisorClient({
+      appVersion: "test",
+      isDev: true,
+      supervisorPath: "/fake/supervisor.cjs",
+      wslHelpersDir: "/fake/wsl",
+      secretStorageKey: "key",
+      baseDir: "/base",
+      onEvent: () => {},
+      onReset: () => durable?.handleSupervisorReset(),
+      onStarted: () => durable?.handleSupervisorStarted(),
+    });
+    durable = createDurable({ supervisor: client });
+    const restored = (child: number) => [
+      {
+        child,
+        type: "gitWatchProject",
+        payload: {
+          projectId: "fixture-home",
+          projectLocation: { kind: "posix", path: "/synthetic" },
+        },
+      },
+      {
+        child,
+        type: "gitWatchWorktrees",
+        payload: { projectId: "fixture-home", worktreePaths: ["/wt"] },
+      },
+    ];
+    try {
+      await durable.projectWatchLeases.watchProject("managed-renderer", "fixture-home");
+      await durable.projectWatchLeases.setWorktrees("managed-renderer", "fixture-home", ["/wt"]);
+      expect(forkMock).toHaveBeenCalledTimes(1);
+      sent.length = 0;
+
+      // An explicit restart: onStarted fires while the transition is settling.
+      const restarting = client.restart();
+      children[0]!.emit("close", 0);
+      await restarting;
+      await vi.waitFor(() => expect(sent).toEqual(restored(1)));
+
+      // A crash: the client's own 1s backoff decides the respawn, not the re-apply.
+      sent.length = 0;
+      children[1]!.connected = false;
+      children[1]!.emit("close", 1);
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      expect(forkMock).toHaveBeenCalledTimes(2);
+      await vi.waitFor(() => expect(forkMock).toHaveBeenCalledTimes(3), { timeout: 3_000 });
+      await vi.waitFor(() => expect(sent).toEqual(restored(2)));
+    } finally {
+      await durable.dispose();
+      const disposing = client.dispose();
+      children.at(-1)!.emit("close", 0);
+      await disposing;
+    }
+    expect(forkMock).toHaveBeenCalledTimes(3);
   });
 });
