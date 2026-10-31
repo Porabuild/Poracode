@@ -206,6 +206,78 @@ describe("eventSocketResync connection-key scope (C1 F1)", () => {
   });
 });
 
+describe("eventSocketResync with a streaming thread", () => {
+  it("keeps the connection when a working thread's live tail is newer than the snapshot", async () => {
+    // The host's snapshot is debounced, so a streaming thread's live items run
+    // past it and the installer declines it. Treating that as a failed
+    // recovery force-reconnected about once a second while the thread worked.
+    const viewId = remoteThreadId(ENV_KEY, "thread-1");
+    setRemoteServerThreadItemInterests(ENV_KEY, ["thread-1"], true);
+    useAppStore.setState({
+      threads: [
+        {
+          ...remoteThread,
+          id: viewId,
+          remoteServerId: ENV_KEY,
+          remoteId: "thread-1",
+          status: "working",
+        },
+      ],
+      runtimeItemIdsByThread: { [viewId]: ["live-1", "live-2"] },
+      runtimeItemsByIdByThread: {
+        [viewId]: {
+          "live-1": {
+            id: "live-1",
+            type: "user_message",
+            state: "completed",
+            payload: {},
+            streams: {},
+            observedLive: true,
+          },
+          "live-2": {
+            id: "live-2",
+            type: "assistant_message",
+            state: "updated",
+            payload: {},
+            streams: { assistant_text: "working on it" },
+            observedLive: true,
+          },
+        },
+      },
+    } as never);
+    const { ctx, threadHistory, forceReconnect, setRemoteServerFailure } = harness();
+    threadHistory.mockImplementation(
+      async (threadId: string) =>
+        ({
+          snapshotSeq: 4,
+          thread: { ...remoteThread, id: threadId, status: "working" },
+          // The host's debounced snapshot has only the first item so far.
+          runtimeItems: [
+            { id: "live-1", type: "user_message", state: "completed", payload: {}, streams: {} },
+          ],
+          completedTurns: [],
+          contextUsage: null,
+          updatedAt: "now",
+        }) as unknown as Awaited<ReturnType<RemoteDesktopClient["threadHistory"]>>,
+    );
+
+    try {
+      await expect(recoverInterestedThreads(ctx)).resolves.toBe(true);
+
+      expect(forceReconnect).not.toHaveBeenCalled();
+      expect(setRemoteServerFailure).not.toHaveBeenCalled();
+      // The live tail is kept, not replaced by the older snapshot.
+      expect(useAppStore.getState().runtimeItemIdsByThread[viewId]).toEqual(["live-1", "live-2"]);
+    } finally {
+      useAppStore.setState({
+        threads: [],
+        runtimeItemIdsByThread: {},
+        runtimeItemsByIdByThread: {},
+      } as never);
+    }
+  });
+});
+
 describe("eventSocketResync clears remote history load failures", () => {
   const viewId = remoteThreadId(ENV_KEY, "thread-1");
 

@@ -297,6 +297,27 @@ describe("SidebarFlatThreadList", () => {
     expect(screen.queryByText(/thread:r1/)).not.toBeInTheDocument();
   });
 
+  it("keeps a reconnecting machine's threads listed but not as new-thread targets", () => {
+    // Every brief event-socket reconnect passes through "connecting"; hiding
+    // the host's rows there blanked its whole list on each reconnect.
+    useRemoteServersStore.setState({
+      runtime: { "desktop-1": { status: "connecting", projects: [], threads: [] } },
+    } as never);
+    useAppStore.setState({
+      projects: [homeProject, unreachableRemoteProject],
+      threads: [
+        makeThread("h1", HOME_PROJECT_ID, "2026-08-02T10:00:00.000Z"),
+        makeThread("r1", "remote-1", "2026-08-03T10:00:00.000Z"),
+      ],
+    });
+
+    render(<SidebarFlatThreadList sortMode="updated" />);
+
+    expect(screen.getByText(/thread:r1/)).toBeInTheDocument();
+    expect(screen.queryByText("new-thread:remote-1")).not.toBeInTheDocument();
+    expect(screen.getByText(`new-thread:${HOME_PROJECT_ID}`)).toBeInTheDocument();
+  });
+
   it("keeps cached threads from unavailable machines in the compact all-machine list", () => {
     layoutMock.compact = true;
     useRemoteServersStore.setState({

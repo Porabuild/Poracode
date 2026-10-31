@@ -806,6 +806,42 @@ describe("RemoteAccessServer", () => {
     }
   });
 
+  it("holds its loopback port so a second local host cannot take its loopback traffic", async () => {
+    const listenOn = (port: number) =>
+      new Promise<ReturnType<typeof createNetServer>>((resolve, reject) => {
+        const probe = createNetServer();
+        probe.once("error", reject);
+        probe.listen(port, "127.0.0.1", () => resolve(probe));
+      });
+    const server = createTestServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "loopback-guard-test", label: "Loopback guard test" },
+      host: "0.0.0.0",
+      plaintextLanAcknowledged: true,
+      port: 0,
+      truncateThreadRuntime: () => {},
+      callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
+    });
+    servers.push(server);
+    const info = await server.start();
+    const port = Number(new URL(info.loopbackHttpBaseUrl!).port);
+
+    // A later loopback-only host on the same port is refused instead of
+    // silently receiving this server's own renderer connections.
+    await expect(listenOn(port)).rejects.toMatchObject({ code: "EADDRINUSE" });
+    // Loopback requests still reach this server.
+    const refused = await fetch(`${info.loopbackHttpBaseUrl}/api/snapshot`, {
+      headers: { authorization: "Bearer lc_access_unknown" },
+    });
+    expect(refused.status).toBe(401);
+    expect(await refused.json()).toMatchObject({ error: { code: "invalid_access_token" } });
+
+    // Disposal releases the reservation along with the listener.
+    await server.dispose();
+    const reused = await listenOn(port);
+    await new Promise<void>((resolve) => reused.close(() => resolve()));
+  });
+
   it("reports a device connected until its final socket closes and retains its last connection time", async () => {
     const onPairingChanged = vi.fn<() => void>();
     const server = createTestServer({

@@ -16,7 +16,9 @@ import {
   compactRuntimeItemsForHydration,
   evictOversizedInactiveThreadRuntimeItems,
   hasHydratedThreadRuntimeItems,
+  hasPendingThreadRuntimeHydration,
   hydrateThreadRuntimeItems,
+  invalidateThreadRuntimeHydration,
   loadOlderThreadRuntimeItems,
   releaseThreadRuntimeItems,
   rehydrateThreadRuntimeItemsAfterReset,
@@ -287,6 +289,86 @@ describe("paged runtime hydration", () => {
     bridge.dbGetThreadRuntimeItemsPage.mockRejectedValueOnce(new Error("db gone"));
     await hydrateThreadRuntimeItems("status-thread-2");
     expect(useAppStore.getState().runtimeHydrationStatus["status-thread-2"]).toBe("failed");
+  });
+
+  describe("a remote thread its host has not created yet", () => {
+    const threadNotFound = () =>
+      new RemoteClientError("Thread not found.", 404, "thread_not_found");
+
+    function seedRemoteThread(threadId: string, status: Thread["status"]): void {
+      useAppStore.setState((state) => ({
+        ...state,
+        threads: [
+          ...state.threads,
+          { id: threadId, remoteServerId: "d1", remoteId: threadId, status } as Thread,
+        ],
+      }));
+    }
+
+    function refuseEveryReadAsNotFound(): void {
+      bridge.dbGetThreadRuntimeItemsPage.mockRejectedValueOnce(threadNotFound());
+      bridge.dbGetThreadCompletedTurns.mockRejectedValueOnce(threadNotFound());
+      bridge.dbGetThreadContextUsage.mockRejectedValueOnce(threadNotFound());
+      bridge.dbGetLatestThreadGoalItem.mockRejectedValueOnce(threadNotFound());
+    }
+
+    afterEach(() => {
+      useAppStore.setState((state) => ({
+        ...state,
+        threads: state.threads.filter((thread) => !thread.id.startsWith("launch-")),
+        provisioningWorktreeThreadIds: {},
+      }));
+    });
+
+    it("shows no load failure while the thread is still launching, then reads it once created", async () => {
+      seedRemoteThread("launch-new", "launching");
+      refuseEveryReadAsNotFound();
+
+      await hydrateThreadRuntimeItems("launch-new");
+
+      expect(useAppStore.getState().runtimeHydrationStatus["launch-new"]).toBeUndefined();
+      // Nothing was loaded, so a later open still reads the real history.
+      expect(hasHydratedThreadRuntimeItems("launch-new")).toBe(false);
+
+      bridge.dbGetThreadRuntimeItemsPage.mockResolvedValueOnce({
+        items: [makeItem({ id: "reply", type: "assistant_message" })],
+        nextCursor: null,
+      });
+      await hydrateThreadRuntimeItems("launch-new");
+      expect(hasHydratedThreadRuntimeItems("launch-new")).toBe(true);
+      expect(useAppStore.getState().runtimeItemIdsByThread["launch-new"]).toEqual(["reply"]);
+    });
+
+    it("treats a worktree still provisioning the same way", async () => {
+      seedRemoteThread("launch-provisioning", "idle");
+      useAppStore.setState({ provisioningWorktreeThreadIds: { "launch-provisioning": true } });
+      refuseEveryReadAsNotFound();
+
+      await hydrateThreadRuntimeItems("launch-provisioning");
+
+      expect(useAppStore.getState().runtimeHydrationStatus["launch-provisioning"]).toBeUndefined();
+    });
+
+    it("still reports thread_not_found once the thread is no longer launching", async () => {
+      seedRemoteThread("launch-gone", "working");
+      refuseEveryReadAsNotFound();
+
+      await hydrateThreadRuntimeItems("launch-gone");
+
+      expect(useAppStore.getState().runtimeHydrationStatus["launch-gone"]).toBe("failed");
+    });
+
+    it("still reports any other refusal while launching", async () => {
+      seedRemoteThread("launch-broken", "launching");
+      bridge.dbGetThreadRuntimeItemsPage.mockRejectedValueOnce(threadNotFound());
+      bridge.dbGetThreadCompletedTurns.mockRejectedValueOnce(
+        new RemoteClientError("Host error.", 500, "internal_error"),
+      );
+
+      await hydrateThreadRuntimeItems("launch-broken");
+
+      expect(useAppStore.getState().runtimeHydrationStatus["launch-broken"]).toBe("failed");
+    });
   });
 
   it("keeps the remote snapshot cursor through ChatPane hydration", async () => {
@@ -763,6 +845,29 @@ describe("paged runtime hydration", () => {
       limit: 500,
       targetTimelineEntryCount: 40,
     });
+  });
+
+  it("leaves a superseded read's pending status to whoever superseded it", async () => {
+    const threadId = "superseded-open-thread";
+    let resolvePage: (page: { items: RuntimeChatItem[]; nextCursor: number | null }) => void = () =>
+      undefined;
+    bridge.dbGetThreadRuntimeItemsPage.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolvePage = resolve;
+      }),
+    );
+
+    const pane = hydrateThreadRuntimeItems(threadId);
+    expect(hasPendingThreadRuntimeHydration(threadId)).toBe(true);
+
+    // A remote open resets the projection while its own read is in flight:
+    // the loader must stay up (no blank pane), and no live read owns it now.
+    invalidateThreadRuntimeHydration(threadId);
+    expect(hasPendingThreadRuntimeHydration(threadId)).toBe(false);
+    resolvePage({ items: [], nextCursor: null });
+    await pane;
+
+    expect(useAppStore.getState().runtimeHydrationStatus[threadId]).toBe("pending");
   });
 
   it("invalidates the non-item older-history continuation when a transcript is evicted", async () => {

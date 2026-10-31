@@ -39,9 +39,15 @@ import {
   remoteAccessAdvertisedHost,
   remoteAccessHost,
   remoteAccessPairingAppUrl,
+  remoteAccessPort,
   remoteForwardBaseUrl,
   resolveRemoteAccessPort,
 } from "@/host/remote/config";
+import {
+  listeningPortOf,
+  preferredRemoteAccessPort,
+  rememberRemoteAccessPort,
+} from "@/host/remote/remoteAccessPortMemory";
 import {
   createMdnsAdvertiser,
   shouldAdvertiseMdns,
@@ -93,11 +99,17 @@ export async function composeHeadlessRemoteHost(
   const isDev = options.isDev ?? false;
   const localOnly = options.localAdministrationOnly === true;
   const host = localOnly ? "127.0.0.1" : (options.host ?? remoteAccessHost());
+  const explicitPort = options.port ?? remoteAccessPort();
+  // Paired clients store the full endpoint, so an automatically chosen port
+  // returns to the previous one across restarts.
+  const remembersPort = !localOnly && explicitPort === undefined;
   const port = localOnly
     ? 0
     : await resolveRemoteAccessPort({
         host,
-        ...(options.port !== undefined ? { port: options.port } : {}),
+        ...(explicitPort !== undefined
+          ? { port: explicitPort }
+          : { preferredPort: preferredRemoteAccessPort(runtime.paths.baseDir, host) }),
       });
   const paths = runtime.paths;
   options.signal?.throwIfAborted();
@@ -798,6 +810,8 @@ export async function composeHeadlessRemoteHost(
       }
       const info = await server.start();
       assertRunning();
+      const listeningPort = remembersPort ? listeningPortOf(info.localHttpBaseUrl) : null;
+      if (listeningPort !== null) rememberRemoteAccessPort(paths.baseDir, host, listeningPort);
       maybeAdvertiseMdns(info);
       if (!holdAdmission) await control?.start();
       assertRunning();
