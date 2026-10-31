@@ -3,6 +3,7 @@ import type { Thread } from "@/shared/contracts";
 import { RemoteClientError, type RemoteDesktopClient } from "@/shared/remote/client";
 import type { RemoteClientFactory, RemoteServersState } from "./types";
 import {
+  CLIENT_ENGINE_LANE_MAX_PENDING,
   CLIENT_ENGINE_PROTOCOL_VERSION,
   type ClientEngineRequest,
   type ClientEngineResponse,
@@ -804,6 +805,40 @@ describe("remote event socket session (V5 2.1)", () => {
     expect(remoteServerSnapshotSeq(DESKTOP_ID)).toBe(2);
   });
 
+  it("keeps the socket and applies in order when a UI-thread stall delays the decode replies", async () => {
+    // A stalled main thread still receives every frame; ~3 s of a 60 frames/s
+    // stream is admitted before the first worker reply is handled. That must
+    // not be reported as frame loss (a reconnect replays into the next stall).
+    const { deps } = makeHarness();
+    const engine = getRemoteSocketEngine();
+    expect(engine.isWorkerActive()).toBe(true);
+    const worker = FakeEngineWorker.instances[0]!;
+    worker.autoRespond = false;
+
+    await startRemoteServerEventStream(deps);
+    const socket = FakeSocket.instances[0]!;
+    const burst = 180;
+    // One synchronous burst, as a stalled UI thread receives it.
+    for (let seq = 1; seq <= burst; seq += 1) {
+      socket.deliver(runtimeEventFrame(seq));
+    }
+    await flushAsync(0);
+    expect(socket.closed).toBe(false);
+    expect(remoteState.dispatchRemoteSupervisorEvent).not.toHaveBeenCalled();
+
+    respondToDecodeRequests(worker);
+    await flushAsync();
+    expect(socket.closed).toBe(false);
+    expect(remoteState.dispatchRemoteSupervisorEvent).toHaveBeenCalledTimes(burst);
+    expect(
+      remoteState.dispatchRemoteSupervisorEvent.mock.calls.map((call) => {
+        const forward = call[0] as { batches: { events: { seq: number }[] }[] };
+        return forward.batches[0]!.events[0]!.seq;
+      }),
+    ).toEqual(Array.from({ length: burst }, (_, index) => index + 1));
+    expect(remoteServerSnapshotSeq(DESKTOP_ID)).toBe(burst);
+  });
+
   it("keeps host B online and ordered while host A floods its lane budget", async () => {
     const { deps } = makeHarness();
     const hostB = makeHarness("d2");
@@ -821,9 +856,11 @@ describe("remote event socket session (V5 2.1)", () => {
 
     await deliver(socketA, runtimeEventFrame(1));
     await deliver(socketB, runtimeEventFrame(1));
-    for (let seq = 2; seq <= 70; seq += 1) {
-      await deliver(socketA, runtimeEventFrame(seq));
+    // One synchronous burst, as a stalled UI thread receives it.
+    for (let seq = 2; seq <= CLIENT_ENGINE_LANE_MAX_PENDING + 6; seq += 1) {
+      socketA.deliver(runtimeEventFrame(seq));
     }
+    await flushAsync(0);
 
     // Host A exceeded its lane budget: only A's socket is torn down and
     // force-reconnected; B is untouched.
