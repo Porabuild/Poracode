@@ -16,6 +16,8 @@ on:
 
 permissions:
   contents: write
+  # Build jobs poll this run's artifacts for the TUI manifest (wait-for-run-artifact).
+  actions: read
 
 concurrency:
   group: release-nightly
@@ -82,7 +84,7 @@ jobs:
       ref: ${{ needs.prepare.outputs.source_ref }}
 
   build:
-    needs: [prepare, tui_binaries]
+    needs: prepare
     if: ${{ !inputs.dry_run && needs.prepare.outputs.skip != 'true' }}
     uses: ./.github/workflows/_build.yml
     with:
@@ -101,7 +103,7 @@ jobs:
 
   # ── Step 2b: Build and qualify the standalone server artifact ────
   server_artifact:
-    needs: [prepare, tui_binaries]
+    needs: prepare
     if: ${{ !inputs.dry_run && needs.prepare.outputs.skip != 'true' }}
     uses: ./.github/workflows/_server-artifact.yml
     with:
